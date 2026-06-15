@@ -21,6 +21,7 @@ defmodule Manavault.Catalog do
     |> order_by([card], asc: card.name)
     |> limit(^limit)
     |> Repo.all()
+    |> Repo.preload(printings: from(printing in Printing, order_by: [desc: printing.released_at]))
   end
 
   def get_printing_by_scryfall_id(scryfall_id) when is_binary(scryfall_id) do
@@ -36,6 +37,43 @@ defmodule Manavault.Catalog do
             printing.collector_number == ^collector_number,
         limit: 1
     )
+  end
+
+  def get_card_with_printings(oracle_id) when is_binary(oracle_id) do
+    case Repo.get(Card, oracle_id) do
+      nil ->
+        nil
+
+      card ->
+        Repo.preload(card,
+          printings: from(printing in Printing, order_by: [desc: printing.released_at])
+        )
+    end
+  end
+
+  def search_printings(filters, opts \\ []) when is_list(filters) do
+    limit = Keyword.get(opts, :limit, 50)
+    name = filters |> Keyword.get(:name, "") |> normalize_filter()
+    set_code = filters |> Keyword.get(:set_code, "") |> normalize_filter() |> String.downcase()
+    collector_number = filters |> Keyword.get(:collector_number, "") |> normalize_filter()
+
+    if name == "" and set_code == "" and collector_number == "" do
+      []
+    else
+      Printing
+      |> join(:inner, [printing], card in assoc(printing, :card))
+      |> maybe_filter_card_name(name)
+      |> maybe_filter_set_code(set_code)
+      |> maybe_filter_collector_number(collector_number)
+      |> preload([_printing, card], card: card)
+      |> order_by([printing, card],
+        asc: card.name,
+        asc: printing.set_code,
+        asc: printing.collector_number
+      )
+      |> limit(^limit)
+      |> Repo.all()
+    end
   end
 
   def latest_sync do
@@ -107,6 +145,28 @@ defmodule Manavault.Catalog do
 
       %{cards_count: length(rows), printings_count: length(printing_rows), bulk_uri: bulk_uri}
     end)
+  end
+
+  defp normalize_filter(value) when is_binary(value), do: String.trim(value)
+  defp normalize_filter(_value), do: ""
+
+  defp maybe_filter_card_name(query, ""), do: query
+
+  defp maybe_filter_card_name(query, name) do
+    pattern = "%#{String.downcase(name)}%"
+    where(query, [_printing, card], fragment("lower(?) LIKE ?", card.name, ^pattern))
+  end
+
+  defp maybe_filter_set_code(query, ""), do: query
+
+  defp maybe_filter_set_code(query, set_code) do
+    where(query, [printing, _card], printing.set_code == ^set_code)
+  end
+
+  defp maybe_filter_collector_number(query, ""), do: query
+
+  defp maybe_filter_collector_number(query, collector_number) do
+    where(query, [printing, _card], printing.collector_number == ^collector_number)
   end
 
   defp insert_in_batches(_schema, [], _opts), do: :ok

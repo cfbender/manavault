@@ -8,6 +8,7 @@ erl_crash.dump
 *.beam
 /config/*.secret.exs
 .elixir_ls/
+.hygge/
 
 # Local SQLite databases and runtime data
 *.db

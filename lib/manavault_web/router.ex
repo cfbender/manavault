@@ -18,6 +18,8 @@ defmodule ManavaultWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    live "/cards", CardSearchLive, :index
+    live "/cards/:id", CardShowLive, :show
   end
 
   scope "/", ManavaultWeb do

@@ -40,6 +40,14 @@ defmodule Manavault.CatalogTest do
     assert %Printing{scryfall_id: "scryfall-printing-1"} = Catalog.get_printing("LEA", "232")
     assert [%Card{oracle_id: "oracle-1"}] = Catalog.search_cards("lotus")
 
+    assert %Card{printings: [%Printing{scryfall_id: "scryfall-printing-1"}]} =
+             Catalog.get_card_with_printings("oracle-1")
+
+    assert [%Printing{scryfall_id: "scryfall-printing-1", card: %Card{name: "Black Lotus"}}] =
+             Catalog.search_printings(name: "lotus", set_code: "LEA", collector_number: "232")
+
+    assert [] = Catalog.search_printings(name: "", set_code: "", collector_number: "")
+
     assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@renamed_lotus])
 
     assert Repo.aggregate(Card, :count) == 1
