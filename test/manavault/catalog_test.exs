@@ -77,10 +77,10 @@ defmodule Manavault.CatalogTest do
 
     fetcher = fn ^metadata_url -> {:error, "network unavailable"} end
 
-    assert {:ok, %Sync{status: "failed", error: error}} =
+    assert {:error, %Sync{status: "failed", error: error}} =
              Catalog.sync_scryfall(fetcher: fetcher, bulk_url: metadata_url)
 
-    assert error =~ "network unavailable"
+    assert error == "network unavailable"
     assert Repo.aggregate(Card, :count) == 0
     assert Repo.aggregate(Printing, :count) == 0
   end

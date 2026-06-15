@@ -9,7 +9,7 @@ defmodule Manavault.Catalog do
   alias Manavault.Repo
 
   @bulk_metadata_url "https://api.scryfall.com/bulk-data/default-cards"
-  @bulk_type "default-cards"
+  @bulk_type "default_cards"
   @batch_size 500
 
   def search_cards(term, opts \\ []) when is_binary(term) do
@@ -69,8 +69,8 @@ defmodule Manavault.Catalog do
       })
       |> Repo.update()
     else
-      {:error, reason} -> fail_sync(sync, reason)
-      other -> fail_sync(sync, inspect(other))
+      {:error, reason} -> {:error, fail_sync!(sync, reason)}
+      other -> {:error, fail_sync!(sync, inspect(other))}
     end
   end
 
@@ -196,22 +196,26 @@ defmodule Manavault.Catalog do
   defp fetch_download_uri(_metadata),
     do: {:error, "Scryfall bulk metadata did not include download_uri"}
 
-  defp fail_sync(sync, reason) do
+  defp fail_sync!(sync, reason) do
     sync
     |> Sync.changeset(%{
       status: "failed",
       completed_at: utc_now(),
-      error: Exception.message(normalize_error(reason))
+      error: format_error(reason)
     })
-    |> Repo.update()
+    |> Repo.update!()
   end
 
-  defp normalize_error(%{__exception__: true} = exception), do: exception
-  defp normalize_error(reason), do: RuntimeError.exception(inspect(reason))
+  defp format_error(%{__exception__: true} = exception), do: Exception.message(exception)
+  defp format_error(reason) when is_binary(reason), do: reason
+  defp format_error(reason), do: inspect(reason)
 
   defp fetch_url(url) do
     case Req.get(url,
-           headers: [{"user-agent", "ManaVault/0.1 (+https://github.com/cfbender/manavault)"}]
+           headers: [
+             {"accept", "application/json"},
+             {"user-agent", "ManaVault/0.1 (+https://github.com/cfbender/manavault)"}
+           ]
          ) do
       {:ok, %{status: status, body: body}} when status in 200..299 -> {:ok, normalize_body(body)}
       {:ok, %{status: status}} -> {:error, "Scryfall request failed with HTTP #{status}"}

@@ -14,10 +14,13 @@ defmodule Mix.Tasks.Manavault.Scryfall.Sync do
     Mix.Task.run("app.start")
 
     case Manavault.Catalog.sync_scryfall() do
-      {:ok, sync} ->
+      {:ok, %{status: "succeeded"} = sync} ->
         Mix.shell().info(
           "Scryfall sync succeeded: #{sync.cards_count} cards, #{sync.printings_count} printings"
         )
+
+      {:error, %{status: "failed", error: error}} ->
+        Mix.raise("Scryfall sync failed: #{error}")
 
       {:error, changeset} ->
         Mix.raise("Scryfall sync failed to record status: #{inspect(changeset.errors)}")
