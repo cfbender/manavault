@@ -8,3 +8,12 @@ erl_crash.dump
 *.beam
 /config/*.secret.exs
 .elixir_ls/
+
+# Local SQLite databases and runtime data
+*.db
+*.db-*
+/data/
+
+# Generated static assets
+/priv/static/assets/
+/priv/static/cache_manifest.json
