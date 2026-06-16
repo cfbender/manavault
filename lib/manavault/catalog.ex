@@ -5,7 +5,17 @@ defmodule Manavault.Catalog do
 
   import Ecto.Query
 
-  alias Manavault.Catalog.{Card, CollectionItem, Location, Printing, Sync}
+  alias Manavault.Catalog.{
+    Card,
+    CollectionItem,
+    Location,
+    Printing,
+    ScanCandidate,
+    ScanItem,
+    ScanSession,
+    Sync
+  }
+
   alias Manavault.Repo
 
   @bulk_metadata_url "https://api.scryfall.com/bulk-data/default-cards"
@@ -189,6 +199,13 @@ defmodule Manavault.Catalog do
     |> Repo.preload(collection_items: [])
   end
 
+  def list_location_options do
+    Location
+    |> order_by(asc: :name)
+    |> select([location], %{id: location.id, name: location.name})
+    |> Repo.all()
+  end
+
   def get_location!(id) do
     Location |> Repo.get!(id)
   end
@@ -256,6 +273,83 @@ defmodule Manavault.Catalog do
     |> Map.new(fn {key, value} -> {to_string(key), value} end)
     |> Map.put("scryfall_id", scryfall_id)
     |> create_collection_item()
+  end
+
+  # ── Scan sessions ─────────────────────────────────────────────────
+
+  def list_scan_sessions do
+    ScanSession
+    |> order_by([session], desc: session.inserted_at, desc: session.id)
+    |> Repo.all()
+    |> Repo.preload(:default_location)
+  end
+
+  def get_scan_session!(id) do
+    ScanSession
+    |> Repo.get!(id)
+    |> Repo.preload(scan_session_preloads())
+  end
+
+  def change_scan_session(scan_session, attrs \\ %{}) do
+    ScanSession.changeset(scan_session, attrs)
+  end
+
+  def create_scan_session(attrs) when is_map(attrs) do
+    %ScanSession{}
+    |> ScanSession.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def create_scan_item(%ScanSession{} = scan_session, attrs \\ %{}) when is_map(attrs) do
+    attrs =
+      attrs
+      |> Map.new(fn {key, value} -> {to_string(key), value} end)
+      |> Map.put_new("scan_session_id", scan_session.id)
+      |> Map.put_new("condition", scan_session.default_condition)
+      |> Map.put_new("language", scan_session.default_language)
+      |> Map.put_new("finish", scan_session.default_finish)
+      |> Map.put_new("location_id", scan_session.default_location_id)
+
+    %ScanItem{}
+    |> ScanItem.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def create_scan_candidate(%ScanItem{} = scan_item, attrs) when is_map(attrs) do
+    attrs =
+      attrs
+      |> Map.new(fn {key, value} -> {to_string(key), value} end)
+      |> Map.put_new("scan_item_id", scan_item.id)
+
+    %ScanCandidate{}
+    |> ScanCandidate.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def scan_session_items_by_review_state(%ScanSession{} = scan_session) do
+    items = scan_session.scan_items || []
+
+    %{
+      pending: Enum.filter(items, &(&1.status in ["pending", "processing", "recognized"])),
+      reviewed: Enum.filter(items, &(&1.status in ["needs_review", "rejected", "failed"])),
+      accepted: Enum.filter(items, &(&1.status == "accepted"))
+    }
+  end
+
+  defp scan_session_preloads do
+    [
+      :default_location,
+      scan_items:
+        {from(item in ScanItem, order_by: [asc: item.id]),
+         [
+           :location,
+           accepted_printing: :card,
+           scan_candidates:
+             {from(candidate in ScanCandidate,
+                order_by: [asc: candidate.rank, asc: candidate.id]
+              ), [printing: :card, card: []]}
+         ]}
+    ]
   end
 
   defp list_printings_for_oracle_id(oracle_id) do

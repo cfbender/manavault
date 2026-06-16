@@ -22,6 +22,8 @@ defmodule ManavaultWeb.Router do
     live "/cards/:id", CardShowLive, :show
     live "/collection", CollectionLive, :index
     live "/collection/new", CollectionFormLive, :new
+    live "/scan-sessions", ScanSessionLive, :index
+    live "/scan-sessions/:id", ScanSessionShowLive, :show
     live "/collection/locations/:id", LocationLive, :show
     live "/collection/:id/edit", CollectionFormLive, :edit
   end

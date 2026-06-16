@@ -2,7 +2,7 @@ defmodule Manavault.CatalogTest do
   use Manavault.DataCase
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.{Card, CollectionItem, Printing, Sync}
+  alias Manavault.Catalog.{Card, CollectionItem, Printing, ScanItem, ScanSession, Sync}
 
   @black_lotus %{
     "id" => "scryfall-printing-1",
@@ -232,6 +232,102 @@ defmodule Manavault.CatalogTest do
 
     assert item.scryfall_id == "scryfall-printing-1"
     assert item.quantity == 2
+  end
+
+  test "scan session CRUD stores defaults and preloads items with multiple candidates" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    {:ok, binder} = Catalog.create_location(%{name: "Scan Binder", kind: "binder"})
+
+    assert {:ok, %ScanSession{} = scan_session} =
+             Catalog.create_scan_session(%{
+               "name" => "Saturday scans",
+               "default_condition" => "lightly_played",
+               "default_language" => "ja",
+               "default_finish" => "foil",
+               "default_location_id" => binder.id
+             })
+
+    assert scan_session.status == "open"
+    assert scan_session.default_condition == "lightly_played"
+    assert scan_session.default_language == "ja"
+    assert scan_session.default_finish == "foil"
+    assert scan_session.default_location_id == binder.id
+
+    assert {:ok, %ScanItem{} = item} =
+             Catalog.create_scan_item(scan_session, %{
+               image_path: "/tmp/scan-1.jpg",
+               status: "needs_review"
+             })
+
+    assert item.condition == "lightly_played"
+    assert item.language == "ja"
+    assert item.finish == "foil"
+    assert item.location_id == binder.id
+
+    assert {:ok, _candidate1} =
+             Catalog.create_scan_candidate(item, %{
+               printing_id: "scryfall-printing-1",
+               oracle_id: "oracle-1",
+               source: "ocr",
+               confidence: 0.92,
+               rank: 1,
+               evidence: Jason.encode!(%{name: "Black Lotus"})
+             })
+
+    assert {:ok, _candidate2} =
+             Catalog.create_scan_candidate(item, %{
+               printing_id: "scryfall-printing-2",
+               oracle_id: "oracle-2",
+               source: "image_match",
+               confidence: 0.71,
+               rank: 2,
+               evidence: Jason.encode!(%{name: "Time Walk"})
+             })
+
+    assert [listed] = Catalog.list_scan_sessions()
+    assert listed.id == scan_session.id
+    assert listed.default_location.name == "Scan Binder"
+
+    loaded = Catalog.get_scan_session!(scan_session.id)
+    assert loaded.default_location.name == "Scan Binder"
+    assert [loaded_item] = loaded.scan_items
+    assert loaded_item.image_path == "/tmp/scan-1.jpg"
+    assert loaded_item.location.name == "Scan Binder"
+    assert [first, second] = loaded_item.scan_candidates
+    assert first.printing.card.name == "Black Lotus"
+    assert second.printing.card.name == "Time Walk"
+
+    assert %{pending: [], reviewed: [^loaded_item], accepted: []} =
+             Catalog.scan_session_items_by_review_state(loaded)
+  end
+
+  test "scan session validations reject invalid defaults and candidates" do
+    assert {:error, changeset} =
+             Catalog.create_scan_session(%{
+               "name" => "Bad scan",
+               "default_condition" => "creased",
+               "default_finish" => "gold"
+             })
+
+    assert "is invalid" in errors_on(changeset).default_condition
+    assert "is invalid" in errors_on(changeset).default_finish
+
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Valid scan"})
+    assert {:ok, item} = Catalog.create_scan_item(scan_session)
+
+    assert {:error, changeset} =
+             Catalog.create_scan_candidate(item, %{
+               source: "robot",
+               confidence: 2.0,
+               rank: 0,
+               evidence: "{}"
+             })
+
+    assert "is invalid" in errors_on(changeset).source
+    assert "must be greater than 0" in errors_on(changeset).rank
+    assert "must be less than or equal to 1.0" in errors_on(changeset).confidence
   end
 
   test "sync_scryfall downloads bulk metadata and records success" do
