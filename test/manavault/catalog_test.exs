@@ -415,6 +415,100 @@ defmodule Manavault.CatalogTest do
     assert printing.scryfall_id == "scryfall-printing-2"
   end
 
+  test "accept_scan_item_best_candidate creates collection inventory and marks item accepted" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    assert {:ok, binder} = Catalog.create_location(%{name: "Review Binder", kind: "binder"})
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Review accept"})
+
+    assert {:ok, item} =
+             Catalog.create_scan_item(scan_session, %{
+               status: "recognized",
+               quantity: 3,
+               condition: "lightly_played",
+               language: "en",
+               finish: "nonfoil",
+               location_id: binder.id
+             })
+
+    assert {:ok, _candidate} =
+             Catalog.create_scan_candidate(item, %{
+               printing_id: "scryfall-printing-1",
+               oracle_id: "oracle-1",
+               source: "ocr",
+               confidence: 0.95,
+               rank: 1,
+               evidence: "{}"
+             })
+
+    assert {:ok, %{scan_item: accepted_item, collection_item: collection_item}} =
+             Catalog.accept_scan_item_best_candidate(item.id)
+
+    assert accepted_item.status == "accepted"
+    assert accepted_item.accepted_printing_id == "scryfall-printing-1"
+    assert collection_item.scryfall_id == "scryfall-printing-1"
+    assert collection_item.quantity == 3
+    assert collection_item.condition == "lightly_played"
+    assert collection_item.location_id == binder.id
+
+    assert {:error, :already_accepted} = Catalog.accept_scan_item_best_candidate(item.id)
+  end
+
+  test "set_scan_item_printing records manual exact printing and can accept it" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Manual correction"})
+
+    assert {:ok, item} =
+             Catalog.create_scan_item(scan_session, %{
+               status: "needs_review",
+               finish: "foil",
+               language: "ja"
+             })
+
+    assert {:ok, corrected_item} = Catalog.set_scan_item_printing(item.id, "scryfall-printing-2")
+
+    assert corrected_item.status == "recognized"
+    assert corrected_item.accepted_printing_id == "scryfall-printing-2"
+
+    assert [%{source: "user_search", printing_id: "scryfall-printing-2"}] =
+             corrected_item.scan_candidates
+
+    assert {:ok, %{scan_item: accepted_item, collection_item: collection_item}} =
+             Catalog.accept_scan_item(item.id)
+
+    assert accepted_item.status == "accepted"
+    assert collection_item.scryfall_id == "scryfall-printing-2"
+  end
+
+  test "update_scan_item_review and reject_scan_item support review corrections" do
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Review fields"})
+    assert {:ok, binder} = Catalog.create_location(%{name: "Reject Binder", kind: "binder"})
+    assert {:ok, item} = Catalog.create_scan_item(scan_session, %{status: "needs_review"})
+
+    assert {:ok, updated_item} =
+             item
+             |> Catalog.update_scan_item_review(%{
+               "quantity" => "2",
+               "condition" => "moderately_played",
+               "language" => "ja",
+               "finish" => "foil",
+               "location_id" => "#{binder.id}"
+             })
+
+    assert updated_item.quantity == 2
+    assert updated_item.condition == "moderately_played"
+    assert updated_item.language == "ja"
+    assert updated_item.finish == "foil"
+    assert updated_item.location_id == binder.id
+
+    assert {:ok, rejected_item} = Catalog.reject_scan_item(updated_item.id)
+    assert rejected_item.status == "rejected"
+    assert [] = Catalog.list_collection_items()
+  end
+
   test "scan session validations reject invalid defaults and candidates" do
     assert {:error, changeset} =
              Catalog.create_scan_session(%{

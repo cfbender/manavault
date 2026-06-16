@@ -151,6 +151,102 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     assert html =~ "Camera permission was denied."
   end
 
+  test "review page accepts best candidate into collection with edited defaults", %{conn: conn} do
+    {:ok, binder} = Catalog.create_location(%{name: "Review Binder", kind: "binder"})
+    {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Fast review"})
+
+    {:ok, item} =
+      Catalog.create_scan_item(scan_session, %{
+        status: "recognized",
+        image_path: "/tmp/review.jpg"
+      })
+
+    {:ok, _candidate} =
+      Catalog.create_scan_candidate(item, %{
+        printing_id: "scryfall-printing-1",
+        oracle_id: "oracle-1",
+        source: "ocr",
+        confidence: 0.94,
+        rank: 1,
+        evidence: "{}"
+      })
+
+    {:ok, view, html} = live(conn, ~p"/scan-sessions/#{scan_session.id}")
+
+    assert html =~ "Accept best"
+    assert html =~ "Exact printing correction"
+    assert html =~ "Update review fields"
+    assert html =~ "Reject"
+
+    view
+    |> form("#scan-item-form-#{item.id}",
+      _id: item.id,
+      scan_item: %{
+        quantity: "2",
+        condition: "lightly_played",
+        language: "en",
+        finish: "nonfoil",
+        location_id: "#{binder.id}"
+      }
+    )
+    |> render_submit()
+
+    html = render_click(view, "accept_best", %{"id" => item.id})
+
+    assert html =~ "Accepted scan item ##{item.id}"
+    assert html =~ ~s|id="accepted-count"|
+
+    [collection_item] = Catalog.list_collection_items()
+    assert collection_item.scryfall_id == "scryfall-printing-1"
+    assert collection_item.quantity == 2
+    assert collection_item.condition == "lightly_played"
+    assert collection_item.location_id == binder.id
+  end
+
+  test "review page searches and accepts an exact manual printing", %{conn: conn} do
+    {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Manual review"})
+    {:ok, item} = Catalog.create_scan_item(scan_session, %{status: "needs_review"})
+
+    {:ok, view, _html} = live(conn, ~p"/scan-sessions/#{scan_session.id}")
+
+    html =
+      view
+      |> form("#printing-search-form-#{item.id}",
+        _id: item.id,
+        printing_search: %{name: "Time Walk", set_code: "lea", collector_number: "84"}
+      )
+      |> render_submit()
+
+    assert html =~ "Time Walk · LEA #84"
+
+    html =
+      render_click(view, "accept_printing", %{
+        "id" => item.id,
+        "scryfall-id" => "scryfall-printing-2"
+      })
+
+    assert html =~ "Accepted exact printing"
+
+    loaded = Catalog.get_scan_item!(item.id)
+    assert loaded.status == "accepted"
+    assert loaded.accepted_printing_id == "scryfall-printing-2"
+    assert [collection_item] = Catalog.list_collection_items()
+    assert collection_item.scryfall_id == "scryfall-printing-2"
+  end
+
+  test "review page rejects scan items without creating inventory", %{conn: conn} do
+    {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Reject review"})
+    {:ok, item} = Catalog.create_scan_item(scan_session, %{status: "needs_review"})
+
+    {:ok, view, _html} = live(conn, ~p"/scan-sessions/#{scan_session.id}")
+
+    html = render_click(view, "reject_item", %{"id" => item.id})
+
+    assert html =~ "Rejected scan item ##{item.id}"
+    assert Catalog.get_scan_item!(item.id).status == "rejected"
+    assert [] = Catalog.list_collection_items()
+  end
+
   test "shows scan session detail sections for pending reviewed and accepted items", %{conn: conn} do
     {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Review batch"})
 

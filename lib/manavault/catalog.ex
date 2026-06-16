@@ -343,6 +343,129 @@ defmodule Manavault.Catalog do
     |> Repo.insert()
   end
 
+  def get_scan_item!(id) do
+    ScanItem
+    |> Repo.get!(id)
+    |> Repo.preload(scan_item_preloads())
+  end
+
+  def update_scan_item_review(%ScanItem{} = scan_item, attrs) when is_map(attrs) do
+    attrs =
+      attrs
+      |> Map.new(fn {key, value} -> {to_string(key), value} end)
+      |> Map.take(["quantity", "condition", "language", "finish", "location_id"])
+      |> normalize_blank_location()
+
+    scan_item
+    |> ScanItem.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def set_scan_item_printing(scan_item_id, scryfall_id)
+      when is_binary(scryfall_id) do
+    Repo.transaction(fn ->
+      scan_item = get_scan_item!(scan_item_id)
+      printing = Repo.get!(Printing, scryfall_id)
+
+      {:ok, updated_item} =
+        scan_item
+        |> ScanItem.changeset(%{
+          "accepted_printing_id" => printing.scryfall_id,
+          "status" => "recognized"
+        })
+        |> Repo.update()
+
+      {:ok, _candidate} =
+        create_scan_candidate(updated_item, %{
+          "printing_id" => printing.scryfall_id,
+          "oracle_id" => printing.oracle_id,
+          "source" => "user_search",
+          "confidence" => 1.0,
+          "rank" => next_candidate_rank(scan_item),
+          "evidence" => Jason.encode!(%{selected_by: "manual_search"})
+        })
+
+      Repo.preload(updated_item, scan_item_preloads(), force: true)
+    end)
+  end
+
+  def accept_scan_item(scan_item_id) do
+    scan_item = get_scan_item!(scan_item_id)
+
+    case scan_item.accepted_printing_id do
+      nil -> {:error, :missing_printing}
+      scryfall_id -> accept_scan_item_printing(scan_item.id, scryfall_id)
+    end
+  end
+
+  def accept_scan_item_printing(scan_item_id, scryfall_id) when is_binary(scryfall_id) do
+    Repo.transaction(fn ->
+      scan_item = get_scan_item!(scan_item_id)
+
+      if scan_item.status == "accepted" do
+        Repo.rollback(:already_accepted)
+      end
+
+      printing = Repo.get!(Printing, scryfall_id)
+
+      collection_attrs = %{
+        "scryfall_id" => printing.scryfall_id,
+        "quantity" => scan_item.quantity,
+        "condition" => scan_item.condition,
+        "language" => scan_item.language,
+        "finish" => scan_item.finish,
+        "location_id" => scan_item.location_id
+      }
+
+      case create_collection_item(collection_attrs) do
+        {:ok, collection_item} ->
+          {:ok, accepted_item} =
+            scan_item
+            |> ScanItem.changeset(%{
+              "status" => "accepted",
+              "accepted_printing_id" => printing.scryfall_id
+            })
+            |> Repo.update()
+
+          %{
+            scan_item: Repo.preload(accepted_item, scan_item_preloads()),
+            collection_item: collection_item
+          }
+
+        {:error, changeset} ->
+          Repo.rollback(changeset)
+      end
+    end)
+  end
+
+  def accept_scan_item_best_candidate(scan_item_id) do
+    scan_item = get_scan_item!(scan_item_id)
+
+    case Enum.find(scan_item.scan_candidates, & &1.printing_id) do
+      nil -> {:error, :missing_candidate}
+      candidate -> accept_scan_item_printing(scan_item.id, candidate.printing_id)
+    end
+  end
+
+  def accept_scan_item_candidate(scan_item_id, candidate_id) do
+    scan_item = get_scan_item!(scan_item_id)
+    candidate_id = parse_integer(candidate_id)
+
+    case Enum.find(scan_item.scan_candidates, &(&1.id == candidate_id)) do
+      nil -> {:error, :candidate_not_found}
+      %{printing_id: nil} -> {:error, :missing_printing}
+      candidate -> accept_scan_item_printing(scan_item.id, candidate.printing_id)
+    end
+  end
+
+  def reject_scan_item(scan_item_id) do
+    scan_item = get_scan_item!(scan_item_id)
+
+    scan_item
+    |> ScanItem.changeset(%{"status" => "rejected"})
+    |> Repo.update()
+  end
+
   def scan_session_items_by_review_state(%ScanSession{} = scan_session) do
     items = scan_session.scan_items || []
 
@@ -471,19 +594,46 @@ defmodule Manavault.Catalog do
     )
   end
 
+  defp normalize_blank_location(%{"location_id" => ""} = attrs),
+    do: Map.put(attrs, "location_id", nil)
+
+  defp normalize_blank_location(attrs), do: attrs
+
+  defp next_candidate_rank(%ScanItem{scan_candidates: candidates}) when is_list(candidates) do
+    candidates
+    |> Enum.map(&(&1.rank || 0))
+    |> Enum.max(fn -> 0 end)
+    |> Kernel.+(1)
+  end
+
+  defp next_candidate_rank(_scan_item), do: 1
+
+  defp parse_integer(value) when is_integer(value), do: value
+
+  defp parse_integer(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {integer, ""} -> integer
+      _invalid -> nil
+    end
+  end
+
+  defp parse_integer(_value), do: nil
+
   defp scan_session_preloads do
     [
       :default_location,
-      scan_items:
-        {from(item in ScanItem, order_by: [asc: item.id]),
-         [
-           :location,
-           accepted_printing: :card,
-           scan_candidates:
-             {from(candidate in ScanCandidate,
-                order_by: [asc: candidate.rank, asc: candidate.id]
-              ), [printing: :card, card: []]}
-         ]}
+      scan_items: {from(item in ScanItem, order_by: [asc: item.id]), scan_item_preloads()}
+    ]
+  end
+
+  defp scan_item_preloads do
+    [
+      :location,
+      accepted_printing: :card,
+      scan_candidates:
+        {from(candidate in ScanCandidate,
+           order_by: [asc: candidate.rank, asc: candidate.id]
+         ), [printing: :card, card: []]}
     ]
   end
 
