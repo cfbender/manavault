@@ -21,7 +21,7 @@ defmodule Manavault.Catalog do
 
   @bulk_metadata_url "https://api.scryfall.com/bulk-data/default-cards"
   @bulk_type "default_cards"
-  @batch_size 500
+  @batch_size 200
 
   def search_cards(term, opts \\ []) when is_binary(term) do
     limit = Keyword.get(opts, :limit, 20)
@@ -177,6 +177,24 @@ defmodule Manavault.Catalog do
     end
   end
 
+  def list_printings_for_scan_item(%ScanItem{accepted_printing: %{card: %{oracle_id: oracle_id}}}) do
+    list_printings_for_oracle_id(oracle_id)
+  end
+
+  def list_printings_for_scan_item(%ScanItem{accepted_printing: %{oracle_id: oracle_id}}) do
+    list_printings_for_oracle_id(oracle_id)
+  end
+
+  def list_printings_for_scan_item(%ScanItem{accepted_printing_id: scryfall_id})
+      when is_binary(scryfall_id) do
+    case get_printing_by_scryfall_id(scryfall_id) do
+      nil -> []
+      %Printing{oracle_id: oracle_id} -> list_printings_for_oracle_id(oracle_id)
+    end
+  end
+
+  def list_printings_for_scan_item(_scan_item), do: []
+
   def switch_collection_item_printing(%CollectionItem{} = collection_item, scryfall_id)
       when is_binary(scryfall_id) do
     attrs = switch_collection_attrs(collection_item, scryfall_id)
@@ -193,6 +211,10 @@ defmodule Manavault.Catalog do
 
   def delete_scan_item(%ScanItem{} = scan_item) do
     Repo.delete(scan_item)
+  end
+
+  def delete_scan_session(%ScanSession{} = scan_session) do
+    Repo.delete(scan_session)
   end
 
   # ── Locations ──────────────────────────────────────────────────────
@@ -820,39 +842,43 @@ defmodule Manavault.Catalog do
   def import_cards(cards, bulk_uri \\ nil) when is_list(cards) do
     now = utc_now()
 
-    Repo.transaction(fn ->
-      rows = Enum.flat_map(cards, &card_row(&1, now))
-      printing_rows = Enum.flat_map(cards, &printing_row(&1, now))
-      search_rows = Enum.flat_map(cards, &printing_search_row/1)
+    Repo.transaction(
+      fn ->
+        rows = Enum.flat_map(cards, &card_row(&1, now))
+        printing_rows = Enum.flat_map(cards, &printing_row(&1, now))
+        search_rows = Enum.flat_map(cards, &printing_search_row/1)
 
-      insert_in_batches(Card, rows,
-        conflict_target: [:oracle_id],
-        on_conflict:
-          {:replace, [:name, :type_line, :oracle_text, :color_identity, :legalities, :updated_at]}
-      )
+        insert_in_batches(Card, rows,
+          conflict_target: [:oracle_id],
+          on_conflict:
+            {:replace,
+             [:name, :type_line, :oracle_text, :color_identity, :legalities, :updated_at]}
+        )
 
-      insert_in_batches(Printing, printing_rows,
-        conflict_target: [:scryfall_id],
-        on_conflict:
-          {:replace,
-           [
-             :oracle_id,
-             :set_code,
-             :set_name,
-             :collector_number,
-             :lang,
-             :finishes,
-             :image_uris,
-             :prices,
-             :released_at,
-             :updated_at
-           ]}
-      )
+        insert_in_batches(Printing, printing_rows,
+          conflict_target: [:scryfall_id],
+          on_conflict:
+            {:replace,
+             [
+               :oracle_id,
+               :set_code,
+               :set_name,
+               :collector_number,
+               :lang,
+               :finishes,
+               :image_uris,
+               :prices,
+               :released_at,
+               :updated_at
+             ]}
+        )
 
-      refresh_printing_search_rows(search_rows)
+        refresh_printing_search_rows(search_rows)
 
-      %{cards_count: length(rows), printings_count: length(printing_rows), bulk_uri: bulk_uri}
-    end)
+        %{cards_count: length(rows), printings_count: length(printing_rows), bulk_uri: bulk_uri}
+      end,
+      timeout: :infinity
+    )
   end
 
   defp normalize_filter(value) when is_binary(value), do: String.trim(value)
@@ -934,13 +960,17 @@ defmodule Manavault.Catalog do
   defp refresh_printing_search_rows([]), do: :ok
 
   defp refresh_printing_search_rows(rows) do
-    ids = Enum.map(rows, & &1.scryfall_id)
-    placeholders = ids |> Enum.map_join(",", fn _ -> "?" end)
+    rows
+    |> Enum.map(& &1.scryfall_id)
+    |> Enum.chunk_every(@batch_size)
+    |> Enum.each(fn ids ->
+      placeholders = Enum.map_join(ids, ",", fn _ -> "?" end)
 
-    Repo.query!(
-      "DELETE FROM scryfall_printing_search WHERE scryfall_id IN (#{placeholders})",
-      ids
-    )
+      Repo.query!(
+        "DELETE FROM scryfall_printing_search WHERE scryfall_id IN (#{placeholders})",
+        ids
+      )
+    end)
 
     rows
     |> Enum.chunk_every(@batch_size)

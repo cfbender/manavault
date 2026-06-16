@@ -67,36 +67,20 @@ defmodule ManavaultWeb.ScanSessionShowLive do
   end
 
   def handle_event("change_scan_printing", %{"id" => id}, socket) do
+    scan_item = Catalog.get_scan_item!(id)
+
     {:noreply,
      socket
-     |> assign(:changing_printing_item, Catalog.get_scan_item!(id))
-     |> assign(:printing_search_results, [])}
-  end
-
-  def handle_event("search_printings", %{"printing_search" => params}, socket) do
-    filters = [
-      name: Map.get(params, "name", ""),
-      set_code: Map.get(params, "set_code", ""),
-      collector_number: Map.get(params, "collector_number", "")
-    ]
-
-    {:noreply,
-     assign(socket, :printing_search_results, Catalog.search_printings(filters, limit: 20))}
+     |> assign(:changing_printing_item, scan_item)
+     |> assign(:printing_search_results, Catalog.list_printings_for_scan_item(scan_item))}
   end
 
   def handle_event("select_printing", %{"id" => id, "scryfall-id" => scryfall_id}, socket) do
-    case Catalog.set_scan_item_printing(id, scryfall_id) do
-      {:ok, _scan_item} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Changed scan item printing.")
-         |> assign(:changing_printing_item, nil)
-         |> assign(:printing_search_results, [])
-         |> reload_scan_session()}
+    select_printing(socket, id, scryfall_id)
+  end
 
-      {:error, reason} ->
-        {:noreply, put_flash(socket, :error, move_error(reason))}
-    end
+  def handle_event("select_printing", %{"id" => id, "scryfall_id" => scryfall_id}, socket) do
+    select_printing(socket, id, scryfall_id)
   end
 
   def handle_event("delete_scan_item", %{"id" => id}, socket) do
@@ -114,6 +98,15 @@ defmodule ManavaultWeb.ScanSessionShowLive do
     end
   end
 
+  def handle_event("delete_scan_session", _params, socket) do
+    {:ok, _scan_session} = Catalog.delete_scan_session(socket.assigns.scan_session)
+
+    {:noreply,
+     socket
+     |> put_flash(:info, "Discarded scan session.")
+     |> push_navigate(to: ~p"/scan-sessions")}
+  end
+
   def handle_event("close_scan_modal", _params, socket) do
     {:noreply,
      socket
@@ -128,76 +121,79 @@ defmodule ManavaultWeb.ScanSessionShowLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash}>
-      <div class="space-y-8">
+      <div class="space-y-6">
         <.back_link navigate={~p"/scan-sessions"}>Back to scan sessions</.back_link>
 
-        <section class="card border border-base-300 bg-base-200 shadow-xl">
-          <div class="card-body gap-4">
-            <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-              <div class="space-y-2">
-                <div class="badge badge-primary badge-outline font-semibold uppercase tracking-wide">
+        <section class="rounded-2xl border border-base-300 bg-base-100 p-5 shadow-xl sm:p-7">
+          <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div class="space-y-3">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="badge badge-primary badge-outline font-semibold uppercase tracking-wide">
                   Scan session
-                </div>
-                <h1 class="text-4xl font-black tracking-tight">{@scan_session.name}</h1>
-                <p class="text-base-content/70">
-                  Defaults: {humanize(@scan_session.default_condition)}, {@scan_session.default_language}, {humanize(
+                </span>
+              </div>
+              <div>
+                <h1 class="text-3xl font-black tracking-tight sm:text-4xl">{@scan_session.name}</h1>
+                <p class="mt-2 max-w-3xl text-sm text-base-content/70">
+                  {humanize(@scan_session.default_condition)}, {@scan_session.default_language}, {humanize(
                     @scan_session.default_finish
-                  )} · Location: {location_name(@scan_session.default_location)}
+                  )} · {location_name(@scan_session.default_location)}
                 </p>
               </div>
-              <div class="flex flex-col gap-2 sm:items-end">
-                <span class="badge badge-outline">{@scan_session.status}</span>
+            </div>
+
+            <div class="flex w-full flex-col gap-3 lg:w-80">
+              <form
+                id="scan-session-bulk-move-form"
+                phx-submit="bulk_move"
+                class="grid gap-2 sm:grid-cols-[minmax(12rem,1fr)_auto] sm:items-end"
+              >
+                <label class="form-control min-w-0">
+                  <span class="label-text">Move all to</span>
+                  <select class="select select-bordered select-sm w-full" name="bulk[location_id]">
+                    <option value="">No location</option>
+                    <option :for={location <- @locations} value={location.id}>{location.name}</option>
+                  </select>
+                </label>
+                <button
+                  class="btn btn-primary btn-sm whitespace-nowrap"
+                  type="submit"
+                  disabled={@scan_items == []}
+                >
+                  Move cards
+                </button>
+              </form>
+
+              <div class="grid grid-cols-2 gap-2 sm:flex sm:items-end">
                 <.link
                   navigate={~p"/scan-sessions/#{@scan_session.id}/scanner"}
-                  class="btn btn-primary btn-sm"
+                  class="btn btn-primary btn-sm whitespace-nowrap"
                 >
-                  Open scanner
+                  Scan
                 </.link>
+                <button
+                  type="button"
+                  class="btn btn-error btn-outline btn-sm whitespace-nowrap"
+                  phx-click="delete_scan_session"
+                  data-confirm="Discard this scan session and all scanned cards?"
+                >
+                  Delete
+                </button>
               </div>
             </div>
           </div>
         </section>
 
-        <section class="grid gap-4 md:grid-cols-3">
-          <div class="stat rounded-box border border-base-300 bg-base-100 shadow-sm">
-            <div class="stat-title">Session cards</div>
-            <div id="scan-items-count" class="stat-value">{length(@scan_items)}</div>
-          </div>
-          <div class="stat rounded-box border border-base-300 bg-base-100 shadow-sm">
-            <div class="stat-title">Recognized</div>
-            <div id="recognized-count" class="stat-value">{recognized_count(@scan_items)}</div>
-          </div>
-          <div class="stat rounded-box border border-base-300 bg-base-100 shadow-sm">
-            <div class="stat-title">Unmatched</div>
-            <div id="unmatched-count" class="stat-value">{unmatched_count(@scan_items)}</div>
-          </div>
-        </section>
-
-        <section class="card border border-base-300 bg-base-100 shadow-sm">
-          <div class="card-body gap-4">
-            <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <section class="rounded-2xl border border-base-300 bg-base-100 p-4 shadow-sm sm:p-5">
+          <div class="space-y-4">
+            <div class="flex items-center justify-between gap-3">
               <div>
-                <h2 class="card-title">Session cards</h2>
-                <p class="text-sm text-base-content/70">
-                  Scanned cards remain in this session until you move the batch to a location.
+                <h2 class="text-xl font-bold tracking-tight">Cards</h2>
+                <p class="text-sm text-base-content/60">
+                  Review or correct printings before moving them.
                 </p>
               </div>
-              <form
-                id="scan-session-bulk-move-form"
-                phx-submit="bulk_move"
-                class="flex flex-col gap-2 sm:flex-row sm:items-end"
-              >
-                <label class="form-control">
-                  <span class="label-text">Move all to</span>
-                  <select class="select select-bordered select-sm" name="bulk[location_id]">
-                    <option value="">No location</option>
-                    <option :for={location <- @locations} value={location.id}>{location.name}</option>
-                  </select>
-                </label>
-                <button class="btn btn-primary btn-sm" type="submit" disabled={@scan_items == []}>
-                  Move session cards
-                </button>
-              </form>
+              <span class="badge badge-ghost">{length(@scan_items)} total</span>
             </div>
 
             <div :if={@scan_items == []} class="alert border border-info/20 bg-info/10">
@@ -207,7 +203,7 @@ defmodule ManavaultWeb.ScanSessionShowLive do
             <div
               :if={@scan_items != []}
               id="scan-session-card-grid"
-              class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+              class="grid grid-cols-[repeat(auto-fit,minmax(10.5rem,13.5rem))] justify-center gap-5"
             >
               <.card_tile
                 :for={item <- @scan_items}
@@ -281,49 +277,36 @@ defmodule ManavaultWeb.ScanSessionShowLive do
         </dialog>
 
         <dialog :if={@changing_printing_item} class="modal modal-open">
-          <div class="modal-box space-y-4">
-            <h3 class="text-lg font-bold">Change printing</h3>
-            <form id="scan-printing-search-form" phx-submit="search_printings" class="grid gap-3">
-              <input
-                class="input input-bordered"
-                name="printing_search[name]"
-                placeholder="Card name"
-                value={best_name(@changing_printing_item)}
-              />
-              <div class="grid grid-cols-2 gap-3">
-                <input
-                  class="input input-bordered"
-                  name="printing_search[set_code]"
-                  placeholder="Set"
-                />
-                <input
-                  class="input input-bordered"
-                  name="printing_search[collector_number]"
-                  placeholder="Collector #"
-                />
-              </div>
-              <button class="btn btn-outline" type="submit">Search printings</button>
-            </form>
+          <div class="modal-box max-w-3xl space-y-4">
             <div class="space-y-2">
-              <div
-                :for={printing <- @printing_search_results}
-                class="rounded-box border border-base-300 p-3 text-sm"
-              >
-                <div class="font-semibold">
-                  {printing.card.name} · {String.upcase(printing.set_code)} #{printing.collector_number}
-                </div>
-                <div class="text-base-content/70">{printing.set_name} · {printing.lang}</div>
-                <button
-                  type="button"
-                  class="btn btn-primary btn-xs mt-2"
-                  phx-click="select_printing"
-                  phx-value-id={@changing_printing_item.id}
-                  phx-value-scryfall-id={printing.scryfall_id}
-                >
-                  Use this printing
-                </button>
+              <h3 class="text-lg font-bold">Change printing</h3>
+              <p class="text-sm text-base-content/70">
+                Choose a different printing for {best_name(@changing_printing_item)}.
+              </p>
+            </div>
+
+            <div class="max-h-[68vh] overflow-y-auto pr-1">
+              <div class="grid grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-3 sm:grid-cols-[repeat(auto-fill,minmax(8rem,1fr))]">
+                <.card_tile
+                  :for={printing <- @printing_search_results}
+                  item={printing}
+                  menu={:none}
+                  variant={:compact}
+                  details_event="select_printing"
+                  click_value_id={@changing_printing_item.id}
+                  click_value_scryfall_id={printing.scryfall_id}
+                  click_disabled={
+                    printing.scryfall_id == @changing_printing_item.accepted_printing_id
+                  }
+                  current={printing.scryfall_id == @changing_printing_item.accepted_printing_id}
+                />
               </div>
             </div>
+
+            <p :if={@printing_search_results == []} class="alert alert-info">
+              No alternate printings found for this card.
+            </p>
+
             <div class="modal-action">
               <button class="btn btn-ghost" type="button" phx-click="close_scan_modal">Close</button>
             </div>
@@ -347,16 +330,25 @@ defmodule ManavaultWeb.ScanSessionShowLive do
     |> then(&assign_scan_session(socket, &1))
   end
 
-  defp recognized_count(items) do
-    Enum.count(items, &is_binary(&1.accepted_printing_id))
-  end
-
-  defp unmatched_count(items), do: length(items) - recognized_count(items)
-
   defp bulk_move_message(moved, 0), do: "Moved #{moved} session cards."
 
   defp bulk_move_message(moved, skipped) do
     "Moved #{moved} session cards. Skipped #{skipped} unmatched or already-moved cards."
+  end
+
+  defp select_printing(socket, id, scryfall_id) do
+    case Catalog.set_scan_item_printing(id, scryfall_id) do
+      {:ok, _scan_item} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Changed scan item printing.")
+         |> assign(:changing_printing_item, nil)
+         |> assign(:printing_search_results, [])
+         |> reload_scan_session()}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, move_error(reason))}
+    end
   end
 
   defp best_name(%{accepted_printing: %{card: %{name: name}}}), do: name

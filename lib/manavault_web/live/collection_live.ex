@@ -275,7 +275,7 @@ defmodule ManavaultWeb.CollectionLive do
           <div
             :if={@items != []}
             id="owned-card-grid"
-            class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+            class="grid grid-cols-[repeat(auto-fit,minmax(10.5rem,13.5rem))] justify-center gap-5"
           >
             <.card_tile
               :for={item <- @items}
@@ -355,7 +355,7 @@ defmodule ManavaultWeb.CollectionLive do
           phx-click-away="close_modal"
           phx-key="Escape"
         >
-          <div class="modal-box max-w-4xl">
+          <div class="modal-box max-w-3xl">
             <div class="space-y-2">
               <h3 class="text-xl font-bold">Change printing</h3>
               <p class="text-sm text-base-content/70">
@@ -363,71 +363,20 @@ defmodule ManavaultWeb.CollectionLive do
               </p>
             </div>
 
-            <div class="mt-5 grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-              <button
-                :for={printing <- @change_printing_options}
-                type="button"
-                class={[
-                  "group card overflow-hidden border bg-base-100 text-left shadow-sm transition focus:outline-none focus:ring-2 focus:ring-primary/40",
-                  printing.scryfall_id == @change_printing_item.scryfall_id &&
-                    "cursor-default border-primary opacity-75 ring-2 ring-primary/30",
-                  printing.scryfall_id != @change_printing_item.scryfall_id &&
-                    "cursor-pointer border-base-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-primary/5 hover:shadow-xl"
-                ]}
-                phx-click="switch_printing"
-                phx-value-id={@change_printing_item.id}
-                phx-value-scryfall_id={printing.scryfall_id}
-                disabled={printing.scryfall_id == @change_printing_item.scryfall_id}
-              >
-                <figure class="aspect-[5/7] bg-base-200 relative">
-                  <img
-                    :if={printing_image_url(printing)}
-                    src={printing_image_url(printing)}
-                    alt={printing_alt(card_name(@change_printing_item), printing)}
-                    class="h-full w-full object-cover transition group-hover:scale-[1.02]"
-                    loading="lazy"
-                  />
-                  <div
-                    :if={!printing_image_url(printing)}
-                    class="flex h-full w-full items-center justify-center p-6 text-center text-sm text-base-content/50"
-                  >
-                    No image
-                  </div>
-                  <span class="absolute bottom-1.5 left-1.5 badge badge-sm badge-outline bg-base-100/80 backdrop-blur-sm font-bold">
-                    {printing_set_code(printing)}
-                  </span>
-                  <span
-                    :if={price_text(printing)}
-                    class="absolute bottom-1.5 right-1.5 badge badge-sm bg-base-100/80 backdrop-blur-sm font-mono text-xs"
-                  >
-                    {price_text(printing)}
-                  </span>
-                  <span
-                    :if={printing.scryfall_id == @change_printing_item.scryfall_id}
-                    class="absolute top-1.5 right-1.5 badge badge-primary badge-sm"
-                  >
-                    Current
-                  </span>
-                </figure>
-                <div class="card-body gap-2 p-3">
-                  <div class="text-sm font-bold">{printing_label(printing)}</div>
-                  <div class="text-xs text-base-content/60">
-                    {printing.lang} · {finish_label(printing)}
-                  </div>
-                  <div
-                    :if={printing.scryfall_id != @change_printing_item.scryfall_id}
-                    class="btn btn-primary btn-xs mt-1 pointer-events-none"
-                  >
-                    Select printing
-                  </div>
-                  <div
-                    :if={printing.scryfall_id == @change_printing_item.scryfall_id}
-                    class="btn btn-ghost btn-xs mt-1 pointer-events-none"
-                  >
-                    Current printing
-                  </div>
-                </div>
-              </button>
+            <div class="mt-5 max-h-[68vh] overflow-y-auto pr-1">
+              <div class="grid grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-3 sm:grid-cols-[repeat(auto-fill,minmax(8rem,1fr))]">
+                <.card_tile
+                  :for={printing <- @change_printing_options}
+                  item={printing}
+                  menu={:none}
+                  variant={:compact}
+                  details_event="switch_printing"
+                  click_value_id={@change_printing_item.id}
+                  click_value_scryfall_id={printing.scryfall_id}
+                  click_disabled={printing.scryfall_id == @change_printing_item.scryfall_id}
+                  current={printing.scryfall_id == @change_printing_item.scryfall_id}
+                />
+              </div>
             </div>
 
             <p :if={@change_printing_options == []} class="alert alert-info mt-5">
@@ -506,35 +455,7 @@ defmodule ManavaultWeb.CollectionLive do
     "#{String.upcase(set_code)} ##{collector_number}"
   end
 
-  defp printing_label(%Printing{set_code: set_code, collector_number: collector_number}) do
-    "#{String.upcase(set_code)} ##{collector_number}"
-  end
-
-  defp printing_set_code(%Printing{set_code: set_code}) when is_binary(set_code) do
-    String.upcase(set_code)
-  end
-
-  defp printing_set_code(_printing), do: "?"
-
-  defp printing_alt(card_name, %Printing{} = printing) do
-    "#{card_name} (#{printing_set_code(printing)})"
-  end
-
-  defp finish_label(%Printing{finishes: finishes}) do
-    finishes
-    |> decode_json([])
-    |> Enum.join(", ")
-    |> case do
-      "" -> "Unknown"
-      label -> label
-    end
-  end
-
   defp price_text(%CollectionItem{printing: %Printing{prices: prices}}) do
-    price_text_from_prices(prices)
-  end
-
-  defp price_text(%Printing{prices: prices}) do
     price_text_from_prices(prices)
   end
 

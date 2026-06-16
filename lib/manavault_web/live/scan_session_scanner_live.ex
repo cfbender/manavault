@@ -82,101 +82,133 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
     {:noreply, assign(socket, :error_message, message)}
   end
 
+  def handle_event("delete_scan_session", _params, socket) do
+    {:ok, _scan_session} = Catalog.delete_scan_session(socket.assigns.scan_session)
+
+    {:noreply,
+     socket
+     |> put_flash(:info, "Discarded scan session.")
+     |> push_navigate(to: ~p"/scan-sessions")}
+  end
+
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   @impl true
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash}>
-      <div class="mx-auto flex min-h-[calc(100vh-8rem)] max-w-md flex-col gap-4 pb-6">
-        <div class="flex items-center justify-between gap-3">
-          <.back_link navigate={~p"/scan-sessions/#{@scan_session.id}"}>Session</.back_link>
-          <span class="badge badge-primary badge-outline">Mobile scanner</span>
-        </div>
-
-        <section class="space-y-1">
-          <h1 class="text-2xl font-black tracking-tight">Scan cards</h1>
-          <p class="text-sm text-base-content/70">{@scan_session.name}</p>
-        </section>
-
-        <section
-          id="scanner-camera"
-          phx-hook="ScannerCamera"
-          class="card overflow-hidden border border-base-300 bg-base-100 shadow-xl"
-        >
-          <div class="relative aspect-[3/4] bg-neutral text-neutral-content" data-scanner-preview>
-            <video
-              data-scanner-video
-              class="h-full w-full object-cover"
-              playsinline
-              muted
-              autoplay
-            ></video>
-            <canvas data-scanner-canvas class="hidden"></canvas>
-
-            <div class="pointer-events-none absolute inset-0 grid place-items-center p-8">
-              <div class="h-full w-full rounded-3xl border-4 border-pink-500/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.25)]">
-              </div>
+      <div class="mx-auto max-w-7xl space-y-5 pb-8">
+        <header class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div class="space-y-2">
+            <.back_link navigate={~p"/scan-sessions/#{@scan_session.id}"}>Session</.back_link>
+            <div>
+              <h1 class="text-3xl font-black tracking-tight">Scan cards</h1>
+              <p class="text-sm text-base-content/70">{@scan_session.name}</p>
             </div>
           </div>
-
-          <div class="card-body gap-4 p-4">
-            <p class="text-sm text-base-content/70">
-              Place one card inside the pink frame. The camera keeps scanning; repeated matches for the same card are ignored unless you tap the preview.
-            </p>
-
-            <div class="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                data-scanner-switch
-                class="btn btn-outline"
-                aria-label="Switch camera"
-              >
-                <.icon name="hero-camera" class="size-4" />
-                <span>Switch camera</span>
-              </button>
-              <button
-                type="button"
-                data-scanner-torch
-                class="btn btn-outline"
-                disabled
-                aria-label="Flashlight"
-              >
-                <.icon name="hero-bolt" class="size-4" />
-                <span>Flashlight</span>
-              </button>
-            </div>
-
-            <label class="form-control hidden" data-scanner-zoom-control>
-              <div class="label">
-                <span class="label-text">Zoom</span>
-                <span class="label-text-alt" data-scanner-zoom-value></span>
-              </div>
-              <input data-scanner-zoom type="range" class="range range-primary" />
-            </label>
-
-            <div class="alert alert-info py-2 text-sm" data-scanner-status>
-              <span>{@status_message}</span>
-            </div>
-            <div :if={@error_message} class="alert alert-error py-2 text-sm" data-scanner-server-error>
-              <span>{@error_message}</span>
-            </div>
+          <div class="flex flex-wrap gap-2">
+            <.link navigate={~p"/scan-sessions/#{@scan_session.id}"} class="btn btn-outline btn-sm">
+              Review batch
+            </.link>
+            <button
+              type="button"
+              class="btn btn-error btn-outline btn-sm"
+              phx-click="delete_scan_session"
+              data-confirm="Discard this scan session and all scanned cards?"
+            >
+              Discard session
+            </button>
           </div>
-        </section>
+        </header>
 
-        <section class="card border border-base-300 bg-base-100 shadow-sm">
-          <div class="card-body gap-3 p-4">
-            <div class="flex items-center justify-between gap-3">
-              <h2 class="card-title text-lg">Session cards</h2>
+        <div class="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(22rem,0.9fr)] lg:items-start">
+          <section
+            id="scanner-camera"
+            phx-hook="ScannerCamera"
+            class="overflow-hidden rounded-2xl border border-base-300 bg-base-100 shadow-xl"
+          >
+            <div
+              class="relative aspect-[3/4] max-h-[calc(100vh-14rem)] min-h-[22rem] bg-neutral text-neutral-content lg:aspect-[4/5]"
+              data-scanner-preview
+            >
+              <video
+                data-scanner-video
+                class="h-full w-full object-cover"
+                playsinline
+                muted
+                autoplay
+              ></video>
+              <canvas data-scanner-canvas class="hidden"></canvas>
+
+              <div class="pointer-events-none absolute inset-0 grid place-items-center p-7 sm:p-10">
+                <div class="h-full w-full rounded-[1.35rem] border-4 border-primary/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.28)]">
+                </div>
+              </div>
+            </div>
+
+            <div class="grid gap-3 p-4">
+              <div class="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  data-scanner-switch
+                  class="btn btn-outline"
+                  aria-label="Switch camera"
+                >
+                  <.icon name="hero-camera" class="size-4" />
+                  <span>Switch camera</span>
+                </button>
+                <button
+                  type="button"
+                  data-scanner-torch
+                  class="btn btn-outline"
+                  disabled
+                  aria-label="Flashlight"
+                >
+                  <.icon name="hero-bolt" class="size-4" />
+                  <span>Flashlight</span>
+                </button>
+              </div>
+
+              <label class="form-control hidden" data-scanner-zoom-control>
+                <div class="label">
+                  <span class="label-text">Zoom</span>
+                  <span class="label-text-alt" data-scanner-zoom-value></span>
+                </div>
+                <input data-scanner-zoom type="range" class="range range-primary" />
+              </label>
+
+              <div class="alert alert-info py-2 text-sm" data-scanner-status>
+                <span>{@status_message}</span>
+              </div>
+              <div
+                :if={@error_message}
+                class="alert alert-error py-2 text-sm"
+                data-scanner-server-error
+              >
+                <span>{@error_message}</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="rounded-2xl border border-base-300 bg-base-100 p-4 shadow-sm">
+            <div class="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h2 class="text-lg font-bold">Session cards</h2>
+                <p class="text-sm text-base-content/60">Newest scans first.</p>
+              </div>
               <span class="badge badge-ghost">{length(@recent_scan_items)}</span>
             </div>
             <div
               :if={@recent_scan_items == []}
               class="alert border border-info/20 bg-info/10 py-2 text-sm"
             >
-              <span>No scans yet. The camera keeps scanning — only matched cards appear here.</span>
+              <span>Matched cards appear here as you scan.</span>
             </div>
-            <div id="recent-scan-items" class="grid grid-cols-2 gap-3">
+            <div
+              :if={@recent_scan_items != []}
+              id="recent-scan-items"
+              class="grid grid-cols-[repeat(auto-fit,minmax(10.5rem,13.5rem))] justify-center gap-4"
+            >
               <.card_tile
                 :for={item <- @recent_scan_items}
                 item={item}
@@ -186,8 +218,8 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
                 details_event="noop"
               />
             </div>
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
     </Layouts.app>
     """

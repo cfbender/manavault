@@ -17,7 +17,13 @@ defmodule ManavaultWeb.CardTile do
   attr :change_printing_item, :any, default: nil
   attr :show_menu, :boolean, default: true
   attr :details_event, :string, default: "show_details"
+  attr :click_value_id, :any, default: nil
+  attr :click_value_scryfall_id, :string, default: nil
+  attr :click_disabled, :boolean, default: false
+  attr :current, :boolean, default: false
+  attr :edit_path, :string, default: nil
   attr :menu, :atom, default: :collection, values: [:collection, :scan, :none]
+  attr :variant, :atom, default: :default, values: [:default, :compact]
 
   def card_tile(assigns) do
     assigns =
@@ -28,25 +34,25 @@ defmodule ManavaultWeb.CardTile do
       |> assign(:set_code, set_code(assigns.item))
       |> assign(:price_text, price_text(assigns.item))
       |> assign(:quantity, item_quantity(assigns.item))
+      |> assign(:click_id, assigns.click_value_id || item_click_id(assigns.item))
 
     ~H"""
     <div
       id={@dom_id}
       class={[
-        "group card relative overflow-visible border border-base-300 bg-base-100 shadow-sm transition hover:z-50 hover:-translate-y-1 hover:border-primary/40 hover:shadow-xl",
+        "group/card relative overflow-visible rounded-xl bg-transparent transition duration-200 focus-within:z-50",
+        !@click_disabled && "hover:z-50 hover:-translate-y-1",
+        @current && "ring-2 ring-primary/70",
         @class
       ]}
     >
-      <span class="absolute top-1.5 right-1.5 z-30 badge badge-primary badge-sm font-bold">
-        ×{@quantity}
-      </span>
       <div
         :if={@show_menu and @menu != :none and !@selected_item and !@change_printing_item}
-        class="dropdown dropdown-end absolute top-8 right-1.5 z-50"
+        class="dropdown dropdown-end absolute top-2 right-2 z-50"
       >
         <button
           type="button"
-          class="btn btn-circle btn-xs bg-base-100/85 backdrop-blur-sm shadow"
+          class="btn btn-circle btn-xs border-0 bg-base-300/80 text-base-content shadow backdrop-blur transition hover:bg-base-100 focus:bg-base-100"
           tabindex="0"
           aria-label="Card actions"
         >
@@ -57,7 +63,7 @@ defmodule ManavaultWeb.CardTile do
           class="menu dropdown-content z-50 mt-1 w-44 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-xl"
         >
           <li :if={@menu == :collection}>
-            <.link navigate={~p"/collection/#{@item.id}/edit"}>Edit</.link>
+            <.link navigate={@edit_path || ~p"/collection/#{@item.id}/edit"}>Edit</.link>
           </li>
           <li :if={@menu == :collection}>
             <button type="button" phx-click="change_printing" phx-value-id={@item.id}>
@@ -89,12 +95,16 @@ defmodule ManavaultWeb.CardTile do
           </li>
         </ul>
       </div>
-      <figure class="aspect-[5/7] overflow-hidden rounded-t-box bg-base-200 relative">
+
+      <figure class={[
+        "relative aspect-[5/7] overflow-hidden rounded-xl bg-base-300 shadow-lg ring-1 ring-white/10 transition duration-200 group-focus-within/card:ring-primary/50",
+        !@click_disabled && "group-hover/card:shadow-2xl group-hover/card:ring-primary/40"
+      ]}>
         <img
           :if={@image_url}
           src={@image_url}
           alt={@card_name}
-          class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+          class="h-full w-full object-cover transition duration-300 group-hover/card:scale-[1.015]"
           loading="lazy"
         />
         <div
@@ -104,29 +114,66 @@ defmodule ManavaultWeb.CardTile do
           No image
         </div>
 
-        <span class="absolute bottom-1.5 left-1.5 z-20 badge badge-sm badge-outline bg-base-100/80 backdrop-blur-sm font-bold">
-          {@set_code}
-        </span>
-        <span
-          :if={@price_text}
-          class="absolute bottom-1.5 right-1.5 z-20 badge badge-sm bg-base-100/80 backdrop-blur-sm font-mono text-xs"
-        >
-          {@price_text}
-        </span>
         <button
           type="button"
           phx-click={@details_event}
-          phx-value-id={@item.id}
-          class="absolute inset-0 z-10 bg-black/0 transition group-hover:bg-black/20 flex items-start p-2 text-left"
+          phx-value-id={@click_id}
+          phx-value-scryfall_id={@click_value_scryfall_id}
+          class={[
+            "absolute inset-0 z-10 flex items-end bg-gradient-to-t from-black/85 via-black/20 to-black/0 text-left transition duration-200 group-focus-within/card:opacity-100",
+            @variant == :compact && "p-2 opacity-100",
+            @variant == :default && "p-3 opacity-0 group-hover/card:opacity-100",
+            @click_disabled && "cursor-default"
+          ]}
+          aria-label={"Show details for #{@card_name}"}
+          disabled={@click_disabled}
         >
-          <span class="text-xs text-white opacity-0 group-hover:opacity-100 transition">
-            Click for details
+          <span class="sr-only">Click for details</span>
+          <span class={[
+            "grid w-full text-white",
+            @variant == :compact && "gap-1",
+            @variant == :default && "gap-2"
+          ]}>
+            <span class="flex items-start justify-between gap-2">
+              <span class={[
+                "line-clamp-2 font-bold leading-tight drop-shadow",
+                @variant == :compact && "text-xs",
+                @variant == :default && "text-sm"
+              ]}>
+                {@card_name}
+              </span>
+              <span
+                :if={@variant == :default}
+                class="badge badge-primary badge-sm shrink-0 font-bold"
+              >
+                ×{@quantity}
+              </span>
+            </span>
+            <span class="flex items-center justify-between gap-2 text-xs">
+              <span class="badge badge-sm border-white/30 bg-black/45 text-white backdrop-blur-sm">
+                {@set_code}
+              </span>
+              <span :if={@price_text && @variant == :default} class="font-mono text-white/90">
+                {@price_text}
+              </span>
+            </span>
           </span>
         </button>
+
+        <span
+          :if={@current}
+          class="absolute top-2 right-2 z-20 badge badge-primary badge-sm font-bold shadow"
+        >
+          Current
+        </span>
+
+        <span
+          :if={@quantity > 1}
+          class="absolute top-2 left-2 z-20 badge badge-primary badge-sm font-bold shadow"
+        >
+          ×{@quantity}
+        </span>
       </figure>
-      <div class="card-body gap-2 p-3">
-        <h3 class="line-clamp-1 text-sm font-bold leading-snug">{@card_name}</h3>
-      </div>
     </div>
     """
   end
@@ -136,6 +183,7 @@ defmodule ManavaultWeb.CardTile do
   def card_name(%ScanItem{} = item),
     do: item |> tile_printing() |> printing_card_name() || "Scan item ##{item.id}"
 
+  def card_name(%Printing{} = printing), do: printing_card_name(printing) || "Unknown card"
   def card_name(_item), do: "Unknown card"
 
   def set_label(%CollectionItem{
@@ -150,6 +198,7 @@ defmodule ManavaultWeb.CardTile do
     do: String.upcase(set_code)
 
   def set_code(%ScanItem{} = item), do: item |> tile_printing() |> printing_set_code()
+  def set_code(%Printing{} = printing), do: printing_set_label(printing)
   def set_code(_item), do: "?"
 
   def price_text(%CollectionItem{printing: %Printing{prices: prices}}),
@@ -161,11 +210,17 @@ defmodule ManavaultWeb.CardTile do
 
   def item_image_url(%CollectionItem{printing: printing}), do: printing_image_url(printing)
   def item_image_url(%ScanItem{} = item), do: item |> tile_printing() |> printing_image_url()
+  def item_image_url(%Printing{} = printing), do: printing_image_url(printing)
   def item_image_url(_item), do: nil
 
   defp default_id(%CollectionItem{id: id}), do: "collection-item-#{id}"
   defp default_id(%ScanItem{id: id}), do: "scan-item-#{id}"
+  defp default_id(%Printing{scryfall_id: id}), do: "printing-#{id}"
   defp default_id(_item), do: nil
+
+  defp item_click_id(%{id: id}), do: id
+  defp item_click_id(%Printing{scryfall_id: scryfall_id}), do: scryfall_id
+  defp item_click_id(_item), do: nil
 
   defp item_quantity(%{quantity: quantity}) when is_integer(quantity), do: quantity
   defp item_quantity(_item), do: 1

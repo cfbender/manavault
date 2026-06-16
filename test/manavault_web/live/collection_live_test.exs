@@ -209,8 +209,7 @@ defmodule ManavaultWeb.CollectionLiveTest do
       assert html =~ "Change printing"
       assert html =~ "LEA #232"
       assert html =~ "LEB #233"
-      assert html =~ "Current printing"
-      assert html =~ "Select printing"
+      assert html =~ "Current"
       refute html =~ "Delete"
 
       html =
@@ -375,8 +374,7 @@ defmodule ManavaultWeb.CollectionLiveTest do
       assert html =~ "Change printing"
       assert html =~ "LEA #232"
       assert html =~ "LEB #233"
-      assert html =~ "Current printing"
-      assert html =~ "Select printing"
+      assert html =~ "Current"
       refute html =~ "Delete"
 
       html =

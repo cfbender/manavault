@@ -258,7 +258,6 @@ defmodule Manavault.CatalogTest do
                "default_location_id" => binder.id
              })
 
-    assert scan_session.status == "open"
     assert scan_session.default_condition == "lightly_played"
     assert scan_session.default_language == "ja"
     assert scan_session.default_finish == "foil"
@@ -1079,6 +1078,29 @@ defmodule Manavault.CatalogTest do
     assert %Sync{status: "succeeded"} = Catalog.latest_sync()
     assert Repo.aggregate(Card, :count) == 1
     assert Repo.aggregate(Printing, :count) == 1
+  end
+
+  test "import_cards refreshes printing search rows in batches" do
+    cards =
+      for index <- 1..600 do
+        suffix = Integer.to_string(index)
+
+        %{
+          @black_lotus
+          | "id" => "batch-printing-#{suffix}",
+            "oracle_id" => "batch-oracle-#{suffix}",
+            "name" => "Batch Lotus #{suffix}",
+            "collector_number" => suffix
+        }
+      end
+
+    assert {:ok, %{cards_count: 600, printings_count: 600}} = Catalog.import_cards(cards)
+
+    assert Repo.aggregate(Card, :count) == 600
+    assert Repo.aggregate(Printing, :count) == 600
+
+    assert [%Printing{scryfall_id: "batch-printing-600"}] =
+             Catalog.search_printings(name: "Batch Lotus 600", collector_number: "600")
   end
 
   test "sync_scryfall records failures without importing partial catalog data" do

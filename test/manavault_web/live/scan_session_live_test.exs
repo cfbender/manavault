@@ -73,12 +73,13 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     assert_redirected(view, ~p"/scan-sessions/#{scan_session.id}")
   end
 
-  test "opens the mobile scanner from scan session detail", %{conn: conn} do
+  test "opens the scanner from scan session detail", %{conn: conn} do
     {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Camera batch"})
 
     {:ok, _view, html} = live(conn, ~p"/scan-sessions/#{scan_session.id}")
 
-    assert html =~ "Open scanner"
+    assert html =~ "Scan"
+    assert html =~ "Delete"
     assert html =~ ~p"/scan-sessions/#{scan_session.id}/scanner"
   end
 
@@ -124,10 +125,11 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
 
     {:ok, view, html} = live(conn, ~p"/scan-sessions/#{scan_session.id}/scanner")
 
-    assert html =~ "Mobile scanner"
+    assert html =~ "Scan cards"
+    assert html =~ "Review batch"
+    assert html =~ "Discard session"
     assert html =~ "Switch camera"
     assert html =~ "Flashlight"
-    assert html =~ "pink frame"
     assert html =~ ~s|phx-hook="ScannerCamera"|
     refute html =~ "Start camera"
     refute html =~ "Capture card"
@@ -312,11 +314,11 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
 
     {:ok, view, html} = live(conn, ~p"/scan-sessions/#{scan_session.id}")
 
-    assert html =~ "Session cards"
-    assert html =~ ~s|id="scan-items-count"|
-    assert html =~ ~s|id="recognized-count"|
-    assert html =~ ~s|id="unmatched-count"|
-    assert html =~ "Move session cards"
+    assert html =~ "Cards"
+    refute html =~ ~s|id="scan-items-count"|
+    refute html =~ ~s|id="recognized-count"|
+    refute html =~ ~s|id="unmatched-count"|
+    assert html =~ "Move cards"
     assert html =~ "Black Lotus"
     assert html =~ "Edit"
     assert html =~ "Change printing"
@@ -352,6 +354,19 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
   end
 
   test "session card menu edits changes printing and deletes scanned cards", %{conn: conn} do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} =
+             Catalog.import_cards([
+               %{
+                 @black_lotus
+                 | "id" => "scryfall-printing-3",
+                   "set" => "leb",
+                   "set_name" => "Limited Edition Beta",
+                   "collector_number" => "233",
+                   "prices" => %{"usd" => "95000.00"},
+                   "released_at" => "1993-10-04"
+               }
+             ])
+
     {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Fix before move"})
 
     {:ok, item} =
@@ -385,29 +400,44 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     assert edited.condition == "moderately_played"
     assert edited.language == "ja"
 
-    assert render_click(view, "change_scan_printing", %{"id" => item.id}) =~ "Change printing"
-
     html =
-      view
-      |> form("#scan-printing-search-form",
-        printing_search: %{name: "Time Walk", set_code: "lea", collector_number: "84"}
-      )
-      |> render_submit()
+      render_click(view, "change_scan_printing", %{"id" => item.id})
 
-    assert html =~ "Time Walk · LEA #84"
+    assert html =~ "Change printing"
+    assert html =~ "LEA #232"
+    assert html =~ "LEB #233"
+    assert html =~ "Current"
 
     html =
       render_click(view, "select_printing", %{
         "id" => item.id,
-        "scryfall-id" => "scryfall-printing-2"
+        "scryfall_id" => "scryfall-printing-3"
       })
 
     assert html =~ "Changed scan item printing."
-    assert Catalog.get_scan_item!(item.id).accepted_printing_id == "scryfall-printing-2"
+    assert Catalog.get_scan_item!(item.id).accepted_printing_id == "scryfall-printing-3"
 
     html = render_click(view, "delete_scan_item", %{"id" => item.id})
 
     assert html =~ "Deleted scan item ##{item.id}."
+    assert_raise Ecto.NoResultsError, fn -> Catalog.get_scan_item!(item.id) end
+  end
+
+  test "session can be discarded with its scanned cards", %{conn: conn} do
+    {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Discard me"})
+
+    {:ok, item} =
+      Catalog.create_scan_item(scan_session, %{
+        status: "recognized",
+        accepted_printing_id: "scryfall-printing-1"
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/scan-sessions/#{scan_session.id}")
+
+    {:error, {:live_redirect, %{to: "/scan-sessions"}}} =
+      render_click(view, "delete_scan_session", %{})
+
+    assert_raise Ecto.NoResultsError, fn -> Catalog.get_scan_session!(scan_session.id) end
     assert_raise Ecto.NoResultsError, fn -> Catalog.get_scan_item!(item.id) end
   end
 

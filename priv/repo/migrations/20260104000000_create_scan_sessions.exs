@@ -4,7 +4,6 @@ defmodule Manavault.Repo.Migrations.CreateScanSessions do
   def change do
     create table(:scan_sessions) do
       add :name, :string, null: false
-      add :status, :string, null: false, default: "open"
       add :default_condition, :string, null: false, default: "near_mint"
       add :default_language, :string, null: false, default: "en"
       add :default_finish, :string, null: false, default: "nonfoil"
@@ -13,7 +12,6 @@ defmodule Manavault.Repo.Migrations.CreateScanSessions do
       timestamps(type: :utc_datetime)
     end
 
-    create index(:scan_sessions, [:status])
     create index(:scan_sessions, [:default_location_id])
 
     create table(:scan_items) do
