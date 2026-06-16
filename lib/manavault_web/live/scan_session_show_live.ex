@@ -35,10 +35,16 @@ defmodule ManavaultWeb.ScanSessionShowLive do
   def handle_event("bulk_move", %{"bulk" => %{"location_id" => location_id}}, socket) do
     case Catalog.move_scan_session_items(socket.assigns.scan_session, location_id) do
       {:ok, %{moved: moved, skipped: skipped}} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, bulk_move_message(moved, skipped))
-         |> reload_scan_session()}
+        case Catalog.delete_scan_session(socket.assigns.scan_session) do
+          {:ok, _scan_session} ->
+            {:noreply,
+             socket
+             |> put_flash(:info, bulk_move_message(moved, skipped))
+             |> push_navigate(to: moved_location_path(location_id))}
+
+          {:error, changeset} ->
+            {:noreply, put_flash(socket, :error, format_changeset(changeset))}
+        end
 
       {:error, reason} ->
         {:noreply, put_flash(socket, :error, move_error(reason))}
@@ -335,6 +341,10 @@ defmodule ManavaultWeb.ScanSessionShowLive do
   defp bulk_move_message(moved, skipped) do
     "Moved #{moved} session cards. Skipped #{skipped} unmatched or already-moved cards."
   end
+
+  defp moved_location_path(nil), do: ~p"/collection?location_id=unfiled"
+  defp moved_location_path(""), do: ~p"/collection?location_id=unfiled"
+  defp moved_location_path(location_id), do: ~p"/collection/locations/#{location_id}"
 
   defp select_printing(socket, id, scryfall_id) do
     case Catalog.set_scan_item_printing(id, scryfall_id) do

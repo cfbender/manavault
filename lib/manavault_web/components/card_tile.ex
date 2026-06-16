@@ -25,6 +25,11 @@ defmodule ManavaultWeb.CardTile do
   attr :menu, :atom, default: :collection, values: [:collection, :scan, :none]
   attr :variant, :atom, default: :default, values: [:default, :compact]
 
+  attr :details_visibility, :atom,
+    default: :hover,
+    values: [:hover, :always],
+    doc: "when to show the title/set/quantity/price overlay"
+
   def card_tile(assigns) do
     assigns =
       assigns
@@ -122,7 +127,10 @@ defmodule ManavaultWeb.CardTile do
           class={[
             "absolute inset-0 z-10 flex items-end bg-gradient-to-t from-black/85 via-black/20 to-black/0 text-left transition duration-200 group-focus-within/card:opacity-100",
             @variant == :compact && "p-2 opacity-100",
-            @variant == :default && "p-3 opacity-0 group-hover/card:opacity-100",
+            @variant == :default && "p-3",
+            @variant == :default && @details_visibility == :hover &&
+              "opacity-0 group-hover/card:opacity-100",
+            @variant == :default && @details_visibility == :always && "opacity-100",
             @click_disabled && "cursor-default"
           ]}
           aria-label={"Show details for #{@card_name}"}

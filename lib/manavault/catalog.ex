@@ -321,6 +321,30 @@ defmodule Manavault.Catalog do
     ScanSession.changeset(scan_session, attrs)
   end
 
+  def generated_scan_session_name do
+    base_name =
+      DateTime.utc_now()
+      |> Calendar.strftime("%m/%d/%Y")
+
+    existing_names =
+      ScanSession
+      |> select([session], session.name)
+      |> Repo.all()
+      |> MapSet.new()
+
+    if MapSet.member?(existing_names, base_name) do
+      suffix =
+        Stream.iterate(2, &(&1 + 1))
+        |> Enum.find(fn suffix ->
+          not MapSet.member?(existing_names, "#{base_name} (#{suffix})")
+        end)
+
+      "#{base_name} (#{suffix})"
+    else
+      base_name
+    end
+  end
+
   def create_scan_session(attrs) when is_map(attrs) do
     %ScanSession{}
     |> ScanSession.changeset(attrs)

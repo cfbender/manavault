@@ -39,19 +39,19 @@ defmodule ManavaultWeb.Layouts do
       <div class="flex-1">
         <a href="/" class="flex items-center gap-2 no-underline">
           <img src={~p"/images/logo.svg"} alt="" class="h-8 w-8" />
-          <span class="text-xl font-black tracking-tight">ManaVault</span>
+          <span class="hidden text-xl font-black tracking-tight sm:inline">ManaVault</span>
         </a>
       </div>
       <div class="flex-none">
-        <ul class="flex flex-column px-1 space-x-2 items-center">
+        <ul class="flex flex-row items-center gap-1 px-1 sm:gap-2">
           <li>
-            <a href="/cards" class="btn btn-ghost btn-sm">Cards</a>
+            <a href="/cards" class="btn btn-ghost btn-xs sm:btn-sm">Cards</a>
           </li>
           <li>
-            <a href="/collection" class="btn btn-ghost btn-sm">Collection</a>
+            <a href="/collection" class="btn btn-ghost btn-xs sm:btn-sm">Collection</a>
           </li>
           <li>
-            <a href="/scan-sessions" class="btn btn-ghost btn-sm">Scans</a>
+            <a href="/scan" class="btn btn-ghost btn-xs sm:btn-sm">Scan</a>
           </li>
           <li>
             <.theme_toggle />
@@ -60,7 +60,7 @@ defmodule ManavaultWeb.Layouts do
       </div>
     </header>
 
-    <main class="px-4 py-20 sm:px-6 lg:px-8">
+    <main class="px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-20">
       <div class="mx-auto max-w-2xl space-y-4">
         {render_slot(@inner_block)}
       </div>
@@ -90,6 +90,7 @@ defmodule ManavaultWeb.Layouts do
         id="client-error"
         kind={:error}
         title={gettext("We can't find the internet")}
+        auto_dismiss={false}
         phx-disconnected={
           show(".phx-client-error #client-error")
           |> JS.remove_attribute("hidden", to: ".phx-client-error #client-error")
@@ -105,6 +106,7 @@ defmodule ManavaultWeb.Layouts do
         id="server-error"
         kind={:error}
         title={gettext("Something went wrong!")}
+        auto_dismiss={false}
         phx-disconnected={
           show(".phx-server-error #server-error")
           |> JS.remove_attribute("hidden", to: ".phx-server-error #server-error")

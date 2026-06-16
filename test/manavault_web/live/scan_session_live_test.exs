@@ -41,7 +41,7 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     :ok
   end
 
-  test "creates a scan session with defaults", %{conn: conn} do
+  test "creates a scan session with generated name and defaults", %{conn: conn} do
     {:ok, binder} = Catalog.create_location(%{name: "Scan Binder", kind: "binder"})
 
     {:ok, view, html} = live(conn, ~p"/scan-sessions")
@@ -54,7 +54,6 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     view
     |> form("#scan-session-form",
       scan_session: %{
-        name: "Saturday inbox",
         default_condition: "lightly_played",
         default_language: "ja",
         default_finish: "foil",
@@ -64,13 +63,51 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     |> render_submit()
 
     [scan_session] = Catalog.list_scan_sessions()
-    assert scan_session.name == "Saturday inbox"
+    assert scan_session.name == generated_date_name()
     assert scan_session.default_condition == "lightly_played"
     assert scan_session.default_language == "ja"
     assert scan_session.default_finish == "foil"
     assert scan_session.default_location_id == binder.id
 
     assert_redirected(view, ~p"/scan-sessions/#{scan_session.id}")
+  end
+
+  test "scan entry starts a scanner when there are no sessions", %{conn: conn} do
+    conn = get(conn, ~p"/scan")
+
+    [scan_session] = Catalog.list_scan_sessions()
+    assert scan_session.name == generated_date_name()
+    assert redirected_to(conn) == ~p"/scan-sessions/#{scan_session.id}/scanner"
+  end
+
+  test "generated scan session names use the next date suffix", %{conn: conn} do
+    base_name = generated_date_name()
+
+    {:ok, _first} = Catalog.create_scan_session(%{"name" => base_name})
+    {:ok, _second} = Catalog.create_scan_session(%{"name" => "#{base_name} (2)"})
+
+    {:ok, view, _html} = live(conn, ~p"/scan-sessions")
+
+    view
+    |> form("#scan-session-form",
+      scan_session: %{
+        default_condition: "near_mint",
+        default_language: "en",
+        default_finish: "nonfoil",
+        default_location_id: ""
+      }
+    )
+    |> render_submit()
+
+    assert Enum.any?(Catalog.list_scan_sessions(), &(&1.name == "#{base_name} (3)"))
+  end
+
+  test "scan entry opens the sessions list when sessions already exist", %{conn: conn} do
+    {:ok, _scan_session} = Catalog.create_scan_session(%{"name" => "Existing batch"})
+
+    conn = get(conn, ~p"/scan")
+
+    assert redirected_to(conn) == ~p"/scan-sessions"
   end
 
   test "opens the scanner from scan session detail", %{conn: conn} do
@@ -140,7 +177,7 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     html = render_hook(view, "capture", %{"image_data" => image_data})
 
     assert html =~ "Recognized card"
-    assert html =~ "Session cards"
+    assert html =~ "Scanned cards"
     assert html =~ "Black Lotus"
     assert html =~ "LEA"
     assert html =~ "$100000"
@@ -261,15 +298,15 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     image_data = "data:image/png;base64,#{Base.encode64("unmatched bytes")}"
     html = render_hook(view, "capture", %{"image_data" => image_data})
 
-    assert html =~ "No card was added."
-    assert html =~ "No card match found. Keep the card steady in the frame."
+    refute html =~ "No card was added."
+    refute html =~ "No card match found. Keep the card steady in the frame."
     assert Catalog.get_scan_session!(scan_session.id).scan_items == []
   end
 
-  test "scanner page shows session cards without manual review controls", %{conn: conn} do
+  test "scanner page shows scanned cards with quick controls", %{conn: conn} do
     {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Batch scanner"})
 
-    {:ok, _item} =
+    {:ok, item} =
       Catalog.create_scan_item(scan_session, %{
         status: "recognized",
         accepted_printing_id: "scryfall-printing-1",
@@ -278,13 +315,108 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
 
     {:ok, _view, html} = live(conn, ~p"/scan-sessions/#{scan_session.id}/scanner")
 
-    assert html =~ "Session cards"
+    assert html =~ "Scanned cards"
     assert html =~ "Black Lotus"
     assert html =~ "LEA"
     assert html =~ "$100000"
+    assert html =~ "Toggle foil"
+    assert html =~ "Increase quantity"
+    assert html =~ "Edit scanned card"
+    assert html =~ ~s|phx-value-id="#{item.id}"|
     refute html =~ "Accept best"
     refute html =~ "Undo accept"
     refute html =~ "Recent scans"
+  end
+
+  test "scanner quick controls update scanned cards", %{conn: conn} do
+    {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Fast fixes"})
+
+    {:ok, item} =
+      Catalog.create_scan_item(scan_session, %{
+        status: "recognized",
+        accepted_printing_id: "scryfall-printing-1",
+        quantity: 1,
+        finish: "nonfoil",
+        image_path: "/tmp/fast.jpg"
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/scan-sessions/#{scan_session.id}/scanner")
+
+    render_click(view, "adjust_scan_item_quantity", %{"id" => item.id, "delta" => "1"})
+    assert Catalog.get_scan_item!(item.id).quantity == 2
+
+    render_click(view, "adjust_scan_item_quantity", %{"id" => item.id, "delta" => "-1"})
+    assert Catalog.get_scan_item!(item.id).quantity == 1
+
+    render_click(view, "adjust_scan_item_quantity", %{"id" => item.id, "delta" => "-1"})
+    assert Catalog.get_scan_item!(item.id).quantity == 1
+
+    render_click(view, "toggle_scan_item_foil", %{"id" => item.id})
+    assert Catalog.get_scan_item!(item.id).finish == "foil"
+
+    render_click(view, "toggle_scan_item_foil", %{"id" => item.id})
+    assert Catalog.get_scan_item!(item.id).finish == "nonfoil"
+  end
+
+  test "scanner edit modal can edit and change printing", %{conn: conn} do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} =
+             Catalog.import_cards([
+               %{
+                 @black_lotus
+                 | "id" => "scryfall-printing-3",
+                   "set" => "leb",
+                   "set_name" => "Limited Edition Beta",
+                   "collector_number" => "233",
+                   "prices" => %{"usd" => "95000.00"},
+                   "released_at" => "1993-10-04"
+               }
+             ])
+
+    {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Scanner fixes"})
+
+    {:ok, item} =
+      Catalog.create_scan_item(scan_session, %{
+        status: "recognized",
+        accepted_printing_id: "scryfall-printing-1",
+        quantity: 1,
+        image_path: "/tmp/scanner-fix.jpg"
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/scan-sessions/#{scan_session.id}/scanner")
+
+    assert render_click(view, "edit_scan_item", %{"id" => item.id}) =~ "Edit scanned card"
+
+    html =
+      view
+      |> form("#scanner-scan-item-edit-form",
+        _id: item.id,
+        scan_item: %{
+          quantity: "2",
+          condition: "heavily_played",
+          language: "ja",
+          finish: "foil"
+        }
+      )
+      |> render_submit()
+
+    assert html =~ "Updated scan item ##{item.id}."
+    edited = Catalog.get_scan_item!(item.id)
+    assert edited.quantity == 2
+    assert edited.condition == "heavily_played"
+    assert edited.language == "ja"
+    assert edited.finish == "foil"
+
+    html = render_click(view, "change_scan_printing", %{"id" => item.id})
+    assert html =~ "Change printing"
+    assert html =~ "LEA #232"
+    assert html =~ "LEB #233"
+
+    render_click(view, "select_printing", %{
+      "id" => item.id,
+      "scryfall_id" => "scryfall-printing-3"
+    })
+
+    assert Catalog.get_scan_item!(item.id).accepted_printing_id == "scryfall-printing-3"
   end
 
   test "scanner page reports camera errors", %{conn: conn} do
@@ -329,12 +461,13 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     refute html =~ "Accept best"
     refute html =~ "Exact printing correction"
 
-    html =
+    result =
       view
       |> form("#scan-session-bulk-move-form", bulk: %{location_id: "#{binder.id}"})
       |> render_submit()
 
-    assert html =~ "Moved 1 session cards. Skipped 1 unmatched or already-moved cards."
+    assert {:error, {:live_redirect, %{to: to}}} = result
+    assert to == ~p"/collection/locations/#{binder.id}"
 
     [collection_item] = Catalog.list_collection_items()
     assert collection_item.scryfall_id == "scryfall-printing-1"
@@ -342,15 +475,34 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     assert collection_item.condition == "lightly_played"
     assert collection_item.location_id == binder.id
 
-    assert Catalog.get_scan_item!(recognized.id).status == "accepted"
+    assert_raise Ecto.NoResultsError, fn -> Catalog.get_scan_session!(scan_session.id) end
+    assert_raise Ecto.NoResultsError, fn -> Catalog.get_scan_item!(recognized.id) end
+  end
 
-    html =
+  test "session page bulk move without a location returns to unfiled collection", %{conn: conn} do
+    {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Move unfiled"})
+
+    {:ok, _recognized} =
+      Catalog.create_scan_item(scan_session, %{
+        status: "recognized",
+        accepted_printing_id: "scryfall-printing-1",
+        quantity: 1,
+        image_path: "/tmp/unfiled.jpg"
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/scan-sessions/#{scan_session.id}")
+
+    result =
       view
-      |> form("#scan-session-bulk-move-form", bulk: %{location_id: "#{binder.id}"})
+      |> form("#scan-session-bulk-move-form", bulk: %{location_id: ""})
       |> render_submit()
 
-    assert html =~ "Moved 0 session cards. Skipped 2 unmatched or already-moved cards."
-    assert [_collection_item] = Catalog.list_collection_items()
+    assert {:error, {:live_redirect, %{to: to}}} = result
+    assert to == ~p"/collection?location_id=unfiled"
+
+    [collection_item] = Catalog.list_collection_items()
+    assert collection_item.location_id == nil
+    assert_raise Ecto.NoResultsError, fn -> Catalog.get_scan_session!(scan_session.id) end
   end
 
   test "session card menu edits changes printing and deletes scanned cards", %{conn: conn} do
@@ -468,5 +620,10 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     assert html =~ "LEA"
     assert html =~ "$100000"
     refute html =~ "Candidates ("
+  end
+
+  defp generated_date_name do
+    DateTime.utc_now()
+    |> Calendar.strftime("%m/%d/%Y")
   end
 end

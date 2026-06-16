@@ -18,6 +18,7 @@ defmodule ManavaultWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    get "/scan", ScanController, :index
     live "/cards", CardSearchLive, :index
     live "/cards/:id", CardShowLive, :show
     live "/collection", CollectionLive, :index

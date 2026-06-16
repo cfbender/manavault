@@ -36,7 +36,7 @@ defmodule ManavaultWeb.ScanSessionLive do
   def handle_event("validate", %{"scan_session" => params}, socket) do
     form =
       %ScanSession{}
-      |> Catalog.change_scan_session(normalize_location_id(params))
+      |> Catalog.change_scan_session(prepare_scan_session_params(params))
       |> Map.put(:action, :validate)
       |> to_form()
 
@@ -45,7 +45,7 @@ defmodule ManavaultWeb.ScanSessionLive do
 
   @impl true
   def handle_event("save", %{"scan_session" => params}, socket) do
-    case Catalog.create_scan_session(normalize_location_id(params)) do
+    case Catalog.create_scan_session(prepare_scan_session_params(params)) do
       {:ok, scan_session} ->
         {:noreply,
          socket
@@ -85,7 +85,6 @@ defmodule ManavaultWeb.ScanSessionLive do
               phx-submit="save"
               class="space-y-4"
             >
-              <.input field={@form[:name]} type="text" label="Name" placeholder="Inbox scan" required />
               <div class="grid gap-4 md:grid-cols-2">
                 <.input
                   field={@form[:default_condition]}
@@ -139,7 +138,6 @@ defmodule ManavaultWeb.ScanSessionLive do
               <div class="card-body gap-3">
                 <div class="flex items-start justify-between gap-3">
                   <h3 class="card-title">{session.name}</h3>
-                  <span class="badge badge-outline">{session.status}</span>
                 </div>
                 <p class="text-sm text-base-content/70">
                   Defaults: {humanize(session.default_condition)}, {session.default_language}, {humanize(
@@ -156,6 +154,26 @@ defmodule ManavaultWeb.ScanSessionLive do
       </div>
     </Layouts.app>
     """
+  end
+
+  defp prepare_scan_session_params(params) do
+    params
+    |> put_default_name()
+    |> normalize_location_id()
+  end
+
+  defp put_default_name(params) do
+    case Map.get(params, "name") do
+      name when is_binary(name) ->
+        if String.trim(name) == "" do
+          Map.put(params, "name", Catalog.generated_scan_session_name())
+        else
+          params
+        end
+
+      _other ->
+        Map.put(params, "name", Catalog.generated_scan_session_name())
+    end
   end
 
   defp normalize_location_id(params) do
