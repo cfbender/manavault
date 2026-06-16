@@ -20,6 +20,10 @@ defmodule ManavaultWeb.Router do
     get "/", PageController, :home
     live "/cards", CardSearchLive, :index
     live "/cards/:id", CardShowLive, :show
+    live "/collection", CollectionLive, :index
+    live "/collection/new", CollectionFormLive, :new
+    live "/collection/locations/:id", LocationLive, :show
+    live "/collection/:id/edit", CollectionFormLive, :edit
   end
 
   scope "/", ManavaultWeb do

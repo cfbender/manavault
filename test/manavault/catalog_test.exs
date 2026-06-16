@@ -2,7 +2,7 @@ defmodule Manavault.CatalogTest do
   use Manavault.DataCase
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.{Card, Printing, Sync}
+  alias Manavault.Catalog.{Card, CollectionItem, Printing, Sync}
 
   @black_lotus %{
     "id" => "scryfall-printing-1",
@@ -55,6 +55,93 @@ defmodule Manavault.CatalogTest do
     assert %Card{name: "Black Lotus Updated"} = Repo.get!(Card, "oracle-1")
     assert %Printing{prices: prices} = Repo.get!(Printing, "scryfall-printing-1")
     assert Jason.decode!(prices) == %{"usd" => "1.00"}
+  end
+
+  test "collection item CRUD persists exact printing inventory" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    assert {:ok, %CollectionItem{} = item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => "2",
+               "condition" => "lightly_played",
+               "language" => "en",
+               "finish" => "nonfoil",
+               "location_id" => nil,
+               "notes" => "First page"
+             })
+
+    assert item.quantity == 2
+    assert item.scryfall_id == "scryfall-printing-1"
+
+    assert [listed] = Catalog.list_collection_items(q: "lotus")
+    assert listed.id == item.id
+    assert listed.printing.scryfall_id == "scryfall-printing-1"
+    assert listed.printing.card.name == "Black Lotus"
+
+    assert %CollectionItem{} = loaded = Catalog.get_collection_item!(item.id)
+    assert loaded.printing.card.name == "Black Lotus"
+
+    assert {:ok, updated} =
+             Catalog.update_collection_item(loaded, %{
+               "scryfall_id" => "other-printing",
+               "quantity" => "3",
+               "condition" => "near_mint",
+               "language" => "ja",
+               "finish" => "nonfoil",
+               "location_id" => nil,
+               "notes" => "Updated"
+             })
+
+    assert updated.quantity == 3
+    assert updated.condition == "near_mint"
+    assert updated.language == "ja"
+    assert updated.finish == "nonfoil"
+    assert updated.scryfall_id == "scryfall-printing-1"
+    assert updated.location_id == nil
+    assert updated.notes == "Updated"
+
+    assert {:error, changeset} =
+             Catalog.update_collection_item(updated, %{
+               "condition" => "creased",
+               "finish" => "gold"
+             })
+
+    assert "is invalid" in errors_on(changeset).condition
+    assert "is invalid" in errors_on(changeset).finish
+
+    assert {:error, changeset} = Catalog.update_collection_item(updated, %{"finish" => "foil"})
+    assert "is not available for this printing" in errors_on(changeset).finish
+
+    assert {:ok, _deleted} = Catalog.delete_collection_item(updated)
+    assert [] = Catalog.list_collection_items()
+  end
+
+  test "new_collection_item_for_printing defaults to exact printing language and first finish" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    changeset = Catalog.new_collection_item_for_printing("scryfall-printing-1")
+
+    assert changeset.valid?
+    assert Ecto.Changeset.get_field(changeset, :scryfall_id) == "scryfall-printing-1"
+    assert Ecto.Changeset.get_field(changeset, :language) == "en"
+    assert Ecto.Changeset.get_field(changeset, :finish) == "nonfoil"
+    assert Ecto.Changeset.get_field(changeset, :quantity) == 1
+  end
+
+  test "add_printing_to_collection accepts atom-keyed attrs" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    assert {:ok, item} =
+             Catalog.add_printing_to_collection("scryfall-printing-1", %{
+               quantity: 2,
+               condition: "lightly_played",
+               language: "en",
+               finish: "nonfoil"
+             })
+
+    assert item.scryfall_id == "scryfall-printing-1"
+    assert item.quantity == 2
   end
 
   test "sync_scryfall downloads bulk metadata and records success" do

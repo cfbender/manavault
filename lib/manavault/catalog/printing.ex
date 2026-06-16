@@ -20,6 +20,10 @@ defmodule Manavault.Catalog.Printing do
       foreign_key: :oracle_id,
       define_field: true
 
+    has_many :collection_items, Manavault.Catalog.CollectionItem,
+      foreign_key: :scryfall_id,
+      references: :scryfall_id
+
     timestamps(type: :utc_datetime)
   end
 

@@ -52,31 +52,53 @@ defmodule ManavaultWeb.CardSearchLiveTest do
     :ok
   end
 
-  test "searches cards by name and links to the card", %{conn: conn} do
+  test "search submit patches URL and restored URL renders results", %{conn: conn} do
     {:ok, view, html} = live(conn, ~p"/cards")
 
     assert html =~ "Find cards"
 
-    html =
-      view
-      |> form("form[phx-submit=search_cards]", search: %{q: "lotus"})
-      |> render_submit()
+    view
+    |> form("form[phx-submit=search_cards]", search: %{q: "lotus"})
+    |> render_submit()
 
+    assert_patch(view, ~p"/cards?q=lotus")
+
+    html = render(view)
     assert html =~ "Black Lotus"
-    assert html =~ "/cards/oracle-1"
+    assert html =~ ~s|/cards/oracle-1?q=lotus|
     assert html =~ "https://example.test/black-lotus.jpg"
+  end
+
+  test "loads search state and results from query params", %{conn: conn} do
+    {:ok, _view, html} = live(conn, ~p"/cards?q=lotus")
+
+    assert html =~ ~s|value="lotus"|
+    assert html =~ "Black Lotus"
+    assert html =~ ~s|/cards/oracle-1?q=lotus|
+  end
+
+  test "empty search patches back to plain cards URL", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/cards?q=lotus")
+
+    view
+    |> form("form[phx-submit=search_cards]", search: %{q: " "})
+    |> render_submit()
+
+    assert_patch(view, ~p"/cards")
   end
 
   test "shows split card search results with face images", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/cards")
 
-    html =
-      view
-      |> form("form[phx-submit=search_cards]", search: %{q: "oracle"})
-      |> render_submit()
+    view
+    |> form("form[phx-submit=search_cards]", search: %{q: "oracle"})
+    |> render_submit()
 
+    assert_patch(view, ~p"/cards?q=oracle")
+
+    html = render(view)
     assert html =~ "Oracle&#39;s Test // Oracle&#39;s Answer"
-    assert html =~ "/cards/oracle-2"
+    assert html =~ ~s|/cards/oracle-2?q=oracle|
     assert html =~ "https://example.test/split-front.jpg"
   end
 end

@@ -17,6 +17,7 @@ defmodule ManavaultWeb.CardShowLiveTest do
     "lang" => "en",
     "finishes" => ["nonfoil"],
     "image_uris" => %{"normal" => "https://example.test/black-lotus.jpg"},
+    "prices" => %{"usd" => "100000.00"},
     "released_at" => "1993-08-05"
   }
 
@@ -35,25 +36,68 @@ defmodule ManavaultWeb.CardShowLiveTest do
       "released_at" => "1993-10-04"
   }
 
-  test "shows all known printings with details and image", %{conn: conn} do
+  test "renders card hero, oracle text, and printing thumbnails", %{conn: conn} do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus_alpha, @black_lotus_beta])
 
-    {:ok, _view, html} = live(conn, ~p"/cards/oracle-1")
+    {:ok, _view, html} = live(conn, ~p"/cards/oracle-1?q=lotus")
 
+    # Hero / oracle text
+    assert html =~ ~s|href="/cards?q=lotus"|
+    assert html =~ "Back to search"
     assert html =~ "Black Lotus"
     assert html =~ "https://example.test/black-lotus-art.jpg"
     assert html =~ "Oracle text"
-    assert html =~ "Rules text"
     assert html =~ "{T}, Sacrifice Black Lotus: Add three mana of any one color."
-    assert html =~ "Known printings"
-    assert html =~ "Limited Edition Alpha (LEA)"
-    assert html =~ "Limited Edition Beta (LEB)"
-    assert html =~ "232"
+
+    # Printing thumbnails — set code badge on images
+    assert html =~ "LEA"
+    assert html =~ "LEB"
+
+    # Price badge visible
+    assert html =~ "$100000"
+
+    # Image URLs on thumbnails
+    assert html =~ "https://example.test/black-lotus.jpg"
+    assert html =~ "https://example.test/black-lotus-beta.jpg"
+
+    # Add buttons with correct links
+    assert html =~ "/collection/new?printing_id=scryfall-printing-1"
+    assert html =~ "/collection/new?printing_id=scryfall-printing-2"
+    assert html =~ "+ Add"
+
+    # Full set labels / metadata NOT visible on initial render (in modal)
+    refute html =~ "Limited Edition Alpha"
+    refute html =~ "Limited Edition Beta"
+    refute html =~ "Scryfall ID"
+  end
+
+  test "clicking a printing opens modal with full metadata", %{conn: conn} do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus_alpha, @black_lotus_beta])
+
+    {:ok, view, _html} = live(conn, ~p"/cards/oracle-1")
+
+    # Click the first printing image
+    html =
+      view
+      |> element(~s|[phx-click="show_details"][phx-value-scryfall_id="scryfall-printing-2"]|)
+      |> render_click()
+
+    # Modal now visible with metadata
+    assert html =~ "Scryfall ID"
+    assert html =~ "scryfall-printing-2"
     assert html =~ "233"
-    assert html =~ "en"
     assert html =~ "ja"
     assert html =~ "nonfoil, foil"
-    assert html =~ "https://example.test/black-lotus.jpg"
+    assert html =~ "Limited Edition Beta (LEB)"
+
+    # Close the modal
+    html =
+      view
+      |> element("button", "Close")
+      |> render_click()
+
+    refute html =~ "Scryfall ID"
   end
 end

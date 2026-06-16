@@ -5,7 +5,7 @@ defmodule Manavault.Catalog do
 
   import Ecto.Query
 
-  alias Manavault.Catalog.{Card, Printing, Sync}
+  alias Manavault.Catalog.{Card, CollectionItem, Location, Printing, Sync}
   alias Manavault.Repo
 
   @bulk_metadata_url "https://api.scryfall.com/bulk-data/default-cards"
@@ -73,6 +73,248 @@ defmodule Manavault.Catalog do
       )
       |> limit(^limit)
       |> Repo.all()
+    end
+  end
+
+  def list_collection_items(filters \\ [], opts \\ []) when is_list(filters) do
+    limit = Keyword.get(opts, :limit, 100)
+    query = filters |> Keyword.get(:q, "") |> normalize_filter()
+
+    CollectionItem
+    |> join(:inner, [item], printing in assoc(item, :printing))
+    |> join(:inner, [item, printing], card in assoc(printing, :card))
+    |> join(:left, [item, _printing, _card], location in assoc(item, :location_assoc))
+    |> maybe_filter_collection_search(query)
+    |> preload([_item, printing, card, location],
+      printing: {printing, card: card},
+      location_assoc: location
+    )
+    |> order_by([item, printing, card, _location],
+      asc: card.name,
+      asc: printing.set_code,
+      asc: printing.collector_number,
+      asc: item.id
+    )
+    |> limit(^limit)
+    |> Repo.all()
+  end
+
+  def get_collection_item!(id) do
+    CollectionItem
+    |> Repo.get!(id)
+    |> Repo.preload(printing: :card, location_assoc: [])
+  end
+
+  def change_collection_item(collection_item, attrs \\ %{})
+
+  def change_collection_item(%CollectionItem{id: nil} = collection_item, attrs) do
+    CollectionItem.create_changeset(collection_item, attrs)
+  end
+
+  def change_collection_item(%CollectionItem{} = collection_item, attrs) do
+    CollectionItem.update_changeset(collection_item, attrs)
+  end
+
+  def new_collection_item_for_printing(scryfall_id) when is_binary(scryfall_id) do
+    case get_printing_by_scryfall_id(scryfall_id) do
+      nil ->
+        nil
+
+      printing ->
+        CollectionItem.create_changeset(%CollectionItem{}, default_collection_attrs(printing))
+    end
+  end
+
+  def create_collection_item(attrs) when is_map(attrs) do
+    %CollectionItem{}
+    |> CollectionItem.create_changeset(attrs)
+    |> validate_collection_finish_available()
+    |> Repo.insert()
+  end
+
+  def update_collection_item(%CollectionItem{} = collection_item, attrs) when is_map(attrs) do
+    collection_item
+    |> CollectionItem.update_changeset(attrs)
+    |> validate_collection_finish_available()
+    |> Repo.update()
+  end
+
+  def list_printings_for_collection_item(%CollectionItem{printing: %{card: %{oracle_id: oracle_id}}}) do
+    list_printings_for_oracle_id(oracle_id)
+  end
+
+  def list_printings_for_collection_item(%CollectionItem{printing: %{oracle_id: oracle_id}}) do
+    list_printings_for_oracle_id(oracle_id)
+  end
+
+  def list_printings_for_collection_item(%CollectionItem{scryfall_id: scryfall_id}) do
+    case get_printing_by_scryfall_id(scryfall_id) do
+      nil -> []
+      %Printing{oracle_id: oracle_id} -> list_printings_for_oracle_id(oracle_id)
+    end
+  end
+
+  def switch_collection_item_printing(%CollectionItem{} = collection_item, scryfall_id)
+      when is_binary(scryfall_id) do
+    attrs = switch_collection_attrs(collection_item, scryfall_id)
+
+    collection_item
+    |> CollectionItem.switch_printing_changeset(attrs)
+    |> validate_collection_finish_available()
+    |> Repo.update()
+  end
+
+  def delete_collection_item(%CollectionItem{} = collection_item) do
+    Repo.delete(collection_item)
+  end
+
+  # ── Locations ──────────────────────────────────────────────────────
+
+  def list_locations(_opts \\ []) do
+    Location
+    |> order_by(asc: :name)
+    |> Repo.all()
+    |> Repo.preload(collection_items: [])
+  end
+
+  def get_location!(id) do
+    Location |> Repo.get!(id)
+  end
+
+  def get_location_with_items!(id) do
+    Location
+    |> Repo.get!(id)
+    |> Repo.preload(
+      collection_items:
+        from(item in CollectionItem,
+          join: printing in assoc(item, :printing),
+          join: card in assoc(printing, :card),
+          preload: [printing: {printing, card: card}],
+          order_by: [asc: card.name, asc: printing.set_code, asc: printing.collector_number]
+        )
+    )
+  end
+
+  def list_collection_items_by_location(location_id, filters \\ [], opts \\ [])
+      when is_list(filters) do
+    limit = Keyword.get(opts, :limit, 100)
+    query = filters |> Keyword.get(:q, "") |> normalize_filter()
+
+    CollectionItem
+    |> where(location_id: ^location_id)
+    |> join(:inner, [item], printing in assoc(item, :printing))
+    |> join(:inner, [_item, printing], card in assoc(printing, :card))
+    |> maybe_filter_collection_search(query)
+    |> preload([_item, printing, card],
+      printing: {printing, card: card}
+    )
+    |> order_by([item, printing, card],
+      asc: card.name,
+      asc: printing.set_code,
+      asc: printing.collector_number,
+      asc: item.id
+    )
+    |> limit(^limit)
+    |> Repo.all()
+  end
+
+  def change_location(location, attrs \\ %{}) do
+    Location.changeset(location, attrs)
+  end
+
+  def create_location(attrs \\ %{}) do
+    %Location{}
+    |> Location.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def update_location(%Location{} = location, attrs) do
+    location
+    |> Location.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_location(%Location{} = location) do
+    Repo.delete(location)
+  end
+
+  def add_printing_to_collection(scryfall_id, attrs \\ %{})
+      when is_binary(scryfall_id) and is_map(attrs) do
+    attrs
+    |> Map.new(fn {key, value} -> {to_string(key), value} end)
+    |> Map.put("scryfall_id", scryfall_id)
+    |> create_collection_item()
+  end
+
+  defp list_printings_for_oracle_id(oracle_id) do
+    Printing
+    |> where([printing], printing.oracle_id == ^oracle_id)
+    |> order_by([printing],
+      desc: printing.released_at,
+      asc: printing.set_code,
+      asc: printing.collector_number
+    )
+    |> Repo.all()
+    |> Repo.preload(:card)
+  end
+
+  defp switch_collection_attrs(%CollectionItem{} = collection_item, scryfall_id) do
+    case get_printing_by_scryfall_id(scryfall_id) do
+      nil ->
+        %{
+          "scryfall_id" => scryfall_id,
+          "language" => collection_item.language,
+          "finish" => collection_item.finish
+        }
+
+      %Printing{} = printing ->
+        %{
+          "scryfall_id" => scryfall_id,
+          "language" => printing.lang || collection_item.language || "en",
+          "finish" => preferred_finish(printing, collection_item.finish)
+        }
+    end
+  end
+
+  defp default_collection_attrs(%Printing{} = printing) do
+    %{
+      scryfall_id: printing.scryfall_id,
+      language: printing.lang || "en",
+      finish: first_finish(printing.finishes),
+      quantity: 1,
+      condition: "near_mint"
+    }
+  end
+
+  defp first_finish(finishes) do
+    finishes
+    |> decode_json([])
+    |> List.wrap()
+    |> Enum.find("nonfoil", &is_binary/1)
+  end
+
+  defp preferred_finish(%Printing{finishes: finishes}, current_finish) do
+    available_finishes = finishes |> decode_json([]) |> List.wrap()
+
+    cond do
+      is_binary(current_finish) and current_finish in available_finishes -> current_finish
+      true -> Enum.find(available_finishes, "nonfoil", &is_binary/1)
+    end
+  end
+
+  defp validate_collection_finish_available(changeset) do
+    scryfall_id = Ecto.Changeset.get_field(changeset, :scryfall_id)
+    finish = Ecto.Changeset.get_field(changeset, :finish)
+
+    with true <- changeset.valid?,
+         true <- is_binary(scryfall_id),
+         true <- is_binary(finish),
+         %Printing{} = printing <- Repo.get(Printing, scryfall_id),
+         finishes <- printing.finishes |> decode_json([]) |> List.wrap(),
+         false <- finish in finishes do
+      Ecto.Changeset.add_error(changeset, :finish, "is not available for this printing")
+    else
+      _other -> changeset
     end
   end
 
@@ -169,6 +411,21 @@ defmodule Manavault.Catalog do
     where(query, [printing, _card], printing.collector_number == ^collector_number)
   end
 
+  defp maybe_filter_collection_search(query, ""), do: query
+
+  defp maybe_filter_collection_search(query, search) do
+    pattern = "%#{String.downcase(search)}%"
+
+    where(
+      query,
+      [_item, printing, card],
+      fragment("lower(?) LIKE ?", card.name, ^pattern) or
+        fragment("lower(?) LIKE ?", printing.set_code, ^pattern) or
+        fragment("lower(?) LIKE ?", printing.collector_number, ^pattern) or
+        fragment("lower(?) LIKE ?", printing.scryfall_id, ^pattern)
+    )
+  end
+
   defp insert_in_batches(_schema, [], _opts), do: :ok
 
   defp insert_in_batches(schema, rows, opts) do
@@ -239,6 +496,15 @@ defmodule Manavault.Catalog do
   defp image_uris(_card), do: %{}
 
   defp encode_json(value), do: Jason.encode!(value)
+
+  defp decode_json(value, fallback) when is_binary(value) do
+    case Jason.decode(value) do
+      {:ok, decoded} -> decoded
+      {:error, _reason} -> fallback
+    end
+  end
+
+  defp decode_json(_value, fallback), do: fallback
 
   defp parse_date(nil), do: nil
 

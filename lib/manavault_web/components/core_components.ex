@@ -87,6 +87,28 @@ defmodule ManavaultWeb.CoreComponents do
   end
 
   @doc """
+  Renders a compact secondary navigation link for returning to a previous page.
+  """
+  attr :navigate, :any, required: true
+  attr :class, :any, default: nil
+  slot :inner_block, required: true
+
+  def back_link(assigns) do
+    ~H"""
+    <.link
+      navigate={@navigate}
+      class={[
+        "group inline-flex w-fit items-center gap-2 rounded-full border border-base-300 bg-base-100 px-3 py-1.5 text-sm font-semibold text-base-content/70 shadow-sm transition hover:-translate-x-0.5 hover:border-primary/40 hover:bg-base-200 hover:text-base-content",
+        @class
+      ]}
+    >
+      <.icon name="hero-arrow-left-mini" class="size-4 transition group-hover:-translate-x-0.5" />
+      <span>{render_slot(@inner_block)}</span>
+    </.link>
+    """
+  end
+
+  @doc """
   Renders a button with navigation support.
 
   ## Examples

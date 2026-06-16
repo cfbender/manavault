@@ -5,20 +5,35 @@ defmodule ManavaultWeb.CardShowLive do
   alias Manavault.Catalog.Printing
 
   @impl true
-  def mount(%{"id" => oracle_id}, _session, socket) do
+  def mount(%{"id" => oracle_id} = params, _session, socket) do
+    back_params = search_params(params)
+
     case Catalog.get_card_with_printings(oracle_id) do
       nil ->
         {:ok,
          socket
          |> assign(:page_title, "Card not found")
-         |> assign(:card, nil)}
+         |> assign(:card, nil)
+         |> assign(:back_params, back_params)}
 
       card ->
         {:ok,
          socket
          |> assign(:page_title, card.name)
-         |> assign(:card, card)}
+         |> assign(:card, card)
+         |> assign(:back_params, back_params)
+         |> assign(:selected_printing, nil)}
     end
+  end
+
+  @impl true
+  def handle_event("show_details", %{"scryfall_id" => scryfall_id}, socket) do
+    printing = Enum.find(socket.assigns.card.printings, &(&1.scryfall_id == scryfall_id))
+    {:noreply, assign(socket, :selected_printing, printing)}
+  end
+
+  def handle_event("close_modal", _params, socket) do
+    {:noreply, assign(socket, :selected_printing, nil)}
   end
 
   @impl true
@@ -26,7 +41,7 @@ defmodule ManavaultWeb.CardShowLive do
     ~H"""
     <Layouts.app flash={@flash}>
       <div class="space-y-4">
-        <.link navigate={~p"/cards"} class="link link-primary">← Back to search</.link>
+        <.back_link navigate={~p"/cards?#{@back_params}"}>Back to search</.back_link>
         <p class="alert alert-error">Card not found.</p>
       </div>
     </Layouts.app>
@@ -37,7 +52,7 @@ defmodule ManavaultWeb.CardShowLive do
     ~H"""
     <Layouts.app flash={@flash}>
       <div class="space-y-8">
-        <.link navigate={~p"/cards"} class="link link-primary">← Back to search</.link>
+        <.back_link navigate={~p"/cards?#{@back_params}"}>Back to search</.back_link>
 
         <section class="relative overflow-hidden rounded-box border border-base-300 bg-base-200 shadow-xl">
           <img
@@ -65,7 +80,6 @@ defmodule ManavaultWeb.CardShowLive do
           <div class="card-body gap-4">
             <div>
               <p class="text-xs font-semibold uppercase tracking-wide text-primary">Oracle text</p>
-              <h2 class="card-title text-2xl">Rules text</h2>
             </div>
 
             <div class="space-y-4 text-base leading-8 text-base-content/90">
@@ -82,49 +96,119 @@ defmodule ManavaultWeb.CardShowLive do
             </p>
           </div>
 
-          <div class="grid gap-4 md:grid-cols-2">
-            <article :for={printing <- @card.printings} class="card bg-base-200 shadow-sm">
-              <div class="card-body gap-4">
-                <div class="flex gap-4">
-                  <img
-                    :if={image_url(printing)}
-                    src={image_url(printing)}
-                    alt={image_alt(@card.name, printing)}
-                    class="w-24 rounded-lg shadow"
-                  />
-                  <div class="space-y-2">
-                    <h3 class="card-title text-lg">{set_label(printing)}</h3>
-                    <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-                      <dt class="font-semibold">Collector #</dt>
-                      <dd>{printing.collector_number}</dd>
-                      <dt class="font-semibold">Language</dt>
-                      <dd>{printing.lang}</dd>
-                      <dt class="font-semibold">Finishes</dt>
-                      <dd>{finish_label(printing)}</dd>
-                    </dl>
-                  </div>
+          <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            <div :for={printing <- @card.printings} class="card bg-base-200 shadow-sm overflow-hidden group">
+              <figure
+                :if={image_url(printing)}
+                phx-click="show_details"
+                phx-value-scryfall_id={printing.scryfall_id}
+                class="aspect-[5/7] bg-base-300 cursor-pointer relative"
+              >
+                <img
+                  src={image_url(printing)}
+                  alt={image_alt(@card.name, printing)}
+                  class="h-full w-full object-cover transition group-hover:scale-[1.02]"
+                  loading="lazy"
+                />
+                <span class="absolute bottom-1.5 left-1.5 badge badge-sm badge-outline bg-base-100/80 backdrop-blur-sm font-bold">
+                  {String.upcase(printing.set_code)}
+                </span>
+                <span
+                  :if={price_text(printing)}
+                  class="absolute bottom-1.5 right-1.5 badge badge-sm bg-base-100/80 backdrop-blur-sm font-mono text-xs"
+                >
+                  {price_text(printing)}
+                </span>
+                <div class="absolute inset-0 bg-black/0 transition group-hover:bg-black/20 flex items-start p-2">
+                  <span class="text-xs text-white opacity-0 group-hover:opacity-100 transition">
+                    Click for details
+                  </span>
                 </div>
+              </figure>
+              <div class="card-body gap-2 p-3">
+                <.link
+                  navigate={~p"/collection/new?printing_id=#{printing.scryfall_id}"}
+                  class="btn btn-primary btn-xs w-full"
+                >
+                  + Add
+                </.link>
               </div>
-            </article>
+            </div>
           </div>
 
           <p :if={@card.printings == []} class="alert alert-info">
             No printings are available for this card.
           </p>
         </section>
+
+        <%!-- Printing details modal --%>
+        <dialog
+          :if={@selected_printing}
+          id="printing-modal"
+          class="modal modal-open"
+          phx-click-away="close_modal"
+          phx-key="Escape"
+        >
+          <div class="modal-box max-w-md">
+            <div class="flex gap-4">
+              <img
+                :if={image_url(@selected_printing)}
+                src={image_url(@selected_printing)}
+                alt={image_alt(@card.name, @selected_printing)}
+                class="w-28 h-40 shrink-0 rounded-lg shadow object-cover"
+              />
+              <div class="space-y-3 flex-1">
+                <h3 class="text-lg font-bold">{set_label(@selected_printing)}</h3>
+                <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+                  <dt class="font-semibold">Collector #</dt>
+                  <dd>{@selected_printing.collector_number}</dd>
+                  <dt class="font-semibold">Language</dt>
+                  <dd>{@selected_printing.lang}</dd>
+                  <dt class="font-semibold">Finishes</dt>
+                  <dd>{finish_label(@selected_printing)}</dd>
+                  <dt class="font-semibold">Scryfall ID</dt>
+                  <dd class="break-all text-xs">{@selected_printing.scryfall_id}</dd>
+                </dl>
+                <.link
+                  navigate={~p"/collection/new?printing_id=#{@selected_printing.scryfall_id}"}
+                  class="btn btn-primary btn-sm w-full mt-2"
+                >
+                  + Add to collection
+                </.link>
+              </div>
+            </div>
+            <div class="modal-action">
+              <button class="btn btn-sm" phx-click="close_modal">Close</button>
+            </div>
+          </div>
+          <form method="dialog" class="modal-backdrop">
+            <button phx-click="close_modal">close</button>
+          </form>
+        </dialog>
       </div>
     </Layouts.app>
     """
   end
+
+  defp search_params(params) when is_map(params) do
+    params
+    |> Map.take(["q"])
+    |> Enum.map(fn {key, value} -> {key, normalize_search_value(value)} end)
+    |> Enum.reject(fn {_key, value} -> value == "" end)
+    |> Map.new()
+  end
+
+  defp normalize_search_value(value) when is_binary(value), do: String.trim(value)
+  defp normalize_search_value(_value), do: ""
 
   defp banner_image_url(%{printings: [printing | _]}), do: image_url(printing, :banner)
   defp banner_image_url(_card), do: nil
 
   defp oracle_paragraphs(text) when is_binary(text) do
     text
-    |> String.split(~r/\n\s*\n/, trim: true)
+    |> String.split("\n")
     |> Enum.map(&String.trim/1)
-    |> Enum.reject(&(&1 == ""))
+    |> Enum.reject(&(&1 in ["", "---"]))
   end
 
   defp set_label(%Printing{set_code: set_code, set_name: nil}), do: String.upcase(set_code)
@@ -140,6 +224,29 @@ defmodule ManavaultWeb.CardShowLive do
     |> case do
       "" -> "Unknown"
       label -> label
+    end
+  end
+
+  defp price_text(%Printing{prices: prices}) do
+    prices
+    |> decode_json(%{})
+    |> then(fn
+      %{"usd" => usd} when is_binary(usd) and usd != "" -> "$#{format_price(usd)}"
+      %{"usd_foil" => foil} when is_binary(foil) and foil != "" -> "$#{format_price(foil)}"
+      map when is_map(map) -> 
+        map |> Map.values() |> Enum.find(&is_binary/1) |> then(fn
+          nil -> nil
+          v -> "$#{format_price(v)}"
+        end)
+      _ -> nil
+    end)
+  end
+
+  defp format_price(price) do
+    case Float.parse(price) do
+      {num, _} when num >= 100 -> trunc(num) |> Integer.to_string()
+      {num, _} -> :erlang.float_to_binary(num, decimals: 2)
+      :error -> price
     end
   end
 
@@ -162,7 +269,7 @@ defmodule ManavaultWeb.CardShowLive do
   defp preferred_image_keys(:banner), do: ["art_crop", "normal", "large", "small", "png"]
   defp preferred_image_keys(_variant), do: ["normal", "large", "small", "png", "art_crop"]
 
-  defp image_alt(card_name, printing), do: "#{card_name} #{set_label(printing)} image"
+  defp image_alt(card_name, printing), do: "#{card_name} (#{String.upcase(printing.set_code)})"
 
   defp decode_json(value, fallback) when is_binary(value) do
     case Jason.decode(value) do

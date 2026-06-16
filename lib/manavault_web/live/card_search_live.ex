@@ -9,21 +9,31 @@ defmodule ManavaultWeb.CardSearchLive do
     {:ok,
      socket
      |> assign(:page_title, "Card search")
+     |> assign(:search_params, %{})
      |> assign(:search_form, to_form(%{"q" => ""}, as: :search))
      |> assign(:card_results, [])
      |> assign(:searched?, false)}
   end
 
   @impl true
-  def handle_event("search_cards", %{"search" => %{"q" => query}}, socket) do
-    query = String.trim(query)
+  def handle_params(params, _uri, socket) do
+    search_params = search_params(params)
+    query = Map.get(search_params, "q", "")
     results = if query == "", do: [], else: Catalog.search_cards(query, limit: 25)
 
     {:noreply,
      socket
+     |> assign(:search_params, search_params)
      |> assign(:search_form, to_form(%{"q" => query}, as: :search))
      |> assign(:card_results, results)
-     |> assign(:searched?, true)}
+     |> assign(:searched?, map_size(search_params) > 0)}
+  end
+
+  @impl true
+  def handle_event("search_cards", %{"search" => params}, socket) do
+    search_params = search_params(params)
+
+    {:noreply, push_patch(socket, to: ~p"/cards?#{search_params}")}
   end
 
   @impl true
@@ -70,9 +80,9 @@ defmodule ManavaultWeb.CardSearchLive do
         </section>
 
         <section class="space-y-3">
-          <div class="flex items-center justify-between gap-3">
+          <div :if={@card_results != []} class="flex items-center justify-between gap-3">
             <h2 class="text-xl font-bold tracking-tight">Card results</h2>
-            <span :if={@card_results != []} class="badge badge-ghost">
+            <span class="badge badge-ghost">
               {length(@card_results)} matches
             </span>
           </div>
@@ -80,7 +90,7 @@ defmodule ManavaultWeb.CardSearchLive do
           <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             <.link
               :for={card <- @card_results}
-              navigate={~p"/cards/#{card.oracle_id}"}
+              navigate={~p"/cards/#{card.oracle_id}?#{@search_params}"}
               class="group card overflow-hidden border border-base-300 bg-base-100 shadow-sm transition hover:-translate-y-1 hover:border-primary/40 hover:shadow-xl"
             >
               <figure class="aspect-[5/7] bg-base-200">
@@ -118,6 +128,17 @@ defmodule ManavaultWeb.CardSearchLive do
     </Layouts.app>
     """
   end
+
+  defp search_params(params) when is_map(params) do
+    params
+    |> Map.take(["q"])
+    |> Enum.map(fn {key, value} -> {key, normalize_search_value(value)} end)
+    |> Enum.reject(fn {_key, value} -> value == "" end)
+    |> Map.new()
+  end
+
+  defp normalize_search_value(value) when is_binary(value), do: String.trim(value)
+  defp normalize_search_value(_value), do: ""
 
   defp card_image_url(%{printings: [printing | _]}), do: printing_image_url(printing)
   defp card_image_url(_card), do: nil
