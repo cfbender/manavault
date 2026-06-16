@@ -13,7 +13,12 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
      |> assign(:scan_session, scan_session)
      |> assign(:status_message, "Camera is stopped.")
      |> assign(:error_message, nil)
-     |> assign(:last_scan_item, nil)}
+     |> assign(:last_scan_item, nil)
+     |> assign(:recognition_opts, [])
+     |> assign(
+       :recognition_async?,
+       Application.get_env(:manavault, :scan_recognition_async, true)
+     )}
   end
 
   @impl true
@@ -22,10 +27,16 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
 
     case Catalog.create_scan_item_from_capture(scan_session, image_data) do
       {:ok, scan_item} ->
+        enqueue_recognition(
+          scan_item,
+          socket.assigns.recognition_opts,
+          socket.assigns.recognition_async?
+        )
+
         {:noreply,
          socket
          |> assign(:last_scan_item, scan_item)
-         |> assign(:status_message, "Captured card ##{scan_item.id}.")
+         |> assign(:status_message, "Captured card ##{scan_item.id}. Recognition is processing.")
          |> assign(:error_message, nil)}
 
       {:error, reason} when is_binary(reason) ->
@@ -52,6 +63,22 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
   end
 
   def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_info({:recognition_finished, scan_item_id, {:ok, scan_item}}, socket) do
+    {:noreply,
+     socket
+     |> maybe_assign_last_scan_item(scan_item_id, scan_item)
+     |> assign(:status_message, "Recognition finished for card ##{scan_item_id}.")}
+  end
+
+  def handle_info({:recognition_finished, scan_item_id, {:error, reason, scan_item}}, socket) do
+    {:noreply,
+     socket
+     |> maybe_assign_last_scan_item(scan_item_id, scan_item)
+     |> assign(:status_message, "Recognition needs review for card ##{scan_item_id}.")
+     |> assign(:error_message, reason)}
+  end
 
   @impl true
   def render(assigns) do
@@ -135,5 +162,23 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
       </div>
     </Layouts.app>
     """
+  end
+
+  defp enqueue_recognition(scan_item, recognition_opts, true) do
+    caller = self()
+
+    Task.Supervisor.start_child(Manavault.ScanRecognitionSupervisor, fn ->
+      result = Catalog.recognize_scan_item(scan_item, recognition_opts)
+      send(caller, {:recognition_finished, scan_item.id, result})
+    end)
+  end
+
+  defp enqueue_recognition(_scan_item, _recognition_opts, false), do: :ok
+
+  defp maybe_assign_last_scan_item(socket, scan_item_id, scan_item) do
+    case socket.assigns.last_scan_item do
+      %{id: ^scan_item_id} -> assign(socket, :last_scan_item, scan_item)
+      _other -> socket
+    end
   end
 end

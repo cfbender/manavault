@@ -2,7 +2,16 @@ defmodule Manavault.CatalogTest do
   use Manavault.DataCase
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.{Card, CollectionItem, Printing, ScanItem, ScanSession, Sync}
+
+  alias Manavault.Catalog.{
+    Card,
+    CollectionItem,
+    Printing,
+    ScanItem,
+    ScanRecognition,
+    ScanSession,
+    Sync
+  }
 
   @black_lotus %{
     "id" => "scryfall-printing-1",
@@ -329,7 +338,7 @@ defmodule Manavault.CatalogTest do
              )
 
     assert item.scan_session_id == scan_session.id
-    assert item.status == "pending"
+    assert item.status == "processing"
     assert item.image_path =~ upload_dir
     assert item.image_path =~ "/scan_sessions/#{scan_session.id}/"
     assert item.image_path =~ ".jpg"
@@ -341,6 +350,69 @@ defmodule Manavault.CatalogTest do
 
     assert {:error, "Capture must be a JPEG or PNG data URL."} =
              Catalog.create_scan_item_from_capture(scan_session, "not image data")
+  end
+
+  test "recognize_scan_item persists ranked OCR candidates from local Scryfall matches" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Recognition batch"})
+
+    assert {:ok, item} =
+             Catalog.create_scan_item(scan_session, %{image_path: "/tmp/black-lotus.jpg"})
+
+    ocr_runner = fn "/tmp/black-lotus.jpg" ->
+      {:ok, "Black Lotus\nSet: LEA\nCollector #232\nLanguage: en"}
+    end
+
+    assert {:ok, recognized_item} = Catalog.recognize_scan_item(item, ocr_runner: ocr_runner)
+
+    assert recognized_item.status == "recognized"
+    assert [candidate] = recognized_item.scan_candidates
+    assert candidate.source == "ocr"
+    assert candidate.rank == 1
+    assert candidate.confidence == 1.0
+    assert candidate.printing_id == "scryfall-printing-1"
+    assert candidate.oracle_id == "oracle-1"
+    assert candidate.printing.card.name == "Black Lotus"
+
+    assert %{
+             "parsed_name" => "Black Lotus",
+             "parsed_set_code" => "LEA",
+             "parsed_collector_number" => "232",
+             "matched_name" => "Black Lotus"
+           } = Jason.decode!(candidate.evidence)
+  end
+
+  test "recognize_scan_item marks failed OCR as needing review with evidence" do
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Failed recognition"})
+    assert {:ok, item} = Catalog.create_scan_item(scan_session, %{image_path: "/tmp/missing.jpg"})
+
+    assert {:error, "tesseract missing", review_item} =
+             Catalog.recognize_scan_item(item,
+               ocr_runner: fn _path -> {:error, "tesseract missing"} end
+             )
+
+    assert review_item.status == "needs_review"
+    assert [candidate] = review_item.scan_candidates
+    assert candidate.source == "ocr"
+    assert candidate.confidence == nil
+    assert Jason.decode!(candidate.evidence) == %{"ocr_error" => "tesseract missing"}
+  end
+
+  test "scan recognition parses OCR text and matches candidates without OCR runner" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    parsed = ScanRecognition.parse_text("Time Walk\nCollector: 84\nSet: LEA\nLanguage: ja")
+
+    assert parsed.name == "Time Walk"
+    assert parsed.collector_number == "84"
+    assert parsed.set_code == "LEA"
+    assert parsed.language == "ja"
+
+    assert [%{printing: printing, confidence: 1.0}] = ScanRecognition.match_candidates(parsed)
+    assert printing.scryfall_id == "scryfall-printing-2"
   end
 
   test "scan session validations reject invalid defaults and candidates" do

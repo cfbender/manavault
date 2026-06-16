@@ -90,13 +90,29 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
       )
 
     previous_dir = Application.get_env(:manavault, :capture_upload_dir)
+    previous_runner = Application.get_env(:manavault, :ocr_runner)
+    previous_async = Application.get_env(:manavault, :scan_recognition_async)
     Application.put_env(:manavault, :capture_upload_dir, upload_dir)
+    Application.put_env(:manavault, :ocr_runner, fn _path -> {:ok, ""} end)
+    Application.put_env(:manavault, :scan_recognition_async, false)
 
     on_exit(fn ->
       if previous_dir do
         Application.put_env(:manavault, :capture_upload_dir, previous_dir)
       else
         Application.delete_env(:manavault, :capture_upload_dir)
+      end
+
+      if previous_runner do
+        Application.put_env(:manavault, :ocr_runner, previous_runner)
+      else
+        Application.delete_env(:manavault, :ocr_runner)
+      end
+
+      if is_nil(previous_async) do
+        Application.delete_env(:manavault, :scan_recognition_async)
+      else
+        Application.put_env(:manavault, :scan_recognition_async, previous_async)
       end
 
       File.rm_rf!(upload_dir)
@@ -115,11 +131,12 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     image_data = "data:image/png;base64,#{Base.encode64("png bytes")}"
     html = render_hook(view, "capture", %{"image_data" => image_data})
 
-    assert html =~ "Captured card #"
+    assert html =~ "Recognition is processing."
     assert html =~ "Saved image:"
 
     loaded = Catalog.get_scan_session!(scan_session.id)
     assert [item] = loaded.scan_items
+    assert item.status in ["processing", "needs_review"]
     assert item.image_path =~ upload_dir
     assert File.read!(item.image_path) == "png bytes"
   end

@@ -12,6 +12,7 @@ defmodule Manavault.Catalog do
     Printing,
     ScanCandidate,
     ScanItem,
+    ScanRecognition,
     ScanSession,
     Sync
   }
@@ -315,11 +316,19 @@ defmodule Manavault.Catalog do
     |> Repo.insert()
   end
 
-  def create_scan_item_from_capture(%ScanSession{} = scan_session, image_data)
+  def create_scan_item_from_capture(%ScanSession{} = scan_session, image_data, _opts \\ [])
       when is_binary(image_data) do
     with {:ok, extension, binary} <- decode_capture_image(image_data),
          {:ok, path} <- write_capture_image(scan_session, extension, binary) do
-      create_scan_item(scan_session, %{"image_path" => path})
+      create_scan_item(scan_session, %{"image_path" => path, "status" => "processing"})
+    end
+  end
+
+  def recognize_scan_item(%ScanItem{} = scan_item, opts \\ []) when is_list(opts) do
+    with {:ok, recognition} <- ScanRecognition.recognize(scan_item, opts) do
+      persist_recognition(scan_item, recognition)
+    else
+      {:error, reason} -> mark_scan_item_needs_review(scan_item, %{ocr_error: reason})
     end
   end
 
@@ -342,6 +351,82 @@ defmodule Manavault.Catalog do
       reviewed: Enum.filter(items, &(&1.status in ["needs_review", "rejected", "failed"])),
       accepted: Enum.filter(items, &(&1.status == "accepted"))
     }
+  end
+
+  defp persist_recognition(%ScanItem{} = scan_item, %{candidates: candidates} = recognition) do
+    Repo.transaction(fn ->
+      persisted_candidates =
+        candidates
+        |> Enum.with_index(1)
+        |> Enum.map(fn {candidate, rank} ->
+          {:ok, scan_candidate} =
+            create_scan_candidate(scan_item, %{
+              "printing_id" => candidate.printing.scryfall_id,
+              "oracle_id" => candidate.printing.oracle_id,
+              "source" => "ocr",
+              "confidence" => candidate.confidence,
+              "rank" => rank,
+              "evidence" => Jason.encode!(candidate.evidence)
+            })
+
+          scan_candidate
+        end)
+
+      status = if persisted_candidates == [], do: "needs_review", else: "recognized"
+      evidence = Map.take(recognition, [:text, :parsed])
+
+      {:ok, updated_item} = update_scan_item_status(scan_item, status)
+
+      if persisted_candidates == [] do
+        {:ok, _candidate} =
+          create_scan_candidate(updated_item, %{
+            "source" => "ocr",
+            "rank" => 1,
+            "evidence" =>
+              Jason.encode!(
+                Map.put(evidence, :reason, "No local Scryfall candidates matched OCR output.")
+              )
+          })
+      end
+
+      Repo.preload(updated_item,
+        scan_candidates:
+          {from(candidate in ScanCandidate, order_by: [asc: candidate.rank, asc: candidate.id]),
+           [printing: :card, card: []]}
+      )
+    end)
+  end
+
+  defp mark_scan_item_needs_review(%ScanItem{} = scan_item, evidence) when is_map(evidence) do
+    Repo.transaction(fn ->
+      {:ok, updated_item} = update_scan_item_status(scan_item, "needs_review")
+
+      {:ok, _candidate} =
+        create_scan_candidate(updated_item, %{
+          "source" => "ocr",
+          "rank" => 1,
+          "evidence" => Jason.encode!(evidence)
+        })
+
+      Repo.preload(updated_item,
+        scan_candidates:
+          {from(candidate in ScanCandidate, order_by: [asc: candidate.rank, asc: candidate.id]),
+           [printing: :card, card: []]}
+      )
+    end)
+    |> case do
+      {:ok, updated_item} ->
+        {:error, Map.get(evidence, :ocr_error, "Recognition failed."), updated_item}
+
+      {:error, reason} ->
+        {:error, reason, scan_item}
+    end
+  end
+
+  defp update_scan_item_status(%ScanItem{} = scan_item, status) do
+    scan_item
+    |> ScanItem.changeset(%{"status" => status})
+    |> Repo.update()
   end
 
   defp decode_capture_image("data:image/jpeg;base64," <> encoded),
