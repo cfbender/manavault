@@ -29,7 +29,9 @@ defmodule ManavaultWeb.CollectionFormLive do
          |> assign(:printing, nil)
          |> assign(:collection_item, nil)
          |> assign(:form, nil)
-         |> assign(:locations, [])}
+         |> assign(:locations, [])
+         |> assign(:return_path, ~p"/collection")
+         |> assign(:return_label, "Back to collection")}
 
       printing ->
         printing = Manavault.Repo.preload(printing, :card)
@@ -42,12 +44,16 @@ defmodule ManavaultWeb.CollectionFormLive do
          |> assign(:printing, printing)
          |> assign(:collection_item, nil)
          |> assign(:form, to_form(changeset))
-         |> assign(:locations, Catalog.list_locations())}
+         |> assign(:locations, Catalog.list_locations())
+         |> assign(:return_path, ~p"/collection")
+         |> assign(:return_label, "Back to collection")}
     end
   end
 
-  def mount(%{"id" => id}, _session, socket) do
+  def mount(%{"id" => id} = params, _session, socket) do
     collection_item = Catalog.get_collection_item!(id)
+
+    {return_path, return_label} = return_destination(collection_item, params)
 
     {:ok,
      socket
@@ -56,7 +62,9 @@ defmodule ManavaultWeb.CollectionFormLive do
      |> assign(:printing, collection_item.printing)
      |> assign(:collection_item, collection_item)
      |> assign(:form, to_form(Catalog.change_collection_item(collection_item)))
-     |> assign(:locations, Catalog.list_locations())}
+     |> assign(:locations, Catalog.list_locations())
+     |> assign(:return_path, return_path)
+     |> assign(:return_label, return_label)}
   end
 
   def mount(%{}, _session, socket) do
@@ -68,7 +76,9 @@ defmodule ManavaultWeb.CollectionFormLive do
      |> assign(:mode, :location)
      |> assign(:printing, nil)
      |> assign(:collection_item, nil)
-     |> assign(:form, to_form(changeset))}
+     |> assign(:form, to_form(changeset))
+     |> assign(:return_path, ~p"/collection")
+     |> assign(:return_label, "Back to collection")}
   end
 
   @impl true
@@ -138,7 +148,7 @@ defmodule ManavaultWeb.CollectionFormLive do
         {:noreply,
          socket
          |> put_flash(:info, "Updated #{printing_name(socket.assigns.printing)}.")
-         |> push_navigate(to: ~p"/collection")}
+         |> push_navigate(to: socket.assigns.return_path)}
 
       {:error, changeset} ->
         {:noreply, assign(socket, :form, to_form(changeset))}
@@ -150,7 +160,7 @@ defmodule ManavaultWeb.CollectionFormLive do
     ~H"""
     <Layouts.app flash={@flash}>
       <div class="space-y-4">
-        <.back_link navigate={~p"/collection"}>Back to collection</.back_link>
+        <.back_link navigate={@return_path}>{@return_label}</.back_link>
         <p class="alert alert-error">Printing not found.</p>
       </div>
     </Layouts.app>
@@ -161,7 +171,7 @@ defmodule ManavaultWeb.CollectionFormLive do
     ~H"""
     <Layouts.app flash={@flash}>
       <div class="mx-auto max-w-3xl space-y-6">
-        <.back_link navigate={~p"/collection"}>Back to collection</.back_link>
+        <.back_link navigate={@return_path}>{@return_label}</.back_link>
 
         <section :if={@mode == :location} class="card border border-base-300 bg-base-100 shadow-xl">
           <div class="card-body gap-6">
@@ -180,7 +190,13 @@ defmodule ManavaultWeb.CollectionFormLive do
               phx-submit="save"
               class="space-y-4"
             >
-              <.input field={@form[:name]} type="text" label="Name" placeholder="Trade Binder" required />
+              <.input
+                field={@form[:name]}
+                type="text"
+                label="Name"
+                placeholder="Trade Binder"
+                required
+              />
               <.input
                 field={@form[:kind]}
                 type="select"
@@ -196,7 +212,7 @@ defmodule ManavaultWeb.CollectionFormLive do
               />
 
               <div class="flex justify-end gap-3">
-                <.link navigate={~p"/collection"} class="btn btn-ghost">Cancel</.link>
+                <.link navigate={@return_path} class="btn btn-ghost">Cancel</.link>
                 <button class="btn btn-primary" type="submit">Create location</button>
               </div>
             </.form>
@@ -250,7 +266,7 @@ defmodule ManavaultWeb.CollectionFormLive do
               <.input field={@form[:notes]} type="textarea" label="Notes" rows="4" />
 
               <div class="flex justify-end gap-3">
-                <.link navigate={~p"/collection"} class="btn btn-ghost">Cancel</.link>
+                <.link navigate={@return_path} class="btn btn-ghost">Cancel</.link>
                 <button class="btn btn-primary" type="submit">Save</button>
               </div>
             </.form>
@@ -259,6 +275,27 @@ defmodule ManavaultWeb.CollectionFormLive do
       </div>
     </Layouts.app>
     """
+  end
+
+  defp return_destination(collection_item, %{"return_to" => "location"}) do
+    location_return_destination(collection_item)
+  end
+
+  defp return_destination(_collection_item, _params), do: {~p"/collection", "Back to collection"}
+
+  defp location_return_destination(%CollectionItem{location_id: nil}) do
+    {~p"/collection", "Back to collection"}
+  end
+
+  defp location_return_destination(%CollectionItem{
+         location_id: location_id,
+         location_assoc: %Location{name: name}
+       }) do
+    {~p"/collection/locations/#{location_id}", "Back to #{name}"}
+  end
+
+  defp location_return_destination(%CollectionItem{location_id: location_id}) do
+    {~p"/collection/locations/#{location_id}", "Back to location"}
   end
 
   defp condition_options, do: @conditions
@@ -295,7 +332,9 @@ defmodule ManavaultWeb.CollectionFormLive do
   defp kind_icon("folder"), do: "📁"
   defp kind_icon(_), do: "📌"
 
-  defp normalize_location_id(%{"location_id" => ""} = params), do: Map.put(params, "location_id", nil)
+  defp normalize_location_id(%{"location_id" => ""} = params),
+    do: Map.put(params, "location_id", nil)
+
   defp normalize_location_id(params), do: params
 
   defp decode_finishes(finishes) when is_binary(finishes) do

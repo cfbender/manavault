@@ -78,13 +78,22 @@ defmodule Manavault.Catalog do
 
   def list_collection_items(filters \\ [], opts \\ []) when is_list(filters) do
     limit = Keyword.get(opts, :limit, 100)
+    offset = Keyword.get(opts, :offset, 0)
     query = filters |> Keyword.get(:q, "") |> normalize_filter()
+    condition = filters |> Keyword.get(:condition, "") |> normalize_filter()
+    language = filters |> Keyword.get(:language, "") |> normalize_filter()
+    finish = filters |> Keyword.get(:finish, "") |> normalize_filter()
+    location_id = filters |> Keyword.get(:location_id, "") |> normalize_filter()
 
     CollectionItem
     |> join(:inner, [item], printing in assoc(item, :printing))
     |> join(:inner, [item, printing], card in assoc(printing, :card))
     |> join(:left, [item, _printing, _card], location in assoc(item, :location_assoc))
     |> maybe_filter_collection_search(query)
+    |> maybe_filter_collection_condition(condition)
+    |> maybe_filter_collection_language(language)
+    |> maybe_filter_collection_finish(finish)
+    |> maybe_filter_collection_location(location_id)
     |> preload([_item, printing, card, location],
       printing: {printing, card: card},
       location_assoc: location
@@ -96,6 +105,7 @@ defmodule Manavault.Catalog do
       asc: item.id
     )
     |> limit(^limit)
+    |> offset(^offset)
     |> Repo.all()
   end
 
@@ -139,7 +149,9 @@ defmodule Manavault.Catalog do
     |> Repo.update()
   end
 
-  def list_printings_for_collection_item(%CollectionItem{printing: %{card: %{oracle_id: oracle_id}}}) do
+  def list_printings_for_collection_item(%CollectionItem{
+        printing: %{card: %{oracle_id: oracle_id}}
+      }) do
     list_printings_for_oracle_id(oracle_id)
   end
 
@@ -418,12 +430,43 @@ defmodule Manavault.Catalog do
 
     where(
       query,
-      [_item, printing, card],
+      [_item, printing, card, ...],
       fragment("lower(?) LIKE ?", card.name, ^pattern) or
         fragment("lower(?) LIKE ?", printing.set_code, ^pattern) or
         fragment("lower(?) LIKE ?", printing.collector_number, ^pattern) or
         fragment("lower(?) LIKE ?", printing.scryfall_id, ^pattern)
     )
+  end
+
+  defp maybe_filter_collection_condition(query, ""), do: query
+
+  defp maybe_filter_collection_condition(query, condition) do
+    where(query, [item, _printing, _card, _location], item.condition == ^condition)
+  end
+
+  defp maybe_filter_collection_language(query, ""), do: query
+
+  defp maybe_filter_collection_language(query, language) do
+    where(query, [item, _printing, _card, _location], item.language == ^language)
+  end
+
+  defp maybe_filter_collection_finish(query, ""), do: query
+
+  defp maybe_filter_collection_finish(query, finish) do
+    where(query, [item, _printing, _card, _location], item.finish == ^finish)
+  end
+
+  defp maybe_filter_collection_location(query, ""), do: query
+
+  defp maybe_filter_collection_location(query, "unfiled") do
+    where(query, [item, _printing, _card, _location], is_nil(item.location_id))
+  end
+
+  defp maybe_filter_collection_location(query, location_id) do
+    case Integer.parse(location_id) do
+      {id, ""} -> where(query, [item, _printing, _card, _location], item.location_id == ^id)
+      _invalid -> where(query, false)
+    end
   end
 
   defp insert_in_batches(_schema, [], _opts), do: :ok

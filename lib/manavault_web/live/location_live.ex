@@ -175,7 +175,11 @@ defmodule ManavaultWeb.LocationLive do
                 :if={!@selected_item and !@change_printing_item}
                 class="dropdown dropdown-end absolute top-8 right-1.5 z-50"
               >
-                <button type="button" class="btn btn-circle btn-xs bg-base-100/85 backdrop-blur-sm shadow" tabindex="0">
+                <button
+                  type="button"
+                  class="btn btn-circle btn-xs bg-base-100/85 backdrop-blur-sm shadow"
+                  tabindex="0"
+                >
                   ⋮
                 </button>
                 <ul
@@ -183,7 +187,7 @@ defmodule ManavaultWeb.LocationLive do
                   class="menu dropdown-content z-50 mt-1 w-44 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-xl"
                 >
                   <li>
-                    <.link navigate={~p"/collection/#{item.id}/edit"}>Edit</.link>
+                    <.link navigate={~p"/collection/#{item.id}/edit?return_to=location"}>Edit</.link>
                   </li>
                   <li>
                     <button type="button" phx-click="change_printing" phx-value-id={item.id}>
@@ -245,8 +249,7 @@ defmodule ManavaultWeb.LocationLive do
 
           <p :if={@items == []} class="alert border border-info/20 bg-info/10 text-info-content">
             <span>
-              No cards found
-              <span :if={@location.collection_items != []}> matching that search</span>.
+              No cards found <span :if={@location.collection_items != []}> matching that search</span>.
             </span>
           </p>
 
@@ -294,7 +297,10 @@ defmodule ManavaultWeb.LocationLive do
               </div>
             </div>
             <div class="modal-action">
-              <.link navigate={~p"/collection/#{@selected_item.id}/edit"} class="btn btn-sm btn-primary">
+              <.link
+                navigate={~p"/collection/#{@selected_item.id}/edit?return_to=location"}
+                class="btn btn-sm btn-primary"
+              >
                 Edit
               </.link>
               <button class="btn btn-sm" phx-click="close_modal">Close</button>
@@ -326,8 +332,10 @@ defmodule ManavaultWeb.LocationLive do
                 type="button"
                 class={[
                   "group card overflow-hidden border bg-base-100 text-left shadow-sm transition focus:outline-none focus:ring-2 focus:ring-primary/40",
-                  printing.scryfall_id == @change_printing_item.scryfall_id && "cursor-default border-primary opacity-75 ring-2 ring-primary/30",
-                  printing.scryfall_id != @change_printing_item.scryfall_id && "cursor-pointer border-base-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-primary/5 hover:shadow-xl"
+                  printing.scryfall_id == @change_printing_item.scryfall_id &&
+                    "cursor-default border-primary opacity-75 ring-2 ring-primary/30",
+                  printing.scryfall_id != @change_printing_item.scryfall_id &&
+                    "cursor-pointer border-base-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-primary/5 hover:shadow-xl"
                 ]}
                 phx-click="switch_printing"
                 phx-value-id={@change_printing_item.id}
@@ -455,8 +463,12 @@ defmodule ManavaultWeb.LocationLive do
     prices
     |> decode_json(%{})
     |> then(fn
-      %{"usd" => usd} when is_binary(usd) and usd != "" -> "$#{format_price(usd)}"
-      %{"usd_foil" => foil} when is_binary(foil) and foil != "" -> "$#{format_price(foil)}"
+      %{"usd" => usd} when is_binary(usd) and usd != "" ->
+        "$#{format_price(usd)}"
+
+      %{"usd_foil" => foil} when is_binary(foil) and foil != "" ->
+        "$#{format_price(foil)}"
+
       map when is_map(map) ->
         map
         |> Map.values()

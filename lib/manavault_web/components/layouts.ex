@@ -38,6 +38,7 @@ defmodule ManavaultWeb.Layouts do
     <header class="navbar px-4 sm:px-6 lg:px-8">
       <div class="flex-1">
         <a href="/" class="flex items-center gap-2 no-underline">
+          <img src={~p"/images/logo.svg"} alt="" class="h-8 w-8" />
           <span class="text-xl font-black tracking-tight">ManaVault</span>
         </a>
       </div>

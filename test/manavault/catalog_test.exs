@@ -24,6 +24,19 @@ defmodule Manavault.CatalogTest do
 
   @renamed_lotus %{@black_lotus | "name" => "Black Lotus Updated", "prices" => %{"usd" => "1.00"}}
 
+  @time_walk %{
+    "id" => "scryfall-printing-2",
+    "oracle_id" => "oracle-2",
+    "name" => "Time Walk",
+    "type_line" => "Sorcery",
+    "set" => "lea",
+    "set_name" => "Limited Edition Alpha",
+    "collector_number" => "84",
+    "lang" => "ja",
+    "finishes" => ["foil"],
+    "released_at" => "1993-08-05"
+  }
+
   test "import_cards stores identities and printings and safely updates on rerun" do
     assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
 
@@ -115,6 +128,83 @@ defmodule Manavault.CatalogTest do
 
     assert {:ok, _deleted} = Catalog.delete_collection_item(updated)
     assert [] = Catalog.list_collection_items()
+  end
+
+  test "collection item pagination supports deterministic limit and offset" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    assert {:ok, _walk} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-2",
+               "quantity" => "1",
+               "condition" => "near_mint",
+               "language" => "ja",
+               "finish" => "foil"
+             })
+
+    assert {:ok, _lotus} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => "1",
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    assert [%CollectionItem{printing: %{card: %{name: "Black Lotus"}}}] =
+             Catalog.list_collection_items([], limit: 1)
+
+    assert [%CollectionItem{printing: %{card: %{name: "Time Walk"}}}] =
+             Catalog.list_collection_items([], limit: 1, offset: 1)
+  end
+
+  test "collection item filtering supports search and metadata facets" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    {:ok, binder} = Catalog.create_location(%{name: "Trade Binder", kind: "binder"})
+
+    assert {:ok, lotus} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => "1",
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil",
+               "location_id" => binder.id
+             })
+
+    assert {:ok, walk} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-2",
+               "quantity" => "1",
+               "condition" => "damaged",
+               "language" => "ja",
+               "finish" => "foil"
+             })
+
+    assert [found] = Catalog.list_collection_items(q: "lotus")
+    assert found.id == lotus.id
+
+    assert [found] = Catalog.list_collection_items(q: "84")
+    assert found.id == walk.id
+
+    assert [found] = Catalog.list_collection_items(q: "scryfall-printing-2")
+    assert found.id == walk.id
+
+    assert [found] = Catalog.list_collection_items(condition: "near_mint")
+    assert found.id == lotus.id
+
+    assert [found] = Catalog.list_collection_items(language: "ja", finish: "foil")
+    assert found.id == walk.id
+
+    assert [found] = Catalog.list_collection_items(location_id: Integer.to_string(binder.id))
+    assert found.id == lotus.id
+
+    assert [found] = Catalog.list_collection_items(location_id: "unfiled")
+    assert found.id == walk.id
+    assert [] = Catalog.list_collection_items(location_id: "missing")
   end
 
   test "new_collection_item_for_printing defaults to exact printing language and first finish" do
