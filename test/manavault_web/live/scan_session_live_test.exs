@@ -131,14 +131,55 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     image_data = "data:image/png;base64,#{Base.encode64("png bytes")}"
     html = render_hook(view, "capture", %{"image_data" => image_data})
 
-    assert html =~ "Recognition is processing."
+    assert html =~ "Ready for the next card."
     assert html =~ "Saved image:"
+    assert html =~ "Recent scans"
+    assert html =~ "recent-scan-item-"
 
     loaded = Catalog.get_scan_session!(scan_session.id)
     assert [item] = loaded.scan_items
     assert item.status in ["processing", "needs_review"]
     assert item.image_path =~ upload_dir
     assert File.read!(item.image_path) == "png bytes"
+  end
+
+  test "scanner page supports one-tap accept from recent scans and undo", %{conn: conn} do
+    {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Batch scanner"})
+
+    {:ok, item} =
+      Catalog.create_scan_item(scan_session, %{
+        status: "recognized",
+        image_path: "/tmp/batch.jpg"
+      })
+
+    {:ok, _candidate} =
+      Catalog.create_scan_candidate(item, %{
+        printing_id: "scryfall-printing-1",
+        oracle_id: "oracle-1",
+        source: "ocr",
+        confidence: 0.98,
+        rank: 1,
+        evidence: "{}"
+      })
+
+    {:ok, view, html} = live(conn, ~p"/scan-sessions/#{scan_session.id}/scanner")
+
+    assert html =~ "Recent scans"
+    assert html =~ "Black Lotus · LEA #232"
+    assert html =~ "98% confidence"
+
+    html = render_click(view, "accept_best", %{"id" => item.id})
+
+    assert html =~ "Accepted card ##{item.id}"
+    assert Catalog.get_scan_item!(item.id).status == "accepted"
+    assert [_collection_item] = Catalog.list_collection_items()
+    assert html =~ "Undo accept"
+
+    html = render_click(view, "undo_last_accept")
+
+    assert html =~ "Undid accept for card ##{item.id}"
+    assert Catalog.get_scan_item!(item.id).status == "recognized"
+    assert [] = Catalog.list_collection_items()
   end
 
   test "scanner page reports camera errors", %{conn: conn} do

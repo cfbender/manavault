@@ -466,6 +466,25 @@ defmodule Manavault.Catalog do
     |> Repo.update()
   end
 
+  def undo_scan_item_accept(scan_item_id) do
+    Repo.transaction(fn ->
+      scan_item = get_scan_item!(scan_item_id)
+
+      unless scan_item.status == "accepted" do
+        Repo.rollback(:not_accepted)
+      end
+
+      delete_matching_collection_item(scan_item)
+
+      {:ok, reverted_item} =
+        scan_item
+        |> ScanItem.changeset(%{"status" => "recognized"})
+        |> Repo.update()
+
+      Repo.preload(reverted_item, scan_item_preloads(), force: true)
+    end)
+  end
+
   def scan_session_items_by_review_state(%ScanSession{} = scan_session) do
     items = scan_session.scan_items || []
 
@@ -593,6 +612,31 @@ defmodule Manavault.Catalog do
       Path.expand("data/uploads/scan-captures")
     )
   end
+
+  defp delete_matching_collection_item(%ScanItem{accepted_printing_id: nil}), do: nil
+
+  defp delete_matching_collection_item(%ScanItem{} = scan_item) do
+    CollectionItem
+    |> where([item], item.scryfall_id == ^scan_item.accepted_printing_id)
+    |> where([item], item.quantity == ^scan_item.quantity)
+    |> where([item], item.condition == ^scan_item.condition)
+    |> where([item], item.language == ^scan_item.language)
+    |> where([item], item.finish == ^scan_item.finish)
+    |> maybe_matching_collection_location(scan_item.location_id)
+    |> order_by([item], desc: item.inserted_at, desc: item.id)
+    |> limit(1)
+    |> Repo.one()
+    |> case do
+      nil -> nil
+      collection_item -> Repo.delete!(collection_item)
+    end
+  end
+
+  defp maybe_matching_collection_location(query, nil),
+    do: where(query, [item], is_nil(item.location_id))
+
+  defp maybe_matching_collection_location(query, location_id),
+    do: where(query, [item], item.location_id == ^location_id)
 
   defp normalize_blank_location(%{"location_id" => ""} = attrs),
     do: Map.put(attrs, "location_id", nil)

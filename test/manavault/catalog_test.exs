@@ -455,6 +455,34 @@ defmodule Manavault.CatalogTest do
     assert {:error, :already_accepted} = Catalog.accept_scan_item_best_candidate(item.id)
   end
 
+  test "undo_scan_item_accept reverts accepted item and removes matching collection row" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Undo accept"})
+    assert {:ok, item} = Catalog.create_scan_item(scan_session, %{status: "recognized"})
+
+    assert {:ok, _candidate} =
+             Catalog.create_scan_candidate(item, %{
+               printing_id: "scryfall-printing-1",
+               oracle_id: "oracle-1",
+               source: "ocr",
+               confidence: 0.99,
+               rank: 1,
+               evidence: "{}"
+             })
+
+    assert {:ok, %{scan_item: accepted_item}} = Catalog.accept_scan_item_best_candidate(item.id)
+    assert accepted_item.status == "accepted"
+    assert [_collection_item] = Catalog.list_collection_items()
+
+    assert {:ok, reverted_item} = Catalog.undo_scan_item_accept(item.id)
+
+    assert reverted_item.status == "recognized"
+    assert reverted_item.accepted_printing_id == "scryfall-printing-1"
+    assert [] = Catalog.list_collection_items()
+
+    assert {:error, :not_accepted} = Catalog.undo_scan_item_accept(item.id)
+  end
+
   test "set_scan_item_printing records manual exact printing and can accept it" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
