@@ -22,33 +22,33 @@
 
 /* daisyUI theme plugin. You can update this file by fetching the latest version with:
   curl -sLO https://github.com/saadeghi/daisyui/releases/latest/download/daisyui-theme.js
-  We ship with two themes, a light one inspired on Phoenix colors and a dark one inspired
-  on Elixir colors. Build your own at: https://daisyui.com/theme-generator/ */
+  Two themes are defined: dark and light, both using the claret color palette.
+  Build your own at: https://daisyui.com/theme-generator/ */
 @plugin "../vendor/daisyui-theme" {
   name: "dark";
   default: false;
   prefersdark: true;
   color-scheme: "dark";
-  --color-base-100: oklch(30.33% 0.016 252.42);
-  --color-base-200: oklch(25.26% 0.014 253.1);
-  --color-base-300: oklch(20.15% 0.012 254.09);
-  --color-base-content: oklch(97.807% 0.029 256.847);
-  --color-primary: oklch(58% 0.233 277.117);
-  --color-primary-content: oklch(96% 0.018 272.314);
-  --color-secondary: oklch(58% 0.233 277.117);
-  --color-secondary-content: oklch(96% 0.018 272.314);
-  --color-accent: oklch(60% 0.25 292.717);
-  --color-accent-content: oklch(96% 0.016 293.756);
-  --color-neutral: oklch(37% 0.044 257.287);
-  --color-neutral-content: oklch(98% 0.003 247.858);
-  --color-info: oklch(58% 0.158 241.966);
-  --color-info-content: oklch(97% 0.013 236.62);
-  --color-success: oklch(60% 0.118 184.704);
-  --color-success-content: oklch(98% 0.014 180.72);
-  --color-warning: oklch(66% 0.179 58.318);
-  --color-warning-content: oklch(98% 0.022 95.277);
-  --color-error: oklch(58% 0.253 17.585);
-  --color-error-content: oklch(96% 0.015 12.422);
+  --color-base-100: oklch(16.36% 0.0318 349.63);
+  --color-base-200: oklch(21.51% 0.0182 6.61);
+  --color-base-300: oklch(25.49% 0.0193 1.93);
+  --color-base-content: oklch(87.16% 0.0197 72.55);
+  --color-primary: oklch(61.28% 0.1407 4.10);
+  --color-primary-content: oklch(96% 0.01 10);
+  --color-secondary: oklch(69.78% 0.0851 127.42);
+  --color-secondary-content: oklch(97% 0.01 130);
+  --color-accent: oklch(75.63% 0.0947 74.00);
+  --color-accent-content: oklch(97% 0.015 75);
+  --color-neutral: oklch(25.49% 0.0193 1.93);
+  --color-neutral-content: oklch(87.16% 0.0197 72.55);
+  --color-info: oklch(66.66% 0.0314 259.58);
+  --color-info-content: oklch(97% 0.01 260);
+  --color-success: oklch(69.78% 0.0851 127.42);
+  --color-success-content: oklch(97% 0.01 130);
+  --color-warning: oklch(75.63% 0.0947 74.00);
+  --color-warning-content: oklch(97% 0.015 75);
+  --color-error: oklch(56.49% 0.1651 29.81);
+  --color-error-content: oklch(97% 0.01 30);
   --radius-selector: 0.25rem;
   --radius-field: 0.25rem;
   --radius-box: 0.5rem;
@@ -64,26 +64,26 @@
   default: true;
   prefersdark: false;
   color-scheme: "light";
-  --color-base-100: oklch(98% 0 0);
-  --color-base-200: oklch(96% 0.001 286.375);
-  --color-base-300: oklch(92% 0.004 286.32);
-  --color-base-content: oklch(21% 0.006 285.885);
-  --color-primary: oklch(70% 0.213 47.604);
-  --color-primary-content: oklch(98% 0.016 73.684);
-  --color-secondary: oklch(55% 0.027 264.364);
-  --color-secondary-content: oklch(98% 0.002 247.839);
-  --color-accent: oklch(0% 0 0);
-  --color-accent-content: oklch(100% 0 0);
-  --color-neutral: oklch(44% 0.017 285.786);
-  --color-neutral-content: oklch(98% 0 0);
-  --color-info: oklch(62% 0.214 259.815);
-  --color-info-content: oklch(97% 0.014 254.604);
-  --color-success: oklch(70% 0.14 182.503);
-  --color-success-content: oklch(98% 0.014 180.72);
-  --color-warning: oklch(66% 0.179 58.318);
-  --color-warning-content: oklch(98% 0.022 95.277);
-  --color-error: oklch(58% 0.253 17.585);
-  --color-error-content: oklch(96% 0.015 12.422);
+  --color-base-100: oklch(93.58% 0.0173 35.34);
+  --color-base-200: oklch(90.10% 0.0196 33.37);
+  --color-base-300: oklch(86.70% 0.0155 37.87);
+  --color-base-content: oklch(25.08% 0.0195 45.68);
+  --color-primary: oklch(50.09% 0.1967 13.12);
+  --color-primary-content: oklch(97% 0.01 15);
+  --color-secondary: oklch(39.57% 0.1244 138.86);
+  --color-secondary-content: oklch(97% 0.01 140);
+  --color-accent: oklch(53.27% 0.1137 72.57);
+  --color-accent-content: oklch(97% 0.02 75);
+  --color-neutral: oklch(86.70% 0.0155 37.87);
+  --color-neutral-content: oklch(25.08% 0.0195 45.68);
+  --color-info: oklch(35.08% 0.1518 263.92);
+  --color-info-content: oklch(97% 0.01 265);
+  --color-success: oklch(39.57% 0.1244 138.86);
+  --color-success-content: oklch(97% 0.01 140);
+  --color-warning: oklch(53.27% 0.1137 72.57);
+  --color-warning-content: oklch(97% 0.02 75);
+  --color-error: oklch(55.75% 0.2133 30.05);
+  --color-error-content: oklch(97% 0.01 30);
   --radius-selector: 0.25rem;
   --radius-field: 0.25rem;
   --radius-box: 0.5rem;
