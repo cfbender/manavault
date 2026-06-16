@@ -24,8 +24,6 @@ defmodule Manavault.Catalog.ScanItem do
       foreign_key: :location_id,
       type: :integer
 
-    has_many :scan_candidates, Manavault.Catalog.ScanCandidate
-
     timestamps(type: :utc_datetime)
   end
 

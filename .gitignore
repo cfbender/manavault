@@ -9,11 +9,15 @@ erl_crash.dump
 /config/*.secret.exs
 .elixir_ls/
 .hygge/
+.venv/
 
 # Local SQLite databases and runtime data
 *.db
 *.db-*
 /data/
+
+# Downloaded/generated OCR benchmark corpus
+/test/fixtures/ocr/scryfall_random/
 
 # Generated static assets
 /priv/static/assets/

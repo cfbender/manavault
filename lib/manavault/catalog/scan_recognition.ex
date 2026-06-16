@@ -4,6 +4,7 @@ defmodule Manavault.Catalog.ScanRecognition do
   """
 
   import Ecto.Query
+  require Logger
 
   alias Manavault.Catalog.{Card, Printing, ScanItem}
   alias Manavault.Repo
@@ -14,10 +15,24 @@ defmodule Manavault.Catalog.ScanRecognition do
 
   def recognize(%ScanItem{image_path: image_path} = scan_item, opts)
       when is_binary(image_path) do
-    with {:ok, text} <- run_ocr(image_path, opts) do
-      parsed = parse_text(text)
-      candidates = match_candidates(parsed, opts)
-      {:ok, %{scan_item: scan_item, text: text, parsed: parsed, candidates: candidates}}
+    with {:ok, text, ocr_us} <- timed(fn -> run_ocr(image_path, opts) end) do
+      Logger.debug("OCR raw output for #{image_path}:\n#{text}")
+      {parsed, parse_us} = timed_value(fn -> parse_text(text) end)
+      {candidates, match_us} = timed_value(fn -> match_candidates(parsed, opts) end)
+
+      {:ok,
+       %{
+         scan_item: scan_item,
+         text: text,
+         parsed: parsed,
+         candidates: candidates,
+         timings: %{
+           ocr_us: ocr_us,
+           parse_us: parse_us,
+           match_us: match_us,
+           total_us: ocr_us + parse_us + match_us
+         }
+       }}
     end
   end
 
@@ -25,50 +40,246 @@ defmodule Manavault.Catalog.ScanRecognition do
     {:ok, %{scan_item: scan_item, text: "", parsed: %{}, candidates: []}}
   end
 
+  defp timed(fun) do
+    start = System.monotonic_time(:microsecond)
+
+    case fun.() do
+      {:ok, value} -> {:ok, value, System.monotonic_time(:microsecond) - start}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp timed_value(fun) do
+    start = System.monotonic_time(:microsecond)
+    value = fun.()
+    {value, System.monotonic_time(:microsecond) - start}
+  end
+
   def parse_text(text) when is_binary(text) do
-    lines =
+    raw_lines =
       text
       |> String.split(~r/\R/, trim: true)
       |> Enum.map(&String.trim/1)
-      |> Enum.reject(&(&1 == ""))
 
-    joined = Enum.join(lines, "\n")
+    # Filter footer/garbage lines for token extraction, but keep raw text
+    # for collector number / set code extraction (those live in the footer).
+    clean_lines = Enum.reject(raw_lines, &(&1 == "" or ignored_ocr_line?(&1)))
+    joined = Enum.join(clean_lines, "\n")
+    raw_joined = Enum.join(raw_lines, "\n")
 
     %{
       text: joined,
-      name: likely_name(lines),
-      set_code: likely_set_code(joined),
-      collector_number: likely_collector_number(joined),
-      language: likely_language(joined)
+      tokens: extract_ocr_tokens(joined),
+      lines: clean_lines,
+      set_code: likely_set_code(raw_joined),
+      collector_number: likely_collector_number(raw_joined),
+      language: likely_language(raw_joined)
     }
+  end
+
+  @min_token_length 3
+  @max_candidate_tokens 20
+  @phrase_min_words 2
+
+  @noise_tokens ~w(
+    the and for was are its has had not but all can may new
+    any you his her our out use how who why what when where which
+    from have been were they them this that with each more some
+    about other their being also into only over than then under
+    very will just like make made come take know look part same
+    such most even much must both does your who get got put let
+    see say way too old few big day now off she him ago did had
+    has per saw try yet nor own
+  )
+
+  defp extract_ocr_tokens(text) do
+    text
+    |> String.downcase()
+    |> String.replace(~r/[^a-z0-9\s]/, " ")
+    |> String.split(~r/\s+/, trim: true)
+    |> Enum.reject(fn token ->
+      String.length(token) < @min_token_length or
+        token in @noise_tokens or
+        String.match?(token, ~r/^\d+$/)
+    end)
+    |> Enum.uniq()
+    |> Enum.take(@max_candidate_tokens)
   end
 
   def match_candidates(parsed, opts \\ []) when is_map(parsed) do
     max_candidates = Keyword.get(opts, :max_candidates, @default_max_candidates)
-    name = parsed |> Map.get(:name) |> normalize_text()
+    tokens = parsed |> Map.get(:tokens, [])
+    lines = parsed |> Map.get(:lines, [])
     set_code = parsed |> Map.get(:set_code) |> normalize_set_code()
     collector_number = parsed |> Map.get(:collector_number) |> normalize_collector_number()
     language = parsed |> Map.get(:language) |> normalize_language()
 
+    Logger.debug(fn ->
+      "OCR match_candidates — tokens: #{inspect(tokens)}, lines: #{inspect(lines)}, set_code: #{inspect(set_code)}, collector_number: #{inspect(collector_number)}, language: #{inspect(language)}\nOCR raw text:\n#{Map.get(parsed, :text, "")}"
+    end)
+
+    printings = candidate_printings(tokens, lines, max_candidates)
+
+    candidates =
+      printings
+      |> Enum.map(
+        &score_candidate(
+          &1,
+          parsed,
+          tokens,
+          lines,
+          set_code,
+          collector_number,
+          language
+        )
+      )
+      |> Enum.filter(&candidate_has_card_text_evidence?/1)
+      |> Enum.sort_by(&candidate_sort_key/1)
+
+    Logger.debug(fn ->
+      top = Enum.take(candidates, 3)
+
+      breakdowns =
+        Enum.map(top, fn c ->
+          s = c.evidence.scores
+
+          "#{c.printing.card.name} (#{c.printing.set_code} ##{c.printing.collector_number}) " <>
+            "conf=#{round_score(c.confidence)} " <>
+            "t=#{round_score(s.token_match)} p=#{round_score(s.phrase_match)} " <>
+            "set=#{round_score(s.set_code)} col=#{round_score(s.collector_number)}"
+        end)
+
+      "Top candidates:\n  #{Enum.join(breakdowns, "\n  ")}"
+    end)
+
+    Enum.take(candidates, max_candidates)
+  end
+
+  defp candidate_has_card_text_evidence?(%{evidence: %{scores: scores}}) do
+    float_score(scores.token_match) > 0.0 or float_score(scores.phrase_match) > 0.0
+  end
+
+  defp candidate_printings(tokens, lines, max_candidates) do
+    priority_ids =
+      lines
+      |> priority_fts_query()
+      |> search_printing_ids(max(max_candidates * 10, 50))
+
+    ids =
+      if length(priority_ids) >= max_candidates do
+        priority_ids
+      else
+        broad_ids =
+          tokens
+          |> broad_fts_query(lines)
+          |> search_printing_ids(max(max_candidates * 40, 200))
+
+        (priority_ids ++ broad_ids)
+        |> Enum.uniq()
+      end
+
+    load_printings_by_ids(ids)
+  end
+
+  defp search_printing_ids("", _limit), do: []
+
+  defp search_printing_ids(query, limit) do
+    %{rows: rows} =
+      Repo.query!(
+        """
+        SELECT scryfall_id
+        FROM scryfall_printing_search
+        WHERE scryfall_printing_search MATCH ?
+        ORDER BY bm25(scryfall_printing_search)
+        LIMIT ?
+        """,
+        [query, limit]
+      )
+
+    Enum.map(rows, fn [scryfall_id] -> scryfall_id end)
+  rescue
+    _exception -> []
+  end
+
+  defp load_printings_by_ids([]), do: []
+
+  defp load_printings_by_ids(ids) do
     Printing
     |> join(:inner, [printing], card in assoc(printing, :card))
-    |> maybe_candidate_name(name)
-    |> maybe_candidate_set(set_code)
-    |> maybe_candidate_collector(collector_number)
+    |> where([printing, _card], printing.scryfall_id in ^ids)
     |> preload([_printing, card], card: card)
-    |> limit(^max(max_candidates * 5, max_candidates))
     |> Repo.all()
-    |> Enum.map(&score_candidate(&1, parsed, name, set_code, collector_number, language))
-    |> Enum.filter(&(&1.confidence > 0.0))
-    |> Enum.sort_by(&{-&1.confidence, &1.printing.scryfall_id})
-    |> Enum.take(max_candidates)
+  end
+
+  defp priority_fts_query(lines) do
+    lines
+    |> Enum.take(1)
+    |> Enum.flat_map(&line_variants/1)
+    |> Enum.filter(&(phrase_word_count(&1) >= @phrase_min_words))
+    |> Enum.flat_map(&fts_terms/1)
+    |> Enum.uniq()
+    |> Enum.take(8)
+    |> fts_or_query()
+  end
+
+  defp broad_fts_query(tokens, lines) do
+    (title_name_candidates(lines) ++ tokens)
+    |> Enum.flat_map(&fts_terms/1)
+    |> Enum.uniq()
+    |> Enum.take(24)
+    |> fts_or_query()
+  end
+
+  defp fts_or_query(terms) do
+    terms
+    |> Enum.map_join(" OR ", &~s("#{String.replace(&1, ~s("), ~s(""))}"))
+  end
+
+  defp fts_terms(value) when is_binary(value) do
+    normalized =
+      value
+      |> normalize_text()
+      |> String.replace(~r/[^a-z0-9\s]+/u, " ")
+      |> String.replace(~r/\s+/, " ")
+      |> String.trim()
+
+    compact = compact_text(value)
+
+    [normalized, compact]
+    |> Enum.reject(fn term -> String.length(term) < @min_token_length end)
+  end
+
+  defp title_name_candidates(lines) do
+    normalized_lines = Enum.flat_map(lines, &line_variants/1)
+    title_line_candidates = lines |> Enum.take(1) |> Enum.flat_map(&line_variants/1)
+
+    joined_title_lines =
+      normalized_lines
+      |> Enum.take(5)
+      |> Enum.chunk_every(2, 1, :discard)
+      |> Enum.map(&Enum.join(&1, " "))
+
+    (title_line_candidates ++ normalized_lines ++ joined_title_lines)
+    |> Enum.filter(fn candidate ->
+      candidate in title_line_candidates or phrase_word_count(candidate) >= @phrase_min_words or
+        compact_name_candidate?(candidate)
+    end)
+    |> Enum.uniq()
+  end
+
+  defp line_variants(line) do
+    [normalize_text(line), normalize_titleish_text(line)]
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.uniq()
   end
 
   defp run_ocr(image_path, opts) do
     runner = Keyword.get(opts, :ocr_runner, configured_ocr_runner())
 
-    case runner.(image_path) do
-      {:ok, text} when is_binary(text) -> {:ok, text}
+    result = runner.(image_path)
+
+    case result do
+      {:ok, text} when is_binary(text) -> {:ok, clean_ocr_text(text)}
       {:error, reason} -> {:error, format_reason(reason)}
       other -> {:error, "OCR returned an unexpected result: #{inspect(other)}"}
     end
@@ -76,32 +287,86 @@ defmodule Manavault.Catalog.ScanRecognition do
     exception -> {:error, Exception.message(exception)}
   end
 
-  defp configured_ocr_runner do
-    Application.get_env(:manavault, :ocr_runner, &tesseract_ocr/1)
+  defp clean_ocr_text(text) do
+    text
+    |> String.split(~r/\R/, trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&ignored_ocr_line?/1)
+    |> Enum.join("\n")
   end
 
-  defp tesseract_ocr(image_path) do
-    case System.cmd("tesseract", [image_path, "stdout"], stderr_to_stdout: true) do
-      {text, 0} -> {:ok, text}
-      {output, status} -> {:error, "tesseract exited with #{status}: #{String.trim(output)}"}
+  defp ignored_ocr_line?(line) do
+    ocr_diagnostic?(line) or copyright_line?(line) or credit_line?(line) or
+      footer_metadata_line?(line)
+  end
+
+  # Detects card-footer lines that mix collector info with copyright/artist text.
+  # Pattern: lines that start with a letter+number (collector/rarity) followed by
+  # a 4–5 digit number (year-like: 2022, 02022, etc.).
+  defp footer_metadata_line?(line) do
+    String.match?(line, ~r/^[a-zA-Z]\s*\d{2,4}.*\b\d{4,5}\b/i)
+  end
+
+  defp ocr_diagnostic?(line) do
+    String.match?(line, ~r/^estimating resolution as \d+$/i) or
+      String.match?(line, ~r/^empty page!!$/i) or
+      String.match?(line, ~r/^warning:/i)
+  end
+
+  defp configured_ocr_runner do
+    Application.get_env(:manavault, :ocr_runner, &rapidocr_ocr/1)
+  end
+
+  @rapidocr_script Path.join(:code.priv_dir(:manavault), "rapidocr_scan.py")
+
+  defp rapidocr_python_path do
+    Application.get_env(
+      :manavault,
+      :rapidocr_python,
+      Path.expand(".venv/bin/python", File.cwd!())
+    )
+  end
+
+  defp rapidocr_ocr(image_path) do
+    # Try the persistent daemon first (fast, model already loaded).
+    # Fall back only to the one-shot RapidOCR script if the daemon is not running.
+    case daemon_ocr(image_path) do
+      {:ok, _text} = ok -> ok
+      {:error, _reason} = error -> error
+      :not_running -> fallback_ocr(image_path)
+    end
+  end
+
+  defp daemon_ocr(image_path) do
+    case Process.whereis(Manavault.Catalog.RapidOCRDaemon) do
+      nil -> :not_running
+      pid when is_pid(pid) -> Manavault.Catalog.RapidOCRDaemon.recognize(image_path)
     end
   rescue
-    ErlangError -> {:error, "tesseract executable is not available"}
+    _ -> :not_running
   end
 
-  defp likely_name([]), do: nil
+  defp fallback_ocr(image_path) do
+    case System.cmd(rapidocr_python_path(), [@rapidocr_script, image_path],
+           stderr_to_stdout: true
+         ) do
+      {text, 0} when is_binary(text) and byte_size(text) > 0 ->
+        {:ok, String.trim(text)}
 
-  defp likely_name(lines) do
-    Enum.find(lines, fn line ->
-      clean = String.trim(line)
-
-      String.length(clean) >= 3 and String.match?(clean, ~r/[[:alpha:]]/u) and
-        not String.match?(clean, ~r/^\d+[a-zA-Z]?\/?\d*$/)
-    end)
+      {output, status} ->
+        {:error, "RapidOCR exited with #{status}: #{String.trim(output)}"}
+    end
+  rescue
+    ErlangError ->
+      {:error,
+       "RapidOCR is not available. Run `mise exec -- mix manavault.ocr.setup` and restart the server."}
   end
 
   defp likely_set_code(text) do
-    case Regex.run(~r/(?:set|edition|expansion)\s*[:#-]?\s*([A-Z0-9]{2,5})/i, text) do
+    case Regex.run(
+           ~r/(?:set|edition|expansion)[ \t]*[:#-]?[ \t]*\b([A-Z0-9]{2,5})\b/i,
+           text
+         ) do
       [_, code] -> code
       _ -> nil
     end
@@ -114,8 +379,16 @@ defmodule Manavault.Catalog.ScanRecognition do
 
       _ ->
         case Regex.run(~r/\b([0-9]{1,4}[a-zA-Z]?)\s*\/\s*[0-9]{1,4}\b/, text) do
-          [_, number] -> number
-          _ -> nil
+          [_, number] ->
+            number
+
+          _ ->
+            # Modern card footer: "R 0228" or "0228 R" (rarity + collector number)
+            # Line-anchored to avoid mid-paragraph false positives.
+            case Regex.run(~r/(?:^|\n)\s*[a-zA-Z]\s*(\d{2,4})\s*[a-zA-Z]?(?:\s|$)/, text) do
+              [_, number] -> number
+              _ -> nil
+            end
         end
     end
   end
@@ -127,45 +400,46 @@ defmodule Manavault.Catalog.ScanRecognition do
     end
   end
 
-  defp maybe_candidate_name(query, ""), do: query
-
-  defp maybe_candidate_name(query, name) do
-    pattern = "%#{name}%"
-    where(query, [_printing, card], fragment("lower(?) LIKE ?", card.name, ^pattern))
+  defp copyright_line?(line) do
+    String.match?(line, ~r/(©|™|®|wizards of the coast|all rights reserved)/i) or
+      String.match?(line, ~r/^\w?\s*\d{3,4}\s*[™®&©]/iu)
   end
 
-  defp maybe_candidate_set(query, ""), do: query
-
-  defp maybe_candidate_set(query, set_code),
-    do: where(query, [printing, _card], printing.set_code == ^set_code)
-
-  defp maybe_candidate_collector(query, ""), do: query
-
-  defp maybe_candidate_collector(query, collector_number) do
-    where(query, [printing, _card], printing.collector_number == ^collector_number)
+  defp credit_line?(line) do
+    String.match?(line, ~r/(illustrated by|artist:)/i) or
+      String.match?(line, ~r/^\w?\s*\d{2,4}[a-z]?\s*(\+|%|•|·|★)/iu)
   end
 
   defp score_candidate(
          %Printing{card: %Card{name: card_name}} = printing,
          parsed,
-         name,
+         tokens,
+         lines,
          set_code,
          collector_number,
          language
        ) do
-    name_score = name_score(card_name, name)
-    set_score = field_score(printing.set_code, set_code, 0.2)
-    collector_score = field_score(printing.collector_number, collector_number, 0.25)
-    language_score = field_score(printing.lang, language, 0.05)
+    score_fields = normalized_score_fields(printing)
+    field_set_score = field_score(printing.set_code, set_code, 0.2)
+    field_collector_score = field_score(printing.collector_number, collector_number, 0.25)
+    field_lang_score = field_score(printing.lang, language, 0.05)
 
-    confidence = min(name_score + set_score + collector_score + language_score, 1.0)
+    {token_score, token_evidence} = token_match_score(score_fields, tokens)
+    {phrase_score, phrase_evidence} = phrase_match_score(score_fields, lines)
+
+    confidence =
+      min(
+        token_score + phrase_score + field_set_score + field_collector_score + field_lang_score,
+        1.0
+      )
+      |> float_score()
 
     %{
       printing: printing,
       confidence: confidence,
       evidence: %{
         ocr_text: Map.get(parsed, :text, ""),
-        parsed_name: Map.get(parsed, :name),
+        tokens: tokens,
         parsed_set_code: Map.get(parsed, :set_code),
         parsed_collector_number: Map.get(parsed, :collector_number),
         parsed_language: Map.get(parsed, :language),
@@ -173,41 +447,228 @@ defmodule Manavault.Catalog.ScanRecognition do
         matched_set_code: printing.set_code,
         matched_collector_number: printing.collector_number,
         scores: %{
-          name: name_score,
-          set_code: set_score,
-          collector_number: collector_score,
-          language: language_score
-        }
+          token_match: token_score,
+          phrase_match: phrase_score,
+          set_code: field_set_score,
+          collector_number: field_collector_score,
+          language: field_lang_score
+        },
+        token_hits: token_evidence,
+        phrase_hits: phrase_evidence
       }
     }
   end
 
-  defp name_score(_card_name, ""), do: 0.0
+  defp normalized_score_fields(%Printing{card: card}) do
+    %{
+      name: normalize_text(card.name),
+      compact_name: compact_text(card.name),
+      type_line: normalize_text(card.type_line || ""),
+      oracle_text: normalize_text(card.oracle_text || ""),
+      compact_oracle_text: compact_text(card.oracle_text || "")
+    }
+  end
 
-  defp name_score(card_name, parsed_name) do
-    normalized_card = normalize_text(card_name)
+  defp candidate_sort_key(%{confidence: confidence, evidence: %{scores: scores}} = candidate) do
+    phrase_hits = get_in(candidate, [:evidence, :phrase_hits]) || []
+    token_hits = get_in(candidate, [:evidence, :token_hits]) || []
 
+    name_phrase_hit? = Enum.any?(phrase_hits, &(&1.field == :name))
+    type_phrase_hit? = Enum.any?(phrase_hits, &(&1.field == :type_line))
+    name_token_weight = max_token_hit_weight(token_hits, :name)
+    type_token_weight = max_token_hit_weight(token_hits, :type_line)
+    oracle_token_weight = max_token_hit_weight(token_hits, :oracle_text)
+
+    {
+      -confidence,
+      -float_score(scores.phrase_match),
+      if(name_phrase_hit?, do: 0, else: 1),
+      if(type_phrase_hit?, do: 0, else: 1),
+      -float_score(scores.set_code),
+      -float_score(scores.collector_number),
+      -float_score(scores.language),
+      -float_score(scores.token_match),
+      -name_token_weight,
+      -type_token_weight,
+      -oracle_token_weight,
+      candidate.printing.scryfall_id
+    }
+  end
+
+  defp max_token_hit_weight(token_hits, field) do
+    token_hits
+    |> Enum.flat_map(& &1.hits)
+    |> Enum.filter(&(&1.field == field))
+    |> Enum.map(& &1.weight)
+    |> Enum.max(fn -> 0 end)
+  end
+
+  defp token_match_score(_score_fields, []), do: {0.0, []}
+
+  defp token_match_score(score_fields, tokens) do
+    card_fields = [
+      {:name, 3, score_fields.name},
+      {:type_line, 2, score_fields.type_line},
+      {:oracle_text, 1, score_fields.oracle_text}
+    ]
+
+    token_results =
+      tokens
+      |> Enum.map(fn token ->
+        hits =
+          card_fields
+          |> Enum.filter(fn {_field, _weight, text} -> String.contains?(text, token) end)
+          |> Enum.map(fn {field, weight, _text} -> %{field: field, weight: weight} end)
+
+        {token, hits}
+      end)
+      |> Enum.reject(fn {_token, hits} -> hits == [] end)
+
+    max_possible_score = length(tokens) * 3
+
+    actual_score =
+      token_results
+      |> Enum.map(fn {_token, hits} ->
+        hits |> Enum.map(& &1.weight) |> Enum.max(fn -> 0 end)
+      end)
+      |> Enum.sum()
+
+    normalized = if max_possible_score > 0, do: actual_score / max_possible_score, else: 0.0
+
+    {normalized, Enum.map(token_results, fn {token, hits} -> %{token: token, hits: hits} end)}
+  end
+
+  # Scores multi-word OCR lines as substring matches against card fields.
+  # Lines matching the card name are weighted most heavily (0.8),
+  # type line matches get 0.12, oracle text matches get 0.08.
+  # Checks both directions: line ⊆ field AND field ⊆ line,
+  # because OCR may produce a line that is just the name, OR a longer line
+  # (e.g. the full rules text) that contains the name.
+  # Single-word lines are skipped (already handled by token_match_score).
+  # Bonus accumulates across lines, capped at 0.95.
+  @phrase_name_weight 0.8
+  @phrase_type_weight 0.12
+  @phrase_oracle_weight 0.08
+  @phrase_bonus_cap 0.95
+
+  defp phrase_match_score(_score_fields, []), do: {0.0, []}
+
+  defp phrase_match_score(score_fields, lines) do
+    name_text = score_fields.name
+    oracle_text_n = score_fields.oracle_text
+    type_text = score_fields.type_line
+
+    phrase_hits =
+      lines
+      |> Enum.with_index()
+      |> Enum.map(fn {line, index} ->
+        line_variants = line_variants(line)
+        title_line? = index == 0
+
+        cond do
+          Enum.any?(line_variants, &name_phrase_match?(name_text, &1, title_line?)) ->
+            weight = if title_line?, do: @phrase_name_weight, else: @phrase_name_weight / 2
+            {:name, line, weight}
+
+          Enum.any?(line_variants, &(&1 == type_text)) ->
+            {:type_line, line, @phrase_type_weight}
+
+          Enum.any?(line_variants, fn normalized_line ->
+            phrase_word_count(normalized_line) >= @phrase_min_words and
+                phrase_contains?(oracle_text_n, normalized_line)
+          end) ->
+            {:oracle_text, line, @phrase_oracle_weight}
+
+          true ->
+            nil
+        end
+      end)
+      |> Enum.reject(&is_nil/1)
+
+    score =
+      phrase_hits
+      |> Enum.map(fn {_field, _line, weight} -> weight end)
+      |> Enum.sum()
+      |> min(@phrase_bonus_cap)
+
+    evidence =
+      Enum.map(phrase_hits, fn {field, line, weight} ->
+        %{field: field, line: line, weight: weight}
+      end)
+
+    {score, evidence}
+  end
+
+  defp phrase_word_count(text) do
+    text |> String.split(~r/\s+/, trim: true) |> length()
+  end
+
+  defp name_phrase_match?(card_name, ocr_line, title_line?) do
     cond do
-      normalized_card == parsed_name -> 0.65
-      String.contains?(normalized_card, parsed_name) -> 0.55
-      String.contains?(parsed_name, normalized_card) -> 0.5
-      true -> 0.0
+      card_name == "" or ocr_line == "" ->
+        false
+
+      card_name == ocr_line ->
+        true
+
+      compact_name_candidate?(ocr_line) ->
+        compact_text(card_name) == compact_text(ocr_line)
+
+      not title_line? and phrase_word_count(card_name) < @phrase_min_words ->
+        false
+
+      phrase_word_count(card_name) >= @phrase_min_words and
+          phrase_word_count(ocr_line) >= @phrase_min_words ->
+        phrase_contains?(card_name, ocr_line)
+
+      true ->
+        false
     end
+  end
+
+  defp phrase_contains?(card_field_text, ocr_line)
+       when card_field_text == "" or ocr_line == "",
+       do: false
+
+  defp phrase_contains?(card_field_text, ocr_line) do
+    compact_card_field = compact_text(card_field_text)
+    compact_ocr_line = compact_text(ocr_line)
+
+    String.contains?(card_field_text, ocr_line) or
+      String.contains?(ocr_line, card_field_text) or
+      String.contains?(compact_card_field, compact_ocr_line) or
+      String.contains?(compact_ocr_line, compact_card_field)
+  end
+
+  defp compact_name_candidate?(text) do
+    String.length(text) >= 6 and String.match?(text, ~r/^[a-z]+$/)
   end
 
   defp field_score(_actual, "", _score), do: 0.0
 
   defp field_score(actual, expected, score) when is_binary(actual) do
-    if normalize_text(actual) == expected, do: score, else: 0.0
+    if normalize_text(actual) == expected, do: float_score(score), else: 0.0
   end
 
   defp field_score(_actual, _expected, _score), do: 0.0
+
+  defp float_score(score) when is_integer(score), do: score * 1.0
+  defp float_score(score) when is_float(score), do: score
+
+  defp round_score(score), do: score |> float_score() |> Float.round(3)
 
   defp normalize_set_code(nil), do: ""
   defp normalize_set_code(value), do: value |> normalize_text() |> String.downcase()
 
   defp normalize_collector_number(nil), do: ""
-  defp normalize_collector_number(value), do: normalize_text(value)
+
+  defp normalize_collector_number(value) do
+    value
+    |> normalize_text()
+    # Strip leading zeros for numeric comparison: "0228" → "228"
+    # Preserves trailing letters: "228a" → "228a"
+    |> String.replace(~r/^0+(\d)/, "\\1")
+  end
 
   defp normalize_language(nil), do: ""
   defp normalize_language(value), do: value |> normalize_text() |> String.downcase()
@@ -218,6 +679,22 @@ defmodule Manavault.Catalog.ScanRecognition do
     value
     |> String.trim()
     |> String.downcase()
+  end
+
+  defp normalize_titleish_text(nil), do: ""
+
+  defp normalize_titleish_text(value) when is_binary(value) do
+    value
+    |> String.replace(~r/([a-z])([A-Z])/, "\\1 \\2")
+    |> String.replace(~r/[,_:;]+/, " ")
+    |> normalize_text()
+    |> String.replace(~r/\s+/, " ")
+  end
+
+  defp compact_text(text) do
+    text
+    |> normalize_text()
+    |> String.replace(~r/[^a-z0-9]/, "")
   end
 
   defp format_reason(reason) when is_binary(reason), do: reason

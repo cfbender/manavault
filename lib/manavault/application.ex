@@ -15,9 +15,7 @@ defmodule Manavault.Application do
       {DNSCluster, query: Application.get_env(:manavault, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Manavault.PubSub},
       {Task.Supervisor, name: Manavault.ScanRecognitionSupervisor},
-      # Start a worker by calling: Manavault.Worker.start_link(arg)
-      # {Manavault.Worker, arg},
-      # Start to serve requests, typically the last entry
+      Manavault.Catalog.RapidOCRDaemon,
       ManavaultWeb.Endpoint
     ]
 

@@ -1,216 +1,348 @@
 const IMAGE_MIME_TYPE = "image/jpeg"
-const IMAGE_QUALITY = 0.92
+const IMAGE_QUALITY = 0.82
+const MAX_CAPTURE_EDGE_PX = 1200
+const CAPTURE_INTERVAL_MS = 450
+const CAPTURE_COOLDOWN_MS = 400
 
-const ScannerCamera = {
-  mounted() {
-    this.stream = null
-    this.devices = []
-    this.deviceIndex = 0
-    this.torchEnabled = false
+function createScannerCamera() {
+  let stream = null
+  let devices = []
+  let deviceIndex = 0
+  let torchEnabled = false
+  let captureTimer = null
+  let captureInFlight = false
+  let lastCaptureAt = 0
+  let forceNextCapture = false
+  let audioCtx = null
 
-    this.video = this.el.querySelector("[data-scanner-video]")
-    this.canvas = this.el.querySelector("[data-scanner-canvas]")
-    this.status = this.el.querySelector("[data-scanner-status]")
-    this.startButton = this.el.querySelector("[data-scanner-start]")
-    this.stopButton = this.el.querySelector("[data-scanner-stop]")
-    this.captureButton = this.el.querySelector("[data-scanner-capture]")
-    this.switchButton = this.el.querySelector("[data-scanner-switch]")
-    this.torchButton = this.el.querySelector("[data-scanner-torch]")
-    this.zoomControl = this.el.querySelector("[data-scanner-zoom-control]")
-    this.zoomInput = this.el.querySelector("[data-scanner-zoom]")
-    this.zoomValue = this.el.querySelector("[data-scanner-zoom-value]")
+  let videoEl = null
+  let canvasEl = null
+  let statusEl = null
+  let previewEl = null
+  let switchBtn = null
+  let torchBtn = null
+  let zoomCtrl = null
+  let zoomInp = null
+  let zoomVal = null
+  let pushEventFn = null
+  let handleEventFn = null
 
-    this.startButton?.addEventListener("click", () => this.startCamera())
-    this.stopButton?.addEventListener("click", () => this.stopCamera())
-    this.captureButton?.addEventListener("click", () => this.captureFrame())
-    this.switchButton?.addEventListener("click", () => this.switchCamera())
-    this.torchButton?.addEventListener("click", () => this.toggleTorch())
-    this.zoomInput?.addEventListener("input", event => this.setZoom(event.target.value))
+  // ---- helpers (no this) ----
 
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      this.reportError("This browser does not support camera capture.")
-      this.disableControls()
-      return
-    }
-
-    this.setStatus("Camera is ready to start.")
-    this.refreshDevices()
-  },
-
-  destroyed() {
-    this.stopCamera()
-  },
-
-  async refreshDevices() {
-    if (!navigator.mediaDevices?.enumerateDevices) return
-
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices()
-      this.devices = devices.filter(device => device.kind === "videoinput")
-      this.updateSwitchControl()
-    } catch (_error) {
-      this.devices = []
-      this.updateSwitchControl()
-    }
-  },
-
-  async startCamera() {
-    this.stopCamera()
-
-    try {
-      const constraints = this.cameraConstraints()
-      this.stream = await navigator.mediaDevices.getUserMedia({video: constraints, audio: false})
-      this.video.srcObject = this.stream
-      await this.video.play()
-      await this.refreshDevices()
-      this.updateCapabilities()
-      this.setStatus("Camera is running.")
-    } catch (error) {
-      this.reportError(this.cameraErrorMessage(error))
-    }
-  },
-
-  stopCamera() {
-    if (this.stream) {
-      this.stream.getTracks().forEach(track => track.stop())
-      this.stream = null
-    }
-
-    if (this.video) this.video.srcObject = null
-    this.torchEnabled = false
-    this.updateCapabilityControls({})
-    this.setStatus("Camera is stopped.")
-  },
-
-  async switchCamera() {
-    if (this.devices.length < 2) {
-      this.setStatus("No alternate camera is available.")
-      return
-    }
-
-    this.deviceIndex = (this.deviceIndex + 1) % this.devices.length
-    await this.startCamera()
-  },
-
-  captureFrame() {
-    if (!this.stream || !this.video?.videoWidth || !this.video?.videoHeight) {
-      this.reportError("Start the camera before capturing a card.")
-      return
-    }
-
-    this.canvas.width = this.video.videoWidth
-    this.canvas.height = this.video.videoHeight
-
-    const context = this.canvas.getContext("2d")
-    context.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height)
-
-    const imageData = this.canvas.toDataURL(IMAGE_MIME_TYPE, IMAGE_QUALITY)
-    this.pushEvent("capture", {image_data: imageData})
-    this.setStatus("Captured still image. Saving…")
-  },
-
-  async toggleTorch() {
-    const track = this.currentVideoTrack()
-    if (!track) return
-
-    try {
-      this.torchEnabled = !this.torchEnabled
-      await track.applyConstraints({advanced: [{torch: this.torchEnabled}]})
-      this.torchButton.classList.toggle("btn-active", this.torchEnabled)
-      this.setStatus(this.torchEnabled ? "Torch enabled." : "Torch disabled.")
-    } catch (_error) {
-      this.reportError("Torch control is not supported by this camera.")
-    }
-  },
-
-  async setZoom(value) {
-    const track = this.currentVideoTrack()
-    if (!track) return
-
-    try {
-      await track.applyConstraints({advanced: [{zoom: Number(value)}]})
-      if (this.zoomValue) this.zoomValue.textContent = value
-    } catch (_error) {
-      this.reportError("Zoom control is not supported by this camera.")
-    }
-  },
-
-  cameraConstraints() {
-    const device = this.devices[this.deviceIndex]
-
-    if (device?.deviceId) {
-      return {deviceId: {exact: device.deviceId}}
-    }
-
-    return {facingMode: {ideal: "environment"}}
-  },
-
-  updateCapabilities() {
-    const track = this.currentVideoTrack()
-    const capabilities = track?.getCapabilities ? track.getCapabilities() : {}
-    this.updateCapabilityControls(capabilities || {})
-  },
-
-  updateCapabilityControls(capabilities) {
-    const torchSupported = Boolean(capabilities.torch)
-    if (this.torchButton) {
-      this.torchButton.disabled = !torchSupported
-      this.torchButton.classList.toggle("btn-disabled", !torchSupported)
-      this.torchButton.classList.toggle("btn-active", this.torchEnabled && torchSupported)
-    }
-
-    if (this.zoomControl && this.zoomInput) {
-      if (capabilities.zoom) {
-        const {min, max, step} = capabilities.zoom
-        this.zoomInput.min = min
-        this.zoomInput.max = max
-        this.zoomInput.step = step || 0.1
-        this.zoomInput.value = min
-        if (this.zoomValue) this.zoomValue.textContent = min
-        this.zoomControl.classList.remove("hidden")
-      } else {
-        this.zoomControl.classList.add("hidden")
-      }
-    }
-  },
-
-  updateSwitchControl() {
-    if (!this.switchButton) return
-    this.switchButton.disabled = this.devices.length < 2
-    this.switchButton.classList.toggle("btn-disabled", this.devices.length < 2)
-  },
-
-  currentVideoTrack() {
-    return this.stream?.getVideoTracks()[0]
-  },
-
-  disableControls() {
-    ;[this.startButton, this.stopButton, this.captureButton, this.switchButton, this.torchButton, this.zoomInput]
-      .filter(Boolean)
-      .forEach(control => {
-        control.disabled = true
-        control.classList.add("btn-disabled")
-      })
-  },
-
-  setStatus(message) {
-    const span = this.status?.querySelector("span")
+  function setStatus(message) {
+    const span = statusEl?.querySelector("span")
     if (span) span.textContent = message
-    this.pushEvent("camera_status", {message})
-  },
+    pushEventFn("camera_status", {message})
+  }
 
-  reportError(message) {
-    this.setStatus(message)
-    this.pushEvent("camera_error", {message})
-  },
+  function reportError(message) {
+    captureInFlight = false
+    setStatus(message)
+    pushEventFn("camera_error", {message})
+  }
 
-  cameraErrorMessage(error) {
+  function cameraErrorMessage(error) {
     if (error?.name === "NotAllowedError") return "Camera permission was denied."
     if (error?.name === "NotFoundError") return "No camera was found on this device."
     if (error?.name === "NotReadableError") return "Camera is already in use by another app."
     if (error?.name === "OverconstrainedError") return "Requested camera is not available."
     return "Camera could not be started."
   }
+
+  function currentVideoTrack() {
+    return stream?.getVideoTracks()[0]
+  }
+
+  function cameraConstraints() {
+    const device = devices[deviceIndex]
+    if (device?.deviceId) {
+      return {deviceId: {exact: device.deviceId}}
+    }
+    return {facingMode: {ideal: "environment"}}
+  }
+
+  function updateSwitchControl() {
+    if (!switchBtn) return
+    switchBtn.disabled = devices.length < 2
+    switchBtn.classList.toggle("btn-disabled", devices.length < 2)
+  }
+
+  function updateCapabilityControls(capabilities) {
+    const torchSupported = Boolean(capabilities.torch)
+    if (torchBtn) {
+      torchBtn.disabled = !torchSupported
+      torchBtn.classList.toggle("btn-disabled", !torchSupported)
+      torchBtn.classList.toggle("btn-active", torchEnabled && torchSupported)
+    }
+
+    if (zoomCtrl && zoomInp) {
+      if (capabilities.zoom) {
+        const {min, max, step} = capabilities.zoom
+        zoomInp.min = min
+        zoomInp.max = max
+        zoomInp.step = step || 0.1
+        zoomInp.value = min
+        if (zoomVal) zoomVal.textContent = min
+        zoomCtrl.classList.remove("hidden")
+      } else {
+        zoomCtrl.classList.add("hidden")
+      }
+    }
+  }
+
+  function updateCapabilities() {
+    const track = currentVideoTrack()
+    const capabilities = track?.getCapabilities ? track.getCapabilities() : {}
+    updateCapabilityControls(capabilities || {})
+  }
+
+  function disableControls() {
+    ;[switchBtn, torchBtn, zoomInp].filter(Boolean).forEach(control => {
+      control.disabled = true
+      control.classList.add("btn-disabled")
+    })
+  }
+
+  // ---- audio ----
+
+  async function unlockAudio() {
+    const AudioContext = window.AudioContext || window.webkitAudioContext
+    if (!AudioContext) return false
+
+    audioCtx = audioCtx || new AudioContext()
+
+    if (audioCtx.state === "suspended") {
+      try {
+        await audioCtx.resume()
+      } catch (_error) {
+        return false
+      }
+    }
+
+    return audioCtx.state === "running"
+  }
+
+  async function playDing() {
+    if (!(await unlockAudio())) return
+
+    const oscillator = audioCtx.createOscillator()
+    const gain = audioCtx.createGain()
+
+    oscillator.type = "sine"
+    oscillator.frequency.setValueAtTime(880, audioCtx.currentTime)
+    gain.gain.setValueAtTime(0.0001, audioCtx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.2, audioCtx.currentTime + 0.01)
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.18)
+
+    oscillator.connect(gain)
+    gain.connect(audioCtx.destination)
+    oscillator.start()
+    oscillator.stop(audioCtx.currentTime + 0.2)
+  }
+
+  // ---- camera lifecycle ----
+
+  async function refreshDevices() {
+    if (!navigator.mediaDevices?.enumerateDevices) return
+
+    try {
+      const all = await navigator.mediaDevices.enumerateDevices()
+      devices = all.filter(d => d.kind === "videoinput")
+      updateSwitchControl()
+    } catch (_error) {
+      devices = []
+      updateSwitchControl()
+    }
+  }
+
+  function stopAutoCapture() {
+    if (captureTimer) {
+      window.clearInterval(captureTimer)
+      captureTimer = null
+    }
+  }
+
+  function stopCamera() {
+    stopAutoCapture()
+
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop())
+      stream = null
+    }
+
+    if (videoEl) videoEl.srcObject = null
+    torchEnabled = false
+    updateCapabilityControls({})
+  }
+
+  function captureFrame() {
+    if (captureInFlight) return
+
+    const now = Date.now()
+    if (now - lastCaptureAt < CAPTURE_COOLDOWN_MS) return
+    if (!stream || !videoEl?.videoWidth || !videoEl?.videoHeight) return
+
+    captureInFlight = true
+    lastCaptureAt = now
+
+    const scale = Math.min(1, MAX_CAPTURE_EDGE_PX / Math.max(videoEl.videoWidth, videoEl.videoHeight))
+    canvasEl.width = Math.round(videoEl.videoWidth * scale)
+    canvasEl.height = Math.round(videoEl.videoHeight * scale)
+
+    const context = canvasEl.getContext("2d")
+    context.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height)
+
+    const imageData = canvasEl.toDataURL(IMAGE_MIME_TYPE, IMAGE_QUALITY)
+
+    pushEventFn("capture", {
+      image_data: imageData,
+      force: forceNextCapture
+    })
+    setStatus("Captured frame. Sending to OCR…")
+  }
+
+  function startAutoCapture() {
+    stopAutoCapture()
+    captureTimer = window.setInterval(captureFrame, CAPTURE_INTERVAL_MS)
+    window.setTimeout(captureFrame, 400)
+  }
+
+  async function startCamera() {
+    stopCamera()
+
+    try {
+      const constraints = cameraConstraints()
+      stream = await navigator.mediaDevices.getUserMedia({video: constraints, audio: false})
+      videoEl.srcObject = stream
+      await videoEl.play()
+      await refreshDevices()
+      updateCapabilities()
+      setStatus("Camera is running. OCR scanning…")
+      startAutoCapture()
+    } catch (error) {
+      reportError(cameraErrorMessage(error))
+    }
+  }
+
+  async function switchCamera() {
+    if (devices.length < 2) {
+      setStatus("No alternate camera is available.")
+      return
+    }
+
+    deviceIndex = (deviceIndex + 1) % devices.length
+    await startCamera()
+  }
+
+  function forceDetection() {
+    forceNextCapture = true
+    setStatus("Force scanning the preview once…")
+    captureFrame()
+  }
+
+  async function toggleTorch() {
+    const track = currentVideoTrack()
+    if (!track) return
+
+    try {
+      torchEnabled = !torchEnabled
+      await track.applyConstraints({advanced: [{torch: torchEnabled}]})
+      torchBtn.classList.toggle("btn-active", torchEnabled)
+      setStatus(torchEnabled ? "Flashlight enabled." : "Flashlight disabled.")
+    } catch (_error) {
+      reportError("Flashlight control is not supported by this camera.")
+    }
+  }
+
+  async function setZoom(value) {
+    const track = currentVideoTrack()
+    if (!track) return
+
+    try {
+      await track.applyConstraints({advanced: [{zoom: Number(value)}]})
+      if (zoomVal) zoomVal.textContent = value
+    } catch (_error) {
+      reportError("Zoom control is not supported by this camera.")
+    }
+  }
+
+  // ---- audio unlock on first user gesture ----
+
+  function onUserGesture() {
+    unlockAudio()
+  }
+
+  // ---- hook API ----
+
+  function mounted() {
+    // reset mutable state for re-mounts
+    stream = null
+    devices = []
+    deviceIndex = 0
+    torchEnabled = false
+    captureTimer = null
+    captureInFlight = false
+    lastCaptureAt = 0
+    forceNextCapture = false
+    audioCtx = null
+
+    pushEventFn = (event, payload) => this.pushEvent(event, payload)
+    handleEventFn = (event, callback) => this.handleEvent(event, callback)
+
+    videoEl = this.el.querySelector("[data-scanner-video]")
+    canvasEl = this.el.querySelector("[data-scanner-canvas]")
+    statusEl = this.el.querySelector("[data-scanner-status]")
+    previewEl = this.el.querySelector("[data-scanner-preview]")
+    switchBtn = this.el.querySelector("[data-scanner-switch]")
+    torchBtn = this.el.querySelector("[data-scanner-torch]")
+    zoomCtrl = this.el.querySelector("[data-scanner-zoom-control]")
+    zoomInp = this.el.querySelector("[data-scanner-zoom]")
+    zoomVal = this.el.querySelector("[data-scanner-zoom-value]")
+
+    previewEl?.addEventListener("click", forceDetection)
+    switchBtn?.addEventListener("click", switchCamera)
+    torchBtn?.addEventListener("click", toggleTorch)
+    zoomInp?.addEventListener("input", event => setZoom(event.target.value))
+    window.addEventListener("pointerdown", onUserGesture, {once: true})
+    window.addEventListener("keydown", onUserGesture, {once: true})
+    window.addEventListener("touchstart", onUserGesture, {once: true})
+
+    handleEventFn("scan_accepted", () => {
+      captureInFlight = false
+      forceNextCapture = false
+      playDing()
+    })
+
+    handleEventFn("scan_duplicate", () => {
+      captureInFlight = false
+      forceNextCapture = false
+    })
+
+    handleEventFn("scan_rejected", () => {
+      captureInFlight = false
+      forceNextCapture = false
+    })
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      reportError("This browser does not support camera capture.")
+      disableControls()
+      return
+    }
+
+    setStatus("Starting camera…")
+    refreshDevices().finally(startCamera)
+  }
+
+  function destroyed() {
+    window.removeEventListener("pointerdown", onUserGesture)
+    window.removeEventListener("keydown", onUserGesture)
+    window.removeEventListener("touchstart", onUserGesture)
+    stopAutoCapture()
+    stopCamera()
+  }
+
+  return {mounted, destroyed}
 }
 
+const ScannerCamera = createScannerCamera()
 export default ScannerCamera

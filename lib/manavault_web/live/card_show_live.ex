@@ -97,7 +97,10 @@ defmodule ManavaultWeb.CardShowLive do
           </div>
 
           <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            <div :for={printing <- @card.printings} class="card bg-base-200 shadow-sm overflow-hidden group">
+            <div
+              :for={printing <- @card.printings}
+              class="card bg-base-200 shadow-sm overflow-hidden group"
+            >
               <figure
                 :if={image_url(printing)}
                 phx-click="show_details"
@@ -231,14 +234,23 @@ defmodule ManavaultWeb.CardShowLive do
     prices
     |> decode_json(%{})
     |> then(fn
-      %{"usd" => usd} when is_binary(usd) and usd != "" -> "$#{format_price(usd)}"
-      %{"usd_foil" => foil} when is_binary(foil) and foil != "" -> "$#{format_price(foil)}"
-      map when is_map(map) -> 
-        map |> Map.values() |> Enum.find(&is_binary/1) |> then(fn
+      %{"usd" => usd} when is_binary(usd) and usd != "" ->
+        "$#{format_price(usd)}"
+
+      %{"usd_foil" => foil} when is_binary(foil) and foil != "" ->
+        "$#{format_price(foil)}"
+
+      map when is_map(map) ->
+        map
+        |> Map.values()
+        |> Enum.find(&is_binary/1)
+        |> then(fn
           nil -> nil
           v -> "$#{format_price(v)}"
         end)
-      _ -> nil
+
+      _ ->
+        nil
     end)
   end
 

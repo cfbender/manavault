@@ -1,6 +1,8 @@
 defmodule ManavaultWeb.CollectionLive do
   use ManavaultWeb, :live_view
 
+  import ManavaultWeb.CardTile, only: [card_tile: 1]
+
   alias Manavault.Catalog
   alias Manavault.Catalog.{CollectionItem, Printing}
 
@@ -275,88 +277,12 @@ defmodule ManavaultWeb.CollectionLive do
             id="owned-card-grid"
             class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
           >
-            <div
+            <.card_tile
               :for={item <- @items}
-              id={"collection-item-#{item.id}"}
-              class="group card relative overflow-visible border border-base-300 bg-base-100 shadow-sm transition hover:z-50 hover:-translate-y-1 hover:border-primary/40 hover:shadow-xl"
-            >
-              <span class="absolute top-1.5 right-1.5 z-30 badge badge-primary badge-sm font-bold">
-                ×{item.quantity}
-              </span>
-              <div
-                :if={!@selected_item and !@change_printing_item}
-                class="dropdown dropdown-end absolute top-8 right-1.5 z-50"
-              >
-                <button
-                  type="button"
-                  class="btn btn-circle btn-xs bg-base-100/85 backdrop-blur-sm shadow"
-                  tabindex="0"
-                >
-                  ⋮
-                </button>
-                <ul
-                  tabindex="0"
-                  class="menu dropdown-content z-50 mt-1 w-44 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-xl"
-                >
-                  <li>
-                    <.link navigate={~p"/collection/#{item.id}/edit"}>Edit</.link>
-                  </li>
-                  <li>
-                    <button type="button" phx-click="change_printing" phx-value-id={item.id}>
-                      Change printing
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      type="button"
-                      class="text-error"
-                      phx-click="delete"
-                      phx-value-id={item.id}
-                    >
-                      Delete
-                    </button>
-                  </li>
-                </ul>
-              </div>
-              <figure class="aspect-[5/7] overflow-hidden rounded-t-box bg-base-200 relative">
-                <img
-                  :if={item_image_url(item)}
-                  src={item_image_url(item)}
-                  alt={card_name(item)}
-                  class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
-                  loading="lazy"
-                />
-                <div
-                  :if={!item_image_url(item)}
-                  class="flex h-full w-full items-center justify-center p-6 text-center text-sm text-base-content/50"
-                >
-                  No image
-                </div>
-
-                <span class="absolute bottom-1.5 left-1.5 z-20 badge badge-sm badge-outline bg-base-100/80 backdrop-blur-sm font-bold">
-                  {set_code(item)}
-                </span>
-                <span
-                  :if={price_text(item)}
-                  class="absolute bottom-1.5 right-1.5 z-20 badge badge-sm bg-base-100/80 backdrop-blur-sm font-mono text-xs"
-                >
-                  {price_text(item)}
-                </span>
-                <button
-                  type="button"
-                  phx-click="show_details"
-                  phx-value-id={item.id}
-                  class="absolute inset-0 z-10 bg-black/0 transition group-hover:bg-black/20 flex items-start p-2 text-left"
-                >
-                  <span class="text-xs text-white opacity-0 group-hover:opacity-100 transition">
-                    Click for details
-                  </span>
-                </button>
-              </figure>
-              <div class="card-body gap-2 p-3">
-                <h3 class="line-clamp-1 text-sm font-bold leading-snug">{card_name(item)}</h3>
-              </div>
-            </div>
+              item={item}
+              selected_item={@selected_item}
+              change_printing_item={@change_printing_item}
+            />
           </div>
 
           <div :if={@has_more_items} class="flex justify-center py-2">
@@ -579,12 +505,6 @@ defmodule ManavaultWeb.CollectionLive do
        }) do
     "#{String.upcase(set_code)} ##{collector_number}"
   end
-
-  defp set_code(%CollectionItem{printing: %{set_code: set_code}}) when is_binary(set_code) do
-    String.upcase(set_code)
-  end
-
-  defp set_code(_item), do: "?"
 
   defp printing_label(%Printing{set_code: set_code, collector_number: collector_number}) do
     "#{String.upcase(set_code)} ##{collector_number}"

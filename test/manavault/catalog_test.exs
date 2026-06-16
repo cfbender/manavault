@@ -243,7 +243,7 @@ defmodule Manavault.CatalogTest do
     assert item.quantity == 2
   end
 
-  test "scan session CRUD stores defaults and preloads items with multiple candidates" do
+  test "scan session CRUD stores defaults and preloads items without candidate rows" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
 
@@ -275,26 +275,6 @@ defmodule Manavault.CatalogTest do
     assert item.finish == "foil"
     assert item.location_id == binder.id
 
-    assert {:ok, _candidate1} =
-             Catalog.create_scan_candidate(item, %{
-               printing_id: "scryfall-printing-1",
-               oracle_id: "oracle-1",
-               source: "ocr",
-               confidence: 0.92,
-               rank: 1,
-               evidence: Jason.encode!(%{name: "Black Lotus"})
-             })
-
-    assert {:ok, _candidate2} =
-             Catalog.create_scan_candidate(item, %{
-               printing_id: "scryfall-printing-2",
-               oracle_id: "oracle-2",
-               source: "image_match",
-               confidence: 0.71,
-               rank: 2,
-               evidence: Jason.encode!(%{name: "Time Walk"})
-             })
-
     assert [listed] = Catalog.list_scan_sessions()
     assert listed.id == scan_session.id
     assert listed.default_location.name == "Scan Binder"
@@ -304,9 +284,6 @@ defmodule Manavault.CatalogTest do
     assert [loaded_item] = loaded.scan_items
     assert loaded_item.image_path == "/tmp/scan-1.jpg"
     assert loaded_item.location.name == "Scan Binder"
-    assert [first, second] = loaded_item.scan_candidates
-    assert first.printing.card.name == "Black Lotus"
-    assert second.printing.card.name == "Time Walk"
 
     assert %{pending: [], reviewed: [^loaded_item], accepted: []} =
              Catalog.scan_session_items_by_review_state(loaded)
@@ -352,7 +329,260 @@ defmodule Manavault.CatalogTest do
              Catalog.create_scan_item_from_capture(scan_session, "not image data")
   end
 
-  test "recognize_scan_item persists ranked OCR candidates from local Scryfall matches" do
+  test "create_recognized_scan_item_from_capture stores only matched card captures" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    upload_dir =
+      Path.join(
+        System.tmp_dir!(),
+        "manavault-recognized-captures-#{System.unique_integer([:positive])}"
+      )
+
+    previous_dir = Application.get_env(:manavault, :capture_upload_dir)
+    Application.put_env(:manavault, :capture_upload_dir, upload_dir)
+
+    on_exit(fn ->
+      if previous_dir do
+        Application.put_env(:manavault, :capture_upload_dir, previous_dir)
+      else
+        Application.delete_env(:manavault, :capture_upload_dir)
+      end
+
+      File.rm_rf!(upload_dir)
+    end)
+
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Matched camera batch"})
+
+    assert {:ok, item} =
+             Catalog.create_recognized_scan_item_from_capture(
+               scan_session,
+               "data:image/png;base64,#{Base.encode64("fake image bytes")}",
+               ocr_runner: fn _path -> {:ok, "Black Lotus\nSet: LEA\nCollector #232"} end
+             )
+
+    assert item.status == "recognized"
+    assert item.image_path =~ upload_dir
+    assert item.accepted_printing_id == "scryfall-printing-1"
+    assert [loaded_item] = Catalog.get_scan_session!(scan_session.id).scan_items
+    assert loaded_item.id == item.id
+  end
+
+  test "create_recognized_scan_item_from_capture does not store unmatched captures" do
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "No match batch"})
+
+    upload_dir =
+      Path.join(
+        System.tmp_dir!(),
+        "manavault-unmatched-captures-#{System.unique_integer([:positive])}"
+      )
+
+    previous_dir = Application.get_env(:manavault, :capture_upload_dir)
+    Application.put_env(:manavault, :capture_upload_dir, upload_dir)
+
+    on_exit(fn ->
+      if previous_dir do
+        Application.put_env(:manavault, :capture_upload_dir, previous_dir)
+      else
+        Application.delete_env(:manavault, :capture_upload_dir)
+      end
+
+      File.rm_rf!(upload_dir)
+    end)
+
+    assert {:error, "No card match found. Keep the card steady in the frame."} =
+             Catalog.create_recognized_scan_item_from_capture(
+               scan_session,
+               "data:image/png;base64,#{Base.encode64("fake image bytes")}",
+               ocr_runner: fn _path -> {:ok, "not a card"} end
+             )
+
+    assert Catalog.get_scan_session!(scan_session.id).scan_items == []
+    assert File.ls!(Path.join(upload_dir, "scan_sessions/#{scan_session.id}")) == []
+  end
+
+  test "import_cards populates SQLite OCR search table for normalized and compact text" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    assert %{rows: [["scryfall-printing-1"]]} =
+             Repo.query!(
+               """
+               SELECT scryfall_id
+               FROM scryfall_printing_search
+               WHERE scryfall_printing_search MATCH ?
+               ORDER BY scryfall_id
+               """,
+               ["\"blacklotus\""]
+             )
+
+    assert %{rows: rows} =
+             Repo.query!(
+               """
+               SELECT scryfall_id
+               FROM scryfall_printing_search
+               WHERE scryfall_printing_search MATCH ?
+               ORDER BY scryfall_id
+               """,
+               ["\"sacrifice\""]
+             )
+
+    assert ["scryfall-printing-1"] in rows
+  end
+
+  test "scan recognition uses SQLite search by default for candidate retrieval" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    parsed = ScanRecognition.parse_text("Black Lotus\nSet: LEA\nCollector #232")
+
+    assert [%{printing: printing, confidence: confidence}] =
+             ScanRecognition.match_candidates(parsed)
+
+    assert printing.scryfall_id == "scryfall-printing-1"
+    assert confidence > 0.0
+  end
+
+  test "scan recognition uses SQLite search without an in-memory index option" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    parsed = ScanRecognition.parse_text("Time Walk\nCollector: 84\nSet: LEA")
+
+    assert [%{printing: printing}] =
+             ScanRecognition.match_candidates(parsed)
+
+    assert printing.scryfall_id == "scryfall-printing-2"
+  end
+
+  test "scan recognition ignores OCR diagnostic lines" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Diagnostic OCR batch"})
+
+    assert {:ok, item} =
+             Catalog.create_scan_item(scan_session, %{image_path: "/tmp/black-lotus.jpg"})
+
+    ocr_runner = fn "/tmp/black-lotus.jpg" ->
+      {:ok, "Estimating resolution as 231\nBlack Lotus\nSet: LEA\nCollector #232"}
+    end
+
+    assert {:ok, recognized_item} = Catalog.recognize_scan_item(item, ocr_runner: ocr_runner)
+
+    assert recognized_item.accepted_printing_id == "scryfall-printing-1"
+
+    refute ScanRecognition.parse_text("Estimating resolution as 231\nBlack Lotus")
+           |> Map.fetch!(:tokens)
+           |> Enum.member?("estimating")
+  end
+
+  test "scan recognition does not treat OCR diagnostics as card text" do
+    parsed = ScanRecognition.parse_text("Estimating resolution as 231")
+
+    assert parsed.text == ""
+    assert parsed.tokens == []
+    assert ScanRecognition.match_candidates(parsed) == []
+  end
+
+  test "scan recognition falls back to card names embedded in rules text" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    parsed =
+      ScanRecognition.parse_text(
+        "{T}, Sacrifice Black Lotus: Add three mana of any one color.\nSet: LEA\nCollector #232"
+      )
+
+    assert Enum.any?(parsed.tokens, &(&1 == "black"))
+    assert Enum.any?(parsed.tokens, &(&1 == "lotus"))
+    assert length(parsed.lines) > 0
+
+    assert [%{printing: printing, confidence: confidence, evidence: evidence}] =
+             ScanRecognition.match_candidates(parsed)
+
+    assert printing.scryfall_id == "scryfall-printing-1"
+    assert confidence > 0.0
+
+    # Phrase matching: the card name is embedded in the oracle text line
+    assert length(evidence.phrase_hits) > 0
+    assert Enum.any?(evidence.phrase_hits, &(&1.field == :name))
+  end
+
+  test "scan recognition ignores copyright footer lines" do
+    parsed = ScanRecognition.parse_text("r 0228 ™ & © 2022 Wizards of the Coast")
+
+    assert parsed.text == ""
+    assert parsed.tokens == []
+    assert ScanRecognition.match_candidates(parsed) == []
+  end
+
+  test "scan recognition ignores artist credit footer lines" do
+    parsed = ScanRecognition.parse_text("30a + EN % Christopher Rush")
+
+    assert parsed.text == ""
+    assert parsed.tokens == []
+    assert ScanRecognition.match_candidates(parsed) == []
+  end
+
+  test "scan recognition tokenizes and matches card text regardless of field position" do
+    parsed = ScanRecognition.parse_text("Black Lotus\n30a + EN % Christopher Rush")
+
+    assert parsed.text =~ "Black Lotus"
+    assert Enum.any?(parsed.tokens, &(&1 == "black"))
+    assert Enum.any?(parsed.tokens, &(&1 == "lotus"))
+    assert parsed.lines == ["Black Lotus"]
+  end
+
+  test "scan recognition falls back to oracle text when name does not parse" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    parsed = ScanRecognition.parse_text("mana of any one color.")
+
+    assert Enum.any?(parsed.tokens, &(&1 == "mana"))
+
+    assert [%{printing: printing, confidence: confidence, evidence: evidence}] =
+             ScanRecognition.match_candidates(parsed)
+
+    assert printing.scryfall_id == "scryfall-printing-1"
+    assert confidence > 0.0
+
+    # Phrase match: the oracle text fragment should match oracle_text field
+    assert Enum.any?(evidence.phrase_hits, &(&1.field == :oracle_text))
+  end
+
+  test "scan recognition phrase matching boosts confidence for multi-word matches" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    # OCR with only common single words (no coherent phrases) — low confidence
+    parsed_loose = ScanRecognition.parse_text("sacrifice artifact add mana one color")
+
+    case ScanRecognition.match_candidates(parsed_loose) do
+      [] ->
+        # No candidate found at all with just common words — pass
+        :ok
+
+      [%{confidence: loose_conf}] ->
+        # If found, confidence should stay below exact-title matches.
+        assert loose_conf < 0.6
+    end
+
+    # OCR with the actual card name phrase — much higher confidence
+    parsed_name = ScanRecognition.parse_text("Black Lotus")
+
+    assert [%{printing: printing, confidence: name_conf, evidence: evidence}] =
+             ScanRecognition.match_candidates(parsed_name)
+
+    assert printing.scryfall_id == "scryfall-printing-1"
+    assert name_conf > 0.5
+
+    # Phrase hit: "Black Lotus" line matches name
+    assert Enum.any?(evidence.phrase_hits, &(&1.field == :name))
+  end
+
+  test "recognize_scan_item stores top OCR match on scan item without candidate row writes" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
 
@@ -368,36 +598,21 @@ defmodule Manavault.CatalogTest do
     assert {:ok, recognized_item} = Catalog.recognize_scan_item(item, ocr_runner: ocr_runner)
 
     assert recognized_item.status == "recognized"
-    assert [candidate] = recognized_item.scan_candidates
-    assert candidate.source == "ocr"
-    assert candidate.rank == 1
-    assert candidate.confidence == 1.0
-    assert candidate.printing_id == "scryfall-printing-1"
-    assert candidate.oracle_id == "oracle-1"
-    assert candidate.printing.card.name == "Black Lotus"
-
-    assert %{
-             "parsed_name" => "Black Lotus",
-             "parsed_set_code" => "LEA",
-             "parsed_collector_number" => "232",
-             "matched_name" => "Black Lotus"
-           } = Jason.decode!(candidate.evidence)
+    assert recognized_item.accepted_printing_id == "scryfall-printing-1"
+    assert recognized_item.accepted_printing.card.name == "Black Lotus"
   end
 
   test "recognize_scan_item marks failed OCR as needing review with evidence" do
     assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Failed recognition"})
     assert {:ok, item} = Catalog.create_scan_item(scan_session, %{image_path: "/tmp/missing.jpg"})
 
-    assert {:error, "tesseract missing", review_item} =
+    assert {:error, "RapidOCR missing", review_item} =
              Catalog.recognize_scan_item(item,
-               ocr_runner: fn _path -> {:error, "tesseract missing"} end
+               ocr_runner: fn _path -> {:error, "RapidOCR missing"} end
              )
 
     assert review_item.status == "needs_review"
-    assert [candidate] = review_item.scan_candidates
-    assert candidate.source == "ocr"
-    assert candidate.confidence == nil
-    assert Jason.decode!(candidate.evidence) == %{"ocr_error" => "tesseract missing"}
+    assert review_item.accepted_printing_id == nil
   end
 
   test "scan recognition parses OCR text and matches candidates without OCR runner" do
@@ -406,16 +621,327 @@ defmodule Manavault.CatalogTest do
 
     parsed = ScanRecognition.parse_text("Time Walk\nCollector: 84\nSet: LEA\nLanguage: ja")
 
-    assert parsed.name == "Time Walk"
+    assert Enum.any?(parsed.tokens, &(&1 == "time"))
+    assert Enum.any?(parsed.tokens, &(&1 == "walk"))
     assert parsed.collector_number == "84"
     assert parsed.set_code == "LEA"
     assert parsed.language == "ja"
 
-    assert [%{printing: printing, confidence: 1.0}] = ScanRecognition.match_candidates(parsed)
+    assert [%{printing: printing, confidence: confidence, evidence: evidence}] =
+             ScanRecognition.match_candidates(parsed)
+
     assert printing.scryfall_id == "scryfall-printing-2"
+    assert confidence > 0.0
+
+    # Phrase match: "Time Walk" line should match the card name
+    assert Enum.any?(evidence.phrase_hits, &(&1.field == :name))
   end
 
-  test "accept_scan_item_best_candidate creates collection inventory and marks item accepted" do
+  test "scan recognition matches compacted RapidOCR title without spaces" do
+    assert {:ok, %{cards_count: 3, printings_count: 3}} =
+             Catalog.import_cards([
+               @black_lotus,
+               %{
+                 @black_lotus
+                 | "id" => "fellwar-stone-printing",
+                   "oracle_id" => "fellwar-stone-oracle",
+                   "name" => "Fellwar Stone",
+                   "type_line" => "Artifact",
+                   "oracle_text" => "Add one mana of any color.",
+                   "collector_number" => "228"
+               },
+               %{
+                 @black_lotus
+                 | "id" => "arcane-signet-printing",
+                   "oracle_id" => "arcane-signet-oracle",
+                   "name" => "Arcane Signet",
+                   "type_line" => "Artifact",
+                   "oracle_text" => "Add one mana of any color.",
+                   "collector_number" => "228"
+               }
+             ])
+
+    parsed =
+      ScanRecognition.parse_text("""
+      BlackLotus
+      Artifact
+      EDITION
+      30TH
+      ,SacrificeBlackLotus:Add three
+      mana ofany one color.
+      3OA·ENCHRISTOPHERRUSH
+      R0228
+      &2022Wzs of the Coast
+      """)
+
+    assert [%{printing: printing, confidence: confidence, evidence: evidence} | _] =
+             ScanRecognition.match_candidates(parsed)
+
+    assert printing.scryfall_id == "scryfall-printing-1"
+    assert confidence >= 0.9
+    assert Enum.any?(evidence.phrase_hits, &(&1.field == :name and &1.line == "BlackLotus"))
+  end
+
+  test "scan recognition keeps exact title and type-line matches ahead of broad token limit" do
+    distractors =
+      for index <- 1..600 do
+        %{
+          @black_lotus
+          | "id" => "artifact-distractor-#{index}",
+            "oracle_id" => "artifact-distractor-oracle-#{index}",
+            "name" => "Artifact Distractor #{index}",
+            "type_line" => "Artifact",
+            "oracle_text" => "Add mana.",
+            "collector_number" => "#{index}"
+        }
+      end
+
+    black_lotus_30a = %{@black_lotus | "collector_number" => "228", "set" => "30a"}
+
+    assert {:ok, %{cards_count: 601, printings_count: 601}} =
+             Catalog.import_cards([black_lotus_30a | distractors])
+
+    parsed =
+      ScanRecognition.parse_text("""
+      Black Lotus
+      Artifact
+      30T
+      EDITION
+      ,Sacrifice Black Lotus:Add three
+      mana ofany onecolor.
+      R0228
+      &2022
+      """)
+
+    assert [%{printing: printing, confidence: confidence, evidence: evidence} | _] =
+             ScanRecognition.match_candidates(parsed)
+
+    assert printing.scryfall_id == "scryfall-printing-1"
+    assert confidence >= 0.9
+    assert Enum.any?(evidence.phrase_hits, &(&1.field == :name and &1.line == "Black Lotus"))
+    assert Enum.any?(evidence.phrase_hits, &(&1.field == :type_line and &1.line == "Artifact"))
+  end
+
+  test "scan recognition ranks exact OCR name line above weak token-overlap candidates" do
+    lotus_ring = %{
+      @black_lotus
+      | "id" => "lotus-ring-printing",
+        "oracle_id" => "lotus-ring-oracle",
+        "name" => "Lotus Ring",
+        "oracle_text" => "Whenever one or more creatures attack, draw a card.",
+        "collector_number" => "240"
+    }
+
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, lotus_ring])
+
+    parsed =
+      ScanRecognition.parse_text("""
+      Black Lotus
+      Artifact
+      EDMON
+      Sacrifice Black Lotus: Add three
+      mana of any one color:
+      301h
+      """)
+
+    assert [%{printing: printing, evidence: evidence} | _] =
+             ScanRecognition.match_candidates(parsed)
+
+    assert printing.scryfall_id == "scryfall-printing-1"
+    assert evidence.scores.phrase_match >= 0.55
+    assert Enum.any?(evidence.phrase_hits, &(&1.field == :name and &1.line == "Black Lotus"))
+  end
+
+  test "scan recognition includes exact name lines outside first broad token window" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    parsed =
+      ScanRecognition.parse_text("""
+      one two three four five six seven eight
+      Black Lotus
+      """)
+
+    assert parsed.tokens == [
+             "one",
+             "two",
+             "three",
+             "four",
+             "five",
+             "six",
+             "seven",
+             "eight",
+             "black",
+             "lotus"
+           ]
+
+    assert [%{printing: printing, evidence: evidence}] = ScanRecognition.match_candidates(parsed)
+
+    assert printing.scryfall_id == "scryfall-printing-1"
+    assert Enum.any?(evidence.phrase_hits, &(&1.field == :name and &1.line == "Black Lotus"))
+  end
+
+  test "scan recognition does not boost blank card text as phrase match" do
+    blank_text_card = %{
+      @black_lotus
+      | "id" => "blank-text-printing",
+        "oracle_id" => "blank-text-oracle",
+        "name" => "Gilded Sentinel",
+        "type_line" => nil,
+        "oracle_text" => nil,
+        "collector_number" => "239"
+    }
+
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, blank_text_card])
+
+    parsed =
+      ScanRecognition.parse_text("""
+      Black Lotus
+      Artifact
+      Sacrifice Black Lotus: Add three
+      mana
+      of any one color:
+      """)
+
+    assert [%{printing: printing, evidence: evidence} | _] =
+             ScanRecognition.match_candidates(parsed)
+
+    assert printing.scryfall_id == "scryfall-printing-1"
+    assert Enum.any?(evidence.phrase_hits, &(&1.field == :type_line and &1.line == "Artifact"))
+  end
+
+  test "scan recognition handles integer scoring values without crashing debug logging" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    parsed = ScanRecognition.parse_text("Black")
+
+    assert [%{confidence: confidence, evidence: %{scores: scores}}] =
+             ScanRecognition.match_candidates(parsed)
+
+    assert is_float(confidence)
+    assert is_integer(scores.phrase_match)
+  end
+
+  test "scan recognition does not treat single-word names in non-title text as title evidence" do
+    cat = %{
+      @black_lotus
+      | "id" => "cat-printing",
+        "oracle_id" => "cat-oracle",
+        "name" => "Cat",
+        "type_line" => "Creature — Cat",
+        "oracle_text" => "Vigilance.",
+        "collector_number" => "241"
+    }
+
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, cat])
+
+    parsed =
+      ScanRecognition.parse_text("""
+      Black Lotus
+      Artifact
+      Create a 1/1 white Cat creature token.
+      Sacrifice Black Lotus: Add three mana of any one color.
+      """)
+
+    assert [lotus, cat_candidate | _] = ScanRecognition.match_candidates(parsed)
+
+    assert lotus.printing.scryfall_id == "scryfall-printing-1"
+    assert cat_candidate.printing.scryfall_id == "cat-printing"
+    refute Enum.any?(cat_candidate.evidence.phrase_hits, &(&1.field == :name))
+  end
+
+  test "scan recognition tie-breaks confidence ties toward exact title and type evidence" do
+    exact_card = %{
+      @black_lotus
+      | "id" => "zz-exact-printing",
+        "oracle_id" => "zz-exact-oracle",
+        "name" => "Alpha Beta",
+        "type_line" => "Creature — Cat",
+        "oracle_text" => "Alpha beta gamma delta epsilon zeta eta theta.",
+        "collector_number" => "242"
+    }
+
+    broad_card = %{
+      @black_lotus
+      | "id" => "aa-broad-printing",
+        "oracle_id" => "aa-broad-oracle",
+        "name" => "Gamma Delta",
+        "type_line" => "Instant",
+        "oracle_text" => "Alpha Beta Creature Cat gamma delta epsilon zeta eta theta.",
+        "collector_number" => "243"
+    }
+
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([broad_card, exact_card])
+
+    parsed =
+      ScanRecognition.parse_text("""
+      Alpha Beta
+      Creature — Cat
+      gamma delta epsilon zeta eta theta
+      """)
+
+    assert [%{printing: printing, confidence: 1.0, evidence: evidence}, %{confidence: 1.0} | _] =
+             ScanRecognition.match_candidates(parsed)
+
+    assert printing.scryfall_id == "zz-exact-printing"
+    assert Enum.any?(evidence.phrase_hits, &(&1.field == :name and &1.line == "Alpha Beta"))
+
+    assert Enum.any?(
+             evidence.phrase_hits,
+             &(&1.field == :type_line and &1.line == "Creature — Cat")
+           )
+  end
+
+  test "scan recognition handles RapidOCR output with card name, oracle text, and footer" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    # Simulate RapidOCR output: card name as first line, type line, oracle text, footer
+    parsed =
+      ScanRecognition.parse_text("""
+      Black Lotus
+      Artifact
+      301h
+      EDITION
+      Sacrifice Black Lotus: Add three
+      mana of any one color:
+      R 0228
+      Ta02022uuad othc Cout
+      J0a * EN
+      ~CHRISTOPHtr Rush
+      """)
+
+    # Card name tokens are present
+    assert Enum.any?(parsed.tokens, &(&1 == "black"))
+    assert Enum.any?(parsed.tokens, &(&1 == "lotus"))
+
+    # "Black Lotus" is a clean line for phrase matching
+    assert Enum.any?(parsed.lines, &String.contains?(&1, "Black Lotus"))
+
+    # Footer garbage and artist credit lines are present in tokens
+    # but are harmless — they don't match any card field, just proportionally
+    # drag down scores for all candidates equally.
+    assert length(parsed.tokens) > 8
+
+    # Collector number extracted from footer
+    assert parsed.collector_number == "0228"
+
+    # Black Lotus is the top match with high confidence
+    assert [%{printing: printing, confidence: confidence, evidence: evidence}] =
+             ScanRecognition.match_candidates(parsed)
+
+    assert printing.scryfall_id == "scryfall-printing-1"
+    assert confidence > 0.7
+
+    # Phrase match: "Black Lotus" line hits the card name
+    assert Enum.any?(evidence.phrase_hits, &(&1.field == :name))
+  end
+
+  test "accept_scan_item creates collection inventory from stored printing and marks item accepted" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
 
@@ -425,6 +951,7 @@ defmodule Manavault.CatalogTest do
     assert {:ok, item} =
              Catalog.create_scan_item(scan_session, %{
                status: "recognized",
+               accepted_printing_id: "scryfall-printing-1",
                quantity: 3,
                condition: "lightly_played",
                language: "en",
@@ -432,18 +959,8 @@ defmodule Manavault.CatalogTest do
                location_id: binder.id
              })
 
-    assert {:ok, _candidate} =
-             Catalog.create_scan_candidate(item, %{
-               printing_id: "scryfall-printing-1",
-               oracle_id: "oracle-1",
-               source: "ocr",
-               confidence: 0.95,
-               rank: 1,
-               evidence: "{}"
-             })
-
     assert {:ok, %{scan_item: accepted_item, collection_item: collection_item}} =
-             Catalog.accept_scan_item_best_candidate(item.id)
+             Catalog.accept_scan_item(item.id)
 
     assert accepted_item.status == "accepted"
     assert accepted_item.accepted_printing_id == "scryfall-printing-1"
@@ -452,25 +969,20 @@ defmodule Manavault.CatalogTest do
     assert collection_item.condition == "lightly_played"
     assert collection_item.location_id == binder.id
 
-    assert {:error, :already_accepted} = Catalog.accept_scan_item_best_candidate(item.id)
+    assert {:error, :already_accepted} = Catalog.accept_scan_item(item.id)
   end
 
   test "undo_scan_item_accept reverts accepted item and removes matching collection row" do
     assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
     assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Undo accept"})
-    assert {:ok, item} = Catalog.create_scan_item(scan_session, %{status: "recognized"})
 
-    assert {:ok, _candidate} =
-             Catalog.create_scan_candidate(item, %{
-               printing_id: "scryfall-printing-1",
-               oracle_id: "oracle-1",
-               source: "ocr",
-               confidence: 0.99,
-               rank: 1,
-               evidence: "{}"
+    assert {:ok, item} =
+             Catalog.create_scan_item(scan_session, %{
+               status: "recognized",
+               accepted_printing_id: "scryfall-printing-1"
              })
 
-    assert {:ok, %{scan_item: accepted_item}} = Catalog.accept_scan_item_best_candidate(item.id)
+    assert {:ok, %{scan_item: accepted_item}} = Catalog.accept_scan_item(item.id)
     assert accepted_item.status == "accepted"
     assert [_collection_item] = Catalog.list_collection_items()
 
@@ -483,7 +995,7 @@ defmodule Manavault.CatalogTest do
     assert {:error, :not_accepted} = Catalog.undo_scan_item_accept(item.id)
   end
 
-  test "set_scan_item_printing records manual exact printing and can accept it" do
+  test "set_scan_item_printing stores manual exact printing and can accept it" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
 
@@ -500,9 +1012,6 @@ defmodule Manavault.CatalogTest do
 
     assert corrected_item.status == "recognized"
     assert corrected_item.accepted_printing_id == "scryfall-printing-2"
-
-    assert [%{source: "user_search", printing_id: "scryfall-printing-2"}] =
-             corrected_item.scan_candidates
 
     assert {:ok, %{scan_item: accepted_item, collection_item: collection_item}} =
              Catalog.accept_scan_item(item.id)
@@ -547,21 +1056,6 @@ defmodule Manavault.CatalogTest do
 
     assert "is invalid" in errors_on(changeset).default_condition
     assert "is invalid" in errors_on(changeset).default_finish
-
-    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Valid scan"})
-    assert {:ok, item} = Catalog.create_scan_item(scan_session)
-
-    assert {:error, changeset} =
-             Catalog.create_scan_candidate(item, %{
-               source: "robot",
-               confidence: 2.0,
-               rank: 0,
-               evidence: "{}"
-             })
-
-    assert "is invalid" in errors_on(changeset).source
-    assert "must be greater than 0" in errors_on(changeset).rank
-    assert "must be less than or equal to 1.0" in errors_on(changeset).confidence
   end
 
   test "sync_scryfall downloads bulk metadata and records success" do

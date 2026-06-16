@@ -4,13 +4,13 @@ defmodule Manavault.Catalog do
   """
 
   import Ecto.Query
+  require Logger
 
   alias Manavault.Catalog.{
     Card,
     CollectionItem,
     Location,
     Printing,
-    ScanCandidate,
     ScanItem,
     ScanRecognition,
     ScanSession,
@@ -191,6 +191,10 @@ defmodule Manavault.Catalog do
     Repo.delete(collection_item)
   end
 
+  def delete_scan_item(%ScanItem{} = scan_item) do
+    Repo.delete(scan_item)
+  end
+
   # ── Locations ──────────────────────────────────────────────────────
 
   def list_locations(_opts \\ []) do
@@ -324,23 +328,36 @@ defmodule Manavault.Catalog do
     end
   end
 
+  def create_recognized_scan_item_from_capture(
+        %ScanSession{} = scan_session,
+        image_data,
+        opts \\ []
+      )
+      when is_binary(image_data) and is_list(opts) do
+    started_at = System.monotonic_time(:microsecond)
+
+    with {:ok, extension, binary} <- decode_capture_image(image_data),
+         {:ok, path} <- write_capture_image(scan_session, extension, binary),
+         {:ok, recognition} <- recognize_capture_image(path, opts),
+         {:ok, scan_item} <- persist_recognized_capture(scan_session, path, recognition) do
+      log_capture_timing(started_at, recognition)
+      {:ok, scan_item}
+    else
+      {:error, reason, path} ->
+        File.rm(path)
+        {:error, reason}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
   def recognize_scan_item(%ScanItem{} = scan_item, opts \\ []) when is_list(opts) do
     with {:ok, recognition} <- ScanRecognition.recognize(scan_item, opts) do
       persist_recognition(scan_item, recognition)
     else
       {:error, reason} -> mark_scan_item_needs_review(scan_item, %{ocr_error: reason})
     end
-  end
-
-  def create_scan_candidate(%ScanItem{} = scan_item, attrs) when is_map(attrs) do
-    attrs =
-      attrs
-      |> Map.new(fn {key, value} -> {to_string(key), value} end)
-      |> Map.put_new("scan_item_id", scan_item.id)
-
-    %ScanCandidate{}
-    |> ScanCandidate.changeset(attrs)
-    |> Repo.insert()
   end
 
   def get_scan_item!(id) do
@@ -374,16 +391,6 @@ defmodule Manavault.Catalog do
           "status" => "recognized"
         })
         |> Repo.update()
-
-      {:ok, _candidate} =
-        create_scan_candidate(updated_item, %{
-          "printing_id" => printing.scryfall_id,
-          "oracle_id" => printing.oracle_id,
-          "source" => "user_search",
-          "confidence" => 1.0,
-          "rank" => next_candidate_rank(scan_item),
-          "evidence" => Jason.encode!(%{selected_by: "manual_search"})
-        })
 
       Repo.preload(updated_item, scan_item_preloads(), force: true)
     end)
@@ -438,23 +445,42 @@ defmodule Manavault.Catalog do
     end)
   end
 
-  def accept_scan_item_best_candidate(scan_item_id) do
-    scan_item = get_scan_item!(scan_item_id)
+  def move_scan_session_items(%ScanSession{} = scan_session, location_id) do
+    with {:ok, normalized_location_id} <- normalize_move_location_id(location_id) do
+      scan_session = Repo.preload(scan_session, scan_session_preloads(), force: true)
 
-    case Enum.find(scan_item.scan_candidates, & &1.printing_id) do
-      nil -> {:error, :missing_candidate}
-      candidate -> accept_scan_item_printing(scan_item.id, candidate.printing_id)
-    end
-  end
+      Repo.transaction(fn ->
+        scan_session.scan_items
+        |> Enum.reduce(%{moved: 0, skipped: 0}, fn
+          %{status: "accepted"}, counts ->
+            update_in(counts.skipped, &(&1 + 1))
 
-  def accept_scan_item_candidate(scan_item_id, candidate_id) do
-    scan_item = get_scan_item!(scan_item_id)
-    candidate_id = parse_integer(candidate_id)
-
-    case Enum.find(scan_item.scan_candidates, &(&1.id == candidate_id)) do
-      nil -> {:error, :candidate_not_found}
-      %{printing_id: nil} -> {:error, :missing_printing}
-      candidate -> accept_scan_item_printing(scan_item.id, candidate.printing_id)
+          scan_item, counts ->
+            with {:ok, printing_id} <- scan_item_printing_id(scan_item),
+                 {:ok, _collection_item} <-
+                   create_collection_item(%{
+                     "scryfall_id" => printing_id,
+                     "quantity" => scan_item.quantity,
+                     "condition" => scan_item.condition,
+                     "language" => scan_item.language,
+                     "finish" => scan_item.finish,
+                     "location_id" => normalized_location_id
+                   }),
+                 {:ok, _scan_item} <-
+                   scan_item
+                   |> ScanItem.changeset(%{
+                     "status" => "accepted",
+                     "accepted_printing_id" => printing_id,
+                     "location_id" => normalized_location_id
+                   })
+                   |> Repo.update() do
+              update_in(counts.moved, &(&1 + 1))
+            else
+              {:error, %Ecto.Changeset{} = changeset} -> Repo.rollback(changeset)
+              {:error, :missing_printing} -> update_in(counts.skipped, &(&1 + 1))
+            end
+        end)
+      end)
     end
   end
 
@@ -495,70 +521,74 @@ defmodule Manavault.Catalog do
     }
   end
 
-  defp persist_recognition(%ScanItem{} = scan_item, %{candidates: candidates} = recognition) do
-    Repo.transaction(fn ->
-      persisted_candidates =
-        candidates
-        |> Enum.with_index(1)
-        |> Enum.map(fn {candidate, rank} ->
-          {:ok, scan_candidate} =
-            create_scan_candidate(scan_item, %{
-              "printing_id" => candidate.printing.scryfall_id,
-              "oracle_id" => candidate.printing.oracle_id,
-              "source" => "ocr",
-              "confidence" => candidate.confidence,
-              "rank" => rank,
-              "evidence" => Jason.encode!(candidate.evidence)
-            })
+  defp log_capture_timing(started_at, recognition) do
+    total_us = System.monotonic_time(:microsecond) - started_at
+    timings = Map.get(recognition, :timings, %{})
 
-          scan_candidate
-        end)
-
-      status = if persisted_candidates == [], do: "needs_review", else: "recognized"
-      evidence = Map.take(recognition, [:text, :parsed])
-
-      {:ok, updated_item} = update_scan_item_status(scan_item, status)
-
-      if persisted_candidates == [] do
-        {:ok, _candidate} =
-          create_scan_candidate(updated_item, %{
-            "source" => "ocr",
-            "rank" => 1,
-            "evidence" =>
-              Jason.encode!(
-                Map.put(evidence, :reason, "No local Scryfall candidates matched OCR output.")
-              )
-          })
-      end
-
-      Repo.preload(updated_item,
-        scan_candidates:
-          {from(candidate in ScanCandidate, order_by: [asc: candidate.rank, asc: candidate.id]),
-           [printing: :card, card: []]}
-      )
+    Logger.debug(fn ->
+      "OCR capture timing total=#{format_us(total_us)} ocr=#{format_us(timings[:ocr_us])} parse=#{format_us(timings[:parse_us])} match=#{format_us(timings[:match_us])}"
     end)
   end
 
-  defp mark_scan_item_needs_review(%ScanItem{} = scan_item, evidence) when is_map(evidence) do
-    Repo.transaction(fn ->
-      {:ok, updated_item} = update_scan_item_status(scan_item, "needs_review")
+  defp format_us(nil), do: "n/a"
+  defp format_us(us), do: "#{Float.round(us / 1_000, 1)}ms"
 
-      {:ok, _candidate} =
-        create_scan_candidate(updated_item, %{
-          "source" => "ocr",
-          "rank" => 1,
-          "evidence" => Jason.encode!(evidence)
+  defp recognize_capture_image(path, opts) do
+    case ScanRecognition.recognize(%ScanItem{image_path: path}, opts) do
+      {:ok, %{candidates: [_ | _]} = recognition} ->
+        {:ok, recognition}
+
+      {:ok, %{candidates: []}} ->
+        {:error, "No card match found. Keep the card steady in the frame.", path}
+
+      {:error, reason} ->
+        {:error, reason, path}
+    end
+  end
+
+  defp persist_recognized_capture(%ScanSession{} = scan_session, path, recognition) do
+    Repo.transaction(fn ->
+      {:ok, scan_item} =
+        create_scan_item(scan_session, %{
+          "image_path" => path,
+          "status" => "processing"
         })
 
-      Repo.preload(updated_item,
-        scan_candidates:
-          {from(candidate in ScanCandidate, order_by: [asc: candidate.rank, asc: candidate.id]),
-           [printing: :card, card: []]}
-      )
+      case persist_recognition(scan_item, recognition) do
+        {:ok, scan_item} -> scan_item
+        {:error, reason} -> Repo.rollback(reason)
+      end
     end)
+  end
+
+  defp persist_recognition(%ScanItem{} = scan_item, %{candidates: [top | _]}) do
+    scan_item
+    |> ScanItem.changeset(%{
+      "status" => "recognized",
+      "accepted_printing_id" => top.printing.scryfall_id
+    })
+    |> Repo.update()
     |> case do
+      {:ok, updated_item} -> {:ok, Repo.preload(updated_item, scan_item_preloads(), force: true)}
+      {:error, changeset} -> {:error, changeset}
+    end
+  end
+
+  defp persist_recognition(%ScanItem{} = scan_item, %{candidates: []}) do
+    scan_item
+    |> ScanItem.changeset(%{"status" => "needs_review"})
+    |> Repo.update()
+    |> case do
+      {:ok, updated_item} -> {:ok, Repo.preload(updated_item, scan_item_preloads(), force: true)}
+      {:error, changeset} -> {:error, changeset}
+    end
+  end
+
+  defp mark_scan_item_needs_review(%ScanItem{} = scan_item, evidence) when is_map(evidence) do
+    case update_scan_item_status(scan_item, "needs_review") do
       {:ok, updated_item} ->
-        {:error, Map.get(evidence, :ocr_error, "Recognition failed."), updated_item}
+        {:error, Map.get(evidence, :ocr_error, "Recognition failed."),
+         Repo.preload(updated_item, scan_item_preloads(), force: true)}
 
       {:error, reason} ->
         {:error, reason, scan_item}
@@ -643,25 +673,27 @@ defmodule Manavault.Catalog do
 
   defp normalize_blank_location(attrs), do: attrs
 
-  defp next_candidate_rank(%ScanItem{scan_candidates: candidates}) when is_list(candidates) do
-    candidates
-    |> Enum.map(&(&1.rank || 0))
-    |> Enum.max(fn -> 0 end)
-    |> Kernel.+(1)
+  defp normalize_move_location_id(nil), do: {:ok, nil}
+  defp normalize_move_location_id(""), do: {:ok, nil}
+
+  defp normalize_move_location_id(location_id) when is_integer(location_id) do
+    if Repo.get(Location, location_id),
+      do: {:ok, location_id},
+      else: {:error, :location_not_found}
   end
 
-  defp next_candidate_rank(_scan_item), do: 1
-
-  defp parse_integer(value) when is_integer(value), do: value
-
-  defp parse_integer(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {integer, ""} -> integer
-      _invalid -> nil
+  defp normalize_move_location_id(location_id) when is_binary(location_id) do
+    case Integer.parse(location_id) do
+      {id, ""} -> normalize_move_location_id(id)
+      _invalid -> {:error, :location_not_found}
     end
   end
 
-  defp parse_integer(_value), do: nil
+  defp scan_item_printing_id(%ScanItem{accepted_printing_id: printing_id})
+       when is_binary(printing_id),
+       do: {:ok, printing_id}
+
+  defp scan_item_printing_id(_scan_item), do: {:error, :missing_printing}
 
   defp scan_session_preloads do
     [
@@ -673,11 +705,7 @@ defmodule Manavault.Catalog do
   defp scan_item_preloads do
     [
       :location,
-      accepted_printing: :card,
-      scan_candidates:
-        {from(candidate in ScanCandidate,
-           order_by: [asc: candidate.rank, asc: candidate.id]
-         ), [printing: :card, card: []]}
+      accepted_printing: :card
     ]
   end
 
@@ -795,6 +823,7 @@ defmodule Manavault.Catalog do
     Repo.transaction(fn ->
       rows = Enum.flat_map(cards, &card_row(&1, now))
       printing_rows = Enum.flat_map(cards, &printing_row(&1, now))
+      search_rows = Enum.flat_map(cards, &printing_search_row/1)
 
       insert_in_batches(Card, rows,
         conflict_target: [:oracle_id],
@@ -819,6 +848,8 @@ defmodule Manavault.Catalog do
              :updated_at
            ]}
       )
+
+      refresh_printing_search_rows(search_rows)
 
       %{cards_count: length(rows), printings_count: length(printing_rows), bulk_uri: bulk_uri}
     end)
@@ -900,6 +931,55 @@ defmodule Manavault.Catalog do
     |> Enum.each(fn batch -> Repo.insert_all(schema, batch, opts) end)
   end
 
+  defp refresh_printing_search_rows([]), do: :ok
+
+  defp refresh_printing_search_rows(rows) do
+    ids = Enum.map(rows, & &1.scryfall_id)
+    placeholders = ids |> Enum.map_join(",", fn _ -> "?" end)
+
+    Repo.query!(
+      "DELETE FROM scryfall_printing_search WHERE scryfall_id IN (#{placeholders})",
+      ids
+    )
+
+    rows
+    |> Enum.chunk_every(@batch_size)
+    |> Enum.each(fn batch ->
+      values = Enum.map_join(batch, ",", fn _ -> "(?, ?, ?, ?, ?, ?, ?, ?)" end)
+
+      params =
+        Enum.flat_map(batch, fn row ->
+          [
+            row.scryfall_id,
+            row.name,
+            row.compact_name,
+            row.type_line,
+            row.oracle_text,
+            row.compact_oracle_text,
+            row.set_code,
+            row.collector_number
+          ]
+        end)
+
+      Repo.query!(
+        """
+        INSERT INTO scryfall_printing_search (
+          scryfall_id,
+          name,
+          compact_name,
+          type_line,
+          oracle_text,
+          compact_oracle_text,
+          set_code,
+          collector_number
+        )
+        VALUES #{values}
+        """,
+        params
+      )
+    end)
+  end
+
   defp card_row(%{"oracle_id" => oracle_id, "name" => name} = card, now)
        when is_binary(oracle_id) and is_binary(name) do
     [
@@ -939,6 +1019,39 @@ defmodule Manavault.Catalog do
   end
 
   defp printing_row(_card, _now), do: []
+
+  defp printing_search_row(%{"id" => scryfall_id, "name" => name} = card)
+       when is_binary(scryfall_id) and is_binary(name) do
+    oracle_text = oracle_text(card) || ""
+
+    [
+      %{
+        scryfall_id: scryfall_id,
+        name: normalize_search_text(name),
+        compact_name: compact_search_text(name),
+        type_line: normalize_search_text(card["type_line"] || ""),
+        oracle_text: normalize_search_text(oracle_text),
+        compact_oracle_text: compact_search_text(oracle_text),
+        set_code: normalize_search_text(card["set"] || ""),
+        collector_number: normalize_search_text(card["collector_number"] || "")
+      }
+    ]
+  end
+
+  defp printing_search_row(_card), do: []
+
+  defp normalize_search_text(value) when is_binary(value) do
+    value
+    |> String.downcase()
+    |> String.replace(~r/[^a-z0-9]+/u, " ")
+    |> String.trim()
+  end
+
+  defp compact_search_text(value) when is_binary(value) do
+    value
+    |> String.downcase()
+    |> String.replace(~r/[^a-z0-9]+/u, "")
+  end
 
   defp oracle_text(%{"oracle_text" => text}) when is_binary(text), do: text
 

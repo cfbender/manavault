@@ -6,6 +6,7 @@ Phoenix LiveView application generated with SQLite.
 
 - [mise](https://mise.jdx.dev/) with the project toolchain from `mise.toml`
 - SQLite support from the generated Phoenix dependencies
+- RapidOCR for camera card scanning. `mix setup` runs `mix manavault.ocr.setup`, which verifies the local Python RapidOCR environment.
 
 Install the pinned Elixir toolchain:
 

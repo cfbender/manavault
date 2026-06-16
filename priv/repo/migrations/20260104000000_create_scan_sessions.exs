@@ -41,36 +41,5 @@ defmodule Manavault.Repo.Migrations.CreateScanSessions do
     create index(:scan_items, [:status])
     create index(:scan_items, [:accepted_printing_id])
     create index(:scan_items, [:location_id])
-
-    create table(:scan_candidates) do
-      add :scan_item_id, references(:scan_items, on_delete: :delete_all), null: false
-
-      add :printing_id,
-          references(:scryfall_printings,
-            column: :scryfall_id,
-            type: :string,
-            on_delete: :nilify_all
-          )
-
-      add :oracle_id,
-          references(:scryfall_cards,
-            column: :oracle_id,
-            type: :string,
-            on_delete: :nilify_all
-          )
-
-      add :source, :string, null: false
-      add :confidence, :float
-      add :rank, :integer, null: false, default: 1
-      add :evidence, :text, null: false, default: "{}"
-
-      timestamps(type: :utc_datetime)
-    end
-
-    create index(:scan_candidates, [:scan_item_id])
-    create index(:scan_candidates, [:printing_id])
-    create index(:scan_candidates, [:oracle_id])
-    create index(:scan_candidates, [:source])
-    create index(:scan_candidates, [:scan_item_id, :rank])
   end
 end

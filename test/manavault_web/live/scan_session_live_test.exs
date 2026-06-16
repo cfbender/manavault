@@ -82,7 +82,7 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     assert html =~ ~p"/scan-sessions/#{scan_session.id}/scanner"
   end
 
-  test "scanner page renders camera controls and stores captured stills", %{conn: conn} do
+  test "scanner page auto-renders camera controls and stores recognized captures", %{conn: conn} do
     upload_dir =
       Path.join(
         System.tmp_dir!(),
@@ -93,7 +93,9 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     previous_runner = Application.get_env(:manavault, :ocr_runner)
     previous_async = Application.get_env(:manavault, :scan_recognition_async)
     Application.put_env(:manavault, :capture_upload_dir, upload_dir)
-    Application.put_env(:manavault, :ocr_runner, fn _path -> {:ok, ""} end)
+
+    Application.put_env(:manavault, :ocr_runner, fn path -> {:ok, File.read!(path)} end)
+
     Application.put_env(:manavault, :scan_recognition_async, false)
 
     on_exit(fn ->
@@ -123,63 +125,164 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     {:ok, view, html} = live(conn, ~p"/scan-sessions/#{scan_session.id}/scanner")
 
     assert html =~ "Mobile scanner"
-    assert html =~ "Start camera"
-    assert html =~ "Capture card"
-    assert html =~ "Align card inside frame"
+    assert html =~ "Switch camera"
+    assert html =~ "Flashlight"
+    assert html =~ "pink frame"
     assert html =~ ~s|phx-hook="ScannerCamera"|
+    refute html =~ "Start camera"
+    refute html =~ "Capture card"
+    refute html =~ "Stop"
+    refute html =~ "Align card inside frame"
 
-    image_data = "data:image/png;base64,#{Base.encode64("png bytes")}"
+    image_data = "data:image/png;base64,#{Base.encode64("Black Lotus\nSet: LEA\nCollector #232")}"
     html = render_hook(view, "capture", %{"image_data" => image_data})
 
-    assert html =~ "Ready for the next card."
-    assert html =~ "Saved image:"
-    assert html =~ "Recent scans"
-    assert html =~ "recent-scan-item-"
+    assert html =~ "Recognized card"
+    assert html =~ "Session cards"
+    assert html =~ "Black Lotus"
+    assert html =~ "LEA"
+    assert html =~ "$100000"
 
     loaded = Catalog.get_scan_session!(scan_session.id)
     assert [item] = loaded.scan_items
-    assert item.status in ["processing", "needs_review"]
+    assert item.status == "recognized"
     assert item.image_path =~ upload_dir
-    assert File.read!(item.image_path) == "png bytes"
+    assert File.read!(item.image_path) == "Black Lotus\nSet: LEA\nCollector #232"
+    assert item.accepted_printing_id == "scryfall-printing-1"
   end
 
-  test "scanner page supports one-tap accept from recent scans and undo", %{conn: conn} do
+  test "scanner suppresses back to back same card unless forced", %{conn: conn} do
+    upload_dir =
+      Path.join(
+        System.tmp_dir!(),
+        "manavault-duplicate-captures-#{System.unique_integer([:positive])}"
+      )
+
+    previous_dir = Application.get_env(:manavault, :capture_upload_dir)
+    previous_runner = Application.get_env(:manavault, :ocr_runner)
+    Application.put_env(:manavault, :capture_upload_dir, upload_dir)
+
+    {:ok, ocr_sequence} =
+      Agent.start_link(fn ->
+        [
+          "Black Lotus\nSet: LEA\nCollector #232",
+          "Black Lotus\nSet: LEA\nCollector #232",
+          "Time Walk\nSet: LEA\nCollector #84",
+          "Time Walk\nSet: LEA\nCollector #84",
+          "Time Walk\nSet: LEA\nCollector #84"
+        ]
+      end)
+
+    Application.put_env(:manavault, :ocr_runner, fn _path ->
+      {:ok, Agent.get_and_update(ocr_sequence, fn [text | rest] -> {text, rest} end)}
+    end)
+
+    on_exit(fn ->
+      if previous_dir do
+        Application.put_env(:manavault, :capture_upload_dir, previous_dir)
+      else
+        Application.delete_env(:manavault, :capture_upload_dir)
+      end
+
+      if previous_runner do
+        Application.put_env(:manavault, :ocr_runner, previous_runner)
+      else
+        Application.delete_env(:manavault, :ocr_runner)
+      end
+
+      File.rm_rf!(upload_dir)
+    end)
+
+    {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Duplicate scanner"})
+    {:ok, view, _html} = live(conn, ~p"/scan-sessions/#{scan_session.id}/scanner")
+
+    black_lotus_image = "data:image/png;base64,#{Base.encode64("Black Lotus")}"
+    time_walk_image = "data:image/png;base64,#{Base.encode64("Time Walk")}"
+
+    assert render_hook(view, "capture", %{"image_data" => black_lotus_image}) =~
+             "Recognized card"
+
+    assert [_item] = Catalog.get_scan_session!(scan_session.id).scan_items
+
+    html = render_hook(view, "capture", %{"image_data" => black_lotus_image})
+
+    assert html =~ "Same card still in frame. Tap the preview to scan it again."
+    assert [_item] = Catalog.get_scan_session!(scan_session.id).scan_items
+
+    assert render_hook(view, "capture", %{"image_data" => time_walk_image}) =~
+             "Recognized card"
+
+    [first, second] =
+      scan_session.id
+      |> Catalog.get_scan_session!()
+      |> Map.fetch!(:scan_items)
+      |> Enum.sort_by(& &1.id)
+
+    assert first.accepted_printing_id == "scryfall-printing-1"
+    assert second.accepted_printing_id == "scryfall-printing-2"
+
+    assert render_hook(view, "capture", %{"image_data" => time_walk_image}) =~
+             "Same card still in frame. Tap the preview to scan it again."
+
+    assert [_first, _second] =
+             scan_session.id
+             |> Catalog.get_scan_session!()
+             |> Map.fetch!(:scan_items)
+             |> Enum.sort_by(& &1.id)
+
+    assert render_hook(view, "capture", %{"image_data" => time_walk_image, "force" => true}) =~
+             "Recognized card"
+
+    assert [_first, _second, _forced] =
+             scan_session.id
+             |> Catalog.get_scan_session!()
+             |> Map.fetch!(:scan_items)
+             |> Enum.sort_by(& &1.id)
+  end
+
+  test "scanner page does not add a scan card when OCR has no match", %{conn: conn} do
+    previous_runner = Application.get_env(:manavault, :ocr_runner)
+
+    Application.put_env(:manavault, :ocr_runner, fn _path -> {:ok, "not a matching card"} end)
+
+    on_exit(fn ->
+      if previous_runner do
+        Application.put_env(:manavault, :ocr_runner, previous_runner)
+      else
+        Application.delete_env(:manavault, :ocr_runner)
+      end
+    end)
+
+    {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "No match scanner"})
+    {:ok, view, _html} = live(conn, ~p"/scan-sessions/#{scan_session.id}/scanner")
+
+    image_data = "data:image/png;base64,#{Base.encode64("unmatched bytes")}"
+    html = render_hook(view, "capture", %{"image_data" => image_data})
+
+    assert html =~ "No card was added."
+    assert html =~ "No card match found. Keep the card steady in the frame."
+    assert Catalog.get_scan_session!(scan_session.id).scan_items == []
+  end
+
+  test "scanner page shows session cards without manual review controls", %{conn: conn} do
     {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Batch scanner"})
 
-    {:ok, item} =
+    {:ok, _item} =
       Catalog.create_scan_item(scan_session, %{
         status: "recognized",
+        accepted_printing_id: "scryfall-printing-1",
         image_path: "/tmp/batch.jpg"
       })
 
-    {:ok, _candidate} =
-      Catalog.create_scan_candidate(item, %{
-        printing_id: "scryfall-printing-1",
-        oracle_id: "oracle-1",
-        source: "ocr",
-        confidence: 0.98,
-        rank: 1,
-        evidence: "{}"
-      })
+    {:ok, _view, html} = live(conn, ~p"/scan-sessions/#{scan_session.id}/scanner")
 
-    {:ok, view, html} = live(conn, ~p"/scan-sessions/#{scan_session.id}/scanner")
-
-    assert html =~ "Recent scans"
-    assert html =~ "Black Lotus · LEA #232"
-    assert html =~ "98% confidence"
-
-    html = render_click(view, "accept_best", %{"id" => item.id})
-
-    assert html =~ "Accepted card ##{item.id}"
-    assert Catalog.get_scan_item!(item.id).status == "accepted"
-    assert [_collection_item] = Catalog.list_collection_items()
-    assert html =~ "Undo accept"
-
-    html = render_click(view, "undo_last_accept")
-
-    assert html =~ "Undid accept for card ##{item.id}"
-    assert Catalog.get_scan_item!(item.id).status == "recognized"
-    assert [] = Catalog.list_collection_items()
+    assert html =~ "Session cards"
+    assert html =~ "Black Lotus"
+    assert html =~ "LEA"
+    assert html =~ "$100000"
+    refute html =~ "Accept best"
+    refute html =~ "Undo accept"
+    refute html =~ "Recent scans"
   end
 
   test "scanner page reports camera errors", %{conn: conn} do
@@ -192,68 +295,101 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     assert html =~ "Camera permission was denied."
   end
 
-  test "review page accepts best candidate into collection with edited defaults", %{conn: conn} do
-    {:ok, binder} = Catalog.create_location(%{name: "Review Binder", kind: "binder"})
-    {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Fast review"})
+  test "session page bulk moves recognized cards once and reports skipped cards", %{conn: conn} do
+    {:ok, binder} = Catalog.create_location(%{name: "Session Binder", kind: "binder"})
+    {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Move batch"})
 
-    {:ok, item} =
+    {:ok, recognized} =
       Catalog.create_scan_item(scan_session, %{
         status: "recognized",
-        image_path: "/tmp/review.jpg"
+        accepted_printing_id: "scryfall-printing-1",
+        quantity: 2,
+        condition: "lightly_played",
+        image_path: "/tmp/recognized.jpg"
       })
 
-    {:ok, _candidate} =
-      Catalog.create_scan_candidate(item, %{
-        printing_id: "scryfall-printing-1",
-        oracle_id: "oracle-1",
-        source: "ocr",
-        confidence: 0.94,
-        rank: 1,
-        evidence: "{}"
-      })
+    {:ok, _unmatched} = Catalog.create_scan_item(scan_session, %{status: "needs_review"})
 
     {:ok, view, html} = live(conn, ~p"/scan-sessions/#{scan_session.id}")
 
-    assert html =~ "Accept best"
-    assert html =~ "Exact printing correction"
-    assert html =~ "Update review fields"
-    assert html =~ "Reject"
+    assert html =~ "Session cards"
+    assert html =~ ~s|id="scan-items-count"|
+    assert html =~ ~s|id="recognized-count"|
+    assert html =~ ~s|id="unmatched-count"|
+    assert html =~ "Move session cards"
+    assert html =~ "Black Lotus"
+    assert html =~ "Edit"
+    assert html =~ "Change printing"
+    assert html =~ "Delete"
+    refute html =~ "Pending items"
+    refute html =~ "Reviewed items"
+    refute html =~ "Accepted items"
+    refute html =~ "Accept best"
+    refute html =~ "Exact printing correction"
 
-    view
-    |> form("#scan-item-form-#{item.id}",
-      _id: item.id,
-      scan_item: %{
-        quantity: "2",
-        condition: "lightly_played",
-        language: "en",
-        finish: "nonfoil",
-        location_id: "#{binder.id}"
-      }
-    )
-    |> render_submit()
+    html =
+      view
+      |> form("#scan-session-bulk-move-form", bulk: %{location_id: "#{binder.id}"})
+      |> render_submit()
 
-    html = render_click(view, "accept_best", %{"id" => item.id})
-
-    assert html =~ "Accepted scan item ##{item.id}"
-    assert html =~ ~s|id="accepted-count"|
+    assert html =~ "Moved 1 session cards. Skipped 1 unmatched or already-moved cards."
 
     [collection_item] = Catalog.list_collection_items()
     assert collection_item.scryfall_id == "scryfall-printing-1"
     assert collection_item.quantity == 2
     assert collection_item.condition == "lightly_played"
     assert collection_item.location_id == binder.id
-  end
 
-  test "review page searches and accepts an exact manual printing", %{conn: conn} do
-    {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Manual review"})
-    {:ok, item} = Catalog.create_scan_item(scan_session, %{status: "needs_review"})
-
-    {:ok, view, _html} = live(conn, ~p"/scan-sessions/#{scan_session.id}")
+    assert Catalog.get_scan_item!(recognized.id).status == "accepted"
 
     html =
       view
-      |> form("#printing-search-form-#{item.id}",
+      |> form("#scan-session-bulk-move-form", bulk: %{location_id: "#{binder.id}"})
+      |> render_submit()
+
+    assert html =~ "Moved 0 session cards. Skipped 2 unmatched or already-moved cards."
+    assert [_collection_item] = Catalog.list_collection_items()
+  end
+
+  test "session card menu edits changes printing and deletes scanned cards", %{conn: conn} do
+    {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Fix before move"})
+
+    {:ok, item} =
+      Catalog.create_scan_item(scan_session, %{
+        status: "recognized",
+        accepted_printing_id: "scryfall-printing-1",
+        quantity: 1,
+        image_path: "/tmp/fix.jpg"
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/scan-sessions/#{scan_session.id}")
+
+    assert render_click(view, "edit_scan_item", %{"id" => item.id}) =~ "Edit scanned card"
+
+    html =
+      view
+      |> form("#scan-item-edit-form",
         _id: item.id,
+        scan_item: %{
+          quantity: "3",
+          condition: "moderately_played",
+          language: "ja",
+          finish: "nonfoil"
+        }
+      )
+      |> render_submit()
+
+    assert html =~ "Updated scan item ##{item.id}."
+    edited = Catalog.get_scan_item!(item.id)
+    assert edited.quantity == 3
+    assert edited.condition == "moderately_played"
+    assert edited.language == "ja"
+
+    assert render_click(view, "change_scan_printing", %{"id" => item.id}) =~ "Change printing"
+
+    html =
+      view
+      |> form("#scan-printing-search-form",
         printing_search: %{name: "Time Walk", set_code: "lea", collector_number: "84"}
       )
       |> render_submit()
@@ -261,35 +397,22 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     assert html =~ "Time Walk · LEA #84"
 
     html =
-      render_click(view, "accept_printing", %{
+      render_click(view, "select_printing", %{
         "id" => item.id,
         "scryfall-id" => "scryfall-printing-2"
       })
 
-    assert html =~ "Accepted exact printing"
+    assert html =~ "Changed scan item printing."
+    assert Catalog.get_scan_item!(item.id).accepted_printing_id == "scryfall-printing-2"
 
-    loaded = Catalog.get_scan_item!(item.id)
-    assert loaded.status == "accepted"
-    assert loaded.accepted_printing_id == "scryfall-printing-2"
-    assert [collection_item] = Catalog.list_collection_items()
-    assert collection_item.scryfall_id == "scryfall-printing-2"
+    html = render_click(view, "delete_scan_item", %{"id" => item.id})
+
+    assert html =~ "Deleted scan item ##{item.id}."
+    assert_raise Ecto.NoResultsError, fn -> Catalog.get_scan_item!(item.id) end
   end
 
-  test "review page rejects scan items without creating inventory", %{conn: conn} do
-    {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Reject review"})
-    {:ok, item} = Catalog.create_scan_item(scan_session, %{status: "needs_review"})
-
-    {:ok, view, _html} = live(conn, ~p"/scan-sessions/#{scan_session.id}")
-
-    html = render_click(view, "reject_item", %{"id" => item.id})
-
-    assert html =~ "Rejected scan item ##{item.id}"
-    assert Catalog.get_scan_item!(item.id).status == "rejected"
-    assert [] = Catalog.list_collection_items()
-  end
-
-  test "shows scan session detail sections for pending reviewed and accepted items", %{conn: conn} do
-    {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Review batch"})
+  test "session page renders all scanned cards with shared card tiles", %{conn: conn} do
+    {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Session overview"})
 
     {:ok, pending} =
       Catalog.create_scan_item(scan_session, %{
@@ -297,56 +420,23 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
         image_path: "/tmp/pending.jpg"
       })
 
-    {:ok, reviewed} =
+    {:ok, recognized} =
       Catalog.create_scan_item(scan_session, %{
-        status: "needs_review",
-        image_path: "/tmp/reviewed.jpg"
+        status: "recognized",
+        accepted_printing_id: "scryfall-printing-1",
+        image_path: "/tmp/recognized.jpg"
       })
-
-    {:ok, accepted} =
-      Catalog.create_scan_item(scan_session, %{
-        status: "accepted",
-        accepted_printing_id: "scryfall-printing-1"
-      })
-
-    assert {:ok, _candidate1} =
-             Catalog.create_scan_candidate(reviewed, %{
-               printing_id: "scryfall-printing-1",
-               oracle_id: "oracle-1",
-               source: "ocr",
-               confidence: 0.92,
-               rank: 1,
-               evidence: "{}"
-             })
-
-    assert {:ok, _candidate2} =
-             Catalog.create_scan_candidate(reviewed, %{
-               printing_id: "scryfall-printing-2",
-               oracle_id: "oracle-2",
-               source: "image_match",
-               confidence: 0.71,
-               rank: 2,
-               evidence: "{}"
-             })
 
     {:ok, _view, html} = live(conn, ~p"/scan-sessions/#{scan_session.id}")
 
-    assert html =~ "Review batch"
-    assert html =~ ~s|id="pending-count"|
-    assert html =~ ~s|id="reviewed-count"|
-    assert html =~ ~s|id="accepted-count"|
-    assert html =~ "Pending items"
-    assert html =~ "Reviewed items"
-    assert html =~ "Accepted items"
+    assert html =~ "Session overview"
+    assert html =~ ~s|id="scan-session-card-grid"|
     assert html =~ ~s|id="scan-item-#{pending.id}"|
-    assert html =~ "/tmp/pending.jpg"
-    assert html =~ ~s|id="scan-item-#{reviewed.id}"|
-    assert html =~ "/tmp/reviewed.jpg"
-    assert html =~ "Candidates (2)"
-    assert html =~ "Black Lotus · LEA #232"
-    assert html =~ "Time Walk · LEA #84"
-    assert html =~ "92%"
-    assert html =~ "71%"
-    assert html =~ ~s|id="scan-item-#{accepted.id}"|
+    assert html =~ ~s|id="scan-item-#{recognized.id}"|
+    assert html =~ "Scan item ##{pending.id}"
+    assert html =~ "Black Lotus"
+    assert html =~ "LEA"
+    assert html =~ "$100000"
+    refute html =~ "Candidates ("
   end
 end

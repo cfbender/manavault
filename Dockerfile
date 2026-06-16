@@ -37,7 +37,7 @@ RUN mix release
 
 FROM ${RUNNER_IMAGE} AS runner
 
-RUN apt-get update -y && apt-get install -y libstdc++6 openssl libncurses6 locales ca-certificates gosu libsctp1 \
+RUN apt-get update -y && apt-get install -y libstdc++6 openssl libncurses6 locales ca-certificates gosu libsctp1 python3 python3-venv \
   && apt-get clean && rm -f /var/lib/apt/lists/*_*
 
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
