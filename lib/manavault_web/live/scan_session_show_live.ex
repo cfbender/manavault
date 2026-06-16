@@ -36,7 +36,15 @@ defmodule ManavaultWeb.ScanSessionShowLive do
                   )} · Location: {location_name(@scan_session.default_location)}
                 </p>
               </div>
-              <span class="badge badge-outline">{@scan_session.status}</span>
+              <div class="flex flex-col gap-2 sm:items-end">
+                <span class="badge badge-outline">{@scan_session.status}</span>
+                <.link
+                  navigate={~p"/scan-sessions/#{@scan_session.id}/scanner"}
+                  class="btn btn-primary btn-sm"
+                >
+                  Open scanner
+                </.link>
+              </div>
             </div>
           </div>
         </section>

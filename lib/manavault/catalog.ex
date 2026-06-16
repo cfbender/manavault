@@ -315,6 +315,14 @@ defmodule Manavault.Catalog do
     |> Repo.insert()
   end
 
+  def create_scan_item_from_capture(%ScanSession{} = scan_session, image_data)
+      when is_binary(image_data) do
+    with {:ok, extension, binary} <- decode_capture_image(image_data),
+         {:ok, path} <- write_capture_image(scan_session, extension, binary) do
+      create_scan_item(scan_session, %{"image_path" => path})
+    end
+  end
+
   def create_scan_candidate(%ScanItem{} = scan_item, attrs) when is_map(attrs) do
     attrs =
       attrs
@@ -334,6 +342,48 @@ defmodule Manavault.Catalog do
       reviewed: Enum.filter(items, &(&1.status in ["needs_review", "rejected", "failed"])),
       accepted: Enum.filter(items, &(&1.status == "accepted"))
     }
+  end
+
+  defp decode_capture_image("data:image/jpeg;base64," <> encoded),
+    do: decode_base64_capture("jpg", encoded)
+
+  defp decode_capture_image("data:image/png;base64," <> encoded),
+    do: decode_base64_capture("png", encoded)
+
+  defp decode_capture_image(_image_data),
+    do: {:error, "Capture must be a JPEG or PNG data URL."}
+
+  defp decode_base64_capture(extension, encoded) do
+    case Base.decode64(encoded) do
+      {:ok, binary} when byte_size(binary) > 0 -> {:ok, extension, binary}
+      {:ok, _empty} -> {:error, "Capture image was empty."}
+      :error -> {:error, "Capture image data was invalid."}
+    end
+  end
+
+  defp write_capture_image(%ScanSession{id: scan_session_id}, extension, binary) do
+    directory = Path.join(capture_upload_dir(), "scan_sessions/#{scan_session_id}")
+
+    filename =
+      "#{System.system_time(:millisecond)}-#{System.unique_integer([:positive])}.#{extension}"
+
+    path = Path.join(directory, filename)
+
+    with :ok <- File.mkdir_p(directory),
+         :ok <- File.write(path, binary) do
+      {:ok, path}
+    else
+      {:error, reason} ->
+        {:error, "Capture image could not be saved: #{:file.format_error(reason)}"}
+    end
+  end
+
+  defp capture_upload_dir do
+    Application.get_env(
+      :manavault,
+      :capture_upload_dir,
+      Path.expand("data/uploads/scan-captures")
+    )
   end
 
   defp scan_session_preloads do

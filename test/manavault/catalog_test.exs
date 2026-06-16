@@ -303,6 +303,46 @@ defmodule Manavault.CatalogTest do
              Catalog.scan_session_items_by_review_state(loaded)
   end
 
+  test "create_scan_item_from_capture stores a captured image under the configured upload directory" do
+    upload_dir =
+      Path.join(System.tmp_dir!(), "manavault-captures-#{System.unique_integer([:positive])}")
+
+    previous_dir = Application.get_env(:manavault, :capture_upload_dir)
+    Application.put_env(:manavault, :capture_upload_dir, upload_dir)
+
+    on_exit(fn ->
+      if previous_dir do
+        Application.put_env(:manavault, :capture_upload_dir, previous_dir)
+      else
+        Application.delete_env(:manavault, :capture_upload_dir)
+      end
+
+      File.rm_rf!(upload_dir)
+    end)
+
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Camera batch"})
+
+    assert {:ok, %ScanItem{} = item} =
+             Catalog.create_scan_item_from_capture(
+               scan_session,
+               "data:image/jpeg;base64,#{Base.encode64("fake image bytes")}"
+             )
+
+    assert item.scan_session_id == scan_session.id
+    assert item.status == "pending"
+    assert item.image_path =~ upload_dir
+    assert item.image_path =~ "/scan_sessions/#{scan_session.id}/"
+    assert item.image_path =~ ".jpg"
+    assert File.read!(item.image_path) == "fake image bytes"
+  end
+
+  test "create_scan_item_from_capture rejects invalid image data" do
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Bad camera batch"})
+
+    assert {:error, "Capture must be a JPEG or PNG data URL."} =
+             Catalog.create_scan_item_from_capture(scan_session, "not image data")
+  end
+
   test "scan session validations reject invalid defaults and candidates" do
     assert {:error, changeset} =
              Catalog.create_scan_session(%{

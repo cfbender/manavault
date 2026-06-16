@@ -73,6 +73,67 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     assert_redirected(view, ~p"/scan-sessions/#{scan_session.id}")
   end
 
+  test "opens the mobile scanner from scan session detail", %{conn: conn} do
+    {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Camera batch"})
+
+    {:ok, _view, html} = live(conn, ~p"/scan-sessions/#{scan_session.id}")
+
+    assert html =~ "Open scanner"
+    assert html =~ ~p"/scan-sessions/#{scan_session.id}/scanner"
+  end
+
+  test "scanner page renders camera controls and stores captured stills", %{conn: conn} do
+    upload_dir =
+      Path.join(
+        System.tmp_dir!(),
+        "manavault-live-captures-#{System.unique_integer([:positive])}"
+      )
+
+    previous_dir = Application.get_env(:manavault, :capture_upload_dir)
+    Application.put_env(:manavault, :capture_upload_dir, upload_dir)
+
+    on_exit(fn ->
+      if previous_dir do
+        Application.put_env(:manavault, :capture_upload_dir, previous_dir)
+      else
+        Application.delete_env(:manavault, :capture_upload_dir)
+      end
+
+      File.rm_rf!(upload_dir)
+    end)
+
+    {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Pocket scans"})
+
+    {:ok, view, html} = live(conn, ~p"/scan-sessions/#{scan_session.id}/scanner")
+
+    assert html =~ "Mobile scanner"
+    assert html =~ "Start camera"
+    assert html =~ "Capture card"
+    assert html =~ "Align card inside frame"
+    assert html =~ ~s|phx-hook="ScannerCamera"|
+
+    image_data = "data:image/png;base64,#{Base.encode64("png bytes")}"
+    html = render_hook(view, "capture", %{"image_data" => image_data})
+
+    assert html =~ "Captured card #"
+    assert html =~ "Saved image:"
+
+    loaded = Catalog.get_scan_session!(scan_session.id)
+    assert [item] = loaded.scan_items
+    assert item.image_path =~ upload_dir
+    assert File.read!(item.image_path) == "png bytes"
+  end
+
+  test "scanner page reports camera errors", %{conn: conn} do
+    {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Unsupported camera"})
+
+    {:ok, view, _html} = live(conn, ~p"/scan-sessions/#{scan_session.id}/scanner")
+
+    html = render_hook(view, "camera_error", %{"message" => "Camera permission was denied."})
+
+    assert html =~ "Camera permission was denied."
+  end
+
   test "shows scan session detail sections for pending reviewed and accepted items", %{conn: conn} do
     {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Review batch"})
 
