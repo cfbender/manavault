@@ -78,20 +78,21 @@ defmodule ManavaultWeb.CollectionLiveTest do
                  "finish" => "nonfoil"
                })
 
-      {:ok, _view, html} = live(conn, ~p"/collection")
+      {:ok, view, html} = live(conn, ~p"/collection")
 
       assert html =~ "Collection"
       assert html =~ "Trade Binder"
       assert html =~ "Binder"
       assert html =~ "1 cards"
       assert html =~ ~s|id="location-row-#{binder.id}"|
+      assert has_element?(view, "#location-row-#{binder.id}", "$100k")
       assert html =~ "Owned cards"
       assert html =~ "Black Lotus"
       assert html =~ "Time Walk"
       assert html =~ ~s|id="owned-card-grid"|
       refute html =~ "<table"
       assert html =~ "LEA"
-      assert html =~ "$100000"
+      assert html =~ "$100k"
       assert html =~ "×1"
       assert html =~ "Edit"
       assert html =~ ~s|href="/collection/#{item.id}/edit"|
@@ -189,7 +190,7 @@ defmodule ManavaultWeb.CollectionLiveTest do
 
       assert html =~ "Black Lotus"
       assert html =~ "LEB"
-      assert html =~ "$95000"
+      assert html =~ "$95k"
       assert html =~ "Edit"
       assert html =~ "Change printing"
       assert html =~ "Delete"
@@ -213,7 +214,7 @@ defmodule ManavaultWeb.CollectionLiveTest do
 
       assert html =~ "Black Lotus"
       assert html =~ "LEA"
-      assert html =~ "$100000"
+      assert html =~ "$100k"
       assert html =~ "×2"
       assert html =~ "Edit"
       assert html =~ "Change printing"
@@ -266,7 +267,7 @@ defmodule ManavaultWeb.CollectionLiveTest do
         |> render_click()
 
       assert html =~ "LEB"
-      assert html =~ "$95000"
+      assert html =~ "$95k"
       refute html =~ "LEA #232"
 
       updated = Catalog.get_collection_item!(item.id)
@@ -376,7 +377,7 @@ defmodule ManavaultWeb.CollectionLiveTest do
       assert html =~ "Binder"
       assert html =~ "Black Lotus"
       assert html =~ "LEA"
-      assert html =~ "$100000"
+      assert html =~ "$100k"
       assert html =~ "×2"
       assert html =~ "Edit"
       assert html =~ ~s|href="/collection/#{item.id}/edit?return_to=location"|
@@ -431,7 +432,7 @@ defmodule ManavaultWeb.CollectionLiveTest do
         |> render_click()
 
       assert html =~ "LEB"
-      assert html =~ "$95000"
+      assert html =~ "$95k"
       refute html =~ "LEA #232"
 
       updated = Catalog.get_collection_item!(item.id)

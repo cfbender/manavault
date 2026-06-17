@@ -19,6 +19,7 @@ defmodule ManavaultWeb.DeckLiveTest do
     "lang" => "en",
     "finishes" => ["nonfoil"],
     "image_uris" => %{"normal" => "https://example.test/black-lotus.jpg"},
+    "prices" => %{"usd" => "100000.00"},
     "released_at" => "1993-08-05"
   }
 
@@ -46,6 +47,7 @@ defmodule ManavaultWeb.DeckLiveTest do
       "art_crop" => "https://example.test/time-walk-art.jpg",
       "normal" => "https://example.test/time-walk.jpg"
     },
+    "prices" => %{"usd" => "2400.00"},
     "released_at" => "1993-08-05"
   }
 
@@ -79,6 +81,7 @@ defmodule ManavaultWeb.DeckLiveTest do
     assert html =~ "Black Lotus"
     assert html =~ "Mainboard"
     assert html =~ "1 cards"
+    assert html =~ "Estimated value $100k"
 
     show
     |> form("#deck-settings-form",
@@ -193,6 +196,7 @@ defmodule ManavaultWeb.DeckLiveTest do
     {:ok, view, html} = live(conn, ~p"/decks")
 
     assert html =~ "Turns"
+    assert html =~ "$2.4k"
 
     assert has_element?(
              view,

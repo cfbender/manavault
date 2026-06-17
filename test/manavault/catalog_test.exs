@@ -9,6 +9,7 @@ defmodule Manavault.CatalogTest do
     Deck,
     DeckAllocation,
     DeckCard,
+    Price,
     Printing,
     ScanItem,
     ScanRecognition,
@@ -103,6 +104,18 @@ defmodule Manavault.CatalogTest do
     assert %Card{name: "Black Lotus Updated"} = Repo.get!(Card, "oracle-1")
     assert %Printing{prices: prices} = Repo.get!(Printing, "scryfall-printing-1")
     assert Jason.decode!(prices) == %{"usd" => "1.00"}
+  end
+
+  test "price helpers parse and shorten Scryfall prices" do
+    assert Price.format_cents(99) == "$0.99"
+    assert Price.format_cents(12_345) == "$123"
+    assert Price.format_cents(240_000) == "$2.4k"
+    assert Price.format_cents(10_000_000) == "$100k"
+
+    printing = %Printing{prices: Jason.encode!(%{"usd" => "12.34", "usd_foil" => "24.00"})}
+
+    assert Price.text_for_printing(printing, "nonfoil") == "$12.34"
+    assert Price.text_for_printing(printing, "foil") == "$24"
   end
 
   test "suggest_card_names returns fuzzy top card name matches" do

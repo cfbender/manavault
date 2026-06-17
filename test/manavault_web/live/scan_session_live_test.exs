@@ -180,7 +180,7 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     assert html =~ "Scanned cards"
     assert html =~ "Black Lotus"
     assert html =~ "LEA"
-    assert html =~ "$100000"
+    assert html =~ "$100k"
 
     loaded = Catalog.get_scan_session!(scan_session.id)
     assert [item] = loaded.scan_items
@@ -318,7 +318,7 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     assert html =~ "Scanned cards"
     assert html =~ "Black Lotus"
     assert html =~ "LEA"
-    assert html =~ "$100000"
+    assert html =~ "$100k"
     assert html =~ "Toggle foil"
     assert html =~ "Increase quantity"
     assert html =~ "Edit scanned card"
@@ -618,7 +618,7 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     assert html =~ "Scan item ##{pending.id}"
     assert html =~ "Black Lotus"
     assert html =~ "LEA"
-    assert html =~ "$100000"
+    assert html =~ "$100k"
     refute html =~ "Candidates ("
   end
 

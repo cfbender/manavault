@@ -2,7 +2,7 @@ defmodule ManavaultWeb.DeckLive do
   use ManavaultWeb, :live_view
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.{Deck, DeckCard, Printing}
+  alias Manavault.Catalog.{Deck, DeckCard, Price, Printing}
 
   @format_options Enum.map(Deck.formats(), &{String.capitalize(&1), &1})
   @status_options Enum.map(Deck.statuses(), &{String.capitalize(&1), &1})
@@ -156,6 +156,9 @@ defmodule ManavaultWeb.DeckLive do
                         deck
                       )} cards
                     </p>
+                    <span :if={deck_total_text(deck)} class="badge badge-ghost">
+                      {deck_total_text(deck)}
+                    </span>
                   </.link>
                   <div class="flex shrink-0 flex-wrap gap-2">
                     <.link navigate={~p"/decks/#{deck.id}"} class="btn btn-sm btn-primary">Open</.link>
@@ -198,6 +201,9 @@ defmodule ManavaultWeb.DeckLive do
     |> List.wrap()
     |> Enum.reduce(0, &(&1.quantity + &2))
   end
+
+  defp deck_total_text(%Deck{} = deck),
+    do: deck.deck_cards |> Price.deck_cards_total_cents() |> Price.format_cents()
 
   defp commander_color_identity(deck) do
     deck.deck_cards

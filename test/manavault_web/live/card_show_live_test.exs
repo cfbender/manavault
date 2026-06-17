@@ -55,7 +55,7 @@ defmodule ManavaultWeb.CardShowLiveTest do
     assert html =~ "LEB"
 
     # Price badge visible
-    assert html =~ "$100000"
+    assert html =~ "$100k"
 
     # Image URLs on thumbnails
     assert html =~ "https://example.test/black-lotus.jpg"

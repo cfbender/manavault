@@ -2,7 +2,7 @@ defmodule ManavaultWeb.DeckShowLive do
   use ManavaultWeb, :live_view
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.{Deck, DeckCard}
+  alias Manavault.Catalog.{Deck, DeckCard, Price}
   alias ManavaultWeb.CardTile
   alias Phoenix.LiveView.JS
 
@@ -470,6 +470,7 @@ defmodule ManavaultWeb.DeckShowLive do
                 <h1 class="text-3xl font-black tracking-tight sm:text-4xl">{@deck.name}</h1>
                 <p class="text-sm leading-6 text-base-content/70">
                   {deck_view_count(@deck)} cards across {length(deck_groups(@deck, @group_by))} groups.
+                  <span :if={deck_total_text(@deck)}>Estimated value {deck_total_text(@deck)}.</span>
                 </p>
               </div>
               <div class="flex shrink-0 flex-wrap items-center gap-2">
@@ -901,6 +902,9 @@ defmodule ManavaultWeb.DeckShowLive do
   defp deck_view_cards(deck), do: Enum.filter(deck.deck_cards, &(&1.zone == "mainboard"))
 
   defp deck_view_count(deck), do: Enum.reduce(deck_view_cards(deck), 0, &(&1.quantity + &2))
+
+  defp deck_total_text(%Deck{} = deck),
+    do: deck.deck_cards |> Price.deck_cards_total_cents() |> Price.format_cents()
 
   defp deck_groups(deck, group_by) do
     deck

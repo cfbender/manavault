@@ -248,7 +248,16 @@ defmodule Manavault.Catalog do
     Location
     |> order_by(asc: :name)
     |> Repo.all()
-    |> Repo.preload([:cover_printing, collection_items: []])
+    |> Repo.preload(
+      cover_printing: [],
+      collection_items:
+        from(item in CollectionItem,
+          join: printing in assoc(item, :printing),
+          join: card in assoc(printing, :card),
+          preload: [printing: {printing, card: card}],
+          order_by: [asc: card.name, asc: printing.set_code, asc: printing.collector_number]
+        )
+    )
   end
 
   def list_location_options do

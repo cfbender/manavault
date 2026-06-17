@@ -2,7 +2,7 @@ defmodule ManavaultWeb.CardShowLive do
   use ManavaultWeb, :live_view
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.Printing
+  alias Manavault.Catalog.{Price, Printing}
 
   @impl true
   def mount(%{"id" => oracle_id} = params, _session, socket) do
@@ -264,37 +264,7 @@ defmodule ManavaultWeb.CardShowLive do
     end
   end
 
-  defp price_text(%Printing{prices: prices}) do
-    prices
-    |> decode_json(%{})
-    |> then(fn
-      %{"usd" => usd} when is_binary(usd) and usd != "" ->
-        "$#{format_price(usd)}"
-
-      %{"usd_foil" => foil} when is_binary(foil) and foil != "" ->
-        "$#{format_price(foil)}"
-
-      map when is_map(map) ->
-        map
-        |> Map.values()
-        |> Enum.find(&is_binary/1)
-        |> then(fn
-          nil -> nil
-          v -> "$#{format_price(v)}"
-        end)
-
-      _ ->
-        nil
-    end)
-  end
-
-  defp format_price(price) do
-    case Float.parse(price) do
-      {num, _} when num >= 100 -> trunc(num) |> Integer.to_string()
-      {num, _} -> :erlang.float_to_binary(num, decimals: 2)
-      :error -> price
-    end
-  end
+  defp price_text(%Printing{} = printing), do: Price.text_for_printing(printing)
 
   defp image_url(printing), do: image_url(printing, :card)
 

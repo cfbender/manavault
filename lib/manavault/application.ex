@@ -7,17 +7,20 @@ defmodule Manavault.Application do
 
   @impl true
   def start(_type, _args) do
-    children = [
-      ManavaultWeb.Telemetry,
-      Manavault.Repo,
-      {Ecto.Migrator,
-       repos: Application.fetch_env!(:manavault, :ecto_repos), skip: skip_migrations?()},
-      {DNSCluster, query: Application.get_env(:manavault, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: Manavault.PubSub},
-      {Task.Supervisor, name: Manavault.ScanRecognitionSupervisor},
-      Manavault.Catalog.RapidOCRDaemon,
-      ManavaultWeb.Endpoint
-    ]
+    children =
+      [
+        ManavaultWeb.Telemetry,
+        Manavault.Repo,
+        {Ecto.Migrator,
+         repos: Application.fetch_env!(:manavault, :ecto_repos), skip: skip_migrations?()},
+        {DNSCluster, query: Application.get_env(:manavault, :dns_cluster_query) || :ignore},
+        {Phoenix.PubSub, name: Manavault.PubSub},
+        {Task.Supervisor, name: Manavault.ScanRecognitionSupervisor},
+        Manavault.Catalog.RapidOCRDaemon,
+        scryfall_sync_worker_child(),
+        ManavaultWeb.Endpoint
+      ]
+      |> Enum.reject(&is_nil/1)
 
     # See https://elixir.hexdocs.pm/Supervisor.html
     # for other strategies and supported options
@@ -36,5 +39,11 @@ defmodule Manavault.Application do
   defp skip_migrations?() do
     # By default, sqlite migrations are run when using a release
     System.get_env("RELEASE_NAME") == nil
+  end
+
+  defp scryfall_sync_worker_child do
+    if Application.get_env(:manavault, :scryfall_sync_worker, true) do
+      Manavault.Catalog.ScryfallSyncWorker
+    end
   end
 end

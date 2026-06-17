@@ -4,7 +4,7 @@ defmodule ManavaultWeb.CardTile do
   use Phoenix.Component
   import ManavaultWeb.MagicSymbols
 
-  alias Manavault.Catalog.{CollectionItem, DeckCard, Printing, ScanItem}
+  alias Manavault.Catalog.{CollectionItem, DeckCard, Price, Printing, ScanItem}
 
   use Phoenix.VerifiedRoutes,
     endpoint: ManavaultWeb.Endpoint,
@@ -218,12 +218,10 @@ defmodule ManavaultWeb.CardTile do
   def set_code(%Printing{} = printing), do: printing_set_code(printing)
   def set_code(_item), do: "?"
 
-  def price_text(%CollectionItem{printing: %Printing{prices: prices}}),
-    do: price_text_from_prices(prices)
-
-  def price_text(%DeckCard{} = item), do: item |> tile_printing() |> printing_price_text()
+  def price_text(%CollectionItem{} = item), do: Price.text_for_collection_item(item)
+  def price_text(%DeckCard{} = item), do: Price.text_for_deck_card(item)
   def price_text(%ScanItem{} = item), do: item |> tile_printing() |> printing_price_text()
-  def price_text(%Printing{prices: prices}), do: price_text_from_prices(prices)
+  def price_text(%Printing{} = printing), do: Price.text_for_printing(printing)
   def price_text(_item), do: nil
 
   def item_image_url(%CollectionItem{printing: printing}), do: printing_image_url(printing)
@@ -266,40 +264,8 @@ defmodule ManavaultWeb.CardTile do
 
   defp printing_set_code(_printing), do: "?"
 
-  defp printing_price_text(%Printing{prices: prices}), do: price_text_from_prices(prices)
+  defp printing_price_text(%Printing{} = printing), do: Price.text_for_printing(printing)
   defp printing_price_text(_printing), do: nil
-
-  defp price_text_from_prices(prices) do
-    prices
-    |> decode_json(%{})
-    |> then(fn
-      %{"usd" => usd} when is_binary(usd) and usd != "" ->
-        "$#{format_price(usd)}"
-
-      %{"usd_foil" => foil} when is_binary(foil) and foil != "" ->
-        "$#{format_price(foil)}"
-
-      map when is_map(map) ->
-        map
-        |> Map.values()
-        |> Enum.find(&is_binary/1)
-        |> then(fn
-          nil -> nil
-          value -> "$#{format_price(value)}"
-        end)
-
-      _other ->
-        nil
-    end)
-  end
-
-  defp format_price(price) do
-    case Float.parse(price) do
-      {num, _rest} when num >= 100 -> num |> trunc() |> Integer.to_string()
-      {num, _rest} -> :erlang.float_to_binary(num, decimals: 2)
-      :error -> price
-    end
-  end
 
   defp printing_image_url(%Printing{image_uris: image_uris}) do
     with {:ok, uris} <- Jason.decode(image_uris) do
@@ -317,13 +283,4 @@ defmodule ManavaultWeb.CardTile do
 
   defp image_url_from_uris([uris | _]), do: image_url_from_uris(uris)
   defp image_url_from_uris(_uris), do: nil
-
-  defp decode_json(value, fallback) when is_binary(value) do
-    case Jason.decode(value) do
-      {:ok, decoded} -> decoded
-      {:error, _reason} -> fallback
-    end
-  end
-
-  defp decode_json(_value, fallback), do: fallback
 end

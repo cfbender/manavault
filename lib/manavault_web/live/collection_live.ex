@@ -4,7 +4,7 @@ defmodule ManavaultWeb.CollectionLive do
   import ManavaultWeb.CardTile, only: [card_tile: 1]
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.{CollectionItem, Location, Printing}
+  alias Manavault.Catalog.{CollectionItem, Location, Price, Printing}
 
   @conditions [
     {"Any condition", ""},
@@ -298,6 +298,12 @@ defmodule ManavaultWeb.CollectionLive do
                         <span class="badge badge-outline badge-sm">{humanize_kind(loc.kind)}</span>
                         <span class="text-sm text-base-content/60">
                           {length(loc.collection_items)} cards
+                        </span>
+                        <span
+                          :if={location_total_text(loc)}
+                          class="badge badge-ghost badge-sm"
+                        >
+                          {location_total_text(loc)}
                         </span>
                       </div>
                       <div>
@@ -827,43 +833,12 @@ defmodule ManavaultWeb.CollectionLive do
   defp set_code(%Printing{set_code: set_code}), do: set_code
   defp set_code(_item), do: "?"
 
-  defp price_text(%CollectionItem{printing: %Printing{prices: prices}}) do
-    price_text_from_prices(prices)
-  end
+  defp price_text(%CollectionItem{} = item), do: Price.text_for_collection_item(item)
 
   defp price_text(_item), do: nil
 
-  defp price_text_from_prices(prices) do
-    prices
-    |> decode_json(%{})
-    |> then(fn
-      %{"usd" => usd} when is_binary(usd) and usd != "" ->
-        "$#{format_price(usd)}"
-
-      %{"usd_foil" => foil} when is_binary(foil) and foil != "" ->
-        "$#{format_price(foil)}"
-
-      map when is_map(map) ->
-        map
-        |> Map.values()
-        |> Enum.find(&is_binary/1)
-        |> then(fn
-          nil -> nil
-          value -> "$#{format_price(value)}"
-        end)
-
-      _other ->
-        nil
-    end)
-  end
-
-  defp format_price(price) do
-    case Float.parse(price) do
-      {num, _rest} when num >= 100 -> num |> trunc() |> Integer.to_string()
-      {num, _rest} -> :erlang.float_to_binary(num, decimals: 2)
-      :error -> price
-    end
-  end
+  defp location_total_text(%Location{} = location),
+    do: location.collection_items |> Price.collection_items_total_cents() |> Price.format_cents()
 
   defp item_image_url(%CollectionItem{printing: printing}), do: printing_image_url(printing)
   defp item_image_url(%Printing{} = printing), do: printing_image_url(printing)
@@ -904,15 +879,6 @@ defmodule ManavaultWeb.CollectionLive do
 
   defp preferred_image_keys(:art), do: ["art_crop", "normal", "large", "small", "png"]
   defp preferred_image_keys(_variant), do: ["normal", "large", "small", "png", "art_crop"]
-
-  defp decode_json(value, fallback) when is_binary(value) do
-    case Jason.decode(value) do
-      {:ok, decoded} -> decoded
-      {:error, _reason} -> fallback
-    end
-  end
-
-  defp decode_json(_value, fallback), do: fallback
 
   defp humanize_kind(kind) when is_binary(kind) do
     kind |> String.replace("_", " ") |> String.capitalize()
