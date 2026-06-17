@@ -115,6 +115,29 @@ defmodule Manavault.Catalog do
     end
   end
 
+  def search_sets(term, opts \\ []) when is_binary(term) do
+    limit = Keyword.get(opts, :limit, 12)
+    query = normalize_filter(term)
+
+    if query == "" do
+      []
+    else
+      pattern = "%#{String.downcase(query)}%"
+
+      Printing
+      |> where(
+        [printing],
+        fragment("lower(?) LIKE ?", printing.set_code, ^pattern) or
+          fragment("lower(coalesce(?, '')) LIKE ?", printing.set_name, ^pattern)
+      )
+      |> group_by([printing], [printing.set_code, printing.set_name])
+      |> order_by([printing], asc: printing.set_name, asc: printing.set_code)
+      |> select([printing], %{set_code: printing.set_code, set_name: printing.set_name})
+      |> limit(^limit)
+      |> Repo.all()
+    end
+  end
+
   def list_collection_items(filters \\ [], opts \\ []) when is_list(filters) do
     limit = Keyword.get(opts, :limit, 100)
     offset = Keyword.get(opts, :offset, 0)
@@ -964,7 +987,7 @@ defmodule Manavault.Catalog do
     with {:ok, extension, binary} <- decode_capture_image(image_data),
          {:ok, path} <- write_capture_image(scan_session, extension, binary),
          {:ok, recognition} <- recognize_capture_image(path, opts),
-         {:ok, scan_item} <- persist_recognized_capture(scan_session, path, recognition) do
+         {:ok, scan_item} <- persist_recognized_capture(scan_session, path, recognition, opts) do
       log_capture_timing(started_at, recognition)
       {:ok, scan_item}
     else
@@ -1957,7 +1980,7 @@ defmodule Manavault.Catalog do
     end
   end
 
-  defp persist_recognized_capture(%ScanSession{} = scan_session, path, recognition) do
+  defp persist_recognized_capture(%ScanSession{} = scan_session, path, recognition, opts) do
     Repo.transaction(fn ->
       {:ok, scan_item} =
         create_scan_item(scan_session, %{
@@ -1965,18 +1988,21 @@ defmodule Manavault.Catalog do
           "status" => "processing"
         })
 
-      case persist_recognition(scan_item, recognition) do
+      case persist_recognition(scan_item, recognition, opts) do
         {:ok, scan_item} -> scan_item
         {:error, reason} -> Repo.rollback(reason)
       end
     end)
   end
 
-  defp persist_recognition(%ScanItem{} = scan_item, %{candidates: [top | _]}) do
+  defp persist_recognition(scan_item, recognition, opts \\ [])
+
+  defp persist_recognition(%ScanItem{} = scan_item, %{candidates: [top | _]}, opts) do
     scan_item
     |> ScanItem.changeset(%{
       "status" => "recognized",
-      "accepted_printing_id" => top.printing.scryfall_id
+      "accepted_printing_id" => top.printing.scryfall_id,
+      "finish" => preferred_scan_finish(top.printing, scan_item.finish, opts)
     })
     |> Repo.update()
     |> case do
@@ -1985,7 +2011,7 @@ defmodule Manavault.Catalog do
     end
   end
 
-  defp persist_recognition(%ScanItem{} = scan_item, %{candidates: []}) do
+  defp persist_recognition(%ScanItem{} = scan_item, %{candidates: []}, _opts) do
     scan_item
     |> ScanItem.changeset(%{"status" => "needs_review"})
     |> Repo.update()
@@ -2181,6 +2207,14 @@ defmodule Manavault.Catalog do
     cond do
       is_binary(current_finish) and current_finish in available_finishes -> current_finish
       true -> Enum.find(available_finishes, "nonfoil", &is_binary/1)
+    end
+  end
+
+  defp preferred_scan_finish(%Printing{} = printing, current_finish, opts) do
+    if Keyword.get(opts, :prefer_foil, false) and printing_supports_finish?(printing, "foil") do
+      "foil"
+    else
+      preferred_finish(printing, current_finish)
     end
   end
 

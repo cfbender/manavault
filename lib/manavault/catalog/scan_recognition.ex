@@ -182,12 +182,13 @@ defmodule Manavault.Catalog.ScanRecognition do
     language = parsed |> Map.get(:language) |> normalize_language()
     image_matches = Keyword.get(opts, :image_matches, [])
     image_match_by_printing_id = image_match_by_printing_id(image_matches)
+    set_codes = opts |> Keyword.get(:set_codes, []) |> normalize_set_codes()
 
     Logger.debug(fn ->
       "OCR match_candidates — tokens: #{inspect(tokens)}, lines: #{inspect(lines)}, set_code: #{inspect(set_code)}, collector_number: #{inspect(collector_number)}, language: #{inspect(language)}\nOCR raw text:\n#{Map.get(parsed, :text, "")}"
     end)
 
-    printings = candidate_printings(tokens, lines, max_candidates, image_matches)
+    printings = candidate_printings(tokens, lines, max_candidates, image_matches, set_codes)
 
     candidates =
       printings
@@ -230,20 +231,22 @@ defmodule Manavault.Catalog.ScanRecognition do
       float_score(scores.image_match) > 0.0
   end
 
-  defp candidate_printings(tokens, lines, max_candidates, image_matches) do
+  defp candidate_printings(tokens, lines, max_candidates, image_matches, set_codes) do
+    locked_sets? = set_codes != []
+
     priority_ids =
       lines
       |> priority_fts_query()
-      |> search_printing_ids(max(max_candidates * 10, 50))
+      |> search_printing_ids(max(max_candidates * if(locked_sets?, do: 30, else: 10), 50))
 
     ids =
-      if length(priority_ids) >= max_candidates do
+      if !locked_sets? and length(priority_ids) >= max_candidates do
         priority_ids
       else
         broad_ids =
           tokens
           |> broad_fts_query(lines)
-          |> search_printing_ids(max(max_candidates * 40, 200))
+          |> search_printing_ids(max(max_candidates * if(locked_sets?, do: 80, else: 40), 200))
 
         (priority_ids ++ broad_ids)
         |> Enum.uniq()
@@ -251,12 +254,12 @@ defmodule Manavault.Catalog.ScanRecognition do
 
     image_ids = Enum.map(image_matches, & &1.scryfall_id)
 
-    load_printings_by_ids(ids)
+    load_printings_by_ids(ids, set_codes)
     |> then(fn printings ->
       missing_image_ids =
         image_ids -- Enum.map(printings, & &1.scryfall_id)
 
-      printings ++ load_printings_by_ids(missing_image_ids)
+      printings ++ load_printings_by_ids(missing_image_ids, set_codes)
     end)
   end
 
@@ -280,14 +283,21 @@ defmodule Manavault.Catalog.ScanRecognition do
     _exception -> []
   end
 
-  defp load_printings_by_ids([]), do: []
+  defp load_printings_by_ids([], _set_codes), do: []
 
-  defp load_printings_by_ids(ids) do
+  defp load_printings_by_ids(ids, set_codes) do
     Printing
     |> join(:inner, [printing], card in assoc(printing, :card))
     |> where([printing, _card], printing.scryfall_id in ^ids)
+    |> maybe_filter_set_codes(set_codes)
     |> preload([_printing, card], card: card)
     |> Repo.all()
+  end
+
+  defp maybe_filter_set_codes(query, []), do: query
+
+  defp maybe_filter_set_codes(query, set_codes) do
+    where(query, [printing, _card], printing.set_code in ^set_codes)
   end
 
   defp priority_fts_query(lines) do
@@ -861,6 +871,15 @@ defmodule Manavault.Catalog.ScanRecognition do
 
   defp normalize_set_code(nil), do: ""
   defp normalize_set_code(value), do: value |> normalize_text() |> String.downcase()
+
+  defp normalize_set_codes(values) when is_list(values) do
+    values
+    |> Enum.map(&normalize_set_code/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.uniq()
+  end
+
+  defp normalize_set_codes(_values), do: []
 
   defp normalize_collector_number(nil), do: ""
 

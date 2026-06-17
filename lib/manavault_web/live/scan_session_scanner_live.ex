@@ -26,6 +26,11 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
      |> assign(:finishes, @finishes)
      |> assign(:editing_scan_item, nil)
      |> assign(:changing_printing_item, nil)
+     |> assign(:scanner_options_open, false)
+     |> assign(:prefer_foil, false)
+     |> assign(:locked_sets, [])
+     |> assign(:set_search_query, "")
+     |> assign(:set_search_results, [])
      |> assign(:printing_search_query, "")
      |> assign(:printing_search_results, [])
      |> assign(:status_message, "Starting camera…")
@@ -44,7 +49,7 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
     case Catalog.create_recognized_scan_item_from_capture(
            scan_session,
            image_data,
-           socket.assigns.recognition_opts
+           scanner_recognition_opts(socket.assigns)
          ) do
       {:ok, scan_item} ->
         printing_id = scan_item_printing_id(scan_item)
@@ -116,6 +121,48 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
 
   def handle_event("edit_scan_item", %{"id" => id}, socket) do
     {:noreply, assign(socket, :editing_scan_item, Catalog.get_scan_item!(id))}
+  end
+
+  def handle_event("open_scanner_options", _params, socket) do
+    {:noreply, assign(socket, :scanner_options_open, true)}
+  end
+
+  def handle_event("close_scanner_options", _params, socket) do
+    {:noreply, assign(socket, :scanner_options_open, false)}
+  end
+
+  def handle_event("toggle_prefer_foil", params, socket) do
+    {:noreply, assign(socket, :prefer_foil, truthy_param?(Map.get(params, "prefer_foil")))}
+  end
+
+  def handle_event("search_scan_sets", %{"set_search" => %{"q" => query}}, socket)
+      when is_binary(query) do
+    {:noreply,
+     socket
+     |> assign(:set_search_query, query)
+     |> assign(:set_search_results, Catalog.search_sets(query))}
+  end
+
+  def handle_event("add_locked_set", %{"code" => code} = params, socket) when is_binary(code) do
+    set = %{set_code: String.downcase(code), set_name: Map.get(params, "name", "")}
+
+    locked_sets =
+      [set | socket.assigns.locked_sets]
+      |> Enum.uniq_by(& &1.set_code)
+      |> Enum.sort_by(&{String.downcase(&1.set_name || ""), &1.set_code})
+
+    {:noreply,
+     socket
+     |> assign(:locked_sets, locked_sets)
+     |> assign(:set_search_query, "")
+     |> assign(:set_search_results, [])}
+  end
+
+  def handle_event("remove_locked_set", %{"code" => code}, socket) when is_binary(code) do
+    code = String.downcase(code)
+
+    {:noreply,
+     assign(socket, :locked_sets, Enum.reject(socket.assigns.locked_sets, &(&1.set_code == code)))}
   end
 
   def handle_event("update_scan_item", %{"_id" => id, "scan_item" => attrs}, socket) do
@@ -215,7 +262,7 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
     ~H"""
     <Layouts.app flash={@flash}>
       <div class="mx-auto flex max-w-7xl flex-col items-center gap-5 pb-8">
-        <header class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <header class="flex w-full max-w-md flex-col gap-4 sm:max-w-lg sm:flex-row sm:items-end sm:justify-between lg:max-w-2xl">
           <div class="space-y-2">
             <.back_link navigate={~p"/scan-sessions/#{@scan_session.id}"}>Session</.back_link>
             <div>
@@ -256,6 +303,20 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
                 autoplay
               ></video>
               <canvas data-scanner-canvas class="hidden"></canvas>
+
+              <div class="absolute top-3 left-3 z-20">
+                <button
+                  type="button"
+                  class={[
+                    "btn btn-circle btn-sm border-base-100/40 bg-base-100/85 text-base-content shadow backdrop-blur",
+                    (@prefer_foil or @locked_sets != []) && "btn-active"
+                  ]}
+                  phx-click="open_scanner_options"
+                  aria-label="Scanner options"
+                >
+                  <.icon name="hero-ellipsis-horizontal" class="size-4" />
+                </button>
+              </div>
 
               <div class="pointer-events-none absolute inset-0 grid place-items-center p-7 sm:p-10">
                 <div class="h-full w-full rounded-[1.35rem] border-4 border-primary/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.28)]">
@@ -386,6 +447,101 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
             </div>
           </section>
         </div>
+
+        <dialog :if={@scanner_options_open} class="modal modal-open">
+          <div class="modal-box flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-1rem)] max-w-xl flex-col gap-5 overflow-hidden p-4 sm:p-6">
+            <div class="flex shrink-0 items-start justify-between gap-3">
+              <h3 class="text-lg font-bold">Scanner options</h3>
+              <button
+                class="btn btn-circle btn-ghost btn-sm shrink-0"
+                type="button"
+                phx-click="close_scanner_options"
+                aria-label="Close"
+              >
+                <.icon name="hero-x-mark" class="size-4" />
+              </button>
+            </div>
+
+            <div class="min-h-0 flex-1 space-y-5 overflow-y-auto pr-1">
+              <form id="scanner-prefer-foil-form" phx-change="toggle_prefer_foil">
+                <input type="hidden" name="prefer_foil" value="false" />
+                <label class="flex items-center justify-between gap-4 rounded-lg border border-base-300 bg-base-100 p-3">
+                  <span class="font-semibold">Prefer foil</span>
+                  <input
+                    type="checkbox"
+                    name="prefer_foil"
+                    value="true"
+                    checked={@prefer_foil}
+                    class="toggle toggle-primary"
+                  />
+                </label>
+              </form>
+
+              <div class="space-y-3">
+                <div class="space-y-1">
+                  <h4 class="font-semibold">Lock to sets</h4>
+                  <p :if={@locked_sets == []} class="text-sm text-base-content/60">
+                    No set lock
+                  </p>
+                </div>
+
+                <form
+                  id="scanner-set-search-form"
+                  phx-submit="search_scan_sets"
+                  class="grid grid-cols-[minmax(0,1fr)_auto] gap-2"
+                >
+                  <input
+                    class="input input-bordered w-full"
+                    name="set_search[q]"
+                    value={@set_search_query}
+                    type="search"
+                    autocomplete="off"
+                    placeholder="Set name or code"
+                  />
+                  <button class="btn btn-primary" type="submit">Search</button>
+                </form>
+
+                <div :if={@locked_sets != []} class="flex flex-wrap gap-2">
+                  <span
+                    :for={set <- @locked_sets}
+                    class="badge badge-primary badge-outline gap-1 py-3"
+                  >
+                    {set_option_label(set)}
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-xs btn-circle"
+                      phx-click="remove_locked_set"
+                      phx-value-code={set.set_code}
+                      aria-label={"Remove #{set_option_label(set)}"}
+                    >
+                      <.icon name="hero-x-mark" class="size-3" />
+                    </button>
+                  </span>
+                </div>
+
+                <div :if={@set_search_results != []} class="grid gap-2">
+                  <button
+                    :for={set <- @set_search_results}
+                    type="button"
+                    class="btn btn-outline justify-start"
+                    phx-click="add_locked_set"
+                    phx-value-code={set.set_code}
+                    phx-value-name={set.set_name || ""}
+                  >
+                    <span class="font-bold">{String.upcase(set.set_code)}</span>
+                    <span class="truncate font-normal">{set.set_name}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-action mt-0 shrink-0">
+              <button class="btn btn-primary" type="button" phx-click="close_scanner_options">
+                Done
+              </button>
+            </div>
+          </div>
+        </dialog>
 
         <dialog :if={@editing_scan_item} class="modal modal-open">
           <div class="modal-box space-y-4">
@@ -605,6 +761,26 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
 
   defp best_name(%{accepted_printing: %{card: %{name: name}}}), do: name
   defp best_name(_item), do: ""
+
+  defp scanner_recognition_opts(assigns) do
+    []
+    |> maybe_put_opt(:prefer_foil, assigns.prefer_foil)
+    |> maybe_put_opt(:set_codes, Enum.map(assigns.locked_sets, & &1.set_code))
+  end
+
+  defp maybe_put_opt(opts, _key, false), do: opts
+  defp maybe_put_opt(opts, _key, []), do: opts
+  defp maybe_put_opt(opts, key, value), do: Keyword.put(opts, key, value)
+
+  defp truthy_param?(value), do: value in [true, "true", "on", "1", 1]
+
+  defp set_option_label(%{set_code: set_code, set_name: set_name})
+       when is_binary(set_code) and is_binary(set_name) and set_name != "" do
+    "#{String.upcase(set_code)} · #{set_name}"
+  end
+
+  defp set_option_label(%{set_code: set_code}) when is_binary(set_code),
+    do: String.upcase(set_code)
 
   defp search_printings(query) when is_binary(query) do
     Catalog.search_printings([name: query], limit: 36)

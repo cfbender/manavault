@@ -120,6 +120,7 @@ defmodule Manavault.CatalogTest do
              Catalog.search_printings(name: "lotus", set_code: "LEA", collector_number: "232")
 
     assert [] = Catalog.search_printings(name: "", set_code: "", collector_number: "")
+    assert [%{set_code: "lea", set_name: "Limited Edition Alpha"}] = Catalog.search_sets("alpha")
 
     assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@renamed_lotus])
 
@@ -1201,6 +1202,47 @@ defmodule Manavault.CatalogTest do
     assert item.status == "recognized"
     assert item.accepted_printing_id in ["scryfall-printing-1", "scryfall-printing-3"]
     assert [_item] = Catalog.get_scan_session!(scan_session.id).scan_items
+  end
+
+  test "create_recognized_scan_item_from_capture can lock to sets and prefer foil" do
+    beta_foil = Map.put(@black_lotus_beta, "finishes", ["nonfoil", "foil"])
+
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, beta_foil])
+
+    upload_dir =
+      Path.join(
+        System.tmp_dir!(),
+        "manavault-set-locked-recognized-captures-#{System.unique_integer([:positive])}"
+      )
+
+    previous_dir = Application.get_env(:manavault, :capture_upload_dir)
+    Application.put_env(:manavault, :capture_upload_dir, upload_dir)
+
+    on_exit(fn ->
+      if previous_dir do
+        Application.put_env(:manavault, :capture_upload_dir, previous_dir)
+      else
+        Application.delete_env(:manavault, :capture_upload_dir)
+      end
+
+      File.rm_rf!(upload_dir)
+    end)
+
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Set locked batch"})
+
+    assert {:ok, item} =
+             Catalog.create_recognized_scan_item_from_capture(
+               scan_session,
+               "data:image/png;base64,#{Base.encode64("fake image bytes")}",
+               ocr_runner: fn _path -> {:ok, "Black Lotus"} end,
+               set_codes: ["leb"],
+               prefer_foil: true
+             )
+
+    assert item.status == "recognized"
+    assert item.accepted_printing_id == "scryfall-printing-3"
+    assert item.finish == "foil"
   end
 
   test "create_recognized_scan_item_from_capture does not store unmatched captures" do

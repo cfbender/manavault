@@ -303,6 +303,69 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     assert Catalog.get_scan_session!(scan_session.id).scan_items == []
   end
 
+  test "scanner options can prefer foil and lock captures to selected sets", %{conn: conn} do
+    assert {:ok, _sync} =
+             Catalog.import_cards([
+               %{
+                 @black_lotus
+                 | "id" => "scryfall-printing-3",
+                   "set" => "leb",
+                   "set_name" => "Limited Edition Beta",
+                   "collector_number" => "233",
+                   "finishes" => ["nonfoil", "foil"],
+                   "released_at" => "1993-10-04"
+               }
+             ])
+
+    previous_runner = Application.get_env(:manavault, :ocr_runner)
+
+    Application.put_env(:manavault, :ocr_runner, fn _path ->
+      {:ok, "Black Lotus"}
+    end)
+
+    on_exit(fn ->
+      if previous_runner do
+        Application.put_env(:manavault, :ocr_runner, previous_runner)
+      else
+        Application.delete_env(:manavault, :ocr_runner)
+      end
+    end)
+
+    {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Option scanner"})
+    {:ok, view, html} = live(conn, ~p"/scan-sessions/#{scan_session.id}/scanner")
+
+    assert html =~ "Scanner options"
+
+    html = render_click(view, "open_scanner_options")
+    assert html =~ "Prefer foil"
+    assert html =~ "Lock to sets"
+
+    view
+    |> form("#scanner-prefer-foil-form", prefer_foil: "true")
+    |> render_change()
+
+    html =
+      view
+      |> form("#scanner-set-search-form", set_search: %{q: "beta"})
+      |> render_submit()
+
+    assert html =~ "Limited Edition Beta"
+
+    html =
+      render_click(view, "add_locked_set", %{
+        "code" => "leb",
+        "name" => "Limited Edition Beta"
+      })
+
+    assert html =~ "LEB"
+
+    image_data = "data:image/png;base64,#{Base.encode64("Black Lotus")}"
+    assert render_hook(view, "capture", %{"image_data" => image_data}) =~ "Recognized card"
+
+    assert [%{accepted_printing_id: "scryfall-printing-3", finish: "foil"}] =
+             Catalog.get_scan_session!(scan_session.id).scan_items
+  end
+
   test "scanner can rescan the same card after deleting it", %{conn: conn} do
     previous_runner = Application.get_env(:manavault, :ocr_runner)
 
