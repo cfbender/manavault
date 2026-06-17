@@ -11,7 +11,7 @@
               Your Magic collection, organized.
             </h1>
             <p class="text-base leading-7 text-base-content/70">
-              Jump into your collection, start building decks soon, or search the local card catalog.
+              Jump into your collection, build decks, or search the local card catalog.
             </p>
           </div>
         </div>
@@ -65,21 +65,26 @@
         </div>
       </.link>
 
-      <div class="card border border-dashed border-base-300 bg-base-100/70 shadow-sm">
+      <.link
+        navigate={~p"/decks"}
+        class="group card border border-base-300 bg-base-100 shadow-sm transition hover:-translate-y-1 hover:border-primary/40 hover:shadow-xl"
+      >
         <div class="card-body gap-4 p-5">
           <div class="flex items-start justify-between gap-3">
-            <span class="text-4xl">🧰</span>
-            <span class="badge badge-ghost">Soon</span>
+            <span class="text-4xl">🗂️</span>
+            <span class="badge badge-accent badge-outline">Decks</span>
           </div>
           <div class="space-y-2">
             <h2 class="card-title text-2xl">Decks</h2>
             <p class="text-sm leading-6 text-base-content/70">
-              Deck building and deck inventory are coming later.
+              Create decks, import lists, and organize zones.
             </p>
           </div>
-          <button class="btn btn-disabled btn-sm w-fit" type="button">Not available yet</button>
+          <span class="text-sm font-semibold text-primary opacity-0 transition group-hover:opacity-100">
+            Open decks →
+          </span>
         </div>
-      </div>
+      </.link>
 
       <.link
         navigate={~p"/cards"}

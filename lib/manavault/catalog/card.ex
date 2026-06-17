@@ -9,6 +9,9 @@ defmodule Manavault.Catalog.Card do
     field :name, :string
     field :type_line, :string
     field :oracle_text, :string
+    field :mana_cost, :string
+    field :cmc, :float
+    field :colors, :string, default: "[]"
     field :color_identity, :string, default: "[]"
     field :legalities, :string, default: "{}"
 
@@ -19,7 +22,17 @@ defmodule Manavault.Catalog.Card do
 
   def changeset(card, attrs) do
     card
-    |> cast(attrs, [:oracle_id, :name, :type_line, :oracle_text, :color_identity, :legalities])
+    |> cast(attrs, [
+      :oracle_id,
+      :name,
+      :type_line,
+      :oracle_text,
+      :mana_cost,
+      :cmc,
+      :colors,
+      :color_identity,
+      :legalities
+    ])
     |> validate_required([:oracle_id, :name, :color_identity, :legalities])
   end
 end

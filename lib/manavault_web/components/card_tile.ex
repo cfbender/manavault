@@ -3,7 +3,7 @@ defmodule ManavaultWeb.CardTile do
 
   use Phoenix.Component
 
-  alias Manavault.Catalog.{CollectionItem, Printing, ScanItem}
+  alias Manavault.Catalog.{CollectionItem, DeckCard, Printing, ScanItem}
 
   use Phoenix.VerifiedRoutes,
     endpoint: ManavaultWeb.Endpoint,
@@ -187,6 +187,7 @@ defmodule ManavaultWeb.CardTile do
   end
 
   def card_name(%CollectionItem{printing: %{card: %{name: name}}}), do: name
+  def card_name(%DeckCard{card: %{name: name}}), do: name
 
   def card_name(%ScanItem{} = item),
     do: item |> tile_printing() |> printing_card_name() || "Scan item ##{item.id}"
@@ -200,11 +201,13 @@ defmodule ManavaultWeb.CardTile do
     "#{String.upcase(set_code)} ##{collector_number}"
   end
 
+  def set_label(%DeckCard{} = item), do: item |> tile_printing() |> printing_set_label()
   def set_label(%ScanItem{} = item), do: item |> tile_printing() |> printing_set_label()
 
   def set_code(%CollectionItem{printing: %{set_code: set_code}}) when is_binary(set_code),
     do: String.upcase(set_code)
 
+  def set_code(%DeckCard{} = item), do: item |> tile_printing() |> printing_set_code()
   def set_code(%ScanItem{} = item), do: item |> tile_printing() |> printing_set_code()
   def set_code(%Printing{} = printing), do: printing_set_label(printing)
   def set_code(_item), do: "?"
@@ -212,16 +215,19 @@ defmodule ManavaultWeb.CardTile do
   def price_text(%CollectionItem{printing: %Printing{prices: prices}}),
     do: price_text_from_prices(prices)
 
+  def price_text(%DeckCard{} = item), do: item |> tile_printing() |> printing_price_text()
   def price_text(%ScanItem{} = item), do: item |> tile_printing() |> printing_price_text()
   def price_text(%Printing{prices: prices}), do: price_text_from_prices(prices)
   def price_text(_item), do: nil
 
   def item_image_url(%CollectionItem{printing: printing}), do: printing_image_url(printing)
+  def item_image_url(%DeckCard{} = item), do: item |> tile_printing() |> printing_image_url()
   def item_image_url(%ScanItem{} = item), do: item |> tile_printing() |> printing_image_url()
   def item_image_url(%Printing{} = printing), do: printing_image_url(printing)
   def item_image_url(_item), do: nil
 
   defp default_id(%CollectionItem{id: id}), do: "collection-item-#{id}"
+  defp default_id(%DeckCard{id: id}), do: "deck-card-#{id}"
   defp default_id(%ScanItem{id: id}), do: "scan-item-#{id}"
   defp default_id(%Printing{scryfall_id: id}), do: "printing-#{id}"
   defp default_id(_item), do: nil
@@ -233,6 +239,9 @@ defmodule ManavaultWeb.CardTile do
   defp item_quantity(%{quantity: quantity}) when is_integer(quantity), do: quantity
   defp item_quantity(_item), do: 1
 
+  defp tile_printing(%DeckCard{preferred_printing: %Printing{} = printing}), do: printing
+  defp tile_printing(%DeckCard{card: %{printings: [%Printing{} = printing | _]}}), do: printing
+  defp tile_printing(%DeckCard{}), do: nil
   defp tile_printing(%ScanItem{accepted_printing: %Printing{} = printing}), do: printing
   defp tile_printing(_item), do: nil
 

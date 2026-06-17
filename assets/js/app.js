@@ -26,11 +26,52 @@ import {hooks as colocatedHooks} from "phoenix-colocated/manavault"
 import ScannerCamera from "./scanner_camera"
 import topbar from "../vendor/topbar"
 
+const DeckPreview = {
+  mounted() {
+    this.el.addEventListener("mouseover", event => {
+      const card = event.target.closest("[data-preview-card]")
+      if (!card || !this.el.contains(card)) return
+
+      const image = document.getElementById("deck-preview-image")
+      const fallback = document.getElementById("deck-preview-fallback")
+      const name = document.getElementById("deck-preview-name")
+      const type = document.getElementById("deck-preview-type")
+      const set = document.getElementById("deck-preview-set")
+      const finish = document.getElementById("deck-preview-finish")
+      const quantity = document.getElementById("deck-preview-quantity")
+      const imageUrl = card.dataset.previewImage
+
+      if (image && fallback) {
+        if (imageUrl) {
+          image.src = imageUrl
+          image.alt = card.dataset.previewName || ""
+          image.hidden = false
+          fallback.hidden = true
+        } else {
+          image.hidden = true
+          fallback.hidden = false
+        }
+      }
+
+      if (name) name.textContent = card.dataset.previewName || "No card selected"
+      if (type) type.textContent = card.dataset.previewType || ""
+      if (set) set.textContent = card.dataset.previewSet || "Unknown printing"
+      if (finish) finish.textContent = card.dataset.previewFinish || "Nonfoil"
+
+      if (quantity) {
+        const value = Number(card.dataset.previewQuantity || "1")
+        quantity.textContent = `×${value}`
+        quantity.hidden = value <= 1
+      }
+    })
+  }
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, ScannerCamera},
+  hooks: {...colocatedHooks, ScannerCamera, DeckPreview},
 })
 
 // Show progress bar on live navigation and form submits

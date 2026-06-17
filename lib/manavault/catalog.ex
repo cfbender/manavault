@@ -9,6 +9,8 @@ defmodule Manavault.Catalog do
   alias Manavault.Catalog.{
     Card,
     CollectionItem,
+    Deck,
+    DeckCard,
     Location,
     Printing,
     ScanItem,
@@ -304,6 +306,147 @@ defmodule Manavault.Catalog do
     |> create_collection_item()
   end
 
+  # ── Decks ─────────────────────────────────────────────────────────
+
+  def list_decks do
+    Deck
+    |> order_by([deck], asc: deck.name, asc: deck.id)
+    |> Repo.all()
+    |> Repo.preload(:deck_cards)
+  end
+
+  def get_deck!(id) do
+    Deck
+    |> Repo.get!(id)
+    |> Repo.preload(deck_preloads())
+  end
+
+  def change_deck(%Deck{} = deck, attrs \\ %{}) do
+    Deck.changeset(deck, attrs)
+  end
+
+  def create_deck(attrs) when is_map(attrs) do
+    %Deck{}
+    |> Deck.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def update_deck(%Deck{} = deck, attrs) when is_map(attrs) do
+    deck
+    |> Deck.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_deck(%Deck{} = deck) do
+    Repo.delete(deck)
+  end
+
+  def change_deck_card(%DeckCard{} = deck_card, attrs \\ %{}) do
+    DeckCard.changeset(deck_card, attrs)
+  end
+
+  def add_card_to_deck(%Deck{} = deck, attrs) when is_map(attrs) do
+    attrs =
+      attrs
+      |> stringify_keys()
+      |> Map.put_new("deck_id", deck.id)
+      |> normalize_blank_preferred_printing()
+
+    with {:ok, attrs} <- resolve_deck_card_identity(attrs),
+         {:ok, attrs} <- validate_preferred_printing_identity(attrs) do
+      upsert_deck_card(attrs)
+    end
+  end
+
+  def update_deck_card(%DeckCard{} = deck_card, attrs) when is_map(attrs) do
+    attrs =
+      attrs
+      |> stringify_keys()
+      |> normalize_blank_preferred_printing()
+
+    attrs =
+      attrs
+      |> Map.put_new("deck_id", deck_card.deck_id)
+      |> Map.put_new("oracle_id", deck_card.oracle_id)
+
+    with {:ok, attrs} <- validate_preferred_printing_identity(attrs) do
+      deck_card
+      |> DeckCard.changeset(attrs)
+      |> Repo.update()
+    end
+  end
+
+  def delete_deck_card(%DeckCard{} = deck_card) do
+    Repo.delete(deck_card)
+  end
+
+  def import_decklist(%Deck{} = deck, text) when is_binary(text) do
+    entries = text |> parse_decklist() |> dedupe_decklist_entries()
+
+    Repo.transaction(fn ->
+      Enum.reduce(entries, %{imported: 0, unresolved: [], skipped_printings: []}, fn entry,
+                                                                                     result ->
+        case import_deck_card(deck, entry) do
+          {:ok, _deck_card} ->
+            update_in(result.imported, &(&1 + 1))
+
+          {:ok, _deck_card, :skipped_preferred_printing} ->
+            result
+            |> update_in([:imported], &(&1 + 1))
+            |> update_in([:skipped_printings], &[entry["name"] | &1])
+
+          {:error, :card_not_found} ->
+            update_in(result.unresolved, &[entry["name"] | &1])
+
+          {:error, %Ecto.Changeset{} = changeset} ->
+            Repo.rollback(changeset)
+
+          {:error, reason} ->
+            Repo.rollback(reason)
+        end
+      end)
+      |> update_in([:unresolved], &Enum.reverse/1)
+      |> update_in([:skipped_printings], &Enum.reverse/1)
+    end)
+  end
+
+  def export_decklist(%Deck{} = deck) do
+    deck = Repo.preload(deck, deck_preloads(), force: true)
+
+    DeckCard.zones()
+    |> Enum.map(fn zone ->
+      cards = Enum.filter(deck.deck_cards, &(&1.zone == zone))
+
+      if cards == [] do
+        nil
+      else
+        lines =
+          cards
+          |> Enum.sort_by(& &1.card.name)
+          |> Enum.map_join("\n", fn deck_card ->
+            "#{deck_card.quantity} #{deck_card.card.name}"
+          end)
+
+        "#{deck_zone_label(zone)}\n#{lines}"
+      end
+    end)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join("\n\n")
+  end
+
+  def deck_stats(%Deck{} = deck) do
+    deck = Repo.preload(deck, deck_preloads(), force: true)
+
+    cards = deck.deck_cards || []
+
+    %{
+      total: Enum.reduce(cards, 0, &(&1.quantity + &2)),
+      zones: count_deck_groups(cards, & &1.zone),
+      colors: deck_color_counts(cards),
+      types: count_deck_groups(cards, &deck_card_type/1)
+    }
+  end
+
   # ── Scan sessions ─────────────────────────────────────────────────
 
   def list_scan_sessions do
@@ -568,6 +711,314 @@ defmodule Manavault.Catalog do
       accepted: Enum.filter(items, &(&1.status == "accepted"))
     }
   end
+
+  defp stringify_keys(attrs) do
+    Map.new(attrs, fn {key, value} -> {to_string(key), value} end)
+  end
+
+  defp normalize_blank_preferred_printing(%{"preferred_printing_id" => ""} = attrs),
+    do: Map.put(attrs, "preferred_printing_id", nil)
+
+  defp normalize_blank_preferred_printing(attrs), do: attrs
+
+  defp resolve_deck_card_identity(%{"oracle_id" => oracle_id} = attrs)
+       when is_binary(oracle_id) and oracle_id != "" do
+    if Repo.get(Card, oracle_id), do: {:ok, attrs}, else: {:error, :card_not_found}
+  end
+
+  defp resolve_deck_card_identity(%{"name" => name} = attrs) when is_binary(name) do
+    case find_card_by_name(name) do
+      %Card{} = card -> {:ok, Map.put(attrs, "oracle_id", card.oracle_id)}
+      nil -> {:error, :card_not_found}
+    end
+  end
+
+  defp resolve_deck_card_identity(_attrs), do: {:error, :card_not_found}
+
+  defp validate_preferred_printing_identity(
+         %{"oracle_id" => oracle_id, "preferred_printing_id" => preferred_printing_id} = attrs
+       )
+       when is_binary(preferred_printing_id) do
+    case Repo.get(Printing, preferred_printing_id) do
+      %Printing{oracle_id: ^oracle_id} -> {:ok, attrs}
+      %Printing{} -> {:error, :preferred_printing_mismatch}
+      nil -> {:error, :preferred_printing_not_found}
+    end
+  end
+
+  defp validate_preferred_printing_identity(attrs), do: {:ok, attrs}
+
+  defp import_deck_card(deck, entry) do
+    case add_card_to_deck(deck, entry) do
+      {:error, reason}
+      when reason in [:preferred_printing_mismatch, :preferred_printing_not_found] ->
+        entry = Map.put(entry, "preferred_printing_id", nil)
+
+        case add_card_to_deck(deck, entry) do
+          {:ok, deck_card} -> {:ok, deck_card, :skipped_preferred_printing}
+          other -> other
+        end
+
+      other ->
+        other
+    end
+  end
+
+  defp upsert_deck_card(attrs) do
+    deck_id = attrs["deck_id"]
+    oracle_id = attrs["oracle_id"]
+    zone = Map.get(attrs, "zone", "mainboard")
+    quantity = parse_quantity(Map.get(attrs, "quantity", 1))
+
+    existing =
+      Repo.one(
+        from deck_card in DeckCard,
+          where:
+            deck_card.deck_id == ^deck_id and deck_card.oracle_id == ^oracle_id and
+              deck_card.zone == ^zone,
+          limit: 1
+      )
+
+    attrs = Map.put(attrs, "quantity", quantity)
+
+    case existing do
+      nil ->
+        %DeckCard{}
+        |> DeckCard.changeset(attrs)
+        |> Repo.insert()
+
+      %DeckCard{} = deck_card ->
+        update_attrs =
+          attrs
+          |> Map.put("quantity", deck_card.quantity + quantity)
+          |> Map.take(["quantity", "preferred_printing_id", "zone", "finish"])
+          |> Enum.reject(fn {key, value} -> key == "preferred_printing_id" and is_nil(value) end)
+          |> Map.new()
+
+        deck_card
+        |> DeckCard.changeset(update_attrs)
+        |> Repo.update()
+    end
+  end
+
+  defp find_card_by_name(name) do
+    normalized_name = normalize_deck_card_name(name)
+
+    Repo.one(
+      from card in Card,
+        where: fragment("lower(?) = ?", card.name, ^String.downcase(normalized_name)),
+        order_by: [asc: card.name],
+        limit: 1
+    )
+  end
+
+  defp parse_decklist(text) do
+    text
+    |> String.split(~r/\R/u)
+    |> Enum.reduce({[], "mainboard"}, fn line, {entries, zone} ->
+      parse_decklist_line(line, zone, entries)
+    end)
+    |> elem(0)
+    |> Enum.reverse()
+  end
+
+  defp parse_decklist_line(line, current_zone, entries) do
+    line = line |> String.trim() |> strip_decklist_comment()
+
+    cond do
+      line == "" ->
+        {entries, current_zone}
+
+      zone = decklist_zone_heading(line) ->
+        {entries, zone}
+
+      true ->
+        case parse_deck_card_line(line, current_zone) do
+          nil -> {entries, current_zone}
+          entry -> {[entry | entries], current_zone}
+        end
+    end
+  end
+
+  defp parse_deck_card_line("SB:" <> rest, _current_zone),
+    do: parse_deck_card_line(String.trim(rest), "sideboard")
+
+  defp parse_deck_card_line(line, current_zone) do
+    with [_, quantity, name] <- Regex.run(~r/^\s*(\d+)\s*x?\s+(.+?)\s*$/i, line) do
+      {name, preferred_printing_id} = parse_deck_card_name_and_printing(name)
+
+      %{
+        "quantity" => quantity,
+        "name" => name,
+        "zone" => current_zone,
+        "finish" => parse_deck_card_finish(line),
+        "preferred_printing_id" => preferred_printing_id
+      }
+    else
+      _no_match -> nil
+    end
+  end
+
+  defp parse_deck_card_name_and_printing(name) do
+    cleaned_name = normalize_deck_card_name(name)
+
+    case Regex.run(~r/^(.+?)\s+\(([A-Za-z0-9]+)\)\s+([^\s]+)\s*$/, cleaned_name) do
+      [_, card_name, set_code, collector_number] ->
+        printing = get_printing(set_code, collector_number)
+        {normalize_deck_card_name(card_name), printing && printing.scryfall_id}
+
+      _no_printing ->
+        {cleaned_name, nil}
+    end
+  end
+
+  defp normalize_deck_card_name(name) do
+    name
+    |> String.trim()
+    |> String.replace(~r/\s+\[[^\]]+\]\s*$/u, "")
+    |> String.replace(~r/\s+\*[A-Z]+\*\s*$/u, "")
+    |> String.trim()
+  end
+
+  defp parse_deck_card_finish(line) do
+    cond do
+      Regex.match?(~r/\*F\*\s*$/i, line) -> "foil"
+      Regex.match?(~r/\*E\*\s*$/i, line) -> "etched"
+      true -> "nonfoil"
+    end
+  end
+
+  defp dedupe_decklist_entries(entries) do
+    entries
+    |> Enum.reduce(%{}, fn entry, deduped ->
+      key = decklist_entry_key(entry)
+      quantity = parse_quantity(entry["quantity"])
+
+      Map.update(deduped, key, Map.put(entry, "quantity", quantity), fn existing ->
+        existing
+        |> Map.put("quantity", max(parse_quantity(existing["quantity"]), quantity))
+        |> prefer_present_printing(entry)
+      end)
+    end)
+    |> Map.values()
+  end
+
+  defp decklist_entry_key(entry) do
+    {
+      String.downcase(entry["name"] || ""),
+      entry["zone"],
+      entry["preferred_printing_id"],
+      entry["finish"]
+    }
+  end
+
+  defp prefer_present_printing(existing, %{"preferred_printing_id" => preferred_printing_id})
+       when is_binary(preferred_printing_id) do
+    Map.put(existing, "preferred_printing_id", preferred_printing_id)
+  end
+
+  defp prefer_present_printing(existing, _entry), do: existing
+
+  defp strip_decklist_comment(line) do
+    line
+    |> String.replace(~r/\s+#.*$/u, "")
+    |> String.trim()
+  end
+
+  defp decklist_zone_heading(line) do
+    case line |> String.downcase() |> String.trim_trailing(":") do
+      "main" -> "mainboard"
+      "mainboard" -> "mainboard"
+      "deck" -> "mainboard"
+      "side" -> "sideboard"
+      "sideboard" -> "sideboard"
+      "commander" -> "commander"
+      "commanders" -> "commander"
+      "maybe" -> "maybeboard"
+      "maybeboard" -> "maybeboard"
+      _other -> nil
+    end
+  end
+
+  defp parse_quantity(quantity) when is_integer(quantity), do: quantity
+
+  defp parse_quantity(quantity) when is_binary(quantity) do
+    case Integer.parse(quantity) do
+      {parsed, ""} -> parsed
+      _invalid -> 1
+    end
+  end
+
+  defp parse_quantity(_quantity), do: 1
+
+  defp deck_preloads do
+    [
+      deck_cards:
+        {from(deck_card in DeckCard,
+           join: card in assoc(deck_card, :card),
+           left_join: preferred_printing in assoc(deck_card, :preferred_printing),
+           order_by: [
+             asc: deck_card.zone,
+             asc: card.name,
+             asc: deck_card.id
+           ],
+           preload: [
+             card:
+               {card,
+                printings:
+                  ^from(printing in Printing,
+                    order_by: [desc: printing.released_at, asc: printing.set_code]
+                  )},
+             preferred_printing: preferred_printing
+           ]
+         ), []}
+    ]
+  end
+
+  defp deck_zone_label("mainboard"), do: "Mainboard"
+  defp deck_zone_label("sideboard"), do: "Sideboard"
+  defp deck_zone_label("commander"), do: "Commander"
+  defp deck_zone_label("maybeboard"), do: "Maybeboard"
+  defp deck_zone_label(zone), do: String.capitalize(zone)
+
+  defp count_deck_groups(cards, group_fun) do
+    cards
+    |> Enum.group_by(group_fun)
+    |> Map.new(fn {group, group_cards} ->
+      {group, Enum.reduce(group_cards, 0, &(&1.quantity + &2))}
+    end)
+  end
+
+  defp deck_color_counts(cards) do
+    empty = %{"W" => 0, "U" => 0, "B" => 0, "R" => 0, "G" => 0, "C" => 0}
+
+    Enum.reduce(cards, empty, fn deck_card, counts ->
+      colors = deck_card.card.color_identity |> decode_json([]) |> List.wrap()
+
+      if colors == [] do
+        Map.update!(counts, "C", &(&1 + deck_card.quantity))
+      else
+        Enum.reduce(colors, counts, fn color, color_counts ->
+          Map.update(color_counts, color, deck_card.quantity, &(&1 + deck_card.quantity))
+        end)
+      end
+    end)
+  end
+
+  defp deck_card_type(%DeckCard{card: %Card{type_line: type_line}}) when is_binary(type_line) do
+    cond do
+      String.contains?(type_line, "Creature") -> "Creature"
+      String.contains?(type_line, "Land") -> "Land"
+      String.contains?(type_line, "Instant") -> "Instant"
+      String.contains?(type_line, "Sorcery") -> "Sorcery"
+      String.contains?(type_line, "Artifact") -> "Artifact"
+      String.contains?(type_line, "Enchantment") -> "Enchantment"
+      String.contains?(type_line, "Planeswalker") -> "Planeswalker"
+      true -> "Other"
+    end
+  end
+
+  defp deck_card_type(_deck_card), do: "Other"
 
   defp log_capture_timing(started_at, recognition) do
     total_us = System.monotonic_time(:microsecond) - started_at
@@ -878,7 +1329,17 @@ defmodule Manavault.Catalog do
           conflict_target: [:oracle_id],
           on_conflict:
             {:replace,
-             [:name, :type_line, :oracle_text, :color_identity, :legalities, :updated_at]}
+             [
+               :name,
+               :type_line,
+               :oracle_text,
+               :mana_cost,
+               :cmc,
+               :colors,
+               :color_identity,
+               :legalities,
+               :updated_at
+             ]}
         )
 
         insert_in_batches(Printing, printing_rows,
@@ -891,6 +1352,7 @@ defmodule Manavault.Catalog do
                :set_name,
                :collector_number,
                :lang,
+               :rarity,
                :finishes,
                :image_uris,
                :prices,
@@ -1044,6 +1506,9 @@ defmodule Manavault.Catalog do
         name: name,
         type_line: card["type_line"],
         oracle_text: oracle_text(card),
+        mana_cost: card["mana_cost"],
+        cmc: card["cmc"],
+        colors: encode_json(card["colors"] || []),
         color_identity: encode_json(card["color_identity"] || []),
         legalities: encode_json(card["legalities"] || %{}),
         inserted_at: now,
@@ -1064,6 +1529,7 @@ defmodule Manavault.Catalog do
         set_name: card["set_name"],
         collector_number: card["collector_number"] || "",
         lang: card["lang"] || "en",
+        rarity: card["rarity"],
         finishes: encode_json(card["finishes"] || []),
         image_uris: encode_json(image_uris(card)),
         prices: encode_json(card["prices"] || %{}),

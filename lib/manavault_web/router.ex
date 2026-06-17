@@ -21,6 +21,8 @@ defmodule ManavaultWeb.Router do
     get "/scan", ScanController, :index
     live "/cards", CardSearchLive, :index
     live "/cards/:id", CardShowLive, :show
+    live "/decks", DeckLive, :index
+    live "/decks/:id", DeckShowLive, :show
     live "/collection", CollectionLive, :index
     live "/collection/new", CollectionFormLive, :new
     live "/scan-sessions", ScanSessionLive, :index

@@ -51,6 +51,9 @@ defmodule ManavaultWeb.Layouts do
             <a href="/collection" class="btn btn-ghost btn-xs sm:btn-sm">Collection</a>
           </li>
           <li>
+            <a href="/decks" class="btn btn-ghost btn-xs sm:btn-sm">Decks</a>
+          </li>
+          <li>
             <a href="/scan" class="btn btn-ghost btn-xs sm:btn-sm">Scan</a>
           </li>
           <li>
