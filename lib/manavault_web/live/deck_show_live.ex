@@ -4,6 +4,7 @@ defmodule ManavaultWeb.DeckShowLive do
   alias Manavault.Catalog
   alias Manavault.Catalog.{Deck, DeckCard}
   alias ManavaultWeb.CardTile
+  alias Phoenix.LiveView.JS
 
   @format_options Enum.map(Deck.formats(), &{String.capitalize(&1), &1})
   @status_options Enum.map(Deck.statuses(), &{String.capitalize(&1), &1})
@@ -83,10 +84,12 @@ defmodule ManavaultWeb.DeckShowLive do
             class="btn btn-circle btn-xs border-0 bg-base-300/90 shadow"
             tabindex="0"
             aria-label="Card actions"
+            data-card-actions-button
           >
             ⋮
           </button>
           <div
+            id={"deck-card-#{@deck_card.id}-menu"}
             tabindex="0"
             class="dropdown-content z-[300] mt-1 w-60 rounded-box border border-base-300 bg-base-100 p-3 shadow-2xl"
           >
@@ -102,7 +105,13 @@ defmodule ManavaultWeb.DeckShowLive do
             </ul>
             <.form
               for={to_form(%{}, as: :deck_card)}
-              phx-submit="update_deck_card"
+              id={"deck-card-#{@deck_card.id}-edit-form"}
+              phx-submit={
+                JS.push("update_deck_card")
+                |> JS.dispatch("manavault:close-card-menu",
+                  to: "#deck-card-stack-#{@deck_card.id}"
+                )
+              }
               phx-value-id={@deck_card.id}
               class="mt-3 grid gap-2"
             >
@@ -301,7 +310,7 @@ defmodule ManavaultWeb.DeckShowLive do
                 </div>
                 <h1 class="text-3xl font-black tracking-tight sm:text-4xl">{@deck.name}</h1>
                 <p class="text-sm leading-6 text-base-content/70">
-                  {@stats.total} cards across {length(deck_groups(@deck, @group_by))} groups.
+                  {deck_view_count(@deck)} cards across {length(deck_groups(@deck, @group_by))} groups.
                 </p>
               </div>
               <.link navigate={~p"/decks"} class="btn btn-sm btn-outline">All decks</.link>
@@ -312,7 +321,7 @@ defmodule ManavaultWeb.DeckShowLive do
                 for={@add_form}
                 id="add-card-form"
                 phx-submit="add_card"
-                class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_5rem_10rem_auto] sm:items-end"
+                class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_5rem_10rem_auto]"
               >
                 <.input
                   field={@add_form[:name]}
@@ -332,7 +341,9 @@ defmodule ManavaultWeb.DeckShowLive do
                   options={@zone_options}
                   class="w-full select select-sm"
                 />
-                <button class="btn btn-sm btn-primary" type="submit">Add</button>
+                <div class="fieldset mb-2">
+                  <button class="btn btn-sm btn-primary w-full" type="submit">Add</button>
+                </div>
               </.form>
 
               <.form
@@ -418,6 +429,81 @@ defmodule ManavaultWeb.DeckShowLive do
           </div>
         </section>
 
+        <section class="space-y-3">
+          <details
+            :for={board <- deck_boards(@deck)}
+            id={"deck-board-zone-#{board.zone}"}
+            class="rounded-box border border-base-300 bg-base-100 shadow-sm"
+            open={board.open?}
+          >
+            <summary class="flex cursor-pointer items-center justify-between gap-3 p-4">
+              <span class="text-lg font-black">{board.label}</span>
+              <span class="badge badge-outline">{board.count} cards</span>
+            </summary>
+            <div class="overflow-x-auto border-t border-base-300">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th class="w-16">Qty</th>
+                    <th>Card</th>
+                    <th class="hidden md:table-cell">Type</th>
+                    <th class="hidden lg:table-cell">Printing</th>
+                    <th class="hidden sm:table-cell">Finish</th>
+                    <th class="w-48">Zone</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr :for={deck_card <- board.cards}>
+                    <td class="font-black">{deck_card.quantity}</td>
+                    <td>
+                      <div class="flex min-w-64 items-center gap-3">
+                        <img
+                          :if={card_image_url(deck_card)}
+                          src={card_image_url(deck_card)}
+                          alt={card_name(deck_card)}
+                          class="h-12 w-9 rounded object-cover object-top"
+                          loading="lazy"
+                        />
+                        <div
+                          :if={!card_image_url(deck_card)}
+                          class="h-12 w-9 rounded bg-base-300"
+                        />
+                        <.link
+                          navigate={~p"/cards/#{deck_card.oracle_id}"}
+                          class="font-semibold hover:text-primary"
+                        >
+                          {card_name(deck_card)}
+                        </.link>
+                      </div>
+                    </td>
+                    <td class="hidden max-w-xs truncate md:table-cell">{deck_card.card.type_line}</td>
+                    <td class="hidden lg:table-cell">{set_label(deck_card)}</td>
+                    <td class="hidden sm:table-cell">{finish_label(deck_card.finish)}</td>
+                    <td>
+                      <.form
+                        for={to_form(%{}, as: :deck_card)}
+                        id={"deck-card-#{deck_card.id}-board-zone-form"}
+                        phx-change="update_deck_card"
+                        phx-value-id={deck_card.id}
+                      >
+                        <input type="hidden" name="deck_card[quantity]" value={deck_card.quantity} />
+                        <.input
+                          id={"deck-card-#{deck_card.id}-board-zone"}
+                          name="deck_card[zone]"
+                          value={deck_card.zone}
+                          type="select"
+                          options={@zone_options}
+                          class="select select-sm w-full"
+                        />
+                      </.form>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </section>
+
         <section class="grid gap-4 lg:grid-cols-3">
           <details class="rounded-box border border-base-300 bg-base-100 p-5 shadow-sm">
             <summary class="cursor-pointer text-xl font-bold">Deck settings</summary>
@@ -482,11 +568,13 @@ defmodule ManavaultWeb.DeckShowLive do
   defp assign_deck(socket, deck) do
     preview_card = socket.assigns[:preview_card]
     preview_card = refresh_preview_card(deck, preview_card)
+    zone_options = deck_zone_options(deck)
 
     socket
     |> assign(:deck, deck)
     |> assign(:stats, Catalog.deck_stats(deck))
-    |> assign(:preview_card, preview_card || List.first(deck.deck_cards))
+    |> assign(:zone_options, zone_options)
+    |> assign(:preview_card, preview_card || List.first(deck_view_cards(deck)))
     |> assign(:deck_form, deck |> Catalog.change_deck() |> to_form())
     |> assign(:export_text, Catalog.export_decklist(deck))
   end
@@ -497,8 +585,23 @@ defmodule ManavaultWeb.DeckShowLive do
 
   defp refresh_preview_card(_deck, _preview_card), do: nil
 
+  defp deck_zone_options(%Deck{format: "commander"}), do: @zone_options
+
+  defp deck_zone_options(_deck) do
+    Enum.reject(@zone_options, fn {_label, zone} -> zone == "commander" end)
+  end
+
+  defp deck_view_cards(%Deck{format: "commander"} = deck) do
+    Enum.filter(deck.deck_cards, &(&1.zone in ["mainboard", "commander"]))
+  end
+
+  defp deck_view_cards(deck), do: Enum.filter(deck.deck_cards, &(&1.zone == "mainboard"))
+
+  defp deck_view_count(deck), do: Enum.reduce(deck_view_cards(deck), 0, &(&1.quantity + &2))
+
   defp deck_groups(deck, group_by) do
-    deck.deck_cards
+    deck
+    |> deck_view_cards()
     |> Enum.group_by(&deck_group_key(&1, group_by))
     |> Enum.map(fn {label, cards} ->
       cards = Enum.sort_by(cards, &card_sort_key/1)
@@ -561,6 +664,28 @@ defmodule ManavaultWeb.DeckShowLive do
   end
 
   defp group_height(group), do: 10 + group.count
+
+  defp deck_boards(deck) do
+    cards_by_zone = Enum.group_by(deck.deck_cards, & &1.zone)
+
+    deck
+    |> deck_zone_options()
+    |> Enum.reject(fn {_label, zone} -> zone in ["mainboard", "commander"] end)
+    |> Enum.map(fn {label, zone} ->
+      cards =
+        cards_by_zone
+        |> Map.get(zone, [])
+        |> Enum.sort_by(&card_sort_key/1)
+
+      %{
+        label: label,
+        zone: zone,
+        count: Enum.reduce(cards, 0, &(&1.quantity + &2)),
+        cards: cards,
+        open?: false
+      }
+    end)
+  end
 
   defp deck_group_key(_deck_card, "none"), do: "Deck"
   defp deck_group_key(deck_card, "zone"), do: zone_label(deck_card.zone)

@@ -106,3 +106,10 @@
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
 /* This file is for your main application CSS */
+
+.card-menu-closed .dropdown,
+.card-menu-closed .dropdown-content {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}

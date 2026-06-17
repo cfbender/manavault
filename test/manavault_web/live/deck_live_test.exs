@@ -105,4 +105,67 @@ defmodule ManavaultWeb.DeckLiveTest do
     assert html =~ "Commander"
     assert html =~ "Mainboard"
   end
+
+  test "shows cards moved to maybeboard in the board table", %{conn: conn} do
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Boards"})
+    {:ok, deck_card} = Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus"})
+    {:ok, _mainboard_card} = Catalog.add_card_to_deck(deck, %{"name" => "Time Walk"})
+
+    {:ok, view, _html} = live(conn, ~p"/decks/#{deck.id}")
+
+    view
+    |> form("#deck-card-#{deck_card.id}-edit-form",
+      deck_card: %{quantity: "1", zone: "maybeboard"}
+    )
+    |> render_submit()
+
+    html = render(view)
+    assert html =~ "1 cards across"
+    assert html =~ "Maybeboard"
+    assert html =~ "Black Lotus"
+    assert html =~ "LEA #232"
+    refute has_element?(view, "#deck-board-zone-mainboard")
+    assert has_element?(view, "#deck-board-zone-maybeboard")
+
+    view
+    |> form("#deck-card-#{deck_card.id}-board-zone-form",
+      deck_card: %{quantity: "1", zone: "mainboard"}
+    )
+    |> render_change()
+
+    refute has_element?(view, "#deck-card-#{deck_card.id}-board-zone-form")
+  end
+
+  test "includes commander cards in the deck view for commander decks", %{conn: conn} do
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Commander Boards", "format" => "commander"})
+    {:ok, _mainboard_card} = Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus"})
+
+    {:ok, _commander_card} =
+      Catalog.add_card_to_deck(deck, %{"name" => "Time Walk", "zone" => "commander"})
+
+    {:ok, view, html} = live(conn, ~p"/decks/#{deck.id}")
+
+    assert html =~ "2 cards across"
+    assert html =~ "Time Walk"
+    refute has_element?(view, "#deck-board-zone-mainboard")
+    refute has_element?(view, "#deck-board-zone-commander")
+    assert has_element?(view, ~s|#add-card-form option[value="commander"]|)
+  end
+
+  test "hides commander zone controls outside commander format", %{conn: conn} do
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Modern Boards", "format" => "modern"})
+
+    {:ok, sideboard_card} =
+      Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus", "zone" => "sideboard"})
+
+    {:ok, view, _html} = live(conn, ~p"/decks/#{deck.id}")
+
+    refute has_element?(view, "#deck-board-zone-commander")
+    refute has_element?(view, ~s|#add-card-form option[value="commander"]|)
+
+    refute has_element?(
+             view,
+             ~s|#deck-card-#{sideboard_card.id}-board-zone-form option[value="commander"]|
+           )
+  end
 end

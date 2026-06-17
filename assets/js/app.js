@@ -28,6 +28,28 @@ import topbar from "../vendor/topbar"
 
 const DeckPreview = {
   mounted() {
+    this.el.addEventListener("manavault:close-card-menu", event => {
+      event.target.classList.add("card-menu-closed")
+      event.target.addEventListener("mouseleave", () => {
+        event.target.classList.remove("card-menu-closed")
+      }, {once: true})
+
+      window.setTimeout(() => {
+        const activeElement = document.activeElement
+
+        if (activeElement && event.target.contains(activeElement)) {
+          activeElement.blur()
+        }
+      }, 0)
+    })
+
+    this.el.addEventListener("click", event => {
+      const actionsButton = event.target.closest("[data-card-actions-button]")
+      if (!actionsButton || !this.el.contains(actionsButton)) return
+
+      actionsButton.closest("[data-preview-card]")?.classList.remove("card-menu-closed")
+    })
+
     this.el.addEventListener("mouseover", event => {
       const card = event.target.closest("[data-preview-card]")
       if (!card || !this.el.contains(card)) return
