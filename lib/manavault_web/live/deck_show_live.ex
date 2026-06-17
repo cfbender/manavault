@@ -321,11 +321,12 @@ defmodule ManavaultWeb.DeckShowLive do
                 for={@add_form}
                 id="add-card-form"
                 phx-submit="add_card"
-                class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_5rem_10rem_auto]"
+                class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_5rem_10rem_auto] sm:items-end"
               >
-                <.input
+                <.live_component
+                  module={ManavaultWeb.CardNameAutocomplete}
+                  id="deck-add-card-name-autocomplete"
                   field={@add_form[:name]}
-                  type="search"
                   placeholder="Add Cards to deck"
                   class="w-full input input-sm"
                 />
@@ -341,7 +342,7 @@ defmodule ManavaultWeb.DeckShowLive do
                   options={@zone_options}
                   class="w-full select select-sm"
                 />
-                <div class="fieldset mb-2">
+                <div>
                   <button class="btn btn-sm btn-primary w-full" type="submit">Add</button>
                 </div>
               </.form>

@@ -1,4 +1,4 @@
-defmodule ManavaultWeb.PageControllerTest do
+defmodule ManavaultWeb.HomeLiveTest do
   use ManavaultWeb.ConnCase
 
   test "GET / renders app home screen", %{conn: conn} do

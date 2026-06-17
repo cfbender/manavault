@@ -41,7 +41,7 @@ defmodule ManavaultWeb.CardSearchLive do
     ~H"""
     <Layouts.app flash={@flash}>
       <div class="space-y-8">
-        <section class="card overflow-hidden border border-base-300 bg-base-200 shadow-xl">
+        <section class="card border border-base-300 bg-base-200 shadow-xl">
           <div class="card-body gap-6 p-6 sm:p-8">
             <div class="max-w-3xl space-y-4">
               <div class="badge badge-primary badge-outline font-semibold uppercase tracking-wide">
@@ -64,14 +64,15 @@ defmodule ManavaultWeb.CardSearchLive do
               class="rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:p-5"
             >
               <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-                <.input
+                <.live_component
+                  module={ManavaultWeb.CardNameAutocomplete}
+                  id="card-search-name-autocomplete"
                   field={@search_form[:q]}
-                  type="search"
                   label="Card name"
                   placeholder="Black Lotus"
                 />
-                <div class="fieldset mb-2">
-                  <span class="label mb-1 hidden md:block">&nbsp;</span>
+                <div>
+                  <span class="label invisible hidden md:flex">Search</span>
                   <button class="btn btn-primary w-full md:w-auto" type="submit">Search</button>
                 </div>
               </div>

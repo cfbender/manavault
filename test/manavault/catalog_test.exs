@@ -81,6 +81,15 @@ defmodule Manavault.CatalogTest do
     assert Jason.decode!(prices) == %{"usd" => "1.00"}
   end
 
+  test "suggest_card_names returns fuzzy top card name matches" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    assert ["Black Lotus"] = Catalog.suggest_card_names("blak lotu")
+    assert ["Time Walk"] = Catalog.suggest_card_names("timewlk")
+    assert [] = Catalog.suggest_card_names(" ")
+  end
+
   test "collection item CRUD persists exact printing inventory" do
     assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
 

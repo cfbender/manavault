@@ -69,12 +69,24 @@ defmodule ManavaultWeb.CardSearchLiveTest do
     assert html =~ "https://example.test/black-lotus.jpg"
   end
 
+  test "card name input shows fuzzy autocomplete suggestions", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/cards")
+
+    html =
+      view
+      |> element("#search_q")
+      |> render_keyup(%{"value" => "blak lotu"})
+
+    assert html =~ "Black Lotus"
+  end
+
   test "loads search state and results from query params", %{conn: conn} do
-    {:ok, _view, html} = live(conn, ~p"/cards?q=lotus")
+    {:ok, view, html} = live(conn, ~p"/cards?q=lotus")
 
     assert html =~ ~s|value="lotus"|
     assert html =~ "Black Lotus"
     assert html =~ ~s|/cards/oracle-1?q=lotus|
+    refute has_element?(view, "[data-card-name-suggestions]")
   end
 
   test "empty search patches back to plain cards URL", %{conn: conn} do

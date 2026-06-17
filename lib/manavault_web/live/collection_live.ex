@@ -61,6 +61,19 @@ defmodule ManavaultWeb.CollectionLive do
   end
 
   @impl true
+  def handle_info({:card_name_autocomplete, "location-cover-card-autocomplete", query}, socket) do
+    query = String.trim(query || "")
+
+    {:noreply,
+     socket
+     |> assign(:location_cover_query, query)
+     |> assign(
+       :location_cover_options,
+       location_cover_options(query, socket.assigns.editing_location)
+     )}
+  end
+
+  @impl true
   def handle_event("filter", %{"filters" => params}, socket) do
     filters = filter_params(params)
 
@@ -339,19 +352,17 @@ defmodule ManavaultWeb.CollectionLive do
             class="rounded-box border border-base-300 bg-base-100 p-4 shadow-sm"
           >
             <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <label class="form-control min-w-0 flex-1">
-                <span class="label-text">Search</span>
-                <input
-                  id={@filter_form[:q].id}
-                  name={@filter_form[:q].name}
-                  value={@filter_form[:q].value}
-                  type="search"
-                  class="input input-bordered w-full"
+              <div class="min-w-0 flex-1">
+                <.live_component
+                  module={ManavaultWeb.CardNameAutocomplete}
+                  id="collection-filter-card-autocomplete"
+                  field={@filter_form[:q]}
+                  label="Search"
                   placeholder="Card, set, collector #, Scryfall ID"
                 />
-              </label>
+              </div>
 
-              <div class="flex shrink-0 items-end gap-2">
+              <div class="flex shrink-0 items-end gap-2 pb-0">
                 <details class="dropdown dropdown-end">
                   <summary
                     class="btn btn-outline relative"
@@ -597,19 +608,15 @@ defmodule ManavaultWeb.CollectionLive do
                 </div>
 
                 <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-                  <label class="form-control">
-                    <span class="label-text">Search card art</span>
-                    <input
-                      class="input input-bordered"
-                      type="search"
-                      name="cover[q]"
-                      value={@location_cover_query}
-                      placeholder="Black Lotus"
-                      phx-debounce="300"
-                      phx-change="search_location_cover"
-                      onkeydown="if (event.key === 'Enter') event.preventDefault()"
-                    />
-                  </label>
+                  <.live_component
+                    module={ManavaultWeb.CardNameAutocomplete}
+                    id="location-cover-card-autocomplete"
+                    name="cover[q]"
+                    value={@location_cover_query}
+                    label="Search card art"
+                    placeholder="Black Lotus"
+                    notify_parent
+                  />
                 </div>
 
                 <div
