@@ -230,6 +230,7 @@ defmodule ManavaultWeb.CollectionFormLive do
                   <.set_icon
                     set_code={@printing.set_code}
                     label={set_label(@printing)}
+                    rarity={@printing.rarity}
                     class="h-4 w-4"
                     fallback_class="text-xs"
                   />

@@ -2,7 +2,8 @@ defmodule ManavaultWeb.DeckShowLive do
   use ManavaultWeb, :live_view
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.{Deck, DeckCard, Price}
+  alias Manavault.Catalog.{Deck, DeckCard, Price, Printing}
+  alias Manavault.ScryfallAssets
   alias ManavaultWeb.CardTile
   alias Phoenix.LiveView.JS
 
@@ -48,6 +49,9 @@ defmodule ManavaultWeb.DeckShowLive do
       data-preview-name={card_name(@deck_card)}
       data-preview-type={@deck_card.card.type_line}
       data-preview-set={set_label(@deck_card)}
+      data-preview-set-code={set_code(@deck_card)}
+      data-preview-set-icon={set_icon_url(@deck_card)}
+      data-preview-set-color={set_rarity_color(@deck_card)}
       data-preview-finish={finish_label(@deck_card.finish)}
       data-preview-quantity={@deck_card.quantity}
       data-expanded={to_string(@expanded?)}
@@ -246,6 +250,12 @@ defmodule ManavaultWeb.DeckShowLive do
      |> assign(:preview_card, nil)
      |> assign(:expanded_deck_card_id, nil)
      |> assign(:bulk_allocation_preview, nil)
+     |> assign(:deck_modal, nil)
+     |> assign(:buylist_printing_mode, "none")
+     |> assign(:buylist_export_format, "text")
+     |> assign(:buylist_include_basic_lands?, false)
+     |> assign(:buylist_entries, [])
+     |> assign(:buylist_export_text, "")
      |> assign(:add_form, to_form(%{"quantity" => "1", "zone" => "mainboard"}, as: :deck_card))
      |> assign(:import_form, to_form(%{"decklist" => ""}, as: :import))
      |> assign(:export_text, "")}
@@ -430,6 +440,17 @@ defmodule ManavaultWeb.DeckShowLive do
   end
 
   @impl true
+  def handle_event("open_deck_modal", %{"modal" => modal}, socket)
+      when modal in ["settings", "missing", "import", "export"] do
+    {:noreply, assign(socket, :deck_modal, modal)}
+  end
+
+  @impl true
+  def handle_event("close_deck_modal", _params, socket) do
+    {:noreply, assign(socket, :deck_modal, nil)}
+  end
+
+  @impl true
   def handle_event("import_decklist", %{"import" => %{"decklist" => text}}, socket) do
     case Catalog.import_decklist(socket.assigns.deck, text) do
       {:ok, %{imported: imported, unresolved: [], skipped_printings: []}} ->
@@ -456,6 +477,22 @@ defmodule ManavaultWeb.DeckShowLive do
   @impl true
   def handle_event("refresh_export", _params, socket) do
     {:noreply, assign(socket, :export_text, Catalog.export_decklist(socket.assigns.deck))}
+  end
+
+  @impl true
+  def handle_event("update_buylist", %{"buylist" => params}, socket) do
+    printing_mode = Map.get(params, "printing_mode", socket.assigns.buylist_printing_mode)
+    export_format = Map.get(params, "export_format", socket.assigns.buylist_export_format)
+    include_basic_lands? = truthy_param?(Map.get(params, "include_basic_lands"))
+
+    {:noreply,
+     assign_buylist(
+       socket,
+       socket.assigns.deck,
+       printing_mode,
+       export_format,
+       include_basic_lands?
+     )}
   end
 
   @impl true
@@ -501,6 +538,33 @@ defmodule ManavaultWeb.DeckShowLive do
                       <.icon name="hero-squares-plus" class="size-4" /> Partial Matches
                     </button>
                   </div>
+                </details>
+                <details class="dropdown dropdown-end">
+                  <summary class="btn btn-sm btn-ghost btn-square" aria-label="Deck actions">
+                    <.icon name="hero-ellipsis-vertical" class="size-5" />
+                  </summary>
+                  <ul class="dropdown-content menu z-30 mt-2 w-48 rounded-box border border-base-300 bg-base-100 p-2 shadow-2xl">
+                    <li>
+                      <button type="button" phx-click="open_deck_modal" phx-value-modal="settings">
+                        Deck settings
+                      </button>
+                    </li>
+                    <li>
+                      <button type="button" phx-click="open_deck_modal" phx-value-modal="missing">
+                        Missing cards
+                      </button>
+                    </li>
+                    <li>
+                      <button type="button" phx-click="open_deck_modal" phx-value-modal="import">
+                        Import decklist
+                      </button>
+                    </li>
+                    <li>
+                      <button type="button" phx-click="open_deck_modal" phx-value-modal="export">
+                        Export decklist
+                      </button>
+                    </li>
+                  </ul>
                 </details>
                 <.link navigate={~p"/decks"} class="btn btn-sm btn-outline">All decks</.link>
               </div>
@@ -580,13 +644,20 @@ defmodule ManavaultWeb.DeckShowLive do
                 </p>
                 <div class="flex flex-wrap gap-2">
                   <span id="deck-preview-set" class="badge badge-outline gap-1">
-                    <.set_icon
-                      set_code={set_code(@preview_card)}
-                      label={set_label(@preview_card)}
-                      class="h-4 w-4"
-                      fallback_class="text-xs"
-                    />
-                    <span class="sr-only">{set_label(@preview_card)}</span>
+                    <span
+                      id="deck-preview-set-icon"
+                      hidden={!set_icon_url(@preview_card)}
+                      class="inline-block h-4 w-4 shrink-0 align-[-0.2em]"
+                      style={set_icon_mask_style(@preview_card)}
+                    ></span>
+                    <span
+                      id="deck-preview-set-fallback"
+                      hidden={set_icon_url(@preview_card)}
+                      class="text-xs"
+                    >
+                      {set_code(@preview_card)}
+                    </span>
+                    <span id="deck-preview-set-label">{set_label(@preview_card)}</span>
                   </span>
                   <span id="deck-preview-finish" class="badge badge-ghost">
                     {finish_label(@preview_card.finish)}
@@ -694,6 +765,7 @@ defmodule ManavaultWeb.DeckShowLive do
                         <.set_icon
                           set_code={set_code(deck_card)}
                           label={set_label(deck_card)}
+                          rarity={set_rarity(deck_card)}
                           class="h-4 w-4"
                           fallback_class="text-xs"
                         />
@@ -725,14 +797,55 @@ defmodule ManavaultWeb.DeckShowLive do
             </div>
           </details>
         </section>
+      </div>
 
-        <section class="grid gap-4 lg:grid-cols-3">
-          <details
-            id="deck-settings-panel"
-            class="rounded-box border border-base-300 bg-base-100 p-5 shadow-sm"
-            open={@deck_settings_open?}
-          >
-            <summary class="cursor-pointer text-xl font-bold">Deck settings</summary>
+      <div
+        :if={@deck_modal}
+        id="deck-action-modal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4"
+      >
+        <button
+          type="button"
+          class="absolute inset-0 cursor-default"
+          phx-click="close_deck_modal"
+          aria-label="Close"
+        ></button>
+        <div class="relative z-10 max-h-[min(42rem,calc(100vh-2rem))] w-full max-w-4xl overflow-y-auto rounded-box border border-base-300 bg-base-100 p-6 shadow-2xl">
+          <div class="mb-4 flex items-center justify-between gap-3">
+            <h2 class="text-2xl font-black">{deck_modal_title(@deck_modal)}</h2>
+            <div class="flex items-center gap-2">
+              <button
+                :if={@deck_modal == "missing"}
+                type="button"
+                id="copy-buylist-export"
+                class="btn btn-sm btn-outline gap-2"
+                phx-hook="ClipboardCopy"
+                data-copy-target="#buylist-export-text"
+              >
+                <.icon name="hero-clipboard-document" class="size-4" /> Copy
+              </button>
+              <button
+                :if={@deck_modal == "export"}
+                type="button"
+                id="copy-decklist-export"
+                class="btn btn-sm btn-outline gap-2"
+                phx-hook="ClipboardCopy"
+                data-copy-target="#decklist-export-text"
+              >
+                <.icon name="hero-clipboard-document" class="size-4" /> Copy
+              </button>
+              <button
+                type="button"
+                class="btn btn-sm btn-circle btn-ghost"
+                phx-click="close_deck_modal"
+                aria-label="Close"
+              >
+                <.icon name="hero-x-mark" class="size-5" />
+              </button>
+            </div>
+          </div>
+
+          <div :if={@deck_modal == "settings"}>
             <.form
               for={@deck_form}
               id="deck-settings-form"
@@ -755,10 +868,157 @@ defmodule ManavaultWeb.DeckShowLive do
               />
               <button class="btn btn-primary" type="submit">Save deck</button>
             </.form>
-          </details>
+          </div>
 
-          <details class="rounded-box border border-base-300 bg-base-100 p-5 shadow-sm">
-            <summary class="cursor-pointer text-xl font-bold">Import decklist</summary>
+          <div :if={@deck_modal == "missing"} class="space-y-4">
+            <.form
+              for={
+                to_form(
+                  %{
+                    "printing_mode" => @buylist_printing_mode,
+                    "export_format" => @buylist_export_format,
+                    "include_basic_lands" => @buylist_include_basic_lands?
+                  },
+                  as: :buylist
+                )
+              }
+              id="buylist-options-form"
+              phx-change="update_buylist"
+              class="control-toolbar grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+            >
+              <.input
+                field={
+                  to_form(%{"printing_mode" => @buylist_printing_mode}, as: :buylist)[
+                    :printing_mode
+                  ]
+                }
+                type="select"
+                label="Printing"
+                options={[
+                  {"None", "none"},
+                  {"Cheapest known", "cheapest"},
+                  {"Exact/preferred", "exact"}
+                ]}
+                class="select select-sm w-full"
+              />
+              <.input
+                field={
+                  to_form(%{"export_format" => @buylist_export_format}, as: :buylist)[
+                    :export_format
+                  ]
+                }
+                type="select"
+                label="Export"
+                options={[{"Plain text", "text"}, {"CSV", "csv"}]}
+                class="select select-sm w-full"
+              />
+              <label class="label cursor-pointer justify-start gap-2 self-end">
+                <input
+                  type="checkbox"
+                  name="buylist[include_basic_lands]"
+                  value="true"
+                  checked={@buylist_include_basic_lands?}
+                  class="checkbox checkbox-sm"
+                />
+                <span class="label-text">Include basic lands</span>
+              </label>
+            </.form>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <form
+                id="card-kingdom-buylist-form"
+                action="https://www.cardkingdom.com/builder"
+                method="post"
+                target="_blank"
+                class="inline-flex"
+              >
+                <input type="hidden" name="c" value={vendor_buylist_pipe_text(@buylist_entries)} />
+                <input type="hidden" name="partner" value="manavault" />
+                <input type="hidden" name="po_origin" value="1" />
+                <input type="hidden" name="partner_args" value="manavault,buylist" />
+                <button
+                  type="submit"
+                  id="card-kingdom-buylist-link"
+                  class="btn btn-sm btn-outline gap-2"
+                  disabled={@buylist_entries == []}
+                >
+                  <.icon name="hero-building-storefront" class="size-4" /> Card Kingdom
+                </button>
+              </form>
+
+              <a
+                id="mana-pool-buylist-link"
+                href={mana_pool_buylist_url(@buylist_entries)}
+                target="_blank"
+                rel="noopener"
+                class={vendor_buylist_link_class(@buylist_entries)}
+                aria-disabled={to_string(@buylist_entries == [])}
+              >
+                <.icon name="hero-circle-stack" class="size-4" /> Mana Pool
+              </a>
+
+              <a
+                id="tcgplayer-buylist-link"
+                href={tcgplayer_buylist_url(@buylist_entries)}
+                target="_blank"
+                rel="noopener"
+                class={vendor_buylist_link_class(@buylist_entries)}
+                aria-disabled={to_string(@buylist_entries == [])}
+              >
+                <.icon name="hero-shopping-cart" class="size-4" /> TCG Player
+              </a>
+            </div>
+
+            <div class="rounded-box border border-base-300 bg-base-200/60 p-3">
+              <p class="text-sm text-base-content/70">
+                {buylist_summary(@buylist_entries)}
+              </p>
+            </div>
+
+            <div :if={@buylist_entries == []} class="alert">
+              <span>No missing or unavailable cards for this deck.</span>
+            </div>
+
+            <div :if={@buylist_entries != []} class="overflow-x-auto">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>Qty</th>
+                    <th>Card</th>
+                    <th>Reason</th>
+                    <th>Printing</th>
+                    <th class="text-right">Est.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr :for={entry <- @buylist_entries}>
+                    <td class="font-black">{entry.quantity}</td>
+                    <td>{entry.card_name}</td>
+                    <td>
+                      <span class={["badge badge-sm", buylist_reason_badge(entry)]}>
+                        {entry.reason}
+                      </span>
+                    </td>
+                    <td class="whitespace-nowrap">
+                      {buylist_printing_label(entry)}
+                    </td>
+                    <td class="text-right font-mono">
+                      {Price.format_cents(entry.total_price_cents) || "-"}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <textarea
+              id="buylist-export-text"
+              class="textarea w-full font-mono text-xs"
+              rows="8"
+              readonly
+            ><%= @buylist_export_text %></textarea>
+          </div>
+
+          <div :if={@deck_modal == "import"}>
             <.form
               for={@import_form}
               id="import-decklist-form"
@@ -774,18 +1034,20 @@ defmodule ManavaultWeb.DeckShowLive do
               />
               <button class="btn btn-primary" type="submit">Import</button>
             </.form>
-          </details>
+          </div>
 
-          <details class="rounded-box border border-base-300 bg-base-100 p-5 shadow-sm">
-            <summary class="cursor-pointer text-xl font-bold">Export</summary>
-            <div class="mt-4 space-y-4">
-              <button class="btn btn-sm btn-outline" type="button" phx-click="refresh_export">
-                Refresh
-              </button>
-              <textarea class="textarea w-full font-mono text-xs" rows="10" readonly><%= @export_text %></textarea>
-            </div>
-          </details>
-        </section>
+          <div :if={@deck_modal == "export"} class="space-y-4">
+            <button class="btn btn-sm btn-outline" type="button" phx-click="refresh_export">
+              Refresh
+            </button>
+            <textarea
+              id="decklist-export-text"
+              class="textarea w-full font-mono text-xs"
+              rows="10"
+              readonly
+            ><%= @export_text %></textarea>
+          </div>
+        </div>
       </div>
 
       <dialog
@@ -890,7 +1152,32 @@ defmodule ManavaultWeb.DeckShowLive do
     |> assign(:preview_card, preview_card || List.first(deck_view_cards(deck)))
     |> assign(:deck_form, deck |> Catalog.change_deck() |> to_form())
     |> assign(:export_text, Catalog.export_decklist(deck))
+    |> assign_buylist(
+      deck,
+      socket.assigns[:buylist_printing_mode] || "none",
+      socket.assigns[:buylist_export_format] || "text",
+      socket.assigns[:buylist_include_basic_lands?] || false
+    )
   end
+
+  defp assign_buylist(socket, deck, printing_mode, export_format, include_basic_lands?) do
+    opts = [printing_mode: printing_mode, include_basic_lands: include_basic_lands?]
+
+    socket
+    |> assign(:buylist_printing_mode, printing_mode)
+    |> assign(:buylist_export_format, export_format)
+    |> assign(:buylist_include_basic_lands?, include_basic_lands?)
+    |> assign(:buylist_entries, Catalog.deck_buylist(deck, opts))
+    |> assign(:buylist_export_text, Catalog.export_deck_buylist(deck, export_format, opts))
+  end
+
+  defp deck_modal_title("settings"), do: "Deck settings"
+  defp deck_modal_title("missing"), do: "Missing cards"
+  defp deck_modal_title("import"), do: "Import decklist"
+  defp deck_modal_title("export"), do: "Export decklist"
+  defp deck_modal_title(_modal), do: "Deck"
+
+  defp truthy_param?(value), do: value in [true, "true", "on", "1", 1]
 
   defp refresh_preview_card(deck, %{id: id}) do
     Enum.find(deck.deck_cards, &(&1.id == id))
@@ -914,6 +1201,58 @@ defmodule ManavaultWeb.DeckShowLive do
 
   defp deck_total_text(%Deck{} = deck),
     do: deck.deck_cards |> Price.deck_cards_total_cents() |> Price.format_cents()
+
+  defp buylist_summary([]), do: "No purchases needed."
+
+  defp buylist_summary(entries) do
+    quantity = Enum.reduce(entries, 0, &(&1.quantity + &2))
+    unavailable = Enum.reduce(entries, 0, &(&1.unavailable + &2))
+    missing = Enum.reduce(entries, 0, &(&1.missing + &2))
+
+    "#{quantity} cards to source: #{missing} missing, #{unavailable} owned but unavailable."
+  end
+
+  defp buylist_reason_badge(%{missing: missing, unavailable: unavailable})
+       when missing > 0 and unavailable > 0,
+       do: "badge-warning"
+
+  defp buylist_reason_badge(%{unavailable: unavailable}) when unavailable > 0, do: "badge-info"
+  defp buylist_reason_badge(_entry), do: "badge-error"
+
+  defp buylist_printing_label(%{set_code: set_code, collector_number: collector_number})
+       when is_binary(set_code) and is_binary(collector_number) do
+    "#{String.upcase(set_code)} #{collector_number}"
+  end
+
+  defp buylist_printing_label(_entry), do: "Any printing"
+
+  defp vendor_buylist_pipe_text(entries), do: Enum.map_join(entries, "||", &vendor_buylist_line/1)
+
+  defp vendor_buylist_plain_text(entries),
+    do: Enum.map_join(entries, "\n", &vendor_buylist_line/1)
+
+  defp vendor_buylist_line(entry), do: "#{entry.quantity} #{entry.card_name}"
+
+  defp mana_pool_buylist_url([]), do: "https://manapool.com/add-deck"
+
+  defp mana_pool_buylist_url(entries) do
+    deck_payload =
+      entries
+      |> vendor_buylist_plain_text()
+      |> Base.encode64()
+      |> URI.encode_www_form()
+
+    "https://manapool.com/add-deck?deck=#{deck_payload}"
+  end
+
+  defp tcgplayer_buylist_url([]), do: "https://store.tcgplayer.com/massentry"
+
+  defp tcgplayer_buylist_url(entries) do
+    "https://store.tcgplayer.com/massentry?c=#{URI.encode_www_form(vendor_buylist_pipe_text(entries))}"
+  end
+
+  defp vendor_buylist_link_class([]), do: "btn btn-sm btn-outline btn-disabled gap-2"
+  defp vendor_buylist_link_class(_entries), do: "btn btn-sm btn-outline gap-2"
 
   defp deck_groups(deck, group_by) do
     deck
@@ -1125,6 +1464,69 @@ defmodule ManavaultWeb.DeckShowLive do
 
   defp set_code(%DeckCard{} = deck_card), do: CardTile.set_code(deck_card)
   defp set_code(_deck_card), do: "?"
+
+  defp set_rarity(%DeckCard{} = deck_card), do: CardTile.set_rarity(deck_card)
+  defp set_rarity(_deck_card), do: nil
+
+  defp set_icon_url(%DeckCard{} = deck_card) do
+    deck_card
+    |> set_code()
+    |> ScryfallAssets.set()
+    |> case do
+      %{"local_uri" => local_uri} when is_binary(local_uri) and local_uri != "" -> local_uri
+      _entry -> nil
+    end
+  end
+
+  defp set_icon_url(_deck_card), do: nil
+
+  defp set_icon_mask_style(%DeckCard{} = deck_card) do
+    case set_icon_url(deck_card) do
+      nil ->
+        nil
+
+      icon_url ->
+        [
+          "background-color: #{set_rarity_color(deck_card)}",
+          "mask-image: url('#{icon_url}')",
+          "-webkit-mask-image: url('#{icon_url}')",
+          "mask-position: center",
+          "-webkit-mask-position: center",
+          "mask-repeat: no-repeat",
+          "-webkit-mask-repeat: no-repeat",
+          "mask-size: contain",
+          "-webkit-mask-size: contain"
+        ]
+        |> Enum.join("; ")
+    end
+  end
+
+  defp set_icon_mask_style(_deck_card), do: nil
+
+  defp set_rarity_color(%DeckCard{} = deck_card) do
+    deck_card
+    |> deck_card_printing()
+    |> printing_rarity_color()
+  end
+
+  defp deck_card_printing(%DeckCard{preferred_printing: %Printing{} = printing}), do: printing
+
+  defp deck_card_printing(%DeckCard{card: %{printings: [%Printing{} = printing | _]}}),
+    do: printing
+
+  defp deck_card_printing(_deck_card), do: nil
+
+  defp printing_rarity_color(%Printing{rarity: rarity}) do
+    case rarity do
+      "mythic" -> "#de652a"
+      "rare" -> "#c9aa6a"
+      "uncommon" -> "#a9c2c3"
+      "common" -> "#171717"
+      _other -> "#171717"
+    end
+  end
+
+  defp printing_rarity_color(_printing), do: "#171717"
 
   defp collection_item_label(item) do
     [

@@ -38,6 +38,7 @@ defmodule ManavaultWeb.CardTile do
       |> assign(:image_url, item_image_url(assigns.item))
       |> assign(:card_name, card_name(assigns.item))
       |> assign(:set_code, set_code(assigns.item))
+      |> assign(:set_rarity, set_rarity(assigns.item))
       |> assign(:price_text, price_text(assigns.item))
       |> assign(:quantity, item_quantity(assigns.item))
       |> assign(:click_id, assigns.click_value_id || item_click_id(assigns.item))
@@ -162,7 +163,8 @@ defmodule ManavaultWeb.CardTile do
               <span class="badge badge-sm border-white/30 bg-black/45 text-white backdrop-blur-sm">
                 <.set_icon
                   set_code={@set_code}
-                  class="h-4 w-4 brightness-0 invert"
+                  rarity={@set_rarity}
+                  class="h-4 w-4"
                   fallback_class="text-[0.65rem]"
                 />
               </span>
@@ -218,6 +220,12 @@ defmodule ManavaultWeb.CardTile do
   def set_code(%Printing{} = printing), do: printing_set_code(printing)
   def set_code(_item), do: "?"
 
+  def set_rarity(%CollectionItem{printing: %{rarity: rarity}}), do: rarity
+  def set_rarity(%DeckCard{} = item), do: item |> tile_printing() |> printing_rarity()
+  def set_rarity(%ScanItem{} = item), do: item |> tile_printing() |> printing_rarity()
+  def set_rarity(%Printing{} = printing), do: printing_rarity(printing)
+  def set_rarity(_item), do: nil
+
   def price_text(%CollectionItem{} = item), do: Price.text_for_collection_item(item)
   def price_text(%DeckCard{} = item), do: Price.text_for_deck_card(item)
   def price_text(%ScanItem{} = item), do: item |> tile_printing() |> printing_price_text()
@@ -263,6 +271,9 @@ defmodule ManavaultWeb.CardTile do
     do: String.upcase(set_code)
 
   defp printing_set_code(_printing), do: "?"
+
+  defp printing_rarity(%Printing{rarity: rarity}), do: rarity
+  defp printing_rarity(_printing), do: nil
 
   defp printing_price_text(%Printing{} = printing), do: Price.text_for_printing(printing)
   defp printing_price_text(_printing), do: nil

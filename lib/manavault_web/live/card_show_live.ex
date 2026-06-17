@@ -132,7 +132,8 @@ defmodule ManavaultWeb.CardShowLive do
                 <span class="absolute bottom-1.5 left-1.5 inline-flex h-6 min-w-6 items-center justify-center rounded-md border border-white/20 bg-black/60 px-1 shadow backdrop-blur-sm">
                   <.set_icon
                     set_code={printing.set_code}
-                    class="h-4 w-4 brightness-0 invert"
+                    rarity={printing.rarity}
+                    class="h-4 w-4"
                     fallback_class="text-[0.65rem]"
                   />
                 </span>
@@ -185,6 +186,7 @@ defmodule ManavaultWeb.CardShowLive do
                   <.set_icon
                     set_code={@selected_printing.set_code}
                     label={set_label(@selected_printing)}
+                    rarity={@selected_printing.rarity}
                     class="h-5 w-5"
                     fallback_class="text-sm"
                   />

@@ -58,7 +58,9 @@ const DeckPreview = {
       const fallback = document.getElementById("deck-preview-fallback")
       const name = document.getElementById("deck-preview-name")
       const type = document.getElementById("deck-preview-type")
-      const set = document.getElementById("deck-preview-set")
+      const set = document.getElementById("deck-preview-set-label")
+      const setIcon = document.getElementById("deck-preview-set-icon")
+      const setFallback = document.getElementById("deck-preview-set-fallback")
       const finish = document.getElementById("deck-preview-finish")
       const quantity = document.getElementById("deck-preview-quantity")
       const imageUrl = card.dataset.previewImage
@@ -78,6 +80,23 @@ const DeckPreview = {
       if (name) name.textContent = card.dataset.previewName || "No card selected"
       if (type) type.textContent = card.dataset.previewType || ""
       if (set) set.textContent = card.dataset.previewSet || "Unknown printing"
+      if (setIcon && setFallback) {
+        const setIconUrl = card.dataset.previewSetIcon
+
+        if (setIconUrl) {
+          const maskUrl = `url("${setIconUrl.replaceAll("\"", "%22")}")`
+
+          setIcon.style.maskImage = maskUrl
+          setIcon.style.webkitMaskImage = maskUrl
+          setIcon.style.backgroundColor = card.dataset.previewSetColor || "currentColor"
+          setIcon.hidden = false
+          setFallback.hidden = true
+        } else {
+          setIcon.hidden = true
+          setFallback.textContent = card.dataset.previewSetCode || "?"
+          setFallback.hidden = false
+        }
+      }
       if (finish) finish.textContent = card.dataset.previewFinish || "Nonfoil"
 
       if (quantity) {
@@ -89,11 +108,33 @@ const DeckPreview = {
   }
 }
 
+const ClipboardCopy = {
+  mounted() {
+    this.el.addEventListener("click", async () => {
+      const target = document.querySelector(this.el.dataset.copyTarget)
+      const text = target?.value ?? target?.textContent ?? ""
+      if (!text) return
+
+      try {
+        await navigator.clipboard.writeText(text)
+      } catch (_error) {
+        const selection = document.getSelection()
+        target.select?.()
+        document.execCommand("copy")
+        selection?.removeAllRanges()
+      }
+
+      this.el.dataset.copied = "true"
+      window.setTimeout(() => delete this.el.dataset.copied, 1200)
+    })
+  }
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, ScannerCamera, DeckPreview},
+  hooks: {...colocatedHooks, ScannerCamera, DeckPreview, ClipboardCopy},
 })
 
 // Show progress bar on live navigation and form submits

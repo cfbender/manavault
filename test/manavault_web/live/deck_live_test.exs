@@ -82,6 +82,12 @@ defmodule ManavaultWeb.DeckLiveTest do
     assert html =~ "Mainboard"
     assert html =~ "1 cards"
     assert html =~ "Estimated value $100k"
+    assert html =~ ~s|id="deck-preview-set-label"|
+    assert html =~ ~r/LE[AB] #23[23]/
+
+    show
+    |> element(~s|button[phx-click="open_deck_modal"][phx-value-modal="settings"]|)
+    |> render_click()
 
     show
     |> form("#deck-settings-form",
@@ -92,14 +98,18 @@ defmodule ManavaultWeb.DeckLiveTest do
     html = render(show)
     assert html =~ "Powered Updated"
     assert html =~ "Commander · Active"
-    assert html =~ ~s|id="deck-settings-panel"|
-    assert html =~ ~r/<details[^>]*id="deck-settings-panel"[^>]*open/
+    assert html =~ ~s|id="deck-action-modal"|
+    assert html =~ "Deck settings"
   end
 
   test "imports a plain text decklist with zones", %{conn: conn} do
     {:ok, deck} = Catalog.create_deck(%{"name" => "Importable"})
 
     {:ok, view, _html} = live(conn, ~p"/decks/#{deck.id}")
+
+    view
+    |> element(~s|button[phx-click="open_deck_modal"][phx-value-modal="import"]|)
+    |> render_click()
 
     view
     |> form("#import-decklist-form",
@@ -122,6 +132,13 @@ defmodule ManavaultWeb.DeckLiveTest do
     assert html =~ "Nonfoil"
     assert html =~ "Commander"
     assert html =~ "Mainboard"
+
+    view
+    |> element(~s|button[phx-click="open_deck_modal"][phx-value-modal="export"]|)
+    |> render_click()
+
+    assert has_element?(view, "#copy-decklist-export[data-copy-target='#decklist-export-text']")
+    assert has_element?(view, "#decklist-export-text")
   end
 
   test "shows cards moved to maybeboard in the board table", %{conn: conn} do
@@ -263,6 +280,101 @@ defmodule ManavaultWeb.DeckLiveTest do
     html = render(view)
     assert html =~ "1/1 available to allocate"
     assert html =~ "Owned 1 · Free 1 · Here 0 · Elsewhere 0"
+  end
+
+  test "deck page shows missing card buylist and exports text and csv", %{conn: conn} do
+    assert {:ok, _available_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    assert {:ok, unavailable_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-3",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Buylist", "format" => "vintage"})
+
+    {:ok, other_deck} =
+      Catalog.create_deck(%{"name" => "Sleeved", "format" => "vintage", "status" => "active"})
+
+    {:ok, _deck_card} =
+      Catalog.add_card_to_deck(deck, %{
+        "name" => "Black Lotus",
+        "quantity" => 3,
+        "preferred_printing_id" => "scryfall-printing-1"
+      })
+
+    {:ok, other_lotus} = Catalog.add_card_to_deck(other_deck, %{"name" => "Black Lotus"})
+
+    assert {:ok, _allocation} =
+             Catalog.allocate_collection_item_to_deck_card(other_lotus.id, unavailable_item.id)
+
+    {:ok, view, _html} = live(conn, ~p"/decks/#{deck.id}")
+
+    view
+    |> element(~s|button[phx-click="open_deck_modal"][phx-value-modal="missing"]|)
+    |> render_click()
+
+    html = render(view)
+
+    assert html =~ "Missing cards"
+    assert html =~ "2 cards to source: 1 missing, 1 owned but unavailable."
+    assert html =~ "missing and owned but unavailable"
+    assert html =~ "Black Lotus"
+    assert html =~ "Any printing"
+    assert html =~ ">2 Black Lotus</textarea>"
+    assert has_element?(view, "#copy-buylist-export[data-copy-target='#buylist-export-text']")
+    assert has_element?(view, "#buylist-export-text")
+
+    assert has_element?(
+             view,
+             ~s|#card-kingdom-buylist-form[action="https://www.cardkingdom.com/builder"][method="post"][target="_blank"]|
+           )
+
+    assert has_element?(
+             view,
+             ~s|#card-kingdom-buylist-form input[name="c"][value="2 Black Lotus"]|
+           )
+
+    assert has_element?(
+             view,
+             ~s|#mana-pool-buylist-link[href^="https://manapool.com/add-deck?deck="]|
+           )
+
+    assert has_element?(
+             view,
+             ~s|#tcgplayer-buylist-link[href="https://store.tcgplayer.com/massentry?c=2+Black+Lotus"]|
+           )
+
+    assert html =~ "Card Kingdom"
+    assert html =~ "Mana Pool"
+    assert html =~ "TCG Player"
+    assert String.replace(html, "\n", "") =~ ~r/Card Kingdom.*Mana Pool.*TCG Player/
+
+    view
+    |> form("#buylist-options-form",
+      buylist: %{printing_mode: "cheapest", export_format: "csv"}
+    )
+    |> render_change()
+
+    html = render(view)
+
+    assert html =~
+             "Quantity,Card,Set,Collector Number,Finish,Language,Reason,Unit Price,Total Price"
+
+    assert html =~ "LEB 233"
+
+    assert html =~
+             "2,Black Lotus,leb,233,nonfoil,en,missing and owned but unavailable,$100k,$200k"
   end
 
   test "bulk allocation buttons allocate exact and matching collection printings", %{conn: conn} do

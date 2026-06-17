@@ -211,6 +211,7 @@ defmodule ManavaultWeb.LocationLive do
                     <.set_icon
                       set_code={set_code(@selected_item)}
                       label={set_label(@selected_item)}
+                      rarity={ManavaultWeb.CardTile.set_rarity(@selected_item)}
                       class="h-4 w-4"
                       fallback_class="text-xs"
                     />
