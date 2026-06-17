@@ -107,6 +107,18 @@
 
 /* This file is for your main application CSS */
 
+:root {
+  --set-symbol-common-color: #000;
+}
+
+[data-theme="dark"] {
+  --set-symbol-common-color: #fff;
+}
+
+[data-theme="light"] {
+  --set-symbol-common-color: #000;
+}
+
 .control-toolbar {
   align-items: end;
 }

@@ -69,7 +69,7 @@ defmodule ManavaultWeb.MagicSymbols do
       |> assign(:entry, ScryfallAssets.set(assigns.set_code || ""))
       |> assign(:normalized_code, String.upcase(assigns.set_code || "?"))
       |> assign(
-        :mask_style,
+        :fill_style,
         set_icon_mask_style(ScryfallAssets.set(assigns.set_code || ""), assigns.rarity)
       )
 
@@ -81,7 +81,7 @@ defmodule ManavaultWeb.MagicSymbols do
       aria-label={@label || @entry["name"] || @normalized_code}
       data-set-code={@normalized_code}
       class={["set-symbol inline-block h-[1.3em] w-[1.3em] align-[-0.2em]", @class]}
-      style={@mask_style}
+      style={@fill_style}
     ></span>
     <span :if={!@entry || !@entry["local_uri"]} class={@fallback_class}>{@normalized_code}</span>
     """
@@ -110,8 +110,8 @@ defmodule ManavaultWeb.MagicSymbols do
   defp rarity_color("mythic"), do: "#de652a"
   defp rarity_color("rare"), do: "#c9aa6a"
   defp rarity_color("uncommon"), do: "#a9c2c3"
-  defp rarity_color("common"), do: "#171717"
-  defp rarity_color(_rarity), do: "#171717"
+  defp rarity_color("common"), do: "var(--set-symbol-common-color)"
+  defp rarity_color(_rarity), do: "var(--set-symbol-common-color)"
 
   defp symbol_parts(text) when is_binary(text) do
     ~r/\{[^}]+\}/

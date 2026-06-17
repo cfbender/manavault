@@ -1521,12 +1521,12 @@ defmodule ManavaultWeb.DeckShowLive do
       "mythic" -> "#de652a"
       "rare" -> "#c9aa6a"
       "uncommon" -> "#a9c2c3"
-      "common" -> "#171717"
-      _other -> "#171717"
+      "common" -> "var(--set-symbol-common-color)"
+      _other -> "var(--set-symbol-common-color)"
     end
   end
 
-  defp printing_rarity_color(_printing), do: "#171717"
+  defp printing_rarity_color(_printing), do: "var(--set-symbol-common-color)"
 
   defp collection_item_label(item) do
     [
