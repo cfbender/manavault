@@ -144,3 +144,138 @@
   pointer-events: none !important;
   visibility: hidden !important;
 }
+
+.card-tile-foil {
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--color-primary) 44%, transparent),
+    0 12px 30px rgb(0 0 0 / 0.28),
+    0 0 26px color-mix(in oklch, var(--color-primary) 28%, transparent);
+}
+
+.card-tile-foil::before,
+.card-tile-foil::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.card-tile-foil::before {
+  background:
+    linear-gradient(
+      115deg,
+      rgb(255 255 255 / 0) 8%,
+      rgb(255 255 255 / 0.38) 18%,
+      rgb(255 255 255 / 0.02) 28%,
+      rgb(255 255 255 / 0) 42%
+    ),
+    conic-gradient(
+      from 140deg at 50% 50%,
+      rgb(255 34 118 / 0.34),
+      rgb(255 191 64 / 0.32),
+      rgb(110 255 145 / 0.3),
+      rgb(58 217 255 / 0.34),
+      rgb(118 86 255 / 0.32),
+      rgb(255 74 210 / 0.34),
+      rgb(255 34 118 / 0.34)
+    ),
+    linear-gradient(
+      135deg,
+      rgb(255 42 128 / 0.26),
+      rgb(255 219 76 / 0.3),
+      rgb(75 255 166 / 0.24),
+      rgb(60 191 255 / 0.3),
+      rgb(178 82 255 / 0.28),
+      rgb(255 42 128 / 0.26)
+    );
+  background-size:
+    230% 230%,
+    180% 180%,
+    350% 350%;
+  background-blend-mode: screen;
+  mix-blend-mode: color-dodge;
+  opacity: 0.56;
+  animation: card-tile-foil-shimmer 7s ease-in-out infinite;
+  animation-play-state: paused;
+  transition: opacity 180ms ease;
+}
+
+.card-tile-foil::after {
+  background:
+    radial-gradient(circle at 18% 14%, rgb(255 255 255 / 0.34), transparent 18%),
+    repeating-linear-gradient(
+      115deg,
+      rgb(255 255 255 / 0.2) 0,
+      rgb(255 255 255 / 0.2) 1px,
+      transparent 1px,
+      transparent 9px
+    );
+  mix-blend-mode: overlay;
+  opacity: 0.3;
+}
+
+.card-tile-foil--etched::before {
+  opacity: 0.42;
+  filter: saturate(0.82) contrast(1.15);
+}
+
+.group\/card:hover .card-tile-foil::before,
+.group\/card:focus-within .card-tile-foil::before {
+  opacity: 0.72;
+  animation-play-state: running;
+}
+
+.card-tile-foil-badge {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.25rem;
+  border: 1px solid rgb(255 255 255 / 0.45);
+  border-radius: 9999px;
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 0.32), rgb(255 255 255 / 0.08)),
+    linear-gradient(110deg, rgb(255 78 160 / 0.4), rgb(255 215 95 / 0.35), rgb(72 190 255 / 0.35));
+  color: white;
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+  padding: 0.25rem 0.45rem;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.65);
+  box-shadow: 0 2px 12px rgb(0 0 0 / 0.35);
+  pointer-events: none;
+}
+
+@keyframes card-tile-foil-shimmer {
+  0% {
+    background-position:
+      -180% -180%,
+      0% 50%,
+      0% 50%;
+  }
+
+  50% {
+    background-position:
+      180% 180%,
+      100% 50%,
+      100% 50%;
+  }
+
+  100% {
+    background-position:
+      -180% -180%,
+      0% 50%,
+      0% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-tile-foil::before {
+    animation: none;
+  }
+}

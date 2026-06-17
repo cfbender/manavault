@@ -41,6 +41,7 @@ defmodule ManavaultWeb.CardTile do
       |> assign(:set_rarity, set_rarity(assigns.item))
       |> assign(:price_text, price_text(assigns.item))
       |> assign(:quantity, item_quantity(assigns.item))
+      |> assign(:finish, item_finish(assigns.item))
       |> assign(:click_id, assigns.click_value_id || item_click_id(assigns.item))
 
     ~H"""
@@ -105,6 +106,8 @@ defmodule ManavaultWeb.CardTile do
 
       <figure class={[
         "relative aspect-[5/7] overflow-hidden rounded-xl bg-base-300 shadow-lg ring-1 ring-white/10 transition duration-200 group-focus-within/card:ring-primary/50",
+        foil_finish?(@finish) && "card-tile-foil",
+        @finish == "etched" && "card-tile-foil--etched",
         !@click_disabled && "group-hover/card:shadow-2xl group-hover/card:ring-primary/40"
       ]}>
         <img
@@ -120,6 +123,15 @@ defmodule ManavaultWeb.CardTile do
         >
           No image
         </div>
+
+        <span
+          :if={foil_finish?(@finish)}
+          class="card-tile-foil-badge"
+          aria-label={finish_label(@finish)}
+          title={finish_label(@finish)}
+        >
+          {finish_label(@finish)}
+        </span>
 
         <button
           type="button"
@@ -251,6 +263,14 @@ defmodule ManavaultWeb.CardTile do
 
   defp item_quantity(%{quantity: quantity}) when is_integer(quantity), do: quantity
   defp item_quantity(_item), do: 1
+
+  defp item_finish(%{finish: finish}) when is_binary(finish), do: finish
+  defp item_finish(_item), do: nil
+
+  defp foil_finish?(finish), do: finish in ["foil", "etched"]
+
+  defp finish_label("etched"), do: "Etched"
+  defp finish_label("foil"), do: "Foil"
 
   defp tile_printing(%DeckCard{preferred_printing: %Printing{} = printing}), do: printing
   defp tile_printing(%DeckCard{card: %{printings: [%Printing{} = printing | _]}}), do: printing

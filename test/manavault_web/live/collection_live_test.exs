@@ -234,6 +234,31 @@ defmodule ManavaultWeb.CollectionLiveTest do
       assert html =~ "Scryfall ID"
     end
 
+    test "foil collection cards show a foil treatment", %{conn: conn} do
+      foil_time_walk = %{
+        @time_walk
+        | "id" => "scryfall-printing-foil",
+          "collector_number" => "84★",
+          "finishes" => ["foil"]
+      }
+
+      assert {:ok, %{printings_count: 1}} = Catalog.import_cards([foil_time_walk])
+
+      assert {:ok, item} =
+               Catalog.create_collection_item(%{
+                 "scryfall_id" => "scryfall-printing-foil",
+                 "quantity" => "1",
+                 "condition" => "near_mint",
+                 "language" => "en",
+                 "finish" => "foil"
+               })
+
+      {:ok, view, _html} = live(conn, ~p"/collection")
+
+      assert has_element?(view, "#collection-item-#{item.id} figure.card-tile-foil")
+      assert has_element?(view, "#collection-item-#{item.id} .card-tile-foil-badge", "Foil")
+    end
+
     test "changes a collection item printing from collection modal", %{conn: conn} do
       assert {:ok, item} =
                Catalog.create_collection_item(%{
