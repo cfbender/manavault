@@ -1193,6 +1193,53 @@ defmodule Manavault.CatalogTest do
     assert printing.scryfall_id == "scryfall-printing-2"
   end
 
+  test "scan recognition can use image evidence without OCR text evidence" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    parsed = ScanRecognition.parse_text("")
+
+    assert [%{printing: printing, confidence: confidence, evidence: evidence}] =
+             ScanRecognition.match_candidates(parsed,
+               image_matches: [%{scryfall_id: "scryfall-printing-2", score: 0.91}]
+             )
+
+    assert printing.scryfall_id == "scryfall-printing-2"
+    assert_in_delta confidence, 0.7735, 0.0001
+    assert_in_delta evidence.scores.image_match, 0.7735, 0.0001
+    assert evidence.image_match.score == 0.91
+  end
+
+  test "scan recognition reranks weak OCR candidates with image evidence" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    parsed = ScanRecognition.parse_text("sacrifice")
+
+    assert [%{printing: printing, evidence: evidence} | _] =
+             ScanRecognition.match_candidates(parsed,
+               image_matches: [%{scryfall_id: "scryfall-printing-2", score: 0.9}]
+             )
+
+    assert printing.scryfall_id == "scryfall-printing-2"
+    assert_in_delta evidence.scores.image_match, 0.765, 0.0001
+  end
+
+  test "scan recognition falls back to image evidence when OCR fails" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    assert {:ok, %{text: "", candidates: [%{printing: printing}], timings: timings}} =
+             ScanRecognition.recognize(%ScanItem{image_path: "/tmp/time-walk.jpg"},
+               ocr_runner: fn _path -> {:error, "OCR failed"} end,
+               image_matches: [%{scryfall_id: "scryfall-printing-2", score: 0.93}]
+             )
+
+    assert printing.scryfall_id == "scryfall-printing-2"
+    assert timings.ocr_us == nil
+    assert timings.image_us >= 0
+  end
+
   test "scan recognition ignores OCR diagnostic lines" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])

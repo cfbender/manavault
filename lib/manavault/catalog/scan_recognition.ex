@@ -15,24 +15,13 @@ defmodule Manavault.Catalog.ScanRecognition do
 
   def recognize(%ScanItem{image_path: image_path} = scan_item, opts)
       when is_binary(image_path) do
-    with {:ok, text, ocr_us} <- timed(fn -> run_ocr(image_path, opts) end) do
-      Logger.debug("OCR raw output for #{image_path}:\n#{text}")
-      {parsed, parse_us} = timed_value(fn -> parse_text(text) end)
-      {candidates, match_us} = timed_value(fn -> match_candidates(parsed, opts) end)
+    case timed(fn -> run_ocr(image_path, opts) end) do
+      {:ok, text, ocr_us} ->
+        Logger.debug("OCR raw output for #{image_path}:\n#{text}")
+        recognize_with_text(scan_item, text, image_path, opts, ocr_us)
 
-      {:ok,
-       %{
-         scan_item: scan_item,
-         text: text,
-         parsed: parsed,
-         candidates: candidates,
-         timings: %{
-           ocr_us: ocr_us,
-           parse_us: parse_us,
-           match_us: match_us,
-           total_us: ocr_us + parse_us + match_us
-         }
-       }}
+      {:error, reason} ->
+        recognize_after_ocr_error(scan_item, image_path, opts, reason)
     end
   end
 
@@ -53,6 +42,62 @@ defmodule Manavault.Catalog.ScanRecognition do
     start = System.monotonic_time(:microsecond)
     value = fun.()
     {value, System.monotonic_time(:microsecond) - start}
+  end
+
+  defp recognize_with_text(scan_item, text, image_path, opts, ocr_us) do
+    {parsed, parse_us} = timed_value(fn -> parse_text(text) end)
+    {image_matches, image_us} = timed_value(fn -> run_image_matching(image_path, opts) end)
+
+    {candidates, match_us} =
+      timed_value(fn ->
+        match_candidates(parsed, Keyword.put(opts, :image_matches, image_matches))
+      end)
+
+    {:ok,
+     %{
+       scan_item: scan_item,
+       text: text,
+       parsed: parsed,
+       image_matches: image_matches,
+       candidates: candidates,
+       timings: %{
+         ocr_us: ocr_us,
+         parse_us: parse_us,
+         image_us: image_us,
+         match_us: match_us,
+         total_us: ocr_us + parse_us + image_us + match_us
+       }
+     }}
+  end
+
+  defp recognize_after_ocr_error(scan_item, image_path, opts, reason) do
+    {parsed, parse_us} = timed_value(fn -> parse_text("") end)
+    {image_matches, image_us} = timed_value(fn -> run_image_matching(image_path, opts) end)
+
+    {candidates, match_us} =
+      timed_value(fn ->
+        match_candidates(parsed, Keyword.put(opts, :image_matches, image_matches))
+      end)
+
+    if candidates == [] do
+      {:error, reason}
+    else
+      {:ok,
+       %{
+         scan_item: scan_item,
+         text: "",
+         parsed: parsed,
+         image_matches: image_matches,
+         candidates: candidates,
+         timings: %{
+           ocr_us: nil,
+           parse_us: parse_us,
+           image_us: image_us,
+           match_us: match_us,
+           total_us: parse_us + image_us + match_us
+         }
+       }}
+    end
   end
 
   def parse_text(text) when is_binary(text) do
@@ -113,12 +158,14 @@ defmodule Manavault.Catalog.ScanRecognition do
     set_code = parsed |> Map.get(:set_code) |> normalize_set_code()
     collector_number = parsed |> Map.get(:collector_number) |> normalize_collector_number()
     language = parsed |> Map.get(:language) |> normalize_language()
+    image_matches = Keyword.get(opts, :image_matches, [])
+    image_match_by_printing_id = image_match_by_printing_id(image_matches)
 
     Logger.debug(fn ->
       "OCR match_candidates — tokens: #{inspect(tokens)}, lines: #{inspect(lines)}, set_code: #{inspect(set_code)}, collector_number: #{inspect(collector_number)}, language: #{inspect(language)}\nOCR raw text:\n#{Map.get(parsed, :text, "")}"
     end)
 
-    printings = candidate_printings(tokens, lines, max_candidates)
+    printings = candidate_printings(tokens, lines, max_candidates, image_matches)
 
     candidates =
       printings
@@ -130,10 +177,11 @@ defmodule Manavault.Catalog.ScanRecognition do
           lines,
           set_code,
           collector_number,
-          language
+          language,
+          image_match_by_printing_id
         )
       )
-      |> Enum.filter(&candidate_has_card_text_evidence?/1)
+      |> Enum.filter(&candidate_has_recognition_evidence?/1)
       |> Enum.sort_by(&candidate_sort_key/1)
 
     Logger.debug(fn ->
@@ -155,11 +203,12 @@ defmodule Manavault.Catalog.ScanRecognition do
     Enum.take(candidates, max_candidates)
   end
 
-  defp candidate_has_card_text_evidence?(%{evidence: %{scores: scores}}) do
-    float_score(scores.token_match) > 0.0 or float_score(scores.phrase_match) > 0.0
+  defp candidate_has_recognition_evidence?(%{evidence: %{scores: scores}}) do
+    float_score(scores.token_match) > 0.0 or float_score(scores.phrase_match) > 0.0 or
+      float_score(scores.image_match) > 0.0
   end
 
-  defp candidate_printings(tokens, lines, max_candidates) do
+  defp candidate_printings(tokens, lines, max_candidates, image_matches) do
     priority_ids =
       lines
       |> priority_fts_query()
@@ -178,7 +227,15 @@ defmodule Manavault.Catalog.ScanRecognition do
         |> Enum.uniq()
       end
 
+    image_ids = Enum.map(image_matches, & &1.scryfall_id)
+
     load_printings_by_ids(ids)
+    |> then(fn printings ->
+      missing_image_ids =
+        image_ids -- Enum.map(printings, & &1.scryfall_id)
+
+      printings ++ load_printings_by_ids(missing_image_ids)
+    end)
   end
 
   defp search_printing_ids("", _limit), do: []
@@ -285,6 +342,64 @@ defmodule Manavault.Catalog.ScanRecognition do
     end
   rescue
     exception -> {:error, Exception.message(exception)}
+  end
+
+  defp run_image_matching(image_path, opts) do
+    cond do
+      matches = Keyword.get(opts, :image_matches) ->
+        normalize_image_matches(matches)
+
+      matcher = Keyword.get(opts, :image_matcher) ->
+        matcher.(image_path)
+        |> normalize_image_matches()
+
+      image_matching_enabled?() ->
+        case Application.get_env(:manavault, :scan_image_matcher) do
+          matcher when is_function(matcher, 1) ->
+            matcher.(image_path)
+            |> normalize_image_matches()
+
+          _ ->
+            []
+        end
+
+      true ->
+        []
+    end
+  rescue
+    exception ->
+      Logger.warning("Image matching failed for #{image_path}: #{Exception.message(exception)}")
+      []
+  end
+
+  defp image_matching_enabled? do
+    Application.get_env(:manavault, :scan_image_matching, false)
+  end
+
+  defp normalize_image_matches(matches) when is_list(matches) do
+    matches
+    |> Enum.flat_map(fn
+      %{scryfall_id: scryfall_id, score: score} = match when is_binary(scryfall_id) ->
+        [
+          %{
+            scryfall_id: scryfall_id,
+            score: float_score(score),
+            source: Map.get(match, :source, :image)
+          }
+        ]
+
+      %{"scryfall_id" => scryfall_id, "score" => score} when is_binary(scryfall_id) ->
+        [%{scryfall_id: scryfall_id, score: float_score(score), source: :image}]
+
+      _ ->
+        []
+    end)
+  end
+
+  defp normalize_image_matches(_matches), do: []
+
+  defp image_match_by_printing_id(image_matches) do
+    Map.new(image_matches, &{&1.scryfall_id, &1})
   end
 
   defp clean_ocr_text(text) do
@@ -417,7 +532,8 @@ defmodule Manavault.Catalog.ScanRecognition do
          lines,
          set_code,
          collector_number,
-         language
+         language,
+         image_match_by_printing_id
        ) do
     score_fields = normalized_score_fields(printing)
     field_set_score = field_score(printing.set_code, set_code, 0.2)
@@ -426,10 +542,13 @@ defmodule Manavault.Catalog.ScanRecognition do
 
     {token_score, token_evidence} = token_match_score(score_fields, tokens)
     {phrase_score, phrase_evidence} = phrase_match_score(score_fields, lines)
+    image_match = Map.get(image_match_by_printing_id, printing.scryfall_id)
+    image_score = image_match_score(image_match)
 
     confidence =
       min(
-        token_score + phrase_score + field_set_score + field_collector_score + field_lang_score,
+        token_score + phrase_score + field_set_score + field_collector_score + field_lang_score +
+          image_score,
         1.0
       )
       |> float_score()
@@ -446,17 +565,29 @@ defmodule Manavault.Catalog.ScanRecognition do
         matched_name: card_name,
         matched_set_code: printing.set_code,
         matched_collector_number: printing.collector_number,
+        image_match: image_match,
         scores: %{
           token_match: token_score,
           phrase_match: phrase_score,
           set_code: field_set_score,
           collector_number: field_collector_score,
-          language: field_lang_score
+          language: field_lang_score,
+          image_match: image_score
         },
         token_hits: token_evidence,
         phrase_hits: phrase_evidence
       }
     }
+  end
+
+  defp image_match_score(nil), do: 0.0
+
+  defp image_match_score(%{score: score}) do
+    score
+    |> max(0.0)
+    |> min(1.0)
+    |> Kernel.*(0.85)
+    |> float_score()
   end
 
   defp normalized_score_fields(%Printing{card: card}) do
@@ -487,6 +618,7 @@ defmodule Manavault.Catalog.ScanRecognition do
       -float_score(scores.set_code),
       -float_score(scores.collector_number),
       -float_score(scores.language),
+      -float_score(scores.image_match),
       -float_score(scores.token_match),
       -name_token_weight,
       -type_token_weight,
@@ -654,6 +786,7 @@ defmodule Manavault.Catalog.ScanRecognition do
 
   defp float_score(score) when is_integer(score), do: score * 1.0
   defp float_score(score) when is_float(score), do: score
+  defp float_score(_score), do: 0.0
 
   defp round_score(score), do: score |> float_score() |> Float.round(3)
 

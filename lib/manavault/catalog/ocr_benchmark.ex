@@ -4,7 +4,7 @@ defmodule Manavault.Catalog.OCRBenchmark do
   import Ecto.Query
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.{Printing, ScanItem, ScanRecognition}
+  alias Manavault.Catalog.{ImageMatcher, Printing, ScanItem, ScanRecognition}
   alias Manavault.Repo
 
   @fixtures_dir Path.join([File.cwd!(), "test", "fixtures", "ocr", "scryfall_random"])
@@ -36,6 +36,7 @@ defmodule Manavault.Catalog.OCRBenchmark do
     Logger.configure(level: :warning)
     max_failures = Keyword.get(opts, :max_failures, :infinity)
     limit = Keyword.get(opts, :limit, :all)
+    image_match? = Keyword.get(opts, :image_match, false)
 
     cards = load_manifest()
 
@@ -45,10 +46,11 @@ defmodule Manavault.Catalog.OCRBenchmark do
       Catalog.import_cards(Enum.map(cards, & &1["card"]))
 
       benchmark_cards = limit_cards(cards, limit)
+      image_matcher = benchmark_image_matcher(benchmark_cards, image_match?)
 
       results =
         benchmark_cards
-        |> Enum.map(&recognize_fixture/1)
+        |> Enum.map(&recognize_fixture(&1, image_matcher))
 
       failures = Enum.reject(results, & &1.correct?)
 
@@ -75,7 +77,7 @@ defmodule Manavault.Catalog.OCRBenchmark do
   defp limit_cards(cards, limit) when is_integer(limit), do: Enum.take(cards, limit)
 
   defp summarize_timings(results) do
-    timing_keys = [:ocr_us, :parse_us, :match_us, :total_us]
+    timing_keys = [:ocr_us, :parse_us, :image_us, :match_us, :total_us]
 
     Map.new(timing_keys, fn key ->
       values = results |> Enum.map(&get_in(&1, [:timings, key])) |> Enum.reject(&is_nil/1)
@@ -86,13 +88,25 @@ defmodule Manavault.Catalog.OCRBenchmark do
   defp average([]), do: nil
   defp average(values), do: Enum.sum(values) / length(values)
 
-  defp recognize_fixture(%{"image_path" => image_path, "card" => card} = fixture) do
+  defp benchmark_image_matcher(_cards, false), do: nil
+
+  defp benchmark_image_matcher(cards, true) do
+    references = ImageMatcher.build_references(cards)
+
+    fn image_path ->
+      ImageMatcher.match(image_path, references, limit: 8, threshold: 0.68)
+    end
+  end
+
+  defp recognize_fixture(%{"image_path" => image_path, "card" => card} = fixture, image_matcher) do
     expected_name = card["name"]
     expected_printing_id = card["id"]
 
-    case ScanRecognition.recognize(%ScanItem{image_path: image_path},
-           max_candidates: 5
-         ) do
+    opts =
+      [max_candidates: 5]
+      |> maybe_put_image_matcher(image_matcher)
+
+    case ScanRecognition.recognize(%ScanItem{image_path: image_path}, opts) do
       {:ok, %{text: text, parsed: parsed, candidates: [top | _] = candidates} = result} ->
         %{
           fixture: fixture,
@@ -106,6 +120,7 @@ defmodule Manavault.Catalog.OCRBenchmark do
               top.printing.scryfall_id == expected_printing_id,
           text: text,
           parsed: parsed,
+          image_matches: Map.get(result, :image_matches, []),
           timings: Map.get(result, :timings, %{}),
           candidates: Enum.map(candidates, &candidate_summary/1)
         }
@@ -137,10 +152,16 @@ defmodule Manavault.Catalog.OCRBenchmark do
           error: reason,
           text: "",
           parsed: %{},
+          image_matches: [],
           candidates: []
         }
     end
   end
+
+  defp maybe_put_image_matcher(opts, nil), do: opts
+
+  defp maybe_put_image_matcher(opts, image_matcher),
+    do: Keyword.put(opts, :image_matcher, image_matcher)
 
   defp candidate_summary(candidate) do
     %{

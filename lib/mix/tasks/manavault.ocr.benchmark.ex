@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Manavault.Ocr.Benchmark do
 
   alias Manavault.Catalog.OCRBenchmark
 
-  @switches [max_failures: :integer, limit: :integer]
+  @switches [max_failures: :integer, limit: :integer, image_match: :boolean]
 
   @shortdoc "Runs OCR benchmark fixtures"
 
@@ -40,11 +40,12 @@ defmodule Mix.Tasks.Manavault.Ocr.Benchmark do
     opts
     |> Keyword.put_new(:max_failures, 20)
     |> Keyword.put_new(:limit, :all)
+    |> Keyword.put_new(:image_match, false)
   end
 
   defp print_timings(timings) do
     Mix.shell().info(
-      "Timing avg: total=#{format_ms(timings.total_us)} ocr=#{format_ms(timings.ocr_us)} parse=#{format_ms(timings.parse_us)} match=#{format_ms(timings.match_us)}"
+      "Timing avg: total=#{format_ms(timings.total_us)} ocr=#{format_ms(timings.ocr_us)} parse=#{format_ms(timings.parse_us)} image=#{format_ms(timings[:image_us])} match=#{format_ms(timings.match_us)}"
     )
   end
 
