@@ -1,0 +1,42 @@
+defmodule Mix.Tasks.Manavault.Backup do
+  @moduledoc """
+  Creates a ManaVault backup zip.
+
+      mix manavault.backup
+      mix manavault.backup --output-dir /path/to/backups
+
+  The backup includes a consistent SQLite database snapshot and local
+  user-owned files such as scan uploads.
+  """
+
+  use Mix.Task
+
+  @shortdoc "Creates a ManaVault backup zip"
+
+  @impl Mix.Task
+  def run(args) do
+    Mix.Task.run("app.config")
+
+    {opts, _argv, invalid} =
+      OptionParser.parse(args,
+        strict: [output_dir: :string, data_dir: :string, database: :string],
+        aliases: [o: :output_dir]
+      )
+
+    if invalid != [] do
+      Mix.raise("invalid backup options: #{inspect(invalid)}")
+    end
+
+    backup_opts =
+      []
+      |> put_if_present(:backups_dir, opts[:output_dir])
+      |> put_if_present(:data_dir, opts[:data_dir])
+      |> put_if_present(:database_path, opts[:database])
+
+    path = Manavault.Backup.create!(backup_opts)
+    Mix.shell().info("Created backup: #{path}")
+  end
+
+  defp put_if_present(opts, _key, nil), do: opts
+  defp put_if_present(opts, key, value), do: Keyword.put(opts, key, value)
+end

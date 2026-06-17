@@ -323,6 +323,12 @@ function createScannerCamera() {
       forceNextCapture = false
     })
 
+    if (!window.isSecureContext) {
+      reportError("Camera access requires HTTPS on phones. Open ManaVault over HTTPS or use localhost on this device.")
+      disableControls()
+      return
+    }
+
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       reportError("This browser does not support camera capture.")
       disableControls()

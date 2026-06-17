@@ -11,6 +11,7 @@ defmodule Manavault.Application do
       [
         ManavaultWeb.Telemetry,
         Manavault.Repo,
+        {Manavault.Backup.MigrationBackup, repo: Manavault.Repo},
         {Ecto.Migrator,
          repos: Application.fetch_env!(:manavault, :ecto_repos), skip: skip_migrations?()},
         {DNSCluster, query: Application.get_env(:manavault, :dns_cluster_query) || :ignore},
