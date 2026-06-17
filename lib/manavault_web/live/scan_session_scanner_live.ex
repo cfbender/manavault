@@ -26,12 +26,13 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
      |> assign(:finishes, @finishes)
      |> assign(:editing_scan_item, nil)
      |> assign(:changing_printing_item, nil)
+     |> assign(:printing_search_query, "")
      |> assign(:printing_search_results, [])
      |> assign(:status_message, "Starting camera…")
      |> assign(:error_message, nil)
      |> assign(:last_scan_item, nil)
      |> assign(:recent_scan_items, recent_scan_items(scan_session))
-     |> assign(:last_recognized_printing_id, last_recognized_printing_id(scan_session))
+     |> assign(:last_recognized_card_id, last_recognized_card_id(scan_session))
      |> assign(:recognition_opts, [])}
   end
 
@@ -47,8 +48,9 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
          ) do
       {:ok, scan_item} ->
         printing_id = scan_item_printing_id(scan_item)
+        card_id = scan_item_card_id(scan_item)
 
-        if (!force? and printing_id) && printing_id == socket.assigns.last_recognized_printing_id do
+        if (!force? and card_id) && card_id == socket.assigns.last_recognized_card_id do
           Catalog.delete_scan_item(scan_item)
 
           {:noreply,
@@ -64,7 +66,7 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
           {:noreply,
            socket
            |> assign(:last_scan_item, scan_item)
-           |> assign(:last_recognized_printing_id, printing_id)
+           |> assign(:last_recognized_card_id, card_id)
            |> assign(:status_message, "Recognized card ##{scan_item.id}. Keep scanning.")
            |> assign(:error_message, nil)
            |> reload_scan_session()
@@ -155,12 +157,22 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
 
   def handle_event("change_scan_printing", %{"id" => id}, socket) do
     scan_item = Catalog.get_scan_item!(id)
+    query = best_name(scan_item)
 
     {:noreply,
      socket
      |> assign(:editing_scan_item, nil)
      |> assign(:changing_printing_item, scan_item)
-     |> assign(:printing_search_results, Catalog.list_printings_for_scan_item(scan_item))}
+     |> assign(:printing_search_query, query)
+     |> assign(:printing_search_results, search_printings(query))}
+  end
+
+  def handle_event("search_scan_printings", %{"search" => %{"q" => query}}, socket)
+      when is_binary(query) do
+    {:noreply,
+     socket
+     |> assign(:printing_search_query, query)
+     |> assign(:printing_search_results, search_printings(query))}
   end
 
   def handle_event("select_printing", %{"id" => id, "scryfall-id" => scryfall_id}, socket) do
@@ -192,6 +204,7 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
      socket
      |> assign(:editing_scan_item, nil)
      |> assign(:changing_printing_item, nil)
+     |> assign(:printing_search_query, "")
      |> assign(:printing_search_results, [])}
   end
 
@@ -232,7 +245,7 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
             class="w-full max-w-md overflow-hidden rounded-2xl border border-base-300 bg-base-100 shadow-xl sm:max-w-lg lg:max-w-2xl"
           >
             <div
-              class="relative aspect-[3/4] min-h-[28rem] bg-neutral text-neutral-content sm:min-h-[32rem]"
+              class="relative aspect-[3/4] max-h-[72svh] min-h-[22rem] bg-neutral text-neutral-content sm:min-h-[32rem]"
               data-scanner-preview
             >
               <video
@@ -454,15 +467,41 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
         </dialog>
 
         <dialog :if={@changing_printing_item} class="modal modal-open">
-          <div class="modal-box max-w-3xl space-y-4">
-            <div class="space-y-2">
-              <h3 class="text-lg font-bold">Change printing</h3>
-              <p class="text-sm text-base-content/70">
-                Choose a different printing for {best_name(@changing_printing_item)}.
-              </p>
+          <div class="modal-box flex h-[calc(100dvh-2rem)] max-h-[calc(100dvh-2rem)] w-[calc(100vw-1rem)] max-w-3xl flex-col gap-4 overflow-hidden p-4 sm:p-6">
+            <div class="flex shrink-0 items-start justify-between gap-3">
+              <div class="space-y-2">
+                <h3 class="text-lg font-bold">Change card</h3>
+                <p class="text-sm text-base-content/70">
+                  Search for the correct card, then choose the printing to use for this scan.
+                </p>
+              </div>
+              <button
+                class="btn btn-circle btn-ghost btn-sm shrink-0"
+                type="button"
+                phx-click="close_scan_modal"
+                aria-label="Close"
+              >
+                <.icon name="hero-x-mark" class="size-4" />
+              </button>
             </div>
 
-            <div class="max-h-[68vh] overflow-y-auto pr-1">
+            <form
+              id="scanner-printing-search-form"
+              phx-submit="search_scan_printings"
+              class="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] gap-2"
+            >
+              <input
+                class="input input-bordered w-full"
+                name="search[q]"
+                value={@printing_search_query}
+                type="search"
+                autocomplete="off"
+                placeholder="Card name"
+              />
+              <button class="btn btn-primary" type="submit">Search</button>
+            </form>
+
+            <div class="min-h-0 flex-1 overflow-y-auto pr-1">
               <div class="grid grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-3 sm:grid-cols-[repeat(auto-fill,minmax(8rem,1fr))]">
                 <.card_tile
                   :for={printing <- @printing_search_results}
@@ -481,10 +520,10 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
             </div>
 
             <p :if={@printing_search_results == []} class="alert alert-info">
-              No alternate printings found for this card.
+              No printings found for this search.
             </p>
 
-            <div class="modal-action">
+            <div class="modal-action mt-0 shrink-0">
               <button class="btn btn-ghost" type="button" phx-click="close_scan_modal">Close</button>
             </div>
           </div>
@@ -500,6 +539,7 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
     socket
     |> assign(:scan_session, scan_session)
     |> assign(:recent_scan_items, recent_scan_items(scan_session))
+    |> assign(:last_recognized_card_id, last_recognized_card_id(scan_session))
     |> refresh_open_scan_items()
   end
 
@@ -516,11 +556,11 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
     end
   end
 
-  defp last_recognized_printing_id(scan_session) do
+  defp last_recognized_card_id(scan_session) do
     scan_session
     |> recent_scan_items()
     |> List.first()
-    |> scan_item_printing_id()
+    |> scan_item_card_id()
   end
 
   defp scan_item_printing_id(nil), do: nil
@@ -529,6 +569,17 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
     do: printing_id
 
   defp scan_item_printing_id(_scan_item), do: nil
+
+  defp scan_item_card_id(nil), do: nil
+
+  defp scan_item_card_id(%{accepted_printing: %{oracle_id: oracle_id}}) when is_binary(oracle_id),
+    do: oracle_id
+
+  defp scan_item_card_id(%{accepted_printing: %{card: %{oracle_id: oracle_id}}})
+       when is_binary(oracle_id),
+       do: oracle_id
+
+  defp scan_item_card_id(_scan_item), do: nil
 
   defp recent_scan_items(scan_session) do
     scan_session.scan_items
@@ -543,6 +594,7 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
          socket
          |> put_flash(:info, "Changed scan item printing.")
          |> assign(:changing_printing_item, nil)
+         |> assign(:printing_search_query, "")
          |> assign(:printing_search_results, [])
          |> reload_scan_session()}
 
@@ -553,6 +605,10 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
 
   defp best_name(%{accepted_printing: %{card: %{name: name}}}), do: name
   defp best_name(_item), do: ""
+
+  defp search_printings(query) when is_binary(query) do
+    Catalog.search_printings([name: query], limit: 36)
+  end
 
   defp parse_delta(delta) when is_integer(delta), do: delta
 

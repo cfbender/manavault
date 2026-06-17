@@ -303,6 +303,44 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     assert Catalog.get_scan_session!(scan_session.id).scan_items == []
   end
 
+  test "scanner can rescan the same card after deleting it", %{conn: conn} do
+    previous_runner = Application.get_env(:manavault, :ocr_runner)
+
+    Application.put_env(:manavault, :ocr_runner, fn _path ->
+      {:ok, "Black Lotus\nSet: LEA\nCollector #232"}
+    end)
+
+    on_exit(fn ->
+      if previous_runner do
+        Application.put_env(:manavault, :ocr_runner, previous_runner)
+      else
+        Application.delete_env(:manavault, :ocr_runner)
+      end
+    end)
+
+    {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Rescan after delete"})
+
+    {:ok, item} =
+      Catalog.create_scan_item(scan_session, %{
+        status: "recognized",
+        accepted_printing_id: "scryfall-printing-1",
+        image_path: "/tmp/deleted-card.jpg"
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/scan-sessions/#{scan_session.id}/scanner")
+
+    render_click(view, "delete_scan_item", %{"id" => item.id})
+
+    assert Catalog.get_scan_session!(scan_session.id).scan_items == []
+
+    image_data = "data:image/png;base64,#{Base.encode64("Black Lotus")}"
+
+    assert render_hook(view, "capture", %{"image_data" => image_data}) =~ "Recognized card"
+
+    assert [%{accepted_printing_id: "scryfall-printing-1"}] =
+             Catalog.get_scan_session!(scan_session.id).scan_items
+  end
+
   test "scanner page shows scanned cards with quick controls", %{conn: conn} do
     {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Batch scanner"})
 
@@ -407,16 +445,24 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     assert edited.finish == "foil"
 
     html = render_click(view, "change_scan_printing", %{"id" => item.id})
-    assert html =~ "Change printing"
+    assert html =~ "Change card"
+    assert html =~ ~s|value="Black Lotus"|
     assert html =~ "LEA"
     assert html =~ "LEB"
 
+    html =
+      view
+      |> form("#scanner-printing-search-form", search: %{q: "Time Walk"})
+      |> render_submit()
+
+    assert html =~ "Time Walk"
+
     render_click(view, "select_printing", %{
       "id" => item.id,
-      "scryfall_id" => "scryfall-printing-3"
+      "scryfall_id" => "scryfall-printing-2"
     })
 
-    assert Catalog.get_scan_item!(item.id).accepted_printing_id == "scryfall-printing-3"
+    assert Catalog.get_scan_item!(item.id).accepted_printing_id == "scryfall-printing-2"
   end
 
   test "scanner page reports camera errors", %{conn: conn} do
@@ -505,7 +551,7 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     assert_raise Ecto.NoResultsError, fn -> Catalog.get_scan_session!(scan_session.id) end
   end
 
-  test "session card menu edits changes printing and deletes scanned cards", %{conn: conn} do
+  test "session card menu edits changes card and deletes scanned cards", %{conn: conn} do
     assert {:ok, %{cards_count: 1, printings_count: 1}} =
              Catalog.import_cards([
                %{
@@ -555,19 +601,27 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     html =
       render_click(view, "change_scan_printing", %{"id" => item.id})
 
-    assert html =~ "Change printing"
+    assert html =~ "Change card"
+    assert html =~ ~s(value="Black Lotus")
     assert html =~ "LEA"
     assert html =~ "LEB"
     assert html =~ "Current"
 
     html =
+      view
+      |> form("#scan-session-printing-search-form", search: %{q: "Time Walk"})
+      |> render_submit()
+
+    assert html =~ "Time Walk"
+
+    html =
       render_click(view, "select_printing", %{
         "id" => item.id,
-        "scryfall_id" => "scryfall-printing-3"
+        "scryfall_id" => "scryfall-printing-2"
       })
 
     assert html =~ "Changed scan item printing."
-    assert Catalog.get_scan_item!(item.id).accepted_printing_id == "scryfall-printing-3"
+    assert Catalog.get_scan_item!(item.id).accepted_printing_id == "scryfall-printing-2"
 
     html = render_click(view, "delete_scan_item", %{"id" => item.id})
 

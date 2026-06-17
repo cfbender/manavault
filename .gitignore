@@ -18,6 +18,7 @@ erl_crash.dump
 
 # Downloaded/generated OCR benchmark corpus
 /test/fixtures/ocr/scryfall_random/
+/test/fixtures/ocr/photos
 
 # Generated static assets
 /priv/static/assets/

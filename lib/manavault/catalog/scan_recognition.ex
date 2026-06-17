@@ -6,7 +6,7 @@ defmodule Manavault.Catalog.ScanRecognition do
   import Ecto.Query
   require Logger
 
-  alias Manavault.Catalog.{Card, Printing, ScanItem}
+  alias Manavault.Catalog.{Card, Printing, RuntimeImageMatcher, ScanItem}
   alias Manavault.Repo
 
   @default_max_candidates 5
@@ -46,12 +46,32 @@ defmodule Manavault.Catalog.ScanRecognition do
 
   defp recognize_with_text(scan_item, text, image_path, opts, ocr_us) do
     {parsed, parse_us} = timed_value(fn -> parse_text(text) end)
-    {image_matches, image_us} = timed_value(fn -> run_image_matching(image_path, opts) end)
 
-    {candidates, match_us} =
+    {initial_image_matches, image_us} =
+      timed_value(fn -> run_initial_image_matching(image_path, opts) end)
+
+    {initial_candidates, initial_match_us} =
       timed_value(fn ->
-        match_candidates(parsed, Keyword.put(opts, :image_matches, image_matches))
+        match_candidates(parsed, Keyword.put(opts, :image_matches, initial_image_matches))
       end)
+
+    {candidate_image_matches, candidate_image_us} =
+      timed_value(fn -> run_candidate_image_matching(image_path, opts, initial_candidates) end)
+
+    {candidates, rematch_us} =
+      if candidate_image_matches == [] do
+        {initial_candidates, 0}
+      else
+        timed_value(fn ->
+          match_candidates(parsed, Keyword.put(opts, :image_matches, candidate_image_matches))
+        end)
+      end
+
+    image_matches =
+      if candidate_image_matches == [], do: initial_image_matches, else: candidate_image_matches
+
+    image_us = image_us + candidate_image_us
+    match_us = initial_match_us + rematch_us
 
     {:ok,
      %{
@@ -72,7 +92,9 @@ defmodule Manavault.Catalog.ScanRecognition do
 
   defp recognize_after_ocr_error(scan_item, image_path, opts, reason) do
     {parsed, parse_us} = timed_value(fn -> parse_text("") end)
-    {image_matches, image_us} = timed_value(fn -> run_image_matching(image_path, opts) end)
+
+    {image_matches, image_us} =
+      timed_value(fn -> run_initial_image_matching(image_path, opts) end)
 
     {candidates, match_us} =
       timed_value(fn ->
@@ -344,24 +366,18 @@ defmodule Manavault.Catalog.ScanRecognition do
     exception -> {:error, Exception.message(exception)}
   end
 
-  defp run_image_matching(image_path, opts) do
+  defp run_initial_image_matching(image_path, opts) do
     cond do
       matches = Keyword.get(opts, :image_matches) ->
         normalize_image_matches(matches)
 
-      matcher = Keyword.get(opts, :image_matcher) ->
-        matcher.(image_path)
+      matcher = image_matcher(opts, 1) ->
+        matcher
+        |> apply([image_path])
         |> normalize_image_matches()
 
       image_matching_enabled?() ->
-        case Application.get_env(:manavault, :scan_image_matcher) do
-          matcher when is_function(matcher, 1) ->
-            matcher.(image_path)
-            |> normalize_image_matches()
-
-          _ ->
-            []
-        end
+        []
 
       true ->
         []
@@ -372,8 +388,49 @@ defmodule Manavault.Catalog.ScanRecognition do
       []
   end
 
+  defp run_candidate_image_matching(image_path, opts, candidates) do
+    printings = Enum.map(candidates, & &1.printing)
+
+    cond do
+      Keyword.has_key?(opts, :image_matches) ->
+        []
+
+      matcher = image_matcher(opts, 2) ->
+        matcher
+        |> apply([image_path, printings])
+        |> normalize_image_matches()
+
+      image_matching_enabled?() ->
+        RuntimeImageMatcher.match(image_path, printings)
+        |> normalize_image_matches()
+
+      true ->
+        []
+    end
+  rescue
+    exception ->
+      Logger.warning(
+        "Candidate image matching failed for #{image_path}: #{Exception.message(exception)}"
+      )
+
+      []
+  end
+
+  defp image_matcher(opts, arity) do
+    cond do
+      is_function(Keyword.get(opts, :image_matcher), arity) ->
+        Keyword.get(opts, :image_matcher)
+
+      is_function(Application.get_env(:manavault, :scan_image_matcher), arity) ->
+        Application.get_env(:manavault, :scan_image_matcher)
+
+      true ->
+        nil
+    end
+  end
+
   defp image_matching_enabled? do
-    Application.get_env(:manavault, :scan_image_matching, false)
+    Application.get_env(:manavault, :scan_image_matching, true)
   end
 
   defp normalize_image_matches(matches) when is_list(matches) do
@@ -482,8 +539,14 @@ defmodule Manavault.Catalog.ScanRecognition do
            ~r/(?:set|edition|expansion)[ \t]*[:#-]?[ \t]*\b([A-Z0-9]{2,5})\b/i,
            text
          ) do
-      [_, code] -> code
-      _ -> nil
+      [_, code] ->
+        code
+
+      _ ->
+        case Regex.run(~r/(?:^|\n)\s*([A-Z0-9]{2,5})\s*[·•★* -]\s*[A-Z]{2}\b/u, text) do
+          [_, code] -> code
+          _ -> nil
+        end
     end
   end
 
@@ -510,8 +573,14 @@ defmodule Manavault.Catalog.ScanRecognition do
 
   defp likely_language(text) do
     case Regex.run(~r/\b(?:language|lang)\b\s*[:#-]?\s*([a-z]{2})/i, text) do
-      [_, language] -> language
-      _ -> nil
+      [_, language] ->
+        language
+
+      _ ->
+        case Regex.run(~r/(?:^|\n)\s*[A-Z0-9]{2,5}\s*[·•★* -]\s*([A-Z]{2})\b/u, text) do
+          [_, language] -> language
+          _ -> nil
+        end
     end
   end
 
@@ -615,10 +684,10 @@ defmodule Manavault.Catalog.ScanRecognition do
       -float_score(scores.phrase_match),
       if(name_phrase_hit?, do: 0, else: 1),
       if(type_phrase_hit?, do: 0, else: 1),
+      -float_score(scores.image_match),
       -float_score(scores.set_code),
       -float_score(scores.collector_number),
       -float_score(scores.language),
-      -float_score(scores.image_match),
       -float_score(scores.token_match),
       -name_token_weight,
       -type_token_weight,

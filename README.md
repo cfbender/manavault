@@ -49,6 +49,10 @@ Use one of these for scanning from a phone:
 - Serve Phoenix over HTTPS with a certificate your phone trusts.
 - Run the app directly on the device and open it through `localhost`.
 
+See [docs/mobile-scanner.md](docs/mobile-scanner.md) for supported browser notes,
+known camera limitations, scanner ergonomics, and the current Capacitor
+recommendation.
+
 ## Runtime data layout
 
 Production mutable application data defaults under `/data`:

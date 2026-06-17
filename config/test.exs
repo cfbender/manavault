@@ -21,6 +21,7 @@ config :manavault, ManavaultWeb.Endpoint,
 config :manavault, Manavault.Mailer, adapter: Swoosh.Adapters.Test
 
 config :manavault, :scryfall_sync_worker, false
+config :manavault, :scan_image_matching, false
 
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false

@@ -3,15 +3,19 @@ const IMAGE_QUALITY = 0.82
 const MAX_CAPTURE_EDGE_PX = 1200
 const CAPTURE_INTERVAL_MS = 450
 const CAPTURE_COOLDOWN_MS = 400
+const REJECTED_CAPTURE_COOLDOWN_MS = 1400
+const DUPLICATE_CAPTURE_COOLDOWN_MS = 1800
 
 function createScannerCamera() {
   let stream = null
   let devices = []
   let deviceIndex = 0
+  let manualCameraSelection = false
   let torchEnabled = false
   let captureTimer = null
   let captureInFlight = false
   let lastCaptureAt = 0
+  let captureBlockedUntil = 0
   let forceNextCapture = false
   let audioCtx = null
 
@@ -53,12 +57,74 @@ function createScannerCamera() {
     return stream?.getVideoTracks()[0]
   }
 
+  function cameraLabel(device) {
+    return (device?.label || "").toLowerCase()
+  }
+
+  function labelsAvailable() {
+    return devices.some(device => device.label)
+  }
+
+  function rearCameraScore(device) {
+    const label = cameraLabel(device)
+    if (!label) return 0
+
+    let score = 0
+    if (/(back|rear|environment|world)/.test(label)) score += 50
+    if (/(ultra|wide|tele|macro)/.test(label)) score += 10
+    if (/(front|user|selfie|facetime)/.test(label)) score -= 50
+    return score
+  }
+
+  function sortedVideoDevices(videoDevices) {
+    return [...videoDevices].sort((a, b) => rearCameraScore(b) - rearCameraScore(a))
+  }
+
+  function preferredRearDeviceIndex() {
+    if (!labelsAvailable()) return -1
+
+    let bestIndex = -1
+    let bestScore = 0
+
+    devices.forEach((device, index) => {
+      const score = rearCameraScore(device)
+      if (score > bestScore) {
+        bestIndex = index
+        bestScore = score
+      }
+    })
+
+    return bestIndex
+  }
+
+  function activeDeviceIndex() {
+    const track = currentVideoTrack()
+    const settings = track?.getSettings ? track.getSettings() : {}
+
+    if (settings.deviceId) {
+      const index = devices.findIndex(device => device.deviceId === settings.deviceId)
+      if (index >= 0) return index
+    }
+
+    const trackLabel = cameraLabel(track)
+    if (trackLabel) {
+      const index = devices.findIndex(device => cameraLabel(device) === trackLabel)
+      if (index >= 0) return index
+    }
+
+    return -1
+  }
+
   function cameraConstraints() {
     const device = devices[deviceIndex]
     if (device?.deviceId) {
       return {deviceId: {exact: device.deviceId}}
     }
     return {facingMode: {ideal: "environment"}}
+  }
+
+  function defaultCameraConstraints(strict = true) {
+    return {facingMode: strict ? {exact: "environment"} : {ideal: "environment"}}
   }
 
   function updateSwitchControl() {
@@ -147,7 +213,17 @@ function createScannerCamera() {
 
     try {
       const all = await navigator.mediaDevices.enumerateDevices()
-      devices = all.filter(d => d.kind === "videoinput")
+      const currentDeviceId = currentVideoTrack()?.getSettings?.().deviceId
+      devices = sortedVideoDevices(all.filter(d => d.kind === "videoinput"))
+
+      if (currentDeviceId) {
+        const currentIndex = devices.findIndex(device => device.deviceId === currentDeviceId)
+        if (currentIndex >= 0) deviceIndex = currentIndex
+      } else if (!manualCameraSelection) {
+        const rearIndex = preferredRearDeviceIndex()
+        if (rearIndex >= 0) deviceIndex = rearIndex
+      }
+
       updateSwitchControl()
     } catch (_error) {
       devices = []
@@ -179,11 +255,13 @@ function createScannerCamera() {
     if (captureInFlight) return
 
     const now = Date.now()
+    if (now < captureBlockedUntil) return
     if (now - lastCaptureAt < CAPTURE_COOLDOWN_MS) return
     if (!stream || !videoEl?.videoWidth || !videoEl?.videoHeight) return
 
     captureInFlight = true
     lastCaptureAt = now
+    captureBlockedUntil = 0
 
     const scale = Math.min(1, MAX_CAPTURE_EDGE_PX / Math.max(videoEl.videoWidth, videoEl.videoHeight))
     canvasEl.width = Math.round(videoEl.videoWidth * scale)
@@ -198,7 +276,6 @@ function createScannerCamera() {
       image_data: imageData,
       force: forceNextCapture
     })
-    setStatus("Captured frame. Sending to OCR…")
   }
 
   function startAutoCapture() {
@@ -211,11 +288,11 @@ function createScannerCamera() {
     stopCamera()
 
     try {
-      const constraints = cameraConstraints()
-      stream = await navigator.mediaDevices.getUserMedia({video: constraints, audio: false})
+      stream = await startCameraStream()
       videoEl.srcObject = stream
       await videoEl.play()
       await refreshDevices()
+      if (await restartWithRearCameraIfNeeded()) return
       updateCapabilities()
       setStatus("Camera is running. OCR scanning…")
       startAutoCapture()
@@ -224,12 +301,51 @@ function createScannerCamera() {
     }
   }
 
+  async function startCameraStream() {
+    const constraints = labelsAvailable() && devices[deviceIndex]?.deviceId ? cameraConstraints() : defaultCameraConstraints()
+
+    try {
+      return await navigator.mediaDevices.getUserMedia({video: constraints, audio: false})
+    } catch (error) {
+      if (constraints.facingMode?.exact === "environment") {
+        return await navigator.mediaDevices.getUserMedia({
+          video: defaultCameraConstraints(false),
+          audio: false
+        })
+      }
+
+      throw error
+    }
+  }
+
+  async function restartWithRearCameraIfNeeded() {
+    if (manualCameraSelection) return false
+
+    const rearIndex = preferredRearDeviceIndex()
+    if (rearIndex < 0) return false
+
+    const currentIndex = activeDeviceIndex()
+    if (currentIndex === rearIndex) return false
+
+    deviceIndex = rearIndex
+    stopCamera()
+    stream = await navigator.mediaDevices.getUserMedia({video: cameraConstraints(), audio: false})
+    videoEl.srcObject = stream
+    await videoEl.play()
+    await refreshDevices()
+    updateCapabilities()
+    setStatus("Camera is running. OCR scanning…")
+    startAutoCapture()
+    return true
+  }
+
   async function switchCamera() {
     if (devices.length < 2) {
       setStatus("No alternate camera is available.")
       return
     }
 
+    manualCameraSelection = true
     deviceIndex = (deviceIndex + 1) % devices.length
     await startCamera()
   }
@@ -279,10 +395,12 @@ function createScannerCamera() {
     stream = null
     devices = []
     deviceIndex = 0
+    manualCameraSelection = false
     torchEnabled = false
     captureTimer = null
     captureInFlight = false
     lastCaptureAt = 0
+    captureBlockedUntil = 0
     forceNextCapture = false
     audioCtx = null
 
@@ -315,11 +433,13 @@ function createScannerCamera() {
 
     handleEventFn("scan_duplicate", () => {
       captureInFlight = false
+      captureBlockedUntil = Date.now() + DUPLICATE_CAPTURE_COOLDOWN_MS
       forceNextCapture = false
     })
 
     handleEventFn("scan_rejected", () => {
       captureInFlight = false
+      captureBlockedUntil = Date.now() + REJECTED_CAPTURE_COOLDOWN_MS
       forceNextCapture = false
     })
 

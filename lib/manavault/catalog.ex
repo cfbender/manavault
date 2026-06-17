@@ -21,6 +21,7 @@ defmodule Manavault.Catalog do
     Sync
   }
 
+  @scan_auto_accept_min_confidence 0.7
   alias Manavault.Repo
 
   @bulk_metadata_url "https://api.scryfall.com/bulk-data/default-cards"
@@ -1943,7 +1944,10 @@ defmodule Manavault.Catalog do
   defp recognize_capture_image(path, opts) do
     case ScanRecognition.recognize(%ScanItem{image_path: path}, opts) do
       {:ok, %{candidates: [_ | _]} = recognition} ->
-        {:ok, recognition}
+        case auto_accept_capture_recognition(recognition) do
+          :ok -> {:ok, recognition}
+          {:error, reason} -> {:error, reason, path}
+        end
 
       {:ok, %{candidates: []}} ->
         {:error, "No card match found. Keep the card steady in the frame.", path}
@@ -1999,6 +2003,14 @@ defmodule Manavault.Catalog do
 
       {:error, reason} ->
         {:error, reason, scan_item}
+    end
+  end
+
+  defp auto_accept_capture_recognition(%{candidates: [top | _rest]}) do
+    if top.confidence >= @scan_auto_accept_min_confidence do
+      :ok
+    else
+      {:error, "No card match found with enough confidence. Keep the card steady in the frame."}
     end
   end
 

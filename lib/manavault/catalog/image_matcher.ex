@@ -12,7 +12,7 @@ defmodule Manavault.Catalog.ImageMatcher do
 
   @hash_script Path.join(:code.priv_dir(:manavault), "image_hash.py")
   @default_limit 5
-  @default_threshold 0.72
+  @default_threshold 0.82
 
   def build_references(fixtures, opts \\ []) when is_list(fixtures) do
     crop = Keyword.get(opts, :crop, "art")

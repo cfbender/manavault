@@ -59,6 +59,30 @@ defmodule Manavault.CatalogTest do
     "released_at" => "1993-08-05"
   }
 
+  @talisman_impulse_tdc %{
+    "id" => "talisman-tdc-332",
+    "oracle_id" => "oracle-talisman-impulse",
+    "name" => "Talisman of Impulse",
+    "type_line" => "Artifact",
+    "oracle_text" =>
+      "{T}: Add {C}.\n{T}: Add {R} or {G}. Talisman of Impulse deals 1 damage to you.",
+    "set" => "tdc",
+    "set_name" => "Tarkir: Dragonstorm Commander",
+    "collector_number" => "332",
+    "lang" => "en",
+    "finishes" => ["nonfoil"],
+    "released_at" => "2025-04-11"
+  }
+
+  @talisman_impulse_who %{
+    @talisman_impulse_tdc
+    | "id" => "talisman-who-842",
+      "set" => "who",
+      "set_name" => "Doctor Who",
+      "collector_number" => "842",
+      "released_at" => "2023-10-13"
+  }
+
   @plains %{
     "id" => "scryfall-printing-basic-plains",
     "oracle_id" => "oracle-plains",
@@ -1068,8 +1092,8 @@ defmodule Manavault.CatalogTest do
   end
 
   test "create_recognized_scan_item_from_capture stores only matched card captures" do
-    assert {:ok, %{cards_count: 2, printings_count: 2}} =
-             Catalog.import_cards([@black_lotus, @time_walk])
+    assert {:ok, %{cards_count: 3, printings_count: 3}} =
+             Catalog.import_cards([@black_lotus, @black_lotus_beta, @time_walk])
 
     upload_dir =
       Path.join(
@@ -1104,6 +1128,79 @@ defmodule Manavault.CatalogTest do
     assert item.accepted_printing_id == "scryfall-printing-1"
     assert [loaded_item] = Catalog.get_scan_session!(scan_session.id).scan_items
     assert loaded_item.id == item.id
+  end
+
+  test "create_recognized_scan_item_from_capture rejects weak token-only matches" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    upload_dir =
+      Path.join(
+        System.tmp_dir!(),
+        "manavault-weak-recognized-captures-#{System.unique_integer([:positive])}"
+      )
+
+    previous_dir = Application.get_env(:manavault, :capture_upload_dir)
+    Application.put_env(:manavault, :capture_upload_dir, upload_dir)
+
+    on_exit(fn ->
+      if previous_dir do
+        Application.put_env(:manavault, :capture_upload_dir, previous_dir)
+      else
+        Application.delete_env(:manavault, :capture_upload_dir)
+      end
+
+      File.rm_rf!(upload_dir)
+    end)
+
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Weak match batch"})
+
+    assert {:error,
+            "No card match found with enough confidence. Keep the card steady in the frame."} =
+             Catalog.create_recognized_scan_item_from_capture(
+               scan_session,
+               "data:image/png;base64,#{Base.encode64("fake image bytes")}",
+               ocr_runner: fn _path -> {:ok, "sacrifice"} end
+             )
+
+    assert Catalog.get_scan_session!(scan_session.id).scan_items == []
+    assert File.ls!(Path.join(upload_dir, "scan_sessions/#{scan_session.id}")) == []
+  end
+
+  test "create_recognized_scan_item_from_capture stores strong same-card printing matches" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @black_lotus_beta])
+
+    upload_dir =
+      Path.join(
+        System.tmp_dir!(),
+        "manavault-same-card-recognized-captures-#{System.unique_integer([:positive])}"
+      )
+
+    previous_dir = Application.get_env(:manavault, :capture_upload_dir)
+    Application.put_env(:manavault, :capture_upload_dir, upload_dir)
+
+    on_exit(fn ->
+      if previous_dir do
+        Application.put_env(:manavault, :capture_upload_dir, previous_dir)
+      else
+        Application.delete_env(:manavault, :capture_upload_dir)
+      end
+
+      File.rm_rf!(upload_dir)
+    end)
+
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Same-card batch"})
+
+    assert {:ok, item} =
+             Catalog.create_recognized_scan_item_from_capture(
+               scan_session,
+               "data:image/png;base64,#{Base.encode64("fake image bytes")}",
+               ocr_runner: fn _path -> {:ok, "Black Lotus"} end
+             )
+
+    assert item.status == "recognized"
+    assert item.accepted_printing_id in ["scryfall-printing-1", "scryfall-printing-3"]
+    assert [_item] = Catalog.get_scan_session!(scan_session.id).scan_items
   end
 
   test "create_recognized_scan_item_from_capture does not store unmatched captures" do
@@ -1225,6 +1322,24 @@ defmodule Manavault.CatalogTest do
     assert_in_delta evidence.scores.image_match, 0.765, 0.0001
   end
 
+  test "scan recognition reranks candidate printings with runtime image matcher" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @black_lotus_beta])
+
+    assert {:ok, %{candidates: [%{printing: printing, evidence: evidence} | _]}} =
+             ScanRecognition.recognize(%ScanItem{image_path: "/tmp/black-lotus.jpg"},
+               ocr_runner: fn _path -> {:ok, "Black Lotus"} end,
+               image_matcher: fn "/tmp/black-lotus.jpg", printings ->
+                 assert Enum.any?(printings, &(&1.scryfall_id == "scryfall-printing-1"))
+                 assert Enum.any?(printings, &(&1.scryfall_id == "scryfall-printing-3"))
+                 [%{scryfall_id: "scryfall-printing-3", score: 0.95}]
+               end
+             )
+
+    assert printing.scryfall_id == "scryfall-printing-3"
+    assert_in_delta evidence.scores.image_match, 0.8075, 0.0001
+  end
+
   test "scan recognition falls back to image evidence when OCR fails" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
@@ -1317,6 +1432,31 @@ defmodule Manavault.CatalogTest do
     assert Enum.any?(parsed.tokens, &(&1 == "black"))
     assert Enum.any?(parsed.tokens, &(&1 == "lotus"))
     assert parsed.lines == ["Black Lotus"]
+  end
+
+  test "scan recognition parses modern set and language footer lines" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@talisman_impulse_tdc, @talisman_impulse_who])
+
+    parsed =
+      ScanRecognition.parse_text("""
+      Talisman of Impulse
+      Artifact
+      :Add
+      :Add  or .This artifact deals 1
+      damage to you.
+      &o2025Wizardsof the Coasr
+      U0332
+      TDC·EN MIKE DRINGENBERG
+      """)
+
+    assert [%{printing: printing, evidence: evidence} | _] =
+             ScanRecognition.match_candidates(parsed)
+
+    assert printing.scryfall_id == "talisman-tdc-332"
+    assert_in_delta evidence.scores.set_code, 0.2, 0.0001
+    assert_in_delta evidence.scores.collector_number, 0.25, 0.0001
+    assert_in_delta evidence.scores.language, 0.05, 0.0001
   end
 
   test "scan recognition falls back to oracle text when name does not parse" do
