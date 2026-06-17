@@ -484,6 +484,80 @@ defmodule Manavault.CatalogTest do
              Catalog.allocate_collection_item_to_deck_card(active_lotus.id, available_item.id)
   end
 
+  test "only active deck allocations reserve cards for other decks" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    assert {:ok, brewing_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    assert {:ok, archived_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    assert {:ok, active_deck} =
+             Catalog.create_deck(%{
+               "name" => "Active",
+               "format" => "vintage",
+               "status" => "active"
+             })
+
+    assert {:ok, brewing_deck} =
+             Catalog.create_deck(%{
+               "name" => "Brew",
+               "format" => "vintage",
+               "status" => "brewing"
+             })
+
+    assert {:ok, archived_deck} =
+             Catalog.create_deck(%{
+               "name" => "Archive",
+               "format" => "vintage",
+               "status" => "archived"
+             })
+
+    assert Catalog.deck_reserves_cards?(active_deck)
+    refute Catalog.deck_reserves_cards?(brewing_deck)
+    refute Catalog.deck_reserves_cards?(archived_deck)
+
+    assert {:ok, active_lotus} =
+             Catalog.add_card_to_deck(active_deck, %{"name" => "Black Lotus", "quantity" => 2})
+
+    assert {:ok, brewing_lotus} =
+             Catalog.add_card_to_deck(brewing_deck, %{"name" => "Black Lotus"})
+
+    assert {:ok, archived_lotus} =
+             Catalog.add_card_to_deck(archived_deck, %{"name" => "Black Lotus"})
+
+    assert {:ok, _allocation} =
+             Catalog.allocate_collection_item_to_deck_card(brewing_lotus.id, brewing_item.id)
+
+    assert {:ok, _allocation} =
+             Catalog.allocate_collection_item_to_deck_card(archived_lotus.id, archived_item.id)
+
+    status = Catalog.deck_card_allocation_status(active_lotus)
+    assert status.available == 2
+    assert status.allocated_elsewhere == 0
+    assert status.missing == 0
+
+    assert {:ok, _brewing_deck} = Catalog.update_deck(brewing_deck, %{"status" => "active"})
+
+    status = Catalog.deck_card_allocation_status(active_lotus)
+    assert status.available == 1
+    assert status.allocated_elsewhere == 1
+    assert status.missing == 1
+  end
+
   test "bulk deck allocation can use exact printings before matching alternate printings" do
     assert {:ok, %{cards_count: 3, printings_count: 3}} =
              Catalog.import_cards([@black_lotus, @black_lotus_beta, @time_walk])

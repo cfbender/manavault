@@ -26,6 +26,7 @@ defmodule Manavault.Catalog do
   @bulk_type "default_cards"
   @batch_size 200
   @card_name_cache_key {__MODULE__, :card_name_suggestions, 2}
+  @reserving_deck_statuses ["active"]
   @suggestion_candidate_limit 250
 
   def search_cards(term, opts \\ []) when is_binary(term) do
@@ -370,6 +371,9 @@ defmodule Manavault.Catalog do
   def delete_deck(%Deck{} = deck) do
     Repo.delete(deck)
   end
+
+  def deck_reserves_cards?(%Deck{status: status}), do: deck_reserves_cards?(status)
+  def deck_reserves_cards?(status) when is_binary(status), do: status in @reserving_deck_statuses
 
   def change_deck_card(%DeckCard{} = deck_card, attrs \\ %{}) do
     DeckCard.changeset(deck_card, attrs)
@@ -1000,7 +1004,7 @@ defmodule Manavault.Catalog do
     |> join(:inner, [_allocation, allocated_card], deck in assoc(allocated_card, :deck))
     |> where(
       [allocation, allocated_card, deck],
-      deck.status == "active" and allocated_card.id != ^deck_card.id and
+      deck.status in ^@reserving_deck_statuses and allocated_card.id != ^deck_card.id and
         allocated_card.oracle_id == ^deck_card.oracle_id and
         allocated_card.finish == ^deck_card.finish
     )
