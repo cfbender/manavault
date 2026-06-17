@@ -4,7 +4,7 @@ defmodule ManavaultWeb.CollectionLive do
   import ManavaultWeb.CardTile, only: [card_tile: 1]
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.{CollectionItem, Printing}
+  alias Manavault.Catalog.{CollectionItem, Location, Printing}
 
   @conditions [
     {"Any condition", ""},
@@ -36,6 +36,10 @@ defmodule ManavaultWeb.CollectionLive do
      |> assign(:selected_item, nil)
      |> assign(:change_printing_item, nil)
      |> assign(:change_printing_options, [])
+     |> assign(:editing_location, nil)
+     |> assign(:location_form, nil)
+     |> assign(:location_cover_options, [])
+     |> assign(:location_cover_query, "")
      |> assign(:condition_options, @conditions)
      |> assign(:finish_options, @finishes)
      |> assign(:filter_form, to_form(%{"q" => ""}, as: :filters))}
@@ -120,7 +124,71 @@ defmodule ManavaultWeb.CollectionLive do
      socket
      |> assign(:selected_item, nil)
      |> assign(:change_printing_item, nil)
-     |> assign(:change_printing_options, [])}
+     |> assign(:change_printing_options, [])
+     |> assign(:editing_location, nil)
+     |> assign(:location_form, nil)
+     |> assign(:location_cover_options, [])
+     |> assign(:location_cover_query, "")}
+  end
+
+  @impl true
+  def handle_event("edit_location", %{"id" => id}, socket) do
+    location = Catalog.get_location!(id)
+
+    {:noreply,
+     socket
+     |> assign(:selected_item, nil)
+     |> assign(:change_printing_item, nil)
+     |> assign(:change_printing_options, [])
+     |> assign(:editing_location, location)
+     |> assign(:location_form, location_form(location))
+     |> assign(:location_cover_options, selected_location_cover_option(location))
+     |> assign(:location_cover_query, "")}
+  end
+
+  @impl true
+  def handle_event("search_location_cover", %{"cover" => %{"q" => query}}, socket) do
+    query = String.trim(query || "")
+
+    {:noreply,
+     socket
+     |> assign(:location_cover_query, query)
+     |> assign(
+       :location_cover_options,
+       location_cover_options(query, socket.assigns.editing_location)
+     )}
+  end
+
+  @impl true
+  def handle_event("validate_location", %{"location" => params}, socket) do
+    form =
+      socket.assigns.editing_location
+      |> Catalog.change_location(normalize_location_params(params))
+      |> Map.put(:action, :validate)
+      |> to_form()
+
+    {:noreply, assign(socket, :location_form, form)}
+  end
+
+  @impl true
+  def handle_event("save_location", %{"location" => params}, socket) do
+    case Catalog.update_location(
+           socket.assigns.editing_location,
+           normalize_location_params(params)
+         ) do
+      {:ok, location} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Updated #{location.name}.")
+         |> assign(:locations, Catalog.list_locations())
+         |> assign(:editing_location, nil)
+         |> assign(:location_form, nil)
+         |> assign(:location_cover_options, [])
+         |> assign(:location_cover_query, "")}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, :location_form, to_form(changeset))}
+    end
   end
 
   @impl true
@@ -154,7 +222,7 @@ defmodule ManavaultWeb.CollectionLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash}>
-      <div class="space-y-8">
+      <div class="relative left-1/2 w-[min(calc(100vw-2rem),80rem)] -translate-x-1/2 space-y-8">
         <section class="card border border-base-300 bg-base-200 shadow-xl">
           <div class="card-body gap-6 p-6 sm:p-8">
             <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -185,31 +253,71 @@ defmodule ManavaultWeb.CollectionLive do
             <span>No locations yet. Add a box, binder, or list to start organizing your collection.</span>
           </div>
 
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            <.link
+          <div class="grid gap-4">
+            <div
               :for={loc <- @locations}
-              navigate={~p"/collection/locations/#{loc.id}"}
-              class="group card overflow-hidden border border-base-300 bg-base-100 shadow-sm transition hover:-translate-y-1 hover:border-primary/40 hover:shadow-xl"
+              id={"location-row-#{loc.id}"}
+              class="group overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-sm transition hover:border-primary/40 hover:shadow-xl"
             >
-              <div class="card-body gap-3 p-5">
-                <div class="flex items-start justify-between gap-2">
-                  <span class="text-3xl">{kind_icon(loc.kind)}</span>
-                  <span class="badge badge-outline badge-sm">{humanize_kind(loc.kind)}</span>
-                </div>
-                <div>
-                  <h3 class="text-lg font-bold leading-snug">{loc.name}</h3>
-                  <p :if={loc.description} class="mt-1 text-sm text-base-content/60 line-clamp-2">
-                    {loc.description}
-                  </p>
-                </div>
-                <div class="flex items-center justify-between text-sm text-base-content/60">
-                  <span>{length(loc.collection_items)} cards</span>
-                  <span class="text-primary opacity-0 transition group-hover:opacity-100">
-                    View →
-                  </span>
+              <div class="grid gap-0 md:grid-cols-[13rem_1fr]">
+                <.link
+                  navigate={~p"/collection/locations/#{loc.id}"}
+                  class="relative block aspect-[16/10] bg-base-300 md:aspect-auto"
+                >
+                  <img
+                    :if={location_cover_url(loc)}
+                    src={location_cover_url(loc)}
+                    alt=""
+                    class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.015]"
+                  />
+                  <div
+                    :if={!location_cover_url(loc)}
+                    class="grid h-full w-full place-items-center text-5xl text-base-content/45"
+                  >
+                    {kind_icon(loc.kind)}
+                  </div>
+                </.link>
+
+                <div class="flex flex-col gap-4 p-5 sm:p-6">
+                  <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <.link navigate={~p"/collection/locations/#{loc.id}"} class="min-w-0 space-y-2">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <span class="badge badge-outline badge-sm">{humanize_kind(loc.kind)}</span>
+                        <span class="text-sm text-base-content/60">
+                          {length(loc.collection_items)} cards
+                        </span>
+                      </div>
+                      <div>
+                        <h3 class="text-2xl font-black leading-tight tracking-tight">{loc.name}</h3>
+                        <p
+                          :if={loc.description}
+                          class="mt-1 text-sm leading-6 text-base-content/60"
+                        >
+                          {loc.description}
+                        </p>
+                      </div>
+                    </.link>
+
+                    <div class="flex shrink-0 gap-2">
+                      <button
+                        type="button"
+                        class="btn btn-outline btn-sm"
+                        phx-click="edit_location"
+                        phx-value-id={loc.id}
+                      >
+                        Edit
+                      </button>
+                      <.link
+                        navigate={~p"/collection/locations/#{loc.id}"}
+                        class="btn btn-primary btn-sm"
+                      >
+                        View
+                      </.link>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </.link>
+            </div>
           </div>
         </section>
 
@@ -297,103 +405,304 @@ defmodule ManavaultWeb.CollectionLive do
             </button>
           </div>
         </section>
+      </div>
 
-        <dialog
-          :if={@selected_item}
-          id="collection-item-modal"
-          class="modal modal-open"
-          phx-click-away="close_modal"
-          phx-key="Escape"
-        >
-          <div class="modal-box max-w-md">
-            <div class="flex gap-4">
-              <img
-                :if={item_image_url(@selected_item)}
-                src={item_image_url(@selected_item)}
-                alt={card_name(@selected_item)}
-                class="w-28 h-40 shrink-0 rounded-lg shadow object-cover"
-              />
-              <div class="space-y-3 flex-1">
-                <h3 class="text-lg font-bold">{card_name(@selected_item)}</h3>
-                <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-                  <dt class="font-semibold">Printing</dt>
-                  <dd>{set_label(@selected_item)}</dd>
-                  <dt class="font-semibold">Quantity</dt>
-                  <dd>{@selected_item.quantity}</dd>
-                  <dt class="font-semibold">Condition</dt>
-                  <dd>{humanize_value(@selected_item.condition)}</dd>
-                  <dt class="font-semibold">Language</dt>
-                  <dd>{@selected_item.language}</dd>
-                  <dt class="font-semibold">Finish</dt>
-                  <dd>{@selected_item.finish}</dd>
-                  <dt :if={price_text(@selected_item)} class="font-semibold">Price</dt>
-                  <dd :if={price_text(@selected_item)}>{price_text(@selected_item)}</dd>
-                  <dt class="font-semibold">Scryfall ID</dt>
-                  <dd class="break-all text-xs">{@selected_item.scryfall_id}</dd>
-                </dl>
-              </div>
-            </div>
-            <div class="modal-action">
-              <.link
-                navigate={~p"/collection/#{@selected_item.id}/edit"}
-                class="btn btn-sm btn-primary"
-              >
-                Edit
-              </.link>
-              <button class="btn btn-sm" phx-click="close_modal">Close</button>
+      <dialog
+        :if={@selected_item}
+        id="collection-item-modal"
+        class="modal modal-open"
+        phx-click-away="close_modal"
+        phx-key="Escape"
+      >
+        <div class="modal-box max-w-md">
+          <div class="flex gap-4">
+            <img
+              :if={item_image_url(@selected_item)}
+              src={item_image_url(@selected_item)}
+              alt={card_name(@selected_item)}
+              class="w-28 h-40 shrink-0 rounded-lg shadow object-cover"
+            />
+            <div class="space-y-3 flex-1">
+              <h3 class="text-lg font-bold">{card_name(@selected_item)}</h3>
+              <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+                <dt class="font-semibold">Printing</dt>
+                <dd>{set_label(@selected_item)}</dd>
+                <dt class="font-semibold">Quantity</dt>
+                <dd>{@selected_item.quantity}</dd>
+                <dt class="font-semibold">Condition</dt>
+                <dd>{humanize_value(@selected_item.condition)}</dd>
+                <dt class="font-semibold">Language</dt>
+                <dd>{@selected_item.language}</dd>
+                <dt class="font-semibold">Finish</dt>
+                <dd>{@selected_item.finish}</dd>
+                <dt :if={price_text(@selected_item)} class="font-semibold">Price</dt>
+                <dd :if={price_text(@selected_item)}>{price_text(@selected_item)}</dd>
+                <dt class="font-semibold">Scryfall ID</dt>
+                <dd class="break-all text-xs">{@selected_item.scryfall_id}</dd>
+              </dl>
             </div>
           </div>
-          <form method="dialog" class="modal-backdrop">
-            <button phx-click="close_modal">close</button>
-          </form>
-        </dialog>
+          <div class="modal-action">
+            <.link
+              navigate={~p"/collection/#{@selected_item.id}/edit"}
+              class="btn btn-sm btn-primary"
+            >
+              Edit
+            </.link>
+            <button class="btn btn-sm" phx-click="close_modal">Close</button>
+          </div>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+          <button phx-click="close_modal">close</button>
+        </form>
+      </dialog>
 
-        <dialog
-          :if={@change_printing_item}
-          id="change-printing-modal"
-          class="modal modal-open"
-          phx-click-away="close_modal"
-          phx-key="Escape"
-        >
-          <div class="modal-box max-w-3xl">
-            <div class="space-y-2">
-              <h3 class="text-xl font-bold">Change printing</h3>
+      <dialog
+        :if={@change_printing_item}
+        id="change-printing-modal"
+        class="modal modal-open"
+        phx-click-away="close_modal"
+        phx-key="Escape"
+      >
+        <div class="modal-box max-w-3xl">
+          <div class="space-y-2">
+            <h3 class="text-xl font-bold">Change printing</h3>
+            <p class="text-sm text-base-content/70">
+              Choose a different printing for {card_name(@change_printing_item)}.
+            </p>
+          </div>
+
+          <div class="mt-5 max-h-[68vh] overflow-y-auto pr-1">
+            <div class="grid grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-3 sm:grid-cols-[repeat(auto-fill,minmax(8rem,1fr))]">
+              <.card_tile
+                :for={printing <- @change_printing_options}
+                item={printing}
+                menu={:none}
+                variant={:compact}
+                details_event="switch_printing"
+                click_value_id={@change_printing_item.id}
+                click_value_scryfall_id={printing.scryfall_id}
+                click_disabled={printing.scryfall_id == @change_printing_item.scryfall_id}
+                current={printing.scryfall_id == @change_printing_item.scryfall_id}
+              />
+            </div>
+          </div>
+
+          <p :if={@change_printing_options == []} class="alert alert-info mt-5">
+            No alternate printings found for this card.
+          </p>
+
+          <div class="modal-action">
+            <button class="btn btn-sm" phx-click="close_modal">Cancel</button>
+          </div>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+          <button phx-click="close_modal">close</button>
+        </form>
+      </dialog>
+
+      <div
+        :if={@editing_location}
+        id="location-edit-modal"
+        class="fixed inset-0 z-50 grid h-screen w-screen place-items-center overflow-hidden bg-black/65 p-4 backdrop-blur-sm"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="location-edit-title"
+        phx-window-keydown="close_modal"
+        phx-key="Escape"
+      >
+        <button
+          type="button"
+          class="absolute inset-0 cursor-default"
+          aria-label="Close location editor"
+          phx-click="close_modal"
+        />
+
+        <div class="relative z-10 flex h-[min(48rem,calc(100vh-4rem))] w-[min(calc(100vw-2rem),56rem)] max-w-none flex-col overflow-hidden rounded-box border border-base-300 bg-base-100 p-0 shadow-2xl ring-1 ring-white/10">
+          <div class="sticky top-0 z-20 flex shrink-0 flex-col gap-3 border-b border-base-300 bg-base-200/95 px-6 py-4 shadow-sm sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 id="location-edit-title" class="text-xl font-bold">Edit location</h3>
               <p class="text-sm text-base-content/70">
-                Choose a different printing for {card_name(@change_printing_item)}.
+                Search for any card to choose cover art.
               </p>
             </div>
-
-            <div class="mt-5 max-h-[68vh] overflow-y-auto pr-1">
-              <div class="grid grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-3 sm:grid-cols-[repeat(auto-fill,minmax(8rem,1fr))]">
-                <.card_tile
-                  :for={printing <- @change_printing_options}
-                  item={printing}
-                  menu={:none}
-                  variant={:compact}
-                  details_event="switch_printing"
-                  click_value_id={@change_printing_item.id}
-                  click_value_scryfall_id={printing.scryfall_id}
-                  click_disabled={printing.scryfall_id == @change_printing_item.scryfall_id}
-                  current={printing.scryfall_id == @change_printing_item.scryfall_id}
-                />
-              </div>
-            </div>
-
-            <p :if={@change_printing_options == []} class="alert alert-info mt-5">
-              No alternate printings found for this card.
-            </p>
-
-            <div class="modal-action">
-              <button class="btn btn-sm" phx-click="close_modal">Cancel</button>
+            <div class="flex shrink-0 gap-2">
+              <button class="btn btn-ghost btn-sm" type="button" phx-click="close_modal">
+                Cancel
+              </button>
+              <button class="btn btn-primary btn-sm" type="submit" form="location-edit-form">
+                Save
+              </button>
             </div>
           </div>
-          <form method="dialog" class="modal-backdrop">
-            <button phx-click="close_modal">close</button>
-          </form>
-        </dialog>
+
+          <.form
+            for={@location_form}
+            id="location-edit-form"
+            as={:location}
+            phx-change="validate_location"
+            phx-submit="save_location"
+            class="flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
+            <div class="min-h-0 flex-1 space-y-4 overflow-y-auto bg-base-100 px-6 py-5">
+              <div class="grid gap-3 sm:grid-cols-2">
+                <.input field={@location_form[:name]} type="text" label="Name" required />
+                <.input
+                  field={@location_form[:kind]}
+                  type="select"
+                  label="Kind"
+                  options={location_kind_options()}
+                />
+              </div>
+
+              <.input field={@location_form[:description]} type="textarea" label="Description" />
+
+              <div class="space-y-3">
+                <div class="flex items-center justify-between gap-3">
+                  <h4 class="font-semibold">Cover image</h4>
+                  <label class="inline-flex cursor-pointer items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      class="radio radio-sm"
+                      name="location[cover_scryfall_id]"
+                      value=""
+                      checked={blank_cover?(@location_form)}
+                    /> None
+                  </label>
+                </div>
+
+                <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                  <label class="form-control">
+                    <span class="label-text">Search card art</span>
+                    <input
+                      class="input input-bordered"
+                      type="search"
+                      name="cover[q]"
+                      value={@location_cover_query}
+                      placeholder="Black Lotus"
+                      phx-debounce="300"
+                      phx-change="search_location_cover"
+                      onkeydown="if (event.key === 'Enter') event.preventDefault()"
+                    />
+                  </label>
+                </div>
+
+                <div
+                  :if={@location_cover_options == [] and @location_cover_query == ""}
+                  class="alert border border-info/20 bg-info/10 text-sm"
+                >
+                  <span>Search for any card to choose cover art.</span>
+                </div>
+
+                <div
+                  :if={@location_cover_options == [] and @location_cover_query != ""}
+                  class="alert border border-info/20 bg-info/10 text-sm"
+                >
+                  <span>No card art matched that search.</span>
+                </div>
+
+                <div
+                  :if={@location_cover_options != []}
+                  class="grid grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-3 pr-1 sm:grid-cols-[repeat(auto-fill,minmax(8rem,1fr))]"
+                >
+                  <label
+                    :for={item <- @location_cover_options}
+                    class={[
+                      "relative cursor-pointer rounded-xl border border-base-300 bg-base-200 p-1 transition hover:border-primary/50",
+                      cover_selected?(@location_form, item.scryfall_id) &&
+                        "border-primary ring-2 ring-primary/60"
+                    ]}
+                  >
+                    <input
+                      type="radio"
+                      class="sr-only"
+                      name="location[cover_scryfall_id]"
+                      value={item.scryfall_id}
+                      checked={cover_selected?(@location_form, item.scryfall_id)}
+                    />
+                    <img
+                      :if={item_art_url(item)}
+                      src={item_art_url(item)}
+                      alt={card_name(item)}
+                      class="aspect-[16/9] w-full rounded-lg object-cover"
+                    />
+                    <div
+                      :if={!item_art_url(item)}
+                      class="grid aspect-[16/9] w-full place-items-center rounded-lg bg-base-300 p-3 text-center text-xs text-base-content/50"
+                    >
+                      No image
+                    </div>
+                    <div class="p-2 text-xs">
+                      <p class="line-clamp-2 font-semibold leading-tight">{card_name(item)}</p>
+                      <p class="mt-1 text-base-content/60">{set_label(item)}</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </.form>
+        </div>
       </div>
     </Layouts.app>
     """
+  end
+
+  defp location_form(%Location{} = location) do
+    location
+    |> Catalog.change_location()
+    |> to_form()
+  end
+
+  defp location_cover_options("", %Location{} = location),
+    do: selected_location_cover_option(location)
+
+  defp location_cover_options(query, %Location{} = location) do
+    query
+    |> then(&Catalog.search_printings([name: &1], limit: 30))
+    |> include_selected_cover(location)
+  end
+
+  defp selected_location_cover_option(%Location{cover_scryfall_id: scryfall_id})
+       when is_binary(scryfall_id) do
+    case Catalog.get_printing_by_scryfall_id(scryfall_id) do
+      %Printing{} = printing -> [printing]
+      nil -> []
+    end
+  end
+
+  defp selected_location_cover_option(_location), do: []
+
+  defp include_selected_cover(options, %Location{} = location) do
+    (selected_location_cover_option(location) ++ options)
+    |> Enum.uniq_by(& &1.scryfall_id)
+  end
+
+  defp normalize_location_params(%{"cover_scryfall_id" => ""} = params) do
+    Map.put(params, "cover_scryfall_id", nil)
+  end
+
+  defp normalize_location_params(params), do: params
+
+  defp blank_cover?(form), do: form[:cover_scryfall_id].value in [nil, ""]
+
+  defp cover_selected?(form, scryfall_id) do
+    to_string(form[:cover_scryfall_id].value || "") == to_string(scryfall_id)
+  end
+
+  defp location_cover_url(%{cover_printing: %Printing{} = printing}),
+    do: printing_art_url(printing)
+
+  defp location_cover_url(_location), do: nil
+
+  defp location_kind_options do
+    [
+      {"Box", "box"},
+      {"Binder", "binder"},
+      {"Deck box", "deck_box"},
+      {"List", "list"},
+      {"Folder", "folder"},
+      {"Other", "other"}
+    ]
   end
 
   defp filter_params(params) when is_map(params) do
@@ -447,11 +756,16 @@ defmodule ManavaultWeb.CollectionLive do
   end
 
   defp card_name(%CollectionItem{printing: %{card: %{name: name}}}), do: name
+  defp card_name(%Printing{card: %{name: name}}), do: name
   defp card_name(_item), do: "Unknown card"
 
   defp set_label(%CollectionItem{
          printing: %{set_code: set_code, collector_number: collector_number}
        }) do
+    "#{String.upcase(set_code)} ##{collector_number}"
+  end
+
+  defp set_label(%Printing{set_code: set_code, collector_number: collector_number}) do
     "#{String.upcase(set_code)} ##{collector_number}"
   end
 
@@ -494,11 +808,16 @@ defmodule ManavaultWeb.CollectionLive do
   end
 
   defp item_image_url(%CollectionItem{printing: printing}), do: printing_image_url(printing)
+  defp item_image_url(%Printing{} = printing), do: printing_image_url(printing)
   defp item_image_url(_item), do: nil
+
+  defp item_art_url(%CollectionItem{printing: printing}), do: printing_art_url(printing)
+  defp item_art_url(%Printing{} = printing), do: printing_art_url(printing)
+  defp item_art_url(_item), do: nil
 
   defp printing_image_url(%Printing{image_uris: image_uris}) do
     with {:ok, uris} <- Jason.decode(image_uris) do
-      image_url_from_uris(uris)
+      image_url_from_uris(uris, :card)
     else
       _ -> nil
     end
@@ -506,12 +825,27 @@ defmodule ManavaultWeb.CollectionLive do
 
   defp printing_image_url(_printing), do: nil
 
-  defp image_url_from_uris(uris) when is_map(uris) do
-    uris["normal"] || uris["large"] || uris["small"] || uris["png"]
+  defp printing_art_url(%Printing{image_uris: image_uris}) do
+    with {:ok, uris} <- Jason.decode(image_uris) do
+      image_url_from_uris(uris, :art)
+    else
+      _ -> nil
+    end
   end
 
-  defp image_url_from_uris([uris | _]), do: image_url_from_uris(uris)
-  defp image_url_from_uris(_uris), do: nil
+  defp printing_art_url(_printing), do: nil
+
+  defp image_url_from_uris(uris, variant) when is_map(uris) do
+    variant
+    |> preferred_image_keys()
+    |> Enum.find_value(&Map.get(uris, &1))
+  end
+
+  defp image_url_from_uris([uris | _], variant), do: image_url_from_uris(uris, variant)
+  defp image_url_from_uris(_uris, _variant), do: nil
+
+  defp preferred_image_keys(:art), do: ["art_crop", "normal", "large", "small", "png"]
+  defp preferred_image_keys(_variant), do: ["normal", "large", "small", "png", "art_crop"]
 
   defp decode_json(value, fallback) when is_binary(value) do
     case Jason.decode(value) do

@@ -8,6 +8,11 @@ defmodule Manavault.Catalog.Location do
     field :kind, :string, default: "box"
     field :description, :string
 
+    belongs_to :cover_printing, Manavault.Catalog.Printing,
+      references: :scryfall_id,
+      foreign_key: :cover_scryfall_id,
+      type: :string
+
     has_many :collection_items, Manavault.Catalog.CollectionItem
 
     timestamps(type: :utc_datetime)
@@ -17,9 +22,10 @@ defmodule Manavault.Catalog.Location do
 
   def changeset(location, attrs) do
     location
-    |> cast(attrs, [:name, :kind, :description])
+    |> cast(attrs, [:name, :kind, :description, :cover_scryfall_id])
     |> validate_required([:name, :kind])
     |> validate_inclusion(:kind, @kinds)
     |> unique_constraint(:name)
+    |> foreign_key_constraint(:cover_scryfall_id)
   end
 end

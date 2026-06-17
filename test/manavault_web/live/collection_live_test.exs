@@ -16,7 +16,10 @@ defmodule ManavaultWeb.CollectionLiveTest do
     "collector_number" => "232",
     "lang" => "en",
     "finishes" => ["nonfoil"],
-    "image_uris" => %{"normal" => "https://example.test/black-lotus.jpg"},
+    "image_uris" => %{
+      "normal" => "https://example.test/black-lotus.jpg",
+      "art_crop" => "https://example.test/black-lotus-art.jpg"
+    },
     "prices" => %{"usd" => "100000.00"},
     "released_at" => "1993-08-05"
   }
@@ -81,6 +84,7 @@ defmodule ManavaultWeb.CollectionLiveTest do
       assert html =~ "Trade Binder"
       assert html =~ "Binder"
       assert html =~ "1 cards"
+      assert html =~ ~s|id="location-row-#{binder.id}"|
       assert html =~ "Owned cards"
       assert html =~ "Black Lotus"
       assert html =~ "Time Walk"
@@ -97,6 +101,48 @@ defmodule ManavaultWeb.CollectionLiveTest do
       assert html =~ "Click for details"
       assert html =~ "https://example.test/black-lotus.jpg"
       refute html =~ "LEA #232"
+    end
+
+    test "edits a location cover by searching card art", %{conn: conn} do
+      {:ok, binder} =
+        Catalog.create_location(%{
+          name: "Trade Binder",
+          kind: "binder",
+          description: "Rare trade pages"
+        })
+
+      {:ok, view, _html} = live(conn, ~p"/collection")
+
+      html = render_click(view, "edit_location", %{"id" => binder.id})
+
+      assert html =~ "Edit location"
+      assert html =~ "Search for any card to choose cover art."
+      assert html =~ "Search for any card to choose cover art."
+
+      html = render_change(view, "search_location_cover", %{"cover" => %{"q" => "lotus"}})
+
+      assert html =~ "Black Lotus"
+      assert html =~ "LEA #232"
+      assert html =~ "LEB #233"
+
+      html =
+        view
+        |> form("#location-edit-form",
+          location: %{
+            name: "Trade Binder",
+            kind: "binder",
+            description: "Updated cover",
+            cover_scryfall_id: "scryfall-printing-1"
+          }
+        )
+        |> render_submit()
+
+      assert html =~ "Updated Trade Binder."
+      assert html =~ "https://example.test/black-lotus-art.jpg"
+
+      updated = Catalog.get_location!(binder.id)
+      assert updated.description == "Updated cover"
+      assert updated.cover_scryfall_id == "scryfall-printing-1"
     end
 
     test "filters collection-wide owned cards", %{conn: conn} do

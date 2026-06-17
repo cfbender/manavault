@@ -36,7 +36,9 @@ defmodule Manavault.Catalog do
   end
 
   def get_printing_by_scryfall_id(scryfall_id) when is_binary(scryfall_id) do
-    Repo.get(Printing, scryfall_id)
+    Printing
+    |> Repo.get(scryfall_id)
+    |> Repo.preload(:card)
   end
 
   def get_printing(set_code, collector_number)
@@ -223,7 +225,7 @@ defmodule Manavault.Catalog do
     Location
     |> order_by(asc: :name)
     |> Repo.all()
-    |> Repo.preload(collection_items: [])
+    |> Repo.preload([:cover_printing, collection_items: []])
   end
 
   def list_location_options do
