@@ -85,6 +85,7 @@ defmodule ManavaultWeb.CollectionLiveTest do
       assert html =~ "Binder"
       assert html =~ "1 cards"
       assert html =~ ~s|id="location-row-#{binder.id}"|
+      assert has_element?(view, "#location-row-#{binder.id} button", "Import")
       assert has_element?(view, "#location-row-#{binder.id}", "$100k")
       assert html =~ "Owned cards"
       assert html =~ "Black Lotus"
@@ -354,6 +355,136 @@ defmodule ManavaultWeb.CollectionLiveTest do
       {:ok, _view, html} = live(conn, ~p"/collection")
 
       assert html =~ "No locations yet"
+    end
+
+    test "imports collection CSV into one selected location", %{conn: conn} do
+      {:ok, binder} = Catalog.create_location(%{name: "Import Binder", kind: "binder"})
+
+      csv = """
+      Quantity,Card Name,Set Code,Collector Number,Finish,Condition,Language,Location
+      2,Black Lotus,lea,232,nonfoil,NM,en,Ignored Binder
+      """
+
+      {:ok, view, _html} = live(conn, ~p"/collection")
+
+      html =
+        view
+        |> element(
+          ~s|#location-row-#{binder.id} button[phx-click="open_collection_modal"]|,
+          "Import"
+        )
+        |> render_click()
+
+      assert html =~ "Import collection CSV"
+      assert html =~ "Import Binder"
+      assert html =~ "No location"
+
+      assert has_element?(
+               view,
+               ~s|#collection-import-form select[name="import[location_id]"] option[selected][value="#{binder.id}"]|
+             )
+
+      upload =
+        file_input(view, "#collection-import-form", :collection_csv, [
+          %{name: "collection.csv", content: csv, type: "text/csv"}
+        ])
+
+      assert render_upload(upload, "collection.csv") =~ "collection.csv"
+
+      html =
+        view
+        |> form("#collection-import-form",
+          import: %{location_id: "#{binder.id}"}
+        )
+        |> render_submit()
+
+      assert html =~ "Exact"
+      assert html =~ "Black Lotus"
+      assert html =~ "Import exact rows"
+
+      html =
+        view
+        |> form("#collection-import-commit-form")
+        |> render_submit()
+
+      assert html =~ "Imported 1 collection rows."
+      assert html =~ "Black Lotus"
+
+      [item] = Catalog.list_collection_items([], limit: 10)
+      assert item.quantity == 2
+      assert item.location_id == binder.id
+    end
+
+    test "corrects an ambiguous collection CSV row before import", %{conn: conn} do
+      csv = """
+      Quantity,Card Name
+      1,Black Lotus
+      """
+
+      {:ok, view, _html} = live(conn, ~p"/collection")
+
+      view
+      |> element(~s|button[phx-click="open_collection_modal"][phx-value-modal="import"]|)
+      |> render_click()
+
+      upload =
+        file_input(view, "#collection-import-form", :collection_csv, [
+          %{name: "collection.csv", content: csv, type: "text/csv"}
+        ])
+
+      render_upload(upload, "collection.csv")
+
+      html =
+        view
+        |> form("#collection-import-form", import: %{location_id: ""})
+        |> render_submit()
+
+      assert html =~ "Review"
+      assert html =~ "LEA #232"
+      assert html =~ "LEB #233"
+
+      html =
+        view
+        |> element(
+          ~s|button[phx-click="select_import_candidate"][phx-value-scryfall_id="scryfall-printing-3"]|
+        )
+        |> render_click()
+
+      assert html =~ "Exact"
+      refute html =~ ~s|phx-click="select_import_candidate"|
+
+      view
+      |> form("#collection-import-commit-form")
+      |> render_submit()
+
+      [item] = Catalog.list_collection_items([], limit: 10)
+      assert item.scryfall_id == "scryfall-printing-3"
+      assert item.location_id == nil
+    end
+
+    test "exports collection CSV", %{conn: conn} do
+      assert {:ok, _item} =
+               Catalog.create_collection_item(%{
+                 "scryfall_id" => "scryfall-printing-1",
+                 "quantity" => "1",
+                 "condition" => "near_mint",
+                 "language" => "en",
+                 "finish" => "nonfoil"
+               })
+
+      {:ok, view, _html} = live(conn, ~p"/collection")
+
+      html =
+        view
+        |> element(~s|button[phx-click="open_collection_modal"][phx-value-modal="export"]|)
+        |> render_click()
+
+      assert html =~ "Export collection CSV"
+
+      assert html =~
+               "Quantity,Card Name,Set Code,Collector Number,Finish,Condition,Language,Location"
+
+      assert html =~ "1,Black Lotus,lea,232,nonfoil,near_mint,en,"
     end
   end
 

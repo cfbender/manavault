@@ -36,13 +36,18 @@ defmodule ManavaultWeb.CollectionLive do
      |> assign(:selected_item, nil)
      |> assign(:change_printing_item, nil)
      |> assign(:change_printing_options, [])
+     |> assign(:collection_modal, nil)
+     |> assign(:import_form, to_form(%{"location_id" => ""}, as: :import))
+     |> assign(:import_preview, nil)
+     |> assign(:export_text, "")
      |> assign(:editing_location, nil)
      |> assign(:location_form, nil)
      |> assign(:location_cover_options, [])
      |> assign(:location_cover_query, "")
      |> assign(:condition_options, @conditions)
      |> assign(:finish_options, @finishes)
-     |> assign(:filter_form, to_form(%{"q" => ""}, as: :filters))}
+     |> assign(:filter_form, to_form(%{"q" => ""}, as: :filters))
+     |> allow_upload(:collection_csv, accept: ~w(.csv), max_entries: 1)}
   end
 
   @impl true
@@ -138,10 +143,100 @@ defmodule ManavaultWeb.CollectionLive do
      |> assign(:selected_item, nil)
      |> assign(:change_printing_item, nil)
      |> assign(:change_printing_options, [])
+     |> assign(:collection_modal, nil)
+     |> assign(:import_preview, nil)
      |> assign(:editing_location, nil)
      |> assign(:location_form, nil)
      |> assign(:location_cover_options, [])
      |> assign(:location_cover_query, "")}
+  end
+
+  @impl true
+  def handle_event("open_collection_modal", %{"modal" => "import"} = params, socket) do
+    location_id = Map.get(params, "location_id", "")
+
+    {:noreply,
+     socket
+     |> assign(:collection_modal, "import")
+     |> assign(:selected_item, nil)
+     |> assign(:change_printing_item, nil)
+     |> assign(:import_preview, nil)
+     |> assign(:import_form, to_form(%{"location_id" => location_id}, as: :import))}
+  end
+
+  def handle_event("open_collection_modal", %{"modal" => "export"}, socket) do
+    {:noreply,
+     socket
+     |> assign(:collection_modal, "export")
+     |> assign(:selected_item, nil)
+     |> assign(:change_printing_item, nil)
+     |> assign(
+       :export_text,
+       Catalog.export_collection_csv(filter_keywords(socket.assigns.filters))
+     )}
+  end
+
+  @impl true
+  def handle_event("validate_collection_import_upload", %{"import" => params}, socket) do
+    {:noreply,
+     assign(socket, :import_form, to_form(normalize_import_params(params), as: :import))}
+  end
+
+  @impl true
+  def handle_event("preview_collection_import", %{"import" => params}, socket) do
+    params = normalize_import_params(params)
+
+    with {:ok, csv} <- uploaded_collection_csv(socket),
+         {:ok, preview} <-
+           Catalog.preview_collection_import_csv(csv, location_id: params["location_id"]) do
+      {:noreply,
+       socket
+       |> assign(:import_form, to_form(params, as: :import))
+       |> assign(:import_preview, preview)}
+    else
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, import_error(reason))}
+    end
+  end
+
+  @impl true
+  def handle_event(
+        "commit_collection_import",
+        _params,
+        %{assigns: %{import_preview: nil}} = socket
+      ) do
+    {:noreply, put_flash(socket, :error, "Preview a CSV before importing.")}
+  end
+
+  def handle_event("commit_collection_import", _params, socket) do
+    case Catalog.import_collection_preview(socket.assigns.import_preview) do
+      {:ok, result} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, import_result_message(result))
+         |> assign(:collection_modal, nil)
+         |> assign(:import_preview, nil)
+         |> assign(:import_form, to_form(%{"location_id" => ""}, as: :import))
+         |> assign(:locations, Catalog.list_locations())
+         |> refresh_collection_items()}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, import_error(reason))}
+    end
+  end
+
+  @impl true
+  def handle_event(
+        "select_import_candidate",
+        %{"row" => row_number, "scryfall_id" => scryfall_id},
+        socket
+      ) do
+    {:noreply,
+     assign(
+       socket,
+       :import_preview,
+       select_import_candidate(socket.assigns.import_preview, row_number, scryfall_id)
+     )}
   end
 
   @impl true
@@ -251,6 +346,31 @@ defmodule ManavaultWeb.CollectionLive do
               <div class="flex gap-2">
                 <.link navigate={~p"/cards"} class="btn btn-outline">Find cards</.link>
                 <.link navigate={~p"/collection/new"} class="btn btn-primary">Add location</.link>
+                <details class="dropdown dropdown-end">
+                  <summary class="btn btn-outline" aria-label="More collection actions" title="More">
+                    <.icon name="hero-ellipsis-vertical" class="size-5" />
+                  </summary>
+                  <ul class="dropdown-content menu z-30 w-48 rounded-box border border-base-300 bg-base-100 p-2 shadow-2xl">
+                    <li>
+                      <button
+                        type="button"
+                        phx-click="open_collection_modal"
+                        phx-value-modal="import"
+                      >
+                        Import CSV
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        type="button"
+                        phx-click="open_collection_modal"
+                        phx-value-modal="export"
+                      >
+                        Export CSV
+                      </button>
+                    </li>
+                  </ul>
+                </details>
               </div>
             </div>
           </div>
@@ -318,6 +438,15 @@ defmodule ManavaultWeb.CollectionLive do
                     </.link>
 
                     <div class="flex shrink-0 gap-2">
+                      <button
+                        type="button"
+                        class="btn btn-outline btn-sm"
+                        phx-click="open_collection_modal"
+                        phx-value-modal="import"
+                        phx-value-location_id={loc.id}
+                      >
+                        Import
+                      </button>
                       <button
                         type="button"
                         class="btn btn-outline btn-sm"
@@ -448,6 +577,163 @@ defmodule ManavaultWeb.CollectionLive do
           </div>
         </section>
       </div>
+
+      <dialog
+        :if={@collection_modal}
+        id="collection-csv-modal"
+        class="modal modal-open"
+        phx-click-away="close_modal"
+        phx-key="Escape"
+      >
+        <div class="modal-box max-w-4xl">
+          <div class="space-y-2">
+            <h3 class="text-xl font-bold">{collection_modal_title(@collection_modal)}</h3>
+          </div>
+
+          <div :if={@collection_modal == "import"} class="mt-5 space-y-4">
+            <.form
+              for={@import_form}
+              id="collection-import-form"
+              phx-change="validate_collection_import_upload"
+              phx-submit="preview_collection_import"
+              class="space-y-4"
+            >
+              <.input
+                field={@import_form[:location_id]}
+                type="select"
+                label="Import location"
+                options={import_location_options(@locations)}
+              />
+              <div class="space-y-2">
+                <label class="fieldset-label" for={@uploads.collection_csv.ref}>CSV file</label>
+                <.live_file_input
+                  upload={@uploads.collection_csv}
+                  class="file-input file-input-bordered w-full"
+                />
+                <p
+                  :for={entry <- @uploads.collection_csv.entries}
+                  class="text-sm text-base-content/60"
+                >
+                  {entry.client_name}
+                </p>
+                <p
+                  :for={error <- upload_errors(@uploads.collection_csv)}
+                  class="text-sm text-error"
+                >
+                  {upload_error_text(error)}
+                </p>
+                <p
+                  :for={entry <- @uploads.collection_csv.entries}
+                  :if={upload_errors(@uploads.collection_csv, entry) != []}
+                  class="text-sm text-error"
+                >
+                  {Enum.map_join(
+                    upload_errors(@uploads.collection_csv, entry),
+                    ", ",
+                    &upload_error_text/1
+                  )}
+                </p>
+              </div>
+              <div class="flex justify-end gap-2">
+                <button type="button" class="btn btn-ghost" phx-click="close_modal">Cancel</button>
+                <button type="submit" class="btn btn-primary">Preview import</button>
+              </div>
+            </.form>
+
+            <div :if={@import_preview} class="space-y-3">
+              <div class="stats stats-vertical w-full border border-base-300 bg-base-100 shadow sm:stats-horizontal">
+                <div class="stat">
+                  <div class="stat-title">Rows</div>
+                  <div class="stat-value text-2xl">{@import_preview.total}</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-title">Exact</div>
+                  <div class="stat-value text-2xl text-success">{@import_preview.exact}</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-title">Needs review</div>
+                  <div class="stat-value text-2xl text-warning">
+                    {@import_preview.ambiguous + @import_preview.unresolved}
+                  </div>
+                </div>
+              </div>
+
+              <div class="max-h-72 overflow-y-auto rounded-box border border-base-300">
+                <table class="table table-sm">
+                  <thead>
+                    <tr>
+                      <th>Row</th>
+                      <th>Status</th>
+                      <th>Card</th>
+                      <th>Qty</th>
+                      <th>Finish</th>
+                      <th>Review</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr :for={row <- @import_preview.rows}>
+                      <td>{row.row_number}</td>
+                      <td>
+                        <span class={["badge badge-sm", import_status_badge_class(row.status)]}>
+                          {import_status_label(row.status)}
+                        </span>
+                      </td>
+                      <td>{import_row_name(row)}</td>
+                      <td>{row.attrs["quantity"]}</td>
+                      <td>{row.attrs["finish"]}</td>
+                      <td>
+                        <div :if={row.status == :ambiguous} class="flex flex-wrap gap-1">
+                          <button
+                            :for={candidate <- row.candidates}
+                            type="button"
+                            class="btn btn-xs btn-outline"
+                            phx-click="select_import_candidate"
+                            phx-value-row={row.row_number}
+                            phx-value-scryfall_id={candidate.scryfall_id}
+                          >
+                            {set_label(candidate)}
+                          </button>
+                        </div>
+                        <span :if={row.status != :ambiguous} class="text-base-content/50">-</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <.form
+                for={@import_form}
+                id="collection-import-commit-form"
+                phx-submit="commit_collection_import"
+              >
+                <div class="flex justify-end">
+                  <button
+                    type="submit"
+                    class="btn btn-primary"
+                    disabled={@import_preview.exact == 0}
+                  >
+                    Import exact rows
+                  </button>
+                </div>
+              </.form>
+            </div>
+          </div>
+
+          <div :if={@collection_modal == "export"} class="mt-5 space-y-4">
+            <textarea
+              id="collection-export-text"
+              class="textarea textarea-bordered min-h-72 w-full font-mono text-xs"
+              readonly
+            ><%= @export_text %></textarea>
+            <div class="flex justify-end">
+              <button type="button" class="btn" phx-click="close_modal">Close</button>
+            </div>
+          </div>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+          <button phx-click="close_modal">close</button>
+        </form>
+      </dialog>
 
       <dialog
         :if={@selected_item}
@@ -815,6 +1101,98 @@ defmodule ManavaultWeb.CollectionLive do
   defp location_filter_options(locations) do
     [{"Any location", ""}, {"Unfiled", "unfiled"}] ++
       Enum.map(locations, fn loc -> {"#{kind_icon(loc.kind)} #{loc.name}", loc.id} end)
+  end
+
+  defp import_location_options(locations) do
+    [{"No location", ""}] ++
+      Enum.map(locations, fn loc -> {"#{kind_icon(loc.kind)} #{loc.name}", loc.id} end)
+  end
+
+  defp normalize_import_params(params) do
+    %{
+      "location_id" => Map.get(params, "location_id", "")
+    }
+  end
+
+  defp uploaded_collection_csv(socket) do
+    case consume_uploaded_entries(socket, :collection_csv, fn %{path: path}, _entry ->
+           {:ok, File.read!(path)}
+         end) do
+      [csv | _rest] -> {:ok, csv}
+      [] -> {:error, :missing_csv_file}
+    end
+  end
+
+  defp collection_modal_title("import"), do: "Import collection CSV"
+  defp collection_modal_title("export"), do: "Export collection CSV"
+
+  defp import_status_label(:exact), do: "Exact"
+  defp import_status_label(:ambiguous), do: "Review"
+  defp import_status_label(:unresolved), do: "Unresolved"
+
+  defp import_status_badge_class(:exact), do: "badge-success"
+  defp import_status_badge_class(:ambiguous), do: "badge-warning"
+  defp import_status_badge_class(:unresolved), do: "badge-error"
+
+  defp import_row_name(%{printing: %Printing{} = printing}), do: card_name(printing)
+  defp import_row_name(%{attrs: %{"name" => name}}) when name != "", do: name
+  defp import_row_name(_row), do: "Unknown card"
+
+  defp import_result_message(%{imported: imported, skipped: 0}) do
+    "Imported #{imported} collection rows."
+  end
+
+  defp import_result_message(%{imported: imported, skipped: skipped}) do
+    "Imported #{imported} collection rows. Skipped #{skipped} rows that need review."
+  end
+
+  defp import_error(:location_not_found), do: "Import location was not found."
+  defp import_error(:invalid_csv), do: "Could not parse that CSV."
+  defp import_error(:missing_csv_file), do: "Choose a CSV file to import."
+  defp import_error(_reason), do: "Could not import collection CSV."
+
+  defp upload_error_text(:too_large), do: "File is too large."
+  defp upload_error_text(:too_many_files), do: "Choose one CSV file."
+  defp upload_error_text(:not_accepted), do: "Choose a CSV file."
+  defp upload_error_text(error), do: to_string(error)
+
+  defp select_import_candidate(nil, _row_number, _scryfall_id), do: nil
+
+  defp select_import_candidate(preview, row_number, scryfall_id) do
+    row_number = to_string(row_number)
+
+    rows =
+      Enum.map(preview.rows, fn row ->
+        if to_string(row.row_number) == row_number do
+          select_import_candidate_for_row(row, scryfall_id)
+        else
+          row
+        end
+      end)
+
+    %{
+      preview
+      | rows: rows,
+        exact: Enum.count(rows, &(&1.status == :exact)),
+        ambiguous: Enum.count(rows, &(&1.status == :ambiguous)),
+        unresolved: Enum.count(rows, &(&1.status == :unresolved))
+    }
+  end
+
+  defp select_import_candidate_for_row(row, scryfall_id) do
+    case Enum.find(row.candidates, &(to_string(&1.scryfall_id) == to_string(scryfall_id))) do
+      %Printing{} = printing ->
+        %{
+          row
+          | status: :exact,
+            attrs: Map.put(row.attrs, "scryfall_id", printing.scryfall_id),
+            printing: printing,
+            candidates: []
+        }
+
+      nil ->
+        row
+    end
   end
 
   defp card_name(%CollectionItem{printing: %{card: %{name: name}}}), do: name

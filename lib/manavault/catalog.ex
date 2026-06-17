@@ -338,6 +338,84 @@ defmodule Manavault.Catalog do
     |> create_collection_item()
   end
 
+  def preview_collection_import_csv(text, opts \\ []) when is_binary(text) and is_list(opts) do
+    location_id = Keyword.get(opts, :location_id)
+
+    with {:ok, normalized_location_id} <- normalize_import_location_id(location_id),
+         {:ok, rows} <- parse_collection_csv(text) do
+      import_rows =
+        rows
+        |> Enum.with_index(2)
+        |> Enum.map(fn {row, row_number} ->
+          row
+          |> collection_import_attrs()
+          |> preview_collection_import_row(row_number, normalized_location_id)
+        end)
+
+      {:ok, collection_import_preview(import_rows, normalized_location_id)}
+    end
+  end
+
+  def import_collection_csv(text, opts \\ []) when is_binary(text) and is_list(opts) do
+    with {:ok, %{rows: rows} = preview} <- preview_collection_import_csv(text, opts) do
+      import_collection_preview(%{preview | rows: rows})
+    end
+  end
+
+  def import_collection_preview(%{rows: rows} = preview) when is_list(rows) do
+    Repo.transaction(fn ->
+      Enum.reduce(rows, %{imported: 0, skipped: 0}, fn row, result ->
+        case row.status do
+          :exact ->
+            case create_collection_item(row.attrs) do
+              {:ok, _item} -> update_in(result.imported, &(&1 + 1))
+              {:error, changeset} -> Repo.rollback(changeset)
+            end
+
+          _status ->
+            update_in(result.skipped, &(&1 + 1))
+        end
+      end)
+    end)
+    |> case do
+      {:ok, result} -> {:ok, Map.merge(preview, result)}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  def export_collection_csv(filters \\ []) when is_list(filters) do
+    rows =
+      filters
+      |> list_collection_items(limit: 100_000)
+      |> Enum.map(fn item ->
+        [
+          item.quantity,
+          item.printing.card.name,
+          item.printing.set_code,
+          item.printing.collector_number,
+          item.finish,
+          item.condition,
+          item.language,
+          if(item.location_assoc, do: item.location_assoc.name, else: "")
+        ]
+      end)
+
+    [
+      [
+        "Quantity",
+        "Card Name",
+        "Set Code",
+        "Collector Number",
+        "Finish",
+        "Condition",
+        "Language",
+        "Location"
+      ]
+      | rows
+    ]
+    |> Enum.map_join("\n", &csv_row/1)
+  end
+
   # ── Decks ─────────────────────────────────────────────────────────
 
   def list_decks do
@@ -1149,6 +1227,209 @@ defmodule Manavault.Catalog do
       ~s("#{String.replace(value, "\"", "\"\"")}")
     else
       value
+    end
+  end
+
+  defp parse_collection_csv(text) do
+    case parse_csv(text) do
+      [] ->
+        {:ok, []}
+
+      [headers | rows] ->
+        headers = Enum.map(headers, &normalize_collection_csv_header/1)
+
+        rows =
+          rows
+          |> Enum.reject(fn cells -> Enum.all?(cells, &(String.trim(&1 || "") == "")) end)
+          |> Enum.map(fn cells ->
+            headers
+            |> Enum.zip(cells ++ List.duplicate("", max(length(headers) - length(cells), 0)))
+            |> Map.new()
+          end)
+
+        {:ok, rows}
+    end
+  rescue
+    _error -> {:error, :invalid_csv}
+  end
+
+  defp parse_csv(text) do
+    text
+    |> String.replace("\r\n", "\n")
+    |> String.replace("\r", "\n")
+    |> String.graphemes()
+    |> do_parse_csv([], [], "", :plain)
+    |> Enum.reject(fn row -> Enum.all?(row, &(&1 == "")) end)
+  end
+
+  defp do_parse_csv([], rows, row, cell, _state),
+    do: Enum.reverse([Enum.reverse([String.trim(cell) | row]) | rows])
+
+  defp do_parse_csv(["\"" | rest], rows, row, "", :plain),
+    do: do_parse_csv(rest, rows, row, "", :quoted)
+
+  defp do_parse_csv(["\"" | rest], rows, row, cell, :quoted),
+    do: do_parse_csv(rest, rows, row, cell, :after_quote)
+
+  defp do_parse_csv(["\"" | rest], rows, row, cell, :after_quote),
+    do: do_parse_csv(rest, rows, row, cell <> "\"", :quoted)
+
+  defp do_parse_csv(["," | rest], rows, row, cell, state) when state in [:plain, :after_quote],
+    do: do_parse_csv(rest, rows, [String.trim(cell) | row], "", :plain)
+
+  defp do_parse_csv(["\n" | rest], rows, row, cell, state) when state in [:plain, :after_quote],
+    do: do_parse_csv(rest, [Enum.reverse([String.trim(cell) | row]) | rows], [], "", :plain)
+
+  defp do_parse_csv([character | rest], rows, row, cell, state),
+    do: do_parse_csv(rest, rows, row, cell <> character, state)
+
+  defp normalize_collection_csv_header(header) do
+    header
+    |> normalize_filter()
+    |> String.downcase()
+    |> String.replace(~r/[^a-z0-9]+/, "_")
+    |> String.trim("_")
+    |> case do
+      key when key in ["card", "card_name", "name"] -> "name"
+      key when key in ["set", "set_code", "edition"] -> "set_code"
+      key when key in ["collector", "collector_number", "number", "cn"] -> "collector_number"
+      key when key in ["qty", "count", "quantity"] -> "quantity"
+      key when key in ["foil", "foiling", "finish"] -> "finish"
+      key when key in ["condition", "cond"] -> "condition"
+      key when key in ["language", "lang"] -> "language"
+      key when key in ["scryfall", "scryfall_id", "printing_id"] -> "scryfall_id"
+      key -> key
+    end
+  end
+
+  defp collection_import_attrs(row) do
+    %{
+      "name" => normalize_filter(Map.get(row, "name", "")),
+      "set_code" => normalize_filter(Map.get(row, "set_code", "")),
+      "collector_number" => normalize_filter(Map.get(row, "collector_number", "")),
+      "quantity" => parse_quantity(Map.get(row, "quantity", "1")),
+      "finish" => normalize_collection_import_finish(Map.get(row, "finish", "")),
+      "condition" => normalize_collection_import_condition(Map.get(row, "condition", "")),
+      "language" => normalize_collection_import_language(Map.get(row, "language", "")),
+      "scryfall_id" => normalize_filter(Map.get(row, "scryfall_id", ""))
+    }
+  end
+
+  defp preview_collection_import_row(attrs, row_number, location_id) do
+    attrs = Map.put(attrs, "location_id", location_id)
+
+    case collection_import_candidates(attrs) do
+      [%Printing{} = printing] ->
+        %{
+          row_number: row_number,
+          status: :exact,
+          attrs: Map.put(attrs, "scryfall_id", printing.scryfall_id),
+          printing: Repo.preload(printing, :card),
+          candidates: []
+        }
+
+      [] ->
+        %{
+          row_number: row_number,
+          status: :unresolved,
+          attrs: attrs,
+          printing: nil,
+          candidates: []
+        }
+
+      candidates ->
+        %{
+          row_number: row_number,
+          status: :ambiguous,
+          attrs: attrs,
+          printing: nil,
+          candidates: Enum.map(candidates, &Repo.preload(&1, :card))
+        }
+    end
+  end
+
+  defp collection_import_candidates(%{"scryfall_id" => scryfall_id})
+       when scryfall_id not in ["", nil] do
+    case get_printing_by_scryfall_id(scryfall_id) do
+      nil -> []
+      printing -> [printing]
+    end
+  end
+
+  defp collection_import_candidates(%{
+         "name" => name,
+         "set_code" => set_code,
+         "collector_number" => collector_number
+       }) do
+    filters = [name: name, set_code: set_code, collector_number: collector_number]
+
+    filters
+    |> search_printings(limit: 6)
+    |> Enum.filter(fn printing ->
+      (set_code == "" || printing.set_code == String.downcase(set_code)) &&
+        (collector_number == "" || printing.collector_number == collector_number)
+    end)
+  end
+
+  defp collection_import_preview(rows, location_id) do
+    %{
+      location_id: location_id,
+      rows: rows,
+      total: length(rows),
+      exact: Enum.count(rows, &(&1.status == :exact)),
+      ambiguous: Enum.count(rows, &(&1.status == :ambiguous)),
+      unresolved: Enum.count(rows, &(&1.status == :unresolved))
+    }
+  end
+
+  defp normalize_collection_import_finish(value) do
+    value
+    |> normalize_filter()
+    |> String.replace(" ", "_")
+    |> case do
+      value when value in ["foil", "true", "yes", "y"] -> "foil"
+      value when value in ["etched", "foil_etched"] -> "etched"
+      "non_foil" -> "nonfoil"
+      "nonfoil" -> "nonfoil"
+      _other -> "nonfoil"
+    end
+  end
+
+  defp normalize_collection_import_condition(value) do
+    value
+    |> normalize_filter()
+    |> String.replace(~r/[^a-z0-9]+/, "_")
+    |> String.trim("_")
+    |> case do
+      value when value in ["nm", "near_mint", "nearmint"] -> "near_mint"
+      value when value in ["lp", "lightly_played", "light_played"] -> "lightly_played"
+      value when value in ["mp", "moderately_played", "mod_played"] -> "moderately_played"
+      value when value in ["hp", "heavily_played", "heavy_played"] -> "heavily_played"
+      value when value in ["d", "dm", "damaged"] -> "damaged"
+      _other -> "near_mint"
+    end
+  end
+
+  defp normalize_collection_import_language(value) do
+    case normalize_filter(value) do
+      "" -> "en"
+      language -> language
+    end
+  end
+
+  defp normalize_import_location_id(nil), do: {:ok, nil}
+  defp normalize_import_location_id(""), do: {:ok, nil}
+
+  defp normalize_import_location_id(location_id) when is_integer(location_id) do
+    if Repo.get(Location, location_id),
+      do: {:ok, location_id},
+      else: {:error, :location_not_found}
+  end
+
+  defp normalize_import_location_id(location_id) when is_binary(location_id) do
+    case Integer.parse(location_id) do
+      {id, ""} -> normalize_import_location_id(id)
+      _invalid -> {:error, :location_not_found}
     end
   end
 

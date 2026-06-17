@@ -118,6 +118,43 @@ defmodule Manavault.CatalogTest do
     assert Price.text_for_printing(printing, "foil") == "$24"
   end
 
+  test "collection CSV import previews exact rows and applies one selected location" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    assert {:ok, binder} = Catalog.create_location(%{name: "Import Binder", kind: "binder"})
+
+    csv = """
+    Quantity,Card Name,Set Code,Collector Number,Finish,Condition,Language,Location
+    2,Black Lotus,lea,232,nonfoil,NM,en,Ignored Binder
+    1,Time Walk,lea,84,foil,LP,ja,Other Binder
+    """
+
+    assert {:ok, preview} = Catalog.preview_collection_import_csv(csv, location_id: binder.id)
+    assert %{total: 2, exact: 2, ambiguous: 0, unresolved: 0, location_id: location_id} = preview
+    assert location_id == binder.id
+    assert Enum.all?(preview.rows, &(&1.attrs["location_id"] == binder.id))
+
+    assert {:ok, result} = Catalog.import_collection_csv(csv, location_id: binder.id)
+    assert %{imported: 2, skipped: 0} = result
+
+    items = Catalog.list_collection_items([], limit: 10)
+    assert Enum.map(items, & &1.location_id) == [binder.id, binder.id]
+    assert Enum.map(items, & &1.quantity) == [2, 1]
+  end
+
+  test "collection CSV import can target no location" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    csv = """
+    Quantity,Card Name,Set Code,Collector Number
+    1,Black Lotus,lea,232
+    """
+
+    assert {:ok, %{imported: 1}} = Catalog.import_collection_csv(csv, location_id: "")
+    assert [%CollectionItem{location_id: nil}] = Catalog.list_collection_items([], limit: 10)
+  end
+
   test "suggest_card_names returns fuzzy top card name matches" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
