@@ -91,7 +91,7 @@ defmodule ManavaultWeb.DeckShowLive do
           <div
             id={"deck-card-#{@deck_card.id}-menu"}
             tabindex="0"
-            class="dropdown-content z-[300] mt-1 w-60 rounded-box border border-base-300 bg-base-100 p-3 shadow-2xl"
+            class="dropdown-content z-[1000] mt-1 w-60 rounded-box border border-base-300 bg-base-100 p-3 shadow-2xl"
           >
             <ul class="menu p-0 text-sm">
               <li>
@@ -316,12 +316,12 @@ defmodule ManavaultWeb.DeckShowLive do
               <.link navigate={~p"/decks"} class="btn btn-sm btn-outline">All decks</.link>
             </div>
 
-            <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+            <div class="control-toolbar grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
               <.form
                 for={@add_form}
                 id="add-card-form"
                 phx-submit="add_card"
-                class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_5rem_10rem_auto] sm:items-end"
+                class="control-toolbar grid gap-2 sm:grid-cols-[minmax(0,1fr)_5rem_10rem_auto]"
               >
                 <.live_component
                   module={ManavaultWeb.CardNameAutocomplete}
@@ -351,7 +351,7 @@ defmodule ManavaultWeb.DeckShowLive do
                 for={to_form(%{"group" => @group_by}, as: :view)}
                 id="deck-group-form"
                 phx-change="set_group"
-                class="min-w-48"
+                class="min-w-48 self-end"
               >
                 <.input
                   field={to_form(%{"group" => @group_by}, as: :view)[:group]}
@@ -364,8 +364,8 @@ defmodule ManavaultWeb.DeckShowLive do
           </div>
         </section>
 
-        <section class="grid gap-6 xl:grid-cols-[18rem_minmax(0,1fr)] xl:items-start">
-          <aside class="hidden xl:block">
+        <section class="relative grid gap-6 xl:grid-cols-[18rem_minmax(0,1fr)] xl:items-start">
+          <aside class="relative z-0 hidden xl:block">
             <div class="sticky top-4 space-y-4">
               <div class="overflow-hidden rounded-xl bg-base-300 shadow-2xl">
                 <img
@@ -413,11 +413,15 @@ defmodule ManavaultWeb.DeckShowLive do
             </div>
           </aside>
 
-          <div class="space-y-8" id="deck-board" phx-hook="DeckPreview">
-            <div class="grid gap-8 md:grid-cols-2 2xl:grid-cols-4">
-              <div :for={column <- deck_group_columns(@deck, @group_by)} class="min-w-0 space-y-10">
+          <div
+            class="relative z-10 space-y-8 overflow-x-auto pb-2 xl:overflow-visible"
+            id="deck-board"
+            phx-hook="DeckPreview"
+          >
+            <div class="grid justify-center gap-x-8 gap-y-10 sm:grid-cols-[repeat(2,14rem)] lg:grid-cols-[repeat(4,14rem)] xl:justify-between">
+              <div :for={column <- deck_group_columns(@deck, @group_by)} class="w-56 space-y-10">
                 <section :for={group <- column} class="min-w-0 space-y-3">
-                  <div class="flex items-center gap-2">
+                  <div class="flex items-center justify-center gap-2 sm:justify-start">
                     <span class="text-lg text-warning">{group_icon(group.label)}</span>
                     <h2 class="truncate text-base font-black">
                       <.symbolized_text :if={symbol_group_label?(group.label)} text={group.label} />
@@ -426,7 +430,7 @@ defmodule ManavaultWeb.DeckShowLive do
                     <span class="text-sm text-base-content/60">({group.count})</span>
                   </div>
 
-                  <div class="w-full max-w-56">
+                  <div class="mx-auto w-full max-w-56 sm:mx-0">
                     <.deck_stack_card
                       :for={{deck_card, index} <- Enum.with_index(group.cards)}
                       deck_card={deck_card}

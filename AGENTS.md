@@ -33,4 +33,5 @@ Useful production/container commands are documented in `README.md`.
 - Keep changes small and focused.
 - Run the narrowest relevant tests before reporting completion.
 - Update documentation when project structure, setup, or runtime behavior changes.
+- For horizontal rows that mix `.input`, `.select`, `.btn`, and custom controls such as card-name autocomplete, wrap the row/form in `.control-toolbar`. Core `.input` wrappers use `.fieldset` padding/margins, while autocomplete renders a bare input; the toolbar utility normalizes height and bottom alignment.
 - I AM THE ONLY USER. Do not worry about backwards compatibility, or deleting any code or paths that someone may be using. This app is unreleased and under heavy development.

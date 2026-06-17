@@ -107,6 +107,25 @@
 
 /* This file is for your main application CSS */
 
+.control-toolbar {
+  align-items: end;
+}
+
+.control-toolbar .fieldset {
+  gap: 0;
+  margin-bottom: 0;
+  padding-block: 0;
+}
+
+.control-toolbar :where(.input, .select, .btn) {
+  height: 2rem;
+  min-height: 2rem;
+}
+
+.control-toolbar .btn {
+  padding-block: 0;
+}
+
 .card-menu-closed .dropdown,
 .card-menu-closed .dropdown-content {
   opacity: 0 !important;
