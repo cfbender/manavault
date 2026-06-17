@@ -332,7 +332,7 @@ defmodule Manavault.Catalog do
     Deck
     |> order_by([deck], asc: deck.name, asc: deck.id)
     |> Repo.all()
-    |> Repo.preload(:deck_cards)
+    |> Repo.preload(deck_preloads())
   end
 
   def get_deck!(id) do

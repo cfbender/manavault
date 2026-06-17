@@ -47,10 +47,13 @@ defmodule ManavaultWeb.MagicSymbols do
       src={@entry["local_uri"]}
       alt={@normalized_symbol}
       title={@entry["english"] || @normalized_symbol}
+      data-symbol={@normalized_symbol}
       class={["mana-symbol inline-block h-[1.15em] w-[1.15em] align-[-0.18em]", @class]}
       loading="lazy"
     />
-    <span :if={!@entry || !@entry["local_uri"]} class={@class}>{@normalized_symbol}</span>
+    <span :if={!@entry || !@entry["local_uri"]} data-symbol={@normalized_symbol} class={@class}>
+      {@normalized_symbol}
+    </span>
     """
   end
 

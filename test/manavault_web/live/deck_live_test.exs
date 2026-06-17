@@ -33,6 +33,10 @@ defmodule ManavaultWeb.DeckLiveTest do
     "collector_number" => "84",
     "lang" => "en",
     "finishes" => ["nonfoil"],
+    "image_uris" => %{
+      "art_crop" => "https://example.test/time-walk-art.jpg",
+      "normal" => "https://example.test/time-walk.jpg"
+    },
     "released_at" => "1993-08-05"
   }
 
@@ -150,6 +154,24 @@ defmodule ManavaultWeb.DeckLiveTest do
     refute has_element?(view, "#deck-board-zone-mainboard")
     refute has_element?(view, "#deck-board-zone-commander")
     assert has_element?(view, ~s|#add-card-form option[value="commander"]|)
+  end
+
+  test "shows deck index cards with commander art and color identity", %{conn: conn} do
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Turns", "format" => "commander"})
+
+    {:ok, _commander_card} =
+      Catalog.add_card_to_deck(deck, %{"name" => "Time Walk", "zone" => "commander"})
+
+    {:ok, view, html} = live(conn, ~p"/decks")
+
+    assert html =~ "Turns"
+
+    assert has_element?(
+             view,
+             ~s|#deck-row-#{deck.id}[data-deck-cover-image="https://example.test/time-walk-art.jpg"]|
+           )
+
+    assert has_element?(view, ~s|#deck-row-#{deck.id} [data-symbol="{U}"]|)
   end
 
   test "hides commander zone controls outside commander format", %{conn: conn} do
