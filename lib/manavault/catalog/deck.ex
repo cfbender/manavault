@@ -12,6 +12,7 @@ defmodule Manavault.Catalog.Deck do
     field :status, :string, default: "brewing"
 
     has_many :deck_cards, Manavault.Catalog.DeckCard, on_replace: :delete
+    has_many :deck_allocations, through: [:deck_cards, :deck_allocations]
 
     timestamps(type: :utc_datetime)
   end

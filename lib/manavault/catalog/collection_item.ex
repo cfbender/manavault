@@ -24,6 +24,8 @@ defmodule Manavault.Catalog.CollectionItem do
       references: :id,
       type: :integer
 
+    has_many :deck_allocations, Manavault.Catalog.DeckAllocation
+
     timestamps(type: :utc_datetime)
   end
 

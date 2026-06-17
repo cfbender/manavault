@@ -22,6 +22,15 @@ defmodule ManavaultWeb.DeckLiveTest do
     "released_at" => "1993-08-05"
   }
 
+  @black_lotus_beta %{
+    @black_lotus
+    | "id" => "scryfall-printing-3",
+      "set" => "leb",
+      "set_name" => "Limited Edition Beta",
+      "collector_number" => "233",
+      "released_at" => "1993-10-04"
+  }
+
   @time_walk %{
     "id" => "scryfall-printing-2",
     "oracle_id" => "oracle-2",
@@ -41,8 +50,8 @@ defmodule ManavaultWeb.DeckLiveTest do
   }
 
   setup do
-    assert {:ok, %{cards_count: 2, printings_count: 2}} =
-             Catalog.import_cards([@black_lotus, @time_walk])
+    assert {:ok, %{cards_count: 3, printings_count: 3}} =
+             Catalog.import_cards([@black_lotus, @black_lotus_beta, @time_walk])
 
     :ok
   end
@@ -156,6 +165,25 @@ defmodule ManavaultWeb.DeckLiveTest do
     assert has_element?(view, ~s|#add-card-form option[value="commander"]|)
   end
 
+  test "clicking a stack card expands it in place", %{conn: conn} do
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Expandable", "format" => "vintage"})
+    {:ok, lotus} = Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus"})
+    {:ok, time_walk} = Catalog.add_card_to_deck(deck, %{"name" => "Time Walk"})
+
+    {:ok, view, _html} = live(conn, ~p"/decks/#{deck.id}")
+
+    assert has_element?(view, ~s|#deck-card-stack-#{lotus.id}[data-expanded="false"]|)
+    assert has_element?(view, ~s|#deck-card-stack-#{time_walk.id} > button[data-full="true"]|)
+
+    view
+    |> element(~s|#deck-card-stack-#{lotus.id} > button|)
+    |> render_click()
+
+    assert has_element?(view, ~s|#deck-card-stack-#{lotus.id}[data-expanded="true"]|)
+    assert has_element?(view, ~s|#deck-card-stack-#{lotus.id} > button[data-full="true"]|)
+    assert has_element?(view, ~s|#deck-card-stack-#{time_walk.id} > button[data-full="true"]|)
+  end
+
   test "shows deck index cards with commander art and color identity", %{conn: conn} do
     {:ok, deck} = Catalog.create_deck(%{"name" => "Turns", "format" => "commander"})
 
@@ -189,5 +217,119 @@ defmodule ManavaultWeb.DeckLiveTest do
              view,
              ~s|#deck-card-#{sideboard_card.id}-board-zone-form option[value="commander"]|
            )
+  end
+
+  test "deck cards expose allocation status menu and allocate collection copies", %{conn: conn} do
+    assert {:ok, collection_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Allocation", "format" => "vintage"})
+    {:ok, deck_card} = Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus"})
+
+    {:ok, view, html} = live(conn, ~p"/decks/#{deck.id}")
+
+    assert html =~ ~s|id="deck-card-#{deck_card.id}-allocation-menu"|
+    assert html =~ "1/1 available to allocate"
+    assert html =~ "Owned 1 · Free 1 · Here 0 · Elsewhere 0"
+
+    view
+    |> element(
+      ~s|#deck-card-#{deck_card.id}-allocation-menu button[phx-click="allocate_deck_card_item"][phx-value-collection_item_id="#{collection_item.id}"]|
+    )
+    |> render_click()
+
+    html = render(view)
+    assert html =~ "Allocated 1/1"
+    assert html =~ "Owned 1 · Free 0 · Here 1 · Elsewhere 0"
+
+    view
+    |> element(
+      ~s|#deck-card-#{deck_card.id}-allocation-menu button[phx-click="deallocate_deck_card_item"][phx-value-collection_item_id="#{collection_item.id}"]|
+    )
+    |> render_click()
+
+    html = render(view)
+    assert html =~ "1/1 available to allocate"
+    assert html =~ "Owned 1 · Free 1 · Here 0 · Elsewhere 0"
+  end
+
+  test "bulk allocation buttons allocate exact and matching collection printings", %{conn: conn} do
+    assert {:ok, _exact_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    assert {:ok, _alternate_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-3",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Bulk Allocation", "format" => "vintage"})
+
+    {:ok, deck_card} =
+      Catalog.add_card_to_deck(deck, %{
+        "name" => "Black Lotus",
+        "quantity" => 2,
+        "preferred_printing_id" => "scryfall-printing-1"
+      })
+
+    {:ok, view, html} = live(conn, ~p"/decks/#{deck.id}")
+
+    assert html =~ "Collection allocation"
+    assert html =~ "Partial Matches"
+    assert html =~ "2/2 available to allocate"
+
+    view
+    |> element(
+      ~s|details.dropdown button[phx-click="preview_bulk_allocate_deck"][phx-value-mode="exact_printings"]|
+    )
+    |> render_click()
+
+    html = render(view)
+    assert html =~ ~s|id="bulk-allocation-modal"|
+    assert html =~ "Exact printings"
+    assert html =~ "LEA #232"
+    assert html =~ "Exact"
+
+    view
+    |> element(~s|#bulk-allocation-modal button[phx-click="confirm_bulk_allocate_deck"]|)
+    |> render_click()
+
+    html = render(view)
+    assert html =~ "1/2 available to allocate"
+
+    view
+    |> element(
+      ~s|details.dropdown button[phx-click="preview_bulk_allocate_deck"][phx-value-mode="matching_printings"]|
+    )
+    |> render_click()
+
+    html = render(view)
+    assert html =~ ~s|id="bulk-allocation-modal"|
+    assert html =~ "Partial Matches"
+    assert html =~ "LEB #233"
+    assert html =~ "Partial"
+
+    view
+    |> element(~s|#bulk-allocation-modal button[phx-click="confirm_bulk_allocate_deck"]|)
+    |> render_click()
+
+    html = render(view)
+    assert html =~ "Allocated 2/2"
+    assert Catalog.deck_card_allocation_status(deck_card).allocated == 2
   end
 end

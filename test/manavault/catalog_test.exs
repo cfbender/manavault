@@ -7,6 +7,7 @@ defmodule Manavault.CatalogTest do
     Card,
     CollectionItem,
     Deck,
+    DeckAllocation,
     DeckCard,
     Printing,
     ScanItem,
@@ -35,6 +36,15 @@ defmodule Manavault.CatalogTest do
 
   @renamed_lotus %{@black_lotus | "name" => "Black Lotus Updated", "prices" => %{"usd" => "1.00"}}
 
+  @black_lotus_beta %{
+    @black_lotus
+    | "id" => "scryfall-printing-3",
+      "set" => "leb",
+      "set_name" => "Limited Edition Beta",
+      "collector_number" => "233",
+      "released_at" => "1993-10-04"
+  }
+
   @time_walk %{
     "id" => "scryfall-printing-2",
     "oracle_id" => "oracle-2",
@@ -45,6 +55,20 @@ defmodule Manavault.CatalogTest do
     "collector_number" => "84",
     "lang" => "ja",
     "finishes" => ["foil"],
+    "released_at" => "1993-08-05"
+  }
+
+  @plains %{
+    "id" => "scryfall-printing-basic-plains",
+    "oracle_id" => "oracle-plains",
+    "name" => "Plains",
+    "type_line" => "Basic Land — Plains",
+    "color_identity" => ["W"],
+    "set" => "lea",
+    "set_name" => "Limited Edition Alpha",
+    "collector_number" => "250",
+    "lang" => "en",
+    "finishes" => ["nonfoil"],
     "released_at" => "1993-08-05"
   }
 
@@ -371,6 +395,189 @@ defmodule Manavault.CatalogTest do
                card: %Card{name: "Black Lotus"}
              }
            ] = loaded.deck_cards
+  end
+
+  test "deck allocation status covers owned available, allocated elsewhere, missing, and alternate printings" do
+    assert {:ok, %{cards_count: 3, printings_count: 3}} =
+             Catalog.import_cards([@black_lotus, @black_lotus_beta, @time_walk])
+
+    assert {:ok, available_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    assert {:ok, alternate_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-3",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    assert {:ok, active_deck} =
+             Catalog.create_deck(%{
+               "name" => "Active",
+               "format" => "vintage",
+               "status" => "active"
+             })
+
+    assert {:ok, other_deck} =
+             Catalog.create_deck(%{
+               "name" => "Other",
+               "format" => "vintage",
+               "status" => "active"
+             })
+
+    assert {:ok, active_lotus} =
+             Catalog.add_card_to_deck(active_deck, %{
+               "name" => "Black Lotus",
+               "quantity" => 2,
+               "preferred_printing_id" => "scryfall-printing-1"
+             })
+
+    assert {:ok, other_lotus} =
+             Catalog.add_card_to_deck(other_deck, %{"name" => "Black Lotus", "quantity" => 1})
+
+    status = Catalog.deck_card_allocation_status(active_lotus)
+    assert status.state == :available
+    assert status.available == 2
+    assert status.missing == 0
+
+    assert {:ok, _allocation} =
+             Catalog.allocate_collection_item_to_deck_card(other_lotus.id, available_item.id)
+
+    status = Catalog.deck_card_allocation_status(active_lotus)
+    assert status.state == :partial
+    assert status.owned == 2
+    assert status.available == 1
+    assert status.allocated_elsewhere == 1
+    assert status.missing == 1
+    assert Enum.any?(status.candidates, &(&1.item.id == alternate_item.id and &1.available == 1))
+
+    assert {:ok, _allocation} =
+             Catalog.allocate_collection_item_to_deck_card(active_lotus.id, alternate_item.id)
+
+    status = Catalog.deck_card_allocation_status(active_lotus)
+    assert status.allocated == 1
+    assert status.available == 0
+    assert status.missing == 1
+
+    assert {:error, :not_enough_available} =
+             Catalog.allocate_collection_item_to_deck_card(active_lotus.id, available_item.id)
+  end
+
+  test "bulk deck allocation can use exact printings before matching alternate printings" do
+    assert {:ok, %{cards_count: 3, printings_count: 3}} =
+             Catalog.import_cards([@black_lotus, @black_lotus_beta, @time_walk])
+
+    assert {:ok, exact_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    assert {:ok, alternate_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-3",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Bulk"})
+
+    assert {:ok, lotus} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Black Lotus",
+               "quantity" => 2,
+               "preferred_printing_id" => "scryfall-printing-1"
+             })
+
+    assert {:ok, preview} = Catalog.preview_bulk_allocate_deck(deck, :exact_printings)
+
+    assert %{allocated: 1, cards: 1, skipped: 0} =
+             Map.take(preview, [:allocated, :cards, :skipped])
+
+    assert [%{quantity: 1, exact?: true, item: %{id: exact_item_id}}] = preview.entries
+    assert exact_item_id == exact_item.id
+
+    assert {:ok, %{allocated: 1, cards: 1, skipped: 0}} =
+             Catalog.bulk_allocate_deck(deck, :exact_printings)
+
+    status = Catalog.deck_card_allocation_status(lotus)
+    assert status.allocated == 1
+    assert Enum.find(status.candidates, &(&1.item.id == exact_item.id)).allocated == 1
+    assert Enum.find(status.candidates, &(&1.item.id == alternate_item.id)).allocated == 0
+
+    assert {:ok, preview} = Catalog.preview_bulk_allocate_deck(deck, :matching_printings)
+    assert [%{quantity: 1, exact?: false, item: %{id: alternate_item_id}}] = preview.entries
+    assert alternate_item_id == alternate_item.id
+
+    assert {:ok, %{allocated: 1, cards: 1, skipped: 0}} =
+             Catalog.bulk_allocate_deck(deck, :matching_printings)
+
+    status = Catalog.deck_card_allocation_status(lotus)
+    assert status.allocated == 2
+    assert Enum.find(status.candidates, &(&1.item.id == alternate_item.id)).allocated == 1
+  end
+
+  test "deck allocation status does not mark unowned basic lands missing" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@plains])
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Basics"})
+    assert {:ok, plains} = Catalog.add_card_to_deck(deck, %{"name" => "Plains", "quantity" => 12})
+
+    status = Catalog.deck_card_allocation_status(plains)
+    assert status.state == :basic_land
+    assert status.required == 12
+    assert status.owned == 0
+    assert status.available == 0
+    assert status.missing == 0
+  end
+
+  test "deck allocation moves collection copies out of their location and restores them" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+    assert {:ok, binder} = Catalog.create_location(%{name: "Trade Binder", kind: "binder"})
+
+    assert {:ok, item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 2,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil",
+               "location_id" => binder.id
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Sleeved"})
+    assert {:ok, lotus} = Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus"})
+
+    assert {:ok, allocation} = Catalog.allocate_collection_item_to_deck_card(lotus.id, item.id)
+    allocation = Repo.get!(DeckAllocation, allocation.id)
+
+    assert allocation.source_location_id == binder.id
+    assert Catalog.get_collection_item!(item.id).quantity == 1
+
+    allocated_item = Catalog.get_collection_item!(allocation.collection_item_id)
+    assert allocated_item.quantity == 1
+    assert allocated_item.location_id == nil
+
+    assert {:ok, _allocation} =
+             Catalog.deallocate_collection_item_from_deck_card(lotus.id, allocated_item.id)
+
+    returned_item = Catalog.get_collection_item!(allocated_item.id)
+    assert returned_item.location_id == binder.id
+    assert returned_item.quantity == 1
+    assert Catalog.get_collection_item!(item.id).quantity == 1
   end
 
   @iroh_grand_lotus_list """

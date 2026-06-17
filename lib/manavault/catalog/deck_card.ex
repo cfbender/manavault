@@ -22,6 +22,9 @@ defmodule Manavault.Catalog.DeckCard do
       foreign_key: :preferred_printing_id,
       type: :string
 
+    has_many :deck_allocations, Manavault.Catalog.DeckAllocation, on_replace: :delete
+    has_many :collection_items, through: [:deck_allocations, :collection_item]
+
     timestamps(type: :utc_datetime)
   end
 

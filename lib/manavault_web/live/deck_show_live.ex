@@ -31,6 +31,9 @@ defmodule ManavaultWeb.DeckShowLive do
   attr :index, :integer, required: true
   attr :last?, :boolean, required: true
   attr :zone_options, :list, required: true
+  attr :allocation_status, :map, required: true
+  attr :expanded?, :boolean, default: false
+  attr :default_full?, :boolean, default: false
 
   def deck_stack_card(assigns) do
     ~H"""
@@ -47,15 +50,23 @@ defmodule ManavaultWeb.DeckShowLive do
       data-preview-set={set_label(@deck_card)}
       data-preview-finish={finish_label(@deck_card.finish)}
       data-preview-quantity={@deck_card.quantity}
+      data-expanded={to_string(@expanded?)}
     >
       <span class="sr-only">
         {card_name(@deck_card)} {set_label(@deck_card)} {finish_label(@deck_card.finish)}
       </span>
-      <div class={[
-        "overflow-hidden rounded-lg bg-base-300 shadow-xl ring-1 ring-base-content/10 transition group-hover/card:-translate-y-1 group-hover/card:ring-primary/60",
-        @last? && "aspect-[5/7]",
-        !@last? && "h-12"
-      ]}>
+      <button
+        type="button"
+        class={[
+          "block w-full overflow-hidden rounded-lg bg-base-300 text-left shadow-xl ring-1 ring-base-content/10 transition-[height,transform,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:ring-primary/60 focus:outline-none focus:ring-2 focus:ring-primary/70 group-hover/card:-translate-y-1 group-hover/card:ring-primary/60",
+          deck_stack_card_height(@expanded? or @default_full?)
+        ]}
+        phx-click="toggle_expanded_deck_card"
+        phx-value-id={@deck_card.id}
+        aria-expanded={@expanded?}
+        data-full={to_string(@expanded? or @default_full?)}
+        aria-label={"Toggle #{card_name(@deck_card)}"}
+      >
         <img
           :if={card_image_url(@deck_card)}
           src={card_image_url(@deck_card)}
@@ -69,15 +80,82 @@ defmodule ManavaultWeb.DeckShowLive do
         >
           {card_name(@deck_card)}
         </div>
-      </div>
+      </button>
 
-      <div class="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2">
-        <span
-          :if={@deck_card.quantity > 1}
-          class="badge badge-primary badge-sm pointer-events-auto shadow"
-        >
-          {@deck_card.quantity}
-        </span>
+      <div class="pointer-events-none absolute -left-1 -top-1 right-2 flex items-start justify-between gap-2">
+        <div class="dropdown pointer-events-auto">
+          <button
+            type="button"
+            class={[
+              "grid size-5 place-items-center rounded-full border p-0 leading-none shadow-sm backdrop-blur transition hover:bg-base-100 hover:text-base-content focus:outline-none focus:ring-2 focus:ring-primary/40",
+              allocation_status_button_class(@allocation_status.state)
+            ]}
+            tabindex="0"
+            aria-label={allocation_status_label(@allocation_status)}
+            title={allocation_status_label(@allocation_status)}
+          >
+            <.icon name={allocation_status_icon(@allocation_status.state)} class="block size-3" />
+          </button>
+          <div
+            id={"deck-card-#{@deck_card.id}-allocation-menu"}
+            tabindex="0"
+            class="dropdown-content z-[1000] mt-1 w-72 rounded-box border border-base-300 bg-base-100 p-3 shadow-2xl"
+          >
+            <div class="space-y-1">
+              <p class="font-semibold">{allocation_status_label(@allocation_status)}</p>
+              <p class="text-xs leading-5 text-base-content/70">
+                Owned {@allocation_status.owned} · Available {@allocation_status.available} · Allocated {@allocation_status.allocated} · Elsewhere {@allocation_status.allocated_elsewhere} · Missing {@allocation_status.missing}
+              </p>
+            </div>
+
+            <div :if={@allocation_status.candidates == []} class="mt-3 text-sm text-base-content/60">
+              No matching owned printings.
+            </div>
+
+            <ul :if={@allocation_status.candidates != []} class="menu mt-3 p-0 text-sm">
+              <li :for={candidate <- @allocation_status.candidates} class="rounded-box">
+                <div class="block space-y-2">
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                      <p class="truncate font-semibold">
+                        {collection_item_label(candidate.item)}
+                      </p>
+                      <p class="text-xs text-base-content/60">
+                        Owned {candidate.item.quantity} · Free {candidate.available} · Here {candidate.allocated} · Elsewhere {candidate.allocated_elsewhere}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-primary"
+                      disabled={
+                        candidate.available <= 0 or
+                          @allocation_status.allocated >= @allocation_status.required
+                      }
+                      phx-click="allocate_deck_card_item"
+                      phx-value-deck_card_id={@deck_card.id}
+                      phx-value-collection_item_id={candidate.item.id}
+                    >
+                      Allocate
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-outline"
+                      disabled={candidate.allocated <= 0}
+                      phx-click="deallocate_deck_card_item"
+                      phx-value-deck_card_id={@deck_card.id}
+                      phx-value-collection_item_id={candidate.item.id}
+                    >
+                      Deallocate
+                    </button>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+
         <div class="dropdown dropdown-end pointer-events-auto ml-auto opacity-0 transition group-hover/card:opacity-100 group-focus-within/card:opacity-100">
           <button
             type="button"
@@ -136,6 +214,18 @@ defmodule ManavaultWeb.DeckShowLive do
           </div>
         </div>
       </div>
+
+      <div
+        :if={@deck_card.quantity > 1}
+        class="pointer-events-none absolute -right-0.5 -top-0.5 z-20 size-6 overflow-hidden rounded-tr-md transition group-hover/card:-translate-y-1"
+        aria-label={"Quantity #{@deck_card.quantity}"}
+      >
+        <div class="absolute right-0 top-0 size-6 bg-primary shadow-sm [clip-path:polygon(100%_0,0_0,100%_100%)]">
+        </div>
+        <span class="absolute right-0 top-0 flex size-4 items-center justify-center text-[0.7rem] font-black leading-none text-primary-content">
+          {@deck_card.quantity}
+        </span>
+      </div>
     </div>
     """
   end
@@ -153,6 +243,8 @@ defmodule ManavaultWeb.DeckShowLive do
      |> assign(:group_options, @group_options)
      |> assign(:group_by, "type")
      |> assign(:preview_card, nil)
+     |> assign(:expanded_deck_card_id, nil)
+     |> assign(:bulk_allocation_preview, nil)
      |> assign(:add_form, to_form(%{"quantity" => "1", "zone" => "mainboard"}, as: :deck_card))
      |> assign(:import_form, to_form(%{"decklist" => ""}, as: :import))
      |> assign(:export_text, "")}
@@ -187,6 +279,12 @@ defmodule ManavaultWeb.DeckShowLive do
   def handle_event("preview_deck_card", %{"id" => id}, socket) do
     preview_card = Enum.find(socket.assigns.deck.deck_cards, &(to_string(&1.id) == id))
     {:noreply, assign(socket, :preview_card, preview_card || socket.assigns.preview_card)}
+  end
+
+  @impl true
+  def handle_event("toggle_expanded_deck_card", %{"id" => id}, socket) do
+    expanded_id = if socket.assigns.expanded_deck_card_id == id, do: nil, else: id
+    {:noreply, assign(socket, :expanded_deck_card_id, expanded_id)}
   end
 
   @impl true
@@ -266,6 +364,67 @@ defmodule ManavaultWeb.DeckShowLive do
   end
 
   @impl true
+  def handle_event(
+        "allocate_deck_card_item",
+        %{"deck_card_id" => deck_card_id, "collection_item_id" => collection_item_id},
+        socket
+      ) do
+    case Catalog.allocate_collection_item_to_deck_card(deck_card_id, collection_item_id) do
+      {:ok, _allocation} ->
+        {:noreply, assign_deck(socket, Catalog.get_deck!(socket.assigns.deck.id))}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, allocation_error(reason))}
+    end
+  end
+
+  @impl true
+  def handle_event(
+        "deallocate_deck_card_item",
+        %{"deck_card_id" => deck_card_id, "collection_item_id" => collection_item_id},
+        socket
+      ) do
+    case Catalog.deallocate_collection_item_from_deck_card(deck_card_id, collection_item_id) do
+      {:ok, _allocation} ->
+        {:noreply, assign_deck(socket, Catalog.get_deck!(socket.assigns.deck.id))}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, allocation_error(reason))}
+    end
+  end
+
+  @impl true
+  def handle_event("preview_bulk_allocate_deck", %{"mode" => mode}, socket) do
+    case Catalog.preview_bulk_allocate_deck(socket.assigns.deck, mode) do
+      {:ok, preview} ->
+        {:noreply, assign(socket, :bulk_allocation_preview, preview)}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, allocation_error(reason))}
+    end
+  end
+
+  @impl true
+  def handle_event("confirm_bulk_allocate_deck", %{"mode" => mode}, socket) do
+    case Catalog.bulk_allocate_deck(socket.assigns.deck, mode) do
+      {:ok, result} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, bulk_allocation_message(result, mode))
+         |> assign(:bulk_allocation_preview, nil)
+         |> assign_deck(Catalog.get_deck!(socket.assigns.deck.id))}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, allocation_error(reason))}
+    end
+  end
+
+  @impl true
+  def handle_event("close_bulk_allocation_modal", _params, socket) do
+    {:noreply, assign(socket, :bulk_allocation_preview, nil)}
+  end
+
+  @impl true
   def handle_event("import_decklist", %{"import" => %{"decklist" => text}}, socket) do
     case Catalog.import_decklist(socket.assigns.deck, text) do
       {:ok, %{imported: imported, unresolved: [], skipped_printings: []}} ->
@@ -313,7 +472,32 @@ defmodule ManavaultWeb.DeckShowLive do
                   {deck_view_count(@deck)} cards across {length(deck_groups(@deck, @group_by))} groups.
                 </p>
               </div>
-              <.link navigate={~p"/decks"} class="btn btn-sm btn-outline">All decks</.link>
+              <div class="flex shrink-0 flex-wrap items-center gap-2">
+                <details class="dropdown dropdown-end">
+                  <summary class="btn btn-sm btn-primary">
+                    Collection allocation <.icon name="hero-chevron-down" class="size-4" />
+                  </summary>
+                  <div class="dropdown-content z-30 mt-2 w-56 rounded-box border border-base-300 bg-base-100 p-2 shadow-2xl">
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-primary w-full justify-start"
+                      phx-click="preview_bulk_allocate_deck"
+                      phx-value-mode="exact_printings"
+                    >
+                      <.icon name="hero-check-circle" class="size-4" /> Exact printings
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline mt-2 w-full justify-start"
+                      phx-click="preview_bulk_allocate_deck"
+                      phx-value-mode="matching_printings"
+                    >
+                      <.icon name="hero-squares-plus" class="size-4" /> Partial Matches
+                    </button>
+                  </div>
+                </details>
+                <.link navigate={~p"/decks"} class="btn btn-sm btn-outline">All decks</.link>
+              </div>
             </div>
 
             <div class="control-toolbar grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
@@ -437,6 +621,12 @@ defmodule ManavaultWeb.DeckShowLive do
                       index={index}
                       last?={index == length(group.cards) - 1}
                       zone_options={@zone_options}
+                      allocation_status={Map.fetch!(@allocation_status, deck_card.id)}
+                      expanded?={to_string(deck_card.id) == @expanded_deck_card_id}
+                      default_full?={
+                        index == length(group.cards) - 1 and
+                          !deck_group_expanded?(group, @expanded_deck_card_id)
+                      }
                     />
                   </div>
                 </section>
@@ -587,6 +777,92 @@ defmodule ManavaultWeb.DeckShowLive do
           </details>
         </section>
       </div>
+
+      <dialog
+        :if={@bulk_allocation_preview}
+        id="bulk-allocation-modal"
+        class="modal modal-open"
+        phx-click-away="close_bulk_allocation_modal"
+        phx-key="Escape"
+      >
+        <div class="modal-box max-w-4xl">
+          <div class="space-y-2">
+            <h3 class="text-xl font-bold">
+              {bulk_allocation_mode_label(@bulk_allocation_preview.mode)}
+            </h3>
+            <p class="text-sm text-base-content/70">
+              {@bulk_allocation_preview.allocated} collection {copy_label(
+                @bulk_allocation_preview.allocated
+              )} across {@bulk_allocation_preview.cards} {deck_card_label(
+                @bulk_allocation_preview.cards
+              )}.
+            </p>
+          </div>
+
+          <div
+            :if={@bulk_allocation_preview.entries == []}
+            class="alert mt-5 border border-info/20 bg-info/10"
+          >
+            <span>No available collection copies matched this allocation mode.</span>
+          </div>
+
+          <div
+            :if={@bulk_allocation_preview.entries != []}
+            class="mt-5 max-h-[60vh] overflow-y-auto"
+          >
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th class="w-16">Qty</th>
+                  <th>Deck card</th>
+                  <th>Collection printing</th>
+                  <th class="w-24">Match</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr :for={entry <- @bulk_allocation_preview.entries}>
+                  <td class="font-black">{entry.quantity}</td>
+                  <td>
+                    <div class="font-semibold">{card_name(entry.deck_card)}</div>
+                    <div class="text-xs text-base-content/60">
+                      Wants {set_label(entry.deck_card)} · {finish_label(entry.deck_card.finish)}
+                    </div>
+                  </td>
+                  <td>
+                    <div class="font-semibold">{CardTile.set_label(entry.item)}</div>
+                    <div class="text-xs text-base-content/60">
+                      Owned {entry.item.quantity} · {finish_label(entry.item.finish)}
+                    </div>
+                  </td>
+                  <td>
+                    <span class={["badge badge-sm", allocation_match_badge_class(entry)]}>
+                      {allocation_match_label(entry)}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="modal-action">
+            <button type="button" class="btn btn-ghost" phx-click="close_bulk_allocation_modal">
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              disabled={@bulk_allocation_preview.entries == []}
+              phx-click="confirm_bulk_allocate_deck"
+              phx-value-mode={allocation_mode_value(@bulk_allocation_preview.mode)}
+            >
+              Allocate
+            </button>
+          </div>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+          <button phx-click="close_bulk_allocation_modal">close</button>
+        </form>
+      </dialog>
     </Layouts.app>
     """
   end
@@ -599,6 +875,7 @@ defmodule ManavaultWeb.DeckShowLive do
     socket
     |> assign(:deck, deck)
     |> assign(:stats, Catalog.deck_stats(deck))
+    |> assign(:allocation_status, Catalog.deck_allocation_status(deck))
     |> assign(:zone_options, zone_options)
     |> assign(:preview_card, preview_card || List.first(deck_view_cards(deck)))
     |> assign(:deck_form, deck |> Catalog.change_deck() |> to_form())
@@ -649,6 +926,12 @@ defmodule ManavaultWeb.DeckShowLive do
     else
       balance_group_columns(groups, 4)
     end
+  end
+
+  defp deck_group_expanded?(_group, nil), do: false
+
+  defp deck_group_expanded?(group, expanded_deck_card_id) do
+    Enum.any?(group.cards, &(to_string(&1.id) == expanded_deck_card_id))
   end
 
   defp type_group_columns(groups) do
@@ -818,6 +1101,9 @@ defmodule ManavaultWeb.DeckShowLive do
   defp card_image_url(%DeckCard{} = deck_card), do: CardTile.item_image_url(deck_card)
   defp card_image_url(_deck_card), do: nil
 
+  defp deck_stack_card_height(true), do: "h-[19.6rem]"
+  defp deck_stack_card_height(false), do: "h-12"
+
   defp card_name(%DeckCard{} = deck_card), do: CardTile.card_name(deck_card)
   defp card_name(_deck_card), do: "No card selected"
 
@@ -826,6 +1112,109 @@ defmodule ManavaultWeb.DeckShowLive do
 
   defp set_code(%DeckCard{} = deck_card), do: CardTile.set_code(deck_card)
   defp set_code(_deck_card), do: "?"
+
+  defp collection_item_label(item) do
+    [
+      CardTile.set_label(item),
+      finish_label(item.finish)
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" · ")
+  end
+
+  defp allocation_status_icon(:allocated), do: "hero-check-circle-solid"
+  defp allocation_status_icon(:available), do: "hero-plus-circle-solid"
+  defp allocation_status_icon(:partial), do: "hero-exclamation-triangle-solid"
+  defp allocation_status_icon(:missing), do: "hero-x-circle-solid"
+  defp allocation_status_icon(:basic_land), do: "hero-minus-circle-solid"
+  defp allocation_status_icon(_state), do: "hero-question-mark-circle-solid"
+
+  defp allocation_status_button_class(:allocated),
+    do: "border-success/30 bg-base-100/75 text-success/80"
+
+  defp allocation_status_button_class(:available),
+    do: "border-info/30 bg-base-100/75 text-info/80"
+
+  defp allocation_status_button_class(:partial),
+    do: "border-warning/30 bg-base-100/75 text-warning/80"
+
+  defp allocation_status_button_class(:missing),
+    do: "border-error/30 bg-base-100/75 text-error/80"
+
+  defp allocation_status_button_class(:basic_land),
+    do: "border-base-content/15 bg-base-100/65 text-base-content/55"
+
+  defp allocation_status_button_class(_state),
+    do: "border-base-content/15 bg-base-100/65 text-base-content/55"
+
+  defp allocation_status_label(%{state: :allocated, allocated: allocated, required: required}) do
+    "Allocated #{allocated}/#{required}"
+  end
+
+  defp allocation_status_label(%{state: :available, available: available, required: required}) do
+    "#{available}/#{required} available to allocate"
+  end
+
+  defp allocation_status_label(%{state: :partial, allocated: allocated, required: required}) do
+    "Partially covered #{allocated}/#{required}"
+  end
+
+  defp allocation_status_label(%{state: :missing, missing: missing}) do
+    "Missing #{missing}"
+  end
+
+  defp allocation_status_label(%{state: :basic_land}) do
+    "Basic land not tracked"
+  end
+
+  defp allocation_status_label(_status), do: "Allocation status"
+
+  defp allocation_error(:not_enough_available),
+    do: "No available physical copy for that allocation."
+
+  defp allocation_error(:deck_card_already_allocated),
+    do: "That deck card is already fully allocated."
+
+  defp allocation_error(:allocation_not_found), do: "That allocation no longer exists."
+
+  defp allocation_error(:allocation_card_mismatch),
+    do: "That collection card does not match this deck card."
+
+  defp allocation_error(:allocation_finish_mismatch),
+    do: "That collection finish does not match this deck card."
+
+  defp allocation_error(:invalid_allocation_mode), do: "Choose an allocation mode."
+
+  defp allocation_error(_reason), do: "Could not update allocation."
+
+  defp bulk_allocation_message(%{allocated: 0}, _mode),
+    do: "No available collection copies matched."
+
+  defp bulk_allocation_message(%{allocated: allocated, cards: cards}, "exact_printings") do
+    "Allocated #{allocated} exact collection #{copy_label(allocated)} across #{cards} #{deck_card_label(cards)}."
+  end
+
+  defp bulk_allocation_message(%{allocated: allocated, cards: cards}, _mode) do
+    "Allocated #{allocated} partial match collection #{copy_label(allocated)} across #{cards} #{deck_card_label(cards)}."
+  end
+
+  defp copy_label(1), do: "copy"
+  defp copy_label(_count), do: "copies"
+
+  defp deck_card_label(1), do: "deck card"
+  defp deck_card_label(_count), do: "deck cards"
+
+  defp bulk_allocation_mode_label(:exact_printings), do: "Exact printings"
+  defp bulk_allocation_mode_label(:matching_printings), do: "Partial Matches"
+
+  defp allocation_mode_value(:exact_printings), do: "exact_printings"
+  defp allocation_mode_value(:matching_printings), do: "matching_printings"
+
+  defp allocation_match_label(%{exact?: true}), do: "Exact"
+  defp allocation_match_label(_entry), do: "Partial"
+
+  defp allocation_match_badge_class(%{exact?: true}), do: "badge-success"
+  defp allocation_match_badge_class(_entry), do: "badge-warning"
 
   defp decode_json(value, fallback) when is_binary(value) do
     case Jason.decode(value) do
