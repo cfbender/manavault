@@ -223,8 +223,20 @@ defmodule ManavaultWeb.CollectionFormLive do
           <div class="card-body gap-6">
             <div class="space-y-2">
               <h1 class="card-title text-3xl">{@page_title}</h1>
-              <p class="text-base-content/70">
-                {printing_name(@printing)} — {set_label(@printing)} — exact printing {@printing.scryfall_id}
+              <p class="inline-flex flex-wrap items-center gap-2 text-base-content/70">
+                <span>{printing_name(@printing)}</span>
+                <span aria-hidden="true">—</span>
+                <span class="inline-flex items-center gap-1">
+                  <.set_icon
+                    set_code={@printing.set_code}
+                    label={set_label(@printing)}
+                    class="h-4 w-4"
+                    fallback_class="text-xs"
+                  />
+                  <span class="sr-only">{set_label(@printing)}</span>
+                </span>
+                <span aria-hidden="true">—</span>
+                <span>exact printing {@printing.scryfall_id}</span>
               </p>
             </div>
 

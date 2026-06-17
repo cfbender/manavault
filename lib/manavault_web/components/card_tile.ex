@@ -2,6 +2,7 @@ defmodule ManavaultWeb.CardTile do
   @moduledoc false
 
   use Phoenix.Component
+  import ManavaultWeb.MagicSymbols
 
   alias Manavault.Catalog.{CollectionItem, DeckCard, Printing, ScanItem}
 
@@ -159,7 +160,11 @@ defmodule ManavaultWeb.CardTile do
             </span>
             <span class="flex items-center justify-between gap-2 text-xs">
               <span class="badge badge-sm border-white/30 bg-black/45 text-white backdrop-blur-sm">
-                {@set_code}
+                <.set_icon
+                  set_code={@set_code}
+                  class="h-4 w-4 brightness-0 invert"
+                  fallback_class="text-[0.65rem]"
+                />
               </span>
               <span :if={@price_text && @variant == :default} class="font-mono text-white/90">
                 {@price_text}
@@ -203,13 +208,14 @@ defmodule ManavaultWeb.CardTile do
 
   def set_label(%DeckCard{} = item), do: item |> tile_printing() |> printing_set_label()
   def set_label(%ScanItem{} = item), do: item |> tile_printing() |> printing_set_label()
+  def set_label(%Printing{} = printing), do: printing_set_label(printing)
 
   def set_code(%CollectionItem{printing: %{set_code: set_code}}) when is_binary(set_code),
     do: String.upcase(set_code)
 
   def set_code(%DeckCard{} = item), do: item |> tile_printing() |> printing_set_code()
   def set_code(%ScanItem{} = item), do: item |> tile_printing() |> printing_set_code()
-  def set_code(%Printing{} = printing), do: printing_set_label(printing)
+  def set_code(%Printing{} = printing), do: printing_set_code(printing)
   def set_code(_item), do: "?"
 
   def price_text(%CollectionItem{printing: %Printing{prices: prices}}),
@@ -232,8 +238,9 @@ defmodule ManavaultWeb.CardTile do
   defp default_id(%Printing{scryfall_id: id}), do: "printing-#{id}"
   defp default_id(_item), do: nil
 
-  defp item_click_id(%{id: id}), do: id
-  defp item_click_id(%Printing{scryfall_id: scryfall_id}), do: scryfall_id
+  defp item_click_id(%CollectionItem{id: id}), do: id
+  defp item_click_id(%DeckCard{id: id}), do: id
+  defp item_click_id(%ScanItem{id: id}), do: id
   defp item_click_id(_item), do: nil
 
   defp item_quantity(%{quantity: quantity}) when is_integer(quantity), do: quantity

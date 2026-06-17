@@ -389,7 +389,15 @@ defmodule ManavaultWeb.DeckShowLive do
                   {@preview_card.card.type_line}
                 </p>
                 <div class="flex flex-wrap gap-2">
-                  <span id="deck-preview-set" class="badge badge-outline">{set_label(@preview_card)}</span>
+                  <span id="deck-preview-set" class="badge badge-outline gap-1">
+                    <.set_icon
+                      set_code={set_code(@preview_card)}
+                      label={set_label(@preview_card)}
+                      class="h-4 w-4"
+                      fallback_class="text-xs"
+                    />
+                    <span class="sr-only">{set_label(@preview_card)}</span>
+                  </span>
                   <span id="deck-preview-finish" class="badge badge-ghost">
                     {finish_label(@preview_card.finish)}
                   </span>
@@ -411,7 +419,10 @@ defmodule ManavaultWeb.DeckShowLive do
                 <section :for={group <- column} class="min-w-0 space-y-3">
                   <div class="flex items-center gap-2">
                     <span class="text-lg text-warning">{group_icon(group.label)}</span>
-                    <h2 class="truncate text-base font-black">{group.label}</h2>
+                    <h2 class="truncate text-base font-black">
+                      <.symbolized_text :if={symbol_group_label?(group.label)} text={group.label} />
+                      <span :if={!symbol_group_label?(group.label)}>{group.label}</span>
+                    </h2>
                     <span class="text-sm text-base-content/60">({group.count})</span>
                   </div>
 
@@ -478,7 +489,17 @@ defmodule ManavaultWeb.DeckShowLive do
                       </div>
                     </td>
                     <td class="hidden max-w-xs truncate md:table-cell">{deck_card.card.type_line}</td>
-                    <td class="hidden lg:table-cell">{set_label(deck_card)}</td>
+                    <td class="hidden lg:table-cell">
+                      <span class="inline-flex items-center gap-1">
+                        <.set_icon
+                          set_code={set_code(deck_card)}
+                          label={set_label(deck_card)}
+                          class="h-4 w-4"
+                          fallback_class="text-xs"
+                        />
+                        <span class="sr-only">{set_label(deck_card)}</span>
+                      </span>
+                    </td>
                     <td class="hidden sm:table-cell">{finish_label(deck_card.finish)}</td>
                     <td>
                       <.form
@@ -756,10 +777,13 @@ defmodule ManavaultWeb.DeckShowLive do
 
     case colors do
       [] -> "Colorless"
-      colors when is_list(colors) -> Enum.join(colors, "")
+      colors when is_list(colors) -> Enum.map_join(colors, "", &"{#{&1}}")
       _other -> "Unknown"
     end
   end
+
+  defp symbol_group_label?("{" <> _rest), do: true
+  defp symbol_group_label?(_label), do: false
 
   defp deck_card_type(%DeckCard{zone: "commander"}), do: "Commander"
 
@@ -795,6 +819,9 @@ defmodule ManavaultWeb.DeckShowLive do
 
   defp set_label(%DeckCard{} = deck_card), do: CardTile.set_label(deck_card)
   defp set_label(_deck_card), do: "Unknown printing"
+
+  defp set_code(%DeckCard{} = deck_card), do: CardTile.set_code(deck_card)
+  defp set_code(_deck_card), do: "?"
 
   defp decode_json(value, fallback) when is_binary(value) do
     case Jason.decode(value) do

@@ -68,7 +68,21 @@ defmodule ManavaultWeb.CardShowLive do
 
           <div class="relative flex min-h-80 items-end p-6 sm:p-8 lg:min-h-96">
             <div class="max-w-3xl space-y-3">
-              <h1 class="text-4xl font-black tracking-tight sm:text-5xl">{@card.name}</h1>
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <h1 class="text-4xl font-black leading-none tracking-tight sm:text-5xl">
+                  {@card.name}
+                </h1>
+                <.symbolized_text
+                  :if={@card.mana_cost}
+                  text={@card.mana_cost}
+                  class="inline-flex translate-y-[0.08em] items-center gap-1 text-2xl"
+                />
+                <.symbol_list
+                  :if={color_identity(@card) != []}
+                  symbols={color_identity(@card)}
+                  class="translate-y-[0.08em] text-[1.35rem]"
+                />
+              </div>
               <p :if={@card.type_line} class="text-lg leading-8 text-base-content/80">
                 {@card.type_line}
               </p>
@@ -83,7 +97,9 @@ defmodule ManavaultWeb.CardShowLive do
             </div>
 
             <div class="space-y-4 text-base leading-8 text-base-content/90">
-              <p :for={paragraph <- oracle_paragraphs(@card.oracle_text)}>{paragraph}</p>
+              <p :for={paragraph <- oracle_paragraphs(@card.oracle_text)}>
+                <.symbolized_text text={paragraph} />
+              </p>
             </div>
           </div>
         </section>
@@ -113,8 +129,12 @@ defmodule ManavaultWeb.CardShowLive do
                   class="h-full w-full object-cover transition group-hover:scale-[1.02]"
                   loading="lazy"
                 />
-                <span class="absolute bottom-1.5 left-1.5 badge badge-sm badge-outline bg-base-100/80 backdrop-blur-sm font-bold">
-                  {String.upcase(printing.set_code)}
+                <span class="absolute bottom-1.5 left-1.5 inline-flex h-6 min-w-6 items-center justify-center rounded-md border border-white/20 bg-black/60 px-1 shadow backdrop-blur-sm">
+                  <.set_icon
+                    set_code={printing.set_code}
+                    class="h-4 w-4 brightness-0 invert"
+                    fallback_class="text-[0.65rem]"
+                  />
                 </span>
                 <span
                   :if={price_text(printing)}
@@ -161,7 +181,15 @@ defmodule ManavaultWeb.CardShowLive do
                 class="w-28 h-40 shrink-0 rounded-lg shadow object-cover"
               />
               <div class="space-y-3 flex-1">
-                <h3 class="text-lg font-bold">{set_label(@selected_printing)}</h3>
+                <h3 class="inline-flex items-center gap-2 text-lg font-bold">
+                  <.set_icon
+                    set_code={@selected_printing.set_code}
+                    label={set_label(@selected_printing)}
+                    class="h-5 w-5"
+                    fallback_class="text-sm"
+                  />
+                  <span>{set_label(@selected_printing)}</span>
+                </h3>
                 <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
                   <dt class="font-semibold">Collector #</dt>
                   <dd>{@selected_printing.collector_number}</dd>
@@ -212,6 +240,12 @@ defmodule ManavaultWeb.CardShowLive do
     |> String.split("\n")
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 in ["", "---"]))
+  end
+
+  defp color_identity(card) do
+    card.color_identity
+    |> decode_json([])
+    |> Enum.map(&"{#{&1}}")
   end
 
   defp set_label(%Printing{set_code: set_code, set_name: nil}), do: String.upcase(set_code)

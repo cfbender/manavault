@@ -408,8 +408,8 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
 
     html = render_click(view, "change_scan_printing", %{"id" => item.id})
     assert html =~ "Change printing"
-    assert html =~ "LEA #232"
-    assert html =~ "LEB #233"
+    assert html =~ "LEA"
+    assert html =~ "LEB"
 
     render_click(view, "select_printing", %{
       "id" => item.id,
@@ -556,8 +556,8 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
       render_click(view, "change_scan_printing", %{"id" => item.id})
 
     assert html =~ "Change printing"
-    assert html =~ "LEA #232"
-    assert html =~ "LEB #233"
+    assert html =~ "LEA"
+    assert html =~ "LEB"
     assert html =~ "Current"
 
     html =

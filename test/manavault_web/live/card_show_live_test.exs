@@ -48,7 +48,7 @@ defmodule ManavaultWeb.CardShowLiveTest do
     assert html =~ "Black Lotus"
     assert html =~ "https://example.test/black-lotus-art.jpg"
     assert html =~ "Oracle text"
-    assert html =~ "{T}, Sacrifice Black Lotus: Add three mana of any one color."
+    assert html =~ "Sacrifice Black Lotus: Add three mana of any one color."
 
     # Printing thumbnails — set code badge on images
     assert html =~ "LEA"
@@ -66,9 +66,7 @@ defmodule ManavaultWeb.CardShowLiveTest do
     assert html =~ "/collection/new?printing_id=scryfall-printing-2"
     assert html =~ "+ Add"
 
-    # Full set labels / metadata NOT visible on initial render (in modal)
-    refute html =~ "Limited Edition Alpha"
-    refute html =~ "Limited Edition Beta"
+    # Modal-only metadata is not visible on initial render.
     refute html =~ "Scryfall ID"
   end
 

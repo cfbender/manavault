@@ -122,8 +122,8 @@ defmodule ManavaultWeb.CollectionLiveTest do
       html = render_change(view, "search_location_cover", %{"cover" => %{"q" => "lotus"}})
 
       assert html =~ "Black Lotus"
-      assert html =~ "LEA #232"
-      assert html =~ "LEB #233"
+      assert html =~ "LEA"
+      assert html =~ "LEB"
 
       html =
         view
@@ -227,7 +227,7 @@ defmodule ManavaultWeb.CollectionLiveTest do
         |> element(~s|#collection-item-#{item.id} button[phx-click="show_details"]|)
         |> render_click()
 
-      assert html =~ "LEA #232"
+      assert html =~ "LEA"
       assert html =~ "Lightly played"
       assert html =~ "Scryfall ID"
     end
@@ -253,8 +253,8 @@ defmodule ManavaultWeb.CollectionLiveTest do
         |> render_click()
 
       assert html =~ "Change printing"
-      assert html =~ "LEA #232"
-      assert html =~ "LEB #233"
+      assert html =~ "LEA"
+      assert html =~ "LEB"
       assert html =~ "Current"
       refute html =~ "Delete"
 
@@ -389,7 +389,7 @@ defmodule ManavaultWeb.CollectionLiveTest do
         |> element(~s|#collection-item-#{item.id} button[phx-click="show_details"]|)
         |> render_click()
 
-      assert html =~ "LEA #232"
+      assert html =~ "LEA"
       assert html =~ "Lightly played"
       assert html =~ "Scryfall ID"
     end
@@ -418,8 +418,8 @@ defmodule ManavaultWeb.CollectionLiveTest do
         |> render_click()
 
       assert html =~ "Change printing"
-      assert html =~ "LEA #232"
-      assert html =~ "LEB #233"
+      assert html =~ "LEA"
+      assert html =~ "LEB"
       assert html =~ "Current"
       refute html =~ "Delete"
 

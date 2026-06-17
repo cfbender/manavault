@@ -88,6 +88,7 @@ defmodule ManavaultWeb do
       import Phoenix.HTML
       # Core UI components
       import ManavaultWeb.CoreComponents
+      import ManavaultWeb.MagicSymbols
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS

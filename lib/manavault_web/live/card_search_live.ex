@@ -110,7 +110,20 @@ defmodule ManavaultWeb.CardSearchLive do
                 </div>
               </figure>
               <div class="card-body gap-2 p-4">
-                <h3 class="line-clamp-2 text-base font-bold leading-snug">{card.name}</h3>
+                <div class="flex items-start justify-between gap-2">
+                  <h3 class="line-clamp-2 text-base font-bold leading-snug">{card.name}</h3>
+                  <div class="flex shrink-0 items-center gap-1">
+                    <.symbolized_text
+                      :if={card.mana_cost}
+                      text={card.mana_cost}
+                      class="inline-flex items-center gap-0.5"
+                    />
+                    <.symbol_list
+                      :if={color_identity(card) != []}
+                      symbols={color_identity(card)}
+                    />
+                  </div>
+                </div>
                 <p :if={card.type_line} class="line-clamp-2 text-sm leading-6 text-base-content/70">
                   {card.type_line}
                 </p>
@@ -158,4 +171,19 @@ defmodule ManavaultWeb.CardSearchLive do
 
   defp image_url_from_uris([uris | _]), do: image_url_from_uris(uris)
   defp image_url_from_uris(_uris), do: nil
+
+  defp color_identity(card) do
+    card.color_identity
+    |> decode_json([])
+    |> Enum.map(&"{#{&1}}")
+  end
+
+  defp decode_json(value, fallback) when is_binary(value) do
+    case Jason.decode(value) do
+      {:ok, decoded} -> decoded
+      {:error, _reason} -> fallback
+    end
+  end
+
+  defp decode_json(_value, fallback), do: fallback
 end

@@ -100,7 +100,7 @@ defmodule ManavaultWeb.DeckLiveTest do
     html = render(view)
     assert html =~ "Time Walk"
     assert html =~ "Black Lotus"
-    assert html =~ "LEA #232"
+    assert html =~ "LEA"
     assert html =~ "Nonfoil"
     assert html =~ "Commander"
     assert html =~ "Mainboard"
@@ -123,7 +123,7 @@ defmodule ManavaultWeb.DeckLiveTest do
     assert html =~ "1 cards across"
     assert html =~ "Maybeboard"
     assert html =~ "Black Lotus"
-    assert html =~ "LEA #232"
+    assert html =~ "LEA"
     refute has_element?(view, "#deck-board-zone-mainboard")
     assert has_element?(view, "#deck-board-zone-maybeboard")
 

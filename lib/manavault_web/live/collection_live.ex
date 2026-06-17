@@ -462,7 +462,15 @@ defmodule ManavaultWeb.CollectionLive do
               <h3 class="text-lg font-bold">{card_name(@selected_item)}</h3>
               <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
                 <dt class="font-semibold">Printing</dt>
-                <dd>{set_label(@selected_item)}</dd>
+                <dd class="inline-flex items-center gap-1">
+                  <.set_icon
+                    set_code={set_code(@selected_item)}
+                    label={set_label(@selected_item)}
+                    class="h-4 w-4"
+                    fallback_class="text-xs"
+                  />
+                  <span class="sr-only">{set_label(@selected_item)}</span>
+                </dd>
                 <dt class="font-semibold">Quantity</dt>
                 <dd>{@selected_item.quantity}</dd>
                 <dt class="font-semibold">Condition</dt>
@@ -666,7 +674,15 @@ defmodule ManavaultWeb.CollectionLive do
                     </div>
                     <div class="p-2 text-xs">
                       <p class="line-clamp-2 font-semibold leading-tight">{card_name(item)}</p>
-                      <p class="mt-1 text-base-content/60">{set_label(item)}</p>
+                      <p class="mt-1 inline-flex items-center gap-1 text-base-content/60">
+                        <.set_icon
+                          set_code={set_code(item)}
+                          label={set_label(item)}
+                          class="h-4 w-4"
+                          fallback_class="text-xs"
+                        />
+                        <span class="sr-only">{set_label(item)}</span>
+                      </p>
                     </div>
                   </label>
                 </div>
@@ -806,6 +822,10 @@ defmodule ManavaultWeb.CollectionLive do
   defp set_label(%Printing{set_code: set_code, collector_number: collector_number}) do
     "#{String.upcase(set_code)} ##{collector_number}"
   end
+
+  defp set_code(%CollectionItem{printing: %{set_code: set_code}}), do: set_code
+  defp set_code(%Printing{set_code: set_code}), do: set_code
+  defp set_code(_item), do: "?"
 
   defp price_text(%CollectionItem{printing: %Printing{prices: prices}}) do
     price_text_from_prices(prices)
