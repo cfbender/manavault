@@ -240,6 +240,7 @@ defmodule ManavaultWeb.DeckShowLive do
      |> assign(:format_options, @format_options)
      |> assign(:status_options, @status_options)
      |> assign(:deck_form, nil)
+     |> assign(:deck_settings_open?, false)
      |> assign(:group_options, @group_options)
      |> assign(:group_by, "type")
      |> assign(:preview_card, nil)
@@ -295,7 +296,7 @@ defmodule ManavaultWeb.DeckShowLive do
       |> Map.put(:action, :validate)
       |> to_form()
 
-    {:noreply, assign(socket, :deck_form, form)}
+    {:noreply, socket |> assign(:deck_form, form) |> assign(:deck_settings_open?, true)}
   end
 
   @impl true
@@ -305,10 +306,14 @@ defmodule ManavaultWeb.DeckShowLive do
         {:noreply,
          socket
          |> put_flash(:info, "Updated #{deck.name}.")
+         |> assign(:deck_settings_open?, true)
          |> assign_deck(Catalog.get_deck!(deck.id))}
 
       {:error, changeset} ->
-        {:noreply, assign(socket, :deck_form, to_form(changeset))}
+        {:noreply,
+         socket
+         |> assign(:deck_form, to_form(changeset))
+         |> assign(:deck_settings_open?, true)}
     end
   end
 
@@ -722,7 +727,11 @@ defmodule ManavaultWeb.DeckShowLive do
         </section>
 
         <section class="grid gap-4 lg:grid-cols-3">
-          <details class="rounded-box border border-base-300 bg-base-100 p-5 shadow-sm">
+          <details
+            id="deck-settings-panel"
+            class="rounded-box border border-base-300 bg-base-100 p-5 shadow-sm"
+            open={@deck_settings_open?}
+          >
             <summary class="cursor-pointer text-xl font-bold">Deck settings</summary>
             <.form
               for={@deck_form}

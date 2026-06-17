@@ -92,6 +92,8 @@ defmodule ManavaultWeb.DeckLiveTest do
     html = render(show)
     assert html =~ "Powered Updated"
     assert html =~ "Commander · Active"
+    assert html =~ ~s|id="deck-settings-panel"|
+    assert html =~ ~r/<details[^>]*id="deck-settings-panel"[^>]*open/
   end
 
   test "imports a plain text decklist with zones", %{conn: conn} do
