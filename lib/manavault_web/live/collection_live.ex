@@ -338,40 +338,65 @@ defmodule ManavaultWeb.CollectionLive do
             phx-submit="filter"
             class="rounded-box border border-base-300 bg-base-100 p-4 shadow-sm"
           >
-            <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-6 xl:items-end">
-              <.input
-                field={@filter_form[:q]}
-                type="search"
-                label="Search"
-                placeholder="Card, set, collector #, Scryfall ID"
-              />
-              <.input
-                field={@filter_form[:condition]}
-                type="select"
-                label="Condition"
-                options={@condition_options}
-              />
-              <.input
-                field={@filter_form[:language]}
-                type="text"
-                label="Language"
-                placeholder="en"
-              />
-              <.input
-                field={@filter_form[:finish]}
-                type="select"
-                label="Finish"
-                options={@finish_options}
-              />
-              <.input
-                field={@filter_form[:location_id]}
-                type="select"
-                label="Location"
-                options={location_filter_options(@locations)}
-              />
-              <div class="fieldset mb-2">
-                <span class="label mb-1 hidden xl:block">&nbsp;</span>
-                <button class="btn btn-primary w-full" type="submit">Filter</button>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <label class="form-control min-w-0 flex-1">
+                <span class="label-text">Search</span>
+                <input
+                  id={@filter_form[:q].id}
+                  name={@filter_form[:q].name}
+                  value={@filter_form[:q].value}
+                  type="search"
+                  class="input input-bordered w-full"
+                  placeholder="Card, set, collector #, Scryfall ID"
+                />
+              </label>
+
+              <div class="flex shrink-0 items-end gap-2">
+                <details class="dropdown dropdown-end">
+                  <summary
+                    class="btn btn-outline relative"
+                    aria-label="More filters"
+                    title="More filters"
+                  >
+                    <.icon name="hero-funnel" class="size-5" />
+                    <span
+                      :if={extra_filter_count(@filters) > 0}
+                      class="badge badge-primary badge-xs absolute -right-1 -top-1"
+                    >
+                      {extra_filter_count(@filters)}
+                    </span>
+                  </summary>
+                  <div class="dropdown-content z-30 w-[min(calc(100vw-2rem),24rem)] rounded-box border border-base-300 bg-base-100 p-4 shadow-2xl">
+                    <div class="grid gap-3 sm:grid-cols-2">
+                      <.input
+                        field={@filter_form[:condition]}
+                        type="select"
+                        label="Condition"
+                        options={@condition_options}
+                      />
+                      <.input
+                        field={@filter_form[:finish]}
+                        type="select"
+                        label="Finish"
+                        options={@finish_options}
+                      />
+                      <.input
+                        field={@filter_form[:language]}
+                        type="text"
+                        label="Language"
+                        placeholder="en"
+                      />
+                      <.input
+                        field={@filter_form[:location_id]}
+                        type="select"
+                        label="Location"
+                        options={location_filter_options(@locations)}
+                      />
+                    </div>
+                  </div>
+                </details>
+
+                <button class="btn btn-primary px-6" type="submit">Search</button>
               </div>
             </div>
           </.form>
@@ -745,6 +770,12 @@ defmodule ManavaultWeb.CollectionLive do
   defp filter_form_params(filters) do
     %{"q" => "", "condition" => "", "language" => "", "finish" => "", "location_id" => ""}
     |> Map.merge(filters)
+  end
+
+  defp extra_filter_count(filters) do
+    Enum.count(["condition", "language", "finish", "location_id"], fn key ->
+      Map.get(filters, key, "") != ""
+    end)
   end
 
   defp normalize_filter_value(value) when is_binary(value), do: String.trim(value)
