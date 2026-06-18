@@ -42,11 +42,13 @@ defmodule ManavaultWeb.SchemaTest do
           "set" => "tst",
           "set_name" => "Test Set",
           "lang" => "en",
+          "rarity" => "rare",
           "image_uris" => %{
             "normal" => "https://example.test/card.jpg",
             "art_crop" => "https://example.test/card-art.jpg"
           },
           "finishes" => ["nonfoil"],
+          "prices" => %{"usd" => "12.34"},
           "legalities" => %{}
         }
       ])
@@ -75,6 +77,8 @@ defmodule ManavaultWeb.SchemaTest do
             coverPrinting { imageUrl artCropUrl card { name } }
           }
           collectionItems {
+            priceText
+            allocatedQuantity
             printing { imageUrl card { name } }
             location { name }
           }
@@ -95,7 +99,9 @@ defmodule ManavaultWeb.SchemaTest do
                ],
                "collectionItems" => [
                  %{
+                   "allocatedQuantity" => 0,
                    "location" => %{"name" => "Binder"},
+                   "priceText" => "$12.34",
                    "printing" => %{
                      "card" => %{"name" => "Test Card"},
                      "imageUrl" => "https://example.test/card.jpg"

@@ -1,6 +1,9 @@
 defmodule ManavaultWeb.Schema.CatalogResolvers do
+  import Ecto.Query
+
   alias Manavault.Catalog
-  alias Manavault.Catalog.{CollectionItem, Deck, Location, Printing, ScanSession}
+  alias Manavault.Catalog.{CollectionItem, Deck, DeckAllocation, Location, Price, Printing, ScanSession}
+  alias Manavault.Repo
 
   def home_summary(_parent, _args, _resolution) do
     {:ok,
@@ -79,7 +82,7 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   end
 
   def location_item_count(%Location{} = location, _args, _resolution) do
-    location = Manavault.Repo.preload(location, :collection_items)
+    location = Repo.preload(location, :collection_items)
     {:ok, length(location.collection_items)}
   end
 
@@ -93,19 +96,37 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     do: {:ok, nil}
 
   def collection_item_location(%CollectionItem{} = item, _args, _resolution) do
-    {:ok, item |> Manavault.Repo.preload(:location_assoc) |> Map.get(:location_assoc)}
+    {:ok, item |> Repo.preload(:location_assoc) |> Map.get(:location_assoc)}
+  end
+
+  def collection_item_price_text(%CollectionItem{} = item, _args, _resolution) do
+    {:ok, Price.text_for_collection_item(item)}
+  end
+
+  def collection_item_allocated_quantity(%CollectionItem{deck_allocations: allocations}, _args, _resolution)
+      when is_list(allocations) do
+    {:ok, Enum.reduce(allocations, 0, &(&1.quantity + &2))}
+  end
+
+  def collection_item_allocated_quantity(%CollectionItem{id: id}, _args, _resolution) do
+    allocated =
+      DeckAllocation
+      |> where([allocation], allocation.collection_item_id == ^id)
+      |> Repo.aggregate(:sum, :quantity)
+
+    {:ok, allocated || 0}
   end
 
   defp scan_items(%ScanSession{scan_items: items}) when is_list(items), do: items
 
   defp scan_items(%ScanSession{} = session) do
-    session |> Manavault.Repo.preload(:scan_items) |> Map.get(:scan_items)
+    session |> Repo.preload(:scan_items) |> Map.get(:scan_items)
   end
 
   defp deck_cards(%Deck{deck_cards: cards}) when is_list(cards), do: cards
 
   defp deck_cards(%Deck{} = deck) do
-    deck |> Manavault.Repo.preload(deck_cards: [printing: :card]) |> Map.get(:deck_cards)
+    deck |> Repo.preload(deck_cards: [printing: :card]) |> Map.get(:deck_cards)
   end
 
   defp decode_json(value, fallback) when is_binary(value) do

@@ -63,6 +63,14 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :notes, :string
     field :printing, :printing
 
+    field :price_text, :string do
+      resolve(&CatalogResolvers.collection_item_price_text/3)
+    end
+
+    field :allocated_quantity, non_null(:integer) do
+      resolve(&CatalogResolvers.collection_item_allocated_quantity/3)
+    end
+
     field :location, :location do
       resolve(&CatalogResolvers.collection_item_location/3)
     end

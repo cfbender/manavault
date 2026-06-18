@@ -1,8 +1,5 @@
 - react-bits animation stealing?
 - get rid of splash screen hero backing and use fun animation?
-- change locations to 2x2, hovering location changes whole background to low opacity art crop?
-  - align art of cards with bottom card view
-- clicking card in collection view goes to overview of card
 - double icons on card details view?
 - toggle between grid and table view on collection
 - collection view in deck grayed out

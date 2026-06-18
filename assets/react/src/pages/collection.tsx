@@ -1,13 +1,13 @@
 import { Link } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
-import { Boxes, Plus, Search } from "lucide-react"
+import { Boxes, Edit3, MoveUpRight, Plus, Search, Trash2 } from "lucide-react"
 import { useMemo, useState } from "react"
 import { PageHeader, PageSection } from "../components/app-shell"
-import { CardImage, EmptyState } from "../components/card-image"
+import { EmptyState } from "../components/card-image"
+import { addToDeckAction, addToListAction, CardTile } from "../components/card-tile"
 import { ImageSummaryCard } from "../components/image-summary-card"
 import { Badge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
-import { Card } from "../components/ui/card"
 import { Input } from "../components/ui/input"
 import { graphql } from "../gql"
 import { request } from "../lib/graphql"
@@ -28,12 +28,15 @@ const CollectionDocument = graphql(`
       condition
       language
       finish
+      priceText
+      allocatedQuantity
       location { id name }
       printing {
         scryfallId
         setCode
         collectorNumber
         imageUrl
+        rarity
         card { oracleId name typeLine }
       }
     }
@@ -53,11 +56,14 @@ const LocationDocument = graphql(`
         condition
         language
         finish
+        priceText
+        allocatedQuantity
         printing {
           scryfallId
           setCode
           collectorNumber
           imageUrl
+          rarity
           card { oracleId name typeLine }
         }
       }
@@ -67,6 +73,9 @@ const LocationDocument = graphql(`
 
 type CollectionItem = {
   id: string
+  allocatedQuantity?: number | null
+  condition: string
+  priceText?: string | null
   quantity: number
   finish: string
   location?: { id: string; name: string } | null
@@ -74,6 +83,7 @@ type CollectionItem = {
     setCode?: string | null
     collectorNumber?: string | null
     imageUrl?: string | null
+    rarity?: string | null
     card?: { oracleId: string; name: string; typeLine?: string | null } | null
   } | null
 }
@@ -86,27 +96,39 @@ function CollectionGrid({ items }: { items?: readonly (CollectionItem | null)[] 
   if (!presentItems.length) return <EmptyState title="No collection items found" />
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="grid justify-center gap-x-6 gap-y-8 [grid-template-columns:repeat(auto-fill,minmax(14.25rem,14.25rem))]">
       {presentItems.map(item => (
-        <Card key={item.id} className="overflow-hidden">
-          <div className="grid grid-cols-[5rem_1fr] gap-3 p-3">
-            <CardImage printing={item.printing} className="w-20" />
-            <div className="min-w-0 space-y-2">
-              <div>
-                <Link to="/cards/$id" params={{ id: item.printing?.card?.oracleId || "" }} className="font-semibold hover:text-primary">
-                  {item.printing?.card?.name || "Unknown card"}
+        <CardTile
+          key={item.id}
+          allocatedLabel={item.allocatedQuantity ? `In deck${item.allocatedQuantity > 1 ? ` x${item.allocatedQuantity}` : ""}` : undefined}
+          count={item.quantity}
+          defaultActions={[
+            { icon: <MoveUpRight className="h-4 w-4" />, label: "Move", disabled: true },
+            {
+              content: (
+                <Link to="/collection/$id/edit" params={{ id: item.id }}>
+                  <Edit3 className="h-4 w-4" />
+                  Edit
                 </Link>
-                <p className="line-clamp-2 text-sm text-base-content/70">{item.printing?.card?.typeLine}</p>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                <Badge tone="primary">x{item.quantity}</Badge>
-                <Badge>{titleize(item.finish)}</Badge>
-                <Badge>{item.printing?.setCode?.toUpperCase()} #{item.printing?.collectorNumber}</Badge>
-              </div>
-              {item.location ? <div className="text-xs text-base-content/60">{item.location.name}</div> : null}
-            </div>
-          </div>
-        </Card>
+              ),
+              label: "Edit",
+            },
+            { destructive: true, icon: <Trash2 className="h-4 w-4" />, label: "Delete", disabled: true },
+          ]}
+          finish={item.finish}
+          imageUrl={item.printing?.imageUrl}
+          location={item.location?.name}
+          menuActions={[addToDeckAction(), addToListAction()]}
+          name={
+            <Link to="/cards/$id" params={{ id: item.printing?.card?.oracleId || "" }} className="hover:underline">
+              {item.printing?.card?.name || "Unknown card"}
+            </Link>
+          }
+          price={item.priceText}
+          rarity={item.printing?.rarity}
+          setLabel={`${item.printing?.setCode?.toUpperCase() || "?"} #${item.printing?.collectorNumber || "?"}`}
+          typeLine={item.printing?.card?.typeLine}
+        />
       ))}
     </div>
   )
