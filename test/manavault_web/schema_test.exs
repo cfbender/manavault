@@ -42,7 +42,10 @@ defmodule ManavaultWeb.SchemaTest do
           "set" => "tst",
           "set_name" => "Test Set",
           "lang" => "en",
-          "image_uris" => %{"normal" => "https://example.test/card.jpg"},
+          "image_uris" => %{
+            "normal" => "https://example.test/card.jpg",
+            "art_crop" => "https://example.test/card-art.jpg"
+          },
           "finishes" => ["nonfoil"],
           "legalities" => %{}
         }
@@ -69,7 +72,7 @@ defmodule ManavaultWeb.SchemaTest do
         query {
           locations {
             name
-            coverPrinting { imageUrl card { name } }
+            coverPrinting { imageUrl artCropUrl card { name } }
           }
           collectionItems {
             printing { imageUrl card { name } }
@@ -85,6 +88,7 @@ defmodule ManavaultWeb.SchemaTest do
                  %{
                    "coverPrinting" => %{
                      "card" => %{"name" => "Test Card"},
+                     "artCropUrl" => "https://example.test/card-art.jpg",
                      "imageUrl" => "https://example.test/card.jpg"
                    }
                  }

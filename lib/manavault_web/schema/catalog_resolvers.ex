@@ -43,6 +43,11 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     {:ok, image_url(image_uris)}
   end
 
+  def printing_art_crop_url(%Printing{} = printing, _args, _resolution) do
+    image_uris = decode_json(printing.image_uris, %{})
+    {:ok, art_crop_url(image_uris)}
+  end
+
   def decode_json_field(parent, key, fallback) do
     parent |> Map.get(key) |> decode_json(fallback)
   end
@@ -118,4 +123,11 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
   defp image_url([first | _rest]), do: image_url(first)
   defp image_url(_image_uris), do: nil
+
+  defp art_crop_url(%{} = image_uris) do
+    image_uris["art_crop"] || image_url(image_uris)
+  end
+
+  defp art_crop_url([first | _rest]), do: art_crop_url(first)
+  defp art_crop_url(_image_uris), do: nil
 end

@@ -1,12 +1,13 @@
 import { Link } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { Boxes, Plus, Search } from "lucide-react"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { PageHeader, PageSection } from "../components/app-shell"
 import { CardImage, EmptyState } from "../components/card-image"
+import { ImageSummaryCard } from "../components/image-summary-card"
 import { Badge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
+import { Card } from "../components/ui/card"
 import { Input } from "../components/ui/input"
 import { graphql } from "../gql"
 import { request } from "../lib/graphql"
@@ -19,7 +20,7 @@ const CollectionDocument = graphql(`
       name
       kind
       itemCount
-      coverPrinting { imageUrl card { name } }
+      coverPrinting { artCropUrl }
     }
     collectionItems(filters: $filters, limit: $limit) {
       id
@@ -77,6 +78,8 @@ type CollectionItem = {
   } | null
 }
 
+type CollectionTab = "locations" | "all"
+
 function CollectionGrid({ items }: { items?: readonly (CollectionItem | null)[] | null }) {
   const presentItems = (items || []).filter(present)
 
@@ -110,12 +113,23 @@ function CollectionGrid({ items }: { items?: readonly (CollectionItem | null)[] 
 }
 
 export function CollectionPage() {
+  const [activeTab, setActiveTab] = useState<CollectionTab>("locations")
   const [q, setQ] = useState("")
   const [filters, setFilters] = useState<{ q?: string }>({})
   const { data, isLoading } = useQuery({
     queryKey: ["collection", filters],
     queryFn: () => request(CollectionDocument, { filters, limit: 120 }),
   })
+  const locationGroups = useMemo(() => {
+    const groups = new Map<string, NonNullable<typeof data>["locations"]>()
+
+    for (const location of data?.locations || []) {
+      const kind = location.kind || "other"
+      groups.set(kind, [...(groups.get(kind) || []), location])
+    }
+
+    return Array.from(groups.entries()).sort(([left], [right]) => left.localeCompare(right))
+  }, [data?.locations])
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -146,59 +160,98 @@ export function CollectionPage() {
         }
       />
 
-      <form onSubmit={submit} className="control-toolbar mb-7 grid gap-2 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-[1fr_auto]">
-        <Input name="q" value={q} onChange={event => setQ(event.target.value)} placeholder="Filter collection" />
-        <Button type="submit" variant="outline">
-          <Search className="h-4 w-4" />
-          Filter
-        </Button>
-      </form>
-
-      <PageSection title="Locations" count={`${data?.locations?.length || 0} total`}>
-        <div className="space-y-4">
-          {(data?.locations || []).map(location => (
-            <Link key={location.id} to="/collection/locations/$id" params={{ id: location.id }}>
-              <Card className="group overflow-hidden transition-all hover:border-primary/40 hover:bg-base-100 hover:shadow-lg">
-                <div className="grid gap-4 sm:grid-cols-[13rem_1fr_auto]">
-                  <div className="h-40 overflow-hidden bg-base-200 sm:h-36">
-                    {location.coverPrinting?.imageUrl ? (
-                      <img
-                        src={location.coverPrinting.imageUrl}
-                        alt=""
-                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-base-content/40">
-                        <Boxes className="h-10 w-10" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0 space-y-3 p-4 sm:pl-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge>{titleize(location.kind)}</Badge>
-                      <span className="text-base text-base-content/70">{compactNumber(location.itemCount || 0)} cards</span>
-                    </div>
-                    <h3 className="truncate text-3xl font-black tracking-normal">{location.name}</h3>
-                    {location.coverPrinting?.card?.name ? (
-                      <p className="text-sm text-base-content/60">{location.coverPrinting.card.name}</p>
-                    ) : null}
-                  </div>
-                  <div className="flex items-center gap-2 p-4 pt-0 sm:p-4">
-                    <span className="btn btn-primary btn-sm">View</span>
-                  </div>
-                </div>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      </PageSection>
-
-      <div className="mt-8">
-        <PageSection title="Owned printings" count={`${data?.collectionItems?.filter(present).length || 0} shown`}>
-          {isLoading ? <EmptyState title="Loading collection..." /> : <CollectionGrid items={data?.collectionItems} />}
-        </PageSection>
+      <div className="mb-7 flex flex-wrap gap-2 border-b border-base-300" role="tablist" aria-label="Collection view">
+        <CollectionTabButton
+          active={activeTab === "locations"}
+          count={data?.locations?.length || 0}
+          label="Locations"
+          onClick={() => setActiveTab("locations")}
+        />
+        <CollectionTabButton
+          active={activeTab === "all"}
+          count={data?.collectionItems?.filter(present).length || 0}
+          label="All"
+          onClick={() => setActiveTab("all")}
+        />
       </div>
+
+      {activeTab === "locations" ? (
+        <PageSection count={`${data?.locations?.length || 0} total`}>
+          {isLoading ? (
+            <EmptyState title="Loading locations..." />
+          ) : locationGroups.length ? (
+            <div className="space-y-10">
+              {locationGroups.map(([kind, locations]) => (
+                <section key={kind} className="space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-xl font-black tracking-normal">{titleize(kind)}</h3>
+                    <span className="badge border-transparent bg-base-200 text-sm">{locations.length}</span>
+                  </div>
+                  <div className="grid gap-5 md:grid-cols-2">
+                    {locations.map(location => (
+                      <Link key={location.id} to="/collection/locations/$id" params={{ id: location.id }} className="block">
+                        <ImageSummaryCard
+                          imageUrl={location.coverPrinting?.artCropUrl}
+                          fallback={<Boxes className="h-12 w-12" />}
+                          typeLine={<Badge>{titleize(location.kind)}</Badge>}
+                          countLine={`${compactNumber(location.itemCount || 0)} cards`}
+                          nameLine={location.name}
+                        />
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No locations found" />
+          )}
+        </PageSection>
+      ) : (
+        <div className="space-y-7">
+          <form onSubmit={submit} className="control-toolbar grid gap-2 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-[1fr_auto]">
+            <Input name="q" value={q} onChange={event => setQ(event.target.value)} placeholder="Filter collection" />
+            <Button type="submit" variant="outline">
+              <Search className="h-4 w-4" />
+              Filter
+            </Button>
+          </form>
+
+          <PageSection count={`${data?.collectionItems?.filter(present).length || 0} shown`}>
+            {isLoading ? <EmptyState title="Loading collection..." /> : <CollectionGrid items={data?.collectionItems} />}
+          </PageSection>
+        </div>
+      )}
     </>
+  )
+}
+
+function CollectionTabButton({
+  active,
+  count,
+  label,
+  onClick,
+}: {
+  active: boolean
+  count: number
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      className={[
+        "relative flex items-center gap-2 px-4 pb-3 pt-1 text-sm font-bold transition-colors",
+        active ? "text-primary" : "text-base-content/60 hover:text-base-content",
+      ].join(" ")}
+      onClick={onClick}
+    >
+      <span>{label}</span>
+      <span className={active ? "badge badge-primary badge-sm" : "badge badge-ghost badge-sm"}>{count}</span>
+      {active ? <span className="absolute inset-x-0 bottom-[-1px] h-0.5 rounded-full bg-primary" /> : null}
+    </button>
   )
 }
 

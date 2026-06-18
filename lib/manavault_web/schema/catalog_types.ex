@@ -34,6 +34,10 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
       resolve(&CatalogResolvers.printing_image_url/3)
     end
 
+    field :art_crop_url, :string do
+      resolve(&CatalogResolvers.printing_art_crop_url/3)
+    end
+
     field :image_uris, :json do
       resolve(fn printing, _, _ ->
         {:ok, CatalogResolvers.decode_json_field(printing, :image_uris, %{})}
