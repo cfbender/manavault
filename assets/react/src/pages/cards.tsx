@@ -12,6 +12,8 @@ import { graphql } from "../gql"
 import { request } from "../lib/graphql"
 import { present, titleize } from "../lib/utils"
 import {
+  AddCollectionItemDialog,
+  type AddCollectionItemInitialPrinting,
   buildCollectionFilterQuery,
   cloneCollectionFilters,
   CollectionFilterModal,
@@ -196,6 +198,7 @@ function CardSearchForm({
 }
 
 export function CardDetailPage({ id, query }: { id: string; query: string }) {
+  const [addPrinting, setAddPrinting] = useState<AddCollectionItemInitialPrinting | null>(null)
   const { data, isLoading } = useQuery({ queryKey: ["card", id], queryFn: () => request(CardDocument, { id }) })
   const card = data?.card
   const printings = card?.printings || []
@@ -247,11 +250,17 @@ export function CardDetailPage({ id, query }: { id: string; query: string }) {
                 imageUrl={printing.imageUrl}
                 menuActions={[
                   {
-                    content: (
-                      <Link to="/collection/new" search={{ printing_id: printing.scryfallId }}>
-                        Add to collection
-                      </Link>
-                    ),
+                    onClick: () => setAddPrinting({
+                      cardName: card.name,
+                      collectorNumber: printing.collectorNumber,
+                      finishes: printing.finishes,
+                      imageUrl: printing.imageUrl,
+                      rarity: printing.rarity,
+                      scryfallId: printing.scryfallId,
+                      setCode: printing.setCode,
+                      setName: printing.setName,
+                      typeLine: card.typeLine,
+                    }),
                     label: "Add to collection",
                   },
                   addToDeckAction(),
@@ -267,6 +276,7 @@ export function CardDetailPage({ id, query }: { id: string; query: string }) {
           ))}
         </div>
       </div>
+      <AddCollectionItemDialog initialPrinting={addPrinting} open={Boolean(addPrinting)} onOpenChange={open => !open && setAddPrinting(null)} />
     </>
   )
 }

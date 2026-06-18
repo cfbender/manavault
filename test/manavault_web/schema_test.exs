@@ -235,6 +235,131 @@ defmodule ManavaultWeb.SchemaTest do
            } = json_response(conn, 200)
   end
 
+  test "create collection item mutation adds a printing to the collection", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-printing-2",
+          "oracle_id" => "oracle-2",
+          "name" => "New Collection Card",
+          "type_line" => "Creature",
+          "collector_number" => "2",
+          "set" => "tst",
+          "set_name" => "Test Set",
+          "lang" => "en",
+          "rarity" => "rare",
+          "image_uris" => %{"normal" => "https://example.test/new-card.jpg"},
+          "finishes" => ["nonfoil", "foil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, location} = Catalog.create_location(%{name: "Trade Binder", kind: "binder"})
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation CreateCollectionItem($input: CollectionItemInput!) {
+          createCollectionItem(input: $input) {
+            id
+            quantity
+            condition
+            language
+            finish
+            notes
+            printing { scryfallId card { name } }
+            location { id name }
+          }
+        }
+        """,
+        "variables" => %{
+          "input" => %{
+            "scryfallId" => "scryfall-printing-2",
+            "quantity" => 2,
+            "condition" => "near_mint",
+            "language" => "en",
+            "finish" => "foil",
+            "locationId" => location.id,
+            "notes" => "Fresh pull"
+          }
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "createCollectionItem" => %{
+                 "quantity" => 2,
+                 "condition" => "near_mint",
+                 "language" => "en",
+                 "finish" => "foil",
+                 "notes" => "Fresh pull",
+                 "printing" => %{
+                   "scryfallId" => "scryfall-printing-2",
+                   "card" => %{"name" => "New Collection Card"}
+                 },
+                 "location" => %{"id" => _id, "name" => "Trade Binder"}
+               }
+             }
+           } = json_response(conn, 200)
+  end
+
+  test "create location mutation creates a location with optional cover", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-printing-3",
+          "oracle_id" => "oracle-3",
+          "name" => "Location Cover",
+          "type_line" => "Artifact",
+          "collector_number" => "3",
+          "set" => "tst",
+          "set_name" => "Test Set",
+          "lang" => "en",
+          "image_uris" => %{"art_crop" => "https://example.test/location-cover.jpg"},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation CreateLocation($input: LocationInput!) {
+          createLocation(input: $input) {
+            id
+            name
+            kind
+            description
+            coverPrinting { scryfallId artCropUrl card { name } }
+          }
+        }
+        """,
+        "variables" => %{
+          "input" => %{
+            "name" => "New Box",
+            "kind" => "box",
+            "description" => "Sealed cards",
+            "coverScryfallId" => "scryfall-printing-3"
+          }
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "createLocation" => %{
+                 "name" => "New Box",
+                 "kind" => "box",
+                 "description" => "Sealed cards",
+                 "coverPrinting" => %{
+                   "scryfallId" => "scryfall-printing-3",
+                   "artCropUrl" => "https://example.test/location-cover.jpg",
+                   "card" => %{"name" => "Location Cover"}
+                 }
+               }
+             }
+           } = json_response(conn, 200)
+  end
+
   test "update deck mutation updates deck fields", %{conn: conn} do
     {:ok, deck} = Catalog.create_deck(%{"name" => "Old Deck", "format" => "commander", "status" => "brewing"})
 

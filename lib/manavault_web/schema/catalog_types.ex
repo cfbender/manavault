@@ -182,6 +182,16 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :direction, :string
   end
 
+  input_object :collection_item_input do
+    field :scryfall_id, non_null(:id)
+    field :quantity, :integer
+    field :condition, :string
+    field :language, :string
+    field :finish, :string
+    field :location_id, :id
+    field :notes, :string
+  end
+
   input_object :deck_input do
     field :name, non_null(:string)
     field :format, :string
@@ -196,6 +206,13 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
 
   input_object :location_update_input do
     field :name, :string
+    field :kind, :string
+    field :description, :string
+    field :cover_scryfall_id, :id
+  end
+
+  input_object :location_input do
+    field :name, non_null(:string)
     field :kind, :string
     field :description, :string
     field :cover_scryfall_id, :id

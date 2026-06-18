@@ -64,9 +64,19 @@ defmodule ManavaultWeb.Schema do
   end
 
   mutation do
+    field :create_collection_item, :collection_item do
+      arg(:input, non_null(:collection_item_input))
+      resolve(&CatalogResolvers.create_collection_item/3)
+    end
+
     field :create_deck, :deck do
       arg(:input, non_null(:deck_input))
       resolve(&CatalogResolvers.create_deck/3)
+    end
+
+    field :create_location, :location do
+      arg(:input, non_null(:location_input))
+      resolve(&CatalogResolvers.create_location/3)
     end
 
     field :update_deck, :deck do

@@ -70,6 +70,22 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     end
   end
 
+  def create_collection_item(_parent, %{input: input}, _resolution) do
+    input = normalize_blank_location_id(input)
+
+    case Catalog.create_collection_item(input) do
+      {:ok, item} -> {:ok, Catalog.get_collection_item!(item.id)}
+      {:error, changeset} -> {:error, changeset_error_message(changeset)}
+    end
+  end
+
+  def create_location(_parent, %{input: input}, _resolution) do
+    case Catalog.create_location(input) do
+      {:ok, location} -> {:ok, Repo.preload(location, cover_printing: :card)}
+      {:error, changeset} -> {:error, changeset_error_message(changeset)}
+    end
+  end
+
   def update_deck(_parent, %{id: id, input: input}, _resolution) do
     deck = Catalog.get_deck!(id)
 
@@ -262,4 +278,7 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
       _other -> id
     end
   end
+
+  defp normalize_blank_location_id(%{location_id: ""} = input), do: Map.put(input, :location_id, nil)
+  defp normalize_blank_location_id(input), do: input
 end
