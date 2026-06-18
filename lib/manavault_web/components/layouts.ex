@@ -35,7 +35,7 @@ defmodule ManavaultWeb.Layouts do
 
   def app(assigns) do
     ~H"""
-    <header class="navbar px-4 sm:px-6 lg:px-8">
+    <header class="navbar app-shell-header px-4 sm:px-6 lg:px-8">
       <div class="flex-1">
         <a href="/" class="flex items-center gap-2 no-underline">
           <img src={~p"/images/logo.svg"} alt="" class="h-8 w-8" />
@@ -57,14 +57,34 @@ defmodule ManavaultWeb.Layouts do
             <a href="/scan" class="btn btn-ghost btn-xs sm:btn-sm">Scan</a>
           </li>
           <li>
+            <button
+              id="pwa-install-button"
+              type="button"
+              class="btn btn-primary btn-xs hidden pointer-events-auto px-2 sm:btn-sm sm:px-3"
+              data-pwa-install
+              aria-label="Install app"
+            >
+              <.icon name="hero-arrow-down-tray" class="size-4" />
+              <span class="hidden sm:inline" data-pwa-install-label>Install</span>
+            </button>
+          </li>
+          <li>
             <.theme_toggle />
           </li>
         </ul>
       </div>
     </header>
 
-    <main class="h-[calc(100vh-4rem)] w-screen overflow-y-auto px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-20">
+    <main class="app-shell-main h-[calc(100vh-4rem)] w-screen overflow-y-auto px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-20">
       <div class="mx-auto max-w-2xl space-y-4">
+        <button
+          id="pwa-install-debug"
+          type="button"
+          class="btn btn-outline btn-xs hidden"
+          data-pwa-install-debug
+        >
+          PWA diagnostics
+        </button>
         {render_slot(@inner_block)}
       </div>
     </main>

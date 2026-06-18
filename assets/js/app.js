@@ -159,6 +159,349 @@ liveSocket.connect()
 // >> liveSocket.disableLatencySim()
 window.liveSocket = liveSocket
 
+let deferredInstallPrompt = null
+const pwaAssetVersion = "20260617-9"
+const serviceWorkerUrl = `${window.location.origin}/sw.js?v=${pwaAssetVersion}`
+
+function appDisplayMode() {
+  if (window.matchMedia("(display-mode: standalone)").matches) return "standalone"
+  if (window.navigator.standalone) return "standalone"
+  return "browser"
+}
+
+function installButtons() {
+  return Array.from(document.querySelectorAll("[data-pwa-install]"))
+}
+
+function diagnosticButtons() {
+  return Array.from(document.querySelectorAll("[data-pwa-install-debug]"))
+}
+
+window.manavaultPwa = {
+  installPromptAvailable: false,
+  displayMode: appDisplayMode(),
+  secureContext: window.isSecureContext,
+  serviceWorkerSupported: "serviceWorker" in navigator,
+  serviceWorkerRegistered: false,
+  serviceWorkerControlled: Boolean(navigator.serviceWorker?.controller),
+  serviceWorkerError: null,
+  manifestOk: false,
+  manifestError: null,
+  iconsOk: false,
+  relatedApps: [],
+  userAgent: navigator.userAgent,
+}
+
+function updatePwaInstallState(state) {
+  window.manavaultPwa = {...window.manavaultPwa, ...state}
+}
+
+function adoptInstallPrompt(prompt = window.__manavaultPwaInstallCapture?.prompt) {
+  if (!prompt) return false
+
+  deferredInstallPrompt = prompt
+  updatePwaInstallState({
+    installPromptAvailable: true,
+    installPromptCapturedEarly: Boolean(window.__manavaultPwaInstallCapture?.fired),
+    installPromptCapturedAt: window.__manavaultPwaInstallCapture?.firedAt || null,
+  })
+  setInstallButtonsVisible(true, true)
+  return true
+}
+
+function pwaDiagnosticLabel() {
+  const pwa = window.manavaultPwa
+
+  if (pwa.displayMode === "standalone") return "Installed"
+  if (!pwa.secureContext) return "HTTPS required"
+  if (!pwa.serviceWorkerSupported) return "No SW support"
+  if (pwa.serviceWorkerError) return "SW failed"
+  if (!pwa.serviceWorkerRegistered) return "SW pending"
+  if (!pwa.serviceWorkerControlled) return "Reload once"
+  if (pwa.manifestError) return "Manifest failed"
+  if (!pwa.manifestOk) return "Manifest pending"
+  if (!pwa.iconsOk) return "Icon failed"
+  if (!pwa.installPromptAvailable) return "Not installable"
+  return "Install"
+}
+
+function setInstallButtonsVisible(visible, enabled = visible) {
+  installButtons().forEach(button => {
+    const shouldShow = visible && enabled
+
+    button.classList.toggle("hidden", !shouldShow)
+    button.disabled = false
+    button.dataset.pwaInstallEnabled = enabled ? "true" : "false"
+    button.setAttribute("aria-disabled", enabled ? "false" : "true")
+    button.classList.toggle("btn-disabled", !enabled)
+
+    const label = button.querySelector("[data-pwa-install-label]")
+    if (label) label.textContent = pwaDiagnosticLabel()
+
+    button.title = JSON.stringify(window.manavaultPwa)
+  })
+
+  diagnosticButtons().forEach(button => {
+    button.classList.toggle("hidden", process.env.NODE_ENV !== "development" || enabled || !visible)
+  })
+}
+
+async function refreshRelatedApps() {
+  if (!navigator.getInstalledRelatedApps) return
+
+  try {
+    updatePwaInstallState({relatedApps: await navigator.getInstalledRelatedApps()})
+  } catch (error) {
+    updatePwaInstallState({relatedAppsError: error?.message || "related apps check failed"})
+  }
+}
+
+async function validateManifestForInstall() {
+  try {
+    const response = await fetch(`/site.webmanifest?v=${pwaAssetVersion}`, {cache: "no-store"})
+    if (!response.ok) throw new Error(`manifest HTTP ${response.status}`)
+
+    const manifest = await response.json()
+    const icons = Array.isArray(manifest.icons) ? manifest.icons : []
+
+    const hasRequiredIcon = icons.some(icon => {
+      const sizes = String(icon.sizes || "")
+      const purpose = String(icon.purpose || "any")
+      return icon.src && sizes.includes("192x192") && purpose.includes("any")
+    })
+
+    if (!hasRequiredIcon) throw new Error("missing 192x192 any icon")
+
+    const iconResults = await Promise.all(
+      icons
+        .filter(icon => icon.src)
+        .map(icon =>
+          fetch(icon.src, {cache: "no-store"})
+            .then(iconResponse => iconResponse.ok)
+            .catch(() => false)
+        )
+    )
+
+    updatePwaInstallState({
+      manifestOk: true,
+      manifestError: null,
+      iconsOk: iconResults.length > 0 && iconResults.every(Boolean),
+    })
+  } catch (error) {
+    updatePwaInstallState({
+      manifestOk: false,
+      manifestError: error?.message || "manifest validation failed",
+      iconsOk: false,
+    })
+  }
+}
+
+function resolveManifestUrl(path) {
+  try {
+    return new URL(path || "/", window.location.origin).href
+  } catch (_error) {
+    return null
+  }
+}
+
+async function responseSummary(url) {
+  if (!url) return null
+
+  try {
+    const response = await fetch(url, {cache: "no-store"})
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      type: response.type,
+      contentType: response.headers.get("content-type"),
+      cacheControl: response.headers.get("cache-control"),
+    }
+  } catch (error) {
+    return {ok: false, error: error?.message || "fetch failed"}
+  }
+}
+
+async function collectPwaInstallDiagnostics() {
+  const manifestLink = document.querySelector("link[rel='manifest']")
+  const registration =
+    navigator.serviceWorker?.getRegistration ? await navigator.serviceWorker.getRegistration("/") : null
+  const activeWorker = registration?.active || registration?.waiting || registration?.installing || null
+
+  let manifest = null
+  let manifestFetch = null
+
+  try {
+    const manifestHref = manifestLink?.href || resolveManifestUrl("/site.webmanifest")
+    const response = await fetch(manifestHref, {cache: "no-store"})
+    manifestFetch = {
+      ok: response.ok,
+      status: response.status,
+      type: response.type,
+      contentType: response.headers.get("content-type"),
+      cacheControl: response.headers.get("cache-control"),
+    }
+
+    if (response.ok) manifest = await response.json()
+  } catch (error) {
+    manifestFetch = {ok: false, error: error?.message || "manifest fetch failed"}
+  }
+
+  const startUrl = resolveManifestUrl(manifest?.start_url)
+  const scopeUrl = resolveManifestUrl(manifest?.scope)
+  const iconUrls = Array.isArray(manifest?.icons)
+    ? manifest.icons.filter(icon => icon.src).map(icon => resolveManifestUrl(icon.src))
+    : []
+
+  const iconFetches = await Promise.all(iconUrls.map(responseSummary))
+  const cacheKeys = await caches?.keys?.().catch(error => [`cache keys failed: ${error?.message}`])
+
+  updatePwaInstallState({
+    displayMode: appDisplayMode(),
+    serviceWorkerControlled: Boolean(navigator.serviceWorker?.controller),
+    serviceWorkerControllerScript: navigator.serviceWorker?.controller?.scriptURL || null,
+    serviceWorkerRegistrationScope: registration?.scope || null,
+    serviceWorkerRegistrationScript: activeWorker?.scriptURL || null,
+    serviceWorkerRegistrationState: activeWorker?.state || null,
+    manifestLinkHref: manifestLink?.href || null,
+    manifestFetch,
+    manifest,
+    manifestStartUrlResolved: startUrl,
+    manifestScopeResolved: scopeUrl,
+    manifestCoversCurrentPage: Boolean(scopeUrl && window.location.href.startsWith(scopeUrl)),
+    startUrlFetch: await responseSummary(startUrl),
+    iconFetches,
+    cacheKeys,
+    isTopLevelWindow: window.top === window,
+    cookiesEnabled: navigator.cookieEnabled,
+    pwaAssetVersion,
+    installPromptCapturedEarly: Boolean(window.__manavaultPwaInstallCapture?.fired),
+    installPromptCapturedAt: window.__manavaultPwaInstallCapture?.firedAt || null,
+  })
+}
+
+function refreshPwaInstallDiagnostics() {
+  collectPwaInstallDiagnostics().finally(() => {
+    if (!deferredInstallPrompt && window.manavaultPwa.displayMode !== "standalone") {
+      setInstallButtonsVisible(true, false)
+    }
+  })
+}
+
+async function showPwaInstallDiagnostics() {
+  await collectPwaInstallDiagnostics()
+
+  const fullDiagnostics = JSON.stringify(window.manavaultPwa, null, 2)
+  let copied = false
+
+  try {
+    await navigator.clipboard.writeText(fullDiagnostics)
+    copied = true
+  } catch (_error) {
+    copied = false
+  }
+
+  const pwa = window.manavaultPwa
+  const summary = {
+    copiedToClipboard: copied,
+    installPromptAvailable: pwa.installPromptAvailable,
+    installPromptCapturedEarly: pwa.installPromptCapturedEarly,
+    installPromptCapturedAt: pwa.installPromptCapturedAt,
+    displayMode: pwa.displayMode,
+    serviceWorkerControlled: pwa.serviceWorkerControlled,
+    serviceWorkerRegistrationState: pwa.serviceWorkerRegistrationState,
+    serviceWorkerRegistrationScope: pwa.serviceWorkerRegistrationScope,
+    serviceWorkerRegistrationScript: pwa.serviceWorkerRegistrationScript,
+    manifestLinkHref: pwa.manifestLinkHref,
+    manifestFetchOk: pwa.manifestFetch?.ok,
+    manifestCoversCurrentPage: pwa.manifestCoversCurrentPage,
+    manifestStartUrlResolved: pwa.manifestStartUrlResolved,
+    startUrlFetchOk: pwa.startUrlFetch?.ok,
+    iconsOk: pwa.iconsOk,
+    relatedApps: pwa.relatedApps,
+    pwaAssetVersion: pwa.pwaAssetVersion,
+  }
+
+  window.alert(JSON.stringify(summary, null, 2))
+}
+
+if ("serviceWorker" in navigator && window.isSecureContext) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register(serviceWorkerUrl, {scope: "/"})
+      .then(() => {
+        updatePwaInstallState({
+          serviceWorkerRegistered: true,
+          serviceWorkerControlled: Boolean(navigator.serviceWorker.controller),
+          serviceWorkerError: null,
+        })
+      })
+      .catch(error => {
+        updatePwaInstallState({
+          serviceWorkerRegistered: false,
+          serviceWorkerError: error?.message || "registration failed",
+        })
+      })
+      .finally(() => {
+        Promise.all([validateManifestForInstall(), refreshRelatedApps()]).finally(() => {
+          window.setTimeout(refreshPwaInstallDiagnostics, 8000)
+        })
+      })
+  })
+} else {
+  Promise.all([validateManifestForInstall(), refreshRelatedApps()]).finally(() => {
+    window.setTimeout(refreshPwaInstallDiagnostics, 500)
+  })
+}
+
+window.addEventListener("beforeinstallprompt", event => {
+  event.preventDefault()
+  window.__manavaultPwaInstallCapture = {
+    prompt: event,
+    fired: true,
+    firedAt: Date.now(),
+  }
+  adoptInstallPrompt(event)
+})
+
+window.addEventListener("manavault:pwa-install-available", () => {
+  adoptInstallPrompt()
+})
+
+adoptInstallPrompt()
+
+window.addEventListener("appinstalled", () => {
+  deferredInstallPrompt = null
+  updatePwaInstallState({
+    installPromptAvailable: false,
+    displayMode: appDisplayMode(),
+  })
+  setInstallButtonsVisible(false)
+})
+
+window.addEventListener("click", async event => {
+  const diagnosticButton = event.target.closest("[data-pwa-install-debug]")
+  if (diagnosticButton) {
+    showPwaInstallDiagnostics()
+    return
+  }
+
+  const button = event.target.closest("[data-pwa-install]")
+  if (!button) return
+
+  if (button.dataset.pwaInstallEnabled !== "true" || !deferredInstallPrompt) {
+    showPwaInstallDiagnostics()
+    return
+  }
+
+  button.disabled = true
+  deferredInstallPrompt.prompt()
+  await deferredInstallPrompt.userChoice.catch(() => {})
+  deferredInstallPrompt = null
+  updatePwaInstallState({installPromptAvailable: false})
+  refreshPwaInstallDiagnostics()
+})
+
 // The lines below enable quality of life phoenix_live_reload
 // development features:
 //

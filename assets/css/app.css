@@ -119,6 +119,43 @@
   --set-symbol-common-color: #000;
 }
 
+.app-shell-header {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: calc(1rem + env(safe-area-inset-left, 0px));
+  padding-right: calc(1rem + env(safe-area-inset-right, 0px));
+}
+
+.app-shell-main {
+  height: calc(100dvh - 4rem - env(safe-area-inset-top, 0px));
+  padding-left: calc(1rem + env(safe-area-inset-left, 0px));
+  padding-right: calc(1rem + env(safe-area-inset-right, 0px));
+  padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 40rem) {
+  .app-shell-header,
+  .app-shell-main {
+    padding-left: calc(1.5rem + env(safe-area-inset-left, 0px));
+    padding-right: calc(1.5rem + env(safe-area-inset-right, 0px));
+  }
+
+  .app-shell-main {
+    padding-bottom: calc(3rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (min-width: 64rem) {
+  .app-shell-header,
+  .app-shell-main {
+    padding-left: calc(2rem + env(safe-area-inset-left, 0px));
+    padding-right: calc(2rem + env(safe-area-inset-right, 0px));
+  }
+
+  .app-shell-main {
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 .control-toolbar {
   align-items: end;
 }

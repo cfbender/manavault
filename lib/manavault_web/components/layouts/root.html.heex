@@ -2,9 +2,10 @@
 <html lang="en" class="h-screen w-screen">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="csrf-token" content={get_csrf_token()} />
     <meta name="application-name" content="ManaVault" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="ManaVault" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -13,9 +14,30 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="manifest" href="/site.webmanifest?v=20260617-9" />
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
-    <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
+    <script>
+      (() => {
+        if (window.__manavaultPwaInstallCapture) return;
+
+        window.__manavaultPwaInstallCapture = {
+          prompt: null,
+          fired: false,
+          firedAt: null
+        };
+
+        window.addEventListener("beforeinstallprompt", (event) => {
+          event.preventDefault();
+          window.__manavaultPwaInstallCapture = {
+            prompt: event,
+            fired: true,
+            firedAt: Date.now()
+          };
+          window.dispatchEvent(new Event("manavault:pwa-install-available"));
+        });
+      })();
+    </script>
+    <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js?v=20260617-9"}>
     </script>
     <script>
       (() => {

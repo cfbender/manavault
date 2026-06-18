@@ -1,3 +1,45 @@
 [tools]
+android-sdk = "latest"
 cloudflared = "latest"
 elixir = "1.20.1-otp-29"
+java = "21"
+
+[tasks.setup]
+description = "Install project tools, Elixir dependencies, database, assets, and native shell dependencies."
+run = "mise install && mix setup && aube install --frozen-lockfile"
+
+[tasks.dev]
+description = "Start the Phoenix development server."
+run = "mix phx.server"
+
+[tasks.test]
+description = "Run the Elixir test suite."
+run = "mix test"
+
+[tasks."setup:native"]
+description = "Install JavaScript dependencies and sync Capacitor native projects."
+run = "aube install --frozen-lockfile && aube run cap:sync"
+
+[tasks."setup:android-sdk"]
+description = "Accept Android SDK licenses and install SDK packages needed by Capacitor/native-run."
+run = "yes | sdkmanager --licenses && sdkmanager 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0'"
+
+[tasks."android:sync"]
+description = "Sync the Capacitor Android project."
+run = "aube run cap:sync:android"
+
+[tasks."android:run"]
+description = "Build and run the Capacitor Android app on a connected device."
+run = "aube run cap:run:android"
+
+[tasks."android:open"]
+description = "Open the Capacitor Android project in Android Studio."
+run = "aube run cap:open:android"
+
+[tasks."ios:sync"]
+description = "Sync the Capacitor iOS project. Requires macOS for native iOS builds."
+run = "aube run cap:sync:ios"
+
+[tasks."ios:open"]
+description = "Open the Capacitor iOS project in Xcode. Requires macOS."
+run = "aube run cap:open:ios"

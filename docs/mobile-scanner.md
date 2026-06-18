@@ -34,18 +34,23 @@ The scanner is designed around a phone held above a card:
 
 - It defaults to the environment-facing camera when no specific camera has been selected.
 - It keeps the camera preview within the visible viewport on small screens.
-- It shows scanner status directly over the preview.
+- It keeps routine scanner status out of the camera preview; only actionable errors appear below the camera.
 - It supports camera switching, torch, and zoom where the browser exposes those capabilities.
+- It provides scanner-only options for preferring foil and locking recognition to selected sets.
 - It auto-captures frames and treats tapping the preview as a forced rescan of the current card.
 
-## Capacitor recommendation
+## Capacitor direction
 
-Do not pursue a Capacitor wrapper yet. The current web scanner already covers the
-core requirements when served over HTTPS, and the remaining high-risk questions
-are camera quality, torch/zoom availability, and scanner throughput on real
-phones. Those should be measured in the web PWA first.
+Pursue Capacitor native shells alongside the web PWA. Android Chrome accepts the
+PWA manifest and service worker but may still withhold install UI on the target
+device. A native shell also aligns with the expected product needs:
 
-Revisit a native wrapper only if HTTPS PWA testing shows a browser limitation
-that blocks the workflow, such as unacceptable camera focus behavior, missing
-torch control on the target device, or a need for native-only offline/background
-behavior.
+- explicit camera and lens selection beyond what mobile browsers reliably expose
+- mobile backup and restore through native file picker/share/storage APIs
+- a stable install path that does not depend on Chrome PWA prompt heuristics
+
+The initial Android and iOS shells load the hosted Phoenix app during
+development and include Capacitor Camera and Filesystem plugins. Native bridges
+should be added incrementally, starting with camera/lens selection and then
+backup/restore file workflows. Android can be built locally with the mise Java
+and Android SDK toolchains. iOS requires macOS and Xcode.

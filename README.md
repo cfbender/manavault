@@ -14,18 +14,25 @@ Install the pinned Elixir toolchain:
 mise install
 ```
 
+Or run the full local setup, including JavaScript dependencies used by the
+Capacitor native projects:
+
+```sh
+mise run setup
+```
+
 ## Local development
 
 Set up dependencies, the local SQLite database, and assets:
 
 ```sh
-mise exec -- mix setup
+mise run setup
 ```
 
 Start Phoenix:
 
 ```sh
-mise exec -- mix phx.server
+mise run dev
 ```
 
 Then visit <http://localhost:4000>.
@@ -50,8 +57,32 @@ Use one of these for scanning from a phone:
 - Run the app directly on the device and open it through `localhost`.
 
 See [docs/mobile-scanner.md](docs/mobile-scanner.md) for supported browser notes,
-known camera limitations, scanner ergonomics, and the current Capacitor
-recommendation.
+known camera limitations, scanner ergonomics, and the Capacitor native shell
+direction.
+
+## Native shells
+
+ManaVault includes Capacitor Android and iOS shell projects for mobile testing
+and native API work. Use `aube` for JavaScript package tasks:
+
+```sh
+mise run setup:native
+mise run setup:android-sdk
+mise run android:run
+```
+
+Android uses the project-local Java and Android SDK toolchains declared in
+`mise.toml`. `setup:android-sdk` accepts the Android SDK licenses and installs
+`platform-tools`, Android API 36, and build-tools 36.0.0 for Capacitor's
+native-run flow.
+
+iOS syncs from this repo, but building or running the iOS app requires macOS
+with Xcode:
+
+```sh
+mise run ios:sync
+mise run ios:open
+```
 
 ## Runtime data layout
 

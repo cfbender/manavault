@@ -24,6 +24,15 @@ defmodule ManavaultWeb.Endpoint do
     at: "/",
     from: :manavault,
     gzip: not code_reloading?,
+    only: ~w(site.webmanifest sw.js),
+    cache_control_for_etags: "no-cache, no-store, must-revalidate",
+    cache_control_for_vsn_requests: "no-cache, no-store, must-revalidate",
+    headers: %{"pragma" => "no-cache"}
+
+  plug Plug.Static,
+    at: "/",
+    from: :manavault,
+    gzip: not code_reloading?,
     only: ManavaultWeb.static_paths(),
     raise_on_missing_only: code_reloading?
 

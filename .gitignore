@@ -1,6 +1,7 @@
 /_build
 /cover
 /deps
+/node_modules
 /doc
 /.fetch
 erl_crash.dump
