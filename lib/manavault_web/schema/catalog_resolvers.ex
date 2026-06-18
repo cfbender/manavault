@@ -62,6 +62,13 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
   def deck(_parent, %{id: id}, _resolution), do: {:ok, Catalog.get_deck!(id)}
 
+  def create_deck(_parent, %{input: input}, _resolution) do
+    case Catalog.create_deck(input) do
+      {:ok, deck} -> {:ok, deck}
+      {:error, changeset} -> {:error, changeset_error_message(changeset)}
+    end
+  end
+
   def scan_sessions(_parent, _args, _resolution), do: {:ok, Catalog.list_scan_sessions()}
 
   def printing_image_url(%Printing{} = printing, _args, _resolution) do
@@ -174,6 +181,16 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
   defp deck_cards(%Deck{} = deck) do
     deck |> Repo.preload(deck_cards: [printing: :card]) |> Map.get(:deck_cards)
+  end
+
+  defp changeset_error_message(%Ecto.Changeset{} = changeset) do
+    changeset
+    |> Ecto.Changeset.traverse_errors(fn {message, opts} ->
+      Enum.reduce(opts, message, fn {key, value}, acc ->
+        String.replace(acc, "%{#{key}}", to_string(value))
+      end)
+    end)
+    |> Enum.map_join(", ", fn {field, messages} -> "#{field} #{Enum.join(messages, ", ")}" end)
   end
 
   defp decode_json(value, fallback) when is_binary(value) do

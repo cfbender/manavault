@@ -196,4 +196,42 @@ defmodule ManavaultWeb.SchemaTest do
              }
            } = json_response(conn, 200)
   end
+
+  test "create deck mutation creates a deck", %{conn: conn} do
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation CreateDeck($input: DeckInput!) {
+          createDeck(input: $input) {
+            id
+            name
+            format
+            status
+            cardCount
+            uniqueCardCount
+          }
+        }
+        """,
+        "variables" => %{
+          "input" => %{
+            "name" => "Knife Drawer",
+            "format" => "commander",
+            "status" => "brewing"
+          }
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "createDeck" => %{
+                 "id" => _id,
+                 "name" => "Knife Drawer",
+                 "format" => "commander",
+                 "status" => "brewing",
+                 "cardCount" => 0,
+                 "uniqueCardCount" => 0
+               }
+             }
+           } = json_response(conn, 200)
+  end
 end

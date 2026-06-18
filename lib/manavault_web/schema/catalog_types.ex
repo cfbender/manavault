@@ -170,4 +170,10 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :field, :string
     field :direction, :string
   end
+
+  input_object :deck_input do
+    field :name, non_null(:string)
+    field :format, :string
+    field :status, :string
+  end
 end

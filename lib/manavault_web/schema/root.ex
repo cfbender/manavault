@@ -62,4 +62,11 @@ defmodule ManavaultWeb.Schema do
       resolve(&CatalogResolvers.scan_sessions/3)
     end
   end
+
+  mutation do
+    field :create_deck, :deck do
+      arg(:input, non_null(:deck_input))
+      resolve(&CatalogResolvers.create_deck/3)
+    end
+  end
 end

@@ -1,14 +1,19 @@
-import { Link } from "@tanstack/react-router"
-import { useQuery } from "@tanstack/react-query"
-import { Plus } from "lucide-react"
+import { Link, useNavigate } from "@tanstack/react-router"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Layers, Plus } from "lucide-react"
+import { useState, type FormEvent } from "react"
 import { PageHeader, PageSection } from "../components/app-shell"
 import { CardImage, EmptyState } from "../components/card-image"
+import { ImageSummaryCard } from "../components/image-summary-card"
 import { Badge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
 import { Card } from "../components/ui/card"
+import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog"
+import { Input } from "../components/ui/input"
 import { graphql } from "../gql"
+import type { DecksQuery } from "../gql/graphql"
 import { request } from "../lib/graphql"
-import { present, titleize } from "../lib/utils"
+import { compactNumber, present, titleize } from "../lib/utils"
 
 const DecksDocument = graphql(`
   query Decks {
@@ -20,8 +25,25 @@ const DecksDocument = graphql(`
       cardCount
       uniqueCardCount
       deckCards {
-        preferredPrinting { imageUrl }
-        card { printings { imageUrl } }
+        preferredPrinting { imageUrl artCropUrl }
+        card { printings { imageUrl artCropUrl } }
+      }
+    }
+  }
+`)
+
+const CreateDeckDocument = graphql(`
+  mutation CreateDeck($input: DeckInput!) {
+    createDeck(input: $input) {
+      id
+      name
+      format
+      status
+      cardCount
+      uniqueCardCount
+      deckCards {
+        preferredPrinting { imageUrl artCropUrl }
+        card { printings { imageUrl artCropUrl } }
       }
     }
   }
@@ -49,7 +71,9 @@ const DeckDocument = graphql(`
 `)
 
 export function DecksPage() {
+  const [isNewDeckOpen, setIsNewDeckOpen] = useState(false)
   const { data, isLoading } = useQuery({ queryKey: ["decks"], queryFn: () => request(DecksDocument) })
+  const deckGroups = groupDecksByFormat(data?.decks || [])
 
   return (
     <>
@@ -57,50 +81,51 @@ export function DecksPage() {
         title="Decks"
         eyebrow="ManaVault Decks"
         description="Build lists by card identity, then choose exact printings when that matters."
-        actions={<Button><Plus className="h-4 w-4" />New deck</Button>}
+        actions={
+          <Button type="button" onClick={() => setIsNewDeckOpen(true)}>
+            <Plus className="h-4 w-4" />
+            New deck
+          </Button>
+        }
       />
       {isLoading ? (
         <EmptyState title="Loading decks..." />
-      ) : data?.decks?.length ? (
-        <PageSection title="Your decks" count={`${data.decks.length} total`}>
-          <div className="space-y-4">
-            {data.decks.map(deck => {
-              const cover = deck.deckCards?.find(card => card?.preferredPrinting?.imageUrl || card?.card?.printings?.[0]?.imageUrl)
-              const imageUrl = cover?.preferredPrinting?.imageUrl || cover?.card?.printings?.[0]?.imageUrl
-
-              return (
-                <Link key={deck.id} to="/decks/$id" params={{ id: deck.id }}>
-                  <Card className="group relative min-h-44 overflow-hidden transition-all hover:border-primary/40 hover:shadow-xl">
-                    {imageUrl ? (
-                      <img
-                        src={imageUrl}
-                        alt=""
-                        className="absolute inset-0 h-full w-full object-cover opacity-45 blur-[1px] transition-transform duration-300 group-hover:scale-105"
+      ) : deckGroups.length ? (
+        <PageSection count={`${data?.decks?.length || 0} total`}>
+          <div className="space-y-10">
+            {deckGroups.map(([format, decks]) => (
+              <section key={format} className="space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-xl font-black tracking-normal">{titleize(format)}</h3>
+                  <span className="badge border-transparent bg-base-200 text-sm">{decks.length}</span>
+                </div>
+                <div className="grid gap-5 md:grid-cols-2">
+                  {decks.map(deck => (
+                    <Link key={deck.id} to="/decks/$id" params={{ id: deck.id }} className="block">
+                      <ImageSummaryCard
+                        imageUrl={deckCoverUrl(deck)}
+                        fallback={<Layers className="h-12 w-12" />}
+                        typeLine={<Badge>{titleize(deck.format)}</Badge>}
+                        countLine={`${compactNumber(deck.cardCount || 0)} cards`}
+                        detailLine={
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge tone={deck.status === "active" ? "success" : "neutral"}>{titleize(deck.status)}</Badge>
+                            <span>{compactNumber(deck.uniqueCardCount || 0)} unique</span>
+                          </div>
+                        }
+                        nameLine={deck.name}
                       />
-                    ) : null}
-                    <div className="absolute inset-0 bg-gradient-to-r from-base-100 via-base-100/90 to-base-100/45" />
-                    <div className="relative flex min-h-44 flex-col justify-between gap-6 p-6 sm:flex-row sm:items-end">
-                      <div className="min-w-0">
-                        <h2 className="truncate text-3xl font-black tracking-normal">{deck.name}</h2>
-                        <p className="mt-3 text-lg text-base-content/70">
-                          {titleize(deck.format)} · {titleize(deck.status)} · {deck.cardCount || 0} cards
-                        </p>
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          <Badge tone="primary">{deck.uniqueCardCount || 0} unique</Badge>
-                          <Badge>{deck.cardCount || 0} total</Badge>
-                        </div>
-                      </div>
-                      <span className="btn btn-primary btn-sm self-start sm:self-end">Open</span>
-                    </div>
-                  </Card>
-                </Link>
-              )
-            })}
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            ))}
           </div>
         </PageSection>
       ) : (
         <EmptyState title="No decks yet" />
       )}
+      <NewDeckDialog open={isNewDeckOpen} onOpenChange={setIsNewDeckOpen} />
     </>
   )
 }
@@ -144,5 +169,140 @@ export function DeckDetailPage({ id }: { id: string }) {
         })}
       </div>
     </>
+  )
+}
+
+type DeckSummary = DecksQuery["decks"][number]
+
+const DECK_FORMATS = ["commander", "standard", "pioneer", "modern", "legacy", "vintage", "pauper", "limited", "casual"] as const
+const DECK_STATUSES = ["brewing", "active", "archived"] as const
+
+function groupDecksByFormat(decks: DeckSummary[]) {
+  const grouped = new Map<string, DeckSummary[]>()
+  for (const deck of decks) {
+    const group = grouped.get(deck.format) || []
+    group.push(deck)
+    grouped.set(deck.format, group)
+  }
+
+  return [...grouped.entries()].sort(([left], [right]) => formatSortValue(left) - formatSortValue(right) || left.localeCompare(right))
+}
+
+function formatSortValue(format: string) {
+  const index = DECK_FORMATS.indexOf(format as (typeof DECK_FORMATS)[number])
+  return index === -1 ? Number.MAX_SAFE_INTEGER : index
+}
+
+function deckCoverUrl(deck: DeckSummary) {
+  const cover = deck.deckCards?.find(card => card?.preferredPrinting?.artCropUrl || card?.preferredPrinting?.imageUrl || card?.card?.printings?.[0]?.artCropUrl || card?.card?.printings?.[0]?.imageUrl)
+  return cover?.preferredPrinting?.artCropUrl || cover?.preferredPrinting?.imageUrl || cover?.card?.printings?.[0]?.artCropUrl || cover?.card?.printings?.[0]?.imageUrl
+}
+
+function NewDeckDialog({ onOpenChange, open }: { onOpenChange: (open: boolean) => void; open: boolean }) {
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [name, setName] = useState("")
+  const [format, setFormat] = useState<(typeof DECK_FORMATS)[number]>("commander")
+  const [status, setStatus] = useState<(typeof DECK_STATUSES)[number]>("brewing")
+  const [error, setError] = useState<string | null>(null)
+
+  const createDeck = useMutation({
+    mutationFn: () => request(CreateDeckDocument, { input: { name: name.trim(), format, status } }),
+    onSuccess: data => {
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      setName("")
+      setFormat("commander")
+      setStatus("brewing")
+      setError(null)
+      onOpenChange(false)
+
+      if (data.createDeck?.id) {
+        navigate({ to: "/decks/$id", params: { id: data.createDeck.id } })
+      }
+    },
+    onError: error => setError(error instanceof Error ? error.message : "Could not create deck"),
+  })
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError(null)
+
+    if (!name.trim()) {
+      setError("Deck name is required")
+      return
+    }
+
+    createDeck.mutate()
+  }
+
+  function close() {
+    if (createDeck.isPending) return
+    setError(null)
+    onOpenChange(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={nextOpen => (nextOpen ? onOpenChange(true) : close())}>
+      <DialogContent className="max-w-xl" labelledBy="new-deck-title">
+        <DialogHeader>
+          <div>
+            <DialogTitle id="new-deck-title">New deck</DialogTitle>
+            <p className="mt-1 text-sm text-base-content/60">Start with a shell, then import or add cards from the catalog.</p>
+          </div>
+          <DialogClose onClose={close} />
+        </DialogHeader>
+
+        <form className="space-y-5 p-5" onSubmit={submit}>
+          <label className="block space-y-2">
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Name</span>
+            <Input value={name} onChange={event => setName(event.target.value)} placeholder="Deck name" autoFocus />
+          </label>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block space-y-2">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Format</span>
+              <select
+                className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                value={format}
+                onChange={event => setFormat(event.target.value as (typeof DECK_FORMATS)[number])}
+              >
+                {DECK_FORMATS.map(format => (
+                  <option key={format} value={format}>
+                    {titleize(format)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Status</span>
+              <select
+                className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                value={status}
+                onChange={event => setStatus(event.target.value as (typeof DECK_STATUSES)[number])}
+              >
+                {DECK_STATUSES.map(status => (
+                  <option key={status} value={status}>
+                    {titleize(status)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          {error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p> : null}
+
+          <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-4">
+            <Button type="button" variant="ghost" onClick={close} disabled={createDeck.isPending}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={createDeck.isPending}>
+              <Plus className="h-4 w-4" />
+              {createDeck.isPending ? "Creating..." : "Create deck"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
