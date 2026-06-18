@@ -2,7 +2,17 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   import Ecto.Query
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.{CollectionItem, Deck, DeckAllocation, Location, Price, Printing, ScanSession}
+
+  alias Manavault.Catalog.{
+    CollectionItem,
+    Deck,
+    DeckAllocation,
+    Location,
+    Price,
+    Printing,
+    ScanSession
+  }
+
   alias Manavault.Repo
 
   def home_summary(_parent, _args, _resolution) do
@@ -27,6 +37,7 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
   def collection_items(_parent, args, _resolution) do
     filters = args |> Map.get(:filters, %{}) |> Enum.into([])
+
     opts = [
       limit: Map.get(args, :limit, 100),
       offset: Map.get(args, :offset, 0),
@@ -121,7 +132,8 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
         %CollectionItem{location_assoc: %Location{} = location},
         _args,
         _resolution
-      ), do: {:ok, location}
+      ),
+      do: {:ok, location}
 
   def collection_item_location(%CollectionItem{location_assoc: nil}, _args, _resolution),
     do: {:ok, nil}
@@ -134,7 +146,11 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     {:ok, Price.text_for_collection_item(item)}
   end
 
-  def collection_item_allocated_quantity(%CollectionItem{deck_allocations: allocations}, _args, _resolution)
+  def collection_item_allocated_quantity(
+        %CollectionItem{deck_allocations: allocations},
+        _args,
+        _resolution
+      )
       when is_list(allocations) do
     {:ok, Enum.reduce(allocations, 0, &(&1.quantity + &2))}
   end

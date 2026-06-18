@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
-import { Plus, Search } from "lucide-react"
+import { ListFilter, Plus, Search } from "lucide-react"
 import { useEffect, useState } from "react"
 import type { FormEvent } from "react"
 import { PageHeader } from "../components/app-shell"
@@ -12,6 +12,15 @@ import { Card } from "../components/ui/card"
 import { graphql } from "../gql"
 import { request } from "../lib/graphql"
 import { present, titleize } from "../lib/utils"
+import {
+  buildCollectionFilterQuery,
+  cloneCollectionFilters,
+  CollectionFilterModal,
+  combineCollectionQueries,
+  countActiveCollectionFilters,
+  EMPTY_COLLECTION_FILTERS,
+  type CollectionFilterState,
+} from "./collection"
 
 const CardsDocument = graphql(`
   query Cards($q: String!, $limit: Int!) {
@@ -57,11 +66,16 @@ const CardDocument = graphql(`
 
 export function CardsPage({ query }: { query: string }) {
   const [q, setQ] = useState(query)
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
+  const [structuredFilters, setStructuredFilters] = useState<CollectionFilterState>(EMPTY_COLLECTION_FILTERS)
   const navigate = useNavigate({ from: "/cards/" })
+  const structuredFilterSyntax = buildCollectionFilterQuery(structuredFilters)
+  const combinedQuery = combineCollectionQueries(query, structuredFilterSyntax)
+  const activeStructuredFilterCount = countActiveCollectionFilters(structuredFilters)
   const { data, isFetching } = useQuery({
-    queryKey: ["cards", query],
-    queryFn: () => request(CardsDocument, { q: query, limit: 36 }),
-    enabled: Boolean(query.trim()),
+    queryKey: ["cards", combinedQuery],
+    queryFn: () => request(CardsDocument, { q: combinedQuery, limit: 36 }),
+    enabled: Boolean(combinedQuery.trim()),
   })
 
   useEffect(() => {
@@ -73,12 +87,32 @@ export function CardsPage({ query }: { query: string }) {
     navigate({ to: "/cards", search: { q: term || undefined } })
   }
 
+  function updateSearchDraft(value: string) {
+    setQ(value)
+    if (!value.trim() && query) navigate({ to: "/cards", search: { q: undefined } })
+  }
+
+  function applyStructuredFilters(nextFilters: CollectionFilterState) {
+    setStructuredFilters(cloneCollectionFilters(nextFilters))
+    setIsFilterModalOpen(false)
+  }
+
+  function clearStructuredFilters() {
+    setStructuredFilters(EMPTY_COLLECTION_FILTERS)
+  }
+
   return (
     <>
       <PageHeader eyebrow="ManaVault Catalog" title="Card search" description="Search the local Scryfall catalog and add exact printings to your collection." />
-      <CardSearchForm q={q} setQ={setQ} onSearch={submitSearch} />
+      <CardSearchForm
+        activeFilterCount={activeStructuredFilterCount}
+        onFilterClick={() => setIsFilterModalOpen(true)}
+        q={q}
+        setQ={updateSearchDraft}
+        onSearch={submitSearch}
+      />
 
-      {!query ? (
+      {!combinedQuery ? (
         <EmptyState title="Search for a card" description="Results are pulled from the synced local catalog." />
       ) : data?.cards?.length ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -105,15 +139,27 @@ export function CardsPage({ query }: { query: string }) {
       ) : (
         <EmptyState title={isFetching ? "Searching..." : "No cards found"} />
       )}
+
+      <CollectionFilterModal
+        filters={structuredFilters}
+        open={isFilterModalOpen}
+        onApply={applyStructuredFilters}
+        onClear={clearStructuredFilters}
+        onClose={() => setIsFilterModalOpen(false)}
+      />
     </>
   )
 }
 
 function CardSearchForm({
+  activeFilterCount,
+  onFilterClick,
   q,
   setQ,
   onSearch,
 }: {
+  activeFilterCount: number
+  onFilterClick: () => void
   q: string
   setQ: (value: string) => void
   onSearch: (value?: string) => void
@@ -126,7 +172,7 @@ function CardSearchForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="control-toolbar mb-7 grid gap-2 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-[1fr_auto]"
+      className="control-toolbar mb-7 grid gap-2 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-[1fr_auto_auto]"
     >
       <CardNameSearchField
         name="q"
@@ -136,6 +182,11 @@ function CardSearchForm({
         onSuggestionSelect={onSearch}
         placeholder="Card name"
       />
+      <Button type="button" variant="outline" className="relative" onClick={onFilterClick}>
+        <ListFilter className="h-4 w-4" />
+        Filter
+        {activeFilterCount ? <span className="badge badge-primary badge-sm absolute -right-2 -top-2 min-w-5">{activeFilterCount}</span> : null}
+      </Button>
       <Button type="submit">
         <Search className="h-4 w-4" />
         Search

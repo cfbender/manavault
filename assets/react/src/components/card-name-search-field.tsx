@@ -34,13 +34,14 @@ export function CardNameSearchField({
   const [isOpen, setIsOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
   const suggestionTerm = debouncedValue.trim()
+  const hasScryfallSyntax = looksLikeScryfallSyntax(suggestionTerm)
   const { data } = useQuery({
     queryKey: ["card-name-suggestions", suggestionTerm, suggestionLimit],
     queryFn: () => request(CardNameSuggestionsDocument, { q: suggestionTerm, limit: suggestionLimit }),
-    enabled: suggestionTerm.length > 1,
+    enabled: suggestionTerm.length > 1 && !hasScryfallSyntax,
     staleTime: 60_000,
   })
-  const suggestions = data?.cardNameSuggestions ?? []
+  const suggestions = hasScryfallSyntax ? [] : (data?.cardNameSuggestions ?? [])
   const showSuggestions = isOpen && suggestions.length > 0
 
   useEffect(() => {
@@ -51,6 +52,10 @@ export function CardNameSearchField({
   useEffect(() => {
     setActiveIndex(-1)
   }, [value, suggestions.length])
+
+  useEffect(() => {
+    if (hasScryfallSyntax) setIsOpen(false)
+  }, [hasScryfallSyntax])
 
   useEffect(() => {
     function handlePointerDown(event: PointerEvent) {
@@ -75,11 +80,13 @@ export function CardNameSearchField({
 
   function handleValueChange(nextValue: string) {
     onValueChange(nextValue)
-    setIsOpen(nextValue.trim().length > 1)
+    const nextTerm = nextValue.trim()
+    setIsOpen(nextTerm.length > 1 && !looksLikeScryfallSyntax(nextTerm))
   }
 
   function handleFocus(event: FocusEvent<HTMLInputElement>) {
-    setIsOpen(value.trim().length > 1)
+    const nextTerm = value.trim()
+    setIsOpen(nextTerm.length > 1 && !looksLikeScryfallSyntax(nextTerm))
     onFocus?.(event)
   }
 
@@ -145,4 +152,18 @@ export function CardNameSearchField({
       ) : null}
     </div>
   )
+}
+
+function looksLikeScryfallSyntax(value: string) {
+  if (value === "") return false
+
+  return value
+    .split(/\s+/)
+    .some(token =>
+      /^-?\(/.test(token) ||
+      /^-?!/.test(token) ||
+      /^-?not:/i.test(token) ||
+      /^or$/i.test(token) ||
+      /^-?[a-z][a-z_-]*(?::|!?=|[<>]=?)/i.test(token),
+    )
 }

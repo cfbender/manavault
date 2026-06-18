@@ -23,12 +23,16 @@ defmodule Manavault.CatalogTest do
     "name" => "Black Lotus",
     "type_line" => "Artifact",
     "oracle_text" => "{T}, Sacrifice Black Lotus: Add three mana of any one color.",
+    "mana_cost" => "{0}",
+    "cmc" => 0.0,
+    "colors" => [],
     "color_identity" => [],
     "legalities" => %{"vintage" => "restricted"},
     "set" => "lea",
     "set_name" => "Limited Edition Alpha",
     "collector_number" => "232",
     "lang" => "en",
+    "rarity" => "rare",
     "finishes" => ["nonfoil"],
     "image_uris" => %{"normal" => "https://example.test/black-lotus.jpg"},
     "prices" => %{"usd" => "100000.00"},
@@ -51,11 +55,18 @@ defmodule Manavault.CatalogTest do
     "oracle_id" => "oracle-2",
     "name" => "Time Walk",
     "type_line" => "Sorcery",
+    "oracle_text" => "Take an extra turn after this turn.",
+    "mana_cost" => "{1}{U}",
+    "cmc" => 2.0,
+    "colors" => ["U"],
+    "color_identity" => ["U"],
     "set" => "lea",
     "set_name" => "Limited Edition Alpha",
     "collector_number" => "84",
     "lang" => "ja",
+    "rarity" => "rare",
     "finishes" => ["foil"],
+    "prices" => %{"usd_foil" => "5.00"},
     "released_at" => "1993-08-05"
   }
 
@@ -88,11 +99,14 @@ defmodule Manavault.CatalogTest do
     "oracle_id" => "oracle-plains",
     "name" => "Plains",
     "type_line" => "Basic Land — Plains",
+    "cmc" => 0.0,
+    "colors" => [],
     "color_identity" => ["W"],
     "set" => "lea",
     "set_name" => "Limited Edition Alpha",
     "collector_number" => "250",
     "lang" => "en",
+    "rarity" => "common",
     "finishes" => ["nonfoil"],
     "released_at" => "1993-08-05"
   }
@@ -324,6 +338,57 @@ defmodule Manavault.CatalogTest do
     assert [found] = Catalog.list_collection_items(location_id: "unfiled")
     assert found.id == walk.id
     assert [] = Catalog.list_collection_items(location_id: "missing")
+  end
+
+  test "collection item filtering supports Scryfall search syntax" do
+    assert {:ok, %{cards_count: 3, printings_count: 3}} =
+             Catalog.import_cards([@black_lotus, @time_walk, @plains])
+
+    assert {:ok, lotus} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => "1",
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    assert {:ok, walk} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-2",
+               "quantity" => "1",
+               "condition" => "near_mint",
+               "language" => "ja",
+               "finish" => "foil"
+             })
+
+    assert {:ok, plains} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-basic-plains",
+               "quantity" => "1",
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    assert [lotus.id] == collection_item_ids(q: "t:artifact mv=0 id:c usd>999")
+    assert [walk.id] == collection_item_ids(q: "set:lea number:84 lang:ja is:foil")
+    assert [plains.id] == collection_item_ids(q: "rarity:common type:land")
+    assert [lotus.id, walk.id] == collection_item_ids(q: ~s(lotus or "time walk"))
+    assert [lotus.id, walk.id] == collection_item_ids(q: "-type:land")
+    assert [walk.id] == collection_item_ids(q: "c:u oracle:extra")
+    assert [lotus.id, walk.id] == collection_item_ids(q: "rarity>=rare")
+    assert Catalog.count_collection_items(q: "rarity>=rare") == 2
+    assert [] == Catalog.list_collection_items(q: "artist:Someone")
+
+    assert [lotus_card] = Catalog.search_cards("type:artifact rarity:rare usd>999")
+    assert lotus_card.oracle_id == "oracle-1"
+
+    assert [walk_card] = Catalog.search_cards(~s("time walk" is:foil lang:ja))
+    assert walk_card.oracle_id == "oracle-2"
+
+    assert [lotus_card, walk_card] = Catalog.search_cards(~s(lotus or "time walk"))
+    assert Enum.map([lotus_card, walk_card], & &1.oracle_id) == ["oracle-1", "oracle-2"]
   end
 
   test "collection item sorting supports card quantity and price" do
@@ -2198,4 +2263,10 @@ defmodule Manavault.CatalogTest do
 
   defp type_line(name) when name in ["Forest", "Island", "Mountain"], do: "Basic Land"
   defp type_line(_name), do: "Instant"
+
+  defp collection_item_ids(filters) do
+    filters
+    |> Catalog.list_collection_items(limit: 10)
+    |> Enum.map(& &1.id)
+  end
 end
