@@ -1,14 +1,13 @@
 import { Link, useNavigate } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
-import { ListFilter, Plus, Search } from "lucide-react"
+import { ListFilter, Search } from "lucide-react"
 import { useEffect, useState } from "react"
 import type { FormEvent } from "react"
 import { PageHeader } from "../components/app-shell"
-import { CardImage, EmptyState } from "../components/card-image"
+import { EmptyState } from "../components/card-image"
 import { CardNameSearchField } from "../components/card-name-search-field"
-import { Badge } from "../components/ui/badge"
+import { addToDeckAction, CardTile } from "../components/card-tile"
 import { Button } from "../components/ui/button"
-import { Card } from "../components/ui/card"
 import { graphql } from "../gql"
 import { request } from "../lib/graphql"
 import { present, titleize } from "../lib/utils"
@@ -32,8 +31,10 @@ const CardsDocument = graphql(`
       printings {
         scryfallId
         setCode
+        setName
         collectorNumber
         imageUrl
+        rarity
       }
     }
   }
@@ -57,6 +58,7 @@ const CardDocument = graphql(`
         rarity
         finishes
         imageUrl
+        artCropUrl
         releasedAt
         prices
       }
@@ -115,23 +117,21 @@ export function CardsPage({ query }: { query: string }) {
       {!combinedQuery ? (
         <EmptyState title="Search for a card" description="Results are pulled from the synced local catalog." />
       ) : data?.cards?.length ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid justify-center gap-x-6 gap-y-8 [grid-template-columns:repeat(auto-fill,minmax(14.25rem,14.25rem))]">
           {data.cards.map(card => {
             const printing = card.printings?.[0]
             return (
-              <Link key={card.oracleId} to="/cards/$id" params={{ id: card.oracleId }} search={{ q: query }}>
-                <Card className="h-full overflow-hidden transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-base-100 hover:shadow-lg">
-                  <div className="grid grid-cols-[5rem_1fr] gap-3 p-3">
-                    <CardImage printing={{ ...printing, card }} className="w-20" />
-                    <div className="min-w-0 space-y-2">
-                      <div>
-                        <h2 className="truncate font-semibold">{card.name}</h2>
-                        <p className="line-clamp-2 text-sm text-base-content/70">{card.typeLine}</p>
-                      </div>
-                      {printing ? <Badge>{printing.setCode?.toUpperCase()} #{printing.collectorNumber}</Badge> : null}
-                    </div>
-                  </div>
-                </Card>
+              <Link key={card.oracleId} to="/cards/$id" params={{ id: card.oracleId }} search={{ q: query }} className="block">
+                <CardTile
+                  imageUrl={printing?.imageUrl}
+                  name={card.name}
+                  rarity={printing?.rarity}
+                  setCode={printing?.setCode}
+                  setLabel={`${printing?.setCode?.toUpperCase() || "?"} #${printing?.collectorNumber || "?"}`}
+                  setName={printing?.setName}
+                  showMenu={false}
+                  typeLine={card.typeLine}
+                />
               </Link>
             )
           })}
@@ -206,50 +206,117 @@ export function CardDetailPage({ id, query }: { id: string; query: string }) {
 
   return (
     <>
-      <PageHeader
-        title={card.name}
-        description={card.typeLine || undefined}
-        actions={
-          <Button asChild variant="outline">
-            <Link to="/cards" search={{ q: query || undefined }}>Back to search</Link>
-          </Button>
-        }
-      />
+      <div className="space-y-7">
+        <Button asChild variant="outline" size="sm">
+          <Link to="/cards" search={{ q: query || undefined }}>Back to search</Link>
+        </Button>
 
-      <div className="grid gap-6 lg:grid-cols-[18rem_1fr]">
-        <CardImage printing={{ ...primary, card }} className="w-full max-w-72" />
-        <div className="space-y-5">
-          <section className="rounded-box border border-base-300 bg-base-100 p-4 shadow-sm">
-            {card.manaCost ? <div className="font-mono text-sm">{card.manaCost}</div> : null}
-            <p className="mt-3 whitespace-pre-line text-sm leading-6">{card.oracleText}</p>
-          </section>
+        <section className="relative min-h-80 overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-sm">
+          {primary?.artCropUrl ? (
+            <img src={primary.artCropUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30" />
+          ) : null}
+          <div className="absolute inset-0 bg-gradient-to-br from-base-100/98 via-base-100/80 to-base-100/35" />
+          <div className="relative z-10 flex min-h-80 flex-col justify-between gap-8 p-6">
+            <div className="max-w-5xl space-y-4">
+              <div className="flex items-center gap-4">
+                <h1 className="min-w-0 flex-1 text-4xl font-black tracking-normal md:text-5xl">{card.name}</h1>
+                {card.manaCost ? <ManaText text={card.manaCost} className="shrink-0 justify-end text-3xl md:text-4xl" /> : null}
+              </div>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {printings.filter(present).map(printing => (
-              <section key={printing.scryfallId} className="space-y-3 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="font-semibold">{printing.setName || printing.setCode?.toUpperCase()}</div>
-                    <div className="text-sm text-base-content/70">
-                      {printing.setCode?.toUpperCase()} #{printing.collectorNumber}
-                    </div>
-                  </div>
-                  <Badge>{titleize(printing.rarity)}</Badge>
+              {card.typeLine ? (
+                <div className="border-y border-base-300/70 py-2 text-base font-semibold text-base-content/80">
+                  {card.typeLine}
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {(printing.finishes || []).map(finish => <Badge key={finish || "unknown"}>{titleize(finish)}</Badge>)}
+              ) : null}
+
+              {card.oracleText ? (
+                <div className="max-w-4xl space-y-3 text-base leading-7 text-base-content/75">
+                  <OracleText text={card.oracleText} />
                 </div>
-                <Button asChild size="sm">
-                  <Link to="/collection/new" search={{ printing_id: printing.scryfallId }}>
-                    <Plus className="h-4 w-4" />
-                    Add
-                  </Link>
-                </Button>
-              </section>
-            ))}
+              ) : null}
+            </div>
           </div>
+        </section>
+
+        <div className="grid justify-center gap-x-6 gap-y-8 [grid-template-columns:repeat(auto-fill,minmax(14.25rem,14.25rem))]">
+          {printings.filter(present).map(printing => (
+            <div key={printing.scryfallId}>
+              <CardTile
+                defaultActions={[]}
+                finish={(printing.finishes || [])[0]}
+                imageUrl={printing.imageUrl}
+                menuActions={[
+                  {
+                    content: (
+                      <Link to="/collection/new" search={{ printing_id: printing.scryfallId }}>
+                        Add to collection
+                      </Link>
+                    ),
+                    label: "Add to collection",
+                  },
+                  addToDeckAction(),
+                ]}
+                name={card.name}
+                rarity={printing.rarity}
+                setCode={printing.setCode}
+                setLabel={`${printing.setCode?.toUpperCase() || "?"} #${printing.collectorNumber || "?"}`}
+                setName={printing.setName}
+                typeLine={`${printing.setCode?.toUpperCase() || "?"} #${printing.collectorNumber || "?"} · ${titleize(printing.rarity)}`}
+              />
+            </div>
+          ))}
         </div>
       </div>
     </>
+  )
+}
+
+function ManaText({ className, text }: { className?: string; text: string }) {
+  return <span className={["inline-flex flex-wrap items-center gap-1", className].filter(Boolean).join(" ")}>{renderRichCardText(text)}</span>
+}
+
+function OracleText({ text }: { text: string }) {
+  return (
+    <>
+      {text.split("\n").map((line, index) => (
+        <p key={index} className={line.startsWith("(") && line.endsWith(")") ? "italic text-base-content/60" : undefined}>
+          {renderRichCardText(line)}
+        </p>
+      ))}
+    </>
+  )
+}
+
+function renderRichCardText(text: string) {
+  return text.split(/(\{[^}]+\}|\([^)]*\))/g).filter(Boolean).map((part, index) => {
+    if (/^\{[^}]+\}$/.test(part)) return <ManaSymbol key={index} symbol={part} />
+    if (/^\([^)]*\)$/.test(part)) {
+      return (
+        <em key={index} className="text-base-content/65">
+          {renderManaSymbols(part)}
+        </em>
+      )
+    }
+    return <span key={index}>{part}</span>
+  })
+}
+
+function renderManaSymbols(text: string) {
+  return text.split(/(\{[^}]+\})/g).filter(Boolean).map((part, index) => {
+    if (/^\{[^}]+\}$/.test(part)) return <ManaSymbol key={index} symbol={part} />
+    return <span key={index}>{part}</span>
+  })
+}
+
+function ManaSymbol({ symbol }: { symbol: string }) {
+  const filename = symbol.replace(/[{}]/g, "").replace("/", "").toUpperCase()
+
+  return (
+    <img
+      src={`/scryfall-assets/symbols/${filename}.svg`}
+      alt={symbol}
+      title={symbol}
+      className="mx-0.5 inline-block h-[1.15em] w-[1.15em] translate-y-[-0.08em] align-middle"
+    />
   )
 }
