@@ -7,3 +7,6 @@ project(':capacitor-camera').projectDir = new File('../../../../.cache/aube/virt
 
 include ':capacitor-filesystem'
 project(':capacitor-filesystem').projectDir = new File('../../../../.cache/aube/virtual-store/@capacitor+filesystem@8.1.2_@capacitor+core@8.4.0_-2169c8c63d855856/node_modules/@capacitor/filesystem/android')
+
+include ':capacitor-status-bar'
+project(':capacitor-status-bar').projectDir = new File('../../../../.cache/aube/virtual-store/@capacitor+status-bar@8.0.2_@capacitor+core@8.4.0_-9b59d5433b43ec56/node_modules/@capacitor/status-bar/android')

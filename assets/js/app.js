@@ -137,6 +137,21 @@ const liveSocket = new LiveSocket("/live", Socket, {
   hooks: {...colocatedHooks, ScannerCamera, DeckPreview, ClipboardCopy},
 })
 
+function markNativeShell() {
+  const capacitor = window.Capacitor
+  const nativeShell = Boolean(
+    capacitor?.isNativePlatform?.() ||
+      (capacitor?.getPlatform && capacitor.getPlatform() !== "web") ||
+      window.location.protocol === "capacitor:"
+  )
+
+  document.documentElement.classList.toggle("native-shell", nativeShell)
+  document.body?.classList.toggle("native-shell", nativeShell)
+}
+
+markNativeShell()
+window.addEventListener("DOMContentLoaded", markNativeShell)
+
 // Show progress bar on live navigation and form submits
 topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
 window.addEventListener("phx:page-loading-start", _info => topbar.show(300))
@@ -160,7 +175,7 @@ liveSocket.connect()
 window.liveSocket = liveSocket
 
 let deferredInstallPrompt = null
-const pwaAssetVersion = "20260617-9"
+const pwaAssetVersion = "20260618-4"
 const serviceWorkerUrl = `${window.location.origin}/sw.js?v=${pwaAssetVersion}`
 
 function appDisplayMode() {

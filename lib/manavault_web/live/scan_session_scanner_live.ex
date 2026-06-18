@@ -78,7 +78,7 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
            |> push_event("scan_accepted", %{id: scan_item.id, printing_id: printing_id})}
         end
 
-      {:error, "No card match found." <> _rest} ->
+      {:error, "No card match found" <> _rest} ->
         {:noreply,
          socket
          |> assign(:status_message, "Keep scanning.")
@@ -86,11 +86,19 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
          |> push_event("scan_rejected", %{})}
 
       {:error, reason} when is_binary(reason) ->
-        {:noreply,
-         socket
-         |> assign(:status_message, "No card was added.")
-         |> assign(:error_message, reason)
-         |> push_event("scan_rejected", %{})}
+        if transient_recognition_error?(reason) do
+          {:noreply,
+           socket
+           |> assign(:status_message, "Keep scanning.")
+           |> assign(:error_message, nil)
+           |> push_event("scan_rejected", %{})}
+        else
+          {:noreply,
+           socket
+           |> assign(:status_message, "No card was added.")
+           |> assign(:error_message, reason)
+           |> push_event("scan_rejected", %{})}
+        end
 
       {:error, changeset} ->
         {:noreply,
@@ -260,39 +268,54 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash}>
-      <div class="mx-auto flex max-w-7xl flex-col items-center gap-5 pb-8">
-        <header class="flex w-full max-w-md flex-col gap-4 sm:max-w-lg sm:flex-row sm:items-end sm:justify-between lg:max-w-2xl">
-          <div class="space-y-2">
-            <.back_link navigate={~p"/scan-sessions/#{@scan_session.id}"}>Session</.back_link>
-            <div>
-              <h1 class="text-3xl font-black tracking-tight">Scan cards</h1>
-              <p class="text-sm text-base-content/70">{@scan_session.name}</p>
-            </div>
+    <Layouts.app flash={@flash} variant={:scanner}>
+      <div class="flex min-h-full w-full flex-col items-center gap-2">
+        <header class="flex w-full max-w-3xl items-center gap-2">
+          <.link
+            navigate={~p"/scan-sessions/#{@scan_session.id}"}
+            class="btn btn-circle btn-ghost btn-sm shrink-0"
+            aria-label="Back to scan session"
+          >
+            <.icon name="hero-arrow-left" class="size-4" />
+          </.link>
+
+          <div class="min-w-0 flex-1">
+            <h1 class="truncate text-lg font-black leading-tight tracking-tight">Scan cards</h1>
+            <p class="truncate text-xs text-base-content/65">{@scan_session.name}</p>
           </div>
-          <div class="flex flex-wrap gap-2">
-            <.link navigate={~p"/scan-sessions/#{@scan_session.id}"} class="btn btn-outline btn-sm">
-              Review batch
+
+          <div class="flex shrink-0 items-center gap-1">
+            <.link
+              navigate={~p"/scan-sessions/#{@scan_session.id}"}
+              class="btn btn-outline btn-sm px-2"
+              aria-label="Review batch"
+            >
+              <.icon name="hero-queue-list" class="hidden size-4 sm:inline-block" />
+              <span class="text-xs font-bold sm:hidden">Batch</span>
+              <span class="hidden sm:inline">Review</span>
             </.link>
             <button
               type="button"
-              class="btn btn-error btn-outline btn-sm"
+              class="btn btn-error btn-outline btn-sm px-2"
               phx-click="delete_scan_session"
               data-confirm="Discard this scan session and all scanned cards?"
+              aria-label="Discard session"
             >
-              Discard session
+              <.icon name="hero-trash" class="hidden size-4 sm:inline-block" />
+              <span class="text-xs font-bold sm:hidden">Del</span>
+              <span class="hidden sm:inline">Discard</span>
             </button>
           </div>
         </header>
 
-        <div class="flex w-full flex-col items-center gap-4">
+        <div class="flex w-full flex-1 flex-col items-center gap-2">
           <section
             id="scanner-camera"
             phx-hook="ScannerCamera"
-            class="w-full max-w-md overflow-hidden rounded-2xl border border-base-300 bg-base-100 shadow-xl sm:max-w-lg lg:max-w-2xl"
+            class="scanner-camera-panel overflow-hidden rounded-xl border border-base-300 bg-base-100 shadow-xl"
           >
             <div
-              class="relative aspect-[3/4] max-h-[72svh] min-h-[22rem] bg-neutral text-neutral-content sm:min-h-[32rem]"
+              class="relative aspect-[3/4] bg-neutral text-neutral-content"
               data-scanner-preview
             >
               <video
@@ -344,52 +367,51 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
               </div>
             </div>
 
-            <div class="grid gap-3 p-3">
-              <label class="form-control hidden" data-scanner-zoom-control>
-                <div class="label">
-                  <span class="label-text">Zoom</span>
-                  <span class="label-text-alt" data-scanner-zoom-value></span>
-                </div>
-                <input data-scanner-zoom type="range" class="range range-primary" />
-              </label>
+            <label class="form-control hidden p-2" data-scanner-zoom-control>
+              <div class="label py-1">
+                <span class="label-text">Zoom</span>
+                <span class="label-text-alt" data-scanner-zoom-value></span>
+              </div>
+              <input data-scanner-zoom type="range" class="range range-primary" />
+            </label>
 
-              <div class="sr-only" data-scanner-status aria-live="polite">
-                <span>{@status_message}</span>
-              </div>
-              <div
-                :if={@error_message}
-                class="alert alert-error py-2 text-sm"
-                data-scanner-server-error
-              >
-                <span>{@error_message}</span>
-              </div>
+            <div class="sr-only" data-scanner-status aria-live="polite">
+              <span>{@status_message}</span>
+            </div>
+            <div
+              :if={@error_message}
+              class="alert alert-error rounded-none py-2 text-sm"
+              data-scanner-server-error
+            >
+              <span>{@error_message}</span>
             </div>
           </section>
 
-          <section class="w-full rounded-2xl border border-base-300 bg-base-100 p-3 shadow-sm sm:p-4">
-            <div class="mb-4 flex items-center justify-between gap-3">
-              <h2 class="text-lg font-bold">Scanned cards</h2>
+          <section class="w-full max-w-3xl rounded-xl border border-base-300 bg-base-100 p-2 shadow-sm">
+            <div class="mb-2 flex items-center justify-between gap-3">
+              <h2 class="text-sm font-bold">Scanned cards</h2>
               <span class="badge badge-ghost">{length(@recent_scan_items)}</span>
             </div>
             <div
               :if={@recent_scan_items == []}
-              class="alert border border-info/20 bg-info/10 py-2 text-sm"
+              class="alert border border-info/20 bg-info/10 py-2 text-xs"
             >
               <span>Matched cards appear here as you scan.</span>
             </div>
             <div
               :if={@recent_scan_items != []}
               id="recent-scan-items"
-              class="flex snap-x gap-3 overflow-x-auto pb-2"
+              class="flex snap-x gap-2 overflow-x-auto pb-1"
             >
               <div
                 :for={item <- @recent_scan_items}
-                class="relative w-36 shrink-0 snap-start sm:w-40"
+                class="relative w-28 shrink-0 snap-start sm:w-32"
               >
                 <.card_tile
                   item={item}
                   id={"recent-scan-item-#{item.id}"}
                   menu={:none}
+                  variant={:compact}
                   show_menu={false}
                   details_event="edit_scan_item"
                   details_visibility={:always}
@@ -406,17 +428,7 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
                   >
                     <.icon name="hero-minus" class="size-3" />
                   </button>
-                  <span class="min-w-5 text-center text-xs font-bold">{item.quantity}</span>
-                  <button
-                    type="button"
-                    class="btn btn-circle btn-xs border-0 bg-white/15 text-white hover:bg-white/25"
-                    phx-click="adjust_scan_item_quantity"
-                    phx-value-id={item.id}
-                    phx-value-delta="1"
-                    aria-label="Increase quantity"
-                  >
-                    <.icon name="hero-plus" class="size-3" />
-                  </button>
+                  <span class="min-w-5 text-center text-xs font-bold">×{item.quantity}</span>
                 </div>
 
                 <div class="absolute top-2 right-2 z-30 flex gap-1">
@@ -773,6 +785,9 @@ defmodule ManavaultWeb.ScanSessionScannerLive do
   defp maybe_put_opt(opts, key, value), do: Keyword.put(opts, key, value)
 
   defp truthy_param?(value), do: value in [true, "true", "on", "1", 1]
+
+  defp transient_recognition_error?("argument error"), do: true
+  defp transient_recognition_error?(_reason), do: false
 
   defp set_option_label(%{set_code: set_code, set_name: set_name})
        when is_binary(set_code) and is_binary(set_name) and set_name != "" do

@@ -180,7 +180,13 @@ defmodule ManavaultWeb.CardTile do
                   fallback_class="text-[0.65rem]"
                 />
               </span>
-              <span :if={@price_text && @variant == :default} class="font-mono text-white/90">
+              <span
+                :if={@price_text}
+                class={[
+                  "font-mono text-white/90",
+                  @variant == :compact && "text-[0.65rem]"
+                ]}
+              >
                 {@price_text}
               </span>
             </span>

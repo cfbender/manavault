@@ -31,11 +31,13 @@ defmodule ManavaultWeb.Layouts do
     default: nil,
     doc: "the current [scope](https://phoenix.hexdocs.pm/scopes.html)"
 
+  attr :variant, :atom, default: :default, values: [:default, :scanner]
+
   slot :inner_block, required: true
 
   def app(assigns) do
     ~H"""
-    <header class="navbar app-shell-header px-4 sm:px-6 lg:px-8">
+    <header :if={@variant != :scanner} class="navbar app-shell-header px-4 sm:px-6 lg:px-8">
       <div class="flex-1">
         <a href="/" class="flex items-center gap-2 no-underline">
           <img src={~p"/images/logo.svg"} alt="" class="h-8 w-8" />
@@ -43,29 +45,64 @@ defmodule ManavaultWeb.Layouts do
         </a>
       </div>
       <div class="flex-none">
-        <ul class="flex flex-row items-center gap-1 px-1 sm:gap-2">
+        <div class="dropdown dropdown-end sm:hidden">
+          <button
+            type="button"
+            tabindex="0"
+            class="btn btn-square btn-ghost"
+            aria-label="Open navigation menu"
+          >
+            <span class="text-2xl leading-none">☰</span>
+          </button>
+          <ul
+            tabindex="0"
+            class="menu dropdown-content z-50 mt-2 w-56 rounded-box border border-base-300 bg-base-100 p-2 text-base shadow-xl"
+          >
+            <li><a href="/cards">Cards</a></li>
+            <li><a href="/collection">Collection</a></li>
+            <li><a href="/decks">Decks</a></li>
+            <li><a href="/scan">Scan</a></li>
+            <li>
+              <button
+                id="pwa-install-button-mobile"
+                type="button"
+                class="btn btn-primary btn-sm hidden justify-start"
+                data-pwa-install
+                aria-label="Install app"
+              >
+                <.icon name="hero-arrow-down-tray" class="size-4" />
+                <span data-pwa-install-label>Install</span>
+              </button>
+            </li>
+            <li class="mt-2 px-2">
+              <.theme_toggle />
+            </li>
+          </ul>
+        </div>
+
+        <ul class="hidden flex-row items-center gap-2 px-1 sm:flex">
           <li>
-            <a href="/cards" class="btn btn-ghost btn-xs sm:btn-sm">Cards</a>
+            <a href="/cards" class="btn btn-ghost btn-sm">Cards</a>
           </li>
           <li>
-            <a href="/collection" class="btn btn-ghost btn-xs sm:btn-sm">Collection</a>
+            <a href="/collection" class="btn btn-ghost btn-sm">Collection</a>
           </li>
           <li>
-            <a href="/decks" class="btn btn-ghost btn-xs sm:btn-sm">Decks</a>
+            <a href="/decks" class="btn btn-ghost btn-sm">Decks</a>
           </li>
           <li>
-            <a href="/scan" class="btn btn-ghost btn-xs sm:btn-sm">Scan</a>
+            <a href="/scan" class="btn btn-ghost btn-sm">Scan</a>
           </li>
           <li>
             <button
-              id="pwa-install-button"
+              id="pwa-install-button-desktop"
               type="button"
-              class="btn btn-primary btn-xs hidden pointer-events-auto px-2 sm:btn-sm sm:px-3"
+              class="btn btn-primary btn-sm hidden pointer-events-auto px-3"
               data-pwa-install
               aria-label="Install app"
             >
               <.icon name="hero-arrow-down-tray" class="size-4" />
-              <span class="hidden sm:inline" data-pwa-install-label>Install</span>
+              <span data-pwa-install-label>Install</span>
             </button>
           </li>
           <li>
@@ -75,16 +112,16 @@ defmodule ManavaultWeb.Layouts do
       </div>
     </header>
 
-    <main class="app-shell-main h-[calc(100vh-4rem)] w-screen overflow-y-auto px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-20">
-      <div class="mx-auto max-w-2xl space-y-4">
-        <button
-          id="pwa-install-debug"
-          type="button"
-          class="btn btn-outline btn-xs hidden"
-          data-pwa-install-debug
-        >
-          PWA diagnostics
-        </button>
+    <main class={[
+      @variant == :scanner &&
+        "app-shell-main app-shell-main--full w-screen overflow-y-auto px-2 py-2 sm:px-4 sm:py-4 lg:px-6 lg:py-6",
+      @variant != :scanner &&
+        "app-shell-main h-[calc(100vh-4rem)] w-screen overflow-y-auto px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-20"
+    ]}>
+      <div class={[
+        @variant == :scanner && "mx-auto flex min-h-full w-full max-w-5xl flex-col",
+        @variant != :scanner && "mx-auto max-w-2xl space-y-4"
+      ]}>
         {render_slot(@inner_block)}
       </div>
     </main>

@@ -421,7 +421,7 @@ defmodule ManavaultWeb.ScanSessionLiveTest do
     assert html =~ "LEA"
     assert html =~ "$100k"
     assert html =~ "Toggle foil"
-    assert html =~ "Increase quantity"
+    assert html =~ "Decrease quantity"
     assert html =~ "Edit scanned card"
     assert html =~ ~s|phx-value-id="#{item.id}"|
     refute html =~ "Accept best"

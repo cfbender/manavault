@@ -132,6 +132,16 @@
   padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
 }
 
+.scanner-camera-panel {
+  width: min(100%, 24rem);
+}
+
+@media (min-width: 40rem) {
+  .scanner-camera-panel {
+    width: min(100%, 32rem);
+  }
+}
+
 @media (min-width: 40rem) {
   .app-shell-header,
   .app-shell-main {
@@ -154,6 +164,12 @@
   .app-shell-main {
     padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
   }
+}
+
+.app-shell-main--full {
+  height: 100dvh;
+  padding-top: calc(0.5rem + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
 }
 
 .control-toolbar {

@@ -8,6 +8,12 @@ const config: CapacitorConfig = {
     url: "https://manavault.cfb.dev",
     cleartext: false
   },
+  plugins: {
+    StatusBar: {
+      overlaysWebView: false,
+      backgroundColor: "#18040d"
+    }
+  },
   android: {
     path: "android"
   },
