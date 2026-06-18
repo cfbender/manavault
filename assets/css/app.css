@@ -5,6 +5,7 @@
 @import "phoenix-colocated/manavault/colocated.css";
 @source "../css";
 @source "../js";
+@source "../react/src";
 @source "../../lib/manavault_web";
 /* Required for Tailwind to automatically pick up changes in colocated CSS files in dev */
 @source "../../_build/dev/phoenix-colocated/manavault/*/";

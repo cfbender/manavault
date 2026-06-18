@@ -17,26 +17,27 @@ defmodule ManavaultWeb.Router do
   scope "/", ManavaultWeb do
     pipe_through :browser
 
-    live "/", HomeLive, :index
-    get "/scan", ScanController, :index
-    live "/cards", CardSearchLive, :index
-    live "/cards/:id", CardShowLive, :show
-    live "/decks", DeckLive, :index
-    live "/decks/:id", DeckShowLive, :show
-    live "/collection", CollectionLive, :index
-    live "/collection/new", CollectionFormLive, :new
-    live "/scan-sessions", ScanSessionLive, :index
-    live "/scan-sessions/:id", ScanSessionShowLive, :show
-    live "/scan-sessions/:id/scanner", ScanSessionScannerLive, :show
-    live "/collection/locations/:id", LocationLive, :show
-    live "/collection/:id/edit", CollectionFormLive, :edit
+    get "/", AppController, :index
+    get "/scan", AppController, :index
+    get "/cards", AppController, :index
+    get "/cards/:id", AppController, :index
+    get "/decks", AppController, :index
+    get "/decks/:id", AppController, :index
+    get "/collection", AppController, :index
+    get "/collection/new", AppController, :index
+    get "/scan-sessions", AppController, :index
+    get "/scan-sessions/:id", AppController, :index
+    get "/scan-sessions/:id/scanner", AppController, :index
+    get "/collection/locations/:id", AppController, :index
+    get "/collection/:id/edit", AppController, :index
     get "/scryfall-assets/*path", ScryfallAssetController, :show
   end
 
-  scope "/", ManavaultWeb do
+  scope "/" do
     pipe_through :api
 
-    get "/health", HealthController, :show
+    get "/health", ManavaultWeb.HealthController, :show
+    forward "/api/graphql", Absinthe.Plug, schema: ManavaultWeb.Schema
   end
 
   # Other scopes may use custom stacks.

@@ -275,7 +275,7 @@ defmodule Manavault.Catalog do
     |> order_by(asc: :name)
     |> Repo.all()
     |> Repo.preload(
-      cover_printing: [],
+      cover_printing: :card,
       collection_items:
         from(item in CollectionItem,
           join: printing in assoc(item, :printing),
@@ -301,6 +301,7 @@ defmodule Manavault.Catalog do
     Location
     |> Repo.get!(id)
     |> Repo.preload(
+      cover_printing: :card,
       collection_items:
         from(item in CollectionItem,
           join: printing in assoc(item, :printing),

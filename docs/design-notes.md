@@ -1,0 +1,18 @@
+- react-bits animation stealing?
+- get rid of splash screen hero backing and use fun animation?
+- change locations to 2x2, hovering location changes whole background to low opacity art crop?
+  - align art of cards with bottom card view
+- clicking card in collection view goes to overview of card
+- double icons on card details view?
+- toggle between grid and table view on collection
+- collection view in deck grayed out
+- move owned cards to own tab
+  - wider!
+- tag cards with name of deck or location
+  - quantity stays top left not on hover
+  - location goes to the right of card name on hover
+- return to on add from card view goes back to collection
+- remove "view" button on location
+  - make whole card clickable with hover state
+- full collection view scroll helper with alphabetical shortcuts
+- filter modal off screen

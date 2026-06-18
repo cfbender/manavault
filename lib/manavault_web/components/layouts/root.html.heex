@@ -37,8 +37,20 @@
         });
       })();
     </script>
-    <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js?v=20260618-4"}>
-    </script>
+    <%= if Application.get_env(:manavault, :vite_dev_server?, false) do %>
+      <script type="module">
+        import RefreshRuntime from "http://127.0.0.1:5173/@react-refresh"
+        RefreshRuntime.injectIntoGlobalHook(window)
+        window.$RefreshReg$ = () => {}
+        window.$RefreshSig$ = () => (type) => type
+        window.__vite_plugin_react_preamble_installed__ = true
+      </script>
+      <script type="module" src="http://127.0.0.1:5173/@vite/client"></script>
+      <script type="module" src="http://127.0.0.1:5173/assets/react/src/main.tsx"></script>
+    <% else %>
+      <script defer phx-track-static type="module" src={~p"/assets/react/app.js?v=20260618-4"}>
+      </script>
+    <% end %>
     <script>
       (() => {
         const systemTheme = () => matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";

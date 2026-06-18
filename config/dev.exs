@@ -22,8 +22,8 @@ config :manavault, ManavaultWeb.Endpoint,
   debug_errors: true,
   secret_key_base: "rXtWSxzpxWwC2Fe3neLd4rTzlXK8pc0usuNiooa0rZnapw8LooU4pavHCYBpx67I",
   watchers: [
-    esbuild: {Esbuild, :install_and_run, [:manavault, ~w(--sourcemap=inline --watch)]},
-    tailwind: {Tailwind, :install_and_run, [:manavault, ~w(--watch)]}
+    tailwind: {Tailwind, :install_and_run, [:manavault, ~w(--watch)]},
+    vite: {"aube", ["run", "dev"], cd: Path.expand("..", __DIR__)}
   ]
 
 # ## SSL Support
@@ -66,6 +66,8 @@ config :manavault, ManavaultWeb.Endpoint,
 
 # Enable dev routes for dashboard and mailbox
 config :manavault, dev_routes: true
+
+config :manavault, vite_dev_server?: true
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
