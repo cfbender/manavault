@@ -29,14 +29,19 @@ export function ScanSessionsPage() {
 
   return (
     <>
-      <PageHeader title="Scan sessions" description="Review OCR batches and move accepted cards into the collection." actions={<Button><Plus className="h-4 w-4" />New scan</Button>} />
+      <PageHeader
+        eyebrow="ManaVault Scanner"
+        title="Scan sessions"
+        description="Review OCR batches and move accepted cards into the collection."
+        actions={<Button><Plus className="h-4 w-4" />New scan</Button>}
+      />
       {isLoading ? (
         <EmptyState title="Loading scan sessions..." />
       ) : data?.scanSessions?.length ? (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {data.scanSessions.map(session => (
             <Link key={session.id} to="/scan-sessions/$id" params={{ id: session.id }}>
-              <Card className="h-full transition-colors hover:bg-base-200">
+              <Card className="h-full transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-base-100 hover:shadow-lg">
                 <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
                   <CardTitle className="min-w-0 truncate">{session.name}</CardTitle>
                   <Camera className="h-4 w-4 shrink-0 text-primary" />

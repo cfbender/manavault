@@ -19,13 +19,7 @@ config :manavault, ManavaultWeb.Endpoint,
     formats: [html: ManavaultWeb.ErrorHTML, json: ManavaultWeb.ErrorJSON],
     layout: false
   ],
-  pubsub_server: Manavault.PubSub,
-  live_view: [signing_salt: "GEqwRini"]
-
-# Configure LiveView
-config :phoenix_live_view,
-  # the attribute set on all root tags. Used for Phoenix.LiveView.ColocatedCSS.
-  root_tag_attribute: "phx-r"
+  pubsub_server: Manavault.PubSub
 
 # Configure the mailer
 #
@@ -45,7 +39,7 @@ config :tailwind,
       --output=priv/static/assets/css/app.css
     ),
     cd: Path.expand("..", __DIR__),
-    env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
+    env: %{"NODE_PATH" => Mix.Project.build_path()}
   ]
 
 # Configure Elixir's Logger

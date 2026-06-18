@@ -3,7 +3,7 @@ import { createContext, type ReactNode, useContext, useEffect, useMemo, useState
 type Theme = "system" | "light" | "dark"
 
 const ThemeContext = createContext<{ theme: Theme; setTheme: (theme: Theme) => void } | null>(null)
-const storageKey = "phx:theme"
+const storageKey = "manavault:theme"
 
 function systemTheme() {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"

@@ -10,7 +10,6 @@ defmodule Manavault.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
-      compilers: [:phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader]
     ]
   end
@@ -46,19 +45,9 @@ defmodule Manavault.MixProject do
       {:ecto_sqlite3, ">= 0.0.0"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
-      {:phoenix_live_view, "~> 1.2.0"},
       {:absinthe, "~> 1.7"},
       {:absinthe_plug, "~> 1.5"},
-      {:lazy_html, ">= 0.1.0", only: :test},
-      {:phoenix_live_dashboard, "~> 0.8.3"},
       {:tailwind, "~> 0.3", runtime: Mix.env() == :dev},
-      {:heroicons,
-       github: "tailwindlabs/heroicons",
-       tag: "v2.2.0",
-       sparse: "optimized",
-       app: false,
-       compile: false,
-       depth: 1},
       {:swoosh, "~> 1.16"},
       {:req, "~> 0.5"},
       {:telemetry_metrics, "~> 1.0"},

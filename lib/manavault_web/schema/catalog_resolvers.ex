@@ -16,6 +16,10 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     {:ok, Catalog.search_cards(Map.get(args, :q, ""), limit: Map.get(args, :limit, 24))}
   end
 
+  def card_name_suggestions(_parent, args, _resolution) do
+    {:ok, Catalog.suggest_card_names(Map.get(args, :q, ""), limit: Map.get(args, :limit, 5))}
+  end
+
   def card(_parent, %{id: id}, _resolution), do: {:ok, Catalog.get_card_with_printings(id)}
 
   def collection_items(_parent, args, _resolution) do
@@ -51,7 +55,7 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     count =
       session
       |> scan_items()
-      |> Enum.count(&(&1.review_state == "needs_review"))
+      |> Enum.count(&(&1.status == "needs_review"))
 
     {:ok, count}
   end
@@ -64,7 +68,8 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     {:ok, deck |> deck_cards() |> length()}
   end
 
-  def location_item_count(%Location{collection_items: items}, _args, _resolution) when is_list(items) do
+  def location_item_count(%Location{collection_items: items}, _args, _resolution)
+      when is_list(items) do
     {:ok, length(items)}
   end
 
@@ -73,8 +78,14 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     {:ok, length(location.collection_items)}
   end
 
-  def collection_item_location(%CollectionItem{location_assoc: %Location{} = location}, _args, _resolution), do: {:ok, location}
-  def collection_item_location(%CollectionItem{location_assoc: nil}, _args, _resolution), do: {:ok, nil}
+  def collection_item_location(
+        %CollectionItem{location_assoc: %Location{} = location},
+        _args,
+        _resolution
+      ), do: {:ok, location}
+
+  def collection_item_location(%CollectionItem{location_assoc: nil}, _args, _resolution),
+    do: {:ok, nil}
 
   def collection_item_location(%CollectionItem{} = item, _args, _resolution) do
     {:ok, item |> Manavault.Repo.preload(:location_assoc) |> Map.get(:location_assoc)}

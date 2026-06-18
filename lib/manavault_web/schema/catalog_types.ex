@@ -23,20 +23,27 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :collector_number, :string
     field :lang, :string
     field :rarity, :string
+
     field :finishes, list_of(:string) do
-      resolve fn printing, _, _ -> {:ok, CatalogResolvers.decode_json_field(printing, :finishes, [])} end
+      resolve(fn printing, _, _ ->
+        {:ok, CatalogResolvers.decode_json_field(printing, :finishes, [])}
+      end)
     end
 
     field :image_url, :string do
-      resolve &CatalogResolvers.printing_image_url/3
+      resolve(&CatalogResolvers.printing_image_url/3)
     end
 
     field :image_uris, :json do
-      resolve fn printing, _, _ -> {:ok, CatalogResolvers.decode_json_field(printing, :image_uris, %{})} end
+      resolve(fn printing, _, _ ->
+        {:ok, CatalogResolvers.decode_json_field(printing, :image_uris, %{})}
+      end)
     end
 
     field :prices, :json do
-      resolve fn printing, _, _ -> {:ok, CatalogResolvers.decode_json_field(printing, :prices, %{})} end
+      resolve(fn printing, _, _ ->
+        {:ok, CatalogResolvers.decode_json_field(printing, :prices, %{})}
+      end)
     end
 
     field :released_at, :string
@@ -51,8 +58,9 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :finish, non_null(:string)
     field :notes, :string
     field :printing, :printing
+
     field :location, :location do
-      resolve &CatalogResolvers.collection_item_location/3
+      resolve(&CatalogResolvers.collection_item_location/3)
     end
   end
 
@@ -62,8 +70,9 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :kind, non_null(:string)
     field :description, :string
     field :cover_printing, :printing
+
     field :item_count, :integer do
-      resolve &CatalogResolvers.location_item_count/3
+      resolve(&CatalogResolvers.location_item_count/3)
     end
 
     field :collection_items, list_of(:collection_item)
@@ -74,12 +83,13 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :name, non_null(:string)
     field :format, non_null(:string)
     field :status, non_null(:string)
+
     field :card_count, :integer do
-      resolve &CatalogResolvers.deck_card_count/3
+      resolve(&CatalogResolvers.deck_card_count/3)
     end
 
     field :unique_card_count, :integer do
-      resolve &CatalogResolvers.deck_unique_card_count/3
+      resolve(&CatalogResolvers.deck_unique_card_count/3)
     end
 
     field :deck_cards, list_of(:deck_card)
@@ -100,12 +110,13 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :default_condition, non_null(:string)
     field :default_language, non_null(:string)
     field :default_finish, non_null(:string)
+
     field :item_count, :integer do
-      resolve &CatalogResolvers.scan_item_count/3
+      resolve(&CatalogResolvers.scan_item_count/3)
     end
 
     field :review_count, :integer do
-      resolve &CatalogResolvers.scan_review_count/3
+      resolve(&CatalogResolvers.scan_review_count/3)
     end
 
     field :created_at, :string
@@ -119,12 +130,12 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
   end
 
   scalar :json do
-    parse fn
+    parse(fn
       %{value: value}, _ -> {:ok, value}
       _, _ -> :error
-    end
+    end)
 
-    serialize & &1
+    serialize(& &1)
   end
 
   input_object :collection_item_filters do

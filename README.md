@@ -1,6 +1,6 @@
 # Manavault
 
-Phoenix LiveView application generated with SQLite.
+Phoenix application with a Vite/React frontend, GraphQL API, and SQLite storage.
 
 ## Requirements
 

@@ -1,8 +1,8 @@
 import { Link } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
-import { Plus, Search } from "lucide-react"
+import { Boxes, Plus, Search } from "lucide-react"
 import { useState } from "react"
-import { PageHeader } from "../components/app-shell"
+import { PageHeader, PageSection } from "../components/app-shell"
 import { CardImage, EmptyState } from "../components/card-image"
 import { Badge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Input } from "../components/ui/input"
 import { graphql } from "../gql"
 import { request } from "../lib/graphql"
-import { present, titleize } from "../lib/utils"
+import { compactNumber, present, titleize } from "../lib/utils"
 
 const CollectionDocument = graphql(`
   query Collection($filters: CollectionItemFilters, $limit: Int!) {
@@ -126,18 +126,27 @@ export function CollectionPage() {
     <>
       <PageHeader
         title="Collection"
-        description="Browse stored cards by printing, finish, and location."
+        eyebrow="ManaVault Inventory"
+        description="Your boxes, binders, lists, and owned printings."
         actions={
-          <Button asChild>
-            <Link to="/collection/new">
-              <Plus className="h-4 w-4" />
-              Add item
-            </Link>
-          </Button>
+          <>
+            <Button asChild variant="outline">
+              <Link to="/cards">
+                <Search className="h-4 w-4" />
+                Find cards
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link to="/collection/new">
+                <Plus className="h-4 w-4" />
+                Add item
+              </Link>
+            </Button>
+          </>
         }
       />
 
-      <form onSubmit={submit} className="control-toolbar mb-5 flex gap-2">
+      <form onSubmit={submit} className="control-toolbar mb-7 grid gap-2 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-[1fr_auto]">
         <Input name="q" value={q} onChange={event => setQ(event.target.value)} placeholder="Filter collection" />
         <Button type="submit" variant="outline">
           <Search className="h-4 w-4" />
@@ -145,26 +154,50 @@ export function CollectionPage() {
         </Button>
       </form>
 
-      <section className="mb-6">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-normal text-base-content/60">Locations</h2>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <PageSection title="Locations" count={`${data?.locations?.length || 0} total`}>
+        <div className="space-y-4">
           {(data?.locations || []).map(location => (
             <Link key={location.id} to="/collection/locations/$id" params={{ id: location.id }}>
-              <Card className="h-full transition-colors hover:bg-base-200">
-                <CardHeader>
-                  <CardTitle className="truncate">{location.name}</CardTitle>
-                </CardHeader>
-                <CardContent className="flex items-center justify-between">
-                  <Badge>{titleize(location.kind)}</Badge>
-                  <span className="text-sm text-base-content/70">{location.itemCount || 0} items</span>
-                </CardContent>
+              <Card className="group overflow-hidden transition-all hover:border-primary/40 hover:bg-base-100 hover:shadow-lg">
+                <div className="grid gap-4 sm:grid-cols-[13rem_1fr_auto]">
+                  <div className="h-40 overflow-hidden bg-base-200 sm:h-36">
+                    {location.coverPrinting?.imageUrl ? (
+                      <img
+                        src={location.coverPrinting.imageUrl}
+                        alt=""
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-base-content/40">
+                        <Boxes className="h-10 w-10" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 space-y-3 p-4 sm:pl-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge>{titleize(location.kind)}</Badge>
+                      <span className="text-base text-base-content/70">{compactNumber(location.itemCount || 0)} cards</span>
+                    </div>
+                    <h3 className="truncate text-3xl font-black tracking-normal">{location.name}</h3>
+                    {location.coverPrinting?.card?.name ? (
+                      <p className="text-sm text-base-content/60">{location.coverPrinting.card.name}</p>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-2 p-4 pt-0 sm:p-4">
+                    <span className="btn btn-primary btn-sm">View</span>
+                  </div>
+                </div>
               </Card>
             </Link>
           ))}
         </div>
-      </section>
+      </PageSection>
 
-      {isLoading ? <EmptyState title="Loading collection..." /> : <CollectionGrid items={data?.collectionItems} />}
+      <div className="mt-8">
+        <PageSection title="Owned printings" count={`${data?.collectionItems?.filter(present).length || 0} shown`}>
+          {isLoading ? <EmptyState title="Loading collection..." /> : <CollectionGrid items={data?.collectionItems} />}
+        </PageSection>
+      </div>
     </>
   )
 }

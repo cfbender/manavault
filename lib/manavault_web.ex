@@ -6,7 +6,6 @@ defmodule ManavaultWeb do
   This can be used in your application as:
 
       use ManavaultWeb, :controller
-      use ManavaultWeb, :html
 
   The definitions below will be executed for every controller,
   component, etc, so keep them short and clean, focused
@@ -28,7 +27,6 @@ defmodule ManavaultWeb do
       # Import common connection and controller functions to use in pipelines
       import Plug.Conn
       import Phoenix.Controller
-      import Phoenix.LiveView.Router
     end
   end
 
@@ -50,55 +48,6 @@ defmodule ManavaultWeb do
     end
   end
 
-  def live_view do
-    quote do
-      use Phoenix.LiveView
-
-      unquote(html_helpers())
-    end
-  end
-
-  def live_component do
-    quote do
-      use Phoenix.LiveComponent
-
-      unquote(html_helpers())
-    end
-  end
-
-  def html do
-    quote do
-      use Phoenix.Component
-
-      # Import convenience functions from controllers
-      import Phoenix.Controller,
-        only: [get_csrf_token: 0, view_module: 1, view_template: 1]
-
-      # Include general helpers for rendering HTML
-      unquote(html_helpers())
-    end
-  end
-
-  defp html_helpers do
-    quote do
-      # Translation
-      use Gettext, backend: ManavaultWeb.Gettext
-
-      # HTML escaping functionality
-      import Phoenix.HTML
-      # Core UI components
-      import ManavaultWeb.CoreComponents
-      import ManavaultWeb.MagicSymbols
-
-      # Common modules used in templates
-      alias Phoenix.LiveView.JS
-      alias ManavaultWeb.Layouts
-
-      # Routes generation with the ~p sigil
-      unquote(verified_routes())
-    end
-  end
-
   def verified_routes do
     quote do
       use Phoenix.VerifiedRoutes,
@@ -109,7 +58,7 @@ defmodule ManavaultWeb do
   end
 
   @doc """
-  When used, dispatch to the appropriate controller/live_view/etc.
+  When used, dispatch to the appropriate controller, HTML component, etc.
   """
   defmacro __using__(which) when is_atom(which) do
     apply(__MODULE__, which, [])
