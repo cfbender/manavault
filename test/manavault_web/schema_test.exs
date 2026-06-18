@@ -234,4 +234,123 @@ defmodule ManavaultWeb.SchemaTest do
              }
            } = json_response(conn, 200)
   end
+
+  test "update deck card mutation moves a card between zones", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-printing-1",
+          "oracle_id" => "oracle-1",
+          "name" => "Black Lotus",
+          "type_line" => "Artifact",
+          "collector_number" => "232",
+          "set" => "lea",
+          "set_name" => "Limited Edition Alpha",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Sideboard Test"})
+    {:ok, deck_card} = Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus"})
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation MoveDeckCard($id: ID!, $input: DeckCardUpdateInput!) {
+          updateDeckCard(id: $id, input: $input) {
+            id
+            zone
+            quantity
+            card { name }
+          }
+        }
+        """,
+        "variables" => %{
+          "id" => deck_card.id,
+          "input" => %{"zone" => "sideboard"}
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "updateDeckCard" => %{
+                 "id" => _id,
+                 "zone" => "sideboard",
+                 "quantity" => 1,
+                 "card" => %{"name" => "Black Lotus"}
+               }
+             }
+           } = json_response(conn, 200)
+  end
+
+  test "set deck commander replaces the current commander", %{conn: conn} do
+    {:ok, %{cards_count: 2, printings_count: 2}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-printing-1",
+          "oracle_id" => "oracle-1",
+          "name" => "Old Legend",
+          "type_line" => "Legendary Creature — Wizard",
+          "collector_number" => "1",
+          "set" => "tst",
+          "set_name" => "Test Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        },
+        %{
+          "id" => "scryfall-printing-2",
+          "oracle_id" => "oracle-2",
+          "name" => "New Legend",
+          "type_line" => "Legendary Creature — Soldier",
+          "collector_number" => "2",
+          "set" => "tst",
+          "set_name" => "Test Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Commander Test"})
+
+    {:ok, old_commander} =
+      Catalog.add_card_to_deck(deck, %{"name" => "Old Legend", "zone" => "commander"})
+
+    {:ok, new_commander} = Catalog.add_card_to_deck(deck, %{"name" => "New Legend"})
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation SetDeckCommander($id: ID!) {
+          setDeckCommander(id: $id) {
+            id
+            zone
+            card { name }
+          }
+        }
+        """,
+        "variables" => %{"id" => new_commander.id}
+      })
+
+    assert %{
+             "data" => %{
+               "setDeckCommander" => %{
+                 "id" => _id,
+                 "zone" => "commander",
+                 "card" => %{"name" => "New Legend"}
+               }
+             }
+           } = json_response(conn, 200)
+
+    loaded = Catalog.get_deck!(deck.id)
+
+    assert Enum.any?(loaded.deck_cards, &(&1.id == old_commander.id and &1.zone == "mainboard"))
+    assert Enum.any?(loaded.deck_cards, &(&1.id == new_commander.id and &1.zone == "commander"))
+  end
 end

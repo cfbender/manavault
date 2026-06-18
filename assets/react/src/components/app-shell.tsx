@@ -112,7 +112,7 @@ export function AppShell() {
       </header>
 
       <main className="app-shell-main overflow-y-auto">
-        <div className="mx-auto w-full max-w-7xl py-8 sm:py-12 lg:py-20">
+        <div className="mx-auto w-full max-w-[105rem] py-8 sm:py-12 lg:py-16">
           <Outlet />
         </div>
       </main>

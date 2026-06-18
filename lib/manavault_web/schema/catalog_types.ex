@@ -10,8 +10,19 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :oracle_text, :string
     field :mana_cost, :string
     field :cmc, :float
-    field :colors, list_of(:string)
-    field :color_identity, list_of(:string)
+
+    field :colors, list_of(:string) do
+      resolve(fn card, _, _ ->
+        {:ok, CatalogResolvers.decode_json_field(card, :colors, [])}
+      end)
+    end
+
+    field :color_identity, list_of(:string) do
+      resolve(fn card, _, _ ->
+        {:ok, CatalogResolvers.decode_json_field(card, :color_identity, [])}
+      end)
+    end
+
     field :printings, list_of(:printing)
   end
 
@@ -175,5 +186,12 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :name, non_null(:string)
     field :format, :string
     field :status, :string
+  end
+
+  input_object :deck_card_update_input do
+    field :zone, :string
+    field :quantity, :integer
+    field :finish, :string
+    field :preferred_printing_id, :id
   end
 end

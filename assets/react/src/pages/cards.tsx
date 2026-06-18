@@ -206,7 +206,7 @@ export function CardDetailPage({ id, query }: { id: string; query: string }) {
 
   return (
     <>
-      <div className="space-y-7">
+      <div className="mx-auto max-w-7xl space-y-7">
         <Button asChild variant="outline" size="sm">
           <Link to="/cards" search={{ q: query || undefined }}>Back to search</Link>
         </Button>

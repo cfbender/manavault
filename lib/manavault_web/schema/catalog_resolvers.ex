@@ -7,6 +7,7 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     CollectionItem,
     Deck,
     DeckAllocation,
+    DeckCard,
     Location,
     Price,
     Printing,
@@ -65,6 +66,25 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   def create_deck(_parent, %{input: input}, _resolution) do
     case Catalog.create_deck(input) do
       {:ok, deck} -> {:ok, deck}
+      {:error, changeset} -> {:error, changeset_error_message(changeset)}
+    end
+  end
+
+  def update_deck_card(_parent, %{id: id, input: input}, _resolution) do
+    deck_card = DeckCard |> Repo.get!(id) |> Repo.preload([:card, :preferred_printing])
+
+    case Catalog.update_deck_card(deck_card, input) do
+      {:ok, deck_card} -> {:ok, Repo.preload(deck_card, [:card, :preferred_printing])}
+      {:error, changeset} -> {:error, changeset_error_message(changeset)}
+    end
+  end
+
+  def set_deck_commander(_parent, %{id: id}, _resolution) do
+    deck_card = DeckCard |> Repo.get!(id) |> Repo.preload([:card, :preferred_printing])
+
+    case Catalog.set_deck_commander(deck_card) do
+      {:ok, deck_card} -> {:ok, deck_card}
+      {:error, :not_legendary_creature} -> {:error, "card must be a legendary creature"}
       {:error, changeset} -> {:error, changeset_error_message(changeset)}
     end
   end
