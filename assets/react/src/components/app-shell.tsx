@@ -22,14 +22,14 @@ function ThemeToggle() {
   ]
 
   return (
-    <div className="card relative grid h-11 grid-cols-3 rounded-full border border-base-300 bg-base-200 p-1 shadow-sm">
+    <div className="relative grid h-11 w-36 grid-cols-3 rounded-full border border-base-300 bg-base-200 p-1 shadow-sm">
       <span
         aria-hidden="true"
         className={cn(
-          "absolute top-1 bottom-1 w-9 rounded-full bg-primary/15 ring-1 ring-primary/25 transition-transform",
-          theme === "system" && "translate-x-1",
-          theme === "light" && "translate-x-10",
-          theme === "dark" && "translate-x-[4.75rem]"
+          "absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/3)] rounded-full bg-primary/15 ring-1 ring-primary/25 transition-transform",
+          theme === "system" && "translate-x-0",
+          theme === "light" && "translate-x-full",
+          theme === "dark" && "translate-x-[200%]"
         )}
       />
       {options.map(option => (
@@ -37,9 +37,10 @@ function ThemeToggle() {
           key={option.value}
           type="button"
           className={cn(
-            "btn btn-ghost btn-circle btn-sm relative z-10",
+            "relative z-10 flex h-full w-full items-center justify-center rounded-full transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
             theme === option.value ? "text-primary" : "text-base-content/70"
           )}
+          aria-pressed={theme === option.value}
           title={option.label}
           onClick={() => setTheme(option.value)}
         >
