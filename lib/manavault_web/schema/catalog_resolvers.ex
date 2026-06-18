@@ -27,7 +27,12 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
   def collection_items(_parent, args, _resolution) do
     filters = args |> Map.get(:filters, %{}) |> Enum.into([])
-    opts = [limit: Map.get(args, :limit, 100), offset: Map.get(args, :offset, 0)]
+    opts = [
+      limit: Map.get(args, :limit, 100),
+      offset: Map.get(args, :offset, 0),
+      sort: Map.get(args, :sort, %{})
+    ]
+
     {:ok, Catalog.list_collection_items(filters, opts)}
   end
 

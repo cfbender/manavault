@@ -165,4 +165,9 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :finish, :string
     field :location_id, :id
   end
+
+  input_object :collection_item_sort do
+    field :field, :string
+    field :direction, :string
+  end
 end

@@ -1,15 +1,16 @@
 import { Link } from "@tanstack/react-router"
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
-import { Boxes, Edit3, MoveUpRight, Plus, Search, Trash2 } from "lucide-react"
+import { ArrowDownUp, Boxes, Edit3, ListFilter, MoveUpRight, Plus, Search, Trash2 } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { PageHeader, PageSection } from "../components/app-shell"
 import { EmptyState } from "../components/card-image"
+import { CardNameSearchField } from "../components/card-name-search-field"
 import { addToDeckAction, addToListAction, CardTile } from "../components/card-tile"
 import { ImageSummaryCard } from "../components/image-summary-card"
 import { Badge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
-import { Input } from "../components/ui/input"
 import { graphql } from "../gql"
+import { CollectionItemsPageDocument as GeneratedCollectionItemsPageDocument } from "../gql/graphql"
 import { request } from "../lib/graphql"
 import { compactNumber, present, titleize } from "../lib/utils"
 
@@ -42,8 +43,8 @@ const LocationDocument = graphql(`
 `)
 
 const CollectionItemsPageDocument = graphql(`
-  query CollectionItemsPage($filters: CollectionItemFilters, $limit: Int!, $offset: Int!) {
-    collectionItems(filters: $filters, limit: $limit, offset: $offset) {
+  query CollectionItemsPage($filters: CollectionItemFilters, $sort: CollectionItemSort, $limit: Int!, $offset: Int!) {
+    collectionItems(filters: $filters, sort: $sort, limit: $limit, offset: $offset) {
       id
       quantity
       condition
@@ -55,6 +56,7 @@ const CollectionItemsPageDocument = graphql(`
       printing {
         scryfallId
         setCode
+        setName
         collectorNumber
         imageUrl
         rarity
@@ -62,7 +64,7 @@ const CollectionItemsPageDocument = graphql(`
       }
     }
   }
-`)
+`) as typeof GeneratedCollectionItemsPageDocument
 
 const COLLECTION_PAGE_SIZE = 48
 const CARD_TILE_WIDTH = 228
@@ -79,6 +81,7 @@ type CollectionItem = {
   location?: { id: string; name: string } | null
   printing?: {
     setCode?: string | null
+    setName?: string | null
     collectorNumber?: string | null
     imageUrl?: string | null
     rarity?: string | null
@@ -87,20 +90,17 @@ type CollectionItem = {
 }
 
 type CollectionTab = "locations" | "all"
+type CollectionSortField = "quantity" | "name" | "set" | "rarity" | "price"
+type CollectionSortDirection = "asc" | "desc"
+type CollectionSort = { field: CollectionSortField; direction: CollectionSortDirection }
 
-function CollectionGrid({ items }: { items?: readonly (CollectionItem | null)[] | null }) {
-  const presentItems = (items || []).filter(present)
-
-  if (!presentItems.length) return <EmptyState title="No collection items found" />
-
-  return (
-    <div className="grid justify-center gap-x-6 gap-y-8 [grid-template-columns:repeat(auto-fill,minmax(14.25rem,14.25rem))]">
-      {presentItems.map(item => (
-        <CollectionItemTile key={item.id} item={item} />
-      ))}
-    </div>
-  )
-}
+const SORT_OPTIONS: { field: CollectionSortField; label: string }[] = [
+  { field: "quantity", label: "Quantity" },
+  { field: "name", label: "Card name" },
+  { field: "set", label: "Set" },
+  { field: "rarity", label: "Rarity" },
+  { field: "price", label: "Price" },
+]
 
 function VirtualizedCollectionGrid({
   hasNextPage,
@@ -224,7 +224,9 @@ function CollectionItemTile({ item }: { item: CollectionItem }) {
       }
       price={item.priceText}
       rarity={item.printing?.rarity}
+      setCode={item.printing?.setCode}
       setLabel={`${item.printing?.setCode?.toUpperCase() || "?"} #${item.printing?.collectorNumber || "?"}`}
+      setName={item.printing?.setName}
       typeLine={item.printing?.card?.typeLine}
     />
   )
@@ -234,15 +236,17 @@ export function CollectionPage() {
   const [activeTab, setActiveTab] = useState<CollectionTab>("locations")
   const [q, setQ] = useState("")
   const [filters, setFilters] = useState<{ q?: string }>({})
+  const [sort, setSort] = useState<CollectionSort>({ field: "name", direction: "asc" })
   const { data, isLoading } = useQuery({
     queryKey: ["collection", filters],
     queryFn: () => request(CollectionDocument, { filters }),
   })
   const allItemsQuery = useInfiniteQuery({
-    queryKey: ["collection-items", "all", filters],
+    queryKey: ["collection-items", "all", filters, sort],
     queryFn: ({ pageParam }) =>
       request(CollectionItemsPageDocument, {
         filters,
+        sort,
         limit: COLLECTION_PAGE_SIZE,
         offset: pageParam,
       }),
@@ -273,7 +277,23 @@ export function CollectionPage() {
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setFilters(q.trim() ? { q: q.trim() } : {})
+    applyCollectionSearch(q)
+  }
+
+  function applyCollectionSearch(value: string) {
+    const term = value.trim()
+    setQ(value)
+    setFilters(term ? { q: term } : {})
+  }
+
+  function clearCollectionSearch() {
+    setQ("")
+    setFilters({})
+  }
+
+  function selectTab(tab: CollectionTab) {
+    if (activeTab === "all" && tab !== "all") clearCollectionSearch()
+    setActiveTab(tab)
   }
 
   return (
@@ -305,13 +325,13 @@ export function CollectionPage() {
           active={activeTab === "locations"}
           count={data?.locations?.length || 0}
           label="Locations"
-          onClick={() => setActiveTab("locations")}
+          onClick={() => selectTab("locations")}
         />
         <CollectionTabButton
           active={activeTab === "all"}
           count={data?.collectionItemCount || 0}
           label="All"
-          onClick={() => setActiveTab("all")}
+          onClick={() => selectTab("all")}
         />
       </div>
 
@@ -350,11 +370,26 @@ export function CollectionPage() {
         </PageSection>
       ) : (
         <div className="space-y-7">
-          <form onSubmit={submit} className="control-toolbar grid gap-2 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-[1fr_auto]">
-            <Input name="q" value={q} onChange={event => setQ(event.target.value)} placeholder="Filter collection" />
-            <Button type="submit" variant="outline">
-              <Search className="h-4 w-4" />
+          <form
+            onSubmit={submit}
+            className="control-toolbar grid gap-2 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-[1fr_auto_auto_auto]"
+          >
+            <CardNameSearchField
+              name="q"
+              value={q}
+              onValueChange={setQ}
+              onClear={clearCollectionSearch}
+              onSuggestionSelect={applyCollectionSearch}
+              placeholder="Filter collection"
+            />
+            <SortDropdown sort={sort} onSortChange={setSort} />
+            <Button type="button" variant="outline" disabled title="Filters coming next">
+              <ListFilter className="h-4 w-4" />
               Filter
+            </Button>
+            <Button type="submit">
+              <Search className="h-4 w-4" />
+              Search
             </Button>
           </form>
 
@@ -373,6 +408,66 @@ export function CollectionPage() {
         </div>
       )}
     </>
+  )
+}
+
+function SortDropdown({
+  onSortChange,
+  sort,
+}: {
+  onSortChange: (sort: CollectionSort) => void
+  sort: CollectionSort
+}) {
+  const currentOption = SORT_OPTIONS.find(option => option.field === sort.field) || SORT_OPTIONS[1]
+  const directionLabel = sort.direction === "asc" ? "Asc" : "Desc"
+
+  return (
+    <details className="dropdown dropdown-end">
+      <summary className="btn btn-outline min-w-44 justify-between gap-2" aria-label={`Sort by ${currentOption.label}, ${directionLabel}`}>
+        <span className="flex items-center gap-2">
+          <ArrowDownUp className="h-4 w-4" />
+          Sort
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="badge badge-ghost text-[0.65rem]">{currentOption.label}</span>
+          <span className="badge badge-ghost text-[0.65rem]">{directionLabel}</span>
+        </span>
+      </summary>
+      <div className="dropdown-content z-50 mt-2 w-72 rounded-box border border-base-300 bg-base-100 p-3 shadow-2xl">
+        <div className="mb-3 grid grid-cols-2 gap-1 rounded-box bg-base-200 p-1">
+          {(["asc", "desc"] as const).map(direction => (
+            <button
+              key={direction}
+              type="button"
+              className={[
+                "rounded-btn px-3 py-2 text-sm font-bold transition-colors",
+                sort.direction === direction ? "bg-primary text-primary-content shadow-sm" : "text-base-content/70 hover:bg-base-100",
+              ].join(" ")}
+              onClick={() => onSortChange({ ...sort, direction })}
+            >
+              {direction === "asc" ? "Ascending" : "Descending"}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid gap-1">
+          {SORT_OPTIONS.map(option => (
+            <button
+              key={option.field}
+              type="button"
+              className={[
+                "flex items-center justify-between rounded-btn px-3 py-2 text-left text-sm transition-colors",
+                sort.field === option.field ? "bg-primary/15 text-primary" : "hover:bg-base-200",
+              ].join(" ")}
+              onClick={() => onSortChange({ ...sort, field: option.field })}
+            >
+              <span className="font-semibold">{option.label}</span>
+              {sort.field === option.field ? <span className="badge badge-primary badge-sm">{directionLabel}</span> : null}
+            </button>
+          ))}
+        </div>
+      </div>
+    </details>
   )
 }
 

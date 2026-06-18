@@ -8,6 +8,7 @@ defmodule Manavault.Catalog do
 
   alias Manavault.Catalog.{
     Card,
+    CardCollection,
     CollectionItem,
     Deck,
     DeckAllocation,
@@ -139,55 +140,11 @@ defmodule Manavault.Catalog do
   end
 
   def list_collection_items(filters \\ [], opts \\ []) when is_list(filters) do
-    limit = Keyword.get(opts, :limit, 100)
-    offset = Keyword.get(opts, :offset, 0)
-    query = filters |> Keyword.get(:q, "") |> normalize_filter()
-    condition = filters |> Keyword.get(:condition, "") |> normalize_filter()
-    language = filters |> Keyword.get(:language, "") |> normalize_filter()
-    finish = filters |> Keyword.get(:finish, "") |> normalize_filter()
-    location_id = filters |> Keyword.get(:location_id, "") |> normalize_filter()
-
-    CollectionItem
-    |> join(:inner, [item], printing in assoc(item, :printing))
-    |> join(:inner, [item, printing], card in assoc(printing, :card))
-    |> join(:left, [item, _printing, _card], location in assoc(item, :location_assoc))
-    |> maybe_filter_collection_search(query)
-    |> maybe_filter_collection_condition(condition)
-    |> maybe_filter_collection_language(language)
-    |> maybe_filter_collection_finish(finish)
-    |> maybe_filter_collection_location(location_id)
-    |> preload([_item, printing, card, location],
-      printing: {printing, card: card},
-      location_assoc: location
-    )
-    |> order_by([item, printing, card, _location],
-      asc: card.name,
-      asc: printing.set_code,
-      asc: printing.collector_number,
-      asc: item.id
-    )
-    |> limit(^limit)
-    |> offset(^offset)
-    |> Repo.all()
+    CardCollection.list_items(filters, opts)
   end
 
   def count_collection_items(filters \\ []) when is_list(filters) do
-    query = filters |> Keyword.get(:q, "") |> normalize_filter()
-    condition = filters |> Keyword.get(:condition, "") |> normalize_filter()
-    language = filters |> Keyword.get(:language, "") |> normalize_filter()
-    finish = filters |> Keyword.get(:finish, "") |> normalize_filter()
-    location_id = filters |> Keyword.get(:location_id, "") |> normalize_filter()
-
-    CollectionItem
-    |> join(:inner, [item], printing in assoc(item, :printing))
-    |> join(:inner, [item, printing], card in assoc(printing, :card))
-    |> join(:left, [item, _printing, _card], location in assoc(item, :location_assoc))
-    |> maybe_filter_collection_search(query)
-    |> maybe_filter_collection_condition(condition)
-    |> maybe_filter_collection_language(language)
-    |> maybe_filter_collection_finish(finish)
-    |> maybe_filter_collection_location(location_id)
-    |> Repo.aggregate(:count, :id)
+    CardCollection.count_items(filters)
   end
 
   def get_collection_item!(id) do
@@ -324,25 +281,7 @@ defmodule Manavault.Catalog do
 
   def list_collection_items_by_location(location_id, filters \\ [], opts \\ [])
       when is_list(filters) do
-    limit = Keyword.get(opts, :limit, 100)
-    query = filters |> Keyword.get(:q, "") |> normalize_filter()
-
-    CollectionItem
-    |> where(location_id: ^location_id)
-    |> join(:inner, [item], printing in assoc(item, :printing))
-    |> join(:inner, [_item, printing], card in assoc(printing, :card))
-    |> maybe_filter_collection_search(query)
-    |> preload([_item, printing, card],
-      printing: {printing, card: card}
-    )
-    |> order_by([item, printing, card],
-      asc: card.name,
-      asc: printing.set_code,
-      asc: printing.collector_number,
-      asc: item.id
-    )
-    |> limit(^limit)
-    |> Repo.all()
+    CardCollection.list_items_by_location(location_id, filters, opts)
   end
 
   def change_location(location, attrs \\ %{}) do
@@ -2602,52 +2541,6 @@ defmodule Manavault.Catalog do
 
   defp maybe_filter_collector_number(query, collector_number) do
     where(query, [printing, _card], printing.collector_number == ^collector_number)
-  end
-
-  defp maybe_filter_collection_search(query, ""), do: query
-
-  defp maybe_filter_collection_search(query, search) do
-    pattern = "%#{String.downcase(search)}%"
-
-    where(
-      query,
-      [_item, printing, card, ...],
-      fragment("lower(?) LIKE ?", card.name, ^pattern) or
-        fragment("lower(?) LIKE ?", printing.set_code, ^pattern) or
-        fragment("lower(?) LIKE ?", printing.collector_number, ^pattern) or
-        fragment("lower(?) LIKE ?", printing.scryfall_id, ^pattern)
-    )
-  end
-
-  defp maybe_filter_collection_condition(query, ""), do: query
-
-  defp maybe_filter_collection_condition(query, condition) do
-    where(query, [item, _printing, _card, _location], item.condition == ^condition)
-  end
-
-  defp maybe_filter_collection_language(query, ""), do: query
-
-  defp maybe_filter_collection_language(query, language) do
-    where(query, [item, _printing, _card, _location], item.language == ^language)
-  end
-
-  defp maybe_filter_collection_finish(query, ""), do: query
-
-  defp maybe_filter_collection_finish(query, finish) do
-    where(query, [item, _printing, _card, _location], item.finish == ^finish)
-  end
-
-  defp maybe_filter_collection_location(query, ""), do: query
-
-  defp maybe_filter_collection_location(query, "unfiled") do
-    where(query, [item, _printing, _card, _location], is_nil(item.location_id))
-  end
-
-  defp maybe_filter_collection_location(query, location_id) do
-    case Integer.parse(location_id) do
-      {id, ""} -> where(query, [item, _printing, _card, _location], item.location_id == ^id)
-      _invalid -> where(query, false)
-    end
   end
 
   defp insert_in_batches(_schema, [], _opts), do: :ok

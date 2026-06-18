@@ -1,11 +1,12 @@
-import { Link } from "@tanstack/react-router"
+import { useNavigate } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { motion } from "motion/react"
 import { Boxes, Camera, Layers, Search } from "lucide-react"
+import type { FormEvent } from "react"
 import { useState } from "react"
 import { ActionCard } from "../components/app-shell"
+import { CardNameSearchField } from "../components/card-name-search-field"
 import { Button } from "../components/ui/button"
-import { Input } from "../components/ui/input"
 import { graphql } from "../gql"
 import { request } from "../lib/graphql"
 import { compactNumber } from "../lib/utils"
@@ -23,10 +24,21 @@ const HomeDocument = graphql(`
 
 export function HomePage() {
   const [q, setQ] = useState("")
+  const navigate = useNavigate({ from: "/" })
   const { data, isError, isLoading } = useQuery({ queryKey: ["home"], queryFn: () => request(HomeDocument) })
   const summary = data?.homeSummary
 
   const value = (count?: number | null) => (isLoading ? "..." : isError ? "!" : compactNumber(count))
+
+  function searchCards(value = q) {
+    const term = value.trim()
+    navigate({ to: "/cards", search: { q: term || undefined } })
+  }
+
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    searchCards()
+  }
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
@@ -43,19 +55,26 @@ export function HomePage() {
             <p className="mt-5 text-xl leading-8 text-base-content/70">Jump into your collection, build decks, or search the local card catalog.</p>
           </div>
 
-          <form className="rounded-box border border-base-300 bg-base-100 p-4 shadow-sm">
-            <label className="fieldset p-0">
-              <span className="fieldset-label text-base">Search cards</span>
+          <form onSubmit={submitSearch} className="rounded-box border border-base-300 bg-base-100 p-4 shadow-sm">
+            <div className="fieldset p-0">
+              <label htmlFor="home-card-search" className="fieldset-label text-base">
+                Search cards
+              </label>
               <div className="control-toolbar grid gap-3 sm:grid-cols-[1fr_auto]">
-                <Input name="q" value={q} onChange={event => setQ(event.target.value)} placeholder="Black Lotus" />
-                <Button asChild>
-                  <Link to="/cards" search={{ q: q.trim() || undefined }}>
-                    <Search className="h-4 w-4" />
-                    Search
-                  </Link>
+                <CardNameSearchField
+                  id="home-card-search"
+                  name="q"
+                  value={q}
+                  onValueChange={setQ}
+                  onSuggestionSelect={searchCards}
+                  placeholder="Black Lotus"
+                />
+                <Button type="submit">
+                  <Search className="h-4 w-4" />
+                  Search
                 </Button>
               </div>
-            </label>
+            </div>
           </form>
         </div>
       </motion.section>

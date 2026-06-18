@@ -29,6 +29,7 @@ defmodule ManavaultWeb.Schema do
 
     field :collection_items, non_null(list_of(non_null(:collection_item))) do
       arg(:filters, :collection_item_filters)
+      arg(:sort, :collection_item_sort)
       arg(:limit, :integer, default_value: 100)
       arg(:offset, :integer, default_value: 0)
       resolve(&CatalogResolvers.collection_items/3)

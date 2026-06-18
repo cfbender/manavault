@@ -25,7 +25,9 @@ export function CardTile({
   name,
   price,
   rarity,
+  setCode,
   setLabel,
+  setName,
   showMenu = true,
   typeLine,
 }: {
@@ -41,7 +43,9 @@ export function CardTile({
   name: ReactNode
   price?: ReactNode
   rarity?: string | null
+  setCode?: string | null
   setLabel?: ReactNode
+  setName?: ReactNode
   showMenu?: boolean
   typeLine?: ReactNode
 }) {
@@ -149,8 +153,8 @@ export function CardTile({
             <div className="grid gap-1.5 text-xs text-white/85">
               <div className="flex min-w-0 items-center justify-between gap-2">
                 <span className="flex min-w-0 items-center gap-1.5">
-                  <RarityMark rarity={rarity} />
-                  <span className="truncate">{setLabel}</span>
+                  <SetIcon rarity={rarity} setCode={setCode} />
+                  <span className="truncate">{setName ?? setLabel}</span>
                 </span>
                 {price ? (
                   <span className="flex shrink-0 items-center gap-1 font-mono text-white/90">
@@ -190,27 +194,43 @@ export function addToListAction(): CardTileAction {
   return { icon: <ListPlus className="h-4 w-4" />, label: "Add to list", disabled: true }
 }
 
-function RarityMark({ rarity }: { rarity?: string | null }) {
-  const key = String(rarity || "").toLowerCase()
-  const color =
-    key === "mythic"
-      ? "#e46f25"
-      : key === "rare"
-        ? "#c89b3c"
-        : key === "uncommon"
-          ? "#a7b0b7"
-          : key === "special" || key === "bonus"
-            ? "#9b72d0"
-            : "#f3f0e8"
-  const label = key ? key[0]?.toUpperCase() : "C"
+function SetIcon({ rarity, setCode }: { rarity?: string | null; setCode?: string | null }) {
+  const color = rarityColor(rarity)
+  const code = String(setCode || "").trim().toLowerCase()
+
+  if (!code) {
+    return (
+      <span
+        className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-white/30 text-[0.55rem] font-black leading-none text-black shadow"
+        style={{ backgroundColor: color }}
+        title={rarity || "Common"}
+      >
+        ?
+      </span>
+    )
+  }
 
   return (
     <span
-      className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-white/35 text-[0.6rem] font-black leading-none text-black shadow"
-      style={{ backgroundColor: color }}
-      title={rarity || "Common"}
-    >
-      {label}
-    </span>
+      className="h-4 w-4 shrink-0 drop-shadow"
+      style={{
+        backgroundColor: color,
+        mask: `url(/scryfall-assets/sets/${code}.svg) center / contain no-repeat`,
+        WebkitMask: `url(/scryfall-assets/sets/${code}.svg) center / contain no-repeat`,
+      }}
+      title={`${setCode?.toUpperCase()} ${rarity || "common"}`}
+      aria-hidden="true"
+    />
   )
+}
+
+function rarityColor(rarity?: string | null) {
+  const key = String(rarity || "").toLowerCase()
+
+  if (key === "mythic") return "#e46f25"
+  if (key === "rare") return "#c89b3c"
+  if (key === "uncommon") return "#a7b0b7"
+  if (key === "special" || key === "bonus") return "#9b72d0"
+
+  return "#f3f0e8"
 }
