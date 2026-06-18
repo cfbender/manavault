@@ -69,6 +69,18 @@ defmodule ManavaultWeb.Schema do
       resolve(&CatalogResolvers.create_deck/3)
     end
 
+    field :update_deck, :deck do
+      arg(:id, non_null(:id))
+      arg(:input, non_null(:deck_update_input))
+      resolve(&CatalogResolvers.update_deck/3)
+    end
+
+    field :update_location, :location do
+      arg(:id, non_null(:id))
+      arg(:input, non_null(:location_update_input))
+      resolve(&CatalogResolvers.update_location/3)
+    end
+
     field :update_deck_card, :deck_card do
       arg(:id, non_null(:id))
       arg(:input, non_null(:deck_card_update_input))

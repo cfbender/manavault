@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Box, ChevronDown, Circle, Crown, Droplets, Eye, Gem, Hash, Layers, MoreVertical, MoveRight, Palette, PawPrint, Plus, Star, WandSparkles, Zap } from "lucide-react"
+import { Box, ChevronDown, Circle, Crown, Droplets, Edit3, Eye, Gem, Hash, Layers, MoreVertical, MoveRight, Palette, PawPrint, Plus, Star, WandSparkles, Zap } from "lucide-react"
 import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react"
 import { PageHeader, PageSection } from "../components/app-shell"
 import { EmptyState } from "../components/card-image"
@@ -34,6 +34,23 @@ const DecksDocument = graphql(`
 const CreateDeckDocument = graphql(`
   mutation CreateDeck($input: DeckInput!) {
     createDeck(input: $input) {
+      id
+      name
+      format
+      status
+      cardCount
+      uniqueCardCount
+      deckCards {
+        preferredPrinting { imageUrl artCropUrl }
+        card { printings { imageUrl artCropUrl } }
+      }
+    }
+  }
+`)
+
+const UpdateDeckDocument = graphql(`
+  mutation UpdateDeck($id: ID!, $input: DeckUpdateInput!) {
+    updateDeck(id: $id, input: $input) {
       id
       name
       format
@@ -105,6 +122,7 @@ const SetDeckCommanderDocument = graphql(`
 
 export function DecksPage() {
   const [isNewDeckOpen, setIsNewDeckOpen] = useState(false)
+  const [editingDeck, setEditingDeck] = useState<DeckSummary | null>(null)
   const { data, isLoading } = useQuery({ queryKey: ["decks"], queryFn: () => request(DecksDocument) })
   const deckGroups = groupDecksByFormat(data?.decks || [])
 
@@ -134,21 +152,24 @@ export function DecksPage() {
                 </div>
                 <div className="grid gap-5 md:grid-cols-2">
                   {decks.map(deck => (
-                    <Link key={deck.id} to="/decks/$id" params={{ id: deck.id }} className="block">
-                      <ImageSummaryCard
-                        imageUrl={deckCoverUrl(deck)}
-                        fallback={<Layers className="h-12 w-12" />}
-                        typeLine={<Badge>{titleize(deck.format)}</Badge>}
-                        countLine={`${compactNumber(deck.cardCount || 0)} cards`}
-                        detailLine={
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Badge tone={deck.status === "active" ? "success" : "neutral"}>{titleize(deck.status)}</Badge>
-                            <span>{compactNumber(deck.uniqueCardCount || 0)} unique</span>
-                          </div>
-                        }
-                        nameLine={deck.name}
-                      />
-                    </Link>
+                    <div key={deck.id} className="relative">
+                      <Link to="/decks/$id" params={{ id: deck.id }} className="block">
+                        <ImageSummaryCard
+                          imageUrl={deckCoverUrl(deck)}
+                          fallback={<Layers className="h-12 w-12" />}
+                          typeLine={<Badge>{titleize(deck.format)}</Badge>}
+                          countLine={`${compactNumber(deck.cardCount || 0)} cards`}
+                          detailLine={
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge tone={deck.status === "active" ? "success" : "neutral"}>{titleize(deck.status)}</Badge>
+                              <span>{compactNumber(deck.uniqueCardCount || 0)} unique</span>
+                            </div>
+                          }
+                          nameLine={deck.name}
+                        />
+                      </Link>
+                      <SummaryActionMenu label={`${deck.name} actions`} onEdit={() => setEditingDeck(deck)} />
+                    </div>
                   ))}
                 </div>
               </section>
@@ -159,6 +180,7 @@ export function DecksPage() {
         <EmptyState title="No decks yet" />
       )}
       <NewDeckDialog open={isNewDeckOpen} onOpenChange={setIsNewDeckOpen} />
+      <EditDeckDialog deck={editingDeck} onOpenChange={open => !open && setEditingDeck(null)} />
     </>
   )
 }
@@ -167,6 +189,7 @@ export function DeckDetailPage({ id }: { id: string }) {
   const [groupBy, setGroupBy] = useState<DeckGroupBy>("type")
   const [moveTarget, setMoveTarget] = useState<DeckCardEntry | null>(null)
   const [moveError, setMoveError] = useState<string | null>(null)
+  const [isEditDeckOpen, setIsEditDeckOpen] = useState(false)
   const queryClient = useQueryClient()
   const { data, isLoading } = useQuery({ queryKey: ["deck", id], queryFn: () => request(DeckDocument, { id }) })
   const deck = data?.deck
@@ -226,6 +249,7 @@ export function DeckDetailPage({ id }: { id: string }) {
             </div>
           }
           nameLine={deck.name}
+          actionSlot={<SummaryActionMenu label={`${deck.name} actions`} onEdit={() => setIsEditDeckOpen(true)} />}
         />
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-base-300 pb-4">
@@ -275,6 +299,8 @@ export function DeckDetailPage({ id }: { id: string }) {
           />
         </div>
       </div>
+
+      <EditDeckDialog deck={deck} onOpenChange={setIsEditDeckOpen} open={isEditDeckOpen} />
 
       <MoveDeckCardDialog
         deckCard={moveTarget}
@@ -328,6 +354,24 @@ const DECK_STACK_COLUMN_WIDTH_REM = 14
 const DECK_STACK_OFFSET = 34
 const DECK_STACK_CARD_HEIGHT = 314
 const DECK_STACK_REVEAL_OFFSET = DECK_STACK_CARD_HEIGHT - DECK_STACK_OFFSET
+
+function SummaryActionMenu({ label, onEdit }: { label: string; onEdit: () => void }) {
+  return (
+    <div className="dropdown dropdown-end absolute right-3 top-3 z-20" onClick={event => event.stopPropagation()} onMouseDown={event => event.stopPropagation()}>
+      <button type="button" className="btn btn-circle btn-xs border-0 bg-neutral/85 text-neutral-content shadow backdrop-blur transition hover:bg-neutral" tabIndex={0} aria-label={label}>
+        <MoreVertical className="h-4 w-4" />
+      </button>
+      <ul tabIndex={0} className="menu dropdown-content z-50 mt-1 w-44 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl">
+        <li>
+          <button type="button" onClick={onEdit}>
+            <Edit3 className="h-4 w-4" />
+            Edit
+          </button>
+        </li>
+      </ul>
+    </div>
+  )
+}
 
 function groupDecksByFormat(decks: DeckSummary[]) {
   const grouped = new Map<string, DeckSummary[]>()
@@ -995,6 +1039,110 @@ function MoveDeckCardDialog({
       </DialogContent>
     </Dialog>
   )
+}
+
+function EditDeckDialog({ deck, onOpenChange, open }: { deck: DeckSummary | DeckDetail | null; onOpenChange: (open: boolean) => void; open?: boolean }) {
+  const queryClient = useQueryClient()
+  const isOpen = open ?? Boolean(deck)
+  const [name, setName] = useState("")
+  const [format, setFormat] = useState<(typeof DECK_FORMATS)[number]>("commander")
+  const [status, setStatus] = useState<(typeof DECK_STATUSES)[number]>("brewing")
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!deck || !isOpen) return
+    setName(deck.name)
+    setFormat(deckFormatValue(deck.format))
+    setStatus(deckStatusValue(deck.status))
+    setError(null)
+  }, [deck, isOpen])
+
+  const updateDeck = useMutation({
+    mutationFn: () => {
+      if (!deck) throw new Error("Deck is required")
+      return request(UpdateDeckDocument, { id: deck.id, input: { name: name.trim(), format, status } })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      if (deck) queryClient.invalidateQueries({ queryKey: ["deck", deck.id] })
+      setError(null)
+      onOpenChange(false)
+    },
+    onError: error => setError(error instanceof Error ? error.message : "Could not update deck"),
+  })
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError(null)
+
+    if (!name.trim()) {
+      setError("Deck name is required")
+      return
+    }
+
+    updateDeck.mutate()
+  }
+
+  function close() {
+    if (updateDeck.isPending) return
+    setError(null)
+    onOpenChange(false)
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={nextOpen => (nextOpen ? onOpenChange(true) : close())}>
+      <DialogContent className="max-w-xl" labelledBy="edit-deck-title">
+        <DialogHeader>
+          <div>
+            <DialogTitle id="edit-deck-title">Edit deck</DialogTitle>
+            <p className="mt-1 text-sm text-base-content/60">Update deck metadata.</p>
+          </div>
+          <DialogClose onClose={close} />
+        </DialogHeader>
+
+        <form className="space-y-5 p-5" onSubmit={submit}>
+          <label className="block space-y-2">
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Name</span>
+            <Input value={name} onChange={event => setName(event.target.value)} placeholder="Deck name" autoFocus />
+          </label>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block space-y-2">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Format</span>
+              <select className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" value={format} onChange={event => setFormat(deckFormatValue(event.target.value))}>
+                {DECK_FORMATS.map(format => <option key={format} value={format}>{titleize(format)}</option>)}
+              </select>
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Status</span>
+              <select className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" value={status} onChange={event => setStatus(deckStatusValue(event.target.value))}>
+                {DECK_STATUSES.map(status => <option key={status} value={status}>{titleize(status)}</option>)}
+              </select>
+            </label>
+          </div>
+
+          {error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p> : null}
+
+          <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-4">
+            <Button type="button" variant="ghost" onClick={close} disabled={updateDeck.isPending}>Cancel</Button>
+            <Button type="submit" disabled={updateDeck.isPending}>
+              <Edit3 className="h-4 w-4" />
+              {updateDeck.isPending ? "Saving..." : "Save deck"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function deckFormatValue(value: string): (typeof DECK_FORMATS)[number] {
+  return DECK_FORMATS.find(format => format === value) || "commander"
+}
+
+function deckStatusValue(value: string): (typeof DECK_STATUSES)[number] {
+  return DECK_STATUSES.find(status => status === value) || "brewing"
 }
 
 function NewDeckDialog({ onOpenChange, open }: { onOpenChange: (open: boolean) => void; open: boolean }) {

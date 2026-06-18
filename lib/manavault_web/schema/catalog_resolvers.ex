@@ -70,6 +70,24 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     end
   end
 
+  def update_deck(_parent, %{id: id, input: input}, _resolution) do
+    deck = Catalog.get_deck!(id)
+
+    case Catalog.update_deck(deck, input) do
+      {:ok, deck} -> {:ok, Catalog.get_deck!(deck.id)}
+      {:error, changeset} -> {:error, changeset_error_message(changeset)}
+    end
+  end
+
+  def update_location(_parent, %{id: id, input: input}, _resolution) do
+    location = id |> location_id() |> Catalog.get_location!()
+
+    case Catalog.update_location(location, input) do
+      {:ok, location} -> {:ok, Repo.preload(location, cover_printing: :card)}
+      {:error, changeset} -> {:error, changeset_error_message(changeset)}
+    end
+  end
+
   def update_deck_card(_parent, %{id: id, input: input}, _resolution) do
     deck_card = DeckCard |> Repo.get!(id) |> Repo.preload([:card, :preferred_printing])
 

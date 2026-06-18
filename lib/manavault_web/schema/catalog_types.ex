@@ -188,6 +188,19 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :status, :string
   end
 
+  input_object :deck_update_input do
+    field :name, :string
+    field :format, :string
+    field :status, :string
+  end
+
+  input_object :location_update_input do
+    field :name, :string
+    field :kind, :string
+    field :description, :string
+    field :cover_scryfall_id, :id
+  end
+
   input_object :deck_card_update_input do
     field :zone, :string
     field :quantity, :integer

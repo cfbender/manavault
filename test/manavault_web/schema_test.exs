@@ -235,6 +235,99 @@ defmodule ManavaultWeb.SchemaTest do
            } = json_response(conn, 200)
   end
 
+  test "update deck mutation updates deck fields", %{conn: conn} do
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Old Deck", "format" => "commander", "status" => "brewing"})
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation UpdateDeck($id: ID!, $input: DeckUpdateInput!) {
+          updateDeck(id: $id, input: $input) {
+            id
+            name
+            format
+            status
+          }
+        }
+        """,
+        "variables" => %{
+          "id" => deck.id,
+          "input" => %{"name" => "New Deck", "format" => "modern", "status" => "active"}
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "updateDeck" => %{
+                 "id" => _id,
+                 "name" => "New Deck",
+                 "format" => "modern",
+                 "status" => "active"
+               }
+             }
+           } = json_response(conn, 200)
+  end
+
+  test "update location mutation updates location fields", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-printing-2",
+          "oracle_id" => "oracle-2",
+          "name" => "Cover Card",
+          "type_line" => "Creature",
+          "collector_number" => "2",
+          "set" => "tst",
+          "set_name" => "Test Set",
+          "lang" => "en",
+          "image_uris" => %{"art_crop" => "https://example.test/cover-art.jpg"},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, location} = Catalog.create_location(%{name: "Old Box", kind: "box"})
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation UpdateLocation($id: ID!, $input: LocationUpdateInput!) {
+          updateLocation(id: $id, input: $input) {
+            id
+            name
+            kind
+            description
+            coverPrinting { artCropUrl card { name } }
+          }
+        }
+        """,
+        "variables" => %{
+          "id" => location.id,
+          "input" => %{
+            "name" => "New Binder",
+            "kind" => "binder",
+            "description" => "Trade cards",
+            "coverScryfallId" => "scryfall-printing-2"
+          }
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "updateLocation" => %{
+                 "id" => _id,
+                 "name" => "New Binder",
+                 "kind" => "binder",
+                 "description" => "Trade cards",
+                 "coverPrinting" => %{
+                   "artCropUrl" => "https://example.test/cover-art.jpg",
+                   "card" => %{"name" => "Cover Card"}
+                 }
+               }
+             }
+           } = json_response(conn, 200)
+  end
+
   test "update deck card mutation moves a card between zones", %{conn: conn} do
     {:ok, %{cards_count: 1, printings_count: 1}} =
       Catalog.import_cards([

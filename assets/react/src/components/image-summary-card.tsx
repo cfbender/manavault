@@ -3,6 +3,7 @@ import { cn } from "../lib/utils"
 import { Card } from "./ui/card"
 
 export function ImageSummaryCard({
+  actionSlot,
   countLine,
   detailLine,
   fallback,
@@ -12,6 +13,7 @@ export function ImageSummaryCard({
   priceLine,
   typeLine,
 }: {
+  actionSlot?: ReactNode
   countLine?: ReactNode
   detailLine?: ReactNode
   fallback?: ReactNode
@@ -42,10 +44,13 @@ export function ImageSummaryCard({
       )}
       <div className="absolute inset-0 bg-gradient-to-br from-base-100/95 via-base-100/75 to-base-100/35" />
       <div className="relative z-10 flex min-h-52 flex-col justify-between gap-8 p-5">
-        <div className="flex flex-wrap items-center gap-2">
-          {typeLine}
-          {countLine ? <span className="text-sm font-bold text-base-content/70">{countLine}</span> : null}
-          {priceLine ? <span className="text-sm font-bold text-base-content/70">{priceLine}</span> : null}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {typeLine}
+            {countLine ? <span className="text-sm font-bold text-base-content/70">{countLine}</span> : null}
+            {priceLine ? <span className="text-sm font-bold text-base-content/70">{priceLine}</span> : null}
+          </div>
+          {actionSlot ? <div className="shrink-0">{actionSlot}</div> : null}
         </div>
         <div className="min-w-0">
           <h3 className="line-clamp-2 text-3xl font-black tracking-normal">{nameLine}</h3>
