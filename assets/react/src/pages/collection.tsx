@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router"
-import { useQuery } from "@tanstack/react-query"
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
 import { Boxes, Edit3, MoveUpRight, Plus, Search, Trash2 } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { PageHeader, PageSection } from "../components/app-shell"
 import { EmptyState } from "../components/card-image"
 import { addToDeckAction, addToListAction, CardTile } from "../components/card-tile"
@@ -14,15 +14,36 @@ import { request } from "../lib/graphql"
 import { compactNumber, present, titleize } from "../lib/utils"
 
 const CollectionDocument = graphql(`
-  query Collection($filters: CollectionItemFilters, $limit: Int!) {
+  query Collection($filters: CollectionItemFilters) {
     locations {
       id
       name
       kind
       itemCount
+      totalPriceText
       coverPrinting { artCropUrl }
     }
-    collectionItems(filters: $filters, limit: $limit) {
+    collectionItemCount(filters: $filters)
+  }
+`)
+
+const LocationDocument = graphql(`
+  query Location($id: ID!) {
+    location(id: $id) {
+      id
+      name
+      kind
+      description
+      itemCount
+      totalPriceText
+      coverPrinting { artCropUrl }
+    }
+  }
+`)
+
+const CollectionItemsPageDocument = graphql(`
+  query CollectionItemsPage($filters: CollectionItemFilters, $limit: Int!, $offset: Int!) {
+    collectionItems(filters: $filters, limit: $limit, offset: $offset) {
       id
       quantity
       condition
@@ -43,33 +64,10 @@ const CollectionDocument = graphql(`
   }
 `)
 
-const LocationDocument = graphql(`
-  query Location($id: ID!) {
-    location(id: $id) {
-      id
-      name
-      kind
-      description
-      collectionItems {
-        id
-        quantity
-        condition
-        language
-        finish
-        priceText
-        allocatedQuantity
-        printing {
-          scryfallId
-          setCode
-          collectorNumber
-          imageUrl
-          rarity
-          card { oracleId name typeLine }
-        }
-      }
-    }
-  }
-`)
+const COLLECTION_PAGE_SIZE = 48
+const CARD_TILE_WIDTH = 228
+const CARD_TILE_ROW_HEIGHT = 352
+const CARD_TILE_GAP = 24
 
 type CollectionItem = {
   id: string
@@ -98,39 +96,137 @@ function CollectionGrid({ items }: { items?: readonly (CollectionItem | null)[] 
   return (
     <div className="grid justify-center gap-x-6 gap-y-8 [grid-template-columns:repeat(auto-fill,minmax(14.25rem,14.25rem))]">
       {presentItems.map(item => (
-        <CardTile
-          key={item.id}
-          allocatedLabel={item.allocatedQuantity ? `In deck${item.allocatedQuantity > 1 ? ` x${item.allocatedQuantity}` : ""}` : undefined}
-          count={item.quantity}
-          defaultActions={[
-            { icon: <MoveUpRight className="h-4 w-4" />, label: "Move", disabled: true },
-            {
-              content: (
-                <Link to="/collection/$id/edit" params={{ id: item.id }}>
-                  <Edit3 className="h-4 w-4" />
-                  Edit
-                </Link>
-              ),
-              label: "Edit",
-            },
-            { destructive: true, icon: <Trash2 className="h-4 w-4" />, label: "Delete", disabled: true },
-          ]}
-          finish={item.finish}
-          imageUrl={item.printing?.imageUrl}
-          location={item.location?.name}
-          menuActions={[addToDeckAction(), addToListAction()]}
-          name={
-            <Link to="/cards/$id" params={{ id: item.printing?.card?.oracleId || "" }} className="hover:underline">
-              {item.printing?.card?.name || "Unknown card"}
-            </Link>
-          }
-          price={item.priceText}
-          rarity={item.printing?.rarity}
-          setLabel={`${item.printing?.setCode?.toUpperCase() || "?"} #${item.printing?.collectorNumber || "?"}`}
-          typeLine={item.printing?.card?.typeLine}
-        />
+        <CollectionItemTile key={item.id} item={item} />
       ))}
     </div>
+  )
+}
+
+function VirtualizedCollectionGrid({
+  hasNextPage,
+  isFetchingNextPage,
+  items,
+  onLoadMore,
+}: {
+  hasNextPage: boolean
+  isFetchingNextPage: boolean
+  items: CollectionItem[]
+  onLoadMore: () => void
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [columns, setColumns] = useState(1)
+  const [range, setRange] = useState({ startRow: 0, endRow: 8 })
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const updateColumns = () => {
+      const width = container.getBoundingClientRect().width
+      setColumns(Math.max(1, Math.floor((width + CARD_TILE_GAP) / (CARD_TILE_WIDTH + CARD_TILE_GAP))))
+    }
+
+    updateColumns()
+    const resizeObserver = new ResizeObserver(updateColumns)
+    resizeObserver.observe(container)
+    return () => resizeObserver.disconnect()
+  }, [])
+
+  useEffect(() => {
+    const scrollParent = document.querySelector(".app-shell-main")
+    const scrollTarget = scrollParent || window
+    let frame = 0
+
+    const updateRange = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        const container = containerRef.current
+        if (!container) return
+
+        const rect = container.getBoundingClientRect()
+        const viewportHeight = window.innerHeight
+        const overscan = CARD_TILE_ROW_HEIGHT * 3
+        const visibleTop = Math.max(0, -rect.top - overscan)
+        const visibleBottom = Math.min(rowCount * CARD_TILE_ROW_HEIGHT, viewportHeight - rect.top + overscan)
+        const startRow = Math.max(0, Math.floor(visibleTop / CARD_TILE_ROW_HEIGHT))
+        const endRow = Math.max(startRow + 1, Math.ceil(visibleBottom / CARD_TILE_ROW_HEIGHT))
+
+        setRange({ startRow, endRow })
+      })
+    }
+
+    updateRange()
+    scrollTarget.addEventListener("scroll", updateRange, { passive: true })
+    window.addEventListener("resize", updateRange)
+
+    return () => {
+      cancelAnimationFrame(frame)
+      scrollTarget.removeEventListener("scroll", updateRange)
+      window.removeEventListener("resize", updateRange)
+    }
+  }, [columns, items.length])
+
+  const rowCount = Math.ceil(items.length / columns)
+  const totalHeight = Math.max(0, rowCount * CARD_TILE_ROW_HEIGHT - CARD_TILE_GAP)
+  const startIndex = range.startRow * columns
+  const endIndex = Math.min(items.length, range.endRow * columns)
+  const visibleItems = items.slice(startIndex, endIndex)
+
+  useEffect(() => {
+    if (hasNextPage && !isFetchingNextPage && endIndex >= items.length - columns * 4) {
+      onLoadMore()
+    }
+  }, [columns, endIndex, hasNextPage, isFetchingNextPage, items.length, onLoadMore])
+
+  if (!items.length) return <EmptyState title="No collection items found" />
+
+  return (
+    <div ref={containerRef} className="relative w-full" style={{ height: totalHeight }}>
+      <div
+        className="grid justify-center gap-x-6 gap-y-8 [grid-template-columns:repeat(auto-fill,minmax(14.25rem,14.25rem))]"
+        style={{ transform: `translateY(${range.startRow * CARD_TILE_ROW_HEIGHT}px)` }}
+      >
+        {visibleItems.map(item => (
+          <CollectionItemTile key={item.id} item={item} />
+        ))}
+      </div>
+      {isFetchingNextPage ? <div className="absolute inset-x-0 bottom-0 py-6"><EmptyState title="Loading more..." /></div> : null}
+    </div>
+  )
+}
+
+function CollectionItemTile({ item }: { item: CollectionItem }) {
+  return (
+    <CardTile
+      allocatedLabel={item.allocatedQuantity ? `In deck${item.allocatedQuantity > 1 ? ` x${item.allocatedQuantity}` : ""}` : undefined}
+      count={item.quantity}
+      defaultActions={[
+        { icon: <MoveUpRight className="h-4 w-4" />, label: "Move", disabled: true },
+        {
+          content: (
+            <Link to="/collection/$id/edit" params={{ id: item.id }}>
+              <Edit3 className="h-4 w-4" />
+              Edit
+            </Link>
+          ),
+          label: "Edit",
+        },
+        { destructive: true, icon: <Trash2 className="h-4 w-4" />, label: "Delete", disabled: true },
+      ]}
+      finish={item.finish}
+      imageUrl={item.printing?.imageUrl}
+      location={item.location?.name}
+      menuActions={[addToDeckAction(), addToListAction()]}
+      name={
+        <Link to="/cards/$id" params={{ id: item.printing?.card?.oracleId || "" }} className="hover:underline">
+          {item.printing?.card?.name || "Unknown card"}
+        </Link>
+      }
+      price={item.priceText}
+      rarity={item.printing?.rarity}
+      setLabel={`${item.printing?.setCode?.toUpperCase() || "?"} #${item.printing?.collectorNumber || "?"}`}
+      typeLine={item.printing?.card?.typeLine}
+    />
   )
 }
 
@@ -140,8 +236,30 @@ export function CollectionPage() {
   const [filters, setFilters] = useState<{ q?: string }>({})
   const { data, isLoading } = useQuery({
     queryKey: ["collection", filters],
-    queryFn: () => request(CollectionDocument, { filters, limit: 120 }),
+    queryFn: () => request(CollectionDocument, { filters }),
   })
+  const allItemsQuery = useInfiniteQuery({
+    queryKey: ["collection-items", "all", filters],
+    queryFn: ({ pageParam }) =>
+      request(CollectionItemsPageDocument, {
+        filters,
+        limit: COLLECTION_PAGE_SIZE,
+        offset: pageParam,
+      }),
+    enabled: activeTab === "all",
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, _pages, lastPageParam) =>
+      lastPage.collectionItems.length < COLLECTION_PAGE_SIZE ? undefined : lastPageParam + COLLECTION_PAGE_SIZE,
+  })
+  const allCollectionItems = useMemo(
+    () => allItemsQuery.data?.pages.flatMap(page => page.collectionItems).filter(present) || [],
+    [allItemsQuery.data]
+  )
+  const hasCollectionFilters = Boolean(filters.q?.trim())
+  const collectionCountLabel = `${data?.collectionItemCount || 0} ${hasCollectionFilters ? "shown" : "total"}`
+  const loadMoreAllItems = useCallback(() => {
+    void allItemsQuery.fetchNextPage()
+  }, [allItemsQuery])
   const locationGroups = useMemo(() => {
     const groups = new Map<string, NonNullable<typeof data>["locations"]>()
 
@@ -191,7 +309,7 @@ export function CollectionPage() {
         />
         <CollectionTabButton
           active={activeTab === "all"}
-          count={data?.collectionItems?.filter(present).length || 0}
+          count={data?.collectionItemCount || 0}
           label="All"
           onClick={() => setActiveTab("all")}
         />
@@ -217,6 +335,7 @@ export function CollectionPage() {
                           fallback={<Boxes className="h-12 w-12" />}
                           typeLine={<Badge>{titleize(location.kind)}</Badge>}
                           countLine={`${compactNumber(location.itemCount || 0)} cards`}
+                          priceLine={location.totalPriceText}
                           nameLine={location.name}
                         />
                       </Link>
@@ -239,8 +358,17 @@ export function CollectionPage() {
             </Button>
           </form>
 
-          <PageSection count={`${data?.collectionItems?.filter(present).length || 0} shown`}>
-            {isLoading ? <EmptyState title="Loading collection..." /> : <CollectionGrid items={data?.collectionItems} />}
+          <PageSection count={collectionCountLabel}>
+            {allItemsQuery.isLoading ? (
+              <EmptyState title="Loading collection..." />
+            ) : (
+              <VirtualizedCollectionGrid
+                hasNextPage={allItemsQuery.hasNextPage}
+                isFetchingNextPage={allItemsQuery.isFetchingNextPage}
+                items={allCollectionItems}
+                onLoadMore={loadMoreAllItems}
+              />
+            )}
           </PageSection>
         </div>
       )}
@@ -279,6 +407,25 @@ function CollectionTabButton({
 
 export function LocationPage({ id }: { id: string }) {
   const { data, isLoading } = useQuery({ queryKey: ["location", id], queryFn: () => request(LocationDocument, { id }) })
+  const itemsQuery = useInfiniteQuery({
+    queryKey: ["collection-items", "location", id],
+    queryFn: ({ pageParam }) =>
+      request(CollectionItemsPageDocument, {
+        filters: { locationId: id },
+        limit: COLLECTION_PAGE_SIZE,
+        offset: pageParam,
+      }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, _pages, lastPageParam) =>
+      lastPage.collectionItems.length < COLLECTION_PAGE_SIZE ? undefined : lastPageParam + COLLECTION_PAGE_SIZE,
+  })
+  const collectionItems = useMemo(
+    () => itemsQuery.data?.pages.flatMap(page => page.collectionItems).filter(present) || [],
+    [itemsQuery.data]
+  )
+  const loadMore = useCallback(() => {
+    void itemsQuery.fetchNextPage()
+  }, [itemsQuery])
   const location = data?.location
 
   if (isLoading) return <EmptyState title="Loading location..." />
@@ -286,16 +433,33 @@ export function LocationPage({ id }: { id: string }) {
 
   return (
     <>
-      <PageHeader
-        title={location.name}
-        description={location.description || titleize(location.kind)}
-        actions={
-          <Button asChild variant="outline">
-            <Link to="/collection">Back to collection</Link>
-          </Button>
-        }
-      />
-      <CollectionGrid items={location.collectionItems} />
+      <div className="mb-7 space-y-4">
+        <Button asChild variant="outline" size="sm">
+          <Link to="/collection">Back to collection</Link>
+        </Button>
+        <ImageSummaryCard
+          imageUrl={location.coverPrinting?.artCropUrl}
+          fallback={<Boxes className="h-12 w-12" />}
+          typeLine={<Badge>{titleize(location.kind)}</Badge>}
+          countLine={`${compactNumber(location.itemCount || 0)} cards`}
+          priceLine={location.totalPriceText}
+          nameLine={location.name}
+          detailLine={location.description}
+          interactive={false}
+        />
+      </div>
+      {itemsQuery.isLoading ? (
+        <EmptyState title="Loading collection..." />
+      ) : (
+        <PageSection>
+          <VirtualizedCollectionGrid
+            hasNextPage={itemsQuery.hasNextPage}
+            isFetchingNextPage={itemsQuery.isFetchingNextPage}
+            items={collectionItems}
+            onLoadMore={loadMore}
+          />
+        </PageSection>
+      )}
     </>
   )
 }

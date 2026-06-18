@@ -171,6 +171,25 @@ defmodule Manavault.Catalog do
     |> Repo.all()
   end
 
+  def count_collection_items(filters \\ []) when is_list(filters) do
+    query = filters |> Keyword.get(:q, "") |> normalize_filter()
+    condition = filters |> Keyword.get(:condition, "") |> normalize_filter()
+    language = filters |> Keyword.get(:language, "") |> normalize_filter()
+    finish = filters |> Keyword.get(:finish, "") |> normalize_filter()
+    location_id = filters |> Keyword.get(:location_id, "") |> normalize_filter()
+
+    CollectionItem
+    |> join(:inner, [item], printing in assoc(item, :printing))
+    |> join(:inner, [item, printing], card in assoc(printing, :card))
+    |> join(:left, [item, _printing, _card], location in assoc(item, :location_assoc))
+    |> maybe_filter_collection_search(query)
+    |> maybe_filter_collection_condition(condition)
+    |> maybe_filter_collection_language(language)
+    |> maybe_filter_collection_finish(finish)
+    |> maybe_filter_collection_location(location_id)
+    |> Repo.aggregate(:count, :id)
+  end
+
   def get_collection_item!(id) do
     CollectionItem
     |> Repo.get!(id)
@@ -274,16 +293,7 @@ defmodule Manavault.Catalog do
     Location
     |> order_by(asc: :name)
     |> Repo.all()
-    |> Repo.preload(
-      cover_printing: :card,
-      collection_items:
-        from(item in CollectionItem,
-          join: printing in assoc(item, :printing),
-          join: card in assoc(printing, :card),
-          preload: [printing: {printing, card: card}],
-          order_by: [asc: card.name, asc: printing.set_code, asc: printing.collector_number]
-        )
-    )
+    |> Repo.preload(cover_printing: :card)
   end
 
   def list_location_options do

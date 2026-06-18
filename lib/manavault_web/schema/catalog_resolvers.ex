@@ -31,9 +31,16 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     {:ok, Catalog.list_collection_items(filters, opts)}
   end
 
+  def collection_item_count(_parent, args, _resolution) do
+    filters = args |> Map.get(:filters, %{}) |> Enum.into([])
+    {:ok, Catalog.count_collection_items(filters)}
+  end
+
   def locations(_parent, _args, _resolution), do: {:ok, Catalog.list_locations()}
 
-  def location(_parent, %{id: id}, _resolution), do: {:ok, Catalog.get_location_with_items!(id)}
+  def location(_parent, %{id: id}, _resolution) do
+    {:ok, id |> location_id() |> Catalog.get_location!() |> Repo.preload(cover_printing: :card)}
+  end
 
   def decks(_parent, _args, _resolution), do: {:ok, Catalog.list_decks()}
 
@@ -46,10 +53,14 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     {:ok, image_url(image_uris)}
   end
 
+  def printing_image_url(_printing, _args, _resolution), do: {:ok, nil}
+
   def printing_art_crop_url(%Printing{} = printing, _args, _resolution) do
     image_uris = decode_json(printing.image_uris, %{})
     {:ok, art_crop_url(image_uris)}
   end
+
+  def printing_art_crop_url(_printing, _args, _resolution), do: {:ok, nil}
 
   def decode_json_field(parent, key, fallback) do
     parent |> Map.get(key) |> decode_json(fallback)
@@ -82,8 +93,23 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   end
 
   def location_item_count(%Location{} = location, _args, _resolution) do
-    location = Repo.preload(location, :collection_items)
-    {:ok, length(location.collection_items)}
+    count =
+      CollectionItem
+      |> where([item], item.location_id == ^location.id)
+      |> Repo.aggregate(:count, :id)
+
+    {:ok, count}
+  end
+
+  def location_total_price_text(%Location{id: id}, _args, _resolution) do
+    items = Catalog.list_collection_items([location_id: to_string(id)], limit: 100_000)
+    {:ok, items |> Price.collection_items_total_cents() |> Price.format_cents()}
+  end
+
+  def location_collection_items(%Location{id: id}, args, _resolution) do
+    filters = [location_id: to_string(id)]
+    opts = [limit: Map.get(args, :limit, 100), offset: Map.get(args, :offset, 0)]
+    {:ok, Catalog.list_collection_items(filters, opts)}
   end
 
   def collection_item_location(
@@ -151,4 +177,13 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
   defp art_crop_url([first | _rest]), do: art_crop_url(first)
   defp art_crop_url(_image_uris), do: nil
+
+  defp location_id(id) when is_integer(id), do: id
+
+  defp location_id(id) when is_binary(id) do
+    case Integer.parse(id) do
+      {parsed, ""} -> parsed
+      _other -> id
+    end
+  end
 end

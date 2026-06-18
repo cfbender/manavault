@@ -74,6 +74,7 @@ defmodule ManavaultWeb.SchemaTest do
         query {
           locations {
             name
+            totalPriceText
             coverPrinting { imageUrl artCropUrl card { name } }
           }
           collectionItems {
@@ -82,6 +83,7 @@ defmodule ManavaultWeb.SchemaTest do
             printing { imageUrl card { name } }
             location { name }
           }
+          collectionItemCount
         }
         """
       })
@@ -94,9 +96,11 @@ defmodule ManavaultWeb.SchemaTest do
                      "card" => %{"name" => "Test Card"},
                      "artCropUrl" => "https://example.test/card-art.jpg",
                      "imageUrl" => "https://example.test/card.jpg"
-                   }
+                   },
+                   "totalPriceText" => "$12.34"
                  }
                ],
+               "collectionItemCount" => 1,
                "collectionItems" => [
                  %{
                    "allocatedQuantity" => 0,

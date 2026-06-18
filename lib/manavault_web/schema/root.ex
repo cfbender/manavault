@@ -34,6 +34,11 @@ defmodule ManavaultWeb.Schema do
       resolve(&CatalogResolvers.collection_items/3)
     end
 
+    field :collection_item_count, non_null(:integer) do
+      arg(:filters, :collection_item_filters)
+      resolve(&CatalogResolvers.collection_item_count/3)
+    end
+
     field :locations, non_null(list_of(non_null(:location))) do
       resolve(&CatalogResolvers.locations/3)
     end

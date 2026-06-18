@@ -87,7 +87,15 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
       resolve(&CatalogResolvers.location_item_count/3)
     end
 
-    field :collection_items, list_of(:collection_item)
+    field :total_price_text, :string do
+      resolve(&CatalogResolvers.location_total_price_text/3)
+    end
+
+    field :collection_items, list_of(:collection_item) do
+      arg(:limit, :integer, default_value: 100)
+      arg(:offset, :integer, default_value: 0)
+      resolve(&CatalogResolvers.location_collection_items/3)
+    end
   end
 
   object :deck do
