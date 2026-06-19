@@ -9,7 +9,7 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react"
-import type { ReactNode } from "react"
+import type { KeyboardEvent, ReactNode } from "react"
 import { cn } from "../lib/utils"
 
 export type CardTileAction = {
@@ -33,6 +33,7 @@ export function CardTile({
   location,
   menuActions = [],
   name,
+  onSelect,
   price,
   rarity,
   setCode,
@@ -51,6 +52,7 @@ export function CardTile({
   location?: ReactNode
   menuActions?: CardTileAction[]
   name: ReactNode
+  onSelect?: () => void
   price?: ReactNode
   rarity?: string | null
   setCode?: string | null
@@ -74,16 +76,33 @@ export function CardTile({
     })),
   ]
 
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (!onSelect || (event.key !== "Enter" && event.key !== " ")) return
+    event.preventDefault()
+    onSelect()
+  }
+
   return (
     <div
+      aria-label={onSelect && typeof name === "string" ? `View ${name}` : undefined}
       className={cn(
         "group/card relative w-full max-w-[14.25rem] overflow-visible rounded-xl bg-transparent transition duration-200 focus-within:z-50",
         growOnHover && "hover:z-50 hover:-translate-y-2 hover:scale-[1.035]",
+        onSelect && "cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50",
         className,
       )}
+      onClick={onSelect}
+      onKeyDown={handleKeyDown}
+      role={onSelect ? "link" : undefined}
+      tabIndex={onSelect ? 0 : undefined}
     >
       {showMenu ? (
-        <div className="dropdown absolute left-2 top-2 z-50 opacity-0 transition-opacity group-hover/card:opacity-100 group-focus-within/card:opacity-100">
+        <div
+          className="dropdown absolute left-2 top-2 z-50 opacity-0 transition-opacity group-hover/card:opacity-100 group-focus-within/card:opacity-100"
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
+        >
           <button
             type="button"
             className="btn btn-circle btn-xs border-0 bg-neutral/85 text-neutral-content shadow backdrop-blur transition hover:bg-neutral"

@@ -58,6 +58,7 @@ import { Input } from "../components/ui/input"
 import { graphql } from "../gql"
 import type {
   DeckBuylistQuery,
+  DeckCardUpdateInput,
   DeckQuery,
   DecksQuery,
   PreviewBulkAllocateDeckMutation,
@@ -162,21 +163,25 @@ const DeckDocument = graphql(`
           colors
           colorIdentity
           printings {
+            scryfallId
             imageUrl
             artCropUrl
             setCode
             setName
             collectorNumber
             rarity
+            finishes
           }
         }
         preferredPrinting {
+          scryfallId
           imageUrl
           artCropUrl
           setCode
           setName
           collectorNumber
           rarity
+          finishes
         }
         allocationStatus {
           state
@@ -232,12 +237,14 @@ const UpdateDeckCardDocument = graphql(`
         typeLine
       }
       preferredPrinting {
+        scryfallId
         imageUrl
         artCropUrl
         setCode
         setName
         collectorNumber
         rarity
+        finishes
       }
     }
   }
@@ -506,6 +513,8 @@ export function DecksPage() {
 
 export function DeckDetailPage({ id }: { id: string }) {
   const [groupBy, setGroupBy] = useState<DeckGroupBy>("type")
+  const [editTarget, setEditTarget] = useState<DeckCardEntry | null>(null)
+  const [editError, setEditError] = useState<string | null>(null)
   const [moveTarget, setMoveTarget] = useState<DeckCardEntry | null>(null)
   const [moveError, setMoveError] = useState<string | null>(null)
   const [isEditDeckOpen, setIsEditDeckOpen] = useState(false)
@@ -555,16 +564,27 @@ export function DeckDetailPage({ id }: { id: string }) {
   )
 
   const updateDeckCard = useMutation({
-    mutationFn: ({ deckCardId, zone }: { deckCardId: string; zone: DeckZone }) =>
-      request(UpdateDeckCardDocument, { id: deckCardId, input: { zone } }),
+    mutationFn: ({
+      deckCardId,
+      input,
+    }: {
+      deckCardId: string
+      input: DeckCardUpdateInput
+    }) => request(UpdateDeckCardDocument, { id: deckCardId, input }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["deck", id] })
       queryClient.invalidateQueries({ queryKey: ["decks"] })
+      queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
+      setEditTarget(null)
+      setEditError(null)
       setMoveTarget(null)
       setMoveError(null)
     },
-    onError: (error) =>
-      setMoveError(error instanceof Error ? error.message : "Could not update deck card"),
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "Could not update deck card"
+      if (editTarget) setEditError(message)
+      else setMoveError(message)
+    },
   })
 
   const deleteDeckCard = useMutation({
@@ -660,7 +680,11 @@ export function DeckDetailPage({ id }: { id: string }) {
   if (!deck) return <EmptyState title="Deck not found" />
 
   function moveDeckCard(deckCard: DeckCardEntry, zone: DeckZone) {
-    updateDeckCard.mutate({ deckCardId: deckCard.id, zone })
+    updateDeckCard.mutate({ deckCardId: deckCard.id, input: { zone } })
+  }
+
+  function editDeckCard(deckCard: DeckCardEntry, input: DeckCardUpdateInput) {
+    updateDeckCard.mutate({ deckCardId: deckCard.id, input })
   }
 
   function confirmDeleteDeckCard(deckCard: DeckCardEntry) {
@@ -741,6 +765,10 @@ export function DeckDetailPage({ id }: { id: string }) {
               setMoveError(null)
               setMoveTarget(deckCard)
             }}
+            onEdit={(deckCard) => {
+              setEditError(null)
+              setEditTarget(deckCard)
+            }}
             onAllocate={(deckCard, collectionItemId) =>
               allocateDeckCardItem.mutate({ deckCardId: deckCard.id, collectionItemId })
             }
@@ -764,6 +792,10 @@ export function DeckDetailPage({ id }: { id: string }) {
               setMoveError(null)
               setMoveTarget(deckCard)
             }}
+            onEdit={(deckCard) => {
+              setEditError(null)
+              setEditTarget(deckCard)
+            }}
             onDelete={confirmDeleteDeckCard}
           />
           <DeckZoneTable
@@ -773,6 +805,10 @@ export function DeckDetailPage({ id }: { id: string }) {
             onMove={(deckCard) => {
               setMoveError(null)
               setMoveTarget(deckCard)
+            }}
+            onEdit={(deckCard) => {
+              setEditError(null)
+              setEditTarget(deckCard)
             }}
             onDelete={confirmDeleteDeckCard}
           />
@@ -824,6 +860,21 @@ export function DeckDetailPage({ id }: { id: string }) {
         }}
         zoneCounts={zoneCounts}
       />
+      <EditDeckCardDialog
+        deckCard={editTarget}
+        deckFormat={deck.format}
+        error={editError}
+        isPending={updateDeckCard.isPending}
+        onClose={() => {
+          if (!updateDeckCard.isPending) {
+            setEditError(null)
+            setEditTarget(null)
+          }
+        }}
+        onSave={(input) => {
+          if (editTarget) editDeckCard(editTarget, input)
+        }}
+      />
     </>
   )
 }
@@ -831,6 +882,7 @@ export function DeckDetailPage({ id }: { id: string }) {
 type DeckSummary = DecksQuery["decks"][number]
 type DeckDetail = NonNullable<DeckQuery["deck"]>
 type DeckCardEntry = NonNullable<NonNullable<DeckDetail["deckCards"]>[number]>
+type DeckCardPrinting = NonNullable<NonNullable<NonNullable<DeckCardEntry["card"]>["printings"]>[number]>
 type DeckZone = "mainboard" | "sideboard" | "commander" | "maybeboard"
 type DeckGroupBy = "type" | "color" | "colorIdentity" | "manaValue" | "rarity" | "set" | "none"
 type BulkAllocationMode = "exact_printings" | "matching_printings"
@@ -885,6 +937,7 @@ const DECK_STATUSES = ["brewing", "active", "archived"] as const
 const MOVE_TARGET_ZONES: DeckZone[] = ["mainboard", "sideboard", "maybeboard"]
 const ADD_CARD_ZONES: DeckZone[] = ["mainboard", "sideboard", "commander", "maybeboard"]
 const NON_COMMANDER_ADD_CARD_ZONES: DeckZone[] = ["mainboard", "sideboard", "maybeboard"]
+const DECK_CARD_FINISHES = ["nonfoil", "foil", "etched"]
 const TYPE_ORDER = [
   "commander",
   "creature",
@@ -1526,6 +1579,7 @@ function DeckGroupGrid({
   onAllocate,
   onDeallocate,
   onDelete,
+  onEdit,
   onMove,
   onSetCommander,
 }: {
@@ -1536,6 +1590,7 @@ function DeckGroupGrid({
   onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
   onDeallocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
   onDelete: (deckCard: DeckCardEntry) => void
+  onEdit: (deckCard: DeckCardEntry) => void
   onMove: (deckCard: DeckCardEntry) => void
   onSetCommander: (deckCard: DeckCardEntry) => void
 }) {
@@ -1556,6 +1611,7 @@ function DeckGroupGrid({
           onAllocate={onAllocate}
           onDeallocate={onDeallocate}
           onDelete={onDelete}
+          onEdit={onEdit}
           onMove={onMove}
           onSetCommander={onSetCommander}
         />
@@ -1599,6 +1655,7 @@ function DeckStackGroup({
   onAllocate,
   onDeallocate,
   onDelete,
+  onEdit,
   onMove,
   onSetCommander,
 }: {
@@ -1609,6 +1666,7 @@ function DeckStackGroup({
   onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
   onDeallocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
   onDelete: (deckCard: DeckCardEntry) => void
+  onEdit: (deckCard: DeckCardEntry) => void
   onMove: (deckCard: DeckCardEntry) => void
   onSetCommander: (deckCard: DeckCardEntry) => void
 }) {
@@ -1668,6 +1726,7 @@ function DeckStackGroup({
             onAllocate={(collectionItemId) => onAllocate(deckCard, collectionItemId)}
             onDeallocate={(collectionItemId) => onDeallocate(deckCard, collectionItemId)}
             onDelete={() => onDelete(deckCard)}
+            onEdit={() => onEdit(deckCard)}
             onMove={() => onMove(deckCard)}
             onSetCommander={() => onSetCommander(deckCard)}
             slideOffset={activeIndex != null && index > activeIndex ? revealOffset : 0}
@@ -1689,6 +1748,7 @@ function DeckStackCard({
   onAllocate,
   onDeallocate,
   onDelete,
+  onEdit,
   onExpand,
   onMove,
   onSetCommander,
@@ -1704,6 +1764,7 @@ function DeckStackCard({
   onAllocate: (collectionItemId: string) => void
   onDeallocate: (collectionItemId: string) => void
   onDelete: () => void
+  onEdit: () => void
   onExpand: () => void
   onMove: () => void
   onSetCommander: () => void
@@ -1773,9 +1834,9 @@ function DeckStackCard({
               </Link>
             </li>
             <li>
-              <button type="button" disabled>
-                <Palette className="h-4 w-4" />
-                Change printing
+              <button type="button" disabled={isUpdating} onClick={onEdit}>
+                <Edit3 className="h-4 w-4" />
+                Edit
               </button>
             </li>
             <li>
@@ -2097,12 +2158,14 @@ function DeckZoneTable({
   cards,
   isUpdating,
   onDelete,
+  onEdit,
   onMove,
   title,
 }: {
   cards: DeckCardEntry[]
   isUpdating: boolean
   onDelete: (deckCard: DeckCardEntry) => void
+  onEdit: (deckCard: DeckCardEntry) => void
   onMove: (deckCard: DeckCardEntry) => void
   title: string
 }) {
@@ -2157,8 +2220,15 @@ function DeckZoneTable({
                   </td>
                   <td>
                     <div className="flex justify-end gap-1">
-                      <Button type="button" size="sm" variant="ghost" disabled>
-                        <Palette className="h-4 w-4" />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={isUpdating}
+                        onClick={() => onEdit(deckCard)}
+                        title="Edit"
+                      >
+                        <Edit3 className="h-4 w-4" />
                       </Button>
                       <Button
                         type="button"
@@ -2268,6 +2338,232 @@ function MoveDeckCardDialog({
       </DialogContent>
     </Dialog>
   )
+}
+
+function EditDeckCardDialog({
+  deckCard,
+  deckFormat,
+  error,
+  isPending,
+  onClose,
+  onSave,
+}: {
+  deckCard: DeckCardEntry | null
+  deckFormat: string
+  error: string | null
+  isPending: boolean
+  onClose: () => void
+  onSave: (input: DeckCardUpdateInput) => void
+}) {
+  const [quantity, setQuantity] = useState(1)
+  const [zone, setZone] = useState<DeckZone>("mainboard")
+  const [finish, setFinish] = useState("nonfoil")
+  const [preferredPrintingId, setPreferredPrintingId] = useState("")
+  const zoneOptions = deckFormat === "commander" ? ADD_CARD_ZONES : NON_COMMANDER_ADD_CARD_ZONES
+  const printings = (deckCard?.card?.printings || []).filter(present)
+  const selectedPrinting = preferredPrintingId
+    ? printings.find((printing) => printing.scryfallId === preferredPrintingId) ||
+      deckCard?.preferredPrinting
+    : null
+  const finishOptions = preferredPrintingId
+    ? printingFinishOptions(selectedPrinting?.finishes)
+    : DECK_CARD_FINISHES
+
+  useEffect(() => {
+    if (!deckCard) {
+      setQuantity(1)
+      setZone("mainboard")
+      setFinish("nonfoil")
+      setPreferredPrintingId("")
+      return
+    }
+
+    setQuantity(deckCard.quantity)
+    setZone(deckCard.zone as DeckZone)
+    setFinish(deckCard.finish || "nonfoil")
+    setPreferredPrintingId(deckCard.preferredPrinting?.scryfallId || "")
+  }, [deckCard])
+
+  useEffect(() => {
+    if (!zoneOptions.includes(zone)) setZone("mainboard")
+  }, [zone, zoneOptions])
+
+  useEffect(() => {
+    if (!finishOptions.includes(finish)) setFinish(finishOptions[0] || "nonfoil")
+  }, [finish, finishOptions])
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    onSave({
+      quantity,
+      zone,
+      finish,
+      preferredPrintingId: preferredPrintingId || null,
+    })
+  }
+
+  return (
+    <Dialog open={Boolean(deckCard)} onOpenChange={(open) => (!open ? onClose() : undefined)}>
+      <DialogContent className="max-w-xl" labelledBy="edit-deck-card-title">
+        <DialogHeader>
+          <div>
+            <DialogTitle id="edit-deck-card-title">Edit card</DialogTitle>
+            <p className="mt-1 text-sm text-base-content/60">{deckCard?.card?.name}</p>
+          </div>
+          <DialogClose onClose={onClose} />
+        </DialogHeader>
+
+        <form className="space-y-4 p-5" onSubmit={submit}>
+          <div className="space-y-2">
+            <div className="text-sm font-semibold">Printing</div>
+            <div className="max-h-80 overflow-y-auto rounded-box border border-base-300 p-2">
+              <div className="grid gap-2">
+                <button
+                  type="button"
+                  className={cn(
+                    "flex items-center gap-3 rounded-box border p-3 text-left transition",
+                    preferredPrintingId === ""
+                      ? "border-primary bg-primary/10"
+                      : "border-base-300 hover:border-primary/45 hover:bg-base-200",
+                  )}
+                  disabled={isPending}
+                  onClick={() => setPreferredPrintingId("")}
+                  autoFocus
+                >
+                  <span className="flex h-16 w-12 shrink-0 items-center justify-center rounded bg-base-200 text-base-content/50">
+                    <Layers className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block font-semibold">Any printing</span>
+                    <span className="block text-xs text-base-content/60">
+                      Use any matching copy when allocating this card.
+                    </span>
+                  </span>
+                </button>
+                {printings.map((printing) => (
+                  <button
+                    key={printing.scryfallId}
+                    type="button"
+                    className={cn(
+                      "flex items-center gap-3 rounded-box border p-3 text-left transition",
+                      preferredPrintingId === printing.scryfallId
+                        ? "border-primary bg-primary/10"
+                        : "border-base-300 hover:border-primary/45 hover:bg-base-200",
+                    )}
+                    disabled={isPending}
+                    onClick={() => setPreferredPrintingId(printing.scryfallId)}
+                  >
+                    {printing.imageUrl ? (
+                      <img
+                        src={printing.imageUrl}
+                        alt=""
+                        className="h-16 w-12 shrink-0 rounded object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span className="flex h-16 w-12 shrink-0 items-center justify-center rounded bg-base-200 text-base-content/50">
+                        <Palette className="h-5 w-5" />
+                      </span>
+                    )}
+                    <span className="min-w-0">
+                      <span className="block truncate font-semibold">
+                        {deckCardPrintingOptionLabel(printing)}
+                      </span>
+                      <span className="block truncate text-xs text-base-content/60">
+                        {printingFinishOptions(printing.finishes).map(titleize).join(", ")}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className="form-control">
+              <span className="label-text mb-1 text-sm font-semibold">Quantity</span>
+              <Input
+                type="number"
+                min={1}
+                value={quantity}
+                disabled={isPending}
+                onChange={(event) =>
+                  setQuantity(Math.max(1, Number.parseInt(event.target.value, 10) || 1))
+                }
+              />
+            </label>
+
+            <label className="form-control">
+              <span className="label-text mb-1 text-sm font-semibold">Zone</span>
+              <select
+                className="select select-bordered w-full"
+                value={zone}
+                disabled={isPending}
+                onChange={(event) => setZone(event.target.value as DeckZone)}
+              >
+                {zoneOptions.map((zone) => (
+                  <option key={zone} value={zone}>
+                    {titleize(zone)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="form-control">
+              <span className="label-text mb-1 text-sm font-semibold">Finish</span>
+              <select
+                className="select select-bordered w-full"
+                value={finish}
+                disabled={isPending}
+                onChange={(event) => setFinish(event.target.value)}
+              >
+                {finishOptions.map((finish) => (
+                  <option key={finish} value={finish}>
+                    {titleize(finish)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          {error ? (
+            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+              {error}
+            </p>
+          ) : null}
+
+          <div className="flex justify-end gap-2 border-t border-base-300 pt-4">
+            <Button type="button" variant="ghost" disabled={isPending} onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isPending || !deckCard}>
+              {isPending ? "Saving..." : "Save card"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function deckCardPrintingOptionLabel(printing: DeckCardPrinting) {
+  return [
+    printing?.setCode?.toUpperCase(),
+    printing?.collectorNumber ? `#${printing.collectorNumber}` : null,
+    printing?.setName,
+    printing?.rarity ? titleize(printing.rarity) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ")
+}
+
+function printingFinishOptions(finishes?: Array<string | null> | null) {
+  const options = (finishes || []).filter(
+    (finish): finish is string =>
+      typeof finish === "string" && DECK_CARD_FINISHES.includes(finish),
+  )
+
+  return options.length ? options : DECK_CARD_FINISHES
 }
 
 function ImportDecklistDialog({
