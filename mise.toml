@@ -16,6 +16,16 @@ run = "mix phx.server"
 description = "Run the Elixir test suite."
 run = "mix test"
 
+[tasks.precommit]
+description = "Run tests and linting before committing code."
+run = [
+  "mix test",
+  "mix format --check-formatted",
+  "mix credo --strict",
+  "aube run vp lint",
+  "aube run vp format --check",
+]
+
 [tasks."setup:native"]
 description = "Install JavaScript dependencies and sync Capacitor native projects."
 run = "aube install --frozen-lockfile && aube run cap:sync"

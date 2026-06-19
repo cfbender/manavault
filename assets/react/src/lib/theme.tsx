@@ -22,7 +22,9 @@ function applyTheme(theme: Theme) {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem(storageKey) as Theme | null) || "system")
+  const [theme, setTheme] = useState<Theme>(
+    () => (localStorage.getItem(storageKey) as Theme | null) || "system",
+  )
 
   useEffect(() => {
     applyTheme(theme)
@@ -34,7 +36,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       if ((localStorage.getItem(storageKey) || "system") === "system") applyTheme("system")
     }
     const handleStorage = (event: StorageEvent) => {
-      if (event.key === storageKey) setTheme(((event.newValue as Theme | null) || "system"))
+      if (event.key === storageKey) setTheme((event.newValue as Theme | null) || "system")
     }
 
     media.addEventListener("change", handleSystemChange)

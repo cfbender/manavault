@@ -8,7 +8,7 @@ export function cn(...inputs: ClassValue[]) {
 export function titleize(value: unknown) {
   return String(value || "")
     .replaceAll("_", " ")
-    .replace(/\b\w/g, letter => letter.toUpperCase())
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
 export function compactNumber(value: number | null | undefined) {

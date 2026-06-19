@@ -1,13 +1,44 @@
 import { Link, useNavigate } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { AlertTriangle, Box, CheckCircle2, ChevronDown, Circle, Crown, Download, Droplets, Edit3, Eye, Gem, Hash, Layers, MoreVertical, MoveRight, Palette, PawPrint, Plus, Sparkles, Star, Upload, WandSparkles, XCircle, Zap } from "lucide-react"
+import {
+  AlertTriangle,
+  Box,
+  CheckCircle2,
+  ChevronDown,
+  Circle,
+  Crown,
+  Download,
+  Droplets,
+  Edit3,
+  Eye,
+  Gem,
+  Hash,
+  Layers,
+  MoreVertical,
+  MoveRight,
+  Palette,
+  PawPrint,
+  Plus,
+  Sparkles,
+  Star,
+  Upload,
+  WandSparkles,
+  XCircle,
+  Zap,
+} from "lucide-react"
 import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react"
 import { PageHeader, PageSection } from "../components/app-shell"
 import { EmptyState } from "../components/card-image"
 import { ImageSummaryCard } from "../components/image-summary-card"
 import { Badge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
-import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog"
 import { Input } from "../components/ui/input"
 import { graphql } from "../gql"
 import type { DeckQuery, DecksQuery, PreviewBulkAllocateDeckMutation } from "../gql/graphql"
@@ -24,8 +55,16 @@ const DecksDocument = graphql(`
       cardCount
       uniqueCardCount
       deckCards {
-        preferredPrinting { imageUrl artCropUrl }
-        card { printings { imageUrl artCropUrl } }
+        preferredPrinting {
+          imageUrl
+          artCropUrl
+        }
+        card {
+          printings {
+            imageUrl
+            artCropUrl
+          }
+        }
       }
     }
   }
@@ -41,8 +80,16 @@ const CreateDeckDocument = graphql(`
       cardCount
       uniqueCardCount
       deckCards {
-        preferredPrinting { imageUrl artCropUrl }
-        card { printings { imageUrl artCropUrl } }
+        preferredPrinting {
+          imageUrl
+          artCropUrl
+        }
+        card {
+          printings {
+            imageUrl
+            artCropUrl
+          }
+        }
       }
     }
   }
@@ -58,8 +105,16 @@ const UpdateDeckDocument = graphql(`
       cardCount
       uniqueCardCount
       deckCards {
-        preferredPrinting { imageUrl artCropUrl }
-        card { printings { imageUrl artCropUrl } }
+        preferredPrinting {
+          imageUrl
+          artCropUrl
+        }
+        card {
+          printings {
+            imageUrl
+            artCropUrl
+          }
+        }
       }
     }
   }
@@ -86,9 +141,23 @@ const DeckDocument = graphql(`
           cmc
           colors
           colorIdentity
-          printings { imageUrl artCropUrl setCode setName collectorNumber rarity }
+          printings {
+            imageUrl
+            artCropUrl
+            setCode
+            setName
+            collectorNumber
+            rarity
+          }
         }
-        preferredPrinting { imageUrl artCropUrl setCode setName collectorNumber rarity }
+        preferredPrinting {
+          imageUrl
+          artCropUrl
+          setCode
+          setName
+          collectorNumber
+          rarity
+        }
         allocationStatus {
           state
           required
@@ -108,14 +177,19 @@ const DeckDocument = graphql(`
               condition
               language
               priceText
-              location { id name }
+              location {
+                id
+                name
+              }
               printing {
                 scryfallId
                 setCode
                 setName
                 collectorNumber
                 rarity
-                card { name }
+                card {
+                  name
+                }
               }
             }
           }
@@ -132,8 +206,19 @@ const UpdateDeckCardDocument = graphql(`
       quantity
       zone
       finish
-      card { oracleId name typeLine }
-      preferredPrinting { imageUrl artCropUrl setCode setName collectorNumber rarity }
+      card {
+        oracleId
+        name
+        typeLine
+      }
+      preferredPrinting {
+        imageUrl
+        artCropUrl
+        setCode
+        setName
+        collectorNumber
+        rarity
+      }
     }
   }
 `)
@@ -145,8 +230,19 @@ const SetDeckCommanderDocument = graphql(`
       quantity
       zone
       finish
-      card { oracleId name typeLine }
-      preferredPrinting { imageUrl artCropUrl setCode setName collectorNumber rarity }
+      card {
+        oracleId
+        name
+        typeLine
+      }
+      preferredPrinting {
+        imageUrl
+        artCropUrl
+        setCode
+        setName
+        collectorNumber
+        rarity
+      }
     }
   }
 `)
@@ -199,8 +295,14 @@ const PreviewBulkAllocateDeckDocument = graphql(`
           id
           quantity
           finish
-          card { name }
-          preferredPrinting { setCode setName collectorNumber }
+          card {
+            name
+          }
+          preferredPrinting {
+            setCode
+            setName
+            collectorNumber
+          }
         }
         item {
           id
@@ -210,7 +312,9 @@ const PreviewBulkAllocateDeckDocument = graphql(`
             setCode
             setName
             collectorNumber
-            card { name }
+            card {
+              name
+            }
           }
         }
       }
@@ -247,7 +351,10 @@ const DeckExportTextDocument = graphql(`
 export function DecksPage() {
   const [isNewDeckOpen, setIsNewDeckOpen] = useState(false)
   const [editingDeck, setEditingDeck] = useState<DeckSummary | null>(null)
-  const { data, isLoading } = useQuery({ queryKey: ["decks"], queryFn: () => request(DecksDocument) })
+  const { data, isLoading } = useQuery({
+    queryKey: ["decks"],
+    queryFn: () => request(DecksDocument),
+  })
   const deckGroups = groupDecksByFormat(data?.decks || [])
 
   return (
@@ -272,10 +379,12 @@ export function DecksPage() {
               <section key={format} className="space-y-4">
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="text-xl font-black tracking-normal">{titleize(format)}</h3>
-                  <span className="badge border-transparent bg-base-200 text-sm">{decks.length}</span>
+                  <span className="badge border-transparent bg-base-200 text-sm">
+                    {decks.length}
+                  </span>
                 </div>
                 <div className="grid gap-5 md:grid-cols-2">
-                  {decks.map(deck => (
+                  {decks.map((deck) => (
                     <div key={deck.id} className="relative">
                       <Link to="/decks/$id" params={{ id: deck.id }} className="block">
                         <ImageSummaryCard
@@ -285,14 +394,19 @@ export function DecksPage() {
                           countLine={`${compactNumber(deck.cardCount || 0)} cards`}
                           detailLine={
                             <div className="flex flex-wrap items-center gap-2">
-                              <Badge tone={deck.status === "active" ? "success" : "neutral"}>{titleize(deck.status)}</Badge>
+                              <Badge tone={deck.status === "active" ? "success" : "neutral"}>
+                                {titleize(deck.status)}
+                              </Badge>
                               <span>{compactNumber(deck.uniqueCardCount || 0)} unique</span>
                             </div>
                           }
                           nameLine={deck.name}
                         />
                       </Link>
-                      <SummaryActionMenu label={`${deck.name} actions`} onEdit={() => setEditingDeck(deck)} />
+                      <SummaryActionMenu
+                        label={`${deck.name} actions`}
+                        onEdit={() => setEditingDeck(deck)}
+                      />
                     </div>
                   ))}
                 </div>
@@ -304,7 +418,7 @@ export function DecksPage() {
         <EmptyState title="No decks yet" />
       )}
       <NewDeckDialog open={isNewDeckOpen} onOpenChange={setIsNewDeckOpen} />
-      <EditDeckDialog deck={editingDeck} onOpenChange={open => !open && setEditingDeck(null)} />
+      <EditDeckDialog deck={editingDeck} onOpenChange={(open) => !open && setEditingDeck(null)} />
     </>
   )
 }
@@ -316,31 +430,58 @@ export function DeckDetailPage({ id }: { id: string }) {
   const [isEditDeckOpen, setIsEditDeckOpen] = useState(false)
   const [isImportDeckOpen, setIsImportDeckOpen] = useState(false)
   const [isExportDeckOpen, setIsExportDeckOpen] = useState(false)
-  const [bulkAllocationPreview, setBulkAllocationPreview] = useState<BulkAllocationPreview | null>(null)
+  const [bulkAllocationPreview, setBulkAllocationPreview] = useState<BulkAllocationPreview | null>(
+    null,
+  )
   const [bulkAllocationError, setBulkAllocationError] = useState<string | null>(null)
   const queryClient = useQueryClient()
-  const { data, isLoading } = useQuery({ queryKey: ["deck", id], queryFn: () => request(DeckDocument, { id }) })
+  const { data, isLoading } = useQuery({
+    queryKey: ["deck", id],
+    queryFn: () => request(DeckDocument, { id }),
+  })
   const deck = data?.deck
   const deckCards = useMemo(() => (deck?.deckCards || []).filter(present), [deck?.deckCards])
-  const stackDeckCards = useMemo(() => deckCards.filter(deckCard => deckCard.zone !== "sideboard" && deckCard.zone !== "maybeboard"), [deckCards])
-  const sideboardCards = useMemo(() => deckCards.filter(deckCard => deckCard.zone === "sideboard").sort(compareDeckCards), [deckCards])
-  const maybeboardCards = useMemo(() => deckCards.filter(deckCard => deckCard.zone === "maybeboard").sort(compareDeckCards), [deckCards])
-  const groupedCards = useMemo(() => groupDeckCards(stackDeckCards, groupBy), [stackDeckCards, groupBy])
+  const stackDeckCards = useMemo(
+    () =>
+      deckCards.filter(
+        (deckCard) => deckCard.zone !== "sideboard" && deckCard.zone !== "maybeboard",
+      ),
+    [deckCards],
+  )
+  const sideboardCards = useMemo(
+    () => deckCards.filter((deckCard) => deckCard.zone === "sideboard").sort(compareDeckCards),
+    [deckCards],
+  )
+  const maybeboardCards = useMemo(
+    () => deckCards.filter((deckCard) => deckCard.zone === "maybeboard").sort(compareDeckCards),
+    [deckCards],
+  )
+  const groupedCards = useMemo(
+    () => groupDeckCards(stackDeckCards, groupBy),
+    [stackDeckCards, groupBy],
+  )
   const zoneCounts = useMemo(() => countDeckZones(deckCards), [deckCards])
   const hasBulkAllocationAvailable = useMemo(
-    () => deckCards.some(deckCard => deckCard.allocationStatus.available > 0 && deckCard.allocationStatus.allocated < deckCard.allocationStatus.required),
+    () =>
+      deckCards.some(
+        (deckCard) =>
+          deckCard.allocationStatus.available > 0 &&
+          deckCard.allocationStatus.allocated < deckCard.allocationStatus.required,
+      ),
     [deckCards],
   )
 
   const updateDeckCard = useMutation({
-    mutationFn: ({ deckCardId, zone }: { deckCardId: string; zone: DeckZone }) => request(UpdateDeckCardDocument, { id: deckCardId, input: { zone } }),
+    mutationFn: ({ deckCardId, zone }: { deckCardId: string; zone: DeckZone }) =>
+      request(UpdateDeckCardDocument, { id: deckCardId, input: { zone } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["deck", id] })
       queryClient.invalidateQueries({ queryKey: ["decks"] })
       setMoveTarget(null)
       setMoveError(null)
     },
-    onError: error => setMoveError(error instanceof Error ? error.message : "Could not update deck card"),
+    onError: (error) =>
+      setMoveError(error instanceof Error ? error.message : "Could not update deck card"),
   })
 
   const setDeckCommander = useMutation({
@@ -350,11 +491,17 @@ export function DeckDetailPage({ id }: { id: string }) {
       queryClient.invalidateQueries({ queryKey: ["decks"] })
       setMoveError(null)
     },
-    onError: error => setMoveError(error instanceof Error ? error.message : "Could not set commander"),
+    onError: (error) =>
+      setMoveError(error instanceof Error ? error.message : "Could not set commander"),
   })
   const allocateDeckCardItem = useMutation({
-    mutationFn: ({ collectionItemId, deckCardId }: { collectionItemId: string; deckCardId: string }) =>
-      request(AllocateDeckCardItemDocument, { deckCardId, collectionItemId }),
+    mutationFn: ({
+      collectionItemId,
+      deckCardId,
+    }: {
+      collectionItemId: string
+      deckCardId: string
+    }) => request(AllocateDeckCardItemDocument, { deckCardId, collectionItemId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["deck", id] })
       queryClient.invalidateQueries({ queryKey: ["decks"] })
@@ -363,8 +510,13 @@ export function DeckDetailPage({ id }: { id: string }) {
     },
   })
   const deallocateDeckCardItem = useMutation({
-    mutationFn: ({ collectionItemId, deckCardId }: { collectionItemId: string; deckCardId: string }) =>
-      request(DeallocateDeckCardItemDocument, { deckCardId, collectionItemId }),
+    mutationFn: ({
+      collectionItemId,
+      deckCardId,
+    }: {
+      collectionItemId: string
+      deckCardId: string
+    }) => request(DeallocateDeckCardItemDocument, { deckCardId, collectionItemId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["deck", id] })
       queryClient.invalidateQueries({ queryKey: ["decks"] })
@@ -373,12 +525,16 @@ export function DeckDetailPage({ id }: { id: string }) {
     },
   })
   const previewBulkAllocateDeck = useMutation({
-    mutationFn: (mode: BulkAllocationMode) => request(PreviewBulkAllocateDeckDocument, { id, mode }),
-    onSuccess: data => {
+    mutationFn: (mode: BulkAllocationMode) =>
+      request(PreviewBulkAllocateDeckDocument, { id, mode }),
+    onSuccess: (data) => {
       setBulkAllocationPreview(data.previewBulkAllocateDeck || null)
       setBulkAllocationError(null)
     },
-    onError: error => setBulkAllocationError(error instanceof Error ? error.message : "Could not preview allocation"),
+    onError: (error) =>
+      setBulkAllocationError(
+        error instanceof Error ? error.message : "Could not preview allocation",
+      ),
   })
   const bulkAllocateDeck = useMutation({
     mutationFn: (mode: BulkAllocationMode) => request(BulkAllocateDeckDocument, { id, mode }),
@@ -390,7 +546,8 @@ export function DeckDetailPage({ id }: { id: string }) {
       setBulkAllocationPreview(null)
       setBulkAllocationError(null)
     },
-    onError: error => setBulkAllocationError(error instanceof Error ? error.message : "Could not allocate deck"),
+    onError: (error) =>
+      setBulkAllocationError(error instanceof Error ? error.message : "Could not allocate deck"),
   })
   const allocationError =
     allocateDeckCardItem.error instanceof Error
@@ -398,7 +555,11 @@ export function DeckDetailPage({ id }: { id: string }) {
       : deallocateDeckCardItem.error instanceof Error
         ? deallocateDeckCardItem.error.message
         : null
-  const isUpdatingDeckCard = updateDeckCard.isPending || setDeckCommander.isPending || allocateDeckCardItem.isPending || deallocateDeckCardItem.isPending
+  const isUpdatingDeckCard =
+    updateDeckCard.isPending ||
+    setDeckCommander.isPending ||
+    allocateDeckCardItem.isPending ||
+    deallocateDeckCardItem.isPending
 
   if (isLoading) return <EmptyState title="Loading deck..." />
   if (!deck) return <EmptyState title="Deck not found" />
@@ -422,7 +583,9 @@ export function DeckDetailPage({ id }: { id: string }) {
           countLine={`${compactNumber(deck.cardCount || 0)} cards`}
           detailLine={
             <div className="flex flex-wrap items-center gap-2 text-base">
-              <Badge tone={deck.status === "active" ? "success" : "neutral"}>{titleize(deck.status)}</Badge>
+              <Badge tone={deck.status === "active" ? "success" : "neutral"}>
+                {titleize(deck.status)}
+              </Badge>
               <span>{compactNumber(deck.uniqueCardCount || 0)} unique</span>
             </div>
           }
@@ -439,8 +602,12 @@ export function DeckDetailPage({ id }: { id: string }) {
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-base-300 pb-4">
           <div className="flex flex-wrap gap-2">
-            {(["commander", "mainboard", "sideboard", "maybeboard"] as DeckZone[]).map(zone => (
-              <Badge key={zone} tone={zone === "commander" ? "primary" : "neutral"} className="h-7 px-3 text-xs">
+            {(["commander", "mainboard", "sideboard", "maybeboard"] as DeckZone[]).map((zone) => (
+              <Badge
+                key={zone}
+                tone={zone === "commander" ? "primary" : "neutral"}
+                className="h-7 px-3 text-xs"
+              >
                 {titleize(zone)} {zoneCounts[zone] || 0}
               </Badge>
             ))}
@@ -449,7 +616,7 @@ export function DeckDetailPage({ id }: { id: string }) {
             {hasBulkAllocationAvailable ? (
               <BulkAllocationMenu
                 disabled={previewBulkAllocateDeck.isPending || bulkAllocateDeck.isPending}
-                onPreview={mode => {
+                onPreview={(mode) => {
                   setBulkAllocationError(null)
                   previewBulkAllocateDeck.mutate(mode)
                 }}
@@ -464,13 +631,17 @@ export function DeckDetailPage({ id }: { id: string }) {
             canSetCommander={deck.format === "commander"}
             groups={groupedCards}
             isUpdating={isUpdatingDeckCard}
-            onMove={deckCard => {
+            onMove={(deckCard) => {
               setMoveError(null)
               setMoveTarget(deckCard)
             }}
-            onAllocate={(deckCard, collectionItemId) => allocateDeckCardItem.mutate({ deckCardId: deckCard.id, collectionItemId })}
-            onDeallocate={(deckCard, collectionItemId) => deallocateDeckCardItem.mutate({ deckCardId: deckCard.id, collectionItemId })}
-            onSetCommander={deckCard => setDeckCommander.mutate(deckCard.id)}
+            onAllocate={(deckCard, collectionItemId) =>
+              allocateDeckCardItem.mutate({ deckCardId: deckCard.id, collectionItemId })
+            }
+            onDeallocate={(deckCard, collectionItemId) =>
+              deallocateDeckCardItem.mutate({ deckCardId: deckCard.id, collectionItemId })
+            }
+            onSetCommander={(deckCard) => setDeckCommander.mutate(deckCard.id)}
             allocationError={allocationError}
           />
         ) : (
@@ -482,7 +653,7 @@ export function DeckDetailPage({ id }: { id: string }) {
             cards={sideboardCards}
             isUpdating={isUpdatingDeckCard}
             title="Sideboard"
-            onMove={deckCard => {
+            onMove={(deckCard) => {
               setMoveError(null)
               setMoveTarget(deckCard)
             }}
@@ -491,7 +662,7 @@ export function DeckDetailPage({ id }: { id: string }) {
             cards={maybeboardCards}
             isUpdating={isUpdatingDeckCard}
             title="Maybeboard"
-            onMove={deckCard => {
+            onMove={(deckCard) => {
               setMoveError(null)
               setMoveTarget(deckCard)
             }}
@@ -500,8 +671,16 @@ export function DeckDetailPage({ id }: { id: string }) {
       </div>
 
       <EditDeckDialog deck={deck} onOpenChange={setIsEditDeckOpen} open={isEditDeckOpen} />
-      <ImportDecklistDialog deck={deck} onOpenChange={setIsImportDeckOpen} open={isImportDeckOpen} />
-      <ExportDecklistDialog deck={deck} onOpenChange={setIsExportDeckOpen} open={isExportDeckOpen} />
+      <ImportDecklistDialog
+        deck={deck}
+        onOpenChange={setIsImportDeckOpen}
+        open={isImportDeckOpen}
+      />
+      <ExportDecklistDialog
+        deck={deck}
+        onOpenChange={setIsExportDeckOpen}
+        open={isExportDeckOpen}
+      />
       <BulkAllocationPreviewDialog
         error={bulkAllocationError}
         isPending={bulkAllocateDeck.isPending}
@@ -511,7 +690,7 @@ export function DeckDetailPage({ id }: { id: string }) {
             setBulkAllocationError(null)
           }
         }}
-        onConfirm={mode => bulkAllocateDeck.mutate(mode)}
+        onConfirm={(mode) => bulkAllocateDeck.mutate(mode)}
         preview={bulkAllocationPreview}
       />
 
@@ -525,7 +704,7 @@ export function DeckDetailPage({ id }: { id: string }) {
             setMoveTarget(null)
           }
         }}
-        onMove={zone => {
+        onMove={(zone) => {
           if (moveTarget) moveDeckCard(moveTarget, zone)
         }}
         zoneCounts={zoneCounts}
@@ -549,7 +728,20 @@ type DeckGroup = {
   order: number
   quantity: number
 }
-type DeckGroupIcon = "commander" | "creature" | "instant" | "sorcery" | "artifact" | "enchantment" | "planeswalker" | "land" | "color" | "mana" | "rarity" | "set" | "none"
+type DeckGroupIcon =
+  | "commander"
+  | "creature"
+  | "instant"
+  | "sorcery"
+  | "artifact"
+  | "enchantment"
+  | "planeswalker"
+  | "land"
+  | "color"
+  | "mana"
+  | "rarity"
+  | "set"
+  | "none"
 
 const DECK_GROUP_OPTIONS: Array<{ label: string; value: DeckGroupBy }> = [
   { label: "Type", value: "type" },
@@ -560,10 +752,31 @@ const DECK_GROUP_OPTIONS: Array<{ label: string; value: DeckGroupBy }> = [
   { label: "Set", value: "set" },
   { label: "None", value: "none" },
 ]
-const DECK_FORMATS = ["commander", "standard", "pioneer", "modern", "legacy", "vintage", "pauper", "limited", "casual"] as const
+const DECK_FORMATS = [
+  "commander",
+  "standard",
+  "pioneer",
+  "modern",
+  "legacy",
+  "vintage",
+  "pauper",
+  "limited",
+  "casual",
+] as const
 const DECK_STATUSES = ["brewing", "active", "archived"] as const
 const MOVE_TARGET_ZONES: DeckZone[] = ["mainboard", "sideboard", "maybeboard"]
-const TYPE_ORDER = ["commander", "creature", "instant", "sorcery", "artifact", "enchantment", "planeswalker", "battle", "land", "other"]
+const TYPE_ORDER = [
+  "commander",
+  "creature",
+  "instant",
+  "sorcery",
+  "artifact",
+  "enchantment",
+  "planeswalker",
+  "battle",
+  "land",
+  "other",
+]
 const COLOR_ORDER = ["W", "U", "B", "R", "G", "M", "C"]
 const DECK_STACK_CARD_WIDTH_REM = 14
 const DECK_STACK_OFFSET = 34
@@ -582,11 +795,23 @@ function SummaryActionMenu({
   onImport?: () => void
 }) {
   return (
-    <div className="dropdown dropdown-end absolute right-3 top-3 z-20" onClick={event => event.stopPropagation()} onMouseDown={event => event.stopPropagation()}>
-      <button type="button" className="btn btn-circle btn-xs border-0 bg-neutral/85 text-neutral-content shadow backdrop-blur transition hover:bg-neutral" tabIndex={0} aria-label={label}>
+    <div
+      className="dropdown dropdown-end absolute right-3 top-3 z-20"
+      onClick={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+    >
+      <button
+        type="button"
+        className="btn btn-circle btn-xs border-0 bg-neutral/85 text-neutral-content shadow backdrop-blur transition hover:bg-neutral"
+        tabIndex={0}
+        aria-label={label}
+      >
         <MoreVertical className="h-4 w-4" />
       </button>
-      <ul tabIndex={0} className="menu dropdown-content z-50 mt-1 w-48 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl">
+      <ul
+        tabIndex={0}
+        className="menu dropdown-content z-50 mt-1 w-48 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
+      >
         <li>
           <button type="button" onClick={onEdit}>
             <Edit3 className="h-4 w-4" />
@@ -622,7 +847,10 @@ function groupDecksByFormat(decks: DeckSummary[]) {
     grouped.set(deck.format, group)
   }
 
-  return [...grouped.entries()].sort(([left], [right]) => formatSortValue(left) - formatSortValue(right) || left.localeCompare(right))
+  return [...grouped.entries()].sort(
+    ([left], [right]) =>
+      formatSortValue(left) - formatSortValue(right) || left.localeCompare(right),
+  )
 }
 
 function formatSortValue(format: string) {
@@ -631,17 +859,29 @@ function formatSortValue(format: string) {
 }
 
 function deckCoverUrl(deck: DeckSummary) {
-  const cover = deck.deckCards?.find(card => card?.preferredPrinting?.artCropUrl || card?.preferredPrinting?.imageUrl || card?.card?.printings?.[0]?.artCropUrl || card?.card?.printings?.[0]?.imageUrl)
-  return cover?.preferredPrinting?.artCropUrl || cover?.preferredPrinting?.imageUrl || cover?.card?.printings?.[0]?.artCropUrl || cover?.card?.printings?.[0]?.imageUrl
+  const cover = deck.deckCards?.find(
+    (card) =>
+      card?.preferredPrinting?.artCropUrl ||
+      card?.preferredPrinting?.imageUrl ||
+      card?.card?.printings?.[0]?.artCropUrl ||
+      card?.card?.printings?.[0]?.imageUrl,
+  )
+  return (
+    cover?.preferredPrinting?.artCropUrl ||
+    cover?.preferredPrinting?.imageUrl ||
+    cover?.card?.printings?.[0]?.artCropUrl ||
+    cover?.card?.printings?.[0]?.imageUrl
+  )
 }
 
 function countDeckZones(deckCards: DeckCardEntry[]) {
   return deckCards.reduce<Record<DeckZone, number>>(
     (counts, deckCard) => {
-      counts[deckCard.zone as DeckZone] = (counts[deckCard.zone as DeckZone] || 0) + deckCard.quantity
+      counts[deckCard.zone as DeckZone] =
+        (counts[deckCard.zone as DeckZone] || 0) + deckCard.quantity
       return counts
     },
-    { commander: 0, mainboard: 0, maybeboard: 0, sideboard: 0 }
+    { commander: 0, mainboard: 0, maybeboard: 0, sideboard: 0 },
   )
 }
 
@@ -667,7 +907,7 @@ function groupDeckCards(deckCards: DeckCardEntry[], groupBy: DeckGroupBy) {
   }
 
   return [...groups.values()]
-    .map(group => ({ ...group, cards: group.cards.sort(compareDeckCards) }))
+    .map((group) => ({ ...group, cards: group.cards.sort(compareDeckCards) }))
     .sort((left, right) => compareDeckGroups(left, right, groupBy))
 }
 
@@ -682,7 +922,10 @@ function compareDeckGroups(left: DeckGroup, right: DeckGroup, groupBy: DeckGroup
   return left.order - right.order || left.label.localeCompare(right.label)
 }
 
-function deckCardGroupDescriptor(deckCard: DeckCardEntry, groupBy: DeckGroupBy): Omit<DeckGroup, "cards" | "quantity"> {
+function deckCardGroupDescriptor(
+  deckCard: DeckCardEntry,
+  groupBy: DeckGroupBy,
+): Omit<DeckGroup, "cards" | "quantity"> {
   const card = deckCard.card
   const printing = deckCard.preferredPrinting || card?.printings?.[0]
 
@@ -695,9 +938,16 @@ function deckCardGroupDescriptor(deckCard: DeckCardEntry, groupBy: DeckGroupBy):
   }
 
   if (groupBy === "colorIdentity") {
-    const identity = (card?.colorIdentity || []).filter(present).sort((left, right) => colorOrder(left) - colorOrder(right))
+    const identity = (card?.colorIdentity || [])
+      .filter(present)
+      .sort((left, right) => colorOrder(left) - colorOrder(right))
     const key = identity.length ? identity.join("") : "C"
-    return { icon: "color", key, label: key === "C" ? "Colorless" : `${key} Identity`, order: identity.length ? identity.reduce((sum, color) => sum + colorOrder(color), 0) : 99 }
+    return {
+      icon: "color",
+      key,
+      label: key === "C" ? "Colorless" : `${key} Identity`,
+      order: identity.length ? identity.reduce((sum, color) => sum + colorOrder(color), 0) : 99,
+    }
   }
 
   if (groupBy === "manaValue") {
@@ -727,8 +977,10 @@ function typeDescriptor(deckCard: DeckCardEntry): Omit<DeckGroup, "cards" | "qua
   if (/\bInstant\b/.test(typeLine)) return typeGroup("instant", "Instants", "instant")
   if (/\bSorcery\b/.test(typeLine)) return typeGroup("sorcery", "Sorceries", "sorcery")
   if (/\bArtifact\b/.test(typeLine)) return typeGroup("artifact", "Artifacts", "artifact")
-  if (/\bEnchantment\b/.test(typeLine)) return typeGroup("enchantment", "Enchantments", "enchantment")
-  if (/\bPlaneswalker\b/.test(typeLine)) return typeGroup("planeswalker", "Planeswalkers", "planeswalker")
+  if (/\bEnchantment\b/.test(typeLine))
+    return typeGroup("enchantment", "Enchantments", "enchantment")
+  if (/\bPlaneswalker\b/.test(typeLine))
+    return typeGroup("planeswalker", "Planeswalkers", "planeswalker")
   if (/\bLand\b/.test(typeLine)) return typeGroup("land", "Lands", "land")
 
   return typeGroup("other", "Other", "none")
@@ -744,7 +996,9 @@ function typeGroup(key: string, label: string, icon: DeckGroupIcon) {
 }
 
 function compareDeckCards(left: DeckCardEntry, right: DeckCardEntry) {
-  return (left.card?.name || "").localeCompare(right.card?.name || "") || left.id.localeCompare(right.id)
+  return (
+    (left.card?.name || "").localeCompare(right.card?.name || "") || left.id.localeCompare(right.id)
+  )
 }
 
 function cardImageUrl(deckCard: DeckCardEntry, key: "artCropUrl" | "imageUrl") {
@@ -758,7 +1012,15 @@ function colorOrder(color: string) {
 }
 
 function colorLabel(color: string) {
-  const labels: Record<string, string> = { B: "Black", C: "Colorless", G: "Green", M: "Multicolor", R: "Red", U: "Blue", W: "White" }
+  const labels: Record<string, string> = {
+    B: "Black",
+    C: "Colorless",
+    G: "Green",
+    M: "Multicolor",
+    R: "Red",
+    U: "Blue",
+    W: "White",
+  }
   return labels[color] || color
 }
 
@@ -802,12 +1064,21 @@ function SparkleIcon({ className }: { className?: string }) {
 }
 
 function deckDetailCoverUrl(deckCards: DeckCardEntry[]) {
-  const cover = deckCards.find(deckCard => cardImageUrl(deckCard, "artCropUrl") || cardImageUrl(deckCard, "imageUrl"))
+  const cover = deckCards.find(
+    (deckCard) => cardImageUrl(deckCard, "artCropUrl") || cardImageUrl(deckCard, "imageUrl"),
+  )
   return cover ? cardImageUrl(cover, "artCropUrl") || cardImageUrl(cover, "imageUrl") : null
 }
 
-function DeckGroupMenu({ onChange, value }: { onChange: (value: DeckGroupBy) => void; value: DeckGroupBy }) {
-  const active = DECK_GROUP_OPTIONS.find(option => option.value === value) || DECK_GROUP_OPTIONS[0]
+function DeckGroupMenu({
+  onChange,
+  value,
+}: {
+  onChange: (value: DeckGroupBy) => void
+  value: DeckGroupBy
+}) {
+  const active =
+    DECK_GROUP_OPTIONS.find((option) => option.value === value) || DECK_GROUP_OPTIONS[0]
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -824,7 +1095,11 @@ function DeckGroupMenu({ onChange, value }: { onChange: (value: DeckGroupBy) => 
 
   return (
     <div ref={ref} className="dropdown dropdown-end">
-      <button type="button" className="btn btn-outline min-w-44 justify-between gap-2" onClick={() => setOpen(current => !current)}>
+      <button
+        type="button"
+        className="btn btn-outline min-w-44 justify-between gap-2"
+        onClick={() => setOpen((current) => !current)}
+      >
         <span className="flex items-center gap-2">
           <Hash className="h-4 w-4" />
           Group
@@ -834,20 +1109,28 @@ function DeckGroupMenu({ onChange, value }: { onChange: (value: DeckGroupBy) => 
       {open ? (
         <div className="dropdown-content z-50 mt-2 w-64 rounded-box border border-base-300 bg-base-100 p-3 shadow-2xl">
           <div className="grid gap-1">
-            {DECK_GROUP_OPTIONS.map(option => (
+            {DECK_GROUP_OPTIONS.map((option) => (
               <button
                 key={option.value}
                 type="button"
                 className={[
                   "flex items-center gap-3 rounded-btn px-3 py-2 text-left text-sm transition-colors",
-                  value === option.value ? "bg-primary/15 text-primary" : "text-base-content/75 hover:bg-base-200",
+                  value === option.value
+                    ? "bg-primary/15 text-primary"
+                    : "text-base-content/75 hover:bg-base-200",
                 ].join(" ")}
                 onClick={() => {
                   onChange(option.value)
                   setOpen(false)
                 }}
               >
-                <span className={value === option.value ? "h-4 w-4 rounded-full border-4 border-primary" : "h-4 w-4 rounded-full border-2 border-base-content/25"} />
+                <span
+                  className={
+                    value === option.value
+                      ? "h-4 w-4 rounded-full border-4 border-primary"
+                      : "h-4 w-4 rounded-full border-2 border-base-content/25"
+                  }
+                />
                 <span className="font-semibold">{option.label}</span>
               </button>
             ))}
@@ -858,22 +1141,44 @@ function DeckGroupMenu({ onChange, value }: { onChange: (value: DeckGroupBy) => 
   )
 }
 
-function BulkAllocationMenu({ disabled, onPreview }: { disabled: boolean; onPreview: (mode: BulkAllocationMode) => void }) {
+function BulkAllocationMenu({
+  disabled,
+  onPreview,
+}: {
+  disabled: boolean
+  onPreview: (mode: BulkAllocationMode) => void
+}) {
   return (
     <div className="dropdown dropdown-end">
-      <button type="button" className="btn btn-primary btn-sm min-w-40 justify-between gap-2 px-4" tabIndex={0} disabled={disabled}>
+      <button
+        type="button"
+        className="btn btn-primary btn-sm min-w-40 justify-between gap-2 px-4"
+        tabIndex={0}
+        disabled={disabled}
+      >
         <span className="flex items-center gap-2">
           <Sparkles className="h-4 w-4" />
           Allocation
         </span>
         <ChevronDown className="h-4 w-4" />
       </button>
-      <div tabIndex={0} className="dropdown-content z-50 mt-2 w-60 rounded-box border border-base-300 bg-base-100 p-2 shadow-2xl">
-        <button type="button" className="btn btn-primary btn-sm w-full justify-start" onClick={() => onPreview("exact_printings")}>
+      <div
+        tabIndex={0}
+        className="dropdown-content z-50 mt-2 w-60 rounded-box border border-base-300 bg-base-100 p-2 shadow-2xl"
+      >
+        <button
+          type="button"
+          className="btn btn-primary btn-sm w-full justify-start"
+          onClick={() => onPreview("exact_printings")}
+        >
           <CheckCircle2 className="h-4 w-4" />
           Exact printings
         </button>
-        <button type="button" className="btn btn-outline btn-sm mt-2 w-full justify-start" onClick={() => onPreview("matching_printings")}>
+        <button
+          type="button"
+          className="btn btn-outline btn-sm mt-2 w-full justify-start"
+          onClick={() => onPreview("matching_printings")}
+        >
           <Layers className="h-4 w-4" />
           Partial matches
         </button>
@@ -898,13 +1203,15 @@ function BulkAllocationPreviewDialog({
   const mode = bulkAllocationMode(preview?.mode)
 
   return (
-    <Dialog open={Boolean(preview)} onOpenChange={open => (!open ? onClose() : undefined)}>
+    <Dialog open={Boolean(preview)} onOpenChange={(open) => (!open ? onClose() : undefined)}>
       <DialogContent className="max-w-4xl" labelledBy="bulk-allocation-title">
         <DialogHeader>
           <div>
             <DialogTitle id="bulk-allocation-title">{bulkAllocationModeLabel(mode)}</DialogTitle>
             <p className="mt-1 text-sm text-base-content/60">
-              {preview ? `${preview.allocated} collection ${copyLabel(preview.allocated)} across ${preview.cards} ${deckCardLabel(preview.cards)}.` : null}
+              {preview
+                ? `${preview.allocated} collection ${copyLabel(preview.allocated)} across ${preview.cards} ${deckCardLabel(preview.cards)}.`
+                : null}
             </p>
           </div>
           <DialogClose onClose={onClose} />
@@ -912,7 +1219,9 @@ function BulkAllocationPreviewDialog({
 
         <div className="space-y-4 p-5">
           {preview?.entries.length === 0 ? (
-            <div className="rounded-box border border-info/20 bg-info/10 p-4 text-sm">No available collection copies matched this allocation mode.</div>
+            <div className="rounded-box border border-info/20 bg-info/10 p-4 text-sm">
+              No available collection copies matched this allocation mode.
+            </div>
           ) : (
             <div className="max-h-[60vh] overflow-y-auto rounded-box border border-base-300">
               <table className="table table-sm">
@@ -931,17 +1240,22 @@ function BulkAllocationPreviewDialog({
                       <td>
                         <div className="font-semibold">{entry.deckCard.card?.name}</div>
                         <div className="text-xs text-base-content/60">
-                          Wants {deckCardPrintingLabel(entry.deckCard)} · {titleize(entry.deckCard.finish || "nonfoil")}
+                          Wants {deckCardPrintingLabel(entry.deckCard)} ·{" "}
+                          {titleize(entry.deckCard.finish || "nonfoil")}
                         </div>
                       </td>
                       <td>
-                        <div className="font-semibold">{collectionItemPrintingLabel(entry.item)}</div>
+                        <div className="font-semibold">
+                          {collectionItemPrintingLabel(entry.item)}
+                        </div>
                         <div className="text-xs text-base-content/60">
                           Owned {entry.item.quantity} · {titleize(entry.item.finish)}
                         </div>
                       </td>
                       <td>
-                        <Badge tone={entry.exact ? "success" : "warning"}>{entry.exact ? "Exact" : "Partial"}</Badge>
+                        <Badge tone={entry.exact ? "success" : "warning"}>
+                          {entry.exact ? "Exact" : "Partial"}
+                        </Badge>
                       </td>
                     </tr>
                   ))}
@@ -950,11 +1264,21 @@ function BulkAllocationPreviewDialog({
             </div>
           )}
 
-          {error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p> : null}
+          {error ? (
+            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+              {error}
+            </p>
+          ) : null}
 
           <div className="flex justify-end gap-2 border-t border-base-300 pt-4">
-            <Button type="button" variant="ghost" disabled={isPending} onClick={onClose}>Cancel</Button>
-            <Button type="button" disabled={isPending || !preview || preview.entries.length === 0} onClick={() => onConfirm(mode)}>
+            <Button type="button" variant="ghost" disabled={isPending} onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={isPending || !preview || preview.entries.length === 0}
+              onClick={() => onConfirm(mode)}
+            >
               {isPending ? "Allocating..." : "Allocate"}
             </Button>
           </div>
@@ -989,11 +1313,20 @@ function deckCardPrintingLabel(deckCard: BulkAllocationPreview["entries"][number
 
 function collectionItemPrintingLabel(item: BulkAllocationPreview["entries"][number]["item"]) {
   const printing = item.printing
-  return printingSetLabel(printing) || printing?.setName || printing?.card?.name || "Collection item"
+  return (
+    printingSetLabel(printing) || printing?.setName || printing?.card?.name || "Collection item"
+  )
 }
 
-function printingSetLabel(printing?: { collectorNumber?: string | null; setCode?: string | null } | null) {
-  return [printing?.setCode?.toUpperCase(), printing?.collectorNumber ? `#${printing.collectorNumber}` : null].filter(Boolean).join(" ")
+function printingSetLabel(
+  printing?: { collectorNumber?: string | null; setCode?: string | null } | null,
+) {
+  return [
+    printing?.setCode?.toUpperCase(),
+    printing?.collectorNumber ? `#${printing.collectorNumber}` : null,
+  ]
+    .filter(Boolean)
+    .join(" ")
 }
 
 function DeckGroupGrid({
@@ -1022,7 +1355,7 @@ function DeckGroupGrid({
         maxWidth: `calc(5 * ${DECK_STACK_CARD_WIDTH_REM}rem + 4 * 2rem)`,
       }}
     >
-      {groups.map(group => (
+      {groups.map((group) => (
         <DeckStackGroup
           key={group.key}
           canSetCommander={canSetCommander}
@@ -1039,7 +1372,11 @@ function DeckGroupGrid({
   )
 }
 
-function deckStackIndexFromPointer(pointerY: number, activeIndex: number | null, cardCount: number) {
+function deckStackIndexFromPointer(
+  pointerY: number,
+  activeIndex: number | null,
+  cardCount: number,
+) {
   if (cardCount <= 0) return null
 
   const lastIndex = cardCount - 1
@@ -1052,7 +1389,10 @@ function deckStackIndexFromPointer(pointerY: number, activeIndex: number | null,
 
     if (y >= activeTop && y < activeBottom) return activeIndex
     if (y >= activeBottom) {
-      return Math.min(lastIndex, activeIndex + 1 + Math.floor((y - activeBottom) / DECK_STACK_OFFSET))
+      return Math.min(
+        lastIndex,
+        activeIndex + 1 + Math.floor((y - activeBottom) / DECK_STACK_OFFSET),
+      )
     }
   }
 
@@ -1087,7 +1427,11 @@ function DeckStackGroup({
     if (event.pointerType === "touch") return
 
     const bounds = event.currentTarget.getBoundingClientRect()
-    const nextIndex = deckStackIndexFromPointer(event.clientY - bounds.top, activeIndex, group.cards.length)
+    const nextIndex = deckStackIndexFromPointer(
+      event.clientY - bounds.top,
+      activeIndex,
+      group.cards.length,
+    )
     setPinnedIndex(null)
     setHoveredIndex(nextIndex)
   }
@@ -1102,8 +1446,10 @@ function DeckStackGroup({
 
       <div
         className="relative w-56 overflow-visible"
-        style={{ minHeight: `${DECK_STACK_CARD_HEIGHT + Math.max(group.cards.length - 1, 0) * DECK_STACK_OFFSET}px` }}
-        onPointerLeave={event => {
+        style={{
+          minHeight: `${DECK_STACK_CARD_HEIGHT + Math.max(group.cards.length - 1, 0) * DECK_STACK_OFFSET}px`,
+        }}
+        onPointerLeave={(event) => {
           if (event.pointerType !== "touch") setHoveredIndex(null)
         }}
         onPointerMove={handlePointerMove}
@@ -1111,7 +1457,9 @@ function DeckStackGroup({
         {group.cards.map((deckCard, index) => (
           <DeckStackCard
             key={deckCard.id}
-            canSetCommander={canSetCommander && deckCard.zone !== "commander" && isLegendaryCreature(deckCard)}
+            canSetCommander={
+              canSetCommander && deckCard.zone !== "commander" && isLegendaryCreature(deckCard)
+            }
             deckCard={deckCard}
             index={index}
             isActive={activeIndex === index}
@@ -1121,8 +1469,8 @@ function DeckStackGroup({
               setHoveredIndex(null)
               setPinnedIndex(index)
             }}
-            onAllocate={collectionItemId => onAllocate(deckCard, collectionItemId)}
-            onDeallocate={collectionItemId => onDeallocate(deckCard, collectionItemId)}
+            onAllocate={(collectionItemId) => onAllocate(deckCard, collectionItemId)}
+            onDeallocate={(collectionItemId) => onDeallocate(deckCard, collectionItemId)}
             onMove={() => onMove(deckCard)}
             onSetCommander={() => onSetCommander(deckCard)}
             slideOffset={activeIndex != null && index > activeIndex ? revealOffset : 0}
@@ -1192,8 +1540,8 @@ function DeckStackCard({
           "dropdown dropdown-end absolute right-2 top-2 z-[120] transition-opacity group-focus-within/deck-card:opacity-100",
           isActive ? "opacity-100" : "opacity-0",
         )}
-        onClick={event => event.stopPropagation()}
-        onMouseDown={event => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
+        onMouseDown={(event) => event.stopPropagation()}
       >
         <button
           type="button"
@@ -1203,7 +1551,10 @@ function DeckStackCard({
         >
           <MoreVertical className="h-4 w-4" />
         </button>
-        <ul tabIndex={0} className="menu dropdown-content z-[120] mt-1 w-52 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl">
+        <ul
+          tabIndex={0}
+          className="menu dropdown-content z-[120] mt-1 w-52 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
+        >
           <li>
             <Link to="/cards/$id" params={{ id: deckCard.card?.oracleId || "" }}>
               <Eye className="h-4 w-4" />
@@ -1243,7 +1594,9 @@ function DeckStackCard({
           {imageUrl ? (
             <img src={imageUrl} alt={name} loading="lazy" className="h-full w-full object-cover" />
           ) : (
-            <div className="flex h-full items-center justify-center p-5 text-center text-sm text-base-content/50">No image</div>
+            <div className="flex h-full items-center justify-center p-5 text-center text-sm text-base-content/50">
+              No image
+            </div>
           )}
 
           {deckCard.quantity > 1 ? (
@@ -1260,7 +1613,9 @@ function DeckStackCard({
           >
             <div className="line-clamp-2 text-sm font-black leading-tight">{name}</div>
             <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-white/75">
-              <span className="truncate">{printing?.setName || printing?.setCode?.toUpperCase() || titleize(deckCard.zone)}</span>
+              <span className="truncate">
+                {printing?.setName || printing?.setCode?.toUpperCase() || titleize(deckCard.zone)}
+              </span>
               <span>#{printing?.collectorNumber || "?"}</span>
             </div>
           </figcaption>
@@ -1287,40 +1642,62 @@ function DeckCardAllocationMenu({
   const label = allocationStatusLabel(status)
 
   return (
-    <div className="dropdown absolute left-2 top-2 z-[130]" onClick={event => event.stopPropagation()} onMouseDown={event => event.stopPropagation()}>
+    <div
+      className="dropdown absolute left-2 top-2 z-[130]"
+      onClick={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+    >
       <button
         type="button"
-        className={cn("btn btn-circle btn-xs border shadow backdrop-blur transition", allocationStatusButtonClass(status.state))}
+        className={cn(
+          "btn btn-circle btn-xs border shadow backdrop-blur transition",
+          allocationStatusButtonClass(status.state),
+        )}
         tabIndex={0}
         aria-label={label}
         title={label}
       >
         <AllocationStatusIcon state={status.state} className="h-4 w-4" />
       </button>
-      <div tabIndex={0} className="dropdown-content z-[130] mt-1 w-80 rounded-box border border-base-300 bg-base-100 p-3 text-sm shadow-2xl">
+      <div
+        tabIndex={0}
+        className="dropdown-content z-[130] mt-1 w-80 rounded-box border border-base-300 bg-base-100 p-3 text-sm shadow-2xl"
+      >
         <div className="space-y-1">
           <p className="font-black">{label}</p>
-          <p className="text-xs leading-5 text-base-content/70">{allocationStatusSummary(status)}</p>
+          <p className="text-xs leading-5 text-base-content/70">
+            {allocationStatusSummary(status)}
+          </p>
         </div>
 
-        {error ? <p className="mt-3 rounded-box border border-error/30 bg-error/10 px-3 py-2 text-xs text-error">{error}</p> : null}
+        {error ? (
+          <p className="mt-3 rounded-box border border-error/30 bg-error/10 px-3 py-2 text-xs text-error">
+            {error}
+          </p>
+        ) : null}
 
         {status.candidates.length === 0 ? (
           <div className="mt-3 text-sm text-base-content/60">No matching owned printings.</div>
         ) : (
           <ul className="menu mt-3 p-0 text-sm">
-            {status.candidates.map(candidate => (
+            {status.candidates.map((candidate) => (
               <li key={candidate.item.id} className="rounded-box">
                 <div className="block space-y-2">
                   <div className="min-w-0">
                     <p className="truncate font-semibold">{collectionItemLabel(candidate.item)}</p>
-                    <p className="text-xs text-base-content/60">{allocationCandidateSummary(candidate)}</p>
+                    <p className="text-xs text-base-content/60">
+                      {allocationCandidateSummary(candidate)}
+                    </p>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       className="btn btn-primary btn-xs"
-                      disabled={isUpdating || candidate.available <= 0 || status.allocated >= status.required}
+                      disabled={
+                        isUpdating ||
+                        candidate.available <= 0 ||
+                        status.allocated >= status.required
+                      }
                       onClick={() => onAllocate(candidate.item.id)}
                     >
                       Allocate
@@ -1359,24 +1736,32 @@ function allocationStatusSummary(status: DeckCardEntry["allocationStatus"]) {
   const needed = Math.max(status.required - status.allocated, 0)
 
   if (status.available > 0) return `${status.available} free of ${needed} needed`
-  if (status.missing > 0 && status.allocated > 0) return `${status.allocated} allocated · ${status.missing} missing`
+  if (status.missing > 0 && status.allocated > 0)
+    return `${status.allocated} allocated · ${status.missing} missing`
   if (status.missing > 0) return `${status.owned} owned · ${status.missing} missing`
 
   return `${status.required} needed`
 }
 
-function allocationCandidateSummary(candidate: DeckCardEntry["allocationStatus"]["candidates"][number]) {
+function allocationCandidateSummary(
+  candidate: DeckCardEntry["allocationStatus"]["candidates"][number],
+) {
   return [
     `${candidate.available} free`,
     candidate.allocated ? `${candidate.allocated} here` : null,
     candidate.allocatedElsewhere ? `${candidate.allocatedElsewhere} elsewhere` : null,
-  ].filter(Boolean).join(" · ")
+  ]
+    .filter(Boolean)
+    .join(" · ")
 }
 
 function allocationStatusButtonClass(state: string) {
-  if (state === "allocated") return "border-success/40 bg-success/90 text-success-content hover:bg-success"
-  if (state === "available") return "border-primary/40 bg-primary/90 text-primary-content hover:bg-primary"
-  if (state === "partial") return "border-warning/40 bg-warning/90 text-warning-content hover:bg-warning"
+  if (state === "allocated")
+    return "border-success/40 bg-success/90 text-success-content hover:bg-success"
+  if (state === "available")
+    return "border-primary/40 bg-primary/90 text-primary-content hover:bg-primary"
+  if (state === "partial")
+    return "border-warning/40 bg-warning/90 text-warning-content hover:bg-warning"
   if (state === "basic_land") return "border-info/40 bg-info/90 text-info-content hover:bg-info"
   return "border-error/40 bg-error/90 text-error-content hover:bg-error"
 }
@@ -1388,11 +1773,20 @@ function AllocationStatusIcon({ className, state }: { className?: string; state:
   return <XCircle className={className} />
 }
 
-function collectionItemLabel(item: DeckCardEntry["allocationStatus"]["candidates"][number]["item"]) {
+function collectionItemLabel(
+  item: DeckCardEntry["allocationStatus"]["candidates"][number]["item"],
+) {
   const printing = item.printing
-  const setLabel = [printing?.setCode?.toUpperCase(), printing?.collectorNumber ? `#${printing.collectorNumber}` : null].filter(Boolean).join(" ")
+  const setLabel = [
+    printing?.setCode?.toUpperCase(),
+    printing?.collectorNumber ? `#${printing.collectorNumber}` : null,
+  ]
+    .filter(Boolean)
+    .join(" ")
   const location = item.location?.name || "Unfiled"
-  return [setLabel || printing?.setName, titleize(item.finish), location].filter(Boolean).join(" · ")
+  return [setLabel || printing?.setName, titleize(item.finish), location]
+    .filter(Boolean)
+    .join(" · ")
 }
 
 function DeckZoneTable({
@@ -1414,7 +1808,9 @@ function DeckZoneTable({
         <span className="flex items-center gap-2">
           <Box className="h-4 w-4 text-warning" />
           {title}
-          <span className="text-base-content/55">({cards.reduce((total, deckCard) => total + deckCard.quantity, 0)})</span>
+          <span className="text-base-content/55">
+            ({cards.reduce((total, deckCard) => total + deckCard.quantity, 0)})
+          </span>
         </span>
         <ChevronDown className="h-4 w-4 text-base-content/50 transition group-open:rotate-180" />
       </summary>
@@ -1431,27 +1827,40 @@ function DeckZoneTable({
             </tr>
           </thead>
           <tbody>
-            {cards.map(deckCard => {
+            {cards.map((deckCard) => {
               const printing = deckCard.preferredPrinting || deckCard.card?.printings?.[0]
 
               return (
                 <tr key={deckCard.id}>
                   <td className="font-mono">{deckCard.quantity}</td>
                   <td>
-                    <Link to="/cards/$id" params={{ id: deckCard.card?.oracleId || "" }} className="font-semibold hover:text-primary">
+                    <Link
+                      to="/cards/$id"
+                      params={{ id: deckCard.card?.oracleId || "" }}
+                      className="font-semibold hover:text-primary"
+                    >
                       {deckCard.card?.name}
                     </Link>
                   </td>
-                  <td className="max-w-xs truncate text-base-content/65">{deckCard.card?.typeLine}</td>
+                  <td className="max-w-xs truncate text-base-content/65">
+                    {deckCard.card?.typeLine}
+                  </td>
                   <td className="text-base-content/65">
-                    {printing?.setName || printing?.setCode?.toUpperCase() || "Unknown"} #{printing?.collectorNumber || "?"}
+                    {printing?.setName || printing?.setCode?.toUpperCase() || "Unknown"} #
+                    {printing?.collectorNumber || "?"}
                   </td>
                   <td>
                     <div className="flex justify-end gap-1">
                       <Button type="button" size="sm" variant="ghost" disabled>
                         <Palette className="h-4 w-4" />
                       </Button>
-                      <Button type="button" size="sm" variant="ghost" disabled={isUpdating} onClick={() => onMove(deckCard)}>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={isUpdating}
+                        onClick={() => onMove(deckCard)}
+                      >
                         <MoveRight className="h-4 w-4" />
                       </Button>
                     </div>
@@ -1481,12 +1890,12 @@ function MoveDeckCardDialog({
   onMove: (zone: DeckZone) => void
   zoneCounts: Record<DeckZone, number>
 }) {
-  const zoneOptions = deckCard ? MOVE_TARGET_ZONES.filter(zone => zone !== deckCard.zone) : []
+  const zoneOptions = deckCard ? MOVE_TARGET_ZONES.filter((zone) => zone !== deckCard.zone) : []
   const [selectedZone, setSelectedZone] = useState<DeckZone>("sideboard")
   const activeZone = zoneOptions.includes(selectedZone) ? selectedZone : zoneOptions[0]
 
   return (
-    <Dialog open={Boolean(deckCard)} onOpenChange={open => (!open ? onClose() : undefined)}>
+    <Dialog open={Boolean(deckCard)} onOpenChange={(open) => (!open ? onClose() : undefined)}>
       <DialogContent className="max-w-lg" labelledBy="move-deck-card-title">
         <DialogHeader>
           <div>
@@ -1498,32 +1907,44 @@ function MoveDeckCardDialog({
 
         <div className="space-y-4 p-5">
           <div className="grid gap-2">
-            {zoneOptions.map(zone => (
+            {zoneOptions.map((zone) => (
               <button
                 key={zone}
                 type="button"
                 className={[
                   "flex items-center gap-4 rounded-box border p-4 text-left transition",
-                  activeZone === zone ? "border-primary bg-primary/10" : "border-base-300 hover:border-primary/45 hover:bg-base-200",
+                  activeZone === zone
+                    ? "border-primary bg-primary/10"
+                    : "border-base-300 hover:border-primary/45 hover:bg-base-200",
                 ].join(" ")}
                 onClick={() => setSelectedZone(zone)}
               >
                 <ZoneIcon zone={zone} />
                 <span>
                   <span className="block text-lg font-semibold">{titleize(zone)}</span>
-                  <span className="text-sm text-base-content/60">{zoneCounts[zone] || 0} cards</span>
+                  <span className="text-sm text-base-content/60">
+                    {zoneCounts[zone] || 0} cards
+                  </span>
                 </span>
               </button>
             ))}
           </div>
 
-          {error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p> : null}
+          {error ? (
+            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+              {error}
+            </p>
+          ) : null}
 
           <div className="flex justify-end gap-2 border-t border-base-300 pt-4">
             <Button type="button" variant="ghost" disabled={isPending} onClick={onClose}>
               Cancel
             </Button>
-            <Button type="button" disabled={isPending || !activeZone} onClick={() => activeZone && onMove(activeZone)}>
+            <Button
+              type="button"
+              disabled={isPending || !activeZone}
+              onClick={() => activeZone && onMove(activeZone)}
+            >
               Move
             </Button>
           </div>
@@ -1533,23 +1954,36 @@ function MoveDeckCardDialog({
   )
 }
 
-function ImportDecklistDialog({ deck, onOpenChange, open }: { deck: DeckDetail | null; onOpenChange: (open: boolean) => void; open: boolean }) {
+function ImportDecklistDialog({
+  deck,
+  onOpenChange,
+  open,
+}: {
+  deck: DeckDetail | null
+  onOpenChange: (open: boolean) => void
+  open: boolean
+}) {
   const queryClient = useQueryClient()
   const [text, setText] = useState("")
-  const [result, setResult] = useState<{ imported: number; unresolved: string[]; skippedPrintings: string[] } | null>(null)
+  const [result, setResult] = useState<{
+    imported: number
+    unresolved: string[]
+    skippedPrintings: string[]
+  } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const importDecklist = useMutation({
     mutationFn: () => {
       if (!deck) throw new Error("Deck is required")
       return request(ImportDecklistDocument, { id: deck.id, text })
     },
-    onSuccess: data => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["deck", deck?.id] })
       queryClient.invalidateQueries({ queryKey: ["decks"] })
       setResult(data.importDecklist || null)
       setError(null)
     },
-    onError: error => setError(error instanceof Error ? error.message : "Could not import decklist"),
+    onError: (error) =>
+      setError(error instanceof Error ? error.message : "Could not import decklist"),
   })
 
   useEffect(() => {
@@ -1579,7 +2013,7 @@ function ImportDecklistDialog({ deck, onOpenChange, open }: { deck: DeckDetail |
   }
 
   return (
-    <Dialog open={open} onOpenChange={nextOpen => (nextOpen ? onOpenChange(true) : close())}>
+    <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : close())}>
       <DialogContent className="max-w-3xl" labelledBy="import-decklist-title">
         <DialogHeader>
           <div>
@@ -1591,11 +2025,13 @@ function ImportDecklistDialog({ deck, onOpenChange, open }: { deck: DeckDetail |
 
         <form className="space-y-4 p-5" onSubmit={submit}>
           <label className="block space-y-2">
-            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Decklist text</span>
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+              Decklist text
+            </span>
             <textarea
               className="textarea textarea-bordered min-h-80 w-full bg-base-100 font-mono text-sm"
               value={text}
-              onChange={event => setText(event.target.value)}
+              onChange={(event) => setText(event.target.value)}
               placeholder={"Commander\n1 Sol Ring\n1 Arcane Signet\n\nSideboard\n2 Negate"}
               autoFocus
             />
@@ -1604,15 +2040,32 @@ function ImportDecklistDialog({ deck, onOpenChange, open }: { deck: DeckDetail |
           {result ? (
             <div className="rounded-box border border-base-300 bg-base-100 p-4 text-sm">
               <div className="font-black">{result.imported} cards imported</div>
-              {result.unresolved.length ? <div className="mt-2 text-warning">Unresolved: {result.unresolved.join(", ")}</div> : null}
-              {result.skippedPrintings.length ? <div className="mt-2 text-base-content/65">Skipped preferred printings: {result.skippedPrintings.join(", ")}</div> : null}
+              {result.unresolved.length ? (
+                <div className="mt-2 text-warning">Unresolved: {result.unresolved.join(", ")}</div>
+              ) : null}
+              {result.skippedPrintings.length ? (
+                <div className="mt-2 text-base-content/65">
+                  Skipped preferred printings: {result.skippedPrintings.join(", ")}
+                </div>
+              ) : null}
             </div>
           ) : null}
 
-          {error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p> : null}
+          {error ? (
+            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+              {error}
+            </p>
+          ) : null}
 
           <div className="flex justify-end gap-2 border-t border-base-300 pt-4">
-            <Button type="button" variant="ghost" onClick={close} disabled={importDecklist.isPending}>Close</Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={close}
+              disabled={importDecklist.isPending}
+            >
+              Close
+            </Button>
             <Button type="submit" disabled={importDecklist.isPending}>
               <Upload className="h-4 w-4" />
               {importDecklist.isPending ? "Importing..." : "Import decklist"}
@@ -1624,7 +2077,15 @@ function ImportDecklistDialog({ deck, onOpenChange, open }: { deck: DeckDetail |
   )
 }
 
-function ExportDecklistDialog({ deck, onOpenChange, open }: { deck: DeckDetail | null; onOpenChange: (open: boolean) => void; open: boolean }) {
+function ExportDecklistDialog({
+  deck,
+  onOpenChange,
+  open,
+}: {
+  deck: DeckDetail | null
+  onOpenChange: (open: boolean) => void
+  open: boolean
+}) {
   const exportQuery = useQuery({
     queryKey: ["deck-export-text", deck?.id],
     queryFn: () => request(DeckExportTextDocument, { id: deck?.id || "" }),
@@ -1644,10 +2105,22 @@ function ExportDecklistDialog({ deck, onOpenChange, open }: { deck: DeckDetail |
         </DialogHeader>
 
         <div className="space-y-4 p-5">
-          <textarea className="textarea textarea-bordered min-h-80 w-full bg-base-100 font-mono text-sm" readOnly value={exportQuery.isLoading ? "Exporting..." : exportText} />
-          {exportQuery.error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{exportQuery.error instanceof Error ? exportQuery.error.message : "Could not export decklist"}</p> : null}
+          <textarea
+            className="textarea textarea-bordered min-h-80 w-full bg-base-100 font-mono text-sm"
+            readOnly
+            value={exportQuery.isLoading ? "Exporting..." : exportText}
+          />
+          {exportQuery.error ? (
+            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+              {exportQuery.error instanceof Error
+                ? exportQuery.error.message
+                : "Could not export decklist"}
+            </p>
+          ) : null}
           <div className="flex justify-end">
-            <Button type="button" onClick={() => onOpenChange(false)}>Close</Button>
+            <Button type="button" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
           </div>
         </div>
       </DialogContent>
@@ -1655,7 +2128,15 @@ function ExportDecklistDialog({ deck, onOpenChange, open }: { deck: DeckDetail |
   )
 }
 
-function EditDeckDialog({ deck, onOpenChange, open }: { deck: DeckSummary | DeckDetail | null; onOpenChange: (open: boolean) => void; open?: boolean }) {
+function EditDeckDialog({
+  deck,
+  onOpenChange,
+  open,
+}: {
+  deck: DeckSummary | DeckDetail | null
+  onOpenChange: (open: boolean) => void
+  open?: boolean
+}) {
   const queryClient = useQueryClient()
   const isOpen = open ?? Boolean(deck)
   const [name, setName] = useState("")
@@ -1674,7 +2155,10 @@ function EditDeckDialog({ deck, onOpenChange, open }: { deck: DeckSummary | Deck
   const updateDeck = useMutation({
     mutationFn: () => {
       if (!deck) throw new Error("Deck is required")
-      return request(UpdateDeckDocument, { id: deck.id, input: { name: name.trim(), format, status } })
+      return request(UpdateDeckDocument, {
+        id: deck.id,
+        input: { name: name.trim(), format, status },
+      })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["decks"] })
@@ -1682,7 +2166,7 @@ function EditDeckDialog({ deck, onOpenChange, open }: { deck: DeckSummary | Deck
       setError(null)
       onOpenChange(false)
     },
-    onError: error => setError(error instanceof Error ? error.message : "Could not update deck"),
+    onError: (error) => setError(error instanceof Error ? error.message : "Could not update deck"),
   })
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -1704,7 +2188,7 @@ function EditDeckDialog({ deck, onOpenChange, open }: { deck: DeckSummary | Deck
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={nextOpen => (nextOpen ? onOpenChange(true) : close())}>
+    <Dialog open={isOpen} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : close())}>
       <DialogContent className="max-w-xl" labelledBy="edit-deck-title">
         <DialogHeader>
           <div>
@@ -1717,29 +2201,60 @@ function EditDeckDialog({ deck, onOpenChange, open }: { deck: DeckSummary | Deck
         <form className="space-y-5 p-5" onSubmit={submit}>
           <label className="block space-y-2">
             <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Name</span>
-            <Input value={name} onChange={event => setName(event.target.value)} placeholder="Deck name" autoFocus />
+            <Input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Deck name"
+              autoFocus
+            />
           </label>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Format</span>
-              <select className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" value={format} onChange={event => setFormat(deckFormatValue(event.target.value))}>
-                {DECK_FORMATS.map(format => <option key={format} value={format}>{titleize(format)}</option>)}
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Format
+              </span>
+              <select
+                className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                value={format}
+                onChange={(event) => setFormat(deckFormatValue(event.target.value))}
+              >
+                {DECK_FORMATS.map((format) => (
+                  <option key={format} value={format}>
+                    {titleize(format)}
+                  </option>
+                ))}
               </select>
             </label>
 
             <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Status</span>
-              <select className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" value={status} onChange={event => setStatus(deckStatusValue(event.target.value))}>
-                {DECK_STATUSES.map(status => <option key={status} value={status}>{titleize(status)}</option>)}
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Status
+              </span>
+              <select
+                className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                value={status}
+                onChange={(event) => setStatus(deckStatusValue(event.target.value))}
+              >
+                {DECK_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {titleize(status)}
+                  </option>
+                ))}
               </select>
             </label>
           </div>
 
-          {error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p> : null}
+          {error ? (
+            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+              {error}
+            </p>
+          ) : null}
 
           <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-4">
-            <Button type="button" variant="ghost" onClick={close} disabled={updateDeck.isPending}>Cancel</Button>
+            <Button type="button" variant="ghost" onClick={close} disabled={updateDeck.isPending}>
+              Cancel
+            </Button>
             <Button type="submit" disabled={updateDeck.isPending}>
               <Edit3 className="h-4 w-4" />
               {updateDeck.isPending ? "Saving..." : "Save deck"}
@@ -1752,14 +2267,20 @@ function EditDeckDialog({ deck, onOpenChange, open }: { deck: DeckSummary | Deck
 }
 
 function deckFormatValue(value: string): (typeof DECK_FORMATS)[number] {
-  return DECK_FORMATS.find(format => format === value) || "commander"
+  return DECK_FORMATS.find((format) => format === value) || "commander"
 }
 
 function deckStatusValue(value: string): (typeof DECK_STATUSES)[number] {
-  return DECK_STATUSES.find(status => status === value) || "brewing"
+  return DECK_STATUSES.find((status) => status === value) || "brewing"
 }
 
-function NewDeckDialog({ onOpenChange, open }: { onOpenChange: (open: boolean) => void; open: boolean }) {
+function NewDeckDialog({
+  onOpenChange,
+  open,
+}: {
+  onOpenChange: (open: boolean) => void
+  open: boolean
+}) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [name, setName] = useState("")
@@ -1769,7 +2290,7 @@ function NewDeckDialog({ onOpenChange, open }: { onOpenChange: (open: boolean) =
 
   const createDeck = useMutation({
     mutationFn: () => request(CreateDeckDocument, { input: { name: name.trim(), format, status } }),
-    onSuccess: data => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["decks"] })
       setName("")
       setFormat("commander")
@@ -1781,7 +2302,7 @@ function NewDeckDialog({ onOpenChange, open }: { onOpenChange: (open: boolean) =
         navigate({ to: "/decks/$id", params: { id: data.createDeck.id } })
       }
     },
-    onError: error => setError(error instanceof Error ? error.message : "Could not create deck"),
+    onError: (error) => setError(error instanceof Error ? error.message : "Could not create deck"),
   })
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -1803,12 +2324,14 @@ function NewDeckDialog({ onOpenChange, open }: { onOpenChange: (open: boolean) =
   }
 
   return (
-    <Dialog open={open} onOpenChange={nextOpen => (nextOpen ? onOpenChange(true) : close())}>
+    <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : close())}>
       <DialogContent className="max-w-xl" labelledBy="new-deck-title">
         <DialogHeader>
           <div>
             <DialogTitle id="new-deck-title">New deck</DialogTitle>
-            <p className="mt-1 text-sm text-base-content/60">Start with a shell, then import or add cards from the catalog.</p>
+            <p className="mt-1 text-sm text-base-content/60">
+              Start with a shell, then import or add cards from the catalog.
+            </p>
           </div>
           <DialogClose onClose={close} />
         </DialogHeader>
@@ -1816,18 +2339,25 @@ function NewDeckDialog({ onOpenChange, open }: { onOpenChange: (open: boolean) =
         <form className="space-y-5 p-5" onSubmit={submit}>
           <label className="block space-y-2">
             <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Name</span>
-            <Input value={name} onChange={event => setName(event.target.value)} placeholder="Deck name" autoFocus />
+            <Input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Deck name"
+              autoFocus
+            />
           </label>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Format</span>
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Format
+              </span>
               <select
                 className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 value={format}
-                onChange={event => setFormat(event.target.value as (typeof DECK_FORMATS)[number])}
+                onChange={(event) => setFormat(event.target.value as (typeof DECK_FORMATS)[number])}
               >
-                {DECK_FORMATS.map(format => (
+                {DECK_FORMATS.map((format) => (
                   <option key={format} value={format}>
                     {titleize(format)}
                   </option>
@@ -1836,13 +2366,17 @@ function NewDeckDialog({ onOpenChange, open }: { onOpenChange: (open: boolean) =
             </label>
 
             <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Status</span>
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Status
+              </span>
               <select
                 className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 value={status}
-                onChange={event => setStatus(event.target.value as (typeof DECK_STATUSES)[number])}
+                onChange={(event) =>
+                  setStatus(event.target.value as (typeof DECK_STATUSES)[number])
+                }
               >
-                {DECK_STATUSES.map(status => (
+                {DECK_STATUSES.map((status) => (
                   <option key={status} value={status}>
                     {titleize(status)}
                   </option>
@@ -1851,7 +2385,11 @@ function NewDeckDialog({ onOpenChange, open }: { onOpenChange: (open: boolean) =
             </label>
           </div>
 
-          {error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p> : null}
+          {error ? (
+            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+              {error}
+            </p>
+          ) : null}
 
           <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-4">
             <Button type="button" variant="ghost" onClick={close} disabled={createDeck.isPending}>

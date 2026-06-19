@@ -1,4 +1,14 @@
-import { DollarSign, Edit3, Layers, ListPlus, MapPin, MoreVertical, MoveUpRight, Sparkles, Trash2 } from "lucide-react"
+import {
+  DollarSign,
+  Edit3,
+  Layers,
+  ListPlus,
+  MapPin,
+  MoreVertical,
+  MoveUpRight,
+  Sparkles,
+  Trash2,
+} from "lucide-react"
 import type { ReactNode } from "react"
 import { cn } from "../lib/utils"
 
@@ -58,7 +68,10 @@ export function CardTile({
   const bottomActions = defaultActions ?? fallbackDefaultActions
   const allActions: CardTileAction[] = [
     ...menuActions,
-    ...bottomActions.map((action, index) => ({ ...action, separatorBefore: index === 0 && menuActions.length > 0 ? true : action.separatorBefore })),
+    ...bottomActions.map((action, index) => ({
+      ...action,
+      separatorBefore: index === 0 && menuActions.length > 0 ? true : action.separatorBefore,
+    })),
   ]
 
   return (
@@ -66,7 +79,7 @@ export function CardTile({
       className={cn(
         "group/card relative w-full max-w-[14.25rem] overflow-visible rounded-xl bg-transparent transition duration-200 focus-within:z-50",
         growOnHover && "hover:z-50 hover:-translate-y-2 hover:scale-[1.035]",
-        className
+        className,
       )}
     >
       {showMenu ? (
@@ -84,7 +97,12 @@ export function CardTile({
             className="menu dropdown-content z-50 mt-1 w-48 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
           >
             {allActions.map((action, index) => (
-              <li key={index} className={action.separatorBefore ? "mt-1 border-t border-base-300 pt-1" : undefined}>
+              <li
+                key={index}
+                className={
+                  action.separatorBefore ? "mt-1 border-t border-base-300 pt-1" : undefined
+                }
+              >
                 {action.content ? (
                   action.content
                 ) : (
@@ -109,21 +127,34 @@ export function CardTile({
           "relative aspect-[5/7] w-full overflow-hidden rounded-xl bg-base-300 shadow-lg ring-1 ring-white/10 transition duration-200 group-focus-within/card:ring-primary/50",
           foil && "card-tile-foil",
           finish === "etched" && "card-tile-foil--etched",
-          growOnHover && "group-hover/card:shadow-2xl group-hover/card:ring-primary/40"
+          growOnHover && "group-hover/card:shadow-2xl group-hover/card:ring-primary/40",
         )}
       >
         {imageUrl ? (
           <img
             src={imageUrl}
             alt={typeof name === "string" ? name : ""}
-            className={cn("h-full w-full object-cover transition duration-300", allocatedLabel && "grayscale", growOnHover && "group-hover/card:scale-[1.015]")}
+            className={cn(
+              "h-full w-full object-cover transition duration-300",
+              allocatedLabel && "grayscale",
+              growOnHover && "group-hover/card:scale-[1.015]",
+            )}
             loading="lazy"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center p-6 text-center text-sm text-base-content/50">No image</div>
+          <div className="flex h-full w-full items-center justify-center p-6 text-center text-sm text-base-content/50">
+            No image
+          </div>
         )}
 
-        {foil ? <div className={cn("card-tile-foil-overlay", finish === "etched" && "card-tile-foil-overlay--etched")} /> : null}
+        {foil ? (
+          <div
+            className={cn(
+              "card-tile-foil-overlay",
+              finish === "etched" && "card-tile-foil-overlay--etched",
+            )}
+          />
+        ) : null}
 
         {allocatedLabel ? (
           <div className="absolute inset-0 z-10 bg-black/45" aria-hidden="true" />
@@ -147,7 +178,9 @@ export function CardTile({
           <div className="grid w-full gap-2">
             <div className="min-w-0">
               <div className="line-clamp-2 text-sm font-bold leading-tight drop-shadow">{name}</div>
-              {typeLine ? <div className="mt-0.5 line-clamp-1 text-xs text-white/70">{typeLine}</div> : null}
+              {typeLine ? (
+                <div className="mt-0.5 line-clamp-1 text-xs text-white/70">{typeLine}</div>
+              ) : null}
             </div>
 
             <div className="grid gap-1.5 text-xs text-white/85">
@@ -186,17 +219,23 @@ export function CardTile({
   )
 }
 
-export function addToDeckAction(options: Pick<CardTileAction, "disabled" | "onClick"> = {}): CardTileAction {
+export function addToDeckAction(
+  options: Pick<CardTileAction, "disabled" | "onClick"> = {},
+): CardTileAction {
   return { icon: <Layers className="h-4 w-4" />, label: "Add to deck", ...options }
 }
 
-export function addToListAction(options: Pick<CardTileAction, "disabled" | "onClick"> = {}): CardTileAction {
+export function addToListAction(
+  options: Pick<CardTileAction, "disabled" | "onClick"> = {},
+): CardTileAction {
   return { icon: <ListPlus className="h-4 w-4" />, label: "Add to list", ...options }
 }
 
 function SetIcon({ rarity, setCode }: { rarity?: string | null; setCode?: string | null }) {
   const color = rarityColor(rarity)
-  const code = String(setCode || "").trim().toLowerCase()
+  const code = String(setCode || "")
+    .trim()
+    .toLowerCase()
 
   if (!code) {
     return (

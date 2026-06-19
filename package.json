@@ -49,10 +49,12 @@
     "react-dom": "^19.2.7",
     "tailwind-merge": "^3.6.0",
     "tailwindcss-animate": "^1.0.7",
-    "vite": "^8.0.16"
+    "vite": "^8.0.16",
+    "vite-plus": "^0.2.1"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.4.0",
+    "@voidzero-dev/vite-plus-core": "^0.2.1",
     "typescript": "^6.0.3"
   }
 }

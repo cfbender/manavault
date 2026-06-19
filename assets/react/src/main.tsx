@@ -27,5 +27,5 @@ createRoot(document.getElementById("manavault-root")!).render(
     <ThemeProvider>
       <RouterProvider router={router} />
     </ThemeProvider>
-  </QueryClientProvider>
+  </QueryClientProvider>,
 )

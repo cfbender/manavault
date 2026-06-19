@@ -3,20 +3,29 @@ import type { InputHTMLAttributes } from "react"
 import { cn } from "../lib/utils"
 import { Input } from "./ui/input"
 
-type SearchFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "value" | "onChange"> & {
+type SearchFieldProps = Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  "type" | "value" | "onChange"
+> & {
   onClear?: () => void
   onValueChange: (value: string) => void
   value: string
 }
 
-export function SearchField({ className, onClear, onValueChange, value, ...props }: SearchFieldProps) {
+export function SearchField({
+  className,
+  onClear,
+  onValueChange,
+  value,
+  ...props
+}: SearchFieldProps) {
   return (
     <div className="relative">
       <Input
         {...props}
         type="search"
         value={value}
-        onChange={event => onValueChange(event.target.value)}
+        onChange={(event) => onValueChange(event.target.value)}
         className={cn("pr-10 [&::-webkit-search-cancel-button]:appearance-none", className)}
       />
       {value ? (

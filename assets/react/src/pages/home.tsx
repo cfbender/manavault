@@ -25,10 +25,14 @@ const HomeDocument = graphql(`
 export function HomePage() {
   const [q, setQ] = useState("")
   const navigate = useNavigate({ from: "/" })
-  const { data, isError, isLoading } = useQuery({ queryKey: ["home"], queryFn: () => request(HomeDocument) })
+  const { data, isError, isLoading } = useQuery({
+    queryKey: ["home"],
+    queryFn: () => request(HomeDocument),
+  })
   const summary = data?.homeSummary
 
-  const value = (count?: number | null) => (isLoading ? "..." : isError ? "!" : compactNumber(count))
+  const value = (count?: number | null) =>
+    isLoading ? "..." : isError ? "!" : compactNumber(count)
 
   function searchCards(value = q) {
     const term = value.trim()
@@ -51,11 +55,18 @@ export function HomePage() {
         <div className="card-body gap-6 p-6 sm:p-8">
           <div className="badge badge-primary badge-outline uppercase">ManaVault</div>
           <div>
-            <h1 className="max-w-3xl text-5xl font-black tracking-normal sm:text-6xl">Your Magic collection, organized.</h1>
-            <p className="mt-5 text-xl leading-8 text-base-content/70">Jump into your collection, build decks, or search the local card catalog.</p>
+            <h1 className="max-w-3xl text-5xl font-black tracking-normal sm:text-6xl">
+              Your Magic collection, organized.
+            </h1>
+            <p className="mt-5 text-xl leading-8 text-base-content/70">
+              Jump into your collection, build decks, or search the local card catalog.
+            </p>
           </div>
 
-          <form onSubmit={submitSearch} className="rounded-box border border-base-300 bg-base-100 p-4 shadow-sm">
+          <form
+            onSubmit={submitSearch}
+            className="rounded-box border border-base-300 bg-base-100 p-4 shadow-sm"
+          >
             <div className="fieldset p-0">
               <label htmlFor="home-card-search" className="fieldset-label text-base">
                 Search cards

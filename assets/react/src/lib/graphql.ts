@@ -5,7 +5,7 @@ const csrfToken = document.querySelector("meta[name='csrf-token']")?.getAttribut
 
 export async function request<TResult, TVariables>(
   document: TypedDocumentNode<TResult, TVariables>,
-  variables?: TVariables
+  variables?: TVariables,
 ): Promise<TResult> {
   const response = await fetch("/api/graphql", {
     method: "POST",
@@ -16,10 +16,15 @@ export async function request<TResult, TVariables>(
     body: JSON.stringify({ query: print(document), variables }),
   })
 
-  const payload = (await response.json()) as { data?: TResult; errors?: Array<{ message: string }> }
+  const payload = (await response.json()) as {
+    data?: TResult
+    errors?: Array<{ message: string }>
+  }
 
   if (!response.ok || payload.errors?.length || !payload.data) {
-    throw new Error(payload.errors?.[0]?.message || `GraphQL request failed with HTTP ${response.status}`)
+    throw new Error(
+      payload.errors?.[0]?.message || `GraphQL request failed with HTTP ${response.status}`,
+    )
   }
 
   return payload.data

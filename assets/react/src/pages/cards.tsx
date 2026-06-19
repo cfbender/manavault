@@ -71,7 +71,8 @@ const CardDocument = graphql(`
 export function CardsPage({ query }: { query: string }) {
   const [q, setQ] = useState(query)
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
-  const [structuredFilters, setStructuredFilters] = useState<CollectionFilterState>(EMPTY_COLLECTION_FILTERS)
+  const [structuredFilters, setStructuredFilters] =
+    useState<CollectionFilterState>(EMPTY_COLLECTION_FILTERS)
   const navigate = useNavigate({ from: "/cards/" })
   const structuredFilterSyntax = buildCollectionFilterQuery(structuredFilters)
   const combinedQuery = combineCollectionQueries(query, structuredFilterSyntax)
@@ -107,7 +108,11 @@ export function CardsPage({ query }: { query: string }) {
 
   return (
     <>
-      <PageHeader eyebrow="ManaVault Catalog" title="Card search" description="Search the local Scryfall catalog and add exact printings to your collection." />
+      <PageHeader
+        eyebrow="ManaVault Catalog"
+        title="Card search"
+        description="Search the local Scryfall catalog and add exact printings to your collection."
+      />
       <CardSearchForm
         activeFilterCount={activeStructuredFilterCount}
         onFilterClick={() => setIsFilterModalOpen(true)}
@@ -117,13 +122,22 @@ export function CardsPage({ query }: { query: string }) {
       />
 
       {!combinedQuery ? (
-        <EmptyState title="Search for a card" description="Results are pulled from the synced local catalog." />
+        <EmptyState
+          title="Search for a card"
+          description="Results are pulled from the synced local catalog."
+        />
       ) : data?.cards?.length ? (
         <div className="grid justify-center gap-x-6 gap-y-8 [grid-template-columns:repeat(auto-fill,minmax(14.25rem,14.25rem))]">
-          {data.cards.map(card => {
+          {data.cards.map((card) => {
             const printing = card.printings?.[0]
             return (
-              <Link key={card.oracleId} to="/cards/$id" params={{ id: card.oracleId }} search={{ q: query }} className="block">
+              <Link
+                key={card.oracleId}
+                to="/cards/$id"
+                params={{ id: card.oracleId }}
+                search={{ q: query }}
+                className="block"
+              >
                 <CardTile
                   imageUrl={printing?.imageUrl}
                   name={card.name}
@@ -187,7 +201,11 @@ function CardSearchForm({
       <Button type="button" variant="outline" className="relative" onClick={onFilterClick}>
         <ListFilter className="h-4 w-4" />
         Filter
-        {activeFilterCount ? <span className="badge badge-primary badge-sm absolute -right-2 -top-2 min-w-5">{activeFilterCount}</span> : null}
+        {activeFilterCount ? (
+          <span className="badge badge-primary badge-sm absolute -right-2 -top-2 min-w-5">
+            {activeFilterCount}
+          </span>
+        ) : null}
       </Button>
       <Button type="submit">
         <Search className="h-4 w-4" />
@@ -199,7 +217,10 @@ function CardSearchForm({
 
 export function CardDetailPage({ id, query }: { id: string; query: string }) {
   const [addPrinting, setAddPrinting] = useState<AddCollectionItemInitialPrinting | null>(null)
-  const { data, isLoading } = useQuery({ queryKey: ["card", id], queryFn: () => request(CardDocument, { id }) })
+  const { data, isLoading } = useQuery({
+    queryKey: ["card", id],
+    queryFn: () => request(CardDocument, { id }),
+  })
   const card = data?.card
   const printings = card?.printings || []
   const primary = printings[0]
@@ -211,19 +232,32 @@ export function CardDetailPage({ id, query }: { id: string; query: string }) {
     <>
       <div className="mx-auto max-w-7xl space-y-7">
         <Button asChild variant="outline" size="sm">
-          <Link to="/cards" search={{ q: query || undefined }}>Back to search</Link>
+          <Link to="/cards" search={{ q: query || undefined }}>
+            Back to search
+          </Link>
         </Button>
 
         <section className="relative min-h-80 overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-sm">
           {primary?.artCropUrl ? (
-            <img src={primary.artCropUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30" />
+            <img
+              src={primary.artCropUrl}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover opacity-30"
+            />
           ) : null}
           <div className="absolute inset-0 bg-gradient-to-br from-base-100/98 via-base-100/80 to-base-100/35" />
           <div className="relative z-10 flex min-h-80 flex-col justify-between gap-8 p-6">
             <div className="max-w-5xl space-y-4">
               <div className="flex items-center gap-4">
-                <h1 className="min-w-0 flex-1 text-4xl font-black tracking-normal md:text-5xl">{card.name}</h1>
-                {card.manaCost ? <ManaText text={card.manaCost} className="shrink-0 justify-end text-3xl md:text-4xl" /> : null}
+                <h1 className="min-w-0 flex-1 text-4xl font-black tracking-normal md:text-5xl">
+                  {card.name}
+                </h1>
+                {card.manaCost ? (
+                  <ManaText
+                    text={card.manaCost}
+                    className="shrink-0 justify-end text-3xl md:text-4xl"
+                  />
+                ) : null}
               </div>
 
               {card.typeLine ? (
@@ -242,7 +276,7 @@ export function CardDetailPage({ id, query }: { id: string; query: string }) {
         </section>
 
         <div className="grid justify-center gap-x-6 gap-y-8 [grid-template-columns:repeat(auto-fill,minmax(14.25rem,14.25rem))]">
-          {printings.filter(present).map(printing => (
+          {printings.filter(present).map((printing) => (
             <div key={printing.scryfallId}>
               <CardTile
                 defaultActions={[]}
@@ -251,17 +285,18 @@ export function CardDetailPage({ id, query }: { id: string; query: string }) {
                 menuActions={[
                   {
                     icon: <Boxes className="h-4 w-4" />,
-                    onClick: () => setAddPrinting({
-                      cardName: card.name,
-                      collectorNumber: printing.collectorNumber,
-                      finishes: printing.finishes,
-                      imageUrl: printing.imageUrl,
-                      rarity: printing.rarity,
-                      scryfallId: printing.scryfallId,
-                      setCode: printing.setCode,
-                      setName: printing.setName,
-                      typeLine: card.typeLine,
-                    }),
+                    onClick: () =>
+                      setAddPrinting({
+                        cardName: card.name,
+                        collectorNumber: printing.collectorNumber,
+                        finishes: printing.finishes,
+                        imageUrl: printing.imageUrl,
+                        rarity: printing.rarity,
+                        scryfallId: printing.scryfallId,
+                        setCode: printing.setCode,
+                        setName: printing.setName,
+                        typeLine: card.typeLine,
+                      }),
                     label: "Add to collection",
                   },
                   addToDeckAction(),
@@ -277,20 +312,35 @@ export function CardDetailPage({ id, query }: { id: string; query: string }) {
           ))}
         </div>
       </div>
-      <AddCollectionItemDialog initialPrinting={addPrinting} open={Boolean(addPrinting)} onOpenChange={open => !open && setAddPrinting(null)} />
+      <AddCollectionItemDialog
+        initialPrinting={addPrinting}
+        open={Boolean(addPrinting)}
+        onOpenChange={(open) => !open && setAddPrinting(null)}
+      />
     </>
   )
 }
 
 function ManaText({ className, text }: { className?: string; text: string }) {
-  return <span className={["inline-flex flex-wrap items-center gap-1", className].filter(Boolean).join(" ")}>{renderRichCardText(text)}</span>
+  return (
+    <span
+      className={["inline-flex flex-wrap items-center gap-1", className].filter(Boolean).join(" ")}
+    >
+      {renderRichCardText(text)}
+    </span>
+  )
 }
 
 function OracleText({ text }: { text: string }) {
   return (
     <>
       {text.split("\n").map((line, index) => (
-        <p key={index} className={line.startsWith("(") && line.endsWith(")") ? "italic text-base-content/60" : undefined}>
+        <p
+          key={index}
+          className={
+            line.startsWith("(") && line.endsWith(")") ? "italic text-base-content/60" : undefined
+          }
+        >
           {renderRichCardText(line)}
         </p>
       ))}
@@ -299,24 +349,30 @@ function OracleText({ text }: { text: string }) {
 }
 
 function renderRichCardText(text: string) {
-  return text.split(/(\{[^}]+\}|\([^)]*\))/g).filter(Boolean).map((part, index) => {
-    if (/^\{[^}]+\}$/.test(part)) return <ManaSymbol key={index} symbol={part} />
-    if (/^\([^)]*\)$/.test(part)) {
-      return (
-        <em key={index} className="text-base-content/65">
-          {renderManaSymbols(part)}
-        </em>
-      )
-    }
-    return <span key={index}>{part}</span>
-  })
+  return text
+    .split(/(\{[^}]+\}|\([^)]*\))/g)
+    .filter(Boolean)
+    .map((part, index) => {
+      if (/^\{[^}]+\}$/.test(part)) return <ManaSymbol key={index} symbol={part} />
+      if (/^\([^)]*\)$/.test(part)) {
+        return (
+          <em key={index} className="text-base-content/65">
+            {renderManaSymbols(part)}
+          </em>
+        )
+      }
+      return <span key={index}>{part}</span>
+    })
 }
 
 function renderManaSymbols(text: string) {
-  return text.split(/(\{[^}]+\})/g).filter(Boolean).map((part, index) => {
-    if (/^\{[^}]+\}$/.test(part)) return <ManaSymbol key={index} symbol={part} />
-    return <span key={index}>{part}</span>
-  })
+  return text
+    .split(/(\{[^}]+\})/g)
+    .filter(Boolean)
+    .map((part, index) => {
+      if (/^\{[^}]+\}$/.test(part)) return <ManaSymbol key={index} symbol={part} />
+      return <span key={index}>{part}</span>
+    })
 }
 
 function ManaSymbol({ symbol }: { symbol: string }) {

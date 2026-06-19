@@ -1,8 +1,15 @@
 import { tanstackRouter } from "@tanstack/router-plugin/vite"
 import react from "@vitejs/plugin-react"
-import { defineConfig } from "vite"
+import { defineConfig } from "vite-plus"
 
 export default defineConfig({
+  fmt: {
+    ignorePatterns: ["assets/react/src/gql/**", "assets/react/src/routeTree.gen.ts"],
+    semi: false,
+  },
+  lint: {
+    ignorePatterns: ["assets/react/src/gql/**", "assets/react/src/routeTree.gen.ts"],
+  },
   plugins: [
     tanstackRouter({
       target: "react",

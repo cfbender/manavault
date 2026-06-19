@@ -43,7 +43,7 @@ export function Dialog({ children, onOpenChange, open }: DialogProps) {
     >
       {children}
     </div>,
-    document.body
+    document.body,
   )
 }
 
@@ -57,8 +57,11 @@ export function DialogContent({ children, className, labelledBy, ...props }: Dia
       role="dialog"
       aria-modal="true"
       aria-labelledby={labelledBy}
-      className={cn("min-h-0 w-full overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-2xl", className)}
-      onMouseDown={event => event.stopPropagation()}
+      className={cn(
+        "min-h-0 w-full overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-2xl",
+        className,
+      )}
+      onMouseDown={(event) => event.stopPropagation()}
       {...props}
     >
       {children}
@@ -68,7 +71,13 @@ export function DialogContent({ children, className, labelledBy, ...props }: Dia
 
 export function DialogHeader({ children, className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("flex items-start justify-between gap-4 border-b border-base-300 px-5 py-4", className)} {...props}>
+    <div
+      className={cn(
+        "flex items-start justify-between gap-4 border-b border-base-300 px-5 py-4",
+        className,
+      )}
+      {...props}
+    >
       {children}
     </div>
   )

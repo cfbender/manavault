@@ -24,7 +24,7 @@ const buttonVariants = cva(
       variant: "default",
       size: "default",
     },
-  }
+  },
 )
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &

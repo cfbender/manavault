@@ -1,6 +1,18 @@
 import { Link } from "@tanstack/react-router"
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ArrowDownUp, Boxes, Download, Edit3, ListFilter, MoreVertical, MoveUpRight, Plus, Search, Trash2, Upload } from "lucide-react"
+import {
+  ArrowDownUp,
+  Boxes,
+  Download,
+  Edit3,
+  ListFilter,
+  MoreVertical,
+  MoveUpRight,
+  Plus,
+  Search,
+  Trash2,
+  Upload,
+} from "lucide-react"
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { PageHeader, PageSection } from "../components/app-shell"
 import { EmptyState } from "../components/card-image"
@@ -10,10 +22,22 @@ import { ImageSummaryCard } from "../components/image-summary-card"
 import { Badge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
 import { Card } from "../components/ui/card"
-import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog"
 import { Input } from "../components/ui/input"
 import { graphql } from "../gql"
-import { CollectionItemsPageDocument as GeneratedCollectionItemsPageDocument, type CollectionQuery, type LocationCoverCardSearchQuery, type LocationQuery, type PreviewCollectionImportMutation } from "../gql/graphql"
+import {
+  CollectionItemsPageDocument as GeneratedCollectionItemsPageDocument,
+  type CollectionQuery,
+  type LocationCoverCardSearchQuery,
+  type LocationQuery,
+  type PreviewCollectionImportMutation,
+} from "../gql/graphql"
 import { request } from "../lib/graphql"
 import { cn, compactNumber, present, titleize } from "../lib/utils"
 
@@ -26,7 +50,10 @@ const CollectionDocument = graphql(`
       description
       itemCount
       totalPriceText
-      coverPrinting { scryfallId artCropUrl }
+      coverPrinting {
+        scryfallId
+        artCropUrl
+      }
     }
     collectionItemCount(filters: $filters)
   }
@@ -41,7 +68,10 @@ const LocationDocument = graphql(`
       description
       itemCount
       totalPriceText
-      coverPrinting { scryfallId artCropUrl }
+      coverPrinting {
+        scryfallId
+        artCropUrl
+      }
     }
   }
 `)
@@ -104,7 +134,10 @@ const CreateCollectionItemDocument = graphql(`
       notes
       priceText
       allocatedQuantity
-      location { id name }
+      location {
+        id
+        name
+      }
       printing {
         scryfallId
         setCode
@@ -112,7 +145,11 @@ const CreateCollectionItemDocument = graphql(`
         collectorNumber
         imageUrl
         rarity
-        card { oracleId name typeLine }
+        card {
+          oracleId
+          name
+          typeLine
+        }
       }
     }
   }
@@ -129,7 +166,10 @@ const UpdateCollectionItemDocument = graphql(`
       notes
       priceText
       allocatedQuantity
-      location { id name }
+      location {
+        id
+        name
+      }
       printing {
         scryfallId
         setCode
@@ -137,7 +177,11 @@ const UpdateCollectionItemDocument = graphql(`
         collectorNumber
         imageUrl
         rarity
-        card { oracleId name typeLine }
+        card {
+          oracleId
+          name
+          typeLine
+        }
       }
     }
   }
@@ -158,8 +202,16 @@ const AddCollectionItemToDeckDocument = graphql(`
       quantity
       zone
       finish
-      card { oracleId name }
-      preferredPrinting { scryfallId setCode collectorNumber imageUrl }
+      card {
+        oracleId
+        name
+      }
+      preferredPrinting {
+        scryfallId
+        setCode
+        collectorNumber
+        imageUrl
+      }
     }
   }
 `)
@@ -173,7 +225,10 @@ const CreateLocationDocument = graphql(`
       description
       itemCount
       totalPriceText
-      coverPrinting { scryfallId artCropUrl }
+      coverPrinting {
+        scryfallId
+        artCropUrl
+      }
     }
   }
 `)
@@ -187,13 +242,21 @@ const UpdateLocationDocument = graphql(`
       description
       itemCount
       totalPriceText
-      coverPrinting { scryfallId artCropUrl }
+      coverPrinting {
+        scryfallId
+        artCropUrl
+      }
     }
   }
 `)
 
 const CollectionItemsPageDocument = graphql(`
-  query CollectionItemsPage($filters: CollectionItemFilters, $sort: CollectionItemSort, $limit: Int!, $offset: Int!) {
+  query CollectionItemsPage(
+    $filters: CollectionItemFilters
+    $sort: CollectionItemSort
+    $limit: Int!
+    $offset: Int!
+  ) {
     collectionItems(filters: $filters, sort: $sort, limit: $limit, offset: $offset) {
       id
       quantity
@@ -203,7 +266,10 @@ const CollectionItemsPageDocument = graphql(`
       notes
       priceText
       allocatedQuantity
-      location { id name }
+      location {
+        id
+        name
+      }
       printing {
         scryfallId
         setCode
@@ -211,7 +277,11 @@ const CollectionItemsPageDocument = graphql(`
         collectorNumber
         imageUrl
         rarity
-        card { oracleId name typeLine }
+        card {
+          oracleId
+          name
+          typeLine
+        }
       }
     }
   }
@@ -252,7 +322,11 @@ const PreviewCollectionImportDocument = graphql(`
           collectorNumber
           imageUrl
           rarity
-          card { oracleId name typeLine }
+          card {
+            oracleId
+            name
+            typeLine
+          }
         }
         candidates {
           scryfallId
@@ -261,7 +335,11 @@ const PreviewCollectionImportDocument = graphql(`
           collectorNumber
           imageUrl
           rarity
-          card { oracleId name typeLine }
+          card {
+            oracleId
+            name
+            typeLine
+          }
         }
       }
     }
@@ -306,7 +384,10 @@ type CollectionItem = {
 type CollectionTab = "locations" | "all"
 type CollectionSortField = "quantity" | "name" | "set" | "rarity" | "price"
 type CollectionSortDirection = "asc" | "desc"
-type CollectionSort = { field: CollectionSortField; direction: CollectionSortDirection }
+type CollectionSort = {
+  field: CollectionSortField
+  direction: CollectionSortDirection
+}
 type ComparisonOperator = "=" | "!=" | ">" | ">=" | "<" | "<="
 type ColorOperator = ":" | ">=" | "<="
 type FinishFilter = "any" | "foil" | "nonfoil" | "etched"
@@ -378,7 +459,11 @@ const COLOR_OPTIONS: { value: ManaColor; label: string; symbol: string }[] = [
   { value: "c", label: "Colorless", symbol: "C" },
 ]
 
-const RARITY_OPTIONS: { value: RarityFilter; label: string; className: string }[] = [
+const RARITY_OPTIONS: {
+  value: RarityFilter
+  label: string
+  className: string
+}[] = [
   { value: "common", label: "Common", className: "bg-zinc-300" },
   { value: "uncommon", label: "Uncommon", className: "bg-slate-400" },
   { value: "rare", label: "Rare", className: "bg-yellow-400" },
@@ -428,7 +513,9 @@ function VirtualizedCollectionGrid({
 
     const updateColumns = () => {
       const width = container.getBoundingClientRect().width
-      setColumns(Math.max(1, Math.floor((width + CARD_TILE_GAP) / (CARD_TILE_WIDTH + CARD_TILE_GAP))))
+      setColumns(
+        Math.max(1, Math.floor((width + CARD_TILE_GAP) / (CARD_TILE_WIDTH + CARD_TILE_GAP))),
+      )
     }
 
     updateColumns()
@@ -452,7 +539,10 @@ function VirtualizedCollectionGrid({
         const viewportHeight = window.innerHeight
         const overscan = CARD_TILE_ROW_HEIGHT * 3
         const visibleTop = Math.max(0, -rect.top - overscan)
-        const visibleBottom = Math.min(rowCount * CARD_TILE_ROW_HEIGHT, viewportHeight - rect.top + overscan)
+        const visibleBottom = Math.min(
+          rowCount * CARD_TILE_ROW_HEIGHT,
+          viewportHeight - rect.top + overscan,
+        )
         const startRow = Math.max(0, Math.floor(visibleTop / CARD_TILE_ROW_HEIGHT))
         const endRow = Math.max(startRow + 1, Math.ceil(visibleBottom / CARD_TILE_ROW_HEIGHT))
 
@@ -489,13 +579,19 @@ function VirtualizedCollectionGrid({
     <div ref={containerRef} className="relative w-full" style={{ height: totalHeight }}>
       <div
         className="grid justify-center gap-x-6 gap-y-8 [grid-template-columns:repeat(auto-fill,minmax(14.25rem,14.25rem))]"
-        style={{ transform: `translateY(${range.startRow * CARD_TILE_ROW_HEIGHT}px)` }}
+        style={{
+          transform: `translateY(${range.startRow * CARD_TILE_ROW_HEIGHT}px)`,
+        }}
       >
-        {visibleItems.map(item => (
+        {visibleItems.map((item) => (
           <CollectionItemTile key={item.id} item={item} />
         ))}
       </div>
-      {isFetchingNextPage ? <div className="absolute inset-x-0 bottom-0 py-6"><EmptyState title="Loading more..." /></div> : null}
+      {isFetchingNextPage ? (
+        <div className="absolute inset-x-0 bottom-0 py-6">
+          <EmptyState title="Loading more..." />
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -517,22 +613,46 @@ function CollectionItemTile({ item }: { item: CollectionItem }) {
   return (
     <>
       <CardTile
-        allocatedLabel={item.allocatedQuantity ? `In deck${item.allocatedQuantity > 1 ? ` x${item.allocatedQuantity}` : ""}` : undefined}
+        allocatedLabel={
+          item.allocatedQuantity
+            ? `In deck${item.allocatedQuantity > 1 ? ` x${item.allocatedQuantity}` : ""}`
+            : undefined
+        }
         count={item.quantity}
         defaultActions={[
-          { icon: <MoveUpRight className="h-4 w-4" />, label: "Move", onClick: () => setMoveTarget(item) },
-          { icon: <Edit3 className="h-4 w-4" />, label: "Edit", onClick: () => setEditTarget(item) },
-          { destructive: true, icon: <Trash2 className="h-4 w-4" />, label: "Delete", onClick: () => setDeleteTarget(item) },
+          {
+            icon: <MoveUpRight className="h-4 w-4" />,
+            label: "Move",
+            onClick: () => setMoveTarget(item),
+          },
+          {
+            icon: <Edit3 className="h-4 w-4" />,
+            label: "Edit",
+            onClick: () => setEditTarget(item),
+          },
+          {
+            destructive: true,
+            icon: <Trash2 className="h-4 w-4" />,
+            label: "Delete",
+            onClick: () => setDeleteTarget(item),
+          },
         ]}
         finish={item.finish}
         imageUrl={item.printing?.imageUrl}
         location={item.location?.name}
         menuActions={[
-          addToDeckAction({ onClick: () => setDeckTarget(item), disabled: !item.printing?.card?.oracleId }),
+          addToDeckAction({
+            onClick: () => setDeckTarget(item),
+            disabled: !item.printing?.card?.oracleId,
+          }),
           addToListAction({ onClick: () => setListTarget(item) }),
         ]}
         name={
-          <Link to="/cards/$id" params={{ id: item.printing?.card?.oracleId || "" }} className="hover:underline">
+          <Link
+            to="/cards/$id"
+            params={{ id: item.printing?.card?.oracleId || "" }}
+            className="hover:underline"
+          >
             {item.printing?.card?.name || "Unknown card"}
           </Link>
         }
@@ -543,11 +663,32 @@ function CollectionItemTile({ item }: { item: CollectionItem }) {
         setName={item.printing?.setName}
         typeLine={item.printing?.card?.typeLine}
       />
-      <AddCollectionItemToDeckDialog item={deckTarget} onDone={refreshCollection} onOpenChange={open => !open && setDeckTarget(null)} />
-      <MoveCollectionItemDialog item={listTarget} listOnly onDone={refreshCollection} onOpenChange={open => !open && setListTarget(null)} />
-      <MoveCollectionItemDialog item={moveTarget} onDone={refreshCollection} onOpenChange={open => !open && setMoveTarget(null)} />
-      <EditCollectionItemDialog item={editTarget} onDone={refreshCollection} onOpenChange={open => !open && setEditTarget(null)} />
-      <DeleteCollectionItemDialog item={deleteTarget} onDone={refreshCollection} onOpenChange={open => !open && setDeleteTarget(null)} />
+      <AddCollectionItemToDeckDialog
+        item={deckTarget}
+        onDone={refreshCollection}
+        onOpenChange={(open) => !open && setDeckTarget(null)}
+      />
+      <MoveCollectionItemDialog
+        item={listTarget}
+        listOnly
+        onDone={refreshCollection}
+        onOpenChange={(open) => !open && setListTarget(null)}
+      />
+      <MoveCollectionItemDialog
+        item={moveTarget}
+        onDone={refreshCollection}
+        onOpenChange={(open) => !open && setMoveTarget(null)}
+      />
+      <EditCollectionItemDialog
+        item={editTarget}
+        onDone={refreshCollection}
+        onOpenChange={(open) => !open && setEditTarget(null)}
+      />
+      <DeleteCollectionItemDialog
+        item={deleteTarget}
+        onDone={refreshCollection}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      />
     </>
   )
 }
@@ -576,7 +717,7 @@ export function CollectionFilterModal({
   if (!open) return null
 
   function update<K extends keyof CollectionFilterState>(key: K, value: CollectionFilterState[K]) {
-    setDraft(current => ({ ...current, [key]: value }))
+    setDraft((current) => ({ ...current, [key]: value }))
   }
 
   function resetDraft() {
@@ -590,36 +731,49 @@ export function CollectionFilterModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={nextOpen => !nextOpen && onClose()}>
+    <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
       <DialogContent labelledBy="collection-filter-title" className="max-w-4xl">
         <DialogHeader>
           <div>
             <DialogTitle id="collection-filter-title">Filter collection</DialogTitle>
-            <p className="mt-1 text-sm text-base-content/60">Build a Scryfall query from supported collection fields.</p>
+            <p className="mt-1 text-sm text-base-content/60">
+              Build a Scryfall query from supported collection fields.
+            </p>
           </div>
           <DialogClose onClose={onClose} />
         </DialogHeader>
 
         <div className="grid max-h-[calc(100vh-11rem)] overflow-y-auto lg:grid-cols-[1fr_19rem]">
           <div className="divide-y divide-base-300">
-            <FilterSection label="Name" syntax="name:&quot;Black Lotus&quot;">
-              <Input value={draft.name} onChange={event => update("name", event.target.value)} placeholder="Card name" />
+            <FilterSection label="Name" syntax='name:"Black Lotus"'>
+              <Input
+                value={draft.name}
+                onChange={(event) => update("name", event.target.value)}
+                placeholder="Card name"
+              />
             </FilterSection>
 
             <FilterSection label="Oracle text" syntax="oracle:draw">
-              <Input value={draft.oracle} onChange={event => update("oracle", event.target.value)} placeholder="Rules text" />
+              <Input
+                value={draft.oracle}
+                onChange={(event) => update("oracle", event.target.value)}
+                placeholder="Rules text"
+              />
             </FilterSection>
 
             <FilterSection label="Type" syntax="type:legendary">
-              <TypeCombobox value={draft.typeLine} onValueChange={value => update("typeLine", value)} />
+              <TypeCombobox
+                value={draft.typeLine}
+                onValueChange={(value) => update("typeLine", value)}
+              />
             </FilterSection>
 
             <FilterSection label="Colors" syntax="c:w, c>=uw, c:c">
               <ColorFilterControl
                 operator={draft.colorOperator}
                 selected={draft.colors}
-                onOperatorChange={operator => update("colorOperator", operator)}
-                onSelectedChange={colors => update("colors", colors)}
+                onOperatorChange={(operator) => update("colorOperator", operator)}
+                onSelectedChange={(colors) => update("colors", colors)}
               />
             </FilterSection>
 
@@ -627,8 +781,8 @@ export function CollectionFilterModal({
               <ColorFilterControl
                 operator={draft.identityOperator}
                 selected={draft.identity}
-                onOperatorChange={operator => update("identityOperator", operator)}
-                onSelectedChange={identity => update("identity", identity)}
+                onOperatorChange={(operator) => update("identityOperator", operator)}
+                onSelectedChange={(identity) => update("identity", identity)}
               />
             </FilterSection>
 
@@ -637,27 +791,38 @@ export function CollectionFilterModal({
                 inputMode="decimal"
                 operator={draft.manaValueOperator}
                 value={draft.manaValue}
-                onOperatorChange={operator => update("manaValueOperator", operator)}
-                onValueChange={value => update("manaValue", value)}
+                onOperatorChange={(operator) => update("manaValueOperator", operator)}
+                onValueChange={(value) => update("manaValue", value)}
               />
             </FilterSection>
 
             <FilterSection label="Rarity" syntax="rarity:rare">
-              <RarityFilterControl selected={draft.rarities} onSelectedChange={rarities => update("rarities", rarities)} />
+              <RarityFilterControl
+                selected={draft.rarities}
+                onSelectedChange={(rarities) => update("rarities", rarities)}
+              />
             </FilterSection>
 
             <FilterSection label="Printing" syntax="set:lea number:232 lang:ja">
               <div className="grid gap-3 sm:grid-cols-2">
-                <Input value={draft.set} onChange={event => update("set", event.target.value)} placeholder="Set code or name" />
+                <Input
+                  value={draft.set}
+                  onChange={(event) => update("set", event.target.value)}
+                  placeholder="Set code or name"
+                />
                 <ComparisonFilterControl
                   className="sm:col-start-1"
                   inputMode="numeric"
                   operator={draft.collectorOperator}
                   value={draft.collectorNumber}
-                  onOperatorChange={operator => update("collectorOperator", operator)}
-                  onValueChange={value => update("collectorNumber", value)}
+                  onOperatorChange={(operator) => update("collectorOperator", operator)}
+                  onValueChange={(value) => update("collectorNumber", value)}
                 />
-                <Input value={draft.language} onChange={event => update("language", event.target.value)} placeholder="Language" />
+                <Input
+                  value={draft.language}
+                  onChange={(event) => update("language", event.target.value)}
+                  placeholder="Language"
+                />
               </div>
             </FilterSection>
 
@@ -670,7 +835,7 @@ export function CollectionFilterModal({
                   { value: "etched", label: "Etched" },
                 ]}
                 value={draft.finish}
-                onChange={finish => update("finish", finish as FinishFilter)}
+                onChange={(finish) => update("finish", finish as FinishFilter)}
               />
             </FilterSection>
 
@@ -679,8 +844,8 @@ export function CollectionFilterModal({
                 inputMode="decimal"
                 operator={draft.priceOperator}
                 value={draft.priceUsd}
-                onOperatorChange={operator => update("priceOperator", operator)}
-                onValueChange={value => update("priceUsd", value)}
+                onOperatorChange={(operator) => update("priceOperator", operator)}
+                onValueChange={(value) => update("priceUsd", value)}
               />
             </FilterSection>
 
@@ -691,15 +856,15 @@ export function CollectionFilterModal({
                   operator={draft.dateOperator}
                   type="date"
                   value={draft.releasedDate}
-                  onOperatorChange={operator => update("dateOperator", operator)}
-                  onValueChange={value => update("releasedDate", value)}
+                  onOperatorChange={(operator) => update("dateOperator", operator)}
+                  onValueChange={(value) => update("releasedDate", value)}
                 />
                 <ComparisonFilterControl
                   inputMode="numeric"
                   operator={draft.yearOperator}
                   value={draft.releasedYear}
-                  onOperatorChange={operator => update("yearOperator", operator)}
-                  onValueChange={value => update("releasedYear", value)}
+                  onOperatorChange={(operator) => update("yearOperator", operator)}
+                  onValueChange={(value) => update("releasedYear", value)}
                   placeholder="Year"
                 />
               </div>
@@ -709,11 +874,15 @@ export function CollectionFilterModal({
           <aside className="border-t border-base-300 bg-base-200/40 p-5 lg:border-l lg:border-t-0">
             <div className="sticky top-5 space-y-4">
               <div className="flex items-center justify-between gap-3">
-                <h3 className="text-sm font-black uppercase tracking-[0.22em] text-primary">Scryfall syntax</h3>
+                <h3 className="text-sm font-black uppercase tracking-[0.22em] text-primary">
+                  Scryfall syntax
+                </h3>
                 <Badge tone={activeCount ? "primary" : "neutral"}>{activeCount} active</Badge>
               </div>
               <div className="min-h-24 rounded-box border border-base-300 bg-base-100 p-3 font-mono text-sm leading-6 text-base-content/80">
-                {syntax || <span className="font-sans text-base-content/45">No filters selected</span>}
+                {syntax || (
+                  <span className="font-sans text-base-content/45">No filters selected</span>
+                )}
               </div>
               <div className="grid gap-2">
                 <Button type="button" disabled={!syntax} onClick={() => onApply(draft)}>
@@ -746,7 +915,9 @@ function FilterSection({
   return (
     <section className="grid gap-3 px-5 py-4 sm:grid-cols-[9rem_1fr]">
       <div>
-        <h3 className="text-[0.68rem] font-black uppercase tracking-[0.28em] text-accent">{label}</h3>
+        <h3 className="text-[0.68rem] font-black uppercase tracking-[0.28em] text-accent">
+          {label}
+        </h3>
         <p className="mt-2 font-mono text-[0.68rem] text-base-content/45">{syntax}</p>
       </div>
       <div className="min-w-0">{children}</div>
@@ -754,11 +925,17 @@ function FilterSection({
   )
 }
 
-function TypeCombobox({ onValueChange, value }: { onValueChange: (value: string) => void; value: string }) {
+function TypeCombobox({
+  onValueChange,
+  value,
+}: {
+  onValueChange: (value: string) => void
+  value: string
+}) {
   const rootRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
   const query = value.trim().toLowerCase()
-  const options = TYPE_OPTIONS.filter(option => option.toLowerCase().includes(query))
+  const options = TYPE_OPTIONS.filter((option) => option.toLowerCase().includes(query))
 
   useEffect(() => {
     function handlePointerDown(event: PointerEvent) {
@@ -778,7 +955,7 @@ function TypeCombobox({ onValueChange, value }: { onValueChange: (value: string)
     <div ref={rootRef} className="relative">
       <Input
         value={value}
-        onChange={event => {
+        onChange={(event) => {
           onValueChange(event.target.value)
           setOpen(true)
         }}
@@ -789,14 +966,17 @@ function TypeCombobox({ onValueChange, value }: { onValueChange: (value: string)
         aria-expanded={open && options.length > 0}
       />
       {open && options.length ? (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-box border border-base-300 bg-base-100 p-1 shadow-2xl" role="listbox">
-          {options.map(option => (
+        <div
+          className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-box border border-base-300 bg-base-100 p-1 shadow-2xl"
+          role="listbox"
+        >
+          {options.map((option) => (
             <button
               key={option}
               type="button"
               role="option"
               className="block w-full rounded-btn px-3 py-2 text-left text-sm transition-colors hover:bg-base-200"
-              onMouseDown={event => event.preventDefault()}
+              onMouseDown={(event) => event.preventDefault()}
               onClick={() => selectType(option)}
             >
               {option}
@@ -832,16 +1012,22 @@ function ComparisonFilterControl({
       <select
         className="select select-bordered w-full bg-base-100"
         value={operator}
-        onChange={event => onOperatorChange(event.target.value as ComparisonOperator)}
+        onChange={(event) => onOperatorChange(event.target.value as ComparisonOperator)}
         aria-label="Comparison"
       >
-        {COMPARISON_OPTIONS.map(option => (
+        {COMPARISON_OPTIONS.map((option) => (
           <option key={option} value={option}>
             {option}
           </option>
         ))}
       </select>
-      <Input inputMode={inputMode} type={type} value={value} onChange={event => onValueChange(event.target.value)} placeholder={placeholder} />
+      <Input
+        inputMode={inputMode}
+        type={type}
+        value={value}
+        onChange={(event) => onValueChange(event.target.value)}
+        placeholder={placeholder}
+      />
     </div>
   )
 }
@@ -863,8 +1049,10 @@ function ColorFilterControl({
       return
     }
 
-    const withoutColorless = selected.filter(value => value !== "c")
-    const next = withoutColorless.includes(color) ? withoutColorless.filter(value => value !== color) : [...withoutColorless, color]
+    const withoutColorless = selected.filter((value) => value !== "c")
+    const next = withoutColorless.includes(color)
+      ? withoutColorless.filter((value) => value !== color)
+      : [...withoutColorless, color]
     onSelectedChange(next)
   }
 
@@ -875,18 +1063,18 @@ function ColorFilterControl({
       <select
         className="select select-bordered min-w-36 bg-base-100"
         value={operator}
-        onChange={event => onOperatorChange(event.target.value as ColorOperator)}
+        onChange={(event) => onOperatorChange(event.target.value as ColorOperator)}
         aria-label="Color comparison"
         disabled={colorlessSelected}
       >
-        {COLOR_OPERATOR_OPTIONS.map(option => (
+        {COLOR_OPERATOR_OPTIONS.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
           </option>
         ))}
       </select>
       <div className="flex flex-wrap gap-2">
-        {COLOR_OPTIONS.map(color => {
+        {COLOR_OPTIONS.map((color) => {
           const active = selected.includes(color.value)
 
           return (
@@ -897,11 +1085,17 @@ function ColorFilterControl({
               title={color.label}
               className={cn(
                 "grid h-9 w-9 place-items-center rounded-full border bg-transparent p-0.5 shadow-sm transition-all",
-                active ? "scale-105 border-accent ring-2 ring-accent/60" : "border-transparent opacity-60 hover:opacity-95"
+                active
+                  ? "scale-105 border-accent ring-2 ring-accent/60"
+                  : "border-transparent opacity-60 hover:opacity-95",
               )}
               onClick={() => toggleColor(color.value)}
             >
-              <img src={`/scryfall-assets/symbols/${color.symbol}.svg`} alt={color.label} className="h-8 w-8" />
+              <img
+                src={`/scryfall-assets/symbols/${color.symbol}.svg`}
+                alt={color.label}
+                className="h-8 w-8"
+              />
             </button>
           )
         })}
@@ -933,9 +1127,9 @@ export function buildCollectionFilterQuery(filters: CollectionFilterState) {
 
 export function combineCollectionQueries(...parts: string[]) {
   return parts
-    .map(part => part.trim())
+    .map((part) => part.trim())
     .filter(Boolean)
-    .map(part => `(${part})`)
+    .map((part) => `(${part})`)
     .join(" ")
 }
 
@@ -987,12 +1181,14 @@ function colorPredicate(field: "c" | "id", operator: ColorOperator, colors: Mana
 function rarityPredicate(rarities: RarityFilter[]) {
   if (!rarities.length) return ""
 
-  const terms = rarities.map(rarity => `rarity:${rarity}`)
+  const terms = rarities.map((rarity) => `rarity:${rarity}`)
   return terms.length === 1 ? terms[0] : `(${terms.join(" or ")})`
 }
 
 function quoteScryfallValue(value: string) {
-  return /[\s()"]/.test(value) ? `"${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"` : value
+  return /[\s()"]/.test(value)
+    ? `"${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`
+    : value
 }
 
 function RarityFilterControl({
@@ -1003,12 +1199,16 @@ function RarityFilterControl({
   selected: RarityFilter[]
 }) {
   function toggleRarity(rarity: RarityFilter) {
-    onSelectedChange(selected.includes(rarity) ? selected.filter(value => value !== rarity) : [...selected, rarity])
+    onSelectedChange(
+      selected.includes(rarity)
+        ? selected.filter((value) => value !== rarity)
+        : [...selected, rarity],
+    )
   }
 
   return (
     <div className="flex flex-wrap gap-2">
-      {RARITY_OPTIONS.map(rarity => {
+      {RARITY_OPTIONS.map((rarity) => {
         const active = selected.includes(rarity.value)
 
         return (
@@ -1018,7 +1218,7 @@ function RarityFilterControl({
             aria-pressed={active}
             className={cn(
               "btn btn-outline btn-sm gap-2",
-              active ? "border-primary bg-primary/15 text-primary" : "text-base-content/75"
+              active ? "border-primary bg-primary/15 text-primary" : "text-base-content/75",
             )}
             onClick={() => toggleRarity(rarity.value)}
           >
@@ -1042,13 +1242,15 @@ function SegmentedFilter<T extends string>({
 }) {
   return (
     <div className="inline-grid overflow-hidden rounded-btn border border-base-300 sm:auto-cols-fr sm:grid-flow-col">
-      {options.map(option => (
+      {options.map((option) => (
         <button
           key={option.value}
           type="button"
           className={cn(
             "border-base-300 px-4 py-2 text-sm font-bold transition-colors [&:not(:last-child)]:border-r",
-            value === option.value ? "bg-primary text-primary-content" : "bg-base-100 text-base-content/65 hover:bg-base-200"
+            value === option.value
+              ? "bg-primary text-primary-content"
+              : "bg-base-100 text-base-content/65 hover:bg-base-200",
           )}
           onClick={() => onChange(option.value)}
         >
@@ -1063,7 +1265,9 @@ type LocationSummary = CollectionQuery["locations"][number]
 type LocationDetail = NonNullable<LocationQuery["location"]>
 type LocationCoverCard = LocationCoverCardSearchQuery["cards"][number]
 type LocationCoverPrinting = NonNullable<NonNullable<LocationCoverCard["printings"]>[number]>
-type CollectionImportPreview = NonNullable<PreviewCollectionImportMutation["previewCollectionImport"]>
+type CollectionImportPreview = NonNullable<
+  PreviewCollectionImportMutation["previewCollectionImport"]
+>
 type CollectionImportRow = CollectionImportPreview["rows"][number]
 type CollectionImportCandidate = CollectionImportRow["candidates"][number]
 type LocationCoverSelection = {
@@ -1089,7 +1293,13 @@ export type AddCollectionItemInitialPrinting = {
 type AddCollectionItemPrintingSelection = AddCollectionItemInitialPrinting
 
 const LOCATION_KINDS = ["box", "binder", "deck_box", "list", "folder", "other"] as const
-const COLLECTION_CONDITIONS = ["near_mint", "lightly_played", "moderately_played", "heavily_played", "damaged"] as const
+const COLLECTION_CONDITIONS = [
+  "near_mint",
+  "lightly_played",
+  "moderately_played",
+  "heavily_played",
+  "damaged",
+] as const
 const COLLECTION_FINISHES = ["nonfoil", "foil", "etched"] as const
 const MODAL_SEARCH_DEBOUNCE_MS = 250
 
@@ -1110,11 +1320,23 @@ function isUnfiledLocation(location: { id: string }) {
 
 function SummaryActionMenu({ label, onEdit }: { label: string; onEdit: () => void }) {
   return (
-    <div className="dropdown dropdown-end absolute right-3 top-3 z-20" onClick={event => event.stopPropagation()} onMouseDown={event => event.stopPropagation()}>
-      <button type="button" className="btn btn-circle btn-xs border-0 bg-neutral/85 text-neutral-content shadow backdrop-blur transition hover:bg-neutral" tabIndex={0} aria-label={label}>
+    <div
+      className="dropdown dropdown-end absolute right-3 top-3 z-20"
+      onClick={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+    >
+      <button
+        type="button"
+        className="btn btn-circle btn-xs border-0 bg-neutral/85 text-neutral-content shadow backdrop-blur transition hover:bg-neutral"
+        tabIndex={0}
+        aria-label={label}
+      >
         <MoreVertical className="h-4 w-4" />
       </button>
-      <ul tabIndex={0} className="menu dropdown-content z-50 mt-1 w-44 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl">
+      <ul
+        tabIndex={0}
+        className="menu dropdown-content z-50 mt-1 w-44 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
+      >
         <li>
           <button type="button" onClick={onEdit}>
             <Edit3 className="h-4 w-4" />
@@ -1143,7 +1365,8 @@ function UnfiledLocationCard({
     <Card
       className={cn(
         "group relative min-h-52 overflow-hidden transition-all",
-        interactive && "hover:-translate-y-0.5 hover:border-primary/40 hover:bg-base-100 hover:shadow-xl"
+        interactive &&
+          "hover:-translate-y-0.5 hover:border-primary/40 hover:bg-base-100 hover:shadow-xl",
       )}
     >
       <div className="relative z-10 flex min-h-52 flex-col justify-between gap-8 p-5">
@@ -1152,12 +1375,18 @@ function UnfiledLocationCard({
             <Boxes className="h-5 w-5" />
           </span>
           <Badge>{titleize(location.kind)}</Badge>
-          {countLine ? <span className="text-sm font-bold text-base-content/70">{countLine}</span> : null}
-          {priceLine ? <span className="text-sm font-bold text-base-content/70">{priceLine}</span> : null}
+          {countLine ? (
+            <span className="text-sm font-bold text-base-content/70">{countLine}</span>
+          ) : null}
+          {priceLine ? (
+            <span className="text-sm font-bold text-base-content/70">{priceLine}</span>
+          ) : null}
         </div>
         <div className="min-w-0">
           <h3 className="line-clamp-2 text-3xl font-black tracking-normal">{location.name}</h3>
-          {detailLine ? <div className="mt-3 max-w-2xl text-sm text-base-content/65">{detailLine}</div> : null}
+          {detailLine ? (
+            <div className="mt-3 max-w-2xl text-sm text-base-content/65">{detailLine}</div>
+          ) : null}
         </div>
       </div>
     </Card>
@@ -1186,14 +1415,19 @@ function AddCollectionItemToDeckDialog({
   const addToDeck = useMutation({
     mutationFn: () => {
       if (!item || !deckId) throw new Error("Choose a deck")
-      return request(AddCollectionItemToDeckDocument, { id: item.id, deckId, zone })
+      return request(AddCollectionItemToDeckDocument, {
+        id: item.id,
+        deckId,
+        zone,
+      })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["decks"] })
       onDone()
       close()
     },
-    onError: error => setError(error instanceof Error ? error.message : "Could not add card to deck"),
+    onError: (error) =>
+      setError(error instanceof Error ? error.message : "Could not add card to deck"),
   })
 
   useEffect(() => {
@@ -1216,35 +1450,58 @@ function AddCollectionItemToDeckDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={nextOpen => !nextOpen && close()}>
+    <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && close()}>
       <DialogContent className="max-w-lg" labelledBy="add-collection-item-to-deck-title">
         <DialogHeader>
           <div>
             <DialogTitle id="add-collection-item-to-deck-title">Add to deck</DialogTitle>
-            <p className="mt-1 text-sm text-base-content/60">{item?.printing?.card?.name || "Collection item"}</p>
+            <p className="mt-1 text-sm text-base-content/60">
+              {item?.printing?.card?.name || "Collection item"}
+            </p>
           </div>
           <DialogClose onClose={close} />
         </DialogHeader>
         <form className="space-y-4 p-5" onSubmit={submit}>
           <label className="block space-y-2">
             <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Deck</span>
-            <select className="select select-bordered w-full bg-base-100" value={deckId} onChange={event => setDeckId(event.target.value)} autoFocus>
+            <select
+              className="select select-bordered w-full bg-base-100"
+              value={deckId}
+              onChange={(event) => setDeckId(event.target.value)}
+              autoFocus
+            >
               <option value="">Choose a deck</option>
-              {decksQuery.data?.decks.map(deck => <option key={deck.id} value={deck.id}>{deck.name} ({titleize(deck.format)})</option>)}
+              {decksQuery.data?.decks.map((deck) => (
+                <option key={deck.id} value={deck.id}>
+                  {deck.name} ({titleize(deck.format)})
+                </option>
+              ))}
             </select>
           </label>
           <label className="block space-y-2">
             <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Zone</span>
-            <select className="select select-bordered w-full bg-base-100" value={zone} onChange={event => setZone(event.target.value)}>
+            <select
+              className="select select-bordered w-full bg-base-100"
+              value={zone}
+              onChange={(event) => setZone(event.target.value)}
+            >
               <option value="mainboard">Mainboard</option>
               <option value="sideboard">Sideboard</option>
               <option value="maybeboard">Maybeboard</option>
             </select>
           </label>
-          {error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p> : null}
+          {error ? (
+            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+              {error}
+            </p>
+          ) : null}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={close} disabled={addToDeck.isPending}>Cancel</Button>
-            <Button type="submit" disabled={addToDeck.isPending || !deckId}>{addToDeck.isPending ? "Adding..." : "Add to deck"}</Button>
+            <Button type="button" variant="ghost" onClick={close} disabled={addToDeck.isPending}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={addToDeck.isPending || !deckId}>
+              {addToDeck.isPending ? "Adding..." : "Add to deck"}
+            </Button>
           </div>
         </form>
       </DialogContent>
@@ -1274,15 +1531,21 @@ function MoveCollectionItemDialog({
   const updateItem = useMutation({
     mutationFn: () => {
       if (!item) throw new Error("Collection item is required")
-      return request(UpdateCollectionItemDocument, { id: item.id, input: { locationId: locationId || null } })
+      return request(UpdateCollectionItemDocument, {
+        id: item.id,
+        input: { locationId: locationId || null },
+      })
     },
     onSuccess: () => {
       onDone()
       close()
     },
-    onError: error => setError(error instanceof Error ? error.message : "Could not move collection item"),
+    onError: (error) =>
+      setError(error instanceof Error ? error.message : "Could not move collection item"),
   })
-  const locations = (optionsQuery.data?.locations || []).filter(location => !isUnfiledLocation(location) && (!listOnly || location.kind === "list"))
+  const locations = (optionsQuery.data?.locations || []).filter(
+    (location) => !isUnfiledLocation(location) && (!listOnly || location.kind === "list"),
+  )
 
   useEffect(() => {
     if (open) setLocationId(listOnly ? "" : item?.location?.id || "")
@@ -1310,28 +1573,64 @@ function MoveCollectionItemDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={nextOpen => !nextOpen && close()}>
-      <DialogContent className="max-w-lg" labelledBy={listOnly ? "add-collection-item-to-list-title" : "move-collection-item-title"}>
+    <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && close()}>
+      <DialogContent
+        className="max-w-lg"
+        labelledBy={listOnly ? "add-collection-item-to-list-title" : "move-collection-item-title"}
+      >
         <DialogHeader>
           <div>
-            <DialogTitle id={listOnly ? "add-collection-item-to-list-title" : "move-collection-item-title"}>{listOnly ? "Add to list" : "Move item"}</DialogTitle>
-            <p className="mt-1 text-sm text-base-content/60">{item?.printing?.card?.name || "Collection item"}</p>
+            <DialogTitle
+              id={listOnly ? "add-collection-item-to-list-title" : "move-collection-item-title"}
+            >
+              {listOnly ? "Add to list" : "Move item"}
+            </DialogTitle>
+            <p className="mt-1 text-sm text-base-content/60">
+              {item?.printing?.card?.name || "Collection item"}
+            </p>
           </div>
           <DialogClose onClose={close} />
         </DialogHeader>
         <form className="space-y-4 p-5" onSubmit={submit}>
           <label className="block space-y-2">
-            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">{listOnly ? "List" : "Location"}</span>
-            <select className="select select-bordered w-full bg-base-100" value={locationId} onChange={event => setLocationId(event.target.value)} autoFocus>
-              {!listOnly ? <option value="">Unfiled</option> : <option value="">Choose a list</option>}
-              {locations.map(location => <option key={location.id} value={location.id}>{location.name} ({titleize(location.kind)})</option>)}
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+              {listOnly ? "List" : "Location"}
+            </span>
+            <select
+              className="select select-bordered w-full bg-base-100"
+              value={locationId}
+              onChange={(event) => setLocationId(event.target.value)}
+              autoFocus
+            >
+              {!listOnly ? (
+                <option value="">Unfiled</option>
+              ) : (
+                <option value="">Choose a list</option>
+              )}
+              {locations.map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.name} ({titleize(location.kind)})
+                </option>
+              ))}
             </select>
           </label>
-          {listOnly && !optionsQuery.isLoading && locations.length === 0 ? <p className="text-sm text-base-content/60">Create a List location before adding items to a list.</p> : null}
-          {error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p> : null}
+          {listOnly && !optionsQuery.isLoading && locations.length === 0 ? (
+            <p className="text-sm text-base-content/60">
+              Create a List location before adding items to a list.
+            </p>
+          ) : null}
+          {error ? (
+            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+              {error}
+            </p>
+          ) : null}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={close} disabled={updateItem.isPending}>Cancel</Button>
-            <Button type="submit" disabled={updateItem.isPending || (listOnly && !locationId)}>{updateItem.isPending ? "Saving..." : listOnly ? "Add to list" : "Move"}</Button>
+            <Button type="button" variant="ghost" onClick={close} disabled={updateItem.isPending}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={updateItem.isPending || (listOnly && !locationId)}>
+              {updateItem.isPending ? "Saving..." : listOnly ? "Add to list" : "Move"}
+            </Button>
           </div>
         </form>
       </DialogContent>
@@ -1380,7 +1679,8 @@ function EditCollectionItemDialog({
       onDone()
       close()
     },
-    onError: error => setError(error instanceof Error ? error.message : "Could not update collection item"),
+    onError: (error) =>
+      setError(error instanceof Error ? error.message : "Could not update collection item"),
   })
 
   useEffect(() => {
@@ -1413,53 +1713,115 @@ function EditCollectionItemDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={nextOpen => !nextOpen && close()}>
+    <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && close()}>
       <DialogContent className="max-w-2xl" labelledBy="edit-collection-item-title">
         <DialogHeader>
           <div>
             <DialogTitle id="edit-collection-item-title">Edit collection item</DialogTitle>
-            <p className="mt-1 text-sm text-base-content/60">{item?.printing?.card?.name || "Collection item"}</p>
+            <p className="mt-1 text-sm text-base-content/60">
+              {item?.printing?.card?.name || "Collection item"}
+            </p>
           </div>
           <DialogClose onClose={close} />
         </DialogHeader>
         <form className="space-y-4 p-5" onSubmit={submit}>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Quantity</span>
-              <Input type="number" min={1} value={quantity} onChange={event => setQuantity(Number(event.target.value) || 1)} autoFocus />
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Quantity
+              </span>
+              <Input
+                type="number"
+                min={1}
+                value={quantity}
+                onChange={(event) => setQuantity(Number(event.target.value) || 1)}
+                autoFocus
+              />
             </label>
             <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Language</span>
-              <Input value={language} onChange={event => setLanguage(event.target.value)} placeholder="en" />
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Language
+              </span>
+              <Input
+                value={language}
+                onChange={(event) => setLanguage(event.target.value)}
+                placeholder="en"
+              />
             </label>
             <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Condition</span>
-              <select className="select select-bordered w-full bg-base-100" value={condition} onChange={event => setCondition(collectionConditionValue(event.target.value))}>
-                {COLLECTION_CONDITIONS.map(value => <option key={value} value={value}>{titleize(value)}</option>)}
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Condition
+              </span>
+              <select
+                className="select select-bordered w-full bg-base-100"
+                value={condition}
+                onChange={(event) => setCondition(collectionConditionValue(event.target.value))}
+              >
+                {COLLECTION_CONDITIONS.map((value) => (
+                  <option key={value} value={value}>
+                    {titleize(value)}
+                  </option>
+                ))}
               </select>
             </label>
             <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Finish</span>
-              <select className="select select-bordered w-full bg-base-100" value={finish} onChange={event => setFinish(collectionFinishValue(event.target.value))}>
-                {COLLECTION_FINISHES.map(value => <option key={value} value={value}>{titleize(value)}</option>)}
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Finish
+              </span>
+              <select
+                className="select select-bordered w-full bg-base-100"
+                value={finish}
+                onChange={(event) => setFinish(collectionFinishValue(event.target.value))}
+              >
+                {COLLECTION_FINISHES.map((value) => (
+                  <option key={value} value={value}>
+                    {titleize(value)}
+                  </option>
+                ))}
               </select>
             </label>
             <label className="block space-y-2 sm:col-span-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Location</span>
-              <select className="select select-bordered w-full bg-base-100" value={locationId} onChange={event => setLocationId(event.target.value)}>
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Location
+              </span>
+              <select
+                className="select select-bordered w-full bg-base-100"
+                value={locationId}
+                onChange={(event) => setLocationId(event.target.value)}
+              >
                 <option value="">Unfiled</option>
-                {optionsQuery.data?.locations.filter(location => !isUnfiledLocation(location)).map(location => <option key={location.id} value={location.id}>{location.name} ({titleize(location.kind)})</option>)}
+                {optionsQuery.data?.locations
+                  .filter((location) => !isUnfiledLocation(location))
+                  .map((location) => (
+                    <option key={location.id} value={location.id}>
+                      {location.name} ({titleize(location.kind)})
+                    </option>
+                  ))}
               </select>
             </label>
             <label className="block space-y-2 sm:col-span-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Notes</span>
-              <textarea className="textarea textarea-bordered min-h-24 w-full bg-base-100" value={notes} onChange={event => setNotes(event.target.value)} />
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Notes
+              </span>
+              <textarea
+                className="textarea textarea-bordered min-h-24 w-full bg-base-100"
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+              />
             </label>
           </div>
-          {error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p> : null}
+          {error ? (
+            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+              {error}
+            </p>
+          ) : null}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={close} disabled={updateItem.isPending}>Cancel</Button>
-            <Button type="submit" disabled={updateItem.isPending}>{updateItem.isPending ? "Saving..." : "Save item"}</Button>
+            <Button type="button" variant="ghost" onClick={close} disabled={updateItem.isPending}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={updateItem.isPending}>
+              {updateItem.isPending ? "Saving..." : "Save item"}
+            </Button>
           </div>
         </form>
       </DialogContent>
@@ -1487,7 +1849,8 @@ function DeleteCollectionItemDialog({
       onDone()
       close()
     },
-    onError: error => setError(error instanceof Error ? error.message : "Could not delete collection item"),
+    onError: (error) =>
+      setError(error instanceof Error ? error.message : "Could not delete collection item"),
   })
 
   useEffect(() => {
@@ -1500,21 +1863,36 @@ function DeleteCollectionItemDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={nextOpen => !nextOpen && close()}>
+    <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && close()}>
       <DialogContent className="max-w-lg" labelledBy="delete-collection-item-title">
         <DialogHeader>
           <div>
             <DialogTitle id="delete-collection-item-title">Delete collection item</DialogTitle>
-            <p className="mt-1 text-sm text-base-content/60">{item?.printing?.card?.name || "Collection item"}</p>
+            <p className="mt-1 text-sm text-base-content/60">
+              {item?.printing?.card?.name || "Collection item"}
+            </p>
           </div>
           <DialogClose onClose={close} />
         </DialogHeader>
         <div className="space-y-4 p-5">
-          <p className="text-sm text-base-content/70">Remove this owned printing from your collection.</p>
-          {error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p> : null}
+          <p className="text-sm text-base-content/70">
+            Remove this owned printing from your collection.
+          </p>
+          {error ? (
+            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+              {error}
+            </p>
+          ) : null}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={close} disabled={deleteItem.isPending}>Cancel</Button>
-            <Button type="button" variant="destructive" onClick={() => deleteItem.mutate()} disabled={deleteItem.isPending}>
+            <Button type="button" variant="ghost" onClick={close} disabled={deleteItem.isPending}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => deleteItem.mutate()}
+              disabled={deleteItem.isPending}
+            >
               <Trash2 className="h-4 w-4" />
               {deleteItem.isPending ? "Deleting..." : "Delete"}
             </Button>
@@ -1536,7 +1914,8 @@ export function AddCollectionItemDialog({
 }) {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState("")
-  const [selectedPrinting, setSelectedPrinting] = useState<AddCollectionItemPrintingSelection | null>(null)
+  const [selectedPrinting, setSelectedPrinting] =
+    useState<AddCollectionItemPrintingSelection | null>(null)
   const [quantity, setQuantity] = useState(1)
   const [condition, setCondition] = useState<(typeof COLLECTION_CONDITIONS)[number]>("near_mint")
   const [finish, setFinish] = useState<(typeof COLLECTION_FINISHES)[number]>("nonfoil")
@@ -1583,7 +1962,8 @@ export function AddCollectionItemDialog({
       queryClient.invalidateQueries({ queryKey: ["home"] })
       close(true)
     },
-    onError: error => setError(error instanceof Error ? error.message : "Could not add collection item"),
+    onError: (error) =>
+      setError(error instanceof Error ? error.message : "Could not add collection item"),
   })
 
   useEffect(() => {
@@ -1601,7 +1981,8 @@ export function AddCollectionItemDialog({
   }, [initialPrinting, open])
 
   useEffect(() => {
-    if (!finishOptions.includes(finish)) setFinish(collectionFinishValue(finishOptions[0] || "nonfoil"))
+    if (!finishOptions.includes(finish))
+      setFinish(collectionFinishValue(finishOptions[0] || "nonfoil"))
   }, [finish, finishOptions])
 
   function selectPrinting(card: LocationCoverCard, printing: LocationCoverPrinting) {
@@ -1644,59 +2025,130 @@ export function AddCollectionItemDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={nextOpen => (nextOpen ? onOpenChange(true) : close())}>
-      <DialogContent className="max-h-[calc(100vh-3rem)] max-w-4xl overflow-y-auto" labelledBy="add-collection-item-title">
+    <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : close())}>
+      <DialogContent
+        className="max-h-[calc(100vh-3rem)] max-w-4xl overflow-y-auto"
+        labelledBy="add-collection-item-title"
+      >
         <DialogHeader>
           <div>
             <DialogTitle id="add-collection-item-title">Add collection item</DialogTitle>
-            <p className="mt-1 text-sm text-base-content/60">Choose an exact printing and where it lives.</p>
+            <p className="mt-1 text-sm text-base-content/60">
+              Choose an exact printing and where it lives.
+            </p>
           </div>
           <DialogClose onClose={() => close()} />
         </DialogHeader>
 
         <form className="space-y-5 p-5" onSubmit={submit}>
           <section className="space-y-3">
-            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Printing</span>
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+              Printing
+            </span>
             {selectedPrinting ? (
               <div className="flex gap-3 rounded-box border border-base-300 bg-base-200/40 p-3">
                 <div className="h-32 w-24 shrink-0 overflow-hidden rounded-lg bg-base-300">
-                  {selectedPrinting.imageUrl ? <img src={selectedPrinting.imageUrl} alt={selectedPrinting.cardName} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center px-2 text-center text-xs text-base-content/50">No image</div>}
+                  {selectedPrinting.imageUrl ? (
+                    <img
+                      src={selectedPrinting.imageUrl}
+                      alt={selectedPrinting.cardName}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center px-2 text-center text-xs text-base-content/50">
+                      No image
+                    </div>
+                  )}
                 </div>
                 <div className="min-w-0 flex-1 py-1">
                   <p className="font-bold">{selectedPrinting.cardName}</p>
-                  {selectedPrinting.typeLine ? <p className="text-sm text-base-content/60">{selectedPrinting.typeLine}</p> : null}
-                  <p className="mt-2 text-sm text-base-content/65">{printingSetLabel(selectedPrinting)}</p>
+                  {selectedPrinting.typeLine ? (
+                    <p className="text-sm text-base-content/60">{selectedPrinting.typeLine}</p>
+                  ) : null}
+                  <p className="mt-2 text-sm text-base-content/65">
+                    {printingSetLabel(selectedPrinting)}
+                  </p>
                 </div>
-                <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedPrinting(null)}>Change</Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedPrinting(null)}
+                >
+                  Change
+                </Button>
               </div>
             ) : null}
 
             {!selectedPrinting ? (
               <>
-                <CardNameSearchField value={search} onValueChange={setSearch} onClear={() => setSearch("")} onSuggestionSelect={setSearch} placeholder="Search for a card" suggestionLimit={8} />
+                <CardNameSearchField
+                  value={search}
+                  onValueChange={setSearch}
+                  onClear={() => setSearch("")}
+                  onSuggestionSelect={setSearch}
+                  placeholder="Search for a card"
+                  suggestionLimit={8}
+                />
                 {searchDraftTerm.length > 1 ? (
                   <div className="max-h-80 overflow-y-auto rounded-box border border-base-300 bg-base-100">
-                    {cardSearchQuery.isFetching || searchTerm !== searchDraftTerm ? <p className="px-3 py-2 text-sm text-base-content/55">Searching...</p> : null}
-                    {!cardSearchQuery.isFetching && searchTerm === searchDraftTerm && cardSearchQuery.data?.cards.length === 0 ? <p className="px-3 py-2 text-sm text-base-content/55">No cards found.</p> : null}
-                    {searchTerm === searchDraftTerm ? cardSearchQuery.data?.cards.map(card => (
-                      <div key={card.oracleId} className="border-t border-base-300 p-3 first:border-t-0">
-                        <div className="mb-2">
-                          <p className="font-bold">{card.name}</p>
-                          {card.typeLine ? <p className="text-xs text-base-content/55">{card.typeLine}</p> : null}
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-                          {card.printings?.filter(present).slice(0, 8).map(printing => (
-                            <button key={printing.scryfallId} type="button" className="group rounded-lg border border-base-300 bg-base-200/40 p-2 text-left transition hover:border-primary hover:bg-base-200" onClick={() => selectPrinting(card, printing)}>
-                              <div className="aspect-[5/7] overflow-hidden rounded bg-base-300">
-                                {printing.imageUrl ? <img src={printing.imageUrl} alt={`${card.name} ${printing.setCode || "printing"}`} className="h-full w-full object-cover transition group-hover:scale-[1.02]" loading="lazy" /> : <div className="flex h-full items-center justify-center px-2 text-center text-xs text-base-content/50">No image</div>}
-                              </div>
-                              <p className="mt-2 truncate text-xs font-bold uppercase">{printing.setCode || "Unknown set"}</p>
-                              <p className="truncate text-xs text-base-content/60">#{printing.collectorNumber || "-"}</p>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )) : null}
+                    {cardSearchQuery.isFetching || searchTerm !== searchDraftTerm ? (
+                      <p className="px-3 py-2 text-sm text-base-content/55">Searching...</p>
+                    ) : null}
+                    {!cardSearchQuery.isFetching &&
+                    searchTerm === searchDraftTerm &&
+                    cardSearchQuery.data?.cards.length === 0 ? (
+                      <p className="px-3 py-2 text-sm text-base-content/55">No cards found.</p>
+                    ) : null}
+                    {searchTerm === searchDraftTerm
+                      ? cardSearchQuery.data?.cards.map((card) => (
+                          <div
+                            key={card.oracleId}
+                            className="border-t border-base-300 p-3 first:border-t-0"
+                          >
+                            <div className="mb-2">
+                              <p className="font-bold">{card.name}</p>
+                              {card.typeLine ? (
+                                <p className="text-xs text-base-content/55">{card.typeLine}</p>
+                              ) : null}
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                              {card.printings
+                                ?.filter(present)
+                                .slice(0, 8)
+                                .map((printing) => (
+                                  <button
+                                    key={printing.scryfallId}
+                                    type="button"
+                                    className="group rounded-lg border border-base-300 bg-base-200/40 p-2 text-left transition hover:border-primary hover:bg-base-200"
+                                    onClick={() => selectPrinting(card, printing)}
+                                  >
+                                    <div className="aspect-[5/7] overflow-hidden rounded bg-base-300">
+                                      {printing.imageUrl ? (
+                                        <img
+                                          src={printing.imageUrl}
+                                          alt={`${card.name} ${printing.setCode || "printing"}`}
+                                          className="h-full w-full object-cover transition group-hover:scale-[1.02]"
+                                          loading="lazy"
+                                        />
+                                      ) : (
+                                        <div className="flex h-full items-center justify-center px-2 text-center text-xs text-base-content/50">
+                                          No image
+                                        </div>
+                                      )}
+                                    </div>
+                                    <p className="mt-2 truncate text-xs font-bold uppercase">
+                                      {printing.setCode || "Unknown set"}
+                                    </p>
+                                    <p className="truncate text-xs text-base-content/60">
+                                      #{printing.collectorNumber || "-"}
+                                    </p>
+                                  </button>
+                                ))}
+                            </div>
+                          </div>
+                        ))
+                      : null}
                   </div>
                 ) : null}
               </>
@@ -1705,47 +2157,106 @@ export function AddCollectionItemDialog({
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Quantity</span>
-              <Input type="number" min={1} value={quantity} onChange={event => setQuantity(Math.max(1, Number(event.target.value) || 1))} />
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Quantity
+              </span>
+              <Input
+                type="number"
+                min={1}
+                value={quantity}
+                onChange={(event) => setQuantity(Math.max(1, Number(event.target.value) || 1))}
+              />
             </label>
 
             <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Condition</span>
-              <select className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" value={condition} onChange={event => setCondition(collectionConditionValue(event.target.value))}>
-                {COLLECTION_CONDITIONS.map(condition => <option key={condition} value={condition}>{titleize(condition)}</option>)}
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Condition
+              </span>
+              <select
+                className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                value={condition}
+                onChange={(event) => setCondition(collectionConditionValue(event.target.value))}
+              >
+                {COLLECTION_CONDITIONS.map((condition) => (
+                  <option key={condition} value={condition}>
+                    {titleize(condition)}
+                  </option>
+                ))}
               </select>
             </label>
 
             <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Finish</span>
-              <select className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" value={finish} onChange={event => setFinish(collectionFinishValue(event.target.value))}>
-                {finishOptions.map(finish => <option key={finish} value={finish}>{titleize(finish)}</option>)}
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Finish
+              </span>
+              <select
+                className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                value={finish}
+                onChange={(event) => setFinish(collectionFinishValue(event.target.value))}
+              >
+                {finishOptions.map((finish) => (
+                  <option key={finish} value={finish}>
+                    {titleize(finish)}
+                  </option>
+                ))}
               </select>
             </label>
 
             <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Language</span>
-              <Input value={language} onChange={event => setLanguage(event.target.value)} />
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Language
+              </span>
+              <Input value={language} onChange={(event) => setLanguage(event.target.value)} />
             </label>
           </div>
 
           <label className="block space-y-2">
-            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Location</span>
-            <select className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" value={locationId} onChange={event => setLocationId(event.target.value)}>
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+              Location
+            </span>
+            <select
+              className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              value={locationId}
+              onChange={(event) => setLocationId(event.target.value)}
+            >
               <option value="">Unfiled</option>
-              {optionsQuery.data?.locations.filter(location => !isUnfiledLocation(location)).map(location => <option key={location.id} value={location.id}>{location.name} ({titleize(location.kind)})</option>)}
+              {optionsQuery.data?.locations
+                .filter((location) => !isUnfiledLocation(location))
+                .map((location) => (
+                  <option key={location.id} value={location.id}>
+                    {location.name} ({titleize(location.kind)})
+                  </option>
+                ))}
             </select>
           </label>
 
           <label className="block space-y-2">
-            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Notes</span>
-            <textarea className="textarea textarea-bordered min-h-20 w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" value={notes} onChange={event => setNotes(event.target.value)} placeholder="Optional notes" />
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+              Notes
+            </span>
+            <textarea
+              className="textarea textarea-bordered min-h-20 w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              placeholder="Optional notes"
+            />
           </label>
 
-          {error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p> : null}
+          {error ? (
+            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+              {error}
+            </p>
+          ) : null}
 
           <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-4">
-            <Button type="button" variant="ghost" onClick={() => close()} disabled={createItem.isPending}>Cancel</Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => close()}
+              disabled={createItem.isPending}
+            >
+              Cancel
+            </Button>
             <Button type="submit" disabled={createItem.isPending}>
               <Plus className="h-4 w-4" />
               {createItem.isPending ? "Adding..." : "Add item"}
@@ -1757,7 +2268,13 @@ export function AddCollectionItemDialog({
   )
 }
 
-function ImportCollectionCsvDialog({ onOpenChange, open }: { onOpenChange: (open: boolean) => void; open: boolean }) {
+function ImportCollectionCsvDialog({
+  onOpenChange,
+  open,
+}: {
+  onOpenChange: (open: boolean) => void
+  open: boolean
+}) {
   const queryClient = useQueryClient()
   const [csvText, setCsvText] = useState("")
   const [fileName, setFileName] = useState("")
@@ -1770,26 +2287,33 @@ function ImportCollectionCsvDialog({ onOpenChange, open }: { onOpenChange: (open
     enabled: open,
   })
   const previewImport = useMutation({
-    mutationFn: () => request(PreviewCollectionImportDocument, { input: { csv: csvText, locationId: locationId || null } }),
-    onSuccess: data => {
+    mutationFn: () =>
+      request(PreviewCollectionImportDocument, {
+        input: { csv: csvText, locationId: locationId || null },
+      }),
+    onSuccess: (data) => {
       setPreview(data.previewCollectionImport || null)
       setError(null)
     },
-    onError: error => setError(error instanceof Error ? error.message : "Could not preview collection CSV"),
+    onError: (error) =>
+      setError(error instanceof Error ? error.message : "Could not preview collection CSV"),
   })
   const commitImport = useMutation({
     mutationFn: () => {
       if (!preview) throw new Error("Preview a CSV before importing")
-      return request(CommitCollectionImportDocument, { input: { rows: preview.rows.map(commitImportRow) } })
+      return request(CommitCollectionImportDocument, {
+        input: { rows: preview.rows.map(commitImportRow) },
+      })
     },
-    onSuccess: data => {
+    onSuccess: (_) => {
       queryClient.invalidateQueries({ queryKey: ["collection"] })
       queryClient.invalidateQueries({ queryKey: ["collection-items"] })
       queryClient.invalidateQueries({ queryKey: ["home"] })
       reset()
       onOpenChange(false)
     },
-    onError: error => setError(error instanceof Error ? error.message : "Could not import collection CSV"),
+    onError: (error) =>
+      setError(error instanceof Error ? error.message : "Could not import collection CSV"),
   })
 
   useEffect(() => {
@@ -1818,7 +2342,7 @@ function ImportCollectionCsvDialog({ onOpenChange, open }: { onOpenChange: (open
   function selectCandidate(rowNumber: number, candidate: CollectionImportCandidate) {
     if (!preview) return
 
-    const rows = preview.rows.map(row =>
+    const rows = preview.rows.map((row) =>
       row.rowNumber === rowNumber
         ? {
             ...row,
@@ -1827,7 +2351,7 @@ function ImportCollectionCsvDialog({ onOpenChange, open }: { onOpenChange: (open
             printing: candidate,
             candidates: [],
           }
-        : row
+        : row,
     )
 
     setPreview({ ...preview, ...collectionImportCounts(rows), rows })
@@ -1848,12 +2372,17 @@ function ImportCollectionCsvDialog({ onOpenChange, open }: { onOpenChange: (open
   }
 
   return (
-    <Dialog open={open} onOpenChange={nextOpen => (nextOpen ? onOpenChange(true) : close())}>
-      <DialogContent className="flex max-h-[calc(100vh-3rem)] max-w-5xl flex-col" labelledBy="import-collection-title">
+    <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : close())}>
+      <DialogContent
+        className="flex max-h-[calc(100vh-3rem)] max-w-5xl flex-col"
+        labelledBy="import-collection-title"
+      >
         <DialogHeader>
           <div>
             <DialogTitle id="import-collection-title">Import collection CSV</DialogTitle>
-            <p className="mt-1 text-sm text-base-content/60">Preview rows before adding exact matches to your collection.</p>
+            <p className="mt-1 text-sm text-base-content/60">
+              Preview rows before adding exact matches to your collection.
+            </p>
           </div>
           <DialogClose onClose={close} />
         </DialogHeader>
@@ -1861,21 +2390,42 @@ function ImportCollectionCsvDialog({ onOpenChange, open }: { onOpenChange: (open
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
           <form className="space-y-4" onSubmit={submitPreview}>
             <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Import location</span>
-              <select className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" value={locationId} onChange={event => setLocationId(event.target.value)}>
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Import location
+              </span>
+              <select
+                className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                value={locationId}
+                onChange={(event) => setLocationId(event.target.value)}
+              >
                 <option value="">No location</option>
-                {optionsQuery.data?.locations.filter(location => !isUnfiledLocation(location)).map(location => <option key={location.id} value={location.id}>{location.name} ({titleize(location.kind)})</option>)}
+                {optionsQuery.data?.locations
+                  .filter((location) => !isUnfiledLocation(location))
+                  .map((location) => (
+                    <option key={location.id} value={location.id}>
+                      {location.name} ({titleize(location.kind)})
+                    </option>
+                  ))}
               </select>
             </label>
 
             <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">CSV file</span>
-              <input type="file" accept=".csv,text/csv" className="file-input file-input-bordered w-full bg-base-100" onChange={event => void chooseFile(event.target.files?.[0])} />
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                CSV file
+              </span>
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                className="file-input file-input-bordered w-full bg-base-100"
+                onChange={(event) => void chooseFile(event.target.files?.[0])}
+              />
               {fileName ? <p className="text-sm text-base-content/55">{fileName}</p> : null}
             </label>
 
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="ghost" onClick={close}>Cancel</Button>
+              <Button type="button" variant="ghost" onClick={close}>
+                Cancel
+              </Button>
               <Button type="submit" disabled={previewImport.isPending}>
                 <Upload className="h-4 w-4" />
                 {previewImport.isPending ? "Previewing..." : "Preview import"}
@@ -1896,7 +2446,9 @@ function ImportCollectionCsvDialog({ onOpenChange, open }: { onOpenChange: (open
                 </div>
                 <div className="stat">
                   <div className="stat-title">Needs review</div>
-                  <div className="stat-value text-2xl text-warning">{preview.ambiguous + preview.unresolved}</div>
+                  <div className="stat-value text-2xl text-warning">
+                    {preview.ambiguous + preview.unresolved}
+                  </div>
                 </div>
               </div>
 
@@ -1913,18 +2465,28 @@ function ImportCollectionCsvDialog({ onOpenChange, open }: { onOpenChange: (open
                     </tr>
                   </thead>
                   <tbody>
-                    {preview.rows.map(row => (
+                    {preview.rows.map((row) => (
                       <tr key={row.rowNumber}>
                         <td>{row.rowNumber}</td>
-                        <td><Badge tone={importStatusTone(row.status)}>{importStatusLabel(row.status)}</Badge></td>
+                        <td>
+                          <Badge tone={importStatusTone(row.status)}>
+                            {importStatusLabel(row.status)}
+                          </Badge>
+                        </td>
                         <td>{row.printing?.card?.name || row.attrs.name || "Unknown card"}</td>
                         <td>{row.attrs.quantity}</td>
                         <td>{row.attrs.finish}</td>
                         <td>
                           {row.status === "ambiguous" ? (
                             <div className="flex flex-wrap gap-1">
-                              {row.candidates.map(candidate => (
-                                <Button key={candidate.scryfallId} type="button" variant="outline" size="sm" onClick={() => selectCandidate(row.rowNumber, candidate)}>
+                              {row.candidates.map((candidate) => (
+                                <Button
+                                  key={candidate.scryfallId}
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => selectCandidate(row.rowNumber, candidate)}
+                                >
                                   {printingSetLabel({
                                     collectorNumber: candidate.collectorNumber,
                                     rarity: candidate.rarity,
@@ -1935,22 +2497,31 @@ function ImportCollectionCsvDialog({ onOpenChange, open }: { onOpenChange: (open
                                 </Button>
                               ))}
                             </div>
-                          ) : <span className="text-base-content/45">-</span>}
+                          ) : (
+                            <span className="text-base-content/45">-</span>
+                          )}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-
             </div>
           ) : null}
 
-          {error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p> : null}
+          {error ? (
+            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+              {error}
+            </p>
+          ) : null}
         </div>
         {preview ? (
           <div className="flex justify-end border-t border-base-300 bg-base-100 px-5 py-4">
-            <Button type="button" disabled={preview.exact === 0 || commitImport.isPending} onClick={() => commitImport.mutate()}>
+            <Button
+              type="button"
+              disabled={preview.exact === 0 || commitImport.isPending}
+              onClick={() => commitImport.mutate()}
+            >
               <Upload className="h-4 w-4" />
               {commitImport.isPending ? "Importing..." : "Import exact rows"}
             </Button>
@@ -1961,16 +2532,25 @@ function ImportCollectionCsvDialog({ onOpenChange, open }: { onOpenChange: (open
   )
 }
 
-function ExportCollectionCsvDialog({ filters, onOpenChange, open }: { filters: { q?: string }; onOpenChange: (open: boolean) => void; open: boolean }) {
+function ExportCollectionCsvDialog({
+  filters,
+  onOpenChange,
+  open,
+}: {
+  filters: { q?: string }
+  onOpenChange: (open: boolean) => void
+  open: boolean
+}) {
   const [exportText, setExportText] = useState("")
   const [error, setError] = useState<string | null>(null)
   const exportCsv = useMutation({
     mutationFn: () => request(CollectionExportCsvDocument, { filters }),
-    onSuccess: data => {
+    onSuccess: (data) => {
       setExportText(data.collectionExportCsv)
       setError(null)
     },
-    onError: error => setError(error instanceof Error ? error.message : "Could not export collection CSV"),
+    onError: (error) =>
+      setError(error instanceof Error ? error.message : "Could not export collection CSV"),
   })
 
   useEffect(() => {
@@ -1983,20 +2563,35 @@ function ExportCollectionCsvDialog({ filters, onOpenChange, open }: { filters: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100vh-3rem)] max-w-4xl overflow-y-auto" labelledBy="export-collection-title">
+      <DialogContent
+        className="max-h-[calc(100vh-3rem)] max-w-4xl overflow-y-auto"
+        labelledBy="export-collection-title"
+      >
         <DialogHeader>
           <div>
             <DialogTitle id="export-collection-title">Export collection CSV</DialogTitle>
-            <p className="mt-1 text-sm text-base-content/60">Copy the CSV or save it from the text area.</p>
+            <p className="mt-1 text-sm text-base-content/60">
+              Copy the CSV or save it from the text area.
+            </p>
           </div>
           <DialogClose onClose={() => onOpenChange(false)} />
         </DialogHeader>
 
         <div className="space-y-4 p-5">
-          <textarea className="textarea textarea-bordered min-h-72 w-full bg-base-100 font-mono text-xs" readOnly value={exportCsv.isPending ? "Exporting..." : exportText} />
-          {error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p> : null}
+          <textarea
+            className="textarea textarea-bordered min-h-72 w-full bg-base-100 font-mono text-xs"
+            readOnly
+            value={exportCsv.isPending ? "Exporting..." : exportText}
+          />
+          {error ? (
+            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+              {error}
+            </p>
+          ) : null}
           <div className="flex justify-end">
-            <Button type="button" onClick={() => onOpenChange(false)}>Close</Button>
+            <Button type="button" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
           </div>
         </div>
       </DialogContent>
@@ -2004,7 +2599,13 @@ function ExportCollectionCsvDialog({ filters, onOpenChange, open }: { filters: {
   )
 }
 
-function AddLocationDialog({ onOpenChange, open }: { onOpenChange: (open: boolean) => void; open: boolean }) {
+function AddLocationDialog({
+  onOpenChange,
+  open,
+}: {
+  onOpenChange: (open: boolean) => void
+  open: boolean
+}) {
   const queryClient = useQueryClient()
   const [name, setName] = useState("")
   const [kind, setKind] = useState<(typeof LOCATION_KINDS)[number]>("box")
@@ -2018,7 +2619,11 @@ function AddLocationDialog({ onOpenChange, open }: { onOpenChange: (open: boolea
 
   const coverSearchQuery = useQuery({
     queryKey: ["location-cover-card-search", coverSearchTerm],
-    queryFn: () => request(LocationCoverCardSearchDocument, { q: coverSearchTerm, limit: 8 }),
+    queryFn: () =>
+      request(LocationCoverCardSearchDocument, {
+        q: coverSearchTerm,
+        limit: 8,
+      }),
     enabled: open && coverSearchTerm.length > 1,
     staleTime: 60_000,
   })
@@ -2034,12 +2639,15 @@ function AddLocationDialog({ onOpenChange, open }: { onOpenChange: (open: boolea
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["collection"] })
-      queryClient.invalidateQueries({ queryKey: ["collection-item-form-options"] })
+      queryClient.invalidateQueries({
+        queryKey: ["collection-item-form-options"],
+      })
       queryClient.invalidateQueries({ queryKey: ["home"] })
       reset()
       onOpenChange(false)
     },
-    onError: error => setError(error instanceof Error ? error.message : "Could not create location"),
+    onError: (error) =>
+      setError(error instanceof Error ? error.message : "Could not create location"),
   })
 
   useEffect(() => {
@@ -2093,12 +2701,17 @@ function AddLocationDialog({ onOpenChange, open }: { onOpenChange: (open: boolea
   }
 
   return (
-    <Dialog open={open} onOpenChange={nextOpen => (nextOpen ? onOpenChange(true) : close())}>
-      <DialogContent className="max-h-[calc(100vh-3rem)] max-w-3xl overflow-y-auto" labelledBy="add-location-title">
+    <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : close())}>
+      <DialogContent
+        className="max-h-[calc(100vh-3rem)] max-w-3xl overflow-y-auto"
+        labelledBy="add-location-title"
+      >
         <DialogHeader>
           <div>
             <DialogTitle id="add-location-title">Add location</DialogTitle>
-            <p className="mt-1 text-sm text-base-content/60">Create a box, binder, list, or other place for collection items.</p>
+            <p className="mt-1 text-sm text-base-content/60">
+              Create a box, binder, list, or other place for collection items.
+            </p>
           </div>
           <DialogClose onClose={close} />
         </DialogHeader>
@@ -2106,34 +2719,72 @@ function AddLocationDialog({ onOpenChange, open }: { onOpenChange: (open: boolea
         <form className="space-y-5 p-5" onSubmit={submit}>
           <label className="block space-y-2">
             <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Name</span>
-            <Input value={name} onChange={event => setName(event.target.value)} placeholder="Location name" autoFocus />
+            <Input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Location name"
+              autoFocus
+            />
           </label>
 
           <label className="block space-y-2">
             <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Kind</span>
-            <select className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" value={kind} onChange={event => setKind(locationKindValue(event.target.value))}>
-              {LOCATION_KINDS.map(kind => <option key={kind} value={kind}>{titleize(kind)}</option>)}
+            <select
+              className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              value={kind}
+              onChange={(event) => setKind(locationKindValue(event.target.value))}
+            >
+              {LOCATION_KINDS.map((kind) => (
+                <option key={kind} value={kind}>
+                  {titleize(kind)}
+                </option>
+              ))}
             </select>
           </label>
 
           <label className="block space-y-2">
-            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Description</span>
-            <textarea className="textarea textarea-bordered min-h-24 w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" value={description} onChange={event => setDescription(event.target.value)} placeholder="Optional notes" />
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+              Description
+            </span>
+            <textarea
+              className="textarea textarea-bordered min-h-24 w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Optional notes"
+            />
           </label>
 
           <section className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Cover image</span>
-                <p className="mt-1 text-xs text-base-content/55">Search for a card, then choose the printing to use as this location's cover.</p>
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                  Cover image
+                </span>
+                <p className="mt-1 text-xs text-base-content/55">
+                  Search for a card, then choose the printing to use as this location's cover.
+                </p>
               </div>
-              {selectedCover ? <Button type="button" variant="ghost" size="sm" onClick={clearCover}>Remove cover</Button> : null}
+              {selectedCover ? (
+                <Button type="button" variant="ghost" size="sm" onClick={clearCover}>
+                  Remove cover
+                </Button>
+              ) : null}
             </div>
 
             {selectedCover ? (
               <div className="flex gap-3 rounded-box border border-base-300 bg-base-200/40 p-3">
                 <div className="h-28 w-20 shrink-0 overflow-hidden rounded-lg bg-base-300">
-                  {selectedCover.imageUrl ? <img src={selectedCover.imageUrl} alt={selectedCover.cardName || "Selected cover"} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center px-2 text-center text-xs text-base-content/50">No image</div>}
+                  {selectedCover.imageUrl ? (
+                    <img
+                      src={selectedCover.imageUrl}
+                      alt={selectedCover.cardName || "Selected cover"}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center px-2 text-center text-xs text-base-content/50">
+                      No image
+                    </div>
+                  )}
                 </div>
                 <div className="min-w-0 py-1">
                   <p className="font-bold">{selectedCover.cardName || "Selected printing"}</p>
@@ -2143,39 +2794,93 @@ function AddLocationDialog({ onOpenChange, open }: { onOpenChange: (open: boolea
               </div>
             ) : null}
 
-            <CardNameSearchField value={coverSearch} onValueChange={setCoverSearch} onClear={() => setCoverSearch("")} onSuggestionSelect={setCoverSearch} placeholder="Search for a cover card" suggestionLimit={8} />
+            <CardNameSearchField
+              value={coverSearch}
+              onValueChange={setCoverSearch}
+              onClear={() => setCoverSearch("")}
+              onSuggestionSelect={setCoverSearch}
+              placeholder="Search for a cover card"
+              suggestionLimit={8}
+            />
 
             {coverSearchDraftTerm.length > 1 ? (
               <div className="max-h-80 overflow-y-auto rounded-box border border-base-300 bg-base-100">
-                {coverSearchQuery.isFetching || coverSearchTerm !== coverSearchDraftTerm ? <p className="px-3 py-2 text-sm text-base-content/55">Searching...</p> : null}
-                {!coverSearchQuery.isFetching && coverSearchTerm === coverSearchDraftTerm && coverSearchQuery.data?.cards.length === 0 ? <p className="px-3 py-2 text-sm text-base-content/55">No cards found.</p> : null}
-                {coverSearchTerm === coverSearchDraftTerm ? coverSearchQuery.data?.cards.map(card => (
-                  <div key={card.oracleId} className="border-t border-base-300 p-3 first:border-t-0">
-                    <div className="mb-2">
-                      <p className="font-bold">{card.name}</p>
-                      {card.typeLine ? <p className="text-xs text-base-content/55">{card.typeLine}</p> : null}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-                      {card.printings?.filter(present).slice(0, 8).map(printing => (
-                        <button key={printing.scryfallId} type="button" className="group rounded-lg border border-base-300 bg-base-200/40 p-2 text-left transition hover:border-primary hover:bg-base-200" onClick={() => selectCover(card, printing)}>
-                          <div className="aspect-[5/7] overflow-hidden rounded bg-base-300">
-                            {printing.imageUrl ? <img src={printing.imageUrl} alt={`${card.name} ${printing.setCode || "printing"}`} className="h-full w-full object-cover transition group-hover:scale-[1.02]" loading="lazy" /> : <div className="flex h-full items-center justify-center px-2 text-center text-xs text-base-content/50">No image</div>}
-                          </div>
-                          <p className="mt-2 truncate text-xs font-bold uppercase">{printing.setCode || "Unknown set"}</p>
-                          <p className="truncate text-xs text-base-content/60">#{printing.collectorNumber || "-"}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )) : null}
+                {coverSearchQuery.isFetching || coverSearchTerm !== coverSearchDraftTerm ? (
+                  <p className="px-3 py-2 text-sm text-base-content/55">Searching...</p>
+                ) : null}
+                {!coverSearchQuery.isFetching &&
+                coverSearchTerm === coverSearchDraftTerm &&
+                coverSearchQuery.data?.cards.length === 0 ? (
+                  <p className="px-3 py-2 text-sm text-base-content/55">No cards found.</p>
+                ) : null}
+                {coverSearchTerm === coverSearchDraftTerm
+                  ? coverSearchQuery.data?.cards.map((card) => (
+                      <div
+                        key={card.oracleId}
+                        className="border-t border-base-300 p-3 first:border-t-0"
+                      >
+                        <div className="mb-2">
+                          <p className="font-bold">{card.name}</p>
+                          {card.typeLine ? (
+                            <p className="text-xs text-base-content/55">{card.typeLine}</p>
+                          ) : null}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                          {card.printings
+                            ?.filter(present)
+                            .slice(0, 8)
+                            .map((printing) => (
+                              <button
+                                key={printing.scryfallId}
+                                type="button"
+                                className="group rounded-lg border border-base-300 bg-base-200/40 p-2 text-left transition hover:border-primary hover:bg-base-200"
+                                onClick={() => selectCover(card, printing)}
+                              >
+                                <div className="aspect-[5/7] overflow-hidden rounded bg-base-300">
+                                  {printing.imageUrl ? (
+                                    <img
+                                      src={printing.imageUrl}
+                                      alt={`${card.name} ${printing.setCode || "printing"}`}
+                                      className="h-full w-full object-cover transition group-hover:scale-[1.02]"
+                                      loading="lazy"
+                                    />
+                                  ) : (
+                                    <div className="flex h-full items-center justify-center px-2 text-center text-xs text-base-content/50">
+                                      No image
+                                    </div>
+                                  )}
+                                </div>
+                                <p className="mt-2 truncate text-xs font-bold uppercase">
+                                  {printing.setCode || "Unknown set"}
+                                </p>
+                                <p className="truncate text-xs text-base-content/60">
+                                  #{printing.collectorNumber || "-"}
+                                </p>
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+                    ))
+                  : null}
               </div>
             ) : null}
           </section>
 
-          {error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p> : null}
+          {error ? (
+            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+              {error}
+            </p>
+          ) : null}
 
           <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-4">
-            <Button type="button" variant="ghost" onClick={close} disabled={createLocation.isPending}>Cancel</Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={close}
+              disabled={createLocation.isPending}
+            >
+              Cancel
+            </Button>
             <Button type="submit" disabled={createLocation.isPending}>
               <Plus className="h-4 w-4" />
               {createLocation.isPending ? "Creating..." : "Create location"}
@@ -2187,7 +2892,15 @@ function AddLocationDialog({ onOpenChange, open }: { onOpenChange: (open: boolea
   )
 }
 
-function EditLocationDialog({ location, onOpenChange, open }: { location: LocationSummary | LocationDetail | null; onOpenChange: (open: boolean) => void; open?: boolean }) {
+function EditLocationDialog({
+  location,
+  onOpenChange,
+  open,
+}: {
+  location: LocationSummary | LocationDetail | null
+  onOpenChange: (open: boolean) => void
+  open?: boolean
+}) {
   const queryClient = useQueryClient()
   const isOpen = open ?? Boolean(location)
   const [name, setName] = useState("")
@@ -2202,7 +2915,11 @@ function EditLocationDialog({ location, onOpenChange, open }: { location: Locati
 
   const coverSearchQuery = useQuery({
     queryKey: ["location-cover-card-search", coverSearchTerm],
-    queryFn: () => request(LocationCoverCardSearchDocument, { q: coverSearchTerm, limit: 8 }),
+    queryFn: () =>
+      request(LocationCoverCardSearchDocument, {
+        q: coverSearchTerm,
+        limit: 8,
+      }),
     enabled: isOpen && coverSearchTerm.length > 1,
     staleTime: 60_000,
   })
@@ -2212,7 +2929,14 @@ function EditLocationDialog({ location, onOpenChange, open }: { location: Locati
     setName(location.name)
     setKind(locationKindValue(location.kind))
     setDescription(location.description || "")
-    setSelectedCover(location.coverPrinting ? { imageUrl: location.coverPrinting.artCropUrl, scryfallId: location.coverPrinting.scryfallId } : null)
+    setSelectedCover(
+      location.coverPrinting
+        ? {
+            imageUrl: location.coverPrinting.artCropUrl,
+            scryfallId: location.coverPrinting.scryfallId,
+          }
+        : null,
+    )
     setCoverSearch("")
     setError(null)
   }, [location, isOpen])
@@ -2237,7 +2961,8 @@ function EditLocationDialog({ location, onOpenChange, open }: { location: Locati
       setError(null)
       onOpenChange(false)
     },
-    onError: error => setError(error instanceof Error ? error.message : "Could not update location"),
+    onError: (error) =>
+      setError(error instanceof Error ? error.message : "Could not update location"),
   })
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -2277,12 +3002,14 @@ function EditLocationDialog({ location, onOpenChange, open }: { location: Locati
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={nextOpen => (nextOpen ? onOpenChange(true) : close())}>
+    <Dialog open={isOpen} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : close())}>
       <DialogContent className="max-w-3xl" labelledBy="edit-location-title">
         <DialogHeader>
           <div>
             <DialogTitle id="edit-location-title">Edit location</DialogTitle>
-            <p className="mt-1 text-sm text-base-content/60">Update location metadata and cover image printing.</p>
+            <p className="mt-1 text-sm text-base-content/60">
+              Update location metadata and cover image printing.
+            </p>
           </div>
           <DialogClose onClose={close} />
         </DialogHeader>
@@ -2290,34 +3017,72 @@ function EditLocationDialog({ location, onOpenChange, open }: { location: Locati
         <form className="space-y-5 p-5" onSubmit={submit}>
           <label className="block space-y-2">
             <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Name</span>
-            <Input value={name} onChange={event => setName(event.target.value)} placeholder="Location name" autoFocus />
+            <Input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Location name"
+              autoFocus
+            />
           </label>
 
           <label className="block space-y-2">
             <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Kind</span>
-            <select className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" value={kind} onChange={event => setKind(locationKindValue(event.target.value))}>
-              {LOCATION_KINDS.map(kind => <option key={kind} value={kind}>{titleize(kind)}</option>)}
+            <select
+              className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              value={kind}
+              onChange={(event) => setKind(locationKindValue(event.target.value))}
+            >
+              {LOCATION_KINDS.map((kind) => (
+                <option key={kind} value={kind}>
+                  {titleize(kind)}
+                </option>
+              ))}
             </select>
           </label>
 
           <label className="block space-y-2">
-            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Description</span>
-            <textarea className="textarea textarea-bordered min-h-24 w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" value={description} onChange={event => setDescription(event.target.value)} placeholder="Optional notes" />
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+              Description
+            </span>
+            <textarea
+              className="textarea textarea-bordered min-h-24 w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Optional notes"
+            />
           </label>
 
           <section className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Cover image</span>
-                <p className="mt-1 text-xs text-base-content/55">Search for a card, then choose the printing to use as this location's cover.</p>
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                  Cover image
+                </span>
+                <p className="mt-1 text-xs text-base-content/55">
+                  Search for a card, then choose the printing to use as this location's cover.
+                </p>
               </div>
-              {selectedCover ? <Button type="button" variant="ghost" size="sm" onClick={clearCover}>Remove cover</Button> : null}
+              {selectedCover ? (
+                <Button type="button" variant="ghost" size="sm" onClick={clearCover}>
+                  Remove cover
+                </Button>
+              ) : null}
             </div>
 
             {selectedCover ? (
               <div className="flex gap-3 rounded-box border border-base-300 bg-base-200/40 p-3">
                 <div className="h-28 w-20 shrink-0 overflow-hidden rounded-lg bg-base-300">
-                  {selectedCover.imageUrl ? <img src={selectedCover.imageUrl} alt={selectedCover.cardName || "Selected cover"} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center px-2 text-center text-xs text-base-content/50">No image</div>}
+                  {selectedCover.imageUrl ? (
+                    <img
+                      src={selectedCover.imageUrl}
+                      alt={selectedCover.cardName || "Selected cover"}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center px-2 text-center text-xs text-base-content/50">
+                      No image
+                    </div>
+                  )}
                 </div>
                 <div className="min-w-0 py-1">
                   <p className="font-bold">{selectedCover.cardName || "Selected printing"}</p>
@@ -2327,39 +3092,93 @@ function EditLocationDialog({ location, onOpenChange, open }: { location: Locati
               </div>
             ) : null}
 
-            <CardNameSearchField value={coverSearch} onValueChange={setCoverSearch} onClear={() => setCoverSearch("")} onSuggestionSelect={setCoverSearch} placeholder="Search for a cover card" suggestionLimit={8} />
+            <CardNameSearchField
+              value={coverSearch}
+              onValueChange={setCoverSearch}
+              onClear={() => setCoverSearch("")}
+              onSuggestionSelect={setCoverSearch}
+              placeholder="Search for a cover card"
+              suggestionLimit={8}
+            />
 
             {coverSearchDraftTerm.length > 1 ? (
               <div className="max-h-80 overflow-y-auto rounded-box border border-base-300 bg-base-100">
-                {coverSearchQuery.isFetching || coverSearchTerm !== coverSearchDraftTerm ? <p className="px-3 py-2 text-sm text-base-content/55">Searching...</p> : null}
-                {!coverSearchQuery.isFetching && coverSearchTerm === coverSearchDraftTerm && coverSearchQuery.data?.cards.length === 0 ? <p className="px-3 py-2 text-sm text-base-content/55">No cards found.</p> : null}
-                {coverSearchTerm === coverSearchDraftTerm ? coverSearchQuery.data?.cards.map(card => (
-                  <div key={card.oracleId} className="border-t border-base-300 first:border-t-0 p-3">
-                    <div className="mb-2">
-                      <p className="font-bold">{card.name}</p>
-                      {card.typeLine ? <p className="text-xs text-base-content/55">{card.typeLine}</p> : null}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-                      {card.printings?.filter(present).slice(0, 8).map(printing => (
-                        <button key={printing.scryfallId} type="button" className="group rounded-lg border border-base-300 bg-base-200/40 p-2 text-left transition hover:border-primary hover:bg-base-200" onClick={() => selectCover(card, printing)}>
-                          <div className="aspect-[5/7] overflow-hidden rounded bg-base-300">
-                            {printing.imageUrl ? <img src={printing.imageUrl} alt={`${card.name} ${printing.setCode || "printing"}`} className="h-full w-full object-cover transition group-hover:scale-[1.02]" loading="lazy" /> : <div className="flex h-full items-center justify-center px-2 text-center text-xs text-base-content/50">No image</div>}
-                          </div>
-                          <p className="mt-2 truncate text-xs font-bold uppercase">{printing.setCode || "Unknown set"}</p>
-                          <p className="truncate text-xs text-base-content/60">#{printing.collectorNumber || "—"}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )) : null}
+                {coverSearchQuery.isFetching || coverSearchTerm !== coverSearchDraftTerm ? (
+                  <p className="px-3 py-2 text-sm text-base-content/55">Searching...</p>
+                ) : null}
+                {!coverSearchQuery.isFetching &&
+                coverSearchTerm === coverSearchDraftTerm &&
+                coverSearchQuery.data?.cards.length === 0 ? (
+                  <p className="px-3 py-2 text-sm text-base-content/55">No cards found.</p>
+                ) : null}
+                {coverSearchTerm === coverSearchDraftTerm
+                  ? coverSearchQuery.data?.cards.map((card) => (
+                      <div
+                        key={card.oracleId}
+                        className="border-t border-base-300 first:border-t-0 p-3"
+                      >
+                        <div className="mb-2">
+                          <p className="font-bold">{card.name}</p>
+                          {card.typeLine ? (
+                            <p className="text-xs text-base-content/55">{card.typeLine}</p>
+                          ) : null}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                          {card.printings
+                            ?.filter(present)
+                            .slice(0, 8)
+                            .map((printing) => (
+                              <button
+                                key={printing.scryfallId}
+                                type="button"
+                                className="group rounded-lg border border-base-300 bg-base-200/40 p-2 text-left transition hover:border-primary hover:bg-base-200"
+                                onClick={() => selectCover(card, printing)}
+                              >
+                                <div className="aspect-[5/7] overflow-hidden rounded bg-base-300">
+                                  {printing.imageUrl ? (
+                                    <img
+                                      src={printing.imageUrl}
+                                      alt={`${card.name} ${printing.setCode || "printing"}`}
+                                      className="h-full w-full object-cover transition group-hover:scale-[1.02]"
+                                      loading="lazy"
+                                    />
+                                  ) : (
+                                    <div className="flex h-full items-center justify-center px-2 text-center text-xs text-base-content/50">
+                                      No image
+                                    </div>
+                                  )}
+                                </div>
+                                <p className="mt-2 truncate text-xs font-bold uppercase">
+                                  {printing.setCode || "Unknown set"}
+                                </p>
+                                <p className="truncate text-xs text-base-content/60">
+                                  #{printing.collectorNumber || "—"}
+                                </p>
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+                    ))
+                  : null}
               </div>
             ) : null}
           </section>
 
-          {error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p> : null}
+          {error ? (
+            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+              {error}
+            </p>
+          ) : null}
 
           <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-4">
-            <Button type="button" variant="ghost" onClick={close} disabled={updateLocation.isPending}>Cancel</Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={close}
+              disabled={updateLocation.isPending}
+            >
+              Cancel
+            </Button>
             <Button type="submit" disabled={updateLocation.isPending}>
               <Edit3 className="h-4 w-4" />
               {updateLocation.isPending ? "Saving..." : "Save location"}
@@ -2372,28 +3191,34 @@ function EditLocationDialog({ location, onOpenChange, open }: { location: Locati
 }
 
 function printingSetLabel(printing: LocationCoverSelection) {
-  return [printing.setName || printing.setCode, printing.collectorNumber ? `#${printing.collectorNumber}` : null, printing.rarity ? titleize(printing.rarity) : null]
-    .filter(present)
-    .join(" • ") || "Selected printing"
+  return (
+    [
+      printing.setName || printing.setCode,
+      printing.collectorNumber ? `#${printing.collectorNumber}` : null,
+      printing.rarity ? titleize(printing.rarity) : null,
+    ]
+      .filter(present)
+      .join(" • ") || "Selected printing"
+  )
 }
 
 function locationKindValue(value: string): (typeof LOCATION_KINDS)[number] {
-  return LOCATION_KINDS.find(kind => kind === value) || "box"
+  return LOCATION_KINDS.find((kind) => kind === value) || "box"
 }
 
 function collectionConditionValue(value: string): (typeof COLLECTION_CONDITIONS)[number] {
-  return COLLECTION_CONDITIONS.find(condition => condition === value) || "near_mint"
+  return COLLECTION_CONDITIONS.find((condition) => condition === value) || "near_mint"
 }
 
 function collectionFinishValue(value: string): (typeof COLLECTION_FINISHES)[number] {
-  return COLLECTION_FINISHES.find(finish => finish === value) || "nonfoil"
+  return COLLECTION_FINISHES.find((finish) => finish === value) || "nonfoil"
 }
 
 function collectionImportCounts(rows: CollectionImportRow[]) {
   return {
-    exact: rows.filter(row => row.status === "exact").length,
-    ambiguous: rows.filter(row => row.status === "ambiguous").length,
-    unresolved: rows.filter(row => row.status === "unresolved").length,
+    exact: rows.filter((row) => row.status === "exact").length,
+    ambiguous: rows.filter((row) => row.status === "ambiguous").length,
+    unresolved: rows.filter((row) => row.status === "unresolved").length,
   }
 }
 
@@ -2433,17 +3258,24 @@ export function CollectionPage() {
   const [activeTab, setActiveTab] = useState<CollectionTab>("locations")
   const [q, setQ] = useState("")
   const [appliedSearch, setAppliedSearch] = useState("")
-  const [sort, setSort] = useState<CollectionSort>({ field: "name", direction: "asc" })
+  const [sort, setSort] = useState<CollectionSort>({
+    field: "name",
+    direction: "asc",
+  })
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
   const [isAddItemOpen, setIsAddItemOpen] = useState(false)
   const [isAddLocationOpen, setIsAddLocationOpen] = useState(false)
   const [isImportCsvOpen, setIsImportCsvOpen] = useState(false)
   const [isExportCsvOpen, setIsExportCsvOpen] = useState(false)
   const [editingLocation, setEditingLocation] = useState<LocationSummary | null>(null)
-  const [structuredFilters, setStructuredFilters] = useState<CollectionFilterState>(EMPTY_COLLECTION_FILTERS)
+  const [structuredFilters, setStructuredFilters] =
+    useState<CollectionFilterState>(EMPTY_COLLECTION_FILTERS)
   const structuredFilterSyntax = buildCollectionFilterQuery(structuredFilters)
   const combinedCollectionQuery = combineCollectionQueries(appliedSearch, structuredFilterSyntax)
-  const filters = useMemo(() => (combinedCollectionQuery ? { q: combinedCollectionQuery } : {}), [combinedCollectionQuery])
+  const filters = useMemo(
+    () => (combinedCollectionQuery ? { q: combinedCollectionQuery } : {}),
+    [combinedCollectionQuery],
+  )
   const { data, isLoading } = useQuery({
     queryKey: ["collection", filters],
     queryFn: () => request(CollectionDocument, { filters }),
@@ -2460,11 +3292,13 @@ export function CollectionPage() {
     enabled: activeTab === "all",
     initialPageParam: 0,
     getNextPageParam: (lastPage, _pages, lastPageParam) =>
-      lastPage.collectionItems.length < COLLECTION_PAGE_SIZE ? undefined : lastPageParam + COLLECTION_PAGE_SIZE,
+      lastPage.collectionItems.length < COLLECTION_PAGE_SIZE
+        ? undefined
+        : lastPageParam + COLLECTION_PAGE_SIZE,
   })
   const allCollectionItems = useMemo(
-    () => allItemsQuery.data?.pages.flatMap(page => page.collectionItems).filter(present) || [],
-    [allItemsQuery.data]
+    () => allItemsQuery.data?.pages.flatMap((page) => page.collectionItems).filter(present) || [],
+    [allItemsQuery.data],
   )
   const hasCollectionFilters = Boolean(combinedCollectionQuery)
   const activeStructuredFilterCount = countActiveCollectionFilters(structuredFilters)
@@ -2537,10 +3371,18 @@ export function CollectionPage() {
         }
         actions={
           <div className="dropdown dropdown-end absolute right-3 top-3 z-20">
-            <button type="button" className="btn btn-circle btn-xs border-0 bg-neutral/85 text-neutral-content shadow backdrop-blur transition hover:bg-neutral" tabIndex={0} aria-label="Collection actions">
+            <button
+              type="button"
+              className="btn btn-circle btn-xs border-0 bg-neutral/85 text-neutral-content shadow backdrop-blur transition hover:bg-neutral"
+              tabIndex={0}
+              aria-label="Collection actions"
+            >
               <MoreVertical className="h-4 w-4" />
             </button>
-            <ul tabIndex={0} className="menu dropdown-content z-50 mt-2 w-52 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl">
+            <ul
+              tabIndex={0}
+              className="menu dropdown-content z-50 mt-2 w-52 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
+            >
               <li>
                 <button type="button" onClick={() => setIsAddLocationOpen(true)}>
                   <Boxes className="h-4 w-4" />
@@ -2564,7 +3406,11 @@ export function CollectionPage() {
         }
       />
 
-      <div className="mb-7 flex flex-wrap gap-2 border-b border-base-300" role="tablist" aria-label="Collection view">
+      <div
+        className="mb-7 flex flex-wrap gap-2 border-b border-base-300"
+        role="tablist"
+        aria-label="Collection view"
+      >
         <CollectionTabButton
           active={activeTab === "locations"}
           count={data?.locations?.length || 0}
@@ -2589,12 +3435,18 @@ export function CollectionPage() {
                 <section key={kind} className="space-y-4">
                   <div className="flex items-center justify-between gap-3">
                     <h3 className="text-xl font-black tracking-normal">{titleize(kind)}</h3>
-                    <span className="badge border-transparent bg-base-200 text-sm">{locations.length}</span>
+                    <span className="badge border-transparent bg-base-200 text-sm">
+                      {locations.length}
+                    </span>
                   </div>
                   <div className="grid gap-5 md:grid-cols-2">
-                    {locations.map(location => (
+                    {locations.map((location) => (
                       <div key={location.id} className="relative">
-                        <Link to="/collection/locations/$id" params={{ id: location.id }} className="block">
+                        <Link
+                          to="/collection/locations/$id"
+                          params={{ id: location.id }}
+                          className="block"
+                        >
                           {isUnfiledLocation(location) ? (
                             <UnfiledLocationCard
                               location={location}
@@ -2612,7 +3464,12 @@ export function CollectionPage() {
                             />
                           )}
                         </Link>
-                        {!isUnfiledLocation(location) ? <SummaryActionMenu label={`${location.name} actions`} onEdit={() => setEditingLocation(location)} /> : null}
+                        {!isUnfiledLocation(location) ? (
+                          <SummaryActionMenu
+                            label={`${location.name} actions`}
+                            onEdit={() => setEditingLocation(location)}
+                          />
+                        ) : null}
                       </div>
                     ))}
                   </div>
@@ -2638,10 +3495,19 @@ export function CollectionPage() {
               placeholder="Filter collection"
             />
             <SortDropdown sort={sort} onSortChange={setSort} />
-            <Button type="button" variant="outline" className="relative" onClick={() => setIsFilterModalOpen(true)}>
+            <Button
+              type="button"
+              variant="outline"
+              className="relative"
+              onClick={() => setIsFilterModalOpen(true)}
+            >
               <ListFilter className="h-4 w-4" />
               Filter
-              {filterBadgeCount ? <span className="badge badge-primary badge-sm absolute -right-2 -top-2 min-w-5">{filterBadgeCount}</span> : null}
+              {filterBadgeCount ? (
+                <span className="badge badge-primary badge-sm absolute -right-2 -top-2 min-w-5">
+                  {filterBadgeCount}
+                </span>
+              ) : null}
             </Button>
             <Button type="submit">
               <Search className="h-4 w-4" />
@@ -2674,8 +3540,15 @@ export function CollectionPage() {
       <AddCollectionItemDialog open={isAddItemOpen} onOpenChange={setIsAddItemOpen} />
       <AddLocationDialog open={isAddLocationOpen} onOpenChange={setIsAddLocationOpen} />
       <ImportCollectionCsvDialog open={isImportCsvOpen} onOpenChange={setIsImportCsvOpen} />
-      <ExportCollectionCsvDialog filters={filters} open={isExportCsvOpen} onOpenChange={setIsExportCsvOpen} />
-      <EditLocationDialog location={editingLocation} onOpenChange={open => !open && setEditingLocation(null)} />
+      <ExportCollectionCsvDialog
+        filters={filters}
+        open={isExportCsvOpen}
+        onOpenChange={setIsExportCsvOpen}
+      />
+      <EditLocationDialog
+        location={editingLocation}
+        onOpenChange={(open) => !open && setEditingLocation(null)}
+      />
     </>
   )
 }
@@ -2687,7 +3560,8 @@ function SortDropdown({
   onSortChange: (sort: CollectionSort) => void
   sort: CollectionSort
 }) {
-  const currentOption = SORT_OPTIONS.find(option => option.field === sort.field) || SORT_OPTIONS[1]
+  const currentOption =
+    SORT_OPTIONS.find((option) => option.field === sort.field) || SORT_OPTIONS[1]
   const directionLabel = sort.direction === "asc" ? "Asc" : "Desc"
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -2709,7 +3583,7 @@ function SortDropdown({
         type="button"
         className="btn btn-outline min-w-44 justify-between gap-2"
         aria-label={`Sort by ${currentOption.label}, ${directionLabel}`}
-        onClick={() => setOpen(current => !current)}
+        onClick={() => setOpen((current) => !current)}
       >
         <span className="flex items-center gap-2">
           <ArrowDownUp className="h-4 w-4" />
@@ -2723,13 +3597,15 @@ function SortDropdown({
       {open ? (
         <div className="dropdown-content z-50 mt-2 w-72 rounded-box border border-base-300 bg-base-100 p-3 shadow-2xl">
           <div className="mb-3 grid grid-cols-2 gap-1 rounded-box bg-base-200 p-1">
-            {(["asc", "desc"] as const).map(direction => (
+            {(["asc", "desc"] as const).map((direction) => (
               <button
                 key={direction}
                 type="button"
                 className={[
                   "rounded-btn px-3 py-2 text-sm font-bold transition-colors",
-                  sort.direction === direction ? "bg-primary text-primary-content shadow-sm" : "text-base-content/70 hover:bg-base-100",
+                  sort.direction === direction
+                    ? "bg-primary text-primary-content shadow-sm"
+                    : "text-base-content/70 hover:bg-base-100",
                 ].join(" ")}
                 onClick={() => {
                   onSortChange({ ...sort, direction })
@@ -2742,7 +3618,7 @@ function SortDropdown({
           </div>
 
           <div className="grid gap-1">
-            {SORT_OPTIONS.map(option => (
+            {SORT_OPTIONS.map((option) => (
               <button
                 key={option.field}
                 type="button"
@@ -2756,7 +3632,9 @@ function SortDropdown({
                 }}
               >
                 <span className="font-semibold">{option.label}</span>
-                {sort.field === option.field ? <span className="badge badge-primary badge-sm">{directionLabel}</span> : null}
+                {sort.field === option.field ? (
+                  <span className="badge badge-primary badge-sm">{directionLabel}</span>
+                ) : null}
               </button>
             ))}
           </div>
@@ -2789,8 +3667,12 @@ function CollectionTabButton({
       onClick={onClick}
     >
       <span>{label}</span>
-      <span className={active ? "badge badge-primary badge-sm" : "badge badge-ghost badge-sm"}>{count}</span>
-      {active ? <span className="absolute inset-x-0 bottom-[-1px] h-0.5 rounded-full bg-primary" /> : null}
+      <span className={active ? "badge badge-primary badge-sm" : "badge badge-ghost badge-sm"}>
+        {count}
+      </span>
+      {active ? (
+        <span className="absolute inset-x-0 bottom-[-1px] h-0.5 rounded-full bg-primary" />
+      ) : null}
     </button>
   )
 }
@@ -2798,10 +3680,14 @@ function CollectionTabButton({
 export function LocationPage({ id }: { id: string }) {
   const [q, setQ] = useState("")
   const [appliedSearch, setAppliedSearch] = useState("")
-  const [sort, setSort] = useState<CollectionSort>({ field: "name", direction: "asc" })
+  const [sort, setSort] = useState<CollectionSort>({
+    field: "name",
+    direction: "asc",
+  })
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
   const [isEditLocationOpen, setIsEditLocationOpen] = useState(false)
-  const [structuredFilters, setStructuredFilters] = useState<CollectionFilterState>(EMPTY_COLLECTION_FILTERS)
+  const [structuredFilters, setStructuredFilters] =
+    useState<CollectionFilterState>(EMPTY_COLLECTION_FILTERS)
   const structuredFilterSyntax = buildCollectionFilterQuery(structuredFilters)
   const combinedCollectionQuery = combineCollectionQueries(appliedSearch, structuredFilterSyntax)
   const itemFilters = useMemo(
@@ -2809,9 +3695,12 @@ export function LocationPage({ id }: { id: string }) {
       locationId: id,
       ...(combinedCollectionQuery ? { q: combinedCollectionQuery } : {}),
     }),
-    [combinedCollectionQuery, id]
+    [combinedCollectionQuery, id],
   )
-  const { data, isLoading } = useQuery({ queryKey: ["location", id], queryFn: () => request(LocationDocument, { id }) })
+  const { data, isLoading } = useQuery({
+    queryKey: ["location", id],
+    queryFn: () => request(LocationDocument, { id }),
+  })
   const countQuery = useQuery({
     queryKey: ["collection-items", "location", id, "count", itemFilters],
     queryFn: () => request(LocationCollectionCountDocument, { filters: itemFilters }),
@@ -2827,11 +3716,13 @@ export function LocationPage({ id }: { id: string }) {
       }),
     initialPageParam: 0,
     getNextPageParam: (lastPage, _pages, lastPageParam) =>
-      lastPage.collectionItems.length < COLLECTION_PAGE_SIZE ? undefined : lastPageParam + COLLECTION_PAGE_SIZE,
+      lastPage.collectionItems.length < COLLECTION_PAGE_SIZE
+        ? undefined
+        : lastPageParam + COLLECTION_PAGE_SIZE,
   })
   const collectionItems = useMemo(
-    () => itemsQuery.data?.pages.flatMap(page => page.collectionItems).filter(present) || [],
-    [itemsQuery.data]
+    () => itemsQuery.data?.pages.flatMap((page) => page.collectionItems).filter(present) || [],
+    [itemsQuery.data],
   )
   const loadMore = useCallback(() => {
     void itemsQuery.fetchNextPage()
@@ -2897,7 +3788,12 @@ export function LocationPage({ id }: { id: string }) {
             nameLine={location.name}
             detailLine={location.description}
             interactive={false}
-            actionSlot={<SummaryActionMenu label={`${location.name} actions`} onEdit={() => setIsEditLocationOpen(true)} />}
+            actionSlot={
+              <SummaryActionMenu
+                label={`${location.name} actions`}
+                onEdit={() => setIsEditLocationOpen(true)}
+              />
+            }
           />
         )}
       </div>
@@ -2914,10 +3810,19 @@ export function LocationPage({ id }: { id: string }) {
           placeholder="Filter location"
         />
         <SortDropdown sort={sort} onSortChange={setSort} />
-        <Button type="button" variant="outline" className="relative" onClick={() => setIsFilterModalOpen(true)}>
+        <Button
+          type="button"
+          variant="outline"
+          className="relative"
+          onClick={() => setIsFilterModalOpen(true)}
+        >
           <ListFilter className="h-4 w-4" />
           Filter
-          {activeStructuredFilterCount ? <span className="badge badge-primary badge-sm absolute -right-2 -top-2 min-w-5">{activeStructuredFilterCount}</span> : null}
+          {activeStructuredFilterCount ? (
+            <span className="badge badge-primary badge-sm absolute -right-2 -top-2 min-w-5">
+              {activeStructuredFilterCount}
+            </span>
+          ) : null}
         </Button>
         <Button type="submit">
           <Search className="h-4 w-4" />
@@ -2936,7 +3841,11 @@ export function LocationPage({ id }: { id: string }) {
           />
         </PageSection>
       )}
-      <EditLocationDialog location={location} onOpenChange={setIsEditLocationOpen} open={isEditLocationOpen} />
+      <EditLocationDialog
+        location={location}
+        onOpenChange={setIsEditLocationOpen}
+        open={isEditLocationOpen}
+      />
       <CollectionFilterModal
         filters={structuredFilters}
         open={isFilterModalOpen}

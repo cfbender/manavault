@@ -1,11 +1,15 @@
 export {}
 
 function markNativeShell() {
-  const capacitor = (window as Window & { Capacitor?: { isNativePlatform?: () => boolean; getPlatform?: () => string } }).Capacitor
+  const capacitor = (
+    window as Window & {
+      Capacitor?: { isNativePlatform?: () => boolean; getPlatform?: () => string }
+    }
+  ).Capacitor
   const nativeShell = Boolean(
     capacitor?.isNativePlatform?.() ||
-      (capacitor?.getPlatform && capacitor.getPlatform() !== "web") ||
-      window.location.protocol === "capacitor:"
+    (capacitor?.getPlatform && capacitor.getPlatform() !== "web") ||
+    window.location.protocol === "capacitor:",
   )
 
   document.documentElement.classList.toggle("native-shell", nativeShell)
@@ -94,7 +98,7 @@ function pwaDiagnosticLabel() {
 }
 
 function setInstallButtonsVisible(visible: boolean, enabled = visible) {
-  installButtons().forEach(button => {
+  installButtons().forEach((button) => {
     const shouldShow = visible && enabled
     button.classList.toggle("hidden", !shouldShow)
     button.disabled = false
@@ -124,7 +128,10 @@ async function validateManifestForInstall() {
 
     const manifest = await response.json()
     const icons = Array.isArray(manifest.icons) ? manifest.icons : []
-    const hasRequiredIcon = icons.some((icon: { sizes?: string; src?: string }) => String(icon.sizes || "").includes("192x192") && icon.src)
+    const hasRequiredIcon = icons.some(
+      (icon: { sizes?: string; src?: string }) =>
+        String(icon.sizes || "").includes("192x192") && icon.src,
+    )
 
     if (!hasRequiredIcon) throw new Error("missing 192x192 icon")
 
@@ -142,15 +149,25 @@ if ("serviceWorker" in navigator && window.isSecureContext) {
   window.addEventListener("load", () => {
     navigator.serviceWorker
       .register(serviceWorkerUrl, { scope: "/" })
-      .then(() => updatePwaInstallState({ serviceWorkerRegistered: true, serviceWorkerControlled: Boolean(navigator.serviceWorker.controller) }))
-      .catch(error => updatePwaInstallState({ serviceWorkerRegistered: false, serviceWorkerError: error?.message || "registration failed" }))
+      .then(() =>
+        updatePwaInstallState({
+          serviceWorkerRegistered: true,
+          serviceWorkerControlled: Boolean(navigator.serviceWorker.controller),
+        }),
+      )
+      .catch((error) =>
+        updatePwaInstallState({
+          serviceWorkerRegistered: false,
+          serviceWorkerError: error?.message || "registration failed",
+        }),
+      )
       .finally(validateManifestForInstall)
   })
 } else {
   validateManifestForInstall()
 }
 
-window.addEventListener("beforeinstallprompt", event => {
+window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault()
   window.__manavaultPwaInstallCapture = {
     prompt: event as BeforeInstallPromptEvent,
@@ -163,7 +180,7 @@ window.addEventListener("beforeinstallprompt", event => {
 window.addEventListener("manavault:pwa-install-available", () => adoptInstallPrompt())
 adoptInstallPrompt()
 
-window.addEventListener("click", async event => {
+window.addEventListener("click", async (event) => {
   const button = (event.target as Element | null)?.closest<HTMLButtonElement>("[data-pwa-install]")
   if (!button || button.dataset.pwaInstallEnabled !== "true" || !deferredInstallPrompt) return
 

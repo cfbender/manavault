@@ -11,7 +11,10 @@ const CardNameSuggestionsDocument = graphql(`
   }
 `)
 
-type CardNameSearchFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "value" | "onChange"> & {
+type CardNameSearchFieldProps = Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  "type" | "value" | "onChange"
+> & {
   onClear?: () => void
   onSuggestionSelect?: (name: string) => void
   onValueChange: (value: string) => void
@@ -37,7 +40,8 @@ export function CardNameSearchField({
   const hasScryfallSyntax = looksLikeScryfallSyntax(suggestionTerm)
   const { data } = useQuery({
     queryKey: ["card-name-suggestions", suggestionTerm, suggestionLimit],
-    queryFn: () => request(CardNameSuggestionsDocument, { q: suggestionTerm, limit: suggestionLimit }),
+    queryFn: () =>
+      request(CardNameSuggestionsDocument, { q: suggestionTerm, limit: suggestionLimit }),
     enabled: suggestionTerm.length > 1 && !hasScryfallSyntax,
     staleTime: 60_000,
   })
@@ -99,10 +103,10 @@ export function CardNameSearchField({
 
     if (event.key === "ArrowDown") {
       event.preventDefault()
-      setActiveIndex(index => (index + 1) % suggestions.length)
+      setActiveIndex((index) => (index + 1) % suggestions.length)
     } else if (event.key === "ArrowUp") {
       event.preventDefault()
-      setActiveIndex(index => (index <= 0 ? suggestions.length - 1 : index - 1))
+      setActiveIndex((index) => (index <= 0 ? suggestions.length - 1 : index - 1))
     } else if (event.key === "Enter" && activeIndex >= 0) {
       event.preventDefault()
       selectSuggestion(suggestions[activeIndex])
@@ -131,7 +135,10 @@ export function CardNameSearchField({
         aria-expanded={showSuggestions}
       />
       {showSuggestions ? (
-        <div className="absolute left-0 right-0 top-full z-40 mt-1 overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-2xl" role="listbox">
+        <div
+          className="absolute left-0 right-0 top-full z-40 mt-1 overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-2xl"
+          role="listbox"
+        >
           {suggestions.map((name, index) => (
             <button
               key={name}
@@ -142,7 +149,7 @@ export function CardNameSearchField({
                 "block w-full px-3 py-2 text-left text-sm transition-colors",
                 index === activeIndex ? "bg-primary text-primary-content" : "hover:bg-base-200",
               ].join(" ")}
-              onMouseDown={event => event.preventDefault()}
+              onMouseDown={(event) => event.preventDefault()}
               onClick={() => selectSuggestion(name)}
             >
               {name}
@@ -159,11 +166,12 @@ function looksLikeScryfallSyntax(value: string) {
 
   return value
     .split(/\s+/)
-    .some(token =>
-      /^-?\(/.test(token) ||
-      /^-?!/.test(token) ||
-      /^-?not:/i.test(token) ||
-      /^or$/i.test(token) ||
-      /^-?[a-z][a-z_-]*(?::|!?=|[<>]=?)/i.test(token),
+    .some(
+      (token) =>
+        /^-?\(/.test(token) ||
+        /^-?!/.test(token) ||
+        /^-?not:/i.test(token) ||
+        /^or$/i.test(token) ||
+        /^-?[a-z][a-z_-]*(?::|!?=|[<>]=?)/i.test(token),
     )
 }

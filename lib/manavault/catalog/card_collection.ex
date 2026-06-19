@@ -1001,7 +1001,11 @@ defmodule Manavault.Catalog.CardCollection do
   defp maybe_exclude_list_locations(query, _location_id, true), do: query
 
   defp maybe_exclude_list_locations(query, _location_id, _include_list_locations?) do
-    where(query, [_item, _printing, _card, location], is_nil(location.id) or location.kind != "list")
+    where(
+      query,
+      [_item, _printing, _card, location],
+      is_nil(location.id) or location.kind != "list"
+    )
   end
 
   defp normalize_filter(value) when is_binary(value), do: String.trim(value)
