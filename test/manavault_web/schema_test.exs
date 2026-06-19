@@ -463,7 +463,9 @@ defmodule ManavaultWeb.SchemaTest do
         "variables" => %{"id" => item.id}
       })
 
-    assert %{"data" => %{"deleteCollectionItem" => %{"id" => _id}}} = json_response(delete_conn, 200)
+    assert %{"data" => %{"deleteCollectionItem" => %{"id" => _id}}} =
+             json_response(delete_conn, 200)
+
     assert [] = Catalog.list_collection_items()
   end
 
@@ -642,23 +644,24 @@ defmodule ManavaultWeb.SchemaTest do
                  "exact" => 1,
                  "ambiguous" => 0,
                  "unresolved" => 0,
-                 "rows" => [
-                   %{
-                     "rowNumber" => 2,
-                     "status" => "exact",
-                     "attrs" => %{
-                       "quantity" => 3,
-                       "finish" => "nonfoil",
-                       "condition" => "near_mint",
-                       "language" => "en",
-                       "scryfallId" => "scryfall-printing-import"
-                     },
-                     "printing" => %{
-                       "scryfallId" => "scryfall-printing-import",
-                       "card" => %{"name" => "Imported Card"}
+                 "rows" =>
+                   [
+                     %{
+                       "rowNumber" => 2,
+                       "status" => "exact",
+                       "attrs" => %{
+                         "quantity" => 3,
+                         "finish" => "nonfoil",
+                         "condition" => "near_mint",
+                         "language" => "en",
+                         "scryfallId" => "scryfall-printing-import"
+                       },
+                       "printing" => %{
+                         "scryfallId" => "scryfall-printing-import",
+                         "card" => %{"name" => "Imported Card"}
+                       }
                      }
-                   }
-                 ] = rows
+                   ] = rows
                }
              }
            } = json_response(preview_conn, 200)
@@ -703,12 +706,16 @@ defmodule ManavaultWeb.SchemaTest do
       })
 
     assert %{"data" => %{"collectionExportCsv" => export_csv}} = json_response(export_conn, 200)
-    assert export_csv =~ "Quantity,Card Name,Set Code,Collector Number,Finish,Condition,Language,Location"
+
+    assert export_csv =~
+             "Quantity,Card Name,Set Code,Collector Number,Finish,Condition,Language,Location"
+
     assert export_csv =~ "3,Imported Card,imp,9,nonfoil,near_mint,en,Import Binder"
   end
 
   test "update deck mutation updates deck fields", %{conn: conn} do
-    {:ok, deck} = Catalog.create_deck(%{"name" => "Old Deck", "format" => "commander", "status" => "brewing"})
+    {:ok, deck} =
+      Catalog.create_deck(%{"name" => "Old Deck", "format" => "commander", "status" => "brewing"})
 
     conn =
       post(conn, "/api/graphql", %{
@@ -738,6 +745,88 @@ defmodule ManavaultWeb.SchemaTest do
                }
              }
            } = json_response(conn, 200)
+  end
+
+  test "decklist import mutation and export query expose plain text decklists", %{conn: conn} do
+    {:ok, %{cards_count: 2, printings_count: 2}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-deck-import-1",
+          "oracle_id" => "oracle-deck-import-1",
+          "name" => "Import Lotus",
+          "type_line" => "Artifact",
+          "collector_number" => "1",
+          "set" => "imp",
+          "set_name" => "Import Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        },
+        %{
+          "id" => "scryfall-deck-import-2",
+          "oracle_id" => "oracle-deck-import-2",
+          "name" => "Import Walk",
+          "type_line" => "Sorcery",
+          "collector_number" => "2",
+          "set" => "imp",
+          "set_name" => "Import Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Import Deck"})
+
+    import_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation ImportDecklist($id: ID!, $text: String!) {
+          importDecklist(id: $id, text: $text) {
+            imported
+            unresolved
+            skippedPrintings
+          }
+        }
+        """,
+        "variables" => %{
+          "id" => deck.id,
+          "text" => """
+          Commander
+          1 Import Walk
+
+          Mainboard
+          2 Import Lotus
+          1 Missing Card
+          """
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "importDecklist" => %{
+                 "imported" => 2,
+                 "unresolved" => ["Missing Card"],
+                 "skippedPrintings" => []
+               }
+             }
+           } = json_response(import_conn, 200)
+
+    export_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query DeckExportText($id: ID!) {
+          deckExportText(id: $id)
+        }
+        """,
+        "variables" => %{"id" => deck.id}
+      })
+
+    assert %{"data" => %{"deckExportText" => export_text}} = json_response(export_conn, 200)
+    assert export_text =~ "Commander\n1x Import Walk"
+    assert export_text =~ "Mainboard\n2x Import Lotus"
   end
 
   test "update location mutation updates location fields", %{conn: conn} do

@@ -71,6 +71,10 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
   def deck(_parent, %{id: id}, _resolution), do: {:ok, Catalog.get_deck!(id)}
 
+  def deck_export_text(_parent, %{id: id}, _resolution) do
+    {:ok, id |> Catalog.get_deck!() |> Catalog.export_decklist()}
+  end
+
   def create_deck(_parent, %{input: input}, _resolution) do
     case Catalog.create_deck(input) do
       {:ok, deck} -> {:ok, deck}
@@ -159,6 +163,16 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     case Catalog.update_deck(deck, input) do
       {:ok, deck} -> {:ok, Catalog.get_deck!(deck.id)}
       {:error, changeset} -> {:error, changeset_error_message(changeset)}
+    end
+  end
+
+  def import_decklist(_parent, %{id: id, text: text}, _resolution) do
+    deck = Catalog.get_deck!(id)
+
+    case Catalog.import_decklist(deck, text) do
+      {:ok, result} -> {:ok, result}
+      {:error, changeset} when is_struct(changeset, Ecto.Changeset) -> {:error, changeset_error_message(changeset)}
+      {:error, reason} -> {:error, deck_import_error(reason)}
     end
   end
 
@@ -420,4 +434,8 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   defp deck_allocation_error(:allocation_not_found), do: "Allocation not found."
   defp deck_allocation_error(reason) when is_binary(reason), do: reason
   defp deck_allocation_error(_reason), do: "Could not add collection item to deck."
+
+  defp deck_import_error(:card_not_found), do: "One or more decklist cards were not found."
+  defp deck_import_error(reason) when is_binary(reason), do: reason
+  defp deck_import_error(_reason), do: "Could not import decklist."
 end

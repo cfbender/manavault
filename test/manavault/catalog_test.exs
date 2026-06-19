@@ -221,6 +221,7 @@ defmodule Manavault.CatalogTest do
     assert [listed_list_item] = Catalog.list_collection_items(location_id: to_string(list.id))
     assert listed_list_item.id == list_item.id
     assert Catalog.count_collection_items(location_id: to_string(list.id)) == 3
+
     assert [binder_item.id, list_item.id] ==
              Catalog.list_collection_items([include_list_locations: true], limit: 10)
              |> Enum.map(& &1.id)
@@ -555,7 +556,7 @@ defmodule Manavault.CatalogTest do
 
     text = """
     Commander
-    1 Time Walk
+    1 Time Walk (LEA) 84 *F*
 
     Mainboard
     1 Black Lotus (LEA) 232
@@ -580,9 +581,9 @@ defmodule Manavault.CatalogTest do
     assert Enum.any?(loaded.deck_cards, &(&1.card.name == "Time Walk" and &1.zone == "sideboard"))
 
     export = Catalog.export_decklist(loaded)
-    assert export =~ "Commander\n1 Time Walk"
-    assert export =~ "Mainboard\n3 Black Lotus"
-    assert export =~ "Sideboard\n1 Time Walk"
+    assert export =~ "Commander\n1x Time Walk (LEA) 84 *F*"
+    assert export =~ "Mainboard\n3x Black Lotus (LEA) 232"
+    assert export =~ "Sideboard\n1x Time Walk"
   end
 
   test "decklist import keeps card identities when preferred printing data is unusable" do

@@ -1376,9 +1376,7 @@ defmodule Manavault.Catalog do
         lines =
           cards
           |> Enum.sort_by(& &1.card.name)
-          |> Enum.map_join("\n", fn deck_card ->
-            "#{deck_card.quantity} #{deck_card.card.name}"
-          end)
+          |> Enum.map_join("\n", &decklist_export_line/1)
 
         "#{deck_zone_label(zone)}\n#{lines}"
       end
@@ -1386,6 +1384,27 @@ defmodule Manavault.Catalog do
     |> Enum.reject(&is_nil/1)
     |> Enum.join("\n\n")
   end
+
+  defp decklist_export_line(%DeckCard{} = deck_card) do
+    [
+      "#{deck_card.quantity}x",
+      deck_card.card.name,
+      decklist_export_printing(deck_card.preferred_printing),
+      decklist_export_finish(deck_card.finish)
+    ]
+    |> Enum.reject(&(&1 in [nil, ""]))
+    |> Enum.join(" ")
+  end
+
+  defp decklist_export_printing(%Printing{} = printing) do
+    "(#{String.upcase(printing.set_code || "")}) #{printing.collector_number}"
+  end
+
+  defp decklist_export_printing(_printing), do: nil
+
+  defp decklist_export_finish("foil"), do: "*F*"
+  defp decklist_export_finish("etched"), do: "*E*"
+  defp decklist_export_finish(_finish), do: nil
 
   def deck_buylist(%Deck{} = deck, opts \\ []) when is_list(opts) do
     deck = Repo.preload(deck, deck_preloads(), force: true)
@@ -1771,7 +1790,10 @@ defmodule Manavault.Catalog do
     |> join(:inner, [item], printing in assoc(item, :printing))
     |> join(:inner, [_item, printing], card in assoc(printing, :card))
     |> join(:left, [item, _printing, _card], location in assoc(item, :location_assoc))
-    |> where([item, printing, _card, location], printing.oracle_id == ^oracle_id and item.finish == ^finish)
+    |> where(
+      [item, printing, _card, location],
+      printing.oracle_id == ^oracle_id and item.finish == ^finish
+    )
     |> where([_item, _printing, _card, location], is_nil(location.id) or location.kind != "list")
     |> preload([_item, printing, card, _location], printing: {printing, card: card})
     |> order_by([item, printing, card, _location],

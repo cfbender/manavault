@@ -63,6 +63,11 @@ defmodule ManavaultWeb.Schema do
       resolve(&CatalogResolvers.deck/3)
     end
 
+    field :deck_export_text, non_null(:string) do
+      arg(:id, non_null(:id))
+      resolve(&CatalogResolvers.deck_export_text/3)
+    end
+
     field :scan_sessions, non_null(list_of(non_null(:scan_session))) do
       resolve(&CatalogResolvers.scan_sessions/3)
     end
@@ -116,6 +121,12 @@ defmodule ManavaultWeb.Schema do
       arg(:id, non_null(:id))
       arg(:input, non_null(:deck_update_input))
       resolve(&CatalogResolvers.update_deck/3)
+    end
+
+    field :import_decklist, :deck_import_result do
+      arg(:id, non_null(:id))
+      arg(:text, non_null(:string))
+      resolve(&CatalogResolvers.import_decklist/3)
     end
 
     field :update_location, :location do

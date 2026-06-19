@@ -135,6 +135,12 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :card, :card
   end
 
+  object :deck_import_result do
+    field :imported, non_null(:integer)
+    field :unresolved, non_null(list_of(non_null(:string)))
+    field :skipped_printings, non_null(list_of(non_null(:string)))
+  end
+
   object :scan_session do
     field :id, non_null(:id)
     field :name, non_null(:string)

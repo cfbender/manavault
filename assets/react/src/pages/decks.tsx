@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Box, ChevronDown, Circle, Crown, Droplets, Edit3, Eye, Gem, Hash, Layers, MoreVertical, MoveRight, Palette, PawPrint, Plus, Star, WandSparkles, Zap } from "lucide-react"
+import { Box, ChevronDown, Circle, Crown, Download, Droplets, Edit3, Eye, Gem, Hash, Layers, MoreVertical, MoveRight, Palette, PawPrint, Plus, Star, Upload, WandSparkles, Zap } from "lucide-react"
 import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react"
 import { PageHeader, PageSection } from "../components/app-shell"
 import { EmptyState } from "../components/card-image"
@@ -120,6 +120,22 @@ const SetDeckCommanderDocument = graphql(`
   }
 `)
 
+const ImportDecklistDocument = graphql(`
+  mutation ImportDecklist($id: ID!, $text: String!) {
+    importDecklist(id: $id, text: $text) {
+      imported
+      unresolved
+      skippedPrintings
+    }
+  }
+`)
+
+const DeckExportTextDocument = graphql(`
+  query DeckExportText($id: ID!) {
+    deckExportText(id: $id)
+  }
+`)
+
 export function DecksPage() {
   const [isNewDeckOpen, setIsNewDeckOpen] = useState(false)
   const [editingDeck, setEditingDeck] = useState<DeckSummary | null>(null)
@@ -190,6 +206,8 @@ export function DeckDetailPage({ id }: { id: string }) {
   const [moveTarget, setMoveTarget] = useState<DeckCardEntry | null>(null)
   const [moveError, setMoveError] = useState<string | null>(null)
   const [isEditDeckOpen, setIsEditDeckOpen] = useState(false)
+  const [isImportDeckOpen, setIsImportDeckOpen] = useState(false)
+  const [isExportDeckOpen, setIsExportDeckOpen] = useState(false)
   const queryClient = useQueryClient()
   const { data, isLoading } = useQuery({ queryKey: ["deck", id], queryFn: () => request(DeckDocument, { id }) })
   const deck = data?.deck
@@ -249,7 +267,14 @@ export function DeckDetailPage({ id }: { id: string }) {
             </div>
           }
           nameLine={deck.name}
-          actionSlot={<SummaryActionMenu label={`${deck.name} actions`} onEdit={() => setIsEditDeckOpen(true)} />}
+          actionSlot={
+            <SummaryActionMenu
+              label={`${deck.name} actions`}
+              onEdit={() => setIsEditDeckOpen(true)}
+              onExport={() => setIsExportDeckOpen(true)}
+              onImport={() => setIsImportDeckOpen(true)}
+            />
+          }
         />
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-base-300 pb-4">
@@ -301,6 +326,8 @@ export function DeckDetailPage({ id }: { id: string }) {
       </div>
 
       <EditDeckDialog deck={deck} onOpenChange={setIsEditDeckOpen} open={isEditDeckOpen} />
+      <ImportDecklistDialog deck={deck} onOpenChange={setIsImportDeckOpen} open={isImportDeckOpen} />
+      <ExportDecklistDialog deck={deck} onOpenChange={setIsExportDeckOpen} open={isExportDeckOpen} />
 
       <MoveDeckCardDialog
         deckCard={moveTarget}
@@ -350,24 +377,50 @@ const DECK_STATUSES = ["brewing", "active", "archived"] as const
 const MOVE_TARGET_ZONES: DeckZone[] = ["mainboard", "sideboard", "maybeboard"]
 const TYPE_ORDER = ["commander", "creature", "instant", "sorcery", "artifact", "enchantment", "planeswalker", "battle", "land", "other"]
 const COLOR_ORDER = ["W", "U", "B", "R", "G", "M", "C"]
-const DECK_STACK_COLUMN_WIDTH_REM = 14
+const DECK_STACK_CARD_WIDTH_REM = 14
 const DECK_STACK_OFFSET = 34
 const DECK_STACK_CARD_HEIGHT = 314
 const DECK_STACK_REVEAL_OFFSET = DECK_STACK_CARD_HEIGHT - DECK_STACK_OFFSET
 
-function SummaryActionMenu({ label, onEdit }: { label: string; onEdit: () => void }) {
+function SummaryActionMenu({
+  label,
+  onEdit,
+  onExport,
+  onImport,
+}: {
+  label: string
+  onEdit: () => void
+  onExport?: () => void
+  onImport?: () => void
+}) {
   return (
     <div className="dropdown dropdown-end absolute right-3 top-3 z-20" onClick={event => event.stopPropagation()} onMouseDown={event => event.stopPropagation()}>
       <button type="button" className="btn btn-circle btn-xs border-0 bg-neutral/85 text-neutral-content shadow backdrop-blur transition hover:bg-neutral" tabIndex={0} aria-label={label}>
         <MoreVertical className="h-4 w-4" />
       </button>
-      <ul tabIndex={0} className="menu dropdown-content z-50 mt-1 w-44 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl">
+      <ul tabIndex={0} className="menu dropdown-content z-50 mt-1 w-48 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl">
         <li>
           <button type="button" onClick={onEdit}>
             <Edit3 className="h-4 w-4" />
             Edit
           </button>
         </li>
+        {onImport ? (
+          <li>
+            <button type="button" onClick={onImport}>
+              <Upload className="h-4 w-4" />
+              Import decklist
+            </button>
+          </li>
+        ) : null}
+        {onExport ? (
+          <li>
+            <button type="button" onClick={onExport}>
+              <Download className="h-4 w-4" />
+              Export decklist
+            </button>
+          </li>
+        ) : null}
       </ul>
     </div>
   )
@@ -630,59 +683,25 @@ function DeckGroupGrid({
   onMove: (deckCard: DeckCardEntry) => void
   onSetCommander: (deckCard: DeckCardEntry) => void
 }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [columnCount, setColumnCount] = useState(() => deckGroupColumnCount(typeof window === "undefined" ? 0 : window.innerWidth))
-  const columns = useMemo(() => distributeDeckGroups(groups, columnCount), [columnCount, groups])
-
-  useEffect(() => {
-    const element = ref.current
-    if (!element) return
-
-    const updateColumnCount = () => {
-      setColumnCount(deckGroupColumnCount(element.getBoundingClientRect().width))
-    }
-
-    updateColumnCount()
-
-    const observer = new ResizeObserver(updateColumnCount)
-    observer.observe(element)
-
-    return () => observer.disconnect()
-  }, [])
-
   return (
     <div
-      ref={ref}
-      className="grid gap-x-6"
+      className="mx-auto columns-1 gap-8 sm:columns-2 lg:columns-3 xl:columns-4 2xl:columns-5"
       style={{
-        gridTemplateColumns: `repeat(${columnCount}, minmax(0, ${DECK_STACK_COLUMN_WIDTH_REM}rem))`,
-        justifyContent: columnCount === 1 ? "center" : "space-between",
+        maxWidth: `calc(5 * ${DECK_STACK_CARD_WIDTH_REM}rem + 4 * 2rem)`,
       }}
     >
-      {columns.map((column, columnIndex) => (
-        <div key={columnIndex} className="min-w-0 space-y-5">
-          {column.map(group => (
-            <DeckStackGroup
-              key={group.key}
-              canSetCommander={canSetCommander}
-              group={group}
-              isUpdating={isUpdating}
-              onMove={onMove}
-              onSetCommander={onSetCommander}
-            />
-          ))}
-        </div>
+      {groups.map(group => (
+        <DeckStackGroup
+          key={group.key}
+          canSetCommander={canSetCommander}
+          group={group}
+          isUpdating={isUpdating}
+          onMove={onMove}
+          onSetCommander={onSetCommander}
+        />
       ))}
     </div>
   )
-}
-
-function deckGroupColumnCount(width: number) {
-  if (width >= 1536) return 6
-  if (width >= 1280) return 4
-  if (width >= 1024) return 3
-  if (width >= 640) return 2
-  return 1
 }
 
 function deckStackIndexFromPointer(pointerY: number, activeIndex: number | null, cardCount: number) {
@@ -703,16 +722,6 @@ function deckStackIndexFromPointer(pointerY: number, activeIndex: number | null,
   }
 
   return Math.min(lastIndex, Math.floor(y / DECK_STACK_OFFSET))
-}
-
-function distributeDeckGroups(groups: DeckGroup[], columnCount: number) {
-  const columns = Array.from({ length: Math.max(columnCount, 1) }, () => [] as DeckGroup[])
-
-  for (const [index, group] of groups.entries()) {
-    columns[index % columns.length].push(group)
-  }
-
-  return columns
 }
 
 function DeckStackGroup({
@@ -1034,6 +1043,128 @@ function MoveDeckCardDialog({
             <Button type="button" disabled={isPending || !activeZone} onClick={() => activeZone && onMove(activeZone)}>
               Move
             </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function ImportDecklistDialog({ deck, onOpenChange, open }: { deck: DeckDetail | null; onOpenChange: (open: boolean) => void; open: boolean }) {
+  const queryClient = useQueryClient()
+  const [text, setText] = useState("")
+  const [result, setResult] = useState<{ imported: number; unresolved: string[]; skippedPrintings: string[] } | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const importDecklist = useMutation({
+    mutationFn: () => {
+      if (!deck) throw new Error("Deck is required")
+      return request(ImportDecklistDocument, { id: deck.id, text })
+    },
+    onSuccess: data => {
+      queryClient.invalidateQueries({ queryKey: ["deck", deck?.id] })
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      setResult(data.importDecklist || null)
+      setError(null)
+    },
+    onError: error => setError(error instanceof Error ? error.message : "Could not import decklist"),
+  })
+
+  useEffect(() => {
+    if (!open) {
+      setText("")
+      setResult(null)
+      setError(null)
+    }
+  }, [open])
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError(null)
+    setResult(null)
+
+    if (!text.trim()) {
+      setError("Paste a decklist to import")
+      return
+    }
+
+    importDecklist.mutate()
+  }
+
+  function close() {
+    if (importDecklist.isPending) return
+    onOpenChange(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={nextOpen => (nextOpen ? onOpenChange(true) : close())}>
+      <DialogContent className="max-w-3xl" labelledBy="import-decklist-title">
+        <DialogHeader>
+          <div>
+            <DialogTitle id="import-decklist-title">Import decklist</DialogTitle>
+            <p className="mt-1 text-sm text-base-content/60">{deck?.name}</p>
+          </div>
+          <DialogClose onClose={close} />
+        </DialogHeader>
+
+        <form className="space-y-4 p-5" onSubmit={submit}>
+          <label className="block space-y-2">
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Decklist text</span>
+            <textarea
+              className="textarea textarea-bordered min-h-80 w-full bg-base-100 font-mono text-sm"
+              value={text}
+              onChange={event => setText(event.target.value)}
+              placeholder={"Commander\n1 Sol Ring\n1 Arcane Signet\n\nSideboard\n2 Negate"}
+              autoFocus
+            />
+          </label>
+
+          {result ? (
+            <div className="rounded-box border border-base-300 bg-base-100 p-4 text-sm">
+              <div className="font-black">{result.imported} cards imported</div>
+              {result.unresolved.length ? <div className="mt-2 text-warning">Unresolved: {result.unresolved.join(", ")}</div> : null}
+              {result.skippedPrintings.length ? <div className="mt-2 text-base-content/65">Skipped preferred printings: {result.skippedPrintings.join(", ")}</div> : null}
+            </div>
+          ) : null}
+
+          {error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p> : null}
+
+          <div className="flex justify-end gap-2 border-t border-base-300 pt-4">
+            <Button type="button" variant="ghost" onClick={close} disabled={importDecklist.isPending}>Close</Button>
+            <Button type="submit" disabled={importDecklist.isPending}>
+              <Upload className="h-4 w-4" />
+              {importDecklist.isPending ? "Importing..." : "Import decklist"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function ExportDecklistDialog({ deck, onOpenChange, open }: { deck: DeckDetail | null; onOpenChange: (open: boolean) => void; open: boolean }) {
+  const exportQuery = useQuery({
+    queryKey: ["deck-export-text", deck?.id],
+    queryFn: () => request(DeckExportTextDocument, { id: deck?.id || "" }),
+    enabled: open && Boolean(deck?.id),
+  })
+  const exportText = exportQuery.data?.deckExportText || ""
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl" labelledBy="export-decklist-title">
+        <DialogHeader>
+          <div>
+            <DialogTitle id="export-decklist-title">Export decklist</DialogTitle>
+            <p className="mt-1 text-sm text-base-content/60">{deck?.name}</p>
+          </div>
+          <DialogClose onClose={() => onOpenChange(false)} />
+        </DialogHeader>
+
+        <div className="space-y-4 p-5">
+          <textarea className="textarea textarea-bordered min-h-80 w-full bg-base-100 font-mono text-sm" readOnly value={exportQuery.isLoading ? "Exporting..." : exportText} />
+          {exportQuery.error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{exportQuery.error instanceof Error ? exportQuery.error.message : "Could not export decklist"}</p> : null}
+          <div className="flex justify-end">
+            <Button type="button" onClick={() => onOpenChange(false)}>Close</Button>
           </div>
         </div>
       </DialogContent>

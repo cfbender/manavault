@@ -39,6 +39,8 @@ type Documents = {
     "\n  query Deck($id: ID!) {\n    deck(id: $id) {\n      id\n      name\n      format\n      status\n      cardCount\n      uniqueCardCount\n      deckCards {\n        id\n        quantity\n        zone\n        finish\n        card {\n          oracleId\n          name\n          typeLine\n          cmc\n          colors\n          colorIdentity\n          printings { imageUrl artCropUrl setCode setName collectorNumber rarity }\n        }\n        preferredPrinting { imageUrl artCropUrl setCode setName collectorNumber rarity }\n      }\n    }\n  }\n": typeof types.DeckDocument,
     "\n  mutation UpdateDeckCard($id: ID!, $input: DeckCardUpdateInput!) {\n    updateDeckCard(id: $id, input: $input) {\n      id\n      quantity\n      zone\n      finish\n      card { oracleId name typeLine }\n      preferredPrinting { imageUrl artCropUrl setCode setName collectorNumber rarity }\n    }\n  }\n": typeof types.UpdateDeckCardDocument,
     "\n  mutation SetDeckCommander($id: ID!) {\n    setDeckCommander(id: $id) {\n      id\n      quantity\n      zone\n      finish\n      card { oracleId name typeLine }\n      preferredPrinting { imageUrl artCropUrl setCode setName collectorNumber rarity }\n    }\n  }\n": typeof types.SetDeckCommanderDocument,
+    "\n  mutation ImportDecklist($id: ID!, $text: String!) {\n    importDecklist(id: $id, text: $text) {\n      imported\n      unresolved\n      skippedPrintings\n    }\n  }\n": typeof types.ImportDecklistDocument,
+    "\n  query DeckExportText($id: ID!) {\n    deckExportText(id: $id)\n  }\n": typeof types.DeckExportTextDocument,
     "\n  query Home {\n    homeSummary {\n      collectionCount\n      locationCount\n      deckCount\n      scanSessionCount\n    }\n  }\n": typeof types.HomeDocument,
     "\n  query ScanSessions {\n    scanSessions {\n      id\n      name\n      defaultCondition\n      defaultLanguage\n      defaultFinish\n      itemCount\n      reviewCount\n      createdAt\n    }\n  }\n": typeof types.ScanSessionsDocument,
 };
@@ -68,6 +70,8 @@ const documents: Documents = {
     "\n  query Deck($id: ID!) {\n    deck(id: $id) {\n      id\n      name\n      format\n      status\n      cardCount\n      uniqueCardCount\n      deckCards {\n        id\n        quantity\n        zone\n        finish\n        card {\n          oracleId\n          name\n          typeLine\n          cmc\n          colors\n          colorIdentity\n          printings { imageUrl artCropUrl setCode setName collectorNumber rarity }\n        }\n        preferredPrinting { imageUrl artCropUrl setCode setName collectorNumber rarity }\n      }\n    }\n  }\n": types.DeckDocument,
     "\n  mutation UpdateDeckCard($id: ID!, $input: DeckCardUpdateInput!) {\n    updateDeckCard(id: $id, input: $input) {\n      id\n      quantity\n      zone\n      finish\n      card { oracleId name typeLine }\n      preferredPrinting { imageUrl artCropUrl setCode setName collectorNumber rarity }\n    }\n  }\n": types.UpdateDeckCardDocument,
     "\n  mutation SetDeckCommander($id: ID!) {\n    setDeckCommander(id: $id) {\n      id\n      quantity\n      zone\n      finish\n      card { oracleId name typeLine }\n      preferredPrinting { imageUrl artCropUrl setCode setName collectorNumber rarity }\n    }\n  }\n": types.SetDeckCommanderDocument,
+    "\n  mutation ImportDecklist($id: ID!, $text: String!) {\n    importDecklist(id: $id, text: $text) {\n      imported\n      unresolved\n      skippedPrintings\n    }\n  }\n": types.ImportDecklistDocument,
+    "\n  query DeckExportText($id: ID!) {\n    deckExportText(id: $id)\n  }\n": types.DeckExportTextDocument,
     "\n  query Home {\n    homeSummary {\n      collectionCount\n      locationCount\n      deckCount\n      scanSessionCount\n    }\n  }\n": types.HomeDocument,
     "\n  query ScanSessions {\n    scanSessions {\n      id\n      name\n      defaultCondition\n      defaultLanguage\n      defaultFinish\n      itemCount\n      reviewCount\n      createdAt\n    }\n  }\n": types.ScanSessionsDocument,
 };
@@ -186,6 +190,14 @@ export function graphql(source: "\n  mutation UpdateDeckCard($id: ID!, $input: D
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation SetDeckCommander($id: ID!) {\n    setDeckCommander(id: $id) {\n      id\n      quantity\n      zone\n      finish\n      card { oracleId name typeLine }\n      preferredPrinting { imageUrl artCropUrl setCode setName collectorNumber rarity }\n    }\n  }\n"): (typeof documents)["\n  mutation SetDeckCommander($id: ID!) {\n    setDeckCommander(id: $id) {\n      id\n      quantity\n      zone\n      finish\n      card { oracleId name typeLine }\n      preferredPrinting { imageUrl artCropUrl setCode setName collectorNumber rarity }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation ImportDecklist($id: ID!, $text: String!) {\n    importDecklist(id: $id, text: $text) {\n      imported\n      unresolved\n      skippedPrintings\n    }\n  }\n"): (typeof documents)["\n  mutation ImportDecklist($id: ID!, $text: String!) {\n    importDecklist(id: $id, text: $text) {\n      imported\n      unresolved\n      skippedPrintings\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query DeckExportText($id: ID!) {\n    deckExportText(id: $id)\n  }\n"): (typeof documents)["\n  query DeckExportText($id: ID!) {\n    deckExportText(id: $id)\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
