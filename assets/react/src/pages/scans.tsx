@@ -760,7 +760,15 @@ export function ScanSessionPage() {
         <EmptyState title="No cards have been scanned in this session yet." />
       )}
 
-      <EditScanItemDialog item={editingItem} onClose={() => setEditingItem(null)} onSaved={refresh} />
+      <EditScanItemDialog
+        item={editingItem}
+        onChangePrinting={() => {
+          if (editingItem) setChangingItem(editingItem)
+          setEditingItem(null)
+        }}
+        onClose={() => setEditingItem(null)}
+        onSaved={refresh}
+      />
       <ChangePrintingDialog
         item={changingItem}
         onClose={() => setChangingItem(null)}

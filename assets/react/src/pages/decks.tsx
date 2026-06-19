@@ -30,6 +30,7 @@ import {
   WandSparkles,
   XCircle,
   Zap,
+  type LucideIcon,
 } from "lucide-react"
 import {
   useEffect,
@@ -38,8 +39,9 @@ import {
   useState,
   type FocusEvent,
   type FormEvent,
-  type MouseEvent,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent,
+  type ReactNode,
 } from "react"
 import { createPortal } from "react-dom"
 import { PageHeader, PageSection } from "../components/app-shell"
@@ -59,7 +61,9 @@ import { Input } from "../components/ui/input"
 import { graphql } from "../gql"
 import type {
   DeckBuylistQuery,
+  DeckCardInput,
   DeckCardUpdateInput,
+  DeckEdhrecQuery,
   DeckQuery,
   DecksQuery,
   PreviewBulkAllocateDeckMutation,
@@ -437,6 +441,134 @@ const DeckBuylistDocument = graphql(`
   }
 `)
 
+const DeckEdhrecDocument = graphql(`
+  query DeckEdhrec($id: ID!, $excludeLands: Boolean!) {
+    deckEdhrec(id: $id, excludeLands: $excludeLands) {
+      commanderNames
+      more
+      recommendations {
+        name
+        oracleId
+        primaryType
+        score
+        salt
+        edhrecUrl
+        card {
+          oracleId
+          name
+          typeLine
+          printings {
+            scryfallId
+            imageUrl
+            artCropUrl
+            priceText
+          }
+        }
+        collectionStatus {
+          state
+          required
+          owned
+          allocated
+          available
+          allocatedElsewhere
+          missing
+          candidates {
+            available
+          }
+        }
+      }
+      cuts {
+        name
+        oracleId
+        primaryType
+        score
+        salt
+        edhrecUrl
+        card {
+          oracleId
+          name
+          typeLine
+          printings {
+            scryfallId
+            imageUrl
+            artCropUrl
+            priceText
+          }
+        }
+        collectionStatus {
+          state
+          required
+          owned
+          allocated
+          available
+          allocatedElsewhere
+          missing
+          candidates {
+            available
+          }
+        }
+      }
+      commanderPages {
+        name
+        title
+        description
+        url
+        rank
+        deckCount
+        salt
+        avgPrice
+        colorIdentity
+        similar
+        themes {
+          name
+          slug
+          count
+        }
+        stats {
+          label
+          value
+        }
+        sections {
+          header
+          tag
+          cards {
+            name
+            oracleId
+            synergy
+            inclusion
+            numDecks
+            potentialDecks
+            url
+            card {
+              oracleId
+              name
+              typeLine
+              printings {
+                scryfallId
+                imageUrl
+                artCropUrl
+                priceText
+              }
+            }
+            collectionStatus {
+              state
+              required
+              owned
+              allocated
+              available
+              allocatedElsewhere
+              missing
+              candidates {
+                available
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`)
+
 export function DecksPage() {
   const [isNewDeckOpen, setIsNewDeckOpen] = useState(false)
   const [editingDeck, setEditingDeck] = useState<DeckSummary | null>(null)
@@ -512,7 +644,15 @@ export function DecksPage() {
   )
 }
 
-export function DeckDetailPage({ id }: { id: string }) {
+export function DeckDetailPage({
+  edhrecExcludeLands = false,
+  edhrecTab,
+  id,
+}: {
+  edhrecExcludeLands?: boolean
+  edhrecTab?: EDHRecTab
+  id: string
+}) {
   const [groupBy, setGroupBy] = useState<DeckGroupBy>("type")
   const [editTarget, setEditTarget] = useState<DeckCardEntry | null>(null)
   const [editError, setEditError] = useState<string | null>(null)
@@ -526,6 +666,7 @@ export function DeckDetailPage({ id }: { id: string }) {
     null,
   )
   const [bulkAllocationError, setBulkAllocationError] = useState<string | null>(null)
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { data, isLoading } = useQuery({
     queryKey: ["deck", id],
@@ -606,6 +747,15 @@ export function DeckDetailPage({ id }: { id: string }) {
     },
     onError: (error) =>
       setMoveError(error instanceof Error ? error.message : "Could not set commander"),
+  })
+  const addDeckCard = useMutation({
+    mutationFn: (input: DeckCardInput) => request(AddDeckCardDocument, { deckId: id, input }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deck", id] })
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
+      queryClient.invalidateQueries({ queryKey: ["deck-edhrec", id] })
+    },
   })
   const allocateDeckCardItem = useMutation({
     mutationFn: ({
@@ -694,6 +844,27 @@ export function DeckDetailPage({ id }: { id: string }) {
     deleteDeckCard.mutate(deckCard.id)
   }
 
+  function addEdhrecCard(card: EDHRecCard | EDHRecSectionCard) {
+    addDeckCard.mutate({
+      finish: "nonfoil",
+      name: card.name,
+      preferredPrintingId: edhrecCardPrintingId(card),
+      quantity: 1,
+      zone: "mainboard",
+    })
+  }
+
+  function setEdhrecState(tab: EDHRecTab | undefined, excludeLands = edhrecExcludeLands) {
+    navigate({
+      to: "/decks/$id",
+      params: { id },
+      search: {
+        edhrec: tab,
+        edhrecExcludeLands: tab && excludeLands ? true : undefined,
+      },
+    })
+  }
+
   return (
     <>
       <div className="space-y-7">
@@ -723,6 +894,7 @@ export function DeckDetailPage({ id }: { id: string }) {
               onExport={() => setIsExportDeckOpen(true)}
               onImport={() => setIsImportDeckOpen(true)}
               onMissing={() => setIsMissingCardsOpen(true)}
+              onEdhrec={deck.format === "commander" ? () => setEdhrecState("recs") : undefined}
             />
           }
         />
@@ -833,6 +1005,21 @@ export function DeckDetailPage({ id }: { id: string }) {
         onOpenChange={setIsMissingCardsOpen}
         open={isMissingCardsOpen}
       />
+      <EDHRecDialog
+        activeTab={edhrecTab || "recs"}
+        addCardError={addDeckCard.error instanceof Error ? addDeckCard.error.message : null}
+        deck={deck}
+        excludeLands={edhrecExcludeLands}
+        isAddingCard={addDeckCard.isPending}
+        onAddCard={addEdhrecCard}
+        onExcludeLandsChange={(excludeLands) => setEdhrecState(edhrecTab || "recs", excludeLands)}
+        onOpenChange={(open) => {
+          if (!open) setEdhrecState(undefined, false)
+          else setEdhrecState(edhrecTab || "recs")
+        }}
+        onTabChange={(tab) => setEdhrecState(tab)}
+        open={Boolean(edhrecTab)}
+      />
       <BulkAllocationPreviewDialog
         error={bulkAllocationError}
         isPending={bulkAllocateDeck.isPending}
@@ -891,6 +1078,13 @@ type BulkAllocationPreview = NonNullable<PreviewBulkAllocateDeckMutation["previe
 type BuylistPrintingMode = "none" | "exact" | "cheapest"
 type BuylistExportFormat = "text" | "csv"
 type BuylistEntry = DeckBuylistQuery["deckBuylist"][number]
+type EDHRecData = NonNullable<DeckEdhrecQuery["deckEdhrec"]>
+type EDHRecCard = EDHRecData["recommendations"][number]
+type EDHRecCommanderPage = EDHRecData["commanderPages"][number]
+type EDHRecSection = EDHRecCommanderPage["sections"][number]
+type EDHRecSectionCard = EDHRecSection["cards"][number]
+type EDHRecCollectionStatus = EDHRecCard["collectionStatus"] | EDHRecSectionCard["collectionStatus"]
+export type EDHRecTab = "recs" | "cuts" | "commander"
 type DeckGroup = {
   cards: DeckCardEntry[]
   icon: DeckGroupIcon
@@ -957,7 +1151,7 @@ const DECK_STACK_OFFSET = 34
 const DECK_STACK_CARD_HEIGHT = 314
 const DECK_STACK_REVEAL_OFFSET = DECK_STACK_CARD_HEIGHT - DECK_STACK_OFFSET
 
-function blurFocusedMenuItem(event: MouseEvent<HTMLElement>) {
+function blurFocusedMenuItem(event: ReactMouseEvent<HTMLElement>) {
   const activeElement = event.currentTarget.ownerDocument.activeElement
 
   if (activeElement instanceof HTMLElement && event.currentTarget.contains(activeElement)) {
@@ -967,12 +1161,14 @@ function blurFocusedMenuItem(event: MouseEvent<HTMLElement>) {
 
 function SummaryActionMenu({
   label,
+  onEdhrec,
   onEdit,
   onExport,
   onImport,
   onMissing,
 }: {
   label: string
+  onEdhrec?: () => void
   onEdit: () => void
   onExport?: () => void
   onImport?: () => void
@@ -1016,6 +1212,14 @@ function SummaryActionMenu({
             <button type="button" onClick={onMissing}>
               <ShoppingCart className="h-4 w-4" />
               Missing cards
+            </button>
+          </li>
+        ) : null}
+        {onEdhrec ? (
+          <li>
+            <button type="button" onClick={onEdhrec}>
+              <Sparkles className="h-4 w-4" />
+              EDHREC
             </button>
           </li>
         ) : null}
@@ -2051,22 +2255,28 @@ function DeckCardAllocationMenu({
                   No matching owned printings.
                 </div>
               ) : (
-                <ul className="menu mt-3 p-0 text-sm">
+                <ul className="mt-3 space-y-2 text-sm">
                   {status.candidates.map((candidate) => (
-                    <li key={candidate.item.id} className="rounded-box">
-                      <div className="block space-y-2">
+                    <li
+                      key={candidate.item.id}
+                      className="min-w-0 rounded-box border border-base-300 bg-base-200/35 p-2"
+                    >
+                      <div className="grid min-w-0 gap-2">
                         <div className="min-w-0">
-                          <p className="truncate font-semibold">
+                          <p
+                            className="block max-w-full truncate font-semibold"
+                            title={collectionItemLabel(candidate.item)}
+                          >
                             {collectionItemLabel(candidate.item)}
                           </p>
-                          <p className="text-xs text-base-content/60">
+                          <p className="truncate text-xs text-base-content/60">
                             {allocationCandidateSummary(candidate)}
                           </p>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid min-w-0 grid-cols-2 gap-2">
                           <button
                             type="button"
-                            className="btn btn-primary btn-xs"
+                            className="btn btn-primary btn-xs min-w-0"
                             disabled={
                               isUpdating ||
                               candidate.available <= 0 ||
@@ -2074,15 +2284,15 @@ function DeckCardAllocationMenu({
                             }
                             onClick={() => onAllocate(candidate.item.id)}
                           >
-                            Allocate
+                            <span className="truncate">Allocate</span>
                           </button>
                           <button
                             type="button"
-                            className="btn btn-outline btn-xs"
+                            className="btn btn-outline btn-xs min-w-0"
                             disabled={isUpdating || candidate.allocated <= 0}
                             onClick={() => onDeallocate(candidate.item.id)}
                           >
-                            Deallocate
+                            <span className="truncate">Deallocate</span>
                           </button>
                         </div>
                       </div>
@@ -2732,6 +2942,7 @@ function AddDeckCardDialog({
       if (deck?.id) {
         queryClient.invalidateQueries({ queryKey: ["deck", deck.id] })
         queryClient.invalidateQueries({ queryKey: ["deck-buylist", deck.id] })
+        queryClient.invalidateQueries({ queryKey: ["deck-edhrec", deck.id] })
       }
       queryClient.invalidateQueries({ queryKey: ["decks"] })
       setName("")
@@ -2859,6 +3070,647 @@ function AddDeckCardDialog({
       </DialogContent>
     </Dialog>
   )
+}
+
+function EDHRecDialog({
+  activeTab,
+  addCardError,
+  deck,
+  excludeLands,
+  isAddingCard,
+  onAddCard,
+  onExcludeLandsChange,
+  onOpenChange,
+  onTabChange,
+  open,
+}: {
+  activeTab: EDHRecTab
+  addCardError: string | null
+  deck: DeckDetail | null
+  excludeLands: boolean
+  isAddingCard: boolean
+  onAddCard: (card: EDHRecCard | EDHRecSectionCard) => void
+  onExcludeLandsChange: (excludeLands: boolean) => void
+  onOpenChange: (open: boolean) => void
+  onTabChange: (tab: EDHRecTab) => void
+  open: boolean
+}) {
+  const edhrecQuery = useQuery({
+    queryKey: ["deck-edhrec", deck?.id, excludeLands],
+    queryFn: () =>
+      request(DeckEdhrecDocument, {
+        id: deck?.id || "",
+        excludeLands,
+      }),
+    enabled: open && Boolean(deck?.id),
+  })
+  const data = edhrecQuery.data?.deckEdhrec
+  const tabs = [
+    { count: data?.recommendations.length || 0, icon: Sparkles, label: "Recs", value: "recs" },
+    { count: data?.cuts.length || 0, icon: XCircle, label: "Cuts", value: "cuts" },
+    {
+      count: data?.commanderPages.reduce((total, page) => total + page.sections.length, 0) || 0,
+      icon: Database,
+      label: "Commander",
+      value: "commander",
+    },
+  ] satisfies Array<{
+    count: number
+    icon: LucideIcon
+    label: string
+    value: EDHRecTab
+  }>
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="flex max-h-[calc(100svh-2rem)] max-w-[96rem] flex-col"
+        labelledBy="edhrec-title"
+      >
+        <DialogHeader>
+          <div>
+            <DialogTitle id="edhrec-title">EDHREC</DialogTitle>
+            <p className="mt-1 text-sm text-base-content/60">
+              {deck?.name}
+              {data?.commanderNames.length ? ` · ${data.commanderNames.join(" + ")}` : ""}
+            </p>
+          </div>
+          <DialogClose onClose={() => onOpenChange(false)} />
+        </DialogHeader>
+
+        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-hidden p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="grid w-full grid-cols-3 gap-1 sm:flex sm:w-auto sm:gap-2">
+              {tabs.map((tab) => {
+                const Icon = tab.icon
+                return (
+                  <button
+                    key={tab.value}
+                    type="button"
+                    className={cn(
+                      "btn btn-sm min-w-0 gap-1 px-2 text-xs sm:gap-2 sm:px-3 sm:text-sm",
+                      activeTab === tab.value ? "btn-primary" : "btn-outline",
+                    )}
+                    onClick={() => onTabChange(tab.value)}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span className="truncate">{tab.label}</span>
+                    <span className="badge badge-sm shrink-0">{tab.count}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            <label className="label cursor-pointer justify-start gap-2 rounded-btn border border-base-300 px-3 py-2">
+              <input
+                type="checkbox"
+                className="checkbox checkbox-sm"
+                checked={excludeLands}
+                onChange={(event) => onExcludeLandsChange(event.target.checked)}
+              />
+              <span className="label-text text-sm">Exclude lands</span>
+            </label>
+          </div>
+
+          {edhrecQuery.isLoading ? <EmptyState title="Loading EDHREC..." /> : null}
+
+          {edhrecQuery.error ? (
+            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+              {edhrecQuery.error instanceof Error
+                ? edhrecQuery.error.message
+                : "Could not load EDHREC data"}
+            </p>
+          ) : null}
+
+          {addCardError ? (
+            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+              {addCardError}
+            </p>
+          ) : null}
+
+          {!edhrecQuery.isLoading && data ? (
+            <>
+              {activeTab === "recs" ? (
+                <EDHRecCardGrid
+                  cards={data.recommendations}
+                  emptyTitle="No EDHREC recommendations returned"
+                  isAddingCard={isAddingCard}
+                  mode="recs"
+                  onAddCard={onAddCard}
+                />
+              ) : null}
+              {activeTab === "cuts" ? (
+                <EDHRecCardGrid
+                  cards={data.cuts}
+                  emptyTitle="No EDHREC cuts returned"
+                  isAddingCard={isAddingCard}
+                  mode="cuts"
+                  onAddCard={onAddCard}
+                />
+              ) : null}
+              {activeTab === "commander" ? (
+                <EDHRecCommanderData
+                  deck={deck}
+                  isAddingCard={isAddingCard}
+                  onAddCard={onAddCard}
+                  pages={data.commanderPages}
+                />
+              ) : null}
+            </>
+          ) : null}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function EDHRecCardGrid({
+  cards,
+  emptyTitle,
+  isAddingCard,
+  mode,
+  onAddCard,
+}: {
+  cards: EDHRecCard[]
+  emptyTitle: string
+  isAddingCard: boolean
+  mode: "recs" | "cuts"
+  onAddCard: (card: EDHRecCard) => void
+}) {
+  if (!cards.length) return <EmptyState title={emptyTitle} />
+
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(11.5rem,1fr))] gap-5">
+        {cards.map((card) => (
+          <EDHRecCardTile
+            key={`${mode}-${card.oracleId || card.name}`}
+            card={card}
+            isAddingCard={isAddingCard}
+            mode={mode}
+            onAddCard={onAddCard}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function EDHRecCardTile({
+  card,
+  isAddingCard,
+  mode,
+  onAddCard,
+}: {
+  card: EDHRecCard
+  isAddingCard: boolean
+  mode: "recs" | "cuts"
+  onAddCard: (card: EDHRecCard) => void
+}) {
+  const imageUrl = edhrecCardImageUrl(card)
+  const score = typeof card.score === "number" ? Math.max(0, Math.min(100, card.score)) : null
+
+  return (
+    <article className="min-w-0">
+      <EDHRecCardLink card={card} className="block">
+        <figure className="relative aspect-[5/7] overflow-hidden rounded-xl bg-base-300 shadow-lg ring-1 ring-base-content/10 transition hover:-translate-y-0.5 hover:shadow-2xl">
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={card.name}
+              className="h-full w-full object-contain"
+              loading="lazy"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center p-4 text-center text-sm text-base-content/55">
+              {card.name}
+            </div>
+          )}
+          <div className="absolute bottom-2 right-2">
+            <CollectionStatusBadge status={card.collectionStatus} />
+          </div>
+        </figure>
+      </EDHRecCardLink>
+
+      <div className="mt-2 space-y-1.5">
+        <div className="flex min-w-0 items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <EDHRecCardLink
+              card={card}
+              className="block truncate text-sm font-black hover:text-primary"
+            >
+              {card.name}
+            </EDHRecCardLink>
+            <div className="truncate text-xs text-base-content/60">
+              {cardTypeLine(card) || "EDHREC"}
+            </div>
+          </div>
+          <EDHRecCardMenu
+            card={card}
+            isAddingCard={isAddingCard}
+            onAddCard={() => onAddCard(card)}
+          />
+        </div>
+
+        <div className="flex items-center justify-between gap-2 text-xs text-base-content/65">
+          <span>{mode === "recs" ? "Score" : "Cut score"}</span>
+          <span className="font-mono">{score == null ? "-" : Math.round(score)}</span>
+        </div>
+        <div className="relative h-4 overflow-hidden rounded bg-primary/15">
+          <div
+            className="h-full rounded bg-primary/80"
+            style={{ width: `${score == null ? 0 : score}%` }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center text-[0.65rem] font-black leading-none text-primary-content mix-blend-screen">
+            {score == null ? "-" : Math.round(score)}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-2 text-xs text-base-content/60">
+          <span>{edhrecCardPrice(card) || "No local price"}</span>
+          <span>Salt {formatOptionalNumber(card.salt)}</span>
+        </div>
+      </div>
+    </article>
+  )
+}
+
+function EDHRecCommanderData({
+  deck,
+  isAddingCard,
+  onAddCard,
+  pages,
+}: {
+  deck: DeckDetail | null
+  isAddingCard: boolean
+  onAddCard: (card: EDHRecSectionCard) => void
+  pages: EDHRecCommanderPage[]
+}) {
+  if (!pages.length) return <EmptyState title="No commander data returned" />
+
+  return (
+    <div className="min-h-0 flex-1 space-y-8 overflow-y-auto pr-1">
+      {pages.map((page) => (
+        <section key={page.name} className="space-y-4">
+          <EDHRecCommanderHero deck={deck} page={page} />
+
+          <div className="space-y-5">
+            {page.sections.map((section) => (
+              <EDHRecSectionPanel
+                key={`${page.name}-${section.tag || section.header}`}
+                isAddingCard={isAddingCard}
+                onAddCard={onAddCard}
+                section={section}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  )
+}
+
+function EDHRecCommanderHero({
+  deck,
+  page,
+}: {
+  deck: DeckDetail | null
+  page: EDHRecCommanderPage
+}) {
+  const commander = commanderDeckCard(deck, page.name)
+  const imageUrl = commander ? cardImageUrl(commander, "imageUrl") : null
+
+  return (
+    <section className="grid gap-5 rounded-box border border-base-300 bg-base-200/45 p-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
+      <div className="mx-auto w-full max-w-60">
+        <figure className="aspect-[5/7] overflow-hidden rounded-xl bg-base-300 shadow-xl ring-1 ring-base-content/10">
+          {imageUrl ? (
+            <img src={imageUrl} alt={page.name} className="h-full w-full object-contain" />
+          ) : (
+            <div className="flex h-full items-center justify-center p-4 text-center text-sm text-base-content/55">
+              {page.name}
+            </div>
+          )}
+        </figure>
+      </div>
+
+      <div className="min-w-0 space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="text-2xl font-black tracking-normal">{page.title}</h3>
+            <p className="mt-1 text-sm text-base-content/65">{page.description}</p>
+          </div>
+          <Button asChild variant="outline" size="sm">
+            <a href={page.url} target="_blank" rel="noreferrer">
+              <Eye className="h-4 w-4" />
+              EDHREC
+            </a>
+          </Button>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {page.stats.slice(0, 8).map((stat) => (
+            <div
+              key={`${page.name}-${stat.label}`}
+              className="rounded-box border border-base-300 bg-base-100/70 p-3"
+            >
+              <div className="text-xs font-semibold uppercase text-base-content/55">
+                {stat.label}
+              </div>
+              <div className="mt-1 text-lg font-black">{stat.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {page.themes.length ? (
+          <div className="flex flex-wrap gap-2">
+            {page.themes.map((theme) => (
+              <Badge key={`${page.name}-${theme.slug || theme.name}`} tone="primary">
+                {theme.name}
+                {theme.count ? ` ${compactNumber(theme.count)}` : ""}
+              </Badge>
+            ))}
+          </div>
+        ) : null}
+
+        {page.similar.length ? (
+          <div className="text-sm text-base-content/65">
+            <span className="font-semibold text-base-content/80">Similar:</span>{" "}
+            {page.similar.join(", ")}
+          </div>
+        ) : null}
+      </div>
+    </section>
+  )
+}
+
+function EDHRecSectionPanel({
+  isAddingCard,
+  onAddCard,
+  section,
+}: {
+  isAddingCard: boolean
+  onAddCard: (card: EDHRecSectionCard) => void
+  section: EDHRecSection
+}) {
+  return (
+    <details open className="group rounded-box border border-base-300 bg-base-100/80">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 border-b border-base-300 px-4 py-3 marker:hidden">
+        <span className="flex min-w-0 items-center gap-2">
+          <ChevronDown className="h-4 w-4 shrink-0 text-base-content/55 transition group-open:rotate-180" />
+          <h4 className="truncate font-black tracking-normal">{section.header}</h4>
+        </span>
+        <span className="badge badge-ghost shrink-0">{section.cards.length}</span>
+      </summary>
+      <div className="p-3 sm:p-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] sm:gap-4">
+          {section.cards.map((card) => (
+            <EDHRecSectionCardTile
+              key={`${section.header}-${card.oracleId || card.name}`}
+              card={card}
+              isAddingCard={isAddingCard}
+              onAddCard={onAddCard}
+            />
+          ))}
+        </div>
+      </div>
+    </details>
+  )
+}
+
+function EDHRecSectionCardTile({
+  card,
+  isAddingCard,
+  onAddCard,
+}: {
+  card: EDHRecSectionCard
+  isAddingCard: boolean
+  onAddCard: (card: EDHRecSectionCard) => void
+}) {
+  const imageUrl = edhrecCardImageUrl(card)
+
+  return (
+    <article className="min-w-0">
+      <EDHRecCardLink card={card} className="block">
+        <figure className="relative aspect-[5/7] overflow-hidden rounded-lg bg-base-300 shadow-md ring-1 ring-base-content/10 transition hover:-translate-y-0.5 hover:shadow-xl">
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={card.name}
+              className="h-full w-full object-contain"
+              loading="lazy"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center p-3 text-center text-xs text-base-content/55">
+              {card.name}
+            </div>
+          )}
+          <div className="absolute bottom-1.5 right-1.5">
+            <CollectionStatusBadge status={card.collectionStatus} compact />
+          </div>
+        </figure>
+      </EDHRecCardLink>
+      <div className="mt-2 flex min-w-0 items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <EDHRecCardLink
+            card={card}
+            className="block truncate text-sm font-black hover:text-primary"
+          >
+            {card.name}
+          </EDHRecCardLink>
+          <div className="mt-0.5 flex items-center justify-between gap-2 text-xs text-base-content/60">
+            <span>{formatSynergy(card)}</span>
+            <span>
+              {card.numDecks ? `${compactNumber(card.numDecks)} decks` : edhrecCardPrice(card)}
+            </span>
+          </div>
+        </div>
+        <EDHRecCardMenu
+          card={card}
+          isAddingCard={isAddingCard}
+          onAddCard={() => onAddCard(card)}
+        />
+      </div>
+    </article>
+  )
+}
+
+function EDHRecCardMenu({
+  card,
+  isAddingCard,
+  onAddCard,
+}: {
+  card: EDHRecCard | EDHRecSectionCard
+  isAddingCard: boolean
+  onAddCard: () => void
+}) {
+  const localCardId = card.card?.oracleId
+  const externalUrl = edhrecCardUrl(card)
+
+  return (
+    <div
+      className="dropdown dropdown-end shrink-0"
+      onClick={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+    >
+      <button
+        type="button"
+        className="btn btn-circle btn-xs border-0 bg-base-200 text-base-content/70 shadow-sm transition hover:bg-base-300"
+        tabIndex={0}
+        aria-label={`${card.name} actions`}
+      >
+        <MoreVertical className="h-4 w-4" />
+      </button>
+      <ul
+        tabIndex={0}
+        className="menu dropdown-content z-50 mt-1 w-48 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
+        onClick={blurFocusedMenuItem}
+      >
+        <li>
+          <button type="button" disabled={isAddingCard} onClick={onAddCard}>
+            <Plus className="h-4 w-4" />
+            {isAddingCard ? "Adding..." : "Add to deck"}
+          </button>
+        </li>
+        <li>
+          {localCardId ? (
+            <Link to="/cards/$id" params={{ id: localCardId }}>
+              <Eye className="h-4 w-4" />
+              View card
+            </Link>
+          ) : externalUrl ? (
+            <a href={externalUrl} target="_blank" rel="noreferrer">
+              <Eye className="h-4 w-4" />
+              View on EDHREC
+            </a>
+          ) : (
+            <button type="button" disabled>
+              <Eye className="h-4 w-4" />
+              View card
+            </button>
+          )}
+        </li>
+      </ul>
+    </div>
+  )
+}
+
+function EDHRecCardLink({
+  card,
+  children,
+  className,
+}: {
+  card: EDHRecCard | EDHRecSectionCard
+  children: ReactNode
+  className?: string
+}) {
+  const localCardId = card.card?.oracleId
+  const externalUrl = edhrecCardUrl(card)
+
+  if (localCardId) {
+    return (
+      <Link to="/cards/$id" params={{ id: localCardId }} className={className}>
+        {children}
+      </Link>
+    )
+  }
+
+  return externalUrl ? (
+    <a href={externalUrl} target="_blank" rel="noreferrer" className={className}>
+      {children}
+    </a>
+  ) : (
+    <>{children}</>
+  )
+}
+
+function CollectionStatusBadge({
+  compact = false,
+  status,
+}: {
+  compact?: boolean
+  status: EDHRecCollectionStatus
+}) {
+  return (
+    <Badge
+      tone={collectionStatusTone(status.state)}
+      className={cn(
+        "whitespace-nowrap bg-base-100/90 shadow-sm backdrop-blur",
+        compact && "px-1.5 text-[0.62rem]",
+      )}
+    >
+      <AllocationStatusIcon
+        state={status.state}
+        className={cn("mr-1 h-3 w-3", compact && "h-2.5 w-2.5")}
+      />
+      {collectionStatusShortLabel(status)}
+    </Badge>
+  )
+}
+
+function collectionStatusShortLabel(status: EDHRecCollectionStatus) {
+  if (status.state === "allocated") return "In deck"
+  if (status.state === "available") return `${status.available} free`
+  if (status.state === "partial") return `${status.owned} owned`
+  if (status.state === "basic_land") return "Basic"
+  return "Missing"
+}
+
+function collectionStatusTone(
+  state: string,
+): "neutral" | "primary" | "success" | "warning" | "error" {
+  if (state === "allocated") return "success"
+  if (state === "available" || state === "basic_land") return "primary"
+  if (state === "partial") return "warning"
+  return "error"
+}
+
+function edhrecCardImageUrl(card: EDHRecCard | EDHRecSectionCard) {
+  const printing = card.card?.printings?.find((printing) => printing?.imageUrl || printing?.artCropUrl)
+  return printing?.imageUrl || printing?.artCropUrl
+}
+
+function edhrecCardPrice(card: EDHRecCard | EDHRecSectionCard) {
+  return card.card?.printings?.find((printing) => printing?.priceText)?.priceText || null
+}
+
+function edhrecCardPrintingId(card: EDHRecCard | EDHRecSectionCard) {
+  return card.card?.printings?.find((printing) => printing?.scryfallId)?.scryfallId || null
+}
+
+function edhrecCardUrl(card: EDHRecCard | EDHRecSectionCard) {
+  if ("url" in card && card.url) return card.url
+  if ("edhrecUrl" in card && card.edhrecUrl) return card.edhrecUrl
+  return null
+}
+
+function cardTypeLine(card: EDHRecCard | EDHRecSectionCard) {
+  return card.card?.typeLine || ("primaryType" in card ? card.primaryType : null)
+}
+
+function formatSynergy(card: EDHRecSectionCard) {
+  if (typeof card.synergy === "number") return `${Math.round(card.synergy * 100)}% synergy`
+  if (card.numDecks) return `${compactNumber(card.numDecks)} decks`
+  return "-"
+}
+
+function commanderDeckCard(deck: DeckDetail | null, name: string) {
+  const normalizedName = normalizeDisplayName(name)
+  return (deck?.deckCards || [])
+    .filter(present)
+    .find(
+      (deckCard) =>
+        deckCard.zone === "commander" &&
+        normalizeDisplayName(deckCard.card?.name || "") === normalizedName,
+    )
+}
+
+function normalizeDisplayName(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()
+}
+
+function formatOptionalNumber(value?: number | null) {
+  return typeof value === "number" ? value.toFixed(1) : "-"
 }
 
 function MissingCardsDialog({

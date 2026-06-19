@@ -249,6 +249,70 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     end
   end
 
+  object :deck_edhrec do
+    field :commander_names, non_null(list_of(non_null(:string)))
+    field :recommendations, non_null(list_of(non_null(:deck_edhrec_card)))
+    field :cuts, non_null(list_of(non_null(:deck_edhrec_card)))
+    field :commander_pages, non_null(list_of(non_null(:edhrec_commander_page)))
+    field :more, non_null(:boolean)
+  end
+
+  object :deck_edhrec_card do
+    field :name, non_null(:string)
+    field :oracle_id, :id
+    field :primary_type, :string
+    field :score, :float
+    field :salt, :float
+    field :edhrec_url, :string
+    field :card, :card
+    field :collection_status, non_null(:deck_card_allocation_status)
+  end
+
+  object :edhrec_commander_page do
+    field :name, non_null(:string)
+    field :title, non_null(:string)
+    field :description, :string
+    field :url, non_null(:string)
+    field :rank, :integer
+    field :deck_count, :integer
+    field :salt, :float
+    field :avg_price, :float
+    field :color_identity, non_null(list_of(non_null(:string)))
+    field :similar, non_null(list_of(non_null(:string)))
+    field :themes, non_null(list_of(non_null(:edhrec_theme)))
+    field :stats, non_null(list_of(non_null(:edhrec_stat)))
+    field :sections, non_null(list_of(non_null(:edhrec_card_section)))
+  end
+
+  object :edhrec_theme do
+    field :name, non_null(:string)
+    field :slug, :string
+    field :count, :integer
+  end
+
+  object :edhrec_stat do
+    field :label, non_null(:string)
+    field :value, non_null(:string)
+  end
+
+  object :edhrec_card_section do
+    field :header, non_null(:string)
+    field :tag, :string
+    field :cards, non_null(list_of(non_null(:edhrec_section_card)))
+  end
+
+  object :edhrec_section_card do
+    field :name, non_null(:string)
+    field :oracle_id, :id
+    field :synergy, :float
+    field :inclusion, :integer
+    field :num_decks, :integer
+    field :potential_decks, :integer
+    field :url, :string
+    field :card, :card
+    field :collection_status, non_null(:deck_card_allocation_status)
+  end
+
   object :scan_session do
     field :id, non_null(:id)
     field :name, non_null(:string)

@@ -91,6 +91,18 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
      id |> Catalog.get_deck!() |> Catalog.export_deck_buylist(format, deck_buylist_opts(args))}
   end
 
+  def deck_edhrec(_parent, %{id: id} = args, _resolution) do
+    opts = [
+      exclude_lands: Map.get(args, :exclude_lands, false),
+      offset: Map.get(args, :offset, 0)
+    ]
+
+    case id |> Catalog.get_deck!() |> Catalog.deck_edhrec(opts) do
+      {:ok, result} -> {:ok, result}
+      {:error, reason} -> {:error, edhrec_error(reason)}
+    end
+  end
+
   def create_deck(_parent, %{input: input}, _resolution) do
     case Catalog.create_deck(input) do
       {:ok, deck} -> {:ok, deck}
@@ -715,4 +727,12 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   defp deck_import_error(:card_not_found), do: "One or more decklist cards were not found."
   defp deck_import_error(reason) when is_binary(reason), do: reason
   defp deck_import_error(_reason), do: "Could not import decklist."
+
+  defp edhrec_error(:edhrec_missing_commander), do: "EDHREC requires a commander."
+  defp edhrec_error(:edhrec_empty_deck), do: "EDHREC requires cards in the deck."
+  defp edhrec_error(:edhrec_unexpected_response), do: "EDHREC returned an unexpected response."
+  defp edhrec_error({:edhrec_http_error, status}), do: "EDHREC returned HTTP #{status}."
+  defp edhrec_error({:edhrec_request_failed, reason}), do: "Could not reach EDHREC: #{reason}"
+  defp edhrec_error(reason) when is_binary(reason), do: reason
+  defp edhrec_error(_reason), do: "Could not load EDHREC data."
 end

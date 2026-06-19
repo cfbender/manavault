@@ -13,6 +13,7 @@ defmodule Manavault.Catalog do
     Deck,
     DeckAllocation,
     DeckCard,
+    EDHRec,
     Location,
     Price,
     Printing,
@@ -1462,6 +1463,10 @@ defmodule Manavault.Catalog do
     end)
     |> Enum.reject(&is_nil/1)
     |> Enum.sort_by(&{&1.card_name, &1.set_code || "", &1.collector_number || ""})
+  end
+
+  def deck_edhrec(%Deck{} = deck, opts \\ []) when is_list(opts) do
+    EDHRec.recs(deck, opts)
   end
 
   def export_deck_buylist(deck, format, opts \\ [])
