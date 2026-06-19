@@ -187,6 +187,64 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :skipped_printings, non_null(list_of(non_null(:string)))
   end
 
+  object :deck_buylist_entry do
+    field :card_name, non_null(:string) do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :quantity, non_null(:integer) do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :missing, non_null(:integer) do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :unavailable, non_null(:integer) do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :reason, non_null(:string) do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :finish, :string do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :printing, :printing do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :set_code, :string do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :collector_number, :string do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :language, :string do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :unit_price_cents, :integer do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :total_price_cents, :integer do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :unit_price_text, :string do
+      resolve(&CatalogResolvers.buylist_entry_unit_price_text/3)
+    end
+
+    field :total_price_text, :string do
+      resolve(&CatalogResolvers.buylist_entry_total_price_text/3)
+    end
+  end
+
   object :scan_session do
     field :id, non_null(:id)
     field :name, non_null(:string)
@@ -350,6 +408,14 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :name, :string
     field :format, :string
     field :status, :string
+  end
+
+  input_object :deck_card_input do
+    field :name, non_null(:string)
+    field :quantity, :integer
+    field :zone, :string
+    field :finish, :string
+    field :preferred_printing_id, :id
   end
 
   input_object :location_update_input do

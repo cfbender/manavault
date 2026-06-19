@@ -1085,6 +1085,87 @@ defmodule ManavaultWeb.SchemaTest do
     assert export_text =~ "Mainboard\n2x Import Lotus"
   end
 
+  test "deck buylist and export queries expose missing card workflow data", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-buylist-1",
+          "oracle_id" => "oracle-buylist-1",
+          "name" => "Buylist Lotus",
+          "type_line" => "Artifact",
+          "collector_number" => "7",
+          "set" => "buy",
+          "set_name" => "Buy Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "prices" => %{"usd" => "3.50"},
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, deck} =
+      Catalog.create_deck(%{
+        "name" => "Buylist Deck",
+        "format" => "vintage",
+        "status" => "active"
+      })
+
+    {:ok, _deck_card} =
+      Catalog.add_card_to_deck(deck, %{
+        "name" => "Buylist Lotus",
+        "quantity" => 2,
+        "preferred_printing_id" => "scryfall-buylist-1"
+      })
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query DeckBuylist($id: ID!) {
+          deckBuylist(id: $id, printingMode: "exact") {
+            cardName
+            quantity
+            missing
+            unavailable
+            reason
+            setCode
+            collectorNumber
+            language
+            unitPriceText
+            totalPriceText
+          }
+          deckBuylistExport(id: $id, format: "csv", printingMode: "exact")
+        }
+        """,
+        "variables" => %{"id" => deck.id}
+      })
+
+    assert %{
+             "data" => %{
+               "deckBuylist" => [
+                 %{
+                   "cardName" => "Buylist Lotus",
+                   "quantity" => 2,
+                   "missing" => 2,
+                   "unavailable" => 0,
+                   "reason" => "missing",
+                   "setCode" => "buy",
+                   "collectorNumber" => "7",
+                   "language" => "en",
+                   "unitPriceText" => "$3.50",
+                   "totalPriceText" => "$7"
+                 }
+               ],
+               "deckBuylistExport" => export_csv
+             }
+           } = json_response(conn, 200)
+
+    assert export_csv =~
+             "Quantity,Card,Set,Collector Number,Finish,Language,Reason,Unit Price,Total Price"
+
+    assert export_csv =~ "2,Buylist Lotus,buy,7,nonfoil,en,missing,$3.50,$7"
+  end
+
   test "update location mutation updates location fields", %{conn: conn} do
     {:ok, %{cards_count: 1, printings_count: 1}} =
       Catalog.import_cards([
@@ -1213,6 +1294,127 @@ defmodule ManavaultWeb.SchemaTest do
                }
              }
            } = json_response(conn, 200)
+  end
+
+  test "add deck card mutation adds a card by name", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-add-deck-card",
+          "oracle_id" => "oracle-add-deck-card",
+          "name" => "Add Me",
+          "type_line" => "Creature",
+          "collector_number" => "3",
+          "set" => "add",
+          "set_name" => "Add Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Add Test"})
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation AddDeckCard($deckId: ID!, $input: DeckCardInput!) {
+          addDeckCard(deckId: $deckId, input: $input) {
+            id
+            quantity
+            zone
+            finish
+            card { name }
+          }
+        }
+        """,
+        "variables" => %{
+          "deckId" => deck.id,
+          "input" => %{
+            "name" => "Add Me",
+            "quantity" => 2,
+            "zone" => "sideboard",
+            "finish" => "nonfoil"
+          }
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "addDeckCard" => %{
+                 "id" => _id,
+                 "quantity" => 2,
+                 "zone" => "sideboard",
+                 "finish" => "nonfoil",
+                 "card" => %{"name" => "Add Me"}
+               }
+             }
+           } = json_response(conn, 200)
+  end
+
+  test "delete deck card mutation removes a card from a deck", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-delete-deck-card",
+          "oracle_id" => "oracle-delete-deck-card",
+          "name" => "Delete Me",
+          "type_line" => "Artifact",
+          "collector_number" => "1",
+          "set" => "del",
+          "set_name" => "Delete Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Delete Test"})
+    {:ok, deck_card} = Catalog.add_card_to_deck(deck, %{"name" => "Delete Me"})
+    {:ok, location} = Catalog.create_location(%{"name" => "Delete Binder", "kind" => "binder"})
+
+    {:ok, item} =
+      Catalog.create_collection_item(%{
+        "scryfall_id" => "scryfall-delete-deck-card",
+        "quantity" => 1,
+        "location_id" => location.id
+      })
+
+    assert {:ok, allocation} =
+             Catalog.allocate_collection_item_to_deck_card(deck_card.id, item.id)
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation DeleteDeckCard($id: ID!) {
+          deleteDeckCard(id: $id) {
+            id
+            card { name }
+          }
+        }
+        """,
+        "variables" => %{"id" => deck_card.id}
+      })
+
+    assert %{
+             "data" => %{
+               "deleteDeckCard" => %{
+                 "id" => _id,
+                 "card" => %{"name" => "Delete Me"}
+               }
+             }
+           } = json_response(conn, 200)
+
+    assert Catalog.get_deck!(deck.id).deck_cards == []
+
+    restored_item =
+      allocation.collection_item_id
+      |> Catalog.get_collection_item!()
+
+    assert restored_item.location_id == location.id
+    assert Catalog.deck_allocation_status(Catalog.get_deck!(deck.id)) == %{}
   end
 
   test "set deck commander replaces the current commander", %{conn: conn} do

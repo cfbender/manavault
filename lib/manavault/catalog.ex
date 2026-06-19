@@ -1107,7 +1107,28 @@ defmodule Manavault.Catalog do
   end
 
   def delete_deck_card(%DeckCard{} = deck_card) do
-    Repo.delete(deck_card)
+    Repo.transaction(fn ->
+      deck_card =
+        Repo.preload(deck_card, deck_allocations: [:collection_item])
+
+      Enum.each(deck_card.deck_allocations, fn allocation ->
+        restore_collection_item_from_deck!(
+          allocation.collection_item,
+          allocation.quantity,
+          allocation.source_location_id
+        )
+
+        case Repo.delete(allocation) do
+          {:ok, _allocation} -> :ok
+          {:error, changeset} -> Repo.rollback(changeset)
+        end
+      end)
+
+      case Repo.delete(deck_card) do
+        {:ok, deck_card} -> deck_card
+        {:error, changeset} -> Repo.rollback(changeset)
+      end
+    end)
   end
 
   def deck_allocation_status(%Deck{} = deck) do

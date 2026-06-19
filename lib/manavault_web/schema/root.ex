@@ -68,6 +68,21 @@ defmodule ManavaultWeb.Schema do
       resolve(&CatalogResolvers.deck_export_text/3)
     end
 
+    field :deck_buylist, non_null(list_of(non_null(:deck_buylist_entry))) do
+      arg(:id, non_null(:id))
+      arg(:printing_mode, :string, default_value: "none")
+      arg(:include_basic_lands, :boolean, default_value: false)
+      resolve(&CatalogResolvers.deck_buylist/3)
+    end
+
+    field :deck_buylist_export, non_null(:string) do
+      arg(:id, non_null(:id))
+      arg(:format, :string, default_value: "text")
+      arg(:printing_mode, :string, default_value: "none")
+      arg(:include_basic_lands, :boolean, default_value: false)
+      resolve(&CatalogResolvers.deck_buylist_export/3)
+    end
+
     field :scan_sessions, non_null(list_of(non_null(:scan_session))) do
       resolve(&CatalogResolvers.scan_sessions/3)
     end
@@ -123,6 +138,12 @@ defmodule ManavaultWeb.Schema do
       resolve(&CatalogResolvers.update_deck/3)
     end
 
+    field :add_deck_card, :deck_card do
+      arg(:deck_id, non_null(:id))
+      arg(:input, non_null(:deck_card_input))
+      resolve(&CatalogResolvers.add_deck_card/3)
+    end
+
     field :import_decklist, :deck_import_result do
       arg(:id, non_null(:id))
       arg(:text, non_null(:string))
@@ -139,6 +160,11 @@ defmodule ManavaultWeb.Schema do
       arg(:id, non_null(:id))
       arg(:input, non_null(:deck_card_update_input))
       resolve(&CatalogResolvers.update_deck_card/3)
+    end
+
+    field :delete_deck_card, :deck_card do
+      arg(:id, non_null(:id))
+      resolve(&CatalogResolvers.delete_deck_card/3)
     end
 
     field :set_deck_commander, :deck_card do

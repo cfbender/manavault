@@ -80,6 +80,17 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     {:ok, id |> Catalog.get_deck!() |> Catalog.export_decklist()}
   end
 
+  def deck_buylist(_parent, %{id: id} = args, _resolution) do
+    {:ok, id |> Catalog.get_deck!() |> Catalog.deck_buylist(deck_buylist_opts(args))}
+  end
+
+  def deck_buylist_export(_parent, %{id: id} = args, _resolution) do
+    format = Map.get(args, :format, "text")
+
+    {:ok,
+     id |> Catalog.get_deck!() |> Catalog.export_deck_buylist(format, deck_buylist_opts(args))}
+  end
+
   def create_deck(_parent, %{input: input}, _resolution) do
     case Catalog.create_deck(input) do
       {:ok, deck} -> {:ok, deck}
@@ -179,6 +190,27 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     end
   end
 
+  def add_deck_card(_parent, %{deck_id: deck_id, input: input}, _resolution) do
+    deck = Catalog.get_deck!(deck_id)
+
+    case Catalog.add_card_to_deck(deck, input) do
+      {:ok, deck_card} ->
+        {:ok, Repo.preload(deck_card, [:card, :preferred_printing])}
+
+      {:error, :card_not_found} ->
+        {:error, "Card was not found."}
+
+      {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
+        {:error, changeset_error_message(changeset)}
+
+      {:error, reason} when is_binary(reason) ->
+        {:error, reason}
+
+      {:error, reason} when is_atom(reason) ->
+        {:error, Atom.to_string(reason)}
+    end
+  end
+
   def import_decklist(_parent, %{id: id, text: text}, _resolution) do
     deck = Catalog.get_deck!(id)
 
@@ -216,6 +248,15 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
     case Catalog.update_deck_card(deck_card, input) do
       {:ok, deck_card} -> {:ok, Repo.preload(deck_card, [:card, :preferred_printing])}
+      {:error, changeset} -> {:error, changeset_error_message(changeset)}
+    end
+  end
+
+  def delete_deck_card(_parent, %{id: id}, _resolution) do
+    deck_card = DeckCard |> Repo.get!(id) |> Repo.preload([:card, :preferred_printing])
+
+    case Catalog.delete_deck_card(deck_card) do
+      {:ok, deck_card} -> {:ok, deck_card}
       {:error, changeset} -> {:error, changeset_error_message(changeset)}
     end
   end
@@ -302,6 +343,14 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
   def map_exact_value(parent, _args, _resolution) do
     {:ok, Map.get(parent, :exact?) || Map.get(parent, "exact?") || false}
+  end
+
+  def buylist_entry_unit_price_text(parent, _args, _resolution) do
+    {:ok, parent |> Map.get(:unit_price_cents) |> Price.format_cents()}
+  end
+
+  def buylist_entry_total_price_text(parent, _args, _resolution) do
+    {:ok, parent |> Map.get(:total_price_cents) |> Price.format_cents()}
   end
 
   def scan_item_count(%ScanSession{} = session, _args, _resolution) do
@@ -459,6 +508,13 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     do: Map.put(input, :location_id, nil)
 
   defp normalize_blank_location_id(input), do: input
+
+  defp deck_buylist_opts(args) do
+    [
+      printing_mode: Map.get(args, :printing_mode, "none"),
+      include_basic_lands: Map.get(args, :include_basic_lands, false)
+    ]
+  end
 
   defp unfiled_location do
     %{

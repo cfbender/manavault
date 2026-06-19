@@ -6,7 +6,9 @@ import {
   CheckCircle2,
   ChevronDown,
   Circle,
+  Clipboard,
   Crown,
+  Database,
   Download,
   Droplets,
   Edit3,
@@ -19,8 +21,11 @@ import {
   Palette,
   PawPrint,
   Plus,
+  ShoppingCart,
   Sparkles,
   Star,
+  Store,
+  Trash2,
   Upload,
   WandSparkles,
   XCircle,
@@ -35,7 +40,9 @@ import {
   type FormEvent,
   type PointerEvent,
 } from "react"
+import { createPortal } from "react-dom"
 import { PageHeader, PageSection } from "../components/app-shell"
+import { CardNameSearchField } from "../components/card-name-search-field"
 import { EmptyState } from "../components/card-image"
 import { ImageSummaryCard } from "../components/image-summary-card"
 import { Badge } from "../components/ui/badge"
@@ -49,7 +56,12 @@ import {
 } from "../components/ui/dialog"
 import { Input } from "../components/ui/input"
 import { graphql } from "../gql"
-import type { DeckQuery, DecksQuery, PreviewBulkAllocateDeckMutation } from "../gql/graphql"
+import type {
+  DeckBuylistQuery,
+  DeckQuery,
+  DecksQuery,
+  PreviewBulkAllocateDeckMutation,
+} from "../gql/graphql"
 import { request } from "../lib/graphql"
 import { cn, compactNumber, present, titleize } from "../lib/utils"
 
@@ -231,6 +243,38 @@ const UpdateDeckCardDocument = graphql(`
   }
 `)
 
+const AddDeckCardDocument = graphql(`
+  mutation AddDeckCard($deckId: ID!, $input: DeckCardInput!) {
+    addDeckCard(deckId: $deckId, input: $input) {
+      id
+      quantity
+      zone
+      finish
+      card {
+        oracleId
+        name
+        typeLine
+      }
+      preferredPrinting {
+        imageUrl
+        artCropUrl
+        setCode
+        setName
+        collectorNumber
+        rarity
+      }
+    }
+  }
+`)
+
+const DeleteDeckCardDocument = graphql(`
+  mutation DeleteDeckCard($id: ID!) {
+    deleteDeckCard(id: $id) {
+      id
+    }
+  }
+`)
+
 const SetDeckCommanderDocument = graphql(`
   mutation SetDeckCommander($id: ID!) {
     setDeckCommander(id: $id) {
@@ -356,6 +400,35 @@ const DeckExportTextDocument = graphql(`
   }
 `)
 
+const DeckBuylistDocument = graphql(`
+  query DeckBuylist(
+    $id: ID!
+    $printingMode: String!
+    $exportFormat: String!
+    $includeBasicLands: Boolean!
+  ) {
+    deckBuylist(id: $id, printingMode: $printingMode, includeBasicLands: $includeBasicLands) {
+      cardName
+      quantity
+      missing
+      unavailable
+      reason
+      finish
+      setCode
+      collectorNumber
+      language
+      unitPriceText
+      totalPriceText
+    }
+    deckBuylistExport(
+      id: $id
+      format: $exportFormat
+      printingMode: $printingMode
+      includeBasicLands: $includeBasicLands
+    )
+  }
+`)
+
 export function DecksPage() {
   const [isNewDeckOpen, setIsNewDeckOpen] = useState(false)
   const [editingDeck, setEditingDeck] = useState<DeckSummary | null>(null)
@@ -438,6 +511,7 @@ export function DeckDetailPage({ id }: { id: string }) {
   const [isEditDeckOpen, setIsEditDeckOpen] = useState(false)
   const [isImportDeckOpen, setIsImportDeckOpen] = useState(false)
   const [isExportDeckOpen, setIsExportDeckOpen] = useState(false)
+  const [isMissingCardsOpen, setIsMissingCardsOpen] = useState(false)
   const [bulkAllocationPreview, setBulkAllocationPreview] = useState<BulkAllocationPreview | null>(
     null,
   )
@@ -448,6 +522,7 @@ export function DeckDetailPage({ id }: { id: string }) {
     queryFn: () => request(DeckDocument, { id }),
   })
   const deck = data?.deck
+  const [isAddCardOpen, setIsAddCardOpen] = useState(false)
   const deckCards = useMemo(() => (deck?.deckCards || []).filter(present), [deck?.deckCards])
   const stackDeckCards = useMemo(
     () =>
@@ -490,6 +565,15 @@ export function DeckDetailPage({ id }: { id: string }) {
     },
     onError: (error) =>
       setMoveError(error instanceof Error ? error.message : "Could not update deck card"),
+  })
+
+  const deleteDeckCard = useMutation({
+    mutationFn: (deckCardId: string) => request(DeleteDeckCardDocument, { id: deckCardId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deck", id] })
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
+    },
   })
 
   const setDeckCommander = useMutation({
@@ -562,9 +646,12 @@ export function DeckDetailPage({ id }: { id: string }) {
       ? allocateDeckCardItem.error.message
       : deallocateDeckCardItem.error instanceof Error
         ? deallocateDeckCardItem.error.message
-        : null
+        : deleteDeckCard.error instanceof Error
+          ? deleteDeckCard.error.message
+          : null
   const isUpdatingDeckCard =
     updateDeckCard.isPending ||
+    deleteDeckCard.isPending ||
     setDeckCommander.isPending ||
     allocateDeckCardItem.isPending ||
     deallocateDeckCardItem.isPending
@@ -574,6 +661,12 @@ export function DeckDetailPage({ id }: { id: string }) {
 
   function moveDeckCard(deckCard: DeckCardEntry, zone: DeckZone) {
     updateDeckCard.mutate({ deckCardId: deckCard.id, zone })
+  }
+
+  function confirmDeleteDeckCard(deckCard: DeckCardEntry) {
+    const name = deckCard.card?.name || "this card"
+    if (!window.confirm(`Delete ${name} from this deck?`)) return
+    deleteDeckCard.mutate(deckCard.id)
   }
 
   return (
@@ -604,6 +697,7 @@ export function DeckDetailPage({ id }: { id: string }) {
               onEdit={() => setIsEditDeckOpen(true)}
               onExport={() => setIsExportDeckOpen(true)}
               onImport={() => setIsImportDeckOpen(true)}
+              onMissing={() => setIsMissingCardsOpen(true)}
             />
           }
         />
@@ -621,6 +715,10 @@ export function DeckDetailPage({ id }: { id: string }) {
             ))}
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" size="sm" onClick={() => setIsAddCardOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Add card
+            </Button>
             {hasBulkAllocationAvailable ? (
               <BulkAllocationMenu
                 disabled={previewBulkAllocateDeck.isPending || bulkAllocateDeck.isPending}
@@ -649,6 +747,7 @@ export function DeckDetailPage({ id }: { id: string }) {
             onDeallocate={(deckCard, collectionItemId) =>
               deallocateDeckCardItem.mutate({ deckCardId: deckCard.id, collectionItemId })
             }
+            onDelete={confirmDeleteDeckCard}
             onSetCommander={(deckCard) => setDeckCommander.mutate(deckCard.id)}
             allocationError={allocationError}
           />
@@ -665,6 +764,7 @@ export function DeckDetailPage({ id }: { id: string }) {
               setMoveError(null)
               setMoveTarget(deckCard)
             }}
+            onDelete={confirmDeleteDeckCard}
           />
           <DeckZoneTable
             cards={maybeboardCards}
@@ -674,11 +774,13 @@ export function DeckDetailPage({ id }: { id: string }) {
               setMoveError(null)
               setMoveTarget(deckCard)
             }}
+            onDelete={confirmDeleteDeckCard}
           />
         </div>
       </div>
 
       <EditDeckDialog deck={deck} onOpenChange={setIsEditDeckOpen} open={isEditDeckOpen} />
+      <AddDeckCardDialog deck={deck} onOpenChange={setIsAddCardOpen} open={isAddCardOpen} />
       <ImportDecklistDialog
         deck={deck}
         onOpenChange={setIsImportDeckOpen}
@@ -688,6 +790,11 @@ export function DeckDetailPage({ id }: { id: string }) {
         deck={deck}
         onOpenChange={setIsExportDeckOpen}
         open={isExportDeckOpen}
+      />
+      <MissingCardsDialog
+        deck={deck}
+        onOpenChange={setIsMissingCardsOpen}
+        open={isMissingCardsOpen}
       />
       <BulkAllocationPreviewDialog
         error={bulkAllocationError}
@@ -728,6 +835,9 @@ type DeckZone = "mainboard" | "sideboard" | "commander" | "maybeboard"
 type DeckGroupBy = "type" | "color" | "colorIdentity" | "manaValue" | "rarity" | "set" | "none"
 type BulkAllocationMode = "exact_printings" | "matching_printings"
 type BulkAllocationPreview = NonNullable<PreviewBulkAllocateDeckMutation["previewBulkAllocateDeck"]>
+type BuylistPrintingMode = "none" | "exact" | "cheapest"
+type BuylistExportFormat = "text" | "csv"
+type BuylistEntry = DeckBuylistQuery["deckBuylist"][number]
 type DeckGroup = {
   cards: DeckCardEntry[]
   icon: DeckGroupIcon
@@ -773,6 +883,8 @@ const DECK_FORMATS = [
 ] as const
 const DECK_STATUSES = ["brewing", "active", "archived"] as const
 const MOVE_TARGET_ZONES: DeckZone[] = ["mainboard", "sideboard", "maybeboard"]
+const ADD_CARD_ZONES: DeckZone[] = ["mainboard", "sideboard", "commander", "maybeboard"]
+const NON_COMMANDER_ADD_CARD_ZONES: DeckZone[] = ["mainboard", "sideboard", "maybeboard"]
 const TYPE_ORDER = [
   "commander",
   "creature",
@@ -796,11 +908,13 @@ function SummaryActionMenu({
   onEdit,
   onExport,
   onImport,
+  onMissing,
 }: {
   label: string
   onEdit: () => void
   onExport?: () => void
   onImport?: () => void
+  onMissing?: () => void
 }) {
   return (
     <div
@@ -831,6 +945,14 @@ function SummaryActionMenu({
             <button type="button" onClick={onImport}>
               <Upload className="h-4 w-4" />
               Import decklist
+            </button>
+          </li>
+        ) : null}
+        {onMissing ? (
+          <li>
+            <button type="button" onClick={onMissing}>
+              <ShoppingCart className="h-4 w-4" />
+              Missing cards
             </button>
           </li>
         ) : null}
@@ -1312,6 +1434,65 @@ function deckCardLabel(count: number) {
   return count === 1 ? "deck card" : "deck cards"
 }
 
+function buylistSummary(entries: BuylistEntry[]) {
+  if (!entries.length) return "No purchases needed."
+
+  const quantity = entries.reduce((total, entry) => total + entry.quantity, 0)
+  const missing = entries.reduce((total, entry) => total + entry.missing, 0)
+  const unavailable = entries.reduce((total, entry) => total + entry.unavailable, 0)
+  return `${quantity} cards to source: ${missing} missing, ${unavailable} owned but unavailable.`
+}
+
+function buylistReasonTone(entry: BuylistEntry) {
+  if (entry.missing > 0 && entry.unavailable > 0) return "warning"
+  if (entry.unavailable > 0) return "primary"
+  return "error"
+}
+
+function buylistPrintingLabel(entry: BuylistEntry) {
+  if (entry.setCode && entry.collectorNumber) {
+    return `${entry.setCode.toUpperCase()} ${entry.collectorNumber}`
+  }
+
+  return "Any printing"
+}
+
+function vendorBuylistLine(entry: BuylistEntry) {
+  return `${entry.quantity} ${entry.cardName}`
+}
+
+function vendorBuylistPlainText(entries: BuylistEntry[]) {
+  return entries.map(vendorBuylistLine).join("\n")
+}
+
+function vendorBuylistPipeText(entries: BuylistEntry[]) {
+  return entries.map(vendorBuylistLine).join("||")
+}
+
+function manaPoolBuylistUrl(entries: BuylistEntry[]) {
+  if (!entries.length) return "https://manapool.com/add-deck"
+
+  return `https://manapool.com/add-deck?deck=${encodeURIComponent(
+    utf8Base64(vendorBuylistPlainText(entries)),
+  )}`
+}
+
+function tcgplayerBuylistUrl(entries: BuylistEntry[]) {
+  if (!entries.length) return "https://store.tcgplayer.com/massentry"
+  return `https://store.tcgplayer.com/massentry?c=${encodeURIComponent(
+    vendorBuylistPipeText(entries),
+  )}`
+}
+
+function utf8Base64(value: string) {
+  const bytes = new TextEncoder().encode(value)
+  let binary = ""
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte)
+  })
+  return btoa(binary)
+}
+
 function deckCardPrintingLabel(deckCard: BulkAllocationPreview["entries"][number]["deckCard"]) {
   const printing = deckCard.preferredPrinting
   if (!printing) return "Any printing"
@@ -1344,6 +1525,7 @@ function DeckGroupGrid({
   isUpdating,
   onAllocate,
   onDeallocate,
+  onDelete,
   onMove,
   onSetCommander,
 }: {
@@ -1353,6 +1535,7 @@ function DeckGroupGrid({
   isUpdating: boolean
   onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
   onDeallocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
+  onDelete: (deckCard: DeckCardEntry) => void
   onMove: (deckCard: DeckCardEntry) => void
   onSetCommander: (deckCard: DeckCardEntry) => void
 }) {
@@ -1372,6 +1555,7 @@ function DeckGroupGrid({
           allocationError={allocationError}
           onAllocate={onAllocate}
           onDeallocate={onDeallocate}
+          onDelete={onDelete}
           onMove={onMove}
           onSetCommander={onSetCommander}
         />
@@ -1414,6 +1598,7 @@ function DeckStackGroup({
   isUpdating,
   onAllocate,
   onDeallocate,
+  onDelete,
   onMove,
   onSetCommander,
 }: {
@@ -1423,6 +1608,7 @@ function DeckStackGroup({
   isUpdating: boolean
   onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
   onDeallocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
+  onDelete: (deckCard: DeckCardEntry) => void
   onMove: (deckCard: DeckCardEntry) => void
   onSetCommander: (deckCard: DeckCardEntry) => void
 }) {
@@ -1481,6 +1667,7 @@ function DeckStackGroup({
             }}
             onAllocate={(collectionItemId) => onAllocate(deckCard, collectionItemId)}
             onDeallocate={(collectionItemId) => onDeallocate(deckCard, collectionItemId)}
+            onDelete={() => onDelete(deckCard)}
             onMove={() => onMove(deckCard)}
             onSetCommander={() => onSetCommander(deckCard)}
             slideOffset={activeIndex != null && index > activeIndex ? revealOffset : 0}
@@ -1501,6 +1688,7 @@ function DeckStackCard({
   isUpdating,
   onAllocate,
   onDeallocate,
+  onDelete,
   onExpand,
   onMove,
   onSetCommander,
@@ -1515,6 +1703,7 @@ function DeckStackCard({
   isUpdating: boolean
   onAllocate: (collectionItemId: string) => void
   onDeallocate: (collectionItemId: string) => void
+  onDelete: () => void
   onExpand: () => void
   onMove: () => void
   onSetCommander: () => void
@@ -1603,6 +1792,17 @@ function DeckStackCard({
                 </button>
               </li>
             ) : null}
+            <li>
+              <button
+                type="button"
+                className="text-error"
+                disabled={isUpdating}
+                onClick={onDelete}
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </button>
+            </li>
           </ul>
         ) : null}
       </div>
@@ -1665,87 +1865,162 @@ function DeckCardAllocationMenu({
 }) {
   const status = deckCard.allocationStatus
   const label = allocationStatusLabel(status)
+  const [open, setOpen] = useState(false)
+  const [menuPosition, setMenuPosition] = useState({ left: 16, top: 16 })
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  function updateMenuPosition() {
+    const button = buttonRef.current
+    if (!button) return
+
+    const bounds = button.getBoundingClientRect()
+    const menuWidth = 320
+    const menuMaxHeight = 416
+    const margin = 16
+    const spaceBelow = window.innerHeight - bounds.bottom - margin
+    const spaceAbove = bounds.top - margin
+    const openAbove = spaceBelow < 240 && spaceAbove > spaceBelow
+
+    setMenuPosition({
+      left: Math.min(
+        Math.max(bounds.left, margin),
+        Math.max(window.innerWidth - menuWidth - margin, margin),
+      ),
+      top: openAbove
+        ? Math.max(margin, bounds.top - Math.min(menuMaxHeight, spaceAbove) - 4)
+        : Math.min(bounds.bottom + 4, Math.max(window.innerHeight - margin, margin)),
+    })
+  }
+
+  useEffect(() => {
+    if (!isInteractive) setOpen(false)
+  }, [isInteractive])
+
+  useEffect(() => {
+    if (!open) return
+
+    updateMenuPosition()
+
+    function handleMouseDown(event: MouseEvent) {
+      const target = event.target as Node
+      if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return
+      setOpen(false)
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false)
+    }
+
+    window.addEventListener("resize", updateMenuPosition)
+    window.addEventListener("scroll", updateMenuPosition, true)
+    document.addEventListener("mousedown", handleMouseDown)
+    document.addEventListener("keydown", handleKeyDown)
+
+    return () => {
+      window.removeEventListener("resize", updateMenuPosition)
+      window.removeEventListener("scroll", updateMenuPosition, true)
+      document.removeEventListener("mousedown", handleMouseDown)
+      document.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [open])
 
   return (
     <div
-      className="dropdown absolute left-2 top-2 z-[130]"
+      className="absolute left-2 top-2 z-[130]"
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
     >
       <button
+        ref={buttonRef}
         type="button"
         className={cn(
           "btn btn-circle btn-xs border shadow transition",
           allocationStatusButtonClass(status.state),
         )}
-        tabIndex={0}
+        tabIndex={isInteractive ? 0 : -1}
         aria-label={label}
+        aria-expanded={open}
         title={label}
+        onClick={() => {
+          if (!isInteractive) return
+          updateMenuPosition()
+          setOpen((current) => !current)
+        }}
       >
         <AllocationStatusIcon state={status.state} className="h-4 w-4" />
       </button>
-      {isInteractive ? (
-        <div
-          tabIndex={0}
-          className="dropdown-content z-[130] mt-1 w-80 rounded-box border border-base-300 bg-base-100 p-3 text-sm shadow-2xl"
-        >
-          <div className="space-y-1">
-            <p className="font-black">{label}</p>
-            <p className="text-xs leading-5 text-base-content/70">
-              {allocationStatusSummary(status)}
-            </p>
-          </div>
+      {open && isInteractive
+        ? createPortal(
+            <div
+              ref={menuRef}
+              tabIndex={0}
+              className="fixed z-[1000] max-h-[calc(100dvh-2rem)] w-80 overflow-y-auto rounded-box border border-base-300 bg-base-100 p-3 text-sm shadow-2xl"
+              style={menuPosition}
+              onClick={(event) => event.stopPropagation()}
+              onMouseDown={(event) => event.stopPropagation()}
+            >
+              <div className="space-y-1">
+                <p className="font-black">{label}</p>
+                <p className="text-xs leading-5 text-base-content/70">
+                  {allocationStatusSummary(status)}
+                </p>
+              </div>
 
-          {error ? (
-            <p className="mt-3 rounded-box border border-error/30 bg-error/10 px-3 py-2 text-xs text-error">
-              {error}
-            </p>
-          ) : null}
+              {error ? (
+                <p className="mt-3 rounded-box border border-error/30 bg-error/10 px-3 py-2 text-xs text-error">
+                  {error}
+                </p>
+              ) : null}
 
-          {status.candidates.length === 0 ? (
-            <div className="mt-3 text-sm text-base-content/60">No matching owned printings.</div>
-          ) : (
-            <ul className="menu mt-3 p-0 text-sm">
-              {status.candidates.map((candidate) => (
-                <li key={candidate.item.id} className="rounded-box">
-                  <div className="block space-y-2">
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold">
-                        {collectionItemLabel(candidate.item)}
-                      </p>
-                      <p className="text-xs text-base-content/60">
-                        {allocationCandidateSummary(candidate)}
-                      </p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        className="btn btn-primary btn-xs"
-                        disabled={
-                          isUpdating ||
-                          candidate.available <= 0 ||
-                          status.allocated >= status.required
-                        }
-                        onClick={() => onAllocate(candidate.item.id)}
-                      >
-                        Allocate
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-outline btn-xs"
-                        disabled={isUpdating || candidate.allocated <= 0}
-                        onClick={() => onDeallocate(candidate.item.id)}
-                      >
-                        Deallocate
-                      </button>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      ) : null}
+              {status.candidates.length === 0 ? (
+                <div className="mt-3 text-sm text-base-content/60">
+                  No matching owned printings.
+                </div>
+              ) : (
+                <ul className="menu mt-3 p-0 text-sm">
+                  {status.candidates.map((candidate) => (
+                    <li key={candidate.item.id} className="rounded-box">
+                      <div className="block space-y-2">
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold">
+                            {collectionItemLabel(candidate.item)}
+                          </p>
+                          <p className="text-xs text-base-content/60">
+                            {allocationCandidateSummary(candidate)}
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-xs"
+                            disabled={
+                              isUpdating ||
+                              candidate.available <= 0 ||
+                              status.allocated >= status.required
+                            }
+                            onClick={() => onAllocate(candidate.item.id)}
+                          >
+                            Allocate
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-outline btn-xs"
+                            disabled={isUpdating || candidate.allocated <= 0}
+                            onClick={() => onDeallocate(candidate.item.id)}
+                          >
+                            Deallocate
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   )
 }
@@ -1821,11 +2096,13 @@ function collectionItemLabel(
 function DeckZoneTable({
   cards,
   isUpdating,
+  onDelete,
   onMove,
   title,
 }: {
   cards: DeckCardEntry[]
   isUpdating: boolean
+  onDelete: (deckCard: DeckCardEntry) => void
   onMove: (deckCard: DeckCardEntry) => void
   title: string
 }) {
@@ -1891,6 +2168,16 @@ function DeckZoneTable({
                         onClick={() => onMove(deckCard)}
                       >
                         <MoveRight className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="text-error hover:bg-error/10"
+                        disabled={isUpdating}
+                        onClick={() => onDelete(deckCard)}
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </td>
@@ -2101,6 +2388,381 @@ function ImportDecklistDialog({
             </Button>
           </div>
         </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function AddDeckCardDialog({
+  deck,
+  onOpenChange,
+  open,
+}: {
+  deck: DeckDetail | null
+  onOpenChange: (open: boolean) => void
+  open: boolean
+}) {
+  const queryClient = useQueryClient()
+  const [name, setName] = useState("")
+  const [quantity, setQuantity] = useState(1)
+  const [zone, setZone] = useState<DeckZone>("mainboard")
+  const [finish, setFinish] = useState("nonfoil")
+  const [error, setError] = useState<string | null>(null)
+  const zoneOptions = deck?.format === "commander" ? ADD_CARD_ZONES : NON_COMMANDER_ADD_CARD_ZONES
+  const addDeckCard = useMutation({
+    mutationFn: () =>
+      request(AddDeckCardDocument, {
+        deckId: deck?.id || "",
+        input: {
+          name: name.trim(),
+          quantity,
+          zone,
+          finish,
+        },
+      }),
+    onSuccess: () => {
+      if (deck?.id) {
+        queryClient.invalidateQueries({ queryKey: ["deck", deck.id] })
+        queryClient.invalidateQueries({ queryKey: ["deck-buylist", deck.id] })
+      }
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      setName("")
+      setQuantity(1)
+      setZone("mainboard")
+      setFinish("nonfoil")
+      setError(null)
+      onOpenChange(false)
+    },
+    onError: (error) =>
+      setError(error instanceof Error ? error.message : "Could not add card to deck"),
+  })
+
+  useEffect(() => {
+    if (!open) {
+      setName("")
+      setQuantity(1)
+      setZone("mainboard")
+      setFinish("nonfoil")
+      setError(null)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!zoneOptions.includes(zone)) setZone("mainboard")
+  }, [zone, zoneOptions])
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!name.trim()) {
+      setError("Choose a card.")
+      return
+    }
+    addDeckCard.mutate()
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-xl" labelledBy="add-deck-card-title">
+        <DialogHeader>
+          <div>
+            <DialogTitle id="add-deck-card-title">Add card</DialogTitle>
+            <p className="mt-1 text-sm text-base-content/60">{deck?.name}</p>
+          </div>
+          <DialogClose onClose={() => onOpenChange(false)} />
+        </DialogHeader>
+
+        <form className="space-y-4 p-5" onSubmit={submit}>
+          <label className="form-control">
+            <span className="label-text mb-1 text-sm font-semibold">Card</span>
+            <CardNameSearchField
+              value={name}
+              onValueChange={setName}
+              onSuggestionSelect={setName}
+              placeholder="Search card name"
+              disabled={addDeckCard.isPending}
+            />
+          </label>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className="form-control">
+              <span className="label-text mb-1 text-sm font-semibold">Quantity</span>
+              <Input
+                type="number"
+                min={1}
+                value={quantity}
+                disabled={addDeckCard.isPending}
+                onChange={(event) =>
+                  setQuantity(Math.max(1, Number.parseInt(event.target.value, 10) || 1))
+                }
+              />
+            </label>
+
+            <label className="form-control">
+              <span className="label-text mb-1 text-sm font-semibold">Zone</span>
+              <select
+                className="select select-bordered w-full"
+                value={zone}
+                disabled={addDeckCard.isPending}
+                onChange={(event) => setZone(event.target.value as DeckZone)}
+              >
+                {zoneOptions.map((zone) => (
+                  <option key={zone} value={zone}>
+                    {titleize(zone)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="form-control">
+              <span className="label-text mb-1 text-sm font-semibold">Finish</span>
+              <select
+                className="select select-bordered w-full"
+                value={finish}
+                disabled={addDeckCard.isPending}
+                onChange={(event) => setFinish(event.target.value)}
+              >
+                <option value="nonfoil">Nonfoil</option>
+                <option value="foil">Foil</option>
+                <option value="etched">Etched</option>
+              </select>
+            </label>
+          </div>
+
+          {error ? (
+            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+              {error}
+            </p>
+          ) : null}
+
+          <div className="flex justify-end gap-2 border-t border-base-300 pt-4">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={addDeckCard.isPending}
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={addDeckCard.isPending || !name.trim()}>
+              {addDeckCard.isPending ? "Adding..." : "Add card"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function MissingCardsDialog({
+  deck,
+  onOpenChange,
+  open,
+}: {
+  deck: DeckDetail | null
+  onOpenChange: (open: boolean) => void
+  open: boolean
+}) {
+  const [printingMode, setPrintingMode] = useState<BuylistPrintingMode>("none")
+  const [exportFormat, setExportFormat] = useState<BuylistExportFormat>("text")
+  const [includeBasicLands, setIncludeBasicLands] = useState(false)
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle")
+  const buylistQuery = useQuery({
+    queryKey: ["deck-buylist", deck?.id, printingMode, exportFormat, includeBasicLands],
+    queryFn: () =>
+      request(DeckBuylistDocument, {
+        id: deck?.id || "",
+        printingMode,
+        exportFormat,
+        includeBasicLands,
+      }),
+    enabled: open && Boolean(deck?.id),
+  })
+  const entries = buylistQuery.data?.deckBuylist || []
+  const exportText = buylistQuery.data?.deckBuylistExport || ""
+  const hasBuylistEntries = entries.length > 0
+
+  useEffect(() => {
+    if (!open) setCopyState("idle")
+  }, [open])
+
+  async function copyExportText() {
+    try {
+      await navigator.clipboard.writeText(exportText)
+      setCopyState("copied")
+    } catch (_error) {
+      setCopyState("failed")
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-5xl" labelledBy="missing-cards-title">
+        <DialogHeader>
+          <div>
+            <DialogTitle id="missing-cards-title">Missing cards</DialogTitle>
+            <p className="mt-1 text-sm text-base-content/60">{deck?.name}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!exportText}
+              onClick={copyExportText}
+            >
+              <Clipboard className="h-4 w-4" />
+              {copyState === "copied" ? "Copied" : "Copy"}
+            </Button>
+            <DialogClose onClose={() => onOpenChange(false)} />
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-5 p-5">
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+            <label className="form-control">
+              <span className="label-text mb-1 text-xs font-semibold uppercase text-base-content/60">
+                Printing
+              </span>
+              <select
+                className="select select-bordered select-sm w-full"
+                value={printingMode}
+                onChange={(event) => setPrintingMode(event.target.value as BuylistPrintingMode)}
+              >
+                <option value="none">Any printing</option>
+                <option value="exact">Exact preferred printing</option>
+                <option value="cheapest">Cheapest known printing</option>
+              </select>
+            </label>
+
+            <label className="form-control">
+              <span className="label-text mb-1 text-xs font-semibold uppercase text-base-content/60">
+                Export
+              </span>
+              <select
+                className="select select-bordered select-sm w-full"
+                value={exportFormat}
+                onChange={(event) => setExportFormat(event.target.value as BuylistExportFormat)}
+              >
+                <option value="text">Plain text</option>
+                <option value="csv">CSV</option>
+              </select>
+            </label>
+
+            <label className="label cursor-pointer justify-start gap-2 self-end rounded-btn border border-base-300 px-3 py-2">
+              <input
+                type="checkbox"
+                className="checkbox checkbox-sm"
+                checked={includeBasicLands}
+                onChange={(event) => setIncludeBasicLands(event.target.checked)}
+              />
+              <span className="label-text text-sm">Include basic lands</span>
+            </label>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <form
+              action="https://www.cardkingdom.com/builder"
+              method="post"
+              target="_blank"
+              className="inline-flex"
+            >
+              <input type="hidden" name="c" value={vendorBuylistPipeText(entries)} />
+              <input type="hidden" name="partner" value="manavault" />
+              <input type="hidden" name="po_origin" value="1" />
+              <input type="hidden" name="partner_args" value="manavault,buylist" />
+              <Button type="submit" variant="outline" size="sm" disabled={!hasBuylistEntries}>
+                <Store className="h-4 w-4" />
+                Card Kingdom
+              </Button>
+            </form>
+
+            {hasBuylistEntries ? (
+              <Button asChild variant="outline" size="sm">
+                <a href={manaPoolBuylistUrl(entries)} target="_blank" rel="noreferrer">
+                  <Database className="h-4 w-4" />
+                  Mana Pool
+                </a>
+              </Button>
+            ) : (
+              <Button type="button" variant="outline" size="sm" disabled>
+                <Database className="h-4 w-4" />
+                Mana Pool
+              </Button>
+            )}
+
+            {hasBuylistEntries ? (
+              <Button asChild variant="outline" size="sm">
+                <a href={tcgplayerBuylistUrl(entries)} target="_blank" rel="noreferrer">
+                  <ShoppingCart className="h-4 w-4" />
+                  TCGplayer
+                </a>
+              </Button>
+            ) : (
+              <Button type="button" variant="outline" size="sm" disabled>
+                <ShoppingCart className="h-4 w-4" />
+                TCGplayer
+              </Button>
+            )}
+          </div>
+
+          <div className="rounded-box border border-base-300 bg-base-200/60 px-4 py-3 text-sm text-base-content/70">
+            {buylistQuery.isLoading ? "Loading buylist..." : buylistSummary(entries)}
+          </div>
+
+          {buylistQuery.error ? (
+            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+              {buylistQuery.error instanceof Error
+                ? buylistQuery.error.message
+                : "Could not load missing cards"}
+            </p>
+          ) : null}
+
+          {!buylistQuery.isLoading && !entries.length ? (
+            <EmptyState title="No missing or unavailable cards for this deck" />
+          ) : null}
+
+          {entries.length ? (
+            <div className="overflow-x-auto">
+              <table className="table table-sm">
+                <thead>
+                  <tr>
+                    <th className="w-16">Qty</th>
+                    <th>Card</th>
+                    <th>Reason</th>
+                    <th>Printing</th>
+                    <th className="text-right">Est.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {entries.map((entry) => (
+                    <tr
+                      key={`${entry.cardName}-${entry.setCode || "any"}-${
+                        entry.collectorNumber || ""
+                      }`}
+                    >
+                      <td className="font-black">{entry.quantity}</td>
+                      <td>{entry.cardName}</td>
+                      <td>
+                        <Badge tone={buylistReasonTone(entry)}>{entry.reason}</Badge>
+                      </td>
+                      <td className="whitespace-nowrap">{buylistPrintingLabel(entry)}</td>
+                      <td className="text-right font-mono">{entry.totalPriceText || "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+
+          <textarea
+            className="textarea textarea-bordered min-h-48 w-full bg-base-100 font-mono text-xs"
+            readOnly
+            value={buylistQuery.isLoading ? "Exporting..." : exportText}
+          />
+          {copyState === "failed" ? (
+            <p className="text-sm text-error">Could not copy from this browser context.</p>
+          ) : null}
+        </div>
       </DialogContent>
     </Dialog>
   )
