@@ -1,4 +1,4 @@
-import { Link, Outlet } from "@tanstack/react-router"
+import { Link, Outlet, useLocation } from "@tanstack/react-router"
 import { Boxes, Camera, Home, Layers, Menu, Monitor, Moon, Search, Sun } from "lucide-react"
 import type { ReactNode } from "react"
 import { useTheme } from "../lib/theme"
@@ -52,9 +52,17 @@ function ThemeToggle() {
 }
 
 export function AppShell() {
+  const { pathname } = useLocation()
+  const isScannerRoute = pathname.endsWith("/scanner")
+
   return (
     <div className="min-h-screen bg-base-100 text-base-content">
-      <header className="app-shell-header sticky top-0 z-30 bg-base-100/95 backdrop-blur">
+      <header
+        className={cn(
+          "app-shell-header sticky top-0 z-30 bg-base-100/95 backdrop-blur",
+          isScannerRoute && "max-sm:hidden",
+        )}
+      >
         <div className="navbar min-h-16 px-0">
           <Link
             to="/"
@@ -116,7 +124,12 @@ export function AppShell() {
       </header>
 
       <main className="app-shell-main overflow-y-auto">
-        <div className="mx-auto w-full max-w-[105rem] py-8 sm:py-12 lg:py-16">
+        <div
+          className={cn(
+            "mx-auto w-full max-w-[105rem] py-8 sm:py-12 lg:py-16",
+            isScannerRoute && "max-sm:py-2",
+          )}
+        >
           <Outlet />
         </div>
       </main>

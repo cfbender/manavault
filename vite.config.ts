@@ -39,6 +39,10 @@ export default defineConfig({
     origin: "http://127.0.0.1:5173",
     proxy: {
       "/api": "http://127.0.0.1:4000",
+      "/socket": {
+        target: "ws://127.0.0.1:4000",
+        ws: true,
+      },
       "/site.webmanifest": "http://127.0.0.1:4000",
       "/android-chrome-192x192.png": "http://127.0.0.1:4000",
       "/android-chrome-512x512.png": "http://127.0.0.1:4000",

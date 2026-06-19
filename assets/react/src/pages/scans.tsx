@@ -31,6 +31,7 @@ import {
 import { graphql } from "../gql"
 import { cn } from "../lib/utils"
 import { request } from "../lib/graphql"
+import { PhoenixChannel, PhoenixSocket } from "../lib/phoenix-socket"
 
 const CONDITIONS = [
   ["Near mint", "near_mint"],
@@ -466,6 +467,13 @@ type ScanSession = {
   scanItems: ScanItem[]
 }
 
+type ScanCaptureResult = {
+  outcome: string
+  message: string
+  scanItem?: ScanItem | null
+  scanSession: ScanSession
+}
+
 type LocationOption = {
   id: string
   name: string
@@ -759,7 +767,6 @@ export function ScannerPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [message, setMessage] = useState("Starting camera...")
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [preferFoil, setPreferFoil] = useState(false)
   const [lockedSets, setLockedSets] = useState<Array<{ setCode: string; setName?: string | null }>>(
     [],
@@ -767,6 +774,7 @@ export function ScannerPage() {
   const [optionsOpen, setOptionsOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<ScanItem | null>(null)
   const [changingItem, setChangingItem] = useState<ScanItem | null>(null)
+  const scannerChannelRef = useRef<PhoenixChannel | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ["scan-session", id],
@@ -781,30 +789,75 @@ export function ScannerPage() {
     queryClient.invalidateQueries({ queryKey: ["scan-sessions"] })
   }
 
-  const capture = useMutation({
-    mutationFn: ({ imageData, force }: { imageData: string; force: boolean }) =>
-      request(CaptureScanItemDocument, {
-        scanSessionId: id,
-        imageData,
-        force,
-        lastOracleId,
-        preferFoil,
-        setCodes: lockedSets.map((set) => set.setCode),
-      }),
-    onSuccess: (result) => {
-      const payload = result.captureScanItem
+  const applyCaptureResult = useCallback(
+    (payload: ScanCaptureResult | null | undefined) => {
       if (!payload) return
       setMessage(payload.message)
-      setErrorMessage(payload.outcome === "error" ? payload.message : null)
       queryClient.setQueryData(["scan-session", id], {
         scanSession: payload.scanSession,
         locations: data?.locations || [],
       })
       queryClient.invalidateQueries({ queryKey: ["scan-sessions"] })
     },
+    [data?.locations, id, queryClient],
+  )
+
+  useEffect(() => {
+    let cancelled = false
+    const socket = new PhoenixSocket("/socket")
+    const channel = socket.channel(`scanner:${id}`)
+    scannerChannelRef.current = null
+
+    socket
+      .connect()
+      .then(() => channel.join())
+      .then(() => {
+        if (cancelled) return
+        scannerChannelRef.current = channel
+      })
+      .catch(() => {
+        if (cancelled) return
+        scannerChannelRef.current = null
+      })
+
+    return () => {
+      cancelled = true
+      scannerChannelRef.current = null
+      socket.disconnect()
+    }
+  }, [id])
+
+  const capture = useMutation({
+    mutationFn: async ({ imageData, force }: { imageData: string; force: boolean }) => {
+      const payload = {
+        imageData,
+        force,
+        lastOracleId,
+        preferFoil,
+        setCodes: lockedSets.map((set) => set.setCode),
+      }
+      const channel = scannerChannelRef.current
+      if (channel) {
+        try {
+          return await channel.push<ScanCaptureResult>("capture", payload)
+        } catch (_error) {
+          scannerChannelRef.current = null
+        }
+      }
+
+      const result = await request(CaptureScanItemDocument, {
+        scanSessionId: id,
+        imageData,
+        force,
+        lastOracleId,
+        preferFoil,
+        setCodes: lockedSets.map((set) => set.setCode),
+      })
+      return result.captureScanItem
+    },
+    onSuccess: applyCaptureResult,
     onError: (error) => {
       setMessage("No card was added.")
-      setErrorMessage(error instanceof Error ? error.message : "Scan failed.")
     },
   })
   const handleCapture = useCallback(
@@ -817,7 +870,7 @@ export function ScannerPage() {
 
   return (
     <div className="flex min-h-full w-full flex-col items-center gap-2">
-      <header className="flex w-full max-w-3xl items-center gap-2">
+      <header className="hidden w-full max-w-3xl items-center gap-2 sm:flex">
         <Button asChild size="icon" variant="ghost" aria-label="Back to scan session">
           <Link to="/scan-sessions/$id" params={{ id }}>
             <ArrowLeft className="h-4 w-4" />
@@ -851,13 +904,12 @@ export function ScannerPage() {
       <ScannerCamera
         activeOptions={preferFoil || lockedSets.length > 0}
         busy={capture.isPending}
-        errorMessage={errorMessage}
         message={message}
-        onCameraError={setErrorMessage}
+        onCameraError={() => undefined}
         onCameraStatus={setMessage}
         onCapture={handleCapture}
         onOptions={() => setOptionsOpen(true)}
-        outcome={capture.data?.captureScanItem?.outcome}
+        outcome={capture.data?.outcome}
       />
 
       <section className="w-full max-w-3xl rounded-xl border border-base-300 bg-base-100 p-2 shadow-sm">
@@ -866,11 +918,12 @@ export function ScannerPage() {
           <Badge>{recentItems.length}</Badge>
         </div>
         {recentItems.length ? (
-          <div className="flex snap-x gap-2 overflow-x-auto pb-1">
+          <div className="flex snap-x gap-2 overflow-x-auto pb-8">
             {recentItems.map((item) => (
               <RecentScanItem
                 key={item.id}
                 item={item}
+                onChangePrinting={() => setChangingItem(item)}
                 onEdit={() => setEditingItem(item)}
                 onSaved={refresh}
               />
@@ -904,7 +957,6 @@ export function ScannerPage() {
 function ScannerCamera({
   activeOptions,
   busy,
-  errorMessage,
   message,
   onCameraError,
   onCameraStatus,
@@ -914,7 +966,6 @@ function ScannerCamera({
 }: {
   activeOptions: boolean
   busy: boolean
-  errorMessage: string | null
   message: string
   onCameraError: (message: string | null) => void
   onCameraStatus: (message: string) => void
@@ -989,8 +1040,8 @@ function ScannerCamera({
         setStarted(true)
         onCameraErrorRef.current(null)
         onCameraStatusRef.current("Camera is running. OCR scanning...")
-        timerRef.current = window.setInterval(captureFrame, 450)
-        window.setTimeout(captureFrame, 400)
+        timerRef.current = window.setInterval(captureFrame, 300)
+        window.setTimeout(captureFrame, 250)
       } catch (error) {
         onCameraErrorRef.current(cameraErrorMessage(error))
       }
@@ -1026,7 +1077,7 @@ function ScannerCamera({
     function captureFrame() {
       const now = Date.now()
       if (captureInFlightRef.current || now < blockedUntilRef.current) return
-      if (now - lastCaptureAtRef.current < 400) return
+      if (now - lastCaptureAtRef.current < 250) return
       const video = videoRef.current
       const canvas = canvasRef.current
       if (!video || !canvas || !streamRef.current || !video.videoWidth || !video.videoHeight) return
@@ -1072,8 +1123,11 @@ function ScannerCamera({
   }
 
   return (
-    <section className="scanner-camera-panel overflow-hidden rounded-xl border border-base-300 bg-base-100 shadow-xl">
-      <div className="relative aspect-[3/4] bg-neutral text-neutral-content" onClick={forceCapture}>
+    <section className="scanner-camera-panel w-full max-w-3xl overflow-hidden rounded-xl border border-base-300 bg-base-100 shadow-xl">
+      <div
+        className="relative aspect-[3/4] max-h-[calc(100svh-10.75rem)] min-h-[20rem] bg-neutral text-neutral-content sm:max-h-[calc(100svh-17rem)]"
+        onClick={forceCapture}
+      >
         <video
           ref={videoRef}
           className="h-full w-full object-cover"
@@ -1088,7 +1142,6 @@ function ScannerCamera({
           <div className="absolute inset-0 z-10 grid place-items-center bg-neutral/70 p-6 text-center">
             <div className="grid gap-3">
               <Camera className="mx-auto h-8 w-8" />
-              <p className="text-sm font-semibold">{message}</p>
               <Button
                 type="button"
                 size="sm"
@@ -1137,24 +1190,27 @@ function ScannerCamera({
             <Bolt className="h-4 w-4" />
           </Button>
         </div>
-        <div className="absolute bottom-3 left-3 right-3 z-20 rounded-lg bg-black/60 px-3 py-2 text-xs font-semibold text-white shadow backdrop-blur">
-          {errorMessage || message}
-        </div>
+        {outcome === "duplicate" ? (
+          <div className="absolute bottom-3 left-3 right-3 z-20 rounded-lg bg-black/60 px-3 py-2 text-center text-xs font-semibold text-white shadow backdrop-blur">
+            Tap to add another copy.
+          </div>
+        ) : null}
       </div>
       <div className="sr-only" aria-live="polite">
         {message}
       </div>
-      {errorMessage ? <div className="alert alert-error rounded-none py-2 text-sm">{errorMessage}</div> : null}
     </section>
   )
 }
 
 function RecentScanItem({
   item,
+  onChangePrinting,
   onEdit,
   onSaved,
 }: {
   item: ScanItem
+  onChangePrinting: () => void
   onEdit: () => void
   onSaved: () => void
 }) {
@@ -1163,43 +1219,80 @@ function RecentScanItem({
       request(UpdateScanItemDocument, { id: item.id, input }),
     onSuccess: onSaved,
   })
+  const quantity = item.quantity || 1
 
   return (
     <div className="relative w-28 shrink-0 snap-start sm:w-32">
       <ScanItemTile item={item} showMenu={false} />
-      <div className="absolute left-2 top-2 z-30 flex items-center gap-1 rounded-full bg-black/55 p-1 text-white shadow backdrop-blur">
-        <button
-          type="button"
-          className="btn btn-circle btn-xs border-0 bg-white/15 text-white hover:bg-white/25"
-          aria-label="Decrease quantity"
-          onClick={() => updateItem.mutate({ quantity: Math.max((item.quantity || 1) - 1, 1) })}
-        >
-          <Minus className="h-3 w-3" />
-        </button>
-        <span className="min-w-5 text-center text-xs font-bold">x{item.quantity}</span>
-      </div>
-      <div className="absolute right-2 top-2 z-30 flex gap-1">
-        <button
-          type="button"
-          className={cn(
-            "btn btn-circle btn-xs border-0 shadow backdrop-blur",
-            item.finish === "foil"
-              ? "bg-primary text-primary-content hover:bg-primary/90"
-              : "bg-black/55 text-white hover:bg-black/70",
-          )}
-          aria-label="Toggle foil"
-          onClick={() => updateItem.mutate({ finish: item.finish === "foil" ? "nonfoil" : "foil" })}
-        >
-          <Sparkles className="h-3 w-3" />
-        </button>
-        <button
-          type="button"
-          className="btn btn-circle btn-xs border-0 bg-black/55 text-white shadow backdrop-blur hover:bg-black/70"
-          aria-label="Edit scanned card"
-          onClick={onEdit}
-        >
-          <Pencil className="h-3 w-3" />
-        </button>
+      <div className="absolute bottom-4 left-1.5 right-1.5 z-30 flex items-center justify-between gap-0.5">
+        <div className="flex h-6 items-center gap-0.5 rounded-full bg-black/55 p-0.5 text-white shadow backdrop-blur">
+          <button
+            type="button"
+            className="grid h-5 w-5 place-items-center rounded-full border-0 bg-white/15 p-0 text-white hover:bg-white/25 disabled:bg-white/10 disabled:text-white/40"
+            aria-label="Decrease quantity"
+            disabled={quantity <= 1 || updateItem.isPending}
+            onClick={() => updateItem.mutate({ quantity: Math.max(quantity - 1, 1) })}
+          >
+            <Minus className="h-3 w-3" />
+          </button>
+          <span className="min-w-4 text-center text-xs font-bold leading-none">x{quantity}</span>
+          <button
+            type="button"
+            className="grid h-5 w-5 place-items-center rounded-full border-0 bg-white/15 p-0 text-white hover:bg-white/25 disabled:bg-white/10 disabled:text-white/40"
+            aria-label="Increase quantity"
+            disabled={updateItem.isPending}
+            onClick={() => updateItem.mutate({ quantity: quantity + 1 })}
+          >
+            <Plus className="h-3 w-3" />
+          </button>
+        </div>
+        <div className="flex h-6 items-center gap-0.5">
+          <button
+            type="button"
+            className={cn(
+              "grid h-6 w-6 place-items-center rounded-full border-0 p-0 shadow backdrop-blur",
+              item.finish === "foil"
+                ? "bg-primary text-primary-content hover:bg-primary/90"
+                : "bg-black/55 text-white hover:bg-black/70",
+            )}
+            aria-label="Toggle foil"
+            onClick={() => updateItem.mutate({ finish: item.finish === "foil" ? "nonfoil" : "foil" })}
+          >
+            <Sparkles className="h-3 w-3" />
+          </button>
+          <div
+            className="dropdown dropdown-end"
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => event.stopPropagation()}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="grid h-6 w-6 place-items-center rounded-full border-0 bg-black/55 p-0 text-white shadow backdrop-blur hover:bg-black/70"
+              aria-label="Edit scanned card"
+              tabIndex={0}
+            >
+              <Pencil className="h-3 w-3" />
+            </button>
+            <ul
+              tabIndex={0}
+              className="menu dropdown-content z-50 mt-1 w-48 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
+            >
+              <li>
+                <button type="button" onClick={onEdit}>
+                  <Pencil className="h-4 w-4" />
+                  Edit details
+                </button>
+              </li>
+              <li>
+                <button type="button" onClick={onChangePrinting}>
+                  <Search className="h-4 w-4" />
+                  Change card/printing
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -1229,7 +1322,11 @@ function ScanItemTile({
       count={item.quantity}
       defaultActions={[
         { icon: <Pencil className="h-4 w-4" />, label: "Edit", onClick: onEdit },
-        { icon: <Search className="h-4 w-4" />, label: "Change printing", onClick: onChangePrinting },
+        {
+          icon: <Search className="h-4 w-4" />,
+          label: "Change card/printing",
+          onClick: onChangePrinting,
+        },
         {
           destructive: true,
           icon: <Trash2 className="h-4 w-4" />,
@@ -1464,7 +1561,7 @@ function ChangePrintingDialog({
         labelledBy="change-scan-printing-title"
       >
         <DialogHeader>
-          <DialogTitle id="change-scan-printing-title">Change card</DialogTitle>
+          <DialogTitle id="change-scan-printing-title">Change card/printing</DialogTitle>
           <DialogClose onClose={onClose} />
         </DialogHeader>
         <form
@@ -1480,7 +1577,7 @@ function ChangePrintingDialog({
             defaultValue={queryText}
             type="search"
             autoComplete="off"
-            placeholder="Card name"
+            placeholder="Card name or printing"
           />
           <Button type="submit">Search</Button>
         </form>

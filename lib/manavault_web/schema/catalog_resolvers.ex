@@ -11,7 +11,6 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     Location,
     Price,
     Printing,
-    ScanItem,
     ScanSession
   }
 
@@ -323,7 +322,8 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   def scan_session(_parent, %{id: id}, _resolution), do: {:ok, Catalog.get_scan_session!(id)}
 
   def scan_printings(_parent, args, _resolution) do
-    {:ok, Catalog.search_printings([name: Map.get(args, :q, "")], limit: Map.get(args, :limit, 36))}
+    {:ok,
+     Catalog.search_printings([name: Map.get(args, :q, "")], limit: Map.get(args, :limit, 36))}
   end
 
   def scan_sets(_parent, args, _resolution), do: {:ok, Catalog.search_sets(Map.get(args, :q, ""))}
@@ -349,56 +349,19 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     end
   end
 
-  def capture_scan_item(_parent, %{scan_session_id: scan_session_id, image_data: image_data} = args, _resolution) do
-    scan_session = Catalog.get_scan_session!(scan_session_id)
-
-    case Catalog.create_recognized_scan_item_from_capture(
-           scan_session,
-           image_data,
-           scan_recognition_opts(args)
-         ) do
-      {:ok, scan_item} ->
-        scan_item = Catalog.get_scan_item!(scan_item.id)
-        oracle_id = scan_item_oracle_id(scan_item)
-
-        if !Map.get(args, :force, false) && oracle_id && oracle_id == Map.get(args, :last_oracle_id) do
-          {:ok, _deleted} = Catalog.delete_scan_item(scan_item)
-
-          {:ok,
-           %{
-             outcome: "duplicate",
-             message: "Same card still in frame. Tap the preview to scan it again.",
-             scan_item: nil,
-             scan_session: Catalog.get_scan_session!(scan_session.id)
-           }}
-        else
-          {:ok,
-           %{
-             outcome: "accepted",
-             message: "Recognized card ##{scan_item.id}. Keep scanning.",
-             scan_item: scan_item,
-             scan_session: Catalog.get_scan_session!(scan_session.id)
-           }}
-        end
-
-      {:error, "No card match found" <> _rest} ->
-        rejected_capture_result(scan_session)
-
-      {:error, "argument error"} ->
-        rejected_capture_result(scan_session)
-
-      {:error, reason} when is_binary(reason) ->
-        {:ok,
-         %{
-           outcome: "error",
-           message: reason,
-           scan_item: nil,
-           scan_session: Catalog.get_scan_session!(scan_session.id)
-         }}
-
-      {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
-        {:error, changeset_error_message(changeset)}
-    end
+  def capture_scan_item(
+        _parent,
+        %{scan_session_id: scan_session_id, image_data: image_data} = args,
+        _resolution
+      ) do
+    ManavaultWeb.ScanCapture.capture(%{
+      "scan_session_id" => scan_session_id,
+      "image_data" => image_data,
+      "force" => Map.get(args, :force, false),
+      "last_oracle_id" => Map.get(args, :last_oracle_id),
+      "prefer_foil" => Map.get(args, :prefer_foil, false),
+      "set_codes" => Map.get(args, :set_codes, [])
+    })
   end
 
   def update_scan_item(_parent, %{id: id, input: input}, _resolution) do
@@ -433,8 +396,11 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     case Catalog.move_scan_session_items(session, location_id) do
       {:ok, result} ->
         case Catalog.delete_scan_session(session) do
-          {:ok, _session} -> {:ok, Map.put(result, :location_id, normalize_result_location_id(location_id))}
-          {:error, changeset} -> {:error, changeset_error_message(changeset)}
+          {:ok, _session} ->
+            {:ok, Map.put(result, :location_id, normalize_result_location_id(location_id))}
+
+          {:error, changeset} ->
+            {:error, changeset_error_message(changeset)}
         end
 
       {:error, reason} ->
@@ -660,36 +626,6 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
         Map.put(input, :name, Catalog.generated_scan_session_name())
     end
   end
-
-  defp scan_recognition_opts(args) do
-    []
-    |> maybe_put_scan_opt(:prefer_foil, Map.get(args, :prefer_foil, false))
-    |> maybe_put_scan_opt(:set_codes, Map.get(args, :set_codes, []))
-  end
-
-  defp maybe_put_scan_opt(opts, _key, false), do: opts
-  defp maybe_put_scan_opt(opts, _key, []), do: opts
-  defp maybe_put_scan_opt(opts, key, value), do: Keyword.put(opts, key, value)
-
-  defp rejected_capture_result(%ScanSession{} = session) do
-    {:ok,
-     %{
-       outcome: "rejected",
-       message: "Keep scanning.",
-       scan_item: nil,
-       scan_session: Catalog.get_scan_session!(session.id)
-     }}
-  end
-
-  defp scan_item_oracle_id(%ScanItem{accepted_printing: %{oracle_id: oracle_id}})
-       when is_binary(oracle_id),
-       do: oracle_id
-
-  defp scan_item_oracle_id(%ScanItem{accepted_printing: %{card: %{oracle_id: oracle_id}}})
-       when is_binary(oracle_id),
-       do: oracle_id
-
-  defp scan_item_oracle_id(_scan_item), do: nil
 
   defp normalize_result_location_id(nil), do: nil
   defp normalize_result_location_id(""), do: nil
