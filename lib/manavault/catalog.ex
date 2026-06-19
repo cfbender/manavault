@@ -8,6 +8,7 @@ defmodule Manavault.Catalog do
 
   alias Manavault.Catalog.{
     Card,
+    CardCollection,
     CollectionItem,
     Deck,
     DeckAllocation,
@@ -18,8 +19,11 @@ defmodule Manavault.Catalog do
     ScanItem,
     ScanRecognition,
     ScanSession,
+    ScryfallQuery,
     Sync
   }
+
+  alias Manavault.Catalog.ScryfallQuery.{And, ExactName, Not, Or, Predicate}
 
   @scan_auto_accept_min_confidence 0.7
   alias Manavault.Repo
@@ -31,17 +35,634 @@ defmodule Manavault.Catalog do
   @reserving_deck_statuses ["active"]
   @suggestion_candidate_limit 250
 
+  defmacrop catalog_price_fragment(printing) do
+    quote do
+      fragment(
+        """
+        CAST(COALESCE(NULLIF(
+          COALESCE(json_extract(?, '$.usd'), json_extract(?, '$.usd_foil'), json_extract(?, '$.usd_etched')),
+          ''
+        ), '0') AS REAL)
+        """,
+        unquote(printing).prices,
+        unquote(printing).prices,
+        unquote(printing).prices
+      )
+    end
+  end
+
+  defmacrop json_array_count(field) do
+    quote do
+      fragment("(SELECT count(1) FROM json_each(COALESCE(?, '[]')))", unquote(field))
+    end
+  end
+
+  defmacrop rarity_rank_fragment(field) do
+    quote do
+      fragment(
+        "CASE lower(coalesce(?, '')) WHEN 'common' THEN 1 WHEN 'uncommon' THEN 2 WHEN 'rare' THEN 3 WHEN 'mythic' THEN 4 WHEN 'special' THEN 5 WHEN 'bonus' THEN 6 ELSE 0 END",
+        unquote(field)
+      )
+    end
+  end
+
   def search_cards(term, opts \\ []) when is_binary(term) do
     limit = Keyword.get(opts, :limit, 20)
-    pattern = "%#{String.downcase(term)}%"
+
+    card_ids =
+      Card
+      |> join(:left, [card], printing in assoc(card, :printings))
+      |> maybe_filter_catalog_cards(term)
+      |> group_by([card, _printing], card.oracle_id)
+      |> order_by([card, _printing], asc: card.name)
+      |> limit(^limit)
+      |> select([card, _printing], card.oracle_id)
+      |> Repo.all()
 
     Card
-    |> where([card], fragment("lower(?) LIKE ?", card.name, ^pattern))
-    |> order_by([card], asc: card.name)
-    |> limit(^limit)
+    |> where([card], card.oracle_id in ^card_ids)
     |> Repo.all()
+    |> Enum.sort_by(&Enum.find_index(card_ids, fn oracle_id -> oracle_id == &1.oracle_id end))
     |> Repo.preload(printings: from(printing in Printing, order_by: [desc: printing.released_at]))
   end
+
+  defp maybe_filter_catalog_cards(query, term) do
+    term = String.trim(term)
+
+    case ScryfallQuery.parse(term) do
+      {:ok, %And{terms: []}} ->
+        query
+
+      {:ok, expr} ->
+        where(query, ^catalog_scryfall_dynamic(expr))
+
+      {:error, _reason} ->
+        where(query, ^catalog_text_dynamic(term))
+    end
+  end
+
+  defp catalog_scryfall_dynamic(%And{terms: terms}) do
+    Enum.reduce(terms, dynamic(true), fn term, acc ->
+      dynamic([card, printing], ^acc and ^catalog_scryfall_dynamic(term))
+    end)
+  end
+
+  defp catalog_scryfall_dynamic(%Or{terms: terms}) do
+    Enum.reduce(terms, dynamic(false), fn term, acc ->
+      dynamic([card, printing], ^acc or ^catalog_scryfall_dynamic(term))
+    end)
+  end
+
+  defp catalog_scryfall_dynamic(%Not{expr: expr}) do
+    dynamic([card, printing], not (^catalog_scryfall_dynamic(expr)))
+  end
+
+  defp catalog_scryfall_dynamic(%ExactName{name: name}) do
+    dynamic([card, _printing], fragment("lower(?)", card.name) == ^catalog_downcase(name))
+  end
+
+  defp catalog_scryfall_dynamic(%Predicate{field: :text, value: value, regex?: false}),
+    do: catalog_text_dynamic(value)
+
+  defp catalog_scryfall_dynamic(%Predicate{regex?: true}), do: dynamic(false)
+
+  defp catalog_scryfall_dynamic(%Predicate{field: :name, op: op, value: value}),
+    do: catalog_text_field_dynamic(:name, op, value)
+
+  defp catalog_scryfall_dynamic(%Predicate{field: :type, op: op, value: value}),
+    do: catalog_text_field_dynamic(:type, op, value)
+
+  defp catalog_scryfall_dynamic(%Predicate{field: :oracle, op: op, value: value}),
+    do: catalog_text_field_dynamic(:oracle, op, value)
+
+  defp catalog_scryfall_dynamic(%Predicate{field: :mana, op: op, value: value}),
+    do: catalog_text_field_dynamic(:mana, op, value)
+
+  defp catalog_scryfall_dynamic(%Predicate{field: :mana_value, op: op, value: value}),
+    do: catalog_mana_value_dynamic(op, value)
+
+  defp catalog_scryfall_dynamic(%Predicate{field: :colors, op: op, value: value}),
+    do: catalog_color_dynamic(:colors, op, value)
+
+  defp catalog_scryfall_dynamic(%Predicate{field: :identity, op: op, value: value}),
+    do: catalog_color_dynamic(:identity, op, value)
+
+  defp catalog_scryfall_dynamic(%Predicate{field: :rarity, op: op, value: value}),
+    do: catalog_rarity_dynamic(op, value)
+
+  defp catalog_scryfall_dynamic(%Predicate{field: :set, op: op, value: value}),
+    do: catalog_set_dynamic(op, value)
+
+  defp catalog_scryfall_dynamic(%Predicate{field: :collector_number, op: op, value: value}),
+    do: catalog_collector_number_dynamic(op, value)
+
+  defp catalog_scryfall_dynamic(%Predicate{field: :language, op: op, value: value}),
+    do: catalog_language_dynamic(op, value)
+
+  defp catalog_scryfall_dynamic(%Predicate{field: :usd, op: op, value: value}),
+    do: catalog_price_dynamic(op, value)
+
+  defp catalog_scryfall_dynamic(%Predicate{field: :date, op: op, value: value}),
+    do: catalog_date_dynamic(op, value)
+
+  defp catalog_scryfall_dynamic(%Predicate{field: :year, op: op, value: value}),
+    do: catalog_year_dynamic(op, value)
+
+  defp catalog_scryfall_dynamic(%Predicate{field: :is, op: op, value: value}),
+    do: catalog_is_dynamic(op, value)
+
+  defp catalog_scryfall_dynamic(_unsupported), do: dynamic(false)
+
+  defp catalog_text_dynamic(term) do
+    pattern = term |> catalog_downcase() |> catalog_like_pattern()
+    dynamic([card, _printing], fragment("lower(?) LIKE ? ESCAPE '\\'", card.name, ^pattern))
+  end
+
+  defp catalog_text_field_dynamic(_field, _op, ""), do: dynamic(true)
+
+  defp catalog_text_field_dynamic(field, op, value) when op in [:colon, :eq, :neq] do
+    pattern = value |> catalog_downcase() |> catalog_like_pattern()
+
+    condition =
+      case field do
+        :name ->
+          dynamic([card, _printing], fragment("lower(?) LIKE ? ESCAPE '\\'", card.name, ^pattern))
+
+        :type ->
+          dynamic(
+            [card, _printing],
+            fragment("lower(coalesce(?, '')) LIKE ? ESCAPE '\\'", card.type_line, ^pattern)
+          )
+
+        :oracle ->
+          dynamic(
+            [card, _printing],
+            fragment("lower(coalesce(?, '')) LIKE ? ESCAPE '\\'", card.oracle_text, ^pattern)
+          )
+
+        :mana ->
+          dynamic(
+            [card, _printing],
+            fragment("lower(coalesce(?, '')) LIKE ? ESCAPE '\\'", card.mana_cost, ^pattern)
+          )
+      end
+
+    if op == :neq, do: dynamic([card, printing], not (^condition)), else: condition
+  end
+
+  defp catalog_text_field_dynamic(_field, _op, _value), do: dynamic(false)
+
+  defp catalog_mana_value_dynamic(op, value) do
+    case value |> catalog_downcase() do
+      "even" ->
+        dynamic([card, _printing], fragment("CAST(coalesce(?, 0) AS INTEGER) % 2 = 0", card.cmc))
+
+      "odd" ->
+        dynamic([card, _printing], fragment("CAST(coalesce(?, 0) AS INTEGER) % 2 = 1", card.cmc))
+
+      value ->
+        catalog_numeric_card_dynamic(:mana_value, op, value)
+    end
+  end
+
+  defp catalog_numeric_card_dynamic(:mana_value, op, value) do
+    case Float.parse(value) do
+      {number, ""} ->
+        case catalog_comparison_op(op) do
+          :eq -> dynamic([card, _printing], card.cmc == ^number)
+          :neq -> dynamic([card, _printing], card.cmc != ^number)
+          :gt -> dynamic([card, _printing], card.cmc > ^number)
+          :gte -> dynamic([card, _printing], card.cmc >= ^number)
+          :lt -> dynamic([card, _printing], card.cmc < ^number)
+          :lte -> dynamic([card, _printing], card.cmc <= ^number)
+        end
+
+      _invalid ->
+        dynamic(false)
+    end
+  end
+
+  defp catalog_color_dynamic(field, op, value) do
+    value = catalog_downcase(value)
+
+    cond do
+      value in ["m", "multicolor"] ->
+        catalog_color_count_dynamic(field, op, 2, :gte)
+
+      value in ["c", "colorless"] ->
+        catalog_color_count_dynamic(field, op, 0, :eq)
+
+      String.match?(value, ~r/^\d+$/) ->
+        {count, ""} = Integer.parse(value)
+        catalog_color_count_dynamic(field, op, count, :eq)
+
+      true ->
+        case catalog_parse_color_set(value) do
+          {:ok, colors} -> catalog_color_set_dynamic(field, op, colors)
+          :error -> dynamic(false)
+        end
+    end
+  end
+
+  defp catalog_color_count_dynamic(field, op, count, default_op) do
+    op = if op == :colon, do: default_op, else: catalog_comparison_op(op)
+
+    case {field, op} do
+      {:colors, :eq} ->
+        dynamic([card, _printing], json_array_count(card.colors) == ^count)
+
+      {:colors, :neq} ->
+        dynamic([card, _printing], json_array_count(card.colors) != ^count)
+
+      {:colors, :gt} ->
+        dynamic([card, _printing], json_array_count(card.colors) > ^count)
+
+      {:colors, :gte} ->
+        dynamic([card, _printing], json_array_count(card.colors) >= ^count)
+
+      {:colors, :lt} ->
+        dynamic([card, _printing], json_array_count(card.colors) < ^count)
+
+      {:colors, :lte} ->
+        dynamic([card, _printing], json_array_count(card.colors) <= ^count)
+
+      {:identity, :eq} ->
+        dynamic([card, _printing], json_array_count(card.color_identity) == ^count)
+
+      {:identity, :neq} ->
+        dynamic([card, _printing], json_array_count(card.color_identity) != ^count)
+
+      {:identity, :gt} ->
+        dynamic([card, _printing], json_array_count(card.color_identity) > ^count)
+
+      {:identity, :gte} ->
+        dynamic([card, _printing], json_array_count(card.color_identity) >= ^count)
+
+      {:identity, :lt} ->
+        dynamic([card, _printing], json_array_count(card.color_identity) < ^count)
+
+      {:identity, :lte} ->
+        dynamic([card, _printing], json_array_count(card.color_identity) <= ^count)
+    end
+  end
+
+  defp catalog_color_set_dynamic(field, op, colors) do
+    op = if op == :colon, do: :eq, else: catalog_comparison_op(op)
+    contains = catalog_contains_colors_dynamic(field, colors)
+    excludes = catalog_excludes_other_colors_dynamic(field, colors)
+    count = length(colors)
+
+    case op do
+      :eq ->
+        dynamic([card, printing], ^contains and ^excludes)
+
+      :neq ->
+        dynamic([card, printing], not (^contains and ^excludes))
+
+      :gte ->
+        contains
+
+      :lte ->
+        excludes
+
+      :gt ->
+        dynamic(
+          [card, printing],
+          ^contains and ^catalog_color_count_dynamic(field, :gt, count, :gt)
+        )
+
+      :lt ->
+        dynamic(
+          [card, printing],
+          ^excludes and ^catalog_color_count_dynamic(field, :lt, count, :lt)
+        )
+    end
+  end
+
+  defp catalog_contains_colors_dynamic(field, colors) do
+    Enum.reduce(colors, dynamic(true), fn color, acc ->
+      catalog_color_presence_dynamic(field, color, acc, true)
+    end)
+  end
+
+  defp catalog_excludes_other_colors_dynamic(field, colors) do
+    ~w(W U B R G)
+    |> Enum.reject(&(&1 in colors))
+    |> Enum.reduce(dynamic(true), fn color, acc ->
+      catalog_color_presence_dynamic(field, color, acc, false)
+    end)
+  end
+
+  defp catalog_color_presence_dynamic(:colors, color, acc, true),
+    do:
+      dynamic(
+        [card, _printing],
+        ^acc and fragment("instr(coalesce(?, '[]'), ?) > 0", card.colors, ^~s("#{color}"))
+      )
+
+  defp catalog_color_presence_dynamic(:colors, color, acc, false),
+    do:
+      dynamic(
+        [card, _printing],
+        ^acc and fragment("instr(coalesce(?, '[]'), ?) = 0", card.colors, ^~s("#{color}"))
+      )
+
+  defp catalog_color_presence_dynamic(:identity, color, acc, true),
+    do:
+      dynamic(
+        [card, _printing],
+        ^acc and fragment("instr(coalesce(?, '[]'), ?) > 0", card.color_identity, ^~s("#{color}"))
+      )
+
+  defp catalog_color_presence_dynamic(:identity, color, acc, false),
+    do:
+      dynamic(
+        [card, _printing],
+        ^acc and fragment("instr(coalesce(?, '[]'), ?) = 0", card.color_identity, ^~s("#{color}"))
+      )
+
+  defp catalog_rarity_dynamic(op, value) do
+    with {:ok, rank} <- catalog_rarity_rank(value) do
+      case catalog_comparison_op(op) do
+        :eq -> dynamic([_card, printing], rarity_rank_fragment(printing.rarity) == ^rank)
+        :neq -> dynamic([_card, printing], rarity_rank_fragment(printing.rarity) != ^rank)
+        :gt -> dynamic([_card, printing], rarity_rank_fragment(printing.rarity) > ^rank)
+        :gte -> dynamic([_card, printing], rarity_rank_fragment(printing.rarity) >= ^rank)
+        :lt -> dynamic([_card, printing], rarity_rank_fragment(printing.rarity) < ^rank)
+        :lte -> dynamic([_card, printing], rarity_rank_fragment(printing.rarity) <= ^rank)
+      end
+    else
+      :error -> dynamic(false)
+    end
+  end
+
+  defp catalog_set_dynamic(op, value) when op in [:colon, :eq, :neq] do
+    value = catalog_downcase(value)
+    pattern = catalog_like_pattern(value)
+
+    condition =
+      dynamic(
+        [_card, printing],
+        fragment("lower(?)", printing.set_code) == ^value or
+          fragment("lower(coalesce(?, '')) LIKE ? ESCAPE '\\'", printing.set_name, ^pattern)
+      )
+
+    if op == :neq, do: dynamic([card, printing], not (^condition)), else: condition
+  end
+
+  defp catalog_set_dynamic(_op, _value), do: dynamic(false)
+
+  defp catalog_collector_number_dynamic(op, value) when op in [:colon, :eq, :neq] do
+    value = catalog_downcase(value)
+
+    condition =
+      dynamic([_card, printing], fragment("lower(?)", printing.collector_number) == ^value)
+
+    if op == :neq, do: dynamic([card, printing], not (^condition)), else: condition
+  end
+
+  defp catalog_collector_number_dynamic(op, value) do
+    case Integer.parse(value) do
+      {number, ""} ->
+        case catalog_comparison_op(op) do
+          :gt ->
+            dynamic(
+              [_card, printing],
+              fragment("CAST(? AS INTEGER)", printing.collector_number) > ^number
+            )
+
+          :gte ->
+            dynamic(
+              [_card, printing],
+              fragment("CAST(? AS INTEGER)", printing.collector_number) >= ^number
+            )
+
+          :lt ->
+            dynamic(
+              [_card, printing],
+              fragment("CAST(? AS INTEGER)", printing.collector_number) < ^number
+            )
+
+          :lte ->
+            dynamic(
+              [_card, printing],
+              fragment("CAST(? AS INTEGER)", printing.collector_number) <= ^number
+            )
+
+          _op ->
+            dynamic(false)
+        end
+
+      _invalid ->
+        dynamic(false)
+    end
+  end
+
+  defp catalog_language_dynamic(op, value) when op in [:colon, :eq, :neq] do
+    value = catalog_downcase(value)
+    condition = dynamic([_card, printing], fragment("lower(?)", printing.lang) == ^value)
+    if op == :neq, do: dynamic([card, printing], not (^condition)), else: condition
+  end
+
+  defp catalog_language_dynamic(_op, _value), do: dynamic(false)
+
+  defp catalog_price_dynamic(op, value) do
+    case Float.parse(value) do
+      {number, ""} ->
+        case catalog_comparison_op(op) do
+          :eq -> dynamic([_card, printing], catalog_price_fragment(printing) == ^number)
+          :neq -> dynamic([_card, printing], catalog_price_fragment(printing) != ^number)
+          :gt -> dynamic([_card, printing], catalog_price_fragment(printing) > ^number)
+          :gte -> dynamic([_card, printing], catalog_price_fragment(printing) >= ^number)
+          :lt -> dynamic([_card, printing], catalog_price_fragment(printing) < ^number)
+          :lte -> dynamic([_card, printing], catalog_price_fragment(printing) <= ^number)
+        end
+
+      _invalid ->
+        dynamic(false)
+    end
+  end
+
+  defp catalog_date_dynamic(op, value) do
+    case Date.from_iso8601(value) do
+      {:ok, date} ->
+        case catalog_comparison_op(op) do
+          :eq -> dynamic([_card, printing], printing.released_at == ^date)
+          :neq -> dynamic([_card, printing], printing.released_at != ^date)
+          :gt -> dynamic([_card, printing], printing.released_at > ^date)
+          :gte -> dynamic([_card, printing], printing.released_at >= ^date)
+          :lt -> dynamic([_card, printing], printing.released_at < ^date)
+          :lte -> dynamic([_card, printing], printing.released_at <= ^date)
+        end
+
+      _invalid ->
+        dynamic(false)
+    end
+  end
+
+  defp catalog_year_dynamic(op, value) do
+    case Integer.parse(value) do
+      {year, ""} ->
+        case catalog_comparison_op(op) do
+          :eq ->
+            dynamic(
+              [_card, printing],
+              fragment("CAST(strftime('%Y', ?) AS INTEGER)", printing.released_at) == ^year
+            )
+
+          :neq ->
+            dynamic(
+              [_card, printing],
+              fragment("CAST(strftime('%Y', ?) AS INTEGER)", printing.released_at) != ^year
+            )
+
+          :gt ->
+            dynamic(
+              [_card, printing],
+              fragment("CAST(strftime('%Y', ?) AS INTEGER)", printing.released_at) > ^year
+            )
+
+          :gte ->
+            dynamic(
+              [_card, printing],
+              fragment("CAST(strftime('%Y', ?) AS INTEGER)", printing.released_at) >= ^year
+            )
+
+          :lt ->
+            dynamic(
+              [_card, printing],
+              fragment("CAST(strftime('%Y', ?) AS INTEGER)", printing.released_at) < ^year
+            )
+
+          :lte ->
+            dynamic(
+              [_card, printing],
+              fragment("CAST(strftime('%Y', ?) AS INTEGER)", printing.released_at) <= ^year
+            )
+        end
+
+      _invalid ->
+        dynamic(false)
+    end
+  end
+
+  defp catalog_is_dynamic(op, value) when op in [:colon, :eq, :neq] do
+    condition =
+      case catalog_downcase(value) do
+        "foil" ->
+          dynamic(
+            [_card, printing],
+            fragment("instr(coalesce(?, '[]'), '\"foil\"') > 0", printing.finishes)
+          )
+
+        "nonfoil" ->
+          dynamic(
+            [_card, printing],
+            fragment("instr(coalesce(?, '[]'), '\"nonfoil\"') > 0", printing.finishes)
+          )
+
+        "etched" ->
+          dynamic(
+            [_card, printing],
+            fragment("instr(coalesce(?, '[]'), '\"etched\"') > 0", printing.finishes)
+          )
+
+        "colorless" ->
+          catalog_color_count_dynamic(:colors, :eq, 0, :eq)
+
+        "multicolor" ->
+          catalog_color_count_dynamic(:colors, :gte, 2, :gte)
+
+        "land" ->
+          catalog_text_field_dynamic(:type, :colon, "land")
+
+        "creature" ->
+          catalog_text_field_dynamic(:type, :colon, "creature")
+
+        "artifact" ->
+          catalog_text_field_dynamic(:type, :colon, "artifact")
+
+        "enchantment" ->
+          catalog_text_field_dynamic(:type, :colon, "enchantment")
+
+        "planeswalker" ->
+          catalog_text_field_dynamic(:type, :colon, "planeswalker")
+
+        "instant" ->
+          catalog_text_field_dynamic(:type, :colon, "instant")
+
+        "sorcery" ->
+          catalog_text_field_dynamic(:type, :colon, "sorcery")
+
+        _unsupported ->
+          dynamic(false)
+      end
+
+    if op == :neq, do: dynamic([card, printing], not (^condition)), else: condition
+  end
+
+  defp catalog_is_dynamic(_op, _value), do: dynamic(false)
+
+  defp catalog_comparison_op(:colon), do: :eq
+  defp catalog_comparison_op(op) when op in [:eq, :neq, :gt, :gte, :lt, :lte], do: op
+  defp catalog_comparison_op(_op), do: :eq
+
+  defp catalog_parse_color_set(value) do
+    letters =
+      value
+      |> String.replace(~r/[^a-z]/, "")
+      |> catalog_color_letters()
+      |> Enum.uniq()
+
+    if letters == [], do: :error, else: {:ok, letters}
+  end
+
+  defp catalog_color_letters("white"), do: ["W"]
+  defp catalog_color_letters("blue"), do: ["U"]
+  defp catalog_color_letters("black"), do: ["B"]
+  defp catalog_color_letters("red"), do: ["R"]
+  defp catalog_color_letters("green"), do: ["G"]
+
+  defp catalog_color_letters(value) do
+    value
+    |> String.graphemes()
+    |> Enum.flat_map(fn
+      "w" -> ["W"]
+      "u" -> ["U"]
+      "b" -> ["B"]
+      "r" -> ["R"]
+      "g" -> ["G"]
+      _other -> []
+    end)
+  end
+
+  defp catalog_rarity_rank(value) do
+    case catalog_downcase(value) do
+      "c" -> {:ok, 1}
+      "common" -> {:ok, 1}
+      "u" -> {:ok, 2}
+      "uncommon" -> {:ok, 2}
+      "r" -> {:ok, 3}
+      "rare" -> {:ok, 3}
+      "m" -> {:ok, 4}
+      "mythic" -> {:ok, 4}
+      "s" -> {:ok, 5}
+      "special" -> {:ok, 5}
+      "b" -> {:ok, 6}
+      "bonus" -> {:ok, 6}
+      _other -> :error
+    end
+  end
+
+  defp catalog_like_pattern(value) do
+    value
+    |> String.replace("\\", "\\\\")
+    |> String.replace("%", "\\%")
+    |> String.replace("_", "\\_")
+    |> then(&"%#{&1}%")
+  end
+
+  defp catalog_downcase(value), do: value |> to_string() |> String.trim() |> String.downcase()
 
   def suggest_card_names(term, opts \\ []) when is_binary(term) do
     limit = Keyword.get(opts, :limit, 5)
@@ -139,36 +760,11 @@ defmodule Manavault.Catalog do
   end
 
   def list_collection_items(filters \\ [], opts \\ []) when is_list(filters) do
-    limit = Keyword.get(opts, :limit, 100)
-    offset = Keyword.get(opts, :offset, 0)
-    query = filters |> Keyword.get(:q, "") |> normalize_filter()
-    condition = filters |> Keyword.get(:condition, "") |> normalize_filter()
-    language = filters |> Keyword.get(:language, "") |> normalize_filter()
-    finish = filters |> Keyword.get(:finish, "") |> normalize_filter()
-    location_id = filters |> Keyword.get(:location_id, "") |> normalize_filter()
+    CardCollection.list_items(filters, opts)
+  end
 
-    CollectionItem
-    |> join(:inner, [item], printing in assoc(item, :printing))
-    |> join(:inner, [item, printing], card in assoc(printing, :card))
-    |> join(:left, [item, _printing, _card], location in assoc(item, :location_assoc))
-    |> maybe_filter_collection_search(query)
-    |> maybe_filter_collection_condition(condition)
-    |> maybe_filter_collection_language(language)
-    |> maybe_filter_collection_finish(finish)
-    |> maybe_filter_collection_location(location_id)
-    |> preload([_item, printing, card, location],
-      printing: {printing, card: card},
-      location_assoc: location
-    )
-    |> order_by([item, printing, card, _location],
-      asc: card.name,
-      asc: printing.set_code,
-      asc: printing.collector_number,
-      asc: item.id
-    )
-    |> limit(^limit)
-    |> offset(^offset)
-    |> Repo.all()
+  def count_collection_items(filters \\ []) when is_list(filters) do
+    CardCollection.count_items(filters)
   end
 
   def get_collection_item!(id) do
@@ -274,16 +870,7 @@ defmodule Manavault.Catalog do
     Location
     |> order_by(asc: :name)
     |> Repo.all()
-    |> Repo.preload(
-      cover_printing: [],
-      collection_items:
-        from(item in CollectionItem,
-          join: printing in assoc(item, :printing),
-          join: card in assoc(printing, :card),
-          preload: [printing: {printing, card: card}],
-          order_by: [asc: card.name, asc: printing.set_code, asc: printing.collector_number]
-        )
-    )
+    |> Repo.preload(cover_printing: :card)
   end
 
   def list_location_options do
@@ -301,6 +888,7 @@ defmodule Manavault.Catalog do
     Location
     |> Repo.get!(id)
     |> Repo.preload(
+      cover_printing: :card,
       collection_items:
         from(item in CollectionItem,
           join: printing in assoc(item, :printing),
@@ -313,25 +901,7 @@ defmodule Manavault.Catalog do
 
   def list_collection_items_by_location(location_id, filters \\ [], opts \\ [])
       when is_list(filters) do
-    limit = Keyword.get(opts, :limit, 100)
-    query = filters |> Keyword.get(:q, "") |> normalize_filter()
-
-    CollectionItem
-    |> where(location_id: ^location_id)
-    |> join(:inner, [item], printing in assoc(item, :printing))
-    |> join(:inner, [_item, printing], card in assoc(printing, :card))
-    |> maybe_filter_collection_search(query)
-    |> preload([_item, printing, card],
-      printing: {printing, card: card}
-    )
-    |> order_by([item, printing, card],
-      asc: card.name,
-      asc: printing.set_code,
-      asc: printing.collector_number,
-      asc: item.id
-    )
-    |> limit(^limit)
-    |> Repo.all()
+    CardCollection.list_items_by_location(location_id, filters, opts)
   end
 
   def change_location(location, attrs \\ %{}) do
@@ -513,8 +1083,52 @@ defmodule Manavault.Catalog do
     end
   end
 
+  def set_deck_commander(%DeckCard{} = deck_card) do
+    Repo.transaction(fn ->
+      deck_card = Repo.preload(deck_card, [:card, :preferred_printing])
+
+      unless legendary_creature?(deck_card) do
+        Repo.rollback(:not_legendary_creature)
+      end
+
+      DeckCard
+      |> where(
+        [card],
+        card.deck_id == ^deck_card.deck_id and card.zone == "commander" and
+          card.id != ^deck_card.id
+      )
+      |> Repo.all()
+      |> Enum.each(&move_deck_card_to_zone!(&1, "mainboard"))
+
+      deck_card
+      |> move_deck_card_to_zone!("commander")
+      |> Repo.preload([:card, :preferred_printing])
+    end)
+  end
+
   def delete_deck_card(%DeckCard{} = deck_card) do
-    Repo.delete(deck_card)
+    Repo.transaction(fn ->
+      deck_card =
+        Repo.preload(deck_card, deck_allocations: [:collection_item])
+
+      Enum.each(deck_card.deck_allocations, fn allocation ->
+        restore_collection_item_from_deck!(
+          allocation.collection_item,
+          allocation.quantity,
+          allocation.source_location_id
+        )
+
+        case Repo.delete(allocation) do
+          {:ok, _allocation} -> :ok
+          {:error, changeset} -> Repo.rollback(changeset)
+        end
+      end)
+
+      case Repo.delete(deck_card) do
+        {:ok, deck_card} -> deck_card
+        {:error, changeset} -> Repo.rollback(changeset)
+      end
+    end)
   end
 
   def deck_allocation_status(%Deck{} = deck) do
@@ -783,9 +1397,7 @@ defmodule Manavault.Catalog do
         lines =
           cards
           |> Enum.sort_by(& &1.card.name)
-          |> Enum.map_join("\n", fn deck_card ->
-            "#{deck_card.quantity} #{deck_card.card.name}"
-          end)
+          |> Enum.map_join("\n", &decklist_export_line/1)
 
         "#{deck_zone_label(zone)}\n#{lines}"
       end
@@ -793,6 +1405,27 @@ defmodule Manavault.Catalog do
     |> Enum.reject(&is_nil/1)
     |> Enum.join("\n\n")
   end
+
+  defp decklist_export_line(%DeckCard{} = deck_card) do
+    [
+      "#{deck_card.quantity}x",
+      deck_card.card.name,
+      decklist_export_printing(deck_card.preferred_printing),
+      decklist_export_finish(deck_card.finish)
+    ]
+    |> Enum.reject(&(&1 in [nil, ""]))
+    |> Enum.join(" ")
+  end
+
+  defp decklist_export_printing(%Printing{} = printing) do
+    "(#{String.upcase(printing.set_code || "")}) #{printing.collector_number}"
+  end
+
+  defp decklist_export_printing(_printing), do: nil
+
+  defp decklist_export_finish("foil"), do: "*F*"
+  defp decklist_export_finish("etched"), do: "*E*"
+  defp decklist_export_finish(_finish), do: nil
 
   def deck_buylist(%Deck{} = deck, opts \\ []) when is_list(opts) do
     deck = Repo.preload(deck, deck_preloads(), force: true)
@@ -1177,9 +1810,14 @@ defmodule Manavault.Catalog do
     CollectionItem
     |> join(:inner, [item], printing in assoc(item, :printing))
     |> join(:inner, [_item, printing], card in assoc(printing, :card))
-    |> where([item, printing, _card], printing.oracle_id == ^oracle_id and item.finish == ^finish)
-    |> preload([_item, printing, card], printing: {printing, card: card})
-    |> order_by([item, printing, card],
+    |> join(:left, [item, _printing, _card], location in assoc(item, :location_assoc))
+    |> where(
+      [item, printing, _card, location],
+      printing.oracle_id == ^oracle_id and item.finish == ^finish
+    )
+    |> where([_item, _printing, _card, location], is_nil(location.id) or location.kind != "list")
+    |> preload([_item, printing, card, _location], printing: {printing, card: card})
+    |> order_by([item, printing, card, _location],
       desc: fragment("? = ?", item.scryfall_id, ^preferred_printing_id),
       asc: card.name,
       asc: printing.set_code,
@@ -1513,9 +2151,10 @@ defmodule Manavault.Catalog do
          %CollectionItem{} = item,
          %DeckCard{} = deck_card
        ) do
-    item = Repo.preload(item, :printing)
+    item = Repo.preload(item, [:printing, :location_assoc])
 
     cond do
+      match?(%Location{kind: "list"}, item.location_assoc) -> {:error, :allocation_list_location}
       item.printing.oracle_id != deck_card.oracle_id -> {:error, :allocation_card_mismatch}
       item.finish != deck_card.finish -> {:error, :allocation_finish_mismatch}
       true -> :ok
@@ -1912,6 +2551,40 @@ defmodule Manavault.Catalog do
   defp deck_zone_label("commander"), do: "Commander"
   defp deck_zone_label("maybeboard"), do: "Maybeboard"
   defp deck_zone_label(zone), do: String.capitalize(zone)
+
+  defp move_deck_card_to_zone!(%DeckCard{} = deck_card, zone) do
+    existing =
+      DeckCard
+      |> where(
+        [card],
+        card.deck_id == ^deck_card.deck_id and card.oracle_id == ^deck_card.oracle_id and
+          card.zone == ^zone and card.id != ^deck_card.id
+      )
+      |> Repo.one()
+
+    case existing do
+      %DeckCard{} = existing ->
+        merged =
+          existing
+          |> DeckCard.changeset(%{"quantity" => existing.quantity + deck_card.quantity})
+          |> Repo.update!()
+
+        Repo.delete!(deck_card)
+        merged
+
+      nil ->
+        deck_card
+        |> DeckCard.changeset(%{"zone" => zone})
+        |> Repo.update!()
+    end
+  end
+
+  defp legendary_creature?(%DeckCard{card: %Card{type_line: type_line}})
+       when is_binary(type_line) do
+    String.contains?(type_line, "Legendary") and String.contains?(type_line, "Creature")
+  end
+
+  defp legendary_creature?(_deck_card), do: false
 
   defp count_deck_groups(cards, group_fun) do
     cards
@@ -2591,52 +3264,6 @@ defmodule Manavault.Catalog do
 
   defp maybe_filter_collector_number(query, collector_number) do
     where(query, [printing, _card], printing.collector_number == ^collector_number)
-  end
-
-  defp maybe_filter_collection_search(query, ""), do: query
-
-  defp maybe_filter_collection_search(query, search) do
-    pattern = "%#{String.downcase(search)}%"
-
-    where(
-      query,
-      [_item, printing, card, ...],
-      fragment("lower(?) LIKE ?", card.name, ^pattern) or
-        fragment("lower(?) LIKE ?", printing.set_code, ^pattern) or
-        fragment("lower(?) LIKE ?", printing.collector_number, ^pattern) or
-        fragment("lower(?) LIKE ?", printing.scryfall_id, ^pattern)
-    )
-  end
-
-  defp maybe_filter_collection_condition(query, ""), do: query
-
-  defp maybe_filter_collection_condition(query, condition) do
-    where(query, [item, _printing, _card, _location], item.condition == ^condition)
-  end
-
-  defp maybe_filter_collection_language(query, ""), do: query
-
-  defp maybe_filter_collection_language(query, language) do
-    where(query, [item, _printing, _card, _location], item.language == ^language)
-  end
-
-  defp maybe_filter_collection_finish(query, ""), do: query
-
-  defp maybe_filter_collection_finish(query, finish) do
-    where(query, [item, _printing, _card, _location], item.finish == ^finish)
-  end
-
-  defp maybe_filter_collection_location(query, ""), do: query
-
-  defp maybe_filter_collection_location(query, "unfiled") do
-    where(query, [item, _printing, _card, _location], is_nil(item.location_id))
-  end
-
-  defp maybe_filter_collection_location(query, location_id) do
-    case Integer.parse(location_id) do
-      {id, ""} -> where(query, [item, _printing, _card, _location], item.location_id == ^id)
-      _invalid -> where(query, false)
-    end
   end
 
   defp insert_in_batches(_schema, [], _opts), do: :ok

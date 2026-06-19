@@ -22,8 +22,8 @@ config :manavault, ManavaultWeb.Endpoint,
   debug_errors: true,
   secret_key_base: "rXtWSxzpxWwC2Fe3neLd4rTzlXK8pc0usuNiooa0rZnapw8LooU4pavHCYBpx67I",
   watchers: [
-    esbuild: {Esbuild, :install_and_run, [:manavault, ~w(--sourcemap=inline --watch)]},
-    tailwind: {Tailwind, :install_and_run, [:manavault, ~w(--watch)]}
+    tailwind: {Tailwind, :install_and_run, [:manavault, ~w(--watch)]},
+    aube: ["run", "dev"]
   ]
 
 # ## SSL Support
@@ -58,14 +58,16 @@ config :manavault, ManavaultWeb.Endpoint,
       ~r"priv/static/(?!uploads/).*\.(js|css|png|jpeg|jpg|gif|svg)$"E,
       # Gettext translations
       ~r"priv/gettext/.*\.po$"E,
-      # Router, Controllers, LiveViews and LiveComponents
+      # Router and controllers
       ~r"lib/manavault_web/router\.ex$"E,
-      ~r"lib/manavault_web/(controllers|live|components)/.*\.(ex|heex)$"E
+      ~r"lib/manavault_web/(controllers|components)/.*\.(ex|heex)$"E
     ]
   ]
 
 # Enable dev routes for dashboard and mailbox
 config :manavault, dev_routes: true
+
+config :manavault, vite_dev_server?: true
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
@@ -76,14 +78,6 @@ config :phoenix, :stacktrace_depth, 20
 
 # Initialize plugs at runtime for faster development compilation
 config :phoenix, :plug_init_mode, :runtime
-
-config :phoenix_live_view,
-  # Include debug annotations and locations in rendered markup.
-  # Changing this configuration will require mix clean and a full recompile.
-  debug_heex_annotations: true,
-  debug_attributes: true,
-  # Enable helpful, but potentially expensive runtime checks
-  enable_expensive_runtime_checks: true
 
 # Disable swoosh api client as it is only required for production adapters.
 config :swoosh, :api_client, false

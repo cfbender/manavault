@@ -19,13 +19,7 @@ config :manavault, ManavaultWeb.Endpoint,
     formats: [html: ManavaultWeb.ErrorHTML, json: ManavaultWeb.ErrorJSON],
     layout: false
   ],
-  pubsub_server: Manavault.PubSub,
-  live_view: [signing_salt: "GEqwRini"]
-
-# Configure LiveView
-config :phoenix_live_view,
-  # the attribute set on all root tags. Used for Phoenix.LiveView.ColocatedCSS.
-  root_tag_attribute: "phx-r"
+  pubsub_server: Manavault.PubSub
 
 # Configure the mailer
 #
@@ -36,16 +30,6 @@ config :phoenix_live_view,
 # at the `config/runtime.exs`.
 config :manavault, Manavault.Mailer, adapter: Swoosh.Adapters.Local
 
-# Configure esbuild (the version is required)
-config :esbuild,
-  version: "0.25.4",
-  manavault: [
-    args:
-      ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
-    cd: Path.expand("../assets", __DIR__),
-    env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
-  ]
-
 # Configure tailwind (the version is required)
 config :tailwind,
   version: "4.3.0",
@@ -55,7 +39,7 @@ config :tailwind,
       --output=priv/static/assets/css/app.css
     ),
     cd: Path.expand("..", __DIR__),
-    env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
+    env: %{"NODE_PATH" => Mix.Project.build_path()}
   ]
 
 # Configure Elixir's Logger

@@ -23,12 +23,16 @@ defmodule Manavault.CatalogTest do
     "name" => "Black Lotus",
     "type_line" => "Artifact",
     "oracle_text" => "{T}, Sacrifice Black Lotus: Add three mana of any one color.",
+    "mana_cost" => "{0}",
+    "cmc" => 0.0,
+    "colors" => [],
     "color_identity" => [],
     "legalities" => %{"vintage" => "restricted"},
     "set" => "lea",
     "set_name" => "Limited Edition Alpha",
     "collector_number" => "232",
     "lang" => "en",
+    "rarity" => "rare",
     "finishes" => ["nonfoil"],
     "image_uris" => %{"normal" => "https://example.test/black-lotus.jpg"},
     "prices" => %{"usd" => "100000.00"},
@@ -51,11 +55,18 @@ defmodule Manavault.CatalogTest do
     "oracle_id" => "oracle-2",
     "name" => "Time Walk",
     "type_line" => "Sorcery",
+    "oracle_text" => "Take an extra turn after this turn.",
+    "mana_cost" => "{1}{U}",
+    "cmc" => 2.0,
+    "colors" => ["U"],
+    "color_identity" => ["U"],
     "set" => "lea",
     "set_name" => "Limited Edition Alpha",
     "collector_number" => "84",
     "lang" => "ja",
+    "rarity" => "rare",
     "finishes" => ["foil"],
+    "prices" => %{"usd_foil" => "5.00"},
     "released_at" => "1993-08-05"
   }
 
@@ -88,11 +99,14 @@ defmodule Manavault.CatalogTest do
     "oracle_id" => "oracle-plains",
     "name" => "Plains",
     "type_line" => "Basic Land — Plains",
+    "cmc" => 0.0,
+    "colors" => [],
     "color_identity" => ["W"],
     "set" => "lea",
     "set_name" => "Limited Edition Alpha",
     "collector_number" => "250",
     "lang" => "en",
+    "rarity" => "common",
     "finishes" => ["nonfoil"],
     "released_at" => "1993-08-05"
   }
@@ -166,6 +180,8 @@ defmodule Manavault.CatalogTest do
     items = Catalog.list_collection_items([], limit: 10)
     assert Enum.map(items, & &1.location_id) == [binder.id, binder.id]
     assert Enum.map(items, & &1.quantity) == [2, 1]
+    assert Catalog.count_collection_items([]) == 3
+    assert Catalog.count_collection_items(location_id: to_string(binder.id)) == 3
   end
 
   test "collection CSV import can target no location" do
@@ -178,6 +194,37 @@ defmodule Manavault.CatalogTest do
 
     assert {:ok, %{imported: 1}} = Catalog.import_collection_csv(csv, location_id: "")
     assert [%CollectionItem{location_id: nil}] = Catalog.list_collection_items([], limit: 10)
+  end
+
+  test "collection listings exclude list location items unless filtering to that list" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+    assert {:ok, binder} = Catalog.create_location(%{name: "Trade Binder", kind: "binder"})
+    assert {:ok, list} = Catalog.create_location(%{name: "Wishlist", kind: "list"})
+
+    assert {:ok, binder_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 2,
+               "location_id" => binder.id
+             })
+
+    assert {:ok, list_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 3,
+               "location_id" => list.id
+             })
+
+    assert [listed_binder_item] = Catalog.list_collection_items([], limit: 10)
+    assert listed_binder_item.id == binder_item.id
+    assert Catalog.count_collection_items([]) == 2
+    assert [listed_list_item] = Catalog.list_collection_items(location_id: to_string(list.id))
+    assert listed_list_item.id == list_item.id
+    assert Catalog.count_collection_items(location_id: to_string(list.id)) == 3
+
+    assert [binder_item.id, list_item.id] ==
+             Catalog.list_collection_items([include_list_locations: true], limit: 10)
+             |> Enum.map(& &1.id)
   end
 
   test "suggest_card_names returns fuzzy top card name matches" do
@@ -326,6 +373,94 @@ defmodule Manavault.CatalogTest do
     assert [] = Catalog.list_collection_items(location_id: "missing")
   end
 
+  test "collection item filtering supports Scryfall search syntax" do
+    assert {:ok, %{cards_count: 3, printings_count: 3}} =
+             Catalog.import_cards([@black_lotus, @time_walk, @plains])
+
+    assert {:ok, lotus} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => "1",
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    assert {:ok, walk} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-2",
+               "quantity" => "1",
+               "condition" => "near_mint",
+               "language" => "ja",
+               "finish" => "foil"
+             })
+
+    assert {:ok, plains} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-basic-plains",
+               "quantity" => "1",
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    assert [lotus.id] == collection_item_ids(q: "t:artifact mv=0 id:c usd>999")
+    assert [walk.id] == collection_item_ids(q: "set:lea number:84 lang:ja is:foil")
+    assert [plains.id] == collection_item_ids(q: "rarity:common type:land")
+    assert [lotus.id, walk.id] == collection_item_ids(q: ~s(lotus or "time walk"))
+    assert [lotus.id, walk.id] == collection_item_ids(q: "-type:land")
+    assert [walk.id] == collection_item_ids(q: "c:u oracle:extra")
+    assert [lotus.id, walk.id] == collection_item_ids(q: "rarity>=rare")
+    assert Catalog.count_collection_items(q: "rarity>=rare") == 2
+    assert [] == Catalog.list_collection_items(q: "artist:Someone")
+
+    assert [lotus_card] = Catalog.search_cards("type:artifact rarity:rare usd>999")
+    assert lotus_card.oracle_id == "oracle-1"
+
+    assert [walk_card] = Catalog.search_cards(~s("time walk" is:foil lang:ja))
+    assert walk_card.oracle_id == "oracle-2"
+
+    assert [lotus_card, walk_card] = Catalog.search_cards(~s(lotus or "time walk"))
+    assert Enum.map([lotus_card, walk_card], & &1.oracle_id) == ["oracle-1", "oracle-2"]
+  end
+
+  test "collection item sorting supports card quantity and price" do
+    time_walk = Map.put(@time_walk, "prices", %{"usd_foil" => "5.00"})
+
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, time_walk])
+
+    assert {:ok, lotus} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => "1",
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    assert {:ok, walk} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-2",
+               "quantity" => "3",
+               "condition" => "near_mint",
+               "language" => "ja",
+               "finish" => "foil"
+             })
+
+    assert [walk.id, lotus.id] ==
+             Catalog.list_collection_items([], sort: %{field: "quantity", direction: "desc"})
+             |> Enum.map(& &1.id)
+
+    assert [walk.id, lotus.id] ==
+             Catalog.list_collection_items([], sort: %{field: "price", direction: "asc"})
+             |> Enum.map(& &1.id)
+
+    assert [lotus.id, walk.id] ==
+             Catalog.list_collection_items([], sort: %{field: "price", direction: "desc"})
+             |> Enum.map(& &1.id)
+  end
+
   test "new_collection_item_for_printing defaults to exact printing language and first finish" do
     assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
 
@@ -421,7 +556,7 @@ defmodule Manavault.CatalogTest do
 
     text = """
     Commander
-    1 Time Walk
+    1 Time Walk (LEA) 84 *F*
 
     Mainboard
     1 Black Lotus (LEA) 232
@@ -446,9 +581,9 @@ defmodule Manavault.CatalogTest do
     assert Enum.any?(loaded.deck_cards, &(&1.card.name == "Time Walk" and &1.zone == "sideboard"))
 
     export = Catalog.export_decklist(loaded)
-    assert export =~ "Commander\n1 Time Walk"
-    assert export =~ "Mainboard\n3 Black Lotus"
-    assert export =~ "Sideboard\n1 Time Walk"
+    assert export =~ "Commander\n1x Time Walk (LEA) 84 *F*"
+    assert export =~ "Mainboard\n3x Black Lotus (LEA) 232"
+    assert export =~ "Sideboard\n1x Time Walk"
   end
 
   test "decklist import keeps card identities when preferred printing data is unusable" do
@@ -738,6 +873,32 @@ defmodule Manavault.CatalogTest do
     assert returned_item.location_id == binder.id
     assert returned_item.quantity == 1
     assert Catalog.get_collection_item!(item.id).quantity == 1
+  end
+
+  test "deck allocation does not count collection items held in list locations" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+    assert {:ok, list} = Catalog.create_location(%{name: "Wishlist", kind: "list"})
+
+    assert {:ok, list_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil",
+               "location_id" => list.id
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Sleeved"})
+    assert {:ok, lotus} = Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus"})
+
+    status = Catalog.deck_card_allocation_status(lotus)
+    assert status.owned == 0
+    assert status.available == 0
+    assert status.missing == 1
+
+    assert {:error, :allocation_list_location} =
+             Catalog.allocate_collection_item_to_deck_card(lotus.id, list_item.id)
   end
 
   test "deck buylist distinguishes missing from owned unavailable and exports text and csv" do
@@ -2161,4 +2322,10 @@ defmodule Manavault.CatalogTest do
 
   defp type_line(name) when name in ["Forest", "Island", "Mountain"], do: "Basic Land"
   defp type_line(_name), do: "Instant"
+
+  defp collection_item_ids(filters) do
+    filters
+    |> Catalog.list_collection_items(limit: 10)
+    |> Enum.map(& &1.id)
+  end
 end

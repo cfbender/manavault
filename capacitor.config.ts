@@ -1,4 +1,4 @@
-import type { CapacitorConfig } from "@capacitor/cli";
+import type { CapacitorConfig } from "@capacitor/cli"
 
 const config: CapacitorConfig = {
   appId: "dev.cfb.manavault",
@@ -6,20 +6,20 @@ const config: CapacitorConfig = {
   webDir: "native_www",
   server: {
     url: "https://manavault.cfb.dev",
-    cleartext: false
+    cleartext: false,
   },
   plugins: {
     StatusBar: {
       overlaysWebView: false,
-      backgroundColor: "#18040d"
-    }
+      backgroundColor: "#18040d",
+    },
   },
   android: {
-    path: "android"
+    path: "android",
   },
   ios: {
-    path: "ios"
-  }
-};
+    path: "ios",
+  },
+}
 
-export default config;
+export default config
