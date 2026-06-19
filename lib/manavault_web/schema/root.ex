@@ -145,5 +145,29 @@ defmodule ManavaultWeb.Schema do
       arg(:id, non_null(:id))
       resolve(&CatalogResolvers.set_deck_commander/3)
     end
+
+    field :allocate_deck_card_item, :deck_card do
+      arg(:deck_card_id, non_null(:id))
+      arg(:collection_item_id, non_null(:id))
+      resolve(&CatalogResolvers.allocate_deck_card_item/3)
+    end
+
+    field :deallocate_deck_card_item, :deck_card do
+      arg(:deck_card_id, non_null(:id))
+      arg(:collection_item_id, non_null(:id))
+      resolve(&CatalogResolvers.deallocate_deck_card_item/3)
+    end
+
+    field :preview_bulk_allocate_deck, :deck_bulk_allocation_preview do
+      arg(:id, non_null(:id))
+      arg(:mode, non_null(:string))
+      resolve(&CatalogResolvers.preview_bulk_allocate_deck/3)
+    end
+
+    field :bulk_allocate_deck, :deck_bulk_allocation_result do
+      arg(:id, non_null(:id))
+      arg(:mode, non_null(:string))
+      resolve(&CatalogResolvers.bulk_allocate_deck/3)
+    end
   end
 end

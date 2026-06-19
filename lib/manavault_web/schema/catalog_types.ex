@@ -133,6 +133,52 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :finish, :string
     field :preferred_printing, :printing
     field :card, :card
+
+    field :allocation_status, non_null(:deck_card_allocation_status) do
+      resolve(&CatalogResolvers.deck_card_allocation_status/3)
+    end
+  end
+
+  object :deck_card_allocation_status do
+    field :state, non_null(:string)
+    field :required, non_null(:integer)
+    field :owned, non_null(:integer)
+    field :allocated, non_null(:integer)
+    field :available, non_null(:integer)
+    field :allocated_elsewhere, non_null(:integer)
+    field :missing, non_null(:integer)
+    field :candidates, non_null(list_of(non_null(:deck_card_allocation_candidate)))
+  end
+
+  object :deck_card_allocation_candidate do
+    field :item, non_null(:collection_item)
+    field :allocated, non_null(:integer)
+    field :allocated_elsewhere, non_null(:integer)
+    field :available, non_null(:integer)
+  end
+
+  object :deck_bulk_allocation_preview do
+    field :mode, non_null(:string)
+    field :allocated, non_null(:integer)
+    field :cards, non_null(:integer)
+    field :skipped, non_null(:integer)
+    field :entries, non_null(list_of(non_null(:deck_bulk_allocation_entry)))
+  end
+
+  object :deck_bulk_allocation_entry do
+    field :deck_card, non_null(:deck_card)
+    field :item, non_null(:collection_item)
+    field :quantity, non_null(:integer)
+
+    field :exact, non_null(:boolean) do
+      resolve(&CatalogResolvers.map_exact_value/3)
+    end
+  end
+
+  object :deck_bulk_allocation_result do
+    field :allocated, non_null(:integer)
+    field :cards, non_null(:integer)
+    field :skipped, non_null(:integer)
   end
 
   object :deck_import_result do

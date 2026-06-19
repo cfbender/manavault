@@ -530,6 +530,262 @@ defmodule ManavaultWeb.SchemaTest do
     assert status.allocated == 1
   end
 
+  test "deck allocation status and allocation mutations are available over GraphQL", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-allocation-status",
+          "oracle_id" => "oracle-allocation-status",
+          "name" => "Allocation Status Card",
+          "type_line" => "Artifact",
+          "collector_number" => "8",
+          "set" => "alc",
+          "set_name" => "Allocation Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, item} =
+      Catalog.create_collection_item(%{
+        scryfall_id: "scryfall-allocation-status",
+        quantity: 1,
+        finish: "nonfoil"
+      })
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Allocation Deck"})
+    {:ok, deck_card} = Catalog.add_card_to_deck(deck, %{"name" => "Allocation Status Card"})
+
+    status_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query Deck($id: ID!) {
+          deck(id: $id) {
+            deckCards {
+              id
+              allocationStatus {
+                state
+                required
+                owned
+                available
+                allocated
+                missing
+                candidates {
+                  available
+                  item { id quantity printing { card { name } } }
+                }
+              }
+            }
+          }
+        }
+        """,
+        "variables" => %{"id" => deck.id}
+      })
+
+    assert %{
+             "data" => %{
+               "deck" => %{
+                 "deckCards" => [
+                   %{
+                     "id" => _id,
+                     "allocationStatus" => %{
+                       "state" => "available",
+                       "required" => 1,
+                       "owned" => 1,
+                       "available" => 1,
+                       "allocated" => 0,
+                       "missing" => 0,
+                       "candidates" => [
+                         %{
+                           "available" => 1,
+                           "item" => %{
+                             "id" => _item_id,
+                             "quantity" => 1,
+                             "printing" => %{"card" => %{"name" => "Allocation Status Card"}}
+                           }
+                         }
+                       ]
+                     }
+                   }
+                 ]
+               }
+             }
+           } = json_response(status_conn, 200)
+
+    allocate_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation Allocate($deckCardId: ID!, $collectionItemId: ID!) {
+          allocateDeckCardItem(deckCardId: $deckCardId, collectionItemId: $collectionItemId) {
+            id
+            allocationStatus { state allocated available missing }
+          }
+        }
+        """,
+        "variables" => %{"deckCardId" => deck_card.id, "collectionItemId" => item.id}
+      })
+
+    assert %{
+             "data" => %{
+               "allocateDeckCardItem" => %{
+                 "allocationStatus" => %{
+                   "state" => "allocated",
+                   "allocated" => 1,
+                   "available" => 0,
+                   "missing" => 0
+                 }
+               }
+             }
+           } = json_response(allocate_conn, 200)
+
+    [loaded_deck_card] = Catalog.get_deck!(deck.id).deck_cards
+
+    allocated_item_id =
+      loaded_deck_card
+      |> Catalog.deck_card_allocation_status()
+      |> Map.fetch!(:candidates)
+      |> Enum.find(&(&1.allocated == 1))
+      |> Map.fetch!(:item)
+      |> Map.fetch!(:id)
+
+    deallocate_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation Deallocate($deckCardId: ID!, $collectionItemId: ID!) {
+          deallocateDeckCardItem(deckCardId: $deckCardId, collectionItemId: $collectionItemId) {
+            id
+            allocationStatus { state allocated available missing }
+          }
+        }
+        """,
+        "variables" => %{"deckCardId" => deck_card.id, "collectionItemId" => allocated_item_id}
+      })
+
+    assert %{
+             "data" => %{
+               "deallocateDeckCardItem" => %{
+                 "allocationStatus" => %{
+                   "state" => "available",
+                   "allocated" => 0,
+                   "available" => 1,
+                   "missing" => 0
+                 }
+               }
+             }
+           } = json_response(deallocate_conn, 200)
+  end
+
+  test "bulk deck allocation preview and mutation are available over GraphQL", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-bulk-allocation",
+          "oracle_id" => "oracle-bulk-allocation",
+          "name" => "Bulk Allocation Card",
+          "type_line" => "Artifact",
+          "collector_number" => "9",
+          "set" => "alc",
+          "set_name" => "Allocation Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, _item} =
+      Catalog.create_collection_item(%{
+        scryfall_id: "scryfall-bulk-allocation",
+        quantity: 2,
+        finish: "nonfoil"
+      })
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Bulk Allocation Deck"})
+
+    {:ok, _deck_card} =
+      Catalog.add_card_to_deck(deck, %{
+        "name" => "Bulk Allocation Card",
+        "quantity" => 2,
+        "preferred_printing_id" => "scryfall-bulk-allocation"
+      })
+
+    preview_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation PreviewBulkAllocateDeck($id: ID!, $mode: String!) {
+          previewBulkAllocateDeck(id: $id, mode: $mode) {
+            mode
+            allocated
+            cards
+            skipped
+            entries {
+              quantity
+              exact
+              deckCard { card { name } preferredPrinting { setCode collectorNumber } }
+              item { quantity printing { card { name } setCode collectorNumber } }
+            }
+          }
+        }
+        """,
+        "variables" => %{"id" => deck.id, "mode" => "exact_printings"}
+      })
+
+    assert %{
+             "data" => %{
+               "previewBulkAllocateDeck" => %{
+                 "mode" => "exact_printings",
+                 "allocated" => 2,
+                 "cards" => 1,
+                 "skipped" => 0,
+                 "entries" => [
+                   %{
+                     "quantity" => 2,
+                     "exact" => true,
+                     "deckCard" => %{
+                       "card" => %{"name" => "Bulk Allocation Card"},
+                       "preferredPrinting" => %{"setCode" => "alc", "collectorNumber" => "9"}
+                     },
+                     "item" => %{
+                       "quantity" => 2,
+                       "printing" => %{
+                         "card" => %{"name" => "Bulk Allocation Card"},
+                         "setCode" => "alc",
+                         "collectorNumber" => "9"
+                       }
+                     }
+                   }
+                 ]
+               }
+             }
+           } = json_response(preview_conn, 200)
+
+    allocate_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation BulkAllocateDeck($id: ID!, $mode: String!) {
+          bulkAllocateDeck(id: $id, mode: $mode) {
+            allocated
+            cards
+            skipped
+          }
+        }
+        """,
+        "variables" => %{"id" => deck.id, "mode" => "exact_printings"}
+      })
+
+    assert %{
+             "data" => %{
+               "bulkAllocateDeck" => %{
+                 "allocated" => 2,
+                 "cards" => 1,
+                 "skipped" => 0
+               }
+             }
+           } = json_response(allocate_conn, 200)
+  end
+
   test "create location mutation creates a location with optional cover", %{conn: conn} do
     {:ok, %{cards_count: 1, printings_count: 1}} =
       Catalog.import_cards([

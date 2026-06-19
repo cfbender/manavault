@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Box, ChevronDown, Circle, Crown, Download, Droplets, Edit3, Eye, Gem, Hash, Layers, MoreVertical, MoveRight, Palette, PawPrint, Plus, Star, Upload, WandSparkles, Zap } from "lucide-react"
+import { AlertTriangle, Box, CheckCircle2, ChevronDown, Circle, Crown, Download, Droplets, Edit3, Eye, Gem, Hash, Layers, MoreVertical, MoveRight, Palette, PawPrint, Plus, Sparkles, Star, Upload, WandSparkles, XCircle, Zap } from "lucide-react"
 import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react"
 import { PageHeader, PageSection } from "../components/app-shell"
 import { EmptyState } from "../components/card-image"
@@ -10,7 +10,7 @@ import { Button } from "../components/ui/button"
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog"
 import { Input } from "../components/ui/input"
 import { graphql } from "../gql"
-import type { DeckQuery, DecksQuery } from "../gql/graphql"
+import type { DeckQuery, DecksQuery, PreviewBulkAllocateDeckMutation } from "../gql/graphql"
 import { request } from "../lib/graphql"
 import { cn, compactNumber, present, titleize } from "../lib/utils"
 
@@ -89,6 +89,37 @@ const DeckDocument = graphql(`
           printings { imageUrl artCropUrl setCode setName collectorNumber rarity }
         }
         preferredPrinting { imageUrl artCropUrl setCode setName collectorNumber rarity }
+        allocationStatus {
+          state
+          required
+          owned
+          allocated
+          available
+          allocatedElsewhere
+          missing
+          candidates {
+            allocated
+            allocatedElsewhere
+            available
+            item {
+              id
+              quantity
+              finish
+              condition
+              language
+              priceText
+              location { id name }
+              printing {
+                scryfallId
+                setCode
+                setName
+                collectorNumber
+                rarity
+                card { name }
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -116,6 +147,83 @@ const SetDeckCommanderDocument = graphql(`
       finish
       card { oracleId name typeLine }
       preferredPrinting { imageUrl artCropUrl setCode setName collectorNumber rarity }
+    }
+  }
+`)
+
+const AllocateDeckCardItemDocument = graphql(`
+  mutation AllocateDeckCardItem($deckCardId: ID!, $collectionItemId: ID!) {
+    allocateDeckCardItem(deckCardId: $deckCardId, collectionItemId: $collectionItemId) {
+      id
+      allocationStatus {
+        state
+        required
+        owned
+        allocated
+        available
+        allocatedElsewhere
+        missing
+      }
+    }
+  }
+`)
+
+const DeallocateDeckCardItemDocument = graphql(`
+  mutation DeallocateDeckCardItem($deckCardId: ID!, $collectionItemId: ID!) {
+    deallocateDeckCardItem(deckCardId: $deckCardId, collectionItemId: $collectionItemId) {
+      id
+      allocationStatus {
+        state
+        required
+        owned
+        allocated
+        available
+        allocatedElsewhere
+        missing
+      }
+    }
+  }
+`)
+
+const PreviewBulkAllocateDeckDocument = graphql(`
+  mutation PreviewBulkAllocateDeck($id: ID!, $mode: String!) {
+    previewBulkAllocateDeck(id: $id, mode: $mode) {
+      mode
+      allocated
+      cards
+      skipped
+      entries {
+        quantity
+        exact
+        deckCard {
+          id
+          quantity
+          finish
+          card { name }
+          preferredPrinting { setCode setName collectorNumber }
+        }
+        item {
+          id
+          quantity
+          finish
+          printing {
+            setCode
+            setName
+            collectorNumber
+            card { name }
+          }
+        }
+      }
+    }
+  }
+`)
+
+const BulkAllocateDeckDocument = graphql(`
+  mutation BulkAllocateDeck($id: ID!, $mode: String!) {
+    bulkAllocateDeck(id: $id, mode: $mode) {
+      allocated
+      cards
+      skipped
     }
   }
 `)
@@ -208,6 +316,8 @@ export function DeckDetailPage({ id }: { id: string }) {
   const [isEditDeckOpen, setIsEditDeckOpen] = useState(false)
   const [isImportDeckOpen, setIsImportDeckOpen] = useState(false)
   const [isExportDeckOpen, setIsExportDeckOpen] = useState(false)
+  const [bulkAllocationPreview, setBulkAllocationPreview] = useState<BulkAllocationPreview | null>(null)
+  const [bulkAllocationError, setBulkAllocationError] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const { data, isLoading } = useQuery({ queryKey: ["deck", id], queryFn: () => request(DeckDocument, { id }) })
   const deck = data?.deck
@@ -217,6 +327,10 @@ export function DeckDetailPage({ id }: { id: string }) {
   const maybeboardCards = useMemo(() => deckCards.filter(deckCard => deckCard.zone === "maybeboard").sort(compareDeckCards), [deckCards])
   const groupedCards = useMemo(() => groupDeckCards(stackDeckCards, groupBy), [stackDeckCards, groupBy])
   const zoneCounts = useMemo(() => countDeckZones(deckCards), [deckCards])
+  const hasBulkAllocationAvailable = useMemo(
+    () => deckCards.some(deckCard => deckCard.allocationStatus.available > 0 && deckCard.allocationStatus.allocated < deckCard.allocationStatus.required),
+    [deckCards],
+  )
 
   const updateDeckCard = useMutation({
     mutationFn: ({ deckCardId, zone }: { deckCardId: string; zone: DeckZone }) => request(UpdateDeckCardDocument, { id: deckCardId, input: { zone } }),
@@ -238,7 +352,53 @@ export function DeckDetailPage({ id }: { id: string }) {
     },
     onError: error => setMoveError(error instanceof Error ? error.message : "Could not set commander"),
   })
-  const isUpdatingDeckCard = updateDeckCard.isPending || setDeckCommander.isPending
+  const allocateDeckCardItem = useMutation({
+    mutationFn: ({ collectionItemId, deckCardId }: { collectionItemId: string; deckCardId: string }) =>
+      request(AllocateDeckCardItemDocument, { deckCardId, collectionItemId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deck", id] })
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      queryClient.invalidateQueries({ queryKey: ["collection"] })
+      queryClient.invalidateQueries({ queryKey: ["collection-items"] })
+    },
+  })
+  const deallocateDeckCardItem = useMutation({
+    mutationFn: ({ collectionItemId, deckCardId }: { collectionItemId: string; deckCardId: string }) =>
+      request(DeallocateDeckCardItemDocument, { deckCardId, collectionItemId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deck", id] })
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      queryClient.invalidateQueries({ queryKey: ["collection"] })
+      queryClient.invalidateQueries({ queryKey: ["collection-items"] })
+    },
+  })
+  const previewBulkAllocateDeck = useMutation({
+    mutationFn: (mode: BulkAllocationMode) => request(PreviewBulkAllocateDeckDocument, { id, mode }),
+    onSuccess: data => {
+      setBulkAllocationPreview(data.previewBulkAllocateDeck || null)
+      setBulkAllocationError(null)
+    },
+    onError: error => setBulkAllocationError(error instanceof Error ? error.message : "Could not preview allocation"),
+  })
+  const bulkAllocateDeck = useMutation({
+    mutationFn: (mode: BulkAllocationMode) => request(BulkAllocateDeckDocument, { id, mode }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deck", id] })
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      queryClient.invalidateQueries({ queryKey: ["collection"] })
+      queryClient.invalidateQueries({ queryKey: ["collection-items"] })
+      setBulkAllocationPreview(null)
+      setBulkAllocationError(null)
+    },
+    onError: error => setBulkAllocationError(error instanceof Error ? error.message : "Could not allocate deck"),
+  })
+  const allocationError =
+    allocateDeckCardItem.error instanceof Error
+      ? allocateDeckCardItem.error.message
+      : deallocateDeckCardItem.error instanceof Error
+        ? deallocateDeckCardItem.error.message
+        : null
+  const isUpdatingDeckCard = updateDeckCard.isPending || setDeckCommander.isPending || allocateDeckCardItem.isPending || deallocateDeckCardItem.isPending
 
   if (isLoading) return <EmptyState title="Loading deck..." />
   if (!deck) return <EmptyState title="Deck not found" />
@@ -285,7 +445,18 @@ export function DeckDetailPage({ id }: { id: string }) {
               </Badge>
             ))}
           </div>
-          <DeckGroupMenu value={groupBy} onChange={setGroupBy} />
+          <div className="flex flex-wrap items-center gap-2">
+            {hasBulkAllocationAvailable ? (
+              <BulkAllocationMenu
+                disabled={previewBulkAllocateDeck.isPending || bulkAllocateDeck.isPending}
+                onPreview={mode => {
+                  setBulkAllocationError(null)
+                  previewBulkAllocateDeck.mutate(mode)
+                }}
+              />
+            ) : null}
+            <DeckGroupMenu value={groupBy} onChange={setGroupBy} />
+          </div>
         </div>
 
         {groupedCards.length ? (
@@ -297,7 +468,10 @@ export function DeckDetailPage({ id }: { id: string }) {
               setMoveError(null)
               setMoveTarget(deckCard)
             }}
+            onAllocate={(deckCard, collectionItemId) => allocateDeckCardItem.mutate({ deckCardId: deckCard.id, collectionItemId })}
+            onDeallocate={(deckCard, collectionItemId) => deallocateDeckCardItem.mutate({ deckCardId: deckCard.id, collectionItemId })}
             onSetCommander={deckCard => setDeckCommander.mutate(deckCard.id)}
+            allocationError={allocationError}
           />
         ) : (
           <EmptyState title="No cards in this deck" />
@@ -328,6 +502,18 @@ export function DeckDetailPage({ id }: { id: string }) {
       <EditDeckDialog deck={deck} onOpenChange={setIsEditDeckOpen} open={isEditDeckOpen} />
       <ImportDecklistDialog deck={deck} onOpenChange={setIsImportDeckOpen} open={isImportDeckOpen} />
       <ExportDecklistDialog deck={deck} onOpenChange={setIsExportDeckOpen} open={isExportDeckOpen} />
+      <BulkAllocationPreviewDialog
+        error={bulkAllocationError}
+        isPending={bulkAllocateDeck.isPending}
+        onClose={() => {
+          if (!bulkAllocateDeck.isPending) {
+            setBulkAllocationPreview(null)
+            setBulkAllocationError(null)
+          }
+        }}
+        onConfirm={mode => bulkAllocateDeck.mutate(mode)}
+        preview={bulkAllocationPreview}
+      />
 
       <MoveDeckCardDialog
         deckCard={moveTarget}
@@ -353,6 +539,8 @@ type DeckDetail = NonNullable<DeckQuery["deck"]>
 type DeckCardEntry = NonNullable<NonNullable<DeckDetail["deckCards"]>[number]>
 type DeckZone = "mainboard" | "sideboard" | "commander" | "maybeboard"
 type DeckGroupBy = "type" | "color" | "colorIdentity" | "manaValue" | "rarity" | "set" | "none"
+type BulkAllocationMode = "exact_printings" | "matching_printings"
+type BulkAllocationPreview = NonNullable<PreviewBulkAllocateDeckMutation["previewBulkAllocateDeck"]>
 type DeckGroup = {
   cards: DeckCardEntry[]
   icon: DeckGroupIcon
@@ -670,16 +858,160 @@ function DeckGroupMenu({ onChange, value }: { onChange: (value: DeckGroupBy) => 
   )
 }
 
+function BulkAllocationMenu({ disabled, onPreview }: { disabled: boolean; onPreview: (mode: BulkAllocationMode) => void }) {
+  return (
+    <div className="dropdown dropdown-end">
+      <button type="button" className="btn btn-primary btn-sm min-w-40 justify-between gap-2 px-4" tabIndex={0} disabled={disabled}>
+        <span className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4" />
+          Allocation
+        </span>
+        <ChevronDown className="h-4 w-4" />
+      </button>
+      <div tabIndex={0} className="dropdown-content z-50 mt-2 w-60 rounded-box border border-base-300 bg-base-100 p-2 shadow-2xl">
+        <button type="button" className="btn btn-primary btn-sm w-full justify-start" onClick={() => onPreview("exact_printings")}>
+          <CheckCircle2 className="h-4 w-4" />
+          Exact printings
+        </button>
+        <button type="button" className="btn btn-outline btn-sm mt-2 w-full justify-start" onClick={() => onPreview("matching_printings")}>
+          <Layers className="h-4 w-4" />
+          Partial matches
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function BulkAllocationPreviewDialog({
+  error,
+  isPending,
+  onClose,
+  onConfirm,
+  preview,
+}: {
+  error: string | null
+  isPending: boolean
+  onClose: () => void
+  onConfirm: (mode: BulkAllocationMode) => void
+  preview: BulkAllocationPreview | null
+}) {
+  const mode = bulkAllocationMode(preview?.mode)
+
+  return (
+    <Dialog open={Boolean(preview)} onOpenChange={open => (!open ? onClose() : undefined)}>
+      <DialogContent className="max-w-4xl" labelledBy="bulk-allocation-title">
+        <DialogHeader>
+          <div>
+            <DialogTitle id="bulk-allocation-title">{bulkAllocationModeLabel(mode)}</DialogTitle>
+            <p className="mt-1 text-sm text-base-content/60">
+              {preview ? `${preview.allocated} collection ${copyLabel(preview.allocated)} across ${preview.cards} ${deckCardLabel(preview.cards)}.` : null}
+            </p>
+          </div>
+          <DialogClose onClose={onClose} />
+        </DialogHeader>
+
+        <div className="space-y-4 p-5">
+          {preview?.entries.length === 0 ? (
+            <div className="rounded-box border border-info/20 bg-info/10 p-4 text-sm">No available collection copies matched this allocation mode.</div>
+          ) : (
+            <div className="max-h-[60vh] overflow-y-auto rounded-box border border-base-300">
+              <table className="table table-sm">
+                <thead>
+                  <tr>
+                    <th className="w-16">Qty</th>
+                    <th>Deck card</th>
+                    <th>Collection printing</th>
+                    <th className="w-24">Match</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {preview?.entries.map((entry, index) => (
+                    <tr key={`${entry.deckCard.id}-${entry.item.id}-${index}`}>
+                      <td className="font-black">{entry.quantity}</td>
+                      <td>
+                        <div className="font-semibold">{entry.deckCard.card?.name}</div>
+                        <div className="text-xs text-base-content/60">
+                          Wants {deckCardPrintingLabel(entry.deckCard)} · {titleize(entry.deckCard.finish || "nonfoil")}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="font-semibold">{collectionItemPrintingLabel(entry.item)}</div>
+                        <div className="text-xs text-base-content/60">
+                          Owned {entry.item.quantity} · {titleize(entry.item.finish)}
+                        </div>
+                      </td>
+                      <td>
+                        <Badge tone={entry.exact ? "success" : "warning"}>{entry.exact ? "Exact" : "Partial"}</Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p> : null}
+
+          <div className="flex justify-end gap-2 border-t border-base-300 pt-4">
+            <Button type="button" variant="ghost" disabled={isPending} onClick={onClose}>Cancel</Button>
+            <Button type="button" disabled={isPending || !preview || preview.entries.length === 0} onClick={() => onConfirm(mode)}>
+              {isPending ? "Allocating..." : "Allocate"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function bulkAllocationMode(value?: string | null): BulkAllocationMode {
+  return value === "exact_printings" ? "exact_printings" : "matching_printings"
+}
+
+function bulkAllocationModeLabel(mode: BulkAllocationMode) {
+  return mode === "exact_printings" ? "Exact printings" : "Partial matches"
+}
+
+function copyLabel(count: number) {
+  return count === 1 ? "copy" : "copies"
+}
+
+function deckCardLabel(count: number) {
+  return count === 1 ? "deck card" : "deck cards"
+}
+
+function deckCardPrintingLabel(deckCard: BulkAllocationPreview["entries"][number]["deckCard"]) {
+  const printing = deckCard.preferredPrinting
+  if (!printing) return "Any printing"
+
+  return printingSetLabel(printing) || printing.setName || "Preferred printing"
+}
+
+function collectionItemPrintingLabel(item: BulkAllocationPreview["entries"][number]["item"]) {
+  const printing = item.printing
+  return printingSetLabel(printing) || printing?.setName || printing?.card?.name || "Collection item"
+}
+
+function printingSetLabel(printing?: { collectorNumber?: string | null; setCode?: string | null } | null) {
+  return [printing?.setCode?.toUpperCase(), printing?.collectorNumber ? `#${printing.collectorNumber}` : null].filter(Boolean).join(" ")
+}
+
 function DeckGroupGrid({
+  allocationError,
   canSetCommander,
   groups,
   isUpdating,
+  onAllocate,
+  onDeallocate,
   onMove,
   onSetCommander,
 }: {
+  allocationError: string | null
   canSetCommander: boolean
   groups: DeckGroup[]
   isUpdating: boolean
+  onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
+  onDeallocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
   onMove: (deckCard: DeckCardEntry) => void
   onSetCommander: (deckCard: DeckCardEntry) => void
 }) {
@@ -696,6 +1028,9 @@ function DeckGroupGrid({
           canSetCommander={canSetCommander}
           group={group}
           isUpdating={isUpdating}
+          allocationError={allocationError}
+          onAllocate={onAllocate}
+          onDeallocate={onDeallocate}
           onMove={onMove}
           onSetCommander={onSetCommander}
         />
@@ -725,15 +1060,21 @@ function deckStackIndexFromPointer(pointerY: number, activeIndex: number | null,
 }
 
 function DeckStackGroup({
+  allocationError,
   canSetCommander,
   group,
   isUpdating,
+  onAllocate,
+  onDeallocate,
   onMove,
   onSetCommander,
 }: {
+  allocationError: string | null
   canSetCommander: boolean
   group: DeckGroup
   isUpdating: boolean
+  onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
+  onDeallocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
   onMove: (deckCard: DeckCardEntry) => void
   onSetCommander: (deckCard: DeckCardEntry) => void
 }) {
@@ -760,7 +1101,7 @@ function DeckStackGroup({
       </div>
 
       <div
-        className="relative w-56 overflow-hidden"
+        className="relative w-56 overflow-visible"
         style={{ minHeight: `${DECK_STACK_CARD_HEIGHT + Math.max(group.cards.length - 1, 0) * DECK_STACK_OFFSET}px` }}
         onPointerLeave={event => {
           if (event.pointerType !== "touch") setHoveredIndex(null)
@@ -775,10 +1116,13 @@ function DeckStackGroup({
             index={index}
             isActive={activeIndex === index}
             isUpdating={isUpdating}
+            allocationError={allocationError}
             onExpand={() => {
               setHoveredIndex(null)
               setPinnedIndex(index)
             }}
+            onAllocate={collectionItemId => onAllocate(deckCard, collectionItemId)}
+            onDeallocate={collectionItemId => onDeallocate(deckCard, collectionItemId)}
             onMove={() => onMove(deckCard)}
             onSetCommander={() => onSetCommander(deckCard)}
             slideOffset={activeIndex != null && index > activeIndex ? revealOffset : 0}
@@ -791,22 +1135,28 @@ function DeckStackGroup({
 }
 
 function DeckStackCard({
+  allocationError,
   canSetCommander,
   deckCard,
   index,
   isActive,
   isUpdating,
+  onAllocate,
+  onDeallocate,
   onExpand,
   onMove,
   onSetCommander,
   slideOffset,
   top,
 }: {
+  allocationError: string | null
   canSetCommander: boolean
   deckCard: DeckCardEntry
   index: number
   isActive: boolean
   isUpdating: boolean
+  onAllocate: (collectionItemId: string) => void
+  onDeallocate: (collectionItemId: string) => void
   onExpand: () => void
   onMove: () => void
   onSetCommander: () => void
@@ -829,9 +1179,17 @@ function DeckStackCard({
         zIndex: isActive ? 90 : index + 1,
       }}
     >
+      <DeckCardAllocationMenu
+        deckCard={deckCard}
+        error={allocationError}
+        isUpdating={isUpdating}
+        onAllocate={onAllocate}
+        onDeallocate={onDeallocate}
+      />
+
       <div
         className={cn(
-          "dropdown absolute left-2 top-2 z-[120] transition-opacity group-focus-within/deck-card:opacity-100",
+          "dropdown dropdown-end absolute right-2 top-2 z-[120] transition-opacity group-focus-within/deck-card:opacity-100",
           isActive ? "opacity-100" : "opacity-0",
         )}
         onClick={event => event.stopPropagation()}
@@ -910,6 +1268,131 @@ function DeckStackCard({
       </button>
     </article>
   )
+}
+
+function DeckCardAllocationMenu({
+  deckCard,
+  error,
+  isUpdating,
+  onAllocate,
+  onDeallocate,
+}: {
+  deckCard: DeckCardEntry
+  error: string | null
+  isUpdating: boolean
+  onAllocate: (collectionItemId: string) => void
+  onDeallocate: (collectionItemId: string) => void
+}) {
+  const status = deckCard.allocationStatus
+  const label = allocationStatusLabel(status)
+
+  return (
+    <div className="dropdown absolute left-2 top-2 z-[130]" onClick={event => event.stopPropagation()} onMouseDown={event => event.stopPropagation()}>
+      <button
+        type="button"
+        className={cn("btn btn-circle btn-xs border shadow backdrop-blur transition", allocationStatusButtonClass(status.state))}
+        tabIndex={0}
+        aria-label={label}
+        title={label}
+      >
+        <AllocationStatusIcon state={status.state} className="h-4 w-4" />
+      </button>
+      <div tabIndex={0} className="dropdown-content z-[130] mt-1 w-80 rounded-box border border-base-300 bg-base-100 p-3 text-sm shadow-2xl">
+        <div className="space-y-1">
+          <p className="font-black">{label}</p>
+          <p className="text-xs leading-5 text-base-content/70">{allocationStatusSummary(status)}</p>
+        </div>
+
+        {error ? <p className="mt-3 rounded-box border border-error/30 bg-error/10 px-3 py-2 text-xs text-error">{error}</p> : null}
+
+        {status.candidates.length === 0 ? (
+          <div className="mt-3 text-sm text-base-content/60">No matching owned printings.</div>
+        ) : (
+          <ul className="menu mt-3 p-0 text-sm">
+            {status.candidates.map(candidate => (
+              <li key={candidate.item.id} className="rounded-box">
+                <div className="block space-y-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold">{collectionItemLabel(candidate.item)}</p>
+                    <p className="text-xs text-base-content/60">{allocationCandidateSummary(candidate)}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-xs"
+                      disabled={isUpdating || candidate.available <= 0 || status.allocated >= status.required}
+                      onClick={() => onAllocate(candidate.item.id)}
+                    >
+                      Allocate
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-xs"
+                      disabled={isUpdating || candidate.allocated <= 0}
+                      onClick={() => onDeallocate(candidate.item.id)}
+                    >
+                      Deallocate
+                    </button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function allocationStatusLabel(status: DeckCardEntry["allocationStatus"]) {
+  if (status.state === "allocated") return "Fully allocated"
+  if (status.state === "available") return "Available to allocate"
+  if (status.state === "partial") return "Partially available"
+  if (status.state === "basic_land") return "Basic land"
+  return "Missing from collection"
+}
+
+function allocationStatusSummary(status: DeckCardEntry["allocationStatus"]) {
+  if (status.state === "allocated") return `${status.allocated} allocated`
+  if (status.state === "basic_land") return "Basic lands do not need collection copies"
+
+  const needed = Math.max(status.required - status.allocated, 0)
+
+  if (status.available > 0) return `${status.available} free of ${needed} needed`
+  if (status.missing > 0 && status.allocated > 0) return `${status.allocated} allocated · ${status.missing} missing`
+  if (status.missing > 0) return `${status.owned} owned · ${status.missing} missing`
+
+  return `${status.required} needed`
+}
+
+function allocationCandidateSummary(candidate: DeckCardEntry["allocationStatus"]["candidates"][number]) {
+  return [
+    `${candidate.available} free`,
+    candidate.allocated ? `${candidate.allocated} here` : null,
+    candidate.allocatedElsewhere ? `${candidate.allocatedElsewhere} elsewhere` : null,
+  ].filter(Boolean).join(" · ")
+}
+
+function allocationStatusButtonClass(state: string) {
+  if (state === "allocated") return "border-success/40 bg-success/90 text-success-content hover:bg-success"
+  if (state === "available") return "border-primary/40 bg-primary/90 text-primary-content hover:bg-primary"
+  if (state === "partial") return "border-warning/40 bg-warning/90 text-warning-content hover:bg-warning"
+  if (state === "basic_land") return "border-info/40 bg-info/90 text-info-content hover:bg-info"
+  return "border-error/40 bg-error/90 text-error-content hover:bg-error"
+}
+
+function AllocationStatusIcon({ className, state }: { className?: string; state: string }) {
+  if (state === "allocated") return <CheckCircle2 className={className} />
+  if (state === "available" || state === "basic_land") return <Circle className={className} />
+  if (state === "partial") return <AlertTriangle className={className} />
+  return <XCircle className={className} />
+}
+
+function collectionItemLabel(item: DeckCardEntry["allocationStatus"]["candidates"][number]["item"]) {
+  const printing = item.printing
+  const setLabel = [printing?.setCode?.toUpperCase(), printing?.collectorNumber ? `#${printing.collectorNumber}` : null].filter(Boolean).join(" ")
+  const location = item.location?.name || "Unfiled"
+  return [setLabel || printing?.setName, titleize(item.finish), location].filter(Boolean).join(" · ")
 }
 
 function DeckZoneTable({
