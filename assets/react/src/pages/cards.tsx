@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
-import { ListFilter, Search } from "lucide-react"
+import { Boxes, ListFilter, Search } from "lucide-react"
 import { useEffect, useState } from "react"
 import type { FormEvent } from "react"
 import { PageHeader } from "../components/app-shell"
@@ -250,6 +250,7 @@ export function CardDetailPage({ id, query }: { id: string; query: string }) {
                 imageUrl={printing.imageUrl}
                 menuActions={[
                   {
+                    icon: <Boxes className="h-4 w-4" />,
                     onClick: () => setAddPrinting({
                       cardName: card.name,
                       collectorNumber: printing.collectorNumber,

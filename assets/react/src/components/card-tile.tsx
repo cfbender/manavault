@@ -186,12 +186,12 @@ export function CardTile({
   )
 }
 
-export function addToDeckAction(): CardTileAction {
-  return { icon: <Layers className="h-4 w-4" />, label: "Add to deck", disabled: true }
+export function addToDeckAction(options: Pick<CardTileAction, "disabled" | "onClick"> = {}): CardTileAction {
+  return { icon: <Layers className="h-4 w-4" />, label: "Add to deck", ...options }
 }
 
-export function addToListAction(): CardTileAction {
-  return { icon: <ListPlus className="h-4 w-4" />, label: "Add to list", disabled: true }
+export function addToListAction(options: Pick<CardTileAction, "disabled" | "onClick"> = {}): CardTileAction {
+  return { icon: <ListPlus className="h-4 w-4" />, label: "Add to list", ...options }
 }
 
 function SetIcon({ rarity, setCode }: { rarity?: string | null; setCode?: string | null }) {

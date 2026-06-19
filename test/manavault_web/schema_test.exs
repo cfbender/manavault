@@ -65,7 +65,8 @@ defmodule ManavaultWeb.SchemaTest do
     {:ok, _item} =
       Catalog.create_collection_item(%{
         scryfall_id: printing.scryfall_id,
-        location_id: location.id
+        location_id: location.id,
+        quantity: 3
       })
 
     conn =
@@ -73,7 +74,10 @@ defmodule ManavaultWeb.SchemaTest do
         "query" => """
         query {
           locations {
+            id
             name
+            kind
+            itemCount
             totalPriceText
             coverPrinting { imageUrl artCropUrl card { name } }
           }
@@ -92,15 +96,27 @@ defmodule ManavaultWeb.SchemaTest do
              "data" => %{
                "locations" => [
                  %{
+                   "id" => _id,
+                   "name" => "Binder",
+                   "kind" => "binder",
                    "coverPrinting" => %{
                      "card" => %{"name" => "Test Card"},
                      "artCropUrl" => "https://example.test/card-art.jpg",
                      "imageUrl" => "https://example.test/card.jpg"
                    },
-                   "totalPriceText" => "$12.34"
+                   "itemCount" => 3,
+                   "totalPriceText" => "$37.02"
+                 },
+                 %{
+                   "id" => "unfiled",
+                   "name" => "Unfiled",
+                   "kind" => "unfiled",
+                   "coverPrinting" => nil,
+                   "itemCount" => 0,
+                   "totalPriceText" => "$0"
                  }
                ],
-               "collectionItemCount" => 1,
+               "collectionItemCount" => 3,
                "collectionItems" => [
                  %{
                    "allocatedQuantity" => 0,
@@ -112,6 +128,68 @@ defmodule ManavaultWeb.SchemaTest do
                    }
                  }
                ]
+             }
+           } = json_response(conn, 200)
+  end
+
+  test "unfiled location resolves cards without an assigned location", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-unfiled",
+          "oracle_id" => "oracle-unfiled",
+          "name" => "Loose Card",
+          "type_line" => "Creature",
+          "collector_number" => "7",
+          "set" => "tst",
+          "set_name" => "Test Set",
+          "lang" => "en",
+          "rarity" => "common",
+          "image_uris" => %{},
+          "prices" => %{"usd" => "0.50"},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, _item} =
+      Catalog.create_collection_item(%{
+        scryfall_id: "scryfall-unfiled",
+        quantity: 4
+      })
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query {
+          location(id: "unfiled") {
+            id
+            name
+            kind
+            itemCount
+            totalPriceText
+            collectionItems { quantity location { name } printing { card { name } } }
+          }
+        }
+        """
+      })
+
+    assert %{
+             "data" => %{
+               "location" => %{
+                 "id" => "unfiled",
+                 "name" => "Unfiled",
+                 "kind" => "unfiled",
+                 "itemCount" => 4,
+                 "totalPriceText" => "$2",
+                 "collectionItems" => [
+                   %{
+                     "quantity" => 4,
+                     "location" => nil,
+                     "printing" => %{"card" => %{"name" => "Loose Card"}}
+                   }
+                 ]
+               }
              }
            } = json_response(conn, 200)
   end
@@ -303,6 +381,153 @@ defmodule ManavaultWeb.SchemaTest do
            } = json_response(conn, 200)
   end
 
+  test "update and delete collection item mutations change owned printings", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-printing-update",
+          "oracle_id" => "oracle-update",
+          "name" => "Update Collection Card",
+          "type_line" => "Creature",
+          "collector_number" => "12",
+          "set" => "upd",
+          "set_name" => "Update Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil", "foil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, location} = Catalog.create_location(%{name: "Old Box", kind: "box"})
+    {:ok, new_location} = Catalog.create_location(%{name: "New List", kind: "list"})
+
+    {:ok, item} =
+      Catalog.create_collection_item(%{
+        scryfall_id: "scryfall-printing-update",
+        quantity: 2,
+        location_id: location.id
+      })
+
+    update_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation UpdateCollectionItem($id: ID!, $input: CollectionItemUpdateInput!) {
+          updateCollectionItem(id: $id, input: $input) {
+            id
+            quantity
+            condition
+            language
+            finish
+            notes
+            location { name }
+          }
+        }
+        """,
+        "variables" => %{
+          "id" => item.id,
+          "input" => %{
+            "quantity" => 4,
+            "condition" => "lightly_played",
+            "language" => "ja",
+            "finish" => "foil",
+            "locationId" => new_location.id,
+            "notes" => "Moved"
+          }
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "updateCollectionItem" => %{
+                 "id" => _id,
+                 "quantity" => 4,
+                 "condition" => "lightly_played",
+                 "language" => "ja",
+                 "finish" => "foil",
+                 "notes" => "Moved",
+                 "location" => %{"name" => "New List"}
+               }
+             }
+           } = json_response(update_conn, 200)
+
+    delete_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation DeleteCollectionItem($id: ID!) {
+          deleteCollectionItem(id: $id) {
+            id
+          }
+        }
+        """,
+        "variables" => %{"id" => item.id}
+      })
+
+    assert %{"data" => %{"deleteCollectionItem" => %{"id" => _id}}} = json_response(delete_conn, 200)
+    assert [] = Catalog.list_collection_items()
+  end
+
+  test "add collection item to deck creates a deck card and allocation", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-printing-deck-add",
+          "oracle_id" => "oracle-deck-add",
+          "name" => "Deck Add Card",
+          "type_line" => "Artifact",
+          "collector_number" => "7",
+          "set" => "dad",
+          "set_name" => "Deck Add Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, item} =
+      Catalog.create_collection_item(%{
+        scryfall_id: "scryfall-printing-deck-add",
+        quantity: 1
+      })
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Target Deck"})
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation AddCollectionItemToDeck($id: ID!, $deckId: ID!, $zone: String) {
+          addCollectionItemToDeck(id: $id, deckId: $deckId, zone: $zone) {
+            id
+            quantity
+            zone
+            finish
+            card { name }
+            preferredPrinting { scryfallId }
+          }
+        }
+        """,
+        "variables" => %{"id" => item.id, "deckId" => deck.id, "zone" => "sideboard"}
+      })
+
+    assert %{
+             "data" => %{
+               "addCollectionItemToDeck" => %{
+                 "id" => _id,
+                 "quantity" => 1,
+                 "zone" => "sideboard",
+                 "finish" => "nonfoil",
+                 "card" => %{"name" => "Deck Add Card"},
+                 "preferredPrinting" => %{"scryfallId" => "scryfall-printing-deck-add"}
+               }
+             }
+           } = json_response(conn, 200)
+
+    [deck_card] = Catalog.get_deck!(deck.id).deck_cards
+    status = Catalog.deck_card_allocation_status(deck_card)
+    assert status.allocated == 1
+  end
+
   test "create location mutation creates a location with optional cover", %{conn: conn} do
     {:ok, %{cards_count: 1, printings_count: 1}} =
       Catalog.import_cards([
@@ -358,6 +583,128 @@ defmodule ManavaultWeb.SchemaTest do
                }
              }
            } = json_response(conn, 200)
+  end
+
+  test "collection import preview commit and export are available over GraphQL", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-printing-import",
+          "oracle_id" => "oracle-import",
+          "name" => "Imported Card",
+          "type_line" => "Creature",
+          "collector_number" => "9",
+          "set" => "imp",
+          "set_name" => "Import Set",
+          "lang" => "en",
+          "rarity" => "rare",
+          "image_uris" => %{"normal" => "https://example.test/import.jpg"},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, location} = Catalog.create_location(%{name: "Import Binder", kind: "binder"})
+
+    csv = """
+    Quantity,Card Name,Set Code,Collector Number,Finish,Condition,Language
+    3,Imported Card,imp,9,nonfoil,NM,en
+    """
+
+    preview_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation PreviewCollectionImport($input: CollectionImportPreviewInput!) {
+          previewCollectionImport(input: $input) {
+            locationId
+            total
+            exact
+            ambiguous
+            unresolved
+            rows {
+              rowNumber
+              status
+              attrs { quantity finish condition language scryfallId locationId }
+              printing { scryfallId card { name } }
+              candidates { scryfallId }
+            }
+          }
+        }
+        """,
+        "variables" => %{"input" => %{"csv" => csv, "locationId" => location.id}}
+      })
+
+    assert %{
+             "data" => %{
+               "previewCollectionImport" => %{
+                 "locationId" => _location_id,
+                 "total" => 1,
+                 "exact" => 1,
+                 "ambiguous" => 0,
+                 "unresolved" => 0,
+                 "rows" => [
+                   %{
+                     "rowNumber" => 2,
+                     "status" => "exact",
+                     "attrs" => %{
+                       "quantity" => 3,
+                       "finish" => "nonfoil",
+                       "condition" => "near_mint",
+                       "language" => "en",
+                       "scryfallId" => "scryfall-printing-import"
+                     },
+                     "printing" => %{
+                       "scryfallId" => "scryfall-printing-import",
+                       "card" => %{"name" => "Imported Card"}
+                     }
+                   }
+                 ] = rows
+               }
+             }
+           } = json_response(preview_conn, 200)
+
+    commit_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation CommitCollectionImport($input: CollectionImportCommitInput!) {
+          commitCollectionImport(input: $input) {
+            imported
+            skipped
+          }
+        }
+        """,
+        "variables" => %{
+          "input" => %{
+            "rows" =>
+              Enum.map(rows, fn row ->
+                %{
+                  "rowNumber" => row["rowNumber"],
+                  "status" => row["status"],
+                  "attrs" => row["attrs"]
+                }
+              end)
+          }
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "commitCollectionImport" => %{"imported" => 1, "skipped" => 0}
+             }
+           } = json_response(commit_conn, 200)
+
+    export_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query {
+          collectionExportCsv
+        }
+        """
+      })
+
+    assert %{"data" => %{"collectionExportCsv" => export_csv}} = json_response(export_conn, 200)
+    assert export_csv =~ "Quantity,Card Name,Set Code,Collector Number,Finish,Condition,Language,Location"
+    assert export_csv =~ "3,Imported Card,imp,9,nonfoil,near_mint,en,Import Binder"
   end
 
   test "update deck mutation updates deck fields", %{conn: conn} do
@@ -451,6 +798,25 @@ defmodule ManavaultWeb.SchemaTest do
                }
              }
            } = json_response(conn, 200)
+  end
+
+  test "update location mutation rejects unfiled pseudo-location", %{conn: conn} do
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation UpdateLocation($id: ID!, $input: LocationUpdateInput!) {
+          updateLocation(id: $id, input: $input) {
+            id
+          }
+        }
+        """,
+        "variables" => %{
+          "id" => "unfiled",
+          "input" => %{"coverScryfallId" => "anything"}
+        }
+      })
+
+    assert %{"errors" => [%{"message" => "Unfiled cannot be edited"}]} = json_response(conn, 200)
   end
 
   test "update deck card mutation moves a card between zones", %{conn: conn} do

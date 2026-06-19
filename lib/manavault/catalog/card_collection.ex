@@ -35,7 +35,8 @@ defmodule Manavault.Catalog.CardCollection do
   def count_items(filters \\ []) when is_list(filters) do
     filters
     |> base_query()
-    |> Repo.aggregate(:count, :id)
+    |> select([item, _printing, _card, _location], coalesce(sum(item.quantity), 0))
+    |> Repo.one()
   end
 
   def list_items_by_location(location_id, filters \\ [], opts \\ [])

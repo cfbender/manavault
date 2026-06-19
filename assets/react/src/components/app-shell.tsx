@@ -123,23 +123,26 @@ export function AppShell() {
 
 export function PageHeader({
   title,
+  bottomActions,
   description,
   actions,
   eyebrow,
 }: {
   title: string
+  bottomActions?: ReactNode
   description?: string
   actions?: ReactNode
   eyebrow?: string
 }) {
   return (
-    <section className="card mb-7 border border-base-300 bg-base-200 shadow-xl">
+    <section className="card relative mb-7 border border-base-300 bg-base-200 shadow-xl">
       <div className="card-body gap-5 p-6 sm:p-8">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             {eyebrow ? <div className="badge badge-primary badge-outline mb-4 uppercase">{eyebrow}</div> : null}
             <h1 className="text-4xl font-black tracking-normal sm:text-5xl">{title}</h1>
             {description ? <p className="mt-4 max-w-4xl text-lg text-base-content/70">{description}</p> : null}
+            {bottomActions ? <div className="mt-5 flex flex-wrap items-center justify-end gap-2">{bottomActions}</div> : null}
           </div>
           {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
         </div>

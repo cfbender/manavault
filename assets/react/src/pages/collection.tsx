@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router"
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ArrowDownUp, Boxes, Edit3, ListFilter, MoreVertical, MoveUpRight, Plus, Search, Trash2 } from "lucide-react"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { ArrowDownUp, Boxes, Download, Edit3, ListFilter, MoreVertical, MoveUpRight, Plus, Search, Trash2, Upload } from "lucide-react"
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { PageHeader, PageSection } from "../components/app-shell"
 import { EmptyState } from "../components/card-image"
 import { CardNameSearchField } from "../components/card-name-search-field"
@@ -9,10 +9,11 @@ import { addToDeckAction, addToListAction, CardTile } from "../components/card-t
 import { ImageSummaryCard } from "../components/image-summary-card"
 import { Badge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
+import { Card } from "../components/ui/card"
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog"
 import { Input } from "../components/ui/input"
 import { graphql } from "../gql"
-import { CollectionItemsPageDocument as GeneratedCollectionItemsPageDocument, type CollectionQuery, type LocationCoverCardSearchQuery, type LocationQuery } from "../gql/graphql"
+import { CollectionItemsPageDocument as GeneratedCollectionItemsPageDocument, type CollectionQuery, type LocationCoverCardSearchQuery, type LocationQuery, type PreviewCollectionImportMutation } from "../gql/graphql"
 import { request } from "../lib/graphql"
 import { cn, compactNumber, present, titleize } from "../lib/utils"
 
@@ -81,6 +82,17 @@ const CollectionItemFormOptionsDocument = graphql(`
   }
 `)
 
+const CollectionItemDeckOptionsDocument = graphql(`
+  query CollectionItemDeckOptions {
+    decks {
+      id
+      name
+      format
+      status
+    }
+  }
+`)
+
 const CreateCollectionItemDocument = graphql(`
   mutation CreateCollectionItem($input: CollectionItemInput!) {
     createCollectionItem(input: $input) {
@@ -102,6 +114,52 @@ const CreateCollectionItemDocument = graphql(`
         rarity
         card { oracleId name typeLine }
       }
+    }
+  }
+`)
+
+const UpdateCollectionItemDocument = graphql(`
+  mutation UpdateCollectionItem($id: ID!, $input: CollectionItemUpdateInput!) {
+    updateCollectionItem(id: $id, input: $input) {
+      id
+      quantity
+      condition
+      language
+      finish
+      notes
+      priceText
+      allocatedQuantity
+      location { id name }
+      printing {
+        scryfallId
+        setCode
+        setName
+        collectorNumber
+        imageUrl
+        rarity
+        card { oracleId name typeLine }
+      }
+    }
+  }
+`)
+
+const DeleteCollectionItemDocument = graphql(`
+  mutation DeleteCollectionItem($id: ID!) {
+    deleteCollectionItem(id: $id) {
+      id
+    }
+  }
+`)
+
+const AddCollectionItemToDeckDocument = graphql(`
+  mutation AddCollectionItemToDeck($id: ID!, $deckId: ID!, $zone: String) {
+    addCollectionItemToDeck(id: $id, deckId: $deckId, zone: $zone) {
+      id
+      quantity
+      zone
+      finish
+      card { oracleId name }
+      preferredPrinting { scryfallId setCode collectorNumber imageUrl }
     }
   }
 `)
@@ -142,6 +200,7 @@ const CollectionItemsPageDocument = graphql(`
       condition
       language
       finish
+      notes
       priceText
       allocatedQuantity
       location { id name }
@@ -158,6 +217,66 @@ const CollectionItemsPageDocument = graphql(`
   }
 `) as typeof GeneratedCollectionItemsPageDocument
 
+const CollectionExportCsvDocument = graphql(`
+  query CollectionExportCsv($filters: CollectionItemFilters) {
+    collectionExportCsv(filters: $filters)
+  }
+`)
+
+const PreviewCollectionImportDocument = graphql(`
+  mutation PreviewCollectionImport($input: CollectionImportPreviewInput!) {
+    previewCollectionImport(input: $input) {
+      locationId
+      total
+      exact
+      ambiguous
+      unresolved
+      rows {
+        rowNumber
+        status
+        attrs {
+          name
+          setCode
+          collectorNumber
+          quantity
+          finish
+          condition
+          language
+          scryfallId
+          locationId
+        }
+        printing {
+          scryfallId
+          setCode
+          setName
+          collectorNumber
+          imageUrl
+          rarity
+          card { oracleId name typeLine }
+        }
+        candidates {
+          scryfallId
+          setCode
+          setName
+          collectorNumber
+          imageUrl
+          rarity
+          card { oracleId name typeLine }
+        }
+      }
+    }
+  }
+`)
+
+const CommitCollectionImportDocument = graphql(`
+  mutation CommitCollectionImport($input: CollectionImportCommitInput!) {
+    commitCollectionImport(input: $input) {
+      imported
+      skipped
+    }
+  }
+`)
+
 const COLLECTION_PAGE_SIZE = 48
 const CARD_TILE_WIDTH = 228
 const CARD_TILE_ROW_HEIGHT = 352
@@ -170,8 +289,11 @@ type CollectionItem = {
   priceText?: string | null
   quantity: number
   finish: string
+  language: string
   location?: { id: string; name: string } | null
+  notes?: string | null
   printing?: {
+    scryfallId: string
     setCode?: string | null
     setName?: string | null
     collectorNumber?: string | null
@@ -379,39 +501,54 @@ function VirtualizedCollectionGrid({
 }
 
 function CollectionItemTile({ item }: { item: CollectionItem }) {
+  const queryClient = useQueryClient()
+  const [deckTarget, setDeckTarget] = useState<CollectionItem | null>(null)
+  const [listTarget, setListTarget] = useState<CollectionItem | null>(null)
+  const [moveTarget, setMoveTarget] = useState<CollectionItem | null>(null)
+  const [editTarget, setEditTarget] = useState<CollectionItem | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<CollectionItem | null>(null)
+
+  function refreshCollection() {
+    queryClient.invalidateQueries({ queryKey: ["collection"] })
+    queryClient.invalidateQueries({ queryKey: ["collection-items"] })
+    queryClient.invalidateQueries({ queryKey: ["home"] })
+  }
+
   return (
-    <CardTile
-      allocatedLabel={item.allocatedQuantity ? `In deck${item.allocatedQuantity > 1 ? ` x${item.allocatedQuantity}` : ""}` : undefined}
-      count={item.quantity}
-      defaultActions={[
-        { icon: <MoveUpRight className="h-4 w-4" />, label: "Move", disabled: true },
-        {
-          content: (
-            <Link to="/collection/$id/edit" params={{ id: item.id }}>
-              <Edit3 className="h-4 w-4" />
-              Edit
-            </Link>
-          ),
-          label: "Edit",
-        },
-        { destructive: true, icon: <Trash2 className="h-4 w-4" />, label: "Delete", disabled: true },
-      ]}
-      finish={item.finish}
-      imageUrl={item.printing?.imageUrl}
-      location={item.location?.name}
-      menuActions={[addToDeckAction(), addToListAction()]}
-      name={
-        <Link to="/cards/$id" params={{ id: item.printing?.card?.oracleId || "" }} className="hover:underline">
-          {item.printing?.card?.name || "Unknown card"}
-        </Link>
-      }
-      price={item.priceText}
-      rarity={item.printing?.rarity}
-      setCode={item.printing?.setCode}
-      setLabel={`${item.printing?.setCode?.toUpperCase() || "?"} #${item.printing?.collectorNumber || "?"}`}
-      setName={item.printing?.setName}
-      typeLine={item.printing?.card?.typeLine}
-    />
+    <>
+      <CardTile
+        allocatedLabel={item.allocatedQuantity ? `In deck${item.allocatedQuantity > 1 ? ` x${item.allocatedQuantity}` : ""}` : undefined}
+        count={item.quantity}
+        defaultActions={[
+          { icon: <MoveUpRight className="h-4 w-4" />, label: "Move", onClick: () => setMoveTarget(item) },
+          { icon: <Edit3 className="h-4 w-4" />, label: "Edit", onClick: () => setEditTarget(item) },
+          { destructive: true, icon: <Trash2 className="h-4 w-4" />, label: "Delete", onClick: () => setDeleteTarget(item) },
+        ]}
+        finish={item.finish}
+        imageUrl={item.printing?.imageUrl}
+        location={item.location?.name}
+        menuActions={[
+          addToDeckAction({ onClick: () => setDeckTarget(item), disabled: !item.printing?.card?.oracleId }),
+          addToListAction({ onClick: () => setListTarget(item) }),
+        ]}
+        name={
+          <Link to="/cards/$id" params={{ id: item.printing?.card?.oracleId || "" }} className="hover:underline">
+            {item.printing?.card?.name || "Unknown card"}
+          </Link>
+        }
+        price={item.priceText}
+        rarity={item.printing?.rarity}
+        setCode={item.printing?.setCode}
+        setLabel={`${item.printing?.setCode?.toUpperCase() || "?"} #${item.printing?.collectorNumber || "?"}`}
+        setName={item.printing?.setName}
+        typeLine={item.printing?.card?.typeLine}
+      />
+      <AddCollectionItemToDeckDialog item={deckTarget} onDone={refreshCollection} onOpenChange={open => !open && setDeckTarget(null)} />
+      <MoveCollectionItemDialog item={listTarget} listOnly onDone={refreshCollection} onOpenChange={open => !open && setListTarget(null)} />
+      <MoveCollectionItemDialog item={moveTarget} onDone={refreshCollection} onOpenChange={open => !open && setMoveTarget(null)} />
+      <EditCollectionItemDialog item={editTarget} onDone={refreshCollection} onOpenChange={open => !open && setEditTarget(null)} />
+      <DeleteCollectionItemDialog item={deleteTarget} onDone={refreshCollection} onOpenChange={open => !open && setDeleteTarget(null)} />
+    </>
   )
 }
 
@@ -926,6 +1063,9 @@ type LocationSummary = CollectionQuery["locations"][number]
 type LocationDetail = NonNullable<LocationQuery["location"]>
 type LocationCoverCard = LocationCoverCardSearchQuery["cards"][number]
 type LocationCoverPrinting = NonNullable<NonNullable<LocationCoverCard["printings"]>[number]>
+type CollectionImportPreview = NonNullable<PreviewCollectionImportMutation["previewCollectionImport"]>
+type CollectionImportRow = CollectionImportPreview["rows"][number]
+type CollectionImportCandidate = CollectionImportRow["candidates"][number]
 type LocationCoverSelection = {
   cardName?: string | null
   collectorNumber?: string | null
@@ -964,6 +1104,10 @@ function useDebouncedValue<T>(value: T, delayMs: number) {
   return debouncedValue
 }
 
+function isUnfiledLocation(location: { id: string }) {
+  return location.id === "unfiled"
+}
+
 function SummaryActionMenu({ label, onEdit }: { label: string; onEdit: () => void }) {
   return (
     <div className="dropdown dropdown-end absolute right-3 top-3 z-20" onClick={event => event.stopPropagation()} onMouseDown={event => event.stopPropagation()}>
@@ -979,6 +1123,405 @@ function SummaryActionMenu({ label, onEdit }: { label: string; onEdit: () => voi
         </li>
       </ul>
     </div>
+  )
+}
+
+function UnfiledLocationCard({
+  countLine,
+  detailLine,
+  interactive = true,
+  location,
+  priceLine,
+}: {
+  countLine?: ReactNode
+  detailLine?: ReactNode
+  interactive?: boolean
+  location: LocationSummary | LocationDetail
+  priceLine?: ReactNode
+}) {
+  return (
+    <Card
+      className={cn(
+        "group relative min-h-52 overflow-hidden transition-all",
+        interactive && "hover:-translate-y-0.5 hover:border-primary/40 hover:bg-base-100 hover:shadow-xl"
+      )}
+    >
+      <div className="relative z-10 flex min-h-52 flex-col justify-between gap-8 p-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-box border border-base-300 bg-base-200 text-base-content/60">
+            <Boxes className="h-5 w-5" />
+          </span>
+          <Badge>{titleize(location.kind)}</Badge>
+          {countLine ? <span className="text-sm font-bold text-base-content/70">{countLine}</span> : null}
+          {priceLine ? <span className="text-sm font-bold text-base-content/70">{priceLine}</span> : null}
+        </div>
+        <div className="min-w-0">
+          <h3 className="line-clamp-2 text-3xl font-black tracking-normal">{location.name}</h3>
+          {detailLine ? <div className="mt-3 max-w-2xl text-sm text-base-content/65">{detailLine}</div> : null}
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+function AddCollectionItemToDeckDialog({
+  item,
+  onDone,
+  onOpenChange,
+}: {
+  item: CollectionItem | null
+  onDone: () => void
+  onOpenChange: (open: boolean) => void
+}) {
+  const queryClient = useQueryClient()
+  const [deckId, setDeckId] = useState("")
+  const [zone, setZone] = useState("mainboard")
+  const [error, setError] = useState<string | null>(null)
+  const open = Boolean(item)
+  const decksQuery = useQuery({
+    queryKey: ["collection-item-deck-options"],
+    queryFn: () => request(CollectionItemDeckOptionsDocument),
+    enabled: open,
+  })
+  const addToDeck = useMutation({
+    mutationFn: () => {
+      if (!item || !deckId) throw new Error("Choose a deck")
+      return request(AddCollectionItemToDeckDocument, { id: item.id, deckId, zone })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      onDone()
+      close()
+    },
+    onError: error => setError(error instanceof Error ? error.message : "Could not add card to deck"),
+  })
+
+  useEffect(() => {
+    if (!open) {
+      setDeckId("")
+      setZone("mainboard")
+      setError(null)
+    }
+  }, [open])
+
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError(null)
+    addToDeck.mutate()
+  }
+
+  function close() {
+    if (addToDeck.isPending) return
+    onOpenChange(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={nextOpen => !nextOpen && close()}>
+      <DialogContent className="max-w-lg" labelledBy="add-collection-item-to-deck-title">
+        <DialogHeader>
+          <div>
+            <DialogTitle id="add-collection-item-to-deck-title">Add to deck</DialogTitle>
+            <p className="mt-1 text-sm text-base-content/60">{item?.printing?.card?.name || "Collection item"}</p>
+          </div>
+          <DialogClose onClose={close} />
+        </DialogHeader>
+        <form className="space-y-4 p-5" onSubmit={submit}>
+          <label className="block space-y-2">
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Deck</span>
+            <select className="select select-bordered w-full bg-base-100" value={deckId} onChange={event => setDeckId(event.target.value)} autoFocus>
+              <option value="">Choose a deck</option>
+              {decksQuery.data?.decks.map(deck => <option key={deck.id} value={deck.id}>{deck.name} ({titleize(deck.format)})</option>)}
+            </select>
+          </label>
+          <label className="block space-y-2">
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Zone</span>
+            <select className="select select-bordered w-full bg-base-100" value={zone} onChange={event => setZone(event.target.value)}>
+              <option value="mainboard">Mainboard</option>
+              <option value="sideboard">Sideboard</option>
+              <option value="maybeboard">Maybeboard</option>
+            </select>
+          </label>
+          {error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p> : null}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={close} disabled={addToDeck.isPending}>Cancel</Button>
+            <Button type="submit" disabled={addToDeck.isPending || !deckId}>{addToDeck.isPending ? "Adding..." : "Add to deck"}</Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function MoveCollectionItemDialog({
+  item,
+  listOnly = false,
+  onDone,
+  onOpenChange,
+}: {
+  item: CollectionItem | null
+  listOnly?: boolean
+  onDone: () => void
+  onOpenChange: (open: boolean) => void
+}) {
+  const [locationId, setLocationId] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const open = Boolean(item)
+  const optionsQuery = useQuery({
+    queryKey: ["collection-item-form-options"],
+    queryFn: () => request(CollectionItemFormOptionsDocument),
+    enabled: open,
+  })
+  const updateItem = useMutation({
+    mutationFn: () => {
+      if (!item) throw new Error("Collection item is required")
+      return request(UpdateCollectionItemDocument, { id: item.id, input: { locationId: locationId || null } })
+    },
+    onSuccess: () => {
+      onDone()
+      close()
+    },
+    onError: error => setError(error instanceof Error ? error.message : "Could not move collection item"),
+  })
+  const locations = (optionsQuery.data?.locations || []).filter(location => !isUnfiledLocation(location) && (!listOnly || location.kind === "list"))
+
+  useEffect(() => {
+    if (open) setLocationId(listOnly ? "" : item?.location?.id || "")
+    else {
+      setLocationId("")
+      setError(null)
+    }
+  }, [item, listOnly, open])
+
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError(null)
+
+    if (listOnly && !locationId) {
+      setError("Choose a list")
+      return
+    }
+
+    updateItem.mutate()
+  }
+
+  function close() {
+    if (updateItem.isPending) return
+    onOpenChange(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={nextOpen => !nextOpen && close()}>
+      <DialogContent className="max-w-lg" labelledBy={listOnly ? "add-collection-item-to-list-title" : "move-collection-item-title"}>
+        <DialogHeader>
+          <div>
+            <DialogTitle id={listOnly ? "add-collection-item-to-list-title" : "move-collection-item-title"}>{listOnly ? "Add to list" : "Move item"}</DialogTitle>
+            <p className="mt-1 text-sm text-base-content/60">{item?.printing?.card?.name || "Collection item"}</p>
+          </div>
+          <DialogClose onClose={close} />
+        </DialogHeader>
+        <form className="space-y-4 p-5" onSubmit={submit}>
+          <label className="block space-y-2">
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">{listOnly ? "List" : "Location"}</span>
+            <select className="select select-bordered w-full bg-base-100" value={locationId} onChange={event => setLocationId(event.target.value)} autoFocus>
+              {!listOnly ? <option value="">Unfiled</option> : <option value="">Choose a list</option>}
+              {locations.map(location => <option key={location.id} value={location.id}>{location.name} ({titleize(location.kind)})</option>)}
+            </select>
+          </label>
+          {listOnly && !optionsQuery.isLoading && locations.length === 0 ? <p className="text-sm text-base-content/60">Create a List location before adding items to a list.</p> : null}
+          {error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p> : null}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={close} disabled={updateItem.isPending}>Cancel</Button>
+            <Button type="submit" disabled={updateItem.isPending || (listOnly && !locationId)}>{updateItem.isPending ? "Saving..." : listOnly ? "Add to list" : "Move"}</Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function EditCollectionItemDialog({
+  item,
+  onDone,
+  onOpenChange,
+}: {
+  item: CollectionItem | null
+  onDone: () => void
+  onOpenChange: (open: boolean) => void
+}) {
+  const [quantity, setQuantity] = useState(1)
+  const [condition, setCondition] = useState<(typeof COLLECTION_CONDITIONS)[number]>("near_mint")
+  const [finish, setFinish] = useState<(typeof COLLECTION_FINISHES)[number]>("nonfoil")
+  const [language, setLanguage] = useState("en")
+  const [locationId, setLocationId] = useState("")
+  const [notes, setNotes] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const open = Boolean(item)
+  const optionsQuery = useQuery({
+    queryKey: ["collection-item-form-options"],
+    queryFn: () => request(CollectionItemFormOptionsDocument),
+    enabled: open,
+  })
+  const updateItem = useMutation({
+    mutationFn: () => {
+      if (!item) throw new Error("Collection item is required")
+      return request(UpdateCollectionItemDocument, {
+        id: item.id,
+        input: {
+          quantity,
+          condition,
+          finish,
+          language: language.trim() || "en",
+          locationId: locationId || null,
+          notes: notes.trim() || null,
+        },
+      })
+    },
+    onSuccess: () => {
+      onDone()
+      close()
+    },
+    onError: error => setError(error instanceof Error ? error.message : "Could not update collection item"),
+  })
+
+  useEffect(() => {
+    if (item) {
+      setQuantity(item.quantity || 1)
+      setCondition(collectionConditionValue(item.condition))
+      setFinish(collectionFinishValue(item.finish))
+      setLanguage(item.language || "en")
+      setLocationId(item.location?.id || "")
+      setNotes(item.notes || "")
+      setError(null)
+    }
+  }, [item])
+
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError(null)
+
+    if (quantity < 1) {
+      setError("Quantity must be at least 1")
+      return
+    }
+
+    updateItem.mutate()
+  }
+
+  function close() {
+    if (updateItem.isPending) return
+    onOpenChange(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={nextOpen => !nextOpen && close()}>
+      <DialogContent className="max-w-2xl" labelledBy="edit-collection-item-title">
+        <DialogHeader>
+          <div>
+            <DialogTitle id="edit-collection-item-title">Edit collection item</DialogTitle>
+            <p className="mt-1 text-sm text-base-content/60">{item?.printing?.card?.name || "Collection item"}</p>
+          </div>
+          <DialogClose onClose={close} />
+        </DialogHeader>
+        <form className="space-y-4 p-5" onSubmit={submit}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block space-y-2">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Quantity</span>
+              <Input type="number" min={1} value={quantity} onChange={event => setQuantity(Number(event.target.value) || 1)} autoFocus />
+            </label>
+            <label className="block space-y-2">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Language</span>
+              <Input value={language} onChange={event => setLanguage(event.target.value)} placeholder="en" />
+            </label>
+            <label className="block space-y-2">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Condition</span>
+              <select className="select select-bordered w-full bg-base-100" value={condition} onChange={event => setCondition(collectionConditionValue(event.target.value))}>
+                {COLLECTION_CONDITIONS.map(value => <option key={value} value={value}>{titleize(value)}</option>)}
+              </select>
+            </label>
+            <label className="block space-y-2">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Finish</span>
+              <select className="select select-bordered w-full bg-base-100" value={finish} onChange={event => setFinish(collectionFinishValue(event.target.value))}>
+                {COLLECTION_FINISHES.map(value => <option key={value} value={value}>{titleize(value)}</option>)}
+              </select>
+            </label>
+            <label className="block space-y-2 sm:col-span-2">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Location</span>
+              <select className="select select-bordered w-full bg-base-100" value={locationId} onChange={event => setLocationId(event.target.value)}>
+                <option value="">Unfiled</option>
+                {optionsQuery.data?.locations.filter(location => !isUnfiledLocation(location)).map(location => <option key={location.id} value={location.id}>{location.name} ({titleize(location.kind)})</option>)}
+              </select>
+            </label>
+            <label className="block space-y-2 sm:col-span-2">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Notes</span>
+              <textarea className="textarea textarea-bordered min-h-24 w-full bg-base-100" value={notes} onChange={event => setNotes(event.target.value)} />
+            </label>
+          </div>
+          {error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p> : null}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={close} disabled={updateItem.isPending}>Cancel</Button>
+            <Button type="submit" disabled={updateItem.isPending}>{updateItem.isPending ? "Saving..." : "Save item"}</Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function DeleteCollectionItemDialog({
+  item,
+  onDone,
+  onOpenChange,
+}: {
+  item: CollectionItem | null
+  onDone: () => void
+  onOpenChange: (open: boolean) => void
+}) {
+  const [error, setError] = useState<string | null>(null)
+  const open = Boolean(item)
+  const deleteItem = useMutation({
+    mutationFn: () => {
+      if (!item) throw new Error("Collection item is required")
+      return request(DeleteCollectionItemDocument, { id: item.id })
+    },
+    onSuccess: () => {
+      onDone()
+      close()
+    },
+    onError: error => setError(error instanceof Error ? error.message : "Could not delete collection item"),
+  })
+
+  useEffect(() => {
+    if (!open) setError(null)
+  }, [open])
+
+  function close() {
+    if (deleteItem.isPending) return
+    onOpenChange(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={nextOpen => !nextOpen && close()}>
+      <DialogContent className="max-w-lg" labelledBy="delete-collection-item-title">
+        <DialogHeader>
+          <div>
+            <DialogTitle id="delete-collection-item-title">Delete collection item</DialogTitle>
+            <p className="mt-1 text-sm text-base-content/60">{item?.printing?.card?.name || "Collection item"}</p>
+          </div>
+          <DialogClose onClose={close} />
+        </DialogHeader>
+        <div className="space-y-4 p-5">
+          <p className="text-sm text-base-content/70">Remove this owned printing from your collection.</p>
+          {error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p> : null}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={close} disabled={deleteItem.isPending}>Cancel</Button>
+            <Button type="button" variant="destructive" onClick={() => deleteItem.mutate()} disabled={deleteItem.isPending}>
+              <Trash2 className="h-4 w-4" />
+              {deleteItem.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -1190,7 +1733,7 @@ export function AddCollectionItemDialog({
             <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Location</span>
             <select className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" value={locationId} onChange={event => setLocationId(event.target.value)}>
               <option value="">Unfiled</option>
-              {optionsQuery.data?.locations.map(location => <option key={location.id} value={location.id}>{location.name} ({titleize(location.kind)})</option>)}
+              {optionsQuery.data?.locations.filter(location => !isUnfiledLocation(location)).map(location => <option key={location.id} value={location.id}>{location.name} ({titleize(location.kind)})</option>)}
             </select>
           </label>
 
@@ -1209,6 +1752,253 @@ export function AddCollectionItemDialog({
             </Button>
           </div>
         </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function ImportCollectionCsvDialog({ onOpenChange, open }: { onOpenChange: (open: boolean) => void; open: boolean }) {
+  const queryClient = useQueryClient()
+  const [csvText, setCsvText] = useState("")
+  const [fileName, setFileName] = useState("")
+  const [locationId, setLocationId] = useState("")
+  const [preview, setPreview] = useState<CollectionImportPreview | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const optionsQuery = useQuery({
+    queryKey: ["collection-item-form-options"],
+    queryFn: () => request(CollectionItemFormOptionsDocument),
+    enabled: open,
+  })
+  const previewImport = useMutation({
+    mutationFn: () => request(PreviewCollectionImportDocument, { input: { csv: csvText, locationId: locationId || null } }),
+    onSuccess: data => {
+      setPreview(data.previewCollectionImport || null)
+      setError(null)
+    },
+    onError: error => setError(error instanceof Error ? error.message : "Could not preview collection CSV"),
+  })
+  const commitImport = useMutation({
+    mutationFn: () => {
+      if (!preview) throw new Error("Preview a CSV before importing")
+      return request(CommitCollectionImportDocument, { input: { rows: preview.rows.map(commitImportRow) } })
+    },
+    onSuccess: data => {
+      queryClient.invalidateQueries({ queryKey: ["collection"] })
+      queryClient.invalidateQueries({ queryKey: ["collection-items"] })
+      queryClient.invalidateQueries({ queryKey: ["home"] })
+      reset()
+      onOpenChange(false)
+    },
+    onError: error => setError(error instanceof Error ? error.message : "Could not import collection CSV"),
+  })
+
+  useEffect(() => {
+    if (!open) reset()
+  }, [open])
+
+  async function chooseFile(file: File | undefined) {
+    setError(null)
+    setPreview(null)
+    setFileName(file?.name || "")
+    setCsvText(file ? await file.text() : "")
+  }
+
+  function submitPreview(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError(null)
+
+    if (!csvText.trim()) {
+      setError("Choose a CSV file to import")
+      return
+    }
+
+    previewImport.mutate()
+  }
+
+  function selectCandidate(rowNumber: number, candidate: CollectionImportCandidate) {
+    if (!preview) return
+
+    const rows = preview.rows.map(row =>
+      row.rowNumber === rowNumber
+        ? {
+            ...row,
+            status: "exact",
+            attrs: { ...row.attrs, scryfallId: candidate.scryfallId },
+            printing: candidate,
+            candidates: [],
+          }
+        : row
+    )
+
+    setPreview({ ...preview, ...collectionImportCounts(rows), rows })
+  }
+
+  function close() {
+    if (previewImport.isPending || commitImport.isPending) return
+    reset()
+    onOpenChange(false)
+  }
+
+  function reset() {
+    setCsvText("")
+    setFileName("")
+    setLocationId("")
+    setPreview(null)
+    setError(null)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={nextOpen => (nextOpen ? onOpenChange(true) : close())}>
+      <DialogContent className="flex max-h-[calc(100vh-3rem)] max-w-5xl flex-col" labelledBy="import-collection-title">
+        <DialogHeader>
+          <div>
+            <DialogTitle id="import-collection-title">Import collection CSV</DialogTitle>
+            <p className="mt-1 text-sm text-base-content/60">Preview rows before adding exact matches to your collection.</p>
+          </div>
+          <DialogClose onClose={close} />
+        </DialogHeader>
+
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
+          <form className="space-y-4" onSubmit={submitPreview}>
+            <label className="block space-y-2">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Import location</span>
+              <select className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" value={locationId} onChange={event => setLocationId(event.target.value)}>
+                <option value="">No location</option>
+                {optionsQuery.data?.locations.filter(location => !isUnfiledLocation(location)).map(location => <option key={location.id} value={location.id}>{location.name} ({titleize(location.kind)})</option>)}
+              </select>
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">CSV file</span>
+              <input type="file" accept=".csv,text/csv" className="file-input file-input-bordered w-full bg-base-100" onChange={event => void chooseFile(event.target.files?.[0])} />
+              {fileName ? <p className="text-sm text-base-content/55">{fileName}</p> : null}
+            </label>
+
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={close}>Cancel</Button>
+              <Button type="submit" disabled={previewImport.isPending}>
+                <Upload className="h-4 w-4" />
+                {previewImport.isPending ? "Previewing..." : "Preview import"}
+              </Button>
+            </div>
+          </form>
+
+          {preview ? (
+            <div className="space-y-3">
+              <div className="stats stats-vertical w-full border border-base-300 bg-base-100 shadow-sm sm:stats-horizontal">
+                <div className="stat">
+                  <div className="stat-title">Rows</div>
+                  <div className="stat-value text-2xl">{preview.total}</div>
+                </div>
+                <div className="stat">
+                  <div className="stat-title">Exact</div>
+                  <div className="stat-value text-2xl text-success">{preview.exact}</div>
+                </div>
+                <div className="stat">
+                  <div className="stat-title">Needs review</div>
+                  <div className="stat-value text-2xl text-warning">{preview.ambiguous + preview.unresolved}</div>
+                </div>
+              </div>
+
+              <div className="max-h-80 overflow-y-auto rounded-box border border-base-300">
+                <table className="table table-sm">
+                  <thead>
+                    <tr>
+                      <th>Row</th>
+                      <th>Status</th>
+                      <th>Card</th>
+                      <th>Qty</th>
+                      <th>Finish</th>
+                      <th>Review</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {preview.rows.map(row => (
+                      <tr key={row.rowNumber}>
+                        <td>{row.rowNumber}</td>
+                        <td><Badge tone={importStatusTone(row.status)}>{importStatusLabel(row.status)}</Badge></td>
+                        <td>{row.printing?.card?.name || row.attrs.name || "Unknown card"}</td>
+                        <td>{row.attrs.quantity}</td>
+                        <td>{row.attrs.finish}</td>
+                        <td>
+                          {row.status === "ambiguous" ? (
+                            <div className="flex flex-wrap gap-1">
+                              {row.candidates.map(candidate => (
+                                <Button key={candidate.scryfallId} type="button" variant="outline" size="sm" onClick={() => selectCandidate(row.rowNumber, candidate)}>
+                                  {printingSetLabel({
+                                    collectorNumber: candidate.collectorNumber,
+                                    rarity: candidate.rarity,
+                                    scryfallId: candidate.scryfallId,
+                                    setCode: candidate.setCode,
+                                    setName: candidate.setName,
+                                  })}
+                                </Button>
+                              ))}
+                            </div>
+                          ) : <span className="text-base-content/45">-</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+            </div>
+          ) : null}
+
+          {error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p> : null}
+        </div>
+        {preview ? (
+          <div className="flex justify-end border-t border-base-300 bg-base-100 px-5 py-4">
+            <Button type="button" disabled={preview.exact === 0 || commitImport.isPending} onClick={() => commitImport.mutate()}>
+              <Upload className="h-4 w-4" />
+              {commitImport.isPending ? "Importing..." : "Import exact rows"}
+            </Button>
+          </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function ExportCollectionCsvDialog({ filters, onOpenChange, open }: { filters: { q?: string }; onOpenChange: (open: boolean) => void; open: boolean }) {
+  const [exportText, setExportText] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const exportCsv = useMutation({
+    mutationFn: () => request(CollectionExportCsvDocument, { filters }),
+    onSuccess: data => {
+      setExportText(data.collectionExportCsv)
+      setError(null)
+    },
+    onError: error => setError(error instanceof Error ? error.message : "Could not export collection CSV"),
+  })
+
+  useEffect(() => {
+    if (open) exportCsv.mutate()
+    else {
+      setExportText("")
+      setError(null)
+    }
+  }, [open])
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[calc(100vh-3rem)] max-w-4xl overflow-y-auto" labelledBy="export-collection-title">
+        <DialogHeader>
+          <div>
+            <DialogTitle id="export-collection-title">Export collection CSV</DialogTitle>
+            <p className="mt-1 text-sm text-base-content/60">Copy the CSV or save it from the text area.</p>
+          </div>
+          <DialogClose onClose={() => onOpenChange(false)} />
+        </DialogHeader>
+
+        <div className="space-y-4 p-5">
+          <textarea className="textarea textarea-bordered min-h-72 w-full bg-base-100 font-mono text-xs" readOnly value={exportCsv.isPending ? "Exporting..." : exportText} />
+          {error ? <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p> : null}
+          <div className="flex justify-end">
+            <Button type="button" onClick={() => onOpenChange(false)}>Close</Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   )
@@ -1599,6 +2389,46 @@ function collectionFinishValue(value: string): (typeof COLLECTION_FINISHES)[numb
   return COLLECTION_FINISHES.find(finish => finish === value) || "nonfoil"
 }
 
+function collectionImportCounts(rows: CollectionImportRow[]) {
+  return {
+    exact: rows.filter(row => row.status === "exact").length,
+    ambiguous: rows.filter(row => row.status === "ambiguous").length,
+    unresolved: rows.filter(row => row.status === "unresolved").length,
+  }
+}
+
+function commitImportRow(row: CollectionImportRow) {
+  return {
+    rowNumber: row.rowNumber,
+    status: row.status,
+    attrs: {
+      name: row.attrs.name,
+      setCode: row.attrs.setCode,
+      collectorNumber: row.attrs.collectorNumber,
+      quantity: row.attrs.quantity,
+      finish: row.attrs.finish,
+      condition: row.attrs.condition,
+      language: row.attrs.language,
+      scryfallId: row.attrs.scryfallId,
+      locationId: row.attrs.locationId,
+    },
+  }
+}
+
+function importStatusLabel(status: string) {
+  if (status === "exact") return "Exact"
+  if (status === "ambiguous") return "Review"
+  if (status === "unresolved") return "Unresolved"
+  return titleize(status)
+}
+
+function importStatusTone(status: string): "neutral" | "success" | "warning" | "error" {
+  if (status === "exact") return "success"
+  if (status === "ambiguous") return "warning"
+  if (status === "unresolved") return "error"
+  return "neutral"
+}
+
 export function CollectionPage() {
   const [activeTab, setActiveTab] = useState<CollectionTab>("locations")
   const [q, setQ] = useState("")
@@ -1607,6 +2437,8 @@ export function CollectionPage() {
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
   const [isAddItemOpen, setIsAddItemOpen] = useState(false)
   const [isAddLocationOpen, setIsAddLocationOpen] = useState(false)
+  const [isImportCsvOpen, setIsImportCsvOpen] = useState(false)
+  const [isExportCsvOpen, setIsExportCsvOpen] = useState(false)
   const [editingLocation, setEditingLocation] = useState<LocationSummary | null>(null)
   const [structuredFilters, setStructuredFilters] = useState<CollectionFilterState>(EMPTY_COLLECTION_FILTERS)
   const structuredFilterSyntax = buildCollectionFilterQuery(structuredFilters)
@@ -1697,17 +2529,38 @@ export function CollectionPage() {
         title="Collection"
         eyebrow="ManaVault Inventory"
         description="Your boxes, binders, lists, and owned printings."
+        bottomActions={
+          <Button type="button" onClick={() => setIsAddItemOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Add item
+          </Button>
+        }
         actions={
-          <>
-            <Button type="button" variant="outline" onClick={() => setIsAddLocationOpen(true)}>
-              <Boxes className="h-4 w-4" />
-              Add location
-            </Button>
-            <Button type="button" onClick={() => setIsAddItemOpen(true)}>
-              <Plus className="h-4 w-4" />
-              Add item
-            </Button>
-          </>
+          <div className="dropdown dropdown-end absolute right-3 top-3 z-20">
+            <button type="button" className="btn btn-circle btn-xs border-0 bg-neutral/85 text-neutral-content shadow backdrop-blur transition hover:bg-neutral" tabIndex={0} aria-label="Collection actions">
+              <MoreVertical className="h-4 w-4" />
+            </button>
+            <ul tabIndex={0} className="menu dropdown-content z-50 mt-2 w-52 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl">
+              <li>
+                <button type="button" onClick={() => setIsAddLocationOpen(true)}>
+                  <Boxes className="h-4 w-4" />
+                  Add location
+                </button>
+              </li>
+              <li>
+                <button type="button" onClick={() => setIsImportCsvOpen(true)}>
+                  <Upload className="h-4 w-4" />
+                  Import CSV
+                </button>
+              </li>
+              <li>
+                <button type="button" onClick={() => setIsExportCsvOpen(true)}>
+                  <Download className="h-4 w-4" />
+                  Export CSV
+                </button>
+              </li>
+            </ul>
+          </div>
         }
       />
 
@@ -1742,16 +2595,24 @@ export function CollectionPage() {
                     {locations.map(location => (
                       <div key={location.id} className="relative">
                         <Link to="/collection/locations/$id" params={{ id: location.id }} className="block">
-                          <ImageSummaryCard
-                            imageUrl={location.coverPrinting?.artCropUrl}
-                            fallback={<Boxes className="h-12 w-12" />}
-                            typeLine={<Badge>{titleize(location.kind)}</Badge>}
-                            countLine={`${compactNumber(location.itemCount || 0)} cards`}
-                            priceLine={location.totalPriceText}
-                            nameLine={location.name}
-                          />
+                          {isUnfiledLocation(location) ? (
+                            <UnfiledLocationCard
+                              location={location}
+                              countLine={`${compactNumber(location.itemCount || 0)} cards`}
+                              priceLine={location.totalPriceText}
+                            />
+                          ) : (
+                            <ImageSummaryCard
+                              imageUrl={location.coverPrinting?.artCropUrl}
+                              fallback={<Boxes className="h-12 w-12" />}
+                              typeLine={<Badge>{titleize(location.kind)}</Badge>}
+                              countLine={`${compactNumber(location.itemCount || 0)} cards`}
+                              priceLine={location.totalPriceText}
+                              nameLine={location.name}
+                            />
+                          )}
                         </Link>
-                        <SummaryActionMenu label={`${location.name} actions`} onEdit={() => setEditingLocation(location)} />
+                        {!isUnfiledLocation(location) ? <SummaryActionMenu label={`${location.name} actions`} onEdit={() => setEditingLocation(location)} /> : null}
                       </div>
                     ))}
                   </div>
@@ -1812,6 +2673,8 @@ export function CollectionPage() {
       )}
       <AddCollectionItemDialog open={isAddItemOpen} onOpenChange={setIsAddItemOpen} />
       <AddLocationDialog open={isAddLocationOpen} onOpenChange={setIsAddLocationOpen} />
+      <ImportCollectionCsvDialog open={isImportCsvOpen} onOpenChange={setIsImportCsvOpen} />
+      <ExportCollectionCsvDialog filters={filters} open={isExportCsvOpen} onOpenChange={setIsExportCsvOpen} />
       <EditLocationDialog location={editingLocation} onOpenChange={open => !open && setEditingLocation(null)} />
     </>
   )
@@ -2016,17 +2879,27 @@ export function LocationPage({ id }: { id: string }) {
         <Button asChild variant="outline" size="sm">
           <Link to="/collection">Back to collection</Link>
         </Button>
-        <ImageSummaryCard
-          imageUrl={location.coverPrinting?.artCropUrl}
-          fallback={<Boxes className="h-12 w-12" />}
-          typeLine={<Badge>{titleize(location.kind)}</Badge>}
-          countLine={`${compactNumber(location.itemCount || 0)} cards`}
-          priceLine={location.totalPriceText}
-          nameLine={location.name}
-          detailLine={location.description}
-          interactive={false}
-          actionSlot={<SummaryActionMenu label={`${location.name} actions`} onEdit={() => setIsEditLocationOpen(true)} />}
-        />
+        {isUnfiledLocation(location) ? (
+          <UnfiledLocationCard
+            location={location}
+            countLine={`${compactNumber(location.itemCount || 0)} cards`}
+            priceLine={location.totalPriceText}
+            detailLine={location.description}
+            interactive={false}
+          />
+        ) : (
+          <ImageSummaryCard
+            imageUrl={location.coverPrinting?.artCropUrl}
+            fallback={<Boxes className="h-12 w-12" />}
+            typeLine={<Badge>{titleize(location.kind)}</Badge>}
+            countLine={`${compactNumber(location.itemCount || 0)} cards`}
+            priceLine={location.totalPriceText}
+            nameLine={location.name}
+            detailLine={location.description}
+            interactive={false}
+            actionSlot={<SummaryActionMenu label={`${location.name} actions`} onEdit={() => setIsEditLocationOpen(true)} />}
+          />
+        )}
       </div>
       <form
         onSubmit={submit}

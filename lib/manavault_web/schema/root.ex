@@ -40,6 +40,11 @@ defmodule ManavaultWeb.Schema do
       resolve(&CatalogResolvers.collection_item_count/3)
     end
 
+    field :collection_export_csv, non_null(:string) do
+      arg(:filters, :collection_item_filters)
+      resolve(&CatalogResolvers.collection_export_csv/3)
+    end
+
     field :locations, non_null(list_of(non_null(:location))) do
       resolve(&CatalogResolvers.locations/3)
     end
@@ -69,6 +74,24 @@ defmodule ManavaultWeb.Schema do
       resolve(&CatalogResolvers.create_collection_item/3)
     end
 
+    field :update_collection_item, :collection_item do
+      arg(:id, non_null(:id))
+      arg(:input, non_null(:collection_item_update_input))
+      resolve(&CatalogResolvers.update_collection_item/3)
+    end
+
+    field :delete_collection_item, :collection_item do
+      arg(:id, non_null(:id))
+      resolve(&CatalogResolvers.delete_collection_item/3)
+    end
+
+    field :add_collection_item_to_deck, :deck_card do
+      arg(:id, non_null(:id))
+      arg(:deck_id, non_null(:id))
+      arg(:zone, :string, default_value: "mainboard")
+      resolve(&CatalogResolvers.add_collection_item_to_deck/3)
+    end
+
     field :create_deck, :deck do
       arg(:input, non_null(:deck_input))
       resolve(&CatalogResolvers.create_deck/3)
@@ -77,6 +100,16 @@ defmodule ManavaultWeb.Schema do
     field :create_location, :location do
       arg(:input, non_null(:location_input))
       resolve(&CatalogResolvers.create_location/3)
+    end
+
+    field :preview_collection_import, :collection_import_preview do
+      arg(:input, non_null(:collection_import_preview_input))
+      resolve(&CatalogResolvers.preview_collection_import/3)
+    end
+
+    field :commit_collection_import, :collection_import_result do
+      arg(:input, non_null(:collection_import_commit_input))
+      resolve(&CatalogResolvers.commit_collection_import/3)
     end
 
     field :update_deck, :deck do

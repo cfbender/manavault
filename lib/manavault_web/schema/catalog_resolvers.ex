@@ -53,10 +53,18 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     {:ok, Catalog.count_collection_items(filters)}
   end
 
-  def locations(_parent, _args, _resolution), do: {:ok, Catalog.list_locations()}
+  def collection_export_csv(_parent, args, _resolution) do
+    filters = args |> Map.get(:filters, %{}) |> Enum.into([])
+    {:ok, Catalog.export_collection_csv(filters)}
+  end
+
+  def locations(_parent, _args, _resolution), do: {:ok, Catalog.list_locations() ++ [unfiled_location()]}
 
   def location(_parent, %{id: id}, _resolution) do
-    {:ok, id |> location_id() |> Catalog.get_location!() |> Repo.preload(cover_printing: :card)}
+    case to_string(id) do
+      "unfiled" -> {:ok, unfiled_location()}
+      _other -> {:ok, id |> location_id() |> Catalog.get_location!() |> Repo.preload(cover_printing: :card)}
+    end
   end
 
   def decks(_parent, _args, _resolution), do: {:ok, Catalog.list_decks()}
@@ -79,10 +87,69 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     end
   end
 
+  def update_collection_item(_parent, %{id: id, input: input}, _resolution) do
+    item = Catalog.get_collection_item!(id)
+    input = normalize_blank_location_id(input)
+
+    case Catalog.update_collection_item(item, input) do
+      {:ok, item} -> {:ok, Catalog.get_collection_item!(item.id)}
+      {:error, changeset} -> {:error, changeset_error_message(changeset)}
+    end
+  end
+
+  def delete_collection_item(_parent, %{id: id}, _resolution) do
+    item = Catalog.get_collection_item!(id)
+
+    case Catalog.delete_collection_item(item) do
+      {:ok, item} -> {:ok, item}
+      {:error, changeset} -> {:error, changeset_error_message(changeset)}
+    end
+  end
+
+  def add_collection_item_to_deck(_parent, %{id: id, deck_id: deck_id} = args, _resolution) do
+    item = Catalog.get_collection_item!(id)
+    deck = Catalog.get_deck!(deck_id)
+    zone = Map.get(args, :zone, "mainboard")
+
+    attrs = %{
+      "oracle_id" => item.printing.card.oracle_id,
+      "preferred_printing_id" => item.scryfall_id,
+      "finish" => item.finish,
+      "quantity" => 1,
+      "zone" => zone
+    }
+
+    with {:ok, deck_card} <- Catalog.add_card_to_deck(deck, attrs),
+         {:ok, _allocation} <- Catalog.allocate_collection_item_to_deck_card(deck_card.id, item.id, 1) do
+      {:ok, Repo.preload(deck_card, [:card, :preferred_printing])}
+    else
+      {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
+        {:error, changeset_error_message(changeset)}
+
+      {:error, reason} ->
+        {:error, deck_allocation_error(reason)}
+    end
+  end
+
   def create_location(_parent, %{input: input}, _resolution) do
     case Catalog.create_location(input) do
       {:ok, location} -> {:ok, Repo.preload(location, cover_printing: :card)}
       {:error, changeset} -> {:error, changeset_error_message(changeset)}
+    end
+  end
+
+  def preview_collection_import(_parent, %{input: input}, _resolution) do
+    case Catalog.preview_collection_import_csv(input.csv, location_id: Map.get(input, :location_id)) do
+      {:ok, preview} -> {:ok, preview}
+      {:error, reason} -> {:error, import_error(reason)}
+    end
+  end
+
+  def commit_collection_import(_parent, %{input: %{rows: rows}}, _resolution) do
+    case Catalog.import_collection_preview(%{rows: Enum.map(rows, &collection_import_row/1)}) do
+      {:ok, result} -> {:ok, %{imported: result.imported, skipped: result.skipped}}
+      {:error, changeset} when is_struct(changeset, Ecto.Changeset) -> {:error, changeset_error_message(changeset)}
+      {:error, reason} -> {:error, import_error(reason)}
     end
   end
 
@@ -96,6 +163,14 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   end
 
   def update_location(_parent, %{id: id, input: input}, _resolution) do
+    if to_string(id) == "unfiled" do
+      {:error, "Unfiled cannot be edited"}
+    else
+      update_persisted_location(id, input)
+    end
+  end
+
+  defp update_persisted_location(id, input) do
     location = id |> location_id() |> Catalog.get_location!()
 
     case Catalog.update_location(location, input) do
@@ -143,6 +218,10 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     parent |> Map.get(key) |> decode_json(fallback)
   end
 
+  def map_value(parent, _args, %{definition: %{schema_node: %{identifier: key}}}) do
+    {:ok, Map.get(parent, key) || Map.get(parent, to_string(key))}
+  end
+
   def scan_item_count(%ScanSession{} = session, _args, _resolution) do
     {:ok, session |> scan_items() |> length()}
   end
@@ -166,16 +245,15 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
   def location_item_count(%Location{collection_items: items}, _args, _resolution)
       when is_list(items) do
-    {:ok, length(items)}
+    {:ok, Enum.reduce(items, 0, &((&1.quantity || 0) + &2))}
   end
 
   def location_item_count(%Location{} = location, _args, _resolution) do
-    count =
-      CollectionItem
-      |> where([item], item.location_id == ^location.id)
-      |> Repo.aggregate(:count, :id)
+    {:ok, Catalog.count_collection_items(location_id: to_string(location.id))}
+  end
 
-    {:ok, count}
+  def location_item_count(%{id: "unfiled"}, _args, _resolution) do
+    {:ok, Catalog.count_collection_items(location_id: "unfiled")}
   end
 
   def location_total_price_text(%Location{id: id}, _args, _resolution) do
@@ -183,8 +261,19 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     {:ok, items |> Price.collection_items_total_cents() |> Price.format_cents()}
   end
 
+  def location_total_price_text(%{id: "unfiled"}, _args, _resolution) do
+    items = Catalog.list_collection_items([location_id: "unfiled"], limit: 100_000)
+    {:ok, items |> Price.collection_items_total_cents() |> Price.format_cents()}
+  end
+
   def location_collection_items(%Location{id: id}, args, _resolution) do
     filters = [location_id: to_string(id)]
+    opts = [limit: Map.get(args, :limit, 100), offset: Map.get(args, :offset, 0)]
+    {:ok, Catalog.list_collection_items(filters, opts)}
+  end
+
+  def location_collection_items(%{id: "unfiled"}, args, _resolution) do
+    filters = [location_id: "unfiled"]
     opts = [limit: Map.get(args, :limit, 100), offset: Map.get(args, :offset, 0)]
     {:ok, Catalog.list_collection_items(filters, opts)}
   end
@@ -281,4 +370,49 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
   defp normalize_blank_location_id(%{location_id: ""} = input), do: Map.put(input, :location_id, nil)
   defp normalize_blank_location_id(input), do: input
+
+  defp unfiled_location do
+    %{
+      id: "unfiled",
+      name: "Unfiled",
+      kind: "unfiled",
+      description: "Cards without an assigned location.",
+      cover_printing: nil
+    }
+  end
+
+  defp collection_import_row(row) do
+    %{
+      row_number: row.row_number,
+      status: collection_import_status(row.status),
+      attrs:
+        row.attrs
+        |> Map.new(fn {key, value} -> {to_string(key), value} end)
+        |> Map.update("location_id", nil, &location_import_id/1),
+      candidates: [],
+      printing: nil
+    }
+  end
+
+  defp location_import_id(nil), do: nil
+  defp location_import_id(""), do: nil
+  defp location_import_id(id), do: id
+
+  defp collection_import_status(status) when status in [:exact, :ambiguous, :unresolved], do: status
+  defp collection_import_status("exact"), do: :exact
+  defp collection_import_status("ambiguous"), do: :ambiguous
+  defp collection_import_status("unresolved"), do: :unresolved
+  defp collection_import_status(_status), do: :unresolved
+
+  defp import_error(:location_not_found), do: "Import location was not found."
+  defp import_error(:invalid_csv), do: "Could not parse that CSV."
+  defp import_error(:missing_csv_file), do: "Choose a CSV file to import."
+  defp import_error(_reason), do: "Could not import collection CSV."
+
+  defp deck_allocation_error(:collection_item_mismatch), do: "Collection item does not match that deck card."
+  defp deck_allocation_error(:allocation_exceeds_quantity), do: "No available copies remain for that collection item."
+  defp deck_allocation_error(:allocation_exceeds_deck_card_quantity), do: "That deck card already has enough allocated copies."
+  defp deck_allocation_error(:allocation_not_found), do: "Allocation not found."
+  defp deck_allocation_error(reason) when is_binary(reason), do: reason
+  defp deck_allocation_error(_reason), do: "Could not add collection item to deck."
 end

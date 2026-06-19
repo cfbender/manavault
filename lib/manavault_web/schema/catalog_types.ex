@@ -160,6 +160,66 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :scan_session_count, non_null(:integer)
   end
 
+  object :collection_import_attrs do
+    field :name, :string do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :set_code, :string do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :collector_number, :string do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :quantity, :integer do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :finish, :string do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :condition, :string do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :language, :string do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :scryfall_id, :id do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :location_id, :id do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+  end
+
+  object :collection_import_row do
+    field :row_number, non_null(:integer)
+    field :status, non_null(:string)
+    field :attrs, non_null(:collection_import_attrs)
+    field :printing, :printing
+    field :candidates, non_null(list_of(non_null(:printing)))
+  end
+
+  object :collection_import_preview do
+    field :location_id, :id
+    field :total, non_null(:integer)
+    field :exact, non_null(:integer)
+    field :ambiguous, non_null(:integer)
+    field :unresolved, non_null(:integer)
+    field :rows, non_null(list_of(non_null(:collection_import_row)))
+  end
+
+  object :collection_import_result do
+    field :imported, non_null(:integer)
+    field :skipped, non_null(:integer)
+  end
+
   scalar :json do
     parse(fn
       %{value: value}, _ -> {:ok, value}
@@ -190,6 +250,42 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :finish, :string
     field :location_id, :id
     field :notes, :string
+  end
+
+  input_object :collection_item_update_input do
+    field :quantity, :integer
+    field :condition, :string
+    field :language, :string
+    field :finish, :string
+    field :location_id, :id
+    field :notes, :string
+  end
+
+  input_object :collection_import_preview_input do
+    field :csv, non_null(:string)
+    field :location_id, :id
+  end
+
+  input_object :collection_import_attrs_input do
+    field :name, :string
+    field :set_code, :string
+    field :collector_number, :string
+    field :quantity, :integer
+    field :finish, :string
+    field :condition, :string
+    field :language, :string
+    field :scryfall_id, :id
+    field :location_id, :id
+  end
+
+  input_object :collection_import_row_input do
+    field :row_number, non_null(:integer)
+    field :status, non_null(:string)
+    field :attrs, non_null(:collection_import_attrs_input)
+  end
+
+  input_object :collection_import_commit_input do
+    field :rows, non_null(list_of(non_null(:collection_import_row_input)))
   end
 
   input_object :deck_input do

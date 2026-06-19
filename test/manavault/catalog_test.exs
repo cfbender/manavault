@@ -180,6 +180,8 @@ defmodule Manavault.CatalogTest do
     items = Catalog.list_collection_items([], limit: 10)
     assert Enum.map(items, & &1.location_id) == [binder.id, binder.id]
     assert Enum.map(items, & &1.quantity) == [2, 1]
+    assert Catalog.count_collection_items([]) == 3
+    assert Catalog.count_collection_items(location_id: to_string(binder.id)) == 3
   end
 
   test "collection CSV import can target no location" do
