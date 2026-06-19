@@ -26,7 +26,15 @@ import {
   XCircle,
   Zap,
 } from "lucide-react"
-import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react"
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FocusEvent,
+  type FormEvent,
+  type PointerEvent,
+} from "react"
 import { PageHeader, PageSection } from "../components/app-shell"
 import { EmptyState } from "../components/card-image"
 import { ImageSummaryCard } from "../components/image-summary-card"
@@ -1432,6 +1440,8 @@ function DeckStackGroup({
       activeIndex,
       group.cards.length,
     )
+    if (nextIndex === hoveredIndex && pinnedIndex == null) return
+
     setPinnedIndex(null)
     setHoveredIndex(nextIndex)
   }
@@ -1511,25 +1521,36 @@ function DeckStackCard({
   slideOffset: number
   top: number
 }) {
+  const [hasFocusWithin, setHasFocusWithin] = useState(false)
   const imageUrl = cardImageUrl(deckCard, "imageUrl")
   const name = deckCard.card?.name || "Unknown card"
   const printing = deckCard.preferredPrinting || deckCard.card?.printings?.[0]
+  const isInteractive = isActive || hasFocusWithin
+
+  function handleBlur(event: FocusEvent<HTMLElement>) {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+      setHasFocusWithin(false)
+    }
+  }
 
   return (
     <article
       className={cn(
         "group/deck-card absolute left-0 w-56 origin-top rounded-xl transition-transform duration-200 ease-out focus-within:z-[90]",
-        isActive && "z-[90]",
+        isInteractive && "z-[90]",
       )}
+      onBlur={handleBlur}
+      onFocus={() => setHasFocusWithin(true)}
       style={{
         top,
         transform: slideOffset ? `translateY(${slideOffset}px)` : undefined,
-        zIndex: isActive ? 90 : index + 1,
+        zIndex: isInteractive ? 90 : index + 1,
       }}
     >
       <DeckCardAllocationMenu
         deckCard={deckCard}
         error={allocationError}
+        isInteractive={isInteractive}
         isUpdating={isUpdating}
         onAllocate={onAllocate}
         onDeallocate={onDeallocate}
@@ -1538,50 +1559,52 @@ function DeckStackCard({
       <div
         className={cn(
           "dropdown dropdown-end absolute right-2 top-2 z-[120] transition-opacity group-focus-within/deck-card:opacity-100",
-          isActive ? "opacity-100" : "opacity-0",
+          isInteractive ? "opacity-100" : "opacity-0",
         )}
         onClick={(event) => event.stopPropagation()}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <button
           type="button"
-          className="btn btn-circle btn-xs border-0 bg-neutral/85 text-neutral-content shadow backdrop-blur transition hover:bg-neutral"
-          tabIndex={0}
+          className="btn btn-circle btn-xs border-0 bg-neutral/85 text-neutral-content shadow transition hover:bg-neutral"
+          tabIndex={isInteractive ? 0 : -1}
           aria-label={`${name} actions`}
         >
           <MoreVertical className="h-4 w-4" />
         </button>
-        <ul
-          tabIndex={0}
-          className="menu dropdown-content z-[120] mt-1 w-52 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
-        >
-          <li>
-            <Link to="/cards/$id" params={{ id: deckCard.card?.oracleId || "" }}>
-              <Eye className="h-4 w-4" />
-              View card
-            </Link>
-          </li>
-          <li>
-            <button type="button" disabled>
-              <Palette className="h-4 w-4" />
-              Change printing
-            </button>
-          </li>
-          <li>
-            <button type="button" disabled={isUpdating} onClick={onMove}>
-              <MoveRight className="h-4 w-4" />
-              Move
-            </button>
-          </li>
-          {canSetCommander ? (
+        {isInteractive ? (
+          <ul
+            tabIndex={0}
+            className="menu dropdown-content z-[120] mt-1 w-52 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
+          >
             <li>
-              <button type="button" disabled={isUpdating} onClick={onSetCommander}>
-                <Crown className="h-4 w-4" />
-                Set as commander
+              <Link to="/cards/$id" params={{ id: deckCard.card?.oracleId || "" }}>
+                <Eye className="h-4 w-4" />
+                View card
+              </Link>
+            </li>
+            <li>
+              <button type="button" disabled>
+                <Palette className="h-4 w-4" />
+                Change printing
               </button>
             </li>
-          ) : null}
-        </ul>
+            <li>
+              <button type="button" disabled={isUpdating} onClick={onMove}>
+                <MoveRight className="h-4 w-4" />
+                Move
+              </button>
+            </li>
+            {canSetCommander ? (
+              <li>
+                <button type="button" disabled={isUpdating} onClick={onSetCommander}>
+                  <Crown className="h-4 w-4" />
+                  Set as commander
+                </button>
+              </li>
+            ) : null}
+          </ul>
+        ) : null}
       </div>
 
       <button type="button" className="block w-full cursor-pointer text-left" onClick={onExpand}>
@@ -1608,7 +1631,7 @@ function DeckStackCard({
           <figcaption
             className={cn(
               "absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent px-3 pb-3 pt-12 text-white transition duration-200 group-focus-within/deck-card:opacity-100",
-              isActive ? "opacity-100" : "opacity-0",
+              isInteractive ? "opacity-100" : "opacity-0",
             )}
           >
             <div className="line-clamp-2 text-sm font-black leading-tight">{name}</div>
@@ -1628,12 +1651,14 @@ function DeckStackCard({
 function DeckCardAllocationMenu({
   deckCard,
   error,
+  isInteractive,
   isUpdating,
   onAllocate,
   onDeallocate,
 }: {
   deckCard: DeckCardEntry
   error: string | null
+  isInteractive: boolean
   isUpdating: boolean
   onAllocate: (collectionItemId: string) => void
   onDeallocate: (collectionItemId: string) => void
@@ -1650,7 +1675,7 @@ function DeckCardAllocationMenu({
       <button
         type="button"
         className={cn(
-          "btn btn-circle btn-xs border shadow backdrop-blur transition",
+          "btn btn-circle btn-xs border shadow transition",
           allocationStatusButtonClass(status.state),
         )}
         tabIndex={0}
@@ -1659,64 +1684,68 @@ function DeckCardAllocationMenu({
       >
         <AllocationStatusIcon state={status.state} className="h-4 w-4" />
       </button>
-      <div
-        tabIndex={0}
-        className="dropdown-content z-[130] mt-1 w-80 rounded-box border border-base-300 bg-base-100 p-3 text-sm shadow-2xl"
-      >
-        <div className="space-y-1">
-          <p className="font-black">{label}</p>
-          <p className="text-xs leading-5 text-base-content/70">
-            {allocationStatusSummary(status)}
-          </p>
+      {isInteractive ? (
+        <div
+          tabIndex={0}
+          className="dropdown-content z-[130] mt-1 w-80 rounded-box border border-base-300 bg-base-100 p-3 text-sm shadow-2xl"
+        >
+          <div className="space-y-1">
+            <p className="font-black">{label}</p>
+            <p className="text-xs leading-5 text-base-content/70">
+              {allocationStatusSummary(status)}
+            </p>
+          </div>
+
+          {error ? (
+            <p className="mt-3 rounded-box border border-error/30 bg-error/10 px-3 py-2 text-xs text-error">
+              {error}
+            </p>
+          ) : null}
+
+          {status.candidates.length === 0 ? (
+            <div className="mt-3 text-sm text-base-content/60">No matching owned printings.</div>
+          ) : (
+            <ul className="menu mt-3 p-0 text-sm">
+              {status.candidates.map((candidate) => (
+                <li key={candidate.item.id} className="rounded-box">
+                  <div className="block space-y-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold">
+                        {collectionItemLabel(candidate.item)}
+                      </p>
+                      <p className="text-xs text-base-content/60">
+                        {allocationCandidateSummary(candidate)}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-xs"
+                        disabled={
+                          isUpdating ||
+                          candidate.available <= 0 ||
+                          status.allocated >= status.required
+                        }
+                        onClick={() => onAllocate(candidate.item.id)}
+                      >
+                        Allocate
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-xs"
+                        disabled={isUpdating || candidate.allocated <= 0}
+                        onClick={() => onDeallocate(candidate.item.id)}
+                      >
+                        Deallocate
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-
-        {error ? (
-          <p className="mt-3 rounded-box border border-error/30 bg-error/10 px-3 py-2 text-xs text-error">
-            {error}
-          </p>
-        ) : null}
-
-        {status.candidates.length === 0 ? (
-          <div className="mt-3 text-sm text-base-content/60">No matching owned printings.</div>
-        ) : (
-          <ul className="menu mt-3 p-0 text-sm">
-            {status.candidates.map((candidate) => (
-              <li key={candidate.item.id} className="rounded-box">
-                <div className="block space-y-2">
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold">{collectionItemLabel(candidate.item)}</p>
-                    <p className="text-xs text-base-content/60">
-                      {allocationCandidateSummary(candidate)}
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      className="btn btn-primary btn-xs"
-                      disabled={
-                        isUpdating ||
-                        candidate.available <= 0 ||
-                        status.allocated >= status.required
-                      }
-                      onClick={() => onAllocate(candidate.item.id)}
-                    >
-                      Allocate
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-outline btn-xs"
-                      disabled={isUpdating || candidate.allocated <= 0}
-                      onClick={() => onDeallocate(candidate.item.id)}
-                    >
-                      Deallocate
-                    </button>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      ) : null}
     </div>
   )
 }
