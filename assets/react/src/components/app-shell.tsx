@@ -60,7 +60,7 @@ export function AppShell() {
       <header
         className={cn(
           "app-shell-header sticky top-0 z-30 bg-base-100/95 backdrop-blur",
-          isScannerRoute && "max-sm:hidden",
+          isScannerRoute && "hidden sm:block",
         )}
       >
         <div className="navbar min-h-16 px-0">
@@ -123,11 +123,11 @@ export function AppShell() {
         </div>
       </header>
 
-      <main className="app-shell-main overflow-y-auto">
+      <main className={cn("app-shell-main overflow-y-auto", isScannerRoute && "scanner-shell-main")}>
         <div
           className={cn(
             "mx-auto w-full max-w-[105rem] py-8 sm:py-12 lg:py-16",
-            isScannerRoute && "max-sm:py-2",
+            isScannerRoute && "py-2 sm:py-12 lg:py-16",
           )}
         >
           <Outlet />

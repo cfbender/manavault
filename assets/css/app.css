@@ -118,6 +118,14 @@
   padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
 }
 
+@media (max-width: 39.999rem) {
+  .scanner-shell-main {
+    height: 100dvh;
+    padding-top: calc(0.5rem + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 .scanner-camera-panel {
   width: min(100%, 24rem);
 }

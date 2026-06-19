@@ -4,12 +4,12 @@ defmodule ManavaultWeb.AppController do
   def index(conn, _params) do
     conn
     |> put_resp_content_type("text/html")
-    |> send_resp(200, app_html(get_csrf_token()))
+    |> send_resp(200, app_html(get_csrf_token(), conn))
   end
 
-  defp app_html(csrf_token) do
+  defp app_html(csrf_token, conn) do
     react_scripts =
-      if Application.get_env(:manavault, :vite_dev_server?, false) do
+      if vite_dev_server?(conn) do
         """
         <script type="module">
           import RefreshRuntime from "http://127.0.0.1:5173/@react-refresh"
@@ -22,7 +22,7 @@ defmodule ManavaultWeb.AppController do
         <script type="module" src="http://127.0.0.1:5173/assets/react/src/main.tsx"></script>
         """
       else
-        ~s(<script defer type="module" src="/assets/react/app.js?v=20260618-4"></script>)
+        ~s(<script defer type="module" src="/assets/react/app.js?v=20260619-8"></script>)
       end
 
     """
@@ -42,8 +42,8 @@ defmodule ManavaultWeb.AppController do
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-        <link rel="manifest" href="/site.webmanifest?v=20260618-4" />
-        <link rel="stylesheet" href="/assets/css/app.css?v=20260618-4" />
+        <link rel="manifest" href="/site.webmanifest?v=20260619-8" />
+        <link rel="stylesheet" href="/assets/css/app.css?v=20260619-8" />
         <script>
           (() => {
             if (window.__manavaultPwaInstallCapture) return;
@@ -101,4 +101,13 @@ defmodule ManavaultWeb.AppController do
     </html>
     """
   end
+
+  defp vite_dev_server?(conn) do
+    Application.get_env(:manavault, :vite_dev_server?, false) && local_host?(conn.host)
+  end
+
+  defp local_host?("localhost"), do: true
+  defp local_host?("127.0.0.1"), do: true
+  defp local_host?("::1"), do: true
+  defp local_host?(_host), do: false
 end

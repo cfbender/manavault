@@ -14,7 +14,15 @@ import {
   Trash2,
   X,
 } from "lucide-react"
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react"
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react"
 import { CardTile } from "../components/card-tile"
 import { PageHeader } from "../components/app-shell"
 import { EmptyState } from "../components/card-image"
@@ -775,6 +783,8 @@ export function ScannerPage() {
   const [editingItem, setEditingItem] = useState<ScanItem | null>(null)
   const [changingItem, setChangingItem] = useState<ScanItem | null>(null)
   const scannerChannelRef = useRef<PhoenixChannel | null>(null)
+  const recentItemsRef = useRef<HTMLDivElement | null>(null)
+  const previousRecentItemIdsRef = useRef<string[]>([])
 
   const { data, isLoading } = useQuery({
     queryKey: ["scan-session", id],
@@ -782,6 +792,7 @@ export function ScannerPage() {
   })
   const session = data?.scanSession
   const recentItems = useMemo(() => session?.scanItems.slice(0, 12) || [], [session?.scanItems])
+  const recentItemIds = useMemo(() => recentItems.map((item) => item.id), [recentItems])
   const lastOracleId = recentItems[0]?.acceptedPrinting?.card?.oracleId || null
 
   const refresh = () => {
@@ -826,6 +837,18 @@ export function ScannerPage() {
       socket.disconnect()
     }
   }, [id])
+
+  useEffect(() => {
+    const previousIds = previousRecentItemIdsRef.current
+    const addedId = recentItemIds.find((itemId) => !previousIds.includes(itemId))
+    previousRecentItemIdsRef.current = recentItemIds
+
+    if (!addedId || !previousIds.length) return
+
+    recentItemsRef.current
+      ?.querySelector<HTMLElement>(`[data-scan-item-id="${CSS.escape(addedId)}"]`)
+      ?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" })
+  }, [recentItemIds])
 
   const capture = useMutation({
     mutationFn: async ({ imageData, force }: { imageData: string; force: boolean }) => {
@@ -918,12 +941,11 @@ export function ScannerPage() {
           <Badge>{recentItems.length}</Badge>
         </div>
         {recentItems.length ? (
-          <div className="flex snap-x gap-2 overflow-x-auto pb-8">
+          <div ref={recentItemsRef} className="flex snap-x gap-3 overflow-x-auto pb-4">
             {recentItems.map((item) => (
               <RecentScanItem
                 key={item.id}
                 item={item}
-                onChangePrinting={() => setChangingItem(item)}
                 onEdit={() => setEditingItem(item)}
                 onSaved={refresh}
               />
@@ -944,7 +966,15 @@ export function ScannerPage() {
         open={optionsOpen}
         preferFoil={preferFoil}
       />
-      <EditScanItemDialog item={editingItem} onClose={() => setEditingItem(null)} onSaved={refresh} />
+      <EditScanItemDialog
+        item={editingItem}
+        onChangePrinting={() => {
+          if (editingItem) setChangingItem(editingItem)
+          setEditingItem(null)
+        }}
+        onClose={() => setEditingItem(null)}
+        onSaved={refresh}
+      />
       <ChangePrintingDialog
         item={changingItem}
         onClose={() => setChangingItem(null)}
@@ -1205,12 +1235,10 @@ function ScannerCamera({
 
 function RecentScanItem({
   item,
-  onChangePrinting,
   onEdit,
   onSaved,
 }: {
   item: ScanItem
-  onChangePrinting: () => void
   onEdit: () => void
   onSaved: () => void
 }) {
@@ -1222,75 +1250,64 @@ function RecentScanItem({
   const quantity = item.quantity || 1
 
   return (
-    <div className="relative w-28 shrink-0 snap-start sm:w-32">
-      <ScanItemTile item={item} showMenu={false} />
-      <div className="absolute bottom-4 left-1.5 right-1.5 z-30 flex items-center justify-between gap-0.5">
-        <div className="flex h-6 items-center gap-0.5 rounded-full bg-black/55 p-0.5 text-white shadow backdrop-blur">
-          <button
-            type="button"
-            className="grid h-5 w-5 place-items-center rounded-full border-0 bg-white/15 p-0 text-white hover:bg-white/25 disabled:bg-white/10 disabled:text-white/40"
-            aria-label="Decrease quantity"
-            disabled={quantity <= 1 || updateItem.isPending}
-            onClick={() => updateItem.mutate({ quantity: Math.max(quantity - 1, 1) })}
-          >
-            <Minus className="h-3 w-3" />
-          </button>
-          <span className="min-w-4 text-center text-xs font-bold leading-none">x{quantity}</span>
-          <button
-            type="button"
-            className="grid h-5 w-5 place-items-center rounded-full border-0 bg-white/15 p-0 text-white hover:bg-white/25 disabled:bg-white/10 disabled:text-white/40"
-            aria-label="Increase quantity"
-            disabled={updateItem.isPending}
-            onClick={() => updateItem.mutate({ quantity: quantity + 1 })}
-          >
-            <Plus className="h-3 w-3" />
-          </button>
-        </div>
-        <div className="flex h-6 items-center gap-0.5">
-          <button
-            type="button"
-            className={cn(
-              "grid h-6 w-6 place-items-center rounded-full border-0 p-0 shadow backdrop-blur",
-              item.finish === "foil"
-                ? "bg-primary text-primary-content hover:bg-primary/90"
-                : "bg-black/55 text-white hover:bg-black/70",
-            )}
-            aria-label="Toggle foil"
-            onClick={() => updateItem.mutate({ finish: item.finish === "foil" ? "nonfoil" : "foil" })}
-          >
-            <Sparkles className="h-3 w-3" />
-          </button>
-          <div
-            className="dropdown dropdown-end"
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={(event) => event.stopPropagation()}
-            onMouseDown={(event) => event.stopPropagation()}
-          >
+    <div className="relative w-28 shrink-0 snap-start sm:w-32" data-scan-item-id={item.id}>
+      <div className="relative">
+        <ScanItemTile item={item} showMenu={false} />
+        <div className="absolute bottom-3 left-1 right-1 z-30 flex items-center justify-between gap-0.5 sm:bottom-4 sm:left-1.5 sm:right-1.5">
+          <div className="flex h-5 items-center gap-0.5 rounded-full bg-black/55 p-0.5 text-white shadow backdrop-blur sm:h-6">
             <button
               type="button"
-              className="grid h-6 w-6 place-items-center rounded-full border-0 bg-black/55 p-0 text-white shadow backdrop-blur hover:bg-black/70"
-              aria-label="Edit scanned card"
-              tabIndex={0}
+              className="grid h-4 w-4 place-items-center rounded-full border-0 bg-white/15 p-0 text-white hover:bg-white/25 disabled:bg-white/10 disabled:text-white/40 sm:h-5 sm:w-5"
+              aria-label="Decrease quantity"
+              disabled={quantity <= 1 || updateItem.isPending}
+              onClick={() => updateItem.mutate({ quantity: Math.max(quantity - 1, 1) })}
             >
-              <Pencil className="h-3 w-3" />
+              <Minus className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
             </button>
-            <ul
-              tabIndex={0}
-              className="menu dropdown-content z-50 mt-1 w-48 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
+            <span className="min-w-3 text-center text-[0.68rem] font-bold leading-none sm:min-w-4 sm:text-xs">
+              x{quantity}
+            </span>
+            <button
+              type="button"
+              className="grid h-4 w-4 place-items-center rounded-full border-0 bg-white/15 p-0 text-white hover:bg-white/25 disabled:bg-white/10 disabled:text-white/40 sm:h-5 sm:w-5"
+              aria-label="Increase quantity"
+              disabled={updateItem.isPending}
+              onClick={() => updateItem.mutate({ quantity: quantity + 1 })}
             >
-              <li>
-                <button type="button" onClick={onEdit}>
-                  <Pencil className="h-4 w-4" />
-                  Edit details
-                </button>
-              </li>
-              <li>
-                <button type="button" onClick={onChangePrinting}>
-                  <Search className="h-4 w-4" />
-                  Change card/printing
-                </button>
-              </li>
-            </ul>
+              <Plus className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+            </button>
+          </div>
+          <div className="flex h-5 items-center gap-0.5 sm:h-6">
+            <button
+              type="button"
+              className={cn(
+                "grid h-5 w-5 place-items-center rounded-full border-0 p-0 shadow backdrop-blur sm:h-6 sm:w-6",
+                item.finish === "foil"
+                  ? "bg-primary text-primary-content hover:bg-primary/90"
+                  : "bg-black/55 text-white hover:bg-black/70",
+              )}
+              aria-label="Toggle foil"
+              onClick={() =>
+                updateItem.mutate({ finish: item.finish === "foil" ? "nonfoil" : "foil" })
+              }
+            >
+              <Sparkles className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+            </button>
+            <button
+              type="button"
+              className="grid h-5 w-5 place-items-center rounded-full border-0 bg-black/55 p-0 text-white shadow backdrop-blur hover:bg-black/70 sm:h-6 sm:w-6"
+              aria-label="Edit scanned card"
+              onClick={(event) => {
+                event.stopPropagation()
+                onEdit()
+              }}
+              onPointerUp={(event) => {
+                event.stopPropagation()
+                onEdit()
+              }}
+            >
+              <Pencil className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+            </button>
           </div>
         </div>
       </div>
@@ -1448,10 +1465,12 @@ function NewScanSessionDialog({
 
 function EditScanItemDialog({
   item,
+  onChangePrinting,
   onClose,
   onSaved,
 }: {
   item: ScanItem | null
+  onChangePrinting: () => void
   onClose: () => void
   onSaved: () => void
 }) {
@@ -1483,12 +1502,19 @@ function EditScanItemDialog({
 
   return (
     <Dialog open={Boolean(item)} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg" labelledBy="edit-scan-item-title">
+      <DialogContent
+        className="fixed inset-0 flex h-[100svh] w-screen max-w-none flex-col rounded-none border-0 sm:relative sm:inset-auto sm:h-auto sm:w-full sm:max-w-lg sm:rounded-box sm:border"
+        labelledBy="edit-scan-item-title"
+      >
         <DialogHeader>
           <DialogTitle id="edit-scan-item-title">Edit scanned card</DialogTitle>
           <DialogClose onClose={onClose} />
         </DialogHeader>
-        <form className="grid gap-3 p-5 text-sm" onSubmit={submit}>
+        <form className="grid gap-3 overflow-y-auto p-5 text-sm" onSubmit={submit}>
+          <Button type="button" variant="outline" onClick={onChangePrinting}>
+            <Search className="h-4 w-4" />
+            Change card/printing
+          </Button>
           <label className="form-control">
             <span className="label-text">Quantity</span>
             <input
@@ -1587,7 +1613,7 @@ function ChangePrintingDialog({
               <button
                 key={printing.scryfallId}
                 type="button"
-                className="text-left"
+                className="relative text-left"
                 disabled={printing.scryfallId === item.acceptedPrintingId || setPrinting.isPending}
                 onClick={() => setPrinting.mutate(printing.scryfallId)}
               >
@@ -1603,7 +1629,7 @@ function ChangePrintingDialog({
                   typeLine={printing.card?.typeLine}
                 />
                 {printing.scryfallId === item.acceptedPrintingId ? (
-                  <span className="mt-2 flex items-center gap-1 text-xs font-bold text-primary">
+                  <span className="absolute bottom-2 left-2 z-30 flex items-center gap-1 rounded-full bg-primary px-2 py-1 text-[0.68rem] font-bold leading-none text-primary-content shadow">
                     <Check className="h-3 w-3" />
                     Current
                   </span>
@@ -1633,11 +1659,30 @@ function ScannerOptionsDialog({
   preferFoil: boolean
 }) {
   const [query, setQuery] = useState("")
+  const [isSetComboboxOpen, setIsSetComboboxOpen] = useState(false)
+  const [activeSetIndex, setActiveSetIndex] = useState(-1)
+  const setComboboxRef = useRef<HTMLDivElement | null>(null)
   const { data } = useQuery({
     enabled: open && query.trim().length > 0,
     queryKey: ["scan-sets", query],
     queryFn: () => request(ScanSetsDocument, { q: query }),
   })
+  const lockedSetCodes = new Set(lockedSets.map((set) => set.setCode))
+  const setOptions = (data?.scanSets || []).filter((set) => !lockedSetCodes.has(set.setCode))
+  const showSetOptions = isSetComboboxOpen && setOptions.length > 0
+
+  useEffect(() => {
+    setActiveSetIndex(-1)
+  }, [query, setOptions.length])
+
+  useEffect(() => {
+    function handlePointerDown(event: PointerEvent) {
+      if (!setComboboxRef.current?.contains(event.target as Node)) setIsSetComboboxOpen(false)
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown)
+    return () => document.removeEventListener("pointerdown", handlePointerDown)
+  }, [])
 
   function addSet(set: { setCode: string; setName?: string | null }) {
     onLockedSetsChange(
@@ -1646,11 +1691,38 @@ function ScannerOptionsDialog({
         .sort((a, b) => `${a.setName || ""}${a.setCode}`.localeCompare(`${b.setName || ""}${b.setCode}`)),
     )
     setQuery("")
+    setIsSetComboboxOpen(false)
+    setActiveSetIndex(-1)
+  }
+
+  function updateSetQuery(value: string) {
+    setQuery(value)
+    setIsSetComboboxOpen(value.trim().length > 0)
+  }
+
+  function handleSetKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Escape") {
+      setIsSetComboboxOpen(false)
+      return
+    }
+
+    if (!showSetOptions) return
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault()
+      setActiveSetIndex((index) => (index + 1) % setOptions.length)
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault()
+      setActiveSetIndex((index) => (index <= 0 ? setOptions.length - 1 : index - 1))
+    } else if (event.key === "Enter" && activeSetIndex >= 0) {
+      event.preventDefault()
+      addSet(setOptions[activeSetIndex])
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
-      <DialogContent className="max-w-xl" labelledBy="scanner-options-title">
+      <DialogContent className="max-w-xl overflow-visible" labelledBy="scanner-options-title">
         <DialogHeader>
           <DialogTitle id="scanner-options-title">Scanner options</DialogTitle>
           <DialogClose onClose={onClose} />
@@ -1667,27 +1739,54 @@ function ScannerOptionsDialog({
           </label>
           <div className="space-y-3">
             <h3 className="font-semibold">Lock to sets</h3>
-            <form
-              className="grid grid-cols-[minmax(0,1fr)_auto] gap-2"
-              onSubmit={(event) => {
-                event.preventDefault()
-                setQuery(String(new FormData(event.currentTarget).get("q") || ""))
-              }}
-            >
+            <div ref={setComboboxRef} className="relative">
               <input
-                className="input input-bordered"
-                name="q"
+                className="input input-bordered w-full"
                 type="search"
+                value={query}
+                onChange={(event) => updateSetQuery(event.target.value)}
+                onFocus={() => setIsSetComboboxOpen(query.trim().length > 0)}
+                onKeyDown={handleSetKeyDown}
                 autoComplete="off"
                 placeholder="Set name or code"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={showSetOptions}
               />
-              <Button type="submit">Search</Button>
-            </form>
+              {showSetOptions ? (
+                <div
+                  className="absolute left-0 right-0 top-full z-[1200] grid max-h-72 gap-1 overflow-y-auto rounded-b-box border border-t-0 border-base-300 bg-base-100 p-2 shadow-2xl"
+                  role="listbox"
+                >
+                  {setOptions.map((set, index) => (
+                    <button
+                      key={set.setCode}
+                      type="button"
+                      role="option"
+                      aria-selected={index === activeSetIndex}
+                      className={cn(
+                        "grid min-h-10 grid-cols-[1rem_auto_minmax(0,1fr)] items-center gap-2 rounded-btn px-3 py-2 text-left text-sm transition-colors",
+                        index === activeSetIndex
+                          ? "bg-primary text-primary-content"
+                          : "hover:bg-base-200",
+                      )}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => addSet(set)}
+                    >
+                      <ScanSetIcon setCode={set.setCode} className="h-4 w-4 bg-current" />
+                      <span className="font-bold">{set.setCode.toUpperCase()}</span>
+                      <span className="truncate">{set.setName}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
             {lockedSets.length ? (
               <div className="flex flex-wrap gap-2">
                 {lockedSets.map((set) => (
-                  <Badge key={set.setCode} tone="primary">
-                    {setLabel(set)}
+                  <Badge key={set.setCode} tone="primary" className="gap-1.5">
+                    <ScanSetIcon setCode={set.setCode} className="h-3.5 w-3.5 bg-current" />
+                    <span>{setLabel(set)}</span>
                     <button
                       type="button"
                       className="ml-1"
@@ -1704,19 +1803,6 @@ function ScannerOptionsDialog({
             ) : (
               <p className="text-sm text-base-content/60">No set lock</p>
             )}
-            <div className="grid gap-2">
-              {(data?.scanSets || []).map((set) => (
-                <button
-                  key={set.setCode}
-                  type="button"
-                  className="btn btn-outline justify-start"
-                  onClick={() => addSet(set)}
-                >
-                  <span className="font-bold">{set.setCode.toUpperCase()}</span>
-                  <span className="truncate font-normal">{set.setName}</span>
-                </button>
-              ))}
-            </div>
           </div>
           <div className="flex justify-end">
             <Button onClick={onClose}>Done</Button>
@@ -1769,6 +1855,37 @@ function humanize(value?: string | null) {
 
 function setLabel(set: { setCode: string; setName?: string | null }) {
   return set.setName ? `${set.setCode.toUpperCase()} - ${set.setName}` : set.setCode.toUpperCase()
+}
+
+function ScanSetIcon({ className, setCode }: { className?: string; setCode?: string | null }) {
+  const code = String(setCode || "")
+    .trim()
+    .toLowerCase()
+
+  if (!code) {
+    return (
+      <span
+        className={cn(
+          "inline-flex shrink-0 items-center justify-center rounded-full border border-current/30 text-[0.5rem] font-black leading-none",
+          className,
+        )}
+      >
+        ?
+      </span>
+    )
+  }
+
+  return (
+    <span
+      className={cn("inline-block shrink-0", className)}
+      style={{
+        mask: `url(/scryfall-assets/sets/${code}.svg) center / contain no-repeat`,
+        WebkitMask: `url(/scryfall-assets/sets/${code}.svg) center / contain no-repeat`,
+      }}
+      title={setCode?.toUpperCase()}
+      aria-hidden="true"
+    />
+  )
 }
 
 function cameraErrorMessage(error: unknown) {

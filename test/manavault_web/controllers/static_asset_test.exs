@@ -20,12 +20,12 @@ defmodule ManavaultWeb.StaticAssetTest do
 
     assert Enum.any?(
              manifest["icons"],
-             &(&1["src"] == "/android-chrome-192x192.png?v=20260618-4")
+             &(&1["src"] == "/android-chrome-192x192.png?v=20260619-8")
            )
 
     assert Enum.any?(
              manifest["icons"],
-             &(&1["src"] == "/android-chrome-512x512.png?v=20260618-4")
+             &(&1["src"] == "/android-chrome-512x512.png?v=20260619-8")
            )
 
     assert Enum.any?(manifest["icons"], &(&1["purpose"] == "any"))
@@ -48,7 +48,7 @@ defmodule ManavaultWeb.StaticAssetTest do
     assert get_resp_header(conn, "cache-control") == ["no-cache, no-store, must-revalidate"]
     assert get_resp_header(conn, "content-type") == ["text/javascript"]
     assert conn.resp_body =~ ~s|self.addEventListener("fetch"|
-    assert conn.resp_body =~ ~s|CACHE_NAME = "manavault-pwa-v20260618-4"|
+    assert conn.resp_body =~ ~s|CACHE_NAME = "manavault-pwa-v20260619-8"|
     assert conn.resp_body =~ ~s|OFFLINE_URL = "/offline.html"|
   end
 
@@ -77,10 +77,10 @@ defmodule ManavaultWeb.StaticAssetTest do
     assert conn.resp_body =~
              ~s|rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"|
 
-    assert conn.resp_body =~ ~s|rel="manifest" href="/site.webmanifest?v=20260618-4"|
+    assert conn.resp_body =~ ~s|rel="manifest" href="/site.webmanifest?v=20260619-8"|
     assert conn.resp_body =~ ~s|__manavaultPwaInstallCapture|
-    assert conn.resp_body =~ ~s|href="/assets/css/app.css?v=20260618-4"|
-    assert conn.resp_body =~ ~s|src="/assets/react/app.js?v=20260618-4"|
+    assert conn.resp_body =~ ~s|href="/assets/css/app.css?v=20260619-8"|
+    assert conn.resp_body =~ ~s|src="/assets/react/app.js?v=20260619-8"|
     assert conn.resp_body =~ ~s|id="manavault-root"|
     refute conn.resp_body =~ ~s|data-pwa-install-debug|
   end
