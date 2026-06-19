@@ -45,6 +45,7 @@ const CardsDocument = graphql(`
         collectorNumber
         imageUrl
         rarity
+        priceText
       }
     }
   }
@@ -103,6 +104,7 @@ const CardDocument = graphql(`
         artCropUrl
         releasedAt
         prices
+        priceText
       }
     }
   }
@@ -195,6 +197,7 @@ export function CardsPage({ query }: { query: string }) {
                       search: { q: query },
                     })
                   }
+                  price={printing?.priceText}
                   rarity={printing?.rarity}
                   setCode={printing?.setCode}
                   setLabel={`${printing?.setCode?.toUpperCase() || "?"} #${printing?.collectorNumber || "?"}`}
@@ -372,6 +375,7 @@ export function CardDetailPage({ id, query }: { id: string; query: string }) {
                   }),
                 ]}
                 name={card.name}
+                price={printing.priceText}
                 rarity={printing.rarity}
                 setCode={printing.setCode}
                 setLabel={`${printing.setCode?.toUpperCase() || "?"} #${printing.collectorNumber || "?"}`}
