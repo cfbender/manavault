@@ -9,7 +9,7 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react"
-import type { KeyboardEvent, ReactNode } from "react"
+import type { KeyboardEvent, MouseEvent, ReactNode } from "react"
 import { cn } from "../lib/utils"
 
 export type CardTileAction = {
@@ -20,6 +20,14 @@ export type CardTileAction = {
   label: ReactNode
   onClick?: () => void
   separatorBefore?: boolean
+}
+
+function blurFocusedMenuItem(event: MouseEvent<HTMLElement>) {
+  const activeElement = event.currentTarget.ownerDocument.activeElement
+
+  if (activeElement instanceof HTMLElement && event.currentTarget.contains(activeElement)) {
+    activeElement.blur()
+  }
 }
 
 export function CardTile({
@@ -114,6 +122,7 @@ export function CardTile({
           <ul
             tabIndex={0}
             className="menu dropdown-content z-50 mt-1 w-48 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
+            onClick={blurFocusedMenuItem}
           >
             {allActions.map((action, index) => (
               <li

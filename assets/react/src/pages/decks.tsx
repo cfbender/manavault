@@ -38,6 +38,7 @@ import {
   useState,
   type FocusEvent,
   type FormEvent,
+  type MouseEvent,
   type PointerEvent,
 } from "react"
 import { createPortal } from "react-dom"
@@ -956,6 +957,14 @@ const DECK_STACK_OFFSET = 34
 const DECK_STACK_CARD_HEIGHT = 314
 const DECK_STACK_REVEAL_OFFSET = DECK_STACK_CARD_HEIGHT - DECK_STACK_OFFSET
 
+function blurFocusedMenuItem(event: MouseEvent<HTMLElement>) {
+  const activeElement = event.currentTarget.ownerDocument.activeElement
+
+  if (activeElement instanceof HTMLElement && event.currentTarget.contains(activeElement)) {
+    activeElement.blur()
+  }
+}
+
 function SummaryActionMenu({
   label,
   onEdit,
@@ -986,6 +995,7 @@ function SummaryActionMenu({
       <ul
         tabIndex={0}
         className="menu dropdown-content z-50 mt-1 w-48 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
+        onClick={blurFocusedMenuItem}
       >
         <li>
           <button type="button" onClick={onEdit}>
@@ -1348,6 +1358,7 @@ function BulkAllocationMenu({
       <div
         tabIndex={0}
         className="dropdown-content z-50 mt-2 w-60 rounded-box border border-base-300 bg-base-100 p-2 shadow-2xl"
+        onClick={blurFocusedMenuItem}
       >
         <button
           type="button"
@@ -1826,6 +1837,7 @@ function DeckStackCard({
           <ul
             tabIndex={0}
             className="menu dropdown-content z-[120] mt-1 w-52 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
+            onClick={blurFocusedMenuItem}
           >
             <li>
               <Link to="/cards/$id" params={{ id: deckCard.card?.oracleId || "" }}>
@@ -2922,7 +2934,10 @@ function MissingCardsDialog({
               <select
                 className="select select-bordered select-sm w-full"
                 value={printingMode}
-                onChange={(event) => setPrintingMode(event.target.value as BuylistPrintingMode)}
+                onChange={(event) => {
+                  setPrintingMode(event.target.value as BuylistPrintingMode)
+                  event.currentTarget.blur()
+                }}
               >
                 <option value="none">Any printing</option>
                 <option value="exact">Exact preferred printing</option>
@@ -2937,7 +2952,10 @@ function MissingCardsDialog({
               <select
                 className="select select-bordered select-sm w-full"
                 value={exportFormat}
-                onChange={(event) => setExportFormat(event.target.value as BuylistExportFormat)}
+                onChange={(event) => {
+                  setExportFormat(event.target.value as BuylistExportFormat)
+                  event.currentTarget.blur()
+                }}
               >
                 <option value="text">Plain text</option>
                 <option value="csv">CSV</option>
