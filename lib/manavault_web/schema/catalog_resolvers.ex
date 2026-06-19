@@ -11,6 +11,7 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     Location,
     Price,
     Printing,
+    ScanItem,
     ScanSession
   }
 
@@ -319,6 +320,132 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
   def scan_sessions(_parent, _args, _resolution), do: {:ok, Catalog.list_scan_sessions()}
 
+  def scan_session(_parent, %{id: id}, _resolution), do: {:ok, Catalog.get_scan_session!(id)}
+
+  def scan_printings(_parent, args, _resolution) do
+    {:ok, Catalog.search_printings([name: Map.get(args, :q, "")], limit: Map.get(args, :limit, 36))}
+  end
+
+  def scan_sets(_parent, args, _resolution), do: {:ok, Catalog.search_sets(Map.get(args, :q, ""))}
+
+  def create_scan_session(_parent, %{input: input}, _resolution) do
+    input =
+      input
+      |> put_generated_scan_session_name()
+      |> normalize_blank_default_location_id()
+
+    case Catalog.create_scan_session(input) do
+      {:ok, session} -> {:ok, Catalog.get_scan_session!(session.id)}
+      {:error, changeset} -> {:error, changeset_error_message(changeset)}
+    end
+  end
+
+  def delete_scan_session(_parent, %{id: id}, _resolution) do
+    session = Catalog.get_scan_session!(id)
+
+    case Catalog.delete_scan_session(session) do
+      {:ok, session} -> {:ok, session}
+      {:error, changeset} -> {:error, changeset_error_message(changeset)}
+    end
+  end
+
+  def capture_scan_item(_parent, %{scan_session_id: scan_session_id, image_data: image_data} = args, _resolution) do
+    scan_session = Catalog.get_scan_session!(scan_session_id)
+
+    case Catalog.create_recognized_scan_item_from_capture(
+           scan_session,
+           image_data,
+           scan_recognition_opts(args)
+         ) do
+      {:ok, scan_item} ->
+        scan_item = Catalog.get_scan_item!(scan_item.id)
+        oracle_id = scan_item_oracle_id(scan_item)
+
+        if !Map.get(args, :force, false) && oracle_id && oracle_id == Map.get(args, :last_oracle_id) do
+          {:ok, _deleted} = Catalog.delete_scan_item(scan_item)
+
+          {:ok,
+           %{
+             outcome: "duplicate",
+             message: "Same card still in frame. Tap the preview to scan it again.",
+             scan_item: nil,
+             scan_session: Catalog.get_scan_session!(scan_session.id)
+           }}
+        else
+          {:ok,
+           %{
+             outcome: "accepted",
+             message: "Recognized card ##{scan_item.id}. Keep scanning.",
+             scan_item: scan_item,
+             scan_session: Catalog.get_scan_session!(scan_session.id)
+           }}
+        end
+
+      {:error, "No card match found" <> _rest} ->
+        rejected_capture_result(scan_session)
+
+      {:error, "argument error"} ->
+        rejected_capture_result(scan_session)
+
+      {:error, reason} when is_binary(reason) ->
+        {:ok,
+         %{
+           outcome: "error",
+           message: reason,
+           scan_item: nil,
+           scan_session: Catalog.get_scan_session!(scan_session.id)
+         }}
+
+      {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
+        {:error, changeset_error_message(changeset)}
+    end
+  end
+
+  def update_scan_item(_parent, %{id: id, input: input}, _resolution) do
+    scan_item = Catalog.get_scan_item!(id)
+
+    case Catalog.update_scan_item_review(scan_item, input) do
+      {:ok, scan_item} -> {:ok, Catalog.get_scan_item!(scan_item.id)}
+      {:error, changeset} -> {:error, changeset_error_message(changeset)}
+    end
+  end
+
+  def delete_scan_item(_parent, %{id: id}, _resolution) do
+    scan_item = Catalog.get_scan_item!(id)
+
+    case Catalog.delete_scan_item(scan_item) do
+      {:ok, scan_item} -> {:ok, scan_item}
+      {:error, changeset} -> {:error, changeset_error_message(changeset)}
+    end
+  end
+
+  def set_scan_item_printing(_parent, %{id: id, scryfall_id: scryfall_id}, _resolution) do
+    case Catalog.set_scan_item_printing(id, scryfall_id) do
+      {:ok, scan_item} -> {:ok, scan_item}
+      {:error, reason} -> {:error, scan_move_error(reason)}
+    end
+  end
+
+  def move_scan_session_items(_parent, %{id: id} = args, _resolution) do
+    session = Catalog.get_scan_session!(id)
+    location_id = Map.get(args, :location_id)
+
+    case Catalog.move_scan_session_items(session, location_id) do
+      {:ok, result} ->
+        case Catalog.delete_scan_session(session) do
+          {:ok, _session} -> {:ok, Map.put(result, :location_id, normalize_result_location_id(location_id))}
+          {:error, changeset} -> {:error, changeset_error_message(changeset)}
+        end
+
+      {:error, reason} ->
+        {:error, scan_move_error(reason)}
+    end
+  end
+
+  def scan_session_items(%ScanSession{} = session, _args, _resolution) do
+    {:ok, session |> scan_items() |> Enum.sort_by(& &1.id, :desc)}
+  end
+
   def printing_image_url(%Printing{} = printing, _args, _resolution) do
     image_uris = decode_json(printing.image_uris, %{})
     {:ok, image_url(image_uris)}
@@ -332,6 +459,10 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   end
 
   def printing_art_crop_url(_printing, _args, _resolution), do: {:ok, nil}
+
+  def printing_price_text(%Printing{} = printing, _args, _resolution) do
+    {:ok, Price.text_for_printing(printing)}
+  end
 
   def decode_json_field(parent, key, fallback) do
     parent |> Map.get(key) |> decode_json(fallback)
@@ -453,7 +584,9 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   defp scan_items(%ScanSession{scan_items: items}) when is_list(items), do: items
 
   defp scan_items(%ScanSession{} = session) do
-    session |> Repo.preload(:scan_items) |> Map.get(:scan_items)
+    session
+    |> Repo.preload(scan_items: [:location, accepted_printing: :card])
+    |> Map.get(:scan_items)
   end
 
   defp deck_cards(%Deck{deck_cards: cards}) when is_list(cards), do: cards
@@ -508,6 +641,65 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     do: Map.put(input, :location_id, nil)
 
   defp normalize_blank_location_id(input), do: input
+
+  defp normalize_blank_default_location_id(%{default_location_id: ""} = input),
+    do: Map.put(input, :default_location_id, nil)
+
+  defp normalize_blank_default_location_id(input), do: input
+
+  defp put_generated_scan_session_name(input) do
+    case Map.get(input, :name) do
+      name when is_binary(name) ->
+        if String.trim(name) == "" do
+          Map.put(input, :name, Catalog.generated_scan_session_name())
+        else
+          input
+        end
+
+      _other ->
+        Map.put(input, :name, Catalog.generated_scan_session_name())
+    end
+  end
+
+  defp scan_recognition_opts(args) do
+    []
+    |> maybe_put_scan_opt(:prefer_foil, Map.get(args, :prefer_foil, false))
+    |> maybe_put_scan_opt(:set_codes, Map.get(args, :set_codes, []))
+  end
+
+  defp maybe_put_scan_opt(opts, _key, false), do: opts
+  defp maybe_put_scan_opt(opts, _key, []), do: opts
+  defp maybe_put_scan_opt(opts, key, value), do: Keyword.put(opts, key, value)
+
+  defp rejected_capture_result(%ScanSession{} = session) do
+    {:ok,
+     %{
+       outcome: "rejected",
+       message: "Keep scanning.",
+       scan_item: nil,
+       scan_session: Catalog.get_scan_session!(session.id)
+     }}
+  end
+
+  defp scan_item_oracle_id(%ScanItem{accepted_printing: %{oracle_id: oracle_id}})
+       when is_binary(oracle_id),
+       do: oracle_id
+
+  defp scan_item_oracle_id(%ScanItem{accepted_printing: %{card: %{oracle_id: oracle_id}}})
+       when is_binary(oracle_id),
+       do: oracle_id
+
+  defp scan_item_oracle_id(_scan_item), do: nil
+
+  defp normalize_result_location_id(nil), do: nil
+  defp normalize_result_location_id(""), do: nil
+  defp normalize_result_location_id(location_id), do: location_id
+
+  defp scan_move_error(:location_not_found), do: "Location was not found."
+  defp scan_move_error(%Ecto.Changeset{} = changeset), do: changeset_error_message(changeset)
+  defp scan_move_error(reason) when is_binary(reason), do: reason
+  defp scan_move_error(reason) when is_atom(reason), do: Atom.to_string(reason)
+  defp scan_move_error(reason), do: inspect(reason)
 
   defp deck_buylist_opts(args) do
     [

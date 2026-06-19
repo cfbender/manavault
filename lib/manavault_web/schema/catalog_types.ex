@@ -61,6 +61,10 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
       end)
     end
 
+    field :price_text, :string do
+      resolve(&CatalogResolvers.printing_price_text/3)
+    end
+
     field :released_at, :string
     field :card, :card
   end
@@ -251,6 +255,11 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :default_condition, non_null(:string)
     field :default_language, non_null(:string)
     field :default_finish, non_null(:string)
+    field :default_location, :location
+
+    field :scan_items, non_null(list_of(non_null(:scan_item))) do
+      resolve(&CatalogResolvers.scan_session_items/3)
+    end
 
     field :item_count, :integer do
       resolve(&CatalogResolvers.scan_item_count/3)
@@ -261,6 +270,38 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     end
 
     field :created_at, :string
+  end
+
+  object :scan_item do
+    field :id, non_null(:id)
+    field :status, non_null(:string)
+    field :image_path, :string
+    field :quantity, non_null(:integer)
+    field :condition, non_null(:string)
+    field :language, non_null(:string)
+    field :finish, non_null(:string)
+    field :accepted_printing_id, :id
+    field :accepted_printing, :printing
+    field :location, :location
+    field :inserted_at, :string
+  end
+
+  object :scan_set_option do
+    field :set_code, non_null(:string)
+    field :set_name, :string
+  end
+
+  object :scan_capture_result do
+    field :outcome, non_null(:string)
+    field :message, non_null(:string)
+    field :scan_item, :scan_item
+    field :scan_session, non_null(:scan_session)
+  end
+
+  object :scan_bulk_move_result do
+    field :moved, non_null(:integer)
+    field :skipped, non_null(:integer)
+    field :location_id, :id
   end
 
   object :home_summary do
@@ -369,6 +410,22 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :finish, :string
     field :location_id, :id
     field :notes, :string
+  end
+
+  input_object :scan_session_input do
+    field :name, :string
+    field :default_condition, :string
+    field :default_language, :string
+    field :default_finish, :string
+    field :default_location_id, :id
+  end
+
+  input_object :scan_item_update_input do
+    field :quantity, :integer
+    field :condition, :string
+    field :language, :string
+    field :finish, :string
+    field :location_id, :id
   end
 
   input_object :collection_import_preview_input do

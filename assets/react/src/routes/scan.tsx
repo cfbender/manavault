@@ -1,7 +1,6 @@
-import { createFileRoute, redirect } from "@tanstack/react-router"
+import { createFileRoute } from "@tanstack/react-router"
+import { ScanEntryPage } from "../pages/scans"
 
 export const Route = createFileRoute("/scan")({
-  beforeLoad: () => {
-    throw redirect({ to: "/scan-sessions" })
-  },
+  component: ScanEntryPage,
 })

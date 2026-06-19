@@ -86,9 +86,68 @@ defmodule ManavaultWeb.Schema do
     field :scan_sessions, non_null(list_of(non_null(:scan_session))) do
       resolve(&CatalogResolvers.scan_sessions/3)
     end
+
+    field :scan_session, :scan_session do
+      arg(:id, non_null(:id))
+      resolve(&CatalogResolvers.scan_session/3)
+    end
+
+    field :scan_printings, non_null(list_of(non_null(:printing))) do
+      arg(:q, :string, default_value: "")
+      arg(:limit, :integer, default_value: 36)
+      resolve(&CatalogResolvers.scan_printings/3)
+    end
+
+    field :scan_sets, non_null(list_of(non_null(:scan_set_option))) do
+      arg(:q, :string, default_value: "")
+      resolve(&CatalogResolvers.scan_sets/3)
+    end
   end
 
   mutation do
+    field :create_scan_session, :scan_session do
+      arg(:input, non_null(:scan_session_input))
+      resolve(&CatalogResolvers.create_scan_session/3)
+    end
+
+    field :delete_scan_session, :scan_session do
+      arg(:id, non_null(:id))
+      resolve(&CatalogResolvers.delete_scan_session/3)
+    end
+
+    field :capture_scan_item, :scan_capture_result do
+      arg(:scan_session_id, non_null(:id))
+      arg(:image_data, non_null(:string))
+      arg(:force, :boolean, default_value: false)
+      arg(:last_oracle_id, :id)
+      arg(:prefer_foil, :boolean, default_value: false)
+      arg(:set_codes, list_of(non_null(:string)), default_value: [])
+      resolve(&CatalogResolvers.capture_scan_item/3)
+    end
+
+    field :update_scan_item, :scan_item do
+      arg(:id, non_null(:id))
+      arg(:input, non_null(:scan_item_update_input))
+      resolve(&CatalogResolvers.update_scan_item/3)
+    end
+
+    field :delete_scan_item, :scan_item do
+      arg(:id, non_null(:id))
+      resolve(&CatalogResolvers.delete_scan_item/3)
+    end
+
+    field :set_scan_item_printing, :scan_item do
+      arg(:id, non_null(:id))
+      arg(:scryfall_id, non_null(:id))
+      resolve(&CatalogResolvers.set_scan_item_printing/3)
+    end
+
+    field :move_scan_session_items, :scan_bulk_move_result do
+      arg(:id, non_null(:id))
+      arg(:location_id, :id)
+      resolve(&CatalogResolvers.move_scan_session_items/3)
+    end
+
     field :create_collection_item, :collection_item do
       arg(:input, non_null(:collection_item_input))
       resolve(&CatalogResolvers.create_collection_item/3)
