@@ -52,6 +52,7 @@ defmodule Manavault.Catalog.CardCollection do
     language = filters |> Keyword.get(:language, "") |> normalize_filter()
     finish = filters |> Keyword.get(:finish, "") |> normalize_filter()
     location_id = filters |> Keyword.get(:location_id, "") |> normalize_filter()
+    include_list_locations? = Keyword.get(filters, :include_list_locations, false)
 
     CollectionItem
     |> join(:inner, [item], printing in assoc(item, :printing))
@@ -62,6 +63,7 @@ defmodule Manavault.Catalog.CardCollection do
     |> maybe_filter_language(language)
     |> maybe_filter_finish(finish)
     |> maybe_filter_location(location_id)
+    |> maybe_exclude_list_locations(location_id, include_list_locations?)
   end
 
   defmacrop price_value_fragment(item, printing) do
@@ -990,6 +992,16 @@ defmodule Manavault.Catalog.CardCollection do
       {id, ""} -> where(query, [item, _printing, _card, _location], item.location_id == ^id)
       _invalid -> where(query, false)
     end
+  end
+
+  defp maybe_exclude_list_locations(query, location_id, _include_list_locations?)
+       when location_id != "",
+       do: query
+
+  defp maybe_exclude_list_locations(query, _location_id, true), do: query
+
+  defp maybe_exclude_list_locations(query, _location_id, _include_list_locations?) do
+    where(query, [_item, _printing, _card, location], is_nil(location.id) or location.kind != "list")
   end
 
   defp normalize_filter(value) when is_binary(value), do: String.trim(value)

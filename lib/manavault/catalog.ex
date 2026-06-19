@@ -1770,9 +1770,11 @@ defmodule Manavault.Catalog do
     CollectionItem
     |> join(:inner, [item], printing in assoc(item, :printing))
     |> join(:inner, [_item, printing], card in assoc(printing, :card))
-    |> where([item, printing, _card], printing.oracle_id == ^oracle_id and item.finish == ^finish)
-    |> preload([_item, printing, card], printing: {printing, card: card})
-    |> order_by([item, printing, card],
+    |> join(:left, [item, _printing, _card], location in assoc(item, :location_assoc))
+    |> where([item, printing, _card, location], printing.oracle_id == ^oracle_id and item.finish == ^finish)
+    |> where([_item, _printing, _card, location], is_nil(location.id) or location.kind != "list")
+    |> preload([_item, printing, card, _location], printing: {printing, card: card})
+    |> order_by([item, printing, card, _location],
       desc: fragment("? = ?", item.scryfall_id, ^preferred_printing_id),
       asc: card.name,
       asc: printing.set_code,
@@ -2106,9 +2108,10 @@ defmodule Manavault.Catalog do
          %CollectionItem{} = item,
          %DeckCard{} = deck_card
        ) do
-    item = Repo.preload(item, :printing)
+    item = Repo.preload(item, [:printing, :location_assoc])
 
     cond do
+      match?(%Location{kind: "list"}, item.location_assoc) -> {:error, :allocation_list_location}
       item.printing.oracle_id != deck_card.oracle_id -> {:error, :allocation_card_mismatch}
       item.finish != deck_card.finish -> {:error, :allocation_finish_mismatch}
       true -> :ok

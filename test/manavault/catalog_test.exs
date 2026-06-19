@@ -196,6 +196,36 @@ defmodule Manavault.CatalogTest do
     assert [%CollectionItem{location_id: nil}] = Catalog.list_collection_items([], limit: 10)
   end
 
+  test "collection listings exclude list location items unless filtering to that list" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+    assert {:ok, binder} = Catalog.create_location(%{name: "Trade Binder", kind: "binder"})
+    assert {:ok, list} = Catalog.create_location(%{name: "Wishlist", kind: "list"})
+
+    assert {:ok, binder_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 2,
+               "location_id" => binder.id
+             })
+
+    assert {:ok, list_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 3,
+               "location_id" => list.id
+             })
+
+    assert [listed_binder_item] = Catalog.list_collection_items([], limit: 10)
+    assert listed_binder_item.id == binder_item.id
+    assert Catalog.count_collection_items([]) == 2
+    assert [listed_list_item] = Catalog.list_collection_items(location_id: to_string(list.id))
+    assert listed_list_item.id == list_item.id
+    assert Catalog.count_collection_items(location_id: to_string(list.id)) == 3
+    assert [binder_item.id, list_item.id] ==
+             Catalog.list_collection_items([include_list_locations: true], limit: 10)
+             |> Enum.map(& &1.id)
+  end
+
   test "suggest_card_names returns fuzzy top card name matches" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
@@ -842,6 +872,32 @@ defmodule Manavault.CatalogTest do
     assert returned_item.location_id == binder.id
     assert returned_item.quantity == 1
     assert Catalog.get_collection_item!(item.id).quantity == 1
+  end
+
+  test "deck allocation does not count collection items held in list locations" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+    assert {:ok, list} = Catalog.create_location(%{name: "Wishlist", kind: "list"})
+
+    assert {:ok, list_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil",
+               "location_id" => list.id
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Sleeved"})
+    assert {:ok, lotus} = Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus"})
+
+    status = Catalog.deck_card_allocation_status(lotus)
+    assert status.owned == 0
+    assert status.available == 0
+    assert status.missing == 1
+
+    assert {:error, :allocation_list_location} =
+             Catalog.allocate_collection_item_to_deck_card(lotus.id, list_item.id)
   end
 
   test "deck buylist distinguishes missing from owned unavailable and exports text and csv" do

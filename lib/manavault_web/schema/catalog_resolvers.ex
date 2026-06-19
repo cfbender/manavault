@@ -410,8 +410,13 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   defp import_error(_reason), do: "Could not import collection CSV."
 
   defp deck_allocation_error(:collection_item_mismatch), do: "Collection item does not match that deck card."
+  defp deck_allocation_error(:allocation_list_location), do: "List items cannot be allocated to decks."
+  defp deck_allocation_error(:allocation_card_mismatch), do: "Collection item does not match that deck card."
+  defp deck_allocation_error(:allocation_finish_mismatch), do: "Collection item finish does not match that deck card."
   defp deck_allocation_error(:allocation_exceeds_quantity), do: "No available copies remain for that collection item."
   defp deck_allocation_error(:allocation_exceeds_deck_card_quantity), do: "That deck card already has enough allocated copies."
+  defp deck_allocation_error(:not_enough_available), do: "No available copies remain for that collection item."
+  defp deck_allocation_error(:deck_card_already_allocated), do: "That deck card already has enough allocated copies."
   defp deck_allocation_error(:allocation_not_found), do: "Allocation not found."
   defp deck_allocation_error(reason) when is_binary(reason), do: reason
   defp deck_allocation_error(_reason), do: "Could not add collection item to deck."
