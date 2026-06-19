@@ -499,14 +499,16 @@ defmodule Manavault.Catalog.ScanRecognition do
     Application.get_env(:manavault, :ocr_runner, &rapidocr_ocr/1)
   end
 
-  @rapidocr_script Path.join(:code.priv_dir(:manavault), "rapidocr_scan.py")
-
   defp rapidocr_python_path do
     Application.get_env(
       :manavault,
       :rapidocr_python,
       Path.expand(".venv/bin/python", File.cwd!())
     )
+  end
+
+  defp rapidocr_script_path do
+    Application.app_dir(:manavault, "priv/rapidocr_scan.py")
   end
 
   defp rapidocr_ocr(image_path) do
@@ -529,7 +531,7 @@ defmodule Manavault.Catalog.ScanRecognition do
   end
 
   defp fallback_ocr(image_path) do
-    case System.cmd(rapidocr_python_path(), [@rapidocr_script, image_path],
+    case System.cmd(rapidocr_python_path(), [rapidocr_script_path(), image_path],
            stderr_to_stdout: true
          ) do
       {text, 0} when is_binary(text) and byte_size(text) > 0 ->

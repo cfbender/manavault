@@ -9,8 +9,6 @@ defmodule Manavault.Catalog.RapidOCRDaemon do
   use GenServer
   require Logger
 
-  @python_path Path.expand(".venv/bin/python", File.cwd!())
-  @script_path Path.join(:code.priv_dir(:manavault), "rapidocr_daemon.py")
   @read_timeout 60_000
 
   # --- Public API ---
@@ -44,10 +42,11 @@ defmodule Manavault.Catalog.RapidOCRDaemon do
 
   defp start_port do
     port =
-      Port.open({:spawn, "#{@python_path} #{@script_path}"}, [
+      Port.open({:spawn_executable, rapidocr_python_path()}, [
         :binary,
         :use_stdio,
-        :exit_status
+        :exit_status,
+        args: [rapidocr_script_path()]
       ])
 
     receive do
@@ -67,6 +66,18 @@ defmodule Manavault.Catalog.RapidOCRDaemon do
   rescue
     e in ErlangError ->
       {:error, Exception.message(e)}
+  end
+
+  defp rapidocr_python_path do
+    Application.get_env(
+      :manavault,
+      :rapidocr_python,
+      Path.expand(".venv/bin/python", File.cwd!())
+    )
+  end
+
+  defp rapidocr_script_path do
+    Application.app_dir(:manavault, "priv/rapidocr_daemon.py")
   end
 
   @impl true

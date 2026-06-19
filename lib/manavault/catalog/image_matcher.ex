@@ -10,7 +10,6 @@ defmodule Manavault.Catalog.ImageMatcher do
   import Bitwise
   require Logger
 
-  @hash_script Path.join(:code.priv_dir(:manavault), "image_hash.py")
   @default_limit 5
   @default_threshold 0.82
 
@@ -100,7 +99,9 @@ defmodule Manavault.Catalog.ImageMatcher do
   defp hash_paths([], _crop), do: {:ok, %{}}
 
   defp hash_paths(paths, crop) do
-    case System.cmd(rapidocr_python_path(), [@hash_script, crop | paths], stderr_to_stdout: true) do
+    case System.cmd(rapidocr_python_path(), [hash_script_path(), crop | paths],
+           stderr_to_stdout: true
+         ) do
       {output, 0} ->
         decode_hash_output(output)
 
@@ -109,6 +110,10 @@ defmodule Manavault.Catalog.ImageMatcher do
     end
   rescue
     ErlangError -> {:error, "image hash Python environment is not available"}
+  end
+
+  defp hash_script_path do
+    Application.app_dir(:manavault, "priv/image_hash.py")
   end
 
   defp decode_hash_output(output) do
