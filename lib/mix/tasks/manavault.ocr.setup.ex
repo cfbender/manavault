@@ -37,7 +37,8 @@ defmodule Mix.Tasks.Manavault.Ocr.Setup do
     Install/repair it with:
 
         python3 -m venv .venv
-        .venv/bin/pip install rapidocr onnxruntime
+        .venv/bin/python -m ensurepip --upgrade
+        .venv/bin/python -m pip install -r requirements-ocr.txt
 
     Then rerun:
 
