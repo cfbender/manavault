@@ -60,10 +60,22 @@ const CollectionDocument = graphql(`
       description
       itemCount
       totalPriceText
+      valueSummary {
+        totalPriceText
+        purchasePriceText
+        valueGainText
+        valueGainPercentText
+      }
       coverPrinting {
         scryfallId
         artCropUrl
       }
+    }
+    collectionValueSummary {
+      totalPriceText
+      purchasePriceText
+      valueGainText
+      valueGainPercentText
     }
     collectionItemCount(filters: $filters)
   }
@@ -78,6 +90,12 @@ const LocationDocument = graphql(`
       description
       itemCount
       totalPriceText
+      valueSummary {
+        totalPriceText
+        purchasePriceText
+        valueGainText
+        valueGainPercentText
+      }
       coverPrinting {
         scryfallId
         artCropUrl
@@ -143,6 +161,10 @@ const CreateCollectionItemDocument = graphql(`
       finish
       notes
       priceText
+      purchasePriceCents
+      purchasePriceText
+      valueGainText
+      valueGainPercentText
       allocatedQuantity
       location {
         id
@@ -175,6 +197,10 @@ const UpdateCollectionItemDocument = graphql(`
       finish
       notes
       priceText
+      purchasePriceCents
+      purchasePriceText
+      valueGainText
+      valueGainPercentText
       allocatedQuantity
       location {
         id
@@ -235,6 +261,12 @@ const CreateLocationDocument = graphql(`
       description
       itemCount
       totalPriceText
+      valueSummary {
+        totalPriceText
+        purchasePriceText
+        valueGainText
+        valueGainPercentText
+      }
       coverPrinting {
         scryfallId
         artCropUrl
@@ -252,6 +284,12 @@ const UpdateLocationDocument = graphql(`
       description
       itemCount
       totalPriceText
+      valueSummary {
+        totalPriceText
+        purchasePriceText
+        valueGainText
+        valueGainPercentText
+      }
       coverPrinting {
         scryfallId
         artCropUrl
@@ -275,6 +313,10 @@ const CollectionItemsPageDocument = graphql(`
       finish
       notes
       priceText
+      purchasePriceCents
+      purchasePriceText
+      valueGainText
+      valueGainPercentText
       allocatedQuantity
       location {
         id
@@ -324,6 +366,7 @@ const PreviewCollectionImportDocument = graphql(`
           language
           scryfallId
           locationId
+          purchasePriceCents
         }
         printing {
           scryfallId
@@ -375,6 +418,10 @@ type CollectionItem = {
   allocatedQuantity?: number | null
   condition: string
   priceText?: string | null
+  purchasePriceCents?: number | null
+  purchasePriceText?: string | null
+  valueGainText?: string | null
+  valueGainPercentText?: string | null
   quantity: number
   finish: string
   language: string
@@ -1459,6 +1506,7 @@ function SegmentedFilter<T extends string>({
 
 type LocationSummary = CollectionQuery["locations"][number]
 type LocationDetail = NonNullable<LocationQuery["location"]>
+type CollectionValueSummary = NonNullable<CollectionQuery["collectionValueSummary"]>
 type LocationCoverCard = LocationCoverCardSearchQuery["cards"][number]
 type LocationCoverPrinting = NonNullable<NonNullable<LocationCoverCard["printings"]>[number]>
 type CollectionImportPreview = NonNullable<
@@ -1508,6 +1556,34 @@ function useDebouncedValue<T>(value: T, delayMs: number) {
   }, [delayMs, value])
 
   return debouncedValue
+}
+
+function centsToCurrencyInput(cents?: number | null) {
+  if (typeof cents !== "number" || !Number.isFinite(cents)) return ""
+  return (cents / 100).toFixed(2).replace(/\.00$/, "")
+}
+
+function parseCurrencyInputCents(value: string) {
+  const normalized = value.trim().replaceAll(",", "").replace(/^\$/, "")
+  if (!normalized) return null
+
+  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(normalized)
+  if (!match) return undefined
+
+  const dollars = Number(match[1])
+  const cents = Number((match[2] || "").padEnd(2, "0"))
+  return dollars * 100 + cents
+}
+
+function collectionValueLine(summary?: Partial<CollectionValueSummary> | null) {
+  if (!summary) return null
+
+  const total = summary.totalPriceText
+  const gain = summary.valueGainText
+  const percent = summary.valueGainPercentText
+  const delta = gain ? `${gain}${percent ? ` (${percent})` : ""}` : null
+
+  return [total, delta].filter(Boolean).join(" · ")
 }
 
 function isUnfiledLocation(location: { id: string }) {
@@ -1885,6 +1961,7 @@ function EditCollectionItemDialog({
   const [language, setLanguage] = useState("en")
   const [locationId, setLocationId] = useState("")
   const [notes, setNotes] = useState("")
+  const [purchasePrice, setPurchasePrice] = useState("")
   const [error, setError] = useState<string | null>(null)
   const open = Boolean(item)
   const optionsQuery = useQuery({
@@ -1895,6 +1972,10 @@ function EditCollectionItemDialog({
   const updateItem = useMutation({
     mutationFn: () => {
       if (!item) throw new Error("Collection item is required")
+      const purchasePriceCents = parseCurrencyInputCents(purchasePrice)
+
+      if (purchasePriceCents === undefined) throw new Error("Purchase price must be a dollar amount")
+
       return request(UpdateCollectionItemDocument, {
         id: item.id,
         input: {
@@ -1904,6 +1985,7 @@ function EditCollectionItemDialog({
           language: language.trim() || "en",
           locationId: locationId || null,
           notes: notes.trim() || null,
+          purchasePriceCents,
         },
       })
     },
@@ -1923,6 +2005,7 @@ function EditCollectionItemDialog({
       setLanguage(item.language || "en")
       setLocationId(item.location?.id || "")
       setNotes(item.notes || "")
+      setPurchasePrice(centsToCurrencyInput(item.purchasePriceCents))
       setError(null)
     }
   }, [item])
@@ -1933,6 +2016,11 @@ function EditCollectionItemDialog({
 
     if (quantity < 1) {
       setError("Quantity must be at least 1")
+      return
+    }
+
+    if (parseCurrencyInputCents(purchasePrice) === undefined) {
+      setError("Purchase price must be a dollar amount")
       return
     }
 
@@ -2011,6 +2099,25 @@ function EditCollectionItemDialog({
                   </option>
                 ))}
               </select>
+            </label>
+            <label className="block space-y-2 sm:col-span-2">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Purchase price
+              </span>
+              <Input
+                inputMode="decimal"
+                value={purchasePrice}
+                onChange={(event) => setPurchasePrice(event.target.value)}
+                placeholder="Current market price"
+              />
+              <span className="block text-xs text-base-content/55">
+                Current {item?.priceText || "unknown"}
+                {item?.valueGainText
+                  ? ` · Gain ${item.valueGainText}${
+                      item.valueGainPercentText ? ` (${item.valueGainPercentText})` : ""
+                    }`
+                  : ""}
+              </span>
             </label>
             <label className="block space-y-2 sm:col-span-2">
               <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
@@ -2166,6 +2273,7 @@ export function AddCollectionItemDialog({
   const [language, setLanguage] = useState("en")
   const [locationId, setLocationId] = useState("")
   const [notes, setNotes] = useState("")
+  const [purchasePrice, setPurchasePrice] = useState("")
   const [error, setError] = useState<string | null>(null)
   const debouncedSearch = useDebouncedValue(search, MODAL_SEARCH_DEBOUNCE_MS)
   const searchTerm = debouncedSearch.trim()
@@ -2187,6 +2295,9 @@ export function AddCollectionItemDialog({
   const createItem = useMutation({
     mutationFn: () => {
       if (!selectedPrinting) throw new Error("Choose a printing")
+      const purchasePriceCents = parseCurrencyInputCents(purchasePrice)
+
+      if (purchasePriceCents === undefined) throw new Error("Purchase price must be a dollar amount")
 
       return request(CreateCollectionItemDocument, {
         input: {
@@ -2197,6 +2308,7 @@ export function AddCollectionItemDialog({
           language: language.trim() || "en",
           locationId: locationId || null,
           notes: notes.trim() || null,
+          purchasePriceCents,
         },
       })
     },
@@ -2221,6 +2333,7 @@ export function AddCollectionItemDialog({
     setLanguage("en")
     setLocationId("")
     setNotes("")
+    setPurchasePrice("")
     setError(null)
   }, [initialPrinting, open])
 
@@ -2256,6 +2369,11 @@ export function AddCollectionItemDialog({
 
     if (quantity < 1) {
       setError("Quantity must be at least 1")
+      return
+    }
+
+    if (parseCurrencyInputCents(purchasePrice) === undefined) {
+      setError("Purchase price must be a dollar amount")
       return
     }
 
@@ -2453,6 +2571,21 @@ export function AddCollectionItemDialog({
               <Input value={language} onChange={(event) => setLanguage(event.target.value)} />
             </label>
           </div>
+
+          <label className="block space-y-2">
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+              Purchase price
+            </span>
+            <Input
+              inputMode="decimal"
+              value={purchasePrice}
+              onChange={(event) => setPurchasePrice(event.target.value)}
+              placeholder="Current market price"
+            />
+            <span className="block text-xs text-base-content/55">
+              Leave blank to use the current market price.
+            </span>
+          </label>
 
           <label className="block space-y-2">
             <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
@@ -3662,6 +3795,38 @@ export function CollectionPage() {
         }
       />
 
+      {data?.collectionValueSummary ? (
+        <div className="mb-7 grid gap-3 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-base-content/50">
+              Market value
+            </p>
+            <p className="mt-1 font-mono text-2xl font-black">
+              {data.collectionValueSummary.totalPriceText || "$0"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-base-content/50">
+              Purchase basis
+            </p>
+            <p className="mt-1 font-mono text-2xl font-black">
+              {data.collectionValueSummary.purchasePriceText || "$0"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-base-content/50">
+              Value gain
+            </p>
+            <p className="mt-1 font-mono text-2xl font-black">
+              {data.collectionValueSummary.valueGainText || "$0"}
+              {data.collectionValueSummary.valueGainPercentText
+                ? ` (${data.collectionValueSummary.valueGainPercentText})`
+                : ""}
+            </p>
+          </div>
+        </div>
+      ) : null}
+
       <div
         className="mb-7 flex flex-wrap gap-2 border-b border-base-300"
         role="tablist"
@@ -3707,7 +3872,7 @@ export function CollectionPage() {
                             <UnfiledLocationCard
                               location={location}
                               countLine={`${compactNumber(location.itemCount || 0)} cards`}
-                              priceLine={location.totalPriceText}
+                              priceLine={collectionValueLine(location.valueSummary)}
                             />
                           ) : (
                             <ImageSummaryCard
@@ -3715,7 +3880,7 @@ export function CollectionPage() {
                               fallback={<Boxes className="h-12 w-12" />}
                               typeLine={<Badge>{titleize(location.kind)}</Badge>}
                               countLine={`${compactNumber(location.itemCount || 0)} cards`}
-                              priceLine={location.totalPriceText}
+                              priceLine={collectionValueLine(location.valueSummary)}
                               nameLine={location.name}
                             />
                           )}
@@ -4086,7 +4251,7 @@ export function LocationPage({ id }: { id: string }) {
           <UnfiledLocationCard
             location={location}
             countLine={`${compactNumber(location.itemCount || 0)} cards`}
-            priceLine={location.totalPriceText}
+            priceLine={collectionValueLine(location.valueSummary)}
             detailLine={location.description}
             interactive={false}
           />
@@ -4096,7 +4261,7 @@ export function LocationPage({ id }: { id: string }) {
             fallback={<Boxes className="h-12 w-12" />}
             typeLine={<Badge>{titleize(location.kind)}</Badge>}
             countLine={`${compactNumber(location.itemCount || 0)} cards`}
-            priceLine={location.totalPriceText}
+            priceLine={collectionValueLine(location.valueSummary)}
             nameLine={location.name}
             detailLine={location.description}
             interactive={false}

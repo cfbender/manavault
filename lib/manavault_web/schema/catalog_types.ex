@@ -78,8 +78,36 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :notes, :string
     field :printing, :printing
 
+    field :current_price_cents, :integer do
+      resolve(&CatalogResolvers.collection_item_current_price_cents/3)
+    end
+
+    field :purchase_price_cents, :integer do
+      resolve(&CatalogResolvers.collection_item_purchase_price_cents/3)
+    end
+
     field :price_text, :string do
       resolve(&CatalogResolvers.collection_item_price_text/3)
+    end
+
+    field :purchase_price_text, :string do
+      resolve(&CatalogResolvers.collection_item_purchase_price_text/3)
+    end
+
+    field :value_gain_cents, :integer do
+      resolve(&CatalogResolvers.collection_item_value_gain_cents/3)
+    end
+
+    field :value_gain_text, :string do
+      resolve(&CatalogResolvers.collection_item_value_gain_text/3)
+    end
+
+    field :value_gain_percent, :float do
+      resolve(&CatalogResolvers.collection_item_value_gain_percent/3)
+    end
+
+    field :value_gain_percent_text, :string do
+      resolve(&CatalogResolvers.collection_item_value_gain_percent_text/3)
     end
 
     field :allocated_quantity, non_null(:integer) do
@@ -102,8 +130,40 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
       resolve(&CatalogResolvers.location_item_count/3)
     end
 
+    field :total_price_cents, :integer do
+      resolve(&CatalogResolvers.location_total_price_cents/3)
+    end
+
     field :total_price_text, :string do
       resolve(&CatalogResolvers.location_total_price_text/3)
+    end
+
+    field :purchase_price_cents, :integer do
+      resolve(&CatalogResolvers.location_purchase_price_cents/3)
+    end
+
+    field :purchase_price_text, :string do
+      resolve(&CatalogResolvers.location_purchase_price_text/3)
+    end
+
+    field :value_gain_cents, :integer do
+      resolve(&CatalogResolvers.location_value_gain_cents/3)
+    end
+
+    field :value_gain_text, :string do
+      resolve(&CatalogResolvers.location_value_gain_text/3)
+    end
+
+    field :value_gain_percent, :float do
+      resolve(&CatalogResolvers.location_value_gain_percent/3)
+    end
+
+    field :value_gain_percent_text, :string do
+      resolve(&CatalogResolvers.location_value_gain_percent_text/3)
+    end
+
+    field :value_summary, non_null(:collection_value_summary) do
+      resolve(&CatalogResolvers.location_value_summary/3)
     end
 
     field :collection_items, list_of(:collection_item) do
@@ -377,6 +437,17 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :scan_session_count, non_null(:integer)
   end
 
+  object :collection_value_summary do
+    field :total_price_cents, non_null(:integer)
+    field :total_price_text, :string
+    field :purchase_price_cents, non_null(:integer)
+    field :purchase_price_text, :string
+    field :value_gain_cents, non_null(:integer)
+    field :value_gain_text, :string
+    field :value_gain_percent, :float
+    field :value_gain_percent_text, :string
+  end
+
   object :collection_import_attrs do
     field :name, :string do
       resolve(&CatalogResolvers.map_value/3)
@@ -411,6 +482,10 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     end
 
     field :location_id, :id do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :purchase_price_cents, :integer do
       resolve(&CatalogResolvers.map_value/3)
     end
   end
@@ -467,6 +542,7 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :finish, :string
     field :location_id, :id
     field :notes, :string
+    field :purchase_price_cents, :integer
   end
 
   input_object :collection_item_update_input do
@@ -476,6 +552,7 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :finish, :string
     field :location_id, :id
     field :notes, :string
+    field :purchase_price_cents, :integer
   end
 
   input_object :scan_session_input do
@@ -509,6 +586,7 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :language, :string
     field :scryfall_id, :id
     field :location_id, :id
+    field :purchase_price_cents, :integer
   end
 
   input_object :collection_import_row_input do

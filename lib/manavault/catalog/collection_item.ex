@@ -11,6 +11,7 @@ defmodule Manavault.Catalog.CollectionItem do
     field :finish, :string, default: "nonfoil"
     field :location, :string
     field :notes, :string
+    field :purchase_price_cents, :integer
 
     belongs_to :printing, Manavault.Catalog.Printing,
       references: :scryfall_id,
@@ -34,7 +35,16 @@ defmodule Manavault.Catalog.CollectionItem do
 
   def create_changeset(collection_item, attrs) do
     collection_item
-    |> cast(attrs, [:scryfall_id, :quantity, :condition, :language, :finish, :location_id, :notes])
+    |> cast(attrs, [
+      :scryfall_id,
+      :quantity,
+      :condition,
+      :language,
+      :finish,
+      :location_id,
+      :notes,
+      :purchase_price_cents
+    ])
     |> validate_common_fields()
     |> validate_required([:scryfall_id])
     |> foreign_key_constraint(:scryfall_id)
@@ -43,7 +53,15 @@ defmodule Manavault.Catalog.CollectionItem do
 
   def update_changeset(collection_item, attrs) do
     collection_item
-    |> cast(attrs, [:quantity, :condition, :language, :finish, :location_id, :notes])
+    |> cast(attrs, [
+      :quantity,
+      :condition,
+      :language,
+      :finish,
+      :location_id,
+      :notes,
+      :purchase_price_cents
+    ])
     |> validate_common_fields()
     |> foreign_key_constraint(:location_id)
   end
@@ -60,6 +78,7 @@ defmodule Manavault.Catalog.CollectionItem do
     changeset
     |> validate_required([:quantity, :condition, :language, :finish])
     |> validate_number(:quantity, greater_than: 0)
+    |> validate_number(:purchase_price_cents, greater_than_or_equal_to: 0)
     |> validate_inclusion(:condition, @conditions)
     |> validate_inclusion(:finish, @finishes)
   end

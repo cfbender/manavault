@@ -151,11 +151,27 @@ defmodule Manavault.CatalogTest do
     assert Price.format_cents(12_345) == "$123"
     assert Price.format_cents(240_000) == "$2.4k"
     assert Price.format_cents(10_000_000) == "$100k"
+    assert Price.parse_cents("$1,234.50") == 123_450
+    assert Price.format_signed_cents(468) == "+$4.68"
+    assert Price.format_signed_cents(-468) == "-$4.68"
+    assert Price.format_percent(23.4) == "+23.4%"
 
     printing = %Printing{prices: Jason.encode!(%{"usd" => "12.34", "usd_foil" => "24.00"})}
 
     assert Price.text_for_printing(printing, "nonfoil") == "$12.34"
     assert Price.text_for_printing(printing, "foil") == "$24"
+
+    item = %CollectionItem{
+      quantity: 2,
+      finish: "nonfoil",
+      purchase_price_cents: 1_000,
+      printing: printing
+    }
+
+    assert Price.collection_items_total_cents([item]) == 2_468
+    assert Price.collection_items_purchase_total_cents([item]) == 2_000
+    assert Price.collection_items_value_gain_cents([item]) == 468
+    assert Price.collection_items_value_gain_percent([item]) == 23.4
   end
 
   test "collection CSV import previews exact rows and applies one selected location" do
@@ -165,9 +181,9 @@ defmodule Manavault.CatalogTest do
     assert {:ok, binder} = Catalog.create_location(%{name: "Import Binder", kind: "binder"})
 
     csv = """
-    Quantity,Card Name,Set Code,Collector Number,Finish,Condition,Language,Location
-    2,Black Lotus,lea,232,nonfoil,NM,en,Ignored Binder
-    1,Time Walk,lea,84,foil,LP,ja,Other Binder
+    Quantity,Card Name,Set Code,Collector Number,Finish,Condition,Language,Purchase Price
+    2,Black Lotus,lea,232,nonfoil,NM,en,90000.00
+    1,Time Walk,lea,84,foil,LP,ja,
     """
 
     assert {:ok, preview} = Catalog.preview_collection_import_csv(csv, location_id: binder.id)
@@ -181,6 +197,7 @@ defmodule Manavault.CatalogTest do
     items = Catalog.list_collection_items([], limit: 10)
     assert Enum.map(items, & &1.location_id) == [binder.id, binder.id]
     assert Enum.map(items, & &1.quantity) == [2, 1]
+    assert Enum.map(items, & &1.purchase_price_cents) == [9_000_000, 500]
     assert Catalog.count_collection_items([]) == 3
     assert Catalog.count_collection_items(location_id: to_string(binder.id)) == 3
   end
@@ -253,6 +270,7 @@ defmodule Manavault.CatalogTest do
 
     assert item.quantity == 2
     assert item.scryfall_id == "scryfall-printing-1"
+    assert item.purchase_price_cents == 10_000_000
 
     assert [listed] = Catalog.list_collection_items(q: "lotus")
     assert listed.id == item.id
@@ -270,7 +288,8 @@ defmodule Manavault.CatalogTest do
                "language" => "ja",
                "finish" => "nonfoil",
                "location_id" => nil,
-               "notes" => "Updated"
+               "notes" => "Updated",
+               "purchase_price_cents" => "123.45"
              })
 
     assert updated.quantity == 3
@@ -280,6 +299,7 @@ defmodule Manavault.CatalogTest do
     assert updated.scryfall_id == "scryfall-printing-1"
     assert updated.location_id == nil
     assert updated.notes == "Updated"
+    assert updated.purchase_price_cents == 12_345
 
     assert {:error, changeset} =
              Catalog.update_collection_item(updated, %{

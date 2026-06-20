@@ -15,6 +15,12 @@ defmodule Manavault.Catalog.Price do
 
   def text_for_collection_item(_item), do: nil
 
+  def purchase_text_for_collection_item(%CollectionItem{} = item) do
+    item
+    |> collection_item_purchase_price_cents()
+    |> format_cents()
+  end
+
   def text_for_deck_card(%DeckCard{} = deck_card) do
     deck_card
     |> deck_card_printing()
@@ -24,14 +30,22 @@ defmodule Manavault.Catalog.Price do
     end
   end
 
-  def collection_items_total_cents(items) do
-    Enum.reduce(List.wrap(items), 0, fn
-      %CollectionItem{quantity: quantity} = item, total when is_integer(quantity) ->
-        total + quantity * (collection_item_price_cents(item) || 0)
+  def collection_items_total_cents(items),
+    do: collection_items_sum_cents(items, &collection_item_price_cents/1)
 
-      _item, total ->
-        total
-    end)
+  def collection_items_purchase_total_cents(items),
+    do: collection_items_sum_cents(items, &collection_item_purchase_price_cents/1)
+
+  def collection_items_value_gain_cents(items) do
+    collection_items_total_cents(items) - collection_items_purchase_total_cents(items)
+  end
+
+  def collection_items_value_gain_percent(items) do
+    purchase_total = collection_items_purchase_total_cents(items)
+
+    if purchase_total > 0 do
+      collection_items_value_gain_cents(items) * 100 / purchase_total
+    end
   end
 
   def deck_cards_total_cents(cards) do
@@ -67,6 +81,28 @@ defmodule Manavault.Catalog.Price do
     end
   end
 
+  def format_signed_cents(nil), do: nil
+
+  def format_signed_cents(cents) when is_integer(cents) and cents > 0 do
+    "+#{format_cents(cents)}"
+  end
+
+  def format_signed_cents(cents) when is_integer(cents) and cents < 0 do
+    "-#{format_cents(abs(cents))}"
+  end
+
+  def format_signed_cents(0), do: "$0"
+
+  def format_percent(nil), do: nil
+
+  def format_percent(percent) when is_number(percent) do
+    rounded = Float.round(percent, 1)
+    sign = if rounded > 0, do: "+", else: ""
+    value = if rounded == trunc(rounded), do: trunc(rounded), else: rounded
+
+    "#{sign}#{value}%"
+  end
+
   def collection_item_price_cents(%CollectionItem{
         printing: %Printing{} = printing,
         finish: finish
@@ -75,6 +111,24 @@ defmodule Manavault.Catalog.Price do
   end
 
   def collection_item_price_cents(_item), do: nil
+
+  def collection_item_purchase_price_cents(%CollectionItem{purchase_price_cents: cents})
+      when is_integer(cents),
+      do: cents
+
+  def collection_item_purchase_price_cents(%CollectionItem{} = item),
+    do: collection_item_price_cents(item)
+
+  def collection_item_purchase_price_cents(_item), do: nil
+
+  def collection_item_value_gain_cents(%CollectionItem{} = item) do
+    with current when is_integer(current) <- collection_item_price_cents(item),
+         purchase when is_integer(purchase) <- collection_item_purchase_price_cents(item) do
+      current - purchase
+    else
+      _unknown -> nil
+    end
+  end
 
   def deck_card_price_cents(%DeckCard{} = deck_card) do
     deck_card
@@ -93,7 +147,7 @@ defmodule Manavault.Catalog.Price do
     prices
     |> decode_prices()
     |> price_string_for_finish(finish)
-    |> parse_price_cents()
+    |> parse_cents()
   end
 
   def price_cents_for_printing(_printing, _finish), do: nil
@@ -118,10 +172,22 @@ defmodule Manavault.Catalog.Price do
     end)
   end
 
-  defp parse_price_cents(nil), do: nil
+  def parse_cents(nil), do: nil
 
-  defp parse_price_cents(price) when is_binary(price) do
-    case Regex.run(~r/^\s*(\d+)(?:\.(\d{1,2}))?\s*$/, price) do
+  def parse_cents(cents) when is_integer(cents) and cents >= 0, do: cents
+
+  def parse_cents(price) when is_float(price) and price >= 0 do
+    round(price * 100)
+  end
+
+  def parse_cents(price) when is_binary(price) do
+    normalized =
+      price
+      |> String.trim()
+      |> String.replace(",", "")
+      |> String.trim_leading("$")
+
+    case Regex.run(~r/^(\d+)(?:\.(\d{1,2}))?$/, normalized) do
       [_, dollars] ->
         String.to_integer(dollars) * 100
 
@@ -132,6 +198,18 @@ defmodule Manavault.Catalog.Price do
       _no_match ->
         nil
     end
+  end
+
+  def parse_cents(_price), do: nil
+
+  defp collection_items_sum_cents(items, price_fun) do
+    Enum.reduce(List.wrap(items), 0, fn
+      %CollectionItem{quantity: quantity} = item, total when is_integer(quantity) ->
+        total + quantity * (price_fun.(item) || 0)
+
+      _item, total ->
+        total
+    end)
   end
 
   defp format_thousands(value) do

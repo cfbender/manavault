@@ -80,14 +80,29 @@ defmodule ManavaultWeb.SchemaTest do
             itemCount
             totalPriceText
             coverPrinting { imageUrl artCropUrl card { name } }
+            valueSummary {
+              totalPriceText
+              purchasePriceText
+              valueGainText
+              valueGainPercentText
+            }
           }
           collectionItems {
             priceText
             allocatedQuantity
             printing { imageUrl card { name } }
+            purchasePriceText
+            valueGainText
+            valueGainPercentText
             location { name }
           }
           collectionItemCount
+          collectionValueSummary {
+            totalPriceText
+            purchasePriceText
+            valueGainText
+            valueGainPercentText
+          }
         }
         """
       })
@@ -105,7 +120,13 @@ defmodule ManavaultWeb.SchemaTest do
                      "imageUrl" => "https://example.test/card.jpg"
                    },
                    "itemCount" => 3,
-                   "totalPriceText" => "$37.02"
+                   "totalPriceText" => "$37.02",
+                   "valueSummary" => %{
+                     "totalPriceText" => "$37.02",
+                     "purchasePriceText" => "$37.02",
+                     "valueGainText" => "$0",
+                     "valueGainPercentText" => "0%"
+                   }
                  },
                  %{
                    "id" => "unfiled",
@@ -113,15 +134,30 @@ defmodule ManavaultWeb.SchemaTest do
                    "kind" => "unfiled",
                    "coverPrinting" => nil,
                    "itemCount" => 0,
-                   "totalPriceText" => "$0"
+                   "totalPriceText" => "$0",
+                   "valueSummary" => %{
+                     "totalPriceText" => "$0",
+                     "purchasePriceText" => "$0",
+                     "valueGainText" => "$0",
+                     "valueGainPercentText" => nil
+                   }
                  }
                ],
                "collectionItemCount" => 3,
+               "collectionValueSummary" => %{
+                 "totalPriceText" => "$37.02",
+                 "purchasePriceText" => "$37.02",
+                 "valueGainText" => "$0",
+                 "valueGainPercentText" => "0%"
+               },
                "collectionItems" => [
                  %{
                    "allocatedQuantity" => 0,
                    "location" => %{"name" => "Binder"},
                    "priceText" => "$12.34",
+                   "purchasePriceText" => "$12.34",
+                   "valueGainText" => "$0",
+                   "valueGainPercentText" => "0%",
                    "printing" => %{
                      "card" => %{"name" => "Test Card"},
                      "imageUrl" => "https://example.test/card.jpg"
@@ -471,6 +507,7 @@ defmodule ManavaultWeb.SchemaTest do
           "rarity" => "rare",
           "image_uris" => %{"normal" => "https://example.test/new-card.jpg"},
           "finishes" => ["nonfoil", "foil"],
+          "prices" => %{"usd" => "1.25", "usd_foil" => "3.50"},
           "legalities" => %{}
         }
       ])
@@ -489,6 +526,10 @@ defmodule ManavaultWeb.SchemaTest do
             finish
             notes
             printing { scryfallId card { name } }
+            purchasePriceCents
+            purchasePriceText
+            valueGainText
+            valueGainPercentText
             location { id name }
           }
         }
@@ -514,6 +555,10 @@ defmodule ManavaultWeb.SchemaTest do
                  "language" => "en",
                  "finish" => "foil",
                  "notes" => "Fresh pull",
+                 "purchasePriceCents" => 350,
+                 "purchasePriceText" => "$3.50",
+                 "valueGainText" => "$0",
+                 "valueGainPercentText" => "0%",
                  "printing" => %{
                    "scryfallId" => "scryfall-printing-2",
                    "card" => %{"name" => "New Collection Card"}
@@ -538,6 +583,7 @@ defmodule ManavaultWeb.SchemaTest do
           "lang" => "en",
           "image_uris" => %{},
           "finishes" => ["nonfoil", "foil"],
+          "prices" => %{"usd" => "2.00", "usd_foil" => "5.00"},
           "legalities" => %{}
         }
       ])
@@ -563,6 +609,10 @@ defmodule ManavaultWeb.SchemaTest do
             language
             finish
             notes
+            purchasePriceCents
+            purchasePriceText
+            valueGainText
+            valueGainPercentText
             location { name }
           }
         }
@@ -575,7 +625,8 @@ defmodule ManavaultWeb.SchemaTest do
             "language" => "ja",
             "finish" => "foil",
             "locationId" => new_location.id,
-            "notes" => "Moved"
+            "notes" => "Moved",
+            "purchasePriceCents" => 1234
           }
         }
       })
@@ -589,6 +640,10 @@ defmodule ManavaultWeb.SchemaTest do
                  "language" => "ja",
                  "finish" => "foil",
                  "notes" => "Moved",
+                 "purchasePriceCents" => 1234,
+                 "purchasePriceText" => "$12.34",
+                 "valueGainText" => "-$7.34",
+                 "valueGainPercentText" => "-59.5%",
                  "location" => %{"name" => "New List"}
                }
              }
@@ -1077,6 +1132,7 @@ defmodule ManavaultWeb.SchemaTest do
           "rarity" => "rare",
           "image_uris" => %{"normal" => "https://example.test/import.jpg"},
           "finishes" => ["nonfoil"],
+          "prices" => %{"usd" => "4.25"},
           "legalities" => %{}
         }
       ])
@@ -1084,8 +1140,8 @@ defmodule ManavaultWeb.SchemaTest do
     {:ok, location} = Catalog.create_location(%{name: "Import Binder", kind: "binder"})
 
     csv = """
-    Quantity,Card Name,Set Code,Collector Number,Finish,Condition,Language
-    3,Imported Card,imp,9,nonfoil,NM,en
+    Quantity,Card Name,Set Code,Collector Number,Finish,Condition,Language,Purchase Price
+    3,Imported Card,imp,9,nonfoil,NM,en,3.00
     """
 
     preview_conn =
@@ -1101,7 +1157,7 @@ defmodule ManavaultWeb.SchemaTest do
             rows {
               rowNumber
               status
-              attrs { quantity finish condition language scryfallId locationId }
+              attrs { quantity finish condition language scryfallId locationId purchasePriceCents }
               printing { scryfallId card { name } }
               candidates { scryfallId }
             }
@@ -1129,7 +1185,8 @@ defmodule ManavaultWeb.SchemaTest do
                          "finish" => "nonfoil",
                          "condition" => "near_mint",
                          "language" => "en",
-                         "scryfallId" => "scryfall-printing-import"
+                         "scryfallId" => "scryfall-printing-import",
+                         "purchasePriceCents" => 300
                        },
                        "printing" => %{
                          "scryfallId" => "scryfall-printing-import",
@@ -1183,9 +1240,9 @@ defmodule ManavaultWeb.SchemaTest do
     assert %{"data" => %{"collectionExportCsv" => export_csv}} = json_response(export_conn, 200)
 
     assert export_csv =~
-             "Quantity,Card Name,Set Code,Collector Number,Finish,Condition,Language,Location"
+             "Quantity,Card Name,Set Code,Collector Number,Finish,Condition,Language,Location,Purchase Price"
 
-    assert export_csv =~ "3,Imported Card,imp,9,nonfoil,near_mint,en,Import Binder"
+    assert export_csv =~ "3,Imported Card,imp,9,nonfoil,near_mint,en,Import Binder,$3"
   end
 
   test "update deck mutation updates deck fields", %{conn: conn} do

@@ -53,6 +53,11 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     {:ok, Catalog.count_collection_items(filters)}
   end
 
+  def collection_value_summary(_parent, _args, _resolution) do
+    items = Catalog.list_collection_items([], limit: 100_000)
+    {:ok, collection_value_summary(items)}
+  end
+
   def collection_export_csv(_parent, args, _resolution) do
     filters = args |> Map.get(:filters, %{}) |> Enum.into([])
     {:ok, Catalog.export_collection_csv(filters)}
@@ -534,14 +539,53 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     {:ok, Catalog.count_collection_items(location_id: "unfiled")}
   end
 
-  def location_total_price_text(%Location{id: id}, _args, _resolution) do
-    items = Catalog.list_collection_items([location_id: to_string(id)], limit: 100_000)
-    {:ok, items |> Price.collection_items_total_cents() |> Price.format_cents()}
+  def location_total_price_cents(parent, _args, _resolution) do
+    {:ok, parent |> location_items() |> Price.collection_items_total_cents()}
   end
 
-  def location_total_price_text(%{id: "unfiled"}, _args, _resolution) do
-    items = Catalog.list_collection_items([location_id: "unfiled"], limit: 100_000)
-    {:ok, items |> Price.collection_items_total_cents() |> Price.format_cents()}
+  def location_total_price_text(parent, _args, _resolution) do
+    {:ok,
+     parent |> location_items() |> Price.collection_items_total_cents() |> Price.format_cents()}
+  end
+
+  def location_purchase_price_cents(parent, _args, _resolution) do
+    {:ok, parent |> location_items() |> Price.collection_items_purchase_total_cents()}
+  end
+
+  def location_purchase_price_text(parent, _args, _resolution) do
+    {:ok,
+     parent
+     |> location_items()
+     |> Price.collection_items_purchase_total_cents()
+     |> Price.format_cents()}
+  end
+
+  def location_value_gain_cents(parent, _args, _resolution) do
+    {:ok, parent |> location_items() |> Price.collection_items_value_gain_cents()}
+  end
+
+  def location_value_gain_text(parent, _args, _resolution) do
+    {:ok,
+     parent
+     |> location_items()
+     |> Price.collection_items_value_gain_cents()
+     |> Price.format_signed_cents()}
+  end
+
+  def location_value_gain_percent(parent, _args, _resolution) do
+    {:ok, parent |> location_items() |> Price.collection_items_value_gain_percent()}
+  end
+
+  def location_value_gain_percent_text(parent, _args, _resolution) do
+    {:ok,
+     parent
+     |> location_items()
+     |> Price.collection_items_value_gain_percent()
+     |> Price.format_percent()}
+  end
+
+  def location_value_summary(parent, _args, _resolution) do
+    {:ok, parent |> location_items() |> collection_value_summary()}
   end
 
   def location_collection_items(%Location{id: id}, args, _resolution) do
@@ -570,8 +614,40 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     {:ok, item |> Repo.preload(:location_assoc) |> Map.get(:location_assoc)}
   end
 
+  def collection_item_current_price_cents(%CollectionItem{} = item, _args, _resolution) do
+    {:ok, Price.collection_item_price_cents(item)}
+  end
+
+  def collection_item_purchase_price_cents(%CollectionItem{} = item, _args, _resolution) do
+    {:ok, Price.collection_item_purchase_price_cents(item)}
+  end
+
   def collection_item_price_text(%CollectionItem{} = item, _args, _resolution) do
     {:ok, Price.text_for_collection_item(item)}
+  end
+
+  def collection_item_purchase_price_text(%CollectionItem{} = item, _args, _resolution) do
+    {:ok, Price.purchase_text_for_collection_item(item)}
+  end
+
+  def collection_item_value_gain_cents(%CollectionItem{} = item, _args, _resolution) do
+    {:ok, Price.collection_item_value_gain_cents(item)}
+  end
+
+  def collection_item_value_gain_text(%CollectionItem{} = item, _args, _resolution) do
+    {:ok, item |> Price.collection_item_value_gain_cents() |> Price.format_signed_cents()}
+  end
+
+  def collection_item_value_gain_percent(%CollectionItem{} = item, _args, _resolution) do
+    purchase = Price.collection_item_purchase_price_cents(item)
+    gain = Price.collection_item_value_gain_cents(item)
+    {:ok, value_gain_percent(gain, purchase)}
+  end
+
+  def collection_item_value_gain_percent_text(%CollectionItem{} = item, _args, _resolution) do
+    purchase = Price.collection_item_purchase_price_cents(item)
+    gain = Price.collection_item_value_gain_cents(item)
+    {:ok, gain |> value_gain_percent(purchase) |> Price.format_percent()}
   end
 
   def collection_item_allocated_quantity(
@@ -596,6 +672,41 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     status = Catalog.deck_card_allocation_status(deck_card)
     {:ok, %{status | state: to_string(status.state)}}
   end
+
+  defp location_items(%Location{collection_items: items}) when is_list(items), do: items
+
+  defp location_items(%Location{id: id}) do
+    Catalog.list_collection_items([location_id: to_string(id)], limit: 100_000)
+  end
+
+  defp location_items(%{id: "unfiled"}) do
+    Catalog.list_collection_items([location_id: "unfiled"], limit: 100_000)
+  end
+
+  defp collection_value_summary(items) do
+    total = Price.collection_items_total_cents(items)
+    purchase = Price.collection_items_purchase_total_cents(items)
+    gain = total - purchase
+    percent = value_gain_percent(gain, purchase)
+
+    %{
+      total_price_cents: total,
+      total_price_text: Price.format_cents(total),
+      purchase_price_cents: purchase,
+      purchase_price_text: Price.format_cents(purchase),
+      value_gain_cents: gain,
+      value_gain_text: Price.format_signed_cents(gain),
+      value_gain_percent: percent,
+      value_gain_percent_text: Price.format_percent(percent)
+    }
+  end
+
+  defp value_gain_percent(gain, purchase)
+       when is_integer(gain) and is_integer(purchase) and purchase > 0 do
+    gain * 100 / purchase
+  end
+
+  defp value_gain_percent(_gain, _purchase), do: nil
 
   defp scan_items(%ScanSession{scan_items: items}) when is_list(items), do: items
 

@@ -9,6 +9,7 @@ defmodule Manavault.Catalog.Collection do
     CSV,
     Finishes,
     Location,
+    Price,
     Printing,
     ScanItem,
     Search,
@@ -52,6 +53,8 @@ defmodule Manavault.Catalog.Collection do
   end
 
   def create_collection_item(attrs) when is_map(attrs) do
+    attrs = attrs |> normalize_collection_item_attrs() |> default_purchase_price_cents()
+
     %CollectionItem{}
     |> CollectionItem.create_changeset(attrs)
     |> validate_collection_finish_available()
@@ -59,6 +62,8 @@ defmodule Manavault.Catalog.Collection do
   end
 
   def update_collection_item(%CollectionItem{} = collection_item, attrs) when is_map(attrs) do
+    attrs = normalize_collection_item_attrs(attrs)
+
     collection_item
     |> CollectionItem.update_changeset(attrs)
     |> validate_collection_finish_available()
@@ -238,7 +243,8 @@ defmodule Manavault.Catalog.Collection do
           item.finish,
           item.condition,
           item.language,
-          if(item.location_assoc, do: item.location_assoc.name, else: "")
+          if(item.location_assoc, do: item.location_assoc.name, else: ""),
+          item |> Price.collection_item_purchase_price_cents() |> Price.format_cents()
         ]
       end)
 
@@ -251,7 +257,8 @@ defmodule Manavault.Catalog.Collection do
         "Finish",
         "Condition",
         "Language",
-        "Location"
+        "Location",
+        "Purchase Price"
       ]
       | rows
     ]
@@ -318,15 +325,35 @@ defmodule Manavault.Catalog.Collection do
     |> String.replace(~r/[^a-z0-9]+/, "_")
     |> String.trim("_")
     |> case do
-      key when key in ["card", "card_name", "name"] -> "name"
-      key when key in ["set", "set_code", "edition"] -> "set_code"
-      key when key in ["collector", "collector_number", "number", "cn"] -> "collector_number"
-      key when key in ["qty", "count", "quantity"] -> "quantity"
-      key when key in ["foil", "foiling", "finish"] -> "finish"
-      key when key in ["condition", "cond"] -> "condition"
-      key when key in ["language", "lang"] -> "language"
-      key when key in ["scryfall", "scryfall_id", "printing_id"] -> "scryfall_id"
-      key -> key
+      key when key in ["card", "card_name", "name"] ->
+        "name"
+
+      key when key in ["set", "set_code", "edition"] ->
+        "set_code"
+
+      key when key in ["collector", "collector_number", "number", "cn"] ->
+        "collector_number"
+
+      key when key in ["qty", "count", "quantity"] ->
+        "quantity"
+
+      key when key in ["foil", "foiling", "finish"] ->
+        "finish"
+
+      key when key in ["condition", "cond"] ->
+        "condition"
+
+      key when key in ["language", "lang"] ->
+        "language"
+
+      key when key in ["purchase_price", "purchase_price_usd", "price_paid", "paid"] ->
+        "purchase_price_cents"
+
+      key when key in ["scryfall", "scryfall_id", "printing_id"] ->
+        "scryfall_id"
+
+      key ->
+        key
     end
   end
 
@@ -339,7 +366,8 @@ defmodule Manavault.Catalog.Collection do
       "finish" => normalize_collection_import_finish(Map.get(row, "finish", "")),
       "condition" => normalize_collection_import_condition(Map.get(row, "condition", "")),
       "language" => normalize_collection_import_language(Map.get(row, "language", "")),
-      "scryfall_id" => Util.normalize_filter(Map.get(row, "scryfall_id", ""))
+      "scryfall_id" => Util.normalize_filter(Map.get(row, "scryfall_id", "")),
+      "purchase_price_cents" => Price.parse_cents(Map.get(row, "purchase_price_cents"))
     }
   end
 
@@ -485,8 +513,49 @@ defmodule Manavault.Catalog.Collection do
       language: printing.lang || "en",
       finish: Finishes.first(printing.finishes),
       quantity: 1,
-      condition: "near_mint"
+      condition: "near_mint",
+      purchase_price_cents:
+        Price.price_cents_for_printing(printing, Finishes.first(printing.finishes))
     }
+  end
+
+  defp normalize_collection_item_attrs(attrs) do
+    attrs
+    |> Map.new(fn {key, value} -> {to_string(key), value} end)
+    |> normalize_purchase_price_cents()
+  end
+
+  defp normalize_purchase_price_cents(%{"purchase_price_cents" => value} = attrs)
+       when is_binary(value) do
+    cond do
+      String.trim(value) == "" ->
+        Map.put(attrs, "purchase_price_cents", nil)
+
+      cents = Price.parse_cents(value) ->
+        Map.put(attrs, "purchase_price_cents", cents)
+
+      true ->
+        attrs
+    end
+  end
+
+  defp normalize_purchase_price_cents(attrs), do: attrs
+
+  defp default_purchase_price_cents(%{"purchase_price_cents" => value} = attrs)
+       when value not in [nil, ""],
+       do: attrs
+
+  defp default_purchase_price_cents(attrs) do
+    scryfall_id = Map.get(attrs, "scryfall_id")
+
+    with true <- is_binary(scryfall_id),
+         %Printing{} = printing <- Search.get_printing_by_scryfall_id(scryfall_id),
+         finish <- Map.get(attrs, "finish") || Finishes.first(printing.finishes),
+         cents when is_integer(cents) <- Price.price_cents_for_printing(printing, finish) do
+      Map.put(attrs, "purchase_price_cents", cents)
+    else
+      _unknown -> attrs
+    end
   end
 
   defp validate_collection_finish_available(changeset) do
