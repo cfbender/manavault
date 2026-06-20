@@ -7,7 +7,12 @@ defmodule Mix.Tasks.Manavault.Ocr.Benchmark do
 
   alias Manavault.Catalog.OCRBenchmark
 
-  @switches [max_failures: :integer, limit: :integer, image_match: :boolean]
+  @switches [
+    max_failures: :integer,
+    limit: :integer,
+    image_match: :boolean,
+    title_fast_path: :boolean
+  ]
 
   @shortdoc "Runs OCR benchmark fixtures"
 
@@ -41,6 +46,14 @@ defmodule Mix.Tasks.Manavault.Ocr.Benchmark do
     |> Keyword.put_new(:max_failures, 20)
     |> Keyword.put_new(:limit, :all)
     |> Keyword.put_new(:image_match, false)
+    |> Keyword.put_new(:title_fast_path, title_fast_path_from_env())
+  end
+
+  defp title_fast_path_from_env do
+    case System.get_env("SCAN_TITLE_OCR_FAST_PATH") do
+      nil -> true
+      value -> value |> String.downcase() |> then(&(&1 not in ["0", "false", "no", "off"]))
+    end
   end
 
   defp print_timings(timings) do

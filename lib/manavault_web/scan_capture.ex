@@ -64,9 +64,11 @@ defmodule ManavaultWeb.ScanCapture do
       "outcome" => result.outcome,
       "message" => result.message,
       "scanItem" => scan_item_map(result.scan_item),
-      "scanSession" => scan_session_map(result.scan_session)
+      "scanSession" => scan_session_to_client_map(result.scan_session)
     }
   end
+
+  def scan_session_to_client_map(%ScanSession{} = session), do: scan_session_map(session)
 
   defp scan_recognition_opts(args) do
     []

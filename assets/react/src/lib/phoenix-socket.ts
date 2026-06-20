@@ -11,6 +11,8 @@ type PendingPush<T> = {
   timer: number
 }
 
+type EventHandler<T> = (payload: T) => void
+
 export class PhoenixChannel {
   private readonly socket: PhoenixSocket
   private readonly topic: string
@@ -29,6 +31,10 @@ export class PhoenixChannel {
   push<T>(event: string, payload: unknown, timeoutMs = 30000) {
     return this.socket.push<T>(this.joinRef, this.topic, event, payload, timeoutMs)
   }
+
+  on<T>(event: string, handler: EventHandler<T>) {
+    return this.socket.on<T>(this.topic, event, handler)
+  }
 }
 
 export class PhoenixSocket {
@@ -37,6 +43,7 @@ export class PhoenixSocket {
   private ref = 0
   private socket: WebSocket | null = null
   private readonly pending = new Map<string, PendingPush<unknown>>()
+  private readonly handlers = new Map<string, Set<EventHandler<unknown>>>()
 
   constructor(path: string) {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
@@ -89,6 +96,18 @@ export class PhoenixSocket {
     return String(this.ref)
   }
 
+  on<T>(topic: string, event: string, handler: EventHandler<T>) {
+    const key = this.handlerKey(topic, event)
+    const handlers = this.handlers.get(key) || new Set<EventHandler<unknown>>()
+    handlers.add(handler as EventHandler<unknown>)
+    this.handlers.set(key, handlers)
+
+    return () => {
+      handlers.delete(handler as EventHandler<unknown>)
+      if (handlers.size === 0) this.handlers.delete(key)
+    }
+  }
+
   push<T>(
     joinRef: string | null,
     topic: string,
@@ -114,8 +133,14 @@ export class PhoenixSocket {
 
   private handleMessage(event: MessageEvent<string>) {
     const message = JSON.parse(event.data) as [string | null, string | null, string, string, unknown]
-    const [, ref, , eventName, payload] = message
-    if (eventName !== "phx_reply" || !ref) return
+    const [, ref, topic, eventName, payload] = message
+
+    if (eventName !== "phx_reply") {
+      this.dispatch(topic, eventName, payload)
+      return
+    }
+
+    if (!ref) return
 
     const pending = this.pending.get(ref)
     if (!pending) return
@@ -133,6 +158,16 @@ export class PhoenixSocket {
           : "Scanner websocket request failed."
       pending.reject(new Error(message))
     }
+  }
+
+  private dispatch(topic: string, event: string, payload: unknown) {
+    for (const handler of this.handlers.get(this.handlerKey(topic, event)) || []) {
+      handler(payload)
+    }
+  }
+
+  private handlerKey(topic: string, event: string) {
+    return `${topic}:${event}`
   }
 
   private closePending(message: string) {

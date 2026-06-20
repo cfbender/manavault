@@ -1,10 +1,12 @@
 defmodule ManavaultWeb.ScannerChannel do
   use ManavaultWeb, :channel
 
+  alias Manavault.Catalog
   alias ManavaultWeb.ScanCapture
 
   @impl true
   def join("scanner:" <> scan_session_id, _payload, socket) do
+    Phoenix.PubSub.subscribe(Manavault.PubSub, "scanner_updates:#{scan_session_id}")
     {:ok, assign(socket, :scan_session_id, scan_session_id)}
   end
 
@@ -22,6 +24,19 @@ defmodule ManavaultWeb.ScannerChannel do
       {:error, message} ->
         {:reply, {:error, %{message: message}}, socket}
     end
+  end
+
+  @impl true
+  def handle_info({:scan_session_updated, scan_session_id}, socket) do
+    if to_string(scan_session_id) == to_string(socket.assigns.scan_session_id) do
+      scan_session = Catalog.get_scan_session!(scan_session_id)
+
+      push(socket, "scan_session_updated", %{
+        "scanSession" => ScanCapture.scan_session_to_client_map(scan_session)
+      })
+    end
+
+    {:noreply, socket}
   end
 
   defp snake_key(key) when is_atom(key), do: key |> Atom.to_string() |> snake_key()

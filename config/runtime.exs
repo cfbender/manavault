@@ -40,6 +40,12 @@ if config_env() == :prod do
       _value -> true
     end
 
+  scan_async_image_refinement? =
+    case System.get_env("SCAN_ASYNC_IMAGE_REFINEMENT", "true") |> String.downcase() do
+      value when value in ["0", "false", "no", "off"] -> false
+      _value -> true
+    end
+
   for path <- [
         data_dir,
         Path.dirname(database_path),
@@ -58,6 +64,7 @@ if config_env() == :prod do
   config :manavault,
     scan_image_matching: scan_image_matching?,
     scan_title_ocr_fast_path: scan_title_ocr_fast_path?,
+    scan_async_image_refinement: scan_async_image_refinement?,
     scan_image_cache_dir: Path.join(data_dir, "cache/scryfall/scanner-images"),
     scryfall_assets_dir: Path.join(data_dir, "cache/scryfall/assets")
 

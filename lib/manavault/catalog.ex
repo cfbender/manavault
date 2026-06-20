@@ -97,6 +97,7 @@ defmodule Manavault.Catalog do
     to: Scans
 
   defdelegate recognize_scan_item(scan_item, opts \\ []), to: Scans
+  defdelegate refine_scan_item_printing_with_image(scan_item_id, opts \\ []), to: Scans
   defdelegate get_scan_item!(id), to: Scans
   defdelegate update_scan_item_review(scan_item, attrs), to: Scans
   defdelegate set_scan_item_printing(scan_item_id, scryfall_id), to: Scans

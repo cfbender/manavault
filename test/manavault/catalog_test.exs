@@ -2382,6 +2382,66 @@ defmodule Manavault.CatalogTest do
     assert {:error, :not_accepted} = Catalog.undo_scan_item_accept(item.id)
   end
 
+  test "refine_scan_item_printing_with_image switches recognized item to image matched printing" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @black_lotus_beta])
+
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Image refinement"})
+
+    assert {:ok, item} =
+             Catalog.create_scan_item(scan_session, %{
+               status: "recognized",
+               image_path: "/tmp/black-lotus.jpg",
+               accepted_printing_id: "scryfall-printing-1"
+             })
+
+    parent = self()
+
+    image_matcher = fn "/tmp/black-lotus.jpg", printings, opts ->
+      send(parent, {:image_refinement, Enum.map(printings, & &1.scryfall_id), opts})
+      [%{scryfall_id: "scryfall-printing-3", score: 0.96}]
+    end
+
+    assert {:ok, refined_item} =
+             Catalog.refine_scan_item_printing_with_image(item.id,
+               image_matcher: image_matcher,
+               image_refinement_limit: 7
+             )
+
+    assert refined_item.status == "recognized"
+    assert refined_item.accepted_printing_id == "scryfall-printing-3"
+    assert Catalog.get_scan_item!(item.id).accepted_printing_id == "scryfall-printing-3"
+
+    assert_received {:image_refinement, printing_ids, opts}
+    assert MapSet.new(printing_ids) == MapSet.new(["scryfall-printing-1", "scryfall-printing-3"])
+    assert Keyword.get(opts, :limit) == 7
+    assert Keyword.get(opts, :threshold) == 0.82
+  end
+
+  test "refine_scan_item_printing_with_image does not change accepted items" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @black_lotus_beta])
+
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Accepted refinement"})
+
+    assert {:ok, item} =
+             Catalog.create_scan_item(scan_session, %{
+               status: "accepted",
+               image_path: "/tmp/black-lotus.jpg",
+               accepted_printing_id: "scryfall-printing-1"
+             })
+
+    image_matcher = fn _image_path, _printings, _opts ->
+      flunk("accepted scan items should not be refined")
+    end
+
+    assert {:ok, unchanged_item} =
+             Catalog.refine_scan_item_printing_with_image(item.id, image_matcher: image_matcher)
+
+    assert unchanged_item.status == "accepted"
+    assert unchanged_item.accepted_printing_id == "scryfall-printing-1"
+  end
+
   test "set_scan_item_printing stores manual exact printing and can accept it" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])

@@ -22,7 +22,7 @@ defmodule Manavault.Catalog.RuntimeImageMatcher do
     |> Enum.take(limit)
     |> Enum.flat_map(&reference_fixture/1)
     |> ImageMatcher.build_references()
-    |> then(&ImageMatcher.match(image_path, &1, limit: limit))
+    |> then(&ImageMatcher.match(image_path, &1, Keyword.take(opts, [:crop, :limit, :threshold])))
   rescue
     exception ->
       Logger.warning(

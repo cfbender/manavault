@@ -311,7 +311,6 @@ and add the OpenVINO environment:
       MANAVAULT_OCR_ENGINE: openvino
       MANAVAULT_OCR_OPENVINO_PERFORMANCE_HINT: LATENCY
       MANAVAULT_OCR_THREADS: "4"
-      SCAN_IMAGE_MATCHING: "false"
 ```
 
 Then restart the stack:
@@ -363,15 +362,21 @@ Common optional values:
 - `MANAVAULT_OCR_OPENVINO_NUM_STREAMS` - optional OpenVINO CPU stream count.
   Defaults to unset, which lets OpenVINO choose.
 - `SCAN_IMAGE_MATCHING` - set to `false` to disable candidate image matching
-  during camera scans and use OCR-only recognition. Defaults to `true`.
+  during camera scans and use OCR-only recognition. Defaults to `true`. With the
+  title fast path enabled, image matching runs in the background to refine the
+  exact printing after the card name is recognized.
 - `SCAN_TITLE_OCR_FAST_PATH` - set to `false` to disable the title-crop OCR
   fast path and always OCR the full capture. Defaults to `true`.
+- `SCAN_ASYNC_IMAGE_REFINEMENT` - set to `false` to stop background exact
+  printing refinement while keeping other image-matching behavior enabled.
+  Defaults to `true`.
 - `MANAVAULT_SKIP_MIGRATION_BACKUP` - skip automatic release backup before
   pending migrations. Defaults to unset.
 
 Default OCR behavior is therefore ONNX Runtime CPU, title-crop fast path on, and
-candidate image matching on. For lower-power Intel self-hosting, the tested NUC
-profile is OpenVINO plus `SCAN_IMAGE_MATCHING=false`.
+background exact-printing image refinement on. For lower-power Intel
+self-hosting, the tested NUC profile is OpenVINO with the title fast path and
+async image refinement left enabled.
 
 No Postgres or external service is required.
 

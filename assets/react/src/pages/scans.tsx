@@ -485,6 +485,10 @@ type ScanCaptureResult = {
   scanSession: ScanSession
 }
 
+type ScanSessionUpdatedPayload = {
+  scanSession: ScanSession
+}
+
 type LocationOption = {
   id: string
   name: string
@@ -826,6 +830,7 @@ export function ScannerPage() {
 
   useEffect(() => {
     let cancelled = false
+    let unsubscribe: (() => void) | null = null
     const socket = new PhoenixSocket("/socket")
     const channel = socket.channel(`scanner:${id}`)
     scannerChannelRef.current = null
@@ -835,6 +840,15 @@ export function ScannerPage() {
       .then(() => channel.join())
       .then(() => {
         if (cancelled) return
+        unsubscribe = channel.on<ScanSessionUpdatedPayload>("scan_session_updated", (payload) => {
+          if (!payload?.scanSession) return
+
+          queryClient.setQueryData(["scan-session", id], (current: typeof data | undefined) => ({
+            scanSession: payload.scanSession,
+            locations: current?.locations || [],
+          }))
+          queryClient.invalidateQueries({ queryKey: ["scan-sessions"] })
+        })
         scannerChannelRef.current = channel
       })
       .catch(() => {
@@ -844,10 +858,11 @@ export function ScannerPage() {
 
     return () => {
       cancelled = true
+      unsubscribe?.()
       scannerChannelRef.current = null
       socket.disconnect()
     }
-  }, [id])
+  }, [id, queryClient])
 
   useEffect(() => {
     const previousIds = previousRecentItemIdsRef.current

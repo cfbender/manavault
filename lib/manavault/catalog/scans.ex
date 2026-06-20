@@ -10,6 +10,7 @@ defmodule Manavault.Catalog.Scans do
     Finishes,
     Location,
     Printing,
+    RuntimeImageMatcher,
     ScanItem,
     ScanRecognition,
     ScanSession
@@ -18,6 +19,9 @@ defmodule Manavault.Catalog.Scans do
   alias Manavault.Repo
 
   @scan_auto_accept_min_confidence 0.7
+  @image_refinement_candidate_limit 40
+  @image_refinement_threshold 0.82
+
   def list_scan_sessions do
     ScanSession
     |> order_by([session], desc: session.inserted_at, desc: session.id)
@@ -101,6 +105,7 @@ defmodule Manavault.Catalog.Scans do
          {:ok, recognition} <- recognize_capture_image(path, opts),
          {:ok, scan_item} <- persist_recognized_capture(scan_session, path, recognition, opts) do
       log_capture_timing(started_at, recognition)
+      maybe_refine_scan_item_printing_async(scan_item, recognition, opts)
       {:ok, scan_item}
     else
       {:error, reason, path} ->
@@ -154,6 +159,23 @@ defmodule Manavault.Catalog.Scans do
 
       Repo.preload(updated_item, scan_item_preloads(), force: true)
     end)
+  end
+
+  def refine_scan_item_printing_with_image(scan_item_id, opts \\ []) when is_list(opts) do
+    started_at = System.monotonic_time(:microsecond)
+
+    with %ScanItem{} = scan_item <- get_scan_item(scan_item_id),
+         :ok <- refinable_scan_item?(scan_item),
+         printings <- refinement_printings(scan_item, opts),
+         %{scryfall_id: scryfall_id, score: score} <-
+           best_refinement_match(scan_item.image_path, printings, opts) do
+      apply_image_refinement(scan_item, scryfall_id, score, started_at, opts)
+    else
+      nil -> {:error, :not_found}
+      :no_match -> {:ok, get_scan_item(scan_item_id) || %ScanItem{id: scan_item_id}}
+      :skip -> {:ok, get_scan_item(scan_item_id) || %ScanItem{id: scan_item_id}}
+      [] -> {:ok, get_scan_item(scan_item_id) || %ScanItem{id: scan_item_id}}
+    end
   end
 
   def accept_scan_item(scan_item_id) do
@@ -288,6 +310,252 @@ defmodule Manavault.Catalog.Scans do
   def delete_scan_session(%ScanSession{} = scan_session) do
     Repo.delete(scan_session)
   end
+
+  defp maybe_refine_scan_item_printing_async(scan_item, recognition, opts) do
+    if async_image_refinement_enabled?(recognition, opts) do
+      scan_item_id = scan_item.id
+      task_opts = image_refinement_task_opts(opts)
+
+      case Task.Supervisor.start_child(Manavault.ScanRecognitionSupervisor, fn ->
+             case refine_scan_item_printing_with_image(scan_item_id, task_opts) do
+               {:ok, _scan_item} ->
+                 :ok
+
+               {:error, :not_found} ->
+                 :ok
+
+               {:error, reason} ->
+                 Logger.warning(
+                   "Async scan image refinement failed for scan item #{scan_item_id}: #{inspect(reason)}"
+                 )
+             end
+           end) do
+        {:ok, _pid} ->
+          :ok
+
+        {:error, reason} ->
+          Logger.warning(
+            "Could not start async scan image refinement for scan item #{scan_item.id}: #{inspect(reason)}"
+          )
+      end
+    end
+  end
+
+  defp async_image_refinement_enabled?(recognition, opts) do
+    Keyword.get(
+      opts,
+      :async_image_refinement,
+      Application.get_env(:manavault, :scan_async_image_refinement, true)
+    ) and
+      Application.get_env(:manavault, :scan_image_matching, true) and
+      get_in(recognition, [:timings, :title_ocr_fast_path]) == true
+  end
+
+  defp image_refinement_task_opts(opts) do
+    Keyword.take(opts, [
+      :image_matcher,
+      :image_refinement_limit,
+      :image_refinement_threshold,
+      :prefer_foil,
+      :set_codes
+    ])
+  end
+
+  defp get_scan_item(id) do
+    case Repo.get(ScanItem, id) do
+      nil -> nil
+      scan_item -> Repo.preload(scan_item, scan_item_preloads(), force: true)
+    end
+  end
+
+  defp refinable_scan_item?(%ScanItem{status: "recognized", accepted_printing_id: accepted_id})
+       when is_binary(accepted_id),
+       do: :ok
+
+  defp refinable_scan_item?(_scan_item), do: :skip
+
+  defp refinement_printings(%ScanItem{} = scan_item, opts) do
+    scan_item
+    |> Collection.list_printings_for_scan_item()
+    |> filter_refinement_set_codes(opts)
+  end
+
+  defp filter_refinement_set_codes(printings, opts) do
+    set_codes =
+      opts
+      |> Keyword.get(:set_codes, [])
+      |> normalize_refinement_set_codes()
+
+    if set_codes == [] do
+      printings
+    else
+      Enum.filter(printings, &(String.downcase(&1.set_code || "") in set_codes))
+    end
+  end
+
+  defp normalize_refinement_set_codes(values) when is_list(values) do
+    values
+    |> Enum.map(&to_string/1)
+    |> Enum.map(&String.downcase/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  defp normalize_refinement_set_codes(_values), do: []
+
+  defp best_refinement_match(nil, _printings, _opts), do: :no_match
+  defp best_refinement_match(_image_path, [], _opts), do: :no_match
+
+  defp best_refinement_match(image_path, printings, opts) do
+    allowed_ids = MapSet.new(printings, & &1.scryfall_id)
+    match_opts = image_refinement_match_opts(opts)
+    threshold = Keyword.fetch!(match_opts, :threshold)
+
+    matches =
+      image_refinement_matcher(opts).(
+        image_path,
+        printings,
+        match_opts
+      )
+      |> normalize_refinement_matches()
+      |> Enum.filter(&MapSet.member?(allowed_ids, &1.scryfall_id))
+      |> Enum.filter(&(&1.score >= threshold))
+
+    case List.first(matches) do
+      nil -> :no_match
+      match -> match
+    end
+  rescue
+    exception ->
+      Logger.warning(
+        "Scan image refinement matching failed for #{image_path}: #{Exception.message(exception)}"
+      )
+
+      :no_match
+  end
+
+  defp image_refinement_match_opts(opts) do
+    [
+      limit: Keyword.get(opts, :image_refinement_limit, @image_refinement_candidate_limit),
+      threshold: Keyword.get(opts, :image_refinement_threshold, @image_refinement_threshold)
+    ]
+  end
+
+  defp image_refinement_matcher(opts) do
+    cond do
+      is_function(Keyword.get(opts, :image_matcher), 3) ->
+        Keyword.get(opts, :image_matcher)
+
+      is_function(Keyword.get(opts, :image_matcher), 2) ->
+        matcher = Keyword.get(opts, :image_matcher)
+        fn image_path, printings, _opts -> matcher.(image_path, printings) end
+
+      is_function(Application.get_env(:manavault, :scan_image_matcher), 3) ->
+        Application.get_env(:manavault, :scan_image_matcher)
+
+      is_function(Application.get_env(:manavault, :scan_image_matcher), 2) ->
+        matcher = Application.get_env(:manavault, :scan_image_matcher)
+        fn image_path, printings, _opts -> matcher.(image_path, printings) end
+
+      true ->
+        &RuntimeImageMatcher.match/3
+    end
+  end
+
+  defp normalize_refinement_matches(matches) when is_list(matches) do
+    matches
+    |> Enum.flat_map(fn
+      %{scryfall_id: scryfall_id, score: score} when is_binary(scryfall_id) ->
+        [%{scryfall_id: scryfall_id, score: float_score(score)}]
+
+      %{"scryfall_id" => scryfall_id, "score" => score} when is_binary(scryfall_id) ->
+        [%{scryfall_id: scryfall_id, score: float_score(score)}]
+
+      _match ->
+        []
+    end)
+    |> Enum.sort_by(&{-&1.score, &1.scryfall_id})
+  end
+
+  defp normalize_refinement_matches(_matches), do: []
+
+  defp float_score(score) when is_integer(score), do: score * 1.0
+  defp float_score(score) when is_float(score), do: score
+
+  defp float_score(score) when is_binary(score) do
+    case Float.parse(score) do
+      {value, _rest} -> value
+      :error -> 0.0
+    end
+  end
+
+  defp float_score(_score), do: 0.0
+
+  defp apply_image_refinement(
+         %ScanItem{} = scan_item,
+         scryfall_id,
+         score,
+         started_at,
+         opts
+       ) do
+    case Repo.transaction(fn ->
+           current_item = get_scan_item(scan_item.id)
+
+           with %ScanItem{} = current_item <- current_item,
+                :ok <- refinable_scan_item?(current_item),
+                false <- current_item.accepted_printing_id == scryfall_id do
+             printing = Repo.get!(Printing, scryfall_id)
+
+             {:ok, updated_item} =
+               current_item
+               |> ScanItem.changeset(%{
+                 "accepted_printing_id" => printing.scryfall_id,
+                 "finish" => preferred_scan_finish(printing, current_item.finish, opts)
+               })
+               |> Repo.update()
+
+             {:updated, Repo.preload(updated_item, scan_item_preloads(), force: true)}
+           else
+             nil -> {:missing, current_item}
+             :skip -> {:unchanged, current_item}
+             true -> {:unchanged, current_item}
+           end
+         end) do
+      {:ok, {:updated, updated_item}} ->
+        log_image_refinement(scan_item, updated_item, score, started_at)
+        broadcast_scan_session_update(updated_item)
+        {:ok, updated_item}
+
+      {:ok, {:missing, _item}} ->
+        {:error, :not_found}
+
+      {:ok, {_status, current_item}} ->
+        {:ok, current_item}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp log_image_refinement(scan_item, updated_item, score, started_at) do
+    elapsed_us = System.monotonic_time(:microsecond) - started_at
+
+    Logger.info(fn ->
+      "OCR image refinement scan_item=#{scan_item.id} " <>
+        "printing=#{scan_item.accepted_printing_id}->#{updated_item.accepted_printing_id} " <>
+        "score=#{Float.round(score, 3)} image=#{format_us(elapsed_us)}"
+    end)
+  end
+
+  defp broadcast_scan_session_update(%ScanItem{scan_session_id: scan_session_id})
+       when not is_nil(scan_session_id) do
+    Phoenix.PubSub.broadcast(
+      Manavault.PubSub,
+      "scanner_updates:#{scan_session_id}",
+      {:scan_session_updated, scan_session_id}
+    )
+  end
+
+  defp broadcast_scan_session_update(_scan_item), do: :ok
 
   defp log_capture_timing(started_at, recognition) do
     total_us = System.monotonic_time(:microsecond) - started_at
