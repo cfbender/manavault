@@ -34,7 +34,7 @@ The scanner is designed around a phone held above a card:
 
 - It defaults to the environment-facing camera when no specific camera has been selected.
 - It keeps the camera preview within the visible viewport on small screens.
-- It keeps routine scanner status out of the camera preview; only actionable errors appear below the camera.
+- It keeps routine scanner status below the camera preview and shows actionable errors there.
 - It supports camera switching, torch, and zoom where the browser exposes those capabilities.
 - It provides scanner-only options for preferring foil and locking recognition to selected sets.
 - It auto-captures frames and treats tapping the preview as a forced rescan of the current card.

@@ -373,17 +373,17 @@ Common optional values:
 - `SCAN_ASYNC_IMAGE_REFINEMENT` - set to `false` to stop background exact
   printing refinement while keeping other image-matching behavior enabled.
   Defaults to `true`.
-- `SCAN_FULL_OCR_FALLBACK` - set to `true` to allow camera scans to fall back to
-  blocking full-card OCR when the title/footer crop is weak. Defaults to
-  `false` because full OCR can take multiple seconds on lower-power CPUs.
+- `SCAN_FULL_OCR_FALLBACK` - set to `false` to prevent camera scans from
+  falling back to blocking full-card OCR when the title/footer crop is weak.
+  Defaults to `true` for production scanner reliability.
 - `MANAVAULT_SKIP_MIGRATION_BACKUP` - skip automatic release backup before
   pending migrations. Defaults to unset.
 
-Default OCR behavior is therefore ONNX Runtime CPU, title-crop fast path on, and
-background exact-printing image refinement on, with no blocking full-card OCR
-fallback during camera scans. For lower-power Intel self-hosting, the tested NUC
-profile is OpenVINO with the title fast path and async image refinement left
-enabled.
+Default OCR behavior is therefore ONNX Runtime CPU, title-crop fast path on,
+blocking full-card OCR fallback on for weak title crops, and background
+exact-printing image refinement on. For lower-power Intel self-hosting, the
+tested NUC profile is OpenVINO with the title fast path, full OCR fallback, and
+async image refinement left enabled.
 
 No Postgres or external service is required.
 

@@ -66,10 +66,16 @@ defmodule Manavault.Catalog.ScanRecognition do
 
         cond do
           title_ocr_confident?(recognition, opts) ->
-            {:ok, recognition}
+            {:ok, maybe_refine_ambiguous_title_with_image(recognition, image_path, opts)}
 
           full_ocr_fallback?(opts) ->
-            fallback_to_full_ocr(scan_item, image_path, opts, title_ocr_us, :weak_title_match)
+            fallback_to_image_or_full_ocr(
+              scan_item,
+              image_path,
+              opts,
+              title_ocr_us,
+              :weak_title_match
+            )
 
           true ->
             {:ok, reject_title_recognition(recognition, title_ocr_us, :weak_title_match)}
@@ -77,10 +83,26 @@ defmodule Manavault.Catalog.ScanRecognition do
 
       {:error, reason} ->
         if full_ocr_fallback?(opts) do
-          fallback_to_full_ocr(scan_item, image_path, opts, nil, {:title_ocr_error, reason})
+          fallback_to_image_or_full_ocr(
+            scan_item,
+            image_path,
+            opts,
+            nil,
+            {:title_ocr_error, reason}
+          )
         else
           {:error, reason}
         end
+    end
+  end
+
+  defp fallback_to_image_or_full_ocr(scan_item, image_path, opts, title_ocr_us, fallback_reason) do
+    case recognize_after_ocr_error(scan_item, image_path, opts, fallback_reason) do
+      {:ok, recognition} ->
+        {:ok, put_title_ocr_timing(recognition, title_ocr_us, fallback_reason, false)}
+
+      {:error, _reason} ->
+        fallback_to_full_ocr(scan_item, image_path, opts, title_ocr_us, fallback_reason)
     end
   end
 
@@ -130,7 +152,7 @@ defmodule Manavault.Catalog.ScanRecognition do
     Keyword.get(
       opts,
       :full_ocr_fallback,
-      Application.get_env(:manavault, :scan_full_ocr_fallback, false)
+      Application.get_env(:manavault, :scan_full_ocr_fallback, true)
     )
   end
 
@@ -147,13 +169,23 @@ defmodule Manavault.Catalog.ScanRecognition do
     |> meaningful_token_set()
     |> MapSet.size()
     |> case do
-      0 -> false
-      1 -> footer_evidence?(evidence)
+      0 -> title_name_evidence?(name, evidence)
+      1 -> title_name_evidence?(name, evidence) or footer_evidence?(evidence)
       _many -> true
     end
   end
 
   defp enough_title_evidence?(_candidate), do: false
+
+  defp title_name_evidence?(card_name, %{phrase_hits: phrase_hits}) when is_list(phrase_hits) do
+    phrase_word_count(card_name) >= @phrase_min_words and
+      Enum.any?(phrase_hits, fn
+        %{field: :name, line: line} -> text_matches_card_name?(line, card_name)
+        _hit -> false
+      end)
+  end
+
+  defp title_name_evidence?(_card_name, _evidence), do: false
 
   defp footer_evidence?(%{scores: scores}) when is_map(scores) do
     float_score(Map.get(scores, :set_code, 0.0)) > 0.0 or
@@ -209,6 +241,51 @@ defmodule Manavault.Catalog.ScanRecognition do
         String.match?(token, ~r/^\d+$/)
     end)
     |> MapSet.new()
+  end
+
+  defp maybe_refine_ambiguous_title_with_image(
+         %{candidates: candidates} = recognition,
+         image_path,
+         opts
+       ) do
+    if ambiguous_title_candidates?(candidates) do
+      {image_matches, image_us} =
+        timed_value(fn -> run_initial_image_matching(image_path, opts) end)
+
+      if image_matches == [] do
+        recognition
+      else
+        {candidates, match_us} =
+          timed_value(fn ->
+            match_candidates(recognition.parsed, Keyword.put(opts, :image_matches, image_matches))
+          end)
+
+        recognition
+        |> Map.put(:image_matches, image_matches)
+        |> Map.put(:candidates, candidates)
+        |> add_recognition_timing(:image_us, image_us)
+        |> add_recognition_timing(:match_us, match_us)
+        |> add_recognition_timing(:total_us, image_us + match_us)
+      end
+    else
+      recognition
+    end
+  end
+
+  defp ambiguous_title_candidates?([%{printing: %{card: %{name: name}}} | rest]) do
+    normalized_name = normalize_text(name)
+
+    phrase_word_count(normalized_name) == 1 and
+      Enum.any?(rest, fn
+        %{printing: %{card: %{name: other_name}}} -> normalize_text(other_name) == normalized_name
+        _candidate -> false
+      end)
+  end
+
+  defp ambiguous_title_candidates?(_candidates), do: false
+
+  defp add_recognition_timing(%{timings: timings} = recognition, key, us) do
+    Map.put(recognition, :timings, Map.update(timings, key, us, &(&1 + us)))
   end
 
   defp put_title_ocr_timing(%{timings: timings} = recognition, title_ocr_us, reason, fast_path?) do
@@ -440,8 +517,7 @@ defmodule Manavault.Catalog.ScanRecognition do
 
     load_printings_by_ids(ids, set_codes)
     |> then(fn printings ->
-      missing_image_ids =
-        image_ids -- Enum.map(printings, & &1.scryfall_id)
+      missing_image_ids = image_ids -- Enum.map(printings, & &1.scryfall_id)
 
       printings ++ load_printings_by_ids(missing_image_ids, set_codes)
     end)
@@ -768,17 +844,19 @@ defmodule Manavault.Catalog.ScanRecognition do
         number
 
       _ ->
-        case Regex.run(~r/\b([0-9]{1,4}[a-zA-Z]?)\s*\/\s*[0-9]{1,4}\b/, text) do
-          [_, number] ->
-            number
+        cond do
+          match =
+              Regex.run(~r/(?:^|[^\d])(\d{2,4}[a-zA-Z]?)\s*\/\s*\d{2,4}[a-zA-Z]?(?:\b|$)/, text) ->
+            Enum.at(match, 1)
 
-          _ ->
-            # Modern card footer: "R 0228" or "0228 R" (rarity + collector number)
-            # Line-anchored to avoid mid-paragraph false positives.
-            case Regex.run(~r/(?:^|\n)\s*[a-zA-Z]\s*(\d{2,4})\s*[a-zA-Z]?(?:\s|$)/, text) do
-              [_, number] -> number
-              _ -> nil
-            end
+          match = Regex.run(~r/(?:^|\n)\s*(\d{2,4}[a-zA-Z]?)\s*(?:\n|$)/, text) ->
+            Enum.at(match, 1)
+
+          match = Regex.run(~r/(?:^|\n)\s*[a-zA-Z]\s*(\d{2,4})\s*[a-zA-Z]?(?:\s|$)/, text) ->
+            Enum.at(match, 1)
+
+          true ->
+            nil
         end
     end
   end
@@ -893,12 +971,12 @@ defmodule Manavault.Catalog.ScanRecognition do
 
     {
       -confidence,
-      -float_score(scores.phrase_match),
       if(name_phrase_hit?, do: 0, else: 1),
-      if(type_phrase_hit?, do: 0, else: 1),
       -float_score(scores.image_match),
-      -float_score(scores.set_code),
       -float_score(scores.collector_number),
+      -float_score(scores.set_code),
+      -float_score(scores.phrase_match),
+      if(type_phrase_hit?, do: 0, else: 1),
       -float_score(scores.language),
       -float_score(scores.token_match),
       -name_token_weight,
@@ -973,13 +1051,15 @@ defmodule Manavault.Catalog.ScanRecognition do
 
     phrase_hits =
       lines
-      |> Enum.with_index()
+      |> phrase_scoring_lines()
       |> Enum.map(fn {line, index} ->
         line_variants = line_variants(line)
         title_line? = index == 0
+        title_name_line? = index <= 1
 
         cond do
-          Enum.any?(line_variants, &name_phrase_match?(name_text, &1, title_line?)) ->
+          title_name_line? and
+              Enum.any?(line_variants, &name_phrase_match?(name_text, &1, title_line?)) ->
             weight = if title_line?, do: @phrase_name_weight, else: @phrase_name_weight / 2
             {:name, line, weight}
 
@@ -1012,6 +1092,20 @@ defmodule Manavault.Catalog.ScanRecognition do
     {score, evidence}
   end
 
+  defp phrase_scoring_lines(lines) do
+    indexed_lines = Enum.with_index(lines)
+
+    joined_title_lines =
+      for chunk_size <- [2, 3],
+          chunk <- indexed_lines |> Enum.take(5) |> Enum.chunk_every(chunk_size, 1, :discard) do
+        first_index = chunk |> hd() |> elem(1)
+        line = chunk |> Enum.map_join(" ", &elem(&1, 0))
+        {line, first_index}
+      end
+
+    indexed_lines ++ joined_title_lines
+  end
+
   defp phrase_word_count(text) do
     text |> String.split(~r/\s+/, trim: true) |> length()
   end
@@ -1032,12 +1126,24 @@ defmodule Manavault.Catalog.ScanRecognition do
 
       phrase_word_count(card_name) >= @phrase_min_words and
           phrase_word_count(ocr_line) >= @phrase_min_words ->
-        phrase_contains?(card_name, ocr_line)
+        title_name_phrase_match?(card_name, ocr_line, title_line?)
 
       true ->
         false
     end
   end
+
+  defp title_name_phrase_match?(card_name, ocr_line, true) do
+    normalized_card_name = normalize_text(card_name)
+    normalized_ocr_line = normalize_text(ocr_line)
+    compact_card_name = compact_text(card_name)
+    compact_ocr_line = compact_text(ocr_line)
+
+    normalized_ocr_line == normalized_card_name or compact_ocr_line == compact_card_name
+  end
+
+  defp title_name_phrase_match?(card_name, ocr_line, false),
+    do: phrase_contains?(card_name, ocr_line)
 
   defp phrase_contains?(card_field_text, ocr_line)
        when card_field_text == "" or ocr_line == "",

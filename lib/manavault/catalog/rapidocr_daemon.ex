@@ -92,17 +92,7 @@ defmodule Manavault.Catalog.RapidOCRDaemon do
   def handle_call({:recognize, image_path, opts}, _from, %{port: port} = state) do
     Port.command(port, "#{Jason.encode!(ocr_command(image_path, opts))}\n")
 
-    result =
-      receive do
-        {^port, {:data, data}} ->
-          data
-
-        {^port, {:exit_status, _status}} ->
-          {:error, "RapidOCR daemon exited unexpectedly"}
-      after
-        @read_timeout ->
-          {:error, "RapidOCR daemon timed out"}
-      end
+    result = read_port_result(port)
 
     case result do
       {:error, reason} ->
@@ -123,6 +113,23 @@ defmodule Manavault.Catalog.RapidOCRDaemon do
     end
   end
 
+  defp read_port_result(port) do
+    receive do
+      {^port, {:data, data}} when is_binary(data) ->
+        if String.trim(data) == "" do
+          read_port_result(port)
+        else
+          data
+        end
+
+      {^port, {:exit_status, _status}} ->
+        {:error, "RapidOCR daemon exited unexpectedly"}
+    after
+      @read_timeout ->
+        {:error, "RapidOCR daemon timed out"}
+    end
+  end
+
   defp ocr_command(image_path, opts) do
     %{
       path: image_path,
@@ -134,6 +141,14 @@ defmodule Manavault.Catalog.RapidOCRDaemon do
   def handle_info({port, {:exit_status, status}}, %{port: port} = state) do
     Logger.warning("RapidOCR daemon exited with status #{status}, restarting")
     {:stop, "RapidOCR daemon exited", state}
+  end
+
+  def handle_info({port, {:data, data}}, %{port: port} = state) when is_binary(data) do
+    if String.trim(data) != "" do
+      Logger.warning("RapidOCR unsolicited output: #{inspect(data)}")
+    end
+
+    {:noreply, state}
   end
 
   @impl true

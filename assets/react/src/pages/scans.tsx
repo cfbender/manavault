@@ -790,6 +790,7 @@ export function ScannerPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [message, setMessage] = useState("Starting camera...")
+  const [cameraError, setCameraError] = useState<string | null>(null)
   const [preferFoil, setPreferFoil] = useState(false)
   const [lockedSets, setLockedSets] = useState<Array<{ setCode: string; setName?: string | null }>>(
     [],
@@ -906,9 +907,18 @@ export function ScannerPage() {
     },
     onSuccess: applyCaptureResult,
     onError: (error) => {
-      setMessage("No card was added.")
+      const errorMessage = error instanceof Error ? error.message : "No card was added."
+      setMessage(errorMessage)
     },
   })
+  const handleCameraError = useCallback((nextMessage: string | null) => {
+    setCameraError(nextMessage)
+    if (nextMessage) setMessage(nextMessage)
+  }, [])
+  const handleCameraStatus = useCallback((nextMessage: string) => {
+    setMessage(nextMessage)
+    setCameraError(null)
+  }, [])
   const handleCapture = useCallback(
     (imageData: string, force: boolean) => capture.mutate({ imageData, force }),
     [capture],
@@ -954,12 +964,19 @@ export function ScannerPage() {
         activeOptions={preferFoil || lockedSets.length > 0}
         busy={capture.isPending}
         message={message}
-        onCameraError={() => undefined}
-        onCameraStatus={setMessage}
+        onCameraError={handleCameraError}
+        onCameraStatus={handleCameraStatus}
         onCapture={handleCapture}
         onOptions={() => setOptionsOpen(true)}
         outcome={capture.data?.outcome}
       />
+      {cameraError ? (
+        <div className="w-full max-w-3xl rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-sm font-medium text-error">
+          {cameraError}
+        </div>
+      ) : (
+        <p className="w-full max-w-3xl px-1 text-center text-xs text-base-content/65">{message}</p>
+      )}
 
       <section className="w-full max-w-3xl rounded-xl border border-base-300 bg-base-100 p-2 shadow-sm">
         <div className="mb-2 flex items-center justify-between gap-3">

@@ -1813,7 +1813,120 @@ defmodule Manavault.CatalogTest do
     refute_received {:ocr_crop, :full}
   end
 
-  test "scan recognition does not block on full OCR when title-crop OCR is weak by default" do
+  test "scan recognition prefers exact title over longer card names containing it" do
+    ba_sing_se = %{
+      @time_walk
+      | "id" => "ba-sing-se",
+        "oracle_id" => "oracle-ba-sing-se",
+        "name" => "Ba Sing Se",
+        "type_line" => "Plane — Avatar",
+        "oracle_text" => "When you planeswalk to Ba Sing Se, draw a card.",
+        "set" => "tla",
+        "collector_number" => "266",
+        "lang" => "en"
+    }
+
+    walls = %{
+      @time_walk
+      | "id" => "walls-of-ba-sing-se",
+        "oracle_id" => "oracle-walls-of-ba-sing-se",
+        "name" => "The Walls of Ba Sing Se",
+        "type_line" => "Enchantment",
+        "oracle_text" => "Defender creatures you control get +0/+1.",
+        "set" => "tla",
+        "collector_number" => "329",
+        "lang" => "en"
+    }
+
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([walls, ba_sing_se])
+
+    parent = self()
+
+    ocr_runner = fn "/tmp/ba-sing-se.jpg", opts ->
+      send(parent, {:ocr_crop, Keyword.get(opts, :ocr_crop, :full)})
+      {:ok, "Ba Sing Se\nAOIN\nAN"}
+    end
+
+    assert {:ok,
+            %{
+              candidates: [%{printing: printing} | candidates],
+              timings: %{
+                title_ocr_fast_path: true,
+                title_ocr_fallback_reason: nil,
+                full_ocr_us: nil
+              }
+            }} =
+             ScanRecognition.recognize(%ScanItem{image_path: "/tmp/ba-sing-se.jpg"},
+               ocr_runner: ocr_runner,
+               full_ocr_fallback: false
+             )
+
+    assert printing.card.name == "Ba Sing Se"
+
+    refute Enum.any?(
+             candidates,
+             &(&1.printing.card.name == "The Walls of Ba Sing Se" and &1.confidence == 1.0)
+           )
+
+    assert_received {:ocr_crop, :title}
+    refute_received {:ocr_crop, :full}
+  end
+
+  test "scan recognition uses image evidence to disambiguate single-word token printings" do
+    expected = %{
+      @time_walk
+      | "id" => "shape-expected",
+        "oracle_id" => "oracle-shape-expected",
+        "name" => "Shapeshifter",
+        "type_line" => "Token Creature — Shapeshifter",
+        "oracle_text" => "",
+        "set" => "plst",
+        "collector_number" => "T2XM-2",
+        "lang" => "en"
+    }
+
+    wrong = %{
+      @time_walk
+      | "id" => "shape-wrong",
+        "oracle_id" => "oracle-shape-wrong",
+        "name" => "Shapeshifter",
+        "type_line" => "Token Creature — Shapeshifter",
+        "oracle_text" => "",
+        "set" => "tmsc",
+        "collector_number" => "2",
+        "lang" => "en"
+    }
+
+    assert {:ok, %{cards_count: 2, printings_count: 2}} = Catalog.import_cards([wrong, expected])
+
+    parent = self()
+
+    ocr_runner = fn "/tmp/shapeshifter.jpg", opts ->
+      send(parent, {:ocr_crop, Keyword.get(opts, :ocr_crop, :full)})
+      {:ok, "SHAPESHIFTER\n1/1\n002/031T"}
+    end
+
+    image_matcher = fn "/tmp/shapeshifter.jpg" ->
+      [%{scryfall_id: "shape-expected", score: 1.0}]
+    end
+
+    assert {:ok,
+            %{
+              candidates: [%{printing: printing} | _],
+              timings: %{title_ocr_fast_path: true, full_ocr_us: nil}
+            }} =
+             ScanRecognition.recognize(%ScanItem{image_path: "/tmp/shapeshifter.jpg"},
+               ocr_runner: ocr_runner,
+               image_matcher: image_matcher
+             )
+
+    assert printing.scryfall_id == "shape-expected"
+    assert_received {:ocr_crop, :title}
+    refute_received {:ocr_crop, :full}
+  end
+
+  test "scan recognition can skip full OCR fallback when disabled" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
 
@@ -1825,7 +1938,7 @@ defmodule Manavault.CatalogTest do
 
       case crop do
         :title -> {:ok, "not a card"}
-        :full -> flunk("full OCR should not run by default for weak title OCR")
+        :full -> flunk("full OCR should not run when fallback is disabled")
       end
     end
 
@@ -1840,7 +1953,8 @@ defmodule Manavault.CatalogTest do
               }
             }} =
              ScanRecognition.recognize(%ScanItem{image_path: "/tmp/time-walk.jpg"},
-               ocr_runner: ocr_runner
+               ocr_runner: ocr_runner,
+               full_ocr_fallback: false
              )
 
     assert is_integer(title_ocr_us)
@@ -1879,7 +1993,8 @@ defmodule Manavault.CatalogTest do
                ocr_runner: fn _path, opts ->
                  assert Keyword.get(opts, :ocr_crop) == :title
                  {:ok, "Chaos"}
-               end
+               end,
+               full_ocr_fallback: false
              )
   end
 
@@ -1917,6 +2032,46 @@ defmodule Manavault.CatalogTest do
     assert printing.scryfall_id == "scryfall-printing-2"
     assert is_integer(title_ocr_us)
     assert is_integer(full_ocr_us)
+    assert_received {:ocr_crop, :title}
+    assert_received {:ocr_crop, :full}
+  end
+
+  test "scan recognition falls back to full OCR when configured" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    previous = Application.get_env(:manavault, :scan_full_ocr_fallback)
+    Application.put_env(:manavault, :scan_full_ocr_fallback, true)
+
+    on_exit(fn ->
+      if is_nil(previous) do
+        Application.delete_env(:manavault, :scan_full_ocr_fallback)
+      else
+        Application.put_env(:manavault, :scan_full_ocr_fallback, previous)
+      end
+    end)
+
+    parent = self()
+
+    ocr_runner = fn "/tmp/time-walk.jpg", opts ->
+      crop = Keyword.get(opts, :ocr_crop, :full)
+      send(parent, {:ocr_crop, crop})
+
+      case crop do
+        :title -> {:ok, "not a card"}
+        :full -> {:ok, "Time Walk\nCollector: 84\nSet: LEA"}
+      end
+    end
+
+    assert {:ok, %{candidates: [%{printing: printing}], timings: timings}} =
+             ScanRecognition.recognize(%ScanItem{image_path: "/tmp/time-walk.jpg"},
+               ocr_runner: ocr_runner
+             )
+
+    assert printing.scryfall_id == "scryfall-printing-2"
+    assert timings.title_ocr_fast_path == false
+    assert timings.title_ocr_fallback_reason == "weak_title_match"
+    assert is_integer(timings.full_ocr_us)
     assert_received {:ocr_crop, :title}
     assert_received {:ocr_crop, :full}
   end

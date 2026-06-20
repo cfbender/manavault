@@ -47,9 +47,9 @@ if config_env() == :prod do
     end
 
   scan_full_ocr_fallback? =
-    case System.get_env("SCAN_FULL_OCR_FALLBACK", "false") |> String.downcase() do
-      value when value in ["1", "true", "yes", "on"] -> true
-      _value -> false
+    case System.get_env("SCAN_FULL_OCR_FALLBACK", "true") |> String.downcase() do
+      value when value in ["0", "false", "no", "off"] -> false
+      _value -> true
     end
 
   for path <- [

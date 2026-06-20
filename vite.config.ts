@@ -2,8 +2,10 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite-plus"
 
+const viteBase = process.env.NODE_ENV === "production" ? "/assets/react/" : "/"
+
 export default defineConfig({
-  base: "/assets/react/",
+  base: viteBase,
   fmt: {
     ignorePatterns: ["assets/react/src/gql/**", "assets/react/src/routeTree.gen.ts"],
     semi: false,

@@ -36,8 +36,23 @@ defmodule Manavault.Catalog.OCRBenchmark do
     Logger.configure(level: :warning)
     max_failures = Keyword.get(opts, :max_failures, :infinity)
     limit = Keyword.get(opts, :limit, :all)
-    image_match? = Keyword.get(opts, :image_match, false)
-    title_fast_path? = Keyword.get(opts, :title_fast_path, true)
+
+    image_match? =
+      Keyword.get(opts, :image_match, Application.get_env(:manavault, :scan_image_matching, true))
+
+    title_fast_path? =
+      Keyword.get(
+        opts,
+        :title_fast_path,
+        Application.get_env(:manavault, :scan_title_ocr_fast_path, true)
+      )
+
+    full_ocr_fallback? =
+      Keyword.get(
+        opts,
+        :full_ocr_fallback,
+        Application.get_env(:manavault, :scan_full_ocr_fallback, true)
+      )
 
     cards = load_manifest()
 
@@ -51,7 +66,10 @@ defmodule Manavault.Catalog.OCRBenchmark do
 
       results =
         without_runtime_image_matching(fn ->
-          Enum.map(benchmark_cards, &recognize_fixture(&1, image_matcher, title_fast_path?))
+          Enum.map(
+            benchmark_cards,
+            &recognize_fixture(&1, image_matcher, title_fast_path?, full_ocr_fallback?)
+          )
         end)
 
       failures = Enum.reject(results, & &1.correct?)
@@ -139,13 +157,18 @@ defmodule Manavault.Catalog.OCRBenchmark do
   defp recognize_fixture(
          %{"image_path" => image_path, "card" => card} = fixture,
          image_matcher,
-         title_fast_path?
+         title_fast_path?,
+         full_ocr_fallback?
        ) do
     expected_name = card["name"]
     expected_printing_id = card["id"]
 
     opts =
-      [max_candidates: 5, title_ocr_fast_path: title_fast_path?]
+      [
+        max_candidates: 5,
+        title_ocr_fast_path: title_fast_path?,
+        full_ocr_fallback: full_ocr_fallback?
+      ]
       |> maybe_put_image_matcher(image_matcher)
 
     case ScanRecognition.recognize(%ScanItem{image_path: image_path}, opts) do
