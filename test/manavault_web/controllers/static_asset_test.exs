@@ -64,6 +64,25 @@ defmodule ManavaultWeb.StaticAssetTest do
     assert get(conn, "/screenshots/mobile-scan.png").status == 200
   end
 
+  test "serves Vite chunks from canonical and legacy root paths", %{conn: conn} do
+    chunk_dir = Application.app_dir(:manavault, "priv/static/assets/react/assets")
+    chunk_path = Path.join(chunk_dir, "__manavault_static_alias_test.js")
+
+    File.mkdir_p!(chunk_dir)
+    File.write!(chunk_path, "export default 1\n")
+
+    on_exit(fn -> File.rm(chunk_path) end)
+
+    canonical_conn = get(conn, "/assets/react/assets/__manavault_static_alias_test.js")
+    legacy_conn = get(conn, "/assets/__manavault_static_alias_test.js")
+
+    assert canonical_conn.status == 200
+    assert canonical_conn.resp_body == "export default 1\n"
+    assert legacy_conn.status == 200
+    assert get_resp_header(legacy_conn, "content-type") == ["text/javascript"]
+    assert legacy_conn.resp_body == canonical_conn.resp_body
+  end
+
   test "root layout includes mobile install metadata", %{conn: conn} do
     conn = get(conn, "/")
 

@@ -29,6 +29,13 @@ defmodule ManavaultWeb.Endpoint do
     cache_control_for_vsn_requests: "no-cache, no-store, must-revalidate",
     headers: %{"pragma" => "no-cache"}
 
+  # Compatibility alias for cached Vite entries that request chunks from
+  # /assets/*.js instead of /assets/react/assets/*.js.
+  plug Plug.Static,
+    at: "/assets",
+    from: {:manavault, "priv/static/assets/react/assets"},
+    gzip: not code_reloading?
+
   plug Plug.Static,
     at: "/",
     from: :manavault,

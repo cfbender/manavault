@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite-plus"
 
 export default defineConfig({
+  base: "/assets/react/",
   fmt: {
     ignorePatterns: ["assets/react/src/gql/**", "assets/react/src/routeTree.gen.ts"],
     semi: false,
