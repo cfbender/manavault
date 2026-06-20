@@ -219,7 +219,7 @@ external backup.
 The production image is published to GitHub Container Registry:
 
 ```sh
-docker pull ghcr.io/cfbender/manavault:0.2.2
+docker pull ghcr.io/cfbender/manavault:0.2.3
 ```
 
 Generate a secret for production cookies:
@@ -240,7 +240,7 @@ docker run -d \
   -v "$PWD/data:/data" \
   -e SECRET_KEY_BASE="$(mise exec -- mix phx.gen.secret)" \
   -e PHX_HOST=localhost \
-  ghcr.io/cfbender/manavault:0.2.2
+  ghcr.io/cfbender/manavault:0.2.3
 ```
 
 Health check:
@@ -300,8 +300,8 @@ Expected tags:
 
 - `latest` from the default branch
 - branch tags from branch pushes
-- `0.2.2` and `0.2` from tag `v0.2.2`
-- `v0.2.2` from the raw tag ref
+- `0.2.3` and `0.2` from tag `v0.2.3`
+- `v0.2.3` from the raw tag ref
 
 ## Roadmap
 

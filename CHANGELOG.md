@@ -8,6 +8,12 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.2.3] - 2026-06-20
+
+### Features
+
+- Symbols sync worker ([`8a076580`](../../commit/8a07658061d32cfdc6b33f510ebfc7972ce8686b))
+
 ## [0.2.2] - 2026-06-20
 
 ### Features
