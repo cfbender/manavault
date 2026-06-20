@@ -286,6 +286,8 @@ Common optional values:
 - `DATA_DIR` - mutable data root. Defaults to `/data`.
 - `DATABASE_PATH` - SQLite database path. Defaults to `/data/manavault.db`.
 - `POOL_SIZE` - Ecto pool size. Defaults to `5`.
+- `SCAN_IMAGE_MATCHING` - set to `false` to disable candidate image matching
+  during camera scans and use OCR-only recognition. Defaults to `true`.
 - `MANAVAULT_SKIP_MIGRATION_BACKUP` - skip automatic release backup before
   pending migrations. Defaults to unset.
 

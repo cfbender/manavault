@@ -28,6 +28,12 @@ if config_env() == :prod do
   data_dir = System.get_env("DATA_DIR", "/data")
   database_path = System.get_env("DATABASE_PATH", Path.join(data_dir, "manavault.db"))
 
+  scan_image_matching? =
+    case System.get_env("SCAN_IMAGE_MATCHING", "true") |> String.downcase() do
+      value when value in ["0", "false", "no", "off"] -> false
+      _value -> true
+    end
+
   for path <- [
         data_dir,
         Path.dirname(database_path),
@@ -44,6 +50,7 @@ if config_env() == :prod do
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "5")
 
   config :manavault,
+    scan_image_matching: scan_image_matching?,
     scan_image_cache_dir: Path.join(data_dir, "cache/scryfall/scanner-images"),
     scryfall_assets_dir: Path.join(data_dir, "cache/scryfall/assets")
 

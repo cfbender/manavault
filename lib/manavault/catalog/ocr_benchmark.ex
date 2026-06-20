@@ -49,8 +49,9 @@ defmodule Manavault.Catalog.OCRBenchmark do
       image_matcher = benchmark_image_matcher(benchmark_cards, image_match?)
 
       results =
-        benchmark_cards
-        |> Enum.map(&recognize_fixture(&1, image_matcher))
+        without_runtime_image_matching(fn ->
+          Enum.map(benchmark_cards, &recognize_fixture(&1, image_matcher))
+        end)
 
       failures = Enum.reject(results, & &1.correct?)
 
@@ -96,6 +97,25 @@ defmodule Manavault.Catalog.OCRBenchmark do
     fn image_path ->
       ImageMatcher.match(image_path, references, limit: 8, threshold: 0.68)
     end
+  end
+
+  defp without_runtime_image_matching(fun) do
+    previous = Application.fetch_env(:manavault, :scan_image_matching)
+    Application.put_env(:manavault, :scan_image_matching, false)
+
+    try do
+      fun.()
+    after
+      restore_scan_image_matching(previous)
+    end
+  end
+
+  defp restore_scan_image_matching({:ok, value}) do
+    Application.put_env(:manavault, :scan_image_matching, value)
+  end
+
+  defp restore_scan_image_matching(:error) do
+    Application.delete_env(:manavault, :scan_image_matching)
   end
 
   defp recognize_fixture(%{"image_path" => image_path, "card" => card} = fixture, image_matcher) do
@@ -317,14 +337,40 @@ defmodule Manavault.Catalog.OCRBenchmark do
       @manifest_path
       |> File.read!()
       |> Jason.decode!()
+      |> Enum.map(&normalize_fixture_path/1)
     else
       []
     end
   end
 
   defp write_manifest!(cards) do
-    File.write!(@manifest_path, Jason.encode!(cards, pretty: true))
+    File.write!(@manifest_path, Jason.encode!(Enum.map(cards, &portable_fixture/1), pretty: true))
   end
+
+  defp normalize_fixture_path(%{"image_path" => image_path} = fixture)
+       when is_binary(image_path) do
+    normalized_path =
+      cond do
+        Path.type(image_path) == :absolute and File.exists?(image_path) ->
+          image_path
+
+        Path.type(image_path) == :relative ->
+          Path.expand(image_path, @fixtures_dir)
+
+        true ->
+          Path.join(@fixtures_dir, Path.basename(image_path))
+      end
+
+    Map.put(fixture, "image_path", normalized_path)
+  end
+
+  defp normalize_fixture_path(fixture), do: fixture
+
+  defp portable_fixture(%{"image_path" => image_path} = fixture) when is_binary(image_path) do
+    Map.put(fixture, "image_path", Path.basename(image_path))
+  end
+
+  defp portable_fixture(fixture), do: fixture
 
   defp slug(value) do
     value

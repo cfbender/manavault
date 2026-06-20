@@ -55,6 +55,9 @@ const FINISHES = [
   ["Etched", "etched"],
 ] as const
 
+const SCANNER_CAPTURE_MAX_EDGE = 960
+const SCANNER_CAPTURE_JPEG_QUALITY = 0.74
+
 const ScanSessionsDocument = graphql(`
   query ScanSessions {
     scanSessions {
@@ -1097,9 +1100,14 @@ function ScannerCamera({
     async function startCameraStream() {
       stopCamera()
       const device = devicesRef.current[deviceIndexRef.current]
-      const constraints = device?.deviceId
-        ? { deviceId: { exact: device.deviceId } }
-        : { facingMode: { ideal: "environment" } }
+      const constraints: MediaTrackConstraints = {
+        width: { ideal: 1280 },
+        height: { ideal: 960 },
+        frameRate: { ideal: 15, max: 24 },
+        ...(device?.deviceId
+          ? { deviceId: { exact: device.deviceId } }
+          : { facingMode: { ideal: "environment" } }),
+      }
       const stream = await navigator.mediaDevices.getUserMedia({ video: constraints, audio: false })
       streamRef.current = stream
       if (videoRef.current) {
@@ -1122,11 +1130,47 @@ function ScannerCamera({
 
       captureInFlightRef.current = true
       lastCaptureAtRef.current = now
-      const scale = Math.min(1, 1200 / Math.max(video.videoWidth, video.videoHeight))
+      const scale = Math.min(
+        1,
+        SCANNER_CAPTURE_MAX_EDGE / Math.max(video.videoWidth, video.videoHeight),
+      )
       canvas.width = Math.round(video.videoWidth * scale)
       canvas.height = Math.round(video.videoHeight * scale)
       canvas.getContext("2d")?.drawImage(video, 0, 0, canvas.width, canvas.height)
-      onCaptureRef.current(canvas.toDataURL("image/jpeg", 0.82), forceNextRef.current)
+      const force = forceNextRef.current
+      canvas.toBlob(
+        (blob) => {
+          if (cancelled) {
+            captureInFlightRef.current = false
+            return
+          }
+
+          if (!blob) {
+            captureInFlightRef.current = false
+            return
+          }
+
+          const reader = new FileReader()
+          reader.onloadend = () => {
+            if (cancelled) {
+              captureInFlightRef.current = false
+              return
+            }
+
+            if (typeof reader.result === "string") {
+              onCaptureRef.current(reader.result, force)
+            } else {
+              captureInFlightRef.current = false
+            }
+          }
+          reader.onerror = () => {
+            captureInFlightRef.current = false
+          }
+          reader.readAsDataURL(blob)
+        },
+        "image/jpeg",
+        SCANNER_CAPTURE_JPEG_QUALITY,
+      )
     }
 
     function stopCamera() {

@@ -293,8 +293,12 @@ defmodule Manavault.Catalog.Scans do
     total_us = System.monotonic_time(:microsecond) - started_at
     timings = Map.get(recognition, :timings, %{})
 
-    Logger.debug(fn ->
-      "OCR capture timing total=#{format_us(total_us)} ocr=#{format_us(timings[:ocr_us])} parse=#{format_us(timings[:parse_us])} match=#{format_us(timings[:match_us])}"
+    Logger.info(fn ->
+      "OCR capture timing total=#{format_us(total_us)} " <>
+        "ocr=#{format_us(timings[:ocr_us])} " <>
+        "parse=#{format_us(timings[:parse_us])} " <>
+        "image=#{format_us(timings[:image_us])} " <>
+        "match=#{format_us(timings[:match_us])}"
     end)
   end
 

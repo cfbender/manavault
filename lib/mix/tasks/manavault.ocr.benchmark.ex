@@ -59,6 +59,7 @@ defmodule Mix.Tasks.Manavault.Ocr.Benchmark do
       image: #{failure.fixture["image_path"]}
       expected printing: #{failure.expected_printing_id}
       actual: #{failure.actual_name || "<none>"} #{inspect(failure.actual_printing_id)} conf=#{inspect(failure.confidence)}
+      error: #{inspect(Map.get(failure, :error))}
       parsed: #{inspect(failure.parsed)}
       text:\n#{indent(failure.text)}
       candidates: #{inspect(failure.candidates, pretty: true)}
