@@ -260,6 +260,18 @@ defmodule ManavaultWeb.Schema do
       resolve(&CatalogResolvers.deallocate_deck_card_item/3)
     end
 
+    field :allocate_deck_card_proxy, :deck_card do
+      arg(:deck_card_id, non_null(:id))
+      arg(:quantity, :integer, default_value: 1)
+      resolve(&CatalogResolvers.allocate_deck_card_proxy/3)
+    end
+
+    field :deallocate_deck_card_proxy, :deck_card do
+      arg(:deck_card_id, non_null(:id))
+      arg(:quantity, :integer, default_value: 1)
+      resolve(&CatalogResolvers.deallocate_deck_card_proxy/3)
+    end
+
     field :preview_bulk_allocate_deck, :deck_bulk_allocation_preview do
       arg(:id, non_null(:id))
       arg(:mode, non_null(:string))

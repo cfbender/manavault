@@ -360,6 +360,7 @@ defmodule Manavault.Catalog.EDHRec do
       required: 1,
       owned: owned,
       allocated: 0,
+      proxy_allocated: 0,
       available: available,
       allocated_elsewhere: allocated_elsewhere,
       missing: if(available > 0 or basic_land?(card), do: 0, else: 1),
@@ -383,6 +384,7 @@ defmodule Manavault.Catalog.EDHRec do
       required: 1,
       owned: 0,
       allocated: 0,
+      proxy_allocated: 0,
       available: 0,
       allocated_elsewhere: 0,
       missing: 1,
@@ -401,15 +403,16 @@ defmodule Manavault.Catalog.EDHRec do
   end
 
   defp deck_card_allocation_status(%DeckCard{} = deck_card) do
-    deck_card =
-      Repo.preload(deck_card, [:deck, :preferred_printing, card: [], deck_allocations: []])
+    deck_card = load_deck_card_for_allocation_status(deck_card)
 
     candidates = collection_candidates(deck_card.oracle_id, deck_card.finish)
     current_allocations = current_allocation_counts(deck_card.id)
     other_allocations = other_reserving_allocation_counts(deck_card)
 
     owned = Enum.reduce(candidates, 0, &(&1.quantity + &2))
-    allocated = current_allocations |> Map.values() |> Enum.sum()
+    proxy_allocated = deck_card.proxy_quantity || 0
+    physical_allocated = current_allocations |> Map.values() |> Enum.sum()
+    allocated = physical_allocated + proxy_allocated
     allocated_elsewhere = other_allocations |> Map.values() |> Enum.sum()
 
     available =
@@ -431,6 +434,7 @@ defmodule Manavault.Catalog.EDHRec do
       required: deck_card.quantity,
       owned: owned,
       allocated: allocated,
+      proxy_allocated: proxy_allocated,
       available: available,
       allocated_elsewhere: allocated_elsewhere,
       missing: missing,
@@ -447,6 +451,16 @@ defmodule Manavault.Catalog.EDHRec do
           }
         end)
     }
+  end
+
+  defp load_deck_card_for_allocation_status(%DeckCard{id: nil} = deck_card) do
+    Repo.preload(deck_card, [:deck, :preferred_printing, card: [], deck_allocations: []])
+  end
+
+  defp load_deck_card_for_allocation_status(%DeckCard{id: id}) do
+    DeckCard
+    |> Repo.get!(id)
+    |> Repo.preload([:deck, :preferred_printing, card: [], deck_allocations: []])
   end
 
   defp deck_card_state(%DeckCard{} = deck_card, allocated, available, owned) do

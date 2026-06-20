@@ -209,15 +209,16 @@ defmodule Manavault.Catalog.Decks do
   end
 
   def deck_card_allocation_status(%DeckCard{} = deck_card) do
-    deck_card =
-      Repo.preload(deck_card, [:deck, :preferred_printing, card: [], deck_allocations: []])
+    deck_card = load_deck_card_for_allocation_status(deck_card)
 
     candidates = deck_card_collection_candidates(deck_card)
     current_allocations = current_allocation_counts(deck_card.id)
     other_allocations = other_reserving_allocation_counts(deck_card)
 
     owned = Enum.reduce(candidates, 0, &(&1.quantity + &2))
-    allocated = current_allocations |> Map.values() |> Enum.sum()
+    proxy_allocated = deck_card.proxy_quantity || 0
+    physical_allocated = current_allocations |> Map.values() |> Enum.sum()
+    allocated = physical_allocated + proxy_allocated
     allocated_elsewhere = other_allocations |> Map.values() |> Enum.sum()
 
     available =
@@ -234,6 +235,7 @@ defmodule Manavault.Catalog.Decks do
       required: deck_card.quantity,
       owned: owned,
       allocated: allocated,
+      proxy_allocated: proxy_allocated,
       available: available,
       allocated_elsewhere: allocated_elsewhere,
       missing: missing,
@@ -250,6 +252,16 @@ defmodule Manavault.Catalog.Decks do
           }
         end)
     }
+  end
+
+  defp load_deck_card_for_allocation_status(%DeckCard{id: nil} = deck_card) do
+    Repo.preload(deck_card, [:deck, :preferred_printing, card: [], deck_allocations: []])
+  end
+
+  defp load_deck_card_for_allocation_status(%DeckCard{id: id}) do
+    DeckCard
+    |> Repo.get!(id)
+    |> Repo.preload([:deck, :preferred_printing, card: [], deck_allocations: []])
   end
 
   def allocate_collection_item_to_deck_card(deck_card_id, collection_item_id, quantity \\ 1) do
@@ -351,6 +363,52 @@ defmodule Manavault.Catalog.Decks do
             {:ok, updated_allocation} -> updated_allocation
             {:error, changeset} -> Repo.rollback(changeset)
           end
+      end
+    end)
+  end
+
+  def allocate_proxy_to_deck_card(deck_card_id, quantity \\ 1) do
+    quantity = Util.parse_quantity(quantity)
+
+    Repo.transaction(fn ->
+      deck_card =
+        DeckCard
+        |> Repo.get!(deck_card_id)
+        |> Repo.preload([:deck, :preferred_printing, card: []])
+
+      with :ok <- validate_positive_allocation_quantity(quantity),
+           :ok <- validate_deck_card_proxy_allocation_room(deck_card, quantity) do
+        deck_card
+        |> put_deck_card_proxy_quantity((deck_card.proxy_quantity || 0) + quantity)
+        |> case do
+          {:ok, deck_card} -> deck_card
+          {:error, changeset} -> Repo.rollback(changeset)
+        end
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
+
+  def deallocate_proxy_from_deck_card(deck_card_id, quantity \\ 1) do
+    quantity = Util.parse_quantity(quantity)
+
+    Repo.transaction(fn ->
+      deck_card = Repo.get!(DeckCard, deck_card_id)
+      proxy_quantity = deck_card.proxy_quantity || 0
+
+      with :ok <- validate_positive_allocation_quantity(quantity),
+           :ok <- validate_deck_card_proxy_deallocation(deck_card, quantity) do
+        next_quantity = max(proxy_quantity - quantity, 0)
+
+        deck_card
+        |> put_deck_card_proxy_quantity(next_quantity)
+        |> case do
+          {:ok, deck_card} -> deck_card
+          {:error, changeset} -> Repo.rollback(changeset)
+        end
+      else
+        {:error, reason} -> Repo.rollback(reason)
       end
     end)
   end
@@ -760,6 +818,37 @@ defmodule Manavault.Catalog.Decks do
       true ->
         :ok
     end
+  end
+
+  defp validate_deck_card_proxy_allocation_room(%DeckCard{} = deck_card, quantity) do
+    status = deck_card_allocation_status(deck_card)
+
+    if status.allocated + quantity > status.required do
+      {:error, :deck_card_already_allocated}
+    else
+      :ok
+    end
+  end
+
+  defp validate_deck_card_proxy_deallocation(%DeckCard{} = deck_card, quantity) do
+    proxy_quantity = deck_card.proxy_quantity || 0
+
+    cond do
+      proxy_quantity <= 0 -> {:error, :proxy_allocation_not_found}
+      quantity > proxy_quantity -> {:error, :proxy_allocation_not_found}
+      true -> :ok
+    end
+  end
+
+  defp validate_positive_allocation_quantity(quantity) when quantity > 0, do: :ok
+
+  defp validate_positive_allocation_quantity(_quantity),
+    do: {:error, :invalid_allocation_quantity}
+
+  defp put_deck_card_proxy_quantity(%DeckCard{} = deck_card, proxy_quantity) do
+    deck_card
+    |> DeckCard.changeset(%{"proxy_quantity" => proxy_quantity})
+    |> Repo.update()
   end
 
   defp move_collection_item_to_deck!(%CollectionItem{} = item, quantity) do

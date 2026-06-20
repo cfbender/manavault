@@ -74,6 +74,8 @@ defmodule Manavault.Catalog do
               ),
               to: Decks
 
+  defdelegate allocate_proxy_to_deck_card(deck_card_id, quantity \\ 1), to: Decks
+  defdelegate deallocate_proxy_from_deck_card(deck_card_id, quantity \\ 1), to: Decks
   defdelegate bulk_allocate_deck(deck, mode), to: Decks
   defdelegate preview_bulk_allocate_deck(deck, mode), to: Decks
   defdelegate import_decklist(deck, text), to: Decks

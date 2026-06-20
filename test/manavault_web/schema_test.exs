@@ -820,6 +820,82 @@ defmodule ManavaultWeb.SchemaTest do
            } = json_response(deallocate_conn, 200)
   end
 
+  test "deck proxy allocation mutations are available over GraphQL", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-proxy-allocation",
+          "oracle_id" => "oracle-proxy-allocation",
+          "name" => "Proxy Allocation Card",
+          "type_line" => "Artifact",
+          "collector_number" => "9",
+          "set" => "pxy",
+          "set_name" => "Proxy Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Proxy Allocation Deck"})
+    {:ok, deck_card} = Catalog.add_card_to_deck(deck, %{"name" => "Proxy Allocation Card"})
+
+    allocate_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation AllocateProxy($deckCardId: ID!) {
+          allocateDeckCardProxy(deckCardId: $deckCardId) {
+            id
+            allocationStatus { state allocated proxyAllocated available missing }
+          }
+        }
+        """,
+        "variables" => %{"deckCardId" => deck_card.id}
+      })
+
+    assert %{
+             "data" => %{
+               "allocateDeckCardProxy" => %{
+                 "allocationStatus" => %{
+                   "state" => "allocated",
+                   "allocated" => 1,
+                   "proxyAllocated" => 1,
+                   "available" => 0,
+                   "missing" => 0
+                 }
+               }
+             }
+           } = json_response(allocate_conn, 200)
+
+    deallocate_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation DeallocateProxy($deckCardId: ID!) {
+          deallocateDeckCardProxy(deckCardId: $deckCardId) {
+            id
+            allocationStatus { state allocated proxyAllocated available missing }
+          }
+        }
+        """,
+        "variables" => %{"deckCardId" => deck_card.id}
+      })
+
+    assert %{
+             "data" => %{
+               "deallocateDeckCardProxy" => %{
+                 "allocationStatus" => %{
+                   "state" => "missing",
+                   "allocated" => 0,
+                   "proxyAllocated" => 0,
+                   "available" => 0,
+                   "missing" => 1
+                 }
+               }
+             }
+           } = json_response(deallocate_conn, 200)
+  end
+
   test "bulk deck allocation preview and mutation are available over GraphQL", %{conn: conn} do
     {:ok, %{cards_count: 1, printings_count: 1}} =
       Catalog.import_cards([

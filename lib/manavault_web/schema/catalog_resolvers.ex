@@ -325,6 +325,30 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     end
   end
 
+  def allocate_deck_card_proxy(_parent, %{deck_card_id: deck_card_id} = args, _resolution) do
+    quantity = Map.get(args, :quantity, 1)
+
+    case Catalog.allocate_proxy_to_deck_card(deck_card_id, quantity) do
+      {:ok, _deck_card} ->
+        {:ok, DeckCard |> Repo.get!(deck_card_id) |> Repo.preload([:card, :preferred_printing])}
+
+      {:error, reason} ->
+        {:error, deck_allocation_error(reason)}
+    end
+  end
+
+  def deallocate_deck_card_proxy(_parent, %{deck_card_id: deck_card_id} = args, _resolution) do
+    quantity = Map.get(args, :quantity, 1)
+
+    case Catalog.deallocate_proxy_from_deck_card(deck_card_id, quantity) do
+      {:ok, _deck_card} ->
+        {:ok, DeckCard |> Repo.get!(deck_card_id) |> Repo.preload([:card, :preferred_printing])}
+
+      {:error, reason} ->
+        {:error, deck_allocation_error(reason)}
+    end
+  end
+
   def preview_bulk_allocate_deck(_parent, %{id: id, mode: mode}, _resolution) do
     deck = Catalog.get_deck!(id)
 
@@ -734,6 +758,8 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   defp deck_allocation_error(:deck_card_already_allocated),
     do: "That deck card already has enough allocated copies."
 
+  defp deck_allocation_error(:proxy_allocation_not_found), do: "Proxy allocation not found."
+  defp deck_allocation_error(:invalid_allocation_quantity), do: "Allocation quantity is invalid."
   defp deck_allocation_error(:allocation_not_found), do: "Allocation not found."
   defp deck_allocation_error(reason) when is_binary(reason), do: reason
   defp deck_allocation_error(_reason), do: "Could not add collection item to deck."

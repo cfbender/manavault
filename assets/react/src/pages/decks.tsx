@@ -198,6 +198,7 @@ const DeckDocument = graphql(`
           required
           owned
           allocated
+          proxyAllocated
           available
           allocatedElsewhere
           missing
@@ -334,6 +335,7 @@ const AllocateDeckCardItemDocument = graphql(`
         required
         owned
         allocated
+        proxyAllocated
         available
         allocatedElsewhere
         missing
@@ -351,6 +353,43 @@ const DeallocateDeckCardItemDocument = graphql(`
         required
         owned
         allocated
+        proxyAllocated
+        available
+        allocatedElsewhere
+        missing
+      }
+    }
+  }
+`)
+
+const AllocateDeckCardProxyDocument = graphql(`
+  mutation AllocateDeckCardProxy($deckCardId: ID!, $quantity: Int!) {
+    allocateDeckCardProxy(deckCardId: $deckCardId, quantity: $quantity) {
+      id
+      allocationStatus {
+        state
+        required
+        owned
+        allocated
+        proxyAllocated
+        available
+        allocatedElsewhere
+        missing
+      }
+    }
+  }
+`)
+
+const DeallocateDeckCardProxyDocument = graphql(`
+  mutation DeallocateDeckCardProxy($deckCardId: ID!, $quantity: Int!) {
+    deallocateDeckCardProxy(deckCardId: $deckCardId, quantity: $quantity) {
+      id
+      allocationStatus {
+        state
+        required
+        owned
+        allocated
+        proxyAllocated
         available
         allocatedElsewhere
         missing
@@ -779,6 +818,16 @@ export function DeckDetailPage({
       queryClient.invalidateQueries({ queryKey: ["deck-edhrec", id] })
     },
   })
+
+  function invalidateAllocationQueries() {
+    queryClient.invalidateQueries({ queryKey: ["deck", id] })
+    queryClient.invalidateQueries({ queryKey: ["decks"] })
+    queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
+    queryClient.invalidateQueries({ queryKey: ["deck-edhrec", id] })
+    queryClient.invalidateQueries({ queryKey: ["collection"] })
+    queryClient.invalidateQueries({ queryKey: ["collection-items"] })
+  }
+
   const allocateDeckCardItem = useMutation({
     mutationFn: ({
       collectionItemId,
@@ -788,10 +837,7 @@ export function DeckDetailPage({
       deckCardId: string
     }) => request(AllocateDeckCardItemDocument, { deckCardId, collectionItemId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["deck", id] })
-      queryClient.invalidateQueries({ queryKey: ["decks"] })
-      queryClient.invalidateQueries({ queryKey: ["collection"] })
-      queryClient.invalidateQueries({ queryKey: ["collection-items"] })
+      invalidateAllocationQueries()
     },
   })
   const deallocateDeckCardItem = useMutation({
@@ -803,10 +849,21 @@ export function DeckDetailPage({
       deckCardId: string
     }) => request(DeallocateDeckCardItemDocument, { deckCardId, collectionItemId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["deck", id] })
-      queryClient.invalidateQueries({ queryKey: ["decks"] })
-      queryClient.invalidateQueries({ queryKey: ["collection"] })
-      queryClient.invalidateQueries({ queryKey: ["collection-items"] })
+      invalidateAllocationQueries()
+    },
+  })
+  const allocateDeckCardProxy = useMutation({
+    mutationFn: ({ deckCardId, quantity }: { deckCardId: string; quantity: number }) =>
+      request(AllocateDeckCardProxyDocument, { deckCardId, quantity }),
+    onSuccess: () => {
+      invalidateAllocationQueries()
+    },
+  })
+  const deallocateDeckCardProxy = useMutation({
+    mutationFn: ({ deckCardId, quantity }: { deckCardId: string; quantity: number }) =>
+      request(DeallocateDeckCardProxyDocument, { deckCardId, quantity }),
+    onSuccess: () => {
+      invalidateAllocationQueries()
     },
   })
   const previewBulkAllocateDeck = useMutation({
@@ -839,15 +896,21 @@ export function DeckDetailPage({
       ? allocateDeckCardItem.error.message
       : deallocateDeckCardItem.error instanceof Error
         ? deallocateDeckCardItem.error.message
-        : deleteDeckCard.error instanceof Error
-          ? deleteDeckCard.error.message
-          : null
+        : allocateDeckCardProxy.error instanceof Error
+          ? allocateDeckCardProxy.error.message
+          : deallocateDeckCardProxy.error instanceof Error
+            ? deallocateDeckCardProxy.error.message
+            : deleteDeckCard.error instanceof Error
+              ? deleteDeckCard.error.message
+              : null
   const isUpdatingDeckCard =
     updateDeckCard.isPending ||
     deleteDeckCard.isPending ||
     setDeckCommander.isPending ||
     allocateDeckCardItem.isPending ||
-    deallocateDeckCardItem.isPending
+    deallocateDeckCardItem.isPending ||
+    allocateDeckCardProxy.isPending ||
+    deallocateDeckCardProxy.isPending
 
   if (isLoading) return <EmptyState title="Loading deck..." />
   if (!deck) return <EmptyState title="Deck not found" />
@@ -977,6 +1040,22 @@ export function DeckDetailPage({
             onDeallocate={(deckCard, collectionItemId) =>
               deallocateDeckCardItem.mutate({ deckCardId: deckCard.id, collectionItemId })
             }
+            onToggleProxy={(deckCard) => {
+              const status = deckCard.allocationStatus
+
+              if (status.proxyAllocated > 0) {
+                deallocateDeckCardProxy.mutate({
+                  deckCardId: deckCard.id,
+                  quantity: status.proxyAllocated,
+                })
+              } else {
+                const quantity = Math.max(status.required - status.allocated, 0)
+
+                if (quantity > 0) {
+                  allocateDeckCardProxy.mutate({ deckCardId: deckCard.id, quantity })
+                }
+              }
+            }}
             onDelete={confirmDeleteDeckCard}
             onSetCommander={(deckCard) => setDeckCommander.mutate(deckCard.id)}
             allocationError={allocationError}
@@ -1853,6 +1932,7 @@ function DeckGroupGrid({
   onEdit,
   onMove,
   onSetCommander,
+  onToggleProxy,
   shareMode = false,
 }: {
   allocationError: string | null
@@ -1865,6 +1945,7 @@ function DeckGroupGrid({
   onEdit: (deckCard: DeckCardEntry) => void
   onMove: (deckCard: DeckCardEntry) => void
   onSetCommander: (deckCard: DeckCardEntry) => void
+  onToggleProxy: (deckCard: DeckCardEntry) => void
   shareMode?: boolean
 }) {
   return (
@@ -1887,6 +1968,7 @@ function DeckGroupGrid({
           onEdit={onEdit}
           onMove={onMove}
           onSetCommander={onSetCommander}
+          onToggleProxy={onToggleProxy}
           shareMode={shareMode}
         />
       ))}
@@ -1932,6 +2014,7 @@ function DeckStackGroup({
   onEdit,
   onMove,
   onSetCommander,
+  onToggleProxy,
   shareMode = false,
 }: {
   allocationError: string | null
@@ -1944,6 +2027,7 @@ function DeckStackGroup({
   onEdit: (deckCard: DeckCardEntry) => void
   onMove: (deckCard: DeckCardEntry) => void
   onSetCommander: (deckCard: DeckCardEntry) => void
+  onToggleProxy: (deckCard: DeckCardEntry) => void
   shareMode?: boolean
 }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
@@ -2005,6 +2089,7 @@ function DeckStackGroup({
             onEdit={() => onEdit(deckCard)}
             onMove={() => onMove(deckCard)}
             onSetCommander={() => onSetCommander(deckCard)}
+            onToggleProxy={() => onToggleProxy(deckCard)}
             shareMode={shareMode}
             slideOffset={activeIndex != null && index > activeIndex ? revealOffset : 0}
             top={index * DECK_STACK_OFFSET}
@@ -2029,6 +2114,7 @@ function DeckStackCard({
   onExpand,
   onMove,
   onSetCommander,
+  onToggleProxy,
   shareMode = false,
   slideOffset,
   top,
@@ -2046,6 +2132,7 @@ function DeckStackCard({
   onExpand: () => void
   onMove: () => void
   onSetCommander: () => void
+  onToggleProxy: () => void
   shareMode?: boolean
   slideOffset: number
   top: number
@@ -2084,6 +2171,7 @@ function DeckStackCard({
           isUpdating={isUpdating}
           onAllocate={onAllocate}
           onDeallocate={onDeallocate}
+          onToggleProxy={onToggleProxy}
         />
 
         <div
@@ -2198,6 +2286,7 @@ function DeckCardAllocationMenu({
   isUpdating,
   onAllocate,
   onDeallocate,
+  onToggleProxy,
 }: {
   deckCard: DeckCardEntry
   error: string | null
@@ -2205,9 +2294,13 @@ function DeckCardAllocationMenu({
   isUpdating: boolean
   onAllocate: (collectionItemId: string) => void
   onDeallocate: (collectionItemId: string) => void
+  onToggleProxy: () => void
 }) {
   const status = deckCard.allocationStatus
   const label = allocationStatusLabel(status)
+  const proxyChecked = status.proxyAllocated > 0
+  const proxyQuantityToAdd = Math.max(status.required - status.allocated, 0)
+  const proxyDisabled = isUpdating || (!proxyChecked && proxyQuantityToAdd <= 0)
   const [open, setOpen] = useState(false)
   const [menuPosition, setMenuPosition] = useState({ left: 16, top: 16 })
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -2316,6 +2409,30 @@ function DeckCardAllocationMenu({
                 </p>
               ) : null}
 
+              <div className="mt-3 rounded-box border border-base-300 bg-base-200/35 p-2">
+                <div className="flex min-w-0 items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">Proxy</p>
+                    <p className="truncate text-xs text-base-content/60">
+                      {status.proxyAllocated} marked as proxy
+                    </p>
+                  </div>
+                  <label className="label shrink-0 cursor-pointer gap-2 p-0">
+                    <span className="label-text text-xs">
+                      {proxyChecked ? "Marked" : "Mark as proxy"}
+                    </span>
+                    <input
+                      type="checkbox"
+                      className="toggle toggle-primary toggle-sm"
+                      checked={proxyChecked}
+                      disabled={proxyDisabled}
+                      aria-label={proxyChecked ? "Remove proxy" : "Mark as proxy"}
+                      onChange={() => onToggleProxy()}
+                    />
+                  </label>
+                </div>
+              </div>
+
               {status.candidates.length === 0 ? (
                 <div className="mt-3 text-sm text-base-content/60">
                   No matching owned printings.
@@ -2383,17 +2500,19 @@ function allocationStatusLabel(status: DeckCardEntry["allocationStatus"]) {
 }
 
 function allocationStatusSummary(status: DeckCardEntry["allocationStatus"]) {
-  if (status.state === "allocated") return `${status.allocated} allocated`
+  const proxyText = status.proxyAllocated ? ` · ${status.proxyAllocated} proxy` : ""
+
+  if (status.state === "allocated") return `${status.allocated} allocated${proxyText}`
   if (status.state === "basic_land") return "Basic lands do not need collection copies"
 
   const needed = Math.max(status.required - status.allocated, 0)
 
-  if (status.available > 0) return `${status.available} free of ${needed} needed`
+  if (status.available > 0) return `${status.available} free of ${needed} needed${proxyText}`
   if (status.missing > 0 && status.allocated > 0)
-    return `${status.allocated} allocated · ${status.missing} missing`
+    return `${status.allocated} allocated${proxyText} · ${status.missing} missing`
   if (status.missing > 0) return `${status.owned} owned · ${status.missing} missing`
 
-  return `${status.required} needed`
+  return `${status.required} needed${proxyText}`
 }
 
 function allocationCandidateSummary(

@@ -875,6 +875,56 @@ defmodule Manavault.CatalogTest do
     assert Catalog.get_collection_item!(item.id).quantity == 1
   end
 
+  test "deck proxy allocation counts as allocated without moving collection items" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+    assert {:ok, binder} = Catalog.create_location(%{name: "Trade Binder", kind: "binder"})
+
+    assert {:ok, item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil",
+               "location_id" => binder.id
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Proxy Test"})
+
+    assert {:ok, lotus} =
+             Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus", "quantity" => 2})
+
+    assert {:ok, _deck_card} = Catalog.allocate_proxy_to_deck_card(lotus.id)
+
+    status = Catalog.deck_card_allocation_status(lotus)
+    assert status.allocated == 1
+    assert status.proxy_allocated == 1
+    assert status.available == 1
+    assert status.missing == 0
+    assert Catalog.get_collection_item!(item.id).location_id == binder.id
+
+    assert {:ok, allocation} = Catalog.allocate_collection_item_to_deck_card(lotus.id, item.id)
+    allocated_item = Catalog.get_collection_item!(allocation.collection_item_id)
+    assert allocated_item.location_id == nil
+
+    status = Catalog.deck_card_allocation_status(lotus)
+    assert status.state == :allocated
+    assert status.allocated == 2
+    assert status.proxy_allocated == 1
+
+    assert {:ok, _deck_card} = Catalog.deallocate_proxy_from_deck_card(lotus.id)
+
+    status = Catalog.deck_card_allocation_status(lotus)
+    assert status.allocated == 1
+    assert status.proxy_allocated == 0
+    assert status.missing == 1
+
+    assert Catalog.get_collection_item!(allocated_item.id).location_id == nil
+
+    assert {:error, :deck_card_already_allocated} =
+             Catalog.allocate_proxy_to_deck_card(lotus.id, 2)
+  end
+
   test "deck allocation does not count collection items held in list locations" do
     assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
     assert {:ok, list} = Catalog.create_location(%{name: "Wishlist", kind: "list"})

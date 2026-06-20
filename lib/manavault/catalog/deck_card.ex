@@ -7,6 +7,7 @@ defmodule Manavault.Catalog.DeckCard do
 
   schema "deck_cards" do
     field :quantity, :integer, default: 1
+    field :proxy_quantity, :integer, default: 0
     field :zone, :string, default: "mainboard"
     field :finish, :string, default: "nonfoil"
 
@@ -32,9 +33,18 @@ defmodule Manavault.Catalog.DeckCard do
 
   def changeset(deck_card, attrs) do
     deck_card
-    |> cast(attrs, [:deck_id, :oracle_id, :preferred_printing_id, :quantity, :zone, :finish])
-    |> validate_required([:deck_id, :oracle_id, :quantity, :zone, :finish])
+    |> cast(attrs, [
+      :deck_id,
+      :oracle_id,
+      :preferred_printing_id,
+      :quantity,
+      :proxy_quantity,
+      :zone,
+      :finish
+    ])
+    |> validate_required([:deck_id, :oracle_id, :quantity, :proxy_quantity, :zone, :finish])
     |> validate_number(:quantity, greater_than: 0, less_than: 10_000)
+    |> validate_number(:proxy_quantity, greater_than_or_equal_to: 0, less_than: 10_000)
     |> validate_inclusion(:zone, @zones)
     |> validate_inclusion(:finish, ~w(nonfoil foil etched))
     |> foreign_key_constraint(:deck_id)

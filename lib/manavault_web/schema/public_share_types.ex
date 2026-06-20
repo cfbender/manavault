@@ -106,6 +106,7 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
            required: deck_card.quantity,
            owned: 0,
            allocated: 0,
+           proxy_allocated: 0,
            available: 0,
            allocated_elsewhere: 0,
            missing: 0,
@@ -120,6 +121,7 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     field :required, non_null(:integer)
     field :owned, non_null(:integer)
     field :allocated, non_null(:integer)
+    field :proxy_allocated, non_null(:integer)
     field :available, non_null(:integer)
     field :allocated_elsewhere, non_null(:integer)
     field :missing, non_null(:integer)
