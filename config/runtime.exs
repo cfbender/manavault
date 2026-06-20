@@ -33,6 +33,7 @@ if config_env() == :prod do
         Path.dirname(database_path),
         Path.join(data_dir, "uploads/scans"),
         Path.join(data_dir, "cache/scryfall"),
+        Path.join(data_dir, "cache/scryfall/assets"),
         Path.join(data_dir, "backups")
       ] do
     File.mkdir_p!(path)
@@ -43,7 +44,8 @@ if config_env() == :prod do
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "5")
 
   config :manavault,
-    scan_image_cache_dir: Path.join(data_dir, "cache/scryfall/scanner-images")
+    scan_image_cache_dir: Path.join(data_dir, "cache/scryfall/scanner-images"),
+    scryfall_assets_dir: Path.join(data_dir, "cache/scryfall/assets")
 
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you

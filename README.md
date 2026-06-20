@@ -249,10 +249,10 @@ Health check:
 curl http://localhost:4000/health
 ```
 
-First boot runs migrations and schedules a Scryfall bulk catalog sync. Card
-searches and scanner matching become useful after that sync succeeds. The sync
-uses Scryfall's public bulk-data endpoint and refreshes daily while the app is
-running.
+First boot runs migrations and schedules Scryfall syncs. Card searches and
+scanner matching become useful after the bulk catalog sync succeeds. The catalog
+uses Scryfall's public bulk-data endpoint, and the catalog plus symbol/set icon
+assets refresh daily while the app is running.
 
 Build the image locally:
 
