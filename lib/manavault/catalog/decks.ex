@@ -23,11 +23,31 @@ defmodule Manavault.Catalog.Decks do
   alias Manavault.Repo
 
   @reserving_deck_statuses ["active"]
+  @share_token_bytes 18
+  @share_token_attempts 5
+
   def list_decks do
     Deck
     |> order_by([deck], asc: deck.name, asc: deck.id)
     |> Repo.all()
     |> Repo.preload(deck_preloads())
+  end
+
+  def get_deck_by_share_token(nil), do: nil
+
+  def get_deck_by_share_token(token) when is_binary(token) do
+    token = String.trim(token)
+
+    if token == "" do
+      nil
+    else
+      Deck
+      |> Repo.get_by(share_token: token)
+      |> case do
+        nil -> nil
+        deck -> Repo.preload(deck, deck_preloads())
+      end
+    end
   end
 
   def get_deck!(id) do
@@ -52,12 +72,49 @@ defmodule Manavault.Catalog.Decks do
     |> Repo.update()
   end
 
+  def ensure_deck_share_token(%Deck{} = deck) do
+    deck = Repo.get!(Deck, deck.id)
+
+    case deck.share_token do
+      token when is_binary(token) and token != "" ->
+        {:ok, Repo.preload(deck, deck_preloads())}
+
+      _token ->
+        put_deck_share_token(deck, @share_token_attempts)
+    end
+  end
+
   def delete_deck(%Deck{} = deck) do
     Repo.delete(deck)
   end
 
   def deck_reserves_cards?(%Deck{status: status}), do: deck_reserves_cards?(status)
   def deck_reserves_cards?(status) when is_binary(status), do: status in @reserving_deck_statuses
+
+  defp put_deck_share_token(_deck, 0), do: {:error, :share_token_collision}
+
+  defp put_deck_share_token(%Deck{} = deck, attempts) do
+    case deck |> Deck.share_changeset(new_share_token()) |> Repo.update() do
+      {:ok, deck} ->
+        {:ok, Repo.preload(deck, deck_preloads())}
+
+      {:error, changeset} ->
+        if Keyword.has_key?(changeset.errors, :share_token) do
+          deck
+          |> Map.fetch!(:id)
+          |> get_deck!()
+          |> put_deck_share_token(attempts - 1)
+        else
+          {:error, changeset}
+        end
+    end
+  end
+
+  defp new_share_token do
+    @share_token_bytes
+    |> :crypto.strong_rand_bytes()
+    |> Base.url_encode64(padding: false)
+  end
 
   def change_deck_card(%DeckCard{} = deck_card, attrs \\ %{}) do
     DeckCard.changeset(deck_card, attrs)

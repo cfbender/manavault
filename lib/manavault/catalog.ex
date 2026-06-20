@@ -45,9 +45,11 @@ defmodule Manavault.Catalog do
 
   defdelegate list_decks(), to: Decks
   defdelegate get_deck!(id), to: Decks
+  defdelegate get_deck_by_share_token(token), to: Decks
   defdelegate change_deck(deck, attrs \\ %{}), to: Decks
   defdelegate create_deck(attrs), to: Decks
   defdelegate update_deck(deck, attrs), to: Decks
+  defdelegate ensure_deck_share_token(deck), to: Decks
   defdelegate delete_deck(deck), to: Decks
   defdelegate deck_reserves_cards?(deck_or_status), to: Decks
   defdelegate change_deck_card(deck_card, attrs \\ %{}), to: Decks

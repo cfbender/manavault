@@ -63,6 +63,11 @@ defmodule ManavaultWeb.Schema do
       resolve(&CatalogResolvers.deck/3)
     end
 
+    field :shared_deck, :deck do
+      arg(:token, non_null(:string))
+      resolve(&CatalogResolvers.shared_deck/3)
+    end
+
     field :deck_export_text, non_null(:string) do
       arg(:id, non_null(:id))
       resolve(&CatalogResolvers.deck_export_text/3)
@@ -202,6 +207,11 @@ defmodule ManavaultWeb.Schema do
       arg(:id, non_null(:id))
       arg(:input, non_null(:deck_update_input))
       resolve(&CatalogResolvers.update_deck/3)
+    end
+
+    field :ensure_deck_share_token, :deck do
+      arg(:id, non_null(:id))
+      resolve(&CatalogResolvers.ensure_deck_share_token/3)
     end
 
     field :add_deck_card, :deck_card do

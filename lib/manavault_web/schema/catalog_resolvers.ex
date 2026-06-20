@@ -76,6 +76,9 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
   def deck(_parent, %{id: id}, _resolution), do: {:ok, Catalog.get_deck!(id)}
 
+  def shared_deck(_parent, %{token: token}, _resolution),
+    do: {:ok, Catalog.get_deck_by_share_token(token)}
+
   def deck_export_text(_parent, %{id: id}, _resolution) do
     {:ok, id |> Catalog.get_deck!() |> Catalog.export_decklist()}
   end
@@ -198,6 +201,17 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
     case Catalog.update_deck(deck, input) do
       {:ok, deck} -> {:ok, Catalog.get_deck!(deck.id)}
+      {:error, changeset} -> {:error, changeset_error_message(changeset)}
+    end
+  end
+
+  def ensure_deck_share_token(_parent, %{id: id}, _resolution) do
+    id
+    |> Catalog.get_deck!()
+    |> Catalog.ensure_deck_share_token()
+    |> case do
+      {:ok, deck} -> {:ok, deck}
+      {:error, :share_token_collision} -> {:error, "Could not generate a unique share link."}
       {:error, changeset} -> {:error, changeset_error_message(changeset)}
     end
   end

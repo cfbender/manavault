@@ -118,6 +118,7 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :name, non_null(:string)
     field :format, non_null(:string)
     field :status, non_null(:string)
+    field :share_token, :string
 
     field :card_count, :integer do
       resolve(&CatalogResolvers.deck_card_count/3)

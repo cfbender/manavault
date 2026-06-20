@@ -21,6 +21,7 @@ import {
   Palette,
   PawPrint,
   Plus,
+  Share2,
   ShoppingCart,
   Sparkles,
   Star,
@@ -78,6 +79,7 @@ const DecksDocument = graphql(`
       name
       format
       status
+      shareToken
       cardCount
       uniqueCardCount
       deckCards {
@@ -103,6 +105,7 @@ const CreateDeckDocument = graphql(`
       name
       format
       status
+      shareToken
       cardCount
       uniqueCardCount
       deckCards {
@@ -128,6 +131,7 @@ const UpdateDeckDocument = graphql(`
       name
       format
       status
+      shareToken
       cardCount
       uniqueCardCount
       deckCards {
@@ -153,6 +157,7 @@ const DeckDocument = graphql(`
       name
       format
       status
+      shareToken
       cardCount
       uniqueCardCount
       deckCards {
@@ -225,6 +230,15 @@ const DeckDocument = graphql(`
           }
         }
       }
+    }
+  }
+`)
+
+const EnsureDeckShareTokenDocument = graphql(`
+  mutation EnsureDeckShareToken($id: ID!) {
+    ensureDeckShareToken(id: $id) {
+      id
+      shareToken
     }
   }
 `)
@@ -572,6 +586,7 @@ const DeckEdhrecDocument = graphql(`
 export function DecksPage() {
   const [isNewDeckOpen, setIsNewDeckOpen] = useState(false)
   const [editingDeck, setEditingDeck] = useState<DeckSummary | null>(null)
+  const [sharingDeck, setSharingDeck] = useState<DeckSummary | null>(null)
   const { data, isLoading } = useQuery({
     queryKey: ["decks"],
     queryFn: () => request(DecksDocument),
@@ -627,6 +642,7 @@ export function DecksPage() {
                       <SummaryActionMenu
                         label={`${deck.name} actions`}
                         onEdit={() => setEditingDeck(deck)}
+                        onShare={() => setSharingDeck(deck)}
                       />
                     </div>
                   ))}
@@ -640,6 +656,7 @@ export function DecksPage() {
       )}
       <NewDeckDialog open={isNewDeckOpen} onOpenChange={setIsNewDeckOpen} />
       <EditDeckDialog deck={editingDeck} onOpenChange={(open) => !open && setEditingDeck(null)} />
+      <ShareDeckDialog deck={sharingDeck} onOpenChange={(open) => !open && setSharingDeck(null)} />
     </>
   )
 }
@@ -648,10 +665,12 @@ export function DeckDetailPage({
   edhrecExcludeLands = false,
   edhrecTab,
   id,
+  shareMode = false,
 }: {
   edhrecExcludeLands?: boolean
   edhrecTab?: EDHRecTab
   id: string
+  shareMode?: boolean
 }) {
   const [groupBy, setGroupBy] = useState<DeckGroupBy>("type")
   const [editTarget, setEditTarget] = useState<DeckCardEntry | null>(null)
@@ -662,6 +681,7 @@ export function DeckDetailPage({
   const [isImportDeckOpen, setIsImportDeckOpen] = useState(false)
   const [isExportDeckOpen, setIsExportDeckOpen] = useState(false)
   const [isMissingCardsOpen, setIsMissingCardsOpen] = useState(false)
+  const [isShareDeckOpen, setIsShareDeckOpen] = useState(false)
   const [bulkAllocationPreview, setBulkAllocationPreview] = useState<BulkAllocationPreview | null>(
     null,
   )
@@ -669,8 +689,9 @@ export function DeckDetailPage({
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { data, isLoading } = useQuery({
-    queryKey: ["deck", id],
-    queryFn: () => request(DeckDocument, { id }),
+    queryKey: [shareMode ? "shared-deck" : "deck", id],
+    queryFn: () =>
+      request(DeckDocument, { id }, shareMode ? { endpoint: "/share/graphql" } : undefined),
   })
   const deck = data?.deck
   const [isAddCardOpen, setIsAddCardOpen] = useState(false)
@@ -697,12 +718,13 @@ export function DeckDetailPage({
   const zoneCounts = useMemo(() => countDeckZones(deckCards), [deckCards])
   const hasBulkAllocationAvailable = useMemo(
     () =>
+      !shareMode &&
       deckCards.some(
         (deckCard) =>
           deckCard.allocationStatus.available > 0 &&
           deckCard.allocationStatus.allocated < deckCard.allocationStatus.required,
       ),
-    [deckCards],
+    [deckCards, shareMode],
   )
 
   const updateDeckCard = useMutation({
@@ -868,9 +890,11 @@ export function DeckDetailPage({
   return (
     <>
       <div className="space-y-7">
-        <Button asChild variant="outline" size="sm">
-          <Link to="/decks">Back to decks</Link>
-        </Button>
+        <ShareModeHidden shareMode={shareMode}>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/decks">Back to decks</Link>
+          </Button>
+        </ShareModeHidden>
 
         <ImageSummaryCard
           imageUrl={deckDetailCoverUrl(deckCards)}
@@ -888,14 +912,17 @@ export function DeckDetailPage({
           }
           nameLine={deck.name}
           actionSlot={
-            <SummaryActionMenu
-              label={`${deck.name} actions`}
-              onEdit={() => setIsEditDeckOpen(true)}
-              onExport={() => setIsExportDeckOpen(true)}
-              onImport={() => setIsImportDeckOpen(true)}
-              onMissing={() => setIsMissingCardsOpen(true)}
-              onEdhrec={deck.format === "commander" ? () => setEdhrecState("recs") : undefined}
-            />
+            <ShareModeHidden shareMode={shareMode}>
+              <SummaryActionMenu
+                label={`${deck.name} actions`}
+                onEdit={() => setIsEditDeckOpen(true)}
+                onExport={() => setIsExportDeckOpen(true)}
+                onImport={() => setIsImportDeckOpen(true)}
+                onMissing={() => setIsMissingCardsOpen(true)}
+                onShare={() => setIsShareDeckOpen(true)}
+                onEdhrec={deck.format === "commander" ? () => setEdhrecState("recs") : undefined}
+              />
+            </ShareModeHidden>
           }
         />
 
@@ -912,19 +939,21 @@ export function DeckDetailPage({
             ))}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" size="sm" onClick={() => setIsAddCardOpen(true)}>
-              <Plus className="h-4 w-4" />
-              Add card
-            </Button>
-            {hasBulkAllocationAvailable ? (
-              <BulkAllocationMenu
-                disabled={previewBulkAllocateDeck.isPending || bulkAllocateDeck.isPending}
-                onPreview={(mode) => {
-                  setBulkAllocationError(null)
-                  previewBulkAllocateDeck.mutate(mode)
-                }}
-              />
-            ) : null}
+            <ShareModeHidden shareMode={shareMode}>
+              <Button type="button" size="sm" onClick={() => setIsAddCardOpen(true)}>
+                <Plus className="h-4 w-4" />
+                Add card
+              </Button>
+              {hasBulkAllocationAvailable ? (
+                <BulkAllocationMenu
+                  disabled={previewBulkAllocateDeck.isPending || bulkAllocateDeck.isPending}
+                  onPreview={(mode) => {
+                    setBulkAllocationError(null)
+                    previewBulkAllocateDeck.mutate(mode)
+                  }}
+                />
+              ) : null}
+            </ShareModeHidden>
             <DeckGroupMenu value={groupBy} onChange={setGroupBy} />
           </div>
         </div>
@@ -951,6 +980,7 @@ export function DeckDetailPage({
             onDelete={confirmDeleteDeckCard}
             onSetCommander={(deckCard) => setDeckCommander.mutate(deckCard.id)}
             allocationError={allocationError}
+            shareMode={shareMode}
           />
         ) : (
           <EmptyState title="No cards in this deck" />
@@ -961,6 +991,7 @@ export function DeckDetailPage({
             cards={sideboardCards}
             isUpdating={isUpdatingDeckCard}
             title="Sideboard"
+            shareMode={shareMode}
             onMove={(deckCard) => {
               setMoveError(null)
               setMoveTarget(deckCard)
@@ -975,6 +1006,7 @@ export function DeckDetailPage({
             cards={maybeboardCards}
             isUpdating={isUpdatingDeckCard}
             title="Maybeboard"
+            shareMode={shareMode}
             onMove={(deckCard) => {
               setMoveError(null)
               setMoveTarget(deckCard)
@@ -988,81 +1020,84 @@ export function DeckDetailPage({
         </div>
       </div>
 
-      <EditDeckDialog deck={deck} onOpenChange={setIsEditDeckOpen} open={isEditDeckOpen} />
-      <AddDeckCardDialog deck={deck} onOpenChange={setIsAddCardOpen} open={isAddCardOpen} />
-      <ImportDecklistDialog
-        deck={deck}
-        onOpenChange={setIsImportDeckOpen}
-        open={isImportDeckOpen}
-      />
-      <ExportDecklistDialog
-        deck={deck}
-        onOpenChange={setIsExportDeckOpen}
-        open={isExportDeckOpen}
-      />
-      <MissingCardsDialog
-        deck={deck}
-        onOpenChange={setIsMissingCardsOpen}
-        open={isMissingCardsOpen}
-      />
-      <EDHRecDialog
-        activeTab={edhrecTab || "recs"}
-        addCardError={addDeckCard.error instanceof Error ? addDeckCard.error.message : null}
-        deck={deck}
-        excludeLands={edhrecExcludeLands}
-        isAddingCard={addDeckCard.isPending}
-        onAddCard={addEdhrecCard}
-        onExcludeLandsChange={(excludeLands) => setEdhrecState(edhrecTab || "recs", excludeLands)}
-        onOpenChange={(open) => {
-          if (!open) setEdhrecState(undefined, false)
-          else setEdhrecState(edhrecTab || "recs")
-        }}
-        onTabChange={(tab) => setEdhrecState(tab)}
-        open={Boolean(edhrecTab)}
-      />
-      <BulkAllocationPreviewDialog
-        error={bulkAllocationError}
-        isPending={bulkAllocateDeck.isPending}
-        onClose={() => {
-          if (!bulkAllocateDeck.isPending) {
-            setBulkAllocationPreview(null)
-            setBulkAllocationError(null)
-          }
-        }}
-        onConfirm={(mode) => bulkAllocateDeck.mutate(mode)}
-        preview={bulkAllocationPreview}
-      />
+      <ShareModeHidden shareMode={shareMode}>
+        <EditDeckDialog deck={deck} onOpenChange={setIsEditDeckOpen} open={isEditDeckOpen} />
+        <ShareDeckDialog deck={deck} onOpenChange={setIsShareDeckOpen} open={isShareDeckOpen} />
+        <AddDeckCardDialog deck={deck} onOpenChange={setIsAddCardOpen} open={isAddCardOpen} />
+        <ImportDecklistDialog
+          deck={deck}
+          onOpenChange={setIsImportDeckOpen}
+          open={isImportDeckOpen}
+        />
+        <ExportDecklistDialog
+          deck={deck}
+          onOpenChange={setIsExportDeckOpen}
+          open={isExportDeckOpen}
+        />
+        <MissingCardsDialog
+          deck={deck}
+          onOpenChange={setIsMissingCardsOpen}
+          open={isMissingCardsOpen}
+        />
+        <EDHRecDialog
+          activeTab={edhrecTab || "recs"}
+          addCardError={addDeckCard.error instanceof Error ? addDeckCard.error.message : null}
+          deck={deck}
+          excludeLands={edhrecExcludeLands}
+          isAddingCard={addDeckCard.isPending}
+          onAddCard={addEdhrecCard}
+          onExcludeLandsChange={(excludeLands) => setEdhrecState(edhrecTab || "recs", excludeLands)}
+          onOpenChange={(open) => {
+            if (!open) setEdhrecState(undefined, false)
+            else setEdhrecState(edhrecTab || "recs")
+          }}
+          onTabChange={(tab) => setEdhrecState(tab)}
+          open={Boolean(edhrecTab)}
+        />
+        <BulkAllocationPreviewDialog
+          error={bulkAllocationError}
+          isPending={bulkAllocateDeck.isPending}
+          onClose={() => {
+            if (!bulkAllocateDeck.isPending) {
+              setBulkAllocationPreview(null)
+              setBulkAllocationError(null)
+            }
+          }}
+          onConfirm={(mode) => bulkAllocateDeck.mutate(mode)}
+          preview={bulkAllocationPreview}
+        />
 
-      <MoveDeckCardDialog
-        deckCard={moveTarget}
-        error={moveError}
-        isPending={isUpdatingDeckCard}
-        onClose={() => {
-          if (!updateDeckCard.isPending) {
-            setMoveError(null)
-            setMoveTarget(null)
-          }
-        }}
-        onMove={(zone) => {
-          if (moveTarget) moveDeckCard(moveTarget, zone)
-        }}
-        zoneCounts={zoneCounts}
-      />
-      <EditDeckCardDialog
-        deckCard={editTarget}
-        deckFormat={deck.format}
-        error={editError}
-        isPending={updateDeckCard.isPending}
-        onClose={() => {
-          if (!updateDeckCard.isPending) {
-            setEditError(null)
-            setEditTarget(null)
-          }
-        }}
-        onSave={(input) => {
-          if (editTarget) editDeckCard(editTarget, input)
-        }}
-      />
+        <MoveDeckCardDialog
+          deckCard={moveTarget}
+          error={moveError}
+          isPending={isUpdatingDeckCard}
+          onClose={() => {
+            if (!updateDeckCard.isPending) {
+              setMoveError(null)
+              setMoveTarget(null)
+            }
+          }}
+          onMove={(zone) => {
+            if (moveTarget) moveDeckCard(moveTarget, zone)
+          }}
+          zoneCounts={zoneCounts}
+        />
+        <EditDeckCardDialog
+          deckCard={editTarget}
+          deckFormat={deck.format}
+          error={editError}
+          isPending={updateDeckCard.isPending}
+          onClose={() => {
+            if (!updateDeckCard.isPending) {
+              setEditError(null)
+              setEditTarget(null)
+            }
+          }}
+          onSave={(input) => {
+            if (editTarget) editDeckCard(editTarget, input)
+          }}
+        />
+      </ShareModeHidden>
     </>
   )
 }
@@ -1159,6 +1194,17 @@ function blurFocusedMenuItem(event: ReactMouseEvent<HTMLElement>) {
   }
 }
 
+function ShareModeHidden({
+  children,
+  shareMode,
+}: {
+  children: ReactNode
+  shareMode?: boolean
+}) {
+  if (shareMode) return null
+  return <>{children}</>
+}
+
 function SummaryActionMenu({
   label,
   onEdhrec,
@@ -1166,6 +1212,7 @@ function SummaryActionMenu({
   onExport,
   onImport,
   onMissing,
+  onShare,
 }: {
   label: string
   onEdhrec?: () => void
@@ -1173,6 +1220,7 @@ function SummaryActionMenu({
   onExport?: () => void
   onImport?: () => void
   onMissing?: () => void
+  onShare?: () => void
 }) {
   return (
     <div
@@ -1199,6 +1247,14 @@ function SummaryActionMenu({
             Edit
           </button>
         </li>
+        {onShare ? (
+          <li>
+            <button type="button" onClick={onShare}>
+              <Share2 className="h-4 w-4" />
+              Share deck
+            </button>
+          </li>
+        ) : null}
         {onImport ? (
           <li>
             <button type="button" onClick={onImport}>
@@ -1797,6 +1853,7 @@ function DeckGroupGrid({
   onEdit,
   onMove,
   onSetCommander,
+  shareMode = false,
 }: {
   allocationError: string | null
   canSetCommander: boolean
@@ -1808,6 +1865,7 @@ function DeckGroupGrid({
   onEdit: (deckCard: DeckCardEntry) => void
   onMove: (deckCard: DeckCardEntry) => void
   onSetCommander: (deckCard: DeckCardEntry) => void
+  shareMode?: boolean
 }) {
   return (
     <div
@@ -1829,6 +1887,7 @@ function DeckGroupGrid({
           onEdit={onEdit}
           onMove={onMove}
           onSetCommander={onSetCommander}
+          shareMode={shareMode}
         />
       ))}
     </div>
@@ -1873,6 +1932,7 @@ function DeckStackGroup({
   onEdit,
   onMove,
   onSetCommander,
+  shareMode = false,
 }: {
   allocationError: string | null
   canSetCommander: boolean
@@ -1884,6 +1944,7 @@ function DeckStackGroup({
   onEdit: (deckCard: DeckCardEntry) => void
   onMove: (deckCard: DeckCardEntry) => void
   onSetCommander: (deckCard: DeckCardEntry) => void
+  shareMode?: boolean
 }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const [pinnedIndex, setPinnedIndex] = useState<number | null>(null)
@@ -1944,6 +2005,7 @@ function DeckStackGroup({
             onEdit={() => onEdit(deckCard)}
             onMove={() => onMove(deckCard)}
             onSetCommander={() => onSetCommander(deckCard)}
+            shareMode={shareMode}
             slideOffset={activeIndex != null && index > activeIndex ? revealOffset : 0}
             top={index * DECK_STACK_OFFSET}
           />
@@ -1967,6 +2029,7 @@ function DeckStackCard({
   onExpand,
   onMove,
   onSetCommander,
+  shareMode = false,
   slideOffset,
   top,
 }: {
@@ -1983,6 +2046,7 @@ function DeckStackCard({
   onExpand: () => void
   onMove: () => void
   onSetCommander: () => void
+  shareMode?: boolean
   slideOffset: number
   top: number
 }) {
@@ -2012,77 +2076,79 @@ function DeckStackCard({
         zIndex: isInteractive ? 90 : index + 1,
       }}
     >
-      <DeckCardAllocationMenu
-        deckCard={deckCard}
-        error={allocationError}
-        isInteractive={isInteractive}
-        isUpdating={isUpdating}
-        onAllocate={onAllocate}
-        onDeallocate={onDeallocate}
-      />
+      <ShareModeHidden shareMode={shareMode}>
+        <DeckCardAllocationMenu
+          deckCard={deckCard}
+          error={allocationError}
+          isInteractive={isInteractive}
+          isUpdating={isUpdating}
+          onAllocate={onAllocate}
+          onDeallocate={onDeallocate}
+        />
 
-      <div
-        className={cn(
-          "dropdown dropdown-end absolute right-2 top-2 z-[120] transition-opacity group-focus-within/deck-card:opacity-100",
-          isInteractive ? "opacity-100" : "opacity-0",
-        )}
-        onClick={(event) => event.stopPropagation()}
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <button
-          type="button"
-          className="btn btn-circle btn-xs border-0 bg-neutral/85 text-neutral-content shadow transition hover:bg-neutral"
-          tabIndex={isInteractive ? 0 : -1}
-          aria-label={`${name} actions`}
+        <div
+          className={cn(
+            "dropdown dropdown-end absolute right-2 top-2 z-[120] transition-opacity group-focus-within/deck-card:opacity-100",
+            isInteractive ? "opacity-100" : "opacity-0",
+          )}
+          onClick={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
         >
-          <MoreVertical className="h-4 w-4" />
-        </button>
-        {isInteractive ? (
-          <ul
-            tabIndex={0}
-            className="menu dropdown-content z-[120] mt-1 w-52 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
-            onClick={blurFocusedMenuItem}
+          <button
+            type="button"
+            className="btn btn-circle btn-xs border-0 bg-neutral/85 text-neutral-content shadow transition hover:bg-neutral"
+            tabIndex={isInteractive ? 0 : -1}
+            aria-label={`${name} actions`}
           >
-            <li>
-              <Link to="/cards/$id" params={{ id: deckCard.card?.oracleId || "" }}>
-                <Eye className="h-4 w-4" />
-                View card
-              </Link>
-            </li>
-            <li>
-              <button type="button" disabled={isUpdating} onClick={onEdit}>
-                <Edit3 className="h-4 w-4" />
-                Edit
-              </button>
-            </li>
-            <li>
-              <button type="button" disabled={isUpdating} onClick={onMove}>
-                <MoveRight className="h-4 w-4" />
-                Move
-              </button>
-            </li>
-            {canSetCommander ? (
+            <MoreVertical className="h-4 w-4" />
+          </button>
+          {isInteractive ? (
+            <ul
+              tabIndex={0}
+              className="menu dropdown-content z-[120] mt-1 w-52 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
+              onClick={blurFocusedMenuItem}
+            >
               <li>
-                <button type="button" disabled={isUpdating} onClick={onSetCommander}>
-                  <Crown className="h-4 w-4" />
-                  Set as commander
+                <Link to="/cards/$id" params={{ id: deckCard.card?.oracleId || "" }}>
+                  <Eye className="h-4 w-4" />
+                  View card
+                </Link>
+              </li>
+              <li>
+                <button type="button" disabled={isUpdating} onClick={onEdit}>
+                  <Edit3 className="h-4 w-4" />
+                  Edit
                 </button>
               </li>
-            ) : null}
-            <li>
-              <button
-                type="button"
-                className="text-error"
-                disabled={isUpdating}
-                onClick={onDelete}
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete
-              </button>
-            </li>
-          </ul>
-        ) : null}
-      </div>
+              <li>
+                <button type="button" disabled={isUpdating} onClick={onMove}>
+                  <MoveRight className="h-4 w-4" />
+                  Move
+                </button>
+              </li>
+              {canSetCommander ? (
+                <li>
+                  <button type="button" disabled={isUpdating} onClick={onSetCommander}>
+                    <Crown className="h-4 w-4" />
+                    Set as commander
+                  </button>
+                </li>
+              ) : null}
+              <li>
+                <button
+                  type="button"
+                  className="text-error"
+                  disabled={isUpdating}
+                  onClick={onDelete}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </button>
+              </li>
+            </ul>
+          ) : null}
+        </div>
+      </ShareModeHidden>
 
       <button type="button" className="block w-full cursor-pointer text-left" onClick={onExpand}>
         <figure
@@ -2382,6 +2448,7 @@ function DeckZoneTable({
   onDelete,
   onEdit,
   onMove,
+  shareMode = false,
   title,
 }: {
   cards: DeckCardEntry[]
@@ -2389,6 +2456,7 @@ function DeckZoneTable({
   onDelete: (deckCard: DeckCardEntry) => void
   onEdit: (deckCard: DeckCardEntry) => void
   onMove: (deckCard: DeckCardEntry) => void
+  shareMode?: boolean
   title: string
 }) {
   if (!cards.length) return null
@@ -2414,7 +2482,7 @@ function DeckZoneTable({
               <th>Name</th>
               <th>Type</th>
               <th>Printing</th>
-              <th className="w-36 text-right">Actions</th>
+              {shareMode ? null : <th className="w-36 text-right">Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -2440,39 +2508,41 @@ function DeckZoneTable({
                     {printing?.setName || printing?.setCode?.toUpperCase() || "Unknown"} #
                     {printing?.collectorNumber || "?"}
                   </td>
-                  <td>
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        disabled={isUpdating}
-                        onClick={() => onEdit(deckCard)}
-                        title="Edit"
-                      >
-                        <Edit3 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        disabled={isUpdating}
-                        onClick={() => onMove(deckCard)}
-                      >
-                        <MoveRight className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="text-error hover:bg-error/10"
-                        disabled={isUpdating}
-                        onClick={() => onDelete(deckCard)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </td>
+                  {shareMode ? null : (
+                    <td>
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          disabled={isUpdating}
+                          onClick={() => onEdit(deckCard)}
+                          title="Edit"
+                        >
+                          <Edit3 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          disabled={isUpdating}
+                          onClick={() => onMove(deckCard)}
+                        >
+                          <MoveRight className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="text-error hover:bg-error/10"
+                          disabled={isUpdating}
+                          onClick={() => onDelete(deckCard)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               )
             })}
@@ -2786,6 +2856,113 @@ function printingFinishOptions(finishes?: Array<string | null> | null) {
   )
 
   return options.length ? options : DECK_CARD_FINISHES
+}
+
+function ShareDeckDialog({
+  deck,
+  onOpenChange,
+  open,
+}: {
+  deck: DeckSummary | DeckDetail | null
+  onOpenChange: (open: boolean) => void
+  open?: boolean
+}) {
+  const queryClient = useQueryClient()
+  const isOpen = open ?? Boolean(deck)
+  const requestedDeckId = useRef<string | null>(null)
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle")
+  const ensureShare = useMutation({
+    mutationFn: () => {
+      if (!deck) throw new Error("Deck is required")
+      return request(EnsureDeckShareTokenDocument, { id: deck.id })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      if (deck) queryClient.invalidateQueries({ queryKey: ["deck", deck.id] })
+    },
+  })
+  const generatedDeck = ensureShare.data?.ensureDeckShareToken || null
+  const shareToken =
+    generatedDeck && generatedDeck.id === deck?.id
+      ? generatedDeck.shareToken || ""
+      : deck?.shareToken || ""
+  const shareUrl =
+    shareToken && typeof window !== "undefined"
+      ? `${window.location.origin}/share/decks/${encodeURIComponent(shareToken)}`
+      : ""
+  const error = ensureShare.error instanceof Error ? ensureShare.error.message : null
+
+  useEffect(() => {
+    if (!isOpen) {
+      requestedDeckId.current = null
+      setCopyState("idle")
+      return
+    }
+
+    if (!deck?.id || shareToken || requestedDeckId.current === deck.id) return
+
+    requestedDeckId.current = deck.id
+    ensureShare.mutate()
+  }, [deck?.id, ensureShare, isOpen, shareToken])
+
+  async function copyShareUrl() {
+    if (!shareUrl) return
+
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      setCopyState("copied")
+    } catch (_error) {
+      setCopyState("failed")
+    }
+  }
+
+  return (
+    <Dialog
+      open={isOpen}
+      onOpenChange={(nextOpen) => {
+        if (nextOpen) onOpenChange(true)
+        else onOpenChange(false)
+      }}
+    >
+      <DialogContent className="max-w-xl" labelledBy="share-deck-title">
+        <DialogHeader>
+          <div>
+            <DialogTitle id="share-deck-title">Share deck</DialogTitle>
+            <p className="mt-1 text-sm text-base-content/60">{deck?.name}</p>
+          </div>
+          <DialogClose onClose={() => onOpenChange(false)} />
+        </DialogHeader>
+
+        <div className="space-y-4 p-5">
+          <label className="block space-y-2">
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+              Public link
+            </span>
+            <Input readOnly value={shareUrl || "Generating link..."} />
+          </label>
+
+          {error ? (
+            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+              {error}
+            </p>
+          ) : null}
+          {copyState === "failed" ? (
+            <p className="text-sm text-error">Could not copy from this browser context.</p>
+          ) : null}
+
+          <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-4">
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
+            <Button type="button" disabled={!shareUrl} onClick={copyShareUrl}>
+              <Clipboard className="h-4 w-4" />
+              {copyState === "copied" ? "Copied" : "Copy link"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 function ImportDecklistDialog({

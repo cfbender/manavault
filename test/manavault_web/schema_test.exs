@@ -313,6 +313,149 @@ defmodule ManavaultWeb.SchemaTest do
            } = json_response(conn, 200)
   end
 
+  test "deck share mutation creates a public token and public share query resolves it", %{
+    conn: conn
+  } do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-share-card",
+          "oracle_id" => "oracle-share-card",
+          "name" => "Shared Card",
+          "type_line" => "Artifact",
+          "collector_number" => "9",
+          "set" => "shr",
+          "set_name" => "Share Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Shared Deck"})
+    {:ok, _deck_card} = Catalog.add_card_to_deck(deck, %{"name" => "Shared Card"})
+
+    share_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation ShareDeck($id: ID!) {
+          ensureDeckShareToken(id: $id) {
+            id
+            shareToken
+          }
+        }
+        """,
+        "variables" => %{"id" => deck.id}
+      })
+
+    assert %{
+             "data" => %{
+               "ensureDeckShareToken" => %{
+                 "id" => _id,
+                 "shareToken" => share_token
+               }
+             }
+           } = json_response(share_conn, 200)
+
+    assert is_binary(share_token)
+    assert String.length(share_token) > 20
+    refute share_token == to_string(deck.id)
+
+    public_conn =
+      post(conn, "/share/graphql", %{
+        "query" => """
+        query SharedDeck($id: ID!) {
+          deck(id: $id) {
+            name
+            shareToken
+            cardCount
+            uniqueCardCount
+            deckCards {
+              id
+              quantity
+              zone
+              finish
+              card { name }
+              preferredPrinting {
+                scryfallId
+                imageUrl
+                artCropUrl
+                setCode
+                setName
+                collectorNumber
+                rarity
+                finishes
+              }
+              allocationStatus {
+                state
+                required
+                owned
+                allocated
+                available
+                allocatedElsewhere
+                missing
+                candidates {
+                  allocated
+                  allocatedElsewhere
+                  available
+                  item {
+                    id
+                    quantity
+                    finish
+                    condition
+                    language
+                    priceText
+                    location {
+                      id
+                      name
+                    }
+                    printing {
+                      scryfallId
+                      setCode
+                      setName
+                      collectorNumber
+                      rarity
+                      card { name }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        """,
+        "variables" => %{"id" => share_token}
+      })
+
+    assert %{
+             "data" => %{
+               "deck" => %{
+                 "name" => "Shared Deck",
+                 "shareToken" => ^share_token,
+                 "cardCount" => 1,
+                 "uniqueCardCount" => 1,
+                 "deckCards" => [
+                   %{
+                     "quantity" => 1,
+                     "card" => %{"name" => "Shared Card"},
+                     "allocationStatus" => %{
+                       "state" => "shared",
+                       "required" => 1,
+                       "owned" => 0,
+                       "allocated" => 0,
+                       "available" => 0,
+                       "allocatedElsewhere" => 0,
+                       "missing" => 0,
+                       "candidates" => []
+                     }
+                   }
+                 ]
+               }
+             }
+           } = json_response(public_conn, 200)
+  end
+
   test "create collection item mutation adds a printing to the collection", %{conn: conn} do
     {:ok, %{cards_count: 1, printings_count: 1}} =
       Catalog.import_cards([

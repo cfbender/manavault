@@ -6,8 +6,9 @@ const csrfToken = document.querySelector("meta[name='csrf-token']")?.getAttribut
 export async function request<TResult, TVariables>(
   document: TypedDocumentNode<TResult, TVariables>,
   variables?: TVariables,
+  options?: { endpoint?: string },
 ): Promise<TResult> {
-  const response = await fetch("/api/graphql", {
+  const response = await fetch(options?.endpoint || "/api/graphql", {
     method: "POST",
     headers: {
       "content-type": "application/json",

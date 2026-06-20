@@ -21,6 +21,7 @@ defmodule ManavaultWeb.Router do
     get "/cards/:id", AppController, :index
     get "/decks", AppController, :index
     get "/decks/:id", AppController, :index
+    get "/share/decks/:token", AppController, :index
     get "/collection", AppController, :index
     get "/collection/new", AppController, :index
     get "/scan-sessions", AppController, :index
@@ -36,6 +37,7 @@ defmodule ManavaultWeb.Router do
 
     get "/health", ManavaultWeb.HealthController, :show
     forward "/api/graphql", Absinthe.Plug, schema: ManavaultWeb.Schema
+    forward "/share/graphql", Absinthe.Plug, schema: ManavaultWeb.PublicShareSchema
   end
 
   # Other scopes may use custom stacks.

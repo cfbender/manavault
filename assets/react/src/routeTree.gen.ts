@@ -19,6 +19,7 @@ import { Route as ScanSessionsIdRouteImport } from "./routes/scan-sessions/$id"
 import { Route as DecksIdRouteImport } from "./routes/decks/$id"
 import { Route as CollectionNewRouteImport } from "./routes/collection/new"
 import { Route as CardsIdRouteImport } from "./routes/cards/$id"
+import { Route as ShareDecksTokenRouteImport } from "./routes/share/decks/$token"
 import { Route as ScanSessionsIdScannerRouteImport } from "./routes/scan-sessions/$id.scanner"
 import { Route as CollectionLocationsIdRouteImport } from "./routes/collection/locations/$id"
 import { Route as CollectionIdEditRouteImport } from "./routes/collection/$id.edit"
@@ -73,6 +74,11 @@ const CardsIdRoute = CardsIdRouteImport.update({
   path: "/cards/$id",
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShareDecksTokenRoute = ShareDecksTokenRouteImport.update({
+  id: "/share/decks/$token",
+  path: "/share/decks/$token",
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ScanSessionsIdScannerRoute = ScanSessionsIdScannerRouteImport.update({
   id: "/scanner",
   path: "/scanner",
@@ -103,6 +109,7 @@ export interface FileRoutesByFullPath {
   "/collection/$id/edit": typeof CollectionIdEditRoute
   "/collection/locations/$id": typeof CollectionLocationsIdRoute
   "/scan-sessions/$id/scanner": typeof ScanSessionsIdScannerRoute
+  "/share/decks/$token": typeof ShareDecksTokenRoute
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute
@@ -118,6 +125,7 @@ export interface FileRoutesByTo {
   "/collection/$id/edit": typeof CollectionIdEditRoute
   "/collection/locations/$id": typeof CollectionLocationsIdRoute
   "/scan-sessions/$id/scanner": typeof ScanSessionsIdScannerRoute
+  "/share/decks/$token": typeof ShareDecksTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -134,6 +142,7 @@ export interface FileRoutesById {
   "/collection/$id/edit": typeof CollectionIdEditRoute
   "/collection/locations/$id": typeof CollectionLocationsIdRoute
   "/scan-sessions/$id/scanner": typeof ScanSessionsIdScannerRoute
+  "/share/decks/$token": typeof ShareDecksTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -151,6 +160,7 @@ export interface FileRouteTypes {
     | "/collection/$id/edit"
     | "/collection/locations/$id"
     | "/scan-sessions/$id/scanner"
+    | "/share/decks/$token"
   fileRoutesByTo: FileRoutesByTo
   to:
     | "/"
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
     | "/collection/$id/edit"
     | "/collection/locations/$id"
     | "/scan-sessions/$id/scanner"
+    | "/share/decks/$token"
   id:
     | "__root__"
     | "/"
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | "/collection/$id/edit"
     | "/collection/locations/$id"
     | "/scan-sessions/$id/scanner"
+    | "/share/decks/$token"
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -196,6 +208,7 @@ export interface RootRouteChildren {
   ScanSessionsIndexRoute: typeof ScanSessionsIndexRoute
   CollectionIdEditRoute: typeof CollectionIdEditRoute
   CollectionLocationsIdRoute: typeof CollectionLocationsIdRoute
+  ShareDecksTokenRoute: typeof ShareDecksTokenRoute
 }
 
 declare module "@tanstack/react-router" {
@@ -270,6 +283,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof CardsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    "/share/decks/$token": {
+      id: "/share/decks/$token"
+      path: "/share/decks/$token"
+      fullPath: "/share/decks/$token"
+      preLoaderRoute: typeof ShareDecksTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     "/scan-sessions/$id/scanner": {
       id: "/scan-sessions/$id/scanner"
       path: "/scanner"
@@ -319,6 +339,7 @@ const rootRouteChildren: RootRouteChildren = {
   ScanSessionsIndexRoute: ScanSessionsIndexRoute,
   CollectionIdEditRoute: CollectionIdEditRoute,
   CollectionLocationsIdRoute: CollectionLocationsIdRoute,
+  ShareDecksTokenRoute: ShareDecksTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

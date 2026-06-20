@@ -54,6 +54,7 @@ function ThemeToggle() {
 export function AppShell() {
   const { pathname } = useLocation()
   const isScannerRoute = pathname.endsWith("/scanner")
+  const isShareRoute = pathname.startsWith("/share/")
 
   return (
     <div className="min-h-screen bg-base-100 text-base-content">
@@ -61,6 +62,7 @@ export function AppShell() {
         className={cn(
           "app-shell-header sticky top-0 z-30 bg-base-100/95 backdrop-blur",
           isScannerRoute && "hidden sm:block",
+          isShareRoute && "hidden",
         )}
       >
         <div className="navbar min-h-16 px-0">
@@ -123,11 +125,18 @@ export function AppShell() {
         </div>
       </header>
 
-      <main className={cn("app-shell-main overflow-y-auto", isScannerRoute && "scanner-shell-main")}>
+      <main
+        className={cn(
+          "app-shell-main overflow-y-auto",
+          isScannerRoute && "scanner-shell-main",
+          isShareRoute && "min-h-screen",
+        )}
+      >
         <div
           className={cn(
             "mx-auto w-full max-w-[105rem] py-8 sm:py-12 lg:py-16",
             isScannerRoute && "py-2 sm:py-12 lg:py-16",
+            isShareRoute && "px-4",
           )}
         >
           <Outlet />
