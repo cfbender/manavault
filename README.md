@@ -112,6 +112,15 @@ python3 -m venv .venv
 mise exec -- mix manavault.ocr.setup
 ```
 
+For an Intel CPU/OpenVINO OCR trial, install the optional OCR dependencies and
+run setup with the engine selected:
+
+```sh
+.venv/bin/python -m pip install -r requirements-ocr-openvino.txt
+MANAVAULT_OCR_ENGINE=openvino mise exec -- mix manavault.ocr.setup
+MANAVAULT_OCR_ENGINE=openvino mise exec -- mix manavault.ocr.benchmark --limit 10 --max-failures 10
+```
+
 ## Mobile Camera Scanning
 
 Phone browsers only expose camera APIs in a secure context. `http://localhost:4000`
@@ -260,6 +269,14 @@ Build the image locally:
 docker build -t manavault .
 ```
 
+Build an OpenVINO-enabled image for Intel CPU OCR testing:
+
+```sh
+docker build \
+  --build-arg OCR_REQUIREMENTS=requirements-ocr-openvino.txt \
+  -t manavault:openvino .
+```
+
 Run the local image:
 
 ```sh
@@ -286,6 +303,13 @@ Common optional values:
 - `DATA_DIR` - mutable data root. Defaults to `/data`.
 - `DATABASE_PATH` - SQLite database path. Defaults to `/data/manavault.db`.
 - `POOL_SIZE` - Ecto pool size. Defaults to `5`.
+- `MANAVAULT_OCR_ENGINE` - OCR inference engine. Defaults to `onnxruntime`; set
+  to `openvino` only when the OpenVINO OCR dependencies are installed.
+- `MANAVAULT_OCR_THREADS` - optional OCR engine thread count. Applies to
+  OpenVINO and ONNX Runtime.
+- `MANAVAULT_OCR_OPENVINO_PERFORMANCE_HINT` - optional OpenVINO CPU performance
+  hint, such as `LATENCY` or `THROUGHPUT`.
+- `MANAVAULT_OCR_OPENVINO_NUM_STREAMS` - optional OpenVINO CPU stream count.
 - `SCAN_IMAGE_MATCHING` - set to `false` to disable candidate image matching
   during camera scans and use OCR-only recognition. Defaults to `true`.
 - `SCAN_TITLE_OCR_FAST_PATH` - set to `false` to disable the title-crop OCR

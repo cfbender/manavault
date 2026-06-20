@@ -17,14 +17,19 @@ defmodule Mix.Tasks.Manavault.Ocr.Setup do
       Mix.raise(missing_rapidocr_message(python))
     end
 
-    case System.cmd(python, ["-c", "import rapidocr, onnxruntime"], stderr_to_stdout: true) do
+    engine = System.get_env("MANAVAULT_OCR_ENGINE", "onnxruntime")
+
+    case System.cmd(python, ["-c", import_check(engine)], stderr_to_stdout: true) do
       {_output, 0} ->
-        Mix.shell().info("RapidOCR Python environment is ready.")
+        Mix.shell().info("RapidOCR Python environment is ready for #{engine}.")
 
       {output, _status} ->
         Mix.raise("#{String.trim(output)}\n\n#{missing_rapidocr_message(python)}")
     end
   end
+
+  defp import_check("openvino"), do: "import rapidocr, openvino"
+  defp import_check(_engine), do: "import rapidocr, onnxruntime"
 
   defp missing_rapidocr_message(python) do
     """

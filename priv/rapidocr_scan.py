@@ -8,9 +8,8 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-from rapidocr import RapidOCR
 from rapidocr.utils.log import logger
-from rapidocr_daemon import ocr_input_path
+from rapidocr_daemon import build_engine, ocr_input_path
 
 logger.disabled = True
 
@@ -28,7 +27,7 @@ def get_engine():
     global _ENGINE
     if _ENGINE is None:
         with suppress_rapidocr_output():
-            _ENGINE = RapidOCR()
+            _ENGINE = build_engine()
     return _ENGINE
 
 
@@ -56,7 +55,7 @@ def main():
     try:
         with suppress_rapidocr_output():
             with ocr_input_path(image_path, crop) as input_path:
-                result = engine(input_path)
+                result = engine(input_path, use_det=True, use_cls=True, use_rec=True)
         for text in result_texts(result):
             print(text)
     except Exception as e:
