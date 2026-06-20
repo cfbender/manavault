@@ -288,6 +288,8 @@ Common optional values:
 - `POOL_SIZE` - Ecto pool size. Defaults to `5`.
 - `SCAN_IMAGE_MATCHING` - set to `false` to disable candidate image matching
   during camera scans and use OCR-only recognition. Defaults to `true`.
+- `SCAN_TITLE_OCR_FAST_PATH` - set to `false` to disable the title-crop OCR
+  fast path and always OCR the full capture. Defaults to `true`.
 - `MANAVAULT_SKIP_MIGRATION_BACKUP` - skip automatic release backup before
   pending migrations. Defaults to unset.
 

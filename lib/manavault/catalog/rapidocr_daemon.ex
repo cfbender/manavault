@@ -21,8 +21,8 @@ defmodule Manavault.Catalog.RapidOCRDaemon do
   Runs OCR on the given image path. Returns {:ok, text} or {:error, reason}.
   Falls back to calling the daemon's synchronous path if the port is available.
   """
-  def recognize(image_path) do
-    GenServer.call(__MODULE__, {:recognize, image_path}, @read_timeout + 10_000)
+  def recognize(image_path, opts \\ []) do
+    GenServer.call(__MODULE__, {:recognize, image_path, opts}, @read_timeout + 10_000)
   end
 
   # --- GenServer callbacks ---
@@ -81,12 +81,12 @@ defmodule Manavault.Catalog.RapidOCRDaemon do
   end
 
   @impl true
-  def handle_call({:recognize, _image_path}, _from, %{port: nil} = state) do
+  def handle_call({:recognize, _image_path, _opts}, _from, %{port: nil} = state) do
     {:reply, :not_running, state}
   end
 
-  def handle_call({:recognize, image_path}, _from, %{port: port} = state) do
-    Port.command(port, "#{image_path}\n")
+  def handle_call({:recognize, image_path, opts}, _from, %{port: port} = state) do
+    Port.command(port, "#{Jason.encode!(ocr_command(image_path, opts))}\n")
 
     result =
       receive do
@@ -117,6 +117,13 @@ defmodule Manavault.Catalog.RapidOCRDaemon do
             {:reply, {:error, "unexpected OCR output"}, state}
         end
     end
+  end
+
+  defp ocr_command(image_path, opts) do
+    %{
+      path: image_path,
+      crop: opts |> Keyword.get(:ocr_crop, :full) |> to_string()
+    }
   end
 
   @impl true

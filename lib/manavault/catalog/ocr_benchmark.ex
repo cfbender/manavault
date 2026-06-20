@@ -78,12 +78,29 @@ defmodule Manavault.Catalog.OCRBenchmark do
   defp limit_cards(cards, limit) when is_integer(limit), do: Enum.take(cards, limit)
 
   defp summarize_timings(results) do
-    timing_keys = [:ocr_us, :parse_us, :image_us, :match_us, :total_us]
+    timing_keys = [
+      :ocr_us,
+      :title_ocr_us,
+      :full_ocr_us,
+      :parse_us,
+      :image_us,
+      :match_us,
+      :total_us
+    ]
 
-    Map.new(timing_keys, fn key ->
+    timing_keys
+    |> Map.new(fn key ->
       values = results |> Enum.map(&get_in(&1, [:timings, key])) |> Enum.reject(&is_nil/1)
       {key, average(values)}
     end)
+    |> Map.put(
+      :title_fast_path_count,
+      Enum.count(results, &(get_in(&1, [:timings, :title_ocr_fast_path]) == true))
+    )
+    |> Map.put(
+      :title_fallback_count,
+      Enum.count(results, &(get_in(&1, [:timings, :title_ocr_fast_path]) == false))
+    )
   end
 
   defp average([]), do: nil

@@ -296,9 +296,12 @@ defmodule Manavault.Catalog.Scans do
     Logger.info(fn ->
       "OCR capture timing total=#{format_us(total_us)} " <>
         "ocr=#{format_us(timings[:ocr_us])} " <>
+        "title=#{format_us(timings[:title_ocr_us])} " <>
+        "full=#{format_us(timings[:full_ocr_us])} " <>
         "parse=#{format_us(timings[:parse_us])} " <>
         "image=#{format_us(timings[:image_us])} " <>
-        "match=#{format_us(timings[:match_us])}"
+        "match=#{format_us(timings[:match_us])} " <>
+        "title_fast_path=#{inspect(timings[:title_ocr_fast_path])}"
     end)
   end
 

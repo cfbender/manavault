@@ -10,12 +10,39 @@ defmodule Manavault.Catalog.ScanRecognition do
   alias Manavault.Repo
 
   @default_max_candidates 5
+  @title_ocr_min_confidence 0.7
+  @min_token_length 3
+  @max_candidate_tokens 20
+  @phrase_min_words 2
+
+  @noise_tokens ~w(
+    the and for was are its has had not but all can may new
+    any you his her our out use how who why what when where which
+    from have been were they them this that with each more some
+    about other their being also into only over than then under
+    very will just like make made come take know look part same
+    such most even much must both does your who get got put let
+    see say way too old few big day now off she him ago did had
+    has per saw try yet nor own
+  )
 
   def recognize(scan_item, opts \\ [])
 
   def recognize(%ScanItem{image_path: image_path} = scan_item, opts)
       when is_binary(image_path) do
-    case timed(fn -> run_ocr(image_path, opts) end) do
+    if title_ocr_fast_path?(opts) do
+      recognize_with_title_ocr(scan_item, image_path, opts)
+    else
+      recognize_with_full_ocr(scan_item, image_path, opts)
+    end
+  end
+
+  def recognize(%ScanItem{} = scan_item, _opts) do
+    {:ok, %{scan_item: scan_item, text: "", parsed: %{}, candidates: []}}
+  end
+
+  defp recognize_with_full_ocr(scan_item, image_path, opts) do
+    case timed(fn -> run_ocr(image_path, Keyword.delete(opts, :ocr_crop)) end) do
       {:ok, text, ocr_us} ->
         Logger.debug("OCR raw output for #{image_path}:\n#{text}")
         recognize_with_text(scan_item, text, image_path, opts, ocr_us)
@@ -25,8 +52,37 @@ defmodule Manavault.Catalog.ScanRecognition do
     end
   end
 
-  def recognize(%ScanItem{} = scan_item, _opts) do
-    {:ok, %{scan_item: scan_item, text: "", parsed: %{}, candidates: []}}
+  defp recognize_with_title_ocr(scan_item, image_path, opts) do
+    title_opts = opts |> Keyword.put(:ocr_crop, :title) |> Keyword.put(:skip_image_matching, true)
+
+    case timed(fn -> run_ocr(image_path, title_opts) end) do
+      {:ok, text, title_ocr_us} ->
+        Logger.debug("Title OCR raw output for #{image_path}:\n#{text}")
+
+        {:ok, recognition} =
+          recognize_with_text(scan_item, text, image_path, title_opts, title_ocr_us)
+
+        recognition = put_title_ocr_timing(recognition, title_ocr_us, nil, true)
+
+        if title_ocr_confident?(recognition, opts) do
+          {:ok, recognition}
+        else
+          fallback_to_full_ocr(scan_item, image_path, opts, title_ocr_us, :weak_title_match)
+        end
+
+      {:error, reason} ->
+        fallback_to_full_ocr(scan_item, image_path, opts, nil, {:title_ocr_error, reason})
+    end
+  end
+
+  defp fallback_to_full_ocr(scan_item, image_path, opts, title_ocr_us, fallback_reason) do
+    case recognize_with_full_ocr(scan_item, image_path, opts) do
+      {:ok, recognition} ->
+        {:ok, put_title_ocr_timing(recognition, title_ocr_us, fallback_reason, false)}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
   defp timed(fun) do
@@ -43,6 +99,90 @@ defmodule Manavault.Catalog.ScanRecognition do
     value = fun.()
     {value, System.monotonic_time(:microsecond) - start}
   end
+
+  defp title_ocr_fast_path?(opts) do
+    Keyword.get(
+      opts,
+      :title_ocr_fast_path,
+      Application.get_env(:manavault, :scan_title_ocr_fast_path, true)
+    ) and ocr_runner_supports_options?(Keyword.get(opts, :ocr_runner, configured_ocr_runner()))
+  end
+
+  defp ocr_runner_supports_options?(runner), do: is_function(runner, 2)
+
+  defp title_ocr_confident?(%{candidates: [top | _rest], parsed: parsed}, opts) do
+    top.confidence >= Keyword.get(opts, :title_ocr_min_confidence, @title_ocr_min_confidence) and
+      title_text_matches_card_name?(parsed, top.printing.card.name)
+  end
+
+  defp title_ocr_confident?(_recognition, _opts), do: false
+
+  defp title_text_matches_card_name?(parsed, card_name) when is_binary(card_name) do
+    title_text =
+      parsed
+      |> Map.get(:lines, [])
+      |> Enum.take(4)
+      |> Enum.join(" ")
+
+    title_compact = compact_alpha(title_text)
+    name_compact = compact_alpha(card_name)
+    title_tokens = meaningful_token_set(title_text)
+    name_tokens = meaningful_token_set(card_name)
+
+    (title_compact != "" and title_compact == name_compact) or
+      (MapSet.size(title_tokens) > 0 and title_tokens == name_tokens)
+  end
+
+  defp title_text_matches_card_name?(_parsed, _card_name), do: false
+
+  defp compact_alpha(text) do
+    text
+    |> normalize_text()
+    |> String.replace(~r/[^a-z]+/, "")
+  end
+
+  defp meaningful_token_set(text) do
+    text
+    |> normalize_text()
+    |> String.split(~r/\s+/, trim: true)
+    |> Enum.reject(fn token ->
+      String.length(token) < @min_token_length or token in @noise_tokens or
+        String.match?(token, ~r/^\d+$/)
+    end)
+    |> MapSet.new()
+  end
+
+  defp put_title_ocr_timing(%{timings: timings} = recognition, title_ocr_us, reason, fast_path?) do
+    timings =
+      timings
+      |> maybe_add_title_ocr_to_totals(title_ocr_us, fast_path?)
+      |> Map.put(:title_ocr_us, title_ocr_us)
+      |> Map.put(:full_ocr_us, if(fast_path?, do: nil, else: Map.get(timings, :ocr_us)))
+      |> Map.put(:title_ocr_fast_path, fast_path?)
+      |> Map.put(:title_ocr_fallback_reason, format_fallback_reason(reason))
+
+    Map.put(recognition, :timings, timings)
+  end
+
+  defp maybe_add_title_ocr_to_totals(timings, _title_ocr_us, true), do: timings
+  defp maybe_add_title_ocr_to_totals(timings, nil, false), do: timings
+
+  defp maybe_add_title_ocr_to_totals(timings, title_ocr_us, false) do
+    timings
+    |> Map.update(:ocr_us, title_ocr_us, fn
+      nil -> title_ocr_us
+      ocr_us -> ocr_us + title_ocr_us
+    end)
+    |> Map.update(:total_us, title_ocr_us, &(&1 + title_ocr_us))
+  end
+
+  defp format_fallback_reason(nil), do: nil
+  defp format_fallback_reason(reason) when is_atom(reason), do: Atom.to_string(reason)
+
+  defp format_fallback_reason({reason, detail}),
+    do: "#{format_fallback_reason(reason)}: #{detail}"
+
+  defp format_fallback_reason(reason), do: to_string(reason)
 
   defp recognize_with_text(scan_item, text, image_path, opts, ocr_us) do
     {parsed, parse_us} = timed_value(fn -> parse_text(text) end)
@@ -143,21 +283,6 @@ defmodule Manavault.Catalog.ScanRecognition do
       language: likely_language(raw_joined)
     }
   end
-
-  @min_token_length 3
-  @max_candidate_tokens 20
-  @phrase_min_words 2
-
-  @noise_tokens ~w(
-    the and for was are its has had not but all can may new
-    any you his her our out use how who why what when where which
-    from have been were they them this that with each more some
-    about other their being also into only over than then under
-    very will just like make made come take know look part same
-    such most even much must both does your who get got put let
-    see say way too old few big day now off she him ago did had
-    has per saw try yet nor own
-  )
 
   defp extract_ocr_tokens(text) do
     text
@@ -365,7 +490,7 @@ defmodule Manavault.Catalog.ScanRecognition do
   defp run_ocr(image_path, opts) do
     runner = Keyword.get(opts, :ocr_runner, configured_ocr_runner())
 
-    result = runner.(image_path)
+    result = run_ocr_runner(runner, image_path, opts)
 
     case result do
       {:ok, text} when is_binary(text) -> {:ok, clean_ocr_text(text)}
@@ -376,8 +501,19 @@ defmodule Manavault.Catalog.ScanRecognition do
     exception -> {:error, Exception.message(exception)}
   end
 
+  defp run_ocr_runner(runner, image_path, opts) when is_function(runner, 2) do
+    runner.(image_path, Keyword.take(opts, [:ocr_crop]))
+  end
+
+  defp run_ocr_runner(runner, image_path, _opts) when is_function(runner, 1) do
+    runner.(image_path)
+  end
+
   defp run_initial_image_matching(image_path, opts) do
     cond do
+      Keyword.get(opts, :skip_image_matching, false) ->
+        []
+
       matches = Keyword.get(opts, :image_matches) ->
         normalize_image_matches(matches)
 
@@ -402,6 +538,9 @@ defmodule Manavault.Catalog.ScanRecognition do
     printings = Enum.map(candidates, & &1.printing)
 
     cond do
+      Keyword.get(opts, :skip_image_matching, false) ->
+        []
+
       Keyword.has_key?(opts, :image_matches) ->
         []
 
@@ -496,7 +635,7 @@ defmodule Manavault.Catalog.ScanRecognition do
   end
 
   defp configured_ocr_runner do
-    Application.get_env(:manavault, :ocr_runner, &rapidocr_ocr/1)
+    Application.get_env(:manavault, :ocr_runner, &rapidocr_ocr/2)
   end
 
   defp rapidocr_python_path do
@@ -511,27 +650,27 @@ defmodule Manavault.Catalog.ScanRecognition do
     Application.app_dir(:manavault, "priv/rapidocr_scan.py")
   end
 
-  defp rapidocr_ocr(image_path) do
+  defp rapidocr_ocr(image_path, opts) do
     # Try the persistent daemon first (fast, model already loaded).
     # Fall back only to the one-shot RapidOCR script if the daemon is not running.
-    case daemon_ocr(image_path) do
+    case daemon_ocr(image_path, opts) do
       {:ok, _text} = ok -> ok
       {:error, _reason} = error -> error
-      :not_running -> fallback_ocr(image_path)
+      :not_running -> fallback_ocr(image_path, opts)
     end
   end
 
-  defp daemon_ocr(image_path) do
+  defp daemon_ocr(image_path, opts) do
     case Process.whereis(Manavault.Catalog.RapidOCRDaemon) do
       nil -> :not_running
-      pid when is_pid(pid) -> Manavault.Catalog.RapidOCRDaemon.recognize(image_path)
+      pid when is_pid(pid) -> Manavault.Catalog.RapidOCRDaemon.recognize(image_path, opts)
     end
   rescue
     _ -> :not_running
   end
 
-  defp fallback_ocr(image_path) do
-    case System.cmd(rapidocr_python_path(), [rapidocr_script_path(), image_path],
+  defp fallback_ocr(image_path, opts) do
+    case System.cmd(rapidocr_python_path(), [rapidocr_script_path(), image_path, ocr_crop(opts)],
            stderr_to_stdout: true
          ) do
       {text, 0} when is_binary(text) and byte_size(text) > 0 ->
@@ -545,6 +684,8 @@ defmodule Manavault.Catalog.ScanRecognition do
       {:error,
        "RapidOCR is not available. Run `mise exec -- mix manavault.ocr.setup` and restart the server."}
   end
+
+  defp ocr_crop(opts), do: opts |> Keyword.get(:ocr_crop, :full) |> to_string()
 
   defp likely_set_code(text) do
     case Regex.run(

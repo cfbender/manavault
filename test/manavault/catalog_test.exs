@@ -1740,6 +1740,68 @@ defmodule Manavault.CatalogTest do
     assert_in_delta evidence.scores.image_match, 0.8075, 0.0001
   end
 
+  test "scan recognition accepts confident title-crop OCR without full OCR" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    parent = self()
+
+    ocr_runner = fn "/tmp/black-lotus.jpg", opts ->
+      send(parent, {:ocr_crop, Keyword.get(opts, :ocr_crop, :full)})
+      {:ok, "Black Lotus"}
+    end
+
+    assert {:ok,
+            %{
+              candidates: [%{printing: printing} | _],
+              timings: %{title_ocr_fast_path: true, full_ocr_us: nil}
+            }} =
+             ScanRecognition.recognize(%ScanItem{image_path: "/tmp/black-lotus.jpg"},
+               ocr_runner: ocr_runner
+             )
+
+    assert printing.scryfall_id == "scryfall-printing-1"
+    assert_received {:ocr_crop, :title}
+    refute_received {:ocr_crop, :full}
+  end
+
+  test "scan recognition falls back to full OCR when title-crop OCR is weak" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    parent = self()
+
+    ocr_runner = fn "/tmp/time-walk.jpg", opts ->
+      crop = Keyword.get(opts, :ocr_crop, :full)
+      send(parent, {:ocr_crop, crop})
+
+      case crop do
+        :title -> {:ok, "not a card"}
+        :full -> {:ok, "Time Walk\nCollector: 84\nSet: LEA"}
+      end
+    end
+
+    assert {:ok,
+            %{
+              candidates: [%{printing: printing} | _],
+              timings: %{
+                title_ocr_fast_path: false,
+                title_ocr_fallback_reason: "weak_title_match",
+                title_ocr_us: title_ocr_us,
+                full_ocr_us: full_ocr_us
+              }
+            }} =
+             ScanRecognition.recognize(%ScanItem{image_path: "/tmp/time-walk.jpg"},
+               ocr_runner: ocr_runner
+             )
+
+    assert printing.scryfall_id == "scryfall-printing-2"
+    assert is_integer(title_ocr_us)
+    assert is_integer(full_ocr_us)
+    assert_received {:ocr_crop, :title}
+    assert_received {:ocr_crop, :full}
+  end
+
   test "scan recognition falls back to image evidence when OCR fails" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])

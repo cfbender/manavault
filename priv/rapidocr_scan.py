@@ -10,6 +10,7 @@ warnings.filterwarnings("ignore")
 
 from rapidocr import RapidOCR
 from rapidocr.utils.log import logger
+from rapidocr_daemon import ocr_input_path
 
 logger.disabled = True
 
@@ -45,15 +46,17 @@ def result_texts(result):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: rapidocr_scan.py <image_path>", file=sys.stderr)
+        print("Usage: rapidocr_scan.py <image_path> [full|title]", file=sys.stderr)
         sys.exit(1)
 
     image_path = sys.argv[1]
+    crop = sys.argv[2] if len(sys.argv) > 2 else "full"
     engine = get_engine()
 
     try:
         with suppress_rapidocr_output():
-            result = engine(image_path)
+            with ocr_input_path(image_path, crop) as input_path:
+                result = engine(input_path)
         for text in result_texts(result):
             print(text)
     except Exception as e:

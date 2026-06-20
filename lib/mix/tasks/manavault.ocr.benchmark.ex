@@ -45,7 +45,7 @@ defmodule Mix.Tasks.Manavault.Ocr.Benchmark do
 
   defp print_timings(timings) do
     Mix.shell().info(
-      "Timing avg: total=#{format_ms(timings.total_us)} ocr=#{format_ms(timings.ocr_us)} parse=#{format_ms(timings.parse_us)} image=#{format_ms(timings[:image_us])} match=#{format_ms(timings.match_us)}"
+      "Timing avg: total=#{format_ms(timings.total_us)} ocr=#{format_ms(timings.ocr_us)} title=#{format_ms(timings[:title_ocr_us])} full=#{format_ms(timings[:full_ocr_us])} parse=#{format_ms(timings.parse_us)} image=#{format_ms(timings[:image_us])} match=#{format_ms(timings.match_us)} title_fast=#{timings[:title_fast_path_count]} title_fallback=#{timings[:title_fallback_count]}"
     )
   end
 
