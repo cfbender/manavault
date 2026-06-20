@@ -1,4 +1,5 @@
 import {
+  CheckSquare,
   DollarSign,
   Edit3,
   Layers,
@@ -7,6 +8,7 @@ import {
   MoreVertical,
   MoveUpRight,
   Sparkles,
+  Square,
   Trash2,
 } from "lucide-react"
 import type { KeyboardEvent, MouseEvent, ReactNode } from "react"
@@ -44,11 +46,16 @@ export function CardTile({
   onSelect,
   price,
   rarity,
+  selectable = false,
+  selected = false,
+  selectionActive = false,
+  selectionLabel,
   setCode,
   setLabel,
   setName,
   showMenu = true,
   typeLine,
+  onToggleSelected,
 }: {
   allocatedLabel?: ReactNode
   className?: string
@@ -61,8 +68,13 @@ export function CardTile({
   menuActions?: CardTileAction[]
   name: ReactNode
   onSelect?: () => void
+  onToggleSelected?: () => void
   price?: ReactNode
   rarity?: string | null
+  selectable?: boolean
+  selected?: boolean
+  selectionActive?: boolean
+  selectionLabel?: string
   setCode?: string | null
   setLabel?: ReactNode
   setName?: ReactNode
@@ -70,6 +82,9 @@ export function CardTile({
   typeLine?: ReactNode
 }) {
   const foil = finish === "foil" || finish === "etched"
+  const canToggleSelection = selectable && Boolean(onToggleSelected)
+  const selectionClickActive = selectionActive && canToggleSelection
+  const hasPrimaryAction = Boolean(onSelect || selectionClickActive)
   const fallbackDefaultActions: CardTileAction[] = [
     { icon: <MoveUpRight className="h-4 w-4" />, label: "Move", disabled: true },
     { icon: <Edit3 className="h-4 w-4" />, label: "Edit", disabled: true },
@@ -84,8 +99,28 @@ export function CardTile({
     })),
   ]
 
+  function handleClick(event: MouseEvent<HTMLDivElement>) {
+    if (isInteractiveClickTarget(event.target)) return
+
+    if (selectionClickActive) {
+      onToggleSelected?.()
+      return
+    }
+
+    onSelect?.()
+  }
+
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (!onSelect || (event.key !== "Enter" && event.key !== " ")) return
+    if (event.key !== "Enter" && event.key !== " ") return
+    if (isInteractiveClickTarget(event.target)) return
+
+    if (selectionClickActive) {
+      event.preventDefault()
+      onToggleSelected?.()
+      return
+    }
+
+    if (!onSelect) return
     event.preventDefault()
     onSelect()
   }
@@ -93,16 +128,17 @@ export function CardTile({
   return (
     <div
       aria-label={onSelect && typeof name === "string" ? `View ${name}` : undefined}
+      aria-pressed={selectionClickActive ? selected : undefined}
       className={cn(
         "group/card relative w-full max-w-[14.25rem] overflow-visible rounded-xl bg-transparent transition duration-200 focus-within:z-50",
         growOnHover && "hover:z-50 hover:-translate-y-2 hover:scale-[1.035]",
-        onSelect && "cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50",
+        hasPrimaryAction && "cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50",
         className,
       )}
-      onClick={onSelect}
+      onClick={hasPrimaryAction ? handleClick : undefined}
       onKeyDown={handleKeyDown}
-      role={onSelect ? "link" : undefined}
-      tabIndex={onSelect ? 0 : undefined}
+      role={selectionClickActive ? "button" : onSelect ? "link" : undefined}
+      tabIndex={hasPrimaryAction ? 0 : undefined}
     >
       {showMenu ? (
         <div
@@ -150,12 +186,38 @@ export function CardTile({
         </div>
       ) : null}
 
+      {canToggleSelection ? (
+        <button
+          type="button"
+          className={cn(
+            "btn btn-circle btn-xs absolute right-2 top-2 z-50 border-0 shadow backdrop-blur transition",
+            selected
+              ? "bg-primary text-primary-content hover:bg-primary"
+              : "bg-neutral/85 text-neutral-content hover:bg-neutral",
+            selected || selectionActive
+              ? "opacity-100"
+              : "opacity-0 group-hover/card:opacity-100 group-focus-within/card:opacity-100",
+          )}
+          aria-label={selectionLabel || (selected ? "Deselect card" : "Select card")}
+          aria-pressed={selected}
+          onClick={(event) => {
+            event.stopPropagation()
+            onToggleSelected?.()
+          }}
+          onKeyDown={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          {selected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+        </button>
+      ) : null}
+
       <figure
         className={cn(
           "relative aspect-[5/7] w-full overflow-hidden rounded-xl bg-base-300 shadow-lg ring-1 ring-white/10 transition duration-200 group-focus-within/card:ring-primary/50",
           foil && "card-tile-foil",
           finish === "etched" && "card-tile-foil--etched",
           growOnHover && "group-hover/card:shadow-2xl group-hover/card:ring-primary/40",
+          selected && "ring-2 ring-primary ring-offset-2 ring-offset-base-100",
         )}
       >
         {imageUrl ? (
@@ -197,7 +259,12 @@ export function CardTile({
         ) : null}
 
         {count && count > 1 ? (
-          <span className="absolute right-0 top-0 z-40 rounded-bl-xl bg-primary px-2.5 py-1.5 text-sm font-black leading-none text-primary-content shadow-lg">
+          <span
+            className={cn(
+              "absolute right-0 z-40 rounded-bl-xl bg-primary px-2.5 py-1.5 text-sm font-black leading-none text-primary-content shadow-lg",
+              canToggleSelection ? "top-9" : "top-0",
+            )}
+          >
             {count}
           </span>
         ) : null}
@@ -245,6 +312,11 @@ export function CardTile({
       </figure>
     </div>
   )
+}
+
+function isInteractiveClickTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false
+  return Boolean(target.closest("a,button,input,select,textarea,label"))
 }
 
 export function addToDeckAction(

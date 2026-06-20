@@ -1,17 +1,27 @@
 import { Link } from "@tanstack/react-router"
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query"
 import {
   ArrowDownUp,
   Boxes,
+  CheckSquare,
   Download,
   Edit3,
+  Layers,
   ListFilter,
+  ListPlus,
   MoreVertical,
   MoveUpRight,
   Plus,
   Search,
   Trash2,
   Upload,
+  X,
 } from "lucide-react"
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { PageHeader, PageSection } from "../components/app-shell"
@@ -492,16 +502,183 @@ const TYPE_OPTIONS = [
   "Kindred",
 ]
 
+type CollectionItemTarget = CollectionItem | CollectionItem[] | null
+
+function collectionTargetItems(target: CollectionItemTarget) {
+  if (!target) return []
+  return Array.isArray(target) ? target : [target]
+}
+
+function collectionTargetLabel(target: CollectionItemTarget) {
+  const items = collectionTargetItems(target)
+  if (items.length === 1) return items[0].printing?.card?.name || "Collection item"
+  return `${items.length} selected items`
+}
+
+function invalidateCollectionViews(queryClient: QueryClient, locationId?: string) {
+  queryClient.invalidateQueries({ queryKey: ["collection"] })
+  queryClient.invalidateQueries({ queryKey: ["collection-items"] })
+  queryClient.invalidateQueries({ queryKey: ["home"] })
+  if (locationId) queryClient.invalidateQueries({ queryKey: ["location", locationId] })
+}
+
+function useCollectionItemSelection(items: CollectionItem[]) {
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const selectedItems = useMemo(
+    () => items.filter((item) => selectedIds.has(item.id)),
+    [items, selectedIds],
+  )
+  const selectedCount = selectedItems.length
+  const selectionActive = selectionMode || selectedCount > 0
+  const allLoadedSelected = items.length > 0 && selectedCount === items.length
+
+  useEffect(() => {
+    const loadedIds = new Set(items.map((item) => item.id))
+    setSelectedIds((current) => {
+      let changed = false
+      const next = new Set<string>()
+
+      for (const id of current) {
+        if (loadedIds.has(id)) next.add(id)
+        else changed = true
+      }
+
+      return changed ? next : current
+    })
+  }, [items])
+
+  const toggleItem = useCallback((item: CollectionItem) => {
+    setSelectionMode(true)
+    setSelectedIds((current) => {
+      const next = new Set(current)
+      if (next.has(item.id)) next.delete(item.id)
+      else next.add(item.id)
+      return next
+    })
+  }, [])
+
+  const selectLoaded = useCallback(() => {
+    setSelectionMode(true)
+    setSelectedIds(new Set(items.map((item) => item.id)))
+  }, [items])
+
+  const clearSelection = useCallback(() => {
+    setSelectionMode(false)
+    setSelectedIds(new Set())
+  }, [])
+
+  const toggleSelectionMode = useCallback(() => {
+    if (selectionActive) clearSelection()
+    else setSelectionMode(true)
+  }, [clearSelection, selectionActive])
+
+  return {
+    allLoadedSelected,
+    clearSelection,
+    selectLoaded,
+    selectedCount,
+    selectedIds,
+    selectedItems,
+    selectionActive,
+    toggleItem,
+    toggleSelectionMode,
+  }
+}
+
+function CollectionBulkActionBar({
+  allLoadedSelected,
+  loadedCount,
+  onAddToDeck,
+  onAddToList,
+  onClear,
+  onDelete,
+  onMove,
+  onSelectLoaded,
+  selectedCount,
+  selectionActive,
+}: {
+  allLoadedSelected: boolean
+  loadedCount: number
+  onAddToDeck: () => void
+  onAddToList: () => void
+  onClear: () => void
+  onDelete: () => void
+  onMove: () => void
+  onSelectLoaded: () => void
+  selectedCount: number
+  selectionActive: boolean
+}) {
+  if (!selectionActive) return null
+
+  const hasSelection = selectedCount > 0
+
+  return (
+    <div className="sticky top-2 z-40 rounded-box border border-primary/30 bg-base-100/95 p-3 shadow-xl backdrop-blur">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge tone={hasSelection ? "primary" : "neutral"}>{selectedCount} selected</Badge>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={loadedCount === 0 || allLoadedSelected}
+            onClick={onSelectLoaded}
+          >
+            <CheckSquare className="h-4 w-4" />
+            Select loaded
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={onClear}>
+            <X className="h-4 w-4" />
+            Clear
+          </Button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" size="sm" disabled={!hasSelection} onClick={onAddToDeck}>
+            <Layers className="h-4 w-4" />
+            Add to deck
+          </Button>
+          <Button type="button" variant="outline" size="sm" disabled={!hasSelection} onClick={onAddToList}>
+            <ListPlus className="h-4 w-4" />
+            Add to list
+          </Button>
+          <Button type="button" variant="outline" size="sm" disabled={!hasSelection} onClick={onMove}>
+            <MoveUpRight className="h-4 w-4" />
+            Move
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            disabled={!hasSelection}
+            onClick={onDelete}
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function VirtualizedCollectionGrid({
   hasNextPage,
   isFetchingNextPage,
   items,
   onLoadMore,
+  onToggleSelected,
+  selectedIds,
+  selectionActive = false,
 }: {
   hasNextPage: boolean
   isFetchingNextPage: boolean
   items: CollectionItem[]
   onLoadMore: () => void
+  onToggleSelected?: (item: CollectionItem) => void
+  selectedIds?: Set<string>
+  selectionActive?: boolean
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [columns, setColumns] = useState(1)
@@ -584,7 +761,13 @@ function VirtualizedCollectionGrid({
         }}
       >
         {visibleItems.map((item) => (
-          <CollectionItemTile key={item.id} item={item} />
+          <CollectionItemTile
+            key={item.id}
+            isSelected={selectedIds?.has(item.id) || false}
+            item={item}
+            onToggleSelected={onToggleSelected}
+            selectionActive={selectionActive}
+          />
         ))}
       </div>
       {isFetchingNextPage ? (
@@ -596,7 +779,17 @@ function VirtualizedCollectionGrid({
   )
 }
 
-function CollectionItemTile({ item }: { item: CollectionItem }) {
+function CollectionItemTile({
+  isSelected = false,
+  item,
+  onToggleSelected,
+  selectionActive = false,
+}: {
+  isSelected?: boolean
+  item: CollectionItem
+  onToggleSelected?: (item: CollectionItem) => void
+  selectionActive?: boolean
+}) {
   const queryClient = useQueryClient()
   const [deckTarget, setDeckTarget] = useState<CollectionItem | null>(null)
   const [listTarget, setListTarget] = useState<CollectionItem | null>(null)
@@ -605,9 +798,7 @@ function CollectionItemTile({ item }: { item: CollectionItem }) {
   const [deleteTarget, setDeleteTarget] = useState<CollectionItem | null>(null)
 
   function refreshCollection() {
-    queryClient.invalidateQueries({ queryKey: ["collection"] })
-    queryClient.invalidateQueries({ queryKey: ["collection-items"] })
-    queryClient.invalidateQueries({ queryKey: ["home"] })
+    invalidateCollectionViews(queryClient, item.location?.id)
   }
 
   return (
@@ -658,10 +849,15 @@ function CollectionItemTile({ item }: { item: CollectionItem }) {
         }
         price={item.priceText}
         rarity={item.printing?.rarity}
+        selectable={Boolean(onToggleSelected)}
+        selected={isSelected}
+        selectionActive={selectionActive}
+        selectionLabel={`${isSelected ? "Deselect" : "Select"} ${item.printing?.card?.name || "card"}`}
         setCode={item.printing?.setCode}
         setLabel={`${item.printing?.setCode?.toUpperCase() || "?"} #${item.printing?.collectorNumber || "?"}`}
         setName={item.printing?.setName}
         typeLine={item.printing?.card?.typeLine}
+        onToggleSelected={() => onToggleSelected?.(item)}
       />
       <AddCollectionItemToDeckDialog
         item={deckTarget}
@@ -1398,7 +1594,7 @@ function AddCollectionItemToDeckDialog({
   onDone,
   onOpenChange,
 }: {
-  item: CollectionItem | null
+  item: CollectionItemTarget
   onDone: () => void
   onOpenChange: (open: boolean) => void
 }) {
@@ -1406,7 +1602,9 @@ function AddCollectionItemToDeckDialog({
   const [deckId, setDeckId] = useState("")
   const [zone, setZone] = useState("mainboard")
   const [error, setError] = useState<string | null>(null)
-  const open = Boolean(item)
+  const targetItems = collectionTargetItems(item)
+  const targetCount = targetItems.length
+  const open = targetCount > 0
   const decksQuery = useQuery({
     queryKey: ["collection-item-deck-options"],
     queryFn: () => request(CollectionItemDeckOptionsDocument),
@@ -1414,12 +1612,18 @@ function AddCollectionItemToDeckDialog({
   })
   const addToDeck = useMutation({
     mutationFn: () => {
-      if (!item || !deckId) throw new Error("Choose a deck")
-      return request(AddCollectionItemToDeckDocument, {
-        id: item.id,
-        deckId,
-        zone,
-      })
+      if (!targetItems.length) throw new Error("Choose at least one item")
+      if (!deckId) throw new Error("Choose a deck")
+
+      return Promise.all(
+        targetItems.map((targetItem) =>
+          request(AddCollectionItemToDeckDocument, {
+            id: targetItem.id,
+            deckId,
+            zone,
+          }),
+        ),
+      )
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["decks"] })
@@ -1427,7 +1631,7 @@ function AddCollectionItemToDeckDialog({
       close()
     },
     onError: (error) =>
-      setError(error instanceof Error ? error.message : "Could not add card to deck"),
+      setError(error instanceof Error ? error.message : "Could not add cards to deck"),
   })
 
   useEffect(() => {
@@ -1454,9 +1658,11 @@ function AddCollectionItemToDeckDialog({
       <DialogContent className="max-w-lg" labelledBy="add-collection-item-to-deck-title">
         <DialogHeader>
           <div>
-            <DialogTitle id="add-collection-item-to-deck-title">Add to deck</DialogTitle>
+            <DialogTitle id="add-collection-item-to-deck-title">
+              {targetCount > 1 ? "Add items to deck" : "Add to deck"}
+            </DialogTitle>
             <p className="mt-1 text-sm text-base-content/60">
-              {item?.printing?.card?.name || "Collection item"}
+              {collectionTargetLabel(item)}
             </p>
           </div>
           <DialogClose onClose={close} />
@@ -1500,7 +1706,11 @@ function AddCollectionItemToDeckDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={addToDeck.isPending || !deckId}>
-              {addToDeck.isPending ? "Adding..." : "Add to deck"}
+              {addToDeck.isPending
+                ? "Adding..."
+                : targetCount > 1
+                  ? `Add ${targetCount} to deck`
+                  : "Add to deck"}
             </Button>
           </div>
         </form>
@@ -1515,14 +1725,17 @@ function MoveCollectionItemDialog({
   onDone,
   onOpenChange,
 }: {
-  item: CollectionItem | null
+  item: CollectionItemTarget
   listOnly?: boolean
   onDone: () => void
   onOpenChange: (open: boolean) => void
 }) {
   const [locationId, setLocationId] = useState("")
   const [error, setError] = useState<string | null>(null)
-  const open = Boolean(item)
+  const targetItems = collectionTargetItems(item)
+  const targetCount = targetItems.length
+  const singleTarget = targetCount === 1 ? targetItems[0] : null
+  const open = targetCount > 0
   const optionsQuery = useQuery({
     queryKey: ["collection-item-form-options"],
     queryFn: () => request(CollectionItemFormOptionsDocument),
@@ -1530,30 +1743,35 @@ function MoveCollectionItemDialog({
   })
   const updateItem = useMutation({
     mutationFn: () => {
-      if (!item) throw new Error("Collection item is required")
-      return request(UpdateCollectionItemDocument, {
-        id: item.id,
-        input: { locationId: locationId || null },
-      })
+      if (!targetItems.length) throw new Error("Choose at least one item")
+
+      return Promise.all(
+        targetItems.map((targetItem) =>
+          request(UpdateCollectionItemDocument, {
+            id: targetItem.id,
+            input: { locationId: locationId || null },
+          }),
+        ),
+      )
     },
     onSuccess: () => {
       onDone()
       close()
     },
     onError: (error) =>
-      setError(error instanceof Error ? error.message : "Could not move collection item"),
+      setError(error instanceof Error ? error.message : "Could not move collection items"),
   })
   const locations = (optionsQuery.data?.locations || []).filter(
     (location) => !isUnfiledLocation(location) && (!listOnly || location.kind === "list"),
   )
 
   useEffect(() => {
-    if (open) setLocationId(listOnly ? "" : item?.location?.id || "")
+    if (open) setLocationId(listOnly ? "" : singleTarget?.location?.id || "")
     else {
       setLocationId("")
       setError(null)
     }
-  }, [item, listOnly, open])
+  }, [listOnly, open, singleTarget])
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -1583,10 +1801,16 @@ function MoveCollectionItemDialog({
             <DialogTitle
               id={listOnly ? "add-collection-item-to-list-title" : "move-collection-item-title"}
             >
-              {listOnly ? "Add to list" : "Move item"}
+              {listOnly
+                ? targetCount > 1
+                  ? "Add items to list"
+                  : "Add to list"
+                : targetCount > 1
+                  ? "Move items"
+                  : "Move item"}
             </DialogTitle>
             <p className="mt-1 text-sm text-base-content/60">
-              {item?.printing?.card?.name || "Collection item"}
+              {collectionTargetLabel(item)}
             </p>
           </div>
           <DialogClose onClose={close} />
@@ -1629,7 +1853,15 @@ function MoveCollectionItemDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={updateItem.isPending || (listOnly && !locationId)}>
-              {updateItem.isPending ? "Saving..." : listOnly ? "Add to list" : "Move"}
+              {updateItem.isPending
+                ? "Saving..."
+                : listOnly
+                  ? targetCount > 1
+                    ? `Add ${targetCount} to list`
+                    : "Add to list"
+                  : targetCount > 1
+                    ? `Move ${targetCount}`
+                    : "Move"}
             </Button>
           </div>
         </form>
@@ -1834,23 +2066,27 @@ function DeleteCollectionItemDialog({
   onDone,
   onOpenChange,
 }: {
-  item: CollectionItem | null
+  item: CollectionItemTarget
   onDone: () => void
   onOpenChange: (open: boolean) => void
 }) {
   const [error, setError] = useState<string | null>(null)
-  const open = Boolean(item)
+  const targetItems = collectionTargetItems(item)
+  const targetCount = targetItems.length
+  const open = targetCount > 0
   const deleteItem = useMutation({
     mutationFn: () => {
-      if (!item) throw new Error("Collection item is required")
-      return request(DeleteCollectionItemDocument, { id: item.id })
+      if (!targetItems.length) throw new Error("Choose at least one item")
+      return Promise.all(
+        targetItems.map((targetItem) => request(DeleteCollectionItemDocument, { id: targetItem.id })),
+      )
     },
     onSuccess: () => {
       onDone()
       close()
     },
     onError: (error) =>
-      setError(error instanceof Error ? error.message : "Could not delete collection item"),
+      setError(error instanceof Error ? error.message : "Could not delete collection items"),
   })
 
   useEffect(() => {
@@ -1867,16 +2103,20 @@ function DeleteCollectionItemDialog({
       <DialogContent className="max-w-lg" labelledBy="delete-collection-item-title">
         <DialogHeader>
           <div>
-            <DialogTitle id="delete-collection-item-title">Delete collection item</DialogTitle>
+            <DialogTitle id="delete-collection-item-title">
+              {targetCount > 1 ? "Delete collection items" : "Delete collection item"}
+            </DialogTitle>
             <p className="mt-1 text-sm text-base-content/60">
-              {item?.printing?.card?.name || "Collection item"}
+              {collectionTargetLabel(item)}
             </p>
           </div>
           <DialogClose onClose={close} />
         </DialogHeader>
         <div className="space-y-4 p-5">
           <p className="text-sm text-base-content/70">
-            Remove this owned printing from your collection.
+            {targetCount > 1
+              ? "Remove these owned printings from your collection."
+              : "Remove this owned printing from your collection."}
           </p>
           {error ? (
             <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
@@ -1894,7 +2134,11 @@ function DeleteCollectionItemDialog({
               disabled={deleteItem.isPending}
             >
               <Trash2 className="h-4 w-4" />
-              {deleteItem.isPending ? "Deleting..." : "Delete"}
+              {deleteItem.isPending
+                ? "Deleting..."
+                : targetCount > 1
+                  ? `Delete ${targetCount}`
+                  : "Delete"}
             </Button>
           </div>
         </div>
@@ -3268,8 +3512,13 @@ export function CollectionPage() {
   const [isImportCsvOpen, setIsImportCsvOpen] = useState(false)
   const [isExportCsvOpen, setIsExportCsvOpen] = useState(false)
   const [editingLocation, setEditingLocation] = useState<LocationSummary | null>(null)
+  const [bulkDeckTarget, setBulkDeckTarget] = useState<CollectionItem[] | null>(null)
+  const [bulkListTarget, setBulkListTarget] = useState<CollectionItem[] | null>(null)
+  const [bulkMoveTarget, setBulkMoveTarget] = useState<CollectionItem[] | null>(null)
+  const [bulkDeleteTarget, setBulkDeleteTarget] = useState<CollectionItem[] | null>(null)
   const [structuredFilters, setStructuredFilters] =
     useState<CollectionFilterState>(EMPTY_COLLECTION_FILTERS)
+  const queryClient = useQueryClient()
   const structuredFilterSyntax = buildCollectionFilterQuery(structuredFilters)
   const combinedCollectionQuery = combineCollectionQueries(appliedSearch, structuredFilterSyntax)
   const filters = useMemo(
@@ -3300,6 +3549,7 @@ export function CollectionPage() {
     () => allItemsQuery.data?.pages.flatMap((page) => page.collectionItems).filter(present) || [],
     [allItemsQuery.data],
   )
+  const selection = useCollectionItemSelection(allCollectionItems)
   const hasCollectionFilters = Boolean(combinedCollectionQuery)
   const activeStructuredFilterCount = countActiveCollectionFilters(structuredFilters)
   const filterBadgeCount = activeStructuredFilterCount
@@ -3354,7 +3604,13 @@ export function CollectionPage() {
 
   function selectTab(tab: CollectionTab) {
     if (activeTab === "all" && tab !== "all") clearAllCollectionFilters()
+    selection.clearSelection()
     setActiveTab(tab)
+  }
+
+  function finishBulkCollectionAction() {
+    invalidateCollectionViews(queryClient)
+    selection.clearSelection()
   }
 
   return (
@@ -3484,7 +3740,7 @@ export function CollectionPage() {
         <div className="space-y-7">
           <form
             onSubmit={submit}
-            className="control-toolbar grid gap-2 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-[1fr_auto_auto_auto]"
+            className="control-toolbar grid gap-2 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-[1fr_auto_auto_auto_auto]"
           >
             <CardNameSearchField
               name="q"
@@ -3495,6 +3751,14 @@ export function CollectionPage() {
               placeholder="Filter collection"
             />
             <SortDropdown sort={sort} onSortChange={setSort} />
+            <Button
+              type="button"
+              variant={selection.selectionActive ? "secondary" : "outline"}
+              onClick={selection.toggleSelectionMode}
+            >
+              <CheckSquare className="h-4 w-4" />
+              Select
+            </Button>
             <Button
               type="button"
               variant="outline"
@@ -3515,6 +3779,19 @@ export function CollectionPage() {
             </Button>
           </form>
 
+          <CollectionBulkActionBar
+            allLoadedSelected={selection.allLoadedSelected}
+            loadedCount={allCollectionItems.length}
+            selectedCount={selection.selectedCount}
+            selectionActive={selection.selectionActive}
+            onAddToDeck={() => setBulkDeckTarget(selection.selectedItems)}
+            onAddToList={() => setBulkListTarget(selection.selectedItems)}
+            onClear={selection.clearSelection}
+            onDelete={() => setBulkDeleteTarget(selection.selectedItems)}
+            onMove={() => setBulkMoveTarget(selection.selectedItems)}
+            onSelectLoaded={selection.selectLoaded}
+          />
+
           <PageSection count={collectionCountLabel}>
             {allItemsQuery.isLoading ? (
               <EmptyState title="Loading collection..." />
@@ -3524,6 +3801,9 @@ export function CollectionPage() {
                 isFetchingNextPage={allItemsQuery.isFetchingNextPage}
                 items={allCollectionItems}
                 onLoadMore={loadMoreAllItems}
+                onToggleSelected={selection.toggleItem}
+                selectedIds={selection.selectedIds}
+                selectionActive={selection.selectionActive}
               />
             )}
           </PageSection>
@@ -3544,6 +3824,27 @@ export function CollectionPage() {
         filters={filters}
         open={isExportCsvOpen}
         onOpenChange={setIsExportCsvOpen}
+      />
+      <AddCollectionItemToDeckDialog
+        item={bulkDeckTarget}
+        onDone={finishBulkCollectionAction}
+        onOpenChange={(open) => !open && setBulkDeckTarget(null)}
+      />
+      <MoveCollectionItemDialog
+        item={bulkListTarget}
+        listOnly
+        onDone={finishBulkCollectionAction}
+        onOpenChange={(open) => !open && setBulkListTarget(null)}
+      />
+      <MoveCollectionItemDialog
+        item={bulkMoveTarget}
+        onDone={finishBulkCollectionAction}
+        onOpenChange={(open) => !open && setBulkMoveTarget(null)}
+      />
+      <DeleteCollectionItemDialog
+        item={bulkDeleteTarget}
+        onDone={finishBulkCollectionAction}
+        onOpenChange={(open) => !open && setBulkDeleteTarget(null)}
       />
       <EditLocationDialog
         location={editingLocation}
@@ -3686,8 +3987,13 @@ export function LocationPage({ id }: { id: string }) {
   })
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
   const [isEditLocationOpen, setIsEditLocationOpen] = useState(false)
+  const [bulkDeckTarget, setBulkDeckTarget] = useState<CollectionItem[] | null>(null)
+  const [bulkListTarget, setBulkListTarget] = useState<CollectionItem[] | null>(null)
+  const [bulkMoveTarget, setBulkMoveTarget] = useState<CollectionItem[] | null>(null)
+  const [bulkDeleteTarget, setBulkDeleteTarget] = useState<CollectionItem[] | null>(null)
   const [structuredFilters, setStructuredFilters] =
     useState<CollectionFilterState>(EMPTY_COLLECTION_FILTERS)
+  const queryClient = useQueryClient()
   const structuredFilterSyntax = buildCollectionFilterQuery(structuredFilters)
   const combinedCollectionQuery = combineCollectionQueries(appliedSearch, structuredFilterSyntax)
   const itemFilters = useMemo(
@@ -3724,6 +4030,7 @@ export function LocationPage({ id }: { id: string }) {
     () => itemsQuery.data?.pages.flatMap((page) => page.collectionItems).filter(present) || [],
     [itemsQuery.data],
   )
+  const selection = useCollectionItemSelection(collectionItems)
   const loadMore = useCallback(() => {
     void itemsQuery.fetchNextPage()
   }, [itemsQuery])
@@ -3759,6 +4066,11 @@ export function LocationPage({ id }: { id: string }) {
   function applyStructuredFilters(nextFilters: CollectionFilterState) {
     setStructuredFilters(nextFilters)
     setIsFilterModalOpen(false)
+  }
+
+  function finishBulkLocationAction() {
+    invalidateCollectionViews(queryClient, id)
+    selection.clearSelection()
   }
 
   if (isLoading) return <EmptyState title="Loading location..." />
@@ -3799,7 +4111,7 @@ export function LocationPage({ id }: { id: string }) {
       </div>
       <form
         onSubmit={submit}
-        className="control-toolbar mb-7 grid gap-2 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-[1fr_auto_auto_auto]"
+        className="control-toolbar mb-7 grid gap-2 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-[1fr_auto_auto_auto_auto]"
       >
         <CardNameSearchField
           name="q"
@@ -3810,6 +4122,14 @@ export function LocationPage({ id }: { id: string }) {
           placeholder="Filter location"
         />
         <SortDropdown sort={sort} onSortChange={setSort} />
+        <Button
+          type="button"
+          variant={selection.selectionActive ? "secondary" : "outline"}
+          onClick={selection.toggleSelectionMode}
+        >
+          <CheckSquare className="h-4 w-4" />
+          Select
+        </Button>
         <Button
           type="button"
           variant="outline"
@@ -3832,19 +4152,57 @@ export function LocationPage({ id }: { id: string }) {
       {itemsQuery.isLoading ? (
         <EmptyState title="Loading collection..." />
       ) : (
-        <PageSection count={locationCountLabel}>
-          <VirtualizedCollectionGrid
-            hasNextPage={itemsQuery.hasNextPage}
-            isFetchingNextPage={itemsQuery.isFetchingNextPage}
-            items={collectionItems}
-            onLoadMore={loadMore}
+        <div className="space-y-7">
+          <CollectionBulkActionBar
+            allLoadedSelected={selection.allLoadedSelected}
+            loadedCount={collectionItems.length}
+            selectedCount={selection.selectedCount}
+            selectionActive={selection.selectionActive}
+            onAddToDeck={() => setBulkDeckTarget(selection.selectedItems)}
+            onAddToList={() => setBulkListTarget(selection.selectedItems)}
+            onClear={selection.clearSelection}
+            onDelete={() => setBulkDeleteTarget(selection.selectedItems)}
+            onMove={() => setBulkMoveTarget(selection.selectedItems)}
+            onSelectLoaded={selection.selectLoaded}
           />
-        </PageSection>
+          <PageSection count={locationCountLabel}>
+            <VirtualizedCollectionGrid
+              hasNextPage={itemsQuery.hasNextPage}
+              isFetchingNextPage={itemsQuery.isFetchingNextPage}
+              items={collectionItems}
+              onLoadMore={loadMore}
+              onToggleSelected={selection.toggleItem}
+              selectedIds={selection.selectedIds}
+              selectionActive={selection.selectionActive}
+            />
+          </PageSection>
+        </div>
       )}
       <EditLocationDialog
         location={location}
         onOpenChange={setIsEditLocationOpen}
         open={isEditLocationOpen}
+      />
+      <AddCollectionItemToDeckDialog
+        item={bulkDeckTarget}
+        onDone={finishBulkLocationAction}
+        onOpenChange={(open) => !open && setBulkDeckTarget(null)}
+      />
+      <MoveCollectionItemDialog
+        item={bulkListTarget}
+        listOnly
+        onDone={finishBulkLocationAction}
+        onOpenChange={(open) => !open && setBulkListTarget(null)}
+      />
+      <MoveCollectionItemDialog
+        item={bulkMoveTarget}
+        onDone={finishBulkLocationAction}
+        onOpenChange={(open) => !open && setBulkMoveTarget(null)}
+      />
+      <DeleteCollectionItemDialog
+        item={bulkDeleteTarget}
+        onDone={finishBulkLocationAction}
+        onOpenChange={(open) => !open && setBulkDeleteTarget(null)}
       />
       <CollectionFilterModal
         filters={structuredFilters}
