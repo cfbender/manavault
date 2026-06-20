@@ -269,7 +269,58 @@ Build the image locally:
 docker build -t manavault .
 ```
 
-Build an OpenVINO-enabled image for Intel CPU OCR testing:
+OpenVINO is optional. The published default image and a normal local build use
+ONNX Runtime for OCR. Only set `MANAVAULT_OCR_ENGINE=openvino` when the image or
+local Python environment includes the OpenVINO OCR dependencies. Published
+OpenVINO image tags have an `-openvino` suffix, such as
+`ghcr.io/cfbender/manavault:0.2.3-openvino`.
+
+Example `docker-compose.yml` using the published GHCR image:
+
+```yaml
+services:
+  manavault:
+    image: ghcr.io/cfbender/manavault:0.2.3
+    container_name: manavault
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./data:/data
+    environment:
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      PHX_HOST: ${PHX_HOST:-localhost}
+```
+
+Generate a secret once, put it in `.env`, then start the stack:
+
+```sh
+printf 'SECRET_KEY_BASE=%s\n' "$(mise exec -- mix phx.gen.secret)" > .env
+printf 'PHX_HOST=localhost\n' >> .env
+docker compose up -d
+```
+
+For Intel NUC/OpenVINO scanner testing, use the matching `-openvino` image tag
+and add the OpenVINO environment:
+
+```yaml
+    image: ghcr.io/cfbender/manavault:0.2.3-openvino
+    environment:
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      PHX_HOST: ${PHX_HOST:-localhost}
+      MANAVAULT_OCR_ENGINE: openvino
+      MANAVAULT_OCR_OPENVINO_PERFORMANCE_HINT: LATENCY
+      MANAVAULT_OCR_THREADS: "4"
+      SCAN_IMAGE_MATCHING: "false"
+```
+
+Then restart the stack:
+
+```sh
+docker compose up -d
+```
+
+To build an OpenVINO image locally instead, use:
 
 ```sh
 docker build \
@@ -306,10 +357,11 @@ Common optional values:
 - `MANAVAULT_OCR_ENGINE` - OCR inference engine. Defaults to `onnxruntime`; set
   to `openvino` only when the OpenVINO OCR dependencies are installed.
 - `MANAVAULT_OCR_THREADS` - optional OCR engine thread count. Applies to
-  OpenVINO and ONNX Runtime.
+  OpenVINO and ONNX Runtime. Defaults to unset, which lets the engine choose.
 - `MANAVAULT_OCR_OPENVINO_PERFORMANCE_HINT` - optional OpenVINO CPU performance
-  hint, such as `LATENCY` or `THROUGHPUT`.
+  hint, such as `LATENCY` or `THROUGHPUT`. Defaults to unset.
 - `MANAVAULT_OCR_OPENVINO_NUM_STREAMS` - optional OpenVINO CPU stream count.
+  Defaults to unset, which lets OpenVINO choose.
 - `SCAN_IMAGE_MATCHING` - set to `false` to disable candidate image matching
   during camera scans and use OCR-only recognition. Defaults to `true`.
 - `SCAN_TITLE_OCR_FAST_PATH` - set to `false` to disable the title-crop OCR
@@ -317,19 +369,28 @@ Common optional values:
 - `MANAVAULT_SKIP_MIGRATION_BACKUP` - skip automatic release backup before
   pending migrations. Defaults to unset.
 
+Default OCR behavior is therefore ONNX Runtime CPU, title-crop fast path on, and
+candidate image matching on. For lower-power Intel self-hosting, the tested NUC
+profile is OpenVINO plus `SCAN_IMAGE_MATCHING=false`.
+
 No Postgres or external service is required.
 
 ### GHCR Publishing
 
 The container workflow publishes `ghcr.io/cfbender/manavault` on pushes to
-`main` and on version tags matching `v*.*.*`.
+`main` and on version tags matching `v*.*.*`. It also publishes matching
+OpenVINO OCR variants with an `-openvino` suffix.
 
 Expected tags:
 
 - `latest` from the default branch
+- `latest-openvino` from the default branch
 - branch tags from branch pushes
+- branch tags with `-openvino` from branch pushes
 - `0.2.3` and `0.2` from tag `v0.2.3`
+- `0.2.3-openvino` and `0.2-openvino` from tag `v0.2.3`
 - `v0.2.3` from the raw tag ref
+- `v0.2.3-openvino` from the raw tag ref
 
 ## Roadmap
 

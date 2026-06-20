@@ -46,6 +46,20 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=ref,event=tag
 
+      - name: Extract OpenVINO image metadata
+        id: meta_openvino
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          flavor: |
+            suffix=-openvino,onlatest=true
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=ref,event=tag
+
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
@@ -53,5 +67,17 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push OpenVINO image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta_openvino.outputs.tags }}
+          labels: ${{ steps.meta_openvino.outputs.labels }}
+          build-args: |
+            OCR_REQUIREMENTS=requirements-ocr-openvino.txt
           cache-from: type=gha
           cache-to: type=gha,mode=max
