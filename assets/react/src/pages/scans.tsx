@@ -1570,6 +1570,14 @@ function EditScanItemDialog({
       onClose()
     },
   })
+  const deleteItem = useMutation({
+    mutationFn: () => request(DeleteScanItemDocument, { id: item?.id || "" }),
+    onSuccess: () => {
+      onSaved()
+      onClose()
+    },
+  })
+  const mutationError = updateItem.error || deleteItem.error
 
   if (!item) return null
 
@@ -1617,18 +1625,31 @@ function EditScanItemDialog({
             <span className="label-text">Language</span>
             <input className="input input-bordered" name="language" defaultValue={item.language} />
           </label>
-          {updateItem.error ? (
+          {mutationError ? (
             <p className="text-sm text-error">
-              {updateItem.error instanceof Error ? updateItem.error.message : String(updateItem.error)}
+              {mutationError instanceof Error ? mutationError.message : String(mutationError)}
             </p>
           ) : null}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="ghost" onClick={onClose}>
-              Cancel
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:items-center sm:justify-between">
+            <Button
+              disabled={deleteItem.isPending || updateItem.isPending}
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                if (confirm("Delete this scanned card?")) deleteItem.mutate()
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete
             </Button>
-            <Button disabled={updateItem.isPending} type="submit">
-              Save
-            </Button>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button disabled={updateItem.isPending || deleteItem.isPending} type="submit">
+                Save
+              </Button>
+            </div>
           </div>
         </form>
       </DialogContent>
