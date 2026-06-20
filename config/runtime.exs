@@ -46,6 +46,12 @@ if config_env() == :prod do
       _value -> true
     end
 
+  scan_full_ocr_fallback? =
+    case System.get_env("SCAN_FULL_OCR_FALLBACK", "false") |> String.downcase() do
+      value when value in ["1", "true", "yes", "on"] -> true
+      _value -> false
+    end
+
   for path <- [
         data_dir,
         Path.dirname(database_path),
@@ -65,6 +71,7 @@ if config_env() == :prod do
     scan_image_matching: scan_image_matching?,
     scan_title_ocr_fast_path: scan_title_ocr_fast_path?,
     scan_async_image_refinement: scan_async_image_refinement?,
+    scan_full_ocr_fallback: scan_full_ocr_fallback?,
     scan_image_cache_dir: Path.join(data_dir, "cache/scryfall/scanner-images"),
     scryfall_assets_dir: Path.join(data_dir, "cache/scryfall/assets")
 

@@ -64,14 +64,23 @@ defmodule Manavault.Catalog.ScanRecognition do
 
         recognition = put_title_ocr_timing(recognition, title_ocr_us, nil, true)
 
-        if title_ocr_confident?(recognition, opts) do
-          {:ok, recognition}
-        else
-          fallback_to_full_ocr(scan_item, image_path, opts, title_ocr_us, :weak_title_match)
+        cond do
+          title_ocr_confident?(recognition, opts) ->
+            {:ok, recognition}
+
+          full_ocr_fallback?(opts) ->
+            fallback_to_full_ocr(scan_item, image_path, opts, title_ocr_us, :weak_title_match)
+
+          true ->
+            {:ok, reject_title_recognition(recognition, title_ocr_us, :weak_title_match)}
         end
 
       {:error, reason} ->
-        fallback_to_full_ocr(scan_item, image_path, opts, nil, {:title_ocr_error, reason})
+        if full_ocr_fallback?(opts) do
+          fallback_to_full_ocr(scan_item, image_path, opts, nil, {:title_ocr_error, reason})
+        else
+          {:error, reason}
+        end
     end
   end
 
@@ -83,6 +92,13 @@ defmodule Manavault.Catalog.ScanRecognition do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  defp reject_title_recognition(recognition, title_ocr_us, reason) do
+    recognition
+    |> Map.put(:candidates, [])
+    |> Map.put(:image_matches, [])
+    |> put_title_ocr_timing(title_ocr_us, reason, true)
   end
 
   defp timed(fun) do
@@ -110,20 +126,65 @@ defmodule Manavault.Catalog.ScanRecognition do
 
   defp ocr_runner_supports_options?(runner), do: is_function(runner, 2)
 
+  defp full_ocr_fallback?(opts) do
+    Keyword.get(
+      opts,
+      :full_ocr_fallback,
+      Application.get_env(:manavault, :scan_full_ocr_fallback, false)
+    )
+  end
+
   defp title_ocr_confident?(%{candidates: [top | _rest], parsed: parsed}, opts) do
     top.confidence >= Keyword.get(opts, :title_ocr_min_confidence, @title_ocr_min_confidence) and
-      title_text_matches_card_name?(parsed, top.printing.card.name)
+      title_text_matches_card_name?(parsed, top.printing.card.name) and
+      enough_title_evidence?(top)
   end
 
   defp title_ocr_confident?(_recognition, _opts), do: false
 
+  defp enough_title_evidence?(%{printing: %{card: %{name: name}}, evidence: evidence}) do
+    name
+    |> meaningful_token_set()
+    |> MapSet.size()
+    |> case do
+      0 -> false
+      1 -> footer_evidence?(evidence)
+      _many -> true
+    end
+  end
+
+  defp enough_title_evidence?(_candidate), do: false
+
+  defp footer_evidence?(%{scores: scores}) when is_map(scores) do
+    float_score(Map.get(scores, :set_code, 0.0)) > 0.0 or
+      float_score(Map.get(scores, :collector_number, 0.0)) > 0.0
+  end
+
+  defp footer_evidence?(_evidence), do: false
+
   defp title_text_matches_card_name?(parsed, card_name) when is_binary(card_name) do
-    title_text =
+    title_lines =
       parsed
       |> Map.get(:lines, [])
       |> Enum.take(4)
-      |> Enum.join(" ")
 
+    title_lines
+    |> title_line_candidates()
+    |> Enum.any?(&text_matches_card_name?(&1, card_name))
+  end
+
+  defp title_text_matches_card_name?(_parsed, _card_name), do: false
+
+  defp title_line_candidates(lines) do
+    adjacent_lines =
+      lines
+      |> Enum.chunk_every(2, 1, :discard)
+      |> Enum.map(&Enum.join(&1, " "))
+
+    lines ++ adjacent_lines
+  end
+
+  defp text_matches_card_name?(title_text, card_name) do
     title_compact = compact_alpha(title_text)
     name_compact = compact_alpha(card_name)
     title_tokens = meaningful_token_set(title_text)
@@ -132,8 +193,6 @@ defmodule Manavault.Catalog.ScanRecognition do
     (title_compact != "" and title_compact == name_compact) or
       (MapSet.size(title_tokens) > 0 and title_tokens == name_tokens)
   end
-
-  defp title_text_matches_card_name?(_parsed, _card_name), do: false
 
   defp compact_alpha(text) do
     text

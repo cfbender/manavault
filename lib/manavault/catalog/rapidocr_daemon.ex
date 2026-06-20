@@ -31,7 +31,11 @@ defmodule Manavault.Catalog.RapidOCRDaemon do
   def init(:ok) do
     case start_port() do
       {:ok, port} ->
-        Logger.info("RapidOCR daemon ready")
+        Logger.info(
+          "RapidOCR daemon ready engine=#{System.get_env("MANAVAULT_OCR_ENGINE", "onnxruntime")} " <>
+            "title_width=#{System.get_env("MANAVAULT_OCR_TITLE_WIDTH", "640")}"
+        )
+
         {:ok, %{port: port}}
 
       {:error, reason} ->

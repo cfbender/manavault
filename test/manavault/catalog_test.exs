@@ -11,6 +11,7 @@ defmodule Manavault.CatalogTest do
     DeckCard,
     Price,
     Printing,
+    RuntimeImageMatcher,
     ScanItem,
     ScanRecognition,
     ScanSession,
@@ -1740,6 +1741,53 @@ defmodule Manavault.CatalogTest do
     assert_in_delta evidence.scores.image_match, 0.8075, 0.0001
   end
 
+  test "runtime image matcher accepts list shaped face image uris" do
+    scryfall_id = "scryfall-printing-list-images"
+
+    card =
+      @black_lotus
+      |> Map.put("id", scryfall_id)
+      |> Map.delete("image_uris")
+      |> Map.put("card_faces", [
+        %{"image_uris" => %{"normal" => "https://example.test/#{scryfall_id}.jpg"}}
+      ])
+
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([card])
+
+    previous_cache_dir = Application.get_env(:manavault, :scan_image_cache_dir)
+    cache_dir = Path.join(System.tmp_dir!(), "manavault-runtime-image-cache-#{scryfall_id}")
+    Application.put_env(:manavault, :scan_image_cache_dir, cache_dir)
+
+    fixture_path =
+      Path.expand(
+        "../fixtures/ocr/scryfall_random/001-wickerbough-elder-9aef164a-af60-4c88-9f3b-b8d43abd3d85.jpg",
+        __DIR__
+      )
+
+    File.mkdir_p!(cache_dir)
+    File.cp!(fixture_path, Path.join(cache_dir, "#{scryfall_id}.jpg"))
+
+    on_exit(fn ->
+      if previous_cache_dir do
+        Application.put_env(:manavault, :scan_image_cache_dir, previous_cache_dir)
+      else
+        Application.delete_env(:manavault, :scan_image_cache_dir)
+      end
+
+      File.rm_rf!(cache_dir)
+    end)
+
+    printing =
+      Printing
+      |> Repo.get!(scryfall_id)
+      |> Repo.preload(:card)
+
+    assert [%{scryfall_id: ^scryfall_id, score: score}] =
+             RuntimeImageMatcher.match(fixture_path, [printing], crop: "full", threshold: 0.0)
+
+    assert score == 1.0
+  end
+
   test "scan recognition accepts confident title-crop OCR without full OCR" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
@@ -1748,7 +1796,7 @@ defmodule Manavault.CatalogTest do
 
     ocr_runner = fn "/tmp/black-lotus.jpg", opts ->
       send(parent, {:ocr_crop, Keyword.get(opts, :ocr_crop, :full)})
-      {:ok, "Black Lotus"}
+      {:ok, "Black Lotus\nR 0232 · EN"}
     end
 
     assert {:ok,
@@ -1763,6 +1811,76 @@ defmodule Manavault.CatalogTest do
     assert printing.scryfall_id == "scryfall-printing-1"
     assert_received {:ocr_crop, :title}
     refute_received {:ocr_crop, :full}
+  end
+
+  test "scan recognition does not block on full OCR when title-crop OCR is weak by default" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    parent = self()
+
+    ocr_runner = fn "/tmp/time-walk.jpg", opts ->
+      crop = Keyword.get(opts, :ocr_crop, :full)
+      send(parent, {:ocr_crop, crop})
+
+      case crop do
+        :title -> {:ok, "not a card"}
+        :full -> flunk("full OCR should not run by default for weak title OCR")
+      end
+    end
+
+    assert {:ok,
+            %{
+              candidates: [],
+              timings: %{
+                title_ocr_fast_path: true,
+                title_ocr_fallback_reason: "weak_title_match",
+                title_ocr_us: title_ocr_us,
+                full_ocr_us: nil
+              }
+            }} =
+             ScanRecognition.recognize(%ScanItem{image_path: "/tmp/time-walk.jpg"},
+               ocr_runner: ocr_runner
+             )
+
+    assert is_integer(title_ocr_us)
+    assert_received {:ocr_crop, :title}
+    refute_received {:ocr_crop, :full}
+  end
+
+  test "scan recognition rejects single-word title matches without footer evidence" do
+    chaos = %{
+      "id" => "scryfall-chaos",
+      "oracle_id" => "oracle-chaos",
+      "name" => "Chaos",
+      "type_line" => "Sorcery",
+      "oracle_text" => "",
+      "color_identity" => ["R"],
+      "set" => "fj25",
+      "set_name" => "Test Set",
+      "collector_number" => "46",
+      "lang" => "en",
+      "finishes" => ["nonfoil"],
+      "released_at" => "2026-01-01"
+    }
+
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([chaos])
+
+    assert {:ok,
+            %{
+              candidates: [],
+              timings: %{
+                title_ocr_fast_path: true,
+                title_ocr_fallback_reason: "weak_title_match",
+                full_ocr_us: nil
+              }
+            }} =
+             ScanRecognition.recognize(%ScanItem{image_path: "/tmp/gauntlets.jpg"},
+               ocr_runner: fn _path, opts ->
+                 assert Keyword.get(opts, :ocr_crop) == :title
+                 {:ok, "Chaos"}
+               end
+             )
   end
 
   test "scan recognition falls back to full OCR when title-crop OCR is weak" do
@@ -1792,7 +1910,8 @@ defmodule Manavault.CatalogTest do
               }
             }} =
              ScanRecognition.recognize(%ScanItem{image_path: "/tmp/time-walk.jpg"},
-               ocr_runner: ocr_runner
+               ocr_runner: ocr_runner,
+               full_ocr_fallback: true
              )
 
     assert printing.scryfall_id == "scryfall-printing-2"

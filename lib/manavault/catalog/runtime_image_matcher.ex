@@ -21,7 +21,7 @@ defmodule Manavault.Catalog.RuntimeImageMatcher do
     printings
     |> Enum.take(limit)
     |> Enum.flat_map(&reference_fixture/1)
-    |> ImageMatcher.build_references()
+    |> ImageMatcher.build_references(Keyword.take(opts, [:crop]))
     |> then(&ImageMatcher.match(image_path, &1, Keyword.take(opts, [:crop, :limit, :threshold])))
   rescue
     exception ->
@@ -57,6 +57,12 @@ defmodule Manavault.Catalog.RuntimeImageMatcher do
   defp image_url(uris) when is_map(uris) do
     uris["normal"] || uris["large"] || uris["png"] || uris["small"]
   end
+
+  defp image_url(uris) when is_list(uris) do
+    Enum.find_value(uris, &image_url/1)
+  end
+
+  defp image_url(_uris), do: nil
 
   defp cached_image(scryfall_id, url) do
     path = Path.join(cache_dir(), "#{scryfall_id}#{image_extension(url)}")

@@ -185,13 +185,36 @@ def title_crop(image_path):
     right = int(card_left + card_width * 0.945)
     bottom = int(card_top + card_height * 0.17)
 
-    crop = image.crop((left, top, right, bottom))
+    footer_left = int(card_left + card_width * 0.055)
+    footer_top = int(card_top + card_height * 0.88)
+    footer_right = int(card_left + card_width * 0.945)
+    footer_bottom = int(card_top + card_height * 0.965)
 
-    if crop.width < 900:
-        scale = 900 / crop.width
-        crop = crop.resize((900, max(1, int(crop.height * scale))), Image.Resampling.LANCZOS)
+    title = image.crop((left, top, right, bottom))
+    footer = image.crop((footer_left, footer_top, footer_right, footer_bottom))
+    target_width = parse_int_env("MANAVAULT_OCR_TITLE_WIDTH") or 640
+    if target_width <= 0:
+        target_width = max(title.width, footer.width)
+
+    title = resize_to_width(title, target_width)
+    footer = resize_to_width(footer, target_width)
+
+    gap = max(8, int(target_width * 0.02))
+    crop = Image.new("RGB", (target_width, title.height + footer.height + gap), "white")
+    crop.paste(title, (0, 0))
+    crop.paste(footer, (0, title.height + gap))
 
     return crop
+
+
+def resize_to_width(image, target_width):
+    if target_width <= 0 or image.width == target_width:
+        return image
+
+    scale = target_width / image.width
+    return image.resize(
+        (target_width, max(1, int(image.height * scale))), Image.Resampling.LANCZOS
+    )
 
 
 @contextlib.contextmanager
