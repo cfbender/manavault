@@ -55,8 +55,14 @@ FROM golang:1.25.11-bookworm AS gosu-builder
 # Build gosu with a patched Go toolchain. Debian's apt gosu is built with
 # go1.24.4, which carries ~30 Critical/High stdlib CVEs. Building from source
 # with Go 1.25.11 (>= every fixed-in version in the scan) eliminates them all
-# while keeping gosu's behavior identical.
-RUN CGO_ENABLED=0 go install github.com/tianon/gosu@latest
+# while keeping gosu's behavior identical. A wrapper module also bumps
+# golang.org/x/sys to clear GO-2026-5024 (a Windows-only Low-severity overflow
+# that grype flags via the binary's embedded module info).
+WORKDIR /src/gosu-build
+RUN go mod init gosu-build \
+  && go get github.com/tianon/gosu@latest \
+  && go get golang.org/x/sys@v0.44.0 \
+  && CGO_ENABLED=0 go build -o /go/bin/gosu github.com/tianon/gosu
 
 FROM ${RUNNER_IMAGE} AS runner
 

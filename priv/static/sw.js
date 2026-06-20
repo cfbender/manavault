@@ -1,4 +1,4 @@
-const CACHE_NAME = "manavault-pwa-v20260619-8"
+const CACHE_NAME = "manavault-pwa-v20260620-1"
 const OFFLINE_URL = "/offline.html"
 const PRECACHE_URLS = [
   OFFLINE_URL,

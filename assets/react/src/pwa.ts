@@ -20,7 +20,7 @@ markNativeShell()
 window.addEventListener("DOMContentLoaded", markNativeShell)
 
 let deferredInstallPrompt: BeforeInstallPromptEvent | null = null
-const pwaAssetVersion = "20260619-8"
+const pwaAssetVersion = "20260620-1"
 const serviceWorkerUrl = `${window.location.origin}/sw.js?v=${pwaAssetVersion}`
 
 type BeforeInstallPromptEvent = Event & {

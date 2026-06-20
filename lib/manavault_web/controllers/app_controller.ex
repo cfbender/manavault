@@ -4,10 +4,14 @@ defmodule ManavaultWeb.AppController do
   def index(conn, _params) do
     conn
     |> put_resp_content_type("text/html")
+    |> put_resp_header("cache-control", "no-cache, no-store, must-revalidate")
+    |> put_resp_header("pragma", "no-cache")
     |> send_resp(200, app_html(get_csrf_token(), conn))
   end
 
   defp app_html(csrf_token, conn) do
+    app_css_path = static_path(conn, "/assets/css/app.css")
+
     react_scripts =
       if vite_dev_server?(conn) do
         """
@@ -22,7 +26,8 @@ defmodule ManavaultWeb.AppController do
         <script type="module" src="http://127.0.0.1:5173/assets/react/src/main.tsx"></script>
         """
       else
-        ~s(<script defer type="module" src="/assets/react/app.js?v=20260619-8"></script>)
+        app_js_path = static_path(conn, "/assets/react/app.js")
+        ~s(<script defer type="module" src="#{app_js_path}"></script>)
       end
 
     """
@@ -42,8 +47,8 @@ defmodule ManavaultWeb.AppController do
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-        <link rel="manifest" href="/site.webmanifest?v=20260619-8" />
-        <link rel="stylesheet" href="/assets/css/app.css?v=20260619-8" />
+        <link rel="manifest" href="/site.webmanifest?v=20260620-1" />
+        <link rel="stylesheet" href="#{app_css_path}" />
         <script>
           (() => {
             if (window.__manavaultPwaInstallCapture) return;

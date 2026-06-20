@@ -12,25 +12,25 @@
   "categories": ["utilities", "productivity"],
   "icons": [
     {
-      "src": "/android-chrome-192x192.png?v=20260619-8",
+      "src": "/android-chrome-192x192.png?v=20260620-1",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/android-chrome-512x512.png?v=20260619-8",
+      "src": "/android-chrome-512x512.png?v=20260620-1",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/android-chrome-192x192.png?v=20260619-8",
+      "src": "/android-chrome-192x192.png?v=20260620-1",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/android-chrome-512x512.png?v=20260619-8",
+      "src": "/android-chrome-512x512.png?v=20260620-1",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -38,14 +38,14 @@
   ],
   "screenshots": [
     {
-      "src": "/screenshots/desktop-collection.png?v=20260619-8",
+      "src": "/screenshots/desktop-collection.png?v=20260620-1",
       "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide",
       "label": "Collection dashboard"
     },
     {
-      "src": "/screenshots/mobile-scan.png?v=20260619-8",
+      "src": "/screenshots/mobile-scan.png?v=20260620-1",
       "sizes": "540x720",
       "type": "image/png",
       "label": "Card scanner"
@@ -59,7 +59,7 @@
       "url": "/scan",
       "icons": [
         {
-          "src": "/android-chrome-192x192.png?v=20260619-8",
+          "src": "/android-chrome-192x192.png?v=20260620-1",
           "sizes": "192x192",
           "type": "image/png"
         }
@@ -72,7 +72,7 @@
       "url": "/collection",
       "icons": [
         {
-          "src": "/android-chrome-192x192.png?v=20260619-8",
+          "src": "/android-chrome-192x192.png?v=20260620-1",
           "sizes": "192x192",
           "type": "image/png"
         }
