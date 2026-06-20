@@ -90,6 +90,17 @@ Run the fuller local precommit suite:
 mise run precommit
 ```
 
+Release helper:
+
+```sh
+mise run changelog -- patch
+mise run release -- patch
+```
+
+The release task generates `CHANGELOG.md`, bumps `mix.exs`, updates the Docker
+tag examples, commits, creates an annotated tag, and pushes the branch and tag.
+See [docs/releasing.md](docs/releasing.md) for details.
+
 ### Manual OCR Repair
 
 If the scanner reports that RapidOCR is unavailable, rebuild the OCR environment:
