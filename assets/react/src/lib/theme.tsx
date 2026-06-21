@@ -9,22 +9,36 @@ function systemTheme() {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
 }
 
+function storedTheme() {
+  try {
+    return (localStorage.getItem(storageKey) as Theme | null) || "system"
+  } catch {
+    return "system"
+  }
+}
+
+function persistTheme(theme: Theme) {
+  try {
+    if (theme === "system") {
+      localStorage.removeItem(storageKey)
+    } else {
+      localStorage.setItem(storageKey, theme)
+    }
+  } catch {
+    // Storage can be unavailable or full. The DOM theme still applies for this page load.
+  }
+}
+
 function applyTheme(theme: Theme) {
   const resolved = theme === "system" ? systemTheme() : theme
   document.documentElement.setAttribute("data-theme", resolved)
   document.documentElement.setAttribute("data-theme-source", theme === "system" ? "system" : "user")
 
-  if (theme === "system") {
-    localStorage.removeItem(storageKey)
-  } else {
-    localStorage.setItem(storageKey, theme)
-  }
+  persistTheme(theme)
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem(storageKey) as Theme | null) || "system",
-  )
+  const [theme, setTheme] = useState<Theme>(storedTheme)
 
   useEffect(() => {
     applyTheme(theme)
@@ -33,7 +47,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)")
     const handleSystemChange = () => {
-      if ((localStorage.getItem(storageKey) || "system") === "system") applyTheme("system")
+      if (storedTheme() === "system") applyTheme("system")
     }
     const handleStorage = (event: StorageEvent) => {
       if (event.key === storageKey) setTheme((event.newValue as Theme | null) || "system")

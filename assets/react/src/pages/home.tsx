@@ -7,6 +7,7 @@ import { useState } from "react"
 import { ActionCard } from "../components/app-shell"
 import { CardNameSearchField } from "../components/card-name-search-field"
 import { Button } from "../components/ui/button"
+import Prism from "../components/prism/Prism"
 import { graphql } from "../gql"
 import { request } from "../lib/graphql"
 import { compactNumber } from "../lib/utils"
@@ -45,52 +46,68 @@ export function HomePage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
+    <div className="relative z-0 mx-auto max-w-4xl space-y-8">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed left-0 top-0 z-0 h-screen w-screen"
+      >
+        <Prism
+          animationType="rotate"
+          timeScale={0.5}
+          height={3.5}
+          baseWidth={5.5}
+          scale={3.6}
+          hueShift={0}
+          colorFrequency={1}
+          noise={0.5}
+          glow={1}
+          suspendWhenOffscreen
+        />
+      </div>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed left-0 top-0 z-0 h-screen w-screen bg-base-100/55"
+      />
+
       <motion.section
-        className="card border border-base-300 bg-base-200 shadow-xl"
+        className="relative z-10 space-y-6 pb-8 pt-3 sm:pb-12 sm:pt-6"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
       >
-        <div className="card-body gap-6 p-6 sm:p-8">
-          <div className="badge badge-primary badge-outline uppercase">ManaVault</div>
-          <div>
-            <h1 className="max-w-3xl text-5xl font-black tracking-normal sm:text-6xl">
-              Your Magic collection, organized.
-            </h1>
-            <p className="mt-5 text-xl leading-8 text-base-content/70">
-              Jump into your collection, build decks, or search the local card catalog.
-            </p>
-          </div>
-
-          <form
-            onSubmit={submitSearch}
-            className="rounded-box border border-base-300 bg-base-100 p-4 shadow-sm"
-          >
-            <div className="fieldset p-0">
-              <label htmlFor="home-card-search" className="fieldset-label text-base">
-                Search cards
-              </label>
-              <div className="control-toolbar grid gap-3 sm:grid-cols-[1fr_auto]">
-                <CardNameSearchField
-                  id="home-card-search"
-                  name="q"
-                  value={q}
-                  onValueChange={setQ}
-                  onSuggestionSelect={searchCards}
-                  placeholder="Black Lotus"
-                />
-                <Button type="submit">
-                  <Search className="h-4 w-4" />
-                  Search
-                </Button>
-              </div>
-            </div>
-          </form>
+        <div>
+          <h1 className="max-w-3xl text-5xl font-black tracking-normal sm:text-6xl">
+            Your Magic collection, organized.
+          </h1>
+          <p className="mt-5 text-xl leading-8 text-base-content/70">
+            Jump into your collection, build decks, or search the local card catalog.
+          </p>
         </div>
+
+        <form onSubmit={submitSearch} className="max-w-3xl">
+          <div className="fieldset p-0">
+            <label htmlFor="home-card-search" className="fieldset-label text-base">
+              Search cards
+            </label>
+            <div className="control-toolbar grid gap-3 sm:grid-cols-[1fr_auto]">
+              <CardNameSearchField
+                id="home-card-search"
+                name="q"
+                value={q}
+                onValueChange={setQ}
+                onSuggestionSelect={searchCards}
+                placeholder="Black Lotus"
+              />
+              <Button type="submit">
+                <Search className="h-4 w-4" />
+                Search
+              </Button>
+            </div>
+          </div>
+        </form>
       </motion.section>
 
-      <div className="grid gap-5 md:grid-cols-3">
+      <div className="relative z-10 grid gap-5 md:grid-cols-3">
         <ActionCard
           to="/collection"
           icon={<Boxes className="h-12 w-12 text-accent" />}

@@ -55,12 +55,14 @@ export function AppShell() {
   const { pathname } = useLocation()
   const isScannerRoute = pathname.endsWith("/scanner")
   const isShareRoute = pathname.startsWith("/share/")
+  const isHomeRoute = pathname === "/"
 
   return (
     <div className="min-h-screen bg-base-100 text-base-content">
       <header
         className={cn(
-          "app-shell-header sticky top-0 z-30 bg-base-100/95 backdrop-blur",
+          "app-shell-header sticky top-0 z-30",
+          isHomeRoute ? "bg-transparent" : "bg-base-100/95 backdrop-blur",
           isScannerRoute && "hidden sm:block",
           isShareRoute && "hidden",
         )}
