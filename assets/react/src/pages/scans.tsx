@@ -55,8 +55,8 @@ const FINISHES = [
   ["Etched", "etched"],
 ] as const
 
-const SCANNER_CAPTURE_MAX_EDGE = 960
-const SCANNER_CAPTURE_JPEG_QUALITY = 0.74
+const SCANNER_CAPTURE_MAX_EDGE = 720
+const SCANNER_CAPTURE_JPEG_QUALITY = 0.82
 
 const ScanSessionsDocument = graphql(`
   query ScanSessions {
@@ -72,6 +72,7 @@ const ScanSessionsDocument = graphql(`
       }
       itemCount
       reviewCount
+      totalPriceText
       createdAt
       scanItems {
         id
@@ -80,6 +81,8 @@ const ScanSessionsDocument = graphql(`
         condition
         language
         finish
+        priceText
+        totalPriceText
         acceptedPrintingId
         insertedAt
         acceptedPrinting {
@@ -125,6 +128,7 @@ const ScanSessionDocument = graphql(`
       }
       itemCount
       reviewCount
+      totalPriceText
       createdAt
       scanItems {
         id
@@ -133,6 +137,8 @@ const ScanSessionDocument = graphql(`
         condition
         language
         finish
+        priceText
+        totalPriceText
         acceptedPrintingId
         insertedAt
         acceptedPrinting {
@@ -207,6 +213,7 @@ const CreateScanSessionDocument = graphql(`
       }
       itemCount
       reviewCount
+      totalPriceText
       createdAt
       scanItems {
         id
@@ -215,6 +222,8 @@ const CreateScanSessionDocument = graphql(`
         condition
         language
         finish
+        priceText
+        totalPriceText
         acceptedPrintingId
         insertedAt
         acceptedPrinting {
@@ -275,6 +284,8 @@ const CaptureScanItemDocument = graphql(`
         condition
         language
         finish
+        priceText
+        totalPriceText
         acceptedPrintingId
         insertedAt
         acceptedPrinting {
@@ -309,6 +320,7 @@ const CaptureScanItemDocument = graphql(`
         }
         itemCount
         reviewCount
+        totalPriceText
         createdAt
         scanItems {
           id
@@ -317,6 +329,8 @@ const CaptureScanItemDocument = graphql(`
           condition
           language
           finish
+          priceText
+          totalPriceText
           acceptedPrintingId
           insertedAt
           acceptedPrinting {
@@ -353,6 +367,8 @@ const UpdateScanItemDocument = graphql(`
       condition
       language
       finish
+      priceText
+      totalPriceText
       acceptedPrintingId
       insertedAt
       acceptedPrinting {
@@ -395,6 +411,8 @@ const SetScanItemPrintingDocument = graphql(`
       condition
       language
       finish
+      priceText
+      totalPriceText
       acceptedPrintingId
       insertedAt
       acceptedPrinting {
@@ -453,6 +471,8 @@ type ScanItem = {
   condition: string
   language: string
   finish: string
+  priceText?: string | null
+  totalPriceText?: string | null
   acceptedPrintingId?: string | null
   insertedAt?: string | null
   acceptedPrinting?: Printing | null
@@ -474,6 +494,7 @@ type ScanSession = {
   } | null
   itemCount?: number | null
   reviewCount?: number | null
+  totalPriceText?: string | null
   createdAt?: string | null
   scanItems: ScanItem[]
 }
@@ -482,7 +503,7 @@ type ScanCaptureResult = {
   outcome: string
   message: string
   scanItem?: ScanItem | null
-  scanSession: ScanSession
+  scanSession?: ScanSession | null
 }
 
 type ScanSessionUpdatedPayload = {
@@ -493,6 +514,34 @@ type LocationOption = {
   id: string
   name: string
   kind: string
+}
+
+function mergeCaptureScanSession(
+  current: ScanSession | null | undefined,
+  incoming: ScanSession,
+  capturedItem?: ScanItem | null,
+): ScanSession {
+  if (!current) return incoming
+
+  const incomingItemsAreComplete = incoming.scanItems.length >= (incoming.itemCount ?? incoming.scanItems.length)
+  const candidateItems = incomingItemsAreComplete
+    ? incoming.scanItems
+    : [capturedItem, ...incoming.scanItems, ...current.scanItems]
+
+  const scanItems: ScanItem[] = []
+  const seen = new Set<string>()
+
+  for (const item of candidateItems) {
+    if (!item || seen.has(item.id)) continue
+    seen.add(item.id)
+    scanItems.push(item)
+  }
+
+  return {
+    ...current,
+    ...incoming,
+    scanItems,
+  }
 }
 
 export function ScanEntryPage() {
@@ -820,11 +869,12 @@ export function ScannerPage() {
     (payload: ScanCaptureResult | null | undefined) => {
       if (!payload) return
       setMessage(payload.message)
-      queryClient.setQueryData(["scan-session", id], {
-        scanSession: payload.scanSession,
-        locations: data?.locations || [],
-      })
-      queryClient.invalidateQueries({ queryKey: ["scan-sessions"] })
+      if (payload.scanSession) {
+        queryClient.setQueryData(["scan-session", id], (current: typeof data | undefined) => ({
+          scanSession: mergeCaptureScanSession(current?.scanSession, payload.scanSession!, payload.scanItem),
+          locations: current?.locations || data?.locations || [],
+        }))
+      }
     },
     [data?.locations, id, queryClient],
   )
@@ -845,10 +895,9 @@ export function ScannerPage() {
           if (!payload?.scanSession) return
 
           queryClient.setQueryData(["scan-session", id], (current: typeof data | undefined) => ({
-            scanSession: payload.scanSession,
+            scanSession: mergeCaptureScanSession(current?.scanSession, payload.scanSession),
             locations: current?.locations || [],
           }))
-          queryClient.invalidateQueries({ queryKey: ["scan-sessions"] })
         })
         scannerChannelRef.current = channel
       })
@@ -980,7 +1029,12 @@ export function ScannerPage() {
 
       <section className="w-full max-w-3xl rounded-xl border border-base-300 bg-base-100 p-2 shadow-sm">
         <div className="mb-2 flex items-center justify-between gap-3">
-          <h2 className="text-sm font-bold">Scanned cards</h2>
+          <div>
+            <h2 className="text-sm font-bold">Scanned cards</h2>
+            <p className="text-xs text-base-content/60">
+              Session total <span className="font-mono font-semibold">{session.totalPriceText || "$0"}</span>
+            </p>
+          </div>
           <Badge>{recentItems.length}</Badge>
         </div>
         {recentItems.length ? (
@@ -1048,6 +1102,7 @@ function ScannerCamera({
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const guideRef = useRef<HTMLDivElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const timerRef = useRef<number | null>(null)
   const devicesRef = useRef<MediaDeviceInfo[]>([])
@@ -1075,16 +1130,16 @@ function ScannerCamera({
   useEffect(() => {
     if (outcome === "accepted") {
       captureInFlightRef.current = false
-      blockedUntilRef.current = 0
+      blockedUntilRef.current = Date.now() + 650
       forceNextRef.current = false
       playDing()
     } else if (outcome === "duplicate") {
       captureInFlightRef.current = false
-      blockedUntilRef.current = Date.now() + 1800
+      blockedUntilRef.current = Date.now() + 500
       forceNextRef.current = false
     } else if (outcome === "rejected" || outcome === "error") {
       captureInFlightRef.current = false
-      blockedUntilRef.current = Date.now() + 1400
+      blockedUntilRef.current = Date.now() + 150
       forceNextRef.current = false
     }
   }, [outcome])
@@ -1112,7 +1167,7 @@ function ScannerCamera({
         if (cancelled) return
         setStarted(true)
         onCameraErrorRef.current(null)
-        onCameraStatusRef.current("Camera is running. OCR scanning...")
+        onCameraStatusRef.current("Camera is running. Art matching...")
         timerRef.current = window.setInterval(captureFrame, 300)
         window.setTimeout(captureFrame, 250)
       } catch (error) {
@@ -1162,13 +1217,23 @@ function ScannerCamera({
 
       captureInFlightRef.current = true
       lastCaptureAtRef.current = now
-      const scale = Math.min(
-        1,
-        SCANNER_CAPTURE_MAX_EDGE / Math.max(video.videoWidth, video.videoHeight),
-      )
-      canvas.width = Math.round(video.videoWidth * scale)
-      canvas.height = Math.round(video.videoHeight * scale)
-      canvas.getContext("2d")?.drawImage(video, 0, 0, canvas.width, canvas.height)
+      const source = scannerCaptureSourceRect(video, guideRef.current)
+      const scale = Math.min(1, SCANNER_CAPTURE_MAX_EDGE / Math.max(source.width, source.height))
+      canvas.width = Math.round(source.width * scale)
+      canvas.height = Math.round(source.height * scale)
+      canvas
+        .getContext("2d")
+        ?.drawImage(
+          video,
+          source.x,
+          source.y,
+          source.width,
+          source.height,
+          0,
+          0,
+          canvas.width,
+          canvas.height,
+        )
       const force = forceNextRef.current
       canvas.toBlob(
         (blob) => {
@@ -1285,7 +1350,7 @@ function ScannerCamera({
           </Button>
         </div>
         <div className="pointer-events-none absolute inset-0 grid place-items-center p-7 sm:p-10">
-          <div className="h-full w-full rounded-[1.35rem] border-4 border-primary/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.28)]" />
+          <div ref={guideRef} className="aspect-[5/7] h-full max-w-full rounded-[1.35rem] border-4 border-primary/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.28)]" />
         </div>
         <div className="absolute right-3 top-3 z-20 flex gap-2">
           <Button
@@ -1332,6 +1397,11 @@ function RecentScanItem({
     onSuccess: onSaved,
   })
   const quantity = item.quantity || 1
+  const priceText = item.priceText || item.acceptedPrinting?.priceText
+  const priceLine =
+    quantity > 1 && item.totalPriceText && priceText
+      ? `${item.totalPriceText} · ${priceText} ea`
+      : item.totalPriceText || priceText
 
   return (
     <div className="relative w-28 shrink-0 snap-start sm:w-32" data-scan-item-id={item.id}>
@@ -1395,6 +1465,11 @@ function RecentScanItem({
           </div>
         </div>
       </div>
+      {priceLine ? (
+        <div className="mt-1 truncate rounded-lg border border-base-300 bg-base-100 px-2 py-1 text-center font-mono text-xs font-bold shadow-sm">
+          {priceLine}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -1442,7 +1517,7 @@ function ScanItemTile({
       imageUrl={printing?.imageUrl}
       location={item.location?.name}
       name={printing?.card?.name || `Scan item #${item.id}`}
-      price={printing?.priceText}
+      price={item.priceText || printing?.priceText}
       rarity={printing?.rarity}
       setCode={printing?.setCode}
       setLabel={printing?.setCode?.toUpperCase()}
@@ -1991,6 +2066,42 @@ function ScanSetIcon({ className, setCode }: { className?: string; setCode?: str
       aria-hidden="true"
     />
   )
+}
+
+function scannerCaptureSourceRect(video: HTMLVideoElement, guide: HTMLElement | null) {
+  const fallback = { x: 0, y: 0, width: video.videoWidth, height: video.videoHeight }
+  const container = video.parentElement
+  if (!container || !guide || !video.videoWidth || !video.videoHeight) return fallback
+
+  const containerRect = container.getBoundingClientRect()
+  const guideRect = guide.getBoundingClientRect()
+  if (!containerRect.width || !containerRect.height || !guideRect.width || !guideRect.height) return fallback
+
+  const objectCoverScale = Math.max(
+    containerRect.width / video.videoWidth,
+    containerRect.height / video.videoHeight,
+  )
+  if (!Number.isFinite(objectCoverScale) || objectCoverScale <= 0) return fallback
+
+  const renderedWidth = video.videoWidth * objectCoverScale
+  const renderedHeight = video.videoHeight * objectCoverScale
+  const renderedLeft = (containerRect.width - renderedWidth) / 2
+  const renderedTop = (containerRect.height - renderedHeight) / 2
+
+  const guideLeft = guideRect.left - containerRect.left
+  const guideTop = guideRect.top - containerRect.top
+  const x = Math.max(0, (guideLeft - renderedLeft) / objectCoverScale)
+  const y = Math.max(0, (guideTop - renderedTop) / objectCoverScale)
+  const right = Math.min(video.videoWidth, (guideLeft + guideRect.width - renderedLeft) / objectCoverScale)
+  const bottom = Math.min(
+    video.videoHeight,
+    (guideTop + guideRect.height - renderedTop) / objectCoverScale,
+  )
+  const width = right - x
+  const height = bottom - y
+
+  if (width <= 0 || height <= 0) return fallback
+  return { x, y, width, height }
 }
 
 function cameraErrorMessage(error: unknown) {

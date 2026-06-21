@@ -397,6 +397,10 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
       resolve(&CatalogResolvers.scan_review_count/3)
     end
 
+    field :total_price_text, :string do
+      resolve(&CatalogResolvers.scan_session_total_price_text/3)
+    end
+
     field :created_at, :string
   end
 
@@ -408,6 +412,15 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :condition, non_null(:string)
     field :language, non_null(:string)
     field :finish, non_null(:string)
+
+    field :price_text, :string do
+      resolve(&CatalogResolvers.scan_item_price_text/3)
+    end
+
+    field :total_price_text, :string do
+      resolve(&CatalogResolvers.scan_item_total_price_text/3)
+    end
+
     field :accepted_printing_id, :id
     field :accepted_printing, :printing
     field :location, :location

@@ -21,6 +21,15 @@ from rapidocr.utils.log import logger
 from rapidocr.utils.typings import EngineType
 
 logger.disabled = True
+try:
+    from image_hash import (
+        card_box as detected_card_box,
+        refine_card_box_for_content as refine_detected_card_box,
+    )
+except Exception:
+    detected_card_box = None
+    refine_detected_card_box = None
+
 
 CARD_ASPECT_RATIO = 2.5 / 3.5
 ENGINE_ENV = "MANAVAULT_OCR_ENGINE"
@@ -172,16 +181,35 @@ def estimated_card_box(width, height):
     return (left, top, left + card_width, top + card_height)
 
 
+def title_card_box(image):
+    if detected_card_box is not None:
+        try:
+            gray = image.convert("L")
+            box = detected_card_box(gray)
+
+            if refine_detected_card_box is not None:
+                return refine_detected_card_box(gray, box)
+
+            return box
+        except Exception:
+            pass
+
+    width, height = image.size
+    return estimated_card_box(width, height)
+
+
 def title_crop(image_path):
     image = Image.open(image_path)
     image = ImageOps.exif_transpose(image).convert("RGB")
     width, height = image.size
-    card_left, card_top, card_right, card_bottom = estimated_card_box(width, height)
+    card_left, card_top, card_right, card_bottom = title_card_box(image)
     card_width = card_right - card_left
     card_height = card_bottom - card_top
 
+    title_top = max(0, card_top - card_height * 0.035)
+
     left = int(card_left + card_width * 0.055)
-    top = int(card_top + card_height * 0.045)
+    top = int(title_top)
     right = int(card_left + card_width * 0.945)
     bottom = int(card_top + card_height * 0.17)
 
@@ -192,7 +220,7 @@ def title_crop(image_path):
 
     title = image.crop((left, top, right, bottom))
     footer = image.crop((footer_left, footer_top, footer_right, footer_bottom))
-    target_width = parse_int_env("MANAVAULT_OCR_TITLE_WIDTH") or 640
+    target_width = parse_int_env("MANAVAULT_OCR_TITLE_WIDTH") or 192
     if target_width <= 0:
         target_width = max(title.width, footer.width)
 

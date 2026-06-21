@@ -4,7 +4,16 @@ defmodule Manavault.Catalog.OCRBenchmark do
   import Ecto.Query
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.{ImageMatcher, Printing, ScanItem, ScanRecognition}
+
+  alias Manavault.Catalog.{
+    ArtIndex,
+    ArtMatcher,
+    ImageMatcher,
+    Printing,
+    ScanItem,
+    ScanRecognition
+  }
+
   alias Manavault.Repo
 
   @fixtures_dir Path.join([File.cwd!(), "test", "fixtures", "ocr", "scryfall_random"])
@@ -36,6 +45,7 @@ defmodule Manavault.Catalog.OCRBenchmark do
     Logger.configure(level: :warning)
     max_failures = Keyword.get(opts, :max_failures, :infinity)
     limit = Keyword.get(opts, :limit, :all)
+    skip = Keyword.get(opts, :skip, 0)
 
     image_match? =
       Keyword.get(opts, :image_match, Application.get_env(:manavault, :scan_image_matching, true))
@@ -54,6 +64,13 @@ defmodule Manavault.Catalog.OCRBenchmark do
         Application.get_env(:manavault, :scan_full_ocr_fallback, true)
       )
 
+    art_first? =
+      Keyword.get(opts, :art_first, Application.get_env(:manavault, :scan_art_first, true))
+
+    fast_title_only? = Keyword.get(opts, :fast_title_only, false)
+    indexed_art? = Keyword.get(opts, :indexed_art, false)
+    synthetic_camera? = Keyword.get(opts, :synthetic_camera, false)
+
     cards = load_manifest()
 
     if cards == [] do
@@ -61,16 +78,24 @@ defmodule Manavault.Catalog.OCRBenchmark do
     else
       Catalog.import_cards(Enum.map(cards, & &1["card"]))
 
-      benchmark_cards = limit_cards(cards, limit)
-      image_matcher = benchmark_image_matcher(benchmark_cards, image_match?)
+      benchmark_cards = limit_cards(cards, limit, skip)
+      image_matcher = benchmark_image_matcher(benchmark_cards, image_match?, indexed_art?)
+      warm_art_matching(benchmark_cards, indexed_art?, art_first?, synthetic_camera?)
 
       results =
-        without_runtime_image_matching(fn ->
-          Enum.map(
-            benchmark_cards,
-            &recognize_fixture(&1, image_matcher, title_fast_path?, full_ocr_fallback?)
+        Enum.map(
+          benchmark_cards,
+          &recognize_fixture(
+            &1,
+            image_matcher,
+            indexed_art?,
+            art_first?,
+            title_fast_path?,
+            full_ocr_fallback?,
+            fast_title_only?,
+            synthetic_camera?
           )
-        end)
+        )
 
       failures = Enum.reject(results, & &1.correct?)
 
@@ -93,8 +118,10 @@ defmodule Manavault.Catalog.OCRBenchmark do
     end
   end
 
-  defp limit_cards(cards, :all), do: cards
-  defp limit_cards(cards, limit) when is_integer(limit), do: Enum.take(cards, limit)
+  defp limit_cards(cards, :all, skip), do: Enum.drop(cards, max(skip, 0))
+
+  defp limit_cards(cards, limit, skip) when is_integer(limit),
+    do: cards |> Enum.drop(max(skip, 0)) |> Enum.take(limit)
 
   defp summarize_timings(results) do
     timing_keys = [
@@ -112,6 +139,9 @@ defmodule Manavault.Catalog.OCRBenchmark do
       values = results |> Enum.map(&get_in(&1, [:timings, key])) |> Enum.reject(&is_nil/1)
       {key, average(values)}
     end)
+    |> Map.put(:max_total_us, max_timing(results, :total_us))
+    |> Map.put(:max_image_us, max_timing(results, :image_us))
+    |> Map.put(:max_match_us, max_timing(results, :match_us))
     |> Map.put(
       :title_fast_path_count,
       Enum.count(results, &(get_in(&1, [:timings, :title_ocr_fast_path]) == true))
@@ -120,14 +150,34 @@ defmodule Manavault.Catalog.OCRBenchmark do
       :title_fallback_count,
       Enum.count(results, &(get_in(&1, [:timings, :title_ocr_fast_path]) == false))
     )
+    |> Map.put(
+      :art_first_count,
+      Enum.count(results, &(get_in(&1, [:timings, :art_first]) == true))
+    )
+    |> Map.put(
+      :art_first_accepted_count,
+      Enum.count(results, &(get_in(&1, [:timings, :art_first_accepted]) == true))
+    )
   end
 
   defp average([]), do: nil
   defp average(values), do: Enum.sum(values) / length(values)
 
-  defp benchmark_image_matcher(_cards, false), do: nil
+  defp max_timing(results, key) do
+    results
+    |> Enum.map(&get_in(&1, [:timings, key]))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.max(fn -> nil end)
+  end
 
-  defp benchmark_image_matcher(cards, true) do
+  defp benchmark_image_matcher(cards, _image_match?, true) do
+    {:ok, _summary} = ArtIndex.import_fixture_hashes(cards, @fixtures_dir)
+    nil
+  end
+
+  defp benchmark_image_matcher(_cards, false, false), do: nil
+
+  defp benchmark_image_matcher(cards, true, false) do
     references = ImageMatcher.build_references(cards)
 
     fn image_path ->
@@ -135,39 +185,42 @@ defmodule Manavault.Catalog.OCRBenchmark do
     end
   end
 
-  defp without_runtime_image_matching(fun) do
-    previous = Application.fetch_env(:manavault, :scan_image_matching)
-    Application.put_env(:manavault, :scan_image_matching, false)
+  defp warm_art_matching([fixture | _rest], true, true, synthetic_camera?) do
+    ArtMatcher.index_status()
 
-    try do
-      fun.()
-    after
-      restore_scan_image_matching(previous)
-    end
+    fixture
+    |> benchmark_image_path(synthetic_camera?)
+    |> ArtMatcher.match(allow_partial_index: true)
+
+    :ok
   end
 
-  defp restore_scan_image_matching({:ok, value}) do
-    Application.put_env(:manavault, :scan_image_matching, value)
-  end
-
-  defp restore_scan_image_matching(:error) do
-    Application.delete_env(:manavault, :scan_image_matching)
-  end
+  defp warm_art_matching(_cards, _indexed_art?, _art_first?, _synthetic_camera?), do: :ok
 
   defp recognize_fixture(
-         %{"image_path" => image_path, "card" => card} = fixture,
+         %{"card" => card} = fixture,
          image_matcher,
+         indexed_art?,
+         art_first?,
          title_fast_path?,
-         full_ocr_fallback?
+         full_ocr_fallback?,
+         fast_title_only?,
+         synthetic_camera?
        ) do
     expected_name = card["name"]
     expected_printing_id = card["id"]
+    image_path = benchmark_image_path(fixture, synthetic_camera?)
 
     opts =
       [
         max_candidates: 5,
         title_ocr_fast_path: title_fast_path?,
-        full_ocr_fallback: full_ocr_fallback?
+        full_ocr_fallback: full_ocr_fallback?,
+        fast_title_only: fast_title_only?,
+        skip_image_matching: fast_title_only? and not art_first?,
+        art_first: art_first?,
+        allow_partial_art_index: indexed_art?,
+        skip_candidate_image_matching: true
       ]
       |> maybe_put_image_matcher(image_matcher)
 
@@ -222,6 +275,31 @@ defmodule Manavault.Catalog.OCRBenchmark do
         }
     end
   end
+
+  defp benchmark_image_path(%{"image_path" => image_path}, false), do: image_path
+
+  defp benchmark_image_path(%{"image_path" => image_path, "card" => %{"id" => scryfall_id}}, true) do
+    output_path =
+      Path.join([
+        System.tmp_dir!(),
+        "manavault-scanner-benchmark",
+        "#{Path.basename(image_path, Path.extname(image_path))}-camera.jpg"
+      ])
+
+    case System.cmd(
+           rapidocr_python_path(),
+           [camera_fixture_script_path(), image_path, output_path, scryfall_id],
+           stderr_to_stdout: true
+         ) do
+      {_output, 0} ->
+        output_path
+
+      {output, status} ->
+        raise "synthetic camera fixture exited with #{status}: #{String.trim(output)}"
+    end
+  end
+
+  defp benchmark_image_path(%{"image_path" => image_path}, true), do: image_path
 
   defp maybe_put_image_matcher(opts, nil), do: opts
 
@@ -416,6 +494,18 @@ defmodule Manavault.Catalog.OCRBenchmark do
   end
 
   defp portable_fixture(fixture), do: fixture
+
+  defp rapidocr_python_path do
+    Application.get_env(
+      :manavault,
+      :rapidocr_python,
+      Path.expand(".venv/bin/python", File.cwd!())
+    )
+  end
+
+  defp camera_fixture_script_path do
+    Application.app_dir(:manavault, "priv/scanner_camera_fixture.py")
+  end
 
   defp slug(value) do
     value

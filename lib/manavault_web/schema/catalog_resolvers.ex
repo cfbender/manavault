@@ -11,6 +11,7 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     Location,
     Price,
     Printing,
+    ScanItem,
     ScanSession
   }
 
@@ -465,6 +466,18 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
   def scan_session_items(%ScanSession{} = session, _args, _resolution) do
     {:ok, session |> scan_items() |> Enum.sort_by(& &1.id, :desc)}
+  end
+
+  def scan_session_total_price_text(%ScanSession{} = session, _args, _resolution) do
+    {:ok, session |> scan_items() |> Price.scan_items_total_cents() |> Price.format_cents()}
+  end
+
+  def scan_item_price_text(%ScanItem{} = item, _args, _resolution) do
+    {:ok, Price.text_for_scan_item(item)}
+  end
+
+  def scan_item_total_price_text(%ScanItem{} = item, _args, _resolution) do
+    {:ok, Price.total_text_for_scan_item(item)}
   end
 
   def printing_image_url(%Printing{} = printing, _args, _resolution) do

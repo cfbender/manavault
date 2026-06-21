@@ -10,9 +10,14 @@ defmodule Mix.Tasks.Manavault.Ocr.Benchmark do
   @switches [
     max_failures: :integer,
     limit: :integer,
+    skip: :integer,
     image_match: :boolean,
     title_fast_path: :boolean,
-    full_ocr_fallback: :boolean
+    full_ocr_fallback: :boolean,
+    art_first: :boolean,
+    indexed_art: :boolean,
+    synthetic_camera: :boolean,
+    fast_title_only: :boolean
   ]
 
   @shortdoc "Runs OCR benchmark fixtures"
@@ -46,13 +51,25 @@ defmodule Mix.Tasks.Manavault.Ocr.Benchmark do
     opts
     |> Keyword.put_new(:max_failures, 20)
     |> Keyword.put_new(:limit, :all)
+    |> Keyword.put_new(:skip, 0)
     |> Keyword.put_new(:image_match, image_match_from_env())
+    |> Keyword.put_new(:art_first, art_first_from_env())
+    |> Keyword.put_new(:indexed_art, false)
+    |> Keyword.put_new(:synthetic_camera, false)
     |> Keyword.put_new(:title_fast_path, title_fast_path_from_env())
     |> Keyword.put_new(:full_ocr_fallback, full_ocr_fallback_from_env())
+    |> Keyword.put_new(:fast_title_only, false)
   end
 
   defp image_match_from_env do
     case System.get_env("SCAN_IMAGE_MATCHING") do
+      nil -> true
+      value -> value |> String.downcase() |> then(&(&1 not in ["0", "false", "no", "off"]))
+    end
+  end
+
+  defp art_first_from_env do
+    case System.get_env("SCAN_ART_FIRST") do
       nil -> true
       value -> value |> String.downcase() |> then(&(&1 not in ["0", "false", "no", "off"]))
     end
@@ -74,7 +91,7 @@ defmodule Mix.Tasks.Manavault.Ocr.Benchmark do
 
   defp print_timings(timings) do
     Mix.shell().info(
-      "Timing avg: total=#{format_ms(timings.total_us)} ocr=#{format_ms(timings.ocr_us)} title=#{format_ms(timings[:title_ocr_us])} full=#{format_ms(timings[:full_ocr_us])} parse=#{format_ms(timings.parse_us)} image=#{format_ms(timings[:image_us])} match=#{format_ms(timings.match_us)} title_fast=#{timings[:title_fast_path_count]} title_fallback=#{timings[:title_fallback_count]}"
+      "Timing avg: total=#{format_ms(timings.total_us)} ocr=#{format_ms(timings.ocr_us)} title=#{format_ms(timings[:title_ocr_us])} full=#{format_ms(timings[:full_ocr_us])} parse=#{format_ms(timings.parse_us)} image=#{format_ms(timings[:image_us])} match=#{format_ms(timings.match_us)} max_total=#{format_ms(timings[:max_total_us])} max_image=#{format_ms(timings[:max_image_us])} max_match=#{format_ms(timings[:max_match_us])} art_first=#{timings[:art_first_count]} art_accepted=#{timings[:art_first_accepted_count]} title_fast=#{timings[:title_fast_path_count]} title_fallback=#{timings[:title_fallback_count]}"
     )
   end
 

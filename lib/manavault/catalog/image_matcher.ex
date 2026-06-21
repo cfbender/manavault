@@ -10,6 +10,8 @@ defmodule Manavault.Catalog.ImageMatcher do
   import Bitwise
   require Logger
 
+  alias Manavault.Catalog.ImageHashDaemon
+
   @default_limit 5
   @default_threshold 0.82
 
@@ -22,17 +24,23 @@ defmodule Manavault.Catalog.ImageMatcher do
     |> hash_references(crop)
   end
 
+  def hash_paths(paths, opts \\ []) when is_list(paths) do
+    crop = Keyword.get(opts, :crop, "art")
+    hash_paths_for_crop(paths, crop)
+  end
+
   def match(image_path, references, opts \\ [])
       when is_binary(image_path) and is_list(references) do
     limit = Keyword.get(opts, :limit, @default_limit)
     threshold = Keyword.get(opts, :threshold, @default_threshold)
     crop = Keyword.get(opts, :crop, "art")
 
-    with {:ok, %{^image_path => query_hash}} <- hash_paths([image_path], crop) do
+    with {:ok, %{^image_path => query_hash}} <- hash_paths_for_crop([image_path], crop) do
       references
       |> Enum.map(&score_reference(&1, query_hash))
       |> Enum.filter(&(&1.score >= threshold))
       |> Enum.sort_by(&{-&1.score, &1.scryfall_id})
+      |> add_match_context()
       |> Enum.take(limit)
     else
       {:ok, _hashes} ->
@@ -69,7 +77,7 @@ defmodule Manavault.Catalog.ImageMatcher do
   defp hash_references(references, crop) do
     paths = Enum.map(references, & &1.path)
 
-    case hash_paths(paths, crop) do
+    case hash_paths_for_crop(paths, crop) do
       {:ok, hashes} ->
         references
         |> Enum.map(fn reference ->
@@ -86,6 +94,21 @@ defmodule Manavault.Catalog.ImageMatcher do
     end
   end
 
+  defp add_match_context([]), do: []
+
+  defp add_match_context(matches) do
+    next_scores = Enum.map(tl(matches), & &1.score) ++ [0.0]
+
+    matches
+    |> Enum.zip(next_scores)
+    |> Enum.with_index(1)
+    |> Enum.map(fn {{match, second_score}, rank} ->
+      match
+      |> Map.put(:rank, rank)
+      |> Map.put(:margin, match.score - second_score)
+    end)
+  end
+
   defp score_reference(reference, query_hash) do
     %{
       scryfall_id: reference.scryfall_id,
@@ -96,9 +119,16 @@ defmodule Manavault.Catalog.ImageMatcher do
     }
   end
 
-  defp hash_paths([], _crop), do: {:ok, %{}}
+  defp hash_paths_for_crop([], _crop), do: {:ok, %{}}
 
-  defp hash_paths(paths, crop) do
+  defp hash_paths_for_crop(paths, crop) do
+    case ImageHashDaemon.hash_paths(paths, crop: crop) do
+      {:ok, hashes} -> {:ok, hashes}
+      {:error, _reason} -> shell_hash_paths(paths, crop)
+    end
+  end
+
+  defp shell_hash_paths(paths, crop) do
     case System.cmd(rapidocr_python_path(), [hash_script_path(), crop | paths],
            stderr_to_stdout: true
          ) do

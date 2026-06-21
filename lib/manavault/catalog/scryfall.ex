@@ -3,7 +3,17 @@ defmodule Manavault.Catalog.Scryfall do
 
   import Ecto.Query
 
-  alias Manavault.Catalog.{Card, Printing, Search, Sync}
+  alias Manavault.Catalog.{
+    ArtIndexWorker,
+    ArtMatcher,
+    Card,
+    Printing,
+    RuntimeImageMatcher,
+    ScanRecognition,
+    Search,
+    Sync
+  }
+
   alias Manavault.Repo
 
   @bulk_metadata_url "https://api.scryfall.com/bulk-data/default-cards"
@@ -82,6 +92,8 @@ defmodule Manavault.Catalog.Scryfall do
                  :set_name,
                  :collector_number,
                  :lang,
+                 :flavor_name,
+                 :flavor_text,
                  :rarity,
                  :finishes,
                  :image_uris,
@@ -98,7 +110,13 @@ defmodule Manavault.Catalog.Scryfall do
         timeout: :infinity
       )
 
-    if match?({:ok, _counts}, result), do: Search.clear_card_name_suggestion_cache()
+    if match?({:ok, _counts}, result) do
+      Search.clear_card_name_suggestion_cache()
+      ScanRecognition.clear_candidate_index_cache()
+      ArtMatcher.clear_cache()
+      RuntimeImageMatcher.clear_cache()
+      ArtIndexWorker.rebuild_async(reason: :catalog_import)
+    end
 
     result
   end
@@ -129,7 +147,7 @@ defmodule Manavault.Catalog.Scryfall do
     rows
     |> Enum.chunk_every(@batch_size)
     |> Enum.each(fn batch ->
-      values = Enum.map_join(batch, ",", fn _ -> "(?, ?, ?, ?, ?, ?, ?, ?)" end)
+      values = Enum.map_join(batch, ",", fn _ -> "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" end)
 
       params =
         Enum.flat_map(batch, fn row ->
@@ -137,6 +155,10 @@ defmodule Manavault.Catalog.Scryfall do
             row.scryfall_id,
             row.name,
             row.compact_name,
+            row.flavor_name,
+            row.compact_flavor_name,
+            row.flavor_text,
+            row.compact_flavor_text,
             row.type_line,
             row.oracle_text,
             row.compact_oracle_text,
@@ -151,6 +173,10 @@ defmodule Manavault.Catalog.Scryfall do
           scryfall_id,
           name,
           compact_name,
+          flavor_name,
+          compact_flavor_name,
+          flavor_text,
+          compact_flavor_text,
           type_line,
           oracle_text,
           compact_oracle_text,
@@ -194,6 +220,8 @@ defmodule Manavault.Catalog.Scryfall do
         set_code: String.downcase(card["set"] || ""),
         set_name: card["set_name"],
         collector_number: card["collector_number"] || "",
+        flavor_name: flavor_name(card),
+        flavor_text: flavor_text(card),
         lang: card["lang"] || "en",
         rarity: card["rarity"],
         finishes: encode_json(card["finishes"] || []),
@@ -217,6 +245,10 @@ defmodule Manavault.Catalog.Scryfall do
         scryfall_id: scryfall_id,
         name: normalize_search_text(name),
         compact_name: compact_search_text(name),
+        flavor_name: normalize_search_text(flavor_name(card) || ""),
+        compact_flavor_name: compact_search_text(flavor_name(card) || ""),
+        flavor_text: normalize_search_text(flavor_text(card) || ""),
+        compact_flavor_text: compact_search_text(flavor_text(card) || ""),
         type_line: normalize_search_text(card["type_line"] || ""),
         oracle_text: normalize_search_text(oracle_text),
         compact_oracle_text: compact_search_text(oracle_text),
@@ -240,6 +272,28 @@ defmodule Manavault.Catalog.Scryfall do
     |> String.downcase()
     |> String.replace(~r/[^a-z0-9]+/u, "")
   end
+
+  defp flavor_name(%{"flavor_name" => name}) when is_binary(name), do: name
+
+  defp flavor_name(%{"card_faces" => faces}) when is_list(faces) do
+    faces
+    |> Enum.map(&Map.get(&1, "flavor_name"))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join("\n---\n")
+  end
+
+  defp flavor_name(_card), do: nil
+
+  defp flavor_text(%{"flavor_text" => text}) when is_binary(text), do: text
+
+  defp flavor_text(%{"card_faces" => faces}) when is_list(faces) do
+    faces
+    |> Enum.map(&Map.get(&1, "flavor_text"))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join("\n---\n")
+  end
+
+  defp flavor_text(_card), do: nil
 
   defp oracle_text(%{"oracle_text" => text}) when is_binary(text), do: text
 

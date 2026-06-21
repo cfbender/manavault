@@ -4,6 +4,9 @@ defmodule Manavault.CatalogTest do
   alias Manavault.Catalog
 
   alias Manavault.Catalog.{
+    ArtIndex,
+    ArtMatcher,
+    ArtIndexWorker,
     Card,
     CollectionItem,
     Deck,
@@ -1442,6 +1445,40 @@ defmodule Manavault.CatalogTest do
              Catalog.scan_session_items_by_review_state(loaded)
   end
 
+  test "scan session capture summary returns recent items and full counts" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Fast scans"})
+
+    assert {:ok, first_item} =
+             Catalog.create_scan_item(scan_session, %{
+               image_path: "/tmp/scan-1.jpg",
+               status: "recognized",
+               accepted_printing_id: "scryfall-printing-1",
+               quantity: 2
+             })
+
+    assert {:ok, second_item} =
+             Catalog.create_scan_item(scan_session, %{
+               image_path: "/tmp/scan-2.jpg",
+               status: "needs_review",
+               accepted_printing_id: "scryfall-printing-2",
+               finish: "foil"
+             })
+
+    summary = Catalog.get_scan_session_capture_summary!(scan_session.id, recent_limit: 1)
+
+    assert summary.id == scan_session.id
+    assert summary.item_count == 2
+    assert summary.review_count == 1
+    assert summary.total_price_text == "$200k"
+    assert [recent_item] = summary.scan_items
+    assert recent_item.id == second_item.id
+    assert recent_item.accepted_printing.card.name == "Time Walk"
+    refute recent_item.id == first_item.id
+  end
+
   test "create_scan_item_from_capture stores a captured image under the configured upload directory" do
     upload_dir =
       Path.join(System.tmp_dir!(), "manavault-captures-#{System.unique_integer([:positive])}")
@@ -1519,6 +1556,470 @@ defmodule Manavault.CatalogTest do
     assert item.accepted_printing_id == "scryfall-printing-1"
     assert [loaded_item] = Catalog.get_scan_session!(scan_session.id).scan_items
     assert loaded_item.id == item.id
+  end
+
+  test "create_recognized_scan_item_from_capture skips persistence for duplicate oracle ids" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    upload_dir =
+      Path.join(
+        System.tmp_dir!(),
+        "manavault-duplicate-captures-#{System.unique_integer([:positive])}"
+      )
+
+    previous_dir = Application.get_env(:manavault, :capture_upload_dir)
+    Application.put_env(:manavault, :capture_upload_dir, upload_dir)
+
+    on_exit(fn ->
+      if previous_dir do
+        Application.put_env(:manavault, :capture_upload_dir, previous_dir)
+      else
+        Application.delete_env(:manavault, :capture_upload_dir)
+      end
+
+      File.rm_rf!(upload_dir)
+    end)
+
+    assert {:ok, scan_session} =
+             Catalog.create_scan_session(%{"name" => "Duplicate camera batch"})
+
+    assert {:duplicate, recognition} =
+             Catalog.create_recognized_scan_item_from_capture(
+               scan_session,
+               "data:image/png;base64,#{Base.encode64("fake image bytes")}",
+               ocr_runner: fn _path -> {:ok, "Black Lotus"} end,
+               duplicate_oracle_id: "oracle-1"
+             )
+
+    assert [%{printing: %{scryfall_id: "scryfall-printing-1"}} | _] = recognition.candidates
+    assert Catalog.get_scan_session!(scan_session.id).scan_items == []
+    assert File.ls!(Path.join(upload_dir, "scan_sessions/#{scan_session.id}")) == []
+  end
+
+  test "create_recognized_scan_item_from_capture uses title OCR only before responding" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    upload_dir =
+      Path.join(
+        System.tmp_dir!(),
+        "manavault-fast-recognized-captures-#{System.unique_integer([:positive])}"
+      )
+
+    previous_dir = Application.get_env(:manavault, :capture_upload_dir)
+    Application.put_env(:manavault, :capture_upload_dir, upload_dir)
+
+    on_exit(fn ->
+      if previous_dir do
+        Application.put_env(:manavault, :capture_upload_dir, previous_dir)
+      else
+        Application.delete_env(:manavault, :capture_upload_dir)
+      end
+
+      File.rm_rf!(upload_dir)
+    end)
+
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Fast camera batch"})
+
+    parent = self()
+
+    ocr_runner = fn _path, opts ->
+      crop = Keyword.get(opts, :ocr_crop, :full)
+      send(parent, {:ocr_crop, crop})
+
+      case crop do
+        :title -> {:ok, "Black Lotus"}
+        :full -> flunk("capture should not run full OCR before responding")
+      end
+    end
+
+    assert {:ok, item} =
+             Catalog.create_recognized_scan_item_from_capture(
+               scan_session,
+               "data:image/png;base64,#{Base.encode64("fake image bytes")}",
+               ocr_runner: ocr_runner,
+               image_matcher: fn _path, _printings ->
+                 flunk("capture should not run synchronous image matching")
+               end
+             )
+
+    assert item.accepted_printing_id == "scryfall-printing-1"
+    assert_received {:ocr_crop, :title}
+    refute_received {:ocr_crop, :full}
+  end
+
+  test "create_recognized_scan_item_from_capture emits scanner timing spans" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    upload_dir =
+      Path.join(
+        System.tmp_dir!(),
+        "manavault-telemetry-captures-#{System.unique_integer([:positive])}"
+      )
+
+    previous_dir = Application.get_env(:manavault, :capture_upload_dir)
+    Application.put_env(:manavault, :capture_upload_dir, upload_dir)
+
+    parent = self()
+    handler_id = {__MODULE__, self(), :scanner_timing}
+
+    events = [
+      [:manavault, :scanner, :capture, :stop],
+      [:manavault, :scanner, :capture_write, :stop],
+      [:manavault, :scanner, :recognition, :stop],
+      [:manavault, :scanner, :ocr, :stop],
+      [:manavault, :scanner, :candidate_match, :stop],
+      [:manavault, :scanner, :persist, :stop]
+    ]
+
+    :ok =
+      :telemetry.attach_many(
+        handler_id,
+        events,
+        fn event, measurements, metadata, pid ->
+          send(pid, {:scanner_timing, event, measurements, metadata})
+        end,
+        parent
+      )
+
+    on_exit(fn ->
+      :telemetry.detach(handler_id)
+
+      if previous_dir do
+        Application.put_env(:manavault, :capture_upload_dir, previous_dir)
+      else
+        Application.delete_env(:manavault, :capture_upload_dir)
+      end
+
+      File.rm_rf!(upload_dir)
+    end)
+
+    assert {:ok, scan_session} =
+             Catalog.create_scan_session(%{"name" => "Telemetry camera batch"})
+
+    assert {:ok, item} =
+             Catalog.create_recognized_scan_item_from_capture(
+               scan_session,
+               "data:image/png;base64,#{Base.encode64("fake image bytes")}",
+               ocr_runner: fn _path, _opts -> {:ok, "Black Lotus"} end
+             )
+
+    assert item.accepted_printing_id == "scryfall-printing-1"
+
+    assert_receive {:scanner_timing, [:manavault, :scanner, :capture, :stop],
+                    capture_measurements, capture_metadata}
+
+    assert capture_measurements.duration > 0
+    assert capture_metadata.outcome == :ok
+    assert capture_metadata.scan_session_id == scan_session.id
+    assert capture_metadata.scan_item_id == item.id
+    assert capture_metadata.accepted_printing_id == "scryfall-printing-1"
+
+    assert_receive {:scanner_timing, [:manavault, :scanner, :capture_write, :stop],
+                    write_measurements, write_metadata}
+
+    assert write_measurements.duration > 0
+    assert write_metadata.outcome == :ok
+    assert write_metadata.scan_session_id == scan_session.id
+    assert String.ends_with?(write_metadata.image_path, ".png")
+
+    assert_receive {:scanner_timing, [:manavault, :scanner, :recognition, :stop],
+                    recognition_measurements, recognition_metadata}
+
+    assert recognition_measurements.duration > 0
+    assert recognition_metadata.mode == :title_ocr
+    assert recognition_metadata.outcome == :ok
+    assert recognition_metadata.candidate_count >= 1
+    assert recognition_metadata.card_name == "Black Lotus"
+
+    assert_receive {:scanner_timing, [:manavault, :scanner, :ocr, :stop], ocr_measurements,
+                    ocr_metadata}
+
+    assert ocr_measurements.duration > 0
+    assert ocr_metadata.ocr_crop == :title
+    assert ocr_metadata.outcome == :ok
+    assert ocr_metadata.text_bytes > 0
+
+    assert_receive {:scanner_timing, [:manavault, :scanner, :candidate_match, :stop],
+                    candidate_measurements, candidate_metadata}
+
+    assert candidate_measurements.duration > 0
+    assert candidate_metadata.outcome == :ok
+    assert candidate_metadata.candidate_count >= 1
+
+    assert_receive {:scanner_timing, [:manavault, :scanner, :persist, :stop],
+                    persist_measurements, persist_metadata}
+
+    assert persist_measurements.duration > 0
+    assert persist_metadata.outcome == :ok
+    assert persist_metadata.scan_item_id == item.id
+  end
+
+  test "create_recognized_scan_item_from_capture verifies OCR fallback with candidate image matching" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    upload_dir =
+      Path.join(
+        System.tmp_dir!(),
+        "manavault-art-gated-rejected-captures-#{System.unique_integer([:positive])}"
+      )
+
+    previous_dir = Application.get_env(:manavault, :capture_upload_dir)
+    previous_image_matching = Application.get_env(:manavault, :scan_image_matching)
+    previous_require_art = Application.get_env(:manavault, :scan_capture_requires_art_match)
+    previous_image_matcher = Application.get_env(:manavault, :scan_image_matcher)
+
+    Application.put_env(:manavault, :capture_upload_dir, upload_dir)
+    Application.put_env(:manavault, :scan_image_matching, true)
+    Application.put_env(:manavault, :scan_capture_requires_art_match, true)
+
+    on_exit(fn ->
+      if previous_dir do
+        Application.put_env(:manavault, :capture_upload_dir, previous_dir)
+      else
+        Application.delete_env(:manavault, :capture_upload_dir)
+      end
+
+      if is_nil(previous_image_matching) do
+        Application.delete_env(:manavault, :scan_image_matching)
+      else
+        Application.put_env(:manavault, :scan_image_matching, previous_image_matching)
+      end
+
+      if is_nil(previous_require_art) do
+        Application.delete_env(:manavault, :scan_capture_requires_art_match)
+      else
+        Application.put_env(:manavault, :scan_capture_requires_art_match, previous_require_art)
+      end
+
+      if is_nil(previous_image_matcher) do
+        Application.delete_env(:manavault, :scan_image_matcher)
+      else
+        Application.put_env(:manavault, :scan_image_matcher, previous_image_matcher)
+      end
+
+      File.rm_rf!(upload_dir)
+    end)
+
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Art gated miss"})
+    parent = self()
+
+    Application.put_env(:manavault, :scan_image_matcher, fn _path, _printings ->
+      send(parent, :candidate_image_checked)
+      []
+    end)
+
+    assert {:error,
+            "No card match found with image confirmation. Keep the card steady in the frame."} =
+             Catalog.create_recognized_scan_item_from_capture(
+               scan_session,
+               "data:image/png;base64,#{Base.encode64("fake image bytes")}",
+               image_matcher: fn _path ->
+                 send(parent, :art_checked)
+                 []
+               end,
+               ocr_runner: fn _path, opts ->
+                 send(parent, {:ocr_crop, Keyword.get(opts, :ocr_crop)})
+                 {:ok, "Black Lotus"}
+               end
+             )
+
+    assert_received :art_checked
+    assert_received {:ocr_crop, :title}
+    assert_received :candidate_image_checked
+    assert Catalog.get_scan_session!(scan_session.id).scan_items == []
+  end
+
+  test "create_recognized_scan_item_from_capture can OCR after a weak art match" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    upload_dir =
+      Path.join(
+        System.tmp_dir!(),
+        "manavault-art-gated-recognized-captures-#{System.unique_integer([:positive])}"
+      )
+
+    previous_dir = Application.get_env(:manavault, :capture_upload_dir)
+    previous_image_matching = Application.get_env(:manavault, :scan_image_matching)
+    previous_require_art = Application.get_env(:manavault, :scan_capture_requires_art_match)
+
+    Application.put_env(:manavault, :capture_upload_dir, upload_dir)
+    Application.put_env(:manavault, :scan_image_matching, true)
+    Application.put_env(:manavault, :scan_capture_requires_art_match, true)
+
+    on_exit(fn ->
+      if previous_dir do
+        Application.put_env(:manavault, :capture_upload_dir, previous_dir)
+      else
+        Application.delete_env(:manavault, :capture_upload_dir)
+      end
+
+      if is_nil(previous_image_matching) do
+        Application.delete_env(:manavault, :scan_image_matching)
+      else
+        Application.put_env(:manavault, :scan_image_matching, previous_image_matching)
+      end
+
+      if is_nil(previous_require_art) do
+        Application.delete_env(:manavault, :scan_capture_requires_art_match)
+      else
+        Application.put_env(:manavault, :scan_capture_requires_art_match, previous_require_art)
+      end
+
+      File.rm_rf!(upload_dir)
+    end)
+
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Art gated hit"})
+    parent = self()
+
+    assert {:ok, item} =
+             Catalog.create_recognized_scan_item_from_capture(
+               scan_session,
+               "data:image/png;base64,#{Base.encode64("fake image bytes")}",
+               image_matcher: fn _path ->
+                 send(parent, :art_checked)
+                 [%{scryfall_id: "scryfall-printing-1", score: 0.8}]
+               end,
+               ocr_runner: fn _path, opts ->
+                 send(parent, {:ocr_crop, Keyword.get(opts, :ocr_crop)})
+                 {:ok, "Black Lotus"}
+               end
+             )
+
+    assert item.accepted_printing_id == "scryfall-printing-1"
+    assert_received :art_checked
+    assert_received {:ocr_crop, :title}
+  end
+
+  test "async scan image refinement does not run full OCR by default" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    upload_dir =
+      Path.join(
+        System.tmp_dir!(),
+        "manavault-async-image-only-refinement-#{System.unique_integer([:positive])}"
+      )
+
+    previous_dir = Application.get_env(:manavault, :capture_upload_dir)
+    previous_async_refinement = Application.get_env(:manavault, :scan_async_image_refinement)
+    previous_image_matching = Application.get_env(:manavault, :scan_image_matching)
+    previous_require_art = Application.get_env(:manavault, :scan_capture_requires_art_match)
+    previous_image_matcher = Application.get_env(:manavault, :scan_image_matcher)
+
+    Application.put_env(:manavault, :capture_upload_dir, upload_dir)
+    Application.put_env(:manavault, :scan_async_image_refinement, true)
+    Application.put_env(:manavault, :scan_image_matching, true)
+    Application.put_env(:manavault, :scan_capture_requires_art_match, true)
+
+    on_exit(fn ->
+      if previous_dir do
+        Application.put_env(:manavault, :capture_upload_dir, previous_dir)
+      else
+        Application.delete_env(:manavault, :capture_upload_dir)
+      end
+
+      if is_nil(previous_async_refinement) do
+        Application.delete_env(:manavault, :scan_async_image_refinement)
+      else
+        Application.put_env(:manavault, :scan_async_image_refinement, previous_async_refinement)
+      end
+
+      if is_nil(previous_image_matching) do
+        Application.delete_env(:manavault, :scan_image_matching)
+      else
+        Application.put_env(:manavault, :scan_image_matching, previous_image_matching)
+      end
+
+      if is_nil(previous_require_art) do
+        Application.delete_env(:manavault, :scan_capture_requires_art_match)
+      else
+        Application.put_env(:manavault, :scan_capture_requires_art_match, previous_require_art)
+      end
+
+      if is_nil(previous_image_matcher) do
+        Application.delete_env(:manavault, :scan_image_matcher)
+      else
+        Application.put_env(:manavault, :scan_image_matcher, previous_image_matcher)
+      end
+
+      File.rm_rf!(upload_dir)
+    end)
+
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Async image only"})
+    parent = self()
+
+    Application.put_env(:manavault, :scan_image_matcher, fn _path, _printings, _opts ->
+      send(parent, :image_refinement_checked)
+      []
+    end)
+
+    ocr_runner = fn _path, opts ->
+      crop = Keyword.get(opts, :ocr_crop)
+      send(parent, {:ocr_crop, crop})
+      {:ok, "Black Lotus"}
+    end
+
+    assert {:ok, item} =
+             Catalog.create_recognized_scan_item_from_capture(
+               scan_session,
+               "data:image/png;base64,#{Base.encode64("fake image bytes")}",
+               image_matcher: fn _path ->
+                 [%{scryfall_id: "scryfall-printing-1", score: 0.8}]
+               end,
+               ocr_runner: ocr_runner
+             )
+
+    assert item.accepted_printing_id == "scryfall-printing-1"
+    assert_received {:ocr_crop, :title}
+    assert_receive :image_refinement_checked, 1_000
+    refute_received {:ocr_crop, nil}
+  end
+
+  test "create_recognized_scan_item_from_capture does not fall back to full OCR for weak title OCR" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    upload_dir =
+      Path.join(
+        System.tmp_dir!(),
+        "manavault-fast-rejected-captures-#{System.unique_integer([:positive])}"
+      )
+
+    previous_dir = Application.get_env(:manavault, :capture_upload_dir)
+    Application.put_env(:manavault, :capture_upload_dir, upload_dir)
+
+    on_exit(fn ->
+      if previous_dir do
+        Application.put_env(:manavault, :capture_upload_dir, previous_dir)
+      else
+        Application.delete_env(:manavault, :capture_upload_dir)
+      end
+
+      File.rm_rf!(upload_dir)
+    end)
+
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Fast miss batch"})
+
+    parent = self()
+
+    ocr_runner = fn _path, opts ->
+      crop = Keyword.get(opts, :ocr_crop, :full)
+      send(parent, {:ocr_crop, crop})
+
+      case crop do
+        :title -> {:ok, "not a card"}
+        :full -> flunk("capture should not run full OCR fallback")
+      end
+    end
+
+    assert {:error, "No card match found. Keep the card steady in the frame."} =
+             Catalog.create_recognized_scan_item_from_capture(
+               scan_session,
+               "data:image/png;base64,#{Base.encode64("fake image bytes")}",
+               ocr_runner: ocr_runner
+             )
+
+    assert_received {:ocr_crop, :title}
+    refute_received {:ocr_crop, :full}
+    assert Catalog.get_scan_session!(scan_session.id).scan_items == []
   end
 
   test "create_recognized_scan_item_from_capture rejects weak token-only matches" do
@@ -1668,6 +2169,47 @@ defmodule Manavault.CatalogTest do
     assert File.ls!(Path.join(upload_dir, "scan_sessions/#{scan_session.id}")) == []
   end
 
+  test "create_recognized_scan_item_from_capture can keep rejected captures for scanner debugging" do
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Rejected debug batch"})
+
+    upload_dir =
+      Path.join(
+        System.tmp_dir!(),
+        "manavault-kept-rejected-captures-#{System.unique_integer([:positive])}"
+      )
+
+    previous_dir = Application.get_env(:manavault, :capture_upload_dir)
+    previous_keep = Application.get_env(:manavault, :scan_keep_rejected_captures)
+    Application.put_env(:manavault, :capture_upload_dir, upload_dir)
+    Application.put_env(:manavault, :scan_keep_rejected_captures, true)
+
+    on_exit(fn ->
+      if previous_dir do
+        Application.put_env(:manavault, :capture_upload_dir, previous_dir)
+      else
+        Application.delete_env(:manavault, :capture_upload_dir)
+      end
+
+      if is_nil(previous_keep) do
+        Application.delete_env(:manavault, :scan_keep_rejected_captures)
+      else
+        Application.put_env(:manavault, :scan_keep_rejected_captures, previous_keep)
+      end
+
+      File.rm_rf!(upload_dir)
+    end)
+
+    assert {:error, "No card match found. Keep the card steady in the frame."} =
+             Catalog.create_recognized_scan_item_from_capture(
+               scan_session,
+               "data:image/png;base64,#{Base.encode64("fake image bytes")}",
+               ocr_runner: fn _path -> {:ok, "not a card"} end
+             )
+
+    assert Catalog.get_scan_session!(scan_session.id).scan_items == []
+    assert [_kept_capture] = File.ls!(Path.join(upload_dir, "scan_sessions/#{scan_session.id}"))
+  end
+
   test "import_cards populates SQLite OCR search table for normalized and compact text" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
@@ -1697,7 +2239,7 @@ defmodule Manavault.CatalogTest do
     assert ["scryfall-printing-1"] in rows
   end
 
-  test "scan recognition uses SQLite search by default for candidate retrieval" do
+  test "scan recognition uses the in-memory fuzzy catalog for candidate retrieval" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
 
@@ -1710,7 +2252,7 @@ defmodule Manavault.CatalogTest do
     assert confidence > 0.0
   end
 
-  test "scan recognition uses SQLite search without an in-memory index option" do
+  test "scan recognition uses fuzzy catalog retrieval without legacy index options" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
 
@@ -1734,9 +2276,500 @@ defmodule Manavault.CatalogTest do
              )
 
     assert printing.scryfall_id == "scryfall-printing-2"
-    assert_in_delta confidence, 0.7735, 0.0001
-    assert_in_delta evidence.scores.image_match, 0.7735, 0.0001
+    assert_in_delta confidence, 0.819, 0.0001
+    assert_in_delta evidence.scores.image_match, 0.819, 0.0001
     assert evidence.image_match.score == 0.91
+  end
+
+  test "scan recognition accepts confident art-first image matches without OCR" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    previous = Application.get_env(:manavault, :scan_image_matching)
+    Application.put_env(:manavault, :scan_image_matching, true)
+
+    on_exit(fn ->
+      if is_nil(previous) do
+        Application.delete_env(:manavault, :scan_image_matching)
+      else
+        Application.put_env(:manavault, :scan_image_matching, previous)
+      end
+    end)
+
+    parent = self()
+
+    assert {:ok,
+            %{
+              text: "",
+              candidates: [%{printing: printing, confidence: confidence}],
+              timings: %{art_first: true, art_first_accepted: true, ocr_us: nil}
+            }} =
+             ScanRecognition.recognize(%ScanItem{image_path: "/tmp/time-walk.jpg"},
+               image_matcher: fn "/tmp/time-walk.jpg" ->
+                 send(parent, :art_matched)
+                 [%{scryfall_id: "scryfall-printing-2", score: 0.95}]
+               end,
+               ocr_runner: fn _path, _opts -> flunk("confident art match should not run OCR") end
+             )
+
+    assert printing.scryfall_id == "scryfall-printing-2"
+    assert_in_delta confidence, 0.855, 0.0001
+    assert_received :art_matched
+  end
+
+  test "scan recognition rejects art-only matches from an incomplete index" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    previous = Application.get_env(:manavault, :scan_image_matching)
+    Application.put_env(:manavault, :scan_image_matching, true)
+
+    on_exit(fn ->
+      if is_nil(previous) do
+        Application.delete_env(:manavault, :scan_image_matching)
+      else
+        Application.put_env(:manavault, :scan_image_matching, previous)
+      end
+    end)
+
+    parent = self()
+
+    assert {:ok,
+            %{
+              candidates: [],
+              timings: %{
+                art_first: true,
+                art_first_accepted: false,
+                art_first_fallback_reason: "weak_art_match"
+              }
+            }} =
+             ScanRecognition.recognize(%ScanItem{image_path: "/tmp/time-walk.jpg"},
+               image_matches: [
+                 %{
+                   scryfall_id: "scryfall-printing-2",
+                   score: 1.0,
+                   margin: 1.0,
+                   index_complete: false
+                 }
+               ],
+               ocr_runner: fn "/tmp/time-walk.jpg", opts ->
+                 send(parent, {:ocr_crop, Keyword.get(opts, :ocr_crop)})
+                 {:ok, ""}
+               end,
+               full_ocr_fallback: false
+             )
+
+    assert_received {:ocr_crop, :title}
+  end
+
+  test "scan recognition validates weak art fallback with candidate image matching" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    previous_matching = Application.get_env(:manavault, :scan_image_matching)
+    previous_matcher = Application.get_env(:manavault, :scan_image_matcher)
+    Application.put_env(:manavault, :scan_image_matching, true)
+
+    parent = self()
+
+    Application.put_env(
+      :manavault,
+      :scan_image_matcher,
+      fn "/tmp/black-lotus.jpg", printings ->
+        send(parent, {:candidate_image_matched, Enum.map(printings, & &1.scryfall_id)})
+        [%{scryfall_id: "scryfall-printing-1", score: 0.95}]
+      end
+    )
+
+    on_exit(fn ->
+      if is_nil(previous_matching) do
+        Application.delete_env(:manavault, :scan_image_matching)
+      else
+        Application.put_env(:manavault, :scan_image_matching, previous_matching)
+      end
+
+      if is_nil(previous_matcher) do
+        Application.delete_env(:manavault, :scan_image_matcher)
+      else
+        Application.put_env(:manavault, :scan_image_matcher, previous_matcher)
+      end
+    end)
+
+    assert {:ok,
+            %{
+              candidates: [%{printing: printing, evidence: %{image_match: %{score: 0.95}}}],
+              timings: %{
+                art_first: true,
+                art_first_accepted: false,
+                art_first_fallback_reason: "weak_art_match"
+              }
+            }} =
+             ScanRecognition.recognize(%ScanItem{image_path: "/tmp/black-lotus.jpg"},
+               image_matcher: fn "/tmp/black-lotus.jpg" ->
+                 send(parent, :weak_art_matched)
+                 [%{scryfall_id: "scryfall-printing-2", score: 0.72, margin: 0.01}]
+               end,
+               ocr_runner: fn "/tmp/black-lotus.jpg", opts ->
+                 send(parent, {:ocr_crop, Keyword.get(opts, :ocr_crop)})
+                 {:ok, "Lotus"}
+               end,
+               full_ocr_fallback: false,
+               require_art_match: true,
+               ocr_candidate_image_fallback: true
+             )
+
+    assert printing.scryfall_id == "scryfall-printing-1"
+    assert_received :weak_art_matched
+    assert_received {:ocr_crop, :title}
+    assert_received {:candidate_image_matched, candidate_ids}
+    assert "scryfall-printing-1" in candidate_ids
+  end
+
+  test "scan recognition uses art gate instead of candidate image matching for confident title OCR" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    previous_matching = Application.get_env(:manavault, :scan_image_matching)
+    previous_matcher = Application.get_env(:manavault, :scan_image_matcher)
+    Application.put_env(:manavault, :scan_image_matching, true)
+
+    parent = self()
+
+    Application.put_env(
+      :manavault,
+      :scan_image_matcher,
+      fn "/tmp/black-lotus.jpg", printings ->
+        send(parent, {:candidate_image_matched, Enum.map(printings, & &1.scryfall_id)})
+        [%{scryfall_id: "scryfall-printing-1", score: 0.95}]
+      end
+    )
+
+    on_exit(fn ->
+      if is_nil(previous_matching) do
+        Application.delete_env(:manavault, :scan_image_matching)
+      else
+        Application.put_env(:manavault, :scan_image_matching, previous_matching)
+      end
+
+      if is_nil(previous_matcher) do
+        Application.delete_env(:manavault, :scan_image_matcher)
+      else
+        Application.put_env(:manavault, :scan_image_matcher, previous_matcher)
+      end
+    end)
+
+    assert {:ok,
+            %{
+              candidates: [
+                %{printing: printing, evidence: %{image_match: %{source: :art_gate}}} | _
+              ],
+              timings: %{
+                title_ocr_fast_path: true,
+                art_first: true,
+                art_first_accepted: false,
+                art_first_fallback_reason: "weak_art_match"
+              }
+            }} =
+             ScanRecognition.recognize(%ScanItem{image_path: "/tmp/black-lotus.jpg"},
+               image_matcher: fn "/tmp/black-lotus.jpg" ->
+                 send(parent, :weak_art_matched)
+                 [%{scryfall_id: "scryfall-printing-2", score: 0.76, margin: 0.01}]
+               end,
+               ocr_runner: fn "/tmp/black-lotus.jpg", opts ->
+                 send(parent, {:ocr_crop, Keyword.get(opts, :ocr_crop)})
+                 {:ok, "Black Lotus"}
+               end,
+               full_ocr_fallback: false,
+               require_art_match: true,
+               ocr_candidate_image_fallback: true
+             )
+
+    assert printing.scryfall_id == "scryfall-printing-1"
+    assert_received :weak_art_matched
+    assert_received {:ocr_crop, :title}
+    refute_received {:candidate_image_matched, _candidate_ids}
+  end
+
+  test "scan recognition accepts image-confirmed fallback when title OCR is blank" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    previous_matching = Application.get_env(:manavault, :scan_image_matching)
+    previous_matcher = Application.get_env(:manavault, :scan_image_matcher)
+    Application.put_env(:manavault, :scan_image_matching, true)
+
+    Application.put_env(
+      :manavault,
+      :scan_image_matcher,
+      fn "/tmp/black-lotus.jpg", _printings ->
+        [%{scryfall_id: "scryfall-printing-1", score: 0.96, margin: 0.1}]
+      end
+    )
+
+    on_exit(fn ->
+      if is_nil(previous_matching) do
+        Application.delete_env(:manavault, :scan_image_matching)
+      else
+        Application.put_env(:manavault, :scan_image_matching, previous_matching)
+      end
+
+      if is_nil(previous_matcher) do
+        Application.delete_env(:manavault, :scan_image_matcher)
+      else
+        Application.put_env(:manavault, :scan_image_matcher, previous_matcher)
+      end
+    end)
+
+    assert {:ok,
+            %{
+              candidates: [%{printing: printing, evidence: %{image_match: %{score: 0.96}}}],
+              timings: %{
+                art_first: true,
+                art_first_accepted: false,
+                art_first_fallback_reason: "weak_art_match"
+              }
+            }} =
+             ScanRecognition.recognize(%ScanItem{image_path: "/tmp/black-lotus.jpg"},
+               image_matcher: fn "/tmp/black-lotus.jpg" ->
+                 [
+                   %{scryfall_id: "scryfall-printing-1", score: 0.72, margin: 0.01},
+                   %{scryfall_id: "scryfall-printing-2", score: 0.71, margin: 0.01}
+                 ]
+               end,
+               ocr_runner: fn "/tmp/black-lotus.jpg", _opts -> {:ok, ""} end,
+               full_ocr_fallback: false,
+               require_art_match: true,
+               ocr_candidate_image_fallback: true
+             )
+
+    assert printing.scryfall_id == "scryfall-printing-1"
+  end
+
+  test "art matcher refuses partial indexes unless explicitly allowed" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @black_lotus_beta])
+
+    ArtMatcher.upsert_hashes([
+      %{scryfall_id: "scryfall-printing-1", hash: "0000000000000000"}
+    ])
+
+    image_path =
+      Path.join(
+        System.tmp_dir!(),
+        "manavault-art-match-#{System.unique_integer([:positive])}.png"
+      )
+
+    png =
+      Base.decode64!(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADElEQVR42mP8z8AARQAFAAH/Ad2oXQAAAABJRU5ErkJggg=="
+      )
+
+    File.write!(image_path, png)
+
+    on_exit(fn ->
+      File.rm(image_path)
+      ArtMatcher.clear_cache()
+    end)
+
+    assert %{complete?: false, entry_count: 1, expected_count: 2} = ArtMatcher.index_status()
+    assert [] = ArtMatcher.match(image_path, threshold: 0.0)
+
+    assert [
+             %{
+               scryfall_id: "scryfall-printing-1",
+               index_complete: false,
+               index_size: 1
+             }
+           ] = ArtMatcher.match(image_path, threshold: 0.0, allow_partial_index: true)
+  end
+
+  test "art matcher cached index status does not warm a cold cache" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @black_lotus_beta])
+
+    ArtMatcher.upsert_hashes([
+      %{scryfall_id: "scryfall-printing-1", hash: "0000000000000000"}
+    ])
+
+    ArtMatcher.clear_cache()
+
+    assert %{loaded?: false, complete?: false, entry_count: 0, expected_count: nil} =
+             ArtMatcher.cached_index_status()
+
+    assert %{complete?: false, entry_count: 1, expected_count: 2} = ArtMatcher.index_status()
+
+    assert %{loaded?: true, complete?: false, entry_count: 1, expected_count: 2} =
+             ArtMatcher.cached_index_status()
+
+    on_exit(fn -> ArtMatcher.clear_cache() end)
+  end
+
+  test "art matcher returns top matches without losing rank context" do
+    time_walk =
+      @time_walk
+      |> Map.put("lang", "en")
+      |> Map.put("image_uris", %{"normal" => "https://example.test/time-walk.jpg"})
+
+    assert {:ok, %{cards_count: 3, printings_count: 3}} =
+             Catalog.import_cards([@black_lotus, time_walk, @black_lotus_beta])
+
+    image_path =
+      Path.join(
+        System.tmp_dir!(),
+        "manavault-art-top-#{System.unique_integer([:positive])}.png"
+      )
+
+    png =
+      Base.decode64!(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADElEQVR42mP8z8AARQAFAAH/Ad2oXQAAAABJRU5ErkJggg=="
+      )
+
+    File.write!(image_path, png)
+    {:ok, query_hash} = Manavault.Catalog.ImageHashDaemon.hash(image_path)
+    {query_value, ""} = Integer.parse(query_hash, 16)
+
+    second_hash =
+      query_value
+      |> Bitwise.bxor(0x1)
+      |> Integer.to_string(16)
+      |> String.pad_leading(16, "0")
+
+    far_hash =
+      query_value
+      |> Bitwise.bxor(0xFFFFFFFFFFFFFFFF)
+      |> Integer.to_string(16)
+      |> String.pad_leading(16, "0")
+
+    ArtMatcher.upsert_hashes([
+      %{scryfall_id: "scryfall-printing-1", hash: far_hash},
+      %{scryfall_id: "scryfall-printing-2", hash: second_hash},
+      %{scryfall_id: "scryfall-printing-3", hash: query_hash}
+    ])
+
+    on_exit(fn ->
+      File.rm(image_path)
+      ArtMatcher.clear_cache()
+    end)
+
+    assert [
+             %{
+               scryfall_id: "scryfall-printing-3",
+               rank: 1,
+               score: 1.0,
+               index_complete: true,
+               index_size: 3
+             } = match
+           ] = ArtMatcher.match(image_path, threshold: 0.0, limit: 1)
+
+    assert_in_delta match.margin, 1 / 64, 0.0001
+  end
+
+  test "art index build indexes missing printings in batches" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @black_lotus_beta])
+
+    previous_cache_dir = Application.get_env(:manavault, :scan_image_cache_dir)
+
+    cache_dir =
+      Path.join(
+        System.tmp_dir!(),
+        "manavault-art-index-cache-#{System.unique_integer([:positive])}"
+      )
+
+    Application.put_env(:manavault, :scan_image_cache_dir, cache_dir)
+
+    first_path = Path.join(cache_dir, "scryfall-printing-1-art.jpg")
+    second_path = Path.join(cache_dir, "scryfall-printing-3-art.jpg")
+
+    File.mkdir_p!(cache_dir)
+    File.write!(first_path, "first")
+    File.write!(second_path, "second")
+
+    parent = self()
+
+    hash_paths_fun = fn paths, opts ->
+      send(parent, {:hash_batch, paths, opts})
+      {:ok, Map.new(paths, &{&1, "0000000000000001"})}
+    end
+
+    on_exit(fn ->
+      if previous_cache_dir do
+        Application.put_env(:manavault, :scan_image_cache_dir, previous_cache_dir)
+      else
+        Application.delete_env(:manavault, :scan_image_cache_dir)
+      end
+
+      File.rm_rf!(cache_dir)
+      ArtMatcher.clear_cache()
+    end)
+
+    assert {:ok,
+            %{
+              indexed: 2,
+              candidates: 2,
+              references: 2,
+              failed: 0,
+              batches: 2
+            }} =
+             ArtIndex.build(
+               batch_size: 1,
+               hash_batch_size: 1,
+               max_concurrency: 1,
+               hash_paths_fun: hash_paths_fun
+             )
+
+    assert_receive {:hash_batch, [^second_path], [crop: "art"]}
+    assert_receive {:hash_batch, [^first_path], [crop: "art"]}
+
+    assert %{complete?: true, entry_count: 2, expected_count: 2} = ArtMatcher.index_status()
+  end
+
+  test "art index worker starts a build on startup" do
+    parent = self()
+    name = :"art_index_worker_#{System.unique_integer([:positive])}"
+
+    start_supervised!(%{
+      id: name,
+      start:
+        {ArtIndexWorker, :start_link,
+         [
+           [
+             name: name,
+             initial_delay: 0,
+             build_fun: fn opts ->
+               send(parent, {:art_index_build, opts})
+               {:ok, %{indexed: 0, candidates: 0}}
+             end
+           ]
+         ]}
+    })
+
+    assert_receive {:art_index_build, opts}
+    assert Keyword.get(opts, :force) == false
+  end
+
+  test "catalog import requests a background art index rebuild" do
+    parent = self()
+
+    start_supervised!(%{
+      id: ArtIndexWorker,
+      start:
+        {ArtIndexWorker, :start_link,
+         [
+           [
+             initial_delay: false,
+             build_fun: fn opts ->
+               send(parent, {:art_index_rebuild, opts})
+               {:ok, %{indexed: 0, candidates: 0}}
+             end
+           ]
+         ]}
+    })
+
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    assert_receive {:art_index_rebuild, opts}
+    assert Keyword.get(opts, :force) == false
   end
 
   test "scan recognition reranks weak OCR candidates with image evidence" do
@@ -1751,7 +2784,7 @@ defmodule Manavault.CatalogTest do
              )
 
     assert printing.scryfall_id == "scryfall-printing-2"
-    assert_in_delta evidence.scores.image_match, 0.765, 0.0001
+    assert_in_delta evidence.scores.image_match, 0.81, 0.0001
   end
 
   test "scan recognition reranks candidate printings with runtime image matcher" do
@@ -1769,7 +2802,7 @@ defmodule Manavault.CatalogTest do
              )
 
     assert printing.scryfall_id == "scryfall-printing-3"
-    assert_in_delta evidence.scores.image_match, 0.8075, 0.0001
+    assert_in_delta evidence.scores.image_match, 0.855, 0.0001
   end
 
   test "runtime image matcher accepts list shaped face image uris" do
@@ -1817,6 +2850,58 @@ defmodule Manavault.CatalogTest do
              RuntimeImageMatcher.match(fixture_path, [printing], crop: "full", threshold: 0.0)
 
     assert score == 1.0
+  end
+
+  test "runtime image matcher scores all printings before applying result limit" do
+    time_walk_with_image =
+      Map.put(@time_walk, "image_uris", %{"normal" => "https://example.test/time-walk.jpg"})
+
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, time_walk_with_image])
+
+    previous_cache_dir = Application.get_env(:manavault, :scan_image_cache_dir)
+    cache_dir = Path.join(System.tmp_dir!(), "manavault-runtime-image-cache-limit")
+    Application.put_env(:manavault, :scan_image_cache_dir, cache_dir)
+
+    first_fixture =
+      Path.expand(
+        "../fixtures/ocr/scryfall_random/001-wickerbough-elder-9aef164a-af60-4c88-9f3b-b8d43abd3d85.jpg",
+        __DIR__
+      )
+
+    second_fixture =
+      Path.expand(
+        "../fixtures/ocr/scryfall_random/002-recalibrate-b95cc841-4e4f-4896-a073-f2e246ca62e4.jpg",
+        __DIR__
+      )
+
+    File.mkdir_p!(cache_dir)
+    File.cp!(first_fixture, Path.join(cache_dir, "scryfall-printing-1.jpg"))
+    File.cp!(second_fixture, Path.join(cache_dir, "scryfall-printing-2.jpg"))
+
+    on_exit(fn ->
+      if previous_cache_dir do
+        Application.put_env(:manavault, :scan_image_cache_dir, previous_cache_dir)
+      else
+        Application.delete_env(:manavault, :scan_image_cache_dir)
+      end
+
+      File.rm_rf!(cache_dir)
+    end)
+
+    printings =
+      Printing
+      |> where([printing], printing.scryfall_id in ["scryfall-printing-1", "scryfall-printing-2"])
+      |> Repo.all()
+      |> Repo.preload(:card)
+      |> Enum.sort_by(& &1.scryfall_id)
+
+    assert [%{scryfall_id: "scryfall-printing-2", score: 1.0}] =
+             RuntimeImageMatcher.match(second_fixture, printings,
+               crop: "full",
+               threshold: 0.0,
+               limit: 1
+             )
   end
 
   test "scan recognition accepts confident title-crop OCR without full OCR" do
@@ -1900,6 +2985,376 @@ defmodule Manavault.CatalogTest do
              &(&1.printing.card.name == "The Walls of Ba Sing Se" and &1.confidence == 1.0)
            )
 
+    assert_received {:ocr_crop, :title}
+    refute_received {:ocr_crop, :full}
+  end
+
+  test "scan recognition uses fuzzy title fallback for fast OCR typos" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    parent = self()
+
+    ocr_runner = fn "/tmp/black-lotus.jpg", opts ->
+      send(parent, {:ocr_crop, Keyword.get(opts, :ocr_crop, :full)})
+      {:ok, "Blacl Lotus"}
+    end
+
+    assert {:ok,
+            %{
+              candidates: [%{printing: printing, confidence: confidence}],
+              timings: %{
+                title_ocr_fast_path: true,
+                title_ocr_fallback_reason: nil,
+                full_ocr_us: nil
+              }
+            }} =
+             ScanRecognition.recognize(%ScanItem{image_path: "/tmp/black-lotus.jpg"},
+               ocr_runner: ocr_runner,
+               full_ocr_fallback: false
+             )
+
+    assert printing.scryfall_id == "scryfall-printing-1"
+    assert confidence >= 0.7
+    assert_received {:ocr_crop, :title}
+    refute_received {:ocr_crop, :full}
+  end
+
+  test "scan recognition accepts hyphenated multi-word titles without footer evidence" do
+    turtle_duck = %{
+      @black_lotus
+      | "id" => "turtle-duck-printing",
+        "oracle_id" => "oracle-turtle-duck",
+        "name" => "Turtle-Duck",
+        "type_line" => "Creature — Turtle Bird",
+        "oracle_text" => "",
+        "set" => "tla",
+        "collector_number" => "200",
+        "lang" => "en"
+    }
+
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([turtle_duck])
+
+    assert {:ok,
+            %{
+              candidates: [%{printing: printing, confidence: confidence}],
+              timings: %{title_ocr_fast_path: true, title_ocr_fallback_reason: nil}
+            }} =
+             ScanRecognition.recognize(%ScanItem{image_path: "/tmp/turtle-duck.jpg"},
+               ocr_runner: fn "/tmp/turtle-duck.jpg", _opts -> {:ok, "Turtle-Duck"} end,
+               full_ocr_fallback: false
+             )
+
+    assert printing.scryfall_id == "turtle-duck-printing"
+    assert confidence >= 0.7
+  end
+
+  test "scan recognition accepts exact long single-word titles without footer evidence" do
+    badgermole = %{
+      @black_lotus
+      | "id" => "badgermole-printing",
+        "oracle_id" => "oracle-badgermole",
+        "name" => "Badgermole",
+        "type_line" => "Creature — Badger Mole",
+        "oracle_text" => "",
+        "set" => "tla",
+        "collector_number" => "166",
+        "lang" => "en"
+    }
+
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([badgermole])
+
+    assert {:ok,
+            %{
+              candidates: [%{printing: printing, confidence: confidence}],
+              timings: %{title_ocr_fast_path: true, title_ocr_fallback_reason: nil}
+            }} =
+             ScanRecognition.recognize(%ScanItem{image_path: "/tmp/badgermole.jpg"},
+               ocr_runner: fn "/tmp/badgermole.jpg", _opts -> {:ok, "Badgermole"} end,
+               full_ocr_fallback: false
+             )
+
+    assert printing.scryfall_id == "badgermole-printing"
+    assert confidence >= 0.7
+  end
+
+  test "scan recognition does not prefer longer fuzzy prefix titles over exact title OCR" do
+    badgermole = %{
+      @black_lotus
+      | "id" => "badgermole-printing",
+        "oracle_id" => "oracle-badgermole",
+        "name" => "Badgermole",
+        "type_line" => "Creature — Badger Mole",
+        "oracle_text" => "",
+        "set" => "tla",
+        "collector_number" => "166",
+        "lang" => "en"
+    }
+
+    badgermole_cub = %{
+      @black_lotus
+      | "id" => "badgermole-cub-printing",
+        "oracle_id" => "oracle-badgermole-cub",
+        "name" => "Badgermole Cub",
+        "type_line" => "Creature — Badger Mole",
+        "oracle_text" => "",
+        "set" => "tla",
+        "collector_number" => "167",
+        "lang" => "en"
+    }
+
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([badgermole_cub, badgermole])
+
+    ScanRecognition.clear_candidate_index_cache()
+
+    assert {:ok,
+            %{
+              candidates: [%{printing: printing, confidence: confidence} | candidates],
+              timings: %{title_ocr_fast_path: true, title_ocr_fallback_reason: nil}
+            }} =
+             ScanRecognition.recognize(%ScanItem{image_path: "/tmp/badgermole.jpg"},
+               ocr_runner: fn "/tmp/badgermole.jpg", _opts ->
+                 {:ok, "Badgermole\nP9103\nTLAEN NMiHo Bao"}
+               end,
+               full_ocr_fallback: false
+             )
+
+    assert printing.scryfall_id == "badgermole-printing"
+    assert confidence >= 0.7
+
+    refute Enum.any?(
+             candidates,
+             &(&1.printing.scryfall_id == "badgermole-cub-printing" and &1.confidence >= 0.7)
+           )
+  end
+
+  test "scan recognition recovers compact OCR title typos with fuzzy title lookup" do
+    panther_idol =
+      Map.merge(@black_lotus, %{
+        "id" => "panther-idol-printing",
+        "oracle_id" => "oracle-minds-eye",
+        "name" => "Mind's Eye",
+        "flavor_name" => "Panther Idol",
+        "type_line" => "Artifact",
+        "oracle_text" =>
+          "Whenever an opponent draws a card, you may pay {1}. If you do, draw a card.",
+        "set" => "msh",
+        "collector_number" => "288",
+        "lang" => "en"
+      })
+
+    black_panther = %{
+      @black_lotus
+      | "id" => "black-panther-printing",
+        "oracle_id" => "oracle-black-panther",
+        "name" => "Black Panther, Hope Enduring",
+        "type_line" => "Legendary Creature — Human Warrior Hero",
+        "oracle_text" =>
+          "Whenever an opponent draws a card, you may draw a card. Black Panther protects Wakanda.",
+        "set" => "msh",
+        "collector_number" => "27",
+        "lang" => "en"
+    }
+
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([black_panther, panther_idol])
+
+    ScanRecognition.clear_candidate_index_cache()
+
+    assert {:ok,
+            %{
+              candidates: [%{printing: printing, confidence: confidence, evidence: evidence}],
+              timings: %{title_ocr_fast_path: true, title_ocr_fallback_reason: nil}
+            }} =
+             ScanRecognition.recognize(%ScanItem{image_path: "/tmp/panther-idol.jpg"},
+               ocr_runner: fn "/tmp/panther-idol.jpg", _opts ->
+                 {:ok, "Pantherldol\n5\n0208"}
+               end,
+               full_ocr_fallback: false
+             )
+
+    assert printing.scryfall_id == "panther-idol-printing"
+    assert printing.flavor_name == "Panther Idol"
+    assert confidence >= 0.7
+    assert Enum.any?(evidence.phrase_hits, &(&1.field == :name and &1.line == "Pantherldol"))
+  end
+
+  test "scan recognition prefers a real card over a same-name token title match" do
+    meteorite = %{
+      @black_lotus
+      | "id" => "meteorite-printing",
+        "oracle_id" => "oracle-meteorite",
+        "name" => "Meteorite",
+        "type_line" => "Artifact",
+        "oracle_text" =>
+          "When Meteorite enters, it deals 2 damage to any target.\n{T}: Add one mana of any color.",
+        "set" => "tle",
+        "collector_number" => "54",
+        "lang" => "en"
+    }
+
+    meteorite_token = %{
+      @black_lotus
+      | "id" => "meteorite-token-printing",
+        "oracle_id" => "oracle-meteorite-token",
+        "name" => "Meteorite",
+        "type_line" => "Token Artifact",
+        "oracle_text" => "Meteorite token",
+        "set" => "totj",
+        "collector_number" => "17",
+        "lang" => "en"
+    }
+
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([meteorite_token, meteorite])
+
+    ScanRecognition.clear_candidate_index_cache()
+
+    assert {:ok,
+            %{
+              candidates: [
+                %{printing: printing, confidence: confidence, evidence: evidence} | candidates
+              ],
+              timings: %{title_ocr_fast_path: true, title_ocr_fallback_reason: nil}
+            }} =
+             ScanRecognition.recognize(%ScanItem{image_path: "/tmp/meteorite.jpg"},
+               ocr_runner: fn "/tmp/meteorite.jpg", _opts ->
+                 {:ok, "Meteorite\n?\nMOG/54"}
+               end,
+               full_ocr_fallback: false
+             )
+
+    assert printing.scryfall_id == "meteorite-printing"
+    assert printing.card.type_line == "Artifact"
+    assert confidence >= 0.7
+
+    refute Enum.any?(
+             evidence.phrase_hits,
+             &(&1.field == :oracle_text and &1.line == "Meteorite ?")
+           )
+
+    refute Enum.any?(
+             candidates,
+             &(&1.printing.scryfall_id == "meteorite-token-printing" and
+                 &1.confidence > confidence)
+           )
+  end
+
+  test "scan recognition ignores art-card names when title OCR is incomplete" do
+    kyoshi_art = %{
+      @black_lotus
+      | "id" => "kyoshi-art-printing",
+        "oracle_id" => "oracle-kyoshi-art",
+        "name" => "Kyoshi",
+        "type_line" => "Card",
+        "oracle_text" => "",
+        "set" => "jtla",
+        "collector_number" => "43",
+        "lang" => "en"
+    }
+
+    kyoshi_battle_fan = %{
+      @black_lotus
+      | "id" => "kyoshi-battle-fan-printing",
+        "oracle_id" => "oracle-kyoshi-battle-fan",
+        "name" => "Kyoshi Battle Fan",
+        "type_line" => "Artifact — Equipment",
+        "oracle_text" => "Equipped creature gets +1/+1.",
+        "set" => "tla",
+        "collector_number" => "257",
+        "lang" => "en"
+    }
+
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([kyoshi_art, kyoshi_battle_fan])
+
+    ScanRecognition.clear_candidate_index_cache()
+
+    assert {:ok, %{candidates: [], timings: %{title_ocr_fallback_reason: "weak_title_match"}}} =
+             ScanRecognition.recognize(%ScanItem{image_path: "/tmp/kyoshi.jpg"},
+               ocr_runner: fn "/tmp/kyoshi.jpg", _opts -> {:ok, "Kyoshi"} end,
+               full_ocr_fallback: false
+             )
+  end
+
+  test "scan recognition uses flavor name title OCR for Universes Beyond reskins" do
+    panther_idol =
+      Map.merge(@black_lotus, %{
+        "id" => "panther-idol-printing",
+        "oracle_id" => "oracle-minds-eye",
+        "name" => "Mind's Eye",
+        "flavor_name" => "Panther Idol",
+        "type_line" => "Artifact",
+        "oracle_text" =>
+          "Whenever an opponent draws a card, you may pay {1}. If you do, draw a card.",
+        "flavor_text" =>
+          "\"Nobody remembers who built it. She has watched over these lands for as long as we can remember. As eternal as Bast herself.\"\n—Shuri",
+        "set" => "msh",
+        "collector_number" => "288",
+        "lang" => "en"
+      })
+
+    black_panther = %{
+      @black_lotus
+      | "id" => "black-panther-printing",
+        "oracle_id" => "oracle-black-panther",
+        "name" => "Black Panther, Hope Enduring",
+        "type_line" => "Legendary Creature — Human Warrior Hero",
+        "oracle_text" =>
+          "Whenever an opponent draws a card, you may draw a card. Black Panther protects Wakanda.",
+        "set" => "msh",
+        "collector_number" => "27",
+        "lang" => "en"
+    }
+
+    black_panther_art =
+      Map.merge(black_panther, %{
+        "id" => "black-panther-art-printing",
+        "oracle_id" => "oracle-black-panther-art",
+        "type_line" => "Card // Card",
+        "oracle_text" => "\n---\n",
+        "set" => "amsh"
+      })
+
+    assert {:ok, %{cards_count: 3, printings_count: 3}} =
+             Catalog.import_cards([black_panther, black_panther_art, panther_idol])
+
+    parent = self()
+
+    ocr_runner = fn "/tmp/panther-idol.jpg", opts ->
+      crop = Keyword.get(opts, :ocr_crop, :full)
+      send(parent, {:ocr_crop, crop})
+
+      case crop do
+        :title ->
+          {:ok,
+           "Panther Idol\nWhenever an opponent draws a card,\nyou may pay 1.lf you do, draw a card\nNobody remembers who builtit.\nShuri"}
+
+        :full ->
+          flunk("full OCR should not run when flavor-name title OCR is confident")
+      end
+    end
+
+    assert {:ok,
+            %{
+              candidates: [
+                %{printing: printing, confidence: confidence, evidence: evidence} | candidates
+              ],
+              timings: %{
+                title_ocr_fast_path: true,
+                title_ocr_fallback_reason: nil,
+                full_ocr_us: nil
+              }
+            }} =
+             ScanRecognition.recognize(%ScanItem{image_path: "/tmp/panther-idol.jpg"},
+               ocr_runner: ocr_runner
+             )
+
+    assert printing.scryfall_id == "panther-idol-printing"
+    assert printing.flavor_name == "Panther Idol"
+    refute Enum.any?(candidates, &(&1.printing.scryfall_id == "black-panther-art-printing"))
+    assert confidence >= 0.7
+    assert Enum.any?(evidence.phrase_hits, &(&1.field == :name))
     assert_received {:ocr_crop, :title}
     refute_received {:ocr_crop, :full}
   end
@@ -2244,6 +3699,27 @@ defmodule Manavault.CatalogTest do
     assert Enum.any?(evidence.phrase_hits, &(&1.field == :oracle_text))
   end
 
+  test "scan recognition keeps oracle-text candidates when OCR tokens match distractors" do
+    mana_distractor = %{
+      @time_walk
+      | "id" => "mana-distractor-printing",
+        "oracle_id" => "mana-distractor-oracle",
+        "name" => "Mana Distractor",
+        "oracle_text" => "Draw a card."
+    }
+
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, mana_distractor])
+
+    parsed = ScanRecognition.parse_text("mana of any one color.")
+
+    assert [%{printing: printing, evidence: evidence} | _] =
+             ScanRecognition.match_candidates(parsed)
+
+    assert printing.scryfall_id == "scryfall-printing-1"
+    assert Enum.any?(evidence.phrase_hits, &(&1.field == :oracle_text))
+  end
+
   test "scan recognition phrase matching boosts confidence for multi-word matches" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
@@ -2538,14 +4014,17 @@ defmodule Manavault.CatalogTest do
       Sacrifice Black Lotus: Add three mana of any one color.
       """)
 
-    assert [lotus, cat_candidate | _] = ScanRecognition.match_candidates(parsed)
+    candidates = ScanRecognition.match_candidates(parsed)
+    [lotus | _] = candidates
 
     assert lotus.printing.scryfall_id == "scryfall-printing-1"
-    assert cat_candidate.printing.scryfall_id == "cat-printing"
-    refute Enum.any?(cat_candidate.evidence.phrase_hits, &(&1.field == :name))
+
+    if cat_candidate = Enum.find(candidates, &(&1.printing.scryfall_id == "cat-printing")) do
+      refute Enum.any?(cat_candidate.evidence.phrase_hits, &(&1.field == :name))
+    end
   end
 
-  test "scan recognition tie-breaks confidence ties toward exact title and type evidence" do
+  test "scan recognition ranks exact title and type evidence first" do
     exact_card = %{
       @black_lotus
       | "id" => "zz-exact-printing",
@@ -2576,7 +4055,7 @@ defmodule Manavault.CatalogTest do
       gamma delta epsilon zeta eta theta
       """)
 
-    assert [%{printing: printing, confidence: 1.0, evidence: evidence}, %{confidence: 1.0} | _] =
+    assert [%{printing: printing, confidence: 1.0, evidence: evidence} | _] =
              ScanRecognition.match_candidates(parsed)
 
     assert printing.scryfall_id == "zz-exact-printing"
@@ -2720,7 +4199,73 @@ defmodule Manavault.CatalogTest do
     assert_received {:image_refinement, printing_ids, opts}
     assert MapSet.new(printing_ids) == MapSet.new(["scryfall-printing-1", "scryfall-printing-3"])
     assert Keyword.get(opts, :limit) == 7
-    assert Keyword.get(opts, :threshold) == 0.82
+    assert Keyword.get(opts, :threshold) == 0.55
+    assert Keyword.get(opts, :min_margin) == 0.03
+  end
+
+  test "refine_scan_item_printing_with_image ignores weak image margins" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @black_lotus_beta])
+
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "Weak image margin"})
+
+    assert {:ok, item} =
+             Catalog.create_scan_item(scan_session, %{
+               status: "recognized",
+               image_path: "/tmp/black-lotus.jpg",
+               accepted_printing_id: "scryfall-printing-1"
+             })
+
+    image_matcher = fn "/tmp/black-lotus.jpg", _printings, _opts ->
+      [
+        %{scryfall_id: "scryfall-printing-3", score: 0.56},
+        %{scryfall_id: "scryfall-printing-1", score: 0.54}
+      ]
+    end
+
+    assert {:ok, unchanged_item} =
+             Catalog.refine_scan_item_printing_with_image(item.id,
+               image_matcher: image_matcher,
+               full_ocr_exact_refinement: false
+             )
+
+    assert unchanged_item.accepted_printing_id == "scryfall-printing-1"
+  end
+
+  test "refine_scan_item_printing_with_image can use full OCR footer evidence" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @black_lotus_beta])
+
+    assert {:ok, scan_session} = Catalog.create_scan_session(%{"name" => "OCR refinement"})
+
+    assert {:ok, item} =
+             Catalog.create_scan_item(scan_session, %{
+               status: "recognized",
+               image_path: "/tmp/black-lotus.jpg",
+               accepted_printing_id: "scryfall-printing-1"
+             })
+
+    parent = self()
+
+    image_matcher = fn "/tmp/black-lotus.jpg", _printings, _opts ->
+      send(parent, :image_refinement_checked)
+      []
+    end
+
+    ocr_runner = fn "/tmp/black-lotus.jpg", opts ->
+      send(parent, {:ocr_refinement_crop, Keyword.get(opts, :ocr_crop)})
+      {:ok, "Black Lotus\nCollector #233"}
+    end
+
+    assert {:ok, refined_item} =
+             Catalog.refine_scan_item_printing_with_image(item.id,
+               image_matcher: image_matcher,
+               ocr_runner: ocr_runner
+             )
+
+    assert refined_item.accepted_printing_id == "scryfall-printing-3"
+    assert_received :image_refinement_checked
+    assert_received {:ocr_refinement_crop, nil}
   end
 
   test "refine_scan_item_printing_with_image does not change accepted items" do

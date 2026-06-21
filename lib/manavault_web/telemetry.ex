@@ -75,6 +75,48 @@ defmodule ManavaultWeb.Telemetry do
           "The time the connection spent waiting before being checked out for the query"
       ),
 
+      # Scanner Metrics
+      summary("manavault.scanner.capture.stop.duration",
+        tags: [:outcome],
+        unit: {:native, :millisecond},
+        description: "End-to-end live scanner capture duration"
+      ),
+      summary("manavault.scanner.capture_write.stop.duration",
+        tags: [:outcome],
+        unit: {:native, :millisecond},
+        description: "Camera frame decode/write duration"
+      ),
+      summary("manavault.scanner.recognition.stop.duration",
+        tags: [:mode, :outcome],
+        unit: {:native, :millisecond},
+        description: "Scanner recognition duration"
+      ),
+      summary("manavault.scanner.ocr.stop.duration",
+        tags: [:ocr_crop, :outcome],
+        unit: {:native, :millisecond},
+        description: "Scanner OCR duration"
+      ),
+      summary("manavault.scanner.image_match.stop.duration",
+        tags: [:phase, :outcome],
+        unit: {:native, :millisecond},
+        description: "Scanner image matching duration"
+      ),
+      summary("manavault.scanner.candidate_match.stop.duration",
+        tags: [:outcome],
+        unit: {:native, :millisecond},
+        description: "Scanner candidate scoring duration"
+      ),
+      summary("manavault.scanner.persist.stop.duration",
+        tags: [:outcome],
+        unit: {:native, :millisecond},
+        description: "Scanner capture persistence duration"
+      ),
+      summary("manavault.scanner.refinement.stop.duration",
+        tags: [:outcome],
+        unit: {:native, :millisecond},
+        description: "Async exact-printing refinement duration"
+      ),
+
       # VM Metrics
       summary("vm.memory.total", unit: {:byte, :kilobyte}),
       summary("vm.total_run_queue_lengths.total"),

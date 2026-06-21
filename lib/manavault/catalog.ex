@@ -87,6 +87,8 @@ defmodule Manavault.Catalog do
 
   defdelegate list_scan_sessions(), to: Scans
   defdelegate get_scan_session!(id), to: Scans
+  defdelegate get_scan_session_for_capture!(id), to: Scans
+  defdelegate get_scan_session_capture_summary!(id, opts \\ []), to: Scans
   defdelegate change_scan_session(scan_session, attrs \\ %{}), to: Scans
   defdelegate generated_scan_session_name(), to: Scans
   defdelegate create_scan_session(attrs), to: Scans

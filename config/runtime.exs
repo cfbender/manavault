@@ -34,6 +34,24 @@ if config_env() == :prod do
       _value -> true
     end
 
+  scan_art_first? =
+    case System.get_env("SCAN_ART_FIRST", "true") |> String.downcase() do
+      value when value in ["0", "false", "no", "off"] -> false
+      _value -> true
+    end
+
+  scan_art_index_worker? =
+    case System.get_env("SCAN_ART_INDEX_WORKER", "true") |> String.downcase() do
+      value when value in ["0", "false", "no", "off"] -> false
+      _value -> true
+    end
+
+  scan_capture_requires_art_match? =
+    case System.get_env("SCAN_CAPTURE_REQUIRES_ART_MATCH", "true") |> String.downcase() do
+      value when value in ["0", "false", "no", "off"] -> false
+      _value -> true
+    end
+
   scan_title_ocr_fast_path? =
     case System.get_env("SCAN_TITLE_OCR_FAST_PATH", "true") |> String.downcase() do
       value when value in ["0", "false", "no", "off"] -> false
@@ -52,12 +70,19 @@ if config_env() == :prod do
       _value -> true
     end
 
+  scan_keep_rejected_captures? =
+    case System.get_env("SCAN_KEEP_REJECTED_CAPTURES", "false") |> String.downcase() do
+      value when value in ["1", "true", "yes", "on"] -> true
+      _value -> false
+    end
+
   for path <- [
         data_dir,
         Path.dirname(database_path),
         Path.join(data_dir, "uploads/scans"),
         Path.join(data_dir, "cache/scryfall"),
         Path.join(data_dir, "cache/scryfall/assets"),
+        Path.join(data_dir, "cache/scryfall/scanner-images"),
         Path.join(data_dir, "backups")
       ] do
     File.mkdir_p!(path)
@@ -69,9 +94,13 @@ if config_env() == :prod do
 
   config :manavault,
     scan_image_matching: scan_image_matching?,
+    scan_art_first: scan_art_first?,
+    scan_art_index_worker: scan_art_index_worker?,
+    scan_capture_requires_art_match: scan_capture_requires_art_match?,
     scan_title_ocr_fast_path: scan_title_ocr_fast_path?,
     scan_async_image_refinement: scan_async_image_refinement?,
     scan_full_ocr_fallback: scan_full_ocr_fallback?,
+    scan_keep_rejected_captures: scan_keep_rejected_captures?,
     scan_image_cache_dir: Path.join(data_dir, "cache/scryfall/scanner-images"),
     scryfall_assets_dir: Path.join(data_dir, "cache/scryfall/assets")
 

@@ -10,6 +10,8 @@ defmodule Manavault.Catalog.Printing do
     field :set_name, :string
     field :collector_number, :string
     field :lang, :string
+    field :flavor_name, :string
+    field :flavor_text, :string
     field :rarity, :string
     field :finishes, :string, default: "[]"
     field :image_uris, :string, default: "{}"
@@ -38,6 +40,8 @@ defmodule Manavault.Catalog.Printing do
       :set_name,
       :collector_number,
       :lang,
+      :flavor_name,
+      :flavor_text,
       :rarity,
       :finishes,
       :image_uris,

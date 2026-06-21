@@ -3,17 +3,28 @@ defmodule ManavaultWeb.ScanCapture do
   alias Manavault.Catalog.{Printing, ScanItem, ScanSession}
   alias Manavault.Catalog.Price
 
-  def capture(%{"scan_session_id" => scan_session_id, "image_data" => image_data} = args)
-      when is_binary(image_data) do
-    scan_session = Catalog.get_scan_session!(scan_session_id)
+  def capture(args, opts \\ [])
+
+  def capture(%{"scan_session_id" => scan_session_id, "image_data" => image_data} = args, opts)
+      when is_binary(image_data) and is_list(opts) do
+    scan_session = Catalog.get_scan_session_for_capture!(scan_session_id)
 
     case Catalog.create_recognized_scan_item_from_capture(
            scan_session,
            image_data,
            scan_recognition_opts(args)
          ) do
+      {:duplicate, _recognition} ->
+        {:ok,
+         %{
+           outcome: "duplicate",
+           message: "Tap to add another copy.",
+           scan_item: nil,
+           scan_session: response_scan_session(scan_session, opts, false)
+         }}
+
       {:ok, scan_item} ->
-        scan_item = Catalog.get_scan_item!(scan_item.id)
+        scan_item = minimal_scan_item(scan_item)
         oracle_id = scan_item_oracle_id(scan_item)
 
         if !truthy?(Map.get(args, "force", false)) && oracle_id &&
@@ -25,7 +36,7 @@ defmodule ManavaultWeb.ScanCapture do
              outcome: "duplicate",
              message: "Tap to add another copy.",
              scan_item: nil,
-             scan_session: Catalog.get_scan_session!(scan_session.id)
+             scan_session: response_scan_session(scan_session, opts, false)
            }}
         else
           {:ok,
@@ -33,15 +44,15 @@ defmodule ManavaultWeb.ScanCapture do
              outcome: "accepted",
              message: "Recognized card ##{scan_item.id}. Keep scanning.",
              scan_item: scan_item,
-             scan_session: Catalog.get_scan_session!(scan_session.id)
+             scan_session: response_scan_session(scan_session, opts, true)
            }}
         end
 
       {:error, "No card match found" <> _rest} ->
-        rejected_capture_result(scan_session)
+        rejected_capture_result(scan_session, opts)
 
       {:error, "argument error"} ->
-        rejected_capture_result(scan_session)
+        rejected_capture_result(scan_session, opts)
 
       {:error, reason} when is_binary(reason) ->
         {:ok,
@@ -49,7 +60,7 @@ defmodule ManavaultWeb.ScanCapture do
            outcome: "error",
            message: reason,
            scan_item: nil,
-           scan_session: Catalog.get_scan_session!(scan_session.id)
+           scan_session: response_scan_session(scan_session, opts, false)
          }}
 
       {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
@@ -57,7 +68,7 @@ defmodule ManavaultWeb.ScanCapture do
     end
   end
 
-  def capture(_args), do: {:error, "Invalid scanner payload."}
+  def capture(_args, _opts), do: {:error, "Invalid scanner payload."}
 
   def to_client_map(%{} = result) do
     %{
@@ -68,29 +79,50 @@ defmodule ManavaultWeb.ScanCapture do
     }
   end
 
-  def scan_session_to_client_map(%ScanSession{} = session), do: scan_session_map(session)
+  def scan_session_to_client_map(nil), do: nil
+
+  def scan_session_to_client_map(%{} = session), do: scan_session_map(session)
 
   defp scan_recognition_opts(args) do
-    []
-    |> maybe_put_scan_opt(:prefer_foil, truthy?(Map.get(args, "prefer_foil", false)))
-    |> maybe_put_scan_opt(:set_codes, Map.get(args, "set_codes", []))
+    opts =
+      []
+      |> maybe_put_scan_opt(:prefer_foil, truthy?(Map.get(args, "prefer_foil", false)))
+      |> maybe_put_scan_opt(:set_codes, Map.get(args, "set_codes", []))
+
+    if truthy?(Map.get(args, "force", false)) do
+      opts
+    else
+      maybe_put_scan_opt(opts, :duplicate_oracle_id, Map.get(args, "last_oracle_id"))
+    end
   end
 
   defp maybe_put_scan_opt(opts, _key, false), do: opts
   defp maybe_put_scan_opt(opts, _key, []), do: opts
   defp maybe_put_scan_opt(opts, key, value), do: Keyword.put(opts, key, value)
 
-  defp rejected_capture_result(%ScanSession{} = session) do
+  defp minimal_scan_item(%ScanItem{} = item), do: item
+
+  defp rejected_capture_result(%ScanSession{} = session, opts) do
     {:ok,
      %{
        outcome: "rejected",
        message: "Keep scanning.",
        scan_item: nil,
-       scan_session: Catalog.get_scan_session!(session.id)
+       scan_session: response_scan_session(session, opts, false)
      }}
   end
 
-  defp scan_session_map(%ScanSession{} = session) do
+  defp scan_session_map(%{} = session) do
+    scan_items = Map.get(session, :scan_items, [])
+    item_count = Map.get(session, :item_count) || length(scan_items)
+
+    review_count =
+      Map.get(session, :review_count) || Enum.count(scan_items, &(&1.status == "needs_review"))
+
+    total_price_text =
+      Map.get(session, :total_price_text) ||
+        Price.format_cents(Price.scan_items_total_cents(scan_items))
+
     %{
       "id" => to_string(session.id),
       "name" => session.name,
@@ -98,8 +130,9 @@ defmodule ManavaultWeb.ScanCapture do
       "defaultLanguage" => session.default_language,
       "defaultFinish" => session.default_finish,
       "defaultLocation" => location_map(session.default_location),
-      "itemCount" => length(session.scan_items || []),
-      "reviewCount" => Enum.count(session.scan_items || [], &(&1.status == "needs_review")),
+      "itemCount" => item_count,
+      "reviewCount" => review_count,
+      "totalPriceText" => total_price_text,
       "createdAt" => serialize_time(session.inserted_at),
       "scanItems" =>
         session
@@ -107,6 +140,22 @@ defmodule ManavaultWeb.ScanCapture do
         |> Enum.sort_by(& &1.id, :desc)
         |> Enum.map(&scan_item_map/1)
     }
+  end
+
+  defp response_scan_session(%ScanSession{} = session, opts, changed?) do
+    case {Keyword.get(opts, :response, :full), changed?} do
+      {:compact, false} ->
+        nil
+
+      {:compact, true} ->
+        Catalog.get_scan_session_capture_summary!(
+          session.id,
+          recent_limit: Keyword.get(opts, :recent_limit, 12)
+        )
+
+      _full ->
+        Catalog.get_scan_session!(session.id)
+    end
   end
 
   defp scan_item_map(nil), do: nil
@@ -119,6 +168,8 @@ defmodule ManavaultWeb.ScanCapture do
       "condition" => item.condition,
       "language" => item.language,
       "finish" => item.finish,
+      "priceText" => Price.text_for_scan_item(item),
+      "totalPriceText" => Price.total_text_for_scan_item(item),
       "acceptedPrintingId" => item.accepted_printing_id,
       "insertedAt" => serialize_time(item.inserted_at),
       "acceptedPrinting" => printing_map(item.accepted_printing),

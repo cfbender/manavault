@@ -14,9 +14,9 @@ API, SQLite storage, local file uploads, and an optional Capacitor mobile shell.
 
 - Own your data: production data lives in a local SQLite database and local
   upload directories under `/data`.
-- Scan real cards quickly: camera captures are processed with RapidOCR, local
-  Scryfall matching, review queues, and image/art matching for exact-printing
-  confidence.
+- Scan real cards quickly: camera captures are cropped to the card guide, matched
+  against a local Scryfall art hash index first, then RapidOCR is used only for
+  fallback and exact-printing disambiguation.
 - Treat decks as physical commitments: deck cards can be allocated to concrete
   collection items so one copy cannot accidentally be promised to multiple decks.
 - Turn gaps into action: missing-card reports and buylist exports show what a
@@ -111,6 +111,28 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements-ocr.txt
 mise exec -- mix manavault.ocr.setup
 ```
+
+Build or refresh the complete local art hash index used by the art-first scanner
+path:
+
+```sh
+mise exec -- mix manavault.scanner.art_index
+```
+
+Art-first live scanning refuses partial indexes because a nearest neighbor from a
+small subset can be confidently wrong. `--limit` is only for development and
+benchmarks.
+
+Run the scanner benchmark against synthetic camera captures instead of perfect
+Scryfall images:
+
+```sh
+mise exec -- mix manavault.ocr.benchmark --indexed-art --synthetic-camera --limit 10
+```
+
+In dev, rejected scanner frames are kept under
+`data/uploads/scan-captures/scan_sessions/<session_id>/` so phone-camera samples
+can be reused for local benchmarks and crop tuning.
 
 For an Intel CPU/OpenVINO OCR trial, install the optional OCR dependencies and
 run setup with the engine selected:
@@ -370,11 +392,24 @@ Common optional values:
   Defaults to unset, which lets OpenVINO choose.
 - `MANAVAULT_OCR_TITLE_WIDTH` - pixel width for the small OCR crop used during
   camera scans. This crop includes the card title and footer/set line. Defaults
-  to `640`.
+  to `192`.
 - `SCAN_IMAGE_MATCHING` - set to `false` to disable candidate image matching
-  during camera scans and use OCR-only recognition. Defaults to `true`. With the
-  title fast path enabled, image matching runs in the background to refine the
-  exact printing after the card name is recognized.
+  during camera scans and use OCR-only recognition. Defaults to `true`. Global
+  art-first matching only runs when the local art hash index covers the catalog;
+  until then, live scans go straight to OCR-narrowed candidate image matching.
+  The art hash index is built newest-printing-first and incrementally in the
+  background on app startup and refreshed after catalog imports; each batch is
+  persisted and logged so a full first-time build shows progress instead of going
+  silent. Completed art matching keeps only the best ranks in memory while
+  scoring, avoiding a full sort of the 100k+ hash index for every camera frame.
+  Set `SCAN_ART_INDEX_WORKER=false` to disable the background art-index builder.
+- `SCAN_CAPTURE_REQUIRES_ART_MATCH` - set to `false` to let live camera captures
+  auto-accept OCR-only matches when image matching misses. Defaults to `true`, so
+  camera captures require either an art-index hit or OCR narrowed candidates that
+  pass candidate-scoped image matching.
+- `SCAN_KEEP_REJECTED_CAPTURES` - set to `true` to keep rejected camera frames
+  on disk for scanner debugging. Development config enables this; production
+  defaults to `false`.
 - `SCAN_TITLE_OCR_FAST_PATH` - set to `false` to disable the title-crop OCR
   fast path and always OCR the full capture. Defaults to `true`.
 - `SCAN_ASYNC_IMAGE_REFINEMENT` - set to `false` to stop background exact
@@ -383,6 +418,18 @@ Common optional values:
 - `SCAN_FULL_OCR_FALLBACK` - set to `false` to prevent camera scans from
   falling back to blocking full-card OCR when the title/footer crop is weak.
   Defaults to `true` for production scanner reliability.
+
+Scanner timing is emitted as Telemetry spans and debug logs. The main stop events are:
+
+- `[:manavault, :scanner, :capture, :stop]` — full live-capture request.
+- `[:manavault, :scanner, :capture_write, :stop]` — frame persistence.
+- `[:manavault, :scanner, :recognition, :stop]` — OCR/image recognition.
+- `[:manavault, :scanner, :ocr, :stop]` — one OCR call, tagged by `ocr_crop`.
+- `[:manavault, :scanner, :image_match, :stop]` — image matching, tagged by
+  `phase` (`initial`, `candidate`, or `refinement`).
+- `[:manavault, :scanner, :candidate_match, :stop]` — OCR candidate scoring.
+- `[:manavault, :scanner, :persist, :stop]` — recognized scan item persistence.
+- `[:manavault, :scanner, :refinement, :stop]` — async exact-printing refinement.
 - `MANAVAULT_SKIP_MIGRATION_BACKUP` - skip automatic release backup before
   pending migrations. Defaults to unset.
 

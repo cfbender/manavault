@@ -13,16 +13,29 @@ defmodule Manavault.Catalog.RuntimeImageMatcher do
 
   @user_agent "ManaVault/0.1 (local scanner image matcher)"
   @default_limit 5
+  @default_threshold 0.45
+  @reference_cache_table :manavault_runtime_image_reference_cache
+
+  def clear_cache do
+    case :ets.whereis(@reference_cache_table) do
+      :undefined -> :ok
+      table -> :ets.delete_all_objects(table)
+    end
+  end
 
   def match(image_path, printings, opts \\ [])
       when is_binary(image_path) and is_list(printings) do
-    limit = Keyword.get(opts, :limit, @default_limit)
+    match_opts =
+      opts
+      |> Keyword.put_new(:limit, @default_limit)
+      |> Keyword.put_new(:threshold, @default_threshold)
 
     printings
-    |> Enum.take(limit)
     |> Enum.flat_map(&reference_fixture/1)
-    |> ImageMatcher.build_references(Keyword.take(opts, [:crop]))
-    |> then(&ImageMatcher.match(image_path, &1, Keyword.take(opts, [:crop, :limit, :threshold])))
+    |> cached_references(Keyword.take(match_opts, [:crop]))
+    |> then(
+      &ImageMatcher.match(image_path, &1, Keyword.take(match_opts, [:crop, :limit, :threshold]))
+    )
   rescue
     exception ->
       Logger.warning(
@@ -38,16 +51,84 @@ defmodule Manavault.Catalog.RuntimeImageMatcher do
          {:ok, path} <- cached_image(printing.scryfall_id, url) do
       [
         %{
-          "image_path" => path,
-          "card" => %{
-            "id" => printing.scryfall_id,
-            "oracle_id" => printing.oracle_id,
-            "name" => printing.card && printing.card.name
-          }
+          path: path,
+          scryfall_id: printing.scryfall_id,
+          oracle_id: printing.oracle_id,
+          name: printing.card && printing.card.name
         }
       ]
     else
       _error -> []
+    end
+  end
+
+  defp cached_references(references, opts) do
+    crop = opts |> Keyword.get(:crop, "art") |> to_string()
+    table = reference_cache_table()
+
+    {cached, missing} =
+      Enum.reduce(references, {[], []}, fn reference, {cached, missing} ->
+        key = reference_cache_key(reference, crop)
+
+        case :ets.lookup(table, key) do
+          [{^key, hash}] -> {[Map.put(reference, :hash, hash) | cached], missing}
+          [] -> {cached, [reference | missing]}
+        end
+      end)
+
+    missing = Enum.reverse(missing)
+
+    hashed =
+      missing
+      |> hash_missing_references(crop)
+      |> tap(fn hashed_references ->
+        Enum.each(hashed_references, fn reference ->
+          :ets.insert(table, {reference_cache_key(reference, crop), reference.hash})
+        end)
+      end)
+
+    Enum.reverse(cached) ++ hashed
+  end
+
+  defp hash_missing_references([], _crop), do: []
+
+  defp hash_missing_references(references, crop) do
+    paths = Enum.map(references, & &1.path)
+
+    case ImageMatcher.hash_paths(paths, crop: crop) do
+      {:ok, hashes} ->
+        references
+        |> Enum.flat_map(fn reference ->
+          case Map.fetch(hashes, reference.path) do
+            {:ok, hash} -> [Map.put(reference, :hash, hash)]
+            :error -> []
+          end
+        end)
+
+      {:error, reason} ->
+        Logger.warning("Runtime image reference hashing failed: #{reason}")
+        []
+    end
+  end
+
+  defp reference_cache_key(reference, crop), do: {crop, reference.scryfall_id, reference.path}
+
+  defp reference_cache_table do
+    case :ets.whereis(@reference_cache_table) do
+      :undefined ->
+        try do
+          :ets.new(@reference_cache_table, [
+            :named_table,
+            :public,
+            read_concurrency: true,
+            write_concurrency: true
+          ])
+        rescue
+          ArgumentError -> @reference_cache_table
+        end
+
+      table ->
+        table
     end
   end
 
