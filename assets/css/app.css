@@ -317,49 +317,8 @@
   }
 }
 
-.card-fullscreen-frame {
-  transform-style: preserve-3d;
-}
-
-.card-fullscreen-frame .card-tile-foil-overlay::before {
-  animation-play-state: running;
-}
-
-.card-fullscreen-set-grain {
-  position: absolute;
-  inset: 0;
-  z-index: 7;
-  border-radius: inherit;
-  background: rgb(255 255 255 / 0.18);
-  mask-image: var(--card-set-grain);
-  mask-position: center;
-  mask-repeat: repeat;
-  mask-size: 3.75rem;
-  -webkit-mask-image: var(--card-set-grain);
-  -webkit-mask-position: center;
-  -webkit-mask-repeat: repeat;
-  -webkit-mask-size: 3.75rem;
-  mix-blend-mode: screen;
-  opacity: 0.24;
-  pointer-events: none;
-  animation: card-fullscreen-set-grain 18s linear infinite;
-}
-
-@keyframes card-fullscreen-set-grain {
-  0% {
-    mask-position: 0 0;
-    -webkit-mask-position: 0 0;
-  }
-
-  100% {
-    mask-position: 3.75rem 3.75rem;
-    -webkit-mask-position: 3.75rem 3.75rem;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .card-tile-foil-overlay::before,
-  .card-fullscreen-set-grain {
+  .card-tile-foil-overlay::before {
     animation: none;
   }
 }

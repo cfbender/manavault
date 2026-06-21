@@ -3,11 +3,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { motion } from "motion/react"
 import { Boxes, ChevronLeft, ChevronRight, ListFilter, Search, X } from "lucide-react"
 import { useEffect, useState } from "react"
-import type { CSSProperties, FormEvent } from "react"
+import type { FormEvent } from "react"
 import { PageHeader } from "../components/app-shell"
 import { EmptyState } from "../components/card-image"
 import { CardNameSearchField } from "../components/card-name-search-field"
 import { addToDeckAction, CardTile } from "../components/card-tile"
+import ProfileCard from "../components/profile-card"
 import { Button } from "../components/ui/button"
 import {
   Dialog,
@@ -20,7 +21,7 @@ import { Input } from "../components/ui/input"
 import { graphql } from "../gql"
 import type { CardQuery } from "../gql/graphql"
 import { request } from "../lib/graphql"
-import { cn, present, titleize } from "../lib/utils"
+import { present, titleize } from "../lib/utils"
 import {
   AddCollectionItemDialog,
   type AddCollectionItemInitialPrinting,
@@ -438,7 +439,6 @@ function FullscreenPrintingDialog({
   const printing = currentIndex >= 0 ? printings[currentIndex] : null
   const finish = (printing?.finishes || []).filter(present)[0]
   const foil = finish === "foil" || finish === "etched"
-  const setIconUrl = setIconGrainUrl(printing?.setCode)
   const setLabel = printing?.setCode
     ? `${printing.setCode.toUpperCase()}${printing.collectorNumber ? ` #${printing.collectorNumber}` : ""}`
     : printing?.collectorNumber
@@ -451,10 +451,10 @@ function FullscreenPrintingDialog({
   ]
     .filter(present)
     .join(" · ")
-  const frameStyle = setIconUrl
-    ? ({ "--card-set-grain": `url(${setIconUrl})` } as CSSProperties)
-    : undefined
-  const imageAlt = subtitle ? `${card.name} ${subtitle}` : card.name
+  const profileInnerGradient = foil
+    ? "linear-gradient(145deg,rgba(120,72,28,0.58) 0%,rgba(255,226,122,0.23) 42%,rgba(117,196,255,0.28) 100%)"
+    : "linear-gradient(145deg,rgba(96,73,110,0.55) 0%,rgba(113,196,255,0.27) 100%)"
+  const profileGlowColor = foil ? "rgba(255, 219, 122, 0.62)" : "rgba(125, 190, 255, 0.55)"
   const canNavigate = printings.length > 1 && currentIndex >= 0
   const positionLabel = canNavigate ? `${currentIndex + 1} / ${printings.length}` : null
 
@@ -552,7 +552,7 @@ function FullscreenPrintingDialog({
               </Button>
             </div>
 
-            <div className="relative flex min-h-0 flex-1 items-center justify-center">
+            <div className="relative flex min-h-0 flex-1 items-center justify-center mb-12">
               {canNavigate ? (
                 <Button
                   type="button"
@@ -566,18 +566,12 @@ function FullscreenPrintingDialog({
                 </Button>
               ) : null}
 
-              <motion.figure
+              <motion.div
                 key={printing.scryfallId}
-                className={cn(
-                  "card-fullscreen-frame relative overflow-hidden rounded-[4.75%] bg-base-300 shadow-[0_28px_90px_rgb(0_0_0_/_0.62)] ring-1 ring-white/20",
-                  canNavigate && "cursor-pointer",
-                  foil && "card-tile-foil",
-                )}
-                style={frameStyle}
+                className="relative rounded-[4.75%] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
                 initial={{ opacity: 0, scale: 0.82, y: 36, rotateX: 12 }}
                 animate={{ opacity: 1, scale: 1, y: 0, rotateX: 0 }}
                 transition={{ type: "spring", stiffness: 260, damping: 24 }}
-                whileHover={{ scale: 1.012, rotateX: 1.5, rotateY: -1.5 }}
                 aria-label={canNavigate ? `Show next printing of ${card.name}` : undefined}
                 role={canNavigate ? "button" : undefined}
                 tabIndex={canNavigate ? 0 : undefined}
@@ -588,30 +582,30 @@ function FullscreenPrintingDialog({
                   goToPrinting(1)
                 }}
               >
-                {printing.imageUrl ? (
-                  <img
-                    src={printing.imageUrl}
-                    alt={imageAlt}
-                    className="block max-h-[calc(100dvh-10rem)] max-w-[min(92vw,36rem)] object-contain sm:max-h-[calc(100dvh-9rem)]"
-                  />
-                ) : (
-                  <div className="flex aspect-[5/7] h-[calc(100dvh-10rem)] max-h-[44rem] max-w-[min(92vw,36rem)] items-center justify-center p-8 text-center text-sm text-base-content/60 sm:h-[calc(100dvh-9rem)]">
+                <ProfileCard
+                  avatarUrl={printing.imageUrl || ""}
+                  innerGradient={profileInnerGradient}
+                  behindGlowColor={profileGlowColor}
+                  behindGlowSize={foil ? "72%" : "58%"}
+                  className={
+                    foil
+                      ? "manavault-printing-profile-card manavault-printing-profile-card--foil"
+                      : "manavault-printing-profile-card"
+                  }
+                  enableTilt
+                  enableMobileTilt
+                  name={card.name}
+                  title={subtitle}
+                  handle={setLabel || printing.setCode?.toUpperCase() || "printing"}
+                  status={finish ? titleize(finish) : titleize(printing.rarity)}
+                  showUserInfo={false}
+                />
+                {printing.imageUrl ? null : (
+                  <div className="absolute inset-0 z-20 flex items-center justify-center rounded-[4.75%] p-8 text-center text-sm text-white/70">
                     No image
                   </div>
                 )}
-
-                {setIconUrl ? (
-                  <div className="card-fullscreen-set-grain" aria-hidden="true" />
-                ) : null}
-                {foil ? (
-                  <div
-                    className={cn(
-                      "card-tile-foil-overlay",
-                      finish === "etched" && "card-tile-foil-overlay--etched",
-                    )}
-                  />
-                ) : null}
-              </motion.figure>
+              </motion.div>
 
               {canNavigate ? (
                 <Button
@@ -633,13 +627,6 @@ function FullscreenPrintingDialog({
   )
 }
 
-function setIconGrainUrl(setCode?: string | null) {
-  const code = String(setCode || "")
-    .trim()
-    .toLowerCase()
-
-  return code ? `/scryfall-assets/sets/${code}.svg` : null
-}
 
 type CardDeckTarget = {
   cardName: string
@@ -701,7 +688,9 @@ function AddCatalogCardToDeckDialog({
       queryClient.invalidateQueries({ queryKey: ["decks"] })
       if (addedDeckId) {
         queryClient.invalidateQueries({ queryKey: ["deck", addedDeckId] })
-        queryClient.invalidateQueries({ queryKey: ["deck-buylist", addedDeckId] })
+        queryClient.invalidateQueries({
+          queryKey: ["deck-buylist", addedDeckId],
+        })
       }
       close()
       if (addedDeckId) navigate({ to: "/decks/$id", params: { id: addedDeckId } })
