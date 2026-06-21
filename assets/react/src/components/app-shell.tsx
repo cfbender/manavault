@@ -13,6 +13,10 @@ const navItems = [
   { to: "/scan-sessions" as const, label: "Scans", icon: Camera },
 ]
 
+function navItemActive(pathname: string, to: (typeof navItems)[number]["to"]) {
+  return pathname === to || (to !== "/" && pathname.startsWith(`${to}/`))
+}
+
 function ThemeToggle() {
   const { theme, setTheme } = useTheme()
   const options = [
@@ -76,14 +80,17 @@ export function AppShell() {
             <span className="hidden truncate sm:inline">ManaVault</span>
           </Link>
 
-          <nav className="ml-auto hidden items-center gap-4 lg:flex">
+          <nav className="ml-auto hidden items-center gap-1 lg:flex">
             {navItems.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
-                activeOptions={{ exact: item.to === "/" }}
-                activeProps={{ className: "text-primary" }}
-                className="btn btn-ghost btn-sm font-bold"
+                className={cn(
+                  "rounded-full px-3.5 py-2 text-sm font-bold leading-5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
+                  navItemActive(pathname, item.to)
+                    ? "bg-[color-mix(in_oklch,var(--color-primary),var(--color-base-100)_18%)] text-primary-content"
+                    : "text-base-content hover:text-primary",
+                )}
               >
                 {item.label}
               </Link>
