@@ -887,6 +887,17 @@ defmodule Manavault.CatalogTest do
     assert allocated_item.quantity == 1
     assert allocated_item.location_id == nil
 
+    assert [%CollectionItem{id: source_item_id, quantity: 1}] =
+             Catalog.list_collection_items(location_id: to_string(binder.id))
+
+    assert source_item_id == item.id
+    assert [] = Catalog.list_collection_items(location_id: "unfiled")
+
+    assert Enum.sort([item.id, allocated_item.id]) ==
+             Catalog.list_collection_items([], limit: 10)
+             |> Enum.map(& &1.id)
+             |> Enum.sort()
+
     assert {:ok, _allocation} =
              Catalog.deallocate_collection_item_from_deck_card(lotus.id, allocated_item.id)
 

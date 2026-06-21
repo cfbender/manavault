@@ -9,6 +9,7 @@ defmodule Manavault.Catalog.CardCollection do
   import Ecto.Query
 
   alias Manavault.Catalog.CollectionItem
+  alias Manavault.Catalog.DeckAllocation
   alias Manavault.Catalog.ScryfallQuery
   alias Manavault.Catalog.ScryfallQuery.{And, ExactName, Not, Or, Predicate}
   alias Manavault.Repo
@@ -63,6 +64,7 @@ defmodule Manavault.Catalog.CardCollection do
     |> maybe_filter_language(language)
     |> maybe_filter_finish(finish)
     |> maybe_filter_location(location_id)
+    |> maybe_exclude_deck_allocations(location_id)
     |> maybe_exclude_list_locations(location_id, include_list_locations?)
   end
 
@@ -992,6 +994,18 @@ defmodule Manavault.Catalog.CardCollection do
       {id, ""} -> where(query, [item, _printing, _card, _location], item.location_id == ^id)
       _invalid -> where(query, false)
     end
+  end
+
+  defp maybe_exclude_deck_allocations(query, ""), do: query
+
+  defp maybe_exclude_deck_allocations(query, _location_id) do
+    allocated_item_ids = from allocation in DeckAllocation, select: allocation.collection_item_id
+
+    where(
+      query,
+      [item, _printing, _card, _location],
+      item.id not in subquery(allocated_item_ids)
+    )
   end
 
   defp maybe_exclude_list_locations(query, location_id, _include_list_locations?)

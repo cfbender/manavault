@@ -838,6 +838,34 @@ defmodule ManavaultWeb.SchemaTest do
              }
            } = json_response(allocate_conn, 200)
 
+    visibility_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query {
+          location(id: "unfiled") {
+            itemCount
+            collectionItems { id }
+          }
+          collectionItems {
+            allocatedQuantity
+            printing { card { name } }
+          }
+        }
+        """
+      })
+
+    assert %{
+             "data" => %{
+               "location" => %{"itemCount" => 0, "collectionItems" => []},
+               "collectionItems" => [
+                 %{
+                   "allocatedQuantity" => 1,
+                   "printing" => %{"card" => %{"name" => "Allocation Status Card"}}
+                 }
+               ]
+             }
+           } = json_response(visibility_conn, 200)
+
     [loaded_deck_card] = Catalog.get_deck!(deck.id).deck_cards
 
     allocated_item_id =
