@@ -3,13 +3,22 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#166534" />
+    <meta name="theme-color" content="#18040d" />
     <title>ManaVault</title>
     <style>
       :root {
         color-scheme: dark;
-        background: #140611;
-        color: #f1e8dc;
+        --background: #140611;
+        --panel: #211019;
+        --panel-border: #3d2531;
+        --text: #f7eadf;
+        --muted: #cdb9ae;
+        --primary: #f97316;
+        --primary-strong: #fb923c;
+        --danger: #f87171;
+        --success: #86efac;
+        background: var(--background);
+        color: var(--text);
         font-family:
           Inter,
           ui-sans-serif,
@@ -20,36 +29,435 @@
           sans-serif;
       }
 
+      * {
+        box-sizing: border-box;
+      }
+
       body {
-        align-items: center;
-        display: grid;
         margin: 0;
         min-height: 100svh;
-        padding: 24px;
+        padding: max(24px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right))
+          max(24px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+        background:
+          radial-gradient(circle at top left, rgb(249 115 22 / 0.2), transparent 32rem),
+          linear-gradient(180deg, #18040d, var(--background));
       }
 
       main {
-        margin: auto;
-        max-width: 520px;
+        display: grid;
+        min-height: calc(100svh - 48px);
+        place-items: center;
+      }
+
+      .card {
+        width: min(100%, 34rem);
+        border: 1px solid var(--panel-border);
+        border-radius: 28px;
+        background: rgb(33 16 25 / 0.9);
+        box-shadow: 0 24px 90px rgb(0 0 0 / 0.38);
+        padding: clamp(24px, 7vw, 40px);
+      }
+
+      .eyebrow {
+        color: var(--primary-strong);
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        margin: 0 0 0.75rem;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2 {
+        line-height: 1.05;
+        margin: 0;
       }
 
       h1 {
-        font-size: 32px;
-        line-height: 1.1;
-        margin: 0 0 12px;
+        font-size: clamp(2.3rem, 12vw, 4.5rem);
+        letter-spacing: -0.08em;
+      }
+
+      h2 {
+        font-size: clamp(1.6rem, 8vw, 2.4rem);
+        letter-spacing: -0.05em;
       }
 
       p {
-        color: #c8b8b0;
+        color: var(--muted);
         line-height: 1.55;
         margin: 0;
+      }
+
+      .stack {
+        display: grid;
+        gap: 1.25rem;
+      }
+
+      .panel {
+        border: 1px solid var(--panel-border);
+        border-radius: 20px;
+        background: rgb(20 6 17 / 0.55);
+        padding: 1rem;
+      }
+
+      label {
+        display: grid;
+        gap: 0.5rem;
+        color: var(--muted);
+        font-size: 0.9rem;
+        font-weight: 700;
+      }
+
+      input {
+        width: 100%;
+        border: 1px solid var(--panel-border);
+        border-radius: 16px;
+        background: #0f050d;
+        color: var(--text);
+        font: inherit;
+        font-size: 1rem;
+        padding: 0.9rem 1rem;
+      }
+
+      input:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgb(249 115 22 / 0.18);
+        outline: none;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+
+      button,
+      .button {
+        align-items: center;
+        border: 0;
+        border-radius: 999px;
+        cursor: pointer;
+        display: inline-flex;
+        font: inherit;
+        font-weight: 800;
+        justify-content: center;
+        min-height: 2.75rem;
+        padding: 0.75rem 1.1rem;
+        text-decoration: none;
+      }
+
+      button.primary,
+      .button.primary {
+        background: var(--primary);
+        color: #160807;
+      }
+
+      button.secondary,
+      .button.secondary {
+        background: #30202a;
+        color: var(--text);
+      }
+
+      button.ghost {
+        background: transparent;
+        color: var(--muted);
+        padding-inline: 0.2rem;
+      }
+
+      button:disabled {
+        cursor: progress;
+        opacity: 0.65;
+      }
+
+      .server-url {
+        color: var(--text);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        overflow-wrap: anywhere;
+      }
+
+      .status {
+        min-height: 1.4rem;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      .status.error {
+        color: var(--danger);
+      }
+
+      .status.success {
+        color: var(--success);
+      }
+
+      [hidden] {
+        display: none !important;
       }
     </style>
   </head>
   <body>
     <main>
-      <h1>ManaVault</h1>
-      <p>The native shell is configured to load the ManaVault server during development.</p>
+      <section class="card stack" aria-labelledby="title">
+        <div class="stack">
+          <p class="eyebrow">ManaVault native shell</p>
+          <h1 id="title">Choose your server</h1>
+          <p>
+            Enter the ManaVault URL this app should open. The setting stays on this device and
+            can be changed by returning to this setup screen.
+          </p>
+        </div>
+
+        <section id="setup-panel" class="stack">
+          <form id="server-form" class="stack">
+            <label>
+              ManaVault URL
+              <input
+                id="server-url"
+                autocomplete="url"
+                inputmode="url"
+                placeholder="https://manavault.example.com"
+                required
+                type="text"
+              />
+            </label>
+            <p>
+              HTTPS is preferred. HTTP is supported for private LAN or development servers when
+              Android allows cleartext traffic.
+            </p>
+            <div class="actions">
+              <button class="primary" type="submit">Save and open</button>
+            </div>
+          </form>
+        </section>
+
+        <section id="opening-panel" class="stack" hidden>
+          <div class="panel stack">
+            <h2>Opening ManaVault</h2>
+            <p>
+              Configured server:<br />
+              <span id="configured-url" class="server-url"></span>
+            </p>
+          </div>
+          <div id="update-panel" class="panel stack" hidden>
+            <h2>Update available</h2>
+            <p id="update-copy"></p>
+            <div class="actions">
+              <button id="open-release" class="primary" type="button">Open GitHub release</button>
+              <button id="continue-anyway" class="secondary" type="button">Continue anyway</button>
+            </div>
+          </div>
+          <div class="actions">
+            <button id="open-now" class="primary" type="button">Open now</button>
+            <button id="change-server" class="secondary" type="button">Change server</button>
+          </div>
+        </section>
+
+        <p id="status" class="status" role="status"></p>
+        <p class="status">App version <span id="app-version">unknown</span></p>
+      </section>
     </main>
+
+    <script type="module">
+      const storageKey = "manavault:server-url"
+      const fallbackRepository = "cfbender/manavault"
+      const fallbackVersion = "0.0.0"
+      const setupPanel = document.querySelector("#setup-panel")
+      const openingPanel = document.querySelector("#opening-panel")
+      const updatePanel = document.querySelector("#update-panel")
+      const serverForm = document.querySelector("#server-form")
+      const serverInput = document.querySelector("#server-url")
+      const configuredUrl = document.querySelector("#configured-url")
+      const statusLine = document.querySelector("#status")
+      const appVersionLabel = document.querySelector("#app-version")
+      const openNowButton = document.querySelector("#open-now")
+      const changeServerButton = document.querySelector("#change-server")
+      const openReleaseButton = document.querySelector("#open-release")
+      const continueAnywayButton = document.querySelector("#continue-anyway")
+      const updateCopy = document.querySelector("#update-copy")
+
+      let appVersion = fallbackVersion
+      let releaseRepository = fallbackRepository
+      let activeServerUrl = ""
+      let releaseUrl = ""
+      let openTimer = 0
+
+      function setStatus(message, tone = "") {
+        statusLine.textContent = message
+        statusLine.className = `status ${tone}`.trim()
+      }
+
+      function showSetup(message = "") {
+        window.clearTimeout(openTimer)
+        openingPanel.hidden = true
+        updatePanel.hidden = true
+        setupPanel.hidden = false
+        serverInput.value = activeServerUrl
+        serverInput.focus()
+        setStatus(message)
+      }
+
+      function showOpening() {
+        setupPanel.hidden = true
+        openingPanel.hidden = false
+        configuredUrl.textContent = activeServerUrl
+      }
+
+      function normalizeServerUrl(rawValue) {
+        const trimmed = rawValue.trim()
+        if (!trimmed) {
+          throw new Error("Enter a ManaVault URL.")
+        }
+
+        const withScheme = /^[a-z][a-z0-9+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`
+        const url = new URL(withScheme)
+        if (url.protocol !== "https:" && url.protocol !== "http:") {
+          throw new Error("ManaVault URL must start with http:// or https://.")
+        }
+
+        return url.origin
+      }
+
+      function storedServerUrl() {
+        const rawValue = window.localStorage.getItem(storageKey)
+        if (!rawValue) return ""
+
+        try {
+          return normalizeServerUrl(rawValue)
+        } catch (_error) {
+          window.localStorage.removeItem(storageKey)
+          return ""
+        }
+      }
+
+      function openServer(delayMs = 0) {
+        window.clearTimeout(openTimer)
+        showOpening()
+        setStatus(delayMs > 0 ? "Checking for updates before opening..." : "Opening ManaVault...")
+        openTimer = window.setTimeout(() => {
+          window.location.href = activeServerUrl
+        }, delayMs)
+      }
+
+      function parseSemver(version) {
+        const match = String(version).trim().replace(/^v/i, "").match(/^(\d+)\.(\d+)\.(\d+)/)
+        if (!match) return null
+        return match.slice(1).map((part) => Number.parseInt(part, 10))
+      }
+
+      function compareSemver(left, right) {
+        const leftParts = parseSemver(left)
+        const rightParts = parseSemver(right)
+        if (!leftParts || !rightParts) return 0
+
+        for (let index = 0; index < 3; index += 1) {
+          if (leftParts[index] !== rightParts[index]) {
+            return leftParts[index] > rightParts[index] ? 1 : -1
+          }
+        }
+
+        return 0
+      }
+
+      async function loadVersionInfo() {
+        try {
+          const response = await fetch("./version.json", { cache: "no-store" })
+          if (!response.ok) return
+          const payload = await response.json()
+          if (typeof payload.version === "string" && payload.version.trim()) {
+            appVersion = payload.version.replace(/^v/i, "")
+          }
+          if (typeof payload.releaseRepository === "string" && payload.releaseRepository.trim()) {
+            releaseRepository = payload.releaseRepository.trim()
+          }
+        } catch (_error) {
+          // Keep the fallback version and repository. Launch must not depend on GitHub.
+        } finally {
+          appVersionLabel.textContent = appVersion
+        }
+      }
+
+      async function latestRelease() {
+        const controller = new AbortController()
+        const timeout = window.setTimeout(() => controller.abort(), 3000)
+
+        try {
+          const response = await fetch(`https://api.github.com/repos/${releaseRepository}/releases/latest`, {
+            cache: "no-store",
+            headers: { accept: "application/vnd.github+json" },
+            signal: controller.signal,
+          })
+          if (!response.ok) return null
+          return response.json()
+        } catch (_error) {
+          return null
+        } finally {
+          window.clearTimeout(timeout)
+        }
+      }
+
+      async function checkForUpdates() {
+        const release = await latestRelease()
+        const latestVersion = release?.tag_name?.replace(/^v/i, "")
+        if (!release?.html_url || !latestVersion || compareSemver(latestVersion, appVersion) <= 0) {
+          updatePanel.hidden = true
+          return false
+        }
+
+        releaseUrl = release.html_url
+        updateCopy.textContent = `Version ${latestVersion} is newer than this app (${appVersion}). Open the latest GitHub release to download the APK.`
+        updatePanel.hidden = false
+        setStatus("Update available. Continue only if you want to skip it.", "success")
+        return true
+      }
+
+      async function openRelease() {
+        if (!releaseUrl) return
+
+        try {
+          const browser = window.Capacitor?.Plugins?.Browser
+          if (browser?.open) {
+            await browser.open({ url: releaseUrl })
+            return
+          }
+        } catch (_error) {
+          // Fall back to a normal browser tab/window.
+        }
+
+        window.open(releaseUrl, "_blank", "noopener")
+      }
+
+      serverForm.addEventListener("submit", async (event) => {
+        event.preventDefault()
+
+        try {
+          activeServerUrl = normalizeServerUrl(serverInput.value)
+          window.localStorage.setItem(storageKey, activeServerUrl)
+          showOpening()
+          setStatus("Server saved.", "success")
+          const hasUpdate = await checkForUpdates()
+          if (!hasUpdate) openServer(400)
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : "Could not save server URL.", "error")
+        }
+      })
+
+      openNowButton.addEventListener("click", () => openServer())
+      continueAnywayButton.addEventListener("click", () => openServer())
+      openReleaseButton.addEventListener("click", openRelease)
+      changeServerButton.addEventListener("click", () => {
+        window.localStorage.removeItem(storageKey)
+        showSetup("Server setting cleared.")
+      })
+
+      await loadVersionInfo()
+      activeServerUrl = storedServerUrl()
+      if (activeServerUrl) {
+        showOpening()
+        const hasUpdate = await checkForUpdates()
+        if (!hasUpdate) openServer(700)
+      } else {
+        showSetup()
+      }
+    </script>
   </body>
 </html>

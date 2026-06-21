@@ -30,6 +30,8 @@ esac
 
 version_file="mix.exs"
 readme_file="README.md"
+package_file="package.json"
+native_version_file="native_www/version.json"
 current=$(perl -ne 'print "$1\n" if /^\s*version:\s*"([0-9]+\.[0-9]+\.[0-9]+)",/' "$version_file")
 
 if [[ -z "$current" ]]; then
@@ -112,6 +114,14 @@ if [[ "$current" != "$next" ]]; then
 	CURRENT="$current" NEXT="$next" perl -0pi -e 's/version:\s*"\Q$ENV{CURRENT}\E"/version: "$ENV{NEXT}"/' "$version_file"
 fi
 
+if [[ -f "$package_file" ]]; then
+	NEXT="$next" perl -0pi -e 's/"version":\s*"[^"]+"/"version": "$ENV{NEXT}"/' "$package_file"
+fi
+
+if [[ -f "scripts/prepare-native-web.mjs" ]]; then
+	MANAVAULT_VERSION="$next" node scripts/prepare-native-web.mjs
+fi
+
 if [[ -f "$readme_file" ]] && [[ "$current" != "$next" ]]; then
 	CURRENT="$current" \
 	NEXT="$next" \
@@ -127,6 +137,12 @@ fi
 git add "$version_file" CHANGELOG.md
 if [[ -f "$readme_file" ]]; then
 	git add "$readme_file"
+fi
+if [[ -f "$package_file" ]]; then
+	git add "$package_file"
+fi
+if [[ -f "$native_version_file" ]]; then
+	git add "$native_version_file"
 fi
 
 git commit -m "chore: release $tag"

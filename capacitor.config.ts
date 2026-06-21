@@ -5,8 +5,8 @@ const config: CapacitorConfig = {
   appName: "ManaVault",
   webDir: "native_www",
   server: {
-    url: "https://manavault.cfb.dev",
-    cleartext: false,
+    allowNavigation: ["*"],
+    cleartext: true,
   },
   plugins: {
     StatusBar: {

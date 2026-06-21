@@ -38,14 +38,17 @@ mise run release -- patch
 The task:
 
 - generates `CHANGELOG.md`
-- bumps the `mix.exs` version
+- bumps the `mix.exs` and `package.json` versions
+- refreshes `native_www/version.json`
 - updates README Docker tag examples
 - commits `chore: release vX.Y.Z`
 - creates an annotated `vX.Y.Z` tag
 - pushes the current branch and the tag to `origin`
 
 The tag push triggers `.github/workflows/container.yml`, which publishes the
-container image to GitHub Container Registry.
+container image to GitHub Container Registry, and `.github/workflows/capacitor.yml`,
+which builds the Capacitor Android debug APK and attaches it to the GitHub
+release.
 
 Dry run:
 

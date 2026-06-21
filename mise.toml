@@ -61,11 +61,15 @@ run = "aube install --frozen-lockfile && aube run cap:sync"
 
 [tasks."setup:android-sdk"]
 description = "Accept Android SDK licenses and install SDK packages needed by Capacitor/native-run."
-run = "yes | sdkmanager --licenses && sdkmanager 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0'"
+run = "yes | sdkmanager --licenses && sdkmanager 'platform-tools' 'platforms;android-36' 'build-tools;35.0.0' 'build-tools;36.0.0'"
 
 [tasks."android:sync"]
-description = "Sync the Capacitor Android project."
+description = "Prepare native web metadata and sync the Capacitor Android project."
 run = "aube run cap:sync:android"
+
+[tasks."android:build"]
+description = "Build a debug Capacitor Android APK."
+run = "aube run android:build:debug"
 
 [tasks."android:run"]
 description = "Build and run the Capacitor Android app on a connected device."

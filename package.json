@@ -1,6 +1,6 @@
 {
   "name": "manavault",
-  "version": "0.2.0",
+  "version": "0.2.3",
   "private": true,
   "description": "ManaVault Phoenix application with Capacitor native shell tooling.",
   "scripts": {
@@ -8,13 +8,15 @@
     "build": "vite build",
     "typecheck": "tsc --project assets/tsconfig.json --noEmit",
     "codegen": "graphql-codegen --config codegen.ts",
-    "cap:sync": "cap sync",
-    "cap:sync:android": "cap sync android",
-    "cap:sync:ios": "cap sync ios",
+    "native:prepare": "node scripts/prepare-native-web.mjs",
+    "cap:sync": "aube run native:prepare && cap sync",
+    "cap:sync:android": "aube run native:prepare && cap sync android",
+    "cap:sync:ios": "aube run native:prepare && cap sync ios",
     "cap:open:android": "cap open android",
     "cap:open:ios": "cap open ios",
-    "cap:run:android": "cap run android",
-    "cap:run:ios": "cap run ios"
+    "cap:run:android": "aube run cap:sync:android && cap run android",
+    "cap:run:ios": "aube run cap:sync:ios && cap run ios",
+    "android:build:debug": "aube run cap:sync:android && ./android/gradlew -p android assembleDebug"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.0",

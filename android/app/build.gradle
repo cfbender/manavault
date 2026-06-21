@@ -1,5 +1,36 @@
 apply plugin: 'com.android.application'
 
+def manavaultVersionName() {
+    def override = System.getenv("MANAVAULT_VERSION")
+    if (override != null && override.trim()) {
+        return override.trim().replaceFirst(/^v/, "")
+    }
+
+    def mixFile = rootProject.file("../mix.exs")
+    def matcher = mixFile.text =~ /version:\s*"([0-9]+(?:\.[0-9]+){2}(?:[-+][^"]+)?)"/
+    if (!matcher.find()) {
+        throw new GradleException("Could not find semver project version in ${mixFile}")
+    }
+
+    return matcher.group(1)
+}
+
+def manavaultVersionCode(String versionName) {
+    def override = System.getenv("MANAVAULT_VERSION_CODE")
+    if (override != null && override.trim()) {
+        return override.toInteger()
+    }
+
+    def parts = versionName.split(/[-+]/)[0].tokenize('.').collect { it.toInteger() }
+    if (parts.size() != 3) {
+        throw new GradleException("Could not derive Android versionCode from ${versionName}")
+    }
+
+    return parts[0] * 10000 + parts[1] * 100 + parts[2]
+}
+
+def manavaultVersion = manavaultVersionName()
+
 android {
     namespace = "dev.cfb.manavault"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +38,8 @@ android {
         applicationId "dev.cfb.manavault"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode manavaultVersionCode(manavaultVersion)
+        versionName manavaultVersion
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

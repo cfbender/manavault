@@ -49,8 +49,9 @@ device. A native shell also aligns with the expected product needs:
 - mobile backup and restore through native file picker/share/storage APIs
 - a stable install path that does not depend on Chrome PWA prompt heuristics
 
-The initial Android and iOS shells load the hosted Phoenix app during
-development and include Capacitor Camera and Filesystem plugins. Native bridges
+The Android shell now boots into bundled setup assets, lets the user choose a
+ManaVault server URL, checks GitHub releases for newer APKs, and opens the
+configured server inside the WebView. The iOS shell still syncs from the same
+Capacitor project and requires macOS/Xcode to build or run. Native bridges
 should be added incrementally, starting with camera/lens selection and then
-backup/restore file workflows. Android can be built locally with the mise Java
-and Android SDK toolchains. iOS requires macOS and Xcode.
+backup/restore file workflows.

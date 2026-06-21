@@ -140,18 +140,25 @@ direction.
 ## Native Shells
 
 ManaVault includes Capacitor Android and iOS shell projects for mobile testing
-and native API work. Use `aube` for JavaScript package tasks:
+and native API work. The native shell starts from bundled setup assets in
+`native_www`, asks for the ManaVault server URL on first launch, stores that URL
+on the device, checks the latest GitHub release for APK updates, and then opens
+the configured server.
+
+Use `aube` for JavaScript package tasks:
 
 ```sh
 mise run setup:native
 mise run setup:android-sdk
+mise run android:build
 mise run android:run
 ```
 
 Android uses the project-local Java and Android SDK toolchains declared in
 `mise.toml`. `setup:android-sdk` accepts the Android SDK licenses and installs
-`platform-tools`, Android API 36, and build-tools 36.0.0 for Capacitor's
-native-run flow.
+`platform-tools`, Android API 36, and build-tools 35.0.0/36.0.0 for Capacitor's
+native build and run flows. Tag builds in `.github/workflows/capacitor.yml`
+upload a debug APK to the GitHub release.
 
 iOS syncs from this repo, but building or running the iOS app requires macOS
 with Xcode:
