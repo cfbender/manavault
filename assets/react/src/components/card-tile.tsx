@@ -45,6 +45,8 @@ export function CardTile({
   menuActions = [],
   name,
   onSelect,
+  primaryActionLabel,
+  primaryActionRole = "link",
   price,
   rarity,
   selectable = false,
@@ -71,6 +73,8 @@ export function CardTile({
   name: ReactNode
   onSelect?: () => void
   onToggleSelected?: () => void
+  primaryActionLabel?: string
+  primaryActionRole?: "button" | "link"
   price?: ReactNode
   rarity?: string | null
   selectable?: boolean
@@ -129,7 +133,9 @@ export function CardTile({
 
   return (
     <div
-      aria-label={onSelect && typeof name === "string" ? `View ${name}` : undefined}
+      aria-label={
+        primaryActionLabel || (onSelect && typeof name === "string" ? `View ${name}` : undefined)
+      }
       aria-pressed={selectionClickActive ? selected : undefined}
       className={cn(
         "group/card relative w-full max-w-[14.25rem] overflow-visible rounded-xl bg-transparent transition duration-200 focus-within:z-50",
@@ -139,7 +145,7 @@ export function CardTile({
       )}
       onClick={hasPrimaryAction ? handleClick : undefined}
       onKeyDown={handleKeyDown}
-      role={selectionClickActive ? "button" : onSelect ? "link" : undefined}
+      role={selectionClickActive ? "button" : onSelect ? primaryActionRole : undefined}
       tabIndex={hasPrimaryAction ? 0 : undefined}
     >
       {showMenu ? (

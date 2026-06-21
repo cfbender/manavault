@@ -1,8 +1,9 @@
 import { Link, useNavigate } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Boxes, ListFilter, Search } from "lucide-react"
+import { motion } from "motion/react"
+import { Boxes, ChevronLeft, ChevronRight, ListFilter, Search, X } from "lucide-react"
 import { useEffect, useState } from "react"
-import type { FormEvent } from "react"
+import type { CSSProperties, FormEvent } from "react"
 import { PageHeader } from "../components/app-shell"
 import { EmptyState } from "../components/card-image"
 import { CardNameSearchField } from "../components/card-name-search-field"
@@ -17,8 +18,9 @@ import {
 } from "../components/ui/dialog"
 import { Input } from "../components/ui/input"
 import { graphql } from "../gql"
+import type { CardQuery } from "../gql/graphql"
 import { request } from "../lib/graphql"
-import { present, titleize } from "../lib/utils"
+import { cn, present, titleize } from "../lib/utils"
 import {
   AddCollectionItemDialog,
   type AddCollectionItemInitialPrinting,
@@ -110,6 +112,9 @@ const CardDocument = graphql(`
     }
   }
 `)
+
+type CardDetail = NonNullable<CardQuery["card"]>
+type CardPrinting = NonNullable<NonNullable<CardDetail["printings"]>[number]>
 
 export function CardsPage({ query }: { query: string }) {
   const [q, setQ] = useState(query)
@@ -279,13 +284,15 @@ function CardSearchForm({
 export function CardDetailPage({ id, query }: { id: string; query: string }) {
   const [addPrinting, setAddPrinting] = useState<AddCollectionItemInitialPrinting | null>(null)
   const [deckTarget, setDeckTarget] = useState<CardDeckTarget | null>(null)
+  const [previewPrintingId, setPreviewPrintingId] = useState<string | null>(null)
   const { data, isLoading } = useQuery({
     queryKey: ["card", id],
     queryFn: () => request(CardDocument, { id }),
   })
   const card = data?.card
   const printings = card?.printings || []
-  const primary = printings[0]
+  const visiblePrintings = printings.filter(present)
+  const primary = visiblePrintings[0]
 
   if (isLoading) return <EmptyState title="Loading card..." />
   if (!card) return <EmptyState title="Card not found" />
@@ -338,7 +345,7 @@ export function CardDetailPage({ id, query }: { id: string; query: string }) {
         </section>
 
         <div className="grid justify-center gap-x-6 gap-y-8 [grid-template-columns:repeat(auto-fill,minmax(14.25rem,14.25rem))]">
-          {printings.filter(present).map((printing) => (
+          {visiblePrintings.map((printing) => (
             <div key={printing.scryfallId}>
               <CardTile
                 defaultActions={[]}
@@ -346,6 +353,9 @@ export function CardDetailPage({ id, query }: { id: string; query: string }) {
                 countMin={1}
                 finish={(printing.finishes || [])[0]}
                 imageUrl={printing.imageUrl}
+                onSelect={() => setPreviewPrintingId(printing.scryfallId)}
+                primaryActionLabel={`Open ${card.name} ${printing.setCode?.toUpperCase() || "printing"} full screen`}
+                primaryActionRole="button"
                 menuActions={[
                   {
                     icon: <Boxes className="h-4 w-4" />,
@@ -389,6 +399,13 @@ export function CardDetailPage({ id, query }: { id: string; query: string }) {
           ))}
         </div>
       </div>
+      <FullscreenPrintingDialog
+        card={card}
+        currentPrintingId={previewPrintingId}
+        printings={visiblePrintings}
+        onOpenChange={(open) => !open && setPreviewPrintingId(null)}
+        onPrintingChange={setPreviewPrintingId}
+      />
       <AddCollectionItemDialog
         initialPrinting={addPrinting}
         open={Boolean(addPrinting)}
@@ -400,6 +417,228 @@ export function CardDetailPage({ id, query }: { id: string; query: string }) {
       />
     </>
   )
+}
+
+function FullscreenPrintingDialog({
+  card,
+  currentPrintingId,
+  printings,
+  onOpenChange,
+  onPrintingChange,
+}: {
+  card: CardDetail
+  currentPrintingId: string | null
+  printings: CardPrinting[]
+  onOpenChange: (open: boolean) => void
+  onPrintingChange: (printingId: string) => void
+}) {
+  const currentIndex = currentPrintingId
+    ? printings.findIndex((printing) => printing.scryfallId === currentPrintingId)
+    : -1
+  const printing = currentIndex >= 0 ? printings[currentIndex] : null
+  const finish = (printing?.finishes || []).filter(present)[0]
+  const foil = finish === "foil" || finish === "etched"
+  const setIconUrl = setIconGrainUrl(printing?.setCode)
+  const setLabel = printing?.setCode
+    ? `${printing.setCode.toUpperCase()}${printing.collectorNumber ? ` #${printing.collectorNumber}` : ""}`
+    : printing?.collectorNumber
+      ? `#${printing.collectorNumber}`
+      : ""
+  const subtitle = [
+    setLabel || null,
+    printing?.setName || null,
+    printing?.rarity ? titleize(printing.rarity) : null,
+  ]
+    .filter(present)
+    .join(" · ")
+  const frameStyle = setIconUrl
+    ? ({ "--card-set-grain": `url(${setIconUrl})` } as CSSProperties)
+    : undefined
+  const imageAlt = subtitle ? `${card.name} ${subtitle}` : card.name
+  const canNavigate = printings.length > 1 && currentIndex >= 0
+  const positionLabel = canNavigate ? `${currentIndex + 1} / ${printings.length}` : null
+
+  useEffect(() => {
+    if (!canNavigate) return
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return
+
+      event.preventDefault()
+      const direction = event.key === "ArrowLeft" ? -1 : 1
+      const nextIndex = (currentIndex + direction + printings.length) % printings.length
+      const nextPrinting = printings[nextIndex]
+      if (nextPrinting) onPrintingChange(nextPrinting.scryfallId)
+    }
+
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [canNavigate, currentIndex, onPrintingChange, printings])
+
+  function goToPrinting(direction: -1 | 1) {
+    if (!canNavigate) return
+
+    const nextIndex = (currentIndex + direction + printings.length) % printings.length
+    const nextPrinting = printings[nextIndex]
+    if (nextPrinting) onPrintingChange(nextPrinting.scryfallId)
+  }
+
+  return (
+    <Dialog open={Boolean(printing)} onOpenChange={onOpenChange}>
+      {printing ? (
+        <DialogContent
+          className="relative h-[calc(100dvh-3rem)] max-h-[calc(100dvh-3rem)] max-w-[calc(100vw-2rem)] overflow-hidden border-0 bg-neutral text-neutral-content shadow-2xl"
+          labelledBy="fullscreen-card-title"
+        >
+          {printing.artCropUrl ? (
+            <img
+              src={printing.artCropUrl}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover opacity-25 blur-sm scale-105"
+            />
+          ) : null}
+          <div className="absolute inset-0 bg-gradient-to-br from-black/95 via-neutral/90 to-black/95" />
+
+          <motion.div
+            className="relative z-10 flex h-full flex-col gap-4 p-4 sm:p-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.18 }}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <h2
+                  id="fullscreen-card-title"
+                  className="truncate text-2xl font-black tracking-normal sm:text-3xl"
+                >
+                  {card.name}
+                </h2>
+                {subtitle ? (
+                  <p className="mt-1 line-clamp-2 text-sm text-neutral-content/65">{subtitle}</p>
+                ) : null}
+                {finish || printing.priceText || printing.ownedCount || positionLabel ? (
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                    {finish ? (
+                      <span className="badge border-white/20 bg-white/10 text-neutral-content">
+                        {titleize(finish)}
+                      </span>
+                    ) : null}
+                    {printing.priceText ? (
+                      <span className="badge border-white/20 bg-white/10 font-mono text-neutral-content">
+                        {printing.priceText}
+                      </span>
+                    ) : null}
+                    {printing.ownedCount ? (
+                      <span className="badge border-white/20 bg-white/10 text-neutral-content">
+                        {printing.ownedCount} owned
+                      </span>
+                    ) : null}
+                    {positionLabel ? (
+                      <span className="badge border-white/20 bg-white/10 font-mono text-neutral-content">
+                        {positionLabel}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Close full-screen card"
+                onClick={() => onOpenChange(false)}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
+            <div className="relative flex min-h-0 flex-1 items-center justify-center">
+              {canNavigate ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute left-0 top-1/2 z-20 -translate-y-1/2 border border-white/10 bg-black/35 text-white backdrop-blur hover:bg-black/55 sm:left-4"
+                  aria-label="Previous printing"
+                  onClick={() => goToPrinting(-1)}
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              ) : null}
+
+              <motion.figure
+                key={printing.scryfallId}
+                className={cn(
+                  "card-fullscreen-frame relative overflow-hidden rounded-[4.75%] bg-base-300 shadow-[0_28px_90px_rgb(0_0_0_/_0.62)] ring-1 ring-white/20",
+                  canNavigate && "cursor-pointer",
+                  foil && "card-tile-foil",
+                )}
+                style={frameStyle}
+                initial={{ opacity: 0, scale: 0.82, y: 36, rotateX: 12 }}
+                animate={{ opacity: 1, scale: 1, y: 0, rotateX: 0 }}
+                transition={{ type: "spring", stiffness: 260, damping: 24 }}
+                whileHover={{ scale: 1.012, rotateX: 1.5, rotateY: -1.5 }}
+                aria-label={canNavigate ? `Show next printing of ${card.name}` : undefined}
+                role={canNavigate ? "button" : undefined}
+                tabIndex={canNavigate ? 0 : undefined}
+                onClick={() => goToPrinting(1)}
+                onKeyDown={(event) => {
+                  if (!canNavigate || (event.key !== "Enter" && event.key !== " ")) return
+                  event.preventDefault()
+                  goToPrinting(1)
+                }}
+              >
+                {printing.imageUrl ? (
+                  <img
+                    src={printing.imageUrl}
+                    alt={imageAlt}
+                    className="block max-h-[calc(100dvh-10rem)] max-w-[min(92vw,36rem)] object-contain sm:max-h-[calc(100dvh-9rem)]"
+                  />
+                ) : (
+                  <div className="flex aspect-[5/7] h-[calc(100dvh-10rem)] max-h-[44rem] max-w-[min(92vw,36rem)] items-center justify-center p-8 text-center text-sm text-base-content/60 sm:h-[calc(100dvh-9rem)]">
+                    No image
+                  </div>
+                )}
+
+                {setIconUrl ? (
+                  <div className="card-fullscreen-set-grain" aria-hidden="true" />
+                ) : null}
+                {foil ? (
+                  <div
+                    className={cn(
+                      "card-tile-foil-overlay",
+                      finish === "etched" && "card-tile-foil-overlay--etched",
+                    )}
+                  />
+                ) : null}
+              </motion.figure>
+
+              {canNavigate ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-1/2 z-20 -translate-y-1/2 border border-white/10 bg-black/35 text-white backdrop-blur hover:bg-black/55 sm:right-4"
+                  aria-label="Next printing"
+                  onClick={() => goToPrinting(1)}
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </Button>
+              ) : null}
+            </div>
+          </motion.div>
+        </DialogContent>
+      ) : null}
+    </Dialog>
+  )
+}
+
+function setIconGrainUrl(setCode?: string | null) {
+  const code = String(setCode || "")
+    .trim()
+    .toLowerCase()
+
+  return code ? `/scryfall-assets/sets/${code}.svg` : null
 }
 
 type CardDeckTarget = {
