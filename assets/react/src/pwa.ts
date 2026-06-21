@@ -23,6 +23,49 @@ let deferredInstallPrompt: BeforeInstallPromptEvent | null = null
 const pwaAssetVersion = "20260620-1"
 const serviceWorkerUrl = `${window.location.origin}/sw.js?v=${pwaAssetVersion}`
 
+const chunkReloadKey = "manavault:chunk-reload"
+const chunkReloadCooldownMs = 30_000
+const dynamicImportErrorPattern =
+  /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i
+
+function errorMessage(error: unknown) {
+  if (error instanceof Error) return error.message
+  if (typeof error === "string") return error
+  return String(error ?? "")
+}
+
+function reloadForFreshAssets(error: unknown) {
+  if (!dynamicImportErrorPattern.test(errorMessage(error))) return false
+
+  let lastReloadAt = 0
+  try {
+    lastReloadAt = Number(sessionStorage.getItem(chunkReloadKey) || 0)
+    if (Date.now() - lastReloadAt < chunkReloadCooldownMs) return false
+    sessionStorage.setItem(chunkReloadKey, String(Date.now()))
+  } catch {
+    // Storage can be unavailable. A single location replacement is still the safest recovery.
+  }
+
+  window.location.replace(window.location.href)
+  return true
+}
+
+window.addEventListener("vite:preloadError", (event) => {
+  if (reloadForFreshAssets((event as Event & { payload?: unknown }).payload)) event.preventDefault()
+})
+
+window.addEventListener("unhandledrejection", (event) => {
+  if (reloadForFreshAssets(event.reason)) event.preventDefault()
+})
+
+window.setTimeout(() => {
+  try {
+    sessionStorage.removeItem(chunkReloadKey)
+  } catch {
+    // Storage can be unavailable.
+  }
+}, chunkReloadCooldownMs)
+
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>
   userChoice: Promise<unknown>
