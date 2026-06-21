@@ -615,11 +615,6 @@ export function ScanSessionsPage() {
   })
 
   function startScan() {
-    if (data?.scanSessions?.length) {
-      navigate({ to: "/scan-sessions" })
-      return
-    }
-
     createSession.mutate()
   }
 
