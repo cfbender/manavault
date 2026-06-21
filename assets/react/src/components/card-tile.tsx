@@ -36,6 +36,7 @@ export function CardTile({
   allocatedLabel,
   className,
   count,
+  countMin = 2,
   defaultActions,
   finish,
   growOnHover = true,
@@ -60,6 +61,7 @@ export function CardTile({
   allocatedLabel?: ReactNode
   className?: string
   count?: number | null
+  countMin?: number
   defaultActions?: CardTileAction[]
   finish?: string | null
   growOnHover?: boolean
@@ -258,7 +260,7 @@ export function CardTile({
           </div>
         ) : null}
 
-        {count && count > 1 ? (
+        {count && count >= countMin ? (
           <span
             className={cn(
               "absolute right-0 z-40 rounded-bl-xl bg-primary px-2.5 py-1.5 text-sm font-black leading-none text-primary-content shadow-lg",

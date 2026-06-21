@@ -3,7 +3,7 @@ defmodule Manavault.Catalog.Search do
 
   import Ecto.Query
 
-  alias Manavault.Catalog.{Card, Printing, ScryfallQuery, Util}
+  alias Manavault.Catalog.{Card, CollectionItem, Printing, ScryfallQuery, Util}
   alias Manavault.Catalog.ScryfallQuery.{And, ExactName, Not, Or, Predicate}
   alias Manavault.Repo
 
@@ -680,10 +680,27 @@ defmodule Manavault.Catalog.Search do
         nil
 
       card ->
+        owned_counts = printing_owned_counts(oracle_id)
+
         Repo.preload(card,
           printings: from(printing in Printing, order_by: [desc: printing.released_at])
         )
+        |> Map.update!(:printings, fn printings ->
+          Enum.map(printings, &%{&1 | owned_count: Map.get(owned_counts, &1.scryfall_id, 0)})
+        end)
     end
+  end
+
+  defp printing_owned_counts(oracle_id) do
+    CollectionItem
+    |> join(:inner, [item], printing in assoc(item, :printing))
+    |> join(:left, [item, _printing], location in assoc(item, :location_assoc))
+    |> where([_item, printing, _location], printing.oracle_id == ^oracle_id)
+    |> where([_item, _printing, location], is_nil(location.id) or location.kind != "list")
+    |> group_by([item, _printing, _location], item.scryfall_id)
+    |> select([item, _printing, _location], {item.scryfall_id, coalesce(sum(item.quantity), 0)})
+    |> Repo.all()
+    |> Map.new()
   end
 
   def search_printings(filters, opts \\ []) when is_list(filters) do

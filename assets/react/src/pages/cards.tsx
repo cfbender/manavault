@@ -99,6 +99,7 @@ const CardDocument = graphql(`
         collectorNumber
         lang
         rarity
+        ownedCount
         finishes
         imageUrl
         artCropUrl
@@ -341,6 +342,8 @@ export function CardDetailPage({ id, query }: { id: string; query: string }) {
             <div key={printing.scryfallId}>
               <CardTile
                 defaultActions={[]}
+                count={printing.ownedCount}
+                countMin={1}
                 finish={(printing.finishes || [])[0]}
                 imageUrl={printing.imageUrl}
                 menuActions={[

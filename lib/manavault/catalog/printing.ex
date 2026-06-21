@@ -15,6 +15,7 @@ defmodule Manavault.Catalog.Printing do
     field :image_uris, :string, default: "{}"
     field :prices, :string, default: "{}"
     field :released_at, :date
+    field :owned_count, :integer, virtual: true, default: 0
 
     belongs_to :card, Manavault.Catalog.Card,
       references: :oracle_id,

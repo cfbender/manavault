@@ -35,6 +35,8 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :lang, :string
     field :rarity, :string
 
+    field :owned_count, non_null(:integer)
+
     field :finishes, list_of(:string) do
       resolve(fn printing, _, _ ->
         {:ok, CatalogResolvers.decode_json_field(printing, :finishes, [])}
