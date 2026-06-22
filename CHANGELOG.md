@@ -8,6 +8,12 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.5.2] - 2026-06-22
+
+### Bug Fixes
+
+- Deck page buylist ([`71564893`](../../commit/71564893c4f8a337dc0a32f92fe19a74fe968746))
+
 ## [0.5.1] - 2026-06-22
 
 ### Bug Fixes

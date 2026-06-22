@@ -199,7 +199,7 @@ external backup.
 The production image is published to GitHub Container Registry:
 
 ```sh
-docker pull ghcr.io/cfbender/manavault:0.5.1
+docker pull ghcr.io/cfbender/manavault:0.5.2
 ```
 
 Generate a secret for production cookies:
@@ -220,7 +220,7 @@ docker run -d \
   -v "$PWD/data:/data" \
   -e SECRET_KEY_BASE="$(mise exec -- mix phx.gen.secret)" \
   -e PHX_HOST=localhost \
-  ghcr.io/cfbender/manavault:0.5.1
+  ghcr.io/cfbender/manavault:0.5.2
 ```
 
 Health check:
@@ -245,7 +245,7 @@ Example `docker-compose.yml` using the published GHCR image:
 ```yaml
 services:
   manavault:
-    image: ghcr.io/cfbender/manavault:0.5.1
+    image: ghcr.io/cfbender/manavault:0.5.2
     container_name: manavault
     restart: unless-stopped
     ports:
@@ -307,8 +307,8 @@ Expected tags:
 
 - `latest` from the default branch
 - branch tags from branch pushes
-- `0.5.1` and `0.5` from tag `v0.5.1`
-- `v0.5.1` from the raw tag ref
+- `0.5.2` and `0.5` from tag `v0.5.2`
+- `v0.5.2` from the raw tag ref
 
 ## Roadmap
 
