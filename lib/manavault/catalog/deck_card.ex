@@ -11,6 +11,7 @@ defmodule Manavault.Catalog.DeckCard do
     field :proxy_quantity, :integer, default: 0
     field :zone, :string, default: "mainboard"
     field :finish, :string, default: "nonfoil"
+    field :allocation_status, :map, virtual: true
 
     belongs_to :deck, Manavault.Catalog.Deck
 

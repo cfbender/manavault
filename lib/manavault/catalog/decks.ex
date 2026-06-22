@@ -65,12 +65,15 @@ defmodule Manavault.Catalog.Decks do
     |> Repo.preload(deck_preloads())
   end
 
-  def deck_cards(%Deck{deck_cards: cards}) when is_list(cards), do: cards
+  def deck_cards(%Deck{deck_cards: cards}) when is_list(cards) do
+    put_deck_card_allocation_statuses(cards)
+  end
 
   def deck_cards(%Deck{} = deck) do
     deck
     |> Repo.preload(deck_preloads())
     |> Map.fetch!(:deck_cards)
+    |> put_deck_card_allocation_statuses()
   end
 
   def deck_card_count(%Deck{card_count: count}) when is_integer(count), do: count
@@ -300,18 +303,70 @@ defmodule Manavault.Catalog.Decks do
     deck
     |> Repo.preload(deck_preloads(), force: true)
     |> Map.fetch!(:deck_cards)
+    |> put_deck_card_allocation_statuses()
     |> Map.new(fn deck_card ->
-      {deck_card.id, deck_card_allocation_status(deck_card)}
+      {deck_card.id, deck_card.allocation_status}
     end)
   end
 
   def deck_card_allocation_status(%DeckCard{} = deck_card) do
     deck_card = load_deck_card_for_allocation_status(deck_card)
 
-    candidates = deck_card_collection_candidates(deck_card)
-    current_allocations = current_allocation_counts(deck_card.id)
-    other_allocations = other_reserving_allocation_counts(deck_card)
+    deck_card_allocation_status(
+      deck_card,
+      deck_card_collection_candidates(deck_card),
+      current_allocation_counts(deck_card.id),
+      other_reserving_allocation_counts(deck_card)
+    )
+  end
 
+  defp put_deck_card_allocation_statuses([]), do: []
+
+  defp put_deck_card_allocation_statuses(deck_cards) when is_list(deck_cards) do
+    statuses_by_id = deck_card_allocation_statuses(deck_cards)
+
+    Enum.map(deck_cards, fn
+      %DeckCard{id: id} = deck_card when is_integer(id) ->
+        %{deck_card | allocation_status: Map.fetch!(statuses_by_id, id)}
+
+      %DeckCard{} = deck_card ->
+        %{deck_card | allocation_status: deck_card_allocation_status(deck_card)}
+    end)
+  end
+
+  defp deck_card_allocation_statuses(deck_cards) do
+    persisted_cards = Enum.filter(deck_cards, &is_integer(&1.id))
+    deck_card_ids = Enum.map(persisted_cards, & &1.id)
+    keys = persisted_cards |> Enum.map(&deck_card_allocation_key/1) |> Enum.uniq()
+    candidates_by_key = deck_card_collection_candidates_by_key(keys)
+    current_allocations_by_card_id = current_allocation_counts_by_card_id(deck_card_ids)
+    reserving_allocations_by_key = reserving_allocation_counts_by_key(keys)
+
+    Map.new(persisted_cards, fn deck_card ->
+      key = deck_card_allocation_key(deck_card)
+      current_allocations = Map.get(current_allocations_by_card_id, deck_card.id, %{})
+
+      other_allocations =
+        reserving_allocations_by_key
+        |> Map.get(key, [])
+        |> other_allocation_counts(deck_card.id)
+
+      candidates =
+        candidates_by_key
+        |> Map.get(key, [])
+        |> sort_candidates_for_deck_card(deck_card)
+
+      {deck_card.id,
+       deck_card_allocation_status(deck_card, candidates, current_allocations, other_allocations)}
+    end)
+  end
+
+  defp deck_card_allocation_status(
+         %DeckCard{} = deck_card,
+         candidates,
+         current_allocations,
+         other_allocations
+       ) do
     owned = Enum.reduce(candidates, 0, &(&1.quantity + &2))
     proxy_allocated = deck_card.proxy_quantity || 0
     physical_allocated = current_allocations |> Map.values() |> Enum.sum()
@@ -761,7 +816,10 @@ defmodule Manavault.Catalog.Decks do
       printing.oracle_id == ^oracle_id and item.finish == ^finish
     )
     |> where([_item, _printing, _card, location], is_nil(location.id) or location.kind != "list")
-    |> preload([_item, printing, card, _location], printing: {printing, card: card})
+    |> preload([_item, printing, card, location],
+      printing: {printing, card: card},
+      location_assoc: location
+    )
     |> order_by([item, printing, card, _location],
       desc: fragment("? = ?", item.scryfall_id, ^preferred_printing_id),
       asc: card.name,
@@ -770,6 +828,54 @@ defmodule Manavault.Catalog.Decks do
       asc: item.id
     )
     |> Repo.all()
+  end
+
+  defp deck_card_collection_candidates_by_key([]), do: %{}
+
+  defp deck_card_collection_candidates_by_key(keys) do
+    CollectionItem
+    |> join(:inner, [item], printing in assoc(item, :printing))
+    |> join(:inner, [_item, printing], card in assoc(printing, :card))
+    |> join(:left, [item, _printing, _card], location in assoc(item, :location_assoc))
+    |> where(^matching_allocation_key_dynamic(keys))
+    |> where([_item, _printing, _card, location], is_nil(location.id) or location.kind != "list")
+    |> preload([_item, printing, card, location],
+      printing: {printing, card: card},
+      location_assoc: location
+    )
+    |> order_by([item, printing, card, _location],
+      asc: card.name,
+      asc: printing.set_code,
+      asc: printing.collector_number,
+      asc: item.id
+    )
+    |> Repo.all()
+    |> Enum.group_by(fn item -> {item.printing.oracle_id, item.finish} end)
+  end
+
+  defp matching_allocation_key_dynamic(keys) do
+    Enum.reduce(keys, dynamic(false), fn {oracle_id, finish}, dynamic ->
+      dynamic(
+        [item, printing, _card, _location],
+        ^dynamic or (printing.oracle_id == ^oracle_id and item.finish == ^finish)
+      )
+    end)
+  end
+
+  defp sort_candidates_for_deck_card(candidates, %DeckCard{} = deck_card) do
+    Enum.sort_by(candidates, fn item ->
+      {
+        if(item.scryfall_id == deck_card.preferred_printing_id, do: 0, else: 1),
+        item.printing.card.name,
+        item.printing.set_code || "",
+        item.printing.collector_number || "",
+        item.id
+      }
+    end)
+  end
+
+  defp deck_card_allocation_key(%DeckCard{} = deck_card) do
+    {deck_card.oracle_id, deck_card.finish}
   end
 
   defp buylist_printing(%DeckCard{} = deck_card, :exact) do
@@ -820,6 +926,24 @@ defmodule Manavault.Catalog.Decks do
     |> Map.new()
   end
 
+  defp current_allocation_counts_by_card_id([]), do: %{}
+
+  defp current_allocation_counts_by_card_id(deck_card_ids) do
+    DeckAllocation
+    |> where([allocation], allocation.deck_card_id in ^deck_card_ids)
+    |> group_by([allocation], [allocation.deck_card_id, allocation.collection_item_id])
+    |> select(
+      [allocation],
+      {allocation.deck_card_id, allocation.collection_item_id, sum(allocation.quantity)}
+    )
+    |> Repo.all()
+    |> Enum.reduce(%{}, fn {deck_card_id, collection_item_id, quantity}, acc ->
+      Map.update(acc, deck_card_id, %{collection_item_id => quantity}, fn counts ->
+        Map.put(counts, collection_item_id, quantity)
+      end)
+    end)
+  end
+
   defp other_reserving_allocation_counts(%DeckCard{} = deck_card) do
     DeckAllocation
     |> join(:inner, [allocation], allocated_card in assoc(allocation, :deck_card))
@@ -837,6 +961,61 @@ defmodule Manavault.Catalog.Decks do
     )
     |> Repo.all()
     |> Map.new()
+  end
+
+  defp reserving_allocation_counts_by_key([]), do: %{}
+
+  defp reserving_allocation_counts_by_key(keys) do
+    DeckAllocation
+    |> join(:inner, [allocation], allocated_card in assoc(allocation, :deck_card))
+    |> join(:inner, [_allocation, allocated_card], deck in assoc(allocated_card, :deck))
+    |> where([_allocation, _allocated_card, deck], deck.status in ^@reserving_deck_statuses)
+    |> where(^matching_reserving_allocation_key_dynamic(keys))
+    |> group_by(
+      [allocation, allocated_card, _deck],
+      [
+        allocated_card.id,
+        allocated_card.oracle_id,
+        allocated_card.finish,
+        allocation.collection_item_id
+      ]
+    )
+    |> select(
+      [allocation, allocated_card, _deck],
+      {
+        allocated_card.id,
+        allocated_card.oracle_id,
+        allocated_card.finish,
+        allocation.collection_item_id,
+        sum(allocation.quantity)
+      }
+    )
+    |> Repo.all()
+    |> Enum.group_by(fn {_deck_card_id, oracle_id, finish, _collection_item_id, _quantity} ->
+      {oracle_id, finish}
+    end)
+  end
+
+  defp matching_reserving_allocation_key_dynamic(keys) do
+    Enum.reduce(keys, dynamic(false), fn {oracle_id, finish}, dynamic ->
+      dynamic(
+        [_allocation, allocated_card, _deck],
+        ^dynamic or (allocated_card.oracle_id == ^oracle_id and allocated_card.finish == ^finish)
+      )
+    end)
+  end
+
+  defp other_allocation_counts(reserving_allocations, deck_card_id) do
+    reserving_allocations
+    |> Enum.reject(fn {reserving_deck_card_id, _oracle_id, _finish, _collection_item_id,
+                       _quantity} ->
+      reserving_deck_card_id == deck_card_id
+    end)
+    |> Enum.reduce(%{}, fn {_reserving_deck_card_id, _oracle_id, _finish, collection_item_id,
+                            quantity},
+                           acc ->
+      Map.update(acc, collection_item_id, quantity, &(&1 + quantity))
+    end)
   end
 
   defp allocation_missing(%DeckCard{} = deck_card, allocated, available) do

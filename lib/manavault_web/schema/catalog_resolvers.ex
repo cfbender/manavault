@@ -635,6 +635,11 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     {:ok, allocated || 0}
   end
 
+  def deck_card_allocation_status(%DeckCard{allocation_status: status}, _args, _resolution)
+      when is_map(status) do
+    {:ok, %{status | state: to_string(status.state)}}
+  end
+
   def deck_card_allocation_status(%DeckCard{} = deck_card, _args, _resolution) do
     status = Catalog.deck_card_allocation_status(deck_card)
     {:ok, %{status | state: to_string(status.state)}}
