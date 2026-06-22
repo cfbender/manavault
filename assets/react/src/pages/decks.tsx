@@ -60,6 +60,7 @@ import {
   DialogTitle,
 } from "../components/ui/dialog"
 import { Input } from "../components/ui/input"
+import { ColorIdentitySymbols } from "../components/ui/mana-symbols"
 import { graphql } from "../gql"
 import type {
   DeckBuylistQuery,
@@ -84,11 +85,13 @@ const DecksDocument = graphql(`
       cardCount
       uniqueCardCount
       deckCards {
+        zone
         preferredPrinting {
           imageUrl
           artCropUrl
         }
         card {
+          colorIdentity
           printings {
             imageUrl
             artCropUrl
@@ -701,7 +704,12 @@ export function DecksPage() {
                               <span>{compactNumber(deck.uniqueCardCount || 0)} unique</span>
                             </div>
                           }
-                          nameLine={deck.name}
+                          nameLine={
+                            <DeckNameWithCommanderIdentity
+                              colors={commanderColorIdentity(deck.deckCards)}
+                              name={deck.name}
+                            />
+                          }
                         />
                       </Link>
                       <SummaryActionMenu
@@ -1024,7 +1032,12 @@ export function DeckDetailPage({
               <span>{compactNumber(deck.uniqueCardCount || 0)} unique</span>
             </div>
           }
-          nameLine={deck.name}
+          nameLine={
+            <DeckNameWithCommanderIdentity
+              colors={commanderColorIdentity(deckCards)}
+              name={deck.name}
+            />
+          }
           actionSlot={
             <ShareModeHidden shareMode={shareMode}>
               <SummaryActionMenu
@@ -1468,6 +1481,47 @@ function groupDecksByFormat(decks: DeckSummary[]) {
 function formatSortValue(format: string) {
   const index = DECK_FORMATS.indexOf(format as (typeof DECK_FORMATS)[number])
   return index === -1 ? Number.MAX_SAFE_INTEGER : index
+}
+
+function DeckNameWithCommanderIdentity({
+  colors,
+  name,
+}: {
+  colors?: string[] | null
+  name: ReactNode
+}) {
+  return (
+    <span className="inline-flex max-w-full flex-wrap items-center gap-2">
+      <span className="min-w-0">{name}</span>
+      {colors?.length ? <ColorIdentitySymbols colors={colors} className="text-[0.82em]" /> : null}
+    </span>
+  )
+}
+
+function commanderColorIdentity(
+  deckCards:
+    | Array<{
+        card?: { colorIdentity?: Array<string | null> | null } | null
+        zone?: string | null
+      } | null>
+    | null
+    | undefined,
+) {
+  const commanders = (deckCards || []).filter(
+    (deckCard) => deckCard?.zone === "commander" && deckCard.card,
+  )
+
+  if (!commanders.length) return null
+
+  const colors = new Set<string>()
+
+  for (const commander of commanders) {
+    for (const color of commander?.card?.colorIdentity || []) {
+      if (color) colors.add(color.toUpperCase())
+    }
+  }
+
+  return colors.size ? Array.from(colors).sort((left, right) => colorOrder(left) - colorOrder(right)) : ["C"]
 }
 
 function deckCoverUrl(deck: DeckSummary) {
