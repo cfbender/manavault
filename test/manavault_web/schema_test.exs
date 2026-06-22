@@ -486,6 +486,90 @@ defmodule ManavaultWeb.SchemaTest do
            } = json_response(conn, 200)
   end
 
+  test "deck counts exclude sideboard and maybeboard cards", %{conn: conn} do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([
+               %{
+                 "id" => "scryfall-count-main",
+                 "oracle_id" => "oracle-count-main",
+                 "name" => "Count Main",
+                 "type_line" => "Creature",
+                 "collector_number" => "1",
+                 "set" => "cnt",
+                 "set_name" => "Count Set",
+                 "lang" => "en",
+                 "image_uris" => %{},
+                 "finishes" => ["nonfoil"],
+                 "legalities" => %{}
+               },
+               %{
+                 "id" => "scryfall-count-commander",
+                 "oracle_id" => "oracle-count-commander",
+                 "name" => "Count Commander",
+                 "type_line" => "Legendary Creature",
+                 "collector_number" => "2",
+                 "set" => "cnt",
+                 "set_name" => "Count Set",
+                 "lang" => "en",
+                 "image_uris" => %{},
+                 "finishes" => ["nonfoil"],
+                 "legalities" => %{}
+               }
+             ])
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Count Test", "format" => "commander"})
+
+    assert {:ok, _mainboard} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Count Main",
+               "quantity" => 2,
+               "zone" => "mainboard"
+             })
+
+    assert {:ok, _commander} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Count Commander",
+               "quantity" => 1,
+               "zone" => "commander"
+             })
+
+    assert {:ok, _sideboard} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Count Main",
+               "quantity" => 4,
+               "zone" => "sideboard"
+             })
+
+    assert {:ok, _maybeboard} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Count Commander",
+               "quantity" => 8,
+               "zone" => "maybeboard"
+             })
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query Deck($id: ID!) {
+          deck(id: $id) {
+            cardCount
+            uniqueCardCount
+          }
+        }
+        """,
+        "variables" => %{"id" => deck.id}
+      })
+
+    assert %{
+             "data" => %{
+               "deck" => %{
+                 "cardCount" => 3,
+                 "uniqueCardCount" => 2
+               }
+             }
+           } = json_response(conn, 200)
+  end
+
   test "deck share mutation creates a public token and public share query resolves it", %{
     conn: conn
   } do

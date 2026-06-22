@@ -532,11 +532,11 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   end
 
   def deck_card_count(%Deck{} = deck, _args, _resolution) do
-    {:ok, deck |> deck_cards() |> Enum.reduce(0, &(&1.quantity + &2))}
+    {:ok, deck |> countable_deck_cards() |> Enum.reduce(0, &(&1.quantity + &2))}
   end
 
   def deck_unique_card_count(%Deck{} = deck, _args, _resolution) do
-    {:ok, deck |> deck_cards() |> length()}
+    {:ok, deck |> countable_deck_cards() |> length()}
   end
 
   def location_item_count(%Location{collection_items: items}, _args, _resolution)
@@ -733,6 +733,10 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
   defp deck_cards(%Deck{} = deck) do
     deck |> Repo.preload(deck_cards: [printing: :card]) |> Map.get(:deck_cards)
+  end
+
+  defp countable_deck_cards(%Deck{} = deck) do
+    Enum.filter(deck_cards(deck), &DeckCard.counts_toward_deck_total?/1)
   end
 
   defp changeset_error_message(%Ecto.Changeset{} = changeset) do

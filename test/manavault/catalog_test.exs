@@ -572,6 +572,52 @@ defmodule Manavault.CatalogTest do
     assert [] = Catalog.list_decks()
   end
 
+  test "deck stats total excludes sideboard and maybeboard cards" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Count Test"})
+
+    assert {:ok, _mainboard} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Black Lotus",
+               "quantity" => 2,
+               "zone" => "mainboard"
+             })
+
+    assert {:ok, _commander} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Time Walk",
+               "quantity" => 1,
+               "zone" => "commander"
+             })
+
+    assert {:ok, _sideboard} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Black Lotus",
+               "quantity" => 4,
+               "zone" => "sideboard"
+             })
+
+    assert {:ok, _maybeboard} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Time Walk",
+               "quantity" => 8,
+               "zone" => "maybeboard"
+             })
+
+    stats = deck.id |> Catalog.get_deck!() |> Catalog.deck_stats()
+
+    assert stats.total == 3
+
+    assert stats.zones == %{
+             "commander" => 1,
+             "mainboard" => 2,
+             "maybeboard" => 8,
+             "sideboard" => 4
+           }
+  end
+
   test "decklist import and export support zones and set collector preferences" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])

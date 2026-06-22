@@ -660,7 +660,10 @@ defmodule Manavault.Catalog.Decks do
     cards = deck.deck_cards || []
 
     %{
-      total: Enum.reduce(cards, 0, &(&1.quantity + &2)),
+      total:
+        cards
+        |> Enum.filter(&DeckCard.counts_toward_deck_total?/1)
+        |> Enum.reduce(0, &(&1.quantity + &2)),
       zones: count_deck_groups(cards, & &1.zone),
       colors: deck_color_counts(cards),
       types: count_deck_groups(cards, &deck_card_type/1)

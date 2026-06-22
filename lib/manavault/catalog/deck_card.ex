@@ -4,6 +4,7 @@ defmodule Manavault.Catalog.DeckCard do
   import Ecto.Changeset
 
   @zones ~w(mainboard sideboard commander maybeboard)
+  @deck_count_zones ~w(mainboard commander)
 
   schema "deck_cards" do
     field :quantity, :integer, default: 1
@@ -30,6 +31,9 @@ defmodule Manavault.Catalog.DeckCard do
   end
 
   def zones, do: @zones
+  def counts_toward_deck_total?(%__MODULE__{zone: zone}), do: deck_count_zone?(zone)
+  def deck_count_zone?(zone) when is_binary(zone), do: zone in @deck_count_zones
+  def deck_count_zone?(_zone), do: false
 
   def changeset(deck_card, attrs) do
     deck_card
