@@ -8,6 +8,16 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.5.3] - 2026-06-22
+
+### Bug Fixes
+
+- App fixes ([`977467b4`](../../commit/977467b4296c69b93c325d981bbbb4921a3b0f30))
+
+### Features
+
+- Sign release app and document custom domain ([`1f4c8da8`](../../commit/1f4c8da85ef7fe6e14569214ee7b31a13286a14e))
+
 ## [0.5.2] - 2026-06-22
 
 ### Bug Fixes
