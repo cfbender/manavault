@@ -21,7 +21,6 @@ defmodule ManavaultWeb.Router do
     pipe_through :browser
 
     get "/", AppController, :index
-    get "/scan", AppController, :index
     get "/settings", AppController, :index
     get "/cards", AppController, :index
     get "/cards/:id", AppController, :index
@@ -30,9 +29,6 @@ defmodule ManavaultWeb.Router do
     get "/share/decks/:token", AppController, :index
     get "/collection", AppController, :index
     get "/collection/new", AppController, :index
-    get "/scan-sessions", AppController, :index
-    get "/scan-sessions/:id", AppController, :index
-    get "/scan-sessions/:id/scanner", AppController, :index
     get "/collection/locations/:id", AppController, :index
     get "/collection/:id/edit", AppController, :index
     get "/scryfall-assets/*path", ScryfallAssetController, :show

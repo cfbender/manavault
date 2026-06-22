@@ -14,10 +14,6 @@ defmodule ManavaultWeb.Endpoint do
   @fresh_asset_cache_control "no-cache, no-store, must-revalidate"
   @fresh_asset_headers %{"pragma" => "no-cache", "expires" => "0"}
 
-  socket "/socket", ManavaultWeb.UserSocket,
-    websocket: true,
-    longpoll: false
-
   # Vite module entries and dynamic chunks must revalidate at the browser/CDN
   # boundary. Old entry modules can point at deleted chunks after deploys.
   plug Plug.Static,

@@ -11,7 +11,7 @@ defmodule Manavault.Backup do
   @app :manavault
   @db_name "manavault.db"
   @manifest_name "manifest.json"
-  @default_local_paths ["uploads/scans"]
+  @default_local_paths []
 
   alias Manavault.Backup.{Cloud, Settings}
 

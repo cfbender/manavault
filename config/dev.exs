@@ -68,7 +68,6 @@ config :manavault, ManavaultWeb.Endpoint,
 config :manavault, dev_routes: true
 
 config :manavault, vite_dev_server?: true
-config :manavault, scan_keep_rejected_captures: true
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"

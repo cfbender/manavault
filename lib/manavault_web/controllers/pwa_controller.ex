@@ -14,7 +14,7 @@ defmodule ManavaultWeb.PwaController do
     |> json(%{
       name: "ManaVault",
       short_name: "ManaVault",
-      description: "Local Magic collection management with camera card scanning.",
+      description: "Local Magic collection management with deck allocation and import workflows.",
       id: "/",
       start_url: "/",
       scope: "/",
@@ -36,16 +36,9 @@ defmodule ManavaultWeb.PwaController do
           type: "image/png",
           form_factor: "wide",
           label: "Collection dashboard"
-        },
-        %{
-          src: versioned_path("/screenshots/mobile-scan.png", version),
-          sizes: "540x720",
-          type: "image/png",
-          label: "Card scanner"
         }
       ],
       shortcuts: [
-        shortcut("Scan cards", "Scan", "Open the mobile camera scanner.", "/scan", version),
         shortcut("Collection", "Collection", "Open the card collection.", "/collection", version)
       ]
     })

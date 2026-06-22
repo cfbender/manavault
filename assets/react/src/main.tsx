@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client"
 import "./pwa"
 import { ThemeProvider } from "./lib/theme"
 import { routeTree } from "./routeTree.gen"
+import { initializeNativeSharedImport } from "./lib/native-shared-import"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,6 +22,10 @@ declare module "@tanstack/react-router" {
     router: typeof router
   }
 }
+
+void initializeNativeSharedImport(() => {
+  void router.navigate({ to: "/collection", search: { importFile: true } })
+})
 
 createRoot(document.getElementById("manavault-root")!).render(
   <QueryClientProvider client={queryClient}>

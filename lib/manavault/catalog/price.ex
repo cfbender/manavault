@@ -1,7 +1,7 @@
 defmodule Manavault.Catalog.Price do
   @moduledoc false
 
-  alias Manavault.Catalog.{CollectionItem, DeckCard, Printing, ScanItem}
+  alias Manavault.Catalog.{CollectionItem, DeckCard, Printing}
 
   def text_for_printing(%Printing{} = printing, finish \\ nil) do
     printing
@@ -29,43 +29,6 @@ defmodule Manavault.Catalog.Price do
       nil -> nil
     end
   end
-
-  def text_for_scan_item(%ScanItem{} = item) do
-    item
-    |> scan_item_price_cents()
-    |> format_cents()
-  end
-
-  def text_for_scan_item(_item), do: nil
-
-  def total_text_for_scan_item(%ScanItem{} = item) do
-    item
-    |> scan_item_total_cents()
-    |> format_cents()
-  end
-
-  def total_text_for_scan_item(_item), do: nil
-
-  def scan_items_total_cents(items) do
-    Enum.reduce(List.wrap(items), 0, fn item, total ->
-      total + (scan_item_total_cents(item) || 0)
-    end)
-  end
-
-  def scan_item_total_cents(%ScanItem{quantity: quantity} = item) when is_integer(quantity) do
-    case scan_item_price_cents(item) do
-      cents when is_integer(cents) -> quantity * cents
-      nil -> nil
-    end
-  end
-
-  def scan_item_total_cents(_item), do: nil
-
-  def scan_item_price_cents(%ScanItem{accepted_printing: %Printing{} = printing, finish: finish}) do
-    price_cents_for_printing(printing, finish)
-  end
-
-  def scan_item_price_cents(_item), do: nil
 
   def collection_items_total_cents(items),
     do: collection_items_sum_cents(items, &collection_item_price_cents/1)

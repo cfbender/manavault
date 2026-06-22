@@ -13,7 +13,6 @@ defmodule ManavaultWeb.SchemaTest do
             collectionCount
             locationCount
             deckCount
-            scanSessionCount
           }
         }
         """
@@ -24,8 +23,7 @@ defmodule ManavaultWeb.SchemaTest do
                "homeSummary" => %{
                  "collectionCount" => 0,
                  "locationCount" => 0,
-                 "deckCount" => 0,
-                 "scanSessionCount" => 0
+                 "deckCount" => 0
                }
              }
            } = json_response(conn, 200)
@@ -160,7 +158,7 @@ defmodule ManavaultWeb.SchemaTest do
              }
            } = json_response(conn, 200)
 
-    assert catalog_message =~ "image cache rebuild"
+    assert catalog_message == "Scryfall catalog reload queued."
     assert asset_message =~ "set icon"
     assert_receive :catalog_sync
     assert_receive :asset_sync
@@ -504,84 +502,6 @@ defmodule ManavaultWeb.SchemaTest do
                "cardNameSuggestions" => ["Black Lotus"]
              }
            } = json_response(conn, 200)
-  end
-
-  test "scan sessions expose counts and scan prices", %{conn: conn} do
-    {:ok, %{cards_count: 1, printings_count: 1}} =
-      Catalog.import_cards([
-        %{
-          "id" => "scryfall-scan-price",
-          "oracle_id" => "oracle-scan-price",
-          "name" => "Price Scanner",
-          "type_line" => "Artifact",
-          "collector_number" => "7",
-          "set" => "tst",
-          "set_name" => "Test Set",
-          "lang" => "en",
-          "rarity" => "rare",
-          "image_uris" => %{},
-          "finishes" => ["nonfoil", "foil"],
-          "prices" => %{"usd" => "2.50", "usd_foil" => "7.50"},
-          "legalities" => %{}
-        }
-      ])
-
-    {:ok, session} =
-      Catalog.create_scan_session(%{
-        name: "Inbox",
-        default_condition: "near_mint",
-        default_language: "en",
-        default_finish: "nonfoil"
-      })
-
-    {:ok, _review_item} =
-      Catalog.create_scan_item(session, %{
-        status: "needs_review",
-        quantity: 2,
-        finish: "foil",
-        accepted_printing_id: "scryfall-scan-price"
-      })
-
-    {:ok, _accepted_item} = Catalog.create_scan_item(session, %{status: "accepted"})
-
-    conn =
-      post(conn, "/api/graphql", %{
-        "query" => """
-        query {
-          scanSessions {
-            name
-            itemCount
-            reviewCount
-            totalPriceText
-            scanItems {
-              quantity
-              priceText
-              totalPriceText
-            }
-          }
-        }
-        """
-      })
-
-    assert %{
-             "data" => %{
-               "scanSessions" => [
-                 %{
-                   "name" => "Inbox",
-                   "itemCount" => 2,
-                   "reviewCount" => 1,
-                   "totalPriceText" => "$15",
-                   "scanItems" => scan_items
-                 }
-               ]
-             }
-           } = json_response(conn, 200)
-
-    assert %{
-             "quantity" => 2,
-             "priceText" => "$7.50",
-             "totalPriceText" => "$15"
-           } in scan_items
   end
 
   test "create deck mutation creates a deck", %{conn: conn} do
@@ -1549,7 +1469,9 @@ defmodule ManavaultWeb.SchemaTest do
           }
         }
         """,
-        "variables" => %{"input" => %{"csv" => csv, "locationId" => location.id}}
+        "variables" => %{
+          "input" => %{"text" => csv, "format" => "csv", "locationId" => location.id}
+        }
       })
 
     assert %{

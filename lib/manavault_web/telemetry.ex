@@ -40,17 +40,6 @@ defmodule ManavaultWeb.Telemetry do
         tags: [:route],
         unit: {:native, :millisecond}
       ),
-      summary("phoenix.socket_connected.duration",
-        unit: {:native, :millisecond}
-      ),
-      sum("phoenix.socket_drain.count"),
-      summary("phoenix.channel_joined.duration",
-        unit: {:native, :millisecond}
-      ),
-      summary("phoenix.channel_handled_in.duration",
-        tags: [:event],
-        unit: {:native, :millisecond}
-      ),
 
       # Database Metrics
       summary("manavault.repo.query.total_time",
@@ -73,48 +62,6 @@ defmodule ManavaultWeb.Telemetry do
         unit: {:native, :millisecond},
         description:
           "The time the connection spent waiting before being checked out for the query"
-      ),
-
-      # Scanner Metrics
-      summary("manavault.scanner.capture.stop.duration",
-        tags: [:outcome],
-        unit: {:native, :millisecond},
-        description: "End-to-end live scanner capture duration"
-      ),
-      summary("manavault.scanner.capture_write.stop.duration",
-        tags: [:outcome],
-        unit: {:native, :millisecond},
-        description: "Camera frame decode/write duration"
-      ),
-      summary("manavault.scanner.recognition.stop.duration",
-        tags: [:mode, :outcome],
-        unit: {:native, :millisecond},
-        description: "Scanner recognition duration"
-      ),
-      summary("manavault.scanner.ocr.stop.duration",
-        tags: [:ocr_crop, :outcome],
-        unit: {:native, :millisecond},
-        description: "Scanner OCR duration"
-      ),
-      summary("manavault.scanner.image_match.stop.duration",
-        tags: [:phase, :outcome],
-        unit: {:native, :millisecond},
-        description: "Scanner image matching duration"
-      ),
-      summary("manavault.scanner.candidate_match.stop.duration",
-        tags: [:outcome],
-        unit: {:native, :millisecond},
-        description: "Scanner candidate scoring duration"
-      ),
-      summary("manavault.scanner.persist.stop.duration",
-        tags: [:outcome],
-        unit: {:native, :millisecond},
-        description: "Scanner capture persistence duration"
-      ),
-      summary("manavault.scanner.refinement.stop.duration",
-        tags: [:outcome],
-        unit: {:native, :millisecond},
-        description: "Async exact-printing refinement duration"
       ),
 
       # VM Metrics

@@ -1,3 +1,0 @@
-rapidocr==3.8.4
-onnxruntime==1.27.0
-Pillow==12.2.0

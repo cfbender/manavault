@@ -3,7 +3,7 @@ defmodule Manavault.Catalog do
   Public catalog context API.
   """
 
-  alias Manavault.Catalog.{Collection, Decks, Scans, Scryfall, ScryfallSyncWorker, Search}
+  alias Manavault.Catalog.{Collection, Decks, Scryfall, ScryfallSyncWorker, Search}
 
   defdelegate search_cards(term, opts \\ []), to: Search
   defdelegate suggest_card_names(term, opts \\ []), to: Search
@@ -21,7 +21,6 @@ defmodule Manavault.Catalog do
   defdelegate create_collection_item(attrs), to: Collection
   defdelegate update_collection_item(collection_item, attrs), to: Collection
   defdelegate list_printings_for_collection_item(collection_item), to: Collection
-  defdelegate list_printings_for_scan_item(scan_item), to: Collection
   defdelegate switch_collection_item_printing(collection_item, scryfall_id), to: Collection
   defdelegate delete_collection_item(collection_item), to: Collection
 
@@ -38,8 +37,8 @@ defmodule Manavault.Catalog do
   defdelegate update_location(location, attrs), to: Collection
   defdelegate delete_location(location), to: Collection
   defdelegate add_printing_to_collection(scryfall_id, attrs \\ %{}), to: Collection
-  defdelegate preview_collection_import_csv(text, opts \\ []), to: Collection
-  defdelegate import_collection_csv(text, opts \\ []), to: Collection
+  defdelegate preview_collection_import(text, opts \\ []), to: Collection
+  defdelegate import_collection(text, opts \\ []), to: Collection
   defdelegate import_collection_preview(preview), to: Collection
   defdelegate export_collection_csv(filters \\ []), to: Collection
   defdelegate export_collection_text(filters \\ []), to: Collection
@@ -85,33 +84,6 @@ defmodule Manavault.Catalog do
   defdelegate deck_edhrec(deck, opts \\ []), to: Decks
   defdelegate export_deck_buylist(deck, format, opts \\ []), to: Decks
   defdelegate deck_stats(deck), to: Decks
-
-  defdelegate list_scan_sessions(), to: Scans
-  defdelegate get_scan_session!(id), to: Scans
-  defdelegate get_scan_session_for_capture!(id), to: Scans
-  defdelegate get_scan_session_capture_summary!(id, opts \\ []), to: Scans
-  defdelegate change_scan_session(scan_session, attrs \\ %{}), to: Scans
-  defdelegate generated_scan_session_name(), to: Scans
-  defdelegate create_scan_session(attrs), to: Scans
-  defdelegate create_scan_item(scan_session, attrs \\ %{}), to: Scans
-  defdelegate create_scan_item_from_capture(scan_session, image_data, opts \\ []), to: Scans
-
-  defdelegate create_recognized_scan_item_from_capture(scan_session, image_data, opts \\ []),
-    to: Scans
-
-  defdelegate recognize_scan_item(scan_item, opts \\ []), to: Scans
-  defdelegate refine_scan_item_printing_with_image(scan_item_id, opts \\ []), to: Scans
-  defdelegate get_scan_item!(id), to: Scans
-  defdelegate update_scan_item_review(scan_item, attrs), to: Scans
-  defdelegate set_scan_item_printing(scan_item_id, scryfall_id), to: Scans
-  defdelegate accept_scan_item(scan_item_id), to: Scans
-  defdelegate accept_scan_item_printing(scan_item_id, scryfall_id), to: Scans
-  defdelegate move_scan_session_items(scan_session, location_id), to: Scans
-  defdelegate reject_scan_item(scan_item_id), to: Scans
-  defdelegate undo_scan_item_accept(scan_item_id), to: Scans
-  defdelegate scan_session_items_by_review_state(scan_session), to: Scans
-  defdelegate delete_scan_item(scan_item), to: Scans
-  defdelegate delete_scan_session(scan_session), to: Scans
 
   defdelegate latest_sync(), to: Scryfall
   defdelegate sync_scryfall(opts \\ []), to: Scryfall

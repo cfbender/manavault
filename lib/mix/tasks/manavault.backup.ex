@@ -5,8 +5,8 @@ defmodule Mix.Tasks.Manavault.Backup do
       mix manavault.backup
       mix manavault.backup --output-dir /path/to/backups
 
-  The backup includes a consistent SQLite database snapshot and local
-  user-owned files such as scan uploads.
+  The backup includes a consistent SQLite database snapshot and configured
+  local file paths.
   """
 
   use Mix.Task

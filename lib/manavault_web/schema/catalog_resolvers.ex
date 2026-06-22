@@ -10,9 +10,7 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     DeckCard,
     Location,
     Price,
-    Printing,
-    ScanItem,
-    ScanSession
+    Printing
   }
 
   alias Manavault.Repo
@@ -22,8 +20,7 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
      %{
        collection_count: length(Catalog.list_collection_items([], limit: 10_000)),
        location_count: length(Catalog.list_locations()),
-       deck_count: length(Catalog.list_decks()),
-       scan_session_count: length(Catalog.list_scan_sessions())
+       deck_count: length(Catalog.list_decks())
      }}
   end
 
@@ -43,8 +40,7 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
         {:ok,
          %{
            status: "queued",
-           message:
-             "Scryfall catalog reload queued. Scanner image cache rebuild will start after the catalog import succeeds."
+           message: "Scryfall catalog reload queued."
          }}
 
       :not_started ->
@@ -215,7 +211,9 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   end
 
   def preview_collection_import(_parent, %{input: input}, _resolution) do
-    case Catalog.preview_collection_import_csv(input.csv,
+    case Catalog.preview_collection_import(input.text,
+           format: Map.get(input, :format, :auto),
+           file_name: Map.get(input, :file_name),
            location_id: Map.get(input, :location_id)
          ) do
       {:ok, preview} -> {:ok, preview}
@@ -440,113 +438,6 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     end
   end
 
-  def scan_sessions(_parent, _args, _resolution), do: {:ok, Catalog.list_scan_sessions()}
-
-  def scan_session(_parent, %{id: id}, _resolution), do: {:ok, Catalog.get_scan_session!(id)}
-
-  def scan_printings(_parent, args, _resolution) do
-    {:ok,
-     Catalog.search_printings([name: Map.get(args, :q, "")], limit: Map.get(args, :limit, 36))}
-  end
-
-  def scan_sets(_parent, args, _resolution), do: {:ok, Catalog.search_sets(Map.get(args, :q, ""))}
-
-  def create_scan_session(_parent, %{input: input}, _resolution) do
-    input =
-      input
-      |> put_generated_scan_session_name()
-      |> normalize_blank_default_location_id()
-
-    case Catalog.create_scan_session(input) do
-      {:ok, session} -> {:ok, Catalog.get_scan_session!(session.id)}
-      {:error, changeset} -> {:error, changeset_error_message(changeset)}
-    end
-  end
-
-  def delete_scan_session(_parent, %{id: id}, _resolution) do
-    session = Catalog.get_scan_session!(id)
-
-    case Catalog.delete_scan_session(session) do
-      {:ok, session} -> {:ok, session}
-      {:error, changeset} -> {:error, changeset_error_message(changeset)}
-    end
-  end
-
-  def capture_scan_item(
-        _parent,
-        %{scan_session_id: scan_session_id, image_data: image_data} = args,
-        _resolution
-      ) do
-    ManavaultWeb.ScanCapture.capture(%{
-      "scan_session_id" => scan_session_id,
-      "image_data" => image_data,
-      "force" => Map.get(args, :force, false),
-      "last_oracle_id" => Map.get(args, :last_oracle_id),
-      "prefer_foil" => Map.get(args, :prefer_foil, false),
-      "set_codes" => Map.get(args, :set_codes, [])
-    })
-  end
-
-  def update_scan_item(_parent, %{id: id, input: input}, _resolution) do
-    scan_item = Catalog.get_scan_item!(id)
-
-    case Catalog.update_scan_item_review(scan_item, input) do
-      {:ok, scan_item} -> {:ok, Catalog.get_scan_item!(scan_item.id)}
-      {:error, changeset} -> {:error, changeset_error_message(changeset)}
-    end
-  end
-
-  def delete_scan_item(_parent, %{id: id}, _resolution) do
-    scan_item = Catalog.get_scan_item!(id)
-
-    case Catalog.delete_scan_item(scan_item) do
-      {:ok, scan_item} -> {:ok, scan_item}
-      {:error, changeset} -> {:error, changeset_error_message(changeset)}
-    end
-  end
-
-  def set_scan_item_printing(_parent, %{id: id, scryfall_id: scryfall_id}, _resolution) do
-    case Catalog.set_scan_item_printing(id, scryfall_id) do
-      {:ok, scan_item} -> {:ok, scan_item}
-      {:error, reason} -> {:error, scan_move_error(reason)}
-    end
-  end
-
-  def move_scan_session_items(_parent, %{id: id} = args, _resolution) do
-    session = Catalog.get_scan_session!(id)
-    location_id = Map.get(args, :location_id)
-
-    case Catalog.move_scan_session_items(session, location_id) do
-      {:ok, result} ->
-        case Catalog.delete_scan_session(session) do
-          {:ok, _session} ->
-            {:ok, Map.put(result, :location_id, normalize_result_location_id(location_id))}
-
-          {:error, changeset} ->
-            {:error, changeset_error_message(changeset)}
-        end
-
-      {:error, reason} ->
-        {:error, scan_move_error(reason)}
-    end
-  end
-
-  def scan_session_items(%ScanSession{} = session, _args, _resolution) do
-    {:ok, session |> scan_items() |> Enum.sort_by(& &1.id, :desc)}
-  end
-
-  def scan_session_total_price_text(%ScanSession{} = session, _args, _resolution) do
-    {:ok, session |> scan_items() |> Price.scan_items_total_cents() |> Price.format_cents()}
-  end
-
-  def scan_item_price_text(%ScanItem{} = item, _args, _resolution) do
-    {:ok, Price.text_for_scan_item(item)}
-  end
-
-  def scan_item_total_price_text(%ScanItem{} = item, _args, _resolution) do
-    {:ok, Price.total_text_for_scan_item(item)}
-  end
-
   def printing_image_url(%Printing{} = printing, _args, _resolution) do
     image_uris = decode_json(printing.image_uris, %{})
     {:ok, image_url(image_uris)}
@@ -583,19 +474,6 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
   def buylist_entry_total_price_text(parent, _args, _resolution) do
     {:ok, parent |> Map.get(:total_price_cents) |> Price.format_cents()}
-  end
-
-  def scan_item_count(%ScanSession{} = session, _args, _resolution) do
-    {:ok, session |> scan_items() |> length()}
-  end
-
-  def scan_review_count(%ScanSession{} = session, _args, _resolution) do
-    count =
-      session
-      |> scan_items()
-      |> Enum.count(&(&1.status == "needs_review"))
-
-    {:ok, count}
   end
 
   def deck_card_count(%Deck{} = deck, _args, _resolution) do
@@ -788,14 +666,6 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
   defp value_gain_percent(_gain, _purchase), do: nil
 
-  defp scan_items(%ScanSession{scan_items: items}) when is_list(items), do: items
-
-  defp scan_items(%ScanSession{} = session) do
-    session
-    |> Repo.preload(scan_items: [:location, accepted_printing: :card])
-    |> Map.get(:scan_items)
-  end
-
   defp deck_cards(%Deck{deck_cards: cards}) when is_list(cards), do: cards
 
   defp deck_cards(%Deck{} = deck) do
@@ -853,35 +723,6 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
   defp normalize_blank_location_id(input), do: input
 
-  defp normalize_blank_default_location_id(%{default_location_id: ""} = input),
-    do: Map.put(input, :default_location_id, nil)
-
-  defp normalize_blank_default_location_id(input), do: input
-
-  defp put_generated_scan_session_name(input) do
-    case Map.get(input, :name) do
-      name when is_binary(name) ->
-        if String.trim(name) == "" do
-          Map.put(input, :name, Catalog.generated_scan_session_name())
-        else
-          input
-        end
-
-      _other ->
-        Map.put(input, :name, Catalog.generated_scan_session_name())
-    end
-  end
-
-  defp normalize_result_location_id(nil), do: nil
-  defp normalize_result_location_id(""), do: nil
-  defp normalize_result_location_id(location_id), do: location_id
-
-  defp scan_move_error(:location_not_found), do: "Location was not found."
-  defp scan_move_error(%Ecto.Changeset{} = changeset), do: changeset_error_message(changeset)
-  defp scan_move_error(reason) when is_binary(reason), do: reason
-  defp scan_move_error(reason) when is_atom(reason), do: Atom.to_string(reason)
-  defp scan_move_error(reason), do: inspect(reason)
-
   defp deck_buylist_opts(args) do
     [
       printing_mode: Map.get(args, :printing_mode, "none"),
@@ -925,9 +766,9 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   defp collection_import_status(_status), do: :unresolved
 
   defp import_error(:location_not_found), do: "Import location was not found."
-  defp import_error(:invalid_csv), do: "Could not parse that CSV."
-  defp import_error(:missing_csv_file), do: "Choose a CSV file to import."
-  defp import_error(_reason), do: "Could not import collection CSV."
+  defp import_error(:invalid_import_format), do: "Import file must be a CSV or TXT file."
+  defp import_error(:invalid_import_file), do: "Could not parse that import file."
+  defp import_error(_reason), do: "Could not import collection file."
 
   defp deck_allocation_error(:collection_item_mismatch),
     do: "Collection item does not match that deck card."

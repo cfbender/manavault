@@ -5,7 +5,6 @@ ARG OTP_VERSION=29
 ARG DEBIAN_VERSION=trixie-slim
 ARG NODE_VERSION=22.22.2
 ARG AUBE_VERSION=1.21.0
-ARG OCR_REQUIREMENTS=requirements-ocr.txt
 ARG MANAVAULT_ASSET_VERSION
 
 ARG BUILDER_IMAGE=elixir:${ELIXIR_VERSION}-otp-${OTP_VERSION}-slim
@@ -69,10 +68,9 @@ RUN go mod init gosu-build \
 
 FROM ${RUNNER_IMAGE} AS runner
 
-ARG OCR_REQUIREMENTS
 ARG MANAVAULT_ASSET_VERSION
 
-RUN apt-get update -y && apt-get upgrade -y && apt-get install -y libstdc++6 openssl libncurses6 locales ca-certificates curl libsctp1 python3 python3-venv libgomp1 libgl1 libglib2.0-0t64 libxcb1 \
+RUN apt-get update -y && apt-get upgrade -y && apt-get install -y libstdc++6 openssl libncurses6 locales ca-certificates curl libsctp1 \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY --from=gosu-builder /go/bin/gosu /usr/local/bin/gosu
@@ -92,11 +90,6 @@ ENV DATA_DIR=/data
 ENV DATABASE_PATH=/data/manavault.db
 ENV MANAVAULT_ASSET_VERSION=${MANAVAULT_ASSET_VERSION}
 
-COPY requirements-ocr*.txt ./
-RUN python3 -m venv /app/.venv \
-  && /app/.venv/bin/python -m ensurepip --upgrade \
-  && /app/.venv/bin/python -m pip install --no-cache-dir --upgrade pip \
-  && /app/.venv/bin/python -m pip install --no-cache-dir -r "${OCR_REQUIREMENTS}"
 
 COPY --from=builder --chown=app:app /app/_build/prod/rel/manavault ./
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh

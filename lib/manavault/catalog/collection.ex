@@ -5,15 +5,14 @@ defmodule Manavault.Catalog.Collection do
 
   alias Manavault.Catalog.{
     CardCollection,
+    CollectionImport,
     CollectionItem,
     CSV,
     Finishes,
     Location,
     Price,
     Printing,
-    ScanItem,
-    Search,
-    Util
+    Search
   }
 
   alias Manavault.Repo
@@ -86,24 +85,6 @@ defmodule Manavault.Catalog.Collection do
       %Printing{oracle_id: oracle_id} -> Search.list_printings_for_oracle_id(oracle_id)
     end
   end
-
-  def list_printings_for_scan_item(%ScanItem{accepted_printing: %{card: %{oracle_id: oracle_id}}}) do
-    Search.list_printings_for_oracle_id(oracle_id)
-  end
-
-  def list_printings_for_scan_item(%ScanItem{accepted_printing: %{oracle_id: oracle_id}}) do
-    Search.list_printings_for_oracle_id(oracle_id)
-  end
-
-  def list_printings_for_scan_item(%ScanItem{accepted_printing_id: scryfall_id})
-      when is_binary(scryfall_id) do
-    case Search.get_printing_by_scryfall_id(scryfall_id) do
-      nil -> []
-      %Printing{oracle_id: oracle_id} -> Search.list_printings_for_oracle_id(oracle_id)
-    end
-  end
-
-  def list_printings_for_scan_item(_scan_item), do: []
 
   def switch_collection_item_printing(%CollectionItem{} = collection_item, scryfall_id)
       when is_binary(scryfall_id) do
@@ -185,17 +166,17 @@ defmodule Manavault.Catalog.Collection do
     |> create_collection_item()
   end
 
-  def preview_collection_import_csv(text, opts \\ []) when is_binary(text) and is_list(opts) do
+  def preview_collection_import(text, opts \\ []) when is_binary(text) and is_list(opts) do
     location_id = Keyword.get(opts, :location_id)
+    format = Keyword.get(opts, :format, :auto)
+    file_name = Keyword.get(opts, :file_name)
 
     with {:ok, normalized_location_id} <- normalize_import_location_id(location_id),
-         {:ok, rows} <- parse_collection_csv(text) do
+         {:ok, rows} <- CollectionImport.parse(text, format: format, file_name: file_name) do
       import_rows =
-        rows
-        |> Enum.with_index(2)
-        |> Enum.map(fn {row, row_number} ->
+        Enum.map(rows, fn {row, row_number} ->
           row
-          |> collection_import_attrs()
+          |> CollectionImport.attrs()
           |> preview_collection_import_row(row_number, normalized_location_id)
         end)
 
@@ -203,8 +184,8 @@ defmodule Manavault.Catalog.Collection do
     end
   end
 
-  def import_collection_csv(text, opts \\ []) when is_binary(text) and is_list(opts) do
-    with {:ok, %{rows: rows} = preview} <- preview_collection_import_csv(text, opts) do
+  def import_collection(text, opts \\ []) when is_binary(text) and is_list(opts) do
+    with {:ok, %{rows: rows} = preview} <- preview_collection_import(text, opts) do
       import_collection_preview(%{preview | rows: rows})
     end
   end
@@ -300,112 +281,6 @@ defmodule Manavault.Catalog.Collection do
   defp collection_text_language(language) when is_binary(language), do: "<#{language}>"
   defp collection_text_language(_language), do: nil
 
-  defp parse_collection_csv(text) do
-    case parse_csv(text) do
-      [] ->
-        {:ok, []}
-
-      [headers | rows] ->
-        headers = Enum.map(headers, &normalize_collection_csv_header/1)
-
-        rows =
-          rows
-          |> Enum.reject(fn cells -> Enum.all?(cells, &(String.trim(&1 || "") == "")) end)
-          |> Enum.map(fn cells ->
-            headers
-            |> Enum.zip(cells ++ List.duplicate("", max(length(headers) - length(cells), 0)))
-            |> Map.new()
-          end)
-
-        {:ok, rows}
-    end
-  rescue
-    _error -> {:error, :invalid_csv}
-  end
-
-  defp parse_csv(text) do
-    text
-    |> String.replace("\r\n", "\n")
-    |> String.replace("\r", "\n")
-    |> String.graphemes()
-    |> do_parse_csv([], [], "", :plain)
-    |> Enum.reject(fn row -> Enum.all?(row, &(&1 == "")) end)
-  end
-
-  defp do_parse_csv([], rows, row, cell, _state),
-    do: Enum.reverse([Enum.reverse([String.trim(cell) | row]) | rows])
-
-  defp do_parse_csv(["\"" | rest], rows, row, "", :plain),
-    do: do_parse_csv(rest, rows, row, "", :quoted)
-
-  defp do_parse_csv(["\"" | rest], rows, row, cell, :quoted),
-    do: do_parse_csv(rest, rows, row, cell, :after_quote)
-
-  defp do_parse_csv(["\"" | rest], rows, row, cell, :after_quote),
-    do: do_parse_csv(rest, rows, row, cell <> "\"", :quoted)
-
-  defp do_parse_csv(["," | rest], rows, row, cell, state) when state in [:plain, :after_quote],
-    do: do_parse_csv(rest, rows, [String.trim(cell) | row], "", :plain)
-
-  defp do_parse_csv(["\n" | rest], rows, row, cell, state) when state in [:plain, :after_quote],
-    do: do_parse_csv(rest, [Enum.reverse([String.trim(cell) | row]) | rows], [], "", :plain)
-
-  defp do_parse_csv([character | rest], rows, row, cell, state),
-    do: do_parse_csv(rest, rows, row, cell <> character, state)
-
-  defp normalize_collection_csv_header(header) do
-    header
-    |> Util.normalize_filter()
-    |> String.downcase()
-    |> String.replace(~r/[^a-z0-9]+/, "_")
-    |> String.trim("_")
-    |> case do
-      key when key in ["card", "card_name", "name"] ->
-        "name"
-
-      key when key in ["set", "set_code", "edition"] ->
-        "set_code"
-
-      key when key in ["collector", "collector_number", "number", "cn"] ->
-        "collector_number"
-
-      key when key in ["qty", "count", "quantity"] ->
-        "quantity"
-
-      key when key in ["foil", "foiling", "finish"] ->
-        "finish"
-
-      key when key in ["condition", "cond"] ->
-        "condition"
-
-      key when key in ["language", "lang"] ->
-        "language"
-
-      key when key in ["purchase_price", "purchase_price_usd", "price_paid", "paid"] ->
-        "purchase_price_cents"
-
-      key when key in ["scryfall", "scryfall_id", "printing_id"] ->
-        "scryfall_id"
-
-      key ->
-        key
-    end
-  end
-
-  defp collection_import_attrs(row) do
-    %{
-      "name" => Util.normalize_filter(Map.get(row, "name", "")),
-      "set_code" => Util.normalize_filter(Map.get(row, "set_code", "")),
-      "collector_number" => Util.normalize_filter(Map.get(row, "collector_number", "")),
-      "quantity" => Util.parse_quantity(Map.get(row, "quantity", "1")),
-      "finish" => normalize_collection_import_finish(Map.get(row, "finish", "")),
-      "condition" => normalize_collection_import_condition(Map.get(row, "condition", "")),
-      "language" => normalize_collection_import_language(Map.get(row, "language", "")),
-      "scryfall_id" => Util.normalize_filter(Map.get(row, "scryfall_id", "")),
-      "purchase_price_cents" => Price.parse_cents(Map.get(row, "purchase_price_cents"))
-    }
-  end
-
   defp preview_collection_import_row(attrs, row_number, location_id) do
     attrs = Map.put(attrs, "location_id", location_id)
 
@@ -471,41 +346,6 @@ defmodule Manavault.Catalog.Collection do
       ambiguous: Enum.count(rows, &(&1.status == :ambiguous)),
       unresolved: Enum.count(rows, &(&1.status == :unresolved))
     }
-  end
-
-  defp normalize_collection_import_finish(value) do
-    value
-    |> Util.normalize_filter()
-    |> String.replace(" ", "_")
-    |> case do
-      value when value in ["foil", "true", "yes", "y"] -> "foil"
-      value when value in ["etched", "foil_etched"] -> "etched"
-      "non_foil" -> "nonfoil"
-      "nonfoil" -> "nonfoil"
-      _other -> "nonfoil"
-    end
-  end
-
-  defp normalize_collection_import_condition(value) do
-    value
-    |> Util.normalize_filter()
-    |> String.replace(~r/[^a-z0-9]+/, "_")
-    |> String.trim("_")
-    |> case do
-      value when value in ["nm", "near_mint", "nearmint"] -> "near_mint"
-      value when value in ["lp", "lightly_played", "light_played"] -> "lightly_played"
-      value when value in ["mp", "moderately_played", "mod_played"] -> "moderately_played"
-      value when value in ["hp", "heavily_played", "heavy_played"] -> "heavily_played"
-      value when value in ["d", "dm", "damaged"] -> "damaged"
-      _other -> "near_mint"
-    end
-  end
-
-  defp normalize_collection_import_language(value) do
-    case Util.normalize_filter(value) do
-      "" -> "en"
-      language -> language
-    end
   end
 
   defp normalize_import_location_id(nil), do: {:ok, nil}

@@ -17,11 +17,7 @@ defmodule Manavault.Application do
          repos: Application.fetch_env!(:manavault, :ecto_repos), skip: skip_migrations?()},
         {DNSCluster, query: Application.get_env(:manavault, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: Manavault.PubSub},
-        {Task.Supervisor, name: Manavault.ScanRecognitionSupervisor},
         {Task.Supervisor, name: Manavault.Backup.TaskSupervisor},
-        Manavault.Catalog.RapidOCRDaemon,
-        Manavault.Catalog.ImageHashDaemon,
-        art_index_worker_child(),
         scryfall_sync_worker_child(),
         backup_scheduler_child(),
         ManavaultWeb.Endpoint
@@ -56,13 +52,6 @@ defmodule Manavault.Application do
   defp scryfall_sync_worker_child do
     if Application.get_env(:manavault, :scryfall_sync_worker, true) do
       Manavault.Catalog.ScryfallSyncWorker
-    end
-  end
-
-  defp art_index_worker_child do
-    if Application.get_env(:manavault, :scan_art_index_worker, true) and
-         Application.get_env(:manavault, :scan_image_matching, true) do
-      Manavault.Catalog.ArtIndexWorker
     end
   end
 end

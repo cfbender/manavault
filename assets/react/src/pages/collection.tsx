@@ -50,6 +50,11 @@ import {
   type PreviewCollectionImportMutation,
 } from "../gql/graphql"
 import { request } from "../lib/graphql"
+import {
+  subscribeSharedImport,
+  takeSharedImport,
+  type SharedImportPayload,
+} from "../lib/native-shared-import"
 import { cn, compactNumber, present, titleize } from "../lib/utils"
 
 const CollectionDocument = graphql(`
@@ -462,6 +467,7 @@ type CollectionSort = {
   direction: CollectionSortDirection
 }
 type CollectionExportFormat = "csv" | "text"
+type CollectionImportFormat = "auto" | "csv" | "txt"
 type CollectionExportFilters = { locationId?: string; q?: string }
 type ComparisonOperator = "=" | "!=" | ">" | ">=" | "<" | "<="
 type ColorOperator = ":" | ">=" | "<="
@@ -2699,16 +2705,19 @@ export function AddCollectionItemDialog({
   )
 }
 
-function ImportCollectionCsvDialog({
+function ImportCollectionDialog({
+  initialImport,
   onOpenChange,
   open,
 }: {
+  initialImport?: SharedImportPayload | null
   onOpenChange: (open: boolean) => void
   open: boolean
 }) {
   const queryClient = useQueryClient()
-  const [csvText, setCsvText] = useState("")
+  const [importText, setImportText] = useState("")
   const [fileName, setFileName] = useState("")
+  const [format, setFormat] = useState<CollectionImportFormat>("auto")
   const [locationId, setLocationId] = useState("")
   const [preview, setPreview] = useState<CollectionImportPreview | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -2720,23 +2729,28 @@ function ImportCollectionCsvDialog({
   const previewImport = useMutation({
     mutationFn: () =>
       request(PreviewCollectionImportDocument, {
-        input: { csv: csvText, locationId: locationId || null },
+        input: {
+          text: importText,
+          format,
+          fileName: fileName || null,
+          locationId: locationId || null,
+        },
       }),
     onSuccess: (data) => {
       setPreview(data.previewCollectionImport || null)
       setError(null)
     },
     onError: (error) =>
-      setError(error instanceof Error ? error.message : "Could not preview collection CSV"),
+      setError(error instanceof Error ? error.message : "Could not preview collection import"),
   })
   const commitImport = useMutation({
     mutationFn: () => {
-      if (!preview) throw new Error("Preview a CSV before importing")
+      if (!preview) throw new Error("Preview a file before importing")
       return request(CommitCollectionImportDocument, {
         input: { rows: preview.rows.map(commitImportRow) },
       })
     },
-    onSuccess: (_) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["collection"] })
       queryClient.invalidateQueries({ queryKey: ["collection-items"] })
       queryClient.invalidateQueries({ queryKey: ["home"] })
@@ -2744,26 +2758,44 @@ function ImportCollectionCsvDialog({
       onOpenChange(false)
     },
     onError: (error) =>
-      setError(error instanceof Error ? error.message : "Could not import collection CSV"),
+      setError(error instanceof Error ? error.message : "Could not import collection file"),
   })
 
   useEffect(() => {
     if (!open) reset()
   }, [open])
 
+  useEffect(() => {
+    if (open && initialImport?.text) loadSharedImport(initialImport)
+  }, [open, initialImport])
+
   async function chooseFile(file: File | undefined) {
     setError(null)
     setPreview(null)
     setFileName(file?.name || "")
-    setCsvText(file ? await file.text() : "")
+    setFormat(file ? importFormatFromSource(file.name, file.type) : "auto")
+    setImportText(file ? await file.text() : "")
+  }
+
+  function loadSharedImport(payload: SharedImportPayload) {
+    setError(null)
+    setPreview(null)
+    setFileName(payload.fileName || "Shared list")
+    setFormat(importFormatFromSource(payload.fileName || "", payload.mimeType || ""))
+    setImportText(payload.text)
+  }
+
+  function updateImportText(value: string) {
+    setImportText(value)
+    setPreview(null)
   }
 
   function submitPreview(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
 
-    if (!csvText.trim()) {
-      setError("Choose a CSV file to import")
+    if (!importText.trim()) {
+      setError("Choose or paste a CSV or TXT file to import")
       return
     }
 
@@ -2795,8 +2827,9 @@ function ImportCollectionCsvDialog({
   }
 
   function reset() {
-    setCsvText("")
+    setImportText("")
     setFileName("")
+    setFormat("auto")
     setLocationId("")
     setPreview(null)
     setError(null)
@@ -2810,9 +2843,9 @@ function ImportCollectionCsvDialog({
       >
         <DialogHeader>
           <div>
-            <DialogTitle id="import-collection-title">Import collection CSV</DialogTitle>
+            <DialogTitle id="import-collection-title">Import collection</DialogTitle>
             <p className="mt-1 text-sm text-base-content/60">
-              Preview rows before adding exact matches to your collection.
+              Preview CSV or TXT rows before adding exact matches to your collection.
             </p>
           </div>
           <DialogClose onClose={close} />
@@ -2842,15 +2875,42 @@ function ImportCollectionCsvDialog({
 
             <label className="block space-y-2">
               <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
-                CSV file
+                CSV or TXT file
               </span>
               <input
                 type="file"
-                accept=".csv,text/csv"
+                accept=".csv,.txt,text/csv,text/plain,text/comma-separated-values,application/vnd.ms-excel"
                 className="file-input file-input-bordered w-full bg-base-100"
                 onChange={(event) => void chooseFile(event.target.files?.[0])}
               />
               {fileName ? <p className="text-sm text-base-content/55">{fileName}</p> : null}
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                File type
+              </span>
+              <select
+                className="select select-bordered w-full bg-base-100"
+                value={format}
+                onChange={(event) => setFormat(event.target.value as CollectionImportFormat)}
+              >
+                <option value="auto">Auto-detect</option>
+                <option value="csv">CSV</option>
+                <option value="txt">TXT list</option>
+              </select>
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Import text
+              </span>
+              <textarea
+                className="textarea textarea-bordered min-h-40 w-full bg-base-100 font-mono text-sm"
+                value={importText}
+                onChange={(event) => updateImportText(event.target.value)}
+                placeholder={"1x Jund Charm (C13) 195\n1x Zuko's Exile (TLA) 3 *F*"}
+              />
             </label>
 
             <div className="flex justify-end gap-2">
@@ -3657,6 +3717,18 @@ function collectionFinishValue(value: string): (typeof COLLECTION_FINISHES)[numb
   return COLLECTION_FINISHES.find((finish) => finish === value) || "nonfoil"
 }
 
+function importFormatFromSource(fileName: string, mimeType?: string | null): CollectionImportFormat {
+  const extension = fileName.trim().toLowerCase().split(".").pop()
+  if (extension === "csv") return "csv"
+  if (extension === "txt") return "txt"
+
+  const normalizedMime = (mimeType || "").toLowerCase()
+  if (normalizedMime.includes("csv") || normalizedMime.includes("excel")) return "csv"
+  if (normalizedMime.includes("plain") || normalizedMime.includes("text")) return "txt"
+
+  return "auto"
+}
+
 function collectionImportCounts(rows: CollectionImportRow[]) {
   return {
     exact: rows.filter((row) => row.status === "exact").length,
@@ -3679,6 +3751,7 @@ function commitImportRow(row: CollectionImportRow) {
       language: row.attrs.language,
       scryfallId: row.attrs.scryfallId,
       locationId: row.attrs.locationId,
+      purchasePriceCents: row.attrs.purchasePriceCents,
     },
   }
 }
@@ -3697,7 +3770,7 @@ function importStatusTone(status: string): "neutral" | "success" | "warning" | "
   return "neutral"
 }
 
-export function CollectionPage() {
+export function CollectionPage({ importFile = false }: { importFile?: boolean }) {
   const [activeTab, setActiveTab] = useState<CollectionTab>("locations")
   const [q, setQ] = useState("")
   const [appliedSearch, setAppliedSearch] = useState("")
@@ -3708,8 +3781,9 @@ export function CollectionPage() {
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
   const [isAddItemOpen, setIsAddItemOpen] = useState(false)
   const [isAddLocationOpen, setIsAddLocationOpen] = useState(false)
-  const [isImportCsvOpen, setIsImportCsvOpen] = useState(false)
+  const [isImportOpen, setIsImportOpen] = useState(false)
   const [isExportCsvOpen, setIsExportCsvOpen] = useState(false)
+  const [sharedImport, setSharedImport] = useState<SharedImportPayload | null>(null)
   const [editingLocation, setEditingLocation] = useState<LocationSummary | null>(null)
   const [deletingLocation, setDeletingLocation] = useState<LocationSummary | null>(null)
   const [exportingLocation, setExportingLocation] = useState<{
@@ -3777,6 +3851,23 @@ export function CollectionPage() {
 
     return Array.from(groups.entries()).sort(([left], [right]) => left.localeCompare(right))
   }, [data?.locations])
+
+  useEffect(() => {
+    if (!importFile) return
+
+    const payload = takeSharedImport()
+    if (payload) setSharedImport(payload)
+    setIsImportOpen(true)
+  }, [importFile])
+
+  useEffect(
+    () =>
+      subscribeSharedImport((payload) => {
+        setSharedImport(payload)
+        setIsImportOpen(true)
+      }),
+    [],
+  )
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -3867,9 +3958,9 @@ export function CollectionPage() {
                 </button>
               </li>
               <li>
-                <button type="button" onClick={() => setIsImportCsvOpen(true)}>
+                <button type="button" onClick={() => setIsImportOpen(true)}>
                   <Upload className="h-4 w-4" />
-                  Import CSV
+                  Import CSV/TXT
                 </button>
               </li>
               <li>
@@ -4075,7 +4166,14 @@ export function CollectionPage() {
       )}
       <AddCollectionItemDialog open={isAddItemOpen} onOpenChange={setIsAddItemOpen} />
       <AddLocationDialog open={isAddLocationOpen} onOpenChange={setIsAddLocationOpen} />
-      <ImportCollectionCsvDialog open={isImportCsvOpen} onOpenChange={setIsImportCsvOpen} />
+      <ImportCollectionDialog
+        initialImport={sharedImport}
+        open={isImportOpen}
+        onOpenChange={(open) => {
+          setIsImportOpen(open)
+          if (!open) setSharedImport(null)
+        }}
+      />
       <ExportCollectionDialog
         filters={filters}
         format="csv"
@@ -4281,7 +4379,7 @@ export function LocationPage({ id }: { id: string }) {
     mutationFn: (locationId: string) => request(DeleteLocationDocument, { id: locationId }),
     onSuccess: () => {
       invalidateCollectionViews(queryClient, id)
-      navigate({ to: "/collection" })
+      navigate({ to: "/collection", search: { importFile: false } })
     },
   })
   const structuredFilterSyntax = buildCollectionFilterQuery(structuredFilters)
@@ -4375,7 +4473,7 @@ export function LocationPage({ id }: { id: string }) {
     <>
       <div className="mb-7 space-y-4">
         <Button asChild variant="outline" size="sm">
-          <Link to="/collection">Back to collection</Link>
+          <Link to="/collection" search={{ importFile: false }}>Back to collection</Link>
         </Button>
         {isUnfiledLocation(location) ? (
           <UnfiledLocationCard

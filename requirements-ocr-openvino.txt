@@ -1,2 +1,0 @@
--r requirements-ocr.txt
-openvino>=2024.0.0,<2027.0.0

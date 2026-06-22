@@ -9,15 +9,8 @@ node = "22.22.2"
 
 [tasks.setup]
 description = "Install project tools, Elixir dependencies, database, assets, and native shell dependencies."
-run = "mise install && aube install --frozen-lockfile && mise run setup:ocr && mix setup"
+run = "mise install && aube install --frozen-lockfile && mix setup"
 
-[tasks."setup:ocr"]
-description = "Create the local RapidOCR Python environment used by card scanning."
-run = [
-  "python3 -m venv .venv",
-  ".venv/bin/python -m ensurepip --upgrade",
-  ".venv/bin/python -m pip install -r requirements-ocr.txt",
-]
 
 [tasks.dev]
 description = "Start the Phoenix development server."

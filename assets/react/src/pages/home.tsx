@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { motion } from "motion/react"
-import { Boxes, Camera, Layers, Search } from "lucide-react"
+import { Boxes, Layers, MapPin, Search } from "lucide-react"
 import type { FormEvent } from "react"
 import { useState } from "react"
 import { ActionCard } from "../components/app-shell"
@@ -18,7 +18,6 @@ const HomeDocument = graphql(`
       collectionCount
       locationCount
       deckCount
-      scanSessionCount
     }
   }
 `)
@@ -124,12 +123,12 @@ export function HomePage() {
           description="Create decks, import lists, and organize zones."
         />
         <ActionCard
-          to="/scan-sessions"
-          icon={<Camera className="h-12 w-12 text-secondary" />}
-          badge={`${value(summary?.scanSessionCount)} scans`}
+          to="/collection"
+          icon={<MapPin className="h-12 w-12 text-secondary" />}
+          badge={`${value(summary?.locationCount)} locations`}
           badgeTone="secondary"
-          title="Scan sessions"
-          description="Capture cards with your camera and review matches."
+          title="Locations"
+          description="Jump to storage locations and collection import tools."
         />
       </div>
     </div>

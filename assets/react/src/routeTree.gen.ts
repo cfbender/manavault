@@ -10,18 +10,14 @@
 
 import { Route as rootRouteImport } from "./routes/__root"
 import { Route as SettingsRouteImport } from "./routes/settings"
-import { Route as ScanRouteImport } from "./routes/scan"
 import { Route as IndexRouteImport } from "./routes/index"
-import { Route as ScanSessionsIndexRouteImport } from "./routes/scan-sessions/index"
 import { Route as DecksIndexRouteImport } from "./routes/decks/index"
 import { Route as CollectionIndexRouteImport } from "./routes/collection/index"
 import { Route as CardsIndexRouteImport } from "./routes/cards/index"
-import { Route as ScanSessionsIdRouteImport } from "./routes/scan-sessions/$id"
 import { Route as DecksIdRouteImport } from "./routes/decks/$id"
 import { Route as CollectionNewRouteImport } from "./routes/collection/new"
 import { Route as CardsIdRouteImport } from "./routes/cards/$id"
 import { Route as ShareDecksTokenRouteImport } from "./routes/share/decks/$token"
-import { Route as ScanSessionsIdScannerRouteImport } from "./routes/scan-sessions/$id.scanner"
 import { Route as CollectionLocationsIdRouteImport } from "./routes/collection/locations/$id"
 import { Route as CollectionIdEditRouteImport } from "./routes/collection/$id.edit"
 
@@ -30,19 +26,9 @@ const SettingsRoute = SettingsRouteImport.update({
   path: "/settings",
   getParentRoute: () => rootRouteImport,
 } as any)
-const ScanRoute = ScanRouteImport.update({
-  id: "/scan",
-  path: "/scan",
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: "/",
   path: "/",
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ScanSessionsIndexRoute = ScanSessionsIndexRouteImport.update({
-  id: "/scan-sessions/",
-  path: "/scan-sessions/",
   getParentRoute: () => rootRouteImport,
 } as any)
 const DecksIndexRoute = DecksIndexRouteImport.update({
@@ -58,11 +44,6 @@ const CollectionIndexRoute = CollectionIndexRouteImport.update({
 const CardsIndexRoute = CardsIndexRouteImport.update({
   id: "/cards/",
   path: "/cards/",
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ScanSessionsIdRoute = ScanSessionsIdRouteImport.update({
-  id: "/scan-sessions/$id",
-  path: "/scan-sessions/$id",
   getParentRoute: () => rootRouteImport,
 } as any)
 const DecksIdRoute = DecksIdRouteImport.update({
@@ -85,11 +66,6 @@ const ShareDecksTokenRoute = ShareDecksTokenRouteImport.update({
   path: "/share/decks/$token",
   getParentRoute: () => rootRouteImport,
 } as any)
-const ScanSessionsIdScannerRoute = ScanSessionsIdScannerRouteImport.update({
-  id: "/scanner",
-  path: "/scanner",
-  getParentRoute: () => ScanSessionsIdRoute,
-} as any)
 const CollectionLocationsIdRoute = CollectionLocationsIdRouteImport.update({
   id: "/collection/locations/$id",
   path: "/collection/locations/$id",
@@ -103,122 +79,95 @@ const CollectionIdEditRoute = CollectionIdEditRouteImport.update({
 
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute
-  "/scan": typeof ScanRoute
   "/settings": typeof SettingsRoute
   "/cards/$id": typeof CardsIdRoute
   "/collection/new": typeof CollectionNewRoute
   "/decks/$id": typeof DecksIdRoute
-  "/scan-sessions/$id": typeof ScanSessionsIdRouteWithChildren
   "/cards/": typeof CardsIndexRoute
   "/collection/": typeof CollectionIndexRoute
   "/decks/": typeof DecksIndexRoute
-  "/scan-sessions/": typeof ScanSessionsIndexRoute
   "/collection/$id/edit": typeof CollectionIdEditRoute
   "/collection/locations/$id": typeof CollectionLocationsIdRoute
-  "/scan-sessions/$id/scanner": typeof ScanSessionsIdScannerRoute
   "/share/decks/$token": typeof ShareDecksTokenRoute
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute
-  "/scan": typeof ScanRoute
   "/settings": typeof SettingsRoute
   "/cards/$id": typeof CardsIdRoute
   "/collection/new": typeof CollectionNewRoute
   "/decks/$id": typeof DecksIdRoute
-  "/scan-sessions/$id": typeof ScanSessionsIdRouteWithChildren
   "/cards": typeof CardsIndexRoute
   "/collection": typeof CollectionIndexRoute
   "/decks": typeof DecksIndexRoute
-  "/scan-sessions": typeof ScanSessionsIndexRoute
   "/collection/$id/edit": typeof CollectionIdEditRoute
   "/collection/locations/$id": typeof CollectionLocationsIdRoute
-  "/scan-sessions/$id/scanner": typeof ScanSessionsIdScannerRoute
   "/share/decks/$token": typeof ShareDecksTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   "/": typeof IndexRoute
-  "/scan": typeof ScanRoute
   "/settings": typeof SettingsRoute
   "/cards/$id": typeof CardsIdRoute
   "/collection/new": typeof CollectionNewRoute
   "/decks/$id": typeof DecksIdRoute
-  "/scan-sessions/$id": typeof ScanSessionsIdRouteWithChildren
   "/cards/": typeof CardsIndexRoute
   "/collection/": typeof CollectionIndexRoute
   "/decks/": typeof DecksIndexRoute
-  "/scan-sessions/": typeof ScanSessionsIndexRoute
   "/collection/$id/edit": typeof CollectionIdEditRoute
   "/collection/locations/$id": typeof CollectionLocationsIdRoute
-  "/scan-sessions/$id/scanner": typeof ScanSessionsIdScannerRoute
   "/share/decks/$token": typeof ShareDecksTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | "/"
-    | "/scan"
     | "/settings"
     | "/cards/$id"
     | "/collection/new"
     | "/decks/$id"
-    | "/scan-sessions/$id"
     | "/cards/"
     | "/collection/"
     | "/decks/"
-    | "/scan-sessions/"
     | "/collection/$id/edit"
     | "/collection/locations/$id"
-    | "/scan-sessions/$id/scanner"
     | "/share/decks/$token"
   fileRoutesByTo: FileRoutesByTo
   to:
     | "/"
-    | "/scan"
     | "/settings"
     | "/cards/$id"
     | "/collection/new"
     | "/decks/$id"
-    | "/scan-sessions/$id"
     | "/cards"
     | "/collection"
     | "/decks"
-    | "/scan-sessions"
     | "/collection/$id/edit"
     | "/collection/locations/$id"
-    | "/scan-sessions/$id/scanner"
     | "/share/decks/$token"
   id:
     | "__root__"
     | "/"
-    | "/scan"
     | "/settings"
     | "/cards/$id"
     | "/collection/new"
     | "/decks/$id"
-    | "/scan-sessions/$id"
     | "/cards/"
     | "/collection/"
     | "/decks/"
-    | "/scan-sessions/"
     | "/collection/$id/edit"
     | "/collection/locations/$id"
-    | "/scan-sessions/$id/scanner"
     | "/share/decks/$token"
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ScanRoute: typeof ScanRoute
   SettingsRoute: typeof SettingsRoute
   CardsIdRoute: typeof CardsIdRoute
   CollectionNewRoute: typeof CollectionNewRoute
   DecksIdRoute: typeof DecksIdRoute
-  ScanSessionsIdRoute: typeof ScanSessionsIdRouteWithChildren
   CardsIndexRoute: typeof CardsIndexRoute
   CollectionIndexRoute: typeof CollectionIndexRoute
   DecksIndexRoute: typeof DecksIndexRoute
-  ScanSessionsIndexRoute: typeof ScanSessionsIndexRoute
   CollectionIdEditRoute: typeof CollectionIdEditRoute
   CollectionLocationsIdRoute: typeof CollectionLocationsIdRoute
   ShareDecksTokenRoute: typeof ShareDecksTokenRoute
@@ -233,25 +182,11 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    "/scan": {
-      id: "/scan"
-      path: "/scan"
-      fullPath: "/scan"
-      preLoaderRoute: typeof ScanRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     "/": {
       id: "/"
       path: "/"
       fullPath: "/"
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    "/scan-sessions/": {
-      id: "/scan-sessions/"
-      path: "/scan-sessions"
-      fullPath: "/scan-sessions/"
-      preLoaderRoute: typeof ScanSessionsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     "/decks/": {
@@ -273,13 +208,6 @@ declare module "@tanstack/react-router" {
       path: "/cards"
       fullPath: "/cards/"
       preLoaderRoute: typeof CardsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    "/scan-sessions/$id": {
-      id: "/scan-sessions/$id"
-      path: "/scan-sessions/$id"
-      fullPath: "/scan-sessions/$id"
-      preLoaderRoute: typeof ScanSessionsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     "/decks/$id": {
@@ -310,13 +238,6 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof ShareDecksTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
-    "/scan-sessions/$id/scanner": {
-      id: "/scan-sessions/$id/scanner"
-      path: "/scanner"
-      fullPath: "/scan-sessions/$id/scanner"
-      preLoaderRoute: typeof ScanSessionsIdScannerRouteImport
-      parentRoute: typeof ScanSessionsIdRoute
-    }
     "/collection/locations/$id": {
       id: "/collection/locations/$id"
       path: "/collection/locations/$id"
@@ -334,30 +255,15 @@ declare module "@tanstack/react-router" {
   }
 }
 
-interface ScanSessionsIdRouteChildren {
-  ScanSessionsIdScannerRoute: typeof ScanSessionsIdScannerRoute
-}
-
-const ScanSessionsIdRouteChildren: ScanSessionsIdRouteChildren = {
-  ScanSessionsIdScannerRoute: ScanSessionsIdScannerRoute,
-}
-
-const ScanSessionsIdRouteWithChildren = ScanSessionsIdRoute._addFileChildren(
-  ScanSessionsIdRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ScanRoute: ScanRoute,
   SettingsRoute: SettingsRoute,
   CardsIdRoute: CardsIdRoute,
   CollectionNewRoute: CollectionNewRoute,
   DecksIdRoute: DecksIdRoute,
-  ScanSessionsIdRoute: ScanSessionsIdRouteWithChildren,
   CardsIndexRoute: CardsIndexRoute,
   CollectionIndexRoute: CollectionIndexRoute,
   DecksIndexRoute: DecksIndexRoute,
-  ScanSessionsIndexRoute: ScanSessionsIndexRoute,
   CollectionIdEditRoute: CollectionIdEditRoute,
   CollectionLocationsIdRoute: CollectionLocationsIdRoute,
   ShareDecksTokenRoute: ShareDecksTokenRoute,

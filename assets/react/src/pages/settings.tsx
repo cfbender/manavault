@@ -360,7 +360,7 @@ export function SettingsPage() {
               <div>
                 <h2 className="text-2xl font-black tracking-normal">Catalog and assets</h2>
                 <p className="mt-1 text-sm text-base-content/60">
-                  Force a fresh Scryfall catalog import when local card data looks stale. A successful catalog import queues the scanner image hash cache rebuild.
+                  Force a fresh Scryfall catalog import when local card data looks stale.
                 </p>
               </div>
             </div>
@@ -382,7 +382,7 @@ export function SettingsPage() {
         <div className="card border border-base-300 bg-base-100 shadow-sm">
           <div className="card-body gap-4 p-6">
             <p className="text-base-content/70">
-              Restore downloads the selected cloud backup and stages it locally. Restart ManaVault to replace the SQLite database and scan uploads before the app starts.
+              Restore downloads the selected cloud backup and stages it locally. Restart ManaVault to replace the SQLite database before the app starts.
             </p>
             <div className="grid gap-3 md:grid-cols-[1fr_auto]">
               <select

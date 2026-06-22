@@ -34,8 +34,6 @@ defmodule ManavaultWeb.StaticAssetTest do
     assert Enum.any?(manifest["icons"], &(&1["purpose"] == "any"))
     assert Enum.any?(manifest["icons"], &(&1["purpose"] == "maskable"))
     assert Enum.any?(manifest["screenshots"], &(&1["form_factor"] == "wide"))
-    assert Enum.any?(manifest["screenshots"], &is_nil(&1["form_factor"]))
-    assert Enum.any?(manifest["shortcuts"], &(&1["url"] == "/scan"))
     assert Enum.any?(manifest["shortcuts"], &(&1["url"] == "/collection"))
   end
 
@@ -65,7 +63,6 @@ defmodule ManavaultWeb.StaticAssetTest do
 
   test "serves PWA screenshots referenced by the manifest", %{conn: conn} do
     assert get(conn, "/screenshots/desktop-collection.png").status == 200
-    assert get(conn, "/screenshots/mobile-scan.png").status == 200
   end
 
   test "serves Vite entry modules with no-store cache headers", %{conn: conn} do

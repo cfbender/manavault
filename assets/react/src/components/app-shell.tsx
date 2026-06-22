@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from "@tanstack/react-router"
-import { Boxes, Camera, Home, Layers, Menu, Monitor, Moon, Search, Settings, Sun } from "lucide-react"
+import { Boxes, Home, Layers, Menu, Monitor, Moon, Search, Settings, Sun } from "lucide-react"
 import type { ReactNode } from "react"
 import { useTheme } from "../lib/theme"
 import { cn } from "../lib/utils"
@@ -10,7 +10,6 @@ const navItems = [
   { to: "/cards" as const, label: "Cards", icon: Search },
   { to: "/collection" as const, label: "Collection", icon: Boxes },
   { to: "/decks" as const, label: "Decks", icon: Layers },
-  { to: "/scan-sessions" as const, label: "Scans", icon: Camera },
   { to: "/settings" as const, label: "Settings", icon: Settings },
 ]
 
@@ -58,7 +57,6 @@ function ThemeToggle() {
 
 export function AppShell() {
   const { pathname } = useLocation()
-  const isScannerRoute = pathname.endsWith("/scanner")
   const isShareRoute = pathname.startsWith("/share/")
   const isHomeRoute = pathname === "/"
 
@@ -68,7 +66,6 @@ export function AppShell() {
         className={cn(
           "app-shell-header sticky top-0 z-30",
           isHomeRoute ? "bg-transparent" : "bg-base-100/95 backdrop-blur",
-          isScannerRoute && "hidden sm:block",
           isShareRoute && "hidden",
         )}
       >
@@ -138,14 +135,12 @@ export function AppShell() {
       <main
         className={cn(
           "app-shell-main overflow-y-auto",
-          isScannerRoute && "scanner-shell-main",
           isShareRoute && "min-h-screen",
         )}
       >
         <div
           className={cn(
             "mx-auto w-full max-w-[105rem] py-8 sm:py-12 lg:py-16",
-            isScannerRoute && "py-2 sm:py-12 lg:py-16",
             isShareRoute && "px-4",
           )}
         >

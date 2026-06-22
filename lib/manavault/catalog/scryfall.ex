@@ -3,16 +3,7 @@ defmodule Manavault.Catalog.Scryfall do
 
   import Ecto.Query
 
-  alias Manavault.Catalog.{
-    ArtIndexWorker,
-    ArtMatcher,
-    Card,
-    Printing,
-    RuntimeImageMatcher,
-    ScanRecognition,
-    Search,
-    Sync
-  }
+  alias Manavault.Catalog.{Card, Printing, Search, Sync}
 
   alias Manavault.Repo
 
@@ -112,10 +103,6 @@ defmodule Manavault.Catalog.Scryfall do
 
     if match?({:ok, _counts}, result) do
       Search.clear_card_name_suggestion_cache()
-      ScanRecognition.clear_candidate_index_cache()
-      ArtMatcher.clear_cache()
-      RuntimeImageMatcher.clear_cache()
-      ArtIndexWorker.rebuild_async(reason: :catalog_import)
     end
 
     result
