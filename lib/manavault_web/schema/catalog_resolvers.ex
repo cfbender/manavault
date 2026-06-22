@@ -18,9 +18,9 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   def home_summary(_parent, _args, _resolution) do
     {:ok,
      %{
-       collection_count: length(Catalog.list_collection_items([], limit: 10_000)),
-       location_count: length(Catalog.list_locations()),
-       deck_count: length(Catalog.list_decks())
+       collection_count: Catalog.count_collection_items(),
+       location_count: Catalog.count_locations(),
+       deck_count: Catalog.count_decks()
      }}
   end
 
@@ -80,8 +80,7 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   end
 
   def collection_value_summary(_parent, _args, _resolution) do
-    items = Catalog.list_collection_items([], limit: 100_000)
-    {:ok, collection_value_summary(items)}
+    {:ok, Catalog.collection_value_summary() |> collection_value_summary()}
   end
 
   def collection_export_csv(_parent, args, _resolution) do
@@ -94,8 +93,11 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     {:ok, Catalog.export_collection_text(filters)}
   end
 
-  def locations(_parent, _args, _resolution),
-    do: {:ok, Catalog.list_locations() ++ [unfiled_location()]}
+  def locations(_parent, _args, _resolution) do
+    summaries = Catalog.location_summaries()
+
+    {:ok, Catalog.list_location_summaries(summaries) ++ [unfiled_location(summaries)]}
+  end
 
   def location(_parent, %{id: id}, _resolution) do
     case to_string(id) do
@@ -103,12 +105,11 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
         {:ok, unfiled_location()}
 
       _other ->
-        {:ok,
-         id |> location_id() |> Catalog.get_location!() |> Repo.preload(cover_printing: :card)}
+        {:ok, id |> location_id() |> Catalog.get_location_summary!()}
     end
   end
 
-  def decks(_parent, _args, _resolution), do: {:ok, Catalog.list_decks()}
+  def decks(_parent, _args, _resolution), do: {:ok, Catalog.list_deck_summaries()}
 
   def deck(_parent, %{id: id}, _resolution), do: {:ok, Catalog.get_deck!(id)}
 
@@ -476,12 +477,33 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     {:ok, parent |> Map.get(:total_price_cents) |> Price.format_cents()}
   end
 
+  def deck_cards(%Deck{} = deck, _args, _resolution) do
+    {:ok, Catalog.deck_cards(deck)}
+  end
+
   def deck_card_count(%Deck{} = deck, _args, _resolution) do
-    {:ok, deck |> countable_deck_cards() |> Enum.reduce(0, &(&1.quantity + &2))}
+    {:ok, Catalog.deck_card_count(deck)}
   end
 
   def deck_unique_card_count(%Deck{} = deck, _args, _resolution) do
-    {:ok, deck |> countable_deck_cards() |> length()}
+    {:ok, Catalog.deck_unique_card_count(deck)}
+  end
+
+  def deck_cover_image_url(%Deck{} = deck, _args, _resolution) do
+    {:ok, Catalog.deck_cover_image_url(deck)}
+  end
+
+  def deck_commander_color_identity(%Deck{} = deck, _args, _resolution) do
+    {:ok, Catalog.deck_commander_color_identity(deck)}
+  end
+
+  def location_item_count(%Location{item_count: count}, _args, _resolution)
+      when is_integer(count) do
+    {:ok, count}
+  end
+
+  def location_item_count(%{item_count: count}, _args, _resolution) when is_integer(count) do
+    {:ok, count}
   end
 
   def location_item_count(%Location{collection_items: items}, _args, _resolution)
@@ -498,52 +520,39 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   end
 
   def location_total_price_cents(parent, _args, _resolution) do
-    {:ok, parent |> location_items() |> Price.collection_items_total_cents()}
+    {:ok, parent |> location_value_summary_data() |> Map.fetch!(:total_price_cents)}
   end
 
   def location_total_price_text(parent, _args, _resolution) do
-    {:ok,
-     parent |> location_items() |> Price.collection_items_total_cents() |> Price.format_cents()}
+    {:ok, parent |> location_value_summary_data() |> Map.fetch!(:total_price_text)}
   end
 
   def location_purchase_price_cents(parent, _args, _resolution) do
-    {:ok, parent |> location_items() |> Price.collection_items_purchase_total_cents()}
+    {:ok, parent |> location_value_summary_data() |> Map.fetch!(:purchase_price_cents)}
   end
 
   def location_purchase_price_text(parent, _args, _resolution) do
-    {:ok,
-     parent
-     |> location_items()
-     |> Price.collection_items_purchase_total_cents()
-     |> Price.format_cents()}
+    {:ok, parent |> location_value_summary_data() |> Map.fetch!(:purchase_price_text)}
   end
 
   def location_value_gain_cents(parent, _args, _resolution) do
-    {:ok, parent |> location_items() |> Price.collection_items_value_gain_cents()}
+    {:ok, parent |> location_value_summary_data() |> Map.fetch!(:value_gain_cents)}
   end
 
   def location_value_gain_text(parent, _args, _resolution) do
-    {:ok,
-     parent
-     |> location_items()
-     |> Price.collection_items_value_gain_cents()
-     |> Price.format_signed_cents()}
+    {:ok, parent |> location_value_summary_data() |> Map.fetch!(:value_gain_text)}
   end
 
   def location_value_gain_percent(parent, _args, _resolution) do
-    {:ok, parent |> location_items() |> Price.collection_items_value_gain_percent()}
+    {:ok, parent |> location_value_summary_data() |> Map.fetch!(:value_gain_percent)}
   end
 
   def location_value_gain_percent_text(parent, _args, _resolution) do
-    {:ok,
-     parent
-     |> location_items()
-     |> Price.collection_items_value_gain_percent()
-     |> Price.format_percent()}
+    {:ok, parent |> location_value_summary_data() |> Map.fetch!(:value_gain_percent_text)}
   end
 
   def location_value_summary(parent, _args, _resolution) do
-    {:ok, parent |> location_items() |> collection_value_summary()}
+    {:ok, location_value_summary_data(parent)}
   end
 
   def location_collection_items(%Location{id: id}, args, _resolution) do
@@ -641,9 +650,29 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     Catalog.list_collection_items([location_id: "unfiled"], limit: 100_000)
   end
 
+  defp collection_value_summary(%{total_price_cents: total, purchase_price_cents: purchase}) do
+    value_summary(total, purchase)
+  end
+
   defp collection_value_summary(items) do
     total = Price.collection_items_total_cents(items)
     purchase = Price.collection_items_purchase_total_cents(items)
+
+    value_summary(total, purchase)
+  end
+
+  defp location_value_summary_data(%{total_price_cents: total, purchase_price_cents: purchase})
+       when is_integer(total) and is_integer(purchase) do
+    value_summary(total, purchase)
+  end
+
+  defp location_value_summary_data(parent) do
+    parent
+    |> location_items()
+    |> collection_value_summary()
+  end
+
+  defp value_summary(total, purchase) do
     gain = total - purchase
     percent = value_gain_percent(gain, purchase)
 
@@ -665,16 +694,6 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   end
 
   defp value_gain_percent(_gain, _purchase), do: nil
-
-  defp deck_cards(%Deck{deck_cards: cards}) when is_list(cards), do: cards
-
-  defp deck_cards(%Deck{} = deck) do
-    deck |> Repo.preload(deck_cards: [printing: :card]) |> Map.get(:deck_cards)
-  end
-
-  defp countable_deck_cards(%Deck{} = deck) do
-    Enum.filter(deck_cards(deck), &DeckCard.counts_toward_deck_total?/1)
-  end
 
   defp changeset_error_message(%Ecto.Changeset{} = changeset) do
     changeset
@@ -730,13 +749,18 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     ]
   end
 
-  defp unfiled_location do
+  defp unfiled_location(summaries \\ nil) do
+    summary = Catalog.unfiled_location_summary(summaries)
+
     %{
       id: "unfiled",
       name: "Unfiled",
       kind: "unfiled",
       description: "Cards without an assigned location.",
-      cover_printing: nil
+      cover_printing: nil,
+      item_count: summary.item_count,
+      total_price_cents: summary.total_price_cents,
+      purchase_price_cents: summary.purchase_price_cents
     }
   end
 

@@ -31,6 +31,7 @@ defmodule Manavault.Catalog.DeckCard do
   end
 
   def zones, do: @zones
+  def deck_count_zones, do: @deck_count_zones
   def counts_toward_deck_total?(%__MODULE__{zone: zone}), do: deck_count_zone?(zone)
   def deck_count_zone?(zone) when is_binary(zone), do: zone in @deck_count_zones
   def deck_count_zone?(_zone), do: false

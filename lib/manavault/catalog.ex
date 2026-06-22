@@ -15,6 +15,7 @@ defmodule Manavault.Catalog do
 
   defdelegate list_collection_items(filters \\ [], opts \\ []), to: Collection
   defdelegate count_collection_items(filters \\ []), to: Collection
+  defdelegate collection_value_summary(filters \\ []), to: Collection
   defdelegate get_collection_item!(id), to: Collection
   defdelegate change_collection_item(collection_item, attrs \\ %{}), to: Collection
   defdelegate new_collection_item_for_printing(scryfall_id), to: Collection
@@ -25,6 +26,11 @@ defmodule Manavault.Catalog do
   defdelegate delete_collection_item(collection_item), to: Collection
 
   defdelegate list_locations(opts \\ []), to: Collection
+  defdelegate count_locations(), to: Collection
+  defdelegate location_summaries(), to: Collection
+  defdelegate list_location_summaries(summaries \\ nil), to: Collection
+  defdelegate get_location_summary!(id), to: Collection
+  defdelegate unfiled_location_summary(summaries \\ nil), to: Collection
   defdelegate list_location_options(), to: Collection
   defdelegate get_location!(id), to: Collection
   defdelegate get_location_with_items!(id), to: Collection
@@ -44,8 +50,15 @@ defmodule Manavault.Catalog do
   defdelegate export_collection_text(filters \\ []), to: Collection
 
   defdelegate list_decks(), to: Decks
+  defdelegate list_deck_summaries(), to: Decks
+  defdelegate count_decks(), to: Decks
   defdelegate get_deck!(id), to: Decks
   defdelegate get_deck_by_share_token(token), to: Decks
+  defdelegate deck_cards(deck), to: Decks
+  defdelegate deck_card_count(deck), to: Decks
+  defdelegate deck_unique_card_count(deck), to: Decks
+  defdelegate deck_commander_color_identity(deck), to: Decks
+  defdelegate deck_cover_image_url(deck), to: Decks
   defdelegate change_deck(deck, attrs \\ %{}), to: Decks
   defdelegate create_deck(attrs), to: Decks
   defdelegate update_deck(deck, attrs), to: Decks

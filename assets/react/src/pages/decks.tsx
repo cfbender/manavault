@@ -82,22 +82,10 @@ const DecksDocument = graphql(`
       format
       status
       shareToken
+      coverImageUrl
+      commanderColorIdentity
       cardCount
       uniqueCardCount
-      deckCards {
-        zone
-        preferredPrinting {
-          imageUrl
-          artCropUrl
-        }
-        card {
-          colorIdentity
-          printings {
-            imageUrl
-            artCropUrl
-          }
-        }
-      }
     }
   }
 `)
@@ -110,20 +98,10 @@ const CreateDeckDocument = graphql(`
       format
       status
       shareToken
+      coverImageUrl
+      commanderColorIdentity
       cardCount
       uniqueCardCount
-      deckCards {
-        preferredPrinting {
-          imageUrl
-          artCropUrl
-        }
-        card {
-          printings {
-            imageUrl
-            artCropUrl
-          }
-        }
-      }
     }
   }
 `)
@@ -136,20 +114,10 @@ const UpdateDeckDocument = graphql(`
       format
       status
       shareToken
+      coverImageUrl
+      commanderColorIdentity
       cardCount
       uniqueCardCount
-      deckCards {
-        preferredPrinting {
-          imageUrl
-          artCropUrl
-        }
-        card {
-          printings {
-            imageUrl
-            artCropUrl
-          }
-        }
-      }
     }
   }
 `)
@@ -692,7 +660,7 @@ export function DecksPage() {
                     <div key={deck.id} className="relative">
                       <Link to="/decks/$id" params={{ id: deck.id }} className="block">
                         <ImageSummaryCard
-                          imageUrl={deckCoverUrl(deck)}
+                          imageUrl={deck.coverImageUrl}
                           fallback={<Layers className="h-12 w-12" />}
                           typeLine={<Badge>{titleize(deck.format)}</Badge>}
                           countLine={`${compactNumber(deck.cardCount || 0)} cards`}
@@ -706,7 +674,7 @@ export function DecksPage() {
                           }
                           nameLine={
                             <DeckNameWithCommanderIdentity
-                              colors={commanderColorIdentity(deck.deckCards)}
+                              colors={deck.commanderColorIdentity}
                               name={deck.name}
                             />
                           }
@@ -1487,13 +1455,17 @@ function DeckNameWithCommanderIdentity({
   colors,
   name,
 }: {
-  colors?: string[] | null
+  colors?: Array<string | null> | null
   name: ReactNode
 }) {
+  const displayColors = colors?.filter(present) || []
+
   return (
     <span className="inline-flex max-w-full flex-wrap items-center gap-2">
       <span className="min-w-0">{name}</span>
-      {colors?.length ? <ColorIdentitySymbols colors={colors} className="text-[0.82em]" /> : null}
+      {displayColors.length ? (
+        <ColorIdentitySymbols colors={displayColors} className="text-[0.82em]" />
+      ) : null}
     </span>
   )
 }
@@ -1524,21 +1496,6 @@ function commanderColorIdentity(
   return colors.size ? Array.from(colors).sort((left, right) => colorOrder(left) - colorOrder(right)) : ["C"]
 }
 
-function deckCoverUrl(deck: DeckSummary) {
-  const cover = deck.deckCards?.find(
-    (card) =>
-      card?.preferredPrinting?.artCropUrl ||
-      card?.preferredPrinting?.imageUrl ||
-      card?.card?.printings?.[0]?.artCropUrl ||
-      card?.card?.printings?.[0]?.imageUrl,
-  )
-  return (
-    cover?.preferredPrinting?.artCropUrl ||
-    cover?.preferredPrinting?.imageUrl ||
-    cover?.card?.printings?.[0]?.artCropUrl ||
-    cover?.card?.printings?.[0]?.imageUrl
-  )
-}
 
 function countDeckZones(deckCards: DeckCardEntry[]) {
   return deckCards.reduce<Record<DeckZone, number>>(

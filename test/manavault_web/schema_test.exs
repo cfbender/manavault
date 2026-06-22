@@ -626,6 +626,84 @@ defmodule ManavaultWeb.SchemaTest do
            } = json_response(conn, 200)
   end
 
+  test "decks query exposes lightweight summary fields", %{conn: conn} do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([
+               %{
+                 "id" => "scryfall-summary-main",
+                 "oracle_id" => "oracle-summary-main",
+                 "name" => "Summary Main",
+                 "type_line" => "Creature",
+                 "collector_number" => "1",
+                 "set" => "sum",
+                 "set_name" => "Summary Set",
+                 "lang" => "en",
+                 "image_uris" => %{"art_crop" => "https://example.test/summary-main-art.jpg"},
+                 "finishes" => ["nonfoil"],
+                 "legalities" => %{}
+               },
+               %{
+                 "id" => "scryfall-summary-commander",
+                 "oracle_id" => "oracle-summary-commander",
+                 "name" => "Summary Commander",
+                 "type_line" => "Legendary Creature",
+                 "color_identity" => ["G", "U"],
+                 "collector_number" => "2",
+                 "set" => "sum",
+                 "set_name" => "Summary Set",
+                 "lang" => "en",
+                 "image_uris" => %{},
+                 "finishes" => ["nonfoil"],
+                 "legalities" => %{}
+               }
+             ])
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Summary Deck", "format" => "commander"})
+
+    assert {:ok, _mainboard} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Summary Main",
+               "quantity" => 2,
+               "zone" => "mainboard"
+             })
+
+    assert {:ok, _commander} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Summary Commander",
+               "quantity" => 1,
+               "zone" => "commander"
+             })
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query {
+          decks {
+            name
+            coverImageUrl
+            commanderColorIdentity
+            cardCount
+            uniqueCardCount
+          }
+        }
+        """
+      })
+
+    assert %{
+             "data" => %{
+               "decks" => [
+                 %{
+                   "name" => "Summary Deck",
+                   "coverImageUrl" => "https://example.test/summary-main-art.jpg",
+                   "commanderColorIdentity" => ["U", "G"],
+                   "cardCount" => 3,
+                   "uniqueCardCount" => 2
+                 }
+               ]
+             }
+           } = json_response(conn, 200)
+  end
+
   test "deck share mutation creates a public token and public share query resolves it", %{
     conn: conn
   } do

@@ -563,6 +563,34 @@ defmodule Manavault.CatalogTest do
     assert [] = Catalog.list_decks()
   end
 
+  test "list_deck_summaries returns counts cover and commander colors without preloading cards" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Summary Test"})
+
+    assert {:ok, _mainboard} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Black Lotus",
+               "quantity" => 2,
+               "zone" => "mainboard"
+             })
+
+    assert {:ok, _commander} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Time Walk",
+               "quantity" => 1,
+               "zone" => "commander"
+             })
+
+    assert [%Deck{} = summary] = Catalog.list_deck_summaries()
+    assert summary.card_count == 3
+    assert summary.unique_card_count == 2
+    assert summary.commander_color_identity == ["U"]
+    assert summary.cover_image_url == "https://example.test/black-lotus.jpg"
+    assert %Ecto.Association.NotLoaded{} = summary.deck_cards
+  end
+
   test "deck stats total excludes sideboard and maybeboard cards" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])

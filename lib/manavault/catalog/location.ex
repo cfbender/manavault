@@ -8,6 +8,10 @@ defmodule Manavault.Catalog.Location do
     field :kind, :string, default: "box"
     field :description, :string
 
+    field :item_count, :integer, virtual: true
+    field :total_price_cents, :integer, virtual: true
+    field :purchase_price_cents, :integer, virtual: true
+
     belongs_to :cover_printing, Manavault.Catalog.Printing,
       references: :scryfall_id,
       foreign_key: :cover_scryfall_id,

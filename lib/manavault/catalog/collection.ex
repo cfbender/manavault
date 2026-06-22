@@ -25,6 +25,14 @@ defmodule Manavault.Catalog.Collection do
     CardCollection.count_items(filters)
   end
 
+  def collection_value_summary(filters \\ []) when is_list(filters) do
+    CardCollection.value_summary(filters)
+  end
+
+  def count_locations do
+    Repo.aggregate(Location, :count)
+  end
+
   def get_collection_item!(id) do
     CollectionItem
     |> Repo.get!(id)
@@ -105,6 +113,34 @@ defmodule Manavault.Catalog.Collection do
     |> order_by(asc: :name)
     |> Repo.all()
     |> Repo.preload(cover_printing: :card)
+  end
+
+  def location_summaries do
+    CardCollection.location_summaries()
+  end
+
+  def list_location_summaries(summaries \\ nil) do
+    summaries = summaries || location_summaries()
+
+    list_locations()
+    |> Enum.map(fn location ->
+      put_location_summary(location, Map.get(summaries, location.id))
+    end)
+  end
+
+  def get_location_summary!(id) do
+    location =
+      Location
+      |> Repo.get!(id)
+      |> Repo.preload(cover_printing: :card)
+
+    summaries = CardCollection.location_summaries()
+    put_location_summary(location, Map.get(summaries, location.id))
+  end
+
+  def unfiled_location_summary(summaries \\ nil) do
+    summaries = summaries || location_summaries()
+    Map.get(summaries, nil, empty_location_summary())
   end
 
   def list_location_options do
@@ -346,6 +382,22 @@ defmodule Manavault.Catalog.Collection do
       ambiguous: Enum.count(rows, &(&1.status == :ambiguous)),
       unresolved: Enum.count(rows, &(&1.status == :unresolved))
     }
+  end
+
+  defp put_location_summary(%Location{} = location, nil),
+    do: put_location_summary(location, empty_location_summary())
+
+  defp put_location_summary(%Location{} = location, summary) when is_map(summary) do
+    %{
+      location
+      | item_count: summary.item_count,
+        total_price_cents: summary.total_price_cents,
+        purchase_price_cents: summary.purchase_price_cents
+    }
+  end
+
+  defp empty_location_summary do
+    %{item_count: 0, total_price_cents: 0, purchase_price_cents: 0}
   end
 
   defp normalize_import_location_id(nil), do: {:ok, nil}

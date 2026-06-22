@@ -33,7 +33,17 @@ defmodule Manavault.Catalog.CardCollection do
     |> Repo.all()
   end
 
-  def count_items(filters \\ []) when is_list(filters) do
+  def count_items(filters \\ [])
+
+  def count_items([]) do
+    CollectionItem
+    |> join(:left, [item], location in assoc(item, :location_assoc))
+    |> where([_item, location], is_nil(location.id) or location.kind != "list")
+    |> select([item, _location], coalesce(sum(item.quantity), 0))
+    |> Repo.one()
+  end
+
+  def count_items(filters) when is_list(filters) do
     filters
     |> base_query()
     |> select([item, _printing, _card, _location], coalesce(sum(item.quantity), 0))
@@ -46,6 +56,23 @@ defmodule Manavault.Catalog.CardCollection do
     |> Keyword.put(:location_id, to_string(location_id))
     |> list_items(opts)
   end
+
+  defp normalize_value_summary(nil) do
+    %{item_count: 0, total_price_cents: 0, purchase_price_cents: 0}
+  end
+
+  defp normalize_value_summary(summary) do
+    %{
+      summary
+      | item_count: integer_or_zero(summary.item_count),
+        total_price_cents: integer_or_zero(summary.total_price_cents),
+        purchase_price_cents: integer_or_zero(summary.purchase_price_cents)
+    }
+  end
+
+  defp integer_or_zero(nil), do: 0
+  defp integer_or_zero(value) when is_integer(value), do: value
+  defp integer_or_zero(value) when is_float(value), do: round(value)
 
   defp base_query(filters) do
     query = filters |> Keyword.get(:q, "") |> normalize_filter()
@@ -92,6 +119,81 @@ defmodule Manavault.Catalog.CardCollection do
         unquote(printing).prices
       )
     end
+  end
+
+  defmacrop price_cents_fragment(item, printing) do
+    quote do
+      fragment(
+        "CAST(round(? * 100) AS INTEGER)",
+        price_value_fragment(unquote(item), unquote(printing))
+      )
+    end
+  end
+
+  defmacrop current_total_cents_fragment(item, printing) do
+    quote do
+      fragment(
+        "COALESCE(SUM(? * COALESCE(?, 0)), 0)",
+        unquote(item).quantity,
+        price_cents_fragment(unquote(item), unquote(printing))
+      )
+    end
+  end
+
+  defmacrop purchase_total_cents_fragment(item, printing) do
+    quote do
+      fragment(
+        "COALESCE(SUM(? * COALESCE(?, ?, 0)), 0)",
+        unquote(item).quantity,
+        unquote(item).purchase_price_cents,
+        price_cents_fragment(unquote(item), unquote(printing))
+      )
+    end
+  end
+
+  def value_summary(filters \\ [])
+
+  def value_summary([]) do
+    CollectionItem
+    |> join(:inner, [item], printing in assoc(item, :printing))
+    |> join(:left, [item, _printing], location in assoc(item, :location_assoc))
+    |> where([_item, _printing, location], is_nil(location.id) or location.kind != "list")
+    |> select([item, printing, _location], %{
+      item_count: coalesce(sum(item.quantity), 0),
+      total_price_cents: current_total_cents_fragment(item, printing),
+      purchase_price_cents: purchase_total_cents_fragment(item, printing)
+    })
+    |> Repo.one()
+    |> normalize_value_summary()
+  end
+
+  def value_summary(filters) when is_list(filters) do
+    filters
+    |> base_query()
+    |> select([item, printing, _card, _location], %{
+      item_count: coalesce(sum(item.quantity), 0),
+      total_price_cents: current_total_cents_fragment(item, printing),
+      purchase_price_cents: purchase_total_cents_fragment(item, printing)
+    })
+    |> Repo.one()
+    |> normalize_value_summary()
+  end
+
+  def location_summaries do
+    allocated_item_ids = from allocation in DeckAllocation, select: allocation.collection_item_id
+
+    CollectionItem
+    |> join(:inner, [item], printing in assoc(item, :printing))
+    |> where([item], item.id not in subquery(allocated_item_ids))
+    |> group_by([item], item.location_id)
+    |> select([item, printing], %{
+      location_id: item.location_id,
+      item_count: coalesce(sum(item.quantity), 0),
+      total_price_cents: current_total_cents_fragment(item, printing),
+      purchase_price_cents: purchase_total_cents_fragment(item, printing)
+    })
+    |> Repo.all()
+    |> Map.new(fn summary -> {summary.location_id, normalize_value_summary(summary)} end)
   end
 
   defmacrop json_array_count(field) do

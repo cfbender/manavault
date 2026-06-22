@@ -187,6 +187,14 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :status, non_null(:string)
     field :share_token, :string
 
+    field :cover_image_url, :string do
+      resolve(&CatalogResolvers.deck_cover_image_url/3)
+    end
+
+    field :commander_color_identity, list_of(:string) do
+      resolve(&CatalogResolvers.deck_commander_color_identity/3)
+    end
+
     field :card_count, :integer do
       resolve(&CatalogResolvers.deck_card_count/3)
     end
@@ -195,7 +203,9 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
       resolve(&CatalogResolvers.deck_unique_card_count/3)
     end
 
-    field :deck_cards, list_of(:deck_card)
+    field :deck_cards, list_of(:deck_card) do
+      resolve(&CatalogResolvers.deck_cards/3)
+    end
   end
 
   object :deck_card do

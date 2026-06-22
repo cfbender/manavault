@@ -11,6 +11,10 @@ defmodule Manavault.Catalog.Deck do
     field :format, :string, default: "commander"
     field :status, :string, default: "brewing"
     field :share_token, :string
+    field :card_count, :integer, virtual: true
+    field :unique_card_count, :integer, virtual: true
+    field :cover_image_url, :string, virtual: true
+    field :commander_color_identity, {:array, :string}, virtual: true
 
     has_many :deck_cards, Manavault.Catalog.DeckCard, on_replace: :delete
     has_many :deck_allocations, through: [:deck_cards, :deck_allocations]
