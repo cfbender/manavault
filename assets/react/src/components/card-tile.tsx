@@ -11,7 +11,16 @@ import {
   Square,
   Trash2,
 } from "lucide-react"
-import type { KeyboardEvent, MouseEvent, ReactNode } from "react"
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FocusEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+} from "react"
 import { cn } from "../lib/utils"
 
 export type CardTileAction = {
@@ -91,6 +100,9 @@ export function CardTile({
   const canToggleSelection = selectable && Boolean(onToggleSelected)
   const selectionClickActive = selectionActive && canToggleSelection
   const hasPrimaryAction = Boolean(onSelect || selectionClickActive)
+  const tileRef = useRef<HTMLDivElement>(null)
+  const touchRevealWasActivatedRef = useRef(false)
+  const [isTouchRevealed, setIsTouchRevealed] = useState(false)
   const fallbackDefaultActions: CardTileAction[] = [
     { icon: <MoveUpRight className="h-4 w-4" />, label: "Move", disabled: true },
     { icon: <Edit3 className="h-4 w-4" />, label: "Edit", disabled: true },
@@ -105,7 +117,43 @@ export function CardTile({
     })),
   ]
 
+  useEffect(() => {
+    if (!isTouchRevealed) return
+
+    function closeOnOutsidePointerDown(event: globalThis.PointerEvent) {
+      if (tileRef.current?.contains(event.target as Node | null)) return
+      setIsTouchRevealed(false)
+    }
+
+    document.addEventListener("pointerdown", closeOnOutsidePointerDown, true)
+    return () => document.removeEventListener("pointerdown", closeOnOutsidePointerDown, true)
+  }, [isTouchRevealed])
+
+  function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
+    touchRevealWasActivatedRef.current = false
+
+    if (event.pointerType === "mouse") return
+    if (isInteractiveClickTarget(event.target)) return
+    if (isTouchRevealed) return
+
+    touchRevealWasActivatedRef.current = true
+    setIsTouchRevealed(true)
+  }
+
+  function handleBlur(event: FocusEvent<HTMLDivElement>) {
+    if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) {
+      return
+    }
+    setIsTouchRevealed(false)
+  }
+
   function handleClick(event: MouseEvent<HTMLDivElement>) {
+    if (touchRevealWasActivatedRef.current) {
+      touchRevealWasActivatedRef.current = false
+      event.preventDefault()
+      return
+    }
+
     if (isInteractiveClickTarget(event.target)) return
 
     if (selectionClickActive) {
@@ -133,6 +181,7 @@ export function CardTile({
 
   return (
     <div
+      ref={tileRef}
       aria-label={
         primaryActionLabel || (onSelect && typeof name === "string" ? `View ${name}` : undefined)
       }
@@ -140,24 +189,30 @@ export function CardTile({
       className={cn(
         "group/card relative w-full max-w-[14.25rem] overflow-visible rounded-xl bg-transparent transition duration-200 focus-within:z-50",
         growOnHover && "hover:z-50 hover:-translate-y-2 hover:scale-[1.035]",
+        growOnHover && isTouchRevealed && "z-50 -translate-y-2 scale-[1.035]",
         hasPrimaryAction && "cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50",
         className,
       )}
+      onBlur={handleBlur}
       onClick={hasPrimaryAction ? handleClick : undefined}
       onKeyDown={handleKeyDown}
+      onPointerDown={handlePointerDown}
       role={selectionClickActive ? "button" : onSelect ? primaryActionRole : undefined}
       tabIndex={hasPrimaryAction ? 0 : undefined}
     >
       {showMenu ? (
         <div
-          className="dropdown absolute left-2 top-2 z-50 opacity-0 transition-opacity group-hover/card:opacity-100 group-focus-within/card:opacity-100"
+          className={cn(
+            "dropdown absolute left-2 top-2 z-50 opacity-0 transition-opacity group-hover/card:opacity-100 group-focus-within/card:opacity-100",
+            isTouchRevealed && "opacity-100",
+          )}
           onClick={(event) => event.stopPropagation()}
           onKeyDown={(event) => event.stopPropagation()}
           onMouseDown={(event) => event.stopPropagation()}
         >
           <button
             type="button"
-            className="btn btn-circle btn-xs border-0 bg-neutral/85 text-neutral-content shadow backdrop-blur transition hover:bg-neutral"
+            className="card-tile-touch-button btn btn-circle btn-xs border-0 bg-neutral/85 text-neutral-content shadow backdrop-blur transition hover:bg-neutral"
             tabIndex={0}
             aria-label="Card actions"
           >
@@ -165,7 +220,7 @@ export function CardTile({
           </button>
           <ul
             tabIndex={0}
-            className="menu dropdown-content z-50 mt-1 w-48 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
+            className="card-tile-touch-menu menu dropdown-content z-50 mt-1 w-48 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
             onClick={blurFocusedMenuItem}
           >
             {allActions.map((action, index) => (
@@ -198,11 +253,11 @@ export function CardTile({
         <button
           type="button"
           className={cn(
-            "btn btn-circle btn-xs absolute right-2 top-2 z-50 border-0 shadow backdrop-blur transition",
+            "card-tile-touch-button btn btn-circle btn-xs absolute right-2 top-2 z-50 border-0 shadow backdrop-blur transition",
             selected
               ? "bg-primary text-primary-content hover:bg-primary"
               : "bg-neutral/85 text-neutral-content hover:bg-neutral",
-            selected || selectionActive
+            selected || selectionActive || isTouchRevealed
               ? "opacity-100"
               : "opacity-0 group-hover/card:opacity-100 group-focus-within/card:opacity-100",
           )}
@@ -225,6 +280,7 @@ export function CardTile({
           foil && "card-tile-foil",
           finish === "etched" && "card-tile-foil--etched",
           growOnHover && "group-hover/card:shadow-2xl group-hover/card:ring-primary/40",
+          growOnHover && isTouchRevealed && "shadow-2xl ring-primary/40",
           selected && "ring-2 ring-primary ring-offset-2 ring-offset-base-100",
         )}
       >
@@ -236,6 +292,7 @@ export function CardTile({
               "h-full w-full object-cover transition duration-300",
               allocatedLabel && "grayscale",
               growOnHover && "group-hover/card:scale-[1.015]",
+              growOnHover && isTouchRevealed && "scale-[1.015]",
             )}
             loading="lazy"
           />
@@ -277,7 +334,12 @@ export function CardTile({
           </span>
         ) : null}
 
-        <div className="absolute inset-0 z-20 flex items-end bg-gradient-to-t from-black/90 via-black/35 to-black/0 p-3 text-white opacity-0 transition duration-200 group-hover/card:opacity-100 group-focus-within/card:opacity-100">
+        <div
+          className={cn(
+            "pointer-events-none absolute inset-0 z-20 flex items-end bg-gradient-to-t from-black/90 via-black/35 to-black/0 p-3 text-white opacity-0 transition duration-200 group-hover/card:pointer-events-auto group-hover/card:opacity-100 group-focus-within/card:pointer-events-auto group-focus-within/card:opacity-100",
+            isTouchRevealed && "pointer-events-auto opacity-100",
+          )}
+        >
           <div className="grid w-full gap-2">
             <div className="min-w-0">
               <div className="line-clamp-2 text-sm font-bold leading-tight drop-shadow">{name}</div>
