@@ -197,13 +197,13 @@
   </head>
   <body>
     <main>
-      <section class="card stack" aria-labelledby="title">
+      <section id="shell-card" class="card stack" aria-labelledby="title" hidden>
         <div class="stack">
           <p class="eyebrow">ManaVault native shell</p>
           <h1 id="title">Choose your server</h1>
           <p>
             Enter the ManaVault URL this app should open. The setting stays on this device and can
-            be changed by returning to this setup screen.
+            be changed later from Settings inside ManaVault.
           </p>
         </div>
 
@@ -230,27 +230,6 @@
           </form>
         </section>
 
-        <section id="opening-panel" class="stack" hidden>
-          <div class="panel stack">
-            <h2>Opening ManaVault</h2>
-            <p>
-              Configured server:<br />
-              <span id="configured-url" class="server-url"></span>
-            </p>
-          </div>
-          <div id="update-panel" class="panel stack" hidden>
-            <h2>Update available</h2>
-            <p id="update-copy"></p>
-            <div class="actions">
-              <button id="open-release" class="primary" type="button">Open GitHub release</button>
-              <button id="continue-anyway" class="secondary" type="button">Continue anyway</button>
-            </div>
-          </div>
-          <div class="actions">
-            <button id="open-now" class="primary" type="button">Open now</button>
-            <button id="change-server" class="secondary" type="button">Change server</button>
-          </div>
-        </section>
 
         <p id="status" class="status" role="status"></p>
         <p class="status">App version <span id="app-version">unknown</span></p>
@@ -259,27 +238,16 @@
 
     <script type="module">
       const storageKey = "manavault:server-url"
-      const fallbackRepository = "cfbender/manavault"
       const fallbackVersion = "0.0.0"
+      const shellCard = document.querySelector("#shell-card")
       const setupPanel = document.querySelector("#setup-panel")
-      const openingPanel = document.querySelector("#opening-panel")
-      const updatePanel = document.querySelector("#update-panel")
       const serverForm = document.querySelector("#server-form")
       const serverInput = document.querySelector("#server-url")
-      const configuredUrl = document.querySelector("#configured-url")
       const statusLine = document.querySelector("#status")
       const appVersionLabel = document.querySelector("#app-version")
-      const openNowButton = document.querySelector("#open-now")
-      const changeServerButton = document.querySelector("#change-server")
-      const openReleaseButton = document.querySelector("#open-release")
-      const continueAnywayButton = document.querySelector("#continue-anyway")
-      const updateCopy = document.querySelector("#update-copy")
+      const NativeShell = window.Capacitor?.Plugins?.NativeShell
 
       let appVersion = fallbackVersion
-      let releaseRepository = fallbackRepository
-      let activeServerUrl = ""
-      let releaseUrl = ""
-      let openTimer = 0
 
       function setStatus(message, tone = "") {
         statusLine.textContent = message
@@ -287,19 +255,10 @@
       }
 
       function showSetup(message = "") {
-        window.clearTimeout(openTimer)
-        openingPanel.hidden = true
-        updatePanel.hidden = true
+        shellCard.hidden = false
         setupPanel.hidden = false
-        serverInput.value = activeServerUrl
         serverInput.focus()
         setStatus(message)
-      }
-
-      function showOpening() {
-        setupPanel.hidden = true
-        openingPanel.hidden = false
-        configuredUrl.textContent = activeServerUrl
       }
 
       function normalizeServerUrl(rawValue) {
@@ -317,51 +276,55 @@
         return url.origin
       }
 
-      function storedServerUrl() {
+      async function nativeSettings() {
+        try {
+          return (await NativeShell?.getSettings?.()) ?? null
+        } catch (_error) {
+          return null
+        }
+      }
+
+      async function saveServerUrl(serverUrl) {
+        window.localStorage.setItem(storageKey, serverUrl)
+
+        try {
+          await NativeShell?.saveServer?.({ serverUrl })
+        } catch (_error) {
+          // Older native shells only have localStorage; keep supporting them.
+        }
+      }
+
+      async function storedServerUrl() {
+        const settings = await nativeSettings()
+        if (typeof settings?.serverUrl === "string" && settings.serverUrl.trim()) {
+          try {
+            return normalizeServerUrl(settings.serverUrl)
+          } catch (_error) {
+            // Ignore invalid native settings. The setup form will replace them.
+          }
+        }
+
         const rawValue = window.localStorage.getItem(storageKey)
         if (!rawValue) return ""
 
         try {
-          return normalizeServerUrl(rawValue)
+          const serverUrl = normalizeServerUrl(rawValue)
+          await saveServerUrl(serverUrl)
+          return serverUrl
         } catch (_error) {
           window.localStorage.removeItem(storageKey)
           return ""
         }
       }
 
-      function openServer(delayMs = 0) {
-        window.clearTimeout(openTimer)
-        showOpening()
-        setStatus(delayMs > 0 ? "Checking for updates before opening..." : "Opening ManaVault...")
-        openTimer = window.setTimeout(() => {
-          window.location.href = activeServerUrl
-        }, delayMs)
-      }
-
-      function parseSemver(version) {
-        const match = String(version)
-          .trim()
-          .replace(/^v/i, "")
-          .match(/^(\d+)\.(\d+)\.(\d+)/)
-        if (!match) return null
-        return match.slice(1).map((part) => Number.parseInt(part, 10))
-      }
-
-      function compareSemver(left, right) {
-        const leftParts = parseSemver(left)
-        const rightParts = parseSemver(right)
-        if (!leftParts || !rightParts) return 0
-
-        for (let index = 0; index < 3; index += 1) {
-          if (leftParts[index] !== rightParts[index]) {
-            return leftParts[index] > rightParts[index] ? 1 : -1
-          }
+      async function loadVersionInfo() {
+        const settings = await nativeSettings()
+        if (typeof settings?.appVersion === "string" && settings.appVersion.trim()) {
+          appVersion = settings.appVersion.replace(/^v/i, "")
+          appVersionLabel.textContent = appVersion
+          return
         }
 
-        return 0
-      }
-
-      async function loadVersionInfo() {
         try {
           const response = await fetch("./version.json", { cache: "no-store" })
           if (!response.ok) return
@@ -369,99 +332,31 @@
           if (typeof payload.version === "string" && payload.version.trim()) {
             appVersion = payload.version.replace(/^v/i, "")
           }
-          if (typeof payload.releaseRepository === "string" && payload.releaseRepository.trim()) {
-            releaseRepository = payload.releaseRepository.trim()
-          }
         } catch (_error) {
-          // Keep the fallback version and repository. Launch must not depend on GitHub.
+          // Keep the fallback version. Launch must not depend on metadata.
         } finally {
           appVersionLabel.textContent = appVersion
         }
-      }
-
-      async function latestRelease() {
-        const controller = new AbortController()
-        const timeout = window.setTimeout(() => controller.abort(), 3000)
-
-        try {
-          const response = await fetch(
-            `https://api.github.com/repos/${releaseRepository}/releases/latest`,
-            {
-              cache: "no-store",
-              headers: { accept: "application/vnd.github+json" },
-              signal: controller.signal,
-            },
-          )
-          if (!response.ok) return null
-          return response.json()
-        } catch (_error) {
-          return null
-        } finally {
-          window.clearTimeout(timeout)
-        }
-      }
-
-      async function checkForUpdates() {
-        const release = await latestRelease()
-        const latestVersion = release?.tag_name?.replace(/^v/i, "")
-        if (!release?.html_url || !latestVersion || compareSemver(latestVersion, appVersion) <= 0) {
-          updatePanel.hidden = true
-          return false
-        }
-
-        releaseUrl = release.html_url
-        updateCopy.textContent = `Version ${latestVersion} is newer than this app (${appVersion}). Open the latest GitHub release to download the APK.`
-        updatePanel.hidden = false
-        setStatus("Update available. Continue only if you want to skip it.", "success")
-        return true
-      }
-
-      async function openRelease() {
-        if (!releaseUrl) return
-
-        try {
-          const browser = window.Capacitor?.Plugins?.Browser
-          if (browser?.open) {
-            await browser.open({ url: releaseUrl })
-            return
-          }
-        } catch (_error) {
-          // Fall back to a normal browser tab/window.
-        }
-
-        window.open(releaseUrl, "_blank", "noopener")
       }
 
       serverForm.addEventListener("submit", async (event) => {
         event.preventDefault()
 
         try {
-          activeServerUrl = normalizeServerUrl(serverInput.value)
-          window.localStorage.setItem(storageKey, activeServerUrl)
-          showOpening()
-          setStatus("Server saved.", "success")
-          const hasUpdate = await checkForUpdates()
-          if (!hasUpdate) openServer(400)
+          const serverUrl = normalizeServerUrl(serverInput.value)
+          await saveServerUrl(serverUrl)
+          setStatus("Server saved. Opening ManaVault...", "success")
+          window.location.replace(serverUrl)
         } catch (error) {
           setStatus(error instanceof Error ? error.message : "Could not save server URL.", "error")
         }
       })
 
-      openNowButton.addEventListener("click", () => openServer())
-      continueAnywayButton.addEventListener("click", () => openServer())
-      openReleaseButton.addEventListener("click", openRelease)
-      changeServerButton.addEventListener("click", () => {
-        window.localStorage.removeItem(storageKey)
-        showSetup("Server setting cleared.")
-      })
-
-      await loadVersionInfo()
-      activeServerUrl = storedServerUrl()
-      if (activeServerUrl) {
-        showOpening()
-        const hasUpdate = await checkForUpdates()
-        if (!hasUpdate) openServer(700)
+      const serverUrl = await storedServerUrl()
+      if (serverUrl) {
+        window.location.replace(serverUrl)
       } else {
+        await loadVersionInfo()
         showSetup()
       }
     </script>

@@ -18,6 +18,7 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         registerPlugin(InAppHttpNavigationPlugin.class);
         registerPlugin(SharedImportPlugin.class);
+        registerPlugin(NativeShellPlugin.class);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
         super.onCreate(savedInstanceState);
 

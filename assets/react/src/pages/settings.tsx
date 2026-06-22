@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Cloud, DatabaseBackup, DownloadCloud, RefreshCw, Save, ServerCog } from "lucide-react"
+import { Cloud, DatabaseBackup, DownloadCloud, RefreshCw, Save, ServerCog, Smartphone } from "lucide-react"
 import type { FormEvent, ReactNode } from "react"
 import { useEffect, useState } from "react"
 import { PageHeader, PageSection } from "../components/app-shell"
@@ -7,6 +7,15 @@ import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
 import { graphql } from "../gql"
 import { request } from "../lib/graphql"
+import {
+  checkNativeShellUpdate,
+  clearNativeServerUrl,
+  getNativeShellSettings,
+  isNativeShell,
+  saveNativeServerUrl,
+  type NativeShellSettings,
+  type NativeShellUpdateCheck,
+} from "../lib/native-shell"
 
 const BackupSettingsDocument = graphql(`
   query BackupSettings {
@@ -158,6 +167,14 @@ export function SettingsPage() {
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [restoreId, setRestoreId] = useState("")
+  const nativeShell = isNativeShell()
+  const [nativeServerUrl, setNativeServerUrl] = useState("")
+  const [nativeSettings, setNativeSettings] = useState<NativeShellSettings | null>(null)
+  const [nativeUpdate, setNativeUpdate] = useState<NativeShellUpdateCheck | null>(null)
+  const [nativeLoading, setNativeLoading] = useState(nativeShell)
+  const [nativeUpdateLoading, setNativeUpdateLoading] = useState(false)
+  const [nativeMessage, setNativeMessage] = useState<string | null>(null)
+  const [nativeError, setNativeError] = useState<string | null>(null)
 
   const settingsQuery = useQuery({
     queryKey: ["backup-settings"],
@@ -192,6 +209,31 @@ export function SettingsPage() {
       googleFolderId: settings.googleFolderId ?? "",
     })
   }, [settings])
+
+  useEffect(() => {
+    if (!nativeShell) return
+
+    let ignore = false
+
+    setNativeLoading(true)
+    void getNativeShellSettings()
+      .then((settings) => {
+        if (ignore) return
+
+        setNativeSettings(settings)
+        setNativeServerUrl(settings?.serverUrl ?? window.location.origin)
+      })
+      .catch((err: unknown) => {
+        if (!ignore) setNativeError(errorMessage(err))
+      })
+      .finally(() => {
+        if (!ignore) setNativeLoading(false)
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [nativeShell])
 
   const saveMutation = useMutation({
     mutationFn: () => request(UpdateBackupSettingsDocument, { input: backupSettingsInput(form) }),
@@ -280,12 +322,61 @@ export function SettingsPage() {
     assetReloadMutation.mutate()
   }
 
+  async function submitNativeServer(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setNativeMessage(null)
+    setNativeError(null)
+
+    try {
+      const serverUrl = await saveNativeServerUrl(nativeServerUrl)
+      setNativeServerUrl(serverUrl)
+      setNativeSettings((current) => ({ ...(current ?? {}), serverUrl }))
+      setNativeMessage("Server saved. Opening ManaVault...")
+      window.location.href = serverUrl
+    } catch (err) {
+      setNativeError(errorMessage(err))
+    }
+  }
+
+  async function clearNativeServer() {
+    setNativeMessage(null)
+    setNativeError(null)
+
+    try {
+      await clearNativeServerUrl()
+      setNativeSettings((current) => ({ ...(current ?? {}), serverUrl: null }))
+      setNativeMessage("Server cleared. The setup screen will appear on next launch.")
+    } catch (err) {
+      setNativeError(errorMessage(err))
+    }
+  }
+
+  async function checkForNativeUpdates() {
+    setNativeMessage(null)
+    setNativeError(null)
+    setNativeUpdateLoading(true)
+
+    try {
+      const result = await checkNativeShellUpdate(nativeSettings)
+      setNativeUpdate(result)
+      setNativeMessage(
+        result.updateAvailable
+          ? `Mobile app ${result.latestVersion} is available.`
+          : `Mobile app ${result.appVersion} is current.`,
+      )
+    } catch (err) {
+      setNativeError(errorMessage(err))
+    } finally {
+      setNativeUpdateLoading(false)
+    }
+  }
+
   return (
     <div className="mx-auto max-w-5xl space-y-8 px-4 sm:px-6 lg:px-8">
       <PageHeader
         eyebrow="Settings"
         title="Settings"
-        description="Manage cloud backups, manual restores, and Scryfall catalog maintenance."
+        description="Manage the mobile shell, cloud backups, manual restores, and Scryfall catalog maintenance."
       />
 
       {settingsQuery.isError ? (
@@ -294,6 +385,22 @@ export function SettingsPage() {
       {backupsQuery.isError ? <Alert tone="error">{errorMessage(backupsQuery.error)}</Alert> : null}
       {error ? <Alert tone="error">{error}</Alert> : null}
       {message ? <Alert tone="success">{message}</Alert> : null}
+
+      {nativeShell ? (
+        <NativeAppSection
+          serverUrl={nativeServerUrl}
+          setServerUrl={setNativeServerUrl}
+          settings={nativeSettings}
+          update={nativeUpdate}
+          loading={nativeLoading}
+          updateLoading={nativeUpdateLoading}
+          message={nativeMessage}
+          error={nativeError}
+          onSubmit={submitNativeServer}
+          onClear={clearNativeServer}
+          onCheckUpdates={checkForNativeUpdates}
+        />
+      ) : null}
 
       <form onSubmit={submitSettings} className="card border border-base-300 bg-base-100 shadow-sm">
         <div className="card-body gap-6 p-6">
@@ -456,6 +563,107 @@ export function SettingsPage() {
   function setFormField<K extends keyof FormState>(field: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [field]: value }))
   }
+}
+
+function NativeAppSection({
+  serverUrl,
+  setServerUrl,
+  settings,
+  update,
+  loading,
+  updateLoading,
+  message,
+  error,
+  onSubmit,
+  onClear,
+  onCheckUpdates,
+}: {
+  serverUrl: string
+  setServerUrl: (value: string) => void
+  settings: NativeShellSettings | null
+  update: NativeShellUpdateCheck | null
+  loading: boolean
+  updateLoading: boolean
+  message: string | null
+  error: string | null
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void
+  onClear: () => void
+  onCheckUpdates: () => void
+}) {
+  return (
+    <PageSection title="Mobile app" count="Native shell">
+      <div className="card border border-base-300 bg-base-100 shadow-sm">
+        <div className="card-body gap-5 p-6">
+          <div className="flex items-center gap-3">
+            <Smartphone className="h-6 w-6 text-primary" />
+            <div>
+              <h2 className="text-2xl font-black tracking-normal">Server and updates</h2>
+              <p className="mt-1 text-sm text-base-content/60">
+                Change the native shell target here. App launch and shared imports open the saved
+                server directly.
+              </p>
+            </div>
+          </div>
+
+          {error ? <Alert tone="error">{error}</Alert> : null}
+          {message ? <Alert tone="success">{message}</Alert> : null}
+
+          <form onSubmit={onSubmit} className="grid gap-4 md:grid-cols-[1fr_auto]">
+            <Field label="ManaVault server URL" htmlFor="native-server-url">
+              <Input
+                id="native-server-url"
+                value={serverUrl}
+                onChange={(event) => setServerUrl(event.target.value)}
+                placeholder="https://manavault.example.com"
+                disabled={loading}
+              />
+            </Field>
+            <div className="flex items-end gap-3">
+              <Button type="submit" disabled={loading}>
+                <Save className="h-4 w-4" />
+                Save server
+              </Button>
+              <Button type="button" variant="outline" onClick={onClear} disabled={loading}>
+                Clear
+              </Button>
+            </div>
+          </form>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="button" variant="outline" onClick={onCheckUpdates} disabled={updateLoading}>
+              <RefreshCw className="h-4 w-4" />
+              {updateLoading ? "Checking..." : "Check for app update"}
+            </Button>
+            {update?.updateAvailable && update.releaseUrl ? (
+              <Button
+                type="button"
+                onClick={() => window.open(update.releaseUrl ?? "", "_blank", "noopener")}
+              >
+                Open GitHub release
+              </Button>
+            ) : null}
+          </div>
+
+          <div className="grid gap-3 border-t border-base-300 pt-4 text-sm md:grid-cols-2">
+            <StatusLine
+              label="Configured server"
+              status={settings?.serverUrl ?? "Not configured"}
+              message="Saved on this device."
+            />
+            <StatusLine
+              label="Mobile app version"
+              status={settings?.appVersion ?? "Unknown"}
+              message={
+                update?.latestVersion
+                  ? `Latest GitHub release: ${update.latestVersion}`
+                  : "Update checks run only when requested."
+              }
+            />
+          </div>
+        </div>
+      </div>
+    </PageSection>
+  )
 }
 
 function S3Fields({

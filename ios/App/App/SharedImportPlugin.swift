@@ -7,6 +7,7 @@ class BridgeViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
         bridge?.registerPluginInstance(SharedImportPlugin())
+        bridge?.registerPluginInstance(NativeShellPlugin())
     }
 }
 @objc(SharedImportPlugin)
@@ -71,5 +72,60 @@ public class SharedImportPlugin: CAPPlugin, CAPBridgedPlugin {
         }
 
         return String(data: data, encoding: .isoLatin1)
+    }
+}
+
+@objc(NativeShellPlugin)
+public class NativeShellPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "NativeShellPlugin"
+    public let jsName = "NativeShell"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "getSettings", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "saveServer", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "clearServer", returnType: CAPPluginReturnPromise)
+    ]
+
+    private let serverUrlKey = "serverUrl"
+    private let releaseRepository = "cfbender/manavault"
+    private let fallbackVersion = "0.0.0"
+
+    @objc func getSettings(_ call: CAPPluginCall) {
+        call.resolve(settingsPayload())
+    }
+
+    @objc func saveServer(_ call: CAPPluginCall) {
+        guard let serverUrl = call.getString("serverUrl")?.trimmingCharacters(in: .whitespacesAndNewlines), !serverUrl.isEmpty else {
+            call.reject("Enter a ManaVault URL.")
+            return
+        }
+
+        UserDefaults.standard.set(serverUrl, forKey: serverUrlKey)
+        call.resolve(settingsPayload())
+    }
+
+    @objc func clearServer(_ call: CAPPluginCall) {
+        UserDefaults.standard.removeObject(forKey: serverUrlKey)
+        call.resolve(settingsPayload())
+    }
+
+    private func settingsPayload() -> [String: Any] {
+        var payload: [String: Any] = [
+            "appVersion": appVersion(),
+            "releaseRepository": releaseRepository
+        ]
+
+        if let serverUrl = UserDefaults.standard.string(forKey: serverUrlKey)?.trimmingCharacters(in: .whitespacesAndNewlines), !serverUrl.isEmpty {
+            payload["serverUrl"] = serverUrl
+        }
+
+        return payload
+    }
+
+    private func appVersion() -> String {
+        if let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String, !version.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return version
+        }
+
+        return fallbackVersion
     }
 }
