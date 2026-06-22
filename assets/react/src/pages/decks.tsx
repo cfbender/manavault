@@ -53,6 +53,7 @@ import { createPortal } from "react-dom"
 import { PageHeader, PageSection } from "../components/app-shell"
 import { CardNameSearchField } from "../components/card-name-search-field"
 import { EmptyState } from "../components/card-image"
+import { FullscreenPrintingDialog, type FullscreenPrinting } from "../components/fullscreen-printing-dialog"
 import { ImageSummaryCard } from "../components/image-summary-card"
 import { DeckPlaytester } from "../components/deck-playtester"
 import { Badge } from "../components/ui/badge"
@@ -828,6 +829,10 @@ export function DeckDetailPage({
     ],
     [groupedCards, sideboardCards, maybeboardCards],
   )
+  const previewDeckCards = useMemo(() => {
+    const deckCardById = new Map(deckCards.map((deckCard) => [deckCard.id, deckCard]))
+    return selectionDeckCardIds.map((deckCardId) => deckCardById.get(deckCardId)).filter(present)
+  }, [deckCards, selectionDeckCardIds])
   const hasBulkAllocationAvailable = useMemo(
     () =>
       !shareMode &&
@@ -1522,6 +1527,7 @@ export function DeckDetailPage({
       </div>
       <DeckCardPreviewDialog
         deckCard={previewDeckCard}
+        deckCards={previewDeckCards}
         onOpenChange={(open) => {
           if (!open) setPreviewDeckCard(null)
         }}
@@ -2080,67 +2086,55 @@ function cardImageUrl(deckCard: DeckCardEntry, key: "artCropUrl" | "imageUrl") {
 
 function DeckCardPreviewDialog({
   deckCard,
+  deckCards,
   onOpenChange,
 }: {
   deckCard: DeckCardEntry | null
+  deckCards: DeckCardEntry[]
   onOpenChange: (open: boolean) => void
 }) {
-  const imageUrl = deckCard ? cardImageUrl(deckCard, "imageUrl") : null
-  const name = deckCard?.card?.name || "Card preview"
-  const printing = deckCard?.preferredPrinting || deckCard?.card?.printings?.[0]
+  const [currentDeckCardId, setCurrentDeckCardId] = useState<string | null>(null)
+  const previewCards = deckCards.length ? deckCards : deckCard ? [deckCard] : []
+  const printings = useMemo(() => previewCards.map(deckCardPreviewPrinting), [previewCards])
+  const currentDeckCard =
+    previewCards.find((previewCard) => previewCard.id === currentDeckCardId) || deckCard
+  const name = currentDeckCard?.card?.name || "Card preview"
+
+  useEffect(() => {
+    setCurrentDeckCardId(deckCard?.id || null)
+  }, [deckCard])
+
+  useEffect(() => {
+    if (!currentDeckCardId) return
+    if (printings.some((printing) => printing.scryfallId === currentDeckCardId)) return
+
+    setCurrentDeckCardId(printings[0]?.scryfallId || null)
+  }, [currentDeckCardId, printings])
 
   return (
-    <Dialog open={Boolean(deckCard)} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="flex max-h-[calc(100dvh-2rem)] max-w-5xl flex-col overflow-hidden"
-        labelledBy="deck-card-preview-title"
-      >
-        <DialogHeader>
-          <div>
-            <DialogTitle id="deck-card-preview-title">{name}</DialogTitle>
-            <p className="mt-1 text-sm text-base-content/60">{deckCard?.card?.typeLine}</p>
-          </div>
-          <DialogClose onClose={() => onOpenChange(false)} />
-        </DialogHeader>
-
-        <div className="grid min-h-0 gap-5 overflow-y-auto p-5 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
-          <figure className="mx-auto w-full max-w-sm overflow-hidden rounded-2xl border border-base-300 bg-base-200 shadow-2xl">
-            {imageUrl ? (
-              <img src={imageUrl} alt={name} className="h-full w-full object-contain" />
-            ) : (
-              <div className="flex aspect-[5/7] items-center justify-center p-6 text-center text-base-content/55">
-                No image
-              </div>
-            )}
-          </figure>
-
-          <dl className="grid content-start gap-4 text-sm">
-            <div className="rounded-box border border-base-300 bg-base-200/55 p-4">
-              <dt className="text-xs font-black uppercase tracking-[0.18em] text-base-content/45">
-                Quantity
-              </dt>
-              <dd className="mt-1 text-lg font-black">{deckCard?.quantity || 0}</dd>
-            </div>
-            <div className="rounded-box border border-base-300 bg-base-200/55 p-4">
-              <dt className="text-xs font-black uppercase tracking-[0.18em] text-base-content/45">
-                Zone
-              </dt>
-              <dd className="mt-1 font-semibold">{titleize(deckCard?.zone || "mainboard")}</dd>
-            </div>
-            <div className="rounded-box border border-base-300 bg-base-200/55 p-4">
-              <dt className="text-xs font-black uppercase tracking-[0.18em] text-base-content/45">
-                Printing
-              </dt>
-              <dd className="mt-1 font-semibold">
-                {printing?.setName || printing?.setCode?.toUpperCase() || "Unknown"} #
-                {printing?.collectorNumber || "?"}
-              </dd>
-            </div>
-          </dl>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <FullscreenPrintingDialog
+      card={{ name }}
+      currentPrintingId={currentDeckCardId}
+      printings={printings}
+      onOpenChange={onOpenChange}
+      onPrintingChange={setCurrentDeckCardId}
+    />
   )
+}
+
+function deckCardPreviewPrinting(deckCard: DeckCardEntry): FullscreenPrinting {
+  const printing = deckCard.preferredPrinting || deckCard.card?.printings?.find(present)
+
+  return {
+    scryfallId: deckCard.id,
+    artCropUrl: printing?.artCropUrl || null,
+    collectorNumber: printing?.collectorNumber || null,
+    finishes: deckCard.finish ? [deckCard.finish] : printing?.finishes,
+    imageUrl: printing?.imageUrl || null,
+    rarity: printing?.rarity || null,
+    setCode: printing?.setCode || null,
+    setName: printing?.setName || null,
+  }
 }
 
 function deckPlaytestCards(deckCards: DeckCardEntry[]) {
@@ -3027,7 +3021,7 @@ function DeckStackCard({
 
       <button
         type="button"
-        className={cn("block w-full text-left", shareMode ? "cursor-zoom-in" : "cursor-pointer")}
+        className="block w-full cursor-pointer text-left"
         aria-label={shareMode ? `View full screen ${name}` : undefined}
         onClick={(event) => {
           if (isSelecting) onToggleSelected(event.shiftKey)

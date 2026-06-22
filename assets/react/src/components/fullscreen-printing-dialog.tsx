@@ -1,0 +1,231 @@
+import { motion } from "motion/react"
+import { ChevronLeft, ChevronRight, X } from "lucide-react"
+import { useEffect } from "react"
+import ProfileCard from "./profile-card"
+import { Button } from "./ui/button"
+import { Dialog, DialogContent } from "./ui/dialog"
+import { present, titleize } from "../lib/utils"
+
+export type FullscreenPrintingCard = {
+  name: string
+}
+
+export type FullscreenPrinting = {
+  scryfallId: string
+  artCropUrl?: string | null
+  collectorNumber?: string | null
+  finishes?: readonly (string | null)[] | null
+  imageUrl?: string | null
+  ownedCount?: number | null
+  priceText?: string | null
+  rarity?: string | null
+  setCode?: string | null
+  setName?: string | null
+}
+
+export function FullscreenPrintingDialog({
+  card,
+  currentPrintingId,
+  printings,
+  onOpenChange,
+  onPrintingChange,
+}: {
+  card: FullscreenPrintingCard
+  currentPrintingId: string | null
+  printings: readonly FullscreenPrinting[]
+  onOpenChange: (open: boolean) => void
+  onPrintingChange: (printingId: string) => void
+}) {
+  const currentIndex = currentPrintingId
+    ? printings.findIndex((printing) => printing.scryfallId === currentPrintingId)
+    : -1
+  const printing = currentIndex >= 0 ? printings[currentIndex] : null
+  const finish = (printing?.finishes || []).filter(present)[0]
+  const foil = finish === "foil" || finish === "etched"
+  const setLabel = printing?.setCode
+    ? `${printing.setCode.toUpperCase()}${printing.collectorNumber ? ` #${printing.collectorNumber}` : ""}`
+    : printing?.collectorNumber
+      ? `#${printing.collectorNumber}`
+      : ""
+  const subtitle = [
+    setLabel || null,
+    printing?.setName || null,
+    printing?.rarity ? titleize(printing.rarity) : null,
+  ]
+    .filter(present)
+    .join(" · ")
+  const profileInnerGradient = foil
+    ? "linear-gradient(145deg,rgba(120,72,28,0.58) 0%,rgba(255,226,122,0.23) 42%,rgba(117,196,255,0.28) 100%)"
+    : "linear-gradient(145deg,rgba(96,73,110,0.55) 0%,rgba(113,196,255,0.27) 100%)"
+  const profileGlowColor = foil ? "rgba(255, 219, 122, 0.62)" : "rgba(125, 190, 255, 0.55)"
+  const canNavigate = printings.length > 1 && currentIndex >= 0
+  const positionLabel = canNavigate ? `${currentIndex + 1} / ${printings.length}` : null
+
+  useEffect(() => {
+    if (!canNavigate) return
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return
+
+      event.preventDefault()
+      const direction = event.key === "ArrowLeft" ? -1 : 1
+      const nextIndex = (currentIndex + direction + printings.length) % printings.length
+      const nextPrinting = printings[nextIndex]
+      if (nextPrinting) onPrintingChange(nextPrinting.scryfallId)
+    }
+
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [canNavigate, currentIndex, onPrintingChange, printings])
+
+  function goToPrinting(direction: -1 | 1) {
+    if (!canNavigate) return
+
+    const nextIndex = (currentIndex + direction + printings.length) % printings.length
+    const nextPrinting = printings[nextIndex]
+    if (nextPrinting) onPrintingChange(nextPrinting.scryfallId)
+  }
+
+  return (
+    <Dialog open={Boolean(printing)} onOpenChange={onOpenChange}>
+      {printing ? (
+        <DialogContent
+          className="relative h-[100dvh] max-h-[100dvh] w-screen shrink-0 max-w-none overflow-hidden rounded-none border-0 bg-neutral text-neutral-content shadow-2xl sm:h-[calc(100dvh-3rem)] sm:max-h-[calc(100dvh-3rem)] sm:w-full sm:shrink sm:max-w-[calc(100vw-2rem)] sm:rounded-box"
+          labelledBy="fullscreen-card-title"
+        >
+          {printing.artCropUrl ? (
+            <img
+              src={printing.artCropUrl}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover opacity-25 blur-sm scale-105"
+            />
+          ) : null}
+          <div className="absolute inset-0 bg-gradient-to-br from-black/95 via-neutral/90 to-black/95" />
+
+          <motion.div
+            className="relative z-10 flex h-full flex-col gap-3 p-3 sm:gap-4 sm:p-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.18 }}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <h2
+                  id="fullscreen-card-title"
+                  className="truncate text-xl font-black tracking-normal sm:text-3xl"
+                >
+                  {card.name}
+                </h2>
+                {subtitle ? (
+                  <p className="mt-1 line-clamp-1 text-xs text-neutral-content/65 sm:line-clamp-2 sm:text-sm">{subtitle}</p>
+                ) : null}
+                {finish || printing.priceText || printing.ownedCount || positionLabel ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[0.65rem] sm:mt-3 sm:gap-2 sm:text-xs">
+                    {finish ? (
+                      <span className="badge border-white/20 bg-white/10 text-neutral-content">
+                        {titleize(finish)}
+                      </span>
+                    ) : null}
+                    {printing.priceText ? (
+                      <span className="badge border-white/20 bg-white/10 font-mono text-neutral-content">
+                        {printing.priceText}
+                      </span>
+                    ) : null}
+                    {printing.ownedCount ? (
+                      <span className="badge border-white/20 bg-white/10 text-neutral-content">
+                        {printing.ownedCount} owned
+                      </span>
+                    ) : null}
+                    {positionLabel ? (
+                      <span className="badge border-white/20 bg-white/10 font-mono text-neutral-content">
+                        {positionLabel}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Close full-screen card"
+                onClick={() => onOpenChange(false)}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
+            <div className="relative mb-0 flex min-h-0 flex-1 items-center justify-center pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:mb-12 sm:pb-0">
+              {canNavigate ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute left-0 top-1/2 z-20 -translate-y-1/2 border border-white/10 bg-black/35 text-white backdrop-blur hover:bg-black/55 sm:left-4"
+                  aria-label="Previous printing"
+                  onClick={() => goToPrinting(-1)}
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              ) : null}
+
+              <motion.div
+                key={printing.scryfallId}
+                className="relative max-h-full rounded-[4.75%] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+                initial={{ opacity: 0, scale: 0.82, y: 36, rotateX: 12 }}
+                animate={{ opacity: 1, scale: 1, y: 0, rotateX: 0 }}
+                transition={{ type: "spring", stiffness: 260, damping: 24 }}
+                aria-label={canNavigate ? `Show next printing of ${card.name}` : undefined}
+                role={canNavigate ? "button" : undefined}
+                tabIndex={canNavigate ? 0 : undefined}
+                onClick={() => goToPrinting(1)}
+                onKeyDown={(event) => {
+                  if (!canNavigate || (event.key !== "Enter" && event.key !== " ")) return
+                  event.preventDefault()
+                  goToPrinting(1)
+                }}
+              >
+                <ProfileCard
+                  avatarUrl={printing.imageUrl || ""}
+                  innerGradient={profileInnerGradient}
+                  behindGlowColor={profileGlowColor}
+                  behindGlowSize={foil ? "72%" : "58%"}
+                  className={
+                    foil
+                      ? "manavault-printing-profile-card manavault-printing-profile-card--foil"
+                      : "manavault-printing-profile-card"
+                  }
+                  enableTilt
+                  enableMobileTilt
+                  name={card.name}
+                  title={subtitle}
+                  handle={setLabel || printing.setCode?.toUpperCase() || "printing"}
+                  status={finish ? titleize(finish) : titleize(printing.rarity)}
+                  showUserInfo={false}
+                />
+                {printing.imageUrl ? null : (
+                  <div className="absolute inset-0 z-20 flex items-center justify-center rounded-[4.75%] p-8 text-center text-sm text-white/70">
+                    No image
+                  </div>
+                )}
+              </motion.div>
+
+              {canNavigate ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-1/2 z-20 -translate-y-1/2 border border-white/10 bg-black/35 text-white backdrop-blur hover:bg-black/55 sm:right-4"
+                  aria-label="Next printing"
+                  onClick={() => goToPrinting(1)}
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </Button>
+              ) : null}
+            </div>
+          </motion.div>
+        </DialogContent>
+      ) : null}
+    </Dialog>
+  )
+}
