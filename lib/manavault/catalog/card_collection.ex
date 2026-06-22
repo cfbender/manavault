@@ -287,6 +287,24 @@ defmodule Manavault.Catalog.CardCollection do
           asc: item.id
         )
 
+      {"added", "desc"} ->
+        order_by(query, [item, printing, card, _location],
+          desc: item.inserted_at,
+          asc: card.name,
+          asc: printing.set_code,
+          asc: printing.collector_number,
+          asc: item.id
+        )
+
+      {"added", _direction} ->
+        order_by(query, [item, printing, card, _location],
+          asc: item.inserted_at,
+          asc: card.name,
+          asc: printing.set_code,
+          asc: printing.collector_number,
+          asc: item.id
+        )
+
       {"name", "desc"} ->
         order_by(query, [item, printing, card, _location],
           desc: card.name,
@@ -319,7 +337,7 @@ defmodule Manavault.Catalog.CardCollection do
   defp normalize_sort_field(value) do
     value = value |> to_string() |> String.trim() |> String.downcase()
 
-    if value in ["quantity", "name", "set", "rarity", "price"] do
+    if value in ["quantity", "name", "set", "rarity", "price", "added"] do
       value
     else
       @default_sort.field

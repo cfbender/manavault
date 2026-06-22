@@ -439,7 +439,7 @@ defmodule Manavault.CatalogTest do
     assert Enum.map([lotus_card, walk_card], & &1.oracle_id) == ["oracle-1", "oracle-2"]
   end
 
-  test "collection item sorting supports card quantity and price" do
+  test "collection item sorting supports card quantity, price, and added date" do
     time_walk = Map.put(@time_walk, "prices", %{"usd_foil" => "5.00"})
 
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
@@ -463,6 +463,14 @@ defmodule Manavault.CatalogTest do
                "finish" => "foil"
              })
 
+    Repo.update_all(from(item in CollectionItem, where: item.id == ^lotus.id),
+      set: [inserted_at: ~U[2026-01-01 00:00:00Z]]
+    )
+
+    Repo.update_all(from(item in CollectionItem, where: item.id == ^walk.id),
+      set: [inserted_at: ~U[2026-01-02 00:00:00Z]]
+    )
+
     assert [walk.id, lotus.id] ==
              Catalog.list_collection_items([], sort: %{field: "quantity", direction: "desc"})
              |> Enum.map(& &1.id)
@@ -473,6 +481,14 @@ defmodule Manavault.CatalogTest do
 
     assert [lotus.id, walk.id] ==
              Catalog.list_collection_items([], sort: %{field: "price", direction: "desc"})
+             |> Enum.map(& &1.id)
+
+    assert [lotus.id, walk.id] ==
+             Catalog.list_collection_items([], sort: %{field: "added", direction: "asc"})
+             |> Enum.map(& &1.id)
+
+    assert [walk.id, lotus.id] ==
+             Catalog.list_collection_items([], sort: %{field: "added", direction: "desc"})
              |> Enum.map(& &1.id)
   end
 

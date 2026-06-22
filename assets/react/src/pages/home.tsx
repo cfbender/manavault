@@ -33,14 +33,15 @@ export function HomePage() {
   const [renderPrism, setRenderPrism] = useState(false);
 
   useEffect(() => {
-    const query = window.matchMedia("(min-width: 768px) and (prefers-reduced-motion: no-preference)");
+    const query = window.matchMedia(
+      "(min-width: 768px) and (prefers-reduced-motion: no-preference)",
+    );
     const update = () => setRenderPrism(query.matches);
 
     update();
     query.addEventListener("change", update);
     return () => query.removeEventListener("change", update);
   }, []);
-
 
   const value = (count?: number | null) =>
     isLoading ? "..." : isError ? "!" : compactNumber(count);
@@ -96,7 +97,7 @@ export function HomePage() {
           </p>
         </div>
 
-        <form onSubmit={submitSearch} className="max-w-3xl">
+        <form onSubmit={submitSearch} className="w-full">
           <div className="fieldset p-0">
             <label
               htmlFor="home-card-search"

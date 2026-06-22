@@ -473,7 +473,7 @@ type CollectionItem = {
 }
 
 type CollectionTab = "locations" | "all"
-type CollectionSortField = "quantity" | "name" | "set" | "rarity" | "price"
+type CollectionSortField = "quantity" | "name" | "set" | "rarity" | "price" | "added"
 type CollectionSortDirection = "asc" | "desc"
 type CollectionSort = {
   field: CollectionSortField
@@ -489,6 +489,7 @@ const SORT_OPTIONS: { field: CollectionSortField; label: string }[] = [
   { field: "set", label: "Set" },
   { field: "rarity", label: "Rarity" },
   { field: "price", label: "Price" },
+  { field: "added", label: "Added date" },
 ]
 
 const COLOR_OPTIONS: { value: ManaColor; label: string; symbol: string }[] = [
