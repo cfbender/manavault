@@ -35,7 +35,7 @@ config :manavault, ManavaultWeb.Endpoint, http: [ip: {0, 0, 0, 0}, port: port]
       end
 
     auth_disabled =
-      Mix.env() in [:test, :dev] ||
+      config_env() == :dev ||
         System.get_env("MANAVAULT_AUTH_DISABLED", "")
         |> String.trim()
         |> String.downcase()
