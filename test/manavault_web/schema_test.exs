@@ -30,6 +30,94 @@ defmodule ManavaultWeb.SchemaTest do
            } = json_response(conn, 200)
   end
 
+  test "cloud backups are empty before a provider is configured", %{conn: conn} do
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query {
+          backupSettings { provider }
+          cloudBackups { id }
+        }
+        """
+      })
+
+    assert %{
+             "data" => %{
+               "backupSettings" => %{"provider" => "none"},
+               "cloudBackups" => []
+             }
+           } = json_response(conn, 200)
+  end
+
+  test "backup settings can be saved over GraphQL", %{conn: conn} do
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation SaveBackupSettings($input: BackupSettingsInput!) {
+          updateBackupSettings(input: $input) {
+            enabled
+            provider
+            cron
+            s3Endpoint
+            s3Bucket
+            s3Region
+            s3Prefix
+            s3AccessKeyId
+            hasS3SecretAccessKey
+          }
+        }
+        """,
+        "variables" => %{
+          "input" => %{
+            "enabled" => true,
+            "provider" => "s3",
+            "cron" => "*/15 * * * *",
+            "s3Endpoint" => "https://example.r2.cloudflarestorage.com",
+            "s3Bucket" => "manavault",
+            "s3Region" => "auto",
+            "s3Prefix" => "backups",
+            "s3AccessKeyId" => "access-key",
+            "s3SecretAccessKey" => "secret-key"
+          }
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "updateBackupSettings" => %{
+                 "enabled" => true,
+                 "provider" => "s3",
+                 "cron" => "*/15 * * * *",
+                 "s3Endpoint" => "https://example.r2.cloudflarestorage.com",
+                 "s3Bucket" => "manavault",
+                 "s3Region" => "auto",
+                 "s3Prefix" => "backups",
+                 "s3AccessKeyId" => "access-key",
+                 "hasS3SecretAccessKey" => true
+               }
+             }
+           } = json_response(conn, 200)
+
+    conn =
+      post(build_conn(), "/api/graphql", %{
+        "query" => """
+        query {
+          backupSettings {
+            provider
+            hasS3SecretAccessKey
+          }
+        }
+        """
+      })
+
+    assert %{
+             "data" => %{
+               "backupSettings" => %{"provider" => "s3", "hasS3SecretAccessKey" => true}
+             }
+           } =
+             json_response(conn, 200)
+  end
+
   test "collection query resolves locations and card images", %{conn: conn} do
     {:ok, %{cards_count: 1, printings_count: 1}} =
       Catalog.import_cards([

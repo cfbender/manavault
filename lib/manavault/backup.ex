@@ -13,6 +13,14 @@ defmodule Manavault.Backup do
   @manifest_name "manifest.json"
   @default_local_paths ["uploads/scans"]
 
+  alias Manavault.Backup.{Cloud, Settings}
+
+  def settings, do: Settings.get!()
+  def update_settings(attrs), do: Settings.update(attrs)
+  def run_cloud_backup(opts \\ []), do: Cloud.run_backup(opts)
+  def list_cloud_backups, do: Cloud.list_backups()
+  def stage_cloud_restore(remote_id), do: Cloud.stage_restore(remote_id)
+
   def create!(opts \\ []) do
     repo = Keyword.get(opts, :repo, Manavault.Repo)
     database_path = database_path!(repo, opts)

@@ -3,6 +3,8 @@
 /deps
 /node_modules
 /doc
+/backups
+/restores
 /.fetch
 erl_crash.dump
 *.ez
@@ -16,6 +18,7 @@ erl_crash.dump
 *.db
 *.db-*
 /data/
+/tmp/
 
 # Downloaded/generated OCR benchmark corpus
 /test/fixtures/ocr/scryfall_random/

@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from "./routes/__root"
+import { Route as SettingsRouteImport } from "./routes/settings"
 import { Route as ScanRouteImport } from "./routes/scan"
 import { Route as IndexRouteImport } from "./routes/index"
 import { Route as ScanSessionsIndexRouteImport } from "./routes/scan-sessions/index"
@@ -24,6 +25,11 @@ import { Route as ScanSessionsIdScannerRouteImport } from "./routes/scan-session
 import { Route as CollectionLocationsIdRouteImport } from "./routes/collection/locations/$id"
 import { Route as CollectionIdEditRouteImport } from "./routes/collection/$id.edit"
 
+const SettingsRoute = SettingsRouteImport.update({
+  id: "/settings",
+  path: "/settings",
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ScanRoute = ScanRouteImport.update({
   id: "/scan",
   path: "/scan",
@@ -98,6 +104,7 @@ const CollectionIdEditRoute = CollectionIdEditRouteImport.update({
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute
   "/scan": typeof ScanRoute
+  "/settings": typeof SettingsRoute
   "/cards/$id": typeof CardsIdRoute
   "/collection/new": typeof CollectionNewRoute
   "/decks/$id": typeof DecksIdRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   "/": typeof IndexRoute
   "/scan": typeof ScanRoute
+  "/settings": typeof SettingsRoute
   "/cards/$id": typeof CardsIdRoute
   "/collection/new": typeof CollectionNewRoute
   "/decks/$id": typeof DecksIdRoute
@@ -131,6 +139,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   "/": typeof IndexRoute
   "/scan": typeof ScanRoute
+  "/settings": typeof SettingsRoute
   "/cards/$id": typeof CardsIdRoute
   "/collection/new": typeof CollectionNewRoute
   "/decks/$id": typeof DecksIdRoute
@@ -149,6 +158,7 @@ export interface FileRouteTypes {
   fullPaths:
     | "/"
     | "/scan"
+    | "/settings"
     | "/cards/$id"
     | "/collection/new"
     | "/decks/$id"
@@ -165,6 +175,7 @@ export interface FileRouteTypes {
   to:
     | "/"
     | "/scan"
+    | "/settings"
     | "/cards/$id"
     | "/collection/new"
     | "/decks/$id"
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | "__root__"
     | "/"
     | "/scan"
+    | "/settings"
     | "/cards/$id"
     | "/collection/new"
     | "/decks/$id"
@@ -198,6 +210,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ScanRoute: typeof ScanRoute
+  SettingsRoute: typeof SettingsRoute
   CardsIdRoute: typeof CardsIdRoute
   CollectionNewRoute: typeof CollectionNewRoute
   DecksIdRoute: typeof DecksIdRoute
@@ -213,6 +226,13 @@ export interface RootRouteChildren {
 
 declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
+    "/settings": {
+      id: "/settings"
+      path: "/settings"
+      fullPath: "/settings"
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     "/scan": {
       id: "/scan"
       path: "/scan"
@@ -329,6 +349,7 @@ const ScanSessionsIdRouteWithChildren = ScanSessionsIdRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ScanRoute: ScanRoute,
+  SettingsRoute: SettingsRoute,
   CardsIdRoute: CardsIdRoute,
   CollectionNewRoute: CollectionNewRoute,
   DecksIdRoute: DecksIdRoute,

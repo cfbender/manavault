@@ -10,6 +10,7 @@ defmodule Manavault.Application do
     children =
       [
         ManavaultWeb.Telemetry,
+        Manavault.Backup.PendingRestore,
         Manavault.Repo,
         {Manavault.Backup.MigrationBackup, repo: Manavault.Repo},
         {Ecto.Migrator,
@@ -17,10 +18,12 @@ defmodule Manavault.Application do
         {DNSCluster, query: Application.get_env(:manavault, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: Manavault.PubSub},
         {Task.Supervisor, name: Manavault.ScanRecognitionSupervisor},
+        {Task.Supervisor, name: Manavault.Backup.TaskSupervisor},
         Manavault.Catalog.RapidOCRDaemon,
         Manavault.Catalog.ImageHashDaemon,
         art_index_worker_child(),
         scryfall_sync_worker_child(),
+        backup_scheduler_child(),
         ManavaultWeb.Endpoint
       ]
       |> Enum.reject(&is_nil/1)
@@ -42,6 +45,12 @@ defmodule Manavault.Application do
   defp skip_migrations?() do
     # By default, sqlite migrations are run when using a release
     System.get_env("RELEASE_NAME") == nil
+  end
+
+  defp backup_scheduler_child do
+    if Application.get_env(:manavault, :backup_scheduler, true) do
+      Manavault.Backup.Scheduler
+    end
   end
 
   defp scryfall_sync_worker_child do

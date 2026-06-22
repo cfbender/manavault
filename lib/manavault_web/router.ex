@@ -17,6 +17,7 @@ defmodule ManavaultWeb.Router do
 
     get "/", AppController, :index
     get "/scan", AppController, :index
+    get "/settings", AppController, :index
     get "/cards", AppController, :index
     get "/cards/:id", AppController, :index
     get "/decks", AppController, :index

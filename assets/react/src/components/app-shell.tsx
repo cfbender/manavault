@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from "@tanstack/react-router"
-import { Boxes, Camera, Home, Layers, Menu, Monitor, Moon, Search, Sun } from "lucide-react"
+import { Boxes, Camera, Home, Layers, Menu, Monitor, Moon, Search, Settings, Sun } from "lucide-react"
 import type { ReactNode } from "react"
 import { useTheme } from "../lib/theme"
 import { cn } from "../lib/utils"
@@ -11,6 +11,7 @@ const navItems = [
   { to: "/collection" as const, label: "Collection", icon: Boxes },
   { to: "/decks" as const, label: "Decks", icon: Layers },
   { to: "/scan-sessions" as const, label: "Scans", icon: Camera },
+  { to: "/settings" as const, label: "Settings", icon: Settings },
 ]
 
 function navItemActive(pathname: string, to: (typeof navItems)[number]["to"]) {

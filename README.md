@@ -241,6 +241,13 @@ The restore replaces the configured SQLite database and restored local files.
 Before it overwrites anything, it saves the existing database and local files
 under `<DATA_DIR>/backups/pre-restore-<timestamp>`.
 
+Cloud backups are configured from **Settings -> Cloud backups** in the app. The
+settings page supports Google Drive and S3-compatible buckets, including
+Cloudflare R2 with region `auto`. Scheduled backups use a five-field CRON
+expression evaluated in UTC. A cloud restore downloads the selected artifact to
+`<DATA_DIR>/restores/pending.zip`; restart ManaVault to apply it before the
+database starts.
+
 For a release/container restore, stop the running container, restore into the
 mounted host `data` directory with the same command from a local checkout, then
 start the container again. Alternatively, extract a full-directory tar backup

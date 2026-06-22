@@ -2,8 +2,9 @@ defmodule ManavaultWeb.Schema do
   use Absinthe.Schema
 
   import_types(ManavaultWeb.Schema.CatalogTypes)
+  import_types(ManavaultWeb.Schema.BackupTypes)
 
-  alias ManavaultWeb.Schema.CatalogResolvers
+  alias ManavaultWeb.Schema.{BackupResolvers, CatalogResolvers}
 
   query do
     field :home_summary, non_null(:home_summary) do
@@ -118,9 +119,31 @@ defmodule ManavaultWeb.Schema do
       arg(:q, :string, default_value: "")
       resolve(&CatalogResolvers.scan_sets/3)
     end
+
+    field :backup_settings, non_null(:backup_settings) do
+      resolve(&BackupResolvers.backup_settings/3)
+    end
+
+    field :cloud_backups, non_null(list_of(non_null(:cloud_backup))) do
+      resolve(&BackupResolvers.cloud_backups/3)
+    end
   end
 
   mutation do
+    field :update_backup_settings, :backup_settings do
+      arg(:input, non_null(:backup_settings_input))
+      resolve(&BackupResolvers.update_backup_settings/3)
+    end
+
+    field :run_cloud_backup, :cloud_backup_result do
+      resolve(&BackupResolvers.run_cloud_backup/3)
+    end
+
+    field :stage_cloud_restore, :cloud_restore_result do
+      arg(:id, non_null(:id))
+      resolve(&BackupResolvers.stage_cloud_restore/3)
+    end
+
     field :create_scan_session, :scan_session do
       arg(:input, non_null(:scan_session_input))
       resolve(&CatalogResolvers.create_scan_session/3)
