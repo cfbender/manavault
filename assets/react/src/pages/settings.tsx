@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Cloud, DatabaseBackup, DownloadCloud, RefreshCw, Save } from "lucide-react"
+import { Cloud, DatabaseBackup, DownloadCloud, RefreshCw, Save, ServerCog } from "lucide-react"
 import type { FormEvent, ReactNode } from "react"
 import { useEffect, useState } from "react"
 import { PageHeader, PageSection } from "../components/app-shell"
@@ -96,6 +96,24 @@ const StageCloudRestoreDocument = graphql(`
       status
       message
       path
+    }
+  }
+`)
+
+const ReloadScryfallCatalogDocument = graphql(`
+  mutation ReloadScryfallCatalog {
+    reloadScryfallCatalog {
+      status
+      message
+    }
+  }
+`)
+
+const ReloadScryfallAssetsDocument = graphql(`
+  mutation ReloadScryfallAssets {
+    reloadScryfallAssets {
+      status
+      message
     }
   }
 `)
@@ -208,6 +226,24 @@ export function SettingsPage() {
     onError: (err) => setError(errorMessage(err)),
   })
 
+  const catalogReloadMutation = useMutation({
+    mutationFn: () => request(ReloadScryfallCatalogDocument),
+    onSuccess: (data) => {
+      setError(null)
+      setMessage(data.reloadScryfallCatalog?.message ?? "Scryfall catalog reload queued.")
+    },
+    onError: (err) => setError(errorMessage(err)),
+  })
+
+  const assetReloadMutation = useMutation({
+    mutationFn: () => request(ReloadScryfallAssetsDocument),
+    onSuccess: (data) => {
+      setError(null)
+      setMessage(data.reloadScryfallAssets?.message ?? "Scryfall asset reload queued.")
+    },
+    onError: (err) => setError(errorMessage(err)),
+  })
+
   function submitSettings(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setMessage(null)
@@ -232,12 +268,24 @@ export function SettingsPage() {
     restoreMutation.mutate(restoreId)
   }
 
+  function reloadScryfallCatalog() {
+    setMessage(null)
+    setError(null)
+    catalogReloadMutation.mutate()
+  }
+
+  function reloadScryfallAssets() {
+    setMessage(null)
+    setError(null)
+    assetReloadMutation.mutate()
+  }
+
   return (
     <div className="mx-auto max-w-5xl space-y-8 px-4 sm:px-6 lg:px-8">
       <PageHeader
         eyebrow="Settings"
-        title="Cloud backups"
-        description="Back up ManaVault to Google Drive or an S3-compatible bucket, schedule automatic uploads, and stage a cloud restore for the next restart."
+        title="Settings"
+        description="Manage cloud backups, manual restores, and Scryfall catalog maintenance."
       />
 
       {settingsQuery.isError ? <Alert tone="error">{errorMessage(settingsQuery.error)}</Alert> : null}
@@ -303,6 +351,32 @@ export function SettingsPage() {
           <StatusSummary settings={settings} />
         </div>
       </form>
+
+      <PageSection title="Scryfall data" count="Manual reloads">
+        <div className="card border border-base-300 bg-base-100 shadow-sm">
+          <div className="card-body gap-4 p-6">
+            <div className="flex items-center gap-3">
+              <ServerCog className="h-6 w-6 text-primary" />
+              <div>
+                <h2 className="text-2xl font-black tracking-normal">Catalog and assets</h2>
+                <p className="mt-1 text-sm text-base-content/60">
+                  Force a fresh Scryfall catalog import when local card data looks stale. A successful catalog import queues the scanner image hash cache rebuild.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="button" onClick={reloadScryfallCatalog} disabled={catalogReloadMutation.isPending}>
+                <RefreshCw className="h-4 w-4" />
+                {catalogReloadMutation.isPending ? "Queueing..." : "Reload Scryfall catalog"}
+              </Button>
+              <Button type="button" variant="outline" onClick={reloadScryfallAssets} disabled={assetReloadMutation.isPending}>
+                <RefreshCw className="h-4 w-4" />
+                {assetReloadMutation.isPending ? "Queueing..." : "Reload symbols and set icons"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </PageSection>
 
       <PageSection title="Restore from cloud" count={`${backups.length} backups`}>
         <div className="card border border-base-300 bg-base-100 shadow-sm">

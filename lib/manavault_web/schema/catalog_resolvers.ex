@@ -37,6 +37,35 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
   def card(_parent, %{id: id}, _resolution), do: {:ok, Catalog.get_card_with_printings(id)}
 
+  def reload_scryfall_catalog(_parent, _args, _resolution) do
+    case Catalog.reload_scryfall_catalog_async() do
+      :ok ->
+        {:ok,
+         %{
+           status: "queued",
+           message:
+             "Scryfall catalog reload queued. Scanner image cache rebuild will start after the catalog import succeeds."
+         }}
+
+      :not_started ->
+        {:error, "Scryfall sync worker is not running."}
+    end
+  end
+
+  def reload_scryfall_assets(_parent, _args, _resolution) do
+    case Catalog.reload_scryfall_assets_async() do
+      :ok ->
+        {:ok,
+         %{
+           status: "queued",
+           message: "Scryfall symbol and set icon reload queued."
+         }}
+
+      :not_started ->
+        {:error, "Scryfall sync worker is not running."}
+    end
+  end
+
   def collection_items(_parent, args, _resolution) do
     filters = args |> Map.get(:filters, %{}) |> Enum.into([])
 

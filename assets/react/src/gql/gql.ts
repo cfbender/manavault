@@ -71,6 +71,8 @@ type Documents = {
     "\n  mutation UpdateBackupSettings($input: BackupSettingsInput!) {\n    updateBackupSettings(input: $input) {\n      enabled\n      provider\n      cron\n      s3Endpoint\n      s3Bucket\n      s3Region\n      s3Prefix\n      s3AccessKeyId\n      hasS3SecretAccessKey\n      googleClientId\n      googleFolderId\n      hasGoogleClientSecret\n      hasGoogleRefreshToken\n      lastBackupAt\n      lastBackupStatus\n      lastBackupMessage\n      lastBackupPath\n      lastRestoreAt\n      lastRestoreStatus\n      lastRestoreMessage\n      pendingRestorePath\n    }\n  }\n": typeof types.UpdateBackupSettingsDocument,
     "\n  mutation RunCloudBackup {\n    runCloudBackup {\n      id\n      name\n      provider\n      status\n      message\n      size\n      modifiedAt\n    }\n  }\n": typeof types.RunCloudBackupDocument,
     "\n  mutation StageCloudRestore($id: ID!) {\n    stageCloudRestore(id: $id) {\n      status\n      message\n      path\n    }\n  }\n": typeof types.StageCloudRestoreDocument,
+    "\n  mutation ReloadScryfallCatalog {\n    reloadScryfallCatalog {\n      status\n      message\n    }\n  }\n": typeof types.ReloadScryfallCatalogDocument,
+    "\n  mutation ReloadScryfallAssets {\n    reloadScryfallAssets {\n      status\n      message\n    }\n  }\n": typeof types.ReloadScryfallAssetsDocument,
 };
 const documents: Documents = {
     "\n  query CardNameSuggestions($q: String!, $limit: Int!) {\n    cardNameSuggestions(q: $q, limit: $limit)\n  }\n": types.CardNameSuggestionsDocument,
@@ -130,6 +132,8 @@ const documents: Documents = {
     "\n  mutation UpdateBackupSettings($input: BackupSettingsInput!) {\n    updateBackupSettings(input: $input) {\n      enabled\n      provider\n      cron\n      s3Endpoint\n      s3Bucket\n      s3Region\n      s3Prefix\n      s3AccessKeyId\n      hasS3SecretAccessKey\n      googleClientId\n      googleFolderId\n      hasGoogleClientSecret\n      hasGoogleRefreshToken\n      lastBackupAt\n      lastBackupStatus\n      lastBackupMessage\n      lastBackupPath\n      lastRestoreAt\n      lastRestoreStatus\n      lastRestoreMessage\n      pendingRestorePath\n    }\n  }\n": types.UpdateBackupSettingsDocument,
     "\n  mutation RunCloudBackup {\n    runCloudBackup {\n      id\n      name\n      provider\n      status\n      message\n      size\n      modifiedAt\n    }\n  }\n": types.RunCloudBackupDocument,
     "\n  mutation StageCloudRestore($id: ID!) {\n    stageCloudRestore(id: $id) {\n      status\n      message\n      path\n    }\n  }\n": types.StageCloudRestoreDocument,
+    "\n  mutation ReloadScryfallCatalog {\n    reloadScryfallCatalog {\n      status\n      message\n    }\n  }\n": types.ReloadScryfallCatalogDocument,
+    "\n  mutation ReloadScryfallAssets {\n    reloadScryfallAssets {\n      status\n      message\n    }\n  }\n": types.ReloadScryfallAssetsDocument,
 };
 
 /**
@@ -374,6 +378,14 @@ export function graphql(source: "\n  mutation RunCloudBackup {\n    runCloudBack
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation StageCloudRestore($id: ID!) {\n    stageCloudRestore(id: $id) {\n      status\n      message\n      path\n    }\n  }\n"): (typeof documents)["\n  mutation StageCloudRestore($id: ID!) {\n    stageCloudRestore(id: $id) {\n      status\n      message\n      path\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation ReloadScryfallCatalog {\n    reloadScryfallCatalog {\n      status\n      message\n    }\n  }\n"): (typeof documents)["\n  mutation ReloadScryfallCatalog {\n    reloadScryfallCatalog {\n      status\n      message\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation ReloadScryfallAssets {\n    reloadScryfallAssets {\n      status\n      message\n    }\n  }\n"): (typeof documents)["\n  mutation ReloadScryfallAssets {\n    reloadScryfallAssets {\n      status\n      message\n    }\n  }\n"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};

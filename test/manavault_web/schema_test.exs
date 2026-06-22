@@ -2,6 +2,7 @@ defmodule ManavaultWeb.SchemaTest do
   use ManavaultWeb.ConnCase
 
   alias Manavault.Catalog
+  alias Manavault.Catalog.ScryfallSyncWorker
 
   test "home summary is available over GraphQL", %{conn: conn} do
     conn =
@@ -116,6 +117,53 @@ defmodule ManavaultWeb.SchemaTest do
              }
            } =
              json_response(conn, 200)
+  end
+
+  test "Scryfall reload mutations queue worker jobs", %{conn: conn} do
+    test_pid = self()
+
+    start_supervised!(
+      {ScryfallSyncWorker,
+       [
+         initial_delay: :timer.hours(24),
+         sync_fun: fn ->
+           send(test_pid, :catalog_sync)
+           {:ok, %{printings_count: 10}}
+         end,
+         asset_sync_fun: fn ->
+           send(test_pid, :asset_sync)
+           {:ok, %{symbols_count: 2, sets_count: 3}}
+         end
+       ]}
+    )
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation {
+          reloadScryfallCatalog { status message }
+          reloadScryfallAssets { status message }
+        }
+        """
+      })
+
+    assert %{
+             "data" => %{
+               "reloadScryfallCatalog" => %{
+                 "status" => "queued",
+                 "message" => catalog_message
+               },
+               "reloadScryfallAssets" => %{
+                 "status" => "queued",
+                 "message" => asset_message
+               }
+             }
+           } = json_response(conn, 200)
+
+    assert catalog_message =~ "image cache rebuild"
+    assert asset_message =~ "set icon"
+    assert_receive :catalog_sync
+    assert_receive :asset_sync
   end
 
   test "collection query resolves locations and card images", %{conn: conn} do

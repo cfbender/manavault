@@ -3,6 +3,11 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
 
   alias ManavaultWeb.Schema.CatalogResolvers
 
+  object :scryfall_reload_result do
+    field :status, non_null(:string)
+    field :message, non_null(:string)
+  end
+
   object :card do
     field :oracle_id, non_null(:id)
     field :name, non_null(:string)

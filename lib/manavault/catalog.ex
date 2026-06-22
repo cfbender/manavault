@@ -3,7 +3,7 @@ defmodule Manavault.Catalog do
   Public catalog context API.
   """
 
-  alias Manavault.Catalog.{Collection, Decks, Scans, Scryfall, Search}
+  alias Manavault.Catalog.{Collection, Decks, Scans, Scryfall, ScryfallSyncWorker, Search}
 
   defdelegate search_cards(term, opts \\ []), to: Search
   defdelegate suggest_card_names(term, opts \\ []), to: Search
@@ -114,5 +114,14 @@ defmodule Manavault.Catalog do
 
   defdelegate latest_sync(), to: Scryfall
   defdelegate sync_scryfall(opts \\ []), to: Scryfall
+
+  defdelegate reload_scryfall_catalog_async(opts \\ []),
+    to: ScryfallSyncWorker,
+    as: :reload_catalog_async
+
+  defdelegate reload_scryfall_assets_async(opts \\ []),
+    to: ScryfallSyncWorker,
+    as: :reload_assets_async
+
   defdelegate import_cards(cards, bulk_uri \\ nil), to: Scryfall
 end

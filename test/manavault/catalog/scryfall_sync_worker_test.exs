@@ -91,4 +91,42 @@ defmodule Manavault.Catalog.ScryfallSyncWorkerTest do
     refute_receive :catalog_sync, 50
     refute_receive :asset_sync, 50
   end
+
+  test "force reloads catalog and assets without stale checks" do
+    test_pid = self()
+    fresh_completed_at = DateTime.utc_now()
+
+    pid =
+      start_supervised!(
+        {ScryfallSyncWorker,
+         [
+           interval: @interval,
+           initial_delay: @interval,
+           latest_sync_fun: fn ->
+             send(test_pid, :catalog_checked)
+             %{status: "succeeded", completed_at: fresh_completed_at}
+           end,
+           sync_fun: fn ->
+             send(test_pid, :catalog_sync)
+             {:ok, %{printings_count: 10}}
+           end,
+           latest_asset_sync_fun: fn ->
+             send(test_pid, :assets_checked)
+             fresh_completed_at
+           end,
+           asset_sync_fun: fn ->
+             send(test_pid, :asset_sync)
+             {:ok, %{symbols_count: 2, sets_count: 3}}
+           end
+         ]}
+      )
+
+    assert :ok = ScryfallSyncWorker.reload_catalog_async(server: pid)
+    assert_receive :catalog_sync
+    refute_received :catalog_checked
+
+    assert :ok = ScryfallSyncWorker.reload_assets_async(server: pid)
+    assert_receive :asset_sync
+    refute_received :assets_checked
+  end
 end

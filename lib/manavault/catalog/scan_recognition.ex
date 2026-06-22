@@ -33,6 +33,7 @@ defmodule Manavault.Catalog.ScanRecognition do
   @fuzzy_title_token_min_similarity 0.82
   @uncertain_ocr_confidence_cap 0.69
   @candidate_index_cache_key {__MODULE__, :candidate_index}
+  @candidate_index_load_lock {__MODULE__, :candidate_index_load}
   @candidate_index_multiplier 40
   @max_fuzzy_token_postings 3_000
   @noise_tokens ~w(
@@ -80,8 +81,10 @@ defmodule Manavault.Catalog.ScanRecognition do
   end
 
   def clear_candidate_index_cache do
-    :persistent_term.erase(@candidate_index_cache_key)
-    :ok
+    with_candidate_index_load_lock(fn ->
+      :persistent_term.erase(@candidate_index_cache_key)
+      :ok
+    end)
   end
 
   def warm_candidate_index_cache do
@@ -964,15 +967,34 @@ defmodule Manavault.Catalog.ScanRecognition do
   end
 
   defp candidate_index do
-    case :persistent_term.get(@candidate_index_cache_key, :missing) do
-      :missing ->
-        index = load_candidate_index()
-        :persistent_term.put(@candidate_index_cache_key, index)
+    case cached_candidate_index() do
+      {:ok, index} ->
         index
 
-      index ->
-        index
+      :missing ->
+        with_candidate_index_load_lock(fn ->
+          case cached_candidate_index() do
+            {:ok, index} ->
+              index
+
+            :missing ->
+              index = load_candidate_index()
+              :persistent_term.put(@candidate_index_cache_key, index)
+              index
+          end
+        end)
     end
+  end
+
+  defp cached_candidate_index do
+    case :persistent_term.get(@candidate_index_cache_key, :missing) do
+      :missing -> :missing
+      index -> {:ok, index}
+    end
+  end
+
+  defp with_candidate_index_load_lock(fun) when is_function(fun, 0) do
+    :global.trans(@candidate_index_load_lock, fun, [node()], :infinity)
   end
 
   defp load_candidate_index do

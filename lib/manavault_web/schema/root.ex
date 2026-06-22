@@ -144,6 +144,14 @@ defmodule ManavaultWeb.Schema do
       resolve(&BackupResolvers.stage_cloud_restore/3)
     end
 
+    field :reload_scryfall_catalog, :scryfall_reload_result do
+      resolve(&CatalogResolvers.reload_scryfall_catalog/3)
+    end
+
+    field :reload_scryfall_assets, :scryfall_reload_result do
+      resolve(&CatalogResolvers.reload_scryfall_assets/3)
+    end
+
     field :create_scan_session, :scan_session do
       arg(:input, non_null(:scan_session_input))
       resolve(&CatalogResolvers.create_scan_session/3)
