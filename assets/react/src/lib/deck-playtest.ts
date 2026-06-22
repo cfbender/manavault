@@ -105,7 +105,7 @@ export function movePlaytestCard(
 }
 
 export function mulliganPlaytest(state: PlaytestState, random: () => number = Math.random) {
-  const nextHandSize = Math.max(state.handSize - 1, 0)
+  const nextHandSize = Math.max(state.handSize - (state.mulligans === 0 ? 0 : 1), 0)
   const libraryPool = [
     ...state.library,
     ...state.hand,

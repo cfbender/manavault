@@ -1252,16 +1252,7 @@ export function DeckPlaytestPage({ id }: { id: string }) {
   if (isLoading) return <EmptyState title="Loading playtest..." />
   if (!deck) return <EmptyState title="Deck not found" />
 
-  return (
-    <div className="space-y-5">
-      <Button asChild variant="outline" size="sm">
-        <Link to="/decks/$id" params={{ id: deck.id }}>
-          Back to deck
-        </Link>
-      </Button>
-      <DeckPlaytester deckName={deck.name} initialState={initialState} />
-    </div>
-  )
+  return <DeckPlaytester deckId={deck.id} deckName={deck.name} initialState={initialState} />
 }
 
 type DeckSummary = DecksQuery["decks"][number]

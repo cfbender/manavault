@@ -65,18 +65,22 @@ test("movePlaytestCard moves cards between visible zones and to library bottom",
   assert.equal(state.library.at(-1)?.id, firstCard.id)
 })
 
-test("mulligan resets non-command zones and draws one fewer card", () => {
+test("mulligan keeps the first multiplayer mulligan free then subtracts cards", () => {
   let state = createPlaytestState(cards, command, { random: steadyRandom })
   state = movePlaytestCard(state, "hand", "battlefield", state.hand[0].id)
   state = mulliganPlaytest(state, steadyRandom)
 
   assert.equal(state.mulligans, 1)
-  assert.equal(state.hand.length, 6)
+  assert.equal(state.hand.length, 7)
   assert.equal(state.battlefield.length, 0)
   assert.equal(state.graveyard.length, 0)
   assert.equal(state.exile.length, 0)
   assert.deepEqual(state.command, command)
   assert.equal(state.hand.length + state.library.length, 10)
+
+  state = mulliganPlaytest(state, steadyRandom)
+  assert.equal(state.mulligans, 2)
+  assert.equal(state.hand.length, 6)
 })
 
 test("shuffleCards returns a new array without mutating input", () => {

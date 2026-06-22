@@ -59,6 +59,7 @@ export function AppShell() {
   const { pathname } = useLocation()
   const isShareRoute = pathname.startsWith("/share/")
   const isHomeRoute = pathname === "/"
+  const isPlaytestRoute = pathname.includes("/playtest")
 
   return (
     <div className="min-h-screen bg-base-100 text-base-content">
@@ -66,7 +67,7 @@ export function AppShell() {
         className={cn(
           "app-shell-header sticky top-0 z-30",
           isHomeRoute ? "bg-transparent" : "bg-base-100/95 backdrop-blur",
-          isShareRoute && "hidden",
+          (isShareRoute || isPlaytestRoute) && "hidden",
         )}
       >
         <div className="navbar min-h-16 px-0">
@@ -132,11 +133,18 @@ export function AppShell() {
         </div>
       </header>
 
-      <main className={cn("app-shell-main overflow-y-auto", isShareRoute && "min-h-screen")}>
+      <main
+        className={cn(
+          "app-shell-main overflow-y-auto",
+          isShareRoute && "min-h-screen",
+          isPlaytestRoute && "app-shell-main--full overflow-hidden",
+        )}
+      >
         <div
           className={cn(
             "mx-auto w-full max-w-[105rem] py-8 sm:py-12 lg:py-16",
             isShareRoute && "px-4",
+            isPlaytestRoute && "h-full max-w-none p-0 sm:p-0 lg:p-0",
           )}
         >
           <Outlet />
