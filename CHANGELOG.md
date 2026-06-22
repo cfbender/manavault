@@ -8,6 +8,17 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.6.0] - 2026-06-22
+
+### Bug Fixes
+
+- Apk build ([`14613c7a`](../../commit/14613c7a80965d0df838b0ff4d18b6bf07c65f32))
+
+### Features
+
+- Deck tagging ([`223ccded`](../../commit/223ccdedbe4647ad555a508c4be940d34853006f))
+- Auth ([`b4801d2f`](../../commit/b4801d2f0d3f5cb9f893ea47d698f9299407f52a))
+
 ## [0.5.3] - 2026-06-22
 
 ### Bug Fixes
