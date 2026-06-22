@@ -257,7 +257,7 @@ external backup.
 The production image is published to GitHub Container Registry:
 
 ```sh
-docker pull ghcr.io/cfbender/manavault:0.2.3
+docker pull ghcr.io/cfbender/manavault:0.3.0
 ```
 
 Generate a secret for production cookies:
@@ -278,7 +278,7 @@ docker run -d \
   -v "$PWD/data:/data" \
   -e SECRET_KEY_BASE="$(mise exec -- mix phx.gen.secret)" \
   -e PHX_HOST=localhost \
-  ghcr.io/cfbender/manavault:0.2.3
+  ghcr.io/cfbender/manavault:0.3.0
 ```
 
 Health check:
@@ -302,14 +302,14 @@ OpenVINO is optional. The published default image and a normal local build use
 ONNX Runtime for OCR. Only set `MANAVAULT_OCR_ENGINE=openvino` when the image or
 local Python environment includes the OpenVINO OCR dependencies. Published
 OpenVINO image tags have an `-openvino` suffix, such as
-`ghcr.io/cfbender/manavault:0.2.3-openvino`.
+`ghcr.io/cfbender/manavault:0.3.0-openvino`.
 
 Example `docker-compose.yml` using the published GHCR image:
 
 ```yaml
 services:
   manavault:
-    image: ghcr.io/cfbender/manavault:0.2.3
+    image: ghcr.io/cfbender/manavault:0.3.0
     container_name: manavault
     restart: unless-stopped
     ports:
@@ -333,7 +333,7 @@ For Intel NUC/OpenVINO scanner testing, use the matching `-openvino` image tag
 and add the OpenVINO environment:
 
 ```yaml
-    image: ghcr.io/cfbender/manavault:0.2.3-openvino
+    image: ghcr.io/cfbender/manavault:0.3.0-openvino
     environment:
       SECRET_KEY_BASE: ${SECRET_KEY_BASE}
       PHX_HOST: ${PHX_HOST:-localhost}
@@ -453,9 +453,9 @@ Expected tags:
 - `latest-openvino` from the default branch
 - branch tags from branch pushes
 - branch tags with `-openvino` from branch pushes
-- `0.2.3` and `0.2` from tag `v0.2.3`
+- `0.3.0` and `0.3` from tag `v0.3.0`
 - `0.2.3-openvino` and `0.2-openvino` from tag `v0.2.3`
-- `v0.2.3` from the raw tag ref
+- `v0.3.0` from the raw tag ref
 - `v0.2.3-openvino` from the raw tag ref
 
 ## Roadmap
