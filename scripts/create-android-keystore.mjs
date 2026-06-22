@@ -7,7 +7,7 @@ import { spawnSync } from "node:child_process"
 const keystorePath = resolve(process.env.MANAVAULT_ANDROID_KEYSTORE || "android/release/manavault-release.jks")
 const alias = process.env.MANAVAULT_ANDROID_KEY_ALIAS || "manavault"
 const storePassword = process.env.MANAVAULT_ANDROID_KEYSTORE_PASSWORD || randomSecret()
-const keyPassword = process.env.MANAVAULT_ANDROID_KEY_PASSWORD || randomSecret()
+const keyPassword = process.env.MANAVAULT_ANDROID_KEY_PASSWORD || storePassword
 const force = process.argv.includes("--force")
 
 function randomSecret() {

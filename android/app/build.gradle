@@ -49,7 +49,7 @@ def manavaultSigningProperty(String name) {
 def manavaultReleaseStoreFile = manavaultSigningProperty("MANAVAULT_ANDROID_KEYSTORE")
 def manavaultReleaseStorePassword = manavaultSigningProperty("MANAVAULT_ANDROID_KEYSTORE_PASSWORD")
 def manavaultReleaseKeyAlias = manavaultSigningProperty("MANAVAULT_ANDROID_KEY_ALIAS")
-def manavaultReleaseKeyPassword = manavaultSigningProperty("MANAVAULT_ANDROID_KEY_PASSWORD")
+def manavaultReleaseKeyPassword = manavaultSigningProperty("MANAVAULT_ANDROID_KEY_PASSWORD") ?: manavaultReleaseStorePassword
 def manavaultReleaseSigningConfigured =
         manavaultReleaseStoreFile &&
         manavaultReleaseStorePassword &&
@@ -98,7 +98,7 @@ android {
 
 gradle.taskGraph.whenReady { taskGraph ->
     if (taskGraph.hasTask(":app:assembleRelease") && !manavaultReleaseSigningConfigured) {
-        throw new GradleException("Release APKs must be signed. Set MANAVAULT_ANDROID_KEYSTORE, MANAVAULT_ANDROID_KEYSTORE_PASSWORD, MANAVAULT_ANDROID_KEY_ALIAS, and MANAVAULT_ANDROID_KEY_PASSWORD.")
+        throw new GradleException("Release APKs must be signed. Set MANAVAULT_ANDROID_KEYSTORE, MANAVAULT_ANDROID_KEYSTORE_PASSWORD, and MANAVAULT_ANDROID_KEY_ALIAS. MANAVAULT_ANDROID_KEY_PASSWORD is optional and defaults to the keystore password.")
     }
 }
 

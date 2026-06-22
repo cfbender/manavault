@@ -64,12 +64,26 @@ jobs:
           printf '%s' "${MANAVAULT_ANDROID_KEYSTORE_BASE64}" | base64 --decode > android/release/manavault-release.jks
           echo "MANAVAULT_ANDROID_KEYSTORE=${GITHUB_WORKSPACE}/android/release/manavault-release.jks" >> "$GITHUB_ENV"
 
+      - name: Validate Android release keystore
+        if: github.ref_type == 'tag'
+        shell: bash
+        env:
+          MANAVAULT_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.MANAVAULT_ANDROID_KEYSTORE_PASSWORD }}
+          MANAVAULT_ANDROID_KEY_ALIAS: ${{ secrets.MANAVAULT_ANDROID_KEY_ALIAS }}
+        run: |
+          keytool -list \
+            -keystore "${MANAVAULT_ANDROID_KEYSTORE}" \
+            -alias "${MANAVAULT_ANDROID_KEY_ALIAS}" \
+            -storepass "${MANAVAULT_ANDROID_KEYSTORE_PASSWORD}" \
+            -v
+
+
       - name: Build release APK
         if: github.ref_type == 'tag'
         env:
           MANAVAULT_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.MANAVAULT_ANDROID_KEYSTORE_PASSWORD }}
           MANAVAULT_ANDROID_KEY_ALIAS: ${{ secrets.MANAVAULT_ANDROID_KEY_ALIAS }}
-          MANAVAULT_ANDROID_KEY_PASSWORD: ${{ secrets.MANAVAULT_ANDROID_KEY_PASSWORD }}
+          MANAVAULT_ANDROID_KEY_PASSWORD: ${{ secrets.MANAVAULT_ANDROID_KEYSTORE_PASSWORD }}
         run: mise exec -- aube run android:build:release
 
       - name: Build debug APK

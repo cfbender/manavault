@@ -48,8 +48,9 @@ example `https://vault.example.com/share/decks/...`.
    mise run android:signing:setup
    ```
 
-   Save the generated `.jks` file and passwords. Losing them means existing
-   installs cannot update to future APKs signed by a new key.
+   Save the generated `.jks` file and passwords. The helper uses the same value
+   for the keystore and key password by default. Losing the key or password means
+   existing installs cannot update to future APKs signed by a new key.
 
 4. Build a signed release APK with the generated values:
 
@@ -57,9 +58,11 @@ example `https://vault.example.com/share/decks/...`.
    MANAVAULT_ANDROID_KEYSTORE=/path/to/manavault-release.jks \
    MANAVAULT_ANDROID_KEYSTORE_PASSWORD='...' \
    MANAVAULT_ANDROID_KEY_ALIAS='manavault' \
-   MANAVAULT_ANDROID_KEY_PASSWORD='...' \
    mise run android:build:release
    ```
+
+   Add `MANAVAULT_ANDROID_KEY_PASSWORD` only if your key password differs from
+   the keystore password.
 
    The APK is written to:
 
@@ -102,6 +105,13 @@ release. Add these repository secrets before cutting a release:
 - `MANAVAULT_ANDROID_KEYSTORE_BASE64`
 - `MANAVAULT_ANDROID_KEYSTORE_PASSWORD`
 - `MANAVAULT_ANDROID_KEY_ALIAS`
-- `MANAVAULT_ANDROID_KEY_PASSWORD`
 
-`mise run android:signing:setup` prints those values for a new key.
+`MANAVAULT_ANDROID_KEY_PASSWORD` is optional for local/custom builds and defaults
+to the keystore password. The GitHub release workflow intentionally signs with
+`MANAVAULT_ANDROID_KEYSTORE_PASSWORD` for both values because the generated
+PKCS12 keystore uses one password.
+
+`mise run android:signing:setup` prints the values for a new key. If you created
+a key with an older helper version, set `MANAVAULT_ANDROID_KEY_PASSWORD` to the
+same value as `MANAVAULT_ANDROID_KEYSTORE_PASSWORD` or regenerate the key before
+shipping it.
