@@ -11,6 +11,9 @@ defmodule ManavaultWeb.Endpoint do
     same_site: "Lax"
   ]
 
+  @fresh_asset_cache_control "no-cache, no-store, must-revalidate"
+  @fresh_asset_headers %{"pragma" => "no-cache", "expires" => "0"}
+
   socket "/socket", ManavaultWeb.UserSocket,
     websocket: true,
     longpoll: false
@@ -25,16 +28,29 @@ defmodule ManavaultWeb.Endpoint do
     from: :manavault,
     gzip: not code_reloading?,
     only: ~w(site.webmanifest sw.js),
-    cache_control_for_etags: "no-cache, no-store, must-revalidate",
-    cache_control_for_vsn_requests: "no-cache, no-store, must-revalidate",
-    headers: %{"pragma" => "no-cache"}
+    cache_control_for_etags: @fresh_asset_cache_control,
+    cache_control_for_vsn_requests: @fresh_asset_cache_control,
+    headers: @fresh_asset_headers
+
+  # Vite module entries and dynamic chunks must revalidate at the browser/CDN
+  # boundary. Old entry modules can point at deleted chunks after deploys.
+  plug Plug.Static,
+    at: "/assets/react",
+    from: {:manavault, "priv/static/assets/react"},
+    gzip: not code_reloading?,
+    cache_control_for_etags: @fresh_asset_cache_control,
+    cache_control_for_vsn_requests: @fresh_asset_cache_control,
+    headers: @fresh_asset_headers
 
   # Compatibility alias for cached Vite entries that request chunks from
   # /assets/*.js instead of /assets/react/assets/*.js.
   plug Plug.Static,
     at: "/assets",
     from: {:manavault, "priv/static/assets/react/assets"},
-    gzip: not code_reloading?
+    gzip: not code_reloading?,
+    cache_control_for_etags: @fresh_asset_cache_control,
+    cache_control_for_vsn_requests: @fresh_asset_cache_control,
+    headers: @fresh_asset_headers
 
   plug Plug.Static,
     at: "/",

@@ -24,6 +24,7 @@ const pwaAssetVersion = "20260620-1"
 const serviceWorkerUrl = `${window.location.origin}/sw.js?v=${pwaAssetVersion}`
 
 const chunkReloadKey = "manavault:chunk-reload"
+const chunkReloadParam = "mv-fresh-assets"
 const chunkReloadCooldownMs = 30_000
 const dynamicImportErrorPattern =
   /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i
@@ -46,7 +47,9 @@ function reloadForFreshAssets(error: unknown) {
     // Storage can be unavailable. A single location replacement is still the safest recovery.
   }
 
-  window.location.replace(window.location.href)
+  const url = new URL(window.location.href)
+  url.searchParams.set(chunkReloadParam, String(Date.now()))
+  window.location.replace(url.href)
   return true
 }
 

@@ -64,6 +64,28 @@ defmodule ManavaultWeb.StaticAssetTest do
     assert get(conn, "/screenshots/mobile-scan.png").status == 200
   end
 
+  test "serves Vite entry modules with no-store cache headers", %{conn: conn} do
+    entry_dir = Application.app_dir(:manavault, "priv/static/assets/react")
+    entry_path = Path.join(entry_dir, "__manavault_static_entry_test.js")
+
+    File.mkdir_p!(entry_dir)
+    File.write!(entry_path, "import './assets/__manavault_static_alias_test.js'\n")
+
+    on_exit(fn -> File.rm(entry_path) end)
+
+    conn = get(conn, "/assets/react/__manavault_static_entry_test.js")
+
+    assert conn.status == 200
+    assert get_resp_header(conn, "content-type") == ["text/javascript"]
+
+    assert get_resp_header(conn, "cache-control") == [
+             "no-cache, no-store, must-revalidate"
+           ]
+
+    assert get_resp_header(conn, "pragma") == ["no-cache"]
+    assert get_resp_header(conn, "expires") == ["0"]
+  end
+
   test "serves Vite chunks from canonical and legacy root paths", %{conn: conn} do
     chunk_dir = Application.app_dir(:manavault, "priv/static/assets/react/assets")
     chunk_path = Path.join(chunk_dir, "__manavault_static_alias_test.js")
@@ -78,8 +100,22 @@ defmodule ManavaultWeb.StaticAssetTest do
 
     assert canonical_conn.status == 200
     assert canonical_conn.resp_body == "export default 1\n"
+
+    assert get_resp_header(canonical_conn, "cache-control") == [
+             "no-cache, no-store, must-revalidate"
+           ]
+
+    assert get_resp_header(canonical_conn, "pragma") == ["no-cache"]
+    assert get_resp_header(canonical_conn, "expires") == ["0"]
     assert legacy_conn.status == 200
     assert get_resp_header(legacy_conn, "content-type") == ["text/javascript"]
+
+    assert get_resp_header(legacy_conn, "cache-control") == [
+             "no-cache, no-store, must-revalidate"
+           ]
+
+    assert get_resp_header(legacy_conn, "pragma") == ["no-cache"]
+    assert get_resp_header(legacy_conn, "expires") == ["0"]
     assert legacy_conn.resp_body == canonical_conn.resp_body
   end
 
