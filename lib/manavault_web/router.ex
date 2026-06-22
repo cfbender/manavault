@@ -26,6 +26,7 @@ defmodule ManavaultWeb.Router do
     get "/cards/:id", AppController, :index
     get "/decks", AppController, :index
     get "/decks/:id", AppController, :index
+    get "/decks/:id/playtest", AppController, :index
     get "/share/decks/:token", AppController, :index
     get "/collection", AppController, :index
     get "/collection/new", AppController, :index

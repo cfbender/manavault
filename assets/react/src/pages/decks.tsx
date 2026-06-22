@@ -20,6 +20,7 @@ import {
   MoveRight,
   Palette,
   PawPrint,
+  Play,
   Plus,
   Share2,
   ShoppingCart,
@@ -49,6 +50,7 @@ import { PageHeader, PageSection } from "../components/app-shell"
 import { CardNameSearchField } from "../components/card-name-search-field"
 import { EmptyState } from "../components/card-image"
 import { ImageSummaryCard } from "../components/image-summary-card"
+import { DeckPlaytester } from "../components/deck-playtester"
 import { Badge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
 import { ConfirmDialog } from "../components/ui/confirm-dialog"
@@ -72,6 +74,7 @@ import type {
   PreviewBulkAllocateDeckMutation,
 } from "../gql/graphql"
 import { request } from "../lib/graphql"
+import { createPlaytestState, type PlaytestCard } from "../lib/deck-playtest"
 import { cn, compactNumber, present, titleize } from "../lib/utils"
 
 const DecksDocument = graphql(`
@@ -1031,6 +1034,12 @@ export function DeckDetailPage({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <ShareModeHidden shareMode={shareMode}>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/decks/$id/playtest" params={{ id: deck.id }}>
+                  <Play className="h-4 w-4" />
+                  Playtest
+                </Link>
+              </Button>
               <Button type="button" size="sm" onClick={() => setIsAddCardOpen(true)}>
                 <Plus className="h-4 w-4" />
                 Add card
@@ -1224,6 +1233,34 @@ export function DeckDetailPage({
         />
       </ShareModeHidden>
     </>
+  )
+}
+
+export function DeckPlaytestPage({ id }: { id: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["deck", id],
+    queryFn: () => request(DeckDocument, { id }),
+  })
+  const deck = data?.deck
+  const deckCards = useMemo(() => (deck?.deckCards || []).filter(present), [deck?.deckCards])
+  const playtestCards = useMemo(() => deckPlaytestCards(deckCards), [deckCards])
+  const initialState = useMemo(
+    () => createPlaytestState(playtestCards.library, playtestCards.command),
+    [playtestCards],
+  )
+
+  if (isLoading) return <EmptyState title="Loading playtest..." />
+  if (!deck) return <EmptyState title="Deck not found" />
+
+  return (
+    <div className="space-y-5">
+      <Button asChild variant="outline" size="sm">
+        <Link to="/decks/$id" params={{ id: deck.id }}>
+          Back to deck
+        </Link>
+      </Button>
+      <DeckPlaytester deckName={deck.name} initialState={initialState} />
+    </div>
   )
 }
 
@@ -1619,6 +1656,34 @@ function compareDeckCards(left: DeckCardEntry, right: DeckCardEntry) {
 function cardImageUrl(deckCard: DeckCardEntry, key: "artCropUrl" | "imageUrl") {
   const printing = deckCard.preferredPrinting || deckCard.card?.printings?.[0]
   return printing?.[key] || null
+}
+
+function deckPlaytestCards(deckCards: DeckCardEntry[]) {
+  const library: PlaytestCard[] = []
+  const command: PlaytestCard[] = []
+
+  for (const deckCard of [...deckCards].sort(compareDeckCards)) {
+    if (deckCard.zone === "sideboard" || deckCard.zone === "maybeboard") continue
+
+    const target = deckCard.zone === "commander" ? command : library
+    const quantity = Math.max(deckCard.quantity || 0, 0)
+    const printing = deckCard.preferredPrinting || deckCard.card?.printings?.[0]
+
+    for (let index = 0; index < quantity; index += 1) {
+      target.push({
+        deckCardId: deckCard.id,
+        id: `${deckCard.id}:${index}`,
+        imageUrl: cardImageUrl(deckCard, "imageUrl"),
+        name: deckCard.card?.name || "Unknown card",
+        setLabel: printing?.setCode
+          ? `${printing.setCode.toUpperCase()} #${printing.collectorNumber || "?"}`
+          : null,
+        typeLine: deckCard.card?.typeLine,
+      })
+    }
+  }
+
+  return { command, library }
 }
 
 function colorOrder(color: string) {
