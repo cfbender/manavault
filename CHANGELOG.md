@@ -8,6 +8,12 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.5.1] - 2026-06-22
+
+### Bug Fixes
+
+- Deck page N+1 ([`a09ae3ca`](../../commit/a09ae3ca4c68b1056489656002b4bbbb22364c3d))
+
 ## [0.5.0] - 2026-06-22
 
 ### Bug Fixes
