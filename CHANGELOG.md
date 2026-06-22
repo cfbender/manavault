@@ -8,6 +8,14 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.6.2] - 2026-06-22
+
+### Features
+
+- Ip banning ([`7c64cebf`](../../commit/7c64cebf55ad2e5203ef6c89b6def3aa3ebc630b))
+- Expose more features to shared deck view ([`3cdd923b`](../../commit/3cdd923b25ba001f836eab42c0e9225cf3fdab72))
+- Sort by added date ([`5179d7de`](../../commit/5179d7de7a9540f48aff1a940e5161e40d40c462))
+
 ## [0.6.1] - 2026-06-22
 
 ### Bug Fixes
