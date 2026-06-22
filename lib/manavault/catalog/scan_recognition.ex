@@ -20,7 +20,7 @@ defmodule Manavault.Catalog.ScanRecognition do
   @default_max_candidates 5
   @title_ocr_min_confidence 0.7
   @art_first_min_confidence 0.7
-  @art_first_min_score 0.875
+  @art_first_min_score 0.75
   @art_first_min_margin 0.06
   @image_confirmed_title_min_score 0.9
   @image_confirmed_title_min_margin 0.04

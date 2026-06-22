@@ -1923,7 +1923,7 @@ defmodule Manavault.CatalogTest do
                "data:image/png;base64,#{Base.encode64("fake image bytes")}",
                image_matcher: fn _path ->
                  send(parent, :art_checked)
-                 [%{scryfall_id: "scryfall-printing-1", score: 0.8}]
+                 [%{scryfall_id: "scryfall-printing-1", score: 0.72}]
                end,
                ocr_runner: fn _path, opts ->
                  send(parent, {:ocr_crop, Keyword.get(opts, :ocr_crop)})
@@ -2009,7 +2009,7 @@ defmodule Manavault.CatalogTest do
                scan_session,
                "data:image/png;base64,#{Base.encode64("fake image bytes")}",
                image_matcher: fn _path ->
-                 [%{scryfall_id: "scryfall-printing-1", score: 0.8}]
+                 [%{scryfall_id: "scryfall-printing-1", score: 0.72}]
                end,
                ocr_runner: ocr_runner
              )
