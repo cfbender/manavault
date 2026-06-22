@@ -257,40 +257,30 @@ services:
     environment:
       SECRET_KEY_BASE: ${SECRET_KEY_BASE}
       PHX_HOST: ${PHX_HOST:-localhost}
+      MANAVAULT_ADMIN_PASSWORD_HASH: ${MANAVAULT_ADMIN_PASSWORD_HASH}
 ```
 
-If the deployment is behind Traefik plus Authelia, keep the authenticated app
-router, but add higher-priority unauthenticated routers for public share links,
-their static React/CSS assets, and PWA/App Link metadata. Without these, browsers
-may follow a cross-origin Authelia redirect for `/site.webmanifest` or
-`/assets/react/app-*.js`, and Android/browser share links may open the login flow
-or fail to load ManaVault:
+ManaVault handles owner authentication itself with a single password hash, so
+Traefik/Authelia middleware is not required. Built-in auth is enabled by default:
+set `MANAVAULT_ADMIN_PASSWORD_HASH`, or explicitly opt out with
+`MANAVAULT_AUTH_DISABLED=true`. Keep static assets and share links public at the
+proxy; ManaVault protects the private app routes and `/api/graphql` with its own
+session cookie:
 
 ```yaml
 labels:
   traefik.enable: "true"
   traefik.http.services.manavault.loadbalancer.server.port: 4000
-
   traefik.http.routers.manavault.tls.certresolver: prod
   traefik.http.routers.manavault.rule: Host(`${MANAVAULT_HOST}`)
-  traefik.http.routers.manavault.middlewares: hsts-header, authelia
-  traefik.http.routers.manavault.priority: "1"
-
-  traefik.http.routers.manavaultshare.tls.certresolver: prod
-  traefik.http.routers.manavaultshare.rule: "Host(`${MANAVAULT_HOST}`) && (Path(`/share`) || PathPrefix(`/share/`))"
-  traefik.http.routers.manavaultshare.middlewares: hsts-header
-  traefik.http.routers.manavaultshare.priority: "1000"
-
-  traefik.http.routers.manavaultpublic.tls.certresolver: prod
-  traefik.http.routers.manavaultpublic.rule: "Host(`${MANAVAULT_HOST}`) && (PathPrefix(`/assets/react/`) || PathPrefix(`/assets/css/`) || Path(`/site.webmanifest`) || Path(`/sw.js`) || Path(`/offline.html`) || Path(`/.well-known/assetlinks.json`) || Path(`/android-chrome-192x192.png`) || Path(`/android-chrome-512x512.png`) || Path(`/android-chrome-192x192-maskable.png`) || Path(`/android-chrome-512x512-maskable.png`) || Path(`/apple-touch-icon.png`) || Path(`/favicon.ico`) || Path(`/favicon-16x16.png`) || Path(`/favicon-32x32.png`))"
-  traefik.http.routers.manavaultpublic.middlewares: hsts-header
-  traefik.http.routers.manavaultpublic.priority: "1000"
+  traefik.http.routers.manavault.middlewares: hsts-header
 ```
 
-Generate a secret once, put it in `.env`, then start the stack:
+Generate both required secrets once, put them in `.env`, then start the stack:
 
 ```sh
 printf 'SECRET_KEY_BASE=%s\n' "$(mise exec -- mix phx.gen.secret)" > .env
+printf 'MANAVAULT_ADMIN_PASSWORD_HASH=%s\n' "$(mise exec -- mix manavault.auth.hash 'change-me')" >> .env
 printf 'PHX_HOST=localhost\n' >> .env
 docker compose up -d
 ```
@@ -302,6 +292,7 @@ docker run --rm \
   -p 4000:4000 \
   -v "$PWD/data:/data" \
   -e SECRET_KEY_BASE="$(mise exec -- mix phx.gen.secret)" \
+  -e MANAVAULT_ADMIN_PASSWORD_HASH="$(mise exec -- mix manavault.auth.hash 'change-me')" \
   -e PHX_HOST=localhost \
   manavault
 ```
@@ -318,6 +309,10 @@ Common optional values:
 - `PORT` - HTTP port inside the container. Defaults to `4000`.
 - `PHX_HOST` - host used for generated URLs. Defaults to `example.com` in
   Phoenix production config; set to your deployment host.
+- `MANAVAULT_ADMIN_PASSWORD_HASH` - owner password hash for built-in login.
+  Generate with `mise exec -- mix manavault.auth.hash 'your-password'`.
+- `MANAVAULT_AUTH_DISABLED` - set to `true` only when another layer already
+  protects ManaVault and you want to opt out of built-in auth.
 - `DATA_DIR` - mutable data root. Defaults to `/data`.
 - `DATABASE_PATH` - SQLite database path. Defaults to `/data/manavault.db`.
 - `POOL_SIZE` - Ecto pool size. Defaults to `5`.

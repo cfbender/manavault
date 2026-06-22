@@ -8,6 +8,8 @@
 import Config
 
 config :manavault,
+  admin_password_hash: nil,
+  auth_disabled: false,
   ecto_repos: [Manavault.Repo],
   generators: [timestamp_type: :utc_datetime]
 

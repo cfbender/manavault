@@ -24,7 +24,40 @@ port = String.to_integer(System.get_env("PORT", "4000"))
 
 config :manavault, ManavaultWeb.Endpoint, http: [ip: {0, 0, 0, 0}, port: port]
 
+{admin_password_hash, auth_disabled} =
+  if config_env() == :test do
+    {nil, true}
+  else
+    admin_password_hash =
+      case System.get_env("MANAVAULT_ADMIN_PASSWORD_HASH") do
+        nil -> nil
+        value -> if String.trim(value) == "", do: nil, else: value
+      end
+
+    auth_disabled =
+      Mix.env() in [:test, :dev] ||
+        System.get_env("MANAVAULT_AUTH_DISABLED", "")
+        |> String.trim()
+        |> String.downcase()
+        |> Kernel.in(["1", "true", "yes", "on"])
+
+    {admin_password_hash, auth_disabled}
+  end
+
+config :manavault,
+  admin_password_hash: admin_password_hash,
+  auth_disabled: auth_disabled
+
 if config_env() == :prod do
+  if !auth_disabled && is_nil(admin_password_hash) do
+    raise """
+    environment variable MANAVAULT_ADMIN_PASSWORD_HASH is missing.
+    Generate one with: mix manavault.auth.hash 'your-password'
+
+    To run without built-in authentication, set MANAVAULT_AUTH_DISABLED=true.
+    """
+  end
+
   data_dir = System.get_env("DATA_DIR", "/data")
   database_path = System.get_env("DATABASE_PATH", Path.join(data_dir, "manavault.db"))
 

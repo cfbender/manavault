@@ -8,8 +8,17 @@ defmodule ManavaultWeb.Router do
     plug :put_secure_browser_headers
   end
 
+  pipeline :authenticated_browser do
+    plug ManavaultWeb.Plugs.Authentication, :browser
+  end
+
   pipeline :api do
     plug :accepts, ["json"]
+    plug :fetch_session
+  end
+
+  pipeline :authenticated_api do
+    plug ManavaultWeb.Plugs.Authentication, :api
   end
 
   scope "/", ManavaultWeb do
@@ -21,6 +30,15 @@ defmodule ManavaultWeb.Router do
   scope "/", ManavaultWeb do
     pipe_through :browser
 
+    get "/login", AuthController, :new
+    post "/login", AuthController, :create
+    get "/share/decks/:token", AppController, :index
+    get "/scryfall-assets/*path", ScryfallAssetController, :show
+  end
+
+  scope "/", ManavaultWeb do
+    pipe_through [:browser, :authenticated_browser]
+
     get "/", AppController, :index
     get "/settings", AppController, :index
     get "/cards", AppController, :index
@@ -28,20 +46,24 @@ defmodule ManavaultWeb.Router do
     get "/decks", AppController, :index
     get "/decks/:id", AppController, :index
     get "/decks/:id/playtest", AppController, :index
-    get "/share/decks/:token", AppController, :index
     get "/collection", AppController, :index
     get "/collection/new", AppController, :index
     get "/collection/locations/:id", AppController, :index
     get "/collection/:id/edit", AppController, :index
-    get "/scryfall-assets/*path", ScryfallAssetController, :show
+    post "/logout", AuthController, :delete
   end
 
   scope "/" do
     pipe_through :api
 
     get "/health", ManavaultWeb.HealthController, :show
-    forward "/api/graphql", Absinthe.Plug, schema: ManavaultWeb.Schema
     forward "/share/graphql", Absinthe.Plug, schema: ManavaultWeb.PublicShareSchema
+  end
+
+  scope "/" do
+    pipe_through [:api, :authenticated_api]
+
+    forward "/api/graphql", Absinthe.Plug, schema: ManavaultWeb.Schema
   end
 
   # Other scopes may use custom stacks.
