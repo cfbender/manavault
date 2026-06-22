@@ -822,12 +822,23 @@ defmodule Manavault.Catalog.Scans do
         "parse=#{format_us(timings[:parse_us])} " <>
         "image=#{format_us(timings[:image_us])} " <>
         "match=#{format_us(timings[:match_us])} " <>
-        "title_fast_path=#{inspect(timings[:title_ocr_fast_path])}"
+        "title_fast_path=#{inspect(timings[:title_ocr_fast_path])} " <>
+        "art_first=#{inspect(timings[:art_first])} " <>
+        "art_first_accepted=#{inspect(timings[:art_first_accepted])} " <>
+        "image_matches=#{length(Map.get(recognition, :image_matches, []))} " <>
+        "top_image_score=#{format_score(top_image_score(recognition))}"
     end)
   end
 
   defp format_us(nil), do: "n/a"
   defp format_us(us), do: "#{Float.round(us / 1_000, 1)}ms"
+
+  defp top_image_score(%{image_matches: [%{score: score} | _matches]}), do: score
+  defp top_image_score(_recognition), do: nil
+
+  defp format_score(nil), do: "n/a"
+  defp format_score(score) when is_number(score), do: score |> Float.round(3) |> Float.to_string()
+  defp format_score(score), do: inspect(score)
 
   defp fast_capture_recognition_opts(opts) do
     require_art_match? = capture_requires_art_match?()

@@ -854,9 +854,15 @@ defmodule Manavault.Catalog.ScanRecognition do
     fuzzy_limit = max(max_candidates * @candidate_index_multiplier, 200)
 
     ids =
-      case title_fts_candidate_ids(lines, fuzzy_limit) do
-        [] -> fuzzy_candidate_ids(tokens, lines, fuzzy_limit, set_codes)
-        title_ids -> title_ids
+      case title_index_candidate_ids(lines, fuzzy_limit, set_codes) do
+        [] ->
+          case title_fts_candidate_ids(lines, fuzzy_limit) do
+            [] -> fuzzy_candidate_ids(tokens, lines, fuzzy_limit, set_codes)
+            title_ids -> title_ids
+          end
+
+        title_ids ->
+          title_ids
       end
       |> append_image_match_ids(image_matches)
 
@@ -923,6 +929,16 @@ defmodule Manavault.Catalog.ScanRecognition do
     else
       ids
     end
+  end
+
+  defp title_index_candidate_ids(lines, limit, set_codes) do
+    lines
+    |> Enum.take(1)
+    |> title_line_candidates()
+    |> Enum.flat_map(&line_variants/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.uniq()
+    |> fuzzy_title_candidate_ids(candidate_index(), limit, set_codes)
   end
 
   defp fuzzy_title_candidate_ids([], _index, _limit, _set_codes), do: []
