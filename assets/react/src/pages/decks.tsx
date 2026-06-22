@@ -66,7 +66,7 @@ import {
   DialogTitle,
 } from "../components/ui/dialog"
 import { Input } from "../components/ui/input"
-import { ColorIdentitySymbols } from "../components/ui/mana-symbols"
+import { ColorIdentitySymbols, ManaSymbol } from "../components/ui/mana-symbols"
 import { graphql } from "../gql"
 import type {
   DeckBuylistQuery,
@@ -79,6 +79,7 @@ import type {
 } from "../gql/graphql"
 import { request } from "../lib/graphql"
 import { createPlaytestState, type PlaytestCard } from "../lib/deck-playtest"
+import { exportDecklistText } from "../lib/deck-export"
 import { cn, compactNumber, present, titleize } from "../lib/utils"
 
 const DecksDocument = graphql(`
@@ -754,6 +755,9 @@ export function DeckDetailPage({
   const [isExportDeckOpen, setIsExportDeckOpen] = useState(false)
   const [isMissingCardsOpen, setIsMissingCardsOpen] = useState(false)
   const [isShareDeckOpen, setIsShareDeckOpen] = useState(false)
+  const [previewDeckCard, setPreviewDeckCard] = useState<DeckCardEntry | null>(null)
+  const [shareCopyState, setShareCopyState] = useState<"idle" | "copied" | "failed">("idle")
+  const [isSharePlaytestOpen, setIsSharePlaytestOpen] = useState(false)
   const [isSelectingCards, setIsSelectingCards] = useState(false)
   const [selectedDeckCardIds, setSelectedDeckCardIds] = useState<Set<string>>(() => new Set())
   const [lastSelectedDeckCardId, setLastSelectedDeckCardId] = useState<string | null>(null)
@@ -783,6 +787,12 @@ export function DeckDetailPage({
   const deck = data?.deck
   const [isAddCardOpen, setIsAddCardOpen] = useState(false)
   const deckCards = useMemo(() => (deck?.deckCards || []).filter(present), [deck?.deckCards])
+  const sharedDecklistText = useMemo(() => exportDecklistText(deckCards), [deckCards])
+  const playtestCards = useMemo(() => deckPlaytestCards(deckCards), [deckCards])
+  const initialPlaytestState = useMemo(
+    () => createPlaytestState(playtestCards.library, playtestCards.command),
+    [playtestCards],
+  )
   const selectedDeckCardIdList = useMemo(
     () => Array.from(selectedDeckCardIds),
     [selectedDeckCardIds],
@@ -1037,6 +1047,29 @@ export function DeckDetailPage({
   if (isLoading) return <EmptyState title="Loading deck..." />
   if (!deck) return <EmptyState title="Deck not found" />
 
+  if (shareMode && isSharePlaytestOpen) {
+    return createPortal(
+      <div className="fixed inset-0 z-[1200] bg-[#0d0e0c]">
+        <DeckPlaytester
+          closeSlot={
+            <button
+              type="button"
+              className="btn btn-ghost btn-xs gap-1 text-base-content/60"
+              onClick={() => setIsSharePlaytestOpen(false)}
+            >
+              <XCircle className="h-3.5 w-3.5" />
+              Close
+            </button>
+          }
+          deckId={deck.id}
+          deckName={deck.name}
+          initialState={initialPlaytestState}
+        />
+      </div>,
+      document.body,
+    )
+  }
+
   function moveDeckCard(deckCard: DeckCardEntry, zone: DeckZone) {
     updateDeckCard.mutate({ deckCardId: deckCard.id, input: { zone } })
   }
@@ -1135,6 +1168,26 @@ export function DeckDetailPage({
     })
   }
 
+  async function copySharedDecklist() {
+    try {
+      await navigator.clipboard.writeText(sharedDecklistText)
+      setShareCopyState("copied")
+    } catch (_error) {
+      setShareCopyState("failed")
+    }
+  }
+
+  function downloadSharedDecklist() {
+    const blob = new Blob([sharedDecklistText], { type: "text/plain;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+
+    link.href = url
+    link.download = `${deck?.name || "deck"}.txt`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <>
       <div className="space-y-7">
@@ -1181,18 +1234,61 @@ export function DeckDetailPage({
         />
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-base-300 pb-4">
-          <div className="flex flex-wrap gap-2">
+          <dl className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
             {(["commander", "mainboard", "sideboard", "maybeboard"] as DeckZone[]).map((zone) => (
-              <Badge
-                key={zone}
-                tone={zone === "commander" ? "primary" : "neutral"}
-                className="h-7 px-3 text-xs"
-              >
-                {titleize(zone)} {zoneCounts[zone] || 0}
-              </Badge>
+              <div key={zone} className="flex items-baseline gap-1.5">
+                <dt
+                  className={cn(
+                    "text-xs font-black uppercase tracking-[0.16em]",
+                    zone === "commander" ? "text-primary" : "text-base-content/45",
+                  )}
+                >
+                  {titleize(zone)}
+                </dt>
+                <dd className="font-mono text-sm font-black text-base-content/80">
+                  {zoneCounts[zone] || 0}
+                </dd>
+              </div>
             ))}
-          </div>
+          </dl>
           <div className="flex flex-wrap items-center gap-2">
+            {shareMode ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!deckCards.length}
+                  onClick={() => setIsSharePlaytestOpen(true)}
+                >
+                  <Play className="h-4 w-4" />
+                  Playtest
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!sharedDecklistText}
+                  onClick={copySharedDecklist}
+                >
+                  <Clipboard className="h-4 w-4" />
+                  {shareCopyState === "copied" ? "Copied" : "Copy decklist"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!sharedDecklistText}
+                  onClick={downloadSharedDecklist}
+                >
+                  <Download className="h-4 w-4" />
+                  Export
+                </Button>
+                {shareCopyState === "failed" ? (
+                  <span className="text-sm text-error">Copy failed.</span>
+                ) : null}
+              </div>
+            ) : null}
             <ShareModeHidden shareMode={shareMode}>
               <Button asChild variant="outline" size="sm">
                 <Link to="/decks/$id/playtest" params={{ id: deck.id }}>
@@ -1340,6 +1436,7 @@ export function DeckDetailPage({
             isSelecting={isSelectionActive}
             isUpdating={isUpdatingDeckCard}
             selectedCardIds={selectedDeckCardIds}
+            onPreview={setPreviewDeckCard}
             onMove={(deckCard) => {
               setMoveError(null)
               setMoveTarget(deckCard)
@@ -1387,6 +1484,7 @@ export function DeckDetailPage({
             isUpdating={isUpdatingDeckCard}
             selectedCardIds={selectedDeckCardIds}
             shareMode={shareMode}
+            onPreview={setPreviewDeckCard}
             title="Sideboard"
             onMove={(deckCard) => {
               setMoveError(null)
@@ -1406,6 +1504,7 @@ export function DeckDetailPage({
             isUpdating={isUpdatingDeckCard}
             selectedCardIds={selectedDeckCardIds}
             shareMode={shareMode}
+            onPreview={setPreviewDeckCard}
             title="Maybeboard"
             onMove={(deckCard) => {
               setMoveError(null)
@@ -1421,6 +1520,12 @@ export function DeckDetailPage({
           />
         </div>
       </div>
+      <DeckCardPreviewDialog
+        deckCard={previewDeckCard}
+        onOpenChange={(open) => {
+          if (!open) setPreviewDeckCard(null)
+        }}
+      />
       <ShareModeHidden shareMode={shareMode}>
         <EditDeckDialog deck={deck} onOpenChange={setIsEditDeckOpen} open={isEditDeckOpen} />
         <ShareDeckDialog deck={deck} onOpenChange={setIsShareDeckOpen} open={isShareDeckOpen} />
@@ -1588,11 +1693,11 @@ type DeckGroupIcon =
   | "enchantment"
   | "planeswalker"
   | "land"
-  | "color"
-  | "mana"
-  | "rarity"
-  | "set"
   | "none"
+  | { kind: "colors"; colors: string[] }
+  | { kind: "manaValue"; plus: boolean; value: number }
+  | { kind: "rarity"; rarity: string }
+  | { kind: "set"; setCode: string | null }
 
 const DECK_GROUP_OPTIONS: Array<{ label: string; value: DeckGroupBy }> = [
   { label: "Type", value: "type" },
@@ -1895,7 +2000,8 @@ function deckCardGroupDescriptor(
   if (groupBy === "color") {
     const colors = (card?.colors || []).filter(present)
     const key = colors.length === 0 ? "C" : colors.length > 1 ? "M" : colors[0] || "C"
-    return { icon: "color", key, label: colorLabel(key), order: colorOrder(key) }
+    const iconColors = key === "M" ? ["W", "U", "B", "R", "G"] : [key]
+    return { icon: { kind: "colors", colors: iconColors }, key, label: colorLabel(key), order: colorOrder(key) }
   }
 
   if (groupBy === "colorIdentity") {
@@ -1904,7 +2010,7 @@ function deckCardGroupDescriptor(
       .sort((left, right) => colorOrder(left) - colorOrder(right))
     const key = identity.length ? identity.join("") : "C"
     return {
-      icon: "color",
+      icon: { kind: "colors", colors: identity.length ? identity : ["C"] },
       key,
       label: key === "C" ? "Colorless" : `${key} Identity`,
       order: identity.length ? identity.reduce((sum, color) => sum + colorOrder(color), 0) : 99,
@@ -1914,17 +2020,22 @@ function deckCardGroupDescriptor(
   if (groupBy === "manaValue") {
     const cmc = Math.floor(card?.cmc || 0)
     const key = cmc >= 6 ? "6+" : String(cmc)
-    return { icon: "mana", key, label: `Mana ${key}`, order: cmc >= 6 ? 6 : cmc }
+    return {
+      icon: { kind: "manaValue", plus: cmc >= 6, value: cmc >= 6 ? 6 : Math.max(cmc, 0) },
+      key,
+      label: `Mana ${key}`,
+      order: cmc >= 6 ? 6 : cmc,
+    }
   }
 
   if (groupBy === "rarity") {
     const rarity = printing?.rarity || "unknown"
-    return { icon: "rarity", key: rarity, label: titleize(rarity), order: rarityOrder(rarity) }
+    return { icon: { kind: "rarity", rarity }, key: rarity, label: titleize(rarity), order: rarityOrder(rarity) }
   }
 
   if (groupBy === "set") {
     const key = printing?.setCode || "unknown"
-    return { icon: "set", key, label: printing?.setName || key.toUpperCase(), order: 0 }
+    return { icon: { kind: "set", setCode: key === "unknown" ? null : key }, key, label: printing?.setName || key.toUpperCase(), order: 0 }
   }
 
   return typeDescriptor(deckCard)
@@ -1965,6 +2076,71 @@ function compareDeckCards(left: DeckCardEntry, right: DeckCardEntry) {
 function cardImageUrl(deckCard: DeckCardEntry, key: "artCropUrl" | "imageUrl") {
   const printing = deckCard.preferredPrinting || deckCard.card?.printings?.[0]
   return printing?.[key] || null
+}
+
+function DeckCardPreviewDialog({
+  deckCard,
+  onOpenChange,
+}: {
+  deckCard: DeckCardEntry | null
+  onOpenChange: (open: boolean) => void
+}) {
+  const imageUrl = deckCard ? cardImageUrl(deckCard, "imageUrl") : null
+  const name = deckCard?.card?.name || "Card preview"
+  const printing = deckCard?.preferredPrinting || deckCard?.card?.printings?.[0]
+
+  return (
+    <Dialog open={Boolean(deckCard)} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="flex max-h-[calc(100dvh-2rem)] max-w-5xl flex-col overflow-hidden"
+        labelledBy="deck-card-preview-title"
+      >
+        <DialogHeader>
+          <div>
+            <DialogTitle id="deck-card-preview-title">{name}</DialogTitle>
+            <p className="mt-1 text-sm text-base-content/60">{deckCard?.card?.typeLine}</p>
+          </div>
+          <DialogClose onClose={() => onOpenChange(false)} />
+        </DialogHeader>
+
+        <div className="grid min-h-0 gap-5 overflow-y-auto p-5 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
+          <figure className="mx-auto w-full max-w-sm overflow-hidden rounded-2xl border border-base-300 bg-base-200 shadow-2xl">
+            {imageUrl ? (
+              <img src={imageUrl} alt={name} className="h-full w-full object-contain" />
+            ) : (
+              <div className="flex aspect-[5/7] items-center justify-center p-6 text-center text-base-content/55">
+                No image
+              </div>
+            )}
+          </figure>
+
+          <dl className="grid content-start gap-4 text-sm">
+            <div className="rounded-box border border-base-300 bg-base-200/55 p-4">
+              <dt className="text-xs font-black uppercase tracking-[0.18em] text-base-content/45">
+                Quantity
+              </dt>
+              <dd className="mt-1 text-lg font-black">{deckCard?.quantity || 0}</dd>
+            </div>
+            <div className="rounded-box border border-base-300 bg-base-200/55 p-4">
+              <dt className="text-xs font-black uppercase tracking-[0.18em] text-base-content/45">
+                Zone
+              </dt>
+              <dd className="mt-1 font-semibold">{titleize(deckCard?.zone || "mainboard")}</dd>
+            </div>
+            <div className="rounded-box border border-base-300 bg-base-200/55 p-4">
+              <dt className="text-xs font-black uppercase tracking-[0.18em] text-base-content/45">
+                Printing
+              </dt>
+              <dd className="mt-1 font-semibold">
+                {printing?.setName || printing?.setCode?.toUpperCase() || "Unknown"} #
+                {printing?.collectorNumber || "?"}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 function deckPlaytestCards(deckCards: DeckCardEntry[]) {
@@ -2022,6 +2198,33 @@ function rarityOrder(rarity: string) {
 function GroupIcon({ icon }: { icon: DeckGroupIcon }) {
   const className = "h-4 w-4 shrink-0 text-warning"
 
+  if (typeof icon === "object") {
+    if (icon.kind === "colors") {
+      return (
+        <span className="inline-flex shrink-0 items-center gap-0.5">
+          {icon.colors.map((color) => (
+            <ManaSymbol key={color} symbol={color} className="h-4 w-4" />
+          ))}
+        </span>
+      )
+    }
+
+    if (icon.kind === "manaValue") {
+      return (
+        <span className="inline-flex shrink-0 items-center gap-0.5">
+          <ManaSymbol symbol={String(icon.value)} className="h-4 w-4" />
+          {icon.plus ? <span className="text-xs font-black text-warning">+</span> : null}
+        </span>
+      )
+    }
+
+    if (icon.kind === "rarity") {
+      return <Star className="h-4 w-4 shrink-0" style={{ color: rarityColor(icon.rarity) }} />
+    }
+
+    return <SetSymbol setCode={icon.setCode} />
+  }
+
   if (icon === "commander") return <Crown className={className} />
   if (icon === "creature") return <PawPrint className={className} />
   if (icon === "instant") return <Zap className={className} />
@@ -2030,12 +2233,39 @@ function GroupIcon({ icon }: { icon: DeckGroupIcon }) {
   if (icon === "enchantment") return <SparkleIcon className={className} />
   if (icon === "planeswalker") return <Palette className={className} />
   if (icon === "land") return <Droplets className={className} />
-  if (icon === "color") return <Palette className={className} />
-  if (icon === "mana") return <Hash className={className} />
-  if (icon === "rarity") return <Star className={className} />
-  if (icon === "set") return <Box className={className} />
 
   return <Layers className={className} />
+}
+
+function SetSymbol({ setCode }: { setCode: string | null }) {
+  const code = String(setCode || "")
+    .trim()
+    .toLowerCase()
+
+  if (!code) return <Box className="h-4 w-4 shrink-0 text-warning" />
+
+  return (
+    <span
+      className="h-4 w-4 shrink-0 bg-warning"
+      style={{
+        mask: `url(/scryfall-assets/sets/${code}.svg) center / contain no-repeat`,
+        WebkitMask: `url(/scryfall-assets/sets/${code}.svg) center / contain no-repeat`,
+      }}
+      title={setCode?.toUpperCase()}
+      aria-hidden="true"
+    />
+  )
+}
+
+function rarityColor(rarity?: string | null) {
+  const key = String(rarity || "").toLowerCase()
+
+  if (key === "mythic") return "#e46f25"
+  if (key === "rare") return "#c89b3c"
+  if (key === "uncommon") return "#a7b0b7"
+  if (key === "special" || key === "bonus") return "#9b72d0"
+
+  return "#f3f0e8"
 }
 
 function ZoneIcon({ zone }: { zone: DeckZone }) {
@@ -2401,6 +2631,7 @@ function DeckGroupGrid({
   onDelete,
   onEdit,
   onMove,
+  onPreview,
   onSetCommander,
   onTag,
   onToggleProxy,
@@ -2418,6 +2649,7 @@ function DeckGroupGrid({
   onDelete: (deckCard: DeckCardEntry) => void
   onEdit: (deckCard: DeckCardEntry) => void
   onMove: (deckCard: DeckCardEntry) => void
+  onPreview: (deckCard: DeckCardEntry) => void
   onSetCommander: (deckCard: DeckCardEntry) => void
   onToggleProxy: (deckCard: DeckCardEntry) => void
   onTag: (deckCard: DeckCardEntry, tag: DeckCardTag | null) => void
@@ -2445,6 +2677,7 @@ function DeckGroupGrid({
           onDelete={onDelete}
           onEdit={onEdit}
           onMove={onMove}
+          onPreview={onPreview}
           onSetCommander={onSetCommander}
           onToggleProxy={onToggleProxy}
           onTag={onTag}
@@ -2494,6 +2727,7 @@ function DeckStackGroup({
   onDelete,
   onEdit,
   onMove,
+  onPreview,
   onSetCommander,
   onTag,
   onToggleProxy,
@@ -2511,6 +2745,7 @@ function DeckStackGroup({
   onDelete: (deckCard: DeckCardEntry) => void
   onEdit: (deckCard: DeckCardEntry) => void
   onMove: (deckCard: DeckCardEntry) => void
+  onPreview: (deckCard: DeckCardEntry) => void
   onSetCommander: (deckCard: DeckCardEntry) => void
   onTag: (deckCard: DeckCardEntry, tag: DeckCardTag | null) => void
   onToggleProxy: (deckCard: DeckCardEntry) => void
@@ -2578,6 +2813,7 @@ function DeckStackGroup({
             onDelete={() => onDelete(deckCard)}
             onEdit={() => onEdit(deckCard)}
             onMove={() => onMove(deckCard)}
+            onPreview={() => onPreview(deckCard)}
             onSetCommander={() => onSetCommander(deckCard)}
             onTag={(tag) => onTag(deckCard, tag)}
             onToggleProxy={() => onToggleProxy(deckCard)}
@@ -2607,6 +2843,7 @@ function DeckStackCard({
   onEdit,
   onExpand,
   onMove,
+  onPreview,
   onSetCommander,
   onTag,
   onToggleProxy,
@@ -2629,11 +2866,12 @@ function DeckStackCard({
   onEdit: () => void
   onExpand: () => void
   onMove: () => void
+  onPreview: () => void
   onSetCommander: () => void
   onToggleProxy: () => void
   onTag: (tag: DeckCardTag | null) => void
-  shareMode?: boolean
   onToggleSelected: (selectRange?: boolean) => void
+  shareMode?: boolean
   slideOffset: number
   top: number
 }) {
@@ -2789,9 +3027,11 @@ function DeckStackCard({
 
       <button
         type="button"
-        className="block w-full cursor-pointer text-left"
+        className={cn("block w-full text-left", shareMode ? "cursor-zoom-in" : "cursor-pointer")}
+        aria-label={shareMode ? `View full screen ${name}` : undefined}
         onClick={(event) => {
           if (isSelecting) onToggleSelected(event.shiftKey)
+          else if (shareMode) onPreview()
           else onExpand()
         }}
       >
@@ -3172,6 +3412,7 @@ function DeckZoneTable({
   onDelete,
   onEdit,
   onMove,
+  onPreview,
   onTag,
   onToggleSelected,
   selectedCardIds,
@@ -3184,6 +3425,7 @@ function DeckZoneTable({
   onDelete: (deckCard: DeckCardEntry) => void
   onEdit: (deckCard: DeckCardEntry) => void
   onMove: (deckCard: DeckCardEntry) => void
+  onPreview: (deckCard: DeckCardEntry) => void
   onTag: (deckCard: DeckCardEntry, tag: DeckCardTag | null) => void
   onToggleSelected: (deckCardId: string, selectRange?: boolean) => void
   selectedCardIds: Set<string>
@@ -3243,13 +3485,23 @@ function DeckZoneTable({
                   ) : null}
                   <td className="font-mono">{deckCard.quantity}</td>
                   <td>
-                    <Link
-                      to="/cards/$id"
-                      params={{ id: deckCard.card?.oracleId || "" }}
-                      className="font-semibold hover:text-primary"
-                    >
-                      {deckCard.card?.name}
-                    </Link>
+                    {shareMode ? (
+                      <button
+                        type="button"
+                        className="font-semibold hover:text-primary"
+                        onClick={() => onPreview(deckCard)}
+                      >
+                        {deckCard.card?.name}
+                      </button>
+                    ) : (
+                      <Link
+                        to="/cards/$id"
+                        params={{ id: deckCard.card?.oracleId || "" }}
+                        className="font-semibold hover:text-primary"
+                      >
+                        {deckCard.card?.name}
+                      </Link>
+                    )}
                   </td>
                   <td className="max-w-xs truncate text-base-content/65">
                     {deckCard.card?.typeLine}

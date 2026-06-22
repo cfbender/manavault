@@ -40,6 +40,7 @@ import { Badge } from "./ui/badge"
 import { Button } from "./ui/button"
 
 type DeckPlaytesterProps = {
+  closeSlot?: ReactNode
   deckId: string
   deckName: string
   initialState: PlaytestState
@@ -405,7 +406,7 @@ function cardZone(state: PlaytestState, cardId: string): PlaytestZone | null {
   return zones.find((zone) => state[zone].some((card) => card.id === cardId)) || null
 }
 
-export function DeckPlaytester({ deckId, deckName, initialState }: DeckPlaytesterProps) {
+export function DeckPlaytester({ closeSlot, deckId, deckName, initialState }: DeckPlaytesterProps) {
   const [snapshot, setSnapshot] = useState(() => initialSnapshot(initialState))
   const [history, setHistory] = useState<PlaytestSnapshot[]>([])
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
@@ -1026,9 +1027,9 @@ export function DeckPlaytester({ deckId, deckName, initialState }: DeckPlayteste
   }, [activeKeyboardCard, changeLife, draw, keepHand, moveActiveKeyboardCard, mulligan, nextTurn, openingHand, shuffle, toggleTapped, undo, untapAll])
 
   return (
-    <div className="h-[100dvh] overflow-hidden border-0 bg-[#0d0e0c] text-base-content shadow-2xl sm:h-[calc(100dvh-1.25rem)] sm:rounded-box sm:border sm:border-base-300 lg:min-h-[42rem]">
+    <div className="h-full min-h-0 overflow-hidden border-0 bg-[#0d0e0c] text-base-content shadow-2xl sm:rounded-box sm:border sm:border-base-300">
       <div className="grid h-full grid-rows-[2.75rem_minmax(0,1fr)_auto_12rem] lg:grid-cols-[minmax(0,1fr)_14rem] lg:grid-rows-[2.75rem_minmax(0,1fr)_10.5rem]">
-        <PlaytestTopBar deckId={deckId} deckName={deckName} turn={turn} />
+        <PlaytestTopBar closeSlot={closeSlot} deckId={deckId} deckName={deckName} turn={turn} />
 
         <main className="relative row-start-2 min-h-0 overflow-hidden border-y border-base-300/70 bg-[radial-gradient(circle_at_center,color-mix(in_oklch,var(--color-primary),transparent_88%),transparent_34rem)] lg:col-start-1">
           <div className="absolute left-3 top-3 z-10 flex items-center gap-2 text-[0.65rem] font-black uppercase tracking-[0.22em] text-base-content/35">
@@ -1227,10 +1228,12 @@ export function DeckPlaytester({ deckId, deckName, initialState }: DeckPlayteste
 }
 
 function PlaytestTopBar({
+  closeSlot,
   deckId,
   deckName,
   turn,
 }: {
+  closeSlot?: ReactNode
   deckId: string
   deckName: string
   turn: number
@@ -1243,14 +1246,16 @@ function PlaytestTopBar({
       <div className="hidden rounded border border-base-300 bg-base-200 px-3 py-1 text-xs font-bold text-base-content/70 sm:block">
         Turn {turn}
       </div>
-      <Link
-        to="/decks/$id"
-        params={{ id: deckId }}
-        className="btn btn-ghost btn-xs gap-1 text-base-content/60"
-      >
-        <X className="h-3.5 w-3.5" />
-        Close
-      </Link>
+      {closeSlot || (
+        <Link
+          to="/decks/$id"
+          params={{ id: deckId }}
+          className="btn btn-ghost btn-xs gap-1 text-base-content/60"
+        >
+          <X className="h-3.5 w-3.5" />
+          Close
+        </Link>
+      )}
     </header>
   )
 }
