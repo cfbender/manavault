@@ -8,6 +8,12 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.6.1] - 2026-06-22
+
+### Bug Fixes
+
+- Use config_env instead of Mix.env ([`283a39d6`](../../commit/283a39d608a1039a62bbd5c972847ff0ae1ea8e5))
+
 ## [0.6.0] - 2026-06-22
 
 ### Bug Fixes
