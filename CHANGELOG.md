@@ -8,6 +8,16 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.6.3] - 2026-06-22
+
+### Bug Fixes
+
+- Android share ([`abf7ab3a`](../../commit/abf7ab3a4da3930243925aca88469d8c3163f678))
+
+### Refactoring
+
+- Full screen card view for shared deck ([`25892f8d`](../../commit/25892f8d2ee0f87cb1c7075b354f5425fd8c89a6))
+
 ## [0.6.2] - 2026-06-22
 
 ### Features
