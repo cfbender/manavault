@@ -4210,7 +4210,10 @@ function MissingCardsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl" labelledBy="missing-cards-title">
+      <DialogContent
+        className="flex max-h-[calc(100dvh-3rem)] max-w-5xl flex-col"
+        labelledBy="missing-cards-title"
+      >
         <DialogHeader>
           <div>
             <DialogTitle id="missing-cards-title">Missing cards</DialogTitle>
@@ -4231,7 +4234,7 @@ function MissingCardsDialog({
           </div>
         </DialogHeader>
 
-        <div className="space-y-5 p-5">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
           <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
             <label className="form-control">
               <span className="label-text mb-1 text-xs font-semibold uppercase text-base-content/60">
@@ -4342,9 +4345,9 @@ function MissingCardsDialog({
           ) : null}
 
           {entries.length ? (
-            <div className="overflow-x-auto">
+            <div className="max-h-[min(28rem,45dvh)] overflow-auto rounded-box border border-base-300">
               <table className="table table-sm">
-                <thead>
+                <thead className="sticky top-0 z-10 bg-base-200">
                   <tr>
                     <th className="w-16">Qty</th>
                     <th>Card</th>

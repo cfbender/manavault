@@ -691,8 +691,9 @@ defmodule Manavault.Catalog.Decks do
     include_basic_lands = Keyword.get(opts, :include_basic_lands, false)
 
     deck.deck_cards
+    |> put_deck_card_allocation_statuses()
     |> Enum.map(fn deck_card ->
-      status = deck_card_allocation_status(deck_card)
+      status = deck_card.allocation_status
       needed = max(status.required - status.allocated - status.available, 0)
       unavailable = min(needed, status.allocated_elsewhere)
       missing = max(needed - unavailable, 0)
