@@ -10,6 +10,12 @@ import Config
 config :manavault,
   admin_password_hash: nil,
   auth_disabled: false,
+  auth_rate_limit: [
+    window_ms: :timer.minutes(15),
+    max_attempts_per_ip: 5,
+    max_attempts_global: 30,
+    permanent_ban_after_failures: 30
+  ],
   ecto_repos: [Manavault.Repo],
   generators: [timestamp_type: :utc_datetime]
 

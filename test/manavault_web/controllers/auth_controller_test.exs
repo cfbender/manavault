@@ -2,14 +2,22 @@ defmodule ManavaultWeb.AuthControllerTest do
   use ManavaultWeb.ConnCase
 
   alias Manavault.Auth
+  alias Manavault.Auth.ClientFailure
+  alias Manavault.Repo
+  alias Manavault.Auth.AttemptLimiter
 
   setup do
     previous_hash = Application.get_env(:manavault, :admin_password_hash)
     previous_disabled = Application.get_env(:manavault, :auth_disabled)
+    previous_rate_limit = Application.get_env(:manavault, :auth_rate_limit)
+
+    AttemptLimiter.reset_all()
 
     on_exit(fn ->
       Application.put_env(:manavault, :admin_password_hash, previous_hash)
       Application.put_env(:manavault, :auth_disabled, previous_disabled)
+      Application.put_env(:manavault, :auth_rate_limit, previous_rate_limit)
+      AttemptLimiter.reset_all()
     end)
 
     :ok
@@ -92,6 +100,107 @@ defmodule ManavaultWeb.AuthControllerTest do
     assert html_response(conn, 401) =~ "Incorrect password"
   end
 
+  test "login rate-limits repeated incorrect password attempts", %{conn: conn} do
+    configure_password("secret")
+    configure_rate_limit(max_attempts_per_ip: 2)
+
+    conn = post(conn, "/login", %{"password" => "wrong"})
+    assert html_response(conn, 401) =~ "Incorrect password"
+
+    conn =
+      conn
+      |> recycle()
+      |> post("/login", %{"password" => "still wrong"})
+
+    assert html_response(conn, 401) =~ "Incorrect password"
+
+    conn =
+      conn
+      |> recycle()
+      |> post("/login", %{"password" => "secret"})
+
+    assert get_resp_header(conn, "retry-after") == ["60"]
+    assert html_response(conn, 429) =~ "Too many incorrect password attempts"
+  end
+
+  test "login rate-limit has a global failed-attempt budget across clients" do
+    configure_password("secret")
+    configure_rate_limit(max_attempts_per_ip: 10, max_attempts_global: 2)
+
+    first_conn =
+      conn_from_ip({127, 0, 0, 1})
+      |> post("/login", %{"password" => "wrong"})
+
+    assert html_response(first_conn, 401) =~ "Incorrect password"
+
+    second_conn =
+      conn_from_ip({127, 0, 0, 2})
+      |> post("/login", %{"password" => "still wrong"})
+
+    assert html_response(second_conn, 401) =~ "Incorrect password"
+
+    blocked_conn =
+      conn_from_ip({127, 0, 0, 3})
+      |> post("/login", %{"password" => "secret"})
+
+    assert html_response(blocked_conn, 429) =~ "Too many incorrect password attempts"
+  end
+
+  test "login permanently bans a client after the configured failed-attempt count" do
+    configure_password("secret")
+
+    configure_rate_limit(
+      max_attempts_per_ip: 10,
+      max_attempts_global: 100,
+      permanent_ban_after_failures: 3
+    )
+
+    conn_from_ip({127, 0, 0, 9})
+    |> post("/login", %{"password" => "wrong"})
+    |> html_response(401)
+
+    conn_from_ip({127, 0, 0, 9})
+    |> post("/login", %{"password" => "wrong again"})
+    |> html_response(401)
+
+    banned_conn =
+      conn_from_ip({127, 0, 0, 9})
+      |> post("/login", %{"password" => "still wrong"})
+
+    assert html_response(banned_conn, 403) =~ "permanently blocked"
+
+    assert %ClientFailure{banned_at: %DateTime{}} =
+             Repo.get_by(ClientFailure, client_id: "127.0.0.9")
+
+    blocked_conn =
+      conn_from_ip({127, 0, 0, 9})
+      |> post("/login", %{"password" => "secret"})
+
+    assert html_response(blocked_conn, 403) =~ "permanently blocked"
+  end
+
+  test "successful login clears prior failed password attempts", %{conn: conn} do
+    configure_password("secret")
+    configure_rate_limit(max_attempts_per_ip: 2, permanent_ban_after_failures: 2)
+
+    conn = post(conn, "/login", %{"password" => "wrong"})
+    assert html_response(conn, 401) =~ "Incorrect password"
+
+    conn =
+      conn
+      |> recycle()
+      |> post("/login", %{"password" => "secret"})
+
+    assert redirected_to(conn) == "/"
+
+    conn =
+      conn
+      |> recycle()
+      |> post("/login", %{"password" => "wrong"})
+
+    assert html_response(conn, 401) =~ "Incorrect password"
+  end
+
   test "private GraphQL returns JSON 401 when owner auth is configured", %{conn: conn} do
     configure_password("secret")
 
@@ -107,6 +216,22 @@ defmodule ManavaultWeb.AuthControllerTest do
       :manavault,
       :admin_password_hash,
       Auth.hash_password(password, iterations: 1)
+    )
+  end
+
+  defp conn_from_ip(remote_ip) do
+    build_conn()
+    |> Map.put(:remote_ip, remote_ip)
+  end
+
+  defp configure_rate_limit(opts) do
+    Application.put_env(
+      :manavault,
+      :auth_rate_limit,
+      window_ms: Keyword.get(opts, :window_ms, 60_000),
+      max_attempts_per_ip: Keyword.fetch!(opts, :max_attempts_per_ip),
+      max_attempts_global: Keyword.get(opts, :max_attempts_global, 100),
+      permanent_ban_after_failures: Keyword.get(opts, :permanent_ban_after_failures, 30)
     )
   end
 end

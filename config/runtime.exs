@@ -44,9 +44,21 @@ config :manavault, ManavaultWeb.Endpoint, http: [ip: {0, 0, 0, 0}, port: port]
     {admin_password_hash, auth_disabled}
   end
 
+auth_rate_limit = [
+  window_ms:
+    String.to_integer(System.get_env("MANAVAULT_AUTH_RATE_LIMIT_WINDOW_SECONDS", "900")) * 1000,
+  max_attempts_per_ip:
+    String.to_integer(System.get_env("MANAVAULT_AUTH_MAX_ATTEMPTS_PER_IP", "5")),
+  max_attempts_global:
+    String.to_integer(System.get_env("MANAVAULT_AUTH_MAX_ATTEMPTS_GLOBAL", "30")),
+  permanent_ban_after_failures:
+    String.to_integer(System.get_env("MANAVAULT_AUTH_PERMANENT_BAN_AFTER_FAILURES", "30"))
+]
+
 config :manavault,
   admin_password_hash: admin_password_hash,
-  auth_disabled: auth_disabled
+  auth_disabled: auth_disabled,
+  auth_rate_limit: auth_rate_limit
 
 if config_env() == :prod do
   if !auth_disabled && is_nil(admin_password_hash) do

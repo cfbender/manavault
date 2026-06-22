@@ -2,6 +2,7 @@ defmodule ManavaultWeb.AuthController do
   use ManavaultWeb, :controller
 
   alias Manavault.Auth
+  alias Manavault.Auth.AttemptLimiter
   alias ManavaultWeb.Plugs.Authentication
 
   def new(conn, params) do
@@ -39,15 +40,8 @@ defmodule ManavaultWeb.AuthController do
         |> put_resp_content_type("text/html")
         |> send_resp(503, login_html(get_csrf_token(), return_to, missing_hash_message()))
 
-      Auth.verify_admin_password(password) ->
-        conn
-        |> Authentication.sign_in()
-        |> redirect(to: return_to)
-
       true ->
-        conn
-        |> put_resp_content_type("text/html")
-        |> send_resp(401, login_html(get_csrf_token(), return_to, "Incorrect password"))
+        handle_password_login(conn, password, return_to)
     end
   end
 
@@ -62,6 +56,76 @@ defmodule ManavaultWeb.AuthController do
     |> Authentication.sign_out()
     |> redirect(to: "/login")
   end
+
+  defp handle_password_login(conn, password, return_to) do
+    client_id = client_id(conn)
+
+    case AttemptLimiter.check(client_id) do
+      :permanently_banned ->
+        permanently_banned_response(conn, return_to)
+
+      {:rate_limited, retry_after} ->
+        rate_limited_response(conn, return_to, retry_after)
+
+      :ok ->
+        verify_password_login(conn, password, return_to, client_id)
+    end
+  end
+
+  defp verify_password_login(conn, password, return_to, client_id) do
+    if Auth.verify_admin_password(password) do
+      AttemptLimiter.reset(client_id)
+
+      conn
+      |> Authentication.sign_in()
+      |> redirect(to: return_to)
+    else
+      case AttemptLimiter.record_failure(client_id) do
+        :banned -> permanently_banned_response(conn, return_to)
+        :ok -> incorrect_password_response(conn, return_to)
+      end
+    end
+  end
+
+  defp incorrect_password_response(conn, return_to) do
+    conn
+    |> put_resp_content_type("text/html")
+    |> send_resp(401, login_html(get_csrf_token(), return_to, "Incorrect password"))
+  end
+
+  defp permanently_banned_response(conn, return_to) do
+    conn
+    |> put_resp_content_type("text/html")
+    |> send_resp(403, login_html(get_csrf_token(), return_to, permanently_banned_message()))
+  end
+
+  defp permanently_banned_message do
+    "Too many incorrect password attempts. This client is permanently blocked."
+  end
+
+  defp rate_limited_response(conn, return_to, retry_after) do
+    conn
+    |> put_resp_header("retry-after", Integer.to_string(retry_after))
+    |> put_resp_content_type("text/html")
+    |> send_resp(429, login_html(get_csrf_token(), return_to, rate_limited_message(retry_after)))
+  end
+
+  defp rate_limited_message(retry_after) when retry_after < 120 do
+    "Too many incorrect password attempts. Try again in #{retry_after} seconds."
+  end
+
+  defp rate_limited_message(retry_after) do
+    minutes = retry_after |> Kernel./(60) |> ceil()
+    "Too many incorrect password attempts. Try again in #{minutes} minutes."
+  end
+
+  defp client_id(%{remote_ip: remote_ip}) when is_tuple(remote_ip) do
+    remote_ip
+    |> :inet.ntoa()
+    |> to_string()
+  end
+
+  defp client_id(_conn), do: "unknown"
 
   defp safe_return_to(path) when is_binary(path) do
     cond do

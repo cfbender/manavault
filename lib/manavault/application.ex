@@ -15,6 +15,7 @@ defmodule Manavault.Application do
         {Manavault.Backup.MigrationBackup, repo: Manavault.Repo},
         {Ecto.Migrator,
          repos: Application.fetch_env!(:manavault, :ecto_repos), skip: skip_migrations?()},
+        Manavault.Auth.AttemptLimiter,
         {DNSCluster, query: Application.get_env(:manavault, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: Manavault.PubSub},
         {Task.Supervisor, name: Manavault.Backup.TaskSupervisor},

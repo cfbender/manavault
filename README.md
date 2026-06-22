@@ -265,7 +265,19 @@ Traefik/Authelia middleware is not required. Built-in auth is enabled by default
 set `MANAVAULT_ADMIN_PASSWORD_HASH`, or explicitly opt out with
 `MANAVAULT_AUTH_DISABLED=true`. Keep static assets and share links public at the
 proxy; ManaVault protects the private app routes and `/api/graphql` with its own
-session cookie:
+session cookie.
+
+The login endpoint also enforces in-app failed-password defenses before
+checking the password hash: 5 failures per client IP and 30 failures globally
+per 15-minute window by default. A client IP is permanently blocked after 30
+failed password checks. This is not a replacement for fail2ban or proxy-level
+throttling, but it keeps brute-force protection with the app when the reverse
+proxy is simple or misconfigured.
+
+Permanent means no automatic expiry: to unblock a client, delete its row from
+`auth_client_failures` in the ManaVault SQLite database.
+
+A minimal Traefik config can stay simple:
 
 ```yaml
 labels:
@@ -313,6 +325,15 @@ Common optional values:
   Generate with `mise exec -- mix manavault.auth.hash 'your-password'`.
 - `MANAVAULT_AUTH_DISABLED` - set to `true` only when another layer already
   protects ManaVault and you want to opt out of built-in auth.
+- `MANAVAULT_AUTH_MAX_ATTEMPTS_PER_IP` - failed login attempts allowed per
+  client IP during the rate-limit window. Defaults to `5`.
+- `MANAVAULT_AUTH_MAX_ATTEMPTS_GLOBAL` - failed login attempts allowed across
+  all clients during the rate-limit window. Defaults to `30`.
+- `MANAVAULT_AUTH_PERMANENT_BAN_AFTER_FAILURES` - cumulative failed login
+  attempts from one client IP before ManaVault permanently blocks that client.
+  Defaults to `30`.
+- `MANAVAULT_AUTH_RATE_LIMIT_WINDOW_SECONDS` - failed login rate-limit window.
+  Defaults to `900`.
 - `DATA_DIR` - mutable data root. Defaults to `/data`.
 - `DATABASE_PATH` - SQLite database path. Defaults to `/data/manavault.db`.
 - `POOL_SIZE` - Ecto pool size. Defaults to `5`.
