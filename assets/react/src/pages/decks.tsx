@@ -51,6 +51,7 @@ import { EmptyState } from "../components/card-image"
 import { ImageSummaryCard } from "../components/image-summary-card"
 import { Badge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
+import { ConfirmDialog } from "../components/ui/confirm-dialog"
 import {
   Dialog,
   DialogClose,
@@ -146,6 +147,15 @@ const UpdateDeckDocument = graphql(`
           }
         }
       }
+    }
+  }
+`)
+
+const DeleteDeckDocument = graphql(`
+  mutation DeleteDeck($id: ID!) {
+    deleteDeck(id: $id) {
+      id
+      name
     }
   }
 `)
@@ -450,8 +460,8 @@ const BulkAllocateDeckDocument = graphql(`
 `)
 
 const ImportDecklistDocument = graphql(`
-  mutation ImportDecklist($id: ID!, $text: String!) {
-    importDecklist(id: $id, text: $text) {
+  mutation ImportDecklist($id: ID!, $text: String!, $replaceExisting: Boolean!) {
+    importDecklist(id: $id, text: $text, replaceExisting: $replaceExisting) {
       imported
       unresolved
       skippedPrintings
@@ -626,12 +636,28 @@ export function DecksPage() {
   const [isNewDeckOpen, setIsNewDeckOpen] = useState(false)
   const [editingDeck, setEditingDeck] = useState<DeckSummary | null>(null)
   const [sharingDeck, setSharingDeck] = useState<DeckSummary | null>(null)
+  const [deletingDeck, setDeletingDeck] = useState<DeckSummary | null>(null)
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const deleteDeck = useMutation({
+    mutationFn: (deckId: string) => request(DeleteDeckDocument, { id: deckId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+    },
+  })
   const { data, isLoading } = useQuery({
     queryKey: ["decks"],
     queryFn: () => request(DecksDocument),
   })
   const deckGroups = groupDecksByFormat(data?.decks || [])
 
+  function deleteSelectedDeck() {
+    if (!deletingDeck) return
+    deleteDeck.mutate(deletingDeck.id)
+    if (editingDeck?.id === deletingDeck.id) setEditingDeck(null)
+    if (sharingDeck?.id === deletingDeck.id) setSharingDeck(null)
+    navigate({ to: "/decks" })
+  }
   return (
     <>
       <PageHeader
@@ -682,6 +708,7 @@ export function DecksPage() {
                         label={`${deck.name} actions`}
                         onEdit={() => setEditingDeck(deck)}
                         onShare={() => setSharingDeck(deck)}
+                        onDelete={() => setDeletingDeck(deck)}
                       />
                     </div>
                   ))}
@@ -696,6 +723,16 @@ export function DecksPage() {
       <NewDeckDialog open={isNewDeckOpen} onOpenChange={setIsNewDeckOpen} />
       <EditDeckDialog deck={editingDeck} onOpenChange={(open) => !open && setEditingDeck(null)} />
       <ShareDeckDialog deck={sharingDeck} onOpenChange={(open) => !open && setSharingDeck(null)} />
+      <ConfirmDialog
+        destructive
+        confirmLabel="Delete deck"
+        open={Boolean(deletingDeck)}
+        title={deletingDeck ? `Delete ${deletingDeck.name}?` : "Delete deck?"}
+        onConfirm={deleteSelectedDeck}
+        onOpenChange={(open) => !open && setDeletingDeck(null)}
+      >
+        This removes the deck and returns allocated cards to their original locations.
+      </ConfirmDialog>
     </>
   )
 }
@@ -716,6 +753,8 @@ export function DeckDetailPage({
   const [editError, setEditError] = useState<string | null>(null)
   const [moveTarget, setMoveTarget] = useState<DeckCardEntry | null>(null)
   const [moveError, setMoveError] = useState<string | null>(null)
+  const [deleteCardTarget, setDeleteCardTarget] = useState<DeckCardEntry | null>(null)
+  const [isDeleteDeckOpen, setIsDeleteDeckOpen] = useState(false)
   const [isEditDeckOpen, setIsEditDeckOpen] = useState(false)
   const [isImportDeckOpen, setIsImportDeckOpen] = useState(false)
   const [isExportDeckOpen, setIsExportDeckOpen] = useState(false)
@@ -727,6 +766,14 @@ export function DeckDetailPage({
   const [bulkAllocationError, setBulkAllocationError] = useState<string | null>(null)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const deleteDeck = useMutation({
+    mutationFn: (deckId: string) => request(DeleteDeckDocument, { id: deckId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      queryClient.removeQueries({ queryKey: ["deck", id] })
+      navigate({ to: "/decks" })
+    },
+  })
   const { data, isLoading } = useQuery({
     queryKey: [shareMode ? "shared-deck" : "deck", id],
     queryFn: () =>
@@ -923,10 +970,14 @@ export function DeckDetailPage({
     updateDeckCard.mutate({ deckCardId: deckCard.id, input })
   }
 
-  function confirmDeleteDeckCard(deckCard: DeckCardEntry) {
-    const name = deckCard.card?.name || "this card"
-    if (!window.confirm(`Delete ${name} from this deck?`)) return
-    deleteDeckCard.mutate(deckCard.id)
+  function deleteSelectedDeckCard() {
+    if (!deleteCardTarget) return
+    deleteDeckCard.mutate(deleteCardTarget.id)
+  }
+
+  function deleteCurrentDeck() {
+    if (!deck) return
+    deleteDeck.mutate(deck.id)
   }
 
   function addEdhrecCard(card: EDHRecCard | EDHRecSectionCard) {
@@ -983,6 +1034,7 @@ export function DeckDetailPage({
                 onImport={() => setIsImportDeckOpen(true)}
                 onMissing={() => setIsMissingCardsOpen(true)}
                 onShare={() => setIsShareDeckOpen(true)}
+                onDelete={() => setIsDeleteDeckOpen(true)}
                 onEdhrec={deck.format === "commander" ? () => setEdhrecState("recs") : undefined}
               />
             </ShareModeHidden>
@@ -1056,7 +1108,7 @@ export function DeckDetailPage({
                 }
               }
             }}
-            onDelete={confirmDeleteDeckCard}
+            onDelete={setDeleteCardTarget}
             onSetCommander={(deckCard) => setDeckCommander.mutate(deckCard.id)}
             allocationError={allocationError}
             shareMode={shareMode}
@@ -1079,7 +1131,7 @@ export function DeckDetailPage({
               setEditError(null)
               setEditTarget(deckCard)
             }}
-            onDelete={confirmDeleteDeckCard}
+            onDelete={setDeleteCardTarget}
           />
           <DeckZoneTable
             cards={maybeboardCards}
@@ -1094,7 +1146,7 @@ export function DeckDetailPage({
               setEditError(null)
               setEditTarget(deckCard)
             }}
-            onDelete={confirmDeleteDeckCard}
+            onDelete={setDeleteCardTarget}
           />
         </div>
       </div>
@@ -1117,6 +1169,24 @@ export function DeckDetailPage({
           deck={deck}
           onOpenChange={setIsMissingCardsOpen}
           open={isMissingCardsOpen}
+        />
+        <ConfirmDialog
+          destructive
+          confirmLabel="Delete deck"
+          open={isDeleteDeckOpen}
+          title={`Delete ${deck.name}?`}
+          onConfirm={deleteCurrentDeck}
+          onOpenChange={setIsDeleteDeckOpen}
+        >
+          This removes the deck and returns allocated cards to their original locations.
+        </ConfirmDialog>
+        <ConfirmDialog
+          destructive
+          confirmLabel="Delete card"
+          open={Boolean(deleteCardTarget)}
+          title={`Delete ${deleteCardTarget?.card?.name || "this card"} from this deck?`}
+          onConfirm={deleteSelectedDeckCard}
+          onOpenChange={(open) => !open && setDeleteCardTarget(null)}
         />
         <EDHRecDialog
           activeTab={edhrecTab || "recs"}
@@ -1286,6 +1356,7 @@ function ShareModeHidden({
 
 function SummaryActionMenu({
   label,
+  onDelete,
   onEdhrec,
   onEdit,
   onExport,
@@ -1294,6 +1365,7 @@ function SummaryActionMenu({
   onShare,
 }: {
   label: string
+  onDelete?: () => void
   onEdhrec?: () => void
   onEdit: () => void
   onExport?: () => void
@@ -1303,7 +1375,7 @@ function SummaryActionMenu({
 }) {
   return (
     <div
-      className="dropdown dropdown-end absolute right-3 top-3 z-20"
+      className="dropdown dropdown-end absolute right-3 top-3 z-[80]"
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
     >
@@ -1363,6 +1435,14 @@ function SummaryActionMenu({
             <button type="button" onClick={onExport}>
               <Download className="h-4 w-4" />
               Export decklist
+            </button>
+          </li>
+        ) : null}
+        {onDelete ? (
+          <li>
+            <button type="button" className="text-error" onClick={onDelete}>
+              <Trash2 className="h-4 w-4" />
+              Delete deck
             </button>
           </li>
         ) : null}
@@ -3095,6 +3175,7 @@ function ImportDecklistDialog({
 }) {
   const queryClient = useQueryClient()
   const [text, setText] = useState("")
+  const [replaceExisting, setReplaceExisting] = useState(false)
   const [result, setResult] = useState<{
     imported: number
     unresolved: string[]
@@ -3104,13 +3185,14 @@ function ImportDecklistDialog({
   const importDecklist = useMutation({
     mutationFn: () => {
       if (!deck) throw new Error("Deck is required")
-      return request(ImportDecklistDocument, { id: deck.id, text })
+      return request(ImportDecklistDocument, { id: deck.id, text, replaceExisting })
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["deck", deck?.id] })
       queryClient.invalidateQueries({ queryKey: ["decks"] })
       setResult(data.importDecklist || null)
       setError(null)
+      onOpenChange(false)
     },
     onError: (error) =>
       setError(error instanceof Error ? error.message : "Could not import decklist"),
@@ -3120,6 +3202,7 @@ function ImportDecklistDialog({
     if (!open) {
       setText("")
       setResult(null)
+      setReplaceExisting(false)
       setError(null)
     }
   }, [open])
@@ -3165,6 +3248,22 @@ function ImportDecklistDialog({
               placeholder={"Commander\n1 Sol Ring\n1 Arcane Signet\n\nSideboard\n2 Negate"}
               autoFocus
             />
+          </label>
+
+          <label className="flex items-start gap-3 rounded-box border border-warning/30 bg-warning/10 p-3 text-sm">
+            <input
+              type="checkbox"
+              className="checkbox checkbox-warning checkbox-sm mt-0.5"
+              checked={replaceExisting}
+              onChange={(event) => setReplaceExisting(event.target.checked)}
+            />
+            <span>
+              <span className="block font-bold">Replace existing deck cards</span>
+              <span className="text-base-content/65">
+                Delete this deck's current cards before importing. Allocated cards are returned to
+                their original locations.
+              </span>
+            </span>
           </label>
 
           {result ? (

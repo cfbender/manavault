@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router"
+import { Link, useNavigate } from "@tanstack/react-router"
 import {
   useInfiniteQuery,
   useMutation,
@@ -31,6 +31,7 @@ import { addToDeckAction, addToListAction, CardTile } from "../components/card-t
 import { ImageSummaryCard } from "../components/image-summary-card"
 import { Badge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
+import { ConfirmDialog } from "../components/ui/confirm-dialog"
 import { Card } from "../components/ui/card"
 import {
   Dialog,
@@ -298,6 +299,15 @@ const UpdateLocationDocument = graphql(`
   }
 `)
 
+const DeleteLocationDocument = graphql(`
+  mutation DeleteLocation($id: ID!) {
+    deleteLocation(id: $id) {
+      id
+      name
+    }
+  }
+`)
+
 const CollectionItemsPageDocument = graphql(`
   query CollectionItemsPage(
     $filters: CollectionItemFilters
@@ -342,6 +352,12 @@ const CollectionItemsPageDocument = graphql(`
 const CollectionExportCsvDocument = graphql(`
   query CollectionExportCsv($filters: CollectionItemFilters) {
     collectionExportCsv(filters: $filters)
+  }
+`)
+
+const CollectionExportTextDocument = graphql(`
+  query CollectionExportText($filters: CollectionItemFilters) {
+    collectionExportText(filters: $filters)
   }
 `)
 
@@ -445,6 +461,8 @@ type CollectionSort = {
   field: CollectionSortField
   direction: CollectionSortDirection
 }
+type CollectionExportFormat = "csv" | "text"
+type CollectionExportFilters = { locationId?: string; q?: string }
 type ComparisonOperator = "=" | "!=" | ">" | ">=" | "<" | "<="
 type ColorOperator = ":" | ">=" | "<="
 type FinishFilter = "any" | "foil" | "nonfoil" | "etched"
@@ -1590,10 +1608,22 @@ function isUnfiledLocation(location: { id: string }) {
   return location.id === "unfiled"
 }
 
-function SummaryActionMenu({ label, onEdit }: { label: string; onEdit: () => void }) {
+function SummaryActionMenu({
+  label,
+  onDelete,
+  onEdit,
+  onExportCsv,
+  onExportText,
+}: {
+  label: string
+  onDelete?: () => void
+  onEdit: () => void
+  onExportCsv?: () => void
+  onExportText?: () => void
+}) {
   return (
     <div
-      className="dropdown dropdown-end absolute right-3 top-3 z-20"
+      className="dropdown dropdown-end absolute right-3 top-3 z-[80]"
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
     >
@@ -1607,7 +1637,7 @@ function SummaryActionMenu({ label, onEdit }: { label: string; onEdit: () => voi
       </button>
       <ul
         tabIndex={0}
-        className="menu dropdown-content z-50 mt-1 w-44 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
+        className="menu dropdown-content z-50 mt-1 w-48 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
       >
         <li>
           <button type="button" onClick={onEdit}>
@@ -1615,6 +1645,30 @@ function SummaryActionMenu({ label, onEdit }: { label: string; onEdit: () => voi
             Edit
           </button>
         </li>
+        {onExportCsv ? (
+          <li>
+            <button type="button" onClick={onExportCsv}>
+              <Download className="h-4 w-4" />
+              Export CSV
+            </button>
+          </li>
+        ) : null}
+        {onExportText ? (
+          <li>
+            <button type="button" onClick={onExportText}>
+              <Download className="h-4 w-4" />
+              Export TXT
+            </button>
+          </li>
+        ) : null}
+        {onDelete ? (
+          <li>
+            <button type="button" className="text-error" onClick={onDelete}>
+              <Trash2 className="h-4 w-4" />
+              Delete location
+            </button>
+          </li>
+        ) : null}
       </ul>
     </div>
   )
@@ -2909,34 +2963,46 @@ function ImportCollectionCsvDialog({
   )
 }
 
-function ExportCollectionCsvDialog({
+function ExportCollectionDialog({
   filters,
+  format,
   onOpenChange,
   open,
+  title = format === "csv" ? "Export collection CSV" : "Export collection TXT",
 }: {
-  filters: { q?: string }
+  filters: CollectionExportFilters
+  format: CollectionExportFormat
   onOpenChange: (open: boolean) => void
   open: boolean
+  title?: string
 }) {
   const [exportText, setExportText] = useState("")
   const [error, setError] = useState<string | null>(null)
-  const exportCsv = useMutation({
-    mutationFn: () => request(CollectionExportCsvDocument, { filters }),
-    onSuccess: (data) => {
-      setExportText(data.collectionExportCsv)
+  const exportCollection = useMutation({
+    mutationFn: async () => {
+      if (format === "csv") {
+        const data = await request(CollectionExportCsvDocument, { filters })
+        return data.collectionExportCsv
+      }
+
+      const data = await request(CollectionExportTextDocument, { filters })
+      return data.collectionExportText
+    },
+    onSuccess: (text) => {
+      setExportText(text)
       setError(null)
     },
     onError: (error) =>
-      setError(error instanceof Error ? error.message : "Could not export collection CSV"),
+      setError(error instanceof Error ? error.message : `Could not export ${format.toUpperCase()}`),
   })
 
   useEffect(() => {
-    if (open) exportCsv.mutate()
+    if (open) exportCollection.mutate()
     else {
       setExportText("")
       setError(null)
     }
-  }, [open])
+  }, [open, format])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -2946,9 +3012,9 @@ function ExportCollectionCsvDialog({
       >
         <DialogHeader>
           <div>
-            <DialogTitle id="export-collection-title">Export collection CSV</DialogTitle>
+            <DialogTitle id="export-collection-title">{title}</DialogTitle>
             <p className="mt-1 text-sm text-base-content/60">
-              Copy the CSV or save it from the text area.
+              Copy the {format.toUpperCase()} or save it from the text area.
             </p>
           </div>
           <DialogClose onClose={() => onOpenChange(false)} />
@@ -2958,7 +3024,7 @@ function ExportCollectionCsvDialog({
           <textarea
             className="textarea textarea-bordered min-h-72 w-full bg-base-100 font-mono text-xs"
             readOnly
-            value={exportCsv.isPending ? "Exporting..." : exportText}
+            value={exportCollection.isPending ? "Exporting..." : exportText}
           />
           {error ? (
             <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
@@ -3645,6 +3711,11 @@ export function CollectionPage() {
   const [isImportCsvOpen, setIsImportCsvOpen] = useState(false)
   const [isExportCsvOpen, setIsExportCsvOpen] = useState(false)
   const [editingLocation, setEditingLocation] = useState<LocationSummary | null>(null)
+  const [deletingLocation, setDeletingLocation] = useState<LocationSummary | null>(null)
+  const [exportingLocation, setExportingLocation] = useState<{
+    format: CollectionExportFormat
+    location: LocationSummary
+  } | null>(null)
   const [bulkDeckTarget, setBulkDeckTarget] = useState<CollectionItem[] | null>(null)
   const [bulkListTarget, setBulkListTarget] = useState<CollectionItem[] | null>(null)
   const [bulkMoveTarget, setBulkMoveTarget] = useState<CollectionItem[] | null>(null)
@@ -3652,6 +3723,12 @@ export function CollectionPage() {
   const [structuredFilters, setStructuredFilters] =
     useState<CollectionFilterState>(EMPTY_COLLECTION_FILTERS)
   const queryClient = useQueryClient()
+  const deleteLocation = useMutation({
+    mutationFn: (locationId: string) => request(DeleteLocationDocument, { id: locationId }),
+    onSuccess: () => {
+      invalidateCollectionViews(queryClient)
+    },
+  })
   const structuredFilterSyntax = buildCollectionFilterQuery(structuredFilters)
   const combinedCollectionQuery = combineCollectionQueries(appliedSearch, structuredFilterSyntax)
   const filters = useMemo(
@@ -3746,6 +3823,17 @@ export function CollectionPage() {
     selection.clearSelection()
   }
 
+  function exportLocation(location: LocationSummary, format: CollectionExportFormat) {
+    setExportingLocation({ format, location })
+  }
+
+  function deleteSelectedLocation() {
+    if (!deletingLocation) return
+    deleteLocation.mutate(deletingLocation.id)
+    if (editingLocation?.id === deletingLocation.id) setEditingLocation(null)
+    if (exportingLocation?.location.id === deletingLocation.id) setExportingLocation(null)
+  }
+
   return (
     <>
       <PageHeader
@@ -3759,7 +3847,7 @@ export function CollectionPage() {
           </Button>
         }
         actions={
-          <div className="dropdown dropdown-end absolute right-3 top-3 z-20">
+          <div className="dropdown dropdown-end absolute right-3 top-3 z-[80]">
             <button
               type="button"
               className="btn btn-circle btn-xs border-0 bg-neutral/85 text-neutral-content shadow backdrop-blur transition hover:bg-neutral"
@@ -3889,6 +3977,9 @@ export function CollectionPage() {
                           <SummaryActionMenu
                             label={`${location.name} actions`}
                             onEdit={() => setEditingLocation(location)}
+                            onExportCsv={() => exportLocation(location, "csv")}
+                            onExportText={() => exportLocation(location, "text")}
+                            onDelete={() => setDeletingLocation(location)}
                           />
                         ) : null}
                       </div>
@@ -3985,11 +4076,33 @@ export function CollectionPage() {
       <AddCollectionItemDialog open={isAddItemOpen} onOpenChange={setIsAddItemOpen} />
       <AddLocationDialog open={isAddLocationOpen} onOpenChange={setIsAddLocationOpen} />
       <ImportCollectionCsvDialog open={isImportCsvOpen} onOpenChange={setIsImportCsvOpen} />
-      <ExportCollectionCsvDialog
+      <ExportCollectionDialog
         filters={filters}
+        format="csv"
         open={isExportCsvOpen}
         onOpenChange={setIsExportCsvOpen}
       />
+      <ExportCollectionDialog
+        filters={exportingLocation ? { locationId: exportingLocation.location.id } : {}}
+        format={exportingLocation?.format || "csv"}
+        title={
+          exportingLocation
+            ? `Export ${exportingLocation.location.name} ${exportingLocation.format.toUpperCase()}`
+            : undefined
+        }
+        open={Boolean(exportingLocation)}
+        onOpenChange={(open) => !open && setExportingLocation(null)}
+      />
+      <ConfirmDialog
+        destructive
+        confirmLabel="Delete location"
+        open={Boolean(deletingLocation)}
+        title={deletingLocation ? `Delete ${deletingLocation.name}?` : "Delete location?"}
+        onConfirm={deleteSelectedLocation}
+        onOpenChange={(open) => !open && setDeletingLocation(null)}
+      >
+        Cards in this location will become unfiled.
+      </ConfirmDialog>
       <AddCollectionItemToDeckDialog
         item={bulkDeckTarget}
         onDone={finishBulkCollectionAction}
@@ -4152,13 +4265,25 @@ export function LocationPage({ id }: { id: string }) {
   })
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
   const [isEditLocationOpen, setIsEditLocationOpen] = useState(false)
+  const [isDeleteLocationOpen, setIsDeleteLocationOpen] = useState(false)
+  const [exportLocationFormat, setExportLocationFormat] = useState<CollectionExportFormat | null>(
+    null,
+  )
   const [bulkDeckTarget, setBulkDeckTarget] = useState<CollectionItem[] | null>(null)
   const [bulkListTarget, setBulkListTarget] = useState<CollectionItem[] | null>(null)
   const [bulkMoveTarget, setBulkMoveTarget] = useState<CollectionItem[] | null>(null)
   const [bulkDeleteTarget, setBulkDeleteTarget] = useState<CollectionItem[] | null>(null)
   const [structuredFilters, setStructuredFilters] =
     useState<CollectionFilterState>(EMPTY_COLLECTION_FILTERS)
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const deleteLocation = useMutation({
+    mutationFn: (locationId: string) => request(DeleteLocationDocument, { id: locationId }),
+    onSuccess: () => {
+      invalidateCollectionViews(queryClient, id)
+      navigate({ to: "/collection" })
+    },
+  })
   const structuredFilterSyntax = buildCollectionFilterQuery(structuredFilters)
   const combinedCollectionQuery = combineCollectionQueries(appliedSearch, structuredFilterSyntax)
   const itemFilters = useMemo(
@@ -4238,6 +4363,11 @@ export function LocationPage({ id }: { id: string }) {
     selection.clearSelection()
   }
 
+  function deleteCurrentLocation() {
+    if (!location || isUnfiledLocation(location)) return
+    deleteLocation.mutate(location.id)
+  }
+
   if (isLoading) return <EmptyState title="Loading location..." />
   if (!location) return <EmptyState title="Location not found" />
 
@@ -4269,6 +4399,9 @@ export function LocationPage({ id }: { id: string }) {
               <SummaryActionMenu
                 label={`${location.name} actions`}
                 onEdit={() => setIsEditLocationOpen(true)}
+                onExportCsv={() => setExportLocationFormat("csv")}
+                onExportText={() => setExportLocationFormat("text")}
+                onDelete={() => setIsDeleteLocationOpen(true)}
               />
             }
           />
@@ -4348,6 +4481,23 @@ export function LocationPage({ id }: { id: string }) {
         onOpenChange={setIsEditLocationOpen}
         open={isEditLocationOpen}
       />
+      <ExportCollectionDialog
+        filters={{ locationId: location.id }}
+        format={exportLocationFormat || "csv"}
+        title={`Export ${location.name} ${(exportLocationFormat || "csv").toUpperCase()}`}
+        open={Boolean(exportLocationFormat)}
+        onOpenChange={(open) => !open && setExportLocationFormat(null)}
+      />
+      <ConfirmDialog
+        destructive
+        confirmLabel="Delete location"
+        open={isDeleteLocationOpen}
+        title={`Delete ${location.name}?`}
+        onConfirm={deleteCurrentLocation}
+        onOpenChange={setIsDeleteLocationOpen}
+      >
+        Cards in this location will become unfiled.
+      </ConfirmDialog>
       <AddCollectionItemToDeckDialog
         item={bulkDeckTarget}
         onDone={finishBulkLocationAction}

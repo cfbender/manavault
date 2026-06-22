@@ -85,7 +85,23 @@ defmodule Manavault.Catalog.Decks do
   end
 
   def delete_deck(%Deck{} = deck) do
-    Repo.delete(deck)
+    Repo.transaction(fn ->
+      deck =
+        deck
+        |> Repo.preload(deck_cards: [deck_allocations: [:collection_item]])
+
+      Enum.each(deck.deck_cards, fn deck_card ->
+        case delete_deck_card(deck_card) do
+          {:ok, _deck_card} -> :ok
+          {:error, reason} -> Repo.rollback(reason)
+        end
+      end)
+
+      case Repo.delete(deck) do
+        {:ok, deck} -> deck
+        {:error, changeset} -> Repo.rollback(changeset)
+      end
+    end)
   end
 
   def deck_reserves_cards?(%Deck{status: status}), do: deck_reserves_cards?(status)
@@ -480,10 +496,13 @@ defmodule Manavault.Catalog.Decks do
     end
   end
 
-  def import_decklist(%Deck{} = deck, text) when is_binary(text) do
+  def import_decklist(%Deck{} = deck, text, opts \\ []) when is_binary(text) and is_list(opts) do
     entries = text |> parse_decklist() |> dedupe_decklist_entries()
+    replace? = Keyword.get(opts, :replace?, false)
 
     Repo.transaction(fn ->
+      if replace?, do: delete_deck_cards_for_import!(deck)
+
       Enum.reduce(entries, %{imported: 0, unresolved: [], skipped_printings: []}, fn entry,
                                                                                      result ->
         case import_deck_card(deck, entry) do
@@ -507,6 +526,19 @@ defmodule Manavault.Catalog.Decks do
       end)
       |> update_in([:unresolved], &Enum.reverse/1)
       |> update_in([:skipped_printings], &Enum.reverse/1)
+    end)
+  end
+
+  defp delete_deck_cards_for_import!(%Deck{} = deck) do
+    deck =
+      deck
+      |> Repo.preload([deck_cards: [deck_allocations: [:collection_item]]], force: true)
+
+    Enum.each(deck.deck_cards, fn deck_card ->
+      case delete_deck_card(deck_card) do
+        {:ok, _deck_card} -> :ok
+        {:error, reason} -> Repo.rollback(reason)
+      end
     end)
   end
 

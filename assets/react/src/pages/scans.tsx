@@ -28,6 +28,7 @@ import { PageHeader } from "../components/app-shell"
 import { EmptyState } from "../components/card-image"
 import { Badge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
+import { ConfirmDialog } from "../components/ui/confirm-dialog"
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import {
   Dialog,
@@ -696,6 +697,7 @@ export function ScanSessionPage() {
   const [editingItem, setEditingItem] = useState<ScanItem | null>(null)
   const [changingItem, setChangingItem] = useState<ScanItem | null>(null)
   const [bulkLocationId, setBulkLocationId] = useState("")
+  const [isDeleteSessionOpen, setIsDeleteSessionOpen] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ["scan-session", id],
@@ -782,11 +784,7 @@ export function ScanSessionPage() {
             <Button
               size="sm"
               variant="destructive"
-              onClick={() => {
-                if (confirm("Discard this scan session and all scanned cards?")) {
-                  deleteSession.mutate()
-                }
-              }}
+              onClick={() => setIsDeleteSessionOpen(true)}
             >
               <Trash2 className="h-4 w-4" />
               Delete
@@ -825,6 +823,16 @@ export function ScanSessionPage() {
         onClose={() => setChangingItem(null)}
         onSaved={refresh}
       />
+      <ConfirmDialog
+        destructive
+        confirmLabel="Delete session"
+        open={isDeleteSessionOpen}
+        title="Discard this scan session?"
+        onConfirm={() => deleteSession.mutate()}
+        onOpenChange={setIsDeleteSessionOpen}
+      >
+        This deletes the scan session and all scanned cards in it.
+      </ConfirmDialog>
     </>
   )
 }
@@ -842,6 +850,7 @@ export function ScannerPage() {
   const [optionsOpen, setOptionsOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<ScanItem | null>(null)
   const [changingItem, setChangingItem] = useState<ScanItem | null>(null)
+  const [isDeleteSessionOpen, setIsDeleteSessionOpen] = useState(false)
   const scannerChannelRef = useRef<PhoenixChannel | null>(null)
   const recentItemsRef = useRef<HTMLDivElement | null>(null)
   const previousRecentItemIdsRef = useRef<string[]>([])
@@ -955,6 +964,13 @@ export function ScannerPage() {
       setMessage(errorMessage)
     },
   })
+  const deleteSession = useMutation({
+    mutationFn: () => request(DeleteScanSessionDocument, { id }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["scan-sessions"] })
+      navigate({ to: "/scan-sessions" })
+    },
+  })
   const handleCameraError = useCallback((nextMessage: string | null) => {
     setCameraError(nextMessage)
     if (nextMessage) setMessage(nextMessage)
@@ -991,14 +1007,7 @@ export function ScannerPage() {
         <Button
           size="sm"
           variant="destructive"
-          onClick={() => {
-            if (confirm("Discard this scan session and all scanned cards?")) {
-              request(DeleteScanSessionDocument, { id }).then(() => {
-                queryClient.invalidateQueries({ queryKey: ["scan-sessions"] })
-                navigate({ to: "/scan-sessions" })
-              })
-            }
-          }}
+          onClick={() => setIsDeleteSessionOpen(true)}
         >
           Discard
         </Button>
@@ -1072,6 +1081,16 @@ export function ScannerPage() {
         onClose={() => setChangingItem(null)}
         onSaved={refresh}
       />
+      <ConfirmDialog
+        destructive
+        confirmLabel="Discard session"
+        open={isDeleteSessionOpen}
+        title="Discard this scan session?"
+        onConfirm={() => deleteSession.mutate()}
+        onOpenChange={setIsDeleteSessionOpen}
+      >
+        This deletes the scan session and all scanned cards in it.
+      </ConfirmDialog>
     </div>
   )
 }
@@ -1482,6 +1501,7 @@ function ScanItemTile({
   onEdit?: () => void
   showMenu?: boolean
 }) {
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const deleteItem = useMutation({
     mutationFn: () => request(DeleteScanItemDocument, { id: item.id }),
     onSuccess: onDelete,
@@ -1489,37 +1509,47 @@ function ScanItemTile({
   const printing = item.acceptedPrinting
 
   return (
-    <CardTile
-      count={item.quantity}
-      defaultActions={[
-        { icon: <Pencil className="h-4 w-4" />, label: "Edit", onClick: onEdit },
-        {
-          icon: <Search className="h-4 w-4" />,
-          label: "Change card/printing",
-          onClick: onChangePrinting,
-        },
-        {
-          destructive: true,
-          icon: <Trash2 className="h-4 w-4" />,
-          label: "Delete",
-          onClick: () => {
-            if (confirm("Delete this scanned card?")) deleteItem.mutate()
+    <>
+      <CardTile
+        count={item.quantity}
+        defaultActions={[
+          { icon: <Pencil className="h-4 w-4" />, label: "Edit", onClick: onEdit },
+          {
+            icon: <Search className="h-4 w-4" />,
+            label: "Change card/printing",
+            onClick: onChangePrinting,
           },
-        },
-      ]}
-      finish={item.finish}
-      growOnHover={showMenu}
-      imageUrl={printing?.imageUrl}
-      location={item.location?.name}
-      name={printing?.card?.name || `Scan item #${item.id}`}
-      price={item.priceText || printing?.priceText}
-      rarity={printing?.rarity}
-      setCode={printing?.setCode}
-      setLabel={printing?.setCode?.toUpperCase()}
-      setName={printing ? `${printing.setCode?.toUpperCase()} ${printing.collectorNumber || ""}` : undefined}
-      showMenu={showMenu}
-      typeLine={printing?.card?.typeLine || item.status}
-    />
+          {
+            destructive: true,
+            icon: <Trash2 className="h-4 w-4" />,
+            label: "Delete",
+            onClick: () => setIsDeleteOpen(true),
+          },
+        ]}
+        finish={item.finish}
+        growOnHover={showMenu}
+        imageUrl={printing?.imageUrl}
+        location={item.location?.name}
+        name={printing?.card?.name || `Scan item #${item.id}`}
+        price={item.priceText || printing?.priceText}
+        rarity={printing?.rarity}
+        setCode={printing?.setCode}
+        setLabel={printing?.setCode?.toUpperCase()}
+        setName={
+          printing ? `${printing.setCode?.toUpperCase()} ${printing.collectorNumber || ""}` : undefined
+        }
+        showMenu={showMenu}
+        typeLine={printing?.card?.typeLine || item.status}
+      />
+      <ConfirmDialog
+        destructive
+        confirmLabel="Delete card"
+        open={isDeleteOpen}
+        title="Delete this scanned card?"
+        onConfirm={() => deleteItem.mutate()}
+        onOpenChange={setIsDeleteOpen}
+      />
+    </>
   )
 }
 
@@ -1628,6 +1658,7 @@ function EditScanItemDialog({
   onClose: () => void
   onSaved: () => void
 }) {
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const updateItem = useMutation({
     mutationFn: (input: {
       quantity: number
@@ -1705,9 +1736,7 @@ function EditScanItemDialog({
               disabled={deleteItem.isPending || updateItem.isPending}
               type="button"
               variant="destructive"
-              onClick={() => {
-                if (confirm("Delete this scanned card?")) deleteItem.mutate()
-              }}
+              onClick={() => setIsDeleteOpen(true)}
             >
               <Trash2 className="h-4 w-4" />
               Delete
@@ -1723,6 +1752,14 @@ function EditScanItemDialog({
           </div>
         </form>
       </DialogContent>
+      <ConfirmDialog
+        destructive
+        confirmLabel="Delete card"
+        open={isDeleteOpen}
+        title="Delete this scanned card?"
+        onConfirm={() => deleteItem.mutate()}
+        onOpenChange={setIsDeleteOpen}
+      />
     </Dialog>
   )
 }

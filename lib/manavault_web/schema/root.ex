@@ -50,6 +50,11 @@ defmodule ManavaultWeb.Schema do
       resolve(&CatalogResolvers.collection_export_csv/3)
     end
 
+    field :collection_export_text, non_null(:string) do
+      arg(:filters, :collection_item_filters)
+      resolve(&CatalogResolvers.collection_export_text/3)
+    end
+
     field :locations, non_null(list_of(non_null(:location))) do
       resolve(&CatalogResolvers.locations/3)
     end
@@ -258,6 +263,7 @@ defmodule ManavaultWeb.Schema do
     field :import_decklist, :deck_import_result do
       arg(:id, non_null(:id))
       arg(:text, non_null(:string))
+      arg(:replace_existing, :boolean, default_value: false)
       resolve(&CatalogResolvers.import_decklist/3)
     end
 
@@ -265,6 +271,16 @@ defmodule ManavaultWeb.Schema do
       arg(:id, non_null(:id))
       arg(:input, non_null(:location_update_input))
       resolve(&CatalogResolvers.update_location/3)
+    end
+
+    field :delete_deck, :deck do
+      arg(:id, non_null(:id))
+      resolve(&CatalogResolvers.delete_deck/3)
+    end
+
+    field :delete_location, :location do
+      arg(:id, non_null(:id))
+      resolve(&CatalogResolvers.delete_location/3)
     end
 
     field :update_deck_card, :deck_card do

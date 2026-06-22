@@ -26,26 +26,28 @@ export function ImageSummaryCard({
   return (
     <Card
       className={cn(
-        "group relative min-h-52 overflow-hidden transition-all",
+        "group relative min-h-52 overflow-visible transition-all",
         interactive &&
           "hover:-translate-y-0.5 hover:border-primary/40 hover:bg-base-100 hover:shadow-xl",
       )}
     >
-      {imageUrl ? (
-        <img
-          src={imageUrl}
-          alt=""
-          className={cn(
-            "absolute inset-0 h-full w-full object-cover opacity-35 transition duration-300",
-            interactive && "group-hover:scale-105 group-hover:opacity-45",
-          )}
-        />
-      ) : (
-        <div className="absolute inset-0 flex items-center justify-center bg-base-200 text-base-content/30">
-          {fallback}
-        </div>
-      )}
-      <div className="absolute inset-0 bg-gradient-to-br from-base-100/95 via-base-100/75 to-base-100/35" />
+      <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-box">
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt=""
+            className={cn(
+              "absolute inset-0 h-full w-full object-cover opacity-35 transition duration-300",
+              interactive && "group-hover:scale-105 group-hover:opacity-45",
+            )}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-base-200 text-base-content/30">
+            {fallback}
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-br from-base-100/95 via-base-100/75 to-base-100/35" />
+      </div>
       <div className="relative z-10 flex min-h-52 flex-col justify-between gap-8 p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">

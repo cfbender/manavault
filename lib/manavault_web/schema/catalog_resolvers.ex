@@ -93,6 +93,11 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     {:ok, Catalog.export_collection_csv(filters)}
   end
 
+  def collection_export_text(_parent, args, _resolution) do
+    filters = args |> Map.get(:filters, %{}) |> Enum.into([])
+    {:ok, Catalog.export_collection_text(filters)}
+  end
+
   def locations(_parent, _args, _resolution),
     do: {:ok, Catalog.list_locations() ++ [unfiled_location()]}
 
@@ -272,10 +277,11 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     end
   end
 
-  def import_decklist(_parent, %{id: id, text: text}, _resolution) do
+  def import_decklist(_parent, %{id: id, text: text} = args, _resolution) do
     deck = Catalog.get_deck!(id)
+    opts = [replace?: Map.get(args, :replace_existing, false)]
 
-    case Catalog.import_decklist(deck, text) do
+    case Catalog.import_decklist(deck, text, opts) do
       {:ok, result} ->
         {:ok, result}
 
@@ -284,6 +290,38 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
       {:error, reason} ->
         {:error, deck_import_error(reason)}
+    end
+  end
+
+  def delete_deck(_parent, %{id: id}, _resolution) do
+    deck = Catalog.get_deck!(id)
+
+    case Catalog.delete_deck(deck) do
+      {:ok, deck} ->
+        {:ok, deck}
+
+      {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
+        {:error, changeset_error_message(changeset)}
+
+      {:error, reason} ->
+        {:error, deck_import_error(reason)}
+    end
+  end
+
+  def delete_location(_parent, %{id: id}, _resolution) do
+    if to_string(id) == "unfiled" do
+      {:error, "Unfiled cannot be deleted"}
+    else
+      delete_persisted_location(id)
+    end
+  end
+
+  defp delete_persisted_location(id) do
+    location = id |> location_id() |> Catalog.get_location!()
+
+    case Catalog.delete_location(location) do
+      {:ok, location} -> {:ok, Repo.preload(location, cover_printing: :card)}
+      {:error, changeset} -> {:error, changeset_error_message(changeset)}
     end
   end
 

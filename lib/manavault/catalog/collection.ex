@@ -265,6 +265,41 @@ defmodule Manavault.Catalog.Collection do
     |> Enum.map_join("\n", &CSV.row/1)
   end
 
+  def export_collection_text(filters \\ []) when is_list(filters) do
+    filters
+    |> list_collection_items(limit: 100_000)
+    |> Enum.map_join("\n", &collection_text_line/1)
+  end
+
+  defp collection_text_line(%CollectionItem{} = item) do
+    [
+      "#{item.quantity}x",
+      item.printing.card.name,
+      collection_text_printing(item.printing),
+      collection_text_finish(item.finish),
+      collection_text_condition(item.condition),
+      collection_text_language(item.language)
+    ]
+    |> Enum.reject(&(&1 in [nil, ""]))
+    |> Enum.join(" ")
+  end
+
+  defp collection_text_printing(%Printing{} = printing) do
+    "(#{String.upcase(printing.set_code || "")}) #{printing.collector_number}"
+  end
+
+  defp collection_text_finish("nonfoil"), do: nil
+  defp collection_text_finish(finish) when is_binary(finish), do: "[#{finish}]"
+  defp collection_text_finish(_finish), do: nil
+
+  defp collection_text_condition("near_mint"), do: nil
+  defp collection_text_condition(condition) when is_binary(condition), do: "{#{condition}}"
+  defp collection_text_condition(_condition), do: nil
+
+  defp collection_text_language("en"), do: nil
+  defp collection_text_language(language) when is_binary(language), do: "<#{language}>"
+  defp collection_text_language(_language), do: nil
+
   defp parse_collection_csv(text) do
     case parse_csv(text) do
       [] ->

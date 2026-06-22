@@ -1628,6 +1628,19 @@ defmodule ManavaultWeb.SchemaTest do
              "Quantity,Card Name,Set Code,Collector Number,Finish,Condition,Language,Location,Purchase Price"
 
     assert export_csv =~ "3,Imported Card,imp,9,nonfoil,near_mint,en,Import Binder,$3"
+
+    text_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query CollectionExportText($filters: CollectionItemFilters) {
+          collectionExportText(filters: $filters)
+        }
+        """,
+        "variables" => %{"filters" => %{"locationId" => location.id}}
+      })
+
+    assert %{"data" => %{"collectionExportText" => export_text}} = json_response(text_conn, 200)
+    assert export_text == "3x Imported Card (IMP) 9"
   end
 
   test "update deck mutation updates deck fields", %{conn: conn} do
@@ -1744,6 +1757,47 @@ defmodule ManavaultWeb.SchemaTest do
     assert %{"data" => %{"deckExportText" => export_text}} = json_response(export_conn, 200)
     assert export_text =~ "Commander\n1x Import Walk"
     assert export_text =~ "Mainboard\n2x Import Lotus"
+
+    replace_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation ImportDecklist($id: ID!, $text: String!, $replaceExisting: Boolean!) {
+          importDecklist(id: $id, text: $text, replaceExisting: $replaceExisting) {
+            imported
+            unresolved
+          }
+        }
+        """,
+        "variables" => %{
+          "id" => deck.id,
+          "text" => """
+          Mainboard
+          1 Import Walk
+          """,
+          "replaceExisting" => true
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "importDecklist" => %{"imported" => 1, "unresolved" => []}
+             }
+           } = json_response(replace_conn, 200)
+
+    replaced_export_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query DeckExportText($id: ID!) {
+          deckExportText(id: $id)
+        }
+        """,
+        "variables" => %{"id" => deck.id}
+      })
+
+    assert %{"data" => %{"deckExportText" => replaced_export_text}} =
+             json_response(replaced_export_conn, 200)
+
+    assert replaced_export_text == "Mainboard\n1x Import Walk"
   end
 
   test "deck buylist and export queries expose missing card workflow data", %{conn: conn} do
@@ -1904,6 +1958,56 @@ defmodule ManavaultWeb.SchemaTest do
       })
 
     assert %{"errors" => [%{"message" => "Unfiled cannot be edited"}]} = json_response(conn, 200)
+  end
+
+  test "delete location mutation deletes location and unfiles cards", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-delete-location",
+          "oracle_id" => "oracle-delete-location",
+          "name" => "Delete Location Card",
+          "type_line" => "Artifact",
+          "collector_number" => "1",
+          "set" => "loc",
+          "set_name" => "Location Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, location} = Catalog.create_location(%{"name" => "Delete Location", "kind" => "box"})
+
+    {:ok, item} =
+      Catalog.create_collection_item(%{
+        "scryfall_id" => "scryfall-delete-location",
+        "quantity" => 1,
+        "location_id" => location.id
+      })
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation DeleteLocation($id: ID!) {
+          deleteLocation(id: $id) {
+            id
+            name
+          }
+        }
+        """,
+        "variables" => %{"id" => location.id}
+      })
+
+    assert %{
+             "data" => %{
+               "deleteLocation" => %{"id" => _id, "name" => "Delete Location"}
+             }
+           } = json_response(conn, 200)
+
+    assert_raise Ecto.NoResultsError, fn -> Catalog.get_location!(location.id) end
+    assert Catalog.get_collection_item!(item.id).location_id == nil
   end
 
   test "update deck card mutation moves a card between zones", %{conn: conn} do
@@ -2076,6 +2180,63 @@ defmodule ManavaultWeb.SchemaTest do
 
     assert restored_item.location_id == location.id
     assert Catalog.deck_allocation_status(Catalog.get_deck!(deck.id)) == %{}
+  end
+
+  test "delete deck mutation removes a deck and restores allocated cards", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-delete-deck",
+          "oracle_id" => "oracle-delete-deck",
+          "name" => "Delete Deck Card",
+          "type_line" => "Artifact",
+          "collector_number" => "1",
+          "set" => "ddk",
+          "set_name" => "Delete Deck Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Deck To Delete"})
+    {:ok, deck_card} = Catalog.add_card_to_deck(deck, %{"name" => "Delete Deck Card"})
+
+    {:ok, location} =
+      Catalog.create_location(%{"name" => "Delete Deck Binder", "kind" => "binder"})
+
+    {:ok, item} =
+      Catalog.create_collection_item(%{
+        "scryfall_id" => "scryfall-delete-deck",
+        "quantity" => 1,
+        "location_id" => location.id
+      })
+
+    assert {:ok, allocation} =
+             Catalog.allocate_collection_item_to_deck_card(deck_card.id, item.id)
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation DeleteDeck($id: ID!) {
+          deleteDeck(id: $id) {
+            id
+            name
+          }
+        }
+        """,
+        "variables" => %{"id" => deck.id}
+      })
+
+    assert %{
+             "data" => %{
+               "deleteDeck" => %{"id" => _id, "name" => "Deck To Delete"}
+             }
+           } = json_response(conn, 200)
+
+    assert_raise Ecto.NoResultsError, fn -> Catalog.get_deck!(deck.id) end
+    assert Catalog.get_collection_item!(allocation.collection_item_id).location_id == location.id
   end
 
   test "set deck commander replaces the current commander", %{conn: conn} do

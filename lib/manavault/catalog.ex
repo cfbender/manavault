@@ -42,6 +42,7 @@ defmodule Manavault.Catalog do
   defdelegate import_collection_csv(text, opts \\ []), to: Collection
   defdelegate import_collection_preview(preview), to: Collection
   defdelegate export_collection_csv(filters \\ []), to: Collection
+  defdelegate export_collection_text(filters \\ []), to: Collection
 
   defdelegate list_decks(), to: Decks
   defdelegate get_deck!(id), to: Decks
@@ -78,7 +79,7 @@ defmodule Manavault.Catalog do
   defdelegate deallocate_proxy_from_deck_card(deck_card_id, quantity \\ 1), to: Decks
   defdelegate bulk_allocate_deck(deck, mode), to: Decks
   defdelegate preview_bulk_allocate_deck(deck, mode), to: Decks
-  defdelegate import_decklist(deck, text), to: Decks
+  defdelegate import_decklist(deck, text, opts \\ []), to: Decks
   defdelegate export_decklist(deck), to: Decks
   defdelegate deck_buylist(deck, opts \\ []), to: Decks
   defdelegate deck_edhrec(deck, opts \\ []), to: Decks
