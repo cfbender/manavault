@@ -46,7 +46,6 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=ref,event=tag
 
-
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
@@ -58,4 +57,3 @@ jobs:
             MANAVAULT_ASSET_VERSION=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-

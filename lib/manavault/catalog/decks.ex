@@ -11,12 +11,13 @@ defmodule Manavault.Catalog.Decks do
     Deck,
     DeckAllocation,
     DeckCard,
+    Decklists,
+    DeckSummaries,
     EDHRec,
     Finishes,
     Location,
     Price,
     Printing,
-    Search,
     Util
   }
 
@@ -34,7 +35,7 @@ defmodule Manavault.Catalog.Decks do
 
   def list_deck_summaries do
     list_decks()
-    |> put_deck_summary_fields()
+    |> DeckSummaries.put_fields()
   end
 
   def count_decks do
@@ -115,24 +116,24 @@ defmodule Manavault.Catalog.Decks do
   def deck_commander_color_identity(%Deck{deck_cards: cards}) when is_list(cards) do
     cards
     |> Enum.filter(&(&1.zone == "commander"))
-    |> commander_color_identity_from_cards()
+    |> DeckSummaries.commander_color_identity_from_cards()
   end
 
   def deck_commander_color_identity(%Deck{id: id}) do
     id
-    |> deck_display_summary()
+    |> DeckSummaries.display()
     |> Map.fetch!(:commander_color_identity)
   end
 
   def deck_cover_image_url(%Deck{cover_image_url: url}) when is_binary(url), do: url
 
   def deck_cover_image_url(%Deck{deck_cards: cards}) when is_list(cards) do
-    deck_cover_image_url_from_cards(cards)
+    DeckSummaries.cover_image_url_from_cards(cards)
   end
 
   def deck_cover_image_url(%Deck{id: id}) do
     id
-    |> deck_display_summary()
+    |> DeckSummaries.display()
     |> Map.fetch!(:cover_image_url)
   end
 
@@ -577,7 +578,7 @@ defmodule Manavault.Catalog.Decks do
   end
 
   def import_decklist(%Deck{} = deck, text, opts \\ []) when is_binary(text) and is_list(opts) do
-    entries = text |> parse_decklist() |> dedupe_decklist_entries()
+    entries = Decklists.parse(text)
     replace? = Keyword.get(opts, :replace?, false)
 
     Repo.transaction(fn ->
@@ -623,47 +624,11 @@ defmodule Manavault.Catalog.Decks do
   end
 
   def export_decklist(%Deck{} = deck) do
-    deck = Repo.preload(deck, deck_preloads(), force: true)
-
-    DeckCard.zones()
-    |> Enum.map(fn zone ->
-      cards = Enum.filter(deck.deck_cards, &(&1.zone == zone))
-
-      if cards == [] do
-        nil
-      else
-        lines =
-          cards
-          |> Enum.sort_by(& &1.card.name)
-          |> Enum.map_join("\n", &decklist_export_line/1)
-
-        "#{deck_zone_label(zone)}\n#{lines}"
-      end
-    end)
-    |> Enum.reject(&is_nil/1)
-    |> Enum.join("\n\n")
+    deck
+    |> Repo.preload(deck_preloads(), force: true)
+    |> Map.fetch!(:deck_cards)
+    |> Decklists.export()
   end
-
-  defp decklist_export_line(%DeckCard{} = deck_card) do
-    [
-      "#{deck_card.quantity}x",
-      deck_card.card.name,
-      decklist_export_printing(deck_card.preferred_printing),
-      decklist_export_finish(deck_card.finish)
-    ]
-    |> Enum.reject(&(&1 in [nil, ""]))
-    |> Enum.join(" ")
-  end
-
-  defp decklist_export_printing(%Printing{} = printing) do
-    "(#{String.upcase(printing.set_code || "")}) #{printing.collector_number}"
-  end
-
-  defp decklist_export_printing(_printing), do: nil
-
-  defp decklist_export_finish("foil"), do: "*F*"
-  defp decklist_export_finish("etched"), do: "*E*"
-  defp decklist_export_finish(_finish), do: nil
 
   def deck_buylist(%Deck{} = deck, opts \\ []) when is_list(opts) do
     deck = Repo.preload(deck, deck_preloads(), force: true)
@@ -1155,7 +1120,7 @@ defmodule Manavault.Catalog.Decks do
   end
 
   defp find_card_by_name(name) do
-    normalized_name = normalize_deck_card_name(name)
+    normalized_name = Decklists.normalize_card_name(name)
 
     Repo.one(
       from card in Card,
@@ -1164,329 +1129,6 @@ defmodule Manavault.Catalog.Decks do
         limit: 1
     )
   end
-
-  defp parse_decklist(text) do
-    text
-    |> String.split(~r/\R/u)
-    |> Enum.reduce({[], "mainboard"}, fn line, {entries, zone} ->
-      parse_decklist_line(line, zone, entries)
-    end)
-    |> elem(0)
-    |> Enum.reverse()
-  end
-
-  defp parse_decklist_line(line, current_zone, entries) do
-    line = line |> String.trim() |> strip_decklist_comment()
-
-    cond do
-      line == "" ->
-        {entries, current_zone}
-
-      zone = decklist_zone_heading(line) ->
-        {entries, zone}
-
-      true ->
-        case parse_deck_card_line(line, current_zone) do
-          nil -> {entries, current_zone}
-          entry -> {[entry | entries], current_zone}
-        end
-    end
-  end
-
-  defp parse_deck_card_line("SB:" <> rest, _current_zone),
-    do: parse_deck_card_line(String.trim(rest), "sideboard")
-
-  defp parse_deck_card_line(line, current_zone) do
-    with [_, quantity, name] <- Regex.run(~r/^\s*(\d+)\s*x?\s+(.+?)\s*$/i, line) do
-      {name, preferred_printing_id} = parse_deck_card_name_and_printing(name)
-
-      %{
-        "quantity" => quantity,
-        "name" => name,
-        "zone" => current_zone,
-        "finish" => parse_deck_card_finish(line),
-        "preferred_printing_id" => preferred_printing_id
-      }
-    else
-      _no_match -> nil
-    end
-  end
-
-  defp parse_deck_card_name_and_printing(name) do
-    cleaned_name = normalize_deck_card_name(name)
-
-    case Regex.run(~r/^(.+?)\s+\(([A-Za-z0-9]+)\)\s+([^\s]+)\s*$/, cleaned_name) do
-      [_, card_name, set_code, collector_number] ->
-        printing = Search.get_printing(set_code, collector_number)
-        {normalize_deck_card_name(card_name), printing && printing.scryfall_id}
-
-      _no_printing ->
-        {cleaned_name, nil}
-    end
-  end
-
-  defp normalize_deck_card_name(name) do
-    name
-    |> String.trim()
-    |> String.replace(~r/\s+\[[^\]]+\]\s*$/u, "")
-    |> String.replace(~r/\s+\*[A-Z]+\*\s*$/u, "")
-    |> String.trim()
-  end
-
-  defp parse_deck_card_finish(line) do
-    cond do
-      Regex.match?(~r/\*F\*\s*$/i, line) -> "foil"
-      Regex.match?(~r/\*E\*\s*$/i, line) -> "etched"
-      true -> "nonfoil"
-    end
-  end
-
-  defp dedupe_decklist_entries(entries) do
-    entries
-    |> Enum.reduce(%{}, fn entry, deduped ->
-      key = decklist_entry_key(entry)
-      quantity = Util.parse_quantity(entry["quantity"])
-
-      Map.update(deduped, key, Map.put(entry, "quantity", quantity), fn existing ->
-        existing
-        |> Map.put("quantity", max(Util.parse_quantity(existing["quantity"]), quantity))
-        |> prefer_present_printing(entry)
-      end)
-    end)
-    |> Map.values()
-  end
-
-  defp decklist_entry_key(entry) do
-    {
-      String.downcase(entry["name"] || ""),
-      entry["zone"],
-      entry["preferred_printing_id"],
-      entry["finish"]
-    }
-  end
-
-  defp prefer_present_printing(existing, %{"preferred_printing_id" => preferred_printing_id})
-       when is_binary(preferred_printing_id) do
-    Map.put(existing, "preferred_printing_id", preferred_printing_id)
-  end
-
-  defp prefer_present_printing(existing, _entry), do: existing
-
-  defp strip_decklist_comment(line) do
-    line
-    |> String.replace(~r/\s+#.*$/u, "")
-    |> String.trim()
-  end
-
-  defp decklist_zone_heading(line) do
-    case line |> String.downcase() |> String.trim_trailing(":") do
-      "main" -> "mainboard"
-      "mainboard" -> "mainboard"
-      "deck" -> "mainboard"
-      "side" -> "sideboard"
-      "sideboard" -> "sideboard"
-      "commander" -> "commander"
-      "commanders" -> "commander"
-      "maybe" -> "maybeboard"
-      "maybeboard" -> "maybeboard"
-      _other -> nil
-    end
-  end
-
-  defp put_deck_summary_fields([]), do: []
-
-  defp put_deck_summary_fields(decks) do
-    deck_ids = Enum.map(decks, & &1.id)
-    counts_by_deck_id = deck_count_summaries(deck_ids)
-    display_by_deck_id = deck_display_summaries(deck_ids)
-
-    Enum.map(decks, fn deck ->
-      counts = Map.get(counts_by_deck_id, deck.id, %{card_count: 0, unique_card_count: 0})
-      display = Map.get(display_by_deck_id, deck.id, empty_deck_display_summary())
-
-      %{
-        deck
-        | card_count: counts.card_count || 0,
-          unique_card_count: counts.unique_card_count || 0,
-          cover_image_url: display.cover_image_url,
-          commander_color_identity: display.commander_color_identity
-      }
-    end)
-  end
-
-  defp deck_count_summaries(deck_ids) do
-    DeckCard
-    |> where(
-      [deck_card],
-      deck_card.deck_id in ^deck_ids and deck_card.zone in ^DeckCard.deck_count_zones()
-    )
-    |> group_by([deck_card], deck_card.deck_id)
-    |> select([deck_card], %{
-      deck_id: deck_card.deck_id,
-      card_count: sum(deck_card.quantity),
-      unique_card_count: count(deck_card.id)
-    })
-    |> Repo.all()
-    |> Map.new(fn summary -> {summary.deck_id, summary} end)
-  end
-
-  defp deck_display_summary(deck_id) do
-    deck_id
-    |> List.wrap()
-    |> deck_display_summaries()
-    |> Map.get(deck_id, empty_deck_display_summary())
-  end
-
-  defp deck_display_summaries([]), do: %{}
-
-  defp deck_display_summaries(deck_ids) do
-    DeckCard
-    |> join(:inner, [deck_card], card in assoc(deck_card, :card))
-    |> join(:left, [deck_card], preferred_printing in assoc(deck_card, :preferred_printing))
-    |> where([deck_card], deck_card.deck_id in ^deck_ids)
-    |> order_by([deck_card, card],
-      asc: deck_card.deck_id,
-      asc: deck_card.zone,
-      asc: card.name,
-      asc: deck_card.id
-    )
-    |> select([deck_card, card, preferred_printing], %{
-      deck_id: deck_card.deck_id,
-      zone: deck_card.zone,
-      color_identity: card.color_identity,
-      preferred_image_uris: preferred_printing.image_uris,
-      fallback_image_uris:
-        fragment(
-          """
-          (
-            SELECT printing.image_uris
-            FROM scryfall_printings AS printing
-            WHERE printing.oracle_id = ?
-            ORDER BY printing.released_at DESC, printing.set_code ASC
-            LIMIT 1
-          )
-          """,
-          deck_card.oracle_id
-        )
-    })
-    |> Repo.all()
-    |> Enum.group_by(& &1.deck_id)
-    |> Map.new(fn {deck_id, rows} ->
-      {deck_id,
-       %{
-         cover_image_url: deck_cover_image_url_from_rows(rows),
-         commander_color_identity: commander_color_identity_from_rows(rows)
-       }}
-    end)
-  end
-
-  defp empty_deck_display_summary do
-    %{cover_image_url: nil, commander_color_identity: nil}
-  end
-
-  defp deck_cover_image_url_from_rows(rows) do
-    Enum.find_value(rows, fn row ->
-      cover_image_url(row.preferred_image_uris, row.fallback_image_uris)
-    end)
-  end
-
-  defp deck_cover_image_url_from_cards(cards) do
-    Enum.find_value(cards, fn deck_card ->
-      cover_image_url(
-        preferred_printing_image_uris(deck_card),
-        fallback_printing_image_uris(deck_card)
-      )
-    end)
-  end
-
-  defp cover_image_url(preferred_image_uris, fallback_image_uris) do
-    preferred = image_urls(preferred_image_uris)
-    fallback = image_urls(fallback_image_uris)
-
-    Enum.find(
-      [
-        preferred.art_crop_url,
-        preferred.image_url,
-        fallback.art_crop_url,
-        fallback.image_url
-      ],
-      &present?/1
-    )
-  end
-
-  defp image_urls(image_uris) do
-    decoded = Util.decode_json(image_uris, %{})
-
-    %{
-      image_url: image_url(decoded),
-      art_crop_url: art_crop_url(decoded)
-    }
-  end
-
-  defp image_url(%{} = image_uris) do
-    image_uris["normal"] || image_uris["large"] || image_uris["small"] || image_uris["png"]
-  end
-
-  defp image_url([first | _rest]), do: image_url(first)
-  defp image_url(_image_uris), do: nil
-
-  defp art_crop_url(%{} = image_uris), do: image_uris["art_crop"] || image_url(image_uris)
-  defp art_crop_url([first | _rest]), do: art_crop_url(first)
-  defp art_crop_url(_image_uris), do: nil
-
-  defp preferred_printing_image_uris(%DeckCard{
-         preferred_printing: %Printing{image_uris: image_uris}
-       }),
-       do: image_uris
-
-  defp preferred_printing_image_uris(_deck_card), do: nil
-
-  defp fallback_printing_image_uris(%DeckCard{
-         card: %Card{printings: [%Printing{image_uris: image_uris} | _rest]}
-       }),
-       do: image_uris
-
-  defp fallback_printing_image_uris(_deck_card), do: nil
-
-  defp commander_color_identity_from_rows(rows) do
-    rows
-    |> Enum.filter(&(&1.zone == "commander"))
-    |> commander_color_identity_from_values(& &1.color_identity)
-  end
-
-  defp commander_color_identity_from_cards(cards) do
-    cards
-    |> Enum.filter(&match?(%DeckCard{card: %Card{}}, &1))
-    |> commander_color_identity_from_values(& &1.card.color_identity)
-  end
-
-  defp commander_color_identity_from_values([], _color_identity_fun), do: nil
-
-  defp commander_color_identity_from_values(values, color_identity_fun) do
-    colors =
-      values
-      |> Enum.flat_map(fn value ->
-        color_identity_fun.(value)
-        |> Util.decode_json([])
-      end)
-      |> Enum.filter(&is_binary/1)
-      |> Enum.map(&String.upcase/1)
-      |> MapSet.new()
-
-    if MapSet.size(colors) == 0 do
-      ["C"]
-    else
-      colors
-      |> MapSet.to_list()
-      |> Enum.sort_by(&color_sort_value/1)
-    end
-  end
-
-  defp color_sort_value(color) do
-    Enum.find_index(~w(W U B R G M C), &(&1 == color)) || 99
-  end
-
-  defp present?(value), do: is_binary(value) and value != ""
 
   defp deck_preloads do
     [
@@ -1511,12 +1153,6 @@ defmodule Manavault.Catalog.Decks do
          ), []}
     ]
   end
-
-  defp deck_zone_label("mainboard"), do: "Mainboard"
-  defp deck_zone_label("sideboard"), do: "Sideboard"
-  defp deck_zone_label("commander"), do: "Commander"
-  defp deck_zone_label("maybeboard"), do: "Maybeboard"
-  defp deck_zone_label(zone), do: String.capitalize(zone)
 
   defp move_deck_card_to_zone!(%DeckCard{} = deck_card, zone) do
     existing =

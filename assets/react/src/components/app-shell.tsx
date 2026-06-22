@@ -132,12 +132,7 @@ export function AppShell() {
         </div>
       </header>
 
-      <main
-        className={cn(
-          "app-shell-main overflow-y-auto",
-          isShareRoute && "min-h-screen",
-        )}
-      >
+      <main className={cn("app-shell-main overflow-y-auto", isShareRoute && "min-h-screen")}>
         <div
           className={cn(
             "mx-auto w-full max-w-[105rem] py-8 sm:py-12 lg:py-16",

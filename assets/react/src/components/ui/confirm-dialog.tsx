@@ -43,7 +43,9 @@ export function ConfirmDialog({
             </span>
             <div>
               <DialogTitle id="confirm-dialog-title">{title}</DialogTitle>
-              {children ? <div className="mt-2 text-sm text-base-content/65">{children}</div> : null}
+              {children ? (
+                <div className="mt-2 text-sm text-base-content/65">{children}</div>
+              ) : null}
             </div>
           </div>
           <DialogClose onClose={close} />
@@ -53,7 +55,11 @@ export function ConfirmDialog({
           <Button type="button" variant="ghost" onClick={close}>
             {cancelLabel}
           </Button>
-          <Button type="button" variant={destructive ? "destructive" : "default"} onClick={handleConfirm}>
+          <Button
+            type="button"
+            variant={destructive ? "destructive" : "default"}
+            onClick={handleConfirm}
+          >
             {confirmLabel}
           </Button>
         </div>

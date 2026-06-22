@@ -94,7 +94,6 @@ The release task generates `CHANGELOG.md`, bumps `mix.exs`, updates the Docker
 tag examples, commits, creates an annotated tag, and pushes the branch and tag.
 See [docs/releasing.md](docs/releasing.md) for details.
 
-
 ## Native Shells
 
 ManaVault includes Capacitor Android and iOS shell projects for mobile testing
@@ -241,7 +240,6 @@ Build the image locally:
 docker build -t manavault .
 ```
 
-
 Example `docker-compose.yml` using the published GHCR image:
 
 ```yaml
@@ -266,7 +264,6 @@ printf 'SECRET_KEY_BASE=%s\n' "$(mise exec -- mix phx.gen.secret)" > .env
 printf 'PHX_HOST=localhost\n' >> .env
 docker compose up -d
 ```
-
 
 Run the local image:
 
@@ -318,18 +315,18 @@ Expected tags:
 The v0.1.0 line is the first self-hostable baseline. The phase issues capture
 the implementation path:
 
-| Phase | Scope | Status |
-| --- | --- | --- |
-| [#1](https://github.com/cfbender/manavault/issues/1) | Application foundation and single-container deployment | Closed |
-| [#2](https://github.com/cfbender/manavault/issues/2) | Local Scryfall catalog sync | Closed |
-| [#3](https://github.com/cfbender/manavault/issues/3) | Card and printing search UI | Closed |
-| [#4](https://github.com/cfbender/manavault/issues/4) | Collection model and manual management | Closed |
-| [#10](https://github.com/cfbender/manavault/issues/10) | Deck creation and import | Closed |
-| [#11](https://github.com/cfbender/manavault/issues/11) | Physical card allocation engine | Closed |
-| [#12](https://github.com/cfbender/manavault/issues/12) | Missing-card buylist and export workflows | Closed |
-| [#13](https://github.com/cfbender/manavault/issues/13) | Collection import/export | Closed |
-| [#14](https://github.com/cfbender/manavault/issues/14) | Backup, restore, and self-hosting safety | Closed |
-| [#17](https://github.com/cfbender/manavault/issues/17) | Project documentation and roadmap | Closed |
+| Phase                                                  | Scope                                                  | Status |
+| ------------------------------------------------------ | ------------------------------------------------------ | ------ |
+| [#1](https://github.com/cfbender/manavault/issues/1)   | Application foundation and single-container deployment | Closed |
+| [#2](https://github.com/cfbender/manavault/issues/2)   | Local Scryfall catalog sync                            | Closed |
+| [#3](https://github.com/cfbender/manavault/issues/3)   | Card and printing search UI                            | Closed |
+| [#4](https://github.com/cfbender/manavault/issues/4)   | Collection model and manual management                 | Closed |
+| [#10](https://github.com/cfbender/manavault/issues/10) | Deck creation and import                               | Closed |
+| [#11](https://github.com/cfbender/manavault/issues/11) | Physical card allocation engine                        | Closed |
+| [#12](https://github.com/cfbender/manavault/issues/12) | Missing-card buylist and export workflows              | Closed |
+| [#13](https://github.com/cfbender/manavault/issues/13) | Collection import/export                               | Closed |
+| [#14](https://github.com/cfbender/manavault/issues/14) | Backup, restore, and self-hosting safety               | Closed |
+| [#17](https://github.com/cfbender/manavault/issues/17) | Project documentation and roadmap                      | Closed |
 
 Near-term follow-up work is tracked in
 [#20](https://github.com/cfbender/manavault/issues/20) for EDHRec

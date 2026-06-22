@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --project assets/tsconfig.json --noEmit",
+    "test:react": "node --experimental-strip-types --experimental-default-type=module --test assets/react/test/*.test.mjs",
     "codegen": "graphql-codegen --config codegen.ts",
     "native:prepare": "node scripts/prepare-native-web.mjs",
     "cap:sync": "aube run native:prepare && cap sync",

@@ -29,20 +29,20 @@ conventional_commits = true
 filter_unconventional = false
 split_commits = false
 commit_parsers = [
-  { message = "^chore: release",          skip = true },
+  { message = "^chore: release", skip = true },
   { message = "^docs: update changelog", skip = true },
-  { message = "^feat",          group = "Features"         },
-  { message = "^fix",           group = "Bug Fixes"        },
-  { message = "^refactor",      group = "Refactoring"      },
-  { message = "^style",         group = "Style"            },
-  { message = "^test",          group = "Tests"            },
-  { message = "^chore",         group = "Chores"           },
-  { message = "^docs",          group = "Documentation"    },
-  { message = "^perf",          group = "Performance"      },
-  { message = "^ci",            group = "CI"               },
-  { message = "^build",         group = "Build"            },
-  { message = "^revert",        group = "Reverts"          },
-  { message = ".*",             group = "Miscellaneous"    },
+  { message = "^feat", group = "Features" },
+  { message = "^fix", group = "Bug Fixes" },
+  { message = "^refactor", group = "Refactoring" },
+  { message = "^style", group = "Style" },
+  { message = "^test", group = "Tests" },
+  { message = "^chore", group = "Chores" },
+  { message = "^docs", group = "Documentation" },
+  { message = "^perf", group = "Performance" },
+  { message = "^ci", group = "CI" },
+  { message = "^build", group = "Build" },
+  { message = "^revert", group = "Reverts" },
+  { message = ".*", group = "Miscellaneous" },
 ]
 # Release commits are created after the changelog update and tagged directly, so
 # they should not appear in the previous-tag..HEAD changelog range.

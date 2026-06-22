@@ -790,13 +790,8 @@ export function DeckDetailPage({
   )
 
   const updateDeckCard = useMutation({
-    mutationFn: ({
-      deckCardId,
-      input,
-    }: {
-      deckCardId: string
-      input: DeckCardUpdateInput
-    }) => request(UpdateDeckCardDocument, { id: deckCardId, input }),
+    mutationFn: ({ deckCardId, input }: { deckCardId: string; input: DeckCardUpdateInput }) =>
+      request(UpdateDeckCardDocument, { id: deckCardId, input }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["deck", id] })
       queryClient.invalidateQueries({ queryKey: ["decks"] })
@@ -1235,7 +1230,9 @@ export function DeckDetailPage({
 type DeckSummary = DecksQuery["decks"][number]
 type DeckDetail = NonNullable<DeckQuery["deck"]>
 type DeckCardEntry = NonNullable<NonNullable<DeckDetail["deckCards"]>[number]>
-type DeckCardPrinting = NonNullable<NonNullable<NonNullable<DeckCardEntry["card"]>["printings"]>[number]>
+type DeckCardPrinting = NonNullable<
+  NonNullable<NonNullable<DeckCardEntry["card"]>["printings"]>[number]
+>
 type DeckZone = "mainboard" | "sideboard" | "commander" | "maybeboard"
 type DeckGroupBy = "type" | "color" | "colorIdentity" | "manaValue" | "rarity" | "set" | "none"
 type BulkAllocationMode = "exact_printings" | "matching_printings"
@@ -1324,13 +1321,7 @@ function blurFocusedMenuItem(event: ReactMouseEvent<HTMLElement>) {
   }
 }
 
-function ShareModeHidden({
-  children,
-  shareMode,
-}: {
-  children: ReactNode
-  shareMode?: boolean
-}) {
+function ShareModeHidden({ children, shareMode }: { children: ReactNode; shareMode?: boolean }) {
   if (shareMode) return null
   return <>{children}</>
 }
@@ -1493,9 +1484,10 @@ function commanderColorIdentity(
     }
   }
 
-  return colors.size ? Array.from(colors).sort((left, right) => colorOrder(left) - colorOrder(right)) : ["C"]
+  return colors.size
+    ? Array.from(colors).sort((left, right) => colorOrder(left) - colorOrder(right))
+    : ["C"]
 }
-
 
 function countDeckZones(deckCards: DeckCardEntry[]) {
   return deckCards.reduce<Record<DeckZone, number>>(
@@ -3061,8 +3053,7 @@ function deckCardPrintingOptionLabel(printing: DeckCardPrinting) {
 
 function printingFinishOptions(finishes?: Array<string | null> | null) {
   const options = (finishes || []).filter(
-    (finish): finish is string =>
-      typeof finish === "string" && DECK_CARD_FINISHES.includes(finish),
+    (finish): finish is string => typeof finish === "string" && DECK_CARD_FINISHES.includes(finish),
   )
 
   return options.length ? options : DECK_CARD_FINISHES
@@ -3931,11 +3922,7 @@ function EDHRecSectionCardTile({
             </span>
           </div>
         </div>
-        <EDHRecCardMenu
-          card={card}
-          isAddingCard={isAddingCard}
-          onAddCard={() => onAddCard(card)}
-        />
+        <EDHRecCardMenu card={card} isAddingCard={isAddingCard} onAddCard={() => onAddCard(card)} />
       </div>
     </article>
   )
@@ -4072,7 +4059,9 @@ function collectionStatusTone(
 }
 
 function edhrecCardImageUrl(card: EDHRecCard | EDHRecSectionCard) {
-  const printing = card.card?.printings?.find((printing) => printing?.imageUrl || printing?.artCropUrl)
+  const printing = card.card?.printings?.find(
+    (printing) => printing?.imageUrl || printing?.artCropUrl,
+  )
   return printing?.imageUrl || printing?.artCropUrl
 }
 
@@ -4112,7 +4101,10 @@ function commanderDeckCard(deck: DeckDetail | null, name: string) {
 }
 
 function normalizeDisplayName(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
 }
 
 function formatOptionalNumber(value?: number | null) {

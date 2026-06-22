@@ -98,5 +98,3 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 ### Miscellaneous
 
 - Fix OCR runtime container dependencies ([`c4fe0c56`](../../commit/c4fe0c56774502114d9777a443fa6958dab8454e))
-
-

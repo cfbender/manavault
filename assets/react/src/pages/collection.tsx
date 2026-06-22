@@ -55,6 +55,19 @@ import {
   takeSharedImport,
   type SharedImportPayload,
 } from "../lib/native-shared-import"
+import {
+  buildCollectionFilterQuery,
+  cloneCollectionFilters,
+  combineCollectionQueries,
+  countActiveCollectionFilters,
+  EMPTY_COLLECTION_FILTERS,
+  type CollectionFilterState,
+  type ColorOperator,
+  type ComparisonOperator,
+  type FinishFilter,
+  type ManaColor,
+  type RarityFilter,
+} from "../lib/collection-filters"
 import { cn, compactNumber, present, titleize } from "../lib/utils"
 
 const CollectionDocument = graphql(`
@@ -469,35 +482,6 @@ type CollectionSort = {
 type CollectionExportFormat = "csv" | "text"
 type CollectionImportFormat = "auto" | "csv" | "txt"
 type CollectionExportFilters = { locationId?: string; q?: string }
-type ComparisonOperator = "=" | "!=" | ">" | ">=" | "<" | "<="
-type ColorOperator = ":" | ">=" | "<="
-type FinishFilter = "any" | "foil" | "nonfoil" | "etched"
-type RarityFilter = "common" | "uncommon" | "rare" | "mythic"
-type ManaColor = "w" | "u" | "b" | "r" | "g" | "c"
-
-export type CollectionFilterState = {
-  name: string
-  oracle: string
-  typeLine: string
-  colors: ManaColor[]
-  colorOperator: ColorOperator
-  identity: ManaColor[]
-  identityOperator: ColorOperator
-  manaValueOperator: ComparisonOperator
-  manaValue: string
-  rarities: RarityFilter[]
-  set: string
-  collectorOperator: ComparisonOperator
-  collectorNumber: string
-  language: string
-  finish: FinishFilter
-  priceOperator: ComparisonOperator
-  priceUsd: string
-  dateOperator: ComparisonOperator
-  releasedDate: string
-  yearOperator: ComparisonOperator
-  releasedYear: string
-}
 
 const SORT_OPTIONS: { field: CollectionSortField; label: string }[] = [
   { field: "quantity", label: "Quantity" },
@@ -506,30 +490,6 @@ const SORT_OPTIONS: { field: CollectionSortField; label: string }[] = [
   { field: "rarity", label: "Rarity" },
   { field: "price", label: "Price" },
 ]
-
-export const EMPTY_COLLECTION_FILTERS: CollectionFilterState = {
-  name: "",
-  oracle: "",
-  typeLine: "",
-  colors: [],
-  colorOperator: ":",
-  identity: [],
-  identityOperator: ":",
-  manaValueOperator: "=",
-  manaValue: "",
-  rarities: [],
-  set: "",
-  collectorOperator: "=",
-  collectorNumber: "",
-  language: "",
-  finish: "any",
-  priceOperator: ">=",
-  priceUsd: "",
-  dateOperator: ">=",
-  releasedDate: "",
-  yearOperator: ">=",
-  releasedYear: "",
-}
 
 const COLOR_OPTIONS: { value: ManaColor; label: string; symbol: string }[] = [
   { value: "w", label: "White", symbol: "W" },
@@ -710,11 +670,23 @@ function CollectionBulkActionBar({
             <Layers className="h-4 w-4" />
             Add to deck
           </Button>
-          <Button type="button" variant="outline" size="sm" disabled={!hasSelection} onClick={onAddToList}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!hasSelection}
+            onClick={onAddToList}
+          >
             <ListPlus className="h-4 w-4" />
             Add to list
           </Button>
-          <Button type="button" variant="outline" size="sm" disabled={!hasSelection} onClick={onMove}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!hasSelection}
+            onClick={onMove}
+          >
             <MoveUpRight className="h-4 w-4" />
             Move
           </Button>
@@ -1371,93 +1343,6 @@ function ColorFilterControl({
   )
 }
 
-export function buildCollectionFilterQuery(filters: CollectionFilterState) {
-  const terms = [
-    textPredicate("name", filters.name),
-    textPredicate("oracle", filters.oracle),
-    textPredicate("type", filters.typeLine),
-    colorPredicate("c", filters.colorOperator, filters.colors),
-    colorPredicate("id", filters.identityOperator, filters.identity),
-    comparisonPredicate("mv", filters.manaValueOperator, filters.manaValue),
-    rarityPredicate(filters.rarities),
-    textPredicate("set", filters.set),
-    comparisonPredicate("number", filters.collectorOperator, filters.collectorNumber),
-    textPredicate("lang", filters.language),
-    filters.finish === "any" ? "" : `is:${filters.finish}`,
-    comparisonPredicate("usd", filters.priceOperator, filters.priceUsd),
-    comparisonPredicate("date", filters.dateOperator, filters.releasedDate),
-    comparisonPredicate("year", filters.yearOperator, filters.releasedYear),
-  ].filter(Boolean)
-
-  return terms.join(" ")
-}
-
-export function combineCollectionQueries(...parts: string[]) {
-  return parts
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .map((part) => `(${part})`)
-    .join(" ")
-}
-
-export function countActiveCollectionFilters(filters: CollectionFilterState) {
-  return [
-    filters.name.trim(),
-    filters.oracle.trim(),
-    filters.typeLine.trim(),
-    filters.colors.length,
-    filters.identity.length,
-    filters.manaValue.trim(),
-    filters.rarities.length,
-    filters.set.trim(),
-    filters.collectorNumber.trim(),
-    filters.language.trim(),
-    filters.finish !== "any",
-    filters.priceUsd.trim(),
-    filters.releasedDate.trim(),
-    filters.releasedYear.trim(),
-  ].filter(Boolean).length
-}
-
-export function cloneCollectionFilters(filters: CollectionFilterState): CollectionFilterState {
-  return {
-    ...filters,
-    colors: [...filters.colors],
-    identity: [...filters.identity],
-    rarities: [...filters.rarities],
-  }
-}
-
-function textPredicate(field: string, value: string) {
-  const trimmed = value.trim()
-  return trimmed ? `${field}:${quoteScryfallValue(trimmed)}` : ""
-}
-
-function comparisonPredicate(field: string, operator: ComparisonOperator, value: string) {
-  const trimmed = value.trim()
-  return trimmed ? `${field}${operator}${quoteScryfallValue(trimmed)}` : ""
-}
-
-function colorPredicate(field: "c" | "id", operator: ColorOperator, colors: ManaColor[]) {
-  if (!colors.length) return ""
-  if (colors.includes("c")) return `${field}:c`
-
-  return `${field}${operator}${colors.join("")}`
-}
-
-function rarityPredicate(rarities: RarityFilter[]) {
-  if (!rarities.length) return ""
-
-  const terms = rarities.map((rarity) => `rarity:${rarity}`)
-  return terms.length === 1 ? terms[0] : `(${terms.join(" or ")})`
-}
-
-function quoteScryfallValue(value: string) {
-  return /[\s()"]/.test(value)
-    ? `"${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`
-    : value
-}
-
 function RarityFilterControl({
   onSelectedChange,
   selected,
@@ -1797,9 +1682,7 @@ function AddCollectionItemToDeckDialog({
             <DialogTitle id="add-collection-item-to-deck-title">
               {targetCount > 1 ? "Add items to deck" : "Add to deck"}
             </DialogTitle>
-            <p className="mt-1 text-sm text-base-content/60">
-              {collectionTargetLabel(item)}
-            </p>
+            <p className="mt-1 text-sm text-base-content/60">{collectionTargetLabel(item)}</p>
           </div>
           <DialogClose onClose={close} />
         </DialogHeader>
@@ -1945,9 +1828,7 @@ function MoveCollectionItemDialog({
                   ? "Move items"
                   : "Move item"}
             </DialogTitle>
-            <p className="mt-1 text-sm text-base-content/60">
-              {collectionTargetLabel(item)}
-            </p>
+            <p className="mt-1 text-sm text-base-content/60">{collectionTargetLabel(item)}</p>
           </div>
           <DialogClose onClose={close} />
         </DialogHeader>
@@ -2034,7 +1915,8 @@ function EditCollectionItemDialog({
       if (!item) throw new Error("Collection item is required")
       const purchasePriceCents = parseCurrencyInputCents(purchasePrice)
 
-      if (purchasePriceCents === undefined) throw new Error("Purchase price must be a dollar amount")
+      if (purchasePriceCents === undefined)
+        throw new Error("Purchase price must be a dollar amount")
 
       return request(UpdateCollectionItemDocument, {
         id: item.id,
@@ -2245,7 +2127,9 @@ function DeleteCollectionItemDialog({
     mutationFn: () => {
       if (!targetItems.length) throw new Error("Choose at least one item")
       return Promise.all(
-        targetItems.map((targetItem) => request(DeleteCollectionItemDocument, { id: targetItem.id })),
+        targetItems.map((targetItem) =>
+          request(DeleteCollectionItemDocument, { id: targetItem.id }),
+        ),
       )
     },
     onSuccess: () => {
@@ -2273,9 +2157,7 @@ function DeleteCollectionItemDialog({
             <DialogTitle id="delete-collection-item-title">
               {targetCount > 1 ? "Delete collection items" : "Delete collection item"}
             </DialogTitle>
-            <p className="mt-1 text-sm text-base-content/60">
-              {collectionTargetLabel(item)}
-            </p>
+            <p className="mt-1 text-sm text-base-content/60">{collectionTargetLabel(item)}</p>
           </div>
           <DialogClose onClose={close} />
         </DialogHeader>
@@ -2357,7 +2239,8 @@ export function AddCollectionItemDialog({
       if (!selectedPrinting) throw new Error("Choose a printing")
       const purchasePriceCents = parseCurrencyInputCents(purchasePrice)
 
-      if (purchasePriceCents === undefined) throw new Error("Purchase price must be a dollar amount")
+      if (purchasePriceCents === undefined)
+        throw new Error("Purchase price must be a dollar amount")
 
       return request(CreateCollectionItemDocument, {
         input: {
@@ -3717,7 +3600,10 @@ function collectionFinishValue(value: string): (typeof COLLECTION_FINISHES)[numb
   return COLLECTION_FINISHES.find((finish) => finish === value) || "nonfoil"
 }
 
-function importFormatFromSource(fileName: string, mimeType?: string | null): CollectionImportFormat {
+function importFormatFromSource(
+  fileName: string,
+  mimeType?: string | null,
+): CollectionImportFormat {
   const extension = fileName.trim().toLowerCase().split(".").pop()
   if (extension === "csv") return "csv"
   if (extension === "txt") return "txt"
@@ -4473,7 +4359,9 @@ export function LocationPage({ id }: { id: string }) {
     <>
       <div className="mb-7 space-y-4">
         <Button asChild variant="outline" size="sm">
-          <Link to="/collection" search={{ importFile: false }}>Back to collection</Link>
+          <Link to="/collection" search={{ importFile: false }}>
+            Back to collection
+          </Link>
         </Button>
         {isUnfiledLocation(location) ? (
           <UnfiledLocationCard

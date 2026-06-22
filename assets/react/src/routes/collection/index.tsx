@@ -3,7 +3,8 @@ import { CollectionPage } from "../../pages/collection"
 
 export const Route = createFileRoute("/collection/")({
   validateSearch: (search: Record<string, unknown>) => ({
-    importFile: search.importFile === true || search.importFile === "true" || search.importFile === "1",
+    importFile:
+      search.importFile === true || search.importFile === "true" || search.importFile === "1",
   }),
   component: CollectionRoute,
 })

@@ -118,7 +118,6 @@
   padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
 }
 
-
 @media (min-width: 40rem) {
   .app-shell-header,
   .app-shell-main {

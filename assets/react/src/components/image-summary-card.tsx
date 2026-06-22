@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
-import { cn } from "../lib/utils";
-import { Card } from "./ui/card";
+import type { ReactNode } from "react"
+import { cn } from "../lib/utils"
+import { Card } from "./ui/card"
 
 export function ImageSummaryCard({
   actionSlot,
@@ -13,15 +13,15 @@ export function ImageSummaryCard({
   priceLine,
   typeLine,
 }: {
-  actionSlot?: ReactNode;
-  countLine?: ReactNode;
-  detailLine?: ReactNode;
-  fallback?: ReactNode;
-  interactive?: boolean;
-  imageUrl?: string | null;
-  nameLine: ReactNode;
-  priceLine?: ReactNode;
-  typeLine?: ReactNode;
+  actionSlot?: ReactNode
+  countLine?: ReactNode
+  detailLine?: ReactNode
+  fallback?: ReactNode
+  interactive?: boolean
+  imageUrl?: string | null
+  nameLine: ReactNode
+  priceLine?: ReactNode
+  typeLine?: ReactNode
 }) {
   return (
     <Card
@@ -53,29 +53,21 @@ export function ImageSummaryCard({
           <div className="flex flex-wrap items-center gap-2">
             {typeLine}
             {countLine ? (
-              <span className="text-sm font-bold text-base-content/70">
-                {countLine}
-              </span>
+              <span className="text-sm font-bold text-base-content/70">{countLine}</span>
             ) : null}
             {priceLine ? (
-              <span className="text-sm font-bold text-base-content/70">
-                {priceLine}
-              </span>
+              <span className="text-sm font-bold text-base-content/70">{priceLine}</span>
             ) : null}
           </div>
           {actionSlot ? <div className="shrink-0">{actionSlot}</div> : null}
         </div>
         <div className="min-w-0">
-          <h3 className="line-clamp-2 text-3xl font-black tracking-normal">
-            {nameLine}
-          </h3>
+          <h3 className="line-clamp-2 text-3xl font-black tracking-normal">{nameLine}</h3>
           {detailLine ? (
-            <div className="mt-3 text-sm text-base-content/65">
-              {detailLine}
-            </div>
+            <div className="mt-3 text-sm text-base-content/65">{detailLine}</div>
           ) : null}
         </div>
       </div>
     </Card>
-  );
+  )
 }

@@ -675,6 +675,33 @@ defmodule Manavault.CatalogTest do
     assert export =~ "Sideboard\n1x Time Walk"
   end
 
+  test "decklist import ignores comments and deduplicates stable aliases" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} =
+             Catalog.import_cards([@black_lotus])
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Commented Import"})
+
+    text = """
+    Deck:
+    1 Black Lotus # exported note
+    3x Black Lotus
+
+    Maybe:
+    2x Black Lotus *F*
+    """
+
+    assert {:ok, %{imported: 2, unresolved: [], skipped_printings: []}} =
+             Catalog.import_decklist(deck, text)
+
+    loaded = Catalog.get_deck!(deck.id)
+
+    assert %DeckCard{quantity: 3, finish: "nonfoil", zone: "mainboard"} =
+             Enum.find(loaded.deck_cards, &(&1.zone == "mainboard"))
+
+    assert %DeckCard{quantity: 2, finish: "foil", zone: "maybeboard"} =
+             Enum.find(loaded.deck_cards, &(&1.zone == "maybeboard"))
+  end
+
   test "decklist import keeps card identities when preferred printing data is unusable" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
