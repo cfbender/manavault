@@ -18,7 +18,8 @@
     "cap:run:android": "aube run cap:sync:android && cap run android",
     "cap:run:ios": "aube run cap:sync:ios && cap run ios",
     "android:build:debug": "aube run cap:sync:android && ./android/gradlew -p android assembleDebug",
-    "android:build:release": "aube run cap:sync:android && ./android/gradlew -p android assembleRelease"
+    "android:build:release": "aube run cap:sync:android && ./android/gradlew -p android assembleRelease",
+    "android:signing:setup": "node scripts/create-android-keystore.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.0",

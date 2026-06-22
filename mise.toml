@@ -64,6 +64,14 @@ run = "aube run cap:sync:android"
 description = "Build a debug Capacitor Android APK."
 run = "aube run android:build:debug"
 
+[tasks."android:build:release"]
+description = "Build a signed release Capacitor Android APK."
+run = "aube run android:build:release"
+
+[tasks."android:signing:setup"]
+description = "Create a local Android release keystore and print the GitHub secrets to save."
+run = "aube run android:signing:setup"
+
 [tasks."android:run"]
 description = "Build and run the Capacitor Android app on a connected device."
 run = "aube run cap:run:android"

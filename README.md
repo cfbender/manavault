@@ -117,7 +117,9 @@ Android uses the project-local Java and Android SDK toolchains declared in
 `mise.toml`. `setup:android-sdk` accepts the Android SDK licenses and installs
 `platform-tools`, Android API 36, and build-tools 35.0.0/36.0.0 for Capacitor's
 native build and run flows. Tag builds in `.github/workflows/capacitor.yml`
-upload a debug APK to the GitHub release.
+upload a signed release APK to the GitHub release. See
+[docs/android.md](docs/android.md) for release signing and custom-domain App
+Link builds.
 
 iOS syncs from this repo, but building or running the iOS app requires macOS
 with Xcode:

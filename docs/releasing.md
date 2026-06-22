@@ -47,8 +47,9 @@ The task:
 
 The tag push triggers `.github/workflows/container.yml`, which publishes the
 container image to GitHub Container Registry, and `.github/workflows/capacitor.yml`,
-which builds the Capacitor Android debug APK and attaches it to the GitHub
-release.
+which builds the signed Capacitor Android release APK and attaches it to the
+GitHub release. Android release signing setup and custom-domain App Link builds
+are documented in [docs/android.md](android.md).
 
 Dry run:
 

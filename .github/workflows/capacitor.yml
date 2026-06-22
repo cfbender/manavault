@@ -49,19 +49,47 @@ jobs:
           echo "MANAVAULT_RELEASE_REPOSITORY=${GITHUB_REPOSITORY}" >> "$GITHUB_ENV"
           echo "ARTIFACT_VERSION=${artifact_version}" >> "$GITHUB_ENV"
 
+      - name: Restore Android release keystore
+        if: github.ref_type == 'tag'
+        shell: bash
+        env:
+          MANAVAULT_ANDROID_KEYSTORE_BASE64: ${{ secrets.MANAVAULT_ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [[ -z "${MANAVAULT_ANDROID_KEYSTORE_BASE64}" ]]; then
+            echo "Missing MANAVAULT_ANDROID_KEYSTORE_BASE64 secret. Run: mise exec -- aube run android:signing:setup" >&2
+            exit 1
+          fi
+
+          mkdir -p android/release
+          printf '%s' "${MANAVAULT_ANDROID_KEYSTORE_BASE64}" | base64 --decode > android/release/manavault-release.jks
+          echo "MANAVAULT_ANDROID_KEYSTORE=${GITHUB_WORKSPACE}/android/release/manavault-release.jks" >> "$GITHUB_ENV"
+
+      - name: Build release APK
+        if: github.ref_type == 'tag'
+        env:
+          MANAVAULT_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.MANAVAULT_ANDROID_KEYSTORE_PASSWORD }}
+          MANAVAULT_ANDROID_KEY_ALIAS: ${{ secrets.MANAVAULT_ANDROID_KEY_ALIAS }}
+          MANAVAULT_ANDROID_KEY_PASSWORD: ${{ secrets.MANAVAULT_ANDROID_KEY_PASSWORD }}
+        run: mise exec -- aube run android:build:release
+
       - name: Build debug APK
+        if: github.ref_type != 'tag'
         run: mise exec -- aube run android:build:debug
 
       - name: Stage APK
         shell: bash
         run: |
           mkdir -p dist/native
-          cp android/app/build/outputs/apk/debug/app-debug.apk "dist/native/manavault-${ARTIFACT_VERSION}-debug.apk"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            cp android/app/build/outputs/apk/release/app-release.apk "dist/native/manavault-${ARTIFACT_VERSION}-release.apk"
+          else
+            cp android/app/build/outputs/apk/debug/app-debug.apk "dist/native/manavault-${ARTIFACT_VERSION}-debug.apk"
+          fi
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v6
         with:
-          name: manavault-${{ env.ARTIFACT_VERSION }}-debug-apk
+          name: manavault-${{ env.ARTIFACT_VERSION }}-${{ github.ref_type == 'tag' && 'release' || 'debug' }}-apk
           path: dist/native/*.apk
           if-no-files-found: error
 

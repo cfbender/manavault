@@ -6,6 +6,9 @@ defmodule ManavaultWeb.PwaController do
   @cache_control "no-cache, no-store, must-revalidate"
   @android_package_name "dev.cfb.manavault"
   @asset_link_relation ["delegate_permission/common.handle_all_urls"]
+  @official_android_cert_fingerprints [
+    "6B:3F:13:D6:6A:11:BB:49:FE:D8:64:5C:7D:26:B8:2E:BD:FC:8C:14:19:53:1C:A3:35:E6:68:DF:F7:4E:13:89"
+  ]
 
   def manifest(conn, _params) do
     version = AssetVersion.current()
@@ -107,11 +110,14 @@ defmodule ManavaultWeb.PwaController do
   end
 
   defp android_cert_fingerprints do
-    "MANAVAULT_ANDROID_CERT_FINGERPRINTS"
-    |> System.get_env("")
-    |> String.split([",", "\n", " "], trim: true)
-    |> Enum.map(&String.trim/1)
-    |> Enum.reject(&(&1 == ""))
+    env_fingerprints =
+      "MANAVAULT_ANDROID_CERT_FINGERPRINTS"
+      |> System.get_env("")
+      |> String.split([",", "\n", " "], trim: true)
+      |> Enum.map(&String.trim/1)
+      |> Enum.reject(&(&1 == ""))
+
+    if env_fingerprints == [], do: @official_android_cert_fingerprints, else: env_fingerprints
   end
 
   defp versioned_path(path, version), do: path <> "?v=" <> version
