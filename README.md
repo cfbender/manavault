@@ -164,8 +164,8 @@ direction.
 ManaVault includes Capacitor Android and iOS shell projects for mobile testing
 and native API work. The native shell starts from bundled setup assets in
 `native_www`, asks for the ManaVault server URL on first launch, stores that URL
-on the device, checks the latest GitHub release for APK updates, and then opens
-the configured server.
+on the device, checks the latest GitHub release for APK updates, and then loads
+the configured server inside the native WebView.
 
 Use `aube` for JavaScript package tasks:
 

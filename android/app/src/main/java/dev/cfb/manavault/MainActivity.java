@@ -1,16 +1,22 @@
 package dev.cfb.manavault;
 
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
+
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
+
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.annotation.CapacitorPlugin;
 
 public class MainActivity extends BridgeActivity {
     private static final int APP_CHROME_COLOR = Color.rgb(24, 4, 13);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        registerPlugin(InAppHttpNavigationPlugin.class);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
         super.onCreate(savedInstanceState);
 
@@ -20,5 +26,19 @@ public class MainActivity extends BridgeActivity {
         WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
         controller.setAppearanceLightStatusBars(false);
         controller.setAppearanceLightNavigationBars(false);
+    }
+
+    @CapacitorPlugin(name = "InAppHttpNavigation")
+    public static final class InAppHttpNavigationPlugin extends Plugin {
+        @Override
+        public Boolean shouldOverrideLoad(Uri url) {
+            String scheme = url.getScheme();
+
+            if ("http".equals(scheme) || "https".equals(scheme)) {
+                return false;
+            }
+
+            return null;
+        }
     }
 }
