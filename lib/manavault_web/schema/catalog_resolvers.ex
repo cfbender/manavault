@@ -350,6 +350,13 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     end
   end
 
+  def update_deck_cards_tag(_parent, %{deck_card_ids: deck_card_ids} = args, _resolution) do
+    case Catalog.update_deck_cards_tag(deck_card_ids, Map.get(args, :tag)) do
+      {:ok, deck_cards} -> {:ok, Repo.preload(deck_cards, [:card, :preferred_printing])}
+      {:error, changeset} -> {:error, changeset_error_message(changeset)}
+    end
+  end
+
   def delete_deck_card(_parent, %{id: id}, _resolution) do
     deck_card = DeckCard |> Repo.get!(id) |> Repo.preload([:card, :preferred_printing])
 

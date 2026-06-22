@@ -213,6 +213,7 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :quantity, non_null(:integer)
     field :zone, :string
     field :finish, :string
+    field :tag, :string
     field :preferred_printing, :printing
     field :card, :card
 
@@ -564,6 +565,7 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :zone, :string
     field :finish, :string
     field :preferred_printing_id, :id
+    field :tag, :string
   end
 
   input_object :location_update_input do
@@ -585,5 +587,6 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :quantity, :integer
     field :finish, :string
     field :preferred_printing_id, :id
+    field :tag, :string
   end
 end

@@ -2139,6 +2139,95 @@ defmodule ManavaultWeb.SchemaTest do
            } = json_response(conn, 200)
   end
 
+  test "deck card tag fields update individually and in bulk", %{conn: conn} do
+    {:ok, %{cards_count: 2, printings_count: 2}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-tag-card-1",
+          "oracle_id" => "oracle-tag-card-1",
+          "name" => "Tag One",
+          "type_line" => "Artifact",
+          "collector_number" => "1",
+          "set" => "tag",
+          "set_name" => "Tag Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        },
+        %{
+          "id" => "scryfall-tag-card-2",
+          "oracle_id" => "oracle-tag-card-2",
+          "name" => "Tag Two",
+          "type_line" => "Creature",
+          "collector_number" => "2",
+          "set" => "tag",
+          "set_name" => "Tag Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Tag Test"})
+    {:ok, first} = Catalog.add_card_to_deck(deck, %{"name" => "Tag One"})
+    {:ok, second} = Catalog.add_card_to_deck(deck, %{"name" => "Tag Two"})
+
+    update_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation UpdateTag($id: ID!, $input: DeckCardUpdateInput!) {
+          updateDeckCard(id: $id, input: $input) {
+            id
+            tag
+          }
+        }
+        """,
+        "variables" => %{"id" => first.id, "input" => %{"tag" => "getting"}}
+      })
+
+    assert %{
+             "data" => %{
+               "updateDeckCard" => %{
+                 "id" => _id,
+                 "tag" => "getting"
+               }
+             }
+           } = json_response(update_conn, 200)
+
+    bulk_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation BulkTag($deckCardIds: [ID!]!, $tag: String) {
+          updateDeckCardsTag(deckCardIds: $deckCardIds, tag: $tag) {
+            id
+            tag
+          }
+        }
+        """,
+        "variables" => %{
+          "deckCardIds" => [first.id, second.id],
+          "tag" => "consider_cutting"
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "updateDeckCardsTag" => tagged_cards
+             }
+           } = json_response(bulk_conn, 200)
+
+    assert Enum.sort_by(tagged_cards, & &1["id"]) ==
+             Enum.sort_by(
+               [
+                 %{"id" => to_string(first.id), "tag" => "consider_cutting"},
+                 %{"id" => to_string(second.id), "tag" => "consider_cutting"}
+               ],
+               & &1["id"]
+             )
+  end
+
   test "add deck card mutation adds a card by name", %{conn: conn} do
     {:ok, %{cards_count: 1, printings_count: 1}} =
       Catalog.import_cards([

@@ -95,6 +95,7 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     field :quantity, non_null(:integer)
     field :zone, :string
     field :finish, :string
+    field :tag, :string
     field :preferred_printing, :printing
     field :card, :card
 

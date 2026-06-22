@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   Box,
   CheckCircle2,
+  CheckSquare,
   ChevronDown,
   Circle,
   Clipboard,
@@ -23,10 +24,13 @@ import {
   Play,
   Plus,
   Share2,
+  Scissors,
   ShoppingCart,
   Sparkles,
   Star,
+  Square,
   Store,
+  Tag,
   Trash2,
   Upload,
   WandSparkles,
@@ -149,6 +153,7 @@ const DeckDocument = graphql(`
         quantity
         zone
         finish
+        tag
         card {
           oracleId
           name
@@ -235,6 +240,7 @@ const UpdateDeckCardDocument = graphql(`
       quantity
       zone
       finish
+      tag
       card {
         oracleId
         name
@@ -250,6 +256,15 @@ const UpdateDeckCardDocument = graphql(`
         rarity
         finishes
       }
+    }
+  }
+`)
+
+const UpdateDeckCardsTagDocument = graphql(`
+  mutation UpdateDeckCardsTag($deckCardIds: [ID!]!, $tag: String) {
+    updateDeckCardsTag(deckCardIds: $deckCardIds, tag: $tag) {
+      id
+      tag
     }
   }
 `)
@@ -739,6 +754,13 @@ export function DeckDetailPage({
   const [isExportDeckOpen, setIsExportDeckOpen] = useState(false)
   const [isMissingCardsOpen, setIsMissingCardsOpen] = useState(false)
   const [isShareDeckOpen, setIsShareDeckOpen] = useState(false)
+  const [isSelectingCards, setIsSelectingCards] = useState(false)
+  const [selectedDeckCardIds, setSelectedDeckCardIds] = useState<Set<string>>(() => new Set())
+  const [lastSelectedDeckCardId, setLastSelectedDeckCardId] = useState<string | null>(null)
+  const [bulkQuantity, setBulkQuantity] = useState(1)
+  const [isDeleteSelectedOpen, setIsDeleteSelectedOpen] = useState(false)
+  const [bulkActionError, setBulkActionError] = useState<string | null>(null)
+  const [tagError, setTagError] = useState<string | null>(null)
   const [bulkAllocationPreview, setBulkAllocationPreview] = useState<BulkAllocationPreview | null>(
     null,
   )
@@ -761,6 +783,13 @@ export function DeckDetailPage({
   const deck = data?.deck
   const [isAddCardOpen, setIsAddCardOpen] = useState(false)
   const deckCards = useMemo(() => (deck?.deckCards || []).filter(present), [deck?.deckCards])
+  const selectedDeckCardIdList = useMemo(
+    () => Array.from(selectedDeckCardIds),
+    [selectedDeckCardIds],
+  )
+  const selectedDeckCardCount = selectedDeckCardIdList.length
+  const isSelectionActive = isSelectingCards || selectedDeckCardCount > 0
+  const allDeckCardsSelected = deckCards.length > 0 && selectedDeckCardCount === deckCards.length
   const stackDeckCards = useMemo(
     () =>
       deckCards.filter(
@@ -781,6 +810,14 @@ export function DeckDetailPage({
     [stackDeckCards, groupBy],
   )
   const zoneCounts = useMemo(() => countDeckZones(deckCards), [deckCards])
+  const selectionDeckCardIds = useMemo(
+    () => [
+      ...groupedCards.flatMap((group) => group.cards.map((deckCard) => deckCard.id)),
+      ...sideboardCards.map((deckCard) => deckCard.id),
+      ...maybeboardCards.map((deckCard) => deckCard.id),
+    ],
+    [groupedCards, sideboardCards, maybeboardCards],
+  )
   const hasBulkAllocationAvailable = useMemo(
     () =>
       !shareMode &&
@@ -791,6 +828,17 @@ export function DeckDetailPage({
       ),
     [deckCards, shareMode],
   )
+
+  useEffect(() => {
+    const availableIds = new Set(deckCards.map((deckCard) => deckCard.id))
+
+    setSelectedDeckCardIds((current) => {
+      const selectedIds = Array.from(current).filter((deckCardId) => availableIds.has(deckCardId))
+      if (selectedIds.length === current.size) return current
+      return new Set(selectedIds)
+    })
+    setLastSelectedDeckCardId((current) => (current && availableIds.has(current) ? current : null))
+  }, [deckCards])
 
   const updateDeckCard = useMutation({
     mutationFn: ({ deckCardId, input }: { deckCardId: string; input: DeckCardUpdateInput }) =>
@@ -803,11 +851,13 @@ export function DeckDetailPage({
       setEditError(null)
       setMoveTarget(null)
       setMoveError(null)
+      setTagError(null)
     },
     onError: (error) => {
       const message = error instanceof Error ? error.message : "Could not update deck card"
       if (editTarget) setEditError(message)
-      else setMoveError(message)
+      else if (moveTarget) setMoveError(message)
+      else setTagError(message)
     },
   })
 
@@ -838,6 +888,54 @@ export function DeckDetailPage({
       queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
       queryClient.invalidateQueries({ queryKey: ["deck-edhrec", id] })
     },
+  })
+
+  const updateDeckCardsTag = useMutation({
+    mutationFn: ({ deckCardIds, tag }: { deckCardIds: string[]; tag: DeckCardTag | null }) =>
+      request(UpdateDeckCardsTagDocument, { deckCardIds, tag }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deck", id] })
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      clearSelectedDeckCards()
+      setIsSelectingCards(false)
+      setBulkActionError(null)
+      setTagError(null)
+    },
+    onError: (error) =>
+      setBulkActionError(error instanceof Error ? error.message : "Could not tag selected cards"),
+  })
+
+  const bulkUpdateDeckCards = useMutation({
+    mutationFn: ({ deckCardIds, input }: { deckCardIds: string[]; input: DeckCardUpdateInput }) =>
+      Promise.all(
+        deckCardIds.map((deckCardId) => request(UpdateDeckCardDocument, { id: deckCardId, input })),
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deck", id] })
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
+      clearSelectedDeckCards()
+      setIsSelectingCards(false)
+      setBulkActionError(null)
+    },
+    onError: (error) =>
+      setBulkActionError(error instanceof Error ? error.message : "Could not update selected cards"),
+  })
+
+  const bulkDeleteDeckCards = useMutation({
+    mutationFn: (deckCardIds: string[]) =>
+      Promise.all(deckCardIds.map((deckCardId) => request(DeleteDeckCardDocument, { id: deckCardId }))),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deck", id] })
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
+      clearSelectedDeckCards()
+      setIsSelectingCards(false)
+      setIsDeleteSelectedOpen(false)
+      setBulkActionError(null)
+    },
+    onError: (error) =>
+      setBulkActionError(error instanceof Error ? error.message : "Could not delete selected cards"),
   })
 
   function invalidateAllocationQueries() {
@@ -926,6 +1024,9 @@ export function DeckDetailPage({
               : null
   const isUpdatingDeckCard =
     updateDeckCard.isPending ||
+    updateDeckCardsTag.isPending ||
+    bulkUpdateDeckCards.isPending ||
+    bulkDeleteDeckCards.isPending ||
     deleteDeckCard.isPending ||
     setDeckCommander.isPending ||
     allocateDeckCardItem.isPending ||
@@ -942,6 +1043,65 @@ export function DeckDetailPage({
 
   function editDeckCard(deckCard: DeckCardEntry, input: DeckCardUpdateInput) {
     updateDeckCard.mutate({ deckCardId: deckCard.id, input })
+  }
+
+  function tagDeckCard(deckCard: DeckCardEntry, tag: DeckCardTag | null) {
+    setTagError(null)
+    updateDeckCard.mutate({ deckCardId: deckCard.id, input: { tag } })
+  }
+
+  function tagSelectedDeckCards(tag: DeckCardTag | null) {
+    if (selectedDeckCardIdList.length === 0) return
+    setBulkActionError(null)
+    updateDeckCardsTag.mutate({ deckCardIds: selectedDeckCardIdList, tag })
+  }
+
+  function updateSelectedDeckCards(input: DeckCardUpdateInput) {
+    if (selectedDeckCardIdList.length === 0) return
+    setBulkActionError(null)
+    bulkUpdateDeckCards.mutate({ deckCardIds: selectedDeckCardIdList, input })
+  }
+
+  function deleteSelectedDeckCards() {
+    if (selectedDeckCardIdList.length === 0) return
+    setBulkActionError(null)
+    bulkDeleteDeckCards.mutate(selectedDeckCardIdList)
+  }
+
+  function toggleDeckCardSelected(deckCardId: string, selectRange = false) {
+    setSelectedDeckCardIds((current) => {
+      const next = new Set(current)
+      const rangeStart = lastSelectedDeckCardId
+
+      if (selectRange && rangeStart) {
+        const startIndex = selectionDeckCardIds.indexOf(rangeStart)
+        const endIndex = selectionDeckCardIds.indexOf(deckCardId)
+
+        if (startIndex >= 0 && endIndex >= 0) {
+          const [from, to] = startIndex < endIndex ? [startIndex, endIndex] : [endIndex, startIndex]
+          for (const id of selectionDeckCardIds.slice(from, to + 1)) next.add(id)
+        } else {
+          next.add(deckCardId)
+        }
+      } else if (next.has(deckCardId)) {
+        next.delete(deckCardId)
+      } else {
+        next.add(deckCardId)
+      }
+
+      return next
+    })
+    setLastSelectedDeckCardId(deckCardId)
+  }
+
+  function selectAllDeckCards() {
+    setSelectedDeckCardIds(new Set(selectionDeckCardIds))
+    setLastSelectedDeckCardId(selectionDeckCardIds[selectionDeckCardIds.length - 1] || null)
+  }
+
+  function clearSelectedDeckCards() {
+    setSelectedDeckCardIds(new Set())
+    setLastSelectedDeckCardId(null)
   }
 
   function deleteSelectedDeckCard() {
@@ -1058,11 +1218,128 @@ export function DeckDetailPage({
           </div>
         </div>
 
+        <ShareModeHidden shareMode={shareMode}>
+          {selectedDeckCardCount > 0 ? (
+            <div className="grid gap-3 rounded-box border border-base-300 bg-base-100 p-3 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <CheckSquare className="h-4 w-4 text-primary" />
+                  <span className="font-semibold">{selectedDeckCardCount} selected</span>
+                  <span className="text-xs text-base-content/60">Shift-click selects a range.</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={!deckCards.length || allDeckCardsSelected}
+                    onClick={selectAllDeckCards}
+                  >
+                    Select all
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={!selectedDeckCardCount}
+                    onClick={clearSelectedDeckCards}
+                  >
+                    Clear
+                  </Button>
+                </div>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  disabled={!selectedDeckCardCount || isUpdatingDeckCard}
+                  onClick={() => setIsDeleteSelectedOpen(true)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </Button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  className="select select-bordered select-sm w-40"
+                  aria-label="Move selected cards"
+                  disabled={!selectedDeckCardCount || isUpdatingDeckCard}
+                  defaultValue=""
+                  onChange={(event) => {
+                    const zone = event.currentTarget.value as DeckZone | ""
+                    if (zone) updateSelectedDeckCards({ zone })
+                    event.currentTarget.value = ""
+                  }}
+                >
+                  <option value="">Move to zone...</option>
+                  {MOVE_TARGET_ZONES.map((zone) => (
+                    <option key={zone} value={zone}>
+                      {titleize(zone)}
+                    </option>
+                  ))}
+                </select>
+
+                <label className="join h-8 items-stretch">
+                  <span className="join-item flex h-8 min-h-8 items-center border border-base-300 bg-base-200 px-2 text-xs font-semibold">
+                    Qty
+                  </span>
+                  <Input
+                    className="join-item h-8 min-h-8 w-20"
+                    type="number"
+                    min={1}
+                    value={bulkQuantity}
+                    disabled={!selectedDeckCardCount || isUpdatingDeckCard}
+                    onChange={(event) =>
+                      setBulkQuantity(Math.max(1, Number.parseInt(event.target.value, 10) || 1))
+                    }
+                  />
+                  <Button
+                    type="button"
+                    className="join-item h-8 min-h-8 px-3"
+                    size="sm"
+                    disabled={!selectedDeckCardCount || isUpdatingDeckCard}
+                    onClick={() => updateSelectedDeckCards({ quantity: bulkQuantity })}
+                  >
+                    Set
+                  </Button>
+                </label>
+
+                <select
+                  className="select select-bordered select-sm w-44"
+                  aria-label="Tag selected cards"
+                  disabled={!selectedDeckCardCount || isUpdatingDeckCard}
+                  defaultValue=""
+                  onChange={(event) => {
+                    const value = event.currentTarget.value as DeckCardTag | "clear" | ""
+                    if (value === "clear") tagSelectedDeckCards(null)
+                    else if (value) tagSelectedDeckCards(value)
+                    event.currentTarget.value = ""
+                  }}
+                >
+                  <option value="">Tag selected...</option>
+                  {DECK_CARD_TAGS.map((tag) => (
+                    <option key={tag.value} value={tag.value}>
+                      {tag.label}
+                    </option>
+                  ))}
+                  <option value="clear">Clear tag</option>
+                </select>
+              </div>
+              {bulkActionError || tagError ? (
+                <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+                  {bulkActionError || tagError}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </ShareModeHidden>
+
         {groupedCards.length ? (
           <DeckGroupGrid
+            allocationError={allocationError}
             canSetCommander={deck.format === "commander"}
             groups={groupedCards}
+            isSelecting={isSelectionActive}
             isUpdating={isUpdatingDeckCard}
+            selectedCardIds={selectedDeckCardIds}
             onMove={(deckCard) => {
               setMoveError(null)
               setMoveTarget(deckCard)
@@ -1077,6 +1354,7 @@ export function DeckDetailPage({
             onDeallocate={(deckCard, collectionItemId) =>
               deallocateDeckCardItem.mutate({ deckCardId: deckCard.id, collectionItemId })
             }
+            onTag={(deckCard, tag) => tagDeckCard(deckCard, tag)}
             onToggleProxy={(deckCard) => {
               const status = deckCard.allocationStatus
 
@@ -1095,7 +1373,7 @@ export function DeckDetailPage({
             }}
             onDelete={setDeleteCardTarget}
             onSetCommander={(deckCard) => setDeckCommander.mutate(deckCard.id)}
-            allocationError={allocationError}
+            onToggleSelected={toggleDeckCardSelected}
             shareMode={shareMode}
           />
         ) : (
@@ -1105,9 +1383,11 @@ export function DeckDetailPage({
         <div className="space-y-3">
           <DeckZoneTable
             cards={sideboardCards}
+            isSelecting={isSelectionActive}
             isUpdating={isUpdatingDeckCard}
-            title="Sideboard"
+            selectedCardIds={selectedDeckCardIds}
             shareMode={shareMode}
+            title="Sideboard"
             onMove={(deckCard) => {
               setMoveError(null)
               setMoveTarget(deckCard)
@@ -1117,12 +1397,16 @@ export function DeckDetailPage({
               setEditTarget(deckCard)
             }}
             onDelete={setDeleteCardTarget}
+            onTag={(deckCard, tag) => tagDeckCard(deckCard, tag)}
+            onToggleSelected={toggleDeckCardSelected}
           />
           <DeckZoneTable
             cards={maybeboardCards}
+            isSelecting={isSelectionActive}
             isUpdating={isUpdatingDeckCard}
-            title="Maybeboard"
+            selectedCardIds={selectedDeckCardIds}
             shareMode={shareMode}
+            title="Maybeboard"
             onMove={(deckCard) => {
               setMoveError(null)
               setMoveTarget(deckCard)
@@ -1132,10 +1416,11 @@ export function DeckDetailPage({
               setEditTarget(deckCard)
             }}
             onDelete={setDeleteCardTarget}
+            onTag={(deckCard, tag) => tagDeckCard(deckCard, tag)}
+            onToggleSelected={toggleDeckCardSelected}
           />
         </div>
       </div>
-
       <ShareModeHidden shareMode={shareMode}>
         <EditDeckDialog deck={deck} onOpenChange={setIsEditDeckOpen} open={isEditDeckOpen} />
         <ShareDeckDialog deck={deck} onOpenChange={setIsShareDeckOpen} open={isShareDeckOpen} />
@@ -1172,6 +1457,16 @@ export function DeckDetailPage({
           title={`Delete ${deleteCardTarget?.card?.name || "this card"} from this deck?`}
           onConfirm={deleteSelectedDeckCard}
           onOpenChange={(open) => !open && setDeleteCardTarget(null)}
+        />
+        <ConfirmDialog
+          destructive
+          confirmLabel="Delete selected"
+          open={isDeleteSelectedOpen}
+          title={`Delete ${selectedDeckCardCount} selected cards from this deck?`}
+          onConfirm={deleteSelectedDeckCards}
+          onOpenChange={(open) => {
+            if (!bulkDeleteDeckCards.isPending) setIsDeleteSelectedOpen(open)
+          }}
         />
         <EDHRecDialog
           activeTab={edhrecTab || "recs"}
@@ -1262,6 +1557,7 @@ type DeckCardPrinting = NonNullable<
   NonNullable<NonNullable<DeckCardEntry["card"]>["printings"]>[number]
 >
 type DeckZone = "mainboard" | "sideboard" | "commander" | "maybeboard"
+type DeckCardTag = "getting" | "consider_cutting"
 type DeckGroupBy = "type" | "color" | "colorIdentity" | "manaValue" | "rarity" | "set" | "none"
 type BulkAllocationMode = "exact_printings" | "matching_printings"
 type BulkAllocationPreview = NonNullable<PreviewBulkAllocateDeckMutation["previewBulkAllocateDeck"]>
@@ -1307,6 +1603,28 @@ const DECK_GROUP_OPTIONS: Array<{ label: string; value: DeckGroupBy }> = [
   { label: "Set", value: "set" },
   { label: "None", value: "none" },
 ]
+const DECK_CARD_TAGS = [
+  {
+    value: "getting",
+    label: "Getting",
+    shortLabel: "Get",
+    className: "bg-success text-success-content",
+    icon: ShoppingCart,
+  },
+  {
+    value: "consider_cutting",
+    label: "Consider Cutting",
+    shortLabel: "Cut",
+    className: "bg-warning text-warning-content",
+    icon: Scissors,
+  },
+] satisfies Array<{
+  value: DeckCardTag
+  label: string
+  shortLabel: string
+  className: string
+  icon: LucideIcon
+}>
 const DECK_FORMATS = [
   "commander",
   "standard",
@@ -1968,6 +2286,17 @@ function bulkAllocationModeLabel(mode: BulkAllocationMode) {
   return mode === "exact_printings" ? "Exact printings" : "Partial matches"
 }
 
+function deckCardTag(value?: string | null) {
+  return DECK_CARD_TAGS.find((tag) => tag.value === value) || null
+}
+
+function nextDeckCardTag(value?: string | null): DeckCardTag | null {
+  if (value === "getting") return "consider_cutting"
+  if (value === "consider_cutting") return null
+  return "getting"
+}
+
+
 function copyLabel(count: number) {
   return count === 1 ? "copy" : "copies"
 }
@@ -2064,28 +2393,36 @@ function DeckGroupGrid({
   allocationError,
   canSetCommander,
   groups,
+  isSelecting,
   isUpdating,
+  selectedCardIds,
   onAllocate,
   onDeallocate,
   onDelete,
   onEdit,
   onMove,
   onSetCommander,
+  onTag,
   onToggleProxy,
+  onToggleSelected,
   shareMode = false,
 }: {
   allocationError: string | null
   canSetCommander: boolean
   groups: DeckGroup[]
   isUpdating: boolean
+  isSelecting: boolean
   onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
+  selectedCardIds: Set<string>
   onDeallocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
   onDelete: (deckCard: DeckCardEntry) => void
   onEdit: (deckCard: DeckCardEntry) => void
   onMove: (deckCard: DeckCardEntry) => void
   onSetCommander: (deckCard: DeckCardEntry) => void
   onToggleProxy: (deckCard: DeckCardEntry) => void
+  onTag: (deckCard: DeckCardEntry, tag: DeckCardTag | null) => void
   shareMode?: boolean
+  onToggleSelected: (deckCardId: string, selectRange?: boolean) => void
 }) {
   return (
     <div
@@ -2100,7 +2437,9 @@ function DeckGroupGrid({
           canSetCommander={canSetCommander}
           group={group}
           isUpdating={isUpdating}
+          isSelecting={isSelecting}
           allocationError={allocationError}
+          selectedCardIds={selectedCardIds}
           onAllocate={onAllocate}
           onDeallocate={onDeallocate}
           onDelete={onDelete}
@@ -2108,7 +2447,9 @@ function DeckGroupGrid({
           onMove={onMove}
           onSetCommander={onSetCommander}
           onToggleProxy={onToggleProxy}
+          onTag={onTag}
           shareMode={shareMode}
+          onToggleSelected={onToggleSelected}
         />
       ))}
     </div>
@@ -2146,6 +2487,7 @@ function DeckStackGroup({
   allocationError,
   canSetCommander,
   group,
+  isSelecting,
   isUpdating,
   onAllocate,
   onDeallocate,
@@ -2153,12 +2495,16 @@ function DeckStackGroup({
   onEdit,
   onMove,
   onSetCommander,
+  onTag,
   onToggleProxy,
+  onToggleSelected,
+  selectedCardIds,
   shareMode = false,
 }: {
   allocationError: string | null
   canSetCommander: boolean
   group: DeckGroup
+  isSelecting: boolean
   isUpdating: boolean
   onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
   onDeallocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
@@ -2166,12 +2512,15 @@ function DeckStackGroup({
   onEdit: (deckCard: DeckCardEntry) => void
   onMove: (deckCard: DeckCardEntry) => void
   onSetCommander: (deckCard: DeckCardEntry) => void
+  onTag: (deckCard: DeckCardEntry, tag: DeckCardTag | null) => void
   onToggleProxy: (deckCard: DeckCardEntry) => void
+  onToggleSelected: (deckCardId: string, selectRange?: boolean) => void
+  selectedCardIds: Set<string>
   shareMode?: boolean
 }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const [pinnedIndex, setPinnedIndex] = useState<number | null>(null)
-  const activeIndex = hoveredIndex ?? pinnedIndex
+  const activeIndex = hoveredIndex ?? (isSelecting ? null : pinnedIndex)
   const revealOffset = group.cards.length > 1 ? DECK_STACK_REVEAL_OFFSET : 0
 
   function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
@@ -2210,14 +2559,16 @@ function DeckStackGroup({
         {group.cards.map((deckCard, index) => (
           <DeckStackCard
             key={deckCard.id}
+            allocationError={allocationError}
             canSetCommander={
               canSetCommander && deckCard.zone !== "commander" && isLegendaryCreature(deckCard)
             }
             deckCard={deckCard}
             index={index}
             isActive={activeIndex === index}
+            isSelecting={isSelecting}
+            isSelected={selectedCardIds.has(deckCard.id)}
             isUpdating={isUpdating}
-            allocationError={allocationError}
             onExpand={() => {
               setHoveredIndex(null)
               setPinnedIndex(index)
@@ -2228,7 +2579,9 @@ function DeckStackGroup({
             onEdit={() => onEdit(deckCard)}
             onMove={() => onMove(deckCard)}
             onSetCommander={() => onSetCommander(deckCard)}
+            onTag={(tag) => onTag(deckCard, tag)}
             onToggleProxy={() => onToggleProxy(deckCard)}
+            onToggleSelected={(selectRange) => onToggleSelected(deckCard.id, selectRange)}
             shareMode={shareMode}
             slideOffset={activeIndex != null && index > activeIndex ? revealOffset : 0}
             top={index * DECK_STACK_OFFSET}
@@ -2245,6 +2598,8 @@ function DeckStackCard({
   deckCard,
   index,
   isActive,
+  isSelecting,
+  isSelected,
   isUpdating,
   onAllocate,
   onDeallocate,
@@ -2253,7 +2608,9 @@ function DeckStackCard({
   onExpand,
   onMove,
   onSetCommander,
+  onTag,
   onToggleProxy,
+  onToggleSelected,
   shareMode = false,
   slideOffset,
   top,
@@ -2264,6 +2621,8 @@ function DeckStackCard({
   index: number
   isActive: boolean
   isUpdating: boolean
+  isSelecting: boolean
+  isSelected: boolean
   onAllocate: (collectionItemId: string) => void
   onDeallocate: (collectionItemId: string) => void
   onDelete: () => void
@@ -2272,7 +2631,9 @@ function DeckStackCard({
   onMove: () => void
   onSetCommander: () => void
   onToggleProxy: () => void
+  onTag: (tag: DeckCardTag | null) => void
   shareMode?: boolean
+  onToggleSelected: (selectRange?: boolean) => void
   slideOffset: number
   top: number
 }) {
@@ -2280,7 +2641,8 @@ function DeckStackCard({
   const imageUrl = cardImageUrl(deckCard, "imageUrl")
   const name = deckCard.card?.name || "Unknown card"
   const printing = deckCard.preferredPrinting || deckCard.card?.printings?.[0]
-  const isInteractive = isActive || hasFocusWithin
+  const tag = deckCardTag(deckCard.tag)
+  const isInteractive = isActive || (!isSelecting && hasFocusWithin)
 
   function handleBlur(event: FocusEvent<HTMLElement>) {
     if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
@@ -2291,18 +2653,19 @@ function DeckStackCard({
   return (
     <article
       className={cn(
-        "group/deck-card absolute left-0 w-56 origin-top rounded-xl transition-transform duration-200 ease-out focus-within:z-[90]",
-        isInteractive && "z-[90]",
+        "group/deck-card absolute left-0 w-56 origin-top rounded-xl transition-transform duration-200 ease-out",
+        isActive && "z-[90]",
       )}
       onBlur={handleBlur}
       onFocus={() => setHasFocusWithin(true)}
       style={{
         top,
         transform: slideOffset ? `translateY(${slideOffset}px)` : undefined,
-        zIndex: isInteractive ? 90 : index + 1,
+        zIndex: isActive ? 90 : index + 1,
       }}
     >
       <ShareModeHidden shareMode={shareMode}>
+        <div className="absolute left-1 top-1 z-[130] flex h-5 items-start gap-1">
         <DeckCardAllocationMenu
           deckCard={deckCard}
           error={allocationError}
@@ -2312,6 +2675,32 @@ function DeckStackCard({
           onDeallocate={onDeallocate}
           onToggleProxy={onToggleProxy}
         />
+        <DeckCardTagButton
+          className="relative"
+          disabled={isUpdating}
+          shareMode={shareMode}
+          value={deckCard.tag}
+          onChange={onTag}
+        />
+        </div>
+
+        <button
+          type="button"
+          className={cn(
+            "btn btn-circle btn-xs absolute right-2 top-10 z-[125] border-2 shadow transition",
+            isSelected
+              ? "border-secondary bg-secondary text-secondary-content opacity-100"
+              : "border-base-100/80 bg-base-100/90 text-base-content opacity-80 hover:opacity-100",
+          )}
+          aria-label={isSelected ? `Deselect ${name}` : `Select ${name}`}
+          onClick={(event) => {
+            event.stopPropagation()
+            onToggleSelected(event.shiftKey)
+          }}
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          {isSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+        </button>
 
         <div
           className={cn(
@@ -2353,6 +2742,27 @@ function DeckStackCard({
                   Move
                 </button>
               </li>
+              <li className="menu-title">
+                <span>Tag</span>
+              </li>
+              {DECK_CARD_TAGS.map((tagOption) => (
+                <li key={tagOption.value}>
+                  <button
+                    type="button"
+                    disabled={isUpdating || deckCard.tag === tagOption.value}
+                    onClick={() => onTag(tagOption.value)}
+                  >
+                    <tagOption.icon className="h-4 w-4" />
+                    {tagOption.label}
+                  </button>
+                </li>
+              ))}
+              <li>
+                <button type="button" disabled={isUpdating || !tag} onClick={() => onTag(null)}>
+                  <Tag className="h-4 w-4" />
+                  Clear tag
+                </button>
+              </li>
               {canSetCommander ? (
                 <li>
                   <button type="button" disabled={isUpdating} onClick={onSetCommander}>
@@ -2377,11 +2787,19 @@ function DeckStackCard({
         </div>
       </ShareModeHidden>
 
-      <button type="button" className="block w-full cursor-pointer text-left" onClick={onExpand}>
+      <button
+        type="button"
+        className="block w-full cursor-pointer text-left"
+        onClick={(event) => {
+          if (isSelecting) onToggleSelected(event.shiftKey)
+          else onExpand()
+        }}
+      >
         <figure
           className={cn(
             "relative aspect-[5/7] overflow-hidden rounded-xl bg-base-300 shadow-xl ring-1 ring-white/10 transition duration-200",
             isActive && "shadow-2xl ring-primary/45",
+            isSelected && "ring-4 ring-secondary shadow-2xl",
           )}
         >
           {imageUrl ? (
@@ -2415,6 +2833,53 @@ function DeckStackCard({
         </figure>
       </button>
     </article>
+  )
+}
+
+function DeckCardTagButton({
+  className,
+  disabled,
+  onChange,
+  shareMode = false,
+  value,
+}: {
+  className?: string
+  disabled?: boolean
+  onChange: (tag: DeckCardTag | null) => void
+  shareMode?: boolean
+  value?: string | null
+}) {
+  const tag = deckCardTag(value)
+  const Icon = tag?.icon || Tag
+  const label = tag?.label || "Add tag"
+
+  return (
+    <button
+      type="button"
+      className={cn(
+        "group/tag box-border inline-flex h-5 max-h-5 min-h-5 w-5 min-w-5 max-w-36 items-center justify-center gap-1 overflow-hidden rounded-full border px-0.5 py-0 text-[0.6rem] font-black leading-none shadow transition-all duration-150 hover:w-auto hover:px-1.5 focus-visible:w-auto focus-visible:px-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+        tag?.className || "border-base-300 bg-base-100/90 text-base-content",
+        !tag &&
+          !shareMode &&
+          "opacity-0 group-hover/deck-card:opacity-80 group-focus-within/deck-card:opacity-100",
+        shareMode && !tag && "hidden",
+        className,
+      )}
+      disabled={disabled || shareMode}
+      aria-label={shareMode ? label : `${label}; click to change tag`}
+      title={label}
+      onClick={(event) => {
+        event.stopPropagation()
+        if (disabled || shareMode) return
+        onChange(nextDeckCardTag(value))
+      }}
+      onMouseDown={(event) => event.stopPropagation()}
+    >
+      <Icon className="h-3 w-3 shrink-0" />
+      <span className="hidden whitespace-nowrap group-hover/tag:inline group-focus-visible/tag:inline">
+        {tag?.shortLabel || "Tag"}
+      </span>
+    </button>
   )
 }
 
@@ -2502,7 +2967,7 @@ function DeckCardAllocationMenu({
 
   return (
     <div
-      className="absolute left-2 top-2 z-[130]"
+      className="relative z-[130] flex h-5 max-h-5 min-h-5 w-5 min-w-5 items-center justify-center overflow-visible leading-none"
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
     >
@@ -2510,7 +2975,7 @@ function DeckCardAllocationMenu({
         ref={buttonRef}
         type="button"
         className={cn(
-          "btn btn-circle btn-xs border shadow transition",
+          "flex h-5 max-h-5 min-h-5 w-5 min-w-5 items-center justify-center rounded-full border p-0 leading-none shadow transition",
           allocationStatusButtonClass(status.state),
         )}
         tabIndex={isInteractive ? 0 : -1}
@@ -2523,7 +2988,7 @@ function DeckCardAllocationMenu({
           setOpen((current) => !current)
         }}
       >
-        <AllocationStatusIcon state={status.state} className="h-4 w-4" />
+        <AllocationStatusIcon state={status.state} className="h-3 w-3" />
       </button>
       {open && isInteractive
         ? createPortal(
@@ -2702,18 +3167,26 @@ function collectionItemLabel(
 
 function DeckZoneTable({
   cards,
+  isSelecting,
   isUpdating,
   onDelete,
   onEdit,
   onMove,
+  onTag,
+  onToggleSelected,
+  selectedCardIds,
   shareMode = false,
   title,
 }: {
   cards: DeckCardEntry[]
+  isSelecting: boolean
   isUpdating: boolean
   onDelete: (deckCard: DeckCardEntry) => void
   onEdit: (deckCard: DeckCardEntry) => void
   onMove: (deckCard: DeckCardEntry) => void
+  onTag: (deckCard: DeckCardEntry, tag: DeckCardTag | null) => void
+  onToggleSelected: (deckCardId: string, selectRange?: boolean) => void
+  selectedCardIds: Set<string>
   shareMode?: boolean
   title: string
 }) {
@@ -2736,19 +3209,38 @@ function DeckZoneTable({
         <table className="table table-sm">
           <thead>
             <tr>
+              {isSelecting && !shareMode ? <th className="w-10">Select</th> : null}
               <th className="w-14">Qty</th>
               <th>Name</th>
               <th>Type</th>
               <th>Printing</th>
+              {shareMode ? null : <th className="w-32">Tag</th>}
               {shareMode ? null : <th className="w-36 text-right">Actions</th>}
             </tr>
           </thead>
           <tbody>
             {cards.map((deckCard) => {
               const printing = deckCard.preferredPrinting || deckCard.card?.printings?.[0]
+              const selected = selectedCardIds.has(deckCard.id)
 
               return (
                 <tr key={deckCard.id}>
+                  {isSelecting && !shareMode ? (
+                    <td>
+                      <button
+                        type="button"
+                        className="btn btn-circle btn-xs"
+                        aria-label={selected ? `Deselect ${deckCard.card?.name}` : `Select ${deckCard.card?.name}`}
+                        onClick={(event) => onToggleSelected(deckCard.id, event.shiftKey)}
+                      >
+                        {selected ? (
+                          <CheckSquare className="h-4 w-4" />
+                        ) : (
+                          <Square className="h-4 w-4" />
+                        )}
+                      </button>
+                    </td>
+                  ) : null}
                   <td className="font-mono">{deckCard.quantity}</td>
                   <td>
                     <Link
@@ -2766,6 +3258,16 @@ function DeckZoneTable({
                     {printing?.setName || printing?.setCode?.toUpperCase() || "Unknown"} #
                     {printing?.collectorNumber || "?"}
                   </td>
+                  {shareMode ? null : (
+                    <td>
+                      <DeckCardTagButton
+                        className="opacity-100"
+                        disabled={isUpdating}
+                        value={deckCard.tag}
+                        onChange={(tag) => onTag(deckCard, tag)}
+                      />
+                    </td>
+                  )}
                   {shareMode ? null : (
                     <td>
                       <div className="flex justify-end gap-1">
@@ -2909,6 +3411,7 @@ function EditDeckCardDialog({
   const [zone, setZone] = useState<DeckZone>("mainboard")
   const [finish, setFinish] = useState("nonfoil")
   const [preferredPrintingId, setPreferredPrintingId] = useState("")
+  const [tag, setTag] = useState<DeckCardTag | "">("")
   const zoneOptions = deckFormat === "commander" ? ADD_CARD_ZONES : NON_COMMANDER_ADD_CARD_ZONES
   const printings = (deckCard?.card?.printings || []).filter(present)
   const selectedPrinting = preferredPrintingId
@@ -2925,6 +3428,7 @@ function EditDeckCardDialog({
       setZone("mainboard")
       setFinish("nonfoil")
       setPreferredPrintingId("")
+      setTag("")
       return
     }
 
@@ -2932,6 +3436,7 @@ function EditDeckCardDialog({
     setZone(deckCard.zone as DeckZone)
     setFinish(deckCard.finish || "nonfoil")
     setPreferredPrintingId(deckCard.preferredPrinting?.scryfallId || "")
+    setTag((deckCard.tag as DeckCardTag | null) || "")
   }, [deckCard])
 
   useEffect(() => {
@@ -2949,6 +3454,7 @@ function EditDeckCardDialog({
       zone,
       finish,
       preferredPrintingId: preferredPrintingId || null,
+      tag: tag || null,
     })
   }
 
@@ -3029,7 +3535,7 @@ function EditDeckCardDialog({
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-4">
             <label className="form-control">
               <span className="label-text mb-1 text-sm font-semibold">Quantity</span>
               <Input
@@ -3070,6 +3576,23 @@ function EditDeckCardDialog({
                 {finishOptions.map((finish) => (
                   <option key={finish} value={finish}>
                     {titleize(finish)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="form-control">
+              <span className="label-text mb-1 text-sm font-semibold">Tag</span>
+              <select
+                className="select select-bordered w-full"
+                value={tag}
+                disabled={isPending}
+                onChange={(event) => setTag(event.target.value as DeckCardTag | "")}
+              >
+                <option value="">No tag</option>
+                {DECK_CARD_TAGS.map((tag) => (
+                  <option key={tag.value} value={tag.value}>
+                    {tag.label}
                   </option>
                 ))}
               </select>

@@ -226,6 +226,7 @@ defmodule Manavault.Catalog.Decks do
       |> stringify_keys()
       |> Map.put_new("deck_id", deck.id)
       |> normalize_blank_preferred_printing()
+      |> normalize_blank_deck_card_tag()
 
     with {:ok, attrs} <- resolve_deck_card_identity(attrs),
          {:ok, attrs} <- validate_preferred_printing_identity(attrs) do
@@ -238,6 +239,7 @@ defmodule Manavault.Catalog.Decks do
       attrs
       |> stringify_keys()
       |> normalize_blank_preferred_printing()
+      |> normalize_blank_deck_card_tag()
 
     attrs =
       attrs
@@ -249,6 +251,23 @@ defmodule Manavault.Catalog.Decks do
       |> DeckCard.changeset(attrs)
       |> Repo.update()
     end
+  end
+
+  def update_deck_cards_tag(deck_card_ids, tag) when is_list(deck_card_ids) do
+    normalized_tag = normalize_deck_card_tag(tag)
+
+    Repo.transaction(fn ->
+      deck_card_ids
+      |> Enum.uniq()
+      |> Enum.map(fn deck_card_id ->
+        deck_card = Repo.get!(DeckCard, deck_card_id)
+
+        case update_deck_card(deck_card, %{"tag" => normalized_tag}) do
+          {:ok, deck_card} -> deck_card
+          {:error, reason} -> Repo.rollback(reason)
+        end
+      end)
+    end)
   end
 
   def set_deck_commander(%DeckCard{} = deck_card) do
@@ -1219,6 +1238,14 @@ defmodule Manavault.Catalog.Decks do
 
   defp normalize_blank_preferred_printing(attrs), do: attrs
 
+  defp normalize_blank_deck_card_tag(%{"tag" => tag} = attrs),
+    do: Map.put(attrs, "tag", normalize_deck_card_tag(tag))
+
+  defp normalize_blank_deck_card_tag(attrs), do: attrs
+
+  defp normalize_deck_card_tag(tag) when tag in ["", nil], do: nil
+  defp normalize_deck_card_tag(tag), do: tag
+
   defp resolve_deck_card_identity(%{"oracle_id" => oracle_id} = attrs)
        when is_binary(oracle_id) and oracle_id != "" do
     if Repo.get(Card, oracle_id), do: {:ok, attrs}, else: {:error, :card_not_found}
@@ -1289,8 +1316,10 @@ defmodule Manavault.Catalog.Decks do
         update_attrs =
           attrs
           |> Map.put("quantity", deck_card.quantity + quantity)
-          |> Map.take(["quantity", "preferred_printing_id", "zone", "finish"])
-          |> Enum.reject(fn {key, value} -> key == "preferred_printing_id" and is_nil(value) end)
+          |> Map.take(["quantity", "preferred_printing_id", "zone", "finish", "tag"])
+          |> Enum.reject(fn {key, value} ->
+            key == "preferred_printing_id" and is_nil(value)
+          end)
           |> Map.new()
 
         deck_card

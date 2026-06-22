@@ -226,6 +226,12 @@ defmodule ManavaultWeb.Schema do
       resolve(&CatalogResolvers.update_deck_card/3)
     end
 
+    field :update_deck_cards_tag, non_null(list_of(non_null(:deck_card))) do
+      arg(:deck_card_ids, non_null(list_of(non_null(:id))))
+      arg(:tag, :string)
+      resolve(&CatalogResolvers.update_deck_cards_tag/3)
+    end
+
     field :delete_deck_card, :deck_card do
       arg(:id, non_null(:id))
       resolve(&CatalogResolvers.delete_deck_card/3)

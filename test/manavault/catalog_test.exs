@@ -554,6 +554,17 @@ defmodule Manavault.CatalogTest do
     assert {:ok, %DeckCard{zone: "sideboard", quantity: 2}} =
              Catalog.update_deck_card(commander, %{"zone" => "sideboard", "quantity" => "2"})
 
+    assert {:ok, [%DeckCard{tag: "getting"}]} =
+             Catalog.update_deck_cards_tag([commander.id], "getting")
+
+    assert [%DeckCard{tag: "getting"}] =
+             Catalog.get_deck!(deck.id).deck_cards
+             |> Enum.filter(&(&1.id == commander.id))
+
+    assert {:ok, [%DeckCard{tag: nil}]} = Catalog.update_deck_cards_tag([commander.id], nil)
+
+    assert {:error, %Ecto.Changeset{}} = Catalog.update_deck_cards_tag([commander.id], "maybe")
+
     assert {:ok, _deleted} = Catalog.delete_deck_card(updated_lotus)
 
     assert {:ok, %Deck{name: "Powered Updated"}} =

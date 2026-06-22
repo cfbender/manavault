@@ -4,6 +4,7 @@ defmodule Manavault.Catalog.DeckCard do
   import Ecto.Changeset
 
   @zones ~w(mainboard sideboard commander maybeboard)
+  @tags ~w(getting consider_cutting)
   @deck_count_zones ~w(mainboard commander)
 
   schema "deck_cards" do
@@ -11,6 +12,7 @@ defmodule Manavault.Catalog.DeckCard do
     field :proxy_quantity, :integer, default: 0
     field :zone, :string, default: "mainboard"
     field :finish, :string, default: "nonfoil"
+    field :tag, :string
     field :allocation_status, :map, virtual: true
 
     belongs_to :deck, Manavault.Catalog.Deck
@@ -32,6 +34,7 @@ defmodule Manavault.Catalog.DeckCard do
   end
 
   def zones, do: @zones
+  def tags, do: @tags
   def deck_count_zones, do: @deck_count_zones
   def counts_toward_deck_total?(%__MODULE__{zone: zone}), do: deck_count_zone?(zone)
   def deck_count_zone?(zone) when is_binary(zone), do: zone in @deck_count_zones
@@ -46,13 +49,15 @@ defmodule Manavault.Catalog.DeckCard do
       :quantity,
       :proxy_quantity,
       :zone,
-      :finish
+      :finish,
+      :tag
     ])
     |> validate_required([:deck_id, :oracle_id, :quantity, :proxy_quantity, :zone, :finish])
     |> validate_number(:quantity, greater_than: 0, less_than: 10_000)
     |> validate_number(:proxy_quantity, greater_than_or_equal_to: 0, less_than: 10_000)
     |> validate_inclusion(:zone, @zones)
     |> validate_inclusion(:finish, ~w(nonfoil foil etched))
+    |> validate_inclusion(:tag, @tags)
     |> foreign_key_constraint(:deck_id)
     |> foreign_key_constraint(:oracle_id)
     |> foreign_key_constraint(:preferred_printing_id)

@@ -259,6 +259,34 @@ services:
       PHX_HOST: ${PHX_HOST:-localhost}
 ```
 
+If the deployment is behind Traefik plus Authelia, keep the authenticated app
+router, but add higher-priority unauthenticated routers for public share links,
+their static React/CSS assets, and PWA/App Link metadata. Without these, browsers
+may follow a cross-origin Authelia redirect for `/site.webmanifest` or
+`/assets/react/app-*.js`, and Android/browser share links may open the login flow
+or fail to load ManaVault:
+
+```yaml
+labels:
+  traefik.enable: "true"
+  traefik.http.services.manavault.loadbalancer.server.port: 4000
+
+  traefik.http.routers.manavault.tls.certresolver: prod
+  traefik.http.routers.manavault.rule: Host(`${MANAVAULT_HOST}`)
+  traefik.http.routers.manavault.middlewares: hsts-header, authelia
+  traefik.http.routers.manavault.priority: "1"
+
+  traefik.http.routers.manavaultshare.tls.certresolver: prod
+  traefik.http.routers.manavaultshare.rule: "Host(`${MANAVAULT_HOST}`) && (Path(`/share`) || PathPrefix(`/share/`))"
+  traefik.http.routers.manavaultshare.middlewares: hsts-header
+  traefik.http.routers.manavaultshare.priority: "1000"
+
+  traefik.http.routers.manavaultpublic.tls.certresolver: prod
+  traefik.http.routers.manavaultpublic.rule: "Host(`${MANAVAULT_HOST}`) && (PathPrefix(`/assets/react/`) || PathPrefix(`/assets/css/`) || Path(`/site.webmanifest`) || Path(`/sw.js`) || Path(`/offline.html`) || Path(`/.well-known/assetlinks.json`) || Path(`/android-chrome-192x192.png`) || Path(`/android-chrome-512x512.png`) || Path(`/android-chrome-192x192-maskable.png`) || Path(`/android-chrome-512x512-maskable.png`) || Path(`/apple-touch-icon.png`) || Path(`/favicon.ico`) || Path(`/favicon-16x16.png`) || Path(`/favicon-32x32.png`))"
+  traefik.http.routers.manavaultpublic.middlewares: hsts-header
+  traefik.http.routers.manavaultpublic.priority: "1000"
+```
+
 Generate a secret once, put it in `.env`, then start the stack:
 
 ```sh
