@@ -173,7 +173,7 @@ function adoptInstallPrompt(prompt = window.__manavaultPwaInstallCapture?.prompt
 
 async function validateManifestForInstall() {
   try {
-    const response = await fetch(`/site.webmanifest?v=${pwaAssetVersion}`, { cache: "no-store" })
+    const response = await fetch(`/site.webmanifest?v=${pwaAssetVersion}`, { cache: "no-store", credentials: "include" })
     if (!response.ok) throw new Error(`manifest HTTP ${response.status}`)
 
     const manifest = await response.json()

@@ -1,17 +1,24 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core"
 
-type SharedImportPayload = {
+export type SharedImportPayload = {
   text: string
   fileName?: string | null
   mimeType?: string | null
   source?: string | null
 }
 
+export type NativeOpenPayload =
+  | SharedImportPayload
+  | {
+      url: string
+      source?: string | null
+    }
+
 type SharedImportPlugin = {
-  getPendingImport: () => Promise<{ import?: SharedImportPayload | null }>
+  getPendingImport: () => Promise<{ import?: NativeOpenPayload | null }>
   addListener: (
     eventName: "sharedImport",
-    listenerFunc: (payload: SharedImportPayload) => void,
+    listenerFunc: (payload: NativeOpenPayload) => void,
   ) => Promise<PluginListenerHandle> & PluginListenerHandle
 }
 
@@ -20,7 +27,13 @@ const listeners = new Set<(payload: SharedImportPayload) => void>()
 
 let pendingImport: SharedImportPayload | null = null
 
-export type { SharedImportPayload }
+function isSharedImportPayload(payload?: NativeOpenPayload | null): payload is SharedImportPayload {
+  return Boolean(payload && "text" in payload && payload.text.trim())
+}
+
+function isNativeLinkPayload(payload?: NativeOpenPayload | null): payload is Extract<NativeOpenPayload, { url: string }> {
+  return Boolean(payload && "url" in payload && payload.url.trim())
+}
 
 export function takeSharedImport() {
   const payload = pendingImport
@@ -35,15 +48,18 @@ export function subscribeSharedImport(listener: (payload: SharedImportPayload) =
   }
 }
 
-export async function initializeNativeSharedImport(onImport: () => void) {
+export async function initializeNativeSharedImport(onOpen: (payload: NativeOpenPayload) => void) {
   if (!Capacitor.isNativePlatform()) return
 
-  const receive = (payload?: SharedImportPayload | null) => {
-    if (!payload?.text?.trim()) return
+  const receive = (payload?: NativeOpenPayload | null) => {
+    if (isSharedImportPayload(payload)) {
+      pendingImport = payload
+      for (const listener of listeners) listener(payload)
+      onOpen(payload)
+      return
+    }
 
-    pendingImport = payload
-    for (const listener of listeners) listener(payload)
-    onImport()
+    if (isNativeLinkPayload(payload)) onOpen(payload)
   }
 
   try {

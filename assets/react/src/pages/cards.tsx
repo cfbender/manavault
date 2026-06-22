@@ -489,7 +489,7 @@ function FullscreenPrintingDialog({
     <Dialog open={Boolean(printing)} onOpenChange={onOpenChange}>
       {printing ? (
         <DialogContent
-          className="relative h-[calc(100dvh-3rem)] max-h-[calc(100dvh-3rem)] max-w-[calc(100vw-2rem)] overflow-hidden border-0 bg-neutral text-neutral-content shadow-2xl"
+          className="relative h-[100dvh] max-h-[100dvh] w-screen shrink-0 max-w-none overflow-hidden rounded-none border-0 bg-neutral text-neutral-content shadow-2xl sm:h-[calc(100dvh-3rem)] sm:max-h-[calc(100dvh-3rem)] sm:w-full sm:shrink sm:max-w-[calc(100vw-2rem)] sm:rounded-box"
           labelledBy="fullscreen-card-title"
         >
           {printing.artCropUrl ? (
@@ -502,7 +502,7 @@ function FullscreenPrintingDialog({
           <div className="absolute inset-0 bg-gradient-to-br from-black/95 via-neutral/90 to-black/95" />
 
           <motion.div
-            className="relative z-10 flex h-full flex-col gap-4 p-4 sm:p-6"
+            className="relative z-10 flex h-full flex-col gap-3 p-3 sm:gap-4 sm:p-6"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.18 }}
@@ -511,15 +511,15 @@ function FullscreenPrintingDialog({
               <div className="min-w-0">
                 <h2
                   id="fullscreen-card-title"
-                  className="truncate text-2xl font-black tracking-normal sm:text-3xl"
+                  className="truncate text-xl font-black tracking-normal sm:text-3xl"
                 >
                   {card.name}
                 </h2>
                 {subtitle ? (
-                  <p className="mt-1 line-clamp-2 text-sm text-neutral-content/65">{subtitle}</p>
+                  <p className="mt-1 line-clamp-1 text-xs text-neutral-content/65 sm:line-clamp-2 sm:text-sm">{subtitle}</p>
                 ) : null}
                 {finish || printing.priceText || printing.ownedCount || positionLabel ? (
-                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[0.65rem] sm:mt-3 sm:gap-2 sm:text-xs">
                     {finish ? (
                       <span className="badge border-white/20 bg-white/10 text-neutral-content">
                         {titleize(finish)}
@@ -554,7 +554,7 @@ function FullscreenPrintingDialog({
               </Button>
             </div>
 
-            <div className="relative flex min-h-0 flex-1 items-center justify-center mb-12">
+            <div className="relative mb-0 flex min-h-0 flex-1 items-center justify-center pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:mb-12 sm:pb-0">
               {canNavigate ? (
                 <Button
                   type="button"
@@ -570,7 +570,7 @@ function FullscreenPrintingDialog({
 
               <motion.div
                 key={printing.scryfallId}
-                className="relative rounded-[4.75%] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+                className="relative max-h-full rounded-[4.75%] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
                 initial={{ opacity: 0, scale: 0.82, y: 36, rotateX: 12 }}
                 animate={{ opacity: 1, scale: 1, y: 0, rotateX: 0 }}
                 transition={{ type: "spring", stiffness: 260, damping: 24 }}

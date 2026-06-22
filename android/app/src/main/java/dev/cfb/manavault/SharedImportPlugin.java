@@ -23,6 +23,9 @@ import java.util.ArrayList;
 @CapacitorPlugin(name = "SharedImport")
 public class SharedImportPlugin extends Plugin {
     private static final Object LOCK = new Object();
+    private static final String APP_LINK_HOST = "manavault.cfb.dev";
+    private static final String WWW_APP_LINK_HOST = "www.manavault.cfb.dev";
+    private static final String APP_SCHEME = "manavault";
 
     private static JSObject pendingImport;
 
@@ -72,6 +75,11 @@ public class SharedImportPlugin extends Plugin {
         if (intent == null) return null;
 
         String action = intent.getAction();
+        if (Intent.ACTION_VIEW.equals(action)) {
+            Uri data = intent.getData();
+            return isManaVaultLink(data) ? linkPayload(data.toString(), "android-view") : null;
+        }
+
         if (!Intent.ACTION_SEND.equals(action) && !Intent.ACTION_SEND_MULTIPLE.equals(action)) return null;
 
         Uri streamUri = firstStreamUri(intent);
@@ -79,7 +87,10 @@ public class SharedImportPlugin extends Plugin {
             String text = readText(context.getContentResolver(), streamUri);
             if (text == null || text.trim().isEmpty()) return null;
 
-            return payload(
+            Uri link = linkFromSharedText(text);
+            if (link != null) return linkPayload(link.toString(), "android-share");
+
+            return importPayload(
                     text,
                     displayName(context.getContentResolver(), streamUri),
                     context.getContentResolver().getType(streamUri),
@@ -90,7 +101,11 @@ public class SharedImportPlugin extends Plugin {
         CharSequence extraText = intent.getCharSequenceExtra(Intent.EXTRA_TEXT);
         if (extraText == null || extraText.toString().trim().isEmpty()) return null;
 
-        return payload(extraText.toString(), "Shared list.txt", intent.getType(), "android-share");
+        String text = extraText.toString();
+        Uri link = linkFromSharedText(text);
+        if (link != null) return linkPayload(link.toString(), "android-share");
+
+        return importPayload(text, "Shared list.txt", intent.getType(), "android-share");
     }
 
     @SuppressWarnings("deprecation")
@@ -104,11 +119,38 @@ public class SharedImportPlugin extends Plugin {
         return streams.get(0);
     }
 
-    private JSObject payload(String text, String fileName, String mimeType, String source) {
+    private Uri linkFromSharedText(String text) {
+        String trimmed = text.trim();
+        int newline = trimmed.indexOf('\n');
+        String candidate = newline >= 0 ? trimmed.substring(0, newline).trim() : trimmed;
+        Uri uri = Uri.parse(candidate);
+
+        return isManaVaultLink(uri) ? uri : null;
+    }
+
+    private boolean isManaVaultLink(Uri uri) {
+        if (uri == null) return false;
+
+        String scheme = uri.getScheme();
+        if (APP_SCHEME.equals(scheme)) return true;
+        if (!"https".equals(scheme)) return false;
+
+        String host = uri.getHost();
+        return APP_LINK_HOST.equals(host) || WWW_APP_LINK_HOST.equals(host);
+    }
+
+    private JSObject importPayload(String text, String fileName, String mimeType, String source) {
         JSObject payload = new JSObject();
         payload.put("text", text);
         payload.put("fileName", fileName);
         payload.put("mimeType", mimeType);
+        payload.put("source", source);
+        return payload;
+    }
+
+    private JSObject linkPayload(String url, String source) {
+        JSObject payload = new JSObject();
+        payload.put("url", url);
         payload.put("source", source);
         return payload;
     }

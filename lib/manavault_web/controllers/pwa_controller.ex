@@ -4,6 +4,8 @@ defmodule ManavaultWeb.PwaController do
   alias ManavaultWeb.AssetVersion
 
   @cache_control "no-cache, no-store, must-revalidate"
+  @android_package_name "dev.cfb.manavault"
+  @asset_link_relation ["delegate_permission/common.handle_all_urls"]
 
   def manifest(conn, _params) do
     version = AssetVersion.current()
@@ -26,8 +28,8 @@ defmodule ManavaultWeb.PwaController do
       icons: [
         icon("/android-chrome-192x192.png", "192x192", "any", version),
         icon("/android-chrome-512x512.png", "512x512", "any", version),
-        icon("/android-chrome-192x192.png", "192x192", "maskable", version),
-        icon("/android-chrome-512x512.png", "512x512", "maskable", version)
+        icon("/android-chrome-192x192-maskable.png", "192x192", "maskable", version),
+        icon("/android-chrome-512x512-maskable.png", "512x512", "maskable", version)
       ],
       screenshots: [
         %{
@@ -50,6 +52,26 @@ defmodule ManavaultWeb.PwaController do
     |> put_resp_header("service-worker-allowed", "/")
     |> put_resp_content_type("text/javascript")
     |> send_resp(200, service_worker_js(AssetVersion.current()))
+  end
+
+  def asset_links(conn, _params) do
+    links =
+      android_cert_fingerprints()
+      |> Enum.map(fn fingerprint ->
+        %{
+          relation: @asset_link_relation,
+          target: %{
+            namespace: "android_app",
+            package_name: @android_package_name,
+            sha256_cert_fingerprints: [fingerprint]
+          }
+        }
+      end)
+
+    conn
+    |> put_no_store_headers()
+    |> put_resp_content_type("application/json")
+    |> json(links)
   end
 
   defp put_no_store_headers(conn) do
@@ -82,6 +104,14 @@ defmodule ManavaultWeb.PwaController do
         }
       ]
     }
+  end
+
+  defp android_cert_fingerprints do
+    "MANAVAULT_ANDROID_CERT_FINGERPRINTS"
+    |> System.get_env("")
+    |> String.split([",", "\n", " "], trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
   end
 
   defp versioned_path(path, version), do: path <> "?v=" <> version

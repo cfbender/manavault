@@ -22,7 +22,7 @@ import {
   ZoomOut,
   type LucideIcon,
 } from "lucide-react"
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react"
 import {
   createPlaytestState,
   drawCards,
@@ -1026,8 +1026,8 @@ export function DeckPlaytester({ deckId, deckName, initialState }: DeckPlayteste
   }, [activeKeyboardCard, changeLife, draw, keepHand, moveActiveKeyboardCard, mulligan, nextTurn, openingHand, shuffle, toggleTapped, undo, untapAll])
 
   return (
-    <div className="h-[calc(100dvh-1.25rem)] min-h-[42rem] overflow-hidden rounded-box border border-base-300 bg-[#0d0e0c] text-base-content shadow-2xl">
-      <div className="grid h-full grid-rows-[2.75rem_minmax(0,1fr)_10.5rem] lg:grid-cols-[minmax(0,1fr)_14rem]">
+    <div className="h-[100dvh] overflow-hidden border-0 bg-[#0d0e0c] text-base-content shadow-2xl sm:h-[calc(100dvh-1.25rem)] sm:rounded-box sm:border sm:border-base-300 lg:min-h-[42rem]">
+      <div className="grid h-full grid-rows-[2.75rem_minmax(0,1fr)_auto_12rem] lg:grid-cols-[minmax(0,1fr)_14rem] lg:grid-rows-[2.75rem_minmax(0,1fr)_10.5rem]">
         <PlaytestTopBar deckId={deckId} deckName={deckName} turn={turn} />
 
         <main className="relative row-start-2 min-h-0 overflow-hidden border-y border-base-300/70 bg-[radial-gradient(circle_at_center,color-mix(in_oklch,var(--color-primary),transparent_88%),transparent_34rem)] lg:col-start-1">
@@ -1037,11 +1037,11 @@ export function DeckPlaytester({ deckId, deckName, initialState }: DeckPlayteste
           </div>
 
           <div
-            className="h-full overflow-auto p-8"
+            className="h-full overflow-auto p-4 sm:p-8"
             onDragOver={(event) => event.preventDefault()}
             onDrop={dropCardOnBattlefield}
           >
-            <div ref={battlefieldSurfaceRef} className="relative h-full min-h-[32rem] min-w-[48rem]">
+            <div ref={battlefieldSurfaceRef} className="relative h-full min-h-[24rem] min-w-[38rem] sm:min-h-[32rem] sm:min-w-[48rem]">
               {state.battlefield.length ? (
                 state.battlefield.map((card, index) => {
                   const position = battlefieldCardPositions[card.id] || defaultBattlefieldPosition(index)
@@ -1151,6 +1151,35 @@ export function DeckPlaytester({ deckId, deckName, initialState }: DeckPlayteste
           onTapSelected={selectedCard ? () => toggleTapped(selectedCard.id) : undefined}
         />
 
+        <MobilePlaytestControls
+          actionCount={actionCount}
+          canUndo={history.length > 0}
+          libraryCount={state.library.length}
+          lifeTotal={lifeTotal}
+          onActionCountChange={setActionCount}
+          onCreateToken={openTokenDialog}
+          onDiceAndCoin={rollDiceAndCoin}
+          onDraw={draw}
+          onExile={exileTop}
+          onLibrary={() => setPeek({ count: state.library.length, mode: "Library" })}
+          onLifeChange={changeLife}
+          onLook={() => setPeek({ count: Math.min(state.library.length, actionCount), mode: "Look" })}
+          onMill={mill}
+          onMove={moveCard}
+          onNewGame={resetGame}
+          onNextTurn={nextTurn}
+          onScry={() => setPeek({ count: Math.min(state.library.length, actionCount), mode: "Scry" })}
+          onShuffle={shuffle}
+          onSurveil={() => setPeek({ count: Math.min(state.library.length, actionCount), mode: "Surveil" })}
+          onTapSelected={selectedCard ? () => toggleTapped(selectedCard.id) : undefined}
+          onUndo={undo}
+          onUntapAll={untapAll}
+          selectedCard={selectedCard}
+          selectedStatus={selectedStatus}
+          selectedZone={selectedZone}
+          tapped={selectedCard ? tappedCards.has(selectedCard.id) : false}
+        />
+
         <PlaytestBottomZones
           command={state.command}
           exile={state.exile}
@@ -1223,6 +1252,150 @@ function PlaytestTopBar({
         Close
       </Link>
     </header>
+  )
+}
+
+function MobilePlaytestControls({
+  actionCount,
+  canUndo,
+  libraryCount,
+  lifeTotal,
+  onActionCountChange,
+  onCreateToken,
+  onDiceAndCoin,
+  onDraw,
+  onExile,
+  onLibrary,
+  onLifeChange,
+  onLook,
+  onMill,
+  onMove,
+  onNewGame,
+  onNextTurn,
+  onScry,
+  onShuffle,
+  onSurveil,
+  onTapSelected,
+  onUndo,
+  onUntapAll,
+  selectedCard,
+  selectedStatus,
+  selectedZone,
+  tapped,
+}: {
+  actionCount: number
+  canUndo: boolean
+  libraryCount: number
+  lifeTotal: number
+  onActionCountChange: (count: number) => void
+  onCreateToken: () => void
+  onDiceAndCoin: () => void
+  onDraw: (count?: number) => void
+  onExile: (count?: number) => void
+  onLibrary: () => void
+  onLifeChange: (delta: number) => void
+  onLook: () => void
+  onMill: (count?: number) => void
+  onMove: (from: PlaytestZone, to: PlaytestZone, cardId: string, placement?: "top" | "bottom") => void
+  onNewGame: () => void
+  onNextTurn: () => void
+  onScry: () => void
+  onShuffle: () => void
+  onSurveil: () => void
+  onTapSelected?: () => void
+  onUndo: () => void
+  onUntapAll: () => void
+  selectedCard: PlaytestCard | null
+  selectedStatus: CardStatus | null
+  selectedZone: PlaytestZone | null
+  tapped: boolean
+}) {
+  const selectedActions = selectedZone ? ZONE_ACTIONS[selectedZone] || [] : []
+
+  return (
+    <section className="row-start-3 min-w-0 border-t border-base-300 bg-base-100/95 shadow-2xl lg:hidden">
+      <div className="flex items-center gap-1.5 overflow-x-auto px-2 py-2">
+        <div className="flex shrink-0 items-center overflow-hidden rounded-full border border-primary/25 bg-base-200 text-base-content">
+          <button type="button" className="btn btn-ghost btn-xs btn-square rounded-none" onClick={() => onLifeChange(-1)} aria-label="Lose 1 life">
+            <Minus className="h-3.5 w-3.5" />
+          </button>
+          <span className="min-w-10 text-center text-lg font-black tabular-nums">{lifeTotal}</span>
+          <button type="button" className="btn btn-ghost btn-xs btn-square rounded-none" onClick={() => onLifeChange(1)} aria-label="Gain 1 life">
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        <input
+          type="number"
+          className="input input-xs input-bordered h-8 min-h-8 w-12 shrink-0 px-1 text-center text-xs font-bold"
+          min={1}
+          max={99}
+          value={actionCount}
+          onChange={(event) => onActionCountChange(Math.max(1, Number(event.target.value) || 1))}
+          aria-label="Action count"
+        />
+        <MobileActionButton icon={Hand} label="Draw" onClick={() => onDraw(actionCount)} disabled={libraryCount === 0} />
+        <MobileActionButton icon={Swords} label="Next" onClick={onNextTurn} />
+        <MobileActionButton icon={Library} label="Library" onClick={onLibrary} disabled={libraryCount === 0} />
+        <MobileActionButton icon={Eye} label="Look" onClick={onLook} disabled={libraryCount === 0} />
+        <MobileActionButton icon={Eye} label="Scry" onClick={onScry} disabled={libraryCount === 0} />
+        <MobileActionButton icon={EyeOff} label="Surveil" onClick={onSurveil} disabled={libraryCount === 0} />
+        <MobileActionButton icon={Skull} label="Mill" onClick={() => onMill(actionCount)} disabled={libraryCount === 0} />
+        <MobileActionButton icon={Flame} label="Exile" onClick={() => onExile(actionCount)} disabled={libraryCount === 0} />
+        <MobileActionButton icon={Shuffle} label="Shuffle" onClick={onShuffle} disabled={libraryCount < 2} />
+        <MobileActionButton icon={RotateCcw} label="Untap" onClick={onUntapAll} />
+        <MobileActionButton icon={Sparkles} label="Token" onClick={onCreateToken} />
+        <MobileActionButton icon={Dices} label="Dice" onClick={onDiceAndCoin} />
+        <MobileActionButton icon={Play} label="Restart" onClick={onNewGame} />
+        <MobileActionButton icon={Undo2} label="Undo" onClick={onUndo} disabled={!canUndo} />
+      </div>
+      {selectedCard && selectedZone ? (
+        <div className="flex items-center gap-2 border-t border-base-300 px-2 py-1.5">
+          <p className="min-w-0 flex-1 truncate text-xs font-black">
+            {selectedStatus?.faceDown ? "Face-down card" : selectedCard.name}
+          </p>
+          <div className="flex max-w-[72vw] gap-1 overflow-x-auto">
+            {selectedZone === "battlefield" && onTapSelected ? (
+              <button type="button" className="btn btn-outline btn-xs shrink-0" onClick={onTapSelected}>
+                {tapped ? "Untap" : "Tap"}
+              </button>
+            ) : null}
+            {selectedActions.map((action) => {
+              const Icon = action.icon
+              return (
+                <button
+                  key={`${action.to}-${action.label}`}
+                  type="button"
+                  className="btn btn-outline btn-xs shrink-0"
+                  onClick={() => onMove(selectedZone, action.to, selectedCard.id, action.placement)}
+                >
+                  {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
+                  {action.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
+function MobileActionButton({
+  disabled,
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  disabled?: boolean
+  icon: LucideIcon
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button type="button" className="btn btn-outline btn-xs h-8 min-h-8 shrink-0 gap-1.5 px-2" onClick={onClick} disabled={disabled}>
+      <Icon className="h-3.5 w-3.5" />
+      {label}
+    </button>
   )
 }
 
@@ -1508,15 +1681,15 @@ function PlaytestBottomZones({
   selectedCardId: string | null
 }) {
   return (
-    <footer className="col-span-full row-start-3 grid min-h-0 grid-cols-[minmax(0,1fr)_8rem_8rem_8rem_8rem] border-t border-base-300 bg-base-100/95 text-xs shadow-2xl">
-      <ZoneStrip title="Hand" count={hand.length} className="border-r border-base-300">
+    <footer className="col-span-full row-start-4 grid min-h-0 grid-cols-4 grid-rows-[minmax(0,1fr)_5.5rem] border-t border-base-300 bg-base-100/95 text-xs shadow-2xl lg:row-start-3 lg:grid-cols-[minmax(0,1fr)_8rem_8rem_8rem_8rem] lg:grid-rows-none">
+      <ZoneStrip title="Hand" count={hand.length} className="col-span-full border-b border-base-300 lg:col-span-1 lg:border-b-0 lg:border-r">
         <div className="flex h-full items-end gap-2 overflow-x-auto px-2 pb-2 pt-5">
           {hand.map((card) => (
             <button
               key={card.id}
               type="button"
               className={cn(
-                "group relative h-[8.7rem] w-[6.25rem] shrink-0 cursor-grab rounded-md border border-base-300 bg-base-200 shadow transition hover:-translate-y-2 hover:border-primary active:cursor-grabbing active:opacity-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                "group relative h-[6.25rem] w-[4.5rem] shrink-0 cursor-grab rounded-md border border-base-300 bg-base-200 shadow transition hover:-translate-y-2 hover:border-primary active:cursor-grabbing active:opacity-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:h-[8.7rem] sm:w-[6.25rem]",
                 selectedCardId === card.id && "border-primary ring-2 ring-primary/35",
               )}
               title={`Play ${card.name}`}
@@ -1594,7 +1767,7 @@ function PileZone({ count, icon: Icon, title }: { count: number; icon: LucideIco
   return (
     <ZoneStrip title={title} count={count} className="border-r border-base-300">
       <div className="flex h-full items-center justify-center p-2 pt-5">
-        <div className="flex aspect-[5/7] w-20 flex-col items-center justify-center rounded-md border border-base-300 bg-base-200 text-base-content/50 shadow-inner">
+        <div className="flex aspect-[5/7] w-14 flex-col items-center justify-center rounded-md border border-base-300 bg-base-200 text-base-content/50 shadow-inner sm:w-20">
           <Icon className="h-5 w-5" />
           <span className="mt-2 font-black tabular-nums">{count}</span>
         </div>
@@ -1630,7 +1803,7 @@ function VisiblePileZone({
         {topCard ? (
           <button
             type="button"
-            className="aspect-[5/7] w-20 cursor-grab overflow-hidden rounded-md border border-base-300 bg-base-200 shadow transition hover:-translate-y-1 hover:border-primary active:cursor-grabbing active:opacity-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="aspect-[5/7] w-14 cursor-grab overflow-hidden rounded-md border border-base-300 bg-base-200 shadow transition hover:-translate-y-1 hover:border-primary active:cursor-grabbing active:opacity-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:w-20"
             title={topCard.name}
             onClick={() => onCardClick(topCard)}
             draggable
@@ -1653,7 +1826,7 @@ function VisiblePileZone({
 
 function PileZoneCard({ count, icon: Icon }: { count: number; icon: LucideIcon }) {
   return (
-    <div className="flex aspect-[5/7] w-20 flex-col items-center justify-center rounded-md border border-dashed border-base-300 bg-base-200/55 text-base-content/40">
+    <div className="flex aspect-[5/7] w-14 flex-col items-center justify-center rounded-md border border-dashed border-base-300 bg-base-200/55 text-base-content/40 sm:w-20">
       <Icon className="h-5 w-5" />
       <span className="mt-2 font-black tabular-nums">{count}</span>
     </div>
@@ -1866,8 +2039,8 @@ function CardContextMenu({
     <>
       <button type="button" aria-label="Close card menu" className="fixed inset-0 z-40 cursor-default bg-transparent" onClick={onClose} />
       <div
-        className="fixed z-50 w-80 overflow-hidden rounded-box border border-base-300 bg-base-100/95 text-sm shadow-2xl backdrop-blur"
-        style={{ left: menu.x, top: menu.y }}
+        className="fixed inset-x-2 bottom-2 z-50 max-h-[calc(100dvh-1rem)] overflow-y-auto rounded-box border border-base-300 bg-base-100/95 text-sm shadow-2xl backdrop-blur sm:inset-x-auto sm:bottom-auto sm:w-80 sm:left-[var(--menu-x)] sm:top-[var(--menu-y)]"
+        style={{ "--menu-x": `${menu.x}px`, "--menu-y": `${menu.y}px` } as CSSProperties}
         role="menu"
       >
         <div className="border-b border-base-300 px-3 py-2 font-black">{cardStatus.faceDown ? "Face-down card" : card.name}</div>

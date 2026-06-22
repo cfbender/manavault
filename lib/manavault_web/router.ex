@@ -15,6 +15,7 @@ defmodule ManavaultWeb.Router do
   scope "/", ManavaultWeb do
     get "/site.webmanifest", PwaController, :manifest
     get "/sw.js", PwaController, :service_worker
+    get "/.well-known/assetlinks.json", PwaController, :asset_links
   end
 
   scope "/", ManavaultWeb do

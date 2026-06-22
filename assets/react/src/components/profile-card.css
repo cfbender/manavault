@@ -598,8 +598,8 @@
   }
 
   .manavault-printing-profile-card .pc-card {
-    height: min(calc(100dvh - 9rem), 70svh);
-    max-height: calc(100dvh - 9rem);
+    height: min(calc(100dvh - 12rem), calc((100vw - 4rem) * 1.392));
+    max-height: calc(100dvh - 12rem);
   }
 }
 

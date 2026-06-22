@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import { Boxes, Layers, MapPin, Search } from "lucide-react";
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ActionCard } from "../components/app-shell";
 import { CardNameSearchField } from "../components/card-name-search-field";
 import { Button } from "../components/ui/button";
@@ -30,6 +30,17 @@ export function HomePage() {
     queryFn: () => request(HomeDocument),
   });
   const summary = data?.homeSummary;
+  const [renderPrism, setRenderPrism] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 768px) and (prefers-reduced-motion: no-preference)");
+    const update = () => setRenderPrism(query.matches);
+
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
 
   const value = (count?: number | null) =>
     isLoading ? "..." : isError ? "!" : compactNumber(count);
@@ -50,17 +61,19 @@ export function HomePage() {
         aria-hidden="true"
         className="pointer-events-none fixed left-0 top-0 z-0 h-screen w-screen"
       >
-        <Prism
-          animationType="rotate"
-          timeScale={0.5}
-          height={3.5}
-          baseWidth={5.5}
-          scale={3.6}
-          hueShift={0}
-          colorFrequency={1}
-          glow={1}
-          suspendWhenOffscreen
-        />
+        {renderPrism ? (
+          <Prism
+            animationType="rotate"
+            timeScale={0.5}
+            height={3.5}
+            baseWidth={5.5}
+            scale={3.6}
+            hueShift={0}
+            colorFrequency={1}
+            glow={1}
+            suspendWhenOffscreen
+          />
+        ) : null}
       </div>
       <div
         aria-hidden="true"

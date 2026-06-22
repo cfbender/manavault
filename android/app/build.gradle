@@ -30,6 +30,32 @@ def manavaultVersionCode(String versionName) {
 }
 
 def manavaultVersion = manavaultVersionName()
+def manavaultSigningProperty(String name) {
+    def envValue = System.getenv(name)
+    if (envValue != null && envValue.trim()) {
+        return envValue.trim()
+    }
+
+    if (project.hasProperty(name)) {
+        def projectValue = project.property(name).toString()
+        if (projectValue.trim()) {
+            return projectValue.trim()
+        }
+    }
+
+    return null
+}
+
+def manavaultReleaseStoreFile = manavaultSigningProperty("MANAVAULT_ANDROID_KEYSTORE")
+def manavaultReleaseStorePassword = manavaultSigningProperty("MANAVAULT_ANDROID_KEYSTORE_PASSWORD")
+def manavaultReleaseKeyAlias = manavaultSigningProperty("MANAVAULT_ANDROID_KEY_ALIAS")
+def manavaultReleaseKeyPassword = manavaultSigningProperty("MANAVAULT_ANDROID_KEY_PASSWORD")
+def manavaultReleaseSigningConfigured =
+        manavaultReleaseStoreFile &&
+        manavaultReleaseStorePassword &&
+        manavaultReleaseKeyAlias &&
+        manavaultReleaseKeyPassword
+
 
 android {
     namespace = "dev.cfb.manavault"
@@ -47,11 +73,32 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (manavaultReleaseSigningConfigured) {
+                storeFile file(manavaultReleaseStoreFile)
+                storePassword manavaultReleaseStorePassword
+                keyAlias manavaultReleaseKeyAlias
+                keyPassword manavaultReleaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            minifyEnabled true
+            shrinkResources true
+            if (manavaultReleaseSigningConfigured) {
+                signingConfig signingConfigs.release
+            }
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
+    }
+}
+
+gradle.taskGraph.whenReady { taskGraph ->
+    if (taskGraph.hasTask(":app:assembleRelease") && !manavaultReleaseSigningConfigured) {
+        throw new GradleException("Release APKs must be signed. Set MANAVAULT_ANDROID_KEYSTORE, MANAVAULT_ANDROID_KEYSTORE_PASSWORD, MANAVAULT_ANDROID_KEY_ALIAS, and MANAVAULT_ANDROID_KEY_PASSWORD.")
     }
 }
 
