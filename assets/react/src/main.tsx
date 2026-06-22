@@ -5,6 +5,7 @@ import "./pwa"
 import { ThemeProvider } from "./lib/theme"
 import { routeTree } from "./routeTree.gen"
 import { initializeNativeSharedImport, type NativeOpenPayload } from "./lib/native-shared-import"
+import { nativeAppPath, parseNativeRoute, type NativeRoute } from "./lib/native-open"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -17,49 +18,56 @@ const queryClient = new QueryClient({
 
 const router = createRouter({ routeTree })
 
-const appLinkHosts = new Set(["manavault.cfb.dev", "www.manavault.cfb.dev"])
-
 declare module "@tanstack/react-router" {
   interface Register {
     router: typeof router
   }
 }
 
-function nativeAppPath(rawUrl: string) {
-  try {
-    const url = new URL(rawUrl)
-    if (url.protocol === "manavault:") return `${url.pathname}${url.search}${url.hash}` || "/"
-    if (url.protocol !== "https:" || !appLinkHosts.has(url.host)) return null
-
-    return `${url.pathname}${url.search}${url.hash}` || "/"
-  } catch {
-    return null
-  }
+function openNativePath(path: string) {
+  navigateNativeRoute(parseNativeRoute(path))
 }
 
-function openNativePath(path: string) {
-  const shareDeckMatch = path.match(/^\/share\/decks\/([^/?#]+)/)
-  if (shareDeckMatch?.[1]) {
-    void router.navigate({
-      to: "/share/decks/$token",
-      params: { token: decodeURIComponent(shareDeckMatch[1]) },
-    })
-    return
+function navigateNativeRoute(route: NativeRoute) {
+  switch (route.to) {
+    case "/":
+      void router.navigate({ to: "/" })
+      return
+    case "/collection":
+      void router.navigate({ to: "/collection", search: route.search })
+      return
+    case "/cards":
+      void router.navigate({ to: "/cards", search: route.search })
+      return
+    case "/cards/$id":
+      void router.navigate({
+        to: "/cards/$id",
+        params: route.params,
+        search: route.search,
+      })
+      return
+    case "/decks":
+      void router.navigate({ to: "/decks" })
+      return
+    case "/decks/$id":
+      void router.navigate({ to: "/decks/$id", params: route.params })
+      return
+    case "/decks/$id/playtest":
+      void router.navigate({ to: "/decks/$id/playtest", params: route.params })
+      return
+    case "/settings":
+      void router.navigate({ to: "/settings" })
+      return
+    case "/share/decks/$token":
+      void router.navigate({ to: "/share/decks/$token", params: route.params })
+      return
   }
-
-  if (path === "/" || path.startsWith("/cards") || path.startsWith("/collection") || path.startsWith("/decks") || path.startsWith("/settings")) {
-    window.history.pushState(null, "", path)
-    void router.invalidate()
-    return
-  }
-
-  void router.navigate({ to: "/" })
 }
 
 function handleNativeOpen(payload: NativeOpenPayload) {
   if ("url" in payload) {
-    const path = nativeAppPath(payload.url)
-    if (path) openNativePath(path)
+    const path = nativeAppPath(payload.url, window.location.origin)
+    openNativePath(path ?? "/")
     return
   }
 

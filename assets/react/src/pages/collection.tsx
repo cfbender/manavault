@@ -481,6 +481,12 @@ type CollectionSort = {
 }
 type CollectionExportFormat = "csv" | "text"
 type CollectionImportFormat = "auto" | "csv" | "txt"
+type PreviewCollectionImportValues = {
+  fileName: string
+  format: CollectionImportFormat
+  locationId: string
+  text: string
+}
 type CollectionExportFilters = { locationId?: string; q?: string }
 
 const SORT_OPTIONS: { field: CollectionSortField; label: string }[] = [
@@ -2611,13 +2617,13 @@ function ImportCollectionDialog({
     enabled: open,
   })
   const previewImport = useMutation({
-    mutationFn: () =>
+    mutationFn: (values?: PreviewCollectionImportValues) =>
       request(PreviewCollectionImportDocument, {
         input: {
-          text: importText,
-          format,
-          fileName: fileName || null,
-          locationId: locationId || null,
+          text: values?.text ?? importText,
+          format: values?.format ?? format,
+          fileName: (values?.fileName ?? fileName) || null,
+          locationId: (values?.locationId ?? locationId) || null,
         },
       }),
     onSuccess: (data) => {
@@ -2662,11 +2668,20 @@ function ImportCollectionDialog({
   }
 
   function loadSharedImport(payload: SharedImportPayload) {
+    const nextFileName = payload.fileName || "Shared list"
+    const nextFormat = importFormatFromSource(payload.fileName || "", payload.mimeType || "")
+
     setError(null)
     setPreview(null)
-    setFileName(payload.fileName || "Shared list")
-    setFormat(importFormatFromSource(payload.fileName || "", payload.mimeType || ""))
+    setFileName(nextFileName)
+    setFormat(nextFormat)
     setImportText(payload.text)
+    previewImport.mutate({
+      fileName: nextFileName,
+      format: nextFormat,
+      locationId,
+      text: payload.text,
+    })
   }
 
   function updateImportText(value: string) {
@@ -2683,7 +2698,7 @@ function ImportCollectionDialog({
       return
     }
 
-    previewImport.mutate()
+    previewImport.mutate(undefined)
   }
 
   function selectCandidate(rowNumber: number, candidate: CollectionImportCandidate) {

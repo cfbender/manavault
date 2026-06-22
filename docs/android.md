@@ -1,23 +1,42 @@
 # Android App Builds
 
 ManaVault publishes an Android APK from GitHub releases. That official APK is
-signed with the ManaVault release key, accepts shared TXT/CSV files, and can load
-any ManaVault server URL after first launch.
+signed with the ManaVault release key, accepts Android shares of text/CSV files,
+and can load any ManaVault server URL after first launch.
 
-Verified Android App Links are different: Android only opens `https://...` links
-in an app when the APK declares that exact host and the website publishes the
-APK signing certificate fingerprint at `/.well-known/assetlinks.json`.
+Verified Android App Links are navigation intents: Android only opens
+`https://...` links in an app when the APK declares that exact host and the
+website publishes the APK signing certificate fingerprint at
+`/.well-known/assetlinks.json`.
 
 ## Use The Official APK
 
 Use the release APK from ManaVault GitHub releases when you only need:
 
 - entering your self-hosted ManaVault URL in the app on first launch
-- Android share-sheet imports from apps like ManaBox
+- Android sharesheet/export imports from apps like ManaBox
 - `manavault://...` links
 - verified links for `https://manavault.cfb.dev/...`
 
 No custom Android build is needed for that flow.
+
+## Import From ManaBox
+
+In ManaBox, export or share the collection as CSV, custom text, or a TXT/CSV
+file through Android's sharesheet, then choose the ManaVault native app.
+ManaVault receives that native share and opens the collection import dialog with
+the shared text or file contents.
+
+Do not use a ManaVault HTTPS page opened inside ManaBox's embedded browser for
+import. A page loaded in another app's WebView is not an Android
+`ACTION_SEND`, `ACTION_SEND_MULTIPLE`, or `ACTION_VIEW` intent delivered to
+ManaVault, so ManaVault cannot force native ingest from that path.
+
+`manavault://collection?importFile=true`,
+`manavault:///collection?importFile=true`, verified App Links, and hosted or
+self-hosted `https://...` ManaVault URLs are navigation links. They can open the
+app route, but they do not carry a ManaBox export file; use the sharesheet or
+export-file path for imports.
 
 ## Build An APK For A Custom Domain
 

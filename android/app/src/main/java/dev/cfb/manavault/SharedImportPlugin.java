@@ -27,6 +27,9 @@ public class SharedImportPlugin extends Plugin {
     private static final String WWW_APP_LINK_HOST = "www.manavault.cfb.dev";
     private static final String APP_SCHEME = "manavault";
 
+    private static final String PREFERENCES_NAME = "NativeShell";
+    private static final String SERVER_URL_KEY = "serverUrl";
+
     private static JSObject pendingImport;
 
     @Override
@@ -77,7 +80,7 @@ public class SharedImportPlugin extends Plugin {
         String action = intent.getAction();
         if (Intent.ACTION_VIEW.equals(action)) {
             Uri data = intent.getData();
-            return isManaVaultLink(data) ? linkPayload(data.toString(), "android-view") : null;
+            return isManaVaultLink(context, data) ? linkPayload(data.toString(), "android-view") : null;
         }
 
         if (!Intent.ACTION_SEND.equals(action) && !Intent.ACTION_SEND_MULTIPLE.equals(action)) return null;
@@ -87,7 +90,7 @@ public class SharedImportPlugin extends Plugin {
             String text = readText(context.getContentResolver(), streamUri);
             if (text == null || text.trim().isEmpty()) return null;
 
-            Uri link = linkFromSharedText(text);
+            Uri link = linkFromSharedText(context, text);
             if (link != null) return linkPayload(link.toString(), "android-share");
 
             return importPayload(
@@ -102,7 +105,7 @@ public class SharedImportPlugin extends Plugin {
         if (extraText == null || extraText.toString().trim().isEmpty()) return null;
 
         String text = extraText.toString();
-        Uri link = linkFromSharedText(text);
+        Uri link = linkFromSharedText(context, text);
         if (link != null) return linkPayload(link.toString(), "android-share");
 
         return importPayload(text, "Shared list.txt", intent.getType(), "android-share");
@@ -119,24 +122,63 @@ public class SharedImportPlugin extends Plugin {
         return streams.get(0);
     }
 
-    private Uri linkFromSharedText(String text) {
+    private Uri linkFromSharedText(Context context, String text) {
         String trimmed = text.trim();
         int newline = trimmed.indexOf('\n');
         String candidate = newline >= 0 ? trimmed.substring(0, newline).trim() : trimmed;
         Uri uri = Uri.parse(candidate);
 
-        return isManaVaultLink(uri) ? uri : null;
+        return isManaVaultLink(context, uri) ? uri : null;
     }
 
-    private boolean isManaVaultLink(Uri uri) {
+    private boolean isManaVaultLink(Context context, Uri uri) {
         if (uri == null) return false;
 
         String scheme = uri.getScheme();
-        if (APP_SCHEME.equals(scheme)) return true;
-        if (!"https".equals(scheme)) return false;
+        if (scheme == null) return false;
+        if (APP_SCHEME.equalsIgnoreCase(scheme)) return true;
+        if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) return false;
 
         String host = uri.getHost();
-        return APP_LINK_HOST.equals(host) || WWW_APP_LINK_HOST.equals(host);
+        if (host == null || host.trim().isEmpty()) return false;
+
+        if ("https".equalsIgnoreCase(scheme)
+                && effectivePort(uri) == 443
+                && (APP_LINK_HOST.equalsIgnoreCase(host) || WWW_APP_LINK_HOST.equalsIgnoreCase(host))) {
+            return true;
+        }
+
+        String serverUrl = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+                .getString(SERVER_URL_KEY, "");
+        if (serverUrl == null || serverUrl.trim().isEmpty()) return false;
+
+        Uri serverUri = Uri.parse(serverUrl.trim());
+        return sameHttpOrigin(uri, serverUri);
+    }
+
+    private boolean sameHttpOrigin(Uri first, Uri second) {
+        String firstScheme = first.getScheme();
+        String secondScheme = second.getScheme();
+        if (firstScheme == null || secondScheme == null) return false;
+        if (!firstScheme.equalsIgnoreCase(secondScheme)) return false;
+        if (!"http".equalsIgnoreCase(firstScheme) && !"https".equalsIgnoreCase(firstScheme)) return false;
+
+        String firstHost = first.getHost();
+        String secondHost = second.getHost();
+        if (firstHost == null || secondHost == null) return false;
+        if (!firstHost.equalsIgnoreCase(secondHost)) return false;
+
+        return effectivePort(first) == effectivePort(second);
+    }
+
+    private int effectivePort(Uri uri) {
+        int port = uri.getPort();
+        if (port >= 0) return port;
+
+        String scheme = uri.getScheme();
+        if ("http".equalsIgnoreCase(scheme)) return 80;
+        if ("https".equalsIgnoreCase(scheme)) return 443;
+        return -1;
     }
 
     private JSObject importPayload(String text, String fileName, String mimeType, String source) {
