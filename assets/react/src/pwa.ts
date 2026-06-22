@@ -20,14 +20,17 @@ markNativeShell()
 window.addEventListener("DOMContentLoaded", markNativeShell)
 
 let deferredInstallPrompt: BeforeInstallPromptEvent | null = null
-const pwaAssetVersion = "20260620-1"
+const pwaAssetVersion =
+  typeof window.__manavaultAssetVersion === "string" && window.__manavaultAssetVersion.trim()
+    ? window.__manavaultAssetVersion
+    : "dev"
 const serviceWorkerUrl = `${window.location.origin}/sw.js?v=${pwaAssetVersion}`
 
 const chunkReloadKey = "manavault:chunk-reload"
 const chunkReloadParam = "mv-fresh-assets"
 const chunkReloadCooldownMs = 30_000
 const dynamicImportErrorPattern =
-  /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i
+  /Failed to fetch dynamically imported module|Failed to load dynamically loaded module|Importing a module script failed|error loading dynamically imported module|module script load failed/i
 
 function errorMessage(error: unknown) {
   if (error instanceof Error) return error.message
@@ -92,6 +95,7 @@ type PwaState = {
 declare global {
   interface Window {
     manavaultPwa: PwaState
+    __manavaultAssetVersion?: string
     __manavaultPwaInstallCapture?: {
       prompt: BeforeInstallPromptEvent | null
       fired: boolean

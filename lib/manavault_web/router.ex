@@ -13,6 +13,11 @@ defmodule ManavaultWeb.Router do
   end
 
   scope "/", ManavaultWeb do
+    get "/site.webmanifest", PwaController, :manifest
+    get "/sw.js", PwaController, :service_worker
+  end
+
+  scope "/", ManavaultWeb do
     pipe_through :browser
 
     get "/", AppController, :index

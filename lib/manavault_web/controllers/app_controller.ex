@@ -1,6 +1,8 @@
 defmodule ManavaultWeb.AppController do
   use ManavaultWeb, :controller
 
+  alias ManavaultWeb.AssetVersion
+
   def index(conn, _params) do
     conn
     |> put_resp_content_type("text/html")
@@ -10,6 +12,8 @@ defmodule ManavaultWeb.AppController do
   end
 
   defp app_html(csrf_token, conn) do
+    asset_version = AssetVersion.current()
+    encoded_asset_version = Jason.encode!(asset_version)
     app_css_path = static_path(conn, "/assets/css/app.css")
 
     react_scripts =
@@ -47,9 +51,10 @@ defmodule ManavaultWeb.AppController do
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-        <link rel="manifest" href="/site.webmanifest?v=20260620-1" />
+        <link rel="manifest" href="/site.webmanifest?v=#{asset_version}" />
         <link rel="stylesheet" href="#{app_css_path}" />
         <script>
+          window.__manavaultAssetVersion = #{encoded_asset_version};
           (() => {
             if (window.__manavaultPwaInstallCapture) return;
 

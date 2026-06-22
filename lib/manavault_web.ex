@@ -18,7 +18,7 @@ defmodule ManavaultWeb do
 
   def static_paths,
     do:
-      ~w(assets fonts images screenshots favicon.ico favicon-16x16.png favicon-32x32.png apple-touch-icon.png android-chrome-192x192.png android-chrome-512x512.png site.webmanifest sw.js offline.html robots.txt)
+      ~w(assets fonts images screenshots favicon.ico favicon-16x16.png favicon-32x32.png apple-touch-icon.png android-chrome-192x192.png android-chrome-512x512.png offline.html robots.txt)
 
   def router do
     quote do

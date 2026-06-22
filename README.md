@@ -389,6 +389,10 @@ Common optional values:
 - `DATA_DIR` - mutable data root. Defaults to `/data`.
 - `DATABASE_PATH` - SQLite database path. Defaults to `/data/manavault.db`.
 - `POOL_SIZE` - Ecto pool size. Defaults to `5`.
+- `MANAVAULT_ASSET_VERSION` - cache-busting version used by the HTML shell,
+  PWA manifest, and service worker. Published GitHub container builds set this
+  to the commit SHA automatically. Defaults to the application version when
+  unset.
 - `MANAVAULT_OCR_ENGINE` - OCR inference engine. Defaults to `onnxruntime`; set
   to `openvino` only when the OpenVINO OCR dependencies are installed.
 - `MANAVAULT_OCR_THREADS` - optional OCR engine thread count. Applies to

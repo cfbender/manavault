@@ -6,6 +6,7 @@ ARG DEBIAN_VERSION=trixie-slim
 ARG NODE_VERSION=22.22.2
 ARG AUBE_VERSION=1.21.0
 ARG OCR_REQUIREMENTS=requirements-ocr.txt
+ARG MANAVAULT_ASSET_VERSION
 
 ARG BUILDER_IMAGE=elixir:${ELIXIR_VERSION}-otp-${OTP_VERSION}-slim
 ARG RUNNER_IMAGE=debian:${DEBIAN_VERSION}
@@ -14,6 +15,7 @@ FROM ${BUILDER_IMAGE} AS builder
 
 ARG NODE_VERSION
 ARG AUBE_VERSION
+ARG MANAVAULT_ASSET_VERSION
 
 ENV MISE_DATA_DIR=/mise
 ENV MISE_CACHE_DIR=/mise/cache
@@ -31,6 +33,7 @@ RUN curl https://mise.run | sh \
 RUN mix local.hex --force && mix local.rebar --force
 
 ENV MIX_ENV=prod
+ENV MANAVAULT_ASSET_VERSION=${MANAVAULT_ASSET_VERSION}
 
 COPY mix.exs mix.lock ./
 RUN mix deps.get --only $MIX_ENV
@@ -67,6 +70,7 @@ RUN go mod init gosu-build \
 FROM ${RUNNER_IMAGE} AS runner
 
 ARG OCR_REQUIREMENTS
+ARG MANAVAULT_ASSET_VERSION
 
 RUN apt-get update -y && apt-get upgrade -y && apt-get install -y libstdc++6 openssl libncurses6 locales ca-certificates curl libsctp1 python3 python3-venv libgomp1 libgl1 libglib2.0-0t64 libxcb1 \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -86,6 +90,7 @@ ENV PHX_SERVER=true
 ENV PORT=4000
 ENV DATA_DIR=/data
 ENV DATABASE_PATH=/data/manavault.db
+ENV MANAVAULT_ASSET_VERSION=${MANAVAULT_ASSET_VERSION}
 
 COPY requirements-ocr*.txt ./
 RUN python3 -m venv /app/.venv \
