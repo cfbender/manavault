@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Locale;
 
 @CapacitorPlugin(name = "SharedImport")
 public class SharedImportPlugin extends Plugin {
@@ -79,8 +80,7 @@ public class SharedImportPlugin extends Plugin {
 
         String action = intent.getAction();
         if (Intent.ACTION_VIEW.equals(action)) {
-            Uri data = intent.getData();
-            return isManaVaultLink(context, data) ? linkPayload(data.toString(), "android-view") : null;
+            return payloadFromViewIntent(context, intent);
         }
 
         if (!Intent.ACTION_SEND.equals(action) && !Intent.ACTION_SEND_MULTIPLE.equals(action)) return null;
@@ -109,6 +109,75 @@ public class SharedImportPlugin extends Plugin {
         if (link != null) return linkPayload(link.toString(), "android-share");
 
         return importPayload(text, "Shared list.txt", intent.getType(), "android-share");
+    }
+
+    private JSObject payloadFromViewIntent(Context context, Intent intent) {
+        Uri data = intent.getData();
+        if (isManaVaultLink(context, data)) return linkPayload(data.toString(), "android-view");
+        if (!isViewFileUri(data)) return null;
+
+        ContentResolver resolver = context.getContentResolver();
+        String intentType = normalizeMimeType(intent.getType());
+        String resolverType = normalizeMimeType(resolverMimeType(resolver, data));
+        boolean supportedType = isSupportedTextFileMimeType(intentType) || isSupportedTextFileMimeType(resolverType);
+
+        String fileName = null;
+        if (!supportedType && !hasTextFileExtension(data.getLastPathSegment())) {
+            fileName = displayName(resolver, data);
+            supportedType = hasTextFileExtension(fileName);
+        }
+        if (!supportedType) return null;
+
+        String text = readText(resolver, data);
+        if (text == null || text.trim().isEmpty()) return null;
+
+        if (fileName == null) fileName = displayName(resolver, data);
+        return importPayload(text, fileName, bestMimeType(intentType, resolverType), "android-view-file");
+    }
+
+    private boolean isViewFileUri(Uri uri) {
+        if (uri == null) return false;
+
+        String scheme = uri.getScheme();
+        return "content".equalsIgnoreCase(scheme) || "file".equalsIgnoreCase(scheme);
+    }
+
+    private String resolverMimeType(ContentResolver resolver, Uri uri) {
+        try {
+            return resolver.getType(uri);
+        } catch (SecurityException e) {
+            return null;
+        }
+    }
+
+    private String normalizeMimeType(String mimeType) {
+        if (mimeType == null) return null;
+
+        String normalized = mimeType.trim().toLowerCase(Locale.ROOT);
+        int parameters = normalized.indexOf(';');
+        return parameters >= 0 ? normalized.substring(0, parameters).trim() : normalized;
+    }
+
+    private boolean isSupportedTextFileMimeType(String mimeType) {
+        if (mimeType == null || mimeType.trim().isEmpty()) return false;
+
+        return mimeType.startsWith("text/")
+                || "application/csv".equals(mimeType)
+                || "application/vnd.ms-excel".equals(mimeType);
+    }
+
+    private boolean hasTextFileExtension(String value) {
+        if (value == null) return false;
+
+        String lower = value.trim().toLowerCase(Locale.ROOT);
+        return lower.endsWith(".txt") || lower.endsWith(".csv");
+    }
+
+    private String bestMimeType(String intentType, String resolverType) {
+        if (isSupportedTextFileMimeType(intentType)) return intentType;
+        if (isSupportedTextFileMimeType(resolverType)) return resolverType;
+        if (intentType != null && !intentType.trim().isEmpty()) return intentType;
+        return resolverType;
     }
 
     @SuppressWarnings("deprecation")

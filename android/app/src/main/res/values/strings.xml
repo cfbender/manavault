@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name">ManaVault</string>
     <string name="title_activity_main">ManaVault</string>
+    <string name="intent_action_import">Import</string>
     <string name="package_name">dev.cfb.manavault</string>
     <string name="custom_url_scheme">dev.cfb.manavault</string>
 </resources>

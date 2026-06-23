@@ -4,11 +4,13 @@ defmodule ManavaultWeb.Endpoint do
   # The session will be stored in the cookie and signed,
   # this means its contents can be read but not tampered with.
   # Set :encryption_salt if you would also like to encrypt it.
+  @session_max_age_seconds 60 * 60 * 24 * 180
   @session_options [
     store: :cookie,
     key: "_manavault_key",
     signing_salt: "HGc1xdq0",
-    same_site: "Lax"
+    same_site: "Lax",
+    max_age: @session_max_age_seconds
   ]
 
   @fresh_asset_cache_control "no-cache, no-store, must-revalidate"

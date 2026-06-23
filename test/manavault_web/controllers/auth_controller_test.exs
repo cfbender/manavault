@@ -92,6 +92,15 @@ defmodule ManavaultWeb.AuthControllerTest do
     assert html_response(conn, 200) =~ ~s(id="manavault-root")
   end
 
+  test "login sets a persistent session cookie", %{conn: conn} do
+    configure_password("secret")
+
+    conn = post(conn, "/login", %{"password" => "secret", "return_to" => "/collection"})
+
+    assert [cookie] = get_resp_header(conn, "set-cookie")
+    assert cookie =~ "max-age=15552000"
+  end
+
   test "login rejects an incorrect password", %{conn: conn} do
     configure_password("secret")
 

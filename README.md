@@ -14,7 +14,8 @@ API, SQLite storage, local file uploads, and an optional Capacitor mobile shell.
 
 - Own your data: production data lives in a local SQLite database under `/data`.
 - Import cards quickly: collection imports accept text and CSV/TXT files,
-  including files shared directly into the native Android and iOS shells.
+  including Android shares/open-with files and iOS shares sent into the native
+  shells.
 - Treat decks as physical commitments: deck cards can be allocated to concrete
   collection items so one copy cannot accidentally be promised to multiple decks.
 - Turn gaps into action: missing-card reports and buylist exports show what a
@@ -101,9 +102,10 @@ and native API work. The native shell starts from bundled setup assets in
 `native_www`, asks for the ManaVault server URL on first launch, stores that URL
 on the device, checks the latest GitHub release for APK updates, and then loads
 the configured server inside the native WebView.
-The native shells also register as text/CSV share targets; on Android, pick
-ManaVault from the sharesheet/export flow to open shared text or CSV/TXT files
-in the collection import flow.
+The native shells register as text/CSV share targets. On Android, ManaVault also
+accepts `content://` or `file://` open-with file intents; pick ManaVault with
+the Import action label beneath the app name from the Share, Open with, or
+Export file flow to send TXT/CSV exports into collection import with auto-preview.
 
 Use `aube` for JavaScript package tasks:
 
