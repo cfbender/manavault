@@ -8,6 +8,16 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.6.9] - 2026-06-23
+
+### Bug Fixes
+
+- **android:** Load shared collection imports ([`8ba05779`](../../commit/8ba05779fc192b17757478cc6968e4f2ffb94814))
+
+### Features
+
+- Persist filter on search ([`dc782cbd`](../../commit/dc782cbdbd79270698de19f7981ef8281b106cf1))
+
 ## [0.6.8] - 2026-06-23
 
 ### Bug Fixes
