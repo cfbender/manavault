@@ -16,6 +16,7 @@ export type NativeOpenPayload =
 
 type SharedImportPlugin = {
   getPendingImport: () => Promise<{ import?: NativeOpenPayload | null }>
+  hasPendingImport: () => Promise<{ pending: boolean }>
   addListener: (
     eventName: "sharedImport",
     listenerFunc: (payload: NativeOpenPayload) => void,

@@ -246,6 +246,7 @@
       const statusLine = document.querySelector("#status")
       const appVersionLabel = document.querySelector("#app-version")
       const NativeShell = window.Capacitor?.Plugins?.NativeShell
+      const SharedImport = window.Capacitor?.Plugins?.SharedImport
 
       let appVersion = fallbackVersion
 
@@ -282,6 +283,23 @@
         } catch (_error) {
           return null
         }
+      }
+
+      async function hasPendingImport() {
+        try {
+          const result = await SharedImport?.hasPendingImport?.()
+          return Boolean(result?.pending)
+        } catch (_error) {
+          return false
+        }
+      }
+
+      function launchUrl(serverUrl, importPending = false) {
+        if (!importPending) return serverUrl
+
+        const url = new URL("/collection", serverUrl)
+        url.searchParams.set("importFile", "true")
+        return url.href
       }
 
       async function saveServerUrl(serverUrl) {
@@ -354,7 +372,7 @@
 
       const serverUrl = await storedServerUrl()
       if (serverUrl) {
-        window.location.replace(serverUrl)
+        window.location.replace(launchUrl(serverUrl, await hasPendingImport()))
       } else {
         await loadVersionInfo()
         showSetup()

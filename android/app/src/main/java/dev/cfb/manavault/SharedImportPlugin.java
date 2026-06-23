@@ -1,6 +1,7 @@
 package dev.cfb.manavault;
 
 import android.app.Activity;
+import android.content.ClipData;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
@@ -60,6 +61,17 @@ public class SharedImportPlugin extends Plugin {
         call.resolve(result);
     }
 
+    @PluginMethod
+    public void hasPendingImport(PluginCall call) {
+        JSObject result = new JSObject();
+
+        synchronized (LOCK) {
+            result.put("pending", pendingImport != null);
+        }
+
+        call.resolve(result);
+    }
+
     private void captureIntent(Activity activity, Intent intent, boolean notify) {
         JSObject payload = payloadFromIntent(activity, intent);
         if (payload == null) return;
@@ -85,26 +97,12 @@ public class SharedImportPlugin extends Plugin {
 
         if (!Intent.ACTION_SEND.equals(action) && !Intent.ACTION_SEND_MULTIPLE.equals(action)) return null;
 
-        Uri streamUri = firstStreamUri(intent);
-        if (streamUri != null) {
-            String text = readText(context.getContentResolver(), streamUri);
-            if (text == null || text.trim().isEmpty()) return null;
+        JSObject streamPayload = payloadFromFirstTextUri(context, intent);
+        if (streamPayload != null) return streamPayload;
 
-            Uri link = linkFromSharedText(context, text);
-            if (link != null) return linkPayload(link.toString(), "android-share");
+        String text = firstSharedText(context, intent);
+        if (text == null) return null;
 
-            return importPayload(
-                    text,
-                    displayName(context.getContentResolver(), streamUri),
-                    context.getContentResolver().getType(streamUri),
-                    "android-share"
-            );
-        }
-
-        CharSequence extraText = intent.getCharSequenceExtra(Intent.EXTRA_TEXT);
-        if (extraText == null || extraText.toString().trim().isEmpty()) return null;
-
-        String text = extraText.toString();
         Uri link = linkFromSharedText(context, text);
         if (link != null) return linkPayload(link.toString(), "android-share");
 
@@ -113,6 +111,8 @@ public class SharedImportPlugin extends Plugin {
 
     private JSObject payloadFromViewIntent(Context context, Intent intent) {
         Uri data = intent.getData();
+        if (data == null) data = firstStreamUri(intent);
+
         if (isManaVaultLink(context, data)) return linkPayload(data.toString(), "android-view");
         if (!isViewFileUri(data)) return null;
 
@@ -185,14 +185,88 @@ public class SharedImportPlugin extends Plugin {
     }
 
     @SuppressWarnings("deprecation")
-    private Uri firstStreamUri(Intent intent) {
+    private JSObject payloadFromFirstTextUri(Context context, Intent intent) {
+        ContentResolver resolver = context.getContentResolver();
+
+        for (Uri streamUri : streamUris(intent)) {
+            String text = readText(resolver, streamUri);
+            if (text == null || text.trim().isEmpty()) continue;
+
+            Uri link = linkFromSharedText(context, text);
+            if (link != null) return linkPayload(link.toString(), "android-share");
+
+            return importPayload(
+                    text,
+                    displayName(resolver, streamUri),
+                    bestMimeType(intent.getType(), resolverMimeType(resolver, streamUri)),
+                    "android-share"
+            );
+        }
+
+        return null;
+    }
+
+    @SuppressWarnings("deprecation")
+    private ArrayList<Uri> streamUris(Intent intent) {
+        ArrayList<Uri> uris = new ArrayList<>();
+
         Object stream = intent.getParcelableExtra(Intent.EXTRA_STREAM);
-        if (stream instanceof Uri) return (Uri) stream;
+        if (stream instanceof Uri) addUri(uris, (Uri) stream);
 
         ArrayList<Uri> streams = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
-        if (streams == null || streams.isEmpty()) return null;
+        if (streams != null) {
+            for (Uri uri : streams) addUri(uris, uri);
+        }
 
-        return streams.get(0);
+        ClipData clipData = intent.getClipData();
+        if (clipData != null) {
+            for (int index = 0; index < clipData.getItemCount(); index++) {
+                addUri(uris, clipData.getItemAt(index).getUri());
+            }
+        }
+
+        return uris;
+    }
+
+    private Uri firstStreamUri(Intent intent) {
+        ArrayList<Uri> uris = streamUris(intent);
+        return uris.isEmpty() ? null : uris.get(0);
+    }
+
+    private void addUri(ArrayList<Uri> uris, Uri uri) {
+        if (uri == null || uris.contains(uri)) return;
+        uris.add(uri);
+    }
+
+    private String firstSharedText(Context context, Intent intent) {
+        String extraText = nonBlank(intent.getCharSequenceExtra(Intent.EXTRA_TEXT));
+        if (extraText != null) return extraText;
+
+        ClipData clipData = intent.getClipData();
+        if (clipData == null) return null;
+
+        for (int index = 0; index < clipData.getItemCount(); index++) {
+            ClipData.Item item = clipData.getItemAt(index);
+            String text = nonBlank(item.getText());
+            if (text != null) return text;
+
+            try {
+                CharSequence coercedText = item.coerceToText(context);
+                text = nonBlank(coercedText);
+                if (text != null && !isViewFileUri(Uri.parse(text))) return text;
+            } catch (SecurityException ignored) {
+                // Some providers expose URI clips without granting text coercion access.
+            }
+        }
+
+        return null;
+    }
+
+    private String nonBlank(CharSequence value) {
+        if (value == null) return null;
+
+        String text = value.toString();
+        return text.trim().isEmpty() ? null : text;
     }
 
     private Uri linkFromSharedText(Context context, String text) {
