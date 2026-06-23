@@ -103,7 +103,7 @@ export function FullscreenPrintingDialog({
           <div className="absolute inset-0 bg-gradient-to-br from-black/95 via-neutral/90 to-black/95" />
 
           <motion.div
-            className="relative z-10 flex h-full flex-col gap-3 p-3 sm:gap-4 sm:p-6"
+            className="relative z-10 flex h-full flex-col gap-3 pb-3 pl-[calc(env(safe-area-inset-left)+0.75rem)] pr-[calc(env(safe-area-inset-right)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:gap-4 sm:p-6"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.18 }}
