@@ -8,6 +8,16 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.7.1] - 2026-06-23
+
+### Bug Fixes
+
+- Put capacitor native methods in header ([`e77d3a2a`](../../commit/e77d3a2a54f5cd997a4efa6deb832b69b2f6c5ba))
+
+### Features
+
+- Deck legality ([`1a65ce54`](../../commit/1a65ce547406b9c75f289c95d42abc902cc4e4cc))
+
 ## [0.7.0] - 2026-06-23
 
 ### Features
