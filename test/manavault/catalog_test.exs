@@ -33,10 +33,16 @@ defmodule Manavault.CatalogTest do
     "finishes" => ["nonfoil"],
     "image_uris" => %{"normal" => "https://example.test/black-lotus.jpg"},
     "prices" => %{"usd" => "100000.00"},
-    "released_at" => "1993-08-05"
+    "released_at" => "1993-08-05",
+    "rulings_uri" => "https://api.scryfall.com/cards/oracle-1/rulings"
   }
 
-  @renamed_lotus %{@black_lotus | "name" => "Black Lotus Updated", "prices" => %{"usd" => "1.00"}}
+  @renamed_lotus %{
+    @black_lotus
+    | "name" => "Black Lotus Updated",
+      "prices" => %{"usd" => "1.00"},
+      "rulings_uri" => "https://api.scryfall.com/cards/oracle-1/rulings-updated"
+  }
 
   @black_lotus_beta %{
     @black_lotus
@@ -87,7 +93,11 @@ defmodule Manavault.CatalogTest do
   test "import_cards stores identities and printings and safely updates on rerun" do
     assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
 
-    assert %Card{name: "Black Lotus", color_identity: "[]"} = Repo.get!(Card, "oracle-1")
+    assert %Card{
+             name: "Black Lotus",
+             color_identity: "[]",
+             rulings_uri: "https://api.scryfall.com/cards/oracle-1/rulings"
+           } = Repo.get!(Card, "oracle-1")
 
     assert %Printing{
              scryfall_id: "scryfall-printing-1",
@@ -113,7 +123,12 @@ defmodule Manavault.CatalogTest do
 
     assert Repo.aggregate(Card, :count) == 1
     assert Repo.aggregate(Printing, :count) == 1
-    assert %Card{name: "Black Lotus Updated"} = Repo.get!(Card, "oracle-1")
+
+    assert %Card{
+             name: "Black Lotus Updated",
+             rulings_uri: "https://api.scryfall.com/cards/oracle-1/rulings-updated"
+           } = Repo.get!(Card, "oracle-1")
+
     assert %Printing{prices: prices} = Repo.get!(Printing, "scryfall-printing-1")
     assert Jason.decode!(prices) == %{"usd" => "1.00"}
   end
@@ -298,6 +313,42 @@ defmodule Manavault.CatalogTest do
     themes = Jason.decode!(themes_json)
     assert "card_advantage" in themes
     refute "ramp" in themes
+  end
+
+  test "card_rulings maps Scryfall rulings and tolerates unavailable data" do
+    rulings_uri = "https://api.scryfall.com/cards/oracle-1/rulings"
+    card = %Card{rulings_uri: rulings_uri}
+
+    fetcher = fn ^rulings_uri ->
+      {:ok,
+       %{
+         status: 200,
+         body: %{
+           "data" => [
+             %{
+               "source" => "wotc",
+               "published_at" => "2024-01-02",
+               "comment" => "Activated abilities follow normal timing rules."
+             }
+           ]
+         }
+       }}
+    end
+
+    assert [
+             %{
+               source: "wotc",
+               published_at: "2024-01-02",
+               comment: "Activated abilities follow normal timing rules."
+             }
+           ] = Catalog.card_rulings(card, fetcher: fetcher)
+
+    assert [] = Catalog.card_rulings(%Card{rulings_uri: nil}, fetcher: fetcher)
+    assert [] = Catalog.card_rulings(card, fetcher: fn ^rulings_uri -> {:ok, %{status: 500}} end)
+    assert [] = Catalog.card_rulings(card, fetcher: fn ^rulings_uri -> {:ok, "not json"} end)
+
+    assert [] =
+             Catalog.card_rulings(card, fetcher: fn ^rulings_uri -> {:ok, %{"data" => :bad}} end)
   end
 
   test "price helpers parse and shorten Scryfall prices" do

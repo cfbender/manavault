@@ -111,4 +111,5 @@ defmodule Manavault.Catalog do
     as: :reload_assets_async
 
   defdelegate import_cards(cards, bulk_uri \\ nil, opts \\ []), to: Scryfall
+  defdelegate card_rulings(card, opts \\ []), to: Scryfall
 end

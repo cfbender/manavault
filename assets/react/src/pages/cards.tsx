@@ -108,6 +108,11 @@ const CardDocument = graphql(`
         weight
         annotation
       }
+      rulings {
+        source
+        publishedAt
+        comment
+      }
       printings {
         scryfallId
         setCode
@@ -129,6 +134,7 @@ const CardDocument = graphql(`
 
 type CardDetail = NonNullable<CardQuery["card"]>
 type CardPrinting = NonNullable<NonNullable<CardDetail["printings"]>[number]>
+type CardRuling = NonNullable<CardDetail["rulings"]>[number]
 
 export function CardsPage({
   query,
@@ -386,6 +392,8 @@ export function CardDetailPage({
                   <OracleText text={card.oracleText} />
                 </div>
               ) : null}
+
+              <CardRulings rulings={card.rulings} />
             </div>
           </div>
         </section>
@@ -738,6 +746,38 @@ function OracleText({ text }: { text: string }) {
         </p>
       ))}
     </>
+  )
+}
+
+function CardRulings({ rulings }: { rulings?: CardRuling[] | null }) {
+  if (!rulings?.length) return null
+
+  return (
+    <details className="group max-w-4xl rounded-box border border-base-300/70 bg-base-100/80 shadow-sm backdrop-blur">
+      <summary className="cursor-pointer px-4 py-3 text-sm font-black tracking-normal text-base-content marker:text-base-content/60">
+        Rulings ({rulings.length})
+      </summary>
+
+      <ul className="space-y-3 border-t border-base-300/70 px-4 py-3 text-sm leading-6 text-base-content/75">
+        {rulings.map((ruling, index) => (
+          <li
+            key={`${ruling.publishedAt || "undated"}-${ruling.source || "unknown"}-${index}`}
+            className="space-y-1"
+          >
+            {ruling.publishedAt || ruling.source ? (
+              <p className="text-xs font-semibold uppercase tracking-wide text-base-content/50">
+                {ruling.publishedAt ? (
+                  <time dateTime={ruling.publishedAt}>{ruling.publishedAt}</time>
+                ) : null}
+                {ruling.publishedAt && ruling.source ? " · " : null}
+                {ruling.source}
+              </p>
+            ) : null}
+            <p className="whitespace-pre-line">{ruling.comment}</p>
+          </li>
+        ))}
+      </ul>
+    </details>
   )
 }
 

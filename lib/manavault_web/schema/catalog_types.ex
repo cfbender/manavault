@@ -35,6 +35,12 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     end
   end
 
+  object :card_ruling do
+    field :source, :string
+    field :published_at, :string
+    field :comment, non_null(:string)
+  end
+
   object :card do
     field :oracle_id, non_null(:id)
     field :name, non_null(:string)
@@ -67,6 +73,10 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
       resolve(fn card, _, _ ->
         {:ok, CatalogResolvers.decode_json_field(card, :deck_themes, [])}
       end)
+    end
+
+    field :rulings, non_null(list_of(non_null(:card_ruling))) do
+      resolve(&CatalogResolvers.card_rulings/3)
     end
 
     field :printings, list_of(:printing)

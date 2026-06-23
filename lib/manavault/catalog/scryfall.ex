@@ -85,6 +85,7 @@ defmodule Manavault.Catalog.Scryfall do
                  :oracle_tags,
                  :deck_category,
                  :deck_themes,
+                 :rulings_uri,
                  :updated_at
                ]}
           )
@@ -123,6 +124,24 @@ defmodule Manavault.Catalog.Scryfall do
 
     result
   end
+
+  def card_rulings(card, opts \\ [])
+
+  def card_rulings(%Card{rulings_uri: rulings_uri}, _opts) when rulings_uri in [nil, ""], do: []
+
+  def card_rulings(%Card{rulings_uri: rulings_uri}, opts) when is_binary(rulings_uri) do
+    fetcher = Keyword.get(opts, :fetcher, rulings_fetcher())
+
+    with {:ok, body} <- fetch_rulings_body(fetcher, rulings_uri),
+         {:ok, %{"data" => rulings}} when is_list(rulings) <- decode_rulings_body(body),
+         true <- Enum.all?(rulings, &valid_ruling?/1) do
+      Enum.map(rulings, &ruling_attrs/1)
+    else
+      _reason -> []
+    end
+  end
+
+  def card_rulings(_card, _opts), do: []
 
   defp insert_in_batches(_schema, [], _opts), do: :ok
 
@@ -211,6 +230,7 @@ defmodule Manavault.Catalog.Scryfall do
         oracle_tags: tag_fields.oracle_tags,
         deck_category: tag_fields.deck_category,
         deck_themes: tag_fields.deck_themes,
+        rulings_uri: card["rulings_uri"],
         inserted_at: now,
         updated_at: now
       }
@@ -376,6 +396,42 @@ defmodule Manavault.Catalog.Scryfall do
   defp format_error(%{__exception__: true} = exception), do: Exception.message(exception)
   defp format_error(reason) when is_binary(reason), do: reason
   defp format_error(reason), do: inspect(reason)
+
+  defp rulings_fetcher do
+    Application.get_env(:manavault, :scryfall_rulings_fetcher) || (&fetch_url/1)
+  end
+
+  defp fetch_rulings_body(fetcher, rulings_uri) do
+    case fetcher.(rulings_uri) do
+      {:ok, %{status: status, body: body}} when status in 200..299 -> {:ok, body}
+      {:ok, %{status: _status}} -> :error
+      {:ok, body} -> {:ok, body}
+      {:error, _reason} -> :error
+      _other -> :error
+    end
+  end
+
+  defp decode_rulings_body(body) when is_binary(body), do: Jason.decode(body)
+  defp decode_rulings_body(body) when is_map(body), do: {:ok, body}
+  defp decode_rulings_body(_body), do: :error
+
+  defp valid_ruling?(%{"comment" => comment} = ruling) when is_binary(comment) do
+    optional_string?(Map.get(ruling, "source")) and
+      optional_string?(Map.get(ruling, "published_at"))
+  end
+
+  defp valid_ruling?(_ruling), do: false
+
+  defp optional_string?(nil), do: true
+  defp optional_string?(value), do: is_binary(value)
+
+  defp ruling_attrs(ruling) do
+    %{
+      source: Map.get(ruling, "source"),
+      published_at: Map.get(ruling, "published_at"),
+      comment: Map.fetch!(ruling, "comment")
+    }
+  end
 
   defp fetch_url(url) do
     case Req.get(url,

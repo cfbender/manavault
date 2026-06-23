@@ -17,6 +17,7 @@ defmodule Manavault.Catalog.Card do
     field :oracle_tags, :string, default: "[]"
     field :deck_category, :string
     field :deck_themes, :string, default: "[]"
+    field :rulings_uri, :string
 
     has_many :printings, Manavault.Catalog.Printing, foreign_key: :oracle_id
 
@@ -37,7 +38,8 @@ defmodule Manavault.Catalog.Card do
       :legalities,
       :oracle_tags,
       :deck_category,
-      :deck_themes
+      :deck_themes,
+      :rulings_uri
     ])
     |> validate_required([:oracle_id, :name, :color_identity, :legalities])
   end

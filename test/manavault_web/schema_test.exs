@@ -550,6 +550,78 @@ defmodule ManavaultWeb.SchemaTest do
            } = json_response(conn, 200)
   end
 
+  test "card query exposes Scryfall rulings", %{conn: conn} do
+    rulings_uri = "https://api.scryfall.com/cards/oracle-rulings/rulings"
+    previous_fetcher = Application.fetch_env(:manavault, :scryfall_rulings_fetcher)
+
+    Application.put_env(:manavault, :scryfall_rulings_fetcher, fn ^rulings_uri ->
+      {:ok,
+       Jason.encode!(%{
+         "data" => [
+           %{
+             "source" => "wotc",
+             "published_at" => "2024-01-02",
+             "comment" => "This ruling is shown on the card detail page."
+           }
+         ]
+       })}
+    end)
+
+    on_exit(fn ->
+      case previous_fetcher do
+        {:ok, fetcher} -> Application.put_env(:manavault, :scryfall_rulings_fetcher, fetcher)
+        :error -> Application.delete_env(:manavault, :scryfall_rulings_fetcher)
+      end
+    end)
+
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-rulings-printing",
+          "oracle_id" => "oracle-rulings",
+          "name" => "Rulings Card",
+          "type_line" => "Instant",
+          "collector_number" => "1",
+          "set" => "rul",
+          "set_name" => "Rulings Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{},
+          "rulings_uri" => rulings_uri
+        }
+      ])
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query {
+          card(id: "oracle-rulings") {
+            rulings {
+              source
+              publishedAt
+              comment
+            }
+          }
+        }
+        """
+      })
+
+    assert %{
+             "data" => %{
+               "card" => %{
+                 "rulings" => [
+                   %{
+                     "source" => "wotc",
+                     "publishedAt" => "2024-01-02",
+                     "comment" => "This ruling is shown on the card detail page."
+                   }
+                 ]
+               }
+             }
+           } = json_response(conn, 200)
+  end
+
   test "create deck mutation creates a deck", %{conn: conn} do
     conn =
       post(conn, "/api/graphql", %{

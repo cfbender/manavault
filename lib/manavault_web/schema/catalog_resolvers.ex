@@ -4,6 +4,7 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   alias Manavault.Catalog
 
   alias Manavault.Catalog.{
+    Card,
     CollectionItem,
     Deck,
     DeckAllocation,
@@ -445,6 +446,12 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
       {:error, reason} -> {:error, deck_allocation_error(reason)}
     end
   end
+
+  def card_rulings(%Card{} = card, _args, _resolution) do
+    {:ok, Catalog.card_rulings(card)}
+  end
+
+  def card_rulings(_card, _args, _resolution), do: {:ok, []}
 
   def printing_image_url(%Printing{} = printing, _args, _resolution) do
     image_uris = decode_json(printing.image_uris, %{})
