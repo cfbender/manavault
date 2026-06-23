@@ -523,6 +523,10 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     {:ok, Catalog.deck_commander_color_identity(deck)}
   end
 
+  def deck_legality(%Deck{} = deck, _args, _resolution) do
+    {:ok, Catalog.deck_legality(deck)}
+  end
+
   def location_item_count(%Location{item_count: count}, _args, _resolution)
       when is_integer(count) do
     {:ok, count}

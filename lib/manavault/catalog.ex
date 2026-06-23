@@ -55,6 +55,7 @@ defmodule Manavault.Catalog do
   defdelegate get_deck!(id), to: Decks
   defdelegate get_deck_by_share_token(token), to: Decks
   defdelegate deck_cards(deck), to: Decks
+  defdelegate deck_legality(deck), to: Decks
   defdelegate deck_card_count(deck), to: Decks
   defdelegate deck_unique_card_count(deck), to: Decks
   defdelegate deck_commander_color_identity(deck), to: Decks

@@ -897,6 +897,106 @@ defmodule Manavault.CatalogTest do
            }
   end
 
+  test "deck legality accepts legal commander deck with repeated basic lands" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([legal_commander_card(), legal_plains()])
+
+    assert {:ok, deck} =
+             Catalog.create_deck(%{
+               "name" => "Legal Commander",
+               "format" => "commander"
+             })
+
+    add_deck_card!(deck, "Test Commander", 1, "commander")
+    add_deck_card!(deck, "Plains", 99, "mainboard")
+
+    assert %{status: "legal", issues: []} = Catalog.deck_legality(deck)
+
+    assert %{status: "legal", issues: []} =
+             deck.id |> Catalog.get_deck!() |> Catalog.deck_legality()
+  end
+
+  test "deck legality rejects duplicate non-basic commander cards" do
+    duplicate = legality_card("Silver Bolt", ["W"], %{"commander" => "legal"})
+
+    assert {:ok, %{cards_count: 3, printings_count: 3}} =
+             Catalog.import_cards([legal_commander_card(), legal_plains(), duplicate])
+
+    assert {:ok, deck} =
+             Catalog.create_deck(%{
+               "name" => "Duplicate Commander",
+               "format" => "commander"
+             })
+
+    add_deck_card!(deck, "Test Commander", 1, "commander")
+    add_deck_card!(deck, "Plains", 97, "mainboard")
+    add_deck_card!(deck, "Silver Bolt", 2, "mainboard")
+
+    legality = deck.id |> Catalog.get_deck!() |> Catalog.deck_legality()
+
+    assert legality.status == "illegal"
+    assert Enum.map(legality.issues, & &1.code) == ["commander_singleton"]
+
+    issue = issue_by_code(legality, "commander_singleton")
+    assert issue.card_name == "Silver Bolt"
+    assert issue.message =~ "Silver Bolt appears 2 times"
+  end
+
+  test "deck legality rejects commander cards banned by Scryfall legality" do
+    banned = legality_card("Banned Spell", [], %{"commander" => "banned"})
+
+    assert {:ok, %{cards_count: 3, printings_count: 3}} =
+             Catalog.import_cards([legal_commander_card(), legal_plains(), banned])
+
+    assert {:ok, deck} =
+             Catalog.create_deck(%{
+               "name" => "Banned Commander",
+               "format" => "commander"
+             })
+
+    add_deck_card!(deck, "Test Commander", 1, "commander")
+    add_deck_card!(deck, "Plains", 98, "mainboard")
+    add_deck_card!(deck, "Banned Spell", 1, "mainboard")
+
+    legality = deck.id |> Catalog.get_deck!() |> Catalog.deck_legality()
+
+    assert legality.status == "illegal"
+    assert Enum.map(legality.issues, & &1.code) == ["card_legality"]
+
+    issue = issue_by_code(legality, "card_legality")
+    assert issue.card_name == "Banned Spell"
+    assert issue.message =~ "Banned Spell"
+    assert issue.message =~ "commander"
+    assert issue.message =~ "banned"
+  end
+
+  test "deck legality rejects commander cards outside commander color identity" do
+    off_color = legality_card("Blue Spell", ["U"], %{"commander" => "legal"})
+
+    assert {:ok, %{cards_count: 3, printings_count: 3}} =
+             Catalog.import_cards([legal_commander_card(), legal_plains(), off_color])
+
+    assert {:ok, deck} =
+             Catalog.create_deck(%{
+               "name" => "Off Color Commander",
+               "format" => "commander"
+             })
+
+    add_deck_card!(deck, "Test Commander", 1, "commander")
+    add_deck_card!(deck, "Plains", 98, "mainboard")
+    add_deck_card!(deck, "Blue Spell", 1, "mainboard")
+
+    legality = deck.id |> Catalog.get_deck!() |> Catalog.deck_legality()
+
+    assert legality.status == "illegal"
+    assert Enum.map(legality.issues, & &1.code) == ["commander_color_identity"]
+
+    issue = issue_by_code(legality, "commander_color_identity")
+    assert issue.card_name == "Blue Spell"
+    assert issue.message =~ "Blue Spell color identity U"
+    assert issue.message =~ "commander color identity W"
+  end
+
   test "decklist import and export support zones and set collector preferences" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
@@ -1867,6 +1967,65 @@ defmodule Manavault.CatalogTest do
     assert error == "network unavailable"
     assert Repo.aggregate(Card, :count) == 0
     assert Repo.aggregate(Printing, :count) == 0
+  end
+
+  defp legal_commander_card do
+    Map.merge(@time_walk, %{
+      "id" => "scryfall-printing-test-commander",
+      "oracle_id" => "oracle-test-commander",
+      "name" => "Test Commander",
+      "type_line" => "Legendary Creature — Cat",
+      "colors" => ["W"],
+      "color_identity" => ["W"],
+      "legalities" => %{"commander" => "legal"},
+      "set" => "tst",
+      "set_name" => "Test Set",
+      "collector_number" => "1",
+      "lang" => "en",
+      "finishes" => ["nonfoil"],
+      "prices" => %{},
+      "released_at" => "2026-01-01"
+    })
+  end
+
+  defp legal_plains do
+    Map.put(@plains, "legalities", %{"commander" => "legal"})
+  end
+
+  defp legality_card(name, color_identity, legalities) do
+    card_slug = slug(name)
+
+    Map.merge(@time_walk, %{
+      "id" => "scryfall-printing-#{card_slug}",
+      "oracle_id" => "oracle-#{card_slug}",
+      "name" => name,
+      "type_line" => "Instant",
+      "colors" => color_identity,
+      "color_identity" => color_identity,
+      "legalities" => legalities,
+      "set" => "tst",
+      "set_name" => "Test Set",
+      "collector_number" => card_slug,
+      "lang" => "en",
+      "finishes" => ["nonfoil"],
+      "prices" => %{},
+      "released_at" => "2026-01-01"
+    })
+  end
+
+  defp add_deck_card!(deck, name, quantity, zone) do
+    assert {:ok, deck_card} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => name,
+               "quantity" => quantity,
+               "zone" => zone
+             })
+
+    deck_card
+  end
+
+  defp issue_by_code(legality, code) do
+    Enum.find(legality.issues, &(&1.code == code))
   end
 
   defp expected_decklist_entries(text) do

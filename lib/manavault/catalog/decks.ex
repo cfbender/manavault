@@ -12,6 +12,7 @@ defmodule Manavault.Catalog.Decks do
     DeckAllocation,
     DeckCard,
     Decklists,
+    DeckLegality,
     DeckSummaries,
     EDHRec,
     Finishes,
@@ -74,6 +75,12 @@ defmodule Manavault.Catalog.Decks do
     |> Repo.preload(deck_preloads())
     |> Map.fetch!(:deck_cards)
     |> put_deck_card_allocation_statuses()
+  end
+
+  def deck_legality(%Deck{} = deck) do
+    deck
+    |> Repo.preload(deck_preloads(), force: true)
+    |> DeckLegality.evaluate()
   end
 
   def deck_card_count(%Deck{card_count: count}) when is_integer(count), do: count

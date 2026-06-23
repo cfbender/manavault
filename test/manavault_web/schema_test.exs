@@ -871,6 +871,119 @@ defmodule ManavaultWeb.SchemaTest do
            } = json_response(conn, 200)
   end
 
+  test "deck legality is exposed on deck detail and summaries", %{conn: conn} do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([
+               %{
+                 "id" => "scryfall-legality-commander",
+                 "oracle_id" => "oracle-legality-commander",
+                 "name" => "Legality Commander",
+                 "type_line" => "Legendary Creature",
+                 "color_identity" => ["G"],
+                 "collector_number" => "1",
+                 "set" => "leg",
+                 "set_name" => "Legality Set",
+                 "lang" => "en",
+                 "image_uris" => %{},
+                 "finishes" => ["nonfoil"],
+                 "legalities" => %{"commander" => "legal"}
+               },
+               %{
+                 "id" => "scryfall-legality-duplicate",
+                 "oracle_id" => "oracle-legality-duplicate",
+                 "name" => "Duplicate Nonbasic",
+                 "type_line" => "Creature",
+                 "color_identity" => ["G"],
+                 "collector_number" => "2",
+                 "set" => "leg",
+                 "set_name" => "Legality Set",
+                 "lang" => "en",
+                 "image_uris" => %{},
+                 "finishes" => ["nonfoil"],
+                 "legalities" => %{"commander" => "legal"}
+               }
+             ])
+
+    assert {:ok, deck} =
+             Catalog.create_deck(%{"name" => "Illegal Commander", "format" => "commander"})
+
+    assert {:ok, _commander} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Legality Commander",
+               "quantity" => 1,
+               "zone" => "commander"
+             })
+
+    assert {:ok, _duplicate} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Duplicate Nonbasic",
+               "quantity" => 2,
+               "zone" => "mainboard"
+             })
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query DeckLegality($id: ID!) {
+          deck(id: $id) {
+            legality {
+              status
+              issues {
+                code
+                message
+                severity
+                cardName
+              }
+            }
+          }
+          decks {
+            name
+            legality {
+              status
+              issues {
+                code
+                message
+                severity
+                cardName
+              }
+            }
+          }
+        }
+        """,
+        "variables" => %{"id" => deck.id}
+      })
+
+    assert %{
+             "data" => %{
+               "deck" => %{
+                 "legality" => %{
+                   "status" => "illegal",
+                   "issues" => detail_issues
+                 }
+               },
+               "decks" => [
+                 %{
+                   "name" => "Illegal Commander",
+                   "legality" => %{
+                     "status" => "illegal",
+                     "issues" => summary_issues
+                   }
+                 }
+               ]
+             }
+           } = json_response(conn, 200)
+
+    assert Enum.any?(detail_issues, fn issue ->
+             is_binary(issue["code"]) and is_binary(issue["message"]) and
+               is_binary(issue["severity"]) and issue["cardName"] == "Duplicate Nonbasic"
+           end)
+
+    assert Enum.any?(summary_issues, fn issue ->
+             is_binary(issue["code"]) and is_binary(issue["message"]) and
+               is_binary(issue["severity"]) and issue["cardName"] == "Duplicate Nonbasic"
+           end)
+  end
+
   test "deck share mutation creates a public token and public share query resolves it", %{
     conn: conn
   } do
@@ -929,6 +1042,15 @@ defmodule ManavaultWeb.SchemaTest do
             shareToken
             cardCount
             uniqueCardCount
+            legality {
+              status
+              issues {
+                code
+                message
+                severity
+                cardName
+              }
+            }
             deckCards {
               id
               quantity
@@ -993,6 +1115,10 @@ defmodule ManavaultWeb.SchemaTest do
                  "shareToken" => ^share_token,
                  "cardCount" => 1,
                  "uniqueCardCount" => 1,
+                 "legality" => %{
+                   "status" => "illegal",
+                   "issues" => public_share_issues
+                 },
                  "deckCards" => [
                    %{
                      "quantity" => 1,
@@ -1012,6 +1138,11 @@ defmodule ManavaultWeb.SchemaTest do
                }
              }
            } = json_response(public_conn, 200)
+
+    assert Enum.any?(public_share_issues, fn issue ->
+             is_binary(issue["code"]) and is_binary(issue["message"]) and
+               is_binary(issue["severity"]) and issue["cardName"] == "Shared Card"
+           end)
   end
 
   test "create collection item mutation adds a printing to the collection", %{conn: conn} do

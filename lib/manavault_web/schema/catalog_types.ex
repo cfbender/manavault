@@ -240,6 +240,34 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     end
   end
 
+  object :deck_legality do
+    field :status, non_null(:string) do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :issues, non_null(list_of(non_null(:deck_legality_issue))) do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+  end
+
+  object :deck_legality_issue do
+    field :code, non_null(:string) do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :message, non_null(:string) do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :severity, non_null(:string) do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :card_name, :string do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+  end
+
   object :deck do
     field :id, non_null(:id)
     field :name, non_null(:string)
@@ -261,6 +289,10 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
 
     field :unique_card_count, :integer do
       resolve(&CatalogResolvers.deck_unique_card_count/3)
+    end
+
+    field :legality, non_null(:deck_legality) do
+      resolve(&CatalogResolvers.deck_legality/3)
     end
 
     field :deck_cards, list_of(:deck_card) do

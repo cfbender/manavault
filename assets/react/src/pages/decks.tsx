@@ -125,6 +125,15 @@ const DecksDocument = graphql(`
       commanderColorIdentity
       cardCount
       uniqueCardCount
+      legality {
+        status
+        issues {
+          code
+          message
+          severity
+          cardName
+        }
+      }
     }
   }
 `)
@@ -141,6 +150,15 @@ const CreateDeckDocument = graphql(`
       commanderColorIdentity
       cardCount
       uniqueCardCount
+      legality {
+        status
+        issues {
+          code
+          message
+          severity
+          cardName
+        }
+      }
     }
   }
 `)
@@ -157,6 +175,15 @@ const UpdateDeckDocument = graphql(`
       commanderColorIdentity
       cardCount
       uniqueCardCount
+      legality {
+        status
+        issues {
+          code
+          message
+          severity
+          cardName
+        }
+      }
     }
   }
 `)
@@ -180,6 +207,15 @@ const DeckDocument = graphql(`
       shareToken
       cardCount
       uniqueCardCount
+      legality {
+        status
+        issues {
+          code
+          message
+          severity
+          cardName
+        }
+      }
       deckCards {
         id
         quantity
@@ -717,11 +753,17 @@ export function DecksPage() {
                           typeLine={<Badge>{titleize(deck.format)}</Badge>}
                           countLine={`${compactNumber(deck.cardCount || 0)} cards`}
                           detailLine={
-                            <div className="flex flex-wrap items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2 leading-none">
                               <Badge tone={deck.status === "active" ? "success" : "neutral"}>
                                 {titleize(deck.status)}
                               </Badge>
-                              <span>{compactNumber(deck.uniqueCardCount || 0)} unique</span>
+                              <span className="inline-flex h-5 items-center">{compactNumber(deck.uniqueCardCount || 0)} unique</span>
+                              <Badge tone={deckLegalityTone(deck.legality)}>
+                                {deckLegalityLabel(deck.legality)}
+                              </Badge>
+                              {deck.legality?.status === "legal" ? null : (
+                                <span className="inline-flex h-5 items-center">{deckLegalityIssueCountLabel(deckLegalityIssueCount(deck.legality))}</span>
+                              )}
                             </div>
                           }
                           nameLine={
@@ -1113,6 +1155,8 @@ export function DeckDetailPage({
     )
   }
 
+  const legalityIssues = deckLegalityIssues(deck.legality)
+
   function moveDeckCard(deckCard: DeckCardEntry, zone: DeckZone) {
     updateDeckCard.mutate({ deckCardId: deckCard.id, input: { zone } })
   }
@@ -1247,11 +1291,14 @@ export function DeckDetailPage({
           typeLine={<Badge>{titleize(deck.format)}</Badge>}
           countLine={`${compactNumber(deck.cardCount || 0)} cards`}
           detailLine={
-            <div className="flex flex-wrap items-center gap-2 text-base">
+            <div className="flex flex-wrap items-center gap-2 text-base leading-none">
               <Badge tone={deck.status === "active" ? "success" : "neutral"}>
                 {titleize(deck.status)}
               </Badge>
-              <span>{compactNumber(deck.uniqueCardCount || 0)} unique</span>
+              <span className="inline-flex h-5 items-center">{compactNumber(deck.uniqueCardCount || 0)} unique</span>
+              <Badge tone={deckLegalityTone(deck.legality)}>
+                {deckLegalityLabel(deck.legality)}
+              </Badge>
             </div>
           }
           nameLine={
@@ -1275,6 +1322,30 @@ export function DeckDetailPage({
             </ShareModeHidden>
           }
         />
+
+        {legalityIssues.length ? (
+          <div className="rounded-box border border-error/25 bg-error/5 p-4 text-sm text-base-content/80">
+            <div className="mb-2 flex flex-wrap items-center gap-2 font-bold text-error">
+              <AlertTriangle className="h-4 w-4" />
+              <span>{deckLegalityIssueCountLabel(legalityIssues.length)}</span>
+            </div>
+            <ul className="space-y-1.5">
+              {legalityIssues.map((issue, index) => (
+                <li key={`${issue.code}-${issue.cardName || "deck"}-${index}`} className="flex gap-2">
+                  <span aria-hidden="true" className="text-error">
+                    •
+                  </span>
+                  <span>
+                    {issue.cardName ? (
+                      <span className="font-bold text-base-content">{issue.cardName}: </span>
+                    ) : null}
+                    {issue.message}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-base-300 pb-4">
           <dl className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
@@ -1719,6 +1790,15 @@ type DeckCardPrinting = NonNullable<
 >
 type DeckZone = "mainboard" | "sideboard" | "commander" | "maybeboard"
 type DeckCardTag = "getting" | "consider_cutting"
+type DeckLegality = {
+  status?: string | null
+  issues?: Array<{
+    code?: string | null
+    message?: string | null
+    severity?: string | null
+    cardName?: string | null
+  } | null> | null
+} | null | undefined
 const DECK_CARD_TAGS = [
   {
     value: "getting",
@@ -1762,6 +1842,28 @@ const DECK_STACK_CARD_WIDTH_REM = 14
 const DECK_STACK_OFFSET = 34
 const DECK_STACK_CARD_HEIGHT = 314
 const DECK_STACK_REVEAL_OFFSET = DECK_STACK_CARD_HEIGHT - DECK_STACK_OFFSET
+
+function deckLegalityLabel(legality: DeckLegality) {
+  return legality?.status === "legal" ? "Legal" : "Illegal"
+}
+
+function deckLegalityTone(legality: DeckLegality): "success" | "error" {
+  return legality?.status === "legal" ? "success" : "error"
+}
+
+function deckLegalityIssues(legality: DeckLegality) {
+  return (legality?.issues || []).flatMap((issue) =>
+    issue?.message ? [{ ...issue, message: issue.message }] : [],
+  )
+}
+
+function deckLegalityIssueCount(legality: DeckLegality) {
+  return deckLegalityIssues(legality).length
+}
+
+function deckLegalityIssueCountLabel(count: number) {
+  return `${compactNumber(count)} ${count === 1 ? "issue" : "issues"}`
+}
 
 function blurFocusedMenuItem(event: ReactMouseEvent<HTMLElement>) {
   const activeElement = event.currentTarget.ownerDocument.activeElement
