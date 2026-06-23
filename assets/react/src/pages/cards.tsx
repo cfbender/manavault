@@ -8,6 +8,7 @@ import { EmptyState } from "../components/card-image"
 import { CardNameSearchField } from "../components/card-name-search-field"
 import { FullscreenPrintingDialog } from "../components/fullscreen-printing-dialog"
 import { addToDeckAction, CardTile } from "../components/card-tile"
+import { Badge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
 import {
   Dialog,
@@ -98,6 +99,15 @@ const CardDocument = graphql(`
       manaCost
       oracleText
       colorIdentity
+      deckCategory
+      deckThemes
+      oracleTags {
+        id
+        slug
+        label
+        weight
+        annotation
+      }
       printings {
         scryfallId
         setCode
@@ -369,6 +379,8 @@ export function CardDetailPage({
                 </div>
               ) : null}
 
+              <CardTagSummary card={card} />
+
               {card.oracleText ? (
                 <div className="max-w-4xl space-y-3 text-base leading-7 text-base-content/75">
                   <OracleText text={card.oracleText} />
@@ -450,6 +462,45 @@ export function CardDetailPage({
         onOpenChange={(open) => !open && setDeckTarget(null)}
       />
     </>
+  )
+}
+
+function CardTagSummary({ card }: { card: CardDetail }) {
+  const themes = (card.deckThemes || []).filter(present)
+  const oracleTags = (card.oracleTags || []).filter(present)
+  const hasCategory = Boolean(card.deckCategory)
+
+  if (!hasCategory && themes.length === 0 && oracleTags.length === 0) return null
+
+  return (
+    <div className="flex flex-col gap-3 text-sm">
+      {hasCategory ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold text-base-content/70">Category</span>
+          <Badge tone="primary">{titleize(card.deckCategory)}</Badge>
+        </div>
+      ) : null}
+
+      {themes.length ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold text-base-content/70">Themes</span>
+          {themes.map((theme) => (
+            <Badge key={theme}>{titleize(theme)}</Badge>
+          ))}
+        </div>
+      ) : null}
+
+      {oracleTags.length ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold text-base-content/70">Scryfall tags</span>
+          {oracleTags.map((tag) => (
+            <Badge key={tag.id} title={tag.annotation || tag.weight || undefined}>
+              {tag.label}
+            </Badge>
+          ))}
+        </div>
+      ) : null}
+    </div>
   )
 }
 
