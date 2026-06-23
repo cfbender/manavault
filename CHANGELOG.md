@@ -8,6 +8,16 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.7.2] - 2026-06-23
+
+### Bug Fixes
+
+- Android app attachment loading ([`3cfeed35`](../../commit/3cfeed35e939f8678c744919138ee0f9327f2d52))
+
+### Features
+
+- Deck stats and fixes ([`36add790`](../../commit/36add790982ecf06b6cc30b10a3c1e97108b72cd))
+
 ## [0.7.1] - 2026-06-23
 
 ### Bug Fixes
