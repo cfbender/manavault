@@ -1,5 +1,6 @@
 package dev.cfb.manavault;
 
+import android.content.Context;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
@@ -8,15 +9,26 @@ import android.webkit.CookieManager;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
+import com.getcapacitor.CapConfig;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 public class MainActivity extends BridgeActivity {
     private static final int APP_CHROME_COLOR = Color.rgb(24, 4, 13);
+    private static final String PREFERENCES_NAME = "NativeShell";
+    private static final String SERVER_URL_KEY = "serverUrl";
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        String serverUrl = savedServerUrl();
+        if (serverUrl != null) {
+            config = new CapConfig.Builder(this)
+                    .setServerUrl(serverUrl)
+                    .setAllowNavigation(new String[]{"*", "http://*"})
+                    .create();
+        }
         registerPlugin(InAppHttpNavigationPlugin.class);
         registerPlugin(SharedImportPlugin.class);
         registerPlugin(NativeShellPlugin.class);
@@ -45,6 +57,21 @@ public class MainActivity extends BridgeActivity {
 
     private void flushWebViewCookies() {
         CookieManager.getInstance().flush();
+    }
+
+    private String savedServerUrl() {
+        String serverUrl = getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+                .getString(SERVER_URL_KEY, "");
+        if (serverUrl == null) return null;
+
+        String trimmed = serverUrl.trim();
+        if (trimmed.isEmpty()) return null;
+
+        Uri uri = Uri.parse(trimmed);
+        String scheme = uri.getScheme();
+        if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) return null;
+
+        return trimmed;
     }
 
     @CapacitorPlugin(name = "InAppHttpNavigation")

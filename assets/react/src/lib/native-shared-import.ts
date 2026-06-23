@@ -81,6 +81,20 @@ export function takeSharedImport() {
   return payload
 }
 
+export async function takePendingNativeSharedImport() {
+  const payload = takeSharedImport()
+  if (payload) return payload
+  if (!Capacitor.isNativePlatform()) return null
+
+  try {
+    const result = await SharedImport.getPendingImport()
+    return isSharedImportPayload(result.import) ? result.import : null
+  } catch {
+    // Native bridge is unavailable in browsers, old Android shells, or disallowed origins.
+    return null
+  }
+}
+
 export function subscribeSharedImport(listener: (payload: SharedImportPayload) => void) {
   listeners.add(listener)
 

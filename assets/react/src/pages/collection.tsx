@@ -52,7 +52,7 @@ import {
 import { request } from "../lib/graphql"
 import {
   subscribeSharedImport,
-  takeSharedImport,
+  takePendingNativeSharedImport,
   type SharedImportPayload,
 } from "../lib/native-shared-import"
 import {
@@ -2607,6 +2607,7 @@ function ImportCollectionDialog({
   const queryClient = useQueryClient()
   const [importText, setImportText] = useState("")
   const [fileName, setFileName] = useState("")
+  const [sharedFileName, setSharedFileName] = useState<string | null>(null)
   const [format, setFormat] = useState<CollectionImportFormat>("auto")
   const [locationId, setLocationId] = useState("")
   const [preview, setPreview] = useState<CollectionImportPreview | null>(null)
@@ -2663,6 +2664,7 @@ function ImportCollectionDialog({
     setError(null)
     setPreview(null)
     setFileName(file?.name || "")
+    setSharedFileName(null)
     setFormat(file ? importFormatFromSource(file.name, file.type) : "auto")
     setImportText(file ? await file.text() : "")
   }
@@ -2674,6 +2676,7 @@ function ImportCollectionDialog({
     setError(null)
     setPreview(null)
     setFileName(nextFileName)
+    setSharedFileName(nextFileName)
     setFormat(nextFormat)
     setImportText(payload.text)
     previewImport.mutate({
@@ -2728,6 +2731,7 @@ function ImportCollectionDialog({
   function reset() {
     setImportText("")
     setFileName("")
+    setSharedFileName(null)
     setFormat("auto")
     setLocationId("")
     setPreview(null)
@@ -2782,7 +2786,14 @@ function ImportCollectionDialog({
                 className="file-input file-input-bordered w-full bg-base-100"
                 onChange={(event) => void chooseFile(event.target.files?.[0])}
               />
-              {fileName ? <p className="text-sm text-base-content/55">{fileName}</p> : null}
+              {sharedFileName ? (
+                <p className="rounded-box border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
+                  Loaded shared file: {sharedFileName}. The Android file picker may still say no
+                  file chosen; the shared TXT is in the import text box below.
+                </p>
+              ) : fileName ? (
+                <p className="text-sm text-base-content/55">{fileName}</p>
+              ) : null}
             </label>
 
             <label className="block space-y-2">
@@ -3699,6 +3710,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
   const [structuredFilters, setStructuredFilters] =
     useState<CollectionFilterState>(EMPTY_COLLECTION_FILTERS)
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const deleteLocation = useMutation({
     mutationFn: (locationId: string) => request(DeleteLocationDocument, { id: locationId }),
     onSuccess: () => {
@@ -3757,10 +3769,21 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
   useEffect(() => {
     if (!importFile) return
 
-    const payload = takeSharedImport()
-    if (payload) setSharedImport(payload)
-    setIsImportOpen(true)
-  }, [importFile])
+    let ignore = false
+
+    void (async () => {
+      const payload = await takePendingNativeSharedImport()
+      if (ignore) return
+
+      if (payload) setSharedImport(payload)
+      setIsImportOpen(true)
+      void navigate({ to: "/collection", search: { importFile: false }, replace: true })
+    })()
+
+    return () => {
+      ignore = true
+    }
+  }, [importFile, navigate])
 
   useEffect(
     () =>
