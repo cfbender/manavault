@@ -8,6 +8,12 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.6.5] - 2026-06-23
+
+### Bug Fixes
+
+- Android app ([`0066dba0`](../../commit/0066dba0c230e5c1c9b8080911716fe11c1d35b4))
+
 ## [0.6.4] - 2026-06-23
 
 ### Features
