@@ -304,40 +304,63 @@ defmodule ManavaultWeb.SchemaTest do
 
   test "card query resolves owned counts per printing", %{conn: conn} do
     {:ok, %{printings_count: 2}} =
-      Catalog.import_cards([
-        %{
-          "id" => "scryfall-owned-old",
-          "oracle_id" => "oracle-owned-card",
-          "name" => "Owned Card",
-          "type_line" => "Artifact",
-          "collector_number" => "1",
-          "set" => "old",
-          "set_name" => "Old Set",
-          "lang" => "en",
-          "rarity" => "rare",
-          "image_uris" => %{},
-          "prices" => %{"usd" => "1.00"},
-          "finishes" => ["nonfoil"],
-          "released_at" => "1993-08-05",
-          "legalities" => %{}
-        },
-        %{
-          "id" => "scryfall-owned-new",
-          "oracle_id" => "oracle-owned-card",
-          "name" => "Owned Card",
-          "type_line" => "Artifact",
-          "collector_number" => "2",
-          "set" => "new",
-          "set_name" => "New Set",
-          "lang" => "en",
-          "rarity" => "rare",
-          "image_uris" => %{},
-          "prices" => %{"usd" => "2.00"},
-          "finishes" => ["nonfoil"],
-          "released_at" => "1994-08-05",
-          "legalities" => %{}
-        }
-      ])
+      Catalog.import_cards(
+        [
+          %{
+            "id" => "scryfall-owned-old",
+            "oracle_id" => "oracle-owned-card",
+            "name" => "Owned Card",
+            "type_line" => "Artifact",
+            "collector_number" => "1",
+            "set" => "old",
+            "set_name" => "Old Set",
+            "lang" => "en",
+            "rarity" => "rare",
+            "image_uris" => %{},
+            "prices" => %{"usd" => "1.00"},
+            "finishes" => ["nonfoil"],
+            "released_at" => "1993-08-05",
+            "legalities" => %{}
+          },
+          %{
+            "id" => "scryfall-owned-new",
+            "oracle_id" => "oracle-owned-card",
+            "name" => "Owned Card",
+            "type_line" => "Artifact",
+            "collector_number" => "2",
+            "set" => "new",
+            "set_name" => "New Set",
+            "lang" => "en",
+            "rarity" => "rare",
+            "image_uris" => %{},
+            "prices" => %{"usd" => "2.00"},
+            "finishes" => ["nonfoil"],
+            "released_at" => "1994-08-05",
+            "legalities" => %{}
+          }
+        ],
+        nil,
+        oracle_tags: [
+          %{
+            "object" => "tag",
+            "id" => "tag-card-draw",
+            "slug" => "card-draw",
+            "label" => "Card Draw",
+            "type" => "function",
+            "description" => nil,
+            "parent_ids" => [],
+            "child_ids" => [],
+            "aliases" => [],
+            "taggings" => [
+              %{
+                "oracle_id" => "oracle-owned-card",
+                "weight" => 0.72,
+                "annotation" => "draws extra cards"
+              }
+            ]
+          }
+        ]
+      )
 
     {:ok, binder} = Catalog.create_location(%{name: "Binder", kind: "binder"})
     {:ok, list} = Catalog.create_location(%{name: "Wishlist", kind: "list"})
@@ -374,6 +397,15 @@ defmodule ManavaultWeb.SchemaTest do
         "query" => """
         query {
           card(id: "oracle-owned-card") {
+            oracleTags {
+              id
+              slug
+              label
+              weight
+              annotation
+            }
+            deckCategory
+            deckThemes
             printings {
               scryfallId
               ownedCount
@@ -386,6 +418,17 @@ defmodule ManavaultWeb.SchemaTest do
     assert %{
              "data" => %{
                "card" => %{
+                 "oracleTags" => [
+                   %{
+                     "id" => "tag-card-draw",
+                     "slug" => "card-draw",
+                     "label" => "Card Draw",
+                     "weight" => "0.72",
+                     "annotation" => "draws extra cards"
+                   }
+                 ],
+                 "deckCategory" => "card_advantage",
+                 "deckThemes" => deck_themes,
                  "printings" => [
                    %{"scryfallId" => "scryfall-owned-new", "ownedCount" => 1},
                    %{"scryfallId" => "scryfall-owned-old", "ownedCount" => 3}
@@ -393,6 +436,9 @@ defmodule ManavaultWeb.SchemaTest do
                }
              }
            } = json_response(conn, 200)
+
+    assert "card_advantage" in deck_themes
+    assert "artifact" in deck_themes
   end
 
   test "unfiled location resolves cards without an assigned location", %{conn: conn} do

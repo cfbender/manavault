@@ -3,11 +3,12 @@ defmodule Manavault.Catalog.Scryfall do
 
   import Ecto.Query
 
-  alias Manavault.Catalog.{Card, Printing, Search, Sync}
+  alias Manavault.Catalog.{Card, Printing, ScryfallOracleTags, Search, Sync}
 
   alias Manavault.Repo
 
   @bulk_metadata_url "https://api.scryfall.com/bulk-data/default-cards"
+  @oracle_tags_bulk_metadata_url "https://api.scryfall.com/bulk-data/oracle-tags"
   @bulk_type "default_cards"
   @batch_size 200
   def latest_sync do
@@ -17,6 +18,10 @@ defmodule Manavault.Catalog.Scryfall do
   def sync_scryfall(opts \\ []) do
     fetcher = Keyword.get(opts, :fetcher, &fetch_url/1)
     bulk_url = Keyword.get(opts, :bulk_url, @bulk_metadata_url)
+
+    oracle_tags_bulk_url =
+      Keyword.get(opts, :oracle_tags_bulk_url, @oracle_tags_bulk_metadata_url)
+
     now = utc_now()
 
     {:ok, sync} =
@@ -29,7 +34,8 @@ defmodule Manavault.Catalog.Scryfall do
          {:ok, download_uri} <- fetch_download_uri(metadata),
          {:ok, bulk_body} <- fetcher.(download_uri),
          {:ok, cards} <- Jason.decode(bulk_body),
-         {:ok, counts} <- import_cards(cards, download_uri) do
+         {:ok, oracle_tags} <- fetch_oracle_tags(fetcher, oracle_tags_bulk_url),
+         {:ok, counts} <- import_cards(cards, download_uri, oracle_tags: oracle_tags) do
       sync
       |> Sync.changeset(%{
         status: "succeeded",
@@ -46,13 +52,20 @@ defmodule Manavault.Catalog.Scryfall do
     end
   end
 
-  def import_cards(cards, bulk_uri \\ nil) when is_list(cards) do
+  def import_cards(cards, bulk_uri \\ nil, opts \\ [])
+
+  def import_cards(cards, opts, []) when is_list(cards) and is_list(opts) do
+    import_cards(cards, nil, opts)
+  end
+
+  def import_cards(cards, bulk_uri, opts) when is_list(cards) and is_list(opts) do
     now = utc_now()
+    oracle_tag_index = ScryfallOracleTags.build_index(Keyword.get(opts, :oracle_tags, []))
 
     result =
       Repo.transaction(
         fn ->
-          rows = Enum.flat_map(cards, &card_row(&1, now))
+          rows = Enum.flat_map(cards, &card_row(&1, now, oracle_tag_index))
           printing_rows = Enum.flat_map(cards, &printing_row(&1, now))
           search_rows = Enum.flat_map(cards, &printing_search_row/1)
 
@@ -69,6 +82,9 @@ defmodule Manavault.Catalog.Scryfall do
                  :colors,
                  :color_identity,
                  :legalities,
+                 :oracle_tags,
+                 :deck_category,
+                 :deck_themes,
                  :updated_at
                ]}
           )
@@ -177,8 +193,10 @@ defmodule Manavault.Catalog.Scryfall do
     end)
   end
 
-  defp card_row(%{"oracle_id" => oracle_id, "name" => name} = card, now)
+  defp card_row(%{"oracle_id" => oracle_id, "name" => name} = card, now, oracle_tag_index)
        when is_binary(oracle_id) and is_binary(name) do
+    tag_fields = ScryfallOracleTags.fields_for_card(card, oracle_tag_index)
+
     [
       %{
         oracle_id: oracle_id,
@@ -190,13 +208,16 @@ defmodule Manavault.Catalog.Scryfall do
         colors: encode_json(card["colors"] || []),
         color_identity: encode_json(card["color_identity"] || []),
         legalities: encode_json(card["legalities"] || %{}),
+        oracle_tags: tag_fields.oracle_tags,
+        deck_category: tag_fields.deck_category,
+        deck_themes: tag_fields.deck_themes,
         inserted_at: now,
         updated_at: now
       }
     ]
   end
 
-  defp card_row(_card, _now), do: []
+  defp card_row(_card, _now, _oracle_tag_index), do: []
 
   defp printing_row(%{"id" => scryfall_id, "oracle_id" => oracle_id} = card, now)
        when is_binary(scryfall_id) and is_binary(oracle_id) do
@@ -320,6 +341,27 @@ defmodule Manavault.Catalog.Scryfall do
 
   defp fetch_download_uri(_metadata),
     do: {:error, "Scryfall bulk metadata did not include download_uri"}
+
+  defp fetch_oracle_tags(_fetcher, nil), do: {:ok, []}
+
+  defp fetch_oracle_tags(fetcher, oracle_tags_bulk_url) do
+    with {:ok, metadata_body} <- fetcher.(oracle_tags_bulk_url),
+         {:ok, metadata} <- Jason.decode(metadata_body),
+         {:ok, download_uri} <- fetch_download_uri(metadata),
+         {:ok, bulk_body} <- fetcher.(download_uri),
+         {:ok, tags} <- decode_oracle_tags_bulk(bulk_body) do
+      {:ok, tags}
+    end
+  end
+
+  defp decode_oracle_tags_bulk(body) do
+    case Jason.decode(body) do
+      {:ok, tags} when is_list(tags) -> {:ok, tags}
+      {:ok, %{"data" => tags}} when is_list(tags) -> {:ok, tags}
+      {:ok, _value} -> {:error, "Scryfall oracle tags bulk did not decode to a list"}
+      {:error, reason} -> {:error, reason}
+    end
+  end
 
   defp fail_sync!(sync, reason) do
     sync

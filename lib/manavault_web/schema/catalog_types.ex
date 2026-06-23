@@ -8,6 +8,33 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :message, non_null(:string)
   end
 
+  object :scryfall_oracle_tag do
+    field :id, non_null(:id) do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :slug, non_null(:string) do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :label, non_null(:string) do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :weight, :string do
+      resolve(fn tag, _, _ ->
+        case Map.get(tag, :weight) || Map.get(tag, "weight") do
+          nil -> {:ok, nil}
+          weight -> {:ok, to_string(weight)}
+        end
+      end)
+    end
+
+    field :annotation, :string do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+  end
+
   object :card do
     field :oracle_id, non_null(:id)
     field :name, non_null(:string)
@@ -25,6 +52,20 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :color_identity, list_of(:string) do
       resolve(fn card, _, _ ->
         {:ok, CatalogResolvers.decode_json_field(card, :color_identity, [])}
+      end)
+    end
+
+    field :oracle_tags, list_of(:scryfall_oracle_tag) do
+      resolve(fn card, _, _ ->
+        {:ok, CatalogResolvers.decode_json_field(card, :oracle_tags, [])}
+      end)
+    end
+
+    field :deck_category, :string
+
+    field :deck_themes, list_of(:string) do
+      resolve(fn card, _, _ ->
+        {:ok, CatalogResolvers.decode_json_field(card, :deck_themes, [])}
       end)
     end
 

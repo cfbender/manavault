@@ -14,6 +14,9 @@ defmodule Manavault.Catalog.Card do
     field :colors, :string, default: "[]"
     field :color_identity, :string, default: "[]"
     field :legalities, :string, default: "{}"
+    field :oracle_tags, :string, default: "[]"
+    field :deck_category, :string
+    field :deck_themes, :string, default: "[]"
 
     has_many :printings, Manavault.Catalog.Printing, foreign_key: :oracle_id
 
@@ -31,7 +34,10 @@ defmodule Manavault.Catalog.Card do
       :cmc,
       :colors,
       :color_identity,
-      :legalities
+      :legalities,
+      :oracle_tags,
+      :deck_category,
+      :deck_themes
     ])
     |> validate_required([:oracle_id, :name, :color_identity, :legalities])
   end
