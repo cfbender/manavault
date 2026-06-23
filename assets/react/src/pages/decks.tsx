@@ -3498,7 +3498,7 @@ function BulkAllocationMenu({
   onPreview: (mode: BulkAllocationMode) => void
 }) {
   return (
-    <div className="dropdown dropdown-start sm:dropdown-end">
+    <div className="dropdown dropdown-end">
       <button
         type="button"
         className="btn btn-primary btn-sm min-w-40 justify-between gap-2 px-4"
@@ -3513,7 +3513,7 @@ function BulkAllocationMenu({
       </button>
       <div
         tabIndex={0}
-        className="dropdown-content z-50 mt-2 w-60 rounded-box border border-base-300 bg-base-100 p-2 shadow-2xl"
+        className="dropdown-content right-0 z-50 mt-2 box-border w-60 max-w-[calc(100dvw-2rem)] rounded-box border border-base-300 bg-base-100 p-2 shadow-2xl"
         onClick={blurFocusedMenuItem}
       >
         <button

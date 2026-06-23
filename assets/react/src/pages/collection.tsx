@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router"
+import { Link, useLocation, useNavigate } from "@tanstack/react-router"
 import {
   useInfiniteQuery,
   useMutation,
@@ -648,6 +648,13 @@ function invalidateCollectionViews(queryClient: QueryClient, locationId?: string
   if (locationId) queryClient.invalidateQueries({ queryKey: ["location", locationId] })
 }
 
+function collectionCardReturnSearch(pathname: string) {
+  const locationMatch = /^\/collection\/locations\/([^/?#]+)/.exec(pathname)
+  if (locationMatch?.[1]) return { returnLocationId: decodeURIComponent(locationMatch[1]) }
+
+  return { returnCollection: true }
+}
+
 function useCollectionItemSelection(items: CollectionItem[]) {
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
@@ -943,6 +950,8 @@ function CollectionItemTile({
   const [moveTarget, setMoveTarget] = useState<CollectionItem | null>(null)
   const [editTarget, setEditTarget] = useState<CollectionItem | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<CollectionItem | null>(null)
+  const { pathname } = useLocation()
+  const cardReturnSearch = collectionCardReturnSearch(pathname)
 
   function refreshCollection() {
     invalidateCollectionViews(queryClient, item.location?.id)
@@ -989,6 +998,7 @@ function CollectionItemTile({
           <Link
             to="/cards/$id"
             params={{ id: item.printing?.card?.oracleId || "" }}
+            search={cardReturnSearch}
             className="hover:underline"
           >
             {item.printing?.card?.name || "Unknown card"}

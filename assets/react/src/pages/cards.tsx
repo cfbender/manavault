@@ -351,16 +351,20 @@ export function CardDetailPage({
   id,
   query,
   filterSearch,
+  returnCollection = false,
   returnDeckId,
   returnEdhrecExcludeLands = false,
   returnEdhrecTab,
+  returnLocationId,
 }: {
   id: string
   query: string
   filterSearch?: string
+  returnCollection?: boolean
   returnDeckId?: string
   returnEdhrecExcludeLands?: boolean
   returnEdhrecTab?: CardReturnEdhrecTab
+  returnLocationId?: string
 }) {
   const [addPrinting, setAddPrinting] = useState<AddCollectionItemInitialPrinting | null>(null)
   const [deckTarget, setDeckTarget] = useState<CardDeckTarget | null>(null)
@@ -391,6 +395,18 @@ export function CardDetailPage({
               }}
             >
               {returnEdhrecTab ? "Back to EDHREC" : "Back to deck"}
+            </Link>
+          </Button>
+        ) : returnLocationId ? (
+          <Button asChild variant="outline" size="sm">
+            <Link to="/collection/locations/$id" params={{ id: returnLocationId }}>
+              Back to collection
+            </Link>
+          </Button>
+        ) : returnCollection ? (
+          <Button asChild variant="outline" size="sm">
+            <Link to="/collection" search={{ importFile: false }}>
+              Back to collection
             </Link>
           </Button>
         ) : (
