@@ -35,6 +35,7 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     field :name, non_null(:string)
     field :type_line, :string
     field :mana_cost, :string
+    field :oracle_text, :string
     field :cmc, :float
 
     field :colors, list_of(:string) do

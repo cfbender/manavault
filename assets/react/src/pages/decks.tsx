@@ -111,6 +111,7 @@ import {
 } from "../lib/deck-grouping"
 import { createPlaytestState, type PlaytestCard } from "../lib/deck-playtest"
 import { exportDecklistText } from "../lib/deck-export"
+import { buildDeckStats, MANA_STAT_COLORS } from "../lib/deck-stats"
 import { cn, compactNumber, present, titleize } from "../lib/utils"
 
 const DecksDocument = graphql(`
@@ -227,6 +228,8 @@ const DeckDocument = graphql(`
           name
           typeLine
           cmc
+          manaCost
+          oracleText
           colors
           colorIdentity
           deckCategory
@@ -836,6 +839,7 @@ export function DeckDetailPage({
   const [isSelectingCards, setIsSelectingCards] = useState(false)
   const [selectedDeckCardIds, setSelectedDeckCardIds] = useState<Set<string>>(() => new Set())
   const [lastSelectedDeckCardId, setLastSelectedDeckCardId] = useState<string | null>(null)
+  const [highlightedDeckCardIds, setHighlightedDeckCardIds] = useState<Set<string> | null>(null)
   const [bulkQuantity, setBulkQuantity] = useState(1)
   const [isDeleteSelectedOpen, setIsDeleteSelectedOpen] = useState(false)
   const [bulkActionError, setBulkActionError] = useState<string | null>(null)
@@ -862,6 +866,7 @@ export function DeckDetailPage({
   const deck = data?.deck
   const [isAddCardOpen, setIsAddCardOpen] = useState(false)
   const deckCards = useMemo(() => (deck?.deckCards || []).filter(present), [deck?.deckCards])
+  const deckStats = useMemo(() => buildDeckStats(deckCards), [deckCards])
   const sharedDecklistText = useMemo(() => exportDecklistText(deckCards), [deckCards])
   const playtestCards = useMemo(() => deckPlaytestCards(deckCards), [deckCards])
   const initialPlaytestState = useMemo(
@@ -927,6 +932,7 @@ export function DeckDetailPage({
       return new Set(selectedIds)
     })
     setLastSelectedDeckCardId((current) => (current && availableIds.has(current) ? current : null))
+    setHighlightedDeckCardIds((current) => filterHighlightedDeckCardIds(current, availableIds))
   }, [deckCards])
 
   const updateDeckCard = useMutation({
@@ -1550,6 +1556,7 @@ export function DeckDetailPage({
             isSelecting={isSelectionActive}
             isUpdating={isUpdatingDeckCard}
             selectedCardIds={selectedDeckCardIds}
+            highlightedCardIds={highlightedDeckCardIds}
             onPreview={setPreviewDeckCard}
             onMove={(deckCard) => {
               setMoveError(null)
@@ -1597,6 +1604,7 @@ export function DeckDetailPage({
             isSelecting={isSelectionActive}
             isUpdating={isUpdatingDeckCard}
             selectedCardIds={selectedDeckCardIds}
+            highlightedCardIds={highlightedDeckCardIds}
             shareMode={shareMode}
             onPreview={setPreviewDeckCard}
             title="Sideboard"
@@ -1617,6 +1625,7 @@ export function DeckDetailPage({
             isSelecting={isSelectionActive}
             isUpdating={isUpdatingDeckCard}
             selectedCardIds={selectedDeckCardIds}
+            highlightedCardIds={highlightedDeckCardIds}
             shareMode={shareMode}
             onPreview={setPreviewDeckCard}
             title="Maybeboard"
@@ -1633,6 +1642,8 @@ export function DeckDetailPage({
             onToggleSelected={toggleDeckCardSelected}
           />
         </div>
+
+        <DeckStatsSection stats={deckStats} onHighlightDeckCards={setHighlightedDeckCardIds} />
       </div>
       <DeckCardPreviewDialog
         deckCard={previewDeckCard}
@@ -1751,6 +1762,941 @@ export function DeckDetailPage({
   )
 }
 
+const MANA_CURVE_PERMANENT_COLOR = "#38bdf8"
+const MANA_CURVE_SPELL_COLOR = "#fb923c"
+const MANA_COLOR_LABELS: Record<(typeof MANA_STAT_COLORS)[number], string> = {
+  W: "White",
+  U: "Blue",
+  B: "Black",
+  R: "Red",
+  G: "Green",
+  C: "Colorless",
+}
+const MANA_BALANCE_COLORS: Record<(typeof MANA_STAT_COLORS)[number], string> = {
+  W: "#fef3c7",
+  U: "#38bdf8",
+  B: "#6b21a8",
+  R: "#fb923c",
+  G: "#4ade80",
+  C: "#94a3b8",
+}
+const MANA_ANY_PRODUCTION_COLOR = "#d4d4d8"
+const MANA_EMPTY_BAR_COLOR = "hsl(var(--b3))"
+
+type ManaStatColor = (typeof MANA_STAT_COLORS)[number]
+const FLEXIBLE_MANA_COLORS = new Set<ManaStatColor>(["W", "U", "B", "R", "G"])
+
+type ManaContributorColor = ManaStatColor | "any"
+type ManaBalanceSelection =
+  | { mode: "cost"; color: ManaStatColor }
+  | { mode: "production"; color: ManaContributorColor }
+
+function sameManaBalanceSelection(left: ManaBalanceSelection | null, right: ManaBalanceSelection) {
+  return Boolean(left && left.mode === right.mode && left.color === right.color)
+}
+type ManaBalanceSegment = {
+  key: string
+  label: string
+  value: number
+  color: string
+  ariaLabel?: string
+  isActive?: boolean
+  onSelect?: () => void
+}
+type ManaProductionCards = Partial<Record<ManaContributorColor, number>>
+type ManaContributor = {
+  id?: string | null
+  name?: string | null
+  quantity?: number | null
+  value?: number | null
+  category?: string | null
+  typeLine?: string | null
+}
+type ManaBalanceContributor = {
+  id: string
+  name: string
+  quantity: number
+  value: number
+  category: string
+  typeLine?: string | null
+}
+type ManaContributorMap = Partial<Record<ManaContributorColor, readonly ManaContributor[]>>
+type ManaProductionWithCards = ReturnType<typeof buildDeckStats>["manaProduction"] & {
+  cards?: ManaProductionCards
+  contributors?: ManaContributorMap
+}
+type DeckStatsWithContributors = ReturnType<typeof buildDeckStats> & {
+  costContributors?: Partial<Record<ManaStatColor, readonly ManaContributor[]>>
+  manaProduction: ManaProductionWithCards
+}
+type ManaBalanceRowModel = {
+  color: ManaStatColor
+  label: string
+  cost: number
+  costContributors: ManaBalanceContributor[]
+  explicitProduction: number
+  production: number
+  productionContributors: ManaBalanceContributor[]
+  sourceCardCount: number | undefined
+  includesFlexibleProduction: boolean
+}
+type ManaBalanceDetail = {
+  title: string
+  summary: string
+  contributors: ManaBalanceContributor[]
+  emptyText: string
+}
+
+type HighlightDeckCards = (deckCardIds: Set<string> | null) => void
+
+function DeckStatsSection({
+  onHighlightDeckCards,
+  stats,
+}: {
+  onHighlightDeckCards?: HighlightDeckCards
+  stats: ReturnType<typeof buildDeckStats>
+}) {
+  const maxCurveQuantity = Math.max(1, ...stats.manaCurve.map((bucket) => bucket.quantity))
+
+  return (
+    <details className="group rounded-box border border-base-300 bg-base-100 shadow-sm">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 marker:hidden">
+        <span className="flex min-w-0 items-center gap-2">
+          <TrendingUp className="h-4 w-4 shrink-0 text-primary" />
+          <span className="font-black tracking-normal">Deck stats</span>
+          <span className="hidden truncate text-xs font-semibold text-base-content/50 sm:inline">
+            Mana curve, costs, and production
+          </span>
+        </span>
+        <ChevronDown className="h-4 w-4 shrink-0 text-base-content/50 transition group-open:rotate-180" />
+      </summary>
+
+      <div className="grid gap-5 border-t border-base-300 p-4">
+        <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          <DeckStatsMetric
+            label="Nonland average MV"
+            value={formatManaValue(stats.averageManaValue)}
+          />
+          <DeckStatsMetric label="Nonlands" value={stats.nonlandCards} />
+          <DeckStatsMetric label="Lands" value={stats.landCards} />
+          <DeckStatsMetric label="Median MV" value={formatManaValue(stats.medianManaValue)} />
+          <DeckStatsMetric label="Total MV" value={stats.totalManaValue} />
+        </dl>
+
+        <section
+          aria-labelledby="deck-stats-mana-curve"
+          className="rounded-box border border-base-300 bg-base-200/45 p-4"
+        >
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3
+                id="deck-stats-mana-curve"
+                className="text-xs font-black uppercase tracking-[0.16em] text-base-content/55"
+              >
+                Mana curve
+              </h3>
+              <p className="mt-1 text-sm text-base-content/60">Nonland cards by mana value</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-xs font-bold text-base-content/60">
+              <span className="inline-flex items-center gap-1.5">
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: MANA_CURVE_PERMANENT_COLOR }}
+                />
+                Permanents
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: MANA_CURVE_SPELL_COLOR }}
+                />
+                Spells
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-8 items-end gap-2 sm:gap-3">
+            {stats.manaCurve.map((bucket) => (
+              <ManaCurveBar key={bucket.bucket} bucket={bucket} maxQuantity={maxCurveQuantity} />
+            ))}
+          </div>
+        </section>
+
+        <ManaBalanceComparison stats={stats} onHighlightDeckCards={onHighlightDeckCards} />
+      </div>
+    </details>
+  )
+}
+
+function DeckStatsMetric({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="rounded-box border border-base-300 bg-base-200/45 px-3 py-2.5">
+      <dt className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-base-content/55">
+        {label}
+      </dt>
+      <dd className="mt-1 font-mono text-2xl font-black leading-none text-base-content">{value}</dd>
+    </div>
+  )
+}
+
+function ManaCurveBar({
+  bucket,
+  maxQuantity,
+}: {
+  bucket: ReturnType<typeof buildDeckStats>["manaCurve"][number]
+  maxQuantity: number
+}) {
+  const barHeight = bucket.quantity === 0 ? "0%" : `${Math.max(8, (bucket.quantity / maxQuantity) * 100)}%`
+  const permanents = bucket.permanents
+  const spells = bucket.spells
+  const permanentHeight = bucket.quantity === 0 ? 0 : (permanents / bucket.quantity) * 100
+  const spellHeight = bucket.quantity === 0 ? 0 : (spells / bucket.quantity) * 100
+
+  return (
+    <div className="grid min-w-0 gap-1.5 text-center">
+      <span className="font-mono text-xs font-black text-base-content/70">{bucket.quantity}</span>
+      <div className="flex h-36 items-end justify-center rounded-box bg-base-100/70 px-1.5 py-2 ring-1 ring-base-300/70">
+        <div
+          className="flex w-full max-w-10 flex-col-reverse overflow-hidden rounded-t-lg bg-base-200 shadow-inner"
+          style={{ height: barHeight }}
+          role="img"
+          aria-label={`Mana value ${bucket.bucket}: ${bucket.quantity} cards, ${permanents} permanents and ${spells} spells`}
+        >
+          {permanents > 0 ? (
+            <div
+              className="min-h-[0.25rem]"
+              style={{ height: `${permanentHeight}%`, backgroundColor: MANA_CURVE_PERMANENT_COLOR }}
+            />
+          ) : null}
+          {spells > 0 ? (
+            <div
+              className="min-h-[0.25rem]"
+              style={{ height: `${spellHeight}%`, backgroundColor: MANA_CURVE_SPELL_COLOR }}
+            />
+          ) : null}
+        </div>
+      </div>
+      <span className="font-mono text-xs font-black text-base-content/70">{bucket.bucket}</span>
+    </div>
+  )
+}
+
+function ManaBalanceComparison({
+  onHighlightDeckCards,
+  stats,
+}: {
+  onHighlightDeckCards?: HighlightDeckCards
+  stats: ReturnType<typeof buildDeckStats>
+}) {
+  const [selection, setSelection] = useState<ManaBalanceSelection | null>(null)
+  const statsWithContributors = stats as DeckStatsWithContributors
+  const manaProduction = statsWithContributors.manaProduction
+  const productionCards = manaProduction.cards
+  const productionContributors = manaProduction.contributors
+  const costContributors = statsWithContributors.costContributors
+  const anyProduction = manaProduction.any
+  const anySourceCardCount = productionCards ? (productionCards.any ?? 0) : undefined
+  const anyContributors = manaContributorList(productionContributors, "any")
+  const sourceCardsAvailable = Boolean(productionCards || productionContributors)
+  const rows = MANA_STAT_COLORS.map((color) => {
+    const explicitProduction = manaProduction[color]
+    const includesFlexibleProduction = canSpendFlexibleManaOn(color) && anyProduction > 0
+    const production = practicalManaProduction(color, explicitProduction, anyProduction)
+    const explicitSourceCardCount = productionCards ? (productionCards[color] ?? 0) : undefined
+    const productionContributorList = mergeManaContributors([
+      manaContributorList(productionContributors, color),
+      includesFlexibleProduction ? anyContributors : [],
+    ])
+    const fallbackSourceCardCount =
+      productionCards && typeof explicitSourceCardCount === "number"
+        ? explicitSourceCardCount + (includesFlexibleProduction ? (productionCards.any ?? 0) : 0)
+        : undefined
+    const sourceCardCount =
+      productionContributorList.length > 0
+        ? manaContributorQuantity(productionContributorList)
+        : fallbackSourceCardCount
+
+    return {
+      color,
+      label: MANA_COLOR_LABELS[color],
+      cost: stats.manaCost[color],
+      costContributors: manaContributorList(costContributors, color),
+      explicitProduction,
+      production,
+      productionContributors: productionContributorList,
+      sourceCardCount,
+      includesFlexibleProduction,
+    }
+  })
+  const costTotal = rows.reduce((total, row) => total + row.cost, 0)
+  const coloredProductionTotal = rows.reduce((total, row) => total + row.explicitProduction, 0)
+  const productionTotal = coloredProductionTotal + anyProduction
+  const coveredCost = rows.reduce((total, row) => total + Math.min(row.cost, row.production), 0)
+  const remainingShortage = rows.reduce((total, row) => total + Math.max(0, row.cost - row.production), 0)
+  const coveragePercent = costTotal === 0 ? 0 : Math.min(100, Math.round((coveredCost / costTotal) * 100))
+  const maxRowValue = Math.max(
+    1,
+    ...rows.flatMap((row) => [row.cost, row.production]),
+  )
+  const costSegments = rows
+    .filter((row) => row.cost > 0)
+    .map((row) => ({
+      key: row.color,
+      label: row.label,
+      value: row.cost,
+      color: MANA_BALANCE_COLORS[row.color],
+      ariaLabel: `Show ${row.label} cost contributors, ${row.cost} pips`,
+      isActive: selection?.mode === "cost" && selection.color === row.color,
+      onSelect: () => selectManaBalance({ mode: "cost", color: row.color }),
+    }))
+  const productionSegments: ManaBalanceSegment[] = [
+    ...rows
+      .filter((row) => row.explicitProduction > 0)
+      .map((row) => ({
+        key: row.color,
+        label: row.label,
+        value: row.explicitProduction,
+        color: MANA_BALANCE_COLORS[row.color],
+        ariaLabel: `Show ${row.label} production contributors, including flexible sources where applicable`,
+        isActive: selection?.mode === "production" && selection.color === row.color,
+        onSelect: () => selectManaBalance({ mode: "production", color: row.color }),
+      })),
+    ...(anyProduction > 0
+      ? [
+          {
+            key: "any",
+            label: "Any",
+            value: anyProduction,
+            color: MANA_ANY_PRODUCTION_COLOR,
+            ariaLabel: `Show flexible any-color production contributors, ${anyProduction} mana`,
+            isActive: selection?.mode === "production" && selection.color === "any",
+            onSelect: () => selectManaBalance({ mode: "production", color: "any" }),
+          },
+        ]
+      : []),
+  ]
+  const selectedDetail = manaBalanceSelectionDetail(selection, rows, anyProduction, anyContributors)
+
+  function selectManaBalance(nextSelection: ManaBalanceSelection) {
+    if (sameManaBalanceSelection(selection, nextSelection)) {
+      clearManaBalanceSelection()
+      return
+    }
+
+    const nextDetail = manaBalanceSelectionDetail(nextSelection, rows, anyProduction, anyContributors)
+
+    setSelection(nextSelection)
+    onHighlightDeckCards?.(manaContributorIdSet(nextDetail?.contributors))
+  }
+
+  function clearManaBalanceSelection() {
+    setSelection(null)
+    onHighlightDeckCards?.(null)
+  }
+
+  return (
+    <section
+      className="rounded-box border border-base-300 bg-base-200/45 p-4"
+      aria-labelledby="deck-stats-mana-balance"
+    >
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3
+            id="deck-stats-mana-balance"
+            className="text-xs font-black uppercase tracking-[0.16em] text-base-content/55"
+          >
+            Mana cost vs production
+          </h3>
+          <p className="mt-1 text-sm text-base-content/60">
+            Compare colored pips against practical production; flexible sources count for W/U/B/R/G coverage
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div
+            className={cn(
+              "whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-black shadow-sm",
+              remainingShortage > 0
+                ? "border-warning/30 bg-warning/10 text-warning"
+                : "border-success/30 bg-success/10 text-success",
+            )}
+          >
+            {coveragePercent}% covered
+          </div>
+          {anyProduction > 0 ? (
+            <button
+              type="button"
+              className={cn(
+                "cursor-pointer whitespace-nowrap rounded-full border border-base-300 bg-base-100 px-3 py-1.5 text-xs font-black text-base-content/70 shadow-sm transition hover:border-primary/50 hover:text-primary focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                selection?.mode === "production" &&
+                  selection.color === "any" &&
+                  "border-primary/50 bg-primary/10 text-primary",
+              )}
+              aria-label={`Show flexible any-color production contributors, ${anyProduction} mana`}
+              aria-pressed={selection?.mode === "production" && selection.color === "any"}
+              onClick={() => selectManaBalance({ mode: "production", color: "any" })}
+            >
+              Flexible: {anyProduction} mana
+              {typeof anySourceCardCount === "number" ? ` from ${formatCardCount(anySourceCardCount)}` : ""}
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      <div className={cn("grid gap-4", selectedDetail && "xl:grid-cols-[minmax(0,1fr)_22rem]")}>
+        <div className="min-w-0">
+          <div className="grid gap-3 rounded-box bg-base-100/70 p-3 shadow-sm">
+            <ManaSegmentedBar label="Cost" total={costTotal} segments={costSegments} />
+            <ManaSegmentedBar label="Production" total={productionTotal} segments={productionSegments} />
+          </div>
+
+          <div className="mt-3 grid gap-2 lg:grid-cols-2">
+            {rows.map((row) => (
+              <ManaBalanceRow
+                key={row.color}
+                anyProduction={anyProduction}
+                color={row.color}
+                cost={row.cost}
+                costActive={selection?.mode === "cost" && selection.color === row.color}
+                label={row.label}
+                onSelectCost={row.cost > 0 ? () => selectManaBalance({ mode: "cost", color: row.color }) : undefined}
+                onSelectProduction={
+                  row.production > 0 ? () => selectManaBalance({ mode: "production", color: row.color }) : undefined
+                }
+                production={row.production}
+                productionActive={selection?.mode === "production" && selection.color === row.color}
+                scale={maxRowValue}
+                sourceCardCount={row.sourceCardCount}
+                sourceCardsAvailable={sourceCardsAvailable}
+                usesFlexibleProduction={row.includesFlexibleProduction}
+              />
+            ))}
+          </div>
+
+          {anyProduction > 0 ? (
+            <p className="mt-3 rounded-box border border-base-300 bg-base-100 px-3 py-2 text-sm text-base-content/65">
+              Flexible production remains a distinct Any segment above, but counts toward each W/U/B/R/G row's
+              practical coverage.
+            </p>
+          ) : null}
+        </div>
+
+        {selectedDetail ? (
+          <ManaContributorPanel detail={selectedDetail} onClose={clearManaBalanceSelection} />
+        ) : null}
+      </div>
+    </section>
+  )
+}
+
+function ManaSegmentedBar({
+  label,
+  segments,
+  total,
+}: {
+  label: string
+  segments: ManaBalanceSegment[]
+  total: number
+}) {
+  const segmentSummary =
+    segments.length === 0
+      ? "no mana"
+      : segments.map((segment) => `${segment.label} ${segment.value}`).join(", ")
+
+  return (
+    <div className="grid gap-1.5">
+      <div className="flex items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.12em] text-base-content/55">
+        <span>{label}</span>
+        <span className="font-mono text-base-content/75">{total}</span>
+      </div>
+      <div
+        className="flex h-3 overflow-hidden rounded-full bg-base-300 shadow-inner"
+        role="group"
+        aria-label={`${label}: ${total} total, ${segmentSummary}`}
+      >
+        {total > 0 ? (
+          segments.map((segment) =>
+            segment.onSelect ? (
+              <button
+                key={segment.key}
+                type="button"
+                className={cn(
+                  "h-full min-w-0 cursor-pointer transition hover:brightness-110 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                  segment.isActive && "brightness-125 saturate-125",
+                )}
+                style={{
+                  flexBasis: `${(segment.value / total) * 100}%`,
+                  backgroundColor: segment.color,
+                }}
+                title={`${segment.label}: ${segment.value}`}
+                aria-label={segment.ariaLabel ?? `${label} ${segment.label}: ${segment.value}`}
+                aria-pressed={segment.isActive}
+                onClick={segment.onSelect}
+              />
+            ) : (
+              <span
+                key={segment.key}
+                className="h-full"
+                style={{
+                  flexBasis: `${(segment.value / total) * 100}%`,
+                  backgroundColor: segment.color,
+                }}
+                title={`${segment.label}: ${segment.value}`}
+              />
+            ),
+          )
+        ) : (
+          <span className="h-full w-full" style={{ backgroundColor: MANA_EMPTY_BAR_COLOR }} />
+        )}
+      </div>
+      <div className="flex flex-wrap gap-1.5 text-[0.68rem] font-bold text-base-content/55">
+        {segments.length > 0 ? (
+          segments.map((segment) =>
+            segment.onSelect ? (
+              <button
+                key={segment.key}
+                type="button"
+                className={cn(
+                  "inline-flex cursor-pointer items-center gap-1 whitespace-nowrap rounded-full bg-base-200 px-2 py-0.5 transition hover:bg-base-300 hover:text-base-content focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                  segment.isActive && "bg-base-300 text-base-content shadow-inner",
+                )}
+                aria-label={segment.ariaLabel ?? `${label} ${segment.label}: ${segment.value}`}
+                aria-pressed={segment.isActive}
+                onClick={segment.onSelect}
+              >
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: segment.color }}
+                  aria-hidden="true"
+                />
+                {segment.label} {segment.value}
+              </button>
+            ) : (
+              <span
+                key={segment.key}
+                className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-base-200 px-2 py-0.5"
+              >
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: segment.color }}
+                  aria-hidden="true"
+                />
+                {segment.label} {segment.value}
+              </span>
+            ),
+          )
+        ) : (
+          <span className="rounded-full bg-base-200 px-2 py-0.5">No mana</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ManaBalanceRow({
+  anyProduction,
+  color,
+  cost,
+  costActive,
+  label,
+  onSelectCost,
+  onSelectProduction,
+  production,
+  productionActive,
+  scale,
+  sourceCardCount,
+  sourceCardsAvailable,
+  usesFlexibleProduction,
+}: {
+  anyProduction: number
+  color: ManaStatColor
+  cost: number
+  costActive: boolean
+  label: string
+  onSelectCost?: () => void
+  onSelectProduction?: () => void
+  production: number
+  productionActive: boolean
+  scale: number
+  sourceCardCount: number | undefined
+  sourceCardsAvailable: boolean
+  usesFlexibleProduction: boolean
+}) {
+  const shortage = Math.max(0, cost - production)
+  const surplus = Math.max(0, production - cost)
+  const coverageText =
+    cost === 0 && production === 0
+      ? "No cost or production"
+      : shortage > 0
+        ? `Short ${shortage}`
+        : surplus > 0
+          ? `Surplus ${surplus}`
+          : "Covered"
+  const sourceText =
+    sourceCardsAvailable && typeof sourceCardCount === "number"
+      ? `Sources: ${formatCardCount(sourceCardCount)}${usesFlexibleProduction ? " incl. flexible" : ""}`
+      : usesFlexibleProduction
+        ? `Includes ${anyProduction} flexible mana`
+        : "Sources pending"
+  const ariaSourceText =
+    sourceCardsAvailable && typeof sourceCardCount === "number"
+      ? ` from ${sourceCardCount} source ${sourceCardCount === 1 ? "card" : "cards"}`
+      : ""
+  const practicalProductionText = usesFlexibleProduction
+    ? `${production} practical produced mana including ${anyProduction} flexible`
+    : `${production} produced mana`
+
+  return (
+    <article
+      className="rounded-box border border-base-300 bg-base-100 p-3 shadow-sm"
+      role="group"
+      aria-label={`${label}: ${cost} cost pips, ${practicalProductionText}${ariaSourceText}, ${coverageText.toLowerCase()}`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <ManaSymbol symbol={color} className="h-6 w-6 shrink-0" />
+          <div className="min-w-0">
+            <h4 className="truncate text-sm font-black text-base-content">{label}</h4>
+            <p className="text-xs font-semibold text-base-content/55">{sourceText}</p>
+          </div>
+        </div>
+        <span
+          className={cn(
+            "shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-xs font-black",
+            shortage > 0
+              ? "bg-warning/15 text-warning"
+              : surplus > 0
+                ? "bg-success/15 text-success"
+                : "bg-base-200 text-base-content/65",
+          )}
+        >
+          {coverageText}
+        </span>
+      </div>
+
+      <div className="mt-3 grid gap-1.5">
+        <ManaBalanceMeter
+          label="Cost"
+          value={cost}
+          scale={scale}
+          color={MANA_BALANCE_COLORS[color]}
+          active={costActive}
+          ariaLabel={`Show ${label} cost contributors, ${cost} pips`}
+          onSelect={onSelectCost}
+        />
+        <ManaBalanceMeter
+          label="Prod"
+          value={production}
+          scale={scale}
+          color={MANA_BALANCE_COLORS[color]}
+          subdued={production < cost}
+          active={productionActive}
+          ariaLabel={`Show ${label} production contributors${
+            usesFlexibleProduction ? ", including flexible sources" : ""
+          }, ${production} mana`}
+          onSelect={onSelectProduction}
+          title={
+            usesFlexibleProduction ? `${label} practical production includes ${anyProduction} flexible mana` : undefined
+          }
+        />
+      </div>
+    </article>
+  )
+}
+
+function ManaBalanceMeter({
+  active = false,
+  ariaLabel,
+  color,
+  label,
+  onSelect,
+  scale,
+  subdued = false,
+  title,
+  value,
+}: {
+  active?: boolean
+  ariaLabel?: string
+  color: string
+  label: string
+  onSelect?: () => void
+  scale: number
+  subdued?: boolean
+  title?: string
+  value: number
+}) {
+  const meter = (
+    <>
+      <span className="font-black uppercase tracking-[0.12em] text-base-content/45">{label}</span>
+      <div className="h-2.5 overflow-hidden rounded-full bg-base-200 shadow-inner">
+        {value > 0 ? (
+          <span
+            className={cn("block h-full rounded-full", subdued && "opacity-70")}
+            style={{
+              width: `${Math.max(4, (value / scale) * 100)}%`,
+              backgroundColor: color,
+            }}
+          />
+        ) : null}
+      </div>
+      <span className="text-right font-mono font-black text-base-content/70">{value}</span>
+    </>
+  )
+
+  if (onSelect && value > 0) {
+    return (
+      <button
+        type="button"
+        className={cn(
+          "grid cursor-pointer grid-cols-[3.25rem_minmax(0,1fr)_2rem] items-center gap-2 rounded-md text-left text-xs transition hover:bg-base-200/70 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+          active && "bg-primary/10 outline outline-2 outline-offset-1 outline-primary",
+        )}
+        aria-label={ariaLabel}
+        aria-pressed={active}
+        onClick={onSelect}
+        title={title}
+      >
+        {meter}
+      </button>
+    )
+  }
+
+  return (
+    <div className="grid grid-cols-[3.25rem_minmax(0,1fr)_2rem] items-center gap-2 text-xs" title={title}>
+      {meter}
+    </div>
+  )
+}
+
+function ManaContributorPanel({
+  detail,
+  onClose,
+}: {
+  detail: ManaBalanceDetail
+  onClose: () => void
+}) {
+  const groups = groupManaContributors(detail.contributors)
+  const listedCardCount = manaContributorQuantity(detail.contributors)
+
+  return (
+    <aside
+      className="rounded-box border border-primary/20 bg-base-100 p-3 shadow-sm transition-all xl:sticky xl:top-4 xl:self-start"
+      aria-label={detail.title}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h4 className="text-sm font-black text-base-content">{detail.title}</h4>
+          <p className="mt-1 text-xs font-semibold text-base-content/60">
+            {detail.summary}
+            {listedCardCount > 0 ? ` • ${formatCardCount(listedCardCount)} listed` : ""}
+          </p>
+        </div>
+        <button
+          type="button"
+          className="rounded-full p-1 text-base-content/50 transition hover:bg-base-200 hover:text-base-content focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          aria-label="Close mana contributor panel"
+          onClick={onClose}
+        >
+          <XCircle className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
+
+      <div className="mt-3 grid gap-3">
+        {groups.length > 0 ? (
+          groups.map((group) => (
+            <section key={group.category} className="grid gap-1.5">
+              <h5 className="text-[0.68rem] font-black uppercase tracking-[0.14em] text-base-content/45">
+                {group.category}
+              </h5>
+              <ul className="grid gap-1">
+                {group.contributors.map((contributor) => (
+                  <li
+                    key={`${contributor.id}:${contributor.category}`}
+                    className="flex items-center justify-between gap-3 rounded-box bg-base-200/70 px-2.5 py-2 text-sm"
+                  >
+                    <span className="min-w-0 truncate font-semibold text-base-content">
+                      <span className="font-mono font-black">{contributor.quantity}</span> {contributor.name}
+                    </span>
+                    <span className="shrink-0 rounded-full bg-base-100 px-2 py-0.5 font-mono text-xs font-black text-base-content/65">
+                      {contributor.value}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))
+        ) : (
+          <p className="rounded-box border border-dashed border-base-300 bg-base-200/60 px-3 py-4 text-sm font-semibold text-base-content/55">
+            {detail.emptyText}
+          </p>
+        )}
+      </div>
+    </aside>
+  )
+}
+
+function manaBalanceSelectionDetail(
+  selection: ManaBalanceSelection | null,
+  rows: readonly ManaBalanceRowModel[],
+  anyProduction: number,
+  anyContributors: readonly ManaBalanceContributor[],
+): ManaBalanceDetail | null {
+  if (selection === null) {
+    return null
+  }
+
+  if (selection.mode === "production" && selection.color === "any") {
+    return {
+      title: "Flexible production",
+      summary: `${anyProduction} any-color mana`,
+      contributors: [...anyContributors],
+      emptyText: "Flexible production contributor details are not available yet.",
+    }
+  }
+
+  const row = rows.find((candidate) => candidate.color === selection.color)
+
+  if (!row) {
+    return null
+  }
+
+  if (selection.mode === "cost") {
+    return {
+      title: `${row.label} cost`,
+      summary: `${row.cost} cost ${row.cost === 1 ? "pip" : "pips"}`,
+      contributors: row.costContributors,
+      emptyText: "Cost contributor details are not available yet.",
+    }
+  }
+
+  return {
+    title: `${row.label} production`,
+    summary: row.includesFlexibleProduction
+      ? `${row.production} practical mana (${row.explicitProduction} explicit + ${anyProduction} flexible)`
+      : `${row.production} produced mana`,
+    contributors: row.productionContributors,
+    emptyText: "Production contributor details are not available yet.",
+  }
+}
+
+function canSpendFlexibleManaOn(color: ManaStatColor) {
+  return FLEXIBLE_MANA_COLORS.has(color)
+}
+
+function practicalManaProduction(color: ManaStatColor, explicitProduction: number, anyProduction: number) {
+  return canSpendFlexibleManaOn(color) ? explicitProduction + anyProduction : explicitProduction
+}
+
+function manaContributorList(contributors: ManaContributorMap | undefined, color: ManaContributorColor) {
+  const list = contributors?.[color]
+
+  if (!Array.isArray(list)) {
+    return []
+  }
+
+  return list
+    .map(normalizeManaContributor)
+    .filter((contributor): contributor is ManaBalanceContributor => contributor !== null)
+    .sort(compareManaContributors)
+}
+
+function normalizeManaContributor(contributor: ManaContributor): ManaBalanceContributor | null {
+  const name = typeof contributor.name === "string" && contributor.name.trim() ? contributor.name.trim() : "Unknown card"
+  const category =
+    typeof contributor.category === "string" && contributor.category.trim()
+      ? titleize(contributor.category.trim())
+      : "Other"
+  const value = positiveDisplayNumber(contributor.value)
+  const quantity = positiveDisplayNumber(contributor.quantity) || (value > 0 ? 1 : 0)
+
+  if (quantity === 0 && value === 0) {
+    return null
+  }
+
+  return {
+    id:
+      typeof contributor.id === "string" && contributor.id.trim()
+        ? contributor.id.trim()
+        : `${category}:${name}`,
+    name,
+    quantity,
+    value,
+    category,
+    typeLine: contributor.typeLine,
+  }
+}
+
+function mergeManaContributors(lists: readonly (readonly ManaBalanceContributor[])[]) {
+  const merged = new Map<string, ManaBalanceContributor>()
+
+  for (const list of lists) {
+    for (const contributor of list) {
+      const key = `${contributor.id}:${contributor.category}`
+      const existing = merged.get(key)
+
+      if (existing) {
+        existing.quantity = Math.max(existing.quantity, contributor.quantity)
+        existing.value += contributor.value
+      } else {
+        merged.set(key, { ...contributor })
+      }
+    }
+  }
+
+  return Array.from(merged.values()).sort(compareManaContributors)
+}
+
+function groupManaContributors(contributors: readonly ManaBalanceContributor[]) {
+  const groups = new Map<string, ManaBalanceContributor[]>()
+
+  for (const contributor of contributors) {
+    const group = groups.get(contributor.category)
+
+    if (group) {
+      group.push(contributor)
+    } else {
+      groups.set(contributor.category, [contributor])
+    }
+  }
+
+  return Array.from(groups, ([category, groupContributors]) => ({
+    category,
+    contributors: groupContributors.sort(compareManaContributors),
+  })).sort((left, right) => left.category.localeCompare(right.category))
+}
+
+function compareManaContributors(left: ManaBalanceContributor, right: ManaBalanceContributor) {
+  return right.value - left.value || right.quantity - left.quantity || left.name.localeCompare(right.name)
+}
+
+function manaContributorQuantity(contributors: readonly ManaBalanceContributor[]) {
+  return contributors.reduce((total, contributor) => total + contributor.quantity, 0)
+}
+
+function manaContributorIdSet(contributors: readonly ManaBalanceContributor[] | undefined) {
+  const ids = new Set(contributors?.map((contributor) => contributor.id).filter(Boolean))
+  return ids.size > 0 ? ids : null
+}
+
+function filterHighlightedDeckCardIds(current: Set<string> | null, availableIds: Set<string>) {
+  if (!current) return null
+
+  const highlightedIds = Array.from(current).filter((deckCardId) => availableIds.has(deckCardId))
+  if (highlightedIds.length === current.size) return current
+  return highlightedIds.length > 0 ? new Set(highlightedIds) : null
+}
+
+function positiveDisplayNumber(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0
+}
+
+function formatCardCount(count: number) {
+  return `${count} ${count === 1 ? "card" : "cards"}`
+}
+
+function formatManaValue(value: number) {
+  return value.toFixed(2)
+}
+
 export function DeckPlaytestPage({ id }: { id: string }) {
   const { data, isLoading } = useQuery({
     queryKey: ["deck", id],
@@ -1842,6 +2788,7 @@ const DECK_STACK_CARD_WIDTH_REM = 14
 const DECK_STACK_OFFSET = 34
 const DECK_STACK_CARD_HEIGHT = 314
 const DECK_STACK_REVEAL_OFFSET = DECK_STACK_CARD_HEIGHT - DECK_STACK_OFFSET
+const DECK_CARD_HOVER_DELAY_MS = 100
 
 function deckLegalityLabel(legality: DeckLegality) {
   return legality?.status === "legal" ? "Legal" : "Illegal"
@@ -2310,7 +3257,7 @@ function DeckGroupMenu({
   }, [open])
 
   return (
-    <div ref={ref} className="dropdown dropdown-end">
+    <div ref={ref} className="dropdown dropdown-start sm:dropdown-end">
       <button
         type="button"
         className="btn btn-outline min-w-44 justify-between gap-2"
@@ -2365,7 +3312,7 @@ function BulkAllocationMenu({
   onPreview: (mode: BulkAllocationMode) => void
 }) {
   return (
-    <div className="dropdown dropdown-end">
+    <div className="dropdown dropdown-start sm:dropdown-end">
       <button
         type="button"
         className="btn btn-primary btn-sm min-w-40 justify-between gap-2 px-4"
@@ -2622,6 +3569,7 @@ function DeckGroupGrid({
   isSelecting,
   isUpdating,
   selectedCardIds,
+  highlightedCardIds,
   onAllocate,
   onDeallocate,
   onDelete,
@@ -2638,6 +3586,7 @@ function DeckGroupGrid({
   canSetCommander: boolean
   groups: DeckGroup<DeckCardEntry>[]
   isUpdating: boolean
+  highlightedCardIds: Set<string> | null
   isSelecting: boolean
   onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
   selectedCardIds: Set<string>
@@ -2665,6 +3614,7 @@ function DeckGroupGrid({
           key={group.key}
           canSetCommander={canSetCommander}
           group={group}
+          highlightedCardIds={highlightedCardIds}
           isUpdating={isUpdating}
           isSelecting={isSelecting}
           allocationError={allocationError}
@@ -2730,11 +3680,13 @@ function DeckStackGroup({
   onToggleProxy,
   onToggleSelected,
   selectedCardIds,
+  highlightedCardIds,
   shareMode = false,
 }: {
   allocationError: string | null
   canSetCommander: boolean
   group: DeckGroup<DeckCardEntry>
+  highlightedCardIds: Set<string> | null
   isSelecting: boolean
   isUpdating: boolean
   onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
@@ -2752,9 +3704,43 @@ function DeckStackGroup({
 }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const [pinnedIndex, setPinnedIndex] = useState<number | null>(null)
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingHoverIndexRef = useRef<number | null>(null)
   const activeIndex = hoveredIndex ?? (isSelecting ? null : pinnedIndex)
   const revealOffset = group.cards.length > 1 ? DECK_STACK_REVEAL_OFFSET : 0
 
+
+  useEffect(
+    () => () => {
+      clearDeckCardHoverDelay()
+    },
+    [],
+  )
+
+  function clearDeckCardHoverDelay() {
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current)
+      hoverTimerRef.current = null
+    }
+    pendingHoverIndexRef.current = null
+  }
+
+  function scheduleHoveredIndex(nextIndex: number | null) {
+    if (nextIndex === activeIndex) {
+      clearDeckCardHoverDelay()
+      return
+    }
+    if (pendingHoverIndexRef.current === nextIndex) return
+
+    clearDeckCardHoverDelay()
+    pendingHoverIndexRef.current = nextIndex
+    hoverTimerRef.current = setTimeout(() => {
+      setPinnedIndex(null)
+      setHoveredIndex(nextIndex)
+      pendingHoverIndexRef.current = null
+      hoverTimerRef.current = null
+    }, DECK_CARD_HOVER_DELAY_MS)
+  }
   function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
     if (event.pointerType === "touch") return
 
@@ -2764,10 +3750,7 @@ function DeckStackGroup({
       activeIndex,
       group.cards.length,
     )
-    if (nextIndex === hoveredIndex && pinnedIndex == null) return
-
-    setPinnedIndex(null)
-    setHoveredIndex(nextIndex)
+    scheduleHoveredIndex(nextIndex)
   }
 
   return (
@@ -2784,7 +3767,10 @@ function DeckStackGroup({
           minHeight: `${DECK_STACK_CARD_HEIGHT + Math.max(group.cards.length - 1, 0) * DECK_STACK_OFFSET}px`,
         }}
         onPointerLeave={(event) => {
-          if (event.pointerType !== "touch") setHoveredIndex(null)
+          if (event.pointerType !== "touch") {
+            clearDeckCardHoverDelay()
+            setHoveredIndex(null)
+          }
         }}
         onPointerMove={handlePointerMove}
       >
@@ -2801,7 +3787,9 @@ function DeckStackGroup({
             isSelecting={isSelecting}
             isSelected={selectedCardIds.has(deckCard.id)}
             isUpdating={isUpdating}
+            isDimmed={highlightedCardIds !== null && !highlightedCardIds.has(deckCard.id)}
             onExpand={() => {
+              clearDeckCardHoverDelay()
               setHoveredIndex(null)
               setPinnedIndex(index)
             }}
@@ -2831,6 +3819,7 @@ function DeckStackCard({
   deckCard,
   index,
   isActive,
+  isDimmed,
   isSelecting,
   isSelected,
   isUpdating,
@@ -2854,6 +3843,7 @@ function DeckStackCard({
   deckCard: DeckCardEntry
   index: number
   isActive: boolean
+  isDimmed: boolean
   isUpdating: boolean
   isSelecting: boolean
   isSelected: boolean
@@ -2873,11 +3863,12 @@ function DeckStackCard({
   top: number
 }) {
   const [hasFocusWithin, setHasFocusWithin] = useState(false)
+  const [isAllocationMenuOpen, setIsAllocationMenuOpen] = useState(false)
   const imageUrl = cardImageUrl(deckCard, "imageUrl")
   const name = deckCard.card?.name || "Unknown card"
   const printing = deckCard.preferredPrinting || deckCard.card?.printings?.[0]
   const tag = deckCardTag(deckCard.tag)
-  const isInteractive = isActive || (!isSelecting && hasFocusWithin)
+  const isInteractive = isActive || isAllocationMenuOpen || (!isSelecting && hasFocusWithin)
 
   function handleBlur(event: FocusEvent<HTMLElement>) {
     if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
@@ -2899,6 +3890,13 @@ function DeckStackCard({
         zIndex: isActive ? 90 : index + 1,
       }}
     >
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-xl bg-black" />
+      <div
+        className={cn(
+          "relative transition-[filter,opacity] duration-200 ease-out",
+          isDimmed && "opacity-30 saturate-50",
+        )}
+      >
       <ShareModeHidden shareMode={shareMode}>
         <div className="absolute left-1 top-1 z-[130] flex h-5 items-start gap-1">
           <DeckCardAllocationMenu
@@ -2906,6 +3904,8 @@ function DeckStackCard({
             error={allocationError}
             isInteractive={isInteractive}
             isUpdating={isUpdating}
+            open={isAllocationMenuOpen}
+            onOpenChange={setIsAllocationMenuOpen}
             onAllocate={onAllocate}
             onDeallocate={onDeallocate}
             onToggleProxy={onToggleProxy}
@@ -3069,6 +4069,7 @@ function DeckStackCard({
           </figcaption>
         </figure>
       </button>
+      </div>
     </article>
   )
 }
@@ -3127,7 +4128,9 @@ function DeckCardAllocationMenu({
   isUpdating,
   onAllocate,
   onDeallocate,
+  onOpenChange,
   onToggleProxy,
+  open,
 }: {
   deckCard: DeckCardEntry
   error: string | null
@@ -3135,14 +4138,15 @@ function DeckCardAllocationMenu({
   isUpdating: boolean
   onAllocate: (collectionItemId: string) => void
   onDeallocate: (collectionItemId: string) => void
+  onOpenChange: (open: boolean) => void
   onToggleProxy: () => void
+  open: boolean
 }) {
   const status = deckCard.allocationStatus
   const label = allocationStatusLabel(status)
   const proxyChecked = status.proxyAllocated > 0
   const proxyQuantityToAdd = Math.max(status.required - status.allocated, 0)
   const proxyDisabled = isUpdating || (!proxyChecked && proxyQuantityToAdd <= 0)
-  const [open, setOpen] = useState(false)
   const [menuPosition, setMenuPosition] = useState({ left: 16, top: 16 })
   const buttonRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -3171,8 +4175,8 @@ function DeckCardAllocationMenu({
   }
 
   useEffect(() => {
-    if (!isInteractive) setOpen(false)
-  }, [isInteractive])
+    if (!isInteractive) onOpenChange(false)
+  }, [isInteractive, onOpenChange])
 
   useEffect(() => {
     if (!open) return
@@ -3182,11 +4186,11 @@ function DeckCardAllocationMenu({
     function handleMouseDown(event: MouseEvent) {
       const target = event.target as Node
       if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return
-      setOpen(false)
+      onOpenChange(false)
     }
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false)
+      if (event.key === "Escape") onOpenChange(false)
     }
 
     window.addEventListener("resize", updateMenuPosition)
@@ -3222,7 +4226,7 @@ function DeckCardAllocationMenu({
         onClick={() => {
           if (!isInteractive) return
           updateMenuPosition()
-          setOpen((current) => !current)
+          onOpenChange(!open)
         }}
       >
         <AllocationStatusIcon state={status.state} className="h-3 w-3" />
@@ -3405,6 +4409,7 @@ function collectionItemLabel(
 function DeckZoneTable({
   cards,
   isSelecting,
+  highlightedCardIds,
   isUpdating,
   onDelete,
   onEdit,
@@ -3417,6 +4422,7 @@ function DeckZoneTable({
   title,
 }: {
   cards: DeckCardEntry[]
+  highlightedCardIds: Set<string> | null
   isSelecting: boolean
   isUpdating: boolean
   onDelete: (deckCard: DeckCardEntry) => void
@@ -3463,7 +4469,13 @@ function DeckZoneTable({
               const selected = selectedCardIds.has(deckCard.id)
 
               return (
-                <tr key={deckCard.id}>
+                <tr
+                  key={deckCard.id}
+                  className={cn(
+                    "transition-opacity duration-200",
+                    highlightedCardIds !== null && !highlightedCardIds.has(deckCard.id) && "opacity-30",
+                  )}
+                >
                   {isSelecting && !shareMode ? (
                     <td>
                       <button
