@@ -151,6 +151,23 @@
   padding-left: env(safe-area-inset-left, 0px);
 }
 
+.manavault-import-dialog {
+  max-height: calc(100dvh - 4rem);
+}
+
+.native-shell .manavault-import-dialog {
+  align-self: flex-start;
+  margin-top: 1.5rem;
+  max-height: calc(100dvh - 6rem);
+}
+
+@supports (height: 100svh) {
+  .native-shell .manavault-import-dialog {
+    max-height: calc(100svh - 6rem);
+  }
+}
+
+
 .control-toolbar {
   align-items: end;
 }

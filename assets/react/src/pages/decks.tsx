@@ -1762,8 +1762,8 @@ export function DeckDetailPage({
   )
 }
 
-const MANA_CURVE_PERMANENT_COLOR = "#38bdf8"
-const MANA_CURVE_SPELL_COLOR = "#fb923c"
+const MANA_CURVE_PERMANENT_COLOR = "var(--color-primary)"
+const MANA_CURVE_SPELL_COLOR = "var(--color-accent)"
 const MANA_COLOR_LABELS: Record<(typeof MANA_STAT_COLORS)[number], string> = {
   W: "White",
   U: "Blue",

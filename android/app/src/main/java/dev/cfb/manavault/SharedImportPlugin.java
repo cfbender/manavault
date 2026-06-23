@@ -5,9 +5,12 @@ import android.content.ClipData;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Bundle;
 import android.provider.OpenableColumns;
+import android.util.Log;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -31,8 +34,14 @@ public class SharedImportPlugin extends Plugin {
 
     private static final String PREFERENCES_NAME = "NativeShell";
     private static final String SERVER_URL_KEY = "serverUrl";
+    private static final String TAG = "ManaVaultSharedImport";
+    private static final int PENDING_IMPORT_READS = 2;
+    private static final long PENDING_IMPORT_TTL_MS = 120_000L;
+
 
     private static JSObject pendingImport;
+    private static int pendingImportReadsRemaining;
+    private static long pendingImportCapturedAt;
 
     @Override
     public void load() {
@@ -50,8 +59,12 @@ public class SharedImportPlugin extends Plugin {
         JSObject payload;
 
         synchronized (LOCK) {
+            pruneExpiredPendingImport();
             payload = pendingImport;
-            pendingImport = null;
+            if (payload != null) {
+                pendingImportReadsRemaining--;
+                if (pendingImportReadsRemaining <= 0) clearPendingImport();
+            }
         }
 
         if (payload != null) {
@@ -66,18 +79,42 @@ public class SharedImportPlugin extends Plugin {
         JSObject result = new JSObject();
 
         synchronized (LOCK) {
+            pruneExpiredPendingImport();
             result.put("pending", pendingImport != null);
         }
 
         call.resolve(result);
     }
 
+    private static void pruneExpiredPendingImport() {
+        if (pendingImport == null) return;
+        if (System.currentTimeMillis() - pendingImportCapturedAt <= PENDING_IMPORT_TTL_MS) return;
+
+        clearPendingImport();
+    }
+
+    private static void clearPendingImport() {
+        pendingImport = null;
+        pendingImportReadsRemaining = 0;
+        pendingImportCapturedAt = 0L;
+    }
+
     private void captureIntent(Activity activity, Intent intent, boolean notify) {
+        logIntent(intent, notify);
         JSObject payload = payloadFromIntent(activity, intent);
-        if (payload == null) return;
+        if (payload == null) {
+            debug("No shared import payload captured");
+            return;
+        }
+        debug("Captured shared import payload source=" + payload.optString("source")
+                + " fileName=" + payload.optString("fileName")
+                + " mimeType=" + payload.optString("mimeType")
+                + " textLength=" + payload.optString("text").length());
 
         synchronized (LOCK) {
             pendingImport = payload;
+            pendingImportReadsRemaining = PENDING_IMPORT_READS;
+            pendingImportCapturedAt = System.currentTimeMillis();
         }
 
         activity.setIntent(new Intent(Intent.ACTION_MAIN));
@@ -111,7 +148,7 @@ public class SharedImportPlugin extends Plugin {
 
     private JSObject payloadFromViewIntent(Context context, Intent intent) {
         Uri data = intent.getData();
-        if (data == null) data = firstStreamUri(intent);
+        if (data == null) data = firstStreamUri(context, intent);
 
         if (isManaVaultLink(context, data)) return linkPayload(data.toString(), "android-view");
         if (!isViewFileUri(data)) return null;
@@ -188,8 +225,16 @@ public class SharedImportPlugin extends Plugin {
     private JSObject payloadFromFirstTextUri(Context context, Intent intent) {
         ContentResolver resolver = context.getContentResolver();
 
-        for (Uri streamUri : streamUris(intent)) {
+        ArrayList<Uri> uris = streamUris(context, intent);
+        debug("Shared import URI candidates=" + uris.size());
+
+        for (Uri streamUri : uris) {
+            debug("Trying shared URI " + describeUri(streamUri)
+                    + " name=" + queryDisplayName(resolver, streamUri)
+                    + " mimeType=" + resolverMimeType(resolver, streamUri));
             String text = readText(resolver, streamUri);
+            debug("Read shared URI " + describeUri(streamUri)
+                    + " textLength=" + (text == null ? "null" : text.length()));
             if (text == null || text.trim().isEmpty()) continue;
 
             Uri link = linkFromSharedText(context, text);
@@ -207,40 +252,91 @@ public class SharedImportPlugin extends Plugin {
     }
 
     @SuppressWarnings("deprecation")
-    private ArrayList<Uri> streamUris(Intent intent) {
+    private ArrayList<Uri> streamUris(Context context, Intent intent) {
         ArrayList<Uri> uris = new ArrayList<>();
+        if (intent == null) return uris;
 
-        Object stream = intent.getParcelableExtra(Intent.EXTRA_STREAM);
-        if (stream instanceof Uri) addUri(uris, (Uri) stream);
-
-        ArrayList<Uri> streams = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
-        if (streams != null) {
-            for (Uri uri : streams) addUri(uris, uri);
-        }
+        addUri(uris, intent.getData());
+        addStreamExtraUris(uris, intent);
+        addTextUri(uris, intent.getCharSequenceExtra(Intent.EXTRA_TEXT));
 
         ClipData clipData = intent.getClipData();
+        debug("Shared import clip item count=" + (clipData == null ? 0 : clipData.getItemCount()));
         if (clipData != null) {
             for (int index = 0; index < clipData.getItemCount(); index++) {
-                addUri(uris, clipData.getItemAt(index).getUri());
+                addClipItemUris(context, uris, clipData.getItemAt(index));
             }
         }
 
         return uris;
     }
 
-    private Uri firstStreamUri(Intent intent) {
-        ArrayList<Uri> uris = streamUris(intent);
+    private Uri firstStreamUri(Context context, Intent intent) {
+        ArrayList<Uri> uris = streamUris(context, intent);
         return uris.isEmpty() ? null : uris.get(0);
     }
 
+    private void addClipItemUris(Context context, ArrayList<Uri> uris, ClipData.Item item) {
+        if (item == null) return;
+
+        addUri(uris, item.getUri());
+        addTextUri(uris, item.getText());
+
+        Intent nestedIntent = item.getIntent();
+        if (nestedIntent != null) {
+            addUri(uris, nestedIntent.getData());
+            addStreamExtraUris(uris, nestedIntent);
+            addTextUri(uris, nestedIntent.getCharSequenceExtra(Intent.EXTRA_TEXT));
+        }
+
+        try {
+            addTextUri(uris, item.coerceToText(context));
+        } catch (SecurityException ignored) {
+            // Some providers expose URI clips without granting text coercion access.
+        }
+    }
+
+    private void addStreamExtraUris(ArrayList<Uri> uris, Intent intent) {
+        Bundle extras = intent.getExtras();
+        Object stream = extras == null ? null : extras.get(Intent.EXTRA_STREAM);
+
+        if (stream instanceof Uri) {
+            addUri(uris, (Uri) stream);
+            return;
+        }
+
+        if (stream instanceof Iterable<?>) {
+            for (Object value : (Iterable<?>) stream) {
+                if (value instanceof Uri) addUri(uris, (Uri) value);
+            }
+            return;
+        }
+
+        if (stream instanceof Object[]) {
+            for (Object value : (Object[]) stream) {
+                if (value instanceof Uri) addUri(uris, (Uri) value);
+            }
+        }
+    }
+
+    private void addTextUri(ArrayList<Uri> uris, CharSequence value) {
+        addUri(uris, fileUriFromSharedText(value));
+    }
+
     private void addUri(ArrayList<Uri> uris, Uri uri) {
-        if (uri == null || uris.contains(uri)) return;
+        if (uri == null) return;
+        if (!isViewFileUri(uri)) {
+            debug("Ignoring non-file shared URI " + describeUri(uri));
+            return;
+        }
+        if (uris.contains(uri)) return;
+        debug("Found shared URI " + describeUri(uri));
         uris.add(uri);
     }
 
     private String firstSharedText(Context context, Intent intent) {
         String extraText = nonBlank(intent.getCharSequenceExtra(Intent.EXTRA_TEXT));
-        if (extraText != null) return extraText;
+        if (extraText != null && fileUriFromSharedText(extraText) == null) return extraText;
 
         ClipData clipData = intent.getClipData();
         if (clipData == null) return null;
@@ -248,12 +344,12 @@ public class SharedImportPlugin extends Plugin {
         for (int index = 0; index < clipData.getItemCount(); index++) {
             ClipData.Item item = clipData.getItemAt(index);
             String text = nonBlank(item.getText());
-            if (text != null) return text;
+            if (text != null && fileUriFromSharedText(text) == null) return text;
 
             try {
                 CharSequence coercedText = item.coerceToText(context);
                 text = nonBlank(coercedText);
-                if (text != null && !isViewFileUri(Uri.parse(text))) return text;
+                if (text != null && fileUriFromSharedText(text) == null) return text;
             } catch (SecurityException ignored) {
                 // Some providers expose URI clips without granting text coercion access.
             }
@@ -267,6 +363,19 @@ public class SharedImportPlugin extends Plugin {
 
         String text = value.toString();
         return text.trim().isEmpty() ? null : text;
+    }
+
+    private Uri fileUriFromSharedText(CharSequence value) {
+        String text = nonBlank(value);
+        if (text == null) return null;
+
+        String trimmed = text.trim();
+        int newline = trimmed.indexOf('\n');
+        String candidate = newline >= 0 ? trimmed.substring(0, newline).trim() : trimmed;
+        if (candidate.isEmpty()) return null;
+
+        Uri uri = Uri.parse(candidate);
+        return isViewFileUri(uri) ? uri : null;
     }
 
     private Uri linkFromSharedText(Context context, String text) {
@@ -347,7 +456,10 @@ public class SharedImportPlugin extends Plugin {
     private String readText(ContentResolver resolver, Uri uri) {
         try (InputStream input = resolver.openInputStream(uri);
              ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-            if (input == null) return null;
+            if (input == null) {
+                debug("openInputStream returned null for " + describeUri(uri));
+                return null;
+            }
 
             byte[] buffer = new byte[8192];
             int bytesRead;
@@ -357,8 +469,45 @@ public class SharedImportPlugin extends Plugin {
 
             return output.toString(StandardCharsets.UTF_8.name());
         } catch (IOException | SecurityException e) {
+            debug("Failed reading " + describeUri(uri) + ": " + e.getClass().getSimpleName() + ": " + e.getMessage());
             return null;
         }
+    }
+
+    private void logIntent(Intent intent, boolean notify) {
+        if (!diagnosticLoggingEnabled()) return;
+        if (intent == null) {
+            debug("Capture intent notify=" + notify + " intent=null");
+            return;
+        }
+
+        Bundle extras = intent.getExtras();
+        ClipData clipData = intent.getClipData();
+        debug("Capture intent notify=" + notify
+                + " action=" + intent.getAction()
+                + " type=" + intent.getType()
+                + " data=" + describeUri(intent.getData())
+                + " extras=" + (extras == null ? "[]" : extras.keySet())
+                + " clipItems=" + (clipData == null ? 0 : clipData.getItemCount()));
+    }
+
+    private String describeUri(Uri uri) {
+        if (uri == null) return "null";
+
+        String scheme = uri.getScheme();
+        String authority = uri.getAuthority();
+        String path = uri.getPath();
+        return (scheme == null ? "" : scheme + "://")
+                + (authority == null ? "" : authority)
+                + (path == null ? "" : path);
+    }
+
+    private boolean diagnosticLoggingEnabled() {
+        return (getContext().getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+    }
+
+    private void debug(String message) {
+        if (diagnosticLoggingEnabled()) Log.i(TAG, message);
     }
 
     private String displayName(ContentResolver resolver, Uri uri) {

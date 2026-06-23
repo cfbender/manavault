@@ -1,5 +1,5 @@
 import { Capacitor, registerPlugin } from "@capacitor/core"
-import { ensureCapacitorNativePluginHeader } from "./capacitor-native-headers.ts"
+import { ensureCapacitorNativePluginHeader, registerCapacitorPluginOnce } from "./capacitor-native-headers.ts"
 
 export type NativeShellSettings = {
   serverUrl?: string | null
@@ -31,7 +31,9 @@ ensureCapacitorNativePluginHeader({
   ],
 })
 
-const NativeShell = registerPlugin<NativeShellPlugin>("NativeShell")
+const NativeShell = registerCapacitorPluginOnce<NativeShellPlugin>("NativeShell", () =>
+  registerPlugin<NativeShellPlugin>("NativeShell"),
+)
 
 export function isNativeShell() {
   return Capacitor.isNativePlatform()

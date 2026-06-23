@@ -989,7 +989,7 @@ export function CollectionFilterModal({
           <DialogClose onClose={onClose} />
         </DialogHeader>
 
-        <div className="grid max-h-[calc(100vh-11rem)] overflow-y-auto lg:grid-cols-[1fr_19rem]">
+        <div className="grid max-h-[calc(100dvh-11rem)] overflow-y-auto lg:grid-cols-[1fr_19rem]">
           <div className="divide-y divide-base-300">
             <FilterSection label="Name" syntax='name:"Black Lotus"'>
               <Input
@@ -2339,7 +2339,7 @@ export function AddCollectionItemDialog({
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : close())}>
       <DialogContent
-        className="max-h-[calc(100vh-3rem)] max-w-4xl overflow-y-auto"
+        className="max-h-[calc(100dvh-4rem)] max-w-4xl overflow-y-auto"
         labelledBy="add-collection-item-title"
       >
         <DialogHeader>
@@ -2741,7 +2741,7 @@ function ImportCollectionDialog({
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : close())}>
       <DialogContent
-        className="flex max-h-[calc(100vh-3rem)] max-w-5xl flex-col"
+        className="manavault-import-dialog flex max-w-5xl flex-col"
         labelledBy="import-collection-title"
       >
         <DialogHeader>
@@ -2977,7 +2977,7 @@ function ExportCollectionDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-h-[calc(100vh-3rem)] max-w-4xl overflow-y-auto"
+        className="max-h-[calc(100dvh-4rem)] max-w-4xl overflow-y-auto"
         labelledBy="export-collection-title"
       >
         <DialogHeader>
@@ -3116,7 +3116,7 @@ function AddLocationDialog({
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : close())}>
       <DialogContent
-        className="max-h-[calc(100vh-3rem)] max-w-3xl overflow-y-auto"
+        className="max-h-[calc(100dvh-4rem)] max-w-3xl overflow-y-auto"
         labelledBy="add-location-title"
       >
         <DialogHeader>

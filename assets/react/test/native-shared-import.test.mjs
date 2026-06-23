@@ -6,7 +6,10 @@ import {
   subscribeSharedImport,
   takeSharedImport,
 } from "../src/lib/native-shared-import.ts"
-import { ensureCapacitorNativePluginHeader } from "../src/lib/capacitor-native-headers.ts"
+import {
+  ensureCapacitorNativePluginHeader,
+  registerCapacitorPluginOnce,
+} from "../src/lib/capacitor-native-headers.ts"
 
 function withCapacitorGlobals(globals, callback) {
   const hadCapacitor = Object.prototype.hasOwnProperty.call(globalThis, "Capacitor")
@@ -81,6 +84,19 @@ test("ensureCapacitorNativePluginHeader leaves browser globals untouched", () =>
     assert.equal(globalThis.Capacitor.PluginHeaders, undefined)
   })
 })
+
+test("registerCapacitorPluginOnce reuses existing native plugin proxies", () => {
+  const existing = { getPendingImport() {} }
+
+  withCapacitorGlobals({ Capacitor: { Plugins: { SharedImport: existing } } }, () => {
+    const plugin = registerCapacitorPluginOnce("SharedImport", () => {
+      throw new Error("registerPlugin should not run for an existing plugin")
+    })
+
+    assert.equal(plugin, existing)
+  })
+})
+
 
 const sharedPayload = {
   text: "1 Lightning Bolt",

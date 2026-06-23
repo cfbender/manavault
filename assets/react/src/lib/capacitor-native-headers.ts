@@ -12,6 +12,7 @@ export type CapacitorPluginHeader = {
 
 type CapacitorBridgeGlobal = typeof globalThis & {
   Capacitor?: {
+    Plugins?: Record<string, unknown>
     PluginHeaders?: CapacitorPluginHeader[]
     nativeCallback?: unknown
     nativePromise?: unknown
@@ -51,4 +52,13 @@ export function ensureCapacitorNativePluginHeader(header: CapacitorPluginHeader)
   if (headers.some((existingHeader) => existingHeader.name === header.name)) return
 
   global.Capacitor.PluginHeaders = [...headers, header]
+}
+
+export function existingCapacitorPlugin<TPlugin>(name: string) {
+  const global = globalThis as CapacitorBridgeGlobal
+  return global.Capacitor?.Plugins?.[name] as TPlugin | undefined
+}
+
+export function registerCapacitorPluginOnce<TPlugin>(name: string, register: () => TPlugin) {
+  return existingCapacitorPlugin<TPlugin>(name) ?? register()
 }

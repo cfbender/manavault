@@ -37,7 +37,7 @@ export function Dialog({ children, onOpenChange, open }: DialogProps) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[1100] flex items-center justify-center overflow-y-auto bg-black/65 px-4 py-6 backdrop-blur-sm"
+      className="fixed inset-0 z-[1100] flex items-start justify-center overflow-y-auto bg-black/65 px-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-[calc(env(safe-area-inset-top)+2rem)] backdrop-blur-sm sm:items-center"
       role="presentation"
       onMouseDown={() => onOpenChange(false)}
     >
