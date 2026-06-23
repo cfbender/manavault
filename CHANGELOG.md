@@ -8,6 +8,12 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.6.6] - 2026-06-23
+
+### Bug Fixes
+
+- Import ([`310cab70`](../../commit/310cab70e054a0ed065125a8eacf9ffd283609ff))
+
 ## [0.6.5] - 2026-06-23
 
 ### Bug Fixes
