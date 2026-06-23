@@ -1,6 +1,6 @@
 {
   "name": "manavault",
-  "version": "0.6.9",
+  "version": "0.7.0",
   "private": true,
   "description": "ManaVault Phoenix application with Capacitor native shell tooling.",
   "scripts": {

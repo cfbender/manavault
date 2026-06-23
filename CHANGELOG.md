@@ -8,6 +8,17 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.7.0] - 2026-06-23
+
+### Features
+
+- Import scryfall oracle tags ([`9f17efaf`](../../commit/9f17efafb6a6e97ac7bdc7aae5392511259565cc))
+- Show tags on card view ([`f5d8989d`](../../commit/f5d8989d9033394fcb1b0615374f277ac4143d9e))
+- Show card rulings ([`a1648b03`](../../commit/a1648b032d2b292c0b5e6332bcc6817a46be78f8))
+- Show card legalities ([`46243ef6`](../../commit/46243ef6117b9099fb57ff8c4bfa4cca5f590eea))
+- Group decks by category and theme ([`d1c9696d`](../../commit/d1c9696df07247b01caec54f15f585ac6bf52ab8))
+- Deck page fixes and icons ([`fff1f274`](../../commit/fff1f274fb054294561c5f106f95346a058444d6))
+
 ## [0.6.9] - 2026-06-23
 
 ### Bug Fixes
