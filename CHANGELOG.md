@@ -8,6 +8,12 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.6.8] - 2026-06-23
+
+### Bug Fixes
+
+- Add capacitor plugin headers ([`e72b1014`](../../commit/e72b1014de3b6b2d7d2c3e238c33c4eeed5bd9bc))
+
 ## [0.6.7] - 2026-06-23
 
 ### Bug Fixes
