@@ -1,6 +1,6 @@
 import { Link, Outlet, useLocation } from "@tanstack/react-router"
 import { Boxes, Home, Layers, Menu, Monitor, Moon, Search, Settings, Sun } from "lucide-react"
-import type { ReactNode } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import { useTheme } from "../lib/theme"
 import { cn } from "../lib/utils"
 import { Button } from "./ui/button"
@@ -17,7 +17,7 @@ function navItemActive(pathname: string, to: (typeof navItems)[number]["to"]) {
   return pathname === to || (to !== "/" && pathname.startsWith(`${to}/`))
 }
 
-function ThemeToggle() {
+function ThemeToggle({ onSelect }: { onSelect?: () => void }) {
   const { theme, setTheme } = useTheme()
   const options = [
     { value: "system" as const, label: "System", icon: Monitor },
@@ -46,7 +46,10 @@ function ThemeToggle() {
           )}
           aria-pressed={theme === option.value}
           title={option.label}
-          onClick={() => setTheme(option.value)}
+          onClick={() => {
+            setTheme(option.value)
+            onSelect?.()
+          }}
         >
           <option.icon className="h-4 w-4" />
         </button>
@@ -60,6 +63,33 @@ export function AppShell() {
   const isShareRoute = pathname.startsWith("/share/")
   const isHomeRoute = pathname === "/"
   const isPlaytestRoute = pathname.includes("/playtest")
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const mobileMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setMobileMenuOpen(false)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return
+
+    function closeOnOutsidePointerDown(event: PointerEvent) {
+      if (mobileMenuRef.current?.contains(event.target as Node | null)) return
+      setMobileMenuOpen(false)
+    }
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setMobileMenuOpen(false)
+    }
+
+    document.addEventListener("pointerdown", closeOnOutsidePointerDown)
+    document.addEventListener("keydown", closeOnEscape)
+
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointerDown)
+      document.removeEventListener("keydown", closeOnEscape)
+    }
+  }, [mobileMenuOpen])
 
   return (
     <div className="min-h-screen bg-base-100 text-base-content">
@@ -103,8 +133,17 @@ export function AppShell() {
             <ThemeToggle />
           </div>
 
-          <div className="dropdown dropdown-end ml-auto lg:hidden">
-            <button className="btn btn-ghost btn-square" type="button" aria-label="Open navigation">
+          <div
+            ref={mobileMenuRef}
+            className={cn("dropdown dropdown-end ml-auto lg:hidden", mobileMenuOpen ? "dropdown-open" : "dropdown-close")}
+          >
+            <button
+              className="btn btn-ghost btn-square"
+              type="button"
+              aria-expanded={mobileMenuOpen}
+              aria-label={mobileMenuOpen ? "Close navigation" : "Open navigation"}
+              onClick={() => setMobileMenuOpen((open) => !open)}
+            >
               <Menu className="h-8 w-8" />
             </button>
             <div className="dropdown-content z-50 mt-3 w-64 rounded-box border border-base-300 bg-base-100 p-3 shadow-xl">
@@ -116,6 +155,7 @@ export function AppShell() {
                     activeOptions={{ exact: item.to === "/" }}
                     activeProps={{ className: "bg-base-200 text-primary" }}
                     className="btn btn-ghost justify-start"
+                    onClick={() => setMobileMenuOpen(false)}
                   >
                     <item.icon className="h-4 w-4" />
                     {item.label}
@@ -123,10 +163,10 @@ export function AppShell() {
                 ))}
               </nav>
               <div className="mt-3 flex items-center justify-between gap-3 border-t border-base-300 pt-3">
-                <Button data-pwa-install className="hidden" size="sm">
+                <Button data-pwa-install className="hidden" size="sm" onClick={() => setMobileMenuOpen(false)}>
                   <span data-pwa-install-label>Install</span>
                 </Button>
-                <ThemeToggle />
+                <ThemeToggle onSelect={() => setMobileMenuOpen(false)} />
               </div>
             </div>
           </div>

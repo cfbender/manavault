@@ -3,6 +3,7 @@ package dev.cfb.manavault;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.webkit.CookieManager;
 
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
@@ -28,6 +29,22 @@ public class MainActivity extends BridgeActivity {
         WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
         controller.setAppearanceLightStatusBars(false);
         controller.setAppearanceLightNavigationBars(false);
+    }
+
+    @Override
+    public void onPause() {
+        flushWebViewCookies();
+        super.onPause();
+    }
+
+    @Override
+    public void onStop() {
+        flushWebViewCookies();
+        super.onStop();
+    }
+
+    private void flushWebViewCookies() {
+        CookieManager.getInstance().flush();
     }
 
     @CapacitorPlugin(name = "InAppHttpNavigation")

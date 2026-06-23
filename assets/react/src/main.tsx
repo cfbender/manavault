@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { RouterProvider, createRouter } from "@tanstack/react-router"
 import { createRoot } from "react-dom/client"
 import "./pwa"
+import { initializeNativeBackButton } from "./lib/native-back"
 import { ThemeProvider } from "./lib/theme"
 import { routeTree } from "./routeTree.gen"
 import { initializeNativeSharedImport, type NativeOpenPayload } from "./lib/native-shared-import"
@@ -75,6 +76,7 @@ function handleNativeOpen(payload: NativeOpenPayload) {
 }
 
 void initializeNativeSharedImport(handleNativeOpen)
+void initializeNativeBackButton()
 
 createRoot(document.getElementById("manavault-root")!).render(
   <QueryClientProvider client={queryClient}>

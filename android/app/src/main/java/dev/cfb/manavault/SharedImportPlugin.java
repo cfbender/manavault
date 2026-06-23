@@ -117,22 +117,26 @@ public class SharedImportPlugin extends Plugin {
         if (!isViewFileUri(data)) return null;
 
         ContentResolver resolver = context.getContentResolver();
-        String intentType = normalizeMimeType(intent.getType());
-        String resolverType = normalizeMimeType(resolverMimeType(resolver, data));
+        String intentMimeType = intent.getType();
+        String resolvedMimeType = resolverMimeType(resolver, data);
+        String intentType = normalizeMimeType(intentMimeType);
+        String resolverType = normalizeMimeType(resolvedMimeType);
         boolean supportedType = isSupportedTextFileMimeType(intentType) || isSupportedTextFileMimeType(resolverType);
 
-        String fileName = null;
         if (!supportedType && !hasTextFileExtension(data.getLastPathSegment())) {
-            fileName = displayName(resolver, data);
-            supportedType = hasTextFileExtension(fileName);
+            supportedType = hasTextFileExtension(queryDisplayName(resolver, data));
         }
         if (!supportedType) return null;
 
         String text = readText(resolver, data);
         if (text == null || text.trim().isEmpty()) return null;
 
-        if (fileName == null) fileName = displayName(resolver, data);
-        return importPayload(text, fileName, bestMimeType(intentType, resolverType), "android-view-file");
+        return importPayload(
+                text,
+                displayName(resolver, data),
+                bestMimeType(intentMimeType, resolvedMimeType),
+                "android-view-file"
+        );
     }
 
     private boolean isViewFileUri(Uri uri) {
@@ -173,11 +177,11 @@ public class SharedImportPlugin extends Plugin {
         return lower.endsWith(".txt") || lower.endsWith(".csv");
     }
 
-    private String bestMimeType(String intentType, String resolverType) {
-        if (isSupportedTextFileMimeType(intentType)) return intentType;
-        if (isSupportedTextFileMimeType(resolverType)) return resolverType;
-        if (intentType != null && !intentType.trim().isEmpty()) return intentType;
-        return resolverType;
+    private String bestMimeType(String intentMimeType, String resolverMimeType) {
+        if (isSupportedTextFileMimeType(normalizeMimeType(intentMimeType))) return intentMimeType;
+        if (isSupportedTextFileMimeType(normalizeMimeType(resolverMimeType))) return resolverMimeType;
+        if (intentMimeType != null && !intentMimeType.trim().isEmpty()) return intentMimeType;
+        return resolverMimeType;
     }
 
     @SuppressWarnings("deprecation")
@@ -284,6 +288,14 @@ public class SharedImportPlugin extends Plugin {
     }
 
     private String displayName(ContentResolver resolver, Uri uri) {
+        String displayName = queryDisplayName(resolver, uri);
+        if (displayName != null) return displayName;
+
+        String path = uri.getLastPathSegment();
+        return path == null || path.trim().isEmpty() ? "Shared list.txt" : path;
+    }
+
+    private String queryDisplayName(ContentResolver resolver, Uri uri) {
         try (Cursor cursor = resolver.query(uri, new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
             if (cursor != null && cursor.moveToFirst()) {
                 int index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
@@ -293,10 +305,9 @@ public class SharedImportPlugin extends Plugin {
                 }
             }
         } catch (SecurityException e) {
-            return uri.getLastPathSegment();
+            return null;
         }
 
-        String path = uri.getLastPathSegment();
-        return path == null || path.trim().isEmpty() ? "Shared list.txt" : path;
+        return null;
     }
 }
