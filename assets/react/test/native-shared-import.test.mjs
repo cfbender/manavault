@@ -6,6 +6,64 @@ import {
   subscribeSharedImport,
   takeSharedImport,
 } from "../src/lib/native-shared-import.ts"
+import { ensureCapacitorNativePluginHeader } from "../src/lib/capacitor-native-headers.ts"
+
+function withCapacitorGlobals(globals, callback) {
+  const hadCapacitor = Object.prototype.hasOwnProperty.call(globalThis, "Capacitor")
+  const hadAndroidBridge = Object.prototype.hasOwnProperty.call(globalThis, "androidBridge")
+  const previousCapacitor = globalThis.Capacitor
+  const previousAndroidBridge = globalThis.androidBridge
+
+  try {
+    if ("Capacitor" in globals) globalThis.Capacitor = globals.Capacitor
+    else delete globalThis.Capacitor
+
+    if ("androidBridge" in globals) globalThis.androidBridge = globals.androidBridge
+    else delete globalThis.androidBridge
+
+    callback()
+  } finally {
+    if (hadCapacitor) globalThis.Capacitor = previousCapacitor
+    else delete globalThis.Capacitor
+
+    if (hadAndroidBridge) globalThis.androidBridge = previousAndroidBridge
+    else delete globalThis.androidBridge
+  }
+}
+
+test("ensureCapacitorNativePluginHeader adds native plugin headers once", () => {
+  withCapacitorGlobals(
+    {
+      androidBridge: {},
+      Capacitor: { PluginHeaders: [{ name: "Existing", methods: [] }] },
+    },
+    () => {
+      const header = {
+        name: "SharedImport",
+        methods: [{ name: "getPendingImport", rtype: "promise" }],
+      }
+
+      ensureCapacitorNativePluginHeader(header)
+      ensureCapacitorNativePluginHeader(header)
+
+      assert.deepEqual(globalThis.Capacitor.PluginHeaders, [
+        { name: "Existing", methods: [] },
+        header,
+      ])
+    },
+  )
+})
+
+test("ensureCapacitorNativePluginHeader leaves browser globals untouched", () => {
+  withCapacitorGlobals({ Capacitor: {} }, () => {
+    ensureCapacitorNativePluginHeader({
+      name: "SharedImport",
+      methods: [{ name: "getPendingImport", rtype: "promise" }],
+    })
+
+    assert.equal(globalThis.Capacitor.PluginHeaders, undefined)
+  })
+})
 
 const sharedPayload = {
   text: "1 Lightning Bolt",

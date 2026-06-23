@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin } from "@capacitor/core"
+import { ensureCapacitorNativePluginHeader } from "./capacitor-native-headers.ts"
 
 export type NativeShellSettings = {
   serverUrl?: string | null
@@ -21,6 +22,15 @@ type NativeShellPlugin = {
 
 const fallbackReleaseRepository = "cfbender/manavault"
 const fallbackVersion = "0.0.0"
+ensureCapacitorNativePluginHeader({
+  name: "NativeShell",
+  methods: [
+    { name: "getSettings", rtype: "promise" },
+    { name: "saveServer", rtype: "promise" },
+    { name: "clearServer", rtype: "promise" },
+  ],
+})
+
 const NativeShell = registerPlugin<NativeShellPlugin>("NativeShell")
 
 export function isNativeShell() {

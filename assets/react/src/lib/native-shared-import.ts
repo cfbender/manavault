@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core"
+import { ensureCapacitorNativePluginHeader } from "./capacitor-native-headers.ts"
 
 export type SharedImportPayload = {
   text: string
@@ -22,6 +23,16 @@ type SharedImportPlugin = {
     listenerFunc: (payload: NativeOpenPayload) => void,
   ) => Promise<PluginListenerHandle> & PluginListenerHandle
 }
+
+ensureCapacitorNativePluginHeader({
+  name: "SharedImport",
+  methods: [
+    { name: "getPendingImport", rtype: "promise" },
+    { name: "hasPendingImport", rtype: "promise" },
+    { name: "addListener", rtype: "callback" },
+    { name: "removeListener", rtype: "callback" },
+  ],
+})
 
 const SharedImport = registerPlugin<SharedImportPlugin>("SharedImport")
 const listeners = new Set<(payload: SharedImportPayload) => void>()
