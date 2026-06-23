@@ -8,6 +8,12 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.6.4] - 2026-06-23
+
+### Features
+
+- Session cookies ([`cfbf9d01`](../../commit/cfbf9d01e3f8f467d3838dae536dfa927045a414))
+
 ## [0.6.3] - 2026-06-22
 
 ### Bug Fixes
