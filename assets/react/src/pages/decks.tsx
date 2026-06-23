@@ -2,21 +2,31 @@ import { Link, useNavigate } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   AlertTriangle,
+  BookOpen,
+  Bomb,
+  Brain,
   Box,
   CheckCircle2,
   CheckSquare,
   ChevronDown,
   Circle,
+  Cog,
   Clipboard,
+  Copy as CopyIcon,
   Crown,
   Database,
   Download,
+  Flame,
   Droplets,
   Edit3,
   Eye,
   Gem,
   Hash,
+  Hammer,
+  Hand,
+  HeartPulse,
   Layers,
+  Lock,
   MoreVertical,
   MoveRight,
   Palette,
@@ -24,8 +34,16 @@ import {
   Play,
   Plus,
   Share2,
+  Repeat2,
+  RotateCcw,
+  Search,
   Scissors,
+  Shield,
+  ShieldCheck,
+  Skull,
   ShoppingCart,
+  Swords,
+  Target,
   Sparkles,
   Star,
   Square,
@@ -33,8 +51,10 @@ import {
   Tag,
   Trash2,
   Upload,
+  TrendingUp,
   WandSparkles,
   XCircle,
+  Wind,
   Zap,
   type LucideIcon,
 } from "lucide-react"
@@ -2032,6 +2052,50 @@ function colorOrder(color: string) {
   return index === -1 ? 99 : index
 }
 
+const GROUP_ICON_COMPONENTS = {
+  aristocrats: Skull,
+  artifact: Gem,
+  auras: Sparkles,
+  blink: Repeat2,
+  burn: Flame,
+  card_advantage: BookOpen,
+  combo: Brain,
+  commander: Crown,
+  copy: CopyIcon,
+  counters: Plus,
+  creature: PawPrint,
+  discard: Trash2,
+  drain: Droplets,
+  enchantment: Sparkles,
+  engine: Cog,
+  equipment: Swords,
+  evasion: Wind,
+  graveyard_hate: Skull,
+  instant: Zap,
+  land: Droplets,
+  lifegain: HeartPulse,
+  mass_disruption: Bomb,
+  mill: Database,
+  none: Layers,
+  planeswalker: Palette,
+  protection: Shield,
+  pump: TrendingUp,
+  ramp: TrendingUp,
+  recursion: RotateCcw,
+  sacrifice: Skull,
+  sorcery: WandSparkles,
+  spellslinger: Zap,
+  stax: Lock,
+  storm: Zap,
+  sunforger: Hammer,
+  targeted_disruption: Target,
+  theft: Hand,
+  tokens: Circle,
+  tutor: Search,
+  voltron: ShieldCheck,
+  win_condition: Star,
+} satisfies Partial<Record<Extract<DeckGroupIcon, string>, LucideIcon>>
+
 function GroupIcon({ icon }: { icon: DeckGroupIcon }) {
   const className = "h-4 w-4 shrink-0 text-warning"
 
@@ -2062,14 +2126,8 @@ function GroupIcon({ icon }: { icon: DeckGroupIcon }) {
     return <SetSymbol setCode={icon.setCode} />
   }
 
-  if (icon === "commander") return <Crown className={className} />
-  if (icon === "creature") return <PawPrint className={className} />
-  if (icon === "instant") return <Zap className={className} />
-  if (icon === "sorcery") return <WandSparkles className={className} />
-  if (icon === "artifact") return <Gem className={className} />
-  if (icon === "enchantment") return <SparkleIcon className={className} />
-  if (icon === "planeswalker") return <Palette className={className} />
-  if (icon === "land") return <Droplets className={className} />
+  const Icon = GROUP_ICON_COMPONENTS[icon]
+  if (Icon) return <Icon className={className} />
 
   return <Layers className={className} />
 }
@@ -2494,9 +2552,10 @@ function DeckGroupGrid({
 }) {
   return (
     <div
-      className="mx-auto columns-1 gap-8 sm:columns-2 lg:columns-3 xl:columns-4 2xl:columns-5"
+      className="mx-auto gap-8"
       style={{
-        maxWidth: `calc(5 * ${DECK_STACK_CARD_WIDTH_REM}rem + 4 * 2rem)`,
+        columnWidth: `${DECK_STACK_CARD_WIDTH_REM}rem`,
+        maxWidth: `calc(${Math.min(groups.length, 5)} * ${DECK_STACK_CARD_WIDTH_REM}rem + ${Math.max(Math.min(groups.length, 5) - 1, 0)} * 2rem)`,
       }}
     >
       {groups.map((group) => (
@@ -2610,15 +2669,15 @@ function DeckStackGroup({
   }
 
   return (
-    <section className="mb-5 inline-block w-full break-inside-avoid space-y-3">
-      <div className="flex items-center gap-2 text-sm font-black tracking-normal">
+    <section className="mb-5 inline-flex w-full break-inside-avoid flex-col items-center gap-3">
+      <div className="flex w-56 items-center gap-2 text-sm font-black tracking-normal">
         <GroupIcon icon={group.icon} />
         <h3 className="truncate">{group.label}</h3>
         <span className="text-base-content/55">({group.quantity})</span>
       </div>
 
       <div
-        className="relative w-56 overflow-visible"
+        className="relative w-56 overflow-hidden rounded-xl"
         style={{
           minHeight: `${DECK_STACK_CARD_HEIGHT + Math.max(group.cards.length - 1, 0) * DECK_STACK_OFFSET}px`,
         }}

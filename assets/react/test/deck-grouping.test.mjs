@@ -94,10 +94,55 @@ test("category grouping follows contract order with lands and other last", () =>
   )
 })
 
-test("type grouping keeps commander first and other grouping modes keep commander in normal groups", () => {
+test("category and theme grouping assign purpose-specific icons", () => {
+  const categoryGroups = groupDeckCards(
+    [
+      deckCard("ramp", { card: { name: "Ramp", deckCategory: "ramp" } }),
+      deckCard("draw", { card: { name: "Draw", deckCategory: "card_advantage" } }),
+      deckCard("removal", { card: { name: "Removal", deckCategory: "targeted_disruption" } }),
+      deckCard("wipe", { card: { name: "Wipe", deckCategory: "mass_disruption" } }),
+      deckCard("land", { card: { name: "Land", deckCategory: "lands" } }),
+    ],
+    "category",
+  )
+  const themeGroups = groupDeckCards(
+    [
+      deckCard("burn", { card: { name: "Burn", deckThemes: ["burn"] } }),
+      deckCard("tokens", { card: { name: "Tokens", deckThemes: ["tokens"] } }),
+      deckCard("tutor", { card: { name: "Tutor", deckThemes: ["tutor"] } }),
+    ],
+    "theme",
+  )
+
+  assert.deepEqual(
+    categoryGroups.map((group) => [group.key, group.icon]),
+    [
+      ["ramp", "ramp"],
+      ["card_advantage", "card_advantage"],
+      ["targeted_disruption", "targeted_disruption"],
+      ["mass_disruption", "mass_disruption"],
+      ["lands", "land"],
+    ],
+  )
+  assert.deepEqual(
+    themeGroups.map((group) => [group.key, group.icon]),
+    [
+      ["burn", "burn"],
+      ["tokens", "tokens"],
+      ["tutor", "tutor"],
+    ],
+  )
+})
+
+test("category and theme grouping keep commander in its own first group", () => {
   const cards = [
     deckCard("main-ramp", {
-      card: { name: "Birds of Paradise", typeLine: "Creature", deckCategory: "ramp" },
+      card: {
+        name: "Birds of Paradise",
+        typeLine: "Creature",
+        deckCategory: "ramp",
+        deckThemes: ["ramp"],
+      },
     }),
     deckCard("commander", {
       zone: "commander",
@@ -105,29 +150,29 @@ test("type grouping keeps commander first and other grouping modes keep commande
         name: "Atraxa, Praetors' Voice",
         typeLine: "Legendary Creature",
         deckCategory: "ramp",
+        deckThemes: ["ramp"],
       },
     }),
     deckCard("instant", { card: { name: "Counterspell", typeLine: "Instant" } }),
   ]
 
-  const typeGroups = groupDeckCards(cards, "type")
-  assert.equal(typeGroups[0].label, "Commander")
-  assert.deepEqual(
-    typeGroups[0].cards.map((card) => card.id),
-    ["commander"],
-  )
+  for (const groupBy of ["category", "theme"]) {
+    const groups = groupDeckCards(cards, groupBy)
 
-  const categoryGroups = groupDeckCards(cards, "category")
-  const rampGroup = categoryGroups.find((group) => group.key === "ramp")
-  assert.ok(rampGroup)
-  assert.deepEqual(
-    rampGroup.cards.map((card) => card.id),
-    ["commander", "main-ramp"],
-  )
-  assert.equal(
-    categoryGroups.some((group) => group.key === "commander"),
-    false,
-  )
+    assert.equal(groups[0].key, "commander")
+    assert.equal(groups[0].label, "Commander")
+    assert.deepEqual(
+      groups[0].cards.map((card) => card.id),
+      ["commander"],
+    )
+
+    const rampGroup = groups.find((group) => group.key === "ramp")
+    assert.ok(rampGroup)
+    assert.deepEqual(
+      rampGroup.cards.map((card) => card.id),
+      ["main-ramp"],
+    )
+  }
 })
 
 test("existing labels remain human-readable for category and mana value", () => {

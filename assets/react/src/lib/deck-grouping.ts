@@ -19,6 +19,38 @@ export type DeckGroupIcon =
   | "planeswalker"
   | "land"
   | "none"
+  | "aristocrats"
+  | "auras"
+  | "blink"
+  | "burn"
+  | "card_advantage"
+  | "combo"
+  | "copy"
+  | "counters"
+  | "discard"
+  | "drain"
+  | "engine"
+  | "equipment"
+  | "evasion"
+  | "graveyard_hate"
+  | "lifegain"
+  | "mass_disruption"
+  | "mill"
+  | "protection"
+  | "pump"
+  | "ramp"
+  | "recursion"
+  | "sacrifice"
+  | "spellslinger"
+  | "stax"
+  | "storm"
+  | "sunforger"
+  | "targeted_disruption"
+  | "theft"
+  | "tokens"
+  | "tutor"
+  | "voltron"
+  | "win_condition"
   | { kind: "colors"; colors: string[] }
   | { kind: "manaValue"; plus: boolean; value: number }
   | { kind: "rarity"; rarity: string }
@@ -91,6 +123,50 @@ const CATEGORY_ORDER = [
   "lands",
   "other",
 ]
+const GROUP_VALUE_ICONS: Record<string, DeckGroupIcon> = {
+  aristocrats: "aristocrats",
+  artifact: "artifact",
+  auras: "auras",
+  blink: "blink",
+  board_wipe: "mass_disruption",
+  burn: "burn",
+  card_advantage: "card_advantage",
+  combo: "combo",
+  copy: "copy",
+  counters: "counters",
+  creature: "creature",
+  discard: "discard",
+  drain: "drain",
+  engine: "engine",
+  enchantment: "enchantment",
+  equipment: "equipment",
+  evasion: "evasion",
+  graveyard_hate: "graveyard_hate",
+  instant: "instant",
+  land: "land",
+  lands: "land",
+  lifegain: "lifegain",
+  mass_disruption: "mass_disruption",
+  mill: "mill",
+  planeswalker: "planeswalker",
+  protection: "protection",
+  pump: "pump",
+  ramp: "ramp",
+  recursion: "recursion",
+  removal: "targeted_disruption",
+  sacrifice: "sacrifice",
+  sorcery: "sorcery",
+  spellslinger: "spellslinger",
+  stax: "stax",
+  storm: "storm",
+  sunforger: "sunforger",
+  targeted_disruption: "targeted_disruption",
+  theft: "theft",
+  tokens: "tokens",
+  tutor: "tutor",
+  voltron: "voltron",
+  win_condition: "win_condition",
+}
 
 export function groupDeckCards<T extends DeckGroupingDeckCard>(
   deckCards: T[],
@@ -141,13 +217,17 @@ function deckCardGroupDescriptor<T extends DeckGroupingDeckCard>(
   const card = deckCard.card
   const printing = deckCard.preferredPrinting || card?.printings?.[0]
 
+  if ((groupBy === "theme" || groupBy === "category") && deckCard.zone === "commander") {
+    return commanderGroup()
+  }
+
   if (groupBy === "none") return { icon: "none", key: "all", label: "Deck", order: 0 }
 
   if (groupBy === "theme") {
     const theme = firstNonEmpty(card?.deckThemes)
     if (!theme) return { icon: "none", key: "other", label: "Other", order: 99 }
     return {
-      icon: "none",
+      icon: groupValueIcon(theme),
       key: theme,
       label: titleizeGroupValue(theme),
       order: theme.toLowerCase() === "other" ? 99 : 0,
@@ -157,7 +237,7 @@ function deckCardGroupDescriptor<T extends DeckGroupingDeckCard>(
   if (groupBy === "category") {
     const category = normalizedGroupValue(card?.deckCategory) || "other"
     return {
-      icon: "none",
+      icon: groupValueIcon(category),
       key: category,
       label: category === "other" ? "Other" : titleizeGroupValue(category),
       order: orderIndex(CATEGORY_ORDER, category),
@@ -242,6 +322,10 @@ function typeDescriptor<T extends DeckGroupingDeckCard>(
   return typeGroup("other", "Other", "none")
 }
 
+function commanderGroup() {
+  return { icon: "commander", key: "commander", label: "Commander", order: -1 } as const
+}
+
 function typeGroup(key: string, label: string, icon: DeckGroupIcon) {
   return { icon, key, label, order: orderIndex(TYPE_ORDER, key) }
 }
@@ -277,6 +361,10 @@ function rarityOrder(rarity: string) {
 function orderIndex(order: string[], value: string) {
   const index = order.indexOf(value)
   return index === -1 ? 99 : index
+}
+
+function groupValueIcon(value: string): DeckGroupIcon {
+  return GROUP_VALUE_ICONS[value] || "none"
 }
 
 function firstNonEmpty(values: Array<string | null> | null | undefined) {
