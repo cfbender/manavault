@@ -1,0 +1,243 @@
+defmodule ManavaultWeb.Schema.DeckWorkflowsTest do
+  use ManavaultWeb.ConnCase
+
+  alias Manavault.Catalog
+
+  test "update deck mutation updates deck fields", %{conn: conn} do
+    {:ok, deck} =
+      Catalog.create_deck(%{"name" => "Old Deck", "format" => "commander", "status" => "brewing"})
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation UpdateDeck($id: ID!, $input: DeckUpdateInput!) {
+          updateDeck(id: $id, input: $input) {
+            id
+            name
+            format
+            status
+          }
+        }
+        """,
+        "variables" => %{
+          "id" => deck.id,
+          "input" => %{"name" => "New Deck", "format" => "modern", "status" => "active"}
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "updateDeck" => %{
+                 "id" => _id,
+                 "name" => "New Deck",
+                 "format" => "modern",
+                 "status" => "active"
+               }
+             }
+           } = json_response(conn, 200)
+  end
+
+  test "decklist import mutation and export query expose plain text decklists", %{conn: conn} do
+    {:ok, %{cards_count: 2, printings_count: 2}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-deck-import-1",
+          "oracle_id" => "oracle-deck-import-1",
+          "name" => "Import Lotus",
+          "type_line" => "Artifact",
+          "collector_number" => "1",
+          "set" => "imp",
+          "set_name" => "Import Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        },
+        %{
+          "id" => "scryfall-deck-import-2",
+          "oracle_id" => "oracle-deck-import-2",
+          "name" => "Import Walk",
+          "type_line" => "Sorcery",
+          "collector_number" => "2",
+          "set" => "imp",
+          "set_name" => "Import Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Import Deck"})
+
+    import_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation ImportDecklist($id: ID!, $text: String!) {
+          importDecklist(id: $id, text: $text) {
+            imported
+            unresolved
+            skippedPrintings
+          }
+        }
+        """,
+        "variables" => %{
+          "id" => deck.id,
+          "text" => """
+          Commander
+          1 Import Walk
+
+          Mainboard
+          2 Import Lotus
+          1 Missing Card
+          """
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "importDecklist" => %{
+                 "imported" => 2,
+                 "unresolved" => ["Missing Card"],
+                 "skippedPrintings" => []
+               }
+             }
+           } = json_response(import_conn, 200)
+
+    export_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query DeckExportText($id: ID!) {
+          deckExportText(id: $id)
+        }
+        """,
+        "variables" => %{"id" => deck.id}
+      })
+
+    assert %{"data" => %{"deckExportText" => export_text}} = json_response(export_conn, 200)
+    assert export_text =~ "Commander\n1x Import Walk"
+    assert export_text =~ "Mainboard\n2x Import Lotus"
+
+    replace_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation ImportDecklist($id: ID!, $text: String!, $replaceExisting: Boolean!) {
+          importDecklist(id: $id, text: $text, replaceExisting: $replaceExisting) {
+            imported
+            unresolved
+          }
+        }
+        """,
+        "variables" => %{
+          "id" => deck.id,
+          "text" => """
+          Mainboard
+          1 Import Walk
+          """,
+          "replaceExisting" => true
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "importDecklist" => %{"imported" => 1, "unresolved" => []}
+             }
+           } = json_response(replace_conn, 200)
+
+    replaced_export_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query DeckExportText($id: ID!) {
+          deckExportText(id: $id)
+        }
+        """,
+        "variables" => %{"id" => deck.id}
+      })
+
+    assert %{"data" => %{"deckExportText" => replaced_export_text}} =
+             json_response(replaced_export_conn, 200)
+
+    assert replaced_export_text == "Mainboard\n1x Import Walk"
+  end
+
+  test "deck buylist and export queries expose missing card workflow data", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-buylist-1",
+          "oracle_id" => "oracle-buylist-1",
+          "name" => "Buylist Lotus",
+          "type_line" => "Artifact",
+          "collector_number" => "7",
+          "set" => "buy",
+          "set_name" => "Buy Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "prices" => %{"usd" => "3.50"},
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, deck} =
+      Catalog.create_deck(%{
+        "name" => "Buylist Deck",
+        "format" => "vintage",
+        "status" => "active"
+      })
+
+    {:ok, _deck_card} =
+      Catalog.add_card_to_deck(deck, %{
+        "name" => "Buylist Lotus",
+        "quantity" => 2,
+        "preferred_printing_id" => "scryfall-buylist-1"
+      })
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query DeckBuylist($id: ID!) {
+          deckBuylist(id: $id, printingMode: "exact") {
+            cardName
+            quantity
+            missing
+            unavailable
+            reason
+            setCode
+            collectorNumber
+            language
+            unitPriceText
+            totalPriceText
+          }
+          deckBuylistExport(id: $id, format: "csv", printingMode: "exact")
+        }
+        """,
+        "variables" => %{"id" => deck.id}
+      })
+
+    assert %{
+             "data" => %{
+               "deckBuylist" => [
+                 %{
+                   "cardName" => "Buylist Lotus",
+                   "quantity" => 2,
+                   "missing" => 2,
+                   "unavailable" => 0,
+                   "reason" => "missing",
+                   "setCode" => "buy",
+                   "collectorNumber" => "7",
+                   "language" => "en",
+                   "unitPriceText" => "$3.50",
+                   "totalPriceText" => "$7"
+                 }
+               ],
+               "deckBuylistExport" => export_csv
+             }
+           } = json_response(conn, 200)
+
+    assert export_csv =~
+             "Quantity,Card,Set,Collector Number,Finish,Language,Reason,Unit Price,Total Price"
+
+    assert export_csv =~ "2,Buylist Lotus,buy,7,nonfoil,en,missing,$3.50,$7"
+  end
+end

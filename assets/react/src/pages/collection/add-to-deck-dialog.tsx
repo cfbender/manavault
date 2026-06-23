@@ -1,0 +1,147 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import type * as React from "react"
+import { useEffect, useState } from "react"
+import { Button } from "../../components/ui/button"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog"
+import { request } from "../../lib/graphql"
+import { titleize } from "../../lib/utils"
+import { AddCollectionItemToDeckDocument, CollectionItemDeckOptionsDocument } from "./documents"
+import {
+  collectionTargetItems,
+  collectionTargetLabel,
+  type CollectionItemTarget,
+} from "./item-target"
+
+export function AddCollectionItemToDeckDialog({
+  item,
+  onDone,
+  onOpenChange,
+}: {
+  item: CollectionItemTarget
+  onDone: () => void
+  onOpenChange: (open: boolean) => void
+}) {
+  const queryClient = useQueryClient()
+  const [deckId, setDeckId] = useState("")
+  const [zone, setZone] = useState("mainboard")
+  const [error, setError] = useState<string | null>(null)
+  const targetItems = collectionTargetItems(item)
+  const targetCount = targetItems.length
+  const open = targetCount > 0
+  const decksQuery = useQuery({
+    queryKey: ["collection-item-deck-options"],
+    queryFn: () => request(CollectionItemDeckOptionsDocument),
+    enabled: open,
+  })
+  const addToDeck = useMutation({
+    mutationFn: () => {
+      if (!targetItems.length) throw new Error("Choose at least one item")
+      if (!deckId) throw new Error("Choose a deck")
+
+      return Promise.all(
+        targetItems.map((targetItem) =>
+          request(AddCollectionItemToDeckDocument, {
+            id: targetItem.id,
+            deckId,
+            zone,
+          }),
+        ),
+      )
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      onDone()
+      close()
+    },
+    onError: (error) =>
+      setError(error instanceof Error ? error.message : "Could not add cards to deck"),
+  })
+
+  useEffect(() => {
+    if (!open) {
+      setDeckId("")
+      setZone("mainboard")
+      setError(null)
+    }
+  }, [open])
+
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError(null)
+    addToDeck.mutate()
+  }
+
+  function close() {
+    if (addToDeck.isPending) return
+    onOpenChange(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && close()}>
+      <DialogContent className="max-w-lg" labelledBy="add-collection-item-to-deck-title">
+        <DialogHeader>
+          <div>
+            <DialogTitle id="add-collection-item-to-deck-title">
+              {targetCount > 1 ? "Add items to deck" : "Add to deck"}
+            </DialogTitle>
+            <p className="mt-1 text-sm text-base-content/60">{collectionTargetLabel(item)}</p>
+          </div>
+          <DialogClose onClose={close} />
+        </DialogHeader>
+        <form className="space-y-4 p-5" onSubmit={submit}>
+          <label className="block space-y-2">
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Deck</span>
+            <select
+              className="select select-bordered w-full bg-base-100"
+              value={deckId}
+              onChange={(event) => setDeckId(event.target.value)}
+              autoFocus
+            >
+              <option value="">Choose a deck</option>
+              {decksQuery.data?.decks.map((deck) => (
+                <option key={deck.id} value={deck.id}>
+                  {deck.name} ({titleize(deck.format)})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block space-y-2">
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Zone</span>
+            <select
+              className="select select-bordered w-full bg-base-100"
+              value={zone}
+              onChange={(event) => setZone(event.target.value)}
+            >
+              <option value="mainboard">Mainboard</option>
+              <option value="sideboard">Sideboard</option>
+              <option value="maybeboard">Maybeboard</option>
+            </select>
+          </label>
+          {error ? (
+            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+              {error}
+            </p>
+          ) : null}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={close} disabled={addToDeck.isPending}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={addToDeck.isPending || !deckId}>
+              {addToDeck.isPending
+                ? "Adding..."
+                : targetCount > 1
+                  ? `Add ${targetCount} to deck`
+                  : "Add to deck"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}

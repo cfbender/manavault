@@ -1,0 +1,600 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useNavigate } from "@tanstack/react-router"
+import { useMemo, useState } from "react"
+import { EmptyState } from "../../components/card-image"
+import type { DeckCardInput, DeckCardUpdateInput } from "../../gql/graphql"
+import { groupDeckCards, type DeckGroupBy } from "../../lib/deck-grouping"
+import { request } from "../../lib/graphql"
+import { present } from "../../lib/utils"
+import { compareDeckCards, countDeckZones } from "./deck-card-model"
+import { deckLegalityIssues } from "./deck-legality"
+import { useDeferredDeckAnalysis } from "./deck-stats-panel"
+import type {
+  BulkAllocationMode,
+  BulkAllocationPreview,
+  DeckCardEntry,
+  DeckCardTag,
+  DeckZone,
+  EDHRecAddZone,
+  EDHRecCard,
+  EDHRecSectionCard,
+  EDHRecTab,
+} from "./deck-types"
+import { DeckDetailContent } from "./detail-page-content"
+import { DeckDetailDialogs } from "./detail-page-dialogs"
+import { useDeckDetailSelection } from "./detail-page-selection"
+import { SharePlaytestOverlay, useSharedDecklistActions } from "./detail-page-share"
+import { edhrecCardPrintingId } from "./edhrec"
+import {
+  AddDeckCardDocument,
+  AllocateDeckCardItemDocument,
+  AllocateDeckCardProxyDocument,
+  BulkAllocateDeckDocument,
+  DeallocateDeckCardItemDocument,
+  DeallocateDeckCardProxyDocument,
+  DeckDocument,
+  DeleteDeckCardDocument,
+  DeleteDeckDocument,
+  PreviewBulkAllocateDeckDocument,
+  SetDeckCommanderDocument,
+  UpdateDeckCardDocument,
+  UpdateDeckCardsTagDocument,
+} from "./queries"
+
+export function DeckDetailPage({
+  edhrecExcludeLands = false,
+  edhrecTab,
+  id,
+  shareMode = false,
+}: {
+  edhrecExcludeLands?: boolean
+  edhrecTab?: EDHRecTab
+  id: string
+  shareMode?: boolean
+}) {
+  const [groupBy, setGroupBy] = useState<DeckGroupBy>("theme")
+  const [editTarget, setEditTarget] = useState<DeckCardEntry | null>(null)
+  const [editError, setEditError] = useState<string | null>(null)
+  const [moveTarget, setMoveTarget] = useState<DeckCardEntry | null>(null)
+  const [moveError, setMoveError] = useState<string | null>(null)
+  const [deleteCardTarget, setDeleteCardTarget] = useState<DeckCardEntry | null>(null)
+  const [isDeleteDeckOpen, setIsDeleteDeckOpen] = useState(false)
+  const [isEditDeckOpen, setIsEditDeckOpen] = useState(false)
+  const [isImportDeckOpen, setIsImportDeckOpen] = useState(false)
+  const [isExportDeckOpen, setIsExportDeckOpen] = useState(false)
+  const [isMissingCardsOpen, setIsMissingCardsOpen] = useState(false)
+  const [isShareDeckOpen, setIsShareDeckOpen] = useState(false)
+  const [previewDeckCard, setPreviewDeckCard] = useState<DeckCardEntry | null>(null)
+  const [isSharePlaytestOpen, setIsSharePlaytestOpen] = useState(false)
+  const [bulkAllocationPreview, setBulkAllocationPreview] = useState<BulkAllocationPreview | null>(
+    null,
+  )
+  const [bulkAllocationError, setBulkAllocationError] = useState<string | null>(null)
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const deleteDeck = useMutation({
+    mutationFn: (deckId: string) => request(DeleteDeckDocument, { id: deckId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      queryClient.removeQueries({ queryKey: ["deck", id] })
+      navigate({ to: "/decks" })
+    },
+  })
+  const { data, isLoading } = useQuery({
+    queryKey: [shareMode ? "shared-deck" : "deck", id],
+    queryFn: () =>
+      request(DeckDocument, { id }, shareMode ? { endpoint: "/share/graphql" } : undefined),
+  })
+  const deck = data?.deck
+  const [isAddCardOpen, setIsAddCardOpen] = useState(false)
+  const deckCards = useMemo(() => (deck?.deckCards || []).filter(present), [deck?.deckCards])
+  const { copySharedDecklist, downloadSharedDecklist, shareCopyState } = useSharedDecklistActions(
+    deck?.name || "deck",
+    deckCards,
+  )
+  const deferredDeckAnalysis = useDeferredDeckAnalysis(deckCards)
+  const deckStats = deferredDeckAnalysis?.stats ?? null
+  const deckTokens = deferredDeckAnalysis?.tokens ?? null
+  const stackDeckCards = useMemo(
+    () =>
+      deckCards.filter(
+        (deckCard) => deckCard.zone !== "sideboard" && deckCard.zone !== "maybeboard",
+      ),
+    [deckCards],
+  )
+  const sideboardCards = useMemo(
+    () => deckCards.filter((deckCard) => deckCard.zone === "sideboard").sort(compareDeckCards),
+    [deckCards],
+  )
+  const maybeboardCards = useMemo(
+    () => deckCards.filter((deckCard) => deckCard.zone === "maybeboard").sort(compareDeckCards),
+    [deckCards],
+  )
+  const groupedCards = useMemo(
+    () => groupDeckCards(stackDeckCards, groupBy),
+    [stackDeckCards, groupBy],
+  )
+  const zoneCounts = useMemo(() => countDeckZones(deckCards), [deckCards])
+  const selectionDeckCardIds = useMemo(
+    () => [
+      ...groupedCards.flatMap((group) => group.cards.map((deckCard) => deckCard.id)),
+      ...sideboardCards.map((deckCard) => deckCard.id),
+      ...maybeboardCards.map((deckCard) => deckCard.id),
+    ],
+    [groupedCards, sideboardCards, maybeboardCards],
+  )
+  const {
+    allDeckCardsSelected,
+    bulkActionError,
+    bulkQuantity,
+    clearSelectedDeckCards,
+    highlightedDeckCardIds,
+    isDeleteSelectedOpen,
+    isSelectionActive,
+    selectedDeckCardCount,
+    selectedDeckCardIdList,
+    selectedDeckCardIds,
+    selectAllDeckCards,
+    setBulkActionError,
+    setBulkQuantity,
+    setHighlightedDeckCardIds,
+    setIsDeleteSelectedOpen,
+    setIsSelectingCards,
+    setTagError,
+    tagError,
+    toggleDeckCardSelected,
+  } = useDeckDetailSelection(deckCards, selectionDeckCardIds)
+  const previewDeckCards = useMemo(() => {
+    const deckCardById = new Map(deckCards.map((deckCard) => [deckCard.id, deckCard]))
+    return selectionDeckCardIds.map((deckCardId) => deckCardById.get(deckCardId)).filter(present)
+  }, [deckCards, selectionDeckCardIds])
+  const hasBulkAllocationAvailable = useMemo(
+    () =>
+      !shareMode &&
+      deckCards.some(
+        (deckCard) =>
+          deckCard.allocationStatus.available > 0 &&
+          deckCard.allocationStatus.allocated < deckCard.allocationStatus.required,
+      ),
+    [deckCards, shareMode],
+  )
+
+  const updateDeckCard = useMutation({
+    mutationFn: ({ deckCardId, input }: { deckCardId: string; input: DeckCardUpdateInput }) =>
+      request(UpdateDeckCardDocument, { id: deckCardId, input }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deck", id] })
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
+      setEditTarget(null)
+      setEditError(null)
+      setMoveTarget(null)
+      setMoveError(null)
+      setTagError(null)
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "Could not update deck card"
+      if (editTarget) setEditError(message)
+      else if (moveTarget) setMoveError(message)
+      else setTagError(message)
+    },
+  })
+
+  const deleteDeckCard = useMutation({
+    mutationFn: (deckCardId: string) => request(DeleteDeckCardDocument, { id: deckCardId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deck", id] })
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
+    },
+  })
+
+  const setDeckCommander = useMutation({
+    mutationFn: (deckCardId: string) => request(SetDeckCommanderDocument, { id: deckCardId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deck", id] })
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      setMoveError(null)
+    },
+    onError: (error) =>
+      setMoveError(error instanceof Error ? error.message : "Could not set commander"),
+  })
+  const addDeckCard = useMutation({
+    mutationFn: (input: DeckCardInput) => request(AddDeckCardDocument, { deckId: id, input }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deck", id] })
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
+      queryClient.invalidateQueries({ queryKey: ["deck-edhrec", id] })
+    },
+  })
+
+  const updateDeckCardsTag = useMutation({
+    mutationFn: ({ deckCardIds, tag }: { deckCardIds: string[]; tag: DeckCardTag | null }) =>
+      request(UpdateDeckCardsTagDocument, { deckCardIds, tag }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deck", id] })
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      clearSelectedDeckCards()
+      setIsSelectingCards(false)
+      setBulkActionError(null)
+      setTagError(null)
+    },
+    onError: (error) =>
+      setBulkActionError(error instanceof Error ? error.message : "Could not tag selected cards"),
+  })
+
+  const bulkUpdateDeckCards = useMutation({
+    mutationFn: ({ deckCardIds, input }: { deckCardIds: string[]; input: DeckCardUpdateInput }) =>
+      Promise.all(
+        deckCardIds.map((deckCardId) => request(UpdateDeckCardDocument, { id: deckCardId, input })),
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deck", id] })
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
+      clearSelectedDeckCards()
+      setIsSelectingCards(false)
+      setBulkActionError(null)
+    },
+    onError: (error) =>
+      setBulkActionError(
+        error instanceof Error ? error.message : "Could not update selected cards",
+      ),
+  })
+
+  const bulkDeleteDeckCards = useMutation({
+    mutationFn: (deckCardIds: string[]) =>
+      Promise.all(
+        deckCardIds.map((deckCardId) => request(DeleteDeckCardDocument, { id: deckCardId })),
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deck", id] })
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
+      clearSelectedDeckCards()
+      setIsSelectingCards(false)
+      setIsDeleteSelectedOpen(false)
+      setBulkActionError(null)
+    },
+    onError: (error) =>
+      setBulkActionError(
+        error instanceof Error ? error.message : "Could not delete selected cards",
+      ),
+  })
+
+  function invalidateAllocationQueries() {
+    queryClient.invalidateQueries({ queryKey: ["deck", id] })
+    queryClient.invalidateQueries({ queryKey: ["decks"] })
+    queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
+    queryClient.invalidateQueries({ queryKey: ["deck-edhrec", id] })
+    queryClient.invalidateQueries({ queryKey: ["collection"] })
+    queryClient.invalidateQueries({ queryKey: ["collection-items"] })
+  }
+
+  const allocateDeckCardItem = useMutation({
+    mutationFn: ({
+      collectionItemId,
+      deckCardId,
+    }: {
+      collectionItemId: string
+      deckCardId: string
+    }) => request(AllocateDeckCardItemDocument, { deckCardId, collectionItemId }),
+    onSuccess: () => {
+      invalidateAllocationQueries()
+    },
+  })
+  const deallocateDeckCardItem = useMutation({
+    mutationFn: ({
+      collectionItemId,
+      deckCardId,
+    }: {
+      collectionItemId: string
+      deckCardId: string
+    }) => request(DeallocateDeckCardItemDocument, { deckCardId, collectionItemId }),
+    onSuccess: () => {
+      invalidateAllocationQueries()
+    },
+  })
+  const allocateDeckCardProxy = useMutation({
+    mutationFn: ({ deckCardId, quantity }: { deckCardId: string; quantity: number }) =>
+      request(AllocateDeckCardProxyDocument, { deckCardId, quantity }),
+    onSuccess: () => {
+      invalidateAllocationQueries()
+    },
+  })
+  const deallocateDeckCardProxy = useMutation({
+    mutationFn: ({ deckCardId, quantity }: { deckCardId: string; quantity: number }) =>
+      request(DeallocateDeckCardProxyDocument, { deckCardId, quantity }),
+    onSuccess: () => {
+      invalidateAllocationQueries()
+    },
+  })
+  const previewBulkAllocateDeck = useMutation({
+    mutationFn: (mode: BulkAllocationMode) =>
+      request(PreviewBulkAllocateDeckDocument, { id, mode }),
+    onSuccess: (data) => {
+      setBulkAllocationPreview(data.previewBulkAllocateDeck || null)
+      setBulkAllocationError(null)
+    },
+    onError: (error) =>
+      setBulkAllocationError(
+        error instanceof Error ? error.message : "Could not preview allocation",
+      ),
+  })
+  const bulkAllocateDeck = useMutation({
+    mutationFn: (mode: BulkAllocationMode) => request(BulkAllocateDeckDocument, { id, mode }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deck", id] })
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      queryClient.invalidateQueries({ queryKey: ["collection"] })
+      queryClient.invalidateQueries({ queryKey: ["collection-items"] })
+      setBulkAllocationPreview(null)
+      setBulkAllocationError(null)
+    },
+    onError: (error) =>
+      setBulkAllocationError(error instanceof Error ? error.message : "Could not allocate deck"),
+  })
+  const allocationError =
+    allocateDeckCardItem.error instanceof Error
+      ? allocateDeckCardItem.error.message
+      : deallocateDeckCardItem.error instanceof Error
+        ? deallocateDeckCardItem.error.message
+        : allocateDeckCardProxy.error instanceof Error
+          ? allocateDeckCardProxy.error.message
+          : deallocateDeckCardProxy.error instanceof Error
+            ? deallocateDeckCardProxy.error.message
+            : deleteDeckCard.error instanceof Error
+              ? deleteDeckCard.error.message
+              : null
+  const isUpdatingDeckCard =
+    updateDeckCard.isPending ||
+    updateDeckCardsTag.isPending ||
+    bulkUpdateDeckCards.isPending ||
+    bulkDeleteDeckCards.isPending ||
+    deleteDeckCard.isPending ||
+    setDeckCommander.isPending ||
+    allocateDeckCardItem.isPending ||
+    deallocateDeckCardItem.isPending ||
+    allocateDeckCardProxy.isPending ||
+    deallocateDeckCardProxy.isPending
+
+  if (isLoading) return <EmptyState title="Loading deck..." />
+  if (!deck) return <EmptyState title="Deck not found" />
+
+  if (shareMode && isSharePlaytestOpen) {
+    return (
+      <SharePlaytestOverlay
+        deck={deck}
+        deckCards={deckCards}
+        onClose={() => setIsSharePlaytestOpen(false)}
+      />
+    )
+  }
+
+  const legalityIssues = deckLegalityIssues(deck.legality)
+
+  function moveDeckCard(deckCard: DeckCardEntry, zone: DeckZone) {
+    updateDeckCard.mutate({ deckCardId: deckCard.id, input: { zone } })
+  }
+
+  function editDeckCard(deckCard: DeckCardEntry, input: DeckCardUpdateInput) {
+    updateDeckCard.mutate({ deckCardId: deckCard.id, input })
+  }
+
+  function tagDeckCard(deckCard: DeckCardEntry, tag: DeckCardTag | null) {
+    setTagError(null)
+    updateDeckCard.mutate({ deckCardId: deckCard.id, input: { tag } })
+  }
+
+  function tagSelectedDeckCards(tag: DeckCardTag | null) {
+    if (selectedDeckCardIdList.length === 0) return
+    setBulkActionError(null)
+    updateDeckCardsTag.mutate({ deckCardIds: selectedDeckCardIdList, tag })
+  }
+
+  function updateSelectedDeckCards(input: DeckCardUpdateInput) {
+    if (selectedDeckCardIdList.length === 0) return
+    setBulkActionError(null)
+    bulkUpdateDeckCards.mutate({ deckCardIds: selectedDeckCardIdList, input })
+  }
+
+  function deleteSelectedDeckCards() {
+    if (selectedDeckCardIdList.length === 0) return
+    setBulkActionError(null)
+    bulkDeleteDeckCards.mutate(selectedDeckCardIdList)
+  }
+
+  function deleteSelectedDeckCard() {
+    if (!deleteCardTarget) return
+    deleteDeckCard.mutate(deleteCardTarget.id)
+  }
+
+  function deleteCurrentDeck() {
+    if (!deck) return
+    deleteDeck.mutate(deck.id)
+  }
+
+  function addEdhrecCard(card: EDHRecCard | EDHRecSectionCard, zone: EDHRecAddZone) {
+    addDeckCard.mutate({
+      finish: "nonfoil",
+      name: card.name,
+      preferredPrintingId: edhrecCardPrintingId(card),
+      quantity: 1,
+      zone,
+    })
+  }
+
+  function setEdhrecState(tab: EDHRecTab | undefined, excludeLands = edhrecExcludeLands) {
+    navigate({
+      to: "/decks/$id",
+      params: { id },
+      search: {
+        edhrec: tab,
+        edhrecExcludeLands: tab && excludeLands ? true : undefined,
+      },
+    })
+  }
+
+  return (
+    <>
+      <DeckDetailContent
+        allocationError={allocationError}
+        allDeckCardsSelected={allDeckCardsSelected}
+        bulkActionError={bulkActionError || tagError}
+        bulkQuantity={bulkQuantity}
+        canBulkAllocate={hasBulkAllocationAvailable}
+        deck={deck}
+        deckCards={deckCards}
+        deckStats={deckStats}
+        deckTokens={deckTokens}
+        groupBy={groupBy}
+        groupedCards={groupedCards}
+        highlightedDeckCardIds={highlightedDeckCardIds}
+        isBulkAllocating={bulkAllocateDeck.isPending}
+        isPreviewingBulkAllocation={previewBulkAllocateDeck.isPending}
+        isSelectionActive={isSelectionActive}
+        isUpdatingDeckCard={isUpdatingDeckCard}
+        legalityIssues={legalityIssues}
+        maybeboardCards={maybeboardCards}
+        onAllocate={(deckCard, collectionItemId) =>
+          allocateDeckCardItem.mutate({ deckCardId: deckCard.id, collectionItemId })
+        }
+        onClearSelectedDeckCards={clearSelectedDeckCards}
+        onCopySharedDecklist={copySharedDecklist}
+        onDeallocate={(deckCard, collectionItemId) =>
+          deallocateDeckCardItem.mutate({ deckCardId: deckCard.id, collectionItemId })
+        }
+        onDeleteCard={setDeleteCardTarget}
+        onDownloadSharedDecklist={downloadSharedDecklist}
+        onEditCard={(deckCard) => {
+          setEditError(null)
+          setEditTarget(deckCard)
+        }}
+        onEditDeck={() => setIsEditDeckOpen(true)}
+        onExportDeck={() => setIsExportDeckOpen(true)}
+        onGroupByChange={setGroupBy}
+        onHighlightDeckCards={setHighlightedDeckCardIds}
+        onImportDeck={() => setIsImportDeckOpen(true)}
+        onMissingCards={() => setIsMissingCardsOpen(true)}
+        onMoveCard={(deckCard) => {
+          setMoveError(null)
+          setMoveTarget(deckCard)
+        }}
+        onOpenAddCard={() => setIsAddCardOpen(true)}
+        onOpenDeleteDeck={() => setIsDeleteDeckOpen(true)}
+        onOpenDeleteSelected={() => setIsDeleteSelectedOpen(true)}
+        onOpenEdhrec={() => setEdhrecState("recs")}
+        onOpenShareDeck={() => setIsShareDeckOpen(true)}
+        onOpenSharePlaytest={() => setIsSharePlaytestOpen(true)}
+        onPreviewBulkAllocation={(mode) => {
+          setBulkAllocationError(null)
+          previewBulkAllocateDeck.mutate(mode)
+        }}
+        onPreviewCard={setPreviewDeckCard}
+        onSelectAllDeckCards={selectAllDeckCards}
+        onSetBulkQuantity={setBulkQuantity}
+        onSetCommander={(deckCard) => setDeckCommander.mutate(deckCard.id)}
+        onTagCard={tagDeckCard}
+        onTagSelectedDeckCards={tagSelectedDeckCards}
+        onToggleProxy={(deckCard) => {
+          const status = deckCard.allocationStatus
+
+          if (status.proxyAllocated > 0) {
+            deallocateDeckCardProxy.mutate({
+              deckCardId: deckCard.id,
+              quantity: status.proxyAllocated,
+            })
+          } else {
+            const quantity = Math.max(status.required - status.allocated, 0)
+
+            if (quantity > 0) {
+              allocateDeckCardProxy.mutate({ deckCardId: deckCard.id, quantity })
+            }
+          }
+        }}
+        onToggleSelected={toggleDeckCardSelected}
+        onUpdateSelectedDeckCards={updateSelectedDeckCards}
+        selectedDeckCardCount={selectedDeckCardCount}
+        selectedDeckCardIds={selectedDeckCardIds}
+        shareCopyState={shareCopyState}
+        shareMode={shareMode}
+        sideboardCards={sideboardCards}
+        zoneCounts={zoneCounts}
+      />
+      <DeckDetailDialogs
+        addCardError={addDeckCard.error instanceof Error ? addDeckCard.error.message : null}
+        bulkAllocationError={bulkAllocationError}
+        bulkAllocationPreview={bulkAllocationPreview}
+        deck={deck}
+        deleteCardTarget={deleteCardTarget}
+        editError={editError}
+        editTarget={editTarget}
+        edhrecExcludeLands={edhrecExcludeLands}
+        edhrecTab={edhrecTab}
+        isAddCardOpen={isAddCardOpen}
+        isAddingCard={addDeckCard.isPending}
+        isBulkAllocating={bulkAllocateDeck.isPending}
+        isDeleteDeckOpen={isDeleteDeckOpen}
+        isDeleteSelectedOpen={isDeleteSelectedOpen}
+        isEditDeckOpen={isEditDeckOpen}
+        isExportDeckOpen={isExportDeckOpen}
+        isImportDeckOpen={isImportDeckOpen}
+        isMissingCardsOpen={isMissingCardsOpen}
+        isShareDeckOpen={isShareDeckOpen}
+        isUpdatingDeckCard={isUpdatingDeckCard}
+        mayCloseDeleteSelected={!bulkDeleteDeckCards.isPending}
+        moveError={moveError}
+        moveTarget={moveTarget}
+        onAddCardOpenChange={setIsAddCardOpen}
+        onAddEdhrecCard={addEdhrecCard}
+        onCloseBulkAllocationPreview={() => {
+          if (!bulkAllocateDeck.isPending) {
+            setBulkAllocationPreview(null)
+            setBulkAllocationError(null)
+          }
+        }}
+        onCloseEditCard={() => {
+          if (!updateDeckCard.isPending) {
+            setEditError(null)
+            setEditTarget(null)
+          }
+        }}
+        onCloseMoveCard={() => {
+          if (!updateDeckCard.isPending) {
+            setMoveError(null)
+            setMoveTarget(null)
+          }
+        }}
+        onConfirmBulkAllocation={(mode) => bulkAllocateDeck.mutate(mode)}
+        onDeleteCardTargetChange={setDeleteCardTarget}
+        onDeleteCurrentDeck={deleteCurrentDeck}
+        onDeleteDeckOpenChange={setIsDeleteDeckOpen}
+        onDeleteSelectedCard={deleteSelectedDeckCard}
+        onDeleteSelectedDeckCards={deleteSelectedDeckCards}
+        onDeleteSelectedOpenChange={setIsDeleteSelectedOpen}
+        onEditCard={(input) => {
+          if (editTarget) editDeckCard(editTarget, input)
+        }}
+        onEditDeckOpenChange={setIsEditDeckOpen}
+        onExportDeckOpenChange={setIsExportDeckOpen}
+        onImportDeckOpenChange={setIsImportDeckOpen}
+        onMissingCardsOpenChange={setIsMissingCardsOpen}
+        onMoveCard={(zone) => {
+          if (moveTarget) moveDeckCard(moveTarget, zone)
+        }}
+        onPreviewCardOpenChange={(open) => {
+          if (!open) setPreviewDeckCard(null)
+        }}
+        onSetEdhrecState={setEdhrecState}
+        onShareDeckOpenChange={setIsShareDeckOpen}
+        previewDeckCard={previewDeckCard}
+        previewDeckCards={previewDeckCards}
+        selectedDeckCardCount={selectedDeckCardCount}
+        shareMode={shareMode}
+        updateDeckCardPending={updateDeckCard.isPending}
+        zoneCounts={zoneCounts}
+      />
+    </>
+  )
+}

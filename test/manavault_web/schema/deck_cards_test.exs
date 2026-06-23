@@ -1,0 +1,391 @@
+defmodule ManavaultWeb.Schema.DeckCardsTest do
+  use ManavaultWeb.ConnCase
+
+  alias Manavault.Catalog
+
+  test "update deck card mutation moves a card between zones", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-printing-1",
+          "oracle_id" => "oracle-1",
+          "name" => "Black Lotus",
+          "type_line" => "Artifact",
+          "collector_number" => "232",
+          "set" => "lea",
+          "set_name" => "Limited Edition Alpha",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Sideboard Test"})
+    {:ok, deck_card} = Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus"})
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation MoveDeckCard($id: ID!, $input: DeckCardUpdateInput!) {
+          updateDeckCard(id: $id, input: $input) {
+            id
+            zone
+            quantity
+            card { name }
+          }
+        }
+        """,
+        "variables" => %{
+          "id" => deck_card.id,
+          "input" => %{"zone" => "sideboard"}
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "updateDeckCard" => %{
+                 "id" => _id,
+                 "zone" => "sideboard",
+                 "quantity" => 1,
+                 "card" => %{"name" => "Black Lotus"}
+               }
+             }
+           } = json_response(conn, 200)
+  end
+
+  test "deck card tag fields update individually and in bulk", %{conn: conn} do
+    {:ok, %{cards_count: 2, printings_count: 2}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-tag-card-1",
+          "oracle_id" => "oracle-tag-card-1",
+          "name" => "Tag One",
+          "type_line" => "Artifact",
+          "collector_number" => "1",
+          "set" => "tag",
+          "set_name" => "Tag Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        },
+        %{
+          "id" => "scryfall-tag-card-2",
+          "oracle_id" => "oracle-tag-card-2",
+          "name" => "Tag Two",
+          "type_line" => "Creature",
+          "collector_number" => "2",
+          "set" => "tag",
+          "set_name" => "Tag Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Tag Test"})
+    {:ok, first} = Catalog.add_card_to_deck(deck, %{"name" => "Tag One"})
+    {:ok, second} = Catalog.add_card_to_deck(deck, %{"name" => "Tag Two"})
+
+    update_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation UpdateTag($id: ID!, $input: DeckCardUpdateInput!) {
+          updateDeckCard(id: $id, input: $input) {
+            id
+            tag
+          }
+        }
+        """,
+        "variables" => %{"id" => first.id, "input" => %{"tag" => "getting"}}
+      })
+
+    assert %{
+             "data" => %{
+               "updateDeckCard" => %{
+                 "id" => _id,
+                 "tag" => "getting"
+               }
+             }
+           } = json_response(update_conn, 200)
+
+    bulk_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation BulkTag($deckCardIds: [ID!]!, $tag: String) {
+          updateDeckCardsTag(deckCardIds: $deckCardIds, tag: $tag) {
+            id
+            tag
+          }
+        }
+        """,
+        "variables" => %{
+          "deckCardIds" => [first.id, second.id],
+          "tag" => "consider_cutting"
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "updateDeckCardsTag" => tagged_cards
+             }
+           } = json_response(bulk_conn, 200)
+
+    assert Enum.sort_by(tagged_cards, & &1["id"]) ==
+             Enum.sort_by(
+               [
+                 %{"id" => to_string(first.id), "tag" => "consider_cutting"},
+                 %{"id" => to_string(second.id), "tag" => "consider_cutting"}
+               ],
+               & &1["id"]
+             )
+  end
+
+  test "add deck card mutation adds a card by name", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-add-deck-card",
+          "oracle_id" => "oracle-add-deck-card",
+          "name" => "Add Me",
+          "type_line" => "Creature",
+          "collector_number" => "3",
+          "set" => "add",
+          "set_name" => "Add Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Add Test"})
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation AddDeckCard($deckId: ID!, $input: DeckCardInput!) {
+          addDeckCard(deckId: $deckId, input: $input) {
+            id
+            quantity
+            zone
+            finish
+            card { name }
+          }
+        }
+        """,
+        "variables" => %{
+          "deckId" => deck.id,
+          "input" => %{
+            "name" => "Add Me",
+            "quantity" => 2,
+            "zone" => "sideboard",
+            "finish" => "nonfoil"
+          }
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "addDeckCard" => %{
+                 "id" => _id,
+                 "quantity" => 2,
+                 "zone" => "sideboard",
+                 "finish" => "nonfoil",
+                 "card" => %{"name" => "Add Me"}
+               }
+             }
+           } = json_response(conn, 200)
+  end
+
+  test "delete deck card mutation removes a card from a deck", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-delete-deck-card",
+          "oracle_id" => "oracle-delete-deck-card",
+          "name" => "Delete Me",
+          "type_line" => "Artifact",
+          "collector_number" => "1",
+          "set" => "del",
+          "set_name" => "Delete Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Delete Test"})
+    {:ok, deck_card} = Catalog.add_card_to_deck(deck, %{"name" => "Delete Me"})
+    {:ok, location} = Catalog.create_location(%{"name" => "Delete Binder", "kind" => "binder"})
+
+    {:ok, item} =
+      Catalog.create_collection_item(%{
+        "scryfall_id" => "scryfall-delete-deck-card",
+        "quantity" => 1,
+        "location_id" => location.id
+      })
+
+    assert {:ok, allocation} =
+             Catalog.allocate_collection_item_to_deck_card(deck_card.id, item.id)
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation DeleteDeckCard($id: ID!) {
+          deleteDeckCard(id: $id) {
+            id
+            card { name }
+          }
+        }
+        """,
+        "variables" => %{"id" => deck_card.id}
+      })
+
+    assert %{
+             "data" => %{
+               "deleteDeckCard" => %{
+                 "id" => _id,
+                 "card" => %{"name" => "Delete Me"}
+               }
+             }
+           } = json_response(conn, 200)
+
+    assert Catalog.get_deck!(deck.id).deck_cards == []
+
+    restored_item =
+      allocation.collection_item_id
+      |> Catalog.get_collection_item!()
+
+    assert restored_item.location_id == location.id
+    assert Catalog.deck_allocation_status(Catalog.get_deck!(deck.id)) == %{}
+  end
+
+  test "delete deck mutation removes a deck and restores allocated cards", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-delete-deck",
+          "oracle_id" => "oracle-delete-deck",
+          "name" => "Delete Deck Card",
+          "type_line" => "Artifact",
+          "collector_number" => "1",
+          "set" => "ddk",
+          "set_name" => "Delete Deck Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Deck To Delete"})
+    {:ok, deck_card} = Catalog.add_card_to_deck(deck, %{"name" => "Delete Deck Card"})
+
+    {:ok, location} =
+      Catalog.create_location(%{"name" => "Delete Deck Binder", "kind" => "binder"})
+
+    {:ok, item} =
+      Catalog.create_collection_item(%{
+        "scryfall_id" => "scryfall-delete-deck",
+        "quantity" => 1,
+        "location_id" => location.id
+      })
+
+    assert {:ok, allocation} =
+             Catalog.allocate_collection_item_to_deck_card(deck_card.id, item.id)
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation DeleteDeck($id: ID!) {
+          deleteDeck(id: $id) {
+            id
+            name
+          }
+        }
+        """,
+        "variables" => %{"id" => deck.id}
+      })
+
+    assert %{
+             "data" => %{
+               "deleteDeck" => %{"id" => _id, "name" => "Deck To Delete"}
+             }
+           } = json_response(conn, 200)
+
+    assert_raise Ecto.NoResultsError, fn -> Catalog.get_deck!(deck.id) end
+    assert Catalog.get_collection_item!(allocation.collection_item_id).location_id == location.id
+  end
+
+  test "set deck commander replaces the current commander", %{conn: conn} do
+    {:ok, %{cards_count: 2, printings_count: 2}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-printing-1",
+          "oracle_id" => "oracle-1",
+          "name" => "Old Legend",
+          "type_line" => "Legendary Creature — Wizard",
+          "collector_number" => "1",
+          "set" => "tst",
+          "set_name" => "Test Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        },
+        %{
+          "id" => "scryfall-printing-2",
+          "oracle_id" => "oracle-2",
+          "name" => "New Legend",
+          "type_line" => "Legendary Creature — Soldier",
+          "collector_number" => "2",
+          "set" => "tst",
+          "set_name" => "Test Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Commander Test"})
+
+    {:ok, old_commander} =
+      Catalog.add_card_to_deck(deck, %{"name" => "Old Legend", "zone" => "commander"})
+
+    {:ok, new_commander} = Catalog.add_card_to_deck(deck, %{"name" => "New Legend"})
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation SetDeckCommander($id: ID!) {
+          setDeckCommander(id: $id) {
+            id
+            zone
+            card { name }
+          }
+        }
+        """,
+        "variables" => %{"id" => new_commander.id}
+      })
+
+    assert %{
+             "data" => %{
+               "setDeckCommander" => %{
+                 "id" => _id,
+                 "zone" => "commander",
+                 "card" => %{"name" => "New Legend"}
+               }
+             }
+           } = json_response(conn, 200)
+
+    loaded = Catalog.get_deck!(deck.id)
+
+    assert Enum.any?(loaded.deck_cards, &(&1.id == old_commander.id and &1.zone == "mainboard"))
+    assert Enum.any?(loaded.deck_cards, &(&1.id == new_commander.id and &1.zone == "commander"))
+  end
+end

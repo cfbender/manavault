@@ -1,0 +1,470 @@
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useNavigate } from "@tanstack/react-router"
+import { CheckSquare, ListFilter, Search } from "lucide-react"
+import type * as React from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { PageSection } from "../../components/app-shell"
+import { EmptyState } from "../../components/card-image"
+import { CardNameSearchField } from "../../components/card-name-search-field"
+import { Button } from "../../components/ui/button"
+import { ConfirmDialog } from "../../components/ui/confirm-dialog"
+import {
+  buildCollectionFilterQuery,
+  combineCollectionQueries,
+  countActiveCollectionFilters,
+  decodeCollectionFilters,
+  type CollectionFilterState,
+} from "../../lib/collection-filters"
+import { request } from "../../lib/graphql"
+import {
+  subscribeSharedImport,
+  takePendingNativeSharedImport,
+  type SharedImportPayload,
+} from "../../lib/native-shared-import"
+import { useLocalStorageState } from "../../lib/use-local-storage"
+import { present } from "../../lib/utils"
+import { CollectionLocationsSection } from "./collection-locations-section"
+import { invalidateCollectionViews } from "./collection-navigation"
+import { CollectionPageHeader } from "./collection-page-header"
+import {
+  COLLECTION_ACTIVE_TAB_STORAGE_KEY,
+  COLLECTION_APPLIED_SEARCH_STORAGE_KEY,
+  COLLECTION_FILTERS_STORAGE_KEY,
+  COLLECTION_PAGE_SIZE,
+  COLLECTION_SEARCH_DRAFT_STORAGE_KEY,
+  COLLECTION_SORT_STORAGE_KEY,
+  DEFAULT_COLLECTION_SORT,
+} from "./constants"
+import {
+  CollectionDocument,
+  CollectionItemsPageDocument,
+  DeleteLocationDocument,
+} from "./documents"
+import { CollectionFilterModal } from "./filter-modal"
+import { ExportCollectionDialog, ImportCollectionDialog } from "./import-export-dialogs"
+import {
+  AddCollectionItemDialog,
+  AddCollectionItemToDeckDialog,
+  DeleteCollectionItemDialog,
+  MoveCollectionItemDialog,
+} from "./item-dialogs"
+import { AddLocationDialog, EditLocationDialog } from "./location-dialogs"
+import {
+  CollectionBulkActionBar,
+  VirtualizedCollectionGrid,
+  useCollectionItemSelection,
+} from "./selection-grid"
+import { SortDropdown } from "./sort-controls"
+import {
+  createEmptyCollectionFilters,
+  deserializeCollectionSort,
+  deserializeCollectionTab,
+  hasNoCollectionFilters,
+  isBlankStorageString,
+  isDefaultCollectionSort,
+  serializeStoredCollectionFilters,
+} from "./storage"
+import type {
+  CollectionExportFormat,
+  CollectionItem,
+  CollectionSort,
+  CollectionTab,
+  LocationSummary,
+} from "./types"
+
+export function CollectionPage({ importFile = false }: { importFile?: boolean }) {
+  const [activeTab, setActiveTab] = useLocalStorageState<CollectionTab>(
+    COLLECTION_ACTIVE_TAB_STORAGE_KEY,
+    "locations",
+    { deserialize: deserializeCollectionTab },
+  )
+  const [q, setQ] = useLocalStorageState<string>(COLLECTION_SEARCH_DRAFT_STORAGE_KEY, "", {
+    shouldRemove: isBlankStorageString,
+  })
+  const [appliedSearch, setAppliedSearch] = useLocalStorageState<string>(
+    COLLECTION_APPLIED_SEARCH_STORAGE_KEY,
+    "",
+    { shouldRemove: isBlankStorageString },
+  )
+  const [sort, setSort] = useLocalStorageState<CollectionSort>(
+    COLLECTION_SORT_STORAGE_KEY,
+    DEFAULT_COLLECTION_SORT,
+    { deserialize: deserializeCollectionSort, shouldRemove: isDefaultCollectionSort },
+  )
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
+  const [isAddItemOpen, setIsAddItemOpen] = useState(false)
+  const [isAddLocationOpen, setIsAddLocationOpen] = useState(false)
+  const [isImportOpen, setIsImportOpen] = useState(false)
+  const [isExportCsvOpen, setIsExportCsvOpen] = useState(false)
+  const [sharedImport, setSharedImport] = useState<SharedImportPayload | null>(null)
+  const [editingLocation, setEditingLocation] = useState<LocationSummary | null>(null)
+  const [deletingLocation, setDeletingLocation] = useState<LocationSummary | null>(null)
+  const [exportingLocation, setExportingLocation] = useState<{
+    format: CollectionExportFormat
+    location: LocationSummary
+  } | null>(null)
+  const [bulkDeckTarget, setBulkDeckTarget] = useState<CollectionItem[] | null>(null)
+  const [bulkListTarget, setBulkListTarget] = useState<CollectionItem[] | null>(null)
+  const [bulkMoveTarget, setBulkMoveTarget] = useState<CollectionItem[] | null>(null)
+  const [bulkDeleteTarget, setBulkDeleteTarget] = useState<CollectionItem[] | null>(null)
+  const [isSelectingAllCollectionItems, setIsSelectingAllCollectionItems] = useState(false)
+  const [structuredFilters, setStructuredFilters] = useLocalStorageState<CollectionFilterState>(
+    COLLECTION_FILTERS_STORAGE_KEY,
+    createEmptyCollectionFilters,
+    {
+      deserialize: decodeCollectionFilters,
+      serialize: serializeStoredCollectionFilters,
+      shouldRemove: hasNoCollectionFilters,
+    },
+  )
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const deleteLocation = useMutation({
+    mutationFn: (locationId: string) => request(DeleteLocationDocument, { id: locationId }),
+    onSuccess: () => {
+      invalidateCollectionViews(queryClient)
+    },
+  })
+  const structuredFilterSyntax = buildCollectionFilterQuery(structuredFilters)
+  const combinedCollectionQuery = combineCollectionQueries(appliedSearch, structuredFilterSyntax)
+  const filters = useMemo(
+    () => (combinedCollectionQuery ? { q: combinedCollectionQuery } : {}),
+    [combinedCollectionQuery],
+  )
+  const { data, isLoading } = useQuery({
+    queryKey: ["collection", filters],
+    queryFn: () => request(CollectionDocument, { filters }),
+  })
+  const allItemsQuery = useInfiniteQuery({
+    queryKey: ["collection-items", "all", filters, sort],
+    queryFn: ({ pageParam }) =>
+      request(CollectionItemsPageDocument, {
+        filters,
+        sort,
+        limit: COLLECTION_PAGE_SIZE,
+        offset: pageParam,
+      }),
+    enabled: activeTab === "all",
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, _pages, lastPageParam) =>
+      lastPage.collectionItems.length < COLLECTION_PAGE_SIZE
+        ? undefined
+        : lastPageParam + COLLECTION_PAGE_SIZE,
+  })
+  const allCollectionItems = useMemo(
+    () => allItemsQuery.data?.pages.flatMap((page) => page.collectionItems).filter(present) || [],
+    [allItemsQuery.data],
+  )
+  const selection = useCollectionItemSelection(allCollectionItems)
+  const hasCollectionFilters = Boolean(combinedCollectionQuery)
+  const activeStructuredFilterCount = countActiveCollectionFilters(structuredFilters)
+  const filterBadgeCount = activeStructuredFilterCount
+  const collectionCountLabel = `${data?.collectionItemCount || 0} ${hasCollectionFilters ? "shown" : "total"}`
+  const loadMoreAllItems = useCallback(() => {
+    if (isSelectingAllCollectionItems) return
+    void allItemsQuery.fetchNextPage()
+  }, [allItemsQuery, isSelectingAllCollectionItems])
+  const locationGroups = useMemo(() => {
+    const groups = new Map<string, NonNullable<typeof data>["locations"]>()
+
+    for (const location of data?.locations || []) {
+      const kind = location.kind || "other"
+      groups.set(kind, [...(groups.get(kind) || []), location])
+    }
+
+    return Array.from(groups.entries()).sort(([left], [right]) => left.localeCompare(right))
+  }, [data?.locations])
+
+  useEffect(() => {
+    if (!importFile) return
+
+    let ignore = false
+
+    void (async () => {
+      const payload = await takePendingNativeSharedImport()
+      if (ignore) return
+
+      if (payload) setSharedImport(payload)
+      setIsImportOpen(true)
+      void navigate({
+        to: "/collection",
+        search: (previous) => ({ ...previous, importFile: false }),
+        replace: true,
+      })
+    })()
+
+    return () => {
+      ignore = true
+    }
+  }, [importFile, navigate])
+
+  useEffect(
+    () =>
+      subscribeSharedImport((payload) => {
+        setSharedImport(payload)
+        setIsImportOpen(true)
+      }),
+    [],
+  )
+
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    applyCollectionSearch(q)
+  }
+
+  function applyCollectionSearch(value: string) {
+    setQ(value)
+    setAppliedSearch(value.trim())
+  }
+
+  function updateCollectionSearchDraft(value: string) {
+    setQ(value)
+    if (!value.trim()) setAppliedSearch("")
+  }
+
+  function clearCollectionSearch() {
+    setQ("")
+    setAppliedSearch("")
+  }
+
+  function clearStructuredFilters() {
+    setStructuredFilters(createEmptyCollectionFilters())
+  }
+
+  function clearAllCollectionFilters() {
+    clearCollectionSearch()
+    clearStructuredFilters()
+  }
+
+  function applyStructuredFilters(nextFilters: CollectionFilterState) {
+    setStructuredFilters(nextFilters)
+    setIsFilterModalOpen(false)
+  }
+
+  function selectTab(tab: CollectionTab) {
+    if (activeTab === "all" && tab !== "all") clearAllCollectionFilters()
+    selection.clearSelection()
+    setActiveTab(tab)
+  }
+
+  async function selectAllCollectionItems() {
+    if (isSelectingAllCollectionItems || allItemsQuery.isFetchingNextPage) return
+
+    let itemsToSelect = allCollectionItems
+
+    if (!allItemsQuery.hasNextPage) {
+      selection.selectItems(itemsToSelect)
+      return
+    }
+
+    setIsSelectingAllCollectionItems(true)
+    try {
+      let hasNextPage: boolean = allItemsQuery.hasNextPage
+
+      while (hasNextPage) {
+        const result = await allItemsQuery.fetchNextPage()
+        itemsToSelect =
+          result.data?.pages.flatMap((page) => page.collectionItems).filter(present) ||
+          itemsToSelect
+        hasNextPage = result.hasNextPage
+      }
+
+      selection.selectItems(itemsToSelect)
+    } finally {
+      setIsSelectingAllCollectionItems(false)
+    }
+  }
+
+  function finishBulkCollectionAction() {
+    invalidateCollectionViews(queryClient)
+    selection.clearSelection()
+  }
+
+  function exportLocation(location: LocationSummary, format: CollectionExportFormat) {
+    setExportingLocation({ format, location })
+  }
+
+  function deleteSelectedLocation() {
+    if (!deletingLocation) return
+    deleteLocation.mutate(deletingLocation.id)
+    if (editingLocation?.id === deletingLocation.id) setEditingLocation(null)
+    if (exportingLocation?.location.id === deletingLocation.id) setExportingLocation(null)
+  }
+
+  return (
+    <>
+      <CollectionPageHeader
+        activeTab={activeTab}
+        collectionItemCount={data?.collectionItemCount || 0}
+        locationCount={data?.locations?.length || 0}
+        valueSummary={data?.collectionValueSummary}
+        onAddItem={() => setIsAddItemOpen(true)}
+        onAddLocation={() => setIsAddLocationOpen(true)}
+        onImport={() => setIsImportOpen(true)}
+        onExportCsv={() => setIsExportCsvOpen(true)}
+        onSelectTab={selectTab}
+      />
+
+      {activeTab === "locations" ? (
+        <CollectionLocationsSection
+          isLoading={isLoading}
+          locationCount={data?.locations?.length || 0}
+          locationGroups={locationGroups}
+          onDeleteLocation={setDeletingLocation}
+          onEditLocation={setEditingLocation}
+          onExportLocation={exportLocation}
+        />
+      ) : (
+        <div className="space-y-7">
+          <form
+            onSubmit={submit}
+            className="control-toolbar grid gap-2 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-[1fr_auto_auto_auto_auto]"
+          >
+            <CardNameSearchField
+              name="q"
+              value={q}
+              onValueChange={updateCollectionSearchDraft}
+              onClear={clearCollectionSearch}
+              onSuggestionSelect={applyCollectionSearch}
+              placeholder="Filter collection"
+            />
+            <SortDropdown sort={sort} onSortChange={setSort} />
+            <Button
+              type="button"
+              variant={selection.selectionActive ? "secondary" : "outline"}
+              onClick={selection.toggleSelectionMode}
+            >
+              <CheckSquare className="h-4 w-4" />
+              Select
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="relative"
+              onClick={() => setIsFilterModalOpen(true)}
+            >
+              <ListFilter className="h-4 w-4" />
+              Filter
+              {filterBadgeCount ? (
+                <span className="badge badge-primary badge-sm absolute -right-2 -top-2 min-w-5">
+                  {filterBadgeCount}
+                </span>
+              ) : null}
+            </Button>
+            <Button type="submit">
+              <Search className="h-4 w-4" />
+              Search
+            </Button>
+          </form>
+
+          <CollectionBulkActionBar
+            allLoadedSelected={selection.allLoadedSelected}
+            hasNextPage={Boolean(allItemsQuery.hasNextPage)}
+            isSelectAllPending={isSelectingAllCollectionItems || allItemsQuery.isFetchingNextPage}
+            loadedCount={allCollectionItems.length}
+            selectedCount={selection.selectedCount}
+            selectionActive={selection.selectionActive}
+            onAddToDeck={() => setBulkDeckTarget(selection.selectedItems)}
+            onAddToList={() => setBulkListTarget(selection.selectedItems)}
+            onClear={selection.clearSelection}
+            onDelete={() => setBulkDeleteTarget(selection.selectedItems)}
+            onMove={() => setBulkMoveTarget(selection.selectedItems)}
+            onSelectAll={() => void selectAllCollectionItems()}
+          />
+
+          <PageSection count={collectionCountLabel}>
+            {allItemsQuery.isLoading ? (
+              <EmptyState title="Loading collection..." />
+            ) : (
+              <VirtualizedCollectionGrid
+                hasNextPage={allItemsQuery.hasNextPage}
+                isFetchingNextPage={allItemsQuery.isFetchingNextPage}
+                items={allCollectionItems}
+                onLoadMore={loadMoreAllItems}
+                onToggleSelected={selection.toggleItem}
+                selectedIds={selection.selectedIds}
+                selectionActive={selection.selectionActive}
+              />
+            )}
+          </PageSection>
+
+          <CollectionFilterModal
+            filters={structuredFilters}
+            open={isFilterModalOpen}
+            onApply={applyStructuredFilters}
+            onClear={clearStructuredFilters}
+            onClose={() => setIsFilterModalOpen(false)}
+          />
+        </div>
+      )}
+      <AddCollectionItemDialog open={isAddItemOpen} onOpenChange={setIsAddItemOpen} />
+      <AddLocationDialog open={isAddLocationOpen} onOpenChange={setIsAddLocationOpen} />
+      <ImportCollectionDialog
+        initialImport={sharedImport}
+        open={isImportOpen}
+        onOpenChange={(open) => {
+          setIsImportOpen(open)
+          if (!open) setSharedImport(null)
+        }}
+      />
+      <ExportCollectionDialog
+        filters={filters}
+        format="csv"
+        open={isExportCsvOpen}
+        onOpenChange={setIsExportCsvOpen}
+        fileName="collection.csv"
+      />
+      <ExportCollectionDialog
+        filters={exportingLocation ? { locationId: exportingLocation.location.id } : {}}
+        format={exportingLocation?.format || "csv"}
+        title={
+          exportingLocation
+            ? `Export ${exportingLocation.location.name} ${exportingLocation.format.toUpperCase()}`
+            : undefined
+        }
+        fileName={
+          exportingLocation
+            ? `${exportingLocation.location.name}.${exportingLocation.format === "csv" ? "csv" : "txt"}`
+            : undefined
+        }
+        open={Boolean(exportingLocation)}
+        onOpenChange={(open) => !open && setExportingLocation(null)}
+      />
+      <ConfirmDialog
+        destructive
+        confirmLabel="Delete location"
+        open={Boolean(deletingLocation)}
+        title={deletingLocation ? `Delete ${deletingLocation.name}?` : "Delete location?"}
+        onConfirm={deleteSelectedLocation}
+        onOpenChange={(open) => !open && setDeletingLocation(null)}
+      >
+        Cards in this location will become unfiled.
+      </ConfirmDialog>
+      <AddCollectionItemToDeckDialog
+        item={bulkDeckTarget}
+        onDone={finishBulkCollectionAction}
+        onOpenChange={(open) => !open && setBulkDeckTarget(null)}
+      />
+      <MoveCollectionItemDialog
+        item={bulkListTarget}
+        listOnly
+        onDone={finishBulkCollectionAction}
+        onOpenChange={(open) => !open && setBulkListTarget(null)}
+      />
+      <MoveCollectionItemDialog
+        item={bulkMoveTarget}
+        onDone={finishBulkCollectionAction}
+        onOpenChange={(open) => !open && setBulkMoveTarget(null)}
+      />
+      <DeleteCollectionItemDialog
+        item={bulkDeleteTarget}
+        onDone={finishBulkCollectionAction}
+        onOpenChange={(open) => !open && setBulkDeleteTarget(null)}
+      />
+      <EditLocationDialog
+        location={editingLocation}
+        onOpenChange={(open) => !open && setEditingLocation(null)}
+      />
+    </>
+  )
+}

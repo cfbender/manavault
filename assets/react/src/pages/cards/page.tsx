@@ -1,0 +1,281 @@
+import { useQuery } from "@tanstack/react-query"
+import { Link, useNavigate } from "@tanstack/react-router"
+import { useEffect, useMemo, useState } from "react"
+import { PageHeader } from "../../components/app-shell"
+import { EmptyState } from "../../components/card-image"
+import { FullscreenPrintingDialog } from "../../components/fullscreen-printing-dialog"
+import { Button } from "../../components/ui/button"
+import {
+  buildCollectionFilterQuery,
+  cloneCollectionFilters,
+  combineCollectionQueries,
+  countActiveCollectionFilters,
+  decodeCollectionFilters,
+  EMPTY_COLLECTION_FILTERS,
+  encodeCollectionFilters,
+  type CollectionFilterState,
+} from "../../lib/collection-filters"
+import { request } from "../../lib/graphql"
+import { present } from "../../lib/utils"
+import {
+  AddCollectionItemDialog,
+  CollectionFilterModal,
+  type AddCollectionItemInitialPrinting,
+} from "../collection"
+import { AddCatalogCardToDeckDialog, type CardDeckTarget } from "./add-card-to-deck-dialog"
+import { CardPrintingsGrid } from "./card-printings-grid"
+import { CardResultsGrid } from "./card-results-grid"
+import { ManaText, OracleText } from "./card-text"
+import { CardDocument, CardsDocument } from "./data"
+import { CardLegalityPanel, CardRulings, CardTagSummary } from "./detail-sections"
+import { CardSearchForm } from "./search-form"
+
+export function CardsPage({ query, filterSearch }: { query: string; filterSearch?: string }) {
+  const routeFilters = useMemo(() => decodeCollectionFilters(filterSearch), [filterSearch])
+  const [q, setQ] = useState(query)
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
+  const [deckTarget, setDeckTarget] = useState<CardDeckTarget | null>(null)
+  const [structuredFilters, setStructuredFilters] = useState<CollectionFilterState>(routeFilters)
+  const navigate = useNavigate({ from: "/cards/" })
+  const structuredFilterSyntax = buildCollectionFilterQuery(structuredFilters)
+  const combinedQuery = combineCollectionQueries(query, structuredFilterSyntax)
+  const activeStructuredFilterCount = countActiveCollectionFilters(structuredFilters)
+  const { data, isFetching } = useQuery({
+    queryKey: ["cards", combinedQuery],
+    queryFn: () => request(CardsDocument, { q: combinedQuery, limit: 36 }),
+    enabled: Boolean(combinedQuery.trim()),
+  })
+
+  useEffect(() => {
+    setQ(query)
+  }, [query])
+
+  useEffect(() => {
+    setStructuredFilters(routeFilters)
+  }, [routeFilters])
+
+  function cardSearchParams(nextQuery: string, nextFilters = structuredFilters) {
+    const term = nextQuery.trim()
+
+    return {
+      q: term || undefined,
+      filters: encodeCollectionFilters(nextFilters),
+    }
+  }
+
+  function submitSearch(value = q) {
+    navigate({ to: "/cards", search: cardSearchParams(value) })
+  }
+
+  function updateSearchDraft(value: string) {
+    setQ(value)
+    if (!value.trim() && query) navigate({ to: "/cards", search: cardSearchParams("") })
+  }
+
+  function applyStructuredFilters(nextFilters: CollectionFilterState) {
+    const filters = cloneCollectionFilters(nextFilters)
+    setStructuredFilters(filters)
+    setIsFilterModalOpen(false)
+    navigate({ to: "/cards", search: cardSearchParams(query, filters) })
+  }
+
+  function clearStructuredFilters() {
+    const filters = cloneCollectionFilters(EMPTY_COLLECTION_FILTERS)
+    setStructuredFilters(filters)
+    navigate({ to: "/cards", search: cardSearchParams(query, filters) })
+  }
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="ManaVault Catalog"
+        title="Card search"
+        description="Search the local Scryfall catalog and add exact printings to your collection."
+      />
+      <CardSearchForm
+        activeFilterCount={activeStructuredFilterCount}
+        onFilterClick={() => setIsFilterModalOpen(true)}
+        q={q}
+        setQ={updateSearchDraft}
+        onSearch={submitSearch}
+      />
+
+      {!combinedQuery ? (
+        <EmptyState
+          title="Search for a card"
+          description="Results are pulled from the synced local catalog."
+        />
+      ) : data?.cards?.length ? (
+        <CardResultsGrid
+          cards={data.cards}
+          onAddToDeck={setDeckTarget}
+          onSelectCard={(id) =>
+            navigate({
+              to: "/cards/$id",
+              params: { id },
+              search: cardSearchParams(query),
+            })
+          }
+        />
+      ) : (
+        <EmptyState title={isFetching ? "Searching..." : "No cards found"} />
+      )}
+
+      <CollectionFilterModal
+        filters={structuredFilters}
+        open={isFilterModalOpen}
+        onApply={applyStructuredFilters}
+        onClear={clearStructuredFilters}
+        onClose={() => setIsFilterModalOpen(false)}
+      />
+      <AddCatalogCardToDeckDialog
+        target={deckTarget}
+        onOpenChange={(open) => !open && setDeckTarget(null)}
+      />
+    </>
+  )
+}
+
+export type CardReturnEdhrecTab = "recs" | "cuts" | "commander"
+
+export function CardDetailPage({
+  id,
+  query,
+  filterSearch,
+  returnCollection = false,
+  returnDeckId,
+  returnEdhrecExcludeLands = false,
+  returnEdhrecTab,
+  returnLocationId,
+}: {
+  id: string
+  query: string
+  filterSearch?: string
+  returnCollection?: boolean
+  returnDeckId?: string
+  returnEdhrecExcludeLands?: boolean
+  returnEdhrecTab?: CardReturnEdhrecTab
+  returnLocationId?: string
+}) {
+  const [addPrinting, setAddPrinting] = useState<AddCollectionItemInitialPrinting | null>(null)
+  const [deckTarget, setDeckTarget] = useState<CardDeckTarget | null>(null)
+  const [previewPrintingId, setPreviewPrintingId] = useState<string | null>(null)
+  const { data, isLoading } = useQuery({
+    queryKey: ["card", id],
+    queryFn: () => request(CardDocument, { id }),
+  })
+  const card = data?.card
+  const printings = card?.printings || []
+  const visiblePrintings = printings.filter(present)
+  const primary = visiblePrintings[0]
+
+  if (isLoading) return <EmptyState title="Loading card..." />
+  if (!card) return <EmptyState title="Card not found" />
+
+  return (
+    <>
+      <div className="mx-auto max-w-7xl space-y-7">
+        {returnDeckId ? (
+          <Button asChild variant="outline" size="sm">
+            <Link
+              to="/decks/$id"
+              params={{ id: returnDeckId }}
+              search={{
+                edhrec: returnEdhrecTab,
+                edhrecExcludeLands: returnEdhrecTab && returnEdhrecExcludeLands ? true : undefined,
+              }}
+            >
+              {returnEdhrecTab ? "Back to EDHREC" : "Back to deck"}
+            </Link>
+          </Button>
+        ) : returnLocationId ? (
+          <Button asChild variant="outline" size="sm">
+            <Link to="/collection/locations/$id" params={{ id: returnLocationId }}>
+              Back to collection
+            </Link>
+          </Button>
+        ) : returnCollection ? (
+          <Button asChild variant="outline" size="sm">
+            <Link to="/collection" search={{ importFile: false }}>
+              Back to collection
+            </Link>
+          </Button>
+        ) : (
+          <Button asChild variant="outline" size="sm">
+            <Link to="/cards" search={{ q: query || undefined, filters: filterSearch }}>
+              Back to search
+            </Link>
+          </Button>
+        )}
+
+        <section className="relative min-h-80 overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-sm">
+          {primary?.artCropUrl ? (
+            <img
+              src={primary.artCropUrl}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover opacity-75"
+            />
+          ) : null}
+          <div className="absolute inset-0 bg-gradient-to-br from-base-100/98 via-base-100/80 to-base-100/35" />
+          <div className="relative z-10 flex min-h-80 flex-col justify-between gap-8 p-6">
+            <div className="max-w-5xl space-y-4">
+              <div className="flex items-center gap-4">
+                <h1 className="min-w-0 flex-1 text-4xl font-black tracking-normal md:text-5xl">
+                  {card.name}
+                </h1>
+                {card.manaCost ? (
+                  <ManaText
+                    text={card.manaCost}
+                    className="shrink-0 justify-end text-3xl md:text-4xl"
+                  />
+                ) : null}
+              </div>
+
+              {card.typeLine ? (
+                <div className="border-y border-base-300/70 py-2 text-base font-semibold text-base-content/80">
+                  {card.typeLine}
+                </div>
+              ) : null}
+
+              <CardTagSummary card={card} />
+
+              {card.oracleText ? (
+                <div className="max-w-4xl space-y-3 text-base leading-7 text-base-content/75">
+                  <OracleText text={card.oracleText} />
+                </div>
+              ) : null}
+
+              <CardLegalityPanel legalities={card.legalities} />
+              <CardRulings rulings={card.rulings} />
+            </div>
+          </div>
+        </section>
+
+        <CardPrintingsGrid
+          cardName={card.name}
+          typeLine={card.typeLine}
+          printings={visiblePrintings}
+          onAddToCollection={setAddPrinting}
+          onAddToDeck={setDeckTarget}
+          onPreviewPrinting={setPreviewPrintingId}
+        />
+      </div>
+      <FullscreenPrintingDialog
+        card={card}
+        currentPrintingId={previewPrintingId}
+        printings={visiblePrintings}
+        onOpenChange={(open) => !open && setPreviewPrintingId(null)}
+        onPrintingChange={setPreviewPrintingId}
+      />
+      <AddCollectionItemDialog
+        initialPrinting={addPrinting}
+        open={Boolean(addPrinting)}
+        onOpenChange={(open) => !open && setAddPrinting(null)}
+      />
+      <AddCatalogCardToDeckDialog
+        target={deckTarget}
+        onOpenChange={(open) => !open && setDeckTarget(null)}
+      />
+    </>
+  )
+}
