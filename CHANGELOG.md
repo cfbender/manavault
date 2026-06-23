@@ -8,6 +8,13 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.6.7] - 2026-06-23
+
+### Bug Fixes
+
+- Full screen card viewer in app ([`f351fd33`](../../commit/f351fd331662557ac75fd24ed080320167f14f89))
+- Preserve pending import until consumed ([`05ae6265`](../../commit/05ae6265db9b8159c00c867f84ba1c5acfb40ad2))
+
 ## [0.6.6] - 2026-06-23
 
 ### Bug Fixes
