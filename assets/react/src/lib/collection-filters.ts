@@ -28,6 +28,13 @@ export type CollectionFilterState = {
   releasedYear: string
 }
 
+const COMPARISON_OPERATORS: readonly ComparisonOperator[] = ["=", "!=", ">", ">=", "<", "<="]
+const COLOR_OPERATORS: readonly ColorOperator[] = [":", ">=", "<="]
+const FINISH_FILTERS: readonly FinishFilter[] = ["any", "foil", "nonfoil", "etched"]
+const RARITY_FILTERS: readonly RarityFilter[] = ["common", "uncommon", "rare", "mythic"]
+const MANA_COLORS: readonly ManaColor[] = ["w", "u", "b", "r", "g", "c"]
+
+
 export const EMPTY_COLLECTION_FILTERS: CollectionFilterState = {
   name: "",
   oracle: "",
@@ -107,6 +114,138 @@ export function cloneCollectionFilters(filters: CollectionFilterState): Collecti
     identity: [...filters.identity],
     rarities: [...filters.rarities],
   }
+}
+
+export function encodeCollectionFilters(filters: CollectionFilterState) {
+  if (!countActiveCollectionFilters(filters)) return undefined
+
+  return JSON.stringify({
+    name: trimmedValue(filters.name),
+    oracle: trimmedValue(filters.oracle),
+    typeLine: trimmedValue(filters.typeLine),
+    colors: filters.colors.length ? filters.colors : undefined,
+    colorOperator:
+      filters.colors.length && filters.colorOperator !== EMPTY_COLLECTION_FILTERS.colorOperator
+        ? filters.colorOperator
+        : undefined,
+    identity: filters.identity.length ? filters.identity : undefined,
+    identityOperator:
+      filters.identity.length && filters.identityOperator !== EMPTY_COLLECTION_FILTERS.identityOperator
+        ? filters.identityOperator
+        : undefined,
+    manaValue: trimmedValue(filters.manaValue),
+    manaValueOperator:
+      filters.manaValue.trim() &&
+      filters.manaValueOperator !== EMPTY_COLLECTION_FILTERS.manaValueOperator
+        ? filters.manaValueOperator
+        : undefined,
+    rarities: filters.rarities.length ? filters.rarities : undefined,
+    set: trimmedValue(filters.set),
+    collectorNumber: trimmedValue(filters.collectorNumber),
+    collectorOperator:
+      filters.collectorNumber.trim() &&
+      filters.collectorOperator !== EMPTY_COLLECTION_FILTERS.collectorOperator
+        ? filters.collectorOperator
+        : undefined,
+    language: trimmedValue(filters.language),
+    finish: filters.finish === EMPTY_COLLECTION_FILTERS.finish ? undefined : filters.finish,
+    priceUsd: trimmedValue(filters.priceUsd),
+    priceOperator:
+      filters.priceUsd.trim() && filters.priceOperator !== EMPTY_COLLECTION_FILTERS.priceOperator
+        ? filters.priceOperator
+        : undefined,
+    releasedDate: trimmedValue(filters.releasedDate),
+    dateOperator:
+      filters.releasedDate.trim() && filters.dateOperator !== EMPTY_COLLECTION_FILTERS.dateOperator
+        ? filters.dateOperator
+        : undefined,
+    releasedYear: trimmedValue(filters.releasedYear),
+    yearOperator:
+      filters.releasedYear.trim() && filters.yearOperator !== EMPTY_COLLECTION_FILTERS.yearOperator
+        ? filters.yearOperator
+        : undefined,
+  })
+}
+
+export function decodeCollectionFilters(value: unknown): CollectionFilterState {
+  const filters = cloneCollectionFilters(EMPTY_COLLECTION_FILTERS)
+  if (typeof value !== "string" || !value.trim()) return filters
+
+  let decoded: unknown
+  try {
+    decoded = JSON.parse(value)
+  } catch {
+    return filters
+  }
+
+  if (!isRecord(decoded)) return filters
+
+  filters.name = stringValue(decoded.name)
+  filters.oracle = stringValue(decoded.oracle)
+  filters.typeLine = stringValue(decoded.typeLine)
+  filters.colors = filteredValues(decoded.colors, MANA_COLORS)
+  filters.colorOperator = operatorValue(decoded.colorOperator, COLOR_OPERATORS, filters.colorOperator)
+  filters.identity = filteredValues(decoded.identity, MANA_COLORS)
+  filters.identityOperator = operatorValue(
+    decoded.identityOperator,
+    COLOR_OPERATORS,
+    filters.identityOperator,
+  )
+  filters.manaValue = stringValue(decoded.manaValue)
+  filters.manaValueOperator = operatorValue(
+    decoded.manaValueOperator,
+    COMPARISON_OPERATORS,
+    filters.manaValueOperator,
+  )
+  filters.rarities = filteredValues(decoded.rarities, RARITY_FILTERS)
+  filters.set = stringValue(decoded.set)
+  filters.collectorNumber = stringValue(decoded.collectorNumber)
+  filters.collectorOperator = operatorValue(
+    decoded.collectorOperator,
+    COMPARISON_OPERATORS,
+    filters.collectorOperator,
+  )
+  filters.language = stringValue(decoded.language)
+  filters.finish = operatorValue(decoded.finish, FINISH_FILTERS, filters.finish)
+  filters.priceUsd = stringValue(decoded.priceUsd)
+  filters.priceOperator = operatorValue(
+    decoded.priceOperator,
+    COMPARISON_OPERATORS,
+    filters.priceOperator,
+  )
+  filters.releasedDate = stringValue(decoded.releasedDate)
+  filters.dateOperator = operatorValue(decoded.dateOperator, COMPARISON_OPERATORS, filters.dateOperator)
+  filters.releasedYear = stringValue(decoded.releasedYear)
+  filters.yearOperator = operatorValue(decoded.yearOperator, COMPARISON_OPERATORS, filters.yearOperator)
+
+  return filters
+}
+
+function trimmedValue(value: string) {
+  const trimmed = value.trim()
+  return trimmed || undefined
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value.trim() : ""
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value))
+}
+
+function filteredValues<T extends string>(value: unknown, allowed: readonly T[]) {
+  if (!Array.isArray(value)) return []
+
+  return Array.from(new Set(value.filter((item): item is T => isAllowedValue(item, allowed))))
+}
+
+function operatorValue<T extends string>(value: unknown, allowed: readonly T[], fallback: T) {
+  return isAllowedValue(value, allowed) ? value : fallback
+}
+
+function isAllowedValue<T extends string>(value: unknown, allowed: readonly T[]): value is T {
+  return typeof value === "string" && allowed.includes(value as T)
 }
 
 function textPredicate(field: string, value: string) {

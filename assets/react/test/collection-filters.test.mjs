@@ -4,6 +4,8 @@ import assert from "node:assert/strict"
 import {
   buildCollectionFilterQuery,
   cloneCollectionFilters,
+  decodeCollectionFilters,
+  encodeCollectionFilters,
   combineCollectionQueries,
   countActiveCollectionFilters,
   EMPTY_COLLECTION_FILTERS,
@@ -45,4 +47,52 @@ test("countActiveCollectionFilters ignores default operators and clone isolates 
   assert.equal(countActiveCollectionFilters(filters), 2)
   assert.deepEqual(filters.colors, ["u"])
   assert.deepEqual(filters.rarities, ["common"])
+})
+
+test("collection filter search params round trip active filters", () => {
+  const filters = cloneCollectionFilters(EMPTY_COLLECTION_FILTERS)
+  filters.name = " Lightning Bolt "
+  filters.colors = ["r"]
+  filters.identityOperator = "<="
+  filters.identity = ["r", "g"]
+  filters.finish = "foil"
+  filters.priceOperator = "<"
+  filters.priceUsd = "2.50"
+
+  const encoded = encodeCollectionFilters(filters)
+  assert.equal(typeof encoded, "string")
+
+  assert.deepEqual(decodeCollectionFilters(encoded), {
+    ...EMPTY_COLLECTION_FILTERS,
+    name: "Lightning Bolt",
+    colors: ["r"],
+    identityOperator: "<=",
+    identity: ["r", "g"],
+    finish: "foil",
+    priceOperator: "<",
+    priceUsd: "2.50",
+  })
+})
+
+test("collection filter search params drop empty and invalid filters", () => {
+  assert.equal(encodeCollectionFilters(EMPTY_COLLECTION_FILTERS), undefined)
+
+  assert.deepEqual(
+    decodeCollectionFilters(
+      JSON.stringify({
+        colors: ["x", "u", "u"],
+        rarities: ["common", "bonus"],
+        finish: "invalid",
+        manaValue: " 3 ",
+        manaValueOperator: "<=",
+      }),
+    ),
+    {
+      ...EMPTY_COLLECTION_FILTERS,
+      colors: ["u"],
+      rarities: ["common"],
+      manaValue: "3",
+      manaValueOperator: "<=",
+    },
+  )
 })

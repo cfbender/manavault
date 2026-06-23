@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Boxes, ListFilter, Search } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { FormEvent } from "react"
 import { PageHeader } from "../components/app-shell"
 import { EmptyState } from "../components/card-image"
@@ -25,6 +25,8 @@ import {
   cloneCollectionFilters,
   combineCollectionQueries,
   countActiveCollectionFilters,
+  decodeCollectionFilters,
+  encodeCollectionFilters,
   EMPTY_COLLECTION_FILTERS,
   type CollectionFilterState,
 } from "../lib/collection-filters"
@@ -118,12 +120,18 @@ const CardDocument = graphql(`
 type CardDetail = NonNullable<CardQuery["card"]>
 type CardPrinting = NonNullable<NonNullable<CardDetail["printings"]>[number]>
 
-export function CardsPage({ query }: { query: string }) {
+export function CardsPage({
+  query,
+  filterSearch,
+}: {
+  query: string
+  filterSearch?: string
+}) {
+  const routeFilters = useMemo(() => decodeCollectionFilters(filterSearch), [filterSearch])
   const [q, setQ] = useState(query)
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
   const [deckTarget, setDeckTarget] = useState<CardDeckTarget | null>(null)
-  const [structuredFilters, setStructuredFilters] =
-    useState<CollectionFilterState>(EMPTY_COLLECTION_FILTERS)
+  const [structuredFilters, setStructuredFilters] = useState<CollectionFilterState>(routeFilters)
   const navigate = useNavigate({ from: "/cards/" })
   const structuredFilterSyntax = buildCollectionFilterQuery(structuredFilters)
   const combinedQuery = combineCollectionQueries(query, structuredFilterSyntax)
@@ -138,23 +146,39 @@ export function CardsPage({ query }: { query: string }) {
     setQ(query)
   }, [query])
 
+  useEffect(() => {
+    setStructuredFilters(routeFilters)
+  }, [routeFilters])
+
+  function cardSearchParams(nextQuery: string, nextFilters = structuredFilters) {
+    const term = nextQuery.trim()
+
+    return {
+      q: term || undefined,
+      filters: encodeCollectionFilters(nextFilters),
+    }
+  }
+
   function submitSearch(value = q) {
-    const term = value.trim()
-    navigate({ to: "/cards", search: { q: term || undefined } })
+    navigate({ to: "/cards", search: cardSearchParams(value) })
   }
 
   function updateSearchDraft(value: string) {
     setQ(value)
-    if (!value.trim() && query) navigate({ to: "/cards", search: { q: undefined } })
+    if (!value.trim() && query) navigate({ to: "/cards", search: cardSearchParams("") })
   }
 
   function applyStructuredFilters(nextFilters: CollectionFilterState) {
-    setStructuredFilters(cloneCollectionFilters(nextFilters))
+    const filters = cloneCollectionFilters(nextFilters)
+    setStructuredFilters(filters)
     setIsFilterModalOpen(false)
+    navigate({ to: "/cards", search: cardSearchParams(query, filters) })
   }
 
   function clearStructuredFilters() {
-    setStructuredFilters(EMPTY_COLLECTION_FILTERS)
+    const filters = cloneCollectionFilters(EMPTY_COLLECTION_FILTERS)
+    setStructuredFilters(filters)
+    navigate({ to: "/cards", search: cardSearchParams(query, filters) })
   }
 
   return (
@@ -202,7 +226,7 @@ export function CardsPage({ query }: { query: string }) {
                     navigate({
                       to: "/cards/$id",
                       params: { id: card.oracleId },
-                      search: { q: query },
+                      search: cardSearchParams(query),
                     })
                   }
                   price={printing?.priceText}
@@ -283,7 +307,15 @@ function CardSearchForm({
   )
 }
 
-export function CardDetailPage({ id, query }: { id: string; query: string }) {
+export function CardDetailPage({
+  id,
+  query,
+  filterSearch,
+}: {
+  id: string
+  query: string
+  filterSearch?: string
+}) {
   const [addPrinting, setAddPrinting] = useState<AddCollectionItemInitialPrinting | null>(null)
   const [deckTarget, setDeckTarget] = useState<CardDeckTarget | null>(null)
   const [previewPrintingId, setPreviewPrintingId] = useState<string | null>(null)
@@ -303,7 +335,7 @@ export function CardDetailPage({ id, query }: { id: string; query: string }) {
     <>
       <div className="mx-auto max-w-7xl space-y-7">
         <Button asChild variant="outline" size="sm">
-          <Link to="/cards" search={{ q: query || undefined }}>
+          <Link to="/cards" search={{ q: query || undefined, filters: filterSearch }}>
             Back to search
           </Link>
         </Button>
