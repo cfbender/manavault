@@ -1,5 +1,7 @@
 # ManaVault
 
+<img width="1693" height="831" alt="image" src="https://github.com/user-attachments/assets/fcb7cd81-cd9c-450a-9111-02945f416b9e" />
+
 ManaVault is a self-hosted Magic: The Gathering collection manager with scanned
 list imports, physical deck allocation, and missing-card buying workflows.
 
