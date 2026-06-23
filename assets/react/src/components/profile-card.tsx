@@ -17,6 +17,14 @@ const round = (value: number, precision = 3) => Number.parseFloat(value.toFixed(
 const adjust = (value: number, fromMin: number, fromMax: number, toMin: number, toMax: number) =>
   round(toMin + ((toMax - toMin) * (value - fromMin)) / (fromMax - fromMin))
 
+const MOBILE_INTERACTION_QUERY =
+  "(pointer: coarse), (any-pointer: coarse), (hover: none), (any-hover: none)"
+
+const hasMobileInteraction = () =>
+  typeof window !== "undefined" &&
+  typeof window.matchMedia === "function" &&
+  window.matchMedia(MOBILE_INTERACTION_QUERY).matches
+
 type ProfileCardProps = {
   avatarUrl?: string
   innerGradient?: string
@@ -26,6 +34,7 @@ type ProfileCardProps = {
   className?: string
   enableTilt?: boolean
   enableMobileTilt?: boolean
+  disableTiltOnCoarsePointer?: boolean
   mobileTiltSensitivity?: number
   miniAvatarUrl?: string
   name?: string
@@ -58,6 +67,7 @@ const ProfileCardComponent = ({
   enableTilt = true,
   enableMobileTilt = false,
   mobileTiltSensitivity = 5,
+  disableTiltOnCoarsePointer = false,
   miniAvatarUrl,
   name = "Javi A. Torres",
   title = "Software Engineer",
@@ -73,8 +83,10 @@ const ProfileCardComponent = ({
   const enterTimerRef = useRef<number | null>(null)
   const leaveRafRef = useRef<number | null>(null)
 
+  const tiltEnabled = enableTilt && !(disableTiltOnCoarsePointer && hasMobileInteraction())
+
   const tiltEngine = useMemo<TiltEngine | null>(() => {
-    if (!enableTilt) return null
+    if (!tiltEnabled) return null
 
     let rafId: number | null = null
     let running = false
@@ -133,8 +145,9 @@ const ProfileCardComponent = ({
       setVarsFromXY(currentX, currentY)
 
       const stillFar = Math.abs(targetX - currentX) > 0.05 || Math.abs(targetY - currentY) > 0.05
+      const inInitialTilt = timestamp < initialUntil
 
-      if (stillFar || document.hasFocus()) {
+      if (stillFar || inInitialTilt) {
         rafId = requestAnimationFrame(step)
       } else {
         running = false
@@ -183,7 +196,7 @@ const ProfileCardComponent = ({
         lastTs = 0
       },
     }
-  }, [enableTilt])
+  }, [tiltEnabled])
 
   const getOffsets = (event: PointerEvent, element: HTMLElement) => {
     const rect = element.getBoundingClientRect()
@@ -261,7 +274,7 @@ const ProfileCardComponent = ({
   )
 
   useEffect(() => {
-    if (!enableTilt || !tiltEngine) return
+    if (!tiltEnabled || !tiltEngine) return
 
     const shell = shellRef.current
     if (!shell) return
@@ -313,7 +326,7 @@ const ProfileCardComponent = ({
       shell.classList.remove("entering")
     }
   }, [
-    enableTilt,
+    tiltEnabled,
     enableMobileTilt,
     tiltEngine,
     handlePointerMove,

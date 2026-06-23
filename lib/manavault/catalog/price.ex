@@ -60,7 +60,7 @@ defmodule Manavault.Catalog.Price do
 
   def format_cents(nil), do: nil
 
-  def format_cents(cents) when is_integer(cents) and cents > 99_900 do
+  def format_cents(cents) when is_integer(cents) and cents > 999_999 do
     dollars = cents / 100
     thousands = dollars / 1_000
     "$#{format_thousands(thousands)}k"

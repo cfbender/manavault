@@ -811,6 +811,70 @@ export function DecksPage() {
   )
 }
 
+type DeferredDeckAnalysis = {
+  stats: ReturnType<typeof buildDeckStats>
+  tokens: readonly DeckTokenSummary[]
+}
+
+type DeferredDeckAnalysisState = DeferredDeckAnalysis & {
+  deckCards: DeckCardEntry[]
+}
+
+function useDeferredDeckAnalysis(deckCards: DeckCardEntry[]) {
+  const [analysis, setAnalysis] = useState<DeferredDeckAnalysisState | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    setAnalysis(null)
+
+    const cancel = scheduleDeferredWork(() => {
+      if (cancelled) return
+
+      const nextAnalysis = {
+        deckCards,
+        stats: buildDeckStats(deckCards),
+        tokens: buildDeckTokens(deckCards),
+      }
+
+      if (!cancelled) setAnalysis(nextAnalysis)
+    })
+
+    return () => {
+      cancelled = true
+      cancel()
+    }
+  }, [deckCards])
+
+  return analysis?.deckCards === deckCards ? analysis : null
+}
+
+function scheduleDeferredWork(callback: () => void) {
+  if (typeof window === "undefined") return () => {}
+
+  const idleWindow = window as Window & {
+    requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number
+    cancelIdleCallback?: (handle: number) => void
+  }
+  let idleHandle: number | null = null
+  let timeoutHandle: number | null = null
+
+  const frameHandle = window.requestAnimationFrame(() => {
+    if (idleWindow.requestIdleCallback) {
+      idleHandle = idleWindow.requestIdleCallback(callback, { timeout: 500 })
+    } else {
+      timeoutHandle = window.setTimeout(callback, 0)
+    }
+  })
+
+  return () => {
+    window.cancelAnimationFrame(frameHandle)
+
+    if (idleHandle !== null) idleWindow.cancelIdleCallback?.(idleHandle)
+    if (timeoutHandle !== null) window.clearTimeout(timeoutHandle)
+  }
+}
+
 export function DeckDetailPage({
   edhrecExcludeLands = false,
   edhrecTab,
@@ -867,14 +931,9 @@ export function DeckDetailPage({
   const deck = data?.deck
   const [isAddCardOpen, setIsAddCardOpen] = useState(false)
   const deckCards = useMemo(() => (deck?.deckCards || []).filter(present), [deck?.deckCards])
-  const deckStats = useMemo(() => buildDeckStats(deckCards), [deckCards])
-  const deckTokens = useMemo(() => buildDeckTokens(deckCards), [deckCards])
-  const sharedDecklistText = useMemo(() => exportDecklistText(deckCards), [deckCards])
-  const playtestCards = useMemo(() => deckPlaytestCards(deckCards), [deckCards])
-  const initialPlaytestState = useMemo(
-    () => createPlaytestState(playtestCards.library, playtestCards.command),
-    [playtestCards],
-  )
+  const deferredDeckAnalysis = useDeferredDeckAnalysis(deckCards)
+  const deckStats = deferredDeckAnalysis?.stats ?? null
+  const deckTokens = deferredDeckAnalysis?.tokens ?? null
   const selectedDeckCardIdList = useMemo(
     () => Array.from(selectedDeckCardIds),
     [selectedDeckCardIds],
@@ -1141,6 +1200,9 @@ export function DeckDetailPage({
   if (!deck) return <EmptyState title="Deck not found" />
 
   if (shareMode && isSharePlaytestOpen) {
+    const playtestCards = deckPlaytestCards(deckCards)
+    const initialPlaytestState = createPlaytestState(playtestCards.library, playtestCards.command)
+
     return createPortal(
       <div className="fixed inset-0 z-[1200] bg-[#0d0e0c]">
         <DeckPlaytester
@@ -1242,13 +1304,13 @@ export function DeckDetailPage({
     deleteDeck.mutate(deck.id)
   }
 
-  function addEdhrecCard(card: EDHRecCard | EDHRecSectionCard) {
+  function addEdhrecCard(card: EDHRecCard | EDHRecSectionCard, zone: EDHRecAddZone) {
     addDeckCard.mutate({
       finish: "nonfoil",
       name: card.name,
       preferredPrintingId: edhrecCardPrintingId(card),
       quantity: 1,
-      zone: "mainboard",
+      zone,
     })
   }
 
@@ -1265,7 +1327,7 @@ export function DeckDetailPage({
 
   async function copySharedDecklist() {
     try {
-      await navigator.clipboard.writeText(sharedDecklistText)
+      await navigator.clipboard.writeText(exportDecklistText(deckCards))
       setShareCopyState("copied")
     } catch (_error) {
       setShareCopyState("failed")
@@ -1273,7 +1335,8 @@ export function DeckDetailPage({
   }
 
   function downloadSharedDecklist() {
-    const blob = new Blob([sharedDecklistText], { type: "text/plain;charset=utf-8" })
+    const decklistText = exportDecklistText(deckCards)
+    const blob = new Blob([decklistText], { type: "text/plain;charset=utf-8" })
     const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
 
@@ -1390,7 +1453,7 @@ export function DeckDetailPage({
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={!sharedDecklistText}
+                  disabled={!deckCards.length}
                   onClick={copySharedDecklist}
                 >
                   <Clipboard className="h-4 w-4" />
@@ -1400,7 +1463,7 @@ export function DeckDetailPage({
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={!sharedDecklistText}
+                  disabled={!deckCards.length}
                   onClick={downloadSharedDecklist}
                 >
                   <Download className="h-4 w-4" />
@@ -1554,6 +1617,7 @@ export function DeckDetailPage({
           <DeckGroupGrid
             allocationError={allocationError}
             canSetCommander={deck.format === "commander"}
+            deckId={deck.id}
             groups={groupedCards}
             isSelecting={isSelectionActive}
             isUpdating={isUpdatingDeckCard}
@@ -1603,6 +1667,7 @@ export function DeckDetailPage({
         <div className="space-y-3">
           <DeckZoneTable
             cards={sideboardCards}
+            deckId={deck.id}
             isSelecting={isSelectionActive}
             isUpdating={isUpdatingDeckCard}
             selectedCardIds={selectedDeckCardIds}
@@ -1624,6 +1689,7 @@ export function DeckDetailPage({
           />
           <DeckZoneTable
             cards={maybeboardCards}
+            deckId={deck.id}
             isSelecting={isSelectionActive}
             isUpdating={isUpdatingDeckCard}
             selectedCardIds={selectedDeckCardIds}
@@ -1853,7 +1919,39 @@ type ManaBalanceDetail = {
 
 type HighlightDeckCards = (deckCardIds: Set<string> | null) => void
 
-function DeckTokensSection({ tokens }: { tokens: readonly DeckTokenSummary[] }) {
+function DeferredDeckSection({
+  detail,
+  icon: Icon,
+  title,
+}: {
+  detail: string
+  icon: LucideIcon
+  title: string
+}) {
+  return (
+    <div className="rounded-box border border-base-300 bg-base-100 px-4 py-3 shadow-sm" role="status">
+      <span className="flex min-w-0 items-center gap-2">
+        <Icon className="h-4 w-4 shrink-0 text-primary" />
+        <span className="font-black tracking-normal">{title}</span>
+        <span className="hidden truncate text-xs font-semibold text-base-content/50 sm:inline">
+          {detail}
+        </span>
+      </span>
+    </div>
+  )
+}
+
+function DeckTokensSection({ tokens }: { tokens: readonly DeckTokenSummary[] | null }) {
+  if (tokens === null) {
+    return (
+      <DeferredDeckSection
+        detail="Checking token makers after cards load"
+        icon={Sparkles}
+        title="Tokens this deck can create"
+      />
+    )
+  }
+
   if (!tokens.length) return null
 
   return (
@@ -1920,8 +2018,18 @@ function DeckStatsSection({
   stats,
 }: {
   onHighlightDeckCards?: HighlightDeckCards
-  stats: ReturnType<typeof buildDeckStats>
+  stats: ReturnType<typeof buildDeckStats> | null
 }) {
+  if (!stats) {
+    return (
+      <DeferredDeckSection
+        detail="Calculating mana curve, costs, and production"
+        icon={TrendingUp}
+        title="Deck stats"
+      />
+    )
+  }
+
   const maxCurveQuantity = Math.max(1, ...stats.manaCurve.map((bucket) => bucket.quantity))
 
   return (
@@ -2801,6 +2909,12 @@ type DeckCardPrinting = NonNullable<
   NonNullable<NonNullable<DeckCardEntry["card"]>["printings"]>[number]
 >
 type DeckZone = "mainboard" | "sideboard" | "commander" | "maybeboard"
+type EDHRecAddZone = Extract<DeckZone, "mainboard" | "maybeboard" | "sideboard">
+type EDHRecCardReturnSearch = {
+  deckId: string
+  edhrec: EDHRecTab
+  edhrecExcludeLands?: boolean
+}
 type DeckCardTag = "getting" | "consider_cutting"
 type DeckLegality = {
   status?: string | null
@@ -2848,6 +2962,12 @@ const DECK_STATUSES = ["brewing", "active", "archived"] as const
 const MOVE_TARGET_ZONES: DeckZone[] = ["mainboard", "sideboard", "maybeboard"]
 const ADD_CARD_ZONES: DeckZone[] = ["mainboard", "sideboard", "commander", "maybeboard"]
 const NON_COMMANDER_ADD_CARD_ZONES: DeckZone[] = ["mainboard", "sideboard", "maybeboard"]
+const EDHREC_ADD_CARD_ZONES = [
+  { label: "Main", zone: "mainboard" },
+  { label: "Maybe", zone: "maybeboard" },
+  { label: "Sideboard", zone: "sideboard" },
+] satisfies Array<{ label: string; zone: EDHRecAddZone }>
+const EDHREC_SCROLL_STORAGE_PREFIX = "manavault.edhrec.scroll."
 const DECK_CARD_FINISHES = ["nonfoil", "foil", "etched"]
 const COLOR_ORDER = ["W", "U", "B", "R", "G", "M", "C"]
 const DECK_STACK_CARD_WIDTH_REM = 14
@@ -3631,6 +3751,7 @@ function printingSetLabel(
 function DeckGroupGrid({
   allocationError,
   canSetCommander,
+  deckId,
   groups,
   isSelecting,
   isUpdating,
@@ -3650,6 +3771,7 @@ function DeckGroupGrid({
 }: {
   allocationError: string | null
   canSetCommander: boolean
+  deckId: string
   groups: DeckGroup<DeckCardEntry>[]
   isUpdating: boolean
   highlightedCardIds: Set<string> | null
@@ -3679,6 +3801,7 @@ function DeckGroupGrid({
         <DeckStackGroup
           key={group.key}
           canSetCommander={canSetCommander}
+          deckId={deckId}
           group={group}
           highlightedCardIds={highlightedCardIds}
           isUpdating={isUpdating}
@@ -3732,6 +3855,7 @@ function deckStackIndexFromPointer(
 function DeckStackGroup({
   allocationError,
   canSetCommander,
+  deckId,
   group,
   isSelecting,
   isUpdating,
@@ -3751,6 +3875,7 @@ function DeckStackGroup({
 }: {
   allocationError: string | null
   canSetCommander: boolean
+  deckId: string
   group: DeckGroup<DeckCardEntry>
   highlightedCardIds: Set<string> | null
   isSelecting: boolean
@@ -3848,6 +3973,7 @@ function DeckStackGroup({
               canSetCommander && deckCard.zone !== "commander" && isLegendaryCreature(deckCard)
             }
             deckCard={deckCard}
+            deckId={deckId}
             index={index}
             isActive={activeIndex === index}
             isSelecting={isSelecting}
@@ -3882,6 +4008,7 @@ function DeckStackGroup({
 function DeckStackCard({
   allocationError,
   canSetCommander,
+  deckId,
   deckCard,
   index,
   isActive,
@@ -3906,6 +4033,7 @@ function DeckStackCard({
 }: {
   allocationError: string | null
   canSetCommander: boolean
+  deckId: string
   deckCard: DeckCardEntry
   index: number
   isActive: boolean
@@ -3934,6 +4062,7 @@ function DeckStackCard({
   const name = deckCard.card?.name || "Unknown card"
   const printing = deckCard.preferredPrinting || deckCard.card?.printings?.[0]
   const tag = deckCardTag(deckCard.tag)
+  const hasFoilFinish = deckCard.finish === "foil" || deckCard.finish === "etched"
   const isInteractive = isActive || isAllocationMenuOpen || (!isSelecting && hasFocusWithin)
 
   function handleBlur(event: FocusEvent<HTMLElement>) {
@@ -4026,7 +4155,11 @@ function DeckStackCard({
               onClick={blurFocusedMenuItem}
             >
               <li>
-                <Link to="/cards/$id" params={{ id: deckCard.card?.oracleId || "" }}>
+                <Link
+                  to="/cards/$id"
+                  params={{ id: deckCard.card?.oracleId || "" }}
+                  search={{ deckId }}
+                >
                   <Eye className="h-4 w-4" />
                   View card
                 </Link>
@@ -4101,6 +4234,8 @@ function DeckStackCard({
         <figure
           className={cn(
             "relative aspect-[5/7] overflow-hidden rounded-xl bg-base-300 shadow-xl ring-1 ring-white/10 transition duration-200",
+            hasFoilFinish && "card-tile-foil",
+            deckCard.finish === "etched" && "card-tile-foil--etched",
             isActive && "shadow-2xl ring-primary/45",
             isSelected && "ring-4 ring-secondary shadow-2xl",
           )}
@@ -4112,6 +4247,14 @@ function DeckStackCard({
               No image
             </div>
           )}
+          {hasFoilFinish ? (
+            <div
+              className={cn(
+                "card-tile-foil-overlay",
+                deckCard.finish === "etched" && "card-tile-foil-overlay--etched",
+              )}
+            />
+          ) : null}
 
           {deckCard.quantity > 1 ? (
             <span className="absolute right-0 top-0 z-20 rounded-bl-xl bg-primary px-2.5 py-1.5 text-sm font-black leading-none text-primary-content shadow-lg">
@@ -4121,7 +4264,7 @@ function DeckStackCard({
 
           <figcaption
             className={cn(
-              "absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent px-3 pb-3 pt-12 text-white transition duration-200 group-focus-within/deck-card:opacity-100",
+              "absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/90 via-black/45 to-transparent px-3 pb-3 pt-12 text-white transition duration-200 group-focus-within/deck-card:opacity-100",
               isInteractive ? "opacity-100" : "opacity-0",
             )}
           >
@@ -4213,7 +4356,7 @@ function DeckCardAllocationMenu({
   const proxyChecked = status.proxyAllocated > 0
   const proxyQuantityToAdd = Math.max(status.required - status.allocated, 0)
   const proxyDisabled = isUpdating || (!proxyChecked && proxyQuantityToAdd <= 0)
-  const [menuPosition, setMenuPosition] = useState({ left: 16, top: 16 })
+  const [menuPosition, setMenuPosition] = useState({ left: 16, top: 16, width: 320 })
   const buttonRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -4222,9 +4365,9 @@ function DeckCardAllocationMenu({
     if (!button) return
 
     const bounds = button.getBoundingClientRect()
-    const menuWidth = 320
-    const menuMaxHeight = 416
     const margin = 16
+    const menuWidth = Math.min(320, Math.max(window.innerWidth - margin * 2, 0))
+    const menuMaxHeight = 416
     const spaceBelow = window.innerHeight - bounds.bottom - margin
     const spaceAbove = bounds.top - margin
     const openAbove = spaceBelow < 240 && spaceAbove > spaceBelow
@@ -4234,6 +4377,7 @@ function DeckCardAllocationMenu({
         Math.max(bounds.left, margin),
         Math.max(window.innerWidth - menuWidth - margin, margin),
       ),
+      width: menuWidth,
       top: openAbove
         ? Math.max(margin, bounds.top - Math.min(menuMaxHeight, spaceAbove) - 4)
         : Math.min(bounds.bottom + 4, Math.max(window.innerHeight - margin, margin)),
@@ -4302,7 +4446,7 @@ function DeckCardAllocationMenu({
             <div
               ref={menuRef}
               tabIndex={0}
-              className="fixed z-[1000] max-h-[calc(100dvh-2rem)] w-80 overflow-y-auto rounded-box border border-base-300 bg-base-100 p-3 text-sm shadow-2xl"
+              className="fixed z-[1000] max-h-[calc(100dvh-2rem)] max-w-[calc(100dvw-2rem)] overflow-y-auto rounded-box border border-base-300 bg-base-100 p-3 text-sm shadow-2xl"
               style={menuPosition}
               onClick={(event) => event.stopPropagation()}
               onMouseDown={(event) => event.stopPropagation()}
@@ -4474,6 +4618,7 @@ function collectionItemLabel(
 
 function DeckZoneTable({
   cards,
+  deckId,
   isSelecting,
   highlightedCardIds,
   isUpdating,
@@ -4488,6 +4633,7 @@ function DeckZoneTable({
   title,
 }: {
   cards: DeckCardEntry[]
+  deckId: string
   highlightedCardIds: Set<string> | null
   isSelecting: boolean
   isUpdating: boolean
@@ -4576,6 +4722,7 @@ function DeckZoneTable({
                       <Link
                         to="/cards/$id"
                         params={{ id: deckCard.card?.oracleId || "" }}
+                        search={{ deckId }}
                         className="font-semibold hover:text-primary"
                       >
                         {deckCard.card?.name}
@@ -4739,6 +4886,7 @@ function EditDeckCardDialog({
   onSave: (input: DeckCardUpdateInput) => void
 }) {
   const [quantity, setQuantity] = useState(1)
+  const [quantityInput, setQuantityInput] = useState("1")
   const [zone, setZone] = useState<DeckZone>("mainboard")
   const [finish, setFinish] = useState("nonfoil")
   const [preferredPrintingId, setPreferredPrintingId] = useState("")
@@ -4756,6 +4904,7 @@ function EditDeckCardDialog({
   useEffect(() => {
     if (!deckCard) {
       setQuantity(1)
+      setQuantityInput("1")
       setZone("mainboard")
       setFinish("nonfoil")
       setPreferredPrintingId("")
@@ -4764,6 +4913,7 @@ function EditDeckCardDialog({
     }
 
     setQuantity(deckCard.quantity)
+    setQuantityInput(String(deckCard.quantity))
     setZone(deckCard.zone as DeckZone)
     setFinish(deckCard.finish || "nonfoil")
     setPreferredPrintingId(deckCard.preferredPrinting?.scryfallId || "")
@@ -4778,10 +4928,28 @@ function EditDeckCardDialog({
     if (!finishOptions.includes(finish)) setFinish(finishOptions[0] || "nonfoil")
   }, [finish, finishOptions])
 
+  function setClampedQuantity(nextQuantity: number) {
+    const clampedQuantity = Math.max(1, Number.isFinite(nextQuantity) ? Math.floor(nextQuantity) : 1)
+    setQuantity(clampedQuantity)
+    setQuantityInput(String(clampedQuantity))
+  }
+
+  function updateQuantityInput(nextQuantityInput: string) {
+    setQuantityInput(nextQuantityInput)
+    const parsedQuantity = Number.parseInt(nextQuantityInput, 10)
+    if (Number.isFinite(parsedQuantity) && parsedQuantity >= 1) setQuantity(parsedQuantity)
+  }
+
+  function commitQuantityInput() {
+    setClampedQuantity(Number.parseInt(quantityInput, 10))
+  }
+
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    const parsedQuantity = Number.parseInt(quantityInput, 10)
+    const submittedQuantity = Math.max(1, Number.isFinite(parsedQuantity) ? parsedQuantity : quantity)
     onSave({
-      quantity,
+      quantity: submittedQuantity,
       zone,
       finish,
       preferredPrintingId: preferredPrintingId || null,
@@ -4803,26 +4971,27 @@ function EditDeckCardDialog({
         <form className="space-y-4 p-5" onSubmit={submit}>
           <div className="space-y-2">
             <div className="text-sm font-semibold">Printing</div>
-            <div className="max-h-80 overflow-y-auto rounded-box border border-base-300 p-2">
+            <div className="max-h-80 max-w-full overflow-x-hidden overflow-y-auto rounded-box border border-base-300 p-2">
               <div className="grid gap-2">
                 <button
                   type="button"
                   className={cn(
-                    "flex items-center gap-3 rounded-box border p-3 text-left transition",
+                    "flex w-full min-w-0 items-start gap-3 overflow-hidden rounded-box border p-3 text-left transition",
                     preferredPrintingId === ""
-                      ? "border-primary bg-primary/10"
+                      ? "border-primary bg-primary/10 ring-2 ring-primary/20"
                       : "border-base-300 hover:border-primary/45 hover:bg-base-200",
                   )}
                   disabled={isPending}
                   onClick={() => setPreferredPrintingId("")}
+                  aria-pressed={preferredPrintingId === ""}
                   autoFocus
                 >
                   <span className="flex h-16 w-12 shrink-0 items-center justify-center rounded bg-base-200 text-base-content/50">
                     <Layers className="h-5 w-5" />
                   </span>
-                  <span className="min-w-0">
+                  <span className="min-w-0 flex-1">
                     <span className="block font-semibold">Any printing</span>
-                    <span className="block text-xs text-base-content/60">
+                    <span className="block text-xs text-base-content/60 break-words">
                       Use any matching copy when allocating this card.
                     </span>
                   </span>
@@ -4832,13 +5001,14 @@ function EditDeckCardDialog({
                     key={printing.scryfallId}
                     type="button"
                     className={cn(
-                      "flex items-center gap-3 rounded-box border p-3 text-left transition",
+                      "flex w-full min-w-0 items-start gap-3 overflow-hidden rounded-box border p-3 text-left transition",
                       preferredPrintingId === printing.scryfallId
-                        ? "border-primary bg-primary/10"
+                        ? "border-primary bg-primary/10 ring-2 ring-primary/20"
                         : "border-base-300 hover:border-primary/45 hover:bg-base-200",
                     )}
                     disabled={isPending}
                     onClick={() => setPreferredPrintingId(printing.scryfallId)}
+                    aria-pressed={preferredPrintingId === printing.scryfallId}
                   >
                     {printing.imageUrl ? (
                       <img
@@ -4852,7 +5022,7 @@ function EditDeckCardDialog({
                         <Palette className="h-5 w-5" />
                       </span>
                     )}
-                    <span className="min-w-0">
+                    <span className="min-w-0 flex-1">
                       <span className="block truncate font-semibold">
                         {deckCardPrintingOptionLabel(printing)}
                       </span>
@@ -4867,18 +5037,42 @@ function EditDeckCardDialog({
           </div>
 
           <div className="grid gap-3 sm:grid-cols-4">
-            <label className="form-control">
+            <div className="form-control">
               <span className="label-text mb-1 text-sm font-semibold">Quantity</span>
-              <Input
-                type="number"
-                min={1}
-                value={quantity}
-                disabled={isPending}
-                onChange={(event) =>
-                  setQuantity(Math.max(1, Number.parseInt(event.target.value, 10) || 1))
-                }
-              />
-            </label>
+              <div className="join w-full max-w-44">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="join-item px-3"
+                  disabled={isPending || quantity <= 1}
+                  aria-label="Decrease quantity"
+                  onClick={() => setClampedQuantity(quantity - 1)}
+                >
+                  −
+                </Button>
+                <Input
+                  type="number"
+                  min={1}
+                  inputMode="numeric"
+                  value={quantityInput}
+                  disabled={isPending}
+                  aria-label="Quantity"
+                  className="join-item min-w-0 text-center"
+                  onChange={(event) => updateQuantityInput(event.target.value)}
+                  onBlur={commitQuantityInput}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="join-item px-3"
+                  disabled={isPending}
+                  aria-label="Increase quantity"
+                  onClick={() => setClampedQuantity(quantity + 1)}
+                >
+                  +
+                </Button>
+              </div>
+            </div>
 
             <label className="form-control">
               <span className="label-text mb-1 text-sm font-semibold">Zone</span>
@@ -5396,7 +5590,7 @@ function EDHRecDialog({
   deck: DeckDetail | null
   excludeLands: boolean
   isAddingCard: boolean
-  onAddCard: (card: EDHRecCard | EDHRecSectionCard) => void
+  onAddCard: (card: EDHRecCard | EDHRecSectionCard, zone: EDHRecAddZone) => void
   onExcludeLandsChange: (excludeLands: boolean) => void
   onOpenChange: (open: boolean) => void
   onTabChange: (tab: EDHRecTab) => void
@@ -5412,6 +5606,10 @@ function EDHRecDialog({
     enabled: open && Boolean(deck?.id),
   })
   const data = edhrecQuery.data?.deckEdhrec
+  const cardReturnSearch = deck?.id
+    ? edhrecCardReturnSearch(deck.id, activeTab, excludeLands)
+    : null
+  const scrollStorageKey = deck?.id ? edhrecScrollStorageKey(deck.id, activeTab) : null
   const tabs = [
     { count: data?.recommendations.length || 0, icon: Sparkles, label: "Recs", value: "recs" },
     { count: data?.cuts.length || 0, icon: XCircle, label: "Cuts", value: "cuts" },
@@ -5495,32 +5693,38 @@ function EDHRecDialog({
             </p>
           ) : null}
 
-          {!edhrecQuery.isLoading && data ? (
+          {!edhrecQuery.isLoading && data && cardReturnSearch && scrollStorageKey ? (
             <>
               {activeTab === "recs" ? (
                 <EDHRecCardGrid
                   cards={data.recommendations}
+                  cardReturnSearch={cardReturnSearch}
                   emptyTitle="No EDHREC recommendations returned"
                   isAddingCard={isAddingCard}
                   mode="recs"
                   onAddCard={onAddCard}
+                  scrollStorageKey={scrollStorageKey}
                 />
               ) : null}
               {activeTab === "cuts" ? (
                 <EDHRecCardGrid
                   cards={data.cuts}
+                  cardReturnSearch={cardReturnSearch}
                   emptyTitle="No EDHREC cuts returned"
                   isAddingCard={isAddingCard}
                   mode="cuts"
                   onAddCard={onAddCard}
+                  scrollStorageKey={scrollStorageKey}
                 />
               ) : null}
               {activeTab === "commander" ? (
                 <EDHRecCommanderData
+                  cardReturnSearch={cardReturnSearch}
                   deck={deck}
                   isAddingCard={isAddingCard}
                   onAddCard={onAddCard}
                   pages={data.commanderPages}
+                  scrollStorageKey={scrollStorageKey}
                 />
               ) : null}
             </>
@@ -5531,55 +5735,97 @@ function EDHRecDialog({
   )
 }
 
+function EDHRecScrollContainer({
+  children,
+  className,
+  storageKey,
+}: {
+  children: ReactNode
+  className?: string
+  storageKey?: string
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const element = scrollRef.current
+    if (!element || !storageKey) return
+
+    element.scrollTop = readEdhrecScrollPosition(storageKey)
+
+    return () => {
+      writeEdhrecScrollPosition(storageKey, element.scrollTop)
+    }
+  }, [storageKey])
+
+  return (
+    <div
+      ref={scrollRef}
+      className={cn("min-h-0 flex-1 overflow-y-auto pr-1", className)}
+      onScroll={(event) => {
+        if (storageKey) writeEdhrecScrollPosition(storageKey, event.currentTarget.scrollTop)
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
 function EDHRecCardGrid({
   cards,
+  cardReturnSearch,
   emptyTitle,
   isAddingCard,
   mode,
   onAddCard,
+  scrollStorageKey,
 }: {
   cards: EDHRecCard[]
+  cardReturnSearch: EDHRecCardReturnSearch
   emptyTitle: string
   isAddingCard: boolean
   mode: "recs" | "cuts"
-  onAddCard: (card: EDHRecCard) => void
+  onAddCard: (card: EDHRecCard, zone: EDHRecAddZone) => void
+  scrollStorageKey: string
 }) {
   if (!cards.length) return <EmptyState title={emptyTitle} />
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+    <EDHRecScrollContainer storageKey={scrollStorageKey}>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(11.5rem,1fr))] gap-5">
         {cards.map((card) => (
           <EDHRecCardTile
             key={`${mode}-${card.oracleId || card.name}`}
             card={card}
+            cardReturnSearch={cardReturnSearch}
             isAddingCard={isAddingCard}
             mode={mode}
             onAddCard={onAddCard}
           />
         ))}
       </div>
-    </div>
+    </EDHRecScrollContainer>
   )
 }
 
 function EDHRecCardTile({
   card,
+  cardReturnSearch,
   isAddingCard,
   mode,
   onAddCard,
 }: {
   card: EDHRecCard
+  cardReturnSearch: EDHRecCardReturnSearch
   isAddingCard: boolean
   mode: "recs" | "cuts"
-  onAddCard: (card: EDHRecCard) => void
+  onAddCard: (card: EDHRecCard, zone: EDHRecAddZone) => void
 }) {
   const imageUrl = edhrecCardImageUrl(card)
   const score = typeof card.score === "number" ? Math.max(0, Math.min(100, card.score)) : null
 
   return (
     <article className="min-w-0">
-      <EDHRecCardLink card={card} className="block">
+      <EDHRecCardLink card={card} cardReturnSearch={cardReturnSearch} className="block">
         <figure className="relative aspect-[5/7] overflow-hidden rounded-xl bg-base-300 shadow-lg ring-1 ring-base-content/10 transition hover:-translate-y-0.5 hover:shadow-2xl">
           {imageUrl ? (
             <img
@@ -5604,6 +5850,7 @@ function EDHRecCardTile({
           <div className="min-w-0 flex-1">
             <EDHRecCardLink
               card={card}
+              cardReturnSearch={cardReturnSearch}
               className="block truncate text-sm font-black hover:text-primary"
             >
               {card.name}
@@ -5614,8 +5861,9 @@ function EDHRecCardTile({
           </div>
           <EDHRecCardMenu
             card={card}
+            cardReturnSearch={cardReturnSearch}
             isAddingCard={isAddingCard}
-            onAddCard={() => onAddCard(card)}
+            onAddCard={(zone) => onAddCard(card, zone)}
           />
         </div>
 
@@ -5643,20 +5891,24 @@ function EDHRecCardTile({
 }
 
 function EDHRecCommanderData({
+  cardReturnSearch,
   deck,
   isAddingCard,
   onAddCard,
   pages,
+  scrollStorageKey,
 }: {
+  cardReturnSearch: EDHRecCardReturnSearch
   deck: DeckDetail | null
   isAddingCard: boolean
-  onAddCard: (card: EDHRecSectionCard) => void
+  onAddCard: (card: EDHRecSectionCard, zone: EDHRecAddZone) => void
   pages: EDHRecCommanderPage[]
+  scrollStorageKey: string
 }) {
   if (!pages.length) return <EmptyState title="No commander data returned" />
 
   return (
-    <div className="min-h-0 flex-1 space-y-8 overflow-y-auto pr-1">
+    <EDHRecScrollContainer className="space-y-8" storageKey={scrollStorageKey}>
       {pages.map((page) => (
         <section key={page.name} className="space-y-4">
           <EDHRecCommanderHero deck={deck} page={page} />
@@ -5665,6 +5917,7 @@ function EDHRecCommanderData({
             {page.sections.map((section) => (
               <EDHRecSectionPanel
                 key={`${page.name}-${section.tag || section.header}`}
+                cardReturnSearch={cardReturnSearch}
                 isAddingCard={isAddingCard}
                 onAddCard={onAddCard}
                 section={section}
@@ -5673,7 +5926,7 @@ function EDHRecCommanderData({
           </div>
         </section>
       ))}
-    </div>
+    </EDHRecScrollContainer>
   )
 }
 
@@ -5752,12 +6005,14 @@ function EDHRecCommanderHero({
 }
 
 function EDHRecSectionPanel({
+  cardReturnSearch,
   isAddingCard,
   onAddCard,
   section,
 }: {
+  cardReturnSearch: EDHRecCardReturnSearch
   isAddingCard: boolean
-  onAddCard: (card: EDHRecSectionCard) => void
+  onAddCard: (card: EDHRecSectionCard, zone: EDHRecAddZone) => void
   section: EDHRecSection
 }) {
   return (
@@ -5775,6 +6030,7 @@ function EDHRecSectionPanel({
             <EDHRecSectionCardTile
               key={`${section.header}-${card.oracleId || card.name}`}
               card={card}
+              cardReturnSearch={cardReturnSearch}
               isAddingCard={isAddingCard}
               onAddCard={onAddCard}
             />
@@ -5787,18 +6043,20 @@ function EDHRecSectionPanel({
 
 function EDHRecSectionCardTile({
   card,
+  cardReturnSearch,
   isAddingCard,
   onAddCard,
 }: {
   card: EDHRecSectionCard
+  cardReturnSearch: EDHRecCardReturnSearch
   isAddingCard: boolean
-  onAddCard: (card: EDHRecSectionCard) => void
+  onAddCard: (card: EDHRecSectionCard, zone: EDHRecAddZone) => void
 }) {
   const imageUrl = edhrecCardImageUrl(card)
 
   return (
     <article className="min-w-0">
-      <EDHRecCardLink card={card} className="block">
+      <EDHRecCardLink card={card} cardReturnSearch={cardReturnSearch} className="block">
         <figure className="relative aspect-[5/7] overflow-hidden rounded-lg bg-base-300 shadow-md ring-1 ring-base-content/10 transition hover:-translate-y-0.5 hover:shadow-xl">
           {imageUrl ? (
             <img
@@ -5821,6 +6079,7 @@ function EDHRecSectionCardTile({
         <div className="min-w-0 flex-1">
           <EDHRecCardLink
             card={card}
+            cardReturnSearch={cardReturnSearch}
             className="block truncate text-sm font-black hover:text-primary"
           >
             {card.name}
@@ -5832,7 +6091,12 @@ function EDHRecSectionCardTile({
             </span>
           </div>
         </div>
-        <EDHRecCardMenu card={card} isAddingCard={isAddingCard} onAddCard={() => onAddCard(card)} />
+        <EDHRecCardMenu
+          card={card}
+          cardReturnSearch={cardReturnSearch}
+          isAddingCard={isAddingCard}
+          onAddCard={(zone) => onAddCard(card, zone)}
+        />
       </div>
     </article>
   )
@@ -5840,12 +6104,14 @@ function EDHRecSectionCardTile({
 
 function EDHRecCardMenu({
   card,
+  cardReturnSearch,
   isAddingCard,
   onAddCard,
 }: {
   card: EDHRecCard | EDHRecSectionCard
+  cardReturnSearch: EDHRecCardReturnSearch
   isAddingCard: boolean
-  onAddCard: () => void
+  onAddCard: (zone: EDHRecAddZone) => void
 }) {
   const localCardId = card.card?.oracleId
   const externalUrl = edhrecCardUrl(card)
@@ -5866,18 +6132,20 @@ function EDHRecCardMenu({
       </button>
       <ul
         tabIndex={0}
-        className="menu dropdown-content z-50 mt-1 w-48 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
+        className="menu dropdown-content z-50 mt-1 w-52 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
         onClick={blurFocusedMenuItem}
       >
-        <li>
-          <button type="button" disabled={isAddingCard} onClick={onAddCard}>
-            <Plus className="h-4 w-4" />
-            {isAddingCard ? "Adding..." : "Add to deck"}
-          </button>
-        </li>
+        {EDHREC_ADD_CARD_ZONES.map(({ label, zone }) => (
+          <li key={zone}>
+            <button type="button" disabled={isAddingCard} onClick={() => onAddCard(zone)}>
+              <Plus className="h-4 w-4" />
+              {isAddingCard ? `Adding to ${label}...` : `Add to ${label}`}
+            </button>
+          </li>
+        ))}
         <li>
           {localCardId ? (
-            <Link to="/cards/$id" params={{ id: localCardId }}>
+            <Link to="/cards/$id" params={{ id: localCardId }} search={cardReturnSearch}>
               <Eye className="h-4 w-4" />
               View card
             </Link>
@@ -5900,10 +6168,12 @@ function EDHRecCardMenu({
 
 function EDHRecCardLink({
   card,
+  cardReturnSearch,
   children,
   className,
 }: {
   card: EDHRecCard | EDHRecSectionCard
+  cardReturnSearch: EDHRecCardReturnSearch
   children: ReactNode
   className?: string
 }) {
@@ -5912,7 +6182,7 @@ function EDHRecCardLink({
 
   if (localCardId) {
     return (
-      <Link to="/cards/$id" params={{ id: localCardId }} className={className}>
+      <Link to="/cards/$id" params={{ id: localCardId }} search={cardReturnSearch} className={className}>
         {children}
       </Link>
     )
@@ -5949,6 +6219,60 @@ function CollectionStatusBadge({
       {collectionStatusShortLabel(status)}
     </Badge>
   )
+}
+
+function edhrecCardReturnSearch(
+  deckId: string,
+  tab: EDHRecTab,
+  excludeLands: boolean,
+): EDHRecCardReturnSearch {
+  return {
+    deckId,
+    edhrec: tab,
+    edhrecExcludeLands: excludeLands ? true : undefined,
+  }
+}
+
+function edhrecScrollStorageKey(deckId: string, tab: EDHRecTab) {
+  return `${EDHREC_SCROLL_STORAGE_PREFIX}${deckId}.${tab}`
+}
+
+function readEdhrecScrollPosition(storageKey: string) {
+  for (const storage of edhrecScrollStorages()) {
+    try {
+      const value = storage.getItem(storageKey)
+      if (value == null) continue
+      const scrollTop = Number.parseInt(value, 10)
+      if (Number.isFinite(scrollTop) && scrollTop >= 0) return scrollTop
+    } catch (_error) {
+      continue
+    }
+  }
+  return 0
+}
+
+function writeEdhrecScrollPosition(storageKey: string, scrollTop: number) {
+  const value = String(Math.max(0, Math.round(scrollTop)))
+  for (const storage of edhrecScrollStorages()) {
+    try {
+      storage.setItem(storageKey, value)
+    } catch (_error) {
+      continue
+    }
+  }
+}
+
+function edhrecScrollStorages() {
+  if (typeof window === "undefined") return []
+
+  return (["sessionStorage", "localStorage"] as const).flatMap((storageName) => {
+    try {
+      const storage = window[storageName]
+      return storage ? [storage] : []
+    } catch (_error) {
+      return []
+    }
+  })
 }
 
 function collectionStatusShortLabel(status: EDHRecCollectionStatus) {

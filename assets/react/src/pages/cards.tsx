@@ -345,14 +345,22 @@ function CardSearchForm({
   )
 }
 
+type CardReturnEdhrecTab = "recs" | "cuts" | "commander"
+
 export function CardDetailPage({
   id,
   query,
   filterSearch,
+  returnDeckId,
+  returnEdhrecExcludeLands = false,
+  returnEdhrecTab,
 }: {
   id: string
   query: string
   filterSearch?: string
+  returnDeckId?: string
+  returnEdhrecExcludeLands?: boolean
+  returnEdhrecTab?: CardReturnEdhrecTab
 }) {
   const [addPrinting, setAddPrinting] = useState<AddCollectionItemInitialPrinting | null>(null)
   const [deckTarget, setDeckTarget] = useState<CardDeckTarget | null>(null)
@@ -372,11 +380,26 @@ export function CardDetailPage({
   return (
     <>
       <div className="mx-auto max-w-7xl space-y-7">
-        <Button asChild variant="outline" size="sm">
-          <Link to="/cards" search={{ q: query || undefined, filters: filterSearch }}>
-            Back to search
-          </Link>
-        </Button>
+        {returnDeckId ? (
+          <Button asChild variant="outline" size="sm">
+            <Link
+              to="/decks/$id"
+              params={{ id: returnDeckId }}
+              search={{
+                edhrec: returnEdhrecTab,
+                edhrecExcludeLands: returnEdhrecTab && returnEdhrecExcludeLands ? true : undefined,
+              }}
+            >
+              {returnEdhrecTab ? "Back to EDHREC" : "Back to deck"}
+            </Link>
+          </Button>
+        ) : (
+          <Button asChild variant="outline" size="sm">
+            <Link to="/cards" search={{ q: query || undefined, filters: filterSearch }}>
+              Back to search
+            </Link>
+          </Button>
+        )}
 
         <section className="relative min-h-80 overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-sm">
           {primary?.artCropUrl ? (

@@ -77,9 +77,19 @@ defmodule Manavault.Catalog.Decks do
     |> put_deck_card_allocation_statuses()
   end
 
+  def deck_legality(%Deck{deck_cards: deck_cards} = deck) when is_list(deck_cards) do
+    if Enum.all?(deck_cards, &match?(%DeckCard{card: %Card{}}, &1)) do
+      DeckLegality.evaluate(deck)
+    else
+      deck
+      |> Repo.preload(deck_preloads(), force: true)
+      |> DeckLegality.evaluate()
+    end
+  end
+
   def deck_legality(%Deck{} = deck) do
     deck
-    |> Repo.preload(deck_preloads(), force: true)
+    |> Repo.preload(deck_preloads())
     |> DeckLegality.evaluate()
   end
 

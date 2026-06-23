@@ -126,9 +126,6 @@ export function AppShell() {
             ))}
           </nav>
 
-          <Button data-pwa-install className="ml-auto hidden lg:inline-flex" size="sm">
-            <span data-pwa-install-label>Install</span>
-          </Button>
           <div className="ml-2 hidden lg:block">
             <ThemeToggle />
           </div>

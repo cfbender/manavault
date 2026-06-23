@@ -267,10 +267,12 @@
   filter: saturate(0.82) contrast(1.15);
 }
 
-.group\/card:hover .card-tile-foil-overlay::before,
-.group\/card:focus-within .card-tile-foil-overlay::before {
-  opacity: 1;
-  animation-play-state: running;
+@media (hover: hover) {
+  .group\/card:hover .card-tile-foil-overlay::before,
+  .group\/deck-card:hover .card-tile-foil-overlay::before {
+    opacity: 1;
+    animation-play-state: running;
+  }
 }
 
 .card-tile-foil-badge {

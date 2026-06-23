@@ -76,7 +76,12 @@ function handleNativeOpen(payload: NativeOpenPayload) {
 }
 
 void initializeNativeSharedImport(handleNativeOpen)
-void initializeNativeBackButton()
+void initializeNativeBackButton({
+  pathname: () => router.latestLocation.pathname,
+  navigateToDecks: () => {
+    void router.navigate({ to: "/decks", replace: true })
+  },
+})
 
 createRoot(document.getElementById("manavault-root")!).render(
   <QueryClientProvider client={queryClient}>

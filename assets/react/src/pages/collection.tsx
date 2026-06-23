@@ -60,7 +60,9 @@ import {
   cloneCollectionFilters,
   combineCollectionQueries,
   countActiveCollectionFilters,
+  decodeCollectionFilters,
   EMPTY_COLLECTION_FILTERS,
+  encodeCollectionFilters,
   type CollectionFilterState,
   type ColorOperator,
   type ComparisonOperator,
@@ -68,6 +70,7 @@ import {
   type ManaColor,
   type RarityFilter,
 } from "../lib/collection-filters"
+import { useLocalStorageState } from "../lib/use-local-storage"
 import { cn, compactNumber, present, titleize } from "../lib/utils"
 
 const CollectionDocument = graphql(`
@@ -489,6 +492,91 @@ type PreviewCollectionImportValues = {
 }
 type CollectionExportFilters = { locationId?: string; q?: string }
 
+const COLLECTION_STATE_STORAGE_PREFIX = "manavault.collection"
+const COLLECTION_ACTIVE_TAB_STORAGE_KEY = `${COLLECTION_STATE_STORAGE_PREFIX}.activeTab`
+const COLLECTION_SEARCH_DRAFT_STORAGE_KEY = `${COLLECTION_STATE_STORAGE_PREFIX}.searchDraft`
+const COLLECTION_APPLIED_SEARCH_STORAGE_KEY = `${COLLECTION_STATE_STORAGE_PREFIX}.appliedSearch`
+const COLLECTION_SORT_STORAGE_KEY = `${COLLECTION_STATE_STORAGE_PREFIX}.sort`
+const COLLECTION_FILTERS_STORAGE_KEY = `${COLLECTION_STATE_STORAGE_PREFIX}.filters`
+const COLLECTION_LOCATION_STATE_STORAGE_PREFIX = `${COLLECTION_STATE_STORAGE_PREFIX}.location`
+const DEFAULT_COLLECTION_SORT: CollectionSort = {
+  field: "name",
+  direction: "asc",
+}
+const COLLECTION_SORT_FIELDS: CollectionSortField[] = [
+  "quantity",
+  "name",
+  "set",
+  "rarity",
+  "price",
+  "added",
+]
+const COLLECTION_SORT_DIRECTIONS: CollectionSortDirection[] = ["asc", "desc"]
+
+function deserializeCollectionTab(value: string): CollectionTab {
+  let decoded: unknown = value
+  try {
+    decoded = JSON.parse(value)
+  } catch {
+    decoded = value
+  }
+
+  if (decoded === "all") return "all"
+  return "locations"
+}
+
+function isBlankStorageString(value: string) {
+  const trimmed = value.trim()
+  return !trimmed
+}
+
+function createEmptyCollectionFilters() {
+  const filters = cloneCollectionFilters(EMPTY_COLLECTION_FILTERS)
+  return filters
+}
+
+function deserializeCollectionSort(value: string): CollectionSort {
+  let decoded: unknown
+  try {
+    decoded = JSON.parse(value)
+  } catch {
+    return DEFAULT_COLLECTION_SORT
+  }
+
+  if (!isStorageRecord(decoded)) return DEFAULT_COLLECTION_SORT
+
+  const field = COLLECTION_SORT_FIELDS.includes(decoded.field as CollectionSortField)
+    ? (decoded.field as CollectionSortField)
+    : DEFAULT_COLLECTION_SORT.field
+  const direction = COLLECTION_SORT_DIRECTIONS.includes(
+    decoded.direction as CollectionSortDirection,
+  )
+    ? (decoded.direction as CollectionSortDirection)
+    : DEFAULT_COLLECTION_SORT.direction
+
+  return { field, direction }
+}
+
+function isDefaultCollectionSort(sort: CollectionSort) {
+  const matchesDefaultField = sort.field === DEFAULT_COLLECTION_SORT.field
+  const matchesDefaultDirection = sort.direction === DEFAULT_COLLECTION_SORT.direction
+  return matchesDefaultField && matchesDefaultDirection
+}
+
+function serializeStoredCollectionFilters(filters: CollectionFilterState) {
+  const encoded = encodeCollectionFilters(filters)
+  return encoded || "{}"
+}
+
+function hasNoCollectionFilters(filters: CollectionFilterState) {
+  const activeFilterCount = countActiveCollectionFilters(filters)
+  return activeFilterCount === 0
+}
+
+function isStorageRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value))
+}
+
 const SORT_OPTIONS: { field: CollectionSortField; label: string }[] = [
   { field: "quantity", label: "Quantity" },
   { field: "name", label: "Card name" },
@@ -596,10 +684,10 @@ function useCollectionItemSelection(items: CollectionItem[]) {
     })
   }, [])
 
-  const selectLoaded = useCallback(() => {
+  const selectItems = useCallback((nextItems: CollectionItem[]) => {
     setSelectionMode(true)
-    setSelectedIds(new Set(items.map((item) => item.id)))
-  }, [items])
+    setSelectedIds(new Set(nextItems.map((item) => item.id)))
+  }, [])
 
   const clearSelection = useCallback(() => {
     setSelectionMode(false)
@@ -614,7 +702,7 @@ function useCollectionItemSelection(items: CollectionItem[]) {
   return {
     allLoadedSelected,
     clearSelection,
-    selectLoaded,
+    selectItems,
     selectedCount,
     selectedIds,
     selectedItems,
@@ -626,24 +714,28 @@ function useCollectionItemSelection(items: CollectionItem[]) {
 
 function CollectionBulkActionBar({
   allLoadedSelected,
+  hasNextPage,
+  isSelectAllPending,
   loadedCount,
   onAddToDeck,
   onAddToList,
   onClear,
   onDelete,
   onMove,
-  onSelectLoaded,
+  onSelectAll,
   selectedCount,
   selectionActive,
 }: {
   allLoadedSelected: boolean
+  hasNextPage: boolean
+  isSelectAllPending: boolean
   loadedCount: number
   onAddToDeck: () => void
   onAddToList: () => void
   onClear: () => void
   onDelete: () => void
   onMove: () => void
-  onSelectLoaded: () => void
+  onSelectAll: () => void
   selectedCount: number
   selectionActive: boolean
 }) {
@@ -660,11 +752,16 @@ function CollectionBulkActionBar({
             type="button"
             variant="outline"
             size="sm"
-            disabled={loadedCount === 0 || allLoadedSelected}
-            onClick={onSelectLoaded}
+            aria-busy={isSelectAllPending}
+            disabled={
+              loadedCount === 0 ||
+              (allLoadedSelected && !hasNextPage) ||
+              isSelectAllPending
+            }
+            onClick={onSelectAll}
           >
             <CheckSquare className="h-4 w-4" />
-            Select loaded
+            Select all
           </Button>
           <Button type="button" variant="ghost" size="sm" onClick={onClear}>
             <X className="h-4 w-4" />
@@ -967,7 +1064,7 @@ export function CollectionFilterModal({
   }
 
   function resetDraft() {
-    setDraft(cloneCollectionFilters(EMPTY_COLLECTION_FILTERS))
+    setDraft(createEmptyCollectionFilters())
   }
 
   function clearAndClose() {
@@ -1491,6 +1588,12 @@ function parseCurrencyInputCents(value: string) {
   return dollars * 100 + cents
 }
 
+function collectionValueGainClass(valueGainText?: string | null) {
+  if (valueGainText?.startsWith("-")) return "text-error"
+  if (valueGainText?.startsWith("+")) return "text-success"
+  return undefined
+}
+
 function collectionValueLine(summary?: Partial<CollectionValueSummary> | null) {
   if (!summary) return null
 
@@ -1499,7 +1602,15 @@ function collectionValueLine(summary?: Partial<CollectionValueSummary> | null) {
   const percent = summary.valueGainPercentText
   const delta = gain ? `${gain}${percent ? ` (${percent})` : ""}` : null
 
-  return [total, delta].filter(Boolean).join(" · ")
+  if (!total && !delta) return null
+
+  return (
+    <>
+      {total}
+      {total && delta ? " · " : null}
+      {delta ? <span className={collectionValueGainClass(gain)}>{delta}</span> : null}
+    </>
+  )
 }
 
 function isUnfiledLocation(location: { id: string }) {
@@ -1894,6 +2005,123 @@ function MoveCollectionItemDialog({
   )
 }
 
+type CollectionFinishOption = (typeof COLLECTION_FINISHES)[number]
+
+function collectionQuantityValue(value: number) {
+  return Math.max(1, Number.isFinite(value) ? value : 1)
+}
+
+function CollectionQuantityField({
+  autoFocus = false,
+  onChange,
+  value,
+}: {
+  autoFocus?: boolean
+  onChange: (value: number) => void
+  value: number
+}) {
+  return (
+    <fieldset className="space-y-1.5">
+      <legend className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+        Quantity
+      </legend>
+      <div className="join w-full">
+        <button
+          type="button"
+          className="btn btn-sm join-item h-9 min-h-9 px-3"
+          aria-label="Decrease quantity"
+          disabled={value <= 1}
+          onClick={() => onChange(collectionQuantityValue(value - 1))}
+        >
+          −
+        </button>
+        <Input
+          className="join-item h-9 min-h-9 w-16 flex-1 px-2 text-center sm:w-20"
+          type="number"
+          min={1}
+          inputMode="numeric"
+          aria-label="Quantity"
+          value={value}
+          onChange={(event) => onChange(collectionQuantityValue(Number(event.target.value)))}
+          autoFocus={autoFocus}
+        />
+        <button
+          type="button"
+          className="btn btn-sm join-item h-9 min-h-9 px-3"
+          aria-label="Increase quantity"
+          onClick={() => onChange(collectionQuantityValue(value + 1))}
+        >
+          +
+        </button>
+      </div>
+    </fieldset>
+  )
+}
+
+function CollectionFinishField({
+  onChange,
+  options,
+  value,
+}: {
+  onChange: (value: CollectionFinishOption) => void
+  options: ReadonlyArray<CollectionFinishOption>
+  value: CollectionFinishOption
+}) {
+  const finishOptions = options.length ? options : COLLECTION_FINISHES
+
+  return (
+    <fieldset className="space-y-1.5">
+      <legend className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+        Finish
+      </legend>
+      {finishOptions.length <= 3 ? (
+        <div className="flex gap-1 rounded-btn border border-base-300 bg-base-100 p-1">
+          {finishOptions.map((option) => {
+            const selected = option === value
+
+            return (
+              <button
+                key={option}
+                type="button"
+                className={cn(
+                  "min-h-8 flex-1 rounded-btn px-2 text-xs font-black uppercase tracking-wide transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                  selected
+                    ? collectionFinishToggleClass(option)
+                    : "text-base-content/65 hover:bg-base-200 hover:text-base-content",
+                )}
+                aria-pressed={selected}
+                onClick={() => onChange(option)}
+              >
+                {titleize(option)}
+              </button>
+            )
+          })}
+        </div>
+      ) : (
+        <select
+          className="select select-bordered h-9 min-h-9 w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          value={value}
+          onChange={(event) => onChange(collectionFinishValue(event.target.value))}
+        >
+          {finishOptions.map((option) => (
+            <option key={option} value={option}>
+              {titleize(option)}
+            </option>
+          ))}
+        </select>
+      )}
+    </fieldset>
+  )
+}
+
+function collectionFinishToggleClass(finish: CollectionFinishOption) {
+  if (finish === "foil")
+    return "bg-gradient-to-r from-amber-200 via-primary/25 to-sky-200 text-base-content shadow-inner"
+  if (finish === "etched")
+    return "bg-gradient-to-r from-fuchsia-200 via-secondary/25 to-stone-200 text-base-content shadow-inner"
+  return "bg-base-content text-base-100 shadow-inner"
+}
+
 function EditCollectionItemDialog({
   item,
   onDone,
@@ -1993,36 +2221,26 @@ function EditCollectionItemDialog({
           </div>
           <DialogClose onClose={close} />
         </DialogHeader>
-        <form className="space-y-4 p-5" onSubmit={submit}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
-                Quantity
-              </span>
-              <Input
-                type="number"
-                min={1}
-                value={quantity}
-                onChange={(event) => setQuantity(Number(event.target.value) || 1)}
-                autoFocus
-              />
-            </label>
-            <label className="block space-y-2">
+        <form className="space-y-3 p-4 sm:p-5" onSubmit={submit}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <CollectionQuantityField value={quantity} onChange={setQuantity} autoFocus />
+            <label className="block space-y-1.5">
               <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
                 Language
               </span>
               <Input
+                className="h-9 min-h-9"
                 value={language}
                 onChange={(event) => setLanguage(event.target.value)}
                 placeholder="en"
               />
             </label>
-            <label className="block space-y-2">
+            <label className="block space-y-1.5">
               <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
                 Condition
               </span>
               <select
-                className="select select-bordered w-full bg-base-100"
+                className="select select-bordered h-9 min-h-9 w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 value={condition}
                 onChange={(event) => setCondition(collectionConditionValue(event.target.value))}
               >
@@ -2033,47 +2251,37 @@ function EditCollectionItemDialog({
                 ))}
               </select>
             </label>
-            <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
-                Finish
-              </span>
-              <select
-                className="select select-bordered w-full bg-base-100"
-                value={finish}
-                onChange={(event) => setFinish(collectionFinishValue(event.target.value))}
-              >
-                {COLLECTION_FINISHES.map((value) => (
-                  <option key={value} value={value}>
-                    {titleize(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block space-y-2 sm:col-span-2">
+            <CollectionFinishField options={COLLECTION_FINISHES} value={finish} onChange={setFinish} />
+            <label className="block space-y-1.5">
               <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
                 Purchase price
               </span>
               <Input
+                className="h-9 min-h-9"
                 inputMode="decimal"
                 value={purchasePrice}
                 onChange={(event) => setPurchasePrice(event.target.value)}
                 placeholder="Current market price"
               />
-              <span className="block text-xs text-base-content/55">
+              <span className="block text-xs leading-tight text-base-content/55">
                 Current {item?.priceText || "unknown"}
-                {item?.valueGainText
-                  ? ` · Gain ${item.valueGainText}${
-                      item.valueGainPercentText ? ` (${item.valueGainPercentText})` : ""
-                    }`
-                  : ""}
+                {item?.valueGainText ? (
+                  <>
+                    {" · Gain "}
+                    <span className={collectionValueGainClass(item.valueGainText)}>
+                      {item.valueGainText}
+                      {item.valueGainPercentText ? ` (${item.valueGainPercentText})` : ""}
+                    </span>
+                  </>
+                ) : null}
               </span>
             </label>
-            <label className="block space-y-2 sm:col-span-2">
+            <label className="block space-y-1.5">
               <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
                 Location
               </span>
               <select
-                className="select select-bordered w-full bg-base-100"
+                className="select select-bordered h-9 min-h-9 w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 value={locationId}
                 onChange={(event) => setLocationId(event.target.value)}
               >
@@ -2087,12 +2295,12 @@ function EditCollectionItemDialog({
                   ))}
               </select>
             </label>
-            <label className="block space-y-2 sm:col-span-2">
+            <label className="block space-y-1.5 sm:col-span-2">
               <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
                 Notes
               </span>
               <textarea
-                className="textarea textarea-bordered min-h-24 w-full bg-base-100"
+                className="textarea textarea-bordered min-h-16 w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
               />
@@ -2224,11 +2432,16 @@ export function AddCollectionItemDialog({
   const [notes, setNotes] = useState("")
   const [purchasePrice, setPurchasePrice] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const cardSearchRootRef = useRef<HTMLDivElement>(null)
+  const isCardSearchPointerInsideRef = useRef(false)
+  const [isCardSearchOpen, setIsCardSearchOpen] = useState(false)
   const debouncedSearch = useDebouncedValue(search, MODAL_SEARCH_DEBOUNCE_MS)
   const searchTerm = debouncedSearch.trim()
   const searchDraftTerm = search.trim()
-  const selectedFinishes = selectedPrinting?.finishes?.filter(present) || []
+  const selectedFinishes =
+    selectedPrinting?.finishes?.filter(present).map(collectionFinishValue) || []
   const finishOptions = selectedFinishes.length ? selectedFinishes : COLLECTION_FINISHES
+  const showCardSearchResults = !selectedPrinting && isCardSearchOpen && searchDraftTerm.length > 1
 
   const optionsQuery = useQuery({
     queryKey: ["collection-item-form-options"],
@@ -2238,7 +2451,7 @@ export function AddCollectionItemDialog({
   const cardSearchQuery = useQuery({
     queryKey: ["collection-item-card-search", searchTerm],
     queryFn: () => request(LocationCoverCardSearchDocument, { q: searchTerm, limit: 8 }),
-    enabled: open && searchTerm.length > 1,
+    enabled: open && !selectedPrinting && isCardSearchOpen && searchTerm.length > 1,
     staleTime: 60_000,
   })
   const createItem = useMutation({
@@ -2269,7 +2482,7 @@ export function AddCollectionItemDialog({
       close(true)
     },
     onError: (error) =>
-      setError(error instanceof Error ? error.message : "Could not add collection item"),
+      setError(error instanceof Error ? error.message : "Could not add collection card"),
   })
 
   useEffect(() => {
@@ -2285,6 +2498,7 @@ export function AddCollectionItemDialog({
     setNotes("")
     setPurchasePrice("")
     setError(null)
+    setIsCardSearchOpen(false)
   }, [initialPrinting, open])
 
   useEffect(() => {
@@ -2306,6 +2520,30 @@ export function AddCollectionItemDialog({
     })
     setFinish(collectionFinishValue(printing.finishes?.filter(present)[0] || "nonfoil"))
     setSearch("")
+    setIsCardSearchOpen(false)
+  }
+
+  function handleCardSearchChange(value: string) {
+    setSearch(value)
+    setIsCardSearchOpen(value.trim().length > 1)
+  }
+
+  function handleCardSuggestionSelect(value: string) {
+    setSearch(value)
+    setIsCardSearchOpen(true)
+  }
+
+  function handleCardSearchBlur(event: React.FocusEvent<HTMLDivElement>) {
+    if (isCardSearchPointerInsideRef.current) return
+    if (!cardSearchRootRef.current?.contains(event.relatedTarget as Node | null))
+      setIsCardSearchOpen(false)
+  }
+
+  function markCardSearchPointerInside() {
+    isCardSearchPointerInsideRef.current = true
+    window.setTimeout(() => {
+      isCardSearchPointerInsideRef.current = false
+    }, 0)
   }
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -2339,12 +2577,12 @@ export function AddCollectionItemDialog({
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : close())}>
       <DialogContent
-        className="max-h-[calc(100dvh-4rem)] max-w-4xl overflow-y-auto"
+        className="max-h-[calc(100dvh_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom)_-_2rem)] max-w-4xl overflow-y-auto sm:max-h-[calc(100dvh_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom)_-_4rem)]"
         labelledBy="add-collection-item-title"
       >
         <DialogHeader>
           <div>
-            <DialogTitle id="add-collection-item-title">Add collection item</DialogTitle>
+            <DialogTitle id="add-collection-item-title">Add collection card</DialogTitle>
             <p className="mt-1 text-sm text-base-content/60">
               Choose an exact printing and where it lives.
             </p>
@@ -2352,14 +2590,14 @@ export function AddCollectionItemDialog({
           <DialogClose onClose={() => close()} />
         </DialogHeader>
 
-        <form className="space-y-5 p-5" onSubmit={submit}>
-          <section className="space-y-3">
-            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+        <form className="space-y-3 p-4 sm:p-5" onSubmit={submit}>
+          <fieldset className="space-y-2">
+            <legend className="text-xs font-black uppercase tracking-[0.18em] text-accent">
               Printing
-            </span>
+            </legend>
             {selectedPrinting ? (
-              <div className="flex gap-3 rounded-box border border-base-300 bg-base-200/40 p-3">
-                <div className="h-32 w-24 shrink-0 overflow-hidden rounded-lg bg-base-300">
+              <div className="flex gap-3 rounded-box border border-base-300 bg-base-200/40 p-2.5">
+                <div className="h-28 w-20 shrink-0 overflow-hidden rounded-lg bg-base-300">
                   {selectedPrinting.imageUrl ? (
                     <img
                       src={selectedPrinting.imageUrl}
@@ -2372,12 +2610,12 @@ export function AddCollectionItemDialog({
                     </div>
                   )}
                 </div>
-                <div className="min-w-0 flex-1 py-1">
-                  <p className="font-bold">{selectedPrinting.cardName}</p>
+                <div className="min-w-0 flex-1 py-0.5">
+                  <p className="font-bold leading-tight">{selectedPrinting.cardName}</p>
                   {selectedPrinting.typeLine ? (
-                    <p className="text-sm text-base-content/60">{selectedPrinting.typeLine}</p>
+                    <p className="mt-1 text-xs text-base-content/60">{selectedPrinting.typeLine}</p>
                   ) : null}
-                  <p className="mt-2 text-sm text-base-content/65">
+                  <p className="mt-1 text-xs text-base-content/65">
                     {printingSetLabel(selectedPrinting)}
                   </p>
                 </div>
@@ -2393,17 +2631,27 @@ export function AddCollectionItemDialog({
             ) : null}
 
             {!selectedPrinting ? (
-              <>
+              <div
+                ref={cardSearchRootRef}
+                className="space-y-2"
+                onBlur={handleCardSearchBlur}
+                onPointerDownCapture={markCardSearchPointerInside}
+              >
                 <CardNameSearchField
                   value={search}
-                  onValueChange={setSearch}
-                  onClear={() => setSearch("")}
-                  onSuggestionSelect={setSearch}
+                  onValueChange={handleCardSearchChange}
+                  onClear={() => {
+                    setSearch("")
+                    setIsCardSearchOpen(false)
+                  }}
+                  onFocus={() => setIsCardSearchOpen(searchDraftTerm.length > 1)}
+                  onSuggestionSelect={handleCardSuggestionSelect}
+                  aria-label="Search for a card"
                   placeholder="Search for a card"
                   suggestionLimit={8}
                 />
-                {searchDraftTerm.length > 1 ? (
-                  <div className="max-h-80 overflow-y-auto rounded-box border border-base-300 bg-base-100">
+                {showCardSearchResults ? (
+                  <div className="max-h-64 overflow-y-auto rounded-box border border-base-300 bg-base-100">
                     {cardSearchQuery.isFetching || searchTerm !== searchDraftTerm ? (
                       <p className="px-3 py-2 text-sm text-base-content/55">Searching...</p>
                     ) : null}
@@ -2416,15 +2664,15 @@ export function AddCollectionItemDialog({
                       ? cardSearchQuery.data?.cards.map((card) => (
                           <div
                             key={card.oracleId}
-                            className="border-t border-base-300 p-3 first:border-t-0"
+                            className="border-t border-base-300 p-2 first:border-t-0"
                           >
-                            <div className="mb-2">
-                              <p className="font-bold">{card.name}</p>
+                            <div className="mb-1.5">
+                              <p className="font-bold leading-tight">{card.name}</p>
                               {card.typeLine ? (
                                 <p className="text-xs text-base-content/55">{card.typeLine}</p>
                               ) : null}
                             </div>
-                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 md:grid-cols-4">
                               {card.printings
                                 ?.filter(present)
                                 .slice(0, 8)
@@ -2432,7 +2680,7 @@ export function AddCollectionItemDialog({
                                   <button
                                     key={printing.scryfallId}
                                     type="button"
-                                    className="group rounded-lg border border-base-300 bg-base-200/40 p-2 text-left transition hover:border-primary hover:bg-base-200"
+                                    className="group rounded-lg border border-base-300 bg-base-200/40 p-1.5 text-left transition hover:border-primary hover:bg-base-200"
                                     onClick={() => selectPrinting(card, printing)}
                                   >
                                     <div className="aspect-[5/7] overflow-hidden rounded bg-base-300">
@@ -2449,7 +2697,7 @@ export function AddCollectionItemDialog({
                                         </div>
                                       )}
                                     </div>
-                                    <p className="mt-2 truncate text-xs font-bold uppercase">
+                                    <p className="mt-1.5 truncate text-xs font-bold uppercase">
                                       {printing.setCode || "Unknown set"}
                                     </p>
                                     <p className="truncate text-xs text-base-content/60">
@@ -2463,29 +2711,19 @@ export function AddCollectionItemDialog({
                       : null}
                   </div>
                 ) : null}
-              </>
+              </div>
             ) : null}
-          </section>
+          </fieldset>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
-                Quantity
-              </span>
-              <Input
-                type="number"
-                min={1}
-                value={quantity}
-                onChange={(event) => setQuantity(Math.max(1, Number(event.target.value) || 1))}
-              />
-            </label>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <CollectionQuantityField value={quantity} onChange={setQuantity} />
 
-            <label className="block space-y-2">
+            <label className="block space-y-1.5">
               <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
                 Condition
               </span>
               <select
-                className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="select select-bordered h-9 min-h-9 w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 value={condition}
                 onChange={(event) => setCondition(collectionConditionValue(event.target.value))}
               >
@@ -2497,77 +2735,68 @@ export function AddCollectionItemDialog({
               </select>
             </label>
 
-            <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
-                Finish
-              </span>
-              <select
-                className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                value={finish}
-                onChange={(event) => setFinish(collectionFinishValue(event.target.value))}
-              >
-                {finishOptions.map((finish) => (
-                  <option key={finish} value={finish}>
-                    {titleize(finish)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <CollectionFinishField options={finishOptions} value={finish} onChange={setFinish} />
 
-            <label className="block space-y-2">
+            <label className="block space-y-1.5">
               <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
                 Language
               </span>
-              <Input value={language} onChange={(event) => setLanguage(event.target.value)} />
+              <Input
+                className="h-9 min-h-9"
+                value={language}
+                onChange={(event) => setLanguage(event.target.value)}
+                placeholder="en"
+              />
+            </label>
+
+            <label className="block space-y-1.5 lg:col-span-2">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Purchase price
+              </span>
+              <Input
+                className="h-9 min-h-9"
+                inputMode="decimal"
+                value={purchasePrice}
+                onChange={(event) => setPurchasePrice(event.target.value)}
+                placeholder="Current market price"
+              />
+              <span className="block text-xs leading-tight text-base-content/55">
+                Leave blank to use the current market price.
+              </span>
+            </label>
+
+            <label className="block space-y-1.5 lg:col-span-2">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Location
+              </span>
+              <select
+                className="select select-bordered h-9 min-h-9 w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                value={locationId}
+                onChange={(event) => setLocationId(event.target.value)}
+              >
+                <option value="">Unfiled</option>
+                {optionsQuery.data?.locations
+                  .filter((location) => !isUnfiledLocation(location))
+                  .map((location) => (
+                    <option key={location.id} value={location.id}>
+                      {location.name} ({titleize(location.kind)})
+                    </option>
+                  ))}
+              </select>
+            </label>
+
+            <label className="block space-y-1.5 sm:col-span-2 lg:col-span-4">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Notes
+              </span>
+              <textarea
+                className="textarea textarea-bordered min-h-16 w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                placeholder="Optional notes"
+              />
             </label>
           </div>
-
-          <label className="block space-y-2">
-            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
-              Purchase price
-            </span>
-            <Input
-              inputMode="decimal"
-              value={purchasePrice}
-              onChange={(event) => setPurchasePrice(event.target.value)}
-              placeholder="Current market price"
-            />
-            <span className="block text-xs text-base-content/55">
-              Leave blank to use the current market price.
-            </span>
-          </label>
-
-          <label className="block space-y-2">
-            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
-              Location
-            </span>
-            <select
-              className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              value={locationId}
-              onChange={(event) => setLocationId(event.target.value)}
-            >
-              <option value="">Unfiled</option>
-              {optionsQuery.data?.locations
-                .filter((location) => !isUnfiledLocation(location))
-                .map((location) => (
-                  <option key={location.id} value={location.id}>
-                    {location.name} ({titleize(location.kind)})
-                  </option>
-                ))}
-            </select>
-          </label>
-
-          <label className="block space-y-2">
-            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
-              Notes
-            </span>
-            <textarea
-              className="textarea textarea-bordered min-h-20 w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              placeholder="Optional notes"
-            />
-          </label>
 
           {error ? (
             <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
@@ -2575,7 +2804,7 @@ export function AddCollectionItemDialog({
             </p>
           ) : null}
 
-          <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-4">
+          <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-3">
             <Button
               type="button"
               variant="ghost"
@@ -2586,7 +2815,7 @@ export function AddCollectionItemDialog({
             </Button>
             <Button type="submit" disabled={createItem.isPending}>
               <Plus className="h-4 w-4" />
-              {createItem.isPending ? "Adding..." : "Add item"}
+              {createItem.isPending ? "Adding card..." : "Add card"}
             </Button>
           </div>
         </form>
@@ -2741,7 +2970,7 @@ function ImportCollectionDialog({
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : close())}>
       <DialogContent
-        className="manavault-import-dialog flex max-w-5xl flex-col"
+        className="manavault-import-dialog flex min-h-0 max-w-5xl flex-col"
         labelledBy="import-collection-title"
       >
         <DialogHeader>
@@ -2936,10 +3165,12 @@ function ImportCollectionDialog({
 function ExportCollectionDialog({
   filters,
   format,
+  fileName = format === "csv" ? "collection.csv" : "collection.txt",
   onOpenChange,
   open,
   title = format === "csv" ? "Export collection CSV" : "Export collection TXT",
 }: {
+  fileName?: string
   filters: CollectionExportFilters
   format: CollectionExportFormat
   onOpenChange: (open: boolean) => void
@@ -2948,9 +3179,10 @@ function ExportCollectionDialog({
 }) {
   const [exportText, setExportText] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const isCsvExport = format === "csv"
   const exportCollection = useMutation({
     mutationFn: async () => {
-      if (format === "csv") {
+      if (isCsvExport) {
         const data = await request(CollectionExportCsvDocument, { filters })
         return data.collectionExportCsv
       }
@@ -2959,6 +3191,14 @@ function ExportCollectionDialog({
       return data.collectionExportText
     },
     onSuccess: (text) => {
+      if (isCsvExport) {
+        downloadCollectionExport(text, fileName, "text/csv;charset=utf-8")
+        setExportText("")
+        setError(null)
+        onOpenChange(false)
+        return
+      }
+
       setExportText(text)
       setError(null)
     },
@@ -2974,28 +3214,34 @@ function ExportCollectionDialog({
     }
   }, [open, format])
 
+  if (isCsvExport && !error) return null
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-h-[calc(100dvh-4rem)] max-w-4xl overflow-y-auto"
+        className="max-h-[calc(100dvh_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom)_-_2rem)] max-w-4xl overflow-y-auto sm:max-h-[calc(100dvh_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom)_-_4rem)]"
         labelledBy="export-collection-title"
       >
         <DialogHeader>
           <div>
             <DialogTitle id="export-collection-title">{title}</DialogTitle>
             <p className="mt-1 text-sm text-base-content/60">
-              Copy the {format.toUpperCase()} or save it from the text area.
+              {isCsvExport
+                ? "The CSV download could not be prepared."
+                : "Copy the TXT or save it from the text area."}
             </p>
           </div>
           <DialogClose onClose={() => onOpenChange(false)} />
         </DialogHeader>
 
         <div className="space-y-4 p-5">
-          <textarea
-            className="textarea textarea-bordered min-h-72 w-full bg-base-100 font-mono text-xs"
-            readOnly
-            value={exportCollection.isPending ? "Exporting..." : exportText}
-          />
+          {isCsvExport ? null : (
+            <textarea
+              className="textarea textarea-bordered min-h-72 w-full bg-base-100 font-mono text-xs"
+              readOnly
+              value={exportCollection.isPending ? "Exporting..." : exportText}
+            />
+          )}
           {error ? (
             <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
               {error}
@@ -3010,6 +3256,33 @@ function ExportCollectionDialog({
       </DialogContent>
     </Dialog>
   )
+}
+
+function downloadCollectionExport(text: string, fileName: string, type: string) {
+  const blob = new Blob([text], { type })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement("a")
+
+  link.href = url
+  link.download = sanitizeExportFileName(fileName)
+  link.style.display = "none"
+
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1_000)
+}
+
+function sanitizeExportFileName(fileName: string) {
+  const trimmedFileName = fileName.trim()
+  const match = /^(.*?)(\.[^.]+)?$/.exec(trimmedFileName)
+  const baseName = (match?.[1] || "collection")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+  const extension = match?.[2]?.toLowerCase() || ".csv"
+
+  return `${baseName || "collection"}${extension}`
 }
 
 function AddLocationDialog({
@@ -3116,7 +3389,7 @@ function AddLocationDialog({
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : close())}>
       <DialogContent
-        className="max-h-[calc(100dvh-4rem)] max-w-3xl overflow-y-auto"
+        className="max-h-[calc(100dvh_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom)_-_2rem)] max-w-3xl overflow-y-auto sm:max-h-[calc(100dvh_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom)_-_4rem)]"
         labelledBy="add-location-title"
       >
         <DialogHeader>
@@ -3684,13 +3957,24 @@ function importStatusTone(status: string): "neutral" | "success" | "warning" | "
 }
 
 export function CollectionPage({ importFile = false }: { importFile?: boolean }) {
-  const [activeTab, setActiveTab] = useState<CollectionTab>("locations")
-  const [q, setQ] = useState("")
-  const [appliedSearch, setAppliedSearch] = useState("")
-  const [sort, setSort] = useState<CollectionSort>({
-    field: "name",
-    direction: "asc",
+  const [activeTab, setActiveTab] = useLocalStorageState<CollectionTab>(
+    COLLECTION_ACTIVE_TAB_STORAGE_KEY,
+    "locations",
+    { deserialize: deserializeCollectionTab },
+  )
+  const [q, setQ] = useLocalStorageState<string>(COLLECTION_SEARCH_DRAFT_STORAGE_KEY, "", {
+    shouldRemove: isBlankStorageString,
   })
+  const [appliedSearch, setAppliedSearch] = useLocalStorageState<string>(
+    COLLECTION_APPLIED_SEARCH_STORAGE_KEY,
+    "",
+    { shouldRemove: isBlankStorageString },
+  )
+  const [sort, setSort] = useLocalStorageState<CollectionSort>(
+    COLLECTION_SORT_STORAGE_KEY,
+    DEFAULT_COLLECTION_SORT,
+    { deserialize: deserializeCollectionSort, shouldRemove: isDefaultCollectionSort },
+  )
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
   const [isAddItemOpen, setIsAddItemOpen] = useState(false)
   const [isAddLocationOpen, setIsAddLocationOpen] = useState(false)
@@ -3707,8 +3991,16 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
   const [bulkListTarget, setBulkListTarget] = useState<CollectionItem[] | null>(null)
   const [bulkMoveTarget, setBulkMoveTarget] = useState<CollectionItem[] | null>(null)
   const [bulkDeleteTarget, setBulkDeleteTarget] = useState<CollectionItem[] | null>(null)
-  const [structuredFilters, setStructuredFilters] =
-    useState<CollectionFilterState>(EMPTY_COLLECTION_FILTERS)
+  const [isSelectingAllCollectionItems, setIsSelectingAllCollectionItems] = useState(false)
+  const [structuredFilters, setStructuredFilters] = useLocalStorageState<CollectionFilterState>(
+    COLLECTION_FILTERS_STORAGE_KEY,
+    createEmptyCollectionFilters,
+    {
+      deserialize: decodeCollectionFilters,
+      serialize: serializeStoredCollectionFilters,
+      shouldRemove: hasNoCollectionFilters,
+    },
+  )
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const deleteLocation = useMutation({
@@ -3753,8 +4045,9 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
   const filterBadgeCount = activeStructuredFilterCount
   const collectionCountLabel = `${data?.collectionItemCount || 0} ${hasCollectionFilters ? "shown" : "total"}`
   const loadMoreAllItems = useCallback(() => {
+    if (isSelectingAllCollectionItems) return
     void allItemsQuery.fetchNextPage()
-  }, [allItemsQuery])
+  }, [allItemsQuery, isSelectingAllCollectionItems])
   const locationGroups = useMemo(() => {
     const groups = new Map<string, NonNullable<typeof data>["locations"]>()
 
@@ -3777,7 +4070,11 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
 
       if (payload) setSharedImport(payload)
       setIsImportOpen(true)
-      void navigate({ to: "/collection", search: { importFile: false }, replace: true })
+      void navigate({
+        to: "/collection",
+        search: (previous) => ({ ...previous, importFile: false }),
+        replace: true,
+      })
     })()
 
     return () => {
@@ -3815,7 +4112,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
   }
 
   function clearStructuredFilters() {
-    setStructuredFilters(EMPTY_COLLECTION_FILTERS)
+    setStructuredFilters(createEmptyCollectionFilters())
   }
 
   function clearAllCollectionFilters() {
@@ -3832,6 +4129,34 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
     if (activeTab === "all" && tab !== "all") clearAllCollectionFilters()
     selection.clearSelection()
     setActiveTab(tab)
+  }
+
+  async function selectAllCollectionItems() {
+    if (isSelectingAllCollectionItems || allItemsQuery.isFetchingNextPage) return
+
+    let itemsToSelect = allCollectionItems
+
+    if (!allItemsQuery.hasNextPage) {
+      selection.selectItems(itemsToSelect)
+      return
+    }
+
+    setIsSelectingAllCollectionItems(true)
+    try {
+      let hasNextPage: boolean = allItemsQuery.hasNextPage
+
+      while (hasNextPage) {
+        const result = await allItemsQuery.fetchNextPage()
+        itemsToSelect =
+          result.data?.pages.flatMap((page) => page.collectionItems).filter(present) ||
+          itemsToSelect
+        hasNextPage = result.hasNextPage
+      }
+
+      selection.selectItems(itemsToSelect)
+    } finally {
+      setIsSelectingAllCollectionItems(false)
+    }
   }
 
   function finishBulkCollectionAction() {
@@ -3859,7 +4184,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
         bottomActions={
           <Button type="button" onClick={() => setIsAddItemOpen(true)}>
             <Plus className="h-4 w-4" />
-            Add item
+            Add card
           </Button>
         }
         actions={
@@ -3921,7 +4246,12 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
             <p className="text-xs font-black uppercase tracking-[0.18em] text-base-content/50">
               Value gain
             </p>
-            <p className="mt-1 font-mono text-2xl font-black">
+            <p
+              className={cn(
+                "mt-1 font-mono text-2xl font-black",
+                collectionValueGainClass(data.collectionValueSummary.valueGainText),
+              )}
+            >
               {data.collectionValueSummary.valueGainText || "$0"}
               {data.collectionValueSummary.valueGainPercentText
                 ? ` (${data.collectionValueSummary.valueGainPercentText})`
@@ -4053,6 +4383,10 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
 
           <CollectionBulkActionBar
             allLoadedSelected={selection.allLoadedSelected}
+            hasNextPage={Boolean(allItemsQuery.hasNextPage)}
+            isSelectAllPending={
+              isSelectingAllCollectionItems || allItemsQuery.isFetchingNextPage
+            }
             loadedCount={allCollectionItems.length}
             selectedCount={selection.selectedCount}
             selectionActive={selection.selectionActive}
@@ -4061,7 +4395,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
             onClear={selection.clearSelection}
             onDelete={() => setBulkDeleteTarget(selection.selectedItems)}
             onMove={() => setBulkMoveTarget(selection.selectedItems)}
-            onSelectLoaded={selection.selectLoaded}
+            onSelectAll={() => void selectAllCollectionItems()}
           />
 
           <PageSection count={collectionCountLabel}>
@@ -4104,6 +4438,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
         format="csv"
         open={isExportCsvOpen}
         onOpenChange={setIsExportCsvOpen}
+        fileName="collection.csv"
       />
       <ExportCollectionDialog
         filters={exportingLocation ? { locationId: exportingLocation.location.id } : {}}
@@ -4111,6 +4446,11 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
         title={
           exportingLocation
             ? `Export ${exportingLocation.location.name} ${exportingLocation.format.toUpperCase()}`
+            : undefined
+        }
+        fileName={
+          exportingLocation
+            ? `${exportingLocation.location.name}.${exportingLocation.format === "csv" ? "csv" : "txt"}`
             : undefined
         }
         open={Boolean(exportingLocation)}
@@ -4280,12 +4620,20 @@ function CollectionTabButton({
 }
 
 export function LocationPage({ id }: { id: string }) {
-  const [q, setQ] = useState("")
-  const [appliedSearch, setAppliedSearch] = useState("")
-  const [sort, setSort] = useState<CollectionSort>({
-    field: "name",
-    direction: "asc",
+  const locationStateStoragePrefix = `${COLLECTION_LOCATION_STATE_STORAGE_PREFIX}.${encodeURIComponent(id)}`
+  const [q, setQ] = useLocalStorageState<string>(`${locationStateStoragePrefix}.searchDraft`, "", {
+    shouldRemove: isBlankStorageString,
   })
+  const [appliedSearch, setAppliedSearch] = useLocalStorageState<string>(
+    `${locationStateStoragePrefix}.appliedSearch`,
+    "",
+    { shouldRemove: isBlankStorageString },
+  )
+  const [sort, setSort] = useLocalStorageState<CollectionSort>(
+    `${locationStateStoragePrefix}.sort`,
+    DEFAULT_COLLECTION_SORT,
+    { deserialize: deserializeCollectionSort, shouldRemove: isDefaultCollectionSort },
+  )
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
   const [isEditLocationOpen, setIsEditLocationOpen] = useState(false)
   const [isDeleteLocationOpen, setIsDeleteLocationOpen] = useState(false)
@@ -4296,8 +4644,16 @@ export function LocationPage({ id }: { id: string }) {
   const [bulkListTarget, setBulkListTarget] = useState<CollectionItem[] | null>(null)
   const [bulkMoveTarget, setBulkMoveTarget] = useState<CollectionItem[] | null>(null)
   const [bulkDeleteTarget, setBulkDeleteTarget] = useState<CollectionItem[] | null>(null)
-  const [structuredFilters, setStructuredFilters] =
-    useState<CollectionFilterState>(EMPTY_COLLECTION_FILTERS)
+  const [isSelectingAllLocationItems, setIsSelectingAllLocationItems] = useState(false)
+  const [structuredFilters, setStructuredFilters] = useLocalStorageState<CollectionFilterState>(
+    `${locationStateStoragePrefix}.filters`,
+    createEmptyCollectionFilters,
+    {
+      deserialize: decodeCollectionFilters,
+      serialize: serializeStoredCollectionFilters,
+      shouldRemove: hasNoCollectionFilters,
+    },
+  )
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const deleteLocation = useMutation({
@@ -4345,8 +4701,9 @@ export function LocationPage({ id }: { id: string }) {
   )
   const selection = useCollectionItemSelection(collectionItems)
   const loadMore = useCallback(() => {
+    if (isSelectingAllLocationItems) return
     void itemsQuery.fetchNextPage()
-  }, [itemsQuery])
+  }, [isSelectingAllLocationItems, itemsQuery])
   const location = data?.location
   const activeStructuredFilterCount = countActiveCollectionFilters(structuredFilters)
   const hasLocationFilters = Boolean(combinedCollectionQuery)
@@ -4373,12 +4730,40 @@ export function LocationPage({ id }: { id: string }) {
   }
 
   function clearStructuredFilters() {
-    setStructuredFilters(EMPTY_COLLECTION_FILTERS)
+    setStructuredFilters(createEmptyCollectionFilters())
   }
 
   function applyStructuredFilters(nextFilters: CollectionFilterState) {
     setStructuredFilters(nextFilters)
     setIsFilterModalOpen(false)
+  }
+
+  async function selectAllLocationItems() {
+    if (isSelectingAllLocationItems || itemsQuery.isFetchingNextPage) return
+
+    let itemsToSelect = collectionItems
+
+    if (!itemsQuery.hasNextPage) {
+      selection.selectItems(itemsToSelect)
+      return
+    }
+
+    setIsSelectingAllLocationItems(true)
+    try {
+      let hasNextPage: boolean = itemsQuery.hasNextPage
+
+      while (hasNextPage) {
+        const result = await itemsQuery.fetchNextPage()
+        itemsToSelect =
+          result.data?.pages.flatMap((page) => page.collectionItems).filter(present) ||
+          itemsToSelect
+        hasNextPage = result.hasNextPage
+      }
+
+      selection.selectItems(itemsToSelect)
+    } finally {
+      setIsSelectingAllLocationItems(false)
+    }
   }
 
   function finishBulkLocationAction() {
@@ -4478,6 +4863,8 @@ export function LocationPage({ id }: { id: string }) {
         <div className="space-y-7">
           <CollectionBulkActionBar
             allLoadedSelected={selection.allLoadedSelected}
+            hasNextPage={Boolean(itemsQuery.hasNextPage)}
+            isSelectAllPending={isSelectingAllLocationItems || itemsQuery.isFetchingNextPage}
             loadedCount={collectionItems.length}
             selectedCount={selection.selectedCount}
             selectionActive={selection.selectionActive}
@@ -4486,7 +4873,7 @@ export function LocationPage({ id }: { id: string }) {
             onClear={selection.clearSelection}
             onDelete={() => setBulkDeleteTarget(selection.selectedItems)}
             onMove={() => setBulkMoveTarget(selection.selectedItems)}
-            onSelectLoaded={selection.selectLoaded}
+            onSelectAll={() => void selectAllLocationItems()}
           />
           <PageSection count={locationCountLabel}>
             <VirtualizedCollectionGrid
@@ -4510,6 +4897,7 @@ export function LocationPage({ id }: { id: string }) {
         filters={{ locationId: location.id }}
         format={exportLocationFormat || "csv"}
         title={`Export ${location.name} ${(exportLocationFormat || "csv").toUpperCase()}`}
+        fileName={`${location.name}.${(exportLocationFormat || "csv") === "csv" ? "csv" : "txt"}`}
         open={Boolean(exportLocationFormat)}
         onOpenChange={(open) => !open && setExportLocationFormat(null)}
       />

@@ -1,10 +1,40 @@
 import { motion } from "motion/react"
 import { ChevronLeft, ChevronRight, X } from "lucide-react"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import ProfileCard from "./profile-card"
 import { Button } from "./ui/button"
 import { Dialog, DialogContent } from "./ui/dialog"
 import { present, titleize } from "../lib/utils"
+
+const MOBILE_INTERACTION_QUERY =
+  "(pointer: coarse), (any-pointer: coarse), (hover: none), (any-hover: none)"
+
+function getMobileInteractionMedia() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return null
+  return window.matchMedia(MOBILE_INTERACTION_QUERY)
+}
+
+function useFullscreenTiltEnabled() {
+  const [enabled, setEnabled] = useState(() => !getMobileInteractionMedia()?.matches)
+
+  useEffect(() => {
+    const media = getMobileInteractionMedia()
+    if (!media) return
+
+    const update = () => setEnabled(!media.matches)
+    update()
+
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", update)
+      return () => media.removeEventListener("change", update)
+    }
+
+    media.addListener(update)
+    return () => media.removeListener(update)
+  }, [])
+
+  return enabled
+}
 
 export type FullscreenPrintingCard = {
   name: string
@@ -36,6 +66,7 @@ export function FullscreenPrintingDialog({
   onOpenChange: (open: boolean) => void
   onPrintingChange: (printingId: string) => void
 }) {
+  const fullscreenTiltEnabled = useFullscreenTiltEnabled()
   const currentIndex = currentPrintingId
     ? printings.findIndex((printing) => printing.scryfallId === currentPrintingId)
     : -1
@@ -195,8 +226,9 @@ export function FullscreenPrintingDialog({
                       ? "manavault-printing-profile-card manavault-printing-profile-card--foil"
                       : "manavault-printing-profile-card"
                   }
-                  enableTilt
-                  enableMobileTilt
+                  enableTilt={fullscreenTiltEnabled}
+                  enableMobileTilt={false}
+                  disableTiltOnCoarsePointer
                   name={card.name}
                   title={subtitle}
                   handle={setLabel || printing.setCode?.toUpperCase() || "printing"}

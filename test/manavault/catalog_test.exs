@@ -354,7 +354,8 @@ defmodule Manavault.CatalogTest do
   test "price helpers parse and shorten Scryfall prices" do
     assert Price.format_cents(99) == "$0.99"
     assert Price.format_cents(12_345) == "$123"
-    assert Price.format_cents(240_000) == "$2.4k"
+    assert Price.format_cents(240_000) == "$2400"
+    assert Price.format_cents(1_000_000) == "$10k"
     assert Price.format_cents(10_000_000) == "$100k"
     assert Price.parse_cents("$1,234.50") == 123_450
     assert Price.format_signed_cents(468) == "+$4.68"
@@ -914,6 +915,36 @@ defmodule Manavault.CatalogTest do
 
     assert %{status: "legal", issues: []} =
              deck.id |> Catalog.get_deck!() |> Catalog.deck_legality()
+  end
+
+  test "deck legality uses already preloaded deck cards" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([legal_commander_card(), legal_plains()])
+
+    assert {:ok, deck} =
+             Catalog.create_deck(%{
+               "name" => "Preloaded Commander",
+               "format" => "commander"
+             })
+
+    add_deck_card!(deck, "Test Commander", 1, "commander")
+    add_deck_card!(deck, "Plains", 99, "mainboard")
+
+    preloaded_deck = Catalog.get_deck!(deck.id)
+
+    deck_cards =
+      Enum.map(preloaded_deck.deck_cards, fn
+        %DeckCard{card: %Card{name: "Plains"} = card} = deck_card ->
+          %{deck_card | card: %{card | legalities: %{"commander" => "banned"}}}
+
+        deck_card ->
+          deck_card
+      end)
+
+    legality = Catalog.deck_legality(%{preloaded_deck | deck_cards: deck_cards})
+
+    assert legality.status == "illegal"
+    assert issue_by_code(legality, "card_legality").card_name == "Plains"
   end
 
   test "deck legality rejects duplicate non-basic commander cards" do

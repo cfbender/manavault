@@ -23,6 +23,7 @@ type CardNameSearchFieldProps = Omit<
 }
 
 export function CardNameSearchField({
+  onBlur,
   onClear,
   onFocus,
   onKeyDown,
@@ -94,6 +95,11 @@ export function CardNameSearchField({
     onFocus?.(event)
   }
 
+  function handleBlur(event: FocusEvent<HTMLInputElement>) {
+    if (!rootRef.current?.contains(event.relatedTarget as Node | null)) setIsOpen(false)
+    onBlur?.(event)
+  }
+
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (!isOpen || suggestions.length === 0) {
       if (event.key === "Escape") setIsOpen(false)
@@ -128,6 +134,7 @@ export function CardNameSearchField({
         onValueChange={handleValueChange}
         onClear={closeAndClear}
         onFocus={handleFocus}
+        onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         autoComplete="off"
         role="combobox"
@@ -149,7 +156,10 @@ export function CardNameSearchField({
                 "block w-full px-3 py-2 text-left text-sm transition-colors",
                 index === activeIndex ? "bg-primary text-primary-content" : "hover:bg-base-200",
               ].join(" ")}
-              onMouseDown={(event) => event.preventDefault()}
+              onPointerDown={(event) => {
+                event.preventDefault()
+                selectSuggestion(name)
+              }}
               onClick={() => selectSuggestion(name)}
             >
               {name}

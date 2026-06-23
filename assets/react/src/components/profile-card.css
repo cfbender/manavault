@@ -526,6 +526,43 @@
   opacity: 0.28;
 }
 
+@media (pointer: coarse), (any-pointer: coarse), (hover: none), (any-hover: none) {
+  .manavault-printing-profile-card--foil .pc-card,
+  .manavault-printing-profile-card--foil .pc-shine,
+  .manavault-printing-profile-card--foil .pc-shine::before,
+  .manavault-printing-profile-card--foil .pc-shine::after {
+    animation: none;
+    transition: none;
+  }
+
+  .manavault-printing-profile-card--foil .pc-card:hover,
+  .manavault-printing-profile-card--foil .pc-card.active,
+  .manavault-printing-profile-card--foil .pc-card-shell.active .pc-card {
+    transform: translateZ(0);
+  }
+
+  .manavault-printing-profile-card--foil .pc-shine {
+    filter: brightness(1.02) contrast(1.28) saturate(1.9);
+    opacity: 0.42;
+  }
+
+  .manavault-printing-profile-card--foil .pc-shine::before {
+    background-position: 50% 50%;
+    opacity: 0.4;
+  }
+
+  .manavault-printing-profile-card--foil .pc-shine::after {
+    background-position:
+      50% 50%,
+      50% 50%;
+    opacity: 0.34;
+  }
+
+  .manavault-printing-profile-card--foil .pc-inside::after {
+    background-position: 50% 50%;
+  }
+}
+
 @keyframes glow-bg {
   0% {
     --bgrotate: 0deg;
