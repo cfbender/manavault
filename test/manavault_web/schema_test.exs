@@ -622,6 +622,55 @@ defmodule ManavaultWeb.SchemaTest do
            } = json_response(conn, 200)
   end
 
+  test "card query exposes Scryfall legalities", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-legality-printing",
+          "oracle_id" => "oracle-legalities",
+          "name" => "Legality Card",
+          "type_line" => "Sorcery",
+          "collector_number" => "2",
+          "set" => "leg",
+          "set_name" => "Legality Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{
+            "modern" => "not_legal",
+            "commander" => "legal",
+            "standard" => "banned"
+          }
+        }
+      ])
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query {
+          card(id: "oracle-legalities") {
+            legalities {
+              format
+              status
+            }
+          }
+        }
+        """
+      })
+
+    assert %{
+             "data" => %{
+               "card" => %{
+                 "legalities" => [
+                   %{"format" => "commander", "status" => "legal"},
+                   %{"format" => "modern", "status" => "not_legal"},
+                   %{"format" => "standard", "status" => "banned"}
+                 ]
+               }
+             }
+           } = json_response(conn, 200)
+  end
+
   test "create deck mutation creates a deck", %{conn: conn} do
     conn =
       post(conn, "/api/graphql", %{

@@ -453,6 +453,18 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
   def card_rulings(_card, _args, _resolution), do: {:ok, []}
 
+  def card_legalities(%Card{} = card, _args, _resolution) do
+    legalities =
+      card
+      |> Map.get(:legalities)
+      |> decode_json(%{})
+      |> legality_entries()
+
+    {:ok, legalities}
+  end
+
+  def card_legalities(_card, _args, _resolution), do: {:ok, []}
+
   def printing_image_url(%Printing{} = printing, _args, _resolution) do
     image_uris = decode_json(printing.image_uris, %{})
     {:ok, image_url(image_uris)}
@@ -723,6 +735,20 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
     end)
     |> Enum.map_join(", ", fn {field, messages} -> "#{field} #{Enum.join(messages, ", ")}" end)
   end
+
+  defp legality_entries(%{} = legalities) do
+    legalities
+    |> Enum.flat_map(fn
+      {format, status} when is_binary(format) and is_binary(status) ->
+        [%{format: format, status: status}]
+
+      _entry ->
+        []
+    end)
+    |> Enum.sort_by(& &1.format)
+  end
+
+  defp legality_entries(_legalities), do: []
 
   defp decode_json(value, fallback) when is_binary(value) do
     case Jason.decode(value) do

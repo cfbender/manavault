@@ -31,7 +31,7 @@ import {
   EMPTY_COLLECTION_FILTERS,
   type CollectionFilterState,
 } from "../lib/collection-filters"
-import { present, titleize } from "../lib/utils"
+import { cn, present, titleize } from "../lib/utils"
 import {
   AddCollectionItemDialog,
   type AddCollectionItemInitialPrinting,
@@ -108,6 +108,10 @@ const CardDocument = graphql(`
         weight
         annotation
       }
+      legalities {
+        format
+        status
+      }
       rulings {
         source
         publishedAt
@@ -135,6 +139,24 @@ const CardDocument = graphql(`
 type CardDetail = NonNullable<CardQuery["card"]>
 type CardPrinting = NonNullable<NonNullable<CardDetail["printings"]>[number]>
 type CardRuling = NonNullable<CardDetail["rulings"]>[number]
+type CardLegality = CardDetail["legalities"][number]
+
+const CARD_LEGALITY_FORMATS = [
+  { key: "standard", label: "Standard" },
+  { key: "alchemy", label: "Alchemy" },
+  { key: "pioneer", label: "Pioneer" },
+  { key: "historic", label: "Historic" },
+  { key: "modern", label: "Modern" },
+  { key: "brawl", label: "Brawl" },
+  { key: "legacy", label: "Legacy" },
+  { key: "timeless", label: "Timeless" },
+  { key: "vintage", label: "Vintage" },
+  { key: "pauper", label: "Pauper" },
+  { key: "commander", label: "Commander" },
+  { key: "penny", label: "Penny" },
+  { key: "oathbreaker", label: "Oathbreaker" },
+] as const
+
 
 export function CardsPage({
   query,
@@ -393,6 +415,7 @@ export function CardDetailPage({
                 </div>
               ) : null}
 
+              <CardLegalityPanel legalities={card.legalities} />
               <CardRulings rulings={card.rulings} />
             </div>
           </div>
@@ -509,6 +532,51 @@ function CardTagSummary({ card }: { card: CardDetail }) {
         </div>
       ) : null}
     </div>
+  )
+}
+
+function CardLegalityPanel({ legalities }: { legalities?: CardLegality[] | null }) {
+  const presentLegalities = legalities?.filter(present) ?? []
+
+  if (presentLegalities.length === 0) return null
+
+  const statusesByFormat = new Map<string, string | null>()
+  for (const legality of presentLegalities) {
+    if (legality.format) statusesByFormat.set(legality.format.toLowerCase(), legality.status)
+  }
+
+  return (
+    <details className="group max-w-4xl rounded-box border border-base-300/70 bg-base-100/80 shadow-sm backdrop-blur">
+      <summary className="cursor-pointer px-4 py-3 text-sm font-black tracking-normal text-base-content marker:text-base-content/60">
+        Legalities
+      </summary>
+
+      <dl className="grid gap-2 border-t border-base-300/70 px-4 py-3 sm:grid-cols-2">
+        {CARD_LEGALITY_FORMATS.map((format) => {
+          const isLegal = statusesByFormat.get(format.key) === "legal"
+
+          return (
+            <div
+              key={format.key}
+              className="flex items-center justify-between gap-3 rounded-lg bg-base-200/45 px-3 py-2"
+            >
+              <dt className="text-sm font-semibold text-base-content/75">{format.label}</dt>
+              <dd>
+                <Badge
+                  tone={isLegal ? "success" : "neutral"}
+                  className={cn(
+                    "min-w-20 justify-center text-[0.65rem] font-black uppercase tracking-wide",
+                    !isLegal && "border-base-content/20 text-base-content/50",
+                  )}
+                >
+                  {isLegal ? "LEGAL" : "NOT LEGAL"}
+                </Badge>
+              </dd>
+            </div>
+          )
+        })}
+      </dl>
+    </details>
   )
 }
 

@@ -41,6 +41,11 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
     field :comment, non_null(:string)
   end
 
+  object :card_legality do
+    field :format, non_null(:string)
+    field :status, non_null(:string)
+  end
+
   object :card do
     field :oracle_id, non_null(:id)
     field :name, non_null(:string)
@@ -77,6 +82,10 @@ defmodule ManavaultWeb.Schema.CatalogTypes do
 
     field :rulings, non_null(list_of(non_null(:card_ruling))) do
       resolve(&CatalogResolvers.card_rulings/3)
+    end
+
+    field :legalities, non_null(list_of(non_null(:card_legality))) do
+      resolve(&CatalogResolvers.card_legalities/3)
     end
 
     field :printings, list_of(:printing)
