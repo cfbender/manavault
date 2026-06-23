@@ -112,6 +112,7 @@ import {
 import { createPlaytestState, type PlaytestCard } from "../lib/deck-playtest"
 import { exportDecklistText } from "../lib/deck-export"
 import { buildDeckStats, MANA_STAT_COLORS } from "../lib/deck-stats"
+import { buildDeckTokens, type DeckTokenSummary } from "../lib/deck-tokens"
 import { cn, compactNumber, present, titleize } from "../lib/utils"
 
 const DecksDocument = graphql(`
@@ -867,6 +868,7 @@ export function DeckDetailPage({
   const [isAddCardOpen, setIsAddCardOpen] = useState(false)
   const deckCards = useMemo(() => (deck?.deckCards || []).filter(present), [deck?.deckCards])
   const deckStats = useMemo(() => buildDeckStats(deckCards), [deckCards])
+  const deckTokens = useMemo(() => buildDeckTokens(deckCards), [deckCards])
   const sharedDecklistText = useMemo(() => exportDecklistText(deckCards), [deckCards])
   const playtestCards = useMemo(() => deckPlaytestCards(deckCards), [deckCards])
   const initialPlaytestState = useMemo(
@@ -1643,6 +1645,8 @@ export function DeckDetailPage({
           />
         </div>
 
+        <DeckTokensSection tokens={deckTokens} />
+
         <DeckStatsSection stats={deckStats} onHighlightDeckCards={setHighlightedDeckCardIds} />
       </div>
       <DeckCardPreviewDialog
@@ -1848,6 +1852,68 @@ type ManaBalanceDetail = {
 }
 
 type HighlightDeckCards = (deckCardIds: Set<string> | null) => void
+
+function DeckTokensSection({ tokens }: { tokens: readonly DeckTokenSummary[] }) {
+  if (!tokens.length) return null
+
+  return (
+    <details className="group rounded-box border border-base-300 bg-base-100 shadow-sm">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 marker:hidden">
+        <span className="flex min-w-0 items-center gap-2">
+          <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+          <span className="font-black tracking-normal">Tokens this deck can create</span>
+          <span className="hidden truncate text-xs font-semibold text-base-content/50 sm:inline">
+            {tokens.length} {tokens.length === 1 ? "token" : "tokens"} found in Oracle text
+          </span>
+        </span>
+        <ChevronDown className="h-4 w-4 shrink-0 text-base-content/50 transition group-open:rotate-180" />
+      </summary>
+
+      <div className="border-t border-base-300 p-4">
+        <div className="overflow-x-auto rounded-box border border-base-300 bg-base-200/45">
+          <table className="table table-zebra table-sm">
+            <caption className="sr-only">Tokens this deck can create</caption>
+            <thead>
+              <tr>
+                <th scope="col">Token</th>
+                <th scope="col">Description</th>
+                <th scope="col">Created by</th>
+                <th scope="col">Per event</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tokens.map((token) => (
+                <tr key={token.key} className="align-top">
+                  <th scope="row" className="min-w-36 font-black">
+                    {token.name}
+                  </th>
+                  <td className="min-w-64 text-base-content/75">{token.description}</td>
+                  <td className="min-w-48">
+                    <ul className="space-y-1">
+                      {token.producers.map((producer) => (
+                        <li key={producer.id}>
+                          {producer.quantity > 1 ? `${producer.quantity}× ` : ""}
+                          {producer.name}
+                        </li>
+                      ))}
+                    </ul>
+                  </td>
+                  <td className="min-w-24">
+                    <ul className="space-y-1">
+                      {token.producers.map((producer) => (
+                        <li key={producer.id}>{producer.amount}</li>
+                      ))}
+                    </ul>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </details>
+  )
+}
 
 function DeckStatsSection({
   onHighlightDeckCards,
