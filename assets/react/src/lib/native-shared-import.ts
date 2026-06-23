@@ -36,6 +36,34 @@ function isNativeLinkPayload(payload?: NativeOpenPayload | null): payload is Ext
   return Boolean(payload && "url" in payload && payload.url.trim())
 }
 
+function receiveSharedImport(payload: SharedImportPayload) {
+  if (listeners.size === 0) {
+    pendingImport = payload
+    return
+  }
+
+  pendingImport = null
+  for (const listener of listeners) listener(payload)
+}
+
+export function receiveNativeOpenPayload(
+  payload: NativeOpenPayload | null | undefined,
+  onOpen: (payload: NativeOpenPayload) => void,
+) {
+  if (isSharedImportPayload(payload)) {
+    receiveSharedImport(payload)
+    onOpen(payload)
+    return true
+  }
+
+  if (isNativeLinkPayload(payload)) {
+    onOpen(payload)
+    return true
+  }
+
+  return false
+}
+
 export function takeSharedImport() {
   const payload = pendingImport
   pendingImport = null
@@ -44,6 +72,10 @@ export function takeSharedImport() {
 
 export function subscribeSharedImport(listener: (payload: SharedImportPayload) => void) {
   listeners.add(listener)
+
+  const payload = takeSharedImport()
+  if (payload) listener(payload)
+
   return () => {
     listeners.delete(listener)
   }
@@ -53,14 +85,7 @@ export async function initializeNativeSharedImport(onOpen: (payload: NativeOpenP
   if (!Capacitor.isNativePlatform()) return
 
   const receive = (payload?: NativeOpenPayload | null) => {
-    if (isSharedImportPayload(payload)) {
-      pendingImport = payload
-      for (const listener of listeners) listener(payload)
-      onOpen(payload)
-      return
-    }
-
-    if (isNativeLinkPayload(payload)) onOpen(payload)
+    receiveNativeOpenPayload(payload, onOpen)
   }
 
   try {
