@@ -35,7 +35,7 @@ test("ensureCapacitorNativePluginHeader adds native plugin headers once", () => 
   withCapacitorGlobals(
     {
       androidBridge: {},
-      Capacitor: { PluginHeaders: [{ name: "Existing", methods: [] }] },
+      Capacitor: { nativePromise() {}, PluginHeaders: [{ name: "Existing", methods: [] }] },
     },
     () => {
       const header = {
@@ -50,6 +50,23 @@ test("ensureCapacitorNativePluginHeader adds native plugin headers once", () => 
         { name: "Existing", methods: [] },
         header,
       ])
+    },
+  )
+})
+
+test("ensureCapacitorNativePluginHeader leaves incomplete native bridge globals untouched", () => {
+  withCapacitorGlobals(
+    {
+      androidBridge: {},
+      Capacitor: {},
+    },
+    () => {
+      ensureCapacitorNativePluginHeader({
+        name: "SharedImport",
+        methods: [{ name: "getPendingImport", rtype: "promise" }],
+      })
+
+      assert.equal(globalThis.Capacitor.PluginHeaders, undefined)
     },
   )
 })
