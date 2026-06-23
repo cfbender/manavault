@@ -8,6 +8,13 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.8.0] - 2026-06-23
+
+### Features
+
+- Deck tokens ([`0dc6dee4`](../../commit/0dc6dee4fb09bff0bfd196b0a1d3e0061f3b0c93))
+- Deck/collection improvements ([`2e9da29a`](../../commit/2e9da29a7001fbb4933cb8ec4e1ccb542aeef0b3))
+
 ## [0.7.2] - 2026-06-23
 
 ### Bug Fixes
