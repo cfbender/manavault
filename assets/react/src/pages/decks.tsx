@@ -53,7 +53,10 @@ import { createPortal } from "react-dom"
 import { PageHeader, PageSection } from "../components/app-shell"
 import { CardNameSearchField } from "../components/card-name-search-field"
 import { EmptyState } from "../components/card-image"
-import { FullscreenPrintingDialog, type FullscreenPrinting } from "../components/fullscreen-printing-dialog"
+import {
+  FullscreenPrintingDialog,
+  type FullscreenPrinting,
+} from "../components/fullscreen-printing-dialog"
 import { ImageSummaryCard } from "../components/image-summary-card"
 import { DeckPlaytester } from "../components/deck-playtester"
 import { Badge } from "../components/ui/badge"
@@ -79,6 +82,13 @@ import type {
   PreviewBulkAllocateDeckMutation,
 } from "../gql/graphql"
 import { request } from "../lib/graphql"
+import {
+  DECK_GROUP_OPTIONS,
+  groupDeckCards,
+  type DeckGroup,
+  type DeckGroupBy,
+  type DeckGroupIcon,
+} from "../lib/deck-grouping"
 import { createPlaytestState, type PlaytestCard } from "../lib/deck-playtest"
 import { exportDecklistText } from "../lib/deck-export"
 import { cn, compactNumber, present, titleize } from "../lib/utils"
@@ -163,6 +173,8 @@ const DeckDocument = graphql(`
           cmc
           colors
           colorIdentity
+          deckCategory
+          deckThemes
           printings {
             scryfallId
             imageUrl
@@ -744,7 +756,7 @@ export function DeckDetailPage({
   id: string
   shareMode?: boolean
 }) {
-  const [groupBy, setGroupBy] = useState<DeckGroupBy>("type")
+  const [groupBy, setGroupBy] = useState<DeckGroupBy>("theme")
   const [editTarget, setEditTarget] = useState<DeckCardEntry | null>(null)
   const [editError, setEditError] = useState<string | null>(null)
   const [moveTarget, setMoveTarget] = useState<DeckCardEntry | null>(null)
@@ -934,12 +946,16 @@ export function DeckDetailPage({
       setBulkActionError(null)
     },
     onError: (error) =>
-      setBulkActionError(error instanceof Error ? error.message : "Could not update selected cards"),
+      setBulkActionError(
+        error instanceof Error ? error.message : "Could not update selected cards",
+      ),
   })
 
   const bulkDeleteDeckCards = useMutation({
     mutationFn: (deckCardIds: string[]) =>
-      Promise.all(deckCardIds.map((deckCardId) => request(DeleteDeckCardDocument, { id: deckCardId }))),
+      Promise.all(
+        deckCardIds.map((deckCardId) => request(DeleteDeckCardDocument, { id: deckCardId })),
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["deck", id] })
       queryClient.invalidateQueries({ queryKey: ["decks"] })
@@ -950,7 +966,9 @@ export function DeckDetailPage({
       setBulkActionError(null)
     },
     onError: (error) =>
-      setBulkActionError(error instanceof Error ? error.message : "Could not delete selected cards"),
+      setBulkActionError(
+        error instanceof Error ? error.message : "Could not delete selected cards",
+      ),
   })
 
   function invalidateAllocationQueries() {
@@ -1664,12 +1682,6 @@ export function DeckPlaytestPage({ id }: { id: string }) {
 type DeckSummary = DecksQuery["decks"][number]
 type DeckDetail = NonNullable<DeckQuery["deck"]>
 type DeckCardEntry = NonNullable<NonNullable<DeckDetail["deckCards"]>[number]>
-type DeckCardPrinting = NonNullable<
-  NonNullable<NonNullable<DeckCardEntry["card"]>["printings"]>[number]
->
-type DeckZone = "mainboard" | "sideboard" | "commander" | "maybeboard"
-type DeckCardTag = "getting" | "consider_cutting"
-type DeckGroupBy = "type" | "color" | "colorIdentity" | "manaValue" | "rarity" | "set" | "none"
 type BulkAllocationMode = "exact_printings" | "matching_printings"
 type BulkAllocationPreview = NonNullable<PreviewBulkAllocateDeckMutation["previewBulkAllocateDeck"]>
 type BuylistPrintingMode = "none" | "exact" | "cheapest"
@@ -1682,38 +1694,11 @@ type EDHRecSection = EDHRecCommanderPage["sections"][number]
 type EDHRecSectionCard = EDHRecSection["cards"][number]
 type EDHRecCollectionStatus = EDHRecCard["collectionStatus"] | EDHRecSectionCard["collectionStatus"]
 export type EDHRecTab = "recs" | "cuts" | "commander"
-type DeckGroup = {
-  cards: DeckCardEntry[]
-  icon: DeckGroupIcon
-  key: string
-  label: string
-  order: number
-  quantity: number
-}
-type DeckGroupIcon =
-  | "commander"
-  | "creature"
-  | "instant"
-  | "sorcery"
-  | "artifact"
-  | "enchantment"
-  | "planeswalker"
-  | "land"
-  | "none"
-  | { kind: "colors"; colors: string[] }
-  | { kind: "manaValue"; plus: boolean; value: number }
-  | { kind: "rarity"; rarity: string }
-  | { kind: "set"; setCode: string | null }
-
-const DECK_GROUP_OPTIONS: Array<{ label: string; value: DeckGroupBy }> = [
-  { label: "Type", value: "type" },
-  { label: "Color", value: "color" },
-  { label: "Color Identity", value: "colorIdentity" },
-  { label: "Mana Value", value: "manaValue" },
-  { label: "Rarity", value: "rarity" },
-  { label: "Set", value: "set" },
-  { label: "None", value: "none" },
-]
+type DeckCardPrinting = NonNullable<
+  NonNullable<NonNullable<DeckCardEntry["card"]>["printings"]>[number]
+>
+type DeckZone = "mainboard" | "sideboard" | "commander" | "maybeboard"
+type DeckCardTag = "getting" | "consider_cutting"
 const DECK_CARD_TAGS = [
   {
     value: "getting",
@@ -1752,18 +1737,6 @@ const MOVE_TARGET_ZONES: DeckZone[] = ["mainboard", "sideboard", "maybeboard"]
 const ADD_CARD_ZONES: DeckZone[] = ["mainboard", "sideboard", "commander", "maybeboard"]
 const NON_COMMANDER_ADD_CARD_ZONES: DeckZone[] = ["mainboard", "sideboard", "maybeboard"]
 const DECK_CARD_FINISHES = ["nonfoil", "foil", "etched"]
-const TYPE_ORDER = [
-  "commander",
-  "creature",
-  "instant",
-  "sorcery",
-  "artifact",
-  "enchantment",
-  "planeswalker",
-  "battle",
-  "land",
-  "other",
-]
 const COLOR_ORDER = ["W", "U", "B", "R", "G", "M", "C"]
 const DECK_STACK_CARD_WIDTH_REM = 14
 const DECK_STACK_OFFSET = 34
@@ -1957,120 +1930,9 @@ function countDeckZones(deckCards: DeckCardEntry[]) {
   )
 }
 
-function groupDeckCards(deckCards: DeckCardEntry[], groupBy: DeckGroupBy) {
-  const groups = new Map<string, DeckGroup>()
-
-  for (const deckCard of deckCards) {
-    const descriptor = deckCardGroupDescriptor(deckCard, groupBy)
-    const existing =
-      groups.get(descriptor.key) ||
-      ({
-        cards: [],
-        icon: descriptor.icon,
-        key: descriptor.key,
-        label: descriptor.label,
-        order: descriptor.order,
-        quantity: 0,
-      } satisfies DeckGroup)
-
-    existing.cards.push(deckCard)
-    existing.quantity += deckCard.quantity
-    groups.set(descriptor.key, existing)
-  }
-
-  return [...groups.values()]
-    .map((group) => ({ ...group, cards: group.cards.sort(compareDeckCards) }))
-    .sort((left, right) => compareDeckGroups(left, right, groupBy))
-}
-
-function compareDeckGroups(left: DeckGroup, right: DeckGroup, groupBy: DeckGroupBy) {
-  if (groupBy === "type") {
-    if (left.key === "commander" && right.key !== "commander") return -1
-    if (right.key === "commander" && left.key !== "commander") return 1
-
-    return left.label.localeCompare(right.label)
-  }
-
-  return left.order - right.order || left.label.localeCompare(right.label)
-}
-
-function deckCardGroupDescriptor(
-  deckCard: DeckCardEntry,
-  groupBy: DeckGroupBy,
-): Omit<DeckGroup, "cards" | "quantity"> {
-  const card = deckCard.card
-  const printing = deckCard.preferredPrinting || card?.printings?.[0]
-
-  if (groupBy === "none") return { icon: "none", key: "all", label: "Deck", order: 0 }
-
-  if (groupBy === "color") {
-    const colors = (card?.colors || []).filter(present)
-    const key = colors.length === 0 ? "C" : colors.length > 1 ? "M" : colors[0] || "C"
-    const iconColors = key === "M" ? ["W", "U", "B", "R", "G"] : [key]
-    return { icon: { kind: "colors", colors: iconColors }, key, label: colorLabel(key), order: colorOrder(key) }
-  }
-
-  if (groupBy === "colorIdentity") {
-    const identity = (card?.colorIdentity || [])
-      .filter(present)
-      .sort((left, right) => colorOrder(left) - colorOrder(right))
-    const key = identity.length ? identity.join("") : "C"
-    return {
-      icon: { kind: "colors", colors: identity.length ? identity : ["C"] },
-      key,
-      label: key === "C" ? "Colorless" : `${key} Identity`,
-      order: identity.length ? identity.reduce((sum, color) => sum + colorOrder(color), 0) : 99,
-    }
-  }
-
-  if (groupBy === "manaValue") {
-    const cmc = Math.floor(card?.cmc || 0)
-    const key = cmc >= 6 ? "6+" : String(cmc)
-    return {
-      icon: { kind: "manaValue", plus: cmc >= 6, value: cmc >= 6 ? 6 : Math.max(cmc, 0) },
-      key,
-      label: `Mana ${key}`,
-      order: cmc >= 6 ? 6 : cmc,
-    }
-  }
-
-  if (groupBy === "rarity") {
-    const rarity = printing?.rarity || "unknown"
-    return { icon: { kind: "rarity", rarity }, key: rarity, label: titleize(rarity), order: rarityOrder(rarity) }
-  }
-
-  if (groupBy === "set") {
-    const key = printing?.setCode || "unknown"
-    return { icon: { kind: "set", setCode: key === "unknown" ? null : key }, key, label: printing?.setName || key.toUpperCase(), order: 0 }
-  }
-
-  return typeDescriptor(deckCard)
-}
-
-function typeDescriptor(deckCard: DeckCardEntry): Omit<DeckGroup, "cards" | "quantity"> {
-  const typeLine = deckCard.card?.typeLine || ""
-
-  if (deckCard.zone === "commander") return typeGroup("commander", "Commander", "commander")
-  if (/\bCreature\b/.test(typeLine)) return typeGroup("creature", "Creatures", "creature")
-  if (/\bInstant\b/.test(typeLine)) return typeGroup("instant", "Instants", "instant")
-  if (/\bSorcery\b/.test(typeLine)) return typeGroup("sorcery", "Sorceries", "sorcery")
-  if (/\bArtifact\b/.test(typeLine)) return typeGroup("artifact", "Artifacts", "artifact")
-  if (/\bEnchantment\b/.test(typeLine))
-    return typeGroup("enchantment", "Enchantments", "enchantment")
-  if (/\bPlaneswalker\b/.test(typeLine))
-    return typeGroup("planeswalker", "Planeswalkers", "planeswalker")
-  if (/\bLand\b/.test(typeLine)) return typeGroup("land", "Lands", "land")
-
-  return typeGroup("other", "Other", "none")
-}
-
 function isLegendaryCreature(deckCard: DeckCardEntry) {
   const typeLine = deckCard.card?.typeLine || ""
   return typeLine.includes("Legendary") && typeLine.includes("Creature")
-}
-
-function typeGroup(key: string, label: string, icon: DeckGroupIcon) {
-  return { icon, key, label, order: TYPE_ORDER.indexOf(key) === -1 ? 99 : TYPE_ORDER.indexOf(key) }
 }
 
 function compareDeckCards(left: DeckCardEntry, right: DeckCardEntry) {
@@ -2167,25 +2029,6 @@ function deckPlaytestCards(deckCards: DeckCardEntry[]) {
 
 function colorOrder(color: string) {
   const index = COLOR_ORDER.indexOf(color)
-  return index === -1 ? 99 : index
-}
-
-function colorLabel(color: string) {
-  const labels: Record<string, string> = {
-    B: "Black",
-    C: "Colorless",
-    G: "Green",
-    M: "Multicolor",
-    R: "Red",
-    U: "Blue",
-    W: "White",
-  }
-  return labels[color] || color
-}
-
-function rarityOrder(rarity: string) {
-  const order = ["common", "uncommon", "rare", "mythic", "special", "bonus"]
-  const index = order.indexOf(String(rarity).toLowerCase())
   return index === -1 ? 99 : index
 }
 
@@ -2520,7 +2363,6 @@ function nextDeckCardTag(value?: string | null): DeckCardTag | null {
   return "getting"
 }
 
-
 function copyLabel(count: number) {
   return count === 1 ? "copy" : "copies"
 }
@@ -2634,7 +2476,7 @@ function DeckGroupGrid({
 }: {
   allocationError: string | null
   canSetCommander: boolean
-  groups: DeckGroup[]
+  groups: DeckGroup<DeckCardEntry>[]
   isUpdating: boolean
   isSelecting: boolean
   onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
@@ -2731,7 +2573,7 @@ function DeckStackGroup({
 }: {
   allocationError: string | null
   canSetCommander: boolean
-  group: DeckGroup
+  group: DeckGroup<DeckCardEntry>
   isSelecting: boolean
   isUpdating: boolean
   onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
@@ -2898,22 +2740,22 @@ function DeckStackCard({
     >
       <ShareModeHidden shareMode={shareMode}>
         <div className="absolute left-1 top-1 z-[130] flex h-5 items-start gap-1">
-        <DeckCardAllocationMenu
-          deckCard={deckCard}
-          error={allocationError}
-          isInteractive={isInteractive}
-          isUpdating={isUpdating}
-          onAllocate={onAllocate}
-          onDeallocate={onDeallocate}
-          onToggleProxy={onToggleProxy}
-        />
-        <DeckCardTagButton
-          className="relative"
-          disabled={isUpdating}
-          shareMode={shareMode}
-          value={deckCard.tag}
-          onChange={onTag}
-        />
+          <DeckCardAllocationMenu
+            deckCard={deckCard}
+            error={allocationError}
+            isInteractive={isInteractive}
+            isUpdating={isUpdating}
+            onAllocate={onAllocate}
+            onDeallocate={onDeallocate}
+            onToggleProxy={onToggleProxy}
+          />
+          <DeckCardTagButton
+            className="relative"
+            disabled={isUpdating}
+            shareMode={shareMode}
+            value={deckCard.tag}
+            onChange={onTag}
+          />
         </div>
 
         <button
@@ -3466,7 +3308,11 @@ function DeckZoneTable({
                       <button
                         type="button"
                         className="btn btn-circle btn-xs"
-                        aria-label={selected ? `Deselect ${deckCard.card?.name}` : `Select ${deckCard.card?.name}`}
+                        aria-label={
+                          selected
+                            ? `Deselect ${deckCard.card?.name}`
+                            : `Select ${deckCard.card?.name}`
+                        }
                         onClick={(event) => onToggleSelected(deckCard.id, event.shiftKey)}
                       >
                         {selected ? (
