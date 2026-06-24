@@ -13,6 +13,7 @@ import {
 } from "../../components/ui/dialog"
 import { request } from "../../lib/graphql"
 import { buylistPrintingLabel, buylistReasonTone, buylistSummary } from "./buylist-export"
+import { BuylistOptionCheckbox } from "./buylist-option-checkbox"
 import { BuylistMarketplaceActions } from "./buylist-marketplace-actions"
 import type { BuylistExportFormat, BuylistPrintingMode, DeckDetail } from "./deck-types"
 import { DeckBuylistDocument } from "./queries"
@@ -29,15 +30,28 @@ export function MissingCardsDialog({
   const [printingMode, setPrintingMode] = useState<BuylistPrintingMode>("none")
   const [exportFormat, setExportFormat] = useState<BuylistExportFormat>("text")
   const [includeBasicLands, setIncludeBasicLands] = useState(false)
+  const [includeSideboard, setIncludeSideboard] = useState(false)
+  const [includeMaybeboard, setIncludeMaybeboard] = useState(false)
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle")
   const buylistQuery = useQuery({
-    queryKey: ["deck-buylist", deck?.id, printingMode, exportFormat, includeBasicLands],
+    queryKey: [
+      "deck-buylist",
+      deck?.id,
+      printingMode,
+      exportFormat,
+      includeBasicLands,
+      includeSideboard,
+      includeMaybeboard,
+    ],
     queryFn: () =>
       request(DeckBuylistDocument, {
         id: deck?.id || "",
         printingMode,
         exportFormat,
+        assumeNoOwned: false,
         includeBasicLands,
+        includeSideboard,
+        includeMaybeboard,
       }),
     enabled: open && Boolean(deck?.id),
   })
@@ -84,7 +98,7 @@ export function MissingCardsDialog({
         </DialogHeader>
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
-          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+          <div className="grid gap-3 md:grid-cols-2">
             <label className="form-control">
               <span className="label-text mb-1 text-xs font-semibold uppercase text-base-content/60">
                 Printing
@@ -119,16 +133,24 @@ export function MissingCardsDialog({
                 <option value="csv">CSV</option>
               </select>
             </label>
+          </div>
 
-            <label className="label cursor-pointer justify-start gap-2 self-end rounded-btn border border-base-300 px-3 py-2">
-              <input
-                type="checkbox"
-                className="checkbox checkbox-sm"
-                checked={includeBasicLands}
-                onChange={(event) => setIncludeBasicLands(event.target.checked)}
-              />
-              <span className="label-text text-sm">Include basic lands</span>
-            </label>
+          <div className="flex flex-wrap items-center gap-2">
+            <BuylistOptionCheckbox
+              checked={includeBasicLands}
+              label="Include basic lands"
+              onChange={setIncludeBasicLands}
+            />
+            <BuylistOptionCheckbox
+              checked={includeSideboard}
+              label="Include sideboard"
+              onChange={setIncludeSideboard}
+            />
+            <BuylistOptionCheckbox
+              checked={includeMaybeboard}
+              label="Include maybeboard"
+              onChange={setIncludeMaybeboard}
+            />
           </div>
 
           <BuylistMarketplaceActions entries={entries} />

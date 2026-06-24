@@ -71,6 +71,7 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
   defdelegate buylist_entry_unit_price_text(parent, args, resolution), to: DeckFields
   defdelegate buylist_entry_total_price_text(parent, args, resolution), to: DeckFields
+  defdelegate deck_card_price_cents(parent, args, resolution), to: DeckFields
   defdelegate deck_cards(parent, args, resolution), to: DeckFields
   defdelegate deck_card_count(parent, args, resolution), to: DeckFields
   defdelegate deck_unique_card_count(parent, args, resolution), to: DeckFields

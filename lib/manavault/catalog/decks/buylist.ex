@@ -10,8 +10,10 @@ defmodule Manavault.Catalog.Decks.Buylist do
     printing_mode = Keyword.get(opts, :printing_mode, :none)
     include_basic_lands = Keyword.get(opts, :include_basic_lands, false)
     assume_no_owned = Keyword.get(opts, :assume_no_owned, false)
+    included_zones = buylist_zones(opts)
 
     deck.deck_cards
+    |> Enum.filter(&buylist_zone?(&1, included_zones))
     |> put_buylist_allocation_statuses(assume_no_owned)
     |> Enum.map(fn deck_card ->
       status = deck_card.allocation_status
@@ -67,6 +69,20 @@ defmodule Manavault.Catalog.Decks.Buylist do
       candidates: []
     }
   end
+
+  defp buylist_zones(opts) do
+    default_zones = [nil, "commander", "mainboard"]
+
+    default_zones
+    |> maybe_add_zone("sideboard", Keyword.get(opts, :include_sideboard, false))
+    |> maybe_add_zone("maybeboard", Keyword.get(opts, :include_maybeboard, false))
+    |> MapSet.new()
+  end
+
+  defp maybe_add_zone(zones, zone, true), do: [zone | zones]
+  defp maybe_add_zone(zones, _zone, _include?), do: zones
+
+  defp buylist_zone?(%DeckCard{zone: zone}, zones), do: MapSet.member?(zones, zone)
 
   def export_deck_buylist(deck, format, opts \\ [])
 

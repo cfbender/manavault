@@ -129,6 +129,7 @@ export const DeckDocument = graphql(`
             zone
             finish
             tag
+            priceCents
             card {
               id
               oracleId
@@ -501,8 +502,18 @@ export const DeckBuylistDocument = graphql(`
     $printingMode: String!
     $exportFormat: String!
     $includeBasicLands: Boolean!
+    $assumeNoOwned: Boolean!
+    $includeSideboard: Boolean!
+    $includeMaybeboard: Boolean!
   ) {
-    deckBuylist(id: $id, printingMode: $printingMode, includeBasicLands: $includeBasicLands) {
+    deckBuylist(
+      id: $id
+      printingMode: $printingMode
+      includeBasicLands: $includeBasicLands
+      assumeNoOwned: $assumeNoOwned
+      includeSideboard: $includeSideboard
+      includeMaybeboard: $includeMaybeboard
+    ) {
       cardName
       quantity
       missing
@@ -521,6 +532,9 @@ export const DeckBuylistDocument = graphql(`
       format: $exportFormat
       printingMode: $printingMode
       includeBasicLands: $includeBasicLands
+      assumeNoOwned: $assumeNoOwned
+      includeSideboard: $includeSideboard
+      includeMaybeboard: $includeMaybeboard
     )
   }
 `)

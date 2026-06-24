@@ -227,6 +227,7 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                   quantity
                   zone
                   finish
+                  priceCents
                   card { name }
                   preferredPrinting {
                     scryfallId
@@ -310,6 +311,7 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                      %{
                        "node" => %{
                          "quantity" => 2,
+                         "priceCents" => 250,
                          "card" => %{"name" => "Shared Card"},
                          "allocationStatus" => %{
                            "state" => "shared",

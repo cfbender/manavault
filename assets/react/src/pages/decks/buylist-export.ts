@@ -1,4 +1,4 @@
-import type { BuylistEntry } from "./deck-types"
+import type { BuylistEntry, DeckCardEntry } from "./deck-types"
 
 export function buylistSummary(entries: BuylistEntry[]) {
   if (!entries.length) return "No purchases needed."
@@ -16,6 +16,26 @@ export function buylistTotalPrice(entries: BuylistEntry[]) {
         summary.totalCents += entry.totalPriceCents
       } else {
         summary.unpricedQuantity += entry.quantity
+      }
+
+      return summary
+    },
+    { totalCents: 0, unpricedQuantity: 0 },
+  )
+}
+
+export function deckCardsTotalPrice(deckCards: DeckCardEntry[]) {
+  return deckCards.reduce(
+    (summary, deckCard) => {
+      if (deckCard.zone === "sideboard" || deckCard.zone === "maybeboard") {
+        return summary
+      }
+
+      const quantity = Math.max(deckCard.quantity || 0, 0)
+      if (typeof deckCard.priceCents === "number") {
+        summary.totalCents += deckCard.priceCents * quantity
+      } else {
+        summary.unpricedQuantity += quantity
       }
 
       return summary

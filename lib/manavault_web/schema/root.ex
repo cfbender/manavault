@@ -107,6 +107,9 @@ defmodule ManavaultWeb.Schema do
       arg(:id, non_null(:id))
       arg(:printing_mode, :string, default_value: "none")
       arg(:include_basic_lands, :boolean, default_value: false)
+      arg(:assume_no_owned, :boolean, default_value: false)
+      arg(:include_sideboard, :boolean, default_value: false)
+      arg(:include_maybeboard, :boolean, default_value: false)
       resolve(&CatalogResolvers.deck_buylist/3)
     end
 
@@ -115,6 +118,9 @@ defmodule ManavaultWeb.Schema do
       arg(:format, :string, default_value: "text")
       arg(:printing_mode, :string, default_value: "none")
       arg(:include_basic_lands, :boolean, default_value: false)
+      arg(:assume_no_owned, :boolean, default_value: false)
+      arg(:include_sideboard, :boolean, default_value: false)
+      arg(:include_maybeboard, :boolean, default_value: false)
       resolve(&CatalogResolvers.deck_buylist_export/3)
     end
 

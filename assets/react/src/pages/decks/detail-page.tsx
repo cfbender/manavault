@@ -6,7 +6,7 @@ import type { DeckCardInput, DeckCardUpdateInput } from "../../gql/graphql"
 import { groupDeckCards, type DeckGroupBy } from "../../lib/deck-grouping"
 import { request } from "../../lib/graphql"
 import { present } from "../../lib/utils"
-import { buylistTotalPrice, formatUsdCents } from "./buylist-export"
+import { deckCardsTotalPrice, formatUsdCents } from "./buylist-export"
 import { compareDeckCards, countDeckZones } from "./deck-card-model"
 import { deckLegalityIssues } from "./deck-legality"
 import { useDeferredDeckAnalysis } from "./deck-stats-panel"
@@ -35,7 +35,6 @@ import {
   DeallocateDeckCardItemDocument,
   DeallocateDeckCardProxyDocument,
   DeckDocument,
-  DeckBuylistDocument,
   DeleteDeckCardDocument,
   DeleteDeckDocument,
   PreviewBulkAllocateDeckDocument,
@@ -96,36 +95,16 @@ export function DeckDetailPage({
     deck?.name || "deck",
     deckCards,
   )
-  const buylistPriceQuery = useQuery({
-    queryKey: shareMode
-      ? ["shared-deck-buylist", id, false]
-      : ["deck-buylist", id, "exact", "text", false],
-    queryFn: () =>
-      request(
-        DeckBuylistDocument,
-        {
-          exportFormat: "text",
-          id,
-          includeBasicLands: false,
-          printingMode: "exact",
-        },
-        shareMode ? { endpoint: "/share/graphql" } : undefined,
-      ),
-    enabled: Boolean(deck),
-  })
   const buylistPrice = useMemo(() => {
-    if (buylistPriceQuery.isLoading) {
-      return { label: "", loading: true, unpricedQuantity: 0 }
-    }
-    if (buylistPriceQuery.error) return null
+    if (!deck) return null
 
-    const totalPrice = buylistTotalPrice(buylistPriceQuery.data?.deckBuylist || [])
+    const totalPrice = deckCardsTotalPrice(deckCards)
     return {
       label: formatUsdCents(totalPrice.totalCents),
       loading: false,
       unpricedQuantity: totalPrice.unpricedQuantity,
     }
-  }, [buylistPriceQuery.data?.deckBuylist, buylistPriceQuery.error, buylistPriceQuery.isLoading])
+  }, [deck, deckCards])
   const deferredDeckAnalysis = useDeferredDeckAnalysis(deckCards)
   const deckStats = deferredDeckAnalysis?.stats ?? null
   const deckTokens = deferredDeckAnalysis?.tokens ?? null

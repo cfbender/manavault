@@ -49,7 +49,12 @@ defmodule Manavault.Catalog.Dataloader do
         asc: deck_card.id
       ],
       preload: [
-        card: card,
+        card:
+          {card,
+           printings:
+             ^from(printing in Printing,
+               order_by: [desc: printing.released_at, asc: printing.set_code]
+             )},
         preferred_printing: preferred_printing
       ]
     )

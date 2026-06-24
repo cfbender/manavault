@@ -74,18 +74,18 @@ function BuylistPriceChip({
   return (
     <button
       type="button"
-      className="badge badge-warning badge-outline badge-sm h-5 cursor-pointer gap-1.5 px-2 font-medium transition-colors hover:bg-warning/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning/35"
+      className="badge badge-warning badge-outline badge-sm inline-flex cursor-pointer items-center gap-1.5 px-2 font-medium leading-none align-middle transition-colors hover:bg-warning/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning/35"
       aria-label="Open buy list"
       onClick={onClick}
+      title={
+        !price.loading && price.unpricedQuantity > 0
+          ? `${price.unpricedQuantity} cards are unpriced`
+          : undefined
+      }
     >
-      <span className="font-mono font-black">
+      <span className="tabular-nums leading-none">
         {price.loading ? "Pricing..." : price.label}
       </span>
-      {!price.loading && price.unpricedQuantity > 0 ? (
-        <span className="font-normal opacity-75">
-          + {price.unpricedQuantity} unpriced
-        </span>
-      ) : null}
     </button>
   );
 }

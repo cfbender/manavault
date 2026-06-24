@@ -19,6 +19,7 @@ import {
   buylistTotalPrice,
   formatUsdCents,
 } from "./buylist-export"
+import { BuylistOptionCheckbox } from "./buylist-option-checkbox"
 import { BuylistMarketplaceActions } from "./buylist-marketplace-actions"
 import { deckPlaytestCards } from "./deck-card-model"
 import type { DeckCardEntry, DeckDetail } from "./deck-types"
@@ -27,20 +28,31 @@ import { DeckBuylistDocument } from "./queries"
 const SHARED_BUYLIST_EXPORT_FORMAT = "text"
 const SHARED_BUYLIST_PRINTING_MODE = "exact"
 
-export function useSharedDeckBuylist(
-  shareToken: string,
-  includeBasicLands: boolean,
+export function useSharedDeckBuylist({
   enabled = true,
-) {
+  includeBasicLands,
+  includeMaybeboard,
+  includeSideboard,
+  shareToken,
+}: {
+  enabled?: boolean
+  includeBasicLands: boolean
+  includeMaybeboard: boolean
+  includeSideboard: boolean
+  shareToken: string
+}) {
   return useQuery({
-    queryKey: ["shared-deck-buylist", shareToken, includeBasicLands],
+    queryKey: ["shared-deck-buylist", shareToken, includeBasicLands, includeSideboard, includeMaybeboard],
     queryFn: () =>
       request(
         DeckBuylistDocument,
         {
           exportFormat: SHARED_BUYLIST_EXPORT_FORMAT,
+          assumeNoOwned: true,
           id: shareToken,
           includeBasicLands,
+          includeSideboard,
+          includeMaybeboard,
           printingMode: SHARED_BUYLIST_PRINTING_MODE,
         },
         { endpoint: "/share/graphql" },
@@ -95,7 +107,15 @@ export function ShareDeckBuylistDialog({
   shareToken: string
 }) {
   const [includeBasicLands, setIncludeBasicLands] = useState(false)
-  const buylistQuery = useSharedDeckBuylist(shareToken, includeBasicLands, open)
+  const [includeSideboard, setIncludeSideboard] = useState(false)
+  const [includeMaybeboard, setIncludeMaybeboard] = useState(false)
+  const buylistQuery = useSharedDeckBuylist({
+    enabled: open,
+    includeBasicLands,
+    includeMaybeboard,
+    includeSideboard,
+    shareToken,
+  })
   const entries = buylistQuery.data?.deckBuylist || []
   const totalPrice = useMemo(() => buylistTotalPrice(entries), [entries])
   const totalQuantity = entries.reduce((total, entry) => total + entry.quantity, 0)
@@ -130,15 +150,23 @@ export function ShareDeckBuylistDialog({
         </DialogHeader>
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
-          <label className="label cursor-pointer justify-start gap-2 rounded-btn border border-base-300 px-3 py-2">
-            <input
-              type="checkbox"
-              className="checkbox checkbox-sm"
+          <div className="flex flex-wrap items-center gap-2">
+            <BuylistOptionCheckbox
               checked={includeBasicLands}
-              onChange={(event) => setIncludeBasicLands(event.target.checked)}
+              label="Include basic lands"
+              onChange={setIncludeBasicLands}
             />
-            <span className="label-text text-sm">Include basic lands</span>
-          </label>
+            <BuylistOptionCheckbox
+              checked={includeSideboard}
+              label="Include sideboard"
+              onChange={setIncludeSideboard}
+            />
+            <BuylistOptionCheckbox
+              checked={includeMaybeboard}
+              label="Include maybeboard"
+              onChange={setIncludeMaybeboard}
+            />
+          </div>
 
           <BuylistMarketplaceActions entries={entries} />
 

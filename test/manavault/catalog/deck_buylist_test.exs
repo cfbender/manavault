@@ -113,4 +113,67 @@ defmodule Manavault.Catalog.DeckBuylistTest do
     assert [%{set_code: nil, collector_number: nil}] = Catalog.deck_buylist(target_deck)
     assert available_item.id
   end
+
+  test "deck buylist includes mainboard by default and optional sideboard zones" do
+    assert {:ok, %{cards_count: 3, printings_count: 3}} =
+             Catalog.import_cards([
+               buylist_card("zone-mainboard-card", "Mainboard Zone Card", "1"),
+               buylist_card("zone-sideboard-card", "Sideboard Zone Card", "2"),
+               buylist_card("zone-maybeboard-card", "Maybeboard Zone Card", "3")
+             ])
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Zone Deck"})
+
+    assert {:ok, _mainboard} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Mainboard Zone Card",
+               "quantity" => 2,
+               "zone" => "mainboard"
+             })
+
+    assert {:ok, _sideboard} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Sideboard Zone Card",
+               "quantity" => 1,
+               "zone" => "sideboard"
+             })
+
+    assert {:ok, _maybeboard} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Maybeboard Zone Card",
+               "quantity" => 1,
+               "zone" => "maybeboard"
+             })
+
+    assert [%{card_name: "Mainboard Zone Card", quantity: 2}] =
+             Catalog.deck_buylist(deck, assume_no_owned: true)
+
+    assert ["Mainboard Zone Card", "Sideboard Zone Card"] =
+             deck
+             |> Catalog.deck_buylist(assume_no_owned: true, include_sideboard: true)
+             |> Enum.map(& &1.card_name)
+             |> Enum.sort()
+
+    assert ["Mainboard Zone Card", "Maybeboard Zone Card"] =
+             deck
+             |> Catalog.deck_buylist(assume_no_owned: true, include_maybeboard: true)
+             |> Enum.map(& &1.card_name)
+             |> Enum.sort()
+  end
+
+  defp buylist_card(id, name, collector_number) do
+    %{
+      "id" => "scryfall-#{id}",
+      "oracle_id" => "oracle-#{id}",
+      "name" => name,
+      "type_line" => "Artifact",
+      "collector_number" => collector_number,
+      "set" => "zon",
+      "set_name" => "Zone Set",
+      "lang" => "en",
+      "image_uris" => %{},
+      "finishes" => ["nonfoil"],
+      "legalities" => %{}
+    }
+  end
 end

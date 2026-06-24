@@ -15,6 +15,11 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
     {:ok, parent |> Map.get(:total_price_cents) |> Price.format_cents()}
   end
 
+  def deck_card_price_cents(%DeckCard{} = deck_card, _args, _resolution) do
+    {:ok, Price.deck_card_price_cents(deck_card)}
+  end
+
+
   def deck_cards(%Deck{deck_cards: deck_cards}, args, _resolution) when is_list(deck_cards) do
     deck_cards
     |> Catalog.put_deck_card_allocation_statuses()

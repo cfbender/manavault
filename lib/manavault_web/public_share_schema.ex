@@ -40,6 +40,9 @@ defmodule ManavaultWeb.PublicShareSchema do
       arg(:id, non_null(:id))
       arg(:printing_mode, :string, default_value: "none")
       arg(:include_basic_lands, :boolean, default_value: false)
+      arg(:assume_no_owned, :boolean, default_value: true)
+      arg(:include_sideboard, :boolean, default_value: false)
+      arg(:include_maybeboard, :boolean, default_value: false)
 
       resolve(fn _parent, %{id: token} = args, _resolution ->
         case Catalog.get_deck_by_share_token(token, preload?: false) do
@@ -54,6 +57,9 @@ defmodule ManavaultWeb.PublicShareSchema do
       arg(:format, :string, default_value: "text")
       arg(:printing_mode, :string, default_value: "none")
       arg(:include_basic_lands, :boolean, default_value: false)
+      arg(:assume_no_owned, :boolean, default_value: true)
+      arg(:include_sideboard, :boolean, default_value: false)
+      arg(:include_maybeboard, :boolean, default_value: false)
 
       resolve(fn _parent, %{id: token} = args, _resolution ->
         case Catalog.get_deck_by_share_token(token, preload?: false) do
@@ -76,6 +82,8 @@ defmodule ManavaultWeb.PublicShareSchema do
     [
       printing_mode: Map.get(args, :printing_mode, "none"),
       include_basic_lands: Map.get(args, :include_basic_lands, false),
+      include_sideboard: Map.get(args, :include_sideboard, false),
+      include_maybeboard: Map.get(args, :include_maybeboard, false),
       assume_no_owned: true
     ]
   end
