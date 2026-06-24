@@ -145,12 +145,28 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
           "lang" => "en",
           "image_uris" => %{},
           "finishes" => ["nonfoil"],
+          "prices" => %{"usd" => "2.50"},
           "legalities" => %{}
         }
       ])
 
     {:ok, deck} = Catalog.create_deck(%{"name" => "Shared Deck"})
-    {:ok, _deck_card} = Catalog.add_card_to_deck(deck, %{"name" => "Shared Card"})
+
+    {:ok, _deck_card} =
+      Catalog.add_card_to_deck(deck, %{
+        "name" => "Shared Card",
+        "preferred_printing_id" => "scryfall-share-card",
+        "quantity" => 2
+      })
+
+    {:ok, _owned_item} =
+      Catalog.create_collection_item(%{
+        "scryfall_id" => "scryfall-share-card",
+        "quantity" => 2,
+        "condition" => "near_mint",
+        "language" => "en",
+        "finish" => "nonfoil"
+      })
 
     share_conn =
       post(conn, "/api/graphql", %{
@@ -260,6 +276,18 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
               }
             }
           }
+          deckBuylist(id: $id, printingMode: "exact", includeBasicLands: true) {
+            cardName
+            quantity
+            missing
+            unavailable
+            reason
+            setCode
+            collectorNumber
+            totalPriceCents
+            totalPriceText
+          }
+          deckBuylistExport(id: $id, format: "text", printingMode: "exact", includeBasicLands: true)
         }
         """,
         "variables" => %{"id" => share_token}
@@ -270,7 +298,7 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                "deck" => %{
                  "name" => "Shared Deck",
                  "shareToken" => ^share_token,
-                 "cardCount" => 1,
+                 "cardCount" => 2,
                  "uniqueCardCount" => 1,
                  "legality" => %{
                    "status" => "illegal",
@@ -281,11 +309,11 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                    "edges" => [
                      %{
                        "node" => %{
-                         "quantity" => 1,
+                         "quantity" => 2,
                          "card" => %{"name" => "Shared Card"},
                          "allocationStatus" => %{
                            "state" => "shared",
-                           "required" => 1,
+                           "required" => 2,
                            "owned" => 0,
                            "allocated" => 0,
                            "available" => 0,
@@ -298,6 +326,25 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                    ]
                  }
                }
+             }
+           } = json_response(public_conn, 200)
+
+    assert %{
+             "data" => %{
+               "deckBuylist" => [
+                 %{
+                   "cardName" => "Shared Card",
+                   "quantity" => 2,
+                   "missing" => 2,
+                   "unavailable" => 0,
+                   "reason" => "missing",
+                   "setCode" => "shr",
+                   "collectorNumber" => "9",
+                   "totalPriceCents" => 500,
+                   "totalPriceText" => "$5"
+                 }
+               ],
+               "deckBuylistExport" => "2 Shared Card (SHR 9)"
              }
            } = json_response(public_conn, 200)
 

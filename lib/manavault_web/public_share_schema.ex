@@ -35,6 +35,49 @@ defmodule ManavaultWeb.PublicShareSchema do
         CatalogResolvers.shared_deck(parent, %{token: token}, resolution)
       end)
     end
+
+    field :deck_buylist, non_null(list_of(non_null(:deck_buylist_entry))) do
+      arg(:id, non_null(:id))
+      arg(:printing_mode, :string, default_value: "none")
+      arg(:include_basic_lands, :boolean, default_value: false)
+
+      resolve(fn _parent, %{id: token} = args, _resolution ->
+        case Catalog.get_deck_by_share_token(token, preload?: false) do
+          %Deck{} = deck -> {:ok, Catalog.deck_buylist(deck, public_buylist_opts(args))}
+          nil -> {:ok, []}
+        end
+      end)
+    end
+
+    field :deck_buylist_export, non_null(:string) do
+      arg(:id, non_null(:id))
+      arg(:format, :string, default_value: "text")
+      arg(:printing_mode, :string, default_value: "none")
+      arg(:include_basic_lands, :boolean, default_value: false)
+
+      resolve(fn _parent, %{id: token} = args, _resolution ->
+        case Catalog.get_deck_by_share_token(token, preload?: false) do
+          %Deck{} = deck ->
+            {:ok,
+             Catalog.export_deck_buylist(
+               deck,
+               Map.get(args, :format, "text"),
+               public_buylist_opts(args)
+             )}
+
+          nil ->
+            {:ok, ""}
+        end
+      end)
+    end
+  end
+
+  defp public_buylist_opts(args) do
+    [
+      printing_mode: Map.get(args, :printing_mode, "none"),
+      include_basic_lands: Map.get(args, :include_basic_lands, false),
+      assume_no_owned: true
+    ]
   end
 
   def context(ctx) do

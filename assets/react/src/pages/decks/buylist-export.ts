@@ -9,6 +9,29 @@ export function buylistSummary(entries: BuylistEntry[]) {
   return `${quantity} cards to source: ${missing} missing, ${unavailable} owned but unavailable.`
 }
 
+export function buylistTotalPrice(entries: BuylistEntry[]) {
+  return entries.reduce(
+    (summary, entry) => {
+      if (typeof entry.totalPriceCents === "number") {
+        summary.totalCents += entry.totalPriceCents
+      } else {
+        summary.unpricedQuantity += entry.quantity
+      }
+
+      return summary
+    },
+    { totalCents: 0, unpricedQuantity: 0 },
+  )
+}
+
+export function formatUsdCents(cents: number) {
+  return new Intl.NumberFormat(undefined, {
+    currency: "USD",
+    maximumFractionDigits: cents % 100 === 0 ? 0 : 2,
+    style: "currency",
+  }).format(cents / 100)
+}
+
 export function buylistReasonTone(entry: BuylistEntry) {
   if (entry.missing > 0 && entry.unavailable > 0) return "warning"
   if (entry.unavailable > 0) return "primary"

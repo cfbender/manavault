@@ -513,6 +513,7 @@ export const DeckBuylistDocument = graphql(`
       collectorNumber
       language
       unitPriceText
+      totalPriceCents
       totalPriceText
     }
     deckBuylistExport(

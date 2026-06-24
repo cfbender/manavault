@@ -9,9 +9,10 @@ defmodule Manavault.Catalog.Decks.Buylist do
     deck = Repo.preload(deck, Preloads.deck_preloads(), force: true)
     printing_mode = Keyword.get(opts, :printing_mode, :none)
     include_basic_lands = Keyword.get(opts, :include_basic_lands, false)
+    assume_no_owned = Keyword.get(opts, :assume_no_owned, false)
 
     deck.deck_cards
-    |> AllocationStatus.put_deck_card_allocation_statuses()
+    |> put_buylist_allocation_statuses(assume_no_owned)
     |> Enum.map(fn deck_card ->
       status = deck_card.allocation_status
       needed = max(status.required - status.allocated - status.available, 0)
@@ -41,6 +42,30 @@ defmodule Manavault.Catalog.Decks.Buylist do
     end)
     |> Enum.reject(&is_nil/1)
     |> Enum.sort_by(&{&1.card_name, &1.set_code || "", &1.collector_number || ""})
+  end
+
+  defp put_buylist_allocation_statuses(deck_cards, true) do
+    Enum.map(deck_cards, fn deck_card ->
+      %{deck_card | allocation_status: assumed_missing_status(deck_card)}
+    end)
+  end
+
+  defp put_buylist_allocation_statuses(deck_cards, _assume_no_owned) do
+    AllocationStatus.put_deck_card_allocation_statuses(deck_cards)
+  end
+
+  defp assumed_missing_status(%DeckCard{quantity: quantity}) do
+    %{
+      state: "missing",
+      required: quantity,
+      owned: 0,
+      allocated: 0,
+      proxy_allocated: 0,
+      available: 0,
+      allocated_elsewhere: 0,
+      missing: quantity,
+      candidates: []
+    }
   end
 
   def export_deck_buylist(deck, format, opts \\ [])

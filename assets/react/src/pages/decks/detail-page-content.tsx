@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router"
+import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
   CheckSquare,
@@ -6,42 +6,88 @@ import {
   Download,
   Layers,
   Play,
+  ShoppingCart,
   Plus,
   Trash2,
-} from "lucide-react"
+} from "lucide-react";
 
-import { EmptyState } from "../../components/card-image"
-import { ImageSummaryCard } from "../../components/image-summary-card"
-import { Badge } from "../../components/ui/badge"
-import { Button } from "../../components/ui/button"
-import { Input } from "../../components/ui/input"
-import type { DeckCardUpdateInput } from "../../gql/graphql"
-import type { DeckGroup, DeckGroupBy } from "../../lib/deck-grouping"
-import { cn, compactNumber, titleize } from "../../lib/utils"
-import { BulkAllocationMenu } from "./bulk-allocation"
-import { ShareModeHidden, SummaryActionMenu } from "./deck-actions"
-import { deckDetailCoverUrl } from "./deck-card-model"
-import { DeckGroupMenu } from "./deck-group-menu"
-import { deckLegalityIssueCountLabel, deckLegalityLabel, deckLegalityTone } from "./deck-legality"
-import { DeckNameWithCommanderIdentity, commanderColorIdentity } from "./deck-list-model"
-import { DeckGroupGrid } from "./deck-stack-grid"
-import { DeckStatsSection, DeckTokensSection, type DeferredDeckAnalysis } from "./deck-stats-panel"
+import { EmptyState } from "../../components/card-image";
+import { ImageSummaryCard } from "../../components/image-summary-card";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import type { DeckCardUpdateInput } from "../../gql/graphql";
+import type { DeckGroup, DeckGroupBy } from "../../lib/deck-grouping";
+import { cn, compactNumber, titleize } from "../../lib/utils";
+import { BulkAllocationMenu } from "./bulk-allocation";
+import { ShareModeHidden, SummaryActionMenu } from "./deck-actions";
+import { deckDetailCoverUrl } from "./deck-card-model";
+import { DeckGroupMenu } from "./deck-group-menu";
+import {
+  deckLegalityIssueCountLabel,
+  deckLegalityLabel,
+  deckLegalityTone,
+} from "./deck-legality";
+import {
+  DeckNameWithCommanderIdentity,
+  commanderColorIdentity,
+} from "./deck-list-model";
+import { DeckGroupGrid } from "./deck-stack-grid";
+import {
+  DeckStatsSection,
+  DeckTokensSection,
+  type DeferredDeckAnalysis,
+} from "./deck-stats-panel";
 import type {
   BulkAllocationMode,
   DeckCardEntry,
   DeckCardTag,
   DeckDetail,
   DeckZone,
-} from "./deck-types"
-import { DECK_CARD_TAGS, MOVE_TARGET_ZONES } from "./deck-types"
-import { DeckZoneTable } from "./deck-zone-table"
+} from "./deck-types";
+import { DECK_CARD_TAGS, MOVE_TARGET_ZONES } from "./deck-types";
+import { DeckZoneTable } from "./deck-zone-table";
 
-export type DetailZoneCounts = Record<DeckZone, number>
+export type DetailZoneCounts = Record<DeckZone, number>;
 
 export type DeckLegalityIssue = {
-  code?: string | null
-  cardName?: string | null
-  message: string
+  code?: string | null;
+  cardName?: string | null;
+  message: string;
+};
+
+type BuylistPrice = {
+  label: string;
+  loading: boolean;
+  unpricedQuantity: number;
+};
+
+function BuylistPriceChip({
+  onClick,
+  price,
+}: {
+  onClick: () => void;
+  price: BuylistPrice | null;
+}) {
+  if (!price) return null;
+
+  return (
+    <button
+      type="button"
+      className="badge badge-warning badge-outline badge-sm h-5 cursor-pointer gap-1.5 px-2 font-medium transition-colors hover:bg-warning/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning/35"
+      aria-label="Open buy list"
+      onClick={onClick}
+    >
+      <span className="font-mono font-black">
+        {price.loading ? "Pricing..." : price.label}
+      </span>
+      {!price.loading && price.unpricedQuantity > 0 ? (
+        <span className="font-normal opacity-75">
+          + {price.unpricedQuantity} unpriced
+        </span>
+      ) : null}
+    </button>
+  );
 }
 
 export function DeckDetailContent({
@@ -82,6 +128,7 @@ export function DeckDetailContent({
   onOpenDeleteSelected,
   onOpenEdhrec,
   onOpenShareDeck,
+  onOpenShareBuylist,
   onOpenSharePlaytest,
   onPreviewBulkAllocation,
   onPreviewCard,
@@ -95,65 +142,68 @@ export function DeckDetailContent({
   onUpdateSelectedDeckCards,
   selectedDeckCardCount,
   selectedDeckCardIds,
+  buylistPrice,
   shareCopyState,
   shareMode,
   sideboardCards,
   zoneCounts,
 }: {
-  allocationError: string | null
-  allDeckCardsSelected: boolean
-  bulkActionError: string | null
-  bulkQuantity: number
-  canBulkAllocate: boolean
-  deck: DeckDetail
-  deckCards: DeckCardEntry[]
-  deckStats: DeferredDeckAnalysis["stats"] | null
-  deckTokens: DeferredDeckAnalysis["tokens"] | null
-  groupBy: DeckGroupBy
-  groupedCards: DeckGroup<DeckCardEntry>[]
-  highlightedDeckCardIds: Set<string> | null
-  isBulkAllocating: boolean
-  isPreviewingBulkAllocation: boolean
-  isSelectionActive: boolean
-  isUpdatingDeckCard: boolean
-  legalityIssues: DeckLegalityIssue[]
-  maybeboardCards: DeckCardEntry[]
-  onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
-  onClearSelectedDeckCards: () => void
-  onCopySharedDecklist: () => void
-  onDeallocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
-  onDeleteCard: (deckCard: DeckCardEntry) => void
-  onDownloadSharedDecklist: () => void
-  onEditCard: (deckCard: DeckCardEntry) => void
-  onEditDeck: () => void
-  onExportDeck: () => void
-  onGroupByChange: (groupBy: DeckGroupBy) => void
-  onHighlightDeckCards: (deckCardIds: Set<string> | null) => void
-  onImportDeck: () => void
-  onMissingCards: () => void
-  onMoveCard: (deckCard: DeckCardEntry) => void
-  onOpenAddCard: () => void
-  onOpenDeleteDeck: () => void
-  onOpenDeleteSelected: () => void
-  onOpenEdhrec: () => void
-  onOpenShareDeck: () => void
-  onOpenSharePlaytest: () => void
-  onPreviewBulkAllocation: (mode: BulkAllocationMode) => void
-  onPreviewCard: (deckCard: DeckCardEntry) => void
-  onSelectAllDeckCards: () => void
-  onSetCommander: (deckCard: DeckCardEntry) => void
-  onSetBulkQuantity: (quantity: number) => void
-  onTagCard: (deckCard: DeckCardEntry, tag: DeckCardTag | null) => void
-  onTagSelectedDeckCards: (tag: DeckCardTag | null) => void
-  onToggleProxy: (deckCard: DeckCardEntry) => void
-  onToggleSelected: (deckCardId: string, selectRange?: boolean) => void
-  onUpdateSelectedDeckCards: (input: DeckCardUpdateInput) => void
-  selectedDeckCardCount: number
-  selectedDeckCardIds: Set<string>
-  shareCopyState: "idle" | "copied" | "failed"
-  shareMode: boolean
-  sideboardCards: DeckCardEntry[]
-  zoneCounts: DetailZoneCounts
+  allocationError: string | null;
+  allDeckCardsSelected: boolean;
+  bulkActionError: string | null;
+  bulkQuantity: number;
+  canBulkAllocate: boolean;
+  deck: DeckDetail;
+  deckCards: DeckCardEntry[];
+  deckStats: DeferredDeckAnalysis["stats"] | null;
+  deckTokens: DeferredDeckAnalysis["tokens"] | null;
+  groupBy: DeckGroupBy;
+  groupedCards: DeckGroup<DeckCardEntry>[];
+  highlightedDeckCardIds: Set<string> | null;
+  isBulkAllocating: boolean;
+  isPreviewingBulkAllocation: boolean;
+  isSelectionActive: boolean;
+  isUpdatingDeckCard: boolean;
+  legalityIssues: DeckLegalityIssue[];
+  maybeboardCards: DeckCardEntry[];
+  onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void;
+  onClearSelectedDeckCards: () => void;
+  onCopySharedDecklist: () => void;
+  onDeallocate: (deckCard: DeckCardEntry, collectionItemId: string) => void;
+  onDeleteCard: (deckCard: DeckCardEntry) => void;
+  onDownloadSharedDecklist: () => void;
+  onEditCard: (deckCard: DeckCardEntry) => void;
+  onEditDeck: () => void;
+  onExportDeck: () => void;
+  onGroupByChange: (groupBy: DeckGroupBy) => void;
+  onHighlightDeckCards: (deckCardIds: Set<string> | null) => void;
+  onImportDeck: () => void;
+  onMissingCards: () => void;
+  onMoveCard: (deckCard: DeckCardEntry) => void;
+  onOpenAddCard: () => void;
+  onOpenDeleteDeck: () => void;
+  onOpenDeleteSelected: () => void;
+  onOpenEdhrec: () => void;
+  onOpenShareDeck: () => void;
+  onOpenShareBuylist: () => void;
+  onOpenSharePlaytest: () => void;
+  onPreviewBulkAllocation: (mode: BulkAllocationMode) => void;
+  onPreviewCard: (deckCard: DeckCardEntry) => void;
+  onSelectAllDeckCards: () => void;
+  onSetCommander: (deckCard: DeckCardEntry) => void;
+  onSetBulkQuantity: (quantity: number) => void;
+  onTagCard: (deckCard: DeckCardEntry, tag: DeckCardTag | null) => void;
+  onTagSelectedDeckCards: (tag: DeckCardTag | null) => void;
+  onToggleProxy: (deckCard: DeckCardEntry) => void;
+  onToggleSelected: (deckCardId: string, selectRange?: boolean) => void;
+  onUpdateSelectedDeckCards: (input: DeckCardUpdateInput) => void;
+  selectedDeckCardCount: number;
+  selectedDeckCardIds: Set<string>;
+  buylistPrice: BuylistPrice | null;
+  shareCopyState: "idle" | "copied" | "failed";
+  shareMode: boolean;
+  sideboardCards: DeckCardEntry[];
+  zoneCounts: DetailZoneCounts;
 }) {
   return (
     <div className="space-y-7">
@@ -177,7 +227,13 @@ export function DeckDetailContent({
             <span className="inline-flex h-5 items-center">
               {compactNumber(deck.uniqueCardCount || 0)} unique
             </span>
-            <Badge tone={deckLegalityTone(deck.legality)}>{deckLegalityLabel(deck.legality)}</Badge>
+            <Badge tone={deckLegalityTone(deck.legality)}>
+              {deckLegalityLabel(deck.legality)}
+            </Badge>
+            <BuylistPriceChip
+              price={buylistPrice}
+              onClick={shareMode ? onOpenShareBuylist : onMissingCards}
+            />
           </div>
         }
         nameLine={
@@ -210,13 +266,18 @@ export function DeckDetailContent({
           </div>
           <ul className="space-y-1.5">
             {legalityIssues.map((issue, index) => (
-              <li key={`${issue.code}-${issue.cardName || "deck"}-${index}`} className="flex gap-2">
+              <li
+                key={`${issue.code}-${issue.cardName || "deck"}-${index}`}
+                className="flex gap-2"
+              >
                 <span aria-hidden="true" className="text-error">
                   •
                 </span>
                 <span>
                   {issue.cardName ? (
-                    <span className="font-bold text-base-content">{issue.cardName}: </span>
+                    <span className="font-bold text-base-content">
+                      {issue.cardName}:{" "}
+                    </span>
                   ) : null}
                   {issue.message}
                 </span>
@@ -228,12 +289,16 @@ export function DeckDetailContent({
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-base-300 pb-4">
         <dl className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-          {(["commander", "mainboard", "sideboard", "maybeboard"] as DeckZone[]).map((zone) => (
+          {(
+            ["commander", "mainboard", "sideboard", "maybeboard"] as DeckZone[]
+          ).map((zone) => (
             <div key={zone} className="flex items-baseline gap-1.5">
               <dt
                 className={cn(
                   "text-xs font-black uppercase tracking-[0.16em]",
-                  zone === "commander" ? "text-primary" : "text-base-content/45",
+                  zone === "commander"
+                    ? "text-primary"
+                    : "text-base-content/45",
                 )}
               >
                 {titleize(zone)}
@@ -256,6 +321,16 @@ export function DeckDetailContent({
               >
                 <Play className="h-4 w-4" />
                 Playtest
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!deckCards.length}
+                onClick={onOpenShareBuylist}
+              >
+                <ShoppingCart className="h-4 w-4" />
+                Buy list
               </Button>
               <Button
                 type="button"
@@ -310,8 +385,12 @@ export function DeckDetailContent({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <CheckSquare className="h-4 w-4 text-primary" />
-                <span className="font-semibold">{selectedDeckCardCount} selected</span>
-                <span className="text-xs text-base-content/60">Shift-click selects a range.</span>
+                <span className="font-semibold">
+                  {selectedDeckCardCount} selected
+                </span>
+                <span className="text-xs text-base-content/60">
+                  Shift-click selects a range.
+                </span>
                 <Button
                   type="button"
                   variant="ghost"
@@ -350,9 +429,9 @@ export function DeckDetailContent({
                 disabled={!selectedDeckCardCount || isUpdatingDeckCard}
                 defaultValue=""
                 onChange={(event) => {
-                  const zone = event.currentTarget.value as DeckZone | ""
-                  if (zone) onUpdateSelectedDeckCards({ zone })
-                  event.currentTarget.value = ""
+                  const zone = event.currentTarget.value as DeckZone | "";
+                  if (zone) onUpdateSelectedDeckCards({ zone });
+                  event.currentTarget.value = "";
                 }}
               >
                 <option value="">Move to zone...</option>
@@ -374,7 +453,9 @@ export function DeckDetailContent({
                   value={bulkQuantity}
                   disabled={!selectedDeckCardCount || isUpdatingDeckCard}
                   onChange={(event) =>
-                    onSetBulkQuantity(Math.max(1, Number.parseInt(event.target.value, 10) || 1))
+                    onSetBulkQuantity(
+                      Math.max(1, Number.parseInt(event.target.value, 10) || 1),
+                    )
                   }
                 />
                 <Button
@@ -382,7 +463,9 @@ export function DeckDetailContent({
                   className="join-item h-8 min-h-8 px-3"
                   size="sm"
                   disabled={!selectedDeckCardCount || isUpdatingDeckCard}
-                  onClick={() => onUpdateSelectedDeckCards({ quantity: bulkQuantity })}
+                  onClick={() =>
+                    onUpdateSelectedDeckCards({ quantity: bulkQuantity })
+                  }
                 >
                   Set
                 </Button>
@@ -394,10 +477,13 @@ export function DeckDetailContent({
                 disabled={!selectedDeckCardCount || isUpdatingDeckCard}
                 defaultValue=""
                 onChange={(event) => {
-                  const value = event.currentTarget.value as DeckCardTag | "clear" | ""
-                  if (value === "clear") onTagSelectedDeckCards(null)
-                  else if (value) onTagSelectedDeckCards(value)
-                  event.currentTarget.value = ""
+                  const value = event.currentTarget.value as
+                    | DeckCardTag
+                    | "clear"
+                    | "";
+                  if (value === "clear") onTagSelectedDeckCards(null);
+                  else if (value) onTagSelectedDeckCards(value);
+                  event.currentTarget.value = "";
                 }}
               >
                 <option value="">Tag selected...</option>
@@ -480,7 +566,10 @@ export function DeckDetailContent({
       </div>
 
       <DeckTokensSection tokens={deckTokens} />
-      <DeckStatsSection stats={deckStats} onHighlightDeckCards={onHighlightDeckCards} />
+      <DeckStatsSection
+        stats={deckStats}
+        onHighlightDeckCards={onHighlightDeckCards}
+      />
     </div>
-  )
+  );
 }

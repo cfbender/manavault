@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { Clipboard, Database, ShoppingCart, Store } from "lucide-react"
+import { Clipboard } from "lucide-react"
 import { useEffect, useState } from "react"
 import { EmptyState } from "../../components/card-image"
 import { Badge } from "../../components/ui/badge"
@@ -12,14 +12,8 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { request } from "../../lib/graphql"
-import {
-  buylistPrintingLabel,
-  buylistReasonTone,
-  buylistSummary,
-  manaPoolBuylistUrl,
-  tcgplayerBuylistUrl,
-  vendorBuylistPipeText,
-} from "./buylist-export"
+import { buylistPrintingLabel, buylistReasonTone, buylistSummary } from "./buylist-export"
+import { BuylistMarketplaceActions } from "./buylist-marketplace-actions"
 import type { BuylistExportFormat, BuylistPrintingMode, DeckDetail } from "./deck-types"
 import { DeckBuylistDocument } from "./queries"
 
@@ -49,7 +43,6 @@ export function MissingCardsDialog({
   })
   const entries = buylistQuery.data?.deckBuylist || []
   const exportText = buylistQuery.data?.deckBuylistExport || ""
-  const hasBuylistEntries = entries.length > 0
 
   useEffect(() => {
     if (!open) setCopyState("idle")
@@ -138,51 +131,7 @@ export function MissingCardsDialog({
             </label>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <form
-              action="https://www.cardkingdom.com/builder"
-              method="post"
-              target="_blank"
-              className="inline-flex"
-            >
-              <input type="hidden" name="c" value={vendorBuylistPipeText(entries)} />
-              <input type="hidden" name="partner" value="manavault" />
-              <input type="hidden" name="po_origin" value="1" />
-              <input type="hidden" name="partner_args" value="manavault,buylist" />
-              <Button type="submit" variant="outline" size="sm" disabled={!hasBuylistEntries}>
-                <Store className="h-4 w-4" />
-                Card Kingdom
-              </Button>
-            </form>
-
-            {hasBuylistEntries ? (
-              <Button asChild variant="outline" size="sm">
-                <a href={manaPoolBuylistUrl(entries)} target="_blank" rel="noreferrer">
-                  <Database className="h-4 w-4" />
-                  Mana Pool
-                </a>
-              </Button>
-            ) : (
-              <Button type="button" variant="outline" size="sm" disabled>
-                <Database className="h-4 w-4" />
-                Mana Pool
-              </Button>
-            )}
-
-            {hasBuylistEntries ? (
-              <Button asChild variant="outline" size="sm">
-                <a href={tcgplayerBuylistUrl(entries)} target="_blank" rel="noreferrer">
-                  <ShoppingCart className="h-4 w-4" />
-                  TCGplayer
-                </a>
-              </Button>
-            ) : (
-              <Button type="button" variant="outline" size="sm" disabled>
-                <ShoppingCart className="h-4 w-4" />
-                TCGplayer
-              </Button>
-            )}
-          </div>
+          <BuylistMarketplaceActions entries={entries} />
 
           <div className="rounded-box border border-base-300 bg-base-200/60 px-4 py-3 text-sm text-base-content/70">
             {buylistQuery.isLoading ? "Loading buylist..." : buylistSummary(entries)}

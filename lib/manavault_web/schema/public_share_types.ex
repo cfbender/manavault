@@ -147,6 +147,60 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     end
   end
 
+  object :deck_buylist_entry do
+    field :card_name, non_null(:string) do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :quantity, non_null(:integer) do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :missing, non_null(:integer) do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :unavailable, non_null(:integer) do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :reason, non_null(:string) do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :finish, :string do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :set_code, :string do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :collector_number, :string do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :language, :string do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :unit_price_cents, :integer do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :total_price_cents, :integer do
+      resolve(&CatalogResolvers.map_value/3)
+    end
+
+    field :unit_price_text, :string do
+      resolve(&CatalogResolvers.buylist_entry_unit_price_text/3)
+    end
+
+    field :total_price_text, :string do
+      resolve(&CatalogResolvers.buylist_entry_total_price_text/3)
+    end
+  end
+
   node object(:deck) do
     field :name, non_null(:string)
     field :format, non_null(:string)

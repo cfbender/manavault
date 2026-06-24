@@ -78,6 +78,26 @@ defmodule Manavault.Catalog.DeckBuylistTest do
              }
            ] = Catalog.deck_buylist(target_deck, printing_mode: :exact)
 
+    assert [
+             %{
+               card_name: "Black Lotus",
+               quantity: 3,
+               missing: 3,
+               unavailable: 0,
+               reason: "missing",
+               set_code: "leb",
+               collector_number: "233",
+               total_price_cents: 3_000
+             }
+           ] = Catalog.deck_buylist(target_deck, printing_mode: :cheapest, assume_no_owned: true)
+
+    assert Catalog.export_deck_buylist(
+             target_deck,
+             :text,
+             printing_mode: :cheapest,
+             assume_no_owned: true
+           ) == "3 Black Lotus (LEB 233)"
+
     assert Catalog.export_deck_buylist(target_deck, :text, printing_mode: :cheapest) ==
              "2 Black Lotus (LEB 233)"
 

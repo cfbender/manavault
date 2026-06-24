@@ -6,6 +6,7 @@ import type { DeckCardInput, DeckCardUpdateInput } from "../../gql/graphql"
 import { groupDeckCards, type DeckGroupBy } from "../../lib/deck-grouping"
 import { request } from "../../lib/graphql"
 import { present } from "../../lib/utils"
+import { buylistTotalPrice, formatUsdCents } from "./buylist-export"
 import { compareDeckCards, countDeckZones } from "./deck-card-model"
 import { deckLegalityIssues } from "./deck-legality"
 import { useDeferredDeckAnalysis } from "./deck-stats-panel"
@@ -24,7 +25,7 @@ import {
 import { DeckDetailContent } from "./detail-page-content"
 import { DeckDetailDialogs } from "./detail-page-dialogs"
 import { useDeckDetailSelection } from "./detail-page-selection"
-import { SharePlaytestOverlay, useSharedDecklistActions } from "./detail-page-share"
+import { ShareDeckBuylistDialog, SharePlaytestOverlay, useSharedDecklistActions } from "./detail-page-share"
 import { edhrecCardPrintingId } from "./edhrec"
 import {
   AddDeckCardDocument,
@@ -34,6 +35,7 @@ import {
   DeallocateDeckCardItemDocument,
   DeallocateDeckCardProxyDocument,
   DeckDocument,
+  DeckBuylistDocument,
   DeleteDeckCardDocument,
   DeleteDeckDocument,
   PreviewBulkAllocateDeckDocument,
@@ -67,6 +69,7 @@ export function DeckDetailPage({
   const [isShareDeckOpen, setIsShareDeckOpen] = useState(false)
   const [previewDeckCard, setPreviewDeckCard] = useState<DeckCardEntry | null>(null)
   const [isSharePlaytestOpen, setIsSharePlaytestOpen] = useState(false)
+  const [isShareBuylistOpen, setIsShareBuylistOpen] = useState(false)
   const [bulkAllocationPreview, setBulkAllocationPreview] = useState<BulkAllocationPreview | null>(
     null,
   )
@@ -93,6 +96,36 @@ export function DeckDetailPage({
     deck?.name || "deck",
     deckCards,
   )
+  const buylistPriceQuery = useQuery({
+    queryKey: shareMode
+      ? ["shared-deck-buylist", id, false]
+      : ["deck-buylist", id, "exact", "text", false],
+    queryFn: () =>
+      request(
+        DeckBuylistDocument,
+        {
+          exportFormat: "text",
+          id,
+          includeBasicLands: false,
+          printingMode: "exact",
+        },
+        shareMode ? { endpoint: "/share/graphql" } : undefined,
+      ),
+    enabled: Boolean(deck),
+  })
+  const buylistPrice = useMemo(() => {
+    if (buylistPriceQuery.isLoading) {
+      return { label: "", loading: true, unpricedQuantity: 0 }
+    }
+    if (buylistPriceQuery.error) return null
+
+    const totalPrice = buylistTotalPrice(buylistPriceQuery.data?.deckBuylist || [])
+    return {
+      label: formatUsdCents(totalPrice.totalCents),
+      loading: false,
+      unpricedQuantity: totalPrice.unpricedQuantity,
+    }
+  }, [buylistPriceQuery.data?.deckBuylist, buylistPriceQuery.error, buylistPriceQuery.isLoading])
   const deferredDeckAnalysis = useDeferredDeckAnalysis(deckCards)
   const deckStats = deferredDeckAnalysis?.stats ?? null
   const deckTokens = deferredDeckAnalysis?.tokens ?? null
@@ -487,6 +520,7 @@ export function DeckDetailPage({
         onOpenDeleteSelected={() => setIsDeleteSelectedOpen(true)}
         onOpenEdhrec={() => setEdhrecState("recs")}
         onOpenShareDeck={() => setIsShareDeckOpen(true)}
+        onOpenShareBuylist={() => setIsShareBuylistOpen(true)}
         onOpenSharePlaytest={() => setIsSharePlaytestOpen(true)}
         onPreviewBulkAllocation={(mode) => {
           setBulkAllocationError(null)
@@ -518,6 +552,7 @@ export function DeckDetailPage({
         onUpdateSelectedDeckCards={updateSelectedDeckCards}
         selectedDeckCardCount={selectedDeckCardCount}
         selectedDeckCardIds={selectedDeckCardIds}
+        buylistPrice={buylistPrice}
         shareCopyState={shareCopyState}
         shareMode={shareMode}
         sideboardCards={sideboardCards}
@@ -596,6 +631,14 @@ export function DeckDetailPage({
         updateDeckCardPending={updateDeckCard.isPending}
         zoneCounts={zoneCounts}
       />
+      {shareMode ? (
+        <ShareDeckBuylistDialog
+          deck={deck}
+          onOpenChange={setIsShareBuylistOpen}
+          open={isShareBuylistOpen}
+          shareToken={id}
+        />
+      ) : null}
     </>
   )
 }
