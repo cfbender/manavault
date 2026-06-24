@@ -100,10 +100,10 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
 
   def decks(_parent, _args, _resolution), do: {:ok, Catalog.list_deck_summaries()}
 
-  def deck(_parent, %{id: id}, _resolution), do: {:ok, Catalog.get_deck!(id)}
+  def deck(_parent, %{id: id}, _resolution), do: {:ok, Catalog.get_deck!(id, preload?: false)}
 
   def shared_deck(_parent, %{token: token}, _resolution),
-    do: {:ok, Catalog.get_deck_by_share_token(token)}
+    do: {:ok, Catalog.get_deck_by_share_token(token, preload?: false)}
 
   def deck_export_text(_parent, %{id: id}, _resolution) do
     {:ok, id |> Catalog.get_deck!() |> Catalog.export_decklist()}

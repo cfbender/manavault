@@ -14,6 +14,10 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
     {:ok, parent |> Map.get(:total_price_cents) |> Price.format_cents()}
   end
 
+  def deck_cards(%Deck{deck_cards: deck_cards}, _args, _resolution) when is_list(deck_cards) do
+    {:ok, Catalog.put_deck_card_allocation_statuses(deck_cards)}
+  end
+
   def deck_cards(%Deck{} = deck, _args, %{context: %{loader: loader}}) do
     loader
     |> Dataloader.load(Catalog, :deck_cards, deck)
@@ -41,6 +45,20 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
 
   def deck_commander_color_identity(%Deck{} = deck, _args, _resolution) do
     {:ok, Catalog.deck_commander_color_identity(deck)}
+  end
+
+  def deck_legality(%Deck{deck_cards: deck_cards} = deck, _args, _resolution)
+      when is_list(deck_cards) do
+    {:ok, Catalog.deck_legality(deck)}
+  end
+
+  def deck_legality(%Deck{} = deck, _args, %{context: %{loader: loader}}) do
+    loader
+    |> Dataloader.load(Catalog, :deck_cards, deck)
+    |> on_load(fn loader ->
+      deck_cards = Dataloader.get(loader, Catalog, :deck_cards, deck)
+      {:ok, Catalog.deck_legality(%{deck | deck_cards: deck_cards})}
+    end)
   end
 
   def deck_legality(%Deck{} = deck, _args, _resolution) do

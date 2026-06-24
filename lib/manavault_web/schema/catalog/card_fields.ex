@@ -46,6 +46,18 @@ defmodule ManavaultWeb.Schema.Catalog.CardFields do
     {:ok, printings}
   end
 
+  def printing_card(%Printing{card: %Card{} = card}, _args, _resolution) do
+    {:ok, card}
+  end
+
+  def printing_card(%Printing{} = printing, _args, %{context: %{loader: loader}}) do
+    loader
+    |> Dataloader.load(Catalog, :card, printing)
+    |> on_load(fn loader ->
+      {:ok, Dataloader.get(loader, Catalog, :card, printing)}
+    end)
+  end
+
   def printing_image_url(%Printing{} = printing, _args, _resolution) do
     image_uris = ValueResolvers.decode_json(printing.image_uris, %{})
     {:ok, image_url(image_uris)}

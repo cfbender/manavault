@@ -17,8 +17,8 @@ defmodule Manavault.Catalog.Decks.Workflows do
   defdelegate list_decks(), to: Queries
   defdelegate list_deck_summaries(), to: Queries
   defdelegate count_decks(), to: Queries
-  defdelegate get_deck_by_share_token(token), to: Queries
-  defdelegate get_deck!(id), to: Queries
+  defdelegate get_deck_by_share_token(token, opts \\ []), to: Queries
+  defdelegate get_deck!(id, opts \\ []), to: Queries
   defdelegate deck_cards(deck), to: Queries
   defdelegate deck_legality(deck), to: Queries
   defdelegate deck_card_count(deck), to: Queries

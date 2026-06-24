@@ -7,6 +7,42 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionFields do
   alias Manavault.Catalog.{CollectionItem, Location, Price, Printing}
   alias Manavault.Repo
 
+  def collection_item_printing(
+        %CollectionItem{printing: %Printing{} = printing},
+        _args,
+        _resolution
+      ) do
+    {:ok, printing}
+  end
+
+  def collection_item_printing(%CollectionItem{} = item, _args, %{context: %{loader: loader}}) do
+    loader
+    |> Dataloader.load(Catalog, :printing, item)
+    |> on_load(fn loader ->
+      {:ok, Dataloader.get(loader, Catalog, :printing, item)}
+    end)
+  end
+
+  def collection_item_location(
+        %CollectionItem{location_assoc: %Location{} = location},
+        _args,
+        _resolution
+      ) do
+    {:ok, location}
+  end
+
+  def collection_item_location(%CollectionItem{location_assoc: nil}, _args, _resolution) do
+    {:ok, nil}
+  end
+
+  def collection_item_location(%CollectionItem{} = item, _args, %{context: %{loader: loader}}) do
+    loader
+    |> Dataloader.load(Catalog, :location_assoc, item)
+    |> on_load(fn loader ->
+      {:ok, Dataloader.get(loader, Catalog, :location_assoc, item)}
+    end)
+  end
+
   def location_item_count(%Location{item_count: count}, _args, _resolution)
       when is_integer(count) do
     {:ok, count}

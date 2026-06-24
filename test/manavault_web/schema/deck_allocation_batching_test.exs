@@ -47,8 +47,22 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
           "query" => """
           query Deck($id: ID!) {
             deck(id: $id) {
+              id
+              cardCount
+              uniqueCardCount
+              legality { status }
               deckCards {
                 id
+                card {
+                  name
+                  printings {
+                    scryfallId
+                    setCode
+                  }
+                }
+                preferredPrinting {
+                  scryfallId
+                }
                 allocationStatus {
                   state
                   available
@@ -73,12 +87,15 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
     assert %{
              "data" => %{
                "deck" => %{
+                 "cardCount" => 3,
+                 "uniqueCardCount" => 3,
+                 "legality" => %{"status" => "illegal"},
                  "deckCards" => [_, _, _]
                }
              }
            } = json_response(conn, 200)
 
-    assert query_count <= 12
+    assert query_count <= 10
   end
 
   test "collection item allocated quantities are batched over GraphQL", %{conn: conn} do

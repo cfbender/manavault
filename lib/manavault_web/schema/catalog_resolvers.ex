@@ -63,6 +63,7 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   defdelegate card_rulings(parent, args, resolution), to: CardFields
   defdelegate card_legalities(parent, args, resolution), to: CardFields
   defdelegate card_printings(parent, args, resolution), to: CardFields
+  defdelegate printing_card(parent, args, resolution), to: CardFields
   defdelegate printing_image_url(parent, args, resolution), to: CardFields
   defdelegate printing_art_crop_url(parent, args, resolution), to: CardFields
   defdelegate printing_price_text(parent, args, resolution), to: CardFields
@@ -88,6 +89,8 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   defdelegate location_value_gain_percent_text(parent, args, resolution), to: CollectionFields
   defdelegate location_value_summary(parent, args, resolution), to: CollectionFields
   defdelegate location_collection_items(parent, args, resolution), to: CollectionFields
+  defdelegate collection_item_printing(parent, args, resolution), to: CollectionFields
+  defdelegate collection_item_location(parent, args, resolution), to: CollectionFields
   defdelegate collection_item_current_price_cents(parent, args, resolution), to: CollectionFields
   defdelegate collection_item_purchase_price_cents(parent, args, resolution), to: CollectionFields
   defdelegate collection_item_price_text(parent, args, resolution), to: CollectionFields

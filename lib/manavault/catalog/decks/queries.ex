@@ -22,9 +22,11 @@ defmodule Manavault.Catalog.Decks.Queries do
     Repo.aggregate(Deck, :count)
   end
 
-  def get_deck_by_share_token(nil), do: nil
+  def get_deck_by_share_token(token, opts \\ [])
 
-  def get_deck_by_share_token(token) when is_binary(token) do
+  def get_deck_by_share_token(nil, _opts), do: nil
+
+  def get_deck_by_share_token(token, opts) when is_binary(token) and is_list(opts) do
     token = String.trim(token)
 
     if token == "" do
@@ -32,17 +34,14 @@ defmodule Manavault.Catalog.Decks.Queries do
     else
       Deck
       |> Repo.get_by(share_token: token)
-      |> case do
-        nil -> nil
-        deck -> Repo.preload(deck, Preloads.deck_preloads())
-      end
+      |> maybe_preload_deck(opts)
     end
   end
 
-  def get_deck!(id) do
+  def get_deck!(id, opts \\ []) when is_list(opts) do
     Deck
     |> Repo.get!(id)
-    |> Repo.preload(Preloads.deck_preloads())
+    |> maybe_preload_deck(opts)
   end
 
   def deck_cards(%Deck{deck_cards: cards}) when is_list(cards) do
@@ -134,5 +133,15 @@ defmodule Manavault.Catalog.Decks.Queries do
     id
     |> DeckSummaries.display()
     |> Map.fetch!(:cover_image_url)
+  end
+
+  defp maybe_preload_deck(nil, _opts), do: nil
+
+  defp maybe_preload_deck(%Deck{} = deck, opts) do
+    if Keyword.get(opts, :preload?, true) do
+      Repo.preload(deck, Preloads.deck_preloads())
+    else
+      deck
+    end
   end
 end
