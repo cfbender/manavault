@@ -1,4 +1,4 @@
-import { compactNumber, present } from "../../lib/utils"
+import { compactNumber } from "../../lib/utils"
 import type {
   DeckDetail,
   EDHRecCard,
@@ -7,7 +7,7 @@ import type {
   EDHRecSectionCard,
   EDHRecTab,
 } from "./deck-types"
-import { EDHREC_SCROLL_STORAGE_PREFIX } from "./deck-types"
+import { EDHREC_SCROLL_STORAGE_PREFIX, connectionNodes } from "./deck-types"
 
 export function edhrecCardReturnSearch(
   deckId: string,
@@ -81,18 +81,20 @@ export function collectionStatusTone(
 }
 
 export function edhrecCardImageUrl(card: EDHRecCard | EDHRecSectionCard) {
-  const printing = card.card?.printings?.find(
-    (printing) => printing?.imageUrl || printing?.artCropUrl,
+  const printing = connectionNodes(card.card?.printings).find(
+    (printing) => printing.imageUrl || printing.artCropUrl,
   )
   return printing?.imageUrl || printing?.artCropUrl
 }
 
 export function edhrecCardPrice(card: EDHRecCard | EDHRecSectionCard) {
-  return card.card?.printings?.find((printing) => printing?.priceText)?.priceText || null
+  return (
+    connectionNodes(card.card?.printings).find((printing) => printing.priceText)?.priceText || null
+  )
 }
 
 export function edhrecCardPrintingId(card: EDHRecCard | EDHRecSectionCard) {
-  return card.card?.printings?.find((printing) => printing?.scryfallId)?.scryfallId || null
+  return connectionNodes(card.card?.printings).find((printing) => printing.id)?.id || null
 }
 
 export function edhrecCardUrl(card: EDHRecCard | EDHRecSectionCard) {
@@ -113,13 +115,11 @@ export function formatSynergy(card: EDHRecSectionCard) {
 
 export function commanderDeckCard(deck: DeckDetail | null, name: string) {
   const normalizedName = normalizeDisplayName(name)
-  return (deck?.deckCards || [])
-    .filter(present)
-    .find(
-      (deckCard) =>
-        deckCard.zone === "commander" &&
-        normalizeDisplayName(deckCard.card?.name || "") === normalizedName,
-    )
+  return (deck?.deckCards || []).find(
+    (deckCard) =>
+      deckCard.zone === "commander" &&
+      normalizeDisplayName(deckCard.card?.name || "") === normalizedName,
+  )
 }
 
 export function normalizeDisplayName(value: string) {

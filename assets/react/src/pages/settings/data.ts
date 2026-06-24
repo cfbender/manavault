@@ -43,27 +43,29 @@ export const CloudBackupsDocument = graphql(`
 export const UpdateBackupSettingsDocument = graphql(`
   mutation UpdateBackupSettings($input: BackupSettingsInput!) {
     updateBackupSettings(input: $input) {
-      enabled
-      provider
-      cron
-      s3Endpoint
-      s3Bucket
-      s3Region
-      s3Prefix
-      s3AccessKeyId
-      hasS3SecretAccessKey
-      googleClientId
-      googleFolderId
-      hasGoogleClientSecret
-      hasGoogleRefreshToken
-      lastBackupAt
-      lastBackupStatus
-      lastBackupMessage
-      lastBackupPath
-      lastRestoreAt
-      lastRestoreStatus
-      lastRestoreMessage
-      pendingRestorePath
+      backupSettings {
+        enabled
+        provider
+        cron
+        s3Endpoint
+        s3Bucket
+        s3Region
+        s3Prefix
+        s3AccessKeyId
+        hasS3SecretAccessKey
+        googleClientId
+        googleFolderId
+        hasGoogleClientSecret
+        hasGoogleRefreshToken
+        lastBackupAt
+        lastBackupStatus
+        lastBackupMessage
+        lastBackupPath
+        lastRestoreAt
+        lastRestoreStatus
+        lastRestoreMessage
+        pendingRestorePath
+      }
     }
   }
 `)
@@ -71,13 +73,15 @@ export const UpdateBackupSettingsDocument = graphql(`
 export const RunCloudBackupDocument = graphql(`
   mutation RunCloudBackup {
     runCloudBackup {
-      id
-      name
-      provider
-      status
-      message
-      size
-      modifiedAt
+      cloudBackup {
+        id
+        name
+        provider
+        status
+        message
+        size
+        modifiedAt
+      }
     }
   }
 `)
@@ -85,9 +89,11 @@ export const RunCloudBackupDocument = graphql(`
 export const StageCloudRestoreDocument = graphql(`
   mutation StageCloudRestore($id: ID!) {
     stageCloudRestore(id: $id) {
-      status
-      message
-      path
+      restoreResult {
+        status
+        message
+        path
+      }
     }
   }
 `)
@@ -95,8 +101,10 @@ export const StageCloudRestoreDocument = graphql(`
 export const ReloadScryfallCatalogDocument = graphql(`
   mutation ReloadScryfallCatalog {
     reloadScryfallCatalog {
-      status
-      message
+      reloadResult {
+        status
+        message
+      }
     }
   }
 `)
@@ -104,8 +112,10 @@ export const ReloadScryfallCatalogDocument = graphql(`
 export const ReloadScryfallAssetsDocument = graphql(`
   mutation ReloadScryfallAssets {
     reloadScryfallAssets {
-      status
-      message
+      reloadResult {
+        status
+        message
+      }
     }
   }
 `)

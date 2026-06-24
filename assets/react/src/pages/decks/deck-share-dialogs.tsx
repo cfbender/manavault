@@ -41,7 +41,7 @@ export function ShareDeckDialog({
       if (deck) queryClient.invalidateQueries({ queryKey: ["deck", deck.id] })
     },
   })
-  const generatedDeck = ensureShare.data?.ensureDeckShareToken || null
+  const generatedDeck = ensureShare.data?.ensureDeckShareToken?.deck || null
   const shareToken =
     generatedDeck && generatedDeck.id === deck?.id
       ? generatedDeck.shareToken || ""
@@ -151,7 +151,7 @@ export function ImportDecklistDialog({
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["deck", deck?.id] })
       queryClient.invalidateQueries({ queryKey: ["decks"] })
-      setResult(data.importDecklist || null)
+      setResult(data.importDecklist?.importResult || null)
       setError(null)
       onOpenChange(false)
     },

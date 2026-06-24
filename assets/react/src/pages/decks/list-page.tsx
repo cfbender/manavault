@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { Layers, Plus } from "lucide-react"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { PageHeader, PageSection } from "../../components/app-shell"
 import { EmptyState } from "../../components/card-image"
 import { ImageSummaryCard } from "../../components/image-summary-card"
@@ -20,7 +20,7 @@ import {
 } from "./deck-legality"
 import { DeckNameWithCommanderIdentity, groupDecksByFormat } from "./deck-list-model"
 import { ShareDeckDialog } from "./deck-share-dialogs"
-import type { DeckSummary } from "./deck-types"
+import { flattenDecks, type DeckSummary } from "./deck-types"
 import { DecksDocument, DeleteDeckDocument } from "./queries"
 
 export function DecksPage() {
@@ -40,7 +40,8 @@ export function DecksPage() {
     queryKey: ["decks"],
     queryFn: () => request(DecksDocument),
   })
-  const deckGroups = groupDecksByFormat(data?.decks || [])
+  const decks = useMemo(() => flattenDecks(data?.decks), [data?.decks])
+  const deckGroups = groupDecksByFormat(decks)
 
   function deleteSelectedDeck() {
     if (!deletingDeck) return
@@ -65,7 +66,7 @@ export function DecksPage() {
       {isLoading ? (
         <EmptyState title="Loading decks..." />
       ) : deckGroups.length ? (
-        <PageSection count={`${data?.decks?.length || 0} total`}>
+        <PageSection count={`${decks.length} total`}>
           <div className="space-y-10">
             {deckGroups.map(([format, decks]) => (
               <section key={format} className="space-y-4">

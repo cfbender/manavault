@@ -25,34 +25,42 @@ defmodule ManavaultWeb.Schema.CollectionItemsTest do
 
     {:ok, location} = Catalog.create_location(%{name: "Trade Binder", kind: "binder"})
 
+    printing_id =
+      Absinthe.Relay.Node.to_global_id(:printing, "scryfall-printing-2", ManavaultWeb.Schema)
+
+    location_id =
+      Absinthe.Relay.Node.to_global_id(:location, location.id, ManavaultWeb.Schema)
+
     conn =
       post(conn, "/api/graphql", %{
         "query" => """
         mutation CreateCollectionItem($input: CollectionItemInput!) {
           createCollectionItem(input: $input) {
-            id
-            quantity
-            condition
-            language
-            finish
-            notes
-            printing { scryfallId card { name } }
-            purchasePriceCents
-            purchasePriceText
-            valueGainText
-            valueGainPercentText
-            location { id name }
+            collectionItem {
+              id
+              quantity
+              condition
+              language
+              finish
+              notes
+              printing { scryfallId card { name } }
+              purchasePriceCents
+              purchasePriceText
+              valueGainText
+              valueGainPercentText
+              location { id name }
+            }
           }
         }
         """,
         "variables" => %{
           "input" => %{
-            "scryfallId" => "scryfall-printing-2",
+            "scryfallId" => printing_id,
             "quantity" => 2,
             "condition" => "near_mint",
             "language" => "en",
             "finish" => "foil",
-            "locationId" => location.id,
+            "locationId" => location_id,
             "notes" => "Fresh pull"
           }
         }
@@ -61,20 +69,22 @@ defmodule ManavaultWeb.Schema.CollectionItemsTest do
     assert %{
              "data" => %{
                "createCollectionItem" => %{
-                 "quantity" => 2,
-                 "condition" => "near_mint",
-                 "language" => "en",
-                 "finish" => "foil",
-                 "notes" => "Fresh pull",
-                 "purchasePriceCents" => 350,
-                 "purchasePriceText" => "$3.50",
-                 "valueGainText" => "$0",
-                 "valueGainPercentText" => "0%",
-                 "printing" => %{
-                   "scryfallId" => "scryfall-printing-2",
-                   "card" => %{"name" => "New Collection Card"}
-                 },
-                 "location" => %{"id" => _id, "name" => "Trade Binder"}
+                 "collectionItem" => %{
+                   "quantity" => 2,
+                   "condition" => "near_mint",
+                   "language" => "en",
+                   "finish" => "foil",
+                   "notes" => "Fresh pull",
+                   "purchasePriceCents" => 350,
+                   "purchasePriceText" => "$3.50",
+                   "valueGainText" => "$0",
+                   "valueGainPercentText" => "0%",
+                   "printing" => %{
+                     "scryfallId" => "scryfall-printing-2",
+                     "card" => %{"name" => "New Collection Card"}
+                   },
+                   "location" => %{"id" => _id, "name" => "Trade Binder"}
+                 }
                }
              }
            } = json_response(conn, 200)
@@ -109,33 +119,41 @@ defmodule ManavaultWeb.Schema.CollectionItemsTest do
         location_id: location.id
       })
 
+    item_id =
+      Absinthe.Relay.Node.to_global_id(:collection_item, item.id, ManavaultWeb.Schema)
+
+    new_location_id =
+      Absinthe.Relay.Node.to_global_id(:location, new_location.id, ManavaultWeb.Schema)
+
     update_conn =
       post(conn, "/api/graphql", %{
         "query" => """
         mutation UpdateCollectionItem($id: ID!, $input: CollectionItemUpdateInput!) {
           updateCollectionItem(id: $id, input: $input) {
-            id
-            quantity
-            condition
-            language
-            finish
-            notes
-            purchasePriceCents
-            purchasePriceText
-            valueGainText
-            valueGainPercentText
-            location { name }
+            collectionItem {
+              id
+              quantity
+              condition
+              language
+              finish
+              notes
+              purchasePriceCents
+              purchasePriceText
+              valueGainText
+              valueGainPercentText
+              location { name }
+            }
           }
         }
         """,
         "variables" => %{
-          "id" => item.id,
+          "id" => item_id,
           "input" => %{
             "quantity" => 4,
             "condition" => "lightly_played",
             "language" => "ja",
             "finish" => "foil",
-            "locationId" => new_location.id,
+            "locationId" => new_location_id,
             "notes" => "Moved",
             "purchasePriceCents" => 1234
           }
@@ -145,17 +163,19 @@ defmodule ManavaultWeb.Schema.CollectionItemsTest do
     assert %{
              "data" => %{
                "updateCollectionItem" => %{
-                 "id" => _id,
-                 "quantity" => 4,
-                 "condition" => "lightly_played",
-                 "language" => "ja",
-                 "finish" => "foil",
-                 "notes" => "Moved",
-                 "purchasePriceCents" => 1234,
-                 "purchasePriceText" => "$12.34",
-                 "valueGainText" => "-$7.34",
-                 "valueGainPercentText" => "-59.5%",
-                 "location" => %{"name" => "New List"}
+                 "collectionItem" => %{
+                   "id" => _id,
+                   "quantity" => 4,
+                   "condition" => "lightly_played",
+                   "language" => "ja",
+                   "finish" => "foil",
+                   "notes" => "Moved",
+                   "purchasePriceCents" => 1234,
+                   "purchasePriceText" => "$12.34",
+                   "valueGainText" => "-$7.34",
+                   "valueGainPercentText" => "-59.5%",
+                   "location" => %{"name" => "New List"}
+                 }
                }
              }
            } = json_response(update_conn, 200)
@@ -165,14 +185,20 @@ defmodule ManavaultWeb.Schema.CollectionItemsTest do
         "query" => """
         mutation DeleteCollectionItem($id: ID!) {
           deleteCollectionItem(id: $id) {
-            id
+            collectionItem {
+              id
+            }
           }
         }
         """,
-        "variables" => %{"id" => item.id}
+        "variables" => %{"id" => item_id}
       })
 
-    assert %{"data" => %{"deleteCollectionItem" => %{"id" => _id}}} =
+    assert %{
+             "data" => %{
+               "deleteCollectionItem" => %{"collectionItem" => %{"id" => _id}}
+             }
+           } =
              json_response(delete_conn, 200)
 
     assert [] = Catalog.list_collection_items()

@@ -175,7 +175,7 @@ export function DeckStackCard({
                 <li>
                   <Link
                     to="/cards/$id"
-                    params={{ id: deckCard.card?.oracleId || "" }}
+                    params={{ id: deckCard.card?.id || "" }}
                     search={{ deckId }}
                   >
                     <Eye className="h-4 w-4" />

@@ -2,6 +2,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
   @moduledoc false
 
   use Absinthe.Schema.Notation
+  use Absinthe.Relay.Schema.Notation, :modern
 
   import Absinthe.Resolution.Helpers, only: [dataloader: 1]
 
@@ -37,8 +38,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     end
   end
 
-  object :deck do
-    field :id, non_null(:id)
+  node object(:deck) do
     field :name, non_null(:string)
     field :format, non_null(:string)
     field :status, non_null(:string)
@@ -64,13 +64,12 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
       resolve(&CatalogResolvers.deck_legality/3)
     end
 
-    field :deck_cards, list_of(:deck_card) do
+    connection field :deck_cards, node_type: :deck_card do
       resolve(&CatalogResolvers.deck_cards/3)
     end
   end
 
-  object :deck_card do
-    field :id, non_null(:id)
+  node object(:deck_card) do
     field :quantity, non_null(:integer)
     field :zone, :string
     field :finish, :string
@@ -82,6 +81,9 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
       resolve(&CatalogResolvers.deck_card_allocation_status/3)
     end
   end
+
+  connection(node_type: :deck)
+  connection(node_type: :deck_card)
 
   object :deck_card_allocation_status do
     field :state, non_null(:string)

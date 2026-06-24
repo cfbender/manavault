@@ -12,7 +12,7 @@ import {
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
 import { request } from "../../lib/graphql"
-import { titleize } from "../../lib/utils"
+import { present, titleize } from "../../lib/utils"
 import { AddCardToDeckDocument, CardDeckOptionsDocument } from "./data"
 
 export type CardDeckTarget = {
@@ -50,7 +50,8 @@ export function AddCatalogCardToDeckDialog({
     queryFn: () => request(CardDeckOptionsDocument),
     enabled: open,
   })
-  const selectedDeck = decksQuery.data?.decks.find((deck) => deck.id === deckId)
+  const decks = decksQuery.data?.decks?.edges?.map((edge) => edge?.node).filter(present) || []
+  const selectedDeck = decks.find((deck) => deck.id === deckId)
   const zoneOptions =
     selectedDeck?.format === "commander" ? CARD_DECK_ZONES : NON_COMMANDER_CARD_DECK_ZONES
   const finishOptions =
@@ -151,7 +152,7 @@ export function AddCatalogCardToDeckDialog({
               autoFocus
             >
               <option value="">Choose a deck</option>
-              {decksQuery.data?.decks.map((deck) => (
+              {decks.map((deck) => (
                 <option key={deck.id} value={deck.id}>
                   {deck.name} ({titleize(deck.format)})
                 </option>

@@ -27,7 +27,7 @@ export function EDHRecCardMenu({
   isAddingCard: boolean
   onAddCard: (zone: EDHRecAddZone) => void
 }) {
-  const localCardId = card.card?.oracleId
+  const localCardId = card.card?.id
   const externalUrl = edhrecCardUrl(card)
 
   return (
@@ -91,7 +91,7 @@ export function EDHRecCardLink({
   children: ReactNode
   className?: string
 }) {
-  const localCardId = card.card?.oracleId
+  const localCardId = card.card?.id
   const externalUrl = edhrecCardUrl(card)
 
   if (localCardId) {

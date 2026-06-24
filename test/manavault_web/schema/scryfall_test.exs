@@ -25,8 +25,8 @@ defmodule ManavaultWeb.Schema.ScryfallTest do
       post(conn, "/api/graphql", %{
         "query" => """
         mutation {
-          reloadScryfallCatalog { status message }
-          reloadScryfallAssets { status message }
+          reloadScryfallCatalog { reloadResult { status message } }
+          reloadScryfallAssets { reloadResult { status message } }
         }
         """
       })
@@ -34,12 +34,16 @@ defmodule ManavaultWeb.Schema.ScryfallTest do
     assert %{
              "data" => %{
                "reloadScryfallCatalog" => %{
-                 "status" => "queued",
-                 "message" => catalog_message
+                 "reloadResult" => %{
+                   "status" => "queued",
+                   "message" => catalog_message
+                 }
                },
                "reloadScryfallAssets" => %{
-                 "status" => "queued",
-                 "message" => asset_message
+                 "reloadResult" => %{
+                   "status" => "queued",
+                   "message" => asset_message
+                 }
                }
              }
            } = json_response(conn, 200)

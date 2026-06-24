@@ -112,7 +112,7 @@ export function DeckZoneTable({
                     ) : (
                       <Link
                         to="/cards/$id"
-                        params={{ id: deckCard.card?.oracleId || "" }}
+                        params={{ id: deckCard.card?.id || "" }}
                         search={{ deckId }}
                         className="font-semibold hover:text-primary"
                       >

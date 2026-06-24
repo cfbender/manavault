@@ -12,15 +12,17 @@ defmodule ManavaultWeb.Schema.DeckWorkflowsTest do
         "query" => """
         mutation UpdateDeck($id: ID!, $input: DeckUpdateInput!) {
           updateDeck(id: $id, input: $input) {
-            id
-            name
-            format
-            status
+            deck {
+              id
+              name
+              format
+              status
+            }
           }
         }
         """,
         "variables" => %{
-          "id" => deck.id,
+          "id" => global_deck_id(deck),
           "input" => %{"name" => "New Deck", "format" => "modern", "status" => "active"}
         }
       })
@@ -28,10 +30,12 @@ defmodule ManavaultWeb.Schema.DeckWorkflowsTest do
     assert %{
              "data" => %{
                "updateDeck" => %{
-                 "id" => _id,
-                 "name" => "New Deck",
-                 "format" => "modern",
-                 "status" => "active"
+                 "deck" => %{
+                   "id" => _id,
+                   "name" => "New Deck",
+                   "format" => "modern",
+                   "status" => "active"
+                 }
                }
              }
            } = json_response(conn, 200)
@@ -69,20 +73,23 @@ defmodule ManavaultWeb.Schema.DeckWorkflowsTest do
       ])
 
     {:ok, deck} = Catalog.create_deck(%{"name" => "Import Deck"})
+    deck_id = global_deck_id(deck)
 
     import_conn =
       post(conn, "/api/graphql", %{
         "query" => """
         mutation ImportDecklist($id: ID!, $text: String!) {
           importDecklist(id: $id, text: $text) {
-            imported
-            unresolved
-            skippedPrintings
+            importResult {
+              imported
+              unresolved
+              skippedPrintings
+            }
           }
         }
         """,
         "variables" => %{
-          "id" => deck.id,
+          "id" => deck_id,
           "text" => """
           Commander
           1 Import Walk
@@ -97,9 +104,11 @@ defmodule ManavaultWeb.Schema.DeckWorkflowsTest do
     assert %{
              "data" => %{
                "importDecklist" => %{
-                 "imported" => 2,
-                 "unresolved" => ["Missing Card"],
-                 "skippedPrintings" => []
+                 "importResult" => %{
+                   "imported" => 2,
+                   "unresolved" => ["Missing Card"],
+                   "skippedPrintings" => []
+                 }
                }
              }
            } = json_response(import_conn, 200)
@@ -111,7 +120,7 @@ defmodule ManavaultWeb.Schema.DeckWorkflowsTest do
           deckExportText(id: $id)
         }
         """,
-        "variables" => %{"id" => deck.id}
+        "variables" => %{"id" => deck_id}
       })
 
     assert %{"data" => %{"deckExportText" => export_text}} = json_response(export_conn, 200)
@@ -123,13 +132,15 @@ defmodule ManavaultWeb.Schema.DeckWorkflowsTest do
         "query" => """
         mutation ImportDecklist($id: ID!, $text: String!, $replaceExisting: Boolean!) {
           importDecklist(id: $id, text: $text, replaceExisting: $replaceExisting) {
-            imported
-            unresolved
+            importResult {
+              imported
+              unresolved
+            }
           }
         }
         """,
         "variables" => %{
-          "id" => deck.id,
+          "id" => deck_id,
           "text" => """
           Mainboard
           1 Import Walk
@@ -140,7 +151,9 @@ defmodule ManavaultWeb.Schema.DeckWorkflowsTest do
 
     assert %{
              "data" => %{
-               "importDecklist" => %{"imported" => 1, "unresolved" => []}
+               "importDecklist" => %{
+                 "importResult" => %{"imported" => 1, "unresolved" => []}
+               }
              }
            } = json_response(replace_conn, 200)
 
@@ -151,7 +164,7 @@ defmodule ManavaultWeb.Schema.DeckWorkflowsTest do
           deckExportText(id: $id)
         }
         """,
-        "variables" => %{"id" => deck.id}
+        "variables" => %{"id" => deck_id}
       })
 
     assert %{"data" => %{"deckExportText" => replaced_export_text}} =
@@ -212,7 +225,7 @@ defmodule ManavaultWeb.Schema.DeckWorkflowsTest do
           deckBuylistExport(id: $id, format: "csv", printingMode: "exact")
         }
         """,
-        "variables" => %{"id" => deck.id}
+        "variables" => %{"id" => global_deck_id(deck)}
       })
 
     assert %{
@@ -239,5 +252,9 @@ defmodule ManavaultWeb.Schema.DeckWorkflowsTest do
              "Quantity,Card,Set,Collector Number,Finish,Language,Reason,Unit Price,Total Price"
 
     assert export_csv =~ "2,Buylist Lotus,buy,7,nonfoil,en,missing,$3.50,$7"
+  end
+
+  defp global_deck_id(deck) do
+    Absinthe.Relay.Node.to_global_id(:deck, deck.id, ManavaultWeb.Schema)
   end
 end

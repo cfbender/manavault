@@ -92,11 +92,14 @@ defmodule ManavaultWeb.Schema.CardQueriesTest do
         }
       ])
 
+    card_id =
+      Absinthe.Relay.Node.to_global_id(:card, "oracle-rulings", ManavaultWeb.Schema)
+
     conn =
       post(conn, "/api/graphql", %{
         "query" => """
-        query {
-          card(id: "oracle-rulings") {
+        query CardRulings($id: ID!) {
+          card(id: $id) {
             rulings {
               source
               publishedAt
@@ -104,7 +107,8 @@ defmodule ManavaultWeb.Schema.CardQueriesTest do
             }
           }
         }
-        """
+        """,
+        "variables" => %{"id" => card_id}
       })
 
     assert %{
@@ -144,18 +148,22 @@ defmodule ManavaultWeb.Schema.CardQueriesTest do
         }
       ])
 
+    card_id =
+      Absinthe.Relay.Node.to_global_id(:card, "oracle-legalities", ManavaultWeb.Schema)
+
     conn =
       post(conn, "/api/graphql", %{
         "query" => """
-        query {
-          card(id: "oracle-legalities") {
+        query CardLegalities($id: ID!) {
+          card(id: $id) {
             legalities {
               format
               status
             }
           }
         }
-        """
+        """,
+        "variables" => %{"id" => card_id}
       })
 
     assert %{
@@ -166,6 +174,49 @@ defmodule ManavaultWeb.Schema.CardQueriesTest do
                    %{"format" => "modern", "status" => "not_legal"},
                    %{"format" => "standard", "status" => "banned"}
                  ]
+               }
+             }
+           } = json_response(conn, 200)
+  end
+
+  test "card query accepts legacy raw oracle IDs", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-legacy-card-printing",
+          "oracle_id" => "cbf09050-39d0-463b-96db-9e22011ae0d8",
+          "name" => "Legacy Linked Card",
+          "type_line" => "Creature",
+          "collector_number" => "3",
+          "set" => "leg",
+          "set_name" => "Legacy Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query LegacyCard($id: ID!) {
+          card(id: $id) {
+            id
+            oracleId
+            name
+          }
+        }
+        """,
+        "variables" => %{"id" => "cbf09050-39d0-463b-96db-9e22011ae0d8"}
+      })
+
+    assert %{
+             "data" => %{
+               "card" => %{
+                 "id" => _global_id,
+                 "oracleId" => "cbf09050-39d0-463b-96db-9e22011ae0d8",
+                 "name" => "Legacy Linked Card"
                }
              }
            } = json_response(conn, 200)

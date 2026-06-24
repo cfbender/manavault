@@ -9,12 +9,14 @@ defmodule ManavaultWeb.Schema.DeckQueriesTest do
         "query" => """
         mutation CreateDeck($input: DeckInput!) {
           createDeck(input: $input) {
-            id
-            name
-            format
-            status
-            cardCount
-            uniqueCardCount
+            deck {
+              id
+              name
+              format
+              status
+              cardCount
+              uniqueCardCount
+            }
           }
         }
         """,
@@ -30,12 +32,14 @@ defmodule ManavaultWeb.Schema.DeckQueriesTest do
     assert %{
              "data" => %{
                "createDeck" => %{
-                 "id" => _id,
-                 "name" => "Knife Drawer",
-                 "format" => "commander",
-                 "status" => "brewing",
-                 "cardCount" => 0,
-                 "uniqueCardCount" => 0
+                 "deck" => %{
+                   "id" => _id,
+                   "name" => "Knife Drawer",
+                   "format" => "commander",
+                   "status" => "brewing",
+                   "cardCount" => 0,
+                   "uniqueCardCount" => 0
+                 }
                }
              }
            } = json_response(conn, 200)
@@ -112,7 +116,7 @@ defmodule ManavaultWeb.Schema.DeckQueriesTest do
           }
         }
         """,
-        "variables" => %{"id" => deck.id}
+        "variables" => %{"id" => global_deck_id(deck)}
       })
 
     assert %{
@@ -177,12 +181,20 @@ defmodule ManavaultWeb.Schema.DeckQueriesTest do
       post(conn, "/api/graphql", %{
         "query" => """
         query {
-          decks {
-            name
-            coverImageUrl
-            commanderColorIdentity
-            cardCount
-            uniqueCardCount
+          decks(first: 10) {
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+            edges {
+              node {
+                name
+                coverImageUrl
+                commanderColorIdentity
+                cardCount
+                uniqueCardCount
+              }
+            }
           }
         }
         """
@@ -190,16 +202,25 @@ defmodule ManavaultWeb.Schema.DeckQueriesTest do
 
     assert %{
              "data" => %{
-               "decks" => [
-                 %{
-                   "name" => "Summary Deck",
-                   "coverImageUrl" => "https://example.test/summary-main-art.jpg",
-                   "commanderColorIdentity" => ["U", "G"],
-                   "cardCount" => 3,
-                   "uniqueCardCount" => 2
-                 }
-               ]
+               "decks" => %{
+                 "pageInfo" => %{"endCursor" => _cursor, "hasNextPage" => false},
+                 "edges" => [
+                   %{
+                     "node" => %{
+                       "name" => "Summary Deck",
+                       "coverImageUrl" => "https://example.test/summary-main-art.jpg",
+                       "commanderColorIdentity" => ["U", "G"],
+                       "cardCount" => 3,
+                       "uniqueCardCount" => 2
+                     }
+                   }
+                 ]
+               }
              }
            } = json_response(conn, 200)
+  end
+
+  defp global_deck_id(deck) do
+    Absinthe.Relay.Node.to_global_id(:deck, deck.id, ManavaultWeb.Schema)
   end
 end

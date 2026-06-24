@@ -46,28 +46,44 @@ defmodule ManavaultWeb.Schema.CollectionQueriesTest do
       post(conn, "/api/graphql", %{
         "query" => """
         query {
-          locations {
-            id
-            name
-            kind
-            itemCount
-            totalPriceText
-            coverPrinting { imageUrl artCropUrl card { name } }
-            valueSummary {
-              totalPriceText
-              purchasePriceText
-              valueGainText
-              valueGainPercentText
+          locations(first: 10) {
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+            edges {
+              node {
+                id
+                name
+                kind
+                itemCount
+                totalPriceText
+                coverPrinting { imageUrl artCropUrl card { name } }
+                valueSummary {
+                  totalPriceText
+                  purchasePriceText
+                  valueGainText
+                  valueGainPercentText
+                }
+              }
             }
           }
-          collectionItems {
-            priceText
-            allocatedQuantity
-            printing { imageUrl card { name } }
-            purchasePriceText
-            valueGainText
-            valueGainPercentText
-            location { name }
+          collectionItems(first: 10) {
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+            edges {
+              node {
+                priceText
+                allocatedQuantity
+                printing { imageUrl card { name } }
+                purchasePriceText
+                valueGainText
+                valueGainPercentText
+                location { name }
+              }
+            }
           }
           collectionItemCount
           collectionValueSummary {
@@ -82,40 +98,47 @@ defmodule ManavaultWeb.Schema.CollectionQueriesTest do
 
     assert %{
              "data" => %{
-               "locations" => [
-                 %{
-                   "id" => _id,
-                   "name" => "Binder",
-                   "kind" => "binder",
-                   "coverPrinting" => %{
-                     "card" => %{"name" => "Test Card"},
-                     "artCropUrl" => "https://example.test/card-art.jpg",
-                     "imageUrl" => "https://example.test/card.jpg"
+               "locations" => %{
+                 "pageInfo" => %{"endCursor" => _, "hasNextPage" => false},
+                 "edges" => [
+                   %{
+                     "node" => %{
+                       "id" => _id,
+                       "name" => "Binder",
+                       "kind" => "binder",
+                       "coverPrinting" => %{
+                         "card" => %{"name" => "Test Card"},
+                         "artCropUrl" => "https://example.test/card-art.jpg",
+                         "imageUrl" => "https://example.test/card.jpg"
+                       },
+                       "itemCount" => 3,
+                       "totalPriceText" => "$37.02",
+                       "valueSummary" => %{
+                         "totalPriceText" => "$37.02",
+                         "purchasePriceText" => "$37.02",
+                         "valueGainText" => "$0",
+                         "valueGainPercentText" => "0%"
+                       }
+                     }
                    },
-                   "itemCount" => 3,
-                   "totalPriceText" => "$37.02",
-                   "valueSummary" => %{
-                     "totalPriceText" => "$37.02",
-                     "purchasePriceText" => "$37.02",
-                     "valueGainText" => "$0",
-                     "valueGainPercentText" => "0%"
+                   %{
+                     "node" => %{
+                       "id" => _unfiled_id,
+                       "name" => "Unfiled",
+                       "kind" => "unfiled",
+                       "coverPrinting" => nil,
+                       "itemCount" => 0,
+                       "totalPriceText" => "$0",
+                       "valueSummary" => %{
+                         "totalPriceText" => "$0",
+                         "purchasePriceText" => "$0",
+                         "valueGainText" => "$0",
+                         "valueGainPercentText" => nil
+                       }
+                     }
                    }
-                 },
-                 %{
-                   "id" => "unfiled",
-                   "name" => "Unfiled",
-                   "kind" => "unfiled",
-                   "coverPrinting" => nil,
-                   "itemCount" => 0,
-                   "totalPriceText" => "$0",
-                   "valueSummary" => %{
-                     "totalPriceText" => "$0",
-                     "purchasePriceText" => "$0",
-                     "valueGainText" => "$0",
-                     "valueGainPercentText" => nil
-                   }
-                 }
-               ],
+                 ]
+               },
                "collectionItemCount" => 3,
                "collectionValueSummary" => %{
                  "totalPriceText" => "$37.02",
@@ -123,20 +146,25 @@ defmodule ManavaultWeb.Schema.CollectionQueriesTest do
                  "valueGainText" => "$0",
                  "valueGainPercentText" => "0%"
                },
-               "collectionItems" => [
-                 %{
-                   "allocatedQuantity" => 0,
-                   "location" => %{"name" => "Binder"},
-                   "priceText" => "$12.34",
-                   "purchasePriceText" => "$12.34",
-                   "valueGainText" => "$0",
-                   "valueGainPercentText" => "0%",
-                   "printing" => %{
-                     "card" => %{"name" => "Test Card"},
-                     "imageUrl" => "https://example.test/card.jpg"
+               "collectionItems" => %{
+                 "pageInfo" => %{"endCursor" => _, "hasNextPage" => false},
+                 "edges" => [
+                   %{
+                     "node" => %{
+                       "allocatedQuantity" => 0,
+                       "location" => %{"name" => "Binder"},
+                       "priceText" => "$12.34",
+                       "purchasePriceText" => "$12.34",
+                       "valueGainText" => "$0",
+                       "valueGainPercentText" => "0%",
+                       "printing" => %{
+                         "card" => %{"name" => "Test Card"},
+                         "imageUrl" => "https://example.test/card.jpg"
+                       }
+                     }
                    }
-                 }
-               ]
+                 ]
+               }
              }
            } = json_response(conn, 200)
   end
@@ -231,11 +259,14 @@ defmodule ManavaultWeb.Schema.CollectionQueriesTest do
         quantity: 5
       })
 
+    card_id =
+      Absinthe.Relay.Node.to_global_id(:card, "oracle-owned-card", ManavaultWeb.Schema)
+
     conn =
       post(conn, "/api/graphql", %{
         "query" => """
-        query {
-          card(id: "oracle-owned-card") {
+        query CardOwnedCounts($id: ID!) {
+          card(id: $id) {
             oracleTags {
               id
               slug
@@ -245,13 +276,22 @@ defmodule ManavaultWeb.Schema.CollectionQueriesTest do
             }
             deckCategory
             deckThemes
-            printings {
-              scryfallId
-              ownedCount
+            printings(first: 10) {
+              pageInfo {
+                endCursor
+                hasNextPage
+              }
+              edges {
+                node {
+                  scryfallId
+                  ownedCount
+                }
+              }
             }
           }
         }
-        """
+        """,
+        "variables" => %{"id" => card_id}
       })
 
     assert %{
@@ -268,10 +308,23 @@ defmodule ManavaultWeb.Schema.CollectionQueriesTest do
                  ],
                  "deckCategory" => "card_advantage",
                  "deckThemes" => deck_themes,
-                 "printings" => [
-                   %{"scryfallId" => "scryfall-owned-new", "ownedCount" => 1},
-                   %{"scryfallId" => "scryfall-owned-old", "ownedCount" => 3}
-                 ]
+                 "printings" => %{
+                   "pageInfo" => %{"endCursor" => _, "hasNextPage" => false},
+                   "edges" => [
+                     %{
+                       "node" => %{
+                         "scryfallId" => "scryfall-owned-new",
+                         "ownedCount" => 1
+                       }
+                     },
+                     %{
+                       "node" => %{
+                         "scryfallId" => "scryfall-owned-old",
+                         "ownedCount" => 3
+                       }
+                     }
+                   ]
+                 }
                }
              }
            } = json_response(conn, 200)
@@ -306,37 +359,58 @@ defmodule ManavaultWeb.Schema.CollectionQueriesTest do
         quantity: 4
       })
 
+    location_id =
+      Absinthe.Relay.Node.to_global_id(:location, "unfiled", ManavaultWeb.Schema)
+
     conn =
       post(conn, "/api/graphql", %{
         "query" => """
-        query {
-          location(id: "unfiled") {
+        query UnfiledLocation($id: ID!) {
+          location(id: $id) {
             id
             name
             kind
             itemCount
             totalPriceText
-            collectionItems { quantity location { name } printing { card { name } } }
+            collectionItems(first: 10) {
+              pageInfo {
+                endCursor
+                hasNextPage
+              }
+              edges {
+                node {
+                  quantity
+                  location { name }
+                  printing { card { name } }
+                }
+              }
+            }
           }
         }
-        """
+        """,
+        "variables" => %{"id" => location_id}
       })
 
     assert %{
              "data" => %{
                "location" => %{
-                 "id" => "unfiled",
+                 "id" => _id,
                  "name" => "Unfiled",
                  "kind" => "unfiled",
                  "itemCount" => 4,
                  "totalPriceText" => "$2",
-                 "collectionItems" => [
-                   %{
-                     "quantity" => 4,
-                     "location" => nil,
-                     "printing" => %{"card" => %{"name" => "Loose Card"}}
-                   }
-                 ]
+                 "collectionItems" => %{
+                   "pageInfo" => %{"endCursor" => _, "hasNextPage" => false},
+                   "edges" => [
+                     %{
+                       "node" => %{
+                         "quantity" => 4,
+                         "location" => nil,
+                         "printing" => %{"card" => %{"name" => "Loose Card"}}
+                       }
+                     }
+                   ]
+                 }
                }
              }
            } = json_response(conn, 200)

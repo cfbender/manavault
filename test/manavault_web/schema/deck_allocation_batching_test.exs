@@ -1,6 +1,7 @@
 defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
   use ManavaultWeb.ConnCase
 
+  alias Absinthe.Relay.Node
   alias Manavault.Catalog
 
   test "deck page allocation status is batched over GraphQL", %{conn: conn} do
@@ -51,28 +52,38 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
               cardCount
               uniqueCardCount
               legality { status }
-              deckCards {
-                id
-                card {
-                  name
-                  printings {
-                    scryfallId
-                    setCode
-                  }
-                }
-                preferredPrinting {
-                  scryfallId
-                }
-                allocationStatus {
-                  state
-                  available
-                  candidates {
-                    available
-                    item {
-                      id
-                      priceText
-                      location { name }
-                      printing { card { name } }
+              deckCards(first: 10, after: null) {
+                pageInfo { endCursor hasNextPage }
+                edges {
+                  node {
+                    id
+                    card {
+                      name
+                      printings(first: 10, after: null) {
+                        pageInfo { endCursor hasNextPage }
+                        edges {
+                          node {
+                            scryfallId
+                            setCode
+                          }
+                        }
+                      }
+                    }
+                    preferredPrinting {
+                      scryfallId
+                    }
+                    allocationStatus {
+                      state
+                      available
+                      candidates {
+                        available
+                        item {
+                          id
+                          priceText
+                          location { name }
+                          printing { card { name } }
+                        }
+                      }
                     }
                   }
                 }
@@ -80,7 +91,7 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
             }
           }
           """,
-          "variables" => %{"id" => deck.id}
+          "variables" => %{"id" => global_id(:deck, deck.id)}
         })
       end)
 
@@ -90,7 +101,7 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
                  "cardCount" => 3,
                  "uniqueCardCount" => 3,
                  "legality" => %{"status" => "illegal"},
-                 "deckCards" => [_, _, _]
+                 "deckCards" => %{"edges" => [_, _, _]}
                }
              }
            } = json_response(conn, 200)
@@ -141,12 +152,17 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
         post(conn, "/api/graphql", %{
           "query" => """
           query CollectionItems {
-            collectionItems(limit: 5, offset: 0) {
-              id
-              allocatedQuantity
-              printing {
-                scryfallId
-                card { name }
+            collectionItems(first: 5, after: null) {
+              pageInfo { endCursor hasNextPage }
+              edges {
+                node {
+                  id
+                  allocatedQuantity
+                  printing {
+                    scryfallId
+                    card { name }
+                  }
+                }
               }
             }
           }
@@ -156,9 +172,11 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
 
     assert %{
              "data" => %{
-               "collectionItems" => items
+               "collectionItems" => %{"edges" => item_edges}
              }
            } = json_response(conn, 200)
+
+    items = Enum.map(item_edges, & &1["node"])
 
     assert length(items) == 5
     assert Enum.all?(items, &(&1["allocatedQuantity"] == 1))
@@ -225,23 +243,28 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
         post(conn, "/api/graphql", %{
           "query" => """
           query Locations {
-            locations {
-              id
-              name
-              itemCount
-              totalPriceCents
-              purchasePriceCents
-              valueGainCents
-              coverPrinting {
-                scryfallId
-                imageUrl
-                artCropUrl
-                card { name }
-              }
-              valueSummary {
-                totalPriceCents
-                purchasePriceCents
-                valueGainCents
+            locations(first: 10, after: null) {
+              pageInfo { endCursor hasNextPage }
+              edges {
+                node {
+                  id
+                  name
+                  itemCount
+                  totalPriceCents
+                  purchasePriceCents
+                  valueGainCents
+                  coverPrinting {
+                    scryfallId
+                    imageUrl
+                    artCropUrl
+                    card { name }
+                  }
+                  valueSummary {
+                    totalPriceCents
+                    purchasePriceCents
+                    valueGainCents
+                  }
+                }
               }
             }
           }
@@ -251,9 +274,11 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
 
     assert %{
              "data" => %{
-               "locations" => locations
+               "locations" => %{"edges" => location_edges}
              }
            } = json_response(conn, 200)
+
+    locations = Enum.map(location_edges, & &1["node"])
 
     assert length(locations) == 4
 
@@ -340,33 +365,46 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
           "query" => """
           query DeckOwnedCounts($id: ID!) {
             deck(id: $id) {
-              deckCards {
-                card {
-                  name
-                  printings {
-                    scryfallId
-                    ownedCount
+              deckCards(first: 10, after: null) {
+                pageInfo { endCursor hasNextPage }
+                edges {
+                  node {
+                    card {
+                      name
+                      printings(first: 10, after: null) {
+                        pageInfo { endCursor hasNextPage }
+                        edges {
+                          node {
+                            scryfallId
+                            ownedCount
+                          }
+                        }
+                      }
+                    }
                   }
                 }
               }
             }
           }
           """,
-          "variables" => %{"id" => deck.id}
+          "variables" => %{"id" => global_id(:deck, deck.id)}
         })
       end)
 
     assert %{
              "data" => %{
                "deck" => %{
-                 "deckCards" => deck_cards
+                 "deckCards" => %{"edges" => deck_card_edges}
                }
              }
            } = json_response(conn, 200)
 
+    deck_cards = Enum.map(deck_card_edges, & &1["node"])
+
     owned_counts =
       deck_cards
-      |> Enum.flat_map(& &1["card"]["printings"])
+      |> Enum.flat_map(fn deck_card -> deck_card["card"]["printings"]["edges"] end)
+      |> Enum.map(& &1["node"])
       |> Map.new(&{&1["scryfallId"], &1["ownedCount"]})
 
     assert owned_counts == %{
@@ -410,7 +448,7 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
                    location_id: location.id
                  })
 
-        item.id
+        global_id(:collection_item, item.id)
       end
 
     {conn, query_count} =
@@ -419,13 +457,18 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
           "query" => """
           mutation BulkAddCollectionItemsToDeck($deckId: ID!, $ids: [ID!]!) {
             bulkAddCollectionItemsToDeck(deckId: $deckId, ids: $ids) {
-              id
-              quantity
-              zone
+              deckCards {
+                id
+                quantity
+                zone
+              }
             }
           }
           """,
-          "variables" => %{"deckId" => deck.id, "ids" => item_ids}
+          "variables" => %{
+            "deckId" => global_id(:deck, deck.id),
+            "ids" => item_ids
+          }
         })
       end)
 
@@ -435,7 +478,7 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
 
     assert %{
              "data" => %{
-               "bulkAddCollectionItemsToDeck" => deck_cards
+               "bulkAddCollectionItemsToDeck" => %{"deckCards" => deck_cards}
              }
            } = response
 
@@ -444,6 +487,8 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
     assert Enum.all?(deck_cards, &(&1["zone"] == "mainboard"))
     assert query_count <= 35
   end
+
+  defp global_id(type, id), do: Node.to_global_id(type, id, ManavaultWeb.Schema)
 
   defp count_repo_queries(fun) when is_function(fun, 0) do
     caller = self()

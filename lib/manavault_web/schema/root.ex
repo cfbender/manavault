@@ -1,20 +1,41 @@
 defmodule ManavaultWeb.Schema do
   use Absinthe.Schema
+  use Absinthe.Relay.Schema, :modern
 
   import_types(ManavaultWeb.Schema.CatalogTypes)
   import_types(ManavaultWeb.Schema.BackupTypes)
 
   alias Manavault.Catalog
+  alias Manavault.Catalog.{Card, CollectionItem, Deck, DeckCard, Location, Printing}
+  alias Manavault.Repo
   alias ManavaultWeb.Schema.{BackupResolvers, CatalogResolvers}
+
+  node interface do
+    resolve_type(fn
+      %Card{}, _ -> :card
+      %Printing{}, _ -> :printing
+      %CollectionItem{}, _ -> :collection_item
+      %Location{}, _ -> :location
+      %Deck{}, _ -> :deck
+      %DeckCard{}, _ -> :deck_card
+      %{scryfall_id: _, set_code: _}, _ -> :printing
+      %{oracle_id: _, name: _, type_line: _}, _ -> :card
+      %{id: "unfiled"}, _ -> :location
+      %{id: _, kind: _}, _ -> :location
+      %{id: _, condition: _, finish: _}, _ -> :collection_item
+      %{id: _, quantity: _, zone: _}, _ -> :deck_card
+      %{id: _, format: _, status: _}, _ -> :deck
+      _, _ -> nil
+    end)
+  end
 
   query do
     field :home_summary, non_null(:home_summary) do
       resolve(&CatalogResolvers.home_summary/3)
     end
 
-    field :cards, non_null(list_of(non_null(:card))) do
+    connection field :cards, node_type: :card, non_null: true do
       arg(:q, :string, default_value: "")
-      arg(:limit, :integer, default_value: 24)
       resolve(&CatalogResolvers.cards/3)
     end
 
@@ -29,11 +50,9 @@ defmodule ManavaultWeb.Schema do
       resolve(&CatalogResolvers.card/3)
     end
 
-    field :collection_items, non_null(list_of(non_null(:collection_item))) do
+    connection field :collection_items, node_type: :collection_item, non_null: true do
       arg(:filters, :collection_item_filters)
       arg(:sort, :collection_item_sort)
-      arg(:limit, :integer, default_value: 100)
-      arg(:offset, :integer, default_value: 0)
       resolve(&CatalogResolvers.collection_items/3)
     end
 
@@ -56,7 +75,7 @@ defmodule ManavaultWeb.Schema do
       resolve(&CatalogResolvers.collection_export_text/3)
     end
 
-    field :locations, non_null(list_of(non_null(:location))) do
+    connection field :locations, node_type: :location, non_null: true do
       resolve(&CatalogResolvers.locations/3)
     end
 
@@ -65,7 +84,7 @@ defmodule ManavaultWeb.Schema do
       resolve(&CatalogResolvers.location/3)
     end
 
-    field :decks, non_null(list_of(non_null(:deck))) do
+    connection field :decks, node_type: :deck, non_null: true do
       resolve(&CatalogResolvers.decks/3)
     end
 
@@ -113,177 +132,528 @@ defmodule ManavaultWeb.Schema do
     field :cloud_backups, non_null(list_of(non_null(:cloud_backup))) do
       resolve(&BackupResolvers.cloud_backups/3)
     end
+
+    node field do
+      resolve(fn
+        %{type: :card, id: id}, resolution ->
+          CatalogResolvers.card(nil, %{id: id}, resolution)
+
+        %{type: :printing, id: id}, _resolution ->
+          {:ok, Catalog.get_printing_by_scryfall_id(id)}
+
+        %{type: :collection_item, id: id}, _resolution ->
+          {:ok, Catalog.get_collection_item!(integer_id(id))}
+
+        %{type: :location, id: id}, resolution ->
+          CatalogResolvers.location(nil, %{id: id}, resolution)
+
+        %{type: :deck, id: id}, resolution ->
+          CatalogResolvers.deck(nil, %{id: id}, resolution)
+
+        %{type: :deck_card, id: id}, _resolution ->
+          {:ok, Repo.get!(DeckCard, integer_id(id))}
+
+        _node, _resolution ->
+          {:ok, nil}
+      end)
+    end
   end
 
   mutation do
-    field :update_backup_settings, :backup_settings do
+    payload field :update_backup_settings do
       arg(:input, non_null(:backup_settings_input))
-      resolve(&BackupResolvers.update_backup_settings/3)
+
+      output do
+        field :backup_settings, :backup_settings
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &BackupResolvers.update_backup_settings/3,
+          :backup_settings
+        )
+      end)
     end
 
-    field :run_cloud_backup, :cloud_backup_result do
-      resolve(&BackupResolvers.run_cloud_backup/3)
+    payload field :run_cloud_backup do
+      output do
+        field :cloud_backup, :cloud_backup_result
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &BackupResolvers.run_cloud_backup/3, :cloud_backup)
+      end)
     end
 
-    field :stage_cloud_restore, :cloud_restore_result do
+    payload field :stage_cloud_restore do
       arg(:id, non_null(:id))
-      resolve(&BackupResolvers.stage_cloud_restore/3)
+
+      output do
+        field :restore_result, :cloud_restore_result
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &BackupResolvers.stage_cloud_restore/3, :restore_result)
+      end)
     end
 
-    field :reload_scryfall_catalog, :scryfall_reload_result do
-      resolve(&CatalogResolvers.reload_scryfall_catalog/3)
+    payload field :reload_scryfall_catalog do
+      output do
+        field :reload_result, :scryfall_reload_result
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &CatalogResolvers.reload_scryfall_catalog/3,
+          :reload_result
+        )
+      end)
     end
 
-    field :reload_scryfall_assets, :scryfall_reload_result do
-      resolve(&CatalogResolvers.reload_scryfall_assets/3)
+    payload field :reload_scryfall_assets do
+      output do
+        field :reload_result, :scryfall_reload_result
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &CatalogResolvers.reload_scryfall_assets/3,
+          :reload_result
+        )
+      end)
     end
 
-    field :create_collection_item, :collection_item do
+    payload field :create_collection_item do
       arg(:input, non_null(:collection_item_input))
-      resolve(&CatalogResolvers.create_collection_item/3)
+
+      output do
+        field :collection_item, :collection_item
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &CatalogResolvers.create_collection_item/3,
+          :collection_item
+        )
+      end)
     end
 
-    field :update_collection_item, :collection_item do
+    payload field :update_collection_item do
       arg(:id, non_null(:id))
       arg(:input, non_null(:collection_item_update_input))
-      resolve(&CatalogResolvers.update_collection_item/3)
+
+      output do
+        field :collection_item, :collection_item
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &CatalogResolvers.update_collection_item/3,
+          :collection_item
+        )
+      end)
     end
 
-    field :delete_collection_item, :collection_item do
+    payload field :delete_collection_item do
       arg(:id, non_null(:id))
-      resolve(&CatalogResolvers.delete_collection_item/3)
+
+      output do
+        field :collection_item, :collection_item
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &CatalogResolvers.delete_collection_item/3,
+          :collection_item
+        )
+      end)
     end
 
-    field :add_collection_item_to_deck, :deck_card do
+    payload field :add_collection_item_to_deck do
       arg(:id, non_null(:id))
       arg(:deck_id, non_null(:id))
       arg(:zone, :string, default_value: "mainboard")
-      resolve(&CatalogResolvers.add_collection_item_to_deck/3)
+
+      output do
+        field :deck_card, :deck_card
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &CatalogResolvers.add_collection_item_to_deck/3,
+          :deck_card
+        )
+      end)
     end
 
-    field :bulk_add_collection_items_to_deck, non_null(list_of(non_null(:deck_card))) do
+    payload field :bulk_add_collection_items_to_deck do
       arg(:ids, non_null(list_of(non_null(:id))))
       arg(:deck_id, non_null(:id))
       arg(:zone, :string, default_value: "mainboard")
-      resolve(&CatalogResolvers.bulk_add_collection_items_to_deck/3)
+
+      output do
+        field :deck_cards, non_null(list_of(non_null(:deck_card)))
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &CatalogResolvers.bulk_add_collection_items_to_deck/3,
+          :deck_cards
+        )
+      end)
     end
 
-    field :create_deck, :deck do
+    payload field :create_deck do
       arg(:input, non_null(:deck_input))
-      resolve(&CatalogResolvers.create_deck/3)
+
+      output do
+        field :deck, :deck
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &CatalogResolvers.create_deck/3, :deck)
+      end)
     end
 
-    field :create_location, :location do
+    payload field :create_location do
       arg(:input, non_null(:location_input))
-      resolve(&CatalogResolvers.create_location/3)
+
+      output do
+        field :location, :location
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &CatalogResolvers.create_location/3, :location)
+      end)
     end
 
-    field :preview_collection_import, :collection_import_preview do
+    payload field :preview_collection_import do
       arg(:input, non_null(:collection_import_preview_input))
-      resolve(&CatalogResolvers.preview_collection_import/3)
+
+      output do
+        field :import_preview, :collection_import_preview
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &CatalogResolvers.preview_collection_import/3,
+          :import_preview
+        )
+      end)
     end
 
-    field :commit_collection_import, :collection_import_result do
+    payload field :commit_collection_import do
       arg(:input, non_null(:collection_import_commit_input))
-      resolve(&CatalogResolvers.commit_collection_import/3)
+
+      output do
+        field :import_result, :collection_import_result
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &CatalogResolvers.commit_collection_import/3,
+          :import_result
+        )
+      end)
     end
 
-    field :update_deck, :deck do
+    payload field :update_deck do
       arg(:id, non_null(:id))
       arg(:input, non_null(:deck_update_input))
-      resolve(&CatalogResolvers.update_deck/3)
+
+      output do
+        field :deck, :deck
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &CatalogResolvers.update_deck/3, :deck)
+      end)
     end
 
-    field :ensure_deck_share_token, :deck do
+    payload field :ensure_deck_share_token do
       arg(:id, non_null(:id))
-      resolve(&CatalogResolvers.ensure_deck_share_token/3)
+
+      output do
+        field :deck, :deck
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &CatalogResolvers.ensure_deck_share_token/3, :deck)
+      end)
     end
 
-    field :add_deck_card, :deck_card do
+    payload field :add_deck_card do
       arg(:deck_id, non_null(:id))
       arg(:input, non_null(:deck_card_input))
-      resolve(&CatalogResolvers.add_deck_card/3)
+
+      output do
+        field :deck_card, :deck_card
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &CatalogResolvers.add_deck_card/3, :deck_card)
+      end)
     end
 
-    field :import_decklist, :deck_import_result do
+    payload field :import_decklist do
       arg(:id, non_null(:id))
       arg(:text, non_null(:string))
       arg(:replace_existing, :boolean, default_value: false)
-      resolve(&CatalogResolvers.import_decklist/3)
+
+      output do
+        field :import_result, :deck_import_result
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &CatalogResolvers.import_decklist/3, :import_result)
+      end)
     end
 
-    field :update_location, :location do
+    payload field :update_location do
       arg(:id, non_null(:id))
       arg(:input, non_null(:location_update_input))
-      resolve(&CatalogResolvers.update_location/3)
+
+      output do
+        field :location, :location
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &CatalogResolvers.update_location/3, :location)
+      end)
     end
 
-    field :delete_deck, :deck do
+    payload field :delete_deck do
       arg(:id, non_null(:id))
-      resolve(&CatalogResolvers.delete_deck/3)
+
+      output do
+        field :deck, :deck
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &CatalogResolvers.delete_deck/3, :deck)
+      end)
     end
 
-    field :delete_location, :location do
+    payload field :delete_location do
       arg(:id, non_null(:id))
-      resolve(&CatalogResolvers.delete_location/3)
+
+      output do
+        field :location, :location
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &CatalogResolvers.delete_location/3, :location)
+      end)
     end
 
-    field :update_deck_card, :deck_card do
+    payload field :update_deck_card do
       arg(:id, non_null(:id))
       arg(:input, non_null(:deck_card_update_input))
-      resolve(&CatalogResolvers.update_deck_card/3)
+
+      output do
+        field :deck_card, :deck_card
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &CatalogResolvers.update_deck_card/3, :deck_card)
+      end)
     end
 
-    field :update_deck_cards_tag, non_null(list_of(non_null(:deck_card))) do
+    payload field :update_deck_cards_tag do
       arg(:deck_card_ids, non_null(list_of(non_null(:id))))
       arg(:tag, :string)
-      resolve(&CatalogResolvers.update_deck_cards_tag/3)
+
+      output do
+        field :deck_cards, non_null(list_of(non_null(:deck_card)))
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &CatalogResolvers.update_deck_cards_tag/3, :deck_cards)
+      end)
     end
 
-    field :delete_deck_card, :deck_card do
+    payload field :delete_deck_card do
       arg(:id, non_null(:id))
-      resolve(&CatalogResolvers.delete_deck_card/3)
+
+      output do
+        field :deck_card, :deck_card
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &CatalogResolvers.delete_deck_card/3, :deck_card)
+      end)
     end
 
-    field :set_deck_commander, :deck_card do
+    payload field :set_deck_commander do
       arg(:id, non_null(:id))
-      resolve(&CatalogResolvers.set_deck_commander/3)
+
+      output do
+        field :deck_card, :deck_card
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &CatalogResolvers.set_deck_commander/3, :deck_card)
+      end)
     end
 
-    field :allocate_deck_card_item, :deck_card do
+    payload field :allocate_deck_card_item do
       arg(:deck_card_id, non_null(:id))
       arg(:collection_item_id, non_null(:id))
-      resolve(&CatalogResolvers.allocate_deck_card_item/3)
+
+      output do
+        field :deck_card, :deck_card
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &CatalogResolvers.allocate_deck_card_item/3, :deck_card)
+      end)
     end
 
-    field :deallocate_deck_card_item, :deck_card do
+    payload field :deallocate_deck_card_item do
       arg(:deck_card_id, non_null(:id))
       arg(:collection_item_id, non_null(:id))
-      resolve(&CatalogResolvers.deallocate_deck_card_item/3)
+
+      output do
+        field :deck_card, :deck_card
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &CatalogResolvers.deallocate_deck_card_item/3,
+          :deck_card
+        )
+      end)
     end
 
-    field :allocate_deck_card_proxy, :deck_card do
+    payload field :allocate_deck_card_proxy do
       arg(:deck_card_id, non_null(:id))
       arg(:quantity, :integer, default_value: 1)
-      resolve(&CatalogResolvers.allocate_deck_card_proxy/3)
+
+      output do
+        field :deck_card, :deck_card
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &CatalogResolvers.allocate_deck_card_proxy/3,
+          :deck_card
+        )
+      end)
     end
 
-    field :deallocate_deck_card_proxy, :deck_card do
+    payload field :deallocate_deck_card_proxy do
       arg(:deck_card_id, non_null(:id))
       arg(:quantity, :integer, default_value: 1)
-      resolve(&CatalogResolvers.deallocate_deck_card_proxy/3)
+
+      output do
+        field :deck_card, :deck_card
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &CatalogResolvers.deallocate_deck_card_proxy/3,
+          :deck_card
+        )
+      end)
     end
 
-    field :preview_bulk_allocate_deck, :deck_bulk_allocation_preview do
+    payload field :preview_bulk_allocate_deck do
       arg(:id, non_null(:id))
       arg(:mode, non_null(:string))
-      resolve(&CatalogResolvers.preview_bulk_allocate_deck/3)
+
+      output do
+        field :allocation_preview, :deck_bulk_allocation_preview
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &CatalogResolvers.preview_bulk_allocate_deck/3,
+          :allocation_preview
+        )
+      end)
     end
 
-    field :bulk_allocate_deck, :deck_bulk_allocation_result do
+    payload field :bulk_allocate_deck do
       arg(:id, non_null(:id))
       arg(:mode, non_null(:string))
-      resolve(&CatalogResolvers.bulk_allocate_deck/3)
+
+      output do
+        field :allocation_result, :deck_bulk_allocation_result
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &CatalogResolvers.bulk_allocate_deck/3,
+          :allocation_result
+        )
+      end)
+    end
+  end
+
+  defp payload(parent, args, resolution, resolver, field) do
+    case resolver.(parent, args, resolution) do
+      {:ok, value} when is_map(value) ->
+        if Map.has_key?(value, field), do: {:ok, value}, else: {:ok, %{field => value}}
+
+      {:ok, value} ->
+        {:ok, %{field => value}}
+
+      other ->
+        other
+    end
+  end
+
+  defp integer_id(id) when is_integer(id), do: id
+
+  defp integer_id(id) when is_binary(id) do
+    case Integer.parse(id) do
+      {parsed, ""} -> parsed
+      _other -> id
     end
   end
 

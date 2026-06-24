@@ -6,6 +6,7 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionFields do
   alias Manavault.Catalog
   alias Manavault.Catalog.{CollectionItem, Location, Price, Printing}
   alias Manavault.Repo
+  alias ManavaultWeb.Schema.RelayHelpers
 
   def collection_item_printing(
         %CollectionItem{printing: %Printing{} = printing},
@@ -128,15 +129,22 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionFields do
   end
 
   def location_collection_items(%Location{id: id}, args, _resolution) do
-    filters = [location_id: to_string(id)]
-    opts = [limit: Map.get(args, :limit, 100), offset: Map.get(args, :offset, 0)]
-    {:ok, Catalog.list_collection_items(filters, opts)}
+    resolve_location_collection_items(to_string(id), args)
   end
 
   def location_collection_items(%{id: "unfiled"}, args, _resolution) do
-    filters = [location_id: "unfiled"]
-    opts = [limit: Map.get(args, :limit, 100), offset: Map.get(args, :offset, 0)]
-    {:ok, Catalog.list_collection_items(filters, opts)}
+    resolve_location_collection_items("unfiled", args)
+  end
+
+  defp resolve_location_collection_items(location_id, args) do
+    filters = [location_id: location_id]
+    total_count = Catalog.count_collection_items(filters)
+
+    with {:ok, offset, limit} <- RelayHelpers.slice_window(args, total_count, 100) do
+      filters
+      |> Catalog.list_collection_items(limit: limit, offset: offset)
+      |> RelayHelpers.connection_from_slice(offset, limit, total_count)
+    end
   end
 
   def collection_item_current_price_cents(%CollectionItem{} = item, _args, _resolution) do

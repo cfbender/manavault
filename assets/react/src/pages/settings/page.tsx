@@ -68,9 +68,14 @@ export function SettingsPage() {
 
   const saveMutation = useMutation({
     mutationFn: () => request(UpdateBackupSettingsDocument, { input: backupSettingsInput(form) }),
-    onSuccess: async () => {
+    onSuccess: async (data) => {
+      const backupSettings = data.updateBackupSettings?.backupSettings
+
       setError(null)
       setMessage("Backup settings saved.")
+      if (backupSettings) {
+        queryClient.setQueryData(["backup-settings"], { backupSettings })
+      }
       await queryClient.invalidateQueries({ queryKey: ["backup-settings"] })
       await queryClient.invalidateQueries({ queryKey: ["cloud-backups"] })
     },
@@ -81,7 +86,7 @@ export function SettingsPage() {
     mutationFn: () => request(RunCloudBackupDocument),
     onSuccess: async (data) => {
       setError(null)
-      setMessage(data.runCloudBackup?.message ?? "Backup uploaded.")
+      setMessage(data.runCloudBackup?.cloudBackup?.message ?? "Backup uploaded.")
       await queryClient.invalidateQueries({ queryKey: ["backup-settings"] })
       await queryClient.invalidateQueries({ queryKey: ["cloud-backups"] })
     },
@@ -92,7 +97,7 @@ export function SettingsPage() {
     mutationFn: (id: string) => request(StageCloudRestoreDocument, { id }),
     onSuccess: async (data) => {
       setError(null)
-      setMessage(data.stageCloudRestore?.message ?? "Restore staged.")
+      setMessage(data.stageCloudRestore?.restoreResult?.message ?? "Restore staged.")
       await queryClient.invalidateQueries({ queryKey: ["backup-settings"] })
       await queryClient.invalidateQueries({ queryKey: ["cloud-backups"] })
     },
@@ -103,7 +108,7 @@ export function SettingsPage() {
     mutationFn: () => request(ReloadScryfallCatalogDocument),
     onSuccess: (data) => {
       setError(null)
-      setMessage(data.reloadScryfallCatalog?.message ?? "Scryfall catalog reload queued.")
+      setMessage(data.reloadScryfallCatalog?.reloadResult?.message ?? "Scryfall catalog reload queued.")
     },
     onError: (err) => setError(errorMessage(err)),
   })
@@ -112,7 +117,7 @@ export function SettingsPage() {
     mutationFn: () => request(ReloadScryfallAssetsDocument),
     onSuccess: (data) => {
       setError(null)
-      setMessage(data.reloadScryfallAssets?.message ?? "Scryfall asset reload queued.")
+      setMessage(data.reloadScryfallAssets?.reloadResult?.message ?? "Scryfall asset reload queued.")
     },
     onError: (err) => setError(errorMessage(err)),
   })

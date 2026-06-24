@@ -3,22 +3,31 @@ import { CollectionItemsPageDocument as GeneratedCollectionItemsPageDocument } f
 
 export const CollectionDocument = graphql(`
   query Collection($filters: CollectionItemFilters) {
-    locations {
-      id
-      name
-      kind
-      description
-      itemCount
-      totalPriceText
-      valueSummary {
-        totalPriceText
-        purchasePriceText
-        valueGainText
-        valueGainPercentText
+    locations(first: 100) {
+      pageInfo {
+        endCursor
+        hasNextPage
       }
-      coverPrinting {
-        scryfallId
-        artCropUrl
+      edges {
+        node {
+          id
+          name
+          kind
+          description
+          itemCount
+          totalPriceText
+          valueSummary {
+            totalPriceText
+            purchasePriceText
+            valueGainText
+            valueGainPercentText
+          }
+          coverPrinting {
+            id
+            scryfallId
+            artCropUrl
+          }
+        }
       }
     }
     collectionValueSummary {
@@ -47,6 +56,7 @@ export const LocationDocument = graphql(`
         valueGainPercentText
       }
       coverPrinting {
+        id
         scryfallId
         artCropUrl
       }
@@ -61,20 +71,38 @@ export const LocationCollectionCountDocument = graphql(`
 `)
 
 export const LocationCoverCardSearchDocument = graphql(`
-  query LocationCoverCardSearch($q: String!, $limit: Int!) {
-    cards(q: $q, limit: $limit) {
-      oracleId
-      name
-      typeLine
-      printings {
-        scryfallId
-        setCode
-        setName
-        collectorNumber
-        finishes
-        imageUrl
-        artCropUrl
-        rarity
+  query LocationCoverCardSearch($q: String!, $first: Int!) {
+    cards(q: $q, first: $first) {
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+      edges {
+        node {
+          id
+          oracleId
+          name
+          typeLine
+          printings(first: 16) {
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+            edges {
+              node {
+                id
+                scryfallId
+                setCode
+                setName
+                collectorNumber
+                finishes
+                imageUrl
+                artCropUrl
+                rarity
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -82,21 +110,37 @@ export const LocationCoverCardSearchDocument = graphql(`
 
 export const CollectionItemFormOptionsDocument = graphql(`
   query CollectionItemFormOptions {
-    locations {
-      id
-      name
-      kind
+    locations(first: 100) {
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+      edges {
+        node {
+          id
+          name
+          kind
+        }
+      }
     }
   }
 `)
 
 export const CollectionItemDeckOptionsDocument = graphql(`
   query CollectionItemDeckOptions {
-    decks {
-      id
-      name
-      format
-      status
+    decks(first: 100) {
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+      edges {
+        node {
+          id
+          name
+          format
+          status
+        }
+      }
     }
   }
 `)
@@ -104,33 +148,37 @@ export const CollectionItemDeckOptionsDocument = graphql(`
 export const CreateCollectionItemDocument = graphql(`
   mutation CreateCollectionItem($input: CollectionItemInput!) {
     createCollectionItem(input: $input) {
-      id
-      quantity
-      condition
-      language
-      finish
-      notes
-      priceText
-      purchasePriceCents
-      purchasePriceText
-      valueGainText
-      valueGainPercentText
-      allocatedQuantity
-      location {
+      collectionItem {
         id
-        name
-      }
-      printing {
-        scryfallId
-        setCode
-        setName
-        collectorNumber
-        imageUrl
-        rarity
-        card {
-          oracleId
+        quantity
+        condition
+        language
+        finish
+        notes
+        priceText
+        purchasePriceCents
+        purchasePriceText
+        valueGainText
+        valueGainPercentText
+        allocatedQuantity
+        location {
+          id
           name
-          typeLine
+        }
+        printing {
+          id
+          scryfallId
+          setCode
+          setName
+          collectorNumber
+          imageUrl
+          rarity
+          card {
+            id
+            oracleId
+            name
+            typeLine
+          }
         }
       }
     }
@@ -140,33 +188,37 @@ export const CreateCollectionItemDocument = graphql(`
 export const UpdateCollectionItemDocument = graphql(`
   mutation UpdateCollectionItem($id: ID!, $input: CollectionItemUpdateInput!) {
     updateCollectionItem(id: $id, input: $input) {
-      id
-      quantity
-      condition
-      language
-      finish
-      notes
-      priceText
-      purchasePriceCents
-      purchasePriceText
-      valueGainText
-      valueGainPercentText
-      allocatedQuantity
-      location {
+      collectionItem {
         id
-        name
-      }
-      printing {
-        scryfallId
-        setCode
-        setName
-        collectorNumber
-        imageUrl
-        rarity
-        card {
-          oracleId
+        quantity
+        condition
+        language
+        finish
+        notes
+        priceText
+        purchasePriceCents
+        purchasePriceText
+        valueGainText
+        valueGainPercentText
+        allocatedQuantity
+        location {
+          id
           name
-          typeLine
+        }
+        printing {
+          id
+          scryfallId
+          setCode
+          setName
+          collectorNumber
+          imageUrl
+          rarity
+          card {
+            id
+            oracleId
+            name
+            typeLine
+          }
         }
       }
     }
@@ -176,7 +228,9 @@ export const UpdateCollectionItemDocument = graphql(`
 export const DeleteCollectionItemDocument = graphql(`
   mutation DeleteCollectionItem($id: ID!) {
     deleteCollectionItem(id: $id) {
-      id
+      collectionItem {
+        id
+      }
     }
   }
 `)
@@ -184,19 +238,23 @@ export const DeleteCollectionItemDocument = graphql(`
 export const AddCollectionItemToDeckDocument = graphql(`
   mutation AddCollectionItemToDeck($id: ID!, $deckId: ID!, $zone: String) {
     addCollectionItemToDeck(id: $id, deckId: $deckId, zone: $zone) {
-      id
-      quantity
-      zone
-      finish
-      card {
-        oracleId
-        name
-      }
-      preferredPrinting {
-        scryfallId
-        setCode
-        collectorNumber
-        imageUrl
+      deckCard {
+        id
+        quantity
+        zone
+        finish
+        card {
+          id
+          oracleId
+          name
+        }
+        preferredPrinting {
+          id
+          scryfallId
+          setCode
+          collectorNumber
+          imageUrl
+        }
       }
     }
   }
@@ -205,19 +263,23 @@ export const AddCollectionItemToDeckDocument = graphql(`
 export const BulkAddCollectionItemsToDeckDocument = graphql(`
   mutation BulkAddCollectionItemsToDeck($ids: [ID!]!, $deckId: ID!, $zone: String) {
     bulkAddCollectionItemsToDeck(ids: $ids, deckId: $deckId, zone: $zone) {
-      id
-      quantity
-      zone
-      finish
-      card {
-        oracleId
-        name
-      }
-      preferredPrinting {
-        scryfallId
-        setCode
-        collectorNumber
-        imageUrl
+      deckCards {
+        id
+        quantity
+        zone
+        finish
+        card {
+          id
+          oracleId
+          name
+        }
+        preferredPrinting {
+          id
+          scryfallId
+          setCode
+          collectorNumber
+          imageUrl
+        }
       }
     }
   }
@@ -226,21 +288,24 @@ export const BulkAddCollectionItemsToDeckDocument = graphql(`
 export const CreateLocationDocument = graphql(`
   mutation CreateLocation($input: LocationInput!) {
     createLocation(input: $input) {
-      id
-      name
-      kind
-      description
-      itemCount
-      totalPriceText
-      valueSummary {
+      location {
+        id
+        name
+        kind
+        description
+        itemCount
         totalPriceText
-        purchasePriceText
-        valueGainText
-        valueGainPercentText
-      }
-      coverPrinting {
-        scryfallId
-        artCropUrl
+        valueSummary {
+          totalPriceText
+          purchasePriceText
+          valueGainText
+          valueGainPercentText
+        }
+        coverPrinting {
+          id
+          scryfallId
+          artCropUrl
+        }
       }
     }
   }
@@ -249,21 +314,24 @@ export const CreateLocationDocument = graphql(`
 export const UpdateLocationDocument = graphql(`
   mutation UpdateLocation($id: ID!, $input: LocationUpdateInput!) {
     updateLocation(id: $id, input: $input) {
-      id
-      name
-      kind
-      description
-      itemCount
-      totalPriceText
-      valueSummary {
+      location {
+        id
+        name
+        kind
+        description
+        itemCount
         totalPriceText
-        purchasePriceText
-        valueGainText
-        valueGainPercentText
-      }
-      coverPrinting {
-        scryfallId
-        artCropUrl
+        valueSummary {
+          totalPriceText
+          purchasePriceText
+          valueGainText
+          valueGainPercentText
+        }
+        coverPrinting {
+          id
+          scryfallId
+          artCropUrl
+        }
       }
     }
   }
@@ -272,8 +340,10 @@ export const UpdateLocationDocument = graphql(`
 export const DeleteLocationDocument = graphql(`
   mutation DeleteLocation($id: ID!) {
     deleteLocation(id: $id) {
-      id
-      name
+      location {
+        id
+        name
+      }
     }
   }
 `)
@@ -282,37 +352,47 @@ export const CollectionItemsPageDocument = graphql(`
   query CollectionItemsPage(
     $filters: CollectionItemFilters
     $sort: CollectionItemSort
-    $limit: Int!
-    $offset: Int!
+    $first: Int!
+    $after: String
   ) {
-    collectionItems(filters: $filters, sort: $sort, limit: $limit, offset: $offset) {
-      id
-      quantity
-      condition
-      language
-      finish
-      notes
-      priceText
-      purchasePriceCents
-      purchasePriceText
-      valueGainText
-      valueGainPercentText
-      allocatedQuantity
-      location {
-        id
-        name
+    collectionItems(first: $first, after: $after, filters: $filters, sort: $sort) {
+      pageInfo {
+        endCursor
+        hasNextPage
       }
-      printing {
-        scryfallId
-        setCode
-        setName
-        collectorNumber
-        imageUrl
-        rarity
-        card {
-          oracleId
-          name
-          typeLine
+      edges {
+        node {
+          id
+          quantity
+          condition
+          language
+          finish
+          notes
+          priceText
+          purchasePriceCents
+          purchasePriceText
+          valueGainText
+          valueGainPercentText
+          allocatedQuantity
+          location {
+            id
+            name
+          }
+          printing {
+            id
+            scryfallId
+            setCode
+            setName
+            collectorNumber
+            imageUrl
+            rarity
+            card {
+              id
+              oracleId
+              name
+              typeLine
+            }
+          }
         }
       }
     }
@@ -334,50 +414,56 @@ export const CollectionExportTextDocument = graphql(`
 export const PreviewCollectionImportDocument = graphql(`
   mutation PreviewCollectionImport($input: CollectionImportPreviewInput!) {
     previewCollectionImport(input: $input) {
-      locationId
-      total
-      exact
-      ambiguous
-      unresolved
-      rows {
-        rowNumber
-        status
-        attrs {
-          name
-          setCode
-          collectorNumber
-          quantity
-          finish
-          condition
-          language
-          scryfallId
-          locationId
-          purchasePriceCents
-        }
-        printing {
-          scryfallId
-          setCode
-          setName
-          collectorNumber
-          imageUrl
-          rarity
-          card {
-            oracleId
+      importPreview {
+        locationId
+        total
+        exact
+        ambiguous
+        unresolved
+        rows {
+          rowNumber
+          status
+          attrs {
             name
-            typeLine
+            setCode
+            collectorNumber
+            quantity
+            finish
+            condition
+            language
+            scryfallId
+            locationId
+            purchasePriceCents
           }
-        }
-        candidates {
-          scryfallId
-          setCode
-          setName
-          collectorNumber
-          imageUrl
-          rarity
-          card {
-            oracleId
-            name
-            typeLine
+          printing {
+            id
+            scryfallId
+            setCode
+            setName
+            collectorNumber
+            imageUrl
+            rarity
+            card {
+              id
+              oracleId
+              name
+              typeLine
+            }
+          }
+          candidates {
+            id
+            scryfallId
+            setCode
+            setName
+            collectorNumber
+            imageUrl
+            rarity
+            card {
+              id
+              oracleId
+              name
+              typeLine
+            }
           }
         }
       }
@@ -388,8 +474,10 @@ export const PreviewCollectionImportDocument = graphql(`
 export const CommitCollectionImportDocument = graphql(`
   mutation CommitCollectionImport($input: CollectionImportCommitInput!) {
     commitCollectionImport(input: $input) {
-      imported
-      skipped
+      importResult {
+        imported
+        skipped
+      }
     }
   }
 `)

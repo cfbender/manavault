@@ -3,19 +3,37 @@ import type { CardQuery } from "../../gql/graphql"
 
 export const CardsDocument = graphql(`
   query Cards($q: String!, $limit: Int!) {
-    cards(q: $q, limit: $limit) {
-      oracleId
-      name
-      typeLine
-      manaCost
-      printings {
-        scryfallId
-        setCode
-        setName
-        collectorNumber
-        imageUrl
-        rarity
-        priceText
+    cards(q: $q, first: $limit) {
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+      edges {
+        node {
+          id
+          oracleId
+          name
+          typeLine
+          manaCost
+          printings(first: 20) {
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+            edges {
+              node {
+                id
+                scryfallId
+                setCode
+                setName
+                collectorNumber
+                imageUrl
+                rarity
+                priceText
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -23,11 +41,19 @@ export const CardsDocument = graphql(`
 
 export const CardDeckOptionsDocument = graphql(`
   query CardDeckOptions {
-    decks {
-      id
-      name
-      format
-      status
+    decks(first: 100) {
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+      edges {
+        node {
+          id
+          name
+          format
+          status
+        }
+      }
     }
   }
 `)
@@ -35,19 +61,23 @@ export const CardDeckOptionsDocument = graphql(`
 export const AddCardToDeckDocument = graphql(`
   mutation AddCardToDeck($deckId: ID!, $input: DeckCardInput!) {
     addDeckCard(deckId: $deckId, input: $input) {
-      id
-      quantity
-      zone
-      finish
-      card {
-        oracleId
-        name
-      }
-      preferredPrinting {
-        scryfallId
-        setCode
-        collectorNumber
-        imageUrl
+      deckCard {
+        id
+        quantity
+        zone
+        finish
+        card {
+          id
+          oracleId
+          name
+        }
+        preferredPrinting {
+          id
+          scryfallId
+          setCode
+          collectorNumber
+          imageUrl
+        }
       }
     }
   }
@@ -56,6 +86,7 @@ export const AddCardToDeckDocument = graphql(`
 export const CardDocument = graphql(`
   query Card($id: ID!) {
     card(id: $id) {
+      id
       oracleId
       name
       typeLine
@@ -80,20 +111,29 @@ export const CardDocument = graphql(`
         publishedAt
         comment
       }
-      printings {
-        scryfallId
-        setCode
-        setName
-        collectorNumber
-        lang
-        rarity
-        ownedCount
-        finishes
-        imageUrl
-        artCropUrl
-        releasedAt
-        prices
-        priceText
+      printings(first: 300) {
+        pageInfo {
+          endCursor
+          hasNextPage
+        }
+        edges {
+          node {
+            id
+            scryfallId
+            setCode
+            setName
+            collectorNumber
+            lang
+            rarity
+            ownedCount
+            finishes
+            imageUrl
+            artCropUrl
+            releasedAt
+            prices
+            priceText
+          }
+        }
       }
     }
   }

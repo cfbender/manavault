@@ -1,5 +1,6 @@
 defmodule ManavaultWeb.Schema.PublicShareTypes do
   use Absinthe.Schema.Notation
+  use Absinthe.Relay.Schema.Notation, :modern
 
   import Absinthe.Resolution.Helpers, only: [dataloader: 1, dataloader: 2]
 
@@ -34,7 +35,7 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     end
   end
 
-  object :card do
+  node object(:card, id_fetcher: &ManavaultWeb.Schema.PublicShareTypes.card_node_id/2) do
     field :oracle_id, non_null(:id)
     field :name, non_null(:string)
     field :type_line, :string
@@ -68,12 +69,12 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
       end)
     end
 
-    field :printings, list_of(:printing) do
+    connection field :printings, node_type: :printing do
       resolve(&CatalogResolvers.card_printings/3)
     end
   end
 
-  object :printing do
+  node object(:printing, id_fetcher: &ManavaultWeb.Schema.PublicShareTypes.printing_node_id/2) do
     field :scryfall_id, non_null(:id)
     field :oracle_id, non_null(:id)
     field :set_code, :string
@@ -103,8 +104,7 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     field :card, :card, resolve: dataloader(Catalog)
   end
 
-  object :collection_item do
-    field :id, non_null(:id)
+  node object(:collection_item) do
     field :quantity, non_null(:integer)
     field :condition, non_null(:string)
     field :language, non_null(:string)
@@ -114,8 +114,7 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     field :printing, :printing, resolve: dataloader(Catalog)
   end
 
-  object :location do
-    field :id, non_null(:id)
+  node object(:location) do
     field :name, non_null(:string)
     field :kind, non_null(:string)
   end
@@ -148,8 +147,7 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     end
   end
 
-  object :deck do
-    field :id, non_null(:id)
+  node object(:deck) do
     field :name, non_null(:string)
     field :format, non_null(:string)
     field :status, non_null(:string)
@@ -167,11 +165,12 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
       resolve(&CatalogResolvers.deck_legality/3)
     end
 
-    field :deck_cards, list_of(:deck_card), resolve: dataloader(Catalog)
+    connection field :deck_cards, node_type: :deck_card do
+      resolve(&CatalogResolvers.deck_cards/3)
+    end
   end
 
-  object :deck_card do
-    field :id, non_null(:id)
+  node object(:deck_card) do
     field :quantity, non_null(:integer)
     field :zone, :string
     field :finish, :string
@@ -215,4 +214,14 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     field :allocated_elsewhere, non_null(:integer)
     field :available, non_null(:integer)
   end
+
+  connection(node_type: :card)
+  connection(node_type: :printing)
+  connection(node_type: :collection_item)
+  connection(node_type: :location)
+  connection(node_type: :deck)
+  connection(node_type: :deck_card)
+
+  def card_node_id(%{oracle_id: id}, _resolution), do: id
+  def printing_node_id(%{scryfall_id: id}, _resolution), do: id
 end

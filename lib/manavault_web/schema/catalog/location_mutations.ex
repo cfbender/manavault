@@ -4,32 +4,40 @@ defmodule ManavaultWeb.Schema.Catalog.LocationMutations do
   alias Manavault.Catalog
   alias Manavault.Repo
   alias ManavaultWeb.Schema.Catalog.Errors
+  alias ManavaultWeb.Schema.RelayHelpers
 
-  def create_location(_parent, %{input: input}, _resolution) do
-    case Catalog.create_location(input) do
-      {:ok, location} -> {:ok, Repo.preload(location, cover_printing: :card)}
-      {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+  def create_location(_parent, %{input: input}, resolution) do
+    with {:ok, input} <- normalize_location_input(input, resolution) do
+      case Catalog.create_location(input) do
+        {:ok, location} -> {:ok, Repo.preload(location, cover_printing: :card)}
+        {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+      end
     end
   end
 
-  def delete_location(_parent, %{id: id}, _resolution) do
-    if to_string(id) == "unfiled" do
-      {:error, "Unfiled cannot be deleted"}
-    else
-      delete_persisted_location(id)
+  def delete_location(_parent, %{id: id}, resolution) do
+    with {:ok, id} <- RelayHelpers.node_id(id, :location, resolution) do
+      if id == "unfiled" do
+        {:error, "Unfiled cannot be deleted"}
+      else
+        delete_persisted_location(id)
+      end
     end
   end
 
-  def update_location(_parent, %{id: id, input: input}, _resolution) do
-    if to_string(id) == "unfiled" do
-      {:error, "Unfiled cannot be edited"}
-    else
-      update_persisted_location(id, input)
+  def update_location(_parent, %{id: id, input: input}, resolution) do
+    with {:ok, id} <- RelayHelpers.node_id(id, :location, resolution),
+         {:ok, input} <- normalize_location_input(input, resolution) do
+      if id == "unfiled" do
+        {:error, "Unfiled cannot be edited"}
+      else
+        update_persisted_location(id, input)
+      end
     end
   end
 
   defp delete_persisted_location(id) do
-    location = id |> location_id() |> Catalog.get_location!()
+    location = Catalog.get_location!(id)
 
     case Catalog.delete_location(location) do
       {:ok, location} -> {:ok, Repo.preload(location, cover_printing: :card)}
@@ -38,7 +46,7 @@ defmodule ManavaultWeb.Schema.Catalog.LocationMutations do
   end
 
   defp update_persisted_location(id, input) do
-    location = id |> location_id() |> Catalog.get_location!()
+    location = Catalog.get_location!(id)
 
     case Catalog.update_location(location, input) do
       {:ok, location} -> {:ok, Repo.preload(location, cover_printing: :card)}
@@ -46,12 +54,7 @@ defmodule ManavaultWeb.Schema.Catalog.LocationMutations do
     end
   end
 
-  defp location_id(id) when is_integer(id), do: id
-
-  defp location_id(id) when is_binary(id) do
-    case Integer.parse(id) do
-      {parsed, ""} -> parsed
-      _other -> id
-    end
+  defp normalize_location_input(input, resolution) do
+    RelayHelpers.put_optional_node_id(input, :cover_scryfall_id, :printing, resolution)
   end
 end

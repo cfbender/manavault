@@ -6,6 +6,7 @@ defmodule ManavaultWeb.Schema.Catalog.CardFields do
   alias Manavault.Catalog
   alias Manavault.Catalog.{Card, Price, Printing}
   alias ManavaultWeb.Schema.Catalog.ValueResolvers
+  alias ManavaultWeb.Schema.RelayHelpers
 
   def card_rulings(%Card{} = card, _args, _resolution) do
     {:ok, Catalog.card_rulings(card)}
@@ -25,25 +26,25 @@ defmodule ManavaultWeb.Schema.Catalog.CardFields do
 
   def card_legalities(_card, _args, _resolution), do: {:ok, []}
 
-  def card_printings(%Card{printings: printings}, _args, _resolution) when is_list(printings) do
-    {:ok, printings}
+  def card_printings(%Card{printings: printings}, args, _resolution) when is_list(printings) do
+    RelayHelpers.connection_from_list(printings, args)
   end
 
-  def card_printings(%Card{} = card, _args, %{context: %{loader: loader}}) do
+  def card_printings(%Card{} = card, args, %{context: %{loader: loader}}) do
     loader
     |> Dataloader.load(Catalog, {:many, Card}, printings_with_owned_count: card)
     |> on_load(fn loader ->
-      {:ok, Dataloader.get(loader, Catalog, {:many, Card}, printings_with_owned_count: card)}
+      loader
+      |> Dataloader.get(Catalog, {:many, Card}, printings_with_owned_count: card)
+      |> RelayHelpers.connection_from_list(args)
     end)
   end
 
-  def card_printings(%Card{oracle_id: oracle_id}, _args, _resolution) do
-    printings =
-      oracle_id
-      |> Catalog.get_card_with_printings()
-      |> Map.get(:printings, [])
-
-    {:ok, printings}
+  def card_printings(%Card{oracle_id: oracle_id}, args, _resolution) do
+    oracle_id
+    |> Catalog.get_card_with_printings()
+    |> Map.get(:printings, [])
+    |> RelayHelpers.connection_from_list(args)
   end
 
   def printing_card(%Printing{card: %Card{} = card}, _args, _resolution) do

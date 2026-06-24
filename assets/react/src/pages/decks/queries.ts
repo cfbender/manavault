@@ -2,23 +2,31 @@ import { graphql } from "../../gql"
 
 export const DecksDocument = graphql(`
   query Decks {
-    decks {
-      id
-      name
-      format
-      status
-      shareToken
-      coverImageUrl
-      commanderColorIdentity
-      cardCount
-      uniqueCardCount
-      legality {
-        status
-        issues {
-          code
-          message
-          severity
-          cardName
+    decks(first: 100) {
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+      edges {
+        node {
+          id
+          name
+          format
+          status
+          shareToken
+          coverImageUrl
+          commanderColorIdentity
+          cardCount
+          uniqueCardCount
+          legality {
+            status
+            issues {
+              code
+              message
+              severity
+              cardName
+            }
+          }
         }
       }
     }
@@ -28,22 +36,24 @@ export const DecksDocument = graphql(`
 export const CreateDeckDocument = graphql(`
   mutation CreateDeck($input: DeckInput!) {
     createDeck(input: $input) {
-      id
-      name
-      format
-      status
-      shareToken
-      coverImageUrl
-      commanderColorIdentity
-      cardCount
-      uniqueCardCount
-      legality {
+      deck {
+        id
+        name
+        format
         status
-        issues {
-          code
-          message
-          severity
-          cardName
+        shareToken
+        coverImageUrl
+        commanderColorIdentity
+        cardCount
+        uniqueCardCount
+        legality {
+          status
+          issues {
+            code
+            message
+            severity
+            cardName
+          }
         }
       }
     }
@@ -53,22 +63,24 @@ export const CreateDeckDocument = graphql(`
 export const UpdateDeckDocument = graphql(`
   mutation UpdateDeck($id: ID!, $input: DeckUpdateInput!) {
     updateDeck(id: $id, input: $input) {
-      id
-      name
-      format
-      status
-      shareToken
-      coverImageUrl
-      commanderColorIdentity
-      cardCount
-      uniqueCardCount
-      legality {
+      deck {
+        id
+        name
+        format
         status
-        issues {
-          code
-          message
-          severity
-          cardName
+        shareToken
+        coverImageUrl
+        commanderColorIdentity
+        cardCount
+        uniqueCardCount
+        legality {
+          status
+          issues {
+            code
+            message
+            severity
+            cardName
+          }
         }
       }
     }
@@ -78,8 +90,10 @@ export const UpdateDeckDocument = graphql(`
 export const DeleteDeckDocument = graphql(`
   mutation DeleteDeck($id: ID!) {
     deleteDeck(id: $id) {
-      id
-      name
+      deck {
+        id
+        name
+      }
     }
   }
 `)
@@ -103,76 +117,96 @@ export const DeckDocument = graphql(`
           cardName
         }
       }
-      deckCards {
-        id
-        quantity
-        zone
-        finish
-        tag
-        card {
-          oracleId
-          name
-          typeLine
-          cmc
-          manaCost
-          oracleText
-          colors
-          colorIdentity
-          deckCategory
-          deckThemes
-          printings {
-            scryfallId
-            imageUrl
-            artCropUrl
-            setCode
-            setName
-            collectorNumber
-            rarity
-            finishes
-          }
+      deckCards(first: 500) {
+        pageInfo {
+          endCursor
+          hasNextPage
         }
-        preferredPrinting {
-          scryfallId
-          imageUrl
-          artCropUrl
-          setCode
-          setName
-          collectorNumber
-          rarity
-          finishes
-        }
-        allocationStatus {
-          state
-          required
-          owned
-          allocated
-          proxyAllocated
-          available
-          allocatedElsewhere
-          missing
-          candidates {
-            allocated
-            allocatedElsewhere
-            available
-            item {
+        edges {
+          node {
+            id
+            quantity
+            zone
+            finish
+            tag
+            card {
               id
-              quantity
-              finish
-              condition
-              language
-              priceText
-              location {
-                id
-                name
+              oracleId
+              name
+              typeLine
+              cmc
+              manaCost
+              oracleText
+              colors
+              colorIdentity
+              deckCategory
+              deckThemes
+              printings(first: 300) {
+                pageInfo {
+                  endCursor
+                  hasNextPage
+                }
+                edges {
+                  node {
+                    id
+                    scryfallId
+                    imageUrl
+                    artCropUrl
+                    setCode
+                    setName
+                    collectorNumber
+                    rarity
+                    finishes
+                  }
+                }
               }
-              printing {
-                scryfallId
-                setCode
-                setName
-                collectorNumber
-                rarity
-                card {
-                  name
+            }
+            preferredPrinting {
+              id
+              scryfallId
+              imageUrl
+              artCropUrl
+              setCode
+              setName
+              collectorNumber
+              rarity
+              finishes
+            }
+            allocationStatus {
+              state
+              required
+              owned
+              allocated
+              proxyAllocated
+              available
+              allocatedElsewhere
+              missing
+              candidates {
+                allocated
+                allocatedElsewhere
+                available
+                item {
+                  id
+                  quantity
+                  finish
+                  condition
+                  language
+                  priceText
+                  location {
+                    id
+                    name
+                  }
+                  printing {
+                    id
+                    scryfallId
+                    setCode
+                    setName
+                    collectorNumber
+                    rarity
+                    card {
+                      name
+                    }
+                  }
                 }
               }
             }
@@ -186,8 +220,10 @@ export const DeckDocument = graphql(`
 export const EnsureDeckShareTokenDocument = graphql(`
   mutation EnsureDeckShareToken($id: ID!) {
     ensureDeckShareToken(id: $id) {
-      id
-      shareToken
+      deck {
+        id
+        shareToken
+      }
     }
   }
 `)
@@ -195,25 +231,29 @@ export const EnsureDeckShareTokenDocument = graphql(`
 export const UpdateDeckCardDocument = graphql(`
   mutation UpdateDeckCard($id: ID!, $input: DeckCardUpdateInput!) {
     updateDeckCard(id: $id, input: $input) {
-      id
-      quantity
-      zone
-      finish
-      tag
-      card {
-        oracleId
-        name
-        typeLine
-      }
-      preferredPrinting {
-        scryfallId
-        imageUrl
-        artCropUrl
-        setCode
-        setName
-        collectorNumber
-        rarity
-        finishes
+      deckCard {
+        id
+        quantity
+        zone
+        finish
+        tag
+        card {
+          id
+          oracleId
+          name
+          typeLine
+        }
+        preferredPrinting {
+          id
+          scryfallId
+          imageUrl
+          artCropUrl
+          setCode
+          setName
+          collectorNumber
+          rarity
+          finishes
+        }
       }
     }
   }
@@ -222,8 +262,10 @@ export const UpdateDeckCardDocument = graphql(`
 export const UpdateDeckCardsTagDocument = graphql(`
   mutation UpdateDeckCardsTag($deckCardIds: [ID!]!, $tag: String) {
     updateDeckCardsTag(deckCardIds: $deckCardIds, tag: $tag) {
-      id
-      tag
+      deckCards {
+        id
+        tag
+      }
     }
   }
 `)
@@ -231,22 +273,27 @@ export const UpdateDeckCardsTagDocument = graphql(`
 export const AddDeckCardDocument = graphql(`
   mutation AddDeckCard($deckId: ID!, $input: DeckCardInput!) {
     addDeckCard(deckId: $deckId, input: $input) {
-      id
-      quantity
-      zone
-      finish
-      card {
-        oracleId
-        name
-        typeLine
-      }
-      preferredPrinting {
-        imageUrl
-        artCropUrl
-        setCode
-        setName
-        collectorNumber
-        rarity
+      deckCard {
+        id
+        quantity
+        zone
+        finish
+        card {
+          id
+          oracleId
+          name
+          typeLine
+        }
+        preferredPrinting {
+          id
+          scryfallId
+          imageUrl
+          artCropUrl
+          setCode
+          setName
+          collectorNumber
+          rarity
+        }
       }
     }
   }
@@ -255,7 +302,9 @@ export const AddDeckCardDocument = graphql(`
 export const DeleteDeckCardDocument = graphql(`
   mutation DeleteDeckCard($id: ID!) {
     deleteDeckCard(id: $id) {
-      id
+      deckCard {
+        id
+      }
     }
   }
 `)
@@ -263,22 +312,27 @@ export const DeleteDeckCardDocument = graphql(`
 export const SetDeckCommanderDocument = graphql(`
   mutation SetDeckCommander($id: ID!) {
     setDeckCommander(id: $id) {
-      id
-      quantity
-      zone
-      finish
-      card {
-        oracleId
-        name
-        typeLine
-      }
-      preferredPrinting {
-        imageUrl
-        artCropUrl
-        setCode
-        setName
-        collectorNumber
-        rarity
+      deckCard {
+        id
+        quantity
+        zone
+        finish
+        card {
+          id
+          oracleId
+          name
+          typeLine
+        }
+        preferredPrinting {
+          id
+          scryfallId
+          imageUrl
+          artCropUrl
+          setCode
+          setName
+          collectorNumber
+          rarity
+        }
       }
     }
   }
@@ -287,16 +341,18 @@ export const SetDeckCommanderDocument = graphql(`
 export const AllocateDeckCardItemDocument = graphql(`
   mutation AllocateDeckCardItem($deckCardId: ID!, $collectionItemId: ID!) {
     allocateDeckCardItem(deckCardId: $deckCardId, collectionItemId: $collectionItemId) {
-      id
-      allocationStatus {
-        state
-        required
-        owned
-        allocated
-        proxyAllocated
-        available
-        allocatedElsewhere
-        missing
+      deckCard {
+        id
+        allocationStatus {
+          state
+          required
+          owned
+          allocated
+          proxyAllocated
+          available
+          allocatedElsewhere
+          missing
+        }
       }
     }
   }
@@ -305,16 +361,18 @@ export const AllocateDeckCardItemDocument = graphql(`
 export const DeallocateDeckCardItemDocument = graphql(`
   mutation DeallocateDeckCardItem($deckCardId: ID!, $collectionItemId: ID!) {
     deallocateDeckCardItem(deckCardId: $deckCardId, collectionItemId: $collectionItemId) {
-      id
-      allocationStatus {
-        state
-        required
-        owned
-        allocated
-        proxyAllocated
-        available
-        allocatedElsewhere
-        missing
+      deckCard {
+        id
+        allocationStatus {
+          state
+          required
+          owned
+          allocated
+          proxyAllocated
+          available
+          allocatedElsewhere
+          missing
+        }
       }
     }
   }
@@ -323,16 +381,18 @@ export const DeallocateDeckCardItemDocument = graphql(`
 export const AllocateDeckCardProxyDocument = graphql(`
   mutation AllocateDeckCardProxy($deckCardId: ID!, $quantity: Int!) {
     allocateDeckCardProxy(deckCardId: $deckCardId, quantity: $quantity) {
-      id
-      allocationStatus {
-        state
-        required
-        owned
-        allocated
-        proxyAllocated
-        available
-        allocatedElsewhere
-        missing
+      deckCard {
+        id
+        allocationStatus {
+          state
+          required
+          owned
+          allocated
+          proxyAllocated
+          available
+          allocatedElsewhere
+          missing
+        }
       }
     }
   }
@@ -341,16 +401,18 @@ export const AllocateDeckCardProxyDocument = graphql(`
 export const DeallocateDeckCardProxyDocument = graphql(`
   mutation DeallocateDeckCardProxy($deckCardId: ID!, $quantity: Int!) {
     deallocateDeckCardProxy(deckCardId: $deckCardId, quantity: $quantity) {
-      id
-      allocationStatus {
-        state
-        required
-        owned
-        allocated
-        proxyAllocated
-        available
-        allocatedElsewhere
-        missing
+      deckCard {
+        id
+        allocationStatus {
+          state
+          required
+          owned
+          allocated
+          proxyAllocated
+          available
+          allocatedElsewhere
+          missing
+        }
       }
     }
   }
@@ -359,36 +421,42 @@ export const DeallocateDeckCardProxyDocument = graphql(`
 export const PreviewBulkAllocateDeckDocument = graphql(`
   mutation PreviewBulkAllocateDeck($id: ID!, $mode: String!) {
     previewBulkAllocateDeck(id: $id, mode: $mode) {
-      mode
-      allocated
-      cards
-      skipped
-      entries {
-        quantity
-        exact
-        deckCard {
-          id
+      allocationPreview {
+        mode
+        allocated
+        cards
+        skipped
+        entries {
           quantity
-          finish
-          card {
-            name
-          }
-          preferredPrinting {
-            setCode
-            setName
-            collectorNumber
-          }
-        }
-        item {
-          id
-          quantity
-          finish
-          printing {
-            setCode
-            setName
-            collectorNumber
+          exact
+          deckCard {
+            id
+            quantity
+            finish
             card {
               name
+            }
+            preferredPrinting {
+              id
+              scryfallId
+              setCode
+              setName
+              collectorNumber
+            }
+          }
+          item {
+            id
+            quantity
+            finish
+            printing {
+              id
+              scryfallId
+              setCode
+              setName
+              collectorNumber
+              card {
+                name
+              }
             }
           }
         }
@@ -400,9 +468,11 @@ export const PreviewBulkAllocateDeckDocument = graphql(`
 export const BulkAllocateDeckDocument = graphql(`
   mutation BulkAllocateDeck($id: ID!, $mode: String!) {
     bulkAllocateDeck(id: $id, mode: $mode) {
-      allocated
-      cards
-      skipped
+      allocationResult {
+        allocated
+        cards
+        skipped
+      }
     }
   }
 `)
@@ -410,9 +480,11 @@ export const BulkAllocateDeckDocument = graphql(`
 export const ImportDecklistDocument = graphql(`
   mutation ImportDecklist($id: ID!, $text: String!, $replaceExisting: Boolean!) {
     importDecklist(id: $id, text: $text, replaceExisting: $replaceExisting) {
-      imported
-      unresolved
-      skippedPrintings
+      importResult {
+        imported
+        unresolved
+        skippedPrintings
+      }
     }
   }
 `)
@@ -465,14 +537,24 @@ export const DeckEdhrecDocument = graphql(`
         salt
         edhrecUrl
         card {
+          id
           oracleId
           name
           typeLine
-          printings {
-            scryfallId
-            imageUrl
-            artCropUrl
-            priceText
+          printings(first: 300) {
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+            edges {
+              node {
+                id
+                scryfallId
+                imageUrl
+                artCropUrl
+                priceText
+              }
+            }
           }
         }
         collectionStatus {
@@ -496,14 +578,24 @@ export const DeckEdhrecDocument = graphql(`
         salt
         edhrecUrl
         card {
+          id
           oracleId
           name
           typeLine
-          printings {
-            scryfallId
-            imageUrl
-            artCropUrl
-            priceText
+          printings(first: 300) {
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+            edges {
+              node {
+                id
+                scryfallId
+                imageUrl
+                artCropUrl
+                priceText
+              }
+            }
           }
         }
         collectionStatus {
@@ -551,14 +643,24 @@ export const DeckEdhrecDocument = graphql(`
             potentialDecks
             url
             card {
+              id
               oracleId
               name
               typeLine
-              printings {
-                scryfallId
-                imageUrl
-                artCropUrl
-                priceText
+              printings(first: 300) {
+                pageInfo {
+                  endCursor
+                  hasNextPage
+                }
+                edges {
+                  node {
+                    id
+                    scryfallId
+                    imageUrl
+                    artCropUrl
+                    priceText
+                  }
+                }
               }
             }
             collectionStatus {

@@ -46,6 +46,7 @@ defmodule Manavault.MixProject do
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:absinthe, "~> 1.7"},
+      {:absinthe_relay, "~> 1.6"},
       {:absinthe_plug, "~> 1.5"},
       {:dataloader, "~> 2.0"},
       {:tailwind, "~> 0.3", runtime: Mix.env() == :dev},

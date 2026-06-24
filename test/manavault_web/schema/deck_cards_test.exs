@@ -3,6 +3,9 @@ defmodule ManavaultWeb.Schema.DeckCardsTest do
 
   alias Manavault.Catalog
 
+  defp global_id(type, id),
+    do: Absinthe.Relay.Node.to_global_id(type, id, ManavaultWeb.Schema)
+
   test "update deck card mutation moves a card between zones", %{conn: conn} do
     {:ok, %{cards_count: 1, printings_count: 1}} =
       Catalog.import_cards([
@@ -29,15 +32,17 @@ defmodule ManavaultWeb.Schema.DeckCardsTest do
         "query" => """
         mutation MoveDeckCard($id: ID!, $input: DeckCardUpdateInput!) {
           updateDeckCard(id: $id, input: $input) {
-            id
-            zone
-            quantity
-            card { name }
+            deckCard {
+              id
+              zone
+              quantity
+              card { name }
+            }
           }
         }
         """,
         "variables" => %{
-          "id" => deck_card.id,
+          "id" => global_id(:deck_card, deck_card.id),
           "input" => %{"zone" => "sideboard"}
         }
       })
@@ -45,10 +50,12 @@ defmodule ManavaultWeb.Schema.DeckCardsTest do
     assert %{
              "data" => %{
                "updateDeckCard" => %{
-                 "id" => _id,
-                 "zone" => "sideboard",
-                 "quantity" => 1,
-                 "card" => %{"name" => "Black Lotus"}
+                 "deckCard" => %{
+                   "id" => _id,
+                   "zone" => "sideboard",
+                   "quantity" => 1,
+                   "card" => %{"name" => "Black Lotus"}
+                 }
                }
              }
            } = json_response(conn, 200)
@@ -94,19 +101,26 @@ defmodule ManavaultWeb.Schema.DeckCardsTest do
         "query" => """
         mutation UpdateTag($id: ID!, $input: DeckCardUpdateInput!) {
           updateDeckCard(id: $id, input: $input) {
-            id
-            tag
+            deckCard {
+              id
+              tag
+            }
           }
         }
         """,
-        "variables" => %{"id" => first.id, "input" => %{"tag" => "getting"}}
+        "variables" => %{
+          "id" => global_id(:deck_card, first.id),
+          "input" => %{"tag" => "getting"}
+        }
       })
 
     assert %{
              "data" => %{
                "updateDeckCard" => %{
-                 "id" => _id,
-                 "tag" => "getting"
+                 "deckCard" => %{
+                   "id" => _id,
+                   "tag" => "getting"
+                 }
                }
              }
            } = json_response(update_conn, 200)
@@ -116,28 +130,35 @@ defmodule ManavaultWeb.Schema.DeckCardsTest do
         "query" => """
         mutation BulkTag($deckCardIds: [ID!]!, $tag: String) {
           updateDeckCardsTag(deckCardIds: $deckCardIds, tag: $tag) {
-            id
-            tag
+            deckCards {
+              id
+              tag
+            }
           }
         }
         """,
         "variables" => %{
-          "deckCardIds" => [first.id, second.id],
+          "deckCardIds" => [
+            global_id(:deck_card, first.id),
+            global_id(:deck_card, second.id)
+          ],
           "tag" => "consider_cutting"
         }
       })
 
     assert %{
              "data" => %{
-               "updateDeckCardsTag" => tagged_cards
+               "updateDeckCardsTag" => %{
+                 "deckCards" => tagged_cards
+               }
              }
            } = json_response(bulk_conn, 200)
 
     assert Enum.sort_by(tagged_cards, & &1["id"]) ==
              Enum.sort_by(
                [
-                 %{"id" => to_string(first.id), "tag" => "consider_cutting"},
-                 %{"id" => to_string(second.id), "tag" => "consider_cutting"}
+                 %{"id" => global_id(:deck_card, first.id), "tag" => "consider_cutting"},
+                 %{"id" => global_id(:deck_card, second.id), "tag" => "consider_cutting"}
                ],
                & &1["id"]
              )
@@ -168,16 +189,18 @@ defmodule ManavaultWeb.Schema.DeckCardsTest do
         "query" => """
         mutation AddDeckCard($deckId: ID!, $input: DeckCardInput!) {
           addDeckCard(deckId: $deckId, input: $input) {
-            id
-            quantity
-            zone
-            finish
-            card { name }
+            deckCard {
+              id
+              quantity
+              zone
+              finish
+              card { name }
+            }
           }
         }
         """,
         "variables" => %{
-          "deckId" => deck.id,
+          "deckId" => global_id(:deck, deck.id),
           "input" => %{
             "name" => "Add Me",
             "quantity" => 2,
@@ -190,11 +213,13 @@ defmodule ManavaultWeb.Schema.DeckCardsTest do
     assert %{
              "data" => %{
                "addDeckCard" => %{
-                 "id" => _id,
-                 "quantity" => 2,
-                 "zone" => "sideboard",
-                 "finish" => "nonfoil",
-                 "card" => %{"name" => "Add Me"}
+                 "deckCard" => %{
+                   "id" => _id,
+                   "quantity" => 2,
+                   "zone" => "sideboard",
+                   "finish" => "nonfoil",
+                   "card" => %{"name" => "Add Me"}
+                 }
                }
              }
            } = json_response(conn, 200)
@@ -237,19 +262,23 @@ defmodule ManavaultWeb.Schema.DeckCardsTest do
         "query" => """
         mutation DeleteDeckCard($id: ID!) {
           deleteDeckCard(id: $id) {
-            id
-            card { name }
+            deckCard {
+              id
+              card { name }
+            }
           }
         }
         """,
-        "variables" => %{"id" => deck_card.id}
+        "variables" => %{"id" => global_id(:deck_card, deck_card.id)}
       })
 
     assert %{
              "data" => %{
                "deleteDeckCard" => %{
-                 "id" => _id,
-                 "card" => %{"name" => "Delete Me"}
+                 "deckCard" => %{
+                   "id" => _id,
+                   "card" => %{"name" => "Delete Me"}
+                 }
                }
              }
            } = json_response(conn, 200)
@@ -303,17 +332,21 @@ defmodule ManavaultWeb.Schema.DeckCardsTest do
         "query" => """
         mutation DeleteDeck($id: ID!) {
           deleteDeck(id: $id) {
-            id
-            name
+            deck {
+              id
+              name
+            }
           }
         }
         """,
-        "variables" => %{"id" => deck.id}
+        "variables" => %{"id" => global_id(:deck, deck.id)}
       })
 
     assert %{
              "data" => %{
-               "deleteDeck" => %{"id" => _id, "name" => "Deck To Delete"}
+               "deleteDeck" => %{
+                 "deck" => %{"id" => _id, "name" => "Deck To Delete"}
+               }
              }
            } = json_response(conn, 200)
 
@@ -364,21 +397,25 @@ defmodule ManavaultWeb.Schema.DeckCardsTest do
         "query" => """
         mutation SetDeckCommander($id: ID!) {
           setDeckCommander(id: $id) {
-            id
-            zone
-            card { name }
+            deckCard {
+              id
+              zone
+              card { name }
+            }
           }
         }
         """,
-        "variables" => %{"id" => new_commander.id}
+        "variables" => %{"id" => global_id(:deck_card, new_commander.id)}
       })
 
     assert %{
              "data" => %{
                "setDeckCommander" => %{
-                 "id" => _id,
-                 "zone" => "commander",
-                 "card" => %{"name" => "New Legend"}
+                 "deckCard" => %{
+                   "id" => _id,
+                   "zone" => "commander",
+                   "card" => %{"name" => "New Legend"}
+                 }
                }
              }
            } = json_response(conn, 200)

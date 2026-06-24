@@ -5,6 +5,7 @@ import type { AddCollectionItemInitialPrinting } from "../collection"
 import type { CardDeckTarget } from "./add-card-to-deck-dialog"
 
 type CardPrintingTile = {
+  id: string
   scryfallId: string
   collectorNumber?: string | null
   finishes?: Array<string | null> | null
@@ -34,14 +35,14 @@ export function CardPrintingsGrid({
   return (
     <div className="grid justify-center gap-x-6 gap-y-8 [grid-template-columns:repeat(auto-fill,minmax(14.25rem,14.25rem))]">
       {printings.map((printing) => (
-        <div key={printing.scryfallId}>
+        <div key={printing.id}>
           <CardTile
             defaultActions={[]}
             count={printing.ownedCount}
             countMin={1}
             finish={(printing.finishes || [])[0]}
             imageUrl={printing.imageUrl}
-            onSelect={() => onPreviewPrinting(printing.scryfallId)}
+            onSelect={() => onPreviewPrinting(printing.id)}
             primaryActionLabel={`Open ${cardName} ${printing.setCode?.toUpperCase() || "printing"} full screen`}
             primaryActionRole="button"
             menuActions={[
@@ -49,6 +50,7 @@ export function CardPrintingsGrid({
                 icon: <Boxes className="h-4 w-4" />,
                 onClick: () =>
                   onAddToCollection({
+                    id: printing.id,
                     cardName,
                     collectorNumber: printing.collectorNumber,
                     finishes: printing.finishes,
@@ -70,7 +72,7 @@ export function CardPrintingsGrid({
                       ? "nonfoil"
                       : printing.finishes?.[0] || "nonfoil",
                     finishes: printing.finishes?.filter(present),
-                    preferredPrintingId: printing.scryfallId,
+                    preferredPrintingId: printing.id,
                     setCode: printing.setCode,
                   }),
               }),

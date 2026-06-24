@@ -68,21 +68,29 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
               }
             }
           }
-          decks {
-            name
-            legality {
-              status
-              issues {
-                code
-                message
-                severity
-                cardName
+          decks(first: 10) {
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+            edges {
+              node {
+                name
+                legality {
+                  status
+                  issues {
+                    code
+                    message
+                    severity
+                    cardName
+                  }
+                }
               }
             }
           }
         }
         """,
-        "variables" => %{"id" => deck.id}
+        "variables" => %{"id" => global_deck_id(deck)}
       })
 
     assert %{
@@ -93,15 +101,20 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                    "issues" => detail_issues
                  }
                },
-               "decks" => [
-                 %{
-                   "name" => "Illegal Commander",
-                   "legality" => %{
-                     "status" => "illegal",
-                     "issues" => summary_issues
+               "decks" => %{
+                 "pageInfo" => %{"endCursor" => _cursor, "hasNextPage" => false},
+                 "edges" => [
+                   %{
+                     "node" => %{
+                       "name" => "Illegal Commander",
+                       "legality" => %{
+                         "status" => "illegal",
+                         "issues" => summary_issues
+                       }
+                     }
                    }
-                 }
-               ]
+                 ]
+               }
              }
            } = json_response(conn, 200)
 
@@ -144,19 +157,23 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
         "query" => """
         mutation ShareDeck($id: ID!) {
           ensureDeckShareToken(id: $id) {
-            id
-            shareToken
+            deck {
+              id
+              shareToken
+            }
           }
         }
         """,
-        "variables" => %{"id" => deck.id}
+        "variables" => %{"id" => global_deck_id(deck)}
       })
 
     assert %{
              "data" => %{
                "ensureDeckShareToken" => %{
-                 "id" => _id,
-                 "shareToken" => share_token
+                 "deck" => %{
+                   "id" => _id,
+                   "shareToken" => share_token
+                 }
                }
              }
            } = json_response(share_conn, 200)
@@ -183,52 +200,60 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                 cardName
               }
             }
-            deckCards {
-              id
-              quantity
-              zone
-              finish
-              card { name }
-              preferredPrinting {
-                scryfallId
-                imageUrl
-                artCropUrl
-                setCode
-                setName
-                collectorNumber
-                rarity
-                finishes
+            deckCards(first: 20) {
+              pageInfo {
+                endCursor
+                hasNextPage
               }
-              allocationStatus {
-                state
-                required
-                owned
-                allocated
-                available
-                allocatedElsewhere
-                missing
-                candidates {
-                  allocated
-                  allocatedElsewhere
-                  available
-                  item {
-                    id
-                    quantity
-                    finish
-                    condition
-                    language
-                    priceText
-                    location {
-                      id
-                      name
-                    }
-                    printing {
-                      scryfallId
-                      setCode
-                      setName
-                      collectorNumber
-                      rarity
-                      card { name }
+              edges {
+                node {
+                  id
+                  quantity
+                  zone
+                  finish
+                  card { name }
+                  preferredPrinting {
+                    scryfallId
+                    imageUrl
+                    artCropUrl
+                    setCode
+                    setName
+                    collectorNumber
+                    rarity
+                    finishes
+                  }
+                  allocationStatus {
+                    state
+                    required
+                    owned
+                    allocated
+                    available
+                    allocatedElsewhere
+                    missing
+                    candidates {
+                      allocated
+                      allocatedElsewhere
+                      available
+                      item {
+                        id
+                        quantity
+                        finish
+                        condition
+                        language
+                        priceText
+                        location {
+                          id
+                          name
+                        }
+                        printing {
+                          scryfallId
+                          setCode
+                          setName
+                          collectorNumber
+                          rarity
+                          card { name }
+                        }
+                      }
                     }
                   }
                 }
@@ -251,22 +276,27 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                    "status" => "illegal",
                    "issues" => public_share_issues
                  },
-                 "deckCards" => [
-                   %{
-                     "quantity" => 1,
-                     "card" => %{"name" => "Shared Card"},
-                     "allocationStatus" => %{
-                       "state" => "shared",
-                       "required" => 1,
-                       "owned" => 0,
-                       "allocated" => 0,
-                       "available" => 0,
-                       "allocatedElsewhere" => 0,
-                       "missing" => 0,
-                       "candidates" => []
+                 "deckCards" => %{
+                   "pageInfo" => %{"endCursor" => _deck_cards_cursor, "hasNextPage" => false},
+                   "edges" => [
+                     %{
+                       "node" => %{
+                         "quantity" => 1,
+                         "card" => %{"name" => "Shared Card"},
+                         "allocationStatus" => %{
+                           "state" => "shared",
+                           "required" => 1,
+                           "owned" => 0,
+                           "allocated" => 0,
+                           "available" => 0,
+                           "allocatedElsewhere" => 0,
+                           "missing" => 0,
+                           "candidates" => []
+                         }
+                       }
                      }
-                   }
-                 ]
+                   ]
+                 }
                }
              }
            } = json_response(public_conn, 200)
@@ -275,5 +305,9 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
              is_binary(issue["code"]) and is_binary(issue["message"]) and
                is_binary(issue["severity"]) and issue["cardName"] == "Shared Card"
            end)
+  end
+
+  defp global_deck_id(deck) do
+    Absinthe.Relay.Node.to_global_id(:deck, deck.id, ManavaultWeb.Schema)
   end
 end

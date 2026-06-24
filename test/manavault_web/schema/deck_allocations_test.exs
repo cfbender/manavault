@@ -3,6 +3,9 @@ defmodule ManavaultWeb.Schema.DeckAllocationsTest do
 
   alias Manavault.Catalog
 
+  defp global_id(type, id),
+    do: Absinthe.Relay.Node.to_global_id(type, id, ManavaultWeb.Schema)
+
   test "add collection item to deck creates a deck card and allocation", %{conn: conn} do
     {:ok, %{cards_count: 1, printings_count: 1}} =
       Catalog.import_cards([
@@ -34,27 +37,35 @@ defmodule ManavaultWeb.Schema.DeckAllocationsTest do
         "query" => """
         mutation AddCollectionItemToDeck($id: ID!, $deckId: ID!, $zone: String) {
           addCollectionItemToDeck(id: $id, deckId: $deckId, zone: $zone) {
-            id
-            quantity
-            zone
-            finish
-            card { name }
-            preferredPrinting { scryfallId }
+            deckCard {
+              id
+              quantity
+              zone
+              finish
+              card { name }
+              preferredPrinting { scryfallId }
+            }
           }
         }
         """,
-        "variables" => %{"id" => item.id, "deckId" => deck.id, "zone" => "sideboard"}
+        "variables" => %{
+          "id" => global_id(:collection_item, item.id),
+          "deckId" => global_id(:deck, deck.id),
+          "zone" => "sideboard"
+        }
       })
 
     assert %{
              "data" => %{
                "addCollectionItemToDeck" => %{
-                 "id" => _id,
-                 "quantity" => 1,
-                 "zone" => "sideboard",
-                 "finish" => "nonfoil",
-                 "card" => %{"name" => "Deck Add Card"},
-                 "preferredPrinting" => %{"scryfallId" => "scryfall-printing-deck-add"}
+                 "deckCard" => %{
+                   "id" => _id,
+                   "quantity" => 1,
+                   "zone" => "sideboard",
+                   "finish" => "nonfoil",
+                   "card" => %{"name" => "Deck Add Card"},
+                   "preferredPrinting" => %{"scryfallId" => "scryfall-printing-deck-add"}
+                 }
                }
              }
            } = json_response(conn, 200)
@@ -97,53 +108,63 @@ defmodule ManavaultWeb.Schema.DeckAllocationsTest do
         "query" => """
         query Deck($id: ID!) {
           deck(id: $id) {
-            deckCards {
-              id
-              allocationStatus {
-                state
-                required
-                owned
-                available
-                allocated
-                missing
-                candidates {
-                  available
-                  item { id quantity printing { card { name } } }
+            deckCards(first: 10) {
+              pageInfo { endCursor hasNextPage }
+              edges {
+                node {
+                  id
+                  allocationStatus {
+                    state
+                    required
+                    owned
+                    available
+                    allocated
+                    missing
+                    candidates {
+                      available
+                      item { id quantity printing { card { name } } }
+                    }
+                  }
                 }
               }
             }
           }
         }
         """,
-        "variables" => %{"id" => deck.id}
+        "variables" => %{"id" => global_id(:deck, deck.id)}
       })
 
     assert %{
              "data" => %{
                "deck" => %{
-                 "deckCards" => [
-                   %{
-                     "id" => _id,
-                     "allocationStatus" => %{
-                       "state" => "available",
-                       "required" => 1,
-                       "owned" => 1,
-                       "available" => 1,
-                       "allocated" => 0,
-                       "missing" => 0,
-                       "candidates" => [
-                         %{
+                 "deckCards" => %{
+                   "pageInfo" => %{"endCursor" => _end_cursor, "hasNextPage" => false},
+                   "edges" => [
+                     %{
+                       "node" => %{
+                         "id" => _id,
+                         "allocationStatus" => %{
+                           "state" => "available",
+                           "required" => 1,
+                           "owned" => 1,
                            "available" => 1,
-                           "item" => %{
-                             "id" => _item_id,
-                             "quantity" => 1,
-                             "printing" => %{"card" => %{"name" => "Allocation Status Card"}}
-                           }
+                           "allocated" => 0,
+                           "missing" => 0,
+                           "candidates" => [
+                             %{
+                               "available" => 1,
+                               "item" => %{
+                                 "id" => _item_id,
+                                 "quantity" => 1,
+                                 "printing" => %{"card" => %{"name" => "Allocation Status Card"}}
+                               }
+                             }
+                           ]
                          }
-                       ]
+                       }
                      }
-                   }
-                 ]
+                   ]
+                 }
                }
              }
            } = json_response(status_conn, 200)
@@ -153,22 +174,29 @@ defmodule ManavaultWeb.Schema.DeckAllocationsTest do
         "query" => """
         mutation Allocate($deckCardId: ID!, $collectionItemId: ID!) {
           allocateDeckCardItem(deckCardId: $deckCardId, collectionItemId: $collectionItemId) {
-            id
-            allocationStatus { state allocated available missing }
+            deckCard {
+              id
+              allocationStatus { state allocated available missing }
+            }
           }
         }
         """,
-        "variables" => %{"deckCardId" => deck_card.id, "collectionItemId" => item.id}
+        "variables" => %{
+          "deckCardId" => global_id(:deck_card, deck_card.id),
+          "collectionItemId" => global_id(:collection_item, item.id)
+        }
       })
 
     assert %{
              "data" => %{
                "allocateDeckCardItem" => %{
-                 "allocationStatus" => %{
-                   "state" => "allocated",
-                   "allocated" => 1,
-                   "available" => 0,
-                   "missing" => 0
+                 "deckCard" => %{
+                   "allocationStatus" => %{
+                     "state" => "allocated",
+                     "allocated" => 1,
+                     "available" => 0,
+                     "missing" => 0
+                   }
                  }
                }
              }
@@ -177,28 +205,48 @@ defmodule ManavaultWeb.Schema.DeckAllocationsTest do
     visibility_conn =
       post(conn, "/api/graphql", %{
         "query" => """
-        query {
-          location(id: "unfiled") {
+        query Visibility($unfiledId: ID!) {
+          location(id: $unfiledId) {
             itemCount
-            collectionItems { id }
+            collectionItems(first: 10) {
+              pageInfo { hasNextPage }
+              edges { node { id } }
+            }
           }
-          collectionItems {
-            allocatedQuantity
-            printing { card { name } }
+          collectionItems(first: 10) {
+            pageInfo { hasNextPage }
+            edges {
+              node {
+                allocatedQuantity
+                printing { card { name } }
+              }
+            }
           }
         }
-        """
+        """,
+        "variables" => %{"unfiledId" => global_id(:location, "unfiled")}
       })
 
     assert %{
              "data" => %{
-               "location" => %{"itemCount" => 0, "collectionItems" => []},
-               "collectionItems" => [
-                 %{
-                   "allocatedQuantity" => 1,
-                   "printing" => %{"card" => %{"name" => "Allocation Status Card"}}
+               "location" => %{
+                 "itemCount" => 0,
+                 "collectionItems" => %{
+                   "pageInfo" => %{"hasNextPage" => false},
+                   "edges" => []
                  }
-               ]
+               },
+               "collectionItems" => %{
+                 "pageInfo" => %{"hasNextPage" => false},
+                 "edges" => [
+                   %{
+                     "node" => %{
+                       "allocatedQuantity" => 1,
+                       "printing" => %{"card" => %{"name" => "Allocation Status Card"}}
+                     }
+                   }
+                 ]
+               }
              }
            } = json_response(visibility_conn, 200)
 
@@ -217,22 +265,29 @@ defmodule ManavaultWeb.Schema.DeckAllocationsTest do
         "query" => """
         mutation Deallocate($deckCardId: ID!, $collectionItemId: ID!) {
           deallocateDeckCardItem(deckCardId: $deckCardId, collectionItemId: $collectionItemId) {
-            id
-            allocationStatus { state allocated available missing }
+            deckCard {
+              id
+              allocationStatus { state allocated available missing }
+            }
           }
         }
         """,
-        "variables" => %{"deckCardId" => deck_card.id, "collectionItemId" => allocated_item_id}
+        "variables" => %{
+          "deckCardId" => global_id(:deck_card, deck_card.id),
+          "collectionItemId" => global_id(:collection_item, allocated_item_id)
+        }
       })
 
     assert %{
              "data" => %{
                "deallocateDeckCardItem" => %{
-                 "allocationStatus" => %{
-                   "state" => "available",
-                   "allocated" => 0,
-                   "available" => 1,
-                   "missing" => 0
+                 "deckCard" => %{
+                   "allocationStatus" => %{
+                     "state" => "available",
+                     "allocated" => 0,
+                     "available" => 1,
+                     "missing" => 0
+                   }
                  }
                }
              }

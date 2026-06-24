@@ -1,5 +1,6 @@
 defmodule ManavaultWeb.Schema.BackupTypes do
   use Absinthe.Schema.Notation
+  use Absinthe.Relay.Schema.Notation, :modern
 
   object :backup_settings do
     field :id, non_null(:integer)

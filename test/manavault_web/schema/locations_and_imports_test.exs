@@ -1,6 +1,7 @@
 defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
   use ManavaultWeb.ConnCase
 
+  alias Absinthe.Relay.Node
   alias Manavault.Catalog
 
   test "create location mutation creates a location with optional cover", %{conn: conn} do
@@ -26,11 +27,13 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
         "query" => """
         mutation CreateLocation($input: LocationInput!) {
           createLocation(input: $input) {
-            id
-            name
-            kind
-            description
-            coverPrinting { scryfallId artCropUrl card { name } }
+            location {
+              id
+              name
+              kind
+              description
+              coverPrinting { scryfallId artCropUrl card { name } }
+            }
           }
         }
         """,
@@ -39,7 +42,7 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
             "name" => "New Box",
             "kind" => "box",
             "description" => "Sealed cards",
-            "coverScryfallId" => "scryfall-printing-3"
+            "coverScryfallId" => global_id(:printing, "scryfall-printing-3")
           }
         }
       })
@@ -47,13 +50,15 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
     assert %{
              "data" => %{
                "createLocation" => %{
-                 "name" => "New Box",
-                 "kind" => "box",
-                 "description" => "Sealed cards",
-                 "coverPrinting" => %{
-                   "scryfallId" => "scryfall-printing-3",
-                   "artCropUrl" => "https://example.test/location-cover.jpg",
-                   "card" => %{"name" => "Location Cover"}
+                 "location" => %{
+                   "name" => "New Box",
+                   "kind" => "box",
+                   "description" => "Sealed cards",
+                   "coverPrinting" => %{
+                     "scryfallId" => "scryfall-printing-3",
+                     "artCropUrl" => "https://example.test/location-cover.jpg",
+                     "card" => %{"name" => "Location Cover"}
+                   }
                  }
                }
              }
@@ -92,53 +97,61 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
         "query" => """
         mutation PreviewCollectionImport($input: CollectionImportPreviewInput!) {
           previewCollectionImport(input: $input) {
-            locationId
-            total
-            exact
-            ambiguous
-            unresolved
-            rows {
-              rowNumber
-              status
-              attrs { quantity finish condition language scryfallId locationId purchasePriceCents }
-              printing { scryfallId card { name } }
-              candidates { scryfallId }
+            importPreview {
+              locationId
+              total
+              exact
+              ambiguous
+              unresolved
+              rows {
+                rowNumber
+                status
+                attrs { quantity finish condition language scryfallId locationId purchasePriceCents }
+                printing { scryfallId card { name } }
+                candidates { scryfallId }
+              }
             }
           }
         }
         """,
         "variables" => %{
-          "input" => %{"text" => csv, "format" => "csv", "locationId" => location.id}
+          "input" => %{
+            "text" => csv,
+            "format" => "csv",
+            "locationId" => global_id(:location, location.id)
+          }
         }
       })
 
     assert %{
              "data" => %{
                "previewCollectionImport" => %{
-                 "locationId" => _location_id,
-                 "total" => 1,
-                 "exact" => 1,
-                 "ambiguous" => 0,
-                 "unresolved" => 0,
-                 "rows" =>
-                   [
-                     %{
-                       "rowNumber" => 2,
-                       "status" => "exact",
-                       "attrs" => %{
-                         "quantity" => 3,
-                         "finish" => "nonfoil",
-                         "condition" => "near_mint",
-                         "language" => "en",
-                         "scryfallId" => "scryfall-printing-import",
-                         "purchasePriceCents" => 300
-                       },
-                       "printing" => %{
-                         "scryfallId" => "scryfall-printing-import",
-                         "card" => %{"name" => "Imported Card"}
+                 "importPreview" => %{
+                   "locationId" => _location_id,
+                   "total" => 1,
+                   "exact" => 1,
+                   "ambiguous" => 0,
+                   "unresolved" => 0,
+                   "rows" =>
+                     [
+                       %{
+                         "rowNumber" => 2,
+                         "status" => "exact",
+                         "attrs" => %{
+                           "quantity" => 3,
+                           "finish" => "nonfoil",
+                           "condition" => "near_mint",
+                           "language" => "en",
+                           "scryfallId" => "scryfall-printing-import",
+                           "purchasePriceCents" => 300
+                         },
+                         "printing" => %{
+                           "scryfallId" => "scryfall-printing-import",
+                           "card" => %{"name" => "Imported Card"}
+                         }
                        }
-                     }
-                   ] = rows
+                     ] = rows
+                 }
                }
              }
            } = json_response(preview_conn, 200)
@@ -148,8 +161,10 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
         "query" => """
         mutation CommitCollectionImport($input: CollectionImportCommitInput!) {
           commitCollectionImport(input: $input) {
-            imported
-            skipped
+            importResult {
+              imported
+              skipped
+            }
           }
         }
         """,
@@ -169,7 +184,9 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
 
     assert %{
              "data" => %{
-               "commitCollectionImport" => %{"imported" => 1, "skipped" => 0}
+               "commitCollectionImport" => %{
+                 "importResult" => %{"imported" => 1, "skipped" => 0}
+               }
              }
            } = json_response(commit_conn, 200)
 
@@ -196,7 +213,9 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
           collectionExportText(filters: $filters)
         }
         """,
-        "variables" => %{"filters" => %{"locationId" => location.id}}
+        "variables" => %{
+          "filters" => %{"locationId" => global_id(:location, location.id)}
+        }
       })
 
     assert %{"data" => %{"collectionExportText" => export_text}} = json_response(text_conn, 200)
@@ -228,21 +247,23 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
         "query" => """
         mutation UpdateLocation($id: ID!, $input: LocationUpdateInput!) {
           updateLocation(id: $id, input: $input) {
-            id
-            name
-            kind
-            description
-            coverPrinting { artCropUrl card { name } }
+            location {
+              id
+              name
+              kind
+              description
+              coverPrinting { artCropUrl card { name } }
+            }
           }
         }
         """,
         "variables" => %{
-          "id" => location.id,
+          "id" => global_id(:location, location.id),
           "input" => %{
             "name" => "New Binder",
             "kind" => "binder",
             "description" => "Trade cards",
-            "coverScryfallId" => "scryfall-printing-2"
+            "coverScryfallId" => global_id(:printing, "scryfall-printing-2")
           }
         }
       })
@@ -250,13 +271,15 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
     assert %{
              "data" => %{
                "updateLocation" => %{
-                 "id" => _id,
-                 "name" => "New Binder",
-                 "kind" => "binder",
-                 "description" => "Trade cards",
-                 "coverPrinting" => %{
-                   "artCropUrl" => "https://example.test/cover-art.jpg",
-                   "card" => %{"name" => "Cover Card"}
+                 "location" => %{
+                   "id" => _id,
+                   "name" => "New Binder",
+                   "kind" => "binder",
+                   "description" => "Trade cards",
+                   "coverPrinting" => %{
+                     "artCropUrl" => "https://example.test/cover-art.jpg",
+                     "card" => %{"name" => "Cover Card"}
+                   }
                  }
                }
              }
@@ -269,13 +292,13 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
         "query" => """
         mutation UpdateLocation($id: ID!, $input: LocationUpdateInput!) {
           updateLocation(id: $id, input: $input) {
-            id
+            location { id }
           }
         }
         """,
         "variables" => %{
-          "id" => "unfiled",
-          "input" => %{"coverScryfallId" => "anything"}
+          "id" => global_id(:location, "unfiled"),
+          "input" => %{"name" => "Cannot Edit"}
         }
       })
 
@@ -314,21 +337,27 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
         "query" => """
         mutation DeleteLocation($id: ID!) {
           deleteLocation(id: $id) {
-            id
-            name
+            location {
+              id
+              name
+            }
           }
         }
         """,
-        "variables" => %{"id" => location.id}
+        "variables" => %{"id" => global_id(:location, location.id)}
       })
 
     assert %{
              "data" => %{
-               "deleteLocation" => %{"id" => _id, "name" => "Delete Location"}
+               "deleteLocation" => %{
+                 "location" => %{"id" => _id, "name" => "Delete Location"}
+               }
              }
            } = json_response(conn, 200)
 
     assert_raise Ecto.NoResultsError, fn -> Catalog.get_location!(location.id) end
     assert Catalog.get_collection_item!(item.id).location_id == nil
   end
+
+  defp global_id(type, id), do: Node.to_global_id(type, id, ManavaultWeb.Schema)
 end

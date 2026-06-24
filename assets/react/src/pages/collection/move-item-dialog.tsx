@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
 import type * as React from "react"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Button } from "../../components/ui/button"
 import {
   Dialog,
@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { request } from "../../lib/graphql"
-import { titleize } from "../../lib/utils"
+import { present, titleize } from "../../lib/utils"
 import { CollectionItemFormOptionsDocument, UpdateCollectionItemDocument } from "./documents"
 import {
   collectionTargetItems,
@@ -61,8 +61,12 @@ export function MoveCollectionItemDialog({
     onError: (error) =>
       setError(error instanceof Error ? error.message : "Could not move collection items"),
   })
-  const locations = (optionsQuery.data?.locations || []).filter(
-    (location) => !isUnfiledLocation(location) && (!listOnly || location.kind === "list"),
+  const locations = useMemo(
+    () =>
+      (optionsQuery.data?.locations?.edges?.map((edge) => edge?.node).filter(present) || []).filter(
+        (location) => !isUnfiledLocation(location) && (!listOnly || location.kind === "list"),
+      ),
+    [listOnly, optionsQuery.data],
   )
 
   useEffect(() => {

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type * as React from "react"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Button } from "../../components/ui/button"
 import {
   Dialog,
@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { request } from "../../lib/graphql"
-import { titleize } from "../../lib/utils"
+import { present, titleize } from "../../lib/utils"
 import {
   BulkAddCollectionItemsToDeckDocument,
   CollectionItemDeckOptionsDocument,
@@ -42,6 +42,10 @@ export function AddCollectionItemToDeckDialog({
     queryFn: () => request(CollectionItemDeckOptionsDocument),
     enabled: open,
   })
+  const decks = useMemo(
+    () => decksQuery.data?.decks?.edges?.map((edge) => edge?.node).filter(present) || [],
+    [decksQuery.data],
+  )
   const addToDeck = useMutation({
     mutationFn: () => {
       if (!targetItems.length) throw new Error("Choose at least one item")
@@ -103,7 +107,7 @@ export function AddCollectionItemToDeckDialog({
               autoFocus
             >
               <option value="">Choose a deck</option>
-              {decksQuery.data?.decks.map((deck) => (
+              {decks.map((deck) => (
                 <option key={deck.id} value={deck.id}>
                   {deck.name} ({titleize(deck.format)})
                 </option>

@@ -5,6 +5,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
 
   alias Manavault.Catalog
   alias Manavault.Catalog.{Deck, DeckCard, Price}
+  alias ManavaultWeb.Schema.RelayHelpers
 
   def buylist_entry_unit_price_text(parent, _args, _resolution) do
     {:ok, parent |> Map.get(:unit_price_cents) |> Price.format_cents()}
@@ -14,21 +15,27 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
     {:ok, parent |> Map.get(:total_price_cents) |> Price.format_cents()}
   end
 
-  def deck_cards(%Deck{deck_cards: deck_cards}, _args, _resolution) when is_list(deck_cards) do
-    {:ok, Catalog.put_deck_card_allocation_statuses(deck_cards)}
+  def deck_cards(%Deck{deck_cards: deck_cards}, args, _resolution) when is_list(deck_cards) do
+    deck_cards
+    |> Catalog.put_deck_card_allocation_statuses()
+    |> RelayHelpers.connection_from_list(args)
   end
 
-  def deck_cards(%Deck{} = deck, _args, %{context: %{loader: loader}}) do
+  def deck_cards(%Deck{} = deck, args, %{context: %{loader: loader}}) do
     loader
     |> Dataloader.load(Catalog, :deck_cards, deck)
     |> on_load(fn loader ->
-      deck_cards = Dataloader.get(loader, Catalog, :deck_cards, deck)
-      {:ok, Catalog.put_deck_card_allocation_statuses(deck_cards)}
+      loader
+      |> Dataloader.get(Catalog, :deck_cards, deck)
+      |> Catalog.put_deck_card_allocation_statuses()
+      |> RelayHelpers.connection_from_list(args)
     end)
   end
 
-  def deck_cards(%Deck{} = deck, _args, _resolution) do
-    {:ok, Catalog.deck_cards(deck)}
+  def deck_cards(%Deck{} = deck, args, _resolution) do
+    deck
+    |> Catalog.deck_cards()
+    |> RelayHelpers.connection_from_list(args)
   end
 
   def deck_card_count(%Deck{} = deck, _args, _resolution) do

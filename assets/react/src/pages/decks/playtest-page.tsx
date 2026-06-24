@@ -4,8 +4,8 @@ import { EmptyState } from "../../components/card-image"
 import { DeckPlaytester } from "../../components/deck-playtester"
 import { createPlaytestState } from "../../lib/deck-playtest"
 import { request } from "../../lib/graphql"
-import { present } from "../../lib/utils"
 import { deckPlaytestCards } from "./deck-card-model"
+import { flattenDeck } from "./deck-types"
 import { DeckDocument } from "./queries"
 
 export function DeckPlaytestPage({ id }: { id: string }) {
@@ -13,8 +13,8 @@ export function DeckPlaytestPage({ id }: { id: string }) {
     queryKey: ["deck", id],
     queryFn: () => request(DeckDocument, { id }),
   })
-  const deck = data?.deck
-  const deckCards = useMemo(() => (deck?.deckCards || []).filter(present), [deck?.deckCards])
+  const deck = useMemo(() => flattenDeck(data?.deck), [data?.deck])
+  const deckCards = useMemo(() => deck?.deckCards || [], [deck?.deckCards])
   const playtestCards = useMemo(() => deckPlaytestCards(deckCards), [deckCards])
   const initialState = useMemo(
     () => createPlaytestState(playtestCards.library, playtestCards.command),

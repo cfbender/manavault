@@ -187,8 +187,8 @@ export function NewDeckDialog({
       setError(null)
       onOpenChange(false)
 
-      if (data.createDeck?.id) {
-        navigate({ to: "/decks/$id", params: { id: data.createDeck.id } })
+      if (data.createDeck?.deck?.id) {
+        navigate({ to: "/decks/$id", params: { id: data.createDeck.deck.id } })
       }
     },
     onError: (error) => setError(error instanceof Error ? error.message : "Could not create deck"),

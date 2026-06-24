@@ -7,12 +7,38 @@ import type {
   PreviewBulkAllocateDeckMutation,
 } from "../../gql/graphql"
 
-export type DeckSummary = DecksQuery["decks"][number]
-export type DeckDetail = NonNullable<DeckQuery["deck"]>
-export type DeckCardEntry = NonNullable<NonNullable<DeckDetail["deckCards"]>[number]>
+type Maybe<T> = T | null | undefined
+type RelayEdge<T> = { node?: Maybe<T> } | null
+type RelayConnection<T> = { edges?: Maybe<ReadonlyArray<RelayEdge<T>>> }
+type ConnectionNode<Connection> =
+  NonNullable<Connection> extends ReadonlyArray<infer Node>
+    ? NonNullable<Node>
+    : NonNullable<Connection> extends RelayConnection<infer Node>
+      ? NonNullable<Node>
+      : never
+type PayloadField<Payload, Key extends string> =
+  NonNullable<Payload> extends { [Field in Key]?: infer Value }
+    ? NonNullable<Value>
+    : NonNullable<Payload>
+
+type DeckConnectionDetail = NonNullable<DeckQuery["deck"]>
+type DeckCardConnectionEntry = ConnectionNode<DeckConnectionDetail["deckCards"]>
+type DeckCardConnectionCard = NonNullable<DeckCardConnectionEntry["card"]>
+
+export type DeckSummary = ConnectionNode<DecksQuery["decks"]>
+export type DeckCardPrinting = ConnectionNode<DeckCardConnectionCard["printings"]>
+export type DeckCardEntry = Omit<DeckCardConnectionEntry, "card"> & {
+  card: (Omit<DeckCardConnectionCard, "printings"> & {
+    printings: DeckCardPrinting[] | null
+  }) | null
+}
+export type DeckDetail = Omit<DeckConnectionDetail, "deckCards"> & {
+  deckCards: DeckCardEntry[]
+}
 export type BulkAllocationMode = "exact_printings" | "matching_printings"
-export type BulkAllocationPreview = NonNullable<
-  PreviewBulkAllocateDeckMutation["previewBulkAllocateDeck"]
+export type BulkAllocationPreview = PayloadField<
+  PreviewBulkAllocateDeckMutation["previewBulkAllocateDeck"],
+  "allocationPreview"
 >
 export type BuylistPrintingMode = "none" | "exact" | "cheapest"
 export type BuylistExportFormat = "text" | "csv"
@@ -26,9 +52,75 @@ export type EDHRecCollectionStatus =
   | EDHRecCard["collectionStatus"]
   | EDHRecSectionCard["collectionStatus"]
 export type EDHRecTab = "recs" | "cuts" | "commander"
-export type DeckCardPrinting = NonNullable<
-  NonNullable<NonNullable<DeckCardEntry["card"]>["printings"]>[number]
->
+export function connectionNodes<T>(
+  connection: Maybe<ReadonlyArray<Maybe<T>> | RelayConnection<T>>,
+): T[] {
+  if (!connection) return []
+  if (isReadonlyArray(connection)) return connection.filter(isPresent)
+
+  return (connection.edges || []).map((edge) => edge?.node).filter(isPresent)
+}
+
+export function flattenDecks(decks: Maybe<DecksQuery["decks"]>): DeckSummary[] {
+  return connectionNodes(decks)
+}
+
+export function flattenDeck(deck: Maybe<DeckConnectionDetail>): DeckDetail | null {
+  if (!deck) return null
+
+  return {
+    ...deck,
+    deckCards: flattenDeckCards(deck.deckCards),
+  }
+}
+
+export function flattenDeckCards(
+  deckCards: Maybe<DeckConnectionDetail["deckCards"]>,
+): DeckCardEntry[]
+export function flattenDeckCards(deckCards: Maybe<DeckDetail["deckCards"]>): DeckCardEntry[]
+export function flattenDeckCards(
+  deckCards: Maybe<DeckConnectionDetail["deckCards"] | DeckDetail["deckCards"]>,
+): DeckCardEntry[] {
+  if (!deckCards) return []
+  if (isDeckCardEntryArray(deckCards)) return deckCards.map(flattenDeckCard)
+
+  return connectionNodes(deckCards).map(flattenDeckCard)
+}
+
+export function flattenDeckCard(deckCard: DeckCardConnectionEntry | DeckCardEntry): DeckCardEntry {
+  const card = deckCard.card
+
+  if (!card) {
+    return {
+      ...deckCard,
+      card: null,
+    }
+  }
+
+  return {
+    ...deckCard,
+    card: {
+      ...card,
+      printings: connectionNodes(card.printings),
+    },
+  }
+}
+
+function isDeckCardEntryArray(
+  deckCards: NonNullable<DeckConnectionDetail["deckCards"] | DeckDetail["deckCards"]>,
+): deckCards is DeckDetail["deckCards"] {
+  return Array.isArray(deckCards)
+}
+
+function isReadonlyArray<T>(
+  value: ReadonlyArray<Maybe<T>> | RelayConnection<T>,
+): value is ReadonlyArray<Maybe<T>> {
+  return Array.isArray(value)
+}
+
+function isPresent<T>(value: Maybe<T>): value is T {
+  return value != null
+}
 export type DeckZone = "mainboard" | "sideboard" | "commander" | "maybeboard"
 export type EDHRecAddZone = Extract<DeckZone, "mainboard" | "maybeboard" | "sideboard">
 export type EDHRecCardReturnSearch = {

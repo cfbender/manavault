@@ -9,16 +9,17 @@ import { present } from "../../lib/utils"
 import { compareDeckCards, countDeckZones } from "./deck-card-model"
 import { deckLegalityIssues } from "./deck-legality"
 import { useDeferredDeckAnalysis } from "./deck-stats-panel"
-import type {
-  BulkAllocationMode,
-  BulkAllocationPreview,
-  DeckCardEntry,
-  DeckCardTag,
-  DeckZone,
-  EDHRecAddZone,
-  EDHRecCard,
-  EDHRecSectionCard,
-  EDHRecTab,
+import {
+  flattenDeck,
+  type BulkAllocationMode,
+  type BulkAllocationPreview,
+  type DeckCardEntry,
+  type DeckCardTag,
+  type DeckZone,
+  type EDHRecAddZone,
+  type EDHRecCard,
+  type EDHRecSectionCard,
+  type EDHRecTab,
 } from "./deck-types"
 import { DeckDetailContent } from "./detail-page-content"
 import { DeckDetailDialogs } from "./detail-page-dialogs"
@@ -85,9 +86,9 @@ export function DeckDetailPage({
     queryFn: () =>
       request(DeckDocument, { id }, shareMode ? { endpoint: "/share/graphql" } : undefined),
   })
-  const deck = data?.deck
+  const deck = useMemo(() => flattenDeck(data?.deck), [data?.deck])
   const [isAddCardOpen, setIsAddCardOpen] = useState(false)
-  const deckCards = useMemo(() => (deck?.deckCards || []).filter(present), [deck?.deckCards])
+  const deckCards = useMemo(() => deck?.deckCards || [], [deck?.deckCards])
   const { copySharedDecklist, downloadSharedDecklist, shareCopyState } = useSharedDecklistActions(
     deck?.name || "deck",
     deckCards,
@@ -314,7 +315,7 @@ export function DeckDetailPage({
     mutationFn: (mode: BulkAllocationMode) =>
       request(PreviewBulkAllocateDeckDocument, { id, mode }),
     onSuccess: (data) => {
-      setBulkAllocationPreview(data.previewBulkAllocateDeck || null)
+      setBulkAllocationPreview(data.previewBulkAllocateDeck?.allocationPreview || null)
       setBulkAllocationError(null)
     },
     onError: (error) =>

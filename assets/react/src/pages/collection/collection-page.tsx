@@ -141,19 +141,26 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
       request(CollectionItemsPageDocument, {
         filters,
         sort,
-        limit: COLLECTION_PAGE_SIZE,
-        offset: pageParam,
+        first: COLLECTION_PAGE_SIZE,
+        after: pageParam,
       }),
     enabled: activeTab === "all",
-    initialPageParam: 0,
-    getNextPageParam: (lastPage, _pages, lastPageParam) =>
-      lastPage.collectionItems.length < COLLECTION_PAGE_SIZE
-        ? undefined
-        : lastPageParam + COLLECTION_PAGE_SIZE,
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) =>
+      lastPage.collectionItems.pageInfo.hasNextPage
+        ? (lastPage.collectionItems.pageInfo.endCursor ?? undefined)
+        : undefined,
   })
   const allCollectionItems = useMemo(
-    () => allItemsQuery.data?.pages.flatMap((page) => page.collectionItems).filter(present) || [],
+    () =>
+      allItemsQuery.data?.pages.flatMap((page) =>
+        (page.collectionItems.edges || []).map((edge) => edge?.node).filter(present),
+      ) || [],
     [allItemsQuery.data],
+  )
+  const locations = useMemo(
+    () => data?.locations?.edges?.map((edge) => edge?.node).filter(present) || [],
+    [data?.locations],
   )
   const selection = useCollectionItemSelection(allCollectionItems)
   const hasCollectionFilters = Boolean(combinedCollectionQuery)
@@ -165,15 +172,15 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
     void allItemsQuery.fetchNextPage()
   }, [allItemsQuery, isSelectingAllCollectionItems])
   const locationGroups = useMemo(() => {
-    const groups = new Map<string, NonNullable<typeof data>["locations"]>()
+    const groups = new Map<string, typeof locations>()
 
-    for (const location of data?.locations || []) {
+    for (const location of locations) {
       const kind = location.kind || "other"
       groups.set(kind, [...(groups.get(kind) || []), location])
     }
 
     return Array.from(groups.entries()).sort(([left], [right]) => left.localeCompare(right))
-  }, [data?.locations])
+  }, [locations])
 
   useEffect(() => {
     if (!importFile) return
@@ -264,8 +271,9 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
       while (hasNextPage) {
         const result = await allItemsQuery.fetchNextPage()
         itemsToSelect =
-          result.data?.pages.flatMap((page) => page.collectionItems).filter(present) ||
-          itemsToSelect
+          result.data?.pages.flatMap((page) =>
+            (page.collectionItems.edges || []).map((edge) => edge?.node).filter(present),
+          ) || itemsToSelect
         hasNextPage = result.hasNextPage
       }
 
@@ -296,7 +304,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
       <CollectionPageHeader
         activeTab={activeTab}
         collectionItemCount={data?.collectionItemCount || 0}
-        locationCount={data?.locations?.length || 0}
+        locationCount={locations.length}
         valueSummary={data?.collectionValueSummary}
         onAddItem={() => setIsAddItemOpen(true)}
         onAddLocation={() => setIsAddLocationOpen(true)}
@@ -308,7 +316,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
       {activeTab === "locations" ? (
         <CollectionLocationsSection
           isLoading={isLoading}
-          locationCount={data?.locations?.length || 0}
+          locationCount={locations.length}
           locationGroups={locationGroups}
           onDeleteLocation={setDeletingLocation}
           onEditLocation={setEditingLocation}

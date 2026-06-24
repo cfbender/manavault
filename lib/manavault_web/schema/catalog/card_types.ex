@@ -2,6 +2,7 @@ defmodule ManavaultWeb.Schema.Catalog.CardTypes do
   @moduledoc false
 
   use Absinthe.Schema.Notation
+  use Absinthe.Relay.Schema.Notation, :modern
 
   alias ManavaultWeb.Schema.CatalogResolvers
 
@@ -48,7 +49,7 @@ defmodule ManavaultWeb.Schema.Catalog.CardTypes do
     field :status, non_null(:string)
   end
 
-  object :card do
+  node object(:card, id_fetcher: &ManavaultWeb.Schema.Catalog.CardTypes.card_node_id/2) do
     field :oracle_id, non_null(:id)
     field :name, non_null(:string)
     field :type_line, :string
@@ -90,12 +91,12 @@ defmodule ManavaultWeb.Schema.Catalog.CardTypes do
       resolve(&CatalogResolvers.card_legalities/3)
     end
 
-    field :printings, list_of(:printing) do
+    connection field :printings, node_type: :printing do
       resolve(&CatalogResolvers.card_printings/3)
     end
   end
 
-  object :printing do
+  node object(:printing, id_fetcher: &ManavaultWeb.Schema.Catalog.CardTypes.printing_node_id/2) do
     field :scryfall_id, non_null(:id)
     field :oracle_id, non_null(:id)
     field :set_code, :string
@@ -140,6 +141,9 @@ defmodule ManavaultWeb.Schema.Catalog.CardTypes do
     field :card, :card, resolve: &CatalogResolvers.printing_card/3
   end
 
+  connection(node_type: :card)
+  connection(node_type: :printing)
+
   scalar :json do
     parse(fn
       %{value: value}, _ -> {:ok, value}
@@ -148,4 +152,7 @@ defmodule ManavaultWeb.Schema.Catalog.CardTypes do
 
     serialize(& &1)
   end
+
+  def card_node_id(%{oracle_id: id}, _resolution), do: id
+  def printing_node_id(%{scryfall_id: id}, _resolution), do: id
 end

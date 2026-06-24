@@ -124,7 +124,7 @@ export function EditDeckCardDialog({
   const zoneOptions = deckFormat === "commander" ? ADD_CARD_ZONES : NON_COMMANDER_ADD_CARD_ZONES
   const printings = (deckCard?.card?.printings || []).filter(present)
   const selectedPrinting = preferredPrintingId
-    ? printings.find((printing) => printing.scryfallId === preferredPrintingId) ||
+    ? printings.find((printing) => printing.id === preferredPrintingId) ||
       deckCard?.preferredPrinting
     : null
   const finishOptions = preferredPrintingId
@@ -146,7 +146,7 @@ export function EditDeckCardDialog({
     setQuantityInput(String(deckCard.quantity))
     setZone(deckCard.zone as DeckZone)
     setFinish(deckCard.finish || "nonfoil")
-    setPreferredPrintingId(deckCard.preferredPrinting?.scryfallId || "")
+    setPreferredPrintingId(deckCard.preferredPrinting?.id || "")
     setTag((deckCard.tag as DeckCardTag | null) || "")
   }, [deckCard])
 
@@ -234,17 +234,17 @@ export function EditDeckCardDialog({
                 </button>
                 {printings.map((printing) => (
                   <button
-                    key={printing.scryfallId}
+                    key={printing.id}
                     type="button"
                     className={cn(
                       "flex w-full min-w-0 items-start gap-3 overflow-hidden rounded-box border p-3 text-left transition",
-                      preferredPrintingId === printing.scryfallId
+                      preferredPrintingId === printing.id
                         ? "border-primary bg-primary/10 ring-2 ring-primary/20"
                         : "border-base-300 hover:border-primary/45 hover:bg-base-200",
                     )}
                     disabled={isPending}
-                    onClick={() => setPreferredPrintingId(printing.scryfallId)}
-                    aria-pressed={preferredPrintingId === printing.scryfallId}
+                    onClick={() => setPreferredPrintingId(printing.id)}
+                    aria-pressed={preferredPrintingId === printing.id}
                   >
                     {printing.imageUrl ? (
                       <img

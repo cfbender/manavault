@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Upload } from "lucide-react"
 import type * as React from "react"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
 import {
@@ -13,7 +13,7 @@ import {
 } from "../../components/ui/dialog"
 import { request } from "../../lib/graphql"
 import type { SharedImportPayload } from "../../lib/native-shared-import"
-import { titleize } from "../../lib/utils"
+import { present, titleize } from "../../lib/utils"
 import {
   CollectionExportCsvDocument,
   CollectionExportTextDocument,
@@ -61,6 +61,10 @@ export function ImportCollectionDialog({
     queryFn: () => request(CollectionItemFormOptionsDocument),
     enabled: open,
   })
+  const locations = useMemo(
+    () => optionsQuery.data?.locations?.edges?.map((edge) => edge?.node).filter(present) || [],
+    [optionsQuery.data],
+  )
   const previewImport = useMutation({
     mutationFn: (values?: PreviewCollectionImportValues) =>
       request(PreviewCollectionImportDocument, {
@@ -72,7 +76,7 @@ export function ImportCollectionDialog({
         },
       }),
     onSuccess: (data) => {
-      setPreview(data.previewCollectionImport || null)
+      setPreview(data.previewCollectionImport?.importPreview || null)
       setError(null)
     },
     onError: (error) =>
@@ -156,7 +160,7 @@ export function ImportCollectionDialog({
         ? {
             ...row,
             status: "exact",
-            attrs: { ...row.attrs, scryfallId: candidate.scryfallId },
+            attrs: { ...row.attrs, scryfallId: candidate.id },
             printing: candidate,
             candidates: [],
           }
@@ -210,7 +214,7 @@ export function ImportCollectionDialog({
                 onChange={(event) => setLocationId(event.target.value)}
               >
                 <option value="">No location</option>
-                {optionsQuery.data?.locations
+                {locations
                   .filter((location) => !isUnfiledLocation(location))
                   .map((location) => (
                     <option key={location.id} value={location.id}>
@@ -326,7 +330,7 @@ export function ImportCollectionDialog({
                             <div className="flex flex-wrap gap-1">
                               {row.candidates.map((candidate) => (
                                 <Button
-                                  key={candidate.scryfallId}
+                                  key={candidate.id}
                                   type="button"
                                   variant="outline"
                                   size="sm"
@@ -335,6 +339,7 @@ export function ImportCollectionDialog({
                                   {printingSetLabel({
                                     collectorNumber: candidate.collectorNumber,
                                     rarity: candidate.rarity,
+                                    id: candidate.id,
                                     scryfallId: candidate.scryfallId,
                                     setCode: candidate.setCode,
                                     setName: candidate.setName,

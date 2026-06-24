@@ -125,17 +125,20 @@ export function LocationPage({ id }: { id: string }) {
       request(CollectionItemsPageDocument, {
         filters: itemFilters,
         sort,
-        limit: COLLECTION_PAGE_SIZE,
-        offset: pageParam,
+        first: COLLECTION_PAGE_SIZE,
+        after: pageParam,
       }),
-    initialPageParam: 0,
-    getNextPageParam: (lastPage, _pages, lastPageParam) =>
-      lastPage.collectionItems.length < COLLECTION_PAGE_SIZE
-        ? undefined
-        : lastPageParam + COLLECTION_PAGE_SIZE,
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) =>
+      lastPage.collectionItems.pageInfo.hasNextPage
+        ? (lastPage.collectionItems.pageInfo.endCursor ?? undefined)
+        : undefined,
   })
   const collectionItems = useMemo(
-    () => itemsQuery.data?.pages.flatMap((page) => page.collectionItems).filter(present) || [],
+    () =>
+      itemsQuery.data?.pages.flatMap((page) =>
+        (page.collectionItems.edges || []).map((edge) => edge?.node).filter(present),
+      ) || [],
     [itemsQuery.data],
   )
   const selection = useCollectionItemSelection(collectionItems)
@@ -194,8 +197,9 @@ export function LocationPage({ id }: { id: string }) {
       while (hasNextPage) {
         const result = await itemsQuery.fetchNextPage()
         itemsToSelect =
-          result.data?.pages.flatMap((page) => page.collectionItems).filter(present) ||
-          itemsToSelect
+          result.data?.pages.flatMap((page) =>
+            (page.collectionItems.edges || []).map((edge) => edge?.node).filter(present),
+          ) || itemsToSelect
         hasNextPage = result.hasNextPage
       }
 

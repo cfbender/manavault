@@ -51,15 +51,17 @@ defmodule ManavaultWeb.SchemaTest do
         "query" => """
         mutation SaveBackupSettings($input: BackupSettingsInput!) {
           updateBackupSettings(input: $input) {
-            enabled
-            provider
-            cron
-            s3Endpoint
-            s3Bucket
-            s3Region
-            s3Prefix
-            s3AccessKeyId
-            hasS3SecretAccessKey
+            backupSettings {
+              enabled
+              provider
+              cron
+              s3Endpoint
+              s3Bucket
+              s3Region
+              s3Prefix
+              s3AccessKeyId
+              hasS3SecretAccessKey
+            }
           }
         }
         """,
@@ -81,15 +83,17 @@ defmodule ManavaultWeb.SchemaTest do
     assert %{
              "data" => %{
                "updateBackupSettings" => %{
-                 "enabled" => true,
-                 "provider" => "s3",
-                 "cron" => "*/15 * * * *",
-                 "s3Endpoint" => "https://example.r2.cloudflarestorage.com",
-                 "s3Bucket" => "manavault",
-                 "s3Region" => "auto",
-                 "s3Prefix" => "backups",
-                 "s3AccessKeyId" => "access-key",
-                 "hasS3SecretAccessKey" => true
+                 "backupSettings" => %{
+                   "enabled" => true,
+                   "provider" => "s3",
+                   "cron" => "*/15 * * * *",
+                   "s3Endpoint" => "https://example.r2.cloudflarestorage.com",
+                   "s3Bucket" => "manavault",
+                   "s3Region" => "auto",
+                   "s3Prefix" => "backups",
+                   "s3AccessKeyId" => "access-key",
+                   "hasS3SecretAccessKey" => true
+                 }
                }
              }
            } = json_response(conn, 200)

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Plus } from "lucide-react"
 import type * as React from "react"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { CardNameSearchField } from "../../components/card-name-search-field"
 import { Button } from "../../components/ui/button"
 import {
@@ -42,11 +42,22 @@ export function AddLocationDialog({
     queryFn: () =>
       request(LocationCoverCardSearchDocument, {
         q: coverSearchTerm,
-        limit: 8,
+        first: 8,
       }),
     enabled: open && coverSearchTerm.length > 1,
     staleTime: 60_000,
   })
+  const coverSearchCards = useMemo(
+    () =>
+      coverSearchQuery.data?.cards?.edges
+        ?.map((edge) => edge?.node)
+        .filter(present)
+        .map((card) => ({
+          ...card,
+          printings: card.printings?.edges?.map((edge) => edge?.node).filter(present) || [],
+        })) || [],
+    [coverSearchQuery.data],
+  )
   const createLocation = useMutation({
     mutationFn: () =>
       request(CreateLocationDocument, {
@@ -54,7 +65,7 @@ export function AddLocationDialog({
           name: name.trim(),
           kind,
           description: description.trim() || null,
-          coverScryfallId: selectedCover?.scryfallId ?? null,
+          coverScryfallId: selectedCover?.id ?? null,
         },
       }),
     onSuccess: () => {
@@ -106,6 +117,7 @@ export function AddLocationDialog({
     setSelectedCover({
       cardName: card.name,
       collectorNumber: printing.collectorNumber,
+      id: printing.id,
       imageUrl: printing.artCropUrl || printing.imageUrl,
       rarity: printing.rarity,
       scryfallId: printing.scryfallId,
@@ -230,13 +242,13 @@ export function AddLocationDialog({
                 ) : null}
                 {!coverSearchQuery.isFetching &&
                 coverSearchTerm === coverSearchDraftTerm &&
-                coverSearchQuery.data?.cards.length === 0 ? (
+                coverSearchCards.length === 0 ? (
                   <p className="px-3 py-2 text-sm text-base-content/55">No cards found.</p>
                 ) : null}
                 {coverSearchTerm === coverSearchDraftTerm
-                  ? coverSearchQuery.data?.cards.map((card) => (
+                  ? coverSearchCards.map((card) => (
                       <div
-                        key={card.oracleId}
+                        key={card.id}
                         className="border-t border-base-300 p-3 first:border-t-0"
                       >
                         <div className="mb-2">
@@ -246,38 +258,35 @@ export function AddLocationDialog({
                           ) : null}
                         </div>
                         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-                          {card.printings
-                            ?.filter(present)
-                            .slice(0, 8)
-                            .map((printing) => (
-                              <button
-                                key={printing.scryfallId}
-                                type="button"
-                                className="group rounded-lg border border-base-300 bg-base-200/40 p-2 text-left transition hover:border-primary hover:bg-base-200"
-                                onClick={() => selectCover(card, printing)}
-                              >
-                                <div className="aspect-[5/7] overflow-hidden rounded bg-base-300">
-                                  {printing.imageUrl ? (
-                                    <img
-                                      src={printing.imageUrl}
-                                      alt={`${card.name} ${printing.setCode || "printing"}`}
-                                      className="h-full w-full object-cover transition group-hover:scale-[1.02]"
-                                      loading="lazy"
-                                    />
-                                  ) : (
-                                    <div className="flex h-full items-center justify-center px-2 text-center text-xs text-base-content/50">
-                                      No image
-                                    </div>
-                                  )}
-                                </div>
-                                <p className="mt-2 truncate text-xs font-bold uppercase">
-                                  {printing.setCode || "Unknown set"}
-                                </p>
-                                <p className="truncate text-xs text-base-content/60">
-                                  #{printing.collectorNumber || "-"}
-                                </p>
-                              </button>
-                            ))}
+                          {card.printings.slice(0, 8).map((printing) => (
+                            <button
+                              key={printing.id}
+                              type="button"
+                              className="group rounded-lg border border-base-300 bg-base-200/40 p-2 text-left transition hover:border-primary hover:bg-base-200"
+                              onClick={() => selectCover(card, printing)}
+                            >
+                              <div className="aspect-[5/7] overflow-hidden rounded bg-base-300">
+                                {printing.imageUrl ? (
+                                  <img
+                                    src={printing.imageUrl}
+                                    alt={`${card.name} ${printing.setCode || "printing"}`}
+                                    className="h-full w-full object-cover transition group-hover:scale-[1.02]"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <div className="flex h-full items-center justify-center px-2 text-center text-xs text-base-content/50">
+                                    No image
+                                  </div>
+                                )}
+                              </div>
+                              <p className="mt-2 truncate text-xs font-bold uppercase">
+                                {printing.setCode || "Unknown set"}
+                              </p>
+                              <p className="truncate text-xs text-base-content/60">
+                                #{printing.collectorNumber || "-"}
+                              </p>
+                            </button>
+                          ))}
                         </div>
                       </div>
                     ))

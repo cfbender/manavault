@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
 import type * as React from "react"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Button } from "../../components/ui/button"
 import {
   Dialog,
@@ -11,7 +11,7 @@ import {
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
 import { request } from "../../lib/graphql"
-import { titleize } from "../../lib/utils"
+import { present, titleize } from "../../lib/utils"
 import { COLLECTION_CONDITIONS, COLLECTION_FINISHES } from "./constants"
 import { CollectionItemFormOptionsDocument, UpdateCollectionItemDocument } from "./documents"
 import {
@@ -48,6 +48,10 @@ export function EditCollectionItemDialog({
     queryFn: () => request(CollectionItemFormOptionsDocument),
     enabled: open,
   })
+  const locations = useMemo(
+    () => optionsQuery.data?.locations?.edges?.map((edge) => edge?.node).filter(present) || [],
+    [optionsQuery.data],
+  )
   const updateItem = useMutation({
     mutationFn: () => {
       if (!item) throw new Error("Collection item is required")
@@ -193,7 +197,7 @@ export function EditCollectionItemDialog({
                 onChange={(event) => setLocationId(event.target.value)}
               >
                 <option value="">Unfiled</option>
-                {optionsQuery.data?.locations
+                {locations
                   .filter((location) => !isUnfiledLocation(location))
                   .map((location) => (
                     <option key={location.id} value={location.id}>

@@ -349,14 +349,14 @@ function CollectionItemTile({
         menuActions={[
           addToDeckAction({
             onClick: () => setDeckTarget(item),
-            disabled: !item.printing?.card?.oracleId,
+            disabled: !item.printing?.card?.id,
           }),
           addToListAction({ onClick: () => setListTarget(item) }),
         ]}
         name={
           <Link
             to="/cards/$id"
-            params={{ id: item.printing?.card?.oracleId || "" }}
+            params={{ id: item.printing?.card?.id || "" }}
             search={cardReturnSearch}
             className="hover:underline"
           >

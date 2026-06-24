@@ -2,12 +2,12 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
   @moduledoc false
 
   use Absinthe.Schema.Notation
+  use Absinthe.Relay.Schema.Notation, :modern
 
   alias ManavaultWeb.Schema.Catalog.CollectionFields
   alias ManavaultWeb.Schema.CatalogResolvers
 
-  object :collection_item do
-    field :id, non_null(:id)
+  node object(:collection_item) do
     field :quantity, non_null(:integer)
     field :condition, non_null(:string)
     field :language, non_null(:string)
@@ -54,8 +54,7 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :location, :location, resolve: &CatalogResolvers.collection_item_location/3
   end
 
-  object :location do
-    field :id, non_null(:id)
+  node object(:location) do
     field :name, non_null(:string)
     field :kind, non_null(:string)
     field :description, :string
@@ -104,12 +103,13 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
       resolve(&CatalogResolvers.location_value_summary/3)
     end
 
-    field :collection_items, list_of(:collection_item) do
-      arg(:limit, :integer, default_value: 100)
-      arg(:offset, :integer, default_value: 0)
+    connection field :collection_items, node_type: :collection_item do
       resolve(&CatalogResolvers.location_collection_items/3)
     end
   end
+
+  connection(node_type: :collection_item)
+  connection(node_type: :location)
 
   object :home_summary do
     field :collection_count, non_null(:integer)

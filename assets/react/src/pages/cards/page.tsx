@@ -30,6 +30,14 @@ import { CardDocument, CardsDocument } from "./data"
 import { CardLegalityPanel, CardRulings, CardTagSummary } from "./detail-sections"
 import { CardSearchForm } from "./search-form"
 
+type NodeConnection<T> = {
+  edges?: ReadonlyArray<{ node?: T | null } | null> | null
+} | null | undefined
+
+function connectionNodes<T>(connection: NodeConnection<T>): T[] {
+  return connection?.edges?.map((edge) => edge?.node).filter(present) || []
+}
+
 export function CardsPage({ query, filterSearch }: { query: string; filterSearch?: string }) {
   const routeFilters = useMemo(() => decodeCollectionFilters(filterSearch), [filterSearch])
   const [q, setQ] = useState(query)
@@ -45,6 +53,10 @@ export function CardsPage({ query, filterSearch }: { query: string; filterSearch
     queryFn: () => request(CardsDocument, { q: combinedQuery, limit: 36 }),
     enabled: Boolean(combinedQuery.trim()),
   })
+  const cards = connectionNodes(data?.cards).map((card) => ({
+    ...card,
+    printings: connectionNodes(card.printings),
+  }))
 
   useEffect(() => {
     setQ(query)
@@ -105,9 +117,9 @@ export function CardsPage({ query, filterSearch }: { query: string; filterSearch
           title="Search for a card"
           description="Results are pulled from the synced local catalog."
         />
-      ) : data?.cards?.length ? (
+      ) : cards.length ? (
         <CardResultsGrid
-          cards={data.cards}
+          cards={cards}
           onAddToDeck={setDeckTarget}
           onSelectCard={(id) =>
             navigate({
@@ -165,9 +177,12 @@ export function CardDetailPage({
     queryFn: () => request(CardDocument, { id }),
   })
   const card = data?.card
-  const printings = card?.printings || []
-  const visiblePrintings = printings.filter(present)
+  const visiblePrintings = connectionNodes(card?.printings)
   const primary = visiblePrintings[0]
+  const previewPrintings = visiblePrintings.map((printing) => ({
+    ...printing,
+    scryfallId: printing.id,
+  }))
 
   if (isLoading) return <EmptyState title="Loading card..." />
   if (!card) return <EmptyState title="Card not found" />
@@ -263,7 +278,7 @@ export function CardDetailPage({
       <FullscreenPrintingDialog
         card={card}
         currentPrintingId={previewPrintingId}
-        printings={visiblePrintings}
+        printings={previewPrintings}
         onOpenChange={(open) => !open && setPreviewPrintingId(null)}
         onPrintingChange={setPreviewPrintingId}
       />
