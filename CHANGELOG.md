@@ -8,6 +8,27 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.9.1] - 2026-06-24
+
+### Bug Fixes
+
+- Don't count basic lands for allocation ([`542ea819`](../../commit/542ea819a271dae722d5db86c055939d195d46ef))
+- Healthcheck ([`541bbe78`](../../commit/541bbe7882583777c6a75ff6435ffaf852be7691))
+- Deck pricing ([`356713f5`](../../commit/356713f591b09a8cd1f196c6a6bdf2658dbf92f3))
+- Allocate only for mainboard ([`51eb88b4`](../../commit/51eb88b48703d94287a2755c75e6d2884f3ffb9b))
+
+### Documentation
+
+- Self-hosting healthcheck ([`17ed5a7b`](../../commit/17ed5a7b165bb6cd5529b9cf11338ba865011411))
+
+### Features
+
+- Share deck buy list ([`e7fb1d24`](../../commit/e7fb1d24b5e7d54311daaa29c0de8b96cd113537))
+
+### Refactoring
+
+- Switch to alpine image ([`c0768c9c`](../../commit/c0768c9c9be49ade2295b4076a0de82083f793df))
+
 ## [0.9.0] - 2026-06-24
 
 ### Bug Fixes
