@@ -21,6 +21,10 @@ defmodule Manavault.Catalog.Card do
 
     has_many :printings, Manavault.Catalog.Printing, foreign_key: :oracle_id
 
+    has_many :deck_cards, Manavault.Catalog.DeckCard,
+      foreign_key: :oracle_id,
+      references: :oracle_id
+
     timestamps(type: :utc_datetime)
   end
 

@@ -3,6 +3,10 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
 
   use Absinthe.Schema.Notation
 
+  import Absinthe.Resolution.Helpers, only: [dataloader: 1]
+
+  alias Manavault.Catalog
+
   alias ManavaultWeb.Schema.CatalogResolvers
 
   object :deck_legality do
@@ -71,8 +75,8 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :zone, :string
     field :finish, :string
     field :tag, :string
-    field :preferred_printing, :printing
-    field :card, :card
+    field :preferred_printing, :printing, resolve: dataloader(Catalog)
+    field :card, :card, resolve: dataloader(Catalog)
 
     field :allocation_status, non_null(:deck_card_allocation_status) do
       resolve(&CatalogResolvers.deck_card_allocation_status/3)

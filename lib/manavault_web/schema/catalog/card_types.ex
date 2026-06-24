@@ -3,6 +3,10 @@ defmodule ManavaultWeb.Schema.Catalog.CardTypes do
 
   use Absinthe.Schema.Notation
 
+  import Absinthe.Resolution.Helpers, only: [dataloader: 1]
+
+  alias Manavault.Catalog
+
   alias ManavaultWeb.Schema.CatalogResolvers
 
   object :scryfall_reload_result do
@@ -90,7 +94,9 @@ defmodule ManavaultWeb.Schema.Catalog.CardTypes do
       resolve(&CatalogResolvers.card_legalities/3)
     end
 
-    field :printings, list_of(:printing)
+    field :printings, list_of(:printing) do
+      resolve(&CatalogResolvers.card_printings/3)
+    end
   end
 
   object :printing do
@@ -135,7 +141,7 @@ defmodule ManavaultWeb.Schema.Catalog.CardTypes do
     end
 
     field :released_at, :string
-    field :card, :card
+    field :card, :card, resolve: dataloader(Catalog)
   end
 
   scalar :json do

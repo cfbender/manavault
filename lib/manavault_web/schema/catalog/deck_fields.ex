@@ -1,6 +1,8 @@
 defmodule ManavaultWeb.Schema.Catalog.DeckFields do
   @moduledoc false
 
+  import Absinthe.Resolution.Helpers, only: [on_load: 2]
+
   alias Manavault.Catalog
   alias Manavault.Catalog.{Deck, DeckCard, Price}
 
@@ -10,6 +12,15 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
 
   def buylist_entry_total_price_text(parent, _args, _resolution) do
     {:ok, parent |> Map.get(:total_price_cents) |> Price.format_cents()}
+  end
+
+  def deck_cards(%Deck{} = deck, _args, %{context: %{loader: loader}}) do
+    loader
+    |> Dataloader.load(Catalog, :deck_cards, deck)
+    |> on_load(fn loader ->
+      deck_cards = Dataloader.get(loader, Catalog, :deck_cards, deck)
+      {:ok, Catalog.put_deck_card_allocation_statuses(deck_cards)}
+    end)
   end
 
   def deck_cards(%Deck{} = deck, _args, _resolution) do

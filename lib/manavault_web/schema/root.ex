@@ -4,6 +4,7 @@ defmodule ManavaultWeb.Schema do
   import_types(ManavaultWeb.Schema.CatalogTypes)
   import_types(ManavaultWeb.Schema.BackupTypes)
 
+  alias Manavault.Catalog
   alias ManavaultWeb.Schema.{BackupResolvers, CatalogResolvers}
 
   query do
@@ -277,5 +278,17 @@ defmodule ManavaultWeb.Schema do
       arg(:mode, non_null(:string))
       resolve(&CatalogResolvers.bulk_allocate_deck/3)
     end
+  end
+
+  def context(ctx) do
+    loader =
+      Dataloader.new()
+      |> Dataloader.add_source(Catalog, Catalog.data())
+
+    Map.put(ctx, :loader, loader)
+  end
+
+  def plugins do
+    [Absinthe.Middleware.Dataloader | Absinthe.Plugin.defaults()]
   end
 end

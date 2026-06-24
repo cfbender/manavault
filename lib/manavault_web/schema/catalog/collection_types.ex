@@ -3,6 +3,10 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
 
   use Absinthe.Schema.Notation
 
+  import Absinthe.Resolution.Helpers, only: [dataloader: 1, dataloader: 2]
+
+  alias Manavault.Catalog
+
   alias ManavaultWeb.Schema.CatalogResolvers
 
   object :collection_item do
@@ -12,7 +16,7 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :language, non_null(:string)
     field :finish, non_null(:string)
     field :notes, :string
-    field :printing, :printing
+    field :printing, :printing, resolve: dataloader(Catalog)
 
     field :current_price_cents, :integer do
       resolve(&CatalogResolvers.collection_item_current_price_cents/3)
@@ -50,9 +54,7 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
       resolve(&CatalogResolvers.collection_item_allocated_quantity/3)
     end
 
-    field :location, :location do
-      resolve(&CatalogResolvers.collection_item_location/3)
-    end
+    field :location, :location, resolve: dataloader(Catalog, :location_assoc)
   end
 
   object :location do

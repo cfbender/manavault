@@ -1,6 +1,10 @@
 defmodule ManavaultWeb.Schema.PublicShareTypes do
   use Absinthe.Schema.Notation
 
+  import Absinthe.Resolution.Helpers, only: [dataloader: 1, dataloader: 2]
+
+  alias Manavault.Catalog
+
   alias ManavaultWeb.Schema.CatalogResolvers
 
   object :scryfall_oracle_tag do
@@ -64,7 +68,9 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
       end)
     end
 
-    field :printings, list_of(:printing)
+    field :printings, list_of(:printing) do
+      resolve(&CatalogResolvers.card_printings/3)
+    end
   end
 
   object :printing do
@@ -94,7 +100,7 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
       resolve(&CatalogResolvers.printing_price_text/3)
     end
 
-    field :card, :card
+    field :card, :card, resolve: dataloader(Catalog)
   end
 
   object :collection_item do
@@ -104,8 +110,8 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     field :language, non_null(:string)
     field :finish, non_null(:string)
     field :price_text, :string
-    field :location, :location
-    field :printing, :printing
+    field :location, :location, resolve: dataloader(Catalog, :location_assoc)
+    field :printing, :printing, resolve: dataloader(Catalog)
   end
 
   object :location do
@@ -161,7 +167,7 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
       resolve(&CatalogResolvers.deck_legality/3)
     end
 
-    field :deck_cards, list_of(:deck_card)
+    field :deck_cards, list_of(:deck_card), resolve: dataloader(Catalog)
   end
 
   object :deck_card do
@@ -170,8 +176,8 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     field :zone, :string
     field :finish, :string
     field :tag, :string
-    field :preferred_printing, :printing
-    field :card, :card
+    field :preferred_printing, :printing, resolve: dataloader(Catalog)
+    field :card, :card, resolve: dataloader(Catalog)
 
     field :allocation_status, non_null(:deck_card_allocation_status) do
       resolve(fn deck_card, _, _ ->

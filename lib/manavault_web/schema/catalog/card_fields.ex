@@ -1,6 +1,8 @@
 defmodule ManavaultWeb.Schema.Catalog.CardFields do
   @moduledoc false
 
+  import Absinthe.Resolution.Helpers, only: [on_load: 2]
+
   alias Manavault.Catalog
   alias Manavault.Catalog.{Card, Price, Printing}
   alias ManavaultWeb.Schema.Catalog.ValueResolvers
@@ -22,6 +24,27 @@ defmodule ManavaultWeb.Schema.Catalog.CardFields do
   end
 
   def card_legalities(_card, _args, _resolution), do: {:ok, []}
+
+  def card_printings(%Card{printings: printings}, _args, _resolution) when is_list(printings) do
+    {:ok, printings}
+  end
+
+  def card_printings(%Card{} = card, _args, %{context: %{loader: loader}}) do
+    loader
+    |> Dataloader.load(Catalog, :printings, card)
+    |> on_load(fn loader ->
+      {:ok, Dataloader.get(loader, Catalog, :printings, card)}
+    end)
+  end
+
+  def card_printings(%Card{oracle_id: oracle_id}, _args, _resolution) do
+    printings =
+      oracle_id
+      |> Catalog.get_card_with_printings()
+      |> Map.get(:printings, [])
+
+    {:ok, printings}
+  end
 
   def printing_image_url(%Printing{} = printing, _args, _resolution) do
     image_uris = ValueResolvers.decode_json(printing.image_uris, %{})

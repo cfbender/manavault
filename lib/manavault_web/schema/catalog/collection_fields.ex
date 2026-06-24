@@ -1,10 +1,10 @@
 defmodule ManavaultWeb.Schema.Catalog.CollectionFields do
   @moduledoc false
 
-  import Ecto.Query
+  import Absinthe.Resolution.Helpers, only: [on_load: 2]
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.{CollectionItem, DeckAllocation, Location, Price}
+  alias Manavault.Catalog.{CollectionItem, Location, Price}
   alias Manavault.Repo
 
   def location_item_count(%Location{item_count: count}, _args, _resolution)
@@ -77,20 +77,6 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionFields do
     {:ok, Catalog.list_collection_items(filters, opts)}
   end
 
-  def collection_item_location(
-        %CollectionItem{location_assoc: %Location{} = location},
-        _args,
-        _resolution
-      ),
-      do: {:ok, location}
-
-  def collection_item_location(%CollectionItem{location_assoc: nil}, _args, _resolution),
-    do: {:ok, nil}
-
-  def collection_item_location(%CollectionItem{} = item, _args, _resolution) do
-    {:ok, item |> Repo.preload(:location_assoc) |> Map.get(:location_assoc)}
-  end
-
   def collection_item_current_price_cents(%CollectionItem{} = item, _args, _resolution) do
     {:ok, Price.collection_item_price_cents(item)}
   end
@@ -133,16 +119,25 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionFields do
         _resolution
       )
       when is_list(allocations) do
-    {:ok, Enum.reduce(allocations, 0, &(&1.quantity + &2))}
+    {:ok, allocated_quantity(allocations)}
   end
 
-  def collection_item_allocated_quantity(%CollectionItem{id: id}, _args, _resolution) do
-    allocated =
-      DeckAllocation
-      |> where([allocation], allocation.collection_item_id == ^id)
-      |> Repo.aggregate(:sum, :quantity)
+  def collection_item_allocated_quantity(
+        %CollectionItem{} = item,
+        _args,
+        %{context: %{loader: loader}}
+      ) do
+    loader
+    |> Dataloader.load(Catalog, :deck_allocations, item)
+    |> on_load(fn loader ->
+      allocations = Dataloader.get(loader, Catalog, :deck_allocations, item)
+      {:ok, allocated_quantity(allocations)}
+    end)
+  end
 
-    {:ok, allocated || 0}
+  def collection_item_allocated_quantity(%CollectionItem{} = item, _args, _resolution) do
+    allocations = item |> Repo.preload(:deck_allocations) |> Map.fetch!(:deck_allocations)
+    {:ok, allocated_quantity(allocations)}
   end
 
   def collection_value_summary_data(%{total_price_cents: total, purchase_price_cents: purchase}) do
@@ -175,6 +170,10 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionFields do
 
   defp location_items(%{id: "unfiled"}) do
     Catalog.list_collection_items([location_id: "unfiled"], limit: 100_000)
+  end
+
+  defp allocated_quantity(allocations) when is_list(allocations) do
+    Enum.reduce(allocations, 0, &(&1.quantity + &2))
   end
 
   defp value_summary(total, purchase) do

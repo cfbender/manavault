@@ -42,6 +42,7 @@ defmodule Manavault.Catalog.Decks.Workflows do
 
   defdelegate deck_allocation_status(deck), to: AllocationStatus
   defdelegate deck_card_allocation_status(deck_card), to: AllocationStatus
+  defdelegate put_deck_card_allocation_statuses(deck_cards), to: AllocationStatus
 
   defdelegate allocate_collection_item_to_deck_card(
                 deck_card_id,
