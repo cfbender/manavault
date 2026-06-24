@@ -30,19 +30,22 @@ defmodule Manavault.Catalog.Collection.Import do
 
   def import_preview(%{rows: rows} = preview, create_item)
       when is_list(rows) and is_function(create_item, 1) do
-    Repo.transaction(fn ->
-      Enum.reduce(rows, %{imported: 0, skipped: 0}, fn row, result ->
-        case row.status do
-          :exact ->
-            case create_item.(row.attrs) do
-              {:ok, _item} -> update_in(result.imported, &(&1 + 1))
-              {:error, changeset} -> Repo.rollback(changeset)
-            end
+    Repo.transact(fn ->
+      result =
+        Enum.reduce(rows, %{imported: 0, skipped: 0}, fn row, result ->
+          case row.status do
+            :exact ->
+              case create_item.(row.attrs) do
+                {:ok, _item} -> update_in(result.imported, &(&1 + 1))
+                {:error, changeset} -> Repo.rollback(changeset)
+              end
 
-          _status ->
-            update_in(result.skipped, &(&1 + 1))
-        end
-      end)
+            _status ->
+              update_in(result.skipped, &(&1 + 1))
+          end
+        end)
+
+      {:ok, result}
     end)
     |> case do
       {:ok, result} -> {:ok, Map.merge(preview, result)}

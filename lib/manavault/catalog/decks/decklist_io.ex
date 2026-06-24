@@ -10,32 +10,35 @@ defmodule Manavault.Catalog.Decks.DecklistIO do
     entries = Decklists.parse(text)
     replace? = Keyword.get(opts, :replace?, false)
 
-    Repo.transaction(fn ->
+    Repo.transact(fn ->
       if replace?, do: delete_deck_cards_for_import!(deck)
 
-      Enum.reduce(entries, %{imported: 0, unresolved: [], skipped_printings: []}, fn entry,
-                                                                                     result ->
-        case import_deck_card(deck, entry) do
-          {:ok, _deck_card} ->
-            update_in(result.imported, &(&1 + 1))
+      result =
+        Enum.reduce(entries, %{imported: 0, unresolved: [], skipped_printings: []}, fn entry,
+                                                                                       result ->
+          case import_deck_card(deck, entry) do
+            {:ok, _deck_card} ->
+              update_in(result.imported, &(&1 + 1))
 
-          {:ok, _deck_card, :skipped_preferred_printing} ->
-            result
-            |> update_in([:imported], &(&1 + 1))
-            |> update_in([:skipped_printings], &[entry["name"] | &1])
+            {:ok, _deck_card, :skipped_preferred_printing} ->
+              result
+              |> update_in([:imported], &(&1 + 1))
+              |> update_in([:skipped_printings], &[entry["name"] | &1])
 
-          {:error, :card_not_found} ->
-            update_in(result.unresolved, &[entry["name"] | &1])
+            {:error, :card_not_found} ->
+              update_in(result.unresolved, &[entry["name"] | &1])
 
-          {:error, %Changeset{} = changeset} ->
-            Repo.rollback(changeset)
+            {:error, %Changeset{} = changeset} ->
+              Repo.rollback(changeset)
 
-          {:error, reason} ->
-            Repo.rollback(reason)
-        end
-      end)
-      |> update_in([:unresolved], &Enum.reverse/1)
-      |> update_in([:skipped_printings], &Enum.reverse/1)
+            {:error, reason} ->
+              Repo.rollback(reason)
+          end
+        end)
+        |> update_in([:unresolved], &Enum.reverse/1)
+        |> update_in([:skipped_printings], &Enum.reverse/1)
+
+      {:ok, result}
     end)
   end
 

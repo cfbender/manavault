@@ -47,22 +47,25 @@ defmodule Manavault.Catalog.Decks.Cards do
   def update_deck_cards_tag(deck_card_ids, tag) when is_list(deck_card_ids) do
     normalized_tag = normalize_deck_card_tag(tag)
 
-    Repo.transaction(fn ->
-      deck_card_ids
-      |> Enum.uniq()
-      |> Enum.map(fn deck_card_id ->
-        deck_card = Repo.get!(DeckCard, deck_card_id)
+    Repo.transact(fn ->
+      deck_cards =
+        deck_card_ids
+        |> Enum.uniq()
+        |> Enum.map(fn deck_card_id ->
+          deck_card = Repo.get!(DeckCard, deck_card_id)
 
-        case update_deck_card(deck_card, %{"tag" => normalized_tag}) do
-          {:ok, deck_card} -> deck_card
-          {:error, reason} -> Repo.rollback(reason)
-        end
-      end)
+          case update_deck_card(deck_card, %{"tag" => normalized_tag}) do
+            {:ok, deck_card} -> deck_card
+            {:error, reason} -> Repo.rollback(reason)
+          end
+        end)
+
+      {:ok, deck_cards}
     end)
   end
 
   def set_deck_commander(%DeckCard{} = deck_card) do
-    Repo.transaction(fn ->
+    Repo.transact(fn ->
       deck_card = Repo.preload(deck_card, [:card, :preferred_printing])
 
       unless legendary_creature?(deck_card) do
@@ -78,14 +81,17 @@ defmodule Manavault.Catalog.Decks.Cards do
       |> Repo.all()
       |> Enum.each(&move_deck_card_to_zone!(&1, "mainboard"))
 
-      deck_card
-      |> move_deck_card_to_zone!("commander")
-      |> Repo.preload([:card, :preferred_printing])
+      deck_card =
+        deck_card
+        |> move_deck_card_to_zone!("commander")
+        |> Repo.preload([:card, :preferred_printing])
+
+      {:ok, deck_card}
     end)
   end
 
   def delete_deck_card(%DeckCard{} = deck_card) do
-    Repo.transaction(fn ->
+    Repo.transact(fn ->
       deck_card =
         Repo.preload(deck_card, deck_allocations: [:collection_item])
 
@@ -103,8 +109,8 @@ defmodule Manavault.Catalog.Decks.Cards do
       end)
 
       case Repo.delete(deck_card) do
-        {:ok, deck_card} -> deck_card
-        {:error, changeset} -> Repo.rollback(changeset)
+        {:ok, deck_card} -> {:ok, deck_card}
+        {:error, changeset} -> {:error, changeset}
       end
     end)
   end

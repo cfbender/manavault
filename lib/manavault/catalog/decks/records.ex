@@ -38,7 +38,7 @@ defmodule Manavault.Catalog.Decks.Records do
   end
 
   def delete_deck(%Deck{} = deck) do
-    Repo.transaction(fn ->
+    Repo.transact(fn ->
       deck =
         deck
         |> Repo.preload(deck_cards: [deck_allocations: [:collection_item]])
@@ -51,8 +51,8 @@ defmodule Manavault.Catalog.Decks.Records do
       end)
 
       case Repo.delete(deck) do
-        {:ok, deck} -> deck
-        {:error, changeset} -> Repo.rollback(changeset)
+        {:ok, deck} -> {:ok, deck}
+        {:error, changeset} -> {:error, changeset}
       end
     end)
   end

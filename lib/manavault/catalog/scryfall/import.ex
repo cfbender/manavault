@@ -18,7 +18,7 @@ defmodule Manavault.Catalog.Scryfall.Import do
     oracle_tag_index = ScryfallOracleTags.build_index(Keyword.get(opts, :oracle_tags, []))
 
     result =
-      Repo.transaction(
+      Repo.transact(
         fn ->
           rows = ImportRows.card_rows(cards, now, oracle_tag_index)
           printing_rows = ImportRows.printing_rows(cards, now)
@@ -68,7 +68,12 @@ defmodule Manavault.Catalog.Scryfall.Import do
 
           refresh_printing_search_rows(search_rows)
 
-          %{cards_count: length(rows), printings_count: length(printing_rows), bulk_uri: bulk_uri}
+          {:ok,
+           %{
+             cards_count: length(rows),
+             printings_count: length(printing_rows),
+             bulk_uri: bulk_uri
+           }}
         end,
         timeout: :infinity
       )

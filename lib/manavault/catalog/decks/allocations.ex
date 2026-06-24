@@ -19,7 +19,7 @@ defmodule Manavault.Catalog.Decks.Allocations do
   def allocate_collection_item_to_deck_card(deck_card_id, collection_item_id, quantity \\ 1) do
     quantity = Util.parse_quantity(quantity)
 
-    Repo.transaction(fn ->
+    Repo.transact(fn ->
       deck_card =
         DeckCard |> Repo.get!(deck_card_id) |> Repo.preload([:deck, :preferred_printing])
 
@@ -27,9 +27,7 @@ defmodule Manavault.Catalog.Decks.Allocations do
 
       with :ok <- validate_collection_item_matches_deck_card(item, deck_card),
            :ok <- validate_deck_card_allocation_room(deck_card, item, quantity) do
-        insert_or_update_deck_allocation!(deck_card, item, quantity)
-      else
-        {:error, reason} -> Repo.rollback(reason)
+        {:ok, insert_or_update_deck_allocation!(deck_card, item, quantity)}
       end
     end)
   end
@@ -37,16 +35,16 @@ defmodule Manavault.Catalog.Decks.Allocations do
   def bulk_add_collection_items_to_deck(deck_or_id, collection_item_ids, zone \\ "mainboard")
 
   def bulk_add_collection_items_to_deck(deck_or_id, [], _zone) do
-    Repo.transaction(fn ->
+    Repo.transact(fn ->
       load_deck!(deck_or_id)
-      []
+      {:ok, []}
     end)
   end
 
   def bulk_add_collection_items_to_deck(deck_or_id, collection_item_ids, zone)
       when is_list(collection_item_ids) do
     with {:ok, item_ids} <- normalize_collection_item_ids(collection_item_ids) do
-      Repo.transaction(fn ->
+      Repo.transact(fn ->
         deck = load_deck!(deck_or_id)
 
         with {:ok, items} <- load_ordered_collection_items(item_ids),
@@ -58,12 +56,13 @@ defmodule Manavault.Catalog.Decks.Allocations do
             insert_deck_allocation!(deck_card, item, 1)
           end)
 
-          deck_cards_by_key
-          |> Map.values()
-          |> Enum.sort_by(& &1.id)
-          |> Repo.preload([:card, :preferred_printing], force: true)
-        else
-          {:error, reason} -> Repo.rollback(reason)
+          deck_cards =
+            deck_cards_by_key
+            |> Map.values()
+            |> Enum.sort_by(& &1.id)
+            |> Repo.preload([:card, :preferred_printing], force: true)
+
+          {:ok, deck_cards}
         end
       end)
     end
@@ -72,7 +71,7 @@ defmodule Manavault.Catalog.Decks.Allocations do
   def deallocate_collection_item_from_deck_card(deck_card_id, collection_item_id, quantity \\ 1) do
     quantity = Util.parse_quantity(quantity)
 
-    Repo.transaction(fn ->
+    Repo.transact(fn ->
       allocation =
         Repo.one(
           from allocation in DeckAllocation,
@@ -84,7 +83,7 @@ defmodule Manavault.Catalog.Decks.Allocations do
 
       case allocation do
         nil ->
-          Repo.rollback(:allocation_not_found)
+          {:error, :allocation_not_found}
 
         %DeckAllocation{quantity: allocation_quantity} when allocation_quantity <= quantity ->
           allocation = Repo.preload(allocation, :collection_item)
@@ -96,8 +95,8 @@ defmodule Manavault.Catalog.Decks.Allocations do
           )
 
           case Repo.delete(allocation) do
-            {:ok, _allocation} -> allocation
-            {:error, changeset} -> Repo.rollback(changeset)
+            {:ok, _allocation} -> {:ok, allocation}
+            {:error, changeset} -> {:error, changeset}
           end
 
         %DeckAllocation{} = allocation ->
@@ -112,8 +111,8 @@ defmodule Manavault.Catalog.Decks.Allocations do
           case allocation
                |> DeckAllocation.changeset(%{"quantity" => allocation.quantity - quantity})
                |> Repo.update() do
-            {:ok, updated_allocation} -> updated_allocation
-            {:error, changeset} -> Repo.rollback(changeset)
+            {:ok, updated_allocation} -> {:ok, updated_allocation}
+            {:error, changeset} -> {:error, changeset}
           end
       end
     end)
@@ -122,22 +121,17 @@ defmodule Manavault.Catalog.Decks.Allocations do
   def allocate_proxy_to_deck_card(deck_card_id, quantity \\ 1) do
     quantity = Util.parse_quantity(quantity)
 
-    Repo.transaction(fn ->
+    Repo.transact(fn ->
       deck_card =
         DeckCard
         |> Repo.get!(deck_card_id)
         |> Repo.preload([:deck, :preferred_printing, card: []])
 
       with :ok <- validate_positive_allocation_quantity(quantity),
-           :ok <- validate_deck_card_proxy_allocation_room(deck_card, quantity) do
-        deck_card
-        |> put_deck_card_proxy_quantity((deck_card.proxy_quantity || 0) + quantity)
-        |> case do
-          {:ok, deck_card} -> deck_card
-          {:error, changeset} -> Repo.rollback(changeset)
-        end
-      else
-        {:error, reason} -> Repo.rollback(reason)
+           :ok <- validate_deck_card_proxy_allocation_room(deck_card, quantity),
+           {:ok, deck_card} <-
+             put_deck_card_proxy_quantity(deck_card, (deck_card.proxy_quantity || 0) + quantity) do
+        {:ok, deck_card}
       end
     end)
   end
@@ -145,22 +139,15 @@ defmodule Manavault.Catalog.Decks.Allocations do
   def deallocate_proxy_from_deck_card(deck_card_id, quantity \\ 1) do
     quantity = Util.parse_quantity(quantity)
 
-    Repo.transaction(fn ->
+    Repo.transact(fn ->
       deck_card = Repo.get!(DeckCard, deck_card_id)
       proxy_quantity = deck_card.proxy_quantity || 0
 
       with :ok <- validate_positive_allocation_quantity(quantity),
-           :ok <- validate_deck_card_proxy_deallocation(deck_card, quantity) do
-        next_quantity = max(proxy_quantity - quantity, 0)
-
-        deck_card
-        |> put_deck_card_proxy_quantity(next_quantity)
-        |> case do
-          {:ok, deck_card} -> deck_card
-          {:error, changeset} -> Repo.rollback(changeset)
-        end
-      else
-        {:error, reason} -> Repo.rollback(reason)
+           :ok <- validate_deck_card_proxy_deallocation(deck_card, quantity),
+           {:ok, deck_card} <-
+             put_deck_card_proxy_quantity(deck_card, max(proxy_quantity - quantity, 0)) do
+        {:ok, deck_card}
       end
     end)
   end
