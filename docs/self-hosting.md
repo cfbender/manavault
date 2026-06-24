@@ -69,7 +69,17 @@ services:
       SECRET_KEY_BASE: ${SECRET_KEY_BASE}
       PHX_HOST: ${PHX_HOST:-localhost}
       MANAVAULT_ADMIN_PASSWORD_HASH: ${MANAVAULT_ADMIN_PASSWORD_HASH}
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/manavault-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
 ```
+
+The image already includes this healthcheck. If your compose file or deployment
+platform overrides it, use `/usr/local/bin/manavault-healthcheck`; the runtime
+image does not include `curl`.
 
 Generate both required secrets once, put them in `.env`, then start the stack:
 
