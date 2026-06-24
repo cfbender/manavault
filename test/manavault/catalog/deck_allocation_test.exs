@@ -237,4 +237,113 @@ defmodule Manavault.Catalog.DeckAllocationTest do
              }
            ] = Catalog.deck_buylist(deck, include_basic_lands: true)
   end
+
+  test "bulk add collection items to deck creates deck cards and allocations" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    assert {:ok, lotus_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    assert {:ok, walk_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-2",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "foil"
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Bulk Add"})
+
+    assert {:ok, deck_cards} =
+             Catalog.bulk_add_collection_items_to_deck(
+               deck.id,
+               [lotus_item.id, walk_item.id],
+               "sideboard"
+             )
+
+    assert [
+             %{
+               quantity: 1,
+               zone: "sideboard",
+               finish: "nonfoil",
+               card: %{name: "Black Lotus"},
+               preferred_printing: %{
+                 scryfall_id: "scryfall-printing-1",
+                 finishes: "[\"nonfoil\"]"
+               }
+             } = lotus_card,
+             %{
+               quantity: 1,
+               zone: "sideboard",
+               finish: "foil",
+               card: %{name: "Time Walk"},
+               preferred_printing: %{
+                 scryfall_id: "scryfall-printing-2",
+                 finishes: "[\"foil\"]"
+               }
+             } = walk_card
+           ] = Enum.sort_by(deck_cards, & &1.card.name)
+
+    lotus_status = Catalog.deck_card_allocation_status(lotus_card)
+    assert lotus_status.allocated == 1
+    assert Enum.find(lotus_status.candidates, &(&1.item.id == lotus_item.id)).allocated == 1
+
+    walk_status = Catalog.deck_card_allocation_status(walk_card)
+    assert walk_status.allocated == 1
+    assert Enum.find(walk_status.candidates, &(&1.item.id == walk_item.id)).allocated == 1
+  end
+
+  test "bulk add collection items rejects list locations without creating deck cards" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+    assert {:ok, list} = Catalog.create_location(%{name: "Wishlist", kind: "list"})
+
+    assert {:ok, list_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil",
+               "location_id" => list.id
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Bulk Reject"})
+
+    assert {:error, :allocation_list_location} =
+             Catalog.bulk_add_collection_items_to_deck(deck, [list_item.id])
+
+    assert [] = Catalog.get_deck!(deck.id).deck_cards
+    assert Catalog.get_collection_item!(list_item.id).location_id == list.id
+  end
+
+  test "bulk add collection items rejects unavailable selected copies" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    assert {:ok, item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Bulk Over Allocation"})
+
+    assert {:ok, [%{quantity: 1}]} =
+             Catalog.bulk_add_collection_items_to_deck(deck, [item.id])
+
+    assert {:error, :not_enough_available} =
+             Catalog.bulk_add_collection_items_to_deck(deck, [item.id])
+
+    assert [%{quantity: 1}] = Catalog.get_deck!(deck.id).deck_cards
+  end
 end

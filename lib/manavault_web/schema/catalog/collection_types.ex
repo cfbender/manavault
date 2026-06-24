@@ -7,6 +7,7 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
 
   alias Manavault.Catalog
 
+  alias ManavaultWeb.Schema.Catalog.CollectionFields
   alias ManavaultWeb.Schema.CatalogResolvers
 
   object :collection_item do
@@ -62,7 +63,10 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :name, non_null(:string)
     field :kind, non_null(:string)
     field :description, :string
-    field :cover_printing, :printing
+
+    field :cover_printing, :printing do
+      resolve(&CollectionFields.location_cover_printing/3)
+    end
 
     field :item_count, :integer do
       resolve(&CatalogResolvers.location_item_count/3)

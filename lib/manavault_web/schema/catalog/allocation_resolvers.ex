@@ -32,6 +32,25 @@ defmodule ManavaultWeb.Schema.Catalog.AllocationResolvers do
     end
   end
 
+  def bulk_add_collection_items_to_deck(
+        _parent,
+        %{ids: ids, deck_id: deck_id} = args,
+        _resolution
+      ) do
+    zone = Map.get(args, :zone, "mainboard")
+
+    case Catalog.bulk_add_collection_items_to_deck(deck_id, ids, zone) do
+      {:ok, deck_cards} ->
+        {:ok, deck_cards}
+
+      {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
+        {:error, Errors.changeset_error_message(changeset)}
+
+      {:error, reason} ->
+        {:error, Errors.deck_allocation_error(reason)}
+    end
+  end
+
   def allocate_deck_card_item(
         _parent,
         %{deck_card_id: deck_card_id, collection_item_id: collection_item_id},

@@ -3,47 +3,9 @@ defmodule Manavault.Catalog do
   Public catalog context API.
   """
 
-  import Ecto.Query
+  alias Manavault.Catalog.{Collection, Dataloader, Decks, Scryfall, ScryfallSyncWorker, Search}
 
-  alias Manavault.Catalog.{
-    Collection,
-    Decks,
-    DeckCard,
-    Printing,
-    Scryfall,
-    ScryfallSyncWorker,
-    Search
-  }
-
-  alias Manavault.Repo
-
-  def data do
-    Dataloader.Ecto.new(Repo, query: &query/2)
-  end
-
-  def query(DeckCard, _params) do
-    from(deck_card in DeckCard,
-      join: card in assoc(deck_card, :card),
-      left_join: preferred_printing in assoc(deck_card, :preferred_printing),
-      order_by: [
-        asc: deck_card.zone,
-        asc: card.name,
-        asc: deck_card.id
-      ],
-      preload: [
-        card: card,
-        preferred_printing: preferred_printing
-      ]
-    )
-  end
-
-  def query(Printing, _params) do
-    from(printing in Printing,
-      order_by: [desc: printing.released_at, asc: printing.set_code]
-    )
-  end
-
-  def query(queryable, _params), do: queryable
+  defdelegate data(), to: Dataloader
 
   defdelegate search_cards(term, opts \\ []), to: Search
   defdelegate suggest_card_names(term, opts \\ []), to: Search
@@ -120,6 +82,13 @@ defmodule Manavault.Catalog do
                 deck_card_id,
                 collection_item_id,
                 quantity \\ 1
+              ),
+              to: Decks
+
+  defdelegate bulk_add_collection_items_to_deck(
+                deck_or_id,
+                collection_item_ids,
+                zone \\ "mainboard"
               ),
               to: Decks
 

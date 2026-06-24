@@ -31,9 +31,9 @@ defmodule ManavaultWeb.Schema.Catalog.CardFields do
 
   def card_printings(%Card{} = card, _args, %{context: %{loader: loader}}) do
     loader
-    |> Dataloader.load(Catalog, :printings, card)
+    |> Dataloader.load(Catalog, {:many, Card}, printings_with_owned_count: card)
     |> on_load(fn loader ->
-      {:ok, Dataloader.get(loader, Catalog, :printings, card)}
+      {:ok, Dataloader.get(loader, Catalog, {:many, Card}, printings_with_owned_count: card)}
     end)
   end
 

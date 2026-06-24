@@ -37,6 +37,13 @@ defmodule Manavault.Catalog.Decks do
               ),
               to: Workflows
 
+  defdelegate bulk_add_collection_items_to_deck(
+                deck_or_id,
+                collection_item_ids,
+                zone \\ "mainboard"
+              ),
+              to: Workflows
+
   defdelegate deallocate_collection_item_from_deck_card(
                 deck_card_id,
                 collection_item_id,

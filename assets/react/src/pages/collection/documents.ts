@@ -202,6 +202,27 @@ export const AddCollectionItemToDeckDocument = graphql(`
   }
 `)
 
+export const BulkAddCollectionItemsToDeckDocument = graphql(`
+  mutation BulkAddCollectionItemsToDeck($ids: [ID!]!, $deckId: ID!, $zone: String) {
+    bulkAddCollectionItemsToDeck(ids: $ids, deckId: $deckId, zone: $zone) {
+      id
+      quantity
+      zone
+      finish
+      card {
+        oracleId
+        name
+      }
+      preferredPrinting {
+        scryfallId
+        setCode
+        collectorNumber
+        imageUrl
+      }
+    }
+  }
+`)
+
 export const CreateLocationDocument = graphql(`
   mutation CreateLocation($input: LocationInput!) {
     createLocation(input: $input) {

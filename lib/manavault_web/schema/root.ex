@@ -161,6 +161,13 @@ defmodule ManavaultWeb.Schema do
       resolve(&CatalogResolvers.add_collection_item_to_deck/3)
     end
 
+    field :bulk_add_collection_items_to_deck, non_null(list_of(non_null(:deck_card))) do
+      arg(:ids, non_null(list_of(non_null(:id))))
+      arg(:deck_id, non_null(:id))
+      arg(:zone, :string, default_value: "mainboard")
+      resolve(&CatalogResolvers.bulk_add_collection_items_to_deck/3)
+    end
+
     field :create_deck, :deck do
       arg(:input, non_null(:deck_input))
       resolve(&CatalogResolvers.create_deck/3)

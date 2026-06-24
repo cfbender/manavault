@@ -11,7 +11,10 @@ import {
 } from "../../components/ui/dialog"
 import { request } from "../../lib/graphql"
 import { titleize } from "../../lib/utils"
-import { AddCollectionItemToDeckDocument, CollectionItemDeckOptionsDocument } from "./documents"
+import {
+  BulkAddCollectionItemsToDeckDocument,
+  CollectionItemDeckOptionsDocument,
+} from "./documents"
 import {
   collectionTargetItems,
   collectionTargetLabel,
@@ -44,15 +47,11 @@ export function AddCollectionItemToDeckDialog({
       if (!targetItems.length) throw new Error("Choose at least one item")
       if (!deckId) throw new Error("Choose a deck")
 
-      return Promise.all(
-        targetItems.map((targetItem) =>
-          request(AddCollectionItemToDeckDocument, {
-            id: targetItem.id,
-            deckId,
-            zone,
-          }),
-        ),
-      )
+      return request(BulkAddCollectionItemsToDeckDocument, {
+        ids: targetItems.map((targetItem) => targetItem.id),
+        deckId,
+        zone,
+      })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["decks"] })
