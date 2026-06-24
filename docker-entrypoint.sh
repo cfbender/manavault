@@ -11,4 +11,4 @@ mkdir -p \
 
 chown -R app:app "$DATA_DIR"
 
-exec gosu app "$@"
+exec su-exec app "$@"
