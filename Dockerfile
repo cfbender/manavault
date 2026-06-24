@@ -55,14 +55,15 @@ COPY config/runtime.exs config/
 RUN mix release
 
 FROM golang:1.25.11-alpine3.23 AS healthcheck-builder
-# Build a static healthcheck helper so the runtime image does not need curl.
+# Build a static TCP healthcheck helper so the runtime image does not need curl
+# and health is not coupled to background sync HTTP status.
 WORKDIR /src/healthcheck
 RUN printf '%s\n' \
   'package main' \
   '' \
   'import (' \
   '  "fmt"' \
-  '  "net/http"' \
+  '  "net"' \
   '  "os"' \
   '  "time"' \
   ')' \
@@ -72,17 +73,12 @@ RUN printf '%s\n' \
   '  if port == "" {' \
   '    port = "4000"' \
   '  }' \
-  '  client := http.Client{Timeout: 4 * time.Second}' \
-  '  resp, err := client.Get("http://127.0.0.1:" + port + "/health")' \
+  '  conn, err := net.DialTimeout("tcp", "127.0.0.1:"+port, 4*time.Second)' \
   '  if err != nil {' \
   '    fmt.Fprintln(os.Stderr, err)' \
   '    os.Exit(1)' \
   '  }' \
-  '  defer resp.Body.Close()' \
-  '  if resp.StatusCode < 200 || resp.StatusCode > 299 {' \
-  '    fmt.Fprintf(os.Stderr, "unexpected status: %s\n", resp.Status)' \
-  '    os.Exit(1)' \
-  '  }' \
+  '  _ = conn.Close()' \
   '}' \
   > /tmp/manavault-healthcheck.go \
   && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /go/bin/manavault-healthcheck /tmp/manavault-healthcheck.go
@@ -117,6 +113,6 @@ RUN chown -R app:app /app && chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 4000
 VOLUME ["/data"]
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 CMD ["manavault-healthcheck"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 CMD ["/usr/local/bin/manavault-healthcheck"]
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["/app/bin/manavault", "start"]
