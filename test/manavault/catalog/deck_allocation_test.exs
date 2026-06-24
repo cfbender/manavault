@@ -213,7 +213,7 @@ defmodule Manavault.Catalog.DeckAllocationTest do
     assert Enum.find(status.candidates, &(&1.item.id == alternate_item.id)).allocated == 1
   end
 
-  test "deck allocation status does not mark unowned basic lands missing" do
+  test "deck allocation status treats basic lands as already allocated" do
     assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@plains])
 
     assert {:ok, deck} = Catalog.create_deck(%{"name" => "Basics"})
@@ -223,19 +223,18 @@ defmodule Manavault.Catalog.DeckAllocationTest do
     assert status.state == :basic_land
     assert status.required == 12
     assert status.owned == 0
+    assert status.allocated == 12
     assert status.available == 0
     assert status.missing == 0
 
-    assert Catalog.deck_buylist(deck) == []
+    assert {:ok, preview} = Catalog.preview_bulk_allocate_deck(deck, :matching_printings)
+    assert %{allocated: 0, cards: 0, skipped: 0, entries: []} = preview
 
-    assert [
-             %{
-               card_name: "Plains",
-               quantity: 12,
-               missing: 12,
-               unavailable: 0
-             }
-           ] = Catalog.deck_buylist(deck, include_basic_lands: true)
+    assert {:ok, %{allocated: 0, cards: 0, skipped: 0}} =
+             Catalog.bulk_allocate_deck(deck, :matching_printings)
+
+    assert Catalog.deck_buylist(deck) == []
+    assert Catalog.deck_buylist(deck, include_basic_lands: true) == []
   end
 
   test "bulk add collection items to deck creates deck cards and allocations" do

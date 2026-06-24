@@ -29,15 +29,17 @@ defmodule Manavault.Catalog.EDHRec.Response.CollectionStatus do
         total + max(item.quantity - elsewhere, 0)
       end)
 
+    allocated = if basic_land?(card), do: 1, else: 0
+
     %{
       state: collection_state(card, available, owned),
       required: 1,
       owned: owned,
-      allocated: 0,
+      allocated: allocated,
       proxy_allocated: 0,
       available: available,
       allocated_elsewhere: allocated_elsewhere,
-      missing: if(available > 0 or basic_land?(card), do: 0, else: 1),
+      missing: max(1 - allocated - available, 0),
       candidates:
         Enum.map(candidates, fn item ->
           elsewhere = Map.get(other_allocations, item.id, 0)
@@ -66,11 +68,14 @@ defmodule Manavault.Catalog.EDHRec.Response.CollectionStatus do
     }
   end
 
-  defp collection_state(_card, available, _owned) when available > 0, do: "available"
-  defp collection_state(_card, _available, owned) when owned > 0, do: "partial"
-
-  defp collection_state(%Card{} = card, _available, _owned),
-    do: if(basic_land?(card), do: "basic_land", else: "missing")
+  defp collection_state(%Card{} = card, available, owned) do
+    cond do
+      basic_land?(card) -> "basic_land"
+      available > 0 -> "available"
+      owned > 0 -> "partial"
+      true -> "missing"
+    end
+  end
 
   defp stringify_status(%{state: state} = status) do
     Map.put(status, :state, to_string(state))
@@ -86,7 +91,7 @@ defmodule Manavault.Catalog.EDHRec.Response.CollectionStatus do
     owned = Enum.reduce(candidates, 0, &(&1.quantity + &2))
     proxy_allocated = deck_card.proxy_quantity || 0
     physical_allocated = current_allocations |> Map.values() |> Enum.sum()
-    allocated = physical_allocated + proxy_allocated
+    allocated = deck_card_allocated(deck_card, physical_allocated, proxy_allocated)
     allocated_elsewhere = other_allocations |> Map.values() |> Enum.sum()
 
     available =
@@ -96,12 +101,7 @@ defmodule Manavault.Catalog.EDHRec.Response.CollectionStatus do
         total + max(item.quantity - current - elsewhere, 0)
       end)
 
-    missing =
-      if basic_land?(deck_card.card) do
-        0
-      else
-        max(deck_card.quantity - allocated - available, 0)
-      end
+    missing = deck_card_missing(deck_card, allocated, available)
 
     %{
       state: deck_card_state(deck_card, allocated, available, owned),
@@ -137,11 +137,27 @@ defmodule Manavault.Catalog.EDHRec.Response.CollectionStatus do
     |> Repo.preload([:deck, :preferred_printing, card: [], deck_allocations: []])
   end
 
+  defp deck_card_allocated(%DeckCard{} = deck_card, physical_allocated, proxy_allocated) do
+    if basic_land?(deck_card.card) do
+      deck_card.quantity
+    else
+      physical_allocated + proxy_allocated
+    end
+  end
+
+  defp deck_card_missing(%DeckCard{} = deck_card, allocated, available) do
+    if basic_land?(deck_card.card) do
+      0
+    else
+      max(deck_card.quantity - allocated - available, 0)
+    end
+  end
+
   defp deck_card_state(%DeckCard{} = deck_card, allocated, available, owned) do
     cond do
+      basic_land?(deck_card.card) -> :basic_land
       allocated >= deck_card.quantity -> :allocated
       allocated + available >= deck_card.quantity -> :available
-      basic_land?(deck_card.card) -> :basic_land
       allocated > 0 or owned > 0 -> :partial
       true -> :missing
     end

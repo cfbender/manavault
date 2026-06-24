@@ -52,8 +52,10 @@ defmodule Manavault.Catalog.Decks.Allocations do
              {:ok, deck_cards_by_key} <- upsert_bulk_deck_cards(deck, items, zone),
              :ok <- validate_bulk_deck_card_allocation_room(items, deck_cards_by_key) do
           Enum.each(items, fn item ->
-            deck_card = Map.fetch!(deck_cards_by_key, collection_item_deck_card_key(item))
-            insert_deck_allocation!(deck_card, item, 1)
+            unless basic_land_item?(item) do
+              deck_card = Map.fetch!(deck_cards_by_key, collection_item_deck_card_key(item))
+              insert_deck_allocation!(deck_card, item, 1)
+            end
           end)
 
           deck_cards =
@@ -194,17 +196,24 @@ defmodule Manavault.Catalog.Decks.Allocations do
       deck.deck_cards
       |> Enum.reduce(%{allocated: 0, cards: MapSet.new(), skipped: 0, entries: []}, fn deck_card,
                                                                                        preview ->
-        entries = bulk_allocate_deck_card_preview(deck_card, mode)
+        status = AllocationStatus.deck_card_allocation_status(deck_card)
+        needed = max(status.required - status.allocated, 0)
+        entries = bulk_allocate_deck_card_preview(deck_card, mode, status, needed)
 
-        if entries == [] do
-          update_in(preview, [:skipped], &(&1 + 1))
-        else
-          allocated = Enum.reduce(entries, 0, &(&1.quantity + &2))
+        cond do
+          needed == 0 ->
+            preview
 
-          preview
-          |> update_in([:allocated], &(&1 + allocated))
-          |> update_in([:cards], &MapSet.put(&1, deck_card.id))
-          |> update_in([:entries], &(&1 ++ entries))
+          entries == [] ->
+            update_in(preview, [:skipped], &(&1 + 1))
+
+          true ->
+            allocated = Enum.reduce(entries, 0, &(&1.quantity + &2))
+
+            preview
+            |> update_in([:allocated], &(&1 + allocated))
+            |> update_in([:cards], &MapSet.put(&1, deck_card.id))
+            |> update_in([:entries], &(&1 ++ entries))
         end
       end)
 
@@ -378,6 +387,8 @@ defmodule Manavault.Catalog.Decks.Allocations do
   end
 
   defp validate_bulk_deck_card_allocation_room(items, deck_cards_by_key) do
+    allocatable_items = Enum.reject(items, &basic_land_item?/1)
+
     deck_cards_with_status =
       deck_cards_by_key
       |> Map.values()
@@ -385,8 +396,13 @@ defmodule Manavault.Catalog.Decks.Allocations do
 
     statuses_by_id = Map.new(deck_cards_with_status, &{&1.id, &1.allocation_status})
 
-    with :ok <- validate_bulk_deck_card_capacity(items, deck_cards_by_key, statuses_by_id) do
-      validate_bulk_collection_item_candidates(items, deck_cards_by_key, statuses_by_id)
+    with :ok <-
+           validate_bulk_deck_card_capacity(allocatable_items, deck_cards_by_key, statuses_by_id) do
+      validate_bulk_collection_item_candidates(
+        allocatable_items,
+        deck_cards_by_key,
+        statuses_by_id
+      )
     end
   end
 
@@ -435,6 +451,13 @@ defmodule Manavault.Catalog.Decks.Allocations do
   defp collection_item_deck_card_key(%CollectionItem{} = item) do
     {item.printing.oracle_id, item.finish}
   end
+
+  defp basic_land_item?(%CollectionItem{printing: %{card: %{type_line: type_line}}})
+       when is_binary(type_line) do
+    String.contains?(type_line, "Basic Land")
+  end
+
+  defp basic_land_item?(_item), do: false
 
   defp insert_deck_allocation!(
          %DeckCard{} = deck_card,
@@ -581,10 +604,7 @@ defmodule Manavault.Catalog.Decks.Allocations do
     |> Repo.update()
   end
 
-  defp bulk_allocate_deck_card_preview(%DeckCard{} = deck_card, mode) do
-    status = AllocationStatus.deck_card_allocation_status(deck_card)
-    needed = max(status.required - status.allocated, 0)
-
+  defp bulk_allocate_deck_card_preview(%DeckCard{} = deck_card, mode, status, needed) do
     status.candidates
     |> Enum.filter(&bulk_allocation_candidate?(&1, deck_card, mode))
     |> Enum.reduce_while({0, []}, fn candidate, {allocated, entries} ->

@@ -80,7 +80,7 @@ defmodule Manavault.Catalog.Decks.AllocationStatus do
     owned = Enum.reduce(candidates, 0, &(&1.quantity + &2))
     proxy_allocated = deck_card.proxy_quantity || 0
     physical_allocated = current_allocations |> Map.values() |> Enum.sum()
-    allocated = physical_allocated + proxy_allocated
+    allocated = allocation_allocated(deck_card, physical_allocated, proxy_allocated)
     allocated_elsewhere = other_allocations |> Map.values() |> Enum.sum()
 
     available =
@@ -302,6 +302,14 @@ defmodule Manavault.Catalog.Decks.AllocationStatus do
     end)
   end
 
+  defp allocation_allocated(%DeckCard{} = deck_card, physical_allocated, proxy_allocated) do
+    if is_basic_land?(deck_card) do
+      deck_card.quantity
+    else
+      physical_allocated + proxy_allocated
+    end
+  end
+
   defp allocation_missing(%DeckCard{} = deck_card, allocated, available) do
     if is_basic_land?(deck_card) do
       0
@@ -312,9 +320,9 @@ defmodule Manavault.Catalog.Decks.AllocationStatus do
 
   defp allocation_state(%DeckCard{} = deck_card, allocated, available, owned) do
     cond do
+      is_basic_land?(deck_card) -> :basic_land
       allocated >= deck_card.quantity -> :allocated
       allocated + available >= deck_card.quantity -> :available
-      is_basic_land?(deck_card) -> :basic_land
       allocated > 0 or owned > 0 -> :partial
       true -> :missing
     end

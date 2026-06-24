@@ -77,6 +77,7 @@ export function DeckCardAllocationMenu({
   const label = allocationStatusLabel(status)
   const proxyChecked = status.proxyAllocated > 0
   const proxyQuantityToAdd = Math.max(status.required - status.allocated, 0)
+  const isBasicLand = status.state === "basic_land"
   const proxyDisabled = isUpdating || (!proxyChecked && proxyQuantityToAdd <= 0)
   const [menuPosition, setMenuPosition] = useState({ left: 16, top: 16, width: 320 })
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -115,7 +116,7 @@ export function DeckCardAllocationMenu({
 
     updateMenuPosition()
 
-    function handleMouseDown(event: MouseEvent) {
+    function handlePointerDown(event: PointerEvent) {
       const target = event.target as Node
       if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return
       onOpenChange(false)
@@ -127,13 +128,13 @@ export function DeckCardAllocationMenu({
 
     window.addEventListener("resize", updateMenuPosition)
     window.addEventListener("scroll", updateMenuPosition, true)
-    document.addEventListener("mousedown", handleMouseDown)
+    document.addEventListener("pointerdown", handlePointerDown, true)
     document.addEventListener("keydown", handleKeyDown)
 
     return () => {
       window.removeEventListener("resize", updateMenuPosition)
       window.removeEventListener("scroll", updateMenuPosition, true)
-      document.removeEventListener("mousedown", handleMouseDown)
+      document.removeEventListener("pointerdown", handlePointerDown, true)
       document.removeEventListener("keydown", handleKeyDown)
     }
   }, [open])
@@ -186,80 +187,84 @@ export function DeckCardAllocationMenu({
                 </p>
               ) : null}
 
-              <div className="mt-3 rounded-box border border-base-300 bg-base-200/35 p-2">
-                <div className="flex min-w-0 items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold">Proxy</p>
-                    <p className="truncate text-xs text-base-content/60">
-                      {status.proxyAllocated} marked as proxy
-                    </p>
-                  </div>
-                  <label className="label shrink-0 cursor-pointer gap-2 p-0">
-                    <span className="label-text text-xs">
-                      {proxyChecked ? "Marked" : "Mark as proxy"}
-                    </span>
-                    <input
-                      type="checkbox"
-                      className="toggle toggle-primary toggle-sm"
-                      checked={proxyChecked}
-                      disabled={proxyDisabled}
-                      aria-label={proxyChecked ? "Remove proxy" : "Mark as proxy"}
-                      onChange={() => onToggleProxy()}
-                    />
-                  </label>
-                </div>
-              </div>
-
-              {status.candidates.length === 0 ? (
-                <div className="mt-3 text-sm text-base-content/60">
-                  No matching owned printings.
-                </div>
-              ) : (
-                <ul className="mt-3 space-y-2 text-sm">
-                  {status.candidates.map((candidate) => (
-                    <li
-                      key={candidate.item.id}
-                      className="min-w-0 rounded-box border border-base-300 bg-base-200/35 p-2"
-                    >
-                      <div className="grid min-w-0 gap-2">
-                        <div className="min-w-0">
-                          <p
-                            className="block max-w-full truncate font-semibold"
-                            title={collectionItemLabel(candidate.item)}
-                          >
-                            {collectionItemLabel(candidate.item)}
-                          </p>
-                          <p className="truncate text-xs text-base-content/60">
-                            {allocationCandidateSummary(candidate)}
-                          </p>
-                        </div>
-                        <div className="grid min-w-0 grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            className="btn btn-primary btn-xs min-w-0"
-                            disabled={
-                              isUpdating ||
-                              candidate.available <= 0 ||
-                              status.allocated >= status.required
-                            }
-                            onClick={() => onAllocate(candidate.item.id)}
-                          >
-                            <span className="truncate">Allocate</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-outline btn-xs min-w-0"
-                            disabled={isUpdating || candidate.allocated <= 0}
-                            onClick={() => onDeallocate(candidate.item.id)}
-                          >
-                            <span className="truncate">Deallocate</span>
-                          </button>
-                        </div>
+              {!isBasicLand ? (
+                <>
+                  <div className="mt-3 rounded-box border border-base-300 bg-base-200/35 p-2">
+                    <div className="flex min-w-0 items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">Proxy</p>
+                        <p className="truncate text-xs text-base-content/60">
+                          {status.proxyAllocated} marked as proxy
+                        </p>
                       </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                      <label className="label shrink-0 cursor-pointer gap-2 p-0">
+                        <span className="label-text text-xs">
+                          {proxyChecked ? "Marked" : "Mark as proxy"}
+                        </span>
+                        <input
+                          type="checkbox"
+                          className="toggle toggle-primary toggle-sm"
+                          checked={proxyChecked}
+                          disabled={proxyDisabled}
+                          aria-label={proxyChecked ? "Remove proxy" : "Mark as proxy"}
+                          onChange={() => onToggleProxy()}
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  {status.candidates.length === 0 ? (
+                    <div className="mt-3 text-sm text-base-content/60">
+                      No matching owned printings.
+                    </div>
+                  ) : (
+                    <ul className="mt-3 space-y-2 text-sm">
+                      {status.candidates.map((candidate) => (
+                        <li
+                          key={candidate.item.id}
+                          className="min-w-0 rounded-box border border-base-300 bg-base-200/35 p-2"
+                        >
+                          <div className="grid min-w-0 gap-2">
+                            <div className="min-w-0">
+                              <p
+                                className="block max-w-full truncate font-semibold"
+                                title={collectionItemLabel(candidate.item)}
+                              >
+                                {collectionItemLabel(candidate.item)}
+                              </p>
+                              <p className="truncate text-xs text-base-content/60">
+                                {allocationCandidateSummary(candidate)}
+                              </p>
+                            </div>
+                            <div className="grid min-w-0 grid-cols-2 gap-2">
+                              <button
+                                type="button"
+                                className="btn btn-primary btn-xs min-w-0"
+                                disabled={
+                                  isUpdating ||
+                                  candidate.available <= 0 ||
+                                  status.allocated >= status.required
+                                }
+                                onClick={() => onAllocate(candidate.item.id)}
+                              >
+                                <span className="truncate">Allocate</span>
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-outline btn-xs min-w-0"
+                                disabled={isUpdating || candidate.allocated <= 0}
+                                onClick={() => onDeallocate(candidate.item.id)}
+                              >
+                                <span className="truncate">Deallocate</span>
+                              </button>
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              ) : null}
             </div>,
             document.body,
           )
