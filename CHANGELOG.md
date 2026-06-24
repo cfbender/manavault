@@ -8,6 +8,29 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.9.0] - 2026-06-24
+
+### Bug Fixes
+
+- Some deck loading slowness ([`ff85b79a`](../../commit/ff85b79abf1aaea581037d549d0405d079db2131))
+
+### Chores
+
+- Update README.md ([`2116eeea`](../../commit/2116eeead7f5cd9ac40f677a337ae95ebbfd37ac))
+
+### Features
+
+- Docs updates and mobile fixes ([`53f59475`](../../commit/53f5947505e7875c2522aea2dc6fad7d76deb495))
+- Add some missing indices ([`e59f85a1`](../../commit/e59f85a1fe73d55dfac6d7f7d10502262d1dced0))
+
+### Refactoring
+
+- Split out large files ([`31b1d9e5`](../../commit/31b1d9e545d1008e8a9a24fad309ab2563d6c2df))
+- Use dataloader for cards/collection ([`bfa95f13`](../../commit/bfa95f131f5e06d2ae96785ae796b08026348eb1))
+- More dataloader and batching ([`055fdb8e`](../../commit/055fdb8eb51ef3f701bc642ca125a708eff90b12))
+- Remove deprecated Repo.transaction/2 ([`e4d2efdc`](../../commit/e4d2efdc2df5b9f2cbe06c8e8ba7e1c2ccf202f1))
+- Relay ([`41fa5b6b`](../../commit/41fa5b6b301d7b3e65e7359fc98e18414a1f95e6))
+
 ## [0.8.0] - 2026-06-23
 
 ### Features
