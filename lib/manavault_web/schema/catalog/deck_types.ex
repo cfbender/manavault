@@ -79,7 +79,6 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
       resolve(&CatalogResolvers.deck_card_price_cents/3)
     end
 
-
     field :preferred_printing, :printing, resolve: dataloader(Catalog)
     field :card, :card, resolve: dataloader(Catalog)
 

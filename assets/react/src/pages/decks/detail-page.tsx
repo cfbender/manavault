@@ -7,6 +7,7 @@ import { groupDeckCards, type DeckGroupBy } from "../../lib/deck-grouping"
 import { request } from "../../lib/graphql"
 import { present } from "../../lib/utils"
 import { deckCardsTotalPrice, formatUsdCents } from "./buylist-export"
+import { hasMainboardAllocationAvailable } from "./deck-allocation-model"
 import { compareDeckCards, countDeckZones } from "./deck-card-model"
 import { deckLegalityIssues } from "./deck-legality"
 import { useDeferredDeckAnalysis } from "./deck-stats-panel"
@@ -162,13 +163,7 @@ export function DeckDetailPage({
     return selectionDeckCardIds.map((deckCardId) => deckCardById.get(deckCardId)).filter(present)
   }, [deckCards, selectionDeckCardIds])
   const hasBulkAllocationAvailable = useMemo(
-    () =>
-      !shareMode &&
-      deckCards.some(
-        (deckCard) =>
-          deckCard.allocationStatus.available > 0 &&
-          deckCard.allocationStatus.allocated < deckCard.allocationStatus.required,
-      ),
+    () => !shareMode && hasMainboardAllocationAvailable(deckCards),
     [deckCards, shareMode],
   )
 

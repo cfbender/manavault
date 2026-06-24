@@ -15,6 +15,7 @@ export function countDeckZones(deckCards: DeckCardEntry[]) {
   )
 }
 
+
 export function isLegendaryCreature(deckCard: DeckCardEntry) {
   const typeLine = deckCard.card?.typeLine || ""
   return typeLine.includes("Legendary") && typeLine.includes("Creature")
