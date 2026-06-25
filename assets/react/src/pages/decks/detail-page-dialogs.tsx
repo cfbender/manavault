@@ -1,15 +1,14 @@
 import { ConfirmDialog } from "../../components/ui/confirm-dialog"
 import type { DeckCardUpdateInput } from "../../gql/graphql"
 import { AddDeckCardDialog } from "./add-card-dialog"
-import { BulkAllocationPreviewDialog } from "./bulk-allocation"
+import { BulkAllocationPullListDialog } from "./bulk-allocation"
 import { ShareModeHidden } from "./deck-actions"
 import { EditDeckCardDialog, MoveDeckCardDialog } from "./deck-card-dialogs"
 import { DeckCardPreviewDialog } from "./deck-card-preview-dialog"
 import { EditDeckDialog } from "./deck-editor-dialogs"
 import { ExportDecklistDialog, ImportDecklistDialog, ShareDeckDialog } from "./deck-share-dialogs"
+import type { DeckPullList, DeckPullListMode } from "./deck-allocation-model"
 import type {
-  BulkAllocationMode,
-  BulkAllocationPreview,
   DeckCardEntry,
   DeckDetail,
   DeckZone,
@@ -25,7 +24,9 @@ import { MissingCardsDialog } from "./missing-cards-dialog"
 export function DeckDetailDialogs({
   addCardError,
   bulkAllocationError,
-  bulkAllocationPreview,
+  bulkAllocationMode,
+  bulkAllocationOpen,
+  bulkAllocationPullList,
   deck,
   deleteCardTarget,
   editError,
@@ -47,7 +48,8 @@ export function DeckDetailDialogs({
   moveError,
   moveTarget,
   onAddEdhrecCard,
-  onCloseBulkAllocationPreview,
+  onBulkAllocationModeChange,
+  onCloseBulkAllocation,
   onCloseEditCard,
   onCloseMoveCard,
   onConfirmBulkAllocation,
@@ -65,10 +67,12 @@ export function DeckDetailDialogs({
   onMoveCard,
   onPreviewCardOpenChange,
   onSetEdhrecState,
+  onSelectBulkAllocationChoice,
   onShareDeckOpenChange,
   onAddCardOpenChange,
   previewDeckCard,
   previewDeckCards,
+  selectedBulkAllocationItemIds,
   selectedDeckCardCount,
   shareMode,
   updateDeckCardPending,
@@ -76,7 +80,9 @@ export function DeckDetailDialogs({
 }: {
   addCardError: string | null
   bulkAllocationError: string | null
-  bulkAllocationPreview: BulkAllocationPreview | null
+  bulkAllocationMode: DeckPullListMode
+  bulkAllocationOpen: boolean
+  bulkAllocationPullList: DeckPullList
   deck: DeckDetail
   deleteCardTarget: DeckCardEntry | null
   editError: string | null
@@ -98,10 +104,11 @@ export function DeckDetailDialogs({
   moveError: string | null
   moveTarget: DeckCardEntry | null
   onAddEdhrecCard: (card: EDHRecCard | EDHRecSectionCard, zone: EDHRecAddZone) => void
-  onCloseBulkAllocationPreview: () => void
+  onBulkAllocationModeChange: (mode: DeckPullListMode) => void
+  onCloseBulkAllocation: () => void
   onCloseEditCard: () => void
   onCloseMoveCard: () => void
-  onConfirmBulkAllocation: (mode: BulkAllocationMode) => void
+  onConfirmBulkAllocation: () => void
   onDeleteCardTargetChange: (deckCard: DeckCardEntry | null) => void
   onDeleteCurrentDeck: () => void
   onDeleteDeckOpenChange: (open: boolean) => void
@@ -116,10 +123,12 @@ export function DeckDetailDialogs({
   onMoveCard: (zone: DeckZone) => void
   onPreviewCardOpenChange: (open: boolean) => void
   onSetEdhrecState: (tab: EDHRecTab | undefined, excludeLands?: boolean) => void
+  onSelectBulkAllocationChoice: (choiceId: string, collectionItemId: string | null) => void
   onShareDeckOpenChange: (open: boolean) => void
   onAddCardOpenChange: (open: boolean) => void
   previewDeckCard: DeckCardEntry | null
   previewDeckCards: DeckCardEntry[]
+  selectedBulkAllocationItemIds: Record<string, string | null>
   selectedDeckCardCount: number
   shareMode: boolean
   updateDeckCardPending: boolean
@@ -196,12 +205,17 @@ export function DeckDetailDialogs({
           onTabChange={(tab) => onSetEdhrecState(tab)}
           open={Boolean(edhrecTab)}
         />
-        <BulkAllocationPreviewDialog
+        <BulkAllocationPullListDialog
           error={bulkAllocationError}
+          mode={bulkAllocationMode}
           isPending={isBulkAllocating}
-          onClose={onCloseBulkAllocationPreview}
+          onClose={onCloseBulkAllocation}
           onConfirm={onConfirmBulkAllocation}
-          preview={bulkAllocationPreview}
+          onModeChange={onBulkAllocationModeChange}
+          onSelectChoice={onSelectBulkAllocationChoice}
+          open={bulkAllocationOpen}
+          pullList={bulkAllocationPullList}
+          selectedItemIds={selectedBulkAllocationItemIds}
         />
 
         <MoveDeckCardDialog

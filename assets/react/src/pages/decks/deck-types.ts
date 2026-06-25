@@ -4,7 +4,6 @@ import type {
   DeckEdhrecQuery,
   DeckQuery,
   DecksQuery,
-  PreviewBulkAllocateDeckMutation,
 } from "../../gql/graphql"
 
 type Maybe<T> = T | null | undefined
@@ -16,10 +15,6 @@ type ConnectionNode<Connection> =
     : NonNullable<Connection> extends RelayConnection<infer Node>
       ? NonNullable<Node>
       : never
-type PayloadField<Payload, Key extends string> =
-  NonNullable<Payload> extends { [Field in Key]?: infer Value }
-    ? NonNullable<Value>
-    : NonNullable<Payload>
 
 type DeckConnectionDetail = NonNullable<DeckQuery["deck"]>
 type DeckCardConnectionEntry = ConnectionNode<DeckConnectionDetail["deckCards"]>
@@ -35,11 +30,6 @@ export type DeckCardEntry = Omit<DeckCardConnectionEntry, "card"> & {
 export type DeckDetail = Omit<DeckConnectionDetail, "deckCards"> & {
   deckCards: DeckCardEntry[]
 }
-export type BulkAllocationMode = "exact_printings" | "matching_printings"
-export type BulkAllocationPreview = PayloadField<
-  PreviewBulkAllocateDeckMutation["previewBulkAllocateDeck"],
-  "allocationPreview"
->
 export type BuylistPrintingMode = "none" | "exact" | "cheapest"
 export type BuylistExportFormat = "text" | "csv"
 export type BuylistEntry = DeckBuylistQuery["deckBuylist"][number]

@@ -7,14 +7,12 @@ import { groupDeckCards, type DeckGroupBy } from "../../lib/deck-grouping"
 import { request } from "../../lib/graphql"
 import { present } from "../../lib/utils"
 import { deckCardsTotalPrice, formatUsdCents } from "./buylist-export"
-import { hasMainboardAllocationAvailable } from "./deck-allocation-model"
+import { createDeckPullList, selectedDeckPullListEntries, type DeckPullListMode } from "./deck-allocation-model"
 import { compareDeckCards, countDeckZones } from "./deck-card-model"
 import { deckLegalityIssues } from "./deck-legality"
 import { useDeferredDeckAnalysis } from "./deck-stats-panel"
 import {
   flattenDeck,
-  type BulkAllocationMode,
-  type BulkAllocationPreview,
   type DeckCardEntry,
   type DeckCardTag,
   type DeckZone,
@@ -32,13 +30,11 @@ import {
   AddDeckCardDocument,
   AllocateDeckCardItemDocument,
   AllocateDeckCardProxyDocument,
-  BulkAllocateDeckDocument,
   DeallocateDeckCardItemDocument,
   DeallocateDeckCardProxyDocument,
   DeckDocument,
   DeleteDeckCardDocument,
   DeleteDeckDocument,
-  PreviewBulkAllocateDeckDocument,
   SetDeckCommanderDocument,
   UpdateDeckCardDocument,
   UpdateDeckCardsTagDocument,
@@ -70,9 +66,11 @@ export function DeckDetailPage({
   const [previewDeckCard, setPreviewDeckCard] = useState<DeckCardEntry | null>(null)
   const [isSharePlaytestOpen, setIsSharePlaytestOpen] = useState(false)
   const [isShareBuylistOpen, setIsShareBuylistOpen] = useState(false)
-  const [bulkAllocationPreview, setBulkAllocationPreview] = useState<BulkAllocationPreview | null>(
-    null,
-  )
+  const [isBulkAllocationOpen, setIsBulkAllocationOpen] = useState(false)
+  const [bulkAllocationMode, setBulkAllocationMode] = useState<DeckPullListMode>("any")
+  const [selectedBulkAllocationItemIds, setSelectedBulkAllocationItemIds] = useState<
+    Record<string, string | null>
+  >({})
   const [bulkAllocationError, setBulkAllocationError] = useState<string | null>(null)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -92,6 +90,15 @@ export function DeckDetailPage({
   const deck = useMemo(() => flattenDeck(data?.deck), [data?.deck])
   const [isAddCardOpen, setIsAddCardOpen] = useState(false)
   const deckCards = useMemo(() => deck?.deckCards || [], [deck?.deckCards])
+  const bulkAllocationPullList = useMemo(
+    () =>
+      createDeckPullList(
+        shareMode ? [] : deckCards,
+        selectedBulkAllocationItemIds,
+        bulkAllocationMode,
+      ),
+    [bulkAllocationMode, deckCards, selectedBulkAllocationItemIds, shareMode],
+  )
   const { copySharedDecklist, downloadSharedDecklist, shareCopyState } = useSharedDecklistActions(
     deck?.name || "deck",
     deckCards,
@@ -163,8 +170,10 @@ export function DeckDetailPage({
     return selectionDeckCardIds.map((deckCardId) => deckCardById.get(deckCardId)).filter(present)
   }, [deckCards, selectionDeckCardIds])
   const hasBulkAllocationAvailable = useMemo(
-    () => !shareMode && hasMainboardAllocationAvailable(deckCards),
-    [deckCards, shareMode],
+    () =>
+      !shareMode &&
+      (bulkAllocationPullList.exactEntries.length > 0 || bulkAllocationPullList.choices.length > 0),
+    [bulkAllocationPullList, shareMode],
   )
 
   const updateDeckCard = useMutation({
@@ -318,26 +327,21 @@ export function DeckDetailPage({
       invalidateAllocationQueries()
     },
   })
-  const previewBulkAllocateDeck = useMutation({
-    mutationFn: (mode: BulkAllocationMode) =>
-      request(PreviewBulkAllocateDeckDocument, { id, mode }),
-    onSuccess: (data) => {
-      setBulkAllocationPreview(data.previewBulkAllocateDeck?.allocationPreview || null)
-      setBulkAllocationError(null)
+  const allocateDeckPullList = useMutation({
+    mutationFn: async (entries: ReturnType<typeof selectedDeckPullListEntries>) => {
+      for (const entry of entries) {
+        for (let copy = 0; copy < entry.quantity; copy += 1) {
+          await request(AllocateDeckCardItemDocument, {
+            deckCardId: entry.deckCard.id,
+            collectionItemId: entry.candidate.item.id,
+          })
+        }
+      }
     },
-    onError: (error) =>
-      setBulkAllocationError(
-        error instanceof Error ? error.message : "Could not preview allocation",
-      ),
-  })
-  const bulkAllocateDeck = useMutation({
-    mutationFn: (mode: BulkAllocationMode) => request(BulkAllocateDeckDocument, { id, mode }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["deck", id] })
-      queryClient.invalidateQueries({ queryKey: ["decks"] })
-      queryClient.invalidateQueries({ queryKey: ["collection"] })
-      queryClient.invalidateQueries({ queryKey: ["collection-items"] })
-      setBulkAllocationPreview(null)
+      invalidateAllocationQueries()
+      setIsBulkAllocationOpen(false)
+      setSelectedBulkAllocationItemIds({})
       setBulkAllocationError(null)
     },
     onError: (error) =>
@@ -459,8 +463,7 @@ export function DeckDetailPage({
         groupBy={groupBy}
         groupedCards={groupedCards}
         highlightedDeckCardIds={highlightedDeckCardIds}
-        isBulkAllocating={bulkAllocateDeck.isPending}
-        isPreviewingBulkAllocation={previewBulkAllocateDeck.isPending}
+        isBulkAllocating={allocateDeckPullList.isPending}
         isSelectionActive={isSelectionActive}
         isUpdatingDeckCard={isUpdatingDeckCard}
         legalityIssues={legalityIssues}
@@ -496,9 +499,9 @@ export function DeckDetailPage({
         onOpenShareDeck={() => setIsShareDeckOpen(true)}
         onOpenShareBuylist={() => setIsShareBuylistOpen(true)}
         onOpenSharePlaytest={() => setIsSharePlaytestOpen(true)}
-        onPreviewBulkAllocation={(mode) => {
+        onOpenBulkAllocation={() => {
           setBulkAllocationError(null)
-          previewBulkAllocateDeck.mutate(mode)
+          setIsBulkAllocationOpen(true)
         }}
         onPreviewCard={setPreviewDeckCard}
         onSelectAllDeckCards={selectAllDeckCards}
@@ -535,7 +538,9 @@ export function DeckDetailPage({
       <DeckDetailDialogs
         addCardError={addDeckCard.error instanceof Error ? addDeckCard.error.message : null}
         bulkAllocationError={bulkAllocationError}
-        bulkAllocationPreview={bulkAllocationPreview}
+        bulkAllocationMode={bulkAllocationMode}
+        bulkAllocationOpen={isBulkAllocationOpen}
+        bulkAllocationPullList={bulkAllocationPullList}
         deck={deck}
         deleteCardTarget={deleteCardTarget}
         editError={editError}
@@ -544,7 +549,7 @@ export function DeckDetailPage({
         edhrecTab={edhrecTab}
         isAddCardOpen={isAddCardOpen}
         isAddingCard={addDeckCard.isPending}
-        isBulkAllocating={bulkAllocateDeck.isPending}
+        isBulkAllocating={allocateDeckPullList.isPending}
         isDeleteDeckOpen={isDeleteDeckOpen}
         isDeleteSelectedOpen={isDeleteSelectedOpen}
         isEditDeckOpen={isEditDeckOpen}
@@ -557,10 +562,15 @@ export function DeckDetailPage({
         moveError={moveError}
         moveTarget={moveTarget}
         onAddCardOpenChange={setIsAddCardOpen}
+        onBulkAllocationModeChange={(mode) => {
+          setBulkAllocationMode(mode)
+          setSelectedBulkAllocationItemIds({})
+          setBulkAllocationError(null)
+        }}
         onAddEdhrecCard={addEdhrecCard}
-        onCloseBulkAllocationPreview={() => {
-          if (!bulkAllocateDeck.isPending) {
-            setBulkAllocationPreview(null)
+        onCloseBulkAllocation={() => {
+          if (!allocateDeckPullList.isPending) {
+            setIsBulkAllocationOpen(false)
             setBulkAllocationError(null)
           }
         }}
@@ -576,7 +586,10 @@ export function DeckDetailPage({
             setMoveTarget(null)
           }
         }}
-        onConfirmBulkAllocation={(mode) => bulkAllocateDeck.mutate(mode)}
+        onConfirmBulkAllocation={() => {
+          setBulkAllocationError(null)
+          allocateDeckPullList.mutate(selectedDeckPullListEntries(bulkAllocationPullList))
+        }}
         onDeleteCardTargetChange={setDeleteCardTarget}
         onDeleteCurrentDeck={deleteCurrentDeck}
         onDeleteDeckOpenChange={setIsDeleteDeckOpen}
@@ -597,9 +610,17 @@ export function DeckDetailPage({
           if (!open) setPreviewDeckCard(null)
         }}
         onSetEdhrecState={setEdhrecState}
+        onSelectBulkAllocationChoice={(choiceId, collectionItemId) => {
+          setSelectedBulkAllocationItemIds((selectedItemIds) => ({
+            ...selectedItemIds,
+            [choiceId]: collectionItemId,
+          }))
+          setBulkAllocationError(null)
+        }}
         onShareDeckOpenChange={setIsShareDeckOpen}
         previewDeckCard={previewDeckCard}
         previewDeckCards={previewDeckCards}
+        selectedBulkAllocationItemIds={selectedBulkAllocationItemIds}
         selectedDeckCardCount={selectedDeckCardCount}
         shareMode={shareMode}
         updateDeckCardPending={updateDeckCard.isPending}

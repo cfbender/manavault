@@ -39,7 +39,6 @@ import {
   type DeferredDeckAnalysis,
 } from "./deck-stats-panel";
 import type {
-  BulkAllocationMode,
   DeckCardEntry,
   DeckCardTag,
   DeckDetail,
@@ -104,7 +103,6 @@ export function DeckDetailContent({
   groupedCards,
   highlightedDeckCardIds,
   isBulkAllocating,
-  isPreviewingBulkAllocation,
   isSelectionActive,
   isUpdatingDeckCard,
   legalityIssues,
@@ -130,7 +128,7 @@ export function DeckDetailContent({
   onOpenShareDeck,
   onOpenShareBuylist,
   onOpenSharePlaytest,
-  onPreviewBulkAllocation,
+  onOpenBulkAllocation,
   onPreviewCard,
   onSelectAllDeckCards,
   onSetCommander,
@@ -161,7 +159,6 @@ export function DeckDetailContent({
   groupedCards: DeckGroup<DeckCardEntry>[];
   highlightedDeckCardIds: Set<string> | null;
   isBulkAllocating: boolean;
-  isPreviewingBulkAllocation: boolean;
   isSelectionActive: boolean;
   isUpdatingDeckCard: boolean;
   legalityIssues: DeckLegalityIssue[];
@@ -187,7 +184,7 @@ export function DeckDetailContent({
   onOpenShareDeck: () => void;
   onOpenShareBuylist: () => void;
   onOpenSharePlaytest: () => void;
-  onPreviewBulkAllocation: (mode: BulkAllocationMode) => void;
+  onOpenBulkAllocation: () => void;
   onPreviewCard: (deckCard: DeckCardEntry) => void;
   onSelectAllDeckCards: () => void;
   onSetCommander: (deckCard: DeckCardEntry) => void;
@@ -369,10 +366,7 @@ export function DeckDetailContent({
               Add card
             </Button>
             {canBulkAllocate ? (
-              <BulkAllocationMenu
-                disabled={isPreviewingBulkAllocation || isBulkAllocating}
-                onPreview={onPreviewBulkAllocation}
-              />
+              <BulkAllocationMenu disabled={isBulkAllocating} onOpen={onOpenBulkAllocation} />
             ) : null}
           </ShareModeHidden>
           <DeckGroupMenu value={groupBy} onChange={onGroupByChange} />
