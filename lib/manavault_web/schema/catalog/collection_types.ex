@@ -253,6 +253,7 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :language, :string
     field :finish, :string
     field :location_id, :id
+    field :card_id, :id
   end
 
   input_object :collection_item_sort do

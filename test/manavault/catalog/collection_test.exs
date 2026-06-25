@@ -262,6 +262,10 @@ defmodule Manavault.Catalog.CollectionTest do
     assert [found] = Catalog.list_collection_items(q: "scryfall-printing-2")
     assert found.id == walk.id
 
+    assert [found] = Catalog.list_collection_items(card_id: "oracle-1")
+    assert found.id == lotus.id
+    assert [] = Catalog.list_collection_items(card_id: "missing")
+
     assert [found] = Catalog.list_collection_items(condition: "near_mint")
     assert found.id == lotus.id
 

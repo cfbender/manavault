@@ -190,10 +190,27 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
            args
            |> Map.get(:filters, %{})
            |> Enum.into([])
-           |> RelayHelpers.put_filter_node_id(:location_id, :location, resolution) do
+           |> RelayHelpers.put_filter_node_id(:location_id, :location, resolution),
+         {:ok, filters} <- put_card_filter_id(filters, resolution) do
       {:ok, stringify_filter_id(filters, :location_id)}
     end
   end
+
+  defp put_card_filter_id(filters, resolution) do
+    case Keyword.fetch(filters, :card_id) do
+      {:ok, value} ->
+        with {:ok, id} <- optional_card_id(value, resolution) do
+          {:ok, Keyword.put(filters, :card_id, id)}
+        end
+
+      :error ->
+        {:ok, filters}
+    end
+  end
+
+  defp optional_card_id(nil, _resolution), do: {:ok, nil}
+  defp optional_card_id("", _resolution), do: {:ok, nil}
+  defp optional_card_id(id, resolution), do: card_id(id, resolution)
 
   defp stringify_filter_id(filters, key) do
     Keyword.update(filters, key, nil, fn

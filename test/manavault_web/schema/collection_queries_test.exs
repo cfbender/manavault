@@ -289,6 +289,16 @@ defmodule ManavaultWeb.Schema.CollectionQueriesTest do
               }
             }
           }
+          collectionItemCount(filters: { cardId: $id })
+          collectionItems(first: 10, filters: { cardId: $id }) {
+            edges {
+              node {
+                quantity
+                printing { scryfallId }
+                location { name }
+              }
+            }
+          }
         }
         """,
         "variables" => %{"id" => card_id}
@@ -325,6 +335,34 @@ defmodule ManavaultWeb.Schema.CollectionQueriesTest do
                      }
                    ]
                  }
+               }
+             }
+           } = json_response(conn, 200)
+
+    assert %{
+             "data" => %{
+               "collectionItemCount" => 4,
+               "collectionItems" => %{
+                 "edges" => [
+                   %{
+                     "node" => %{
+                       "quantity" => 1,
+                       "printing" => %{"scryfallId" => "scryfall-owned-new"}
+                     }
+                   },
+                   %{
+                     "node" => %{
+                       "quantity" => 2,
+                       "printing" => %{"scryfallId" => "scryfall-owned-old"}
+                     }
+                   },
+                   %{
+                     "node" => %{
+                       "quantity" => 1,
+                       "printing" => %{"scryfallId" => "scryfall-owned-old"}
+                     }
+                   }
+                 ]
                }
              }
            } = json_response(conn, 200)

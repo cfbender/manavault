@@ -13,6 +13,7 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries.Base do
     language = filters |> Keyword.get(:language, "") |> normalize_filter()
     finish = filters |> Keyword.get(:finish, "") |> normalize_filter()
     location_id = filters |> Keyword.get(:location_id, "") |> normalize_filter()
+    card_id = filters |> Keyword.get(:card_id, "") |> normalize_filter()
     include_list_locations? = Keyword.get(filters, :include_list_locations, false)
 
     CollectionItem
@@ -20,12 +21,19 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries.Base do
     |> join(:inner, [_item, printing], card in assoc(printing, :card))
     |> join(:left, [item, _printing, _card], location in assoc(item, :location_assoc))
     |> SearchFilter.apply(query)
+    |> maybe_filter_card_id(card_id)
     |> maybe_filter_condition(condition)
     |> maybe_filter_language(language)
     |> maybe_filter_finish(finish)
     |> maybe_filter_location(location_id)
     |> maybe_exclude_deck_allocations(location_id)
     |> maybe_exclude_list_locations(location_id, include_list_locations?)
+  end
+
+  defp maybe_filter_card_id(query, ""), do: query
+
+  defp maybe_filter_card_id(query, card_id) do
+    where(query, [_item, _printing, card, _location], card.oracle_id == ^card_id)
   end
 
   defp maybe_filter_condition(query, ""), do: query

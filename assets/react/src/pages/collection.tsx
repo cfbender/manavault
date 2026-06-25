@@ -1,5 +1,6 @@
 export { CollectionPage } from "./collection/collection-page"
 export { CollectionFilterModal } from "./collection/filter-modal"
-export { AddCollectionItemDialog } from "./collection/item-dialogs"
+export { AddCollectionItemDialog, EditCollectionItemDialog } from "./collection/item-dialogs"
+export { invalidateCollectionViews } from "./collection/collection-navigation"
 export { LocationPage } from "./collection/location-page"
-export type { AddCollectionItemInitialPrinting } from "./collection/types"
+export type { AddCollectionItemInitialPrinting, CollectionItem } from "./collection/types"

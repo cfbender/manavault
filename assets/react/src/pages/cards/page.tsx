@@ -23,6 +23,7 @@ import {
   type AddCollectionItemInitialPrinting,
 } from "../collection"
 import { AddCatalogCardToDeckDialog, type CardDeckTarget } from "./add-card-to-deck-dialog"
+import { CardCollectionCopiesPanel } from "./card-collection-copies"
 import { CardPrintingsGrid } from "./card-printings-grid"
 import { CardResultsGrid } from "./card-results-grid"
 import { ManaText, OracleText } from "./card-text"
@@ -265,6 +266,8 @@ export function CardDetailPage({
             </div>
           </div>
         </section>
+
+        <CardCollectionCopiesPanel cardId={card.id} cardQueryId={id} />
 
         <CardPrintingsGrid
           cardName={card.name}

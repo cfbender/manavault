@@ -1,5 +1,5 @@
 import { graphql } from "../../gql"
-import type { CardQuery } from "../../gql/graphql"
+import type { CardCollectionItemsQuery, CardQuery } from "../../gql/graphql"
 
 export const CardsDocument = graphql(`
   query Cards($q: String!, $limit: Int!) {
@@ -139,8 +139,59 @@ export const CardDocument = graphql(`
   }
 `)
 
+export const CardCollectionItemsDocument = graphql(`
+  query CardCollectionItems($cardId: ID!) {
+    collectionItemCount(filters: { cardId: $cardId })
+    collectionItems(first: 100, filters: { cardId: $cardId }) {
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+      edges {
+        node {
+          id
+          quantity
+          condition
+          language
+          finish
+          notes
+          priceText
+          purchasePriceCents
+          purchasePriceText
+          valueGainText
+          valueGainPercentText
+          allocatedQuantity
+          location {
+            id
+            name
+          }
+          printing {
+            id
+            scryfallId
+            setCode
+            setName
+            collectorNumber
+            imageUrl
+            rarity
+            card {
+              id
+              oracleId
+              name
+              typeLine
+            }
+          }
+        }
+      }
+    }
+  }
+`)
+
 export type CardDetail = NonNullable<CardQuery["card"]>
 export type CardRuling = NonNullable<CardDetail["rulings"]>[number]
+type CardCollectionItemsEdge = NonNullable<
+  NonNullable<CardCollectionItemsQuery["collectionItems"]["edges"]>[number]
+>
+export type CardCollectionItem = NonNullable<CardCollectionItemsEdge["node"]>
 export type CardLegality = CardDetail["legalities"][number]
 
 export const CARD_LEGALITY_FORMATS = [
