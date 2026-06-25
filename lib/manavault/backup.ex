@@ -12,7 +12,14 @@ defmodule Manavault.Backup do
   @db_name "manavault.db"
   @manifest_name "manifest.json"
   @default_local_paths []
+  @catalog_tables ~w(
+    scryfall_printing_search
+    scryfall_syncs
+    scryfall_printings
+    scryfall_cards
+  )
 
+  alias Exqlite.Sqlite3, as: SQLite
   alias Manavault.Backup.{Cloud, Settings}
 
   def settings, do: Settings.get!()
@@ -126,6 +133,149 @@ defmodule Manavault.Backup do
     ensure_repo_started!(repo)
     escaped_path = String.replace(snapshot_path, "'", "''")
     Ecto.Adapters.SQL.query!(repo, "VACUUM main INTO '#{escaped_path}'", [])
+    prune_snapshot_catalog!(snapshot_path)
+  end
+
+  defp prune_snapshot_catalog!(snapshot_path) do
+    conn = open_snapshot!(snapshot_path)
+
+    try do
+      execute_snapshot!(
+        conn,
+        snapshot_path,
+        "disable foreign-key enforcement",
+        "PRAGMA foreign_keys = OFF"
+      )
+
+      conn
+      |> existing_catalog_tables!(snapshot_path)
+      |> Enum.each(&delete_snapshot_table!(conn, snapshot_path, &1))
+
+      execute_snapshot!(conn, snapshot_path, "vacuum pruned snapshot", "VACUUM")
+    after
+      close_snapshot!(conn, snapshot_path)
+    end
+  end
+
+  defp open_snapshot!(snapshot_path) do
+    if not File.exists?(snapshot_path) do
+      raise_snapshot_error!(snapshot_path, "could not open snapshot database", :enoent)
+    end
+
+    case SQLite.open(snapshot_path) do
+      {:ok, conn} ->
+        conn
+
+      {:error, reason} ->
+        raise_snapshot_error!(
+          snapshot_path,
+          "could not open snapshot database",
+          reason
+        )
+    end
+  end
+
+  defp existing_catalog_tables!(conn, snapshot_path) do
+    placeholders = Enum.map_join(@catalog_tables, ", ", fn _table -> "?" end)
+
+    sql = """
+    SELECT name FROM sqlite_schema
+    WHERE type = 'table' AND name IN (#{placeholders})
+    """
+
+    rows = query_snapshot!(conn, snapshot_path, sql, @catalog_tables)
+
+    existing =
+      rows
+      |> Enum.map(fn [name] -> name end)
+      |> MapSet.new()
+
+    Enum.filter(@catalog_tables, &MapSet.member?(existing, &1))
+  end
+
+  defp delete_snapshot_table!(conn, snapshot_path, table) do
+    execute_snapshot!(
+      conn,
+      snapshot_path,
+      "delete #{table} rows",
+      "DELETE FROM #{table}"
+    )
+  end
+
+  defp execute_snapshot!(conn, snapshot_path, operation, sql) do
+    case SQLite.execute(conn, sql) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        raise_snapshot_error!(snapshot_path, "could not #{operation}", reason)
+    end
+  end
+
+  defp query_snapshot!(conn, snapshot_path, sql, args) do
+    statement = prepare_snapshot_query!(conn, snapshot_path, sql)
+
+    try do
+      bind_snapshot_query!(statement, snapshot_path, args)
+      fetch_snapshot_rows!(conn, statement, snapshot_path)
+    after
+      release_snapshot_query!(conn, statement, snapshot_path)
+    end
+  end
+
+  defp prepare_snapshot_query!(conn, snapshot_path, sql) do
+    case SQLite.prepare(conn, sql) do
+      {:ok, statement} ->
+        statement
+
+      {:error, reason} ->
+        raise_snapshot_error!(snapshot_path, "could not query catalog tables", reason)
+    end
+  end
+
+  defp bind_snapshot_query!(statement, snapshot_path, args) do
+    case SQLite.bind(statement, args) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        raise_snapshot_error!(snapshot_path, "could not query catalog tables", reason)
+    end
+  end
+
+  defp fetch_snapshot_rows!(conn, statement, snapshot_path) do
+    case SQLite.fetch_all(conn, statement) do
+      {:ok, rows} ->
+        rows
+
+      {:error, reason} ->
+        raise_snapshot_error!(snapshot_path, "could not query catalog tables", reason)
+    end
+  end
+
+  defp release_snapshot_query!(conn, statement, snapshot_path) do
+    case SQLite.release(conn, statement) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        raise_snapshot_error!(snapshot_path, "could not release catalog query", reason)
+    end
+  end
+
+  defp close_snapshot!(conn, snapshot_path) do
+    case SQLite.close(conn) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        raise_snapshot_error!(snapshot_path, "could not close snapshot database", reason)
+    end
+  end
+
+  defp raise_snapshot_error!(snapshot_path, message, reason) do
+    raise "failed to prune backup snapshot #{snapshot_path}: " <>
+            "#{message}: #{inspect(reason)}"
   end
 
   defp ensure_repo_started!(repo) do

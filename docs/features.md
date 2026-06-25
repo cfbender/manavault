@@ -151,7 +151,8 @@ Android release signing, App Links, and custom-domain builds are documented in
 
 ManaVault supports:
 
-- local backup zip creation with SQLite `VACUUM INTO`
+- local backup zip creation with SQLite `VACUUM INTO`, excluding replaceable
+  Scryfall catalog rows
 - local restore with pre-restore safety backup
 - pre-migration backup before release migrations
 - cloud backup settings for Google Drive and S3-compatible storage
