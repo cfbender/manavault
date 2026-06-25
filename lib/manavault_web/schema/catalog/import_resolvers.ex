@@ -10,7 +10,8 @@ defmodule ManavaultWeb.Schema.Catalog.ImportResolvers do
       case Catalog.preview_collection_import(input.text,
              format: Map.get(input, :format, :auto),
              file_name: Map.get(input, :file_name),
-             location_id: location_id
+             location_id: location_id,
+             purchase_price_cents: Map.get(input, :purchase_price_cents)
            ) do
         {:ok, preview} -> {:ok, preview}
         {:error, reason} -> {:error, Errors.import_error(reason)}

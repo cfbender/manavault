@@ -9,13 +9,17 @@ defmodule Manavault.Catalog.Collection.Import do
     location_id = Keyword.get(opts, :location_id)
     format = Keyword.get(opts, :format, :auto)
     file_name = Keyword.get(opts, :file_name)
+    purchase_price_cents = Keyword.get(opts, :purchase_price_cents)
 
     with {:ok, normalized_location_id} <- normalize_location_id(location_id),
+         {:ok, default_purchase_price_cents} <-
+           normalize_purchase_price_cents(purchase_price_cents),
          {:ok, rows} <- CollectionImport.parse(text, format: format, file_name: file_name) do
       import_rows =
         Enum.map(rows, fn {row, row_number} ->
           row
           |> CollectionImport.attrs()
+          |> put_default_import_purchase_price(default_purchase_price_cents)
           |> preview_row(row_number, normalized_location_id)
         end)
 
@@ -104,6 +108,15 @@ defmodule Manavault.Catalog.Collection.Import do
     end
   end
 
+  defp put_default_import_purchase_price(attrs, cents) when is_integer(cents) do
+    case Map.get(attrs, "purchase_price_cents") do
+      nil -> Map.put(attrs, "purchase_price_cents", cents)
+      _value -> attrs
+    end
+  end
+
+  defp put_default_import_purchase_price(attrs, _cents), do: attrs
+
   defp preview_row(attrs, row_number, location_id) do
     attrs = Map.put(attrs, "location_id", location_id)
 
@@ -169,6 +182,14 @@ defmodule Manavault.Catalog.Collection.Import do
       unresolved: Enum.count(rows, &(&1.status == :unresolved))
     }
   end
+
+  defp normalize_purchase_price_cents(nil), do: {:ok, nil}
+  defp normalize_purchase_price_cents(""), do: {:ok, nil}
+
+  defp normalize_purchase_price_cents(cents) when is_integer(cents) and cents >= 0,
+    do: {:ok, cents}
+
+  defp normalize_purchase_price_cents(_cents), do: {:error, :invalid_purchase_price}
 
   defp normalize_location_id(nil), do: {:ok, nil}
   defp normalize_location_id(""), do: {:ok, nil}

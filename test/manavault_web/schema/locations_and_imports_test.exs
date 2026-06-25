@@ -88,8 +88,8 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
     {:ok, location} = Catalog.create_location(%{name: "Import Binder", kind: "binder"})
 
     csv = """
-    Quantity,Card Name,Set Code,Collector Number,Finish,Condition,Language,Purchase Price
-    3,Imported Card,imp,9,nonfoil,NM,en,3.00
+    Quantity,Card Name,Set Code,Collector Number,Finish,Condition,Language
+    3,Imported Card,imp,9,nonfoil,NM,en
     """
 
     preview_conn =
@@ -118,7 +118,8 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
           "input" => %{
             "text" => csv,
             "format" => "csv",
-            "locationId" => global_id(:location, location.id)
+            "locationId" => global_id(:location, location.id),
+            "purchasePriceCents" => 100
           }
         }
       })
@@ -143,7 +144,7 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
                            "condition" => "near_mint",
                            "language" => "en",
                            "scryfallId" => "scryfall-printing-import",
-                           "purchasePriceCents" => 300
+                           "purchasePriceCents" => 100
                          },
                          "printing" => %{
                            "scryfallId" => "scryfall-printing-import",
@@ -204,7 +205,7 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
     assert export_csv =~
              "Quantity,Card Name,Set Code,Collector Number,Finish,Condition,Language,Location,Purchase Price"
 
-    assert export_csv =~ "3,Imported Card,imp,9,nonfoil,near_mint,en,Import Binder,$3"
+    assert export_csv =~ "3,Imported Card,imp,9,nonfoil,near_mint,en,Import Binder,$1"
 
     text_conn =
       post(conn, "/api/graphql", %{

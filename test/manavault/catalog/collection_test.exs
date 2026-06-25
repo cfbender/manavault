@@ -68,6 +68,34 @@ defmodule Manavault.Catalog.CollectionTest do
     assert Catalog.count_collection_items([]) == 3
   end
 
+  test "collection import applies a default purchase price to rows without prices" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    csv = """
+    Quantity,Card Name,Set Code,Collector Number,Finish,Purchase Price
+    1,Black Lotus,lea,232,nonfoil,42.00
+    1,Time Walk,lea,84,foil,
+    """
+
+    assert {:ok, preview} =
+             Catalog.preview_collection_import(csv,
+               format: :csv,
+               purchase_price_cents: 100
+             )
+
+    assert Enum.map(preview.rows, & &1.attrs["purchase_price_cents"]) == [4_200, 100]
+
+    assert {:ok, %{imported: 2, skipped: 0}} =
+             Catalog.import_collection(csv,
+               format: :csv,
+               purchase_price_cents: 100
+             )
+
+    items = Catalog.list_collection_items([], limit: 10)
+    assert Enum.map(items, & &1.purchase_price_cents) == [4_200, 100]
+  end
+
   test "collection listings exclude list location items unless filtering to that list" do
     assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
     assert {:ok, binder} = Catalog.create_location(%{name: "Trade Binder", kind: "binder"})

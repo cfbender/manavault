@@ -24,7 +24,7 @@ import {
   PreviewCollectionImportAutoSortDocument,
   PreviewCollectionImportDocument,
 } from "./documents"
-import { printingSetLabel } from "./form-helpers"
+import { centsToCurrencyInput, parseCurrencyInputCents, printingSetLabel } from "./form-helpers"
 import {
   collectionImportCounts,
   commitImportRow,
@@ -58,6 +58,7 @@ export function ImportCollectionDialog({
   const [sharedFileName, setSharedFileName] = useState<string | null>(null)
   const [format, setFormat] = useState<CollectionImportFormat>("auto")
   const [locationId, setLocationId] = useState("")
+  const [purchasePrice, setPurchasePrice] = useState("")
   const [preview, setPreview] = useState<CollectionImportPreview | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isAutoSortSetupOpen, setIsAutoSortSetupOpen] = useState(false)
@@ -73,15 +74,24 @@ export function ImportCollectionDialog({
   )
   const autoSortRules = optionsQuery.data?.collectionAutoSortRules ?? []
   const previewImport = useMutation({
-    mutationFn: (values?: PreviewCollectionImportValues) =>
-      request(PreviewCollectionImportDocument, {
+    mutationFn: (values?: PreviewCollectionImportValues) => {
+      const priceInput = values?.purchasePrice ?? purchasePrice
+      const purchasePriceCents = parseCurrencyInputCents(priceInput)
+
+      if (purchasePriceCents === undefined) {
+        throw new Error("Purchase price must be a dollar amount")
+      }
+
+      return request(PreviewCollectionImportDocument, {
         input: {
           text: values?.text ?? importText,
           format: values?.format ?? format,
           fileName: (values?.fileName ?? fileName) || null,
           locationId: (values?.locationId ?? locationId) || null,
+          purchasePriceCents,
         },
-      }),
+      })
+    },
     onSuccess: (data) => {
       setPreview(data.previewCollectionImport?.importPreview || null)
       clearAutoSortPreview()
@@ -172,12 +182,23 @@ export function ImportCollectionDialog({
     clearAutoSortPreview()
   }
 
+  function updatePurchasePrice(value: string) {
+    setPurchasePrice(value)
+    setPreview(null)
+    clearAutoSortPreview()
+  }
+
   function submitPreview(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
 
     if (!importText.trim()) {
       setError("Choose or paste a CSV or TXT file to import")
+      return
+    }
+
+    if (parseCurrencyInputCents(purchasePrice) === undefined) {
+      setError("Purchase price must be a dollar amount")
       return
     }
 
@@ -236,6 +257,7 @@ export function ImportCollectionDialog({
     setSharedFileName(null)
     setFormat("auto")
     setLocationId("")
+    setPurchasePrice("")
     setPreview(null)
     setAutoSortPreview(null)
     setError(null)
@@ -289,6 +311,24 @@ export function ImportCollectionDialog({
                     </option>
                   ))}
               </select>
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Purchase price per card
+              </span>
+              <input
+                type="text"
+                inputMode="decimal"
+                className="input input-bordered w-full bg-base-100"
+                value={purchasePrice}
+                onChange={(event) => updatePurchasePrice(event.target.value)}
+                placeholder="$1.00"
+              />
+              <p className="text-sm text-base-content/55">
+                Optional default for rows without a purchase price column. Enter $1 for a $15
+                15-card pack.
+              </p>
             </label>
 
             <label className="block space-y-2">
@@ -377,6 +417,7 @@ export function ImportCollectionDialog({
                       <th>Card</th>
                       <th>Qty</th>
                       <th>Finish</th>
+                      <th>Purchase</th>
                       <th>Review</th>
                     </tr>
                   </thead>
@@ -392,6 +433,7 @@ export function ImportCollectionDialog({
                         <td>{row.printing?.card?.name || row.attrs.name || "Unknown card"}</td>
                         <td>{row.attrs.quantity}</td>
                         <td>{row.attrs.finish}</td>
+                        <td>{importPurchasePriceText(row.attrs.purchasePriceCents)}</td>
                         <td>
                           {row.status === "ambiguous" ? (
                             <div className="flex flex-wrap gap-1">
@@ -482,6 +524,11 @@ export function ImportCollectionDialog({
       />
     </>
   )
+}
+
+function importPurchasePriceText(cents?: number | null) {
+  if (typeof cents !== "number" || !Number.isFinite(cents)) return "-"
+  return `$${centsToCurrencyInput(cents)}`
 }
 
 export function ExportCollectionDialog({

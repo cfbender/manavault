@@ -169,12 +169,13 @@ export function DeckDetailPage({
     const deckCardById = new Map(deckCards.map((deckCard) => [deckCard.id, deckCard]))
     return selectionDeckCardIds.map((deckCardId) => deckCardById.get(deckCardId)).filter(present)
   }, [deckCards, selectionDeckCardIds])
-  const hasBulkAllocationAvailable = useMemo(
-    () =>
-      !shareMode &&
-      (bulkAllocationPullList.exactEntries.length > 0 || bulkAllocationPullList.choices.length > 0),
-    [bulkAllocationPullList, shareMode],
-  )
+  const hasBulkAllocationAvailable = useMemo(() => {
+    if (shareMode) return false
+
+    const availablePullList = createDeckPullList(deckCards, undefined, "any")
+
+    return availablePullList.exactEntries.length > 0 || availablePullList.choices.length > 0
+  }, [deckCards, shareMode])
 
   const updateDeckCard = useMutation({
     mutationFn: ({ deckCardId, input }: { deckCardId: string; input: DeckCardUpdateInput }) =>

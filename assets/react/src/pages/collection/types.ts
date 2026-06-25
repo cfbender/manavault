@@ -35,6 +35,7 @@ export type PreviewCollectionImportValues = {
   fileName: string
   format: CollectionImportFormat
   locationId: string
+  purchasePrice?: string
   text: string
 }
 export type CollectionExportFilters = { locationId?: string; q?: string }

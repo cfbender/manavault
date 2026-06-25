@@ -63,6 +63,7 @@ export type CollectionImportPreviewInput = {
   fileName?: string | null | undefined;
   format?: string | null | undefined;
   locationId?: string | number | null | undefined;
+  purchasePriceCents?: number | null | undefined;
   text: string;
 };
 

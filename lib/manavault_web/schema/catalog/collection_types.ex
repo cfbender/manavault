@@ -286,6 +286,7 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :format, :string
     field :file_name, :string
     field :location_id, :id
+    field :purchase_price_cents, :integer
   end
 
   input_object :collection_import_attrs_input do

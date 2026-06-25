@@ -14,6 +14,7 @@ defmodule ManavaultWeb.Schema.Catalog.Errors do
   def import_error(:location_not_found), do: "Import location was not found."
   def import_error(:invalid_import_format), do: "Import file must be a CSV or TXT file."
   def import_error(:invalid_import_file), do: "Could not parse that import file."
+  def import_error(:invalid_purchase_price), do: "Import purchase price must be a dollar amount."
   def import_error(_reason), do: "Could not import collection file."
 
   def deck_allocation_error(:collection_item_mismatch),

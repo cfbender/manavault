@@ -65,7 +65,7 @@ Collection workflows include:
 
 - single-card add/edit/delete
 - location create/edit/delete
-- TXT/CSV import preview and commit
+- TXT/CSV import preview and commit, with an optional default purchase price
 - CSV/TXT export for the current filters
 - Android/iOS share/open-with import handoff from native shells
 - search, sort, and structured filters for color, type, rarity, price, year,
