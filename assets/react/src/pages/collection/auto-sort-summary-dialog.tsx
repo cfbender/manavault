@@ -100,7 +100,10 @@ export function AutoSortSummaryDialog({
                       <li key={move.collectionItemId} className="space-y-1 px-4 py-3">
                         <div className="flex flex-wrap items-baseline justify-between gap-2">
                           <CardNamePreview move={move} />
-                          <p className="text-sm text-base-content/70">Qty {move.quantity}</p>
+                          <div className="flex flex-wrap items-center gap-2 text-sm text-base-content/70">
+                            <span>Qty {move.quantity}</span>
+                            <FinishBadge finish={move.finish} />
+                          </div>
                         </div>
                         <p className="text-sm text-base-content/70">
                           {isDryRun ? "Would move" : "Moved"} from {sourceLocationLabel(move)} to{" "}
@@ -157,6 +160,31 @@ function CountCard({ label, value }: { label: string; value: number }) {
       <dd className="mt-1 text-2xl font-black tracking-tight">{value}</dd>
     </div>
   )
+}
+
+function FinishBadge({ finish }: { finish: string }) {
+  const isFoil = finish === "foil" || finish === "etched"
+  const label = finishLabel(finish)
+
+  return (
+    <span
+      title={`${label} finish`}
+      className={
+        isFoil
+          ? "badge badge-sm border-accent/40 bg-accent/15 text-accent"
+          : "badge badge-sm badge-outline text-base-content/70"
+      }
+    >
+      {label}
+    </span>
+  )
+}
+
+function finishLabel(finish: string) {
+  if (finish === "foil") return "Foil"
+  if (finish === "etched") return "Etched foil"
+  if (finish === "nonfoil") return "Nonfoil"
+  return "Unknown finish"
 }
 
 type PreviewPosition = {

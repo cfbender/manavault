@@ -632,6 +632,7 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
                 cardId
                 imageUrl
                 quantity
+                finish
                 fromLocationId
                 fromLocationName
                 toLocationId
@@ -654,7 +655,7 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
                    "movedCount" => 1,
                    "skippedCount" => 1,
                    "dryRun" => true,
-                   "moves" => [%{"collectionItemId" => preview_item_id}]
+                   "moves" => [%{"collectionItemId" => preview_item_id, "finish" => "nonfoil"}]
                  }
                }
              }
@@ -679,6 +680,7 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
                 cardId
                 imageUrl
                 quantity
+                finish
                 fromLocationId
                 fromLocationName
                 toLocationId
@@ -708,6 +710,7 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
                        "cardId" => "oracle-auto-sort-red",
                        "imageUrl" => "https://example.test/red-sorter.jpg",
                        "quantity" => 1,
+                       "finish" => "nonfoil",
                        "fromLocationId" => source_id,
                        "fromLocationName" => "Sort Source",
                        "toLocationId" => target_id,
@@ -910,6 +913,7 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
                 cardId
                 imageUrl
                 quantity
+                finish
                 fromLocationId
                 fromLocationName
                 toLocationId
@@ -938,6 +942,7 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
                        "cardId" => "oracle-import-auto-sort",
                        "imageUrl" => nil,
                        "quantity" => 1,
+                       "finish" => "nonfoil",
                        "fromLocationId" => nil,
                        "fromLocationName" => "Unfiled",
                        "toLocationId" => preview_target_id,

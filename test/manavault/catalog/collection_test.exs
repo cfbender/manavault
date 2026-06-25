@@ -432,7 +432,7 @@ defmodule Manavault.Catalog.CollectionTest do
               dry_run: true,
               moved_count: 1,
               skipped_count: 2,
-              moves: [%{collection_item_id: preview_item_id}]
+              moves: [%{collection_item_id: preview_item_id, finish: "nonfoil"}]
             }} = Catalog.auto_sort_collection(dry_run: true)
 
     assert preview_item_id == item.id
@@ -450,6 +450,7 @@ defmodule Manavault.Catalog.CollectionTest do
                   card_id: "oracle-1",
                   image_url: "https://example.test/black-lotus.jpg",
                   quantity: 1,
+                  finish: "nonfoil",
                   from_location_id: nil,
                   from_location_name: "Unfiled",
                   to_location_id: high_priority_id,
@@ -485,7 +486,7 @@ defmodule Manavault.Catalog.CollectionTest do
               dry_run: true,
               moved_count: 1,
               skipped_count: 0,
-              moves: [%{collection_item_id: item_id, to_location_id: blue_id}]
+              moves: [%{collection_item_id: item_id, finish: "foil", to_location_id: blue_id}]
             }} =
              Catalog.auto_sort_collection(
                dry_run: true,
