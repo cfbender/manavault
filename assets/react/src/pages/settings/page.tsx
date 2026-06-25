@@ -1,21 +1,32 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { FormEvent } from "react"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { PageHeader } from "../../components/app-shell"
 import { request } from "../../lib/graphql"
+import { present } from "../../lib/utils"
+import { AutoSortSummaryDialog } from "../collection/auto-sort-summary-dialog"
+import { invalidateCollectionViews } from "../collection/collection-navigation"
+import { AutoSortCollectionDocument } from "../collection/documents"
+import type { AutoSortCollectionResult } from "../collection/types"
+import { CollectionAutoSortSection } from "./collection-auto-sort-section"
 import { BackupSettingsForm } from "./backup-settings-form"
 import {
   BackupSettingsDocument,
   CloudBackupsDocument,
+  CollectionAutoSortSettingsDocument,
   ReloadScryfallAssetsDocument,
   ReloadScryfallCatalogDocument,
   RunCloudBackupDocument,
   StageCloudRestoreDocument,
   UpdateBackupSettingsDocument,
+  UpdateCollectionAutoSortRulesDocument,
   backupSettingsInput,
   errorMessage,
   initialForm,
   providerValue,
+  type CollectionAutoSortRuleInput,
+  type CollectionAutoSortSettingsLocation,
+  type CollectionAutoSortSettingsRule,
   type FormState,
 } from "./data"
 import { NativeAppSection } from "./native-app-section"
@@ -30,6 +41,10 @@ export function SettingsPage() {
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [restoreId, setRestoreId] = useState("")
+  const [autoSortResult, setAutoSortResult] = useState<AutoSortCollectionResult | null>(null)
+  const [autoSortPreviewInput, setAutoSortPreviewInput] = useState<
+    CollectionAutoSortRuleInput[] | null
+  >(null)
   const { nativeShell, nativeSectionProps } = useNativeShellSection()
 
   const settingsQuery = useQuery({
@@ -43,6 +58,20 @@ export function SettingsPage() {
     queryFn: () => request(CloudBackupsDocument),
     enabled: !!settings && settings.provider !== "none",
   })
+
+  const autoSortQuery = useQuery({
+    queryKey: ["collection-auto-sort-settings"],
+    queryFn: () => request(CollectionAutoSortSettingsDocument),
+  })
+
+  const autoSortLocations: CollectionAutoSortSettingsLocation[] = useMemo(
+    () => autoSortQuery.data?.locations.edges?.map((edge) => edge?.node).filter(present) ?? [],
+    [autoSortQuery.data?.locations.edges],
+  )
+  const autoSortRules: CollectionAutoSortSettingsRule[] = useMemo(
+    () => autoSortQuery.data?.collectionAutoSortRules ?? [],
+    [autoSortQuery.data?.collectionAutoSortRules],
+  )
 
   const backups = backupsQuery.data?.cloudBackups ?? []
 
@@ -122,6 +151,48 @@ export function SettingsPage() {
     onError: (err) => setError(errorMessage(err)),
   })
 
+  const autoSortMutation = useMutation({
+    mutationFn: (input: CollectionAutoSortRuleInput[]) =>
+      request(UpdateCollectionAutoSortRulesDocument, { input }),
+    onSuccess: async (data) => {
+      const collectionAutoSortRules = data.updateCollectionAutoSortRules?.collectionAutoSortRules
+
+      setError(null)
+      setMessage("Collection auto-sort rules saved.")
+      if (collectionAutoSortRules) {
+        queryClient.setQueryData(["collection-auto-sort-settings"], (current: typeof autoSortQuery.data) => ({
+          locations: current?.locations ?? { edges: [] },
+          collectionAutoSortRules,
+        }))
+      }
+      await queryClient.invalidateQueries({ queryKey: ["collection-auto-sort-settings"] })
+      await queryClient.invalidateQueries({ queryKey: ["collection"] })
+      await queryClient.invalidateQueries({ queryKey: ["collection-item-form-options"] })
+      await queryClient.invalidateQueries({ queryKey: ["location"] })
+    },
+    onError: (err) => setError(errorMessage(err)),
+  })
+
+  const autoSortPreviewMutation = useMutation({
+    mutationFn: ({ dryRun, rules }: { dryRun: boolean; rules: CollectionAutoSortRuleInput[] }) =>
+      request(AutoSortCollectionDocument, { input: { sourceLocationId: null, dryRun, rules } }),
+    onSuccess: async (data, input) => {
+      const result = data.autoSortCollection?.autoSortResult
+
+      setError(null)
+      setAutoSortResult(result ?? null)
+      if (!input.dryRun) {
+        setMessage("Collection auto-sort complete.")
+        invalidateCollectionViews(queryClient)
+        await queryClient.invalidateQueries({ queryKey: ["location"] })
+      }
+    },
+    onError: (err) => {
+      setAutoSortResult(null)
+      setError(errorMessage(err))
+    },
+  })
+
   function submitSettings(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setMessage(null)
@@ -158,18 +229,45 @@ export function SettingsPage() {
     assetReloadMutation.mutate()
   }
 
+  function saveAutoSortRules(input: CollectionAutoSortRuleInput[]) {
+    setMessage(null)
+    setError(null)
+    autoSortMutation.mutate(input)
+  }
+
+  function previewAutoSortRules(input: CollectionAutoSortRuleInput[]) {
+    setMessage(null)
+    setError(null)
+    setAutoSortResult(null)
+    setAutoSortPreviewInput(input)
+    autoSortPreviewMutation.mutate({ dryRun: true, rules: input })
+  }
+
+  function applyAutoSortPreview() {
+    if (!autoSortPreviewInput) return
+
+    setError(null)
+    autoSortPreviewMutation.mutate({ dryRun: false, rules: autoSortPreviewInput })
+  }
+
+  function showAutoSortValidationError(message: string) {
+    setMessage(null)
+    setError(message)
+  }
+
   return (
     <div className="mx-auto max-w-5xl space-y-8 px-4 sm:px-6 lg:px-8">
       <PageHeader
         eyebrow="Settings"
         title="Settings"
-        description="Manage the mobile shell, cloud backups, manual restores, and Scryfall catalog maintenance."
+        description="Manage the mobile shell, collection auto-sort rules, cloud backups, manual restores, and Scryfall catalog maintenance."
       />
 
       {settingsQuery.isError ? (
         <Alert tone="error">{errorMessage(settingsQuery.error)}</Alert>
       ) : null}
       {backupsQuery.isError ? <Alert tone="error">{errorMessage(backupsQuery.error)}</Alert> : null}
+      {autoSortQuery.isError ? <Alert tone="error">{errorMessage(autoSortQuery.error)}</Alert> : null}
       {error ? <Alert tone="error">{error}</Alert> : null}
       {message ? <Alert tone="success">{message}</Alert> : null}
 
@@ -184,6 +282,25 @@ export function SettingsPage() {
         onSubmit={submitSettings}
         onRunBackup={runBackup}
         setFormField={setFormField}
+      />
+
+      <CollectionAutoSortSection
+        isLoading={autoSortQuery.isLoading}
+        isPreviewing={autoSortPreviewMutation.isPending}
+        isSaving={autoSortMutation.isPending}
+        locations={autoSortLocations}
+        rules={autoSortRules}
+        onPreview={previewAutoSortRules}
+        onSave={saveAutoSortRules}
+        onValidationError={showAutoSortValidationError}
+      />
+
+      <AutoSortSummaryDialog
+        open={Boolean(autoSortResult)}
+        result={autoSortResult}
+        onOpenChange={(open) => !open && setAutoSortResult(null)}
+        applyPending={autoSortPreviewMutation.isPending}
+        onApply={autoSortPreviewInput ? applyAutoSortPreview : undefined}
       />
 
       <ScryfallDataSection

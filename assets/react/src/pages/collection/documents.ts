@@ -1,5 +1,4 @@
 import { graphql } from "../../gql"
-import { CollectionItemsPageDocument as GeneratedCollectionItemsPageDocument } from "../../gql/graphql"
 
 export const CollectionDocument = graphql(`
   query Collection($filters: CollectionItemFilters) {
@@ -28,6 +27,17 @@ export const CollectionDocument = graphql(`
             artCropUrl
           }
         }
+      }
+    }
+    collectionAutoSortRules {
+      id
+      name
+      enabled
+      priority
+      targetLocation {
+        id
+        name
+        kind
       }
     }
     collectionValueSummary {
@@ -121,6 +131,17 @@ export const CollectionItemFormOptionsDocument = graphql(`
           name
           kind
         }
+      }
+    }
+    collectionAutoSortRules {
+      id
+      name
+      enabled
+      priority
+      targetLocation {
+        id
+        name
+        kind
       }
     }
   }
@@ -397,7 +418,7 @@ export const CollectionItemsPageDocument = graphql(`
       }
     }
   }
-`) as typeof GeneratedCollectionItemsPageDocument
+`)
 
 export const CollectionExportCsvDocument = graphql(`
   query CollectionExportCsv($filters: CollectionItemFilters) {
@@ -477,6 +498,30 @@ export const CommitCollectionImportDocument = graphql(`
       importResult {
         imported
         skipped
+        autoSorted
+      }
+    }
+  }
+`)
+
+export const AutoSortCollectionDocument = graphql(`
+  mutation AutoSortCollection($input: AutoSortCollectionInput) {
+    autoSortCollection(input: $input) {
+      autoSortResult {
+        checkedCount
+        movedCount
+        skippedCount
+        dryRun
+        moves {
+          collectionItemId
+          cardName
+          imageUrl
+          quantity
+          fromLocationId
+          fromLocationName
+          toLocationId
+          toLocationName
+        }
       }
     }
   }

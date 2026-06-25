@@ -18,11 +18,18 @@ defmodule ManavaultWeb.Schema.Catalog.ImportResolvers do
     end
   end
 
-  def commit_collection_import(_parent, %{input: %{rows: rows}}, resolution) do
+  def commit_collection_import(_parent, %{input: %{rows: rows} = input}, resolution) do
     with {:ok, rows} <- collection_import_rows(rows, resolution) do
-      case Catalog.import_collection_preview(%{rows: rows}) do
+      case Catalog.import_collection_preview(%{rows: rows},
+             auto_sort: Map.get(input, :auto_sort, false)
+           ) do
         {:ok, result} ->
-          {:ok, %{imported: result.imported, skipped: result.skipped}}
+          {:ok,
+           %{
+             imported: result.imported,
+             skipped: result.skipped,
+             auto_sorted: Map.get(result, :auto_sorted, 0)
+           }}
 
         {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
           {:error, Errors.changeset_error_message(changeset)}

@@ -27,7 +27,7 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
         oracle_text: oracle_text(card),
         mana_cost: card["mana_cost"],
         cmc: card["cmc"],
-        colors: encode_json(card["colors"] || []),
+        colors: encode_json(colors(card)),
         color_identity: encode_json(card["color_identity"] || []),
         legalities: encode_json(card["legalities"] || %{}),
         oracle_tags: tag_fields.oracle_tags,
@@ -103,6 +103,13 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
     |> String.downcase()
     |> String.replace(~r/[^a-z0-9]+/u, "")
   end
+
+  defp colors(%{"colors" => colors}) when is_list(colors), do: colors
+
+  defp colors(%{"card_faces" => [%{"colors" => colors} | _faces]}) when is_list(colors),
+    do: colors
+
+  defp colors(_card), do: []
 
   defp flavor_name(%{"flavor_name" => name}) when is_binary(name), do: name
 

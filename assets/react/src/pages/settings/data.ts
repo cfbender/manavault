@@ -1,4 +1,7 @@
 import { graphql } from "../../gql"
+import type { CollectionAutoSortRuleInput, CollectionAutoSortSettingsQuery } from "../../gql/graphql"
+
+export type { CollectionAutoSortRuleInput }
 
 export const BackupSettingsDocument = graphql(`
   query BackupSettings {
@@ -36,6 +39,72 @@ export const CloudBackupsDocument = graphql(`
       provider
       size
       modifiedAt
+    }
+  }
+`)
+
+export type CollectionAutoSortSettingsLocation = NonNullable<
+  NonNullable<
+    NonNullable<NonNullable<CollectionAutoSortSettingsQuery["locations"]>["edges"]>[number]
+  >["node"]
+>
+
+export type CollectionAutoSortSettingsRule =
+  CollectionAutoSortSettingsQuery["collectionAutoSortRules"][number]
+
+export const CollectionAutoSortSettingsDocument = graphql(`
+  query CollectionAutoSortSettings {
+    collectionAutoSortRules {
+      id
+      name
+      enabled
+      priority
+      targetLocation {
+        id
+        name
+        kind
+      }
+      colorMode
+      colors
+      typeLineIncludes
+      typeLineExcludes
+      rarities
+      minPriceCents
+      maxPriceCents
+    }
+    locations(first: 100) {
+      edges {
+        node {
+          id
+          name
+          kind
+        }
+      }
+    }
+  }
+`)
+
+export const UpdateCollectionAutoSortRulesDocument = graphql(`
+  mutation UpdateCollectionAutoSortRules($input: [CollectionAutoSortRuleInput!]!) {
+    updateCollectionAutoSortRules(input: $input) {
+      collectionAutoSortRules {
+        id
+        name
+        enabled
+        priority
+        targetLocation {
+          id
+          name
+          kind
+        }
+        colorMode
+        colors
+        typeLineIncludes
+        typeLineExcludes
+        rarities
+        minPriceCents
+        maxPriceCents
+      }
     }
   }
 `)

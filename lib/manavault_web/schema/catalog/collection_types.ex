@@ -4,6 +4,7 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
   use Absinthe.Schema.Notation
   use Absinthe.Relay.Schema.Notation, :modern
 
+  alias Manavault.Catalog.AutoSortRule
   alias ManavaultWeb.Schema.Catalog.CollectionFields
   alias ManavaultWeb.Schema.CatalogResolvers
 
@@ -128,6 +129,57 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :value_gain_percent_text, :string
   end
 
+  object :collection_auto_sort_rule do
+    field :id, non_null(:id)
+    field :name, non_null(:string)
+    field :enabled, non_null(:boolean)
+    field :priority, non_null(:integer)
+    field :target_location, non_null(:location)
+    field :color_mode, non_null(:string)
+
+    field :colors, non_null(list_of(non_null(:string))) do
+      resolve(fn rule, _args, _resolution -> {:ok, AutoSortRule.list_field(rule, :colors)} end)
+    end
+
+    field :type_line_includes, non_null(list_of(non_null(:string))) do
+      resolve(fn rule, _args, _resolution ->
+        {:ok, AutoSortRule.list_field(rule, :type_line_includes)}
+      end)
+    end
+
+    field :type_line_excludes, non_null(list_of(non_null(:string))) do
+      resolve(fn rule, _args, _resolution ->
+        {:ok, AutoSortRule.list_field(rule, :type_line_excludes)}
+      end)
+    end
+
+    field :rarities, non_null(list_of(non_null(:string))) do
+      resolve(fn rule, _args, _resolution -> {:ok, AutoSortRule.list_field(rule, :rarities)} end)
+    end
+
+    field :min_price_cents, :integer
+    field :max_price_cents, :integer
+  end
+
+  object :collection_auto_sort_move do
+    field :collection_item_id, non_null(:id)
+    field :card_name, non_null(:string)
+    field :image_url, :string
+    field :quantity, non_null(:integer)
+    field :from_location_id, :id
+    field :from_location_name, non_null(:string)
+    field :to_location_id, non_null(:id)
+    field :to_location_name, non_null(:string)
+  end
+
+  object :collection_auto_sort_result do
+    field :checked_count, non_null(:integer)
+    field :moved_count, non_null(:integer)
+    field :skipped_count, non_null(:integer)
+    field :dry_run, non_null(:boolean)
+    field :moves, non_null(list_of(non_null(:collection_auto_sort_move)))
+  end
+
   object :collection_import_attrs do
     field :name, :string do
       resolve(&CatalogResolvers.map_value/3)
@@ -190,6 +242,7 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
   object :collection_import_result do
     field :imported, non_null(:integer)
     field :skipped, non_null(:integer)
+    field :auto_sorted, non_null(:integer)
   end
 
   input_object :collection_item_filters do
@@ -254,6 +307,28 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
 
   input_object :collection_import_commit_input do
     field :rows, non_null(list_of(non_null(:collection_import_row_input)))
+    field :auto_sort, :boolean
+  end
+
+  input_object :collection_auto_sort_rule_input do
+    field :id, :id
+    field :name, non_null(:string)
+    field :enabled, non_null(:boolean)
+    field :priority, non_null(:integer)
+    field :target_location_id, non_null(:id)
+    field :color_mode, non_null(:string)
+    field :colors, non_null(list_of(non_null(:string)))
+    field :type_line_includes, non_null(list_of(non_null(:string)))
+    field :type_line_excludes, non_null(list_of(non_null(:string)))
+    field :rarities, non_null(list_of(non_null(:string)))
+    field :min_price_cents, :integer
+    field :max_price_cents, :integer
+  end
+
+  input_object :auto_sort_collection_input do
+    field :source_location_id, :id
+    field :dry_run, :boolean
+    field :rules, list_of(non_null(:collection_auto_sort_rule_input))
   end
 
   input_object :location_update_input do

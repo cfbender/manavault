@@ -26,6 +26,8 @@ defmodule ManavaultWeb.Schema.Catalog.MutationResolvers do
   defdelegate create_location(parent, args, resolution), to: LocationMutations
   defdelegate delete_location(parent, args, resolution), to: LocationMutations
   defdelegate update_location(parent, args, resolution), to: LocationMutations
+  defdelegate update_collection_auto_sort_rules(parent, args, resolution), to: LocationMutations
+  defdelegate auto_sort_collection(parent, args, resolution), to: LocationMutations
 
   defdelegate add_collection_item_to_deck(parent, args, resolution), to: AllocationResolvers
   defdelegate bulk_add_collection_items_to_deck(parent, args, resolution), to: AllocationResolvers

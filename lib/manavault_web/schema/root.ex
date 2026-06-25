@@ -79,6 +79,10 @@ defmodule ManavaultWeb.Schema do
       resolve(&CatalogResolvers.locations/3)
     end
 
+    field :collection_auto_sort_rules, non_null(list_of(non_null(:collection_auto_sort_rule))) do
+      resolve(&CatalogResolvers.collection_auto_sort_rules/3)
+    end
+
     field :location, :location do
       arg(:id, non_null(:id))
       resolve(&CatalogResolvers.location/3)
@@ -354,6 +358,43 @@ defmodule ManavaultWeb.Schema do
 
       resolve(fn parent, args, resolution ->
         payload(parent, args, resolution, &CatalogResolvers.create_location/3, :location)
+      end)
+    end
+
+    payload field :update_collection_auto_sort_rules do
+      arg(:input, non_null(list_of(non_null(:collection_auto_sort_rule_input))))
+
+      output do
+        field :collection_auto_sort_rules, non_null(list_of(non_null(:collection_auto_sort_rule)))
+        field :rules, non_null(list_of(non_null(:collection_auto_sort_rule)))
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &CatalogResolvers.update_collection_auto_sort_rules/3,
+          :collection_auto_sort_rules
+        )
+      end)
+    end
+
+    payload field :auto_sort_collection do
+      arg(:input, :auto_sort_collection_input)
+
+      output do
+        field :auto_sort_result, non_null(:collection_auto_sort_result)
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &CatalogResolvers.auto_sort_collection/3,
+          :auto_sort_result
+        )
       end)
     end
 

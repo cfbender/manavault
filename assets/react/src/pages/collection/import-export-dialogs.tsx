@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Upload } from "lucide-react"
+import { Upload, WandSparkles } from "lucide-react"
 import type * as React from "react"
 import { useEffect, useMemo, useState } from "react"
 import { Badge } from "../../components/ui/badge"
@@ -14,6 +14,7 @@ import {
 import { request } from "../../lib/graphql"
 import type { SharedImportPayload } from "../../lib/native-shared-import"
 import { present, titleize } from "../../lib/utils"
+import { AutoSortSetupDialog, hasEnabledAutoSortRules } from "./auto-sort-setup-dialog"
 import {
   CollectionExportCsvDocument,
   CollectionExportTextDocument,
@@ -56,6 +57,7 @@ export function ImportCollectionDialog({
   const [locationId, setLocationId] = useState("")
   const [preview, setPreview] = useState<CollectionImportPreview | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isAutoSortSetupOpen, setIsAutoSortSetupOpen] = useState(false)
   const optionsQuery = useQuery({
     queryKey: ["collection-item-form-options"],
     queryFn: () => request(CollectionItemFormOptionsDocument),
@@ -65,6 +67,7 @@ export function ImportCollectionDialog({
     () => optionsQuery.data?.locations?.edges?.map((edge) => edge?.node).filter(present) || [],
     [optionsQuery.data],
   )
+  const autoSortRules = optionsQuery.data?.collectionAutoSortRules ?? []
   const previewImport = useMutation({
     mutationFn: (values?: PreviewCollectionImportValues) =>
       request(PreviewCollectionImportDocument, {
@@ -83,15 +86,19 @@ export function ImportCollectionDialog({
       setError(error instanceof Error ? error.message : "Could not preview collection import"),
   })
   const commitImport = useMutation({
-    mutationFn: () => {
+    mutationFn: ({ autoSort = false }: { autoSort?: boolean } = {}) => {
       if (!preview) throw new Error("Preview a file before importing")
       return request(CommitCollectionImportDocument, {
-        input: { rows: preview.rows.map(commitImportRow) },
+        input: {
+          rows: preview.rows.map(commitImportRow),
+          ...(autoSort ? { autoSort: true } : {}),
+        },
       })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["collection"] })
       queryClient.invalidateQueries({ queryKey: ["collection-items"] })
+      queryClient.invalidateQueries({ queryKey: ["location"] })
       queryClient.invalidateQueries({ queryKey: ["home"] })
       reset()
       onOpenChange(false)
@@ -170,6 +177,16 @@ export function ImportCollectionDialog({
     setPreview({ ...preview, ...collectionImportCounts(rows), rows })
   }
 
+  function commitPreview(autoSort: boolean) {
+    setError(null)
+
+    if (autoSort && !hasEnabledAutoSortRules(autoSortRules)) {
+      setIsAutoSortSetupOpen(true)
+      return
+    }
+
+    commitImport.mutate({ autoSort })
+  }
   function close() {
     if (previewImport.isPending || commitImport.isPending) return
     reset()
@@ -184,14 +201,18 @@ export function ImportCollectionDialog({
     setLocationId("")
     setPreview(null)
     setError(null)
+    setIsAutoSortSetupOpen(false)
   }
 
+  const commitPendingAutoSort = commitImport.variables?.autoSort === true
+
   return (
-    <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : close())}>
-      <DialogContent
-        className="manavault-import-dialog flex min-h-0 max-w-5xl flex-col"
-        labelledBy="import-collection-title"
-      >
+    <>
+      <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : close())}>
+        <DialogContent
+          className="manavault-import-dialog flex min-h-0 max-w-5xl flex-col"
+          labelledBy="import-collection-title"
+        >
         <DialogHeader>
           <div>
             <DialogTitle id="import-collection-title">Import collection</DialogTitle>
@@ -360,25 +381,48 @@ export function ImportCollectionDialog({
           ) : null}
 
           {error ? (
-            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+            <p
+              role="alert"
+              className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error"
+            >
               {error}
             </p>
           ) : null}
         </div>
         {preview ? (
-          <div className="flex justify-end border-t border-base-300 bg-base-100 px-5 py-4">
+          <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 bg-base-100 px-5 py-4">
             <Button
               type="button"
+              variant="outline"
               disabled={preview.exact === 0 || commitImport.isPending}
-              onClick={() => commitImport.mutate()}
+              onClick={() => commitPreview(false)}
             >
               <Upload className="h-4 w-4" />
-              {commitImport.isPending ? "Importing..." : "Import exact rows"}
+              {commitImport.isPending && !commitPendingAutoSort
+                ? "Importing..."
+                : "Import exact rows"}
+            </Button>
+            <Button
+              type="button"
+              disabled={preview.exact === 0 || commitImport.isPending || optionsQuery.isLoading}
+              onClick={() => commitPreview(true)}
+            >
+              <WandSparkles className="h-4 w-4" />
+              {optionsQuery.isLoading
+                ? "Loading rules..."
+                : commitPendingAutoSort
+                  ? "Importing and sorting..."
+                  : "Import and auto-sort"}
             </Button>
           </div>
         ) : null}
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+      <AutoSortSetupDialog
+        open={isAutoSortSetupOpen}
+        onOpenChange={setIsAutoSortSetupOpen}
+      />
+    </>
   )
 }
 

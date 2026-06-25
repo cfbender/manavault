@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
-import { Boxes, CheckSquare, ListFilter, Search } from "lucide-react"
+import { Boxes, CheckSquare, ListFilter, Search, WandSparkles } from "lucide-react"
 import type * as React from "react"
 import { useCallback, useMemo, useState } from "react"
 import { PageSection } from "../../components/app-shell"
@@ -19,7 +19,9 @@ import {
 } from "../../lib/collection-filters"
 import { request } from "../../lib/graphql"
 import { useLocalStorageState } from "../../lib/use-local-storage"
-import { compactNumber, present, titleize } from "../../lib/utils"
+import { cn, compactNumber, present, titleize } from "../../lib/utils"
+import { AutoSortSetupDialog, hasEnabledAutoSortRules } from "./auto-sort-setup-dialog"
+import { AutoSortSummaryDialog } from "./auto-sort-summary-dialog"
 import { invalidateCollectionViews } from "./collection-navigation"
 import {
   COLLECTION_LOCATION_STATE_STORAGE_PREFIX,
@@ -27,6 +29,8 @@ import {
   DEFAULT_COLLECTION_SORT,
 } from "./constants"
 import {
+  AutoSortCollectionDocument,
+  CollectionItemFormOptionsDocument,
   CollectionItemsPageDocument,
   DeleteLocationDocument,
   LocationCollectionCountDocument,
@@ -55,7 +59,7 @@ import {
   isDefaultCollectionSort,
   serializeStoredCollectionFilters,
 } from "./storage"
-import type { CollectionExportFormat, CollectionItem, CollectionSort } from "./types"
+import type { AutoSortCollectionResult, CollectionExportFormat, CollectionItem, CollectionSort } from "./types"
 import { collectionValueLine } from "./value-summary"
 
 export function LocationPage({ id }: { id: string }) {
@@ -79,6 +83,9 @@ export function LocationPage({ id }: { id: string }) {
   const [exportLocationFormat, setExportLocationFormat] = useState<CollectionExportFormat | null>(
     null,
   )
+  const [isAutoSortSetupOpen, setIsAutoSortSetupOpen] = useState(false)
+  const [autoSortResult, setAutoSortResult] = useState<AutoSortCollectionResult | null>(null)
+  const [autoSortError, setAutoSortError] = useState<string | null>(null)
   const [bulkDeckTarget, setBulkDeckTarget] = useState<CollectionItem[] | null>(null)
   const [bulkListTarget, setBulkListTarget] = useState<CollectionItem[] | null>(null)
   const [bulkMoveTarget, setBulkMoveTarget] = useState<CollectionItem[] | null>(null)
@@ -115,6 +122,11 @@ export function LocationPage({ id }: { id: string }) {
     queryKey: ["location", id],
     queryFn: () => request(LocationDocument, { id }),
   })
+  const autoSortRuleOptionsQuery = useQuery({
+    queryKey: ["collection-item-form-options"],
+    queryFn: () => request(CollectionItemFormOptionsDocument),
+    enabled: id === "unfiled",
+  })
   const countQuery = useQuery({
     queryKey: ["collection-items", "location", id, "count", itemFilters],
     queryFn: () => request(LocationCollectionCountDocument, { filters: itemFilters }),
@@ -142,6 +154,26 @@ export function LocationPage({ id }: { id: string }) {
     [itemsQuery.data],
   )
   const selection = useCollectionItemSelection(collectionItems)
+  const autoSortRules = autoSortRuleOptionsQuery.data?.collectionAutoSortRules ?? []
+  const autoSortUnfiled = useMutation({
+    mutationFn: ({ dryRun }: { dryRun: boolean }) =>
+      request(AutoSortCollectionDocument, {
+        input: { sourceLocationId: "unfiled", dryRun },
+      }),
+    onSuccess: (data, input) => {
+      const result = data.autoSortCollection?.autoSortResult
+      if (!input.dryRun) {
+        invalidateCollectionViews(queryClient, id)
+        selection.clearSelection()
+      }
+      setAutoSortResult(result ?? null)
+      setAutoSortError(null)
+    },
+    onError: (error) => {
+      setAutoSortResult(null)
+      setAutoSortError(error instanceof Error ? error.message : "Could not auto-sort unfiled cards")
+    },
+  })
   const loadMore = useCallback(() => {
     if (isSelectingAllLocationItems) return
     void itemsQuery.fetchNextPage()
@@ -219,6 +251,23 @@ export function LocationPage({ id }: { id: string }) {
     deleteLocation.mutate(location.id)
   }
 
+  function previewUnfiledAutoSort() {
+    setAutoSortResult(null)
+    setAutoSortError(null)
+
+    if (!hasEnabledAutoSortRules(autoSortRules)) {
+      setIsAutoSortSetupOpen(true)
+      return
+    }
+
+    autoSortUnfiled.mutate({ dryRun: true })
+  }
+
+  function applyUnfiledAutoSort() {
+    setAutoSortError(null)
+    autoSortUnfiled.mutate({ dryRun: false })
+  }
+
   if (isLoading) return <EmptyState title="Loading location..." />
   if (!location) return <EmptyState title="Location not found" />
 
@@ -262,7 +311,12 @@ export function LocationPage({ id }: { id: string }) {
       </div>
       <form
         onSubmit={submit}
-        className="control-toolbar mb-7 grid gap-2 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-[1fr_auto_auto_auto_auto]"
+        className={cn(
+          "control-toolbar mb-7 grid gap-2 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm",
+          isUnfiledLocation(location)
+            ? "sm:grid-cols-[1fr_auto_auto_auto_auto_auto]"
+            : "sm:grid-cols-[1fr_auto_auto_auto_auto]",
+        )}
       >
         <CardNameSearchField
           name="q"
@@ -295,11 +349,30 @@ export function LocationPage({ id }: { id: string }) {
             </span>
           ) : null}
         </Button>
+        {isUnfiledLocation(location) ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={autoSortRuleOptionsQuery.isLoading || autoSortUnfiled.isPending}
+            onClick={previewUnfiledAutoSort}
+          >
+            <WandSparkles className="h-4 w-4" />
+            {autoSortUnfiled.isPending ? "Previewing..." : "Preview unfiled sort"}
+          </Button>
+        ) : null}
         <Button type="submit">
           <Search className="h-4 w-4" />
           Search
         </Button>
       </form>
+      {autoSortError ? (
+        <p
+          role="alert"
+          className="mb-5 rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error"
+        >
+          {autoSortError}
+        </p>
+      ) : null}
       {itemsQuery.isLoading ? (
         <EmptyState title="Loading collection..." />
       ) : (
@@ -331,6 +404,17 @@ export function LocationPage({ id }: { id: string }) {
           </PageSection>
         </div>
       )}
+      <AutoSortSetupDialog
+        open={isAutoSortSetupOpen}
+        onOpenChange={setIsAutoSortSetupOpen}
+      />
+      <AutoSortSummaryDialog
+        open={Boolean(autoSortResult)}
+        result={autoSortResult}
+        onOpenChange={(open) => !open && setAutoSortResult(null)}
+        applyPending={autoSortUnfiled.isPending}
+        onApply={applyUnfiledAutoSort}
+      />
       <EditLocationDialog
         location={location}
         onOpenChange={setIsEditLocationOpen}

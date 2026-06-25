@@ -1,6 +1,7 @@
 defmodule Manavault.Catalog.Collection.Import do
   @moduledoc false
 
+  alias Manavault.Catalog.Collection.AutoSort
   alias Manavault.Catalog.{CollectionImport, Location, Printing, Search}
   alias Manavault.Repo
 
@@ -24,20 +25,25 @@ defmodule Manavault.Catalog.Collection.Import do
 
   def run(text, opts, create_item) when is_binary(text) and is_list(opts) do
     with {:ok, %{rows: rows} = preview} <- preview(text, opts) do
-      import_preview(%{preview | rows: rows}, create_item)
+      import_preview(%{preview | rows: rows}, create_item, opts)
     end
   end
 
-  def import_preview(%{rows: rows} = preview, create_item)
-      when is_list(rows) and is_function(create_item, 1) do
+  def import_preview(%{rows: rows} = preview, create_item, opts \\ [])
+      when is_list(rows) and is_function(create_item, 1) and is_list(opts) do
     Repo.transact(fn ->
       result =
-        Enum.reduce(rows, %{imported: 0, skipped: 0}, fn row, result ->
+        Enum.reduce(rows, %{imported: 0, skipped: 0, item_ids: []}, fn row, result ->
           case row.status do
             :exact ->
               case create_item.(row.attrs) do
-                {:ok, _item} -> update_in(result.imported, &(&1 + 1))
-                {:error, changeset} -> Repo.rollback(changeset)
+                {:ok, item} ->
+                  result
+                  |> update_in([:imported], &(&1 + 1))
+                  |> update_in([:item_ids], &[item.id | &1])
+
+                {:error, changeset} ->
+                  Repo.rollback(changeset)
               end
 
             _status ->
@@ -45,11 +51,33 @@ defmodule Manavault.Catalog.Collection.Import do
           end
         end)
 
+      result = maybe_auto_sort_imported(result, opts)
+
       {:ok, result}
     end)
     |> case do
       {:ok, result} -> {:ok, Map.merge(preview, result)}
       {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp maybe_auto_sort_imported(%{item_ids: item_ids} = result, opts) do
+    auto_sort? = Keyword.get(opts, :auto_sort, false)
+
+    if auto_sort? do
+      case AutoSort.run(item_ids: Enum.reverse(item_ids)) do
+        {:ok, auto_sort_result} ->
+          result
+          |> Map.delete(:item_ids)
+          |> Map.put(:auto_sorted, auto_sort_result.moved_count)
+
+        {:error, reason} ->
+          Repo.rollback(reason)
+      end
+    else
+      result
+      |> Map.delete(:item_ids)
+      |> Map.put(:auto_sorted, 0)
     end
   end
 

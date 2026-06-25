@@ -3,8 +3,8 @@ defmodule Manavault.Catalog.CollectionTest do
   use Manavault.CatalogTestFixtures, fixtures: [:black_lotus, :time_walk, :plains]
 
   alias Manavault.Catalog
-
-  alias Manavault.Catalog.CollectionItem
+  alias Manavault.Catalog.{Card, CollectionItem}
+  alias Manavault.Repo
 
   test "collection CSV import previews exact rows and applies one selected location" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
@@ -377,5 +377,387 @@ defmodule Manavault.Catalog.CollectionTest do
 
     assert item.scryfall_id == "scryfall-printing-1"
     assert item.quantity == 2
+  end
+
+  test "auto-sort rules choose the first storage destination by priority and reject non-storage targets" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    assert {:ok, high_priority} = Catalog.create_location(%{name: "High Priority", kind: "box"})
+    assert {:ok, low_priority} = Catalog.create_location(%{name: "Low Priority", kind: "box"})
+    assert {:ok, list} = Catalog.create_location(%{name: "Wish List", kind: "list"})
+
+    assert {:error, :invalid_auto_sort_target} =
+             Catalog.update_collection_auto_sort_rules([
+               %{
+                 name: "Invalid target",
+                 target_location_id: list.id,
+                 enabled: true,
+                 priority: 1,
+                 color_mode: "colorless"
+               }
+             ])
+
+    update_auto_sort_rules!([
+      %{
+        target_location_id: high_priority.id,
+        enabled: true,
+        priority: 5,
+        color_mode: "colorless"
+      },
+      %{target_location_id: low_priority.id, enabled: true, priority: 10, color_mode: "colorless"}
+    ])
+
+    assert [
+             %{
+               enabled: true,
+               priority: 5,
+               color_mode: "colorless",
+               target_location_id: high_priority_id
+             },
+             %{target_location_id: low_priority_id}
+           ] = Catalog.list_collection_auto_sort_rules()
+
+    assert high_priority_id == high_priority.id
+    assert low_priority_id == low_priority.id
+
+    item = create_collection_item!("scryfall-printing-1")
+    blue_item = create_collection_item!("scryfall-printing-2", finish: "foil")
+    list_item = create_collection_item!("scryfall-printing-1", location_id: list.id)
+    already_sorted = create_collection_item!("scryfall-printing-1", location_id: high_priority.id)
+
+    assert {:ok,
+            %{
+              checked_count: 3,
+              dry_run: true,
+              moved_count: 1,
+              skipped_count: 2,
+              moves: [%{collection_item_id: preview_item_id}]
+            }} = Catalog.auto_sort_collection(dry_run: true)
+
+    assert preview_item_id == item.id
+    assert Catalog.get_collection_item!(item.id).location_id == nil
+
+    assert {:ok,
+            %{
+              checked_count: 3,
+              moved_count: 1,
+              skipped_count: 2,
+              moves: [
+                %{
+                  collection_item_id: item_id,
+                  card_name: "Black Lotus",
+                  image_url: "https://example.test/black-lotus.jpg",
+                  quantity: 1,
+                  from_location_id: nil,
+                  from_location_name: "Unfiled",
+                  to_location_id: high_priority_id,
+                  to_location_name: "High Priority"
+                }
+              ]
+            }} = Catalog.auto_sort_collection()
+
+    assert item_id == item.id
+    assert high_priority_id == high_priority.id
+    assert Catalog.get_collection_item!(item.id).location_id == high_priority.id
+    assert Catalog.get_collection_item!(blue_item.id).location_id == nil
+    assert Catalog.get_collection_item!(list_item.id).location_id == list.id
+    assert Catalog.get_collection_item!(already_sorted.id).location_id == high_priority.id
+  end
+
+  test "auto-sort dry run can preview unsaved rule inputs" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    colorless = create_location!("Colorless")
+    blue = create_location!("Blue")
+
+    update_auto_sort_rules!([
+      %{target_location_id: colorless.id, enabled: true, priority: 1, color_mode: "colorless"}
+    ])
+
+    item = create_collection_item!("scryfall-printing-2", finish: "foil")
+
+    assert {:ok,
+            %{
+              checked_count: 1,
+              dry_run: true,
+              moved_count: 1,
+              skipped_count: 0,
+              moves: [%{collection_item_id: item_id, to_location_id: blue_id}]
+            }} =
+             Catalog.auto_sort_collection(
+               dry_run: true,
+               rules: [
+                 %{
+                   name: "Draft blue",
+                   target_location_id: blue.id,
+                   enabled: true,
+                   priority: 1,
+                   color_mode: "include_any",
+                   colors: ["U"],
+                   type_line_includes: [],
+                   type_line_excludes: [],
+                   rarities: []
+                 }
+               ]
+             )
+
+    assert item_id == item.id
+    assert blue_id == blue.id
+    assert Catalog.get_collection_item!(item.id).location_id == nil
+    assert [] == location_item_ids(blue)
+  end
+
+  test "auto-sort rules cover price, land, color, rarity, and colorless user examples" do
+    command_tower = test_card("command-tower", "Command Tower", "Land", [], "rare", "0.25")
+    izzet_charm = test_card("izzet-charm", "Izzet Charm", "Instant", ["U", "R"], "uncommon")
+    gruul_charm = test_card("gruul-charm", "Gruul Charm", "Instant", ["R", "G"], "uncommon")
+    esper_charm = test_card("esper-charm", "Esper Charm", "Instant", ["W", "U", "B"], "uncommon")
+    sol_ring = test_card("sol-ring", "Sol Ring", "Artifact", [], "uncommon", "2.00")
+
+    assert {:ok, %{cards_count: 7, printings_count: 7}} =
+             Catalog.import_cards([
+               @black_lotus,
+               @plains,
+               command_tower,
+               izzet_charm,
+               gruul_charm,
+               esper_charm,
+               sol_ring
+             ])
+
+    price = create_location!("Price")
+    nonbasic_land = create_location!("Non-Basic Lands")
+    basic_land = create_location!("Basic Lands")
+    red_green = create_location!("Red Green")
+    wub = create_location!("WUB")
+    multicolor = create_location!("Multicolor")
+    colorless = create_location!("Colorless")
+
+    update_auto_sort_rules!([
+      %{target_location_id: price.id, enabled: true, priority: 1, min_price_cents: 1_000_000},
+      %{
+        target_location_id: nonbasic_land.id,
+        enabled: true,
+        priority: 2,
+        type_line_includes: ["land"],
+        type_line_excludes: ["basic"]
+      },
+      %{
+        target_location_id: basic_land.id,
+        priority: 3,
+        type_line_includes: ["basic land"]
+      },
+      %{
+        target_location_id: red_green.id,
+        priority: 4,
+        color_mode: "exact",
+        colors: ["R", "G"]
+      },
+      %{
+        target_location_id: wub.id,
+        priority: 5,
+        color_mode: "exact",
+        colors: ["W", "U", "B"]
+      },
+      %{target_location_id: multicolor.id, enabled: true, priority: 6, color_mode: "multicolor"},
+      %{
+        target_location_id: colorless.id,
+        enabled: true,
+        priority: 7,
+        color_mode: "colorless",
+        rarities: ["uncommon"]
+      }
+    ])
+
+    lotus = create_collection_item!("scryfall-printing-1")
+    plains = create_collection_item!("scryfall-printing-basic-plains")
+    tower = create_collection_item!("scryfall-command-tower")
+    izzet = create_collection_item!("scryfall-izzet-charm")
+    gruul = create_collection_item!("scryfall-gruul-charm")
+    esper = create_collection_item!("scryfall-esper-charm")
+    ring = create_collection_item!("scryfall-sol-ring")
+
+    assert {:ok, %{checked_count: 7, moved_count: 7, skipped_count: 0}} =
+             Catalog.auto_sort_collection()
+
+    assert [lotus.id] == location_item_ids(price)
+    assert [tower.id] == location_item_ids(nonbasic_land)
+    assert [plains.id] == location_item_ids(basic_land)
+    assert [gruul.id] == location_item_ids(red_green)
+    assert [esper.id] == location_item_ids(wub)
+    assert [izzet.id] == location_item_ids(multicolor)
+    assert [ring.id] == location_item_ids(colorless)
+  end
+
+  test "auto-sort treats transformed cards as front-face colors instead of colorless" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} =
+             Catalog.import_cards([transformed_blue_card()])
+
+    assert %Card{colors: "[\"U\"]"} = Repo.get_by!(Card, oracle_id: "oracle-grizzled-angler")
+
+    Repo.get_by!(Card, oracle_id: "oracle-grizzled-angler")
+    |> Ecto.Changeset.change(colors: "[]")
+    |> Repo.update!()
+
+    colorless = create_location!("Colorless")
+    blue = create_location!("Blue")
+
+    update_auto_sort_rules!([
+      %{target_location_id: colorless.id, enabled: true, priority: 1, color_mode: "colorless"},
+      %{
+        target_location_id: blue.id,
+        enabled: true,
+        priority: 2,
+        color_mode: "include_any",
+        colors: ["U"]
+      }
+    ])
+
+    item = create_collection_item!("scryfall-grizzled-angler")
+
+    assert {:ok, %{checked_count: 1, moved_count: 1, skipped_count: 0}} =
+             Catalog.auto_sort_collection()
+
+    assert [item.id] == location_item_ids(blue)
+    assert [] == location_item_ids(colorless)
+  end
+
+  test "auto-sort can target only unfiled collection items" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    target = create_location!("Colorless")
+    binder = create_location!("Binder")
+
+    update_auto_sort_rules!([
+      %{target_location_id: target.id, enabled: true, priority: 1, color_mode: "colorless"}
+    ])
+
+    unfiled_item = create_collection_item!("scryfall-printing-1")
+    binder_item = create_collection_item!("scryfall-printing-1", location_id: binder.id)
+
+    assert {:ok, %{checked_count: 1, moved_count: 1, skipped_count: 0}} =
+             Catalog.auto_sort_collection(source_location_id: "unfiled")
+
+    assert Catalog.get_collection_item!(unfiled_item.id).location_id == target.id
+    assert Catalog.get_collection_item!(binder_item.id).location_id == binder.id
+  end
+
+  test "collection import auto-sort moves only imported items" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    colorless = create_location!("Colorless")
+    blue = create_location!("Blue")
+
+    update_auto_sort_rules!([
+      %{target_location_id: colorless.id, enabled: true, priority: 1, color_mode: "colorless"},
+      %{
+        target_location_id: blue.id,
+        enabled: true,
+        priority: 2,
+        color_mode: "include_any",
+        colors: ["U"]
+      }
+    ])
+
+    existing = create_collection_item!("scryfall-printing-1")
+
+    csv = """
+    Quantity,Card Name,Set Code,Collector Number,Finish
+    1,Black Lotus,lea,232,nonfoil
+    1,Time Walk,lea,84,foil
+    """
+
+    assert {:ok, preview} = Catalog.preview_collection_import(csv, format: :csv)
+
+    assert {:ok, %{imported: 2, skipped: 0, auto_sorted: 2}} =
+             Catalog.import_collection_preview(preview, auto_sort: true)
+
+    assert Catalog.get_collection_item!(existing.id).location_id == nil
+    assert length(location_item_ids(colorless)) == 1
+    assert length(location_item_ids(blue)) == 1
+    assert [existing.id] == collection_item_ids(location_id: "unfiled")
+  end
+
+  defp create_location!(name) do
+    assert {:ok, location} = Catalog.create_location(%{name: name, kind: "box"})
+    location
+  end
+
+  defp create_collection_item!(scryfall_id, attrs \\ []) do
+    attrs =
+      attrs
+      |> Enum.into(%{})
+      |> Map.put(:scryfall_id, scryfall_id)
+
+    assert {:ok, item} = Catalog.create_collection_item(attrs)
+    item
+  end
+
+  defp update_auto_sort_rules!(rules) do
+    rules =
+      rules
+      |> Enum.with_index(1)
+      |> Enum.map(fn {rule, index} -> Map.put_new(rule, :name, "Rule #{index}") end)
+
+    assert {:ok, updated_rules} = Catalog.update_collection_auto_sort_rules(rules)
+    updated_rules
+  end
+
+  defp location_item_ids(location) do
+    location.id
+    |> Integer.to_string()
+    |> then(&Catalog.list_collection_items(location_id: &1, limit: 10))
+    |> Enum.map(& &1.id)
+  end
+
+  defp test_card(slug, name, type_line, colors, rarity, price \\ "1.00") do
+    %{
+      "id" => "scryfall-#{slug}",
+      "oracle_id" => "oracle-#{slug}",
+      "name" => name,
+      "type_line" => type_line,
+      "oracle_text" => "",
+      "mana_cost" => "",
+      "cmc" => 0.0,
+      "colors" => colors,
+      "color_identity" => colors,
+      "legalities" => %{},
+      "set" => "tst",
+      "set_name" => "Test Set",
+      "collector_number" => slug,
+      "lang" => "en",
+      "rarity" => rarity,
+      "finishes" => ["nonfoil"],
+      "prices" => %{"usd" => price},
+      "released_at" => "2026-01-01"
+    }
+  end
+
+  defp transformed_blue_card do
+    "grizzled-angler"
+    |> test_card(
+      "Grizzled Angler // Grisly Anglerfish",
+      "Creature — Human // Creature — Eldrazi Fish",
+      [],
+      "uncommon",
+      "0.10"
+    )
+    |> Map.delete("colors")
+    |> Map.put("color_identity", ["U"])
+    |> Map.put("card_faces", [
+      %{
+        "name" => "Grizzled Angler",
+        "colors" => ["U"],
+        "oracle_text" => "{T}: Mill two cards."
+      },
+      %{
+        "name" => "Grisly Anglerfish",
+        "colors" => [],
+        "oracle_text" => "{6}: Creatures your opponents control attack this turn if able."
+      }
+    ])
   end
 end

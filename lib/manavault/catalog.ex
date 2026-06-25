@@ -43,11 +43,14 @@ defmodule Manavault.Catalog do
   defdelegate change_location(location, attrs \\ %{}), to: Collection
   defdelegate create_location(attrs \\ %{}), to: Collection
   defdelegate update_location(location, attrs), to: Collection
+  defdelegate list_collection_auto_sort_rules(), to: Collection
+  defdelegate update_collection_auto_sort_rules(inputs), to: Collection
+  defdelegate auto_sort_collection(opts \\ []), to: Collection
   defdelegate delete_location(location), to: Collection
   defdelegate add_printing_to_collection(scryfall_id, attrs \\ %{}), to: Collection
   defdelegate preview_collection_import(text, opts \\ []), to: Collection
   defdelegate import_collection(text, opts \\ []), to: Collection
-  defdelegate import_collection_preview(preview), to: Collection
+  defdelegate import_collection_preview(preview, opts \\ []), to: Collection
   defdelegate export_collection_csv(filters \\ []), to: Collection
   defdelegate export_collection_text(filters \\ []), to: Collection
 

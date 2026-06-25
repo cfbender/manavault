@@ -1,4 +1,5 @@
 import type {
+  AutoSortCollectionMutation,
   CollectionItemsPageQuery,
   CollectionQuery,
   LocationCoverCardSearchQuery,
@@ -37,10 +38,15 @@ export type PreviewCollectionImportValues = {
   text: string
 }
 export type CollectionExportFilters = { locationId?: string; q?: string }
-
 export type LocationSummary = ConnectionNode<CollectionQuery["locations"]>
 export type LocationDetail = NonNullable<LocationQuery["location"]>
 export type CollectionValueSummary = NonNullable<CollectionQuery["collectionValueSummary"]>
+type AutoSortCollectionPayload = NonNullable<
+  AutoSortCollectionMutation["autoSortCollection"]
+>
+export type AutoSortCollectionResult = NonNullable<
+  AutoSortCollectionPayload["autoSortResult"]
+>
 type LocationCoverCardNode = ConnectionNode<LocationCoverCardSearchQuery["cards"]>
 export type LocationCoverPrinting = ConnectionNode<NonNullable<LocationCoverCardNode["printings"]>>
 export type LocationCoverCard = Omit<LocationCoverCardNode, "printings"> & {

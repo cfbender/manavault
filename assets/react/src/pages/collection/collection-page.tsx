@@ -23,6 +23,8 @@ import {
 } from "../../lib/native-shared-import"
 import { useLocalStorageState } from "../../lib/use-local-storage"
 import { present } from "../../lib/utils"
+import { AutoSortSetupDialog, hasEnabledAutoSortRules } from "./auto-sort-setup-dialog"
+import { AutoSortSummaryDialog } from "./auto-sort-summary-dialog"
 import { CollectionLocationsSection } from "./collection-locations-section"
 import { invalidateCollectionViews } from "./collection-navigation"
 import { CollectionPageHeader } from "./collection-page-header"
@@ -36,6 +38,7 @@ import {
   DEFAULT_COLLECTION_SORT,
 } from "./constants"
 import {
+  AutoSortCollectionDocument,
   CollectionDocument,
   CollectionItemsPageDocument,
   DeleteLocationDocument,
@@ -65,6 +68,7 @@ import {
   serializeStoredCollectionFilters,
 } from "./storage"
 import type {
+  AutoSortCollectionResult,
   CollectionExportFormat,
   CollectionItem,
   CollectionSort,
@@ -96,6 +100,9 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
   const [isAddLocationOpen, setIsAddLocationOpen] = useState(false)
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [isExportCsvOpen, setIsExportCsvOpen] = useState(false)
+  const [isAutoSortSetupOpen, setIsAutoSortSetupOpen] = useState(false)
+  const [autoSortResult, setAutoSortResult] = useState<AutoSortCollectionResult | null>(null)
+  const [autoSortError, setAutoSortError] = useState<string | null>(null)
   const [sharedImport, setSharedImport] = useState<SharedImportPayload | null>(null)
   const [editingLocation, setEditingLocation] = useState<LocationSummary | null>(null)
   const [deletingLocation, setDeletingLocation] = useState<LocationSummary | null>(null)
@@ -162,7 +169,26 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
     () => data?.locations?.edges?.map((edge) => edge?.node).filter(present) || [],
     [data?.locations],
   )
+  const autoSortRules = data?.collectionAutoSortRules ?? []
   const selection = useCollectionItemSelection(allCollectionItems)
+  const autoSortCollection = useMutation({
+    mutationFn: ({ dryRun }: { dryRun: boolean }) =>
+      request(AutoSortCollectionDocument, { input: { sourceLocationId: null, dryRun } }),
+    onSuccess: (data, input) => {
+      const result = data.autoSortCollection?.autoSortResult
+      if (!input.dryRun) {
+        invalidateCollectionViews(queryClient)
+        queryClient.invalidateQueries({ queryKey: ["location"] })
+        selection.clearSelection()
+      }
+      setAutoSortResult(result ?? null)
+      setAutoSortError(null)
+    },
+    onError: (error) => {
+      setAutoSortResult(null)
+      setAutoSortError(error instanceof Error ? error.message : "Could not auto-sort collection")
+    },
+  })
   const hasCollectionFilters = Boolean(combinedCollectionQuery)
   const activeStructuredFilterCount = countActiveCollectionFilters(structuredFilters)
   const filterBadgeCount = activeStructuredFilterCount
@@ -299,19 +325,48 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
     if (exportingLocation?.location.id === deletingLocation.id) setExportingLocation(null)
   }
 
+  function previewCollectionAutoSort() {
+    setAutoSortResult(null)
+    setAutoSortError(null)
+
+    if (!hasEnabledAutoSortRules(autoSortRules)) {
+      setIsAutoSortSetupOpen(true)
+      return
+    }
+
+    autoSortCollection.mutate({ dryRun: true })
+  }
+
+  function applyCollectionAutoSort() {
+    setAutoSortError(null)
+    autoSortCollection.mutate({ dryRun: false })
+  }
+
   return (
     <>
       <CollectionPageHeader
         activeTab={activeTab}
+        autoSortDisabled={isLoading}
+        autoSortPending={autoSortCollection.isPending}
         collectionItemCount={data?.collectionItemCount || 0}
         locationCount={locations.length}
         valueSummary={data?.collectionValueSummary}
         onAddItem={() => setIsAddItemOpen(true)}
         onAddLocation={() => setIsAddLocationOpen(true)}
+        onAutoSort={previewCollectionAutoSort}
         onImport={() => setIsImportOpen(true)}
         onExportCsv={() => setIsExportCsvOpen(true)}
         onSelectTab={selectTab}
       />
+
+      {autoSortError ? (
+        <p
+          role="alert"
+          className="mb-5 rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error"
+        >
+          {autoSortError}
+        </p>
+      ) : null}
 
       {activeTab === "locations" ? (
         <CollectionLocationsSection
@@ -448,6 +503,17 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
       >
         Cards in this location will become unfiled.
       </ConfirmDialog>
+      <AutoSortSetupDialog
+        open={isAutoSortSetupOpen}
+        onOpenChange={setIsAutoSortSetupOpen}
+      />
+      <AutoSortSummaryDialog
+        open={Boolean(autoSortResult)}
+        result={autoSortResult}
+        onOpenChange={(open) => !open && setAutoSortResult(null)}
+        applyPending={autoSortCollection.isPending}
+        onApply={applyCollectionAutoSort}
+      />
       <AddCollectionItemToDeckDialog
         item={bulkDeckTarget}
         onDone={finishBulkCollectionAction}

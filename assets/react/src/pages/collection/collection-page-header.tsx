@@ -1,4 +1,4 @@
-import { Boxes, Download, MoreVertical, Plus, Upload } from "lucide-react"
+import { Boxes, Download, MoreVertical, Plus, Upload, WandSparkles } from "lucide-react"
 import { PageHeader } from "../../components/app-shell"
 import { Button } from "../../components/ui/button"
 import { cn } from "../../lib/utils"
@@ -12,19 +12,25 @@ type CollectionPageHeaderProps = {
   locationCount: number
   valueSummary?: CollectionValueSummary | null
   onAddItem: () => void
+  autoSortDisabled?: boolean
+  autoSortPending?: boolean
   onAddLocation: () => void
   onImport: () => void
   onExportCsv: () => void
+  onAutoSort: () => void
   onSelectTab: (tab: CollectionTab) => void
 }
 
 export function CollectionPageHeader({
   activeTab,
+  autoSortDisabled = false,
+  autoSortPending = false,
   collectionItemCount,
   locationCount,
   valueSummary,
   onAddItem,
   onAddLocation,
+  onAutoSort,
   onImport,
   onExportCsv,
   onSelectTab,
@@ -36,10 +42,21 @@ export function CollectionPageHeader({
         eyebrow="ManaVault Inventory"
         description="Your boxes, binders, lists, and owned printings."
         bottomActions={
-          <Button type="button" onClick={onAddItem}>
-            <Plus className="h-4 w-4" />
-            Add card
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={autoSortDisabled || autoSortPending}
+              onClick={onAutoSort}
+            >
+              <WandSparkles className="h-4 w-4" />
+              {autoSortPending ? "Previewing..." : "Preview auto-sort"}
+            </Button>
+            <Button type="button" onClick={onAddItem}>
+              <Plus className="h-4 w-4" />
+              Add card
+            </Button>
+          </div>
         }
         actions={
           <div className="dropdown dropdown-end absolute right-3 top-3 z-[80]">

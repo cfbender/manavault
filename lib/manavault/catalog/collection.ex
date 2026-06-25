@@ -1,10 +1,13 @@
 defmodule Manavault.Catalog.Collection do
   @moduledoc false
 
-  alias Manavault.Catalog.Collection.{Export, ItemAttrs, Locations}
+  import Ecto.Query
+
+  alias Manavault.Catalog.Collection.{AutoSort, Export, ItemAttrs, Locations}
   alias Manavault.Catalog.Collection.Import, as: CollectionImportWorkflow
 
   alias Manavault.Catalog.{
+    AutoSortRule,
     CardCollection,
     CollectionItem,
     Location,
@@ -157,6 +160,46 @@ defmodule Manavault.Catalog.Collection do
     Locations.update(location, attrs)
   end
 
+  def list_collection_auto_sort_rules do
+    AutoSortRule
+    |> order_auto_sort_rules()
+    |> Repo.all()
+    |> Repo.preload(:target_location)
+  end
+
+  def update_collection_auto_sort_rules(inputs) when is_list(inputs) do
+    Repo.transact(fn ->
+      Repo.delete_all(AutoSortRule)
+
+      rules =
+        inputs
+        |> Enum.map(&rule_attrs/1)
+        |> Enum.map(fn attrs ->
+          case target_location(attrs) do
+            {:ok, _location} ->
+              %AutoSortRule{}
+              |> AutoSortRule.changeset(attrs)
+              |> Repo.insert()
+              |> case do
+                {:ok, rule} -> rule
+                {:error, changeset} -> Repo.rollback(changeset)
+              end
+
+            {:error, reason} ->
+              Repo.rollback(reason)
+          end
+        end)
+
+      {:ok, Repo.preload(rules, :target_location)}
+    end)
+  end
+
+  def auto_sort_collection(opts \\ []) do
+    opts
+    |> auto_sort_opts()
+    |> AutoSort.run()
+  end
+
   def delete_location(%Location{} = location) do
     Locations.delete(location)
   end
@@ -177,8 +220,8 @@ defmodule Manavault.Catalog.Collection do
     CollectionImportWorkflow.run(text, opts, &create_collection_item/1)
   end
 
-  def import_collection_preview(%{rows: rows} = preview) when is_list(rows) do
-    CollectionImportWorkflow.import_preview(preview, &create_collection_item/1)
+  def import_collection_preview(%{rows: rows} = preview, opts \\ []) when is_list(rows) do
+    CollectionImportWorkflow.import_preview(preview, &create_collection_item/1, opts)
   end
 
   def export_collection_csv(filters \\ []) when is_list(filters) do
@@ -192,4 +235,81 @@ defmodule Manavault.Catalog.Collection do
     |> list_collection_items(limit: 100_000)
     |> Export.text()
   end
+
+  defp order_auto_sort_rules(queryable) do
+    from(rule in queryable, order_by: [asc: rule.priority, asc: rule.id])
+  end
+
+  defp rule_attrs(input) when is_map(input) do
+    %{}
+    |> put_rule_attr(input, :name)
+    |> put_rule_attr(input, :enabled, true)
+    |> put_rule_attr(input, :priority)
+    |> put_rule_attr(input, :target_location_id)
+    |> put_rule_attr(input, :color_mode, "any")
+    |> put_rule_attr(input, :colors, [])
+    |> put_rule_attr(input, :type_line_includes, [])
+    |> put_rule_attr(input, :type_line_excludes, [])
+    |> put_rule_attr(input, :rarities, [])
+    |> put_rule_attr(input, :min_price_cents)
+    |> put_rule_attr(input, :max_price_cents)
+  end
+
+  defp put_rule_attr(map, input, field, default \\ nil) do
+    case input_value(input, field) do
+      {:ok, nil} -> Map.put(map, field, default)
+      {:ok, value} -> Map.put(map, field, value)
+      :error -> Map.put(map, field, default)
+    end
+  end
+
+  defp target_location(%{target_location_id: nil}), do: {:error, :auto_sort_target_not_found}
+
+  defp target_location(%{target_location_id: id}) do
+    case Repo.get(Location, id) do
+      %Location{kind: kind} when kind in ["box", "binder"] -> {:ok, id}
+      %Location{} -> {:error, :invalid_auto_sort_target}
+      nil -> {:error, :auto_sort_target_not_found}
+    end
+  end
+
+  defp target_location(_attrs), do: {:error, :auto_sort_target_not_found}
+
+  defp input_value(input, field) do
+    string_field = Atom.to_string(field)
+    camel_field = snake_to_camel(string_field)
+
+    cond do
+      Map.has_key?(input, field) -> {:ok, Map.fetch!(input, field)}
+      Map.has_key?(input, string_field) -> {:ok, Map.fetch!(input, string_field)}
+      Map.has_key?(input, camel_field) -> {:ok, Map.fetch!(input, camel_field)}
+      true -> :error
+    end
+  end
+
+  defp snake_to_camel(value) do
+    value
+    |> String.split("_")
+    |> then(fn [head | tail] -> head <> Enum.map_join(tail, "", &String.capitalize/1) end)
+  end
+
+  defp auto_sort_opts(opts) when is_list(opts), do: opts
+
+  defp auto_sort_opts(%{} = input) do
+    cond do
+      Map.has_key?(input, :source_location_id) ->
+        [source_location_id: Map.fetch!(input, :source_location_id)]
+
+      Map.has_key?(input, "source_location_id") ->
+        [source_location_id: Map.fetch!(input, "source_location_id")]
+
+      Map.has_key?(input, "sourceLocationId") ->
+        [source_location_id: Map.fetch!(input, "sourceLocationId")]
+
+      true ->
+        []
+    end
+  end
+
+  defp auto_sort_opts(nil), do: []
 end
