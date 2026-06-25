@@ -629,6 +629,7 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
               moves {
                 collectionItemId
                 cardName
+                cardId
                 imageUrl
                 quantity
                 fromLocationId
@@ -675,6 +676,7 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
               moves {
                 collectionItemId
                 cardName
+                cardId
                 imageUrl
                 quantity
                 fromLocationId
@@ -703,6 +705,7 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
                      %{
                        "collectionItemId" => matching_item_id,
                        "cardName" => "Red Sorter",
+                       "cardId" => "oracle-auto-sort-red",
                        "imageUrl" => "https://example.test/red-sorter.jpg",
                        "quantity" => 1,
                        "fromLocationId" => source_id,
@@ -883,6 +886,72 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
              }
            } = json_response(preview_conn, 200)
 
+    import_rows =
+      Enum.map(rows, fn row ->
+        %{
+          "rowNumber" => row["rowNumber"],
+          "status" => row["status"],
+          "attrs" => row["attrs"]
+        }
+      end)
+
+    auto_sort_preview_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation PreviewCollectionImportAutoSort($input: CollectionImportCommitInput!) {
+          previewCollectionImportAutoSort(input: $input) {
+            autoSortResult {
+              checkedCount
+              movedCount
+              skippedCount
+              dryRun
+              moves {
+                cardName
+                cardId
+                imageUrl
+                quantity
+                fromLocationId
+                fromLocationName
+                toLocationId
+                toLocationName
+              }
+            }
+          }
+        }
+        """,
+        "variables" => %{
+          "input" => %{"rows" => import_rows}
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "previewCollectionImportAutoSort" => %{
+                 "autoSortResult" => %{
+                   "checkedCount" => 1,
+                   "movedCount" => 1,
+                   "skippedCount" => 0,
+                   "dryRun" => true,
+                   "moves" => [
+                     %{
+                       "cardName" => "Auto Imported Card",
+                       "cardId" => "oracle-import-auto-sort",
+                       "imageUrl" => nil,
+                       "quantity" => 1,
+                       "fromLocationId" => nil,
+                       "fromLocationName" => "Unfiled",
+                       "toLocationId" => preview_target_id,
+                       "toLocationName" => "Auto Import Binder"
+                     }
+                   ]
+                 }
+               }
+             }
+           } = json_response(auto_sort_preview_conn, 200)
+
+    assert preview_target_id == to_string(target.id)
+    assert [] = Catalog.list_collection_items([], limit: 10)
+
     commit_conn =
       post(conn, "/api/graphql", %{
         "query" => """
@@ -899,14 +968,7 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
         "variables" => %{
           "input" => %{
             "autoSort" => true,
-            "rows" =>
-              Enum.map(rows, fn row ->
-                %{
-                  "rowNumber" => row["rowNumber"],
-                  "status" => row["status"],
-                  "attrs" => row["attrs"]
-                }
-              end)
+            "rows" => import_rows
           }
         }
       })

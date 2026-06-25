@@ -15,11 +15,13 @@ import { request } from "../../lib/graphql"
 import type { SharedImportPayload } from "../../lib/native-shared-import"
 import { present, titleize } from "../../lib/utils"
 import { AutoSortSetupDialog, hasEnabledAutoSortRules } from "./auto-sort-setup-dialog"
+import { AutoSortSummaryDialog } from "./auto-sort-summary-dialog"
 import {
   CollectionExportCsvDocument,
   CollectionExportTextDocument,
   CollectionItemFormOptionsDocument,
   CommitCollectionImportDocument,
+  PreviewCollectionImportAutoSortDocument,
   PreviewCollectionImportDocument,
 } from "./documents"
 import { printingSetLabel } from "./form-helpers"
@@ -32,6 +34,7 @@ import {
 } from "./import-export-helpers"
 import { isUnfiledLocation } from "./location-summary"
 import type {
+  AutoSortCollectionResult,
   CollectionExportFilters,
   CollectionExportFormat,
   CollectionImportCandidate,
@@ -58,6 +61,7 @@ export function ImportCollectionDialog({
   const [preview, setPreview] = useState<CollectionImportPreview | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isAutoSortSetupOpen, setIsAutoSortSetupOpen] = useState(false)
+  const [autoSortPreview, setAutoSortPreview] = useState<AutoSortCollectionResult | null>(null)
   const optionsQuery = useQuery({
     queryKey: ["collection-item-form-options"],
     queryFn: () => request(CollectionItemFormOptionsDocument),
@@ -80,10 +84,28 @@ export function ImportCollectionDialog({
       }),
     onSuccess: (data) => {
       setPreview(data.previewCollectionImport?.importPreview || null)
+      clearAutoSortPreview()
       setError(null)
     },
     onError: (error) =>
       setError(error instanceof Error ? error.message : "Could not preview collection import"),
+  })
+  const previewImportAutoSort = useMutation({
+    mutationFn: () => {
+      if (!preview) throw new Error("Preview a file before previewing auto-sort")
+
+      return request(PreviewCollectionImportAutoSortDocument, {
+        input: {
+          rows: preview.rows.map(commitImportRow),
+        },
+      })
+    },
+    onSuccess: (data) => {
+      setAutoSortPreview(data.previewCollectionImportAutoSort?.autoSortResult ?? null)
+      setError(null)
+    },
+    onError: (error) =>
+      setError(error instanceof Error ? error.message : "Could not preview import auto-sort"),
   })
   const commitImport = useMutation({
     mutationFn: ({ autoSort = false }: { autoSort?: boolean } = {}) => {
@@ -122,6 +144,7 @@ export function ImportCollectionDialog({
     setSharedFileName(null)
     setFormat(file ? importFormatFromSource(file.name, file.type) : "auto")
     setImportText(file ? await file.text() : "")
+    clearAutoSortPreview()
   }
 
   function loadSharedImport(payload: SharedImportPayload) {
@@ -130,6 +153,7 @@ export function ImportCollectionDialog({
 
     setError(null)
     setPreview(null)
+    clearAutoSortPreview()
     setFileName(nextFileName)
     setSharedFileName(nextFileName)
     setFormat(nextFormat)
@@ -145,6 +169,7 @@ export function ImportCollectionDialog({
   function updateImportText(value: string) {
     setImportText(value)
     setPreview(null)
+    clearAutoSortPreview()
   }
 
   function submitPreview(event: React.FormEvent<HTMLFormElement>) {
@@ -175,6 +200,18 @@ export function ImportCollectionDialog({
     )
 
     setPreview({ ...preview, ...collectionImportCounts(rows), rows })
+    clearAutoSortPreview()
+  }
+
+  function previewAutoSortBeforeImport() {
+    setError(null)
+
+    if (!hasEnabledAutoSortRules(autoSortRules)) {
+      setIsAutoSortSetupOpen(true)
+      return
+    }
+
+    previewImportAutoSort.mutate()
   }
 
   function commitPreview(autoSort: boolean) {
@@ -188,7 +225,7 @@ export function ImportCollectionDialog({
     commitImport.mutate({ autoSort })
   }
   function close() {
-    if (previewImport.isPending || commitImport.isPending) return
+    if (previewImport.isPending || previewImportAutoSort.isPending || commitImport.isPending) return
     reset()
     onOpenChange(false)
   }
@@ -200,12 +237,21 @@ export function ImportCollectionDialog({
     setFormat("auto")
     setLocationId("")
     setPreview(null)
+    setAutoSortPreview(null)
     setError(null)
     setIsAutoSortSetupOpen(false)
   }
 
-  const commitPendingAutoSort = commitImport.variables?.autoSort === true
+  function clearAutoSortPreview() {
+    setAutoSortPreview(null)
+  }
 
+  const commitPendingAutoSort = commitImport.variables?.autoSort === true
+  const autoSortPreviewButtonLabel = optionsQuery.isLoading
+    ? "Loading rules..."
+    : previewImportAutoSort.isPending
+      ? "Previewing auto-sort..."
+      : "Preview auto-sort"
   return (
     <>
       <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : close())}>
@@ -394,7 +440,7 @@ export function ImportCollectionDialog({
             <Button
               type="button"
               variant="outline"
-              disabled={preview.exact === 0 || commitImport.isPending}
+              disabled={preview.exact === 0 || previewImportAutoSort.isPending || commitImport.isPending}
               onClick={() => commitPreview(false)}
             >
               <Upload className="h-4 w-4" />
@@ -404,15 +450,16 @@ export function ImportCollectionDialog({
             </Button>
             <Button
               type="button"
-              disabled={preview.exact === 0 || commitImport.isPending || optionsQuery.isLoading}
-              onClick={() => commitPreview(true)}
+              disabled={
+                preview.exact === 0 ||
+                previewImportAutoSort.isPending ||
+                commitImport.isPending ||
+                optionsQuery.isLoading
+              }
+              onClick={previewAutoSortBeforeImport}
             >
               <WandSparkles className="h-4 w-4" />
-              {optionsQuery.isLoading
-                ? "Loading rules..."
-                : commitPendingAutoSort
-                  ? "Importing and sorting..."
-                  : "Import and auto-sort"}
+              {autoSortPreviewButtonLabel}
             </Button>
           </div>
         ) : null}
@@ -421,6 +468,17 @@ export function ImportCollectionDialog({
       <AutoSortSetupDialog
         open={isAutoSortSetupOpen}
         onOpenChange={setIsAutoSortSetupOpen}
+      />
+      <AutoSortSummaryDialog
+        open={Boolean(autoSortPreview)}
+        result={autoSortPreview}
+        onOpenChange={(open) => !open && setAutoSortPreview(null)}
+        applyLabel="Auto-sort and import"
+        applyPending={commitPendingAutoSort}
+        applyPendingLabel="Importing and sorting..."
+        onApply={() => commitPreview(true)}
+        disableApplyWhenNoMoves={false}
+        showItemMetadata={false}
       />
     </>
   )

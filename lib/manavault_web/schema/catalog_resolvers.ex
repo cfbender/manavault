@@ -63,6 +63,7 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
   defdelegate preview_collection_import(parent, args, resolution), to: ImportResolvers
   defdelegate commit_collection_import(parent, args, resolution), to: ImportResolvers
+  defdelegate preview_collection_import_auto_sort(parent, args, resolution), to: ImportResolvers
 
   defdelegate card_rulings(parent, args, resolution), to: CardFields
   defdelegate card_legalities(parent, args, resolution), to: CardFields

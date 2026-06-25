@@ -447,6 +447,7 @@ defmodule Manavault.Catalog.CollectionTest do
                 %{
                   collection_item_id: item_id,
                   card_name: "Black Lotus",
+                  card_id: "oracle-1",
                   image_url: "https://example.test/black-lotus.jpg",
                   quantity: 1,
                   from_location_id: nil,

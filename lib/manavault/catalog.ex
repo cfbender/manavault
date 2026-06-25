@@ -51,6 +51,7 @@ defmodule Manavault.Catalog do
   defdelegate preview_collection_import(text, opts \\ []), to: Collection
   defdelegate import_collection(text, opts \\ []), to: Collection
   defdelegate import_collection_preview(preview, opts \\ []), to: Collection
+  defdelegate preview_collection_import_auto_sort(preview, opts \\ []), to: Collection
   defdelegate export_collection_csv(filters \\ []), to: Collection
   defdelegate export_collection_text(filters \\ []), to: Collection
 

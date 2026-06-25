@@ -32,25 +32,7 @@ defmodule Manavault.Catalog.Collection.Import do
   def import_preview(%{rows: rows} = preview, create_item, opts \\ [])
       when is_list(rows) and is_function(create_item, 1) and is_list(opts) do
     Repo.transact(fn ->
-      result =
-        Enum.reduce(rows, %{imported: 0, skipped: 0, item_ids: []}, fn row, result ->
-          case row.status do
-            :exact ->
-              case create_item.(row.attrs) do
-                {:ok, item} ->
-                  result
-                  |> update_in([:imported], &(&1 + 1))
-                  |> update_in([:item_ids], &[item.id | &1])
-
-                {:error, changeset} ->
-                  Repo.rollback(changeset)
-              end
-
-            _status ->
-              update_in(result.skipped, &(&1 + 1))
-          end
-        end)
-
+      result = import_preview_rows(rows, create_item)
       result = maybe_auto_sort_imported(result, opts)
 
       {:ok, result}
@@ -59,6 +41,47 @@ defmodule Manavault.Catalog.Collection.Import do
       {:ok, result} -> {:ok, Map.merge(preview, result)}
       {:error, reason} -> {:error, reason}
     end
+  end
+
+  def preview_auto_sort(%{rows: rows}, create_item, opts \\ [])
+      when is_list(rows) and is_function(create_item, 1) and is_list(opts) do
+    Repo.transact(fn ->
+      result = import_preview_rows(rows, create_item)
+      auto_sort_opts = Keyword.merge(opts, item_ids: Enum.reverse(result.item_ids), dry_run: true)
+
+      case AutoSort.run(auto_sort_opts) do
+        {:ok, auto_sort_result} ->
+          Repo.rollback({:auto_sort_preview, auto_sort_result})
+
+        {:error, reason} ->
+          Repo.rollback(reason)
+      end
+    end)
+    |> case do
+      {:error, {:auto_sort_preview, auto_sort_result}} -> {:ok, auto_sort_result}
+      {:error, reason} -> {:error, reason}
+      {:ok, auto_sort_result} -> {:ok, auto_sort_result}
+    end
+  end
+
+  defp import_preview_rows(rows, create_item) do
+    Enum.reduce(rows, %{imported: 0, skipped: 0, item_ids: []}, fn row, result ->
+      case row.status do
+        :exact ->
+          case create_item.(row.attrs) do
+            {:ok, item} ->
+              result
+              |> update_in([:imported], &(&1 + 1))
+              |> update_in([:item_ids], &[item.id | &1])
+
+            {:error, changeset} ->
+              Repo.rollback(changeset)
+          end
+
+        _status ->
+          update_in(result.skipped, &(&1 + 1))
+      end
+    end)
   end
 
   defp maybe_auto_sort_imported(%{item_ids: item_ids} = result, opts) do

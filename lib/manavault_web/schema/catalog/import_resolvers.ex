@@ -40,6 +40,21 @@ defmodule ManavaultWeb.Schema.Catalog.ImportResolvers do
     end
   end
 
+  def preview_collection_import_auto_sort(_parent, %{input: %{rows: rows}}, resolution) do
+    with {:ok, rows} <- collection_import_rows(rows, resolution) do
+      case Catalog.preview_collection_import_auto_sort(%{rows: rows}) do
+        {:ok, result} ->
+          {:ok, result}
+
+        {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
+          {:error, Errors.changeset_error_message(changeset)}
+
+        {:error, reason} ->
+          {:error, Errors.import_error(reason)}
+      end
+    end
+  end
+
   defp collection_import_rows(rows, resolution) do
     Enum.reduce_while(rows, {:ok, []}, fn row, {:ok, parsed_rows} ->
       case collection_import_row(row, resolution) do

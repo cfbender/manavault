@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "../../components/ui/button"
 import {
   Dialog,
@@ -18,17 +18,25 @@ type MoveDestinationGroup = {
 }
 
 export function AutoSortSummaryDialog({
+  applyLabel = "Apply auto-sort",
   applyPending = false,
+  applyPendingLabel = "Applying...",
+  disableApplyWhenNoMoves = true,
   onApply,
   onOpenChange,
   open,
   result,
+  showItemMetadata = true,
 }: {
+  applyLabel?: string
   applyPending?: boolean
+  applyPendingLabel?: string
+  disableApplyWhenNoMoves?: boolean
   onApply?: () => void
   onOpenChange: (open: boolean) => void
   open: boolean
   result: AutoSortCollectionResult | null
+  showItemMetadata?: boolean
 }) {
   const isDryRun = result?.dryRun === true
   const checkedCount = result?.checkedCount ?? 0
@@ -63,21 +71,31 @@ export function AutoSortSummaryDialog({
           {destinationGroups.length ? (
             <div className="space-y-4">
               {destinationGroups.map((group) => (
-                <section
+                <details
                   key={group.locationId}
+                  open
                   className="rounded-box border border-base-300 bg-base-100/70"
                   aria-labelledby={`auto-sort-destination-${group.locationId}`}
                 >
-                  <div className="border-b border-base-300 px-4 py-3">
-                    <h3
-                      id={`auto-sort-destination-${group.locationId}`}
-                      className="font-black tracking-normal"
-                    >
-                      {group.locationName}
-                    </h3>
-                    <p className="text-xs text-base-content/60">Location ID: {group.locationId}</p>
-                  </div>
-                  <ul className="divide-y divide-base-300">
+                  <summary className="cursor-pointer px-4 py-3 marker:text-base-content/60">
+                    <div className="inline-flex w-[calc(100%-1.5rem)] flex-wrap items-start justify-between gap-3 align-top">
+                      <div>
+                        <h3
+                          id={`auto-sort-destination-${group.locationId}`}
+                          className="font-black tracking-normal"
+                        >
+                          {group.locationName}
+                        </h3>
+                        <p className="text-xs text-base-content/60">
+                          Location ID: {group.locationId}
+                        </p>
+                      </div>
+                      <span className="badge badge-outline shrink-0">
+                        {group.moves.length} {group.moves.length === 1 ? "card" : "cards"}
+                      </span>
+                    </div>
+                  </summary>
+                  <ul className="divide-y divide-base-300 border-t border-base-300">
                     {group.moves.map((move) => (
                       <li key={move.collectionItemId} className="space-y-1 px-4 py-3">
                         <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -88,16 +106,18 @@ export function AutoSortSummaryDialog({
                           {isDryRun ? "Would move" : "Moved"} from {sourceLocationLabel(move)} to{" "}
                           {group.locationName}
                         </p>
-                        <p className="text-xs text-base-content/50">
-                          Item ID: {move.collectionItemId}
-                          {move.fromLocationId
-                            ? ` · Source ID: ${move.fromLocationId}`
-                            : " · Source: Unfiled"}
-                        </p>
+                        {showItemMetadata ? (
+                          <p className="text-xs text-base-content/50">
+                            Item ID: {move.collectionItemId}
+                            {move.fromLocationId
+                              ? ` · Source ID: ${move.fromLocationId}`
+                              : " · Source: Unfiled"}
+                          </p>
+                        ) : null}
                       </li>
                     ))}
                   </ul>
-                </section>
+                </details>
               ))}
             </div>
           ) : movedCount === 0 ? (
@@ -115,8 +135,12 @@ export function AutoSortSummaryDialog({
               {isDryRun ? "Close preview" : "Done"}
             </Button>
             {isDryRun && onApply ? (
-              <Button type="button" disabled={applyPending || movedCount === 0} onClick={onApply}>
-                {applyPending ? "Applying..." : "Apply auto-sort"}
+              <Button
+                type="button"
+                disabled={applyPending || (disableApplyWhenNoMoves && movedCount === 0)}
+                onClick={onApply}
+              >
+                {applyPending ? applyPendingLabel : applyLabel}
               </Button>
             ) : null}
           </div>
@@ -141,49 +165,98 @@ type PreviewPosition = {
 }
 
 function CardNamePreview({ move }: { move: AutoSortMoveSummary }) {
-  const triggerRef = useRef<HTMLSpanElement>(null)
+  const triggerRef = useRef<HTMLAnchorElement>(null)
+  const hideTimeoutRef = useRef<number | null>(null)
   const [position, setPosition] = useState<PreviewPosition | null>(null)
+  const cardHref = move.cardId ? `/cards/${encodeURIComponent(move.cardId)}` : null
   const imageUrl = move.imageUrl
 
-  if (!imageUrl) {
-    return <p className="font-bold">{move.cardName}</p>
+  useEffect(() => {
+    return () => {
+      if (hideTimeoutRef.current === null) return
+
+      window.clearTimeout(hideTimeoutRef.current)
+    }
+  }, [])
+
+  if (!imageUrl || !cardHref) {
+    return cardHref ? (
+      <p className="font-bold">
+        <a
+          href={cardHref}
+          target="_blank"
+          rel="noreferrer"
+          className="text-accent underline decoration-accent/40 decoration-dotted underline-offset-4 transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
+        >
+          {move.cardName}
+        </a>
+      </p>
+    ) : (
+      <p className="font-bold">{move.cardName}</p>
+    )
+  }
+
+  function clearHidePreview() {
+    if (hideTimeoutRef.current === null) return
+
+    window.clearTimeout(hideTimeoutRef.current)
+    hideTimeoutRef.current = null
+  }
+
+  function hidePreviewSoon() {
+    clearHidePreview()
+    hideTimeoutRef.current = window.setTimeout(() => {
+      setPosition(null)
+      hideTimeoutRef.current = null
+    }, 120)
   }
 
   function showPreview() {
+    clearHidePreview()
     const rect = triggerRef.current?.getBoundingClientRect()
     if (!rect) return
 
     const previewWidth = 176
     setPosition({
       left: Math.min(Math.max(rect.left, 12), window.innerWidth - previewWidth - 12),
-      top: rect.top - 12,
+      top: rect.top - 6,
     })
   }
 
   return (
     <span className="relative inline-block">
-      <span
+      <a
         ref={triggerRef}
-        tabIndex={0}
+        href={cardHref}
+        target="_blank"
+        rel="noreferrer"
         className="cursor-pointer font-bold text-accent underline decoration-accent/40 decoration-dotted underline-offset-4 transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
-        onBlur={() => setPosition(null)}
+        onBlur={hidePreviewSoon}
         onFocus={showPreview}
         onPointerEnter={showPreview}
-        onPointerLeave={() => setPosition(null)}
+        onPointerLeave={hidePreviewSoon}
       >
         {move.cardName}
-      </span>
+      </a>
       {position ? (
-        <span
-          className="pointer-events-none fixed z-[9999] w-44 -translate-y-full rounded-xl border border-base-300 bg-base-100 p-2 shadow-2xl"
+        <a
+          href={cardHref}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`Open ${move.cardName} card details in a new tab`}
+          className="fixed z-[9999] block w-44 -translate-y-full rounded-xl border border-base-300 bg-base-100 p-2 shadow-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
           style={{ left: position.left, top: position.top }}
+          onBlur={hidePreviewSoon}
+          onFocus={showPreview}
+          onPointerEnter={showPreview}
+          onPointerLeave={hidePreviewSoon}
         >
           <img
             src={imageUrl}
             alt={move.cardName}
             className="aspect-[5/7] w-full rounded-lg object-cover"
           />
-        </span>
+        </a>
       ) : null}
     </span>
   )

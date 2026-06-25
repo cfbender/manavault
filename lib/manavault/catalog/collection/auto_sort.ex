@@ -261,6 +261,7 @@ defmodule Manavault.Catalog.Collection.AutoSort do
     %{
       collection_item_id: item.id,
       card_name: card_value(item, :name),
+      card_id: card_value(item, :oracle_id),
       image_url: printing_image_url(item),
       quantity: item.quantity,
       from_location_id: from_location_id,

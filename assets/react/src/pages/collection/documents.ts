@@ -504,6 +504,30 @@ export const CommitCollectionImportDocument = graphql(`
   }
 `)
 
+export const PreviewCollectionImportAutoSortDocument = graphql(`
+  mutation PreviewCollectionImportAutoSort($input: CollectionImportCommitInput!) {
+    previewCollectionImportAutoSort(input: $input) {
+      autoSortResult {
+        checkedCount
+        movedCount
+        skippedCount
+        dryRun
+        moves {
+          collectionItemId
+          cardName
+          cardId
+          imageUrl
+          quantity
+          fromLocationId
+          fromLocationName
+          toLocationId
+          toLocationName
+        }
+      }
+    }
+  }
+`)
+
 export const AutoSortCollectionDocument = graphql(`
   mutation AutoSortCollection($input: AutoSortCollectionInput) {
     autoSortCollection(input: $input) {
@@ -515,6 +539,7 @@ export const AutoSortCollectionDocument = graphql(`
         moves {
           collectionItemId
           cardName
+          cardId
           imageUrl
           quantity
           fromLocationId

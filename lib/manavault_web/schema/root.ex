@@ -416,6 +416,24 @@ defmodule ManavaultWeb.Schema do
       end)
     end
 
+    payload field :preview_collection_import_auto_sort do
+      arg(:input, non_null(:collection_import_commit_input))
+
+      output do
+        field :auto_sort_result, non_null(:collection_auto_sort_result)
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &CatalogResolvers.preview_collection_import_auto_sort/3,
+          :auto_sort_result
+        )
+      end)
+    end
+
     payload field :commit_collection_import do
       arg(:input, non_null(:collection_import_commit_input))
 

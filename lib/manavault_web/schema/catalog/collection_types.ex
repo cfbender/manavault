@@ -164,6 +164,7 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
   object :collection_auto_sort_move do
     field :collection_item_id, non_null(:id)
     field :card_name, non_null(:string)
+    field :card_id, :id
     field :image_url, :string
     field :quantity, non_null(:integer)
     field :from_location_id, :id

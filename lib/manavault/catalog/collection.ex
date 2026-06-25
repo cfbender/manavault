@@ -224,6 +224,11 @@ defmodule Manavault.Catalog.Collection do
     CollectionImportWorkflow.import_preview(preview, &create_collection_item/1, opts)
   end
 
+  def preview_collection_import_auto_sort(%{rows: rows} = preview, opts \\ [])
+      when is_list(rows) do
+    CollectionImportWorkflow.preview_auto_sort(preview, &create_collection_item/1, opts)
+  end
+
   def export_collection_csv(filters \\ []) when is_list(filters) do
     filters
     |> list_collection_items(limit: 100_000)
