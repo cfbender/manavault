@@ -3,12 +3,16 @@ import { useNavigate } from "@tanstack/react-router"
 import { useMemo, useState } from "react"
 import { EmptyState } from "../../components/card-image"
 import { useToast } from "../../components/ui/toast"
-import type { DeckCardInput, DeckCardUpdateInput } from "../../gql/graphql"
+import type { DeckCardInput, DeckCardUpdateInput, DeckQuery } from "../../gql/graphql"
 import { groupDeckCards, type DeckGroupBy } from "../../lib/deck-grouping"
 import { request } from "../../lib/graphql"
 import { pluralize } from "../../lib/utils"
 import { deckCardsTotalPrice, formatUsdCents } from "./buylist-export"
 import { createDeckPullList, selectedDeckPullListEntries, type DeckPullListMode } from "./deck-allocation-model"
+import {
+  updateDeckCardTagsInDeckQuery,
+  type DeckTagPatch,
+} from "./deck-query-cache"
 import { compareDeckCards, countDeckZones } from "./deck-card-model"
 import { deckLegalityIssues } from "./deck-legality"
 import { useDeferredDeckAnalysis } from "./deck-stats-panel"
@@ -42,6 +46,56 @@ import {
   UpdateDeckCardDocument,
   UpdateDeckCardsTagDocument,
 } from "./queries"
+
+type UpdateDeckCardVariables = { deckCardId: string; input: DeckCardUpdateInput }
+type UpdateDeckCardMutationContext =
+  | { isTagOnly: false; rollbackPatches: [] }
+  | { isTagOnly: true; optimisticTag: DeckCardTag | null; rollbackPatches: DeckTagPatch[] }
+type UpdateDeckCardsTagVariables = { deckCardIds: string[]; tag: DeckCardTag | null }
+type UpdateDeckCardsTagMutationContext = {
+  optimisticTag: DeckCardTag | null
+  rollbackPatches: DeckTagPatch[]
+}
+
+function deckCardTagValue(tag: string | null | undefined): DeckCardTag | null | undefined {
+  if (tag === null) return null
+  if (tag === "getting" || tag === "consider_cutting") return tag
+  return undefined
+}
+
+function isTagOnlyDeckCardUpdate(input: DeckCardUpdateInput) {
+  const keys = Object.keys(input)
+  return keys.length === 1 && keys[0] === "tag"
+}
+
+function deckCardTagFromDeckQuery(data: DeckQuery | undefined, deckCardId: string) {
+  const edges = data?.deck?.deckCards?.edges
+  if (!edges) return undefined
+
+  for (const edge of edges) {
+    const node = edge?.node
+    if (node?.id === deckCardId) return deckCardTagValue(node.tag)
+  }
+
+  return undefined
+}
+
+function rollbackDeckCardTagPatches(
+  data: DeckQuery | undefined,
+  deckCardIds: readonly string[],
+  optimisticTag: DeckCardTag | null,
+) {
+  const patches: DeckTagPatch[] = []
+
+  for (const deckCardId of deckCardIds) {
+    const previousTag = deckCardTagFromDeckQuery(data, deckCardId)
+    if (previousTag !== undefined) {
+      patches.push({ currentTag: optimisticTag, id: deckCardId, tag: previousTag })
+    }
+  }
+
+  return patches
+}
 
 export function DeckDetailPage({
   edhrecExcludeLands = false,
@@ -77,6 +131,7 @@ export function DeckDetailPage({
   const [bulkAllocationError, setBulkAllocationError] = useState<string | null>(null)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const deckQueryKey = ["deck", id] as const
   const { showToast } = useToast()
   const previewDeckDisassembly = useMutation({
     mutationFn: (deckId: string) => request(PreviewDeckDisassemblyDocument, { id: deckId }),
@@ -193,15 +248,53 @@ export function DeckDetailPage({
   }, [deckCards, shareMode])
 
   const updateDeckCard = useMutation({
-    mutationFn: ({ deckCardId, input }: { deckCardId: string; input: DeckCardUpdateInput }) =>
+    mutationFn: ({ deckCardId, input }: UpdateDeckCardVariables) =>
       request(UpdateDeckCardDocument, { id: deckCardId, input }),
-    onSuccess: () => {
+    onMutate: async ({
+      deckCardId,
+      input,
+    }): Promise<UpdateDeckCardMutationContext> => {
+      if (!isTagOnlyDeckCardUpdate(input)) return { isTagOnly: false, rollbackPatches: [] }
+
+      const optimisticTag = deckCardTagValue(input.tag)
+      if (optimisticTag === undefined) return { isTagOnly: false, rollbackPatches: [] }
+
+      await queryClient.cancelQueries({ queryKey: deckQueryKey })
+      const previousDeck = queryClient.getQueryData<DeckQuery>(deckQueryKey)
+      const previousTag = deckCardTagFromDeckQuery(previousDeck, deckCardId)
+      const rollbackPatches: DeckTagPatch[] =
+        previousTag === undefined
+          ? []
+          : [{ currentTag: optimisticTag, id: deckCardId, tag: previousTag }]
+
+      queryClient.setQueryData<DeckQuery>(deckQueryKey, (current) =>
+        updateDeckCardTagsInDeckQuery(current, [{ id: deckCardId, tag: optimisticTag }]),
+      )
+
+      return { isTagOnly: true, optimisticTag, rollbackPatches }
+    },
+    onSuccess: (data, variables, context) => {
       const wasEditingCard = Boolean(editTarget)
       const wasMovingCard = Boolean(moveTarget)
+      const isTagOnly = context?.isTagOnly || isTagOnlyDeckCardUpdate(variables.input)
 
-      queryClient.invalidateQueries({ queryKey: ["deck", id] })
-      queryClient.invalidateQueries({ queryKey: ["decks"] })
-      queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
+      if (isTagOnly) {
+        const deckCard = data.updateDeckCard?.deckCard
+        const tag = deckCardTagValue(deckCard?.tag)
+        if (deckCard && tag !== undefined) {
+          const patch: DeckTagPatch = { id: deckCard.id, tag }
+          if (context?.isTagOnly) patch.currentTag = context.optimisticTag
+
+          queryClient.setQueryData<DeckQuery>(deckQueryKey, (current) =>
+            updateDeckCardTagsInDeckQuery(current, [patch]),
+          )
+        }
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["deck", id] })
+        queryClient.invalidateQueries({ queryKey: ["decks"] })
+        queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
+      }
+
       if (wasEditingCard) showToast("Card edited")
       if (wasMovingCard) showToast("Card moved")
       setEditTarget(null)
@@ -210,7 +303,13 @@ export function DeckDetailPage({
       setMoveError(null)
       setTagError(null)
     },
-    onError: (error) => {
+    onError: (error, _variables, context) => {
+      if (context?.isTagOnly && context.rollbackPatches.length > 0) {
+        queryClient.setQueryData<DeckQuery>(deckQueryKey, (current) =>
+          updateDeckCardTagsInDeckQuery(current, context.rollbackPatches),
+        )
+      }
+
       const message = error instanceof Error ? error.message : "Could not update deck card"
       if (editTarget) setEditError(message)
       else if (moveTarget) setMoveError(message)
@@ -250,18 +349,56 @@ export function DeckDetailPage({
   })
 
   const updateDeckCardsTag = useMutation({
-    mutationFn: ({ deckCardIds, tag }: { deckCardIds: string[]; tag: DeckCardTag | null }) =>
+    mutationFn: ({ deckCardIds, tag }: UpdateDeckCardsTagVariables) =>
       request(UpdateDeckCardsTagDocument, { deckCardIds, tag }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["deck", id] })
-      queryClient.invalidateQueries({ queryKey: ["decks"] })
+    onMutate: async ({
+      deckCardIds,
+      tag,
+    }): Promise<UpdateDeckCardsTagMutationContext> => {
+      await queryClient.cancelQueries({ queryKey: deckQueryKey })
+      const previousDeck = queryClient.getQueryData<DeckQuery>(deckQueryKey)
+      const rollbackPatches = rollbackDeckCardTagPatches(previousDeck, deckCardIds, tag)
+
+      queryClient.setQueryData<DeckQuery>(deckQueryKey, (current) =>
+        updateDeckCardTagsInDeckQuery(
+          current,
+          deckCardIds.map((deckCardId) => ({ id: deckCardId, tag })),
+        ),
+      )
+
+      return { optimisticTag: tag, rollbackPatches }
+    },
+    onSuccess: (data, _variables, context) => {
+      const patches = (data.updateDeckCardsTag?.deckCards ?? [])
+        .map((deckCard): DeckTagPatch | null => {
+          const tag = deckCardTagValue(deckCard.tag)
+          if (tag === undefined) return null
+          return context
+            ? { currentTag: context.optimisticTag, id: deckCard.id, tag }
+            : { id: deckCard.id, tag }
+        })
+        .filter((patch): patch is DeckTagPatch => patch !== null)
+
+      if (patches.length > 0) {
+        queryClient.setQueryData<DeckQuery>(deckQueryKey, (current) =>
+          updateDeckCardTagsInDeckQuery(current, patches),
+        )
+      }
+
       clearSelectedDeckCards()
       setIsSelectingCards(false)
       setBulkActionError(null)
       setTagError(null)
     },
-    onError: (error) =>
-      setBulkActionError(error instanceof Error ? error.message : "Could not tag selected cards"),
+    onError: (error, _variables, context) => {
+      if (context?.rollbackPatches.length) {
+        queryClient.setQueryData<DeckQuery>(deckQueryKey, (current) =>
+          updateDeckCardTagsInDeckQuery(current, context.rollbackPatches),
+        )
+      }
+
+      setBulkActionError(error instanceof Error ? error.message : "Could not tag selected cards")
+    },
   })
 
   const bulkUpdateDeckCards = useMutation({

@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "lint": "vp lint",
+    "check": "vp check",
+    "format": "vp fmt",
     "typecheck": "tsc --project assets/tsconfig.json --noEmit",
     "test:react": "node --experimental-strip-types --experimental-default-type=module --test assets/react/test/*.test.mjs",
     "codegen": "graphql-codegen --config codegen.ts",
