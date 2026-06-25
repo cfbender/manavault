@@ -19,7 +19,7 @@ defmodule Manavault.Catalog.EDHRec.Response do
       commander_names: commander_names,
       recommendations: normalize_entries(Map.get(response, "inRecs", []), deck),
       cuts: normalize_entries(Map.get(response, "outRecs", []), deck),
-      commander_pages: CommanderPage.pages(commander_names, fetch_commander_page),
+      commander_pages: CommanderPage.pages(commander_names, fetch_commander_page, deck),
       more: Map.get(response, "more", false) == true
     }
   end

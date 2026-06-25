@@ -3,19 +3,19 @@ defmodule Manavault.Catalog.EDHRec.Response.CommanderPage do
 
   alias Manavault.Catalog.EDHRec.Response.{CardLookup, CollectionStatus}
 
-  def pages(names, fetch_commander_page) do
+  def pages(names, fetch_commander_page, deck \\ nil) do
     names
     |> Enum.uniq()
     |> Enum.map(fn name ->
       case fetch_commander_page.(name) do
-        {:ok, page} when is_map(page) -> normalize(name, page)
+        {:ok, page} when is_map(page) -> normalize(name, page, deck)
         _error -> nil
       end
     end)
     |> Enum.reject(&is_nil/1)
   end
 
-  defp normalize(name, page) do
+  defp normalize(name, page, deck) do
     container = Map.get(page, "container", %{})
     json_dict = Map.get(container, "json_dict", %{})
     card = Map.get(json_dict, "card", %{})
@@ -38,23 +38,23 @@ defmodule Manavault.Catalog.EDHRec.Response.CommanderPage do
       sections:
         page
         |> get_in(["container", "json_dict", "cardlists"])
-        |> normalize_sections()
+        |> normalize_sections(deck)
     }
   end
 
-  defp normalize_sections(cardlists) when is_list(cardlists) do
+  defp normalize_sections(cardlists, deck) when is_list(cardlists) do
     cardlists
-    |> Enum.map(&normalize_section/1)
+    |> Enum.map(&normalize_section(&1, deck))
     |> Enum.reject(&is_nil/1)
   end
 
-  defp normalize_sections(_cardlists), do: []
+  defp normalize_sections(_cardlists, _deck), do: []
 
-  defp normalize_section(%{} = section) do
+  defp normalize_section(%{} = section, deck) do
     cards =
       section
       |> Map.get("cardviews", [])
-      |> Enum.map(&normalize_card/1)
+      |> Enum.map(&normalize_card(&1, deck))
       |> Enum.reject(&is_nil/1)
 
     if cards == [] do
@@ -68,9 +68,9 @@ defmodule Manavault.Catalog.EDHRec.Response.CommanderPage do
     end
   end
 
-  defp normalize_section(_section), do: nil
+  defp normalize_section(_section, _deck), do: nil
 
-  defp normalize_card(%{} = entry) do
+  defp normalize_card(%{} = entry, deck) do
     name = CardLookup.entry_name(entry)
 
     if name == "" do
@@ -79,9 +79,12 @@ defmodule Manavault.Catalog.EDHRec.Response.CommanderPage do
       local_card =
         CardLookup.local_card(page_value(entry, "oracle_id") || page_value(entry, "id"), name)
 
+      oracle_id = CardLookup.local_card_oracle_id(local_card)
+      deck_card = matching_deck_card(deck, oracle_id, name)
+
       %{
         name: name,
-        oracle_id: CardLookup.local_card_oracle_id(local_card),
+        oracle_id: oracle_id,
         synergy: page_number(entry, "synergy"),
         inclusion: page_integer(entry, "inclusion"),
         num_decks: page_integer(entry, "num_decks"),
@@ -92,12 +95,17 @@ defmodule Manavault.Catalog.EDHRec.Response.CommanderPage do
             "https://edhrec.com/cards/#{CardLookup.card_slug(name)}"
           ),
         card: local_card,
-        collection_status: CollectionStatus.status(local_card, nil)
+        collection_status: CollectionStatus.status(local_card, deck_card)
       }
     end
   end
 
-  defp normalize_card(_entry), do: nil
+  defp normalize_card(_entry, _deck), do: nil
+
+  defp matching_deck_card(nil, _oracle_id, _name), do: nil
+
+  defp matching_deck_card(deck, oracle_id, name),
+    do: CardLookup.matching_deck_card(deck, oracle_id, name)
 
   defp page_themes(page) do
     page

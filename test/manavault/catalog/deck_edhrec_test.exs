@@ -96,6 +96,15 @@ defmodule Manavault.Catalog.DeckEdhrecTest do
                      "num_decks" => 77,
                      "potential_decks" => 123,
                      "url" => "/cards/time-walk"
+                   },
+                   %{
+                     "id" => "scryfall-printing-1",
+                     "name" => "Black Lotus",
+                     "synergy" => 0.75,
+                     "inclusion" => 99,
+                     "num_decks" => 99,
+                     "potential_decks" => 123,
+                     "url" => "/cards/black-lotus"
                    }
                  ]
                }
@@ -126,7 +135,7 @@ defmodule Manavault.Catalog.DeckEdhrecTest do
     assert [%{name: "Time Walk", collection_status: %{state: "available", owned: 1}}] =
              result.recommendations
 
-    assert [%{name: "Black Lotus", collection_status: %{state: "missing", missing: 1}}] =
+    assert [%{name: "Black Lotus", collection_status: %{state: "allocated", missing: 1}}] =
              result.cuts
 
     assert [
@@ -140,9 +149,14 @@ defmodule Manavault.Catalog.DeckEdhrecTest do
                      %{
                        name: "Time Walk",
                        oracle_id: "oracle-2",
-                       synergy: 0.5,
                        card: %{oracle_id: "oracle-2"},
                        collection_status: %{state: "available"}
+                     },
+                     %{
+                       name: "Black Lotus",
+                       oracle_id: "oracle-1",
+                       card: %{oracle_id: "oracle-1"},
+                       collection_status: %{state: "allocated", missing: 1}
                      }
                    ]
                  }
