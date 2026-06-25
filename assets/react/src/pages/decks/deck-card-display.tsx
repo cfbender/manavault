@@ -36,8 +36,10 @@ import {
   Zap,
   type LucideIcon,
 } from "lucide-react"
+import { Badge } from "../../components/ui/badge"
 import { ManaSymbol } from "../../components/ui/mana-symbols"
 import { type DeckGroupIcon } from "../../lib/deck-grouping"
+import { cn } from "../../lib/utils"
 import type { DeckZone } from "./deck-types"
 
 export const GROUP_ICON_COMPONENTS = {
@@ -163,4 +165,19 @@ export function ZoneIcon({ zone }: { zone: DeckZone }) {
 
 export function SparkleIcon({ className }: { className?: string }) {
   return <Star className={className} />
+}
+
+export function GameChangerBadge({ className }: { className?: string }) {
+  return (
+    <Badge
+      tone="warning"
+      title="Game Changer"
+      className={cn(
+        "whitespace-nowrap border-warning bg-warning px-2 text-[0.6rem] font-black uppercase tracking-[0.12em] text-warning-content shadow-sm",
+        className,
+      )}
+    >
+      Game Changer
+    </Badge>
+  )
 }

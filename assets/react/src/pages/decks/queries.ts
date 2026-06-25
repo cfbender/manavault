@@ -190,6 +190,7 @@ export const DeckDocument = graphql(`
               oracleText
               colors
               colorIdentity
+              gameChanger
               deckCategory
               deckThemes
               printings(first: 300) {

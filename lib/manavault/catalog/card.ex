@@ -14,6 +14,7 @@ defmodule Manavault.Catalog.Card do
     field :colors, :string, default: "[]"
     field :color_identity, :string, default: "[]"
     field :legalities, :string, default: "{}"
+    field :game_changer, :boolean, default: false
     field :oracle_tags, :string, default: "[]"
     field :deck_category, :string
     field :deck_themes, :string, default: "[]"
@@ -40,11 +41,12 @@ defmodule Manavault.Catalog.Card do
       :colors,
       :color_identity,
       :legalities,
+      :game_changer,
       :oracle_tags,
       :deck_category,
       :deck_themes,
       :rulings_uri
     ])
-    |> validate_required([:oracle_id, :name, :color_identity, :legalities])
+    |> validate_required([:oracle_id, :name, :color_identity, :legalities, :game_changer])
   end
 end

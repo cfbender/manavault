@@ -37,6 +37,7 @@ defmodule Manavault.Catalog.Scryfall.Import do
                  :colors,
                  :color_identity,
                  :legalities,
+                 :game_changer,
                  :oracle_tags,
                  :deck_category,
                  :deck_themes,

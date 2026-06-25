@@ -146,7 +146,8 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
           "image_uris" => %{},
           "finishes" => ["nonfoil"],
           "prices" => %{"usd" => "2.50"},
-          "legalities" => %{}
+          "legalities" => %{},
+          "game_changer" => true
         }
       ])
 
@@ -228,7 +229,7 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                   zone
                   finish
                   priceCents
-                  card { name }
+                  card { name gameChanger }
                   preferredPrinting {
                     scryfallId
                     imageUrl
@@ -312,7 +313,7 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                        "node" => %{
                          "quantity" => 2,
                          "priceCents" => 250,
-                         "card" => %{"name" => "Shared Card"},
+                         "card" => %{"name" => "Shared Card", "gameChanger" => true},
                          "allocationStatus" => %{
                            "state" => "shared",
                            "required" => 2,

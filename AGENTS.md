@@ -25,6 +25,20 @@ mise exec -- mix phx.server
 mise exec -- mix test
 ```
 
+Before starting the Phoenix server, check whether port 4000 is already listening, for example:
+
+```sh
+ss -ltnp 'sport = :4000'
+```
+
+If anything is already listening on port 4000, do not run `mise exec -- mix phx.server`; reuse the existing server.
+
+After creating a new Ecto migration, run it before reporting the change complete:
+
+```sh
+mise exec -- mix ecto.migrate
+```
+
 Useful production/container commands are documented in `README.md`.
 
 ## Development Notes

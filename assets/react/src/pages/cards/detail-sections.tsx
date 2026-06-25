@@ -41,7 +41,13 @@ export function CardTagSummary({ card }: { card: CardDetail }) {
   )
 }
 
-export function CardLegalityPanel({ legalities }: { legalities?: CardLegality[] | null }) {
+export function CardLegalityPanel({
+  gameChanger = false,
+  legalities,
+}: {
+  gameChanger?: boolean | null
+  legalities?: CardLegality[] | null
+}) {
   const presentLegalities = legalities?.filter(present) ?? []
 
   if (presentLegalities.length === 0) return null
@@ -60,6 +66,8 @@ export function CardLegalityPanel({ legalities }: { legalities?: CardLegality[] 
       <dl className="grid gap-2 border-t border-base-300/70 px-4 py-3 sm:grid-cols-2">
         {CARD_LEGALITY_FORMATS.map((format) => {
           const isLegal = statusesByFormat[format.key] === "legal"
+          const isCommanderGameChanger = isLegal && gameChanger === true && format.key === "commander"
+          const legalityLabel = isLegal ? (isCommanderGameChanger ? "LEGAL/GC" : "LEGAL") : "NOT LEGAL"
 
           return (
             <div
@@ -69,13 +77,13 @@ export function CardLegalityPanel({ legalities }: { legalities?: CardLegality[] 
               <dt className="text-sm font-semibold text-base-content/75">{format.label}</dt>
               <dd>
                 <Badge
-                  tone={isLegal ? "success" : "neutral"}
+                  tone={isCommanderGameChanger ? "warning" : isLegal ? "success" : "neutral"}
                   className={cn(
                     "min-w-20 justify-center text-[0.65rem] font-black uppercase tracking-wide",
                     !isLegal && "border-base-content/20 text-base-content/50",
                   )}
                 >
-                  {isLegal ? "LEGAL" : "NOT LEGAL"}
+                  {legalityLabel}
                 </Badge>
               </dd>
             </div>

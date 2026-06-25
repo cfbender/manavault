@@ -3,6 +3,7 @@ import { Box, CheckSquare, ChevronDown, Edit3, MoveRight, Square, Trash2 } from 
 import { Button } from "../../components/ui/button"
 import { cn } from "../../lib/utils"
 import { DeckCardTagButton } from "./deck-card-allocation"
+import { GameChangerBadge } from "./deck-card-display"
 import type { DeckCardEntry, DeckCardTag } from "./deck-types"
 
 export function DeckZoneTable({
@@ -68,6 +69,7 @@ export function DeckZoneTable({
             {cards.map((deckCard) => {
               const printing = deckCard.preferredPrinting || deckCard.card?.printings?.[0]
               const selected = selectedCardIds.has(deckCard.id)
+              const isGameChanger = deckCard.card?.gameChanger === true
 
               return (
                 <tr
@@ -101,24 +103,27 @@ export function DeckZoneTable({
                   ) : null}
                   <td className="font-mono">{deckCard.quantity}</td>
                   <td>
-                    {shareMode ? (
-                      <button
-                        type="button"
-                        className="font-semibold hover:text-primary"
-                        onClick={() => onPreview(deckCard)}
-                      >
-                        {deckCard.card?.name}
-                      </button>
-                    ) : (
-                      <Link
-                        to="/cards/$id"
-                        params={{ id: deckCard.card?.id || "" }}
-                        search={{ deckId }}
-                        className="font-semibold hover:text-primary"
-                      >
-                        {deckCard.card?.name}
-                      </Link>
-                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {shareMode ? (
+                        <button
+                          type="button"
+                          className="font-semibold hover:text-primary"
+                          onClick={() => onPreview(deckCard)}
+                        >
+                          {deckCard.card?.name}
+                        </button>
+                      ) : (
+                        <Link
+                          to="/cards/$id"
+                          params={{ id: deckCard.card?.id || "" }}
+                          search={{ deckId }}
+                          className="font-semibold hover:text-primary"
+                        >
+                          {deckCard.card?.name}
+                        </Link>
+                      )}
+                      {isGameChanger ? <GameChangerBadge /> : null}
+                    </div>
                   </td>
                   <td className="max-w-xs truncate text-base-content/65">
                     {deckCard.card?.typeLine}

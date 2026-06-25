@@ -93,6 +93,7 @@ export const CardDocument = graphql(`
       manaCost
       oracleText
       colorIdentity
+      gameChanger
       deckCategory
       deckThemes
       oracleTags {

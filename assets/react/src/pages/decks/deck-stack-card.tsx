@@ -16,6 +16,7 @@ import { cn, titleize } from "../../lib/utils"
 import { ShareModeHidden, blurFocusedMenuItem } from "./deck-actions"
 import { DeckCardAllocationMenu, DeckCardTagButton } from "./deck-card-allocation"
 import { cardImageUrl } from "./deck-card-model"
+import { GameChangerBadge } from "./deck-card-display"
 import { deckCardTag } from "./deck-card-tags"
 import type { DeckCardEntry, DeckCardTag } from "./deck-types"
 import { DECK_CARD_TAGS } from "./deck-types"
@@ -78,6 +79,7 @@ export function DeckStackCard({
   const printing = deckCard.preferredPrinting || deckCard.card?.printings?.[0]
   const tag = deckCardTag(deckCard.tag)
   const hasFoilFinish = deckCard.finish === "foil" || deckCard.finish === "etched"
+  const isGameChanger = deckCard.card?.gameChanger === true
   const isInteractive = isActive || isAllocationMenuOpen || (!isSelecting && hasFocusWithin)
 
   function handleBlur(event: FocusEvent<HTMLElement>) {
@@ -277,6 +279,10 @@ export function DeckStackCard({
                   deckCard.finish === "etched" && "card-tile-foil-overlay--etched",
                 )}
               />
+            ) : null}
+
+            {isGameChanger ? (
+              <GameChangerBadge className="absolute left-1/2 top-1 z-20 -translate-x-1/2 shadow-lg" />
             ) : null}
 
             {deckCard.quantity > 1 ? (

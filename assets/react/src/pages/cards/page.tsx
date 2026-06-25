@@ -261,7 +261,7 @@ export function CardDetailPage({
                 </div>
               ) : null}
 
-              <CardLegalityPanel legalities={card.legalities} />
+              <CardLegalityPanel gameChanger={card.gameChanger} legalities={card.legalities} />
               <CardRulings rulings={card.rulings} />
             </div>
           </div>

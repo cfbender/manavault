@@ -196,7 +196,8 @@ defmodule ManavaultWeb.Schema.CardQueriesTest do
             "modern" => "not_legal",
             "commander" => "legal",
             "standard" => "banned"
-          }
+          },
+          "game_changer" => true
         }
       ])
 
@@ -208,6 +209,7 @@ defmodule ManavaultWeb.Schema.CardQueriesTest do
         "query" => """
         query CardLegalities($id: ID!) {
           card(id: $id) {
+            gameChanger
             legalities {
               format
               status
@@ -225,7 +227,8 @@ defmodule ManavaultWeb.Schema.CardQueriesTest do
                    %{"format" => "commander", "status" => "legal"},
                    %{"format" => "modern", "status" => "not_legal"},
                    %{"format" => "standard", "status" => "banned"}
-                 ]
+                 ],
+                 "gameChanger" => true
                }
              }
            } = json_response(conn, 200)
