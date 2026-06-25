@@ -34,7 +34,6 @@ import {
   COLLECTION_FILTERS_STORAGE_KEY,
   COLLECTION_PAGE_SIZE,
   COLLECTION_SEARCH_DRAFT_STORAGE_KEY,
-  COLLECTION_SORT_STORAGE_KEY,
   DEFAULT_COLLECTION_SORT,
 } from "./constants"
 import {
@@ -58,6 +57,7 @@ import {
   useCollectionItemSelection,
 } from "./selection-grid"
 import { SortDropdown } from "./sort-controls"
+import { collectionSortStorageKey } from "./storage-keys"
 import {
   createEmptyCollectionFilters,
   deserializeCollectionSort,
@@ -76,6 +76,8 @@ import type {
   LocationSummary,
 } from "./types"
 
+const COLLECTION_PAGE_SORT_STORAGE_KEY = collectionSortStorageKey("collection")
+
 export function CollectionPage({ importFile = false }: { importFile?: boolean }) {
   const [activeTab, setActiveTab] = useLocalStorageState<CollectionTab>(
     COLLECTION_ACTIVE_TAB_STORAGE_KEY,
@@ -91,7 +93,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
     { shouldRemove: isBlankStorageString },
   )
   const [sort, setSort] = useLocalStorageState<CollectionSort>(
-    COLLECTION_SORT_STORAGE_KEY,
+    COLLECTION_PAGE_SORT_STORAGE_KEY,
     DEFAULT_COLLECTION_SORT,
     { deserialize: deserializeCollectionSort, shouldRemove: isDefaultCollectionSort },
   )

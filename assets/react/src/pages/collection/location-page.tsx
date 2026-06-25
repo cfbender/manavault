@@ -23,11 +23,7 @@ import { cn, compactNumber, present, titleize } from "../../lib/utils"
 import { AutoSortSetupDialog, hasEnabledAutoSortRules } from "./auto-sort-setup-dialog"
 import { AutoSortSummaryDialog } from "./auto-sort-summary-dialog"
 import { invalidateCollectionViews } from "./collection-navigation"
-import {
-  COLLECTION_LOCATION_STATE_STORAGE_PREFIX,
-  COLLECTION_PAGE_SIZE,
-  DEFAULT_COLLECTION_SORT,
-} from "./constants"
+import { COLLECTION_PAGE_SIZE, DEFAULT_COLLECTION_SORT } from "./constants"
 import {
   AutoSortCollectionDocument,
   CollectionItemFormOptionsDocument,
@@ -51,6 +47,7 @@ import {
   useCollectionItemSelection,
 } from "./selection-grid"
 import { SortDropdown } from "./sort-controls"
+import { collectionLocationStateStoragePrefix, collectionSortStorageKey } from "./storage-keys"
 import {
   createEmptyCollectionFilters,
   deserializeCollectionSort,
@@ -62,8 +59,10 @@ import {
 import type { AutoSortCollectionResult, CollectionExportFormat, CollectionItem, CollectionSort } from "./types"
 import { collectionValueLine } from "./value-summary"
 
+const LOCATION_PAGE_SORT_STORAGE_KEY = collectionSortStorageKey("location")
+
 export function LocationPage({ id }: { id: string }) {
-  const locationStateStoragePrefix = `${COLLECTION_LOCATION_STATE_STORAGE_PREFIX}.${encodeURIComponent(id)}`
+  const locationStateStoragePrefix = collectionLocationStateStoragePrefix(id)
   const [q, setQ] = useLocalStorageState<string>(`${locationStateStoragePrefix}.searchDraft`, "", {
     shouldRemove: isBlankStorageString,
   })
@@ -73,7 +72,7 @@ export function LocationPage({ id }: { id: string }) {
     { shouldRemove: isBlankStorageString },
   )
   const [sort, setSort] = useLocalStorageState<CollectionSort>(
-    `${locationStateStoragePrefix}.sort`,
+    LOCATION_PAGE_SORT_STORAGE_KEY,
     DEFAULT_COLLECTION_SORT,
     { deserialize: deserializeCollectionSort, shouldRemove: isDefaultCollectionSort },
   )
