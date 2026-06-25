@@ -36,6 +36,11 @@ defmodule ManavaultWeb.PublicShareSchema do
       end)
     end
 
+    field :card, :card do
+      arg(:id, non_null(:id))
+      resolve(&CatalogResolvers.card/3)
+    end
+
     field :deck_buylist, non_null(list_of(non_null(:deck_buylist_entry))) do
       arg(:id, non_null(:id))
       arg(:printing_mode, :string, default_value: "none")

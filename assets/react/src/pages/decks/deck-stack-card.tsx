@@ -1,9 +1,9 @@
-import { Link } from "@tanstack/react-router"
 import {
   CheckSquare,
   Crown,
   Edit3,
   Eye,
+  Maximize2,
   MoreVertical,
   MoveRight,
   Square,
@@ -95,6 +95,7 @@ export function DeckStackCard({
         isActive && "z-[90]",
       )}
       onBlur={handleBlur}
+      data-deck-id={deckId}
       onFocus={() => setHasFocusWithin(true)}
       style={{
         top,
@@ -152,6 +153,22 @@ export function DeckStackCard({
             {isSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
           </button>
 
+          <button
+            type="button"
+            className={cn(
+              "btn btn-circle btn-xs absolute bottom-2 right-2 z-[125] border-0 bg-neutral/85 text-neutral-content shadow transition hover:bg-neutral group-hover/deck-card:opacity-100 group-focus-within/deck-card:opacity-100",
+              isActive ? "opacity-100" : "opacity-0",
+            )}
+            aria-label={`Reveal ${name} in stack`}
+            onClick={(event) => {
+              event.stopPropagation()
+              onExpand()
+            }}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <Maximize2 className="h-4 w-4" />
+          </button>
+
           <div
             className={cn(
               "dropdown dropdown-end absolute right-2 top-2 z-[120] transition-opacity group-focus-within/deck-card:opacity-100",
@@ -175,14 +192,16 @@ export function DeckStackCard({
                 onClick={blurFocusedMenuItem}
               >
                 <li>
-                  <Link
-                    to="/cards/$id"
-                    params={{ id: deckCard.card?.id || "" }}
-                    search={{ deckId }}
-                  >
+                  <button type="button" onClick={onPreview}>
                     <Eye className="h-4 w-4" />
-                    View card
-                  </Link>
+                    View card details
+                  </button>
+                </li>
+                <li>
+                  <button type="button" onClick={onExpand}>
+                    <Maximize2 className="h-4 w-4" />
+                    Reveal in stack
+                  </button>
                 </li>
                 <li>
                   <button type="button" disabled={isUpdating} onClick={onEdit}>
@@ -244,11 +263,10 @@ export function DeckStackCard({
         <button
           type="button"
           className="block w-full cursor-pointer text-left"
-          aria-label={shareMode ? `View full screen ${name}` : undefined}
+          aria-label={`View ${name} details`}
           onClick={(event) => {
             if (isSelecting) onToggleSelected(event.shiftKey)
-            else if (shareMode) onPreview()
-            else onExpand()
+            else onPreview()
           }}
         >
           <figure

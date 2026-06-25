@@ -24,6 +24,7 @@ export function CardPrintingsGrid({
   onAddToCollection,
   onAddToDeck,
   onPreviewPrinting,
+  showPrivateActions = true,
 }: {
   cardName: string
   typeLine?: string | null
@@ -31,6 +32,7 @@ export function CardPrintingsGrid({
   onAddToCollection: (printing: AddCollectionItemInitialPrinting) => void
   onAddToDeck: (target: CardDeckTarget) => void
   onPreviewPrinting: (id: string) => void
+  showPrivateActions?: boolean
 }) {
   return (
     <div className="grid justify-center gap-x-6 gap-y-8 [grid-template-columns:repeat(auto-fill,minmax(14.25rem,14.25rem))]">
@@ -45,38 +47,43 @@ export function CardPrintingsGrid({
             onSelect={() => onPreviewPrinting(printing.id)}
             primaryActionLabel={`Open ${cardName} ${printing.setCode?.toUpperCase() || "printing"} full screen`}
             primaryActionRole="button"
-            menuActions={[
-              {
-                icon: <Boxes className="h-4 w-4" />,
-                onClick: () =>
-                  onAddToCollection({
-                    id: printing.id,
-                    cardName,
-                    collectorNumber: printing.collectorNumber,
-                    finishes: printing.finishes,
-                    imageUrl: printing.imageUrl,
-                    rarity: printing.rarity,
-                    scryfallId: printing.scryfallId,
-                    setCode: printing.setCode,
-                    setName: printing.setName,
-                    typeLine,
-                  }),
-                label: "Add to collection",
-              },
-              addToDeckAction({
-                onClick: () =>
-                  onAddToDeck({
-                    cardName,
-                    collectorNumber: printing.collectorNumber,
-                    finish: (printing.finishes || []).includes("nonfoil")
-                      ? "nonfoil"
-                      : printing.finishes?.[0] || "nonfoil",
-                    finishes: printing.finishes?.filter(present),
-                    preferredPrintingId: printing.id,
-                    setCode: printing.setCode,
-                  }),
-              }),
-            ]}
+            showMenu={showPrivateActions}
+            menuActions={
+              showPrivateActions
+                ? [
+                    {
+                      icon: <Boxes className="h-4 w-4" />,
+                      onClick: () =>
+                        onAddToCollection({
+                          id: printing.id,
+                          cardName,
+                          collectorNumber: printing.collectorNumber,
+                          finishes: printing.finishes,
+                          imageUrl: printing.imageUrl,
+                          rarity: printing.rarity,
+                          scryfallId: printing.scryfallId,
+                          setCode: printing.setCode,
+                          setName: printing.setName,
+                          typeLine,
+                        }),
+                      label: "Add to collection",
+                    },
+                    addToDeckAction({
+                      onClick: () =>
+                        onAddToDeck({
+                          cardName,
+                          collectorNumber: printing.collectorNumber,
+                          finish: (printing.finishes || []).includes("nonfoil")
+                            ? "nonfoil"
+                            : printing.finishes?.[0] || "nonfoil",
+                          finishes: printing.finishes?.filter(present),
+                          preferredPrintingId: printing.id,
+                          setCode: printing.setCode,
+                        }),
+                    }),
+                  ]
+                : []
+            }
             name={cardName}
             price={printing.priceText}
             rarity={printing.rarity}

@@ -132,6 +132,29 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
   test "deck share mutation creates a public token and public share query resolves it", %{
     conn: conn
   } do
+    rulings_uri = "https://api.scryfall.com/cards/oracle-share-card/rulings"
+    previous_fetcher = Application.fetch_env(:manavault, :scryfall_rulings_fetcher)
+
+    Application.put_env(:manavault, :scryfall_rulings_fetcher, fn ^rulings_uri ->
+      {:ok,
+       Jason.encode!(%{
+         "data" => [
+           %{
+             "source" => "wotc",
+             "published_at" => "2024-04-05",
+             "comment" => "Shared card detail exposes public rulings."
+           }
+         ]
+       })}
+    end)
+
+    on_exit(fn ->
+      case previous_fetcher do
+        {:ok, fetcher} -> Application.put_env(:manavault, :scryfall_rulings_fetcher, fetcher)
+        :error -> Application.delete_env(:manavault, :scryfall_rulings_fetcher)
+      end
+    end)
+
     {:ok, %{cards_count: 1, printings_count: 1}} =
       Catalog.import_cards([
         %{
@@ -139,6 +162,7 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
           "oracle_id" => "oracle-share-card",
           "name" => "Shared Card",
           "type_line" => "Artifact",
+          "oracle_text" => "Shared oracle text.",
           "collector_number" => "9",
           "set" => "shr",
           "set_name" => "Share Set",
@@ -146,7 +170,9 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
           "image_uris" => %{},
           "finishes" => ["nonfoil"],
           "prices" => %{"usd" => "2.50"},
-          "legalities" => %{},
+          "released_at" => "2024-02-03",
+          "legalities" => %{"commander" => "legal", "modern" => "not_legal"},
+          "rulings_uri" => rulings_uri,
           "game_changer" => true
         }
       ])
@@ -229,7 +255,7 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                   zone
                   finish
                   priceCents
-                  card { name gameChanger }
+                  card { id name gameChanger }
                   preferredPrinting {
                     scryfallId
                     imageUrl
@@ -313,7 +339,11 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                        "node" => %{
                          "quantity" => 2,
                          "priceCents" => 250,
-                         "card" => %{"name" => "Shared Card", "gameChanger" => true},
+                         "card" => %{
+                           "id" => shared_card_id,
+                           "name" => "Shared Card",
+                           "gameChanger" => true
+                         },
                          "allocationStatus" => %{
                            "state" => "shared",
                            "required" => 2,
@@ -331,6 +361,8 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                }
              }
            } = json_response(public_conn, 200)
+
+    assert is_binary(shared_card_id)
 
     assert %{
              "data" => %{
@@ -355,6 +387,119 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
              is_binary(issue["code"]) and is_binary(issue["message"]) and
                is_binary(issue["severity"]) and issue["cardName"] == "Shared Card"
            end)
+
+    public_card_conn =
+      post(conn, "/share/graphql", %{
+        "query" => """
+        query Card($id: ID!) {
+          card(id: $id) {
+            id
+            oracleId
+            name
+            typeLine
+            manaCost
+            oracleText
+            colorIdentity
+            gameChanger
+            deckCategory
+            deckThemes
+            oracleTags {
+              id
+              slug
+              label
+              weight
+              annotation
+            }
+            legalities {
+              format
+              status
+            }
+            rulings {
+              source
+              publishedAt
+              comment
+            }
+            printings(first: 300) {
+              pageInfo {
+                endCursor
+                hasNextPage
+              }
+              edges {
+                node {
+                  id
+                  scryfallId
+                  setCode
+                  setName
+                  collectorNumber
+                  lang
+                  rarity
+                  ownedCount
+                  finishes
+                  imageUrl
+                  artCropUrl
+                  releasedAt
+                  prices
+                  priceText
+                }
+              }
+            }
+          }
+        }
+        """,
+        "variables" => %{"id" => shared_card_id}
+      })
+
+    assert %{
+             "data" => %{
+               "card" => %{
+                 "id" => ^shared_card_id,
+                 "oracleId" => "oracle-share-card",
+                 "name" => "Shared Card",
+                 "typeLine" => "Artifact",
+                 "manaCost" => nil,
+                 "oracleText" => "Shared oracle text.",
+                 "colorIdentity" => [],
+                 "gameChanger" => true,
+                 "deckCategory" => "other",
+                 "deckThemes" => ["artifact"],
+                 "oracleTags" => [],
+                 "legalities" => [
+                   %{"format" => "commander", "status" => "legal"},
+                   %{"format" => "modern", "status" => "not_legal"}
+                 ],
+                 "rulings" => [
+                   %{
+                     "source" => "wotc",
+                     "publishedAt" => "2024-04-05",
+                     "comment" => "Shared card detail exposes public rulings."
+                   }
+                 ],
+                 "printings" => %{
+                   "pageInfo" => %{"endCursor" => _card_printings_cursor, "hasNextPage" => false},
+                   "edges" => [
+                     %{
+                       "node" => %{
+                         "id" => _printing_id,
+                         "scryfallId" => "scryfall-share-card",
+                         "setCode" => "shr",
+                         "setName" => "Share Set",
+                         "collectorNumber" => "9",
+                         "lang" => "en",
+                         "rarity" => _rarity,
+                         "ownedCount" => 0,
+                         "finishes" => ["nonfoil"],
+                         "imageUrl" => nil,
+                         "artCropUrl" => nil,
+                         "releasedAt" => "2024-02-03",
+                         "prices" => %{"usd" => "2.50"},
+                         "priceText" => "$2.50"
+                       }
+                     }
+                   ]
+                 }
+               }
+             }
+           } = json_response(public_card_conn, 200)
   end
 
   defp global_deck_id(deck) do

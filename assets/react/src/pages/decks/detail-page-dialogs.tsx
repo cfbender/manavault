@@ -5,7 +5,7 @@ import { AddDeckCardDialog } from "./add-card-dialog"
 import { BulkAllocationPullListDialog } from "./bulk-allocation"
 import { ShareModeHidden } from "./deck-actions"
 import { EditDeckCardDialog, MoveDeckCardDialog } from "./deck-card-dialogs"
-import { DeckCardPreviewDialog } from "./deck-card-preview-dialog"
+import { DeckCardDetailDialog } from "./deck-card-detail-dialog"
 import { EditDeckDialog } from "./deck-editor-dialogs"
 import { ExportDecklistDialog, ImportDecklistDialog, ShareDeckDialog } from "./deck-share-dialogs"
 import type { DeckPullList, DeckPullListMode } from "./deck-allocation-model"
@@ -74,7 +74,6 @@ export function DeckDetailDialogs({
   onShareDeckOpenChange,
   onAddCardOpenChange,
   previewDeckCard,
-  previewDeckCards,
   selectedBulkAllocationItemIds,
   selectedDeckCardCount,
   shareMode,
@@ -131,7 +130,6 @@ export function DeckDetailDialogs({
   onShareDeckOpenChange: (open: boolean) => void
   onAddCardOpenChange: (open: boolean) => void
   previewDeckCard: DeckCardEntry | null
-  previewDeckCards: DeckCardEntry[]
   selectedBulkAllocationItemIds: Record<string, string | null>
   selectedDeckCardCount: number
   shareMode: boolean
@@ -140,10 +138,10 @@ export function DeckDetailDialogs({
 }) {
   return (
     <>
-      <DeckCardPreviewDialog
+      <DeckCardDetailDialog
         deckCard={previewDeckCard}
-        deckCards={previewDeckCards}
         onOpenChange={onPreviewCardOpenChange}
+        shareMode={shareMode}
       />
       <ShareModeHidden shareMode={shareMode}>
         <EditDeckDialog deck={deck} onOpenChange={onEditDeckOpenChange} open={isEditDeckOpen} />

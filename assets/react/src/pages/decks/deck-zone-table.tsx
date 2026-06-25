@@ -1,10 +1,135 @@
-import { Link } from "@tanstack/react-router"
 import { Box, CheckSquare, ChevronDown, Edit3, MoveRight, Square, Trash2 } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { Button } from "../../components/ui/button"
 import { cn } from "../../lib/utils"
-import { DeckCardTagButton } from "./deck-card-allocation"
+import {
+  AllocationStatusIcon,
+  allocationStatusButtonClass,
+  allocationStatusLabel,
+  allocationStatusSummary,
+  DeckCardTagButton,
+} from "./deck-card-allocation"
 import { GameChangerBadge } from "./deck-card-display"
 import type { DeckCardEntry, DeckCardTag } from "./deck-types"
+
+type PreviewPosition = {
+  left: number
+  top: number
+}
+
+function deckZoneCardImageUrl(deckCard: DeckCardEntry) {
+  return deckCard.preferredPrinting?.imageUrl || deckCard.card?.printings?.[0]?.imageUrl || null
+}
+
+function DeckZoneCardName({
+  deckCard,
+  onPreview,
+}: {
+  deckCard: DeckCardEntry
+  onPreview: (deckCard: DeckCardEntry) => void
+}) {
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const hideTimeoutRef = useRef<number | null>(null)
+  const [position, setPosition] = useState<PreviewPosition | null>(null)
+  const cardName = deckCard.card?.name || "Unknown card"
+  const imageUrl = deckZoneCardImageUrl(deckCard)
+
+  useEffect(() => {
+    return () => {
+      if (hideTimeoutRef.current === null) return
+
+      window.clearTimeout(hideTimeoutRef.current)
+    }
+  }, [])
+
+  function clearHidePreview() {
+    if (hideTimeoutRef.current === null) return
+
+    window.clearTimeout(hideTimeoutRef.current)
+    hideTimeoutRef.current = null
+  }
+
+  function hidePreviewSoon() {
+    clearHidePreview()
+    hideTimeoutRef.current = window.setTimeout(() => {
+      setPosition(null)
+      hideTimeoutRef.current = null
+    }, 120)
+  }
+
+  function showPreview() {
+    if (!imageUrl) return
+
+    clearHidePreview()
+    const rect = triggerRef.current?.getBoundingClientRect()
+    if (!rect) return
+
+    const previewWidth = 176
+    setPosition({
+      left: Math.min(Math.max(rect.left, 12), window.innerWidth - previewWidth - 12),
+      top: rect.top - 6,
+    })
+  }
+
+  return (
+    <span className="relative inline-block">
+      <button
+        ref={triggerRef}
+        type="button"
+        className="cursor-pointer font-semibold text-accent underline decoration-accent/40 decoration-dotted underline-offset-4 transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
+        onBlur={hidePreviewSoon}
+        onClick={() => onPreview(deckCard)}
+        onFocus={showPreview}
+        onPointerEnter={showPreview}
+        onPointerLeave={hidePreviewSoon}
+      >
+        {cardName}
+      </button>
+      {position && imageUrl
+        ? createPortal(
+            <div
+              aria-hidden="true"
+              className="fixed z-[9999] block w-44 -translate-y-full rounded-xl border border-base-300 bg-base-100 p-2 shadow-2xl"
+              style={{ left: position.left, top: position.top }}
+              onPointerEnter={showPreview}
+              onPointerLeave={hidePreviewSoon}
+            >
+              <img
+                src={imageUrl}
+                alt=""
+                className="aspect-[5/7] w-full rounded-lg object-cover"
+              />
+            </div>,
+            document.body,
+          )
+        : null}
+    </span>
+  )
+}
+
+function DeckZoneAllocationStatus({ deckCard }: { deckCard: DeckCardEntry }) {
+  const status = deckCard.allocationStatus
+  const label = allocationStatusLabel(status)
+  const summary = allocationStatusSummary(status)
+
+  return (
+    <td>
+      <span
+        className={cn(
+          "inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs font-semibold",
+          allocationStatusButtonClass(status.state),
+        )}
+        title={summary}
+        aria-label={`${label}: ${summary}`}
+      >
+        <AllocationStatusIcon className="h-3.5 w-3.5" state={status.state} />
+        {label}
+      </span>
+      <p className="mt-1 text-xs text-base-content/60">{summary}</p>
+    </td>
+  )
+}
 
 export function DeckZoneTable({
   cards,
@@ -38,9 +163,13 @@ export function DeckZoneTable({
   title: string
 }) {
   if (!cards.length) return null
+  const sectionId = `${deckId}-${title.toLowerCase()}-zone`
 
   return (
-    <details className="group rounded-box border border-base-300 bg-base-100 shadow-sm">
+    <details
+      id={sectionId}
+      className="group rounded-box border border-base-300 bg-base-100 shadow-sm"
+    >
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-black tracking-normal marker:hidden">
         <span className="flex items-center gap-2">
           <Box className="h-4 w-4 text-warning" />
@@ -61,6 +190,7 @@ export function DeckZoneTable({
               <th>Name</th>
               <th>Type</th>
               <th>Printing</th>
+              {shareMode ? null : <th className="w-48">Collection</th>}
               {shareMode ? null : <th className="w-32">Tag</th>}
               {shareMode ? null : <th className="w-36 text-right">Actions</th>}
             </tr>
@@ -104,24 +234,7 @@ export function DeckZoneTable({
                   <td className="font-mono">{deckCard.quantity}</td>
                   <td>
                     <div className="flex flex-wrap items-center gap-2">
-                      {shareMode ? (
-                        <button
-                          type="button"
-                          className="font-semibold hover:text-primary"
-                          onClick={() => onPreview(deckCard)}
-                        >
-                          {deckCard.card?.name}
-                        </button>
-                      ) : (
-                        <Link
-                          to="/cards/$id"
-                          params={{ id: deckCard.card?.id || "" }}
-                          search={{ deckId }}
-                          className="font-semibold hover:text-primary"
-                        >
-                          {deckCard.card?.name}
-                        </Link>
-                      )}
+                      <DeckZoneCardName deckCard={deckCard} onPreview={onPreview} />
                       {isGameChanger ? <GameChangerBadge /> : null}
                     </div>
                   </td>
@@ -132,6 +245,7 @@ export function DeckZoneTable({
                     {printing?.setName || printing?.setCode?.toUpperCase() || "Unknown"} #
                     {printing?.collectorNumber || "?"}
                   </td>
+                  {shareMode ? null : <DeckZoneAllocationStatus deckCard={deckCard} />}
                   {shareMode ? null : (
                     <td>
                       <DeckCardTagButton

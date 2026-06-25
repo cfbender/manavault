@@ -6,7 +6,7 @@ import { useToast } from "../../components/ui/toast"
 import type { DeckCardInput, DeckCardUpdateInput } from "../../gql/graphql"
 import { groupDeckCards, type DeckGroupBy } from "../../lib/deck-grouping"
 import { request } from "../../lib/graphql"
-import { pluralize, present } from "../../lib/utils"
+import { pluralize } from "../../lib/utils"
 import { deckCardsTotalPrice, formatUsdCents } from "./buylist-export"
 import { createDeckPullList, selectedDeckPullListEntries, type DeckPullListMode } from "./deck-allocation-model"
 import { compareDeckCards, countDeckZones } from "./deck-card-model"
@@ -184,10 +184,6 @@ export function DeckDetailPage({
     tagError,
     toggleDeckCardSelected,
   } = useDeckDetailSelection(deckCards, selectionDeckCardIds)
-  const previewDeckCards = useMemo(() => {
-    const deckCardById = new Map(deckCards.map((deckCard) => [deckCard.id, deckCard]))
-    return selectionDeckCardIds.map((deckCardId) => deckCardById.get(deckCardId)).filter(present)
-  }, [deckCards, selectionDeckCardIds])
   const hasBulkAllocationAvailable = useMemo(() => {
     if (shareMode) return false
 
@@ -663,7 +659,6 @@ export function DeckDetailPage({
         }}
         onShareDeckOpenChange={setIsShareDeckOpen}
         previewDeckCard={previewDeckCard}
-        previewDeckCards={previewDeckCards}
         selectedBulkAllocationItemIds={selectedBulkAllocationItemIds}
         selectedDeckCardCount={selectedDeckCardCount}
         shareMode={shareMode}

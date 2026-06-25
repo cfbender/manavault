@@ -35,6 +35,17 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     end
   end
 
+  object :card_ruling do
+    field :source, :string
+    field :published_at, :string
+    field :comment, non_null(:string)
+  end
+
+  object :card_legality do
+    field :format, non_null(:string)
+    field :status, non_null(:string)
+  end
+
   node object(:card, id_fetcher: &ManavaultWeb.Schema.PublicShareTypes.card_node_id/2) do
     field :oracle_id, non_null(:id)
     field :name, non_null(:string)
@@ -71,6 +82,14 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
       end)
     end
 
+    field :rulings, non_null(list_of(non_null(:card_ruling))) do
+      resolve(&CatalogResolvers.card_rulings/3)
+    end
+
+    field :legalities, non_null(list_of(non_null(:card_legality))) do
+      resolve(&CatalogResolvers.card_legalities/3)
+    end
+
     connection field :printings, node_type: :printing do
       resolve(&CatalogResolvers.card_printings/3)
     end
@@ -84,6 +103,10 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     field :collector_number, :string
     field :lang, :string
     field :rarity, :string
+
+    field :owned_count, non_null(:integer) do
+      resolve(fn _printing, _args, _resolution -> {:ok, 0} end)
+    end
 
     field :finishes, list_of(:string) do
       resolve(fn printing, _, _ ->
@@ -99,9 +122,17 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
       resolve(&CatalogResolvers.printing_art_crop_url/3)
     end
 
+    field :prices, :json do
+      resolve(fn printing, _, _ ->
+        {:ok, CatalogResolvers.decode_json_field(printing, :prices, %{})}
+      end)
+    end
+
     field :price_text, :string do
       resolve(&CatalogResolvers.printing_price_text/3)
     end
+
+    field :released_at, :string
 
     field :card, :card, resolve: dataloader(Catalog)
   end
@@ -282,6 +313,15 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
   connection(node_type: :location)
   connection(node_type: :deck)
   connection(node_type: :deck_card)
+
+  scalar :json do
+    parse(fn
+      %{value: value}, _ -> {:ok, value}
+      _, _ -> :error
+    end)
+
+    serialize(& &1)
+  end
 
   def card_node_id(%{oracle_id: id}, _resolution), do: id
   def printing_node_id(%{scryfall_id: id}, _resolution), do: id

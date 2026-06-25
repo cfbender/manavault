@@ -155,6 +155,9 @@ export function CardDetailPage({
   id,
   query,
   filterSearch,
+  hideBackLink = false,
+  hidePrivateControls = false,
+  requestEndpoint,
   returnCollection = false,
   returnDeckId,
   returnEdhrecExcludeLands = false,
@@ -164,6 +167,9 @@ export function CardDetailPage({
   id: string
   query: string
   filterSearch?: string
+  hideBackLink?: boolean
+  hidePrivateControls?: boolean
+  requestEndpoint?: string
   returnCollection?: boolean
   returnDeckId?: string
   returnEdhrecExcludeLands?: boolean
@@ -174,8 +180,9 @@ export function CardDetailPage({
   const [deckTarget, setDeckTarget] = useState<CardDeckTarget | null>(null)
   const [previewPrintingId, setPreviewPrintingId] = useState<string | null>(null)
   const { data, isLoading } = useQuery({
-    queryKey: ["card", id],
-    queryFn: () => request(CardDocument, { id }),
+    queryKey: ["card", id, requestEndpoint || "/api/graphql"],
+    queryFn: () =>
+      request(CardDocument, { id }, requestEndpoint ? { endpoint: requestEndpoint } : undefined),
   })
   const card = data?.card
   const visiblePrintings = connectionNodes(card?.printings)
@@ -191,7 +198,7 @@ export function CardDetailPage({
   return (
     <>
       <div className="mx-auto max-w-7xl space-y-7">
-        {returnDeckId ? (
+        {hideBackLink ? null : returnDeckId ? (
           <Button asChild variant="outline" size="sm">
             <Link
               to="/decks/$id"
@@ -267,7 +274,9 @@ export function CardDetailPage({
           </div>
         </section>
 
-        <CardCollectionCopiesPanel cardId={card.id} cardQueryId={id} />
+        {hidePrivateControls ? null : (
+          <CardCollectionCopiesPanel cardId={card.id} cardQueryId={id} />
+        )}
 
         <CardPrintingsGrid
           cardName={card.name}
@@ -276,6 +285,7 @@ export function CardDetailPage({
           onAddToCollection={setAddPrinting}
           onAddToDeck={setDeckTarget}
           onPreviewPrinting={setPreviewPrintingId}
+          showPrivateActions={!hidePrivateControls}
         />
       </div>
       <FullscreenPrintingDialog
@@ -285,15 +295,19 @@ export function CardDetailPage({
         onOpenChange={(open) => !open && setPreviewPrintingId(null)}
         onPrintingChange={setPreviewPrintingId}
       />
-      <AddCollectionItemDialog
-        initialPrinting={addPrinting}
-        open={Boolean(addPrinting)}
-        onOpenChange={(open) => !open && setAddPrinting(null)}
-      />
-      <AddCatalogCardToDeckDialog
-        target={deckTarget}
-        onOpenChange={(open) => !open && setDeckTarget(null)}
-      />
+      {hidePrivateControls ? null : (
+        <>
+          <AddCollectionItemDialog
+            initialPrinting={addPrinting}
+            open={Boolean(addPrinting)}
+            onOpenChange={(open) => !open && setAddPrinting(null)}
+          />
+          <AddCatalogCardToDeckDialog
+            target={deckTarget}
+            onOpenChange={(open) => !open && setDeckTarget(null)}
+          />
+        </>
+      )}
     </>
   )
 }
