@@ -2,11 +2,27 @@ name: Capacitor
 
 on:
   pull_request:
+    paths:
+      # Native shell only wraps the web app; web/server-only changes do not alter the APK.
+      - ".github/workflows/capacitor.yml"
+      - "android/**"
+      - "ios/**"
+      - "native_www/**"
+      - "capacitor.config.ts"
+      - "scripts/prepare-native-web.mjs"
   push:
     branches:
       - main
     tags:
       - "v*.*.*"
+    paths:
+      # Tags still run because GitHub does not evaluate path filters for tag pushes.
+      - ".github/workflows/capacitor.yml"
+      - "android/**"
+      - "ios/**"
+      - "native_www/**"
+      - "capacitor.config.ts"
+      - "scripts/prepare-native-web.mjs"
   workflow_dispatch:
 
 permissions:
