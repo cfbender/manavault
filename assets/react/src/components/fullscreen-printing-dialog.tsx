@@ -121,18 +121,9 @@ export function FullscreenPrintingDialog({
     <Dialog open={Boolean(printing)} onOpenChange={onOpenChange}>
       {printing ? (
         <DialogContent
-          className="relative h-[100dvh] max-h-[100dvh] w-screen shrink-0 max-w-none overflow-hidden rounded-none border-0 bg-neutral text-neutral-content shadow-2xl sm:h-[calc(100dvh-3rem)] sm:max-h-[calc(100dvh-3rem)] sm:w-full sm:shrink sm:max-w-[calc(100vw-2rem)] sm:rounded-box"
+          className="fullscreen-printing-dialog relative h-[100dvh] max-h-[100dvh] w-screen shrink-0 max-w-none overflow-hidden rounded-none border-0 shadow-2xl sm:h-[calc(100dvh-3rem)] sm:max-h-[calc(100dvh-3rem)] sm:w-full sm:shrink sm:max-w-[calc(100vw-2rem)] sm:rounded-box"
           labelledBy="fullscreen-card-title"
         >
-          {printing.artCropUrl ? (
-            <img
-              src={printing.artCropUrl}
-              alt=""
-              className="absolute inset-0 h-full w-full object-cover opacity-25 blur-sm scale-105"
-            />
-          ) : null}
-          <div className="absolute inset-0 bg-gradient-to-br from-black/95 via-neutral/90 to-black/95" />
-
           <motion.div
             className="relative z-10 flex h-full flex-col gap-3 pb-3 pl-[calc(env(safe-area-inset-left)+0.75rem)] pr-[calc(env(safe-area-inset-right)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:gap-4 sm:p-6"
             initial={{ opacity: 0 }}
@@ -148,27 +139,27 @@ export function FullscreenPrintingDialog({
                   {card.name}
                 </h2>
                 {subtitle ? (
-                  <p className="mt-1 line-clamp-1 text-xs text-neutral-content/65 sm:line-clamp-2 sm:text-sm">{subtitle}</p>
+                  <p className="fullscreen-printing-dialog__muted mt-1 line-clamp-1 text-xs sm:line-clamp-2 sm:text-sm">{subtitle}</p>
                 ) : null}
                 {finish || printing.priceText || printing.ownedCount || positionLabel ? (
                   <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[0.65rem] sm:mt-3 sm:gap-2 sm:text-xs">
                     {finish ? (
-                      <span className="badge border-white/20 bg-white/10 text-neutral-content">
+                      <span className="fullscreen-printing-dialog__badge badge">
                         {titleize(finish)}
                       </span>
                     ) : null}
                     {printing.priceText ? (
-                      <span className="badge border-white/20 bg-white/10 font-mono text-neutral-content">
+                      <span className="fullscreen-printing-dialog__badge badge font-mono">
                         {printing.priceText}
                       </span>
                     ) : null}
                     {printing.ownedCount ? (
-                      <span className="badge border-white/20 bg-white/10 text-neutral-content">
+                      <span className="fullscreen-printing-dialog__badge badge">
                         {printing.ownedCount} owned
                       </span>
                     ) : null}
                     {positionLabel ? (
-                      <span className="badge border-white/20 bg-white/10 font-mono text-neutral-content">
+                      <span className="fullscreen-printing-dialog__badge badge font-mono">
                         {positionLabel}
                       </span>
                     ) : null}
@@ -179,6 +170,7 @@ export function FullscreenPrintingDialog({
                 type="button"
                 variant="ghost"
                 size="icon"
+                className="fullscreen-printing-dialog__icon-button"
                 aria-label="Close full-screen card"
                 onClick={() => onOpenChange(false)}
               >
@@ -192,7 +184,7 @@ export function FullscreenPrintingDialog({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute left-0 top-1/2 z-20 -translate-y-1/2 border border-white/10 bg-black/35 text-white backdrop-blur hover:bg-black/55 sm:left-4"
+                  className="fullscreen-printing-dialog__icon-button absolute left-0 top-1/2 z-20 -translate-y-1/2 border backdrop-blur sm:left-4"
                   aria-label="Previous printing"
                   onClick={() => goToPrinting(-1)}
                 >
@@ -236,7 +228,7 @@ export function FullscreenPrintingDialog({
                   showUserInfo={false}
                 />
                 {printing.imageUrl ? null : (
-                  <div className="absolute inset-0 z-20 flex items-center justify-center rounded-[4.75%] p-8 text-center text-sm text-white/70">
+                  <div className="fullscreen-printing-dialog__muted absolute inset-0 z-20 flex items-center justify-center rounded-[4.75%] p-8 text-center text-sm">
                     No image
                   </div>
                 )}
@@ -247,7 +239,7 @@ export function FullscreenPrintingDialog({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute right-0 top-1/2 z-20 -translate-y-1/2 border border-white/10 bg-black/35 text-white backdrop-blur hover:bg-black/55 sm:right-4"
+                  className="fullscreen-printing-dialog__icon-button absolute right-0 top-1/2 z-20 -translate-y-1/2 border backdrop-blur sm:right-4"
                   aria-label="Next printing"
                   onClick={() => goToPrinting(1)}
                 >

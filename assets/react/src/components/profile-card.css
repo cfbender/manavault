@@ -398,10 +398,14 @@
 .manavault-printing-profile-card {
   --card-radius: 4.75%;
 }
-
 .manavault-printing-profile-card .pc-card {
-  height: min(calc(100dvh - 10rem), 48rem);
-  max-height: calc(100dvh - 10rem);
+  height: min(
+    calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 16rem),
+    48rem
+  );
+  max-height: calc(
+    100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 16rem
+  );
 }
 
 .manavault-printing-profile-card .pc-details {
@@ -633,10 +637,14 @@
     padding: 6px 12px;
     font-size: 11px;
   }
-
   .manavault-printing-profile-card .pc-card {
-    height: min(calc(100dvh - 12rem), calc((100vw - 4rem) * 1.392));
-    max-height: calc(100dvh - 12rem);
+    height: min(
+      calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 12rem),
+      calc((100vw - 4rem) * 1.392)
+    );
+    max-height: calc(
+      100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 12rem
+    );
   }
 }
 

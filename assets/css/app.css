@@ -105,6 +105,66 @@
   --set-symbol-common-color: #000;
 }
 
+.fullscreen-printing-dialog {
+  --card-modal-bg: color-mix(in oklch, var(--color-primary), var(--color-base-100) 88%);
+  --card-modal-fg: color-mix(in oklch, var(--color-primary), black 50%);
+  --card-modal-muted: color-mix(in oklch, var(--color-primary), black 28%);
+  --card-modal-chip-bg: color-mix(in oklch, var(--color-primary), var(--color-base-100) 90%);
+  --card-modal-chip-border: color-mix(in oklch, var(--color-primary), black 34%);
+  --card-modal-control-bg: color-mix(in oklch, var(--color-primary), var(--color-base-100) 86%);
+  --card-modal-control-hover-bg: color-mix(in oklch, var(--color-primary), var(--color-base-100) 78%);
+  --card-modal-glow: color-mix(in oklch, var(--color-primary), var(--color-base-100) 24%);
+  --card-modal-glow-soft: color-mix(in oklch, var(--color-accent), var(--color-base-100) 34%);
+  --card-modal-glow-opacity: 0.62;
+  background: var(--card-modal-bg);
+  color: var(--card-modal-fg);
+}
+
+[data-theme="dark"] .fullscreen-printing-dialog {
+  --card-modal-bg: color-mix(in oklch, var(--color-primary), black 88%);
+  --card-modal-fg: color-mix(in oklch, var(--color-primary), white 84%);
+  --card-modal-muted: color-mix(in oklch, var(--color-primary), white 62%);
+  --card-modal-chip-bg: color-mix(in oklch, var(--color-primary), black 78%);
+  --card-modal-chip-border: color-mix(in oklch, var(--color-primary), white 28%);
+  --card-modal-control-bg: color-mix(in oklch, var(--color-primary), black 76%);
+  --card-modal-control-hover-bg: color-mix(in oklch, var(--color-primary), black 64%);
+  --card-modal-glow: color-mix(in oklch, var(--color-primary), black 38%);
+  --card-modal-glow-soft: color-mix(in oklch, var(--color-accent), black 54%);
+  --card-modal-glow-opacity: 0.68;
+}
+
+.fullscreen-printing-dialog::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 42% 34% at 50% 56%, var(--card-modal-glow) 0%, transparent 72%),
+    radial-gradient(ellipse 34% 28% at 68% 78%, var(--card-modal-glow-soft) 0%, transparent 76%);
+  opacity: var(--card-modal-glow-opacity);
+}
+.fullscreen-printing-dialog__muted {
+  color: var(--card-modal-muted);
+}
+
+.fullscreen-printing-dialog__badge {
+  background: var(--card-modal-chip-bg);
+  border-color: var(--card-modal-chip-border);
+  color: var(--card-modal-fg);
+}
+
+.fullscreen-printing-dialog__icon-button {
+  background: var(--card-modal-control-bg);
+  border-color: var(--card-modal-chip-border);
+  color: var(--card-modal-fg);
+}
+
+.fullscreen-printing-dialog__icon-button:hover {
+  background: var(--card-modal-control-hover-bg);
+  color: var(--card-modal-fg);
+}
+
 .app-shell-header {
   padding-top: env(safe-area-inset-top, 0px);
   padding-left: calc(1rem + env(safe-area-inset-left, 0px));
