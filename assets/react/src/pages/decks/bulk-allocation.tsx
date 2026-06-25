@@ -35,12 +35,7 @@ export function BulkAllocationMenu({
   onOpen: () => void
 }) {
   return (
-    <Button
-      type="button"
-      size="sm"
-      disabled={disabled}
-      onClick={onOpen}
-    >
+    <Button type="button" size="sm" disabled={disabled} onClick={onOpen}>
       <Sparkles className="h-4 w-4" />
       Allocation
     </Button>
@@ -90,7 +85,8 @@ export function BulkAllocationPullListDialog({
           <div>
             <DialogTitle id="bulk-allocation-title">Pull cards from collection</DialogTitle>
             <p className="mt-1 text-sm text-base-content/60">
-              Use this list to grab the physical collection copies and locations before allocating them to this deck.
+              Use this list to grab the physical collection copies and locations before allocating
+              them to this deck.
             </p>
           </div>
           <DialogClose onClose={onClose} />
@@ -167,11 +163,15 @@ export function BulkAllocationPullListDialog({
               <summary className="cursor-pointer px-4 py-3 marker:text-base-content/60">
                 <div className="inline-flex w-[calc(100%-1.5rem)] flex-wrap items-start justify-between gap-3 align-top">
                   <div>
-                    <h3 id="bulk-allocation-unresolved-title" className="font-black tracking-normal">
+                    <h3
+                      id="bulk-allocation-unresolved-title"
+                      className="font-black tracking-normal"
+                    >
                       Choose alternate copies
                     </h3>
                     <p className="text-xs text-base-content/60">
-                      Pick the physical collection copy and source location to grab for each alternate printing.
+                      Pick the physical collection copy and source location to grab for each
+                      alternate printing.
                     </p>
                   </div>
                   <span className="badge badge-outline shrink-0">
@@ -220,10 +220,16 @@ export function BulkAllocationPullListDialog({
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <CardNamePreview deckCard={deckCard} />
                       <span className="text-sm text-base-content/70">
-                        Qty {Math.max(deckCard.allocationStatus.required - deckCard.allocationStatus.allocated, 0)}
+                        Qty{" "}
+                        {Math.max(
+                          deckCard.allocationStatus.required - deckCard.allocationStatus.allocated,
+                          0,
+                        )}
                       </span>
                     </div>
-                    <p className="text-sm text-base-content/60">{skippedDeckCardReason(deckCard)}</p>
+                    <p className="text-sm text-base-content/60">
+                      {skippedDeckCardReason(deckCard)}
+                    </p>
                   </li>
                 ))}
               </ul>
@@ -308,7 +314,10 @@ function LocationGroup({
               </div>
               <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(14rem,18rem)]">
                 <div className="min-w-0 space-y-1">
-                  <p className="truncate font-semibold" title={collectionItemPrintingLabel(entry.candidate.item)}>
+                  <p
+                    className="truncate font-semibold"
+                    title={collectionItemPrintingLabel(entry.candidate.item)}
+                  >
                     Collection copy: {collectionItemPrintingLabel(entry.candidate.item)}
                   </p>
                   <p className="text-sm text-base-content/70">
@@ -392,9 +401,7 @@ function CardNamePreview({ deckCard }: { deckCard: DeckPullListEntry["deckCard"]
   const cardName = deckCardName(deckCard)
   const cardHref = deckCard.card?.id ? `/cards/${encodeURIComponent(deckCard.card.id)}` : null
   const imageUrl =
-    deckCard.preferredPrinting?.imageUrl ||
-    deckCard.card?.printings?.[0]?.imageUrl ||
-    null
+    deckCard.preferredPrinting?.imageUrl || deckCard.card?.printings?.[0]?.imageUrl || null
 
   useEffect(() => {
     return () => {
@@ -548,4 +555,3 @@ function skippedDeckCardReason(deckCard: DeckPullListEntry["deckCard"]) {
 
   return "No selectable collection copy was chosen."
 }
-

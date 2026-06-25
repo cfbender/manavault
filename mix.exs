@@ -81,7 +81,13 @@ defmodule Manavault.MixProject do
         "cmd --cd . aube run build",
         "phx.digest"
       ],
-      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
+      precommit: [
+        "compile --warnings-as-errors",
+        "deps.unlock --unused",
+        "format",
+        "test",
+        "aube precommit"
+      ]
     ]
   end
 end

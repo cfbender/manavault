@@ -31,9 +31,12 @@ import { CardDocument, CardsDocument } from "./data"
 import { CardLegalityPanel, CardRulings, CardTagSummary } from "./detail-sections"
 import { CardSearchForm } from "./search-form"
 
-type NodeConnection<T> = {
-  edges?: ReadonlyArray<{ node?: T | null } | null> | null
-} | null | undefined
+type NodeConnection<T> =
+  | {
+      edges?: ReadonlyArray<{ node?: T | null } | null> | null
+    }
+  | null
+  | undefined
 
 function connectionNodes<T>(connection: NodeConnection<T>): T[] {
   return connection?.edges?.map((edge) => edge?.node).filter(present) || []

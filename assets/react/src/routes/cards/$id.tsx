@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router"
 import { CardDetailPage } from "../../pages/cards"
 import { decodeCollectionFilters, encodeCollectionFilters } from "../../lib/collection-filters"
 
-
 type CardReturnEdhrecTab = "recs" | "cuts" | "commander"
 
 type CardSearch = {
@@ -29,7 +28,8 @@ export const Route = createFileRoute("/cards/$id")({
       filters: encodeCollectionFilters(decodeCollectionFilters(search.filters)),
       deckId: typeof search.deckId === "string" ? search.deckId : undefined,
       edhrec:
-        typeof search.edhrec === "string" && EDHREC_TABS.includes(search.edhrec as CardReturnEdhrecTab)
+        typeof search.edhrec === "string" &&
+        EDHREC_TABS.includes(search.edhrec as CardReturnEdhrecTab)
           ? (search.edhrec as CardReturnEdhrecTab)
           : undefined,
       edhrecExcludeLands:

@@ -43,7 +43,12 @@ function hasRequiredNativeMethods(
 
 export function ensureCapacitorNativePluginHeader(header: CapacitorPluginHeader) {
   const global = globalThis as CapacitorBridgeGlobal
-  if (!hasNativeBridge(global) || !global.Capacitor || !hasRequiredNativeMethods(global.Capacitor, header)) return
+  if (
+    !hasNativeBridge(global) ||
+    !global.Capacitor ||
+    !hasRequiredNativeMethods(global.Capacitor, header)
+  )
+    return
 
   const headers = Array.isArray(global.Capacitor.PluginHeaders)
     ? global.Capacitor.PluginHeaders

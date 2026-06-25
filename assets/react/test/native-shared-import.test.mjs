@@ -97,7 +97,6 @@ test("registerCapacitorPluginOnce reuses existing native plugin proxies", () => 
   })
 })
 
-
 const sharedPayload = {
   text: "1 Lightning Bolt",
   fileName: "manabox.txt",
@@ -108,7 +107,10 @@ const sharedPayload = {
 test("receiveNativeOpenPayload stores shared imports until the collection route consumes them", () => {
   const opened = []
 
-  assert.equal(receiveNativeOpenPayload(sharedPayload, (payload) => opened.push(payload)), true)
+  assert.equal(
+    receiveNativeOpenPayload(sharedPayload, (payload) => opened.push(payload)),
+    true,
+  )
   assert.deepEqual(opened, [sharedPayload])
   assert.deepEqual(takeSharedImport(), sharedPayload)
   assert.equal(takeSharedImport(), null)
@@ -132,7 +134,10 @@ test("receiveNativeOpenPayload sends active subscribers without leaving stale pe
   const delivered = []
   const unsubscribe = subscribeSharedImport((payload) => delivered.push(payload))
 
-  assert.equal(receiveNativeOpenPayload(sharedPayload, (payload) => opened.push(payload)), true)
+  assert.equal(
+    receiveNativeOpenPayload(sharedPayload, (payload) => opened.push(payload)),
+    true,
+  )
   unsubscribe()
 
   assert.deepEqual(opened, [sharedPayload])
@@ -144,7 +149,10 @@ test("receiveNativeOpenPayload routes native links without creating a shared imp
   const linkPayload = { url: "https://manavault.cfb.dev/collection", source: "android-view" }
   const opened = []
 
-  assert.equal(receiveNativeOpenPayload(linkPayload, (payload) => opened.push(payload)), true)
+  assert.equal(
+    receiveNativeOpenPayload(linkPayload, (payload) => opened.push(payload)),
+    true,
+  )
 
   assert.deepEqual(opened, [linkPayload])
   assert.equal(takeSharedImport(), null)

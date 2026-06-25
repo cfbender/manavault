@@ -207,13 +207,7 @@ function CountCard({ label, value }: { label: string; value: number }) {
   )
 }
 
-function EmptyMoveSummary({
-  description,
-  title,
-}: {
-  description?: string
-  title: string
-}) {
+function EmptyMoveSummary({ description, title }: { description?: string; title: string }) {
   if (!description) {
     return (
       <p className="rounded-box border border-dashed border-base-300 bg-base-200/40 p-4 text-sm text-base-content/70">

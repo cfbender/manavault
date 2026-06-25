@@ -14,11 +14,7 @@ import { DeckPlaytester } from "../../components/deck-playtester"
 import { request } from "../../lib/graphql"
 import { exportDecklistText } from "../../lib/deck-export"
 import { createPlaytestState } from "../../lib/deck-playtest"
-import {
-  buylistPrintingLabel,
-  buylistTotalPrice,
-  formatUsdCents,
-} from "./buylist-export"
+import { buylistPrintingLabel, buylistTotalPrice, formatUsdCents } from "./buylist-export"
 import { BuylistOptionCheckbox } from "./buylist-option-checkbox"
 import { BuylistMarketplaceActions } from "./buylist-marketplace-actions"
 import { deckPlaytestCards } from "./deck-card-model"
@@ -42,7 +38,13 @@ export function useSharedDeckBuylist({
   shareToken: string
 }) {
   return useQuery({
-    queryKey: ["shared-deck-buylist", shareToken, includeBasicLands, includeSideboard, includeMaybeboard],
+    queryKey: [
+      "shared-deck-buylist",
+      shareToken,
+      includeBasicLands,
+      includeSideboard,
+      includeMaybeboard,
+    ],
     queryFn: () =>
       request(
         DeckBuylistDocument,

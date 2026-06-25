@@ -115,7 +115,8 @@ export function buildDeckStats(deckCards: readonly DeckStatsCard[]): DeckStats {
     }
 
     const typeLine = getString(card.typeLine)
-    const cmc = typeof card.cmc === "number" && Number.isFinite(card.cmc) ? Math.max(0, card.cmc) : 0
+    const cmc =
+      typeof card.cmc === "number" && Number.isFinite(card.cmc) ? Math.max(0, card.cmc) : 0
     const manaCostText = getString(card.manaCost)
     const oracleText = getString(card.oracleText)
     const contributor = deckStatsContributor(deckCard, card, quantity, rowIndex, typeLine)
@@ -144,7 +145,10 @@ export function buildDeckStats(deckCards: readonly DeckStatsCard[]): DeckStats {
   }
 
   manaCost.total = MANA_STAT_COLORS.reduce((total, color) => total + manaCost[color], 0)
-  manaProduction.total = MANA_STAT_COLORS.reduce((total, color) => total + manaProduction[color], manaProduction.any)
+  manaProduction.total = MANA_STAT_COLORS.reduce(
+    (total, color) => total + manaProduction[color],
+    manaProduction.any,
+  )
   sortManaContributorLists(costContributors)
   sortProductionContributorLists(manaProduction.contributors)
 
@@ -226,7 +230,10 @@ function addManaProduction(
     counts.contributors.any.push({ ...contributor, value: anyProductionTotal * quantity })
   }
 
-  if (MANA_STAT_COLORS.some((color) => explicitProductionTotals[color] > 0) || anyProductionTotal > 0) {
+  if (
+    MANA_STAT_COLORS.some((color) => explicitProductionTotals[color] > 0) ||
+    anyProductionTotal > 0
+  ) {
     counts.cards.total += quantity
   }
 }
@@ -351,7 +358,9 @@ function emptyManaColorCounts(): Record<ManaStatColor, number> {
 }
 
 function colorsInManaSymbol(match: RegExpMatchArray): ManaStatColor[] {
-  const symbol = String(match[1] || "").trim().toUpperCase()
+  const symbol = String(match[1] || "")
+    .trim()
+    .toUpperCase()
   const colors = new Set<ManaStatColor>()
 
   for (const part of symbol.split("/")) {
@@ -386,7 +395,10 @@ function bucketIndex(cmc: number) {
   return Math.min(Math.max(Math.trunc(cmc), 0), MANA_CURVE_BUCKETS.length - 2)
 }
 
-function calculateMedianManaValue(values: Array<[cmc: number, quantity: number]>, quantity: number) {
+function calculateMedianManaValue(
+  values: Array<[cmc: number, quantity: number]>,
+  quantity: number,
+) {
   if (quantity === 0) {
     return 0
   }

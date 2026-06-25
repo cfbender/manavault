@@ -25,10 +25,7 @@ test("hasMainboardAllocationAvailable only considers unallocated mainboard cards
   )
 
   assert.equal(
-    hasMainboardAllocationAvailable([
-      deckCard("mainboard", 0, 0),
-      deckCard("mainboard", 1, 1),
-    ]),
+    hasMainboardAllocationAvailable([deckCard("mainboard", 0, 0), deckCard("mainboard", 1, 1)]),
     false,
   )
 

@@ -132,7 +132,10 @@ export function AppShell() {
 
           <div
             ref={mobileMenuRef}
-            className={cn("dropdown dropdown-end ml-auto lg:hidden", mobileMenuOpen ? "dropdown-open" : "dropdown-close")}
+            className={cn(
+              "dropdown dropdown-end ml-auto lg:hidden",
+              mobileMenuOpen ? "dropdown-open" : "dropdown-close",
+            )}
           >
             <button
               className="btn btn-ghost btn-square"
@@ -160,7 +163,12 @@ export function AppShell() {
                 ))}
               </nav>
               <div className="mt-3 flex items-center justify-between gap-3 border-t border-base-300 pt-3">
-                <Button data-pwa-install className="hidden" size="sm" onClick={() => setMobileMenuOpen(false)}>
+                <Button
+                  data-pwa-install
+                  className="hidden"
+                  size="sm"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
                   <span data-pwa-install-label>Install</span>
                 </Button>
                 <ThemeToggle onSelect={() => setMobileMenuOpen(false)} />

@@ -143,9 +143,7 @@ test("deck pull list selects exact candidates before partial choices", () => {
     available: 2,
     scryfallId: "alternate-printing",
   })
-  const pullList = createDeckPullList([
-    deckCard({ required: 3, candidates: [exact, partial] }),
-  ])
+  const pullList = createDeckPullList([deckCard({ required: 3, candidates: [exact, partial] })])
 
   assert.equal(pullList.needed, 3)
   assert.equal(pullList.selected, 3)

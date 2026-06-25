@@ -139,7 +139,9 @@ export function SettingsPage() {
     mutationFn: () => request(ReloadScryfallCatalogDocument),
     onSuccess: (data) => {
       setError(null)
-      setMessage(data.reloadScryfallCatalog?.reloadResult?.message ?? "Scryfall catalog reload queued.")
+      setMessage(
+        data.reloadScryfallCatalog?.reloadResult?.message ?? "Scryfall catalog reload queued.",
+      )
     },
     onError: (err) => setError(errorMessage(err)),
   })
@@ -148,7 +150,9 @@ export function SettingsPage() {
     mutationFn: () => request(ReloadScryfallAssetsDocument),
     onSuccess: (data) => {
       setError(null)
-      setMessage(data.reloadScryfallAssets?.reloadResult?.message ?? "Scryfall asset reload queued.")
+      setMessage(
+        data.reloadScryfallAssets?.reloadResult?.message ?? "Scryfall asset reload queued.",
+      )
     },
     onError: (err) => setError(errorMessage(err)),
   })
@@ -162,10 +166,13 @@ export function SettingsPage() {
       setError(null)
       setMessage("Collection auto-sort rules saved.")
       if (collectionAutoSortRules) {
-        queryClient.setQueryData(["collection-auto-sort-settings"], (current: typeof autoSortQuery.data) => ({
-          locations: current?.locations ?? { edges: [] },
-          collectionAutoSortRules,
-        }))
+        queryClient.setQueryData(
+          ["collection-auto-sort-settings"],
+          (current: typeof autoSortQuery.data) => ({
+            locations: current?.locations ?? { edges: [] },
+            collectionAutoSortRules,
+          }),
+        )
       }
       await queryClient.invalidateQueries({ queryKey: ["collection-auto-sort-settings"] })
       await queryClient.invalidateQueries({ queryKey: ["collection"] })
@@ -272,7 +279,9 @@ export function SettingsPage() {
         <Alert tone="error">{errorMessage(settingsQuery.error)}</Alert>
       ) : null}
       {backupsQuery.isError ? <Alert tone="error">{errorMessage(backupsQuery.error)}</Alert> : null}
-      {autoSortQuery.isError ? <Alert tone="error">{errorMessage(autoSortQuery.error)}</Alert> : null}
+      {autoSortQuery.isError ? (
+        <Alert tone="error">{errorMessage(autoSortQuery.error)}</Alert>
+      ) : null}
       {error ? <Alert tone="error">{error}</Alert> : null}
       {message ? <Alert tone="success">{message}</Alert> : null}
 

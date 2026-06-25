@@ -112,7 +112,11 @@
   --card-modal-chip-bg: color-mix(in oklch, var(--color-primary), var(--color-base-100) 90%);
   --card-modal-chip-border: color-mix(in oklch, var(--color-primary), black 34%);
   --card-modal-control-bg: color-mix(in oklch, var(--color-primary), var(--color-base-100) 86%);
-  --card-modal-control-hover-bg: color-mix(in oklch, var(--color-primary), var(--color-base-100) 78%);
+  --card-modal-control-hover-bg: color-mix(
+    in oklch,
+    var(--color-primary),
+    var(--color-base-100) 78%
+  );
   --card-modal-glow: color-mix(in oklch, var(--color-primary), var(--color-base-100) 24%);
   --card-modal-glow-soft: color-mix(in oklch, var(--color-accent), var(--color-base-100) 34%);
   --card-modal-glow-opacity: 0.62;
@@ -226,7 +230,6 @@
     max-height: calc(100svh - 6rem);
   }
 }
-
 
 .control-toolbar {
   align-items: end;

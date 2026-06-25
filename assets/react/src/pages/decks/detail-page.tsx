@@ -8,11 +8,12 @@ import { groupDeckCards, type DeckGroupBy } from "../../lib/deck-grouping"
 import { request } from "../../lib/graphql"
 import { pluralize } from "../../lib/utils"
 import { deckCardsTotalPrice, formatUsdCents } from "./buylist-export"
-import { createDeckPullList, selectedDeckPullListEntries, type DeckPullListMode } from "./deck-allocation-model"
 import {
-  updateDeckCardTagsInDeckQuery,
-  type DeckTagPatch,
-} from "./deck-query-cache"
+  createDeckPullList,
+  selectedDeckPullListEntries,
+  type DeckPullListMode,
+} from "./deck-allocation-model"
+import { updateDeckCardTagsInDeckQuery, type DeckTagPatch } from "./deck-query-cache"
 import { compareDeckCards, countDeckZones } from "./deck-card-model"
 import { deckLegalityIssues } from "./deck-legality"
 import { useDeferredDeckAnalysis } from "./deck-stats-panel"
@@ -30,7 +31,11 @@ import {
 import { DeckDetailContent } from "./detail-page-content"
 import { DeckDetailDialogs } from "./detail-page-dialogs"
 import { useDeckDetailSelection } from "./detail-page-selection"
-import { ShareDeckBuylistDialog, SharePlaytestOverlay, useSharedDecklistActions } from "./detail-page-share"
+import {
+  ShareDeckBuylistDialog,
+  SharePlaytestOverlay,
+  useSharedDecklistActions,
+} from "./detail-page-share"
 import { edhrecCardPrintingId } from "./edhrec"
 import {
   AddDeckCardDocument,
@@ -250,10 +255,7 @@ export function DeckDetailPage({
   const updateDeckCard = useMutation({
     mutationFn: ({ deckCardId, input }: UpdateDeckCardVariables) =>
       request(UpdateDeckCardDocument, { id: deckCardId, input }),
-    onMutate: async ({
-      deckCardId,
-      input,
-    }): Promise<UpdateDeckCardMutationContext> => {
+    onMutate: async ({ deckCardId, input }): Promise<UpdateDeckCardMutationContext> => {
       if (!isTagOnlyDeckCardUpdate(input)) return { isTagOnly: false, rollbackPatches: [] }
 
       const optimisticTag = deckCardTagValue(input.tag)
@@ -351,10 +353,7 @@ export function DeckDetailPage({
   const updateDeckCardsTag = useMutation({
     mutationFn: ({ deckCardIds, tag }: UpdateDeckCardsTagVariables) =>
       request(UpdateDeckCardsTagDocument, { deckCardIds, tag }),
-    onMutate: async ({
-      deckCardIds,
-      tag,
-    }): Promise<UpdateDeckCardsTagMutationContext> => {
+    onMutate: async ({ deckCardIds, tag }): Promise<UpdateDeckCardsTagMutationContext> => {
       await queryClient.cancelQueries({ queryKey: deckQueryKey })
       const previousDeck = queryClient.getQueryData<DeckQuery>(deckQueryKey)
       const rollbackPatches = rollbackDeckCardTagPatches(previousDeck, deckCardIds, tag)

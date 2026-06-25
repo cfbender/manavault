@@ -23,10 +23,7 @@ function normalizedFinish(finish: string | null | undefined) {
 }
 
 function titleizeFinish(finish: string) {
-  const label = finish
-    .trim()
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ")
+  const label = finish.trim().replace(/[_-]+/g, " ").replace(/\s+/g, " ")
 
   if (!label) return "Unknown"
 

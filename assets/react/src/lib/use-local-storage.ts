@@ -26,8 +26,7 @@ export function useLocalStorageState<T>(
   }: UseLocalStorageStateOptions<T> = {},
 ): [T, Dispatch<SetStateAction<T>>] {
   const readStoredValue = useCallback(() => {
-    const fallback =
-      typeof initialValue === "function" ? (initialValue as () => T)() : initialValue
+    const fallback = typeof initialValue === "function" ? (initialValue as () => T)() : initialValue
 
     if (!canUseLocalStorage()) return fallback
 

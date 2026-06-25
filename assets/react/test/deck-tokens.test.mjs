@@ -35,8 +35,16 @@ test("counts only commander and mainboard token producers and ignores malformed 
         zone: "commander",
         card: { name: "Food Commander", oracleText: "Created a Food token." },
       }),
-      deckCard({ id: "clue-sideboard", zone: "sideboard", card: { oracleText: "Create a Clue token." } }),
-      deckCard({ id: "blood-maybeboard", zone: "maybeboard", card: { oracleText: "Create a Blood token." } }),
+      deckCard({
+        id: "clue-sideboard",
+        zone: "sideboard",
+        card: { oracleText: "Create a Clue token." },
+      }),
+      deckCard({
+        id: "blood-maybeboard",
+        zone: "maybeboard",
+        card: { oracleText: "Create a Blood token." },
+      }),
       deckCard({ quantity: 0, card: { oracleText: "Create a Map token." } }),
       deckCard({ quantity: Number.NaN, card: { oracleText: "Create a Powerstone token." } }),
       deckCard({ card: null }),
@@ -85,15 +93,24 @@ test("parses word, variable, and referential token amounts with practical token 
     buildDeckTokens([
       deckCard({
         id: "soldier-maker",
-        card: { name: "Soldier Maker", oracleText: "Create two 1/1 white Soldier creature tokens." },
+        card: {
+          name: "Soldier Maker",
+          oracleText: "Create two 1/1 white Soldier creature tokens.",
+        },
       }),
       deckCard({
         id: "zombie-maker",
-        card: { name: "Zombie Maker", oracleText: "When it attacks, it creates X tapped 2/2 black Zombie creature tokens." },
+        card: {
+          name: "Zombie Maker",
+          oracleText: "When it attacks, it creates X tapped 2/2 black Zombie creature tokens.",
+        },
       }),
       deckCard({
         id: "food-maker",
-        card: { name: "Food Maker", oracleText: "Sacrifice any number of artifacts, then create that many Food tokens." },
+        card: {
+          name: "Food Maker",
+          oracleText: "Sacrifice any number of artifacts, then create that many Food tokens.",
+        },
       }),
     ]),
     [
@@ -124,11 +141,17 @@ test("names token-copy descriptions as Copy", () => {
     buildDeckTokens([
       deckCard({
         id: "clone-maker",
-        card: { name: "Clone Maker", oracleText: "Create a token that's a copy of target creature." },
+        card: {
+          name: "Clone Maker",
+          oracleText: "Create a token that's a copy of target creature.",
+        },
       }),
       deckCard({
         id: "artifact-maker",
-        card: { name: "Artifact Maker", oracleText: "Create two tokens that are copies of target artifact." },
+        card: {
+          name: "Artifact Maker",
+          oracleText: "Create two tokens that are copies of target artifact.",
+        },
       }),
     ]),
     [
@@ -152,11 +175,20 @@ test("sorts token summaries by name then description and producers by card name 
   assert.deepEqual(
     buildDeckTokens([
       deckCard({ id: "map", card: { name: "Map Maker", oracleText: "Create a Map token." } }),
-      deckCard({ id: "z-goblin", card: { name: "Alpha", oracleText: "Create a 2/2 red Goblin creature token." } }),
+      deckCard({
+        id: "z-goblin",
+        card: { name: "Alpha", oracleText: "Create a 2/2 red Goblin creature token." },
+      }),
       deckCard({ id: "blood", card: { name: "Blood Maker", oracleText: "Create a Blood token." } }),
-      deckCard({ id: "a-goblin", card: { name: "Alpha", oracleText: "Create a 2/2 red Goblin creature token." } }),
+      deckCard({
+        id: "a-goblin",
+        card: { name: "Alpha", oracleText: "Create a 2/2 red Goblin creature token." },
+      }),
       deckCard({ id: "clue", card: { name: "Clue Maker", oracleText: "Create a Clue token." } }),
-      deckCard({ id: "small-goblin", card: { name: "Small Goblin Maker", oracleText: "Create a 1/1 red Goblin creature token." } }),
+      deckCard({
+        id: "small-goblin",
+        card: { name: "Small Goblin Maker", oracleText: "Create a 1/1 red Goblin creature token." },
+      }),
     ]),
     [
       {

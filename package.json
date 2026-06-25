@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "vp lint",
-    "check": "vp check",
+    "precommit": "vp lint && vp check",
     "format": "vp fmt",
     "typecheck": "tsc --project assets/tsconfig.json --noEmit",
     "test:react": "node --experimental-strip-types --experimental-default-type=module --test assets/react/test/*.test.mjs",

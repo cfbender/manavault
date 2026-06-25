@@ -4,7 +4,10 @@ import assert from "node:assert/strict"
 import { compareSemver, normalizeServerUrl, parseSemver } from "../src/lib/native-shell.ts"
 
 test("normalizeServerUrl trims paths and defaults to HTTPS", () => {
-  assert.equal(normalizeServerUrl(" manavault.example.com/collection "), "https://manavault.example.com")
+  assert.equal(
+    normalizeServerUrl(" manavault.example.com/collection "),
+    "https://manavault.example.com",
+  )
   assert.equal(normalizeServerUrl("http://192.168.1.10:4000/settings"), "http://192.168.1.10:4000")
 })
 

@@ -516,10 +516,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
       >
         Cards in this location will become unfiled.
       </ConfirmDialog>
-      <AutoSortSetupDialog
-        open={isAutoSortSetupOpen}
-        onOpenChange={setIsAutoSortSetupOpen}
-      />
+      <AutoSortSetupDialog open={isAutoSortSetupOpen} onOpenChange={setIsAutoSortSetupOpen} />
       <AutoSortSummaryDialog
         open={Boolean(autoSortResult)}
         result={autoSortResult}

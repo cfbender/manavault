@@ -1,5 +1,8 @@
 import { Capacitor, registerPlugin } from "@capacitor/core"
-import { ensureCapacitorNativePluginHeader, registerCapacitorPluginOnce } from "./capacitor-native-headers.ts"
+import {
+  ensureCapacitorNativePluginHeader,
+  registerCapacitorPluginOnce,
+} from "./capacitor-native-headers.ts"
 
 export type NativeShellSettings = {
   serverUrl?: string | null
@@ -101,16 +104,25 @@ export async function checkNativeShellUpdate(settings?: NativeShellSettings | nu
   const timeout = window.setTimeout(() => controller.abort(), 3_000)
 
   try {
-    const response = await fetch(`https://api.github.com/repos/${releaseRepository}/releases/latest`, {
-      cache: "no-store",
-      headers: { accept: "application/vnd.github+json" },
-      signal: controller.signal,
-    })
+    const response = await fetch(
+      `https://api.github.com/repos/${releaseRepository}/releases/latest`,
+      {
+        cache: "no-store",
+        headers: { accept: "application/vnd.github+json" },
+        signal: controller.signal,
+      },
+    )
     if (!response.ok) {
-      return { appVersion, updateAvailable: false } satisfies NativeShellUpdateCheck
+      return {
+        appVersion,
+        updateAvailable: false,
+      } satisfies NativeShellUpdateCheck
     }
 
-    const release = (await response.json()) as { html_url?: string; tag_name?: string }
+    const release = (await response.json()) as {
+      html_url?: string
+      tag_name?: string
+    }
     const latestVersion = release.tag_name?.replace(/^v/i, "")
     const updateAvailable = Boolean(
       release.html_url && latestVersion && compareSemver(latestVersion, appVersion) > 0,
@@ -122,8 +134,11 @@ export async function checkNativeShellUpdate(settings?: NativeShellSettings | nu
       releaseUrl: release.html_url,
       updateAvailable,
     } satisfies NativeShellUpdateCheck
-  } catch (_error) {
-    return { appVersion, updateAvailable: false } satisfies NativeShellUpdateCheck
+  } catch {
+    return {
+      appVersion,
+      updateAvailable: false,
+    } satisfies NativeShellUpdateCheck
   } finally {
     window.clearTimeout(timeout)
   }

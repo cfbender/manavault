@@ -66,4 +66,3 @@ function exportFinish(finish?: string | null) {
   if (finish === "etched") return "*E*"
   return null
 }
-

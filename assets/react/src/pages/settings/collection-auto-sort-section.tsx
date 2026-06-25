@@ -104,9 +104,7 @@ export function CollectionAutoSortSection({
 
   useEffect(() => {
     setRows(
-      [...rules]
-        .sort(compareRulesByPriority)
-        .map((rule) => ruleToFormRow(rule, storageLocations)),
+      [...rules].sort(compareRulesByPriority).map((rule) => ruleToFormRow(rule, storageLocations)),
     )
   }, [rules, storageLocations])
 
@@ -150,7 +148,9 @@ export function CollectionAutoSortSection({
     event.preventDefault()
     if (!draftRow) return
 
-    const targetLocation = storageLocations.find((location) => location.id === draftRow.targetLocationId)
+    const targetLocation = storageLocations.find(
+      (location) => location.id === draftRow.targetLocationId,
+    )
     const nextDraft = {
       ...draftRow,
       name: draftRow.name.trim(),
@@ -245,7 +245,12 @@ export function CollectionAutoSortSection({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="button" variant="outline" disabled={isSaving || isLoading} onClick={addRule}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSaving || isLoading}
+              onClick={addRule}
+            >
               <Plus className="h-4 w-4" />
               Add rule
             </Button>
@@ -388,7 +393,12 @@ function PriorityRuleRow({
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="truncate text-lg font-black tracking-normal">{row.name}</h3>
-            <span className={cn("badge text-xs font-bold", row.enabled ? "badge-primary" : "badge-ghost")}>
+            <span
+              className={cn(
+                "badge text-xs font-bold",
+                row.enabled ? "badge-primary" : "badge-ghost",
+              )}
+            >
               {row.enabled ? "Enabled" : "Disabled"}
             </span>
             <span className="badge border-transparent bg-base-200 text-xs font-bold">
@@ -462,7 +472,9 @@ function AutoSortRuleDialog({
   onToggleValue: (field: "colors" | "rarities", value: string, selected: boolean) => void
   onUpdate: (changes: Partial<AutoSortRuleFormRow>) => void
 }) {
-  const fieldId = draftRow ? `auto-sort-${draftRow.key.replace(/[^a-zA-Z0-9_-]/g, "-")}` : "auto-sort-rule"
+  const fieldId = draftRow
+    ? `auto-sort-${draftRow.key.replace(/[^a-zA-Z0-9_-]/g, "-")}`
+    : "auto-sort-rule"
   const colorsDisabled = !draftRow || !colorModeUsesSelectedColors(draftRow.colorMode)
 
   return (
@@ -494,14 +506,20 @@ function AutoSortRuleDialog({
                 />
               </Field>
 
-              <Field label="Destination" htmlFor={`${fieldId}-target`} help="Only boxes and binders can receive auto-sorted cards.">
+              <Field
+                label="Destination"
+                htmlFor={`${fieldId}-target`}
+                help="Only boxes and binders can receive auto-sorted cards."
+              >
                 <select
                   id={`${fieldId}-target`}
                   className="select select-bordered w-full bg-base-100"
                   required
                   value={draftRow.targetLocationId}
                   onChange={(event) => {
-                    const targetLocation = storageLocations.find((location) => location.id === event.target.value)
+                    const targetLocation = storageLocations.find(
+                      (location) => location.id === event.target.value,
+                    )
                     onUpdate({
                       targetLocationId: event.target.value,
                       targetLocationKind: targetLocation?.kind ?? "",
@@ -529,7 +547,11 @@ function AutoSortRuleDialog({
             </label>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Color rule" htmlFor={`${fieldId}-color-mode`} help="Double-faced cards use their front-face colors when the catalog provides them.">
+              <Field
+                label="Color rule"
+                htmlFor={`${fieldId}-color-mode`}
+                help="Double-faced cards use their front-face colors when the catalog provides them."
+              >
                 <select
                   id={`${fieldId}-color-mode`}
                   className="select select-bordered w-full bg-base-100"
@@ -550,7 +572,11 @@ function AutoSortRuleDialog({
                 </select>
               </Field>
 
-              <Field label="Minimum price" htmlFor={`${fieldId}-min-price`} help="Blank means no minimum.">
+              <Field
+                label="Minimum price"
+                htmlFor={`${fieldId}-min-price`}
+                help="Blank means no minimum."
+              >
                 <Input
                   id={`${fieldId}-min-price`}
                   inputMode="decimal"
@@ -560,7 +586,11 @@ function AutoSortRuleDialog({
                 />
               </Field>
 
-              <Field label="Maximum price" htmlFor={`${fieldId}-max-price`} help="Blank means no maximum.">
+              <Field
+                label="Maximum price"
+                htmlFor={`${fieldId}-max-price`}
+                help="Blank means no maximum."
+              >
                 <Input
                   id={`${fieldId}-max-price`}
                   inputMode="decimal"
@@ -608,7 +638,9 @@ function AutoSortRuleDialog({
                         className="checkbox checkbox-primary checkbox-sm"
                         checked={draftRow.colors.includes(color.value)}
                         disabled={colorsDisabled}
-                        onChange={(event) => onToggleValue("colors", color.value, event.target.checked)}
+                        onChange={(event) =>
+                          onToggleValue("colors", color.value, event.target.checked)
+                        }
                       />
                       {color.label} ({color.value})
                     </label>
@@ -630,7 +662,9 @@ function AutoSortRuleDialog({
                         type="checkbox"
                         className="checkbox checkbox-primary checkbox-sm"
                         checked={draftRow.rarities.includes(rarity)}
-                        onChange={(event) => onToggleValue("rarities", rarity, event.target.checked)}
+                        onChange={(event) =>
+                          onToggleValue("rarities", rarity, event.target.checked)
+                        }
                       />
                       {rarity}
                     </label>
@@ -655,11 +689,16 @@ function AutoSortRuleDialog({
   )
 }
 
-function isAutoSortStorageLocation(location: CollectionAutoSortSettingsLocation): location is StorageLocation {
+function isAutoSortStorageLocation(
+  location: CollectionAutoSortSettingsLocation,
+): location is StorageLocation {
   return location.kind === "box" || location.kind === "binder"
 }
 
-function compareRulesByPriority(left: CollectionAutoSortSettingsRule, right: CollectionAutoSortSettingsRule) {
+function compareRulesByPriority(
+  left: CollectionAutoSortSettingsRule,
+  right: CollectionAutoSortSettingsRule,
+) {
   return (
     (left.priority ?? Number.MAX_SAFE_INTEGER) - (right.priority ?? Number.MAX_SAFE_INTEGER) ||
     left.name.localeCompare(right.name)
@@ -670,7 +709,9 @@ function ruleToFormRow(
   rule: CollectionAutoSortSettingsRule,
   storageLocations: readonly StorageLocation[],
 ): AutoSortRuleFormRow {
-  const targetLocation = storageLocations.find((location) => location.id === rule.targetLocation?.id)
+  const targetLocation = storageLocations.find(
+    (location) => location.id === rule.targetLocation?.id,
+  )
   const targetLocationId = targetLocation?.id ?? rule.targetLocation?.id ?? ""
 
   return {
@@ -744,13 +785,12 @@ function formRowsToInput(rows: AutoSortRuleFormRow[]): CollectionAutoSortRuleInp
     input.push({
       ...(row.id ? { id: row.id } : {}),
       colorMode: colorModeValue(row.colorMode),
-      colors:
-        colorModeUsesSelectedColors(row.colorMode)
-          ? selectedValues(
-              COLORS.map((color) => color.value),
-              row.colors,
-            )
-          : [],
+      colors: colorModeUsesSelectedColors(row.colorMode)
+        ? selectedValues(
+            COLORS.map((color) => color.value),
+            row.colors,
+          )
+        : [],
       enabled: row.enabled,
       maxPriceCents,
       minPriceCents,
@@ -810,9 +850,12 @@ function colorModeUsesSelectedColors(colorMode: string) {
 }
 
 function disabledColorHelp(colorMode: string) {
-  if (colorMode === "any") return "Ignore color already matches every card, so selected colors are ignored."
-  if (colorMode === "colorless") return "No colors means the card has no card colors, so selected colors are ignored."
-  if (colorMode === "multicolor") return "Two or more colors checks color count, so selected colors are ignored."
+  if (colorMode === "any")
+    return "Ignore color already matches every card, so selected colors are ignored."
+  if (colorMode === "colorless")
+    return "No colors means the card has no card colors, so selected colors are ignored."
+  if (colorMode === "multicolor")
+    return "Two or more colors checks color count, so selected colors are ignored."
   return ""
 }
 

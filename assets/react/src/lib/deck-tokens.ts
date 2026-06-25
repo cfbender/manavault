@@ -10,7 +10,12 @@ export type DeckTokenDeckCard = {
 
 export type DeckTokenProducer = { id: string; name: string; quantity: number; amount: string }
 
-export type DeckTokenSummary = { key: string; name: string; description: string; producers: DeckTokenProducer[] }
+export type DeckTokenSummary = {
+  key: string
+  name: string
+  description: string
+  producers: DeckTokenProducer[]
+}
 
 const COUNTED_ZONES: Record<string, true> = { commander: true, mainboard: true }
 const CREATE_TOKEN_PATTERN =
@@ -213,7 +218,9 @@ function compareSummaries(left: DeckTokenSummary, right: DeckTokenSummary) {
 
 function compareProducers(left: DeckTokenProducer, right: DeckTokenProducer) {
   const nameComparison = left.name.localeCompare(right.name, undefined, { sensitivity: "base" })
-  return nameComparison === 0 ? left.id.localeCompare(right.id, undefined, { sensitivity: "base" }) : nameComparison
+  return nameComparison === 0
+    ? left.id.localeCompare(right.id, undefined, { sensitivity: "base" })
+    : nameComparison
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

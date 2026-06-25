@@ -7,14 +7,13 @@ import type {
   PreviewCollectionImportMutation,
 } from "../../gql/graphql"
 
-type ConnectionNode<T> =
-  T extends { edges?: ReadonlyArray<infer Edge | null> | null }
-    ? NonNullable<Edge> extends { node?: infer Node | null }
-      ? NonNullable<Node>
-      : never
-    : T extends ReadonlyArray<infer Node>
-      ? NonNullable<Node>
-      : never
+type ConnectionNode<T> = T extends { edges?: ReadonlyArray<(infer Edge) | null> | null }
+  ? NonNullable<Edge> extends { node?: (infer Node) | null }
+    ? NonNullable<Node>
+    : never
+  : T extends ReadonlyArray<infer Node>
+    ? NonNullable<Node>
+    : never
 
 type PayloadField<T, Field extends string> = T extends { [Key in Field]?: infer Value }
   ? NonNullable<Value>
@@ -42,12 +41,8 @@ export type CollectionExportFilters = { locationId?: string; q?: string }
 export type LocationSummary = ConnectionNode<CollectionQuery["locations"]>
 export type LocationDetail = NonNullable<LocationQuery["location"]>
 export type CollectionValueSummary = NonNullable<CollectionQuery["collectionValueSummary"]>
-type AutoSortCollectionPayload = NonNullable<
-  AutoSortCollectionMutation["autoSortCollection"]
->
-export type AutoSortCollectionResult = NonNullable<
-  AutoSortCollectionPayload["autoSortResult"]
->
+type AutoSortCollectionPayload = NonNullable<AutoSortCollectionMutation["autoSortCollection"]>
+export type AutoSortCollectionResult = NonNullable<AutoSortCollectionPayload["autoSortResult"]>
 type LocationCoverCardNode = ConnectionNode<LocationCoverCardSearchQuery["cards"]>
 export type LocationCoverPrinting = ConnectionNode<NonNullable<LocationCoverCardNode["printings"]>>
 export type LocationCoverCard = Omit<LocationCoverCardNode, "printings"> & {

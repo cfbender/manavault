@@ -1,85 +1,70 @@
-import {
-  Box,
-  CheckSquare,
-  ChevronDown,
-  Edit3,
-  MoveRight,
-  Square,
-  Trash2,
-} from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { Button } from "../../components/ui/button";
-import { cn } from "../../lib/utils";
-import { DeckCardTagButton } from "./deck-card-allocation";
-import { GameChangerBadge } from "./deck-card-display";
-import type { DeckCardEntry, DeckCardTag } from "./deck-types";
-import { CollectionStatusBadge } from "./edhrec-card-menu";
+import { Box, CheckSquare, ChevronDown, Edit3, MoveRight, Square, Trash2 } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
+import { Button } from "../../components/ui/button"
+import { cn } from "../../lib/utils"
+import { DeckCardTagButton } from "./deck-card-allocation"
+import { GameChangerBadge } from "./deck-card-display"
+import type { DeckCardEntry, DeckCardTag } from "./deck-types"
+import { CollectionStatusBadge } from "./edhrec-card-menu"
 
 type PreviewPosition = {
-  left: number;
-  top: number;
-};
+  left: number
+  top: number
+}
 
 function deckZoneCardImageUrl(deckCard: DeckCardEntry) {
-  return (
-    deckCard.preferredPrinting?.imageUrl ||
-    deckCard.card?.printings?.[0]?.imageUrl ||
-    null
-  );
+  return deckCard.preferredPrinting?.imageUrl || deckCard.card?.printings?.[0]?.imageUrl || null
 }
 
 function DeckZoneCardName({
   deckCard,
   onPreview,
 }: {
-  deckCard: DeckCardEntry;
-  onPreview: (deckCard: DeckCardEntry) => void;
+  deckCard: DeckCardEntry
+  onPreview: (deckCard: DeckCardEntry) => void
 }) {
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const hideTimeoutRef = useRef<number | null>(null);
-  const [position, setPosition] = useState<PreviewPosition | null>(null);
-  const cardName = deckCard.card?.name || "Unknown card";
-  const imageUrl = deckZoneCardImageUrl(deckCard);
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const hideTimeoutRef = useRef<number | null>(null)
+  const [position, setPosition] = useState<PreviewPosition | null>(null)
+  const cardName = deckCard.card?.name || "Unknown card"
+  const imageUrl = deckZoneCardImageUrl(deckCard)
 
   useEffect(() => {
     return () => {
-      if (hideTimeoutRef.current === null) return;
+      if (hideTimeoutRef.current === null) return
 
-      window.clearTimeout(hideTimeoutRef.current);
-    };
-  }, []);
+      window.clearTimeout(hideTimeoutRef.current)
+    }
+  }, [])
 
   function clearHidePreview() {
-    if (hideTimeoutRef.current === null) return;
+    if (hideTimeoutRef.current === null) return
 
-    window.clearTimeout(hideTimeoutRef.current);
-    hideTimeoutRef.current = null;
+    window.clearTimeout(hideTimeoutRef.current)
+    hideTimeoutRef.current = null
   }
 
   function hidePreviewSoon() {
-    clearHidePreview();
+    clearHidePreview()
     hideTimeoutRef.current = window.setTimeout(() => {
-      setPosition(null);
-      hideTimeoutRef.current = null;
-    }, 120);
+      setPosition(null)
+      hideTimeoutRef.current = null
+    }, 120)
   }
 
   function showPreview() {
-    if (!imageUrl) return;
+    if (!imageUrl) return
 
-    clearHidePreview();
-    const rect = triggerRef.current?.getBoundingClientRect();
-    if (!rect) return;
+    clearHidePreview()
+    const rect = triggerRef.current?.getBoundingClientRect()
+    if (!rect) return
 
-    const previewWidth = 176;
+    const previewWidth = 176
     setPosition({
-      left: Math.min(
-        Math.max(rect.left, 12),
-        window.innerWidth - previewWidth - 12,
-      ),
+      left: Math.min(Math.max(rect.left, 12), window.innerWidth - previewWidth - 12),
       top: rect.top - 6,
-    });
+    })
   }
 
   return (
@@ -105,17 +90,13 @@ function DeckZoneCardName({
               onPointerEnter={showPreview}
               onPointerLeave={hidePreviewSoon}
             >
-              <img
-                src={imageUrl}
-                alt=""
-                className="aspect-[5/7] w-full rounded-lg object-cover"
-              />
+              <img src={imageUrl} alt="" className="aspect-[5/7] w-full rounded-lg object-cover" />
             </div>,
             document.body,
           )
         : null}
     </span>
-  );
+  )
 }
 
 export function DeckZoneTable({
@@ -134,23 +115,23 @@ export function DeckZoneTable({
   shareMode = false,
   title,
 }: {
-  cards: DeckCardEntry[];
-  deckId: string;
-  highlightedCardIds: Set<string> | null;
-  isSelecting: boolean;
-  isUpdating: boolean;
-  onDelete: (deckCard: DeckCardEntry) => void;
-  onEdit: (deckCard: DeckCardEntry) => void;
-  onMove: (deckCard: DeckCardEntry) => void;
-  onPreview: (deckCard: DeckCardEntry) => void;
-  onTag: (deckCard: DeckCardEntry, tag: DeckCardTag | null) => void;
-  onToggleSelected: (deckCardId: string, selectRange?: boolean) => void;
-  selectedCardIds: Set<string>;
-  shareMode?: boolean;
-  title: string;
+  cards: DeckCardEntry[]
+  deckId: string
+  highlightedCardIds: Set<string> | null
+  isSelecting: boolean
+  isUpdating: boolean
+  onDelete: (deckCard: DeckCardEntry) => void
+  onEdit: (deckCard: DeckCardEntry) => void
+  onMove: (deckCard: DeckCardEntry) => void
+  onPreview: (deckCard: DeckCardEntry) => void
+  onTag: (deckCard: DeckCardEntry, tag: DeckCardTag | null) => void
+  onToggleSelected: (deckCardId: string, selectRange?: boolean) => void
+  selectedCardIds: Set<string>
+  shareMode?: boolean
+  title: string
 }) {
-  if (!cards.length) return null;
-  const sectionId = `${deckId}-${title.toLowerCase()}-zone`;
+  if (!cards.length) return null
+  const sectionId = `${deckId}-${title.toLowerCase()}-zone`
 
   return (
     <details
@@ -172,9 +153,7 @@ export function DeckZoneTable({
         <table className="table table-sm">
           <thead>
             <tr>
-              {isSelecting && !shareMode ? (
-                <th className="w-10">Select</th>
-              ) : null}
+              {isSelecting && !shareMode ? <th className="w-10">Select</th> : null}
               <th className="w-14">Qty</th>
               <th>Name</th>
               <th>Type</th>
@@ -186,10 +165,9 @@ export function DeckZoneTable({
           </thead>
           <tbody>
             {cards.map((deckCard) => {
-              const printing =
-                deckCard.preferredPrinting || deckCard.card?.printings?.[0];
-              const selected = selectedCardIds.has(deckCard.id);
-              const isGameChanger = deckCard.card?.gameChanger === true;
+              const printing = deckCard.preferredPrinting || deckCard.card?.printings?.[0]
+              const selected = selectedCardIds.has(deckCard.id)
+              const isGameChanger = deckCard.card?.gameChanger === true
 
               return (
                 <tr
@@ -211,9 +189,7 @@ export function DeckZoneTable({
                             ? `Deselect ${deckCard.card?.name}`
                             : `Select ${deckCard.card?.name}`
                         }
-                        onClick={(event) =>
-                          onToggleSelected(deckCard.id, event.shiftKey)
-                        }
+                        onClick={(event) => onToggleSelected(deckCard.id, event.shiftKey)}
                       >
                         {selected ? (
                           <CheckSquare className="h-4 w-4" />
@@ -226,10 +202,7 @@ export function DeckZoneTable({
                   <td className="font-mono">{deckCard.quantity}</td>
                   <td>
                     <div className="flex flex-wrap items-center gap-2">
-                      <DeckZoneCardName
-                        deckCard={deckCard}
-                        onPreview={onPreview}
-                      />
+                      <DeckZoneCardName deckCard={deckCard} onPreview={onPreview} />
                       {isGameChanger ? <GameChangerBadge /> : null}
                     </div>
                   </td>
@@ -237,16 +210,12 @@ export function DeckZoneTable({
                     {deckCard.card?.typeLine}
                   </td>
                   <td className="text-base-content/65">
-                    {printing?.setName ||
-                      printing?.setCode?.toUpperCase() ||
-                      "Unknown"}{" "}
-                    #{printing?.collectorNumber || "?"}
+                    {printing?.setName || printing?.setCode?.toUpperCase() || "Unknown"} #
+                    {printing?.collectorNumber || "?"}
                   </td>
                   {shareMode ? null : (
                     <td>
-                      <CollectionStatusBadge
-                        status={deckCard.allocationStatus}
-                      />
+                      <CollectionStatusBadge status={deckCard.allocationStatus} />
                     </td>
                   )}
                   {shareMode ? null : (
@@ -295,11 +264,11 @@ export function DeckZoneTable({
                     </td>
                   )}
                 </tr>
-              );
+              )
             })}
           </tbody>
         </table>
       </div>
     </details>
-  );
+  )
 }

@@ -57,11 +57,23 @@ function productionContributors(overrides = {}) {
 }
 
 function contributor(overrides = {}) {
-  return { id: "card", name: "Card", quantity: 1, value: 1, category: "other", typeLine: "Creature", ...overrides }
+  return {
+    id: "card",
+    name: "Card",
+    quantity: 1,
+    value: 1,
+    category: "other",
+    typeLine: "Creature",
+    ...overrides,
+  }
 }
 
 function production(overrides = {}) {
-  const { cards: cardOverrides, contributors: contributorOverrides, ...productionOverrides } = overrides
+  const {
+    cards: cardOverrides,
+    contributors: contributorOverrides,
+    ...productionOverrides
+  } = overrides
 
   return {
     W: 0,
@@ -93,10 +105,7 @@ test("mana curve excludes lands, sideboard, and maybeboard", () => {
   assert.equal(stats.averageManaValue, 4)
   assert.equal(stats.totalManaValue, 8)
   assert.equal(stats.medianManaValue, 4)
-  assert.deepEqual(
-    stats.manaCurve,
-    curve({ 1: { permanents: 1 }, "7+": { spells: 1 } }),
-  )
+  assert.deepEqual(stats.manaCurve, curve({ 1: { permanents: 1 }, "7+": { spells: 1 } }))
 })
 
 test("quantity clamps to integers and multiplies hybrid mana cost pips", () => {
@@ -207,10 +216,7 @@ test("weighted mana values use counted nonland quantities without expanding card
   assert.equal(evenStats.totalManaValue, 12)
   assert.equal(evenStats.averageManaValue, 3)
   assert.equal(evenStats.medianManaValue, 3)
-  assert.deepEqual(
-    evenStats.manaCurve,
-    curve({ 1: { permanents: 2 }, 5: { spells: 2 } }),
-  )
+  assert.deepEqual(evenStats.manaCurve, curve({ 1: { permanents: 2 }, 5: { spells: 2 } }))
 })
 
 test("explicit production counts only add fragments", () => {
@@ -531,7 +537,9 @@ test("mana production contributors include explicit, any, and practical green un
   )
 
   const practicalGreenContributorIds = new Set(
-    [...stats.manaProduction.contributors.G, ...stats.manaProduction.contributors.any].map(({ id }) => id),
+    [...stats.manaProduction.contributors.G, ...stats.manaProduction.contributors.any].map(
+      ({ id }) => id,
+    ),
   )
 
   assert.deepEqual([...practicalGreenContributorIds].sort(), ["druid", "forest", "signet"])
@@ -556,7 +564,12 @@ test("empty and malformed inputs return visible zero-shaped stats", () => {
   assert.deepEqual(buildDeckStats([]), emptyStats)
   assert.deepEqual(buildDeckStats(null), emptyStats)
   assert.deepEqual(
-    buildDeckStats([null, deckCard({ quantity: -2 }), deckCard({ quantity: Number.NaN }), deckCard({ card: null })]),
+    buildDeckStats([
+      null,
+      deckCard({ quantity: -2 }),
+      deckCard({ quantity: Number.NaN }),
+      deckCard({ card: null }),
+    ]),
     emptyStats,
   )
 })

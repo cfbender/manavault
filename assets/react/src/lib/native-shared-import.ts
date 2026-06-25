@@ -1,5 +1,8 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core"
-import { ensureCapacitorNativePluginHeader, registerCapacitorPluginOnce } from "./capacitor-native-headers.ts"
+import {
+  ensureCapacitorNativePluginHeader,
+  registerCapacitorPluginOnce,
+} from "./capacitor-native-headers.ts"
 
 export type SharedImportPayload = {
   text: string
@@ -45,7 +48,9 @@ function isSharedImportPayload(payload?: NativeOpenPayload | null): payload is S
   return Boolean(payload && "text" in payload && payload.text.trim())
 }
 
-function isNativeLinkPayload(payload?: NativeOpenPayload | null): payload is Extract<NativeOpenPayload, { url: string }> {
+function isNativeLinkPayload(
+  payload?: NativeOpenPayload | null,
+): payload is Extract<NativeOpenPayload, { url: string }> {
   return Boolean(payload && "url" in payload && payload.url.trim())
 }
 

@@ -290,236 +290,235 @@ export function ImportCollectionDialog({
           className="manavault-import-dialog flex min-h-0 max-w-5xl flex-col"
           labelledBy="import-collection-title"
         >
-        <DialogHeader>
-          <div>
-            <DialogTitle id="import-collection-title">Import collection</DialogTitle>
-            <p className="mt-1 text-sm text-base-content/60">
-              Preview CSV or TXT rows before adding exact matches to your collection.
-            </p>
-          </div>
-          <DialogClose onClose={close} />
-        </DialogHeader>
-
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
-          <form className="space-y-4" onSubmit={submitPreview}>
-            <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
-                Import location
-              </span>
-              <select
-                className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                value={locationId}
-                onChange={(event) => setLocationId(event.target.value)}
-              >
-                <option value="">No location</option>
-                {locations
-                  .filter((location) => !isUnfiledLocation(location))
-                  .map((location) => (
-                    <option key={location.id} value={location.id}>
-                      {location.name} ({titleize(location.kind)})
-                    </option>
-                  ))}
-              </select>
-            </label>
-
-            <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
-                Purchase price per card
-              </span>
-              <input
-                type="text"
-                inputMode="decimal"
-                className="input input-bordered w-full bg-base-100"
-                value={purchasePrice}
-                onChange={(event) => updatePurchasePrice(event.target.value)}
-                placeholder="$1.00"
-              />
-              <p className="text-sm text-base-content/55">
-                Optional default for rows without a purchase price column. Enter $1 for a $15
-                15-card pack.
+          <DialogHeader>
+            <div>
+              <DialogTitle id="import-collection-title">Import collection</DialogTitle>
+              <p className="mt-1 text-sm text-base-content/60">
+                Preview CSV or TXT rows before adding exact matches to your collection.
               </p>
-            </label>
-
-            <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
-                CSV or TXT file
-              </span>
-              <input
-                type="file"
-                accept=".csv,.txt,text/csv,text/plain,text/comma-separated-values,application/vnd.ms-excel"
-                className="file-input file-input-bordered w-full bg-base-100"
-                onChange={(event) => void chooseFile(event.target.files?.[0])}
-              />
-              {sharedFileName ? (
-                <p className="rounded-box border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
-                  Loaded shared file: {sharedFileName}. The Android file picker may still say no
-                  file chosen; the shared TXT is in the import text box below.
-                </p>
-              ) : fileName ? (
-                <p className="text-sm text-base-content/55">{fileName}</p>
-              ) : null}
-            </label>
-
-            <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
-                File type
-              </span>
-              <select
-                className="select select-bordered w-full bg-base-100"
-                value={format}
-                onChange={(event) => setFormat(event.target.value as CollectionImportFormat)}
-              >
-                <option value="auto">Auto-detect</option>
-                <option value="csv">CSV</option>
-                <option value="txt">TXT list</option>
-              </select>
-            </label>
-
-            <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
-                Import text
-              </span>
-              <textarea
-                className="textarea textarea-bordered min-h-40 w-full bg-base-100 font-mono text-sm"
-                value={importText}
-                onChange={(event) => updateImportText(event.target.value)}
-                placeholder={"1x Jund Charm (C13) 195\n1x Zuko's Exile (TLA) 3 *F*"}
-              />
-            </label>
-
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="ghost" onClick={close}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={previewImport.isPending}>
-                <Upload className="h-4 w-4" />
-                {previewImport.isPending ? "Previewing..." : "Preview import"}
-              </Button>
             </div>
-          </form>
+            <DialogClose onClose={close} />
+          </DialogHeader>
 
-          {preview ? (
-            <div className="space-y-3">
-              <div className="stats stats-vertical w-full border border-base-300 bg-base-100 shadow-sm sm:stats-horizontal">
-                <div className="stat">
-                  <div className="stat-title">Rows</div>
-                  <div className="stat-value text-2xl">{preview.total}</div>
-                </div>
-                <div className="stat">
-                  <div className="stat-title">Exact</div>
-                  <div className="stat-value text-2xl text-success">{preview.exact}</div>
-                </div>
-                <div className="stat">
-                  <div className="stat-title">Needs review</div>
-                  <div className="stat-value text-2xl text-warning">
-                    {preview.ambiguous + preview.unresolved}
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
+            <form className="space-y-4" onSubmit={submitPreview}>
+              <label className="block space-y-2">
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                  Import location
+                </span>
+                <select
+                  className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  value={locationId}
+                  onChange={(event) => setLocationId(event.target.value)}
+                >
+                  <option value="">No location</option>
+                  {locations
+                    .filter((location) => !isUnfiledLocation(location))
+                    .map((location) => (
+                      <option key={location.id} value={location.id}>
+                        {location.name} ({titleize(location.kind)})
+                      </option>
+                    ))}
+                </select>
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                  Purchase price per card
+                </span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  className="input input-bordered w-full bg-base-100"
+                  value={purchasePrice}
+                  onChange={(event) => updatePurchasePrice(event.target.value)}
+                  placeholder="$1.00"
+                />
+                <p className="text-sm text-base-content/55">
+                  Optional default for rows without a purchase price column. Enter $1 for a $15
+                  15-card pack.
+                </p>
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                  CSV or TXT file
+                </span>
+                <input
+                  type="file"
+                  accept=".csv,.txt,text/csv,text/plain,text/comma-separated-values,application/vnd.ms-excel"
+                  className="file-input file-input-bordered w-full bg-base-100"
+                  onChange={(event) => void chooseFile(event.target.files?.[0])}
+                />
+                {sharedFileName ? (
+                  <p className="rounded-box border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
+                    Loaded shared file: {sharedFileName}. The Android file picker may still say no
+                    file chosen; the shared TXT is in the import text box below.
+                  </p>
+                ) : fileName ? (
+                  <p className="text-sm text-base-content/55">{fileName}</p>
+                ) : null}
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                  File type
+                </span>
+                <select
+                  className="select select-bordered w-full bg-base-100"
+                  value={format}
+                  onChange={(event) => setFormat(event.target.value as CollectionImportFormat)}
+                >
+                  <option value="auto">Auto-detect</option>
+                  <option value="csv">CSV</option>
+                  <option value="txt">TXT list</option>
+                </select>
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                  Import text
+                </span>
+                <textarea
+                  className="textarea textarea-bordered min-h-40 w-full bg-base-100 font-mono text-sm"
+                  value={importText}
+                  onChange={(event) => updateImportText(event.target.value)}
+                  placeholder={"1x Jund Charm (C13) 195\n1x Zuko's Exile (TLA) 3 *F*"}
+                />
+              </label>
+
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="ghost" onClick={close}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={previewImport.isPending}>
+                  <Upload className="h-4 w-4" />
+                  {previewImport.isPending ? "Previewing..." : "Preview import"}
+                </Button>
+              </div>
+            </form>
+
+            {preview ? (
+              <div className="space-y-3">
+                <div className="stats stats-vertical w-full border border-base-300 bg-base-100 shadow-sm sm:stats-horizontal">
+                  <div className="stat">
+                    <div className="stat-title">Rows</div>
+                    <div className="stat-value text-2xl">{preview.total}</div>
+                  </div>
+                  <div className="stat">
+                    <div className="stat-title">Exact</div>
+                    <div className="stat-value text-2xl text-success">{preview.exact}</div>
+                  </div>
+                  <div className="stat">
+                    <div className="stat-title">Needs review</div>
+                    <div className="stat-value text-2xl text-warning">
+                      {preview.ambiguous + preview.unresolved}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="max-h-80 overflow-y-auto rounded-box border border-base-300">
-                <table className="table table-sm">
-                  <thead>
-                    <tr>
-                      <th>Row</th>
-                      <th>Status</th>
-                      <th>Card</th>
-                      <th>Qty</th>
-                      <th>Finish</th>
-                      <th>Purchase</th>
-                      <th>Review</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {preview.rows.map((row) => (
-                      <tr key={row.rowNumber}>
-                        <td>{row.rowNumber}</td>
-                        <td>
-                          <Badge tone={importStatusTone(row.status)}>
-                            {importStatusLabel(row.status)}
-                          </Badge>
-                        </td>
-                        <td>{row.printing?.card?.name || row.attrs.name || "Unknown card"}</td>
-                        <td>{row.attrs.quantity}</td>
-                        <td>{row.attrs.finish}</td>
-                        <td>{importPurchasePriceText(row.attrs.purchasePriceCents)}</td>
-                        <td>
-                          {row.status === "ambiguous" ? (
-                            <div className="flex flex-wrap gap-1">
-                              {row.candidates.map((candidate) => (
-                                <Button
-                                  key={candidate.id}
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => selectCandidate(row.rowNumber, candidate)}
-                                >
-                                  {printingSetLabel({
-                                    collectorNumber: candidate.collectorNumber,
-                                    rarity: candidate.rarity,
-                                    id: candidate.id,
-                                    scryfallId: candidate.scryfallId,
-                                    setCode: candidate.setCode,
-                                    setName: candidate.setName,
-                                  })}
-                                </Button>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-base-content/45">-</span>
-                          )}
-                        </td>
+                <div className="max-h-80 overflow-y-auto rounded-box border border-base-300">
+                  <table className="table table-sm">
+                    <thead>
+                      <tr>
+                        <th>Row</th>
+                        <th>Status</th>
+                        <th>Card</th>
+                        <th>Qty</th>
+                        <th>Finish</th>
+                        <th>Purchase</th>
+                        <th>Review</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {preview.rows.map((row) => (
+                        <tr key={row.rowNumber}>
+                          <td>{row.rowNumber}</td>
+                          <td>
+                            <Badge tone={importStatusTone(row.status)}>
+                              {importStatusLabel(row.status)}
+                            </Badge>
+                          </td>
+                          <td>{row.printing?.card?.name || row.attrs.name || "Unknown card"}</td>
+                          <td>{row.attrs.quantity}</td>
+                          <td>{row.attrs.finish}</td>
+                          <td>{importPurchasePriceText(row.attrs.purchasePriceCents)}</td>
+                          <td>
+                            {row.status === "ambiguous" ? (
+                              <div className="flex flex-wrap gap-1">
+                                {row.candidates.map((candidate) => (
+                                  <Button
+                                    key={candidate.id}
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => selectCandidate(row.rowNumber, candidate)}
+                                  >
+                                    {printingSetLabel({
+                                      collectorNumber: candidate.collectorNumber,
+                                      rarity: candidate.rarity,
+                                      id: candidate.id,
+                                      scryfallId: candidate.scryfallId,
+                                      setCode: candidate.setCode,
+                                      setName: candidate.setName,
+                                    })}
+                                  </Button>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-base-content/45">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
+            ) : null}
+
+            {error ? (
+              <p
+                role="alert"
+                className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error"
+              >
+                {error}
+              </p>
+            ) : null}
+          </div>
+          {preview ? (
+            <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 bg-base-100 px-5 py-4">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={
+                  preview.exact === 0 || previewImportAutoSort.isPending || commitImport.isPending
+                }
+                onClick={() => commitPreview(false)}
+              >
+                <Upload className="h-4 w-4" />
+                {commitImport.isPending && !commitPendingAutoSort
+                  ? "Importing..."
+                  : "Import exact rows"}
+              </Button>
+              <Button
+                type="button"
+                disabled={
+                  preview.exact === 0 ||
+                  previewImportAutoSort.isPending ||
+                  commitImport.isPending ||
+                  optionsQuery.isLoading
+                }
+                onClick={previewAutoSortBeforeImport}
+              >
+                <WandSparkles className="h-4 w-4" />
+                {autoSortPreviewButtonLabel}
+              </Button>
             </div>
           ) : null}
-
-          {error ? (
-            <p
-              role="alert"
-              className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error"
-            >
-              {error}
-            </p>
-          ) : null}
-        </div>
-        {preview ? (
-          <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 bg-base-100 px-5 py-4">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={preview.exact === 0 || previewImportAutoSort.isPending || commitImport.isPending}
-              onClick={() => commitPreview(false)}
-            >
-              <Upload className="h-4 w-4" />
-              {commitImport.isPending && !commitPendingAutoSort
-                ? "Importing..."
-                : "Import exact rows"}
-            </Button>
-            <Button
-              type="button"
-              disabled={
-                preview.exact === 0 ||
-                previewImportAutoSort.isPending ||
-                commitImport.isPending ||
-                optionsQuery.isLoading
-              }
-              onClick={previewAutoSortBeforeImport}
-            >
-              <WandSparkles className="h-4 w-4" />
-              {autoSortPreviewButtonLabel}
-            </Button>
-          </div>
-        ) : null}
         </DialogContent>
       </Dialog>
-      <AutoSortSetupDialog
-        open={isAutoSortSetupOpen}
-        onOpenChange={setIsAutoSortSetupOpen}
-      />
+      <AutoSortSetupDialog open={isAutoSortSetupOpen} onOpenChange={setIsAutoSortSetupOpen} />
       <AutoSortSummaryDialog
         open={Boolean(autoSortPreview)}
         result={autoSortPreview}

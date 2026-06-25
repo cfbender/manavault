@@ -11,9 +11,12 @@ import {
 } from "../collection"
 import { CardCollectionItemsDocument, type CardCollectionItem } from "./data"
 
-type NodeConnection<T> = {
-  edges?: ReadonlyArray<{ node?: T | null } | null> | null
-} | null | undefined
+type NodeConnection<T> =
+  | {
+      edges?: ReadonlyArray<{ node?: T | null } | null> | null
+    }
+  | null
+  | undefined
 
 function connectionNodes<T>(connection: NodeConnection<T>): T[] {
   return connection?.edges?.map((edge) => edge?.node).filter(present) || []
@@ -54,7 +57,8 @@ export function CardCollectionCopiesPanel({
     queryFn: () => request(CardCollectionItemsDocument, { cardId }),
   })
   const items = connectionNodes(data?.collectionItems)
-  const copyCount = data?.collectionItemCount ?? items.reduce((total, item) => total + item.quantity, 0)
+  const copyCount =
+    data?.collectionItemCount ?? items.reduce((total, item) => total + item.quantity, 0)
 
   if (!isLoading && items.length === 0) return null
 
@@ -80,7 +84,10 @@ export function CardCollectionCopiesPanel({
       ) : (
         <div className="divide-y divide-base-300">
           {items.map((item) => (
-            <div key={item.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
+            <div
+              key={item.id}
+              className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center"
+            >
               {item.printing?.imageUrl ? (
                 <img
                   src={item.printing.imageUrl}

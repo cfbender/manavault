@@ -34,7 +34,6 @@ const FINISH_FILTERS: readonly FinishFilter[] = ["any", "foil", "nonfoil", "etch
 const RARITY_FILTERS: readonly RarityFilter[] = ["common", "uncommon", "rare", "mythic"]
 const MANA_COLORS: readonly ManaColor[] = ["w", "u", "b", "r", "g", "c"]
 
-
 export const EMPTY_COLLECTION_FILTERS: CollectionFilterState = {
   name: "",
   oracle: "",
@@ -130,7 +129,8 @@ export function encodeCollectionFilters(filters: CollectionFilterState) {
         : undefined,
     identity: filters.identity.length ? filters.identity : undefined,
     identityOperator:
-      filters.identity.length && filters.identityOperator !== EMPTY_COLLECTION_FILTERS.identityOperator
+      filters.identity.length &&
+      filters.identityOperator !== EMPTY_COLLECTION_FILTERS.identityOperator
         ? filters.identityOperator
         : undefined,
     manaValue: trimmedValue(filters.manaValue),
@@ -184,7 +184,11 @@ export function decodeCollectionFilters(value: unknown): CollectionFilterState {
   filters.oracle = stringValue(decoded.oracle)
   filters.typeLine = stringValue(decoded.typeLine)
   filters.colors = filteredValues(decoded.colors, MANA_COLORS)
-  filters.colorOperator = operatorValue(decoded.colorOperator, COLOR_OPERATORS, filters.colorOperator)
+  filters.colorOperator = operatorValue(
+    decoded.colorOperator,
+    COLOR_OPERATORS,
+    filters.colorOperator,
+  )
   filters.identity = filteredValues(decoded.identity, MANA_COLORS)
   filters.identityOperator = operatorValue(
     decoded.identityOperator,
@@ -214,9 +218,17 @@ export function decodeCollectionFilters(value: unknown): CollectionFilterState {
     filters.priceOperator,
   )
   filters.releasedDate = stringValue(decoded.releasedDate)
-  filters.dateOperator = operatorValue(decoded.dateOperator, COMPARISON_OPERATORS, filters.dateOperator)
+  filters.dateOperator = operatorValue(
+    decoded.dateOperator,
+    COMPARISON_OPERATORS,
+    filters.dateOperator,
+  )
   filters.releasedYear = stringValue(decoded.releasedYear)
-  filters.yearOperator = operatorValue(decoded.yearOperator, COMPARISON_OPERATORS, filters.yearOperator)
+  filters.yearOperator = operatorValue(
+    decoded.yearOperator,
+    COMPARISON_OPERATORS,
+    filters.yearOperator,
+  )
 
   return filters
 }

@@ -77,7 +77,6 @@ jobs:
             -storepass "${MANAVAULT_ANDROID_KEYSTORE_PASSWORD}" \
             -v
 
-
       - name: Build release APK
         if: github.ref_type == 'tag'
         env:

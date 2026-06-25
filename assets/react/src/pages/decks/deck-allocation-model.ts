@@ -107,8 +107,7 @@ export function createDeckPullList(
     const choiceCount = Math.min(
       remaining,
       nonExactCandidates.reduce(
-        (total, candidate) =>
-          total + candidateRemainingAvailable(candidate, usedItemQuantities),
+        (total, candidate) => total + candidateRemainingAvailable(candidate, usedItemQuantities),
         0,
       ),
     )
@@ -243,10 +242,7 @@ export function groupDeckPullListEntriesByLocation(
 function isExactCandidate(deckCard: DeckCardEntry, candidate: AllocationCandidate) {
   const preferredScryfallId = deckCard.preferredPrinting?.scryfallId
 
-  return (
-    preferredScryfallId != null &&
-    candidate.item.printing?.scryfallId === preferredScryfallId
-  )
+  return preferredScryfallId != null && candidate.item.printing?.scryfallId === preferredScryfallId
 }
 
 function defaultChoiceSelection(

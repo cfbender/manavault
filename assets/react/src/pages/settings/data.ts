@@ -1,5 +1,8 @@
 import { graphql } from "../../gql"
-import type { CollectionAutoSortRuleInput, CollectionAutoSortSettingsQuery } from "../../gql/graphql"
+import type {
+  CollectionAutoSortRuleInput,
+  CollectionAutoSortSettingsQuery,
+} from "../../gql/graphql"
 
 export type { CollectionAutoSortRuleInput }
 

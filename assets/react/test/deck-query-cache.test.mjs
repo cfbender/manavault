@@ -33,9 +33,7 @@ test("single tag patch preserves unrelated card references", () => {
   const patchedEdge = data.deck.deckCards.edges[0]
   const unrelatedEdge = data.deck.deckCards.edges[1]
 
-  const result = updateDeckCardTagsInDeckQuery(data, [
-    { id: "deck-card-1", tag: "getting" },
-  ])
+  const result = updateDeckCardTagsInDeckQuery(data, [{ id: "deck-card-1", tag: "getting" }])
 
   assert.notEqual(result, data)
   assert.notEqual(result.deck.deckCards.edges[0], patchedEdge)

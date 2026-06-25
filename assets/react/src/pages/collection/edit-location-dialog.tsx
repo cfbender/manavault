@@ -262,10 +262,7 @@ export function EditLocationDialog({
                 ) : null}
                 {coverSearchTerm === coverSearchDraftTerm
                   ? coverSearchCards.map((card) => (
-                      <div
-                        key={card.id}
-                        className="border-t border-base-300 first:border-t-0 p-3"
-                      >
+                      <div key={card.id} className="border-t border-base-300 first:border-t-0 p-3">
                         <div className="mb-2">
                           <p className="font-bold">{card.name}</p>
                           {card.typeLine ? (

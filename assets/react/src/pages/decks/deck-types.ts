@@ -24,9 +24,11 @@ type DeckCardConnectionCard = NonNullable<DeckCardConnectionEntry["card"]>
 export type DeckSummary = ConnectionNode<DecksQuery["decks"]>
 export type DeckCardPrinting = ConnectionNode<DeckCardConnectionCard["printings"]>
 export type DeckCardEntry = Omit<DeckCardConnectionEntry, "card"> & {
-  card: (Omit<DeckCardConnectionCard, "printings"> & {
-    printings: DeckCardPrinting[] | null
-  }) | null
+  card:
+    | (Omit<DeckCardConnectionCard, "printings"> & {
+        printings: DeckCardPrinting[] | null
+      })
+    | null
 }
 export type DeckDetail = Omit<DeckConnectionDetail, "deckCards"> & {
   deckCards: DeckCardEntry[]
@@ -38,9 +40,7 @@ export type EDHRecData = NonNullable<DeckEdhrecQuery["deckEdhrec"]>
 type PreviewDeckDisassemblyPayload = NonNullable<
   PreviewDeckDisassemblyMutation["previewDeckDisassembly"]
 >
-export type DeckDisassemblyResult = NonNullable<
-  PreviewDeckDisassemblyPayload["disassemblyResult"]
->
+export type DeckDisassemblyResult = NonNullable<PreviewDeckDisassemblyPayload["disassemblyResult"]>
 export type EDHRecCard = EDHRecData["recommendations"][number]
 export type EDHRecCommanderPage = EDHRecData["commanderPages"][number]
 export type EDHRecSection = EDHRecCommanderPage["sections"][number]

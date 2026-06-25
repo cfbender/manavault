@@ -66,8 +66,13 @@ export function CardLegalityPanel({
       <dl className="grid gap-2 border-t border-base-300/70 px-4 py-3 sm:grid-cols-2">
         {CARD_LEGALITY_FORMATS.map((format) => {
           const isLegal = statusesByFormat[format.key] === "legal"
-          const isCommanderGameChanger = isLegal && gameChanger === true && format.key === "commander"
-          const legalityLabel = isLegal ? (isCommanderGameChanger ? "LEGAL/GC" : "LEGAL") : "NOT LEGAL"
+          const isCommanderGameChanger =
+            isLegal && gameChanger === true && format.key === "commander"
+          const legalityLabel = isLegal
+            ? isCommanderGameChanger
+              ? "LEGAL/GC"
+              : "LEGAL"
+            : "NOT LEGAL"
 
           return (
             <div

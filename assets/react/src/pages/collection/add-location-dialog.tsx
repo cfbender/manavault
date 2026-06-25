@@ -250,10 +250,7 @@ export function AddLocationDialog({
                 ) : null}
                 {coverSearchTerm === coverSearchDraftTerm
                   ? coverSearchCards.map((card) => (
-                      <div
-                        key={card.id}
-                        className="border-t border-base-300 p-3 first:border-t-0"
-                      >
+                      <div key={card.id} className="border-t border-base-300 p-3 first:border-t-0">
                         <div className="mb-2">
                           <p className="font-bold">{card.name}</p>
                           {card.typeLine ? (

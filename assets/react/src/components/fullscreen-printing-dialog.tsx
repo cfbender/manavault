@@ -139,7 +139,9 @@ export function FullscreenPrintingDialog({
                   {card.name}
                 </h2>
                 {subtitle ? (
-                  <p className="fullscreen-printing-dialog__muted mt-1 line-clamp-1 text-xs sm:line-clamp-2 sm:text-sm">{subtitle}</p>
+                  <p className="fullscreen-printing-dialog__muted mt-1 line-clamp-1 text-xs sm:line-clamp-2 sm:text-sm">
+                    {subtitle}
+                  </p>
                 ) : null}
                 {finish || printing.priceText || printing.ownedCount || positionLabel ? (
                   <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[0.65rem] sm:mt-3 sm:gap-2 sm:text-xs">

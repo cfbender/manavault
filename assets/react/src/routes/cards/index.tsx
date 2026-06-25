@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router"
 import { CardsPage } from "../../pages/cards"
 import { decodeCollectionFilters, encodeCollectionFilters } from "../../lib/collection-filters"
 
-
 type CardsSearch = {
   q?: string
   filters?: string

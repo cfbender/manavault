@@ -152,10 +152,7 @@ export function CollectionFilterModal({
 
             <FilterSection label="Printing" syntax="set:lea number:232 lang:ja">
               <div className="grid gap-3 sm:grid-cols-2">
-                <SetCombobox
-                  value={draft.set}
-                  onValueChange={(value) => update("set", value)}
-                />
+                <SetCombobox value={draft.set} onValueChange={(value) => update("set", value)} />
                 <ComparisonFilterControl
                   className="sm:col-start-1"
                   inputMode="numeric"

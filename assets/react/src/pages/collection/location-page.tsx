@@ -58,7 +58,12 @@ import {
   isDefaultCollectionSort,
   serializeStoredCollectionFilters,
 } from "./storage"
-import type { AutoSortCollectionResult, CollectionExportFormat, CollectionItem, CollectionSort } from "./types"
+import type {
+  AutoSortCollectionResult,
+  CollectionExportFormat,
+  CollectionItem,
+  CollectionSort,
+} from "./types"
 import { collectionValueLine } from "./value-summary"
 
 const LOCATION_PAGE_SORT_STORAGE_KEY = collectionSortStorageKey("location")
@@ -414,10 +419,7 @@ export function LocationPage({ id }: { id: string }) {
           </PageSection>
         </div>
       )}
-      <AutoSortSetupDialog
-        open={isAutoSortSetupOpen}
-        onOpenChange={setIsAutoSortSetupOpen}
-      />
+      <AutoSortSetupDialog open={isAutoSortSetupOpen} onOpenChange={setIsAutoSortSetupOpen} />
       <AutoSortSummaryDialog
         open={Boolean(autoSortResult)}
         result={autoSortResult}

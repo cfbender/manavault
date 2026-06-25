@@ -2,11 +2,7 @@ import { Database, ShoppingCart, Store } from "lucide-react"
 
 import { Button } from "../../components/ui/button"
 import { cn } from "../../lib/utils"
-import {
-  manaPoolBuylistUrl,
-  tcgplayerBuylistUrl,
-  vendorBuylistPipeText,
-} from "./buylist-export"
+import { manaPoolBuylistUrl, tcgplayerBuylistUrl, vendorBuylistPipeText } from "./buylist-export"
 import type { BuylistEntry } from "./deck-types"
 
 export function BuylistMarketplaceActions({
@@ -20,7 +16,12 @@ export function BuylistMarketplaceActions({
 
   return (
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
-      <form action="https://www.cardkingdom.com/builder" method="post" target="_blank" className="inline-flex">
+      <form
+        action="https://www.cardkingdom.com/builder"
+        method="post"
+        target="_blank"
+        className="inline-flex"
+      >
         <input type="hidden" name="c" value={vendorBuylistPipeText(entries)} />
         <input type="hidden" name="partner" value="manavault" />
         <input type="hidden" name="po_origin" value="1" />
