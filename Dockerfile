@@ -88,7 +88,7 @@ FROM ${RUNNER_IMAGE} AS runner
 ARG MANAVAULT_ASSET_VERSION
 
 RUN apk upgrade --no-cache \
-  && apk add --no-cache libstdc++ openssl ncurses-libs ca-certificates lksctp-tools su-exec librsvg fontconfig ttf-dejavu
+  && apk add --no-cache libstdc++ openssl ncurses-libs ca-certificates lksctp-tools su-exec rsvg-convert fontconfig ttf-dejavu
 
 COPY --from=healthcheck-builder /go/bin/manavault-healthcheck /usr/local/bin/manavault-healthcheck
 

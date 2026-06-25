@@ -3,6 +3,7 @@ defmodule ManavaultWeb.DeckSharePreview do
 
   alias Manavault.Catalog
   alias Manavault.Catalog.{Deck, DeckCard, Price}
+  alias Manavault.ScryfallAssets
 
   @image_width 1200
   @image_height 630
@@ -64,13 +65,14 @@ defmodule ManavaultWeb.DeckSharePreview do
     }
   end
 
-  def svg(%{kind: :deck} = preview) do
+  def svg(%{kind: :deck} = preview, opts \\ []) do
     deck_name = one_line(preview.deck_name)
     title_size = title_font_size(deck_name)
     deck_name = truncate_for_width(deck_name, title_width(preview.color_identity), title_size)
     unique_x = 72 + badge_width(preview.status_label) + 28
     legality_x = unique_x + text_width(preview.unique_count_label, 27) + 28
     price_x = legality_x + badge_width(preview.legality_label) + 20
+    symbol_resolver = Keyword.get(opts, :symbol_resolver, &mana_symbol_url/1)
 
     """
     <svg xmlns="http://www.w3.org/2000/svg" width="#{@image_width}" height="#{@image_height}" viewBox="0 0 #{@image_width} #{@image_height}" role="img" aria-label="#{xml_escape(preview.image_alt)}">
@@ -108,7 +110,7 @@ defmodule ManavaultWeb.DeckSharePreview do
       <g filter="url(#softShadow)">
         <text x="72" y="372" fill="#f8f0ef" font-size="#{title_size}" font-weight="950" letter-spacing="-1.6">#{xml_escape(deck_name)}</text>
       </g>
-      #{mana_symbols(preview.color_identity)}
+      #{mana_symbols(preview.color_identity, symbol_resolver)}
 
       #{badge(72, 432, preview.status_label, :success)}
       <text x="#{unique_x}" y="469" fill="#e7dfdf" fill-opacity="0.74" font-size="27" font-weight="650">#{xml_escape(preview.unique_count_label)}</text>
@@ -128,7 +130,7 @@ defmodule ManavaultWeb.DeckSharePreview do
       )
 
     try do
-      File.write!(path, svg(preview))
+      File.write!(path, svg(preview, symbol_resolver: &mana_symbol_data_uri/1))
 
       case System.cmd(@renderer, [
              "--format=png",
@@ -279,7 +281,7 @@ defmodule ManavaultWeb.DeckSharePreview do
   defp badge_colors(:warning), do: {"#facc15", "#38270b", "#fff3bd"}
   defp badge_colors(_tone), do: {"#f0d7c4", "#2a1d22", "#f8f0ef"}
 
-  defp mana_symbols(colors) when is_list(colors) do
+  defp mana_symbols(colors, symbol_resolver) when is_list(colors) do
     colors
     |> Enum.reject(&blank?/1)
     |> Enum.take(5)
@@ -289,23 +291,37 @@ defmodule ManavaultWeb.DeckSharePreview do
 
       """
       <g filter="url(#softShadow)">
-        <image href="#{xml_escape(mana_symbol_url(color))}" x="#{x - 24}" y="327" width="48" height="48" preserveAspectRatio="xMidYMid meet" />
+        <image href="#{xml_escape(symbol_resolver.(color))}" x="#{x - 24}" y="327" width="48" height="48" preserveAspectRatio="xMidYMid meet" />
       </g>
       """
     end)
   end
 
-  defp mana_symbols(_colors), do: ""
+  defp mana_symbols(_colors, _symbol_resolver), do: ""
 
-  defp mana_symbol_url(color) do
-    symbol =
-      color
-      |> to_string()
-      |> String.replace("/", "")
-      |> String.upcase()
-      |> URI.encode(&URI.char_unreserved?/1)
+  defp mana_symbol_url(color), do: "/scryfall-assets/symbols/#{symbol_code(color)}.svg"
 
-    "/scryfall-assets/symbols/#{symbol}.svg"
+  defp mana_symbol_data_uri(color) do
+    filename = "#{symbol_code(color)}.svg"
+
+    case ScryfallAssets.local_path(["symbols", filename]) do
+      nil ->
+        mana_symbol_url(color)
+
+      path ->
+        case File.read(path) do
+          {:ok, svg} -> "data:image/svg+xml;base64,#{Base.encode64(svg)}"
+          {:error, _reason} -> mana_symbol_url(color)
+        end
+    end
+  end
+
+  defp symbol_code(color) do
+    color
+    |> to_string()
+    |> String.replace("/", "")
+    |> String.upcase()
+    |> URI.encode(&URI.char_unreserved?/1)
   end
 
   defp truncate_for_width(value, max_width, font_size) do
