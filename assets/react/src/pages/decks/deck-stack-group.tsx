@@ -179,6 +179,11 @@ export function DeckStackGroup({
             onMove={() => onMove(deckCard)}
             onPreview={() => onPreview(deckCard)}
             onSetCommander={() => onSetCommander(deckCard)}
+            onTouchReveal={() => {
+              clearDeckCardHoverDelay()
+              setHoveredIndex(null)
+              setPinnedIndex(index)
+            }}
             onTag={(tag) => onTag(deckCard, tag)}
             onToggleProxy={() => onToggleProxy(deckCard)}
             onToggleSelected={(selectRange) => onToggleSelected(deckCard.id, selectRange)}

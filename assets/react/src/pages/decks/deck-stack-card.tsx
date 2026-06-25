@@ -10,7 +10,7 @@ import {
   Tag,
   Trash2,
 } from "lucide-react"
-import { useState, type FocusEvent } from "react"
+import { useRef, useState, type FocusEvent, type PointerEvent } from "react"
 
 import { cn, titleize } from "../../lib/utils"
 import { ShareModeHidden, blurFocusedMenuItem } from "./deck-actions"
@@ -18,6 +18,7 @@ import { DeckCardAllocationMenu, DeckCardTagButton } from "./deck-card-allocatio
 import { cardImageUrl } from "./deck-card-model"
 import { GameChangerBadge } from "./deck-card-display"
 import { deckCardTag } from "./deck-card-tags"
+import { shouldRevealDeckStackCardOnPointerDown } from "./deck-stack-interactions"
 import type { DeckCardEntry, DeckCardTag } from "./deck-types"
 import { DECK_CARD_TAGS } from "./deck-types"
 
@@ -41,6 +42,7 @@ export function DeckStackCard({
   onPreview,
   onSetCommander,
   onTag,
+  onTouchReveal,
   onToggleProxy,
   onToggleSelected,
   shareMode = false,
@@ -66,6 +68,7 @@ export function DeckStackCard({
   onPreview: () => void
   onSetCommander: () => void
   onToggleProxy: () => void
+  onTouchReveal: () => void
   onTag: (tag: DeckCardTag | null) => void
   onToggleSelected: (selectRange?: boolean) => void
   shareMode?: boolean
@@ -74,6 +77,7 @@ export function DeckStackCard({
 }) {
   const [hasFocusWithin, setHasFocusWithin] = useState(false)
   const [isAllocationMenuOpen, setIsAllocationMenuOpen] = useState(false)
+  const touchRevealWasActivatedRef = useRef(false)
   const imageUrl = cardImageUrl(deckCard, "imageUrl")
   const name = deckCard.card?.name || "Unknown card"
   const printing = deckCard.preferredPrinting || deckCard.card?.printings?.[0]
@@ -86,6 +90,22 @@ export function DeckStackCard({
     if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
       setHasFocusWithin(false)
     }
+  }
+
+  function handlePointerDown(event: PointerEvent<HTMLButtonElement>) {
+    touchRevealWasActivatedRef.current = false
+
+    if (
+      !shouldRevealDeckStackCardOnPointerDown({
+        isActive,
+        pointerType: event.pointerType,
+      })
+    ) {
+      return
+    }
+
+    touchRevealWasActivatedRef.current = true
+    onTouchReveal()
   }
 
   return (
@@ -264,7 +284,13 @@ export function DeckStackCard({
           type="button"
           className="block w-full cursor-pointer text-left"
           aria-label={`View ${name} details`}
+          onPointerDown={handlePointerDown}
           onClick={(event) => {
+            if (touchRevealWasActivatedRef.current) {
+              touchRevealWasActivatedRef.current = false
+              event.preventDefault()
+              return
+            }
             if (isSelecting) onToggleSelected(event.shiftKey)
             else onPreview()
           }}
