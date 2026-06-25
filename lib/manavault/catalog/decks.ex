@@ -19,6 +19,8 @@ defmodule Manavault.Catalog.Decks do
   defdelegate update_deck(deck, attrs), to: Workflows
   defdelegate ensure_deck_share_token(deck), to: Workflows
   defdelegate delete_deck(deck), to: Workflows
+  defdelegate preview_deck_disassembly(deck), to: Workflows
+  defdelegate disassemble_deck(deck), to: Workflows
   defdelegate deck_reserves_cards?(deck_or_status), to: Workflows
   defdelegate change_deck_card(deck_card, attrs \\ %{}), to: Workflows
   defdelegate add_card_to_deck(deck, attrs), to: Workflows

@@ -3,6 +3,7 @@ import {
   Edit3,
   MoreVertical,
   Share2,
+  Scissors,
   ShoppingCart,
   Sparkles,
   Trash2,
@@ -32,6 +33,7 @@ export function ShareModeHidden({
 export function SummaryActionMenu({
   label,
   onDelete,
+  onDisassemble,
   onEdhrec,
   onEdit,
   onExport,
@@ -41,6 +43,7 @@ export function SummaryActionMenu({
 }: {
   label: string
   onDelete?: () => void
+  onDisassemble?: () => void
   onEdhrec?: () => void
   onEdit: () => void
   onExport?: () => void
@@ -110,6 +113,14 @@ export function SummaryActionMenu({
             <button type="button" onClick={onExport}>
               <Download className="h-4 w-4" />
               Export decklist
+            </button>
+          </li>
+        ) : null}
+        {onDisassemble ? (
+          <li>
+            <button type="button" className="text-error" onClick={onDisassemble}>
+              <Scissors className="h-4 w-4" />
+              Disassemble deck
             </button>
           </li>
         ) : null}

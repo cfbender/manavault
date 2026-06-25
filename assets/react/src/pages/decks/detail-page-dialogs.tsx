@@ -1,5 +1,6 @@
 import { ConfirmDialog } from "../../components/ui/confirm-dialog"
 import type { DeckCardUpdateInput } from "../../gql/graphql"
+import { AutoSortSummaryDialog } from "../collection/auto-sort-summary-dialog"
 import { AddDeckCardDialog } from "./add-card-dialog"
 import { BulkAllocationPullListDialog } from "./bulk-allocation"
 import { ShareModeHidden } from "./deck-actions"
@@ -11,6 +12,7 @@ import type { DeckPullList, DeckPullListMode } from "./deck-allocation-model"
 import type {
   DeckCardEntry,
   DeckDetail,
+  DeckDisassemblyResult,
   DeckZone,
   EDHRecAddZone,
   EDHRecCard,
@@ -29,15 +31,16 @@ export function DeckDetailDialogs({
   bulkAllocationPullList,
   deck,
   deleteCardTarget,
+  disassemblyResult,
   editError,
   editTarget,
   edhrecExcludeLands,
   edhrecTab,
   isAddCardOpen,
   isBulkAllocating,
-  isDeleteDeckOpen,
   isAddingCard,
   isDeleteSelectedOpen,
+  isDisassemblingDeck,
   isEditDeckOpen,
   isExportDeckOpen,
   isImportDeckOpen,
@@ -54,9 +57,9 @@ export function DeckDetailDialogs({
   onCloseMoveCard,
   onConfirmBulkAllocation,
   onDeleteCardTargetChange,
-  onDeleteCurrentDeck,
+  onConfirmDeckDisassembly,
   onDeleteSelectedCard,
-  onDeleteDeckOpenChange,
+  onDisassemblyOpenChange,
   onDeleteSelectedDeckCards,
   onDeleteSelectedOpenChange,
   onEditCard,
@@ -85,6 +88,7 @@ export function DeckDetailDialogs({
   bulkAllocationPullList: DeckPullList
   deck: DeckDetail
   deleteCardTarget: DeckCardEntry | null
+  disassemblyResult: DeckDisassemblyResult | null
   editError: string | null
   editTarget: DeckCardEntry | null
   edhrecExcludeLands: boolean
@@ -92,8 +96,8 @@ export function DeckDetailDialogs({
   isAddCardOpen: boolean
   isBulkAllocating: boolean
   isAddingCard: boolean
-  isDeleteDeckOpen: boolean
   isDeleteSelectedOpen: boolean
+  isDisassemblingDeck: boolean
   isEditDeckOpen: boolean
   isExportDeckOpen: boolean
   isImportDeckOpen: boolean
@@ -110,9 +114,9 @@ export function DeckDetailDialogs({
   onCloseMoveCard: () => void
   onConfirmBulkAllocation: () => void
   onDeleteCardTargetChange: (deckCard: DeckCardEntry | null) => void
-  onDeleteCurrentDeck: () => void
-  onDeleteDeckOpenChange: (open: boolean) => void
+  onConfirmDeckDisassembly: () => void
   onDeleteSelectedCard: () => void
+  onDisassemblyOpenChange: (open: boolean) => void
   onDeleteSelectedDeckCards: () => void
   onDeleteSelectedOpenChange: (open: boolean) => void
   onEditCard: (input: DeckCardUpdateInput) => void
@@ -160,16 +164,29 @@ export function DeckDetailDialogs({
           onOpenChange={onMissingCardsOpenChange}
           open={isMissingCardsOpen}
         />
-        <ConfirmDialog
-          destructive
-          confirmLabel="Delete deck"
-          open={isDeleteDeckOpen}
-          title={`Delete ${deck.name}?`}
-          onConfirm={onDeleteCurrentDeck}
-          onOpenChange={onDeleteDeckOpenChange}
-        >
-          This removes the deck and returns allocated cards to their original locations.
-        </ConfirmDialog>
+        <AutoSortSummaryDialog
+          open={Boolean(disassemblyResult)}
+          result={disassemblyResult}
+          onOpenChange={onDisassemblyOpenChange}
+          onApply={onConfirmDeckDisassembly}
+          applyLabel="Disassemble deck"
+          applyPending={isDisassemblingDeck}
+          applyPendingLabel="Disassembling..."
+          checkedCountLabel="Cards checked"
+          skippedCountLabel="Skipped cards"
+          completeDescription="Review where allocated cards were returned."
+          completeEmptyDescription="The deck was removed without moving any allocated collection cards."
+          completeEmptyTitle="Deck disassembled."
+          completeMoveLabel="Returned"
+          completeTitle="Deck disassembled"
+          disableApplyWhenNoMoves={false}
+          dryRunDescription="Preview where allocated cards will return before removing this deck."
+          dryRunEmptyDescription="This will still remove the deck and its deck cards."
+          dryRunEmptyTitle="No allocated cards to move."
+          dryRunMoveLabel="Will return"
+          dryRunTitle={`Disassemble ${deck.name}?`}
+          showItemMetadata={false}
+        />
         <ConfirmDialog
           destructive
           confirmLabel="Delete card"

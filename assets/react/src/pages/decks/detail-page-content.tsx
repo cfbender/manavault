@@ -122,8 +122,8 @@ export function DeckDetailContent({
   onMissingCards,
   onMoveCard,
   onOpenAddCard,
-  onOpenDeleteDeck,
   onOpenDeleteSelected,
+  onDisassemble,
   onOpenEdhrec,
   onOpenShareDeck,
   onOpenShareBuylist,
@@ -178,8 +178,8 @@ export function DeckDetailContent({
   onMissingCards: () => void;
   onMoveCard: (deckCard: DeckCardEntry) => void;
   onOpenAddCard: () => void;
-  onOpenDeleteDeck: () => void;
   onOpenDeleteSelected: () => void;
+  onDisassemble: () => void;
   onOpenEdhrec: () => void;
   onOpenShareDeck: () => void;
   onOpenShareBuylist: () => void;
@@ -248,7 +248,7 @@ export function DeckDetailContent({
               onImport={onImportDeck}
               onMissing={onMissingCards}
               onShare={onOpenShareDeck}
-              onDelete={onOpenDeleteDeck}
+              onDisassemble={onDisassemble}
               onEdhrec={deck.format === "commander" ? onOpenEdhrec : undefined}
             />
           </ShareModeHidden>

@@ -18,6 +18,8 @@ defmodule ManavaultWeb.Schema.Catalog.MutationResolvers do
   defdelegate add_deck_card(parent, args, resolution), to: DeckMutations
   defdelegate import_decklist(parent, args, resolution), to: DeckMutations
   defdelegate delete_deck(parent, args, resolution), to: DeckMutations
+  defdelegate preview_deck_disassembly(parent, args, resolution), to: DeckMutations
+  defdelegate disassemble_deck(parent, args, resolution), to: DeckMutations
   defdelegate update_deck_card(parent, args, resolution), to: DeckMutations
   defdelegate update_deck_cards_tag(parent, args, resolution), to: DeckMutations
   defdelegate delete_deck_card(parent, args, resolution), to: DeckMutations

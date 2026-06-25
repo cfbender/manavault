@@ -529,6 +529,42 @@ defmodule ManavaultWeb.Schema do
       end)
     end
 
+    payload field :preview_deck_disassembly do
+      arg(:id, non_null(:id))
+
+      output do
+        field :disassembly_result, non_null(:deck_disassembly_result)
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &CatalogResolvers.preview_deck_disassembly/3,
+          :disassembly_result
+        )
+      end)
+    end
+
+    payload field :disassemble_deck do
+      arg(:id, non_null(:id))
+
+      output do
+        field :disassembly_result, non_null(:deck_disassembly_result)
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &CatalogResolvers.disassemble_deck/3,
+          :disassembly_result
+        )
+      end)
+    end
+
     payload field :delete_location do
       arg(:id, non_null(:id))
 

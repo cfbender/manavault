@@ -4,6 +4,7 @@ import type {
   DeckEdhrecQuery,
   DeckQuery,
   DecksQuery,
+  PreviewDeckDisassemblyMutation,
 } from "../../gql/graphql"
 
 type Maybe<T> = T | null | undefined
@@ -34,6 +35,12 @@ export type BuylistPrintingMode = "none" | "exact" | "cheapest"
 export type BuylistExportFormat = "text" | "csv"
 export type BuylistEntry = DeckBuylistQuery["deckBuylist"][number]
 export type EDHRecData = NonNullable<DeckEdhrecQuery["deckEdhrec"]>
+type PreviewDeckDisassemblyPayload = NonNullable<
+  PreviewDeckDisassemblyMutation["previewDeckDisassembly"]
+>
+export type DeckDisassemblyResult = NonNullable<
+  PreviewDeckDisassemblyPayload["disassemblyResult"]
+>
 export type EDHRecCard = EDHRecData["recommendations"][number]
 export type EDHRecCommanderPage = EDHRecData["commanderPages"][number]
 export type EDHRecSection = EDHRecCommanderPage["sections"][number]

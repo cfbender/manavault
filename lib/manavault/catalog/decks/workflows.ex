@@ -9,6 +9,7 @@ defmodule Manavault.Catalog.Decks.Workflows do
     Buylist,
     Cards,
     DecklistIO,
+    Disassembly,
     Queries,
     Records,
     Statistics
@@ -31,6 +32,8 @@ defmodule Manavault.Catalog.Decks.Workflows do
   defdelegate update_deck(deck, attrs), to: Records
   defdelegate ensure_deck_share_token(deck), to: Records
   defdelegate delete_deck(deck), to: Records
+  defdelegate preview_deck_disassembly(deck), to: Disassembly
+  defdelegate disassemble_deck(deck), to: Disassembly
   defdelegate deck_reserves_cards?(deck_or_status), to: Records
 
   defdelegate change_deck_card(deck_card, attrs \\ %{}), to: Cards

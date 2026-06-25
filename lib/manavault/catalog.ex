@@ -71,6 +71,8 @@ defmodule Manavault.Catalog do
   defdelegate update_deck(deck, attrs), to: Decks
   defdelegate ensure_deck_share_token(deck), to: Decks
   defdelegate delete_deck(deck), to: Decks
+  defdelegate preview_deck_disassembly(deck), to: Decks
+  defdelegate disassemble_deck(deck), to: Decks
   defdelegate deck_reserves_cards?(deck_or_status), to: Decks
   defdelegate change_deck_card(deck_card, attrs \\ %{}), to: Decks
   defdelegate add_card_to_deck(deck, attrs), to: Decks

@@ -254,6 +254,171 @@ defmodule ManavaultWeb.Schema.DeckWorkflowsTest do
     assert export_csv =~ "2,Buylist Lotus,buy,7,nonfoil,en,missing,$3.50,$7"
   end
 
+  test "deck disassembly mutations preview and apply allocated card moves", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-deck-disassembly",
+          "oracle_id" => "oracle-deck-disassembly",
+          "name" => "Disassembly Lotus",
+          "type_line" => "Artifact",
+          "collector_number" => "46",
+          "set" => "dsm",
+          "set_name" => "Disassembly Set",
+          "lang" => "en",
+          "image_uris" => %{"normal" => "https://example.test/disassembly-lotus.jpg"},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, source_location} =
+      Catalog.create_location(%{"name" => "Disassembly Binder", "kind" => "binder"})
+
+    {:ok, item} =
+      Catalog.create_collection_item(%{
+        "scryfall_id" => "scryfall-deck-disassembly",
+        "quantity" => 1,
+        "finish" => "nonfoil",
+        "location_id" => source_location.id
+      })
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Disassembly Deck"})
+
+    {:ok, deck_card} =
+      Catalog.add_card_to_deck(deck, %{
+        "name" => "Disassembly Lotus",
+        "quantity" => 1,
+        "preferred_printing_id" => "scryfall-deck-disassembly"
+      })
+
+    assert {:ok, allocation} =
+             Catalog.allocate_collection_item_to_deck_card(deck_card.id, item.id)
+
+    preview_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation PreviewDeckDisassembly($id: ID!) {
+          previewDeckDisassembly(id: $id) {
+            disassemblyResult {
+              checkedCount
+              movedCount
+              skippedCount
+              dryRun
+              moves {
+                collectionItemId
+                cardName
+                cardId
+                imageUrl
+                quantity
+                finish
+                fromLocationId
+                fromLocationName
+                toLocationId
+                toLocationName
+              }
+            }
+          }
+        }
+        """,
+        "variables" => %{"id" => global_deck_id(deck)}
+      })
+
+    assert %{
+             "data" => %{
+               "previewDeckDisassembly" => %{
+                 "disassemblyResult" => %{
+                   "checkedCount" => 1,
+                   "movedCount" => 1,
+                   "skippedCount" => 0,
+                   "dryRun" => true,
+                   "moves" => [
+                     %{
+                       "collectionItemId" => preview_item_id,
+                       "cardName" => "Disassembly Lotus",
+                       "cardId" => "oracle-deck-disassembly",
+                       "imageUrl" => "https://example.test/disassembly-lotus.jpg",
+                       "quantity" => 1,
+                       "finish" => "nonfoil",
+                       "fromLocationId" => preview_source_id,
+                       "fromLocationName" => "Disassembly Deck",
+                       "toLocationId" => preview_destination_id,
+                       "toLocationName" => "Disassembly Binder"
+                     }
+                   ]
+                 }
+               }
+             }
+           } = json_response(preview_conn, 200)
+
+    assert preview_item_id == to_string(allocation.collection_item_id)
+    assert preview_source_id == to_string(deck.id)
+    assert preview_destination_id == to_string(source_location.id)
+    assert Catalog.get_deck!(deck.id).id == deck.id
+    assert Catalog.get_collection_item!(allocation.collection_item_id).location_id == nil
+
+    apply_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation DisassembleDeck($id: ID!) {
+          disassembleDeck(id: $id) {
+            disassemblyResult {
+              checkedCount
+              movedCount
+              skippedCount
+              dryRun
+              moves {
+                collectionItemId
+                cardName
+                cardId
+                imageUrl
+                quantity
+                finish
+                fromLocationId
+                fromLocationName
+                toLocationId
+                toLocationName
+              }
+            }
+          }
+        }
+        """,
+        "variables" => %{"id" => global_deck_id(deck)}
+      })
+
+    assert %{
+             "data" => %{
+               "disassembleDeck" => %{
+                 "disassemblyResult" => %{
+                   "checkedCount" => 1,
+                   "movedCount" => 1,
+                   "skippedCount" => 0,
+                   "dryRun" => false,
+                   "moves" => [
+                     %{
+                       "collectionItemId" => moved_item_id,
+                       "cardName" => "Disassembly Lotus",
+                       "quantity" => 1,
+                       "fromLocationId" => source_id,
+                       "fromLocationName" => "Disassembly Deck",
+                       "toLocationId" => destination_id,
+                       "toLocationName" => "Disassembly Binder"
+                     }
+                   ]
+                 }
+               }
+             }
+           } = json_response(apply_conn, 200)
+
+    assert moved_item_id == preview_item_id
+    assert source_id == preview_source_id
+    assert destination_id == preview_destination_id
+    assert_raise Ecto.NoResultsError, fn -> Catalog.get_deck!(deck.id) end
+
+    assert Catalog.get_collection_item!(allocation.collection_item_id).location_id ==
+             source_location.id
+  end
+
   defp global_deck_id(deck) do
     Absinthe.Relay.Node.to_global_id(:deck, deck.id, ManavaultWeb.Schema)
   end

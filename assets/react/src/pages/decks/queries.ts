@@ -98,6 +98,56 @@ export const DeleteDeckDocument = graphql(`
   }
 `)
 
+export const PreviewDeckDisassemblyDocument = graphql(`
+  mutation PreviewDeckDisassembly($id: ID!) {
+    previewDeckDisassembly(id: $id) {
+      disassemblyResult {
+        checkedCount
+        movedCount
+        skippedCount
+        dryRun
+        moves {
+          collectionItemId
+          cardName
+          cardId
+          imageUrl
+          quantity
+          finish
+          fromLocationId
+          fromLocationName
+          toLocationId
+          toLocationName
+        }
+      }
+    }
+  }
+`)
+
+export const DisassembleDeckDocument = graphql(`
+  mutation DisassembleDeck($id: ID!) {
+    disassembleDeck(id: $id) {
+      disassemblyResult {
+        checkedCount
+        movedCount
+        skippedCount
+        dryRun
+        moves {
+          collectionItemId
+          cardName
+          cardId
+          imageUrl
+          quantity
+          finish
+          fromLocationId
+          fromLocationName
+          toLocationId
+          toLocationName
+        }
+      }
+    }
+  }
+`)
+
 export const DeckDocument = graphql(`
   query Deck($id: ID!) {
     deck(id: $id) {

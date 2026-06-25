@@ -7,21 +7,52 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog"
-import type { AutoSortCollectionResult } from "./types"
 
-type AutoSortMoveSummary = NonNullable<AutoSortCollectionResult["moves"]>[number]
+export type AutoSortSummaryMove = {
+  cardId?: string | null
+  cardName: string
+  collectionItemId: string
+  finish: string
+  fromLocationId?: string | null
+  fromLocationName?: string | null
+  imageUrl?: string | null
+  quantity: number
+  toLocationId?: string | null
+  toLocationName: string
+}
+
+export type AutoSortSummaryResult = {
+  checkedCount?: number | null
+  dryRun?: boolean | null
+  movedCount?: number | null
+  moves?: readonly AutoSortSummaryMove[] | null
+  skippedCount?: number | null
+}
 
 type MoveDestinationGroup = {
-  locationId: string
+  key: string
+  locationId?: string | null
   locationName: string
-  moves: AutoSortMoveSummary[]
+  moves: AutoSortSummaryMove[]
 }
 
 export function AutoSortSummaryDialog({
   applyLabel = "Apply auto-sort",
   applyPending = false,
   applyPendingLabel = "Applying...",
+  completeDescription = "Review where matching cards were moved.",
+  completeEmptyDescription,
+  completeEmptyTitle = "No cards moved.",
+  completeMoveLabel = "Moved",
+  completeTitle = "Auto-sort complete",
   disableApplyWhenNoMoves = true,
+  dryRunDescription = "Preview where matching cards would move before applying the rules.",
+  dryRunEmptyDescription,
+  dryRunEmptyTitle = "No cards would move.",
+  dryRunMoveLabel = "Would move",
+  dryRunTitle = "Auto-sort preview",
+  checkedCountLabel = "Checked",
+  skippedCountLabel = "Skipped",
   onApply,
   onOpenChange,
   open,
@@ -31,11 +62,23 @@ export function AutoSortSummaryDialog({
   applyLabel?: string
   applyPending?: boolean
   applyPendingLabel?: string
+  completeDescription?: string
+  completeEmptyDescription?: string
+  completeEmptyTitle?: string
+  completeMoveLabel?: string
+  completeTitle?: string
   disableApplyWhenNoMoves?: boolean
+  dryRunDescription?: string
+  dryRunEmptyDescription?: string
+  dryRunEmptyTitle?: string
+  dryRunMoveLabel?: string
+  dryRunTitle?: string
+  checkedCountLabel?: string
+  skippedCountLabel?: string
   onApply?: () => void
   onOpenChange: (open: boolean) => void
   open: boolean
-  result: AutoSortCollectionResult | null
+  result?: AutoSortSummaryResult | null
   showItemMetadata?: boolean
 }) {
   const isDryRun = result?.dryRun === true
@@ -43,90 +86,92 @@ export function AutoSortSummaryDialog({
   const movedCount = result?.movedCount ?? 0
   const skippedCount = result?.skippedCount ?? 0
   const destinationGroups = groupMovesByDestination(result?.moves ?? [])
+  const title = isDryRun ? dryRunTitle : completeTitle
+  const description = isDryRun ? dryRunDescription : completeDescription
+  const emptyTitle = isDryRun ? dryRunEmptyTitle : completeEmptyTitle
+  const emptyDescription = isDryRun ? dryRunEmptyDescription : completeEmptyDescription
+  const moveLabel = isDryRun ? dryRunMoveLabel : completeMoveLabel
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl" labelledBy="auto-sort-summary-title">
         <DialogHeader>
           <div>
-            <DialogTitle id="auto-sort-summary-title">
-              {isDryRun ? "Auto-sort preview" : "Auto-sort complete"}
-            </DialogTitle>
-            <p className="mt-1 text-sm text-base-content/60">
-              {isDryRun
-                ? "Preview where matching cards would move before applying the rules."
-                : "Review where matching cards were moved."}
-            </p>
+            <DialogTitle id="auto-sort-summary-title">{title}</DialogTitle>
+            <p className="mt-1 text-sm text-base-content/60">{description}</p>
           </div>
           <DialogClose onClose={() => onOpenChange(false)} />
         </DialogHeader>
 
         <div className="max-h-[min(68vh,42rem)] space-y-5 overflow-y-auto p-5">
           <dl className="grid gap-3 sm:grid-cols-3">
-            <CountCard label="Checked" value={checkedCount} />
-            <CountCard label={isDryRun ? "Would move" : "Moved"} value={movedCount} />
-            <CountCard label="Skipped" value={skippedCount} />
+            <CountCard label={checkedCountLabel} value={checkedCount} />
+            <CountCard label={moveLabel} value={movedCount} />
+            <CountCard label={skippedCountLabel} value={skippedCount} />
           </dl>
 
           {destinationGroups.length ? (
             <div className="space-y-4">
-              {destinationGroups.map((group) => (
-                <details
-                  key={group.locationId}
-                  open
-                  className="rounded-box border border-base-300 bg-base-100/70"
-                  aria-labelledby={`auto-sort-destination-${group.locationId}`}
-                >
-                  <summary className="cursor-pointer px-4 py-3 marker:text-base-content/60">
-                    <div className="inline-flex w-[calc(100%-1.5rem)] flex-wrap items-start justify-between gap-3 align-top">
-                      <div>
-                        <h3
-                          id={`auto-sort-destination-${group.locationId}`}
-                          className="font-black tracking-normal"
-                        >
-                          {group.locationName}
-                        </h3>
-                        <p className="text-xs text-base-content/60">
-                          Location ID: {group.locationId}
-                        </p>
-                      </div>
-                      <span className="badge badge-outline shrink-0">
-                        {group.moves.length} {group.moves.length === 1 ? "card" : "cards"}
-                      </span>
-                    </div>
-                  </summary>
-                  <ul className="divide-y divide-base-300 border-t border-base-300">
-                    {group.moves.map((move) => (
-                      <li key={move.collectionItemId} className="space-y-1 px-4 py-3">
-                        <div className="flex flex-wrap items-baseline justify-between gap-2">
-                          <CardNamePreview move={move} />
-                          <div className="flex flex-wrap items-center gap-2 text-sm text-base-content/70">
-                            <span>Qty {move.quantity}</span>
-                            <FinishBadge finish={move.finish} />
-                          </div>
+              {destinationGroups.map((group, index) => {
+                const headingId =
+                  group.locationId != null
+                    ? `auto-sort-destination-${group.locationId}`
+                    : `auto-sort-destination-${index}`
+
+                return (
+                  <details
+                    key={group.key}
+                    open
+                    className="rounded-box border border-base-300 bg-base-100/70"
+                    aria-labelledby={headingId}
+                  >
+                    <summary className="cursor-pointer px-4 py-3 marker:text-base-content/60">
+                      <div className="inline-flex w-[calc(100%-1.5rem)] flex-wrap items-start justify-between gap-3 align-top">
+                        <div>
+                          <h3 id={headingId} className="font-black tracking-normal">
+                            {group.locationName}
+                          </h3>
+                          {group.locationId != null ? (
+                            <p className="text-xs text-base-content/60">
+                              Location ID: {group.locationId}
+                            </p>
+                          ) : null}
                         </div>
-                        <p className="text-sm text-base-content/70">
-                          {isDryRun ? "Would move" : "Moved"} from {sourceLocationLabel(move)} to{" "}
-                          {group.locationName}
-                        </p>
-                        {showItemMetadata ? (
-                          <p className="text-xs text-base-content/50">
-                            Item ID: {move.collectionItemId}
-                            {move.fromLocationId
-                              ? ` · Source ID: ${move.fromLocationId}`
-                              : " · Source: Unfiled"}
+                        <span className="badge badge-outline shrink-0">
+                          {group.moves.length} {group.moves.length === 1 ? "card" : "cards"}
+                        </span>
+                      </div>
+                    </summary>
+                    <ul className="divide-y divide-base-300 border-t border-base-300">
+                      {group.moves.map((move) => (
+                        <li key={move.collectionItemId} className="space-y-1 px-4 py-3">
+                          <div className="flex flex-wrap items-baseline justify-between gap-2">
+                            <CardNamePreview move={move} />
+                            <div className="flex flex-wrap items-center gap-2 text-sm text-base-content/70">
+                              <span>Qty {move.quantity}</span>
+                              <FinishBadge finish={move.finish} />
+                            </div>
+                          </div>
+                          <p className="text-sm text-base-content/70">
+                            {moveLabel} from {sourceLocationLabel(move)} to {group.locationName}
                           </p>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              ))}
+                          {showItemMetadata ? (
+                            <p className="text-xs text-base-content/50">
+                              Item ID: {move.collectionItemId}
+                              {move.fromLocationId
+                                ? ` · Source ID: ${move.fromLocationId}`
+                                : " · Source: Unfiled"}
+                            </p>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )
+              })}
             </div>
           ) : movedCount === 0 ? (
-            <p className="rounded-box border border-dashed border-base-300 bg-base-200/40 p-4 text-sm text-base-content/70">
-              {isDryRun ? "No cards would move." : "No cards moved."}
-            </p>
+            <EmptyMoveSummary title={emptyTitle} description={emptyDescription} />
           ) : (
             <p className="rounded-box border border-dashed border-base-300 bg-base-200/40 p-4 text-sm text-base-content/70">
               Move details are not available.
@@ -162,6 +207,29 @@ function CountCard({ label, value }: { label: string; value: number }) {
   )
 }
 
+function EmptyMoveSummary({
+  description,
+  title,
+}: {
+  description?: string
+  title: string
+}) {
+  if (!description) {
+    return (
+      <p className="rounded-box border border-dashed border-base-300 bg-base-200/40 p-4 text-sm text-base-content/70">
+        {title}
+      </p>
+    )
+  }
+
+  return (
+    <div className="rounded-box border border-dashed border-base-300 bg-base-200/40 p-4">
+      <p className="text-sm font-bold text-base-content/80">{title}</p>
+      <p className="mt-1 text-sm text-base-content/70">{description}</p>
+    </div>
+  )
+}
+
 function FinishBadge({ finish }: { finish: string }) {
   const isFoil = finish === "foil" || finish === "etched"
   const label = finishLabel(finish)
@@ -192,7 +260,7 @@ type PreviewPosition = {
   top: number
 }
 
-function CardNamePreview({ move }: { move: AutoSortMoveSummary }) {
+function CardNamePreview({ move }: { move: AutoSortSummaryMove }) {
   const triggerRef = useRef<HTMLAnchorElement>(null)
   const hideTimeoutRef = useRef<number | null>(null)
   const [position, setPosition] = useState<PreviewPosition | null>(null)
@@ -290,15 +358,17 @@ function CardNamePreview({ move }: { move: AutoSortMoveSummary }) {
   )
 }
 
-function groupMovesByDestination(moves: readonly AutoSortMoveSummary[]): MoveDestinationGroup[] {
+function groupMovesByDestination(moves: readonly AutoSortSummaryMove[]): MoveDestinationGroup[] {
   const groups = new Map<string, MoveDestinationGroup>()
 
   for (const move of moves) {
-    const group = groups.get(move.toLocationId)
+    const key = move.toLocationId ?? `unfiled:${move.toLocationName}`
+    const group = groups.get(key)
     if (group) {
       group.moves.push(move)
     } else {
-      groups.set(move.toLocationId, {
+      groups.set(key, {
+        key,
         locationId: move.toLocationId,
         locationName: move.toLocationName,
         moves: [move],
@@ -311,6 +381,6 @@ function groupMovesByDestination(moves: readonly AutoSortMoveSummary[]): MoveDes
   )
 }
 
-function sourceLocationLabel(move: AutoSortMoveSummary) {
+function sourceLocationLabel(move: AutoSortSummaryMove) {
   return move.fromLocationName || "Unfiled"
 }

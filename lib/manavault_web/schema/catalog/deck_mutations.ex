@@ -97,6 +97,24 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
     end
   end
 
+  def preview_deck_disassembly(_parent, %{id: id}, resolution) do
+    with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
+      id
+      |> Catalog.get_deck!()
+      |> Catalog.preview_deck_disassembly()
+      |> deck_disassembly_result()
+    end
+  end
+
+  def disassemble_deck(_parent, %{id: id}, resolution) do
+    with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
+      id
+      |> Catalog.get_deck!()
+      |> Catalog.disassemble_deck()
+      |> deck_disassembly_result()
+    end
+  end
+
   def update_deck_card(_parent, %{id: id, input: input}, resolution) do
     with {:ok, id} <- RelayHelpers.node_id(id, :deck_card, resolution),
          {:ok, input} <- normalize_deck_card_input(input, resolution) do
@@ -139,6 +157,18 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
         {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
       end
     end
+  end
+
+  defp deck_disassembly_result({:ok, result}), do: {:ok, result}
+
+  defp deck_disassembly_result({:error, %Ecto.Changeset{} = changeset}) do
+    {:error, Errors.changeset_error_message(changeset)}
+  end
+
+  defp deck_disassembly_result({:error, reason}) when is_binary(reason), do: {:error, reason}
+
+  defp deck_disassembly_result({:error, reason}) when is_atom(reason) do
+    {:error, Atom.to_string(reason)}
   end
 
   defp parse_deck_card_ids(deck_card_ids, resolution) do

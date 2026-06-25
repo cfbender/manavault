@@ -15,6 +15,7 @@ import {
   flattenDeck,
   type DeckCardEntry,
   type DeckCardTag,
+  type DeckDisassemblyResult,
   type DeckZone,
   type EDHRecAddZone,
   type EDHRecCard,
@@ -34,7 +35,8 @@ import {
   DeallocateDeckCardProxyDocument,
   DeckDocument,
   DeleteDeckCardDocument,
-  DeleteDeckDocument,
+  DisassembleDeckDocument,
+  PreviewDeckDisassemblyDocument,
   SetDeckCommanderDocument,
   UpdateDeckCardDocument,
   UpdateDeckCardsTagDocument,
@@ -57,7 +59,7 @@ export function DeckDetailPage({
   const [moveTarget, setMoveTarget] = useState<DeckCardEntry | null>(null)
   const [moveError, setMoveError] = useState<string | null>(null)
   const [deleteCardTarget, setDeleteCardTarget] = useState<DeckCardEntry | null>(null)
-  const [isDeleteDeckOpen, setIsDeleteDeckOpen] = useState(false)
+  const [disassemblyResult, setDisassemblyResult] = useState<DeckDisassemblyResult | null>(null)
   const [isEditDeckOpen, setIsEditDeckOpen] = useState(false)
   const [isImportDeckOpen, setIsImportDeckOpen] = useState(false)
   const [isExportDeckOpen, setIsExportDeckOpen] = useState(false)
@@ -74,11 +76,25 @@ export function DeckDetailPage({
   const [bulkAllocationError, setBulkAllocationError] = useState<string | null>(null)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const deleteDeck = useMutation({
-    mutationFn: (deckId: string) => request(DeleteDeckDocument, { id: deckId }),
+  const previewDeckDisassembly = useMutation({
+    mutationFn: (deckId: string) => request(PreviewDeckDisassemblyDocument, { id: deckId }),
+    onSuccess: (data) => {
+      setDisassemblyResult(data.previewDeckDisassembly?.disassemblyResult ?? null)
+    },
+  })
+  const disassembleDeck = useMutation({
+    mutationFn: (deckId: string) => request(DisassembleDeckDocument, { id: deckId }),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deck", id] })
       queryClient.invalidateQueries({ queryKey: ["decks"] })
-      queryClient.removeQueries({ queryKey: ["deck", id] })
+      queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
+      queryClient.invalidateQueries({ queryKey: ["deck-edhrec", id] })
+      queryClient.invalidateQueries({ queryKey: ["collection"] })
+      queryClient.invalidateQueries({ queryKey: ["collection-items"] })
+      queryClient.invalidateQueries({ queryKey: ["location"] })
+      queryClient.invalidateQueries({ queryKey: ["home"] })
+      queryClient.removeQueries({ queryKey: ["deck", id], exact: true })
+      setDisassemblyResult(null)
       navigate({ to: "/decks" })
     },
   })
@@ -359,7 +375,11 @@ export function DeckDetailPage({
             ? deallocateDeckCardProxy.error.message
             : deleteDeckCard.error instanceof Error
               ? deleteDeckCard.error.message
-              : null
+              : previewDeckDisassembly.error instanceof Error
+                ? previewDeckDisassembly.error.message
+                : disassembleDeck.error instanceof Error
+                  ? disassembleDeck.error.message
+                  : null
   const isUpdatingDeckCard =
     updateDeckCard.isPending ||
     updateDeckCardsTag.isPending ||
@@ -423,9 +443,15 @@ export function DeckDetailPage({
     deleteDeckCard.mutate(deleteCardTarget.id)
   }
 
-  function deleteCurrentDeck() {
+  function previewCurrentDeckDisassembly() {
     if (!deck) return
-    deleteDeck.mutate(deck.id)
+    setDisassemblyResult(null)
+    previewDeckDisassembly.mutate(deck.id)
+  }
+
+  function disassembleCurrentDeck() {
+    if (!deck) return
+    disassembleDeck.mutate(deck.id)
   }
 
   function addEdhrecCard(card: EDHRecCard | EDHRecSectionCard, zone: EDHRecAddZone) {
@@ -494,7 +520,7 @@ export function DeckDetailPage({
           setMoveTarget(deckCard)
         }}
         onOpenAddCard={() => setIsAddCardOpen(true)}
-        onOpenDeleteDeck={() => setIsDeleteDeckOpen(true)}
+        onDisassemble={previewCurrentDeckDisassembly}
         onOpenDeleteSelected={() => setIsDeleteSelectedOpen(true)}
         onOpenEdhrec={() => setEdhrecState("recs")}
         onOpenShareDeck={() => setIsShareDeckOpen(true)}
@@ -551,13 +577,14 @@ export function DeckDetailPage({
         isAddCardOpen={isAddCardOpen}
         isAddingCard={addDeckCard.isPending}
         isBulkAllocating={allocateDeckPullList.isPending}
-        isDeleteDeckOpen={isDeleteDeckOpen}
+        disassemblyResult={disassemblyResult}
         isDeleteSelectedOpen={isDeleteSelectedOpen}
         isEditDeckOpen={isEditDeckOpen}
         isExportDeckOpen={isExportDeckOpen}
         isImportDeckOpen={isImportDeckOpen}
         isMissingCardsOpen={isMissingCardsOpen}
         isShareDeckOpen={isShareDeckOpen}
+        isDisassemblingDeck={disassembleDeck.isPending}
         isUpdatingDeckCard={isUpdatingDeckCard}
         mayCloseDeleteSelected={!bulkDeleteDeckCards.isPending}
         moveError={moveError}
@@ -592,8 +619,10 @@ export function DeckDetailPage({
           allocateDeckPullList.mutate(selectedDeckPullListEntries(bulkAllocationPullList))
         }}
         onDeleteCardTargetChange={setDeleteCardTarget}
-        onDeleteCurrentDeck={deleteCurrentDeck}
-        onDeleteDeckOpenChange={setIsDeleteDeckOpen}
+        onConfirmDeckDisassembly={disassembleCurrentDeck}
+        onDisassemblyOpenChange={(open) => {
+          if (!open && !disassembleDeck.isPending) setDisassemblyResult(null)
+        }}
         onDeleteSelectedCard={deleteSelectedDeckCard}
         onDeleteSelectedDeckCards={deleteSelectedDeckCards}
         onDeleteSelectedOpenChange={setIsDeleteSelectedOpen}

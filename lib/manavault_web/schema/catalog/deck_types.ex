@@ -133,6 +133,27 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :skipped, non_null(:integer)
   end
 
+  object :deck_disassembly_move do
+    field :collection_item_id, non_null(:id)
+    field :card_name, non_null(:string)
+    field :card_id, non_null(:id)
+    field :image_url, :string
+    field :quantity, non_null(:integer)
+    field :finish, non_null(:string)
+    field :from_location_id, :id
+    field :from_location_name, non_null(:string)
+    field :to_location_id, :id
+    field :to_location_name, non_null(:string)
+  end
+
+  object :deck_disassembly_result do
+    field :checked_count, non_null(:integer)
+    field :moved_count, non_null(:integer)
+    field :skipped_count, non_null(:integer)
+    field :dry_run, non_null(:boolean)
+    field :moves, non_null(list_of(non_null(:deck_disassembly_move)))
+  end
+
   object :deck_import_result do
     field :imported, non_null(:integer)
     field :unresolved, non_null(list_of(non_null(:string)))
