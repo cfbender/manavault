@@ -8,6 +8,27 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.10.0] - 2026-06-25
+
+### Features
+
+- Autosort ([`61216f8c`](../../commit/61216f8c6cf9b217f4e937afb093120e5ad9b1cc))
+- Auto sort improvements ([`ced6d446`](../../commit/ced6d446e19189af2ca29ded2e0b6bd0b3c45d42))
+- Show foil status on auto sort preview ([`869a52b0`](../../commit/869a52b0b47f9996aed014821031a8d468cf7b2a))
+- Don't backup scryfall catalog ([`62bc8301`](../../commit/62bc83018d842485baccdd5aadea1ad35b8d1878))
+- Pull list ([`764d1a7e`](../../commit/764d1a7ea8567f56b0c9f4b48ab61f1efc011987))
+- Import purchase price ([`05117ee7`](../../commit/05117ee798aea580b9b614e207be04e232071ef3))
+- Store sort ([`8a3489d3`](../../commit/8a3489d32d0ac2953c95cf51ce2c7481d1caded1))
+- Disassemble deck ([`49d984cc`](../../commit/49d984cc7ab8fdafe448e1e9a700c20656c84898))
+- Edit from card view ([`eb85c4de`](../../commit/eb85c4de8726544b6f40493d8c01eff425137d73))
+- Bulk edit ([`6475e034`](../../commit/6475e034f7ab64c87e20f8c94ccc6fcf4862d668))
+- Autocomplete set in filter ([`6b0a6ca4`](../../commit/6b0a6ca49f120f87d5e9393d4556a68c02418c42))
+- Toast on modal close ([`55d43ae3`](../../commit/55d43ae365584cfb986fc2a6e448736a08aa5e3c))
+
+### Tests
+
+- Public mutation guard ([`b983d375`](../../commit/b983d3753a0810ac82061257c96de00658838386))
+
 ## [0.9.1] - 2026-06-24
 
 ### Bug Fixes
