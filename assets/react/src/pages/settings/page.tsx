@@ -2,8 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { FormEvent } from "react"
 import { useEffect, useMemo, useState } from "react"
 import { PageHeader } from "../../components/app-shell"
+import { useToast } from "../../components/ui/toast"
 import { request } from "../../lib/graphql"
-import { present } from "../../lib/utils"
+import { pluralize, present } from "../../lib/utils"
 import { AutoSortSummaryDialog } from "../collection/auto-sort-summary-dialog"
 import { invalidateCollectionViews } from "../collection/collection-navigation"
 import { AutoSortCollectionDocument } from "../collection/documents"
@@ -37,6 +38,7 @@ import { Alert } from "./ui"
 
 export function SettingsPage() {
   const queryClient = useQueryClient()
+  const { showToast } = useToast()
   const [form, setForm] = useState<FormState>(initialForm)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -180,11 +182,14 @@ export function SettingsPage() {
       const result = data.autoSortCollection?.autoSortResult
 
       setError(null)
-      setAutoSortResult(result ?? null)
       if (!input.dryRun) {
+        setAutoSortResult(null)
         setMessage("Collection auto-sort complete.")
+        showToast(`${pluralize(result?.movedCount ?? 0, "card")} auto-sorted`)
         invalidateCollectionViews(queryClient)
         await queryClient.invalidateQueries({ queryKey: ["location"] })
+      } else {
+        setAutoSortResult(result ?? null)
       }
     },
     onError: (err) => {

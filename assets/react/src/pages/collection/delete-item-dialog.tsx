@@ -9,7 +9,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog"
+import { useToast } from "../../components/ui/toast"
 import { request } from "../../lib/graphql"
+import { pluralize } from "../../lib/utils"
 import { DeleteCollectionItemDocument } from "./documents"
 import {
   collectionTargetItems,
@@ -26,6 +28,7 @@ export function DeleteCollectionItemDialog({
   onDone: () => void
   onOpenChange: (open: boolean) => void
 }) {
+  const { showToast } = useToast()
   const [error, setError] = useState<string | null>(null)
   const targetItems = collectionTargetItems(item)
   const targetCount = targetItems.length
@@ -40,8 +43,9 @@ export function DeleteCollectionItemDialog({
       )
     },
     onSuccess: () => {
+      showToast(`${pluralize(targetCount, "card")} deleted`)
       onDone()
-      close()
+      onOpenChange(false)
     },
     onError: (error) =>
       setError(error instanceof Error ? error.message : "Could not delete collection items"),

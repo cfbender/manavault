@@ -8,6 +8,7 @@ import { ImageSummaryCard } from "../../components/image-summary-card"
 import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
 import { ConfirmDialog } from "../../components/ui/confirm-dialog"
+import { useToast } from "../../components/ui/toast"
 import { request } from "../../lib/graphql"
 import { compactNumber, titleize } from "../../lib/utils"
 import { SummaryActionMenu } from "./deck-actions"
@@ -30,6 +31,7 @@ export function DecksPage() {
   const [deletingDeck, setDeletingDeck] = useState<DeckSummary | null>(null)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { showToast } = useToast()
   const deleteDeck = useMutation({
     mutationFn: (deckId: string) => request(DeleteDeckDocument, { id: deckId }),
     onSuccess: () => {
@@ -45,7 +47,10 @@ export function DecksPage() {
 
   function deleteSelectedDeck() {
     if (!deletingDeck) return
-    deleteDeck.mutate(deletingDeck.id)
+    const deckName = deletingDeck.name
+    deleteDeck.mutate(deletingDeck.id, {
+      onSuccess: () => showToast(`Deleted deck ${deckName}`),
+    })
     if (editingDeck?.id === deletingDeck.id) setEditingDeck(null)
     if (sharingDeck?.id === deletingDeck.id) setSharingDeck(null)
     navigate({ to: "/decks" })

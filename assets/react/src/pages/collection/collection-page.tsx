@@ -8,6 +8,7 @@ import { EmptyState } from "../../components/card-image"
 import { CardNameSearchField } from "../../components/card-name-search-field"
 import { Button } from "../../components/ui/button"
 import { ConfirmDialog } from "../../components/ui/confirm-dialog"
+import { useToast } from "../../components/ui/toast"
 import {
   buildCollectionFilterQuery,
   combineCollectionQueries,
@@ -22,7 +23,7 @@ import {
   type SharedImportPayload,
 } from "../../lib/native-shared-import"
 import { useLocalStorageState } from "../../lib/use-local-storage"
-import { present } from "../../lib/utils"
+import { pluralize, present } from "../../lib/utils"
 import { AutoSortSetupDialog, hasEnabledAutoSortRules } from "./auto-sort-setup-dialog"
 import { AutoSortSummaryDialog } from "./auto-sort-summary-dialog"
 import { CollectionLocationsSection } from "./collection-locations-section"
@@ -129,6 +130,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
     },
   )
   const queryClient = useQueryClient()
+  const { showToast } = useToast()
   const navigate = useNavigate()
   const deleteLocation = useMutation({
     mutationFn: (locationId: string) => request(DeleteLocationDocument, { id: locationId }),
@@ -184,8 +186,11 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
         invalidateCollectionViews(queryClient)
         queryClient.invalidateQueries({ queryKey: ["location"] })
         selection.clearSelection()
+        showToast(`${pluralize(result?.movedCount ?? 0, "card")} auto-sorted`)
+        setAutoSortResult(null)
+      } else {
+        setAutoSortResult(result ?? null)
       }
-      setAutoSortResult(result ?? null)
       setAutoSortError(null)
     },
     onError: (error) => {
@@ -324,7 +329,10 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
 
   function deleteSelectedLocation() {
     if (!deletingLocation) return
-    deleteLocation.mutate(deletingLocation.id)
+    const locationName = deletingLocation.name
+    deleteLocation.mutate(deletingLocation.id, {
+      onSuccess: () => showToast(`Deleted location ${locationName}`),
+    })
     if (editingLocation?.id === deletingLocation.id) setEditingLocation(null)
     if (exportingLocation?.location.id === deletingLocation.id) setExportingLocation(null)
   }

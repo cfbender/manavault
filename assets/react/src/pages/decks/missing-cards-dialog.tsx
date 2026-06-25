@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog"
+import { useToast } from "../../components/ui/toast"
 import { request } from "../../lib/graphql"
 import { buylistPrintingLabel, buylistReasonTone, buylistSummary } from "./buylist-export"
 import { BuylistOptionCheckbox } from "./buylist-option-checkbox"
@@ -27,6 +28,7 @@ export function MissingCardsDialog({
   onOpenChange: (open: boolean) => void
   open: boolean
 }) {
+  const { showToast } = useToast()
   const [printingMode, setPrintingMode] = useState<BuylistPrintingMode>("none")
   const [exportFormat, setExportFormat] = useState<BuylistExportFormat>("text")
   const [includeBasicLands, setIncludeBasicLands] = useState(false)
@@ -66,6 +68,8 @@ export function MissingCardsDialog({
     try {
       await navigator.clipboard.writeText(exportText)
       setCopyState("copied")
+      showToast("Missing cards copied")
+      onOpenChange(false)
     } catch {
       setCopyState("failed")
     }

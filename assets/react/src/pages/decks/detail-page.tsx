@@ -2,10 +2,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { useMemo, useState } from "react"
 import { EmptyState } from "../../components/card-image"
+import { useToast } from "../../components/ui/toast"
 import type { DeckCardInput, DeckCardUpdateInput } from "../../gql/graphql"
 import { groupDeckCards, type DeckGroupBy } from "../../lib/deck-grouping"
 import { request } from "../../lib/graphql"
-import { present } from "../../lib/utils"
+import { pluralize, present } from "../../lib/utils"
 import { deckCardsTotalPrice, formatUsdCents } from "./buylist-export"
 import { createDeckPullList, selectedDeckPullListEntries, type DeckPullListMode } from "./deck-allocation-model"
 import { compareDeckCards, countDeckZones } from "./deck-card-model"
@@ -76,6 +77,7 @@ export function DeckDetailPage({
   const [bulkAllocationError, setBulkAllocationError] = useState<string | null>(null)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { showToast } = useToast()
   const previewDeckDisassembly = useMutation({
     mutationFn: (deckId: string) => request(PreviewDeckDisassemblyDocument, { id: deckId }),
     onSuccess: (data) => {
@@ -94,6 +96,7 @@ export function DeckDetailPage({
       queryClient.invalidateQueries({ queryKey: ["location"] })
       queryClient.invalidateQueries({ queryKey: ["home"] })
       queryClient.removeQueries({ queryKey: ["deck", id], exact: true })
+      showToast("Deck disassembled")
       setDisassemblyResult(null)
       navigate({ to: "/decks" })
     },
@@ -197,9 +200,14 @@ export function DeckDetailPage({
     mutationFn: ({ deckCardId, input }: { deckCardId: string; input: DeckCardUpdateInput }) =>
       request(UpdateDeckCardDocument, { id: deckCardId, input }),
     onSuccess: () => {
+      const wasEditingCard = Boolean(editTarget)
+      const wasMovingCard = Boolean(moveTarget)
+
       queryClient.invalidateQueries({ queryKey: ["deck", id] })
       queryClient.invalidateQueries({ queryKey: ["decks"] })
       queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
+      if (wasEditingCard) showToast("Card edited")
+      if (wasMovingCard) showToast("Card moved")
       setEditTarget(null)
       setEditError(null)
       setMoveTarget(null)
@@ -220,6 +228,7 @@ export function DeckDetailPage({
       queryClient.invalidateQueries({ queryKey: ["deck", id] })
       queryClient.invalidateQueries({ queryKey: ["decks"] })
       queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
+      showToast("Card deleted from deck")
     },
   })
 
@@ -240,6 +249,7 @@ export function DeckDetailPage({
       queryClient.invalidateQueries({ queryKey: ["decks"] })
       queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
       queryClient.invalidateQueries({ queryKey: ["deck-edhrec", id] })
+      showToast("Card added to deck")
     },
   })
 
@@ -282,10 +292,11 @@ export function DeckDetailPage({
       Promise.all(
         deckCardIds.map((deckCardId) => request(DeleteDeckCardDocument, { id: deckCardId })),
       ),
-    onSuccess: () => {
+    onSuccess: (_data, deckCardIds) => {
       queryClient.invalidateQueries({ queryKey: ["deck", id] })
       queryClient.invalidateQueries({ queryKey: ["decks"] })
       queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
+      showToast(`${pluralize(deckCardIds.length, "card")} deleted`)
       clearSelectedDeckCards()
       setIsSelectingCards(false)
       setIsDeleteSelectedOpen(false)
@@ -355,8 +366,11 @@ export function DeckDetailPage({
         }
       }
     },
-    onSuccess: () => {
+    onSuccess: (_data, entries) => {
+      const allocatedCount = entries.reduce((total, entry) => total + entry.quantity, 0)
+
       invalidateAllocationQueries()
+      showToast(`${pluralize(allocatedCount, "card")} allocated`)
       setIsBulkAllocationOpen(false)
       setSelectedBulkAllocationItemIds({})
       setBulkAllocationError(null)

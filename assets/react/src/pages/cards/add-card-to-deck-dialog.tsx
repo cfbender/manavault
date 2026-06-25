@@ -11,8 +11,9 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
+import { useToast } from "../../components/ui/toast"
 import { request } from "../../lib/graphql"
-import { present, titleize } from "../../lib/utils"
+import { pluralize, present, titleize } from "../../lib/utils"
 import { AddCardToDeckDocument, CardDeckOptionsDocument } from "./data"
 
 export type CardDeckTarget = {
@@ -39,6 +40,7 @@ export function AddCatalogCardToDeckDialog({
 }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const { showToast } = useToast()
   const [deckId, setDeckId] = useState("")
   const [quantity, setQuantity] = useState(1)
   const [zone, setZone] = useState<CardDeckZone>("mainboard")
@@ -82,7 +84,8 @@ export function AddCatalogCardToDeckDialog({
           queryKey: ["deck-buylist", addedDeckId],
         })
       }
-      close()
+      showToast(`${pluralize(quantity, "card")} added to deck`)
+      onOpenChange(false)
       if (addedDeckId) navigate({ to: "/decks/$id", params: { id: addedDeckId } })
     },
     onError: (error) =>

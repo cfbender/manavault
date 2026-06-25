@@ -9,8 +9,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog"
+import { useToast } from "../../components/ui/toast"
 import { request } from "../../lib/graphql"
-import { present, titleize } from "../../lib/utils"
+import { pluralize, present, titleize } from "../../lib/utils"
 import {
   BulkAddCollectionItemsToDeckDocument,
   CollectionItemDeckOptionsDocument,
@@ -31,6 +32,7 @@ export function AddCollectionItemToDeckDialog({
   onOpenChange: (open: boolean) => void
 }) {
   const queryClient = useQueryClient()
+  const { showToast } = useToast()
   const [deckId, setDeckId] = useState("")
   const [zone, setZone] = useState("mainboard")
   const [error, setError] = useState<string | null>(null)
@@ -59,8 +61,9 @@ export function AddCollectionItemToDeckDialog({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["decks"] })
+      showToast(`${pluralize(targetCount, "card")} added to deck`)
       onDone()
-      close()
+      onOpenChange(false)
     },
     onError: (error) =>
       setError(error instanceof Error ? error.message : "Could not add cards to deck"),

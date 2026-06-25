@@ -10,6 +10,7 @@ import { ImageSummaryCard } from "../../components/image-summary-card"
 import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
 import { ConfirmDialog } from "../../components/ui/confirm-dialog"
+import { useToast } from "../../components/ui/toast"
 import {
   buildCollectionFilterQuery,
   combineCollectionQueries,
@@ -19,7 +20,7 @@ import {
 } from "../../lib/collection-filters"
 import { request } from "../../lib/graphql"
 import { useLocalStorageState } from "../../lib/use-local-storage"
-import { cn, compactNumber, present, titleize } from "../../lib/utils"
+import { cn, compactNumber, pluralize, present, titleize } from "../../lib/utils"
 import { AutoSortSetupDialog, hasEnabledAutoSortRules } from "./auto-sort-setup-dialog"
 import { AutoSortSummaryDialog } from "./auto-sort-summary-dialog"
 import { invalidateCollectionViews } from "./collection-navigation"
@@ -103,6 +104,7 @@ export function LocationPage({ id }: { id: string }) {
   )
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { showToast } = useToast()
   const deleteLocation = useMutation({
     mutationFn: (locationId: string) => request(DeleteLocationDocument, { id: locationId }),
     onSuccess: () => {
@@ -166,8 +168,11 @@ export function LocationPage({ id }: { id: string }) {
       if (!input.dryRun) {
         invalidateCollectionViews(queryClient, id)
         selection.clearSelection()
+        showToast(`${pluralize(result?.movedCount ?? 0, "card")} auto-sorted`)
+        setAutoSortResult(null)
+      } else {
+        setAutoSortResult(result ?? null)
       }
-      setAutoSortResult(result ?? null)
       setAutoSortError(null)
     },
     onError: (error) => {
@@ -249,7 +254,10 @@ export function LocationPage({ id }: { id: string }) {
 
   function deleteCurrentLocation() {
     if (!location || isUnfiledLocation(location)) return
-    deleteLocation.mutate(location.id)
+    const locationName = location.name
+    deleteLocation.mutate(location.id, {
+      onSuccess: () => showToast(`Deleted location ${locationName}`),
+    })
   }
 
   function previewUnfiledAutoSort() {

@@ -10,8 +10,10 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
+import { useToast } from "../../components/ui/toast"
 import type { CollectionItemUpdateInput } from "../../gql/graphql"
 import { request } from "../../lib/graphql"
+import { pluralize } from "../../lib/utils"
 import { COLLECTION_FINISHES } from "./constants"
 import { BulkUpdateCollectionItemsDocument } from "./documents"
 import { buildBulkCollectionItemUpdateInput } from "./bulk-edit-input"
@@ -33,6 +35,7 @@ export function BulkEditCollectionItemsDialog({
   onDone: () => void
   onOpenChange: (open: boolean) => void
 }) {
+  const { showToast } = useToast()
   const targetItems = useMemo(() => collectionTargetItems(item), [item])
   const targetCount = targetItems.length
   const commonFinish = useMemo(() => commonCollectionFinish(targetItems), [targetItems])
@@ -53,8 +56,9 @@ export function BulkEditCollectionItemsDialog({
       })
     },
     onSuccess: () => {
+      showToast(`${pluralize(targetCount, "card")} edited`)
       onDone()
-      close()
+      onOpenChange(false)
     },
     onError: (error) =>
       setError(error instanceof Error ? error.message : "Could not update collection items"),

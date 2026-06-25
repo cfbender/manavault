@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
+import { useToast } from "../../components/ui/toast"
 import { request } from "../../lib/graphql"
 import { titleize } from "../../lib/utils"
 import type { DeckDetail, DeckSummary } from "./deck-types"
@@ -27,6 +28,7 @@ export function EditDeckDialog({
   open?: boolean
 }) {
   const queryClient = useQueryClient()
+  const { showToast } = useToast()
   const isOpen = open ?? Boolean(deck)
   const [name, setName] = useState("")
   const [format, setFormat] = useState<(typeof DECK_FORMATS)[number]>("commander")
@@ -52,6 +54,7 @@ export function EditDeckDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["decks"] })
       if (deck) queryClient.invalidateQueries({ queryKey: ["deck", deck.id] })
+      showToast("Deck updated")
       setError(null)
       onOpenChange(false)
     },
@@ -172,6 +175,7 @@ export function NewDeckDialog({
 }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { showToast } = useToast()
   const [name, setName] = useState("")
   const [format, setFormat] = useState<(typeof DECK_FORMATS)[number]>("commander")
   const [status, setStatus] = useState<(typeof DECK_STATUSES)[number]>("brewing")
@@ -181,6 +185,7 @@ export function NewDeckDialog({
     mutationFn: () => request(CreateDeckDocument, { input: { name: name.trim(), format, status } }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["decks"] })
+      showToast(`Created deck ${name.trim()}`)
       setName("")
       setFormat("commander")
       setStatus("brewing")

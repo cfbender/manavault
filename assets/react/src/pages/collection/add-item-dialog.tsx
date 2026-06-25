@@ -12,8 +12,9 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
+import { useToast } from "../../components/ui/toast"
 import { request } from "../../lib/graphql"
-import { present, titleize } from "../../lib/utils"
+import { pluralize, present, titleize } from "../../lib/utils"
 import { COLLECTION_CONDITIONS, COLLECTION_FINISHES, MODAL_SEARCH_DEBOUNCE_MS } from "./constants"
 import {
   CollectionItemFormOptionsDocument,
@@ -46,6 +47,7 @@ export function AddCollectionItemDialog({
   open: boolean
 }) {
   const queryClient = useQueryClient()
+  const { showToast } = useToast()
   const [search, setSearch] = useState("")
   const [selectedPrinting, setSelectedPrinting] =
     useState<AddCollectionItemPrintingSelection | null>(null)
@@ -119,6 +121,7 @@ export function AddCollectionItemDialog({
       queryClient.invalidateQueries({ queryKey: ["collection"] })
       queryClient.invalidateQueries({ queryKey: ["collection-items"] })
       queryClient.invalidateQueries({ queryKey: ["home"] })
+      showToast(`${pluralize(quantity, "card")} added to collection`)
       close(true)
     },
     onError: (error) =>

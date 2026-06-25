@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
+import { useToast } from "../../components/ui/toast"
 import { request } from "../../lib/graphql"
 import { present, titleize } from "../../lib/utils"
 import { LOCATION_KINDS, MODAL_SEARCH_DEBOUNCE_MS } from "./constants"
@@ -27,6 +28,7 @@ export function AddLocationDialog({
   open: boolean
 }) {
   const queryClient = useQueryClient()
+  const { showToast } = useToast()
   const [name, setName] = useState("")
   const [kind, setKind] = useState<(typeof LOCATION_KINDS)[number]>("box")
   const [description, setDescription] = useState("")
@@ -74,6 +76,7 @@ export function AddLocationDialog({
         queryKey: ["collection-item-form-options"],
       })
       queryClient.invalidateQueries({ queryKey: ["home"] })
+      showToast(`Created location ${name.trim()}`)
       reset()
       onOpenChange(false)
     },

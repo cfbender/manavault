@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client"
 import "./pwa"
 import { initializeNativeBackButton } from "./lib/native-back"
 import { ThemeProvider } from "./lib/theme"
+import { ToastProvider } from "./components/ui/toast"
 import { routeTree } from "./routeTree.gen"
 import { initializeNativeSharedImport, type NativeOpenPayload } from "./lib/native-shared-import"
 import { nativeAppPath, parseNativeRoute, type NativeRoute } from "./lib/native-open"
@@ -86,7 +87,9 @@ void initializeNativeBackButton({
 createRoot(document.getElementById("manavault-root")!).render(
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
-      <RouterProvider router={router} />
+      <ToastProvider>
+        <RouterProvider router={router} />
+      </ToastProvider>
     </ThemeProvider>
   </QueryClientProvider>,
 )

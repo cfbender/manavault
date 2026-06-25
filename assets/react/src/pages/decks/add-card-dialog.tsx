@@ -10,8 +10,9 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
+import { useToast } from "../../components/ui/toast"
 import { request } from "../../lib/graphql"
-import { titleize } from "../../lib/utils"
+import { pluralize, titleize } from "../../lib/utils"
 import type { DeckDetail, DeckZone } from "./deck-types"
 import { ADD_CARD_ZONES, NON_COMMANDER_ADD_CARD_ZONES } from "./deck-types"
 import { AddDeckCardDocument } from "./queries"
@@ -26,6 +27,7 @@ export function AddDeckCardDialog({
   open: boolean
 }) {
   const queryClient = useQueryClient()
+  const { showToast } = useToast()
   const [name, setName] = useState("")
   const [quantity, setQuantity] = useState(1)
   const [zone, setZone] = useState<DeckZone>("mainboard")
@@ -50,6 +52,7 @@ export function AddDeckCardDialog({
         queryClient.invalidateQueries({ queryKey: ["deck-edhrec", deck.id] })
       }
       queryClient.invalidateQueries({ queryKey: ["decks"] })
+      showToast(`${pluralize(quantity, "card")} added to deck`)
       setName("")
       setQuantity(1)
       setZone("mainboard")

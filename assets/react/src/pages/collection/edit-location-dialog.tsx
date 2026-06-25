@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
+import { useToast } from "../../components/ui/toast"
 import { request } from "../../lib/graphql"
 import { present, titleize } from "../../lib/utils"
 import { LOCATION_KINDS, MODAL_SEARCH_DEBOUNCE_MS } from "./constants"
@@ -35,6 +36,7 @@ export function EditLocationDialog({
   open?: boolean
 }) {
   const queryClient = useQueryClient()
+  const { showToast } = useToast()
   const isOpen = open ?? Boolean(location)
   const [name, setName] = useState("")
   const [kind, setKind] = useState<(typeof LOCATION_KINDS)[number]>("box")
@@ -103,6 +105,7 @@ export function EditLocationDialog({
       queryClient.invalidateQueries({ queryKey: ["collection"] })
       queryClient.invalidateQueries({ queryKey: ["collection-items"] })
       if (location) queryClient.invalidateQueries({ queryKey: ["location", location.id] })
+      showToast(`Updated location ${name.trim()}`)
       setError(null)
       onOpenChange(false)
     },

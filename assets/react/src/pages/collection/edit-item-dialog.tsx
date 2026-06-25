@@ -10,8 +10,9 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
+import { useToast } from "../../components/ui/toast"
 import { request } from "../../lib/graphql"
-import { present, titleize } from "../../lib/utils"
+import { pluralize, present, titleize } from "../../lib/utils"
 import { COLLECTION_CONDITIONS, COLLECTION_FINISHES } from "./constants"
 import { CollectionItemFormOptionsDocument, UpdateCollectionItemDocument } from "./documents"
 import {
@@ -34,6 +35,7 @@ export function EditCollectionItemDialog({
   onDone: () => void
   onOpenChange: (open: boolean) => void
 }) {
+  const { showToast } = useToast()
   const [quantity, setQuantity] = useState(1)
   const [condition, setCondition] = useState<(typeof COLLECTION_CONDITIONS)[number]>("near_mint")
   const [finish, setFinish] = useState<(typeof COLLECTION_FINISHES)[number]>("nonfoil")
@@ -74,8 +76,9 @@ export function EditCollectionItemDialog({
       })
     },
     onSuccess: () => {
+      showToast(`${pluralize(1, "card")} edited`)
       onDone()
-      close()
+      onOpenChange(false)
     },
     onError: (error) =>
       setError(error instanceof Error ? error.message : "Could not update collection item"),

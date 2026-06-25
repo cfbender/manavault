@@ -11,9 +11,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog"
+import { useToast } from "../../components/ui/toast"
 import { request } from "../../lib/graphql"
 import type { SharedImportPayload } from "../../lib/native-shared-import"
-import { present, titleize } from "../../lib/utils"
+import { pluralize, present, titleize } from "../../lib/utils"
 import { AutoSortSetupDialog, hasEnabledAutoSortRules } from "./auto-sort-setup-dialog"
 import { AutoSortSummaryDialog } from "./auto-sort-summary-dialog"
 import {
@@ -53,6 +54,7 @@ export function ImportCollectionDialog({
   open: boolean
 }) {
   const queryClient = useQueryClient()
+  const { showToast } = useToast()
   const [importText, setImportText] = useState("")
   const [fileName, setFileName] = useState("")
   const [sharedFileName, setSharedFileName] = useState<string | null>(null)
@@ -127,7 +129,14 @@ export function ImportCollectionDialog({
         },
       })
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      const result = data.commitCollectionImport?.importResult
+      const importedCount = result?.imported ?? preview?.exact ?? 0
+      const autoSortedCount = result?.autoSorted ?? 0
+      const autoSortSuffix =
+        autoSortedCount > 0 ? `; ${pluralize(autoSortedCount, "card")} auto-sorted` : ""
+
+      showToast(`${pluralize(importedCount, "card")} imported${autoSortSuffix}`)
       queryClient.invalidateQueries({ queryKey: ["collection"] })
       queryClient.invalidateQueries({ queryKey: ["collection-items"] })
       queryClient.invalidateQueries({ queryKey: ["location"] })
@@ -548,6 +557,7 @@ export function ExportCollectionDialog({
 }) {
   const [exportText, setExportText] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const { showToast } = useToast()
   const isCsvExport = format === "csv"
   const exportCollection = useMutation({
     mutationFn: async () => {
@@ -564,12 +574,14 @@ export function ExportCollectionDialog({
         downloadCollectionExport(text, fileName, "text/csv;charset=utf-8")
         setExportText("")
         setError(null)
+        showToast(`Downloaded ${fileName}`)
         onOpenChange(false)
         return
       }
 
       setExportText(text)
       setError(null)
+      showToast(`${fileName} ready to copy`, { tone: "info" })
     },
     onError: (error) =>
       setError(error instanceof Error ? error.message : `Could not export ${format.toUpperCase()}`),

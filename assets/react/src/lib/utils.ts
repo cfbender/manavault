@@ -15,6 +15,10 @@ export function compactNumber(value: number | null | undefined) {
   return new Intl.NumberFormat(undefined, { notation: "compact" }).format(value || 0)
 }
 
+export function pluralize(count: number, singular: string, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`
+}
+
 export function present<T>(value: T | null | undefined): value is T {
   return value != null
 }

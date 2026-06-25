@@ -10,7 +10,9 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
+import { useToast } from "../../components/ui/toast"
 import { request } from "../../lib/graphql"
+import { pluralize } from "../../lib/utils"
 import type { DeckDetail, DeckSummary } from "./deck-types"
 import {
   DeckExportTextDocument,
@@ -28,6 +30,7 @@ export function ShareDeckDialog({
   open?: boolean
 }) {
   const queryClient = useQueryClient()
+  const { showToast } = useToast()
   const isOpen = open ?? Boolean(deck)
   const requestedDeckId = useRef<string | null>(null)
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle")
@@ -71,6 +74,8 @@ export function ShareDeckDialog({
     try {
       await navigator.clipboard.writeText(shareUrl)
       setCopyState("copied")
+      showToast("Deck link copied")
+      onOpenChange(false)
     } catch {
       setCopyState("failed")
     }
@@ -135,6 +140,7 @@ export function ImportDecklistDialog({
   open: boolean
 }) {
   const queryClient = useQueryClient()
+  const { showToast } = useToast()
   const [text, setText] = useState("")
   const [replaceExisting, setReplaceExisting] = useState(false)
   const [result, setResult] = useState<{
@@ -149,9 +155,12 @@ export function ImportDecklistDialog({
       return request(ImportDecklistDocument, { id: deck.id, text, replaceExisting })
     },
     onSuccess: (data) => {
+      const importResult = data.importDecklist?.importResult || null
+
       queryClient.invalidateQueries({ queryKey: ["deck", deck?.id] })
       queryClient.invalidateQueries({ queryKey: ["decks"] })
-      setResult(data.importDecklist?.importResult || null)
+      setResult(importResult)
+      showToast(`${pluralize(importResult?.imported ?? 0, "card")} imported`)
       setError(null)
       onOpenChange(false)
     },

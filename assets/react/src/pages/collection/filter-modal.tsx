@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
+import { useToast } from "../../components/ui/toast"
 import {
   buildCollectionFilterQuery,
   cloneCollectionFilters,
@@ -21,7 +22,7 @@ import {
   type ManaColor,
   type RarityFilter,
 } from "../../lib/collection-filters"
-import { cn } from "../../lib/utils"
+import { cn, pluralize } from "../../lib/utils"
 import {
   COLOR_OPERATOR_OPTIONS,
   COLOR_OPTIONS,
@@ -48,6 +49,7 @@ export function CollectionFilterModal({
   const [draft, setDraft] = useState<CollectionFilterState>(() => cloneCollectionFilters(filters))
   const syntax = buildCollectionFilterQuery(draft)
   const activeCount = countActiveCollectionFilters(draft)
+  const { showToast } = useToast()
 
   useEffect(() => {
     if (open) setDraft(cloneCollectionFilters(filters))
@@ -66,7 +68,13 @@ export function CollectionFilterModal({
   function clearAndClose() {
     resetDraft()
     onClear()
+    showToast("Filters cleared", { tone: "info" })
     onClose()
+  }
+
+  function applyDraft() {
+    showToast(`${pluralize(activeCount, "filter")} applied`)
+    onApply(draft)
   }
 
   return (
@@ -223,7 +231,7 @@ export function CollectionFilterModal({
                 )}
               </div>
               <div className="grid gap-2">
-                <Button type="button" disabled={!syntax} onClick={() => onApply(draft)}>
+                <Button type="button" disabled={!syntax} onClick={applyDraft}>
                   Apply filters
                 </Button>
                 <Button type="button" variant="outline" onClick={resetDraft}>
