@@ -4,7 +4,7 @@ defmodule Manavault.Catalog.Decks.Cards do
   import Ecto.Query
 
   alias Manavault.Catalog.{Card, Deck, DeckCard, Decklists, Printing, Util}
-  alias Manavault.Catalog.Decks.AllocationItems
+  alias Manavault.Catalog.Decks.{AllocationItems, Printings}
   alias Manavault.Repo
 
   def change_deck_card(%DeckCard{} = deck_card, attrs \\ %{}) do
@@ -64,6 +64,40 @@ defmodule Manavault.Catalog.Decks.Cards do
     end)
   end
 
+  def optimize_deck_card_printings(deck_card_ids) when is_list(deck_card_ids) do
+    deck_card_ids = Enum.uniq(deck_card_ids)
+
+    Repo.transact(fn ->
+      deck_cards =
+        DeckCard
+        |> where([deck_card], deck_card.id in ^deck_card_ids)
+        |> Repo.all()
+        |> Repo.preload([:deck_allocations, card: :printings])
+        |> Map.new(&{&1.id, &1})
+
+      optimized =
+        Enum.reduce(deck_card_ids, [], fn deck_card_id, acc ->
+          deck_card = Map.fetch!(deck_cards, deck_card_id)
+
+          case Printings.cheapest_priced_printing(deck_card) do
+            %Printing{scryfall_id: scryfall_id}
+            when scryfall_id != deck_card.preferred_printing_id ->
+              clear_deck_card_allocations!(deck_card)
+
+              case update_deck_card(deck_card, %{"preferred_printing_id" => scryfall_id}) do
+                {:ok, deck_card} -> [deck_card | acc]
+                {:error, reason} -> Repo.rollback(reason)
+              end
+
+            _no_change ->
+              acc
+          end
+        end)
+
+      {:ok, Enum.reverse(optimized)}
+    end)
+  end
+
   def set_deck_commander(%DeckCard{} = deck_card) do
     Repo.transact(fn ->
       deck_card = Repo.preload(deck_card, [:card, :preferred_printing])
@@ -95,22 +129,29 @@ defmodule Manavault.Catalog.Decks.Cards do
       deck_card =
         Repo.preload(deck_card, deck_allocations: [:collection_item])
 
-      Enum.each(deck_card.deck_allocations, fn allocation ->
-        AllocationItems.restore_from_deck!(
-          allocation.collection_item,
-          allocation.quantity,
-          allocation.source_location_id
-        )
-
-        case Repo.delete(allocation) do
-          {:ok, _allocation} -> :ok
-          {:error, changeset} -> Repo.rollback(changeset)
-        end
-      end)
+      clear_deck_card_allocations!(deck_card)
 
       case Repo.delete(deck_card) do
         {:ok, deck_card} -> {:ok, deck_card}
         {:error, changeset} -> {:error, changeset}
+      end
+    end)
+  end
+
+  defp clear_deck_card_allocations!(%DeckCard{} = deck_card) do
+    deck_card
+    |> Repo.preload([deck_allocations: [:collection_item]], force: true)
+    |> Map.get(:deck_allocations)
+    |> Enum.each(fn allocation ->
+      AllocationItems.restore_from_deck!(
+        allocation.collection_item,
+        allocation.quantity,
+        allocation.source_location_id
+      )
+
+      case Repo.delete(allocation) do
+        {:ok, _allocation} -> :ok
+        {:error, changeset} -> Repo.rollback(changeset)
       end
     end)
   end

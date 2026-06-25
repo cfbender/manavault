@@ -322,6 +322,37 @@ export const UpdateDeckCardsTagDocument = graphql(`
   }
 `)
 
+export const OptimizeDeckCardPrintingsDocument = graphql(`
+  mutation OptimizeDeckCardPrintings($deckCardIds: [ID!]!) {
+    optimizeDeckCardPrintings(deckCardIds: $deckCardIds) {
+      deckCards {
+        id
+        quantity
+        zone
+        finish
+        tag
+        card {
+          id
+          oracleId
+          name
+          typeLine
+        }
+        preferredPrinting {
+          id
+          scryfallId
+          imageUrl
+          artCropUrl
+          setCode
+          setName
+          collectorNumber
+          rarity
+          finishes
+        }
+      }
+    }
+  }
+`)
+
 export const AddDeckCardDocument = graphql(`
   mutation AddDeckCard($deckId: ID!, $input: DeckCardInput!) {
     addDeckCard(deckId: $deckId, input: $input) {

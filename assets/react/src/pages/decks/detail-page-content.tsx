@@ -107,6 +107,7 @@ export function DeckDetailContent({
   onOpenShareBuylist,
   onOpenSharePlaytest,
   onOpenBulkAllocation,
+  onOpenOptimizePrintings,
   onPreviewCard,
   onSelectAllDeckCards,
   onSetCommander,
@@ -163,6 +164,7 @@ export function DeckDetailContent({
   onOpenShareBuylist: () => void
   onOpenSharePlaytest: () => void
   onOpenBulkAllocation: () => void
+  onOpenOptimizePrintings: () => void
   onPreviewCard: (deckCard: DeckCardEntry) => void
   onSelectAllDeckCards: () => void
   onSetCommander: (deckCard: DeckCardEntry) => void
@@ -223,6 +225,7 @@ export function DeckDetailContent({
               onExport={onExportDeck}
               onImport={onImportDeck}
               onMissing={onMissingCards}
+              onOptimizePrintings={onOpenOptimizePrintings}
               onShare={onOpenShareDeck}
               onDisassemble={onDisassemble}
               onEdhrec={deck.format === "commander" ? onOpenEdhrec : undefined}

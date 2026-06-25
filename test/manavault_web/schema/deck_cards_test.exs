@@ -164,6 +164,136 @@ defmodule ManavaultWeb.Schema.DeckCardsTest do
              )
   end
 
+  test "optimize deck card printings switches selected cards to cheapest printing", %{conn: conn} do
+    {:ok, %{cards_count: 3, printings_count: 3}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-optimize-expensive",
+          "oracle_id" => "oracle-optimize-lotus",
+          "name" => "Optimize Lotus",
+          "type_line" => "Artifact",
+          "collector_number" => "1",
+          "set" => "exp",
+          "set_name" => "Expensive Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "prices" => %{"usd" => "9.00"},
+          "legalities" => %{}
+        },
+        %{
+          "id" => "scryfall-optimize-cheap",
+          "oracle_id" => "oracle-optimize-lotus",
+          "name" => "Optimize Lotus",
+          "type_line" => "Artifact",
+          "collector_number" => "2",
+          "set" => "chp",
+          "set_name" => "Cheap Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "prices" => %{"usd" => "1.25"},
+          "legalities" => %{}
+        },
+        %{
+          "id" => "scryfall-optimize-other",
+          "oracle_id" => "oracle-optimize-other",
+          "name" => "Optimize Other",
+          "type_line" => "Creature",
+          "collector_number" => "3",
+          "set" => "oth",
+          "set_name" => "Other Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "prices" => %{"usd" => "0.50"},
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Optimize Test"})
+
+    {:ok, selected} =
+      Catalog.add_card_to_deck(deck, %{
+        "name" => "Optimize Lotus",
+        "preferred_printing_id" => "scryfall-optimize-expensive"
+      })
+
+    {:ok, location} =
+      Catalog.create_location(%{"name" => "Optimize Binder", "kind" => "binder"})
+
+    {:ok, allocated_item} =
+      Catalog.create_collection_item(%{
+        "scryfall_id" => "scryfall-optimize-expensive",
+        "quantity" => 1,
+        "condition" => "near_mint",
+        "language" => "en",
+        "finish" => "nonfoil",
+        "location_id" => location.id
+      })
+
+    assert {:ok, _allocation} =
+             Catalog.allocate_collection_item_to_deck_card(selected.id, allocated_item.id)
+
+    assert %{allocated: 1} = Catalog.deck_card_allocation_status(selected)
+
+    {:ok, unselected} =
+      Catalog.add_card_to_deck(deck, %{
+        "name" => "Optimize Other",
+        "preferred_printing_id" => "scryfall-optimize-other"
+      })
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation OptimizeDeckCardPrintings($deckCardIds: [ID!]!) {
+          optimizeDeckCardPrintings(deckCardIds: $deckCardIds) {
+            deckCards {
+              id
+              preferredPrinting {
+                scryfallId
+                setCode
+              }
+            }
+          }
+        }
+        """,
+        "variables" => %{
+          "deckCardIds" => [global_id(:deck_card, selected.id)]
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "optimizeDeckCardPrintings" => %{
+                 "deckCards" => [
+                   %{
+                     "id" => selected_id,
+                     "preferredPrinting" => %{
+                       "scryfallId" => "scryfall-optimize-cheap",
+                       "setCode" => "chp"
+                     }
+                   }
+                 ]
+               }
+             }
+           } = json_response(conn, 200)
+
+    assert selected_id == global_id(:deck_card, selected.id)
+
+    deck_cards = Catalog.get_deck!(deck.id).deck_cards
+    selected_card = Enum.find(deck_cards, &(&1.id == selected.id))
+
+    assert selected_card.preferred_printing_id == "scryfall-optimize-cheap"
+
+    assert Enum.find(deck_cards, &(&1.id == unselected.id)).preferred_printing_id ==
+             "scryfall-optimize-other"
+
+    assert %{allocated: 0} = Catalog.deck_card_allocation_status(selected_card)
+
+    assert Catalog.get_collection_item!(allocated_item.id).location_id == location.id
+  end
+
   test "add deck card mutation adds a card by name", %{conn: conn} do
     {:ok, %{cards_count: 1, printings_count: 1}} =
       Catalog.import_cards([

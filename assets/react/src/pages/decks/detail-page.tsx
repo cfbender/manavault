@@ -47,6 +47,7 @@ import {
   DeleteDeckCardDocument,
   DisassembleDeckDocument,
   PreviewDeckDisassemblyDocument,
+  OptimizeDeckCardPrintingsDocument,
   SetDeckCommanderDocument,
   UpdateDeckCardDocument,
   UpdateDeckCardsTagDocument,
@@ -134,6 +135,8 @@ export function DeckDetailPage({
     Record<string, string | null>
   >({})
   const [bulkAllocationError, setBulkAllocationError] = useState<string | null>(null)
+  const [isOptimizePrintingsOpen, setIsOptimizePrintingsOpen] = useState(false)
+  const [optimizePrintingsError, setOptimizePrintingsError] = useState<string | null>(null)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const deckQueryKey = ["deck", id] as const
@@ -350,6 +353,29 @@ export function DeckDetailPage({
     },
   })
 
+  const optimizeDeckCardPrintings = useMutation({
+    mutationFn: (deckCardIds: string[]) =>
+      request(OptimizeDeckCardPrintingsDocument, { deckCardIds }),
+    onSuccess: (data) => {
+      const optimizedCount = data.optimizeDeckCardPrintings?.deckCards.length || 0
+
+      queryClient.invalidateQueries({ queryKey: ["deck", id] })
+      queryClient.invalidateQueries({ queryKey: ["decks"] })
+      queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
+      setIsOptimizePrintingsOpen(false)
+      setOptimizePrintingsError(null)
+      showToast(
+        optimizedCount > 0
+          ? `${pluralize(optimizedCount, "printing")} optimized`
+          : "Printings already optimized",
+      )
+    },
+    onError: (error) =>
+      setOptimizePrintingsError(
+        error instanceof Error ? error.message : "Could not optimize printings",
+      ),
+  })
+
   const updateDeckCardsTag = useMutation({
     mutationFn: ({ deckCardIds, tag }: UpdateDeckCardsTagVariables) =>
       request(UpdateDeckCardsTagDocument, { deckCardIds, tag }),
@@ -529,6 +555,7 @@ export function DeckDetailPage({
   const isUpdatingDeckCard =
     updateDeckCard.isPending ||
     updateDeckCardsTag.isPending ||
+    optimizeDeckCardPrintings.isPending ||
     bulkUpdateDeckCards.isPending ||
     bulkDeleteDeckCards.isPending ||
     deleteDeckCard.isPending ||
@@ -676,6 +703,10 @@ export function DeckDetailPage({
           setBulkAllocationError(null)
           setIsBulkAllocationOpen(true)
         }}
+        onOpenOptimizePrintings={() => {
+          setOptimizePrintingsError(null)
+          setIsOptimizePrintingsOpen(true)
+        }}
         onPreviewCard={setPreviewDeckCard}
         onSelectAllDeckCards={selectAllDeckCards}
         onSetBulkQuantity={setBulkQuantity}
@@ -732,6 +763,8 @@ export function DeckDetailPage({
         isShareDeckOpen={isShareDeckOpen}
         isDisassemblingDeck={disassembleDeck.isPending}
         isUpdatingDeckCard={isUpdatingDeckCard}
+        optimizePrintingsError={optimizePrintingsError}
+        optimizePrintingsOpen={isOptimizePrintingsOpen}
         mayCloseDeleteSelected={!bulkDeleteDeckCards.isPending}
         moveError={moveError}
         moveTarget={moveTarget}
@@ -779,6 +812,16 @@ export function DeckDetailPage({
         onExportDeckOpenChange={setIsExportDeckOpen}
         onImportDeckOpenChange={setIsImportDeckOpen}
         onMissingCardsOpenChange={setIsMissingCardsOpen}
+        onOptimizePrintingsOpenChange={(open) => {
+          if (!optimizeDeckCardPrintings.isPending) {
+            setIsOptimizePrintingsOpen(open)
+            setOptimizePrintingsError(null)
+          }
+        }}
+        onOptimizePrintingsSubmit={(deckCardIds) => {
+          setOptimizePrintingsError(null)
+          optimizeDeckCardPrintings.mutate(deckCardIds)
+        }}
         onMoveCard={(zone) => {
           if (moveTarget) moveDeckCard(moveTarget, zone)
         }}

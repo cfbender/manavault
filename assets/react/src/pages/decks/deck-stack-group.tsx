@@ -4,6 +4,10 @@ import type { DeckGroup } from "../../lib/deck-grouping"
 import { GroupIcon } from "./deck-card-display"
 import { isLegendaryCreature } from "./deck-card-model"
 import { DeckStackCard } from "./deck-stack-card"
+import {
+  isDeckStackPointerCaptured,
+  shouldUpdateDeckStackHoverFromPointer,
+} from "./deck-stack-interactions"
 import type { DeckCardEntry, DeckCardTag } from "./deck-types"
 import {
   DECK_CARD_HOVER_DELAY_MS,
@@ -120,7 +124,14 @@ export function DeckStackGroup({
   }
 
   function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
-    if (event.pointerType === "touch") return
+    if (
+      !shouldUpdateDeckStackHoverFromPointer({
+        isPointerCaptured: isDeckStackPointerCaptured(event.target),
+        pointerType: event.pointerType,
+      })
+    ) {
+      return
+    }
 
     const bounds = event.currentTarget.getBoundingClientRect()
     const nextIndex = deckStackIndexFromPointer(
@@ -162,6 +173,7 @@ export function DeckStackGroup({
             deckCard={deckCard}
             deckId={deckId}
             index={index}
+            isLast={index === group.cards.length - 1}
             isActive={activeIndex === index}
             isSelecting={isSelecting}
             isSelected={selectedCardIds.has(deckCard.id)}

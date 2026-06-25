@@ -22,6 +22,7 @@ import type {
 import type { DetailZoneCounts } from "./detail-page-content"
 import { EDHRecDialog } from "./edhrec"
 import { MissingCardsDialog } from "./missing-cards-dialog"
+import { OptimizePrintingsDialog } from "./optimize-printings-dialog"
 
 export function DeckDetailDialogs({
   addCardError,
@@ -47,6 +48,8 @@ export function DeckDetailDialogs({
   isMissingCardsOpen,
   isShareDeckOpen,
   isUpdatingDeckCard,
+  optimizePrintingsError,
+  optimizePrintingsOpen,
   mayCloseDeleteSelected,
   moveError,
   moveTarget,
@@ -72,6 +75,8 @@ export function DeckDetailDialogs({
   onSetEdhrecState,
   onSelectBulkAllocationChoice,
   onShareDeckOpenChange,
+  onOptimizePrintingsOpenChange,
+  onOptimizePrintingsSubmit,
   onAddCardOpenChange,
   previewDeckCard,
   selectedBulkAllocationItemIds,
@@ -103,6 +108,8 @@ export function DeckDetailDialogs({
   isMissingCardsOpen: boolean
   isShareDeckOpen: boolean
   isUpdatingDeckCard: boolean
+  optimizePrintingsError: string | null
+  optimizePrintingsOpen: boolean
   mayCloseDeleteSelected: boolean
   moveError: string | null
   moveTarget: DeckCardEntry | null
@@ -128,6 +135,8 @@ export function DeckDetailDialogs({
   onSetEdhrecState: (tab: EDHRecTab | undefined, excludeLands?: boolean) => void
   onSelectBulkAllocationChoice: (choiceId: string, collectionItemId: string | null) => void
   onShareDeckOpenChange: (open: boolean) => void
+  onOptimizePrintingsOpenChange: (open: boolean) => void
+  onOptimizePrintingsSubmit: (deckCardIds: string[]) => void
   onAddCardOpenChange: (open: boolean) => void
   previewDeckCard: DeckCardEntry | null
   selectedBulkAllocationItemIds: Record<string, string | null>
@@ -161,6 +170,14 @@ export function DeckDetailDialogs({
           deck={deck}
           onOpenChange={onMissingCardsOpenChange}
           open={isMissingCardsOpen}
+        />
+        <OptimizePrintingsDialog
+          deckCards={deck.deckCards}
+          error={optimizePrintingsError}
+          isPending={isUpdatingDeckCard}
+          onOpenChange={onOptimizePrintingsOpenChange}
+          onSubmit={onOptimizePrintingsSubmit}
+          open={optimizePrintingsOpen}
         />
         <AutoSortSummaryDialog
           open={Boolean(disassemblyResult)}

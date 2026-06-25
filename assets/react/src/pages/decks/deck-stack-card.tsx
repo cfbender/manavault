@@ -28,6 +28,7 @@ export function DeckStackCard({
   deckId,
   deckCard,
   index,
+  isLast,
   isActive,
   isDimmed,
   isSelecting,
@@ -54,6 +55,7 @@ export function DeckStackCard({
   deckId: string
   deckCard: DeckCardEntry
   index: number
+  isLast: boolean
   isActive: boolean
   isDimmed: boolean
   isUpdating: boolean
@@ -112,7 +114,7 @@ export function DeckStackCard({
     <article
       className={cn(
         "group/deck-card absolute left-0 w-56 origin-top rounded-xl transition-transform duration-200 ease-out",
-        isActive && "z-[90]",
+        isInteractive && "z-[90]",
       )}
       onBlur={handleBlur}
       data-deck-id={deckId}
@@ -120,7 +122,7 @@ export function DeckStackCard({
       style={{
         top,
         transform: slideOffset ? `translateY(${slideOffset}px)` : undefined,
-        zIndex: isActive ? 90 : index + 1,
+        zIndex: isInteractive ? 90 : index + 1,
       }}
     >
       <div
@@ -192,10 +194,15 @@ export function DeckStackCard({
           <div
             className={cn(
               "dropdown dropdown-end absolute right-2 top-2 z-[120] transition-opacity group-focus-within/deck-card:opacity-100",
+              isLast && "dropdown-top",
               isInteractive ? "opacity-100" : "opacity-0",
             )}
             onClick={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
+            data-deck-stack-pointer-capture=""
+            onPointerDown={(event) => event.stopPropagation()}
+            onPointerMove={(event) => event.stopPropagation()}
+            onPointerUp={(event) => event.stopPropagation()}
           >
             <button
               type="button"

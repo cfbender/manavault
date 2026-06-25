@@ -2,7 +2,7 @@ defmodule Manavault.Catalog.Decks.Buylist do
   @moduledoc false
 
   alias Manavault.Catalog.{CSV, Card, Deck, DeckCard, Finishes, Price}
-  alias Manavault.Catalog.Decks.{AllocationStatus, Preloads}
+  alias Manavault.Catalog.Decks.{AllocationStatus, Preloads, Printings}
   alias Manavault.Repo
 
   def deck_buylist(%Deck{} = deck, opts \\ []) when is_list(opts) do
@@ -163,14 +163,7 @@ defmodule Manavault.Catalog.Decks.Buylist do
     do: buylist_printing(deck_card, :cheapest)
 
   defp buylist_printing(%DeckCard{} = deck_card, _mode) do
-    deck_card.card.printings
-    |> Enum.filter(&Finishes.supports?(&1, deck_card.finish))
-    |> Enum.sort_by(fn printing ->
-      {Price.price_cents_for_printing(printing, deck_card.finish) || 999_999_999,
-       printing.released_at || ~D[9999-12-31], printing.set_code || "",
-       printing.collector_number || ""}
-    end)
-    |> List.first()
+    Printings.cheapest_printing(deck_card)
   end
 
   defp buylist_reason(missing, unavailable) when missing > 0 and unavailable > 0,

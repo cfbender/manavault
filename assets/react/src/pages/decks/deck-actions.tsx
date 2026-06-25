@@ -39,6 +39,7 @@ export function SummaryActionMenu({
   onExport,
   onImport,
   onMissing,
+  onOptimizePrintings,
   onShare,
 }: {
   label: string
@@ -49,6 +50,7 @@ export function SummaryActionMenu({
   onExport?: () => void
   onImport?: () => void
   onMissing?: () => void
+  onOptimizePrintings?: () => void
   onShare?: () => void
 }) {
   return (
@@ -97,6 +99,14 @@ export function SummaryActionMenu({
             <button type="button" onClick={onMissing}>
               <ShoppingCart className="h-4 w-4" />
               Missing cards
+            </button>
+          </li>
+        ) : null}
+        {onOptimizePrintings ? (
+          <li>
+            <button type="button" onClick={onOptimizePrintings}>
+              <Sparkles className="h-4 w-4" />
+              Optimize printings
             </button>
           </li>
         ) : null}

@@ -26,6 +26,7 @@ defmodule Manavault.Catalog.Decks do
   defdelegate add_card_to_deck(deck, attrs), to: Workflows
   defdelegate update_deck_card(deck_card, attrs), to: Workflows
   defdelegate update_deck_cards_tag(deck_card_ids, tag), to: Workflows
+  defdelegate optimize_deck_card_printings(deck_card_ids), to: Workflows
   defdelegate set_deck_commander(deck_card), to: Workflows
   defdelegate delete_deck_card(deck_card), to: Workflows
   defdelegate deck_allocation_status(deck), to: Workflows

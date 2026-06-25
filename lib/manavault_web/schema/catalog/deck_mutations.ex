@@ -136,6 +136,15 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
     end
   end
 
+  def optimize_deck_card_printings(_parent, %{deck_card_ids: deck_card_ids}, resolution) do
+    with {:ok, deck_card_ids} <- parse_deck_card_ids(deck_card_ids, resolution) do
+      case Catalog.optimize_deck_card_printings(deck_card_ids) do
+        {:ok, deck_cards} -> {:ok, Repo.preload(deck_cards, [:card, :preferred_printing])}
+        {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+      end
+    end
+  end
+
   def delete_deck_card(_parent, %{id: id}, resolution) do
     with {:ok, id} <- RelayHelpers.node_id(id, :deck_card, resolution) do
       deck_card = DeckCard |> Repo.get!(id) |> Repo.preload([:card, :preferred_printing])

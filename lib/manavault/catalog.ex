@@ -79,6 +79,7 @@ defmodule Manavault.Catalog do
   defdelegate add_card_to_deck(deck, attrs), to: Decks
   defdelegate update_deck_card(deck_card, attrs), to: Decks
   defdelegate update_deck_cards_tag(deck_card_ids, tag), to: Decks
+  defdelegate optimize_deck_card_printings(deck_card_ids), to: Decks
   defdelegate set_deck_commander(deck_card), to: Decks
   defdelegate delete_deck_card(deck_card), to: Decks
   defdelegate deck_allocation_status(deck), to: Decks
