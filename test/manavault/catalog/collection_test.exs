@@ -199,6 +199,50 @@ defmodule Manavault.Catalog.CollectionTest do
     assert [] = Catalog.list_collection_items()
   end
 
+  test "bulk collection item updates apply one attrs map transactionally" do
+    assert {:ok, %{cards_count: 3, printings_count: 3}} =
+             Catalog.import_cards([@black_lotus, @time_walk, @plains])
+
+    assert {:ok, lotus} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "purchase_price_cents" => "1.00"
+             })
+
+    assert {:ok, plains} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-basic-plains",
+               "purchase_price_cents" => "2.00"
+             })
+
+    assert {:ok, updated_items} =
+             Catalog.update_collection_items([lotus.id, plains.id], %{
+               "finish" => "nonfoil",
+               "purchase_price_cents" => "3.50"
+             })
+
+    assert Enum.map(updated_items, & &1.id) == [lotus.id, plains.id]
+    assert Enum.map(updated_items, & &1.finish) == ["nonfoil", "nonfoil"]
+    assert Enum.map(updated_items, & &1.purchase_price_cents) == [350, 350]
+
+    assert {:ok, walk} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-2",
+               "finish" => "foil",
+               "purchase_price_cents" => "4.00"
+             })
+
+    assert {:error, changeset} =
+             Catalog.update_collection_items([walk.id, lotus.id], %{
+               "finish" => "foil",
+               "purchase_price_cents" => "9.99"
+             })
+
+    assert "is not available for this printing" in errors_on(changeset).finish
+    assert Repo.get!(CollectionItem, walk.id).purchase_price_cents == 400
+    assert Repo.get!(CollectionItem, lotus.id).purchase_price_cents == 350
+  end
+
   test "collection item pagination supports deterministic limit and offset" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])

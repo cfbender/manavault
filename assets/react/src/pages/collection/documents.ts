@@ -246,6 +246,46 @@ export const UpdateCollectionItemDocument = graphql(`
   }
 `)
 
+export const BulkUpdateCollectionItemsDocument = graphql(`
+  mutation BulkUpdateCollectionItems($ids: [ID!]!, $input: CollectionItemUpdateInput!) {
+    bulkUpdateCollectionItems(ids: $ids, input: $input) {
+      collectionItems {
+        id
+        quantity
+        condition
+        language
+        finish
+        notes
+        priceText
+        purchasePriceCents
+        purchasePriceText
+        valueGainText
+        valueGainPercentText
+        allocatedQuantity
+        location {
+          id
+          name
+        }
+        printing {
+          id
+          scryfallId
+          setCode
+          setName
+          collectorNumber
+          imageUrl
+          rarity
+          card {
+            id
+            oracleId
+            name
+            typeLine
+          }
+        }
+      }
+    }
+  }
+`)
+
 export const DeleteCollectionItemDocument = graphql(`
   mutation DeleteCollectionItem($id: ID!) {
     deleteCollectionItem(id: $id) {

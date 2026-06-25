@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
-import { present, titleize } from "../../lib/utils"
-import { COLLECTION_CONDITIONS, COLLECTION_FINISHES, LOCATION_KINDS } from "./constants"
-import type { LocationCoverSelection } from "./types"
+import { present, titleize } from "../../lib/utils.ts"
+import { COLLECTION_CONDITIONS, COLLECTION_FINISHES, LOCATION_KINDS } from "./constants.ts"
+import type { LocationCoverSelection } from "./types.ts"
 
 export function useDebouncedValue<T>(value: T, delayMs: number) {
   const [debouncedValue, setDebouncedValue] = useState(value)

@@ -80,6 +80,25 @@ defmodule Manavault.Catalog.Collection do
     |> Repo.update()
   end
 
+  def update_collection_items(ids, attrs) when is_list(ids) and is_map(attrs) do
+    attrs = ItemAttrs.normalize(attrs)
+
+    Repo.transaction(fn ->
+      Enum.map(ids, fn id ->
+        item = Repo.get!(CollectionItem, id)
+
+        item
+        |> CollectionItem.update_changeset(attrs)
+        |> ItemAttrs.validate_finish_available()
+        |> Repo.update()
+        |> case do
+          {:ok, item} -> item
+          {:error, changeset} -> Repo.rollback(changeset)
+        end
+      end)
+    end)
+  end
+
   def list_printings_for_collection_item(%CollectionItem{
         printing: %{card: %{oracle_id: oracle_id}}
       }) do

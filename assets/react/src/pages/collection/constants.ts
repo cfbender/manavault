@@ -19,7 +19,7 @@ export {
   COLLECTION_SEARCH_DRAFT_STORAGE_KEY,
   COLLECTION_SORT_STORAGE_KEY,
   COLLECTION_STATE_STORAGE_PREFIX,
-} from "./storage-keys"
+} from "./storage-keys.ts"
 export const DEFAULT_COLLECTION_SORT: CollectionSort = {
   field: "name",
   direction: "asc",

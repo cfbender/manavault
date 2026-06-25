@@ -37,6 +37,7 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   defdelegate create_deck(parent, args, resolution), to: MutationResolvers
   defdelegate create_collection_item(parent, args, resolution), to: MutationResolvers
   defdelegate update_collection_item(parent, args, resolution), to: MutationResolvers
+  defdelegate bulk_update_collection_items(parent, args, resolution), to: MutationResolvers
   defdelegate delete_collection_item(parent, args, resolution), to: MutationResolvers
   defdelegate add_collection_item_to_deck(parent, args, resolution), to: MutationResolvers
   defdelegate bulk_add_collection_items_to_deck(parent, args, resolution), to: MutationResolvers

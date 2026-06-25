@@ -47,6 +47,7 @@ import { ExportCollectionDialog, ImportCollectionDialog } from "./import-export-
 import {
   AddCollectionItemDialog,
   AddCollectionItemToDeckDialog,
+  BulkEditCollectionItemsDialog,
   DeleteCollectionItemDialog,
   MoveCollectionItemDialog,
 } from "./item-dialogs"
@@ -115,6 +116,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
   const [bulkDeckTarget, setBulkDeckTarget] = useState<CollectionItem[] | null>(null)
   const [bulkListTarget, setBulkListTarget] = useState<CollectionItem[] | null>(null)
   const [bulkMoveTarget, setBulkMoveTarget] = useState<CollectionItem[] | null>(null)
+  const [bulkEditTarget, setBulkEditTarget] = useState<CollectionItem[] | null>(null)
   const [bulkDeleteTarget, setBulkDeleteTarget] = useState<CollectionItem[] | null>(null)
   const [isSelectingAllCollectionItems, setIsSelectingAllCollectionItems] = useState(false)
   const [structuredFilters, setStructuredFilters] = useLocalStorageState<CollectionFilterState>(
@@ -433,6 +435,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
             onAddToList={() => setBulkListTarget(selection.selectedItems)}
             onClear={selection.clearSelection}
             onDelete={() => setBulkDeleteTarget(selection.selectedItems)}
+            onEdit={() => setBulkEditTarget(selection.selectedItems)}
             onMove={() => setBulkMoveTarget(selection.selectedItems)}
             onSelectAll={() => void selectAllCollectionItems()}
           />
@@ -520,6 +523,11 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
         item={bulkDeckTarget}
         onDone={finishBulkCollectionAction}
         onOpenChange={(open) => !open && setBulkDeckTarget(null)}
+      />
+      <BulkEditCollectionItemsDialog
+        item={bulkEditTarget}
+        onDone={finishBulkCollectionAction}
+        onOpenChange={(open) => !open && setBulkEditTarget(null)}
       />
       <MoveCollectionItemDialog
         item={bulkListTarget}

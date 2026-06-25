@@ -23,6 +23,7 @@ defmodule Manavault.Catalog do
   defdelegate new_collection_item_for_printing(scryfall_id), to: Collection
   defdelegate create_collection_item(attrs), to: Collection
   defdelegate update_collection_item(collection_item, attrs), to: Collection
+  defdelegate update_collection_items(ids, attrs), to: Collection
   defdelegate list_printings_for_collection_item(collection_item), to: Collection
   defdelegate switch_collection_item_printing(collection_item, scryfall_id), to: Collection
   defdelegate delete_collection_item(collection_item), to: Collection

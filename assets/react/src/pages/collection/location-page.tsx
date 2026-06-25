@@ -36,6 +36,7 @@ import { CollectionFilterModal } from "./filter-modal"
 import { ExportCollectionDialog } from "./import-export-dialogs"
 import {
   AddCollectionItemToDeckDialog,
+  BulkEditCollectionItemsDialog,
   DeleteCollectionItemDialog,
   MoveCollectionItemDialog,
 } from "./item-dialogs"
@@ -88,6 +89,7 @@ export function LocationPage({ id }: { id: string }) {
   const [bulkDeckTarget, setBulkDeckTarget] = useState<CollectionItem[] | null>(null)
   const [bulkListTarget, setBulkListTarget] = useState<CollectionItem[] | null>(null)
   const [bulkMoveTarget, setBulkMoveTarget] = useState<CollectionItem[] | null>(null)
+  const [bulkEditTarget, setBulkEditTarget] = useState<CollectionItem[] | null>(null)
   const [bulkDeleteTarget, setBulkDeleteTarget] = useState<CollectionItem[] | null>(null)
   const [isSelectingAllLocationItems, setIsSelectingAllLocationItems] = useState(false)
   const [structuredFilters, setStructuredFilters] = useLocalStorageState<CollectionFilterState>(
@@ -386,6 +388,7 @@ export function LocationPage({ id }: { id: string }) {
             onAddToDeck={() => setBulkDeckTarget(selection.selectedItems)}
             onAddToList={() => setBulkListTarget(selection.selectedItems)}
             onClear={selection.clearSelection}
+            onEdit={() => setBulkEditTarget(selection.selectedItems)}
             onDelete={() => setBulkDeleteTarget(selection.selectedItems)}
             onMove={() => setBulkMoveTarget(selection.selectedItems)}
             onSelectAll={() => void selectAllLocationItems()}
@@ -441,6 +444,11 @@ export function LocationPage({ id }: { id: string }) {
         item={bulkDeckTarget}
         onDone={finishBulkLocationAction}
         onOpenChange={(open) => !open && setBulkDeckTarget(null)}
+      />
+      <BulkEditCollectionItemsDialog
+        item={bulkEditTarget}
+        onDone={finishBulkLocationAction}
+        onOpenChange={(open) => !open && setBulkEditTarget(null)}
       />
       <MoveCollectionItemDialog
         item={bulkListTarget}

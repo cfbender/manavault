@@ -89,6 +89,7 @@ export function CollectionBulkActionBar({
   onAddToList,
   onClear,
   onDelete,
+  onEdit,
   onMove,
   onSelectAll,
   selectedCount,
@@ -102,6 +103,7 @@ export function CollectionBulkActionBar({
   onAddToList: () => void
   onClear: () => void
   onDelete: () => void
+  onEdit: () => void
   onMove: () => void
   onSelectAll: () => void
   selectedCount: number
@@ -149,6 +151,16 @@ export function CollectionBulkActionBar({
           >
             <ListPlus className="h-4 w-4" />
             Add to list
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!hasSelection}
+            onClick={onEdit}
+          >
+            <Edit3 className="h-4 w-4" />
+            Edit
           </Button>
           <Button
             type="button"

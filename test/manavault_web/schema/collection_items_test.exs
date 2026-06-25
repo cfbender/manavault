@@ -203,4 +203,88 @@ defmodule ManavaultWeb.Schema.CollectionItemsTest do
 
     assert [] = Catalog.list_collection_items()
   end
+
+  test "bulk update collection items mutation edits selected item fields", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-printing-bulk-update",
+          "oracle_id" => "oracle-bulk-update",
+          "name" => "Bulk Update Card",
+          "type_line" => "Artifact",
+          "collector_number" => "42",
+          "set" => "blk",
+          "set_name" => "Bulk Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil", "foil"],
+          "prices" => %{"usd" => "2.00", "usd_foil" => "5.00"},
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, first_item} =
+      Catalog.create_collection_item(%{
+        scryfall_id: "scryfall-printing-bulk-update",
+        quantity: 1,
+        purchase_price_cents: 100
+      })
+
+    {:ok, second_item} =
+      Catalog.create_collection_item(%{
+        scryfall_id: "scryfall-printing-bulk-update",
+        quantity: 2,
+        purchase_price_cents: 200
+      })
+
+    ids =
+      Enum.map([first_item, second_item], fn item ->
+        Absinthe.Relay.Node.to_global_id(:collection_item, item.id, ManavaultWeb.Schema)
+      end)
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation BulkUpdateCollectionItems($ids: [ID!]!, $input: CollectionItemUpdateInput!) {
+          bulkUpdateCollectionItems(ids: $ids, input: $input) {
+            collectionItems {
+              id
+              quantity
+              finish
+              purchasePriceCents
+              purchasePriceText
+            }
+          }
+        }
+        """,
+        "variables" => %{
+          "ids" => ids,
+          "input" => %{
+            "finish" => "foil",
+            "purchasePriceCents" => 1234
+          }
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "bulkUpdateCollectionItems" => %{
+                 "collectionItems" => [
+                   %{
+                     "quantity" => 1,
+                     "finish" => "foil",
+                     "purchasePriceCents" => 1234,
+                     "purchasePriceText" => "$12.34"
+                   },
+                   %{
+                     "quantity" => 2,
+                     "finish" => "foil",
+                     "purchasePriceCents" => 1234,
+                     "purchasePriceText" => "$12.34"
+                   }
+                 ]
+               }
+             }
+           } = json_response(conn, 200)
+  end
 end

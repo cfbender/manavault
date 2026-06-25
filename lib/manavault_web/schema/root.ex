@@ -279,6 +279,25 @@ defmodule ManavaultWeb.Schema do
       end)
     end
 
+    payload field :bulk_update_collection_items do
+      arg(:ids, non_null(list_of(non_null(:id))))
+      arg(:input, non_null(:collection_item_update_input))
+
+      output do
+        field :collection_items, non_null(list_of(non_null(:collection_item)))
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &CatalogResolvers.bulk_update_collection_items/3,
+          :collection_items
+        )
+      end)
+    end
+
     payload field :delete_collection_item do
       arg(:id, non_null(:id))
 
