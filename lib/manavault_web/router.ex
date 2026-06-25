@@ -25,6 +25,8 @@ defmodule ManavaultWeb.Router do
     get "/site.webmanifest", PwaController, :manifest
     get "/sw.js", PwaController, :service_worker
     get "/.well-known/assetlinks.json", PwaController, :asset_links
+    get "/share/decks/:token/preview.svg", AppController, :share_deck_preview_image
+    get "/share/decks/:token/preview.png", AppController, :share_deck_preview_png
   end
 
   scope "/", ManavaultWeb do
@@ -32,7 +34,7 @@ defmodule ManavaultWeb.Router do
 
     get "/login", AuthController, :new
     post "/login", AuthController, :create
-    get "/share/decks/:token", AppController, :index
+    get "/share/decks/:token", AppController, :share_deck
     get "/scryfall-assets/*path", ScryfallAssetController, :show
   end
 
