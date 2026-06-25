@@ -50,6 +50,58 @@ defmodule ManavaultWeb.Schema.CardQueriesTest do
            } = json_response(conn, 200)
   end
 
+  test "set suggestions expose matching set codes and names", %{conn: conn} do
+    {:ok, %{cards_count: 2, printings_count: 2}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-set-printing-1",
+          "oracle_id" => "set-oracle-1",
+          "name" => "Black Lotus",
+          "type_line" => "Artifact",
+          "collector_number" => "232",
+          "set" => "lea",
+          "set_name" => "Limited Edition Alpha",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        },
+        %{
+          "id" => "scryfall-set-printing-2",
+          "oracle_id" => "set-oracle-2",
+          "name" => "Life of Toshiro Umezawa",
+          "type_line" => "Enchantment — Saga",
+          "collector_number" => "108",
+          "set" => "neo",
+          "set_name" => "Kamigawa: Neon Dynasty",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query {
+          setSuggestions(q: "alpha", limit: 5) {
+            setCode
+            setName
+          }
+        }
+        """
+      })
+
+    assert %{
+             "data" => %{
+               "setSuggestions" => [
+                 %{"setCode" => "lea", "setName" => "Limited Edition Alpha"}
+               ]
+             }
+           } = json_response(conn, 200)
+  end
+
   test "card query exposes Scryfall rulings", %{conn: conn} do
     rulings_uri = "https://api.scryfall.com/cards/oracle-rulings/rulings"
     previous_fetcher = Application.fetch_env(:manavault, :scryfall_rulings_fetcher)

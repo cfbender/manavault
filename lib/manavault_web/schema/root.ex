@@ -45,6 +45,12 @@ defmodule ManavaultWeb.Schema do
       resolve(&CatalogResolvers.card_name_suggestions/3)
     end
 
+    field :set_suggestions, non_null(list_of(non_null(:set_suggestion))) do
+      arg(:q, :string, default_value: "")
+      arg(:limit, :integer, default_value: 8)
+      resolve(&CatalogResolvers.set_suggestions/3)
+    end
+
     field :card, :card do
       arg(:id, non_null(:id))
       resolve(&CatalogResolvers.card/3)

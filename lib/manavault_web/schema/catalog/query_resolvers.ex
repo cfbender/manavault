@@ -50,6 +50,10 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
     {:ok, Catalog.suggest_card_names(Map.get(args, :q, ""), limit: Map.get(args, :limit, 5))}
   end
 
+  def set_suggestions(_parent, args, _resolution) do
+    {:ok, Catalog.search_sets(Map.get(args, :q, ""), limit: Map.get(args, :limit, 8))}
+  end
+
   def card(_parent, %{id: id}, resolution) do
     with {:ok, id} <- card_id(id, resolution) do
       {:ok, Catalog.get_card_with_printings(id)}

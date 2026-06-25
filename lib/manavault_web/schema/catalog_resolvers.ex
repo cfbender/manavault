@@ -15,6 +15,7 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   defdelegate home_summary(parent, args, resolution), to: QueryResolvers
   defdelegate cards(parent, args, resolution), to: QueryResolvers
   defdelegate card_name_suggestions(parent, args, resolution), to: QueryResolvers
+  defdelegate set_suggestions(parent, args, resolution), to: QueryResolvers
   defdelegate card(parent, args, resolution), to: QueryResolvers
   defdelegate reload_scryfall_catalog(parent, args, resolution), to: QueryResolvers
   defdelegate reload_scryfall_assets(parent, args, resolution), to: QueryResolvers

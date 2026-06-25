@@ -30,6 +30,7 @@ import {
   TYPE_OPTIONS,
 } from "./constants"
 import { createEmptyCollectionFilters } from "./storage"
+import { SetCombobox } from "./set-combobox"
 
 export function CollectionFilterModal({
   filters,
@@ -143,10 +144,9 @@ export function CollectionFilterModal({
 
             <FilterSection label="Printing" syntax="set:lea number:232 lang:ja">
               <div className="grid gap-3 sm:grid-cols-2">
-                <Input
+                <SetCombobox
                   value={draft.set}
-                  onChange={(event) => update("set", event.target.value)}
-                  placeholder="Set code or name"
+                  onValueChange={(value) => update("set", value)}
                 />
                 <ComparisonFilterControl
                   className="sm:col-start-1"

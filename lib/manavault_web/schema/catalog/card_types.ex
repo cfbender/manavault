@@ -11,6 +11,11 @@ defmodule ManavaultWeb.Schema.Catalog.CardTypes do
     field :message, non_null(:string)
   end
 
+  object :set_suggestion do
+    field :set_code, non_null(:string)
+    field :set_name, :string
+  end
+
   object :scryfall_oracle_tag do
     field :id, non_null(:id) do
       resolve(&CatalogResolvers.map_value/3)
