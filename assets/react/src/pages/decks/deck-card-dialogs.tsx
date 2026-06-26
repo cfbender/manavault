@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query"
+import { useQuery } from "@apollo/client/react"
 import { Layers, Palette } from "lucide-react"
 import { useEffect, useState, type FormEvent } from "react"
 import { Button } from "../../components/ui/button"
@@ -10,7 +10,6 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
-import { request } from "../../lib/graphql"
 import type { DeckCardUpdateInput } from "../../gql/graphql"
 import { cn, present, titleize } from "../../lib/utils"
 import { ZoneIcon } from "./deck-card-display"
@@ -127,11 +126,9 @@ export function EditDeckCardDialog({
   const [tag, setTag] = useState<DeckCardTag | "">("")
   const zoneOptions = deckFormat === "commander" ? ADD_CARD_ZONES : NON_COMMANDER_ADD_CARD_ZONES
   const cardId = deckCard?.card?.id || null
-  const { data: printingsData, isLoading: printingsLoading } = useQuery({
-    queryKey: ["card-printings", cardId],
-    queryFn: () => request(CardPrintingsDocument, { id: cardId! }),
-    enabled: Boolean(cardId),
-    staleTime: 60_000,
+  const { data: printingsData, loading: printingsLoading } = useQuery(CardPrintingsDocument, {
+    variables: { id: cardId || "" },
+    skip: !cardId,
   })
   const printings = connectionNodes(printingsData?.card?.printings).filter(present)
   const selectedPrinting = preferredPrintingId

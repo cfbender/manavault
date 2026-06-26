@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
 import { Plus } from "lucide-react"
 import type * as React from "react"
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -13,7 +13,7 @@ import {
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
 import { useToast } from "../../components/ui/toast"
-import { request } from "../../lib/graphql"
+import { refetchActiveQueries } from "../../lib/apollo"
 import { pluralize, present, titleize } from "../../lib/utils"
 import { COLLECTION_CONDITIONS, COLLECTION_FINISHES, MODAL_SEARCH_DEBOUNCE_MS } from "./constants"
 import {
@@ -46,7 +46,7 @@ export function AddCollectionItemDialog({
   onOpenChange: (open: boolean) => void
   open: boolean
 }) {
-  const queryClient = useQueryClient()
+  const client = useApolloClient()
   const { showToast } = useToast()
   const [search, setSearch] = useState("")
   const [selectedPrinting, setSelectedPrinting] =
@@ -70,16 +70,13 @@ export function AddCollectionItemDialog({
   const finishOptions = selectedFinishes.length ? selectedFinishes : COLLECTION_FINISHES
   const showCardSearchResults = !selectedPrinting && isCardSearchOpen && searchDraftTerm.length > 1
 
-  const optionsQuery = useQuery({
-    queryKey: ["collection-item-form-options"],
-    queryFn: () => request(CollectionItemFormOptionsDocument),
-    enabled: open,
+  const optionsQuery = useQuery(CollectionItemFormOptionsDocument, {
+    skip: !open,
+    fetchPolicy: "cache-and-network",
   })
-  const cardSearchQuery = useQuery({
-    queryKey: ["collection-item-card-search", searchTerm],
-    queryFn: () => request(LocationCoverCardSearchDocument, { q: searchTerm, first: 8 }),
-    enabled: open && !selectedPrinting && isCardSearchOpen && searchTerm.length > 1,
-    staleTime: 60_000,
+  const cardSearchQuery = useQuery(LocationCoverCardSearchDocument, {
+    variables: { q: searchTerm, first: 8 },
+    skip: !(open && !selectedPrinting && isCardSearchOpen && searchTerm.length > 1),
   })
   const locations = useMemo(
     () => optionsQuery.data?.locations?.edges?.map((edge) => edge?.node).filter(present) || [],
@@ -96,37 +93,7 @@ export function AddCollectionItemDialog({
         })) || [],
     [cardSearchQuery.data],
   )
-  const createItem = useMutation({
-    mutationFn: () => {
-      if (!selectedPrinting) throw new Error("Choose a printing")
-      const purchasePriceCents = parseCurrencyInputCents(purchasePrice)
-
-      if (purchasePriceCents === undefined)
-        throw new Error("Purchase price must be a dollar amount")
-
-      return request(CreateCollectionItemDocument, {
-        input: {
-          scryfallId: selectedPrinting.id,
-          quantity,
-          condition,
-          finish,
-          language: language.trim() || "en",
-          locationId: locationId || null,
-          notes: notes.trim() || null,
-          purchasePriceCents,
-        },
-      })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["collection"] })
-      queryClient.invalidateQueries({ queryKey: ["collection-items"] })
-      queryClient.invalidateQueries({ queryKey: ["home"] })
-      showToast(`${pluralize(quantity, "card")} added to collection`)
-      close(true)
-    },
-    onError: (error) =>
-      setError(error instanceof Error ? error.message : "Could not add collection card"),
-  })
+  const [createItemMutation, createItem] = useMutation(CreateCollectionItemDocument)
 
   useEffect(() => {
     if (!open) return
@@ -204,16 +171,37 @@ export function AddCollectionItemDialog({
       return
     }
 
-    if (parseCurrencyInputCents(purchasePrice) === undefined) {
+    const purchasePriceCents = parseCurrencyInputCents(purchasePrice)
+    if (purchasePriceCents === undefined) {
       setError("Purchase price must be a dollar amount")
       return
     }
 
-    createItem.mutate()
+    void createItemMutation({
+      variables: {
+        input: {
+          scryfallId: selectedPrinting.id,
+          quantity,
+          condition,
+          finish,
+          language: language.trim() || "en",
+          locationId: locationId || null,
+          notes: notes.trim() || null,
+          purchasePriceCents,
+        },
+      },
+      onCompleted: () => {
+        void refetchActiveQueries(client)
+        showToast(`${pluralize(quantity, "card")} added to collection`)
+        close(true)
+      },
+      onError: (error) =>
+        setError(error instanceof Error ? error.message : "Could not add collection card"),
+    })
   }
 
   function close(force = false) {
-    if (createItem.isPending && !force) return
+    if (createItem.loading && !force) return
     setError(null)
     onOpenChange(false)
   }
@@ -296,10 +284,10 @@ export function AddCollectionItemDialog({
                 />
                 {showCardSearchResults ? (
                   <div className="max-h-64 overflow-y-auto rounded-box border border-base-300 bg-base-100">
-                    {cardSearchQuery.isFetching || searchTerm !== searchDraftTerm ? (
+                    {cardSearchQuery.loading || searchTerm !== searchDraftTerm ? (
                       <p className="px-3 py-2 text-sm text-base-content/55">Searching...</p>
                     ) : null}
-                    {!cardSearchQuery.isFetching &&
+                    {!cardSearchQuery.loading &&
                     searchTerm === searchDraftTerm &&
                     cardSearchCards.length === 0 ? (
                       <p className="px-3 py-2 text-sm text-base-content/55">No cards found.</p>
@@ -450,13 +438,13 @@ export function AddCollectionItemDialog({
               type="button"
               variant="ghost"
               onClick={() => close()}
-              disabled={createItem.isPending}
+              disabled={createItem.loading}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={createItem.isPending}>
+            <Button type="submit" disabled={createItem.loading}>
               <Plus className="h-4 w-4" />
-              {createItem.isPending ? "Adding card..." : "Add card"}
+              {createItem.loading ? "Adding card..." : "Add card"}
             </Button>
           </div>
         </form>

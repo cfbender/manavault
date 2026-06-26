@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query"
+import { useQuery } from "@apollo/client/react"
 import { Clipboard } from "lucide-react"
 import { useEffect, useState } from "react"
 import { EmptyState } from "../../components/card-image"
@@ -12,7 +12,6 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { useToast } from "../../components/ui/toast"
-import { request } from "../../lib/graphql"
 import { buylistPrintingLabel, buylistReasonTone, buylistSummary } from "./buylist-export"
 import { BuylistOptionCheckbox } from "./buylist-option-checkbox"
 import { BuylistMarketplaceActions } from "./buylist-marketplace-actions"
@@ -35,27 +34,17 @@ export function MissingCardsDialog({
   const [includeSideboard, setIncludeSideboard] = useState(false)
   const [includeMaybeboard, setIncludeMaybeboard] = useState(false)
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle")
-  const buylistQuery = useQuery({
-    queryKey: [
-      "deck-buylist",
-      deck?.id,
+  const buylistQuery = useQuery(DeckBuylistDocument, {
+    variables: {
+      id: deck?.id || "",
       printingMode,
       exportFormat,
+      assumeNoOwned: false,
       includeBasicLands,
       includeSideboard,
       includeMaybeboard,
-    ],
-    queryFn: () =>
-      request(DeckBuylistDocument, {
-        id: deck?.id || "",
-        printingMode,
-        exportFormat,
-        assumeNoOwned: false,
-        includeBasicLands,
-        includeSideboard,
-        includeMaybeboard,
-      }),
-    enabled: open && Boolean(deck?.id),
+    },
+    skip: !open || !deck?.id,
   })
   const entries = buylistQuery.data?.deckBuylist || []
   const exportText = buylistQuery.data?.deckBuylistExport || ""
@@ -160,7 +149,7 @@ export function MissingCardsDialog({
           <BuylistMarketplaceActions entries={entries} />
 
           <div className="rounded-box border border-base-300 bg-base-200/60 px-4 py-3 text-sm text-base-content/70">
-            {buylistQuery.isLoading ? "Loading buylist..." : buylistSummary(entries)}
+            {buylistQuery.loading ? "Loading buylist..." : buylistSummary(entries)}
           </div>
 
           {buylistQuery.error ? (
@@ -171,7 +160,7 @@ export function MissingCardsDialog({
             </p>
           ) : null}
 
-          {!buylistQuery.isLoading && !entries.length ? (
+          {!buylistQuery.loading && !entries.length ? (
             <EmptyState title="No missing or unavailable cards for this deck" />
           ) : null}
 
@@ -211,7 +200,7 @@ export function MissingCardsDialog({
           <textarea
             className="textarea textarea-bordered min-h-48 w-full bg-base-100 font-mono text-xs"
             readOnly
-            value={buylistQuery.isLoading ? "Exporting..." : exportText}
+            value={buylistQuery.loading ? "Exporting..." : exportText}
           />
           {copyState === "failed" ? (
             <p className="text-sm text-error">Could not copy from this browser context.</p>

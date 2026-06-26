@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery } from "@apollo/client/react"
 import type * as React from "react"
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "../../components/ui/button"
@@ -11,7 +11,6 @@ import {
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
 import { useToast } from "../../components/ui/toast"
-import { request } from "../../lib/graphql"
 import { pluralize, present, titleize } from "../../lib/utils"
 import { COLLECTION_CONDITIONS, COLLECTION_FINISHES } from "./constants"
 import { CollectionItemFormOptionsDocument, UpdateCollectionItemDocument } from "./documents"
@@ -45,44 +44,15 @@ export function EditCollectionItemDialog({
   const [purchasePrice, setPurchasePrice] = useState("")
   const [error, setError] = useState<string | null>(null)
   const open = Boolean(item)
-  const optionsQuery = useQuery({
-    queryKey: ["collection-item-form-options"],
-    queryFn: () => request(CollectionItemFormOptionsDocument),
-    enabled: open,
+  const optionsQuery = useQuery(CollectionItemFormOptionsDocument, {
+    skip: !open,
+    fetchPolicy: "cache-and-network",
   })
   const locations = useMemo(
     () => optionsQuery.data?.locations?.edges?.map((edge) => edge?.node).filter(present) || [],
     [optionsQuery.data],
   )
-  const updateItem = useMutation({
-    mutationFn: () => {
-      if (!item) throw new Error("Collection item is required")
-      const purchasePriceCents = parseCurrencyInputCents(purchasePrice)
-
-      if (purchasePriceCents === undefined)
-        throw new Error("Purchase price must be a dollar amount")
-
-      return request(UpdateCollectionItemDocument, {
-        id: item.id,
-        input: {
-          quantity,
-          condition,
-          finish,
-          language: language.trim() || "en",
-          locationId: locationId || null,
-          notes: notes.trim() || null,
-          purchasePriceCents,
-        },
-      })
-    },
-    onSuccess: () => {
-      showToast(`${pluralize(1, "card")} edited`)
-      onDone()
-      onOpenChange(false)
-    },
-    onError: (error) =>
-      setError(error instanceof Error ? error.message : "Could not update collection item"),
-  })
+  const [updateItemMutation, updateItem] = useMutation(UpdateCollectionItemDocument)
 
   useEffect(() => {
     if (item) {
@@ -106,16 +76,42 @@ export function EditCollectionItemDialog({
       return
     }
 
-    if (parseCurrencyInputCents(purchasePrice) === undefined) {
+    const purchasePriceCents = parseCurrencyInputCents(purchasePrice)
+    if (purchasePriceCents === undefined) {
       setError("Purchase price must be a dollar amount")
       return
     }
 
-    updateItem.mutate()
+    if (!item) {
+      setError("Collection item is required")
+      return
+    }
+
+    void updateItemMutation({
+      variables: {
+        id: item.id,
+        input: {
+          quantity,
+          condition,
+          finish,
+          language: language.trim() || "en",
+          locationId: locationId || null,
+          notes: notes.trim() || null,
+          purchasePriceCents,
+        },
+      },
+      onCompleted: () => {
+        showToast(`${pluralize(1, "card")} edited`)
+        onDone()
+        onOpenChange(false)
+      },
+      onError: (error) =>
+        setError(error instanceof Error ? error.message : "Could not update collection item"),
+    })
   }
 
   function close() {
-    if (updateItem.isPending) return
+    if (updateItem.loading) return
     onOpenChange(false)
   }
 
@@ -226,11 +222,11 @@ export function EditCollectionItemDialog({
             </p>
           ) : null}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={close} disabled={updateItem.isPending}>
+            <Button type="button" variant="ghost" onClick={close} disabled={updateItem.loading}>
               Cancel
             </Button>
-            <Button type="submit" disabled={updateItem.isPending}>
-              {updateItem.isPending ? "Saving..." : "Save item"}
+            <Button type="submit" disabled={updateItem.loading}>
+              {updateItem.loading ? "Saving..." : "Save item"}
             </Button>
           </div>
         </form>

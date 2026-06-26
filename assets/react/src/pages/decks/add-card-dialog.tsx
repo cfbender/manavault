@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useApolloClient, useMutation } from "@apollo/client/react"
 import { useEffect, useState, type FormEvent } from "react"
 import { CardNameSearchField } from "../../components/card-name-search-field"
 import { Button } from "../../components/ui/button"
@@ -11,7 +11,7 @@ import {
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
 import { useToast } from "../../components/ui/toast"
-import { request } from "../../lib/graphql"
+import { refetchActiveQueries } from "../../lib/apollo"
 import { pluralize, titleize } from "../../lib/utils"
 import type { DeckDetail, DeckZone } from "./deck-types"
 import { ADD_CARD_ZONES, NON_COMMANDER_ADD_CARD_ZONES } from "./deck-types"
@@ -26,7 +26,7 @@ export function AddDeckCardDialog({
   onOpenChange: (open: boolean) => void
   open: boolean
 }) {
-  const queryClient = useQueryClient()
+  const client = useApolloClient()
   const { showToast } = useToast()
   const [name, setName] = useState("")
   const [quantity, setQuantity] = useState(1)
@@ -34,35 +34,35 @@ export function AddDeckCardDialog({
   const [finish, setFinish] = useState("nonfoil")
   const [error, setError] = useState<string | null>(null)
   const zoneOptions = deck?.format === "commander" ? ADD_CARD_ZONES : NON_COMMANDER_ADD_CARD_ZONES
-  const addDeckCard = useMutation({
-    mutationFn: () =>
-      request(AddDeckCardDocument, {
-        deckId: deck?.id || "",
-        input: {
-          name: name.trim(),
-          quantity,
-          zone,
-          finish,
+  const [addDeckCardMutation, addDeckCardResult] = useMutation(AddDeckCardDocument)
+  const addDeckCard = {
+    ...addDeckCardResult,
+    isPending: addDeckCardResult.loading,
+    mutate: () =>
+      void addDeckCardMutation({
+        variables: {
+          deckId: deck?.id || "",
+          input: {
+            name: name.trim(),
+            quantity,
+            zone,
+            finish,
+          },
         },
+        onCompleted: () => {
+          void refetchActiveQueries(client)
+          showToast(`${pluralize(quantity, "card")} added to deck`)
+          setName("")
+          setQuantity(1)
+          setZone("mainboard")
+          setFinish("nonfoil")
+          setError(null)
+          onOpenChange(false)
+        },
+        onError: (error) =>
+          setError(error instanceof Error ? error.message : "Could not add card to deck"),
       }),
-    onSuccess: () => {
-      if (deck?.id) {
-        queryClient.invalidateQueries({ queryKey: ["deck", deck.id] })
-        queryClient.invalidateQueries({ queryKey: ["deck-buylist", deck.id] })
-        queryClient.invalidateQueries({ queryKey: ["deck-edhrec", deck.id] })
-      }
-      queryClient.invalidateQueries({ queryKey: ["decks"] })
-      showToast(`${pluralize(quantity, "card")} added to deck`)
-      setName("")
-      setQuantity(1)
-      setZone("mainboard")
-      setFinish("nonfoil")
-      setError(null)
-      onOpenChange(false)
-    },
-    onError: (error) =>
-      setError(error instanceof Error ? error.message : "Could not add card to deck"),
-  })
+  }
 
   useEffect(() => {
     if (!open) {

@@ -1,14 +1,9 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useApolloClient, useQuery } from "@apollo/client/react"
 import { Edit3 } from "lucide-react"
 import { useState } from "react"
 import { Button } from "../../components/ui/button"
-import { request } from "../../lib/graphql"
 import { present, titleize } from "../../lib/utils"
-import {
-  EditCollectionItemDialog,
-  invalidateCollectionViews,
-  type CollectionItem,
-} from "../collection"
+import { EditCollectionItemDialog, type CollectionItem } from "../collection"
 import { CardCollectionItemsDocument, type CardCollectionItem } from "./data"
 
 type NodeConnection<T> =
@@ -43,19 +38,14 @@ function itemSummaryParts(item: CardCollectionItem) {
   ].filter(present)
 }
 
-export function CardCollectionCopiesPanel({
-  cardId,
-  cardQueryId,
-}: {
-  cardId: string
-  cardQueryId: string
-}) {
-  const queryClient = useQueryClient()
+export function CardCollectionCopiesPanel({ cardId }: { cardId: string }) {
+  const client = useApolloClient()
   const [editItem, setEditItem] = useState<CollectionItem | null>(null)
-  const { data, isLoading } = useQuery({
-    queryKey: ["card-collection-items", cardId],
-    queryFn: () => request(CardCollectionItemsDocument, { cardId }),
+  const { data, loading } = useQuery(CardCollectionItemsDocument, {
+    variables: { cardId },
+    fetchPolicy: "cache-and-network",
   })
+  const isLoading = loading && !data
   const items = connectionNodes(data?.collectionItems)
   const copyCount =
     data?.collectionItemCount ?? items.reduce((total, item) => total + item.quantity, 0)
@@ -63,9 +53,7 @@ export function CardCollectionCopiesPanel({
   if (!isLoading && items.length === 0) return null
 
   function handleEdited() {
-    queryClient.invalidateQueries({ queryKey: ["card-collection-items", cardId] })
-    queryClient.invalidateQueries({ queryKey: ["card", cardQueryId] })
-    invalidateCollectionViews(queryClient, editItem?.location?.id)
+    void client.refetchQueries({ include: "active" })
   }
 
   return (

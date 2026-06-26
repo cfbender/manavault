@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query"
+import { useMutation } from "@apollo/client/react"
 import { Trash2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Button } from "../../components/ui/button"
@@ -10,7 +10,6 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { useToast } from "../../components/ui/toast"
-import { request } from "../../lib/graphql"
 import { pluralize } from "../../lib/utils"
 import { DeleteCollectionItemDocument } from "./documents"
 import {
@@ -33,30 +32,35 @@ export function DeleteCollectionItemDialog({
   const targetItems = collectionTargetItems(item)
   const targetCount = targetItems.length
   const open = targetCount > 0
-  const deleteItem = useMutation({
-    mutationFn: () => {
-      if (!targetItems.length) throw new Error("Choose at least one item")
-      return Promise.all(
-        targetItems.map((targetItem) =>
-          request(DeleteCollectionItemDocument, { id: targetItem.id }),
-        ),
-      )
-    },
-    onSuccess: () => {
-      showToast(`${pluralize(targetCount, "card")} deleted`)
-      onDone()
-      onOpenChange(false)
-    },
-    onError: (error) =>
-      setError(error instanceof Error ? error.message : "Could not delete collection items"),
-  })
+  const [deleteItemMutation, deleteItem] = useMutation(DeleteCollectionItemDocument)
 
   useEffect(() => {
     if (!open) setError(null)
   }, [open])
 
+  function deleteItems() {
+    setError(null)
+
+    if (!targetItems.length) {
+      setError("Choose at least one item")
+      return
+    }
+
+    void Promise.all(
+      targetItems.map((targetItem) => deleteItemMutation({ variables: { id: targetItem.id } })),
+    )
+      .then(() => {
+        showToast(`${pluralize(targetCount, "card")} deleted`)
+        onDone()
+        onOpenChange(false)
+      })
+      .catch((error) =>
+        setError(error instanceof Error ? error.message : "Could not delete collection items"),
+      )
+  }
+
   function close() {
-    if (deleteItem.isPending) return
+    if (deleteItem.loading) return
     onOpenChange(false)
   }
 
@@ -84,17 +88,17 @@ export function DeleteCollectionItemDialog({
             </p>
           ) : null}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={close} disabled={deleteItem.isPending}>
+            <Button type="button" variant="ghost" onClick={close} disabled={deleteItem.loading}>
               Cancel
             </Button>
             <Button
               type="button"
               variant="destructive"
-              onClick={() => deleteItem.mutate()}
-              disabled={deleteItem.isPending}
+              onClick={deleteItems}
+              disabled={deleteItem.loading}
             >
               <Trash2 className="h-4 w-4" />
-              {deleteItem.isPending
+              {deleteItem.loading
                 ? "Deleting..."
                 : targetCount > 1
                   ? `Delete ${targetCount}`

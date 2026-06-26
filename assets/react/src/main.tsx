@@ -1,22 +1,14 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { ApolloProvider } from "@apollo/client/react"
 import { RouterProvider, createRouter } from "@tanstack/react-router"
 import { createRoot } from "react-dom/client"
 import "./pwa"
+import { apolloClient } from "./lib/apollo"
 import { initializeNativeBackButton } from "./lib/native-back"
 import { ThemeProvider } from "./lib/theme"
 import { ToastProvider } from "./components/ui/toast"
 import { routeTree } from "./routeTree.gen"
 import { initializeNativeSharedImport, type NativeOpenPayload } from "./lib/native-shared-import"
 import { nativeAppPath, parseNativeRoute, type NativeRoute } from "./lib/native-open"
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30_000,
-      refetchOnWindowFocus: false,
-    },
-  },
-})
 
 const router = createRouter({ routeTree })
 
@@ -85,11 +77,11 @@ void initializeNativeBackButton({
 })
 
 createRoot(document.getElementById("manavault-root")!).render(
-  <QueryClientProvider client={queryClient}>
+  <ApolloProvider client={apolloClient}>
     <ThemeProvider>
       <ToastProvider>
         <RouterProvider router={router} />
       </ToastProvider>
     </ThemeProvider>
-  </QueryClientProvider>,
+  </ApolloProvider>,
 )

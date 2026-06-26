@@ -1,5 +1,5 @@
+import { useQuery } from "@apollo/client/react"
 import { useNavigate } from "@tanstack/react-router"
-import { useQuery } from "@tanstack/react-query"
 import { motion } from "motion/react"
 import { Boxes, Layers, MapPin, Search } from "lucide-react"
 import type { FormEvent } from "react"
@@ -9,7 +9,6 @@ import { CardNameSearchField } from "../components/card-name-search-field"
 import { Button } from "../components/ui/button"
 import Prism from "../components/prism/Prism"
 import { graphql } from "../gql"
-import { request } from "../lib/graphql"
 import { compactNumber } from "../lib/utils"
 
 const HomeDocument = graphql(`
@@ -25,10 +24,11 @@ const HomeDocument = graphql(`
 export function HomePage() {
   const [q, setQ] = useState("")
   const navigate = useNavigate({ from: "/" })
-  const { data, isError, isLoading } = useQuery({
-    queryKey: ["home"],
-    queryFn: () => request(HomeDocument),
+  const { data, error, loading } = useQuery(HomeDocument, {
+    fetchPolicy: "cache-and-network",
   })
+  const isLoading = loading && !data
+  const isError = Boolean(error) && !data
   const summary = data?.homeSummary
   const [renderPrism, setRenderPrism] = useState(false)
 

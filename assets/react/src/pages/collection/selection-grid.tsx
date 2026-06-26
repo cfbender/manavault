@@ -1,4 +1,4 @@
-import { useQueryClient } from "@tanstack/react-query"
+import { useApolloClient } from "@apollo/client/react"
 import { Link, useLocation } from "@tanstack/react-router"
 import { CheckSquare, Edit3, Layers, ListPlus, MoveUpRight, Trash2, X } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -315,7 +315,7 @@ function CollectionItemTile({
   onToggleSelected?: (item: CollectionItem) => void
   selectionActive?: boolean
 }) {
-  const queryClient = useQueryClient()
+  const client = useApolloClient()
   const [deckTarget, setDeckTarget] = useState<CollectionItem | null>(null)
   const [listTarget, setListTarget] = useState<CollectionItem | null>(null)
   const [moveTarget, setMoveTarget] = useState<CollectionItem | null>(null)
@@ -325,7 +325,7 @@ function CollectionItemTile({
   const cardReturnSearch = collectionCardReturnSearch(pathname)
 
   function refreshCollection() {
-    invalidateCollectionViews(queryClient, item.location?.id)
+    void invalidateCollectionViews(client, item.location?.id)
   }
 
   return (

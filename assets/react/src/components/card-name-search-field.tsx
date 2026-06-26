@@ -1,8 +1,7 @@
-import { useQuery } from "@tanstack/react-query"
+import { useQuery } from "@apollo/client/react"
 import { useEffect, useRef, useState } from "react"
 import type { FocusEvent, InputHTMLAttributes, KeyboardEvent } from "react"
 import { graphql } from "../gql"
-import { request } from "../lib/graphql"
 import { SearchField } from "./search-field"
 
 const CardNameSuggestionsDocument = graphql(`
@@ -39,14 +38,13 @@ export function CardNameSearchField({
   const [activeIndex, setActiveIndex] = useState(-1)
   const suggestionTerm = debouncedValue.trim()
   const hasScryfallSyntax = looksLikeScryfallSyntax(suggestionTerm)
-  const { data } = useQuery({
-    queryKey: ["card-name-suggestions", suggestionTerm, suggestionLimit],
-    queryFn: () =>
-      request(CardNameSuggestionsDocument, { q: suggestionTerm, limit: suggestionLimit }),
-    enabled: suggestionTerm.length > 1 && !hasScryfallSyntax,
-    staleTime: 60_000,
+  const shouldFetchSuggestions = suggestionTerm.length > 1 && !hasScryfallSyntax
+  const { data } = useQuery(CardNameSuggestionsDocument, {
+    variables: { q: suggestionTerm, limit: suggestionLimit },
+    skip: !shouldFetchSuggestions,
+    fetchPolicy: "cache-first",
   })
-  const suggestions = hasScryfallSyntax ? [] : (data?.cardNameSuggestions ?? [])
+  const suggestions = shouldFetchSuggestions ? (data?.cardNameSuggestions ?? []) : []
   const showSuggestions = isOpen && suggestions.length > 0
 
   useEffect(() => {

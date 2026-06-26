@@ -42,7 +42,7 @@ export function DeckCardDetailDialog({
               hidePrivateControls={shareMode}
               id={cardId}
               query=""
-              requestEndpoint={shareMode ? "/share/graphql" : undefined}
+              graphqlEndpoint={shareMode ? "/share/graphql" : undefined}
             />
           </div>
         </DialogContent>

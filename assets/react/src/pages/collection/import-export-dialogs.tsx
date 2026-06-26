@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
 import { Upload, WandSparkles } from "lucide-react"
 import type * as React from "react"
 import { useEffect, useMemo, useState } from "react"
@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { useToast } from "../../components/ui/toast"
-import { request } from "../../lib/graphql"
+import { refetchActiveQueries } from "../../lib/apollo"
 import type { SharedImportPayload } from "../../lib/native-shared-import"
 import { pluralize, present, titleize } from "../../lib/utils"
 import { AutoSortSetupDialog, hasEnabledAutoSortRules } from "./auto-sort-setup-dialog"
@@ -53,7 +53,7 @@ export function ImportCollectionDialog({
   onOpenChange: (open: boolean) => void
   open: boolean
 }) {
-  const queryClient = useQueryClient()
+  const client = useApolloClient()
   const { showToast } = useToast()
   const [importText, setImportText] = useState("")
   const [fileName, setFileName] = useState("")
@@ -65,88 +65,21 @@ export function ImportCollectionDialog({
   const [error, setError] = useState<string | null>(null)
   const [isAutoSortSetupOpen, setIsAutoSortSetupOpen] = useState(false)
   const [autoSortPreview, setAutoSortPreview] = useState<AutoSortCollectionResult | null>(null)
-  const optionsQuery = useQuery({
-    queryKey: ["collection-item-form-options"],
-    queryFn: () => request(CollectionItemFormOptionsDocument),
-    enabled: open,
+  const [commitPendingAutoSort, setCommitPendingAutoSort] = useState(false)
+  const optionsQuery = useQuery(CollectionItemFormOptionsDocument, {
+    skip: !open,
+    fetchPolicy: "cache-and-network",
   })
   const locations = useMemo(
     () => optionsQuery.data?.locations?.edges?.map((edge) => edge?.node).filter(present) || [],
     [optionsQuery.data],
   )
   const autoSortRules = optionsQuery.data?.collectionAutoSortRules ?? []
-  const previewImport = useMutation({
-    mutationFn: (values?: PreviewCollectionImportValues) => {
-      const priceInput = values?.purchasePrice ?? purchasePrice
-      const purchasePriceCents = parseCurrencyInputCents(priceInput)
-
-      if (purchasePriceCents === undefined) {
-        throw new Error("Purchase price must be a dollar amount")
-      }
-
-      return request(PreviewCollectionImportDocument, {
-        input: {
-          text: values?.text ?? importText,
-          format: values?.format ?? format,
-          fileName: (values?.fileName ?? fileName) || null,
-          locationId: (values?.locationId ?? locationId) || null,
-          purchasePriceCents,
-        },
-      })
-    },
-    onSuccess: (data) => {
-      setPreview(data.previewCollectionImport?.importPreview || null)
-      clearAutoSortPreview()
-      setError(null)
-    },
-    onError: (error) =>
-      setError(error instanceof Error ? error.message : "Could not preview collection import"),
-  })
-  const previewImportAutoSort = useMutation({
-    mutationFn: () => {
-      if (!preview) throw new Error("Preview a file before previewing auto-sort")
-
-      return request(PreviewCollectionImportAutoSortDocument, {
-        input: {
-          rows: preview.rows.map(commitImportRow),
-        },
-      })
-    },
-    onSuccess: (data) => {
-      setAutoSortPreview(data.previewCollectionImportAutoSort?.autoSortResult ?? null)
-      setError(null)
-    },
-    onError: (error) =>
-      setError(error instanceof Error ? error.message : "Could not preview import auto-sort"),
-  })
-  const commitImport = useMutation({
-    mutationFn: ({ autoSort = false }: { autoSort?: boolean } = {}) => {
-      if (!preview) throw new Error("Preview a file before importing")
-      return request(CommitCollectionImportDocument, {
-        input: {
-          rows: preview.rows.map(commitImportRow),
-          ...(autoSort ? { autoSort: true } : {}),
-        },
-      })
-    },
-    onSuccess: (data) => {
-      const result = data.commitCollectionImport?.importResult
-      const importedCount = result?.imported ?? preview?.exact ?? 0
-      const autoSortedCount = result?.autoSorted ?? 0
-      const autoSortSuffix =
-        autoSortedCount > 0 ? `; ${pluralize(autoSortedCount, "card")} auto-sorted` : ""
-
-      showToast(`${pluralize(importedCount, "card")} imported${autoSortSuffix}`)
-      queryClient.invalidateQueries({ queryKey: ["collection"] })
-      queryClient.invalidateQueries({ queryKey: ["collection-items"] })
-      queryClient.invalidateQueries({ queryKey: ["location"] })
-      queryClient.invalidateQueries({ queryKey: ["home"] })
-      reset()
-      onOpenChange(false)
-    },
-    onError: (error) =>
-      setError(error instanceof Error ? error.message : "Could not import collection file"),
-  })
+  const [previewImportMutation, previewImport] = useMutation(PreviewCollectionImportDocument)
+  const [previewImportAutoSortMutation, previewImportAutoSort] = useMutation(
+    PreviewCollectionImportAutoSortDocument,
+  )
+  const [commitImportMutation, commitImport] = useMutation(CommitCollectionImportDocument)
 
   useEffect(() => {
     if (!open) reset()
@@ -155,6 +88,35 @@ export function ImportCollectionDialog({
   useEffect(() => {
     if (open && initialImport?.text) loadSharedImport(initialImport)
   }, [open, initialImport])
+
+  function previewImportFile(values?: PreviewCollectionImportValues) {
+    const priceInput = values?.purchasePrice ?? purchasePrice
+    const purchasePriceCents = parseCurrencyInputCents(priceInput)
+
+    if (purchasePriceCents === undefined) {
+      setError("Purchase price must be a dollar amount")
+      return
+    }
+
+    void previewImportMutation({
+      variables: {
+        input: {
+          text: values?.text ?? importText,
+          format: values?.format ?? format,
+          fileName: (values?.fileName ?? fileName) || null,
+          locationId: (values?.locationId ?? locationId) || null,
+          purchasePriceCents,
+        },
+      },
+      onCompleted: (data) => {
+        setPreview(data.previewCollectionImport?.importPreview || null)
+        clearAutoSortPreview()
+        setError(null)
+      },
+      onError: (error) =>
+        setError(error instanceof Error ? error.message : "Could not preview collection import"),
+    })
+  }
 
   async function chooseFile(file: File | undefined) {
     setError(null)
@@ -177,7 +139,7 @@ export function ImportCollectionDialog({
     setSharedFileName(nextFileName)
     setFormat(nextFormat)
     setImportText(payload.text)
-    previewImport.mutate({
+    previewImportFile({
       fileName: nextFileName,
       format: nextFormat,
       locationId,
@@ -211,7 +173,7 @@ export function ImportCollectionDialog({
       return
     }
 
-    previewImport.mutate(undefined)
+    previewImportFile()
   }
 
   function selectCandidate(rowNumber: number, candidate: CollectionImportCandidate) {
@@ -241,7 +203,24 @@ export function ImportCollectionDialog({
       return
     }
 
-    previewImportAutoSort.mutate()
+    if (!preview) {
+      setError("Preview a file before previewing auto-sort")
+      return
+    }
+
+    void previewImportAutoSortMutation({
+      variables: {
+        input: {
+          rows: preview.rows.map(commitImportRow),
+        },
+      },
+      onCompleted: (data) => {
+        setAutoSortPreview(data.previewCollectionImportAutoSort?.autoSortResult ?? null)
+        setError(null)
+      },
+      onError: (error) =>
+        setError(error instanceof Error ? error.message : "Could not preview import auto-sort"),
+    })
   }
 
   function commitPreview(autoSort: boolean) {
@@ -252,10 +231,40 @@ export function ImportCollectionDialog({
       return
     }
 
-    commitImport.mutate({ autoSort })
+    if (!preview) {
+      setError("Preview a file before importing")
+      return
+    }
+
+    setCommitPendingAutoSort(autoSort)
+    void commitImportMutation({
+      variables: {
+        input: {
+          rows: preview.rows.map(commitImportRow),
+          ...(autoSort ? { autoSort: true } : {}),
+        },
+      },
+      onCompleted: (data) => {
+        const result = data.commitCollectionImport?.importResult
+        const importedCount = result?.imported ?? preview.exact
+        const autoSortedCount = result?.autoSorted ?? 0
+        const autoSortSuffix =
+          autoSortedCount > 0 ? `; ${pluralize(autoSortedCount, "card")} auto-sorted` : ""
+
+        showToast(`${pluralize(importedCount, "card")} imported${autoSortSuffix}`)
+        void refetchActiveQueries(client)
+        setCommitPendingAutoSort(false)
+        reset()
+        onOpenChange(false)
+      },
+      onError: (error) => {
+        setCommitPendingAutoSort(false)
+        setError(error instanceof Error ? error.message : "Could not import collection file")
+      },
+    })
   }
   function close() {
-    if (previewImport.isPending || previewImportAutoSort.isPending || commitImport.isPending) return
+    if (previewImport.loading || previewImportAutoSort.loading || commitImport.loading) return
     reset()
     onOpenChange(false)
   }
@@ -271,16 +280,16 @@ export function ImportCollectionDialog({
     setAutoSortPreview(null)
     setError(null)
     setIsAutoSortSetupOpen(false)
+    setCommitPendingAutoSort(false)
   }
 
   function clearAutoSortPreview() {
     setAutoSortPreview(null)
   }
 
-  const commitPendingAutoSort = commitImport.variables?.autoSort === true
-  const autoSortPreviewButtonLabel = optionsQuery.isLoading
+  const autoSortPreviewButtonLabel = optionsQuery.loading
     ? "Loading rules..."
-    : previewImportAutoSort.isPending
+    : previewImportAutoSort.loading
       ? "Previewing auto-sort..."
       : "Preview auto-sort"
   return (
@@ -391,9 +400,9 @@ export function ImportCollectionDialog({
                 <Button type="button" variant="ghost" onClick={close}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={previewImport.isPending}>
+                <Button type="submit" disabled={previewImport.loading}>
                   <Upload className="h-4 w-4" />
-                  {previewImport.isPending ? "Previewing..." : "Preview import"}
+                  {previewImport.loading ? "Previewing..." : "Preview import"}
                 </Button>
               </div>
             </form>
@@ -492,12 +501,12 @@ export function ImportCollectionDialog({
                 type="button"
                 variant="outline"
                 disabled={
-                  preview.exact === 0 || previewImportAutoSort.isPending || commitImport.isPending
+                  preview.exact === 0 || previewImportAutoSort.loading || commitImport.loading
                 }
                 onClick={() => commitPreview(false)}
               >
                 <Upload className="h-4 w-4" />
-                {commitImport.isPending && !commitPendingAutoSort
+                {commitImport.loading && !commitPendingAutoSort
                   ? "Importing..."
                   : "Import exact rows"}
               </Button>
@@ -505,9 +514,9 @@ export function ImportCollectionDialog({
                 type="button"
                 disabled={
                   preview.exact === 0 ||
-                  previewImportAutoSort.isPending ||
-                  commitImport.isPending ||
-                  optionsQuery.isLoading
+                  previewImportAutoSort.loading ||
+                  commitImport.loading ||
+                  optionsQuery.loading
                 }
                 onClick={previewAutoSortBeforeImport}
               >
@@ -554,45 +563,73 @@ export function ExportCollectionDialog({
   open: boolean
   title?: string
 }) {
+  const client = useApolloClient()
   const [exportText, setExportText] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const [isExporting, setIsExporting] = useState(false)
   const { showToast } = useToast()
   const isCsvExport = format === "csv"
-  const exportCollection = useMutation({
-    mutationFn: async () => {
-      if (isCsvExport) {
-        const data = await request(CollectionExportCsvDocument, { filters })
-        return data.collectionExportCsv
-      }
-
-      const data = await request(CollectionExportTextDocument, { filters })
-      return data.collectionExportText
-    },
-    onSuccess: (text) => {
-      if (isCsvExport) {
-        downloadCollectionExport(text, fileName, "text/csv;charset=utf-8")
-        setExportText("")
-        setError(null)
-        showToast(`Downloaded ${fileName}`)
-        onOpenChange(false)
-        return
-      }
-
-      setExportText(text)
-      setError(null)
-      showToast(`${fileName} ready to copy`, { tone: "info" })
-    },
-    onError: (error) =>
-      setError(error instanceof Error ? error.message : `Could not export ${format.toUpperCase()}`),
-  })
+  const exportFilters = useMemo(() => filters, [filters.locationId, filters.q])
 
   useEffect(() => {
-    if (open) exportCollection.mutate()
-    else {
+    if (!open) {
       setExportText("")
       setError(null)
+      setIsExporting(false)
+      return
     }
-  }, [open, format])
+
+    let ignore = false
+    setIsExporting(true)
+    setError(null)
+
+    const exportTextPromise = isCsvExport
+      ? client
+          .query({
+            query: CollectionExportCsvDocument,
+            variables: { filters: exportFilters },
+            fetchPolicy: "network-only",
+          })
+          .then(({ data }) => data?.collectionExportCsv ?? "")
+      : client
+          .query({
+            query: CollectionExportTextDocument,
+            variables: { filters: exportFilters },
+            fetchPolicy: "network-only",
+          })
+          .then(({ data }) => data?.collectionExportText ?? "")
+
+    void exportTextPromise
+      .then((text) => {
+        if (ignore) return
+
+        if (isCsvExport) {
+          downloadCollectionExport(text, fileName, "text/csv;charset=utf-8")
+          setExportText("")
+          setError(null)
+          showToast(`Downloaded ${fileName}`)
+          onOpenChange(false)
+          return
+        }
+
+        setExportText(text)
+        setError(null)
+        showToast(`${fileName} ready to copy`, { tone: "info" })
+      })
+      .catch((error) => {
+        if (ignore) return
+        setError(
+          error instanceof Error ? error.message : `Could not export ${format.toUpperCase()}`,
+        )
+      })
+      .finally(() => {
+        if (!ignore) setIsExporting(false)
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [client, exportFilters, fileName, format, isCsvExport, open])
 
   if (isCsvExport && !error) return null
 
@@ -619,7 +656,7 @@ export function ExportCollectionDialog({
             <textarea
               className="textarea textarea-bordered min-h-72 w-full bg-base-100 font-mono text-xs"
               readOnly
-              value={exportCollection.isPending ? "Exporting..." : exportText}
+              value={isExporting ? "Exporting..." : exportText}
             />
           )}
           {error ? (

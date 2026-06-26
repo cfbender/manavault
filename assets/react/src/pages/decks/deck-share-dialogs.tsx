@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
 import { Clipboard, Upload } from "lucide-react"
 import { useEffect, useRef, useState, type FormEvent } from "react"
 import { Button } from "../../components/ui/button"
@@ -11,7 +11,7 @@ import {
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
 import { useToast } from "../../components/ui/toast"
-import { request } from "../../lib/graphql"
+import { refetchActiveQueries } from "../../lib/apollo"
 import { pluralize } from "../../lib/utils"
 import type { DeckDetail, DeckSummary } from "./deck-types"
 import {
@@ -29,21 +29,12 @@ export function ShareDeckDialog({
   onOpenChange: (open: boolean) => void
   open?: boolean
 }) {
-  const queryClient = useQueryClient()
+  const client = useApolloClient()
   const { showToast } = useToast()
   const isOpen = open ?? Boolean(deck)
-  const requestedDeckId = useRef<string | null>(null)
+  const shareTokenDeckIdRef = useRef<string | null>(null)
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle")
-  const ensureShare = useMutation({
-    mutationFn: () => {
-      if (!deck) throw new Error("Deck is required")
-      return request(EnsureDeckShareTokenDocument, { id: deck.id })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["decks"] })
-      if (deck) queryClient.invalidateQueries({ queryKey: ["deck", deck.id] })
-    },
-  })
+  const [ensureShareToken, ensureShare] = useMutation(EnsureDeckShareTokenDocument)
   const generatedDeck = ensureShare.data?.ensureDeckShareToken?.deck || null
   const shareToken =
     generatedDeck && generatedDeck.id === deck?.id
@@ -57,16 +48,19 @@ export function ShareDeckDialog({
 
   useEffect(() => {
     if (!isOpen) {
-      requestedDeckId.current = null
+      shareTokenDeckIdRef.current = null
       setCopyState("idle")
       return
     }
 
-    if (!deck?.id || shareToken || requestedDeckId.current === deck.id) return
+    if (!deck?.id || shareToken || shareTokenDeckIdRef.current === deck.id) return
 
-    requestedDeckId.current = deck.id
-    ensureShare.mutate()
-  }, [deck?.id, ensureShare, isOpen, shareToken])
+    shareTokenDeckIdRef.current = deck.id
+    void ensureShareToken({
+      variables: { id: deck.id },
+      onCompleted: () => void refetchActiveQueries(client),
+    })
+  }, [client, deck?.id, ensureShareToken, isOpen, shareToken])
 
   async function copyShareUrl() {
     if (!shareUrl) return
@@ -139,7 +133,7 @@ export function ImportDecklistDialog({
   onOpenChange: (open: boolean) => void
   open: boolean
 }) {
-  const queryClient = useQueryClient()
+  const client = useApolloClient()
   const { showToast } = useToast()
   const [text, setText] = useState("")
   const [replaceExisting, setReplaceExisting] = useState(false)
@@ -149,24 +143,32 @@ export function ImportDecklistDialog({
     skippedPrintings: string[]
   } | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const importDecklist = useMutation({
-    mutationFn: () => {
-      if (!deck) throw new Error("Deck is required")
-      return request(ImportDecklistDocument, { id: deck.id, text, replaceExisting })
-    },
-    onSuccess: (data) => {
-      const importResult = data.importDecklist?.importResult || null
+  const [importDecklistMutation, importDecklistResult] = useMutation(ImportDecklistDocument)
+  const importDecklist = {
+    ...importDecklistResult,
+    isPending: importDecklistResult.loading,
+    mutate: () => {
+      if (!deck) {
+        setError("Deck is required")
+        return
+      }
 
-      queryClient.invalidateQueries({ queryKey: ["deck", deck?.id] })
-      queryClient.invalidateQueries({ queryKey: ["decks"] })
-      setResult(importResult)
-      showToast(`${pluralize(importResult?.imported ?? 0, "card")} imported`)
-      setError(null)
-      onOpenChange(false)
+      void importDecklistMutation({
+        variables: { id: deck.id, text, replaceExisting },
+        onCompleted: (data) => {
+          const importResult = data.importDecklist?.importResult || null
+
+          void refetchActiveQueries(client)
+          setResult(importResult)
+          showToast(`${pluralize(importResult?.imported ?? 0, "card")} imported`)
+          setError(null)
+          onOpenChange(false)
+        },
+        onError: (error) =>
+          setError(error instanceof Error ? error.message : "Could not import decklist"),
+      })
     },
-    onError: (error) =>
-      setError(error instanceof Error ? error.message : "Could not import decklist"),
-  })
+  }
 
   useEffect(() => {
     if (!open) {
@@ -285,10 +287,9 @@ export function ExportDecklistDialog({
   onOpenChange: (open: boolean) => void
   open: boolean
 }) {
-  const exportQuery = useQuery({
-    queryKey: ["deck-export-text", deck?.id],
-    queryFn: () => request(DeckExportTextDocument, { id: deck?.id || "" }),
-    enabled: open && Boolean(deck?.id),
+  const exportQuery = useQuery(DeckExportTextDocument, {
+    variables: { id: deck?.id || "" },
+    skip: !open || !deck?.id,
   })
   const exportText = exportQuery.data?.deckExportText || ""
 
@@ -307,7 +308,7 @@ export function ExportDecklistDialog({
           <textarea
             className="textarea textarea-bordered min-h-80 w-full bg-base-100 font-mono text-sm"
             readOnly
-            value={exportQuery.isLoading ? "Exporting..." : exportText}
+            value={exportQuery.loading ? "Exporting..." : exportText}
           />
           {exportQuery.error ? (
             <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">

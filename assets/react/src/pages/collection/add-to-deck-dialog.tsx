@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery } from "@apollo/client/react"
 import type * as React from "react"
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "../../components/ui/button"
@@ -10,7 +10,6 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { useToast } from "../../components/ui/toast"
-import { request } from "../../lib/graphql"
 import { pluralize, present, titleize } from "../../lib/utils"
 import {
   BulkAddCollectionItemsToDeckDocument,
@@ -31,7 +30,6 @@ export function AddCollectionItemToDeckDialog({
   onDone: () => void
   onOpenChange: (open: boolean) => void
 }) {
-  const queryClient = useQueryClient()
   const { showToast } = useToast()
   const [deckId, setDeckId] = useState("")
   const [zone, setZone] = useState("mainboard")
@@ -39,35 +37,15 @@ export function AddCollectionItemToDeckDialog({
   const targetItems = collectionTargetItems(item)
   const targetCount = targetItems.length
   const open = targetCount > 0
-  const decksQuery = useQuery({
-    queryKey: ["collection-item-deck-options"],
-    queryFn: () => request(CollectionItemDeckOptionsDocument),
-    enabled: open,
+  const decksQuery = useQuery(CollectionItemDeckOptionsDocument, {
+    skip: !open,
+    fetchPolicy: "cache-and-network",
   })
   const decks = useMemo(
     () => decksQuery.data?.decks?.edges?.map((edge) => edge?.node).filter(present) || [],
     [decksQuery.data],
   )
-  const addToDeck = useMutation({
-    mutationFn: () => {
-      if (!targetItems.length) throw new Error("Choose at least one item")
-      if (!deckId) throw new Error("Choose a deck")
-
-      return request(BulkAddCollectionItemsToDeckDocument, {
-        ids: targetItems.map((targetItem) => targetItem.id),
-        deckId,
-        zone,
-      })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["decks"] })
-      showToast(`${pluralize(targetCount, "card")} added to deck`)
-      onDone()
-      onOpenChange(false)
-    },
-    onError: (error) =>
-      setError(error instanceof Error ? error.message : "Could not add cards to deck"),
-  })
+  const [addToDeckMutation, addToDeck] = useMutation(BulkAddCollectionItemsToDeckDocument)
 
   useEffect(() => {
     if (!open) {
@@ -80,11 +58,35 @@ export function AddCollectionItemToDeckDialog({
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
-    addToDeck.mutate()
+
+    if (!targetItems.length) {
+      setError("Choose at least one item")
+      return
+    }
+
+    if (!deckId) {
+      setError("Choose a deck")
+      return
+    }
+
+    void addToDeckMutation({
+      variables: {
+        ids: targetItems.map((targetItem) => targetItem.id),
+        deckId,
+        zone,
+      },
+      onCompleted: () => {
+        showToast(`${pluralize(targetCount, "card")} added to deck`)
+        onDone()
+        onOpenChange(false)
+      },
+      onError: (error) =>
+        setError(error instanceof Error ? error.message : "Could not add cards to deck"),
+    })
   }
 
   function close() {
-    if (addToDeck.isPending) return
+    if (addToDeck.loading) return
     onOpenChange(false)
   }
 
@@ -135,11 +137,11 @@ export function AddCollectionItemToDeckDialog({
             </p>
           ) : null}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={close} disabled={addToDeck.isPending}>
+            <Button type="button" variant="ghost" onClick={close} disabled={addToDeck.loading}>
               Cancel
             </Button>
-            <Button type="submit" disabled={addToDeck.isPending || !deckId}>
-              {addToDeck.isPending
+            <Button type="submit" disabled={addToDeck.loading || !deckId}>
+              {addToDeck.loading
                 ? "Adding..."
                 : targetCount > 1
                   ? `Add ${targetCount} to deck`

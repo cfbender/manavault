@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
 import { Edit3 } from "lucide-react"
 import type * as React from "react"
 import { useEffect, useMemo, useState } from "react"
@@ -13,7 +13,7 @@ import {
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
 import { useToast } from "../../components/ui/toast"
-import { request } from "../../lib/graphql"
+import { refetchActiveQueries } from "../../lib/apollo"
 import { present, titleize } from "../../lib/utils"
 import { LOCATION_KINDS, MODAL_SEARCH_DEBOUNCE_MS } from "./constants"
 import { LocationCoverCardSearchDocument, UpdateLocationDocument } from "./documents"
@@ -35,7 +35,7 @@ export function EditLocationDialog({
   onOpenChange: (open: boolean) => void
   open?: boolean
 }) {
-  const queryClient = useQueryClient()
+  const client = useApolloClient()
   const { showToast } = useToast()
   const isOpen = open ?? Boolean(location)
   const [name, setName] = useState("")
@@ -48,15 +48,9 @@ export function EditLocationDialog({
   const coverSearchTerm = debouncedCoverSearch.trim()
   const coverSearchDraftTerm = coverSearch.trim()
 
-  const coverSearchQuery = useQuery({
-    queryKey: ["location-cover-card-search", coverSearchTerm],
-    queryFn: () =>
-      request(LocationCoverCardSearchDocument, {
-        q: coverSearchTerm,
-        first: 8,
-      }),
-    enabled: isOpen && coverSearchTerm.length > 1,
-    staleTime: 60_000,
+  const coverSearchQuery = useQuery(LocationCoverCardSearchDocument, {
+    variables: { q: coverSearchTerm, first: 8 },
+    skip: !(isOpen && coverSearchTerm.length > 1),
   })
   const coverSearchCards = useMemo(
     () =>
@@ -88,30 +82,7 @@ export function EditLocationDialog({
     setError(null)
   }, [location, isOpen])
 
-  const updateLocation = useMutation({
-    mutationFn: () => {
-      if (!location) throw new Error("Location is required")
-      return request(UpdateLocationDocument, {
-        id: location.id,
-        input: {
-          name: name.trim(),
-          kind,
-          description: description.trim() || null,
-          coverScryfallId: selectedCover?.id ?? null,
-        },
-      })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["collection"] })
-      queryClient.invalidateQueries({ queryKey: ["collection-items"] })
-      if (location) queryClient.invalidateQueries({ queryKey: ["location", location.id] })
-      showToast(`Updated location ${name.trim()}`)
-      setError(null)
-      onOpenChange(false)
-    },
-    onError: (error) =>
-      setError(error instanceof Error ? error.message : "Could not update location"),
-  })
+  const [updateLocationMutation, updateLocation] = useMutation(UpdateLocationDocument)
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -122,11 +93,34 @@ export function EditLocationDialog({
       return
     }
 
-    updateLocation.mutate()
+    if (!location) {
+      setError("Location is required")
+      return
+    }
+
+    void updateLocationMutation({
+      variables: {
+        id: location.id,
+        input: {
+          name: name.trim(),
+          kind,
+          description: description.trim() || null,
+          coverScryfallId: selectedCover?.id ?? null,
+        },
+      },
+      onCompleted: () => {
+        void refetchActiveQueries(client)
+        showToast(`Updated location ${name.trim()}`)
+        setError(null)
+        onOpenChange(false)
+      },
+      onError: (error) =>
+        setError(error instanceof Error ? error.message : "Could not update location"),
+    })
   }
 
   function close() {
-    if (updateLocation.isPending) return
+    if (updateLocation.loading) return
     setError(null)
     onOpenChange(false)
   }
@@ -252,10 +246,10 @@ export function EditLocationDialog({
 
             {coverSearchDraftTerm.length > 1 ? (
               <div className="max-h-80 overflow-y-auto rounded-box border border-base-300 bg-base-100">
-                {coverSearchQuery.isFetching || coverSearchTerm !== coverSearchDraftTerm ? (
+                {coverSearchQuery.loading || coverSearchTerm !== coverSearchDraftTerm ? (
                   <p className="px-3 py-2 text-sm text-base-content/55">Searching...</p>
                 ) : null}
-                {!coverSearchQuery.isFetching &&
+                {!coverSearchQuery.loading &&
                 coverSearchTerm === coverSearchDraftTerm &&
                 coverSearchCards.length === 0 ? (
                   <p className="px-3 py-2 text-sm text-base-content/55">No cards found.</p>
@@ -314,17 +308,12 @@ export function EditLocationDialog({
           ) : null}
 
           <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-4">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={close}
-              disabled={updateLocation.isPending}
-            >
+            <Button type="button" variant="ghost" onClick={close} disabled={updateLocation.loading}>
               Cancel
             </Button>
-            <Button type="submit" disabled={updateLocation.isPending}>
+            <Button type="submit" disabled={updateLocation.loading}>
               <Edit3 className="h-4 w-4" />
-              {updateLocation.isPending ? "Saving..." : "Save location"}
+              {updateLocation.loading ? "Saving..." : "Save location"}
             </Button>
           </div>
         </form>

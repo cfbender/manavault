@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
 import { useNavigate } from "@tanstack/react-router"
 import { CheckSquare, ListFilter, Search } from "lucide-react"
 import type * as React from "react"
@@ -16,7 +16,6 @@ import {
   decodeCollectionFilters,
   type CollectionFilterState,
 } from "../../lib/collection-filters"
-import { request } from "../../lib/graphql"
 import {
   subscribeSharedImport,
   takePendingNativeSharedImport,
@@ -120,6 +119,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
   const [bulkEditTarget, setBulkEditTarget] = useState<CollectionItem[] | null>(null)
   const [bulkDeleteTarget, setBulkDeleteTarget] = useState<CollectionItem[] | null>(null)
   const [isSelectingAllCollectionItems, setIsSelectingAllCollectionItems] = useState(false)
+  const [isFetchingMoreAllItems, setIsFetchingMoreAllItems] = useState(false)
   const [structuredFilters, setStructuredFilters] = useLocalStorageState<CollectionFilterState>(
     COLLECTION_FILTERS_STORAGE_KEY,
     createEmptyCollectionFilters,
@@ -129,46 +129,35 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
       shouldRemove: hasNoCollectionFilters,
     },
   )
-  const queryClient = useQueryClient()
+  const client = useApolloClient()
   const { showToast } = useToast()
   const navigate = useNavigate()
-  const deleteLocation = useMutation({
-    mutationFn: (locationId: string) => request(DeleteLocationDocument, { id: locationId }),
-    onSuccess: () => {
-      invalidateCollectionViews(queryClient)
-    },
-  })
+  const [deleteLocationMutation] = useMutation(DeleteLocationDocument)
   const structuredFilterSyntax = buildCollectionFilterQuery(structuredFilters)
   const combinedCollectionQuery = combineCollectionQueries(appliedSearch, structuredFilterSyntax)
   const filters = useMemo(
     () => (combinedCollectionQuery ? { q: combinedCollectionQuery } : {}),
     [combinedCollectionQuery],
   )
-  const { data, isLoading } = useQuery({
-    queryKey: ["collection", filters],
-    queryFn: () => request(CollectionDocument, { filters }),
+  const { data, loading: isLoading } = useQuery(CollectionDocument, {
+    variables: { filters },
+    fetchPolicy: "cache-and-network",
   })
-  const allItemsQuery = useInfiniteQuery({
-    queryKey: ["collection-items", "all", filters, sort],
-    queryFn: ({ pageParam }) =>
-      request(CollectionItemsPageDocument, {
-        filters,
-        sort,
-        first: COLLECTION_PAGE_SIZE,
-        after: pageParam,
-      }),
-    enabled: activeTab === "all",
-    initialPageParam: null as string | null,
-    getNextPageParam: (lastPage) =>
-      lastPage.collectionItems.pageInfo.hasNextPage
-        ? (lastPage.collectionItems.pageInfo.endCursor ?? undefined)
-        : undefined,
+  const allItemsQuery = useQuery(CollectionItemsPageDocument, {
+    variables: {
+      filters,
+      sort,
+      first: COLLECTION_PAGE_SIZE,
+      after: null,
+    },
+    skip: activeTab !== "all",
+    fetchPolicy: "cache-and-network",
   })
+  const allItemsPageInfo = allItemsQuery.data?.collectionItems.pageInfo
+  const allItemsHasNextPage = Boolean(allItemsPageInfo?.hasNextPage)
   const allCollectionItems = useMemo(
     () =>
-      allItemsQuery.data?.pages.flatMap((page) =>
-        (page.collectionItems.edges || []).map((edge) => edge?.node).filter(present),
-      ) || [],
+      (allItemsQuery.data?.collectionItems.edges || []).map((edge) => edge?.node).filter(present),
     [allItemsQuery.data],
   )
   const locations = useMemo(
@@ -177,35 +166,51 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
   )
   const autoSortRules = data?.collectionAutoSortRules ?? []
   const selection = useCollectionItemSelection(allCollectionItems)
-  const autoSortCollection = useMutation({
-    mutationFn: ({ dryRun }: { dryRun: boolean }) =>
-      request(AutoSortCollectionDocument, { input: { sourceLocationId: null, dryRun } }),
-    onSuccess: (data, input) => {
-      const result = data.autoSortCollection?.autoSortResult
-      if (!input.dryRun) {
-        invalidateCollectionViews(queryClient)
-        queryClient.invalidateQueries({ queryKey: ["location"] })
-        selection.clearSelection()
-        showToast(`${pluralize(result?.movedCount ?? 0, "card")} auto-sorted`)
-        setAutoSortResult(null)
-      } else {
-        setAutoSortResult(result ?? null)
-      }
-      setAutoSortError(null)
-    },
-    onError: (error) => {
-      setAutoSortResult(null)
-      setAutoSortError(error instanceof Error ? error.message : "Could not auto-sort collection")
-    },
-  })
+  const [autoSortCollectionMutation, autoSortCollection] = useMutation(AutoSortCollectionDocument)
+  const fetchMoreAllItemsPage = useCallback(
+    (after: string | null | undefined) =>
+      allItemsQuery.fetchMore({
+        variables: {
+          filters,
+          sort,
+          first: COLLECTION_PAGE_SIZE,
+          after: after ?? null,
+        },
+        updateQuery: (previousData, { fetchMoreResult }) => {
+          if (!fetchMoreResult) return previousData
+
+          return {
+            ...previousData,
+            collectionItems: {
+              ...fetchMoreResult.collectionItems,
+              edges: [
+                ...(previousData.collectionItems.edges || []),
+                ...(fetchMoreResult.collectionItems.edges || []),
+              ],
+            },
+          }
+        },
+      }),
+    [allItemsQuery, filters, sort],
+  )
   const hasCollectionFilters = Boolean(combinedCollectionQuery)
   const activeStructuredFilterCount = countActiveCollectionFilters(structuredFilters)
   const filterBadgeCount = activeStructuredFilterCount
   const collectionCountLabel = `${data?.collectionItemCount || 0} ${hasCollectionFilters ? "shown" : "total"}`
   const loadMoreAllItems = useCallback(() => {
-    if (isSelectingAllCollectionItems) return
-    void allItemsQuery.fetchNextPage()
-  }, [allItemsQuery, isSelectingAllCollectionItems])
+    if (isSelectingAllCollectionItems || isFetchingMoreAllItems || !allItemsHasNextPage) return
+
+    setIsFetchingMoreAllItems(true)
+    void fetchMoreAllItemsPage(allItemsPageInfo?.endCursor).finally(() =>
+      setIsFetchingMoreAllItems(false),
+    )
+  }, [
+    allItemsHasNextPage,
+    allItemsPageInfo?.endCursor,
+    fetchMoreAllItemsPage,
+    isFetchingMoreAllItems,
+    isSelectingAllCollectionItems,
+  ])
   const locationGroups = useMemo(() => {
     const groups = new Map<string, typeof locations>()
 
@@ -230,7 +235,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
       setIsImportOpen(true)
       void navigate({
         to: "/collection",
-        search: (previous) => ({ ...previous, importFile: false }),
+        search: { importFile: false },
         replace: true,
       })
     })()
@@ -290,26 +295,25 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
   }
 
   async function selectAllCollectionItems() {
-    if (isSelectingAllCollectionItems || allItemsQuery.isFetchingNextPage) return
+    if (isSelectingAllCollectionItems || isFetchingMoreAllItems) return
 
     let itemsToSelect = allCollectionItems
+    let pageInfo = allItemsPageInfo
 
-    if (!allItemsQuery.hasNextPage) {
+    if (!pageInfo?.hasNextPage) {
       selection.selectItems(itemsToSelect)
       return
     }
 
     setIsSelectingAllCollectionItems(true)
     try {
-      let hasNextPage: boolean = allItemsQuery.hasNextPage
+      while (pageInfo?.hasNextPage) {
+        const result = await fetchMoreAllItemsPage(pageInfo.endCursor)
+        const nextConnection = result.data?.collectionItems
+        const nextItems = nextConnection?.edges?.map((edge) => edge?.node).filter(present) || []
 
-      while (hasNextPage) {
-        const result = await allItemsQuery.fetchNextPage()
-        itemsToSelect =
-          result.data?.pages.flatMap((page) =>
-            (page.collectionItems.edges || []).map((edge) => edge?.node).filter(present),
-          ) || itemsToSelect
-        hasNextPage = result.hasNextPage
+        itemsToSelect = [...itemsToSelect, ...nextItems]
+        pageInfo = nextConnection?.pageInfo
       }
 
       selection.selectItems(itemsToSelect)
@@ -319,7 +323,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
   }
 
   function finishBulkCollectionAction() {
-    invalidateCollectionViews(queryClient)
+    void invalidateCollectionViews(client)
     selection.clearSelection()
   }
 
@@ -330,11 +334,37 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
   function deleteSelectedLocation() {
     if (!deletingLocation) return
     const locationName = deletingLocation.name
-    deleteLocation.mutate(deletingLocation.id, {
-      onSuccess: () => showToast(`Deleted location ${locationName}`),
+    void deleteLocationMutation({
+      variables: { id: deletingLocation.id },
+      onCompleted: () => {
+        void invalidateCollectionViews(client)
+        showToast(`Deleted location ${locationName}`)
+      },
     })
     if (editingLocation?.id === deletingLocation.id) setEditingLocation(null)
     if (exportingLocation?.location.id === deletingLocation.id) setExportingLocation(null)
+  }
+
+  function runCollectionAutoSort(dryRun: boolean) {
+    void autoSortCollectionMutation({
+      variables: { input: { sourceLocationId: null, dryRun } },
+      onCompleted: (data) => {
+        const result = data.autoSortCollection?.autoSortResult
+        if (!dryRun) {
+          void invalidateCollectionViews(client)
+          selection.clearSelection()
+          showToast(`${pluralize(result?.movedCount ?? 0, "card")} auto-sorted`)
+          setAutoSortResult(null)
+        } else {
+          setAutoSortResult(result ?? null)
+        }
+        setAutoSortError(null)
+      },
+      onError: (error) => {
+        setAutoSortResult(null)
+        setAutoSortError(error instanceof Error ? error.message : "Could not auto-sort collection")
+      },
+    })
   }
 
   function previewCollectionAutoSort() {
@@ -346,12 +376,12 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
       return
     }
 
-    autoSortCollection.mutate({ dryRun: true })
+    runCollectionAutoSort(true)
   }
 
   function applyCollectionAutoSort() {
     setAutoSortError(null)
-    autoSortCollection.mutate({ dryRun: false })
+    runCollectionAutoSort(false)
   }
 
   return (
@@ -359,7 +389,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
       <CollectionPageHeader
         activeTab={activeTab}
         autoSortDisabled={isLoading}
-        autoSortPending={autoSortCollection.isPending}
+        autoSortPending={autoSortCollection.loading}
         collectionItemCount={data?.collectionItemCount || 0}
         locationCount={locations.length}
         valueSummary={data?.collectionValueSummary}
@@ -434,8 +464,8 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
 
           <CollectionBulkActionBar
             allLoadedSelected={selection.allLoadedSelected}
-            hasNextPage={Boolean(allItemsQuery.hasNextPage)}
-            isSelectAllPending={isSelectingAllCollectionItems || allItemsQuery.isFetchingNextPage}
+            hasNextPage={allItemsHasNextPage}
+            isSelectAllPending={isSelectingAllCollectionItems || isFetchingMoreAllItems}
             loadedCount={allCollectionItems.length}
             selectedCount={selection.selectedCount}
             selectionActive={selection.selectionActive}
@@ -449,12 +479,12 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
           />
 
           <PageSection count={collectionCountLabel}>
-            {allItemsQuery.isLoading ? (
+            {allItemsQuery.loading && !allItemsQuery.data ? (
               <EmptyState title="Loading collection..." />
             ) : (
               <VirtualizedCollectionGrid
-                hasNextPage={allItemsQuery.hasNextPage}
-                isFetchingNextPage={allItemsQuery.isFetchingNextPage}
+                hasNextPage={allItemsHasNextPage}
+                isFetchingNextPage={isFetchingMoreAllItems}
                 items={allCollectionItems}
                 onLoadMore={loadMoreAllItems}
                 onToggleSelected={selection.toggleItem}
@@ -521,7 +551,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
         open={Boolean(autoSortResult)}
         result={autoSortResult}
         onOpenChange={(open) => !open && setAutoSortResult(null)}
-        applyPending={autoSortCollection.isPending}
+        applyPending={autoSortCollection.loading}
         onApply={applyCollectionAutoSort}
       />
       <AddCollectionItemToDeckDialog

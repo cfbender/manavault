@@ -1,10 +1,8 @@
-import type { QueryClient } from "@tanstack/react-query"
+import type { ApolloClient } from "@apollo/client"
+import { refetchActiveQueries } from "../../lib/apollo"
 
-export function invalidateCollectionViews(queryClient: QueryClient, locationId?: string) {
-  queryClient.invalidateQueries({ queryKey: ["collection"] })
-  queryClient.invalidateQueries({ queryKey: ["collection-items"] })
-  queryClient.invalidateQueries({ queryKey: ["home"] })
-  if (locationId) queryClient.invalidateQueries({ queryKey: ["location", locationId] })
+export function invalidateCollectionViews(client: ApolloClient, _locationId?: string) {
+  return refetchActiveQueries(client)
 }
 
 export function collectionCardReturnSearch(pathname: string) {

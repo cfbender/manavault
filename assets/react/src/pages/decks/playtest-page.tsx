@@ -1,17 +1,15 @@
-import { useQuery } from "@tanstack/react-query"
+import { useQuery } from "@apollo/client/react"
 import { useMemo } from "react"
 import { EmptyState } from "../../components/card-image"
 import { DeckPlaytester } from "../../components/deck-playtester"
 import { createPlaytestState } from "../../lib/deck-playtest"
-import { request } from "../../lib/graphql"
 import { deckPlaytestCards } from "./deck-card-model"
 import { flattenDeck } from "./deck-types"
 import { DeckDocument } from "./queries"
 
 export function DeckPlaytestPage({ id }: { id: string }) {
-  const { data, isLoading } = useQuery({
-    queryKey: ["deck", id],
-    queryFn: () => request(DeckDocument, { id }),
+  const { data, loading: isLoading } = useQuery(DeckDocument, {
+    variables: { id },
   })
   const deck = useMemo(() => flattenDeck(data?.deck), [data?.deck])
   const deckCards = useMemo(() => deck?.deckCards || [], [deck?.deckCards])

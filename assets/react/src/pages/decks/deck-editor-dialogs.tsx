@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useApolloClient, useMutation } from "@apollo/client/react"
 import { useNavigate } from "@tanstack/react-router"
 import { Edit3, Plus } from "lucide-react"
 import { useEffect, useState, type FormEvent } from "react"
@@ -12,7 +12,7 @@ import {
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
 import { useToast } from "../../components/ui/toast"
-import { request } from "../../lib/graphql"
+import { refetchActiveQueries } from "../../lib/apollo"
 import { titleize } from "../../lib/utils"
 import type { DeckDetail, DeckSummary } from "./deck-types"
 import { DECK_FORMATS, DECK_STATUSES } from "./deck-types"
@@ -27,7 +27,7 @@ export function EditDeckDialog({
   onOpenChange: (open: boolean) => void
   open?: boolean
 }) {
-  const queryClient = useQueryClient()
+  const client = useApolloClient()
   const { showToast } = useToast()
   const isOpen = open ?? Boolean(deck)
   const [name, setName] = useState("")
@@ -43,23 +43,32 @@ export function EditDeckDialog({
     setError(null)
   }, [deck, isOpen])
 
-  const updateDeck = useMutation({
-    mutationFn: () => {
-      if (!deck) throw new Error("Deck is required")
-      return request(UpdateDeckDocument, {
-        id: deck.id,
-        input: { name: name.trim(), format, status },
+  const [updateDeckMutation, updateDeckResult] = useMutation(UpdateDeckDocument)
+  const updateDeck = {
+    ...updateDeckResult,
+    isPending: updateDeckResult.loading,
+    mutate: () => {
+      if (!deck) {
+        setError("Deck is required")
+        return
+      }
+
+      void updateDeckMutation({
+        variables: {
+          id: deck.id,
+          input: { name: name.trim(), format, status },
+        },
+        onCompleted: () => {
+          void refetchActiveQueries(client)
+          showToast("Deck updated")
+          setError(null)
+          onOpenChange(false)
+        },
+        onError: (error) =>
+          setError(error instanceof Error ? error.message : "Could not update deck"),
       })
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["decks"] })
-      if (deck) queryClient.invalidateQueries({ queryKey: ["deck", deck.id] })
-      showToast("Deck updated")
-      setError(null)
-      onOpenChange(false)
-    },
-    onError: (error) => setError(error instanceof Error ? error.message : "Could not update deck"),
-  })
+  }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -174,30 +183,37 @@ export function NewDeckDialog({
   open: boolean
 }) {
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
+  const client = useApolloClient()
   const { showToast } = useToast()
   const [name, setName] = useState("")
   const [format, setFormat] = useState<(typeof DECK_FORMATS)[number]>("commander")
   const [status, setStatus] = useState<(typeof DECK_STATUSES)[number]>("brewing")
   const [error, setError] = useState<string | null>(null)
 
-  const createDeck = useMutation({
-    mutationFn: () => request(CreateDeckDocument, { input: { name: name.trim(), format, status } }),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["decks"] })
-      showToast(`Created deck ${name.trim()}`)
-      setName("")
-      setFormat("commander")
-      setStatus("brewing")
-      setError(null)
-      onOpenChange(false)
+  const [createDeckMutation, createDeckResult] = useMutation(CreateDeckDocument)
+  const createDeck = {
+    ...createDeckResult,
+    isPending: createDeckResult.loading,
+    mutate: () =>
+      void createDeckMutation({
+        variables: { input: { name: name.trim(), format, status } },
+        onCompleted: (data) => {
+          void refetchActiveQueries(client)
+          showToast(`Created deck ${name.trim()}`)
+          setName("")
+          setFormat("commander")
+          setStatus("brewing")
+          setError(null)
+          onOpenChange(false)
 
-      if (data.createDeck?.deck?.id) {
-        navigate({ to: "/decks/$id", params: { id: data.createDeck.deck.id } })
-      }
-    },
-    onError: (error) => setError(error instanceof Error ? error.message : "Could not create deck"),
-  })
+          if (data.createDeck?.deck?.id) {
+            navigate({ to: "/decks/$id", params: { id: data.createDeck.deck.id } })
+          }
+        },
+        onError: (error) =>
+          setError(error instanceof Error ? error.message : "Could not create deck"),
+      }),
+  }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()

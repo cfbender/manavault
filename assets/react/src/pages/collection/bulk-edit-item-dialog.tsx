@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query"
+import { useMutation } from "@apollo/client/react"
 import type * as React from "react"
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "../../components/ui/button"
@@ -11,8 +11,6 @@ import {
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
 import { useToast } from "../../components/ui/toast"
-import type { CollectionItemUpdateInput } from "../../gql/graphql"
-import { request } from "../../lib/graphql"
 import { pluralize } from "../../lib/utils"
 import { COLLECTION_FINISHES } from "./constants"
 import { BulkUpdateCollectionItemsDocument } from "./documents"
@@ -46,23 +44,7 @@ export function BulkEditCollectionItemsDialog({
   const [purchasePrice, setPurchasePrice] = useState("")
   const [error, setError] = useState<string | null>(null)
   const hasSelectedFields = updateFinish || updatePurchasePrice
-  const updateItems = useMutation({
-    mutationFn: (input: CollectionItemUpdateInput) => {
-      if (!targetItems.length) throw new Error("Choose at least one item")
-
-      return request(BulkUpdateCollectionItemsDocument, {
-        ids: targetItems.map((targetItem) => targetItem.id),
-        input,
-      })
-    },
-    onSuccess: () => {
-      showToast(`${pluralize(targetCount, "card")} edited`)
-      onDone()
-      onOpenChange(false)
-    },
-    onError: (error) =>
-      setError(error instanceof Error ? error.message : "Could not update collection items"),
-  })
+  const [updateItemsMutation, updateItems] = useMutation(BulkUpdateCollectionItemsDocument)
 
   useEffect(() => {
     if (open) {
@@ -97,11 +79,28 @@ export function BulkEditCollectionItemsDialog({
       return
     }
 
-    updateItems.mutate(result.input)
+    if (!targetItems.length) {
+      setError("Choose at least one item")
+      return
+    }
+
+    void updateItemsMutation({
+      variables: {
+        ids: targetItems.map((targetItem) => targetItem.id),
+        input: result.input,
+      },
+      onCompleted: () => {
+        showToast(`${pluralize(targetCount, "card")} edited`)
+        onDone()
+        onOpenChange(false)
+      },
+      onError: (error) =>
+        setError(error instanceof Error ? error.message : "Could not update collection items"),
+    })
   }
 
   function close() {
-    if (updateItems.isPending) return
+    if (updateItems.loading) return
     onOpenChange(false)
   }
 
@@ -182,11 +181,11 @@ export function BulkEditCollectionItemsDialog({
             </p>
           ) : null}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={close} disabled={updateItems.isPending}>
+            <Button type="button" variant="ghost" onClick={close} disabled={updateItems.loading}>
               Cancel
             </Button>
-            <Button type="submit" disabled={updateItems.isPending || !hasSelectedFields}>
-              {updateItems.isPending ? "Applying..." : "Apply changes"}
+            <Button type="submit" disabled={updateItems.loading || !hasSelectedFields}>
+              {updateItems.loading ? "Applying..." : "Apply changes"}
             </Button>
           </div>
         </form>

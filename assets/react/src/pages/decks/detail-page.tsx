@@ -1,11 +1,11 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
 import { useNavigate } from "@tanstack/react-router"
 import { useMemo, useState } from "react"
 import { EmptyState } from "../../components/card-image"
 import { useToast } from "../../components/ui/toast"
 import type { DeckCardInput, DeckCardUpdateInput, DeckQuery } from "../../gql/graphql"
 import { groupDeckCards, type DeckGroupBy } from "../../lib/deck-grouping"
-import { request } from "../../lib/graphql"
+import { graphqlEndpointContext, refetchActiveQueries } from "../../lib/apollo"
 import { pluralize } from "../../lib/utils"
 import { deckCardsTotalPrice, formatUsdCents } from "./buylist-export"
 import {
@@ -137,38 +137,65 @@ export function DeckDetailPage({
   const [bulkAllocationError, setBulkAllocationError] = useState<string | null>(null)
   const [isOptimizePrintingsOpen, setIsOptimizePrintingsOpen] = useState(false)
   const [optimizePrintingsError, setOptimizePrintingsError] = useState<string | null>(null)
+  const [isBulkUpdateDeckCardsPending, setIsBulkUpdateDeckCardsPending] = useState(false)
+  const [isBulkDeleteDeckCardsPending, setIsBulkDeleteDeckCardsPending] = useState(false)
+  const [isAllocateDeckPullListPending, setIsAllocateDeckPullListPending] = useState(false)
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
-  const deckQueryKey = ["deck", id] as const
+  const client = useApolloClient()
   const { showToast } = useToast()
-  const previewDeckDisassembly = useMutation({
-    mutationFn: (deckId: string) => request(PreviewDeckDisassemblyDocument, { id: deckId }),
-    onSuccess: (data) => {
-      setDisassemblyResult(data.previewDeckDisassembly?.disassemblyResult ?? null)
-    },
+  const [previewDeckDisassemblyMutation, previewDeckDisassemblyResult] = useMutation(
+    PreviewDeckDisassemblyDocument,
+  )
+  const previewDeckDisassembly = {
+    ...previewDeckDisassemblyResult,
+    isPending: previewDeckDisassemblyResult.loading,
+    mutate: (deckId: string) =>
+      void previewDeckDisassemblyMutation({
+        variables: { id: deckId },
+        onCompleted: (data) => {
+          setDisassemblyResult(data.previewDeckDisassembly?.disassemblyResult ?? null)
+        },
+        onError: () => undefined,
+      }),
+  }
+  const [disassembleDeckMutation, disassembleDeckResult] = useMutation(DisassembleDeckDocument)
+  const disassembleDeck = {
+    ...disassembleDeckResult,
+    isPending: disassembleDeckResult.loading,
+    mutate: (deckId: string) =>
+      void disassembleDeckMutation({
+        variables: { id: deckId },
+        onCompleted: () => {
+          refetchDeckQueries()
+          showToast("Deck disassembled")
+          setDisassemblyResult(null)
+          navigate({ to: "/decks" })
+        },
+        onError: () => undefined,
+      }),
+  }
+  const { data, loading: isLoading } = useQuery(DeckDocument, {
+    variables: { id },
+    context: shareMode ? graphqlEndpointContext("/share/graphql") : undefined,
+    fetchPolicy: "cache-and-network",
   })
-  const disassembleDeck = useMutation({
-    mutationFn: (deckId: string) => request(DisassembleDeckDocument, { id: deckId }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["deck", id] })
-      queryClient.invalidateQueries({ queryKey: ["decks"] })
-      queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
-      queryClient.invalidateQueries({ queryKey: ["deck-edhrec", id] })
-      queryClient.invalidateQueries({ queryKey: ["collection"] })
-      queryClient.invalidateQueries({ queryKey: ["collection-items"] })
-      queryClient.invalidateQueries({ queryKey: ["location"] })
-      queryClient.invalidateQueries({ queryKey: ["home"] })
-      queryClient.removeQueries({ queryKey: ["deck", id], exact: true })
-      showToast("Deck disassembled")
-      setDisassemblyResult(null)
-      navigate({ to: "/decks" })
-    },
-  })
-  const { data, isLoading } = useQuery({
-    queryKey: [shareMode ? "shared-deck" : "deck", id],
-    queryFn: () =>
-      request(DeckDocument, { id }, shareMode ? { endpoint: "/share/graphql" } : undefined),
-  })
+
+  function readDeckQuery(): DeckQuery | undefined {
+    return client.cache.readQuery({ query: DeckDocument, variables: { id } }) ?? undefined
+  }
+
+  function writeDeckQuery(data: DeckQuery | undefined) {
+    if (!data) return
+    client.cache.writeQuery({ query: DeckDocument, variables: { id }, data })
+  }
+
+  function updateDeckCacheTags(patches: readonly DeckTagPatch[]) {
+    writeDeckQuery(updateDeckCardTagsInDeckQuery(readDeckQuery(), patches))
+  }
+
+  function refetchDeckQueries() {
+    void refetchActiveQueries(client)
+  }
   const deck = useMemo(() => flattenDeck(data?.deck), [data?.deck])
   const [isAddCardOpen, setIsAddCardOpen] = useState(false)
   const deckCards = useMemo(() => deck?.deckCards || [], [deck?.deckCards])
@@ -255,287 +282,329 @@ export function DeckDetailPage({
     return availablePullList.exactEntries.length > 0 || availablePullList.choices.length > 0
   }, [deckCards, shareMode])
 
-  const updateDeckCard = useMutation({
-    mutationFn: ({ deckCardId, input }: UpdateDeckCardVariables) =>
-      request(UpdateDeckCardDocument, { id: deckCardId, input }),
-    onMutate: async ({ deckCardId, input }): Promise<UpdateDeckCardMutationContext> => {
-      if (!isTagOnlyDeckCardUpdate(input)) return { isTagOnly: false, rollbackPatches: [] }
-
-      const optimisticTag = deckCardTagValue(input.tag)
-      if (optimisticTag === undefined) return { isTagOnly: false, rollbackPatches: [] }
-
-      await queryClient.cancelQueries({ queryKey: deckQueryKey })
-      const previousDeck = queryClient.getQueryData<DeckQuery>(deckQueryKey)
-      const previousTag = deckCardTagFromDeckQuery(previousDeck, deckCardId)
-      const rollbackPatches: DeckTagPatch[] =
-        previousTag === undefined
-          ? []
-          : [{ currentTag: optimisticTag, id: deckCardId, tag: previousTag }]
-
-      queryClient.setQueryData<DeckQuery>(deckQueryKey, (current) =>
-        updateDeckCardTagsInDeckQuery(current, [{ id: deckCardId, tag: optimisticTag }]),
-      )
-
-      return { isTagOnly: true, optimisticTag, rollbackPatches }
-    },
-    onSuccess: (data, variables, context) => {
-      const wasEditingCard = Boolean(editTarget)
-      const wasMovingCard = Boolean(moveTarget)
-      const isTagOnly = context?.isTagOnly || isTagOnlyDeckCardUpdate(variables.input)
-
-      if (isTagOnly) {
-        const deckCard = data.updateDeckCard?.deckCard
-        const tag = deckCardTagValue(deckCard?.tag)
-        if (deckCard && tag !== undefined) {
-          const patch: DeckTagPatch = { id: deckCard.id, tag }
-          if (context?.isTagOnly) patch.currentTag = context.optimisticTag
-
-          queryClient.setQueryData<DeckQuery>(deckQueryKey, (current) =>
-            updateDeckCardTagsInDeckQuery(current, [patch]),
-          )
-        }
-      } else {
-        queryClient.invalidateQueries({ queryKey: ["deck", id] })
-        queryClient.invalidateQueries({ queryKey: ["decks"] })
-        queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
-      }
-
-      if (wasEditingCard) showToast("Card edited")
-      if (wasMovingCard) showToast("Card moved")
-      setEditTarget(null)
-      setEditError(null)
-      setMoveTarget(null)
-      setMoveError(null)
-      setTagError(null)
-    },
-    onError: (error, _variables, context) => {
-      if (context?.isTagOnly && context.rollbackPatches.length > 0) {
-        queryClient.setQueryData<DeckQuery>(deckQueryKey, (current) =>
-          updateDeckCardTagsInDeckQuery(current, context.rollbackPatches),
-        )
-      }
-
-      const message = error instanceof Error ? error.message : "Could not update deck card"
-      if (editTarget) setEditError(message)
-      else if (moveTarget) setMoveError(message)
-      else setTagError(message)
-    },
-  })
-
-  const deleteDeckCard = useMutation({
-    mutationFn: (deckCardId: string) => request(DeleteDeckCardDocument, { id: deckCardId }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["deck", id] })
-      queryClient.invalidateQueries({ queryKey: ["decks"] })
-      queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
-      showToast("Card deleted from deck")
-    },
-  })
-
-  const setDeckCommander = useMutation({
-    mutationFn: (deckCardId: string) => request(SetDeckCommanderDocument, { id: deckCardId }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["deck", id] })
-      queryClient.invalidateQueries({ queryKey: ["decks"] })
-      setMoveError(null)
-    },
-    onError: (error) =>
-      setMoveError(error instanceof Error ? error.message : "Could not set commander"),
-  })
-  const addDeckCard = useMutation({
-    mutationFn: (input: DeckCardInput) => request(AddDeckCardDocument, { deckId: id, input }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["deck", id] })
-      queryClient.invalidateQueries({ queryKey: ["decks"] })
-      queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
-      queryClient.invalidateQueries({ queryKey: ["deck-edhrec", id] })
-      showToast("Card added to deck")
-    },
-  })
-
-  const optimizeDeckCardPrintings = useMutation({
-    mutationFn: (deckCardIds: string[]) =>
-      request(OptimizeDeckCardPrintingsDocument, { deckCardIds }),
-    onSuccess: (data) => {
-      const optimizedCount = data.optimizeDeckCardPrintings?.deckCards.length || 0
-
-      queryClient.invalidateQueries({ queryKey: ["deck", id] })
-      queryClient.invalidateQueries({ queryKey: ["decks"] })
-      queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
-      setIsOptimizePrintingsOpen(false)
-      setOptimizePrintingsError(null)
-      showToast(
-        optimizedCount > 0
-          ? `${pluralize(optimizedCount, "printing")} optimized`
-          : "Printings already optimized",
-      )
-    },
-    onError: (error) =>
-      setOptimizePrintingsError(
-        error instanceof Error ? error.message : "Could not optimize printings",
-      ),
-  })
-
-  const updateDeckCardsTag = useMutation({
-    mutationFn: ({ deckCardIds, tag }: UpdateDeckCardsTagVariables) =>
-      request(UpdateDeckCardsTagDocument, { deckCardIds, tag }),
-    onMutate: async ({ deckCardIds, tag }): Promise<UpdateDeckCardsTagMutationContext> => {
-      await queryClient.cancelQueries({ queryKey: deckQueryKey })
-      const previousDeck = queryClient.getQueryData<DeckQuery>(deckQueryKey)
-      const rollbackPatches = rollbackDeckCardTagPatches(previousDeck, deckCardIds, tag)
-
-      queryClient.setQueryData<DeckQuery>(deckQueryKey, (current) =>
-        updateDeckCardTagsInDeckQuery(
-          current,
-          deckCardIds.map((deckCardId) => ({ id: deckCardId, tag })),
-        ),
-      )
-
-      return { optimisticTag: tag, rollbackPatches }
-    },
-    onSuccess: (data, _variables, context) => {
-      const patches = (data.updateDeckCardsTag?.deckCards ?? [])
-        .map((deckCard): DeckTagPatch | null => {
-          const tag = deckCardTagValue(deckCard.tag)
-          if (tag === undefined) return null
-          return context
-            ? { currentTag: context.optimisticTag, id: deckCard.id, tag }
-            : { id: deckCard.id, tag }
-        })
-        .filter((patch): patch is DeckTagPatch => patch !== null)
-
-      if (patches.length > 0) {
-        queryClient.setQueryData<DeckQuery>(deckQueryKey, (current) =>
-          updateDeckCardTagsInDeckQuery(current, patches),
-        )
-      }
-
-      clearSelectedDeckCards()
-      setIsSelectingCards(false)
-      setBulkActionError(null)
-      setTagError(null)
-    },
-    onError: (error, _variables, context) => {
-      if (context?.rollbackPatches.length) {
-        queryClient.setQueryData<DeckQuery>(deckQueryKey, (current) =>
-          updateDeckCardTagsInDeckQuery(current, context.rollbackPatches),
-        )
-      }
-
-      setBulkActionError(error instanceof Error ? error.message : "Could not tag selected cards")
-    },
-  })
-
-  const bulkUpdateDeckCards = useMutation({
-    mutationFn: ({ deckCardIds, input }: { deckCardIds: string[]; input: DeckCardUpdateInput }) =>
-      Promise.all(
-        deckCardIds.map((deckCardId) => request(UpdateDeckCardDocument, { id: deckCardId, input })),
-      ),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["deck", id] })
-      queryClient.invalidateQueries({ queryKey: ["decks"] })
-      queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
-      clearSelectedDeckCards()
-      setIsSelectingCards(false)
-      setBulkActionError(null)
-    },
-    onError: (error) =>
-      setBulkActionError(
-        error instanceof Error ? error.message : "Could not update selected cards",
-      ),
-  })
-
-  const bulkDeleteDeckCards = useMutation({
-    mutationFn: (deckCardIds: string[]) =>
-      Promise.all(
-        deckCardIds.map((deckCardId) => request(DeleteDeckCardDocument, { id: deckCardId })),
-      ),
-    onSuccess: (_data, deckCardIds) => {
-      queryClient.invalidateQueries({ queryKey: ["deck", id] })
-      queryClient.invalidateQueries({ queryKey: ["decks"] })
-      queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
-      showToast(`${pluralize(deckCardIds.length, "card")} deleted`)
-      clearSelectedDeckCards()
-      setIsSelectingCards(false)
-      setIsDeleteSelectedOpen(false)
-      setBulkActionError(null)
-    },
-    onError: (error) =>
-      setBulkActionError(
-        error instanceof Error ? error.message : "Could not delete selected cards",
-      ),
-  })
-
-  function invalidateAllocationQueries() {
-    queryClient.invalidateQueries({ queryKey: ["deck", id] })
-    queryClient.invalidateQueries({ queryKey: ["decks"] })
-    queryClient.invalidateQueries({ queryKey: ["deck-buylist", id] })
-    queryClient.invalidateQueries({ queryKey: ["deck-edhrec", id] })
-    queryClient.invalidateQueries({ queryKey: ["collection"] })
-    queryClient.invalidateQueries({ queryKey: ["collection-items"] })
+  const [updateDeckCardMutation, updateDeckCardResult] = useMutation(UpdateDeckCardDocument)
+  const updateDeckCard = {
+    ...updateDeckCardResult,
+    isPending: updateDeckCardResult.loading,
+    mutate: mutateUpdateDeckCard,
   }
 
-  const allocateDeckCardItem = useMutation({
-    mutationFn: ({
-      collectionItemId,
-      deckCardId,
-    }: {
-      collectionItemId: string
-      deckCardId: string
-    }) => request(AllocateDeckCardItemDocument, { deckCardId, collectionItemId }),
-    onSuccess: () => {
-      invalidateAllocationQueries()
-    },
-  })
-  const deallocateDeckCardItem = useMutation({
-    mutationFn: ({
-      collectionItemId,
-      deckCardId,
-    }: {
-      collectionItemId: string
-      deckCardId: string
-    }) => request(DeallocateDeckCardItemDocument, { deckCardId, collectionItemId }),
-    onSuccess: () => {
-      invalidateAllocationQueries()
-    },
-  })
-  const allocateDeckCardProxy = useMutation({
-    mutationFn: ({ deckCardId, quantity }: { deckCardId: string; quantity: number }) =>
-      request(AllocateDeckCardProxyDocument, { deckCardId, quantity }),
-    onSuccess: () => {
-      invalidateAllocationQueries()
-    },
-  })
-  const deallocateDeckCardProxy = useMutation({
-    mutationFn: ({ deckCardId, quantity }: { deckCardId: string; quantity: number }) =>
-      request(DeallocateDeckCardProxyDocument, { deckCardId, quantity }),
-    onSuccess: () => {
-      invalidateAllocationQueries()
-    },
-  })
-  const allocateDeckPullList = useMutation({
-    mutationFn: async (entries: ReturnType<typeof selectedDeckPullListEntries>) => {
-      for (const entry of entries) {
-        for (let copy = 0; copy < entry.quantity; copy += 1) {
-          await request(AllocateDeckCardItemDocument, {
-            deckCardId: entry.deckCard.id,
-            collectionItemId: entry.candidate.item.id,
-          })
-        }
-      }
-    },
-    onSuccess: (_data, entries) => {
-      const allocatedCount = entries.reduce((total, entry) => total + entry.quantity, 0)
+  function mutateUpdateDeckCard({ deckCardId, input }: UpdateDeckCardVariables) {
+    const wasEditingCard = Boolean(editTarget)
+    const wasMovingCard = Boolean(moveTarget)
+    let context: UpdateDeckCardMutationContext = { isTagOnly: false, rollbackPatches: [] }
 
-      invalidateAllocationQueries()
-      showToast(`${pluralize(allocatedCount, "card")} allocated`)
-      setIsBulkAllocationOpen(false)
-      setSelectedBulkAllocationItemIds({})
-      setBulkAllocationError(null)
+    if (isTagOnlyDeckCardUpdate(input)) {
+      const optimisticTag = deckCardTagValue(input.tag)
+
+      if (optimisticTag !== undefined) {
+        const previousDeck = readDeckQuery()
+        const previousTag = deckCardTagFromDeckQuery(previousDeck, deckCardId)
+        const rollbackPatches: DeckTagPatch[] =
+          previousTag === undefined
+            ? []
+            : [{ currentTag: optimisticTag, id: deckCardId, tag: previousTag }]
+
+        updateDeckCacheTags([{ id: deckCardId, tag: optimisticTag }])
+        context = { isTagOnly: true, optimisticTag, rollbackPatches }
+      }
+    }
+
+    void updateDeckCardMutation({
+      variables: { id: deckCardId, input },
+      onCompleted: (data) => {
+        const isTagOnly = context.isTagOnly || isTagOnlyDeckCardUpdate(input)
+
+        if (isTagOnly) {
+          const deckCard = data.updateDeckCard?.deckCard
+          const tag = deckCardTagValue(deckCard?.tag)
+          if (deckCard && tag !== undefined) {
+            const patch: DeckTagPatch = { id: deckCard.id, tag }
+            if (context.isTagOnly) patch.currentTag = context.optimisticTag
+
+            updateDeckCacheTags([patch])
+          }
+        } else {
+          refetchDeckQueries()
+        }
+
+        if (wasEditingCard) showToast("Card edited")
+        if (wasMovingCard) showToast("Card moved")
+        setEditTarget(null)
+        setEditError(null)
+        setMoveTarget(null)
+        setMoveError(null)
+        setTagError(null)
+      },
+      onError: (error) => {
+        if (context.isTagOnly && context.rollbackPatches.length > 0) {
+          updateDeckCacheTags(context.rollbackPatches)
+        }
+
+        const message = error instanceof Error ? error.message : "Could not update deck card"
+        if (wasEditingCard) setEditError(message)
+        else if (wasMovingCard) setMoveError(message)
+        else setTagError(message)
+      },
+    })
+  }
+
+  const [deleteDeckCardMutation, deleteDeckCardResult] = useMutation(DeleteDeckCardDocument)
+  const deleteDeckCard = {
+    ...deleteDeckCardResult,
+    isPending: deleteDeckCardResult.loading,
+    mutate: (deckCardId: string) =>
+      void deleteDeckCardMutation({
+        variables: { id: deckCardId },
+        onCompleted: () => {
+          refetchDeckQueries()
+          showToast("Card deleted from deck")
+        },
+        onError: () => undefined,
+      }),
+  }
+
+  const [setDeckCommanderMutation, setDeckCommanderResult] = useMutation(SetDeckCommanderDocument)
+  const setDeckCommander = {
+    ...setDeckCommanderResult,
+    isPending: setDeckCommanderResult.loading,
+    mutate: (deckCardId: string) =>
+      void setDeckCommanderMutation({
+        variables: { id: deckCardId },
+        onCompleted: () => {
+          refetchDeckQueries()
+          setMoveError(null)
+        },
+        onError: (error) =>
+          setMoveError(error instanceof Error ? error.message : "Could not set commander"),
+      }),
+  }
+  const [addDeckCardMutation, addDeckCardResult] = useMutation(AddDeckCardDocument)
+  const addDeckCard = {
+    ...addDeckCardResult,
+    isPending: addDeckCardResult.loading,
+    mutate: (input: DeckCardInput) =>
+      void addDeckCardMutation({
+        variables: { deckId: id, input },
+        onCompleted: () => {
+          refetchDeckQueries()
+          showToast("Card added to deck")
+        },
+        onError: () => undefined,
+      }),
+  }
+
+  const [optimizeDeckCardPrintingsMutation, optimizeDeckCardPrintingsResult] = useMutation(
+    OptimizeDeckCardPrintingsDocument,
+  )
+  const optimizeDeckCardPrintings = {
+    ...optimizeDeckCardPrintingsResult,
+    isPending: optimizeDeckCardPrintingsResult.loading,
+    mutate: (deckCardIds: string[]) =>
+      void optimizeDeckCardPrintingsMutation({
+        variables: { deckCardIds },
+        onCompleted: (data) => {
+          const optimizedCount = data.optimizeDeckCardPrintings?.deckCards.length || 0
+
+          refetchDeckQueries()
+          setIsOptimizePrintingsOpen(false)
+          setOptimizePrintingsError(null)
+          showToast(
+            optimizedCount > 0
+              ? `${pluralize(optimizedCount, "printing")} optimized`
+              : "Printings already optimized",
+          )
+        },
+        onError: (error) =>
+          setOptimizePrintingsError(
+            error instanceof Error ? error.message : "Could not optimize printings",
+          ),
+      }),
+  }
+
+  const [updateDeckCardsTagMutation, updateDeckCardsTagResult] = useMutation(
+    UpdateDeckCardsTagDocument,
+  )
+  const updateDeckCardsTag = {
+    ...updateDeckCardsTagResult,
+    isPending: updateDeckCardsTagResult.loading,
+    mutate: ({ deckCardIds, tag }: UpdateDeckCardsTagVariables) => {
+      const previousDeck = readDeckQuery()
+      const rollbackPatches = rollbackDeckCardTagPatches(previousDeck, deckCardIds, tag)
+
+      updateDeckCacheTags(deckCardIds.map((deckCardId) => ({ id: deckCardId, tag })))
+
+      void updateDeckCardsTagMutation({
+        variables: { deckCardIds, tag },
+        onCompleted: (data) => {
+          const patches = (data.updateDeckCardsTag?.deckCards ?? [])
+            .map((deckCard): DeckTagPatch | null => {
+              const nextTag = deckCardTagValue(deckCard.tag)
+              if (nextTag === undefined) return null
+              return { currentTag: tag, id: deckCard.id, tag: nextTag }
+            })
+            .filter((patch): patch is DeckTagPatch => patch !== null)
+
+          if (patches.length > 0) updateDeckCacheTags(patches)
+
+          clearSelectedDeckCards()
+          setIsSelectingCards(false)
+          setBulkActionError(null)
+          setTagError(null)
+        },
+        onError: (error) => {
+          if (rollbackPatches.length) updateDeckCacheTags(rollbackPatches)
+
+          setBulkActionError(
+            error instanceof Error ? error.message : "Could not tag selected cards",
+          )
+        },
+      })
     },
-    onError: (error) =>
-      setBulkAllocationError(error instanceof Error ? error.message : "Could not allocate deck"),
-  })
+  }
+
+  const [bulkUpdateDeckCardMutation] = useMutation(UpdateDeckCardDocument)
+  const bulkUpdateDeckCards = {
+    isPending: isBulkUpdateDeckCardsPending,
+    mutate: ({ deckCardIds, input }: { deckCardIds: string[]; input: DeckCardUpdateInput }) => {
+      setIsBulkUpdateDeckCardsPending(true)
+      void Promise.all(
+        deckCardIds.map((deckCardId) =>
+          bulkUpdateDeckCardMutation({ variables: { id: deckCardId, input } }),
+        ),
+      )
+        .then(() => {
+          refetchDeckQueries()
+          clearSelectedDeckCards()
+          setIsSelectingCards(false)
+          setBulkActionError(null)
+        })
+        .catch((error) =>
+          setBulkActionError(
+            error instanceof Error ? error.message : "Could not update selected cards",
+          ),
+        )
+        .finally(() => setIsBulkUpdateDeckCardsPending(false))
+    },
+  }
+
+  const [bulkDeleteDeckCardMutation] = useMutation(DeleteDeckCardDocument)
+  const bulkDeleteDeckCards = {
+    isPending: isBulkDeleteDeckCardsPending,
+    mutate: (deckCardIds: string[]) => {
+      setIsBulkDeleteDeckCardsPending(true)
+      void Promise.all(
+        deckCardIds.map((deckCardId) =>
+          bulkDeleteDeckCardMutation({ variables: { id: deckCardId } }),
+        ),
+      )
+        .then(() => {
+          refetchDeckQueries()
+          showToast(`${pluralize(deckCardIds.length, "card")} deleted`)
+          clearSelectedDeckCards()
+          setIsSelectingCards(false)
+          setIsDeleteSelectedOpen(false)
+          setBulkActionError(null)
+        })
+        .catch((error) =>
+          setBulkActionError(
+            error instanceof Error ? error.message : "Could not delete selected cards",
+          ),
+        )
+        .finally(() => setIsBulkDeleteDeckCardsPending(false))
+    },
+  }
+
+  function invalidateAllocationQueries() {
+    refetchDeckQueries()
+  }
+
+  const [allocateDeckCardItemMutation, allocateDeckCardItemResult] = useMutation(
+    AllocateDeckCardItemDocument,
+  )
+  const allocateDeckCardItem = {
+    ...allocateDeckCardItemResult,
+    isPending: allocateDeckCardItemResult.loading,
+    mutate: ({ collectionItemId, deckCardId }: { collectionItemId: string; deckCardId: string }) =>
+      void allocateDeckCardItemMutation({
+        variables: { deckCardId, collectionItemId },
+        onCompleted: invalidateAllocationQueries,
+        onError: () => undefined,
+      }),
+  }
+  const [deallocateDeckCardItemMutation, deallocateDeckCardItemResult] = useMutation(
+    DeallocateDeckCardItemDocument,
+  )
+  const deallocateDeckCardItem = {
+    ...deallocateDeckCardItemResult,
+    isPending: deallocateDeckCardItemResult.loading,
+    mutate: ({ collectionItemId, deckCardId }: { collectionItemId: string; deckCardId: string }) =>
+      void deallocateDeckCardItemMutation({
+        variables: { deckCardId, collectionItemId },
+        onCompleted: invalidateAllocationQueries,
+        onError: () => undefined,
+      }),
+  }
+  const [allocateDeckCardProxyMutation, allocateDeckCardProxyResult] = useMutation(
+    AllocateDeckCardProxyDocument,
+  )
+  const allocateDeckCardProxy = {
+    ...allocateDeckCardProxyResult,
+    isPending: allocateDeckCardProxyResult.loading,
+    mutate: ({ deckCardId, quantity }: { deckCardId: string; quantity: number }) =>
+      void allocateDeckCardProxyMutation({
+        variables: { deckCardId, quantity },
+        onCompleted: invalidateAllocationQueries,
+        onError: () => undefined,
+      }),
+  }
+  const [deallocateDeckCardProxyMutation, deallocateDeckCardProxyResult] = useMutation(
+    DeallocateDeckCardProxyDocument,
+  )
+  const deallocateDeckCardProxy = {
+    ...deallocateDeckCardProxyResult,
+    isPending: deallocateDeckCardProxyResult.loading,
+    mutate: ({ deckCardId, quantity }: { deckCardId: string; quantity: number }) =>
+      void deallocateDeckCardProxyMutation({
+        variables: { deckCardId, quantity },
+        onCompleted: invalidateAllocationQueries,
+        onError: () => undefined,
+      }),
+  }
+  const allocateDeckPullList = {
+    isPending: isAllocateDeckPullListPending,
+    mutate: (entries: ReturnType<typeof selectedDeckPullListEntries>) => {
+      setIsAllocateDeckPullListPending(true)
+      void (async () => {
+        for (const entry of entries) {
+          for (let copy = 0; copy < entry.quantity; copy += 1) {
+            await client.mutate({
+              mutation: AllocateDeckCardItemDocument,
+              variables: {
+                deckCardId: entry.deckCard.id,
+                collectionItemId: entry.candidate.item.id,
+              },
+            })
+          }
+        }
+      })()
+        .then(() => {
+          const allocatedCount = entries.reduce((total, entry) => total + entry.quantity, 0)
+
+          invalidateAllocationQueries()
+          showToast(`${pluralize(allocatedCount, "card")} allocated`)
+          setIsBulkAllocationOpen(false)
+          setSelectedBulkAllocationItemIds({})
+          setBulkAllocationError(null)
+        })
+        .catch((error) =>
+          setBulkAllocationError(
+            error instanceof Error ? error.message : "Could not allocate deck",
+          ),
+        )
+        .finally(() => setIsAllocateDeckPullListPending(false))
+    },
+  }
   const allocationError =
     allocateDeckCardItem.error instanceof Error
       ? allocateDeckCardItem.error.message

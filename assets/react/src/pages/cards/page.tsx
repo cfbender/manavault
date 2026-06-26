@@ -1,10 +1,11 @@
-import { useQuery } from "@tanstack/react-query"
+import { useQuery } from "@apollo/client/react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { useEffect, useMemo, useState } from "react"
 import { PageHeader } from "../../components/app-shell"
 import { EmptyState } from "../../components/card-image"
 import { FullscreenPrintingDialog } from "../../components/fullscreen-printing-dialog"
 import { Button } from "../../components/ui/button"
+import { graphqlEndpointContext } from "../../lib/apollo"
 import {
   buildCollectionFilterQuery,
   cloneCollectionFilters,
@@ -15,7 +16,6 @@ import {
   encodeCollectionFilters,
   type CollectionFilterState,
 } from "../../lib/collection-filters"
-import { request } from "../../lib/graphql"
 import { present } from "../../lib/utils"
 import {
   AddCollectionItemDialog,
@@ -52,15 +52,18 @@ export function CardsPage({ query, filterSearch }: { query: string; filterSearch
   const structuredFilterSyntax = buildCollectionFilterQuery(structuredFilters)
   const combinedQuery = combineCollectionQueries(query, structuredFilterSyntax)
   const activeStructuredFilterCount = countActiveCollectionFilters(structuredFilters)
-  const { data, isFetching } = useQuery({
-    queryKey: ["cards", combinedQuery],
-    queryFn: () => request(CardsDocument, { q: combinedQuery, limit: 36 }),
-    enabled: Boolean(combinedQuery.trim()),
+  const shouldSearchCards = Boolean(combinedQuery.trim())
+  const { data, loading: isFetching } = useQuery(CardsDocument, {
+    variables: { q: combinedQuery, limit: 36 },
+    skip: !shouldSearchCards,
+    fetchPolicy: "cache-and-network",
   })
-  const cards = connectionNodes(data?.cards).map((card) => ({
-    ...card,
-    printings: connectionNodes(card.printings),
-  }))
+  const cards = shouldSearchCards
+    ? connectionNodes(data?.cards).map((card) => ({
+        ...card,
+        printings: connectionNodes(card.printings),
+      }))
+    : []
 
   useEffect(() => {
     setQ(query)
@@ -160,7 +163,7 @@ export function CardDetailPage({
   filterSearch,
   hideBackLink = false,
   hidePrivateControls = false,
-  requestEndpoint,
+  graphqlEndpoint,
   returnCollection = false,
   returnDeckId,
   returnEdhrecExcludeLands = false,
@@ -172,7 +175,7 @@ export function CardDetailPage({
   filterSearch?: string
   hideBackLink?: boolean
   hidePrivateControls?: boolean
-  requestEndpoint?: string
+  graphqlEndpoint?: string
   returnCollection?: boolean
   returnDeckId?: string
   returnEdhrecExcludeLands?: boolean
@@ -182,11 +185,12 @@ export function CardDetailPage({
   const [addPrinting, setAddPrinting] = useState<AddCollectionItemInitialPrinting | null>(null)
   const [deckTarget, setDeckTarget] = useState<CardDeckTarget | null>(null)
   const [previewPrintingId, setPreviewPrintingId] = useState<string | null>(null)
-  const { data, isLoading } = useQuery({
-    queryKey: ["card", id, requestEndpoint || "/api/graphql"],
-    queryFn: () =>
-      request(CardDocument, { id }, requestEndpoint ? { endpoint: requestEndpoint } : undefined),
+  const { data, loading } = useQuery(CardDocument, {
+    variables: { id },
+    context: graphqlEndpointContext(graphqlEndpoint),
+    fetchPolicy: graphqlEndpoint ? "no-cache" : "cache-and-network",
   })
+  const isLoading = loading && !data
   const card = data?.card
   const visiblePrintings = connectionNodes(card?.printings)
   const primary = visiblePrintings[0]
@@ -277,9 +281,7 @@ export function CardDetailPage({
           </div>
         </section>
 
-        {hidePrivateControls ? null : (
-          <CardCollectionCopiesPanel cardId={card.id} cardQueryId={id} />
-        )}
+        {hidePrivateControls ? null : <CardCollectionCopiesPanel cardId={card.id} />}
 
         <CardPrintingsGrid
           cardName={card.name}

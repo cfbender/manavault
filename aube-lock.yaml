@@ -5,12 +5,17 @@ settings:
   excludeLinksFromLockfile: false
 
 time:
+  "@apollo/client@4.2.3": 2026-06-08T22:57:58.227Z
   "@capacitor/app@8.1.0": 2026-03-25T17:14:40.340Z
   ogl@1.0.11: 2025-01-27T09:59:29.634Z
+  rxjs@7.8.2: 2025-02-22T03:00:42.711Z
 
 importers:
   .:
     dependencies:
+      "@apollo/client":
+        specifier: ^4.2.3
+        version: 4.2.3(graphql@17.0.1)(graphql-ws@6.0.8(graphql@17.0.1)(ws@8.21.0))(react@19.2.7)(react-dom@19.2.7(react@19.2.7))(rxjs@7.8.2)
       "@capacitor/android":
         specifier: ^8.4.0
         version: 8.4.0(@capacitor/core@8.4.0)
@@ -62,9 +67,6 @@ importers:
       "@radix-ui/react-tooltip":
         specifier: ^1.2.10
         version: 1.2.10(@types/react@19.2.17)(@types/react-dom@19.2.3(@types/react@19.2.17))(react@19.2.7)(react-dom@19.2.7(react@19.2.7))
-      "@tanstack/react-query":
-        specifier: ^5.101.0
-        version: 5.101.0(react@19.2.7)
       "@tanstack/react-router":
         specifier: ^1.170.16
         version: 1.170.16(react@19.2.7)(react-dom@19.2.7(react@19.2.7))
@@ -92,6 +94,9 @@ importers:
       graphql:
         specifier: ^17.0.1
         version: 17.0.1
+      graphql-ws:
+        specifier: ^5.5.5 || ^6.0.3
+        version: 6.0.8(graphql@17.0.1)(ws@8.21.0)
       jiti:
         specifier: ">=1.21.0"
         version: 2.7.0
@@ -110,6 +115,9 @@ importers:
       react-dom:
         specifier: ^19.2.7
         version: 19.2.7(react@19.2.7)
+      rxjs:
+        specifier: ^7.3.0
+        version: 7.8.2
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0
@@ -140,6 +148,28 @@ importers:
         version: 6.0.3
 
 packages:
+  "@apollo/client@4.2.3":
+    resolution:
+      {
+        integrity: sha512-+auRYBXow2v7cT+wKzvjyMyyEojq+G7Sf80vIR57rtEPcxRFuMXuU9IKjwxZ3muclUgdGKwZXNeuki+g0GabgQ==,
+      }
+    peerDependencies:
+      graphql: ^16.0.0 || ^17.0.0
+      graphql-ws: ^5.5.5 || ^6.0.3
+      react: ^17.0.0 || ^18.0.0 || >=19.0.0-rc
+      react-dom: ^17.0.0 || ^18.0.0 || >=19.0.0-rc
+      rxjs: ^7.3.0
+      subscriptions-transport-ws: ^0.9.0 || ^0.11.0
+    peerDependenciesMeta:
+      graphql-ws:
+        optional: true
+      react:
+        optional: true
+      react-dom:
+        optional: true
+      subscriptions-transport-ws:
+        optional: true
+
   "@ardatan/relay-compiler@13.0.1":
     resolution:
       {
@@ -1882,20 +1912,6 @@ packages:
       }
     engines: { node: ">=20.19" }
 
-  "@tanstack/query-core@5.101.0":
-    resolution:
-      {
-        integrity: sha512-cQetA74EB+seWySv1TTKr828TnP0u39m6LykwDXIo84SNortpDkp30TMEjkqtYCNP9c40uT/iwl6MLiufEt0Ow==,
-      }
-
-  "@tanstack/react-query@5.101.0":
-    resolution:
-      {
-        integrity: sha512-rLlJXSpkqfizLWgkR5+eLeIk0MvTx/meEIR7LRjxic+qxiQP8zVjq7BqQkiCMNLQBlLfuOLqqr6KO5GtrDlmSg==,
-      }
-    peerDependencies:
-      react: ^18 || ^19
-
   "@tanstack/react-router@1.170.16":
     resolution:
       {
@@ -2311,6 +2327,34 @@ packages:
         integrity: sha512-Nst5JdK47VIl9UcGwtv2Rcgyn5lWtZ0/mhRQ4G8NN2isxpq2TO30iqHzmwoJycjWuyUfg3GFXqP/gFHXeV57IA==,
       }
     engines: { node: ">=16.0.0" }
+
+  "@wry/caches@1.0.1":
+    resolution:
+      {
+        integrity: sha512-bXuaUNLVVkD20wcGBWRyo7j9N3TxePEWFZj2Y+r9OoUzfqmavM84+mFykRicNsBqatba5JLay1t48wxaXaWnlA==,
+      }
+    engines: { node: ">=8" }
+
+  "@wry/context@0.7.4":
+    resolution:
+      {
+        integrity: sha512-jmT7Sb4ZQWI5iyu3lobQxICu2nC/vbUhP0vIdd6tHC9PTfenmRmuIFqktc6GH9cgi+ZHnsLWPvfSvc4DrYmKiQ==,
+      }
+    engines: { node: ">=8" }
+
+  "@wry/equality@0.5.7":
+    resolution:
+      {
+        integrity: sha512-BRFORjsTuQv5gxcXsuDXx6oGRhuVsEGwZy6LOzRRfgu+eSfxbhUQ9L9YtSEIuIjY/o7g3iWFjrc5eSY1GXP2Dw==,
+      }
+    engines: { node: ">=8" }
+
+  "@wry/trie@0.5.0":
+    resolution:
+      {
+        integrity: sha512-FNoYzHawTMk/6KMQoEG5O4PuioX19UbwdQKF44yw0nLfOypfQdjtfZzo/UIJWAJ23sNIFbD1Ug9lbaDGMwbqQA==,
+      }
+    engines: { node: ">=8" }
 
   "@xmldom/xmldom@0.9.10":
     resolution:
@@ -3646,6 +3690,12 @@ packages:
       }
     engines: { node: ">=12" }
 
+  optimism@0.18.1:
+    resolution:
+      {
+        integrity: sha512-mLXNwWPa9dgFyDqkNi54sjDyNJ9/fTI6WGBLgnXku1vdKY/jovHfZT5r+aiVeFFLOz+foPNOm5YJ4mqgld2GBQ==,
+      }
+
   oxfmt@0.55.0:
     resolution:
       {
@@ -3981,6 +4031,12 @@ packages:
     resolution:
       {
         integrity: sha512-5l4VyZR86LZ/lDxZTR6jqL8AFE2S0IFLMP26AbjsLVADxHdhB/c0GUsH+y39UfCi3dzz8OlQuPmnaJOMoDHQBA==,
+      }
+
+  rxjs@7.8.2:
+    resolution:
+      {
+        integrity: sha512-dhKf903U/PQZY6boNNtAGdWbG85WAbjT/1xYoZIC7FAY0yWapOBQVsVrDl58W86//e1VpMNBtRV4MaXfdMySFA==,
       }
 
   safe-buffer@5.2.1:
@@ -4705,6 +4761,21 @@ packages:
       }
 
 snapshots:
+  "@apollo/client@4.2.3(graphql@17.0.1)(graphql-ws@6.0.8(graphql@17.0.1)(ws@8.21.0))(react@19.2.7)(react-dom@19.2.7(react@19.2.7))(rxjs@7.8.2)":
+    dependencies:
+      "@graphql-typed-document-node/core": 3.2.0(graphql@17.0.1)
+      "@wry/caches": 1.0.1
+      "@wry/equality": 0.5.7
+      "@wry/trie": 0.5.0
+      graphql: 17.0.1
+      graphql-tag: 2.12.6(graphql@17.0.1)
+      graphql-ws: 6.0.8(graphql@17.0.1)(ws@8.21.0)
+      optimism: 0.18.1
+      react: 19.2.7
+      react-dom: 19.2.7(react@19.2.7)
+      rxjs: 7.8.2
+      tslib: 2.8.1
+
   "@ardatan/relay-compiler@13.0.1(graphql@17.0.1)":
     dependencies:
       "@babel/runtime": 7.29.7
@@ -5931,13 +6002,6 @@ snapshots:
 
   "@tanstack/history@1.162.0": {}
 
-  "@tanstack/query-core@5.101.0": {}
-
-  "@tanstack/react-query@5.101.0(react@19.2.7)":
-    dependencies:
-      "@tanstack/query-core": 5.101.0
-      react: 19.2.7
-
   "@tanstack/react-router@1.170.16(react@19.2.7)(react-dom@19.2.7(react@19.2.7))":
     dependencies:
       "@tanstack/history": 1.162.0
@@ -6177,6 +6241,22 @@ snapshots:
       tslib: 2.8.1
 
   "@whatwg-node/promise-helpers@1.3.2":
+    dependencies:
+      tslib: 2.8.1
+
+  "@wry/caches@1.0.1":
+    dependencies:
+      tslib: 2.8.1
+
+  "@wry/context@0.7.4":
+    dependencies:
+      tslib: 2.8.1
+
+  "@wry/equality@0.5.7":
+    dependencies:
+      tslib: 2.8.1
+
+  "@wry/trie@0.5.0":
     dependencies:
       tslib: 2.8.1
 
@@ -6810,6 +6890,13 @@ snapshots:
       is-docker: 2.2.1
       is-wsl: 2.2.0
 
+  optimism@0.18.1:
+    dependencies:
+      "@wry/caches": 1.0.1
+      "@wry/context": 0.7.4
+      "@wry/trie": 0.5.0
+      tslib: 2.8.1
+
   oxfmt@0.55.0(vite-plus@0.2.1):
     dependencies:
       tinypool: 2.1.0
@@ -7002,6 +7089,10 @@ snapshots:
   run-parallel@1.2.0:
     dependencies:
       queue-microtask: 1.2.3
+
+  rxjs@7.8.2:
+    dependencies:
+      tslib: 2.8.1
 
   safe-buffer@5.2.1: {}
 

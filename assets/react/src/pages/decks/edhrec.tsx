@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query"
+import { useQuery } from "@apollo/client/react"
 import { Database, Sparkles, XCircle, type LucideIcon } from "lucide-react"
 
 import { EmptyState } from "../../components/card-image"
@@ -9,7 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog"
-import { request } from "../../lib/graphql"
 import { cn } from "../../lib/utils"
 import type {
   DeckDetail,
@@ -73,14 +72,12 @@ export function EDHRecDialog({
   onTabChange: (tab: EDHRecTab) => void
   open: boolean
 }) {
-  const edhrecQuery = useQuery({
-    queryKey: ["deck-edhrec", deck?.id, excludeLands],
-    queryFn: () =>
-      request(DeckEdhrecDocument, {
-        id: deck?.id || "",
-        excludeLands,
-      }),
-    enabled: open && Boolean(deck?.id),
+  const edhrecQuery = useQuery(DeckEdhrecDocument, {
+    variables: {
+      id: deck?.id || "",
+      excludeLands,
+    },
+    skip: !open || !deck?.id,
   })
   const data = edhrecQuery.data?.deckEdhrec
   const cardReturnSearch = deck?.id
@@ -154,7 +151,7 @@ export function EDHRecDialog({
             </label>
           </div>
 
-          {edhrecQuery.isLoading ? <EmptyState title="Loading EDHREC..." /> : null}
+          {edhrecQuery.loading ? <EmptyState title="Loading EDHREC..." /> : null}
 
           {edhrecQuery.error ? (
             <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
@@ -170,7 +167,7 @@ export function EDHRecDialog({
             </p>
           ) : null}
 
-          {!edhrecQuery.isLoading && data && cardReturnSearch && scrollStorageKey ? (
+          {!edhrecQuery.loading && data && cardReturnSearch && scrollStorageKey ? (
             <>
               {activeTab === "recs" ? (
                 <EDHRecCardGrid

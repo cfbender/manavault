@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query"
+import { useQuery } from "@apollo/client/react"
 import { XCircle } from "lucide-react"
 import { useMemo, useState } from "react"
 import { createPortal } from "react-dom"
@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { DeckPlaytester } from "../../components/deck-playtester"
-import { request } from "../../lib/graphql"
+import { graphqlEndpointContext } from "../../lib/apollo"
 import { exportDecklistText } from "../../lib/deck-export"
 import { createPlaytestState } from "../../lib/deck-playtest"
 import { buylistPrintingLabel, buylistTotalPrice, formatUsdCents } from "./buylist-export"
@@ -37,29 +37,18 @@ export function useSharedDeckBuylist({
   includeSideboard: boolean
   shareToken: string
 }) {
-  return useQuery({
-    queryKey: [
-      "shared-deck-buylist",
-      shareToken,
+  return useQuery(DeckBuylistDocument, {
+    variables: {
+      exportFormat: SHARED_BUYLIST_EXPORT_FORMAT,
+      assumeNoOwned: true,
+      id: shareToken,
       includeBasicLands,
       includeSideboard,
       includeMaybeboard,
-    ],
-    queryFn: () =>
-      request(
-        DeckBuylistDocument,
-        {
-          exportFormat: SHARED_BUYLIST_EXPORT_FORMAT,
-          assumeNoOwned: true,
-          id: shareToken,
-          includeBasicLands,
-          includeSideboard,
-          includeMaybeboard,
-          printingMode: SHARED_BUYLIST_PRINTING_MODE,
-        },
-        { endpoint: "/share/graphql" },
-      ),
-    enabled: enabled && Boolean(shareToken),
+      printingMode: SHARED_BUYLIST_PRINTING_MODE,
+    },
+    skip: !(enabled && shareToken),
+    context: graphqlEndpointContext("/share/graphql"),
   })
 }
 
@@ -139,8 +128,8 @@ export function ShareDeckBuylistDialog({
                 Estimated total
               </p>
               <p className="font-mono text-lg font-black">
-                {buylistQuery.isLoading ? "Loading..." : formatUsdCents(totalPrice.totalCents)}
-                {!buylistQuery.isLoading && totalPrice.unpricedQuantity > 0 ? (
+                {buylistQuery.loading ? "Loading..." : formatUsdCents(totalPrice.totalCents)}
+                {!buylistQuery.loading && totalPrice.unpricedQuantity > 0 ? (
                   <span className="ml-1 text-xs font-semibold text-base-content/55">
                     + {totalPrice.unpricedQuantity} unpriced
                   </span>
@@ -173,7 +162,7 @@ export function ShareDeckBuylistDialog({
           <BuylistMarketplaceActions entries={entries} />
 
           <div className="rounded-box border border-base-300 bg-base-200/60 px-4 py-3 text-sm text-base-content/70">
-            {buylistQuery.isLoading
+            {buylistQuery.loading
               ? "Loading buylist..."
               : `${totalQuantity} cards in the buy list. Marketplace links use card names; prices use preferred or cheapest known printings.`}
           </div>
@@ -186,7 +175,7 @@ export function ShareDeckBuylistDialog({
             </p>
           ) : null}
 
-          {!buylistQuery.isLoading && !entries.length ? (
+          {!buylistQuery.loading && !entries.length ? (
             <EmptyState title="No cards in this buy list" />
           ) : null}
 

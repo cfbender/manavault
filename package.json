@@ -25,6 +25,7 @@
     "android:signing:setup": "node scripts/create-android-keystore.mjs"
   },
   "dependencies": {
+    "@apollo/client": "^4.2.3",
     "@capacitor/android": "^8.4.0",
     "@capacitor/app": "^8.1.0",
     "@capacitor/core": "^8.4.0",
@@ -42,7 +43,6 @@
     "@radix-ui/react-tabs": "^1.1.15",
     "@radix-ui/react-toast": "^1.2.17",
     "@radix-ui/react-tooltip": "^1.2.10",
-    "@tanstack/react-query": "^5.101.0",
     "@tanstack/react-router": "^1.170.16",
     "@tanstack/router-plugin": "^1.168.18",
     "@types/react": "^19.2.17",

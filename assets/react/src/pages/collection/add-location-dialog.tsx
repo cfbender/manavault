@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
 import { Plus } from "lucide-react"
 import type * as React from "react"
 import { useEffect, useMemo, useState } from "react"
@@ -13,7 +13,7 @@ import {
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
 import { useToast } from "../../components/ui/toast"
-import { request } from "../../lib/graphql"
+import { refetchActiveQueries } from "../../lib/apollo"
 import { present, titleize } from "../../lib/utils"
 import { LOCATION_KINDS, MODAL_SEARCH_DEBOUNCE_MS } from "./constants"
 import { CreateLocationDocument, LocationCoverCardSearchDocument } from "./documents"
@@ -27,7 +27,7 @@ export function AddLocationDialog({
   onOpenChange: (open: boolean) => void
   open: boolean
 }) {
-  const queryClient = useQueryClient()
+  const client = useApolloClient()
   const { showToast } = useToast()
   const [name, setName] = useState("")
   const [kind, setKind] = useState<(typeof LOCATION_KINDS)[number]>("box")
@@ -39,15 +39,9 @@ export function AddLocationDialog({
   const coverSearchTerm = debouncedCoverSearch.trim()
   const coverSearchDraftTerm = coverSearch.trim()
 
-  const coverSearchQuery = useQuery({
-    queryKey: ["location-cover-card-search", coverSearchTerm],
-    queryFn: () =>
-      request(LocationCoverCardSearchDocument, {
-        q: coverSearchTerm,
-        first: 8,
-      }),
-    enabled: open && coverSearchTerm.length > 1,
-    staleTime: 60_000,
+  const coverSearchQuery = useQuery(LocationCoverCardSearchDocument, {
+    variables: { q: coverSearchTerm, first: 8 },
+    skip: !(open && coverSearchTerm.length > 1),
   })
   const coverSearchCards = useMemo(
     () =>
@@ -60,29 +54,7 @@ export function AddLocationDialog({
         })) || [],
     [coverSearchQuery.data],
   )
-  const createLocation = useMutation({
-    mutationFn: () =>
-      request(CreateLocationDocument, {
-        input: {
-          name: name.trim(),
-          kind,
-          description: description.trim() || null,
-          coverScryfallId: selectedCover?.id ?? null,
-        },
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["collection"] })
-      queryClient.invalidateQueries({
-        queryKey: ["collection-item-form-options"],
-      })
-      queryClient.invalidateQueries({ queryKey: ["home"] })
-      showToast(`Created location ${name.trim()}`)
-      reset()
-      onOpenChange(false)
-    },
-    onError: (error) =>
-      setError(error instanceof Error ? error.message : "Could not create location"),
-  })
+  const [createLocationMutation, createLocation] = useMutation(CreateLocationDocument)
 
   useEffect(() => {
     if (!open) return
@@ -98,11 +70,28 @@ export function AddLocationDialog({
       return
     }
 
-    createLocation.mutate()
+    void createLocationMutation({
+      variables: {
+        input: {
+          name: name.trim(),
+          kind,
+          description: description.trim() || null,
+          coverScryfallId: selectedCover?.id ?? null,
+        },
+      },
+      onCompleted: () => {
+        void refetchActiveQueries(client)
+        showToast(`Created location ${name.trim()}`)
+        reset()
+        onOpenChange(false)
+      },
+      onError: (error) =>
+        setError(error instanceof Error ? error.message : "Could not create location"),
+    })
   }
 
   function close() {
-    if (createLocation.isPending) return
+    if (createLocation.loading) return
     setError(null)
     onOpenChange(false)
   }
@@ -240,10 +229,10 @@ export function AddLocationDialog({
 
             {coverSearchDraftTerm.length > 1 ? (
               <div className="max-h-80 overflow-y-auto rounded-box border border-base-300 bg-base-100">
-                {coverSearchQuery.isFetching || coverSearchTerm !== coverSearchDraftTerm ? (
+                {coverSearchQuery.loading || coverSearchTerm !== coverSearchDraftTerm ? (
                   <p className="px-3 py-2 text-sm text-base-content/55">Searching...</p>
                 ) : null}
-                {!coverSearchQuery.isFetching &&
+                {!coverSearchQuery.loading &&
                 coverSearchTerm === coverSearchDraftTerm &&
                 coverSearchCards.length === 0 ? (
                   <p className="px-3 py-2 text-sm text-base-content/55">No cards found.</p>
@@ -302,17 +291,12 @@ export function AddLocationDialog({
           ) : null}
 
           <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-4">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={close}
-              disabled={createLocation.isPending}
-            >
+            <Button type="button" variant="ghost" onClick={close} disabled={createLocation.loading}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createLocation.isPending}>
+            <Button type="submit" disabled={createLocation.loading}>
               <Plus className="h-4 w-4" />
-              {createLocation.isPending ? "Creating..." : "Create location"}
+              {createLocation.loading ? "Creating..." : "Create location"}
             </Button>
           </div>
         </form>

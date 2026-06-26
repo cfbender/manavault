@@ -1,9 +1,8 @@
-import { useQuery } from "@tanstack/react-query"
+import { useQuery } from "@apollo/client/react"
 import { useEffect, useRef, useState } from "react"
 import type { KeyboardEvent } from "react"
 import { Input } from "../../components/ui/input"
 import { graphql } from "../../gql"
-import { request } from "../../lib/graphql"
 import { cn } from "../../lib/utils"
 
 const SET_SUGGESTION_LIMIT = 8
@@ -29,11 +28,9 @@ export function SetCombobox({
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
   const query = debouncedValue.trim()
-  const { data } = useQuery({
-    queryKey: ["set-suggestions", query, SET_SUGGESTION_LIMIT],
-    queryFn: () => request(SetSuggestionsDocument, { q: query, limit: SET_SUGGESTION_LIMIT }),
-    enabled: query.length > 1,
-    staleTime: 60_000,
+  const { data } = useQuery(SetSuggestionsDocument, {
+    variables: { q: query, limit: SET_SUGGESTION_LIMIT },
+    skip: query.length <= 1,
   })
   const suggestions = data?.setSuggestions ?? []
   const showSuggestions = open && suggestions.length > 0

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery } from "@apollo/client/react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { Layers, Plus } from "lucide-react"
 import { useMemo, useState } from "react"
@@ -9,7 +9,6 @@ import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
 import { ConfirmDialog } from "../../components/ui/confirm-dialog"
 import { useToast } from "../../components/ui/toast"
-import { request } from "../../lib/graphql"
 import { compactNumber, titleize } from "../../lib/utils"
 import { SummaryActionMenu } from "./deck-actions"
 import { EditDeckDialog, NewDeckDialog } from "./deck-editor-dialogs"
@@ -30,26 +29,20 @@ export function DecksPage() {
   const [sharingDeck, setSharingDeck] = useState<DeckSummary | null>(null)
   const [deletingDeck, setDeletingDeck] = useState<DeckSummary | null>(null)
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
   const { showToast } = useToast()
-  const deleteDeck = useMutation({
-    mutationFn: (deckId: string) => request(DeleteDeckDocument, { id: deckId }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["decks"] })
-    },
+  const [deleteDeck] = useMutation(DeleteDeckDocument, {
+    refetchQueries: [{ query: DecksDocument }],
   })
-  const { data, isLoading } = useQuery({
-    queryKey: ["decks"],
-    queryFn: () => request(DecksDocument),
-  })
+  const { data, loading: isLoading } = useQuery(DecksDocument, { fetchPolicy: "cache-and-network" })
   const decks = useMemo(() => flattenDecks(data?.decks), [data?.decks])
   const deckGroups = groupDecksByFormat(decks)
 
   function deleteSelectedDeck() {
     if (!deletingDeck) return
     const deckName = deletingDeck.name
-    deleteDeck.mutate(deletingDeck.id, {
-      onSuccess: () => showToast(`Deleted deck ${deckName}`),
+    void deleteDeck({
+      variables: { id: deletingDeck.id },
+      onCompleted: () => showToast(`Deleted deck ${deckName}`),
     })
     if (editingDeck?.id === deletingDeck.id) setEditingDeck(null)
     if (sharingDeck?.id === deletingDeck.id) setSharingDeck(null)

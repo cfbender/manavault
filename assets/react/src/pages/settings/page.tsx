@@ -1,12 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
 import type { FormEvent } from "react"
 import { useEffect, useMemo, useState } from "react"
 import { PageHeader } from "../../components/app-shell"
 import { useToast } from "../../components/ui/toast"
-import { request } from "../../lib/graphql"
 import { pluralize, present } from "../../lib/utils"
 import { AutoSortSummaryDialog } from "../collection/auto-sort-summary-dialog"
-import { invalidateCollectionViews } from "../collection/collection-navigation"
 import { AutoSortCollectionDocument } from "../collection/documents"
 import type { AutoSortCollectionResult } from "../collection/types"
 import { CollectionAutoSortSection } from "./collection-auto-sort-section"
@@ -37,7 +35,7 @@ import { ScryfallDataSection } from "./scryfall-data-section"
 import { Alert } from "./ui"
 
 export function SettingsPage() {
-  const queryClient = useQueryClient()
+  const client = useApolloClient()
   const { showToast } = useToast()
   const [form, setForm] = useState<FormState>(initialForm)
   const [message, setMessage] = useState<string | null>(null)
@@ -49,21 +47,20 @@ export function SettingsPage() {
   >(null)
   const { nativeShell, nativeSectionProps } = useNativeShellSection()
 
-  const settingsQuery = useQuery({
-    queryKey: ["backup-settings"],
-    queryFn: () => request(BackupSettingsDocument),
+  const settingsQuery = useQuery(BackupSettingsDocument, {
+    fetchPolicy: "cache-and-network",
   })
 
   const settings = settingsQuery.data?.backupSettings
-  const backupsQuery = useQuery({
-    queryKey: ["cloud-backups", settings?.provider],
-    queryFn: () => request(CloudBackupsDocument),
-    enabled: !!settings && settings.provider !== "none",
+  const shouldLoadBackups = !!settings && settings.provider !== "none"
+  const backupsQuery = useQuery(CloudBackupsDocument, {
+    fetchPolicy: "cache-and-network",
+    notifyOnNetworkStatusChange: true,
+    skip: !shouldLoadBackups,
   })
 
-  const autoSortQuery = useQuery({
-    queryKey: ["collection-auto-sort-settings"],
-    queryFn: () => request(CollectionAutoSortSettingsDocument),
+  const autoSortQuery = useQuery(CollectionAutoSortSettingsDocument, {
+    fetchPolicy: "cache-and-network",
   })
 
   const autoSortLocations: CollectionAutoSortSettingsLocation[] = useMemo(
@@ -75,7 +72,7 @@ export function SettingsPage() {
     [autoSortQuery.data?.collectionAutoSortRules],
   )
 
-  const backups = backupsQuery.data?.cloudBackups ?? []
+  const backups = shouldLoadBackups ? (backupsQuery.data?.cloudBackups ?? []) : []
 
   useEffect(() => {
     if (!settings) return
@@ -97,125 +94,53 @@ export function SettingsPage() {
     })
   }, [settings])
 
-  const saveMutation = useMutation({
-    mutationFn: () => request(UpdateBackupSettingsDocument, { input: backupSettingsInput(form) }),
-    onSuccess: async (data) => {
-      const backupSettings = data.updateBackupSettings?.backupSettings
-
-      setError(null)
-      setMessage("Backup settings saved.")
-      if (backupSettings) {
-        queryClient.setQueryData(["backup-settings"], { backupSettings })
-      }
-      await queryClient.invalidateQueries({ queryKey: ["backup-settings"] })
-      await queryClient.invalidateQueries({ queryKey: ["cloud-backups"] })
-    },
-    onError: (err) => setError(errorMessage(err)),
-  })
-
-  const runMutation = useMutation({
-    mutationFn: () => request(RunCloudBackupDocument),
-    onSuccess: async (data) => {
-      setError(null)
-      setMessage(data.runCloudBackup?.cloudBackup?.message ?? "Backup uploaded.")
-      await queryClient.invalidateQueries({ queryKey: ["backup-settings"] })
-      await queryClient.invalidateQueries({ queryKey: ["cloud-backups"] })
-    },
-    onError: (err) => setError(errorMessage(err)),
-  })
-
-  const restoreMutation = useMutation({
-    mutationFn: (id: string) => request(StageCloudRestoreDocument, { id }),
-    onSuccess: async (data) => {
-      setError(null)
-      setMessage(data.stageCloudRestore?.restoreResult?.message ?? "Restore staged.")
-      await queryClient.invalidateQueries({ queryKey: ["backup-settings"] })
-      await queryClient.invalidateQueries({ queryKey: ["cloud-backups"] })
-    },
-    onError: (err) => setError(errorMessage(err)),
-  })
-
-  const catalogReloadMutation = useMutation({
-    mutationFn: () => request(ReloadScryfallCatalogDocument),
-    onSuccess: (data) => {
-      setError(null)
-      setMessage(
-        data.reloadScryfallCatalog?.reloadResult?.message ?? "Scryfall catalog reload queued.",
-      )
-    },
-    onError: (err) => setError(errorMessage(err)),
-  })
-
-  const assetReloadMutation = useMutation({
-    mutationFn: () => request(ReloadScryfallAssetsDocument),
-    onSuccess: (data) => {
-      setError(null)
-      setMessage(
-        data.reloadScryfallAssets?.reloadResult?.message ?? "Scryfall asset reload queued.",
-      )
-    },
-    onError: (err) => setError(errorMessage(err)),
-  })
-
-  const autoSortMutation = useMutation({
-    mutationFn: (input: CollectionAutoSortRuleInput[]) =>
-      request(UpdateCollectionAutoSortRulesDocument, { input }),
-    onSuccess: async (data) => {
-      const collectionAutoSortRules = data.updateCollectionAutoSortRules?.collectionAutoSortRules
-
-      setError(null)
-      setMessage("Collection auto-sort rules saved.")
-      if (collectionAutoSortRules) {
-        queryClient.setQueryData(
-          ["collection-auto-sort-settings"],
-          (current: typeof autoSortQuery.data) => ({
-            locations: current?.locations ?? { edges: [] },
-            collectionAutoSortRules,
-          }),
-        )
-      }
-      await queryClient.invalidateQueries({ queryKey: ["collection-auto-sort-settings"] })
-      await queryClient.invalidateQueries({ queryKey: ["collection"] })
-      await queryClient.invalidateQueries({ queryKey: ["collection-item-form-options"] })
-      await queryClient.invalidateQueries({ queryKey: ["location"] })
-    },
-    onError: (err) => setError(errorMessage(err)),
-  })
-
-  const autoSortPreviewMutation = useMutation({
-    mutationFn: ({ dryRun, rules }: { dryRun: boolean; rules: CollectionAutoSortRuleInput[] }) =>
-      request(AutoSortCollectionDocument, { input: { sourceLocationId: null, dryRun, rules } }),
-    onSuccess: async (data, input) => {
-      const result = data.autoSortCollection?.autoSortResult
-
-      setError(null)
-      if (!input.dryRun) {
-        setAutoSortResult(null)
-        setMessage("Collection auto-sort complete.")
-        showToast(`${pluralize(result?.movedCount ?? 0, "card")} auto-sorted`)
-        invalidateCollectionViews(queryClient)
-        await queryClient.invalidateQueries({ queryKey: ["location"] })
-      } else {
-        setAutoSortResult(result ?? null)
-      }
-    },
-    onError: (err) => {
-      setAutoSortResult(null)
-      setError(errorMessage(err))
-    },
-  })
+  const [updateBackupSettings, saveMutation] = useMutation(UpdateBackupSettingsDocument)
+  const [runCloudBackup, runMutation] = useMutation(RunCloudBackupDocument)
+  const [stageCloudRestore, restoreMutation] = useMutation(StageCloudRestoreDocument)
+  const [queueScryfallCatalogReload, catalogReloadMutation] = useMutation(
+    ReloadScryfallCatalogDocument,
+  )
+  const [queueScryfallAssetReload, assetReloadMutation] = useMutation(ReloadScryfallAssetsDocument)
+  const [updateCollectionAutoSortRules, autoSortMutation] = useMutation(
+    UpdateCollectionAutoSortRulesDocument,
+  )
+  const [autoSortCollection, autoSortPreviewMutation] = useMutation(AutoSortCollectionDocument)
 
   function submitSettings(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setMessage(null)
     setError(null)
-    saveMutation.mutate()
+    void updateBackupSettings({
+      variables: { input: backupSettingsInput(form) },
+      onCompleted: (data) => {
+        const backupSettings = data.updateBackupSettings?.backupSettings
+
+        setError(null)
+        setMessage("Backup settings saved.")
+        if (backupSettings) {
+          client.writeQuery({
+            query: BackupSettingsDocument,
+            data: { backupSettings },
+          })
+        }
+        void client.refetchQueries({ include: "active" })
+      },
+      onError: (err) => setError(errorMessage(err)),
+    })
   }
 
   function runBackup() {
     setMessage(null)
     setError(null)
-    runMutation.mutate()
+    void runCloudBackup({
+      variables: {},
+      onCompleted: (data) => {
+        setError(null)
+        setMessage(data.runCloudBackup?.cloudBackup?.message ?? "Backup uploaded.")
+        void client.refetchQueries({ include: "active" })
+      },
+      onError: (err) => setError(errorMessage(err)),
+    })
   }
 
   function stageRestore() {
@@ -226,25 +151,72 @@ export function SettingsPage() {
 
     setMessage(null)
     setError(null)
-    restoreMutation.mutate(restoreId)
+    void stageCloudRestore({
+      variables: { id: restoreId },
+      onCompleted: (data) => {
+        setError(null)
+        setMessage(data.stageCloudRestore?.restoreResult?.message ?? "Restore staged.")
+        void client.refetchQueries({ include: "active" })
+      },
+      onError: (err) => setError(errorMessage(err)),
+    })
   }
 
   function reloadScryfallCatalog() {
     setMessage(null)
     setError(null)
-    catalogReloadMutation.mutate()
+    void queueScryfallCatalogReload({
+      variables: {},
+      onCompleted: (data) => {
+        setError(null)
+        setMessage(
+          data.reloadScryfallCatalog?.reloadResult?.message ?? "Scryfall catalog reload queued.",
+        )
+      },
+      onError: (err) => setError(errorMessage(err)),
+    })
   }
 
   function reloadScryfallAssets() {
     setMessage(null)
     setError(null)
-    assetReloadMutation.mutate()
+    void queueScryfallAssetReload({
+      variables: {},
+      onCompleted: (data) => {
+        setError(null)
+        setMessage(
+          data.reloadScryfallAssets?.reloadResult?.message ?? "Scryfall asset reload queued.",
+        )
+      },
+      onError: (err) => setError(errorMessage(err)),
+    })
   }
 
   function saveAutoSortRules(input: CollectionAutoSortRuleInput[]) {
     setMessage(null)
     setError(null)
-    autoSortMutation.mutate(input)
+    void updateCollectionAutoSortRules({
+      variables: { input },
+      onCompleted: (data) => {
+        const collectionAutoSortRules = data.updateCollectionAutoSortRules?.collectionAutoSortRules
+
+        setError(null)
+        setMessage("Collection auto-sort rules saved.")
+        if (collectionAutoSortRules) {
+          const current = client.readQuery({ query: CollectionAutoSortSettingsDocument })
+
+          client.writeQuery({
+            query: CollectionAutoSortSettingsDocument,
+            data: {
+              locations: current?.locations ?? { edges: [] },
+              collectionAutoSortRules,
+            },
+          })
+        }
+        void client.refetchQueries({ include: "active" })
+      },
+      onError: (err) => setError(errorMessage(err)),
+    })
   }
 
   function previewAutoSortRules(input: CollectionAutoSortRuleInput[]) {
@@ -252,14 +224,43 @@ export function SettingsPage() {
     setError(null)
     setAutoSortResult(null)
     setAutoSortPreviewInput(input)
-    autoSortPreviewMutation.mutate({ dryRun: true, rules: input })
+    void autoSortCollection({
+      variables: { input: { sourceLocationId: null, dryRun: true, rules: input } },
+      onCompleted: (data) => {
+        const result = data.autoSortCollection?.autoSortResult
+
+        setError(null)
+        setAutoSortResult(result ?? null)
+      },
+      onError: (err) => {
+        setAutoSortResult(null)
+        setError(errorMessage(err))
+      },
+    })
   }
 
   function applyAutoSortPreview() {
     if (!autoSortPreviewInput) return
 
     setError(null)
-    autoSortPreviewMutation.mutate({ dryRun: false, rules: autoSortPreviewInput })
+    void autoSortCollection({
+      variables: {
+        input: { sourceLocationId: null, dryRun: false, rules: autoSortPreviewInput },
+      },
+      onCompleted: (data) => {
+        const result = data.autoSortCollection?.autoSortResult
+
+        setError(null)
+        setAutoSortResult(null)
+        setMessage("Collection auto-sort complete.")
+        showToast(`${pluralize(result?.movedCount ?? 0, "card")} auto-sorted`)
+        void client.refetchQueries({ include: "active" })
+      },
+      onError: (err) => {
+        setAutoSortResult(null)
+        setError(errorMessage(err))
+      },
+    })
   }
 
   function showAutoSortValidationError(message: string) {
@@ -275,13 +276,11 @@ export function SettingsPage() {
         description="Manage the mobile shell, collection auto-sort rules, cloud backups, manual restores, and Scryfall catalog maintenance."
       />
 
-      {settingsQuery.isError ? (
-        <Alert tone="error">{errorMessage(settingsQuery.error)}</Alert>
+      {settingsQuery.error ? <Alert tone="error">{errorMessage(settingsQuery.error)}</Alert> : null}
+      {shouldLoadBackups && backupsQuery.error ? (
+        <Alert tone="error">{errorMessage(backupsQuery.error)}</Alert>
       ) : null}
-      {backupsQuery.isError ? <Alert tone="error">{errorMessage(backupsQuery.error)}</Alert> : null}
-      {autoSortQuery.isError ? (
-        <Alert tone="error">{errorMessage(autoSortQuery.error)}</Alert>
-      ) : null}
+      {autoSortQuery.error ? <Alert tone="error">{errorMessage(autoSortQuery.error)}</Alert> : null}
       {error ? <Alert tone="error">{error}</Alert> : null}
       {message ? <Alert tone="success">{message}</Alert> : null}
 
@@ -290,18 +289,18 @@ export function SettingsPage() {
       <BackupSettingsForm
         form={form}
         settings={settings}
-        savePending={saveMutation.isPending}
-        settingsLoading={settingsQuery.isLoading}
-        runPending={runMutation.isPending}
+        savePending={saveMutation.loading}
+        settingsLoading={settingsQuery.loading}
+        runPending={runMutation.loading}
         onSubmit={submitSettings}
         onRunBackup={runBackup}
         setFormField={setFormField}
       />
 
       <CollectionAutoSortSection
-        isLoading={autoSortQuery.isLoading}
-        isPreviewing={autoSortPreviewMutation.isPending}
-        isSaving={autoSortMutation.isPending}
+        isLoading={autoSortQuery.loading}
+        isPreviewing={autoSortPreviewMutation.loading}
+        isSaving={autoSortMutation.loading}
         locations={autoSortLocations}
         rules={autoSortRules}
         onPreview={previewAutoSortRules}
@@ -313,13 +312,13 @@ export function SettingsPage() {
         open={Boolean(autoSortResult)}
         result={autoSortResult}
         onOpenChange={(open) => !open && setAutoSortResult(null)}
-        applyPending={autoSortPreviewMutation.isPending}
+        applyPending={autoSortPreviewMutation.loading}
         onApply={autoSortPreviewInput ? applyAutoSortPreview : undefined}
       />
 
       <ScryfallDataSection
-        catalogPending={catalogReloadMutation.isPending}
-        assetPending={assetReloadMutation.isPending}
+        catalogPending={catalogReloadMutation.loading}
+        assetPending={assetReloadMutation.loading}
         onReloadCatalog={reloadScryfallCatalog}
         onReloadAssets={reloadScryfallAssets}
       />
@@ -328,11 +327,13 @@ export function SettingsPage() {
         backups={backups}
         provider={form.provider}
         restoreId={restoreId}
-        restorePending={restoreMutation.isPending}
-        refreshPending={backupsQuery.isFetching}
+        restorePending={restoreMutation.loading}
+        refreshPending={shouldLoadBackups && backupsQuery.loading}
         setRestoreId={setRestoreId}
         onStageRestore={stageRestore}
-        onRefresh={() => backupsQuery.refetch()}
+        onRefresh={() => {
+          if (shouldLoadBackups) void backupsQuery.refetch()
+        }}
       />
     </div>
   )

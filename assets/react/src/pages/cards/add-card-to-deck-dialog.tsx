@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
 import { useNavigate } from "@tanstack/react-router"
 import type { FormEvent } from "react"
 import { useEffect, useState } from "react"
@@ -12,7 +12,6 @@ import {
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
 import { useToast } from "../../components/ui/toast"
-import { request } from "../../lib/graphql"
 import { pluralize, present, titleize } from "../../lib/utils"
 import { AddCardToDeckDocument, CardDeckOptionsDocument } from "./data"
 
@@ -38,7 +37,7 @@ export function AddCatalogCardToDeckDialog({
   target: CardDeckTarget | null
   onOpenChange: (open: boolean) => void
 }) {
-  const queryClient = useQueryClient()
+  const client = useApolloClient()
   const navigate = useNavigate()
   const { showToast } = useToast()
   const [deckId, setDeckId] = useState("")
@@ -47,10 +46,9 @@ export function AddCatalogCardToDeckDialog({
   const [finish, setFinish] = useState("nonfoil")
   const [error, setError] = useState<string | null>(null)
   const open = Boolean(target)
-  const decksQuery = useQuery({
-    queryKey: ["card-deck-options"],
-    queryFn: () => request(CardDeckOptionsDocument),
-    enabled: open,
+  const decksQuery = useQuery(CardDeckOptionsDocument, {
+    skip: !open,
+    fetchPolicy: "cache-and-network",
   })
   const decks = decksQuery.data?.decks?.edges?.map((edge) => edge?.node).filter(present) || []
   const selectedDeck = decks.find((deck) => deck.id === deckId)
@@ -60,37 +58,7 @@ export function AddCatalogCardToDeckDialog({
     target?.finishes?.length && target.finishes.some((value) => CARD_DECK_FINISHES.includes(value))
       ? target.finishes.filter((value) => CARD_DECK_FINISHES.includes(value))
       : CARD_DECK_FINISHES
-  const addToDeck = useMutation({
-    mutationFn: () => {
-      if (!target) throw new Error("Choose a card")
-      if (!deckId) throw new Error("Choose a deck")
-      return request(AddCardToDeckDocument, {
-        deckId,
-        input: {
-          name: target.cardName,
-          quantity,
-          zone,
-          finish,
-          preferredPrintingId: target.preferredPrintingId || null,
-        },
-      })
-    },
-    onSuccess: () => {
-      const addedDeckId = deckId
-      queryClient.invalidateQueries({ queryKey: ["decks"] })
-      if (addedDeckId) {
-        queryClient.invalidateQueries({ queryKey: ["deck", addedDeckId] })
-        queryClient.invalidateQueries({
-          queryKey: ["deck-buylist", addedDeckId],
-        })
-      }
-      showToast(`${pluralize(quantity, "card")} added to deck`)
-      onOpenChange(false)
-      if (addedDeckId) navigate({ to: "/decks/$id", params: { id: addedDeckId } })
-    },
-    onError: (error) =>
-      setError(error instanceof Error ? error.message : "Could not add card to deck"),
-  })
+  const [addCardToDeck, { loading: isAddingToDeck }] = useMutation(AddCardToDeckDocument)
 
   useEffect(() => {
     if (open) {
@@ -116,11 +84,41 @@ export function AddCatalogCardToDeckDialog({
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
-    addToDeck.mutate()
+    if (!target) {
+      setError("Choose a card")
+      return
+    }
+    if (!deckId) {
+      setError("Choose a deck")
+      return
+    }
+
+    const addedDeckId = deckId
+    const addedQuantity = quantity
+    void addCardToDeck({
+      variables: {
+        deckId: addedDeckId,
+        input: {
+          name: target.cardName,
+          quantity,
+          zone,
+          finish,
+          preferredPrintingId: target.preferredPrintingId || null,
+        },
+      },
+      onCompleted: () => {
+        void client.refetchQueries({ include: "active" })
+        showToast(`${pluralize(addedQuantity, "card")} added to deck`)
+        onOpenChange(false)
+        navigate({ to: "/decks/$id", params: { id: addedDeckId } })
+      },
+      onError: (error) =>
+        setError(error instanceof Error ? error.message : "Could not add card to deck"),
+    })
   }
 
   function close() {
-    if (addToDeck.isPending) return
+    if (isAddingToDeck) return
     onOpenChange(false)
   }
 
@@ -150,7 +148,7 @@ export function AddCatalogCardToDeckDialog({
             <select
               className="select select-bordered w-full"
               value={deckId}
-              disabled={addToDeck.isPending}
+              disabled={isAddingToDeck}
               onChange={(event) => setDeckId(event.target.value)}
               autoFocus
             >
@@ -170,7 +168,7 @@ export function AddCatalogCardToDeckDialog({
                 type="number"
                 min={1}
                 value={quantity}
-                disabled={addToDeck.isPending}
+                disabled={isAddingToDeck}
                 onChange={(event) =>
                   setQuantity(Math.max(1, Number.parseInt(event.target.value, 10) || 1))
                 }
@@ -182,7 +180,7 @@ export function AddCatalogCardToDeckDialog({
               <select
                 className="select select-bordered w-full"
                 value={zone}
-                disabled={addToDeck.isPending}
+                disabled={isAddingToDeck}
                 onChange={(event) => setZone(event.target.value as CardDeckZone)}
               >
                 {zoneOptions.map((zone) => (
@@ -198,7 +196,7 @@ export function AddCatalogCardToDeckDialog({
               <select
                 className="select select-bordered w-full"
                 value={finish}
-                disabled={addToDeck.isPending}
+                disabled={isAddingToDeck}
                 onChange={(event) => setFinish(event.target.value)}
               >
                 {finishOptions.map((finish) => (
@@ -217,11 +215,11 @@ export function AddCatalogCardToDeckDialog({
           ) : null}
 
           <div className="flex justify-end gap-2 border-t border-base-300 pt-4">
-            <Button type="button" variant="ghost" disabled={addToDeck.isPending} onClick={close}>
+            <Button type="button" variant="ghost" disabled={isAddingToDeck} onClick={close}>
               Cancel
             </Button>
-            <Button type="submit" disabled={addToDeck.isPending || !deckId}>
-              {addToDeck.isPending ? "Adding..." : "Add to deck"}
+            <Button type="submit" disabled={isAddingToDeck || !deckId}>
+              {isAddingToDeck ? "Adding..." : "Add to deck"}
             </Button>
           </div>
         </form>
