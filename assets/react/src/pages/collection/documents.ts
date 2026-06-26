@@ -182,6 +182,13 @@ export const CreateCollectionItemDocument = graphql(`
         valueGainText
         valueGainPercentText
         allocatedQuantity
+        allocationDecks {
+          quantity
+          deck {
+            id
+            name
+          }
+        }
         location {
           id
           name
@@ -222,6 +229,13 @@ export const UpdateCollectionItemDocument = graphql(`
         valueGainText
         valueGainPercentText
         allocatedQuantity
+        allocationDecks {
+          quantity
+          deck {
+            id
+            name
+          }
+        }
         location {
           id
           name
@@ -262,6 +276,13 @@ export const BulkUpdateCollectionItemsDocument = graphql(`
         valueGainText
         valueGainPercentText
         allocatedQuantity
+        allocationDecks {
+          quantity
+          deck {
+            id
+            name
+          }
+        }
         location {
           id
           name
@@ -435,6 +456,13 @@ export const CollectionItemsPageDocument = graphql(`
           valueGainText
           valueGainPercentText
           allocatedQuantity
+          allocationDecks {
+            quantity
+            deck {
+              id
+              name
+            }
+          }
           location {
             id
             name

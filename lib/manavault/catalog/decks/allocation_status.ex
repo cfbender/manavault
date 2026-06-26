@@ -7,7 +7,8 @@ defmodule Manavault.Catalog.Decks.AllocationStatus do
   alias Manavault.Catalog.Decks.Preloads
   alias Manavault.Repo
 
-  @reserving_deck_statuses ["active"]
+  # Physical allocations make a collection item unavailable regardless of deck status.
+  # Deck status still controls higher-level reserve policy, but one physical copy cannot be pulled twice.
 
   def deck_allocation_status(%Deck{} = deck) do
     deck
@@ -235,16 +236,14 @@ defmodule Manavault.Catalog.Decks.AllocationStatus do
   defp other_reserving_allocation_counts(%DeckCard{} = deck_card) do
     DeckAllocation
     |> join(:inner, [allocation], allocated_card in assoc(allocation, :deck_card))
-    |> join(:inner, [_allocation, allocated_card], deck in assoc(allocated_card, :deck))
     |> where(
-      [allocation, allocated_card, deck],
-      deck.status in ^@reserving_deck_statuses and allocated_card.id != ^deck_card.id and
-        allocated_card.oracle_id == ^deck_card.oracle_id and
+      [allocation, allocated_card],
+      allocated_card.id != ^deck_card.id and allocated_card.oracle_id == ^deck_card.oracle_id and
         allocated_card.finish == ^deck_card.finish
     )
-    |> group_by([allocation, _allocated_card, _deck], allocation.collection_item_id)
+    |> group_by([allocation, _allocated_card], allocation.collection_item_id)
     |> select(
-      [allocation, _allocated_card, _deck],
+      [allocation, _allocated_card],
       {allocation.collection_item_id, sum(allocation.quantity)}
     )
     |> Repo.all()
@@ -258,14 +257,12 @@ defmodule Manavault.Catalog.Decks.AllocationStatus do
 
     DeckAllocation
     |> join(:inner, [allocation], allocated_card in assoc(allocation, :deck_card))
-    |> join(:inner, [_allocation, allocated_card], deck in assoc(allocated_card, :deck))
-    |> where([_allocation, _allocated_card, deck], deck.status in ^@reserving_deck_statuses)
     |> where(
-      [_allocation, allocated_card, _deck],
+      [_allocation, allocated_card],
       allocated_card.oracle_id in ^oracle_ids and allocated_card.finish in ^finishes
     )
     |> group_by(
-      [allocation, allocated_card, _deck],
+      [allocation, allocated_card],
       [
         allocated_card.id,
         allocated_card.oracle_id,
@@ -274,7 +271,7 @@ defmodule Manavault.Catalog.Decks.AllocationStatus do
       ]
     )
     |> select(
-      [allocation, allocated_card, _deck],
+      [allocation, allocated_card],
       {
         allocated_card.id,
         allocated_card.oracle_id,

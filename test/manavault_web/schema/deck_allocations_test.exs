@@ -218,6 +218,10 @@ defmodule ManavaultWeb.Schema.DeckAllocationsTest do
             edges {
               node {
                 allocatedQuantity
+                allocationDecks {
+                  quantity
+                  deck { name }
+                }
                 printing { card { name } }
               }
             }
@@ -242,6 +246,9 @@ defmodule ManavaultWeb.Schema.DeckAllocationsTest do
                    %{
                      "node" => %{
                        "allocatedQuantity" => 1,
+                       "allocationDecks" => [
+                         %{"quantity" => 1, "deck" => %{"name" => "Allocation Deck"}}
+                       ],
                        "printing" => %{"card" => %{"name" => "Allocation Status Card"}}
                      }
                    }

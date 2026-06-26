@@ -1,4 +1,5 @@
 import { addToDeckAction, CardTile } from "../../components/card-tile"
+import { present } from "../../lib/utils"
 import type { CardDeckTarget } from "./add-card-to-deck-dialog"
 
 type CardSearchResult = {
@@ -15,6 +16,8 @@ type CardSearchResult = {
     imageUrl?: string | null
     rarity?: string | null
     priceText?: string | null
+    ownedCount?: number | null
+    finishes?: Array<string | null> | null
   } | null> | null
 }
 
@@ -40,8 +43,12 @@ export function CardResultsGrid({
                   onClick: () =>
                     onAddToDeck({
                       cardName: card.name,
-                      finish: "nonfoil",
+                      finish: (printing?.finishes || []).includes("nonfoil")
+                        ? "nonfoil"
+                        : printing?.finishes?.[0] || "nonfoil",
+                      finishes: printing?.finishes?.filter(present),
                       preferredPrintingId: printing?.id,
+                      printings: card.printings?.filter(present),
                       setCode: printing?.setCode,
                       collectorNumber: printing?.collectorNumber,
                     }),

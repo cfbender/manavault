@@ -9,8 +9,10 @@ import { graphqlEndpointContext, refetchActiveQueries } from "../../lib/apollo"
 import { pluralize } from "../../lib/utils"
 import { deckCardsTotalPrice, formatUsdCents } from "./buylist-export"
 import {
+  allocatableDeckPullListEntries,
   createDeckPullList,
-  selectedDeckPullListEntries,
+  type DeckPullListEntry,
+  type DeckPullListExclusions,
   type DeckPullListMode,
 } from "./deck-allocation-model"
 import { updateDeckCardTagsInDeckQuery, type DeckTagPatch } from "./deck-query-cache"
@@ -134,6 +136,8 @@ export function DeckDetailPage({
   const [selectedBulkAllocationItemIds, setSelectedBulkAllocationItemIds] = useState<
     Record<string, string | null>
   >({})
+  const [excludedBulkAllocationEntryIds, setExcludedBulkAllocationEntryIds] =
+    useState<DeckPullListExclusions>({})
   const [bulkAllocationError, setBulkAllocationError] = useState<string | null>(null)
   const [isOptimizePrintingsOpen, setIsOptimizePrintingsOpen] = useState(false)
   const [optimizePrintingsError, setOptimizePrintingsError] = useState<string | null>(null)
@@ -174,7 +178,11 @@ export function DeckDetailPage({
         onError: () => undefined,
       }),
   }
-  const { data, loading: isLoading } = useQuery(DeckDocument, {
+  const {
+    data,
+    loading: isLoading,
+    previousData,
+  } = useQuery(DeckDocument, {
     variables: { id },
     context: shareMode ? graphqlEndpointContext("/share/graphql") : undefined,
     fetchPolicy: "cache-and-network",
@@ -196,7 +204,10 @@ export function DeckDetailPage({
   function refetchDeckQueries() {
     void refetchActiveQueries(client)
   }
-  const deck = useMemo(() => flattenDeck(data?.deck), [data?.deck])
+  const deckQueryData = data?.deck ? data : previousData?.deck ? previousData : data
+  const deck = useMemo(() => flattenDeck(deckQueryData?.deck), [deckQueryData?.deck])
+  const isInitialDeckLoading = isLoading && !deck
+  const isRefreshingDeck = isLoading && Boolean(deck)
   const [isAddCardOpen, setIsAddCardOpen] = useState(false)
   const deckCards = useMemo(() => deck?.deckCards || [], [deck?.deckCards])
   const bulkAllocationPullList = useMemo(
@@ -573,7 +584,7 @@ export function DeckDetailPage({
   }
   const allocateDeckPullList = {
     isPending: isAllocateDeckPullListPending,
-    mutate: (entries: ReturnType<typeof selectedDeckPullListEntries>) => {
+    mutate: (entries: DeckPullListEntry[]) => {
       setIsAllocateDeckPullListPending(true)
       void (async () => {
         for (const entry of entries) {
@@ -595,6 +606,7 @@ export function DeckDetailPage({
           showToast(`${pluralize(allocatedCount, "card")} allocated`)
           setIsBulkAllocationOpen(false)
           setSelectedBulkAllocationItemIds({})
+          setExcludedBulkAllocationEntryIds({})
           setBulkAllocationError(null)
         })
         .catch((error) =>
@@ -634,7 +646,7 @@ export function DeckDetailPage({
     allocateDeckCardProxy.isPending ||
     deallocateDeckCardProxy.isPending
 
-  if (isLoading) return <EmptyState title="Loading deck..." />
+  if (isInitialDeckLoading) return <EmptyState title="Loading deck..." />
   if (!deck) return <EmptyState title="Deck not found" />
 
   if (shareMode && isSharePlaytestOpen) {
@@ -735,6 +747,7 @@ export function DeckDetailPage({
         isBulkAllocating={allocateDeckPullList.isPending}
         isSelectionActive={isSelectionActive}
         isUpdatingDeckCard={isUpdatingDeckCard}
+        isRefreshingDeck={isRefreshingDeck}
         legalityIssues={legalityIssues}
         maybeboardCards={maybeboardCards}
         onAllocate={(deckCard, collectionItemId) =>
@@ -841,12 +854,14 @@ export function DeckDetailPage({
         onBulkAllocationModeChange={(mode) => {
           setBulkAllocationMode(mode)
           setSelectedBulkAllocationItemIds({})
+          setExcludedBulkAllocationEntryIds({})
           setBulkAllocationError(null)
         }}
         onAddEdhrecCard={addEdhrecCard}
         onCloseBulkAllocation={() => {
           if (!allocateDeckPullList.isPending) {
             setIsBulkAllocationOpen(false)
+            setExcludedBulkAllocationEntryIds({})
             setBulkAllocationError(null)
           }
         }}
@@ -864,7 +879,9 @@ export function DeckDetailPage({
         }}
         onConfirmBulkAllocation={() => {
           setBulkAllocationError(null)
-          allocateDeckPullList.mutate(selectedDeckPullListEntries(bulkAllocationPullList))
+          allocateDeckPullList.mutate(
+            allocatableDeckPullListEntries(bulkAllocationPullList, excludedBulkAllocationEntryIds),
+          )
         }}
         onDeleteCardTargetChange={setDeleteCardTarget}
         onConfirmDeckDisassembly={disassembleCurrentDeck}
@@ -905,7 +922,15 @@ export function DeckDetailPage({
           }))
           setBulkAllocationError(null)
         }}
+        onToggleBulkAllocationEntry={(entryId, excluded) => {
+          setExcludedBulkAllocationEntryIds((entryIds) => ({
+            ...entryIds,
+            [entryId]: excluded,
+          }))
+          setBulkAllocationError(null)
+        }}
         onShareDeckOpenChange={setIsShareDeckOpen}
+        excludedBulkAllocationEntryIds={excludedBulkAllocationEntryIds}
         previewDeckCard={previewDeckCard}
         selectedBulkAllocationItemIds={selectedBulkAllocationItemIds}
         selectedDeckCardCount={selectedDeckCardCount}

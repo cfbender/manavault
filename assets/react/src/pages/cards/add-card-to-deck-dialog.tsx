@@ -15,12 +15,25 @@ import { useToast } from "../../components/ui/toast"
 import { pluralize, present, titleize } from "../../lib/utils"
 import { AddCardToDeckDocument, CardDeckOptionsDocument } from "./data"
 
+export type CardDeckPrintingOption = {
+  id: string
+  collectorNumber?: string | null
+  finishes?: Array<string | null> | null
+  imageUrl?: string | null
+  ownedCount?: number | null
+  priceText?: string | null
+  rarity?: string | null
+  setCode?: string | null
+  setName?: string | null
+}
+
 export type CardDeckTarget = {
   cardName: string
   collectorNumber?: string | null
   finish?: string | null
   finishes?: string[] | null
   preferredPrintingId?: string | null
+  printings?: CardDeckPrintingOption[]
   setCode?: string | null
 }
 
@@ -44,6 +57,7 @@ export function AddCatalogCardToDeckDialog({
   const [quantity, setQuantity] = useState(1)
   const [zone, setZone] = useState<CardDeckZone>("mainboard")
   const [finish, setFinish] = useState("nonfoil")
+  const [selectedPrintingId, setSelectedPrintingId] = useState("")
   const [error, setError] = useState<string | null>(null)
   const open = Boolean(target)
   const decksQuery = useQuery(CardDeckOptionsDocument, {
@@ -54,14 +68,22 @@ export function AddCatalogCardToDeckDialog({
   const selectedDeck = decks.find((deck) => deck.id === deckId)
   const zoneOptions =
     selectedDeck?.format === "commander" ? CARD_DECK_ZONES : NON_COMMANDER_CARD_DECK_ZONES
+  const selectedPrinting =
+    target?.printings?.find((printing) => printing.id === selectedPrintingId) ||
+    target?.printings?.find((printing) => printing.id === target.preferredPrintingId) ||
+    target?.printings?.[0] ||
+    null
+  const selectedFinishes = selectedPrinting?.finishes?.filter(present) || target?.finishes || []
   const finishOptions =
-    target?.finishes?.length && target.finishes.some((value) => CARD_DECK_FINISHES.includes(value))
-      ? target.finishes.filter((value) => CARD_DECK_FINISHES.includes(value))
+    selectedFinishes.length && selectedFinishes.some((value) => CARD_DECK_FINISHES.includes(value))
+      ? selectedFinishes.filter((value) => CARD_DECK_FINISHES.includes(value))
       : CARD_DECK_FINISHES
   const [addCardToDeck, { loading: isAddingToDeck }] = useMutation(AddCardToDeckDocument)
 
   useEffect(() => {
     if (open) {
+      const preferredPrintingId = target?.preferredPrintingId || target?.printings?.[0]?.id || ""
+      setSelectedPrintingId(preferredPrintingId)
       setFinish(target?.finish || "nonfoil")
       return
     }
@@ -70,6 +92,7 @@ export function AddCatalogCardToDeckDialog({
     setQuantity(1)
     setZone("mainboard")
     setFinish("nonfoil")
+    setSelectedPrintingId("")
     setError(null)
   }, [open, target])
 
@@ -103,7 +126,7 @@ export function AddCatalogCardToDeckDialog({
           quantity,
           zone,
           finish,
-          preferredPrintingId: target.preferredPrintingId || null,
+          preferredPrintingId: selectedPrinting?.id || target.preferredPrintingId || null,
         },
       },
       onCompleted: () => {
@@ -130,11 +153,11 @@ export function AddCatalogCardToDeckDialog({
             <DialogTitle id="add-catalog-card-to-deck-title">Add to deck</DialogTitle>
             <p className="mt-1 text-sm text-base-content/60">
               {target?.cardName}
-              {target?.setCode ? (
+              {selectedPrinting?.setCode ? (
                 <>
                   {" "}
-                  ({target.setCode.toUpperCase()}
-                  {target.collectorNumber ? ` #${target.collectorNumber}` : ""})
+                  ({selectedPrinting.setCode.toUpperCase()}
+                  {selectedPrinting.collectorNumber ? ` #${selectedPrinting.collectorNumber}` : ""})
                 </>
               ) : null}
             </p>
@@ -160,6 +183,53 @@ export function AddCatalogCardToDeckDialog({
               ))}
             </select>
           </label>
+
+          {selectedPrinting ? (
+            <div className="rounded-box border border-base-300 bg-base-200/35 p-3">
+              <div className="flex gap-3">
+                {selectedPrinting.imageUrl ? (
+                  <img
+                    src={selectedPrinting.imageUrl}
+                    alt=""
+                    className="h-28 w-20 shrink-0 rounded-lg object-cover shadow"
+                    loading="lazy"
+                  />
+                ) : null}
+                <div className="min-w-0 flex-1 space-y-3">
+                  <div>
+                    <p className="font-semibold">{target?.cardName}</p>
+                    <p className="text-sm text-base-content/65">
+                      {printingOptionLabel(selectedPrinting)}
+                    </p>
+                    <p className="mt-1 text-xs text-base-content/60">
+                      {selectedPrinting.ownedCount
+                        ? `${selectedPrinting.ownedCount} owned in collection`
+                        : "Not in collection"}
+                      {selectedPrinting.priceText ? ` · ${selectedPrinting.priceText}` : ""}
+                    </p>
+                  </div>
+                  {target?.printings?.length ? (
+                    <label className="form-control">
+                      <span className="label-text mb-1 text-sm font-semibold">Printing</span>
+                      <select
+                        className="select select-bordered w-full"
+                        value={selectedPrintingId}
+                        disabled={isAddingToDeck}
+                        onChange={(event) => setSelectedPrintingId(event.target.value)}
+                      >
+                        {target.printings.map((printing) => (
+                          <option key={printing.id} value={printing.id}>
+                            {printingOptionLabel(printing)}
+                            {printing.ownedCount ? ` · ${printing.ownedCount} owned` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="form-control">
@@ -226,4 +296,15 @@ export function AddCatalogCardToDeckDialog({
       </DialogContent>
     </Dialog>
   )
+}
+
+function printingOptionLabel(printing: CardDeckPrintingOption) {
+  return [
+    printing.setCode?.toUpperCase(),
+    printing.collectorNumber ? `#${printing.collectorNumber}` : null,
+    printing.setName,
+    printing.rarity ? titleize(printing.rarity) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ")
 }

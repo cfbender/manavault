@@ -328,14 +328,19 @@ function CollectionItemTile({
     void invalidateCollectionViews(client, item.location?.id)
   }
 
+  const allocatedQuantity = item.allocatedQuantity || 0
+  const freeQuantity = Math.max((item.quantity || 0) - allocatedQuantity, 0)
+  const deckLocation = collectionItemDeckLocation(item)
+  const allocatedLabel = allocatedQuantity
+    ? freeQuantity > 0
+      ? `In deck x${allocatedQuantity} · Out x${freeQuantity}`
+      : `In deck${allocatedQuantity > 1 ? ` x${allocatedQuantity}` : ""}`
+    : undefined
+
   return (
     <>
       <CardTile
-        allocatedLabel={
-          item.allocatedQuantity
-            ? `In deck${item.allocatedQuantity > 1 ? ` x${item.allocatedQuantity}` : ""}`
-            : undefined
-        }
+        allocatedLabel={allocatedLabel}
         count={item.quantity}
         defaultActions={[
           {
@@ -357,7 +362,7 @@ function CollectionItemTile({
         ]}
         finish={item.finish}
         imageUrl={item.printing?.imageUrl}
-        location={item.location?.name}
+        location={deckLocation || item.location?.name}
         menuActions={[
           addToDeckAction({
             onClick: () => setDeckTarget(item),
@@ -415,4 +420,17 @@ function CollectionItemTile({
       />
     </>
   )
+}
+
+function collectionItemDeckLocation(item: CollectionItem) {
+  const allocationDecks = item.allocationDecks || []
+
+  if (!allocationDecks.length) return null
+
+  return allocationDecks
+    .map((allocation) => {
+      const name = allocation.deck.name
+      return allocation.quantity > 1 ? `${name} x${allocation.quantity}` : name
+    })
+    .join(", ")
 }

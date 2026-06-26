@@ -1,4 +1,14 @@
-import { CheckSquare, Crown, Edit3, Eye, MoreVertical, MoveRight, Square, Tag, Trash2 } from "lucide-react"
+import {
+  CheckSquare,
+  Crown,
+  Edit3,
+  Eye,
+  MoreVertical,
+  MoveRight,
+  Square,
+  Tag,
+  Trash2,
+} from "lucide-react"
 import { useEffect, useRef, useState, type FocusEvent, type PointerEvent } from "react"
 
 import { cn, titleize } from "../../lib/utils"

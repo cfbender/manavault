@@ -10,12 +10,15 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import {
+  allocatableDeckPullListEntries,
   deckPullListSelectionError,
   groupDeckPullListEntriesByLocation,
+  pullListEntrySelectionId,
   selectedDeckPullListEntries,
   type DeckPullList,
   type DeckPullListChoice,
   type DeckPullListEntry,
+  type DeckPullListExclusions,
   type DeckPullListMode,
 } from "./deck-allocation-model"
 import {
@@ -44,17 +47,20 @@ export function BulkAllocationMenu({
 
 export function BulkAllocationPullListDialog({
   error,
+  excludedEntryIds,
   isPending,
   mode,
   onClose,
   onConfirm,
   onModeChange,
   onSelectChoice,
+  onToggleEntry,
   open,
   pullList,
   selectedItemIds,
 }: {
   error: string | null
+  excludedEntryIds: DeckPullListExclusions
   isPending: boolean
   mode: DeckPullListMode
   onClose: () => void
@@ -62,10 +68,12 @@ export function BulkAllocationPullListDialog({
   onModeChange: (mode: DeckPullListMode) => void
   onSelectChoice: (choiceId: string, itemId: string | null) => void
   open: boolean
+  onToggleEntry: (entryId: string, excluded: boolean) => void
   pullList: DeckPullList
   selectedItemIds: Record<string, string | null>
 }) {
   const selectedEntries = selectedDeckPullListEntries(pullList)
+  const allocatableEntries = allocatableDeckPullListEntries(pullList, excludedEntryIds)
   const skippedDeckCards = pullList.skippedDeckCards
   const locationGroups = groupDeckPullListEntriesByLocation(selectedEntries)
   const choicesById = new Map(
@@ -73,10 +81,12 @@ export function BulkAllocationPullListDialog({
   )
   const unresolvedChoices = pullList.choices.filter(
     (choice) =>
-      choice.candidates.length > 0 && selectedChoiceValue(choice, selectedItemIds) === null,
+      !excludedEntryIds[choice.id] &&
+      choice.candidates.length > 0 &&
+      selectedChoiceValue(choice, selectedItemIds) === null,
   )
-  const selectionError = deckPullListSelectionError(pullList)
-  const disableConfirm = isPending || selectedEntries.length === 0 || Boolean(selectionError)
+  const selectionError = deckPullListSelectionError(pullList, excludedEntryIds)
+  const disableConfirm = isPending || allocatableEntries.length === 0 || Boolean(selectionError)
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => (!nextOpen ? onClose() : undefined)}>
@@ -139,9 +149,11 @@ export function BulkAllocationPullListDialog({
               {locationGroups.map((group) => (
                 <LocationGroup
                   key={group.locationId}
+                  excludedEntryIds={excludedEntryIds}
                   group={group}
                   choicesById={choicesById}
                   onSelectChoice={onSelectChoice}
+                  onToggleEntry={onToggleEntry}
                   selectedItemIds={selectedItemIds}
                 />
               ))}
@@ -182,7 +194,13 @@ export function BulkAllocationPullListDialog({
               <ul className="divide-y divide-warning/20 border-t border-warning/20">
                 {unresolvedChoices.map((choice) => (
                   <li key={choice.id} className="space-y-3 px-4 py-3">
-                    <CardSummary deckCard={choice.deckCard} quantity={1} />
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <CardSummary deckCard={choice.deckCard} quantity={1} />
+                      <AllocationToggle
+                        checked={!excludedEntryIds[choice.id]}
+                        onChange={(checked) => onToggleEntry(choice.id, !checked)}
+                      />
+                    </div>
                     <ChoiceSelect
                       choice={choice}
                       value={selectedChoiceValue(choice, selectedItemIds)}
@@ -264,13 +282,17 @@ export function BulkAllocationPullListDialog({
 
 function LocationGroup({
   choicesById,
+  excludedEntryIds,
   group,
   onSelectChoice,
+  onToggleEntry,
   selectedItemIds,
 }: {
   choicesById: Map<string, DeckPullListChoice>
+  excludedEntryIds: DeckPullListExclusions
   group: ReturnType<typeof groupDeckPullListEntriesByLocation>[number]
   onSelectChoice: (choiceId: string, itemId: string | null) => void
+  onToggleEntry: (entryId: string, excluded: boolean) => void
   selectedItemIds: Record<string, string | null>
 }) {
   const copyCount = group.entries.reduce((total, entry) => total + entry.quantity, 0)
@@ -300,16 +322,32 @@ function LocationGroup({
       <ul className="divide-y divide-base-300 border-t border-base-300">
         {group.entries.map((entry) => {
           const choice = entry.choiceId ? choicesById.get(entry.choiceId) : undefined
+          const selectionId = pullListEntrySelectionId(entry)
+          const isAllocating = !excludedEntryIds[selectionId]
 
           return (
-            <li key={entry.id} className="space-y-3 px-4 py-3">
+            <li
+              key={entry.id}
+              className={[
+                "space-y-3 px-4 py-3 transition",
+                isAllocating ? "" : "bg-base-200/45 opacity-70",
+              ].join(" ")}
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <CardSummary deckCard={entry.deckCard} quantity={entry.quantity} />
+                <CardSummary
+                  candidate={isAllocating ? entry.candidate : undefined}
+                  deckCard={entry.deckCard}
+                  quantity={entry.quantity}
+                />
                 <div className="flex flex-wrap items-center gap-2">
                   <FinishBadge finish={entry.candidate.item.finish} />
                   <Badge tone={entry.exact ? "success" : "warning"}>
                     {entry.exact ? "Exact" : "Alternate"}
                   </Badge>
+                  <AllocationToggle
+                    checked={isAllocating}
+                    onChange={(checked) => onToggleEntry(selectionId, !checked)}
+                  />
                 </div>
               </div>
               <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(14rem,18rem)]">
@@ -342,22 +380,54 @@ function LocationGroup({
 }
 
 function CardSummary({
+  candidate,
   deckCard,
   quantity,
 }: {
+  candidate?: AllocationCandidate
   deckCard: DeckPullListEntry["deckCard"]
   quantity: number
 }) {
+  const printingLabel = candidate
+    ? collectionItemPrintingLabel(candidate.item)
+    : deckCardPrintingLabel(deckCard)
+  const previewImageUrl =
+    candidate?.item.printing?.imageUrl ||
+    candidate?.item.printing?.artCropUrl ||
+    deckCard.preferredPrinting?.imageUrl ||
+    deckCard.fallbackPrinting?.imageUrl ||
+    null
   return (
     <div className="min-w-0">
       <div className="flex flex-wrap items-baseline gap-2">
-        <CardNamePreview deckCard={deckCard} />
+        <CardNamePreview deckCard={deckCard} imageUrl={previewImageUrl} />
         <span className="text-sm text-base-content/70">Qty {quantity}</span>
       </div>
       <p className="text-sm text-base-content/60">
-        Deck card: {deckCardPrintingLabel(deckCard)} · {finishLabel(deckCard.finish || "nonfoil")}
+        Deck card: {printingLabel} · {finishLabel(deckCard.finish || "nonfoil")}
       </p>
     </div>
+  )
+}
+
+function AllocationToggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean
+  onChange: (checked: boolean) => void
+}) {
+  return (
+    <label className="label cursor-pointer gap-2 p-0 text-xs font-semibold text-base-content/70">
+      <span className="label-text text-xs">{checked ? "Allocate" : "Skip"}</span>
+      <input
+        type="checkbox"
+        className="toggle toggle-primary toggle-sm"
+        checked={checked}
+        aria-label={checked ? "Allocate this copy" : "Skip this copy"}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+    </label>
   )
 }
 
@@ -394,14 +464,23 @@ type PreviewPosition = {
   top: number
 }
 
-function CardNamePreview({ deckCard }: { deckCard: DeckPullListEntry["deckCard"] }) {
+function CardNamePreview({
+  deckCard,
+  imageUrl: previewImageUrl,
+}: {
+  deckCard: DeckPullListEntry["deckCard"]
+  imageUrl?: string | null
+}) {
   const triggerRef = useRef<HTMLAnchorElement>(null)
   const hideTimeoutRef = useRef<number | null>(null)
   const [position, setPosition] = useState<PreviewPosition | null>(null)
   const cardName = deckCardName(deckCard)
   const cardHref = deckCard.card?.id ? `/cards/${encodeURIComponent(deckCard.card.id)}` : null
   const imageUrl =
-    deckCard.preferredPrinting?.imageUrl || deckCard.fallbackPrinting?.imageUrl || null
+    previewImageUrl ||
+    deckCard.preferredPrinting?.imageUrl ||
+    deckCard.fallbackPrinting?.imageUrl ||
+    null
 
   useEffect(() => {
     return () => {

@@ -52,6 +52,10 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
       resolve(&CatalogResolvers.collection_item_allocated_quantity/3)
     end
 
+    field :allocation_decks, non_null(list_of(non_null(:collection_item_allocation_deck))) do
+      resolve(&CatalogResolvers.collection_item_allocation_decks/3)
+    end
+
     field :location, :location, resolve: &CatalogResolvers.collection_item_location/3
   end
 
@@ -107,6 +111,11 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     connection field :collection_items, node_type: :collection_item do
       resolve(&CatalogResolvers.location_collection_items/3)
     end
+  end
+
+  object :collection_item_allocation_deck do
+    field :deck, non_null(:deck)
+    field :quantity, non_null(:integer)
   end
 
   connection(node_type: :collection_item)

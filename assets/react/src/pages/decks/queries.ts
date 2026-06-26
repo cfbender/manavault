@@ -247,6 +247,8 @@ export const DeckDocument = graphql(`
                     setName
                     collectorNumber
                     rarity
+                    imageUrl
+                    artCropUrl
                     card {
                       name
                     }
@@ -551,6 +553,8 @@ export const PreviewBulkAllocateDeckDocument = graphql(`
               setCode
               setName
               collectorNumber
+              imageUrl
+              artCropUrl
               card {
                 name
               }

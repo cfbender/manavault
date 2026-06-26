@@ -8,7 +8,11 @@ import { EditDeckCardDialog, MoveDeckCardDialog } from "./deck-card-dialogs"
 import { DeckCardDetailDialog } from "./deck-card-detail-dialog"
 import { EditDeckDialog } from "./deck-editor-dialogs"
 import { ExportDecklistDialog, ImportDecklistDialog, ShareDeckDialog } from "./deck-share-dialogs"
-import type { DeckPullList, DeckPullListMode } from "./deck-allocation-model"
+import type {
+  DeckPullList,
+  DeckPullListExclusions,
+  DeckPullListMode,
+} from "./deck-allocation-model"
 import type {
   DeckCardEntry,
   DeckDetail,
@@ -37,6 +41,7 @@ export function DeckDetailDialogs({
   editTarget,
   edhrecExcludeLands,
   edhrecTab,
+  excludedBulkAllocationEntryIds,
   isAddCardOpen,
   isBulkAllocating,
   isAddingCard,
@@ -74,6 +79,7 @@ export function DeckDetailDialogs({
   onPreviewCardOpenChange,
   onSetEdhrecState,
   onSelectBulkAllocationChoice,
+  onToggleBulkAllocationEntry,
   onShareDeckOpenChange,
   onOptimizePrintingsOpenChange,
   onOptimizePrintingsSubmit,
@@ -97,6 +103,7 @@ export function DeckDetailDialogs({
   editTarget: DeckCardEntry | null
   edhrecExcludeLands: boolean
   edhrecTab?: EDHRecTab
+  excludedBulkAllocationEntryIds: DeckPullListExclusions
   isAddCardOpen: boolean
   isBulkAllocating: boolean
   isAddingCard: boolean
@@ -134,6 +141,7 @@ export function DeckDetailDialogs({
   onPreviewCardOpenChange: (open: boolean) => void
   onSetEdhrecState: (tab: EDHRecTab | undefined, excludeLands?: boolean) => void
   onSelectBulkAllocationChoice: (choiceId: string, collectionItemId: string | null) => void
+  onToggleBulkAllocationEntry: (entryId: string, excluded: boolean) => void
   onShareDeckOpenChange: (open: boolean) => void
   onOptimizePrintingsOpenChange: (open: boolean) => void
   onOptimizePrintingsSubmit: (deckCardIds: string[]) => void
@@ -238,6 +246,7 @@ export function DeckDetailDialogs({
           open={Boolean(edhrecTab)}
         />
         <BulkAllocationPullListDialog
+          excludedEntryIds={excludedBulkAllocationEntryIds}
           error={bulkAllocationError}
           mode={bulkAllocationMode}
           isPending={isBulkAllocating}
@@ -245,6 +254,7 @@ export function DeckDetailDialogs({
           onConfirm={onConfirmBulkAllocation}
           onModeChange={onBulkAllocationModeChange}
           onSelectChoice={onSelectBulkAllocationChoice}
+          onToggleEntry={onToggleBulkAllocationEntry}
           open={bulkAllocationOpen}
           pullList={bulkAllocationPullList}
           selectedItemIds={selectedBulkAllocationItemIds}

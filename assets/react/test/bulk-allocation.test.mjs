@@ -2,6 +2,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 
 import {
+  allocatableDeckPullListEntries,
   createDeckPullList,
   deckPullListSelectionError,
   groupDeckPullListEntriesByLocation,
@@ -313,4 +314,25 @@ test("deck pull list selection error catches unselected choices", () => {
   })
 
   assert.match(deckPullListSelectionError(unselectedPullList), /Choose/)
+})
+
+test("deck pull list excludes toggled-off entries from allocation", () => {
+  const exact = allocationCandidate({
+    id: "exact-copy",
+    available: 1,
+    scryfallId: "preferred-printing",
+  })
+  const alternate = allocationCandidate({
+    id: "alternate-copy",
+    available: 1,
+    scryfallId: "alternate-printing",
+  })
+  const pullList = createDeckPullList([
+    deckCard({ id: "deck-card-1", required: 2, candidates: [exact, alternate] }),
+  ])
+  const selectedEntries = selectedDeckPullListEntries(pullList)
+  const excludedEntryIds = { [selectedEntries[0].id]: true, [pullList.choices[0].id]: true }
+
+  assert.equal(allocatableDeckPullListEntries(pullList, excludedEntryIds).length, 0)
+  assert.equal(deckPullListSelectionError(pullList, excludedEntryIds), null)
 })

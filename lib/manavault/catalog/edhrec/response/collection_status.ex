@@ -204,16 +204,14 @@ defmodule Manavault.Catalog.EDHRec.Response.CollectionStatus do
   defp other_reserving_allocation_counts(%DeckCard{} = deck_card) do
     DeckAllocation
     |> join(:inner, [allocation], allocated_card in assoc(allocation, :deck_card))
-    |> join(:inner, [_allocation, allocated_card], deck in assoc(allocated_card, :deck))
     |> where(
-      [allocation, allocated_card, deck],
-      deck.status == "active" and allocated_card.id != ^deck_card.id and
-        allocated_card.oracle_id == ^deck_card.oracle_id and
+      [allocation, allocated_card],
+      allocated_card.id != ^deck_card.id and allocated_card.oracle_id == ^deck_card.oracle_id and
         allocated_card.finish == ^deck_card.finish
     )
-    |> group_by([allocation, _allocated_card, _deck], allocation.collection_item_id)
+    |> group_by([allocation, _allocated_card], allocation.collection_item_id)
     |> select(
-      [allocation, _allocated_card, _deck],
+      [allocation, _allocated_card],
       {allocation.collection_item_id, sum(allocation.quantity)}
     )
     |> Repo.all()

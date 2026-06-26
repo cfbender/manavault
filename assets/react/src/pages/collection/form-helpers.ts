@@ -3,7 +3,7 @@ import { present, titleize } from "../../lib/utils.ts"
 import { COLLECTION_CONDITIONS, COLLECTION_FINISHES, LOCATION_KINDS } from "./constants.ts"
 import type { LocationCoverSelection } from "./types.ts"
 
-export function useDebouncedValue<T>(value: T, delayMs: number) {
+export function useDebouncedValue<T>(value: T, delayMs: number = 250) {
   const [debouncedValue, setDebouncedValue] = useState(value)
 
   useEffect(() => {

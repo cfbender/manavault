@@ -5,6 +5,7 @@ defmodule Manavault.Catalog.DeckAllocationTest do
     fixtures: [:black_lotus, :black_lotus_beta, :time_walk, :plains]
 
   alias Manavault.Catalog
+  alias Manavault.Repo
 
   test "deck allocation status covers owned available, allocated elsewhere, missing, and alternate printings" do
     assert {:ok, %{cards_count: 3, printings_count: 3}} =
@@ -71,6 +72,8 @@ defmodule Manavault.Catalog.DeckAllocationTest do
     assert {:ok, _allocation} =
              Catalog.allocate_collection_item_to_deck_card(active_lotus.id, alternate_item.id)
 
+    active_lotus = Repo.reload!(active_lotus)
+    assert active_lotus.preferred_printing_id == "scryfall-printing-3"
     status = Catalog.deck_card_allocation_status(active_lotus)
     assert status.allocated == 1
     assert status.available == 0
@@ -80,7 +83,7 @@ defmodule Manavault.Catalog.DeckAllocationTest do
              Catalog.allocate_collection_item_to_deck_card(active_lotus.id, available_item.id)
   end
 
-  test "only active deck allocations reserve cards for other decks" do
+  test "allocations in any deck make physical copies unavailable elsewhere" do
     assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
 
     assert {:ok, brewing_item} =
@@ -142,16 +145,19 @@ defmodule Manavault.Catalog.DeckAllocationTest do
              Catalog.allocate_collection_item_to_deck_card(archived_lotus.id, archived_item.id)
 
     status = Catalog.deck_card_allocation_status(active_lotus)
-    assert status.available == 2
-    assert status.allocated_elsewhere == 0
-    assert status.missing == 0
+    assert status.available == 0
+    assert status.allocated_elsewhere == 2
+    assert status.missing == 2
+
+    assert {:error, :not_enough_available} =
+             Catalog.allocate_collection_item_to_deck_card(active_lotus.id, brewing_item.id)
 
     assert {:ok, _brewing_deck} = Catalog.update_deck(brewing_deck, %{"status" => "active"})
 
     status = Catalog.deck_card_allocation_status(active_lotus)
-    assert status.available == 1
-    assert status.allocated_elsewhere == 1
-    assert status.missing == 1
+    assert status.available == 0
+    assert status.allocated_elsewhere == 2
+    assert status.missing == 2
   end
 
   test "bulk deck allocation can use exact printings before matching alternate printings" do
@@ -207,6 +213,9 @@ defmodule Manavault.Catalog.DeckAllocationTest do
 
     assert {:ok, %{allocated: 1, cards: 1, skipped: 0}} =
              Catalog.bulk_allocate_deck(deck, :matching_printings)
+
+    lotus = Repo.reload!(lotus)
+    assert lotus.preferred_printing_id == "scryfall-printing-3"
 
     status = Catalog.deck_card_allocation_status(lotus)
     assert status.allocated == 2

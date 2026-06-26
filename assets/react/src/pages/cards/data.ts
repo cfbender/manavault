@@ -30,6 +30,8 @@ export const CardsDocument = graphql(`
                 imageUrl
                 rarity
                 priceText
+                ownedCount
+                finishes
               }
             }
           }
@@ -162,6 +164,13 @@ export const CardCollectionItemsDocument = graphql(`
           valueGainText
           valueGainPercentText
           allocatedQuantity
+          allocationDecks {
+            quantity
+            deck {
+              id
+              name
+            }
+          }
           location {
             id
             name

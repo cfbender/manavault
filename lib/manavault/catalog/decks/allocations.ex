@@ -26,7 +26,8 @@ defmodule Manavault.Catalog.Decks.Allocations do
       item = Collection.get_collection_item!(collection_item_id)
 
       with :ok <- validate_collection_item_matches_deck_card(item, deck_card),
-           :ok <- validate_deck_card_allocation_room(deck_card, item, quantity) do
+           :ok <- validate_deck_card_allocation_room(deck_card, item, quantity),
+           {:ok, deck_card} <- put_deck_card_preferred_printing(deck_card, item.scryfall_id) do
         {:ok, insert_or_update_deck_allocation!(deck_card, item, quantity)}
       end
     end)
@@ -371,15 +372,9 @@ defmodule Manavault.Catalog.Decks.Allocations do
   defp update_bulk_deck_card(%DeckCard{} = deck_card, finish, grouped_items) do
     attrs = %{
       "quantity" => deck_card.quantity + length(grouped_items),
-      "finish" => finish
+      "finish" => finish,
+      "preferred_printing_id" => List.first(grouped_items).scryfall_id
     }
-
-    attrs =
-      if is_binary(deck_card.preferred_printing_id) do
-        attrs
-      else
-        Map.put(attrs, "preferred_printing_id", List.first(grouped_items).scryfall_id)
-      end
 
     deck_card
     |> DeckCard.changeset(attrs)
@@ -601,6 +596,12 @@ defmodule Manavault.Catalog.Decks.Allocations do
   defp put_deck_card_proxy_quantity(%DeckCard{} = deck_card, proxy_quantity) do
     deck_card
     |> DeckCard.changeset(%{"proxy_quantity" => proxy_quantity})
+    |> Repo.update()
+  end
+
+  defp put_deck_card_preferred_printing(%DeckCard{} = deck_card, scryfall_id) do
+    deck_card
+    |> DeckCard.changeset(%{"preferred_printing_id" => scryfall_id})
     |> Repo.update()
   end
 

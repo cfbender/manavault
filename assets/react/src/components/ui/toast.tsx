@@ -44,7 +44,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       {typeof document !== "undefined"
         ? createPortal(
-            <div className="toast toast-top toast-end z-[90] w-full max-w-sm p-4 sm:w-auto">
+            <div className="toast toast-bottom toast-end z-[90] w-auto max-w-[calc(100vw-2rem)] p-4 sm:toast-top sm:max-w-sm">
               {toasts.map((toast) => (
                 <Toast
                   key={toast.id}

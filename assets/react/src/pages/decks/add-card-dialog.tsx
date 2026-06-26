@@ -1,4 +1,4 @@
-import { useApolloClient, useMutation } from "@apollo/client/react"
+import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
 import { useEffect, useState, type FormEvent } from "react"
 import { CardNameSearchField } from "../../components/card-name-search-field"
 import { Button } from "../../components/ui/button"
@@ -12,10 +12,13 @@ import {
 import { Input } from "../../components/ui/input"
 import { useToast } from "../../components/ui/toast"
 import { refetchActiveQueries } from "../../lib/apollo"
-import { pluralize, titleize } from "../../lib/utils"
+import { pluralize, present, titleize } from "../../lib/utils"
+import { CardsDocument } from "../cards/data"
 import type { DeckDetail, DeckZone } from "./deck-types"
 import { ADD_CARD_ZONES, NON_COMMANDER_ADD_CARD_ZONES } from "./deck-types"
 import { AddDeckCardDocument } from "./queries"
+
+const ADD_CARD_SEARCH_DEBOUNCE_MS = 250
 
 export function AddDeckCardDialog({
   deck,
@@ -29,11 +32,36 @@ export function AddDeckCardDialog({
   const client = useApolloClient()
   const { showToast } = useToast()
   const [name, setName] = useState("")
+  const [debouncedName, setDebouncedName] = useState(name)
   const [quantity, setQuantity] = useState(1)
   const [zone, setZone] = useState<DeckZone>("mainboard")
   const [finish, setFinish] = useState("nonfoil")
+  const [selectedPrintingId, setSelectedPrintingId] = useState("")
   const [error, setError] = useState<string | null>(null)
   const zoneOptions = deck?.format === "commander" ? ADD_CARD_ZONES : NON_COMMANDER_ADD_CARD_ZONES
+  const cardSearchDraftTerm = name.trim()
+  const cardSearchTerm = debouncedName.trim()
+  const isCardSearchSettled = cardSearchTerm === cardSearchDraftTerm
+  const cardSearchQuery = useQuery(CardsDocument, {
+    variables: { q: cardSearchTerm, limit: 5 },
+    skip: !open || cardSearchTerm.length < 2,
+  })
+  const cardOptions = isCardSearchSettled
+    ? cardSearchQuery.data?.cards?.edges?.map((edge) => edge?.node).filter(present) || []
+    : []
+  const selectedCard =
+    cardOptions.find((card) => card.name.toLowerCase() === cardSearchTerm.toLowerCase()) ||
+    cardOptions[0]
+  const printingOptions =
+    selectedCard?.printings?.edges?.map((edge) => edge?.node).filter(present) || []
+  const selectedPrinting =
+    printingOptions.find((printing) => printing.id === selectedPrintingId) || printingOptions[0]
+  const selectedFinishes = selectedPrinting?.finishes?.filter(present) || []
+  const finishOptions =
+    selectedFinishes.length &&
+    selectedFinishes.some((value) => ["nonfoil", "foil", "etched"].includes(value))
+      ? selectedFinishes.filter((value) => ["nonfoil", "foil", "etched"].includes(value))
+      : ["nonfoil", "foil", "etched"]
   const [addDeckCardMutation, addDeckCardResult] = useMutation(AddDeckCardDocument)
   const addDeckCard = {
     ...addDeckCardResult,
@@ -47,6 +75,7 @@ export function AddDeckCardDialog({
             quantity,
             zone,
             finish,
+            preferredPrintingId: selectedPrinting?.id || null,
           },
         },
         onCompleted: () => {
@@ -56,6 +85,7 @@ export function AddDeckCardDialog({
           setQuantity(1)
           setZone("mainboard")
           setFinish("nonfoil")
+          setSelectedPrintingId("")
           setError(null)
           onOpenChange(false)
         },
@@ -65,11 +95,18 @@ export function AddDeckCardDialog({
   }
 
   useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedName(name), ADD_CARD_SEARCH_DEBOUNCE_MS)
+    return () => window.clearTimeout(timeout)
+  }, [name])
+
+  useEffect(() => {
     if (!open) {
       setName("")
+      setDebouncedName("")
       setQuantity(1)
       setZone("mainboard")
       setFinish("nonfoil")
+      setSelectedPrintingId("")
       setError(null)
     }
   }, [open])
@@ -77,6 +114,19 @@ export function AddDeckCardDialog({
   useEffect(() => {
     if (!zoneOptions.includes(zone)) setZone("mainboard")
   }, [zone, zoneOptions])
+
+  useEffect(() => {
+    if (!selectedPrinting?.id) {
+      setSelectedPrintingId("")
+      return
+    }
+
+    setSelectedPrintingId(selectedPrinting.id)
+  }, [selectedPrinting?.id])
+
+  useEffect(() => {
+    if (!finishOptions.includes(finish)) setFinish(finishOptions[0] || "nonfoil")
+  }, [finish, finishOptions])
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -109,6 +159,53 @@ export function AddDeckCardDialog({
               disabled={addDeckCard.isPending}
             />
           </label>
+
+          {selectedPrinting ? (
+            <div className="rounded-box border border-base-300 bg-base-200/35 p-3">
+              <div className="flex gap-3">
+                {selectedPrinting.imageUrl ? (
+                  <img
+                    src={selectedPrinting.imageUrl}
+                    alt=""
+                    className="h-28 w-20 shrink-0 rounded-lg object-cover shadow"
+                    loading="lazy"
+                  />
+                ) : null}
+                <div className="min-w-0 flex-1 space-y-3">
+                  <div>
+                    <p className="font-semibold">{selectedCard?.name || name}</p>
+                    <p className="text-sm text-base-content/65">
+                      {deckAddPrintingLabel(selectedPrinting)}
+                    </p>
+                    <p className="mt-1 text-xs text-base-content/60">
+                      {selectedPrinting.ownedCount
+                        ? `${selectedPrinting.ownedCount} owned in collection`
+                        : "Not in collection"}
+                      {selectedPrinting.priceText ? ` · ${selectedPrinting.priceText}` : ""}
+                    </p>
+                  </div>
+                  {printingOptions.length ? (
+                    <label className="form-control">
+                      <span className="label-text mb-1 text-sm font-semibold">Printing</span>
+                      <select
+                        className="select select-bordered w-full"
+                        value={selectedPrintingId}
+                        disabled={addDeckCard.isPending}
+                        onChange={(event) => setSelectedPrintingId(event.target.value)}
+                      >
+                        {printingOptions.map((printing) => (
+                          <option key={printing.id} value={printing.id}>
+                            {deckAddPrintingLabel(printing)}
+                            {printing.ownedCount ? ` · ${printing.ownedCount} owned` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="form-control">
@@ -148,9 +245,11 @@ export function AddDeckCardDialog({
                 disabled={addDeckCard.isPending}
                 onChange={(event) => setFinish(event.target.value)}
               >
-                <option value="nonfoil">Nonfoil</option>
-                <option value="foil">Foil</option>
-                <option value="etched">Etched</option>
+                {finishOptions.map((finish) => (
+                  <option key={finish} value={finish}>
+                    {titleize(finish)}
+                  </option>
+                ))}
               </select>
             </label>
           </div>
@@ -178,4 +277,20 @@ export function AddDeckCardDialog({
       </DialogContent>
     </Dialog>
   )
+}
+
+function deckAddPrintingLabel(printing: {
+  collectorNumber?: string | null
+  rarity?: string | null
+  setCode?: string | null
+  setName?: string | null
+}) {
+  return [
+    printing.setCode?.toUpperCase(),
+    printing.collectorNumber ? `#${printing.collectorNumber}` : null,
+    printing.setName,
+    printing.rarity ? titleize(printing.rarity) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ")
 }

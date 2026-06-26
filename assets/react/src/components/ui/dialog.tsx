@@ -37,7 +37,7 @@ export function Dialog({ children, onOpenChange, open }: DialogProps) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[1100] flex items-start justify-center overflow-y-auto bg-black/65 px-4 pb-[calc(env(safe-area-inset-bottom)_+_1rem)] pt-[calc(env(safe-area-inset-top)_+_1rem)] backdrop-blur-sm sm:items-center sm:pb-[calc(env(safe-area-inset-bottom)_+_2rem)] sm:pt-[calc(env(safe-area-inset-top)_+_2rem)]"
+      className="fixed inset-0 z-[1100] flex items-stretch justify-center overflow-hidden bg-black/65 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] backdrop-blur-sm sm:items-center sm:overflow-y-auto sm:px-4 sm:pb-[calc(env(safe-area-inset-bottom)_+_2rem)] sm:pt-[calc(env(safe-area-inset-top)_+_2rem)]"
       role="presentation"
       onMouseDown={() => onOpenChange(false)}
     >
@@ -58,7 +58,7 @@ export function DialogContent({ children, className, labelledBy, ...props }: Dia
       aria-modal="true"
       aria-labelledby={labelledBy}
       className={cn(
-        "max-h-[calc(100dvh_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom)_-_2rem)] min-h-0 w-full overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-2xl sm:max-h-[calc(100dvh_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom)_-_4rem)]",
+        "flex h-full max-h-full min-h-0 w-full flex-col overflow-y-auto rounded-none border-y border-base-300 bg-base-100 shadow-2xl sm:h-auto sm:max-h-[calc(100dvh_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom)_-_4rem)] sm:rounded-box sm:border",
         className,
       )}
       onMouseDown={(event) => event.stopPropagation()}

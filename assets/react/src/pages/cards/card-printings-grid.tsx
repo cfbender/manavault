@@ -78,6 +78,7 @@ export function CardPrintingsGrid({
                             : printing.finishes?.[0] || "nonfoil",
                           finishes: printing.finishes?.filter(present),
                           preferredPrintingId: printing.id,
+                          printings,
                           setCode: printing.setCode,
                         }),
                     }),

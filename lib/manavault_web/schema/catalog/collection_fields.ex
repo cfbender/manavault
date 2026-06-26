@@ -210,6 +210,37 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionFields do
     {:ok, allocated_quantity(allocations)}
   end
 
+  def collection_item_allocation_decks(
+        %CollectionItem{deck_allocations: allocations},
+        _args,
+        _resolution
+      )
+      when is_list(allocations) do
+    {:ok, allocation_decks(allocations)}
+  end
+
+  def collection_item_allocation_decks(
+        %CollectionItem{} = item,
+        _args,
+        %{context: %{loader: loader}}
+      ) do
+    loader
+    |> Dataloader.load(Catalog, :deck_allocations, item)
+    |> on_load(fn loader ->
+      allocations = Dataloader.get(loader, Catalog, :deck_allocations, item)
+      {:ok, allocation_decks(allocations)}
+    end)
+  end
+
+  def collection_item_allocation_decks(%CollectionItem{} = item, _args, _resolution) do
+    allocations =
+      item
+      |> Repo.preload(deck_allocations: [deck_card: :deck])
+      |> Map.fetch!(:deck_allocations)
+
+    {:ok, allocation_decks(allocations)}
+  end
+
   def collection_value_summary_data(%{total_price_cents: total, purchase_price_cents: purchase}) do
     value_summary(total, purchase)
   end
@@ -308,6 +339,18 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionFields do
 
   defp allocated_quantity(allocations) when is_list(allocations) do
     Enum.reduce(allocations, 0, &(&1.quantity + &2))
+  end
+
+  defp allocation_decks(allocations) when is_list(allocations) do
+    allocations
+    |> Repo.preload(deck_card: :deck)
+    |> Enum.reject(&is_nil(&1.deck_card.deck))
+    |> Enum.group_by(& &1.deck_card.deck.id)
+    |> Enum.map(fn {_deck_id, deck_allocations} ->
+      deck = deck_allocations |> List.first() |> Map.fetch!(:deck_card) |> Map.fetch!(:deck)
+      %{deck: deck, quantity: allocated_quantity(deck_allocations)}
+    end)
+    |> Enum.sort_by(& &1.deck.name)
   end
 
   defp value_summary(total, purchase) do

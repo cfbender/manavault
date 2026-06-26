@@ -103,7 +103,7 @@ export function AutoSortSummaryDialog({
           <DialogClose onClose={() => onOpenChange(false)} />
         </DialogHeader>
 
-        <div className="max-h-[min(68vh,42rem)] space-y-5 overflow-y-auto p-5">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
           <dl className="grid gap-3 sm:grid-cols-3">
             <CountCard label={checkedCountLabel} value={checkedCount} />
             <CountCard label={moveLabel} value={movedCount} />

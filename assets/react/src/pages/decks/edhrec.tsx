@@ -79,7 +79,9 @@ export function EDHRecDialog({
     },
     skip: !open || !deck?.id,
   })
-  const data = edhrecQuery.data?.deckEdhrec
+  const data = edhrecQuery.data?.deckEdhrec ?? edhrecQuery.previousData?.deckEdhrec
+  const isInitialLoading = edhrecQuery.loading && !data
+  const isRefreshing = edhrecQuery.loading && Boolean(data)
   const cardReturnSearch = deck?.id
     ? edhrecCardReturnSearch(deck.id, activeTab, excludeLands)
     : null
@@ -151,7 +153,7 @@ export function EDHRecDialog({
             </label>
           </div>
 
-          {edhrecQuery.loading ? <EmptyState title="Loading EDHREC..." /> : null}
+          {isInitialLoading ? <EmptyState title="Loading EDHREC..." /> : null}
 
           {edhrecQuery.error ? (
             <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
@@ -167,7 +169,13 @@ export function EDHRecDialog({
             </p>
           ) : null}
 
-          {!edhrecQuery.loading && data && cardReturnSearch && scrollStorageKey ? (
+          {isRefreshing ? (
+            <p className="text-xs font-medium uppercase tracking-wide text-base-content/50">
+              Refreshing EDHREC…
+            </p>
+          ) : null}
+
+          {data && cardReturnSearch && scrollStorageKey ? (
             <>
               {activeTab === "recs" ? (
                 <EDHRecCardGrid

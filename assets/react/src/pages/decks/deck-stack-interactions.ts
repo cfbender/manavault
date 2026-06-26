@@ -1,4 +1,3 @@
-
 export const DECK_STACK_ACTION_MENU_CLASS_NAME =
   "menu dropdown-content z-[120] mt-0 w-52 flex-nowrap overflow-hidden overscroll-contain rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
 

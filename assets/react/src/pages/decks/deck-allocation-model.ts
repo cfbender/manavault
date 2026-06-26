@@ -3,6 +3,7 @@ import type { DeckCardEntry } from "./deck-types"
 type AllocationCandidate = DeckCardEntry["allocationStatus"]["candidates"][number]
 
 export type DeckPullListMode = "exact" | "any"
+export type DeckPullListExclusions = Record<string, boolean>
 
 export type DeckPullListEntry = {
   id: string
@@ -189,8 +190,22 @@ export function selectedDeckPullListEntries(pullList: DeckPullList): DeckPullLis
   return entries
 }
 
-export function deckPullListSelectionError(pullList: DeckPullList): string | null {
+export function allocatableDeckPullListEntries(
+  pullList: DeckPullList,
+  excludedEntryIds: DeckPullListExclusions = {},
+): DeckPullListEntry[] {
+  return selectedDeckPullListEntries(pullList).filter(
+    (entry) => !excludedEntryIds[pullListEntrySelectionId(entry)],
+  )
+}
+
+export function deckPullListSelectionError(
+  pullList: DeckPullList,
+  excludedEntryIds: DeckPullListExclusions = {},
+): string | null {
   for (const choice of pullList.choices) {
+    if (excludedEntryIds[choice.id]) continue
+
     if (choice.candidates.length > 0 && choice.selectedItemId == null) {
       return "Choose a collection copy for every selectable deck card."
     }
@@ -198,7 +213,7 @@ export function deckPullListSelectionError(pullList: DeckPullList): string | nul
 
   const selectedByItemId = new Map<string, { selected: number; available: number }>()
 
-  for (const entry of selectedDeckPullListEntries(pullList)) {
+  for (const entry of allocatableDeckPullListEntries(pullList, excludedEntryIds)) {
     const itemId = entry.candidate.item.id
     const current = selectedByItemId.get(itemId) ?? {
       selected: 0,
@@ -217,6 +232,10 @@ export function deckPullListSelectionError(pullList: DeckPullList): string | nul
   }
 
   return null
+}
+
+export function pullListEntrySelectionId(entry: DeckPullListEntry) {
+  return entry.choiceId ?? entry.id
 }
 
 export function groupDeckPullListEntriesByLocation(

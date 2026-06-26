@@ -83,6 +83,7 @@ export function DeckDetailContent({
   isBulkAllocating,
   isSelectionActive,
   isUpdatingDeckCard,
+  isRefreshingDeck,
   legalityIssues,
   maybeboardCards,
   onAllocate,
@@ -140,6 +141,7 @@ export function DeckDetailContent({
   isBulkAllocating: boolean
   isSelectionActive: boolean
   isUpdatingDeckCard: boolean
+  isRefreshingDeck: boolean
   legalityIssues: DeckLegalityIssue[]
   maybeboardCards: DeckCardEntry[]
   onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
@@ -209,6 +211,7 @@ export function DeckDetailContent({
               price={buylistPrice}
               onClick={shareMode ? onOpenShareBuylist : onMissingCards}
             />
+            {isRefreshingDeck ? <Badge tone="neutral">Refreshing…</Badge> : null}
           </div>
         }
         nameLine={
