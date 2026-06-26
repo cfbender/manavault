@@ -88,7 +88,7 @@ docker run --rm \
   -e SECRET_KEY_BASE="$(openssl rand -base64 48)" \
   -e MANAVAULT_AUTH_DISABLED=true \
   -e PHX_HOST=localhost \
-  ghcr.io/cfbender/manavault:0.10.0
+  ghcr.io/cfbender/manavault:0.11.0
 ```
 
 Then visit <http://localhost:4000>. For anything exposed beyond localhost, enable

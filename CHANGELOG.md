@@ -8,6 +8,42 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.11.0] - 2026-06-26
+
+### Bug Fixes
+
+- Preview png ([`680015c2`](../../commit/680015c2a89357fca6d535a37c3d7435b9a485c9))
+- Light mode card view ([`bef91e91`](../../commit/bef91e91e440b0726cd5e2e765228b9a8883e5b3))
+- Edhrec deck status ([`d79c5578`](../../commit/d79c5578d1f09c2f8167ade70c331d907c89d379))
+- Mobile deck view ([`f089aaa1`](../../commit/f089aaa17b1dfeaf288ad63c1fd5658b254de355))
+- Deck share page ([`cb490153`](../../commit/cb4901536c2fa35191a23130b163701129fb818d))
+- Deck card menu ([`f48b3edb`](../../commit/f48b3edbdfd3a53631e431b4c56c2ceafdecd469))
+- Prevent PWA asset-reload from triggering in native Capacitor shell (#57) ([`6d9dc31d`](../../commit/6d9dc31da67862fc04dda4604551e76324dffc60))
+
+### Chores
+
+- Lint and format with vp ([`103c1332`](../../commit/103c1332cd7415c03987636df6491c4d86355cd9))
+- Only build app when necessary ([`c583528d`](../../commit/c583528dc31e6ab4f9d5a07ac2c353e856ce3171))
+
+### Features
+
+- Preview image ([`5ad57fac`](../../commit/5ad57fac579a800619bcf6549fdc31d16b3304e6))
+- Gamechangers ([`0c753254`](../../commit/0c7532548fd321ee03ae7371563ba15fcea1d7be))
+- Deck view improvements ([`1bfa4cde`](../../commit/1bfa4cdefa51bd9b5f666896477ee99c38e303be))
+- Deck optimistic updates ([`b5c380de`](../../commit/b5c380dedb9a07567d58d1b4332387799a02e747))
+- Optimize printings ([`0f513c13`](../../commit/0f513c13c660423b56231067e10781f686f74b8a))
+
+### Miscellaneous
+
+- Shorten "owned but unavailable" badge label to "unavailable" (#59) ([`aca99319`](../../commit/aca99319821585e7df8d847415c2113ccab2ece7))
+- Stop forcing external links into the native WebView (#60) ([`460f1c1b`](../../commit/460f1c1b8f4c9bb72a6d964f62d2970340013630))
+
+### Refactoring
+
+- Optimize deck query ([`0ce21220`](../../commit/0ce21220256fbef78bdd133d68fb9ab3ae856fb3))
+- Optimize decks query ([`8ba397e1`](../../commit/8ba397e16cd483f70675b61763f021304bed4e81))
+- Use apollo client ([`775ff95a`](../../commit/775ff95a8fc38e07cf179be5e065014ddda1c774))
+
 ## [0.10.0] - 2026-06-25
 
 ### Features
