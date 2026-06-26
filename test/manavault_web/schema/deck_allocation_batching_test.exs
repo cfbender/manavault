@@ -109,6 +109,85 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
     assert query_count <= 9
   end
 
+  test "deck list summaries reuse preloaded deck cards over GraphQL", %{conn: conn} do
+    cards =
+      for index <- 1..6 do
+        %{
+          "id" => "scryfall-batched-deck-list-#{index}",
+          "oracle_id" => "oracle-batched-deck-list-#{index}",
+          "name" => "Batched Deck List #{index}",
+          "type_line" => if(rem(index, 2) == 0, do: "Legendary Creature", else: "Artifact"),
+          "collector_number" => "#{index}",
+          "set" => "bdl",
+          "set_name" => "Batch Deck List Set",
+          "lang" => "en",
+          "image_uris" => %{"normal" => "https://example.test/deck-list-#{index}.jpg"},
+          "finishes" => ["nonfoil"],
+          "color_identity" => if(rem(index, 2) == 0, do: ["U"], else: []),
+          "legalities" => %{"commander" => "legal"}
+        }
+      end
+
+    assert {:ok, %{cards_count: 6, printings_count: 6}} = Catalog.import_cards(cards)
+
+    for deck_index <- 1..3 do
+      {:ok, deck} = Catalog.create_deck(%{"name" => "Batched Deck List #{deck_index}"})
+
+      assert {:ok, _mainboard} =
+               Catalog.add_card_to_deck(deck, %{
+                 "name" => "Batched Deck List #{deck_index * 2 - 1}",
+                 "quantity" => 2,
+                 "zone" => "mainboard"
+               })
+
+      assert {:ok, _commander} =
+               Catalog.add_card_to_deck(deck, %{
+                 "name" => "Batched Deck List #{deck_index * 2}",
+                 "quantity" => 1,
+                 "zone" => "commander"
+               })
+    end
+
+    {conn, query_count} =
+      count_repo_queries(fn ->
+        post(conn, "/api/graphql", %{
+          "query" => """
+          query Decks {
+            decks(first: 10) {
+              edges {
+                node {
+                  name
+                  cardCount
+                  uniqueCardCount
+                  coverImageUrl
+                  commanderColorIdentity
+                  legality { status }
+                }
+              }
+            }
+          }
+          """
+        })
+      end)
+
+    assert %{
+             "data" => %{
+               "decks" => %{
+                 "edges" => [_, _, _] = edges
+               }
+             }
+           } = json_response(conn, 200)
+
+    assert Enum.all?(edges, fn %{"node" => deck} ->
+             deck["cardCount"] == 3 and
+               deck["uniqueCardCount"] == 2 and
+               deck["coverImageUrl"] =~ "https://example.test/deck-list-" and
+               deck["commanderColorIdentity"] == ["U"]
+           end)
+
+    assert query_count <= 4
+  end
+
   test "collection item allocated quantities are batched over GraphQL", %{conn: conn} do
     cards =
       for index <- 1..5 do

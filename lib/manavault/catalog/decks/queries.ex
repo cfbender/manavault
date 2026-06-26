@@ -14,8 +14,31 @@ defmodule Manavault.Catalog.Decks.Queries do
   end
 
   def list_deck_summaries do
-    list_decks()
+    decks =
+      Deck
+      |> order_by([deck], asc: deck.name, asc: deck.id)
+      |> preload([deck], deck_cards: ^deck_cards_summary_preload())
+      |> Repo.all()
+
+    cards_by_deck_id =
+      decks
+      |> Enum.flat_map(& &1.deck_cards)
+      |> DeckSummaries.put_fallback_printings()
+      |> Enum.group_by(& &1.deck_id)
+
+    Enum.map(decks, fn deck ->
+      %{deck | deck_cards: Map.get(cards_by_deck_id, deck.id, [])}
+    end)
     |> DeckSummaries.put_fields()
+  end
+
+  defp deck_cards_summary_preload do
+    from(deck_card in DeckCard,
+      join: card in assoc(deck_card, :card),
+      left_join: preferred_printing in assoc(deck_card, :preferred_printing),
+      order_by: [asc: deck_card.zone, asc: card.name, asc: deck_card.id],
+      preload: [card: card, preferred_printing: preferred_printing]
+    )
   end
 
   def count_decks do

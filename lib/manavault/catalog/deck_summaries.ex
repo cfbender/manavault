@@ -9,20 +9,16 @@ defmodule Manavault.Catalog.DeckSummaries do
   def put_fields([]), do: []
 
   def put_fields(decks) do
-    deck_ids = Enum.map(decks, & &1.id)
-    counts_by_deck_id = count_summaries(deck_ids)
-    display_by_deck_id = display_summaries(deck_ids)
-
     Enum.map(decks, fn deck ->
-      counts = Map.get(counts_by_deck_id, deck.id, %{card_count: 0, unique_card_count: 0})
-      display = Map.get(display_by_deck_id, deck.id, empty_display_summary())
+      cards = deck.deck_cards || []
+      counted = Enum.filter(cards, &DeckCard.counts_toward_deck_total?/1)
 
       %{
         deck
-        | card_count: counts.card_count || 0,
-          unique_card_count: counts.unique_card_count || 0,
-          cover_image_url: display.cover_image_url,
-          commander_color_identity: display.commander_color_identity
+        | card_count: Enum.reduce(counted, 0, &(&1.quantity + &2)),
+          unique_card_count: length(counted),
+          cover_image_url: cover_image_url_from_cards(cards),
+          commander_color_identity: commander_color_identity_from_cards(cards)
       }
     end)
   end
@@ -47,22 +43,6 @@ defmodule Manavault.Catalog.DeckSummaries do
     cards
     |> Enum.filter(&match?(%DeckCard{card: %Card{}}, &1))
     |> commander_color_identity_from_values(& &1.card.color_identity)
-  end
-
-  defp count_summaries(deck_ids) do
-    DeckCard
-    |> where(
-      [deck_card],
-      deck_card.deck_id in ^deck_ids and deck_card.zone in ^DeckCard.deck_count_zones()
-    )
-    |> group_by([deck_card], deck_card.deck_id)
-    |> select([deck_card], %{
-      deck_id: deck_card.deck_id,
-      card_count: sum(deck_card.quantity),
-      unique_card_count: count(deck_card.id)
-    })
-    |> Repo.all()
-    |> Map.new(fn summary -> {summary.deck_id, summary} end)
   end
 
   defp display_summaries([]), do: %{}
@@ -190,7 +170,7 @@ defmodule Manavault.Catalog.DeckSummaries do
   defp preferred_printing_image_uris(_deck_card), do: nil
 
   defp fallback_printing_image_uris(%DeckCard{
-         card: %Card{printings: [%Printing{image_uris: image_uris} | _rest]}
+         fallback_printing: %Printing{image_uris: image_uris}
        }),
        do: image_uris
 

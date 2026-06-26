@@ -80,7 +80,7 @@ defmodule Manavault.Catalog.DeckCrudTest do
     assert [] = Catalog.list_decks()
   end
 
-  test "list_deck_summaries returns counts cover and commander colors without preloading cards" do
+  test "list_deck_summaries returns counts cover and commander colors with preloaded cards" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
 
@@ -105,7 +105,8 @@ defmodule Manavault.Catalog.DeckCrudTest do
     assert summary.unique_card_count == 2
     assert summary.commander_color_identity == ["U"]
     assert summary.cover_image_url == "https://example.test/black-lotus.jpg"
-    assert %Ecto.Association.NotLoaded{} = summary.deck_cards
+    assert is_list(summary.deck_cards)
+    assert length(summary.deck_cards) == 2
   end
 
   test "deck stats total excludes sideboard and maybeboard cards" do
