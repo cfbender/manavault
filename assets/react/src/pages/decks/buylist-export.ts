@@ -6,7 +6,7 @@ export function buylistSummary(entries: BuylistEntry[]) {
   const quantity = entries.reduce((total, entry) => total + entry.quantity, 0)
   const missing = entries.reduce((total, entry) => total + entry.missing, 0)
   const unavailable = entries.reduce((total, entry) => total + entry.unavailable, 0)
-  return `${quantity} cards to source: ${missing} missing, ${unavailable} owned but unavailable.`
+  return `${quantity} cards to source: ${missing} missing, ${unavailable} unavailable.`
 }
 
 export function buylistTotalPrice(entries: BuylistEntry[]) {

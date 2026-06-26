@@ -63,7 +63,7 @@ defmodule Manavault.Catalog.DeckBuylistTest do
                quantity: 2,
                missing: 1,
                unavailable: 1,
-               reason: "missing and owned but unavailable",
+               reason: "missing and unavailable",
                set_code: "leb",
                collector_number: "233",
                total_price_cents: 2_000
@@ -108,7 +108,7 @@ defmodule Manavault.Catalog.DeckBuylistTest do
     assert csv =~
              "Quantity,Card,Set,Collector Number,Finish,Language,Reason,Unit Price,Total Price"
 
-    assert csv =~ "2,Black Lotus,leb,233,nonfoil,en,missing and owned but unavailable,$10,$20"
+    assert csv =~ "2,Black Lotus,leb,233,nonfoil,en,missing and unavailable,$10,$20"
 
     assert [%{set_code: nil, collector_number: nil}] = Catalog.deck_buylist(target_deck)
     assert available_item.id
