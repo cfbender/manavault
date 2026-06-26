@@ -39,6 +39,7 @@ function errorMessage(error: unknown) {
 }
 
 function reloadForFreshAssets(error: unknown) {
+  if (document.documentElement.classList.contains("native-shell")) return false
   if (!dynamicImportErrorPattern.test(errorMessage(error))) return false
 
   let lastReloadAt = 0
