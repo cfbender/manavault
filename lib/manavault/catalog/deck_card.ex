@@ -14,6 +14,7 @@ defmodule Manavault.Catalog.DeckCard do
     field :finish, :string, default: "nonfoil"
     field :tag, :string
     field :allocation_status, :map, virtual: true
+    field :fallback_printing, :map, virtual: true
 
     belongs_to :deck, Manavault.Catalog.Deck
 

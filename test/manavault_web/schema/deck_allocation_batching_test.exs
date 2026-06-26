@@ -106,7 +106,7 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
              }
            } = json_response(conn, 200)
 
-    assert query_count <= 10
+    assert query_count <= 9
   end
 
   test "collection item allocated quantities are batched over GraphQL", %{conn: conn} do

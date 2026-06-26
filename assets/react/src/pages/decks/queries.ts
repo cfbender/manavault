@@ -193,27 +193,19 @@ export const DeckDocument = graphql(`
               gameChanger
               deckCategory
               deckThemes
-              printings(first: 300) {
-                pageInfo {
-                  endCursor
-                  hasNextPage
-                }
-                edges {
-                  node {
-                    id
-                    scryfallId
-                    imageUrl
-                    artCropUrl
-                    setCode
-                    setName
-                    collectorNumber
-                    rarity
-                    finishes
-                  }
-                }
-              }
             }
             preferredPrinting {
+              id
+              scryfallId
+              imageUrl
+              artCropUrl
+              setCode
+              setName
+              collectorNumber
+              rarity
+              finishes
+            }
+            fallbackPrinting {
               id
               scryfallId
               imageUrl
@@ -262,6 +254,28 @@ export const DeckDocument = graphql(`
                 }
               }
             }
+          }
+        }
+      }
+    }
+  }
+`)
+
+export const CardPrintingsDocument = graphql(`
+  query CardPrintings($id: ID!) {
+    card(id: $id) {
+      printings(first: 300) {
+        edges {
+          node {
+            id
+            scryfallId
+            imageUrl
+            artCropUrl
+            setCode
+            setName
+            collectorNumber
+            rarity
+            finishes
           }
         }
       }

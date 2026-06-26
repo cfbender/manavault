@@ -45,13 +45,16 @@ defmodule Manavault.Catalog.Decks.Queries do
   end
 
   def deck_cards(%Deck{deck_cards: cards}) when is_list(cards) do
-    AllocationStatus.put_deck_card_allocation_statuses(cards)
+    cards
+    |> DeckSummaries.put_fallback_printings()
+    |> AllocationStatus.put_deck_card_allocation_statuses()
   end
 
   def deck_cards(%Deck{} = deck) do
     deck
     |> Repo.preload(Preloads.deck_preloads())
     |> Map.fetch!(:deck_cards)
+    |> DeckSummaries.put_fallback_printings()
     |> AllocationStatus.put_deck_card_allocation_statuses()
   end
 

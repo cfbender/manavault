@@ -108,6 +108,35 @@ defmodule Manavault.Catalog.DeckSummaries do
     end)
   end
 
+  def put_fallback_printings([]), do: []
+
+  def put_fallback_printings(deck_cards) when is_list(deck_cards) do
+    oracle_ids = deck_cards |> Enum.map(& &1.oracle_id) |> Enum.uniq()
+    fallbacks = fallback_printings_by_oracle_id(oracle_ids)
+
+    Enum.map(deck_cards, fn deck_card ->
+      %{deck_card | fallback_printing: Map.get(fallbacks, deck_card.oracle_id)}
+    end)
+  end
+
+  defp fallback_printings_by_oracle_id([]), do: %{}
+
+  defp fallback_printings_by_oracle_id(oracle_ids) do
+    ranked =
+      from(p in Printing,
+        where: p.oracle_id in ^oracle_ids,
+        select_merge: %{
+          rn:
+            row_number()
+            |> over(partition_by: p.oracle_id, order_by: [desc: p.released_at, asc: p.set_code])
+        }
+      )
+
+    from(p in subquery(ranked), where: p.rn == 1, select: p)
+    |> Repo.all()
+    |> Map.new(&{&1.oracle_id, &1})
+  end
+
   defp empty_display_summary do
     %{cover_image_url: nil, commander_color_identity: nil}
   end

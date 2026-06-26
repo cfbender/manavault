@@ -27,12 +27,12 @@ export function compareDeckCards(left: DeckCardEntry, right: DeckCardEntry) {
 }
 
 export function cardImageUrl(deckCard: DeckCardEntry, key: "artCropUrl" | "imageUrl") {
-  const printing = deckCard.preferredPrinting || deckCard.card?.printings?.[0]
+  const printing = deckCard.preferredPrinting || deckCard.fallbackPrinting
   return printing?.[key] || null
 }
 
 export function deckCardPreviewPrinting(deckCard: DeckCardEntry): FullscreenPrinting {
-  const printing = deckCard.preferredPrinting || deckCard.card?.printings?.find(present)
+  const printing = deckCard.preferredPrinting || deckCard.fallbackPrinting
 
   return {
     scryfallId: deckCard.id,
@@ -55,7 +55,7 @@ export function deckPlaytestCards(deckCards: DeckCardEntry[]) {
 
     const target = deckCard.zone === "commander" ? command : library
     const quantity = Math.max(deckCard.quantity || 0, 0)
-    const printing = deckCard.preferredPrinting || deckCard.card?.printings?.[0]
+    const printing = deckCard.preferredPrinting || deckCard.fallbackPrinting
 
     for (let index = 0; index < quantity; index += 1) {
       target.push({

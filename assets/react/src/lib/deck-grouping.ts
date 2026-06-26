@@ -70,7 +70,6 @@ export type DeckGroupingCard = {
   colorIdentity: Array<string | null> | null
   deckCategory: string | null
   deckThemes: Array<string | null> | null
-  printings: Array<DeckGroupingPrinting | null> | null
 }
 
 export type DeckGroupingDeckCard = {
@@ -79,6 +78,7 @@ export type DeckGroupingDeckCard = {
   zone: string | null
   card: DeckGroupingCard | null
   preferredPrinting: DeckGroupingPrinting | null
+  fallbackPrinting: DeckGroupingPrinting | null
 }
 
 export type DeckGroup<T extends DeckGroupingDeckCard = DeckGroupingDeckCard> = {
@@ -215,7 +215,7 @@ function deckCardGroupDescriptor<T extends DeckGroupingDeckCard>(
   groupBy: DeckGroupBy,
 ): Omit<DeckGroup<T>, "cards" | "quantity"> {
   const card = deckCard.card
-  const printing = deckCard.preferredPrinting || card?.printings?.[0]
+  const printing = deckCard.preferredPrinting || deckCard.fallbackPrinting
 
   if ((groupBy === "theme" || groupBy === "category") && deckCard.zone === "commander") {
     return commanderGroup()

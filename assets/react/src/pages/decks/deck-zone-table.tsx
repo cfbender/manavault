@@ -14,7 +14,7 @@ type PreviewPosition = {
 }
 
 function deckZoneCardImageUrl(deckCard: DeckCardEntry) {
-  return deckCard.preferredPrinting?.imageUrl || deckCard.card?.printings?.[0]?.imageUrl || null
+  return deckCard.preferredPrinting?.imageUrl || deckCard.fallbackPrinting?.imageUrl || null
 }
 
 function DeckZoneCardName({
@@ -165,7 +165,7 @@ export function DeckZoneTable({
           </thead>
           <tbody>
             {cards.map((deckCard) => {
-              const printing = deckCard.preferredPrinting || deckCard.card?.printings?.[0]
+              const printing = deckCard.preferredPrinting || deckCard.fallbackPrinting
               const selected = selectedCardIds.has(deckCard.id)
               const isGameChanger = deckCard.card?.gameChanger === true
 

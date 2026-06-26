@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query"
 import { Layers, Palette } from "lucide-react"
 import { useEffect, useState, type FormEvent } from "react"
 import { Button } from "../../components/ui/button"
@@ -9,10 +10,13 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
+import { request } from "../../lib/graphql"
 import type { DeckCardUpdateInput } from "../../gql/graphql"
 import { cn, present, titleize } from "../../lib/utils"
 import { ZoneIcon } from "./deck-card-display"
 import type { DeckCardEntry, DeckCardPrinting, DeckCardTag, DeckZone } from "./deck-types"
+import { connectionNodes } from "./deck-types"
+import { CardPrintingsDocument } from "./queries"
 import {
   ADD_CARD_ZONES,
   DECK_CARD_FINISHES,
@@ -122,7 +126,14 @@ export function EditDeckCardDialog({
   const [preferredPrintingId, setPreferredPrintingId] = useState("")
   const [tag, setTag] = useState<DeckCardTag | "">("")
   const zoneOptions = deckFormat === "commander" ? ADD_CARD_ZONES : NON_COMMANDER_ADD_CARD_ZONES
-  const printings = (deckCard?.card?.printings || []).filter(present)
+  const cardId = deckCard?.card?.id || null
+  const { data: printingsData, isLoading: printingsLoading } = useQuery({
+    queryKey: ["card-printings", cardId],
+    queryFn: () => request(CardPrintingsDocument, { id: cardId! }),
+    enabled: Boolean(cardId),
+    staleTime: 60_000,
+  })
+  const printings = connectionNodes(printingsData?.card?.printings).filter(present)
   const selectedPrinting = preferredPrintingId
     ? printings.find((printing) => printing.id === preferredPrintingId) ||
       deckCard?.preferredPrinting
@@ -232,42 +243,48 @@ export function EditDeckCardDialog({
                     </span>
                   </span>
                 </button>
-                {printings.map((printing) => (
-                  <button
-                    key={printing.id}
-                    type="button"
-                    className={cn(
-                      "flex w-full min-w-0 items-start gap-3 overflow-hidden rounded-box border p-3 text-left transition",
-                      preferredPrintingId === printing.id
-                        ? "border-primary bg-primary/10 ring-2 ring-primary/20"
-                        : "border-base-300 hover:border-primary/45 hover:bg-base-200",
-                    )}
-                    disabled={isPending}
-                    onClick={() => setPreferredPrintingId(printing.id)}
-                    aria-pressed={preferredPrintingId === printing.id}
-                  >
-                    {printing.imageUrl ? (
-                      <img
-                        src={printing.imageUrl}
-                        alt=""
-                        className="h-16 w-12 shrink-0 rounded object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <span className="flex h-16 w-12 shrink-0 items-center justify-center rounded bg-base-200 text-base-content/50">
-                        <Palette className="h-5 w-5" />
+                {printingsLoading ? (
+                  <div className="flex items-center justify-center p-6 text-sm text-base-content/50">
+                    Loading printings…
+                  </div>
+                ) : (
+                  printings.map((printing) => (
+                    <button
+                      key={printing.id}
+                      type="button"
+                      className={cn(
+                        "flex w-full min-w-0 items-start gap-3 overflow-hidden rounded-box border p-3 text-left transition",
+                        preferredPrintingId === printing.id
+                          ? "border-primary bg-primary/10 ring-2 ring-primary/20"
+                          : "border-base-300 hover:border-primary/45 hover:bg-base-200",
+                      )}
+                      disabled={isPending}
+                      onClick={() => setPreferredPrintingId(printing.id)}
+                      aria-pressed={preferredPrintingId === printing.id}
+                    >
+                      {printing.imageUrl ? (
+                        <img
+                          src={printing.imageUrl}
+                          alt=""
+                          className="h-16 w-12 shrink-0 rounded object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <span className="flex h-16 w-12 shrink-0 items-center justify-center rounded bg-base-200 text-base-content/50">
+                          <Palette className="h-5 w-5" />
+                        </span>
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-semibold">
+                          {deckCardPrintingOptionLabel(printing)}
+                        </span>
+                        <span className="block truncate text-xs text-base-content/60">
+                          {printingFinishOptions(printing.finishes).map(titleize).join(", ")}
+                        </span>
                       </span>
-                    )}
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold">
-                        {deckCardPrintingOptionLabel(printing)}
-                      </span>
-                      <span className="block truncate text-xs text-base-content/60">
-                        {printingFinishOptions(printing.finishes).map(titleize).join(", ")}
-                      </span>
-                    </span>
-                  </button>
-                ))}
+                    </button>
+                  ))
+                )}
               </div>
             </div>
           </div>

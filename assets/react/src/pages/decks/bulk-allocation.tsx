@@ -401,7 +401,7 @@ function CardNamePreview({ deckCard }: { deckCard: DeckPullListEntry["deckCard"]
   const cardName = deckCardName(deckCard)
   const cardHref = deckCard.card?.id ? `/cards/${encodeURIComponent(deckCard.card.id)}` : null
   const imageUrl =
-    deckCard.preferredPrinting?.imageUrl || deckCard.card?.printings?.[0]?.imageUrl || null
+    deckCard.preferredPrinting?.imageUrl || deckCard.fallbackPrinting?.imageUrl || null
 
   useEffect(() => {
     return () => {

@@ -21,6 +21,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
 
   def deck_cards(%Deck{deck_cards: deck_cards}, args, _resolution) when is_list(deck_cards) do
     deck_cards
+    |> Catalog.put_deck_card_fallback_printings()
     |> Catalog.put_deck_card_allocation_statuses()
     |> RelayHelpers.connection_from_list(args)
   end
@@ -31,6 +32,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
     |> on_load(fn loader ->
       loader
       |> Dataloader.get(Catalog, :deck_cards, deck)
+      |> Catalog.put_deck_card_fallback_printings()
       |> Catalog.put_deck_card_allocation_statuses()
       |> RelayHelpers.connection_from_list(args)
     end)
@@ -42,8 +44,36 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
     |> RelayHelpers.connection_from_list(args)
   end
 
+  def deck_card_count(%Deck{deck_cards: deck_cards} = deck, _args, _resolution)
+      when is_list(deck_cards) do
+    {:ok, Catalog.deck_card_count(deck)}
+  end
+
+  def deck_card_count(%Deck{} = deck, _args, %{context: %{loader: loader}}) do
+    loader
+    |> Dataloader.load(Catalog, :deck_cards, deck)
+    |> on_load(fn loader ->
+      deck_cards = Dataloader.get(loader, Catalog, :deck_cards, deck)
+      {:ok, Catalog.deck_card_count(%{deck | deck_cards: deck_cards})}
+    end)
+  end
+
   def deck_card_count(%Deck{} = deck, _args, _resolution) do
     {:ok, Catalog.deck_card_count(deck)}
+  end
+
+  def deck_unique_card_count(%Deck{deck_cards: deck_cards} = deck, _args, _resolution)
+      when is_list(deck_cards) do
+    {:ok, Catalog.deck_unique_card_count(deck)}
+  end
+
+  def deck_unique_card_count(%Deck{} = deck, _args, %{context: %{loader: loader}}) do
+    loader
+    |> Dataloader.load(Catalog, :deck_cards, deck)
+    |> on_load(fn loader ->
+      deck_cards = Dataloader.get(loader, Catalog, :deck_cards, deck)
+      {:ok, Catalog.deck_unique_card_count(%{deck | deck_cards: deck_cards})}
+    end)
   end
 
   def deck_unique_card_count(%Deck{} = deck, _args, _resolution) do

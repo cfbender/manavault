@@ -81,6 +81,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
 
     field :preferred_printing, :printing, resolve: dataloader(Catalog)
     field :card, :card, resolve: dataloader(Catalog)
+    field :fallback_printing, :printing
 
     field :allocation_status, non_null(:deck_card_allocation_status) do
       resolve(&CatalogResolvers.deck_card_allocation_status/3)

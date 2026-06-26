@@ -1,35 +1,31 @@
 import { Scissors, ShoppingCart, type LucideIcon } from "lucide-react"
 import type {
+  CardPrintingsQuery,
   DeckBuylistQuery,
   DeckEdhrecQuery,
   DeckQuery,
   DecksQuery,
   PreviewDeckDisassemblyMutation,
 } from "../../gql/graphql"
-
 type Maybe<T> = T | null | undefined
 type RelayEdge<T> = { node?: Maybe<T> } | null
 type RelayConnection<T> = { edges?: Maybe<ReadonlyArray<RelayEdge<T>>> }
-type ConnectionNode<Connection> =
-  NonNullable<Connection> extends ReadonlyArray<infer Node>
-    ? NonNullable<Node>
-    : NonNullable<Connection> extends RelayConnection<infer Node>
-      ? NonNullable<Node>
-      : never
 
 type DeckConnectionDetail = NonNullable<DeckQuery["deck"]>
-type DeckCardConnectionEntry = ConnectionNode<DeckConnectionDetail["deckCards"]>
+type DeckCardEdges = NonNullable<NonNullable<DeckConnectionDetail["deckCards"]>["edges"]>
+type DeckCardConnectionEntry = NonNullable<NonNullable<DeckCardEdges[number]>["node"]>
 type DeckCardConnectionCard = NonNullable<DeckCardConnectionEntry["card"]>
 
-export type DeckSummary = ConnectionNode<DecksQuery["decks"]>
-export type DeckCardPrinting = ConnectionNode<DeckCardConnectionCard["printings"]>
+type DecksConnection = NonNullable<DecksQuery["decks"]>
+type DecksEdges = NonNullable<DecksConnection["edges"]>
+export type DeckSummary = NonNullable<NonNullable<DecksEdges[number]>["node"]>
+type CardPrintingsDetail = NonNullable<CardPrintingsQuery["card"]>
+type CardPrintingsEdges = NonNullable<NonNullable<CardPrintingsDetail["printings"]>["edges"]>
+export type DeckCardPrinting = NonNullable<NonNullable<CardPrintingsEdges[number]>["node"]>
 export type DeckCardEntry = Omit<DeckCardConnectionEntry, "card"> & {
-  card:
-    | (Omit<DeckCardConnectionCard, "printings"> & {
-        printings: DeckCardPrinting[] | null
-      })
-    | null
+  card: DeckCardConnectionCard | null
 }
+
 export type DeckDetail = Omit<DeckConnectionDetail, "deckCards"> & {
   deckCards: DeckCardEntry[]
 }
@@ -96,10 +92,7 @@ export function flattenDeckCard(deckCard: DeckCardConnectionEntry | DeckCardEntr
 
   return {
     ...deckCard,
-    card: {
-      ...card,
-      printings: connectionNodes(card.printings),
-    },
+    card,
   }
 }
 

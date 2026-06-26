@@ -149,7 +149,7 @@ export function OptimizePrintingsDialog({
             {visibleDeckCards.map((deckCard) => {
               const selected = selectedIds.has(deckCard.id)
               const name = deckCard.card?.name || "Unknown card"
-              const printing = deckCard.preferredPrinting || deckCard.card?.printings?.[0]
+              const printing = deckCard.preferredPrinting || deckCard.fallbackPrinting
               const imageUrl = cardImageUrl(deckCard, "imageUrl")
 
               return (

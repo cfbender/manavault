@@ -82,7 +82,7 @@ export function DeckStackCard({
   const touchRevealWasActivatedRef = useRef(false)
   const imageUrl = cardImageUrl(deckCard, "imageUrl")
   const name = deckCard.card?.name || "Unknown card"
-  const printing = deckCard.preferredPrinting || deckCard.card?.printings?.[0]
+  const printing = deckCard.preferredPrinting || deckCard.fallbackPrinting
   const tag = deckCardTag(deckCard.tag)
   const hasFoilFinish = deckCard.finish === "foil" || deckCard.finish === "etched"
   const isGameChanger = deckCard.card?.gameChanger === true
