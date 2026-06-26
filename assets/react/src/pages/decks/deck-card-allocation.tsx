@@ -228,9 +228,9 @@ export function DeckCardAllocationMenu({
                             <div className="min-w-0">
                               <p
                                 className="block max-w-full truncate font-semibold"
-                                title={collectionItemLabel(candidate.item)}
+                                title={collectionItemLabel(candidate)}
                               >
-                                {collectionItemLabel(candidate.item)}
+                                {collectionItemLabel(candidate)}
                               </p>
                               <p className="truncate text-xs text-base-content/60">
                                 {allocationCandidateSummary(candidate)}
@@ -328,8 +328,9 @@ export function AllocationStatusIcon({ className, state }: { className?: string;
 }
 
 export function collectionItemLabel(
-  item: DeckCardEntry["allocationStatus"]["candidates"][number]["item"],
+  candidate: DeckCardEntry["allocationStatus"]["candidates"][number],
 ) {
+  const item = candidate.item
   const printing = item.printing
   const setLabel = [
     printing?.setCode?.toUpperCase(),
@@ -337,8 +338,14 @@ export function collectionItemLabel(
   ]
     .filter(Boolean)
     .join(" ")
-  const location = item.location?.name || "Unfiled"
+  const location = allocationSourceLabel(candidate)
   return [setLabel || printing?.setName, titleize(item.finish), location]
     .filter(Boolean)
     .join(" · ")
+}
+
+function allocationSourceLabel(candidate: DeckCardEntry["allocationStatus"]["candidates"][number]) {
+  if (candidate.allocated > 0) return "In this deck"
+  if (candidate.allocatedElsewhere > 0 && candidate.available <= 0) return "In another deck"
+  return candidate.item.location?.name || "Unfiled"
 }

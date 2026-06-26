@@ -722,6 +722,49 @@ defmodule Manavault.Catalog.CollectionTest do
     assert Catalog.get_collection_item!(binder_item.id).location_id == binder.id
   end
 
+  test "auto-sort ignores collection items allocated to decks" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    target = create_location!("Colorless")
+
+    update_auto_sort_rules!([
+      %{target_location_id: target.id, enabled: true, priority: 1, color_mode: "colorless"}
+    ])
+
+    source_item = create_collection_item!("scryfall-printing-1")
+    unfiled_item = create_collection_item!("scryfall-printing-1")
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Sleeved"})
+    assert {:ok, deck_card} = Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus"})
+
+    assert {:ok, allocation} =
+             Catalog.allocate_collection_item_to_deck_card(deck_card.id, source_item.id)
+
+    allocated_item = Catalog.get_collection_item!(allocation.collection_item_id)
+    assert allocated_item.location_id == nil
+
+    unfiled_item_id = unfiled_item.id
+
+    assert {:ok,
+            %{
+              checked_count: 1,
+              dry_run: true,
+              moved_count: 1,
+              skipped_count: 0,
+              moves: [%{collection_item_id: ^unfiled_item_id}]
+            }} = Catalog.auto_sort_collection(dry_run: true)
+
+    assert {:ok,
+            %{
+              checked_count: 1,
+              moved_count: 1,
+              skipped_count: 0,
+              moves: [%{collection_item_id: ^unfiled_item_id}]
+            }} = Catalog.auto_sort_collection(source_location_id: "unfiled")
+
+    assert Catalog.get_collection_item!(allocated_item.id).location_id == nil
+    assert Catalog.get_collection_item!(unfiled_item.id).location_id == target.id
+  end
+
   test "collection import auto-sort moves only imported items" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])

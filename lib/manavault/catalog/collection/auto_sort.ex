@@ -3,7 +3,7 @@ defmodule Manavault.Catalog.Collection.AutoSort do
 
   import Ecto.Query
 
-  alias Manavault.Catalog.{AutoSortRule, CollectionItem, Location, Price, Util}
+  alias Manavault.Catalog.{AutoSortRule, CollectionItem, DeckAllocation, Location, Price, Util}
   alias Manavault.Repo
 
   @colors ~w(W U B R G)
@@ -57,14 +57,20 @@ defmodule Manavault.Catalog.Collection.AutoSort do
   end
 
   defp base_item_query do
-    from(item in CollectionItem,
-      join: printing in assoc(item, :printing),
-      join: card in assoc(printing, :card),
-      left_join: location in assoc(item, :location_assoc),
-      as: :location,
-      preload: [printing: {printing, card: card}, location_assoc: location],
-      order_by: [asc: item.id]
+    allocated_item_ids = from(allocation in DeckAllocation, select: allocation.collection_item_id)
+
+    CollectionItem
+    |> join(:inner, [item], printing in assoc(item, :printing))
+    |> join(:inner, [_item, printing], card in assoc(printing, :card))
+    |> join(:left, [item, _printing, _card], location in assoc(item, :location_assoc),
+      as: :location
     )
+    |> where([item], item.id not in subquery(allocated_item_ids))
+    |> preload([_item, printing, card, location],
+      printing: {printing, card: card},
+      location_assoc: location
+    )
+    |> order_by([item], asc: item.id)
   end
 
   defp enabled_rules do
