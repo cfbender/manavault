@@ -167,10 +167,10 @@ defmodule Manavault.Catalog.Decks.Buylist do
   end
 
   defp buylist_reason(missing, unavailable) when missing > 0 and unavailable > 0,
-    do: "missing and owned but unavailable"
+    do: "missing and unavailable"
 
   defp buylist_reason(missing, _unavailable) when missing > 0, do: "missing"
-  defp buylist_reason(_missing, unavailable) when unavailable > 0, do: "owned but unavailable"
+  defp buylist_reason(_missing, unavailable) when unavailable > 0, do: "unavailable"
   defp buylist_reason(_missing, _unavailable), do: "available"
 
   defp price_total_cents(nil, _quantity), do: nil
