@@ -26,7 +26,6 @@ public class MainActivity extends BridgeActivity {
         if (serverUrl != null) {
             config = new CapConfig.Builder(this)
                     .setServerUrl(serverUrl)
-                    .setAllowNavigation(new String[]{"*", "http://*"})
                     .create();
         }
         registerPlugin(InAppHttpNavigationPlugin.class);

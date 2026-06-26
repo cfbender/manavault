@@ -5,7 +5,6 @@ const config: CapacitorConfig = {
   appName: "ManaVault",
   webDir: "native_www",
   server: {
-    allowNavigation: ["*", "http://*"],
     cleartext: true,
   },
   plugins: {
