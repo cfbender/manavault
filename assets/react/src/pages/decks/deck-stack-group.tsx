@@ -179,11 +179,6 @@ export function DeckStackGroup({
             isSelected={selectedCardIds.has(deckCard.id)}
             isUpdating={isUpdating}
             isDimmed={highlightedCardIds !== null && !highlightedCardIds.has(deckCard.id)}
-            onExpand={() => {
-              clearDeckCardHoverDelay()
-              setHoveredIndex(null)
-              setPinnedIndex(index)
-            }}
             onAllocate={(collectionItemId) => onAllocate(deckCard, collectionItemId)}
             onDeallocate={(collectionItemId) => onDeallocate(deckCard, collectionItemId)}
             onDelete={() => onDelete(deckCard)}

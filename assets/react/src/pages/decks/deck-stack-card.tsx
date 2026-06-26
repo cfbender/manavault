@@ -1,16 +1,5 @@
-import {
-  CheckSquare,
-  Crown,
-  Edit3,
-  Eye,
-  Maximize2,
-  MoreVertical,
-  MoveRight,
-  Square,
-  Tag,
-  Trash2,
-} from "lucide-react"
-import { useRef, useState, type FocusEvent, type PointerEvent } from "react"
+import { CheckSquare, Crown, Edit3, Eye, MoreVertical, MoveRight, Square, Tag, Trash2 } from "lucide-react"
+import { useEffect, useRef, useState, type FocusEvent, type PointerEvent } from "react"
 
 import { cn, titleize } from "../../lib/utils"
 import { ShareModeHidden, blurFocusedMenuItem } from "./deck-actions"
@@ -18,7 +7,16 @@ import { DeckCardAllocationMenu, DeckCardTagButton } from "./deck-card-allocatio
 import { cardImageUrl } from "./deck-card-model"
 import { GameChangerBadge } from "./deck-card-display"
 import { deckCardTag } from "./deck-card-tags"
-import { shouldRevealDeckStackCardOnPointerDown } from "./deck-stack-interactions"
+import {
+  DECK_STACK_ACTION_MENU_CLASS_NAME,
+  deckStackActionMenuDirection,
+  deckStackActionMenuStyle,
+  isDeckStackPointerCaptured,
+  shouldCloseDeckStackActionMenu,
+  shouldRaiseDeckStackCardForActionMenu,
+  shouldRevealDeckStackCardOnPointerDown,
+  shouldUpdateDeckStackHoverFromPointer,
+} from "./deck-stack-interactions"
 import type { DeckCardEntry, DeckCardTag } from "./deck-types"
 import { DECK_CARD_TAGS } from "./deck-types"
 
@@ -38,7 +36,6 @@ export function DeckStackCard({
   onDeallocate,
   onDelete,
   onEdit,
-  onExpand,
   onMove,
   onPreview,
   onSetCommander,
@@ -65,7 +62,6 @@ export function DeckStackCard({
   onDeallocate: (collectionItemId: string) => void
   onDelete: () => void
   onEdit: () => void
-  onExpand: () => void
   onMove: () => void
   onPreview: () => void
   onSetCommander: () => void
@@ -79,19 +75,50 @@ export function DeckStackCard({
 }) {
   const [hasFocusWithin, setHasFocusWithin] = useState(false)
   const [isAllocationMenuOpen, setIsAllocationMenuOpen] = useState(false)
+  const actionMenuRef = useRef<HTMLDivElement>(null)
   const touchRevealWasActivatedRef = useRef(false)
   const imageUrl = cardImageUrl(deckCard, "imageUrl")
   const name = deckCard.card?.name || "Unknown card"
   const printing = deckCard.preferredPrinting || deckCard.fallbackPrinting
   const tag = deckCardTag(deckCard.tag)
+  const hasClearTag = Boolean(tag)
   const hasFoilFinish = deckCard.finish === "foil" || deckCard.finish === "etched"
   const isGameChanger = deckCard.card?.gameChanger === true
   const isInteractive = isActive || isAllocationMenuOpen || (!isSelecting && hasFocusWithin)
+  const actionMenuDirection = deckStackActionMenuDirection({ isLast })
+  const actionMenuStyle = deckStackActionMenuStyle({ canSetCommander, hasClearTag })
+
+  useEffect(() => {
+    closeFocusedActionMenu(isActive)
+  }, [isActive])
+
+  function closeFocusedActionMenu(isCardRaised: boolean) {
+    const activeElement = actionMenuRef.current?.ownerDocument.activeElement
+    if (!(activeElement instanceof HTMLElement)) return
+
+    const actionMenuHasFocus = actionMenuRef.current?.contains(activeElement) === true
+    if (
+      !shouldCloseDeckStackActionMenu({
+        actionMenuHasFocus,
+        isActive: isCardRaised,
+      })
+    ) {
+      return
+    }
+
+    activeElement.blur()
+    setHasFocusWithin(false)
+  }
 
   function handleBlur(event: FocusEvent<HTMLElement>) {
     if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
       setHasFocusWithin(false)
     }
+  }
+
+  function handlePointerLeave(event: PointerEvent<HTMLElement>) {
+    if (event.pointerType === "touch") return
+    closeFocusedActionMenu(false)
   }
 
   function handlePointerDown(event: PointerEvent<HTMLButtonElement>) {
@@ -110,6 +137,14 @@ export function DeckStackCard({
     onTouchReveal()
   }
 
+  function handleActionMenuPointerDown(event: PointerEvent<HTMLDivElement>) {
+    event.stopPropagation()
+
+    if (shouldRaiseDeckStackCardForActionMenu({ isActive })) {
+      onTouchReveal()
+    }
+  }
+
   return (
     <article
       className={cn(
@@ -119,6 +154,7 @@ export function DeckStackCard({
       onBlur={handleBlur}
       data-deck-id={deckId}
       onFocus={() => setHasFocusWithin(true)}
+      onPointerLeave={handlePointerLeave}
       style={{
         top,
         transform: slideOffset ? `translateY(${slideOffset}px)` : undefined,
@@ -175,32 +211,17 @@ export function DeckStackCard({
             {isSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
           </button>
 
-          <button
-            type="button"
-            className={cn(
-              "btn btn-circle btn-xs absolute bottom-2 right-2 z-[125] border-0 bg-neutral/85 text-neutral-content shadow transition hover:bg-neutral group-hover/deck-card:opacity-100 group-focus-within/deck-card:opacity-100",
-              isActive ? "opacity-100" : "opacity-0",
-            )}
-            aria-label={`Reveal ${name} in stack`}
-            onClick={(event) => {
-              event.stopPropagation()
-              onExpand()
-            }}
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <Maximize2 className="h-4 w-4" />
-          </button>
-
           <div
+            ref={actionMenuRef}
             className={cn(
               "dropdown dropdown-end absolute right-2 top-2 z-[120] transition-opacity group-focus-within/deck-card:opacity-100",
-              isLast && "dropdown-top",
+              actionMenuDirection === "up" && "dropdown-top",
               isInteractive ? "opacity-100" : "opacity-0",
             )}
             onClick={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
             data-deck-stack-pointer-capture=""
-            onPointerDown={(event) => event.stopPropagation()}
+            onPointerDown={handleActionMenuPointerDown}
             onPointerMove={(event) => event.stopPropagation()}
             onPointerUp={(event) => event.stopPropagation()}
           >
@@ -215,19 +236,14 @@ export function DeckStackCard({
             {isInteractive ? (
               <ul
                 tabIndex={0}
-                className="menu dropdown-content z-[120] mt-1 w-52 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
+                className={DECK_STACK_ACTION_MENU_CLASS_NAME}
                 onClick={blurFocusedMenuItem}
+                style={actionMenuStyle}
               >
                 <li>
                   <button type="button" onClick={onPreview}>
                     <Eye className="h-4 w-4" />
                     View card details
-                  </button>
-                </li>
-                <li>
-                  <button type="button" onClick={onExpand}>
-                    <Maximize2 className="h-4 w-4" />
-                    Reveal in stack
                   </button>
                 </li>
                 <li>
@@ -257,12 +273,14 @@ export function DeckStackCard({
                     </button>
                   </li>
                 ))}
-                <li>
-                  <button type="button" disabled={isUpdating || !tag} onClick={() => onTag(null)}>
-                    <Tag className="h-4 w-4" />
-                    Clear tag
-                  </button>
-                </li>
+                {hasClearTag ? (
+                  <li>
+                    <button type="button" onClick={() => onTag(null)}>
+                      <Tag className="h-4 w-4" />
+                      Clear tag
+                    </button>
+                  </li>
+                ) : null}
                 {canSetCommander ? (
                   <li>
                     <button type="button" disabled={isUpdating} onClick={onSetCommander}>
