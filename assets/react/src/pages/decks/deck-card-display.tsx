@@ -1,4 +1,5 @@
 import {
+  Ban,
   Bomb,
   BookOpen,
   Box,
@@ -16,9 +17,9 @@ import {
   HeartPulse,
   Layers,
   Lock,
+  MountainSnow,
   Palette,
   PawPrint,
-  Plus,
   Repeat2,
   RotateCcw,
   Search,
@@ -35,12 +36,12 @@ import {
   Wind,
   Zap,
   type LucideIcon,
-} from "lucide-react"
-import { Badge } from "../../components/ui/badge"
-import { ManaSymbol } from "../../components/ui/mana-symbols"
-import { type DeckGroupIcon } from "../../lib/deck-grouping"
-import { cn } from "../../lib/utils"
-import type { DeckZone } from "./deck-types"
+} from "lucide-react";
+import { Badge } from "../../components/ui/badge";
+import { ManaSymbol } from "../../components/ui/mana-symbols";
+import { type DeckGroupIcon } from "../../lib/deck-grouping";
+import { cn } from "../../lib/utils";
+import type { DeckZone } from "./deck-types";
 
 export const GROUP_ICON_COMPONENTS = {
   aristocrats: Skull,
@@ -52,7 +53,7 @@ export const GROUP_ICON_COMPONENTS = {
   combo: Brain,
   commander: Crown,
   copy: CopyIcon,
-  counters: Plus,
+  counters: Ban,
   creature: PawPrint,
   discard: Trash2,
   drain: Droplets,
@@ -62,7 +63,7 @@ export const GROUP_ICON_COMPONENTS = {
   evasion: Wind,
   graveyard_hate: Skull,
   instant: Zap,
-  land: Droplets,
+  land: MountainSnow,
   lifegain: HeartPulse,
   mass_disruption: Bomb,
   mill: Database,
@@ -84,10 +85,10 @@ export const GROUP_ICON_COMPONENTS = {
   tutor: Search,
   voltron: ShieldCheck,
   win_condition: Star,
-} satisfies Partial<Record<Extract<DeckGroupIcon, string>, LucideIcon>>
+} satisfies Partial<Record<Extract<DeckGroupIcon, string>, LucideIcon>>;
 
 export function GroupIcon({ icon }: { icon: DeckGroupIcon }) {
-  const className = "h-4 w-4 shrink-0 text-warning"
+  const className = "h-4 w-4 shrink-0 text-warning";
 
   if (typeof icon === "object") {
     if (icon.kind === "colors") {
@@ -97,37 +98,44 @@ export function GroupIcon({ icon }: { icon: DeckGroupIcon }) {
             <ManaSymbol key={color} symbol={color} className="h-4 w-4" />
           ))}
         </span>
-      )
+      );
     }
 
     if (icon.kind === "manaValue") {
       return (
         <span className="inline-flex shrink-0 items-center gap-0.5">
           <ManaSymbol symbol={String(icon.value)} className="h-4 w-4" />
-          {icon.plus ? <span className="text-xs font-black text-warning">+</span> : null}
+          {icon.plus ? (
+            <span className="text-xs font-black text-warning">+</span>
+          ) : null}
         </span>
-      )
+      );
     }
 
     if (icon.kind === "rarity") {
-      return <Star className="h-4 w-4 shrink-0" style={{ color: rarityColor(icon.rarity) }} />
+      return (
+        <Star
+          className="h-4 w-4 shrink-0"
+          style={{ color: rarityColor(icon.rarity) }}
+        />
+      );
     }
 
-    return <SetSymbol setCode={icon.setCode} />
+    return <SetSymbol setCode={icon.setCode} />;
   }
 
-  const Icon = GROUP_ICON_COMPONENTS[icon]
-  if (Icon) return <Icon className={className} />
+  const Icon = GROUP_ICON_COMPONENTS[icon];
+  if (Icon) return <Icon className={className} />;
 
-  return <Layers className={className} />
+  return <Layers className={className} />;
 }
 
 export function SetSymbol({ setCode }: { setCode: string | null }) {
   const code = String(setCode || "")
     .trim()
-    .toLowerCase()
+    .toLowerCase();
 
-  if (!code) return <Box className="h-4 w-4 shrink-0 text-warning" />
+  if (!code) return <Box className="h-4 w-4 shrink-0 text-warning" />;
 
   return (
     <span
@@ -139,32 +147,32 @@ export function SetSymbol({ setCode }: { setCode: string | null }) {
       title={setCode?.toUpperCase()}
       aria-hidden="true"
     />
-  )
+  );
 }
 
 export function rarityColor(rarity?: string | null) {
-  const key = String(rarity || "").toLowerCase()
+  const key = String(rarity || "").toLowerCase();
 
-  if (key === "mythic") return "#e46f25"
-  if (key === "rare") return "#c89b3c"
-  if (key === "uncommon") return "#a7b0b7"
-  if (key === "special" || key === "bonus") return "#9b72d0"
+  if (key === "mythic") return "#e46f25";
+  if (key === "rare") return "#c89b3c";
+  if (key === "uncommon") return "#a7b0b7";
+  if (key === "special" || key === "bonus") return "#9b72d0";
 
-  return "#f3f0e8"
+  return "#f3f0e8";
 }
 
 export function ZoneIcon({ zone }: { zone: DeckZone }) {
-  const className = "h-6 w-6 shrink-0 text-base-content/80"
+  const className = "h-6 w-6 shrink-0 text-base-content/80";
 
-  if (zone === "mainboard") return <Layers className={className} />
-  if (zone === "sideboard") return <Box className={className} />
-  if (zone === "maybeboard") return <Circle className={className} />
+  if (zone === "mainboard") return <Layers className={className} />;
+  if (zone === "sideboard") return <Box className={className} />;
+  if (zone === "maybeboard") return <Circle className={className} />;
 
-  return <Crown className={className} />
+  return <Crown className={className} />;
 }
 
 export function SparkleIcon({ className }: { className?: string }) {
-  return <Star className={className} />
+  return <Star className={className} />;
 }
 
 export function GameChangerBadge({ className }: { className?: string }) {
@@ -179,5 +187,5 @@ export function GameChangerBadge({ className }: { className?: string }) {
     >
       Game Changer
     </Badge>
-  )
+  );
 }
