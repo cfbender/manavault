@@ -72,7 +72,9 @@ defmodule ManavaultWeb.AppController do
         <script type="module" src="http://127.0.0.1:5173/assets/react/src/main.tsx"></script>
         """
       else
-        app_js_path = static_path(conn, "/assets/react/app.js")
+        # Keep the ESM entry undigested. Vite chunks import ../app.js; loading
+        # a Phoenix-digested app-*.js entry creates a second module instance.
+        app_js_path = "/assets/react/app.js?v=#{asset_version}"
         ~s(<script defer type="module" src="#{app_js_path}"></script>)
       end
 

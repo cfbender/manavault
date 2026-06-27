@@ -90,7 +90,8 @@ defmodule ManavaultWeb.AppControllerTest do
 
     response = html_response(conn, 200)
 
-    assert response =~ ~s(src="/assets/react/app.js)
+    assert response =~ ~r(src="/assets/react/app\.js\?v=[^"]+")
+    refute response =~ ~s(src="/assets/react/app.js?vsn=d")
     refute response =~ "127.0.0.1:5173"
   end
 
