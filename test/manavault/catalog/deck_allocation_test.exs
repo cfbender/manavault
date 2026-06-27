@@ -83,6 +83,50 @@ defmodule Manavault.Catalog.DeckAllocationTest do
              Catalog.allocate_collection_item_to_deck_card(active_lotus.id, available_item.id)
   end
 
+  test "deck allocation can use foil collection items for nonfoil deck entries" do
+    card =
+      @black_lotus
+      |> Map.put("finishes", ["nonfoil", "foil"])
+      |> Map.put("prices", %{"usd" => "1.00", "usd_foil" => "2.00"})
+
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([card])
+
+    assert {:ok, foil_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "foil"
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Foil Allocation"})
+    assert {:ok, deck_card} = Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus"})
+    assert deck_card.finish == "nonfoil"
+
+    status = Catalog.deck_card_allocation_status(deck_card)
+    assert status.owned == 1
+    assert status.available == 1
+    assert status.missing == 0
+
+    assert Enum.any?(status.candidates, fn candidate ->
+             candidate.item.id == foil_item.id and candidate.item.finish == "foil" and
+               candidate.available == 1
+           end)
+
+    assert {:ok, _allocation} =
+             Catalog.allocate_collection_item_to_deck_card(deck_card.id, foil_item.id)
+
+    deck_card = Repo.reload!(deck_card)
+    assert deck_card.finish == "foil"
+    assert deck_card.preferred_printing_id == foil_item.scryfall_id
+
+    status = Catalog.deck_card_allocation_status(deck_card)
+    assert status.allocated == 1
+    assert status.available == 0
+    assert status.missing == 0
+  end
+
   test "allocations in any deck make physical copies unavailable elsewhere" do
     assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
 

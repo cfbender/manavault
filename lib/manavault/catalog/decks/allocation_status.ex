@@ -130,15 +130,14 @@ defmodule Manavault.Catalog.Decks.AllocationStatus do
   defp deck_card_collection_candidates(%DeckCard{} = deck_card) do
     preferred_printing_id = deck_card.preferred_printing_id
     oracle_id = deck_card.oracle_id
-    finish = deck_card.finish
 
     CollectionItem
     |> join(:inner, [item], printing in assoc(item, :printing))
     |> join(:inner, [_item, printing], card in assoc(printing, :card))
     |> join(:left, [item, _printing, _card], location in assoc(item, :location_assoc))
     |> where(
-      [item, printing, _card, location],
-      printing.oracle_id == ^oracle_id and item.finish == ^finish
+      [_item, printing, _card, _location],
+      printing.oracle_id == ^oracle_id
     )
     |> where([_item, _printing, _card, location], is_nil(location.id) or location.kind != "list")
     |> preload([_item, printing, card, location],
@@ -157,16 +156,16 @@ defmodule Manavault.Catalog.Decks.AllocationStatus do
 
   defp deck_card_collection_candidates_by_key([]), do: %{}
 
-  defp deck_card_collection_candidates_by_key(keys) do
-    {oracle_ids, finishes} = allocation_key_values(keys)
+  defp deck_card_collection_candidates_by_key(oracle_ids) do
+    oracle_ids = Enum.uniq(oracle_ids)
 
     CollectionItem
     |> join(:inner, [item], printing in assoc(item, :printing))
     |> join(:inner, [_item, printing], card in assoc(printing, :card))
     |> join(:left, [item, _printing, _card], location in assoc(item, :location_assoc))
     |> where(
-      [item, printing, _card, location],
-      printing.oracle_id in ^oracle_ids and item.finish in ^finishes
+      [_item, printing, _card, _location],
+      printing.oracle_id in ^oracle_ids
     )
     |> where([_item, _printing, _card, location], is_nil(location.id) or location.kind != "list")
     |> preload([_item, printing, card, location],
@@ -180,14 +179,7 @@ defmodule Manavault.Catalog.Decks.AllocationStatus do
       asc: item.id
     )
     |> Repo.all()
-    |> Enum.group_by(fn item -> {item.printing.oracle_id, item.finish} end)
-  end
-
-  defp allocation_key_values(keys) do
-    {
-      keys |> Enum.map(&elem(&1, 0)) |> Enum.uniq(),
-      keys |> Enum.map(&elem(&1, 1)) |> Enum.uniq()
-    }
+    |> Enum.group_by(fn item -> item.printing.oracle_id end)
   end
 
   defp sort_candidates_for_deck_card(candidates, %DeckCard{} = deck_card) do
@@ -203,7 +195,7 @@ defmodule Manavault.Catalog.Decks.AllocationStatus do
   end
 
   defp deck_card_allocation_key(%DeckCard{} = deck_card) do
-    {deck_card.oracle_id, deck_card.finish}
+    deck_card.oracle_id
   end
 
   defp current_allocation_counts(deck_card_id) do
@@ -237,9 +229,8 @@ defmodule Manavault.Catalog.Decks.AllocationStatus do
     DeckAllocation
     |> join(:inner, [allocation], allocated_card in assoc(allocation, :deck_card))
     |> where(
-      [allocation, allocated_card],
-      allocated_card.id != ^deck_card.id and allocated_card.oracle_id == ^deck_card.oracle_id and
-        allocated_card.finish == ^deck_card.finish
+      [_allocation, allocated_card],
+      allocated_card.id != ^deck_card.id and allocated_card.oracle_id == ^deck_card.oracle_id
     )
     |> group_by([allocation, _allocated_card], allocation.collection_item_id)
     |> select(
@@ -252,21 +243,20 @@ defmodule Manavault.Catalog.Decks.AllocationStatus do
 
   defp reserving_allocation_counts_by_key([]), do: %{}
 
-  defp reserving_allocation_counts_by_key(keys) do
-    {oracle_ids, finishes} = allocation_key_values(keys)
+  defp reserving_allocation_counts_by_key(oracle_ids) do
+    oracle_ids = Enum.uniq(oracle_ids)
 
     DeckAllocation
     |> join(:inner, [allocation], allocated_card in assoc(allocation, :deck_card))
     |> where(
       [_allocation, allocated_card],
-      allocated_card.oracle_id in ^oracle_ids and allocated_card.finish in ^finishes
+      allocated_card.oracle_id in ^oracle_ids
     )
     |> group_by(
       [allocation, allocated_card],
       [
         allocated_card.id,
         allocated_card.oracle_id,
-        allocated_card.finish,
         allocation.collection_item_id
       ]
     )
@@ -275,25 +265,22 @@ defmodule Manavault.Catalog.Decks.AllocationStatus do
       {
         allocated_card.id,
         allocated_card.oracle_id,
-        allocated_card.finish,
         allocation.collection_item_id,
         sum(allocation.quantity)
       }
     )
     |> Repo.all()
-    |> Enum.group_by(fn {_deck_card_id, oracle_id, finish, _collection_item_id, _quantity} ->
-      {oracle_id, finish}
+    |> Enum.group_by(fn {_deck_card_id, oracle_id, _collection_item_id, _quantity} ->
+      oracle_id
     end)
   end
 
   defp other_allocation_counts(reserving_allocations, deck_card_id) do
     reserving_allocations
-    |> Enum.reject(fn {reserving_deck_card_id, _oracle_id, _finish, _collection_item_id,
-                       _quantity} ->
+    |> Enum.reject(fn {reserving_deck_card_id, _oracle_id, _collection_item_id, _quantity} ->
       reserving_deck_card_id == deck_card_id
     end)
-    |> Enum.reduce(%{}, fn {_reserving_deck_card_id, _oracle_id, _finish, collection_item_id,
-                            quantity},
+    |> Enum.reduce(%{}, fn {_reserving_deck_card_id, _oracle_id, collection_item_id, quantity},
                            acc ->
       Map.update(acc, collection_item_id, quantity, &(&1 + quantity))
     end)

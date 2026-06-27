@@ -27,7 +27,7 @@ defmodule Manavault.Catalog.Decks.Allocations do
 
       with :ok <- validate_collection_item_matches_deck_card(item, deck_card),
            :ok <- validate_deck_card_allocation_room(deck_card, item, quantity),
-           {:ok, deck_card} <- put_deck_card_preferred_printing(deck_card, item.scryfall_id) do
+           {:ok, deck_card} <- put_deck_card_allocation_printing(deck_card, item) do
         {:ok, insert_or_update_deck_allocation!(deck_card, item, quantity)}
       end
     end)
@@ -540,7 +540,6 @@ defmodule Manavault.Catalog.Decks.Allocations do
     cond do
       match?(%Location{kind: "list"}, item.location_assoc) -> {:error, :allocation_list_location}
       item.printing.oracle_id != deck_card.oracle_id -> {:error, :allocation_card_mismatch}
-      item.finish != deck_card.finish -> {:error, :allocation_finish_mismatch}
       true -> :ok
     end
   end
@@ -599,9 +598,9 @@ defmodule Manavault.Catalog.Decks.Allocations do
     |> Repo.update()
   end
 
-  defp put_deck_card_preferred_printing(%DeckCard{} = deck_card, scryfall_id) do
+  defp put_deck_card_allocation_printing(%DeckCard{} = deck_card, %CollectionItem{} = item) do
     deck_card
-    |> DeckCard.changeset(%{"preferred_printing_id" => scryfall_id})
+    |> DeckCard.changeset(%{"preferred_printing_id" => item.scryfall_id, "finish" => item.finish})
     |> Repo.update()
   end
 
