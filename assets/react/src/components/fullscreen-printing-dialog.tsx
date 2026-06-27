@@ -46,6 +46,7 @@ export type FullscreenPrinting = {
   collectorNumber?: string | null
   finishes?: readonly (string | null)[] | null
   imageUrl?: string | null
+  backImageUrl?: string | null
   ownedCount?: number | null
   priceText?: string | null
   rarity?: string | null
@@ -67,6 +68,7 @@ export function FullscreenPrintingDialog({
   onPrintingChange: (printingId: string) => void
 }) {
   const fullscreenTiltEnabled = useFullscreenTiltEnabled()
+  const [showBackFace, setShowBackFace] = useState(false)
   const currentIndex = currentPrintingId
     ? printings.findIndex((printing) => printing.scryfallId === currentPrintingId)
     : -1
@@ -89,8 +91,16 @@ export function FullscreenPrintingDialog({
     ? "linear-gradient(145deg,rgba(120,72,28,0.58) 0%,rgba(255,226,122,0.23) 42%,rgba(117,196,255,0.28) 100%)"
     : "linear-gradient(145deg,rgba(96,73,110,0.55) 0%,rgba(113,196,255,0.27) 100%)"
   const profileGlowColor = foil ? "rgba(255, 219, 122, 0.62)" : "rgba(125, 190, 255, 0.55)"
+  const backImageUrl = printing?.backImageUrl || null
+  const hasBackFace = Boolean(backImageUrl)
+  const visibleImageUrl = showBackFace && backImageUrl ? backImageUrl : printing?.imageUrl || ""
+  const visibleFaceLabel = showBackFace ? "Back face" : "Front face"
   const canNavigate = printings.length > 1 && currentIndex >= 0
   const positionLabel = canNavigate ? `${currentIndex + 1} / ${printings.length}` : null
+
+  useEffect(() => {
+    setShowBackFace(false)
+  }, [printing?.scryfallId])
 
   useEffect(() => {
     if (!canNavigate) return
@@ -108,6 +118,11 @@ export function FullscreenPrintingDialog({
     document.addEventListener("keydown", handleKeyDown)
     return () => document.removeEventListener("keydown", handleKeyDown)
   }, [canNavigate, currentIndex, onPrintingChange, printings])
+
+  function flipCard() {
+    if (!hasBackFace) return
+    setShowBackFace((current) => !current)
+  }
 
   function goToPrinting(direction: -1 | 1) {
     if (!canNavigate) return
@@ -143,8 +158,17 @@ export function FullscreenPrintingDialog({
                     {subtitle}
                   </p>
                 ) : null}
-                {finish || printing.priceText || printing.ownedCount || positionLabel ? (
+                {finish ||
+                printing.priceText ||
+                printing.ownedCount ||
+                positionLabel ||
+                hasBackFace ? (
                   <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[0.65rem] sm:mt-3 sm:gap-2 sm:text-xs">
+                    {hasBackFace ? (
+                      <span className="fullscreen-printing-dialog__badge badge">
+                        {visibleFaceLabel}
+                      </span>
+                    ) : null}
                     {finish ? (
                       <span className="fullscreen-printing-dialog__badge badge">
                         {titleize(finish)}
@@ -200,18 +224,22 @@ export function FullscreenPrintingDialog({
                 initial={{ opacity: 0, scale: 0.82, y: 36, rotateX: 12 }}
                 animate={{ opacity: 1, scale: 1, y: 0, rotateX: 0 }}
                 transition={{ type: "spring", stiffness: 260, damping: 24 }}
-                aria-label={canNavigate ? `Show next printing of ${card.name}` : undefined}
-                role={canNavigate ? "button" : undefined}
-                tabIndex={canNavigate ? 0 : undefined}
-                onClick={() => goToPrinting(1)}
+                aria-label={
+                  !hasBackFace && canNavigate ? `Show next printing of ${card.name}` : undefined
+                }
+                role={!hasBackFace && canNavigate ? "button" : undefined}
+                tabIndex={!hasBackFace && canNavigate ? 0 : undefined}
+                onClick={() => (hasBackFace ? flipCard() : goToPrinting(1))}
                 onKeyDown={(event) => {
-                  if (!canNavigate || (event.key !== "Enter" && event.key !== " ")) return
+                  if (hasBackFace || !canNavigate || (event.key !== "Enter" && event.key !== " ")) {
+                    return
+                  }
                   event.preventDefault()
                   goToPrinting(1)
                 }}
               >
                 <ProfileCard
-                  avatarUrl={printing.imageUrl || ""}
+                  avatarUrl={visibleImageUrl}
                   innerGradient={profileInnerGradient}
                   behindGlowColor={profileGlowColor}
                   behindGlowSize={foil ? "72%" : "58%"}
@@ -223,17 +251,37 @@ export function FullscreenPrintingDialog({
                   enableTilt={fullscreenTiltEnabled}
                   enableMobileTilt={false}
                   disableTiltOnCoarsePointer
-                  name={card.name}
+                  name={showBackFace ? `${card.name} back face` : card.name}
                   title={subtitle}
                   handle={setLabel || printing.setCode?.toUpperCase() || "printing"}
-                  status={finish ? titleize(finish) : titleize(printing.rarity)}
+                  status={[
+                    hasBackFace ? visibleFaceLabel : null,
+                    finish ? titleize(finish) : titleize(printing.rarity),
+                  ]
+                    .filter(present)
+                    .join(" · ")}
                   showUserInfo={false}
                 />
-                {printing.imageUrl ? null : (
+                {visibleImageUrl ? null : (
                   <div className="fullscreen-printing-dialog__muted absolute inset-0 z-20 flex items-center justify-center rounded-[4.75%] p-8 text-center text-sm">
                     No image
                   </div>
                 )}
+                {hasBackFace ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="fullscreen-printing-dialog__icon-button absolute bottom-3 left-1/2 z-30 -translate-x-1/2 border px-4 text-xs font-black backdrop-blur sm:bottom-4"
+                    aria-label={`Show ${showBackFace ? "front" : "back"} face of ${card.name}`}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      flipCard()
+                    }}
+                  >
+                    {showBackFace ? "Show front" : "Show back"}
+                  </Button>
+                ) : null}
               </motion.div>
 
               {canNavigate ? (

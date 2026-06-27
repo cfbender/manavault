@@ -198,6 +198,7 @@ export const DeckDocument = graphql(`
               id
               scryfallId
               imageUrl
+              backImageUrl
               artCropUrl
               setCode
               setName
@@ -209,6 +210,7 @@ export const DeckDocument = graphql(`
               id
               scryfallId
               imageUrl
+              backImageUrl
               artCropUrl
               setCode
               setName
@@ -248,6 +250,7 @@ export const DeckDocument = graphql(`
                     collectorNumber
                     rarity
                     imageUrl
+                    backImageUrl
                     artCropUrl
                     card {
                       name
@@ -272,6 +275,7 @@ export const CardPrintingsDocument = graphql(`
             id
             scryfallId
             imageUrl
+            backImageUrl
             artCropUrl
             setCode
             setName
@@ -315,6 +319,7 @@ export const UpdateDeckCardDocument = graphql(`
           id
           scryfallId
           imageUrl
+          backImageUrl
           artCropUrl
           setCode
           setName
@@ -357,6 +362,7 @@ export const OptimizeDeckCardPrintingsDocument = graphql(`
           id
           scryfallId
           imageUrl
+          backImageUrl
           artCropUrl
           setCode
           setName
@@ -387,6 +393,7 @@ export const AddDeckCardDocument = graphql(`
           id
           scryfallId
           imageUrl
+          backImageUrl
           artCropUrl
           setCode
           setName
@@ -426,6 +433,7 @@ export const SetDeckCommanderDocument = graphql(`
           id
           scryfallId
           imageUrl
+          backImageUrl
           artCropUrl
           setCode
           setName

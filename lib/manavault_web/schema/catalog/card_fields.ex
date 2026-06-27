@@ -73,6 +73,13 @@ defmodule ManavaultWeb.Schema.Catalog.CardFields do
 
   def printing_art_crop_url(_printing, _args, _resolution), do: {:ok, nil}
 
+  def printing_back_image_url(%Printing{} = printing, _args, _resolution) do
+    image_uris = ValueResolvers.decode_json(printing.image_uris, %{})
+    {:ok, back_image_url(image_uris)}
+  end
+
+  def printing_back_image_url(_printing, _args, _resolution), do: {:ok, nil}
+
   def printing_price_text(%Printing{} = printing, _args, _resolution) do
     {:ok, Price.text_for_printing(printing)}
   end
@@ -97,6 +104,9 @@ defmodule ManavaultWeb.Schema.Catalog.CardFields do
 
   defp image_url([first | _rest]), do: image_url(first)
   defp image_url(_image_uris), do: nil
+
+  defp back_image_url([_front, back | _rest]), do: image_url(back)
+  defp back_image_url(_image_uris), do: nil
 
   defp art_crop_url(%{} = image_uris) do
     image_uris["art_crop"] || image_url(image_uris)

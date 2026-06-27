@@ -131,6 +131,7 @@ export const CardDocument = graphql(`
             ownedCount
             finishes
             imageUrl
+            backImageUrl
             artCropUrl
             releasedAt
             prices

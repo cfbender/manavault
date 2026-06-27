@@ -234,6 +234,61 @@ defmodule ManavaultWeb.Schema.CardQueriesTest do
            } = json_response(conn, 200)
   end
 
+  test "printing query exposes front and back images for double-faced cards", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-double-faced-printing",
+          "oracle_id" => "oracle-double-faced",
+          "name" => "Sunlit Marsh // Moonlit Marsh",
+          "type_line" => "Land // Land",
+          "collector_number" => "4",
+          "set" => "dfc",
+          "set_name" => "Double-Faced Set",
+          "lang" => "en",
+          "finishes" => ["nonfoil"],
+          "legalities" => %{},
+          "card_faces" => [
+            %{"name" => "Sunlit Marsh", "image_uris" => %{"normal" => "front.jpg"}},
+            %{"name" => "Moonlit Marsh", "image_uris" => %{"normal" => "back.jpg"}}
+          ]
+        }
+      ])
+
+    card_id = Absinthe.Relay.Node.to_global_id(:card, "oracle-double-faced", ManavaultWeb.Schema)
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query DoubleFacedCard($id: ID!) {
+          card(id: $id) {
+            printings(first: 1) {
+              edges {
+                node {
+                  imageUrl
+                  backImageUrl
+                }
+              }
+            }
+          }
+        }
+        """,
+        "variables" => %{"id" => card_id}
+      })
+
+    assert %{
+             "data" => %{
+               "card" => %{
+                 "printings" => %{
+                   "edges" => [
+                     %{"node" => %{"imageUrl" => "front.jpg", "backImageUrl" => "back.jpg"}}
+                   ]
+                 }
+               }
+             }
+           } = json_response(conn, 200)
+  end
+
   test "card query accepts legacy raw oracle IDs", %{conn: conn} do
     {:ok, %{cards_count: 1, printings_count: 1}} =
       Catalog.import_cards([

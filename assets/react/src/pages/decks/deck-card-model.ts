@@ -40,6 +40,7 @@ export function deckCardPreviewPrinting(deckCard: DeckCardEntry): FullscreenPrin
     collectorNumber: printing?.collectorNumber || null,
     finishes: deckCard.finish ? [deckCard.finish] : printing?.finishes,
     imageUrl: printing?.imageUrl || null,
+    backImageUrl: printing?.backImageUrl || null,
     rarity: printing?.rarity || null,
     setCode: printing?.setCode || null,
     setName: printing?.setName || null,

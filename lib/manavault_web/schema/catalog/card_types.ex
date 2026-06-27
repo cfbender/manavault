@@ -124,6 +124,10 @@ defmodule ManavaultWeb.Schema.Catalog.CardTypes do
       resolve(&CatalogResolvers.printing_image_url/3)
     end
 
+    field :back_image_url, :string do
+      resolve(&CatalogResolvers.printing_back_image_url/3)
+    end
+
     field :art_crop_url, :string do
       resolve(&CatalogResolvers.printing_art_crop_url/3)
     end
