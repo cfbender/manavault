@@ -76,6 +76,22 @@ defmodule Manavault.Backup.S3Client do
     end
   end
 
+  def delete(settings, key) do
+    url = object_url(settings, key)
+    url = build_presigned_url(settings, "DELETE", url, [], 300)
+
+    case Req.delete(url) do
+      {:ok, %{status: status}} when status in 200..299 ->
+        :ok
+
+      {:ok, response} ->
+        {:error, response_error(response)}
+
+      {:error, reason} ->
+        {:error, inspect(reason)}
+    end
+  end
+
   @doc false
   def build_presigned_url(settings, method, url, query, expires, now \\ DateTime.utc_now()) do
     uri = URI.parse(url)

@@ -1,7 +1,7 @@
 defmodule Manavault.Backup.Cloud do
   @moduledoc false
 
-  alias Manavault.Backup.{GoogleDriveClient, S3Client, Settings}
+  alias Manavault.Backup.{GoogleDriveClient, Retention, S3Client, Settings}
 
   require Logger
 
@@ -11,11 +11,12 @@ defmodule Manavault.Backup.Cloud do
     with :ok <- ensure_provider(settings),
          :ok <- validate_target(settings),
          artifact_path <- Manavault.Backup.create!(reason: :cloud),
-         {:ok, remote} <- upload(settings, artifact_path) do
+         {:ok, remote} <- upload(settings, artifact_path),
+         {:ok, retention} <- prune_retention(settings, remote) do
       Settings.update_status(%{
         last_backup_at: DateTime.utc_now() |> DateTime.truncate(:second),
         last_backup_status: "ok",
-        last_backup_message: "Uploaded #{remote.name}",
+        last_backup_message: backup_message(remote, retention),
         last_backup_path: remote.id
       })
 
@@ -161,6 +162,27 @@ defmodule Manavault.Backup.Cloud do
 
   defp download(%{provider: "google_drive"} = settings, remote_id, destination),
     do: GoogleDriveClient.download(settings, remote_id, destination)
+
+  defp delete(%{provider: "s3"} = settings, remote_id), do: S3Client.delete(settings, remote_id)
+
+  defp delete(%{provider: "google_drive"} = settings, remote_id),
+    do: GoogleDriveClient.delete(settings, remote_id)
+
+  defp prune_retention(%{retention_count: count} = settings, remote) when is_integer(count) do
+    with {:ok, backups} <- list(settings) do
+      Retention.prune(settings, remote, backups, &delete(settings, &1.id))
+    end
+  end
+
+  defp prune_retention(_settings, _remote), do: {:ok, %{deleted: []}}
+
+  defp backup_message(remote, %{deleted: []}), do: "Uploaded #{remote.name}"
+
+  defp backup_message(remote, %{deleted: deleted}) do
+    count = length(deleted)
+    backup = if count == 1, do: "backup", else: "backups"
+    "Uploaded #{remote.name}; pruned #{count} old cloud #{backup}"
+  end
 
   defp ensure_provider(%{provider: provider}) when provider in ["s3", "google_drive"], do: :ok
 

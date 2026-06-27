@@ -12,6 +12,7 @@ export const BackupSettingsDocument = graphql(`
       enabled
       provider
       cron
+      retentionCount
       s3Endpoint
       s3Bucket
       s3Region
@@ -119,6 +120,7 @@ export const UpdateBackupSettingsDocument = graphql(`
         enabled
         provider
         cron
+        retentionCount
         s3Endpoint
         s3Bucket
         s3Region
@@ -198,6 +200,7 @@ export type FormState = {
   enabled: boolean
   provider: Provider
   cron: string
+  retentionCount: string
   s3Endpoint: string
   s3Bucket: string
   s3Region: string
@@ -214,6 +217,7 @@ export const initialForm: FormState = {
   enabled: false,
   provider: "none",
   cron: "0 3 * * *",
+  retentionCount: "",
   s3Endpoint: "",
   s3Bucket: "",
   s3Region: "auto",
@@ -231,6 +235,7 @@ export function backupSettingsInput(form: FormState) {
     enabled: form.enabled,
     provider: form.provider,
     cron: form.cron,
+    retentionCount: retentionCountInput(form.retentionCount),
     s3Endpoint: form.s3Endpoint,
     s3Bucket: form.s3Bucket,
     s3Region: form.s3Region,
@@ -242,6 +247,11 @@ export function backupSettingsInput(form: FormState) {
     googleRefreshToken: form.googleRefreshToken,
     googleFolderId: form.googleFolderId,
   })
+}
+
+function retentionCountInput(value: string) {
+  const normalized = value.trim()
+  return normalized === "" ? null : Number.parseInt(normalized, 10)
 }
 
 function dropEmptySecrets(input: Record<string, unknown>) {

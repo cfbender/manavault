@@ -81,6 +81,7 @@ export function SettingsPage() {
       enabled: settings.enabled,
       provider: providerValue(settings.provider),
       cron: settings.cron,
+      retentionCount: settings.retentionCount?.toString() ?? "",
       s3Endpoint: settings.s3Endpoint ?? "",
       s3Bucket: settings.s3Bucket ?? "",
       s3Region: settings.s3Region ?? "auto",

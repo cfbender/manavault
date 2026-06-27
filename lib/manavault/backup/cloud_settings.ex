@@ -8,6 +8,7 @@ defmodule Manavault.Backup.CloudSettings do
     field :enabled, :boolean, default: false
     field :provider, :string, default: "none"
     field :cron, :string, default: "0 3 * * *"
+    field :retention_count, :integer
 
     field :s3_endpoint, :string
     field :s3_bucket, :string
@@ -39,6 +40,7 @@ defmodule Manavault.Backup.CloudSettings do
     :enabled,
     :provider,
     :cron,
+    :retention_count,
     :s3_endpoint,
     :s3_bucket,
     :s3_region,
@@ -66,6 +68,7 @@ defmodule Manavault.Backup.CloudSettings do
     |> validate_required([:provider, :cron])
     |> validate_inclusion(:provider, @providers)
     |> validate_change(:cron, &validate_cron/2)
+    |> validate_number(:retention_count, greater_than_or_equal_to: 1, less_than_or_equal_to: 1000)
     |> validate_provider_config()
   end
 

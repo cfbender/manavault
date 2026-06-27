@@ -55,6 +55,7 @@ defmodule ManavaultWeb.SchemaTest do
               enabled
               provider
               cron
+              retentionCount
               s3Endpoint
               s3Bucket
               s3Region
@@ -70,6 +71,7 @@ defmodule ManavaultWeb.SchemaTest do
             "enabled" => true,
             "provider" => "s3",
             "cron" => "*/15 * * * *",
+            "retentionCount" => 7,
             "s3Endpoint" => "https://example.r2.cloudflarestorage.com",
             "s3Bucket" => "manavault",
             "s3Region" => "auto",
@@ -87,6 +89,7 @@ defmodule ManavaultWeb.SchemaTest do
                    "enabled" => true,
                    "provider" => "s3",
                    "cron" => "*/15 * * * *",
+                   "retentionCount" => 7,
                    "s3Endpoint" => "https://example.r2.cloudflarestorage.com",
                    "s3Bucket" => "manavault",
                    "s3Region" => "auto",

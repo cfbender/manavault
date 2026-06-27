@@ -7,6 +7,7 @@ defmodule ManavaultWeb.Schema.BackupTypes do
     field :enabled, non_null(:boolean)
     field :provider, non_null(:string)
     field :cron, non_null(:string)
+    field :retention_count, :integer
 
     field :s3_endpoint, :string
     field :s3_bucket, :string
@@ -59,6 +60,7 @@ defmodule ManavaultWeb.Schema.BackupTypes do
     field :enabled, :boolean
     field :provider, :string
     field :cron, :string
+    field :retention_count, :integer
 
     field :s3_endpoint, :string
     field :s3_bucket, :string

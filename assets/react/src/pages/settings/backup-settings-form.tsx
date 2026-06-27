@@ -81,6 +81,22 @@ export function BackupSettingsForm({
               placeholder="0 3 * * *"
             />
           </Field>
+
+          <Field
+            label="Retention"
+            htmlFor="backup-retention-count"
+            help="Optional. Keep this many newest cloud backups after each successful upload; blank keeps all backups."
+          >
+            <Input
+              id="backup-retention-count"
+              type="number"
+              min={1}
+              max={1000}
+              value={form.retentionCount}
+              onChange={(event) => setFormField("retentionCount", event.target.value)}
+              placeholder="Keep all"
+            />
+          </Field>
         </div>
 
         {form.provider === "s3" ? (

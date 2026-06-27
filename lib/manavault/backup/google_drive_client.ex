@@ -69,6 +69,23 @@ defmodule Manavault.Backup.GoogleDriveClient do
     end
   end
 
+  def delete(settings, file_id) do
+    with {:ok, token} <- access_token(settings) do
+      url = @drive_url <> "/" <> URI.encode(file_id)
+
+      case Req.delete(url, auth: {:bearer, token}) do
+        {:ok, %{status: status}} when status in 200..299 or status == 404 ->
+          :ok
+
+        {:ok, response} ->
+          {:error, response_error("Google Drive delete", response)}
+
+        {:error, reason} ->
+          {:error, inspect(reason)}
+      end
+    end
+  end
+
   defp upload_file(token, settings, artifact_path) do
     boundary = "manavault-#{System.unique_integer([:positive])}"
     metadata = %{"name" => Path.basename(artifact_path), "mimeType" => @mime}
