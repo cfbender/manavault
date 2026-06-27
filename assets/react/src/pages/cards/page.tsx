@@ -22,6 +22,7 @@ import {
   CollectionFilterModal,
   type AddCollectionItemInitialPrinting,
 } from "../collection"
+import { CardActionsMenu } from "./card-actions-menu"
 import { AddCatalogCardToDeckDialog, type CardDeckTarget } from "./add-card-to-deck-dialog"
 import { CardCollectionCopiesPanel } from "./card-collection-copies"
 import { CardPrintingsGrid } from "./card-printings-grid"
@@ -247,8 +248,13 @@ export function CardDetailPage({
             />
           ) : null}
           <div className="absolute inset-0 bg-gradient-to-br from-base-100/98 via-base-100/80 to-base-100/35" />
+          <CardActionsMenu
+            cardName={card.name}
+            className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6"
+            primaryPrinting={primary}
+          />
           <div className="relative z-10 flex min-h-80 flex-col justify-between gap-8 p-6">
-            <div className="max-w-5xl space-y-4">
+            <div className="max-w-5xl space-y-4 pr-12">
               <div className="flex items-center gap-4">
                 <h1 className="min-w-0 flex-1 text-4xl font-black tracking-normal md:text-5xl">
                   {card.name}

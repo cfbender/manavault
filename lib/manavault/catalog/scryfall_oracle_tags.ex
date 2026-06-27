@@ -90,8 +90,10 @@ defmodule Manavault.Catalog.ScryfallOracleTags do
   def build_index(%{"data" => tags}) when is_list(tags), do: build_index(tags)
 
   def build_index(tags) when is_list(tags) do
+    tags_by_id = Map.new(tags, fn tag -> {value(tag, "id"), tag} end)
+
     tags
-    |> Enum.flat_map(&selected_taggings/1)
+    |> Enum.flat_map(&selected_taggings(&1, tags_by_id))
     |> Enum.group_by(& &1.oracle_id)
     |> Map.new(fn {oracle_id, entries} ->
       entries =
@@ -122,8 +124,8 @@ defmodule Manavault.Catalog.ScryfallOracleTags do
     }
   end
 
-  defp selected_taggings(tag) when is_map(tag) do
-    themes = tag_themes(tag)
+  defp selected_taggings(tag, tags_by_id) when is_map(tag) do
+    themes = tag_themes(tag, tags_by_id)
 
     if oracle_tag?(tag) and themes != [] do
       taggings = value(tag, "taggings") || []
@@ -148,7 +150,7 @@ defmodule Manavault.Catalog.ScryfallOracleTags do
     end
   end
 
-  defp selected_taggings(_tag), do: []
+  defp selected_taggings(_tag, _tags_by_id), do: []
 
   defp oracle_tag?(tag) do
     tag
@@ -163,7 +165,32 @@ defmodule Manavault.Catalog.ScryfallOracleTags do
 
   defp oracle_tagging?(_tagging), do: false
 
-  defp tag_themes(tag) do
+  defp tag_themes(tag, tags_by_id) do
+    tag
+    |> tag_themes(tags_by_id, MapSet.new())
+    |> Enum.uniq()
+  end
+
+  defp tag_themes(tag, tags_by_id, visited_ids) do
+    tag_id = value(tag, "id")
+
+    if is_binary(tag_id) and MapSet.member?(visited_ids, tag_id) do
+      []
+    else
+      visited_ids = if is_binary(tag_id), do: MapSet.put(visited_ids, tag_id), else: visited_ids
+      parent_ids = List.wrap(value(tag, "parent_ids"))
+
+      own_tag_themes(tag) ++
+        Enum.flat_map(parent_ids, fn parent_id ->
+          case Map.fetch(tags_by_id, parent_id) do
+            {:ok, parent} -> tag_themes(parent, tags_by_id, visited_ids)
+            :error -> []
+          end
+        end)
+    end
+  end
+
+  defp own_tag_themes(tag) do
     [value(tag, "slug"), value(tag, "label") | List.wrap(value(tag, "aliases"))]
     |> Enum.flat_map(fn name ->
       normalized = normalize_theme_name(name)
@@ -173,7 +200,6 @@ defmodule Manavault.Catalog.ScryfallOracleTags do
         :error -> []
       end
     end)
-    |> Enum.uniq()
   end
 
   defp type_themes(type_line) when is_binary(type_line) do

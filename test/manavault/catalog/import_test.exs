@@ -141,6 +141,81 @@ defmodule Manavault.Catalog.ImportTest do
     assert "sorcery" in Jason.decode!(walk_themes_json)
   end
 
+  test "import_cards derives themes from inherited oracle tag parents" do
+    weftwalking = %{
+      @black_lotus
+      | "id" => "scryfall-weftwalking",
+        "oracle_id" => "oracle-weftwalking",
+        "name" => "Weftwalking",
+        "type_line" => "Enchantment",
+        "oracle_text" =>
+          "When this enchantment enters, if you cast it, shuffle your hand and graveyard into your library, then draw seven cards."
+    }
+
+    oracle_tags = [
+      scryfall_tag(%{
+        "id" => "tag-card-advantage",
+        "slug" => "card-advantage",
+        "label" => "card advantage",
+        "type" => "oracle"
+      }),
+      scryfall_tag(%{
+        "id" => "tag-draw",
+        "slug" => "draw",
+        "label" => "draw",
+        "type" => "oracle",
+        "parent_ids" => ["tag-card-advantage"]
+      }),
+      scryfall_tag(%{
+        "id" => "tag-burst-draw",
+        "slug" => "burst-draw",
+        "label" => "burst draw",
+        "type" => "oracle",
+        "parent_ids" => ["tag-draw"],
+        "taggings" => [%{"oracle_id" => "oracle-weftwalking", "weight" => "median"}]
+      }),
+      scryfall_tag(%{
+        "id" => "tag-recursion",
+        "slug" => "recursion",
+        "label" => "recursion",
+        "type" => "oracle"
+      }),
+      scryfall_tag(%{
+        "id" => "tag-restock",
+        "slug" => "restock",
+        "label" => "restock",
+        "type" => "oracle",
+        "parent_ids" => ["tag-recursion"]
+      }),
+      scryfall_tag(%{
+        "id" => "tag-restock-all",
+        "slug" => "restock-all",
+        "label" => "restock-all",
+        "type" => "oracle",
+        "parent_ids" => ["tag-restock"],
+        "taggings" => [%{"oracle_id" => "oracle-weftwalking", "weight" => "median"}]
+      })
+    ]
+
+    assert {:ok, %{cards_count: 1, printings_count: 1}} =
+             Catalog.import_cards([weftwalking], nil, oracle_tags: oracle_tags)
+
+    assert %Card{
+             deck_category: "card_advantage",
+             deck_themes: themes_json,
+             oracle_tags: tags_json
+           } = Repo.get!(Card, "oracle-weftwalking")
+
+    themes = Jason.decode!(themes_json)
+    tag_slugs = tags_json |> Jason.decode!() |> Enum.map(& &1["slug"])
+
+    assert "card_advantage" in themes
+    assert "recursion" in themes
+    assert "enchantment" in themes
+    assert "burst-draw" in tag_slugs
+    assert "restock-all" in tag_slugs
+  end
+
   test "import_cards prioritizes mass disruption over targeted disruption" do
     wrath = %{
       @time_walk
