@@ -8,6 +8,22 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.11.1] - 2026-06-27
+
+### Bug Fixes
+
+- Local dev optimize deps ([`a2e6fb04`](../../commit/a2e6fb04b4e709de7a65ab0918cdbb6f9e309de4))
+- Don't auto-sort deck allocated cards ([`9e319658`](../../commit/9e319658656fe04c9823fb7cf9c940695ac3d75d))
+- Grab parent tags ([`785f31d3`](../../commit/785f31d387a317830b5f0b63d60c4a0ca48a7e37))
+
+### Features
+
+- Deck page fixes ([`4602e89b`](../../commit/4602e89b09448929f9a99638ecac7e9ec376166d))
+
+### Style
+
+- Change land and counter icons ([`532138ea`](../../commit/532138ea5e7e44d8a3bf0a100c68aa0d598cc4d6))
+
 ## [0.11.0] - 2026-06-26
 
 ### Bug Fixes
