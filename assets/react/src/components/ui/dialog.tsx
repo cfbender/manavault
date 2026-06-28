@@ -1,6 +1,7 @@
 import { X } from "lucide-react"
 import { useEffect, type HTMLAttributes, type ReactNode } from "react"
 import { createPortal } from "react-dom"
+import { registerNativeBackModal } from "../../lib/native-modal-stack"
 import { cn } from "../../lib/utils"
 import { Button } from "./button"
 
@@ -11,6 +12,12 @@ type DialogProps = {
 }
 
 export function Dialog({ children, onOpenChange, open }: DialogProps) {
+  useEffect(() => {
+    if (!open) return
+
+    return registerNativeBackModal(() => onOpenChange(false))
+  }, [onOpenChange, open])
+
   useEffect(() => {
     if (!open) return
 

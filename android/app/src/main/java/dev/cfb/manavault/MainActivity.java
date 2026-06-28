@@ -1,9 +1,12 @@
 package dev.cfb.manavault;
 
+import android.content.ActivityNotFoundException;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.webkit.CookieManager;
 
 import androidx.core.view.WindowCompat;
@@ -15,6 +18,7 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 public class MainActivity extends BridgeActivity {
+    private static final String TAG = "MainActivity";
     private static final int APP_CHROME_COLOR = Color.rgb(24, 4, 13);
     private static final String PREFERENCES_NAME = "NativeShell";
     private static final String SERVER_URL_KEY = "serverUrl";
@@ -80,10 +84,60 @@ public class MainActivity extends BridgeActivity {
             String scheme = url.getScheme();
 
             if ("http".equals(scheme) || "https".equals(scheme)) {
-                return false;
+                if (isAppNavigation(url)) return false;
+
+                try {
+                    Intent intent = new Intent(Intent.ACTION_VIEW, url);
+                    intent.addCategory(Intent.CATEGORY_BROWSABLE);
+                    getActivity().startActivity(intent);
+                } catch (ActivityNotFoundException exception) {
+                    Log.w(TAG, "No browser available to open external URL", exception);
+                    return true;
+                }
+
+                return true;
             }
 
             return null;
+        }
+
+        private boolean isAppNavigation(Uri url) {
+            String host = url.getHost();
+            if ("manavault.cfb.dev".equalsIgnoreCase(host) || "www.manavault.cfb.dev".equalsIgnoreCase(host)) {
+                return true;
+            }
+
+            String serverUrl = getContext()
+                    .getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+                    .getString(SERVER_URL_KEY, "");
+            if (serverUrl.trim().isEmpty()) return false;
+
+            Uri serverUri = Uri.parse(serverUrl.trim());
+            return sameOrigin(url, serverUri);
+        }
+
+        private boolean sameOrigin(Uri left, Uri right) {
+            int leftPort = effectivePort(left);
+            int rightPort = effectivePort(right);
+
+            return leftPort == rightPort
+                    && stringEqualsIgnoreCase(left.getScheme(), right.getScheme())
+                    && stringEqualsIgnoreCase(left.getHost(), right.getHost());
+        }
+
+        private int effectivePort(Uri uri) {
+            int port = uri.getPort();
+            if (port >= 0) return port;
+
+            String scheme = uri.getScheme();
+            if ("http".equalsIgnoreCase(scheme)) return 80;
+            if ("https".equalsIgnoreCase(scheme)) return 443;
+            return -1;
+        }
+
+        private boolean stringEqualsIgnoreCase(String left, String right) {
+            if (left == null || right == null) return left == null && right == null;
+            return left.equalsIgnoreCase(right);
         }
     }
 }

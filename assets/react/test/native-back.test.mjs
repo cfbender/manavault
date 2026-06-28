@@ -3,6 +3,11 @@ import assert from "node:assert/strict"
 
 import { nativeBackAction } from "../src/lib/native-back.ts"
 
+test("nativeBackAction closes open modals before navigation", () => {
+  assert.equal(nativeBackAction({ canGoBack: true }, "/collection", 2, true), "modal")
+  assert.equal(nativeBackAction({ canGoBack: true }, "/", 2, true), "modal")
+})
+
 test("nativeBackAction minimizes on home even with a back stack", () => {
   assert.equal(nativeBackAction({ canGoBack: true }, "/", 2), "minimize")
 })

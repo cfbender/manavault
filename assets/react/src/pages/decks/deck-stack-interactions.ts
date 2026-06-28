@@ -82,3 +82,13 @@ export function shouldRevealDeckStackCardOnPointerDown({
 }) {
   return pointerType !== "mouse" && !isActive
 }
+
+export function shouldClearDeckStackTouchReveal({
+  isInsideStack,
+  isPinned,
+}: {
+  isInsideStack: boolean
+  isPinned: boolean
+}) {
+  return isPinned && !isInsideStack
+}
