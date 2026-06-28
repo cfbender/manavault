@@ -52,6 +52,10 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
       resolve(&CatalogResolvers.collection_item_allocated_quantity/3)
     end
 
+    field :total_owned_copies, non_null(:integer) do
+      resolve(&CatalogResolvers.collection_item_total_owned_copies/3)
+    end
+
     field :allocation_decks, non_null(list_of(non_null(:collection_item_allocation_deck))) do
       resolve(&CatalogResolvers.collection_item_allocation_decks/3)
     end
@@ -263,6 +267,7 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :finish, :string
     field :location_id, :id
     field :card_id, :id
+    field :unallocated_only, :boolean
   end
 
   input_object :collection_item_sort do

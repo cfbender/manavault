@@ -15,6 +15,7 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries.Base do
     location_id = filters |> Keyword.get(:location_id, "") |> normalize_filter()
     card_id = filters |> Keyword.get(:card_id, "") |> normalize_filter()
     include_list_locations? = Keyword.get(filters, :include_list_locations, false)
+    unallocated_only? = Keyword.get(filters, :unallocated_only, false)
 
     CollectionItem
     |> join(:inner, [item], printing in assoc(item, :printing))
@@ -26,6 +27,7 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries.Base do
     |> maybe_filter_language(language)
     |> maybe_filter_finish(finish)
     |> maybe_filter_location(location_id)
+    |> maybe_filter_unallocated(unallocated_only?)
     |> maybe_exclude_deck_allocations(location_id)
     |> maybe_exclude_list_locations(location_id, include_list_locations?)
   end
@@ -66,6 +68,18 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries.Base do
       _invalid -> where(query, false)
     end
   end
+
+  defp maybe_filter_unallocated(query, true) do
+    allocated_item_ids = from allocation in DeckAllocation, select: allocation.collection_item_id
+
+    where(
+      query,
+      [item, _printing, _card, _location],
+      item.id not in subquery(allocated_item_ids)
+    )
+  end
+
+  defp maybe_filter_unallocated(query, _unallocated_only?), do: query
 
   defp maybe_exclude_deck_allocations(query, ""), do: query
 

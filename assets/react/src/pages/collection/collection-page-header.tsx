@@ -1,4 +1,4 @@
-import { Boxes, Download, MoreVertical, Plus, Upload, WandSparkles } from "lucide-react"
+import { Boxes, Download, MoreVertical, Plus, Tags, Upload, WandSparkles } from "lucide-react"
 import { PageHeader } from "../../components/app-shell"
 import { Button } from "../../components/ui/button"
 import { cn } from "../../lib/utils"
@@ -17,6 +17,7 @@ type CollectionPageHeaderProps = {
   onAddLocation: () => void
   onImport: () => void
   onExportCsv: () => void
+  onSellCards: () => void
   onAutoSort: () => void
   onSelectTab: (tab: CollectionTab) => void
 }
@@ -33,6 +34,7 @@ export function CollectionPageHeader({
   onAutoSort,
   onImport,
   onExportCsv,
+  onSellCards,
   onSelectTab,
 }: CollectionPageHeaderProps) {
   return (
@@ -82,6 +84,12 @@ export function CollectionPageHeader({
                 <button type="button" onClick={onImport}>
                   <Upload className="h-4 w-4" />
                   Import CSV/TXT
+                </button>
+              </li>
+              <li>
+                <button type="button" onClick={onSellCards}>
+                  <Tags className="h-4 w-4" />
+                  Sell cards
                 </button>
               </li>
               <li>
