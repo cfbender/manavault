@@ -8,6 +8,24 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.11.2] - 2026-06-28
+
+### Bug Fixes
+
+- Don't serve phoenix digest ([`5b83d931`](../../commit/5b83d9315081b3cf6d6da7322d62fa13f0e34717))
+- Allocate across finishes ([`83efebf1`](../../commit/83efebf13822bc4a5080e6809d25a68d2b7b49ee))
+
+### Features
+
+- Cloud backup retention ([`f863bf80`](../../commit/f863bf8026bfd4ff51ed0a06a06e684207f34d20))
+- Show back image ([`b48f9d49`](../../commit/b48f9d498c2182ad2f4198cc337c38136b71903c))
+- Collection quantity filter (#61) ([`c4e2646b`](../../commit/c4e2646b95f513568dc5e9587516ff03d473fbc2))
+- Sell cards ([`f01c1ff9`](../../commit/f01c1ff93136efce4fa101238adbb25f74a8120d))
+
+### Miscellaneous
+
+- Apply remaining changes (#63) ([`28fd739c`](../../commit/28fd739c59a84bdd3ebe6935b8eef7f37e46db07))
+
 ## [0.11.1] - 2026-06-27
 
 ### Bug Fixes
