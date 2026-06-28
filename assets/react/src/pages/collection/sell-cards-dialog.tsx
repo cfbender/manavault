@@ -13,8 +13,16 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { useToast } from "../../components/ui/toast"
-import { pluralize, present } from "../../lib/utils"
-import { DeleteCollectionItemDocument } from "./documents"
+import { cn, pluralize, present } from "../../lib/utils"
+import { DeleteCollectionItemDocument, UpdateCollectionItemDocument } from "./documents"
+import {
+  formatCents,
+  selectSellListItems,
+  sellListTextForSelections,
+  sellListTotalCents,
+  sellQuantityValue,
+  type SellListSelection,
+} from "./sell-cards-list"
 
 const SELL_CARDS_PAGE_SIZE = 48
 const SELL_CARDS_LOAD_MORE_THRESHOLD_PX = 600
@@ -111,12 +119,13 @@ export function SellCardsDialog({
   open: boolean
 }) {
   const { showToast } = useToast()
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const [selectedQuantities, setSelectedQuantities] = useState<Record<string, number>>({})
   const [isFetchingMore, setIsFetchingMore] = useState(false)
   const [isMatchingSoldList, setIsMatchingSoldList] = useState(false)
   const [soldListText, setSoldListText] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [deleteItemMutation, deleteItem] = useMutation(DeleteCollectionItemDocument)
+  const [updateItemMutation, updateItem] = useMutation(UpdateCollectionItemDocument)
   const query = useQuery<SellCardsQuery, SellCardsVariables>(SellCardsDocument, {
     variables: { first: SELL_CARDS_PAGE_SIZE, after: null },
     skip: !open,
@@ -127,32 +136,43 @@ export function SellCardsDialog({
     () => (query.data?.collectionItems.edges || []).map((edge) => edge?.node).filter(present),
     [query.data],
   )
-  const selectedItems = useMemo(
-    () => items.filter((item) => selectedIds.has(item.id)),
-    [items, selectedIds],
+  const selectedSelections = useMemo<SellListSelection<SellCollectionItem>[]>(
+    () =>
+      items
+        .map((item) => ({
+          item,
+          quantity: sellQuantityValue(selectedQuantities[item.id] || 0, item.quantity || 0),
+        }))
+        .filter((selection) => selection.quantity > 0),
+    [items, selectedQuantities],
+  )
+  const selectedTotalQuantity = useMemo(
+    () => selectedSelections.reduce((total, selection) => total + selection.quantity, 0),
+    [selectedSelections],
   )
   const selectedTotalCents = useMemo(
-    () =>
-      selectedItems.reduce(
-        (total, item) => total + (item.currentPriceCents || 0) * (item.quantity || 0),
-        0,
-      ),
-    [selectedItems],
+    () => sellListTotalCents(selectedSelections),
+    [selectedSelections],
   )
+  const isMutatingSoldCards = deleteItem.loading || updateItem.loading
 
   function close() {
-    if (deleteItem.loading) return
-    setSelectedIds(new Set())
+    if (isMutatingSoldCards) return
+    setSelectedQuantities({})
     setSoldListText("")
     setError(null)
     onOpenChange(false)
   }
 
-  function toggleSelected(item: SellCollectionItem) {
-    setSelectedIds((current) => {
-      const next = new Set(current)
-      if (next.has(item.id)) next.delete(item.id)
-      else next.add(item.id)
+  function setSelectedQuantity(item: SellCollectionItem, quantity: number) {
+    const nextQuantity = sellQuantityValue(quantity, item.quantity || 0)
+
+    setSelectedQuantities((current) => {
+      if ((current[item.id] || 0) === nextQuantity) return current
+
+      const next = { ...current }
+      if (nextQuantity > 0) next[item.id] = nextQuantity
+      else delete next[item.id]
       return next
     })
   }
@@ -211,12 +231,12 @@ export function SellCardsDialog({
   }
 
   async function copySellList() {
-    const text = sellListTextForItems(selectedItems, selectedTotalCents)
+    const text = sellListTextForSelections(selectedSelections, selectedTotalCents)
 
     try {
       await navigator.clipboard.writeText(text)
       showToast("Sell list copied")
-    } catch (_error) {
+    } catch {
       setError("Could not copy to clipboard")
     }
   }
@@ -236,35 +256,42 @@ export function SellCardsDialog({
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter(Boolean)
-    const matchingIds = new Set<string>()
+    const matchingQuantities = selectSellListItems(lines, matchableItems)
+    const matchingTotalQuantity = Object.values(matchingQuantities).reduce(
+      (total, quantity) => total + quantity,
+      0,
+    )
 
-    for (const item of matchableItems) {
-      if (lines.some((line) => lineMatchesItem(line, item))) matchingIds.add(item.id)
-    }
-
-    if (!matchingIds.size) {
+    if (!matchingTotalQuantity) {
       setError("No loaded collection items matched that list")
       return
     }
 
-    setSelectedIds(matchingIds)
-    showToast(`${pluralize(matchingIds.size, "sold card")} selected`)
+    setSelectedQuantities(matchingQuantities)
+    showToast(`${pluralize(matchingTotalQuantity, "sold card")} selected`)
   }
 
   async function deleteSelectedSoldCards() {
     setError(null)
 
-    if (!selectedItems.length) {
+    if (!selectedSelections.length) {
       setError("Choose at least one card to delete")
       return
     }
 
     try {
-      for (const item of selectedItems) {
-        await deleteItemMutation({ variables: { id: item.id } })
+      for (const { item, quantity } of selectedSelections) {
+        const remainingQuantity = item.quantity - quantity
+        if (remainingQuantity > 0) {
+          await updateItemMutation({
+            variables: { id: item.id, input: { quantity: remainingQuantity } },
+          })
+        } else {
+          await deleteItemMutation({ variables: { id: item.id } })
+        }
       }
-      showToast(`${pluralize(selectedItems.length, "sold card")} deleted`)
-      setSelectedIds(new Set())
+      showToast(`${pluralize(selectedTotalQuantity, "sold card")} deleted`)
+      setSelectedQuantities({})
       await query.refetch()
       onDone()
     } catch (error) {
@@ -292,12 +319,15 @@ export function SellCardsDialog({
                 Selected market value
               </p>
               <p className="font-mono text-2xl font-black">{formatCents(selectedTotalCents)}</p>
+              <p className="text-xs text-base-content/60">
+                {pluralize(selectedTotalQuantity, "card")} selected
+              </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
                 variant="outline"
-                disabled={!selectedItems.length}
+                disabled={!selectedSelections.length}
                 onClick={() => void copySellList()}
               >
                 <Clipboard className="h-4 w-4" />
@@ -306,19 +336,20 @@ export function SellCardsDialog({
               <Button
                 type="button"
                 variant="destructive"
-                disabled={!selectedItems.length || deleteItem.loading}
+                disabled={!selectedSelections.length || isMutatingSoldCards}
                 onClick={() => void deleteSelectedSoldCards()}
               >
                 <Trash2 className="h-4 w-4" />
-                {deleteItem.loading ? "Deleting..." : "Delete sold"}
+                {isMutatingSoldCards ? "Deleting..." : "Delete sold"}
               </Button>
             </div>
           </div>
 
           <div className="mt-4 grid gap-2 md:grid-cols-[1fr_auto]">
             <textarea
+              aria-label="Sold list"
               className="textarea textarea-bordered min-h-20 w-full text-sm"
-              placeholder="Paste a sold list to select matching collection items for deletion."
+              placeholder="Paste a sold list to select matching collection items and quantities for deletion."
               value={soldListText}
               onChange={(event) => setSoldListText(event.target.value)}
             />
@@ -349,8 +380,11 @@ export function SellCardsDialog({
                 <SellCardTile
                   key={item.id}
                   item={item}
-                  selected={selectedIds.has(item.id)}
-                  onToggle={() => toggleSelected(item)}
+                  selectedQuantity={sellQuantityValue(
+                    selectedQuantities[item.id] || 0,
+                    item.quantity || 0,
+                  )}
+                  onQuantityChange={(quantity) => setSelectedQuantity(item, quantity)}
                 />
               ))}
             </div>
@@ -378,93 +412,111 @@ export function SellCardsDialog({
 
 function SellCardTile({
   item,
-  onToggle,
-  selected,
+  onQuantityChange,
+  selectedQuantity,
 }: {
   item: SellCollectionItem
-  onToggle: () => void
-  selected: boolean
+  onQuantityChange: (quantity: number) => void
+  selectedQuantity: number
 }) {
   const cardName = item.printing?.card?.name || "Unknown card"
   const priceCents = item.currentPriceCents || 0
-  const lineTotal = priceCents * (item.quantity || 0)
+  const availableQuantity = Math.max(item.quantity || 0, 0)
+  const selected = selectedQuantity > 0
+  const allCopiesTotal = priceCents * availableQuantity
+  const selectedLineTotal = priceCents * selectedQuantity
+  const quantityInputId = `sell-card-quantity-${item.id.replace(/[^A-Za-z0-9_-]/g, "-")}`
 
   return (
-    <button
-      type="button"
-      className={`group relative rounded-xl border bg-base-100 p-2 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl ${
-        selected ? "border-primary ring-2 ring-primary/30" : "border-base-300"
-      }`}
-      onClick={onToggle}
+    <article
+      className={cn(
+        "rounded-xl border bg-base-100 p-2 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl",
+        selected ? "border-primary ring-2 ring-primary/30" : "border-base-300",
+      )}
     >
-      <CardImage printing={item.printing} className="w-full" />
-      <div className="mt-2 space-y-1">
-        <div className="flex items-start justify-between gap-2">
-          <p className="line-clamp-2 text-sm font-bold">{cardName}</p>
-          {selected ? (
-            <span className="rounded-full bg-primary p-1 text-primary-content">
-              <Check className="h-3 w-3" />
+      <button
+        type="button"
+        className="w-full text-left"
+        aria-pressed={selected}
+        onClick={() => onQuantityChange(selected ? 0 : 1)}
+      >
+        <CardImage printing={item.printing} className="w-full" />
+        <div className="mt-2 space-y-1">
+          <div className="flex items-start justify-between gap-2">
+            <p className="line-clamp-2 text-sm font-bold">{cardName}</p>
+            {selected ? (
+              <span className="rounded-full bg-primary p-1 text-primary-content">
+                <Check className="h-3 w-3" />
+              </span>
+            ) : null}
+          </div>
+          <p className="text-xs text-base-content/60">
+            {item.printing?.setCode?.toUpperCase() || "?"} #
+            {item.printing?.collectorNumber || "?"}
+            {" · "}
+            {item.finish}
+          </p>
+          <p className="text-xs text-base-content/60">
+            x{availableQuantity} in this printing · x{item.totalOwnedCopies} total owned
+          </p>
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <span className="font-mono text-sm font-black">{item.priceText || "$0"}</span>
+            <span className="font-mono text-xs text-base-content/70">
+              {formatCents(allCopiesTotal)} available
             </span>
-          ) : null}
+          </div>
         </div>
-        <p className="text-xs text-base-content/60">
-          {item.printing?.setCode?.toUpperCase() || "?"} #{item.printing?.collectorNumber || "?"}
-          {" · "}
-          {item.finish}
-        </p>
-        <p className="text-xs text-base-content/60">
-          x{item.quantity} in this printing · x{item.totalOwnedCopies} total owned
-        </p>
-        <div className="flex items-center justify-between gap-2 pt-1">
-          <span className="font-mono text-sm font-black">{item.priceText || "$0"}</span>
-          <span className="font-mono text-xs text-base-content/70">{formatCents(lineTotal)}</span>
+      </button>
+
+      <div className="mt-2 space-y-1.5 rounded-lg bg-base-200/60 p-2">
+        <label
+          htmlFor={quantityInputId}
+          className="text-xs font-black uppercase tracking-[0.18em] text-base-content/50"
+        >
+          Sell quantity
+        </label>
+        <div className="join w-full">
+          <button
+            type="button"
+            className="btn btn-sm join-item h-9 min-h-9 px-3"
+            aria-label={`Decrease sell quantity for ${cardName}`}
+            disabled={selectedQuantity <= 0}
+            onClick={() => onQuantityChange(selectedQuantity - 1)}
+          >
+            −
+          </button>
+          <input
+            id={quantityInputId}
+            className="input input-sm input-bordered join-item h-9 min-h-9 w-full text-center"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={availableQuantity}
+            aria-label={`Sell quantity for ${cardName}`}
+            value={selected ? selectedQuantity : ""}
+            placeholder="0"
+            onChange={(event) => onQuantityChange(Number(event.target.value))}
+          />
+          <button
+            type="button"
+            className="btn btn-sm join-item h-9 min-h-9 px-3"
+            aria-label={`Increase sell quantity for ${cardName}`}
+            disabled={selectedQuantity >= availableQuantity}
+            onClick={() => onQuantityChange(selected ? selectedQuantity + 1 : 1)}
+          >
+            +
+          </button>
         </div>
+        <p className="flex items-center justify-between gap-2 text-xs text-base-content/70">
+          <span>Selected total</span>
+          <span className="font-mono font-black">{formatCents(selectedLineTotal)}</span>
+        </p>
       </div>
-    </button>
+    </article>
   )
-}
-
-function sellListTextForItems(items: SellCollectionItem[], totalCents: number) {
-  const lines = items.map((item) => {
-    const cardName = item.printing?.card?.name || "Unknown card"
-    const setCode = item.printing?.setCode?.toUpperCase() || "?"
-    const collectorNumber = item.printing?.collectorNumber || "?"
-    const unitPrice = item.priceText || "$0"
-    const total = formatCents((item.currentPriceCents || 0) * (item.quantity || 0))
-
-    return `${item.quantity} ${cardName} [${setCode} #${collectorNumber}] ${item.finish} - ${unitPrice} ea - ${total}`
-  })
-
-  return [...lines, "", `Total: ${formatCents(totalCents)}`].join("\n")
 }
 
 function uniqueItems(items: SellCollectionItem[]) {
   return Array.from(new Map(items.map((item) => [item.id, item])).values())
 }
 
-function lineMatchesItem(line: string, item: SellCollectionItem) {
-  const normalizedLine = normalizeMatchText(line)
-  const name = normalizeMatchText(item.printing?.card?.name || "")
-  const setCode = normalizeMatchText(item.printing?.setCode || "")
-  const collectorNumber = normalizeMatchText(item.printing?.collectorNumber || "")
-
-  if (!name || !normalizedLine.includes(name)) return false
-  if (setCode && normalizedLine.includes(setCode) && collectorNumber) {
-    return normalizedLine.includes(collectorNumber)
-  }
-
-  return true
-}
-
-function normalizeMatchText(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()
-}
-
-function formatCents(cents: number) {
-  return new Intl.NumberFormat("en-US", {
-    currency: "USD",
-    maximumFractionDigits: cents % 100 === 0 ? 0 : 2,
-    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
-    style: "currency",
-  }).format(cents / 100)
-}
