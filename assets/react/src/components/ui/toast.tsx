@@ -1,5 +1,5 @@
 import { Check, X } from "lucide-react"
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react"
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import { cn } from "../../lib/utils"
 import { Button } from "./button"
@@ -18,6 +18,12 @@ type ToastContextValue = {
 
 const ToastContext = createContext<ToastContextValue | null>(null)
 const TOAST_DISMISS_MS = 3_500
+const TOAST_EVENT = "manavault:toast"
+
+type ToastEventDetail = {
+  message: string
+  tone?: ToastTone
+}
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastNotice[]>([])
@@ -36,6 +42,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     },
     [dismissToast],
   )
+
+  useEffect(() => {
+    function handleToastEvent(event: Event) {
+      const detail = (event as CustomEvent<ToastEventDetail>).detail
+      if (!detail?.message) return
+
+      showToast(detail.message, { tone: detail.tone })
+    }
+
+    window.addEventListener(TOAST_EVENT, handleToastEvent)
+    return () => window.removeEventListener(TOAST_EVENT, handleToastEvent)
+  }, [showToast])
 
   const value = useMemo(() => ({ showToast }), [showToast])
 
@@ -63,8 +81,19 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
 export function useToast() {
   const context = useContext(ToastContext)
-  if (!context) throw new Error("useToast must be used inside ToastProvider")
-  return context
+  if (context) return context
+
+  return {
+    showToast(message: string, options: { tone?: ToastTone } = {}) {
+      if (typeof window === "undefined") return
+
+      window.dispatchEvent(
+        new CustomEvent<ToastEventDetail>(TOAST_EVENT, {
+          detail: { message, tone: options.tone },
+        }),
+      )
+    },
+  } satisfies ToastContextValue
 }
 
 export function Toast({

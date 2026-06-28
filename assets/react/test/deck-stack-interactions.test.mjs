@@ -10,6 +10,7 @@ import {
   shouldCloseDeckStackActionMenu,
   shouldRaiseDeckStackCardForActionMenu,
   shouldRevealDeckStackCardOnPointerDown,
+  shouldClearDeckStackTouchReveal,
   shouldUpdateDeckStackHoverFromPointer,
 } from "../src/pages/decks/deck-stack-interactions.ts"
 
@@ -106,4 +107,10 @@ test("deck stack action menu closes when its card is no longer raised", () => {
 test("deck stack action menu raises its card before opening", () => {
   assert.equal(shouldRaiseDeckStackCardForActionMenu({ isActive: false }), true)
   assert.equal(shouldRaiseDeckStackCardForActionMenu({ isActive: true }), false)
+})
+
+test("deck stack touch reveal clears only for outside touches", () => {
+  assert.equal(shouldClearDeckStackTouchReveal({ isInsideStack: false, isPinned: true }), true)
+  assert.equal(shouldClearDeckStackTouchReveal({ isInsideStack: true, isPinned: true }), false)
+  assert.equal(shouldClearDeckStackTouchReveal({ isInsideStack: false, isPinned: false }), false)
 })

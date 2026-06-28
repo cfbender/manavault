@@ -1,8 +1,9 @@
 import type { BackButtonListenerEvent } from "@capacitor/app"
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core"
 import { registerCapacitorPluginOnce } from "./capacitor-native-headers.ts"
+import { closeTopNativeBackModal, hasNativeBackModal } from "./native-modal-stack.ts"
 
-export type NativeBackAction = "back" | "decks" | "minimize"
+export type NativeBackAction = "back" | "decks" | "modal" | "minimize"
 
 type AppPlugin = {
   addListener: (
@@ -23,7 +24,9 @@ export function nativeBackAction(
   event: BackButtonListenerEvent,
   pathname = window.location.pathname,
   browserHistoryLength = window.history.length,
+  modalOpen = false,
 ): NativeBackAction {
+  if (modalOpen) return "modal"
   if (pathname === "/") return "minimize"
   if (/^\/decks\/[^/]+$/.test(pathname)) return "decks"
   if (event.canGoBack || browserHistoryLength > 1) return "back"
@@ -35,7 +38,12 @@ export async function initializeNativeBackButton({ pathname, navigateToDecks }: 
 
   try {
     await App.addListener("backButton", (event) => {
-      const action = nativeBackAction(event, pathname?.())
+      const action = nativeBackAction(event, pathname?.(), window.history.length, hasNativeBackModal())
+
+      if (action === "modal") {
+        closeTopNativeBackModal()
+        return
+      }
 
       if (action === "back") {
         window.history.back()

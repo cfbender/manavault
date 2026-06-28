@@ -6,6 +6,7 @@ import { isLegendaryCreature } from "./deck-card-model"
 import { DeckStackCard } from "./deck-stack-card"
 import {
   isDeckStackPointerCaptured,
+  shouldClearDeckStackTouchReveal,
   shouldUpdateDeckStackHoverFromPointer,
 } from "./deck-stack-interactions"
 import type { DeckCardEntry, DeckCardTag } from "./deck-types"
@@ -86,6 +87,7 @@ export function DeckStackGroup({
 }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const [pinnedIndex, setPinnedIndex] = useState<number | null>(null)
+  const stackRef = useRef<HTMLDivElement>(null)
   const hoverTimerRef = useRef<number | null>(null)
   const pendingHoverIndexRef = useRef<number | null>(null)
   const activeIndex = hoveredIndex ?? (isSelecting ? null : pinnedIndex)
@@ -97,6 +99,26 @@ export function DeckStackGroup({
     },
     [],
   )
+
+  useEffect(() => {
+    if (pinnedIndex == null) return
+
+    function clearPinnedCard(event: globalThis.PointerEvent) {
+      if (
+        !shouldClearDeckStackTouchReveal({
+          isInsideStack: stackRef.current?.contains(event.target as Node | null) === true,
+          isPinned: pinnedIndex != null,
+        })
+      ) {
+        return
+      }
+
+      setPinnedIndex(null)
+    }
+
+    document.addEventListener("pointerdown", clearPinnedCard, true)
+    return () => document.removeEventListener("pointerdown", clearPinnedCard, true)
+  }, [pinnedIndex])
 
   function clearDeckCardHoverDelay() {
     if (hoverTimerRef.current) {
@@ -151,15 +173,19 @@ export function DeckStackGroup({
       </div>
 
       <div
+        ref={stackRef}
         className="relative w-56 overflow-hidden rounded-xl"
         style={{
           minHeight: `${DECK_STACK_CARD_HEIGHT + Math.max(group.cards.length - 1, 0) * DECK_STACK_OFFSET}px`,
         }}
         onPointerLeave={(event) => {
-          if (event.pointerType !== "touch") {
-            clearDeckCardHoverDelay()
-            setHoveredIndex(null)
+          clearDeckCardHoverDelay()
+          if (event.pointerType === "touch") {
+            setPinnedIndex(null)
+            return
           }
+
+          setHoveredIndex(null)
         }}
         onPointerMove={handlePointerMove}
       >
