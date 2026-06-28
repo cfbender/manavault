@@ -26,7 +26,8 @@ defmodule ManavaultWeb.AppControllerTest do
     assert response =~ ~s|property="og:title" content="Lotus Lessons · ManaVault"|
 
     assert response =~
-             ~s|property="og:description" content="Commander deck, 100 cards, 2 unique, Legal, $256.76."|
+             ~s|property="og:description" content="Commander deck, 100 cards, Legal, $256.76."|
+    refute response =~ "unique"
 
     assert response =~
              ~s|property="og:image" content="http://www.example.com/share/decks/#{token}/preview.png"|
@@ -49,7 +50,7 @@ defmodule ManavaultWeb.AppControllerTest do
     assert response =~ "Lotus Lessons"
     assert response =~ "Commander"
     assert response =~ "100 cards"
-    assert response =~ "2 unique"
+    refute response =~ "unique"
     assert response =~ "Legal"
     assert response =~ "$256.76"
     assert response =~ "data:image/svg+xml"

@@ -31,7 +31,6 @@ defmodule ManavaultWeb.DeckSharePreview do
 
   def from_deck(%Deck{} = deck, token) when is_binary(token) do
     card_count = Catalog.deck_card_count(deck)
-    unique_card_count = Catalog.deck_unique_card_count(deck)
     format_label = titleize(deck.format)
     legality = Catalog.deck_legality(deck)
     legality_label = legality_label(legality)
@@ -46,8 +45,7 @@ defmodule ManavaultWeb.DeckSharePreview do
       token: token,
       deck_name: deck_name,
       title: "#{deck_name} · ManaVault",
-      description:
-        deck_description(format_label, card_count, unique_card_count, legality_label, price_label),
+      description: deck_description(format_label, card_count, legality_label, price_label),
       image_alt: "Preview for #{deck_name}",
       image_type: "image/svg+xml",
       image_url: nil,
@@ -58,7 +56,6 @@ defmodule ManavaultWeb.DeckSharePreview do
       format_label: format_label,
       status_label: titleize(deck.status),
       card_count_label: "#{compact_number(card_count)} cards",
-      unique_count_label: "#{compact_number(unique_card_count)} unique",
       legality_label: legality_label,
       price_label: price_label,
       color_identity: Catalog.deck_commander_color_identity(deck) || []
@@ -69,8 +66,7 @@ defmodule ManavaultWeb.DeckSharePreview do
     deck_name = one_line(preview.deck_name)
     title_size = title_font_size(deck_name)
     deck_name = truncate_for_width(deck_name, title_width(preview.color_identity), title_size)
-    unique_x = 72 + badge_width(preview.status_label) + 28
-    legality_x = unique_x + text_width(preview.unique_count_label, 27) + 28
+    legality_x = 72 + badge_width(preview.status_label) + 20
     price_x = legality_x + badge_width(preview.legality_label) + 20
     symbol_resolver = Keyword.get(opts, :symbol_resolver, &mana_symbol_url/1)
 
@@ -113,7 +109,6 @@ defmodule ManavaultWeb.DeckSharePreview do
       #{mana_symbols(preview.color_identity, symbol_resolver)}
 
       #{badge(72, 432, preview.status_label, :success)}
-      <text x="#{unique_x}" y="469" fill="#e7dfdf" fill-opacity="0.74" font-size="27" font-weight="650">#{xml_escape(preview.unique_count_label)}</text>
       #{badge(legality_x, 432, preview.legality_label, legality_tone(preview.legality_label))}
       #{badge(price_x, 432, preview.price_label, :warning)}
 
@@ -149,11 +144,10 @@ defmodule ManavaultWeb.DeckSharePreview do
     File.Error -> {:error, :render_failed}
   end
 
-  defp deck_description(format_label, card_count, unique_card_count, legality_label, price_label) do
+  defp deck_description(format_label, card_count, legality_label, price_label) do
     [
       "#{format_label} deck",
       "#{compact_number(card_count)} cards",
-      "#{compact_number(unique_card_count)} unique",
       legality_label,
       price_label
     ]

@@ -17,7 +17,6 @@ export const DecksDocument = graphql(`
           coverImageUrl
           commanderColorIdentity
           cardCount
-          uniqueCardCount
           legality {
             status
             issues {
@@ -45,7 +44,6 @@ export const CreateDeckDocument = graphql(`
         coverImageUrl
         commanderColorIdentity
         cardCount
-        uniqueCardCount
         legality {
           status
           issues {
@@ -72,7 +70,6 @@ export const UpdateDeckDocument = graphql(`
         coverImageUrl
         commanderColorIdentity
         cardCount
-        uniqueCardCount
         legality {
           status
           issues {
@@ -157,7 +154,6 @@ export const DeckDocument = graphql(`
       status
       shareToken
       cardCount
-      uniqueCardCount
       legality {
         status
         issues {

@@ -88,9 +88,6 @@ export function DecksPage() {
                               <Badge tone={deck.status === "active" ? "success" : "neutral"}>
                                 {titleize(deck.status)}
                               </Badge>
-                              <span className="inline-flex h-5 items-center">
-                                {compactNumber(deck.uniqueCardCount || 0)} unique
-                              </span>
                               <Badge tone={deckLegalityTone(deck.legality)}>
                                 {deckLegalityLabel(deck.legality)}
                               </Badge>
