@@ -44,6 +44,7 @@ export type EDHRecSectionCard = EDHRecSection["cards"][number]
 export type EDHRecCollectionStatus =
   | EDHRecCard["collectionStatus"]
   | EDHRecSectionCard["collectionStatus"]
+  | DeckCardEntry["allocationStatus"]
 export type EDHRecTab = "recs" | "cuts" | "commander"
 export function connectionNodes<T>(
   connection: Maybe<ReadonlyArray<Maybe<T>> | RelayConnection<T>>,

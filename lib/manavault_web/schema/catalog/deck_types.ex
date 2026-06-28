@@ -100,6 +100,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :available, non_null(:integer)
     field :allocated_elsewhere, non_null(:integer)
     field :missing, non_null(:integer)
+    field :deck_zone, :string
     field :candidates, non_null(list_of(non_null(:deck_card_allocation_candidate)))
   end
 

@@ -164,4 +164,62 @@ defmodule Manavault.Catalog.DeckEdhrecTest do
              }
            ] = result.commander_pages
   end
+
+  test "deck EDHREC status checks sideboard and maybeboard deck cards" do
+    assert {:ok, %{cards_count: 3, printings_count: 3}} =
+             Catalog.import_cards([@black_lotus, @time_walk, @plains])
+
+    assert {:ok, deck} =
+             Catalog.create_deck(%{
+               "name" => "EDHREC Zones",
+               "format" => "commander"
+             })
+
+    assert {:ok, _commander} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Black Lotus",
+               "zone" => "commander",
+               "preferred_printing_id" => "scryfall-printing-1"
+             })
+
+    assert {:ok, _sideboard} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Time Walk",
+               "zone" => "sideboard",
+               "preferred_printing_id" => "scryfall-printing-2"
+             })
+
+    assert {:ok, _maybeboard} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Plains",
+               "zone" => "maybeboard",
+               "preferred_printing_id" => "scryfall-printing-basic-plains"
+             })
+
+    fetch = fn _payload ->
+      {:ok,
+       %{
+         "commanders" => [%{"name" => "Black Lotus"}],
+         "inRecs" => [
+           %{"name" => "Time Walk", "oracle_id" => "oracle-2"},
+           %{"name" => "Plains", "oracle_id" => "oracle-plains"}
+         ],
+         "outRecs" => []
+       }}
+    end
+
+    assert {:ok, result} =
+             Catalog.deck_edhrec(deck,
+               fetch: fetch,
+               fetch_commander_page: fn _name -> {:ok, %{}} end
+             )
+
+    assert [
+             %{
+               name: "Time Walk",
+               collection_status: %{state: "allocated", deck_zone: "sideboard"}
+             },
+             %{name: "Plains", collection_status: %{state: "allocated", deck_zone: "maybeboard"}}
+           ] = result.recommendations
+  end
 end

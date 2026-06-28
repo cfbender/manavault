@@ -688,6 +688,7 @@ export const DeckEdhrecDocument = graphql(`
           available
           allocatedElsewhere
           missing
+          deckZone
           candidates {
             available
           }
@@ -729,6 +730,7 @@ export const DeckEdhrecDocument = graphql(`
           available
           allocatedElsewhere
           missing
+          deckZone
           candidates {
             available
           }
@@ -794,6 +796,7 @@ export const DeckEdhrecDocument = graphql(`
               available
               allocatedElsewhere
               missing
+              deckZone
               candidates {
                 available
               }

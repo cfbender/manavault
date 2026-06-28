@@ -6,6 +6,8 @@ defmodule Manavault.Catalog.EDHRec.Response.CardLookup do
   alias Manavault.Catalog.{Card, Deck, Printing}
   alias Manavault.Repo
 
+  @deck_zone_priority %{"mainboard" => 0, "sideboard" => 1, "maybeboard" => 2, "commander" => 3}
+
   def local_card(identifier, name) when is_binary(identifier) and identifier != "" do
     local_card_by_oracle_id(identifier) ||
       local_card_by_printing_id(identifier) ||
@@ -16,11 +18,9 @@ defmodule Manavault.Catalog.EDHRec.Response.CardLookup do
 
   def matching_deck_card(%Deck{} = deck, oracle_id, name) do
     deck.deck_cards
-    |> Enum.reject(&(&1.zone == "maybeboard"))
-    |> Enum.find(fn deck_card ->
-      deck_card.oracle_id == oracle_id or
-        normalize_name(deck_card.card.name) == normalize_name(name)
-    end)
+    |> Enum.filter(&matching_deck_card?(&1, oracle_id, name))
+    |> Enum.sort_by(&deck_card_zone_priority/1)
+    |> List.first()
   end
 
   def local_card_oracle_id(%Card{oracle_id: oracle_id}), do: oracle_id
@@ -97,6 +97,13 @@ defmodule Manavault.Catalog.EDHRec.Response.CardLookup do
   end
 
   defp preload_card(_card), do: nil
+
+  defp matching_deck_card?(deck_card, oracle_id, name) do
+    deck_card.oracle_id == oracle_id or
+      normalize_name(deck_card.card.name) == normalize_name(name)
+  end
+
+  defp deck_card_zone_priority(%{zone: zone}), do: Map.get(@deck_zone_priority, zone, 4)
 
   defp normalize_name(value) do
     value

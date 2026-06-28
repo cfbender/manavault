@@ -71,6 +71,20 @@ export function collectionStatusShortLabel(status: EDHRecCollectionStatus) {
   return "Missing"
 }
 
+export function collectionStatusHoverLabel(status: EDHRecCollectionStatus) {
+  const deckZone = "deckZone" in status ? status.deckZone : null
+  if (!deckZone || deckZone === "mainboard") return undefined
+
+  return `In ${deckZoneLabel(deckZone)}`
+}
+
+function deckZoneLabel(zone: string) {
+  if (zone === "maybeboard") return "maybeboard"
+  if (zone === "sideboard") return "sideboard"
+  if (zone === "commander") return "commander"
+  return zone
+}
+
 export function collectionStatusTone(
   state: string,
 ): "neutral" | "primary" | "success" | "warning" | "error" {

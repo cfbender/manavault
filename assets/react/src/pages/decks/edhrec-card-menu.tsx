@@ -14,7 +14,12 @@ import type {
   EDHRecSectionCard,
 } from "./deck-types"
 import { EDHREC_ADD_CARD_ZONES } from "./deck-types"
-import { collectionStatusShortLabel, collectionStatusTone, edhrecCardUrl } from "./edhrec-helpers"
+import {
+  collectionStatusHoverLabel,
+  collectionStatusShortLabel,
+  collectionStatusTone,
+  edhrecCardUrl,
+} from "./edhrec-helpers"
 
 export function EDHRecCardMenu({
   card,
@@ -123,9 +128,11 @@ export function CollectionStatusBadge({
   compact?: boolean
   status: EDHRecCollectionStatus
 }) {
+  const title = collectionStatusHoverLabel(status)
   return (
     <Badge
       tone={collectionStatusTone(status.state)}
+      title={title}
       className={cn(
         "whitespace-nowrap bg-base-100/90 shadow-sm backdrop-blur",
         compact && "px-1.5 text-[0.62rem]",

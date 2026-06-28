@@ -10,6 +10,7 @@ defmodule Manavault.Catalog.EDHRec.Response.CollectionStatus do
     deck_card
     |> deck_card_allocation_status()
     |> Map.put(:state, :allocated)
+    |> Map.put(:deck_zone, deck_card.zone)
     |> stringify_status()
   end
 
