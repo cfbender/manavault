@@ -20,6 +20,8 @@ export type CollectionFilterState = {
   collectorNumber: string
   language: string
   finish: FinishFilter
+  quantityOperator: ComparisonOperator
+  quantity: string
   priceOperator: ComparisonOperator
   priceUsd: string
   dateOperator: ComparisonOperator
@@ -50,6 +52,8 @@ export const EMPTY_COLLECTION_FILTERS: CollectionFilterState = {
   collectorNumber: "",
   language: "",
   finish: "any",
+  quantityOperator: ">=",
+  quantity: "",
   priceOperator: ">=",
   priceUsd: "",
   dateOperator: ">=",
@@ -71,6 +75,7 @@ export function buildCollectionFilterQuery(filters: CollectionFilterState) {
     comparisonPredicate("number", filters.collectorOperator, filters.collectorNumber),
     textPredicate("lang", filters.language),
     filters.finish === "any" ? "" : `is:${filters.finish}`,
+    comparisonPredicate("qty", filters.quantityOperator, filters.quantity),
     comparisonPredicate("usd", filters.priceOperator, filters.priceUsd),
     comparisonPredicate("date", filters.dateOperator, filters.releasedDate),
     comparisonPredicate("year", filters.yearOperator, filters.releasedYear),
@@ -100,6 +105,7 @@ export function countActiveCollectionFilters(filters: CollectionFilterState) {
     filters.collectorNumber.trim(),
     filters.language.trim(),
     filters.finish !== "any",
+    filters.quantity.trim(),
     filters.priceUsd.trim(),
     filters.releasedDate.trim(),
     filters.releasedYear.trim(),
@@ -149,6 +155,12 @@ export function encodeCollectionFilters(filters: CollectionFilterState) {
         : undefined,
     language: trimmedValue(filters.language),
     finish: filters.finish === EMPTY_COLLECTION_FILTERS.finish ? undefined : filters.finish,
+    quantity: trimmedValue(filters.quantity),
+    quantityOperator:
+      filters.quantity.trim() &&
+      filters.quantityOperator !== EMPTY_COLLECTION_FILTERS.quantityOperator
+        ? filters.quantityOperator
+        : undefined,
     priceUsd: trimmedValue(filters.priceUsd),
     priceOperator:
       filters.priceUsd.trim() && filters.priceOperator !== EMPTY_COLLECTION_FILTERS.priceOperator
@@ -211,6 +223,12 @@ export function decodeCollectionFilters(value: unknown): CollectionFilterState {
   )
   filters.language = stringValue(decoded.language)
   filters.finish = operatorValue(decoded.finish, FINISH_FILTERS, filters.finish)
+  filters.quantity = stringValue(decoded.quantity)
+  filters.quantityOperator = operatorValue(
+    decoded.quantityOperator,
+    COMPARISON_OPERATORS,
+    filters.quantityOperator,
+  )
   filters.priceUsd = stringValue(decoded.priceUsd)
   filters.priceOperator = operatorValue(
     decoded.priceOperator,
