@@ -116,6 +116,8 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
 
   defdelegate collection_item_allocated_quantity(parent, args, resolution), to: CollectionFields
 
+  defdelegate collection_item_total_owned_copies(parent, args, resolution), to: CollectionFields
+
   defdelegate collection_item_allocation_decks(parent, args, resolution), to: CollectionFields
 
   defdelegate decode_json_field(parent, key, fallback), to: ValueResolvers

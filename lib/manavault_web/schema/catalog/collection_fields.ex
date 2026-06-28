@@ -2,6 +2,7 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionFields do
   @moduledoc false
 
   import Absinthe.Resolution.Helpers, only: [on_load: 2]
+  import Ecto.Query
 
   alias Manavault.Catalog
   alias Manavault.Catalog.{CollectionItem, Location, Price, Printing}
@@ -210,6 +211,23 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionFields do
     {:ok, allocated_quantity(allocations)}
   end
 
+  def collection_item_total_owned_copies(
+        %CollectionItem{} = item,
+        _args,
+        %{context: %{loader: loader}}
+      ) do
+    loader
+    |> Dataloader.load(Catalog, {:one, CollectionItem}, total_owned_copies: item)
+    |> on_load(fn loader ->
+      copies = Dataloader.get(loader, Catalog, {:one, CollectionItem}, total_owned_copies: item)
+      {:ok, copies}
+    end)
+  end
+
+  def collection_item_total_owned_copies(%CollectionItem{} = item, _args, _resolution) do
+    {:ok, item |> collection_item_oracle_id() |> total_owned_copies()}
+  end
+
   def collection_item_allocation_decks(
         %CollectionItem{deck_allocations: allocations},
         _args,
@@ -339,6 +357,29 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionFields do
 
   defp allocated_quantity(allocations) when is_list(allocations) do
     Enum.reduce(allocations, 0, &(&1.quantity + &2))
+  end
+
+  defp total_owned_copies(nil), do: 0
+
+  defp total_owned_copies(oracle_id) do
+    CollectionItem
+    |> join(:inner, [item], printing in assoc(item, :printing))
+    |> join(:left, [item, _printing], location in assoc(item, :location_assoc))
+    |> where([_item, printing, _location], printing.oracle_id == ^oracle_id)
+    |> where([_item, _printing, location], is_nil(location.id) or location.kind != "list")
+    |> select([item, _printing, _location], coalesce(sum(item.quantity), 0))
+    |> Repo.one()
+  end
+
+  defp collection_item_oracle_id(%CollectionItem{printing: %Printing{oracle_id: oracle_id}}) do
+    oracle_id
+  end
+
+  defp collection_item_oracle_id(%CollectionItem{} = item) do
+    case Repo.preload(item, :printing).printing do
+      %Printing{oracle_id: oracle_id} -> oracle_id
+      _printing -> nil
+    end
   end
 
   defp allocation_decks(allocations) when is_list(allocations) do

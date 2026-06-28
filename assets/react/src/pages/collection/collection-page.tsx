@@ -57,6 +57,7 @@ import {
   VirtualizedCollectionGrid,
   useCollectionItemSelection,
 } from "./selection-grid"
+import { SellCardsDialog } from "./sell-cards-dialog"
 import { SortDropdown } from "./sort-controls"
 import { collectionSortStorageKey } from "./storage-keys"
 import {
@@ -103,6 +104,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
   const [isAddLocationOpen, setIsAddLocationOpen] = useState(false)
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [isExportCsvOpen, setIsExportCsvOpen] = useState(false)
+  const [isSellCardsOpen, setIsSellCardsOpen] = useState(false)
   const [isAutoSortSetupOpen, setIsAutoSortSetupOpen] = useState(false)
   const [autoSortResult, setAutoSortResult] = useState<AutoSortCollectionResult | null>(null)
   const [autoSortError, setAutoSortError] = useState<string | null>(null)
@@ -398,6 +400,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
         onAutoSort={previewCollectionAutoSort}
         onImport={() => setIsImportOpen(true)}
         onExportCsv={() => setIsExportCsvOpen(true)}
+        onSellCards={() => setIsSellCardsOpen(true)}
         onSelectTab={selectTab}
       />
 
@@ -519,6 +522,11 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
         open={isExportCsvOpen}
         onOpenChange={setIsExportCsvOpen}
         fileName="collection.csv"
+      />
+      <SellCardsDialog
+        open={isSellCardsOpen}
+        onDone={finishBulkCollectionAction}
+        onOpenChange={setIsSellCardsOpen}
       />
       <ExportCollectionDialog
         filters={exportingLocation ? { locationId: exportingLocation.location.id } : {}}

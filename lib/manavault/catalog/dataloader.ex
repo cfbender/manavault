@@ -35,6 +35,20 @@ defmodule Manavault.Catalog.Dataloader do
     Enum.map(printings, &Map.get(owned_counts, &1.scryfall_id, 0))
   end
 
+  def run_batch(CollectionItem, _query, :total_owned_copies, items, repo_opts) do
+    oracle_ids_by_scryfall_id = collection_item_oracle_ids(items, repo_opts)
+
+    owned_counts =
+      oracle_ids_by_scryfall_id
+      |> Map.values()
+      |> Enum.reject(&is_nil/1)
+      |> oracle_owned_counts(repo_opts)
+
+    Enum.map(items, fn item ->
+      Map.get(owned_counts, Map.get(oracle_ids_by_scryfall_id, item.scryfall_id), 0)
+    end)
+  end
+
   def run_batch(queryable, query, col, inputs, repo_opts) do
     Dataloader.Ecto.run_batch(Repo, queryable, query, col, inputs, repo_opts)
   end
@@ -131,6 +145,44 @@ defmodule Manavault.Catalog.Dataloader do
     |> select([item, _printing, _location], {item.scryfall_id, coalesce(sum(item.quantity), 0)})
     |> Repo.all(repo_opts)
     |> Map.new()
+  end
+
+  defp oracle_owned_counts(oracle_ids, repo_opts) do
+    oracle_ids = Enum.uniq(oracle_ids)
+
+    CollectionItem
+    |> join(:inner, [item], printing in assoc(item, :printing))
+    |> join(:left, [item, _printing], location in assoc(item, :location_assoc))
+    |> where([_item, printing, _location], printing.oracle_id in ^oracle_ids)
+    |> where([_item, _printing, location], is_nil(location.id) or location.kind != "list")
+    |> group_by([_item, printing, _location], printing.oracle_id)
+    |> select([item, printing, _location], {printing.oracle_id, coalesce(sum(item.quantity), 0)})
+    |> Repo.all(repo_opts)
+    |> Map.new()
+  end
+
+  defp collection_item_oracle_ids(items, repo_opts) do
+    preloaded =
+      items
+      |> Enum.filter(fn item -> match?(%CollectionItem{printing: %Printing{}}, item) end)
+      |> Map.new(fn %{scryfall_id: scryfall_id, printing: %{oracle_id: oracle_id}} ->
+        {scryfall_id, oracle_id}
+      end)
+
+    missing_scryfall_ids =
+      items
+      |> Enum.map(& &1.scryfall_id)
+      |> Enum.reject(&Map.has_key?(preloaded, &1))
+      |> Enum.uniq()
+
+    queried =
+      Printing
+      |> where([printing], printing.scryfall_id in ^missing_scryfall_ids)
+      |> select([printing], {printing.scryfall_id, printing.oracle_id})
+      |> Repo.all(repo_opts)
+      |> Map.new()
+
+    Map.merge(queried, preloaded)
   end
 
   defp location_value_summaries(locations, repo_opts) do
