@@ -37,6 +37,8 @@ defmodule Manavault.Catalog.ScryfallQuery.Parser do
     "usd" => :usd,
     "eur" => :eur,
     "tix" => :tix,
+    "qty" => :quantity,
+    "quantity" => :quantity,
     "date" => :date,
     "year" => :year,
     "released" => :date,

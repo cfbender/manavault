@@ -182,6 +182,16 @@ export function CollectionFilterModal({
               />
             </FilterSection>
 
+            <FilterSection label="Quantity" syntax="qty>=2">
+              <ComparisonFilterControl
+                inputMode="numeric"
+                operator={draft.quantityOperator}
+                value={draft.quantity}
+                onOperatorChange={(operator) => update("quantityOperator", operator)}
+                onValueChange={(value) => update("quantity", value)}
+              />
+            </FilterSection>
+
             <FilterSection label="USD price" syntax="usd<10">
               <ComparisonFilterControl
                 inputMode="decimal"

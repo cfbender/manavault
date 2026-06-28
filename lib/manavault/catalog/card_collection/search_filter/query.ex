@@ -101,6 +101,10 @@ defmodule Manavault.Catalog.CardCollection.SearchFilter.Query do
     ScalarPredicates.language(op, value)
   end
 
+  defp dynamic_for(%Predicate{field: :quantity, op: op, value: value}) do
+    ScalarPredicates.quantity(op, value)
+  end
+
   defp dynamic_for(%Predicate{field: :usd, op: op, value: value}) do
     ScalarPredicates.price(op, value)
   end

@@ -292,6 +292,23 @@ defmodule Manavault.Catalog.CardCollection.SearchFilter.ScalarPredicates do
 
   def is_predicate(_op, _value), do: dynamic(false)
 
+  def quantity(op, value) do
+    case Integer.parse(value) do
+      {number, ""} ->
+        case Values.comparison_op(op) do
+          :eq -> dynamic([item, _printing, _card, _location], item.quantity == ^number)
+          :neq -> dynamic([item, _printing, _card, _location], item.quantity != ^number)
+          :gt -> dynamic([item, _printing, _card, _location], item.quantity > ^number)
+          :gte -> dynamic([item, _printing, _card, _location], item.quantity >= ^number)
+          :lt -> dynamic([item, _printing, _card, _location], item.quantity < ^number)
+          :lte -> dynamic([item, _printing, _card, _location], item.quantity <= ^number)
+        end
+
+      _invalid ->
+        dynamic(false)
+    end
+  end
+
   def date(op, value) do
     case Date.from_iso8601(value) do
       {:ok, date} ->
