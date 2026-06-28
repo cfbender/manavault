@@ -33,6 +33,45 @@ defmodule Manavault.Catalog.Decks.Allocations do
     end)
   end
 
+  def allocate_available_preferred_printing_to_deck_card(%DeckCard{} = deck_card, quantity) do
+    quantity = Util.parse_quantity(quantity)
+
+    Repo.transact(fn ->
+      deck_card =
+        DeckCard
+        |> Repo.get!(deck_card.id)
+        |> Repo.preload([:deck, :preferred_printing])
+
+      with :ok <- validate_positive_allocation_quantity(quantity) do
+        status = AllocationStatus.deck_card_allocation_status(deck_card)
+        needed = min(quantity, max(status.required - status.allocated, 0))
+
+        {deck_card, _allocated} =
+          status.candidates
+          |> preferred_printing_candidates(deck_card)
+          |> Enum.reduce_while({deck_card, 0}, fn candidate, {deck_card, allocated} ->
+            remaining = needed - allocated
+
+            cond do
+              remaining <= 0 ->
+                {:halt, {deck_card, allocated}}
+
+              candidate.available <= 0 ->
+                {:cont, {deck_card, allocated}}
+
+              true ->
+                quantity = min(remaining, candidate.available)
+                deck_card = put_deck_card_allocation_printing!(deck_card, candidate.item)
+                insert_or_update_deck_allocation!(deck_card, candidate.item, quantity)
+                {:cont, {deck_card, allocated + quantity}}
+            end
+          end)
+
+        {:ok, deck_card}
+      end
+    end)
+  end
+
   def bulk_add_collection_items_to_deck(deck_or_id, collection_item_ids, zone \\ "mainboard")
 
   def bulk_add_collection_items_to_deck(deck_or_id, [], _zone) do
@@ -596,6 +635,37 @@ defmodule Manavault.Catalog.Decks.Allocations do
     deck_card
     |> DeckCard.changeset(%{"proxy_quantity" => proxy_quantity})
     |> Repo.update()
+  end
+
+  defp preferred_printing_candidates(candidates, %DeckCard{
+         finish: finish,
+         preferred_printing_id: preferred_printing_id
+       })
+       when is_binary(preferred_printing_id) do
+    candidates
+    |> Enum.filter(&(&1.item.scryfall_id == preferred_printing_id))
+    |> Enum.sort_by(fn candidate ->
+      {if(candidate.item.finish == finish, do: 0, else: 1), candidate.item.id}
+    end)
+  end
+
+  defp preferred_printing_candidates(_candidates, _deck_card), do: []
+
+  defp put_deck_card_allocation_printing!(
+         %DeckCard{} = deck_card,
+         %CollectionItem{} = item
+       ) do
+    case put_deck_card_allocation_printing(deck_card, item) do
+      {:ok, deck_card} -> deck_card
+      {:error, changeset} -> Repo.rollback(changeset)
+    end
+  end
+
+  defp put_deck_card_allocation_printing(
+         %DeckCard{preferred_printing_id: scryfall_id, finish: finish} = deck_card,
+         %CollectionItem{scryfall_id: scryfall_id, finish: finish}
+       ) do
+    {:ok, deck_card}
   end
 
   defp put_deck_card_allocation_printing(%DeckCard{} = deck_card, %CollectionItem{} = item) do

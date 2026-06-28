@@ -4,7 +4,7 @@ defmodule Manavault.Catalog.Decks.Cards do
   import Ecto.Query
 
   alias Manavault.Catalog.{Card, Deck, DeckCard, Decklists, Printing, Util}
-  alias Manavault.Catalog.Decks.{AllocationItems, Printings}
+  alias Manavault.Catalog.Decks.{AllocationItems, Allocations, Printings}
   alias Manavault.Repo
 
   def change_deck_card(%DeckCard{} = deck_card, attrs \\ %{}) do
@@ -38,9 +38,7 @@ defmodule Manavault.Catalog.Decks.Cards do
       |> Map.put_new("oracle_id", deck_card.oracle_id)
 
     with {:ok, attrs} <- validate_preferred_printing_identity(attrs) do
-      deck_card
-      |> DeckCard.changeset(attrs)
-      |> Repo.update()
+      update_deck_card_with_allocation_switch(deck_card, attrs)
     end
   end
 
@@ -136,6 +134,54 @@ defmodule Manavault.Catalog.Decks.Cards do
         {:error, changeset} -> {:error, changeset}
       end
     end)
+  end
+
+  defp update_deck_card_with_allocation_switch(%DeckCard{} = deck_card, attrs) do
+    if should_switch_deck_card_allocation?(deck_card, attrs) do
+      Repo.transact(fn ->
+        with {:ok, deck_card} <- update_deck_card_record(deck_card, attrs) do
+          allocation_quantity = deck_card_physical_allocation_quantity(deck_card)
+          clear_deck_card_allocations!(deck_card)
+
+          if allocation_quantity > 0 do
+            case Allocations.allocate_available_preferred_printing_to_deck_card(
+                   deck_card,
+                   allocation_quantity
+                 ) do
+              {:ok, deck_card} -> {:ok, Repo.preload(deck_card, [:card, :preferred_printing])}
+              {:error, reason} -> Repo.rollback(reason)
+            end
+          else
+            {:ok, deck_card}
+          end
+        end
+      end)
+    else
+      update_deck_card_record(deck_card, attrs)
+    end
+  end
+
+  defp update_deck_card_record(%DeckCard{} = deck_card, attrs) do
+    deck_card
+    |> DeckCard.changeset(attrs)
+    |> Repo.update()
+  end
+
+  defp should_switch_deck_card_allocation?(%DeckCard{} = deck_card, attrs) do
+    case Map.fetch(attrs, "preferred_printing_id") do
+      {:ok, preferred_printing_id} when is_binary(preferred_printing_id) ->
+        preferred_printing_id != deck_card.preferred_printing_id
+
+      _no_preferred_printing_change ->
+        false
+    end
+  end
+
+  defp deck_card_physical_allocation_quantity(%DeckCard{} = deck_card) do
+    deck_card
+    |> Repo.preload(:deck_allocations, force: true)
+    |> Map.fetch!(:deck_allocations)
+    |> Enum.reduce(0, &(&1.quantity + &2))
   end
 
   defp clear_deck_card_allocations!(%DeckCard{} = deck_card) do

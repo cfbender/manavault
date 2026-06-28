@@ -83,6 +83,95 @@ defmodule Manavault.Catalog.DeckAllocationTest do
              Catalog.allocate_collection_item_to_deck_card(active_lotus.id, available_item.id)
   end
 
+  test "updating a deck card preferred printing switches physical allocation to matching copy" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @black_lotus_beta])
+
+    assert {:ok, binder} = Catalog.create_location(%{name: "Trade Binder", kind: "binder"})
+
+    assert {:ok, alpha_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil",
+               "location_id" => binder.id
+             })
+
+    assert {:ok, beta_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-3",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil",
+               "location_id" => binder.id
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Printing Switch"})
+
+    assert {:ok, lotus} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Black Lotus",
+               "preferred_printing_id" => "scryfall-printing-1"
+             })
+
+    assert {:ok, _allocation} =
+             Catalog.allocate_collection_item_to_deck_card(lotus.id, alpha_item.id)
+
+    assert {:ok, updated_lotus} =
+             Catalog.update_deck_card(lotus, %{"preferred_printing_id" => "scryfall-printing-3"})
+
+    assert updated_lotus.preferred_printing_id == "scryfall-printing-3"
+
+    status = Catalog.deck_card_allocation_status(updated_lotus)
+    assert status.allocated == 1
+    assert Enum.find(status.candidates, &(&1.item.id == alpha_item.id)).allocated == 0
+    assert Enum.find(status.candidates, &(&1.item.id == beta_item.id)).allocated == 1
+
+    assert Catalog.get_collection_item!(alpha_item.id).location_id == binder.id
+    assert is_nil(Catalog.get_collection_item!(beta_item.id).location_id)
+  end
+
+  test "updating a deck card preferred printing releases old allocation when target copy is unavailable" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @black_lotus_beta])
+
+    assert {:ok, binder} = Catalog.create_location(%{name: "Trade Binder", kind: "binder"})
+
+    assert {:ok, alpha_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil",
+               "location_id" => binder.id
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Unavailable Printing Switch"})
+
+    assert {:ok, lotus} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Black Lotus",
+               "preferred_printing_id" => "scryfall-printing-1"
+             })
+
+    assert {:ok, _allocation} =
+             Catalog.allocate_collection_item_to_deck_card(lotus.id, alpha_item.id)
+
+    assert {:ok, updated_lotus} =
+             Catalog.update_deck_card(lotus, %{"preferred_printing_id" => "scryfall-printing-3"})
+
+    assert updated_lotus.preferred_printing_id == "scryfall-printing-3"
+
+    status = Catalog.deck_card_allocation_status(updated_lotus)
+    assert status.allocated == 0
+    assert Enum.find(status.candidates, &(&1.item.id == alpha_item.id)).available == 1
+    assert Catalog.get_collection_item!(alpha_item.id).location_id == binder.id
+  end
+
   test "deck allocation can use foil collection items for nonfoil deck entries" do
     card =
       @black_lotus
