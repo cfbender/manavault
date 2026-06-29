@@ -180,10 +180,7 @@ export function DeckStackGroup({
         }}
         onPointerLeave={(event) => {
           clearDeckCardHoverDelay()
-          if (event.pointerType === "touch") {
-            setPinnedIndex(null)
-            return
-          }
+          if (event.pointerType === "touch") return
 
           setHoveredIndex(null)
         }}

@@ -132,5 +132,8 @@ function parseQuantityPrefix(line: string) {
 }
 
 function normalizeMatchText(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
 }

@@ -2,6 +2,7 @@ import { Box, CheckSquare, ChevronDown, Edit3, MoveRight, Square, Trash2 } from 
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Button } from "../../components/ui/button"
+import { useMobileHoverReveal } from "../../lib/mobile-hover"
 import { cn } from "../../lib/utils"
 import { DeckCardTagButton } from "./deck-card-allocation"
 import { GameChangerBadge } from "./deck-card-display"
@@ -29,6 +30,19 @@ function DeckZoneCardName({
   const [position, setPosition] = useState<PreviewPosition | null>(null)
   const cardName = deckCard.card?.name || "Unknown card"
   const imageUrl = deckZoneCardImageUrl(deckCard)
+  const mobileHover = useMobileHoverReveal<HTMLButtonElement>({
+    canReveal: Boolean(imageUrl),
+    containerRef: triggerRef,
+    isRevealed: position !== null,
+    onRevealChange: (isRevealed) => {
+      if (isRevealed) {
+        showPreview()
+        return
+      }
+
+      setPosition(null)
+    },
+  })
 
   useEffect(() => {
     return () => {
@@ -74,9 +88,13 @@ function DeckZoneCardName({
         type="button"
         className="cursor-pointer font-semibold text-accent underline decoration-accent/40 decoration-dotted underline-offset-4 transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
         onBlur={hidePreviewSoon}
-        onClick={() => onPreview(deckCard)}
+        onClick={(event) => {
+          if (mobileHover.suppressClickIfRevealed(event)) return
+          onPreview(deckCard)
+        }}
         onFocus={showPreview}
         onPointerEnter={showPreview}
+        onPointerDown={mobileHover.onPointerDown}
         onPointerLeave={hidePreviewSoon}
       >
         {cardName}

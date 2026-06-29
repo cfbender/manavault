@@ -1,6 +1,7 @@
-import { useEffect, useRef, type ReactNode } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 
 import { EmptyState } from "../../components/card-image"
+import { useMobileHoverReveal } from "../../lib/mobile-hover"
 import { cn } from "../../lib/utils"
 import type { EDHRecAddZone, EDHRecCard, EDHRecCardReturnSearch } from "./deck-types"
 import { CollectionStatusBadge, EDHRecCardLink, EDHRecCardMenu } from "./edhrec-card-menu"
@@ -100,11 +101,26 @@ export function EDHRecCardTile({
 }) {
   const imageUrl = edhrecCardImageUrl(card)
   const score = typeof card.score === "number" ? Math.max(0, Math.min(100, card.score)) : null
+  const [isTouchRevealed, setIsTouchRevealed] = useState(false)
+  const mobileHover = useMobileHoverReveal<HTMLElement>({
+    isRevealed: isTouchRevealed,
+    onRevealChange: setIsTouchRevealed,
+  })
 
   return (
-    <article className="min-w-0">
+    <article
+      ref={mobileHover.ref}
+      className="min-w-0"
+      onClickCapture={mobileHover.suppressClickIfRevealed}
+      onPointerDown={mobileHover.onPointerDown}
+    >
       <EDHRecCardLink card={card} cardReturnSearch={cardReturnSearch} className="block">
-        <figure className="relative aspect-[5/7] overflow-hidden rounded-xl bg-base-300 shadow-lg ring-1 ring-base-content/10 transition hover:-translate-y-0.5 hover:shadow-2xl">
+        <figure
+          className={cn(
+            "relative aspect-[5/7] overflow-hidden rounded-xl bg-base-300 shadow-lg ring-1 ring-base-content/10 transition hover:-translate-y-0.5 hover:shadow-2xl",
+            isTouchRevealed && "-translate-y-0.5 shadow-2xl",
+          )}
+        >
           {imageUrl ? (
             <img
               src={imageUrl}
@@ -129,7 +145,10 @@ export function EDHRecCardTile({
             <EDHRecCardLink
               card={card}
               cardReturnSearch={cardReturnSearch}
-              className="block truncate text-sm font-black hover:text-primary"
+              className={cn(
+                "block truncate text-sm font-black hover:text-primary",
+                isTouchRevealed && "text-primary",
+              )}
             >
               {card.name}
             </EDHRecCardLink>

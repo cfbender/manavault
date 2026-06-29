@@ -12,6 +12,7 @@ import {
 import { useEffect, useRef, useState, type FocusEvent, type PointerEvent } from "react"
 
 import { cn, titleize } from "../../lib/utils"
+import { useMobileHoverReveal } from "../../lib/mobile-hover"
 import { ShareModeHidden, blurFocusedMenuItem } from "./deck-actions"
 import { DeckCardAllocationMenu, DeckCardTagButton } from "./deck-card-allocation"
 import { cardImageUrl } from "./deck-card-model"
@@ -21,11 +22,8 @@ import {
   DECK_STACK_ACTION_MENU_CLASS_NAME,
   deckStackActionMenuDirection,
   deckStackActionMenuStyle,
-  isDeckStackPointerCaptured,
   shouldCloseDeckStackActionMenu,
   shouldRaiseDeckStackCardForActionMenu,
-  shouldRevealDeckStackCardOnPointerDown,
-  shouldUpdateDeckStackHoverFromPointer,
 } from "./deck-stack-interactions"
 import type { DeckCardEntry, DeckCardTag } from "./deck-types"
 import { DECK_CARD_TAGS } from "./deck-types"
@@ -86,7 +84,13 @@ export function DeckStackCard({
   const [hasFocusWithin, setHasFocusWithin] = useState(false)
   const [isAllocationMenuOpen, setIsAllocationMenuOpen] = useState(false)
   const actionMenuRef = useRef<HTMLDivElement>(null)
-  const touchRevealWasActivatedRef = useRef(false)
+  const mobileHover = useMobileHoverReveal<HTMLButtonElement>({
+    clearOnOutsidePointerDown: false,
+    isRevealed: isActive,
+    onRevealChange: (isRevealed) => {
+      if (isRevealed) onTouchReveal()
+    },
+  })
   const imageUrl = cardImageUrl(deckCard, "imageUrl")
   const name = deckCard.card?.name || "Unknown card"
   const printing = deckCard.preferredPrinting || deckCard.fallbackPrinting
@@ -132,19 +136,7 @@ export function DeckStackCard({
   }
 
   function handlePointerDown(event: PointerEvent<HTMLButtonElement>) {
-    touchRevealWasActivatedRef.current = false
-
-    if (
-      !shouldRevealDeckStackCardOnPointerDown({
-        isActive,
-        pointerType: event.pointerType,
-      })
-    ) {
-      return
-    }
-
-    touchRevealWasActivatedRef.current = true
-    onTouchReveal()
+    mobileHover.onPointerDown(event)
   }
 
   function handleActionMenuPointerDown(event: PointerEvent<HTMLDivElement>) {
@@ -321,9 +313,7 @@ export function DeckStackCard({
           aria-label={`View ${name} details`}
           onPointerDown={handlePointerDown}
           onClick={(event) => {
-            if (touchRevealWasActivatedRef.current) {
-              touchRevealWasActivatedRef.current = false
-              event.preventDefault()
+            if (mobileHover.suppressClickIfRevealed(event)) {
               return
             }
             if (isSelecting) onToggleSelected(event.shiftKey)

@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog"
+import { useMobileHoverReveal } from "../../lib/mobile-hover"
 
 export type AutoSortSummaryMove = {
   cardId?: string | null
@@ -260,6 +261,19 @@ function CardNamePreview({ move }: { move: AutoSortSummaryMove }) {
   const [position, setPosition] = useState<PreviewPosition | null>(null)
   const cardHref = move.cardId ? `/cards/${encodeURIComponent(move.cardId)}` : null
   const imageUrl = move.imageUrl
+  const mobileHover = useMobileHoverReveal<HTMLAnchorElement>({
+    canReveal: Boolean(cardHref && imageUrl),
+    containerRef: triggerRef,
+    isRevealed: position !== null,
+    onRevealChange: (isRevealed) => {
+      if (isRevealed) {
+        showPreview()
+        return
+      }
+
+      setPosition(null)
+    },
+  })
 
   useEffect(() => {
     return () => {
@@ -322,7 +336,11 @@ function CardNamePreview({ move }: { move: AutoSortSummaryMove }) {
         rel="noreferrer"
         className="cursor-pointer font-bold text-accent underline decoration-accent/40 decoration-dotted underline-offset-4 transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
         onBlur={hidePreviewSoon}
+        onClick={(event) => {
+          mobileHover.suppressClickIfRevealed(event)
+        }}
         onFocus={showPreview}
+        onPointerDown={mobileHover.onPointerDown}
         onPointerEnter={showPreview}
         onPointerLeave={hidePreviewSoon}
       >

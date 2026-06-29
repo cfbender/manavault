@@ -211,9 +211,8 @@ export function SellCardsDialog({
       nextPageInfo = result?.data?.collectionItems.pageInfo
       allItems = uniqueItems([
         ...allItems,
-        ...((result?.data?.collectionItems.edges || [])
-          .map((edge) => edge?.node)
-          .filter(present) || []),
+        ...((result?.data?.collectionItems.edges || []).map((edge) => edge?.node).filter(present) ||
+          []),
       ])
     }
 
@@ -451,8 +450,7 @@ function SellCardTile({
             ) : null}
           </div>
           <p className="text-xs text-base-content/60">
-            {item.printing?.setCode?.toUpperCase() || "?"} #
-            {item.printing?.collectorNumber || "?"}
+            {item.printing?.setCode?.toUpperCase() || "?"} #{item.printing?.collectorNumber || "?"}
             {" · "}
             {item.finish}
           </p>
@@ -519,4 +517,3 @@ function SellCardTile({
 function uniqueItems(items: SellCollectionItem[]) {
   return Array.from(new Map(items.map((item) => [item.id, item])).values())
 }
-

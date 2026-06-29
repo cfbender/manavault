@@ -38,6 +38,7 @@ export function EDHRecCardMenu({
   return (
     <div
       className="dropdown dropdown-end shrink-0"
+      data-mobile-hover-skip=""
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
     >

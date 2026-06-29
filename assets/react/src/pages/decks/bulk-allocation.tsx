@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { Sparkles } from "lucide-react"
 import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
+import { useMobileHoverReveal } from "../../lib/mobile-hover"
 import {
   Dialog,
   DialogClose,
@@ -481,6 +482,19 @@ function CardNamePreview({
     deckCard.preferredPrinting?.imageUrl ||
     deckCard.fallbackPrinting?.imageUrl ||
     null
+  const mobileHover = useMobileHoverReveal<HTMLAnchorElement>({
+    canReveal: Boolean(cardHref && imageUrl),
+    containerRef: triggerRef,
+    isRevealed: position !== null,
+    onRevealChange: (isRevealed) => {
+      if (isRevealed) {
+        showPreview()
+        return
+      }
+
+      setPosition(null)
+    },
+  })
 
   useEffect(() => {
     return () => {
@@ -543,7 +557,11 @@ function CardNamePreview({
         rel="noreferrer"
         className="cursor-pointer font-bold text-accent underline decoration-accent/40 decoration-dotted underline-offset-4 transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
         onBlur={hidePreviewSoon}
+        onClick={(event) => {
+          mobileHover.suppressClickIfRevealed(event)
+        }}
         onFocus={showPreview}
+        onPointerDown={mobileHover.onPointerDown}
         onPointerEnter={showPreview}
         onPointerLeave={hidePreviewSoon}
       >

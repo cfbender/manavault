@@ -38,7 +38,12 @@ export async function initializeNativeBackButton({ pathname, navigateToDecks }: 
 
   try {
     await App.addListener("backButton", (event) => {
-      const action = nativeBackAction(event, pathname?.(), window.history.length, hasNativeBackModal())
+      const action = nativeBackAction(
+        event,
+        pathname?.(),
+        window.history.length,
+        hasNativeBackModal(),
+      )
 
       if (action === "modal") {
         closeTopNativeBackModal()
