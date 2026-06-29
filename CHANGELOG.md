@@ -8,6 +8,26 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.12.0] - 2026-06-29
+
+### Bug Fixes
+
+- Edhrec checks side/maybeboard ([`4ab2e25c`](../../commit/4ab2e25c4e2912f6c3b6f8943d08bbffb5673afe))
+- Editing handles allocation ([`dee04f78`](../../commit/dee04f7830006a8657a51b8f60511c040c2b51ae))
+- Don't load app with query string ([`5d204849`](../../commit/5d2048491dfdbd2dd33158ef870866093a7a1091))
+- Broaden cache invalidation for owned counts ([`75a6a74b`](../../commit/75a6a74bd59c8055575344d614abfe9fe69c189c))
+
+### Chores
+
+- Remove unique card count from deck ([`2987f11a`](../../commit/2987f11ad93bce2fde2420724d1d758baa23bc1b))
+
+### Features
+
+- Sell by quantity ([`a7ed876d`](../../commit/a7ed876d413816bc14bfd4eb5beec5c5e0b5dea3))
+- Add nebulex cache foundation ([`9bdc850b`](../../commit/9bdc850bb37012998c09e2f4047a78cf6eb40086))
+- Cache catalog read paths ([`1d5ea0a0`](../../commit/1d5ea0a06f52c2433a2d35a5365bdc9004d2d4cd))
+- Cache deck field batches ([`fd398c8c`](../../commit/fd398c8c51bd1c04e1c2721c7b41333194ab5e9a))
+
 ## [0.11.2] - 2026-06-28
 
 ### Bug Fixes
