@@ -6,17 +6,17 @@ import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
 import { cn, compactNumber } from "../../lib/utils"
 import { useMobileHoverReveal } from "../../lib/mobile-hover"
+import type { CardDetailDialogTarget } from "./deck-card-detail-dialog"
 import { cardImageUrl } from "./deck-card-model"
 import type {
   DeckDetail,
   EDHRecAddZone,
-  EDHRecCardReturnSearch,
   EDHRecCommanderPage,
   EDHRecSection,
   EDHRecSectionCard,
 } from "./deck-types"
 import { EDHRecScrollContainer } from "./edhrec-card-grid"
-import { CollectionStatusBadge, EDHRecCardLink, EDHRecCardMenu } from "./edhrec-card-menu"
+import { CollectionStatusBadge, EDHRecCardDetailTrigger, EDHRecCardMenu } from "./edhrec-card-menu"
 import {
   commanderDeckCard,
   edhrecCardImageUrl,
@@ -25,17 +25,17 @@ import {
 } from "./edhrec-helpers"
 
 export function EDHRecCommanderData({
-  cardReturnSearch,
   deck,
   isAddingCard,
   onAddCard,
+  onPreviewCard,
   pages,
   scrollStorageKey,
 }: {
-  cardReturnSearch: EDHRecCardReturnSearch
   deck: DeckDetail | null
   isAddingCard: boolean
   onAddCard: (card: EDHRecSectionCard, zone: EDHRecAddZone) => void
+  onPreviewCard: (card: CardDetailDialogTarget) => void
   pages: EDHRecCommanderPage[]
   scrollStorageKey: string
 }) {
@@ -51,9 +51,9 @@ export function EDHRecCommanderData({
             {page.sections.map((section) => (
               <EDHRecSectionPanel
                 key={`${page.name}-${section.tag || section.header}`}
-                cardReturnSearch={cardReturnSearch}
                 isAddingCard={isAddingCard}
                 onAddCard={onAddCard}
+                onPreviewCard={onPreviewCard}
                 section={section}
               />
             ))}
@@ -139,14 +139,14 @@ export function EDHRecCommanderHero({
 }
 
 export function EDHRecSectionPanel({
-  cardReturnSearch,
   isAddingCard,
   onAddCard,
+  onPreviewCard,
   section,
 }: {
-  cardReturnSearch: EDHRecCardReturnSearch
   isAddingCard: boolean
   onAddCard: (card: EDHRecSectionCard, zone: EDHRecAddZone) => void
+  onPreviewCard: (card: CardDetailDialogTarget) => void
   section: EDHRecSection
 }) {
   return (
@@ -164,9 +164,9 @@ export function EDHRecSectionPanel({
             <EDHRecSectionCardTile
               key={`${section.header}-${card.oracleId || card.name}`}
               card={card}
-              cardReturnSearch={cardReturnSearch}
               isAddingCard={isAddingCard}
               onAddCard={onAddCard}
+              onPreviewCard={onPreviewCard}
             />
           ))}
         </div>
@@ -177,14 +177,14 @@ export function EDHRecSectionPanel({
 
 export function EDHRecSectionCardTile({
   card,
-  cardReturnSearch,
   isAddingCard,
   onAddCard,
+  onPreviewCard,
 }: {
   card: EDHRecSectionCard
-  cardReturnSearch: EDHRecCardReturnSearch
   isAddingCard: boolean
   onAddCard: (card: EDHRecSectionCard, zone: EDHRecAddZone) => void
+  onPreviewCard: (card: CardDetailDialogTarget) => void
 }) {
   const imageUrl = edhrecCardImageUrl(card)
   const [isTouchRevealed, setIsTouchRevealed] = useState(false)
@@ -200,7 +200,7 @@ export function EDHRecSectionCardTile({
       onClickCapture={mobileHover.suppressClickIfRevealed}
       onPointerDown={mobileHover.onPointerDown}
     >
-      <EDHRecCardLink card={card} cardReturnSearch={cardReturnSearch} className="block">
+      <EDHRecCardDetailTrigger card={card} className="block w-full" onPreviewCard={onPreviewCard}>
         <figure
           className={cn(
             "relative aspect-[5/7] overflow-hidden rounded-lg bg-base-300 shadow-md ring-1 ring-base-content/10 transition hover:-translate-y-0.5 hover:shadow-xl",
@@ -223,19 +223,19 @@ export function EDHRecSectionCardTile({
             <CollectionStatusBadge status={card.collectionStatus} compact />
           </div>
         </figure>
-      </EDHRecCardLink>
+      </EDHRecCardDetailTrigger>
       <div className="mt-2 flex min-w-0 items-start gap-2">
         <div className="min-w-0 flex-1">
-          <EDHRecCardLink
+          <EDHRecCardDetailTrigger
             card={card}
-            cardReturnSearch={cardReturnSearch}
+            onPreviewCard={onPreviewCard}
             className={cn(
               "block truncate text-sm font-black hover:text-primary",
               isTouchRevealed && "text-primary",
             )}
           >
             {card.name}
-          </EDHRecCardLink>
+          </EDHRecCardDetailTrigger>
           <div className="mt-0.5 flex items-center justify-between gap-2 text-xs text-base-content/60">
             <span>{formatSynergy(card)}</span>
             <span>
@@ -245,8 +245,8 @@ export function EDHRecSectionCardTile({
         </div>
         <EDHRecCardMenu
           card={card}
-          cardReturnSearch={cardReturnSearch}
           isAddingCard={isAddingCard}
+          onPreviewCard={onPreviewCard}
           onAddCard={(zone) => onAddCard(card, zone)}
         />
       </div>

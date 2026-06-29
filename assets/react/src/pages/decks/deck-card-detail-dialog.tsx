@@ -8,18 +8,24 @@ import {
 import { CardDetailPage } from "../cards/page"
 import type { DeckCardEntry } from "./deck-types"
 
-export function DeckCardDetailDialog({
-  deckCard,
-  onOpenChange,
-  shareMode = false,
-}: {
-  deckCard: DeckCardEntry | null
-  onOpenChange: (open: boolean) => void
-  shareMode?: boolean
-}) {
-  const cardId = deckCard?.card?.id || null
-  const cardName = deckCard?.card?.name || "Card details"
+export type CardDetailDialogTarget = {
+  id: string
+  name: string
+}
 
+export function CardDetailDialog({
+  card,
+  graphqlEndpoint,
+  hidePrivateControls = false,
+  onOpenChange,
+}: {
+  card: CardDetailDialogTarget | null
+  graphqlEndpoint?: string
+  hidePrivateControls?: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const cardId = card?.id || null
+  const cardName = card?.name || "Card details"
   return (
     <Dialog open={Boolean(cardId)} onOpenChange={onOpenChange}>
       {cardId ? (
@@ -39,14 +45,37 @@ export function DeckCardDetailDialog({
           <div className="max-h-[calc(100dvh-9rem)] overflow-y-auto p-4 sm:max-h-[calc(100dvh-11rem)] sm:p-6">
             <CardDetailPage
               hideBackLink
-              hidePrivateControls={shareMode}
+              hidePrivateControls={hidePrivateControls}
               id={cardId}
               query=""
-              graphqlEndpoint={shareMode ? "/share/graphql" : undefined}
+              graphqlEndpoint={graphqlEndpoint}
             />
           </div>
         </DialogContent>
       ) : null}
     </Dialog>
+  )
+}
+
+export function DeckCardDetailDialog({
+  deckCard,
+  onOpenChange,
+  shareMode = false,
+}: {
+  deckCard: DeckCardEntry | null
+  onOpenChange: (open: boolean) => void
+  shareMode?: boolean
+}) {
+  const card = deckCard?.card?.id
+    ? { id: deckCard.card.id, name: deckCard.card.name || "Card details" }
+    : null
+
+  return (
+    <CardDetailDialog
+      card={card}
+      graphqlEndpoint={shareMode ? "/share/graphql" : undefined}
+      hidePrivateControls={shareMode}
+      onOpenChange={onOpenChange}
+    />
   )
 }

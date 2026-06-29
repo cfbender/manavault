@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router"
 import { Eye, MoreVertical, Plus } from "lucide-react"
 import type { ReactNode } from "react"
 
@@ -9,7 +8,6 @@ import { AllocationStatusIcon } from "./deck-card-allocation"
 import type {
   EDHRecAddZone,
   EDHRecCard,
-  EDHRecCardReturnSearch,
   EDHRecCollectionStatus,
   EDHRecSectionCard,
 } from "./deck-types"
@@ -20,17 +18,18 @@ import {
   collectionStatusTone,
   edhrecCardUrl,
 } from "./edhrec-helpers"
+import type { CardDetailDialogTarget } from "./deck-card-detail-dialog"
 
 export function EDHRecCardMenu({
   card,
-  cardReturnSearch,
   isAddingCard,
   onAddCard,
+  onPreviewCard,
 }: {
   card: EDHRecCard | EDHRecSectionCard
-  cardReturnSearch: EDHRecCardReturnSearch
   isAddingCard: boolean
   onAddCard: (zone: EDHRecAddZone) => void
+  onPreviewCard: (card: CardDetailDialogTarget) => void
 }) {
   const localCardId = card.card?.id
   const externalUrl = edhrecCardUrl(card)
@@ -65,10 +64,13 @@ export function EDHRecCardMenu({
         ))}
         <li>
           {localCardId ? (
-            <Link to="/cards/$id" params={{ id: localCardId }} search={cardReturnSearch}>
+            <button
+              type="button"
+              onClick={() => onPreviewCard({ id: localCardId, name: card.name })}
+            >
               <Eye className="h-4 w-4" />
               View card
-            </Link>
+            </button>
           ) : externalUrl ? (
             <a href={externalUrl} target="_blank" rel="noreferrer">
               <Eye className="h-4 w-4" />
@@ -86,30 +88,29 @@ export function EDHRecCardMenu({
   )
 }
 
-export function EDHRecCardLink({
+export function EDHRecCardDetailTrigger({
   card,
-  cardReturnSearch,
   children,
   className,
+  onPreviewCard,
 }: {
   card: EDHRecCard | EDHRecSectionCard
-  cardReturnSearch: EDHRecCardReturnSearch
   children: ReactNode
   className?: string
+  onPreviewCard: (card: CardDetailDialogTarget) => void
 }) {
   const localCardId = card.card?.id
   const externalUrl = edhrecCardUrl(card)
 
   if (localCardId) {
     return (
-      <Link
-        to="/cards/$id"
-        params={{ id: localCardId }}
-        search={cardReturnSearch}
-        className={className}
+      <button
+        type="button"
+        className={cn("cursor-pointer bg-transparent p-0 text-left", className)}
+        onClick={() => onPreviewCard({ id: localCardId, name: card.name })}
       >
         {children}
-      </Link>
+      </button>
     )
   }
 

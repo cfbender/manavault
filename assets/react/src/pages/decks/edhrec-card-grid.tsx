@@ -3,8 +3,9 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 import { EmptyState } from "../../components/card-image"
 import { useMobileHoverReveal } from "../../lib/mobile-hover"
 import { cn } from "../../lib/utils"
-import type { EDHRecAddZone, EDHRecCard, EDHRecCardReturnSearch } from "./deck-types"
-import { CollectionStatusBadge, EDHRecCardLink, EDHRecCardMenu } from "./edhrec-card-menu"
+import type { CardDetailDialogTarget } from "./deck-card-detail-dialog"
+import type { EDHRecAddZone, EDHRecCard } from "./deck-types"
+import { CollectionStatusBadge, EDHRecCardDetailTrigger, EDHRecCardMenu } from "./edhrec-card-menu"
 import {
   cardTypeLine,
   edhrecCardImageUrl,
@@ -51,19 +52,19 @@ export function EDHRecScrollContainer({
 
 export function EDHRecCardGrid({
   cards,
-  cardReturnSearch,
   emptyTitle,
   isAddingCard,
   mode,
   onAddCard,
+  onPreviewCard,
   scrollStorageKey,
 }: {
   cards: EDHRecCard[]
-  cardReturnSearch: EDHRecCardReturnSearch
   emptyTitle: string
   isAddingCard: boolean
   mode: "recs" | "cuts"
   onAddCard: (card: EDHRecCard, zone: EDHRecAddZone) => void
+  onPreviewCard: (card: CardDetailDialogTarget) => void
   scrollStorageKey: string
 }) {
   if (!cards.length) return <EmptyState title={emptyTitle} />
@@ -75,10 +76,10 @@ export function EDHRecCardGrid({
           <EDHRecCardTile
             key={`${mode}-${card.oracleId || card.name}`}
             card={card}
-            cardReturnSearch={cardReturnSearch}
             isAddingCard={isAddingCard}
             mode={mode}
             onAddCard={onAddCard}
+            onPreviewCard={onPreviewCard}
           />
         ))}
       </div>
@@ -88,16 +89,16 @@ export function EDHRecCardGrid({
 
 export function EDHRecCardTile({
   card,
-  cardReturnSearch,
   isAddingCard,
   mode,
   onAddCard,
+  onPreviewCard,
 }: {
   card: EDHRecCard
-  cardReturnSearch: EDHRecCardReturnSearch
   isAddingCard: boolean
   mode: "recs" | "cuts"
   onAddCard: (card: EDHRecCard, zone: EDHRecAddZone) => void
+  onPreviewCard: (card: CardDetailDialogTarget) => void
 }) {
   const imageUrl = edhrecCardImageUrl(card)
   const score = typeof card.score === "number" ? Math.max(0, Math.min(100, card.score)) : null
@@ -114,7 +115,7 @@ export function EDHRecCardTile({
       onClickCapture={mobileHover.suppressClickIfRevealed}
       onPointerDown={mobileHover.onPointerDown}
     >
-      <EDHRecCardLink card={card} cardReturnSearch={cardReturnSearch} className="block">
+      <EDHRecCardDetailTrigger card={card} className="block w-full" onPreviewCard={onPreviewCard}>
         <figure
           className={cn(
             "relative aspect-[5/7] overflow-hidden rounded-xl bg-base-300 shadow-lg ring-1 ring-base-content/10 transition hover:-translate-y-0.5 hover:shadow-2xl",
@@ -137,29 +138,29 @@ export function EDHRecCardTile({
             <CollectionStatusBadge status={card.collectionStatus} />
           </div>
         </figure>
-      </EDHRecCardLink>
+      </EDHRecCardDetailTrigger>
 
       <div className="mt-2 space-y-1.5">
         <div className="flex min-w-0 items-start gap-2">
           <div className="min-w-0 flex-1">
-            <EDHRecCardLink
+            <EDHRecCardDetailTrigger
               card={card}
-              cardReturnSearch={cardReturnSearch}
+              onPreviewCard={onPreviewCard}
               className={cn(
                 "block truncate text-sm font-black hover:text-primary",
                 isTouchRevealed && "text-primary",
               )}
             >
               {card.name}
-            </EDHRecCardLink>
+            </EDHRecCardDetailTrigger>
             <div className="truncate text-xs text-base-content/60">
               {cardTypeLine(card) || "EDHREC"}
             </div>
           </div>
           <EDHRecCardMenu
             card={card}
-            cardReturnSearch={cardReturnSearch}
             isAddingCard={isAddingCard}
+            onPreviewCard={onPreviewCard}
             onAddCard={(zone) => onAddCard(card, zone)}
           />
         </div>
