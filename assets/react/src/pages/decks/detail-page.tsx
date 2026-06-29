@@ -61,10 +61,6 @@ type UpdateDeckCardMutationContext =
   | { isTagOnly: false; rollbackPatches: [] }
   | { isTagOnly: true; optimisticTag: DeckCardTag | null; rollbackPatches: DeckTagPatch[] }
 type UpdateDeckCardsTagVariables = { deckCardIds: string[]; tag: DeckCardTag | null }
-type UpdateDeckCardsTagMutationContext = {
-  optimisticTag: DeckCardTag | null
-  rollbackPatches: DeckTagPatch[]
-}
 
 function deckCardTagValue(tag: string | null | undefined): DeckCardTag | null | undefined {
   if (tag === null) return null
