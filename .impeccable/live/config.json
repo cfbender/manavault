@@ -1,0 +1,6 @@
+{
+  "files": ["lib/manavault_web/controllers/app_controller.ex"],
+  "insertBefore": "</body>",
+  "commentSyntax": "html",
+  "cspChecked": true
+}

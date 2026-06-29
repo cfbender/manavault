@@ -12,7 +12,14 @@ erl_crash.dump
 /config/*.secret.exs
 .elixir_ls/
 .hygge/
+.agents/skills/
 .venv/
+
+
+# Local Impeccable state
+/.impeccable/config.local.json
+/.impeccable/live/sessions/
+/.impeccable/critique/
 
 # Local SQLite databases and runtime data
 *.db

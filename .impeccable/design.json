@@ -1,0 +1,255 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-29T16:38:14Z",
+  "title": "Design System: ManaVault",
+  "extensions": {
+    "colorMeta": {
+      "claret": {
+        "role": "primary",
+        "displayName": "Claret Vault",
+        "canonical": "oklch(50.09% 0.1967 13.12)",
+        "tonalRamp": [
+          "oklch(15% 0.1967 13.12)",
+          "oklch(25% 0.1967 13.12)",
+          "oklch(35% 0.1967 13.12)",
+          "oklch(45% 0.1967 13.12)",
+          "oklch(55% 0.1967 13.12)",
+          "oklch(68% 0.1500 13.12)",
+          "oklch(82% 0.0800 13.12)",
+          "oklch(95% 0.0250 13.12)"
+        ]
+      },
+      "grove": {
+        "role": "secondary",
+        "displayName": "Binder Grove",
+        "canonical": "oklch(39.57% 0.1244 138.86)",
+        "tonalRamp": [
+          "oklch(15% 0.1244 138.86)",
+          "oklch(25% 0.1244 138.86)",
+          "oklch(35% 0.1244 138.86)",
+          "oklch(45% 0.1244 138.86)",
+          "oklch(55% 0.1050 138.86)",
+          "oklch(68% 0.0850 138.86)",
+          "oklch(82% 0.0500 138.86)",
+          "oklch(95% 0.0180 138.86)"
+        ]
+      },
+      "brass": {
+        "role": "tertiary",
+        "displayName": "Aged Brass",
+        "canonical": "oklch(53.27% 0.1137 72.57)",
+        "tonalRamp": [
+          "oklch(15% 0.1137 72.57)",
+          "oklch(25% 0.1137 72.57)",
+          "oklch(35% 0.1137 72.57)",
+          "oklch(45% 0.1137 72.57)",
+          "oklch(55% 0.1000 72.57)",
+          "oklch(68% 0.0800 72.57)",
+          "oklch(82% 0.0500 72.57)",
+          "oklch(95% 0.0180 72.57)"
+        ]
+      },
+      "light-vault": {
+        "role": "neutral",
+        "displayName": "Light Vault",
+        "canonical": "oklch(93.58% 0.0173 35.34)",
+        "tonalRamp": [
+          "oklch(15% 0.0173 35.34)",
+          "oklch(25% 0.0173 35.34)",
+          "oklch(35% 0.0173 35.34)",
+          "oklch(45% 0.0173 35.34)",
+          "oklch(58% 0.0173 35.34)",
+          "oklch(72% 0.0173 35.34)",
+          "oklch(86% 0.0173 35.34)",
+          "oklch(95% 0.0173 35.34)"
+        ]
+      },
+      "dark-vault": {
+        "role": "neutral",
+        "displayName": "Dark Vault",
+        "canonical": "oklch(16.36% 0.0318 349.63)",
+        "tonalRamp": [
+          "oklch(15% 0.0318 349.63)",
+          "oklch(22% 0.0318 349.63)",
+          "oklch(30% 0.0318 349.63)",
+          "oklch(42% 0.0318 349.63)",
+          "oklch(56% 0.0318 349.63)",
+          "oklch(70% 0.0250 349.63)",
+          "oklch(84% 0.0180 349.63)",
+          "oklch(95% 0.0100 349.63)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Home hero only; weight creates confidence without font novelty."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page-level titles and major empty states."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Section headings, dialog headings, and card titles."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Dense readable product copy and helper text."
+      },
+      "metric": {
+        "displayName": "Metric",
+        "purpose": "Exact quantities, prices, and count summaries."
+      }
+    },
+    "shadows": [
+      {
+        "name": "surface-rest",
+        "value": "0 1px 3px rgb(0 0 0 / 0.10), 0 1px 2px -1px rgb(0 0 0 / 0.10)",
+        "purpose": "Default card and summary surface lift."
+      },
+      {
+        "name": "action-depth",
+        "value": "inset 0 0.5px 0 0.5px rgb(255 255 255 / 0.06), 0 3px 2px -2px color-mix(in oklch, var(--color-primary), transparent 70%), 0 4px 3px -2px color-mix(in oklch, var(--color-primary), transparent 70%)",
+        "purpose": "Primary buttons and active claret controls."
+      },
+      {
+        "name": "foil-moment",
+        "value": "0 0 0 1px color-mix(in oklch, var(--color-primary) 44%, transparent), 0 12px 30px rgb(0 0 0 / 0.28), 0 0 26px color-mix(in oklch, var(--color-primary) 28%, transparent)",
+        "purpose": "Reserved for foil card imagery."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-fast",
+        "value": "150ms ease-out",
+        "purpose": "Button, nav, chip, and field state feedback."
+      },
+      {
+        "name": "home-intro",
+        "value": "250ms opacity/translate",
+        "purpose": "The existing home hero entrance; do not generalize to every page."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "disable continuous shimmer",
+        "purpose": "Foil shimmer and decorative motion must stop under reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Claret action control for committed primary work.",
+      "html": "<button class=\"ds-btn-primary\">Search</button>",
+      "css": ".ds-btn-primary { min-height: 40px; padding: 0 16px; border: 1.5px solid color-mix(in oklch, var(--color-primary), black 10%); border-radius: var(--radius-field, 4px); background: var(--color-primary); color: var(--color-primary-content); font: 700 14px/20px ui-sans-serif, system-ui, sans-serif; transition: background-color 150ms ease-out, border-color 150ms ease-out, transform 150ms ease-out; box-shadow: inset 0 0.5px 0 0.5px rgb(255 255 255 / 0.06), 0 3px 2px -2px color-mix(in oklch, var(--color-primary), transparent 70%), 0 4px 3px -2px color-mix(in oklch, var(--color-primary), transparent 70%); } .ds-btn-primary:hover { background: color-mix(in oklch, var(--color-primary), black 8%); transform: translateY(-1px); } .ds-btn-primary:focus-visible { outline: 2px solid color-mix(in oklch, var(--color-primary), transparent 35%); outline-offset: 2px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Low-risk action or icon/nav control that stays quiet until hover.",
+      "html": "<button class=\"ds-btn-ghost\">Cancel</button>",
+      "css": ".ds-btn-ghost { min-height: 40px; padding: 0 16px; border: 1.5px solid transparent; border-radius: var(--radius-field, 4px); background: transparent; color: var(--color-base-content); font: 700 14px/20px ui-sans-serif, system-ui, sans-serif; transition: background-color 150ms ease-out, color 150ms ease-out; } .ds-btn-ghost:hover { background: var(--color-base-200); color: var(--color-primary); } .ds-btn-ghost:focus-visible { outline: 2px solid color-mix(in oklch, var(--color-primary), transparent 35%); outline-offset: 2px; }"
+    },
+    {
+      "name": "Search Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Bordered vault field for search, filters, and forms.",
+      "html": "<input class=\"ds-input\" placeholder=\"Black Lotus\" />",
+      "css": ".ds-input { width: 100%; height: 40px; padding: 0 12px; border: 1.5px solid var(--color-base-300); border-radius: var(--radius-field, 4px); background: var(--color-base-100); color: var(--color-base-content); font: 400 16px/24px ui-sans-serif, system-ui, sans-serif; transition: border-color 150ms ease-out, box-shadow 150ms ease-out; box-shadow: inset 0 1px 0 color-mix(in oklch, var(--color-base-content), transparent 98%); } .ds-input::placeholder { color: color-mix(in oklch, var(--color-base-content), transparent 45%); } .ds-input:focus { border-color: var(--color-primary); outline: none; box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-primary), transparent 80%); }"
+    },
+    {
+      "name": "Active Navigation Pill",
+      "kind": "nav",
+      "refersTo": "nav-active",
+      "description": "Compact current-route marker in the top navigation.",
+      "html": "<a class=\"ds-nav-active\">Collection</a>",
+      "css": ".ds-nav-active { display: inline-flex; align-items: center; min-height: 36px; padding: 8px 14px; border-radius: 9999px; background: color-mix(in oklch, var(--color-primary), var(--color-base-100) 18%); color: var(--color-primary-content); font: 700 14px/20px ui-sans-serif, system-ui, sans-serif; text-decoration: none; transition: background-color 150ms ease-out; } .ds-nav-active:hover { background: var(--color-primary); } .ds-nav-active:focus-visible { outline: 2px solid color-mix(in oklch, var(--color-primary), transparent 35%); outline-offset: 2px; }"
+    },
+    {
+      "name": "Outlined Badge",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Small semantic status/count label that remains readable in dense views.",
+      "html": "<span class=\"ds-badge\">4.5K cards</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; min-height: 20px; padding: 0 8px; border: 1.5px solid var(--color-primary); border-radius: 9999px; background: transparent; color: var(--color-primary); font: 500 12px/16px ui-sans-serif, system-ui, sans-serif; white-space: nowrap; }"
+    },
+    {
+      "name": "Vault Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Tactile but disciplined container for summaries and action cards.",
+      "html": "<section class=\"ds-card\"><h3>Collection</h3><p>Browse boxes, binders, lists, and unfiled cards.</p></section>",
+      "css": ".ds-card { padding: 24px; border: 1.5px solid var(--color-base-300); border-radius: var(--radius-box, 8px); background: var(--color-base-100); color: var(--color-base-content); box-shadow: 0 1px 3px rgb(0 0 0 / 0.10), 0 1px 2px -1px rgb(0 0 0 / 0.10); transition: border-color 150ms ease-out, transform 150ms ease-out, box-shadow 150ms ease-out; } .ds-card h3 { margin: 0; font: 900 24px/29px ui-sans-serif, system-ui, sans-serif; } .ds-card p { margin: 12px 0 0; color: color-mix(in oklch, var(--color-base-content), transparent 30%); font: 400 16px/24px ui-sans-serif, system-ui, sans-serif; } .ds-card:hover { border-color: color-mix(in oklch, var(--color-primary), transparent 60%); transform: translateY(-2px); }"
+    },
+    {
+      "name": "Dialog Surface",
+      "kind": "custom",
+      "refersTo": "dialog",
+      "description": "Portal-backed edit/confirmation surface with strong modal separation.",
+      "html": "<section class=\"ds-dialog\"><h2>Edit card</h2><p>Update quantity, location, and finish.</p></section>",
+      "css": ".ds-dialog { width: min(560px, 100%); padding: 20px; border: 1.5px solid var(--color-base-300); border-radius: var(--radius-box, 8px); background: var(--color-base-100); color: var(--color-base-content); box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25); } .ds-dialog h2 { margin: 0; font: 900 20px/24px ui-sans-serif, system-ui, sans-serif; } .ds-dialog p { margin: 8px 0 0; color: color-mix(in oklch, var(--color-base-content), transparent 30%); font: 400 16px/24px ui-sans-serif, system-ui, sans-serif; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Collector's Vault",
+    "overview": "ManaVault's visual system treats the app as a secure, tactile workspace for real cardboard. It uses a claret vault cube, muted storage-surface layers, compact system type, and small-radius controls to make inventory feel physical without turning the interface into game-store decoration. The product should feel collector-grade and confident: dense enough for expert collection work, calm enough for backup and allocation decisions, and touch-friendly enough for the PWA/native shell. It explicitly rejects generic hosted-SaaS dashboards, growth-product landing-page tropes, loud TCG marketplace clutter, over-saturated novelty treatment, and thin cloud-app minimalism.",
+    "keyCharacteristics": [
+      "Claret is the ownership/action color; it is strong, rare, and intentional.",
+      "Surfaces are layered like storage trays: base, panel, line, content.",
+      "Type is one disciplined system sans, with mono reserved for values and inventory numbers.",
+      "Components are tactile but disciplined: 4px fields, 8px cards, clear borders, modest lift.",
+      "Motion is product-state feedback, not page choreography."
+    ],
+    "rules": [
+      {
+        "name": "The Claret Rarity Rule",
+        "body": "Claret marks action, selection, and ownership; if it appears on inactive decoration, the screen loses trust.",
+        "section": "colors"
+      },
+      {
+        "name": "The No Game-Store Chaos Rule",
+        "body": "Brass, grove, foil shimmer, and card art must support state or card identity. They are forbidden as generic excitement.",
+        "section": "colors"
+      },
+      {
+        "name": "The One-Sans Rule",
+        "body": "Do not introduce display fonts for UI labels, buttons, tables, or forms. Product trust comes from consistent type, not type novelty.",
+        "section": "typography"
+      },
+      {
+        "name": "The Lift Means Affordance Rule",
+        "body": "If a shadow is not explaining hover, modal focus, primary action, or foil material, remove it and use a tonal layer instead.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep claret rare and meaningful: primary action, active route, selected state, ownership emphasis.",
+      "Do preserve the tactile vault language with 4px fields, 8px cards, 1.5px borders, and small structural shadows.",
+      "Do use mono type for exact values, prices, quantities, and counts where auditability matters.",
+      "Do make mobile/PWA flows first-class: safe-area padding, 44px touch targets, full-height mobile dialogs, and persistent navigation clarity.",
+      "Do meet WCAG AA contrast, visible keyboard focus, reduced-motion alternatives, and non-color-only status communication."
+    ],
+    "donts": [
+      "Don't make ManaVault look like generic hosted-SaaS dashboards or growth-product landing-page tropes.",
+      "Don't create loud TCG marketplace clutter, over-saturated novelty treatment, or game-store chaos.",
+      "Don't turn claret, brass, foil gradients, or card art into generic decoration.",
+      "Don't use side-stripe borders, gradient text, decorative glassmorphism, hero-metric templates, or identical icon-card grids as default scaffolding.",
+      "Don't over-round product surfaces; cards stop at 8px unless a control is deliberately pill-shaped."
+    ]
+  }
+}
