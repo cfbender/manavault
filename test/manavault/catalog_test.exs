@@ -75,4 +75,30 @@ defmodule Manavault.CatalogTest do
     assert Price.collection_items_value_gain_cents([item]) == 468
     assert Price.collection_items_value_gain_percent([item]) == 23.4
   end
+
+  test "cached catalog reads are invalidated after Scryfall imports" do
+    assert [] = Catalog.search_cards("walk")
+
+    assert {:ok, _counts} = Catalog.import_cards([time_walk()])
+
+    assert [%{name: "Time Walk"}] = Catalog.search_cards("walk")
+  end
+
+  test "cached collection, location, and deck aggregates are invalidated after writes" do
+    assert 0 = Catalog.count_collection_items()
+    assert 0 = Catalog.count_locations()
+    assert 0 = Catalog.count_decks()
+
+    assert {:ok, _counts} = Catalog.import_cards([black_lotus()])
+
+    assert {:ok, _item} =
+             Catalog.create_collection_item(%{"scryfall_id" => "scryfall-printing-1"})
+
+    assert {:ok, _location} = Catalog.create_location(%{"name" => "Box", "kind" => "box"})
+    assert {:ok, _deck} = Catalog.create_deck(%{"name" => "Cached Deck"})
+
+    assert 1 = Catalog.count_collection_items()
+    assert 1 = Catalog.count_locations()
+    assert 1 = Catalog.count_decks()
+  end
 end
