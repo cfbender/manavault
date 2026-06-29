@@ -94,7 +94,7 @@ export function CollectionPageHeader({
         <CollectionTabButton
           active={activeTab === "all"}
           count={collectionItemCount}
-          label="All"
+          label="All cards"
           onClick={() => onSelectTab("all")}
         />
       </div>

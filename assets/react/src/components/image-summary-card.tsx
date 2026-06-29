@@ -38,7 +38,7 @@ export function ImageSummaryCard({
             alt=""
             className={cn(
               "absolute inset-0 h-full w-full object-cover opacity-75 transition duration-300",
-              interactive && "group-hover:scale-105 group-hover:opacity-45",
+              interactive && "group-hover:opacity-45",
             )}
           />
         ) : (

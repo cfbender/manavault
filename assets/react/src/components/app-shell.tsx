@@ -213,7 +213,7 @@ export function PageHeader({
   eyebrow?: string
 }) {
   return (
-    <section className="card relative mb-7 border border-base-300 bg-base-200 shadow-xl">
+    <section className="card relative mb-7 border border-base-300 bg-base-200">
       <div className="card-body gap-5 p-6 sm:p-8">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex-1">

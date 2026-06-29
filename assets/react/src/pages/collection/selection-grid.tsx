@@ -275,7 +275,14 @@ export function VirtualizedCollectionGrid({
     }
   }, [columns, endIndex, hasNextPage, isFetchingNextPage, items.length, onLoadMore])
 
-  if (!items.length) return <EmptyState title="No collection items found" />
+  if (!items.length) {
+    return (
+      <EmptyState
+        title="No collection items found"
+        description="Clear active filters, switch back to all cards, or add a card before starting a pull."
+      />
+    )
+  }
 
   return (
     <div ref={containerRef} className="relative w-full" style={{ height: totalHeight }}>

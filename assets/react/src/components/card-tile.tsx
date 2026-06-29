@@ -243,8 +243,6 @@ export function CardTile({
             className={cn(
               "h-full w-full object-cover transition duration-300",
               allocatedLabel && "grayscale",
-              growOnHover && "group-hover/card:scale-[1.015]",
-              growOnHover && mobileHover.isRevealed && "scale-[1.015]",
             )}
             loading="lazy"
           />

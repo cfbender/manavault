@@ -81,7 +81,10 @@ export function CollectionLocationsSection({
           ))}
         </div>
       ) : (
-        <EmptyState title="No locations found" />
+        <EmptyState
+          title="No locations found"
+          description="Create a box, binder, or list location before sorting physical cards into the vault."
+        />
       )}
     </PageSection>
   )
