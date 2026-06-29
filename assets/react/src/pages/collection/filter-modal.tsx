@@ -84,7 +84,7 @@ export function CollectionFilterModal({
           <div>
             <DialogTitle id="collection-filter-title">Filter collection</DialogTitle>
             <p className="mt-1 text-sm text-base-content/60">
-              Build a Scryfall query from supported collection fields.
+              Start with common pulling filters; open Advanced when you need exact query control.
             </p>
           </div>
           <DialogClose onClose={onClose} />
@@ -92,19 +92,18 @@ export function CollectionFilterModal({
 
         <div className="grid max-h-[calc(100dvh-11rem)] overflow-y-auto lg:grid-cols-[1fr_19rem]">
           <div className="divide-y divide-base-300">
+            <div className="bg-base-200/40 px-5 py-4">
+              <h3 className="text-sm font-black text-base-content">Common filters</h3>
+              <p className="mt-1 text-sm text-base-content/60">
+                Use these first when pulling cards from boxes, binders, or a set list.
+              </p>
+            </div>
+
             <FilterSection label="Name" syntax='name:"Black Lotus"'>
               <Input
                 value={draft.name}
                 onChange={(event) => update("name", event.target.value)}
                 placeholder="Card name"
-              />
-            </FilterSection>
-
-            <FilterSection label="Oracle text" syntax="oracle:draw">
-              <Input
-                value={draft.oracle}
-                onChange={(event) => update("oracle", event.target.value)}
-                placeholder="Rules text"
               />
             </FilterSection>
 
@@ -124,49 +123,8 @@ export function CollectionFilterModal({
               />
             </FilterSection>
 
-            <FilterSection label="Color identity" syntax="id:u, id<=esper, id:c">
-              <ColorFilterControl
-                operator={draft.identityOperator}
-                selected={draft.identity}
-                onOperatorChange={(operator) => update("identityOperator", operator)}
-                onSelectedChange={(identity) => update("identity", identity)}
-              />
-            </FilterSection>
-
-            <FilterSection label="Mana value" syntax="mv>=3">
-              <ComparisonFilterControl
-                inputMode="decimal"
-                operator={draft.manaValueOperator}
-                value={draft.manaValue}
-                onOperatorChange={(operator) => update("manaValueOperator", operator)}
-                onValueChange={(value) => update("manaValue", value)}
-              />
-            </FilterSection>
-
-            <FilterSection label="Rarity" syntax="rarity:rare">
-              <RarityFilterControl
-                selected={draft.rarities}
-                onSelectedChange={(rarities) => update("rarities", rarities)}
-              />
-            </FilterSection>
-
-            <FilterSection label="Printing" syntax="set:lea number:232 lang:ja">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <SetCombobox value={draft.set} onValueChange={(value) => update("set", value)} />
-                <ComparisonFilterControl
-                  className="sm:col-start-1"
-                  inputMode="numeric"
-                  operator={draft.collectorOperator}
-                  value={draft.collectorNumber}
-                  onOperatorChange={(operator) => update("collectorOperator", operator)}
-                  onValueChange={(value) => update("collectorNumber", value)}
-                />
-                <Input
-                  value={draft.language}
-                  onChange={(event) => update("language", event.target.value)}
-                  placeholder="Language"
-                />
-              </div>
+            <FilterSection label="Set" syntax="set:lea">
+              <SetCombobox value={draft.set} onValueChange={(value) => update("set", value)} />
             </FilterSection>
 
             <FilterSection label="Finish" syntax="is:foil">
@@ -192,50 +150,109 @@ export function CollectionFilterModal({
               />
             </FilterSection>
 
-            <FilterSection label="USD price" syntax="usd<10">
-              <ComparisonFilterControl
-                inputMode="decimal"
-                operator={draft.priceOperator}
-                value={draft.priceUsd}
-                onOperatorChange={(operator) => update("priceOperator", operator)}
-                onValueChange={(value) => update("priceUsd", value)}
-              />
-            </FilterSection>
+            <details className="group">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 bg-base-200/40 px-5 py-4 marker:hidden">
+                <span>
+                  <span className="block text-sm font-black text-base-content">Advanced filters</span>
+                  <span className="mt-1 block text-sm text-base-content/60">
+                    Oracle text, commander identity, collector number, price, and release date.
+                  </span>
+                </span>
+                <span className="text-sm font-bold text-primary group-open:hidden">Show</span>
+                <span className="hidden text-sm font-bold text-primary group-open:inline">Hide</span>
+              </summary>
 
-            <FilterSection label="Release date" syntax="date>=2020-01-01 year=2024">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <ComparisonFilterControl
-                  className="sm:col-span-2"
-                  operator={draft.dateOperator}
-                  type="date"
-                  value={draft.releasedDate}
-                  onOperatorChange={(operator) => update("dateOperator", operator)}
-                  onValueChange={(value) => update("releasedDate", value)}
-                />
-                <ComparisonFilterControl
-                  inputMode="numeric"
-                  operator={draft.yearOperator}
-                  value={draft.releasedYear}
-                  onOperatorChange={(operator) => update("yearOperator", operator)}
-                  onValueChange={(value) => update("releasedYear", value)}
-                  placeholder="Year"
-                />
+              <div className="divide-y divide-base-300 border-t border-base-300">
+                <FilterSection label="Oracle text" syntax="oracle:draw">
+                  <Input
+                    value={draft.oracle}
+                    onChange={(event) => update("oracle", event.target.value)}
+                    placeholder="Rules text"
+                  />
+                </FilterSection>
+
+                <FilterSection label="Color identity" syntax="id:u, id<=esper, id:c">
+                  <ColorFilterControl
+                    operator={draft.identityOperator}
+                    selected={draft.identity}
+                    onOperatorChange={(operator) => update("identityOperator", operator)}
+                    onSelectedChange={(identity) => update("identity", identity)}
+                  />
+                </FilterSection>
+
+                <FilterSection label="Mana value" syntax="mv>=3">
+                  <ComparisonFilterControl
+                    inputMode="decimal"
+                    operator={draft.manaValueOperator}
+                    value={draft.manaValue}
+                    onOperatorChange={(operator) => update("manaValueOperator", operator)}
+                    onValueChange={(value) => update("manaValue", value)}
+                  />
+                </FilterSection>
+
+                <FilterSection label="Rarity" syntax="rarity:rare">
+                  <RarityFilterControl
+                    selected={draft.rarities}
+                    onSelectedChange={(rarities) => update("rarities", rarities)}
+                  />
+                </FilterSection>
+
+                <FilterSection label="Printing detail" syntax="number:232 lang:ja">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <ComparisonFilterControl
+                      inputMode="numeric"
+                      operator={draft.collectorOperator}
+                      value={draft.collectorNumber}
+                      onOperatorChange={(operator) => update("collectorOperator", operator)}
+                      onValueChange={(value) => update("collectorNumber", value)}
+                    />
+                    <Input
+                      value={draft.language}
+                      onChange={(event) => update("language", event.target.value)}
+                      placeholder="Language"
+                    />
+                  </div>
+                </FilterSection>
+
+                <FilterSection label="USD price" syntax="usd<10">
+                  <ComparisonFilterControl
+                    inputMode="decimal"
+                    operator={draft.priceOperator}
+                    value={draft.priceUsd}
+                    onOperatorChange={(operator) => update("priceOperator", operator)}
+                    onValueChange={(value) => update("priceUsd", value)}
+                  />
+                </FilterSection>
+
+                <FilterSection label="Release date" syntax="date>=2020-01-01 year=2024">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <ComparisonFilterControl
+                      className="sm:col-span-2"
+                      operator={draft.dateOperator}
+                      type="date"
+                      value={draft.releasedDate}
+                      onOperatorChange={(operator) => update("dateOperator", operator)}
+                      onValueChange={(value) => update("releasedDate", value)}
+                    />
+                    <ComparisonFilterControl
+                      inputMode="numeric"
+                      operator={draft.yearOperator}
+                      value={draft.releasedYear}
+                      onOperatorChange={(operator) => update("yearOperator", operator)}
+                      onValueChange={(value) => update("releasedYear", value)}
+                      placeholder="Year"
+                    />
+                  </div>
+                </FilterSection>
               </div>
-            </FilterSection>
+            </details>
           </div>
 
           <aside className="border-t border-base-300 bg-base-200/40 p-5 lg:border-l lg:border-t-0">
             <div className="sticky top-5 space-y-4">
               <div className="flex items-center justify-between gap-3">
-                <h3 className="text-sm font-black uppercase tracking-[0.22em] text-primary">
-                  Scryfall syntax
-                </h3>
+                <h3 className="text-sm font-black text-base-content">Apply filters</h3>
                 <Badge tone={activeCount ? "primary" : "neutral"}>{activeCount} active</Badge>
-              </div>
-              <div className="min-h-24 rounded-box border border-base-300 bg-base-100 p-3 font-mono text-sm leading-6 text-base-content/80">
-                {syntax || (
-                  <span className="font-sans text-base-content/45">No filters selected</span>
-                )}
               </div>
               <div className="grid gap-2">
                 <Button type="button" disabled={!syntax} onClick={applyDraft}>
@@ -248,6 +265,16 @@ export function CollectionFilterModal({
                   Clear applied filters
                 </Button>
               </div>
+              <details className="rounded-box border border-base-300 bg-base-100 p-3">
+                <summary className="cursor-pointer text-sm font-bold text-base-content">
+                  Expert Scryfall query
+                </summary>
+                <div className="mt-3 min-h-20 rounded-box bg-base-200 p-3 font-mono text-sm leading-6 text-base-content/80">
+                  {syntax || (
+                    <span className="font-sans text-base-content/45">No filters selected</span>
+                  )}
+                </div>
+              </details>
             </div>
           </aside>
         </div>

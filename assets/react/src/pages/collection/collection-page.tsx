@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { PageSection } from "../../components/app-shell"
 import { EmptyState } from "../../components/card-image"
 import { CardNameSearchField } from "../../components/card-name-search-field"
+import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
 import { ConfirmDialog } from "../../components/ui/confirm-dialog"
 import { useToast } from "../../components/ui/toast"
@@ -79,6 +80,77 @@ import type {
 } from "./types"
 
 const COLLECTION_PAGE_SORT_STORAGE_KEY = collectionSortStorageKey("collection")
+
+type ActiveFilterChip = {
+  key: string
+  label: string
+}
+
+function activeCollectionFilterChips(
+  filters: CollectionFilterState,
+  appliedSearch: string,
+): ActiveFilterChip[] {
+  const chips: ActiveFilterChip[] = []
+  const search = appliedSearch.trim()
+
+  if (search) chips.push({ key: "search", label: `Search: ${search}` })
+  if (filters.name.trim()) chips.push({ key: "name", label: `Name: ${filters.name.trim()}` })
+  if (filters.typeLine.trim()) chips.push({ key: "type", label: `Type: ${filters.typeLine.trim()}` })
+  if (filters.colors.length) {
+    chips.push({ key: "colors", label: `Colors ${filters.colorOperator} ${filters.colors.join("")}` })
+  }
+  if (filters.identity.length) {
+    chips.push({
+      key: "identity",
+      label: `Identity ${filters.identityOperator} ${filters.identity.join("")}`,
+    })
+  }
+  if (filters.manaValue.trim()) {
+    chips.push({
+      key: "manaValue",
+      label: `Mana value ${filters.manaValueOperator} ${filters.manaValue.trim()}`,
+    })
+  }
+  if (filters.rarities.length) {
+    chips.push({ key: "rarity", label: `Rarity: ${filters.rarities.join(", ")}` })
+  }
+  if (filters.set.trim()) chips.push({ key: "set", label: `Set: ${filters.set.trim()}` })
+  if (filters.collectorNumber.trim()) {
+    chips.push({
+      key: "collector",
+      label: `Collector # ${filters.collectorOperator} ${filters.collectorNumber.trim()}`,
+    })
+  }
+  if (filters.language.trim()) {
+    chips.push({ key: "language", label: `Language: ${filters.language.trim()}` })
+  }
+  if (filters.oracle.trim()) chips.push({ key: "oracle", label: `Rules text: ${filters.oracle.trim()}` })
+  if (filters.finish !== "any") chips.push({ key: "finish", label: `Finish: ${filters.finish}` })
+  if (filters.quantity.trim()) {
+    chips.push({
+      key: "quantity",
+      label: `Quantity ${filters.quantityOperator} ${filters.quantity.trim()}`,
+    })
+  }
+  if (filters.priceUsd.trim()) {
+    chips.push({ key: "price", label: `USD ${filters.priceOperator} ${filters.priceUsd.trim()}` })
+  }
+  if (filters.releasedDate.trim()) {
+    chips.push({
+      key: "date",
+      label: `Released ${filters.dateOperator} ${filters.releasedDate.trim()}`,
+    })
+  }
+  if (filters.releasedYear.trim()) {
+    chips.push({
+      key: "year",
+      label: `Year ${filters.yearOperator} ${filters.releasedYear.trim()}`,
+    })
+  }
+
+  return chips
+}
+
 
 export function CollectionPage({ importFile = false }: { importFile?: boolean }) {
   const [activeTab, setActiveTab] = useLocalStorageState<CollectionTab>(
@@ -197,6 +269,10 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
   )
   const hasCollectionFilters = Boolean(combinedCollectionQuery)
   const activeStructuredFilterCount = countActiveCollectionFilters(structuredFilters)
+  const activeFilterChips = useMemo(
+    () => activeCollectionFilterChips(structuredFilters, appliedSearch),
+    [appliedSearch, structuredFilters],
+  )
   const filterBadgeCount = activeStructuredFilterCount
   const collectionCountLabel = `${data?.collectionItemCount || 0} ${hasCollectionFilters ? "shown" : "total"}`
   const loadMoreAllItems = useCallback(() => {
@@ -464,6 +540,20 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
               Search
             </Button>
           </form>
+
+          {activeFilterChips.length ? (
+            <div className="flex flex-wrap items-center gap-2 rounded-box border border-base-300 bg-base-100 px-4 py-3 text-sm">
+              <span className="font-bold text-base-content/70">Active filters</span>
+              {activeFilterChips.map((chip) => (
+                <Badge key={chip.key} tone="primary">
+                  {chip.label}
+                </Badge>
+              ))}
+              <Button type="button" variant="ghost" size="sm" onClick={clearAllCollectionFilters}>
+                Clear all
+              </Button>
+            </div>
+          ) : null}
 
           <CollectionBulkActionBar
             allLoadedSelected={selection.allLoadedSelected}
