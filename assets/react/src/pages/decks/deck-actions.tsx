@@ -69,7 +69,7 @@ export function SummaryActionMenu({
       </button>
       <ul
         tabIndex={0}
-        className="menu dropdown-content z-50 mt-1 w-48 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
+        className="menu dropdown-content z-50 mt-1 w-48 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-md"
         onClick={blurFocusedMenuItem}
       >
         <li>

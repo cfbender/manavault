@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@apollo/client/react"
 import { Link, useNavigate } from "@tanstack/react-router"
-import { Layers, Plus } from "lucide-react"
+import { Edit3, Layers, Plus, Share2 } from "lucide-react"
 import { useMemo, useState } from "react"
 import { PageSection } from "../../components/app-shell"
 import { EmptyState } from "../../components/card-image"
@@ -102,6 +102,101 @@ function DeckGalleryErrorState({ onRetry }: { onRetry: () => void }) {
   )
 }
 
+type DeckReadiness = {
+  label: string
+  tone: "neutral" | "primary" | "success" | "warning" | "error"
+  detail: string
+  detailTone: "neutral" | "primary" | "success" | "warning" | "error"
+}
+
+function deckReadiness(deck: DeckSummary): DeckReadiness {
+  const issueCount = deckLegalityIssueCount(deck.legality)
+
+  if (deck.legality?.status !== "legal") {
+    return {
+      label: "Needs review",
+      tone: "error",
+      detail: deckLegalityIssueCountLabel(issueCount),
+      detailTone: "error",
+    }
+  }
+
+  return {
+    label: titleize(deck.status),
+    tone: deck.status === "active" ? "success" : deck.status === "brewing" ? "warning" : "neutral",
+    detail: deckLegalityLabel(deck.legality),
+    detailTone: deckLegalityTone(deck.legality),
+  }
+}
+
+function DeckReadinessBadges({ readiness }: { readiness: DeckReadiness }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 leading-none">
+      <Badge tone={readiness.tone}>{readiness.label}</Badge>
+      <Badge tone={readiness.detailTone}>{readiness.detail}</Badge>
+    </div>
+  )
+}
+
+function DeckGalleryCard({
+  deck,
+  onDelete,
+  onEdit,
+  onShare,
+}: {
+  deck: DeckSummary
+  onDelete: () => void
+  onEdit: () => void
+  onShare: () => void
+}) {
+  const readiness = deckReadiness(deck)
+
+  return (
+    <div className="relative">
+      <Link to="/decks/$id" params={{ id: deck.id }} className="block">
+        <ImageSummaryCard
+          imageUrl={deck.coverImageUrl}
+          fallback={<Layers className="h-12 w-12" />}
+          typeLine={<Badge>{titleize(deck.format)}</Badge>}
+          countLine={`${compactNumber(deck.cardCount || 0)} cards`}
+          detailLine={<DeckReadinessBadges readiness={readiness} />}
+          nameLine={
+            <DeckNameWithCommanderIdentity colors={deck.commanderColorIdentity} name={deck.name} />
+          }
+        />
+      </Link>
+      <div className="mt-2 flex flex-wrap justify-end gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="min-h-9 bg-base-100/90"
+          onClick={onEdit}
+        >
+          <Edit3 className="h-4 w-4" />
+          Edit
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="min-h-9 bg-base-100/90"
+          onClick={onShare}
+        >
+          <Share2 className="h-4 w-4" />
+          Share
+        </Button>
+      </div>
+      <SummaryActionMenu
+        label={`${deck.name} actions`}
+        onEdit={onEdit}
+        onShare={onShare}
+        onDelete={onDelete}
+      />
+    </div>
+  )
+}
+
 export function DecksPage() {
   const [isNewDeckOpen, setIsNewDeckOpen] = useState(false)
   const [editingDeck, setEditingDeck] = useState<DeckSummary | null>(null)
@@ -153,45 +248,13 @@ export function DecksPage() {
                 </div>
                 <div className="grid gap-5 md:grid-cols-2">
                   {decks.map((deck) => (
-                    <div key={deck.id} className="relative">
-                      <Link to="/decks/$id" params={{ id: deck.id }} className="block">
-                        <ImageSummaryCard
-                          imageUrl={deck.coverImageUrl}
-                          fallback={<Layers className="h-12 w-12" />}
-                          typeLine={<Badge>{titleize(deck.format)}</Badge>}
-                          countLine={`${compactNumber(deck.cardCount || 0)} cards`}
-                          detailLine={
-                            <div className="flex flex-wrap items-center gap-2 leading-none">
-                              <Badge tone={deck.status === "active" ? "success" : "neutral"}>
-                                {titleize(deck.status)}
-                              </Badge>
-                              <Badge tone={deckLegalityTone(deck.legality)}>
-                                {deckLegalityLabel(deck.legality)}
-                              </Badge>
-                              {deck.legality?.status === "legal" ? null : (
-                                <span className="inline-flex h-5 items-center">
-                                  {deckLegalityIssueCountLabel(
-                                    deckLegalityIssueCount(deck.legality),
-                                  )}
-                                </span>
-                              )}
-                            </div>
-                          }
-                          nameLine={
-                            <DeckNameWithCommanderIdentity
-                              colors={deck.commanderColorIdentity}
-                              name={deck.name}
-                            />
-                          }
-                        />
-                      </Link>
-                      <SummaryActionMenu
-                        label={`${deck.name} actions`}
-                        onEdit={() => setEditingDeck(deck)}
-                        onShare={() => setSharingDeck(deck)}
-                        onDelete={() => setDeletingDeck(deck)}
-                      />
-                    </div>
+                    <DeckGalleryCard
+                      key={deck.id}
+                      deck={deck}
+                      onEdit={() => setEditingDeck(deck)}
+                      onShare={() => setSharingDeck(deck)}
+                      onDelete={() => setDeletingDeck(deck)}
+                    />
                   ))}
                 </div>
               </section>
