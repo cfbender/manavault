@@ -11,8 +11,15 @@ import {
   Square,
   Trash2,
 } from "lucide-react"
-import { type FocusEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react"
+import { Fragment, type FocusEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react"
 import { cn } from "../lib/utils"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu"
 import { useMobileHoverReveal } from "../lib/mobile-hover"
 
 export type CardTileAction = {
@@ -25,13 +32,6 @@ export type CardTileAction = {
   separatorBefore?: boolean
 }
 
-function blurFocusedMenuItem(event: MouseEvent<HTMLElement>) {
-  const activeElement = event.currentTarget.ownerDocument.activeElement
-
-  if (activeElement instanceof HTMLElement && event.currentTarget.contains(activeElement)) {
-    activeElement.blur()
-  }
-}
 
 export function CardTile({
   allocatedLabel,
@@ -165,49 +165,39 @@ export function CardTile({
       {showMenu ? (
         <div
           className={cn(
-            "dropdown absolute left-2 top-2 z-50 opacity-0 transition-opacity group-hover/card:opacity-100 group-focus-within/card:opacity-100",
+            "absolute left-2 top-2 z-50 opacity-0 transition-opacity group-hover/card:opacity-100 group-focus-within/card:opacity-100",
             mobileHover.isRevealed && "opacity-100",
           )}
           onClick={(event) => event.stopPropagation()}
           onKeyDown={(event) => event.stopPropagation()}
           onMouseDown={(event) => event.stopPropagation()}
         >
-          <button
-            type="button"
-            className="card-tile-touch-button btn btn-circle btn-xs border-0 bg-neutral/85 text-neutral-content shadow backdrop-blur transition hover:bg-neutral"
-            tabIndex={0}
-            aria-label="Card actions"
-          >
-            <MoreVertical className="h-4 w-4" />
-          </button>
-          <ul
-            tabIndex={0}
-            className="card-tile-touch-menu menu dropdown-content z-50 mt-1 w-48 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
-            onClick={blurFocusedMenuItem}
-          >
-            {allActions.map((action, index) => (
-              <li
-                key={index}
-                className={
-                  action.separatorBefore ? "mt-1 border-t border-base-300 pt-1" : undefined
-                }
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="card-tile-touch-button btn btn-circle btn-sm min-h-11 w-11 border-0 bg-neutral/85 text-neutral-content shadow backdrop-blur transition hover:bg-neutral"
+                aria-label="Card actions"
               >
-                {action.content ? (
-                  action.content
-                ) : (
-                  <button
-                    type="button"
-                    className={cn(action.destructive && "text-error")}
+                <MoreVertical className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="card-tile-touch-menu">
+              {allActions.map((action, index) => (
+                <Fragment key={index}>
+                  {action.separatorBefore ? <DropdownMenuSeparator /> : null}
+                  <DropdownMenuItem
+                    destructive={action.destructive}
                     disabled={action.disabled}
-                    onClick={action.onClick}
+                    onSelect={action.onClick}
                   >
                     {action.icon}
                     {action.label}
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
+                  </DropdownMenuItem>
+                </Fragment>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       ) : null}
 

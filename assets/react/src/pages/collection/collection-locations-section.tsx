@@ -27,7 +27,7 @@ export function CollectionLocationsSection({
   onExportLocation,
 }: CollectionLocationsSectionProps) {
   return (
-    <PageSection count={`${locationCount} total`}>
+    <PageSection title="Locations" count={`${locationCount} total`}>
       {isLoading ? (
         <EmptyState title="Loading locations..." />
       ) : locationGroups.length ? (

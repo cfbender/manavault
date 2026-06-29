@@ -2,6 +2,12 @@ import { Boxes, Download, Edit3, MoreVertical, Trash2 } from "lucide-react"
 import type { ReactNode } from "react"
 import { Badge } from "../../components/ui/badge"
 import { Card } from "../../components/ui/card"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../../components/ui/dropdown-menu"
 import { cn, titleize } from "../../lib/utils"
 import type { LocationDetail, LocationSummary } from "./types"
 
@@ -24,53 +30,45 @@ export function SummaryActionMenu({
 }) {
   return (
     <div
-      className="dropdown dropdown-end absolute right-3 top-3 z-[80]"
+      className="absolute right-3 top-3 z-40"
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
     >
-      <button
-        type="button"
-        className="btn btn-circle btn-xs border-0 bg-neutral/85 text-neutral-content shadow backdrop-blur transition hover:bg-neutral"
-        tabIndex={0}
-        aria-label={label}
-      >
-        <MoreVertical className="h-4 w-4" />
-      </button>
-      <ul
-        tabIndex={0}
-        className="menu dropdown-content z-50 mt-1 w-48 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
-      >
-        <li>
-          <button type="button" onClick={onEdit}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="btn btn-circle btn-sm min-h-11 w-11 border-0 bg-neutral/85 text-neutral-content shadow backdrop-blur transition hover:bg-neutral"
+            aria-label={label}
+          >
+            <MoreVertical className="h-4 w-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuItem onSelect={onEdit}>
             <Edit3 className="h-4 w-4" />
             Edit
-          </button>
-        </li>
-        {onExportCsv ? (
-          <li>
-            <button type="button" onClick={onExportCsv}>
+          </DropdownMenuItem>
+          {onExportCsv ? (
+            <DropdownMenuItem onSelect={onExportCsv}>
               <Download className="h-4 w-4" />
               Export CSV
-            </button>
-          </li>
-        ) : null}
-        {onExportText ? (
-          <li>
-            <button type="button" onClick={onExportText}>
+            </DropdownMenuItem>
+          ) : null}
+          {onExportText ? (
+            <DropdownMenuItem onSelect={onExportText}>
               <Download className="h-4 w-4" />
               Export TXT
-            </button>
-          </li>
-        ) : null}
-        {onDelete ? (
-          <li>
-            <button type="button" className="text-error" onClick={onDelete}>
+            </DropdownMenuItem>
+          ) : null}
+          {onDelete ? (
+            <DropdownMenuItem destructive onSelect={onDelete}>
               <Trash2 className="h-4 w-4" />
               Delete location
-            </button>
-          </li>
-        ) : null}
-      </ul>
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 }
