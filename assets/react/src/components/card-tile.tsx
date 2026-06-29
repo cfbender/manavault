@@ -11,7 +11,13 @@ import {
   Square,
   Trash2,
 } from "lucide-react"
-import { Fragment, type FocusEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react"
+import {
+  Fragment,
+  type FocusEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+} from "react"
 import { cn } from "../lib/utils"
 import {
   DropdownMenu,
@@ -31,7 +37,6 @@ export type CardTileAction = {
   onClick?: () => void
   separatorBefore?: boolean
 }
-
 
 export function CardTile({
   allocatedLabel,
@@ -57,6 +62,7 @@ export function CardTile({
   setCode,
   setLabel,
   setName,
+  showDetails = false,
   showMenu = true,
   typeLine,
   onToggleSelected,
@@ -85,6 +91,7 @@ export function CardTile({
   setCode?: string | null
   setLabel?: ReactNode
   setName?: ReactNode
+  showDetails?: boolean
   showMenu?: boolean
   typeLine?: ReactNode
 }) {
@@ -92,6 +99,16 @@ export function CardTile({
   const canToggleSelection = selectable && Boolean(onToggleSelected)
   const selectionClickActive = selectionActive && canToggleSelection
   const hasPrimaryAction = Boolean(onSelect || selectionClickActive)
+  const visibleSetLabel = setLabel || setCode?.toUpperCase()
+  const visibleFinish =
+    finish === "etched"
+      ? "Etched"
+      : finish === "foil"
+        ? "Foil"
+        : finish === "nonfoil"
+          ? "Nonfoil"
+          : finish
+  const ownedLabel = count && count >= countMin ? `Owned ×${count}` : null
   const mobileHover = useMobileHoverReveal<HTMLDivElement>()
   const fallbackDefaultActions: CardTileAction[] = [
     { icon: <MoveUpRight className="h-4 w-4" />, label: "Move", disabled: true },
@@ -330,6 +347,46 @@ export function CardTile({
           </div>
         </div>
       </figure>
+
+      {showDetails ? (
+        <div className="mt-3 min-w-0 space-y-2 text-sm">
+          <div className="min-w-0 space-y-1">
+            <div className="line-clamp-2 font-black leading-tight text-base-content">{name}</div>
+            {typeLine ? (
+              <div className="line-clamp-1 text-xs font-semibold text-base-content/70">
+                {typeLine}
+              </div>
+            ) : null}
+          </div>
+          <div className="grid gap-1 text-xs text-base-content/65">
+            <div className="flex min-w-0 items-center justify-between gap-2">
+              {visibleSetLabel ? (
+                <span className="min-w-0 truncate font-mono font-bold text-base-content/80">
+                  {visibleSetLabel}
+                </span>
+              ) : null}
+              {price ? (
+                <span className="shrink-0 font-mono font-bold text-base-content">
+                  {String(price).startsWith("$") ? price : `$${price}`}
+                </span>
+              ) : null}
+            </div>
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              {setName ? <span className="min-w-0 truncate">{setName}</span> : null}
+              {ownedLabel ? (
+                <span className="rounded-full border border-primary/30 px-2 py-0.5 font-bold text-primary">
+                  {ownedLabel}
+                </span>
+              ) : null}
+              {visibleFinish ? (
+                <span className="rounded-full border border-base-300 px-2 py-0.5 font-bold">
+                  {visibleFinish}
+                </span>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

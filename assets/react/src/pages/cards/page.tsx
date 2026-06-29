@@ -105,6 +105,9 @@ export function CardsPage({ query, filterSearch }: { query: string; filterSearch
     navigate({ to: "/cards", search: cardSearchParams(query, filters) })
   }
 
+  const hasMoreResults = Boolean(data?.cards.pageInfo.hasNextPage)
+  const resultSearchParams = cardSearchParams(query)
+
   return (
     <>
       <PageHeader
@@ -120,10 +123,20 @@ export function CardsPage({ query, filterSearch }: { query: string; filterSearch
         onSearch={submitSearch}
       />
 
+      {combinedQuery ? (
+        <CardSearchResultsStatus
+          activeFilterCount={activeStructuredFilterCount}
+          hasMoreResults={hasMoreResults}
+          isFetching={isFetching}
+          query={query}
+          visibleResultCount={cards.length}
+        />
+      ) : null}
+
       {!combinedQuery ? (
         <EmptyState
           title="Search for a card"
-          description="Results are pulled from the synced local catalog."
+          description="Search by name or Scryfall syntax, then choose the exact printing to inspect or add."
         />
       ) : cards.length ? (
         <CardResultsGrid
@@ -136,9 +149,16 @@ export function CardsPage({ query, filterSearch }: { query: string; filterSearch
               search: cardSearchParams(query),
             })
           }
+          searchParams={resultSearchParams}
         />
       ) : (
-        <EmptyState title={isFetching ? "Searching..." : "No cards found"} />
+        <NoCardResults
+          hasActiveFilters={activeStructuredFilterCount > 0}
+          isFetching={isFetching}
+          query={query}
+          onClearFilters={clearStructuredFilters}
+          onSearchExact={() => submitSearch(`!"${query.trim()}"`)}
+        />
       )}
 
       <CollectionFilterModal
@@ -156,6 +176,102 @@ export function CardsPage({ query, filterSearch }: { query: string; filterSearch
   )
 }
 
+function CardSearchResultsStatus({
+  activeFilterCount,
+  hasMoreResults,
+  isFetching,
+  query,
+  visibleResultCount,
+}: {
+  activeFilterCount: number
+  hasMoreResults: boolean
+  isFetching: boolean
+  query: string
+  visibleResultCount: number
+}) {
+  const resultLabel = isFetching
+    ? visibleResultCount
+      ? `Refreshing ${visibleResultCount}${hasMoreResults ? "+" : ""} visible results`
+      : "Searching local catalog"
+    : visibleResultCount
+      ? `Showing ${visibleResultCount}${hasMoreResults ? "+" : ""} result${visibleResultCount === 1 ? "" : "s"}`
+      : "No visible results"
+
+  return (
+    <section className="mb-6 flex flex-col gap-3 rounded-box border border-base-300 bg-base-100 px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <p className="text-sm font-black">{resultLabel}</p>
+        <p className="text-xs text-base-content/65">
+          Results rank by catalog relevance. Choose a card to inspect its printings and owned
+          copies.
+        </p>
+      </div>
+      <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
+        {query.trim() ? (
+          <span className="rounded-full border border-base-300 bg-base-200 px-2.5 py-1 font-mono font-bold text-base-content/80">
+            q: {query.trim()}
+          </span>
+        ) : null}
+        {activeFilterCount ? (
+          <span className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 font-bold text-primary">
+            {activeFilterCount} filter{activeFilterCount === 1 ? "" : "s"}
+          </span>
+        ) : null}
+        {hasMoreResults ? (
+          <span className="rounded-full border border-base-300 px-2.5 py-1 font-bold text-base-content/70">
+            More available
+          </span>
+        ) : null}
+      </div>
+    </section>
+  )
+}
+
+function NoCardResults({
+  hasActiveFilters,
+  isFetching,
+  onClearFilters,
+  onSearchExact,
+  query,
+}: {
+  hasActiveFilters: boolean
+  isFetching: boolean
+  onClearFilters: () => void
+  onSearchExact: () => void
+  query: string
+}) {
+  if (isFetching) {
+    return (
+      <EmptyState
+        title="Searching local catalog"
+        description="Checking synced card names, oracle text, sets, and printings."
+      />
+    )
+  }
+
+  const trimmedQuery = query.trim()
+
+  return (
+    <EmptyState
+      title="No cards found"
+      description="Try an exact-name search, remove filters, or use catalog syntax such as set:lea, type:artifact, or oracle:draw."
+      action={
+        <div className="flex flex-wrap justify-center gap-2">
+          {trimmedQuery ? (
+            <Button type="button" variant="outline" onClick={onSearchExact}>
+              Search exact name
+            </Button>
+          ) : null}
+          {hasActiveFilters ? (
+            <Button type="button" variant="outline" onClick={onClearFilters}>
+              Clear filters
+            </Button>
+          ) : null}
+        </div>
+      }
+    />
+  )
+}
 export type CardReturnEdhrecTab = "recs" | "cuts" | "commander"
 
 export function CardDetailPage({
@@ -289,15 +405,26 @@ export function CardDetailPage({
 
         {hidePrivateControls ? null : <CardCollectionCopiesPanel cardId={card.id} />}
 
-        <CardPrintingsGrid
-          cardName={card.name}
-          typeLine={card.typeLine}
-          printings={visiblePrintings}
-          onAddToCollection={setAddPrinting}
-          onAddToDeck={setDeckTarget}
-          onPreviewPrinting={setPreviewPrintingId}
-          showPrivateActions={!hidePrivateControls}
-        />
+        <section className="space-y-4">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-xl font-black">Printings</h2>
+              <p className="text-sm text-base-content/65">
+                {visiblePrintings.length} printing{visiblePrintings.length === 1 ? "" : "s"} sorted
+                by catalog relevance. Owned badges mark copies already in your vault.
+              </p>
+            </div>
+          </div>
+          <CardPrintingsGrid
+            cardName={card.name}
+            typeLine={card.typeLine}
+            printings={visiblePrintings}
+            onAddToCollection={setAddPrinting}
+            onAddToDeck={setDeckTarget}
+            onPreviewPrinting={setPreviewPrintingId}
+            showPrivateActions={!hidePrivateControls}
+          />
+        </section>
       </div>
       <FullscreenPrintingDialog
         card={card}

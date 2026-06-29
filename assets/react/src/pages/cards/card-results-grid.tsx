@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router"
 import { addToDeckAction, CardTile } from "../../components/card-tile"
 import { present } from "../../lib/utils"
 import type { CardDeckTarget } from "./add-card-to-deck-dialog"
@@ -21,14 +22,21 @@ type CardSearchResult = {
   } | null> | null
 }
 
+type CardSearchParams = {
+  filters?: string
+  q?: string
+}
+
 export function CardResultsGrid({
   cards,
   onAddToDeck,
   onSelectCard,
+  searchParams,
 }: {
   cards: CardSearchResult[]
   onAddToDeck: (target: CardDeckTarget) => void
   onSelectCard: (id: string) => void
+  searchParams: CardSearchParams
 }) {
   return (
     <div className="grid justify-center gap-x-6 gap-y-8 [grid-template-columns:repeat(auto-fill,minmax(14.25rem,14.25rem))]">
@@ -54,13 +62,26 @@ export function CardResultsGrid({
                     }),
                 }),
               ]}
-              name={card.name}
+              count={printing?.ownedCount}
+              countMin={1}
+              name={
+                <Link
+                  to="/cards/$id"
+                  params={{ id: card.id }}
+                  search={searchParams}
+                  className="rounded-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35"
+                >
+                  {card.name}
+                </Link>
+              }
               onSelect={() => onSelectCard(card.id)}
+              primaryActionLabel={`View ${card.name}`}
               price={printing?.priceText}
               rarity={printing?.rarity}
               setCode={printing?.setCode}
               setLabel={`${printing?.setCode?.toUpperCase() || "?"} #${printing?.collectorNumber || "?"}`}
               setName={printing?.setName}
+              showDetails
               typeLine={card.typeLine}
             />
           </div>

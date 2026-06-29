@@ -91,6 +91,7 @@ export function CardPrintingsGrid({
             setCode={printing.setCode}
             setLabel={`${printing.setCode?.toUpperCase() || "?"} #${printing.collectorNumber || "?"}`}
             setName={printing.setName}
+            showDetails
             typeLine={`${printing.setCode?.toUpperCase() || "?"} #${printing.collectorNumber || "?"} · ${titleize(printing.rarity)}`}
           />
         </div>
