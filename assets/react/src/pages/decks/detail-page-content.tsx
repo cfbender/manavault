@@ -152,44 +152,63 @@ function DeckReadinessDialog({
           </dl>
 
           <ShareModeHidden shareMode={shareMode}>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  onOpenChange(false)
-                  onMissingCards()
-                }}
-              >
-                <ShoppingCart className="h-4 w-4" />
-                Missing cards
-                {buylistPrice ? <span className="font-mono">{buylistPrice.label}</span> : null}
-              </Button>
-              {canBulkAllocate ? (
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="rounded-btn border border-base-300 bg-base-100 p-2">
                 <Button
                   type="button"
-                  variant="secondary"
+                  variant="outline"
                   size="sm"
+                  className="w-full justify-start"
                   onClick={() => {
                     onOpenChange(false)
-                    onOpenBulkAllocation()
+                    onMissingCards()
                   }}
                 >
-                  Pull owned cards
+                  <ShoppingCart className="h-4 w-4" />
+                  Missing cards
                 </Button>
+                {buylistPrice ? (
+                  <p className="mt-1 px-1 text-xs text-base-content/60">
+                    Estimated buylist: <span className="font-mono">{buylistPrice.label}</span>
+                  </p>
+                ) : null}
+              </div>
+              {canBulkAllocate ? (
+                <div className="rounded-btn border border-base-300 bg-base-100 p-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      onOpenChange(false)
+                      onOpenBulkAllocation()
+                    }}
+                  >
+                    Pull owned cards
+                  </Button>
+                  <p className="mt-1 px-1 text-xs text-base-content/60">
+                    Build a physical pull list from owned mainboard copies.
+                  </p>
+                </div>
               ) : null}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  onOpenChange(false)
-                  onOpenOptimizePrintings()
-                }}
-              >
-                Optimize printings
-              </Button>
+              <div className="rounded-btn border border-base-300 bg-base-100 p-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    onOpenChange(false)
+                    onOpenOptimizePrintings()
+                  }}
+                >
+                  Optimize printings
+                </Button>
+                <p className="mt-1 px-1 text-xs text-base-content/60">
+                  Review cheaper or owned printings for this deck.
+                </p>
+              </div>
             </div>
           </ShareModeHidden>
         </div>
