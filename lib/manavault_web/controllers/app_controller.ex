@@ -72,10 +72,10 @@ defmodule ManavaultWeb.AppController do
         <script type="module" src="http://127.0.0.1:5173/assets/react/src/main.tsx"></script>
         """
       else
-        # Keep the ESM entry undigested. Vite chunks import ../app.js; loading
-        # a Phoenix-digested app-*.js entry creates a second module instance.
-        app_js_path = "/assets/react/app.js?v=#{asset_version}"
-        ~s(<script defer type="module" src="#{app_js_path}"></script>)
+        # Keep the ESM entry at the same canonical URL Vite chunks use when
+        # importing ../app.js. A version query creates a second module instance,
+        # remounts React, and duplicates Apollo queries in production.
+        ~s(<script defer type="module" src="/assets/react/app.js"></script>)
       end
 
     """

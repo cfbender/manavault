@@ -140,6 +140,7 @@ defmodule ManavaultWeb.StaticAssetTest do
     assert conn.resp_body =~ ~s|__manavaultPwaInstallCapture|
     assert conn.resp_body =~ ~s|href="/assets/css/app.css"|
     assert conn.resp_body =~ ~s|src="/assets/react/app.js"|
+    refute conn.resp_body =~ ~s|src="/assets/react/app.js?|
     assert conn.resp_body =~ ~s|id="manavault-root"|
     refute conn.resp_body =~ ~s|data-pwa-install-debug|
   end
