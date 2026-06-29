@@ -206,7 +206,7 @@ export function DeckStatsSection({
       </summary>
 
       <div className="grid gap-5 border-t border-base-300 p-4">
-        <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        <dl className="grid gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-5">
           <DeckStatsMetric
             label="Nonland average MV"
             value={formatManaValue(stats.averageManaValue)}
@@ -217,10 +217,7 @@ export function DeckStatsSection({
           <DeckStatsMetric label="Total MV" value={stats.totalManaValue} />
         </dl>
 
-        <section
-          aria-labelledby="deck-stats-mana-curve"
-          className="rounded-box border border-base-300 bg-base-200/45 p-4"
-        >
+        <section aria-labelledby="deck-stats-mana-curve" className="border-t border-base-300 pt-4">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3
@@ -264,10 +261,8 @@ export function DeckStatsSection({
 
 export function DeckStatsMetric({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="rounded-box border border-base-300 bg-base-200/45 px-3 py-2.5">
-      <dt className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-base-content/55">
-        {label}
-      </dt>
+    <div className="border-t border-base-300 pt-3 first:border-t-0 first:pt-0">
+      <dt className="text-xs font-semibold text-base-content/60">{label}</dt>
       <dd className="mt-1 font-mono text-2xl font-black leading-none text-base-content">{value}</dd>
     </div>
   )

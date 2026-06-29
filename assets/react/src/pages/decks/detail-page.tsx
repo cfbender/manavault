@@ -1,7 +1,8 @@
 import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
-import { useNavigate } from "@tanstack/react-router"
+import { Link, useNavigate } from "@tanstack/react-router"
 import { useMemo, useState } from "react"
 import { EmptyState } from "../../components/card-image"
+import { Button } from "../../components/ui/button"
 import { useToast } from "../../components/ui/toast"
 import type { DeckCardInput, DeckCardUpdateInput, DeckQuery } from "../../gql/graphql"
 import { groupDeckCards, type DeckGroupBy } from "../../lib/deck-grouping"
@@ -103,6 +104,39 @@ function rollbackDeckCardTagPatches(
   }
 
   return patches
+}
+
+function DeckDetailLoadingState() {
+  return (
+    <div className="space-y-7">
+      <div className="h-8 w-32 animate-pulse rounded-btn bg-base-300" />
+      <section className="min-h-52 rounded-box border border-base-300 bg-base-100 p-5 shadow-sm">
+        <div className="flex h-full flex-col justify-between gap-8">
+          <div className="flex gap-2">
+            <div className="h-6 w-24 animate-pulse rounded-full bg-base-300" />
+            <div className="h-6 w-20 animate-pulse rounded-full bg-base-300" />
+          </div>
+          <div className="space-y-3">
+            <div className="h-8 max-w-lg animate-pulse rounded-btn bg-base-300" />
+            <div className="h-4 max-w-sm animate-pulse rounded-btn bg-base-300" />
+          </div>
+        </div>
+      </section>
+      <section className="rounded-box border border-base-300 bg-base-100 p-4 shadow-sm">
+        <div className="mb-4 h-5 w-36 animate-pulse rounded-btn bg-base-300" />
+        <div className="grid gap-2 sm:grid-cols-4">
+          {["ready", "pull", "buy", "proxy"].map((key) => (
+            <div key={key} className="h-16 animate-pulse rounded-btn bg-base-200" />
+          ))}
+        </div>
+      </section>
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 8 }, (_, index) => (
+          <div key={index} className="aspect-[5/7] animate-pulse rounded-xl bg-base-300" />
+        ))}
+      </div>
+    </div>
+  )
 }
 
 export function DeckDetailPage({
@@ -646,8 +680,25 @@ export function DeckDetailPage({
     allocateDeckCardProxy.isPending ||
     deallocateDeckCardProxy.isPending
 
-  if (isInitialDeckLoading) return <EmptyState title="Loading deck..." />
-  if (!deck) return <EmptyState title="Deck not found" />
+  if (isInitialDeckLoading) return <DeckDetailLoadingState />
+  if (!deck) {
+    return (
+      <EmptyState
+        title="Deck not found"
+        description="This deck may have been deleted, moved, or unavailable while the local vault is syncing."
+        action={
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button asChild>
+              <Link to="/decks">Back to decks</Link>
+            </Button>
+            <Button type="button" variant="outline" onClick={refetchDeckQueries}>
+              Retry
+            </Button>
+          </div>
+        }
+      />
+    )
+  }
 
   if (shareMode && isSharePlaytestOpen) {
     return (

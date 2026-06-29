@@ -153,10 +153,7 @@ export function ManaBalanceComparison({
   }
 
   return (
-    <section
-      className="rounded-box border border-base-300 bg-base-200/45 p-4"
-      aria-labelledby="deck-stats-mana-balance"
-    >
+    <section className="border-t border-base-300 pt-4" aria-labelledby="deck-stats-mana-balance">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3
@@ -165,9 +162,9 @@ export function ManaBalanceComparison({
           >
             Mana cost vs production
           </h3>
-          <p className="mt-1 text-sm text-base-content/60">
-            Compare colored pips against practical production; flexible sources count for W/U/B/R/G
-            coverage
+          <p className="mt-1 max-w-xl text-sm text-base-content/60">
+            Colored pips compared with practical production. Flexible sources count toward W/U/B/R/G
+            coverage.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -205,7 +202,7 @@ export function ManaBalanceComparison({
 
       <div className={cn("grid gap-4", selectedDetail && "xl:grid-cols-[minmax(0,1fr)_22rem]")}>
         <div className="min-w-0">
-          <div className="grid gap-3 rounded-box bg-base-100/70 p-3 shadow-sm">
+          <div className="grid gap-3 border-b border-base-300 pb-4">
             <ManaSegmentedBar label="Cost" total={costTotal} segments={costSegments} />
             <ManaSegmentedBar
               label="Production"
@@ -244,9 +241,9 @@ export function ManaBalanceComparison({
           </div>
 
           {anyProduction > 0 ? (
-            <p className="mt-3 rounded-box border border-base-300 bg-base-100 px-3 py-2 text-sm text-base-content/65">
-              Flexible production remains a distinct Any segment above, but counts toward each
-              W/U/B/R/G row's practical coverage.
+            <p className="mt-3 max-w-3xl text-sm text-base-content/65">
+              Flexible production stays distinct above and still counts toward each W/U/B/R/G row's
+              practical coverage.
             </p>
           ) : null}
         </div>
@@ -418,7 +415,7 @@ export function ManaBalanceRow({
 
   return (
     <article
-      className="rounded-box border border-base-300 bg-base-100 p-3 shadow-sm"
+      className="border-t border-base-300 py-3"
       role="group"
       aria-label={`${label}: ${cost} cost pips, ${practicalProductionText}${ariaSourceText}, ${coverageText.toLowerCase()}`}
     >
