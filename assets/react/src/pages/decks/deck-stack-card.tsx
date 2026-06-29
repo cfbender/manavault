@@ -8,12 +8,14 @@ import {
   Square,
   Tag,
   Trash2,
+  XCircle,
 } from "lucide-react"
 import { useEffect, useRef, useState, type FocusEvent, type PointerEvent } from "react"
 
 import { cn, titleize } from "../../lib/utils"
 import { useMobileHoverReveal } from "../../lib/mobile-hover"
 import { ShareModeHidden, blurFocusedMenuItem } from "./deck-actions"
+import { collectionItemLabel } from "./deck-card-allocation"
 import { cardImageUrl } from "./deck-card-model"
 import { GameChangerBadge } from "./deck-card-display"
 import { deckCardTag } from "./deck-card-tags"
@@ -39,11 +41,13 @@ export function DeckStackCard({
   isSelected,
   isUpdating,
   onDelete,
+  onDeallocate,
   onEdit,
   onMove,
   onPreview,
   onSetCommander,
   onTag,
+  onToggleProxy,
   onTouchReveal,
   onToggleSelected,
   shareMode = false,
@@ -61,12 +65,14 @@ export function DeckStackCard({
   isSelecting: boolean
   isSelected: boolean
   onDelete: () => void
+  onDeallocate: (collectionItemId: string) => void
   onEdit: () => void
   onMove: () => void
   onPreview: () => void
   onSetCommander: () => void
   onTouchReveal: () => void
   onTag: (tag: DeckCardTag | null) => void
+  onToggleProxy: () => void
   onToggleSelected: (selectRange?: boolean) => void
   shareMode?: boolean
   slideOffset: number
@@ -88,9 +94,13 @@ export function DeckStackCard({
   const hasClearTag = Boolean(tag)
   const hasFoilFinish = deckCard.finish === "foil" || deckCard.finish === "etched"
   const isGameChanger = deckCard.card?.gameChanger === true
-  const isInteractive = isActive || (!isSelecting && hasFocusWithin)
+  const isInteractive = !isSelecting && (isActive || hasFocusWithin)
   const actionMenuDirection = deckStackActionMenuDirection({ isLast })
   const actionMenuStyle = deckStackActionMenuStyle({ canSetCommander, hasClearTag })
+  const allocatedCandidate = deckCard.allocationStatus.candidates.find(
+    (candidate) => candidate.allocated > 0,
+  )
+  const hasProxyAllocation = deckCard.allocationStatus.proxyAllocated > 0
 
   useEffect(() => {
     closeFocusedActionMenu(isActive)
@@ -165,6 +175,25 @@ export function DeckStackCard({
       >
 
         <ShareModeHidden shareMode={shareMode}>
+          {isSelecting ? (
+            <button
+              type="button"
+              className={cn(
+                "btn btn-circle btn-sm deck-card-touch-control absolute right-2 top-2 z-[125] border-2 shadow transition",
+                isSelected
+                  ? "border-secondary bg-secondary text-secondary-content"
+                  : "border-base-100/80 bg-base-100/95 text-base-content",
+              )}
+              aria-label={isSelected ? `Deselect ${name}` : `Select ${name}`}
+              onClick={(event) => {
+                event.stopPropagation()
+                onToggleSelected(event.shiftKey)
+              }}
+              onMouseDown={(event) => event.stopPropagation()}
+            >
+              {isSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+            </button>
+          ) : null}
           <div
             ref={actionMenuRef}
             className={cn(
@@ -200,16 +229,27 @@ export function DeckStackCard({
                     View card details
                   </button>
                 </li>
-                <li>
-                  <button type="button" onClick={(event) => onToggleSelected(event.shiftKey)}>
-                    {isSelected ? (
-                      <CheckSquare className="h-4 w-4" />
-                    ) : (
-                      <Square className="h-4 w-4" />
-                    )}
-                    {isSelected ? "Deselect" : "Select"}
-                  </button>
-                </li>
+                {allocatedCandidate ? (
+                  <li>
+                    <button
+                      type="button"
+                      disabled={isUpdating}
+                      title={collectionItemLabel(allocatedCandidate)}
+                      onClick={() => onDeallocate(allocatedCandidate.item.id)}
+                    >
+                      <XCircle className="h-4 w-4" />
+                      Deallocate
+                    </button>
+                  </li>
+                ) : null}
+                {hasProxyAllocation ? (
+                  <li>
+                    <button type="button" disabled={isUpdating} onClick={onToggleProxy}>
+                      <XCircle className="h-4 w-4" />
+                      Remove proxy
+                    </button>
+                  </li>
+                ) : null}
                 <li>
                   <button type="button" disabled={isUpdating} onClick={onEdit}>
                     <Edit3 className="h-4 w-4" />

@@ -791,7 +791,10 @@ export function DeckDetailPage({
         onAllocate={(deckCard, collectionItemId) =>
           allocateDeckCardItem.mutate({ deckCardId: deckCard.id, collectionItemId })
         }
-        onClearSelectedDeckCards={clearSelectedDeckCards}
+        onClearSelectedDeckCards={() => {
+          clearSelectedDeckCards()
+          setIsSelectingCards(false)
+        }}
         onCopySharedDecklist={copySharedDecklist}
         onDeallocate={(deckCard, collectionItemId) =>
           deallocateDeckCardItem.mutate({ deckCardId: deckCard.id, collectionItemId })
@@ -829,6 +832,7 @@ export function DeckDetailPage({
         }}
         onPreviewCard={setPreviewDeckCard}
         onSelectAllDeckCards={selectAllDeckCards}
+        onStartSelecting={() => setIsSelectingCards(true)}
         onSetBulkQuantity={setBulkQuantity}
         onSetCommander={(deckCard) => setDeckCommander.mutate(deckCard.id)}
         onTagCard={tagDeckCard}

@@ -355,6 +355,7 @@ export function DeckDetailContent({
   onOpenOptimizePrintings,
   onPreviewCard,
   onSelectAllDeckCards,
+  onStartSelecting,
   onSetCommander,
   onSetBulkQuantity,
   onTagCard,
@@ -412,6 +413,7 @@ export function DeckDetailContent({
   onOpenOptimizePrintings: () => void
   onPreviewCard: (deckCard: DeckCardEntry) => void
   onSelectAllDeckCards: () => void
+  onStartSelecting: () => void
   onSetCommander: (deckCard: DeckCardEntry) => void
   onSetBulkQuantity: (quantity: number) => void
   onTagCard: (deckCard: DeckCardEntry, tag: DeckCardTag | null) => void
@@ -580,6 +582,18 @@ export function DeckDetailContent({
               <Plus className="h-4 w-4" />
               Add card
             </Button>
+            {!isSelectionActive ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!deckCards.length}
+                onClick={onStartSelecting}
+              >
+                <CheckSquare className="h-4 w-4" />
+                Select
+              </Button>
+            ) : null}
             {hasReadinessWork ? (
               <Button
                 type="button"
@@ -614,7 +628,7 @@ export function DeckDetailContent({
 
 
       <ShareModeHidden shareMode={shareMode}>
-        {selectedDeckCardCount > 0 ? (
+        {isSelectionActive ? (
           <div className="grid gap-3 rounded-box border border-base-300 bg-base-100 p-3 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -634,10 +648,9 @@ export function DeckDetailContent({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  disabled={!selectedDeckCardCount}
                   onClick={onClearSelectedDeckCards}
                 >
-                  Clear
+                  {selectedDeckCardCount > 0 ? "Clear" : "Done"}
                 </Button>
               </div>
               <Button
@@ -737,12 +750,14 @@ export function DeckDetailContent({
           selectedCardIds={selectedDeckCardIds}
           highlightedCardIds={highlightedDeckCardIds}
           onPreview={onPreviewCard}
+          onDeallocate={onDeallocate}
           onMove={onMoveCard}
           onEdit={onEditCard}
           onTag={onTagCard}
           onDelete={onDeleteCard}
           onSetCommander={onSetCommander}
           onToggleSelected={onToggleSelected}
+          onToggleProxy={onToggleProxy}
           shareMode={shareMode}
         />
       ) : (

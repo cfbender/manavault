@@ -51,11 +51,13 @@ export function DeckStackGroup({
   isSelecting,
   isUpdating,
   onDelete,
+  onDeallocate,
   onEdit,
   onMove,
   onPreview,
   onSetCommander,
   onTag,
+  onToggleProxy,
   onToggleSelected,
   selectedCardIds,
   highlightedCardIds,
@@ -68,11 +70,13 @@ export function DeckStackGroup({
   isSelecting: boolean
   isUpdating: boolean
   onDelete: (deckCard: DeckCardEntry) => void
+  onDeallocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
   onEdit: (deckCard: DeckCardEntry) => void
   onMove: (deckCard: DeckCardEntry) => void
   onPreview: (deckCard: DeckCardEntry) => void
   onSetCommander: (deckCard: DeckCardEntry) => void
   onTag: (deckCard: DeckCardEntry, tag: DeckCardTag | null) => void
+  onToggleProxy: (deckCard: DeckCardEntry) => void
   onToggleSelected: (deckCardId: string, selectRange?: boolean) => void
   selectedCardIds: Set<string>
   shareMode?: boolean
@@ -82,7 +86,7 @@ export function DeckStackGroup({
   const stackRef = useRef<HTMLDivElement>(null)
   const hoverTimerRef = useRef<number | null>(null)
   const pendingHoverIndexRef = useRef<number | null>(null)
-  const activeIndex = hoveredIndex ?? (isSelecting ? null : pinnedIndex)
+  const activeIndex = isSelecting ? null : hoveredIndex ?? pinnedIndex
   const revealOffset = group.cards.length > 1 ? DECK_STACK_REVEAL_OFFSET : 0
 
   useEffect(
@@ -194,6 +198,7 @@ export function DeckStackGroup({
             isUpdating={isUpdating}
             isDimmed={highlightedCardIds !== null && !highlightedCardIds.has(deckCard.id)}
             onDelete={() => onDelete(deckCard)}
+            onDeallocate={(collectionItemId) => onDeallocate(deckCard, collectionItemId)}
             onEdit={() => onEdit(deckCard)}
             onMove={() => onMove(deckCard)}
             onPreview={() => onPreview(deckCard)}
@@ -204,6 +209,7 @@ export function DeckStackGroup({
               setPinnedIndex(index)
             }}
             onTag={(tag) => onTag(deckCard, tag)}
+            onToggleProxy={() => onToggleProxy(deckCard)}
             onToggleSelected={(selectRange) => onToggleSelected(deckCard.id, selectRange)}
             shareMode={shareMode}
             slideOffset={activeIndex != null && index > activeIndex ? revealOffset : 0}

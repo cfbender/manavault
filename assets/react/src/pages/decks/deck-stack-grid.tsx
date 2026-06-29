@@ -15,11 +15,13 @@ export function DeckGroupGrid({
   selectedCardIds,
   highlightedCardIds,
   onDelete,
+  onDeallocate,
   onEdit,
   onMove,
   onPreview,
   onSetCommander,
   onTag,
+  onToggleProxy,
   onToggleSelected,
   shareMode = false,
 }: {
@@ -31,11 +33,13 @@ export function DeckGroupGrid({
   isSelecting: boolean
   selectedCardIds: Set<string>
   onDelete: (deckCard: DeckCardEntry) => void
+  onDeallocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
   onEdit: (deckCard: DeckCardEntry) => void
   onMove: (deckCard: DeckCardEntry) => void
   onPreview: (deckCard: DeckCardEntry) => void
   onSetCommander: (deckCard: DeckCardEntry) => void
   onTag: (deckCard: DeckCardEntry, tag: DeckCardTag | null) => void
+  onToggleProxy: (deckCard: DeckCardEntry) => void
   shareMode?: boolean
   onToggleSelected: (deckCardId: string, selectRange?: boolean) => void
 }) {
@@ -58,11 +62,13 @@ export function DeckGroupGrid({
           isSelecting={isSelecting}
           selectedCardIds={selectedCardIds}
           onDelete={onDelete}
+          onDeallocate={onDeallocate}
           onEdit={onEdit}
           onMove={onMove}
           onPreview={onPreview}
           onSetCommander={onSetCommander}
           onTag={onTag}
+          onToggleProxy={onToggleProxy}
           shareMode={shareMode}
           onToggleSelected={onToggleSelected}
         />
