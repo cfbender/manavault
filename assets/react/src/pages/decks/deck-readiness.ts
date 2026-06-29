@@ -9,6 +9,10 @@ export type DeckReadinessSummary = {
   requiredCount: number
 }
 
+export function summarizeMainboardReadiness(deckCards: readonly DeckCardEntry[]) {
+  return summarizeDeckReadiness(deckCards.filter((deckCard) => deckCard.zone === "mainboard"))
+}
+
 export function summarizeDeckReadiness(deckCards: readonly DeckCardEntry[]): DeckReadinessSummary {
   let availableToPull = 0
   let missingToBuy = 0

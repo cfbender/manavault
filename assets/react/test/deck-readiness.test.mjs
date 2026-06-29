@@ -1,10 +1,13 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 
-import { summarizeDeckReadiness } from "../src/pages/decks/deck-readiness.ts"
+import {
+  summarizeDeckReadiness,
+  summarizeMainboardReadiness,
+} from "../src/pages/decks/deck-readiness.ts"
 
-function deckCard(allocationStatus) {
-  return { allocationStatus }
+function deckCard(allocationStatus, overrides = {}) {
+  return { allocationStatus, zone: "mainboard", ...overrides }
 }
 
 function status(overrides = {}) {
@@ -49,6 +52,20 @@ test("treats basic lands as ready without collection allocation", () => {
   assert.equal(summary.requiredCount, 10)
   assert.equal(summary.readinessPercent, 90)
   assert.equal(summary.missingToBuy, 1)
+})
+
+test("mainboard readiness excludes commander, sideboard, and maybeboard", () => {
+  const summary = summarizeMainboardReadiness([
+    deckCard(status({ allocated: 1, required: 1, state: "allocated" })),
+    deckCard(status({ missing: 1, required: 1, state: "missing" }), { zone: "commander" }),
+    deckCard(status({ missing: 1, required: 1, state: "missing" }), { zone: "sideboard" }),
+    deckCard(status({ missing: 1, required: 1, state: "missing" }), { zone: "maybeboard" }),
+  ])
+
+  assert.equal(summary.readyCount, 1)
+  assert.equal(summary.requiredCount, 1)
+  assert.equal(summary.missingToBuy, 0)
+  assert.equal(summary.readinessPercent, 100)
 })
 
 test("empty decks are ready by definition", () => {

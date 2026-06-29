@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router"
+import { useState } from "react"
 import {
   AlertTriangle,
   CheckSquare,
@@ -15,6 +16,13 @@ import { EmptyState } from "../../components/card-image"
 import { ImageSummaryCard } from "../../components/image-summary-card"
 import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
 import type { DeckCardUpdateInput } from "../../gql/graphql"
 import type { DeckGroup, DeckGroupBy } from "../../lib/deck-grouping"
@@ -23,7 +31,7 @@ import { ShareModeHidden, SummaryActionMenu } from "./deck-actions"
 import { deckDetailCoverUrl } from "./deck-card-model"
 import { DeckGroupMenu } from "./deck-group-menu"
 import { deckLegalityIssueCountLabel, deckLegalityLabel, deckLegalityTone } from "./deck-legality"
-import { summarizeDeckReadiness } from "./deck-readiness"
+import { summarizeMainboardReadiness } from "./deck-readiness"
 import { DeckNameWithCommanderIdentity, commanderColorIdentity } from "./deck-list-model"
 import { DeckGroupGrid } from "./deck-stack-grid"
 import { DeckStatsSection, DeckTokensSection, type DeferredDeckAnalysis } from "./deck-stats-panel"
@@ -66,13 +74,15 @@ function BuylistPriceChip({ onClick, price }: { onClick: () => void; price: Buyl
     </button>
   )
 }
-function DeckReadinessStrip({
+function DeckReadinessDialog({
   buylistPrice,
   canBulkAllocate,
   deckCards,
   onMissingCards,
   onOpenBulkAllocation,
   onOpenOptimizePrintings,
+  onOpenChange,
+  open,
   shareMode,
 }: {
   buylistPrice: BuylistPrice | null
@@ -81,72 +91,110 @@ function DeckReadinessStrip({
   onMissingCards: () => void
   onOpenBulkAllocation: () => void
   onOpenOptimizePrintings: () => void
+  onOpenChange: (open: boolean) => void
+  open: boolean
   shareMode: boolean
 }) {
-  const readiness = summarizeDeckReadiness(deckCards)
+  const readiness = summarizeMainboardReadiness(deckCards)
   const needsAction =
     readiness.availableToPull > 0 || readiness.missingToBuy > 0 || readiness.proxyAllocated > 0
 
   return (
-    <section
-      className="grid gap-4 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm lg:grid-cols-[minmax(0,1fr)_auto]"
-      aria-label="Deck readiness"
-    >
-      <div className="min-w-0 space-y-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="text-base font-black">Deck readiness</h2>
-            <p className="mt-1 max-w-2xl text-sm text-base-content/70">
-              {needsAction
-                ? "Physical-card work is still visible: pull owned copies, buy gaps, or review proxies."
-                : "All required cards are accounted for in this deck."}
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl" labelledBy="deck-readiness-title">
+        <DialogHeader>
+          <div>
+            <DialogTitle id="deck-readiness-title">Mainboard readiness</DialogTitle>
+            <p className="mt-1 text-sm text-base-content/65">
+              Counts only mainboard cards. Commander, sideboard, and maybeboard are excluded.
             </p>
           </div>
-          <div className="font-mono text-2xl font-black text-base-content">
-            {readiness.readinessPercent}%
+          <DialogClose onClose={() => onOpenChange(false)} />
+        </DialogHeader>
+
+        <div className="grid gap-5 p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-base-content/70">
+                {needsAction
+                  ? "Mainboard still has physical-card work to resolve."
+                  : "Mainboard cards are accounted for."}
+              </p>
+              <p className="mt-1 text-sm text-base-content/60">
+                Use this as a pull/buy/proxy checkpoint without making showcase mode feel like a
+                dashboard.
+              </p>
+            </div>
+            <div className="font-mono text-3xl font-black text-base-content">
+              {readiness.readinessPercent}%
+            </div>
           </div>
-        </div>
 
-        <div
-          className="h-2 overflow-hidden rounded-full bg-base-200"
-          aria-label={`${readiness.readyCount} of ${readiness.requiredCount} required cards ready`}
-          role="img"
-        >
           <div
-            className="h-full rounded-full bg-primary"
-            style={{ width: `${readiness.readinessPercent}%` }}
-          />
-        </div>
+            className="h-2 overflow-hidden rounded-full bg-base-200"
+            aria-label={`${readiness.readyCount} of ${readiness.requiredCount} mainboard cards ready`}
+            role="img"
+          >
+            <div
+              className="h-full rounded-full bg-primary"
+              style={{ width: `${readiness.readinessPercent}%` }}
+            />
+          </div>
 
-        <dl className="grid gap-2 sm:grid-cols-4">
-          <DeckReadinessMetric
-            label="Ready"
-            value={`${readiness.readyCount}/${readiness.requiredCount}`}
-          />
-          <DeckReadinessMetric label="Pull" value={readiness.availableToPull} />
-          <DeckReadinessMetric label="Buy" value={readiness.missingToBuy} />
-          <DeckReadinessMetric label="Proxy" value={readiness.proxyAllocated} />
-        </dl>
-      </div>
+          <dl className="grid gap-2 sm:grid-cols-4">
+            <DeckReadinessMetric
+              label="Ready"
+              value={`${readiness.readyCount}/${readiness.requiredCount}`}
+            />
+            <DeckReadinessMetric label="Pull" value={readiness.availableToPull} />
+            <DeckReadinessMetric label="Buy" value={readiness.missingToBuy} />
+            <DeckReadinessMetric label="Proxy" value={readiness.proxyAllocated} />
+          </dl>
 
-      <ShareModeHidden shareMode={shareMode}>
-        <div className="flex flex-wrap items-center gap-2 lg:max-w-72 lg:justify-end">
-          <Button type="button" variant="outline" size="sm" onClick={onMissingCards}>
-            <ShoppingCart className="h-4 w-4" />
-            Missing cards
-            {buylistPrice ? <span className="font-mono">{buylistPrice.label}</span> : null}
-          </Button>
-          {canBulkAllocate ? (
-            <Button type="button" variant="secondary" size="sm" onClick={onOpenBulkAllocation}>
-              Pull owned cards
-            </Button>
-          ) : null}
-          <Button type="button" variant="outline" size="sm" onClick={onOpenOptimizePrintings}>
-            Optimize printings
-          </Button>
+          <ShareModeHidden shareMode={shareMode}>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onOpenChange(false)
+                  onMissingCards()
+                }}
+              >
+                <ShoppingCart className="h-4 w-4" />
+                Missing cards
+                {buylistPrice ? <span className="font-mono">{buylistPrice.label}</span> : null}
+              </Button>
+              {canBulkAllocate ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    onOpenChange(false)
+                    onOpenBulkAllocation()
+                  }}
+                >
+                  Pull owned cards
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onOpenChange(false)
+                  onOpenOptimizePrintings()
+                }}
+              >
+                Optimize printings
+              </Button>
+            </div>
+          </ShareModeHidden>
         </div>
-      </ShareModeHidden>
-    </section>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -274,6 +322,8 @@ export function DeckDetailContent({
   sideboardCards: DeckCardEntry[]
   zoneCounts: DetailZoneCounts
 }) {
+  const [isReadinessOpen, setIsReadinessOpen] = useState(false)
+
   return (
     <div className="space-y-7">
       <ShareModeHidden shareMode={shareMode}>
@@ -322,15 +372,6 @@ export function DeckDetailContent({
         }
       />
 
-      <DeckReadinessStrip
-        buylistPrice={buylistPrice}
-        canBulkAllocate={canBulkAllocate}
-        deckCards={deckCards}
-        onMissingCards={onMissingCards}
-        onOpenBulkAllocation={onOpenBulkAllocation}
-        onOpenOptimizePrintings={onOpenOptimizePrintings}
-        shareMode={shareMode}
-      />
 
       {legalityIssues.length ? (
         <div className="rounded-box border border-error/25 bg-error/5 p-4 text-sm text-base-content/80">
@@ -433,10 +474,30 @@ export function DeckDetailContent({
               <Plus className="h-4 w-4" />
               Add card
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsReadinessOpen(true)}
+            >
+              Readiness
+            </Button>
           </ShareModeHidden>
           <DeckGroupMenu value={groupBy} onChange={onGroupByChange} />
         </div>
       </div>
+      <DeckReadinessDialog
+        buylistPrice={buylistPrice}
+        canBulkAllocate={canBulkAllocate}
+        deckCards={deckCards}
+        onMissingCards={onMissingCards}
+        onOpenBulkAllocation={onOpenBulkAllocation}
+        onOpenChange={setIsReadinessOpen}
+        onOpenOptimizePrintings={onOpenOptimizePrintings}
+        open={isReadinessOpen}
+        shareMode={shareMode}
+      />
+
 
       <ShareModeHidden shareMode={shareMode}>
         {selectedDeckCardCount > 0 ? (

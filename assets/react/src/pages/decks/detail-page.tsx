@@ -118,14 +118,6 @@ function DeckDetailLoadingState() {
           </div>
         </div>
       </section>
-      <section className="rounded-box border border-base-300 bg-base-100 p-4 shadow-sm">
-        <div className="mb-4 h-5 w-36 animate-pulse rounded-btn bg-base-300" />
-        <div className="grid gap-2 sm:grid-cols-4">
-          {["ready", "pull", "buy", "proxy"].map((key) => (
-            <div key={key} className="h-16 animate-pulse rounded-btn bg-base-200" />
-          ))}
-        </div>
-      </section>
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 8 }, (_, index) => (
           <div key={index} className="aspect-[5/7] animate-pulse rounded-xl bg-base-300" />
