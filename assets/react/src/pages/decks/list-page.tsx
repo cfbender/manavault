@@ -2,7 +2,7 @@ import { useMutation, useQuery } from "@apollo/client/react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { Layers, Plus } from "lucide-react"
 import { useMemo, useState } from "react"
-import { PageHeader, PageSection } from "../../components/app-shell"
+import { PageSection } from "../../components/app-shell"
 import { EmptyState } from "../../components/card-image"
 import { ImageSummaryCard } from "../../components/image-summary-card"
 import { Badge } from "../../components/ui/badge"
@@ -22,6 +22,23 @@ import { DeckNameWithCommanderIdentity, groupDecksByFormat } from "./deck-list-m
 import { ShareDeckDialog } from "./deck-share-dialogs"
 import { flattenDecks, type DeckSummary } from "./deck-types"
 import { DecksDocument, DeleteDeckDocument } from "./queries"
+
+function DeckGalleryHeader({ onNewDeck }: { onNewDeck: () => void }) {
+  return (
+    <header className="mb-8 flex flex-col gap-5 border-b border-base-300 pb-6 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0">
+        <h1 className="text-4xl font-black tracking-normal">Decks</h1>
+        <p className="mt-3 max-w-3xl text-base text-base-content/70">
+          Browse your deck gallery, then open a list to tune exact printings and card allocations.
+        </p>
+      </div>
+      <Button type="button" className="w-full sm:w-auto" onClick={onNewDeck}>
+        <Plus className="h-4 w-4" />
+        New deck
+      </Button>
+    </header>
+  )
+}
 
 export function DecksPage() {
   const [isNewDeckOpen, setIsNewDeckOpen] = useState(false)
@@ -50,17 +67,7 @@ export function DecksPage() {
   }
   return (
     <>
-      <PageHeader
-        title="Decks"
-        eyebrow="ManaVault Decks"
-        description="Build lists by card identity, then choose exact printings when that matters."
-        actions={
-          <Button type="button" onClick={() => setIsNewDeckOpen(true)}>
-            <Plus className="h-4 w-4" />
-            New deck
-          </Button>
-        }
-      />
+      <DeckGalleryHeader onNewDeck={() => setIsNewDeckOpen(true)} />
       {isLoading ? (
         <EmptyState title="Loading decks..." />
       ) : deckGroups.length ? (
@@ -69,7 +76,7 @@ export function DecksPage() {
             {deckGroups.map(([format, decks]) => (
               <section key={format} className="space-y-4">
                 <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-xl font-black tracking-normal">{titleize(format)}</h3>
+                  <h2 className="text-xl font-black tracking-normal">{titleize(format)}</h2>
                   <span className="badge border-transparent bg-base-200 text-sm">
                     {decks.length}
                   </span>
