@@ -6,8 +6,8 @@ import {
   Download,
   Layers,
   Play,
-  ShoppingCart,
   Plus,
+  ShoppingCart,
   Trash2,
 } from "lucide-react"
 
@@ -19,11 +19,11 @@ import { Input } from "../../components/ui/input"
 import type { DeckCardUpdateInput } from "../../gql/graphql"
 import type { DeckGroup, DeckGroupBy } from "../../lib/deck-grouping"
 import { cn, compactNumber, titleize } from "../../lib/utils"
-import { BulkAllocationMenu } from "./bulk-allocation"
 import { ShareModeHidden, SummaryActionMenu } from "./deck-actions"
 import { deckDetailCoverUrl } from "./deck-card-model"
 import { DeckGroupMenu } from "./deck-group-menu"
 import { deckLegalityIssueCountLabel, deckLegalityLabel, deckLegalityTone } from "./deck-legality"
+import { summarizeDeckReadiness } from "./deck-readiness"
 import { DeckNameWithCommanderIdentity, commanderColorIdentity } from "./deck-list-model"
 import { DeckGroupGrid } from "./deck-stack-grid"
 import { DeckStatsSection, DeckTokensSection, type DeferredDeckAnalysis } from "./deck-stats-panel"
@@ -66,6 +66,98 @@ function BuylistPriceChip({ onClick, price }: { onClick: () => void; price: Buyl
     </button>
   )
 }
+function DeckReadinessStrip({
+  buylistPrice,
+  canBulkAllocate,
+  deckCards,
+  onMissingCards,
+  onOpenBulkAllocation,
+  onOpenOptimizePrintings,
+  shareMode,
+}: {
+  buylistPrice: BuylistPrice | null
+  canBulkAllocate: boolean
+  deckCards: DeckCardEntry[]
+  onMissingCards: () => void
+  onOpenBulkAllocation: () => void
+  onOpenOptimizePrintings: () => void
+  shareMode: boolean
+}) {
+  const readiness = summarizeDeckReadiness(deckCards)
+  const needsAction =
+    readiness.availableToPull > 0 || readiness.missingToBuy > 0 || readiness.proxyAllocated > 0
+
+  return (
+    <section
+      className="grid gap-4 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm lg:grid-cols-[minmax(0,1fr)_auto]"
+      aria-label="Deck readiness"
+    >
+      <div className="min-w-0 space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-base font-black">Deck readiness</h2>
+            <p className="mt-1 max-w-2xl text-sm text-base-content/70">
+              {needsAction
+                ? "Physical-card work is still visible: pull owned copies, buy gaps, or review proxies."
+                : "All required cards are accounted for in this deck."}
+            </p>
+          </div>
+          <div className="font-mono text-2xl font-black text-base-content">
+            {readiness.readinessPercent}%
+          </div>
+        </div>
+
+        <div
+          className="h-2 overflow-hidden rounded-full bg-base-200"
+          aria-label={`${readiness.readyCount} of ${readiness.requiredCount} required cards ready`}
+          role="img"
+        >
+          <div
+            className="h-full rounded-full bg-primary"
+            style={{ width: `${readiness.readinessPercent}%` }}
+          />
+        </div>
+
+        <dl className="grid gap-2 sm:grid-cols-4">
+          <DeckReadinessMetric
+            label="Ready"
+            value={`${readiness.readyCount}/${readiness.requiredCount}`}
+          />
+          <DeckReadinessMetric label="Pull" value={readiness.availableToPull} />
+          <DeckReadinessMetric label="Buy" value={readiness.missingToBuy} />
+          <DeckReadinessMetric label="Proxy" value={readiness.proxyAllocated} />
+        </dl>
+      </div>
+
+      <ShareModeHidden shareMode={shareMode}>
+        <div className="flex flex-wrap items-center gap-2 lg:max-w-72 lg:justify-end">
+          <Button type="button" variant="outline" size="sm" onClick={onMissingCards}>
+            <ShoppingCart className="h-4 w-4" />
+            Missing cards
+            {buylistPrice ? <span className="font-mono">{buylistPrice.label}</span> : null}
+          </Button>
+          {canBulkAllocate ? (
+            <Button type="button" variant="secondary" size="sm" onClick={onOpenBulkAllocation}>
+              Pull owned cards
+            </Button>
+          ) : null}
+          <Button type="button" variant="outline" size="sm" onClick={onOpenOptimizePrintings}>
+            Optimize printings
+          </Button>
+        </div>
+      </ShareModeHidden>
+    </section>
+  )
+}
+
+function DeckReadinessMetric({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="rounded-btn bg-base-200/60 px-3 py-2">
+      <dt className="text-xs font-semibold text-base-content/60">{label}</dt>
+      <dd className="mt-1 font-mono text-lg font-black leading-none text-base-content">{value}</dd>
+    </div>
+  )
+}
 
 export function DeckDetailContent({
   allocationError,
@@ -80,7 +172,6 @@ export function DeckDetailContent({
   groupBy,
   groupedCards,
   highlightedDeckCardIds,
-  isBulkAllocating,
   isSelectionActive,
   isUpdatingDeckCard,
   isRefreshingDeck,
@@ -138,7 +229,6 @@ export function DeckDetailContent({
   groupBy: DeckGroupBy
   groupedCards: DeckGroup<DeckCardEntry>[]
   highlightedDeckCardIds: Set<string> | null
-  isBulkAllocating: boolean
   isSelectionActive: boolean
   isUpdatingDeckCard: boolean
   isRefreshingDeck: boolean
@@ -224,14 +314,22 @@ export function DeckDetailContent({
               onEdit={onEditDeck}
               onExport={onExportDeck}
               onImport={onImportDeck}
-              onMissing={onMissingCards}
-              onOptimizePrintings={onOpenOptimizePrintings}
               onShare={onOpenShareDeck}
               onDisassemble={onDisassemble}
               onEdhrec={deck.format === "commander" ? onOpenEdhrec : undefined}
             />
           </ShareModeHidden>
         }
+      />
+
+      <DeckReadinessStrip
+        buylistPrice={buylistPrice}
+        canBulkAllocate={canBulkAllocate}
+        deckCards={deckCards}
+        onMissingCards={onMissingCards}
+        onOpenBulkAllocation={onOpenBulkAllocation}
+        onOpenOptimizePrintings={onOpenOptimizePrintings}
+        shareMode={shareMode}
       />
 
       {legalityIssues.length ? (
@@ -335,9 +433,6 @@ export function DeckDetailContent({
               <Plus className="h-4 w-4" />
               Add card
             </Button>
-            {canBulkAllocate ? (
-              <BulkAllocationMenu disabled={isBulkAllocating} onOpen={onOpenBulkAllocation} />
-            ) : null}
           </ShareModeHidden>
           <DeckGroupMenu value={groupBy} onChange={onGroupByChange} />
         </div>

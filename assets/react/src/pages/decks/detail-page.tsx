@@ -744,7 +744,6 @@ export function DeckDetailPage({
         groupBy={groupBy}
         groupedCards={groupedCards}
         highlightedDeckCardIds={highlightedDeckCardIds}
-        isBulkAllocating={allocateDeckPullList.isPending}
         isSelectionActive={isSelectionActive}
         isUpdatingDeckCard={isUpdatingDeckCard}
         isRefreshingDeck={isRefreshingDeck}

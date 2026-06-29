@@ -1,0 +1,56 @@
+import test from "node:test"
+import assert from "node:assert/strict"
+
+import { summarizeDeckReadiness } from "../src/pages/decks/deck-readiness.ts"
+
+function deckCard(allocationStatus) {
+  return { allocationStatus }
+}
+
+function status(overrides = {}) {
+  return {
+    allocated: 0,
+    available: 0,
+    missing: 0,
+    owned: 0,
+    proxyAllocated: 0,
+    required: 1,
+    state: "missing",
+    candidates: [],
+    ...overrides,
+  }
+}
+
+test("summarizes pull, buy, proxy, and readiness counts", () => {
+  const summary = summarizeDeckReadiness([
+    deckCard(status({ allocated: 1, required: 1, state: "allocated" })),
+    deckCard(status({ available: 2, missing: 0, required: 2, state: "available" })),
+    deckCard(status({ allocated: 1, missing: 1, required: 2, state: "partial" })),
+    deckCard(status({ allocated: 0, proxyAllocated: 1, required: 1, state: "missing" })),
+  ])
+
+  assert.deepEqual(summary, {
+    availableToPull: 2,
+    missingToBuy: 1,
+    proxyAllocated: 1,
+    readyCount: 3,
+    readinessPercent: 50,
+    requiredCount: 6,
+  })
+})
+
+test("treats basic lands as ready without collection allocation", () => {
+  const summary = summarizeDeckReadiness([
+    deckCard(status({ required: 8, state: "basic_land" })),
+    deckCard(status({ allocated: 1, required: 2, state: "partial", missing: 1 })),
+  ])
+
+  assert.equal(summary.readyCount, 9)
+  assert.equal(summary.requiredCount, 10)
+  assert.equal(summary.readinessPercent, 90)
+  assert.equal(summary.missingToBuy, 1)
+})
+
+test("empty decks are ready by definition", () => {
+  assert.equal(summarizeDeckReadiness([]).readinessPercent, 100)
+})
