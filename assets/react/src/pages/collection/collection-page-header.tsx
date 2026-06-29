@@ -1,4 +1,4 @@
-import { Boxes, Download, MoreVertical, Plus, Tags, Upload, WandSparkles } from "lucide-react"
+import { Boxes, Download, Plus, Tags, Upload, WandSparkles } from "lucide-react"
 import { PageHeader } from "../../components/app-shell"
 import { Button } from "../../components/ui/button"
 import { cn } from "../../lib/utils"
@@ -44,7 +44,27 @@ export function CollectionPageHeader({
         eyebrow="ManaVault Inventory"
         description="Your boxes, binders, lists, and owned printings."
         bottomActions={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:justify-end">
+            <Button type="button" onClick={onAddItem}>
+              <Plus className="h-4 w-4" />
+              Add card
+            </Button>
+            <Button type="button" variant="outline" onClick={onAddLocation}>
+              <Boxes className="h-4 w-4" />
+              Add location
+            </Button>
+            <Button type="button" variant="outline" onClick={onImport}>
+              <Upload className="h-4 w-4" />
+              Import
+            </Button>
+            <Button type="button" variant="outline" onClick={onExportCsv}>
+              <Download className="h-4 w-4" />
+              Export
+            </Button>
+            <Button type="button" variant="outline" onClick={onSellCards}>
+              <Tags className="h-4 w-4" />
+              Sell
+            </Button>
             <Button
               type="button"
               variant="outline"
@@ -54,51 +74,6 @@ export function CollectionPageHeader({
               <WandSparkles className="h-4 w-4" />
               {autoSortPending ? "Previewing..." : "Preview auto-sort"}
             </Button>
-            <Button type="button" onClick={onAddItem}>
-              <Plus className="h-4 w-4" />
-              Add card
-            </Button>
-          </div>
-        }
-        actions={
-          <div className="dropdown dropdown-end absolute right-3 top-3 z-[80]">
-            <button
-              type="button"
-              className="btn btn-circle btn-xs border-0 bg-neutral/85 text-neutral-content shadow backdrop-blur transition hover:bg-neutral"
-              tabIndex={0}
-              aria-label="Collection actions"
-            >
-              <MoreVertical className="h-4 w-4" />
-            </button>
-            <ul
-              tabIndex={0}
-              className="menu dropdown-content z-50 mt-2 w-52 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
-            >
-              <li>
-                <button type="button" onClick={onAddLocation}>
-                  <Boxes className="h-4 w-4" />
-                  Add location
-                </button>
-              </li>
-              <li>
-                <button type="button" onClick={onImport}>
-                  <Upload className="h-4 w-4" />
-                  Import CSV/TXT
-                </button>
-              </li>
-              <li>
-                <button type="button" onClick={onSellCards}>
-                  <Tags className="h-4 w-4" />
-                  Sell cards
-                </button>
-              </li>
-              <li>
-                <button type="button" onClick={onExportCsv}>
-                  <Download className="h-4 w-4" />
-                  Export CSV
-                </button>
-              </li>
-            </ul>
           </div>
         }
       />
