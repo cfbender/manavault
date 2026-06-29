@@ -60,6 +60,11 @@ config :phoenix, :json_library, Jason
 
 config :phoenix, :filter_parameters, ["password", "imageData", "image_data"]
 
+config :manavault, Manavault.Cache,
+  gc_interval: :timer.hours(12),
+  gc_memory_check_interval: :timer.seconds(10),
+  max_size: 100_000
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

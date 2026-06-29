@@ -10,6 +10,7 @@ defmodule Manavault.Application do
     children =
       [
         ManavaultWeb.Telemetry,
+        Manavault.Cache,
         Manavault.Backup.PendingRestore,
         Manavault.Repo,
         {Manavault.Backup.MigrationBackup, repo: Manavault.Repo},

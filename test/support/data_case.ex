@@ -37,6 +37,8 @@ defmodule Manavault.DataCase do
   """
   def setup_sandbox(tags) do
     pid = Ecto.Adapters.SQL.Sandbox.start_owner!(Manavault.Repo, shared: not tags[:async])
+    Manavault.Catalog.Cache.clear()
+    on_exit(&Manavault.Catalog.Cache.clear/0)
     on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
   end
 
