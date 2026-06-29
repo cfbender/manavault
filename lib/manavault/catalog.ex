@@ -70,6 +70,8 @@ defmodule Manavault.Catalog do
   defdelegate get_deck!(id, opts \\ []), to: Cached
   defdelegate get_deck_by_share_token(token, opts \\ []), to: Cached
   defdelegate deck_cards(deck), to: Cached
+  defdelegate fetch_cached_deck_cards(deck), to: Cached
+  defdelegate put_cached_deck_cards(deck, deck_cards), to: Cached
   defdelegate deck_legality(deck), to: Cached
   defdelegate deck_card_count(deck), to: Cached
   defdelegate deck_unique_card_count(deck), to: Cached

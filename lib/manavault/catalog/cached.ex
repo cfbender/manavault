@@ -291,6 +291,14 @@ defmodule Manavault.Catalog.Cached do
     end)
   end
 
+  def fetch_cached_deck_cards(deck) do
+    fetch_cached_deck_read(deck, :deck_cards)
+  end
+
+  def put_cached_deck_cards(deck, deck_cards) do
+    put_cached_deck_read(deck, :deck_cards, deck_cards)
+  end
+
   def deck_legality(deck) do
     cached_deck_read(deck, :deck_legality, fn ->
       Decks.deck_legality(deck)
@@ -538,6 +546,18 @@ defmodule Manavault.Catalog.Cached do
   end
 
   defp cached_deck_read(_deck, _key, fun), do: fun.()
+
+  defp fetch_cached_deck_read(%{id: id}, key) when not is_nil(id) do
+    Cache.fetch({:deck_read, id, key})
+  end
+
+  defp fetch_cached_deck_read(_deck, _key), do: :miss
+
+  defp put_cached_deck_read(%{id: id}, key, value) when not is_nil(id) do
+    Cache.put({:deck_read, id, key}, value, tag: Cache.decks_tag())
+  end
+
+  defp put_cached_deck_read(_deck, _key, value), do: value
 
   defp invalidate_on_ok({:ok, _value} = result, invalidate) do
     invalidate.()

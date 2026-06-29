@@ -24,7 +24,7 @@ defmodule Manavault.Catalog.Cache do
   def auto_sort_rules_tag, do: @auto_sort_rules_tag
 
   def cached(key, opts \\ [], fun) when is_function(fun, 0) do
-    key = {__MODULE__, @version, key}
+    key = cache_key(key)
 
     cache_opts = [
       ttl: Keyword.get(opts, :ttl, @default_ttl),
@@ -40,6 +40,32 @@ defmodule Manavault.Catalog.Cache do
       _error -> fun.()
     catch
       _kind, _reason -> fun.()
+    end
+  end
+
+  def fetch(key) do
+    try do
+      Manavault.Cache.fetch(cache_key(key))
+    rescue
+      _error -> :miss
+    catch
+      _kind, _reason -> :miss
+    end
+  end
+
+  def put(key, value, opts \\ []) do
+    cache_opts = [
+      ttl: Keyword.get(opts, :ttl, @default_ttl),
+      tag: Keyword.get(opts, :tag)
+    ]
+
+    try do
+      Manavault.Cache.put(cache_key(key), value, cache_opts)
+      value
+    rescue
+      _error -> value
+    catch
+      _kind, _reason -> value
     end
   end
 
@@ -108,6 +134,8 @@ defmodule Manavault.Catalog.Cache do
       _kind, _reason -> :ok
     end
   end
+
+  defp cache_key(key), do: {__MODULE__, @version, key}
 
   defp tag_match_spec(tag) do
     [{{:entry, :_, :_, :_, :_, tag}, [], [true]}]

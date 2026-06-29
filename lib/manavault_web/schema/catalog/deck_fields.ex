@@ -27,15 +27,22 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
   end
 
   def deck_cards(%Deck{} = deck, args, %{context: %{loader: loader}}) do
-    loader
-    |> Dataloader.load(Catalog, :deck_cards, deck)
-    |> on_load(fn loader ->
-      loader
-      |> Dataloader.get(Catalog, :deck_cards, deck)
-      |> Catalog.put_deck_card_fallback_printings()
-      |> Catalog.put_deck_card_allocation_statuses()
-      |> RelayHelpers.connection_from_list(args)
-    end)
+    case Catalog.fetch_cached_deck_cards(deck) do
+      {:ok, deck_cards} ->
+        RelayHelpers.connection_from_list(deck_cards, args)
+
+      _miss ->
+        loader
+        |> Dataloader.load(Catalog, :deck_cards, deck)
+        |> on_load(fn loader ->
+          loader
+          |> Dataloader.get(Catalog, :deck_cards, deck)
+          |> Catalog.put_deck_card_fallback_printings()
+          |> Catalog.put_deck_card_allocation_statuses()
+          |> then(&Catalog.put_cached_deck_cards(deck, &1))
+          |> RelayHelpers.connection_from_list(args)
+        end)
+    end
   end
 
   def deck_cards(%Deck{} = deck, args, _resolution) do
@@ -50,12 +57,18 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
   end
 
   def deck_card_count(%Deck{} = deck, _args, %{context: %{loader: loader}}) do
-    loader
-    |> Dataloader.load(Catalog, :deck_cards, deck)
-    |> on_load(fn loader ->
-      deck_cards = Dataloader.get(loader, Catalog, :deck_cards, deck)
-      {:ok, Catalog.deck_card_count(%{deck | deck_cards: deck_cards})}
-    end)
+    case Catalog.fetch_cached_deck_cards(deck) do
+      {:ok, deck_cards} ->
+        {:ok, Catalog.deck_card_count(%{deck | deck_cards: deck_cards})}
+
+      _miss ->
+        loader
+        |> Dataloader.load(Catalog, :deck_cards, deck)
+        |> on_load(fn loader ->
+          deck_cards = Dataloader.get(loader, Catalog, :deck_cards, deck)
+          {:ok, Catalog.deck_card_count(%{deck | deck_cards: deck_cards})}
+        end)
+    end
   end
 
   def deck_card_count(%Deck{} = deck, _args, _resolution) do
@@ -68,12 +81,18 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
   end
 
   def deck_unique_card_count(%Deck{} = deck, _args, %{context: %{loader: loader}}) do
-    loader
-    |> Dataloader.load(Catalog, :deck_cards, deck)
-    |> on_load(fn loader ->
-      deck_cards = Dataloader.get(loader, Catalog, :deck_cards, deck)
-      {:ok, Catalog.deck_unique_card_count(%{deck | deck_cards: deck_cards})}
-    end)
+    case Catalog.fetch_cached_deck_cards(deck) do
+      {:ok, deck_cards} ->
+        {:ok, Catalog.deck_unique_card_count(%{deck | deck_cards: deck_cards})}
+
+      _miss ->
+        loader
+        |> Dataloader.load(Catalog, :deck_cards, deck)
+        |> on_load(fn loader ->
+          deck_cards = Dataloader.get(loader, Catalog, :deck_cards, deck)
+          {:ok, Catalog.deck_unique_card_count(%{deck | deck_cards: deck_cards})}
+        end)
+    end
   end
 
   def deck_unique_card_count(%Deck{} = deck, _args, _resolution) do
@@ -94,12 +113,18 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
   end
 
   def deck_legality(%Deck{} = deck, _args, %{context: %{loader: loader}}) do
-    loader
-    |> Dataloader.load(Catalog, :deck_cards, deck)
-    |> on_load(fn loader ->
-      deck_cards = Dataloader.get(loader, Catalog, :deck_cards, deck)
-      {:ok, Catalog.deck_legality(%{deck | deck_cards: deck_cards})}
-    end)
+    case Catalog.fetch_cached_deck_cards(deck) do
+      {:ok, deck_cards} ->
+        {:ok, Catalog.deck_legality(%{deck | deck_cards: deck_cards})}
+
+      _miss ->
+        loader
+        |> Dataloader.load(Catalog, :deck_cards, deck)
+        |> on_load(fn loader ->
+          deck_cards = Dataloader.get(loader, Catalog, :deck_cards, deck)
+          {:ok, Catalog.deck_legality(%{deck | deck_cards: deck_cards})}
+        end)
+    end
   end
 
   def deck_legality(%Deck{} = deck, _args, _resolution) do
