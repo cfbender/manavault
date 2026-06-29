@@ -103,7 +103,7 @@ export function AppShell() {
         <div className="navbar min-h-16 px-0">
           <Link
             to="/"
-            className="flex min-w-0 items-center gap-3 text-2xl font-black tracking-normal"
+            className="flex min-h-11 min-w-11 items-center gap-3 text-2xl font-black tracking-normal"
           >
             <img src="/images/logo.svg" alt="" className="h-7 w-7 shrink-0" />
             <span className="hidden truncate sm:inline">ManaVault</span>
@@ -138,7 +138,7 @@ export function AppShell() {
             )}
           >
             <button
-              className="btn btn-ghost btn-square"
+              className="btn btn-ghost btn-square h-11 min-h-11 w-11"
               type="button"
               aria-expanded={mobileMenuOpen}
               aria-label={mobileMenuOpen ? "Close navigation" : "Open navigation"}

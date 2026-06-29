@@ -242,12 +242,19 @@
 }
 
 .control-toolbar :where(.input, .select, .btn) {
-  height: 2rem;
-  min-height: 2rem;
+  height: 2.75rem;
+  min-height: 2.75rem;
 }
 
 .control-toolbar .btn {
   padding-block: 0;
+}
+
+@media (min-width: 40rem) and (pointer: fine) {
+  .control-toolbar :where(.input, .select, .btn) {
+    height: 2rem;
+    min-height: 2rem;
+  }
 }
 
 .card-menu-closed .dropdown,
@@ -338,29 +345,6 @@
   }
 }
 
-.card-tile-foil-badge {
-  position: absolute;
-  right: 0.5rem;
-  bottom: 0.5rem;
-  z-index: 20;
-  display: inline-flex;
-  align-items: center;
-  min-height: 1.25rem;
-  border: 1px solid rgb(255 255 255 / 0.45);
-  border-radius: 9999px;
-  background:
-    linear-gradient(135deg, rgb(255 255 255 / 0.32), rgb(255 255 255 / 0.08)),
-    linear-gradient(110deg, rgb(255 78 160 / 0.4), rgb(255 215 95 / 0.35), rgb(72 190 255 / 0.35));
-  color: white;
-  font-size: 0.625rem;
-  font-weight: 800;
-  letter-spacing: 0;
-  line-height: 1;
-  padding: 0.25rem 0.45rem;
-  text-shadow: 0 1px 2px rgb(0 0 0 / 0.65);
-  box-shadow: 0 2px 12px rgb(0 0 0 / 0.35);
-  pointer-events: none;
-}
 
 @keyframes card-tile-foil-shimmer {
   0% {

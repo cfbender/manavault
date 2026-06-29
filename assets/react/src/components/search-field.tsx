@@ -26,12 +26,12 @@ export function SearchField({
         type="search"
         value={value}
         onChange={(event) => onValueChange(event.target.value)}
-        className={cn("pr-10 [&::-webkit-search-cancel-button]:appearance-none", className)}
+        className={cn("pr-12 [&::-webkit-search-cancel-button]:appearance-none", className)}
       />
       {value ? (
         <button
           type="button"
-          className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full text-base-content/60 transition-colors hover:bg-base-200 hover:text-base-content focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+          className="absolute right-0 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full text-base-content/60 transition-colors hover:bg-base-200 hover:text-base-content focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 sm:right-1 sm:h-9 sm:w-9"
           onClick={onClear || (() => onValueChange(""))}
           aria-label="Clear search"
         >
