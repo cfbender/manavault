@@ -198,7 +198,7 @@ export function DeckStackCard({
           <button
             type="button"
             className={cn(
-              "deck-card-touch-control btn btn-circle btn-xs absolute right-2 top-10 z-[125] border-2 shadow transition",
+              "btn btn-circle btn-xs absolute right-2 top-10 z-[125] border-2 shadow transition",
               isSelected
                 ? "border-secondary bg-secondary text-secondary-content opacity-100"
                 : "border-base-100/80 bg-base-100/90 text-base-content opacity-80 hover:opacity-100",
@@ -229,7 +229,7 @@ export function DeckStackCard({
           >
             <button
               type="button"
-              className="deck-card-touch-control btn btn-circle btn-xs border-0 bg-neutral/85 text-neutral-content shadow transition hover:bg-neutral"
+              className="btn btn-circle btn-xs border-0 bg-neutral/85 text-neutral-content shadow transition hover:bg-neutral"
               tabIndex={isInteractive ? 0 : -1}
               aria-label={`${name} actions`}
             >

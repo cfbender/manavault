@@ -26,7 +26,7 @@ export function DeckCardTagButton({
     <button
       type="button"
       className={cn(
-        "deck-card-touch-control group/tag box-border inline-flex h-6 max-h-6 min-h-6 w-6 min-w-6 max-w-36 items-center justify-center gap-1 overflow-hidden rounded-full border px-0.5 py-0 text-[0.62rem] font-black leading-none shadow transition-all duration-150 hover:w-auto hover:px-1.5 focus-visible:w-auto focus-visible:px-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary motion-safe:hover:-translate-y-0.5",
+        "group/tag box-border inline-flex h-6 max-h-6 min-h-6 w-6 min-w-6 max-w-36 items-center justify-center gap-1 overflow-hidden rounded-full border px-0.5 py-0 text-[0.62rem] font-black leading-none shadow transition-all duration-150 hover:w-auto hover:px-1.5 focus-visible:w-auto focus-visible:px-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary motion-safe:hover:-translate-y-0.5",
         tag?.className || "border-base-300 bg-base-100/95 text-base-content",
         !tag && !shareMode && "opacity-80 group-hover/deck-card:opacity-100",
         shareMode && !tag && "hidden",
@@ -139,7 +139,7 @@ export function DeckCardAllocationMenu({
 
   return (
     <div
-      className="deck-card-touch-control relative z-[130] flex h-6 max-h-6 min-h-6 w-6 min-w-6 items-center justify-center overflow-visible leading-none"
+      className="relative z-[130] flex h-6 max-h-6 min-h-6 w-6 min-w-6 items-center justify-center overflow-visible leading-none"
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
     >
@@ -147,7 +147,7 @@ export function DeckCardAllocationMenu({
         ref={buttonRef}
         type="button"
         className={cn(
-          "deck-card-touch-control flex h-6 max-h-6 min-h-6 w-6 min-w-6 items-center justify-center rounded-full border p-0 leading-none shadow transition motion-safe:hover:-translate-y-0.5",
+          "flex h-6 max-h-6 min-h-6 w-6 min-w-6 items-center justify-center rounded-full border p-0 leading-none shadow transition motion-safe:hover:-translate-y-0.5",
           allocationStatusButtonClass(status.state),
         )}
         tabIndex={isInteractive ? 0 : -1}
