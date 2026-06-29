@@ -1,6 +1,4 @@
 import { AlertTriangle, CheckCircle2, Circle, Tag, XCircle } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
-import { createPortal } from "react-dom"
 import { cn, titleize } from "../../lib/utils"
 import { deckCardTag, nextDeckCardTag } from "./deck-card-tags"
 import type { DeckCardEntry, DeckCardTag } from "./deck-types"
@@ -50,26 +48,20 @@ export function DeckCardTagButton({
   )
 }
 
-export function DeckCardAllocationMenu({
+export function DeckCardAllocationPanel({
   deckCard,
   error,
-  isInteractive,
   isUpdating,
   onAllocate,
   onDeallocate,
-  onOpenChange,
   onToggleProxy,
-  open,
 }: {
   deckCard: DeckCardEntry
   error: string | null
-  isInteractive: boolean
   isUpdating: boolean
   onAllocate: (collectionItemId: string) => void
   onDeallocate: (collectionItemId: string) => void
-  onOpenChange: (open: boolean) => void
   onToggleProxy: () => void
-  open: boolean
 }) {
   const status = deckCard.allocationStatus
   const label = allocationStatusLabel(status)
@@ -77,196 +69,99 @@ export function DeckCardAllocationMenu({
   const proxyQuantityToAdd = Math.max(status.required - status.allocated, 0)
   const isBasicLand = status.state === "basic_land"
   const proxyDisabled = isUpdating || (!proxyChecked && proxyQuantityToAdd <= 0)
-  const [menuPosition, setMenuPosition] = useState({ left: 16, top: 16, width: 320 })
-  const buttonRef = useRef<HTMLButtonElement>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
-
-  function updateMenuPosition() {
-    const button = buttonRef.current
-    if (!button) return
-
-    const bounds = button.getBoundingClientRect()
-    const margin = 16
-    const menuWidth = Math.min(320, Math.max(window.innerWidth - margin * 2, 0))
-    const menuMaxHeight = 416
-    const spaceBelow = window.innerHeight - bounds.bottom - margin
-    const spaceAbove = bounds.top - margin
-    const openAbove = spaceBelow < 240 && spaceAbove > spaceBelow
-
-    setMenuPosition({
-      left: Math.min(
-        Math.max(bounds.left, margin),
-        Math.max(window.innerWidth - menuWidth - margin, margin),
-      ),
-      width: menuWidth,
-      top: openAbove
-        ? Math.max(margin, bounds.top - Math.min(menuMaxHeight, spaceAbove) - 4)
-        : Math.min(bounds.bottom + 4, Math.max(window.innerHeight - margin, margin)),
-    })
-  }
-
-  useEffect(() => {
-    if (!isInteractive) onOpenChange(false)
-  }, [isInteractive, onOpenChange])
-
-  useEffect(() => {
-    if (!open) return
-
-    updateMenuPosition()
-
-    function handlePointerDown(event: PointerEvent) {
-      const target = event.target as Node
-      if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return
-      onOpenChange(false)
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onOpenChange(false)
-    }
-
-    window.addEventListener("resize", updateMenuPosition)
-    window.addEventListener("scroll", updateMenuPosition, true)
-    document.addEventListener("pointerdown", handlePointerDown, true)
-    document.addEventListener("keydown", handleKeyDown)
-
-    return () => {
-      window.removeEventListener("resize", updateMenuPosition)
-      window.removeEventListener("scroll", updateMenuPosition, true)
-      document.removeEventListener("pointerdown", handlePointerDown, true)
-      document.removeEventListener("keydown", handleKeyDown)
-    }
-  }, [open])
 
   return (
-    <div
-      className="relative z-[130] flex h-6 max-h-6 min-h-6 w-6 min-w-6 items-center justify-center overflow-visible leading-none"
-      onClick={(event) => event.stopPropagation()}
-      onMouseDown={(event) => event.stopPropagation()}
-    >
-      <button
-        ref={buttonRef}
-        type="button"
-        className={cn(
-          "flex h-6 max-h-6 min-h-6 w-6 min-w-6 items-center justify-center rounded-full border p-0 leading-none shadow transition motion-safe:hover:-translate-y-0.5",
-          allocationStatusButtonClass(status.state),
-        )}
-        tabIndex={isInteractive ? 0 : -1}
-        aria-label={label}
-        aria-expanded={open}
-        title={label}
-        onClick={() => {
-          if (!isInteractive) return
-          updateMenuPosition()
-          onOpenChange(!open)
-        }}
-      >
-        <AllocationStatusIcon state={status.state} className="h-3 w-3" />
-      </button>
-      {open && isInteractive
-        ? createPortal(
-            <div
-              ref={menuRef}
-              tabIndex={0}
-              className="fixed z-[1000] max-h-[calc(100dvh-2rem)] max-w-[calc(100dvw-2rem)] overflow-y-auto rounded-box border border-base-300 bg-base-100 p-3 text-sm shadow-2xl"
-              style={menuPosition}
-              onClick={(event) => event.stopPropagation()}
-              onMouseDown={(event) => event.stopPropagation()}
-            >
-              <div className="space-y-1">
-                <p className="font-black">{label}</p>
-                <p className="text-xs leading-5 text-base-content/70">
-                  {allocationStatusSummary(status)}
+    <div className="space-y-3">
+      <div className="flex min-w-0 items-start gap-3 rounded-box border border-base-300 bg-base-200/35 p-3">
+        <span
+          className={cn(
+            "mt-0.5 inline-flex h-8 min-h-8 w-8 min-w-8 items-center justify-center rounded-full border",
+            allocationStatusButtonClass(status.state),
+          )}
+          aria-hidden="true"
+        >
+          <AllocationStatusIcon state={status.state} className="h-4 w-4" />
+        </span>
+        <div className="min-w-0">
+          <p className="font-black">{label}</p>
+          <p className="text-xs leading-5 text-base-content/70">
+            {allocationStatusSummary(status)}
+          </p>
+        </div>
+      </div>
+
+      {error ? (
+        <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-xs text-error">
+          {error}
+        </p>
+      ) : null}
+
+      {!isBasicLand ? (
+        <>
+          <div className="rounded-box border border-base-300 bg-base-200/35 p-3">
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">Proxy</p>
+                <p className="truncate text-xs text-base-content/60">
+                  {status.proxyAllocated} marked as proxy
                 </p>
               </div>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                disabled={proxyDisabled}
+                onClick={onToggleProxy}
+              >
+                {proxyChecked ? "Remove proxy" : "Mark as proxy"}
+              </button>
+            </div>
+          </div>
 
-              {error ? (
-                <p className="mt-3 rounded-box border border-error/30 bg-error/10 px-3 py-2 text-xs text-error">
-                  {error}
-                </p>
-              ) : null}
-
-              {!isBasicLand ? (
-                <>
-                  <div className="mt-3 rounded-box border border-base-300 bg-base-200/35 p-2">
-                    <div className="flex min-w-0 items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold">Proxy</p>
-                        <p className="truncate text-xs text-base-content/60">
-                          {status.proxyAllocated} marked as proxy
-                        </p>
-                      </div>
-                      <label className="label shrink-0 cursor-pointer gap-2 p-0">
-                        <span className="label-text text-xs">
-                          {proxyChecked ? "Marked" : "Mark as proxy"}
-                        </span>
-                        <input
-                          type="checkbox"
-                          className="toggle toggle-primary toggle-sm"
-                          checked={proxyChecked}
-                          disabled={proxyDisabled}
-                          aria-label={proxyChecked ? "Remove proxy" : "Mark as proxy"}
-                          onChange={() => onToggleProxy()}
-                        />
-                      </label>
+          {status.candidates.length === 0 ? (
+            <div className="text-sm text-base-content/60">No matching owned printings.</div>
+          ) : (
+            <ul className="space-y-2 text-sm">
+              {status.candidates.map((candidate) => (
+                <li
+                  key={candidate.item.id}
+                  className="min-w-0 rounded-box border border-base-300 bg-base-200/35 p-3"
+                >
+                  <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                    <div className="min-w-0">
+                      <p className="block max-w-full truncate font-semibold" title={collectionItemLabel(candidate)}>
+                        {collectionItemLabel(candidate)}
+                      </p>
+                      <p className="truncate text-xs text-base-content/60">
+                        {allocationCandidateSummary(candidate)}
+                      </p>
+                    </div>
+                    <div className="grid min-w-0 grid-cols-2 gap-2 sm:w-56">
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm min-w-0"
+                        disabled={
+                          isUpdating || candidate.available <= 0 || status.allocated >= status.required
+                        }
+                        onClick={() => onAllocate(candidate.item.id)}
+                      >
+                        <span className="truncate">Allocate</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-sm min-w-0"
+                        disabled={isUpdating || candidate.allocated <= 0}
+                        onClick={() => onDeallocate(candidate.item.id)}
+                      >
+                        <span className="truncate">Deallocate</span>
+                      </button>
                     </div>
                   </div>
-
-                  {status.candidates.length === 0 ? (
-                    <div className="mt-3 text-sm text-base-content/60">
-                      No matching owned printings.
-                    </div>
-                  ) : (
-                    <ul className="mt-3 space-y-2 text-sm">
-                      {status.candidates.map((candidate) => (
-                        <li
-                          key={candidate.item.id}
-                          className="min-w-0 rounded-box border border-base-300 bg-base-200/35 p-2"
-                        >
-                          <div className="grid min-w-0 gap-2">
-                            <div className="min-w-0">
-                              <p
-                                className="block max-w-full truncate font-semibold"
-                                title={collectionItemLabel(candidate)}
-                              >
-                                {collectionItemLabel(candidate)}
-                              </p>
-                              <p className="truncate text-xs text-base-content/60">
-                                {allocationCandidateSummary(candidate)}
-                              </p>
-                            </div>
-                            <div className="grid min-w-0 grid-cols-2 gap-2">
-                              <button
-                                type="button"
-                                className="btn btn-primary btn-xs min-w-0"
-                                disabled={
-                                  isUpdating ||
-                                  candidate.available <= 0 ||
-                                  status.allocated >= status.required
-                                }
-                                onClick={() => onAllocate(candidate.item.id)}
-                              >
-                                <span className="truncate">Allocate</span>
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-outline btn-xs min-w-0"
-                                disabled={isUpdating || candidate.allocated <= 0}
-                                onClick={() => onDeallocate(candidate.item.id)}
-                              >
-                                <span className="truncate">Deallocate</span>
-                              </button>
-                            </div>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </>
-              ) : null}
-            </div>,
-            document.body,
-          )
-        : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      ) : null}
     </div>
   )
 }

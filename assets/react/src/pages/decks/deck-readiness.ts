@@ -13,6 +13,11 @@ export function summarizeMainboardReadiness(deckCards: readonly DeckCardEntry[])
   return summarizeDeckReadiness(deckCards.filter((deckCard) => deckCard.zone === "mainboard"))
 }
 
+export function hasMainboardReadinessWork(deckCards: readonly DeckCardEntry[]) {
+  const readiness = summarizeMainboardReadiness(deckCards)
+  return readiness.readyCount < readiness.requiredCount
+}
+
 export function summarizeDeckReadiness(deckCards: readonly DeckCardEntry[]): DeckReadinessSummary {
   let availableToPull = 0
   let missingToBuy = 0

@@ -28,10 +28,11 @@ import type { DeckCardUpdateInput } from "../../gql/graphql"
 import type { DeckGroup, DeckGroupBy } from "../../lib/deck-grouping"
 import { cn, compactNumber, titleize } from "../../lib/utils"
 import { ShareModeHidden, SummaryActionMenu } from "./deck-actions"
+import { DeckCardAllocationPanel, allocationStatusSummary } from "./deck-card-allocation"
 import { deckDetailCoverUrl } from "./deck-card-model"
 import { DeckGroupMenu } from "./deck-group-menu"
 import { deckLegalityIssueCountLabel, deckLegalityLabel, deckLegalityTone } from "./deck-legality"
-import { summarizeMainboardReadiness } from "./deck-readiness"
+import { hasMainboardReadinessWork, summarizeMainboardReadiness } from "./deck-readiness"
 import { DeckNameWithCommanderIdentity, commanderColorIdentity } from "./deck-list-model"
 import { DeckGroupGrid } from "./deck-stack-grid"
 import { DeckStatsSection, DeckTokensSection, type DeferredDeckAnalysis } from "./deck-stats-panel"
@@ -75,33 +76,56 @@ function BuylistPriceChip({ onClick, price }: { onClick: () => void; price: Buyl
   )
 }
 function DeckReadinessDialog({
+  allocationError,
   buylistPrice,
   canBulkAllocate,
   deckCards,
+  isUpdatingDeckCard,
+  onAllocate,
+  onDeallocate,
   onMissingCards,
   onOpenBulkAllocation,
   onOpenOptimizePrintings,
   onOpenChange,
+  onTagCard,
+  onToggleProxy,
   open,
   shareMode,
 }: {
+  allocationError: string | null
   buylistPrice: BuylistPrice | null
   canBulkAllocate: boolean
   deckCards: DeckCardEntry[]
+  isUpdatingDeckCard: boolean
+  onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
+  onDeallocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
   onMissingCards: () => void
   onOpenBulkAllocation: () => void
   onOpenOptimizePrintings: () => void
   onOpenChange: (open: boolean) => void
+  onTagCard: (deckCard: DeckCardEntry, tag: DeckCardTag | null) => void
+  onToggleProxy: (deckCard: DeckCardEntry) => void
   open: boolean
   shareMode: boolean
 }) {
   const readiness = summarizeMainboardReadiness(deckCards)
-  const needsAction =
-    readiness.availableToPull > 0 || readiness.missingToBuy > 0 || readiness.proxyAllocated > 0
+  const needsAction = readiness.readyCount < readiness.requiredCount
+  const mainboardActionCards = deckCards.filter((deckCard) => {
+    const status = deckCard.allocationStatus
+    const required = Math.max(status.required || 0, 0)
+    const allocated = Math.max(status.allocated || 0, 0)
+    const proxied = Math.max(status.proxyAllocated || 0, 0)
+
+    return (
+      deckCard.zone === "mainboard" &&
+      status.state !== "basic_land" &&
+      Math.min(required, allocated + proxied) < required
+    )
+  })
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl" labelledBy="deck-readiness-title">
+      <DialogContent className="max-w-4xl" labelledBy="deck-readiness-title">
         <DialogHeader>
           <div>
             <DialogTitle id="deck-readiness-title">Mainboard readiness</DialogTitle>
@@ -121,8 +145,8 @@ function DeckReadinessDialog({
                   : "Mainboard cards are accounted for."}
               </p>
               <p className="mt-1 text-sm text-base-content/60">
-                Use this as a pull/buy/proxy checkpoint without making showcase mode feel like a
-                dashboard.
+                Allocation, proxy, buylist, and printing work lives here so the deck view can stay
+                focused on the cards.
               </p>
             </div>
             <div className="font-mono text-3xl font-black text-base-content">
@@ -210,6 +234,68 @@ function DeckReadinessDialog({
                 </p>
               </div>
             </div>
+
+            {mainboardActionCards.length ? (
+              <section className="space-y-3">
+                <div>
+                  <h3 className="text-sm font-black text-base-content">Mainboard card work</h3>
+                  <p className="mt-1 text-xs text-base-content/60">
+                    Allocate owned copies, mark proxies, or tag cards without covering card art.
+                  </p>
+                </div>
+                <div className="max-h-[min(32rem,45dvh)] space-y-3 overflow-y-auto pr-1">
+                  {mainboardActionCards.map((deckCard) => (
+                    <article
+                      key={deckCard.id}
+                      className="rounded-box border border-base-300 bg-base-100 p-3"
+                    >
+                      <div className="mb-3 flex min-w-0 flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h4 className="truncate font-black">
+                            {deckCard.card?.name || "Unknown card"}
+                          </h4>
+                          <p className="text-xs text-base-content/60">
+                            {allocationStatusSummary(deckCard.allocationStatus)}
+                          </p>
+                        </div>
+                        <label className="form-control w-full sm:w-44">
+                          <span className="label-text mb-1 text-xs font-semibold uppercase text-base-content/60">
+                            Tag
+                          </span>
+                          <select
+                            className="select select-bordered select-sm w-full"
+                            aria-label={`Tag ${deckCard.card?.name || "card"}`}
+                            disabled={isUpdatingDeckCard}
+                            value={deckCard.tag || ""}
+                            onChange={(event) => {
+                              const value = event.currentTarget.value
+                              onTagCard(deckCard, value ? (value as DeckCardTag) : null)
+                            }}
+                          >
+                            <option value="">No tag</option>
+                            {DECK_CARD_TAGS.map((tag) => (
+                              <option key={tag.value} value={tag.value}>
+                                {tag.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                      <DeckCardAllocationPanel
+                        deckCard={deckCard}
+                        error={allocationError}
+                        isUpdating={isUpdatingDeckCard}
+                        onAllocate={(collectionItemId) => onAllocate(deckCard, collectionItemId)}
+                        onDeallocate={(collectionItemId) =>
+                          onDeallocate(deckCard, collectionItemId)
+                        }
+                        onToggleProxy={() => onToggleProxy(deckCard)}
+                      />
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ) : null}
           </ShareModeHidden>
         </div>
       </DialogContent>
@@ -342,6 +428,7 @@ export function DeckDetailContent({
   zoneCounts: DetailZoneCounts
 }) {
   const [isReadinessOpen, setIsReadinessOpen] = useState(false)
+  const hasReadinessWork = hasMainboardReadinessWork(deckCards)
 
   return (
     <div className="space-y-7">
@@ -493,26 +580,34 @@ export function DeckDetailContent({
               <Plus className="h-4 w-4" />
               Add card
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setIsReadinessOpen(true)}
-            >
-              Readiness
-            </Button>
+            {hasReadinessWork ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsReadinessOpen(true)}
+              >
+                Readiness
+              </Button>
+            ) : null}
           </ShareModeHidden>
           <DeckGroupMenu value={groupBy} onChange={onGroupByChange} />
         </div>
       </div>
       <DeckReadinessDialog
+        allocationError={allocationError}
         buylistPrice={buylistPrice}
         canBulkAllocate={canBulkAllocate}
         deckCards={deckCards}
+        isUpdatingDeckCard={isUpdatingDeckCard}
+        onAllocate={onAllocate}
+        onDeallocate={onDeallocate}
         onMissingCards={onMissingCards}
         onOpenBulkAllocation={onOpenBulkAllocation}
         onOpenChange={setIsReadinessOpen}
         onOpenOptimizePrintings={onOpenOptimizePrintings}
+        onTagCard={onTagCard}
+        onToggleProxy={onToggleProxy}
         open={isReadinessOpen}
         shareMode={shareMode}
       />
@@ -634,7 +729,6 @@ export function DeckDetailContent({
 
       {groupedCards.length ? (
         <DeckGroupGrid
-          allocationError={allocationError}
           canSetCommander={deck.format === "commander"}
           deckId={deck.id}
           groups={groupedCards}
@@ -645,10 +739,7 @@ export function DeckDetailContent({
           onPreview={onPreviewCard}
           onMove={onMoveCard}
           onEdit={onEditCard}
-          onAllocate={onAllocate}
-          onDeallocate={onDeallocate}
           onTag={onTagCard}
-          onToggleProxy={onToggleProxy}
           onDelete={onDeleteCard}
           onSetCommander={onSetCommander}
           onToggleSelected={onToggleSelected}

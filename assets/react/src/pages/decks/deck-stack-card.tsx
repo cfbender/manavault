@@ -14,7 +14,6 @@ import { useEffect, useRef, useState, type FocusEvent, type PointerEvent } from 
 import { cn, titleize } from "../../lib/utils"
 import { useMobileHoverReveal } from "../../lib/mobile-hover"
 import { ShareModeHidden, blurFocusedMenuItem } from "./deck-actions"
-import { DeckCardAllocationMenu, DeckCardTagButton } from "./deck-card-allocation"
 import { cardImageUrl } from "./deck-card-model"
 import { GameChangerBadge } from "./deck-card-display"
 import { deckCardTag } from "./deck-card-tags"
@@ -29,7 +28,6 @@ import type { DeckCardEntry, DeckCardTag } from "./deck-types"
 import { DECK_CARD_TAGS } from "./deck-types"
 
 export function DeckStackCard({
-  allocationError,
   canSetCommander,
   deckId,
   deckCard,
@@ -40,8 +38,6 @@ export function DeckStackCard({
   isSelecting,
   isSelected,
   isUpdating,
-  onAllocate,
-  onDeallocate,
   onDelete,
   onEdit,
   onMove,
@@ -49,13 +45,11 @@ export function DeckStackCard({
   onSetCommander,
   onTag,
   onTouchReveal,
-  onToggleProxy,
   onToggleSelected,
   shareMode = false,
   slideOffset,
   top,
 }: {
-  allocationError: string | null
   canSetCommander: boolean
   deckId: string
   deckCard: DeckCardEntry
@@ -66,14 +60,11 @@ export function DeckStackCard({
   isUpdating: boolean
   isSelecting: boolean
   isSelected: boolean
-  onAllocate: (collectionItemId: string) => void
-  onDeallocate: (collectionItemId: string) => void
   onDelete: () => void
   onEdit: () => void
   onMove: () => void
   onPreview: () => void
   onSetCommander: () => void
-  onToggleProxy: () => void
   onTouchReveal: () => void
   onTag: (tag: DeckCardTag | null) => void
   onToggleSelected: (selectRange?: boolean) => void
@@ -82,7 +73,6 @@ export function DeckStackCard({
   top: number
 }) {
   const [hasFocusWithin, setHasFocusWithin] = useState(false)
-  const [isAllocationMenuOpen, setIsAllocationMenuOpen] = useState(false)
   const actionMenuRef = useRef<HTMLDivElement>(null)
   const mobileHover = useMobileHoverReveal<HTMLButtonElement>({
     clearOnOutsidePointerDown: false,
@@ -98,7 +88,7 @@ export function DeckStackCard({
   const hasClearTag = Boolean(tag)
   const hasFoilFinish = deckCard.finish === "foil" || deckCard.finish === "etched"
   const isGameChanger = deckCard.card?.gameChanger === true
-  const isInteractive = isActive || isAllocationMenuOpen || (!isSelecting && hasFocusWithin)
+  const isInteractive = isActive || (!isSelecting && hasFocusWithin)
   const actionMenuDirection = deckStackActionMenuDirection({ isLast })
   const actionMenuStyle = deckStackActionMenuStyle({ canSetCommander, hasClearTag })
 
@@ -173,46 +163,8 @@ export function DeckStackCard({
           isDimmed && "opacity-30 saturate-50",
         )}
       >
+
         <ShareModeHidden shareMode={shareMode}>
-          <div className="absolute left-1 top-1 z-[130] flex items-start gap-1">
-            <DeckCardAllocationMenu
-              deckCard={deckCard}
-              error={allocationError}
-              isInteractive={isInteractive}
-              isUpdating={isUpdating}
-              open={isAllocationMenuOpen}
-              onOpenChange={setIsAllocationMenuOpen}
-              onAllocate={onAllocate}
-              onDeallocate={onDeallocate}
-              onToggleProxy={onToggleProxy}
-            />
-            <DeckCardTagButton
-              className="relative"
-              disabled={isUpdating}
-              shareMode={shareMode}
-              value={deckCard.tag}
-              onChange={onTag}
-            />
-          </div>
-
-          <button
-            type="button"
-            className={cn(
-              "btn btn-circle btn-xs absolute right-2 top-10 z-[125] border-2 shadow transition",
-              isSelected
-                ? "border-secondary bg-secondary text-secondary-content opacity-100"
-                : "border-base-100/80 bg-base-100/90 text-base-content opacity-80 hover:opacity-100",
-            )}
-            aria-label={isSelected ? `Deselect ${name}` : `Select ${name}`}
-            onClick={(event) => {
-              event.stopPropagation()
-              onToggleSelected(event.shiftKey)
-            }}
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            {isSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
-          </button>
-
           <div
             ref={actionMenuRef}
             className={cn(
@@ -246,6 +198,16 @@ export function DeckStackCard({
                   <button type="button" onClick={onPreview}>
                     <Eye className="h-4 w-4" />
                     View card details
+                  </button>
+                </li>
+                <li>
+                  <button type="button" onClick={(event) => onToggleSelected(event.shiftKey)}>
+                    {isSelected ? (
+                      <CheckSquare className="h-4 w-4" />
+                    ) : (
+                      <Square className="h-4 w-4" />
+                    )}
+                    {isSelected ? "Deselect" : "Select"}
                   </button>
                 </li>
                 <li>

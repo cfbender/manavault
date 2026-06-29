@@ -2,6 +2,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 
 import {
+  hasMainboardReadinessWork,
   summarizeDeckReadiness,
   summarizeMainboardReadiness,
 } from "../src/pages/decks/deck-readiness.ts"
@@ -66,6 +67,15 @@ test("mainboard readiness excludes commander, sideboard, and maybeboard", () => 
   assert.equal(summary.requiredCount, 1)
   assert.equal(summary.missingToBuy, 0)
   assert.equal(summary.readinessPercent, 100)
+})
+
+test("proxied mainboard cards do not keep readiness visible", () => {
+  assert.equal(
+    hasMainboardReadinessWork([
+      deckCard(status({ allocated: 0, missing: 1, proxyAllocated: 1, required: 1 })),
+    ]),
+    false,
+  )
 })
 
 test("empty decks are ready by definition", () => {
