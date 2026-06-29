@@ -103,7 +103,7 @@ function DeckZoneCardName({
         ? createPortal(
             <div
               aria-hidden="true"
-              className="fixed z-[9999] block w-44 -translate-y-full rounded-xl border border-base-300 bg-base-100 p-2 shadow-2xl"
+              className="fixed z-50 block w-44 -translate-y-full rounded-xl border border-base-300 bg-base-100 p-2 shadow-2xl"
               style={{ left: position.left, top: position.top }}
               onPointerEnter={showPreview}
               onPointerLeave={hidePreviewSoon}
@@ -201,7 +201,7 @@ export function DeckZoneTable({
                     <td>
                       <button
                         type="button"
-                        className="btn btn-circle btn-xs"
+                        className="btn btn-circle btn-sm deck-card-touch-control"
                         aria-label={
                           selected
                             ? `Deselect ${deckCard.card?.name}`
@@ -255,6 +255,7 @@ export function DeckZoneTable({
                           variant="ghost"
                           disabled={isUpdating}
                           onClick={() => onEdit(deckCard)}
+                          aria-label={`Edit ${deckCard.card?.name || "card"}`}
                           title="Edit"
                         >
                           <Edit3 className="h-4 w-4" />
@@ -265,6 +266,8 @@ export function DeckZoneTable({
                           variant="ghost"
                           disabled={isUpdating}
                           onClick={() => onMove(deckCard)}
+                          aria-label={`Move ${deckCard.card?.name || "card"}`}
+                          title="Move"
                         >
                           <MoveRight className="h-4 w-4" />
                         </Button>
@@ -275,6 +278,8 @@ export function DeckZoneTable({
                           className="text-error hover:bg-error/10"
                           disabled={isUpdating}
                           onClick={() => onDelete(deckCard)}
+                          aria-label={`Delete ${deckCard.card?.name || "card"}`}
+                          title="Delete"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

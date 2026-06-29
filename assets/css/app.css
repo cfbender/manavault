@@ -271,6 +271,14 @@
     min-height: 2.75rem;
   }
 
+  .deck-card-touch-control {
+    width: 2.75rem;
+    min-width: 2.75rem;
+    height: 2.75rem;
+    min-height: 2.75rem;
+    max-height: 2.75rem;
+  }
+
   .card-tile-touch-menu :where(a, button) {
     min-height: 2.75rem;
   }
