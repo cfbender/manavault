@@ -86,13 +86,24 @@ type ActiveFilterChip = {
   label: string
 }
 
+type PullingView = "all" | "unfiled" | "available"
+
+const PULLING_VIEW_LABELS: Record<PullingView, string> = {
+  all: "All cards",
+  unfiled: "Unfiled",
+  available: "Available to pull",
+}
+
+
 function activeCollectionFilterChips(
   filters: CollectionFilterState,
   appliedSearch: string,
+  pullingView: PullingView,
 ): ActiveFilterChip[] {
   const chips: ActiveFilterChip[] = []
   const search = appliedSearch.trim()
 
+  if (pullingView !== "all") chips.push({ key: "pullingView", label: PULLING_VIEW_LABELS[pullingView] })
   if (search) chips.push({ key: "search", label: `Search: ${search}` })
   if (filters.name.trim()) chips.push({ key: "name", label: `Name: ${filters.name.trim()}` })
   if (filters.typeLine.trim()) chips.push({ key: "type", label: `Type: ${filters.typeLine.trim()}` })
@@ -203,16 +214,20 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
       shouldRemove: hasNoCollectionFilters,
     },
   )
+  const [pullingView, setPullingView] = useState<PullingView>("all")
   const client = useApolloClient()
   const { showToast } = useToast()
   const navigate = useNavigate()
   const [deleteLocationMutation] = useMutation(DeleteLocationDocument)
   const structuredFilterSyntax = buildCollectionFilterQuery(structuredFilters)
   const combinedCollectionQuery = combineCollectionQueries(appliedSearch, structuredFilterSyntax)
-  const filters = useMemo(
-    () => (combinedCollectionQuery ? { q: combinedCollectionQuery } : {}),
-    [combinedCollectionQuery],
-  )
+  const filters = useMemo(() => {
+    const nextFilters: { q?: string; locationId?: string; unallocatedOnly?: boolean } = {}
+    if (combinedCollectionQuery) nextFilters.q = combinedCollectionQuery
+    if (pullingView === "unfiled") nextFilters.locationId = "unfiled"
+    if (pullingView === "available") nextFilters.unallocatedOnly = true
+    return nextFilters
+  }, [combinedCollectionQuery, pullingView])
   const { data, loading: isLoading } = useQuery(CollectionDocument, {
     variables: { filters },
     fetchPolicy: "cache-and-network",
@@ -267,14 +282,18 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
       }),
     [allItemsQuery, filters, sort],
   )
-  const hasCollectionFilters = Boolean(combinedCollectionQuery)
+  const hasCollectionFilters = Boolean(combinedCollectionQuery || pullingView !== "all")
   const activeStructuredFilterCount = countActiveCollectionFilters(structuredFilters)
   const activeFilterChips = useMemo(
-    () => activeCollectionFilterChips(structuredFilters, appliedSearch),
-    [appliedSearch, structuredFilters],
+    () => activeCollectionFilterChips(structuredFilters, appliedSearch, pullingView),
+    [appliedSearch, pullingView, structuredFilters],
   )
   const filterBadgeCount = activeStructuredFilterCount
   const collectionCountLabel = `${data?.collectionItemCount || 0} ${hasCollectionFilters ? "shown" : "total"}`
+  const unfiledItemCount = locations.find((location) => location.id === "unfiled")?.itemCount || 0
+  const loadedAvailableItemCount = allCollectionItems.filter(
+    (item) => Math.max((item.quantity || 0) - (item.allocatedQuantity || 0), 0) > 0,
+  ).length
   const loadMoreAllItems = useCallback(() => {
     if (isSelectingAllCollectionItems || isFetchingMoreAllItems || !allItemsHasNextPage) return
 
@@ -299,6 +318,19 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
 
     return Array.from(groups.entries()).sort(([left], [right]) => left.localeCompare(right))
   }, [locations])
+
+  function applyPullingView(view: PullingView) {
+    selection.clearSelection()
+    setActiveTab("all")
+    setPullingView(view)
+  }
+
+  function showRecentlyAddedCards() {
+    selection.clearSelection()
+    setActiveTab("all")
+    setPullingView("all")
+    setSort({ field: "added", direction: "desc" })
+  }
 
   useEffect(() => {
     if (!importFile) return
@@ -359,6 +391,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
   function clearAllCollectionFilters() {
     clearCollectionSearch()
     clearStructuredFilters()
+    setPullingView("all")
   }
 
   function applyStructuredFilters(nextFilters: CollectionFilterState) {
@@ -540,6 +573,48 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
               Search
             </Button>
           </form>
+
+          <div className="rounded-box border border-base-300 bg-base-100 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-black">Pull workflow</h2>
+                <p className="mt-1 text-sm text-base-content/60">
+                  Jump to the cards most likely to need physical handling.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant={pullingView === "all" ? "secondary" : "outline"}
+                  size="sm"
+                  onClick={() => applyPullingView("all")}
+                >
+                  All cards
+                </Button>
+                <Button
+                  type="button"
+                  variant={pullingView === "unfiled" ? "secondary" : "outline"}
+                  size="sm"
+                  onClick={() => applyPullingView("unfiled")}
+                >
+                  Unfiled
+                  <span className="font-mono">{unfiledItemCount}</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant={pullingView === "available" ? "secondary" : "outline"}
+                  size="sm"
+                  onClick={() => applyPullingView("available")}
+                >
+                  Available to pull
+                  <span className="font-mono">{loadedAvailableItemCount}</span>
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={showRecentlyAddedCards}>
+                  Recently added
+                </Button>
+              </div>
+            </div>
+          </div>
 
           {activeFilterChips.length ? (
             <div className="flex flex-wrap items-center gap-2 rounded-box border border-base-300 bg-base-100 px-4 py-3 text-sm">
