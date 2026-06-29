@@ -153,13 +153,17 @@ export function CollectionFilterModal({
             <details className="group">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 bg-base-200/40 px-5 py-4 marker:hidden">
                 <span>
-                  <span className="block text-sm font-black text-base-content">Advanced filters</span>
+                  <span className="block text-sm font-black text-base-content">
+                    Advanced filters
+                  </span>
                   <span className="mt-1 block text-sm text-base-content/60">
                     Oracle text, commander identity, collector number, price, and release date.
                   </span>
                 </span>
                 <span className="text-sm font-bold text-primary group-open:hidden">Show</span>
-                <span className="hidden text-sm font-bold text-primary group-open:inline">Hide</span>
+                <span className="hidden text-sm font-bold text-primary group-open:inline">
+                  Hide
+                </span>
               </summary>
 
               <div className="divide-y divide-base-300 border-t border-base-300">

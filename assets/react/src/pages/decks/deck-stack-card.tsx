@@ -173,7 +173,6 @@ export function DeckStackCard({
           isDimmed && "opacity-30 saturate-50",
         )}
       >
-
         <ShareModeHidden shareMode={shareMode}>
           {isSelecting ? (
             <button

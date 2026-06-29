@@ -8,7 +8,12 @@ import { collectionValueGainClass } from "./value-summary"
 
 type CollectionPageHeaderProps = {
   activeTab: CollectionTab
-  collectionItemCount: number
+  itemCounts: {
+    all: number
+    recent: number
+    available: number
+    unfiled: number
+  }
   locationCount: number
   valueSummary?: CollectionValueSummary | null
   onAddItem: () => void
@@ -26,7 +31,7 @@ export function CollectionPageHeader({
   activeTab,
   autoSortDisabled = false,
   autoSortPending = false,
-  collectionItemCount,
+  itemCounts,
   locationCount,
   valueSummary,
   onAddItem,
@@ -93,9 +98,27 @@ export function CollectionPageHeader({
         />
         <CollectionTabButton
           active={activeTab === "all"}
-          count={collectionItemCount}
+          count={itemCounts.all}
           label="All cards"
           onClick={() => onSelectTab("all")}
+        />
+        <CollectionTabButton
+          active={activeTab === "recent"}
+          count={itemCounts.recent}
+          label="Recently added"
+          onClick={() => onSelectTab("recent")}
+        />
+        <CollectionTabButton
+          active={activeTab === "available"}
+          count={itemCounts.available}
+          label="Available to pull"
+          onClick={() => onSelectTab("available")}
+        />
+        <CollectionTabButton
+          active={activeTab === "unfiled"}
+          count={itemCounts.unfiled}
+          label="Unfiled"
+          onClick={() => onSelectTab("unfiled")}
         />
       </div>
     </>

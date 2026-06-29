@@ -128,7 +128,10 @@ export function DeckCardAllocationPanel({
                 >
                   <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                     <div className="min-w-0">
-                      <p className="block max-w-full truncate font-semibold" title={collectionItemLabel(candidate)}>
+                      <p
+                        className="block max-w-full truncate font-semibold"
+                        title={collectionItemLabel(candidate)}
+                      >
                         {collectionItemLabel(candidate)}
                       </p>
                       <p className="truncate text-xs text-base-content/60">
@@ -140,7 +143,9 @@ export function DeckCardAllocationPanel({
                         type="button"
                         className="btn btn-primary btn-sm min-w-0"
                         disabled={
-                          isUpdating || candidate.available <= 0 || status.allocated >= status.required
+                          isUpdating ||
+                          candidate.available <= 0 ||
+                          status.allocated >= status.required
                         }
                         onClick={() => onAllocate(candidate.item.id)}
                       >

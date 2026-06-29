@@ -424,6 +424,16 @@ defmodule ManavaultWeb.Schema.CollectionQueriesTest do
               }
             }
           }
+          unfiledCollectionItemCount: collectionItemCount(filters: {locationId: "unfiled"})
+          unfiledCollectionItems: collectionItems(first: 10, filters: {locationId: "unfiled"}) {
+            edges {
+              node {
+                quantity
+                location { name }
+                printing { card { name } }
+              }
+            }
+          }
         }
         """,
         "variables" => %{"id" => location_id}
@@ -449,6 +459,18 @@ defmodule ManavaultWeb.Schema.CollectionQueriesTest do
                      }
                    ]
                  }
+               },
+               "unfiledCollectionItemCount" => 4,
+               "unfiledCollectionItems" => %{
+                 "edges" => [
+                   %{
+                     "node" => %{
+                       "quantity" => 4,
+                       "location" => nil,
+                       "printing" => %{"card" => %{"name" => "Loose Card"}}
+                     }
+                   }
+                 ]
                }
              }
            } = json_response(conn, 200)

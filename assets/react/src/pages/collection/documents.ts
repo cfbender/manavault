@@ -47,6 +47,9 @@ export const CollectionDocument = graphql(`
       valueGainPercentText
     }
     collectionItemCount(filters: $filters)
+    allCollectionItemCount: collectionItemCount
+    unfiledCollectionItemCount: collectionItemCount(filters: { locationId: "unfiled" })
+    availableCollectionItemCount: collectionItemCount(filters: { unallocatedOnly: true })
   }
 `)
 

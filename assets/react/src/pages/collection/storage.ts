@@ -25,7 +25,14 @@ export function deserializeCollectionTab(value: string): CollectionTab {
     decoded = value
   }
 
-  if (decoded === "all") return "all"
+  if (
+    decoded === "all" ||
+    decoded === "recent" ||
+    decoded === "available" ||
+    decoded === "unfiled"
+  ) {
+    return decoded
+  }
   return "locations"
 }
 

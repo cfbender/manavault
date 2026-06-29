@@ -194,9 +194,16 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
            args
            |> Map.get(:filters, %{})
            |> Enum.into([])
-           |> RelayHelpers.put_filter_node_id(:location_id, :location, resolution),
+           |> put_location_filter_id(resolution),
          {:ok, filters} <- put_card_filter_id(filters, resolution) do
       {:ok, stringify_filter_id(filters, :location_id)}
+    end
+  end
+
+  defp put_location_filter_id(filters, resolution) do
+    case Keyword.fetch(filters, :location_id) do
+      {:ok, "unfiled"} -> {:ok, filters}
+      _other -> RelayHelpers.put_filter_node_id(filters, :location_id, :location, resolution)
     end
   end
 

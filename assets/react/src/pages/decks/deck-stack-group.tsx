@@ -86,7 +86,7 @@ export function DeckStackGroup({
   const stackRef = useRef<HTMLDivElement>(null)
   const hoverTimerRef = useRef<number | null>(null)
   const pendingHoverIndexRef = useRef<number | null>(null)
-  const activeIndex = isSelecting ? null : hoveredIndex ?? pinnedIndex
+  const activeIndex = isSelecting ? null : (hoveredIndex ?? pinnedIndex)
   const revealOffset = group.cards.length > 1 ? DECK_STACK_REVEAL_OFFSET : 0
 
   useEffect(

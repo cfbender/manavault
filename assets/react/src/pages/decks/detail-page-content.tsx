@@ -480,7 +480,6 @@ export function DeckDetailContent({
         }
       />
 
-
       {legalityIssues.length ? (
         <div className="rounded-box border border-error/25 bg-error/5 p-4 text-sm text-base-content/80">
           <div className="mb-2 flex flex-wrap items-center gap-2 font-bold text-error">
@@ -626,7 +625,6 @@ export function DeckDetailContent({
         shareMode={shareMode}
       />
 
-
       <ShareModeHidden shareMode={shareMode}>
         {isSelectionActive ? (
           <div className="grid gap-3 rounded-box border border-base-300 bg-base-100 p-3 shadow-sm">
@@ -644,12 +642,7 @@ export function DeckDetailContent({
                 >
                   Select all
                 </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={onClearSelectedDeckCards}
-                >
+                <Button type="button" variant="ghost" size="sm" onClick={onClearSelectedDeckCards}>
                   {selectedDeckCardCount > 0 ? "Clear" : "Done"}
                 </Button>
               </div>

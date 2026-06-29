@@ -21,7 +21,7 @@ type PayloadField<T, Field extends string> = T extends { [Key in Field]?: infer 
 
 export type CollectionItem = ConnectionNode<CollectionItemsPageQuery["collectionItems"]>
 
-export type CollectionTab = "locations" | "all"
+export type CollectionTab = "locations" | "all" | "recent" | "available" | "unfiled"
 export type CollectionSortField = "quantity" | "name" | "set" | "rarity" | "price" | "added"
 export type CollectionSortDirection = "asc" | "desc"
 export type CollectionSort = {

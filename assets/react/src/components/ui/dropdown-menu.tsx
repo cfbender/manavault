@@ -53,5 +53,10 @@ export function DropdownMenuSeparator({
   className,
   ...props
 }: ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Separator>) {
-  return <DropdownMenuPrimitive.Separator className={cn("my-1 h-px bg-base-300", className)} {...props} />
+  return (
+    <DropdownMenuPrimitive.Separator
+      className={cn("my-1 h-px bg-base-300", className)}
+      {...props}
+    />
+  )
 }
