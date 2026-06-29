@@ -119,7 +119,7 @@ export function EDHRecCardDetailTrigger({
       {children}
     </a>
   ) : (
-    <>{children}</>
+    <span className={className}>{children}</span>
   )
 }
 

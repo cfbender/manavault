@@ -147,7 +147,7 @@ export function EDHRecCardTile({
               card={card}
               onPreviewCard={onPreviewCard}
               className={cn(
-                "block truncate text-sm font-black hover:text-primary",
+                "block w-full truncate text-sm font-black hover:text-primary",
                 isTouchRevealed && "text-primary",
               )}
             >
