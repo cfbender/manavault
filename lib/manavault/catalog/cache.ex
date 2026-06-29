@@ -93,11 +93,18 @@ defmodule Manavault.Catalog.Cache do
   end
 
   def invalidate_locations do
-    invalidate([@locations_tag, @collection_tag, @home_tag, @auto_sort_rules_tag])
+    invalidate([
+      @locations_tag,
+      @collection_tag,
+      @cards_tag,
+      @decks_tag,
+      @home_tag,
+      @auto_sort_rules_tag
+    ])
   end
 
   def invalidate_decks do
-    invalidate([@decks_tag, @collection_tag, @locations_tag, @home_tag])
+    invalidate([@decks_tag, @collection_tag, @locations_tag, @cards_tag, @home_tag])
   end
 
   def invalidate_auto_sort_rules do
