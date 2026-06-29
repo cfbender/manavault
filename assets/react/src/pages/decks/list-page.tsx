@@ -165,12 +165,12 @@ function DeckGalleryCard({
           }
         />
       </Link>
-      <div className="mt-2 flex flex-wrap justify-end gap-2">
+      <div className="absolute bottom-3 right-3 z-20 flex flex-wrap justify-end gap-2">
         <Button
           type="button"
           variant="outline"
           size="sm"
-          className="min-h-9 bg-base-100/90"
+          className="min-h-9 border-base-300 bg-base-100/90 shadow-sm backdrop-blur hover:bg-base-100"
           onClick={onEdit}
         >
           <Edit3 className="h-4 w-4" />
@@ -180,7 +180,7 @@ function DeckGalleryCard({
           type="button"
           variant="outline"
           size="sm"
-          className="min-h-9 bg-base-100/90"
+          className="min-h-9 border-base-300 bg-base-100/90 shadow-sm backdrop-blur hover:bg-base-100"
           onClick={onShare}
         >
           <Share2 className="h-4 w-4" />
