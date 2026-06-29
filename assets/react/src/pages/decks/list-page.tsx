@@ -40,6 +40,68 @@ function DeckGalleryHeader({ onNewDeck }: { onNewDeck: () => void }) {
   )
 }
 
+function DeckGallerySkeleton() {
+  return (
+    <PageSection count="Loading decks">
+      <div className="space-y-10" aria-busy="true" aria-label="Loading deck gallery" role="status">
+        <section className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="h-7 w-32 animate-pulse rounded bg-base-200" />
+            <div className="h-6 w-10 animate-pulse rounded-full bg-base-200" />
+          </div>
+          <div className="grid gap-5 md:grid-cols-2">
+            {[0, 1, 2, 3].map((index) => (
+              <div
+                key={index}
+                className="min-h-52 rounded-box border border-base-300 bg-base-100 p-5"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="h-5 w-20 animate-pulse rounded bg-base-200" />
+                  <div className="h-5 w-16 animate-pulse rounded bg-base-200" />
+                </div>
+                <div className="mt-20 h-8 w-3/4 animate-pulse rounded bg-base-200" />
+                <div className="mt-4 flex gap-2">
+                  <div className="h-5 w-16 animate-pulse rounded bg-base-200" />
+                  <div className="h-5 w-14 animate-pulse rounded bg-base-200" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    </PageSection>
+  )
+}
+
+function DeckGalleryEmptyState({ onNewDeck }: { onNewDeck: () => void }) {
+  return (
+    <EmptyState
+      title="Start your deck gallery"
+      description="Create a deck shell, then import a list or add cards from the catalog when you are ready to connect exact printings."
+      action={
+        <Button type="button" onClick={onNewDeck}>
+          <Plus className="h-4 w-4" />
+          New deck
+        </Button>
+      }
+    />
+  )
+}
+
+function DeckGalleryErrorState({ onRetry }: { onRetry: () => void }) {
+  return (
+    <EmptyState
+      title="Decks could not load"
+      description="The deck gallery is still here; retry the local catalog request before changing deck data."
+      action={
+        <Button type="button" variant="outline" onClick={onRetry}>
+          Retry decks
+        </Button>
+      }
+    />
+  )
+}
+
 export function DecksPage() {
   const [isNewDeckOpen, setIsNewDeckOpen] = useState(false)
   const [editingDeck, setEditingDeck] = useState<DeckSummary | null>(null)
@@ -50,9 +112,15 @@ export function DecksPage() {
   const [deleteDeck] = useMutation(DeleteDeckDocument, {
     refetchQueries: [{ query: DecksDocument }],
   })
-  const { data, loading: isLoading } = useQuery(DecksDocument, { fetchPolicy: "cache-and-network" })
+  const {
+    data,
+    error: decksError,
+    loading: isLoading,
+    refetch,
+  } = useQuery(DecksDocument, { fetchPolicy: "cache-and-network" })
   const decks = useMemo(() => flattenDecks(data?.decks), [data?.decks])
   const deckGroups = groupDecksByFormat(decks)
+  const isInitialLoading = isLoading && !data
 
   function deleteSelectedDeck() {
     if (!deletingDeck) return
@@ -68,8 +136,10 @@ export function DecksPage() {
   return (
     <>
       <DeckGalleryHeader onNewDeck={() => setIsNewDeckOpen(true)} />
-      {isLoading ? (
-        <EmptyState title="Loading decks..." />
+      {decksError && !data ? (
+        <DeckGalleryErrorState onRetry={() => void refetch()} />
+      ) : isInitialLoading ? (
+        <DeckGallerySkeleton />
       ) : deckGroups.length ? (
         <PageSection count={`${decks.length} total`}>
           <div className="space-y-10">
@@ -129,7 +199,7 @@ export function DecksPage() {
           </div>
         </PageSection>
       ) : (
-        <EmptyState title="No decks yet" />
+        <DeckGalleryEmptyState onNewDeck={() => setIsNewDeckOpen(true)} />
       )}
       <NewDeckDialog open={isNewDeckOpen} onOpenChange={setIsNewDeckOpen} />
       <EditDeckDialog deck={editingDeck} onOpenChange={(open) => !open && setEditingDeck(null)} />
