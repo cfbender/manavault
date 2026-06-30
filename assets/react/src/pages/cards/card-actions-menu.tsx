@@ -43,7 +43,14 @@ export function CardActionsMenu({
   }, [open])
 
   return (
-    <div ref={ref} className={cn("dropdown dropdown-end", className)}>
+    <div
+      ref={ref}
+      className={cn("dropdown dropdown-end", className)}
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+      onPointerDown={(event) => event.stopPropagation()}
+    >
       <button
         type="button"
         className="btn btn-circle btn-sm border-base-300/70 bg-base-100/85 text-base-content shadow-lg backdrop-blur hover:bg-base-100"

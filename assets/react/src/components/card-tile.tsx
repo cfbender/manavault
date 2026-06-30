@@ -13,6 +13,9 @@ import {
 } from "lucide-react"
 import {
   Fragment,
+  forwardRef,
+  useRef,
+  type ButtonHTMLAttributes,
   type FocusEvent,
   type KeyboardEvent,
   type MouseEvent,
@@ -37,6 +40,30 @@ export type CardTileAction = {
   onClick?: () => void
   separatorBefore?: boolean
 }
+
+type CardTileOverlayButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  tone?: "custom" | "neutral" | "primary"
+}
+
+export const CardTileOverlayButton = forwardRef<HTMLButtonElement, CardTileOverlayButtonProps>(
+  ({ className, tone = "neutral", type = "button", ...props }, ref) => (
+    <button
+      ref={ref}
+      type={type}
+      className={cn(
+        "card-tile-touch-button btn btn-circle btn-sm min-h-11 w-11 border-0 shadow backdrop-blur transition",
+        tone === "primary"
+          ? "bg-primary text-primary-content hover:bg-primary"
+          : tone === "neutral"
+            ? "bg-neutral/85 text-neutral-content hover:bg-neutral"
+            : null,
+        className,
+      )}
+      {...props}
+    />
+  ),
+)
+CardTileOverlayButton.displayName = "CardTileOverlayButton"
 
 export function CardTile({
   allocatedLabel,
@@ -110,6 +137,8 @@ export function CardTile({
           : finish
   const ownedLabel = count && count >= countMin ? `Owned ×${count}` : null
   const mobileHover = useMobileHoverReveal<HTMLDivElement>()
+  const suppressMenuClickRef = useRef(false)
+  const suppressMenuClickTimeoutRef = useRef<number | null>(null)
   const fallbackDefaultActions: CardTileAction[] = [
     { icon: <MoveUpRight className="h-4 w-4" />, label: "Move", disabled: true },
     { icon: <Edit3 className="h-4 w-4" />, label: "Edit", disabled: true },
@@ -124,11 +153,29 @@ export function CardTile({
     })),
   ]
 
+  function markMenuInteraction() {
+    suppressMenuClickRef.current = true
+    if (suppressMenuClickTimeoutRef.current) {
+      window.clearTimeout(suppressMenuClickTimeoutRef.current)
+    }
+    suppressMenuClickTimeoutRef.current = window.setTimeout(() => {
+      suppressMenuClickRef.current = false
+      suppressMenuClickTimeoutRef.current = null
+    }, 500)
+  }
+
   function handleBlur(event: FocusEvent<HTMLDivElement>) {
     mobileHover.clearRevealOnBlur(event)
   }
 
   function handleClick(event: MouseEvent<HTMLDivElement>) {
+    if (suppressMenuClickRef.current) {
+      suppressMenuClickRef.current = false
+      event.preventDefault()
+      event.stopPropagation()
+      return
+    }
+
     if (mobileHover.suppressClickIfRevealed(event)) {
       return
     }
@@ -186,29 +233,42 @@ export function CardTile({
             mobileHover.isRevealed && "opacity-100",
           )}
           data-mobile-hover-skip=""
+          onClickCapture={markMenuInteraction}
           onClick={(event) => event.stopPropagation()}
           onKeyDown={(event) => event.stopPropagation()}
           onMouseDown={(event) => event.stopPropagation()}
-          onPointerDown={(event) => event.stopPropagation()}
+          onPointerDown={(event) => {
+            markMenuInteraction()
+            event.stopPropagation()
+          }}
         >
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="card-tile-touch-button btn btn-circle btn-sm min-h-11 w-11 border-0 bg-neutral/85 text-neutral-content shadow backdrop-blur transition hover:bg-neutral"
-                aria-label="Card actions"
-              >
+              <CardTileOverlayButton aria-label="Card actions">
                 <MoreVertical className="h-4 w-4" />
-              </button>
+              </CardTileOverlayButton>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="card-tile-touch-menu">
+            <DropdownMenuContent
+              align="start"
+              className="card-tile-touch-menu z-[1200]"
+              onClickCapture={markMenuInteraction}
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => event.stopPropagation()}
+              onPointerDown={(event) => {
+                markMenuInteraction()
+                event.stopPropagation()
+              }}
+            >
               {allActions.map((action, index) => (
                 <Fragment key={index}>
                   {action.separatorBefore ? <DropdownMenuSeparator /> : null}
                   <DropdownMenuItem
                     destructive={action.destructive}
                     disabled={action.disabled}
-                    onSelect={action.onClick}
+                    onSelect={() => {
+                      markMenuInteraction()
+                      action.onClick?.()
+                    }}
                   >
                     {action.icon}
                     {action.label}
@@ -221,17 +281,14 @@ export function CardTile({
       ) : null}
 
       {canToggleSelection ? (
-        <button
-          type="button"
+        <CardTileOverlayButton
           className={cn(
-            "card-tile-touch-button btn btn-circle btn-xs absolute right-2 top-2 z-50 border-0 shadow backdrop-blur transition",
-            selected
-              ? "bg-primary text-primary-content hover:bg-primary"
-              : "bg-neutral/85 text-neutral-content hover:bg-neutral",
+            "absolute right-2 top-2 z-50",
             selected || selectionActive || mobileHover.isRevealed
               ? "opacity-100"
               : "opacity-0 group-hover/card:opacity-100 group-focus-within/card:opacity-100",
           )}
+          tone={selected ? "primary" : "neutral"}
           aria-label={selectionLabel || (selected ? "Deselect card" : "Select card")}
           aria-pressed={selected}
           onClick={(event) => {
@@ -242,7 +299,7 @@ export function CardTile({
           onMouseDown={(event) => event.stopPropagation()}
         >
           {selected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
-        </button>
+        </CardTileOverlayButton>
       ) : null}
 
       <figure

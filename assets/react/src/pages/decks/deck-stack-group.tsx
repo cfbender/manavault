@@ -50,6 +50,7 @@ export function DeckStackGroup({
   group,
   isSelecting,
   isUpdating,
+  onAllocate,
   onDelete,
   onDeallocate,
   onEdit,
@@ -69,6 +70,7 @@ export function DeckStackGroup({
   highlightedCardIds: Set<string> | null
   isSelecting: boolean
   isUpdating: boolean
+  onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
   onDelete: (deckCard: DeckCardEntry) => void
   onDeallocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
   onEdit: (deckCard: DeckCardEntry) => void
@@ -197,6 +199,7 @@ export function DeckStackGroup({
             isSelected={selectedCardIds.has(deckCard.id)}
             isUpdating={isUpdating}
             isDimmed={highlightedCardIds !== null && !highlightedCardIds.has(deckCard.id)}
+            onAllocate={(collectionItemId) => onAllocate(deckCard, collectionItemId)}
             onDelete={() => onDelete(deckCard)}
             onDeallocate={(collectionItemId) => onDeallocate(deckCard, collectionItemId)}
             onEdit={() => onEdit(deckCard)}

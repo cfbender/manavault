@@ -1,4 +1,5 @@
 import {
+  CheckCircle2,
   CheckSquare,
   Crown,
   Edit3,
@@ -12,13 +13,20 @@ import {
 } from "lucide-react"
 import { useEffect, useRef, useState, type FocusEvent, type PointerEvent } from "react"
 
-import { cn, titleize } from "../../lib/utils"
+import { CardTileOverlayButton } from "../../components/card-tile"
 import { useMobileHoverReveal } from "../../lib/mobile-hover"
+import { cn, titleize } from "../../lib/utils"
 import { ShareModeHidden, blurFocusedMenuItem } from "./deck-actions"
-import { collectionItemLabel } from "./deck-card-allocation"
+import {
+  AllocationStatusIcon,
+  allocationStatusButtonClass,
+  allocationStatusLabel,
+  allocationStatusSummary,
+  collectionItemLabel,
+} from "./deck-card-allocation"
 import { cardImageUrl } from "./deck-card-model"
 import { GameChangerBadge } from "./deck-card-display"
-import { deckCardTag } from "./deck-card-tags"
+import { deckCardTag, nextDeckCardTag } from "./deck-card-tags"
 import {
   DECK_STACK_ACTION_MENU_CLASS_NAME,
   deckStackActionMenuDirection,
@@ -41,6 +49,7 @@ export function DeckStackCard({
   isSelected,
   isUpdating,
   onDelete,
+  onAllocate,
   onDeallocate,
   onEdit,
   onMove,
@@ -64,6 +73,7 @@ export function DeckStackCard({
   isUpdating: boolean
   isSelecting: boolean
   isSelected: boolean
+  onAllocate: (collectionItemId: string) => void
   onDelete: () => void
   onDeallocate: (collectionItemId: string) => void
   onEdit: () => void
@@ -150,7 +160,7 @@ export function DeckStackCard({
   return (
     <article
       className={cn(
-        "group/deck-card absolute left-0 w-56 origin-top rounded-xl transition-transform duration-200 ease-out",
+        "group group/deck-card absolute left-0 w-56 origin-top rounded-xl transition-transform duration-200 ease-out",
         isInteractive && "z-[90]",
       )}
       onBlur={handleBlur}
@@ -165,7 +175,7 @@ export function DeckStackCard({
     >
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 rounded-xl bg-black"
+        className="pointer-events-none absolute left-0 top-0 aspect-[5/7] w-56 rounded-xl bg-black"
       />
       <div
         className={cn(
@@ -196,9 +206,9 @@ export function DeckStackCard({
           <div
             ref={actionMenuRef}
             className={cn(
-              "dropdown dropdown-end absolute right-2 top-2 z-[120] transition-opacity group-focus-within/deck-card:opacity-100",
+              "dropdown dropdown-start absolute left-2 top-2 z-[120] transition-opacity group-focus-within:opacity-100",
               actionMenuDirection === "up" && "dropdown-top",
-              isInteractive ? "opacity-100" : "opacity-0",
+              isInteractive ? "visible opacity-100" : "invisible opacity-0 group-hover:visible group-hover:opacity-100",
             )}
             onClick={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
@@ -207,14 +217,9 @@ export function DeckStackCard({
             onPointerMove={(event) => event.stopPropagation()}
             onPointerUp={(event) => event.stopPropagation()}
           >
-            <button
-              type="button"
-              className="btn btn-circle btn-xs border-0 bg-neutral/85 text-neutral-content shadow transition hover:bg-neutral"
-              tabIndex={isInteractive ? 0 : -1}
-              aria-label={`${name} actions`}
-            >
+            <CardTileOverlayButton tabIndex={isInteractive ? 0 : -1} aria-label={`${name} actions`}>
               <MoreVertical className="h-4 w-4" />
-            </button>
+            </CardTileOverlayButton>
             {isInteractive ? (
               <ul
                 tabIndex={0}
@@ -308,9 +313,55 @@ export function DeckStackCard({
           </div>
         </ShareModeHidden>
 
+        {!isSelecting ? (
+          <ShareModeHidden shareMode={shareMode}>
+            <div
+              className="absolute right-2 top-2 z-[115] flex items-center gap-1"
+              data-deck-stack-pointer-capture=""
+              onClick={(event) => event.stopPropagation()}
+              onMouseDown={(event) => event.stopPropagation()}
+              onPointerDown={(event) => event.stopPropagation()}
+              onPointerMove={(event) => event.stopPropagation()}
+              onPointerUp={(event) => event.stopPropagation()}
+            >
+              <DeckCardAllocationQuickMenu
+                deckCard={deckCard}
+                isVisible={isInteractive}
+                isUpdating={isUpdating}
+                onAllocate={onAllocate}
+                onDeallocate={onDeallocate}
+                onReveal={onTouchReveal}
+                onToggleProxy={onToggleProxy}
+              />
+              <DeckCardTagQuickButton
+                disabled={isUpdating}
+                isVisible={isInteractive}
+                tag={tag}
+                value={deckCard.tag}
+                onChange={onTag}
+              />
+            </div>
+          </ShareModeHidden>
+        ) : null}
+
+        {!isSelecting && tag ? (
+          <ShareModeHidden shareMode={shareMode}>
+            <span
+              className={cn(
+                "pointer-events-none absolute right-2 top-2 z-[110] inline-flex h-6 w-6 items-center justify-center rounded-full border border-base-100/70 shadow backdrop-blur transition-opacity group-hover:opacity-0 group-focus-within:opacity-0",
+                tag.className,
+                isInteractive && "opacity-0",
+              )}
+              aria-hidden="true"
+            >
+              <tag.icon className="h-3.5 w-3.5" />
+            </span>
+          </ShareModeHidden>
+        ) : null}
+
         <button
           type="button"
-          className="block w-full cursor-pointer text-left"
+          className="block w-56 cursor-pointer text-left"
           aria-label={`View ${name} details`}
           onPointerDown={handlePointerDown}
           onClick={(event) => {
@@ -356,14 +407,14 @@ export function DeckStackCard({
             ) : null}
 
             {deckCard.quantity > 1 ? (
-              <span className="absolute right-0 top-0 z-20 rounded-bl-xl bg-primary px-2.5 py-1.5 text-sm font-black leading-none text-primary-content shadow-lg">
+              <span className="absolute right-2 top-14 z-20 rounded-md bg-primary px-2.5 py-1.5 text-sm font-black leading-none text-primary-content shadow-lg">
                 {deckCard.quantity}
               </span>
             ) : null}
 
             <figcaption
               className={cn(
-                "absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/90 via-black/45 to-transparent px-3 pb-3 pt-12 text-white transition duration-200 group-focus-within/deck-card:opacity-100",
+                "absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/90 via-black/45 to-transparent px-3 pb-3 pt-12 text-white transition duration-200 group-focus-within:opacity-100",
                 isInteractive ? "opacity-100" : "opacity-0",
               )}
             >
@@ -379,5 +430,138 @@ export function DeckStackCard({
         </button>
       </div>
     </article>
+  )
+}
+
+function DeckCardAllocationQuickMenu({
+  deckCard,
+  isVisible,
+  isUpdating,
+  onAllocate,
+  onDeallocate,
+  onReveal,
+  onToggleProxy,
+}: {
+  deckCard: DeckCardEntry
+  isVisible: boolean
+  isUpdating: boolean
+  onAllocate: (collectionItemId: string) => void
+  onDeallocate: (collectionItemId: string) => void
+  onReveal: () => void
+  onToggleProxy: () => void
+}) {
+  const status = deckCard.allocationStatus
+  const label = allocationStatusLabel(status)
+  const summary = allocationStatusSummary(status)
+  const allocatedCandidate = status.candidates.find((candidate) => candidate.allocated > 0)
+  const availableCandidate = status.candidates.find(
+    (candidate) => candidate.available > 0 && status.allocated < status.required,
+  )
+  const hasProxyAllocation = status.proxyAllocated > 0
+  const canMarkProxy =
+    status.state !== "basic_land" && status.proxyAllocated <= 0 && status.required > status.allocated
+
+  return (
+    <div className="dropdown dropdown-end" onClick={(event) => event.stopPropagation()}>
+      <CardTileOverlayButton
+        className={cn(
+          "relative transition-opacity",
+          allocationStatusButtonClass(status.state),
+          isVisible ? "visible opacity-100" : "invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100",
+        )}
+        tabIndex={isVisible ? 0 : -1}
+        aria-label={`${label}: ${summary}`}
+        title={`${label}: ${summary}`}
+        onClick={() => {
+          if (!isVisible) onReveal()
+        }}
+      >
+        <AllocationStatusIcon state={status.state} className="h-4 w-4" />
+      </CardTileOverlayButton>
+      <ul
+        tabIndex={0}
+        className="menu dropdown-content z-[140] mt-1 w-40 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
+        onClick={blurFocusedMenuItem}
+      >
+        <li className="menu-title whitespace-normal">
+          <span>
+            {label}
+            <br />
+            <span className="font-normal text-base-content/65">{summary}</span>
+          </span>
+        </li>
+        {availableCandidate ? (
+          <li>
+            <button
+              type="button"
+              disabled={isUpdating}
+              title={collectionItemLabel(availableCandidate)}
+              onClick={() => onAllocate(availableCandidate.item.id)}
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Allocate copy
+            </button>
+          </li>
+        ) : null}
+        {allocatedCandidate ? (
+          <li>
+            <button
+              type="button"
+              disabled={isUpdating}
+              title={collectionItemLabel(allocatedCandidate)}
+              onClick={() => onDeallocate(allocatedCandidate.item.id)}
+            >
+              <XCircle className="h-4 w-4" />
+              Deallocate
+            </button>
+          </li>
+        ) : null}
+        {hasProxyAllocation || canMarkProxy ? (
+          <li>
+            <button type="button" disabled={isUpdating} onClick={onToggleProxy}>
+              <XCircle className="h-4 w-4" />
+              {hasProxyAllocation ? "Remove proxy" : "Mark proxy"}
+            </button>
+          </li>
+        ) : null}
+      </ul>
+    </div>
+  )
+}
+
+type DeckCardTagDescriptor = NonNullable<ReturnType<typeof deckCardTag>>
+
+function DeckCardTagQuickButton({
+  disabled,
+  isVisible,
+  onChange,
+  tag,
+  value,
+}: {
+  disabled: boolean
+  isVisible: boolean
+  onChange: (tag: DeckCardTag | null) => void
+  tag: DeckCardTagDescriptor | null
+  value?: string | null
+}) {
+  const Icon = tag?.icon || Tag
+  const label = tag?.label || "Add tag"
+
+  return (
+    <CardTileOverlayButton
+      tone={tag ? "custom" : "neutral"}
+      className={cn(
+        "transition-opacity",
+        tag?.className,
+        isVisible ? "visible opacity-100" : "invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100",
+      )}
+      disabled={disabled}
+      tabIndex={isVisible ? 0 : -1}
+      aria-label={`${label}; click to change tag`}
+      title={label}
+      onClick={() => onChange(nextDeckCardTag(value))}
+    >
+      <Icon className="h-4 w-4 shrink-0" />
+    </CardTileOverlayButton>
   )
 }

@@ -743,6 +743,7 @@ export function DeckDetailContent({
           selectedCardIds={selectedDeckCardIds}
           highlightedCardIds={highlightedDeckCardIds}
           onPreview={onPreviewCard}
+          onAllocate={onAllocate}
           onDeallocate={onDeallocate}
           onMove={onMoveCard}
           onEdit={onEditCard}
