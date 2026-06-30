@@ -45,17 +45,16 @@ export function isNestedInteractiveHoverTarget({
   currentTarget: EventTarget | null
   target: EventTarget | null
 }) {
-  if (!(target instanceof HTMLElement)) return false
-  if (!(currentTarget instanceof HTMLElement)) return false
+  if (!(target instanceof Element)) return false
+  if (!(currentTarget instanceof Element)) return false
 
   const interactiveTarget = target.closest(INTERACTIVE_SELECTOR)
   return interactiveTarget !== null && interactiveTarget !== currentTarget
 }
 
 export function isMobileHoverSkipTarget(target: EventTarget | null) {
-  return target instanceof HTMLElement && target.closest(MOBILE_HOVER_SKIP_SELECTOR) !== null
+  return target instanceof Element && target.closest(MOBILE_HOVER_SKIP_SELECTOR) !== null
 }
-
 export function shouldRevealMobileHover({
   canReveal = true,
   hasMobileInteraction,

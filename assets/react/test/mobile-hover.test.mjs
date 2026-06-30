@@ -2,6 +2,8 @@ import test from "node:test"
 import assert from "node:assert/strict"
 
 import {
+  isMobileHoverSkipTarget,
+  isNestedInteractiveHoverTarget,
   shouldClearMobileHoverReveal,
   shouldRevealMobileHover,
   shouldSuppressMobileHoverClick,
@@ -66,4 +68,35 @@ test("mobile hover clears on outside taps while preserving inside second taps", 
   assert.equal(shouldClearMobileHoverReveal({ isInsideTarget: false, isRevealed: true }), true)
   assert.equal(shouldClearMobileHoverReveal({ isInsideTarget: true, isRevealed: true }), false)
   assert.equal(shouldClearMobileHoverReveal({ isInsideTarget: false, isRevealed: false }), false)
+})
+
+test("mobile hover treats svg descendants inside controls as interactive", () => {
+  const previousElement = globalThis.Element
+
+  class FakeElement {
+    constructor(closestBySelector = {}) {
+      this.closestBySelector = closestBySelector
+    }
+
+    closest(selector) {
+      return this.closestBySelector[selector] || null
+    }
+  }
+
+  globalThis.Element = FakeElement
+
+  try {
+    const card = new FakeElement()
+    const button = new FakeElement()
+    const iconPath = new FakeElement({
+      "a,button,input,select,textarea,label,[role='button'],[role='link']": button,
+    })
+    const skippedIconPath = new FakeElement({ "[data-mobile-hover-skip]": button })
+
+    assert.equal(isNestedInteractiveHoverTarget({ currentTarget: card, target: iconPath }), true)
+    assert.equal(isMobileHoverSkipTarget(skippedIconPath), true)
+  } finally {
+    if (previousElement === undefined) delete globalThis.Element
+    else globalThis.Element = previousElement
+  }
 })

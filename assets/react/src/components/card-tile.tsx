@@ -185,9 +185,11 @@ export function CardTile({
             "absolute left-2 top-2 z-50 opacity-0 transition-opacity group-hover/card:opacity-100 group-focus-within/card:opacity-100",
             mobileHover.isRevealed && "opacity-100",
           )}
+          data-mobile-hover-skip=""
           onClick={(event) => event.stopPropagation()}
           onKeyDown={(event) => event.stopPropagation()}
           onMouseDown={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
         >
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -392,7 +394,7 @@ export function CardTile({
 }
 
 function isInteractiveClickTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) return false
+  if (!(target instanceof Element)) return false
   return Boolean(target.closest("a,button,input,select,textarea,label"))
 }
 
