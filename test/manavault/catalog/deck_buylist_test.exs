@@ -114,12 +114,14 @@ defmodule Manavault.Catalog.DeckBuylistTest do
     assert available_item.id
   end
 
-  test "deck buylist includes mainboard by default and optional sideboard zones" do
-    assert {:ok, %{cards_count: 3, printings_count: 3}} =
+  test "deck buylist includes mainboard and commander by default, optional side zones, and excludes getting tags" do
+    assert {:ok, %{cards_count: 5, printings_count: 5}} =
              Catalog.import_cards([
                buylist_card("zone-mainboard-card", "Mainboard Zone Card", "1"),
-               buylist_card("zone-sideboard-card", "Sideboard Zone Card", "2"),
-               buylist_card("zone-maybeboard-card", "Maybeboard Zone Card", "3")
+               buylist_card("zone-commander-card", "Commander Zone Card", "2"),
+               buylist_card("zone-getting-card", "Getting Tagged Card", "3"),
+               buylist_card("zone-sideboard-card", "Sideboard Zone Card", "4"),
+               buylist_card("zone-maybeboard-card", "Maybeboard Zone Card", "5")
              ])
 
     assert {:ok, deck} = Catalog.create_deck(%{"name" => "Zone Deck"})
@@ -129,6 +131,21 @@ defmodule Manavault.Catalog.DeckBuylistTest do
                "name" => "Mainboard Zone Card",
                "quantity" => 2,
                "zone" => "mainboard"
+             })
+
+    assert {:ok, _commander} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Commander Zone Card",
+               "quantity" => 1,
+               "zone" => "commander"
+             })
+
+    assert {:ok, _getting} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Getting Tagged Card",
+               "quantity" => 1,
+               "zone" => "mainboard",
+               "tag" => "getting"
              })
 
     assert {:ok, _sideboard} =
@@ -145,16 +162,19 @@ defmodule Manavault.Catalog.DeckBuylistTest do
                "zone" => "maybeboard"
              })
 
-    assert [%{card_name: "Mainboard Zone Card", quantity: 2}] =
-             Catalog.deck_buylist(deck, assume_no_owned: true)
+    assert ["Commander Zone Card", "Mainboard Zone Card"] =
+             deck
+             |> Catalog.deck_buylist(assume_no_owned: true)
+             |> Enum.map(& &1.card_name)
+             |> Enum.sort()
 
-    assert ["Mainboard Zone Card", "Sideboard Zone Card"] =
+    assert ["Commander Zone Card", "Mainboard Zone Card", "Sideboard Zone Card"] =
              deck
              |> Catalog.deck_buylist(assume_no_owned: true, include_sideboard: true)
              |> Enum.map(& &1.card_name)
              |> Enum.sort()
 
-    assert ["Mainboard Zone Card", "Maybeboard Zone Card"] =
+    assert ["Commander Zone Card", "Mainboard Zone Card", "Maybeboard Zone Card"] =
              deck
              |> Catalog.deck_buylist(assume_no_owned: true, include_maybeboard: true)
              |> Enum.map(& &1.card_name)

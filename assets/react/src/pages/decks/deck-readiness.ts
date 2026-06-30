@@ -9,12 +9,16 @@ export type DeckReadinessSummary = {
   requiredCount: number
 }
 
-export function summarizeMainboardReadiness(deckCards: readonly DeckCardEntry[]) {
-  return summarizeDeckReadiness(deckCards.filter((deckCard) => deckCard.zone === "mainboard"))
+export function deckPullZones(deckCards: readonly DeckCardEntry[]) {
+  return deckCards.filter((deckCard) => deckCard.zone === "mainboard" || deckCard.zone === "commander")
 }
 
-export function hasMainboardReadinessWork(deckCards: readonly DeckCardEntry[]) {
-  const readiness = summarizeMainboardReadiness(deckCards)
+export function summarizeDeckPullNeeds(deckCards: readonly DeckCardEntry[]) {
+  return summarizeDeckReadiness(deckPullZones(deckCards))
+}
+
+export function hasDeckPullWork(deckCards: readonly DeckCardEntry[]) {
+  const readiness = summarizeDeckPullNeeds(deckCards)
   return readiness.readyCount < readiness.requiredCount
 }
 
@@ -46,7 +50,7 @@ export function summarizeDeckReadiness(deckCards: readonly DeckCardEntry[]): Dec
 
     readyCount += readyForCard
     availableToPull += Math.min(available, stillNeeded)
-    missingToBuy += missing
+    missingToBuy += deckCard.tag === "getting" ? 0 : missing
   }
 
   return {

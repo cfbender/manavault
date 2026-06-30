@@ -14,6 +14,7 @@ defmodule Manavault.Catalog.Decks.Buylist do
 
     deck.deck_cards
     |> Enum.filter(&buylist_zone?(&1, included_zones))
+    |> Enum.reject(&getting_tag?/1)
     |> put_buylist_allocation_statuses(assume_no_owned)
     |> Enum.map(fn deck_card ->
       status = deck_card.allocation_status
@@ -83,6 +84,9 @@ defmodule Manavault.Catalog.Decks.Buylist do
   defp maybe_add_zone(zones, _zone, _include?), do: zones
 
   defp buylist_zone?(%DeckCard{zone: zone}, zones), do: MapSet.member?(zones, zone)
+
+  defp getting_tag?(%DeckCard{tag: "getting"}), do: true
+  defp getting_tag?(%DeckCard{}), do: false
 
   def export_deck_buylist(deck, format, opts \\ [])
 

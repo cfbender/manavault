@@ -12,6 +12,7 @@ import {
   Trash2,
 } from "lucide-react"
 
+import { CardTile } from "../../components/card-tile"
 import { EmptyState } from "../../components/card-image"
 import { ImageSummaryCard } from "../../components/image-summary-card"
 import { Badge } from "../../components/ui/badge"
@@ -28,11 +29,11 @@ import type { DeckCardUpdateInput } from "../../gql/graphql"
 import type { DeckGroup, DeckGroupBy } from "../../lib/deck-grouping"
 import { cn, compactNumber, titleize } from "../../lib/utils"
 import { ShareModeHidden, SummaryActionMenu } from "./deck-actions"
-import { DeckCardAllocationPanel, allocationStatusSummary } from "./deck-card-allocation"
-import { deckDetailCoverUrl } from "./deck-card-model"
+import { DeckCardAllocationPanel, allocationStatusLabel, allocationStatusSummary } from "./deck-card-allocation"
+import { cardImageUrl, deckDetailCoverUrl } from "./deck-card-model"
 import { DeckGroupMenu } from "./deck-group-menu"
 import { deckLegalityIssueCountLabel, deckLegalityLabel, deckLegalityTone } from "./deck-legality"
-import { hasMainboardReadinessWork, summarizeMainboardReadiness } from "./deck-readiness"
+import { deckPullZones, hasDeckPullWork, summarizeDeckPullNeeds } from "./deck-readiness"
 import { DeckNameWithCommanderIdentity, commanderColorIdentity } from "./deck-list-model"
 import { DeckGroupGrid } from "./deck-stack-grid"
 import { DeckStatsSection, DeckTokensSection, type DeferredDeckAnalysis } from "./deck-stats-panel"
@@ -108,29 +109,25 @@ function DeckReadinessDialog({
   open: boolean
   shareMode: boolean
 }) {
-  const readiness = summarizeMainboardReadiness(deckCards)
+  const readiness = summarizeDeckPullNeeds(deckCards)
   const needsAction = readiness.readyCount < readiness.requiredCount
-  const mainboardActionCards = deckCards.filter((deckCard) => {
+  const pullActionCards = deckPullZones(deckCards).filter((deckCard) => {
     const status = deckCard.allocationStatus
     const required = Math.max(status.required || 0, 0)
     const allocated = Math.max(status.allocated || 0, 0)
     const proxied = Math.max(status.proxyAllocated || 0, 0)
 
-    return (
-      deckCard.zone === "mainboard" &&
-      status.state !== "basic_land" &&
-      Math.min(required, allocated + proxied) < required
-    )
+    return status.state !== "basic_land" && Math.min(required, allocated + proxied) < required
   })
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl" labelledBy="deck-readiness-title">
+      <DialogContent className="max-w-5xl" labelledBy="deck-readiness-title">
         <DialogHeader>
           <div>
-            <DialogTitle id="deck-readiness-title">Mainboard readiness</DialogTitle>
+            <DialogTitle id="deck-readiness-title">Deck pull list</DialogTitle>
             <p className="mt-1 text-sm text-base-content/65">
-              Counts only mainboard cards. Commander, sideboard, and maybeboard are excluded.
+              Mainboard and commander only. Sideboard and maybeboard stay out of this workflow.
             </p>
           </div>
           <DialogClose onClose={() => onOpenChange(false)} />
@@ -141,12 +138,12 @@ function DeckReadinessDialog({
             <div className="min-w-0">
               <p className="text-sm font-semibold text-base-content/70">
                 {needsAction
-                  ? "Mainboard still has physical-card work to resolve."
-                  : "Mainboard cards are accounted for."}
+                  ? "These cards still need a physical copy pulled, bought, or proxied."
+                  : "Mainboard and commander cards are accounted for."}
               </p>
               <p className="mt-1 text-sm text-base-content/60">
-                Allocation, proxy, buylist, and printing work lives here so the deck view can stay
-                focused on the cards.
+                Use the images to recognize cards quickly, then allocate owned copies or tag cards
+                inline.
               </p>
             </div>
             <div className="font-mono text-3xl font-black text-base-content">
@@ -156,7 +153,7 @@ function DeckReadinessDialog({
 
           <div
             className="h-2 overflow-hidden rounded-full bg-base-200"
-            aria-label={`${readiness.readyCount} of ${readiness.requiredCount} mainboard cards ready`}
+            aria-label={`${readiness.readyCount} of ${readiness.requiredCount} deck cards ready`}
             role="img"
           >
             <div
@@ -167,11 +164,11 @@ function DeckReadinessDialog({
 
           <dl className="grid gap-2 sm:grid-cols-4">
             <DeckReadinessMetric
-              label="Ready"
+              label="Accounted for"
               value={`${readiness.readyCount}/${readiness.requiredCount}`}
             />
-            <DeckReadinessMetric label="Pull" value={readiness.availableToPull} />
-            <DeckReadinessMetric label="Buy" value={readiness.missingToBuy} />
+            <DeckReadinessMetric label="To pull" value={readiness.availableToPull} />
+            <DeckReadinessMetric label="To buy" value={readiness.missingToBuy} />
             <DeckReadinessMetric label="Proxy" value={readiness.proxyAllocated} />
           </dl>
 
@@ -189,7 +186,7 @@ function DeckReadinessDialog({
                   }}
                 >
                   <ShoppingCart className="h-4 w-4" />
-                  Missing cards
+                  Buy missing
                 </Button>
                 {buylistPrice ? (
                   <p className="mt-1 px-1 text-xs text-base-content/60">
@@ -212,7 +209,7 @@ function DeckReadinessDialog({
                     Pull owned cards
                   </Button>
                   <p className="mt-1 px-1 text-xs text-base-content/60">
-                    Build a physical pull list from owned mainboard copies.
+                    Allocate available owned copies for mainboard and commander cards.
                   </p>
                 </div>
               ) : null}
@@ -235,63 +232,27 @@ function DeckReadinessDialog({
               </div>
             </div>
 
-            {mainboardActionCards.length ? (
+            {pullActionCards.length ? (
               <section className="space-y-3">
                 <div>
-                  <h3 className="text-sm font-black text-base-content">Mainboard card work</h3>
+                  <h3 className="text-sm font-black text-base-content">Cards needing work</h3>
                   <p className="mt-1 text-xs text-base-content/60">
-                    Allocate owned copies, mark proxies, or tag cards without covering card art.
+                    Cards tagged Getting still appear here, but are excluded from the buy count and
+                    buy list.
                   </p>
                 </div>
-                <div className="max-h-[min(32rem,45dvh)] space-y-3 overflow-y-auto pr-1">
-                  {mainboardActionCards.map((deckCard) => (
-                    <article
+                <div className="grid max-h-[min(34rem,52dvh)] gap-3 overflow-y-auto pr-1">
+                  {pullActionCards.map((deckCard) => (
+                    <DeckPullListCard
                       key={deckCard.id}
-                      className="rounded-box border border-base-300 bg-base-100 p-3"
-                    >
-                      <div className="mb-3 flex min-w-0 flex-wrap items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h4 className="truncate font-black">
-                            {deckCard.card?.name || "Unknown card"}
-                          </h4>
-                          <p className="text-xs text-base-content/60">
-                            {allocationStatusSummary(deckCard.allocationStatus)}
-                          </p>
-                        </div>
-                        <label className="form-control w-full sm:w-44">
-                          <span className="label-text mb-1 text-xs font-semibold uppercase text-base-content/60">
-                            Tag
-                          </span>
-                          <select
-                            className="select select-bordered select-sm w-full"
-                            aria-label={`Tag ${deckCard.card?.name || "card"}`}
-                            disabled={isUpdatingDeckCard}
-                            value={deckCard.tag || ""}
-                            onChange={(event) => {
-                              const value = event.currentTarget.value
-                              onTagCard(deckCard, value ? (value as DeckCardTag) : null)
-                            }}
-                          >
-                            <option value="">No tag</option>
-                            {DECK_CARD_TAGS.map((tag) => (
-                              <option key={tag.value} value={tag.value}>
-                                {tag.label}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      </div>
-                      <DeckCardAllocationPanel
-                        deckCard={deckCard}
-                        error={allocationError}
-                        isUpdating={isUpdatingDeckCard}
-                        onAllocate={(collectionItemId) => onAllocate(deckCard, collectionItemId)}
-                        onDeallocate={(collectionItemId) =>
-                          onDeallocate(deckCard, collectionItemId)
-                        }
-                        onToggleProxy={() => onToggleProxy(deckCard)}
-                      />
-                    </article>
+                      allocationError={allocationError}
+                      deckCard={deckCard}
+                      isUpdatingDeckCard={isUpdatingDeckCard}
+                      onAllocate={onAllocate}
+                      onDeallocate={onDeallocate}
+                      onTagCard={onTagCard}
+                      onToggleProxy={onToggleProxy}
+                    />
                   ))}
                 </div>
               </section>
@@ -309,6 +270,95 @@ function DeckReadinessMetric({ label, value }: { label: string; value: number | 
       <dt className="text-xs font-semibold text-base-content/60">{label}</dt>
       <dd className="mt-1 font-mono text-lg font-black leading-none text-base-content">{value}</dd>
     </div>
+  )
+}
+
+function DeckPullListCard({
+  allocationError,
+  deckCard,
+  isUpdatingDeckCard,
+  onAllocate,
+  onDeallocate,
+  onTagCard,
+  onToggleProxy,
+}: {
+  allocationError: string | null
+  deckCard: DeckCardEntry
+  isUpdatingDeckCard: boolean
+  onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
+  onDeallocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
+  onTagCard: (deckCard: DeckCardEntry, tag: DeckCardTag | null) => void
+  onToggleProxy: (deckCard: DeckCardEntry) => void
+}) {
+  const name = deckCard.card?.name || "Unknown card"
+  const printing = deckCard.preferredPrinting || deckCard.fallbackPrinting
+  const imageUrl = printing?.imageUrl || null
+  const status = deckCard.allocationStatus
+
+  return (
+    <article className="grid gap-4 rounded-box border border-base-300 bg-base-100 p-3 sm:grid-cols-[11rem_minmax(0,1fr)] lg:grid-cols-[14.25rem_minmax(0,1fr)]">
+      <CardTile
+        className="w-32 sm:w-full"
+        finish={deckCard.finish}
+        growOnHover={false}
+        imageUrl={imageUrl}
+        name={name}
+        rarity={printing?.rarity}
+        setCode={printing?.setCode}
+        setLabel={
+          printing?.setCode
+            ? `${printing.setCode.toUpperCase()} #${printing.collectorNumber || "?"}`
+            : undefined
+        }
+        setName={printing?.setName}
+        showMenu={false}
+        typeLine={deckCard.card?.typeLine}
+      />
+      <div className="min-w-0 space-y-3">
+        <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-start">
+          <div className="min-w-0">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <h4 className="truncate font-black">{name}</h4>
+              <Badge tone="neutral">{titleize(deckCard.zone)}</Badge>
+            </div>
+            <p className="mt-1 text-xs font-semibold text-base-content/70">
+              {allocationStatusLabel(status)}
+            </p>
+            <p className="text-xs text-base-content/60">{allocationStatusSummary(status)}</p>
+          </div>
+          <label className="form-control">
+            <span className="label-text mb-1 text-xs font-semibold uppercase text-base-content/60">
+              Tag
+            </span>
+            <select
+              className="select select-bordered select-sm w-full"
+              aria-label={`Tag ${name}`}
+              disabled={isUpdatingDeckCard}
+              value={deckCard.tag || ""}
+              onChange={(event) => {
+                const value = event.currentTarget.value
+                onTagCard(deckCard, value ? (value as DeckCardTag) : null)
+              }}
+            >
+              <option value="">No tag</option>
+              {DECK_CARD_TAGS.map((tag) => (
+                <option key={tag.value} value={tag.value}>
+                  {tag.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <DeckCardAllocationPanel
+          deckCard={deckCard}
+          error={allocationError}
+          isUpdating={isUpdatingDeckCard}
+          onAllocate={(collectionItemId) => onAllocate(deckCard, collectionItemId)}
+          onDeallocate={(collectionItemId) => onDeallocate(deckCard, collectionItemId)}
+          onToggleProxy={() => onToggleProxy(deckCard)}
+        />
+      </div>
+    </article>
   )
 }
 
@@ -430,7 +480,7 @@ export function DeckDetailContent({
   zoneCounts: DetailZoneCounts
 }) {
   const [isReadinessOpen, setIsReadinessOpen] = useState(false)
-  const hasReadinessWork = hasMainboardReadinessWork(deckCards)
+  const hasReadinessWork = hasDeckPullWork(deckCards)
 
   return (
     <div className="space-y-7">
@@ -600,7 +650,7 @@ export function DeckDetailContent({
                 size="sm"
                 onClick={() => setIsReadinessOpen(true)}
               >
-                Readiness
+                Pull list
               </Button>
             ) : null}
           </ShareModeHidden>
