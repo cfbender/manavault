@@ -119,13 +119,7 @@ defmodule ManavaultWeb.AuthController do
     "Too many incorrect password attempts. Try again in #{minutes} minutes."
   end
 
-  defp client_id(%{remote_ip: remote_ip}) when is_tuple(remote_ip) do
-    remote_ip
-    |> :inet.ntoa()
-    |> to_string()
-  end
-
-  defp client_id(_conn), do: "unknown"
+  defp client_id(conn), do: ManavaultWeb.ClientIP.identifier(conn)
 
   defp safe_return_to(path) when is_binary(path) do
     cond do

@@ -16,6 +16,10 @@ config :manavault,
     max_attempts_global: 30,
     permanent_ban_after_failures: 30
   ],
+  # When behind a trusted reverse proxy, derive the auth rate-limit client id
+  # from the forwarded header instead of the (shared) proxy peer IP.
+  trust_proxy_headers: false,
+  forwarded_ip_header: "x-forwarded-for",
   ecto_repos: [Manavault.Repo],
   generators: [timestamp_type: :utc_datetime]
 

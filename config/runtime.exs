@@ -55,10 +55,18 @@ auth_rate_limit = [
     String.to_integer(System.get_env("MANAVAULT_AUTH_PERMANENT_BAN_AFTER_FAILURES", "30"))
 ]
 
+trust_proxy_headers =
+  System.get_env("MANAVAULT_TRUST_PROXY_HEADERS", "")
+  |> String.trim()
+  |> String.downcase()
+  |> Kernel.in(["1", "true", "yes", "on"])
+
 config :manavault,
   admin_password_hash: admin_password_hash,
   auth_disabled: auth_disabled,
-  auth_rate_limit: auth_rate_limit
+  auth_rate_limit: auth_rate_limit,
+  trust_proxy_headers: trust_proxy_headers,
+  forwarded_ip_header: System.get_env("MANAVAULT_FORWARDED_IP_HEADER", "x-forwarded-for")
 
 if config_env() == :prod do
   if !auth_disabled && is_nil(admin_password_hash) do
