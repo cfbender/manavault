@@ -4,14 +4,8 @@ defmodule ManavaultWeb.Endpoint do
   # The session will be stored in the cookie and signed,
   # this means its contents can be read but not tampered with.
   # Set :encryption_salt if you would also like to encrypt it.
-  @session_max_age_seconds 60 * 60 * 24 * 180
-  @session_options [
-    store: :cookie,
-    key: "_manavault_key",
-    signing_salt: "HGc1xdq0",
-    same_site: "Lax",
-    max_age: @session_max_age_seconds
-  ]
+  # Options (Secure flag, lifetime) are resolved at request time from config —
+  # see ManavaultWeb.SessionOptions.
 
   @fresh_asset_cache_control "no-cache, no-store, must-revalidate"
   @fresh_asset_headers %{"pragma" => "no-cache", "expires" => "0"}
@@ -62,6 +56,10 @@ defmodule ManavaultWeb.Endpoint do
 
   plug Plug.MethodOverride
   plug Plug.Head
-  plug Plug.Session, @session_options
+  plug :put_session
   plug ManavaultWeb.Router
+
+  defp put_session(conn, _opts) do
+    Plug.Session.call(conn, Plug.Session.init(ManavaultWeb.SessionOptions.build()))
+  end
 end

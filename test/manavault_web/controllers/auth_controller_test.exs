@@ -101,6 +101,25 @@ defmodule ManavaultWeb.AuthControllerTest do
     assert cookie =~ "max-age=15552000"
   end
 
+  test "login marks the session cookie secure when secure_cookies is enabled", %{conn: conn} do
+    configure_password("secret")
+    previous_secure = Application.get_env(:manavault, :secure_cookies)
+    Application.put_env(:manavault, :secure_cookies, true)
+
+    on_exit(fn ->
+      if previous_secure == nil do
+        Application.delete_env(:manavault, :secure_cookies)
+      else
+        Application.put_env(:manavault, :secure_cookies, previous_secure)
+      end
+    end)
+
+    conn = post(conn, "/login", %{"password" => "secret", "return_to" => "/collection"})
+
+    assert [cookie] = get_resp_header(conn, "set-cookie")
+    assert cookie =~ "; secure"
+  end
+
   test "login rejects an incorrect password", %{conn: conn} do
     configure_password("secret")
 

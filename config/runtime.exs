@@ -61,12 +61,23 @@ trust_proxy_headers =
   |> String.downcase()
   |> Kernel.in(["1", "true", "yes", "on"])
 
+secure_cookies =
+  System.get_env("MANAVAULT_SECURE_COOKIES", "")
+  |> String.trim()
+  |> String.downcase()
+  |> Kernel.in(["1", "true", "yes", "on"])
+
+session_max_age_days =
+  System.get_env("MANAVAULT_SESSION_MAX_AGE_DAYS", "180") |> String.to_integer()
+
 config :manavault,
   admin_password_hash: admin_password_hash,
   auth_disabled: auth_disabled,
   auth_rate_limit: auth_rate_limit,
   trust_proxy_headers: trust_proxy_headers,
-  forwarded_ip_header: System.get_env("MANAVAULT_FORWARDED_IP_HEADER", "x-forwarded-for")
+  forwarded_ip_header: System.get_env("MANAVAULT_FORWARDED_IP_HEADER", "x-forwarded-for"),
+  secure_cookies: secure_cookies,
+  session_max_age_days: session_max_age_days
 
 if config_env() == :prod do
   if !auth_disabled && is_nil(admin_password_hash) do

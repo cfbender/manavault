@@ -20,6 +20,11 @@ config :manavault,
   # from the forwarded header instead of the (shared) proxy peer IP.
   trust_proxy_headers: false,
   forwarded_ip_header: "x-forwarded-for",
+  # Session cookie hardening. Enable secure_cookies when served over HTTPS so
+  # the auth cookie is never sent over plaintext. Defaults preserve the prior
+  # behaviour (not secure, 180-day lifetime).
+  secure_cookies: false,
+  session_max_age_days: 180,
   ecto_repos: [Manavault.Repo],
   generators: [timestamp_type: :utc_datetime]
 
