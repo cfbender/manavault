@@ -216,6 +216,130 @@ defmodule Manavault.Catalog.ImportTest do
     assert "restock-all" in tag_slugs
   end
 
+  test "import_cards scores category by tag count before priority" do
+    path_to_exile = %{
+      @time_walk
+      | "id" => "scryfall-path-to-exile",
+        "oracle_id" => "oracle-path-to-exile",
+        "name" => "Path to Exile",
+        "type_line" => "Instant",
+        "oracle_text" =>
+          "Exile target creature. Its controller may search their library for a basic land card."
+    }
+
+    oracle_tags = [
+      scryfall_tag(%{
+        "id" => "tag-ramp",
+        "slug" => "ramp",
+        "label" => "Ramp",
+        "type" => "function"
+      }),
+      scryfall_tag(%{
+        "id" => "tag-land-ramp",
+        "slug" => "land-ramp",
+        "label" => "Land Ramp",
+        "type" => "function",
+        "parent_ids" => ["tag-ramp"],
+        "taggings" => [%{"oracle_id" => "oracle-path-to-exile", "weight" => "median"}]
+      }),
+      scryfall_tag(%{
+        "id" => "tag-removal",
+        "slug" => "removal",
+        "label" => "Removal",
+        "type" => "function"
+      }),
+      scryfall_tag(%{
+        "id" => "tag-removal-creature",
+        "slug" => "removal-creature",
+        "label" => "Removal Creature",
+        "type" => "function",
+        "parent_ids" => ["tag-removal"],
+        "taggings" => [%{"oracle_id" => "oracle-path-to-exile", "weight" => "median"}]
+      }),
+      scryfall_tag(%{
+        "id" => "tag-removal-exile",
+        "slug" => "removal-exile",
+        "label" => "Removal Exile",
+        "type" => "function",
+        "parent_ids" => ["tag-removal"],
+        "taggings" => [%{"oracle_id" => "oracle-path-to-exile", "weight" => "median"}]
+      }),
+      scryfall_tag(%{
+        "id" => "tag-spot-removal",
+        "slug" => "spot-removal",
+        "label" => "Spot Removal",
+        "type" => "function",
+        "parent_ids" => ["tag-removal"],
+        "taggings" => [%{"oracle_id" => "oracle-path-to-exile", "weight" => "median"}]
+      }),
+      scryfall_tag(%{
+        "id" => "tag-tutor",
+        "slug" => "tutor",
+        "label" => "Tutor",
+        "type" => "function"
+      }),
+      scryfall_tag(%{
+        "id" => "tag-tutor-land-basic",
+        "slug" => "tutor-land-basic",
+        "label" => "Tutor Land Basic",
+        "type" => "function",
+        "parent_ids" => ["tag-tutor"],
+        "taggings" => [%{"oracle_id" => "oracle-path-to-exile", "weight" => "median"}]
+      }),
+      scryfall_tag(%{
+        "id" => "tag-tutor-land-to-battlefield",
+        "slug" => "tutor-land-to-battlefield",
+        "label" => "Tutor Land To Battlefield",
+        "type" => "function",
+        "parent_ids" => ["tag-tutor"],
+        "taggings" => [%{"oracle_id" => "oracle-path-to-exile", "weight" => "median"}]
+      })
+    ]
+
+    assert {:ok, %{cards_count: 1, printings_count: 1}} =
+             Catalog.import_cards([path_to_exile], nil, oracle_tags: oracle_tags)
+
+    assert %Card{deck_category: "targeted_disruption", deck_themes: themes_json} =
+             Repo.get!(Card, "oracle-path-to-exile")
+
+    assert ["removal", "ramp", "tutor", "instant"] = Jason.decode!(themes_json)
+  end
+
+  test "import_cards uses category priority only to break tied tag counts" do
+    mixed_card = %{
+      @time_walk
+      | "id" => "scryfall-even-ramp-removal",
+        "oracle_id" => "oracle-even-ramp-removal",
+        "name" => "Even Ramp Removal",
+        "type_line" => "Instant"
+    }
+
+    oracle_tags = [
+      scryfall_tag(%{
+        "id" => "tag-land-ramp",
+        "slug" => "land-ramp",
+        "label" => "Land Ramp",
+        "type" => "function",
+        "taggings" => [%{"oracle_id" => "oracle-even-ramp-removal", "weight" => "median"}]
+      }),
+      scryfall_tag(%{
+        "id" => "tag-spot-removal",
+        "slug" => "spot-removal",
+        "label" => "Spot Removal",
+        "type" => "function",
+        "taggings" => [%{"oracle_id" => "oracle-even-ramp-removal", "weight" => "median"}]
+      })
+    ]
+
+    assert {:ok, %{cards_count: 1, printings_count: 1}} =
+             Catalog.import_cards([mixed_card], nil, oracle_tags: oracle_tags)
+
+    assert %Card{deck_category: "ramp", deck_themes: themes_json} =
+             Repo.get!(Card, "oracle-even-ramp-removal")
+
+    assert ["ramp", "removal", "instant"] = Jason.decode!(themes_json)
+  end
+
   test "import_cards prioritizes mass disruption over targeted disruption" do
     wrath = %{
       @time_walk
@@ -238,6 +362,20 @@ defmodule Manavault.Catalog.ImportTest do
         "label" => "Spot Removal",
         "type" => "function",
         "taggings" => [%{"oracle_id" => "oracle-board-wipe", "weight" => 0.6}]
+      }),
+      scryfall_tag(%{
+        "id" => "tag-discard",
+        "slug" => "discard",
+        "label" => "Discard",
+        "type" => "function",
+        "taggings" => [%{"oracle_id" => "oracle-board-wipe", "weight" => 0.5}]
+      }),
+      scryfall_tag(%{
+        "id" => "tag-graveyard-hate",
+        "slug" => "graveyard-hate",
+        "label" => "Graveyard Hate",
+        "type" => "function",
+        "taggings" => [%{"oracle_id" => "oracle-board-wipe", "weight" => 0.5}]
       })
     ]
 
@@ -248,7 +386,7 @@ defmodule Manavault.Catalog.ImportTest do
              Repo.get!(Card, "oracle-board-wipe")
 
     themes = Jason.decode!(themes_json)
-    assert "board_wipe" in themes
+    assert List.first(themes) == "board_wipe"
     assert "removal" in themes
     assert "sorcery" in themes
   end

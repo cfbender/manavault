@@ -86,6 +86,18 @@ defmodule Manavault.Catalog.ScryfallOracleTags do
 
   @mass_disruption_themes MapSet.new(["board_wipe", "stax"])
   @targeted_disruption_themes MapSet.new(["discard", "graveyard_hate", "removal", "theft"])
+  @scored_deck_categories [
+    {"ramp", MapSet.new(["ramp"])},
+    {"card_advantage", MapSet.new(["card_advantage"])},
+    {"targeted_disruption", @targeted_disruption_themes}
+  ]
+  @category_theme_order %{
+    "lands" => ["land"],
+    "mass_disruption" => ["board_wipe", "stax"],
+    "ramp" => ["ramp"],
+    "card_advantage" => ["card_advantage"],
+    "targeted_disruption" => ["removal", "discard", "graveyard_hate", "theft"]
+  }
 
   def build_index(%{"data" => tags}) when is_list(tags), do: build_index(tags)
 
@@ -112,14 +124,17 @@ defmodule Manavault.Catalog.ScryfallOracleTags do
     tag_entries = Map.get(tag_index, oracle_id, [])
     type_themes = type_themes(value(card, "type_line"))
 
+    deck_category = deck_category(type_themes, tag_entries)
+
     themes =
       tag_entries
       |> Enum.flat_map(& &1.themes)
       |> unique_append(type_themes)
+      |> prioritize_themes(deck_category)
 
     %{
       oracle_tags: Jason.encode!(Enum.map(tag_entries, & &1.tag)),
-      deck_category: deck_category(value(card, "type_line"), themes),
+      deck_category: deck_category,
       deck_themes: Jason.encode!(themes)
     }
   end
@@ -214,20 +229,44 @@ defmodule Manavault.Catalog.ScryfallOracleTags do
 
   defp type_themes(_type_line), do: []
 
-  defp deck_category(type_line, themes) do
-    theme_set = MapSet.new(themes)
-
+  defp deck_category(type_themes, tag_entries) do
     cond do
-      "land" in type_themes(type_line) -> "lands"
-      intersects?(theme_set, @mass_disruption_themes) -> "mass_disruption"
-      MapSet.member?(theme_set, "ramp") -> "ramp"
-      MapSet.member?(theme_set, "card_advantage") -> "card_advantage"
-      intersects?(theme_set, @targeted_disruption_themes) -> "targeted_disruption"
-      true -> "other"
+      "land" in type_themes -> "lands"
+      category_count(tag_entries, @mass_disruption_themes) > 0 -> "mass_disruption"
+      true -> most_represented_category(tag_entries)
     end
   end
 
-  defp intersects?(left, right), do: not MapSet.disjoint?(left, right)
+  defp most_represented_category(tag_entries) do
+    @scored_deck_categories
+    |> Enum.reduce({"other", 0}, fn {category, category_themes}, {best_category, best_count} ->
+      count = category_count(tag_entries, category_themes)
+
+      if count > best_count do
+        {category, count}
+      else
+        {best_category, best_count}
+      end
+    end)
+    |> elem(0)
+  end
+
+  defp category_count(tag_entries, category_themes) do
+    Enum.count(tag_entries, fn %{themes: themes} ->
+      Enum.any?(themes, &MapSet.member?(category_themes, &1))
+    end)
+  end
+
+  defp prioritize_themes(themes, deck_category) do
+    preferred_themes = Map.get(@category_theme_order, deck_category, [])
+
+    preferred =
+      Enum.filter(preferred_themes, fn theme ->
+        theme in themes
+      end)
+
+    preferred ++ Enum.reject(themes, &(&1 in preferred))
+  end
 
   defp unique_append(values, more_values) do
     (values ++ more_values)
