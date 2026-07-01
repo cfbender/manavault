@@ -24,6 +24,26 @@ export function buylistTotalPrice(entries: BuylistEntry[]) {
   )
 }
 
+export function deckCardsTotalPrice(deckCards: DeckCardEntry[]) {
+  return deckCards.reduce(
+    (summary, deckCard) => {
+      if (deckCard.zone === "sideboard" || deckCard.zone === "maybeboard") {
+        return summary
+      }
+
+      const quantity = Math.max(deckCard.quantity || 0, 0)
+      if (typeof deckCard.priceCents === "number") {
+        summary.totalCents += deckCard.priceCents * quantity
+      } else {
+        summary.unpricedQuantity += quantity
+      }
+
+      return summary
+    },
+    { totalCents: 0, unpricedQuantity: 0 },
+  )
+}
+
 export function deckMissingCardsTotalPrice(deckCards: DeckCardEntry[]) {
   return deckCards.reduce(
     (summary, deckCard) => {

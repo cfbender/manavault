@@ -1,7 +1,11 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 
-import { buylistTotalPrice, deckMissingCardsTotalPrice } from "../src/pages/decks/buylist-export.ts"
+import {
+  buylistTotalPrice,
+  deckCardsTotalPrice,
+  deckMissingCardsTotalPrice,
+} from "../src/pages/decks/buylist-export.ts"
 
 test("buylistTotalPrice sums priced entries and counts unpriced quantities", () => {
   const summary = buylistTotalPrice([
@@ -11,6 +15,18 @@ test("buylistTotalPrice sums priced entries and counts unpriced quantities", () 
   ])
 
   assert.deepEqual(summary, { totalCents: 625, unpricedQuantity: 3 })
+})
+
+test("deckCardsTotalPrice sums priced commander and mainboard quantities", () => {
+  const summary = deckCardsTotalPrice([
+    deckCard({ quantity: 4, zone: "mainboard", missing: 2, priceCents: 500 }),
+    deckCard({ quantity: 1, zone: "commander", missing: 1, priceCents: 125 }),
+    deckCard({ quantity: 3, zone: "mainboard", missing: 2, priceCents: null }),
+    deckCard({ quantity: 4, zone: "sideboard", missing: 4, priceCents: 1000 }),
+    deckCard({ quantity: 5, zone: "maybeboard", missing: 5, priceCents: 1000 }),
+  ])
+
+  assert.deepEqual(summary, { totalCents: 2125, unpricedQuantity: 3 })
 })
 
 test("deckMissingCardsTotalPrice sums only unaccounted main deck entries", () => {

@@ -415,6 +415,7 @@ export function DeckDetailContent({
   onUpdateSelectedDeckCards,
   selectedDeckCardCount,
   selectedDeckCardIds,
+  deckPrice,
   buylistPrice,
   shareCopyState,
   shareMode,
@@ -473,6 +474,7 @@ export function DeckDetailContent({
   onUpdateSelectedDeckCards: (input: DeckCardUpdateInput) => void
   selectedDeckCardCount: number
   selectedDeckCardIds: Set<string>
+  deckPrice: BuylistPrice | null
   buylistPrice: BuylistPrice | null
   shareCopyState: "idle" | "copied" | "failed"
   shareMode: boolean
@@ -503,7 +505,7 @@ export function DeckDetailContent({
             </Badge>
             <Badge tone={deckLegalityTone(deck.legality)}>{deckLegalityLabel(deck.legality)}</Badge>
             <BuylistPriceChip
-              price={buylistPrice}
+              price={deckPrice}
               onClick={shareMode ? onOpenShareBuylist : onMissingCards}
             />
             {isRefreshingDeck ? <Badge tone="neutral">Refreshing…</Badge> : null}
