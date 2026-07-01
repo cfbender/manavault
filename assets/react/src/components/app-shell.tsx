@@ -1,9 +1,19 @@
-import { Link, Outlet, useLocation } from "@tanstack/react-router"
-import { Boxes, Home, Layers, Menu, Monitor, Moon, Search, Settings, Sun } from "lucide-react"
-import { useEffect, useRef, useState, type ReactNode } from "react"
-import { useTheme } from "../lib/theme"
-import { cn } from "../lib/utils"
-import { Button } from "./ui/button"
+import { Link, Outlet, useLocation } from "@tanstack/react-router";
+import {
+  Boxes,
+  Home,
+  Layers,
+  Menu,
+  Monitor,
+  Moon,
+  Search,
+  Settings,
+  Sun,
+} from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useTheme } from "../lib/theme";
+import { cn } from "../lib/utils";
+import { Button } from "./ui/button";
 
 const navItems = [
   { to: "/" as const, label: "Home", icon: Home },
@@ -11,19 +21,19 @@ const navItems = [
   { to: "/collection" as const, label: "Collection", icon: Boxes },
   { to: "/decks" as const, label: "Decks", icon: Layers },
   { to: "/settings" as const, label: "Settings", icon: Settings },
-]
+];
 
 function navItemActive(pathname: string, to: (typeof navItems)[number]["to"]) {
-  return pathname === to || (to !== "/" && pathname.startsWith(`${to}/`))
+  return pathname === to || (to !== "/" && pathname.startsWith(`${to}/`));
 }
 
 function ThemeToggle({ onSelect }: { onSelect?: () => void }) {
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme } = useTheme();
   const options = [
     { value: "system" as const, label: "System", icon: Monitor },
     { value: "light" as const, label: "Light", icon: Sun },
     { value: "dark" as const, label: "Dark", icon: Moon },
-  ]
+  ];
 
   return (
     <div className="relative grid h-11 w-36 grid-cols-3 rounded-full border border-base-300 bg-base-200 p-1 shadow-sm">
@@ -47,49 +57,49 @@ function ThemeToggle({ onSelect }: { onSelect?: () => void }) {
           aria-pressed={theme === option.value}
           title={option.label}
           onClick={() => {
-            setTheme(option.value)
-            onSelect?.()
+            setTheme(option.value);
+            onSelect?.();
           }}
         >
           <option.icon className="h-4 w-4" />
         </button>
       ))}
     </div>
-  )
+  );
 }
 
 export function AppShell() {
-  const { pathname } = useLocation()
-  const isShareRoute = pathname.startsWith("/share/")
-  const isHomeRoute = pathname === "/"
-  const isPlaytestRoute = pathname.includes("/playtest")
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const mobileMenuRef = useRef<HTMLDivElement>(null)
+  const { pathname } = useLocation();
+  const isShareRoute = pathname.startsWith("/share/");
+  const isHomeRoute = pathname === "/";
+  const isPlaytestRoute = pathname.includes("/playtest");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setMobileMenuOpen(false)
-  }, [pathname])
+    setMobileMenuOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
-    if (!mobileMenuOpen) return
+    if (!mobileMenuOpen) return;
 
     function closeOnOutsidePointerDown(event: PointerEvent) {
-      if (mobileMenuRef.current?.contains(event.target as Node | null)) return
-      setMobileMenuOpen(false)
+      if (mobileMenuRef.current?.contains(event.target as Node | null)) return;
+      setMobileMenuOpen(false);
     }
 
     function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setMobileMenuOpen(false)
+      if (event.key === "Escape") setMobileMenuOpen(false);
     }
 
-    document.addEventListener("pointerdown", closeOnOutsidePointerDown)
-    document.addEventListener("keydown", closeOnEscape)
+    document.addEventListener("pointerdown", closeOnOutsidePointerDown);
+    document.addEventListener("keydown", closeOnEscape);
 
     return () => {
-      document.removeEventListener("pointerdown", closeOnOutsidePointerDown)
-      document.removeEventListener("keydown", closeOnEscape)
-    }
-  }, [mobileMenuOpen])
+      document.removeEventListener("pointerdown", closeOnOutsidePointerDown);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [mobileMenuOpen]);
 
   return (
     <div className="min-h-screen bg-base-100 text-base-content">
@@ -105,7 +115,7 @@ export function AppShell() {
             to="/"
             className="flex min-h-11 min-w-11 items-center gap-3 text-2xl font-black tracking-normal"
           >
-            <img src="/images/logo.svg" alt="" className="h-7 w-7 shrink-0" />
+            <img src="/images/logo.png" alt="" className="h-7 w-7 shrink-0" />
             <span className="hidden truncate sm:inline">ManaVault</span>
           </Link>
 
@@ -141,7 +151,9 @@ export function AppShell() {
               className="btn btn-ghost btn-square h-11 min-h-11 w-11"
               type="button"
               aria-expanded={mobileMenuOpen}
-              aria-label={mobileMenuOpen ? "Close navigation" : "Open navigation"}
+              aria-label={
+                mobileMenuOpen ? "Close navigation" : "Open navigation"
+              }
               onClick={() => setMobileMenuOpen((open) => !open)}
             >
               <Menu className="h-8 w-8" />
@@ -196,7 +208,7 @@ export function AppShell() {
         </div>
       </main>
     </div>
-  )
+  );
 }
 
 export function PageHeader({
@@ -206,11 +218,11 @@ export function PageHeader({
   actions,
   eyebrow,
 }: {
-  title: string
-  bottomActions?: ReactNode
-  description?: string
-  actions?: ReactNode
-  eyebrow?: string
+  title: string;
+  bottomActions?: ReactNode;
+  description?: string;
+  actions?: ReactNode;
+  eyebrow?: string;
 }) {
   return (
     <section className="card relative mb-7 border border-base-300 bg-base-200">
@@ -218,11 +230,17 @@ export function PageHeader({
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex-1">
             {eyebrow ? (
-              <div className="badge badge-primary badge-outline mb-4 uppercase">{eyebrow}</div>
+              <div className="badge badge-primary badge-outline mb-4 uppercase">
+                {eyebrow}
+              </div>
             ) : null}
-            <h1 className="text-4xl font-black tracking-normal sm:text-5xl">{title}</h1>
+            <h1 className="text-4xl font-black tracking-normal sm:text-5xl">
+              {title}
+            </h1>
             {description ? (
-              <p className="mt-4 max-w-4xl text-lg text-base-content/70">{description}</p>
+              <p className="mt-4 max-w-4xl text-lg text-base-content/70">
+                {description}
+              </p>
             ) : null}
             {bottomActions ? (
               <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
@@ -231,12 +249,14 @@ export function PageHeader({
             ) : null}
           </div>
           {actions ? (
-            <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              {actions}
+            </div>
           ) : null}
         </div>
       </div>
     </section>
-  )
+  );
 }
 
 export function PageSection({
@@ -244,23 +264,29 @@ export function PageSection({
   count,
   children,
 }: {
-  title?: string
-  count?: ReactNode
-  children: ReactNode
+  title?: string;
+  count?: ReactNode;
+  children: ReactNode;
 }) {
   return (
     <section className="space-y-3">
       {title || count ? (
         <div className="flex items-center justify-between gap-3">
-          {title ? <h2 className="text-2xl font-black tracking-normal">{title}</h2> : <span />}
+          {title ? (
+            <h2 className="text-2xl font-black tracking-normal">{title}</h2>
+          ) : (
+            <span />
+          )}
           {count ? (
-            <span className="badge border-transparent bg-base-200 text-sm">{count}</span>
+            <span className="badge border-transparent bg-base-200 text-sm">
+              {count}
+            </span>
           ) : null}
         </div>
       ) : null}
       {children}
     </section>
-  )
+  );
 }
 
 export function ActionCard({
@@ -271,18 +297,18 @@ export function ActionCard({
   title,
   description,
 }: {
-  to: string
-  icon: ReactNode
-  badge: ReactNode
-  badgeTone?: "primary" | "secondary" | "accent"
-  title: string
-  description: string
+  to: string;
+  icon: ReactNode;
+  badge: ReactNode;
+  badgeTone?: "primary" | "secondary" | "accent";
+  title: string;
+  description: string;
 }) {
   const badgeClass = {
     primary: "badge-primary",
     secondary: "badge-secondary",
     accent: "badge-accent",
-  }[badgeTone]
+  }[badgeTone];
 
   return (
     <Link
@@ -292,24 +318,36 @@ export function ActionCard({
       <div className="card-body min-h-64 justify-between p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="text-5xl leading-none">{icon}</div>
-          <span className={cn("badge badge-lg badge-outline", badgeClass)}>{badge}</span>
+          <span className={cn("badge badge-lg badge-outline", badgeClass)}>
+            {badge}
+          </span>
         </div>
         <div>
           <h2 className="text-3xl font-black tracking-normal">{title}</h2>
-          <p className="mt-3 text-lg leading-8 text-base-content/70">{description}</p>
+          <p className="mt-3 text-lg leading-8 text-base-content/70">
+            {description}
+          </p>
         </div>
       </div>
     </Link>
-  )
+  );
 }
 
-export function EmptyPanel({ title, description }: { title: string; description?: string }) {
+export function EmptyPanel({
+  title,
+  description,
+}: {
+  title: string;
+  description?: string;
+}) {
   return (
     <div className="rounded-box border border-base-300 bg-base-100 p-8 text-center">
       <div className="min-w-0">
         <h2 className="text-xl font-black">{title}</h2>
-        {description ? <p className="mt-2 text-base-content/70">{description}</p> : null}
+        {description ? (
+          <p className="mt-2 text-base-content/70">{description}</p>
+        ) : null}
       </div>
     </div>
-  )
+  );
 }
