@@ -66,23 +66,12 @@ defmodule Manavault.Catalog.EDHRec.Response.CardLookup do
     |> String.trim("-")
   end
 
-  defp local_card_by_oracle_id(oracle_id) do
-    case Repo.get(Card, oracle_id) do
-      nil -> nil
-      card -> preload_card(card)
-    end
-  end
+  defp local_card_by_oracle_id(oracle_id), do: Repo.get(Card, oracle_id)
 
   defp local_card_by_printing_id(scryfall_id) do
     case Repo.get(Printing, scryfall_id) do
-      nil ->
-        nil
-
-      printing ->
-        printing
-        |> Repo.preload(:card)
-        |> Map.get(:card)
-        |> preload_card()
+      nil -> nil
+      printing -> printing |> Repo.preload(:card) |> Map.get(:card)
     end
   end
 
@@ -93,19 +82,13 @@ defmodule Manavault.Catalog.EDHRec.Response.CardLookup do
     |> where([card], fragment("lower(?)", card.name) == ^name)
     |> limit(1)
     |> Repo.one()
-    |> case do
-      nil -> nil
-      card -> preload_card(card)
-    end
   end
 
-  defp preload_card(%Card{} = card) do
-    Repo.preload(card,
-      printings: from(printing in Printing, order_by: [desc: printing.released_at])
-    )
-  end
-
-  defp preload_card(_card), do: nil
+  # Printings are intentionally NOT preloaded here. Eagerly loading every
+  # printing of every recommended card pulled tens of thousands of rows per
+  # response; the GraphQL :card type resolves printings through the batched,
+  # lazy dataloader instead, so they load once across all cards and only when
+  # the client actually requests them.
 
   defp matching_deck_card?(deck_card, oracle_id, name) do
     deck_card.oracle_id == oracle_id or

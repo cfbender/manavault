@@ -12,7 +12,10 @@ defmodule Manavault.Catalog.EDHRec.Response do
         fetch_commander_page \\ &Client.fetch_commander_page/1
       )
       when is_map(response) do
-    deck = Repo.preload(deck, Payload.deck_preloads(), force: true)
+    # No force: the caller (Recommendations.recs/2) already force-preloads these
+    # associations, so this is a no-op there and only loads when a caller invokes
+    # normalize with an unloaded deck.
+    deck = Repo.preload(deck, Payload.deck_preloads())
     commander_names = response |> Map.get("commanders", []) |> Enum.map(&CardLookup.entry_name/1)
 
     %{
