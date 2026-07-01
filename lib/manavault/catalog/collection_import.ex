@@ -1,6 +1,11 @@
+require NimbleCSV
+
+NimbleCSV.define(Manavault.Catalog.CollectionImport.CSVParser, separator: ",", escape: "\"")
+
 defmodule Manavault.Catalog.CollectionImport do
   @moduledoc false
 
+  alias Manavault.Catalog.CollectionImport.CSVParser
   alias Manavault.Catalog.{Price, Util}
 
   @type parsed_row :: {map(), pos_integer()}
@@ -134,31 +139,10 @@ defmodule Manavault.Catalog.CollectionImport do
     text
     |> String.replace("\r\n", "\n")
     |> String.replace("\r", "\n")
-    |> String.graphemes()
-    |> do_parse_csv([], [], "", :plain)
+    |> CSVParser.parse_string(skip_headers: false)
+    |> Enum.map(fn cells -> Enum.map(cells, &String.trim/1) end)
     |> Enum.reject(fn row -> Enum.all?(row, &(&1 == "")) end)
   end
-
-  defp do_parse_csv([], rows, row, cell, _state),
-    do: Enum.reverse([Enum.reverse([String.trim(cell) | row]) | rows])
-
-  defp do_parse_csv(["\"" | rest], rows, row, "", :plain),
-    do: do_parse_csv(rest, rows, row, "", :quoted)
-
-  defp do_parse_csv(["\"" | rest], rows, row, cell, :quoted),
-    do: do_parse_csv(rest, rows, row, cell, :after_quote)
-
-  defp do_parse_csv(["\"" | rest], rows, row, cell, :after_quote),
-    do: do_parse_csv(rest, rows, row, cell <> "\"", :quoted)
-
-  defp do_parse_csv(["," | rest], rows, row, cell, state) when state in [:plain, :after_quote],
-    do: do_parse_csv(rest, rows, [String.trim(cell) | row], "", :plain)
-
-  defp do_parse_csv(["\n" | rest], rows, row, cell, state) when state in [:plain, :after_quote],
-    do: do_parse_csv(rest, [Enum.reverse([String.trim(cell) | row]) | rows], [], "", :plain)
-
-  defp do_parse_csv([character | rest], rows, row, cell, state),
-    do: do_parse_csv(rest, rows, row, cell <> character, state)
 
   defp resolve_format(_text, format, _file_name) when format in [:csv, :txt, :unknown], do: format
 
