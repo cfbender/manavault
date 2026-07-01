@@ -232,11 +232,15 @@ defmodule Manavault.Catalog.Decks.Allocations do
       when mode in [:exact_printings, :matching_printings] do
     deck = Repo.preload(deck, Preloads.deck_preloads(), force: true)
 
+    # Compute every deck card's allocation status in a handful of grouped
+    # queries instead of ~5 per card (see AllocationStatus batching).
+    deck_cards = AllocationStatus.put_deck_card_allocation_statuses(deck.deck_cards)
+
     preview =
-      deck.deck_cards
+      deck_cards
       |> Enum.reduce(%{allocated: 0, cards: MapSet.new(), skipped: 0, entries: []}, fn deck_card,
                                                                                        preview ->
-        status = AllocationStatus.deck_card_allocation_status(deck_card)
+        status = deck_card.allocation_status
         needed = max(status.required - status.allocated, 0)
         entries = bulk_allocate_deck_card_preview(deck_card, mode, status, needed)
 
