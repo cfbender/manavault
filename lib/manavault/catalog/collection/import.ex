@@ -1,6 +1,8 @@
 defmodule Manavault.Catalog.Collection.Import do
   @moduledoc false
 
+  import Ecto.Query
+
   alias Manavault.Catalog.Collection.AutoSort
   alias Manavault.Catalog.{CollectionImport, Location, Printing, Search}
   alias Manavault.Repo
@@ -15,15 +17,46 @@ defmodule Manavault.Catalog.Collection.Import do
          {:ok, default_purchase_price_cents} <-
            normalize_purchase_price_cents(purchase_price_cents),
          {:ok, rows} <- CollectionImport.parse(text, format: format, file_name: file_name) do
-      import_rows =
+      prepared_rows =
         Enum.map(rows, fn {row, row_number} ->
-          row
-          |> CollectionImport.attrs()
-          |> put_default_import_purchase_price(default_purchase_price_cents)
-          |> preview_row(row_number, normalized_location_id)
+          attrs =
+            row
+            |> CollectionImport.attrs()
+            |> put_default_import_purchase_price(default_purchase_price_cents)
+
+          {attrs, row_number}
+        end)
+
+      # Resolve every scryfall_id row in a single query instead of one lookup
+      # (plus a card preload) per row.
+      printings_by_scryfall_id = bulk_printings_by_scryfall_id(prepared_rows)
+
+      import_rows =
+        Enum.map(prepared_rows, fn {attrs, row_number} ->
+          preview_row(attrs, row_number, normalized_location_id, printings_by_scryfall_id)
         end)
 
       {:ok, preview_result(import_rows, normalized_location_id)}
+    end
+  end
+
+  defp bulk_printings_by_scryfall_id(prepared_rows) do
+    scryfall_ids =
+      prepared_rows
+      |> Enum.map(fn {attrs, _row_number} -> Map.get(attrs, "scryfall_id") end)
+      |> Enum.reject(&(&1 in ["", nil]))
+      |> Enum.uniq()
+
+    case scryfall_ids do
+      [] ->
+        %{}
+
+      ids ->
+        Printing
+        |> where([printing], printing.scryfall_id in ^ids)
+        |> preload(:card)
+        |> Repo.all()
+        |> Map.new(&{&1.scryfall_id, &1})
     end
   end
 
@@ -117,16 +150,18 @@ defmodule Manavault.Catalog.Collection.Import do
 
   defp put_default_import_purchase_price(attrs, _cents), do: attrs
 
-  defp preview_row(attrs, row_number, location_id) do
+  defp preview_row(attrs, row_number, location_id, printings_by_scryfall_id) do
     attrs = Map.put(attrs, "location_id", location_id)
 
-    case candidates(attrs) do
+    # Both candidate sources (the bulk scryfall_id load and Search.search_printings)
+    # already preload :card, so no per-row preload is needed here.
+    case resolve_candidates(attrs, printings_by_scryfall_id) do
       [%Printing{} = printing] ->
         %{
           row_number: row_number,
           status: :exact,
           attrs: Map.put(attrs, "scryfall_id", printing.scryfall_id),
-          printing: Repo.preload(printing, :card),
+          printing: printing,
           candidates: []
         }
 
@@ -145,17 +180,20 @@ defmodule Manavault.Catalog.Collection.Import do
           status: :ambiguous,
           attrs: attrs,
           printing: nil,
-          candidates: Enum.map(candidates, &Repo.preload(&1, :card))
+          candidates: candidates
         }
     end
   end
 
-  defp candidates(%{"scryfall_id" => scryfall_id}) when scryfall_id not in ["", nil] do
-    case Search.get_printing_by_scryfall_id(scryfall_id) do
+  defp resolve_candidates(%{"scryfall_id" => scryfall_id}, printings_by_scryfall_id)
+       when scryfall_id not in ["", nil] do
+    case Map.get(printings_by_scryfall_id, scryfall_id) do
       nil -> []
       printing -> [printing]
     end
   end
+
+  defp resolve_candidates(attrs, _printings_by_scryfall_id), do: candidates(attrs)
 
   defp candidates(%{
          "name" => name,
@@ -171,6 +209,8 @@ defmodule Manavault.Catalog.Collection.Import do
         (collector_number == "" || printing.collector_number == collector_number)
     end)
   end
+
+  defp candidates(_attrs), do: []
 
   defp preview_result(rows, location_id) do
     %{
