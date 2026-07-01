@@ -186,7 +186,20 @@ defmodule Manavault.Catalog.ScryfallQuery.Parser do
 
   defp normalize_field(field) do
     normalized = field |> String.downcase() |> String.replace("-", "_")
-    Map.get(@field_aliases, normalized, String.to_atom(normalized))
+
+    case Map.fetch(@field_aliases, normalized) do
+      {:ok, atom} -> atom
+      :error -> known_field_atom(normalized)
+    end
+  end
+
+  # Never mint atoms from user-supplied field names (unbounded atoms crash the
+  # BEAM). Canonical field atoms already exist at compile time; anything else is
+  # an unknown field that downstream clauses treat as a non-match.
+  defp known_field_atom(normalized) do
+    String.to_existing_atom(normalized)
+  rescue
+    ArgumentError -> :unknown
   end
 
   defp regex_value?(value), do: String.starts_with?(value, "/") and String.ends_with?(value, "/")

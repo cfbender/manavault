@@ -35,18 +35,27 @@ defmodule Manavault.Catalog.EDHRec.Response.CardLookup do
   def entry_oracle_id(_entry), do: nil
 
   def entry_string(entry, key) do
-    case Map.get(entry, key) || Map.get(entry, String.to_atom(key)) do
+    case Map.get(entry, key) || Map.get(entry, existing_atom(key)) do
       value when is_binary(value) -> value
       _value -> nil
     end
   end
 
   def entry_number(entry, key) do
-    case Map.get(entry, key) || Map.get(entry, String.to_atom(key)) do
+    case Map.get(entry, key) || Map.get(entry, existing_atom(key)) do
       value when is_integer(value) -> value
       value when is_float(value) -> value
       _value -> nil
     end
+  end
+
+  # Look up the atom-keyed variant without minting atoms from external data. If
+  # the map really has an atom key that atom already exists, so this still finds
+  # it; otherwise there is nothing to match.
+  defp existing_atom(key) do
+    String.to_existing_atom(key)
+  rescue
+    ArgumentError -> nil
   end
 
   def card_slug(name) do

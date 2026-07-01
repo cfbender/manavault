@@ -151,7 +151,7 @@ defmodule Manavault.Catalog.EDHRec.Response.CommanderPage do
   defp page_money(value), do: "$#{round(value)}"
 
   defp page_value(map, key) when is_map(map) do
-    case Map.get(map, key) || Map.get(map, String.to_atom(key)) do
+    case Map.get(map, key) || Map.get(map, existing_atom(key)) do
       value when is_binary(value) and value != "" -> value
       _value -> nil
     end
@@ -160,7 +160,7 @@ defmodule Manavault.Catalog.EDHRec.Response.CommanderPage do
   defp page_value(_map, _key), do: nil
 
   defp page_number(map, key) when is_map(map) do
-    case Map.get(map, key) || Map.get(map, String.to_atom(key)) do
+    case Map.get(map, key) || Map.get(map, existing_atom(key)) do
       value when is_integer(value) -> value
       value when is_float(value) -> value
       _value -> nil
@@ -180,13 +180,22 @@ defmodule Manavault.Catalog.EDHRec.Response.CommanderPage do
   defp page_integer(_map, _key), do: nil
 
   defp page_list(map, key) when is_map(map) do
-    case Map.get(map, key) || Map.get(map, String.to_atom(key)) do
+    case Map.get(map, key) || Map.get(map, existing_atom(key)) do
       values when is_list(values) -> Enum.filter(values, &is_binary/1)
       _value -> []
     end
   end
 
   defp page_list(_map, _key), do: []
+
+  # Look up the atom-keyed variant without minting atoms from external data. If
+  # the map really has an atom key that atom already exists, so this still finds
+  # it; otherwise there is nothing to match.
+  defp existing_atom(key) do
+    String.to_existing_atom(key)
+  rescue
+    ArgumentError -> nil
+  end
 
   defp edhrec_path(nil, fallback), do: fallback
   defp edhrec_path("http" <> _rest = url, _fallback), do: url
