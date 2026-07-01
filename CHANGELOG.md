@@ -8,6 +8,50 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [0.13.0] - 2026-07-01
+
+### Bug Fixes
+
+- Mobile tap ([`55ad3045`](../../commit/55ad304560774bd9fe58e27cf723a1ef5c7cc645))
+- **collection:** Harden action menus ([`003bee19`](../../commit/003bee1915a06ecb8b4b620f2ad0819d01e1816f))
+- **decks:** Tighten gallery header hierarchy ([`356985e4`](../../commit/356985e4e83c2e33c70d39e8a6297d05324cd5d0))
+- **decks:** Teach gallery loading states ([`aba82bcc`](../../commit/aba82bcc92a2cb543463310849a0a8e6dbdd7898))
+- **decks:** Expose gallery actions and readiness ([`c8bc8334`](../../commit/c8bc8334a42997e554b9c2c9d3af37640e6e006e))
+- **decks:** Place quick actions on cards ([`6cc91c65`](../../commit/6cc91c65386604ec956ae6f7073aa7aa3dbaf16a))
+- **ui:** Improve mobile touch targets ([`80f4fd37`](../../commit/80f4fd375c75a6e88f9e0659a618629b45060e8b))
+- **decks:** Expose accessible card controls ([`d49936f1`](../../commit/d49936f1098f8fa1e9bda08b89dce3e18138d573))
+- **decks:** Harden deck states and diagnostics ([`c61c5312`](../../commit/c61c5312afce34e8e9ba60f136ceb968b34d939c))
+- **decks:** Reduce desktop card controls ([`845de6bc`](../../commit/845de6bcd98cf0ffa65609a39dc5056cd3f4cee7))
+- **decks:** Tuck readiness behind modal ([`8f1a432b`](../../commit/8f1a432b16741d99ce190af3c0f8ec5f3c13a32b))
+- **decks:** Separate readiness modal actions ([`dde91db4`](../../commit/dde91db49f6d6b3a540a016a382c9f8b205d13a5))
+- **decks:** Keep mobile card controls compact ([`0cc39c32`](../../commit/0cc39c320c5a77687fdb8d19649b77d964704daa))
+- **decks:** Move card readiness work into modal ([`2e19ecb8`](../../commit/2e19ecb8c1318b111739410cd3cdadacec752628))
+- **decks:** Restore selection affordance flow ([`37877f1b`](../../commit/37877f1bbf220dd7d3fb3ce254383552c0bface8))
+- Edhrec card name overflow ([`b94360a0`](../../commit/b94360a0d62ba9644bfb274fd4f01a2019ccae97))
+- Collection views ([`a8c9738a`](../../commit/a8c9738a1d55a43483a53b195932f36a0a75589d))
+- Click through on menu ([`f81b3367`](../../commit/f81b3367754d4b5dddca74b8e0dbdb4674c35bfb))
+- Card component click through and style ([`d7170ad6`](../../commit/d7170ad6f38ba6060541d2252d6e3bf5f189646c))
+
+### Chores
+
+- Impeccable ([`dcc1f7f4`](../../commit/dcc1f7f47e5e38dfb8ddb03e460e26fe7aafecfe))
+- **collection:** Polish vault UI details ([`72ed927c`](../../commit/72ed927c61e98a84f02cd606ad37036342f141ac))
+- **decks:** Remove unused deck type ([`58bfb9cd`](../../commit/58bfb9cdab3dc18c17a566759e6d7e557f9b6719))
+- New logo ([`a9b44da9`](../../commit/a9b44da9657ce991ff1099301bda2fca0dfc2cf7))
+
+### Features
+
+- Edhrec card pops up modal instead ([`b0e6f545`](../../commit/b0e6f545d32c5380363cbe08681cd971122e53c6))
+- **collection:** Expose core collection actions ([`3f73182d`](../../commit/3f73182df466571f9bf2babd7dd3faf80fda4ce3))
+- **collection:** Distill card filters ([`6be9bd72`](../../commit/6be9bd72958b69d8c9689c76759919dae39a7f76))
+- **collection:** Add pull workflow shortcuts ([`35159073`](../../commit/351590730b0e044e2a90a7c05fde82e0b5f7376e))
+- **cards:** Improve search result confidence ([`77fddd16`](../../commit/77fddd167e1a5dcb3cb7f21d51764fcda2d60397))
+- **decks:** Surface deck readiness actions ([`640a1a69`](../../commit/640a1a699daa7c9cd3d70f23447f3fdc910fa800))
+
+### Refactoring
+
+- Readiness to pull list ([`fd673a36`](../../commit/fd673a36aaa34d8e543234d3ac7ad0ec583d6c7f))
+
 ## [0.12.0] - 2026-06-29
 
 ### Bug Fixes
