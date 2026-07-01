@@ -69,6 +69,12 @@ defmodule Manavault.Catalog.Dataloader do
     )
   end
 
+  def query(DeckAllocation, _params) do
+    # Preload deck_card -> deck in the batched load so the allocation_decks
+    # resolver doesn't re-preload per collection item (which defeated the batch).
+    from(allocation in DeckAllocation, preload: [deck_card: :deck])
+  end
+
   def query(Printing, _params) do
     from(printing in Printing,
       order_by: [desc: printing.released_at, asc: printing.set_code]
