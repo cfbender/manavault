@@ -76,10 +76,10 @@ defmodule Manavault.Catalog.EDHRec.Response.CardLookup do
   end
 
   defp local_card_by_name(name) do
-    name = name |> to_string() |> String.trim() |> String.downcase()
+    name = name |> to_string() |> String.trim()
 
     Card
-    |> where([card], fragment("lower(?)", card.name) == ^name)
+    |> where([card], fragment("? = ? COLLATE NOCASE", card.name, ^name))
     |> limit(1)
     |> Repo.one()
   end

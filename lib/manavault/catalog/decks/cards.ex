@@ -290,7 +290,7 @@ defmodule Manavault.Catalog.Decks.Cards do
 
     Repo.one(
       from card in Card,
-        where: fragment("lower(?) = ?", card.name, ^String.downcase(normalized_name)),
+        where: fragment("? = ? COLLATE NOCASE", card.name, ^normalized_name),
         order_by: [asc: card.name],
         limit: 1
     )

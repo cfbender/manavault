@@ -39,7 +39,10 @@ defmodule Manavault.Catalog.Search.Cards.Filter do
   end
 
   defp dynamic_for(%ExactName{name: name}) do
-    dynamic([card, _printing], fragment("lower(?)", card.name) == ^Values.downcase(name))
+    dynamic(
+      [card, _printing],
+      fragment("? = ? COLLATE NOCASE", card.name, ^Values.downcase(name))
+    )
   end
 
   defp dynamic_for(%Predicate{field: :text, value: value, regex?: false}),

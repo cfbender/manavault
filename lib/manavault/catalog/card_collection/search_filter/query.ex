@@ -47,7 +47,7 @@ defmodule Manavault.Catalog.CardCollection.SearchFilter.Query do
   defp dynamic_for(%ExactName{name: name}) do
     dynamic(
       [_item, _printing, card, _location],
-      fragment("lower(?)", card.name) == ^Values.downcase(name)
+      fragment("? = ? COLLATE NOCASE", card.name, ^Values.downcase(name))
     )
   end
 
