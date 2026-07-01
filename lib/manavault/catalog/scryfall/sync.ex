@@ -7,6 +7,8 @@ defmodule Manavault.Catalog.Scryfall.Sync do
   alias Manavault.Catalog.Sync, as: SyncRecord
   alias Manavault.Repo
 
+  require Logger
+
   @bulk_metadata_url "https://api.scryfall.com/bulk-data/default-cards"
   @oracle_tags_bulk_metadata_url "https://api.scryfall.com/bulk-data/oracle-tags"
   @bulk_type "default_cards"
@@ -29,26 +31,50 @@ defmodule Manavault.Catalog.Scryfall.Sync do
       |> SyncRecord.changeset(%{status: "running", bulk_type: @bulk_type, started_at: now})
       |> Repo.insert()
 
+    Logger.info("Scryfall catalog sync started sync_id=#{sync.id}")
+    Logger.info("Scryfall catalog sync fetching default-cards metadata sync_id=#{sync.id}")
+
     with {:ok, metadata_body} <- fetcher.(bulk_url),
          {:ok, metadata} <- Jason.decode(metadata_body),
          {:ok, download_uri} <- fetch_download_uri(metadata),
+         :ok <- log_bulk_download_started(sync, "default-cards"),
          {:ok, bulk_body} <- fetcher.(download_uri),
+         :ok <- log_bulk_downloaded(sync, "default-cards", bulk_body),
          {:ok, cards} <- Jason.decode(bulk_body),
-         {:ok, oracle_tags} <- fetch_oracle_tags(fetcher, oracle_tags_bulk_url),
-         {:ok, counts} <- Import.run(cards, download_uri, oracle_tags: oracle_tags) do
-      sync
-      |> SyncRecord.changeset(%{
-        status: "succeeded",
-        bulk_uri: download_uri,
-        completed_at: utc_now(),
-        cards_count: counts.cards_count,
-        printings_count: counts.printings_count,
-        error: nil
-      })
-      |> Repo.update()
+         source_count <- length(cards),
+         :ok <- log_bulk_decoded(sync, "default-cards", source_count),
+         {:ok, oracle_tags} <- fetch_oracle_tags(fetcher, oracle_tags_bulk_url, sync),
+         {:ok, counts} <-
+           Import.run(cards, download_uri,
+             oracle_tags: oracle_tags,
+             log_progress: true,
+             source_count: source_count
+           ) do
+      result =
+        sync
+        |> SyncRecord.changeset(%{
+          status: "succeeded",
+          bulk_uri: download_uri,
+          completed_at: utc_now(),
+          cards_count: counts.cards_count,
+          printings_count: counts.printings_count,
+          error: nil
+        })
+        |> Repo.update()
+
+      log_sync_success(sync, result)
+      result
     else
-      {:error, reason} -> {:error, fail_sync!(sync, reason)}
-      other -> {:error, fail_sync!(sync, inspect(other))}
+      {:error, reason} ->
+        Logger.warning(
+          "Scryfall catalog sync failed sync_id=#{sync.id} error=#{format_error(reason)}"
+        )
+
+        {:error, fail_sync!(sync, reason)}
+
+      other ->
+        Logger.warning("Scryfall catalog sync failed sync_id=#{sync.id} error=#{inspect(other)}")
+        {:error, fail_sync!(sync, inspect(other))}
     end
   end
 
@@ -59,14 +85,22 @@ defmodule Manavault.Catalog.Scryfall.Sync do
   defp fetch_download_uri(_metadata),
     do: {:error, "Scryfall bulk metadata did not include download_uri"}
 
-  defp fetch_oracle_tags(_fetcher, nil), do: {:ok, []}
+  defp fetch_oracle_tags(_fetcher, nil, sync) do
+    Logger.info("Scryfall catalog sync skipping oracle-tags bulk sync_id=#{sync.id}")
+    {:ok, []}
+  end
 
-  defp fetch_oracle_tags(fetcher, oracle_tags_bulk_url) do
+  defp fetch_oracle_tags(fetcher, oracle_tags_bulk_url, sync) do
+    Logger.info("Scryfall catalog sync fetching oracle-tags metadata sync_id=#{sync.id}")
+
     with {:ok, metadata_body} <- fetcher.(oracle_tags_bulk_url),
          {:ok, metadata} <- Jason.decode(metadata_body),
          {:ok, download_uri} <- fetch_download_uri(metadata),
+         :ok <- log_bulk_download_started(sync, "oracle-tags"),
          {:ok, bulk_body} <- fetcher.(download_uri),
-         {:ok, tags} <- decode_oracle_tags_bulk(bulk_body) do
+         :ok <- log_bulk_downloaded(sync, "oracle-tags", bulk_body),
+         {:ok, tags} <- decode_oracle_tags_bulk(bulk_body),
+         :ok <- log_bulk_decoded(sync, "oracle-tags", length(tags)) do
       {:ok, tags}
     end
   end
@@ -79,6 +113,39 @@ defmodule Manavault.Catalog.Scryfall.Sync do
       {:error, reason} -> {:error, reason}
     end
   end
+
+  defp log_bulk_download_started(sync, bulk_name) do
+    Logger.info("Scryfall catalog sync downloading #{bulk_name} bulk sync_id=#{sync.id}")
+  end
+
+  defp log_bulk_downloaded(sync, bulk_name, body) do
+    Logger.info(
+      "Scryfall catalog sync downloaded #{bulk_name} bulk sync_id=#{sync.id} " <>
+        "bytes=#{payload_size(body)}"
+    )
+  end
+
+  defp log_bulk_decoded(sync, bulk_name, count) do
+    Logger.info(
+      "Scryfall catalog sync decoded #{bulk_name} bulk sync_id=#{sync.id} count=#{count}"
+    )
+  end
+
+  defp log_sync_success(_sync, {:error, changeset}) do
+    Logger.warning(
+      "Scryfall catalog sync could not record success error=#{inspect(changeset.errors)}"
+    )
+  end
+
+  defp log_sync_success(_sync, {:ok, sync}) do
+    Logger.info(
+      "Scryfall catalog sync succeeded sync_id=#{sync.id} " <>
+        "cards=#{sync.cards_count} printings=#{sync.printings_count}"
+    )
+  end
+
+  defp payload_size(body) when is_binary(body), do: byte_size(body)
+  defp payload_size(_body), do: "unknown"
 
   defp fail_sync!(sync, reason) do
     sync

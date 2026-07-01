@@ -3,6 +3,23 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
 
   alias Manavault.Catalog.ScryfallOracleTags
 
+  def rows(cards, now, oracle_tag_index) when is_list(cards) do
+    {card_rows, printing_rows, search_rows} =
+      Enum.reduce(cards, {[], [], []}, fn card, {card_rows, printing_rows, search_rows} ->
+        {
+          prepend_rows(card_row(card, now, oracle_tag_index), card_rows),
+          prepend_rows(printing_row(card, now), printing_rows),
+          prepend_rows(printing_search_row(card), search_rows)
+        }
+      end)
+
+    %{
+      cards: :lists.reverse(card_rows),
+      printings: :lists.reverse(printing_rows),
+      search_rows: :lists.reverse(search_rows)
+    }
+  end
+
   def card_rows(cards, now, oracle_tag_index) when is_list(cards) do
     Enum.flat_map(cards, &card_row(&1, now, oracle_tag_index))
   end
@@ -13,6 +30,10 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
 
   def printing_search_rows(cards) when is_list(cards) do
     Enum.flat_map(cards, &printing_search_row/1)
+  end
+
+  defp prepend_rows(rows, acc) do
+    Enum.reduce(rows, acc, fn row, rows -> [row | rows] end)
   end
 
   defp card_row(%{"oracle_id" => oracle_id, "name" => name} = card, now, oracle_tag_index)

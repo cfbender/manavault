@@ -96,6 +96,8 @@ defmodule Manavault.Catalog.ScryfallOracleTags do
   @targeted_disruption_themes MapSet.new(~w(counterspell discard removal theft))
   @protective_disruption_themes MapSet.new(["protection"])
   @spell_type_themes MapSet.new(["instant", "sorcery"])
+  @hand_neutral_tags MapSet.new(["hand_neutral"])
+  @hand_positive_tags MapSet.new(["hand_positive"])
   @scored_deck_categories [
     {"ramp", MapSet.new(["ramp"])},
     {"card_advantage", MapSet.new(["card_advantage"])},
@@ -199,6 +201,7 @@ defmodule Manavault.Catalog.ScryfallOracleTags do
   defp tag_themes(tag, tags_by_id) do
     tag
     |> tag_themes(tags_by_id, MapSet.new())
+    |> reject_hand_neutral_card_advantage(tag, tags_by_id)
     |> Enum.uniq()
   end
 
@@ -230,6 +233,48 @@ defmodule Manavault.Catalog.ScryfallOracleTags do
         {:ok, theme} -> [theme]
         :error -> []
       end
+    end)
+  end
+
+  defp reject_hand_neutral_card_advantage(themes, tag, tags_by_id) do
+    if "card_advantage" in themes and tag_marker?(tag, tags_by_id, @hand_neutral_tags) and
+         not tag_marker?(tag, tags_by_id, @hand_positive_tags) do
+      Enum.reject(themes, &(&1 == "card_advantage"))
+    else
+      themes
+    end
+  end
+
+  defp tag_marker?(tag, tags_by_id, marker_names) do
+    tag_marker?(tag, tags_by_id, marker_names, MapSet.new())
+  end
+
+  defp tag_marker?(tag, tags_by_id, marker_names, visited_ids) when is_map(tag) do
+    tag_id = value(tag, "id")
+
+    if is_binary(tag_id) and MapSet.member?(visited_ids, tag_id) do
+      false
+    else
+      visited_ids = if is_binary(tag_id), do: MapSet.put(visited_ids, tag_id), else: visited_ids
+
+      own_tag_marker?(tag, marker_names) or
+        Enum.any?(List.wrap(value(tag, "parent_ids")), fn parent_id ->
+          case Map.fetch(tags_by_id, parent_id) do
+            {:ok, parent} -> tag_marker?(parent, tags_by_id, marker_names, visited_ids)
+            :error -> false
+          end
+        end)
+    end
+  end
+
+  defp tag_marker?(_tag, _tags_by_id, _marker_names, _visited_ids), do: false
+
+  defp own_tag_marker?(tag, marker_names) do
+    [value(tag, "slug"), value(tag, "label") | List.wrap(value(tag, "aliases"))]
+    |> Enum.any?(fn name ->
+      name
+      |> normalize_theme_name()
+      |> then(&MapSet.member?(marker_names, &1))
     end)
   end
 

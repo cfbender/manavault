@@ -5,7 +5,10 @@ defmodule Manavault.Catalog.Scryfall.Import do
   alias Manavault.Catalog.Scryfall.ImportRows
   alias Manavault.Repo
 
+  require Logger
+
   @batch_size 200
+  @progress_source_card_interval 5_000
 
   def run(cards, bulk_uri \\ nil, opts \\ [])
 
@@ -14,76 +17,165 @@ defmodule Manavault.Catalog.Scryfall.Import do
   end
 
   def run(cards, bulk_uri, opts) when is_list(cards) and is_list(opts) do
+    log_progress? = Keyword.get(opts, :log_progress, false)
+    source_count = Keyword.get(opts, :source_count) || if(log_progress?, do: length(cards))
     now = utc_now()
     oracle_tag_index = ScryfallOracleTags.build_index(Keyword.get(opts, :oracle_tags, []))
+
+    log_import_started(log_progress?, source_count)
 
     result =
       Repo.transact(
         fn ->
-          rows = ImportRows.card_rows(cards, now, oracle_tag_index)
-          printing_rows = ImportRows.printing_rows(cards, now)
-          search_rows = ImportRows.printing_search_rows(cards)
-
-          insert_in_batches(Card, rows,
-            conflict_target: [:oracle_id],
-            on_conflict:
-              {:replace,
-               [
-                 :name,
-                 :type_line,
-                 :oracle_text,
-                 :mana_cost,
-                 :cmc,
-                 :colors,
-                 :color_identity,
-                 :legalities,
-                 :game_changer,
-                 :oracle_tags,
-                 :deck_category,
-                 :deck_themes,
-                 :rulings_uri,
-                 :updated_at
-               ]}
-          )
-
-          insert_in_batches(Printing, printing_rows,
-            conflict_target: [:scryfall_id],
-            on_conflict:
-              {:replace,
-               [
-                 :oracle_id,
-                 :set_code,
-                 :set_name,
-                 :collector_number,
-                 :lang,
-                 :flavor_name,
-                 :flavor_text,
-                 :rarity,
-                 :finishes,
-                 :image_uris,
-                 :prices,
-                 :released_at,
-                 :updated_at
-               ]}
-          )
-
-          refresh_printing_search_rows(search_rows)
+          counts = import_card_batches(cards, now, oracle_tag_index, source_count, log_progress?)
 
           {:ok,
            %{
-             cards_count: length(rows),
-             printings_count: length(printing_rows),
+             cards_count: counts.cards_count,
+             printings_count: counts.printings_count,
              bulk_uri: bulk_uri
            }}
         end,
         timeout: :infinity
       )
 
-    if match?({:ok, _counts}, result) do
-      Search.clear_card_name_suggestion_cache()
+    case result do
+      {:ok, counts} ->
+        log_import_completed(log_progress?, counts, source_count)
+        Search.clear_card_name_suggestion_cache()
+
+      {:error, reason} ->
+        log_import_failed(log_progress?, reason)
     end
 
     result
+  end
+
+  defp import_card_batches(cards, now, oracle_tag_index, source_count, log_progress?) do
+    cards
+    |> Enum.chunk_every(@batch_size)
+    |> Enum.reduce(initial_import_counts(), fn batch, counts ->
+      rows = ImportRows.rows(batch, now, oracle_tag_index)
+
+      insert_card_rows(rows.cards)
+      insert_printing_rows(rows.printings)
+      refresh_printing_search_rows(rows.search_rows)
+
+      counts
+      |> advance_import_counts(length(batch), rows)
+      |> maybe_log_import_progress(log_progress?, source_count)
+    end)
+  end
+
+  defp initial_import_counts do
+    %{
+      source_count: 0,
+      cards_count: 0,
+      printings_count: 0,
+      search_rows_count: 0,
+      next_progress: @progress_source_card_interval
+    }
+  end
+
+  defp advance_import_counts(counts, source_count, rows) do
+    %{
+      counts
+      | source_count: counts.source_count + source_count,
+        cards_count: counts.cards_count + length(rows.cards),
+        printings_count: counts.printings_count + length(rows.printings),
+        search_rows_count: counts.search_rows_count + length(rows.search_rows)
+    }
+  end
+
+  defp insert_card_rows(rows) do
+    insert_in_batches(Card, rows,
+      conflict_target: [:oracle_id],
+      on_conflict:
+        {:replace,
+         [
+           :name,
+           :type_line,
+           :oracle_text,
+           :mana_cost,
+           :cmc,
+           :colors,
+           :color_identity,
+           :legalities,
+           :game_changer,
+           :oracle_tags,
+           :deck_category,
+           :deck_themes,
+           :rulings_uri,
+           :updated_at
+         ]}
+    )
+  end
+
+  defp insert_printing_rows(rows) do
+    insert_in_batches(Printing, rows,
+      conflict_target: [:scryfall_id],
+      on_conflict:
+        {:replace,
+         [
+           :oracle_id,
+           :set_code,
+           :set_name,
+           :collector_number,
+           :lang,
+           :flavor_name,
+           :flavor_text,
+           :rarity,
+           :finishes,
+           :image_uris,
+           :prices,
+           :released_at,
+           :updated_at
+         ]}
+    )
+  end
+
+  defp maybe_log_import_progress(counts, false, _source_count), do: counts
+
+  defp maybe_log_import_progress(
+         %{source_count: processed, next_progress: next} = counts,
+         true,
+         source_count
+       )
+       when processed >= next or processed == source_count do
+    Logger.info(
+      "Scryfall catalog import progress source_cards=#{processed}/#{source_count} " <>
+        "cards=#{counts.cards_count} printings=#{counts.printings_count} " <>
+        "search_rows=#{counts.search_rows_count}"
+    )
+
+    %{counts | next_progress: next_progress_after(processed)}
+  end
+
+  defp maybe_log_import_progress(counts, true, _source_count), do: counts
+
+  defp next_progress_after(processed) do
+    (div(processed, @progress_source_card_interval) + 1) * @progress_source_card_interval
+  end
+
+  defp log_import_started(false, _source_count), do: :ok
+
+  defp log_import_started(true, source_count) do
+    Logger.info("Scryfall catalog import started source_cards=#{source_count}")
+  end
+
+  defp log_import_completed(false, _counts, _source_count), do: :ok
+
+  defp log_import_completed(true, counts, source_count) do
+    Logger.info(
+      "Scryfall catalog import completed source_cards=#{source_count} " <>
+        "cards=#{counts.cards_count} printings=#{counts.printings_count}"
+    )
+  end
+
+  defp log_import_failed(false, _reason), do: :ok
+
+  defp log_import_failed(true, reason) do
+    Logger.warning("Scryfall catalog import failed error=#{inspect(reason)}")
   end
 
   defp insert_in_batches(_schema, [], _opts), do: :ok

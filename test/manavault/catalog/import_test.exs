@@ -55,6 +55,30 @@ defmodule Manavault.Catalog.ImportTest do
     assert Jason.decode!(prices) == %{"usd" => "1.00"}
   end
 
+  test "import_cards processes batches without dropping search rows" do
+    cards =
+      Enum.map(1..205, fn index ->
+        %{
+          @time_walk
+          | "id" => "scryfall-batched-#{index}",
+            "oracle_id" => "oracle-batched-#{index}",
+            "name" => "Batched Card #{index}",
+            "collector_number" => "#{index}"
+        }
+      end)
+
+    assert {:ok, %{cards_count: 205, printings_count: 205}} = Catalog.import_cards(cards)
+    assert Repo.aggregate(Card, :count) == 205
+    assert Repo.aggregate(Printing, :count) == 205
+
+    assert [%Printing{scryfall_id: "scryfall-batched-205"}] =
+             Catalog.search_printings(
+               name: "Batched Card 205",
+               set_code: "LEA",
+               collector_number: "205"
+             )
+  end
+
   test "import_cards stores selected oracle tags and derives deck grouping fields" do
     oracle_tags = [
       scryfall_tag(%{
@@ -471,6 +495,84 @@ defmodule Manavault.Catalog.ImportTest do
              Repo.get!(Card, "oracle-waterlogged-grove")
 
     assert ["card_advantage", "land"] = Jason.decode!(themes_json)
+  end
+
+  test "import_cards ignores hand-neutral card draw tags unless hand-positive" do
+    sheltered_thicket =
+      Map.merge(@plains, %{
+        "id" => "scryfall-sheltered-thicket",
+        "oracle_id" => "oracle-sheltered-thicket",
+        "name" => "Sheltered Thicket",
+        "type_line" => "Land — Mountain Forest",
+        "oracle_text" => "({T}: Add {R} or {G}.)\nCycling {2}",
+        "collector_number" => "169"
+      })
+
+    accumulate_wisdom = %{
+      @time_walk
+      | "id" => "scryfall-accumulate-wisdom",
+        "oracle_id" => "oracle-accumulate-wisdom",
+        "name" => "Accumulate Wisdom",
+        "type_line" => "Instant",
+        "oracle_text" => "Draw cards.",
+        "collector_number" => "42"
+    }
+
+    oracle_tags = [
+      scryfall_tag(%{
+        "id" => "tag-card-draw",
+        "slug" => "card-draw",
+        "label" => "Card Draw",
+        "type" => "function"
+      }),
+      scryfall_tag(%{
+        "id" => "tag-hand-neutral",
+        "slug" => "hand-neutral",
+        "label" => "Hand Neutral",
+        "type" => "function"
+      }),
+      scryfall_tag(%{
+        "id" => "tag-hand-positive",
+        "slug" => "hand-positive",
+        "label" => "Hand Positive",
+        "type" => "function"
+      }),
+      scryfall_tag(%{
+        "id" => "tag-cycling",
+        "slug" => "cycling",
+        "label" => "Cycling",
+        "type" => "function",
+        "parent_ids" => ["tag-card-draw", "tag-hand-neutral"],
+        "taggings" => [%{"oracle_id" => "oracle-sheltered-thicket", "weight" => "median"}]
+      }),
+      scryfall_tag(%{
+        "id" => "tag-accumulate-wisdom",
+        "slug" => "accumulate-wisdom",
+        "label" => "Accumulate Wisdom",
+        "type" => "function",
+        "parent_ids" => ["tag-card-draw", "tag-hand-neutral", "tag-hand-positive"],
+        "taggings" => [%{"oracle_id" => "oracle-accumulate-wisdom", "weight" => "median"}]
+      })
+    ]
+
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([sheltered_thicket, accumulate_wisdom], nil,
+               oracle_tags: oracle_tags
+             )
+
+    assert %Card{deck_category: "lands", deck_themes: thicket_themes_json} =
+             Repo.get!(Card, "oracle-sheltered-thicket")
+
+    thicket_themes = Jason.decode!(thicket_themes_json)
+    assert thicket_themes == ["land"]
+    refute "card_advantage" in thicket_themes
+
+    assert %Card{deck_category: "card_advantage", deck_themes: wisdom_themes_json} =
+             Repo.get!(Card, "oracle-accumulate-wisdom")
+
+    wisdom_themes = Jason.decode!(wisdom_themes_json)
+    assert "card_advantage" in wisdom_themes
+    assert "instant" in wisdom_themes
   end
 
   test "import_cards categorizes mass disruption beyond board wipes" do
