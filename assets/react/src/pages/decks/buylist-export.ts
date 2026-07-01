@@ -24,18 +24,24 @@ export function buylistTotalPrice(entries: BuylistEntry[]) {
   )
 }
 
-export function deckCardsTotalPrice(deckCards: DeckCardEntry[]) {
+export function deckMissingCardsTotalPrice(deckCards: DeckCardEntry[]) {
   return deckCards.reduce(
     (summary, deckCard) => {
-      if (deckCard.zone === "sideboard" || deckCard.zone === "maybeboard") {
+      if (
+        deckCard.zone === "sideboard" ||
+        deckCard.zone === "maybeboard" ||
+        deckCard.tag === "getting"
+      ) {
         return summary
       }
 
-      const quantity = Math.max(deckCard.quantity || 0, 0)
+      const missing = Math.max(deckCard.allocationStatus.missing || 0, 0)
+      if (missing <= 0) return summary
+
       if (typeof deckCard.priceCents === "number") {
-        summary.totalCents += deckCard.priceCents * quantity
+        summary.totalCents += deckCard.priceCents * missing
       } else {
-        summary.unpricedQuantity += quantity
+        summary.unpricedQuantity += missing
       }
 
       return summary

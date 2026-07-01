@@ -2,9 +2,9 @@ import test from "node:test"
 import assert from "node:assert/strict"
 
 import {
-  hasMainboardReadinessWork,
+  hasDeckPullWork,
+  summarizeDeckPullNeeds,
   summarizeDeckReadiness,
-  summarizeMainboardReadiness,
 } from "../src/pages/decks/deck-readiness.ts"
 
 function deckCard(allocationStatus, overrides = {}) {
@@ -55,8 +55,8 @@ test("treats basic lands as ready without collection allocation", () => {
   assert.equal(summary.missingToBuy, 1)
 })
 
-test("mainboard readiness excludes commander, sideboard, and maybeboard", () => {
-  const summary = summarizeMainboardReadiness([
+test("deck pull readiness includes commander and excludes sideboard and maybeboard", () => {
+  const summary = summarizeDeckPullNeeds([
     deckCard(status({ allocated: 1, required: 1, state: "allocated" })),
     deckCard(status({ missing: 1, required: 1, state: "missing" }), { zone: "commander" }),
     deckCard(status({ missing: 1, required: 1, state: "missing" }), { zone: "sideboard" }),
@@ -64,14 +64,14 @@ test("mainboard readiness excludes commander, sideboard, and maybeboard", () => 
   ])
 
   assert.equal(summary.readyCount, 1)
-  assert.equal(summary.requiredCount, 1)
-  assert.equal(summary.missingToBuy, 0)
-  assert.equal(summary.readinessPercent, 100)
+  assert.equal(summary.requiredCount, 2)
+  assert.equal(summary.missingToBuy, 1)
+  assert.equal(summary.readinessPercent, 50)
 })
 
-test("proxied mainboard cards do not keep readiness visible", () => {
+test("proxied pull-list cards do not keep readiness visible", () => {
   assert.equal(
-    hasMainboardReadinessWork([
+    hasDeckPullWork([
       deckCard(status({ allocated: 0, missing: 1, proxyAllocated: 1, required: 1 })),
     ]),
     false,

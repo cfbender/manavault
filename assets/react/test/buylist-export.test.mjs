@@ -1,7 +1,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 
-import { buylistTotalPrice, deckCardsTotalPrice } from "../src/pages/decks/buylist-export.ts"
+import { buylistTotalPrice, deckMissingCardsTotalPrice } from "../src/pages/decks/buylist-export.ts"
 
 test("buylistTotalPrice sums priced entries and counts unpriced quantities", () => {
   const summary = buylistTotalPrice([
@@ -13,14 +13,28 @@ test("buylistTotalPrice sums priced entries and counts unpriced quantities", () 
   assert.deepEqual(summary, { totalCents: 625, unpricedQuantity: 3 })
 })
 
-test("deckCardsTotalPrice sums priced main deck entries", () => {
-  const summary = deckCardsTotalPrice([
-    { quantity: 2, zone: "mainboard", priceCents: 500 },
-    { quantity: 1, zone: "commander", priceCents: 125 },
-    { quantity: 3, zone: "mainboard", priceCents: null },
-    { quantity: 4, zone: "sideboard", priceCents: 1000 },
-    { quantity: 5, zone: "maybeboard", priceCents: 1000 },
+test("deckMissingCardsTotalPrice sums only unaccounted main deck entries", () => {
+  const summary = deckMissingCardsTotalPrice([
+    deckCard({ quantity: 4, zone: "mainboard", missing: 2, priceCents: 500 }),
+    deckCard({ quantity: 1, zone: "commander", missing: 1, priceCents: 125 }),
+    deckCard({ quantity: 3, zone: "mainboard", missing: 2, priceCents: null }),
+    deckCard({ quantity: 1, zone: "mainboard", missing: 1, priceCents: 700, tag: "getting" }),
+    deckCard({ quantity: 4, zone: "sideboard", missing: 4, priceCents: 1000 }),
+    deckCard({ quantity: 5, zone: "maybeboard", missing: 5, priceCents: 1000 }),
+    deckCard({ quantity: 2, zone: "mainboard", missing: 0, priceCents: 999 }),
   ])
 
-  assert.deepEqual(summary, { totalCents: 1125, unpricedQuantity: 3 })
+  assert.deepEqual(summary, { totalCents: 1125, unpricedQuantity: 2 })
 })
+
+function deckCard({ quantity, zone, missing, priceCents, tag = null }) {
+  return {
+    quantity,
+    zone,
+    tag,
+    priceCents,
+    allocationStatus: {
+      missing,
+    },
+  }
+}

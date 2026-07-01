@@ -8,7 +8,7 @@ import type { DeckCardInput, DeckCardUpdateInput, DeckQuery } from "../../gql/gr
 import { groupDeckCards, type DeckGroupBy } from "../../lib/deck-grouping"
 import { graphqlEndpointContext, refetchActiveQueries } from "../../lib/apollo"
 import { pluralize } from "../../lib/utils"
-import { deckCardsTotalPrice, formatUsdCents } from "./buylist-export"
+import { deckMissingCardsTotalPrice, formatUsdCents } from "./buylist-export"
 import {
   allocatableDeckPullListEntries,
   createDeckPullList,
@@ -248,7 +248,7 @@ export function DeckDetailPage({
   const buylistPrice = useMemo(() => {
     if (!deck) return null
 
-    const totalPrice = deckCardsTotalPrice(deckCards)
+    const totalPrice = deckMissingCardsTotalPrice(deckCards)
     return {
       label: formatUsdCents(totalPrice.totalCents),
       loading: false,
