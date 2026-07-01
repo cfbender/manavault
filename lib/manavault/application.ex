@@ -20,6 +20,7 @@ defmodule Manavault.Application do
         {DNSCluster, query: Application.get_env(:manavault, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: Manavault.PubSub},
         {Task.Supervisor, name: Manavault.Backup.TaskSupervisor},
+        {Task.Supervisor, name: Manavault.Catalog.TaskSupervisor},
         scryfall_sync_worker_child(),
         backup_scheduler_child(),
         ManavaultWeb.Endpoint
