@@ -340,11 +340,41 @@ defmodule Manavault.Backup do
   end
 
   defp extract_artifact!(artifact_path, extract_dir) do
+    verify_archive_entries!(artifact_path, extract_dir)
+
     case :zip.extract(to_charlist(artifact_path), cwd: to_charlist(extract_dir)) do
       {:ok, _files} -> :ok
       {:error, reason} -> raise "failed to extract backup #{artifact_path}: #{inspect(reason)}"
     end
   end
+
+  # Guards against zip-slip: reject any archive entry whose resolved path would
+  # escape extract_dir (absolute paths or `..` traversal) before extracting.
+  defp verify_archive_entries!(artifact_path, extract_dir) do
+    entries =
+      case :zip.list_dir(to_charlist(artifact_path)) do
+        {:ok, list} -> list
+        {:error, reason} -> raise "failed to read backup #{artifact_path}: #{inspect(reason)}"
+      end
+
+    root = Path.expand(extract_dir)
+
+    for entry <- entries, name = archive_entry_name(entry) do
+      resolved = Path.expand(name, root)
+
+      if resolved != root and not String.starts_with?(resolved, root <> "/") do
+        raise "refusing to extract backup #{artifact_path}: " <>
+                "entry #{inspect(name)} escapes #{extract_dir}"
+      end
+    end
+
+    :ok
+  end
+
+  defp archive_entry_name({:zip_file, name, _info, _comment, _offset, _comp_size}),
+    do: List.to_string(name)
+
+  defp archive_entry_name(_entry), do: nil
 
   defp backup_existing_data!(database_path, data_dir, backups_dir, timestamp) do
     existing = Enum.filter([database_path | local_absolute_paths(data_dir)], &File.exists?/1)
