@@ -15,11 +15,11 @@ defmodule Manavault.Backup.CloudSettings do
     field :s3_region, :string
     field :s3_prefix, :string
     field :s3_access_key_id, :string
-    field :s3_secret_access_key, :string
+    field :s3_secret_access_key, Manavault.Encrypted.Binary
 
     field :google_client_id, :string
-    field :google_client_secret, :string
-    field :google_refresh_token, :string
+    field :google_client_secret, Manavault.Encrypted.Binary
+    field :google_refresh_token, Manavault.Encrypted.Binary
     field :google_folder_id, :string
 
     field :last_backup_at, :utc_datetime
