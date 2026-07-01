@@ -340,6 +340,240 @@ defmodule Manavault.Catalog.ImportTest do
     assert ["ramp", "removal", "instant"] = Jason.decode!(themes_json)
   end
 
+  test "import_cards categorizes single-card disruption beyond spot removal" do
+    wasteland = %{
+      @plains
+      | "id" => "scryfall-wasteland",
+        "oracle_id" => "oracle-wasteland",
+        "name" => "Wasteland",
+        "collector_number" => "wasteland"
+    }
+
+    counterspell = %{
+      @time_walk
+      | "id" => "scryfall-counterspell",
+        "oracle_id" => "oracle-counterspell",
+        "name" => "Counterspell",
+        "type_line" => "Instant",
+        "collector_number" => "counterspell"
+    }
+
+    flawless_maneuver = %{
+      @time_walk
+      | "id" => "scryfall-flawless-maneuver",
+        "oracle_id" => "oracle-flawless-maneuver",
+        "name" => "Flawless Maneuver",
+        "type_line" => "Instant",
+        "collector_number" => "flawless-maneuver"
+    }
+
+    swiftfoot_boots = %{
+      @black_lotus
+      | "id" => "scryfall-swiftfoot-boots",
+        "oracle_id" => "oracle-swiftfoot-boots",
+        "name" => "Swiftfoot Boots",
+        "type_line" => "Artifact — Equipment",
+        "collector_number" => "swiftfoot-boots"
+    }
+
+    oracle_tags = [
+      scryfall_tag(%{
+        "id" => "tag-spot-removal",
+        "slug" => "spot-removal",
+        "label" => "Spot Removal",
+        "type" => "function",
+        "taggings" => [%{"oracle_id" => "oracle-wasteland", "weight" => "median"}]
+      }),
+      scryfall_tag(%{
+        "id" => "tag-counterspell",
+        "slug" => "counterspell",
+        "label" => "Counterspell",
+        "type" => "function",
+        "taggings" => [%{"oracle_id" => "oracle-counterspell", "weight" => "median"}]
+      }),
+      scryfall_tag(%{
+        "id" => "tag-protection",
+        "slug" => "protection",
+        "label" => "Protection",
+        "type" => "function"
+      }),
+      scryfall_tag(%{
+        "id" => "tag-protects-creature",
+        "slug" => "protects-creature",
+        "label" => "Protects Creature",
+        "type" => "function",
+        "parent_ids" => ["tag-protection"],
+        "taggings" => [
+          %{"oracle_id" => "oracle-flawless-maneuver", "weight" => "median"},
+          %{"oracle_id" => "oracle-swiftfoot-boots", "weight" => "median"}
+        ]
+      })
+    ]
+
+    assert {:ok, %{cards_count: 4, printings_count: 4}} =
+             Catalog.import_cards(
+               [wasteland, counterspell, flawless_maneuver, swiftfoot_boots],
+               nil,
+               oracle_tags: oracle_tags
+             )
+
+    assert %Card{deck_category: "targeted_disruption", deck_themes: wasteland_themes} =
+             Repo.get!(Card, "oracle-wasteland")
+
+    assert List.first(Jason.decode!(wasteland_themes)) == "removal"
+
+    assert %Card{deck_category: "targeted_disruption", deck_themes: counterspell_themes} =
+             Repo.get!(Card, "oracle-counterspell")
+
+    assert List.first(Jason.decode!(counterspell_themes)) == "counterspell"
+
+    assert %Card{deck_category: "targeted_disruption", deck_themes: maneuver_themes} =
+             Repo.get!(Card, "oracle-flawless-maneuver")
+
+    assert List.first(Jason.decode!(maneuver_themes)) == "protection"
+
+    assert %Card{deck_category: "other", deck_themes: boots_themes} =
+             Repo.get!(Card, "oracle-swiftfoot-boots")
+
+    assert "protection" in Jason.decode!(boots_themes)
+  end
+
+  test "import_cards lets functional tags categorize utility lands" do
+    waterlogged_grove = %{
+      @plains
+      | "id" => "scryfall-waterlogged-grove",
+        "oracle_id" => "oracle-waterlogged-grove",
+        "name" => "Waterlogged Grove",
+        "collector_number" => "waterlogged-grove"
+    }
+
+    oracle_tags = [
+      scryfall_tag(%{
+        "id" => "tag-card-draw",
+        "slug" => "card-draw",
+        "label" => "Card Draw",
+        "type" => "function"
+      }),
+      scryfall_tag(%{
+        "id" => "tag-pure-draw",
+        "slug" => "pure-draw",
+        "label" => "Pure Draw",
+        "type" => "function",
+        "parent_ids" => ["tag-card-draw"],
+        "taggings" => [%{"oracle_id" => "oracle-waterlogged-grove", "weight" => "median"}]
+      })
+    ]
+
+    assert {:ok, %{cards_count: 1, printings_count: 1}} =
+             Catalog.import_cards([waterlogged_grove], nil, oracle_tags: oracle_tags)
+
+    assert %Card{deck_category: "card_advantage", deck_themes: themes_json} =
+             Repo.get!(Card, "oracle-waterlogged-grove")
+
+    assert ["card_advantage", "land"] = Jason.decode!(themes_json)
+  end
+
+  test "import_cards categorizes mass disruption beyond board wipes" do
+    fog = %{
+      @time_walk
+      | "id" => "scryfall-fog",
+        "oracle_id" => "oracle-fog",
+        "name" => "Fog",
+        "type_line" => "Instant",
+        "collector_number" => "fog"
+    }
+
+    propaganda = %{
+      @time_walk
+      | "id" => "scryfall-propaganda",
+        "oracle_id" => "oracle-propaganda",
+        "name" => "Propaganda",
+        "type_line" => "Enchantment",
+        "collector_number" => "propaganda"
+    }
+
+    disrupt_decorum = %{
+      @time_walk
+      | "id" => "scryfall-disrupt-decorum",
+        "oracle_id" => "oracle-disrupt-decorum",
+        "name" => "Disrupt Decorum",
+        "type_line" => "Sorcery",
+        "collector_number" => "disrupt-decorum"
+    }
+
+    rest_in_peace = %{
+      @time_walk
+      | "id" => "scryfall-rest-in-peace",
+        "oracle_id" => "oracle-rest-in-peace",
+        "name" => "Rest in Peace",
+        "type_line" => "Enchantment",
+        "collector_number" => "rest-in-peace"
+    }
+
+    oracle_tags = [
+      scryfall_tag(%{
+        "id" => "tag-fog",
+        "slug" => "fog",
+        "label" => "Fog",
+        "type" => "function",
+        "taggings" => [%{"oracle_id" => "oracle-fog", "weight" => "median"}]
+      }),
+      scryfall_tag(%{
+        "id" => "tag-pillowfort",
+        "slug" => "pillowfort",
+        "label" => "Pillowfort",
+        "type" => "function"
+      }),
+      scryfall_tag(%{
+        "id" => "tag-tax-attack",
+        "slug" => "tax-attack",
+        "label" => "Tax Attack",
+        "type" => "function",
+        "parent_ids" => ["tag-pillowfort"],
+        "taggings" => [%{"oracle_id" => "oracle-propaganda", "weight" => "median"}]
+      }),
+      scryfall_tag(%{
+        "id" => "tag-graveyard-hate",
+        "slug" => "graveyard-hate",
+        "label" => "Graveyard Hate",
+        "type" => "function",
+        "taggings" => [%{"oracle_id" => "oracle-rest-in-peace", "weight" => "median"}]
+      }),
+      scryfall_tag(%{
+        "id" => "tag-pseudo-fog",
+        "slug" => "pseudo-fog",
+        "label" => "Pseudo Fog",
+        "type" => "function",
+        "taggings" => [%{"oracle_id" => "oracle-disrupt-decorum", "weight" => "median"}]
+      })
+    ]
+
+    assert {:ok, %{cards_count: 4, printings_count: 4}} =
+             Catalog.import_cards([fog, propaganda, disrupt_decorum, rest_in_peace], nil,
+               oracle_tags: oracle_tags
+             )
+
+    assert %Card{deck_category: "mass_disruption", deck_themes: fog_themes} =
+             Repo.get!(Card, "oracle-fog")
+
+    assert List.first(Jason.decode!(fog_themes)) == "fog"
+
+    assert %Card{deck_category: "mass_disruption", deck_themes: propaganda_themes} =
+             Repo.get!(Card, "oracle-propaganda")
+
+    assert List.first(Jason.decode!(propaganda_themes)) == "pillowfort"
+
+    assert %Card{deck_category: "mass_disruption", deck_themes: decorum_themes} =
+             Repo.get!(Card, "oracle-disrupt-decorum")
+
+    assert List.first(Jason.decode!(decorum_themes)) == "fog"
+
+    assert %Card{deck_category: "mass_disruption", deck_themes: rest_themes} =
+             Repo.get!(Card, "oracle-rest-in-peace")
+
+    assert List.first(Jason.decode!(rest_themes)) == "graveyard_hate"
+  end
+
   test "import_cards prioritizes mass disruption over targeted disruption" do
     wrath = %{
       @time_walk

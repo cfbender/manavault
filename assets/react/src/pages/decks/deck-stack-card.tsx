@@ -208,7 +208,9 @@ export function DeckStackCard({
             className={cn(
               "dropdown dropdown-start absolute left-2 top-2 z-[120] transition-opacity group-focus-within:opacity-100",
               actionMenuDirection === "up" && "dropdown-top",
-              isInteractive ? "visible opacity-100" : "invisible opacity-0 group-hover:visible group-hover:opacity-100",
+              isInteractive
+                ? "visible opacity-100"
+                : "invisible opacity-0 group-hover:visible group-hover:opacity-100",
             )}
             onClick={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
@@ -459,7 +461,9 @@ function DeckCardAllocationQuickMenu({
   )
   const hasProxyAllocation = status.proxyAllocated > 0
   const canMarkProxy =
-    status.state !== "basic_land" && status.proxyAllocated <= 0 && status.required > status.allocated
+    status.state !== "basic_land" &&
+    status.proxyAllocated <= 0 &&
+    status.required > status.allocated
 
   return (
     <div className="dropdown dropdown-end" onClick={(event) => event.stopPropagation()}>
@@ -467,7 +471,9 @@ function DeckCardAllocationQuickMenu({
         className={cn(
           "relative transition-opacity",
           allocationStatusButtonClass(status.state),
-          isVisible ? "visible opacity-100" : "invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100",
+          isVisible
+            ? "visible opacity-100"
+            : "invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100",
         )}
         tabIndex={isVisible ? 0 : -1}
         aria-label={`${label}: ${summary}`}
@@ -553,7 +559,9 @@ function DeckCardTagQuickButton({
       className={cn(
         "transition-opacity",
         tag?.className,
-        isVisible ? "visible opacity-100" : "invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100",
+        isVisible
+          ? "visible opacity-100"
+          : "invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100",
       )}
       disabled={disabled}
       tabIndex={isVisible ? 0 : -1}

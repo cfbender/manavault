@@ -30,6 +30,8 @@ defmodule Manavault.Catalog.ScryfallOracleTags do
     "copy" => "copy",
     "copies" => "copy",
     "counter" => "counters",
+    "counterspell" => "counterspell",
+    "counterspells" => "counterspell",
     "counters" => "counters",
     "creature" => "creature",
     "creatures" => "creature",
@@ -46,6 +48,8 @@ defmodule Manavault.Catalog.ScryfallOracleTags do
     "flicker" => "blink",
     "flickers" => "blink",
     "flying" => "evasion",
+    "fog" => "fog",
+    "fogs" => "fog",
     "graveyard_hate" => "graveyard_hate",
     "instant" => "instant",
     "instants" => "instant",
@@ -60,7 +64,10 @@ defmodule Manavault.Catalog.ScryfallOracleTags do
     "mill" => "mill",
     "planeswalker" => "planeswalker",
     "planeswalkers" => "planeswalker",
+    "pillow_fort" => "pillowfort",
+    "pillowfort" => "pillowfort",
     "protection" => "protection",
+    "pseudo_fog" => "fog",
     "pump" => "pump",
     "ramp" => "ramp",
     "recursion" => "recursion",
@@ -75,6 +82,7 @@ defmodule Manavault.Catalog.ScryfallOracleTags do
     "sorcery" => "sorcery",
     "synergy" => "engine",
     "theft" => "theft",
+    "tax_attack" => "pillowfort",
     "tokens" => "tokens",
     "token" => "tokens",
     "tutor" => "tutor",
@@ -84,8 +92,10 @@ defmodule Manavault.Catalog.ScryfallOracleTags do
     "win_conditions" => "win_condition"
   }
 
-  @mass_disruption_themes MapSet.new(["board_wipe", "stax"])
-  @targeted_disruption_themes MapSet.new(["discard", "graveyard_hate", "removal", "theft"])
+  @mass_disruption_themes MapSet.new(~w(board_wipe fog graveyard_hate pillowfort stax))
+  @targeted_disruption_themes MapSet.new(~w(counterspell discard removal theft))
+  @protective_disruption_themes MapSet.new(["protection"])
+  @spell_type_themes MapSet.new(["instant", "sorcery"])
   @scored_deck_categories [
     {"ramp", MapSet.new(["ramp"])},
     {"card_advantage", MapSet.new(["card_advantage"])},
@@ -93,10 +103,16 @@ defmodule Manavault.Catalog.ScryfallOracleTags do
   ]
   @category_theme_order %{
     "lands" => ["land"],
-    "mass_disruption" => ["board_wipe", "stax"],
+    "mass_disruption" => ["board_wipe", "fog", "graveyard_hate", "pillowfort", "stax"],
     "ramp" => ["ramp"],
     "card_advantage" => ["card_advantage"],
-    "targeted_disruption" => ["removal", "discard", "graveyard_hate", "theft"]
+    "targeted_disruption" => [
+      "removal",
+      "counterspell",
+      "protection",
+      "discard",
+      "theft"
+    ]
   }
 
   def build_index(%{"data" => tags}) when is_list(tags), do: build_index(tags)
@@ -230,17 +246,20 @@ defmodule Manavault.Catalog.ScryfallOracleTags do
   defp type_themes(_type_line), do: []
 
   defp deck_category(type_themes, tag_entries) do
+    category = most_represented_category(type_themes, tag_entries)
+
     cond do
+      category_count(tag_entries, @mass_disruption_themes, type_themes) > 0 -> "mass_disruption"
+      category != "other" -> category
       "land" in type_themes -> "lands"
-      category_count(tag_entries, @mass_disruption_themes) > 0 -> "mass_disruption"
-      true -> most_represented_category(tag_entries)
+      true -> "other"
     end
   end
 
-  defp most_represented_category(tag_entries) do
+  defp most_represented_category(type_themes, tag_entries) do
     @scored_deck_categories
     |> Enum.reduce({"other", 0}, fn {category, category_themes}, {best_category, best_count} ->
-      count = category_count(tag_entries, category_themes)
+      count = category_count(tag_entries, category_themes, type_themes)
 
       if count > best_count do
         {category, count}
@@ -251,10 +270,24 @@ defmodule Manavault.Catalog.ScryfallOracleTags do
     |> elem(0)
   end
 
-  defp category_count(tag_entries, category_themes) do
+  defp category_count(tag_entries, category_themes, type_themes) do
+    category_themes = category_themes_for_count(category_themes, type_themes)
+
     Enum.count(tag_entries, fn %{themes: themes} ->
       Enum.any?(themes, &MapSet.member?(category_themes, &1))
     end)
+  end
+
+  defp category_themes_for_count(category_themes, type_themes) do
+    if MapSet.equal?(category_themes, @targeted_disruption_themes) and spell?(type_themes) do
+      MapSet.union(category_themes, @protective_disruption_themes)
+    else
+      category_themes
+    end
+  end
+
+  defp spell?(type_themes) do
+    Enum.any?(type_themes, &MapSet.member?(@spell_type_themes, &1))
   end
 
   defp prioritize_themes(themes, deck_category) do

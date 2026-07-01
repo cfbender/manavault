@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { DeckDetailPage } from "../../../pages/decks"
 
 export const Route = createFileRoute("/share/decks/$token")({
+  staticData: { title: "Shared Deck" },
   component: SharedDeckRoute,
 })
 

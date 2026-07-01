@@ -7,6 +7,7 @@ import { useToast } from "../../components/ui/toast"
 import type { DeckCardInput, DeckCardUpdateInput, DeckQuery } from "../../gql/graphql"
 import { groupDeckCards, type DeckGroupBy } from "../../lib/deck-grouping"
 import { graphqlEndpointContext, refetchActiveQueries } from "../../lib/apollo"
+import { usePageTitle } from "../../lib/page-title"
 import { pluralize } from "../../lib/utils"
 import { deckCardsTotalPrice, deckMissingCardsTotalPrice, formatUsdCents } from "./buylist-export"
 import {
@@ -230,6 +231,7 @@ export function DeckDetailPage({
   const deck = useMemo(() => flattenDeck(deckQueryData?.deck), [deckQueryData?.deck])
   const isInitialDeckLoading = isLoading && !deck
   const isRefreshingDeck = isLoading && Boolean(deck)
+  usePageTitle(deck?.name ?? (isInitialDeckLoading ? "Deck" : "Deck not found"))
   const [isAddCardOpen, setIsAddCardOpen] = useState(false)
   const deckCards = useMemo(() => deck?.deckCards || [], [deck?.deckCards])
   const bulkAllocationPullList = useMemo(

@@ -6,6 +6,7 @@ import { EmptyState } from "../../components/card-image"
 import { FullscreenPrintingDialog } from "../../components/fullscreen-printing-dialog"
 import { Button } from "../../components/ui/button"
 import { graphqlEndpointContext } from "../../lib/apollo"
+import { usePageTitle } from "../../lib/page-title"
 import {
   buildCollectionFilterQuery,
   cloneCollectionFilters,
@@ -311,6 +312,7 @@ export function CardDetailPage({
   const card = data?.card
   const visiblePrintings = connectionNodes(card?.printings)
   const primary = visiblePrintings[0]
+  usePageTitle(card?.name ?? (isLoading ? "Card" : "Card not found"))
   const previewPrintings = visiblePrintings.map((printing) => ({
     ...printing,
     scryfallId: printing.id,

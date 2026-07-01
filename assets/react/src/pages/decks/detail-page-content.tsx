@@ -29,7 +29,11 @@ import type { DeckCardUpdateInput } from "../../gql/graphql"
 import type { DeckGroup, DeckGroupBy } from "../../lib/deck-grouping"
 import { cn, compactNumber, titleize } from "../../lib/utils"
 import { ShareModeHidden, SummaryActionMenu } from "./deck-actions"
-import { DeckCardAllocationPanel, allocationStatusLabel, allocationStatusSummary } from "./deck-card-allocation"
+import {
+  DeckCardAllocationPanel,
+  allocationStatusLabel,
+  allocationStatusSummary,
+} from "./deck-card-allocation"
 import { cardImageUrl, deckDetailCoverUrl } from "./deck-card-model"
 import { DeckGroupMenu } from "./deck-group-menu"
 import { deckLegalityIssueCountLabel, deckLegalityLabel, deckLegalityTone } from "./deck-legality"

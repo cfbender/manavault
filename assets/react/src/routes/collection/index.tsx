@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { CollectionPage } from "../../pages/collection"
 
 export const Route = createFileRoute("/collection/")({
+  staticData: { title: "Collection" },
   validateSearch: (search: Record<string, unknown>) => ({
     importFile:
       search.importFile === true || search.importFile === "true" || search.importFile === "1",

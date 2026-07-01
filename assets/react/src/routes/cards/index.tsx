@@ -8,6 +8,7 @@ type CardsSearch = {
 }
 
 export const Route = createFileRoute("/cards/")({
+  staticData: { title: "Cards" },
   validateSearch: (search: Record<string, unknown>): CardsSearch => ({
     q: typeof search.q === "string" ? search.q : undefined,
     filters: encodeCollectionFilters(decodeCollectionFilters(search.filters)),

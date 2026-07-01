@@ -17,6 +17,7 @@ type CardSearch = {
 const EDHREC_TABS: CardReturnEdhrecTab[] = ["recs", "cuts", "commander"]
 
 export const Route = createFileRoute("/cards/$id")({
+  staticData: { title: "Card" },
   validateSearch: (search: Record<string, unknown>): CardSearch => {
     const returnLocationId =
       typeof search.returnLocationId === "string" && !search.returnLocationId.includes("/")

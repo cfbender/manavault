@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { LocationPage } from "../../../pages/collection"
 
 export const Route = createFileRoute("/collection/locations/$id")({
+  staticData: { title: "Collection Location" },
   component: LocationRoute,
 })
 

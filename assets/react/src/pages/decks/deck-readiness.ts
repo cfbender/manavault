@@ -10,7 +10,9 @@ export type DeckReadinessSummary = {
 }
 
 export function deckPullZones(deckCards: readonly DeckCardEntry[]) {
-  return deckCards.filter((deckCard) => deckCard.zone === "mainboard" || deckCard.zone === "commander")
+  return deckCards.filter(
+    (deckCard) => deckCard.zone === "mainboard" || deckCard.zone === "commander",
+  )
 }
 
 export function summarizeDeckPullNeeds(deckCards: readonly DeckCardEntry[]) {

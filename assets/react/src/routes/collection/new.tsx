@@ -6,6 +6,7 @@ type CollectionNewSearch = {
 }
 
 export const Route = createFileRoute("/collection/new")({
+  staticData: { title: "Add Collection Item" },
   validateSearch: (search: Record<string, unknown>): CollectionNewSearch => ({
     printing_id: typeof search.printing_id === "string" ? search.printing_id : undefined,
   }),

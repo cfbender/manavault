@@ -19,6 +19,7 @@ import {
   type CollectionFilterState,
 } from "../../lib/collection-filters"
 import { useLocalStorageState } from "../../lib/use-local-storage"
+import { usePageTitle } from "../../lib/page-title"
 import { cn, compactNumber, pluralize, present, titleize } from "../../lib/utils"
 import { AutoSortSetupDialog, hasEnabledAutoSortRules } from "./auto-sort-setup-dialog"
 import { AutoSortSummaryDialog } from "./auto-sort-summary-dialog"
@@ -191,6 +192,7 @@ export function LocationPage({ id }: { id: string }) {
     itemsPageInfo?.endCursor,
   ])
   const location = data?.location
+  usePageTitle(location?.name ?? (isLoading ? "Collection Location" : "Location not found"))
   const activeStructuredFilterCount = countActiveCollectionFilters(structuredFilters)
   const hasLocationFilters = Boolean(combinedCollectionQuery)
   const locationCountLabel = `${countQuery.data?.collectionItemCount ?? location?.itemCount ?? 0} ${hasLocationFilters ? "shown" : "total"}`

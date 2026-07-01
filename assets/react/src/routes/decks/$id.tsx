@@ -9,6 +9,7 @@ type DeckSearch = {
 const EDHREC_TABS: EDHRecTab[] = ["recs", "cuts", "commander"]
 
 export const Route = createFileRoute("/decks/$id")({
+  staticData: { title: "Deck" },
   validateSearch: (search: Record<string, unknown>): DeckSearch => ({
     edhrec:
       typeof search.edhrec === "string" && EDHREC_TABS.includes(search.edhrec as EDHRecTab)
