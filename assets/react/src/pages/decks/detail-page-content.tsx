@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import {
   AlertTriangle,
   CheckSquare,
@@ -113,16 +113,23 @@ function DeckReadinessDialog({
   open: boolean
   shareMode: boolean
 }) {
-  const readiness = summarizeDeckPullNeeds(deckCards)
+  // The dialog stays mounted, so scan deckCards only while it is open (and only
+  // when deckCards changes) instead of on every parent render. Passing [] when
+  // closed keeps readiness a valid object without walking the whole deck.
+  const readiness = useMemo(() => summarizeDeckPullNeeds(open ? deckCards : []), [open, deckCards])
   const needsAction = readiness.readyCount < readiness.requiredCount
-  const pullActionCards = deckPullZones(deckCards).filter((deckCard) => {
-    const status = deckCard.allocationStatus
-    const required = Math.max(status.required || 0, 0)
-    const allocated = Math.max(status.allocated || 0, 0)
-    const proxied = Math.max(status.proxyAllocated || 0, 0)
+  const pullActionCards = useMemo(
+    () =>
+      (open ? deckPullZones(deckCards) : []).filter((deckCard) => {
+        const status = deckCard.allocationStatus
+        const required = Math.max(status.required || 0, 0)
+        const allocated = Math.max(status.allocated || 0, 0)
+        const proxied = Math.max(status.proxyAllocated || 0, 0)
 
-    return status.state !== "basic_land" && Math.min(required, allocated + proxied) < required
-  })
+        return status.state !== "basic_land" && Math.min(required, allocated + proxied) < required
+      }),
+    [open, deckCards],
+  )
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -486,7 +493,7 @@ export function DeckDetailContent({
   zoneCounts: DetailZoneCounts
 }) {
   const [isReadinessOpen, setIsReadinessOpen] = useState(false)
-  const hasReadinessWork = hasDeckPullWork(deckCards)
+  const hasReadinessWork = useMemo(() => hasDeckPullWork(deckCards), [deckCards])
 
   return (
     <div className="space-y-7">
