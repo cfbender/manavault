@@ -141,8 +141,12 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
   end
 
   def decks(_parent, args, _resolution) do
-    Catalog.list_deck_summaries()
-    |> RelayHelpers.connection_from_list(args)
+    total_count = Catalog.count_decks()
+
+    with {:ok, offset, limit} <- RelayHelpers.slice_window(args, total_count) do
+      Catalog.list_deck_summaries(limit: limit, offset: offset)
+      |> RelayHelpers.connection_from_slice(offset, limit, total_count)
+    end
   end
 
   def deck(_parent, %{id: id}, resolution) do

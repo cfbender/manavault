@@ -13,10 +13,11 @@ defmodule Manavault.Catalog.Decks.Queries do
     |> Repo.all()
   end
 
-  def list_deck_summaries do
+  def list_deck_summaries(opts \\ []) do
     decks =
       Deck
       |> order_by([deck], asc: deck.name, asc: deck.id)
+      |> maybe_paginate(opts)
       |> preload([deck], deck_cards: ^deck_cards_summary_preload())
       |> Repo.all()
 
@@ -30,6 +31,15 @@ defmodule Manavault.Catalog.Decks.Queries do
       %{deck | deck_cards: Map.get(cards_by_deck_id, deck.id, [])}
     end)
     |> DeckSummaries.put_fields()
+  end
+
+  # Paginate the decks at the DB level (only these decks' cards are then
+  # preloaded/summarized) instead of loading every deck and slicing in memory.
+  defp maybe_paginate(query, opts) do
+    case Keyword.get(opts, :limit) do
+      nil -> query
+      limit -> query |> limit(^limit) |> offset(^Keyword.get(opts, :offset, 0))
+    end
   end
 
   defp deck_cards_summary_preload do

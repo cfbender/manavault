@@ -275,9 +275,12 @@ defmodule Manavault.Catalog.Cached do
     end)
   end
 
-  def list_deck_summaries do
-    cached(Cache.decks_tag(), :list_deck_summaries, fn ->
-      Decks.list_deck_summaries()
+  def list_deck_summaries(opts \\ []) do
+    offset = Keyword.get(opts, :offset, 0)
+    limit = Keyword.get(opts, :limit)
+
+    cached(Cache.decks_tag(), {:list_deck_summaries, offset, limit}, fn ->
+      Decks.list_deck_summaries(opts)
     end)
   end
 

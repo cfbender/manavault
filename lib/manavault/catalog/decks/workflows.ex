@@ -16,7 +16,7 @@ defmodule Manavault.Catalog.Decks.Workflows do
   }
 
   defdelegate list_decks(), to: Queries
-  defdelegate list_deck_summaries(), to: Queries
+  defdelegate list_deck_summaries(opts), to: Queries
   defdelegate count_decks(), to: Queries
   defdelegate get_deck_by_share_token(token, opts \\ []), to: Queries
   defdelegate get_deck!(id, opts \\ []), to: Queries
@@ -47,7 +47,10 @@ defmodule Manavault.Catalog.Decks.Workflows do
   defdelegate deck_allocation_status(deck), to: AllocationStatus
   defdelegate deck_card_allocation_status(deck_card), to: AllocationStatus
   defdelegate put_deck_card_allocation_statuses(deck_cards), to: AllocationStatus
-  defdelegate put_deck_card_fallback_printings(deck_cards), to: DeckSummaries, as: :put_fallback_printings
+
+  defdelegate put_deck_card_fallback_printings(deck_cards),
+    to: DeckSummaries,
+    as: :put_fallback_printings
 
   defdelegate allocate_collection_item_to_deck_card(
                 deck_card_id,
