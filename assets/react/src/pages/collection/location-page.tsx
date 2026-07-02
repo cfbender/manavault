@@ -160,20 +160,6 @@ export function LocationPage({ id }: { id: string }) {
           first: COLLECTION_PAGE_SIZE,
           after: after ?? null,
         },
-        updateQuery: (previousData, { fetchMoreResult }) => {
-          if (!fetchMoreResult) return previousData
-
-          return {
-            ...previousData,
-            collectionItems: {
-              ...fetchMoreResult.collectionItems,
-              edges: [
-                ...(previousData.collectionItems.edges || []),
-                ...(fetchMoreResult.collectionItems.edges || []),
-              ],
-            },
-          }
-        },
       }),
     [itemFilters, itemsQuery, sort],
   )

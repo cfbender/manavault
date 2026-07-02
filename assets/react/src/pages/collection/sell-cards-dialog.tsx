@@ -184,20 +184,6 @@ export function SellCardsDialog({
     return query
       .fetchMore({
         variables: { first: SELL_CARDS_PAGE_SIZE, after },
-        updateQuery: (previousData, { fetchMoreResult }) => {
-          if (!fetchMoreResult) return previousData
-
-          return {
-            ...previousData,
-            collectionItems: {
-              ...fetchMoreResult.collectionItems,
-              edges: [
-                ...(previousData.collectionItems.edges || []),
-                ...(fetchMoreResult.collectionItems.edges || []),
-              ],
-            },
-          }
-        },
       })
       .finally(() => setIsFetchingMore(false))
   }
