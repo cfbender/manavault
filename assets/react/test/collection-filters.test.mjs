@@ -96,3 +96,20 @@ test("collection filter search params drop empty and invalid filters", () => {
     },
   )
 })
+
+test("allocation filter emits is: syntax, counts as active, and round trips", () => {
+  const filters = cloneCollectionFilters(EMPTY_COLLECTION_FILTERS)
+  filters.allocation = "allocated"
+
+  assert.equal(buildCollectionFilterQuery(filters), "is:allocated")
+  assert.equal(countActiveCollectionFilters(filters), 1)
+  assert.deepEqual(decodeCollectionFilters(encodeCollectionFilters(filters)), filters)
+
+  filters.allocation = "unallocated"
+  assert.equal(buildCollectionFilterQuery(filters), "is:unallocated")
+
+  assert.deepEqual(
+    decodeCollectionFilters(JSON.stringify({ allocation: "invalid" })),
+    EMPTY_COLLECTION_FILTERS,
+  )
+})

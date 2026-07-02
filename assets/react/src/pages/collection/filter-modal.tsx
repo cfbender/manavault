@@ -15,6 +15,7 @@ import {
   buildCollectionFilterQuery,
   cloneCollectionFilters,
   countActiveCollectionFilters,
+  type AllocationFilter,
   type CollectionFilterState,
   type ColorOperator,
   type ComparisonOperator,
@@ -137,6 +138,18 @@ export function CollectionFilterModal({
                 ]}
                 value={draft.finish}
                 onChange={(finish) => update("finish", finish as FinishFilter)}
+              />
+            </FilterSection>
+
+            <FilterSection label="Allocation" syntax="is:allocated">
+              <SegmentedFilter
+                options={[
+                  { value: "any", label: "Any" },
+                  { value: "allocated", label: "In a deck" },
+                  { value: "unallocated", label: "Not allocated" },
+                ]}
+                value={draft.allocation}
+                onChange={(allocation) => update("allocation", allocation as AllocationFilter)}
               />
             </FilterSection>
 

@@ -3,6 +3,7 @@ defmodule Manavault.Catalog.Search.Cards.ScalarPredicates do
 
   import Ecto.Query
 
+  alias Manavault.Catalog.DeckAllocation
   alias Manavault.Catalog.Search.Cards.{ColorPredicates, TextPredicates, Values}
   alias Manavault.Catalog.Search.ScalarPredicates, as: Shared
 
@@ -63,6 +64,12 @@ defmodule Manavault.Catalog.Search.Cards.ScalarPredicates do
             fragment("instr(coalesce(?, '[]'), '\"etched\"') > 0", printing.finishes)
           )
 
+        "allocated" ->
+          allocated_to_deck()
+
+        "unallocated" ->
+          dynamic([card, printing], not (^allocated_to_deck()))
+
         "colorless" ->
           ColorPredicates.count(:colors, :eq, 0, :eq)
 
@@ -98,4 +105,16 @@ defmodule Manavault.Catalog.Search.Cards.ScalarPredicates do
   end
 
   def is_predicate(_op, _value), do: dynamic(false)
+
+  # A card counts as allocated when any collection copy of it (any printing)
+  # is allocated to a deck.
+  defp allocated_to_deck do
+    allocated_oracle_ids =
+      from allocation in DeckAllocation,
+        join: item in assoc(allocation, :collection_item),
+        join: printing in assoc(item, :printing),
+        select: printing.oracle_id
+
+    dynamic([card, _printing], card.oracle_id in subquery(allocated_oracle_ids))
+  end
 end

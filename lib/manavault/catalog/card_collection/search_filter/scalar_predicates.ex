@@ -4,6 +4,7 @@ defmodule Manavault.Catalog.CardCollection.SearchFilter.ScalarPredicates do
   import Ecto.Query
 
   alias Manavault.Catalog.CardCollection.SearchFilter.{ColorPredicates, TextPredicates, Values}
+  alias Manavault.Catalog.DeckAllocation
   alias Manavault.Catalog.Search.ScalarPredicates, as: Shared
 
   import Manavault.Catalog.PriceFragments, only: [price_value_fragment: 2]
@@ -90,6 +91,12 @@ defmodule Manavault.Catalog.CardCollection.SearchFilter.ScalarPredicates do
         "etched" ->
           dynamic([item, _printing, _card, _location], item.finish == "etched")
 
+        "allocated" ->
+          allocated_to_deck()
+
+        "unallocated" ->
+          dynamic([item, printing, card, location], not (^allocated_to_deck()))
+
         "colorless" ->
           ColorPredicates.count(:colors, :eq, 0, :eq)
 
@@ -152,6 +159,15 @@ defmodule Manavault.Catalog.CardCollection.SearchFilter.ScalarPredicates do
       _invalid ->
         dynamic(false)
     end
+  end
+
+  defp allocated_to_deck do
+    allocated_item_ids = from allocation in DeckAllocation, select: allocation.collection_item_id
+
+    dynamic(
+      [item, _printing, _card, _location],
+      item.id in subquery(allocated_item_ids)
+    )
   end
 
   defp permanent do

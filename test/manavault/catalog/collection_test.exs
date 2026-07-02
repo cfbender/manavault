@@ -375,6 +375,47 @@ defmodule Manavault.Catalog.CollectionTest do
     assert Enum.map([lotus_card, walk_card], & &1.oracle_id) == ["oracle-1", "oracle-2"]
   end
 
+  test "collection filtering supports allocation status via is:allocated and is:unallocated" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    assert {:ok, lotus} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => "1",
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    assert {:ok, walk} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-2",
+               "quantity" => "1",
+               "condition" => "near_mint",
+               "language" => "ja",
+               "finish" => "foil"
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Allocation Filter"})
+    assert {:ok, deck_card} = Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus"})
+
+    assert {:ok, _allocation} =
+             Catalog.allocate_collection_item_to_deck_card(deck_card.id, lotus.id)
+
+    assert [lotus.id] == collection_item_ids(q: "is:allocated")
+    assert [walk.id] == collection_item_ids(q: "is:unallocated")
+    assert [walk.id] == collection_item_ids(q: "-is:allocated")
+    assert [lotus.id] == collection_item_ids(q: "lotus is:allocated")
+    assert [] == collection_item_ids(q: "lotus is:unallocated")
+
+    assert [lotus_card] = Catalog.search_cards("is:allocated")
+    assert lotus_card.oracle_id == "oracle-1"
+    assert [] = Catalog.search_cards("lotus is:unallocated")
+    assert [walk_card] = Catalog.search_cards(~s("time walk" is:unallocated))
+    assert walk_card.oracle_id == "oracle-2"
+  end
+
   test "collection item sorting supports card quantity, price, and added date" do
     time_walk = Map.put(@time_walk, "prices", %{"usd_foil" => "5.00"})
 
