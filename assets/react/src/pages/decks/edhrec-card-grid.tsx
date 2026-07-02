@@ -25,6 +25,7 @@ export function EDHRecScrollContainer({
   storageKey?: string
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const writeTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
     const element = scrollRef.current
@@ -33,6 +34,7 @@ export function EDHRecScrollContainer({
     element.scrollTop = readEdhrecScrollPosition(storageKey)
 
     return () => {
+      if (writeTimerRef.current !== null) window.clearTimeout(writeTimerRef.current)
       writeEdhrecScrollPosition(storageKey, element.scrollTop)
     }
   }, [storageKey])
@@ -42,7 +44,16 @@ export function EDHRecScrollContainer({
       ref={scrollRef}
       className={cn("min-h-0 flex-1 overflow-y-auto pr-1", className)}
       onScroll={(event) => {
-        if (storageKey) writeEdhrecScrollPosition(storageKey, event.currentTarget.scrollTop)
+        if (!storageKey) return
+
+        // Debounce so a burst of scroll events results in a single write once
+        // the user pauses; the effect cleanup still saves the final position.
+        const { scrollTop } = event.currentTarget
+        if (writeTimerRef.current !== null) window.clearTimeout(writeTimerRef.current)
+        writeTimerRef.current = window.setTimeout(() => {
+          writeTimerRef.current = null
+          writeEdhrecScrollPosition(storageKey, scrollTop)
+        }, 150)
       }}
     >
       {children}

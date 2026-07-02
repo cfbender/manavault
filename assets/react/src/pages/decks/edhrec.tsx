@@ -43,7 +43,6 @@ export {
   edhrecCardReturnSearch,
   edhrecCardUrl,
   edhrecScrollStorageKey,
-  edhrecScrollStorages,
   formatOptionalNumber,
   formatSynergy,
   normalizeDisplayName,

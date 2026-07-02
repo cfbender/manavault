@@ -25,42 +25,51 @@ export function edhrecScrollStorageKey(deckId: string, tab: EDHRecTab) {
   return `${EDHREC_SCROLL_STORAGE_PREFIX}${deckId}.${tab}`
 }
 
-export function readEdhrecScrollPosition(storageKey: string) {
-  for (const storage of edhrecScrollStorages()) {
-    try {
-      const value = storage.getItem(storageKey)
-      if (value == null) continue
-      const scrollTop = Number.parseInt(value, 10)
-      if (Number.isFinite(scrollTop) && scrollTop >= 0) return scrollTop
-    } catch {
-      continue
-    }
+// Scroll positions are per-visit UI state, so they live in sessionStorage only.
+// They used to be mirrored into localStorage too, which never expired and
+// accumulated one key per deck/tab forever.
+function edhrecScrollStorage() {
+  if (typeof window === "undefined") return null
+
+  try {
+    return window.sessionStorage ?? null
+  } catch {
+    return null
   }
+}
+
+export function readEdhrecScrollPosition(storageKey: string) {
+  const storage = edhrecScrollStorage()
+  if (!storage) return 0
+
+  try {
+    const value = storage.getItem(storageKey)
+    if (value == null) return 0
+    const scrollTop = Number.parseInt(value, 10)
+    if (Number.isFinite(scrollTop) && scrollTop >= 0) return scrollTop
+  } catch {
+    return 0
+  }
+
   return 0
 }
 
 export function writeEdhrecScrollPosition(storageKey: string, scrollTop: number) {
-  const value = String(Math.max(0, Math.round(scrollTop)))
-  for (const storage of edhrecScrollStorages()) {
-    try {
-      storage.setItem(storageKey, value)
-    } catch {
-      continue
-    }
+  const storage = edhrecScrollStorage()
+  if (!storage) return
+
+  try {
+    storage.setItem(storageKey, String(Math.max(0, Math.round(scrollTop))))
+  } catch {
+    // Storage can be unavailable or full; the scroll position is non-critical.
   }
-}
 
-export function edhrecScrollStorages() {
-  if (typeof window === "undefined") return []
-
-  return (["sessionStorage", "localStorage"] as const).flatMap((storageName) => {
-    try {
-      const storage = window[storageName]
-      return storage ? [storage] : []
-    } catch {
-      return []
-    }
-  })
+  // Purge the stale localStorage mirror left by older versions.
+  try {
+    window.localStorage?.removeItem(storageKey)
+  } catch {
+    // Ignore: localStorage may be unavailable.
+  }
 }
 
 export function collectionStatusShortLabel(status: EDHRecCollectionStatus) {
