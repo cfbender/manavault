@@ -7,6 +7,7 @@ export type DeckGroupBy =
   | "manaValue"
   | "rarity"
   | "set"
+  | "tag"
   | "none"
 
 export type DeckGroupIcon =
@@ -19,6 +20,8 @@ export type DeckGroupIcon =
   | "planeswalker"
   | "land"
   | "none"
+  | "getting"
+  | "consider_cutting"
   | "aristocrats"
   | "auras"
   | "blink"
@@ -76,6 +79,7 @@ export type DeckGroupingDeckCard = {
   id: string
   quantity: number
   zone: string | null
+  tag?: string | null
   card: DeckGroupingCard | null
   preferredPrinting: DeckGroupingPrinting | null
   fallbackPrinting: DeckGroupingPrinting | null
@@ -99,6 +103,7 @@ export const DECK_GROUP_OPTIONS: Array<{ label: string; value: DeckGroupBy }> = 
   { label: "Mana Value", value: "manaValue" },
   { label: "Rarity", value: "rarity" },
   { label: "Set", value: "set" },
+  { label: "Tag", value: "tag" },
   { label: "None", value: "none" },
 ]
 
@@ -298,6 +303,23 @@ function deckCardGroupDescriptor<T extends DeckGroupingDeckCard>(
       label: printing?.setName || key.toUpperCase(),
       order: 0,
     }
+  }
+
+  if (groupBy === "tag") {
+    if (deckCard.tag === "getting") {
+      return { icon: "getting", key: "getting", label: "Getting", order: 0 }
+    }
+
+    if (deckCard.tag === "consider_cutting") {
+      return {
+        icon: "consider_cutting",
+        key: "consider_cutting",
+        label: "Consider Cutting",
+        order: 1,
+      }
+    }
+
+    return { icon: "none", key: "untagged", label: "Untagged", order: 99 }
   }
 
   return typeDescriptor(deckCard)

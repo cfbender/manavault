@@ -191,3 +191,29 @@ test("existing labels remain human-readable for category and mana value", () => 
   assert.equal(groups.find((group) => group.key === "card_advantage")?.label, "Card Advantage")
   assert.equal(manaGroups[0].label, "Mana 6+")
 })
+
+test("tag grouping orders getting, consider cutting, then untagged", () => {
+  const groups = groupDeckCards(
+    [
+      deckCard("plain", { card: { name: "Llanowar Elves" } }),
+      deckCard("cut", { tag: "consider_cutting", card: { name: "Fog" } }),
+      deckCard("get", { quantity: 2, tag: "getting", card: { name: "Sol Ring" } }),
+    ],
+    "tag",
+  )
+
+  assert.deepEqual(
+    groups.map((group) => ({ key: group.key, label: group.label, quantity: group.quantity })),
+    [
+      { key: "getting", label: "Getting", quantity: 2 },
+      { key: "consider_cutting", label: "Consider Cutting", quantity: 1 },
+      { key: "untagged", label: "Untagged", quantity: 1 },
+    ],
+  )
+  assert.equal(groups[0].icon, "getting")
+  assert.equal(groups[1].icon, "consider_cutting")
+})
+
+test("tag is offered as a grouping option", () => {
+  assert.ok(DECK_GROUP_OPTIONS.some((option) => option.value === "tag" && option.label === "Tag"))
+})
