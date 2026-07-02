@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@apollo/client/react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { Edit3, Layers, Plus, Share2 } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { PageSection } from "../../components/app-shell"
 import { EmptyState } from "../../components/card-image"
 import { ImageSummaryCard } from "../../components/image-summary-card"
@@ -212,7 +212,39 @@ export function DecksPage() {
     error: decksError,
     loading: isLoading,
     refetch,
+    fetchMore: fetchMoreDecks,
   } = useQuery(DecksDocument, { fetchPolicy: "cache-and-network" })
+
+  // The Decks query caps at first: 100 and selected pageInfo but never paginated,
+  // so a user with more than 100 decks silently saw only the first page. Walk
+  // fetchMore until every page is loaded (users with <=100 decks report
+  // hasNextPage=false on page one, so this never runs for them).
+  const decksPageInfo = data?.decks?.pageInfo
+  const isLoadingMoreDecks = useRef(false)
+  useEffect(() => {
+    if (!decksPageInfo?.hasNextPage || !decksPageInfo.endCursor) return
+    if (isLoadingMoreDecks.current) return
+
+    isLoadingMoreDecks.current = true
+    void fetchMoreDecks({
+      variables: { after: decksPageInfo.endCursor },
+      updateQuery: (previous, { fetchMoreResult }) => {
+        const nextConnection = fetchMoreResult?.decks
+        if (!nextConnection || !previous?.decks) return fetchMoreResult ?? previous
+
+        return {
+          ...previous,
+          decks: {
+            ...nextConnection,
+            edges: [...(previous.decks.edges || []), ...(nextConnection.edges || [])],
+          },
+        }
+      },
+    }).finally(() => {
+      isLoadingMoreDecks.current = false
+    })
+  }, [decksPageInfo?.hasNextPage, decksPageInfo?.endCursor, fetchMoreDecks])
+
   const decks = useMemo(() => flattenDecks(data?.decks), [data?.decks])
   const deckGroups = groupDecksByFormat(decks)
   const isInitialLoading = isLoading && !data

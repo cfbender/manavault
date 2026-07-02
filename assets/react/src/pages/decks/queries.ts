@@ -1,8 +1,8 @@
 import { graphql } from "../../gql"
 
 export const DecksDocument = graphql(`
-  query Decks {
-    decks(first: 100) {
+  query Decks($after: String) {
+    decks(first: 100, after: $after) {
       pageInfo {
         endCursor
         hasNextPage
