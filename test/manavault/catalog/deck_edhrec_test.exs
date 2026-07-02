@@ -222,4 +222,62 @@ defmodule Manavault.Catalog.DeckEdhrecTest do
              %{name: "Plains", collection_status: %{state: "allocated", deck_zone: "maybeboard"}}
            ] = result.recommendations
   end
+
+  test "recommended card reflects copies allocated to another active deck" do
+    assert {:ok, %{cards_count: 2}} = Catalog.import_cards([@black_lotus, @time_walk])
+
+    assert {:ok, item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-2",
+               "quantity" => 2,
+               "finish" => "foil"
+             })
+
+    assert {:ok, other_deck} = Catalog.create_deck(%{"name" => "Other", "format" => "commander"})
+    # Only active decks reserve copies, so allocated_elsewhere counts against this one.
+    assert {:ok, other_deck} = Catalog.update_deck(other_deck, %{"status" => "active"})
+    assert {:ok, other_deck_card} = Catalog.add_card_to_deck(other_deck, %{"name" => "Time Walk"})
+
+    assert {:ok, _allocation} =
+             Catalog.allocate_collection_item_to_deck_card(other_deck_card.id, item.id, 1)
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Viewed", "format" => "commander"})
+
+    assert {:ok, _commander} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Black Lotus",
+               "zone" => "commander",
+               "preferred_printing_id" => "scryfall-printing-1"
+             })
+
+    fetch = fn _payload ->
+      {:ok,
+       %{
+         "commanders" => [],
+         "inRecs" => [%{"name" => "Time Walk", "oracle_id" => "oracle-2"}],
+         "outRecs" => [],
+         "more" => false
+       }}
+    end
+
+    assert {:ok, result} =
+             Catalog.deck_edhrec(deck,
+               fetch: fetch,
+               fetch_commander_page: fn _name -> {:ok, %{}} end
+             )
+
+    # Time Walk isn't in the viewed deck, so it takes the batched collection-status
+    # path: 2 owned, 1 allocated to the other active deck, 1 still available.
+    assert [
+             %{
+               name: "Time Walk",
+               collection_status: %{
+                 state: "available",
+                 owned: 2,
+                 allocated_elsewhere: 1,
+                 available: 1
+               }
+             }
+           ] = result.recommendations
+  end
 end

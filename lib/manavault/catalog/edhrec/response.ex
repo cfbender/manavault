@@ -1,7 +1,7 @@
 defmodule Manavault.Catalog.EDHRec.Response do
   @moduledoc false
 
-  alias Manavault.Catalog.Deck
+  alias Manavault.Catalog.{Card, Deck}
   alias Manavault.Catalog.EDHRec.{Client, Payload}
   alias Manavault.Catalog.EDHRec.Response.{CardLookup, CollectionStatus, CommanderPage}
   alias Manavault.Repo
@@ -28,35 +28,66 @@ defmodule Manavault.Catalog.EDHRec.Response do
   end
 
   defp normalize_entries(entries, %Deck{} = deck) when is_list(entries) do
-    entries
-    |> Enum.map(&normalize_entry(&1, deck))
-    |> Enum.reject(&is_nil/1)
+    resolved =
+      entries
+      |> Enum.map(&resolve_entry(&1, deck))
+      |> Enum.reject(&is_nil/1)
+
+    # One pair of collection queries for the whole section instead of a pair per
+    # not-in-deck card. Only %Card{} entries with no matching deck card hit the
+    # collection-candidates path in CollectionStatus.
+    prefetch = CollectionStatus.prefetch(prefetch_oracle_ids(resolved))
+
+    Enum.map(resolved, &build_entry(&1, prefetch))
   end
 
   defp normalize_entries(_entries, _deck), do: []
 
-  defp normalize_entry(%{} = entry, %Deck{} = deck) do
+  defp resolve_entry(%{} = entry, %Deck{} = deck) do
     name = CardLookup.entry_name(entry)
 
     if name == "" do
       nil
     else
       oracle_id = CardLookup.entry_oracle_id(entry)
-      local_card = CardLookup.local_card(oracle_id, name)
-      deck_card = CardLookup.matching_deck_card(deck, oracle_id, name)
 
       %{
+        entry: entry,
         name: name,
-        oracle_id: oracle_id || CardLookup.local_card_oracle_id(local_card),
-        primary_type: CardLookup.entry_string(entry, "primary_type"),
-        score: CardLookup.entry_number(entry, "score"),
-        salt: CardLookup.entry_number(entry, "salt"),
-        card: local_card,
-        collection_status: CollectionStatus.status(local_card, deck_card),
-        edhrec_url: "https://edhrec.com/cards/#{CardLookup.card_slug(name)}"
+        oracle_id: oracle_id,
+        local_card: CardLookup.local_card(oracle_id, name),
+        deck_card: CardLookup.matching_deck_card(deck, oracle_id, name)
       }
     end
   end
 
-  defp normalize_entry(_entry, _deck), do: nil
+  defp resolve_entry(_entry, _deck), do: nil
+
+  defp prefetch_oracle_ids(resolved) do
+    for %{local_card: %Card{oracle_id: oracle_id}, deck_card: nil} <- resolved,
+        is_binary(oracle_id),
+        do: oracle_id
+  end
+
+  defp build_entry(resolved, prefetch) do
+    %{
+      entry: entry,
+      name: name,
+      oracle_id: oracle_id,
+      local_card: local_card,
+      deck_card: deck_card
+    } =
+      resolved
+
+    %{
+      name: name,
+      oracle_id: oracle_id || CardLookup.local_card_oracle_id(local_card),
+      primary_type: CardLookup.entry_string(entry, "primary_type"),
+      score: CardLookup.entry_number(entry, "score"),
+      salt: CardLookup.entry_number(entry, "salt"),
+      card: local_card,
+      collection_status: CollectionStatus.status(local_card, deck_card, prefetch),
+      edhrec_url: "https://edhrec.com/cards/#{CardLookup.card_slug(name)}"
+    }
+  end
 end
