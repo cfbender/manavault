@@ -405,6 +405,18 @@ defmodule Manavault.Catalog.Cached do
     |> invalidate_on_ok(&Cache.invalidate_decks/0)
   end
 
+  def bulk_update_deck_cards(deck_card_ids, attrs) do
+    deck_card_ids
+    |> Decks.bulk_update_deck_cards(attrs)
+    |> invalidate_on_ok(&Cache.invalidate_decks/0)
+  end
+
+  def bulk_delete_deck_cards(deck_card_ids) do
+    deck_card_ids
+    |> Decks.bulk_delete_deck_cards()
+    |> invalidate_on_ok(&Cache.invalidate_decks/0)
+  end
+
   def optimize_deck_card_printings(deck_card_ids) do
     deck_card_ids
     |> Decks.optimize_deck_card_printings()

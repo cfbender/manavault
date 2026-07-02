@@ -136,6 +136,24 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
     end
   end
 
+  def bulk_update_deck_cards(_parent, %{deck_card_ids: deck_card_ids, input: input}, resolution) do
+    with {:ok, deck_card_ids} <- parse_deck_card_ids(deck_card_ids, resolution) do
+      case Catalog.bulk_update_deck_cards(deck_card_ids, input) do
+        {:ok, deck_cards} -> {:ok, Repo.preload(deck_cards, [:card, :preferred_printing])}
+        {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+      end
+    end
+  end
+
+  def bulk_delete_deck_cards(_parent, %{deck_card_ids: deck_card_ids}, resolution) do
+    with {:ok, deck_card_ids} <- parse_deck_card_ids(deck_card_ids, resolution) do
+      case Catalog.bulk_delete_deck_cards(deck_card_ids) do
+        {:ok, deck_cards} -> {:ok, deck_cards}
+        {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+      end
+    end
+  end
+
   def optimize_deck_card_printings(_parent, %{deck_card_ids: deck_card_ids}, resolution) do
     with {:ok, deck_card_ids} <- parse_deck_card_ids(deck_card_ids, resolution) do
       case Catalog.optimize_deck_card_printings(deck_card_ids) do

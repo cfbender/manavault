@@ -90,6 +90,8 @@ defmodule Manavault.Catalog do
   defdelegate add_card_to_deck(deck, attrs), to: Cached
   defdelegate update_deck_card(deck_card, attrs), to: Cached
   defdelegate update_deck_cards_tag(deck_card_ids, tag), to: Cached
+  defdelegate bulk_update_deck_cards(deck_card_ids, attrs), to: Cached
+  defdelegate bulk_delete_deck_cards(deck_card_ids), to: Cached
   defdelegate optimize_deck_card_printings(deck_card_ids), to: Cached
   defdelegate set_deck_commander(deck_card), to: Cached
   defdelegate delete_deck_card(deck_card), to: Cached

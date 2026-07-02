@@ -70,6 +70,61 @@ defmodule Manavault.Catalog.Decks.Cards do
     end)
   end
 
+  def bulk_update_deck_cards(deck_card_ids, attrs)
+      when is_list(deck_card_ids) and is_map(attrs) do
+    deck_card_ids = Enum.uniq(deck_card_ids)
+
+    Repo.transact(fn ->
+      # Fetch every target in one query, then apply the same update to each in a
+      # single transaction instead of one mutation (and transaction) per card.
+      deck_cards_by_id =
+        DeckCard
+        |> where([deck_card], deck_card.id in ^deck_card_ids)
+        |> Repo.all()
+        |> Map.new(&{&1.id, &1})
+
+      deck_cards =
+        Enum.map(deck_card_ids, fn deck_card_id ->
+          deck_card =
+            Map.get(deck_cards_by_id, deck_card_id) ||
+              raise Ecto.NoResultsError, queryable: DeckCard
+
+          case update_deck_card(deck_card, attrs) do
+            {:ok, deck_card} -> deck_card
+            {:error, reason} -> Repo.rollback(reason)
+          end
+        end)
+
+      {:ok, deck_cards}
+    end)
+  end
+
+  def bulk_delete_deck_cards(deck_card_ids) when is_list(deck_card_ids) do
+    deck_card_ids = Enum.uniq(deck_card_ids)
+
+    Repo.transact(fn ->
+      deck_cards_by_id =
+        DeckCard
+        |> where([deck_card], deck_card.id in ^deck_card_ids)
+        |> Repo.all()
+        |> Map.new(&{&1.id, &1})
+
+      deck_cards =
+        Enum.map(deck_card_ids, fn deck_card_id ->
+          deck_card =
+            Map.get(deck_cards_by_id, deck_card_id) ||
+              raise Ecto.NoResultsError, queryable: DeckCard
+
+          case delete_deck_card(deck_card) do
+            {:ok, deck_card} -> deck_card
+            {:error, reason} -> Repo.rollback(reason)
+          end
+        end)
+
+      {:ok, deck_cards}
+    end)
+  end
+
   def optimize_deck_card_printings(deck_card_ids) when is_list(deck_card_ids) do
     deck_card_ids = Enum.uniq(deck_card_ids)
 

@@ -628,6 +628,31 @@ defmodule ManavaultWeb.Schema do
       end)
     end
 
+    payload field :bulk_update_deck_cards do
+      arg(:deck_card_ids, non_null(list_of(non_null(:id))))
+      arg(:input, non_null(:deck_card_update_input))
+
+      output do
+        field :deck_cards, non_null(list_of(non_null(:deck_card)))
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &CatalogResolvers.bulk_update_deck_cards/3, :deck_cards)
+      end)
+    end
+
+    payload field :bulk_delete_deck_cards do
+      arg(:deck_card_ids, non_null(list_of(non_null(:id))))
+
+      output do
+        field :deck_cards, non_null(list_of(non_null(:deck_card)))
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &CatalogResolvers.bulk_delete_deck_cards/3, :deck_cards)
+      end)
+    end
+
     payload field :optimize_deck_card_printings do
       arg(:deck_card_ids, non_null(list_of(non_null(:id))))
 

@@ -555,4 +555,84 @@ defmodule ManavaultWeb.Schema.DeckCardsTest do
     assert Enum.any?(loaded.deck_cards, &(&1.id == old_commander.id and &1.zone == "mainboard"))
     assert Enum.any?(loaded.deck_cards, &(&1.id == new_commander.id and &1.zone == "commander"))
   end
+
+  test "bulk update and bulk delete deck card mutations act on a selection", %{conn: conn} do
+    {:ok, %{cards_count: 2, printings_count: 2}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-bulk-card-1",
+          "oracle_id" => "oracle-bulk-card-1",
+          "name" => "Bulk One",
+          "type_line" => "Artifact",
+          "collector_number" => "1",
+          "set" => "blk",
+          "set_name" => "Bulk Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        },
+        %{
+          "id" => "scryfall-bulk-card-2",
+          "oracle_id" => "oracle-bulk-card-2",
+          "name" => "Bulk Two",
+          "type_line" => "Creature",
+          "collector_number" => "2",
+          "set" => "blk",
+          "set_name" => "Bulk Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Bulk Test"})
+    {:ok, first} = Catalog.add_card_to_deck(deck, %{"name" => "Bulk One"})
+    {:ok, second} = Catalog.add_card_to_deck(deck, %{"name" => "Bulk Two"})
+
+    ids = [global_id(:deck_card, first.id), global_id(:deck_card, second.id)]
+
+    update_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation BulkUpdate($deckCardIds: [ID!]!, $input: DeckCardUpdateInput!) {
+          bulkUpdateDeckCards(deckCardIds: $deckCardIds, input: $input) {
+            deckCards {
+              id
+              zone
+            }
+          }
+        }
+        """,
+        "variables" => %{"deckCardIds" => ids, "input" => %{"zone" => "sideboard"}}
+      })
+
+    assert %{"data" => %{"bulkUpdateDeckCards" => %{"deckCards" => updated}}} =
+             json_response(update_conn, 200)
+
+    assert length(updated) == 2
+    assert Enum.all?(updated, &(&1["zone"] == "sideboard"))
+
+    delete_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation BulkDelete($deckCardIds: [ID!]!) {
+          bulkDeleteDeckCards(deckCardIds: $deckCardIds) {
+            deckCards {
+              id
+            }
+          }
+        }
+        """,
+        "variables" => %{"deckCardIds" => ids}
+      })
+
+    assert %{"data" => %{"bulkDeleteDeckCards" => %{"deckCards" => deleted}}} =
+             json_response(delete_conn, 200)
+
+    assert length(deleted) == 2
+    assert Manavault.Repo.get(Manavault.Catalog.DeckCard, first.id) == nil
+    assert Manavault.Repo.get(Manavault.Catalog.DeckCard, second.id) == nil
+  end
 end

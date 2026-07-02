@@ -55,6 +55,8 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   defdelegate auto_sort_collection(parent, args, resolution), to: MutationResolvers
   defdelegate update_deck_card(parent, args, resolution), to: MutationResolvers
   defdelegate update_deck_cards_tag(parent, args, resolution), to: MutationResolvers
+  defdelegate bulk_update_deck_cards(parent, args, resolution), to: MutationResolvers
+  defdelegate bulk_delete_deck_cards(parent, args, resolution), to: MutationResolvers
   defdelegate optimize_deck_card_printings(parent, args, resolution), to: MutationResolvers
   defdelegate delete_deck_card(parent, args, resolution), to: MutationResolvers
   defdelegate set_deck_commander(parent, args, resolution), to: MutationResolvers

@@ -45,6 +45,8 @@ import {
   AddDeckCardDocument,
   AllocateDeckCardItemDocument,
   AllocateDeckCardProxyDocument,
+  BulkDeleteDeckCardsDocument,
+  BulkUpdateDeckCardsDocument,
   DeallocateDeckCardItemDocument,
   DeallocateDeckCardProxyDocument,
   DeckDocument,
@@ -546,34 +548,25 @@ export function DeckDetailPage({
     },
   }
 
-  const [bulkUpdateDeckCardMutation] = useMutation(UpdateDeckCardDocument)
+  const [bulkUpdateDeckCardsMutation] = useMutation(BulkUpdateDeckCardsDocument)
   const bulkUpdateDeckCards = {
     isPending: isBulkUpdateDeckCardsPending,
     mutate: ({ deckCardIds, input }: { deckCardIds: string[]; input: DeckCardUpdateInput }) => {
       setIsBulkUpdateDeckCardsPending(true)
-      // allSettled so a partial failure still waits for every mutation to land,
-      // and refetch in finally so the cache reconciles with the ones that
-      // succeeded rather than showing pre-mutation data.
-      void Promise.allSettled(
-        deckCardIds.map((deckCardId) =>
-          bulkUpdateDeckCardMutation({ variables: { id: deckCardId, input } }),
-        ),
-      )
-        .then((results) => {
-          const failure = results.find((result) => result.status === "rejected")
-          if (failure) {
-            setBulkActionError(
-              failure.reason instanceof Error
-                ? failure.reason.message
-                : "Could not update selected cards",
-            )
-            return
-          }
-
+      // One server-side bulk mutation (a single transaction) instead of N single
+      // updates. Refetch afterwards so the deck-level fields (cardCount, legality,
+      // allocation status) reconcile.
+      void bulkUpdateDeckCardsMutation({ variables: { deckCardIds, input } })
+        .then(() => {
           clearSelectedDeckCards()
           setIsSelectingCards(false)
           setBulkActionError(null)
         })
+        .catch((error) =>
+          setBulkActionError(
+            error instanceof Error ? error.message : "Could not update selected cards",
+          ),
+        )
         .finally(() => {
           refetchDeckQueries()
           setIsBulkUpdateDeckCardsPending(false)
@@ -581,35 +574,24 @@ export function DeckDetailPage({
     },
   }
 
-  const [bulkDeleteDeckCardMutation] = useMutation(DeleteDeckCardDocument)
+  const [bulkDeleteDeckCardsMutation] = useMutation(BulkDeleteDeckCardsDocument)
   const bulkDeleteDeckCards = {
     isPending: isBulkDeleteDeckCardsPending,
     mutate: (deckCardIds: string[]) => {
       setIsBulkDeleteDeckCardsPending(true)
-      void Promise.allSettled(
-        deckCardIds.map((deckCardId) =>
-          bulkDeleteDeckCardMutation({ variables: { id: deckCardId } }),
-        ),
-      )
-        .then((results) => {
-          const succeeded = results.filter((result) => result.status === "fulfilled").length
-          const failure = results.find((result) => result.status === "rejected")
-
-          if (failure) {
-            setBulkActionError(
-              failure.reason instanceof Error
-                ? failure.reason.message
-                : "Could not delete selected cards",
-            )
-            return
-          }
-
-          showToast(`${pluralize(succeeded, "card")} deleted`)
+      void bulkDeleteDeckCardsMutation({ variables: { deckCardIds } })
+        .then(() => {
+          showToast(`${pluralize(deckCardIds.length, "card")} deleted`)
           clearSelectedDeckCards()
           setIsSelectingCards(false)
           setIsDeleteSelectedOpen(false)
           setBulkActionError(null)
         })
+        .catch((error) =>
+          setBulkActionError(
+            error instanceof Error ? error.message : "Could not delete selected cards",
+          ),
+        )
         .finally(() => {
           refetchDeckQueries()
           setIsBulkDeleteDeckCardsPending(false)
