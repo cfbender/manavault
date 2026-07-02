@@ -574,7 +574,6 @@ export function DeckDetailPage({
     mutate: ({ collectionItemId, deckCardId }: { collectionItemId: string; deckCardId: string }) =>
       void allocateDeckCardItemMutation({
         variables: { deckCardId, collectionItemId },
-        onCompleted: invalidateAllocationQueries,
         onError: () => undefined,
       }),
   }
@@ -587,7 +586,6 @@ export function DeckDetailPage({
     mutate: ({ collectionItemId, deckCardId }: { collectionItemId: string; deckCardId: string }) =>
       void deallocateDeckCardItemMutation({
         variables: { deckCardId, collectionItemId },
-        onCompleted: invalidateAllocationQueries,
         onError: () => undefined,
       }),
   }
@@ -600,7 +598,6 @@ export function DeckDetailPage({
     mutate: ({ deckCardId, quantity }: { deckCardId: string; quantity: number }) =>
       void allocateDeckCardProxyMutation({
         variables: { deckCardId, quantity },
-        onCompleted: invalidateAllocationQueries,
         onError: () => undefined,
       }),
   }
@@ -613,7 +610,6 @@ export function DeckDetailPage({
     mutate: ({ deckCardId, quantity }: { deckCardId: string; quantity: number }) =>
       void deallocateDeckCardProxyMutation({
         variables: { deckCardId, quantity },
-        onCompleted: invalidateAllocationQueries,
         onError: () => undefined,
       }),
   }

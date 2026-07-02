@@ -455,6 +455,37 @@ export const AllocateDeckCardItemDocument = graphql(`
           available
           allocatedElsewhere
           missing
+          candidates {
+            allocated
+            allocatedElsewhere
+            available
+            item {
+              id
+              quantity
+              finish
+              condition
+              language
+              priceText
+              location {
+                id
+                name
+              }
+              printing {
+                id
+                scryfallId
+                setCode
+                setName
+                collectorNumber
+                rarity
+                imageUrl
+                backImageUrl
+                artCropUrl
+                card {
+                  name
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -475,6 +506,37 @@ export const DeallocateDeckCardItemDocument = graphql(`
           available
           allocatedElsewhere
           missing
+          candidates {
+            allocated
+            allocatedElsewhere
+            available
+            item {
+              id
+              quantity
+              finish
+              condition
+              language
+              priceText
+              location {
+                id
+                name
+              }
+              printing {
+                id
+                scryfallId
+                setCode
+                setName
+                collectorNumber
+                rarity
+                imageUrl
+                backImageUrl
+                artCropUrl
+                card {
+                  name
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -495,6 +557,37 @@ export const AllocateDeckCardProxyDocument = graphql(`
           available
           allocatedElsewhere
           missing
+          candidates {
+            allocated
+            allocatedElsewhere
+            available
+            item {
+              id
+              quantity
+              finish
+              condition
+              language
+              priceText
+              location {
+                id
+                name
+              }
+              printing {
+                id
+                scryfallId
+                setCode
+                setName
+                collectorNumber
+                rarity
+                imageUrl
+                backImageUrl
+                artCropUrl
+                card {
+                  name
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -515,6 +608,37 @@ export const DeallocateDeckCardProxyDocument = graphql(`
           available
           allocatedElsewhere
           missing
+          candidates {
+            allocated
+            allocatedElsewhere
+            available
+            item {
+              id
+              quantity
+              finish
+              condition
+              language
+              priceText
+              location {
+                id
+                name
+              }
+              printing {
+                id
+                scryfallId
+                setCode
+                setName
+                collectorNumber
+                rarity
+                imageUrl
+                backImageUrl
+                artCropUrl
+                card {
+                  name
+                }
+              }
+            }
+          }
         }
       }
     }
