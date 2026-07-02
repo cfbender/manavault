@@ -75,6 +75,7 @@ defmodule ManavaultWeb.Schema do
     end
 
     field :collection_value_summary, non_null(:collection_value_summary) do
+      arg(:filters, :collection_item_filters)
       resolve(&CatalogResolvers.collection_value_summary/3)
     end
 

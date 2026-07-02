@@ -475,4 +475,89 @@ defmodule ManavaultWeb.Schema.CollectionQueriesTest do
              }
            } = json_response(conn, 200)
   end
+
+  test "collection value summary scopes to filters", %{conn: conn} do
+    {:ok, %{cards_count: 2, printings_count: 2}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-filed",
+          "oracle_id" => "oracle-filed",
+          "name" => "Filed Card",
+          "type_line" => "Creature",
+          "collector_number" => "1",
+          "set" => "tst",
+          "set_name" => "Test Set",
+          "lang" => "en",
+          "rarity" => "rare",
+          "image_uris" => %{},
+          "prices" => %{"usd" => "10.00"},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        },
+        %{
+          "id" => "scryfall-loose",
+          "oracle_id" => "oracle-loose",
+          "name" => "Loose Card",
+          "type_line" => "Creature",
+          "collector_number" => "2",
+          "set" => "tst",
+          "set_name" => "Test Set",
+          "lang" => "en",
+          "rarity" => "common",
+          "image_uris" => %{},
+          "prices" => %{"usd" => "0.50"},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, location} = Catalog.create_location(%{name: "Binder", kind: "binder"})
+
+    {:ok, _filed} =
+      Catalog.create_collection_item(%{
+        scryfall_id: "scryfall-filed",
+        location_id: location.id,
+        quantity: 2
+      })
+
+    {:ok, _loose} =
+      Catalog.create_collection_item(%{
+        scryfall_id: "scryfall-loose",
+        quantity: 4
+      })
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query {
+          collectionValueSummary { totalPriceText purchasePriceText }
+          unfiledValueSummary: collectionValueSummary(filters: {locationId: "unfiled"}) {
+            totalPriceText
+            purchasePriceText
+          }
+          searchedValueSummary: collectionValueSummary(filters: {q: "Filed"}) {
+            totalPriceText
+            purchasePriceText
+          }
+        }
+        """
+      })
+
+    assert %{
+             "data" => %{
+               "collectionValueSummary" => %{
+                 "totalPriceText" => "$22",
+                 "purchasePriceText" => "$22"
+               },
+               "unfiledValueSummary" => %{
+                 "totalPriceText" => "$2",
+                 "purchasePriceText" => "$2"
+               },
+               "searchedValueSummary" => %{
+                 "totalPriceText" => "$20",
+                 "purchasePriceText" => "$20"
+               }
+             }
+           } = json_response(conn, 200)
+  end
 end

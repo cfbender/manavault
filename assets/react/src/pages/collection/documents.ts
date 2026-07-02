@@ -40,7 +40,7 @@ export const CollectionDocument = graphql(`
         kind
       }
     }
-    collectionValueSummary {
+    collectionValueSummary(filters: $filters) {
       totalPriceText
       purchasePriceText
       valueGainText

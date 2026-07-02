@@ -91,8 +91,13 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
     end
   end
 
-  def collection_value_summary(_parent, _args, _resolution) do
-    {:ok, Catalog.collection_value_summary() |> CollectionFields.collection_value_summary_data()}
+  def collection_value_summary(_parent, args, resolution) do
+    with {:ok, filters} <- collection_filters(args, resolution) do
+      {:ok,
+       filters
+       |> Catalog.collection_value_summary()
+       |> CollectionFields.collection_value_summary_data()}
+    end
   end
 
   def collection_export_csv(_parent, args, resolution) do
