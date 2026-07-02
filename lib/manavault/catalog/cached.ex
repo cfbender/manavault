@@ -57,9 +57,21 @@ defmodule Manavault.Catalog.Cached do
     end)
   end
 
+  def list_collection_item_ids(filters \\ []) when is_list(filters) do
+    cached(Cache.collection_tag(), {:list_collection_item_ids, filters}, fn ->
+      Collection.list_collection_item_ids(filters)
+    end)
+  end
+
   def count_collection_items(filters \\ []) when is_list(filters) do
     cached(Cache.collection_tag(), {:count_collection_items, filters}, fn ->
       Collection.count_collection_items(filters)
+    end)
+  end
+
+  def count_collection_item_entries(filters \\ []) when is_list(filters) do
+    cached(Cache.collection_tag(), {:count_collection_item_entries, filters}, fn ->
+      Collection.count_collection_item_entries(filters)
     end)
   end
 
@@ -115,6 +127,12 @@ defmodule Manavault.Catalog.Cached do
   def delete_collection_item(collection_item) do
     collection_item
     |> Collection.delete_collection_item()
+    |> invalidate_on_ok(&Cache.invalidate_collection/0)
+  end
+
+  def delete_collection_items(ids) do
+    ids
+    |> Collection.delete_collection_items()
     |> invalidate_on_ok(&Cache.invalidate_collection/0)
   end
 

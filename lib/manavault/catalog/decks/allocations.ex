@@ -319,16 +319,22 @@ defmodule Manavault.Catalog.Decks.Allocations do
   end
 
   defp load_collection_items(item_ids) do
-    CollectionItem
-    |> join(:inner, [item], printing in assoc(item, :printing))
-    |> join(:inner, [_item, printing], card in assoc(printing, :card))
-    |> join(:left, [item, _printing, _card], location in assoc(item, :location_assoc))
-    |> where([item, _printing, _card, _location], item.id in ^item_ids)
-    |> preload([_item, printing, card, location],
-      printing: {printing, card: card},
-      location_assoc: location
-    )
-    |> Repo.all()
+    # Chunked so selector-driven bulk adds over an entire collection stay
+    # under SQLite's bound-parameter limit.
+    item_ids
+    |> Enum.chunk_every(500)
+    |> Enum.flat_map(fn chunk ->
+      CollectionItem
+      |> join(:inner, [item], printing in assoc(item, :printing))
+      |> join(:inner, [_item, printing], card in assoc(printing, :card))
+      |> join(:left, [item, _printing, _card], location in assoc(item, :location_assoc))
+      |> where([item, _printing, _card, _location], item.id in ^chunk)
+      |> preload([_item, printing, card, location],
+        printing: {printing, card: card},
+        location_assoc: location
+      )
+      |> Repo.all()
+    end)
   end
 
   defp validate_collection_items_loaded(items, item_ids) do

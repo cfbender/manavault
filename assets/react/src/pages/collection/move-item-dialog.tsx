@@ -11,10 +11,12 @@ import {
 } from "../../components/ui/dialog"
 import { useToast } from "../../components/ui/toast"
 import { pluralize, present, titleize } from "../../lib/utils"
-import { CollectionItemFormOptionsDocument, UpdateCollectionItemDocument } from "./documents"
+import { BulkUpdateCollectionItemsDocument, CollectionItemFormOptionsDocument } from "./documents"
 import {
+  collectionTargetCount,
   collectionTargetItems,
   collectionTargetLabel,
+  collectionTargetSelector,
   type CollectionItemTarget,
 } from "./item-target"
 import { isUnfiledLocation } from "./location-summary"
@@ -34,14 +36,14 @@ export function MoveCollectionItemDialog({
   const [locationId, setLocationId] = useState("")
   const [error, setError] = useState<string | null>(null)
   const targetItems = collectionTargetItems(item)
-  const targetCount = targetItems.length
-  const singleTarget = targetCount === 1 ? targetItems[0] : null
+  const targetCount = collectionTargetCount(item)
+  const singleTarget = targetCount === 1 && targetItems.length === 1 ? targetItems[0] : null
   const open = targetCount > 0
   const optionsQuery = useQuery(CollectionItemFormOptionsDocument, {
     skip: !open,
     fetchPolicy: "cache-and-network",
   })
-  const [updateItemMutation, updateItem] = useMutation(UpdateCollectionItemDocument)
+  const [updateItemsMutation, updateItems] = useMutation(BulkUpdateCollectionItemsDocument)
   const locations = useMemo(
     () =>
       (optionsQuery.data?.locations?.edges?.map((edge) => edge?.node).filter(present) || []).filter(
@@ -67,37 +69,33 @@ export function MoveCollectionItemDialog({
       return
     }
 
-    if (!targetItems.length) {
+    if (!targetCount) {
       setError("Choose at least one item")
       return
     }
 
-    void Promise.all(
-      targetItems.map((targetItem) =>
-        updateItemMutation({
-          variables: {
-            id: targetItem.id,
-            input: { locationId: locationId || null },
-          },
-        }),
-      ),
-    )
-      .then(() => {
+    void updateItemsMutation({
+      variables: {
+        selector: collectionTargetSelector(item),
+        input: { locationId: locationId || null },
+      },
+      onCompleted: (data) => {
+        const moved = data.bulkUpdateCollectionItems?.updatedCount ?? targetCount
         showToast(
           listOnly
-            ? `${pluralize(targetCount, "card")} added to list`
-            : `${pluralize(targetCount, "card")} moved`,
+            ? `${pluralize(moved, "card")} added to list`
+            : `${pluralize(moved, "card")} moved`,
         )
         onDone()
         onOpenChange(false)
-      })
-      .catch((error) =>
+      },
+      onError: (error) =>
         setError(error instanceof Error ? error.message : "Could not move collection items"),
-      )
+    })
   }
 
   function close() {
-    if (updateItem.loading) return
+    if (updateItems.loading) return
     onOpenChange(false)
   }
 
@@ -158,11 +156,11 @@ export function MoveCollectionItemDialog({
             </p>
           ) : null}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={close} disabled={updateItem.loading}>
+            <Button type="button" variant="ghost" onClick={close} disabled={updateItems.loading}>
               Cancel
             </Button>
-            <Button type="submit" disabled={updateItem.loading || (listOnly && !locationId)}>
-              {updateItem.loading
+            <Button type="submit" disabled={updateItems.loading || (listOnly && !locationId)}>
+              {updateItems.loading
                 ? "Saving..."
                 : listOnly
                   ? targetCount > 1

@@ -16,57 +16,85 @@ import {
 } from "./item-dialogs"
 import type { CollectionItem } from "./types"
 
-export function useCollectionItemSelection(items: CollectionItem[]) {
+// Selection is tracked as a set expression instead of materialized ids:
+// "select all" just flips `all` (no queries), and unchecking under `all`
+// records an exclusion. Membership is `all ? !excluded.has(id) : included.has(id)`.
+type CollectionSelectionState = {
+  all: boolean
+  included: Set<string>
+  excluded: Set<string>
+}
+
+const EMPTY_SELECTION: CollectionSelectionState = {
+  all: false,
+  included: new Set(),
+  excluded: new Set(),
+}
+
+export type CollectionItemSelection = ReturnType<typeof useCollectionItemSelection>
+
+export function useCollectionItemSelection({
+  items,
+  totalCount,
+  resetKey,
+}: {
+  items: CollectionItem[]
+  // Row count of every item matching the current filters (not just loaded pages).
+  totalCount: number
+  // Selection is defined against the active filters; when they change the
+  // membership rules change with them, so the selection resets.
+  resetKey: string
+}) {
   const [selectionMode, setSelectionMode] = useState(false)
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
-  const selectedItems = useMemo(
-    () => items.filter((item) => selectedIds.has(item.id)),
-    [items, selectedIds],
-  )
-  const selectedCount = selectedItems.length
-  const selectionActive = selectionMode || selectedCount > 0
-  const allLoadedSelected = items.length > 0 && selectedCount === items.length
-
-  useEffect(() => {
-    const loadedIds = new Set(items.map((item) => item.id))
-    setSelectedIds((current) => {
-      let changed = false
-      const next = new Set<string>()
-
-      for (const id of current) {
-        if (loadedIds.has(id)) next.add(id)
-        else changed = true
-      }
-
-      return changed ? next : current
-    })
-  }, [items])
-
-  const toggleItem = useCallback((item: CollectionItem) => {
-    setSelectionMode(true)
-    setSelectedIds((current) => {
-      const next = new Set(current)
-      if (next.has(item.id)) next.delete(item.id)
-      else next.add(item.id)
-      return next
-    })
-  }, [])
-
-  const selectIds = useCallback((ids: string[]) => {
-    setSelectionMode(true)
-    setSelectedIds(new Set(ids))
-  }, [])
-
-  const selectItems = useCallback(
-    (nextItems: CollectionItem[]) => {
-      selectIds(nextItems.map((item) => item.id))
-    },
-    [selectIds],
-  )
+  const [state, setState] = useState<CollectionSelectionState>(EMPTY_SELECTION)
 
   const clearSelection = useCallback(() => {
     setSelectionMode(false)
-    setSelectedIds(new Set())
+    setState(EMPTY_SELECTION)
+  }, [])
+
+  const lastResetKey = useRef(resetKey)
+  useEffect(() => {
+    if (lastResetKey.current === resetKey) return
+    lastResetKey.current = resetKey
+    clearSelection()
+  }, [clearSelection, resetKey])
+
+  const isSelected = useCallback(
+    (id: string) => (state.all ? !state.excluded.has(id) : state.included.has(id)),
+    [state],
+  )
+
+  const selectedItems = useMemo(
+    () => items.filter((item) => isSelected(item.id)),
+    [isSelected, items],
+  )
+  const selectedCount = state.all
+    ? Math.max(totalCount - state.excluded.size, 0)
+    : state.included.size
+  const selectionActive = selectionMode || selectedCount > 0
+  const allSelected = state.all && state.excluded.size === 0
+
+  const toggleItem = useCallback((item: CollectionItem) => {
+    setSelectionMode(true)
+    setState((current) => {
+      if (current.all) {
+        const excluded = new Set(current.excluded)
+        if (excluded.has(item.id)) excluded.delete(item.id)
+        else excluded.add(item.id)
+        return { ...current, excluded }
+      }
+
+      const included = new Set(current.included)
+      if (included.has(item.id)) included.delete(item.id)
+      else included.add(item.id)
+      return { ...current, included }
+    })
+  }, [])
+
+  const selectAll = useCallback(() => {
+    setSelectionMode(true)
+    setState({ all: true, included: new Set(), excluded: new Set() })
   }, [])
 
   const toggleSelectionMode = useCallback(() => {
@@ -75,12 +103,14 @@ export function useCollectionItemSelection(items: CollectionItem[]) {
   }, [clearSelection, selectionActive])
 
   return {
-    allLoadedSelected,
+    all: state.all,
+    allSelected,
     clearSelection,
-    selectIds,
-    selectItems,
+    excludedIds: state.excluded,
+    includedIds: state.included,
+    isSelected,
+    selectAll,
     selectedCount,
-    selectedIds,
     selectedItems,
     selectionActive,
     toggleItem,
@@ -89,10 +119,7 @@ export function useCollectionItemSelection(items: CollectionItem[]) {
 }
 
 export function CollectionBulkActionBar({
-  allLoadedSelected,
-  hasNextPage,
-  isSelectAllPending,
-  loadedCount,
+  allSelected,
   onAddToDeck,
   onAddToList,
   onClear,
@@ -100,13 +127,11 @@ export function CollectionBulkActionBar({
   onEdit,
   onMove,
   onSelectAll,
+  selectableCount,
   selectedCount,
   selectionActive,
 }: {
-  allLoadedSelected: boolean
-  hasNextPage: boolean
-  isSelectAllPending: boolean
-  loadedCount: number
+  allSelected: boolean
   onAddToDeck: () => void
   onAddToList: () => void
   onClear: () => void
@@ -114,6 +139,7 @@ export function CollectionBulkActionBar({
   onEdit: () => void
   onMove: () => void
   onSelectAll: () => void
+  selectableCount: number
   selectedCount: number
   selectionActive: boolean
 }) {
@@ -130,10 +156,7 @@ export function CollectionBulkActionBar({
             type="button"
             variant="outline"
             size="sm"
-            aria-busy={isSelectAllPending}
-            disabled={
-              loadedCount === 0 || (allLoadedSelected && !hasNextPage) || isSelectAllPending
-            }
+            disabled={selectableCount === 0 || allSelected}
             onClick={onSelectAll}
           >
             <CheckSquare className="h-4 w-4" />
@@ -199,18 +222,18 @@ export function CollectionBulkActionBar({
 export function VirtualizedCollectionGrid({
   hasNextPage,
   isFetchingNextPage,
+  isSelected,
   items,
   onLoadMore,
   onToggleSelected,
-  selectedIds,
   selectionActive = false,
 }: {
   hasNextPage: boolean
   isFetchingNextPage: boolean
+  isSelected?: (id: string) => boolean
   items: CollectionItem[]
   onLoadMore: () => void
   onToggleSelected?: (item: CollectionItem) => void
-  selectedIds?: Set<string>
   selectionActive?: boolean
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -303,7 +326,7 @@ export function VirtualizedCollectionGrid({
         {visibleItems.map((item) => (
           <CollectionItemTile
             key={item.id}
-            isSelected={selectedIds?.has(item.id) || false}
+            isSelected={isSelected?.(item.id) || false}
             item={item}
             onToggleSelected={onToggleSelected}
             selectionActive={selectionActive}

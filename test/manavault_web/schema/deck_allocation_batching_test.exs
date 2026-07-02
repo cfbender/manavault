@@ -534,8 +534,8 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
       count_repo_queries(fn ->
         post(conn, "/api/graphql", %{
           "query" => """
-          mutation BulkAddCollectionItemsToDeck($deckId: ID!, $ids: [ID!]!) {
-            bulkAddCollectionItemsToDeck(deckId: $deckId, ids: $ids) {
+          mutation BulkAddCollectionItemsToDeck($deckId: ID!, $selector: CollectionItemSelector!) {
+            bulkAddCollectionItemsToDeck(deckId: $deckId, selector: $selector) {
               deckCards {
                 id
                 quantity
@@ -546,7 +546,7 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
           """,
           "variables" => %{
             "deckId" => global_id(:deck, deck.id),
-            "ids" => item_ids
+            "selector" => %{"ids" => item_ids}
           }
         })
       end)

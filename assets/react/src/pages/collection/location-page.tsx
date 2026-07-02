@@ -41,6 +41,7 @@ import {
   DeleteCollectionItemDialog,
   MoveCollectionItemDialog,
 } from "./item-dialogs"
+import { collectionSelectionTarget, type CollectionSelectionTarget } from "./item-target"
 import { EditLocationDialog } from "./location-dialogs"
 import { SummaryActionMenu, UnfiledLocationCard, isUnfiledLocation } from "./location-summary"
 import {
@@ -58,12 +59,7 @@ import {
   isDefaultCollectionSort,
   serializeStoredCollectionFilters,
 } from "./storage"
-import type {
-  AutoSortCollectionResult,
-  CollectionExportFormat,
-  CollectionItem,
-  CollectionSort,
-} from "./types"
+import type { AutoSortCollectionResult, CollectionExportFormat, CollectionSort } from "./types"
 import { collectionValueLine } from "./value-summary"
 
 const LOCATION_PAGE_SORT_STORAGE_KEY = collectionSortStorageKey("location")
@@ -92,12 +88,11 @@ export function LocationPage({ id }: { id: string }) {
   const [isAutoSortSetupOpen, setIsAutoSortSetupOpen] = useState(false)
   const [autoSortResult, setAutoSortResult] = useState<AutoSortCollectionResult | null>(null)
   const [autoSortError, setAutoSortError] = useState<string | null>(null)
-  const [bulkDeckTarget, setBulkDeckTarget] = useState<CollectionItem[] | null>(null)
-  const [bulkListTarget, setBulkListTarget] = useState<CollectionItem[] | null>(null)
-  const [bulkMoveTarget, setBulkMoveTarget] = useState<CollectionItem[] | null>(null)
-  const [bulkEditTarget, setBulkEditTarget] = useState<CollectionItem[] | null>(null)
-  const [bulkDeleteTarget, setBulkDeleteTarget] = useState<CollectionItem[] | null>(null)
-  const [isSelectingAllLocationItems, setIsSelectingAllLocationItems] = useState(false)
+  const [bulkDeckTarget, setBulkDeckTarget] = useState<CollectionSelectionTarget | null>(null)
+  const [bulkListTarget, setBulkListTarget] = useState<CollectionSelectionTarget | null>(null)
+  const [bulkMoveTarget, setBulkMoveTarget] = useState<CollectionSelectionTarget | null>(null)
+  const [bulkEditTarget, setBulkEditTarget] = useState<CollectionSelectionTarget | null>(null)
+  const [bulkDeleteTarget, setBulkDeleteTarget] = useState<CollectionSelectionTarget | null>(null)
   const [isFetchingMoreLocationItems, setIsFetchingMoreLocationItems] = useState(false)
   const [structuredFilters, setStructuredFilters] = useLocalStorageState<CollectionFilterState>(
     `${locationStateStoragePrefix}.filters`,
@@ -148,7 +143,13 @@ export function LocationPage({ id }: { id: string }) {
     () => (itemsQuery.data?.collectionItems.edges || []).map((edge) => edge?.node).filter(present),
     [itemsQuery.data],
   )
-  const selection = useCollectionItemSelection(collectionItems)
+  const locationEntryCount = countQuery.data?.collectionItemEntryCount ?? 0
+  const selection = useCollectionItemSelection({
+    items: collectionItems,
+    totalCount: locationEntryCount,
+    resetKey: JSON.stringify(itemFilters),
+  })
+  const bulkSelectionTarget = () => collectionSelectionTarget(selection, itemFilters)
   const autoSortRules = autoSortRuleOptionsQuery.data?.collectionAutoSortRules ?? []
   const [autoSortUnfiledMutation, autoSortUnfiled] = useMutation(AutoSortCollectionDocument)
   const fetchMoreLocationItemsPage = useCallback(
@@ -164,7 +165,7 @@ export function LocationPage({ id }: { id: string }) {
     [itemFilters, itemsQuery, sort],
   )
   const loadMore = useCallback(() => {
-    if (isSelectingAllLocationItems || isFetchingMoreLocationItems || !itemsHasNextPage) return
+    if (isFetchingMoreLocationItems || !itemsHasNextPage) return
 
     setIsFetchingMoreLocationItems(true)
     void fetchMoreLocationItemsPage(itemsPageInfo?.endCursor).finally(() =>
@@ -173,7 +174,6 @@ export function LocationPage({ id }: { id: string }) {
   }, [
     fetchMoreLocationItemsPage,
     isFetchingMoreLocationItems,
-    isSelectingAllLocationItems,
     itemsHasNextPage,
     itemsPageInfo?.endCursor,
   ])
@@ -210,34 +210,6 @@ export function LocationPage({ id }: { id: string }) {
   function applyStructuredFilters(nextFilters: CollectionFilterState) {
     setStructuredFilters(nextFilters)
     setIsFilterModalOpen(false)
-  }
-
-  async function selectAllLocationItems() {
-    if (isSelectingAllLocationItems || isFetchingMoreLocationItems) return
-
-    let itemsToSelect = collectionItems
-    let pageInfo = itemsPageInfo
-
-    if (!pageInfo?.hasNextPage) {
-      selection.selectItems(itemsToSelect)
-      return
-    }
-
-    setIsSelectingAllLocationItems(true)
-    try {
-      while (pageInfo?.hasNextPage) {
-        const result = await fetchMoreLocationItemsPage(pageInfo.endCursor)
-        const nextConnection = result.data?.collectionItems
-        const nextItems = nextConnection?.edges?.map((edge) => edge?.node).filter(present) || []
-
-        itemsToSelect = [...itemsToSelect, ...nextItems]
-        pageInfo = nextConnection?.pageInfo
-      }
-
-      selection.selectItems(itemsToSelect)
-    } finally {
-      setIsSelectingAllLocationItems(false)
-    }
   }
 
   function finishBulkLocationAction() {
@@ -409,28 +381,26 @@ export function LocationPage({ id }: { id: string }) {
       ) : (
         <div className="space-y-7">
           <CollectionBulkActionBar
-            allLoadedSelected={selection.allLoadedSelected}
-            hasNextPage={itemsHasNextPage}
-            isSelectAllPending={isSelectingAllLocationItems || isFetchingMoreLocationItems}
-            loadedCount={collectionItems.length}
+            allSelected={selection.allSelected}
+            selectableCount={locationEntryCount || collectionItems.length}
             selectedCount={selection.selectedCount}
             selectionActive={selection.selectionActive}
-            onAddToDeck={() => setBulkDeckTarget(selection.selectedItems)}
-            onAddToList={() => setBulkListTarget(selection.selectedItems)}
+            onAddToDeck={() => setBulkDeckTarget(bulkSelectionTarget())}
+            onAddToList={() => setBulkListTarget(bulkSelectionTarget())}
             onClear={selection.clearSelection}
-            onEdit={() => setBulkEditTarget(selection.selectedItems)}
-            onDelete={() => setBulkDeleteTarget(selection.selectedItems)}
-            onMove={() => setBulkMoveTarget(selection.selectedItems)}
-            onSelectAll={() => void selectAllLocationItems()}
+            onEdit={() => setBulkEditTarget(bulkSelectionTarget())}
+            onDelete={() => setBulkDeleteTarget(bulkSelectionTarget())}
+            onMove={() => setBulkMoveTarget(bulkSelectionTarget())}
+            onSelectAll={selection.selectAll}
           />
           <PageSection count={locationCountLabel}>
             <VirtualizedCollectionGrid
               hasNextPage={itemsHasNextPage}
               isFetchingNextPage={isFetchingMoreLocationItems}
+              isSelected={selection.isSelected}
               items={collectionItems}
               onLoadMore={loadMore}
               onToggleSelected={selection.toggleItem}
-              selectedIds={selection.selectedIds}
               selectionActive={selection.selectionActive}
             />
           </PageSection>

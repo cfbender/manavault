@@ -24,7 +24,9 @@ defmodule Manavault.Catalog do
   defdelegate search_sets(term, opts \\ []), to: Cached
 
   defdelegate list_collection_items(filters \\ [], opts \\ []), to: Cached
+  defdelegate list_collection_item_ids(filters \\ []), to: Cached
   defdelegate count_collection_items(filters \\ []), to: Cached
+  defdelegate count_collection_item_entries(filters \\ []), to: Cached
   defdelegate collection_value_summary(filters \\ []), to: Cached
   defdelegate get_collection_item!(id), to: Cached
   defdelegate change_collection_item(collection_item, attrs \\ %{}), to: Collection
@@ -35,6 +37,7 @@ defmodule Manavault.Catalog do
   defdelegate list_printings_for_collection_item(collection_item), to: Cached
   defdelegate switch_collection_item_printing(collection_item, scryfall_id), to: Cached
   defdelegate delete_collection_item(collection_item), to: Cached
+  defdelegate delete_collection_items(ids), to: Cached
 
   defdelegate list_locations(opts \\ []), to: Cached
   defdelegate count_locations(), to: Cached

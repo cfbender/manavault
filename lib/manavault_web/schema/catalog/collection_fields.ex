@@ -139,7 +139,8 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionFields do
 
   defp resolve_location_collection_items(location_id, args) do
     filters = [location_id: location_id]
-    total_count = Catalog.count_collection_items(filters)
+    # Row count, not quantity sum — see QueryResolvers.collection_items/3.
+    total_count = Catalog.count_collection_item_entries(filters)
 
     with {:ok, offset, limit} <- RelayHelpers.slice_window(args, total_count, 100) do
       filters

@@ -275,6 +275,16 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :direction, :string
   end
 
+  # Names the target of a bulk mutation either explicitly (ids) or as "all
+  # items matching filters, minus excluded_ids" so select-all never has to
+  # enumerate ids client-side.
+  input_object :collection_item_selector do
+    field :ids, list_of(non_null(:id))
+    field :all, :boolean, default_value: false
+    field :filters, :collection_item_filters
+    field :excluded_ids, list_of(non_null(:id))
+  end
+
   input_object :collection_item_input do
     field :scryfall_id, non_null(:id)
     field :quantity, :integer

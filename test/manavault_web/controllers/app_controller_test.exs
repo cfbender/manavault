@@ -27,6 +27,7 @@ defmodule ManavaultWeb.AppControllerTest do
 
     assert response =~
              ~s|property="og:description" content="Commander deck, 100 cards, Legal, $256.76."|
+
     refute response =~ "unique"
 
     assert response =~
@@ -91,8 +92,11 @@ defmodule ManavaultWeb.AppControllerTest do
 
     response = html_response(conn, 200)
 
-    assert response =~ ~r(src="/assets/react/app\.js\?v=[^"]+")
-    refute response =~ ~s(src="/assets/react/app.js?vsn=d")
+    # The ESM entry must stay at the canonical unversioned URL Vite chunks use
+    # when importing ../app.js — a query string creates a second module
+    # instance and remounts React (see AppController.react_scripts).
+    assert response =~ ~s(src="/assets/react/app.js")
+    refute response =~ ~r(src="/assets/react/app\.js\?)
     refute response =~ "127.0.0.1:5173"
   end
 

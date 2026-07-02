@@ -18,8 +18,10 @@ import { buildBulkCollectionItemUpdateInput } from "./bulk-edit-input"
 import { collectionFinishValue } from "./form-helpers"
 import { CollectionFinishField, type CollectionFinishOption } from "./item-form-fields"
 import {
+  collectionTargetCount,
   collectionTargetItems,
   collectionTargetLabel,
+  collectionTargetSelector,
   type CollectionItemTarget,
 } from "./item-target"
 import type { CollectionItem } from "./types"
@@ -35,7 +37,7 @@ export function BulkEditCollectionItemsDialog({
 }) {
   const { showToast } = useToast()
   const targetItems = useMemo(() => collectionTargetItems(item), [item])
-  const targetCount = targetItems.length
+  const targetCount = collectionTargetCount(item)
   const commonFinish = useMemo(() => commonCollectionFinish(targetItems), [targetItems])
   const open = targetCount > 0
   const [updateFinish, setUpdateFinish] = useState(false)
@@ -79,18 +81,19 @@ export function BulkEditCollectionItemsDialog({
       return
     }
 
-    if (!targetItems.length) {
+    if (!targetCount) {
       setError("Choose at least one item")
       return
     }
 
     void updateItemsMutation({
       variables: {
-        ids: targetItems.map((targetItem) => targetItem.id),
+        selector: collectionTargetSelector(item),
         input: result.input,
       },
-      onCompleted: () => {
-        showToast(`${pluralize(targetCount, "card")} edited`)
+      onCompleted: (data) => {
+        const edited = data.bulkUpdateCollectionItems?.updatedCount ?? targetCount
+        showToast(`${pluralize(edited, "card")} edited`)
         onDone()
         onOpenChange(false)
       },

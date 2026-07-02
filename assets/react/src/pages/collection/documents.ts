@@ -47,6 +47,7 @@ export const CollectionDocument = graphql(`
       valueGainPercentText
     }
     collectionItemCount(filters: $filters)
+    collectionItemEntryCount(filters: $filters)
     allCollectionItemCount: collectionItemCount
     unfiledCollectionItemCount: collectionItemCount(filters: { locationId: "unfiled" })
     availableCollectionItemCount: collectionItemCount(filters: { unallocatedOnly: true })
@@ -80,6 +81,7 @@ export const LocationDocument = graphql(`
 export const LocationCollectionCountDocument = graphql(`
   query LocationCollectionCount($filters: CollectionItemFilters) {
     collectionItemCount(filters: $filters)
+    collectionItemEntryCount(filters: $filters)
   }
 `)
 
@@ -264,48 +266,20 @@ export const UpdateCollectionItemDocument = graphql(`
 `)
 
 export const BulkUpdateCollectionItemsDocument = graphql(`
-  mutation BulkUpdateCollectionItems($ids: [ID!]!, $input: CollectionItemUpdateInput!) {
-    bulkUpdateCollectionItems(ids: $ids, input: $input) {
-      collectionItems {
-        id
-        quantity
-        condition
-        language
-        finish
-        notes
-        priceText
-        purchasePriceCents
-        purchasePriceText
-        valueGainText
-        valueGainPercentText
-        allocatedQuantity
-        allocationDecks {
-          quantity
-          deck {
-            id
-            name
-          }
-        }
-        location {
-          id
-          name
-        }
-        printing {
-          id
-          scryfallId
-          setCode
-          setName
-          collectorNumber
-          imageUrl
-          rarity
-          card {
-            id
-            oracleId
-            name
-            typeLine
-          }
-        }
-      }
+  mutation BulkUpdateCollectionItems(
+    $selector: CollectionItemSelector!
+    $input: CollectionItemUpdateInput!
+  ) {
+    bulkUpdateCollectionItems(selector: $selector, input: $input) {
+      updatedCount
+    }
+  }
+`)
+
+export const BulkDeleteCollectionItemsDocument = graphql(`
+  mutation BulkDeleteCollectionItems($selector: CollectionItemSelector!) {
+    bulkDeleteCollectionItems(selector: $selector) {
+      deletedCount
     }
   }
 `)
@@ -346,8 +320,12 @@ export const AddCollectionItemToDeckDocument = graphql(`
 `)
 
 export const BulkAddCollectionItemsToDeckDocument = graphql(`
-  mutation BulkAddCollectionItemsToDeck($ids: [ID!]!, $deckId: ID!, $zone: String) {
-    bulkAddCollectionItemsToDeck(ids: $ids, deckId: $deckId, zone: $zone) {
+  mutation BulkAddCollectionItemsToDeck(
+    $selector: CollectionItemSelector!
+    $deckId: ID!
+    $zone: String
+  ) {
+    bulkAddCollectionItemsToDeck(selector: $selector, deckId: $deckId, zone: $zone) {
       deckCards {
         id
         quantity
@@ -485,29 +463,6 @@ export const CollectionItemsPageDocument = graphql(`
               typeLine
             }
           }
-        }
-      }
-    }
-  }
-`)
-
-// Just the ids for the current filters/sort, used by "select all" so it doesn't
-// download every field of every page's items only to read their ids.
-export const CollectionItemIdsDocument = graphql(`
-  query CollectionItemIds(
-    $filters: CollectionItemFilters
-    $sort: CollectionItemSort
-    $first: Int!
-    $after: String
-  ) {
-    collectionItems(first: $first, after: $after, filters: $filters, sort: $sort) {
-      pageInfo {
-        endCursor
-        hasNextPage
-      }
-      edges {
-        node {
-          id
         }
       }
     }

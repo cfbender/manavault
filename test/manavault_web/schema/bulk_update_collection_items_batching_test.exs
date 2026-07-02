@@ -36,25 +36,26 @@ defmodule ManavaultWeb.Schema.BulkUpdateCollectionItemsBatchingTest do
       count_repo_queries(fn ->
         post(conn, "/api/graphql", %{
           "query" => """
-          mutation Bulk($ids: [ID!]!, $input: CollectionItemUpdateInput!) {
-            bulkUpdateCollectionItems(ids: $ids, input: $input) {
-              collectionItems { id finish }
+          mutation Bulk($selector: CollectionItemSelector!, $input: CollectionItemUpdateInput!) {
+            bulkUpdateCollectionItems(selector: $selector, input: $input) {
+              updatedCount
             }
           }
           """,
-          "variables" => %{"ids" => ids, "input" => %{"finish" => "foil"}}
+          "variables" => %{"selector" => %{"ids" => ids}, "input" => %{"finish" => "foil"}}
         })
       end)
 
-    items =
-      get_in(json_response(resp, 200), ["data", "bulkUpdateCollectionItems", "collectionItems"])
+    assert get_in(
+             json_response(resp, 200),
+             ["data", "bulkUpdateCollectionItems", "updatedCount"]
+           ) == @item_count
 
-    assert length(items) == @item_count
-    assert Enum.all?(items, &(&1["finish"] == "foil"))
+    assert Enum.all?(Catalog.list_collection_items(), &(&1.finish == "foil"))
 
-    # One fetch + per-item update/validate + a couple of batched preloads. The
-    # old path additionally re-fetched each item (get + 2 preloads) per item,
-    # pushing this to ~6 queries/item (~36 here); staying under 3x guards that.
+    # One fetch + per-item update/validate. The old path additionally
+    # re-fetched each item (get + 2 preloads) per item, pushing this to
+    # ~6 queries/item (~36 here); staying under 3x guards that.
     assert query_count <= @item_count * 3 + 4
   end
 

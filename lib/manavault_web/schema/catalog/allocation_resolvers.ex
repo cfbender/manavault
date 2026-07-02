@@ -4,7 +4,7 @@ defmodule ManavaultWeb.Schema.Catalog.AllocationResolvers do
   alias Manavault.Catalog
   alias Manavault.Catalog.DeckCard
   alias Manavault.Repo
-  alias ManavaultWeb.Schema.Catalog.Errors
+  alias ManavaultWeb.Schema.Catalog.{CollectionSelector, Errors}
   alias ManavaultWeb.Schema.RelayHelpers
 
   def add_collection_item_to_deck(_parent, %{id: id, deck_id: deck_id} = args, resolution) do
@@ -38,10 +38,10 @@ defmodule ManavaultWeb.Schema.Catalog.AllocationResolvers do
 
   def bulk_add_collection_items_to_deck(
         _parent,
-        %{ids: ids, deck_id: deck_id} = args,
+        %{selector: selector, deck_id: deck_id} = args,
         resolution
       ) do
-    with {:ok, ids} <- parse_node_ids(ids, :collection_item, resolution),
+    with {:ok, ids} <- CollectionSelector.collection_item_ids(selector, resolution),
          {:ok, deck_id} <- RelayHelpers.node_id(deck_id, :deck, resolution) do
       zone = Map.get(args, :zone, "mainboard")
 
@@ -141,20 +141,6 @@ defmodule ManavaultWeb.Schema.Catalog.AllocationResolvers do
         {:ok, result} -> {:ok, result}
         {:error, reason} -> {:error, Errors.deck_allocation_error(reason)}
       end
-    end
-  end
-
-  defp parse_node_ids(ids, expected_type, resolution) do
-    ids
-    |> Enum.reduce_while({:ok, []}, fn node_id, {:ok, parsed_ids} ->
-      case RelayHelpers.node_id(node_id, expected_type, resolution) do
-        {:ok, id} -> {:cont, {:ok, [id | parsed_ids]}}
-        {:error, message} -> {:halt, {:error, message}}
-      end
-    end)
-    |> case do
-      {:ok, parsed_ids} -> {:ok, Enum.reverse(parsed_ids)}
-      {:error, message} -> {:error, message}
     end
   end
 end

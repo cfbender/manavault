@@ -20,6 +20,7 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   defdelegate reload_scryfall_assets(parent, args, resolution), to: QueryResolvers
   defdelegate collection_items(parent, args, resolution), to: QueryResolvers
   defdelegate collection_item_count(parent, args, resolution), to: QueryResolvers
+  defdelegate collection_item_entry_count(parent, args, resolution), to: QueryResolvers
   defdelegate collection_value_summary(parent, args, resolution), to: QueryResolvers
   defdelegate collection_export_csv(parent, args, resolution), to: QueryResolvers
   defdelegate collection_export_text(parent, args, resolution), to: QueryResolvers
@@ -39,6 +40,7 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   defdelegate update_collection_item(parent, args, resolution), to: MutationResolvers
   defdelegate bulk_update_collection_items(parent, args, resolution), to: MutationResolvers
   defdelegate delete_collection_item(parent, args, resolution), to: MutationResolvers
+  defdelegate bulk_delete_collection_items(parent, args, resolution), to: MutationResolvers
   defdelegate add_collection_item_to_deck(parent, args, resolution), to: MutationResolvers
   defdelegate bulk_add_collection_items_to_deck(parent, args, resolution), to: MutationResolvers
   defdelegate create_location(parent, args, resolution), to: MutationResolvers

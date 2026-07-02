@@ -48,6 +48,23 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries do
     |> Repo.one()
   end
 
+  # Number of collection item rows (not summed quantities) matching the
+  # filters. Pagination must use this: quantity sums overshoot the row count,
+  # which keeps hasNextPage true past the last row and pages forever.
+  def count_item_entries(filters \\ []) when is_list(filters) do
+    filters
+    |> Base.base_query()
+    |> select([item, _printing, _card, _location], count(item.id))
+    |> Repo.one()
+  end
+
+  def list_item_ids(filters \\ []) when is_list(filters) do
+    filters
+    |> Base.base_query()
+    |> select([item, _printing, _card, _location], item.id)
+    |> Repo.all()
+  end
+
   def list_items_by_location(location_id, filters \\ [], opts \\ [])
       when is_list(filters) do
     filters

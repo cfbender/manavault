@@ -21,8 +21,16 @@ defmodule Manavault.Catalog.Collection do
     CardCollection.list_items(filters, opts)
   end
 
+  def list_collection_item_ids(filters \\ []) when is_list(filters) do
+    CardCollection.list_item_ids(filters)
+  end
+
   def count_collection_items(filters \\ []) when is_list(filters) do
     CardCollection.count_items(filters)
+  end
+
+  def count_collection_item_entries(filters \\ []) when is_list(filters) do
+    CardCollection.count_item_entries(filters)
   end
 
   def collection_value_summary(filters \\ []) when is_list(filters) do
@@ -80,33 +88,52 @@ defmodule Manavault.Catalog.Collection do
     |> Repo.update()
   end
 
+  # Chunk `id in ^ids` queries so selector-driven bulk operations over an
+  # entire collection stay under SQLite's bound-parameter limit.
+  @bulk_id_chunk 500
+
   def update_collection_items(ids, attrs) when is_list(ids) and is_map(attrs) do
     attrs = ItemAttrs.normalize(attrs)
 
     Repo.transaction(fn ->
-      # Fetch every target in one query instead of a Repo.get! per id.
+      # Fetch every target in chunked queries instead of a Repo.get! per id.
       items_by_id =
-        CollectionItem
-        |> where([item], item.id in ^ids)
-        |> Repo.all()
+        ids
+        |> Enum.chunk_every(@bulk_id_chunk)
+        |> Enum.flat_map(fn chunk ->
+          CollectionItem
+          |> where([item], item.id in ^chunk)
+          |> Repo.all()
+        end)
         |> Map.new(&{&1.id, &1})
 
-      updated =
-        Enum.map(ids, fn id ->
-          item = Map.get(items_by_id, id) || raise Ecto.NoResultsError, queryable: CollectionItem
+      Enum.map(ids, fn id ->
+        item = Map.get(items_by_id, id) || raise Ecto.NoResultsError, queryable: CollectionItem
 
-          item
-          |> CollectionItem.update_changeset(attrs)
-          |> ItemAttrs.validate_finish_available()
-          |> Repo.update()
-          |> case do
-            {:ok, item} -> item
-            {:error, changeset} -> Repo.rollback(changeset)
-          end
-        end)
+        item
+        |> CollectionItem.update_changeset(attrs)
+        |> ItemAttrs.validate_finish_available()
+        |> Repo.update()
+        |> case do
+          {:ok, item} -> item
+          {:error, changeset} -> Repo.rollback(changeset)
+        end
+      end)
+    end)
+  end
 
-      # Preload for callers in one batch (matches get_collection_item!/1).
-      Repo.preload(updated, printing: :card, location_assoc: [])
+  def delete_collection_items(ids) when is_list(ids) do
+    Repo.transaction(fn ->
+      ids
+      |> Enum.chunk_every(@bulk_id_chunk)
+      |> Enum.reduce(0, fn chunk, deleted ->
+        {count, _returning} =
+          CollectionItem
+          |> where([item], item.id in ^chunk)
+          |> Repo.delete_all()
+
+        deleted + count
+      end)
     end)
   end
 

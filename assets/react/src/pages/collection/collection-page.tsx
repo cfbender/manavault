@@ -40,11 +40,9 @@ import {
 import {
   AutoSortCollectionDocument,
   CollectionDocument,
-  CollectionItemIdsDocument,
   CollectionItemsPageDocument,
   DeleteLocationDocument,
 } from "./documents"
-import type { CollectionItemIdsQuery, CollectionItemIdsQueryVariables } from "../../gql/graphql"
 import { CollectionFilterModal } from "./filter-modal"
 import { ExportCollectionDialog, ImportCollectionDialog } from "./import-export-dialogs"
 import {
@@ -54,6 +52,7 @@ import {
   DeleteCollectionItemDialog,
   MoveCollectionItemDialog,
 } from "./item-dialogs"
+import { collectionSelectionTarget, type CollectionSelectionTarget } from "./item-target"
 import { AddLocationDialog, EditLocationDialog } from "./location-dialogs"
 import {
   CollectionBulkActionBar,
@@ -75,7 +74,6 @@ import {
 import type {
   AutoSortCollectionResult,
   CollectionExportFormat,
-  CollectionItem,
   CollectionSort,
   CollectionTab,
   LocationSummary,
@@ -195,12 +193,11 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
     format: CollectionExportFormat
     location: LocationSummary
   } | null>(null)
-  const [bulkDeckTarget, setBulkDeckTarget] = useState<CollectionItem[] | null>(null)
-  const [bulkListTarget, setBulkListTarget] = useState<CollectionItem[] | null>(null)
-  const [bulkMoveTarget, setBulkMoveTarget] = useState<CollectionItem[] | null>(null)
-  const [bulkEditTarget, setBulkEditTarget] = useState<CollectionItem[] | null>(null)
-  const [bulkDeleteTarget, setBulkDeleteTarget] = useState<CollectionItem[] | null>(null)
-  const [isSelectingAllCollectionItems, setIsSelectingAllCollectionItems] = useState(false)
+  const [bulkDeckTarget, setBulkDeckTarget] = useState<CollectionSelectionTarget | null>(null)
+  const [bulkListTarget, setBulkListTarget] = useState<CollectionSelectionTarget | null>(null)
+  const [bulkMoveTarget, setBulkMoveTarget] = useState<CollectionSelectionTarget | null>(null)
+  const [bulkEditTarget, setBulkEditTarget] = useState<CollectionSelectionTarget | null>(null)
+  const [bulkDeleteTarget, setBulkDeleteTarget] = useState<CollectionSelectionTarget | null>(null)
   const [isFetchingMoreAllItems, setIsFetchingMoreAllItems] = useState(false)
   const [structuredFilters, setStructuredFilters] = useLocalStorageState<CollectionFilterState>(
     COLLECTION_FILTERS_STORAGE_KEY,
@@ -251,7 +248,13 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
     [data?.locations],
   )
   const autoSortRules = data?.collectionAutoSortRules ?? []
-  const selection = useCollectionItemSelection(allCollectionItems)
+  const collectionEntryCount = data?.collectionItemEntryCount ?? 0
+  const selection = useCollectionItemSelection({
+    items: allCollectionItems,
+    totalCount: collectionEntryCount,
+    resetKey: JSON.stringify(filters),
+  })
+  const bulkSelectionTarget = () => collectionSelectionTarget(selection, filters)
   const [autoSortCollectionMutation, autoSortCollection] = useMutation(AutoSortCollectionDocument)
   const fetchMoreAllItemsPage = useCallback(
     (after: string | null | undefined) =>
@@ -284,7 +287,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
     unfiled: unfiledItemCount,
   }
   const loadMoreAllItems = useCallback(() => {
-    if (isSelectingAllCollectionItems || isFetchingMoreAllItems || !allItemsHasNextPage) return
+    if (isFetchingMoreAllItems || !allItemsHasNextPage) return
 
     setIsFetchingMoreAllItems(true)
     void fetchMoreAllItemsPage(allItemsPageInfo?.endCursor).finally(() =>
@@ -295,7 +298,6 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
     allItemsPageInfo?.endCursor,
     fetchMoreAllItemsPage,
     isFetchingMoreAllItems,
-    isSelectingAllCollectionItems,
   ])
   const locationGroups = useMemo(() => {
     const groups = new Map<string, typeof locations>()
@@ -382,53 +384,6 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
   function changeCollectionSort(nextSort: CollectionSort) {
     if (activeTab === "recent") setActiveTab("all")
     setSort(nextSort)
-  }
-
-  async function selectAllCollectionItems() {
-    if (isSelectingAllCollectionItems || isFetchingMoreAllItems) return
-
-    // Every match is already loaded — select from what we have, no fetch.
-    if (!allItemsPageInfo?.hasNextPage) {
-      selection.selectItems(allCollectionItems)
-      return
-    }
-
-    setIsSelectingAllCollectionItems(true)
-    try {
-      const ids: string[] = []
-      let after: string | null | undefined = null
-      let hasNextPage = true
-
-      // Page through ids only, rather than re-downloading every field of every
-      // item. no-cache keeps this out of the grid's relayStylePagination bucket
-      // (same filters/sort), so it can't disturb the visible pagination.
-      while (hasNextPage) {
-        const variables: CollectionItemIdsQueryVariables = {
-          filters,
-          sort: collectionItemSort,
-          first: COLLECTION_PAGE_SIZE,
-          after: after ?? null,
-        }
-
-        const connection = await client
-          .query({ query: CollectionItemIdsDocument, variables, fetchPolicy: "no-cache" })
-          .then(
-            (result): CollectionItemIdsQuery["collectionItems"] | undefined =>
-              result.data?.collectionItems,
-          )
-
-        for (const node of connection?.edges?.map((edge) => edge?.node).filter(present) ?? []) {
-          ids.push(node.id)
-        }
-
-        hasNextPage = connection?.pageInfo?.hasNextPage ?? false
-        after = connection?.pageInfo?.endCursor
-      }
-
-      selection.selectIds(ids)
-    } finally {
-      setIsSelectingAllCollectionItems(false)
-    }
   }
 
   function finishBulkCollectionAction() {
@@ -587,19 +542,17 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
           ) : null}
 
           <CollectionBulkActionBar
-            allLoadedSelected={selection.allLoadedSelected}
-            hasNextPage={allItemsHasNextPage}
-            isSelectAllPending={isSelectingAllCollectionItems || isFetchingMoreAllItems}
-            loadedCount={allCollectionItems.length}
+            allSelected={selection.allSelected}
+            selectableCount={collectionEntryCount || allCollectionItems.length}
             selectedCount={selection.selectedCount}
             selectionActive={selection.selectionActive}
-            onAddToDeck={() => setBulkDeckTarget(selection.selectedItems)}
-            onAddToList={() => setBulkListTarget(selection.selectedItems)}
+            onAddToDeck={() => setBulkDeckTarget(bulkSelectionTarget())}
+            onAddToList={() => setBulkListTarget(bulkSelectionTarget())}
             onClear={selection.clearSelection}
-            onDelete={() => setBulkDeleteTarget(selection.selectedItems)}
-            onEdit={() => setBulkEditTarget(selection.selectedItems)}
-            onMove={() => setBulkMoveTarget(selection.selectedItems)}
-            onSelectAll={() => void selectAllCollectionItems()}
+            onDelete={() => setBulkDeleteTarget(bulkSelectionTarget())}
+            onEdit={() => setBulkEditTarget(bulkSelectionTarget())}
+            onMove={() => setBulkMoveTarget(bulkSelectionTarget())}
+            onSelectAll={selection.selectAll}
           />
 
           <PageSection count={collectionCountLabel}>
@@ -609,10 +562,10 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
               <VirtualizedCollectionGrid
                 hasNextPage={allItemsHasNextPage}
                 isFetchingNextPage={isFetchingMoreAllItems}
+                isSelected={selection.isSelected}
                 items={allCollectionItems}
                 onLoadMore={loadMoreAllItems}
                 onToggleSelected={selection.toggleItem}
-                selectedIds={selection.selectedIds}
                 selectionActive={selection.selectionActive}
               />
             )}

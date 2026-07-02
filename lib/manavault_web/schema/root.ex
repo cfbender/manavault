@@ -67,6 +67,13 @@ defmodule ManavaultWeb.Schema do
       resolve(&CatalogResolvers.collection_item_count/3)
     end
 
+    # Number of collection item rows matching the filters (collection_item_count
+    # sums quantities). Drives the "N selected" math for select-all.
+    field :collection_item_entry_count, non_null(:integer) do
+      arg(:filters, :collection_item_filters)
+      resolve(&CatalogResolvers.collection_item_entry_count/3)
+    end
+
     field :collection_value_summary, non_null(:collection_value_summary) do
       resolve(&CatalogResolvers.collection_value_summary/3)
     end
@@ -286,11 +293,11 @@ defmodule ManavaultWeb.Schema do
     end
 
     payload field :bulk_update_collection_items do
-      arg(:ids, non_null(list_of(non_null(:id))))
+      arg(:selector, non_null(:collection_item_selector))
       arg(:input, non_null(:collection_item_update_input))
 
       output do
-        field :collection_items, non_null(list_of(non_null(:collection_item)))
+        field :updated_count, non_null(:integer)
       end
 
       resolve(fn parent, args, resolution ->
@@ -299,7 +306,25 @@ defmodule ManavaultWeb.Schema do
           args,
           resolution,
           &CatalogResolvers.bulk_update_collection_items/3,
-          :collection_items
+          :updated_count
+        )
+      end)
+    end
+
+    payload field :bulk_delete_collection_items do
+      arg(:selector, non_null(:collection_item_selector))
+
+      output do
+        field :deleted_count, non_null(:integer)
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &CatalogResolvers.bulk_delete_collection_items/3,
+          :deleted_count
         )
       end)
     end
@@ -343,7 +368,7 @@ defmodule ManavaultWeb.Schema do
     end
 
     payload field :bulk_add_collection_items_to_deck do
-      arg(:ids, non_null(list_of(non_null(:id))))
+      arg(:selector, non_null(:collection_item_selector))
       arg(:deck_id, non_null(:id))
       arg(:zone, :string, default_value: "mainboard")
 

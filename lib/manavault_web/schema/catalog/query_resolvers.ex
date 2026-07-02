@@ -66,8 +66,10 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
   end
 
   def collection_items(_parent, args, resolution) do
+    # Paginate on the row count: count_collection_items sums quantities, which
+    # overshoots the rows and keeps hasNextPage true past the last real page.
     with {:ok, filters} <- collection_filters(args, resolution),
-         total_count <- Catalog.count_collection_items(filters),
+         total_count <- Catalog.count_collection_item_entries(filters),
          {:ok, offset, limit} <- RelayHelpers.slice_window(args, total_count, 100) do
       opts = [limit: limit, offset: offset, sort: Map.get(args, :sort, %{})]
 
@@ -80,6 +82,12 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
   def collection_item_count(_parent, args, resolution) do
     with {:ok, filters} <- collection_filters(args, resolution) do
       {:ok, Catalog.count_collection_items(filters)}
+    end
+  end
+
+  def collection_item_entry_count(_parent, args, resolution) do
+    with {:ok, filters} <- collection_filters(args, resolution) do
+      {:ok, Catalog.count_collection_item_entries(filters)}
     end
   end
 
@@ -170,7 +178,9 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
     end
   end
 
-  defp collection_filters(args, resolution) do
+  # Public so mutation resolvers can parse a selector's filters the same way
+  # the list/count queries do.
+  def collection_filters(args, resolution) do
     with {:ok, filters} <-
            args
            |> Map.get(:filters, %{})

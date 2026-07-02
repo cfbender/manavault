@@ -245,20 +245,17 @@ defmodule ManavaultWeb.Schema.CollectionItemsTest do
     conn =
       post(conn, "/api/graphql", %{
         "query" => """
-        mutation BulkUpdateCollectionItems($ids: [ID!]!, $input: CollectionItemUpdateInput!) {
-          bulkUpdateCollectionItems(ids: $ids, input: $input) {
-            collectionItems {
-              id
-              quantity
-              finish
-              purchasePriceCents
-              purchasePriceText
-            }
+        mutation BulkUpdateCollectionItems(
+          $selector: CollectionItemSelector!
+          $input: CollectionItemUpdateInput!
+        ) {
+          bulkUpdateCollectionItems(selector: $selector, input: $input) {
+            updatedCount
           }
         }
         """,
         "variables" => %{
-          "ids" => ids,
+          "selector" => %{"ids" => ids},
           "input" => %{
             "finish" => "foil",
             "purchasePriceCents" => 1234
@@ -268,23 +265,14 @@ defmodule ManavaultWeb.Schema.CollectionItemsTest do
 
     assert %{
              "data" => %{
-               "bulkUpdateCollectionItems" => %{
-                 "collectionItems" => [
-                   %{
-                     "quantity" => 1,
-                     "finish" => "foil",
-                     "purchasePriceCents" => 1234,
-                     "purchasePriceText" => "$12.34"
-                   },
-                   %{
-                     "quantity" => 2,
-                     "finish" => "foil",
-                     "purchasePriceCents" => 1234,
-                     "purchasePriceText" => "$12.34"
-                   }
-                 ]
-               }
+               "bulkUpdateCollectionItems" => %{"updatedCount" => 2}
              }
            } = json_response(conn, 200)
+
+    for item <- [first_item, second_item] do
+      updated = Catalog.get_collection_item!(item.id)
+      assert updated.finish == "foil"
+      assert updated.purchase_price_cents == 1234
+    end
   end
 end

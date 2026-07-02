@@ -11,10 +11,11 @@ import {
 } from "../../components/ui/dialog"
 import { useToast } from "../../components/ui/toast"
 import { pluralize } from "../../lib/utils"
-import { DeleteCollectionItemDocument } from "./documents"
+import { BulkDeleteCollectionItemsDocument } from "./documents"
 import {
-  collectionTargetItems,
+  collectionTargetCount,
   collectionTargetLabel,
+  collectionTargetSelector,
   type CollectionItemTarget,
 } from "./item-target"
 
@@ -29,38 +30,37 @@ export function DeleteCollectionItemDialog({
 }) {
   const { showToast } = useToast()
   const [error, setError] = useState<string | null>(null)
-  const targetItems = collectionTargetItems(item)
-  const targetCount = targetItems.length
+  const targetCount = collectionTargetCount(item)
   const open = targetCount > 0
-  const [deleteItemMutation, deleteItem] = useMutation(DeleteCollectionItemDocument)
+  const [deleteItemsMutation, deleteItems] = useMutation(BulkDeleteCollectionItemsDocument)
 
   useEffect(() => {
     if (!open) setError(null)
   }, [open])
 
-  function deleteItems() {
+  function deleteTargetItems() {
     setError(null)
 
-    if (!targetItems.length) {
+    if (!targetCount) {
       setError("Choose at least one item")
       return
     }
 
-    void Promise.all(
-      targetItems.map((targetItem) => deleteItemMutation({ variables: { id: targetItem.id } })),
-    )
-      .then(() => {
-        showToast(`${pluralize(targetCount, "card")} deleted`)
+    void deleteItemsMutation({
+      variables: { selector: collectionTargetSelector(item) },
+      onCompleted: (data) => {
+        const deleted = data.bulkDeleteCollectionItems?.deletedCount ?? targetCount
+        showToast(`${pluralize(deleted, "card")} deleted`)
         onDone()
         onOpenChange(false)
-      })
-      .catch((error) =>
+      },
+      onError: (error) =>
         setError(error instanceof Error ? error.message : "Could not delete collection items"),
-      )
+    })
   }
 
   function close() {
-    if (deleteItem.loading) return
+    if (deleteItems.loading) return
     onOpenChange(false)
   }
 
@@ -88,17 +88,17 @@ export function DeleteCollectionItemDialog({
             </p>
           ) : null}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={close} disabled={deleteItem.loading}>
+            <Button type="button" variant="ghost" onClick={close} disabled={deleteItems.loading}>
               Cancel
             </Button>
             <Button
               type="button"
               variant="destructive"
-              onClick={deleteItems}
-              disabled={deleteItem.loading}
+              onClick={deleteTargetItems}
+              disabled={deleteItems.loading}
             >
               <Trash2 className="h-4 w-4" />
-              {deleteItem.loading
+              {deleteItems.loading
                 ? "Deleting..."
                 : targetCount > 1
                   ? `Delete ${targetCount}`

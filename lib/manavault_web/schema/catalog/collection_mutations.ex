@@ -2,7 +2,7 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionMutations do
   @moduledoc false
 
   alias Manavault.Catalog
-  alias ManavaultWeb.Schema.Catalog.Errors
+  alias ManavaultWeb.Schema.Catalog.{CollectionSelector, Errors}
   alias ManavaultWeb.Schema.RelayHelpers
 
   def create_collection_item(_parent, %{input: input}, resolution) do
@@ -26,14 +26,21 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionMutations do
     end
   end
 
-  def bulk_update_collection_items(_parent, %{ids: ids, input: input}, resolution) do
-    with {:ok, %{ids: ids}} <-
-           RelayHelpers.put_node_ids_arg(%{ids: ids}, :ids, :collection_item, resolution),
+  def bulk_update_collection_items(_parent, %{selector: selector, input: input}, resolution) do
+    with {:ok, ids} <- CollectionSelector.collection_item_ids(selector, resolution),
          {:ok, input} <- normalize_collection_item_input(input, resolution) do
       case Catalog.update_collection_items(ids, input) do
-        # update_collection_items already returns items with the needed preloads.
-        {:ok, items} -> {:ok, items}
+        {:ok, items} -> {:ok, length(items)}
         {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+      end
+    end
+  end
+
+  def bulk_delete_collection_items(_parent, %{selector: selector}, resolution) do
+    with {:ok, ids} <- CollectionSelector.collection_item_ids(selector, resolution) do
+      case Catalog.delete_collection_items(ids) do
+        {:ok, count} -> {:ok, count}
+        {:error, _reason} -> {:error, "Could not delete collection items"}
       end
     end
   end

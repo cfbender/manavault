@@ -16,8 +16,9 @@ import {
   CollectionItemDeckOptionsDocument,
 } from "./documents"
 import {
-  collectionTargetItems,
+  collectionTargetCount,
   collectionTargetLabel,
+  collectionTargetSelector,
   type CollectionItemTarget,
 } from "./item-target"
 
@@ -34,8 +35,7 @@ export function AddCollectionItemToDeckDialog({
   const [deckId, setDeckId] = useState("")
   const [zone, setZone] = useState("mainboard")
   const [error, setError] = useState<string | null>(null)
-  const targetItems = collectionTargetItems(item)
-  const targetCount = targetItems.length
+  const targetCount = collectionTargetCount(item)
   const open = targetCount > 0
   const decksQuery = useQuery(CollectionItemDeckOptionsDocument, {
     skip: !open,
@@ -59,7 +59,7 @@ export function AddCollectionItemToDeckDialog({
     event.preventDefault()
     setError(null)
 
-    if (!targetItems.length) {
+    if (!targetCount) {
       setError("Choose at least one item")
       return
     }
@@ -71,7 +71,7 @@ export function AddCollectionItemToDeckDialog({
 
     void addToDeckMutation({
       variables: {
-        ids: targetItems.map((targetItem) => targetItem.id),
+        selector: collectionTargetSelector(item),
         deckId,
         zone,
       },
