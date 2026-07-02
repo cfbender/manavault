@@ -31,7 +31,8 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionMutations do
            RelayHelpers.put_node_ids_arg(%{ids: ids}, :ids, :collection_item, resolution),
          {:ok, input} <- normalize_collection_item_input(input, resolution) do
       case Catalog.update_collection_items(ids, input) do
-        {:ok, items} -> {:ok, Enum.map(items, &Catalog.get_collection_item!(&1.id))}
+        # update_collection_items already returns items with the needed preloads.
+        {:ok, items} -> {:ok, items}
         {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
       end
     end

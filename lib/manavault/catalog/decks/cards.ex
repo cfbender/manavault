@@ -44,13 +44,21 @@ defmodule Manavault.Catalog.Decks.Cards do
 
   def update_deck_cards_tag(deck_card_ids, tag) when is_list(deck_card_ids) do
     normalized_tag = normalize_deck_card_tag(tag)
+    deck_card_ids = Enum.uniq(deck_card_ids)
 
     Repo.transact(fn ->
+      # Fetch every target in one query instead of a Repo.get! per id.
+      deck_cards_by_id =
+        DeckCard
+        |> where([deck_card], deck_card.id in ^deck_card_ids)
+        |> Repo.all()
+        |> Map.new(&{&1.id, &1})
+
       deck_cards =
-        deck_card_ids
-        |> Enum.uniq()
-        |> Enum.map(fn deck_card_id ->
-          deck_card = Repo.get!(DeckCard, deck_card_id)
+        Enum.map(deck_card_ids, fn deck_card_id ->
+          deck_card =
+            Map.get(deck_cards_by_id, deck_card_id) ||
+              raise Ecto.NoResultsError, queryable: DeckCard
 
           case update_deck_card(deck_card, %{"tag" => normalized_tag}) do
             {:ok, deck_card} -> deck_card

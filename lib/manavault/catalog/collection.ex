@@ -84,18 +84,29 @@ defmodule Manavault.Catalog.Collection do
     attrs = ItemAttrs.normalize(attrs)
 
     Repo.transaction(fn ->
-      Enum.map(ids, fn id ->
-        item = Repo.get!(CollectionItem, id)
+      # Fetch every target in one query instead of a Repo.get! per id.
+      items_by_id =
+        CollectionItem
+        |> where([item], item.id in ^ids)
+        |> Repo.all()
+        |> Map.new(&{&1.id, &1})
 
-        item
-        |> CollectionItem.update_changeset(attrs)
-        |> ItemAttrs.validate_finish_available()
-        |> Repo.update()
-        |> case do
-          {:ok, item} -> item
-          {:error, changeset} -> Repo.rollback(changeset)
-        end
-      end)
+      updated =
+        Enum.map(ids, fn id ->
+          item = Map.get(items_by_id, id) || raise Ecto.NoResultsError, queryable: CollectionItem
+
+          item
+          |> CollectionItem.update_changeset(attrs)
+          |> ItemAttrs.validate_finish_available()
+          |> Repo.update()
+          |> case do
+            {:ok, item} -> item
+            {:error, changeset} -> Repo.rollback(changeset)
+          end
+        end)
+
+      # Preload for callers in one batch (matches get_collection_item!/1).
+      Repo.preload(updated, printing: :card, location_assoc: [])
     end)
   end
 
