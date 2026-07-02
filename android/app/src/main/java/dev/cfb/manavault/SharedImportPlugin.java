@@ -151,7 +151,7 @@ public class SharedImportPlugin extends Plugin {
         if (data == null) data = firstStreamUri(context, intent);
 
         if (isManaVaultLink(context, data)) return linkPayload(data.toString(), "android-view");
-        if (!isViewFileUri(data)) return null;
+        if (!isReadableContentUri(data)) return null;
 
         ContentResolver resolver = context.getContentResolver();
         String intentMimeType = intent.getType();
@@ -176,11 +176,13 @@ public class SharedImportPlugin extends Plugin {
         );
     }
 
-    private boolean isViewFileUri(Uri uri) {
+    // Only content:// URIs, which carry an explicit read grant from the sender.
+    // file:// URIs carry no grant and were the vector for reading arbitrary
+    // app-readable paths supplied as shared text, so they are no longer honored.
+    private boolean isReadableContentUri(Uri uri) {
         if (uri == null) return false;
 
-        String scheme = uri.getScheme();
-        return "content".equalsIgnoreCase(scheme) || "file".equalsIgnoreCase(scheme);
+        return "content".equalsIgnoreCase(uri.getScheme());
     }
 
     private String resolverMimeType(ContentResolver resolver, Uri uri) {
@@ -258,13 +260,12 @@ public class SharedImportPlugin extends Plugin {
 
         addUri(uris, intent.getData());
         addStreamExtraUris(uris, intent);
-        addTextUri(uris, intent.getCharSequenceExtra(Intent.EXTRA_TEXT));
 
         ClipData clipData = intent.getClipData();
         debug("Shared import clip item count=" + (clipData == null ? 0 : clipData.getItemCount()));
         if (clipData != null) {
             for (int index = 0; index < clipData.getItemCount(); index++) {
-                addClipItemUris(context, uris, clipData.getItemAt(index));
+                addClipItemUris(uris, clipData.getItemAt(index));
             }
         }
 
@@ -276,23 +277,15 @@ public class SharedImportPlugin extends Plugin {
         return uris.isEmpty() ? null : uris.get(0);
     }
 
-    private void addClipItemUris(Context context, ArrayList<Uri> uris, ClipData.Item item) {
+    private void addClipItemUris(ArrayList<Uri> uris, ClipData.Item item) {
         if (item == null) return;
 
         addUri(uris, item.getUri());
-        addTextUri(uris, item.getText());
 
         Intent nestedIntent = item.getIntent();
         if (nestedIntent != null) {
             addUri(uris, nestedIntent.getData());
             addStreamExtraUris(uris, nestedIntent);
-            addTextUri(uris, nestedIntent.getCharSequenceExtra(Intent.EXTRA_TEXT));
-        }
-
-        try {
-            addTextUri(uris, item.coerceToText(context));
-        } catch (SecurityException ignored) {
-            // Some providers expose URI clips without granting text coercion access.
         }
     }
 
@@ -319,14 +312,10 @@ public class SharedImportPlugin extends Plugin {
         }
     }
 
-    private void addTextUri(ArrayList<Uri> uris, CharSequence value) {
-        addUri(uris, fileUriFromSharedText(value));
-    }
-
     private void addUri(ArrayList<Uri> uris, Uri uri) {
         if (uri == null) return;
-        if (!isViewFileUri(uri)) {
-            debug("Ignoring non-file shared URI " + describeUri(uri));
+        if (!isReadableContentUri(uri)) {
+            debug("Ignoring non-content shared URI " + describeUri(uri));
             return;
         }
         if (uris.contains(uri)) return;
@@ -336,7 +325,7 @@ public class SharedImportPlugin extends Plugin {
 
     private String firstSharedText(Context context, Intent intent) {
         String extraText = nonBlank(intent.getCharSequenceExtra(Intent.EXTRA_TEXT));
-        if (extraText != null && fileUriFromSharedText(extraText) == null) return extraText;
+        if (extraText != null) return extraText;
 
         ClipData clipData = intent.getClipData();
         if (clipData == null) return null;
@@ -344,12 +333,11 @@ public class SharedImportPlugin extends Plugin {
         for (int index = 0; index < clipData.getItemCount(); index++) {
             ClipData.Item item = clipData.getItemAt(index);
             String text = nonBlank(item.getText());
-            if (text != null && fileUriFromSharedText(text) == null) return text;
+            if (text != null) return text;
 
             try {
-                CharSequence coercedText = item.coerceToText(context);
-                text = nonBlank(coercedText);
-                if (text != null && fileUriFromSharedText(text) == null) return text;
+                text = nonBlank(item.coerceToText(context));
+                if (text != null) return text;
             } catch (SecurityException ignored) {
                 // Some providers expose URI clips without granting text coercion access.
             }
@@ -363,19 +351,6 @@ public class SharedImportPlugin extends Plugin {
 
         String text = value.toString();
         return text.trim().isEmpty() ? null : text;
-    }
-
-    private Uri fileUriFromSharedText(CharSequence value) {
-        String text = nonBlank(value);
-        if (text == null) return null;
-
-        String trimmed = text.trim();
-        int newline = trimmed.indexOf('\n');
-        String candidate = newline >= 0 ? trimmed.substring(0, newline).trim() : trimmed;
-        if (candidate.isEmpty()) return null;
-
-        Uri uri = Uri.parse(candidate);
-        return isViewFileUri(uri) ? uri : null;
     }
 
     private Uri linkFromSharedText(Context context, String text) {
