@@ -1,2 +1,0 @@
-- try quantity in middle top on card tile
-  - have gamechanger take priority as a combined tag (ie Game Changer (2))

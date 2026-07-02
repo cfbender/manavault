@@ -172,17 +172,19 @@ export function SparkleIcon({ className }: { className?: string }) {
   return <Star className={className} />
 }
 
-export function GameChangerBadge({ className }: { className?: string }) {
+export function GameChangerBadge({ className, count }: { className?: string; count?: number }) {
+  const label = count && count > 1 ? `Game Changer (${count})` : "Game Changer"
+
   return (
     <Badge
       tone="warning"
-      title="Game Changer"
+      title={label}
       className={cn(
         "whitespace-nowrap border-warning bg-warning px-2 text-[0.6rem] font-black uppercase tracking-[0.12em] text-warning-content shadow-sm",
         className,
       )}
     >
-      Game Changer
+      {label}
     </Badge>
   )
 }

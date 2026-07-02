@@ -405,11 +405,12 @@ export function DeckStackCard({
             ) : null}
 
             {isGameChanger ? (
-              <GameChangerBadge className="absolute left-1/2 top-1 z-20 -translate-x-1/2 shadow-lg" />
-            ) : null}
-
-            {deckCard.quantity > 1 ? (
-              <span className="absolute right-2 top-14 z-20 rounded-md bg-primary px-2.5 py-1.5 text-sm font-black leading-none text-primary-content shadow-lg">
+              <GameChangerBadge
+                className="absolute left-1/2 top-1 z-20 -translate-x-1/2 shadow-lg"
+                count={deckCard.quantity}
+              />
+            ) : deckCard.quantity > 1 ? (
+              <span className="absolute left-1/2 top-1 z-20 -translate-x-1/2 rounded-md bg-primary px-2.5 py-1.5 text-sm font-black leading-none text-primary-content shadow-lg">
                 {deckCard.quantity}
               </span>
             ) : null}

@@ -341,23 +341,19 @@ export function CardTile({
           <div className="absolute inset-0 z-10 bg-black/45" aria-hidden="true" />
         ) : null}
 
-        {allocatedLabel ? (
-          <div className="absolute left-0 right-0 top-0 z-30 flex justify-center">
-            <span className="rounded-b-md bg-neutral px-3 py-1 text-[0.68rem] font-black uppercase tracking-normal text-neutral-content shadow-lg">
-              {allocatedLabel}
-            </span>
+        {allocatedLabel || (count && count >= countMin) ? (
+          <div className="absolute left-0 right-0 top-0 z-40 flex flex-col items-center">
+            {allocatedLabel ? (
+              <span className="rounded-b-md bg-neutral px-3 py-1 text-[0.68rem] font-black uppercase tracking-normal text-neutral-content shadow-lg">
+                {allocatedLabel}
+              </span>
+            ) : null}
+            {count && count >= countMin ? (
+              <span className="rounded-b-md bg-primary px-2.5 py-1 text-sm font-black leading-none text-primary-content shadow-lg">
+                {count}
+              </span>
+            ) : null}
           </div>
-        ) : null}
-
-        {count && count >= countMin ? (
-          <span
-            className={cn(
-              "absolute right-0 z-40 rounded-bl-xl bg-primary px-2.5 py-1.5 text-sm font-black leading-none text-primary-content shadow-lg",
-              canToggleSelection ? "top-9" : "top-0",
-            )}
-          >
-            {count}
-          </span>
         ) : null}
 
         <div
