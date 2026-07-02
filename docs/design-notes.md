@@ -1,5 +1,3 @@
-- remove mana cost vs production middle section (the full composed view)
-  - be sure to keep mana curve and the individual color breakdown, just remove the section with the two horizontal bars of all colors and the text around it
 - deck card icon buttons fixes
   - 12x12 icons on desktop, 16x16 on mobile
   - transparent background, keep the same 48x48 tap zone on mobile

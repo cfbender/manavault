@@ -3,10 +3,8 @@ import { ManaSymbol } from "../../components/ui/mana-symbols"
 import { MANA_STAT_COLORS, type DeckStats } from "../../lib/deck-stats"
 import { cn } from "../../lib/utils"
 import {
-  MANA_ANY_PRODUCTION_COLOR,
   MANA_BALANCE_COLORS,
   MANA_COLOR_LABELS,
-  MANA_EMPTY_BAR_COLOR,
   canSpendFlexibleManaOn,
   formatCardCount,
   manaBalanceSelectionDetail,
@@ -17,7 +15,6 @@ import {
   practicalManaProduction,
   sameManaBalanceSelection,
   type HighlightDeckCards,
-  type ManaBalanceSegment,
   type ManaBalanceSelection,
   type ManaStatColor,
 } from "./mana-balance-model"
@@ -80,8 +77,6 @@ export function ManaBalanceComparison({
     }
   })
   const costTotal = rows.reduce((total, row) => total + row.cost, 0)
-  const coloredProductionTotal = rows.reduce((total, row) => total + row.explicitProduction, 0)
-  const productionTotal = coloredProductionTotal + anyProduction
   const coveredCost = rows.reduce((total, row) => total + Math.min(row.cost, row.production), 0)
   const remainingShortage = rows.reduce(
     (total, row) => total + Math.max(0, row.cost - row.production),
@@ -90,43 +85,6 @@ export function ManaBalanceComparison({
   const coveragePercent =
     costTotal === 0 ? 0 : Math.min(100, Math.round((coveredCost / costTotal) * 100))
   const maxRowValue = Math.max(1, ...rows.flatMap((row) => [row.cost, row.production]))
-  const costSegments = rows
-    .filter((row) => row.cost > 0)
-    .map((row) => ({
-      key: row.color,
-      label: row.label,
-      value: row.cost,
-      color: MANA_BALANCE_COLORS[row.color],
-      ariaLabel: `Show ${row.label} cost contributors, ${row.cost} pips`,
-      isActive: selection?.mode === "cost" && selection.color === row.color,
-      onSelect: () => selectManaBalance({ mode: "cost", color: row.color }),
-    }))
-  const productionSegments: ManaBalanceSegment[] = [
-    ...rows
-      .filter((row) => row.explicitProduction > 0)
-      .map((row) => ({
-        key: row.color,
-        label: row.label,
-        value: row.explicitProduction,
-        color: MANA_BALANCE_COLORS[row.color],
-        ariaLabel: `Show ${row.label} production contributors, including flexible sources where applicable`,
-        isActive: selection?.mode === "production" && selection.color === row.color,
-        onSelect: () => selectManaBalance({ mode: "production", color: row.color }),
-      })),
-    ...(anyProduction > 0
-      ? [
-          {
-            key: "any",
-            label: "Any",
-            value: anyProduction,
-            color: MANA_ANY_PRODUCTION_COLOR,
-            ariaLabel: `Show flexible any-color production contributors, ${anyProduction} mana`,
-            isActive: selection?.mode === "production" && selection.color === "any",
-            onSelect: () => selectManaBalance({ mode: "production", color: "any" }),
-          },
-        ]
-      : []),
-  ]
   const selectedDetail = manaBalanceSelectionDetail(selection, rows, anyProduction, anyContributors)
 
   function selectManaBalance(nextSelection: ManaBalanceSelection) {
@@ -154,18 +112,12 @@ export function ManaBalanceComparison({
   return (
     <section className="border-t border-base-300 pt-4" aria-labelledby="deck-stats-mana-balance">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3
-            id="deck-stats-mana-balance"
-            className="text-xs font-black uppercase tracking-[0.16em] text-base-content/55"
-          >
-            Mana cost vs production
-          </h3>
-          <p className="mt-1 max-w-xl text-sm text-base-content/60">
-            Colored pips compared with practical production. Flexible sources count toward W/U/B/R/G
-            coverage.
-          </p>
-        </div>
+        <h3
+          id="deck-stats-mana-balance"
+          className="text-xs font-black uppercase tracking-[0.16em] text-base-content/55"
+        >
+          Mana cost vs production
+        </h3>
         <div className="flex flex-wrap items-center gap-2">
           <div
             className={cn(
@@ -201,16 +153,7 @@ export function ManaBalanceComparison({
 
       <div className={cn("grid gap-4", selectedDetail && "xl:grid-cols-[minmax(0,1fr)_22rem]")}>
         <div className="min-w-0">
-          <div className="grid gap-3 border-b border-base-300 pb-4">
-            <ManaSegmentedBar label="Cost" total={costTotal} segments={costSegments} />
-            <ManaSegmentedBar
-              label="Production"
-              total={productionTotal}
-              segments={productionSegments}
-            />
-          </div>
-
-          <div className="mt-3 grid gap-2 lg:grid-cols-2">
+          <div className="grid gap-2 lg:grid-cols-2">
             {rows.map((row) => (
               <ManaBalanceRow
                 key={row.color}
@@ -238,13 +181,6 @@ export function ManaBalanceComparison({
               />
             ))}
           </div>
-
-          {anyProduction > 0 ? (
-            <p className="mt-3 max-w-3xl text-sm text-base-content/65">
-              Flexible production stays distinct above and still counts toward each W/U/B/R/G row's
-              practical coverage.
-            </p>
-          ) : null}
         </div>
 
         {selectedDetail ? (
@@ -252,110 +188,6 @@ export function ManaBalanceComparison({
         ) : null}
       </div>
     </section>
-  )
-}
-
-export function ManaSegmentedBar({
-  label,
-  segments,
-  total,
-}: {
-  label: string
-  segments: ManaBalanceSegment[]
-  total: number
-}) {
-  const segmentSummary =
-    segments.length === 0
-      ? "no mana"
-      : segments.map((segment) => `${segment.label} ${segment.value}`).join(", ")
-
-  return (
-    <div className="grid gap-1.5">
-      <div className="flex items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.12em] text-base-content/55">
-        <span>{label}</span>
-        <span className="font-mono text-base-content/75">{total}</span>
-      </div>
-      <div
-        className="flex h-3 overflow-hidden rounded-full bg-base-300 shadow-inner"
-        role="group"
-        aria-label={`${label}: ${total} total, ${segmentSummary}`}
-      >
-        {total > 0 ? (
-          segments.map((segment) =>
-            segment.onSelect ? (
-              <button
-                key={segment.key}
-                type="button"
-                className={cn(
-                  "h-full min-w-0 cursor-pointer transition hover:brightness-110 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
-                  segment.isActive && "brightness-125 saturate-125",
-                )}
-                style={{
-                  flexBasis: `${(segment.value / total) * 100}%`,
-                  backgroundColor: segment.color,
-                }}
-                title={`${segment.label}: ${segment.value}`}
-                aria-label={segment.ariaLabel ?? `${label} ${segment.label}: ${segment.value}`}
-                aria-pressed={segment.isActive}
-                onClick={segment.onSelect}
-              />
-            ) : (
-              <span
-                key={segment.key}
-                className="h-full"
-                style={{
-                  flexBasis: `${(segment.value / total) * 100}%`,
-                  backgroundColor: segment.color,
-                }}
-                title={`${segment.label}: ${segment.value}`}
-              />
-            ),
-          )
-        ) : (
-          <span className="h-full w-full" style={{ backgroundColor: MANA_EMPTY_BAR_COLOR }} />
-        )}
-      </div>
-      <div className="flex flex-wrap gap-1.5 text-[0.68rem] font-bold text-base-content/55">
-        {segments.length > 0 ? (
-          segments.map((segment) =>
-            segment.onSelect ? (
-              <button
-                key={segment.key}
-                type="button"
-                className={cn(
-                  "inline-flex cursor-pointer items-center gap-1 whitespace-nowrap rounded-full bg-base-200 px-2 py-0.5 transition hover:bg-base-300 hover:text-base-content focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
-                  segment.isActive && "bg-base-300 text-base-content shadow-inner",
-                )}
-                aria-label={segment.ariaLabel ?? `${label} ${segment.label}: ${segment.value}`}
-                aria-pressed={segment.isActive}
-                onClick={segment.onSelect}
-              >
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ backgroundColor: segment.color }}
-                  aria-hidden="true"
-                />
-                {segment.label} {segment.value}
-              </button>
-            ) : (
-              <span
-                key={segment.key}
-                className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-base-200 px-2 py-0.5"
-              >
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ backgroundColor: segment.color }}
-                  aria-hidden="true"
-                />
-                {segment.label} {segment.value}
-              </span>
-            ),
-          )
-        ) : (
-          <span className="rounded-full bg-base-200 px-2 py-0.5">No mana</span>
-        )}
-      </div>
-    </div>
   )
 }
 

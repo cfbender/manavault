@@ -19,9 +19,6 @@ export const MANA_BALANCE_COLORS: Record<(typeof MANA_STAT_COLORS)[number], stri
   G: "#4ade80",
   C: "#94a3b8",
 }
-export const MANA_ANY_PRODUCTION_COLOR = "#d4d4d8"
-export const MANA_EMPTY_BAR_COLOR = "hsl(var(--b3))"
-
 export type ManaStatColor = (typeof MANA_STAT_COLORS)[number]
 export const FLEXIBLE_MANA_COLORS = new Set<ManaStatColor>(["W", "U", "B", "R", "G"])
 
@@ -35,15 +32,6 @@ export function sameManaBalanceSelection(
   right: ManaBalanceSelection,
 ) {
   return Boolean(left && left.mode === right.mode && left.color === right.color)
-}
-export type ManaBalanceSegment = {
-  key: string
-  label: string
-  value: number
-  color: string
-  ariaLabel?: string
-  isActive?: boolean
-  onSelect?: () => void
 }
 export type ManaProductionCards = Partial<Record<ManaContributorColor, number>>
 export type ManaContributor = {
