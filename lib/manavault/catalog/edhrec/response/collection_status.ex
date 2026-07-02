@@ -4,11 +4,14 @@ defmodule Manavault.Catalog.EDHRec.Response.CollectionStatus do
   import Ecto.Query
 
   alias Manavault.Catalog.{Card, CollectionItem, DeckAllocation, DeckCard}
+  alias Manavault.Catalog.Decks.AllocationStatus
   alias Manavault.Repo
 
+  # For a card that's already in the deck, reuse the canonical deck-card
+  # allocation status and present it as "allocated" with its zone.
   def status(_local_card, %DeckCard{} = deck_card) do
     deck_card
-    |> deck_card_allocation_status()
+    |> AllocationStatus.deck_card_allocation_status()
     |> Map.put(:state, :allocated)
     |> Map.put(:deck_zone, deck_card.zone)
     |> stringify_status()
@@ -83,97 +86,14 @@ defmodule Manavault.Catalog.EDHRec.Response.CollectionStatus do
     Map.put(status, :state, to_string(state))
   end
 
-  defp deck_card_allocation_status(%DeckCard{} = deck_card) do
-    deck_card = load_deck_card_for_allocation_status(deck_card)
-
-    candidates = collection_candidates(deck_card.oracle_id, deck_card.finish)
-    current_allocations = current_allocation_counts(deck_card.id)
-    other_allocations = other_reserving_allocation_counts(deck_card)
-
-    owned = Enum.reduce(candidates, 0, &(&1.quantity + &2))
-    proxy_allocated = deck_card.proxy_quantity || 0
-    physical_allocated = current_allocations |> Map.values() |> Enum.sum()
-    allocated = deck_card_allocated(deck_card, physical_allocated, proxy_allocated)
-    allocated_elsewhere = other_allocations |> Map.values() |> Enum.sum()
-
-    available =
-      Enum.reduce(candidates, 0, fn item, total ->
-        current = Map.get(current_allocations, item.id, 0)
-        elsewhere = Map.get(other_allocations, item.id, 0)
-        total + max(item.quantity - current - elsewhere, 0)
-      end)
-
-    missing = deck_card_missing(deck_card, allocated, available)
-
-    %{
-      state: deck_card_state(deck_card, allocated, available, owned),
-      required: deck_card.quantity,
-      owned: owned,
-      allocated: allocated,
-      proxy_allocated: proxy_allocated,
-      available: available,
-      allocated_elsewhere: allocated_elsewhere,
-      missing: missing,
-      candidates:
-        Enum.map(candidates, fn item ->
-          current = Map.get(current_allocations, item.id, 0)
-          elsewhere = Map.get(other_allocations, item.id, 0)
-
-          %{
-            item: item,
-            allocated: current,
-            allocated_elsewhere: elsewhere,
-            available: max(item.quantity - current - elsewhere, 0)
-          }
-        end)
-    }
-  end
-
-  defp load_deck_card_for_allocation_status(%DeckCard{id: nil} = deck_card) do
-    Repo.preload(deck_card, [:deck, :preferred_printing, card: [], deck_allocations: []])
-  end
-
-  defp load_deck_card_for_allocation_status(%DeckCard{id: id}) do
-    DeckCard
-    |> Repo.get!(id)
-    |> Repo.preload([:deck, :preferred_printing, card: [], deck_allocations: []])
-  end
-
-  defp deck_card_allocated(%DeckCard{} = deck_card, physical_allocated, proxy_allocated) do
-    if basic_land?(deck_card.card) do
-      deck_card.quantity
-    else
-      physical_allocated + proxy_allocated
-    end
-  end
-
-  defp deck_card_missing(%DeckCard{} = deck_card, allocated, available) do
-    if basic_land?(deck_card.card) do
-      0
-    else
-      max(deck_card.quantity - allocated - available, 0)
-    end
-  end
-
-  defp deck_card_state(%DeckCard{} = deck_card, allocated, available, owned) do
-    cond do
-      basic_land?(deck_card.card) -> :basic_land
-      allocated >= deck_card.quantity -> :allocated
-      allocated + available >= deck_card.quantity -> :available
-      allocated > 0 or owned > 0 -> :partial
-      true -> :missing
-    end
-  end
-
-  defp collection_candidates(oracle_id, finish \\ nil)
-
-  defp collection_candidates(oracle_id, finish) when is_binary(oracle_id) do
+  # Collection copies of a card across any owned printing (used for cards not in
+  # the deck; the in-deck path defers to AllocationStatus).
+  defp collection_candidates(oracle_id) when is_binary(oracle_id) do
     CollectionItem
     |> join(:inner, [item], printing in assoc(item, :printing))
     |> join(:inner, [_item, printing], card in assoc(printing, :card))
     |> join(:left, [item, _printing, _card], location in assoc(item, :location_assoc))
     |> where([_item, printing, _card, _location], printing.oracle_id == ^oracle_id)
-    |> maybe_filter_finish(finish)
     |> where([_item, _printing, _card, location], is_nil(location.id) or location.kind != "list")
     |> preload([_item, printing, card, location],
       printing: {printing, card: card},
@@ -188,36 +108,7 @@ defmodule Manavault.Catalog.EDHRec.Response.CollectionStatus do
     |> Repo.all()
   end
 
-  defp collection_candidates(_oracle_id, _finish), do: []
-
-  defp maybe_filter_finish(query, nil), do: query
-  defp maybe_filter_finish(query, finish), do: where(query, [item], item.finish == ^finish)
-
-  defp current_allocation_counts(deck_card_id) do
-    DeckAllocation
-    |> where([allocation], allocation.deck_card_id == ^deck_card_id)
-    |> group_by([allocation], allocation.collection_item_id)
-    |> select([allocation], {allocation.collection_item_id, sum(allocation.quantity)})
-    |> Repo.all()
-    |> Map.new()
-  end
-
-  defp other_reserving_allocation_counts(%DeckCard{} = deck_card) do
-    DeckAllocation
-    |> join(:inner, [allocation], allocated_card in assoc(allocation, :deck_card))
-    |> where(
-      [allocation, allocated_card],
-      allocated_card.id != ^deck_card.id and allocated_card.oracle_id == ^deck_card.oracle_id and
-        allocated_card.finish == ^deck_card.finish
-    )
-    |> group_by([allocation, _allocated_card], allocation.collection_item_id)
-    |> select(
-      [allocation, _allocated_card],
-      {allocation.collection_item_id, sum(allocation.quantity)}
-    )
-    |> Repo.all()
-    |> Map.new()
-  end
+  defp collection_candidates(_oracle_id), do: []
 
   defp allocation_counts_for_oracle_id(oracle_id) do
     DeckAllocation
