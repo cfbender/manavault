@@ -17,28 +17,22 @@ export type DeferredDeckAnalysis = {
   tokens: readonly DeckTokenSummary[]
 }
 
-export type DeferredDeckAnalysisState = DeferredDeckAnalysis & {
-  deckCards: DeckCardEntry[]
-}
-
 export function useDeferredDeckAnalysis(deckCards: DeckCardEntry[]) {
-  const [analysis, setAnalysis] = useState<DeferredDeckAnalysisState | null>(null)
+  const [analysis, setAnalysis] = useState<DeferredDeckAnalysis | null>(null)
 
   useEffect(() => {
     let cancelled = false
 
-    setAnalysis(null)
-
+    // Keep showing the previous analysis while the new one computes rather than
+    // blanking to null. Deck mutations hand us a fresh deckCards array on every
+    // click, so blanking made stats and tokens flash empty each time.
     const cancel = scheduleDeferredWork(() => {
       if (cancelled) return
 
-      const nextAnalysis = {
-        deckCards,
+      setAnalysis({
         stats: buildDeckStats(deckCards),
         tokens: buildDeckTokens(deckCards),
-      }
-
-      if (!cancelled) setAnalysis(nextAnalysis)
+      })
     })
 
     return () => {
@@ -47,7 +41,7 @@ export function useDeferredDeckAnalysis(deckCards: DeckCardEntry[]) {
     }
   }, [deckCards])
 
-  return analysis?.deckCards === deckCards ? analysis : null
+  return analysis
 }
 
 export function scheduleDeferredWork(callback: () => void) {
