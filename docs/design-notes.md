@@ -1,4 +1,3 @@
-- multi-select mobile mode unstack (show all flat and smaller) on deck view
 - icon buttons on collection view for less important actions
   - combine add card and add location to one button ("Add") that opens a dropdown to Add card or Add location (use plus icon from Add card)
   - rest as icon buttons

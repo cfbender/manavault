@@ -435,6 +435,65 @@ export function DeckStackCard({
   )
 }
 
+export function DeckUnstackedSelectCard({
+  deckCard,
+  isDimmed,
+  isSelected,
+  onToggleSelected,
+}: {
+  deckCard: DeckCardEntry
+  isDimmed: boolean
+  isSelected: boolean
+  onToggleSelected: (selectRange?: boolean) => void
+}) {
+  const imageUrl = cardImageUrl(deckCard, "imageUrl")
+  const name = deckCard.card?.name || "Unknown card"
+
+  return (
+    <button
+      type="button"
+      className={cn(
+        "relative block w-full text-left transition-[filter,opacity] duration-200 ease-out",
+        isDimmed && "opacity-30 saturate-50",
+      )}
+      aria-label={isSelected ? `Deselect ${name}` : `Select ${name}`}
+      aria-pressed={isSelected}
+      onClick={(event) => onToggleSelected(event.shiftKey)}
+    >
+      <figure
+        className={cn(
+          "relative aspect-[5/7] overflow-hidden rounded-lg bg-base-300 shadow ring-1 ring-white/10 transition duration-200",
+          isSelected && "shadow-lg ring-2 ring-secondary",
+        )}
+      >
+        {imageUrl ? (
+          <img src={imageUrl} alt={name} loading="lazy" className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full items-center justify-center p-2 text-center text-xs text-base-content/50">
+            {name}
+          </div>
+        )}
+        {deckCard.quantity > 1 ? (
+          <span className="absolute bottom-1 right-1 z-10 rounded bg-primary px-1.5 py-1 text-xs font-black leading-none text-primary-content shadow">
+            {deckCard.quantity}
+          </span>
+        ) : null}
+        <span
+          className={cn(
+            "absolute right-1 top-1 z-10 inline-flex h-5 w-5 items-center justify-center rounded-full border shadow",
+            isSelected
+              ? "border-secondary bg-secondary text-secondary-content"
+              : "border-base-100/80 bg-base-100/95 text-base-content",
+          )}
+          aria-hidden="true"
+        >
+          {isSelected ? <CheckSquare className="h-3 w-3" /> : <Square className="h-3 w-3" />}
+        </span>
+      </figure>
+    </button>
+  )
+}
+
 function DeckCardAllocationQuickMenu({
   deckCard,
   isVisible,

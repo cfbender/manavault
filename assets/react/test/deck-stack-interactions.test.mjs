@@ -11,6 +11,7 @@ import {
   shouldRaiseDeckStackCardForActionMenu,
   shouldRevealDeckStackCardOnPointerDown,
   shouldClearDeckStackTouchReveal,
+  shouldUnstackDeckStackGroup,
   shouldUpdateDeckStackHoverFromPointer,
 } from "../src/pages/decks/deck-stack-interactions.ts"
 
@@ -113,4 +114,11 @@ test("deck stack touch reveal clears only for outside touches", () => {
   assert.equal(shouldClearDeckStackTouchReveal({ isInsideStack: false, isPinned: true }), true)
   assert.equal(shouldClearDeckStackTouchReveal({ isInsideStack: true, isPinned: true }), false)
   assert.equal(shouldClearDeckStackTouchReveal({ isInsideStack: false, isPinned: false }), false)
+})
+
+test("deck stacks unstack only while selecting on mobile", () => {
+  assert.equal(shouldUnstackDeckStackGroup({ isMobile: true, isSelecting: true }), true)
+  assert.equal(shouldUnstackDeckStackGroup({ isMobile: true, isSelecting: false }), false)
+  assert.equal(shouldUnstackDeckStackGroup({ isMobile: false, isSelecting: true }), false)
+  assert.equal(shouldUnstackDeckStackGroup({ isMobile: false, isSelecting: false }), false)
 })

@@ -85,6 +85,16 @@ export function shouldRevealDeckStackCardOnPointerDown({
   return shouldRevealMobileHover({ isRevealed: isActive, pointerType })
 }
 
+export function shouldUnstackDeckStackGroup({
+  isMobile,
+  isSelecting,
+}: {
+  isMobile: boolean
+  isSelecting: boolean
+}) {
+  return isSelecting && isMobile
+}
+
 export function shouldClearDeckStackTouchReveal({
   isInsideStack,
   isPinned,

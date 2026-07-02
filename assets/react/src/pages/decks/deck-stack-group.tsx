@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react"
 
 import type { DeckGroup } from "../../lib/deck-grouping"
+import { useIsMobile } from "../../lib/mobile-hover"
 import { GroupIcon } from "./deck-card-display"
 import { isLegendaryCreature } from "./deck-card-model"
-import { DeckStackCard } from "./deck-stack-card"
+import { DeckStackCard, DeckUnstackedSelectCard } from "./deck-stack-card"
 import {
   isDeckStackPointerCaptured,
   shouldClearDeckStackTouchReveal,
+  shouldUnstackDeckStackGroup,
   shouldUpdateDeckStackHoverFromPointer,
 } from "./deck-stack-interactions"
 import type { DeckCardEntry, DeckCardTag } from "./deck-types"
@@ -88,6 +90,8 @@ export function DeckStackGroup({
   const stackRef = useRef<HTMLDivElement>(null)
   const hoverTimerRef = useRef<number | null>(null)
   const pendingHoverIndexRef = useRef<number | null>(null)
+  const { isMobile } = useIsMobile()
+  const isUnstacked = shouldUnstackDeckStackGroup({ isMobile, isSelecting })
   const activeIndex = isSelecting ? null : (hoveredIndex ?? pinnedIndex)
   const revealOffset = group.cards.length > 1 ? DECK_STACK_REVEAL_OFFSET : 0
 
@@ -170,56 +174,70 @@ export function DeckStackGroup({
         <span className="text-base-content/55">({group.quantity})</span>
       </div>
 
-      <div
-        ref={stackRef}
-        className="relative w-56 overflow-hidden rounded-xl"
-        style={{
-          minHeight: `${DECK_STACK_CARD_HEIGHT + Math.max(group.cards.length - 1, 0) * DECK_STACK_OFFSET}px`,
-        }}
-        onPointerLeave={(event) => {
-          clearDeckCardHoverDelay()
-          if (event.pointerType === "touch") return
+      {isUnstacked ? (
+        <div className="grid w-56 grid-cols-2 gap-2">
+          {group.cards.map((deckCard) => (
+            <DeckUnstackedSelectCard
+              key={deckCard.id}
+              deckCard={deckCard}
+              isDimmed={highlightedCardIds !== null && !highlightedCardIds.has(deckCard.id)}
+              isSelected={selectedCardIds.has(deckCard.id)}
+              onToggleSelected={(selectRange) => onToggleSelected(deckCard.id, selectRange)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div
+          ref={stackRef}
+          className="relative w-56 overflow-hidden rounded-xl"
+          style={{
+            minHeight: `${DECK_STACK_CARD_HEIGHT + Math.max(group.cards.length - 1, 0) * DECK_STACK_OFFSET}px`,
+          }}
+          onPointerLeave={(event) => {
+            clearDeckCardHoverDelay()
+            if (event.pointerType === "touch") return
 
-          setHoveredIndex(null)
-        }}
-        onPointerMove={handlePointerMove}
-      >
-        {group.cards.map((deckCard, index) => (
-          <DeckStackCard
-            key={deckCard.id}
-            canSetCommander={
-              canSetCommander && deckCard.zone !== "commander" && isLegendaryCreature(deckCard)
-            }
-            deckCard={deckCard}
-            deckId={deckId}
-            index={index}
-            isLast={index === group.cards.length - 1}
-            isActive={activeIndex === index}
-            isSelecting={isSelecting}
-            isSelected={selectedCardIds.has(deckCard.id)}
-            isUpdating={isUpdating}
-            isDimmed={highlightedCardIds !== null && !highlightedCardIds.has(deckCard.id)}
-            onAllocate={(collectionItemId) => onAllocate(deckCard, collectionItemId)}
-            onDelete={() => onDelete(deckCard)}
-            onDeallocate={(collectionItemId) => onDeallocate(deckCard, collectionItemId)}
-            onEdit={() => onEdit(deckCard)}
-            onMove={() => onMove(deckCard)}
-            onPreview={() => onPreview(deckCard)}
-            onSetCommander={() => onSetCommander(deckCard)}
-            onTouchReveal={() => {
-              clearDeckCardHoverDelay()
-              setHoveredIndex(null)
-              setPinnedIndex(index)
-            }}
-            onTag={(tag) => onTag(deckCard, tag)}
-            onToggleProxy={() => onToggleProxy(deckCard)}
-            onToggleSelected={(selectRange) => onToggleSelected(deckCard.id, selectRange)}
-            shareMode={shareMode}
-            slideOffset={activeIndex != null && index > activeIndex ? revealOffset : 0}
-            top={index * DECK_STACK_OFFSET}
-          />
-        ))}
-      </div>
+            setHoveredIndex(null)
+          }}
+          onPointerMove={handlePointerMove}
+        >
+          {group.cards.map((deckCard, index) => (
+            <DeckStackCard
+              key={deckCard.id}
+              canSetCommander={
+                canSetCommander && deckCard.zone !== "commander" && isLegendaryCreature(deckCard)
+              }
+              deckCard={deckCard}
+              deckId={deckId}
+              index={index}
+              isLast={index === group.cards.length - 1}
+              isActive={activeIndex === index}
+              isSelecting={isSelecting}
+              isSelected={selectedCardIds.has(deckCard.id)}
+              isUpdating={isUpdating}
+              isDimmed={highlightedCardIds !== null && !highlightedCardIds.has(deckCard.id)}
+              onAllocate={(collectionItemId) => onAllocate(deckCard, collectionItemId)}
+              onDelete={() => onDelete(deckCard)}
+              onDeallocate={(collectionItemId) => onDeallocate(deckCard, collectionItemId)}
+              onEdit={() => onEdit(deckCard)}
+              onMove={() => onMove(deckCard)}
+              onPreview={() => onPreview(deckCard)}
+              onSetCommander={() => onSetCommander(deckCard)}
+              onTouchReveal={() => {
+                clearDeckCardHoverDelay()
+                setHoveredIndex(null)
+                setPinnedIndex(index)
+              }}
+              onTag={(tag) => onTag(deckCard, tag)}
+              onToggleProxy={() => onToggleProxy(deckCard)}
+              onToggleSelected={(selectRange) => onToggleSelected(deckCard.id, selectRange)}
+              shareMode={shareMode}
+              slideOffset={activeIndex != null && index > activeIndex ? revealOffset : 0}
+              top={index * DECK_STACK_OFFSET}
+            />
+          ))}
+        </div>
+      )}
     </section>
   )
 }
