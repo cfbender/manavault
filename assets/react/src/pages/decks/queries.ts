@@ -146,7 +146,7 @@ export const DisassembleDeckDocument = graphql(`
 `)
 
 export const DeckDocument = graphql(`
-  query Deck($id: ID!) {
+  query Deck($id: ID!, $deckCardsAfter: String) {
     deck(id: $id) {
       id
       name
@@ -163,7 +163,7 @@ export const DeckDocument = graphql(`
           cardName
         }
       }
-      deckCards(first: 500) {
+      deckCards(first: 500, after: $deckCardsAfter) {
         pageInfo {
           endCursor
           hasNextPage

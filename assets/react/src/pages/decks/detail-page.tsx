@@ -1,6 +1,6 @@
 import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
 import { Link, useNavigate } from "@tanstack/react-router"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { EmptyState } from "../../components/card-image"
 import { Button } from "../../components/ui/button"
 import { useToast } from "../../components/ui/toast"
@@ -205,11 +205,45 @@ export function DeckDetailPage({
     data,
     loading: isLoading,
     previousData,
+    fetchMore: fetchMoreDeck,
   } = useQuery(DeckDocument, {
     variables: { id },
     context: shareMode ? graphqlEndpointContext("/share/graphql") : undefined,
     fetchPolicy: "cache-and-network",
   })
+
+  // The Deck query caps deckCards at 500 per page. Decks larger than that (e.g.
+  // cubes) would otherwise be silently truncated, corrupting stats, prices, and
+  // the pull list. Walk fetchMore until every page is loaded. Normal decks
+  // report hasNextPage=false on page one, so this never runs for them.
+  const deckCardsPageInfo = data?.deck?.deckCards?.pageInfo
+  const isLoadingMoreDeckCards = useRef(false)
+  useEffect(() => {
+    if (!deckCardsPageInfo?.hasNextPage || !deckCardsPageInfo.endCursor) return
+    if (isLoadingMoreDeckCards.current) return
+
+    isLoadingMoreDeckCards.current = true
+    void fetchMoreDeck({
+      variables: { id, deckCardsAfter: deckCardsPageInfo.endCursor },
+      updateQuery: (previous, { fetchMoreResult }) => {
+        const nextConnection = fetchMoreResult?.deck?.deckCards
+        if (!nextConnection || !previous?.deck?.deckCards) return fetchMoreResult ?? previous
+
+        return {
+          ...previous,
+          deck: {
+            ...previous.deck,
+            deckCards: {
+              ...nextConnection,
+              edges: [...(previous.deck.deckCards.edges || []), ...(nextConnection.edges || [])],
+            },
+          },
+        }
+      },
+    }).finally(() => {
+      isLoadingMoreDeckCards.current = false
+    })
+  }, [deckCardsPageInfo?.hasNextPage, deckCardsPageInfo?.endCursor, fetchMoreDeck, id])
 
   function readDeckQuery(): DeckQuery | undefined {
     return client.cache.readQuery({ query: DeckDocument, variables: { id } }) ?? undefined
