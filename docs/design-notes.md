@@ -1,15 +1,17 @@
-- react-bits animation stealing?
-- get rid of splash screen hero backing and use fun animation?
-- double icons on card details view?
-- toggle between grid and table view on collection
-- collection view in deck grayed out
-- move owned cards to own tab
-  - wider!
-- tag cards with name of deck or location
-  - quantity stays top left not on hover
-  - location goes to the right of card name on hover
-- return to on add from card view goes back to collection
-- remove "view" button on location
-  - make whole card clickable with hover state
 - full collection view scroll helper with alphabetical shortcuts
-- filter modal off screen
+- multi-select mobile mode unstack (show all flat)
+- icon buttons on collection view for less important actions
+- dropdown for collection views on mobile
+- remove mana cost vs production middle section (the full composed view)
+- deck card icon buttons fixes
+  - 12x12 icons on desktop, 16x16 on mobile
+  - transparent background, keep the same 48x48 tap zone on mobile
+- card view page
+  - mess with gradients
+  - oracle text background pull colors from art and make it pretty?
+- auto sort rules get rid of drag and drop
+- fix public deck link
+- try quantity in middle top
+  - have gamechanger take priority as a combined tag (ie Game Changer (2))
+- reactbits dome gallery for 20 top random commanders from past week
+  - put on cards view in place of empty search state

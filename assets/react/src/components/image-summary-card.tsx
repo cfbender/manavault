@@ -48,7 +48,7 @@ export function ImageSummaryCard({
             {fallback}
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-br from-base-100/95 via-base-100/75 to-base-100/35" />
+        <div className="absolute inset-0 bg-gradient-to-br from-base-100/98 via-base-100/25 to-base-100/0" />
       </div>
       <div className="relative z-10 flex min-h-52 flex-col justify-between gap-8 p-5">
         <div className="flex items-start justify-between gap-3">

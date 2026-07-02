@@ -365,7 +365,7 @@ export function CardDetailPage({
               className="absolute inset-0 h-full w-full object-cover opacity-75"
             />
           ) : null}
-          <div className="absolute inset-0 bg-gradient-to-br from-base-100/98 via-base-100/80 to-base-100/35" />
+          <div className="absolute inset-0 bg-gradient-to-br from-base-100/98 via-base-100/25 to-base-100/0" />
           <CardActionsMenu
             cardName={card.name}
             className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6"
@@ -412,8 +412,9 @@ export function CardDetailPage({
             <div>
               <h2 className="text-xl font-black">Printings</h2>
               <p className="text-sm text-base-content/65">
-                {visiblePrintings.length} printing{visiblePrintings.length === 1 ? "" : "s"} sorted
-                by catalog relevance. Owned badges mark copies already in your vault.
+                {visiblePrintings.length} printing
+                {visiblePrintings.length === 1 ? "" : "s"} sorted by catalog relevance. Owned badges
+                mark copies already in your vault.
               </p>
             </div>
           </div>
