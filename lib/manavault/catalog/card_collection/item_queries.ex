@@ -7,6 +7,8 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries do
   alias Manavault.Catalog.CardCollection.ItemQueries.{Base, ValueSummary}
   alias Manavault.Repo
 
+  import Manavault.Catalog.PriceFragments, only: [price_value_fragment: 2]
+
   @default_sort %{field: "name", direction: "asc"}
 
   defdelegate value_summary(filters \\ []), to: ValueSummary
@@ -51,32 +53,6 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries do
     filters
     |> Keyword.put(:location_id, to_string(location_id))
     |> list_items(opts)
-  end
-
-  defmacrop price_value_fragment(item, printing) do
-    quote do
-      fragment(
-        """
-        CAST(COALESCE(NULLIF(
-          CASE ?
-            WHEN 'foil' THEN COALESCE(json_extract(?, '$.usd_foil'), json_extract(?, '$.usd'))
-            WHEN 'etched' THEN COALESCE(json_extract(?, '$.usd_etched'), json_extract(?, '$.usd_foil'), json_extract(?, '$.usd'))
-            ELSE COALESCE(json_extract(?, '$.usd'), json_extract(?, '$.usd_foil'), json_extract(?, '$.usd_etched'))
-          END,
-          ''
-        ), '0') AS REAL)
-        """,
-        unquote(item).finish,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices
-      )
-    end
   end
 
   defp apply_sort(query, sort) do

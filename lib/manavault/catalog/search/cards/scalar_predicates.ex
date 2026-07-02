@@ -5,21 +5,7 @@ defmodule Manavault.Catalog.Search.Cards.ScalarPredicates do
 
   alias Manavault.Catalog.Search.Cards.{ColorPredicates, TextPredicates, Values}
 
-  defmacrop price_fragment(printing) do
-    quote do
-      fragment(
-        """
-        CAST(COALESCE(NULLIF(
-          COALESCE(json_extract(?, '$.usd'), json_extract(?, '$.usd_foil'), json_extract(?, '$.usd_etched')),
-          ''
-        ), '0') AS REAL)
-        """,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices
-      )
-    end
-  end
+  import Manavault.Catalog.PriceFragments, only: [price_fragment: 1]
 
   defmacrop rarity_rank_fragment(field) do
     quote do

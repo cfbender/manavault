@@ -6,6 +6,14 @@ defmodule Manavault.Catalog.Dataloader do
   alias Manavault.Catalog.{Card, CollectionItem, DeckAllocation, DeckCard, Location, Printing}
   alias Manavault.Repo
 
+  import Manavault.Catalog.PriceFragments,
+    only: [
+      price_value_fragment: 2,
+      price_cents_fragment: 2,
+      current_total_cents_fragment: 2,
+      purchase_total_cents_fragment: 2
+    ]
+
   def data do
     Dataloader.Ecto.new(Repo, query: &query/2, run_batch: &run_batch/5)
   end
@@ -82,62 +90,6 @@ defmodule Manavault.Catalog.Dataloader do
   end
 
   def query(queryable, _params), do: queryable
-
-  defmacrop price_value_fragment(item, printing) do
-    quote do
-      fragment(
-        """
-        CAST(COALESCE(NULLIF(
-          CASE ?
-            WHEN 'foil' THEN COALESCE(json_extract(?, '$.usd_foil'), json_extract(?, '$.usd'))
-            WHEN 'etched' THEN COALESCE(json_extract(?, '$.usd_etched'), json_extract(?, '$.usd_foil'), json_extract(?, '$.usd'))
-            ELSE COALESCE(json_extract(?, '$.usd'), json_extract(?, '$.usd_foil'), json_extract(?, '$.usd_etched'))
-          END,
-          ''
-        ), '0') AS REAL)
-        """,
-        unquote(item).finish,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices
-      )
-    end
-  end
-
-  defmacrop price_cents_fragment(item, printing) do
-    quote do
-      fragment(
-        "CAST(round(? * 100) AS INTEGER)",
-        price_value_fragment(unquote(item), unquote(printing))
-      )
-    end
-  end
-
-  defmacrop current_total_cents_fragment(item, printing) do
-    quote do
-      fragment(
-        "COALESCE(SUM(? * COALESCE(?, 0)), 0)",
-        unquote(item).quantity,
-        price_cents_fragment(unquote(item), unquote(printing))
-      )
-    end
-  end
-
-  defmacrop purchase_total_cents_fragment(item, printing) do
-    quote do
-      fragment(
-        "COALESCE(SUM(? * COALESCE(?, ?, 0)), 0)",
-        unquote(item).quantity,
-        unquote(item).purchase_price_cents,
-        price_cents_fragment(unquote(item), unquote(printing))
-      )
-    end
-  end
 
   defp printing_owned_counts(oracle_ids, repo_opts) do
     oracle_ids = Enum.uniq(oracle_ids)

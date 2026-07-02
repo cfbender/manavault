@@ -5,31 +5,7 @@ defmodule Manavault.Catalog.CardCollection.SearchFilter.ScalarPredicates do
 
   alias Manavault.Catalog.CardCollection.SearchFilter.{ColorPredicates, TextPredicates, Values}
 
-  defmacrop price_value_fragment(item, printing) do
-    quote do
-      fragment(
-        """
-        CAST(COALESCE(NULLIF(
-          CASE ?
-            WHEN 'foil' THEN COALESCE(json_extract(?, '$.usd_foil'), json_extract(?, '$.usd'))
-            WHEN 'etched' THEN COALESCE(json_extract(?, '$.usd_etched'), json_extract(?, '$.usd_foil'), json_extract(?, '$.usd'))
-            ELSE COALESCE(json_extract(?, '$.usd'), json_extract(?, '$.usd_foil'), json_extract(?, '$.usd_etched'))
-          END,
-          ''
-        ), '0') AS REAL)
-        """,
-        unquote(item).finish,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices
-      )
-    end
-  end
+  import Manavault.Catalog.PriceFragments, only: [price_value_fragment: 2]
 
   defmacrop rarity_rank_fragment(field) do
     quote do
