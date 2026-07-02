@@ -1,3 +1,4 @@
+import type { OperationVariables, TypedDocumentNode } from "@apollo/client"
 import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -103,6 +104,20 @@ function rollbackDeckCardTagPatches(
   }
 
   return patches
+}
+
+// Shared wrapper for the fire-and-forget deck-card mutations: exposes isPending
+// and a mutate that swallows errors (the UI surfaces them via allocationError).
+function useDeckMutation<TData, TVariables extends OperationVariables>(
+  document: TypedDocumentNode<TData, TVariables>,
+) {
+  const [mutation, result] = useMutation(document)
+
+  return {
+    ...result,
+    isPending: result.loading,
+    mutate: (variables: TVariables) => void mutation({ variables, onError: () => undefined }),
+  }
 }
 
 function DeckDetailLoadingState() {
@@ -603,54 +618,10 @@ export function DeckDetailPage({
     refetchDeckQueries()
   }
 
-  const [allocateDeckCardItemMutation, allocateDeckCardItemResult] = useMutation(
-    AllocateDeckCardItemDocument,
-  )
-  const allocateDeckCardItem = {
-    ...allocateDeckCardItemResult,
-    isPending: allocateDeckCardItemResult.loading,
-    mutate: ({ collectionItemId, deckCardId }: { collectionItemId: string; deckCardId: string }) =>
-      void allocateDeckCardItemMutation({
-        variables: { deckCardId, collectionItemId },
-        onError: () => undefined,
-      }),
-  }
-  const [deallocateDeckCardItemMutation, deallocateDeckCardItemResult] = useMutation(
-    DeallocateDeckCardItemDocument,
-  )
-  const deallocateDeckCardItem = {
-    ...deallocateDeckCardItemResult,
-    isPending: deallocateDeckCardItemResult.loading,
-    mutate: ({ collectionItemId, deckCardId }: { collectionItemId: string; deckCardId: string }) =>
-      void deallocateDeckCardItemMutation({
-        variables: { deckCardId, collectionItemId },
-        onError: () => undefined,
-      }),
-  }
-  const [allocateDeckCardProxyMutation, allocateDeckCardProxyResult] = useMutation(
-    AllocateDeckCardProxyDocument,
-  )
-  const allocateDeckCardProxy = {
-    ...allocateDeckCardProxyResult,
-    isPending: allocateDeckCardProxyResult.loading,
-    mutate: ({ deckCardId, quantity }: { deckCardId: string; quantity: number }) =>
-      void allocateDeckCardProxyMutation({
-        variables: { deckCardId, quantity },
-        onError: () => undefined,
-      }),
-  }
-  const [deallocateDeckCardProxyMutation, deallocateDeckCardProxyResult] = useMutation(
-    DeallocateDeckCardProxyDocument,
-  )
-  const deallocateDeckCardProxy = {
-    ...deallocateDeckCardProxyResult,
-    isPending: deallocateDeckCardProxyResult.loading,
-    mutate: ({ deckCardId, quantity }: { deckCardId: string; quantity: number }) =>
-      void deallocateDeckCardProxyMutation({
-        variables: { deckCardId, quantity },
-        onError: () => undefined,
-      }),
-  }
+  const allocateDeckCardItem = useDeckMutation(AllocateDeckCardItemDocument)
+  const deallocateDeckCardItem = useDeckMutation(DeallocateDeckCardItemDocument)
+  const allocateDeckCardProxy = useDeckMutation(AllocateDeckCardProxyDocument)
+  const deallocateDeckCardProxy = useDeckMutation(DeallocateDeckCardProxyDocument)
   const allocateDeckPullList = {
     isPending: isAllocateDeckPullListPending,
     mutate: (entries: DeckPullListEntry[]) => {
