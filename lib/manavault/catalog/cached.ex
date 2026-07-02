@@ -136,10 +136,18 @@ defmodule Manavault.Catalog.Cached do
     end)
   end
 
-  def list_location_summaries(summaries \\ nil) do
-    cached(Cache.locations_tag(), {:list_location_summaries, summaries}, fn ->
-      Collection.list_location_summaries(summaries)
+  def list_location_summaries(summaries \\ nil)
+
+  def list_location_summaries(nil) do
+    cached(Cache.locations_tag(), :list_location_summaries, fn ->
+      Collection.list_location_summaries(nil)
     end)
+  end
+
+  # Passed summaries make this a light transform; caching by the whole (large,
+  # churning) map costs more than it saves, so compute directly.
+  def list_location_summaries(summaries) do
+    Collection.list_location_summaries(summaries)
   end
 
   def get_location_summary!(id) do
@@ -148,10 +156,16 @@ defmodule Manavault.Catalog.Cached do
     end)
   end
 
-  def unfiled_location_summary(summaries \\ nil) do
-    cached(Cache.locations_tag(), {:unfiled_location_summary, summaries}, fn ->
-      Collection.unfiled_location_summary(summaries)
+  def unfiled_location_summary(summaries \\ nil)
+
+  def unfiled_location_summary(nil) do
+    cached(Cache.locations_tag(), :unfiled_location_summary, fn ->
+      Collection.unfiled_location_summary(nil)
     end)
+  end
+
+  def unfiled_location_summary(summaries) do
+    Collection.unfiled_location_summary(summaries)
   end
 
   def list_location_options do

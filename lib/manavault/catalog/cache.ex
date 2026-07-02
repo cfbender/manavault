@@ -1,6 +1,8 @@
 defmodule Manavault.Catalog.Cache do
   @moduledoc false
 
+  require Logger
+
   alias Manavault.Catalog.Search
 
   @version 1
@@ -33,13 +35,27 @@ defmodule Manavault.Catalog.Cache do
 
     try do
       case Manavault.Cache.get_or_store(key, fun, cache_opts) do
-        {:ok, value} -> value
-        {:error, _reason} -> fun.()
+        {:ok, value} ->
+          value
+
+        {:error, reason} ->
+          Logger.warning("catalog cache unavailable for #{inspect(key)}: #{inspect(reason)}")
+          fun.()
       end
     rescue
-      _error -> fun.()
+      # `!` reads (get_location!/1, etc.) raise their own not-found error through
+      # the cache; that is the caller's intended result, so let it propagate
+      # rather than swallow-and-log it as a cache failure.
+      error in [Ecto.NoResultsError] ->
+        reraise error, __STACKTRACE__
+
+      error ->
+        Logger.warning("catalog cache raised for #{inspect(key)}: #{Exception.message(error)}")
+        fun.()
     catch
-      _kind, _reason -> fun.()
+      kind, reason ->
+        Logger.warning("catalog cache threw (#{kind}) for #{inspect(key)}: #{inspect(reason)}")
+        fun.()
     end
   end
 
