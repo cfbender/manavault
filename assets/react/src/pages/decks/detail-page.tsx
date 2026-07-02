@@ -551,23 +551,33 @@ export function DeckDetailPage({
     isPending: isBulkUpdateDeckCardsPending,
     mutate: ({ deckCardIds, input }: { deckCardIds: string[]; input: DeckCardUpdateInput }) => {
       setIsBulkUpdateDeckCardsPending(true)
-      void Promise.all(
+      // allSettled so a partial failure still waits for every mutation to land,
+      // and refetch in finally so the cache reconciles with the ones that
+      // succeeded rather than showing pre-mutation data.
+      void Promise.allSettled(
         deckCardIds.map((deckCardId) =>
           bulkUpdateDeckCardMutation({ variables: { id: deckCardId, input } }),
         ),
       )
-        .then(() => {
-          refetchDeckQueries()
+        .then((results) => {
+          const failure = results.find((result) => result.status === "rejected")
+          if (failure) {
+            setBulkActionError(
+              failure.reason instanceof Error
+                ? failure.reason.message
+                : "Could not update selected cards",
+            )
+            return
+          }
+
           clearSelectedDeckCards()
           setIsSelectingCards(false)
           setBulkActionError(null)
         })
-        .catch((error) =>
-          setBulkActionError(
-            error instanceof Error ? error.message : "Could not update selected cards",
-          ),
-        )
-        .finally(() => setIsBulkUpdateDeckCardsPending(false))
+        .finally(() => {
+          refetchDeckQueries()
+          setIsBulkUpdateDeckCardsPending(false)
+        })
     },
   }
 
@@ -576,25 +586,34 @@ export function DeckDetailPage({
     isPending: isBulkDeleteDeckCardsPending,
     mutate: (deckCardIds: string[]) => {
       setIsBulkDeleteDeckCardsPending(true)
-      void Promise.all(
+      void Promise.allSettled(
         deckCardIds.map((deckCardId) =>
           bulkDeleteDeckCardMutation({ variables: { id: deckCardId } }),
         ),
       )
-        .then(() => {
-          refetchDeckQueries()
-          showToast(`${pluralize(deckCardIds.length, "card")} deleted`)
+        .then((results) => {
+          const succeeded = results.filter((result) => result.status === "fulfilled").length
+          const failure = results.find((result) => result.status === "rejected")
+
+          if (failure) {
+            setBulkActionError(
+              failure.reason instanceof Error
+                ? failure.reason.message
+                : "Could not delete selected cards",
+            )
+            return
+          }
+
+          showToast(`${pluralize(succeeded, "card")} deleted`)
           clearSelectedDeckCards()
           setIsSelectingCards(false)
           setIsDeleteSelectedOpen(false)
           setBulkActionError(null)
         })
-        .catch((error) =>
-          setBulkActionError(
-            error instanceof Error ? error.message : "Could not delete selected cards",
-          ),
-        )
-        .finally(() => setIsBulkDeleteDeckCardsPending(false))
+        .finally(() => {
+          refetchDeckQueries()
+          setIsBulkDeleteDeckCardsPending(false)
+        })
     },
   }
 
@@ -659,7 +678,7 @@ export function DeckDetailPage({
       // to a single deck card), so entries touch disjoint rows and can't race.
       // Copies of the same item within an entry stay serial to avoid racing on
       // that item's availability.
-      void Promise.all(
+      void Promise.allSettled(
         entries.map(async (entry) => {
           for (let copy = 0; copy < entry.quantity; copy += 1) {
             await client.mutate({
@@ -672,22 +691,29 @@ export function DeckDetailPage({
           }
         }),
       )
-        .then(() => {
+        .then((results) => {
+          const failure = results.find((result) => result.status === "rejected")
+          if (failure) {
+            setBulkAllocationError(
+              failure.reason instanceof Error ? failure.reason.message : "Could not allocate deck",
+            )
+            return
+          }
+
           const allocatedCount = entries.reduce((total, entry) => total + entry.quantity, 0)
 
-          invalidateAllocationQueries()
           showToast(`${pluralize(allocatedCount, "card")} allocated`)
           setIsBulkAllocationOpen(false)
           setSelectedBulkAllocationItemIds({})
           setExcludedBulkAllocationEntryIds({})
           setBulkAllocationError(null)
         })
-        .catch((error) =>
-          setBulkAllocationError(
-            error instanceof Error ? error.message : "Could not allocate deck",
-          ),
-        )
-        .finally(() => setIsAllocateDeckPullListPending(false))
+        .finally(() => {
+          // Some entries may have allocated even on a partial failure, so always
+          // reconcile the cache with the server instead of only on full success.
+          invalidateAllocationQueries()
+          setIsAllocateDeckPullListPending(false)
+        })
     },
   }
   const allocationError =
