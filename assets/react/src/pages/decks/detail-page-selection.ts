@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 import type { DeckCardEntry } from "./deck-types"
 import { filterHighlightedDeckCardIds } from "./mana-balance"
@@ -6,7 +6,10 @@ import { filterHighlightedDeckCardIds } from "./mana-balance"
 export function useDeckDetailSelection(deckCards: DeckCardEntry[], selectionDeckCardIds: string[]) {
   const [isSelectingCards, setIsSelectingCards] = useState(false)
   const [selectedDeckCardIds, setSelectedDeckCardIds] = useState<Set<string>>(() => new Set())
-  const [lastSelectedDeckCardId, setLastSelectedDeckCardId] = useState<string | null>(null)
+  // Range-selection anchor lives in a ref so it updates synchronously; two
+  // shift-clicks in the same frame each see the prior click's anchor rather
+  // than a stale render-scoped value.
+  const lastSelectedDeckCardIdRef = useRef<string | null>(null)
   const [highlightedDeckCardIds, setHighlightedDeckCardIds] = useState<Set<string> | null>(null)
   const [bulkQuantity, setBulkQuantity] = useState(1)
   const [isDeleteSelectedOpen, setIsDeleteSelectedOpen] = useState(false)
@@ -28,14 +31,17 @@ export function useDeckDetailSelection(deckCards: DeckCardEntry[], selectionDeck
       if (selectedIds.length === current.size) return current
       return new Set(selectedIds)
     })
-    setLastSelectedDeckCardId((current) => (current && availableIds.has(current) ? current : null))
+    if (lastSelectedDeckCardIdRef.current && !availableIds.has(lastSelectedDeckCardIdRef.current)) {
+      lastSelectedDeckCardIdRef.current = null
+    }
     setHighlightedDeckCardIds((current) => filterHighlightedDeckCardIds(current, availableIds))
   }, [deckCards])
 
   function toggleDeckCardSelected(deckCardId: string, selectRange = false) {
+    const rangeStart = lastSelectedDeckCardIdRef.current
+
     setSelectedDeckCardIds((current) => {
       const next = new Set(current)
-      const rangeStart = lastSelectedDeckCardId
 
       if (selectRange && rangeStart) {
         const startIndex = selectionDeckCardIds.indexOf(rangeStart)
@@ -55,17 +61,18 @@ export function useDeckDetailSelection(deckCards: DeckCardEntry[], selectionDeck
 
       return next
     })
-    setLastSelectedDeckCardId(deckCardId)
+    lastSelectedDeckCardIdRef.current = deckCardId
   }
 
   function selectAllDeckCards() {
     setSelectedDeckCardIds(new Set(selectionDeckCardIds))
-    setLastSelectedDeckCardId(selectionDeckCardIds[selectionDeckCardIds.length - 1] || null)
+    lastSelectedDeckCardIdRef.current =
+      selectionDeckCardIds[selectionDeckCardIds.length - 1] || null
   }
 
   function clearSelectedDeckCards() {
     setSelectedDeckCardIds(new Set())
-    setLastSelectedDeckCardId(null)
+    lastSelectedDeckCardIdRef.current = null
   }
 
   return {

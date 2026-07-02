@@ -1,6 +1,6 @@
 import { useQuery } from "@apollo/client/react"
 import { XCircle } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { EmptyState } from "../../components/card-image"
 import {
@@ -215,6 +215,14 @@ export function ShareDeckBuylistDialog({
 
 export function useSharedDecklistActions(deckName: string, deckCards: DeckCardEntry[]) {
   const [shareCopyState, setShareCopyState] = useState<"idle" | "copied" | "failed">("idle")
+  const resetTimerRef = useRef<number | null>(null)
+
+  useEffect(
+    () => () => {
+      if (resetTimerRef.current) window.clearTimeout(resetTimerRef.current)
+    },
+    [],
+  )
 
   async function copySharedDecklist() {
     try {
@@ -223,6 +231,10 @@ export function useSharedDecklistActions(deckName: string, deckCards: DeckCardEn
     } catch {
       setShareCopyState("failed")
     }
+
+    // Revert the transient status so the button label doesn't stay "Copied".
+    if (resetTimerRef.current) window.clearTimeout(resetTimerRef.current)
+    resetTimerRef.current = window.setTimeout(() => setShareCopyState("idle"), 2000)
   }
 
   return {

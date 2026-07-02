@@ -158,8 +158,6 @@ function setInstallButtonsVisible(visible: boolean, enabled = visible) {
 
     const label = button.querySelector("[data-pwa-install-label]")
     if (label) label.textContent = pwaDiagnosticLabel()
-
-    button.title = JSON.stringify(window.manavaultPwa)
   })
 }
 
