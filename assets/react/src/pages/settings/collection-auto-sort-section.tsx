@@ -2,14 +2,13 @@ import {
   ArrowDown,
   ArrowUp,
   Edit3,
-  GripVertical,
   Plus,
   Save,
   SlidersHorizontal,
   Trash2,
   WandSparkles,
 } from "lucide-react"
-import { useEffect, useMemo, useState, type DragEvent, type FormEvent } from "react"
+import { useEffect, useMemo, useState, type FormEvent } from "react"
 import { PageSection } from "../../components/app-shell"
 import { Button } from "../../components/ui/button"
 import {
@@ -99,8 +98,6 @@ export function CollectionAutoSortSection({
   const storageLocations = useMemo(() => locations.filter(isAutoSortStorageLocation), [locations])
   const [rows, setRows] = useState<AutoSortRuleFormRow[]>([])
   const [draftRow, setDraftRow] = useState<AutoSortRuleFormRow | null>(null)
-  const [draggingRuleKey, setDraggingRuleKey] = useState<string | null>(null)
-  const [dropTargetRuleKey, setDropTargetRuleKey] = useState<string | null>(null)
 
   useEffect(() => {
     setRows(
@@ -194,39 +191,6 @@ export function CollectionAutoSortSection({
     setRows((current) => moveRowByOffset(current, ruleKey, offset))
   }
 
-  function dragStart(event: DragEvent<HTMLElement>, ruleKey: string) {
-    event.dataTransfer.effectAllowed = "move"
-    event.dataTransfer.setData("text/plain", ruleKey)
-    setDraggingRuleKey(ruleKey)
-  }
-
-  function dragOver(event: DragEvent<HTMLElement>, ruleKey: string) {
-    event.preventDefault()
-    event.dataTransfer.dropEffect = "move"
-    if (draggingRuleKey && draggingRuleKey !== ruleKey) {
-      setDropTargetRuleKey(ruleKey)
-    }
-  }
-
-  function dropRule(event: DragEvent<HTMLElement>, ruleKey: string) {
-    event.preventDefault()
-
-    const draggedRuleKey = event.dataTransfer.getData("text/plain") || draggingRuleKey
-    if (draggedRuleKey && draggedRuleKey !== ruleKey) {
-      const bounds = event.currentTarget.getBoundingClientRect()
-      const shouldDropAfter = event.clientY > bounds.top + bounds.height / 2
-      setRows((current) => moveRowToTarget(current, draggedRuleKey, ruleKey, shouldDropAfter))
-    }
-
-    setDraggingRuleKey(null)
-    setDropTargetRuleKey(null)
-  }
-
-  function endDrag() {
-    setDraggingRuleKey(null)
-    setDropTargetRuleKey(null)
-  }
-
   return (
     <PageSection title="Collection auto-sort" count={`${rows.length} rules`}>
       <form onSubmit={submit} className="card border border-base-300 bg-base-100 shadow-sm">
@@ -274,17 +238,10 @@ export function CollectionAutoSortSection({
                 <PriorityRuleRow
                   key={row.key}
                   index={index}
-                  isDragging={draggingRuleKey === row.key}
-                  isDropTarget={dropTargetRuleKey === row.key}
                   isSaving={isSaving}
                   row={row}
                   totalRows={rows.length}
                   onDelete={() => deleteRule(row.key)}
-                  onDragEnd={endDrag}
-                  onDragLeave={() => setDropTargetRuleKey(null)}
-                  onDragOver={dragOver}
-                  onDragStart={dragStart}
-                  onDrop={dropRule}
                   onEdit={() => openEditor(row)}
                   onMoveDown={() => moveRule(row.key, 1)}
                   onMoveUp={() => moveRule(row.key, -1)}
@@ -328,33 +285,19 @@ export function CollectionAutoSortSection({
 
 function PriorityRuleRow({
   index,
-  isDragging,
-  isDropTarget,
   isSaving,
   row,
   totalRows,
   onDelete,
-  onDragEnd,
-  onDragLeave,
-  onDragOver,
-  onDragStart,
-  onDrop,
   onEdit,
   onMoveDown,
   onMoveUp,
 }: {
   index: number
-  isDragging: boolean
-  isDropTarget: boolean
   isSaving: boolean
   row: AutoSortRuleFormRow
   totalRows: number
   onDelete: () => void
-  onDragEnd: () => void
-  onDragLeave: () => void
-  onDragOver: (event: DragEvent<HTMLElement>, ruleKey: string) => void
-  onDragStart: (event: DragEvent<HTMLElement>, ruleKey: string) => void
-  onDrop: (event: DragEvent<HTMLElement>, ruleKey: string) => void
   onEdit: () => void
   onMoveDown: () => void
   onMoveUp: () => void
@@ -362,33 +305,11 @@ function PriorityRuleRow({
   const criteria = criteriaSummary(row)
 
   return (
-    <li
-      className={cn(
-        "rounded-box border bg-base-100 shadow-sm transition-all",
-        isDropTarget ? "border-primary ring-2 ring-primary/25" : "border-base-300",
-        isDragging && "scale-[0.99] opacity-60",
-      )}
-      onDragLeave={onDragLeave}
-      onDragOver={(event) => onDragOver(event, row.key)}
-      onDrop={(event) => onDrop(event, row.key)}
-    >
+    <li className="rounded-box border border-base-300 bg-base-100 shadow-sm">
       <div className="grid gap-3 p-4 md:grid-cols-[auto_1fr_auto] md:items-center">
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-black text-primary">
-            {index + 1}
-          </span>
-          <button
-            type="button"
-            draggable={!isSaving}
-            className="btn btn-ghost btn-square btn-sm cursor-grab active:cursor-grabbing"
-            aria-label={`Drag ${row.name} to reorder`}
-            disabled={isSaving}
-            onDragEnd={onDragEnd}
-            onDragStart={(event) => onDragStart(event, row.key)}
-          >
-            <GripVertical className="h-5 w-5" />
-          </button>
-        </div>
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-black text-primary">
+          {index + 1}
+        </span>
 
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -816,24 +737,6 @@ function moveRowByOffset(rows: AutoSortRuleFormRow[], ruleKey: string, offset: -
   const nextRows = [...rows]
   const [row] = nextRows.splice(index, 1)
   nextRows.splice(nextIndex, 0, row)
-  return nextRows
-}
-
-function moveRowToTarget(
-  rows: AutoSortRuleFormRow[],
-  draggedRuleKey: string,
-  targetRuleKey: string,
-  shouldDropAfter: boolean,
-) {
-  const draggedIndex = rows.findIndex((row) => row.key === draggedRuleKey)
-  const targetIndex = rows.findIndex((row) => row.key === targetRuleKey)
-  if (draggedIndex < 0 || targetIndex < 0 || draggedIndex === targetIndex) return rows
-
-  const nextRows = [...rows]
-  const [draggedRow] = nextRows.splice(draggedIndex, 1)
-  const adjustedTargetIndex = draggedIndex < targetIndex ? targetIndex - 1 : targetIndex
-  const insertIndex = adjustedTargetIndex + (shouldDropAfter ? 1 : 0)
-  nextRows.splice(insertIndex, 0, draggedRow)
   return nextRows
 }
 

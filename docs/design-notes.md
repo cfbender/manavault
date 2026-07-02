@@ -1,4 +1,3 @@
-- auto sort rules get rid of drag and drop
 - fix public deck link
 - try quantity in middle top on card tile
   - have gamechanger take priority as a combined tag (ie Game Changer (2))
