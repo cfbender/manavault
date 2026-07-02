@@ -218,6 +218,14 @@ export function allocationStatusButtonClass(state: string) {
   return "border-error/40 bg-error/90 text-error-content hover:bg-error"
 }
 
+export function allocationStatusIconClass(state: string) {
+  if (state === "allocated") return "text-success"
+  if (state === "available") return "text-primary"
+  if (state === "partial") return "text-warning"
+  if (state === "basic_land") return "text-info"
+  return "text-error"
+}
+
 export function AllocationStatusIcon({ className, state }: { className?: string; state: string }) {
   if (state === "allocated") return <CheckCircle2 className={className} />
   if (state === "available" || state === "basic_land") return <Circle className={className} />

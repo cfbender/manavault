@@ -11,6 +11,8 @@ import {
 } from "lucide-react"
 import { type MouseEvent as ReactMouseEvent, type ReactNode } from "react"
 
+import { CardTileOverlayButton } from "../../components/card-tile"
+
 export function blurFocusedMenuItem(event: ReactMouseEvent<HTMLElement>) {
   const activeElement = event.currentTarget.ownerDocument.activeElement
 
@@ -59,14 +61,9 @@ export function SummaryActionMenu({
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
     >
-      <button
-        type="button"
-        className="btn btn-circle btn-xs border-0 bg-neutral/85 text-neutral-content shadow backdrop-blur transition hover:bg-neutral"
-        tabIndex={0}
-        aria-label={label}
-      >
-        <MoreVertical className="h-4 w-4" />
-      </button>
+      <CardTileOverlayButton tabIndex={0} aria-label={label}>
+        <MoreVertical />
+      </CardTileOverlayButton>
       <ul
         tabIndex={0}
         className="menu dropdown-content z-50 mt-1 w-48 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-md"

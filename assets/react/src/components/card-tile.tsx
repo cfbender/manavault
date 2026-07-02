@@ -51,11 +51,11 @@ export const CardTileOverlayButton = forwardRef<HTMLButtonElement, CardTileOverl
       ref={ref}
       type={type}
       className={cn(
-        "card-tile-touch-button btn btn-circle btn-sm min-h-11 w-11 border-0 shadow backdrop-blur transition",
+        "card-tile-touch-button btn btn-circle border-0 bg-neutral/60 shadow backdrop-blur transition hover:bg-neutral/75",
         tone === "primary"
-          ? "bg-primary text-primary-content hover:bg-primary"
+          ? "bg-primary/70 text-primary-content hover:bg-primary/85"
           : tone === "neutral"
-            ? "bg-neutral/85 text-neutral-content hover:bg-neutral"
+            ? "text-neutral-content"
             : null,
         className,
       )}
@@ -245,7 +245,7 @@ export function CardTile({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <CardTileOverlayButton aria-label="Card actions">
-                <MoreVertical className="h-4 w-4" />
+                <MoreVertical />
               </CardTileOverlayButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -298,7 +298,7 @@ export function CardTile({
           onKeyDown={(event) => event.stopPropagation()}
           onMouseDown={(event) => event.stopPropagation()}
         >
-          {selected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+          {selected ? <CheckSquare /> : <Square />}
         </CardTileOverlayButton>
       ) : null}
 

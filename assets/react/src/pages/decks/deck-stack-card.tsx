@@ -19,7 +19,7 @@ import { cn, titleize } from "../../lib/utils"
 import { ShareModeHidden, blurFocusedMenuItem } from "./deck-actions"
 import {
   AllocationStatusIcon,
-  allocationStatusButtonClass,
+  allocationStatusIconClass,
   allocationStatusLabel,
   allocationStatusSummary,
   collectionItemLabel,
@@ -220,7 +220,7 @@ export function DeckStackCard({
             onPointerUp={(event) => event.stopPropagation()}
           >
             <CardTileOverlayButton tabIndex={isInteractive ? 0 : -1} aria-label={`${name} actions`}>
-              <MoreVertical className="h-4 w-4" />
+              <MoreVertical />
             </CardTileOverlayButton>
             {isInteractive ? (
               <ul
@@ -527,9 +527,10 @@ function DeckCardAllocationQuickMenu({
   return (
     <div className="dropdown dropdown-end" onClick={(event) => event.stopPropagation()}>
       <CardTileOverlayButton
+        tone="custom"
         className={cn(
           "relative transition-opacity",
-          allocationStatusButtonClass(status.state),
+          allocationStatusIconClass(status.state),
           isVisible
             ? "visible opacity-100"
             : "invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100",
@@ -541,7 +542,7 @@ function DeckCardAllocationQuickMenu({
           if (!isVisible) onReveal()
         }}
       >
-        <AllocationStatusIcon state={status.state} className="h-4 w-4" />
+        <AllocationStatusIcon state={status.state} />
       </CardTileOverlayButton>
       <ul
         tabIndex={0}
@@ -617,7 +618,7 @@ function DeckCardTagQuickButton({
       tone={tag ? "custom" : "neutral"}
       className={cn(
         "transition-opacity",
-        tag?.className,
+        tag?.iconClassName,
         isVisible
           ? "visible opacity-100"
           : "invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100",
@@ -628,7 +629,7 @@ function DeckCardTagQuickButton({
       title={label}
       onClick={() => onChange(nextDeckCardTag(value))}
     >
-      <Icon className="h-4 w-4 shrink-0" />
+      <Icon className="shrink-0" />
     </CardTileOverlayButton>
   )
 }

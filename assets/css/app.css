@@ -264,11 +264,27 @@
   visibility: hidden !important;
 }
 
+.card-tile-touch-button {
+  width: 2rem;
+  height: 2rem;
+  min-height: 2rem;
+}
+
+.card-tile-touch-button svg {
+  width: 1rem;
+  height: 1rem;
+}
+
 @media (hover: none), (pointer: coarse) {
   .card-tile-touch-button {
-    width: 2.75rem;
-    height: 2.75rem;
-    min-height: 2.75rem;
+    width: 3rem;
+    height: 3rem;
+    min-height: 3rem;
+  }
+
+  .card-tile-touch-button svg {
+    width: 1.25rem;
+    height: 1.25rem;
   }
 
   .deck-card-touch-control {

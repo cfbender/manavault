@@ -138,6 +138,7 @@ export const DECK_CARD_TAGS = [
     label: "Getting",
     shortLabel: "Get",
     className: "bg-success text-success-content",
+    iconClassName: "text-success",
     icon: ShoppingCart,
   },
   {
@@ -145,6 +146,7 @@ export const DECK_CARD_TAGS = [
     label: "Consider Cutting",
     shortLabel: "Cut",
     className: "bg-warning text-warning-content",
+    iconClassName: "text-warning",
     icon: Scissors,
   },
 ] satisfies Array<{
@@ -152,6 +154,7 @@ export const DECK_CARD_TAGS = [
   label: string
   shortLabel: string
   className: string
+  iconClassName: string
   icon: LucideIcon
 }>
 export const DECK_FORMATS = [

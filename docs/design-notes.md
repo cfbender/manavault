@@ -1,6 +1,3 @@
-- deck card icon buttons fixes
-  - 12x12 icons on desktop, 16x16 on mobile
-  - transparent background, keep the same 48x48 tap zone on mobile
 - card view page
   - oracle text background pull colors from art and make it pretty?
 - auto sort rules get rid of drag and drop
