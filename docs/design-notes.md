@@ -1,17 +1,17 @@
-- full collection view scroll helper with alphabetical shortcuts
-- multi-select mobile mode unstack (show all flat)
+- multi-select mobile mode unstack (show all flat and smaller) on deck view
 - icon buttons on collection view for less important actions
+  - combine add card and add location to one button ("Add") that opens a dropdown to Add card or Add location (use plus icon from Add card)
+  - rest as icon buttons
 - dropdown for collection views on mobile
+  - instead of tabs, make it one button that opens a dropdown to select the view (like ALl cards, recently added, etc.)
 - remove mana cost vs production middle section (the full composed view)
+  - be sure to keep mana curve and the individual color breakdown, just remove the section with the two horizontal bars of all colors and the text around it
 - deck card icon buttons fixes
   - 12x12 icons on desktop, 16x16 on mobile
   - transparent background, keep the same 48x48 tap zone on mobile
 - card view page
-  - mess with gradients
   - oracle text background pull colors from art and make it pretty?
 - auto sort rules get rid of drag and drop
 - fix public deck link
-- try quantity in middle top
+- try quantity in middle top on card tile
   - have gamechanger take priority as a combined tag (ie Game Changer (2))
-- reactbits dome gallery for 20 top random commanders from past week
-  - put on cards view in place of empty search state
