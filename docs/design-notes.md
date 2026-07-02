@@ -1,5 +1,3 @@
-- card view page
-  - oracle text background pull colors from art and make it pretty?
 - auto sort rules get rid of drag and drop
 - fix public deck link
 - try quantity in middle top on card tile

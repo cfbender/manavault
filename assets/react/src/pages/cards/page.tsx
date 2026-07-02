@@ -35,7 +35,7 @@ import {
 import { CardCollectionCopiesPanel } from "./card-collection-copies";
 import { CardPrintingsGrid } from "./card-printings-grid";
 import { CardResultsGrid } from "./card-results-grid";
-import { ManaText, OracleText } from "./card-text";
+import { ManaText, OracleTextPanel } from "./card-text";
 import { CardDocument, CardsDocument } from "./data";
 import {
   CardLegalityPanel,
@@ -593,9 +593,10 @@ export function CardDetailPage({
               <CardTagSummary card={card} />
 
               {card.oracleText ? (
-                <div className="max-w-4xl space-y-3 text-base leading-7 text-base-content/75">
-                  <OracleText text={card.oracleText} />
-                </div>
+                <OracleTextPanel
+                  artCropUrl={primary?.artCropUrl}
+                  text={card.oracleText}
+                />
               ) : null}
 
               <CardLegalityPanel

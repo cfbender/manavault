@@ -1,3 +1,5 @@
+import { useArtPalette } from "../../lib/art-colors"
+
 export function ManaText({ className, text }: { className?: string; text: string }) {
   return (
     <span
@@ -22,6 +24,32 @@ export function OracleText({ text }: { text: string }) {
         </p>
       ))}
     </>
+  )
+}
+
+export function OracleTextPanel({
+  artCropUrl,
+  text,
+}: {
+  artCropUrl?: string | null
+  text: string
+}) {
+  const palette = useArtPalette(artCropUrl)
+
+  return (
+    <div
+      className="max-w-4xl space-y-3 rounded-box border border-base-300/70 bg-base-100/75 p-4 text-base leading-7 text-base-content/85 shadow-sm backdrop-blur transition-colors duration-700 sm:p-5"
+      style={
+        palette
+          ? {
+              borderColor: `rgb(${palette.primary} / 0.35)`,
+              backgroundImage: `linear-gradient(135deg, rgb(${palette.primary} / 0.18), rgb(${palette.secondary} / 0.08) 55%, rgb(${palette.primary} / 0.14))`,
+            }
+          : undefined
+      }
+    >
+      <OracleText text={text} />
+    </div>
   )
 }
 
