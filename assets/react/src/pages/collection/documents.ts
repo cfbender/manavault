@@ -491,6 +491,29 @@ export const CollectionItemsPageDocument = graphql(`
   }
 `)
 
+// Just the ids for the current filters/sort, used by "select all" so it doesn't
+// download every field of every page's items only to read their ids.
+export const CollectionItemIdsDocument = graphql(`
+  query CollectionItemIds(
+    $filters: CollectionItemFilters
+    $sort: CollectionItemSort
+    $first: Int!
+    $after: String
+  ) {
+    collectionItems(first: $first, after: $after, filters: $filters, sort: $sort) {
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+      edges {
+        node {
+          id
+        }
+      }
+    }
+  }
+`)
+
 export const CollectionExportCsvDocument = graphql(`
   query CollectionExportCsv($filters: CollectionItemFilters) {
     collectionExportCsv(filters: $filters)

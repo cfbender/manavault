@@ -52,10 +52,17 @@ export function useCollectionItemSelection(items: CollectionItem[]) {
     })
   }, [])
 
-  const selectItems = useCallback((nextItems: CollectionItem[]) => {
+  const selectIds = useCallback((ids: string[]) => {
     setSelectionMode(true)
-    setSelectedIds(new Set(nextItems.map((item) => item.id)))
+    setSelectedIds(new Set(ids))
   }, [])
+
+  const selectItems = useCallback(
+    (nextItems: CollectionItem[]) => {
+      selectIds(nextItems.map((item) => item.id))
+    },
+    [selectIds],
+  )
 
   const clearSelection = useCallback(() => {
     setSelectionMode(false)
@@ -70,6 +77,7 @@ export function useCollectionItemSelection(items: CollectionItem[]) {
   return {
     allLoadedSelected,
     clearSelection,
+    selectIds,
     selectItems,
     selectedCount,
     selectedIds,

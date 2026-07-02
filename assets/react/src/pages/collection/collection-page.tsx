@@ -40,9 +40,11 @@ import {
 import {
   AutoSortCollectionDocument,
   CollectionDocument,
+  CollectionItemIdsDocument,
   CollectionItemsPageDocument,
   DeleteLocationDocument,
 } from "./documents"
+import type { CollectionItemIdsQuery, CollectionItemIdsQueryVariables } from "../../gql/graphql"
 import { CollectionFilterModal } from "./filter-modal"
 import { ExportCollectionDialog, ImportCollectionDialog } from "./import-export-dialogs"
 import {
@@ -385,26 +387,45 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
   async function selectAllCollectionItems() {
     if (isSelectingAllCollectionItems || isFetchingMoreAllItems) return
 
-    let itemsToSelect = allCollectionItems
-    let pageInfo = allItemsPageInfo
-
-    if (!pageInfo?.hasNextPage) {
-      selection.selectItems(itemsToSelect)
+    // Every match is already loaded — select from what we have, no fetch.
+    if (!allItemsPageInfo?.hasNextPage) {
+      selection.selectItems(allCollectionItems)
       return
     }
 
     setIsSelectingAllCollectionItems(true)
     try {
-      while (pageInfo?.hasNextPage) {
-        const result = await fetchMoreAllItemsPage(pageInfo.endCursor)
-        const nextConnection = result.data?.collectionItems
-        const nextItems = nextConnection?.edges?.map((edge) => edge?.node).filter(present) || []
+      const ids: string[] = []
+      let after: string | null | undefined = null
+      let hasNextPage = true
 
-        itemsToSelect = [...itemsToSelect, ...nextItems]
-        pageInfo = nextConnection?.pageInfo
+      // Page through ids only, rather than re-downloading every field of every
+      // item. no-cache keeps this out of the grid's relayStylePagination bucket
+      // (same filters/sort), so it can't disturb the visible pagination.
+      while (hasNextPage) {
+        const variables: CollectionItemIdsQueryVariables = {
+          filters,
+          sort: collectionItemSort,
+          first: COLLECTION_PAGE_SIZE,
+          after: after ?? null,
+        }
+
+        const connection = await client
+          .query({ query: CollectionItemIdsDocument, variables, fetchPolicy: "no-cache" })
+          .then(
+            (result): CollectionItemIdsQuery["collectionItems"] | undefined =>
+              result.data?.collectionItems,
+          )
+
+        for (const node of connection?.edges?.map((edge) => edge?.node).filter(present) ?? []) {
+          ids.push(node.id)
+        }
+
+        hasNextPage = connection?.pageInfo?.hasNextPage ?? false
+        after = connection?.pageInfo?.endCursor
       }
 
-      selection.selectItems(itemsToSelect)
+      selection.selectIds(ids)
     } finally {
       setIsSelectingAllCollectionItems(false)
     }
