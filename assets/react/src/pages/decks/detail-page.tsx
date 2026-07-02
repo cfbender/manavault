@@ -845,9 +845,63 @@ export function DeckDetailPage({
     <>
       <DeckDetailContent
         allocationError={allocationError}
-        allDeckCardsSelected={allDeckCardsSelected}
-        bulkActionError={bulkActionError || tagError}
-        bulkQuantity={bulkQuantity}
+        allocationActions={{
+          onAllocate: (deckCard, collectionItemId) =>
+            allocateDeckCardItem.mutate({ deckCardId: deckCard.id, collectionItemId }),
+          onDeallocate: (deckCard, collectionItemId) =>
+            deallocateDeckCardItem.mutate({ deckCardId: deckCard.id, collectionItemId }),
+          onToggleProxy: (deckCard) => {
+            const status = deckCard.allocationStatus
+
+            if (status.proxyAllocated > 0) {
+              deallocateDeckCardProxy.mutate({
+                deckCardId: deckCard.id,
+                quantity: status.proxyAllocated,
+              })
+            } else {
+              const quantity = Math.max(status.required - status.allocated, 0)
+
+              if (quantity > 0) {
+                allocateDeckCardProxy.mutate({ deckCardId: deckCard.id, quantity })
+              }
+            }
+          },
+        }}
+        cardActions={{
+          onDeleteCard: setDeleteCardTarget,
+          onEditCard: (deckCard) => {
+            setEditError(null)
+            setEditTarget(deckCard)
+          },
+          onMoveCard: (deckCard) => {
+            setMoveError(null)
+            setMoveTarget(deckCard)
+          },
+          onPreviewCard: setPreviewDeckCard,
+          onSetCommander: (deckCard) => setDeckCommander.mutate(deckCard.id),
+          onTagCard: tagDeckCard,
+        }}
+        selection={{
+          allDeckCardsSelected,
+          bulkActionError: bulkActionError || tagError,
+          bulkQuantity,
+          highlightedDeckCardIds,
+          isSelectionActive,
+          selectedDeckCardCount,
+          selectedDeckCardIds,
+          onClearSelectedDeckCards: () => {
+            clearSelectedDeckCards()
+            setIsSelectingCards(false)
+          },
+          onHighlightDeckCards: setHighlightedDeckCardIds,
+          onOpenDeleteSelected: () => setIsDeleteSelectedOpen(true),
+          onSelectAllDeckCards: selectAllDeckCards,
+          onSetBulkQuantity: setBulkQuantity,
+          onStartSelecting: () => setIsSelectingCards(true),
+          onTagSelectedDeckCards: tagSelectedDeckCards,
+          onToggleSelected: toggleDeckCardSelected,
+          onUpdateSelectedDeckCards: updateSelectedDeckCards,
+        }}
         canBulkAllocate={hasBulkAllocationAvailable}
         deck={deck}
         deckCards={deckCards}
@@ -855,42 +909,19 @@ export function DeckDetailPage({
         deckTokens={deckTokens}
         groupBy={groupBy}
         groupedCards={groupedCards}
-        highlightedDeckCardIds={highlightedDeckCardIds}
-        isSelectionActive={isSelectionActive}
         isUpdatingDeckCard={isUpdatingDeckCard}
         isRefreshingDeck={isRefreshingDeck}
         legalityIssues={legalityIssues}
         maybeboardCards={maybeboardCards}
-        onAllocate={(deckCard, collectionItemId) =>
-          allocateDeckCardItem.mutate({ deckCardId: deckCard.id, collectionItemId })
-        }
-        onClearSelectedDeckCards={() => {
-          clearSelectedDeckCards()
-          setIsSelectingCards(false)
-        }}
         onCopySharedDecklist={copySharedDecklist}
-        onDeallocate={(deckCard, collectionItemId) =>
-          deallocateDeckCardItem.mutate({ deckCardId: deckCard.id, collectionItemId })
-        }
-        onDeleteCard={setDeleteCardTarget}
         onDownloadSharedDecklist={downloadSharedDecklist}
-        onEditCard={(deckCard) => {
-          setEditError(null)
-          setEditTarget(deckCard)
-        }}
         onEditDeck={() => setIsEditDeckOpen(true)}
         onExportDeck={() => setIsExportDeckOpen(true)}
         onGroupByChange={setGroupBy}
-        onHighlightDeckCards={setHighlightedDeckCardIds}
         onImportDeck={() => setIsImportDeckOpen(true)}
         onMissingCards={() => setIsMissingCardsOpen(true)}
-        onMoveCard={(deckCard) => {
-          setMoveError(null)
-          setMoveTarget(deckCard)
-        }}
         onOpenAddCard={() => setIsAddCardOpen(true)}
         onDisassemble={previewCurrentDeckDisassembly}
-        onOpenDeleteSelected={() => setIsDeleteSelectedOpen(true)}
         onOpenEdhrec={() => setEdhrecState("recs")}
         onOpenShareDeck={() => setIsShareDeckOpen(true)}
         onOpenShareBuylist={() => setIsShareBuylistOpen(true)}
@@ -903,33 +934,6 @@ export function DeckDetailPage({
           setOptimizePrintingsError(null)
           setIsOptimizePrintingsOpen(true)
         }}
-        onPreviewCard={setPreviewDeckCard}
-        onSelectAllDeckCards={selectAllDeckCards}
-        onStartSelecting={() => setIsSelectingCards(true)}
-        onSetBulkQuantity={setBulkQuantity}
-        onSetCommander={(deckCard) => setDeckCommander.mutate(deckCard.id)}
-        onTagCard={tagDeckCard}
-        onTagSelectedDeckCards={tagSelectedDeckCards}
-        onToggleProxy={(deckCard) => {
-          const status = deckCard.allocationStatus
-
-          if (status.proxyAllocated > 0) {
-            deallocateDeckCardProxy.mutate({
-              deckCardId: deckCard.id,
-              quantity: status.proxyAllocated,
-            })
-          } else {
-            const quantity = Math.max(status.required - status.allocated, 0)
-
-            if (quantity > 0) {
-              allocateDeckCardProxy.mutate({ deckCardId: deckCard.id, quantity })
-            }
-          }
-        }}
-        onToggleSelected={toggleDeckCardSelected}
-        onUpdateSelectedDeckCards={updateSelectedDeckCards}
-        selectedDeckCardCount={selectedDeckCardCount}
-        selectedDeckCardIds={selectedDeckCardIds}
         deckPrice={deckPrice}
         buylistPrice={buylistPrice}
         shareCopyState={shareCopyState}

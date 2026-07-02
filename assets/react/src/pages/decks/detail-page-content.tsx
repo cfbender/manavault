@@ -59,6 +59,42 @@ type BuylistPrice = {
   unpricedQuantity: number
 }
 
+// Cohesive prop groups so DeckDetailContent takes a handful of objects instead
+// of ~55 flat props.
+export type DeckAllocationActions = {
+  onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
+  onDeallocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
+  onToggleProxy: (deckCard: DeckCardEntry) => void
+}
+
+export type DeckCardActions = {
+  onDeleteCard: (deckCard: DeckCardEntry) => void
+  onEditCard: (deckCard: DeckCardEntry) => void
+  onMoveCard: (deckCard: DeckCardEntry) => void
+  onPreviewCard: (deckCard: DeckCardEntry) => void
+  onSetCommander: (deckCard: DeckCardEntry) => void
+  onTagCard: (deckCard: DeckCardEntry, tag: DeckCardTag | null) => void
+}
+
+export type DeckSelectionControls = {
+  allDeckCardsSelected: boolean
+  bulkActionError: string | null
+  bulkQuantity: number
+  highlightedDeckCardIds: Set<string> | null
+  isSelectionActive: boolean
+  selectedDeckCardCount: number
+  selectedDeckCardIds: Set<string>
+  onClearSelectedDeckCards: () => void
+  onHighlightDeckCards: (deckCardIds: Set<string> | null) => void
+  onOpenDeleteSelected: () => void
+  onSelectAllDeckCards: () => void
+  onSetBulkQuantity: (quantity: number) => void
+  onStartSelecting: () => void
+  onTagSelectedDeckCards: (tag: DeckCardTag | null) => void
+  onToggleSelected: (deckCardId: string, selectRange?: boolean) => void
+  onUpdateSelectedDeckCards: (input: DeckCardUpdateInput) => void
+}
+
 function BuylistPriceChip({ onClick, price }: { onClick: () => void; price: BuylistPrice | null }) {
   if (!price) return null
 
@@ -375,9 +411,9 @@ function DeckPullListCard({
 
 export function DeckDetailContent({
   allocationError,
-  allDeckCardsSelected,
-  bulkActionError,
-  bulkQuantity,
+  allocationActions,
+  cardActions,
+  selection,
   canBulkAllocate,
   deck,
   deckCards,
@@ -385,28 +421,18 @@ export function DeckDetailContent({
   deckTokens,
   groupBy,
   groupedCards,
-  highlightedDeckCardIds,
-  isSelectionActive,
   isUpdatingDeckCard,
   isRefreshingDeck,
   legalityIssues,
   maybeboardCards,
-  onAllocate,
-  onClearSelectedDeckCards,
   onCopySharedDecklist,
-  onDeallocate,
-  onDeleteCard,
   onDownloadSharedDecklist,
-  onEditCard,
   onEditDeck,
   onExportDeck,
   onGroupByChange,
-  onHighlightDeckCards,
   onImportDeck,
   onMissingCards,
-  onMoveCard,
   onOpenAddCard,
-  onOpenDeleteSelected,
   onDisassemble,
   onOpenEdhrec,
   onOpenShareDeck,
@@ -414,18 +440,6 @@ export function DeckDetailContent({
   onOpenSharePlaytest,
   onOpenBulkAllocation,
   onOpenOptimizePrintings,
-  onPreviewCard,
-  onSelectAllDeckCards,
-  onStartSelecting,
-  onSetCommander,
-  onSetBulkQuantity,
-  onTagCard,
-  onTagSelectedDeckCards,
-  onToggleProxy,
-  onToggleSelected,
-  onUpdateSelectedDeckCards,
-  selectedDeckCardCount,
-  selectedDeckCardIds,
   deckPrice,
   buylistPrice,
   shareCopyState,
@@ -434,9 +448,9 @@ export function DeckDetailContent({
   zoneCounts,
 }: {
   allocationError: string | null
-  allDeckCardsSelected: boolean
-  bulkActionError: string | null
-  bulkQuantity: number
+  allocationActions: DeckAllocationActions
+  cardActions: DeckCardActions
+  selection: DeckSelectionControls
   canBulkAllocate: boolean
   deck: DeckDetail
   deckCards: DeckCardEntry[]
@@ -444,28 +458,18 @@ export function DeckDetailContent({
   deckTokens: DeferredDeckAnalysis["tokens"] | null
   groupBy: DeckGroupBy
   groupedCards: DeckGroup<DeckCardEntry>[]
-  highlightedDeckCardIds: Set<string> | null
-  isSelectionActive: boolean
   isUpdatingDeckCard: boolean
   isRefreshingDeck: boolean
   legalityIssues: DeckLegalityIssue[]
   maybeboardCards: DeckCardEntry[]
-  onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
-  onClearSelectedDeckCards: () => void
   onCopySharedDecklist: () => void
-  onDeallocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
-  onDeleteCard: (deckCard: DeckCardEntry) => void
   onDownloadSharedDecklist: () => void
-  onEditCard: (deckCard: DeckCardEntry) => void
   onEditDeck: () => void
   onExportDeck: () => void
   onGroupByChange: (groupBy: DeckGroupBy) => void
-  onHighlightDeckCards: (deckCardIds: Set<string> | null) => void
   onImportDeck: () => void
   onMissingCards: () => void
-  onMoveCard: (deckCard: DeckCardEntry) => void
   onOpenAddCard: () => void
-  onOpenDeleteSelected: () => void
   onDisassemble: () => void
   onOpenEdhrec: () => void
   onOpenShareDeck: () => void
@@ -473,18 +477,6 @@ export function DeckDetailContent({
   onOpenSharePlaytest: () => void
   onOpenBulkAllocation: () => void
   onOpenOptimizePrintings: () => void
-  onPreviewCard: (deckCard: DeckCardEntry) => void
-  onSelectAllDeckCards: () => void
-  onStartSelecting: () => void
-  onSetCommander: (deckCard: DeckCardEntry) => void
-  onSetBulkQuantity: (quantity: number) => void
-  onTagCard: (deckCard: DeckCardEntry, tag: DeckCardTag | null) => void
-  onTagSelectedDeckCards: (tag: DeckCardTag | null) => void
-  onToggleProxy: (deckCard: DeckCardEntry) => void
-  onToggleSelected: (deckCardId: string, selectRange?: boolean) => void
-  onUpdateSelectedDeckCards: (input: DeckCardUpdateInput) => void
-  selectedDeckCardCount: number
-  selectedDeckCardIds: Set<string>
   deckPrice: BuylistPrice | null
   buylistPrice: BuylistPrice | null
   shareCopyState: "idle" | "copied" | "failed"
@@ -492,6 +484,28 @@ export function DeckDetailContent({
   sideboardCards: DeckCardEntry[]
   zoneCounts: DetailZoneCounts
 }) {
+  const { onAllocate, onDeallocate, onToggleProxy } = allocationActions
+  const { onDeleteCard, onEditCard, onMoveCard, onPreviewCard, onSetCommander, onTagCard } =
+    cardActions
+  const {
+    allDeckCardsSelected,
+    bulkActionError,
+    bulkQuantity,
+    highlightedDeckCardIds,
+    isSelectionActive,
+    selectedDeckCardCount,
+    selectedDeckCardIds,
+    onClearSelectedDeckCards,
+    onHighlightDeckCards,
+    onOpenDeleteSelected,
+    onSelectAllDeckCards,
+    onSetBulkQuantity,
+    onStartSelecting,
+    onTagSelectedDeckCards,
+    onToggleSelected,
+    onUpdateSelectedDeckCards,
+  } = selection
+
   const [isReadinessOpen, setIsReadinessOpen] = useState(false)
   const hasReadinessWork = useMemo(() => hasDeckPullWork(deckCards), [deckCards])
 
