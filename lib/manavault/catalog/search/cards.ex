@@ -11,8 +11,8 @@ defmodule Manavault.Catalog.Search.Cards do
     limit = Keyword.get(opts, :limit, 20)
 
     card_ids =
-      Card
-      |> join(:left, [card], printing in assoc(card, :printings))
+      from(card in Card, as: :card)
+      |> join(:left, [card], printing in assoc(card, :printings), as: :printing)
       |> Filter.apply(term)
       |> group_by([card, _printing], card.oracle_id)
       |> order_by([card, _printing], asc: card.name)

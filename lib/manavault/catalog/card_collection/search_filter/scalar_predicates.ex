@@ -4,149 +4,18 @@ defmodule Manavault.Catalog.CardCollection.SearchFilter.ScalarPredicates do
   import Ecto.Query
 
   alias Manavault.Catalog.CardCollection.SearchFilter.{ColorPredicates, TextPredicates, Values}
+  alias Manavault.Catalog.Search.ScalarPredicates, as: Shared
 
   import Manavault.Catalog.PriceFragments, only: [price_value_fragment: 2]
 
-  defmacrop rarity_rank_fragment(field) do
-    quote do
-      fragment(
-        "CASE lower(coalesce(?, '')) WHEN 'common' THEN 1 WHEN 'uncommon' THEN 2 WHEN 'rare' THEN 3 WHEN 'mythic' THEN 4 WHEN 'special' THEN 5 WHEN 'bonus' THEN 6 ELSE 0 END",
-        unquote(field)
-      )
-    end
-  end
-
-  def mana_value(op, value) do
-    case value |> Values.downcase() do
-      "even" ->
-        dynamic(
-          [_item, _printing, card, _location],
-          fragment("CAST(coalesce(?, 0) AS INTEGER) % 2 = 0", card.cmc)
-        )
-
-      "odd" ->
-        dynamic(
-          [_item, _printing, card, _location],
-          fragment("CAST(coalesce(?, 0) AS INTEGER) % 2 = 1", card.cmc)
-        )
-
-      value ->
-        numeric_value(:mana_value, op, value)
-    end
-  end
-
-  def rarity(op, value) do
-    with {:ok, rank} <- Values.rarity_rank(value) do
-      case Values.comparison_op(op) do
-        :eq ->
-          dynamic(
-            [_item, printing, _card, _location],
-            rarity_rank_fragment(printing.rarity) == ^rank
-          )
-
-        :neq ->
-          dynamic(
-            [_item, printing, _card, _location],
-            rarity_rank_fragment(printing.rarity) != ^rank
-          )
-
-        :gt ->
-          dynamic(
-            [_item, printing, _card, _location],
-            rarity_rank_fragment(printing.rarity) > ^rank
-          )
-
-        :gte ->
-          dynamic(
-            [_item, printing, _card, _location],
-            rarity_rank_fragment(printing.rarity) >= ^rank
-          )
-
-        :lt ->
-          dynamic(
-            [_item, printing, _card, _location],
-            rarity_rank_fragment(printing.rarity) < ^rank
-          )
-
-        :lte ->
-          dynamic(
-            [_item, printing, _card, _location],
-            rarity_rank_fragment(printing.rarity) <= ^rank
-          )
-      end
-    else
-      :error -> dynamic(false)
-    end
-  end
-
-  def set(op, value) when op in [:colon, :eq, :neq] do
-    value = Values.downcase(value)
-    pattern = Values.like_pattern(value)
-
-    condition =
-      dynamic(
-        [_item, printing, _card, _location],
-        fragment("lower(?)", printing.set_code) == ^value or
-          fragment("lower(coalesce(?, '')) LIKE ? ESCAPE '\\'", printing.set_name, ^pattern)
-      )
-
-    if op == :neq,
-      do: dynamic([item, printing, card, location], not (^condition)),
-      else: condition
-  end
-
-  def set(_op, _value), do: dynamic(false)
-
-  def collector_number(op, value) when op in [:colon, :eq, :neq] do
-    value = Values.downcase(value)
-
-    condition =
-      dynamic(
-        [_item, printing, _card, _location],
-        fragment("lower(?)", printing.collector_number) == ^value
-      )
-
-    if op == :neq,
-      do: dynamic([item, printing, card, location], not (^condition)),
-      else: condition
-  end
-
-  def collector_number(op, value) do
-    case Integer.parse(value) do
-      {number, ""} ->
-        case Values.comparison_op(op) do
-          :gt ->
-            dynamic(
-              [_item, printing, _card, _location],
-              fragment("CAST(? AS INTEGER)", printing.collector_number) > ^number
-            )
-
-          :gte ->
-            dynamic(
-              [_item, printing, _card, _location],
-              fragment("CAST(? AS INTEGER)", printing.collector_number) >= ^number
-            )
-
-          :lt ->
-            dynamic(
-              [_item, printing, _card, _location],
-              fragment("CAST(? AS INTEGER)", printing.collector_number) < ^number
-            )
-
-          :lte ->
-            dynamic(
-              [_item, printing, _card, _location],
-              fragment("CAST(? AS INTEGER)", printing.collector_number) <= ^number
-            )
-
-          _op ->
-            dynamic(false)
-        end
-
-      _invalid ->
-        dynamic(false)
-    end
-  end
+  # Card/printing predicates are identical to the catalog card search; they live
+  # in Search.ScalarPredicates and resolve via the :card / :printing bindings.
+  defdelegate mana_value(op, value), to: Shared
+  defdelegate rarity(op, value), to: Shared
+  defdelegate set(op, value), to: Shared
+  defdelegate collector_number(op, value), to: Shared
+  defdelegate date(op, value), to: Shared
+  defdelegate year(op, value), to: Shared
 
   def language(op, value) when op in [:colon, :eq, :neq] do
     value = Values.downcase(value)
@@ -282,87 +151,6 @@ defmodule Manavault.Catalog.CardCollection.SearchFilter.ScalarPredicates do
 
       _invalid ->
         dynamic(false)
-    end
-  end
-
-  def date(op, value) do
-    case Date.from_iso8601(value) do
-      {:ok, date} ->
-        case Values.comparison_op(op) do
-          :eq -> dynamic([_item, printing, _card, _location], printing.released_at == ^date)
-          :neq -> dynamic([_item, printing, _card, _location], printing.released_at != ^date)
-          :gt -> dynamic([_item, printing, _card, _location], printing.released_at > ^date)
-          :gte -> dynamic([_item, printing, _card, _location], printing.released_at >= ^date)
-          :lt -> dynamic([_item, printing, _card, _location], printing.released_at < ^date)
-          :lte -> dynamic([_item, printing, _card, _location], printing.released_at <= ^date)
-        end
-
-      _invalid ->
-        dynamic(false)
-    end
-  end
-
-  def year(op, value) do
-    case Integer.parse(value) do
-      {year, ""} ->
-        case Values.comparison_op(op) do
-          :eq ->
-            dynamic(
-              [_item, printing, _card, _location],
-              fragment("CAST(strftime('%Y', ?) AS INTEGER)", printing.released_at) == ^year
-            )
-
-          :neq ->
-            dynamic(
-              [_item, printing, _card, _location],
-              fragment("CAST(strftime('%Y', ?) AS INTEGER)", printing.released_at) != ^year
-            )
-
-          :gt ->
-            dynamic(
-              [_item, printing, _card, _location],
-              fragment("CAST(strftime('%Y', ?) AS INTEGER)", printing.released_at) > ^year
-            )
-
-          :gte ->
-            dynamic(
-              [_item, printing, _card, _location],
-              fragment("CAST(strftime('%Y', ?) AS INTEGER)", printing.released_at) >= ^year
-            )
-
-          :lt ->
-            dynamic(
-              [_item, printing, _card, _location],
-              fragment("CAST(strftime('%Y', ?) AS INTEGER)", printing.released_at) < ^year
-            )
-
-          :lte ->
-            dynamic(
-              [_item, printing, _card, _location],
-              fragment("CAST(strftime('%Y', ?) AS INTEGER)", printing.released_at) <= ^year
-            )
-        end
-
-      _invalid ->
-        dynamic(false)
-    end
-  end
-
-  defp numeric_value(:mana_value, op, value) do
-    case Float.parse(value) do
-      {number, ""} -> numeric_comparison(:mana_value, op, number)
-      _invalid -> dynamic(false)
-    end
-  end
-
-  defp numeric_comparison(:mana_value, op, number) do
-    case Values.comparison_op(op) do
-      :eq -> dynamic([_item, _printing, card, _location], card.cmc == ^number)
-      :neq -> dynamic([_item, _printing, card, _location], card.cmc != ^number)
-      :gt -> dynamic([_item, _printing, card, _location], card.cmc > ^number)
-      :gte -> dynamic([_item, _printing, card, _location], card.cmc >= ^number)
-      :lt -> dynamic([_item, _printing, card, _location], card.cmc < ^number)
-      :lte -> dynamic([_item, _printing, card, _location], card.cmc <= ^number)
     end
   end
 

@@ -18,8 +18,8 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries.Base do
     unallocated_only? = Keyword.get(filters, :unallocated_only, false)
 
     CollectionItem
-    |> join(:inner, [item], printing in assoc(item, :printing))
-    |> join(:inner, [_item, printing], card in assoc(printing, :card))
+    |> join(:inner, [item], printing in assoc(item, :printing), as: :printing)
+    |> join(:inner, [_item, printing], card in assoc(printing, :card), as: :card)
     |> join(:left, [item, _printing, _card], location in assoc(item, :location_assoc))
     |> SearchFilter.apply(query)
     |> maybe_filter_card_id(card_id)
