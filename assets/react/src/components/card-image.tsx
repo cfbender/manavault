@@ -35,6 +35,8 @@ export function CardImage({
       className={cn("aspect-[5/7] rounded-lg object-cover shadow-sm", className)}
       src={imageUrl}
       alt={name}
+      loading="lazy"
+      decoding="async"
     />
   )
 }
