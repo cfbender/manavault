@@ -32,7 +32,9 @@ defmodule Manavault.Catalog.Search.CardNameSuggestions do
 
     cache
     |> candidate_pool(term)
-    |> Enum.filter(&card_name_candidate?(term, &1))
+    # Stream so matching (which runs edit distances) stops once we have enough
+    # candidates instead of scanning the whole ngram bucket.
+    |> Stream.filter(&card_name_candidate?(term, &1))
     |> Enum.take(candidate_limit)
   end
 
@@ -242,31 +244,32 @@ defmodule Manavault.Catalog.Search.CardNameSuggestions do
 
   defp edit_distance(left, right) do
     right_chars = String.graphemes(right)
-    initial_row = Enum.to_list(0..length(right_chars))
+    previous_row = Enum.to_list(0..length(right_chars))
 
     left
     |> String.graphemes()
-    |> Enum.with_index(1)
-    |> Enum.reduce(initial_row, fn {left_char, row_index}, previous_row ->
-      {row, _left_value} =
-        right_chars
-        |> Enum.with_index(1)
-        |> Enum.reduce({[row_index], row_index}, fn {right_char, column_index},
-                                                    {row, left_value} ->
-          insert_cost = left_value + 1
-          delete_cost = Enum.at(previous_row, column_index) + 1
-
-          replace_cost =
-            Enum.at(previous_row, column_index - 1) +
-              if(left_char == right_char, do: 0, else: 1)
-
-          value = min(insert_cost, min(delete_cost, replace_cost))
-
-          {row ++ [value], value}
-        end)
-
-      row
+    |> Enum.reduce({previous_row, 1}, fn left_char, {[diagonal | above_row], row_index} ->
+      {distance_row(left_char, right_chars, above_row, diagonal, [row_index]), row_index + 1}
     end)
+    |> elem(0)
     |> List.last()
+  end
+
+  # One Wagner-Fischer row, accumulated head-first (reversed) so there is no
+  # list append or index lookup per cell — O(right length) instead of O(n^2).
+  defp distance_row(_left_char, [], _above_row, _diagonal, acc), do: Enum.reverse(acc)
+
+  defp distance_row(
+         left_char,
+         [right_char | right_rest],
+         [above | above_rest],
+         diagonal,
+         [
+           left | _
+         ] = acc
+       ) do
+    cost = if left_char == right_char, do: 0, else: 1
+    value = min(min(left + 1, above + 1), diagonal + cost)
+    distance_row(left_char, right_rest, above_rest, above, [value | acc])
   end
 end
