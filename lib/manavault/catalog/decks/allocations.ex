@@ -197,26 +197,33 @@ defmodule Manavault.Catalog.Decks.Allocations do
   def bulk_allocate_deck(%Deck{} = deck, mode)
       when mode in [:exact_printings, :matching_printings] do
     with {:ok, preview} <- preview_bulk_allocate_deck(deck, mode) do
-      result =
-        Enum.reduce(preview.entries, %{allocated: 0, cards: MapSet.new(), skipped: 0}, fn entry,
-                                                                                          counts ->
-          case allocate_collection_item_to_deck_card(
-                 entry.deck_card.id,
-                 entry.item.id,
-                 entry.quantity
-               ) do
-            {:ok, _allocation} ->
-              counts
-              |> update_in([:allocated], &(&1 + entry.quantity))
-              |> update_in([:cards], &MapSet.put(&1, entry.deck_card.id))
+      # Apply the whole preview in one transaction instead of one per entry, so
+      # the write path commits once rather than N times. Each entry still runs
+      # in a nested savepoint (allocate_collection_item_to_deck_card opens its
+      # own transaction), so a single failing entry rolls back only itself and
+      # is counted as skipped, matching the prior per-entry behavior.
+      Repo.transact(fn ->
+        result =
+          Enum.reduce(preview.entries, %{allocated: 0, cards: MapSet.new(), skipped: 0}, fn entry,
+                                                                                            counts ->
+            case allocate_collection_item_to_deck_card(
+                   entry.deck_card.id,
+                   entry.item.id,
+                   entry.quantity
+                 ) do
+              {:ok, _allocation} ->
+                counts
+                |> update_in([:allocated], &(&1 + entry.quantity))
+                |> update_in([:cards], &MapSet.put(&1, entry.deck_card.id))
 
-            {:error, _reason} ->
-              update_in(counts, [:skipped], &(&1 + 1))
-          end
-        end)
+              {:error, _reason} ->
+                update_in(counts, [:skipped], &(&1 + 1))
+            end
+          end)
 
-      {:ok,
-       %{allocated: result.allocated, cards: MapSet.size(result.cards), skipped: result.skipped}}
+        {:ok,
+         %{allocated: result.allocated, cards: MapSet.size(result.cards), skipped: result.skipped}}
+      end)
     end
   end
 
