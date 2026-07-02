@@ -223,7 +223,8 @@ export function DecksPage() {
     void deleteDeck({
       variables: { id: deletingDeck.id },
       onCompleted: () => showToast(`Deleted deck ${deckName}`),
-    })
+      onError: () => showToast(`Could not delete deck ${deckName}`, { tone: "info" }),
+    }).catch(() => undefined)
     if (editingDeck?.id === deletingDeck.id) setEditingDeck(null)
     if (sharingDeck?.id === deletingDeck.id) setSharingDeck(null)
     navigate({ to: "/decks" })
