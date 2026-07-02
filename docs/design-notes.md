@@ -1,6 +1,3 @@
-- icon buttons on collection view for less important actions
-  - combine add card and add location to one button ("Add") that opens a dropdown to Add card or Add location (use plus icon from Add card)
-  - rest as icon buttons
 - dropdown for collection views on mobile
   - instead of tabs, make it one button that opens a dropdown to select the view (like ALl cards, recently added, etc.)
 - remove mana cost vs production middle section (the full composed view)
