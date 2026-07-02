@@ -1,5 +1,3 @@
-- dropdown for collection views on mobile
-  - instead of tabs, make it one button that opens a dropdown to select the view (like ALl cards, recently added, etc.)
 - remove mana cost vs production middle section (the full composed view)
   - be sure to keep mana curve and the individual color breakdown, just remove the section with the two horizontal bars of all colors and the text around it
 - deck card icon buttons fixes
