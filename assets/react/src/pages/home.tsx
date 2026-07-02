@@ -3,13 +3,17 @@ import { useNavigate } from "@tanstack/react-router"
 import { motion } from "motion/react"
 import { Boxes, Layers, MapPin, Search } from "lucide-react"
 import type { FormEvent } from "react"
-import { useEffect, useState } from "react"
+import { lazy, Suspense, useEffect, useState } from "react"
 import { ActionCard } from "../components/app-shell"
 import { CardNameSearchField } from "../components/card-name-search-field"
 import { Button } from "../components/ui/button"
-import Prism from "../components/prism/Prism"
 import { graphql } from "../gql"
 import { compactNumber } from "../lib/utils"
+
+// Prism pulls in the full ogl WebGL library. Load it lazily so the home chunk
+// stays small — it only renders on wide viewports without reduced-motion, so
+// mobile / reduced-motion users never download the WebGL renderer.
+const Prism = lazy(() => import("../components/prism/Prism"))
 
 const HomeDocument = graphql(`
   query Home {
@@ -63,17 +67,19 @@ export function HomePage() {
         className="pointer-events-none fixed left-0 top-0 z-0 h-screen w-screen"
       >
         {renderPrism ? (
-          <Prism
-            animationType="rotate"
-            timeScale={0.5}
-            height={3.5}
-            baseWidth={5.5}
-            scale={3.6}
-            hueShift={0}
-            colorFrequency={1}
-            glow={1}
-            suspendWhenOffscreen
-          />
+          <Suspense fallback={null}>
+            <Prism
+              animationType="rotate"
+              timeScale={0.5}
+              height={3.5}
+              baseWidth={5.5}
+              scale={3.6}
+              hueShift={0}
+              colorFrequency={1}
+              glow={1}
+              suspendWhenOffscreen
+            />
+          </Suspense>
         ) : null}
       </div>
       <div
