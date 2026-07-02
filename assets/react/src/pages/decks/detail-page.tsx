@@ -261,7 +261,10 @@ export function DeckDetailPage({
   function refetchDeckQueries() {
     void refetchActiveQueries(client)
   }
-  const deckQueryData = data?.deck ? data : previousData?.deck ? previousData : data
+  // Apollo keeps previousData across variable changes, so only fall back to it
+  // while refetching the *same* deck. Otherwise navigating deck A -> B would
+  // render A under /decks/B until B loads.
+  const deckQueryData = data?.deck ? data : previousData?.deck?.id === id ? previousData : data
   const deck = useMemo(() => flattenDeck(deckQueryData?.deck), [deckQueryData?.deck])
   const isInitialDeckLoading = isLoading && !deck
   const isRefreshingDeck = isLoading && Boolean(deck)
