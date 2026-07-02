@@ -1,6 +1,7 @@
 defmodule Manavault.Catalog.EDHRec.Response.CommanderPage do
   @moduledoc false
 
+  alias Manavault.Catalog.Card
   alias Manavault.Catalog.EDHRec.Response.{CardLookup, CollectionStatus}
 
   def pages(names, fetch_commander_page, deck \\ nil) do
@@ -43,18 +44,29 @@ defmodule Manavault.Catalog.EDHRec.Response.CommanderPage do
   end
 
   defp normalize_sections(cardlists, deck) when is_list(cardlists) do
-    cardlists
-    |> Enum.map(&normalize_section(&1, deck))
-    |> Enum.reject(&is_nil/1)
+    resolved_sections =
+      cardlists
+      |> Enum.map(&resolve_section(&1, deck))
+      |> Enum.reject(&is_nil/1)
+
+    # One pair of collection queries for the whole commander page instead of a
+    # pair per not-in-deck section card (see CollectionStatus.prefetch/1).
+    prefetch =
+      resolved_sections
+      |> Enum.flat_map(& &1.cards)
+      |> prefetch_oracle_ids()
+      |> CollectionStatus.prefetch()
+
+    Enum.map(resolved_sections, &build_section(&1, prefetch))
   end
 
   defp normalize_sections(_cardlists, _deck), do: []
 
-  defp normalize_section(%{} = section, deck) do
+  defp resolve_section(%{} = section, deck) do
     cards =
       section
       |> Map.get("cardviews", [])
-      |> Enum.map(&normalize_card(&1, deck))
+      |> Enum.map(&resolve_card(&1, deck))
       |> Enum.reject(&is_nil/1)
 
     if cards == [] do
@@ -68,9 +80,13 @@ defmodule Manavault.Catalog.EDHRec.Response.CommanderPage do
     end
   end
 
-  defp normalize_section(_section, _deck), do: nil
+  defp resolve_section(_section, _deck), do: nil
 
-  defp normalize_card(%{} = entry, deck) do
+  defp build_section(%{header: header, tag: tag, cards: cards}, prefetch) do
+    %{header: header, tag: tag, cards: Enum.map(cards, &build_card(&1, prefetch))}
+  end
+
+  defp resolve_card(%{} = entry, deck) do
     name = CardLookup.entry_name(entry)
 
     if name == "" do
@@ -80,27 +96,51 @@ defmodule Manavault.Catalog.EDHRec.Response.CommanderPage do
         CardLookup.local_card(page_value(entry, "oracle_id") || page_value(entry, "id"), name)
 
       oracle_id = CardLookup.local_card_oracle_id(local_card)
-      deck_card = matching_deck_card(deck, oracle_id, name)
 
       %{
+        entry: entry,
         name: name,
+        local_card: local_card,
         oracle_id: oracle_id,
-        synergy: page_number(entry, "synergy"),
-        inclusion: page_integer(entry, "inclusion"),
-        num_decks: page_integer(entry, "num_decks"),
-        potential_decks: page_integer(entry, "potential_decks"),
-        url:
-          edhrec_path(
-            page_value(entry, "url"),
-            "https://edhrec.com/cards/#{CardLookup.card_slug(name)}"
-          ),
-        card: local_card,
-        collection_status: CollectionStatus.status(local_card, deck_card)
+        deck_card: matching_deck_card(deck, oracle_id, name)
       }
     end
   end
 
-  defp normalize_card(_entry, _deck), do: nil
+  defp resolve_card(_entry, _deck), do: nil
+
+  defp build_card(resolved, prefetch) do
+    %{
+      entry: entry,
+      name: name,
+      local_card: local_card,
+      oracle_id: oracle_id,
+      deck_card: deck_card
+    } =
+      resolved
+
+    %{
+      name: name,
+      oracle_id: oracle_id,
+      synergy: page_number(entry, "synergy"),
+      inclusion: page_integer(entry, "inclusion"),
+      num_decks: page_integer(entry, "num_decks"),
+      potential_decks: page_integer(entry, "potential_decks"),
+      url:
+        edhrec_path(
+          page_value(entry, "url"),
+          "https://edhrec.com/cards/#{CardLookup.card_slug(name)}"
+        ),
+      card: local_card,
+      collection_status: CollectionStatus.status(local_card, deck_card, prefetch)
+    }
+  end
+
+  defp prefetch_oracle_ids(resolved_cards) do
+    for %{local_card: %Card{oracle_id: oracle_id}, deck_card: nil} <- resolved_cards,
+        is_binary(oracle_id),
+        do: oracle_id
+  end
 
   defp matching_deck_card(nil, _oracle_id, _name), do: nil
 
