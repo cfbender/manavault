@@ -16,6 +16,34 @@ defmodule Manavault.Catalog.EDHRec.Response.CardLookup do
 
   def local_card(_identifier, name), do: local_card_by_name(name)
 
+  # Batched card resolution: build one lookup (three grouped queries) with
+  # local_card_lookup/2, then resolve each entry through local_card/3 with the
+  # same oracle_id -> printing_id -> name precedence as local_card/2 — avoiding
+  # up to three queries per entry across a whole EDHRec response.
+  def local_card_lookup(identifiers, names) do
+    identifiers = identifiers |> Enum.reject(&(&1 in [nil, ""])) |> Enum.uniq()
+
+    trimmed_names =
+      names
+      |> Enum.map(&(&1 |> to_string() |> String.trim()))
+      |> Enum.reject(&(&1 == ""))
+      |> Enum.uniq()
+
+    %{
+      by_oracle_id: cards_by_oracle_ids(identifiers),
+      by_printing_id: cards_by_printing_ids(identifiers),
+      by_name: cards_by_names(trimmed_names)
+    }
+  end
+
+  def local_card(identifier, name, lookup) when is_binary(identifier) and identifier != "" do
+    Map.get(lookup.by_oracle_id, identifier) ||
+      Map.get(lookup.by_printing_id, identifier) ||
+      Map.get(lookup.by_name, name_key(name))
+  end
+
+  def local_card(_identifier, name, lookup), do: Map.get(lookup.by_name, name_key(name))
+
   def matching_deck_card(%Deck{} = deck, oracle_id, name) do
     deck.deck_cards
     |> Enum.filter(&matching_deck_card?(&1, oracle_id, name))
@@ -83,6 +111,52 @@ defmodule Manavault.Catalog.EDHRec.Response.CardLookup do
     |> limit(1)
     |> Repo.one()
   end
+
+  defp cards_by_oracle_ids([]), do: %{}
+
+  defp cards_by_oracle_ids(oracle_ids) do
+    Card
+    |> where([card], card.oracle_id in ^oracle_ids)
+    |> Repo.all()
+    |> Map.new(&{&1.oracle_id, &1})
+  end
+
+  defp cards_by_printing_ids([]), do: %{}
+
+  defp cards_by_printing_ids(scryfall_ids) do
+    Printing
+    |> where([printing], printing.scryfall_id in ^scryfall_ids)
+    |> preload(:card)
+    |> Repo.all()
+    |> Enum.reduce(%{}, fn printing, acc ->
+      case printing.card do
+        %Card{} = card -> Map.put_new(acc, printing.scryfall_id, card)
+        _no_card -> acc
+      end
+    end)
+  end
+
+  defp cards_by_names([]), do: %{}
+
+  defp cards_by_names(names) do
+    # COLLATE NOCASE matches case-insensitively exactly like local_card_by_name/1;
+    # key results by an ASCII-only fold so it matches SQLite's NOCASE folding.
+    Card
+    |> where([card], fragment("? COLLATE NOCASE", card.name) in ^names)
+    |> Repo.all()
+    |> Enum.reduce(%{}, fn card, acc -> Map.put_new(acc, name_key(card.name), card) end)
+  end
+
+  defp name_key(name) do
+    name |> to_string() |> String.trim() |> ascii_downcase()
+  end
+
+  defp ascii_downcase(string) do
+    for <<byte <- string>>, into: "", do: <<downcase_ascii_byte(byte)>>
+  end
+
+  defp downcase_ascii_byte(byte) when byte in ?A..?Z, do: byte + 32
+  defp downcase_ascii_byte(byte), do: byte
 
   # Printings are intentionally NOT preloaded here. Eagerly loading every
   # printing of every recommended card pulled tens of thousands of rows per

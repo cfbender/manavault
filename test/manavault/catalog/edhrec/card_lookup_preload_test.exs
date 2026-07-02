@@ -28,4 +28,22 @@ defmodule Manavault.Catalog.EDHRec.Response.CardLookupPreloadTest do
     assert %Card{oracle_id: "oracle-sol-ring"} = found = CardLookup.local_card(nil, "sol ring")
     assert %Ecto.Association.NotLoaded{} = found.printings
   end
+
+  test "local_card/3 resolves through a batched lookup, matching name case-insensitively",
+       %{card: card} do
+    lookup =
+      CardLookup.local_card_lookup([card.oracle_id, "missing-id"], ["SOL RING", "Nonexistent"])
+
+    # oracle_id takes precedence
+    assert %Card{oracle_id: "oracle-sol-ring"} = CardLookup.local_card(card.oracle_id, "", lookup)
+
+    # falls back to a case-insensitive name match (entry "SOL RING" vs stored "Sol Ring")
+    assert %Card{oracle_id: "oracle-sol-ring"} =
+             found = CardLookup.local_card(nil, "SOL RING", lookup)
+
+    assert %Ecto.Association.NotLoaded{} = found.printings
+
+    # no match resolves to nil
+    assert CardLookup.local_card("missing-id", "Nonexistent", lookup) == nil
+  end
 end

@@ -28,9 +28,17 @@ defmodule Manavault.Catalog.EDHRec.Response do
   end
 
   defp normalize_entries(entries, %Deck{} = deck) when is_list(entries) do
+    # Resolve every entry's card through one batched lookup (three grouped
+    # queries) instead of up to three per entry.
+    card_lookup =
+      CardLookup.local_card_lookup(
+        Enum.map(entries, &CardLookup.entry_oracle_id/1),
+        Enum.map(entries, &CardLookup.entry_name/1)
+      )
+
     resolved =
       entries
-      |> Enum.map(&resolve_entry(&1, deck))
+      |> Enum.map(&resolve_entry(&1, deck, card_lookup))
       |> Enum.reject(&is_nil/1)
 
     # One pair of collection queries for the whole section instead of a pair per
@@ -43,7 +51,7 @@ defmodule Manavault.Catalog.EDHRec.Response do
 
   defp normalize_entries(_entries, _deck), do: []
 
-  defp resolve_entry(%{} = entry, %Deck{} = deck) do
+  defp resolve_entry(%{} = entry, %Deck{} = deck, card_lookup) do
     name = CardLookup.entry_name(entry)
 
     if name == "" do
@@ -55,13 +63,13 @@ defmodule Manavault.Catalog.EDHRec.Response do
         entry: entry,
         name: name,
         oracle_id: oracle_id,
-        local_card: CardLookup.local_card(oracle_id, name),
+        local_card: CardLookup.local_card(oracle_id, name, card_lookup),
         deck_card: CardLookup.matching_deck_card(deck, oracle_id, name)
       }
     end
   end
 
-  defp resolve_entry(_entry, _deck), do: nil
+  defp resolve_entry(_entry, _deck, _card_lookup), do: nil
 
   defp prefetch_oracle_ids(resolved) do
     for %{local_card: %Card{oracle_id: oracle_id}, deck_card: nil} <- resolved,

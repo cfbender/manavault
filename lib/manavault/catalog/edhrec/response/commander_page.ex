@@ -44,9 +44,22 @@ defmodule Manavault.Catalog.EDHRec.Response.CommanderPage do
   end
 
   defp normalize_sections(cardlists, deck) when is_list(cardlists) do
+    # Resolve every section card through one batched lookup (three grouped
+    # queries) instead of up to three per card.
+    entries =
+      Enum.flat_map(cardlists, fn section ->
+        if is_map(section), do: Map.get(section, "cardviews", []), else: []
+      end)
+
+    card_lookup =
+      CardLookup.local_card_lookup(
+        Enum.map(entries, &(page_value(&1, "oracle_id") || page_value(&1, "id"))),
+        Enum.map(entries, &CardLookup.entry_name/1)
+      )
+
     resolved_sections =
       cardlists
-      |> Enum.map(&resolve_section(&1, deck))
+      |> Enum.map(&resolve_section(&1, deck, card_lookup))
       |> Enum.reject(&is_nil/1)
 
     # One pair of collection queries for the whole commander page instead of a
@@ -62,11 +75,11 @@ defmodule Manavault.Catalog.EDHRec.Response.CommanderPage do
 
   defp normalize_sections(_cardlists, _deck), do: []
 
-  defp resolve_section(%{} = section, deck) do
+  defp resolve_section(%{} = section, deck, card_lookup) do
     cards =
       section
       |> Map.get("cardviews", [])
-      |> Enum.map(&resolve_card(&1, deck))
+      |> Enum.map(&resolve_card(&1, deck, card_lookup))
       |> Enum.reject(&is_nil/1)
 
     if cards == [] do
@@ -80,20 +93,24 @@ defmodule Manavault.Catalog.EDHRec.Response.CommanderPage do
     end
   end
 
-  defp resolve_section(_section, _deck), do: nil
+  defp resolve_section(_section, _deck, _card_lookup), do: nil
 
   defp build_section(%{header: header, tag: tag, cards: cards}, prefetch) do
     %{header: header, tag: tag, cards: Enum.map(cards, &build_card(&1, prefetch))}
   end
 
-  defp resolve_card(%{} = entry, deck) do
+  defp resolve_card(%{} = entry, deck, card_lookup) do
     name = CardLookup.entry_name(entry)
 
     if name == "" do
       nil
     else
       local_card =
-        CardLookup.local_card(page_value(entry, "oracle_id") || page_value(entry, "id"), name)
+        CardLookup.local_card(
+          page_value(entry, "oracle_id") || page_value(entry, "id"),
+          name,
+          card_lookup
+        )
 
       oracle_id = CardLookup.local_card_oracle_id(local_card)
 
@@ -107,7 +124,7 @@ defmodule Manavault.Catalog.EDHRec.Response.CommanderPage do
     end
   end
 
-  defp resolve_card(_entry, _deck), do: nil
+  defp resolve_card(_entry, _deck, _card_lookup), do: nil
 
   defp build_card(resolved, prefetch) do
     %{
