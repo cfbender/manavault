@@ -784,20 +784,12 @@ export const DeckEdhrecDocument = graphql(`
           oracleId
           name
           typeLine
-          printings(first: 300) {
-            pageInfo {
-              endCursor
-              hasNextPage
-            }
-            edges {
-              node {
-                id
-                scryfallId
-                imageUrl
-                artCropUrl
-                priceText
-              }
-            }
+          primaryPrinting {
+            id
+            scryfallId
+            imageUrl
+            artCropUrl
+            priceText
           }
         }
         collectionStatus {
@@ -826,20 +818,12 @@ export const DeckEdhrecDocument = graphql(`
           oracleId
           name
           typeLine
-          printings(first: 300) {
-            pageInfo {
-              endCursor
-              hasNextPage
-            }
-            edges {
-              node {
-                id
-                scryfallId
-                imageUrl
-                artCropUrl
-                priceText
-              }
-            }
+          primaryPrinting {
+            id
+            scryfallId
+            imageUrl
+            artCropUrl
+            priceText
           }
         }
         collectionStatus {
@@ -892,20 +876,12 @@ export const DeckEdhrecDocument = graphql(`
               oracleId
               name
               typeLine
-              printings(first: 300) {
-                pageInfo {
-                  endCursor
-                  hasNextPage
-                }
-                edges {
-                  node {
-                    id
-                    scryfallId
-                    imageUrl
-                    artCropUrl
-                    priceText
-                  }
-                }
+              primaryPrinting {
+                id
+                scryfallId
+                imageUrl
+                artCropUrl
+                priceText
               }
             }
             collectionStatus {

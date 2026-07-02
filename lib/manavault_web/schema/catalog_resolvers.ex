@@ -72,6 +72,7 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   defdelegate card_rulings(parent, args, resolution), to: CardFields
   defdelegate card_legalities(parent, args, resolution), to: CardFields
   defdelegate card_printings(parent, args, resolution), to: CardFields
+  defdelegate card_primary_printing(parent, args, resolution), to: CardFields
   defdelegate printing_card(parent, args, resolution), to: CardFields
   defdelegate printing_image_url(parent, args, resolution), to: CardFields
   defdelegate printing_back_image_url(parent, args, resolution), to: CardFields

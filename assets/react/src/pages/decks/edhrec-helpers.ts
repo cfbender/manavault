@@ -7,7 +7,7 @@ import type {
   EDHRecSectionCard,
   EDHRecTab,
 } from "./deck-types"
-import { EDHREC_SCROLL_STORAGE_PREFIX, connectionNodes } from "./deck-types"
+import { EDHREC_SCROLL_STORAGE_PREFIX } from "./deck-types"
 
 export function edhrecCardReturnSearch(
   deckId: string,
@@ -95,20 +95,16 @@ export function collectionStatusTone(
 }
 
 export function edhrecCardImageUrl(card: EDHRecCard | EDHRecSectionCard) {
-  const printing = connectionNodes(card.card?.printings).find(
-    (printing) => printing.imageUrl || printing.artCropUrl,
-  )
+  const printing = card.card?.primaryPrinting
   return printing?.imageUrl || printing?.artCropUrl
 }
 
 export function edhrecCardPrice(card: EDHRecCard | EDHRecSectionCard) {
-  return (
-    connectionNodes(card.card?.printings).find((printing) => printing.priceText)?.priceText || null
-  )
+  return card.card?.primaryPrinting?.priceText || null
 }
 
 export function edhrecCardPrintingId(card: EDHRecCard | EDHRecSectionCard) {
-  return connectionNodes(card.card?.printings).find((printing) => printing.id)?.id || null
+  return card.card?.primaryPrinting?.id || null
 }
 
 export function edhrecCardUrl(card: EDHRecCard | EDHRecSectionCard) {

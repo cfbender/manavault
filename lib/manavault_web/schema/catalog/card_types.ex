@@ -101,6 +101,10 @@ defmodule ManavaultWeb.Schema.Catalog.CardTypes do
     connection field :printings, node_type: :printing do
       resolve(&CatalogResolvers.card_printings/3)
     end
+
+    field :primary_printing, :printing do
+      resolve(&CatalogResolvers.card_primary_printing/3)
+    end
   end
 
   node object(:printing, id_fetcher: &ManavaultWeb.Schema.Catalog.CardTypes.printing_node_id/2) do

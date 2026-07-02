@@ -289,6 +289,68 @@ defmodule ManavaultWeb.Schema.CardQueriesTest do
            } = json_response(conn, 200)
   end
 
+  test "card primaryPrinting returns the first printing that has an image", %{conn: conn} do
+    {:ok, %{cards_count: 2, printings_count: 2}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-primary-newest-noimage",
+          "oracle_id" => "oracle-primary-printing",
+          "name" => "Primary Printing Card",
+          "type_line" => "Instant",
+          "collector_number" => "2",
+          "set" => "bbb",
+          "set_name" => "Newest Set",
+          "lang" => "en",
+          "finishes" => ["nonfoil"],
+          "legalities" => %{},
+          "released_at" => "2024-01-01"
+        },
+        %{
+          "id" => "scryfall-primary-older-withimage",
+          "oracle_id" => "oracle-primary-printing",
+          "name" => "Primary Printing Card",
+          "type_line" => "Instant",
+          "collector_number" => "1",
+          "set" => "aaa",
+          "set_name" => "Older Set",
+          "lang" => "en",
+          "finishes" => ["nonfoil"],
+          "legalities" => %{},
+          "released_at" => "2020-01-01",
+          "image_uris" => %{"normal" => "primary.jpg"}
+        }
+      ])
+
+    card_id =
+      Absinthe.Relay.Node.to_global_id(:card, "oracle-primary-printing", ManavaultWeb.Schema)
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query PrimaryPrinting($id: ID!) {
+          card(id: $id) {
+            primaryPrinting {
+              scryfallId
+              imageUrl
+            }
+          }
+        }
+        """,
+        "variables" => %{"id" => card_id}
+      })
+
+    assert %{
+             "data" => %{
+               "card" => %{
+                 "primaryPrinting" => %{
+                   "scryfallId" => "scryfall-primary-older-withimage",
+                   "imageUrl" => "primary.jpg"
+                 }
+               }
+             }
+           } = json_response(conn, 200)
+  end
+
   test "card query accepts legacy raw oracle IDs", %{conn: conn} do
     {:ok, %{cards_count: 1, printings_count: 1}} =
       Catalog.import_cards([

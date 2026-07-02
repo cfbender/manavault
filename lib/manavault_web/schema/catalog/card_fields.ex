@@ -47,6 +47,47 @@ defmodule ManavaultWeb.Schema.Catalog.CardFields do
     |> RelayHelpers.connection_from_list(args)
   end
 
+  # A single representative printing (the first with a usable image, matching the
+  # UI's old client-side scan). Lets image-only consumers like the EDHRec views
+  # avoid fetching every printing. Shares the printings Dataloader batch, so it
+  # adds no query and stays free of N+1 across many cards.
+  def card_primary_printing(%Card{printings: printings}, _args, _resolution)
+      when is_list(printings) do
+    {:ok, primary_printing(printings)}
+  end
+
+  def card_primary_printing(%Card{} = card, _args, %{context: %{loader: loader}}) do
+    loader
+    |> Dataloader.load(Catalog, {:many, Card}, printings_with_owned_count: card)
+    |> on_load(fn loader ->
+      printings = Dataloader.get(loader, Catalog, {:many, Card}, printings_with_owned_count: card)
+      {:ok, primary_printing(printings)}
+    end)
+  end
+
+  def card_primary_printing(%Card{oracle_id: oracle_id}, _args, _resolution) do
+    printing =
+      oracle_id
+      |> Catalog.get_card_with_printings()
+      |> Map.get(:printings, [])
+      |> primary_printing()
+
+    {:ok, printing}
+  end
+
+  defp primary_printing(printings) when is_list(printings) do
+    Enum.find(printings, List.first(printings), &printing_has_image?/1)
+  end
+
+  defp primary_printing(_printings), do: nil
+
+  defp printing_has_image?(%Printing{} = printing) do
+    image_uris = ValueResolvers.decode_json(printing.image_uris, %{})
+    image_url(image_uris) != nil or art_crop_url(image_uris) != nil
+  end
+
+  defp printing_has_image?(_printing), do: false
+
   def printing_card(%Printing{card: %Card{} = card}, _args, _resolution) do
     {:ok, card}
   end
