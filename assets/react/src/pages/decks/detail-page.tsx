@@ -45,6 +45,7 @@ import { edhrecCardPrintingId } from "./edhrec"
 import {
   AddDeckCardDocument,
   AllocateDeckCardItemDocument,
+  AllocateDeckPullListDocument,
   AllocateDeckCardProxyDocument,
   BulkDeleteDeckCardsDocument,
   BulkUpdateDeckCardsDocument,
@@ -625,35 +626,36 @@ export function DeckDetailPage({
   const allocateDeckPullList = {
     isPending: isAllocateDeckPullListPending,
     mutate: (entries: DeckPullListEntry[]) => {
+      if (!deck) return
+
       setIsAllocateDeckPullListPending(true)
-      // Allocate entries in parallel instead of one serial round trip per copy.
-      // Each entry targets a distinct collection item (within a deck an item maps
-      // to a single deck card), so entries touch disjoint rows and can't race.
-      // Copies of the same item within an entry stay serial to avoid racing on
-      // that item's availability.
-      void Promise.allSettled(
-        entries.map(async (entry) => {
-          for (let copy = 0; copy < entry.quantity; copy += 1) {
-            await client.mutate({
-              mutation: AllocateDeckCardItemDocument,
-              variables: {
-                deckCardId: entry.deckCard.id,
-                collectionItemId: entry.candidate.item.id,
-              },
-            })
-          }
-        }),
-      )
-        .then((results) => {
-          const failure = results.find((result) => result.status === "rejected")
-          if (failure) {
+      // One server-side mutation applies the whole pull list in a single
+      // transaction; per-entry requests contend for SQLite's database-wide
+      // write lock and fail with busy errors.
+      void client
+        .mutate({
+          mutation: AllocateDeckPullListDocument,
+          variables: {
+            deckId: deck.id,
+            entries: entries.map((entry) => ({
+              deckCardId: entry.deckCard.id,
+              collectionItemId: entry.candidate.item.id,
+              quantity: entry.quantity,
+            })),
+          },
+        })
+        .then(({ data }) => {
+          const result = data?.allocateDeckPullList?.allocationResult
+
+          if (result && result.skipped > 0) {
             setBulkAllocationError(
-              failure.reason instanceof Error ? failure.reason.message : "Could not allocate deck",
+              `${pluralize(result.skipped, "entry", "entries")} could not be allocated`,
             )
             return
           }
 
-          const allocatedCount = entries.reduce((total, entry) => total + entry.quantity, 0)
+          const allocatedCount =
+            result?.allocated ?? entries.reduce((total, entry) => total + entry.quantity, 0)
 
           showToast(`${pluralize(allocatedCount, "card")} allocated`)
           setIsBulkAllocationOpen(false)
@@ -661,8 +663,11 @@ export function DeckDetailPage({
           setExcludedBulkAllocationEntryIds({})
           setBulkAllocationError(null)
         })
+        .catch((error: unknown) => {
+          setBulkAllocationError(error instanceof Error ? error.message : "Could not allocate deck")
+        })
         .finally(() => {
-          // Some entries may have allocated even on a partial failure, so always
+          // Skipped entries still leave the applied ones committed, so always
           // reconcile the cache with the server instead of only on full success.
           invalidateAllocationQueries()
           setIsAllocateDeckPullListPending(false)

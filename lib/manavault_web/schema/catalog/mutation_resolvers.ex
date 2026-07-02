@@ -44,4 +44,5 @@ defmodule ManavaultWeb.Schema.Catalog.MutationResolvers do
   defdelegate deallocate_deck_card_proxy(parent, args, resolution), to: AllocationResolvers
   defdelegate preview_bulk_allocate_deck(parent, args, resolution), to: AllocationResolvers
   defdelegate bulk_allocate_deck(parent, args, resolution), to: AllocationResolvers
+  defdelegate allocate_deck_pull_list(parent, args, resolution), to: AllocationResolvers
 end

@@ -25,12 +25,36 @@ defmodule Manavault.Catalog.Decks.Allocations do
 
       item = Collection.get_collection_item!(collection_item_id)
 
-      with :ok <- validate_collection_item_matches_deck_card(item, deck_card),
-           :ok <- validate_deck_card_allocation_room(deck_card, item, quantity),
-           {:ok, deck_card} <- put_deck_card_allocation_printing(deck_card, item) do
-        {:ok, insert_or_update_deck_allocation!(deck_card, item, quantity)}
-      end
+      allocate_item_to_deck_card(deck_card, item, quantity)
     end)
+  end
+
+  def allocate_deck_pull_list(deck_or_id, entries) when is_list(entries) do
+    with {:ok, entries} <- normalize_pull_list_entries(entries) do
+      # One transaction for the whole pull list: SQLite serializes writers at
+      # the database level, so applying entries as separate requests or
+      # transactions makes them contend for the write lock instead of queueing.
+      Repo.transact(fn ->
+        deck = load_deck!(deck_or_id)
+
+        result =
+          Enum.reduce(entries, %{allocated: 0, cards: MapSet.new(), skipped: 0}, fn entry,
+                                                                                    counts ->
+            case apply_pull_list_entry(deck, entry) do
+              {:ok, _allocation} ->
+                counts
+                |> update_in([:allocated], &(&1 + entry.quantity))
+                |> update_in([:cards], &MapSet.put(&1, entry.deck_card_id))
+
+              {:error, _reason} ->
+                update_in(counts, [:skipped], &(&1 + 1))
+            end
+          end)
+
+        {:ok,
+         %{allocated: result.allocated, cards: MapSet.size(result.cards), skipped: result.skipped}}
+      end)
+    end
   end
 
   def allocate_available_preferred_printing_to_deck_card(%DeckCard{} = deck_card, quantity) do
@@ -198,15 +222,15 @@ defmodule Manavault.Catalog.Decks.Allocations do
       when mode in [:exact_printings, :matching_printings] do
     with {:ok, preview} <- preview_bulk_allocate_deck(deck, mode) do
       # Apply the whole preview in one transaction instead of one per entry, so
-      # the write path commits once rather than N times. Each entry still runs
-      # in a nested savepoint (allocate_collection_item_to_deck_card opens its
-      # own transaction), so a single failing entry rolls back only itself and
-      # is counted as skipped, matching the prior per-entry behavior.
+      # the write path commits once rather than N times. Entries are applied
+      # without nesting transactions: a nested Repo.transact that returns
+      # {:error, _} rolls back the outer transaction too (there are no
+      # savepoints), so skipping has to happen before any entry writes.
       Repo.transact(fn ->
         result =
           Enum.reduce(preview.entries, %{allocated: 0, cards: MapSet.new(), skipped: 0}, fn entry,
                                                                                             counts ->
-            case allocate_collection_item_to_deck_card(
+            case apply_allocation_entry(
                    entry.deck_card.id,
                    entry.item.id,
                    entry.quantity
@@ -285,7 +309,7 @@ defmodule Manavault.Catalog.Decks.Allocations do
   defp normalize_collection_item_ids(collection_item_ids) do
     result =
       Enum.reduce_while(collection_item_ids, {:ok, []}, fn item_id, {:ok, item_ids} ->
-        case normalize_collection_item_id(item_id) do
+        case normalize_positive_id(item_id) do
           {:ok, item_id} -> {:cont, {:ok, [item_id | item_ids]}}
           :error -> {:halt, {:error, :collection_item_not_found}}
         end
@@ -297,17 +321,17 @@ defmodule Manavault.Catalog.Decks.Allocations do
     end
   end
 
-  defp normalize_collection_item_id(item_id) when is_integer(item_id) and item_id > 0,
+  defp normalize_positive_id(item_id) when is_integer(item_id) and item_id > 0,
     do: {:ok, item_id}
 
-  defp normalize_collection_item_id(item_id) when is_binary(item_id) do
+  defp normalize_positive_id(item_id) when is_binary(item_id) do
     case Integer.parse(item_id) do
       {item_id, ""} when item_id > 0 -> {:ok, item_id}
       _invalid -> :error
     end
   end
 
-  defp normalize_collection_item_id(_item_id), do: :error
+  defp normalize_positive_id(_item_id), do: :error
 
   defp load_ordered_collection_items(item_ids) do
     items = load_collection_items(item_ids)
@@ -532,6 +556,76 @@ defmodule Manavault.Catalog.Decks.Allocations do
       {:error, changeset} -> Repo.rollback(changeset)
     end
   end
+
+  defp allocate_item_to_deck_card(%DeckCard{} = deck_card, %CollectionItem{} = item, quantity) do
+    with :ok <- validate_collection_item_matches_deck_card(item, deck_card),
+         :ok <- validate_deck_card_allocation_room(deck_card, item, quantity),
+         {:ok, deck_card} <- put_deck_card_allocation_printing(deck_card, item) do
+      {:ok, insert_or_update_deck_allocation!(deck_card, item, quantity)}
+    end
+  end
+
+  # Applies one allocation inside an already-open transaction. Reloads the
+  # deck card and item so earlier entries in the same transaction are seen,
+  # and returns {:error, _} without writing anything so a failed entry can be
+  # skipped while the transaction continues.
+  defp apply_allocation_entry(deck_card_id, collection_item_id, quantity) do
+    deck_card = Repo.get(DeckCard, deck_card_id)
+    item = Repo.get(CollectionItem, collection_item_id)
+
+    cond do
+      is_nil(deck_card) ->
+        {:error, :deck_card_not_found}
+
+      is_nil(item) ->
+        {:error, :collection_item_not_found}
+
+      true ->
+        deck_card = Repo.preload(deck_card, [:deck, :preferred_printing])
+        item = Repo.preload(item, printing: :card, location_assoc: [])
+        allocate_item_to_deck_card(deck_card, item, quantity)
+    end
+  end
+
+  defp apply_pull_list_entry(%Deck{id: deck_id}, entry) do
+    case Repo.get(DeckCard, entry.deck_card_id) do
+      %DeckCard{deck_id: ^deck_id} ->
+        apply_allocation_entry(entry.deck_card_id, entry.collection_item_id, entry.quantity)
+
+      _other_deck_or_missing ->
+        {:error, :deck_card_not_found}
+    end
+  end
+
+  defp normalize_pull_list_entries(entries) do
+    result =
+      Enum.reduce_while(entries, {:ok, []}, fn entry, {:ok, normalized} ->
+        case normalize_pull_list_entry(entry) do
+          {:ok, entry} -> {:cont, {:ok, [entry | normalized]}}
+          :error -> {:halt, {:error, :invalid_pull_list_entry}}
+        end
+      end)
+
+    with {:ok, entries} <- result do
+      {:ok, Enum.reverse(entries)}
+    end
+  end
+
+  defp normalize_pull_list_entry(
+         %{deck_card_id: deck_card_id, collection_item_id: item_id} = entry
+       ) do
+    quantity = entry |> Map.get(:quantity, 1) |> Util.parse_quantity()
+
+    with {:ok, deck_card_id} <- normalize_positive_id(deck_card_id),
+         {:ok, item_id} <- normalize_positive_id(item_id),
+         true <- quantity > 0 do
+      {:ok, %{deck_card_id: deck_card_id, collection_item_id: item_id, quantity: quantity}}
+    else
+      _invalid -> :error
+    end
+  end
+
+  defp normalize_pull_list_entry(_entry), do: :error
 
   defp insert_or_update_deck_allocation!(
          %DeckCard{} = deck_card,

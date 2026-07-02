@@ -567,6 +567,18 @@ export const DeallocateDeckCardItemDocument = graphql(`
   }
 `)
 
+export const AllocateDeckPullListDocument = graphql(`
+  mutation AllocateDeckPullList($deckId: ID!, $entries: [DeckPullListEntryInput!]!) {
+    allocateDeckPullList(deckId: $deckId, entries: $entries) {
+      allocationResult {
+        allocated
+        cards
+        skipped
+      }
+    }
+  }
+`)
+
 export const AllocateDeckCardProxyDocument = graphql(`
   mutation AllocateDeckCardProxy($deckCardId: ID!, $quantity: Int!) {
     allocateDeckCardProxy(deckCardId: $deckCardId, quantity: $quantity) {

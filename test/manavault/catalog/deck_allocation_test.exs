@@ -355,6 +355,93 @@ defmodule Manavault.Catalog.DeckAllocationTest do
     assert Enum.find(status.candidates, &(&1.item.id == alternate_item.id)).allocated == 1
   end
 
+  test "allocating a deck pull list applies entries in one transaction and skips failed entries" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    assert {:ok, lotus_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    assert {:ok, walk_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-2",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "ja",
+               "finish" => "foil"
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Pull List"})
+    assert {:ok, lotus} = Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus"})
+    assert {:ok, walk} = Catalog.add_card_to_deck(deck, %{"name" => "Time Walk"})
+
+    assert {:ok, other_deck} = Catalog.create_deck(%{"name" => "Other"})
+    assert {:ok, other_lotus} = Catalog.add_card_to_deck(other_deck, %{"name" => "Black Lotus"})
+
+    entries = [
+      %{deck_card_id: lotus.id, collection_item_id: lotus_item.id, quantity: 1},
+      # quantity defaults to 1 when omitted
+      %{deck_card_id: walk.id, collection_item_id: walk_item.id},
+      # oracle mismatch: a lotus copy cannot fill the Time Walk entry
+      %{deck_card_id: walk.id, collection_item_id: lotus_item.id, quantity: 1},
+      # deck card from another deck is rejected without aborting the rest
+      %{deck_card_id: other_lotus.id, collection_item_id: lotus_item.id, quantity: 1}
+    ]
+
+    assert {:ok, %{allocated: 2, cards: 2, skipped: 2}} =
+             Catalog.allocate_deck_pull_list(deck, entries)
+
+    assert Catalog.deck_card_allocation_status(lotus).allocated == 1
+    assert Catalog.deck_card_allocation_status(walk).allocated == 1
+    assert Catalog.deck_card_allocation_status(other_lotus).allocated == 0
+
+    walk = Repo.reload!(walk)
+    assert walk.preferred_printing_id == walk_item.scryfall_id
+    assert walk.finish == "foil"
+
+    assert {:error, :invalid_pull_list_entry} =
+             Catalog.allocate_deck_pull_list(deck, [%{deck_card_id: lotus.id}])
+
+    assert {:error, :invalid_pull_list_entry} =
+             Catalog.allocate_deck_pull_list(deck, [
+               %{deck_card_id: 0, collection_item_id: lotus_item.id}
+             ])
+  end
+
+  test "allocating a deck pull list can serve multiple entries from the same collection item" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    assert {:ok, item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 3,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Playset"})
+
+    assert {:ok, lotus} =
+             Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus", "quantity" => 3})
+
+    entries = [
+      %{deck_card_id: lotus.id, collection_item_id: item.id, quantity: 2},
+      %{deck_card_id: lotus.id, collection_item_id: item.id, quantity: 1}
+    ]
+
+    assert {:ok, %{allocated: 3, cards: 1, skipped: 0}} =
+             Catalog.allocate_deck_pull_list(deck, entries)
+
+    assert Catalog.deck_card_allocation_status(lotus).allocated == 3
+  end
+
   test "deck allocation status treats basic lands as already allocated" do
     assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@plains])
 

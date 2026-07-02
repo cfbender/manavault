@@ -28,6 +28,16 @@ config :manavault,
   ecto_repos: [Manavault.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+# SQLite transactions default to BEGIN DEFERRED: they start as readers and
+# upgrade to the database-wide write lock at the first write. When another
+# writer holds the lock, that upgrade fails immediately with SQLITE_BUSY —
+# busy_timeout never applies to lock upgrades. Immediate mode takes the write
+# lock at BEGIN, so concurrent transactions queue (up to busy_timeout) instead
+# of erroring, and WAL keeps reads unblocked alongside the writer.
+config :manavault, Manavault.Repo,
+  default_transaction_mode: :immediate,
+  busy_timeout: 5_000
+
 # Configure the endpoint
 config :manavault, ManavaultWeb.Endpoint,
   url: [host: "localhost"],

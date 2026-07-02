@@ -508,6 +508,12 @@ defmodule Manavault.Catalog.Cached do
     |> invalidate_on_ok(&Cache.invalidate_decks/0)
   end
 
+  def allocate_deck_pull_list(deck_or_id, entries) do
+    deck_or_id
+    |> Decks.allocate_deck_pull_list(entries)
+    |> invalidate_on_ok(&Cache.invalidate_decks/0)
+  end
+
   def preview_bulk_allocate_deck(deck, mode) do
     cached_deck_read(deck, {:preview_bulk_allocate_deck, mode}, fn ->
       Decks.preview_bulk_allocate_deck(deck, mode)

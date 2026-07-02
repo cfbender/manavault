@@ -827,6 +827,25 @@ defmodule ManavaultWeb.Schema do
         )
       end)
     end
+
+    payload field :allocate_deck_pull_list do
+      arg(:deck_id, non_null(:id))
+      arg(:entries, non_null(list_of(non_null(:deck_pull_list_entry_input))))
+
+      output do
+        field :allocation_result, :deck_bulk_allocation_result
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &CatalogResolvers.allocate_deck_pull_list/3,
+          :allocation_result
+        )
+      end)
+    end
   end
 
   defp payload(parent, args, resolution, resolver, field) do

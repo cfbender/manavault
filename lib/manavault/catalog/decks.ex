@@ -61,6 +61,7 @@ defmodule Manavault.Catalog.Decks do
   defdelegate deallocate_proxy_from_deck_card(deck_card_id, quantity \\ 1), to: Workflows
   defdelegate bulk_allocate_deck(deck, mode), to: Workflows
   defdelegate preview_bulk_allocate_deck(deck, mode), to: Workflows
+  defdelegate allocate_deck_pull_list(deck_or_id, entries), to: Workflows
   defdelegate import_decklist(deck, text, opts \\ []), to: Workflows
   defdelegate export_decklist(deck), to: Workflows
   defdelegate deck_buylist(deck, opts \\ []), to: Workflows

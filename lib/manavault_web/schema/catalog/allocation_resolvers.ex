@@ -143,4 +143,33 @@ defmodule ManavaultWeb.Schema.Catalog.AllocationResolvers do
       end
     end
   end
+
+  def allocate_deck_pull_list(_parent, %{deck_id: deck_id, entries: entries}, resolution) do
+    with {:ok, deck_id} <- RelayHelpers.node_id(deck_id, :deck, resolution),
+         {:ok, entries} <- decode_pull_list_entries(entries, resolution) do
+      case Catalog.allocate_deck_pull_list(deck_id, entries) do
+        {:ok, result} -> {:ok, result}
+        {:error, reason} -> {:error, Errors.deck_allocation_error(reason)}
+      end
+    end
+  end
+
+  defp decode_pull_list_entries(entries, resolution) do
+    entries
+    |> Enum.reduce_while({:ok, []}, fn entry, {:ok, decoded} ->
+      with {:ok, deck_card_id} <-
+             RelayHelpers.node_id(entry.deck_card_id, :deck_card, resolution),
+           {:ok, collection_item_id} <-
+             RelayHelpers.node_id(entry.collection_item_id, :collection_item, resolution) do
+        entry = %{entry | deck_card_id: deck_card_id, collection_item_id: collection_item_id}
+        {:cont, {:ok, [entry | decoded]}}
+      else
+        error -> {:halt, error}
+      end
+    end)
+    |> case do
+      {:ok, decoded} -> {:ok, Enum.reverse(decoded)}
+      error -> error
+    end
+  end
 end

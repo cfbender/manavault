@@ -128,6 +128,7 @@ defmodule Manavault.Catalog do
   defdelegate deallocate_proxy_from_deck_card(deck_card_id, quantity \\ 1), to: Cached
   defdelegate bulk_allocate_deck(deck, mode), to: Cached
   defdelegate preview_bulk_allocate_deck(deck, mode), to: Cached
+  defdelegate allocate_deck_pull_list(deck_or_id, entries), to: Cached
   defdelegate import_decklist(deck, text, opts \\ []), to: Cached
   defdelegate export_decklist(deck), to: Cached
   defdelegate deck_buylist(deck, opts \\ []), to: Cached

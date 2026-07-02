@@ -206,4 +206,79 @@ defmodule ManavaultWeb.Schema.DeckBulkAllocationsTest do
              }
            } = json_response(allocate_conn, 200)
   end
+
+  test "deck pull list allocation is available over GraphQL", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-pull-list-allocation",
+          "oracle_id" => "oracle-pull-list-allocation",
+          "name" => "Pull List Card",
+          "type_line" => "Artifact",
+          "collector_number" => "9",
+          "set" => "pll",
+          "set_name" => "Pull List Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, item} =
+      Catalog.create_collection_item(%{
+        scryfall_id: "scryfall-pull-list-allocation",
+        quantity: 2,
+        finish: "nonfoil"
+      })
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Pull List Deck"})
+
+    {:ok, deck_card} =
+      Catalog.add_card_to_deck(deck, %{
+        "name" => "Pull List Card",
+        "quantity" => 2,
+        "preferred_printing_id" => "scryfall-pull-list-allocation"
+      })
+
+    allocate_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation AllocateDeckPullList($deckId: ID!, $entries: [DeckPullListEntryInput!]!) {
+          allocateDeckPullList(deckId: $deckId, entries: $entries) {
+            allocationResult {
+              allocated
+              cards
+              skipped
+            }
+          }
+        }
+        """,
+        "variables" => %{
+          "deckId" => global_id(:deck, deck.id),
+          "entries" => [
+            %{
+              "deckCardId" => global_id(:deck_card, deck_card.id),
+              "collectionItemId" => global_id(:collection_item, item.id),
+              "quantity" => 2
+            }
+          ]
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "allocateDeckPullList" => %{
+                 "allocationResult" => %{
+                   "allocated" => 2,
+                   "cards" => 1,
+                   "skipped" => 0
+                 }
+               }
+             }
+           } = json_response(allocate_conn, 200)
+
+    status = Catalog.deck_card_allocation_status(deck_card)
+    assert status.allocated == 2
+  end
 end

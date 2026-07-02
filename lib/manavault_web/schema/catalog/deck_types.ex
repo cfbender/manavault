@@ -305,6 +305,12 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :tag, :string
   end
 
+  input_object :deck_pull_list_entry_input do
+    field :deck_card_id, non_null(:id)
+    field :collection_item_id, non_null(:id)
+    field :quantity, :integer, default_value: 1
+  end
+
   input_object :deck_card_update_input do
     field :zone, :string
     field :quantity, :integer
