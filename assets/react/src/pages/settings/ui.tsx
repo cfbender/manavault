@@ -78,10 +78,15 @@ export function Field({
   )
 }
 
-export function Alert({ tone, children }: { tone: "success" | "error"; children: ReactNode }) {
-  return (
-    <div className={`alert ${tone === "success" ? "alert-success" : "alert-error"}`}>
-      {children}
-    </div>
-  )
+export function Alert({
+  tone,
+  children,
+}: {
+  tone: "success" | "error" | "warning"
+  children: ReactNode
+}) {
+  const toneClass =
+    tone === "success" ? "alert-success" : tone === "warning" ? "alert-warning" : "alert-error"
+
+  return <div className={`alert ${toneClass}`}>{children}</div>
 }

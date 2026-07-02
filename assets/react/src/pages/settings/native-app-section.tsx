@@ -33,6 +33,8 @@ export function NativeAppSection({
   onClear,
   onCheckUpdates,
 }: NativeAppSectionProps) {
+  const insecureServerUrl = serverUrl.trim().toLowerCase().startsWith("http://")
+
   return (
     <PageSection title="Mobile app" count="Native shell">
       <div className="card border border-base-300 bg-base-100 shadow-sm">
@@ -60,6 +62,12 @@ export function NativeAppSection({
                 placeholder="https://manavault.example.com"
                 disabled={loading}
               />
+              {insecureServerUrl ? (
+                <Alert tone="warning">
+                  This URL uses http://, so your password and session cookie are sent unencrypted.
+                  Use https:// unless this is a trusted local network you control.
+                </Alert>
+              ) : null}
             </Field>
             <div className="flex items-end gap-3">
               <Button type="submit" disabled={loading}>
