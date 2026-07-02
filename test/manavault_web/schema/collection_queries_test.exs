@@ -1,6 +1,8 @@
 defmodule ManavaultWeb.Schema.CollectionQueriesTest do
   use ManavaultWeb.ConnCase
 
+  import Ecto.Query, only: [from: 2]
+
   alias Manavault.Catalog
 
   test "collection query resolves locations and card images", %{conn: conn} do
@@ -468,6 +470,90 @@ defmodule ManavaultWeb.Schema.CollectionQueriesTest do
                        "quantity" => 4,
                        "location" => nil,
                        "printing" => %{"card" => %{"name" => "Loose Card"}}
+                     }
+                   }
+                 ]
+               }
+             }
+           } = json_response(conn, 200)
+  end
+
+  test "collection items filter by added window", %{conn: conn} do
+    {:ok, %{cards_count: 2, printings_count: 2}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-old",
+          "oracle_id" => "oracle-old",
+          "name" => "Old Card",
+          "type_line" => "Creature",
+          "collector_number" => "1",
+          "set" => "tst",
+          "set_name" => "Test Set",
+          "lang" => "en",
+          "rarity" => "common",
+          "image_uris" => %{},
+          "prices" => %{"usd" => "1.00"},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        },
+        %{
+          "id" => "scryfall-new",
+          "oracle_id" => "oracle-new",
+          "name" => "New Card",
+          "type_line" => "Creature",
+          "collector_number" => "2",
+          "set" => "tst",
+          "set_name" => "Test Set",
+          "lang" => "en",
+          "rarity" => "common",
+          "image_uris" => %{},
+          "prices" => %{"usd" => "2.00"},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, old_item} =
+      Catalog.create_collection_item(%{scryfall_id: "scryfall-old", quantity: 2})
+
+    {:ok, _new_item} =
+      Catalog.create_collection_item(%{scryfall_id: "scryfall-new", quantity: 3})
+
+    eight_days_ago =
+      DateTime.utc_now() |> DateTime.add(-8, :day) |> DateTime.truncate(:second)
+
+    {1, nil} =
+      Manavault.Repo.update_all(
+        from(item in Manavault.Catalog.CollectionItem, where: item.id == ^old_item.id),
+        set: [inserted_at: eight_days_ago]
+      )
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query {
+          recentCount: collectionItemCount(filters: {addedWithinDays: 7})
+          recentItems: collectionItems(first: 10, filters: {addedWithinDays: 7}) {
+            edges {
+              node {
+                quantity
+                printing { card { name } }
+              }
+            }
+          }
+        }
+        """
+      })
+
+    assert %{
+             "data" => %{
+               "recentCount" => 3,
+               "recentItems" => %{
+                 "edges" => [
+                   %{
+                     "node" => %{
+                       "quantity" => 3,
+                       "printing" => %{"card" => %{"name" => "New Card"}}
                      }
                    }
                  ]

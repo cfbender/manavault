@@ -268,6 +268,7 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :location_id, :id
     field :card_id, :id
     field :unallocated_only, :boolean
+    field :added_within_days, :integer
   end
 
   input_object :collection_item_sort do

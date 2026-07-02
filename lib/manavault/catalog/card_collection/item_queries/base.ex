@@ -16,6 +16,7 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries.Base do
     card_id = filters |> Keyword.get(:card_id, "") |> normalize_filter()
     include_list_locations? = Keyword.get(filters, :include_list_locations, false)
     unallocated_only? = Keyword.get(filters, :unallocated_only, false)
+    added_within_days = filters |> Keyword.get(:added_within_days) |> normalize_days()
 
     CollectionItem
     |> join(:inner, [item], printing in assoc(item, :printing), as: :printing)
@@ -28,6 +29,7 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries.Base do
     |> maybe_filter_finish(finish)
     |> maybe_filter_location(location_id)
     |> maybe_filter_unallocated(unallocated_only?)
+    |> maybe_filter_added_within_days(added_within_days)
     |> maybe_exclude_deck_allocations(location_id)
     |> maybe_exclude_list_locations(location_id, include_list_locations?)
   end
@@ -81,6 +83,13 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries.Base do
 
   defp maybe_filter_unallocated(query, _unallocated_only?), do: query
 
+  defp maybe_filter_added_within_days(query, nil), do: query
+
+  defp maybe_filter_added_within_days(query, days) do
+    cutoff = DateTime.add(DateTime.utc_now(), -days, :day)
+    where(query, [item, _printing, _card, _location], item.inserted_at >= ^cutoff)
+  end
+
   defp maybe_exclude_deck_allocations(query, ""), do: query
 
   defp maybe_exclude_deck_allocations(query, _location_id) do
@@ -109,4 +118,7 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries.Base do
 
   defp normalize_filter(value) when is_binary(value), do: String.trim(value)
   defp normalize_filter(_value), do: ""
+
+  defp normalize_days(value) when is_integer(value) and value > 0, do: value
+  defp normalize_days(_value), do: nil
 end

@@ -87,6 +87,8 @@ type ActiveFilterChip = {
 }
 
 const RECENT_COLLECTION_SORT: CollectionSort = { field: "added", direction: "desc" }
+const RECENT_WINDOW_DAYS = 7
+const RECENT_ITEMS_LIMIT = 500
 
 function activeCollectionFilterChips(
   filters: CollectionFilterState,
@@ -216,10 +218,16 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
   const combinedCollectionQuery = combineCollectionQueries(appliedSearch, structuredFilterSyntax)
   const collectionItemSort = activeTab === "recent" ? RECENT_COLLECTION_SORT : sort
   const filters = useMemo(() => {
-    const nextFilters: { q?: string; locationId?: string; unallocatedOnly?: boolean } = {}
+    const nextFilters: {
+      q?: string
+      locationId?: string
+      unallocatedOnly?: boolean
+      addedWithinDays?: number
+    } = {}
     if (combinedCollectionQuery) nextFilters.q = combinedCollectionQuery
     if (activeTab === "unfiled") nextFilters.locationId = "unfiled"
     if (activeTab === "available") nextFilters.unallocatedOnly = true
+    if (activeTab === "recent") nextFilters.addedWithinDays = RECENT_WINDOW_DAYS
     return nextFilters
   }, [activeTab, combinedCollectionQuery])
   const { data, loading: isLoading } = useQuery(CollectionDocument, {
@@ -237,12 +245,14 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
     fetchPolicy: "cache-and-network",
   })
   const allItemsPageInfo = allItemsQuery.data?.collectionItems.pageInfo
-  const allItemsHasNextPage = Boolean(allItemsPageInfo?.hasNextPage)
   const allCollectionItems = useMemo(
     () =>
       (allItemsQuery.data?.collectionItems.edges || []).map((edge) => edge?.node).filter(present),
     [allItemsQuery.data],
   )
+  const recentLimitReached =
+    activeTab === "recent" && allCollectionItems.length >= RECENT_ITEMS_LIMIT
+  const allItemsHasNextPage = Boolean(allItemsPageInfo?.hasNextPage) && !recentLimitReached
   const locations = useMemo(
     () => data?.locations?.edges?.map((edge) => edge?.node).filter(present) || [],
     [data?.locations],
@@ -282,7 +292,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
     0
   const itemCounts = {
     all: data?.allCollectionItemCount ?? data?.collectionItemCount ?? 0,
-    recent: data?.allCollectionItemCount ?? data?.collectionItemCount ?? 0,
+    recent: Math.min(RECENT_ITEMS_LIMIT, data?.recentCollectionItemCount ?? 0),
     available: data?.availableCollectionItemCount ?? 0,
     unfiled: unfiledItemCount,
   }
