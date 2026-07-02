@@ -1,7 +1,7 @@
 import { useApolloClient } from "@apollo/client/react"
 import { Link, useLocation } from "@tanstack/react-router"
 import { CheckSquare, Edit3, Layers, ListPlus, MoveUpRight, Trash2, X } from "lucide-react"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { EmptyState } from "../../components/card-image"
 import { addToDeckAction, addToListAction, CardTile } from "../../components/card-tile"
 import { Badge } from "../../components/ui/badge"
@@ -311,7 +311,10 @@ export function VirtualizedCollectionGrid({
   )
 }
 
-function CollectionItemTile({
+// Memoized so that toggling one selection only re-renders the affected tile.
+// `onToggleSelected` is a stable useCallback from useCollectionItemSelection and
+// `item` identity is stable, so isSelected/selectionActive drive re-renders.
+const CollectionItemTile = memo(function CollectionItemTile({
   isSelected = false,
   item,
   onToggleSelected,
@@ -427,7 +430,7 @@ function CollectionItemTile({
       />
     </>
   )
-}
+})
 
 function collectionItemDeckLocation(item: CollectionItem) {
   const allocationDecks = item.allocationDecks || []
