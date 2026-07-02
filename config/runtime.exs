@@ -89,6 +89,18 @@ if config_env() == :prod do
     """
   end
 
+  if auth_disabled do
+    # Runs before Logger starts, so warn straight to stderr.
+    IO.warn(
+      """
+      MANAVAULT_AUTH_DISABLED is set: authentication is OFF in production.
+      Anyone who can reach this server has full owner access to the collection.
+      Unset MANAVAULT_AUTH_DISABLED and set MANAVAULT_ADMIN_PASSWORD_HASH to re-enable it.
+      """,
+      []
+    )
+  end
+
   data_dir = System.get_env("DATA_DIR", "/data")
   database_path = System.get_env("DATABASE_PATH", Path.join(data_dir, "manavault.db"))
 
