@@ -89,10 +89,12 @@ jobs:
           MANAVAULT_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.MANAVAULT_ANDROID_KEYSTORE_PASSWORD }}
           MANAVAULT_ANDROID_KEY_ALIAS: ${{ secrets.MANAVAULT_ANDROID_KEY_ALIAS }}
         run: |
+          # -storepass:env reads the password from the env var by name, so the
+          # secret never appears in the runner's process table (unlike -storepass).
           keytool -list \
             -keystore "${MANAVAULT_ANDROID_KEYSTORE}" \
             -alias "${MANAVAULT_ANDROID_KEY_ALIAS}" \
-            -storepass "${MANAVAULT_ANDROID_KEYSTORE_PASSWORD}" \
+            -storepass:env MANAVAULT_ANDROID_KEYSTORE_PASSWORD \
             -v
 
       - name: Build release APK
