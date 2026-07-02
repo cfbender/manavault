@@ -22,3 +22,17 @@ export function pluralize(count: number, singular: string, plural = `${singular}
 export function present<T>(value: T | null | undefined): value is T {
   return value != null
 }
+
+// Returns the URL only if it is an absolute http(s) URL, else null. Guards
+// against javascript:/data: and other schemes when rendering hrefs or opening
+// windows from backend/third-party-supplied URLs.
+export function safeHttpUrl(value: string | null | undefined): string | null {
+  if (!value) return null
+
+  try {
+    const url = new URL(value)
+    return url.protocol === "http:" || url.protocol === "https:" ? url.href : null
+  } catch {
+    return null
+  }
+}

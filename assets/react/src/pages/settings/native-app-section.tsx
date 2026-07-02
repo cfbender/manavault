@@ -4,6 +4,7 @@ import { PageSection } from "../../components/app-shell"
 import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/input"
 import type { NativeShellSettings, NativeShellUpdateCheck } from "../../lib/native-shell"
+import { safeHttpUrl } from "../../lib/utils"
 import { Alert, Field, StatusLine } from "./ui"
 
 export type NativeAppSectionProps = {
@@ -90,10 +91,13 @@ export function NativeAppSection({
               <RefreshCw className="h-4 w-4" />
               {updateLoading ? "Checking..." : "Check for app update"}
             </Button>
-            {update?.updateAvailable && update.releaseUrl ? (
+            {update?.updateAvailable && safeHttpUrl(update.releaseUrl) ? (
               <Button
                 type="button"
-                onClick={() => window.open(update.releaseUrl ?? "", "_blank", "noopener")}
+                onClick={() => {
+                  const releaseUrl = safeHttpUrl(update?.releaseUrl)
+                  if (releaseUrl) window.open(releaseUrl, "_blank", "noopener")
+                }}
               >
                 Open GitHub release
               </Button>

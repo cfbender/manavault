@@ -1,4 +1,4 @@
-import { compactNumber } from "../../lib/utils"
+import { compactNumber, safeHttpUrl } from "../../lib/utils"
 import type {
   DeckDetail,
   EDHRecCard,
@@ -117,8 +117,14 @@ export function edhrecCardPrintingId(card: EDHRecCard | EDHRecSectionCard) {
 }
 
 export function edhrecCardUrl(card: EDHRecCard | EDHRecSectionCard) {
-  if ("url" in card && card.url) return card.url
-  if ("edhrecUrl" in card && card.edhrecUrl) return card.edhrecUrl
+  if ("url" in card && card.url) {
+    const safe = safeHttpUrl(card.url)
+    if (safe) return safe
+  }
+  if ("edhrecUrl" in card && card.edhrecUrl) {
+    const safe = safeHttpUrl(card.edhrecUrl)
+    if (safe) return safe
+  }
   return null
 }
 
