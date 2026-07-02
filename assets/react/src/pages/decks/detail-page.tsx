@@ -717,21 +717,17 @@ export function DeckDetailPage({
     },
   }
   const allocationError =
-    allocateDeckCardItem.error instanceof Error
-      ? allocateDeckCardItem.error.message
-      : deallocateDeckCardItem.error instanceof Error
-        ? deallocateDeckCardItem.error.message
-        : allocateDeckCardProxy.error instanceof Error
-          ? allocateDeckCardProxy.error.message
-          : deallocateDeckCardProxy.error instanceof Error
-            ? deallocateDeckCardProxy.error.message
-            : deleteDeckCard.error instanceof Error
-              ? deleteDeckCard.error.message
-              : previewDeckDisassembly.error instanceof Error
-                ? previewDeckDisassembly.error.message
-                : disassembleDeck.error instanceof Error
-                  ? disassembleDeck.error.message
-                  : null
+    [
+      allocateDeckCardItem,
+      deallocateDeckCardItem,
+      allocateDeckCardProxy,
+      deallocateDeckCardProxy,
+      deleteDeckCard,
+      previewDeckDisassembly,
+      disassembleDeck,
+    ]
+      .map((mutation) => mutation.error)
+      .find((error): error is Error => error instanceof Error)?.message ?? null
   const isUpdatingDeckCard =
     updateDeckCard.isPending ||
     updateDeckCardsTag.isPending ||
