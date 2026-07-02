@@ -34,7 +34,7 @@ import {
   allocationStatusLabel,
   allocationStatusSummary,
 } from "./deck-card-allocation"
-import { cardImageUrl, deckDetailCoverUrl } from "./deck-card-model"
+import { deckDetailCoverUrl } from "./deck-card-model"
 import { DeckGroupMenu } from "./deck-group-menu"
 import { deckLegalityIssueCountLabel, deckLegalityLabel, deckLegalityTone } from "./deck-legality"
 import { deckPullZones, hasDeckPullWork, summarizeDeckPullNeeds } from "./deck-readiness"

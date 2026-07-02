@@ -1,6 +1,6 @@
 import type { FullscreenPrinting } from "../../components/fullscreen-printing-dialog"
 import type { PlaytestCard } from "../../lib/deck-playtest"
-import { present } from "../../lib/utils"
+import { compareDeckCards } from "../../lib/deck-grouping"
 import type { DeckCardEntry, DeckZone } from "./deck-types"
 import { COLOR_ORDER } from "./deck-types"
 
@@ -20,11 +20,9 @@ export function isLegendaryCreature(deckCard: DeckCardEntry) {
   return typeLine.includes("Legendary") && typeLine.includes("Creature")
 }
 
-export function compareDeckCards(left: DeckCardEntry, right: DeckCardEntry) {
-  return (
-    (left.card?.name || "").localeCompare(right.card?.name || "") || left.id.localeCompare(right.id)
-  )
-}
+// DeckCardEntry is assignable to DeckGroupingDeckCard, so the grouping module's
+// comparator serves both; re-export it to keep existing importers working.
+export { compareDeckCards }
 
 export function cardImageUrl(deckCard: DeckCardEntry, key: "artCropUrl" | "imageUrl") {
   const printing = deckCard.preferredPrinting || deckCard.fallbackPrinting

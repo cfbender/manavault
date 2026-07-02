@@ -1,4 +1,4 @@
-import { MANA_STAT_COLORS, type DeckStats } from "../../lib/deck-stats"
+import { MANA_STAT_COLORS } from "../../lib/deck-stats"
 import { titleize } from "../../lib/utils"
 
 export const MANA_CURVE_PERMANENT_COLOR = "var(--color-primary)"
@@ -63,14 +63,6 @@ export type ManaBalanceContributor = {
   typeLine?: string | null
 }
 export type ManaContributorMap = Partial<Record<ManaContributorColor, readonly ManaContributor[]>>
-export type ManaProductionWithCards = DeckStats["manaProduction"] & {
-  cards?: ManaProductionCards
-  contributors?: ManaContributorMap
-}
-export type DeckStatsWithContributors = DeckStats & {
-  costContributors?: Partial<Record<ManaStatColor, readonly ManaContributor[]>>
-  manaProduction: ManaProductionWithCards
-}
 export type ManaBalanceRowModel = {
   color: ManaStatColor
   label: string

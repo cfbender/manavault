@@ -16,7 +16,6 @@ import {
   mergeManaContributors,
   practicalManaProduction,
   sameManaBalanceSelection,
-  type DeckStatsWithContributors,
   type HighlightDeckCards,
   type ManaBalanceSegment,
   type ManaBalanceSelection,
@@ -41,7 +40,7 @@ export function ManaBalanceComparison({
   stats: DeckStats
 }) {
   const [selection, setSelection] = useState<ManaBalanceSelection | null>(null)
-  const statsWithContributors = stats as DeckStatsWithContributors
+  const statsWithContributors = stats
   const manaProduction = statsWithContributors.manaProduction
   const productionCards = manaProduction.cards
   const productionContributors = manaProduction.contributors

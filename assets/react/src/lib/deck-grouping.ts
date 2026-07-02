@@ -330,7 +330,7 @@ function typeGroup(key: string, label: string, icon: DeckGroupIcon) {
   return { icon, key, label, order: orderIndex(TYPE_ORDER, key) }
 }
 
-function compareDeckCards(left: DeckGroupingDeckCard, right: DeckGroupingDeckCard) {
+export function compareDeckCards(left: DeckGroupingDeckCard, right: DeckGroupingDeckCard) {
   return (
     (left.card?.name || "").localeCompare(right.card?.name || "") || left.id.localeCompare(right.id)
   )

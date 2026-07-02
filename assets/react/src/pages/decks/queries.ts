@@ -645,67 +645,6 @@ export const DeallocateDeckCardProxyDocument = graphql(`
   }
 `)
 
-export const PreviewBulkAllocateDeckDocument = graphql(`
-  mutation PreviewBulkAllocateDeck($id: ID!, $mode: String!) {
-    previewBulkAllocateDeck(id: $id, mode: $mode) {
-      allocationPreview {
-        mode
-        allocated
-        cards
-        skipped
-        entries {
-          quantity
-          exact
-          deckCard {
-            id
-            quantity
-            finish
-            card {
-              name
-            }
-            preferredPrinting {
-              id
-              scryfallId
-              setCode
-              setName
-              collectorNumber
-            }
-          }
-          item {
-            id
-            quantity
-            finish
-            printing {
-              id
-              scryfallId
-              setCode
-              setName
-              collectorNumber
-              imageUrl
-              artCropUrl
-              card {
-                name
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-`)
-
-export const BulkAllocateDeckDocument = graphql(`
-  mutation BulkAllocateDeck($id: ID!, $mode: String!) {
-    bulkAllocateDeck(id: $id, mode: $mode) {
-      allocationResult {
-        allocated
-        cards
-        skipped
-      }
-    }
-  }
-`)
-
 export const ImportDecklistDocument = graphql(`
   mutation ImportDecklist($id: ID!, $text: String!, $replaceExisting: Boolean!) {
     importDecklist(id: $id, text: $text, replaceExisting: $replaceExisting) {
