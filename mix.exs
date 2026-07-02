@@ -89,8 +89,7 @@ defmodule Manavault.MixProject do
         "deps.unlock --unused",
         "format",
         "test",
-        "aube precommit",
-        "aubx impeccable detect assets/react/src/"
+        "cmd aube precommit"
       ]
     ]
   end
