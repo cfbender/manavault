@@ -360,9 +360,11 @@ export function ImportCollectionDialog({
                   onChange={(event) => void chooseFile(event.target.files?.[0])}
                 />
                 {sharedFileName ? (
-                  <p className="rounded-box border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
-                    Loaded shared file: {sharedFileName}. The Android file picker may still say no
-                    file chosen; the shared TXT is in the import text box below.
+                  <p className="rounded-box border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">
+                    Opened from another app: “{sharedFileName}”. Review the preview below before
+                    importing — nothing is added to your collection until you choose Import. (The
+                    Android file picker may still say no file chosen; the shared text is in the box
+                    below.)
                   </p>
                 ) : fileName ? (
                   <p className="text-sm text-base-content/55">{fileName}</p>
