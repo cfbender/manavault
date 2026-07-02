@@ -1,7 +1,28 @@
 import { ApolloClient, HttpLink, InMemoryCache } from "@apollo/client"
+import { SetContextLink } from "@apollo/client/link/context"
 import { relayStylePagination } from "@apollo/client/utilities"
 
-const csrfToken = document.querySelector("meta[name='csrf-token']")?.getAttribute("content")
+// Read the CSRF token from the meta tag per request rather than baking it into
+// static headers at module load. A stale token (after a session/CSRF rotation
+// in a long-lived PWA or native shell) would otherwise make every mutation fail
+// the CSRF check. The Apollo cache is in-memory only and logout is a full-page
+// redirect, so an account switch already discards cached data on reload.
+function currentCsrfToken() {
+  return document.querySelector("meta[name='csrf-token']")?.getAttribute("content") ?? undefined
+}
+
+const csrfLink = new SetContextLink((prevContext) => {
+  const token = currentCsrfToken()
+  const headers: Record<string, string> = { ...prevContext.headers }
+  if (token) headers["x-csrf-token"] = token
+
+  return { headers }
+})
+
+const httpLink = new HttpLink({
+  uri: "/api/graphql",
+  credentials: "same-origin",
+})
 
 export const apolloClient = new ApolloClient({
   cache: new InMemoryCache({
@@ -16,13 +37,7 @@ export const apolloClient = new ApolloClient({
       },
     },
   }),
-  link: new HttpLink({
-    uri: "/api/graphql",
-    credentials: "same-origin",
-    headers: {
-      ...(csrfToken ? { "x-csrf-token": csrfToken } : {}),
-    },
-  }),
+  link: csrfLink.concat(httpLink),
   queryDeduplication: true,
 })
 
