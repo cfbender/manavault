@@ -25,8 +25,10 @@ on:
       - "scripts/prepare-native-web.mjs"
   workflow_dispatch:
 
+# Read-only by default so PR-triggered runs never get a write-scoped token.
+# Only the tag-gated release job below is granted contents: write.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   android:
@@ -122,9 +124,23 @@ jobs:
           path: dist/native/*.apk
           if-no-files-found: error
 
+  # Separate, tag-only job holds the contents: write token so PR/branch builds
+  # (which only build and upload the artifact) run read-only.
+  release:
+    name: Attach APK to release
+    needs: android
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download APK artifact
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          path: dist/native
+
       - name: Attach APK to GitHub release
-        if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3
         with:
           generate_release_notes: true
-          files: dist/native/*.apk
+          files: dist/native/**/*.apk
