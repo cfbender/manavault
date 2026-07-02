@@ -651,8 +651,13 @@ export function DeckDetailPage({
     isPending: isAllocateDeckPullListPending,
     mutate: (entries: DeckPullListEntry[]) => {
       setIsAllocateDeckPullListPending(true)
-      void (async () => {
-        for (const entry of entries) {
+      // Allocate entries in parallel instead of one serial round trip per copy.
+      // Each entry targets a distinct collection item (within a deck an item maps
+      // to a single deck card), so entries touch disjoint rows and can't race.
+      // Copies of the same item within an entry stay serial to avoid racing on
+      // that item's availability.
+      void Promise.all(
+        entries.map(async (entry) => {
           for (let copy = 0; copy < entry.quantity; copy += 1) {
             await client.mutate({
               mutation: AllocateDeckCardItemDocument,
@@ -662,8 +667,8 @@ export function DeckDetailPage({
               },
             })
           }
-        }
-      })()
+        }),
+      )
         .then(() => {
           const allocatedCount = entries.reduce((total, entry) => total + entry.quantity, 0)
 
