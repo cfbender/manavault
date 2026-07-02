@@ -2,8 +2,6 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
   @moduledoc false
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.DeckCard
-  alias Manavault.Repo
   alias ManavaultWeb.Schema.Catalog.{CollectionFields, Errors}
   alias ManavaultWeb.Schema.RelayHelpers
 
@@ -15,27 +13,6 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
        deck_count: Catalog.count_decks()
      }}
   end
-
-  def node(%{type: :card, id: id}, _resolution), do: {:ok, Catalog.get_card_with_printings(id)}
-
-  def node(%{type: :printing, id: id}, _resolution),
-    do: {:ok, Catalog.get_printing_by_scryfall_id(id)}
-
-  def node(%{type: :collection_item, id: id}, _resolution),
-    do: {:ok, Catalog.get_collection_item!(integer_id(id))}
-
-  def node(%{type: :location, id: "unfiled"}, _resolution), do: {:ok, unfiled_location()}
-
-  def node(%{type: :location, id: id}, _resolution),
-    do: {:ok, Catalog.get_location_summary!(location_id(id))}
-
-  def node(%{type: :deck, id: id}, _resolution),
-    do: {:ok, Catalog.get_deck!(integer_id(id), preload?: false)}
-
-  def node(%{type: :deck_card, id: id}, _resolution),
-    do: {:ok, Repo.get!(DeckCard, integer_id(id))}
-
-  def node(_args, _resolution), do: {:ok, nil}
 
   def cards(_parent, args, _resolution) do
     with {:ok, fetch_limit} <- RelayHelpers.fetch_limit(args, 24) do
@@ -268,15 +245,6 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
       total_price_cents: summary.total_price_cents,
       purchase_price_cents: summary.purchase_price_cents
     }
-  end
-
-  defp integer_id(id) when is_integer(id), do: id
-
-  defp integer_id(id) when is_binary(id) do
-    case Integer.parse(id) do
-      {parsed, ""} -> parsed
-      _other -> id
-    end
   end
 
   defp location_id(id) when is_integer(id), do: id
