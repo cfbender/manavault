@@ -170,7 +170,9 @@ function CollectionTabs({
                 <span className="flex-1">{label}</span>
                 <span
                   className={
-                    tab === activeTab ? "badge badge-primary badge-sm" : "badge badge-ghost badge-sm"
+                    tab === activeTab
+                      ? "badge badge-primary badge-sm"
+                      : "badge badge-ghost badge-sm"
                   }
                 >
                   {count}

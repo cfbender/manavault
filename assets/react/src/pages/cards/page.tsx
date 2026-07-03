@@ -1,16 +1,14 @@
-import { useQuery } from "@apollo/client/react";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { shuffle } from "es-toolkit";
-import { PageHeader } from "../../components/app-shell";
-import { EmptyState } from "../../components/card-image";
-import { FullscreenPrintingDialog } from "../../components/fullscreen-printing-dialog";
-import DomeGallery, {
-  type DomeGalleryCard,
-} from "../../components/dome-gallery";
-import { Button } from "../../components/ui/button";
-import { graphqlEndpointContext } from "../../lib/apollo";
-import { usePageTitle } from "../../lib/page-title";
+import { useQuery } from "@apollo/client/react"
+import { Link, useNavigate } from "@tanstack/react-router"
+import { useEffect, useMemo, useState } from "react"
+import { shuffle } from "es-toolkit"
+import { PageHeader } from "../../components/app-shell"
+import { EmptyState } from "../../components/card-image"
+import { FullscreenPrintingDialog } from "../../components/fullscreen-printing-dialog"
+import DomeGallery, { type DomeGalleryCard } from "../../components/dome-gallery"
+import { Button } from "../../components/ui/button"
+import { graphqlEndpointContext } from "../../lib/apollo"
+import { usePageTitle } from "../../lib/page-title"
 import {
   buildCollectionFilterQuery,
   cloneCollectionFilters,
@@ -20,130 +18,107 @@ import {
   EMPTY_COLLECTION_FILTERS,
   encodeCollectionFilters,
   type CollectionFilterState,
-} from "../../lib/collection-filters";
-import { present } from "../../lib/utils";
+} from "../../lib/collection-filters"
+import { present } from "../../lib/utils"
 import {
   AddCollectionItemDialog,
   CollectionFilterModal,
   type AddCollectionItemInitialPrinting,
-} from "../collection";
-import { CardActionsMenu } from "./card-actions-menu";
-import {
-  AddCatalogCardToDeckDialog,
-  type CardDeckTarget,
-} from "./add-card-to-deck-dialog";
-import { CardCollectionCopiesPanel } from "./card-collection-copies";
-import { CardPrintingsGrid } from "./card-printings-grid";
-import { CardResultsGrid } from "./card-results-grid";
-import { ManaText, OracleTextPanel } from "./card-text";
-import { CardDocument, CardsDocument } from "./data";
-import {
-  CardLegalityPanel,
-  CardRulings,
-  CardTagSummary,
-} from "./detail-sections";
-import { CardSearchForm } from "./search-form";
-import useIsMobile from "../../lib/mobile-hover";
+} from "../collection"
+import { CardActionsMenu } from "./card-actions-menu"
+import { AddCatalogCardToDeckDialog, type CardDeckTarget } from "./add-card-to-deck-dialog"
+import { CardCollectionCopiesPanel } from "./card-collection-copies"
+import { CardPrintingsGrid } from "./card-printings-grid"
+import { CardResultsGrid } from "./card-results-grid"
+import { ManaText, OracleTextPanel } from "./card-text"
+import { CardDocument, CardsDocument } from "./data"
+import { CardLegalityPanel, CardRulings, CardTagSummary } from "./detail-sections"
+import { CardSearchForm } from "./search-form"
+import useIsMobile from "../../lib/mobile-hover"
 
 type NodeConnection<T> =
   | {
-      edges?: ReadonlyArray<{ node?: T | null } | null> | null;
+      edges?: ReadonlyArray<{ node?: T | null } | null> | null
     }
   | null
-  | undefined;
+  | undefined
 
 function connectionNodes<T>(connection: NodeConnection<T>): T[] {
-  return connection?.edges?.map((edge) => edge?.node).filter(present) || [];
+  return connection?.edges?.map((edge) => edge?.node).filter(present) || []
 }
 
-const EDHREC_WEEK_COMMANDERS_URL =
-  "https://json-cloudflare.edhrec.com/pages/commanders/week.json";
-const EDHREC_COMMANDER_GALLERY_LIMIT = 50;
+const EDHREC_WEEK_COMMANDERS_URL = "https://json-cloudflare.edhrec.com/pages/commanders/week.json"
+const EDHREC_COMMANDER_GALLERY_LIMIT = 50
 
-export function CardsPage({
-  query,
-  filterSearch,
-}: {
-  query: string;
-  filterSearch?: string;
-}) {
-  const routeFilters = useMemo(
-    () => decodeCollectionFilters(filterSearch),
-    [filterSearch],
-  );
-  const [q, setQ] = useState(query);
-  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-  const [deckTarget, setDeckTarget] = useState<CardDeckTarget | null>(null);
-  const [structuredFilters, setStructuredFilters] =
-    useState<CollectionFilterState>(routeFilters);
-  const navigate = useNavigate({ from: "/cards/" });
-  const structuredFilterSyntax = buildCollectionFilterQuery(structuredFilters);
-  const combinedQuery = combineCollectionQueries(query, structuredFilterSyntax);
-  const activeStructuredFilterCount =
-    countActiveCollectionFilters(structuredFilters);
-  const shouldSearchCards = Boolean(combinedQuery.trim());
+export function CardsPage({ query, filterSearch }: { query: string; filterSearch?: string }) {
+  const routeFilters = useMemo(() => decodeCollectionFilters(filterSearch), [filterSearch])
+  const [q, setQ] = useState(query)
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
+  const [deckTarget, setDeckTarget] = useState<CardDeckTarget | null>(null)
+  const [structuredFilters, setStructuredFilters] = useState<CollectionFilterState>(routeFilters)
+  const navigate = useNavigate({ from: "/cards/" })
+  const structuredFilterSyntax = buildCollectionFilterQuery(structuredFilters)
+  const combinedQuery = combineCollectionQueries(query, structuredFilterSyntax)
+  const activeStructuredFilterCount = countActiveCollectionFilters(structuredFilters)
+  const shouldSearchCards = Boolean(combinedQuery.trim())
   const { data, loading: isFetching } = useQuery(CardsDocument, {
     variables: { q: combinedQuery, limit: 36 },
     skip: !shouldSearchCards,
     fetchPolicy: "cache-and-network",
-  });
+  })
   const cards = shouldSearchCards
     ? connectionNodes(data?.cards).map((card) => ({
         ...card,
         printings: connectionNodes(card.printings),
       }))
-    : [];
+    : []
   const {
     cards: galleryCards,
     hasError: hasGalleryError,
     isLoading: isGalleryLoading,
-  } = useEdhrecCommanderGallery(!shouldSearchCards);
+  } = useEdhrecCommanderGallery(!shouldSearchCards)
 
   useEffect(() => {
-    setQ(query);
-  }, [query]);
+    setQ(query)
+  }, [query])
 
   useEffect(() => {
-    setStructuredFilters(routeFilters);
-  }, [routeFilters]);
+    setStructuredFilters(routeFilters)
+  }, [routeFilters])
 
-  function cardSearchParams(
-    nextQuery: string,
-    nextFilters = structuredFilters,
-  ) {
-    const term = nextQuery.trim();
+  function cardSearchParams(nextQuery: string, nextFilters = structuredFilters) {
+    const term = nextQuery.trim()
 
     return {
       q: term || undefined,
       filters: encodeCollectionFilters(nextFilters),
-    };
+    }
   }
 
   function submitSearch(value = q) {
-    navigate({ to: "/cards", search: cardSearchParams(value) });
+    navigate({ to: "/cards", search: cardSearchParams(value) })
   }
 
   function updateSearchDraft(value: string) {
-    setQ(value);
-    if (!value.trim() && query)
-      navigate({ to: "/cards", search: cardSearchParams("") });
+    setQ(value)
+    if (!value.trim() && query) navigate({ to: "/cards", search: cardSearchParams("") })
   }
 
   function applyStructuredFilters(nextFilters: CollectionFilterState) {
-    const filters = cloneCollectionFilters(nextFilters);
-    setStructuredFilters(filters);
-    setIsFilterModalOpen(false);
-    navigate({ to: "/cards", search: cardSearchParams(query, filters) });
+    const filters = cloneCollectionFilters(nextFilters)
+    setStructuredFilters(filters)
+    setIsFilterModalOpen(false)
+    navigate({ to: "/cards", search: cardSearchParams(query, filters) })
   }
 
   function clearStructuredFilters() {
-    const filters = cloneCollectionFilters(EMPTY_COLLECTION_FILTERS);
-    setStructuredFilters(filters);
-    navigate({ to: "/cards", search: cardSearchParams(query, filters) });
+    const filters = cloneCollectionFilters(EMPTY_COLLECTION_FILTERS)
+    setStructuredFilters(filters)
+    navigate({ to: "/cards", search: cardSearchParams(query, filters) })
   }
 
-  const hasMoreResults = Boolean(data?.cards.pageInfo.hasNextPage);
-  const resultSearchParams = cardSearchParams(query);
+  const hasMoreResults = Boolean(data?.cards.pageInfo.hasNextPage)
+  const resultSearchParams = cardSearchParams(query)
 
   return (
     <>
@@ -211,7 +186,7 @@ export function CardsPage({
         onOpenChange={(open) => !open && setDeckTarget(null)}
       />
     </>
-  );
+  )
 }
 
 function CardSearchEmptyGallery({
@@ -219,24 +194,22 @@ function CardSearchEmptyGallery({
   hasError,
   isLoading,
 }: {
-  cards: DomeGalleryCard[];
-  hasError: boolean;
-  isLoading: boolean;
+  cards: DomeGalleryCard[]
+  hasError: boolean
+  isLoading: boolean
 }) {
-  const { isMobile } = useIsMobile();
+  const { isMobile } = useIsMobile()
   if (!cards.length) {
     return (
       <EmptyState
-        title={
-          isLoading ? "Loading top commanders..." : "No commander art available"
-        }
+        title={isLoading ? "Loading top commanders..." : "No commander art available"}
         description={
           hasError
             ? "EDHREC commander data could not be loaded. Search by name or Scryfall syntax instead."
             : "Search by name or Scryfall syntax, then choose the exact printing to inspect or add."
         }
       />
-    );
+    )
   }
 
   return (
@@ -255,88 +228,81 @@ function CardSearchEmptyGallery({
       />
       <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-30 sm:bottom-6 sm:left-6 sm:right-auto">
         <div className="max-w-md rounded-box border border-base-300 bg-base-100/95 p-4 shadow-sm">
-          <p className="text-sm font-black text-base-content">
-            Top EDHREC commanders this week
-          </p>
+          <p className="text-sm font-black text-base-content">Top EDHREC commanders this week</p>
           <p className="md:mt-1 text-xs md:text-sm text-base-content/70">
-            Drag through the weekly commander list, select art to inspect the
-            full card, or search above for exact printings.
+            Drag through the weekly commander list, select art to inspect the full card, or search
+            above for exact printings.
           </p>
         </div>
       </div>
     </section>
-  );
+  )
 }
 
 type EdhrecCommanderCardView = {
-  id?: string | null;
-  name?: string | null;
-  num_decks?: number | null;
-  rank?: number | null;
-};
+  id?: string | null
+  name?: string | null
+  num_decks?: number | null
+  rank?: number | null
+}
 
 type EdhrecWeekCommandersResponse = {
   container?: {
     json_dict?: {
       cardlists?: Array<{
-        cardviews?: EdhrecCommanderCardView[] | null;
-      }> | null;
-    } | null;
-  } | null;
-};
+        cardviews?: EdhrecCommanderCardView[] | null
+      }> | null
+    } | null
+  } | null
+}
 
 function useEdhrecCommanderGallery(enabled: boolean) {
-  const [cards, setCards] = useState<DomeGalleryCard[]>([]);
-  const [hasError, setHasError] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [cards, setCards] = useState<DomeGalleryCard[]>([])
+  const [hasError, setHasError] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) return
 
-    const abortController = new AbortController();
-    setHasError(false);
-    setIsLoading(true);
+    const abortController = new AbortController()
+    setHasError(false)
+    setIsLoading(true)
 
     fetch(EDHREC_WEEK_COMMANDERS_URL, { signal: abortController.signal })
       .then((response) => {
-        if (!response.ok) throw new Error(`EDHREC returned ${response.status}`);
-        return response.json() as Promise<EdhrecWeekCommandersResponse>;
+        if (!response.ok) throw new Error(`EDHREC returned ${response.status}`)
+        return response.json() as Promise<EdhrecWeekCommandersResponse>
       })
       .then((data) => {
-        setCards(buildEdhrecCommanderCards(data));
+        setCards(buildEdhrecCommanderCards(data))
       })
       .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError")
-          return;
-        setCards([]);
-        setHasError(true);
+        if (error instanceof DOMException && error.name === "AbortError") return
+        setCards([])
+        setHasError(true)
       })
       .finally(() => {
-        if (!abortController.signal.aborted) setIsLoading(false);
-      });
+        if (!abortController.signal.aborted) setIsLoading(false)
+      })
 
-    return () => abortController.abort();
-  }, [enabled]);
+    return () => abortController.abort()
+  }, [enabled])
 
-  return { cards, hasError, isLoading };
+  return { cards, hasError, isLoading }
 }
 
-function buildEdhrecCommanderCards(
-  data: EdhrecWeekCommandersResponse,
-): DomeGalleryCard[] {
-  const cardviews = data.container?.json_dict?.cardlists?.[0]?.cardviews || [];
+function buildEdhrecCommanderCards(data: EdhrecWeekCommandersResponse): DomeGalleryCard[] {
+  const cardviews = data.container?.json_dict?.cardlists?.[0]?.cardviews || []
 
   return shuffle(cardviews)
     .slice(0, EDHREC_COMMANDER_GALLERY_LIMIT)
     .reduce<DomeGalleryCard[]>((galleryCards, card, index) => {
-      if (!card.id || !card.name) return galleryCards;
-      const artCropUrl = scryfallImageUrl(card.id, "art_crop");
-      const imageUrl = scryfallImageUrl(card.id, "normal");
-      if (!artCropUrl || !imageUrl) return galleryCards;
-      const rank = card.rank || index + 1;
-      const deckCount = card.num_decks
-        ? deckCountFormatter.format(card.num_decks)
-        : null;
+      if (!card.id || !card.name) return galleryCards
+      const artCropUrl = scryfallImageUrl(card.id, "art_crop")
+      const imageUrl = scryfallImageUrl(card.id, "normal")
+      if (!artCropUrl || !imageUrl) return galleryCards
+      const rank = card.rank || index + 1
+      const deckCount = card.num_decks ? deckCountFormatter.format(card.num_decks) : null
 
       galleryCards.push({
         id: card.id,
@@ -345,24 +311,20 @@ function buildEdhrecCommanderCards(
         imageUrl,
         collectorNumber: String(rank),
         setCode: "EDHREC",
-        setName: deckCount
-          ? `${deckCount} decks this week`
-          : "Top commander this week",
-        typeLine: deckCount
-          ? `Rank #${rank} · ${deckCount} decks this week`
-          : `Rank #${rank}`,
-      });
-      return galleryCards;
-    }, []);
+        setName: deckCount ? `${deckCount} decks this week` : "Top commander this week",
+        typeLine: deckCount ? `Rank #${rank} · ${deckCount} decks this week` : `Rank #${rank}`,
+      })
+      return galleryCards
+    }, [])
 }
 
 function scryfallImageUrl(id: string, size: "art_crop" | "normal") {
-  const scryfallId = id.toLowerCase();
-  if (!/^[a-f0-9-]{36}$/.test(scryfallId)) return null;
-  return `https://cards.scryfall.io/${size}/front/${scryfallId[0]}/${scryfallId[1]}/${scryfallId}.jpg`;
+  const scryfallId = id.toLowerCase()
+  if (!/^[a-f0-9-]{36}$/.test(scryfallId)) return null
+  return `https://cards.scryfall.io/${size}/front/${scryfallId[0]}/${scryfallId[1]}/${scryfallId}.jpg`
 }
 
-const deckCountFormatter = new Intl.NumberFormat("en-US");
+const deckCountFormatter = new Intl.NumberFormat("en-US")
 
 function CardSearchResultsStatus({
   activeFilterCount,
@@ -371,11 +333,11 @@ function CardSearchResultsStatus({
   query,
   visibleResultCount,
 }: {
-  activeFilterCount: number;
-  hasMoreResults: boolean;
-  isFetching: boolean;
-  query: string;
-  visibleResultCount: number;
+  activeFilterCount: number
+  hasMoreResults: boolean
+  isFetching: boolean
+  query: string
+  visibleResultCount: number
 }) {
   const resultLabel = isFetching
     ? visibleResultCount
@@ -383,15 +345,15 @@ function CardSearchResultsStatus({
       : "Searching local catalog"
     : visibleResultCount
       ? `Showing ${visibleResultCount}${hasMoreResults ? "+" : ""} result${visibleResultCount === 1 ? "" : "s"}`
-      : "No visible results";
+      : "No visible results"
 
   return (
     <section className="mb-6 flex flex-col gap-3 rounded-box border border-base-300 bg-base-100 px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <p className="text-sm font-black">{resultLabel}</p>
         <p className="text-xs text-base-content/65">
-          Results rank by catalog relevance. Choose a card to inspect its
-          printings and owned copies.
+          Results rank by catalog relevance. Choose a card to inspect its printings and owned
+          copies.
         </p>
       </div>
       <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
@@ -412,7 +374,7 @@ function CardSearchResultsStatus({
         ) : null}
       </div>
     </section>
-  );
+  )
 }
 
 function NoCardResults({
@@ -422,11 +384,11 @@ function NoCardResults({
   onSearchExact,
   query,
 }: {
-  hasActiveFilters: boolean;
-  isFetching: boolean;
-  onClearFilters: () => void;
-  onSearchExact: () => void;
-  query: string;
+  hasActiveFilters: boolean
+  isFetching: boolean
+  onClearFilters: () => void
+  onSearchExact: () => void
+  query: string
 }) {
   if (isFetching) {
     return (
@@ -434,10 +396,10 @@ function NoCardResults({
         title="Searching local catalog"
         description="Checking synced card names, oracle text, sets, and printings."
       />
-    );
+    )
   }
 
-  const trimmedQuery = query.trim();
+  const trimmedQuery = query.trim()
 
   return (
     <EmptyState
@@ -458,9 +420,9 @@ function NoCardResults({
         </div>
       }
     />
-  );
+  )
 }
-export type CardReturnEdhrecTab = "recs" | "cuts" | "commander";
+export type CardReturnEdhrecTab = "recs" | "cuts" | "commander"
 
 export function CardDetailPage({
   id,
@@ -475,41 +437,38 @@ export function CardDetailPage({
   returnEdhrecTab,
   returnLocationId,
 }: {
-  id: string;
-  query: string;
-  filterSearch?: string;
-  hideBackLink?: boolean;
-  hidePrivateControls?: boolean;
-  graphqlEndpoint?: string;
-  returnCollection?: boolean;
-  returnDeckId?: string;
-  returnEdhrecExcludeLands?: boolean;
-  returnEdhrecTab?: CardReturnEdhrecTab;
-  returnLocationId?: string;
+  id: string
+  query: string
+  filterSearch?: string
+  hideBackLink?: boolean
+  hidePrivateControls?: boolean
+  graphqlEndpoint?: string
+  returnCollection?: boolean
+  returnDeckId?: string
+  returnEdhrecExcludeLands?: boolean
+  returnEdhrecTab?: CardReturnEdhrecTab
+  returnLocationId?: string
 }) {
-  const [addPrinting, setAddPrinting] =
-    useState<AddCollectionItemInitialPrinting | null>(null);
-  const [deckTarget, setDeckTarget] = useState<CardDeckTarget | null>(null);
-  const [previewPrintingId, setPreviewPrintingId] = useState<string | null>(
-    null,
-  );
+  const [addPrinting, setAddPrinting] = useState<AddCollectionItemInitialPrinting | null>(null)
+  const [deckTarget, setDeckTarget] = useState<CardDeckTarget | null>(null)
+  const [previewPrintingId, setPreviewPrintingId] = useState<string | null>(null)
   const { data, loading } = useQuery(CardDocument, {
     variables: { id },
     context: graphqlEndpointContext(graphqlEndpoint),
     fetchPolicy: graphqlEndpoint ? "no-cache" : "cache-and-network",
-  });
-  const isLoading = loading && !data;
-  const card = data?.card;
-  const visiblePrintings = connectionNodes(card?.printings);
-  const primary = visiblePrintings[0];
-  usePageTitle(card?.name ?? (isLoading ? "Card" : "Card not found"));
+  })
+  const isLoading = loading && !data
+  const card = data?.card
+  const visiblePrintings = connectionNodes(card?.printings)
+  const primary = visiblePrintings[0]
+  usePageTitle(card?.name ?? (isLoading ? "Card" : "Card not found"))
   const previewPrintings = visiblePrintings.map((printing) => ({
     ...printing,
     scryfallId: printing.id,
-  }));
+  }))
 
-  if (isLoading) return <EmptyState title="Loading card..." />;
-  if (!card) return <EmptyState title="Card not found" />;
+  if (isLoading) return <EmptyState title="Loading card..." />
+  if (!card) return <EmptyState title="Card not found" />
 
   return (
     <>
@@ -521,10 +480,7 @@ export function CardDetailPage({
               params={{ id: returnDeckId }}
               search={{
                 edhrec: returnEdhrecTab,
-                edhrecExcludeLands:
-                  returnEdhrecTab && returnEdhrecExcludeLands
-                    ? true
-                    : undefined,
+                edhrecExcludeLands: returnEdhrecTab && returnEdhrecExcludeLands ? true : undefined,
               }}
             >
               {returnEdhrecTab ? "Back to EDHREC" : "Back to deck"}
@@ -532,10 +488,7 @@ export function CardDetailPage({
           </Button>
         ) : returnLocationId ? (
           <Button asChild variant="outline" size="sm">
-            <Link
-              to="/collection/locations/$id"
-              params={{ id: returnLocationId }}
-            >
+            <Link to="/collection/locations/$id" params={{ id: returnLocationId }}>
               Back to collection
             </Link>
           </Button>
@@ -547,10 +500,7 @@ export function CardDetailPage({
           </Button>
         ) : (
           <Button asChild variant="outline" size="sm">
-            <Link
-              to="/cards"
-              search={{ q: query || undefined, filters: filterSearch }}
-            >
+            <Link to="/cards" search={{ q: query || undefined, filters: filterSearch }}>
               Back to search
             </Link>
           </Button>
@@ -593,24 +543,16 @@ export function CardDetailPage({
               <CardTagSummary card={card} />
 
               {card.oracleText ? (
-                <OracleTextPanel
-                  artCropUrl={primary?.artCropUrl}
-                  text={card.oracleText}
-                />
+                <OracleTextPanel artCropUrl={primary?.artCropUrl} text={card.oracleText} />
               ) : null}
 
-              <CardLegalityPanel
-                gameChanger={card.gameChanger}
-                legalities={card.legalities}
-              />
+              <CardLegalityPanel gameChanger={card.gameChanger} legalities={card.legalities} />
               <CardRulings rulings={card.rulings} />
             </div>
           </div>
         </section>
 
-        {hidePrivateControls ? null : (
-          <CardCollectionCopiesPanel cardId={card.id} />
-        )}
+        {hidePrivateControls ? null : <CardCollectionCopiesPanel cardId={card.id} />}
 
         <section className="space-y-4">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
@@ -618,8 +560,8 @@ export function CardDetailPage({
               <h2 className="text-xl font-black">Printings</h2>
               <p className="text-sm text-base-content/65">
                 {visiblePrintings.length} printing
-                {visiblePrintings.length === 1 ? "" : "s"} sorted by catalog
-                relevance. Owned badges mark copies already in your vault.
+                {visiblePrintings.length === 1 ? "" : "s"} sorted by catalog relevance. Owned badges
+                mark copies already in your vault.
               </p>
             </div>
           </div>
@@ -655,5 +597,5 @@ export function CardDetailPage({
         </>
       )}
     </>
-  );
+  )
 }

@@ -63,7 +63,10 @@ export function extractArtPalette(pixels: Uint8ClampedArray): ArtPalette | null 
   return { primary: rgbChannels(primary), secondary: rgbChannels(secondary) }
 }
 
-function colorDistance(a: { r: number; g: number; b: number }, b: { r: number; g: number; b: number }) {
+function colorDistance(
+  a: { r: number; g: number; b: number },
+  b: { r: number; g: number; b: number },
+) {
   return Math.hypot(a.r - b.r, a.g - b.g, a.b - b.b)
 }
 

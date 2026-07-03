@@ -90,9 +90,7 @@
   transform-origin: 50% 50%;
   backface-visibility: hidden;
   transition: transform 200ms ease-out;
-  transform: rotateY(
-      calc(var(--rot-y) * (var(--offset-x) + ((var(--item-size-x) - 1) / 2)))
-    )
+  transform: rotateY(calc(var(--rot-y) * (var(--offset-x) + ((var(--item-size-x) - 1) / 2))))
     rotateX(calc(var(--rot-x) * (var(--offset-y) - ((var(--item-size-y) - 1) / 2))))
     translateZ(var(--radius));
 }
@@ -230,7 +228,11 @@
   height: 120px;
   z-index: 5;
   pointer-events: none;
-  background: linear-gradient(to bottom, transparent, var(--overlay-blur-color, var(--color-base-100)));
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--overlay-blur-color, var(--color-base-100))
+  );
 }
 
 .dome-gallery-edge-fade--top {

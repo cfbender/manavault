@@ -28,7 +28,7 @@ run = [
   "mix credo --strict",
   "aube run vp lint",
   "aube run vp format --check",
-  "aubx impeccable detect assets/react/src/"
+  "aubx impeccable detect assets/react/src/",
 ]
 
 [tasks.changelog]
