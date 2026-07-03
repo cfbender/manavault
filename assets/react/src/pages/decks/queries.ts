@@ -682,8 +682,8 @@ export const DeallocateDeckCardProxyDocument = graphql(`
 `)
 
 export const ImportDecklistDocument = graphql(`
-  mutation ImportDecklist($id: ID!, $text: String!, $replaceExisting: Boolean!) {
-    importDecklist(id: $id, text: $text, replaceExisting: $replaceExisting) {
+  mutation ImportDecklist($id: ID!, $text: String!, $replaceExisting: Boolean!, $zone: String) {
+    importDecklist(id: $id, text: $text, replaceExisting: $replaceExisting, zone: $zone) {
       importResult {
         imported
         unresolved

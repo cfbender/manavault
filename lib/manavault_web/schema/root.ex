@@ -545,6 +545,7 @@ defmodule ManavaultWeb.Schema do
       arg(:id, non_null(:id))
       arg(:text, non_null(:string))
       arg(:replace_existing, :boolean, default_value: false)
+      arg(:zone, :string)
 
       output do
         field :import_result, :deck_import_result

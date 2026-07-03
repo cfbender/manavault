@@ -65,7 +65,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
   def import_decklist(_parent, %{id: id, text: text} = args, resolution) do
     with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
       deck = Catalog.get_deck!(id)
-      opts = [replace?: Map.get(args, :replace_existing, false)]
+      opts = [replace?: Map.get(args, :replace_existing, false), zone: Map.get(args, :zone)]
 
       case Catalog.import_decklist(deck, text, opts) do
         {:ok, result} ->

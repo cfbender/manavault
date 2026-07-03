@@ -27,6 +27,7 @@ import type { DetailZoneCounts } from "./detail-page-content"
 import { EDHRecDialog } from "./edhrec"
 import { MissingCardsDialog } from "./missing-cards-dialog"
 import { OptimizePrintingsDialog } from "./optimize-printings-dialog"
+import { SelectFromListDialog } from "./select-from-list-dialog"
 
 export function DeckDetailDialogs({
   addCardError,
@@ -51,6 +52,7 @@ export function DeckDetailDialogs({
   isExportDeckOpen,
   isImportDeckOpen,
   isMissingCardsOpen,
+  isSelectFromListOpen,
   isShareDeckOpen,
   isUpdatingDeckCard,
   optimizePrintingsError,
@@ -79,6 +81,8 @@ export function DeckDetailDialogs({
   onPreviewCardOpenChange,
   onSetEdhrecState,
   onSelectBulkAllocationChoice,
+  onSelectDeckCardsFromList,
+  onSelectFromListOpenChange,
   onToggleBulkAllocationEntry,
   onShareDeckOpenChange,
   onOptimizePrintingsOpenChange,
@@ -113,6 +117,7 @@ export function DeckDetailDialogs({
   isExportDeckOpen: boolean
   isImportDeckOpen: boolean
   isMissingCardsOpen: boolean
+  isSelectFromListOpen: boolean
   isShareDeckOpen: boolean
   isUpdatingDeckCard: boolean
   optimizePrintingsError: string | null
@@ -141,6 +146,8 @@ export function DeckDetailDialogs({
   onPreviewCardOpenChange: (open: boolean) => void
   onSetEdhrecState: (tab: EDHRecTab | undefined, excludeLands?: boolean) => void
   onSelectBulkAllocationChoice: (choiceId: string, collectionItemId: string | null) => void
+  onSelectDeckCardsFromList: (deckCardIds: string[]) => void
+  onSelectFromListOpenChange: (open: boolean) => void
   onToggleBulkAllocationEntry: (entryId: string, excluded: boolean) => void
   onShareDeckOpenChange: (open: boolean) => void
   onOptimizePrintingsOpenChange: (open: boolean) => void
@@ -178,6 +185,12 @@ export function DeckDetailDialogs({
           deck={deck}
           onOpenChange={onMissingCardsOpenChange}
           open={isMissingCardsOpen}
+        />
+        <SelectFromListDialog
+          deckCards={deck.deckCards}
+          onOpenChange={onSelectFromListOpenChange}
+          onSelect={onSelectDeckCardsFromList}
+          open={isSelectFromListOpen}
         />
         <OptimizePrintingsDialog
           deckCards={deck.deckCards}

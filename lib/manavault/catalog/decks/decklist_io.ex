@@ -2,12 +2,28 @@ defmodule Manavault.Catalog.Decks.DecklistIO do
   @moduledoc false
 
   alias Ecto.Changeset
-  alias Manavault.Catalog.{Deck, Decklists}
+  alias Manavault.Catalog.{Deck, DeckCard, Decklists}
   alias Manavault.Catalog.Decks.{Cards, Preloads}
   alias Manavault.Repo
 
   def import_decklist(%Deck{} = deck, text, opts \\ []) when is_binary(text) and is_list(opts) do
-    entries = Decklists.parse(text)
+    with {:ok, zone} <- import_zone(Keyword.get(opts, :zone)) do
+      do_import_decklist(deck, text, zone, opts)
+    end
+  end
+
+  defp import_zone(nil), do: {:ok, nil}
+
+  defp import_zone(zone) when is_binary(zone) do
+    if zone in DeckCard.zones() do
+      {:ok, zone}
+    else
+      {:error, "Unknown deck zone: #{zone}"}
+    end
+  end
+
+  defp do_import_decklist(%Deck{} = deck, text, zone, opts) do
+    entries = Decklists.parse(text, zone: zone)
     replace? = Keyword.get(opts, :replace?, false)
 
     Repo.transact(fn ->

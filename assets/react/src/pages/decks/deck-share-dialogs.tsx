@@ -12,8 +12,9 @@ import {
 import { Input } from "../../components/ui/input"
 import { useToast } from "../../components/ui/toast"
 import { refetchActiveQueries } from "../../lib/apollo"
-import { pluralize } from "../../lib/utils"
-import type { DeckDetail, DeckSummary } from "./deck-types"
+import { pluralize, titleize } from "../../lib/utils"
+import type { DeckDetail, DeckSummary, DeckZone } from "./deck-types"
+import { ADD_CARD_ZONES } from "./deck-types"
 import {
   DeckExportTextDocument,
   EnsureDeckShareTokenDocument,
@@ -136,6 +137,7 @@ export function ImportDecklistDialog({
   const client = useApolloClient()
   const { showToast } = useToast()
   const [text, setText] = useState("")
+  const [zone, setZone] = useState<DeckZone | "">("")
   const [replaceExisting, setReplaceExisting] = useState(false)
   const [result, setResult] = useState<{
     imported: number
@@ -154,7 +156,7 @@ export function ImportDecklistDialog({
       }
 
       void importDecklistMutation({
-        variables: { id: deck.id, text, replaceExisting },
+        variables: { id: deck.id, text, replaceExisting, zone: zone || null },
         onCompleted: (data) => {
           const importResult = data.importDecklist?.importResult || null
 
@@ -173,6 +175,7 @@ export function ImportDecklistDialog({
   useEffect(() => {
     if (!open) {
       setText("")
+      setZone("")
       setResult(null)
       setReplaceExisting(false)
       setError(null)
@@ -220,6 +223,27 @@ export function ImportDecklistDialog({
               placeholder={"Commander\n1 Sol Ring\n1 Arcane Signet\n\nSideboard\n2 Negate"}
               autoFocus
             />
+          </label>
+
+          <label className="block space-y-2">
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+              Import into
+            </span>
+            <select
+              className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              value={zone}
+              onChange={(event) => setZone(event.target.value as DeckZone | "")}
+            >
+              <option value="">Zones from decklist</option>
+              {ADD_CARD_ZONES.map((zone) => (
+                <option key={zone} value={zone}>
+                  {titleize(zone)}
+                </option>
+              ))}
+            </select>
+            <span className="block text-xs text-base-content/60">
+              Pick a zone to send every imported card there, ignoring section headings in the text.
+            </span>
           </label>
 
           <label className="flex items-start gap-3 rounded-box border border-warning/30 bg-warning/10 p-3 text-sm">

@@ -168,6 +168,7 @@ export function DeckDetailPage({
   const [isImportDeckOpen, setIsImportDeckOpen] = useState(false)
   const [isExportDeckOpen, setIsExportDeckOpen] = useState(false)
   const [isMissingCardsOpen, setIsMissingCardsOpen] = useState(false)
+  const [isSelectFromListOpen, setIsSelectFromListOpen] = useState(false)
   const [isShareDeckOpen, setIsShareDeckOpen] = useState(false)
   const [previewDeckCard, setPreviewDeckCard] = useState<DeckCardEntry | null>(null)
   const [isSharePlaytestOpen, setIsSharePlaytestOpen] = useState(false)
@@ -366,6 +367,7 @@ export function DeckDetailPage({
     selectedDeckCardIdList,
     selectedDeckCardIds,
     selectAllDeckCards,
+    selectDeckCardIds,
     setBulkActionError,
     setBulkQuantity,
     setHighlightedDeckCardIds,
@@ -853,6 +855,7 @@ export function DeckDetailPage({
           },
           onHighlightDeckCards: setHighlightedDeckCardIds,
           onOpenDeleteSelected: () => setIsDeleteSelectedOpen(true),
+          onOpenSelectFromList: () => setIsSelectFromListOpen(true),
           onSelectAllDeckCards: selectAllDeckCards,
           onSetBulkQuantity: setBulkQuantity,
           onStartSelecting: () => setIsSelectingCards(true),
@@ -920,6 +923,7 @@ export function DeckDetailPage({
         isExportDeckOpen={isExportDeckOpen}
         isImportDeckOpen={isImportDeckOpen}
         isMissingCardsOpen={isMissingCardsOpen}
+        isSelectFromListOpen={isSelectFromListOpen}
         isShareDeckOpen={isShareDeckOpen}
         isDisassemblingDeck={disassembleDeck.isPending}
         isUpdatingDeckCard={isUpdatingDeckCard}
@@ -993,6 +997,8 @@ export function DeckDetailPage({
           if (!open) setPreviewDeckCard(null)
         }}
         onSetEdhrecState={setEdhrecState}
+        onSelectDeckCardsFromList={selectDeckCardIds}
+        onSelectFromListOpenChange={setIsSelectFromListOpen}
         onSelectBulkAllocationChoice={(choiceId, collectionItemId) => {
           setSelectedBulkAllocationItemIds((selectedItemIds) => ({
             ...selectedItemIds,

@@ -3,7 +3,9 @@ defmodule Manavault.Catalog.Decklists do
 
   alias Manavault.Catalog.{DeckCard, Printing, Search, Util}
 
-  def parse(text) when is_binary(text) do
+  def parse(text, opts \\ []) when is_binary(text) and is_list(opts) do
+    zone_override = Keyword.get(opts, :zone)
+
     text
     |> String.split(~r/\R/u)
     |> Enum.reduce({[], "mainboard"}, fn line, {entries, zone} ->
@@ -11,6 +13,7 @@ defmodule Manavault.Catalog.Decklists do
     end)
     |> elem(0)
     |> Enum.reverse()
+    |> override_zone(zone_override)
     |> dedupe_entries()
   end
 
@@ -31,6 +34,12 @@ defmodule Manavault.Catalog.Decklists do
     |> String.replace(~r/\s+\[[^\]]+\]\s*$/u, "")
     |> String.replace(~r/\s+\*[A-Z]+\*\s*$/u, "")
     |> String.trim()
+  end
+
+  defp override_zone(entries, nil), do: entries
+
+  defp override_zone(entries, zone) when is_binary(zone) do
+    Enum.map(entries, &Map.put(&1, "zone", zone))
   end
 
   defp parse_line(line, current_zone, entries) do

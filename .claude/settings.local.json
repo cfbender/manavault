@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "Bash(cd *)",
+      "Bash(git check-ignore *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(git -C /Users/cfb/code/github/manavault ls-files)",
+      "Bash(grep -rn \"href={\\\\`\" --include=\"*.tsx\" .)",
+      "Bash(gh auth *)",
+      "Bash(gh repo *)",
+      "Bash(gh label *)",
+      "Bash(gh issue *)",
+      "Bash(mise exec *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git --no-pager log --oneline -1)",
+      "Bash(git --no-pager show --stat --oneline HEAD)",
+      "Bash(git push *)",
+      "Bash(git stash *)",
+      "Bash(awk '{print $1}')"
+    ]
+  }
+}

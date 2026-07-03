@@ -64,6 +64,14 @@ export function useDeckDetailSelection(deckCards: DeckCardEntry[], selectionDeck
     lastSelectedDeckCardIdRef.current = deckCardId
   }
 
+  function selectDeckCardIds(deckCardIds: string[]) {
+    setSelectedDeckCardIds((current) => {
+      const next = new Set(current)
+      for (const deckCardId of deckCardIds) next.add(deckCardId)
+      return next
+    })
+  }
+
   function selectAllDeckCards() {
     setSelectedDeckCardIds(new Set(selectionDeckCardIds))
     lastSelectedDeckCardIdRef.current =
@@ -88,6 +96,7 @@ export function useDeckDetailSelection(deckCards: DeckCardEntry[], selectionDeck
     selectedDeckCardIdList,
     selectedDeckCardIds,
     selectAllDeckCards,
+    selectDeckCardIds,
     setBulkActionError,
     setBulkQuantity,
     setHighlightedDeckCardIds,

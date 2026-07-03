@@ -87,6 +87,7 @@ export type DeckSelectionControls = {
   onClearSelectedDeckCards: () => void
   onHighlightDeckCards: (deckCardIds: Set<string> | null) => void
   onOpenDeleteSelected: () => void
+  onOpenSelectFromList: () => void
   onSelectAllDeckCards: () => void
   onSetBulkQuantity: (quantity: number) => void
   onStartSelecting: () => void
@@ -498,6 +499,7 @@ export function DeckDetailContent({
     onClearSelectedDeckCards,
     onHighlightDeckCards,
     onOpenDeleteSelected,
+    onOpenSelectFromList,
     onSelectAllDeckCards,
     onSetBulkQuantity,
     onStartSelecting,
@@ -718,6 +720,15 @@ export function DeckDetailContent({
                   onClick={onSelectAllDeckCards}
                 >
                   Select all
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={!deckCards.length}
+                  onClick={onOpenSelectFromList}
+                >
+                  Select from list
                 </Button>
                 <Button type="button" variant="ghost" size="sm" onClick={onClearSelectedDeckCards}>
                   {selectedDeckCardCount > 0 ? "Clear" : "Done"}

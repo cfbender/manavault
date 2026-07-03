@@ -74,6 +74,36 @@ defmodule Manavault.Catalog.DecklistTest do
              Enum.find(loaded.deck_cards, &(&1.zone == "maybeboard"))
   end
 
+  test "decklist import can target a specific zone regardless of headings" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Zoned Import"})
+
+    text = """
+    Mainboard
+    1 Black Lotus
+
+    Sideboard
+    1 Time Walk
+    """
+
+    assert {:ok, %{imported: 2, unresolved: []}} =
+             Catalog.import_decklist(deck, text, zone: "maybeboard")
+
+    loaded = Catalog.get_deck!(deck.id)
+
+    assert Enum.count(loaded.deck_cards) == 2
+    assert Enum.all?(loaded.deck_cards, &(&1.zone == "maybeboard"))
+  end
+
+  test "decklist import rejects unknown target zones" do
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Bad Zone Import"})
+
+    assert {:error, "Unknown deck zone: attic"} =
+             Catalog.import_decklist(deck, "1 Black Lotus", zone: "attic")
+  end
+
   test "decklist import keeps card identities when preferred printing data is unusable" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
