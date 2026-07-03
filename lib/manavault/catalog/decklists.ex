@@ -64,20 +64,25 @@ defmodule Manavault.Catalog.Decklists do
     do: parse_card_line(String.trim(rest), "sideboard")
 
   defp parse_card_line(line, current_zone) do
-    with [_, quantity, name] <- Regex.run(~r/^\s*(\d+)\s*x?\s+(.+?)\s*$/i, line) do
-      {name, preferred_printing_id} = parse_card_name_and_printing(name)
+    case Regex.named_captures(~r/^\s*(?:(?<quantity>\d+)\s*x?\s+)?(?<name>.+?)\s*$/i, line) do
+      %{"name" => name, "quantity" => quantity} ->
+        {name, preferred_printing_id} = parse_card_name_and_printing(name)
 
-      %{
-        "quantity" => quantity,
-        "name" => name,
-        "zone" => current_zone,
-        "finish" => parse_finish(line),
-        "preferred_printing_id" => preferred_printing_id
-      }
-    else
-      _no_match -> nil
+        %{
+          "quantity" => default_quantity(quantity),
+          "name" => name,
+          "zone" => current_zone,
+          "finish" => parse_finish(line),
+          "preferred_printing_id" => preferred_printing_id
+        }
+
+      _no_match ->
+        nil
     end
   end
+
+  defp default_quantity(""), do: "1"
+  defp default_quantity(quantity), do: quantity
 
   defp parse_card_name_and_printing(name) do
     cleaned_name = normalize_card_name(name)

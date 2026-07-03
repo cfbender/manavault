@@ -74,6 +74,39 @@ defmodule Manavault.Catalog.DecklistTest do
              Enum.find(loaded.deck_cards, &(&1.zone == "maybeboard"))
   end
 
+  test "decklist import assumes one copy when quantity is omitted" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Quantityless Import"})
+
+    text = """
+    Black Lotus
+    Time Walk
+    SB: Black Lotus
+    """
+
+    assert {:ok, %{imported: 3, unresolved: [], skipped_printings: []}} =
+             Catalog.import_decklist(deck, text)
+
+    loaded = Catalog.get_deck!(deck.id)
+
+    assert %DeckCard{quantity: 1, zone: "mainboard"} =
+             Enum.find(
+               loaded.deck_cards,
+               &(&1.card.name == "Black Lotus" and &1.zone == "mainboard")
+             )
+
+    assert %DeckCard{quantity: 1, zone: "mainboard"} =
+             Enum.find(loaded.deck_cards, &(&1.card.name == "Time Walk"))
+
+    assert %DeckCard{quantity: 1, zone: "sideboard"} =
+             Enum.find(
+               loaded.deck_cards,
+               &(&1.card.name == "Black Lotus" and &1.zone == "sideboard")
+             )
+  end
+
   test "decklist import can target a specific zone regardless of headings" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
@@ -94,6 +127,36 @@ defmodule Manavault.Catalog.DecklistTest do
     loaded = Catalog.get_deck!(deck.id)
 
     assert Enum.count(loaded.deck_cards) == 2
+    assert Enum.all?(loaded.deck_cards, &(&1.zone == "maybeboard"))
+  end
+
+  test "decklist replacement restores allocated cards without nested delete transactions" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    assert {:ok, binder} =
+             Catalog.create_location(%{name: "Import Replace Binder", kind: "binder"})
+
+    assert {:ok, item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "location_id" => binder.id
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Replace Import"})
+    assert {:ok, lotus} = Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus"})
+    assert {:ok, allocation} = Catalog.allocate_collection_item_to_deck_card(lotus.id, item.id)
+
+    assert {:ok, %{imported: 1, unresolved: [], skipped_printings: []}} =
+             Catalog.import_decklist(deck, "1 Time Walk", replace?: true, zone: "maybeboard")
+
+    restored_item = Catalog.get_collection_item!(allocation.collection_item_id)
+    loaded = Catalog.get_deck!(deck.id)
+
+    assert restored_item.location_id == binder.id
+    assert Enum.map(loaded.deck_cards, & &1.card.name) == ["Time Walk"]
     assert Enum.all?(loaded.deck_cards, &(&1.zone == "maybeboard"))
   end
 
