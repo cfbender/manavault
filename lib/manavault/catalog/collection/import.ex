@@ -4,7 +4,7 @@ defmodule Manavault.Catalog.Collection.Import do
   import Ecto.Query
 
   alias Manavault.Catalog.Collection.AutoSort
-  alias Manavault.Catalog.{CollectionImport, Location, Printing, Search}
+  alias Manavault.Catalog.{CollectionImport, Finishes, Location, Printing, Search}
   alias Manavault.Repo
 
   def preview(text, opts \\ []) when is_binary(text) and is_list(opts) do
@@ -160,7 +160,10 @@ defmodule Manavault.Catalog.Collection.Import do
         %{
           row_number: row_number,
           status: :exact,
-          attrs: Map.put(attrs, "scryfall_id", printing.scryfall_id),
+          attrs:
+            attrs
+            |> Map.put("scryfall_id", printing.scryfall_id)
+            |> Map.put("finish", Finishes.preferred(printing, Map.get(attrs, "finish"))),
           printing: printing,
           candidates: []
         }

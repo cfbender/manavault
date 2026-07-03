@@ -71,7 +71,11 @@ defmodule Manavault.Catalog.Collection do
   end
 
   def create_collection_item(attrs) when is_map(attrs) do
-    attrs = attrs |> ItemAttrs.normalize() |> ItemAttrs.put_default_purchase_price()
+    attrs =
+      attrs
+      |> ItemAttrs.normalize()
+      |> ItemAttrs.coerce_finish_to_available()
+      |> ItemAttrs.put_default_purchase_price()
 
     %CollectionItem{}
     |> CollectionItem.create_changeset(attrs)

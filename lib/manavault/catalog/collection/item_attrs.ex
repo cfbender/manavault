@@ -58,6 +58,20 @@ defmodule Manavault.Catalog.Collection.ItemAttrs do
     end
   end
 
+  def coerce_finish_to_available(attrs) do
+    scryfall_id = Map.get(attrs, "scryfall_id")
+    finish = Map.get(attrs, "finish")
+
+    with true <- is_binary(scryfall_id),
+         true <- is_binary(finish),
+         %Printing{} = printing <- Repo.get(Printing, scryfall_id),
+         false <- Finishes.supports?(printing, finish) do
+      Map.put(attrs, "finish", Finishes.preferred(printing, finish))
+    else
+      _other -> attrs
+    end
+  end
+
   def validate_finish_available(changeset) do
     scryfall_id = Changeset.get_field(changeset, :scryfall_id)
     finish = Changeset.get_field(changeset, :finish)

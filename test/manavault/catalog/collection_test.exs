@@ -68,6 +68,34 @@ defmodule Manavault.Catalog.CollectionTest do
     assert Catalog.count_collection_items([]) == 3
   end
 
+  test "collection import defaults to an available finish for the printing" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@time_walk])
+
+    # Time Walk's fixture printing is foil-only, so the implicit nonfoil
+    # default from the text format must fall back to foil.
+    txt = "1x Time Walk (LEA) 84"
+
+    assert {:ok, preview} = Catalog.preview_collection_import(txt, format: :txt)
+    assert [%{status: :exact, attrs: %{"finish" => "foil"}}] = preview.rows
+
+    assert {:ok, %{imported: 1, skipped: 0}} = Catalog.import_collection(txt, format: :txt)
+    assert [%CollectionItem{finish: "foil"}] = Catalog.list_collection_items([], limit: 10)
+  end
+
+  test "creating a collection item coerces an unavailable finish" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@time_walk])
+
+    # Rows previewed before this fix (or sent by clients) can still carry an
+    # unavailable finish; creation falls back instead of erroring.
+    assert {:ok, item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-2",
+               "finish" => "nonfoil"
+             })
+
+    assert item.finish == "foil"
+  end
+
   test "collection import applies a default purchase price to rows without prices" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
