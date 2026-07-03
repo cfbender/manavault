@@ -1,4 +1,4 @@
-import { Boxes, Download, Plus, Tags, Upload, WandSparkles } from "lucide-react"
+import { Boxes, ChevronDown, Download, Plus, Tags, Upload, WandSparkles } from "lucide-react"
 import { PageHeader } from "../../components/app-shell"
 import { Button } from "../../components/ui/button"
 import {
@@ -121,41 +121,80 @@ export function CollectionPageHeader({
 
       {valueSummary ? <CollectionValueSummaryCard valueSummary={valueSummary} /> : null}
 
+      <CollectionTabs
+        activeTab={activeTab}
+        itemCounts={itemCounts}
+        locationCount={locationCount}
+        onSelectTab={onSelectTab}
+      />
+    </>
+  )
+}
+
+function CollectionTabs({
+  activeTab,
+  itemCounts,
+  locationCount,
+  onSelectTab,
+}: Pick<CollectionPageHeaderProps, "activeTab" | "itemCounts" | "locationCount" | "onSelectTab">) {
+  const tabs: { tab: CollectionTab; label: string; count: number }[] = [
+    { tab: "locations", label: "Locations", count: locationCount },
+    { tab: "all", label: "All cards", count: itemCounts.all },
+    { tab: "recent", label: "Recently added", count: itemCounts.recent },
+    { tab: "available", label: "Available to pull", count: itemCounts.available },
+    { tab: "unfiled", label: "Unfiled", count: itemCounts.unfiled },
+  ]
+  const active = tabs.find(({ tab }) => tab === activeTab) ?? tabs[0]
+
+  return (
+    <>
+      <div className="mb-7 sm:hidden">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full justify-between"
+              aria-label="Collection view"
+            >
+              <span className="flex items-center gap-2">
+                <span>{active.label}</span>
+                <span className="badge badge-primary badge-sm">{active.count}</span>
+              </span>
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+            {tabs.map(({ tab, label, count }) => (
+              <DropdownMenuItem key={tab} onSelect={() => onSelectTab(tab)}>
+                <span className="flex-1">{label}</span>
+                <span
+                  className={
+                    tab === activeTab ? "badge badge-primary badge-sm" : "badge badge-ghost badge-sm"
+                  }
+                >
+                  {count}
+                </span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
       <div
-        className="mb-7 flex flex-wrap gap-2 border-b border-base-300"
+        className="mb-7 hidden flex-wrap gap-2 border-b border-base-300 sm:flex"
         role="tablist"
         aria-label="Collection view"
       >
-        <CollectionTabButton
-          active={activeTab === "locations"}
-          count={locationCount}
-          label="Locations"
-          onClick={() => onSelectTab("locations")}
-        />
-        <CollectionTabButton
-          active={activeTab === "all"}
-          count={itemCounts.all}
-          label="All cards"
-          onClick={() => onSelectTab("all")}
-        />
-        <CollectionTabButton
-          active={activeTab === "recent"}
-          count={itemCounts.recent}
-          label="Recently added"
-          onClick={() => onSelectTab("recent")}
-        />
-        <CollectionTabButton
-          active={activeTab === "available"}
-          count={itemCounts.available}
-          label="Available to pull"
-          onClick={() => onSelectTab("available")}
-        />
-        <CollectionTabButton
-          active={activeTab === "unfiled"}
-          count={itemCounts.unfiled}
-          label="Unfiled"
-          onClick={() => onSelectTab("unfiled")}
-        />
+        {tabs.map(({ tab, label, count }) => (
+          <CollectionTabButton
+            key={tab}
+            active={activeTab === tab}
+            count={count}
+            label={label}
+            onClick={() => onSelectTab(tab)}
+          />
+        ))}
       </div>
     </>
   )
