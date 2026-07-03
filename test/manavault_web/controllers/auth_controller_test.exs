@@ -2,9 +2,9 @@ defmodule ManavaultWeb.AuthControllerTest do
   use ManavaultWeb.ConnCase
 
   alias Manavault.Auth
+  alias Manavault.Auth.AttemptLimiter
   alias Manavault.Auth.ClientFailure
   alias Manavault.Repo
-  alias Manavault.Auth.AttemptLimiter
 
   setup do
     previous_hash = Application.get_env(:manavault, :admin_password_hash)

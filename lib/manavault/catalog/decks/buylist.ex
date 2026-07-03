@@ -1,7 +1,7 @@
 defmodule Manavault.Catalog.Decks.Buylist do
   @moduledoc false
 
-  alias Manavault.Catalog.{CSV, Card, Deck, DeckCard, Finishes, Price}
+  alias Manavault.Catalog.{Card, CSV, Deck, DeckCard, Finishes, Price}
   alias Manavault.Catalog.Decks.{AllocationStatus, Preloads, Printings}
   alias Manavault.Repo
 

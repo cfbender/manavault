@@ -110,7 +110,7 @@ async function loadArtPalette(url: string): Promise<ArtPalette | null> {
   try {
     const image = new Image()
     image.crossOrigin = "anonymous"
-    // The same art may already sit in the HTTP cache from a plain <img> load,
+    // The same art may already sit in the HTTP cache from a normal image load,
     // cached without CORS headers (Scryfall varies on Origin). A dedicated
     // query param forces a fresh CORS-mode fetch so the canvas isn't tainted.
     image.src = `${url}${url.includes("?") ? "&" : "?"}palette=1`

@@ -73,8 +73,8 @@ export function createCardDragPreview(card: PlaytestCard, sourceElement: HTMLEle
   preview.style.opacity = "1"
   preview.style.overflow = "hidden"
   preview.style.border = "1px solid rgb(255 255 255 / 0.16)"
-  preview.style.borderRadius = "0.75rem"
-  preview.style.background = "rgb(30 41 59)"
+  preview.style.borderRadius = "var(--radius-box)"
+  preview.style.background = "var(--color-base-200)"
   preview.style.boxShadow = "0 1.5rem 3rem rgb(0 0 0 / 0.45)"
 
   if (card.imageUrl) {
@@ -101,8 +101,9 @@ export function createCardDragPreview(card: PlaytestCard, sourceElement: HTMLEle
     fallback.style.fontSize = "0.875rem"
     fallback.style.fontWeight = "700"
     fallback.style.lineHeight = "1.2"
-    fallback.style.color = "rgb(248 250 252)"
-    fallback.style.background = "linear-gradient(135deg, rgb(30 41 59), rgb(15 23 42))"
+    fallback.style.color = "var(--color-base-content)"
+    fallback.style.background =
+      "linear-gradient(135deg, var(--color-base-200), var(--color-base-100))"
     preview.appendChild(fallback)
   }
 

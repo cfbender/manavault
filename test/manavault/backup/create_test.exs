@@ -12,9 +12,9 @@ end
 defmodule Manavault.Backup.CreateTest do
   use ExUnit.Case, async: false
 
+  alias Exqlite.Sqlite3
   alias Manavault.Backup
   alias Manavault.Backup.CreateTestRepo
-  alias Exqlite.Sqlite3
 
   @catalog_tables ~w[
     scryfall_printing_search

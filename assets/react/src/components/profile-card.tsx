@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef } from "react"
 import type { CSSProperties } from "react"
 import "./profile-card.css"
 
-const DEFAULT_INNER_GRADIENT = "linear-gradient(145deg,#60496e8c 0%,#71C4FF44 100%)"
+const DEFAULT_INNER_GRADIENT =
+  "linear-gradient(145deg,color-mix(in oklch, var(--color-primary), transparent 45%) 0%,color-mix(in oklch, var(--color-info), transparent 73%) 100%)"
 
 const ANIMATION_CONFIG = {
   INITIAL_DURATION: 1200,

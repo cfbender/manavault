@@ -5,8 +5,8 @@ defmodule Manavault.Catalog.ScryfallSyncWorker do
 
   require Logger
 
-  alias Manavault.ScryfallAssets
   alias Manavault.Catalog
+  alias Manavault.ScryfallAssets
 
   @default_interval :timer.hours(24)
   @default_initial_delay :timer.seconds(30)

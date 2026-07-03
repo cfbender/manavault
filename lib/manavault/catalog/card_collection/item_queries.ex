@@ -3,8 +3,8 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries do
 
   import Ecto.Query
 
-  alias Manavault.Catalog.CollectionItem
   alias Manavault.Catalog.CardCollection.ItemQueries.{Base, ValueSummary}
+  alias Manavault.Catalog.CollectionItem
   alias Manavault.Repo
 
   import Manavault.Catalog.PriceFragments, only: [price_value_fragment: 2]

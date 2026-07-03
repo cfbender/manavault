@@ -5,7 +5,7 @@ cloudflared = "latest"
 elixir = "1.20.1-otp-29"
 git-cliff = "latest"
 java = "21"
-node = "22.22.2"
+node = "26.4.0"
 
 [tasks.setup]
 description = "Install project tools, Elixir dependencies, database, assets, and native shell dependencies."

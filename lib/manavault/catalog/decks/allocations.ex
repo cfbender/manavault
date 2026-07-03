@@ -194,10 +194,8 @@ defmodule Manavault.Catalog.Decks.Allocations do
         |> Repo.preload([:deck, :preferred_printing, card: []])
 
       with :ok <- validate_positive_allocation_quantity(quantity),
-           :ok <- validate_deck_card_proxy_allocation_room(deck_card, quantity),
-           {:ok, deck_card} <-
-             put_deck_card_proxy_quantity(deck_card, (deck_card.proxy_quantity || 0) + quantity) do
-        {:ok, deck_card}
+           :ok <- validate_deck_card_proxy_allocation_room(deck_card, quantity) do
+        put_deck_card_proxy_quantity(deck_card, (deck_card.proxy_quantity || 0) + quantity)
       end
     end)
   end
@@ -210,10 +208,8 @@ defmodule Manavault.Catalog.Decks.Allocations do
       proxy_quantity = deck_card.proxy_quantity || 0
 
       with :ok <- validate_positive_allocation_quantity(quantity),
-           :ok <- validate_deck_card_proxy_deallocation(deck_card, quantity),
-           {:ok, deck_card} <-
-             put_deck_card_proxy_quantity(deck_card, max(proxy_quantity - quantity, 0)) do
-        {:ok, deck_card}
+           :ok <- validate_deck_card_proxy_deallocation(deck_card, quantity) do
+        put_deck_card_proxy_quantity(deck_card, max(proxy_quantity - quantity, 0))
       end
     end)
   end

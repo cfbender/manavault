@@ -3,9 +3,9 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries.ValueSummary do
 
   import Ecto.Query
 
+  alias Manavault.Catalog.CardCollection.ItemQueries.Base
   alias Manavault.Catalog.CollectionItem
   alias Manavault.Catalog.DeckAllocation
-  alias Manavault.Catalog.CardCollection.ItemQueries.Base
   alias Manavault.Repo
 
   import Manavault.Catalog.PriceFragments,

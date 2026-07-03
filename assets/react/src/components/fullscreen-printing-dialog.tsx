@@ -88,8 +88,8 @@ export function FullscreenPrintingDialog({
     .filter(present)
     .join(" · ")
   const profileInnerGradient = foil
-    ? "linear-gradient(145deg,rgba(120,72,28,0.58) 0%,rgba(255,226,122,0.23) 42%,rgba(117,196,255,0.28) 100%)"
-    : "linear-gradient(145deg,rgba(96,73,110,0.55) 0%,rgba(113,196,255,0.27) 100%)"
+    ? "linear-gradient(145deg,color-mix(in oklch, var(--color-accent), transparent 42%) 0%,color-mix(in oklch, var(--color-accent), transparent 77%) 42%,color-mix(in oklch, var(--color-info), transparent 72%) 100%)"
+    : "linear-gradient(145deg,color-mix(in oklch, var(--color-primary), transparent 45%) 0%,color-mix(in oklch, var(--color-info), transparent 73%) 100%)"
   const profileGlowColor = foil ? "rgba(255, 219, 122, 0.62)" : "rgba(125, 190, 255, 0.55)"
   const backImageUrl = printing?.backImageUrl || null
   const hasBackFace = Boolean(backImageUrl)

@@ -1,7 +1,7 @@
 defmodule Manavault.Catalog.Collection.Export do
   @moduledoc false
 
-  alias Manavault.Catalog.{CSV, CollectionItem, Price, Printing}
+  alias Manavault.Catalog.{CollectionItem, CSV, Price, Printing}
 
   def csv(items) when is_list(items) do
     rows =

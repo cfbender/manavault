@@ -3,9 +3,9 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries.Base do
 
   import Ecto.Query
 
+  alias Manavault.Catalog.CardCollection.SearchFilter
   alias Manavault.Catalog.CollectionItem
   alias Manavault.Catalog.DeckAllocation
-  alias Manavault.Catalog.CardCollection.SearchFilter
 
   def base_query(filters) do
     query = filters |> Keyword.get(:q, "") |> normalize_filter()
