@@ -7,6 +7,7 @@ defmodule Manavault.Catalog.Collection.AutoSort do
   alias Manavault.Repo
 
   @colors ~w(W U B R G)
+  @location_debounce_days 7
 
   def run(opts \\ []) when is_list(opts) do
     dry_run? = Keyword.get(opts, :dry_run, false) == true
@@ -28,17 +29,20 @@ defmodule Manavault.Catalog.Collection.AutoSort do
         ids = opts |> Keyword.get(:item_ids) |> List.wrap()
 
         {:ok,
-         base_item_query()
+         opts
+         |> base_item_query()
          |> where([item], item.id in ^ids)}
 
       Keyword.get(opts, :source_location_id) == "unfiled" ->
         {:ok,
-         base_item_query()
+         opts
+         |> base_item_query()
          |> where([item], is_nil(item.location_id))}
 
       is_nil(Keyword.get(opts, :source_location_id)) ->
         {:ok,
-         base_item_query()
+         opts
+         |> base_item_query()
          |> where([location: location], is_nil(location.id) or location.kind != "list")}
 
       true ->
@@ -47,7 +51,8 @@ defmodule Manavault.Catalog.Collection.AutoSort do
         case normalize_location_id(source_location_id) do
           {:ok, location_id} ->
             {:ok,
-             base_item_query()
+             opts
+             |> base_item_query()
              |> where([item], item.location_id == ^location_id)}
 
           :error ->
@@ -56,10 +61,11 @@ defmodule Manavault.Catalog.Collection.AutoSort do
     end
   end
 
-  defp base_item_query do
+  defp base_item_query(opts) do
     allocated_item_ids = from(allocation in DeckAllocation, select: allocation.collection_item_id)
 
-    CollectionItem
+    opts
+    |> apply_location_debounce(CollectionItem)
     |> join(:inner, [item], printing in assoc(item, :printing))
     |> join(:inner, [_item, printing], card in assoc(printing, :card))
     |> join(:left, [item, _printing, _card], location in assoc(item, :location_assoc),
@@ -71,6 +77,25 @@ defmodule Manavault.Catalog.Collection.AutoSort do
       location_assoc: location
     )
     |> order_by([item], asc: item.id)
+  end
+
+  defp apply_location_debounce(opts, query) do
+    if Keyword.get(opts, :ignore_location_debounce, false) == true do
+      query
+    else
+      location_debounce_cutoff = location_debounce_cutoff()
+
+      where(
+        query,
+        [item],
+        is_nil(item.location_changed_at) or item.location_changed_at < ^location_debounce_cutoff
+      )
+    end
+  end
+
+  defp location_debounce_cutoff do
+    DateTime.add(DateTime.utc_now(), -@location_debounce_days * 24 * 60 * 60, :second)
+    |> DateTime.truncate(:second)
   end
 
   defp enabled_rules do

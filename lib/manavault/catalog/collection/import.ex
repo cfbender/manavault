@@ -84,7 +84,13 @@ defmodule Manavault.Catalog.Collection.Import do
       when is_list(rows) and is_function(create_item, 1) and is_list(opts) do
     Repo.transact(fn ->
       result = import_preview_rows(rows, create_item)
-      auto_sort_opts = Keyword.merge(opts, item_ids: Enum.reverse(result.item_ids), dry_run: true)
+
+      auto_sort_opts =
+        Keyword.merge(opts,
+          item_ids: Enum.reverse(result.item_ids),
+          dry_run: true,
+          ignore_location_debounce: true
+        )
 
       case AutoSort.run(auto_sort_opts) do
         {:ok, auto_sort_result} ->
@@ -125,7 +131,7 @@ defmodule Manavault.Catalog.Collection.Import do
     auto_sort? = Keyword.get(opts, :auto_sort, false)
 
     if auto_sort? do
-      case AutoSort.run(item_ids: Enum.reverse(item_ids)) do
+      case AutoSort.run(item_ids: Enum.reverse(item_ids), ignore_location_debounce: true) do
         {:ok, auto_sort_result} ->
           result
           |> Map.delete(:item_ids)

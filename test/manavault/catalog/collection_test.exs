@@ -573,10 +573,10 @@ defmodule Manavault.Catalog.CollectionTest do
 
     assert {:ok,
             %{
-              checked_count: 3,
+              checked_count: 2,
               dry_run: true,
               moved_count: 1,
-              skipped_count: 2,
+              skipped_count: 1,
               moves: [%{collection_item_id: preview_item_id, finish: "nonfoil"}]
             }} = Catalog.auto_sort_collection(dry_run: true)
 
@@ -585,9 +585,9 @@ defmodule Manavault.Catalog.CollectionTest do
 
     assert {:ok,
             %{
-              checked_count: 3,
+              checked_count: 2,
               moved_count: 1,
-              skipped_count: 2,
+              skipped_count: 1,
               moves: [
                 %{
                   collection_item_id: item_id,
@@ -610,6 +610,35 @@ defmodule Manavault.Catalog.CollectionTest do
     assert Catalog.get_collection_item!(blue_item.id).location_id == nil
     assert Catalog.get_collection_item!(list_item.id).location_id == list.id
     assert Catalog.get_collection_item!(already_sorted.id).location_id == high_priority.id
+  end
+
+  test "auto-sort ignores items moved into a location during the last week" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    binder = create_location!("Binder")
+    price = create_location!("Price")
+
+    update_auto_sort_rules!([
+      %{target_location_id: price.id, enabled: true, priority: 1, min_price_cents: 1_000_000}
+    ])
+
+    recent = create_collection_item!("scryfall-printing-1", location_id: binder.id)
+    stale = create_collection_item!("scryfall-printing-1", location_id: binder.id)
+    stale = set_location_changed_at!(stale, days_ago(8))
+
+    assert %DateTime{} = recent.location_changed_at
+
+    assert {:ok,
+            %{
+              checked_count: 1,
+              moved_count: 1,
+              skipped_count: 0,
+              moves: [%{collection_item_id: stale_id}]
+            }} = Catalog.auto_sort_collection()
+
+    assert stale_id == stale.id
+    assert Catalog.get_collection_item!(recent.id).location_id == binder.id
+    assert Catalog.get_collection_item!(stale.id).location_id == price.id
   end
 
   test "auto-sort dry run can preview unsaved rule inputs" do
@@ -884,6 +913,18 @@ defmodule Manavault.Catalog.CollectionTest do
 
     assert {:ok, item} = Catalog.create_collection_item(attrs)
     item
+  end
+
+  defp set_location_changed_at!(%CollectionItem{} = item, timestamp) do
+    item
+    |> Ecto.Changeset.change(location_changed_at: timestamp)
+    |> Repo.update!()
+  end
+
+  defp days_ago(days) do
+    DateTime.utc_now()
+    |> DateTime.add(-days * 24 * 60 * 60, :second)
+    |> DateTime.truncate(:second)
   end
 
   defp update_auto_sort_rules!(rules) do

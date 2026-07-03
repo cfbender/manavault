@@ -12,6 +12,7 @@ defmodule Manavault.Catalog.CollectionItem do
     field :location, :string
     field :notes, :string
     field :purchase_price_cents, :integer
+    field :location_changed_at, :utc_datetime
 
     belongs_to :printing, Manavault.Catalog.Printing,
       references: :scryfall_id,
@@ -45,6 +46,7 @@ defmodule Manavault.Catalog.CollectionItem do
       :notes,
       :purchase_price_cents
     ])
+    |> put_location_changed_at()
     |> validate_common_fields()
     |> validate_required([:scryfall_id])
     |> foreign_key_constraint(:scryfall_id)
@@ -62,6 +64,7 @@ defmodule Manavault.Catalog.CollectionItem do
       :notes,
       :purchase_price_cents
     ])
+    |> put_location_changed_at()
     |> validate_common_fields()
     |> foreign_key_constraint(:location_id)
   end
@@ -72,6 +75,19 @@ defmodule Manavault.Catalog.CollectionItem do
     |> validate_required([:scryfall_id, :language, :finish])
     |> validate_inclusion(:finish, @finishes)
     |> foreign_key_constraint(:scryfall_id)
+  end
+
+  defp put_location_changed_at(changeset) do
+    if get_change(changeset, :location_id) do
+      put_change(changeset, :location_changed_at, current_timestamp())
+    else
+      changeset
+    end
+  end
+
+  defp current_timestamp do
+    DateTime.utc_now()
+    |> DateTime.truncate(:second)
   end
 
   defp validate_common_fields(changeset) do
