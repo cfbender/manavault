@@ -612,7 +612,7 @@ defmodule Manavault.Catalog.CollectionTest do
     assert Catalog.get_collection_item!(already_sorted.id).location_id == high_priority.id
   end
 
-  test "auto-sort ignores items moved into a location during the last week" do
+  test "auto-sort ignores items moved into a location during the last 30 days" do
     assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
 
     binder = create_location!("Binder")
@@ -624,7 +624,7 @@ defmodule Manavault.Catalog.CollectionTest do
 
     recent = create_collection_item!("scryfall-printing-1", location_id: binder.id)
     stale = create_collection_item!("scryfall-printing-1", location_id: binder.id)
-    stale = set_location_changed_at!(stale, days_ago(8))
+    stale = set_location_changed_at!(stale, days_ago(31))
 
     assert %DateTime{} = recent.location_changed_at
 

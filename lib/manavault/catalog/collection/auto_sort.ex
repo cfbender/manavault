@@ -7,7 +7,7 @@ defmodule Manavault.Catalog.Collection.AutoSort do
   alias Manavault.Repo
 
   @colors ~w(W U B R G)
-  @location_debounce_days 7
+  @location_debounce_days 30
 
   def run(opts \\ []) when is_list(opts) do
     dry_run? = Keyword.get(opts, :dry_run, false) == true
