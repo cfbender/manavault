@@ -33,6 +33,8 @@ export function CardNameSearchField({
   ...props
 }: CardNameSearchFieldProps) {
   const rootRef = useRef<HTMLDivElement>(null)
+  const pointerSelectedNameRef = useRef<string | null>(null)
+  const suppressNextClickCleanupRef = useRef<(() => void) | null>(null)
   const [debouncedValue, setDebouncedValue] = useState(value)
   const [isOpen, setIsOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
@@ -66,7 +68,10 @@ export function CardNameSearchField({
     }
 
     document.addEventListener("pointerdown", handlePointerDown)
-    return () => document.removeEventListener("pointerdown", handlePointerDown)
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown)
+      suppressNextClickCleanupRef.current?.()
+    }
   }, [])
 
   function closeAndClear() {
@@ -79,6 +84,33 @@ export function CardNameSearchField({
     onValueChange(name)
     setIsOpen(false)
     onSuggestionSelect?.(name)
+  }
+
+  function handlePointerSelect(name: string) {
+    pointerSelectedNameRef.current = name
+    suppressNextDocumentClick()
+    selectSuggestion(name)
+  }
+
+  function suppressNextDocumentClick() {
+    suppressNextClickCleanupRef.current?.()
+
+    function stopNextClick(event: MouseEvent) {
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      event.stopPropagation()
+      cleanup()
+    }
+
+    function cleanup() {
+      document.removeEventListener("click", stopNextClick, true)
+      window.clearTimeout(timeout)
+      if (suppressNextClickCleanupRef.current === cleanup) suppressNextClickCleanupRef.current = null
+    }
+
+    const timeout = window.setTimeout(cleanup, 500)
+    suppressNextClickCleanupRef.current = cleanup
+    document.addEventListener("click", stopNextClick, true)
   }
 
   function handleValueChange(nextValue: string) {
@@ -156,9 +188,24 @@ export function CardNameSearchField({
               ].join(" ")}
               onPointerDown={(event) => {
                 event.preventDefault()
+                event.stopPropagation()
+              }}
+              onPointerUp={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                handlePointerSelect(name)
+              }}
+              onClick={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+
+                if (pointerSelectedNameRef.current === name) {
+                  pointerSelectedNameRef.current = null
+                  return
+                }
+
                 selectSuggestion(name)
               }}
-              onClick={() => selectSuggestion(name)}
             >
               {name}
             </button>

@@ -115,13 +115,21 @@ defmodule Manavault.Catalog.Search.CardNameSuggestions do
     |> uniq_card_name_entries()
   end
 
-  defp candidate_pool(%{by_ngram: by_ngram}, term) do
+  defp candidate_pool(%{by_initial: by_initial, by_ngram: by_ngram}, term) do
     compact_term = String.replace(term, " ", "")
 
-    compact_term
-    |> name_ngrams()
-    |> Enum.flat_map(&Map.get(by_ngram, &1, []))
-    |> uniq_card_name_entries()
+    ngram_candidates =
+      compact_term
+      |> name_ngrams()
+      |> Enum.flat_map(&Map.get(by_ngram, &1, []))
+
+    initial_candidates =
+      term
+      |> String.split(" ", trim: true)
+      |> Enum.flat_map(&token_initial/1)
+      |> Enum.flat_map(&Map.get(by_initial, &1, []))
+
+    uniq_card_name_entries(ngram_candidates ++ initial_candidates)
   end
 
   defp name_ngrams(value) do
@@ -173,7 +181,16 @@ defmodule Manavault.Catalog.Search.CardNameSuggestions do
       |> Enum.min(fn -> edit_distance(term, normalized_name) end)
 
     full_distance = edit_distance(term, normalized_name)
-    contains_score * 100 + min(full_distance, token_distance + 2)
+    aligned_token_distance = token_aligned_distance(term, normalized_name)
+    ordered_token_distance = token_ordered_distance(term, normalized_name)
+
+    contains_score * 100 +
+      Enum.min([
+        full_distance,
+        token_distance + 2,
+        ordered_token_distance,
+        aligned_token_distance + 1
+      ])
   end
 
   defp card_name_candidate?(term, %{
@@ -203,7 +220,7 @@ defmodule Manavault.Catalog.Search.CardNameSuggestions do
   end
 
   defp card_name_distance_match?(term, normalized_name) do
-    distance_threshold = max(3, div(String.length(term), 4))
+    distance_threshold = max(3, div(String.length(term) + 2, 3))
     distances = card_name_distances(term, normalized_name)
 
     Enum.min(distances) <= distance_threshold
@@ -229,13 +246,57 @@ defmodule Manavault.Catalog.Search.CardNameSuggestions do
     end
   end
 
+  defp token_aligned_distance(term, normalized_name) do
+    term_tokens = String.split(term, " ", trim: true)
+    name_tokens = String.split(normalized_name, " ", trim: true)
+
+    token_aligned_distance_for_tokens(term_tokens, name_tokens)
+  end
+
+  defp token_aligned_distance_for_tokens([], _name_tokens), do: 0
+
+  defp token_aligned_distance_for_tokens(term_tokens, []),
+    do: Enum.sum(Enum.map(term_tokens, &String.length/1))
+
+  defp token_aligned_distance_for_tokens(term_tokens, name_tokens) do
+    term_tokens
+    |> Enum.map(fn term_token ->
+      name_tokens
+      |> Enum.map(&edit_distance(term_token, &1))
+      |> Enum.min()
+    end)
+    |> Enum.sum()
+  end
+
+  defp token_ordered_distance(term, normalized_name) do
+    term_tokens = String.split(term, " ", trim: true)
+    name_tokens = String.split(normalized_name, " ", trim: true)
+
+    token_ordered_distance_for_tokens(term_tokens, name_tokens)
+  end
+
+  defp token_ordered_distance_for_tokens([], name_tokens),
+    do: Enum.sum(Enum.map(name_tokens, &String.length/1))
+
+  defp token_ordered_distance_for_tokens(term_tokens, []),
+    do: Enum.sum(Enum.map(term_tokens, &String.length/1))
+
+  defp token_ordered_distance_for_tokens([term_token | term_rest], [name_token | name_rest]) do
+    edit_distance(term_token, name_token) +
+      token_ordered_distance_for_tokens(term_rest, name_rest)
+  end
+
   defp card_name_distances(term, normalized_name) do
     token_distances =
       normalized_name
       |> String.split(" ", trim: true)
       |> Enum.map(&edit_distance(term, &1))
 
-    [edit_distance(term, normalized_name) | token_distances]
+    [
+      edit_distance(term, normalized_name),
+      token_ordered_distance(term, normalized_name),
+      token_aligned_distance(term, normalized_name) | token_distances
+    ]
   end
 
   defp edit_distance(left, right) when left == right, do: 0

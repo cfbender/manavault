@@ -41,6 +41,20 @@ defmodule Manavault.Catalog.CardNameSuggestionsTest do
     # transposition/insertion
     assert ["Serra Angel"] = Catalog.suggest_card_names("serra angle")
     assert ["Serra Angel"] = Catalog.suggest_card_names("sera angel")
+
+    # Multiple token typos with few shared trigrams still resolve through token scoring.
+    assert ["Lightning Bolt"] = Catalog.suggest_card_names("ligtnign botl")
+  end
+
+  test "token typo scoring ranks the intended name before shared-token alternatives" do
+    assert {:ok, %{cards_count: 1}} =
+             Catalog.import_cards([
+               card("scryfall-ball-lightning", "oracle-ball-lightning", "Ball Lightning", "3")
+             ])
+
+    CardNameSuggestions.clear_card_name_suggestion_cache()
+
+    assert ["Lightning Bolt" | _] = Catalog.suggest_card_names("ligtnign botl")
   end
 
   test "exact and prefix matches are returned" do
