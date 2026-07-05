@@ -75,6 +75,10 @@ export const CollectionAutoSortSettingsDocument = graphql(`
       rarities
       minPriceCents
       maxPriceCents
+      setOperator
+      setCodes
+      releaseDateOperator
+      releaseDate
     }
     locations(first: 100) {
       edges {
@@ -108,6 +112,10 @@ export const UpdateCollectionAutoSortRulesDocument = graphql(`
         rarities
         minPriceCents
         maxPriceCents
+        setOperator
+        setCodes
+        releaseDateOperator
+        releaseDate
       }
     }
   }

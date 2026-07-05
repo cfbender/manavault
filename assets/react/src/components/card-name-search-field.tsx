@@ -105,7 +105,8 @@ export function CardNameSearchField({
     function cleanup() {
       document.removeEventListener("click", stopNextClick, true)
       window.clearTimeout(timeout)
-      if (suppressNextClickCleanupRef.current === cleanup) suppressNextClickCleanupRef.current = null
+      if (suppressNextClickCleanupRef.current === cleanup)
+        suppressNextClickCleanupRef.current = null
     }
 
     const timeout = window.setTimeout(cleanup, 500)

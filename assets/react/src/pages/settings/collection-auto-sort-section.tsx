@@ -21,6 +21,7 @@ import {
 import { Input } from "../../components/ui/input"
 import { cn, titleize } from "../../lib/utils"
 import { centsToCurrencyInput, parseCurrencyInputCents } from "../collection/form-helpers"
+import { COLOR_OPTIONS, RARITY_OPTIONS } from "../collection/constants"
 import type {
   CollectionAutoSortRuleInput,
   CollectionAutoSortSettingsLocation,
@@ -38,6 +39,10 @@ type AutoSortRuleFormRow = {
   minPrice: string
   name: string
   rarities: string[]
+  releaseDate: string
+  releaseDateOperator: string
+  setCodes: string
+  setOperator: string
   targetLocationId: string
   targetLocationKind: string
   targetLocationName: string
@@ -64,13 +69,11 @@ type CollectionAutoSortSectionProps = {
   onValidationError: (message: string) => void
 }
 
-const COLORS = [
-  { label: "White", value: "W" },
-  { label: "Blue", value: "U" },
-  { label: "Black", value: "B" },
-  { label: "Red", value: "R" },
-  { label: "Green", value: "G" },
-]
+const COLORS = COLOR_OPTIONS.filter((color) => color.value !== "c").map((color) => ({
+  label: color.label,
+  symbol: color.symbol,
+  value: color.value.toUpperCase(),
+}))
 
 const COLOR_MODES = [
   { label: "Ignore color", value: "any" },
@@ -81,7 +84,47 @@ const COLOR_MODES = [
   { label: "Two or more colors (multicolor)", value: "multicolor" },
 ]
 
-const RARITIES = ["common", "uncommon", "rare", "mythic", "special", "bonus"]
+const SET_OPERATORS = [
+  { label: "Set is in", value: "in" },
+  { label: "Set is not in", value: "not_in" },
+]
+
+const RELEASE_DATE_OPERATORS = [
+  { label: "Released before", value: "before" },
+  { label: "Released after", value: "after" },
+]
+
+const RARITIES = [
+  {
+    ...RARITY_OPTIONS[0],
+    activeClassName: "border-zinc-300 bg-zinc-300/15 ring-zinc-300/35",
+  },
+  {
+    ...RARITY_OPTIONS[1],
+    activeClassName: "border-slate-400 bg-slate-400/15 ring-slate-400/35",
+  },
+  {
+    ...RARITY_OPTIONS[2],
+    activeClassName: "border-yellow-400 bg-yellow-400/15 ring-yellow-400/35",
+  },
+  {
+    ...RARITY_OPTIONS[3],
+    activeClassName: "border-orange-400 bg-orange-400/15 ring-orange-400/35",
+  },
+  {
+    value: "special",
+    label: "Special",
+    className: "bg-fuchsia-300",
+    activeClassName: "border-fuchsia-300 bg-fuchsia-300/15 ring-fuchsia-300/35",
+  },
+  {
+    value: "bonus",
+    label: "Bonus",
+    className: "bg-cyan-300",
+    activeClassName: "border-cyan-300 bg-cyan-300/15 ring-cyan-300/35",
+  },
+]
+const RARITY_VALUES = RARITIES.map((rarity) => rarity.value)
 
 let newRuleCounter = 0
 
@@ -469,31 +512,6 @@ function AutoSortRuleDialog({
 
             <div className="grid gap-4 md:grid-cols-2">
               <Field
-                label="Color rule"
-                htmlFor={`${fieldId}-color-mode`}
-                help="Double-faced cards use their front-face colors when the catalog provides them."
-              >
-                <select
-                  id={`${fieldId}-color-mode`}
-                  className="select select-bordered w-full bg-base-100"
-                  value={draftRow.colorMode}
-                  onChange={(event) => {
-                    const colorMode = colorModeValue(event.target.value)
-                    onUpdate({
-                      colorMode,
-                      ...(colorModeUsesSelectedColors(colorMode) ? {} : { colors: [] }),
-                    })
-                  }}
-                >
-                  {COLOR_MODES.map((mode) => (
-                    <option key={mode.value} value={mode.value}>
-                      {mode.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-
-              <Field
                 label="Minimum price"
                 htmlFor={`${fieldId}-min-price`}
                 help="Blank means no minimum."
@@ -519,6 +537,68 @@ function AutoSortRuleDialog({
                   onChange={(event) => onUpdate({ maxPrice: event.target.value })}
                   placeholder="25"
                 />
+              </Field>
+
+              <Field
+                label="Sets"
+                htmlFor={`${fieldId}-set-codes`}
+                help="Comma-separated set codes. Blank ignores set."
+              >
+                <div className="input input-bordered flex w-full items-center overflow-hidden bg-base-100 p-0 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary">
+                  <select
+                    aria-label="Set operator"
+                    className="h-full max-w-44 shrink-0 bg-transparent px-3 py-0 text-sm font-semibold text-base-content/60 outline-none"
+                    value={draftRow.setOperator}
+                    onChange={(event) =>
+                      onUpdate({ setOperator: setOperatorValue(event.target.value) })
+                    }
+                  >
+                    {SET_OPERATORS.map((operator) => (
+                      <option key={operator.value} value={operator.value}>
+                        {operator.label}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    id={`${fieldId}-set-codes`}
+                    className="h-full min-w-0 flex-1 bg-transparent px-3 py-0 outline-none placeholder:text-base-content/40"
+                    value={draftRow.setCodes}
+                    onChange={(event) => onUpdate({ setCodes: event.target.value })}
+                    placeholder="lea, dmu, lci"
+                  />
+                </div>
+              </Field>
+
+              <Field
+                label="Release date"
+                htmlFor={`${fieldId}-release-date`}
+                help="Blank ignores release date."
+              >
+                <div className="input input-bordered flex w-full items-center overflow-hidden bg-base-100 p-0 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary">
+                  <select
+                    aria-label="Release date operator"
+                    className="h-full max-w-48 shrink-0 bg-transparent px-3 py-0 text-sm font-semibold text-base-content/60 outline-none"
+                    value={draftRow.releaseDateOperator}
+                    onChange={(event) =>
+                      onUpdate({
+                        releaseDateOperator: releaseDateOperatorValue(event.target.value),
+                      })
+                    }
+                  >
+                    {RELEASE_DATE_OPERATORS.map((operator) => (
+                      <option key={operator.value} value={operator.value}>
+                        {operator.label}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    id={`${fieldId}-release-date`}
+                    type="date"
+                    className="h-full min-w-0 flex-1 bg-transparent px-3 py-0 outline-none placeholder:text-base-content/40"
+                    value={draftRow.releaseDate}
+                    onChange={(event) => onUpdate({ releaseDate: event.target.value })}
+                  />
+                </div>
               </Field>
 
               <Field
@@ -551,21 +631,64 @@ function AutoSortRuleDialog({
             <div className="grid gap-4 md:grid-cols-2">
               <fieldset className="rounded-box border border-base-300 bg-base-100/70 p-3">
                 <legend className="px-1 text-sm font-bold text-base-content">Colors</legend>
-                <div className="mt-2 flex flex-wrap gap-3">
-                  {COLORS.map((color) => (
-                    <label key={color.value} className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        className="checkbox checkbox-primary checkbox-sm"
-                        checked={draftRow.colors.includes(color.value)}
-                        disabled={colorsDisabled}
-                        onChange={(event) =>
-                          onToggleValue("colors", color.value, event.target.checked)
-                        }
-                      />
-                      {color.label} ({color.value})
-                    </label>
+                <label
+                  htmlFor={`${fieldId}-color-mode`}
+                  className="mt-2 block text-sm font-bold text-base-content"
+                >
+                  Color rule
+                </label>
+                <select
+                  id={`${fieldId}-color-mode`}
+                  className="select select-bordered mt-2 w-full bg-base-100"
+                  value={draftRow.colorMode}
+                  onChange={(event) => {
+                    const colorMode = colorModeValue(event.target.value)
+                    onUpdate({
+                      colorMode,
+                      ...(colorModeUsesSelectedColors(colorMode) ? {} : { colors: [] }),
+                    })
+                  }}
+                >
+                  {COLOR_MODES.map((mode) => (
+                    <option key={mode.value} value={mode.value}>
+                      {mode.label}
+                    </option>
                   ))}
+                </select>
+                <p className="mt-2 text-xs text-base-content/60">
+                  Double-faced cards use their front-face colors when the catalog provides them.
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {COLORS.map((color) => {
+                    const active = draftRow.colors.includes(color.value)
+
+                    return (
+                      <button
+                        key={color.value}
+                        type="button"
+                        aria-pressed={active}
+                        title={color.label}
+                        disabled={colorsDisabled}
+                        className={cn(
+                          "flex min-h-11 items-center gap-2 rounded-box border px-2.5 py-2 text-left text-sm font-bold transition-[border-color,background-color,box-shadow,opacity,transform]",
+                          active
+                            ? "border-accent bg-accent/10 text-base-content shadow-sm ring-1 ring-accent/35"
+                            : "border-base-300 bg-base-100/75 text-base-content/75 hover:border-base-content/25 hover:bg-base-200/70 hover:text-base-content",
+                          colorsDisabled &&
+                            "cursor-not-allowed opacity-45 hover:border-base-300 hover:bg-base-100/75 hover:text-base-content/75",
+                        )}
+                        onClick={() => onToggleValue("colors", color.value, !active)}
+                      >
+                        <img
+                          src={`/scryfall-assets/symbols/${color.symbol}.svg`}
+                          alt=""
+                          className="h-7 w-7 shrink-0"
+                          aria-hidden="true"
+                        />
+                        <span>{color.label}</span>
+                      </button>
+                    )
+                  })}
                 </div>
                 {colorsDisabled ? (
                   <p className="mt-2 text-xs text-base-content/60">
@@ -576,20 +699,33 @@ function AutoSortRuleDialog({
 
               <fieldset className="rounded-box border border-base-300 bg-base-100/70 p-3">
                 <legend className="px-1 text-sm font-bold text-base-content">Rarities</legend>
-                <div className="mt-2 flex flex-wrap gap-3">
-                  {RARITIES.map((rarity) => (
-                    <label key={rarity} className="flex items-center gap-2 text-sm capitalize">
-                      <input
-                        type="checkbox"
-                        className="checkbox checkbox-primary checkbox-sm"
-                        checked={draftRow.rarities.includes(rarity)}
-                        onChange={(event) =>
-                          onToggleValue("rarities", rarity, event.target.checked)
-                        }
-                      />
-                      {rarity}
-                    </label>
-                  ))}
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {RARITIES.map((rarity) => {
+                    const active = draftRow.rarities.includes(rarity.value)
+
+                    return (
+                      <button
+                        key={rarity.value}
+                        type="button"
+                        aria-pressed={active}
+                        className={cn(
+                          "flex min-h-11 items-center gap-2 rounded-box border px-3 py-2 text-left text-sm font-bold transition-[border-color,background-color,box-shadow,transform]",
+                          active
+                            ? `${rarity.activeClassName} text-base-content shadow-sm ring-1`
+                            : "border-base-300 bg-base-100/75 text-base-content/75 hover:border-base-content/25 hover:bg-base-200/70 hover:text-base-content",
+                        )}
+                        onClick={() => onToggleValue("rarities", rarity.value, !active)}
+                      >
+                        <span
+                          className={cn(
+                            "h-3 w-3 shrink-0 rounded-full shadow-sm ring-1 ring-black/15",
+                            rarity.className,
+                          )}
+                        />
+                        <span>{rarity.label}</span>
+                      </button>
+                    )
+                  })}
                 </div>
               </fieldset>
             </div>
@@ -647,12 +783,16 @@ function ruleToFormRow(
     maxPrice: centsToCurrencyInput(rule.maxPriceCents),
     minPrice: centsToCurrencyInput(rule.minPriceCents),
     name: rule.name,
-    rarities: selectedValues(RARITIES, rule.rarities),
+    rarities: selectedValues(RARITY_VALUES, rule.rarities),
+    releaseDate: rule.releaseDate ?? "",
+    releaseDateOperator: releaseDateOperatorValue(rule.releaseDateOperator),
     targetLocationId,
     targetLocationKind: targetLocation?.kind ?? rule.targetLocation?.kind ?? "",
     targetLocationName: targetLocation?.name ?? rule.targetLocation?.name ?? "",
     typeLineExcludes: joinCommaField(rule.typeLineExcludes),
     typeLineIncludes: joinCommaField(rule.typeLineIncludes),
+    setCodes: joinCommaField(rule.setCodes),
+    setOperator: setOperatorValue(rule.setOperator),
   }
 }
 
@@ -669,7 +809,11 @@ function newRuleRow(targetLocation: StorageLocation): AutoSortRuleFormRow {
     minPrice: "",
     name: "New auto-sort rule",
     rarities: [],
+    releaseDate: "",
+    releaseDateOperator: "after",
     targetLocationId: targetLocation.id,
+    setCodes: "",
+    setOperator: "in",
     targetLocationKind: targetLocation.kind,
     targetLocationName: targetLocation.name,
     typeLineExcludes: "",
@@ -703,6 +847,9 @@ function formRowsToInput(rows: AutoSortRuleFormRow[]): CollectionAutoSortRuleInp
       return `${name}: minimum price cannot be greater than maximum price.`
     }
 
+    const releaseDate = dateInputValue(row.releaseDate)
+    if (releaseDate === undefined) return `${name}: release date must be a valid date.`
+
     input.push({
       ...(row.id ? { id: row.id } : {}),
       colorMode: colorModeValue(row.colorMode),
@@ -717,9 +864,13 @@ function formRowsToInput(rows: AutoSortRuleFormRow[]): CollectionAutoSortRuleInp
       minPriceCents,
       name,
       priority: index + 1,
-      rarities: selectedValues(RARITIES, row.rarities),
+      rarities: selectedValues(RARITY_VALUES, row.rarities),
+      releaseDate,
+      releaseDateOperator: releaseDateOperatorValue(row.releaseDateOperator),
       targetLocationId: row.targetLocationId,
       typeLineExcludes: splitCommaField(row.typeLineExcludes),
+      setCodes: splitCommaField(row.setCodes),
+      setOperator: setOperatorValue(row.setOperator),
       typeLineIncludes: splitCommaField(row.typeLineIncludes),
     })
   }
@@ -748,6 +899,24 @@ function colorModeLabel(value: string) {
   return COLOR_MODES.find((mode) => mode.value === value)?.label ?? "Any color"
 }
 
+function setOperatorValue(value: string | null | undefined) {
+  return SET_OPERATORS.find((operator) => operator.value === value)?.value ?? "in"
+}
+
+function setOperatorLabel(value: string) {
+  return SET_OPERATORS.find((operator) => operator.value === value)?.label ?? "Set is in"
+}
+
+function releaseDateOperatorValue(value: string | null | undefined) {
+  return RELEASE_DATE_OPERATORS.find((operator) => operator.value === value)?.value ?? "after"
+}
+
+function releaseDateOperatorLabel(value: string) {
+  return (
+    RELEASE_DATE_OPERATORS.find((operator) => operator.value === value)?.label ?? "Released after"
+  )
+}
+
 function colorModeUsesSelectedColors(colorMode: string) {
   return colorMode !== "any" && colorMode !== "colorless" && colorMode !== "multicolor"
 }
@@ -768,6 +937,8 @@ function criteriaSummary(row: AutoSortRuleFormRow) {
   const items = [
     colorModeSummary(row),
     priceSummary(row),
+    setSummary(row),
+    releaseDateSummary(row),
     listSummary("Types", splitCommaField(row.typeLineIncludes)),
     listSummary("Excludes", splitCommaField(row.typeLineExcludes)),
     listSummary("Rarities", row.rarities.map(titleize)),
@@ -796,6 +967,18 @@ function priceSummary(row: AutoSortRuleFormRow) {
   return null
 }
 
+function setSummary(row: AutoSortRuleFormRow) {
+  const setCodes = splitCommaField(row.setCodes).map((code) => code.toUpperCase())
+  if (!setCodes.length) return null
+  return `${setOperatorLabel(row.setOperator)}: ${setCodes.join(", ")}`
+}
+
+function releaseDateSummary(row: AutoSortRuleFormRow) {
+  const releaseDate = row.releaseDate.trim()
+  if (!releaseDate) return null
+  return `${releaseDateOperatorLabel(row.releaseDateOperator)} ${releaseDate}`
+}
+
 function listSummary(label: string, values: string[]) {
   return values.length ? `${label}: ${values.join(", ")}` : null
 }
@@ -805,6 +988,19 @@ function splitCommaField(value: string) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean)
+}
+
+function dateInputValue(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return undefined
+
+  const date = new Date(`${trimmed}T00:00:00Z`)
+  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== trimmed) {
+    return undefined
+  }
+
+  return trimmed
 }
 
 function joinCommaField(values: NullableStringList) {

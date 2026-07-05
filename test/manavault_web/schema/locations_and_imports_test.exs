@@ -397,6 +397,10 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
             rarities
             minPriceCents
             maxPriceCents
+            setOperator
+            setCodes
+            releaseDateOperator
+            releaseDate
           }
           locations(first: 100) {
             edges {
@@ -421,7 +425,11 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
                    "typeLineExcludes" => [],
                    "rarities" => ["rare"],
                    "minPriceCents" => nil,
-                   "maxPriceCents" => nil
+                   "maxPriceCents" => nil,
+                   "setOperator" => "in",
+                   "setCodes" => [],
+                   "releaseDateOperator" => "after",
+                   "releaseDate" => nil
                  }
                ],
                "locations" => %{"edges" => edges}
@@ -445,7 +453,11 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
         "typeLineExcludes" => ["Token"],
         "rarities" => ["rare", "mythic"],
         "minPriceCents" => 150,
-        "maxPriceCents" => 900
+        "maxPriceCents" => 900,
+        "setOperator" => "not_in",
+        "setCodes" => ["lea", "sld"],
+        "releaseDateOperator" => "before",
+        "releaseDate" => "2026-01-01"
       })
 
     update_conn =
@@ -466,6 +478,10 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
               rarities
               minPriceCents
               maxPriceCents
+              setOperator
+              setCodes
+              releaseDateOperator
+              releaseDate
             }
           }
         }
@@ -505,6 +521,10 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
             rarities
             minPriceCents
             maxPriceCents
+            setOperator
+            setCodes
+            releaseDateOperator
+            releaseDate
           }
         }
         """
@@ -599,6 +619,9 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
         "quantity" => 1,
         "location_id" => source.id
       })
+
+    mark_location_changed_before_debounce!(matching_item)
+    mark_location_changed_before_debounce!(nonmatching_item)
 
     {:ok, [_target]} =
       Catalog.update_collection_auto_sort_rules([
@@ -1006,7 +1029,11 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
         "typeLineExcludes" => [],
         "rarities" => [],
         "minPriceCents" => nil,
-        "maxPriceCents" => nil
+        "maxPriceCents" => nil,
+        "setOperator" => "in",
+        "setCodes" => [],
+        "releaseDateOperator" => "after",
+        "releaseDate" => nil
       },
       overrides
     )
@@ -1030,6 +1057,17 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
       "prices" => %{"usd" => usd_price},
       "legalities" => %{}
     }
+  end
+
+  defp mark_location_changed_before_debounce!(item) do
+    stale_timestamp =
+      DateTime.utc_now()
+      |> DateTime.add(-31 * 24 * 60 * 60, :second)
+      |> DateTime.truncate(:second)
+
+    item
+    |> Ecto.Changeset.change(location_changed_at: stale_timestamp)
+    |> Manavault.Repo.update!()
   end
 
   defp global_id(type, id), do: Node.to_global_id(type, id, ManavaultWeb.Schema)

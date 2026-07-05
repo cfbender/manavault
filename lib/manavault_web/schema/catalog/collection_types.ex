@@ -172,6 +172,21 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
 
     field :min_price_cents, :integer
     field :max_price_cents, :integer
+    field :set_operator, non_null(:string)
+
+    field :set_codes, non_null(list_of(non_null(:string))) do
+      resolve(fn rule, _args, _resolution -> {:ok, AutoSortRule.list_field(rule, :set_codes)} end)
+    end
+
+    field :release_date_operator, non_null(:string)
+
+    field :release_date, :string do
+      resolve(fn
+        %{release_date: %Date{} = date}, _args, _resolution -> {:ok, Date.to_iso8601(date)}
+        %{release_date: date}, _args, _resolution when is_binary(date) -> {:ok, date}
+        _rule, _args, _resolution -> {:ok, nil}
+      end)
+    end
   end
 
   object :collection_auto_sort_move do
@@ -352,6 +367,10 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :rarities, non_null(list_of(non_null(:string)))
     field :min_price_cents, :integer
     field :max_price_cents, :integer
+    field :set_operator, :string
+    field :set_codes, list_of(non_null(:string))
+    field :release_date_operator, :string
+    field :release_date, :string
   end
 
   input_object :auto_sort_collection_input do

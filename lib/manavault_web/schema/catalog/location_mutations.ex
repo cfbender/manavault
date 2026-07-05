@@ -146,5 +146,6 @@ defmodule ManavaultWeb.Schema.Catalog.LocationMutations do
     do: "Auto-sort target location was not found."
 
   defp auto_sort_error(:invalid_auto_sort_target), do: "Auto-sort target must be a box or binder."
+  defp auto_sort_error(:invalid_auto_sort_rule), do: "Auto-sort rule contains invalid criteria."
   defp auto_sort_error(_reason), do: "Could not auto-sort collection."
 end

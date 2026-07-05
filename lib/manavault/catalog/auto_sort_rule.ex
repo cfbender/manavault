@@ -6,7 +6,9 @@ defmodule Manavault.Catalog.AutoSortRule do
   alias Manavault.Catalog.Util
 
   @color_modes ~w(any include_any include_all exact colorless multicolor)
-  @list_fields [:colors, :type_line_includes, :type_line_excludes, :rarities]
+  @set_operators ~w(in not_in)
+  @release_date_operators ~w(before after)
+  @list_fields [:colors, :type_line_includes, :type_line_excludes, :rarities, :set_codes]
 
   schema "collection_auto_sort_rules" do
     field :name, :string
@@ -19,6 +21,10 @@ defmodule Manavault.Catalog.AutoSortRule do
     field :rarities, :string, default: "[]"
     field :min_price_cents, :integer
     field :max_price_cents, :integer
+    field :set_operator, :string, default: "in"
+    field :set_codes, :string, default: "[]"
+    field :release_date_operator, :string, default: "after"
+    field :release_date, :date
 
     belongs_to :target_location, Manavault.Catalog.Location
 
@@ -38,10 +44,24 @@ defmodule Manavault.Catalog.AutoSortRule do
       :type_line_excludes,
       :rarities,
       :min_price_cents,
-      :max_price_cents
+      :max_price_cents,
+      :set_operator,
+      :set_codes,
+      :release_date_operator,
+      :release_date
     ])
-    |> validate_required([:name, :enabled, :priority, :target_location_id, :color_mode])
+    |> validate_required([
+      :name,
+      :enabled,
+      :priority,
+      :target_location_id,
+      :color_mode,
+      :set_operator,
+      :release_date_operator
+    ])
     |> validate_inclusion(:color_mode, @color_modes)
+    |> validate_inclusion(:set_operator, @set_operators)
+    |> validate_inclusion(:release_date_operator, @release_date_operators)
     |> validate_number(:priority, greater_than_or_equal_to: 0)
     |> validate_number(:min_price_cents, greater_than_or_equal_to: 0)
     |> validate_number(:max_price_cents, greater_than_or_equal_to: 0)

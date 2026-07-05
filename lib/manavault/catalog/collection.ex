@@ -319,6 +319,10 @@ defmodule Manavault.Catalog.Collection do
     |> put_rule_attr(input, :rarities, [])
     |> put_rule_attr(input, :min_price_cents)
     |> put_rule_attr(input, :max_price_cents)
+    |> put_rule_attr(input, :set_operator, "in")
+    |> put_rule_attr(input, :set_codes, [])
+    |> put_rule_attr(input, :release_date_operator, "after")
+    |> put_rule_attr(input, :release_date)
   end
 
   defp put_rule_attr(map, input, field, default \\ nil) do

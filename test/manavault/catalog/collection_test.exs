@@ -685,6 +685,75 @@ defmodule Manavault.Catalog.CollectionTest do
     assert [] == location_item_ids(blue)
   end
 
+  test "auto-sort rules support set and release date criteria" do
+    cards = [
+      test_card("set-alpha", "Set Alpha", "Creature", ["G"], "common")
+      |> Map.merge(%{"set" => "lea", "released_at" => "1993-08-05"}),
+      test_card("set-later", "Set Later", "Creature", ["G"], "common")
+      |> Map.merge(%{"set" => "xyz", "released_at" => "2020-01-01"}),
+      test_card("old-test", "Old Test", "Creature", ["G"], "common")
+      |> Map.merge(%{"set" => "tst", "released_at" => "1998-01-01"}),
+      test_card("future-test", "Future Test", "Creature", ["G"], "common")
+      |> Map.merge(%{"set" => "tst", "released_at" => "2026-01-01"})
+    ]
+
+    assert {:ok, %{cards_count: 4, printings_count: 4}} = Catalog.import_cards(cards)
+
+    set_in = create_location!("Set In")
+    set_not_in = create_location!("Set Not In")
+    released_before = create_location!("Released Before")
+    released_after = create_location!("Released After")
+
+    update_auto_sort_rules!([
+      %{target_location_id: set_in.id, priority: 1, set_operator: "in", set_codes: ["lea"]},
+      %{
+        target_location_id: set_not_in.id,
+        priority: 2,
+        set_operator: "not_in",
+        set_codes: ["lea", "tst"]
+      },
+      %{
+        target_location_id: released_before.id,
+        priority: 3,
+        release_date_operator: "before",
+        release_date: "2000-01-01"
+      },
+      %{
+        target_location_id: released_after.id,
+        priority: 4,
+        release_date_operator: "after",
+        release_date: "2025-01-01"
+      }
+    ])
+
+    alpha = create_collection_item!("scryfall-set-alpha")
+    later = create_collection_item!("scryfall-set-later")
+    old = create_collection_item!("scryfall-old-test")
+    future = create_collection_item!("scryfall-future-test")
+
+    assert {:ok, %{checked_count: 4, moved_count: 4, skipped_count: 0}} =
+             Catalog.auto_sort_collection()
+
+    assert [alpha.id] == location_item_ids(set_in)
+    assert [later.id] == location_item_ids(set_not_in)
+    assert [old.id] == location_item_ids(released_before)
+    assert [future.id] == location_item_ids(released_after)
+
+    assert {:error, :invalid_auto_sort_rule} =
+             Catalog.auto_sort_collection(
+               dry_run: true,
+               rules: [
+                 %{
+                   target_location_id: set_in.id,
+                   enabled: true,
+                   priority: 1,
+                   release_date_operator: "after",
+                   release_date: "not-a-date"
+                 }
+               ]
+             )
+  end
+
   test "auto-sort rules cover price, land, color, rarity, and colorless user examples" do
     command_tower = test_card("command-tower", "Command Tower", "Land", [], "rare", "0.25")
     izzet_charm = test_card("izzet-charm", "Izzet Charm", "Instant", ["U", "R"], "uncommon")

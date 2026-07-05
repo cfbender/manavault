@@ -124,7 +124,7 @@ defmodule Manavault.Catalog.Collection.AutoSort do
       |> Enum.reduce_while({:ok, []}, fn {rule, _index}, {:ok, normalized} ->
         case normalize_input_rule(rule) do
           {:ok, normalized_rule} -> {:cont, {:ok, [normalized_rule | normalized]}}
-          :error -> {:halt, {:error, :auto_sort_target_not_found}}
+          {:error, reason} -> {:halt, {:error, reason}}
         end
       end)
 
@@ -146,8 +146,17 @@ defmodule Manavault.Catalog.Collection.AutoSort do
   end
 
   defp normalize_input_rule(rule) do
-    with {:ok, location_id} <- normalize_location_id(rule_value(rule, :target_location_id)) do
-      {:ok, Map.put(rule, :target_location_id, location_id)}
+    case normalize_location_id(rule_value(rule, :target_location_id)) do
+      {:ok, location_id} ->
+        with {:ok, release_date} <- normalize_release_date(rule_value(rule, :release_date)) do
+          {:ok,
+           rule
+           |> Map.put(:target_location_id, location_id)
+           |> Map.put(:release_date, release_date)}
+        end
+
+      :error ->
+        {:error, :auto_sort_target_not_found}
     end
   end
 
@@ -174,7 +183,11 @@ defmodule Manavault.Catalog.Collection.AutoSort do
             normalized_strings(decode_list(rule_value(rule, :type_line_excludes, []))),
           rarities: normalized_strings(decode_list(rule_value(rule, :rarities, []))),
           min_price_cents: rule_value(rule, :min_price_cents),
-          max_price_cents: rule_value(rule, :max_price_cents)
+          max_price_cents: rule_value(rule, :max_price_cents),
+          set_operator: rule_value(rule, :set_operator, "in") || "in",
+          set_codes: normalized_set_codes(decode_list(rule_value(rule, :set_codes, []))),
+          release_date_operator: rule_value(rule, :release_date_operator, "after") || "after",
+          release_date: rule_value(rule, :release_date)
         }
 
       :error ->
@@ -205,7 +218,8 @@ defmodule Manavault.Catalog.Collection.AutoSort do
 
   defp matches?(rule, item) do
     color_matches?(rule, item) and type_matches?(rule, item) and rarity_matches?(rule, item) and
-      price_matches?(rule, item)
+      price_matches?(rule, item) and set_matches?(rule, item) and
+      release_date_matches?(rule, item)
   end
 
   defp color_matches?(%{color_mode: "any"}, _item), do: true
@@ -272,6 +286,42 @@ defmodule Manavault.Catalog.Collection.AutoSort do
     end
   end
 
+  defp set_matches?(%{set_codes: []}, _item), do: true
+
+  defp set_matches?(%{set_operator: "in", set_codes: set_codes}, item) do
+    item
+    |> printing_value(:set_code)
+    |> normalized_set_code()
+    |> then(&(&1 in normalized_set_codes(set_codes)))
+  end
+
+  defp set_matches?(%{set_operator: "not_in", set_codes: set_codes}, item) do
+    item
+    |> printing_value(:set_code)
+    |> normalized_set_code()
+    |> then(&(&1 not in normalized_set_codes(set_codes)))
+  end
+
+  defp set_matches?(_rule, _item), do: false
+
+  defp release_date_matches?(%{release_date: nil}, _item), do: true
+
+  defp release_date_matches?(%{release_date_operator: "before", release_date: threshold}, item) do
+    case printing_release_date(item) do
+      %Date{} = released_at -> Date.compare(released_at, threshold) == :lt
+      nil -> false
+    end
+  end
+
+  defp release_date_matches?(%{release_date_operator: "after", release_date: threshold}, item) do
+    case printing_release_date(item) do
+      %Date{} = released_at -> Date.compare(released_at, threshold) == :gt
+      nil -> false
+    end
+  end
+
+  defp release_date_matches?(_rule, _item), do: false
+
   defp decode_rule(%AutoSortRule{target_location: %Location{} = location} = rule) do
     %{
       location_id: location.id,
@@ -282,7 +332,11 @@ defmodule Manavault.Catalog.Collection.AutoSort do
       type_line_excludes: normalized_strings(AutoSortRule.list_field(rule, :type_line_excludes)),
       rarities: normalized_strings(AutoSortRule.list_field(rule, :rarities)),
       min_price_cents: rule.min_price_cents,
-      max_price_cents: rule.max_price_cents
+      max_price_cents: rule.max_price_cents,
+      set_operator: rule.set_operator || "in",
+      set_codes: normalized_set_codes(AutoSortRule.list_field(rule, :set_codes)),
+      release_date_operator: rule.release_date_operator || "after",
+      release_date: rule.release_date
     }
   end
 
@@ -322,6 +376,50 @@ defmodule Manavault.Catalog.Collection.AutoSort do
     |> List.wrap()
     |> Enum.filter(&is_binary/1)
   end
+
+  defp normalized_set_codes(values) do
+    values
+    |> normalized_strings()
+    |> Enum.map(&normalized_set_code/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  defp normalized_set_code(value) do
+    value
+    |> to_string()
+    |> String.trim()
+    |> String.downcase()
+  end
+
+  defp printing_release_date(item) do
+    item
+    |> printing_value(:released_at)
+    |> date_value()
+  end
+
+  defp normalize_release_date(nil), do: {:ok, nil}
+  defp normalize_release_date(""), do: {:ok, nil}
+  defp normalize_release_date(%Date{} = date), do: {:ok, date}
+
+  defp normalize_release_date(value) when is_binary(value) do
+    case Date.from_iso8601(value) do
+      {:ok, date} -> {:ok, date}
+      {:error, _reason} -> {:error, :invalid_auto_sort_rule}
+    end
+  end
+
+  defp normalize_release_date(_value), do: {:error, :invalid_auto_sort_rule}
+
+  defp date_value(%Date{} = date), do: date
+
+  defp date_value(value) when is_binary(value) do
+    case Date.from_iso8601(value) do
+      {:ok, date} -> date
+      {:error, _reason} -> nil
+    end
+  end
+
+  defp date_value(_value), do: nil
 
   defp normalize_colors(colors) do
     colors
