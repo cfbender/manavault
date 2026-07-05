@@ -214,6 +214,43 @@ test("tag grouping orders getting, consider cutting, then untagged", () => {
   assert.equal(groups[1].icon, "consider_cutting")
 })
 
+test("price grouping buckets cards by per-card price", () => {
+  const groups = groupDeckCards(
+    [
+      deckCard("free", { priceCents: 0 }),
+      deckCard("cheap", { quantity: 2, priceCents: 99 }),
+      deckCard("one", { priceCents: 100 }),
+      deckCard("three", { priceCents: 300 }),
+      deckCard("five", { priceCents: 500 }),
+      deckCard("ten", { priceCents: 1000 }),
+      deckCard("twenty-five", { priceCents: 2500 }),
+      deckCard("fifty", { priceCents: 5000 }),
+      deckCard("unknown", { priceCents: null }),
+    ],
+    "price",
+  )
+
+  assert.deepEqual(
+    groups.map((group) => ({ key: group.key, label: group.label, quantity: group.quantity })),
+    [
+      { key: "under-1", label: "<$1", quantity: 3 },
+      { key: "1-3", label: "$1–$3", quantity: 1 },
+      { key: "3-5", label: "$3–$5", quantity: 1 },
+      { key: "5-10", label: "$5–$10", quantity: 1 },
+      { key: "10-25", label: "$10–$25", quantity: 1 },
+      { key: "25-50", label: "$25–$50", quantity: 1 },
+      { key: "50-plus", label: "$50+", quantity: 1 },
+      { key: "unpriced", label: "Unpriced", quantity: 1 },
+    ],
+  )
+})
+
+test("price is offered as a grouping option", () => {
+  assert.ok(
+    DECK_GROUP_OPTIONS.some((option) => option.value === "price" && option.label === "Price"),
+  )
+})
+
 test("tag is offered as a grouping option", () => {
   assert.ok(DECK_GROUP_OPTIONS.some((option) => option.value === "tag" && option.label === "Tag"))
 })

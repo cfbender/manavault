@@ -8,6 +8,7 @@ export type DeckGroupBy =
   | "rarity"
   | "set"
   | "tag"
+  | "price"
   | "none"
 
 export type DeckGroupIcon =
@@ -80,6 +81,7 @@ export type DeckGroupingDeckCard = {
   quantity: number
   zone: string | null
   tag?: string | null
+  priceCents?: number | null
   card: DeckGroupingCard | null
   preferredPrinting: DeckGroupingPrinting | null
   fallbackPrinting: DeckGroupingPrinting | null
@@ -104,6 +106,7 @@ export const DECK_GROUP_OPTIONS: Array<{ label: string; value: DeckGroupBy }> = 
   { label: "Rarity", value: "rarity" },
   { label: "Set", value: "set" },
   { label: "Tag", value: "tag" },
+  { label: "Price", value: "price" },
   { label: "None", value: "none" },
 ]
 
@@ -127,6 +130,23 @@ const CATEGORY_ORDER = [
   "mass_disruption",
   "lands",
   "other",
+]
+type PriceBucket = {
+  key: string
+  label: string
+  minCents?: number
+  maxExclusiveCents?: number
+  order: number
+}
+
+const PRICE_BUCKETS: PriceBucket[] = [
+  { key: "under-1", label: "<$1", maxExclusiveCents: 100, order: 0 },
+  { key: "1-3", label: "$1–$3", minCents: 100, maxExclusiveCents: 300, order: 1 },
+  { key: "3-5", label: "$3–$5", minCents: 300, maxExclusiveCents: 500, order: 2 },
+  { key: "5-10", label: "$5–$10", minCents: 500, maxExclusiveCents: 1000, order: 3 },
+  { key: "10-25", label: "$10–$25", minCents: 1000, maxExclusiveCents: 2500, order: 4 },
+  { key: "25-50", label: "$25–$50", minCents: 2500, maxExclusiveCents: 5000, order: 5 },
+  { key: "50-plus", label: "$50+", minCents: 5000, order: 6 },
 ]
 const GROUP_VALUE_ICONS: Record<string, DeckGroupIcon> = {
   aristocrats: "aristocrats",
@@ -322,7 +342,25 @@ function deckCardGroupDescriptor<T extends DeckGroupingDeckCard>(
     return { icon: "none", key: "untagged", label: "Untagged", order: 99 }
   }
 
+  if (groupBy === "price") {
+    return priceDescriptor(deckCard.priceCents)
+  }
+
   return typeDescriptor(deckCard)
+}
+
+function priceDescriptor(priceCents: number | null | undefined) {
+  if (typeof priceCents !== "number" || !Number.isFinite(priceCents)) {
+    return { icon: "none", key: "unpriced", label: "Unpriced", order: 99 } as const
+  }
+
+  const bucket =
+    PRICE_BUCKETS.find(
+      ({ minCents = Number.NEGATIVE_INFINITY, maxExclusiveCents = Number.POSITIVE_INFINITY }) =>
+        priceCents >= minCents && priceCents < maxExclusiveCents,
+    ) || PRICE_BUCKETS[PRICE_BUCKETS.length - 1]
+
+  return { icon: "none", key: bucket.key, label: bucket.label, order: bucket.order } as const
 }
 
 function typeDescriptor<T extends DeckGroupingDeckCard>(
