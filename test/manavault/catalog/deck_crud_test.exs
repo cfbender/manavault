@@ -109,6 +109,26 @@ defmodule Manavault.Catalog.DeckCrudTest do
     assert length(summary.deck_cards) == 2
   end
 
+  test "archived decks reject decklist edits until unarchived" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Archived Edit Guard"})
+    assert {:ok, lotus} = Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus"})
+    assert {:ok, archived_deck} = Catalog.update_deck(deck, %{"status" => "archived"})
+
+    assert {:error, :deck_archived} =
+             Catalog.add_card_to_deck(archived_deck, %{"name" => "Time Walk"})
+
+    assert {:error, :deck_archived} = Catalog.import_decklist(archived_deck, "1 Time Walk")
+    assert {:error, :deck_archived} = Catalog.update_deck_card(lotus, %{"quantity" => 2})
+    assert {:error, :deck_archived} = Catalog.delete_deck_card(lotus)
+
+    assert {:ok, active_deck} = Catalog.update_deck(archived_deck, %{"status" => "active"})
+    assert {:ok, %DeckCard{quantity: 2}} = Catalog.update_deck_card(lotus, %{"quantity" => 2})
+    assert {:ok, %DeckCard{}} = Catalog.add_card_to_deck(active_deck, %{"name" => "Time Walk"})
+  end
+
   test "deck stats total excludes sideboard and maybeboard cards" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])

@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@apollo/client/react"
 import { Link, useNavigate } from "@tanstack/react-router"
-import { Layers, Plus } from "lucide-react"
+import { Archive, ChevronDown, Layers, Plus } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { PageSection } from "../../components/app-shell"
 import { EmptyState } from "../../components/card-image"
@@ -20,7 +20,7 @@ import {
 } from "./deck-legality"
 import { DeckNameWithCommanderIdentity, groupDecksByFormat } from "./deck-list-model"
 import { ShareDeckDialog } from "./deck-share-dialogs"
-import { flattenDecks, type DeckSummary } from "./deck-types"
+import { flattenDecks, partitionDecksByArchive, type DeckSummary } from "./deck-types"
 import { DecksDocument, DeleteDeckDocument } from "./queries"
 
 function DeckGalleryHeader({ onNewDeck }: { onNewDeck: () => void }) {
@@ -73,11 +73,21 @@ function DeckGallerySkeleton() {
   )
 }
 
-function DeckGalleryEmptyState({ onNewDeck }: { onNewDeck: () => void }) {
+function DeckGalleryEmptyState({
+  hasArchivedDecks = false,
+  onNewDeck,
+}: {
+  hasArchivedDecks?: boolean
+  onNewDeck: () => void
+}) {
   return (
     <EmptyState
-      title="Start your deck gallery"
-      description="Create a deck shell, then import a list or add cards from the catalog when you are ready to connect exact printings."
+      title={hasArchivedDecks ? "No active decks" : "Start your deck gallery"}
+      description={
+        hasArchivedDecks
+          ? "Archived decklists stay below for reference without reserving collection cards. Create a new deck when you are ready to build again."
+          : "Create a deck shell, then import a list or add cards from the catalog when you are ready to connect exact printings."
+      }
       action={
         <Button type="button" onClick={onNewDeck}>
           <Plus className="h-4 w-4" />
@@ -157,7 +167,12 @@ function DeckGalleryCard({
         <ImageSummaryCard
           imageUrl={deck.coverImageUrl}
           fallback={<Layers className="h-12 w-12" />}
-          typeLine={<Badge>{titleize(deck.format)}</Badge>}
+          typeLine={
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge>{titleize(deck.format)}</Badge>
+              {deck.status === "archived" ? <Badge>Archived</Badge> : null}
+            </div>
+          }
           countLine={`${compactNumber(deck.cardCount || 0)} cards`}
           detailLine={<DeckReadinessBadges readiness={readiness} />}
           nameLine={
@@ -172,6 +187,88 @@ function DeckGalleryCard({
         onDelete={onDelete}
       />
     </div>
+  )
+}
+
+function DeckFormatSections({
+  deckGroups,
+  onDelete,
+  onEdit,
+  onShare,
+}: {
+  deckGroups: ReturnType<typeof groupDecksByFormat>
+  onDelete: (deck: DeckSummary) => void
+  onEdit: (deck: DeckSummary) => void
+  onShare: (deck: DeckSummary) => void
+}) {
+  return (
+    <div className="space-y-10">
+      {deckGroups.map(([format, decks]) => (
+        <section key={format} className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-xl font-black tracking-normal">{titleize(format)}</h2>
+            <span className="badge border-transparent bg-base-200 text-sm">{decks.length}</span>
+          </div>
+          <div className="grid gap-5 md:grid-cols-2">
+            {decks.map((deck) => (
+              <DeckGalleryCard
+                key={deck.id}
+                deck={deck}
+                onEdit={() => onEdit(deck)}
+                onShare={() => onShare(deck)}
+                onDelete={() => onDelete(deck)}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  )
+}
+
+function ArchivedDecksAccordion({
+  deckCount,
+  deckGroups,
+  onDelete,
+  onEdit,
+  onShare,
+}: {
+  deckCount: number
+  deckGroups: ReturnType<typeof groupDecksByFormat>
+  onDelete: (deck: DeckSummary) => void
+  onEdit: (deck: DeckSummary) => void
+  onShare: (deck: DeckSummary) => void
+}) {
+  if (deckCount === 0) return null
+
+  return (
+    <details className="group rounded-box border border-base-300 bg-base-100">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 [&::-webkit-details-marker]:hidden">
+        <span className="flex min-w-0 items-center gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-box bg-base-200 text-base-content/70">
+            <Archive className="h-4 w-4" />
+          </span>
+          <span className="min-w-0">
+            <span className="block font-black tracking-normal">Archived decks</span>
+            <span className="block text-sm text-base-content/65">
+              Retired decklists stay viewable without reserving collection cards.
+            </span>
+          </span>
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
+          <span className="badge border-transparent bg-base-200 text-sm">{deckCount}</span>
+          <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+        </span>
+      </summary>
+      <div className="border-t border-base-300 p-4">
+        <DeckFormatSections
+          deckGroups={deckGroups}
+          onEdit={onEdit}
+          onShare={onShare}
+          onDelete={onDelete}
+        />
+      </div>
+    </details>
   )
 }
 
@@ -224,7 +321,9 @@ export function DecksPage() {
   }, [decksPageInfo?.hasNextPage, decksPageInfo?.endCursor, fetchMoreDecks])
 
   const decks = useMemo(() => flattenDecks(data?.decks), [data?.decks])
-  const deckGroups = groupDecksByFormat(decks)
+  const { activeDecks, archivedDecks } = useMemo(() => partitionDecksByArchive(decks), [decks])
+  const deckGroups = useMemo(() => groupDecksByFormat(activeDecks), [activeDecks])
+  const archivedDeckGroups = useMemo(() => groupDecksByFormat(archivedDecks), [archivedDecks])
   const isInitialLoading = isLoading && !data
 
   function deleteSelectedDeck() {
@@ -246,34 +345,31 @@ export function DecksPage() {
         <DeckGalleryErrorState onRetry={() => void refetch()} />
       ) : isInitialLoading ? (
         <DeckGallerySkeleton />
-      ) : deckGroups.length ? (
-        <PageSection count={`${decks.length} total`}>
-          <div className="space-y-10">
-            {deckGroups.map(([format, decks]) => (
-              <section key={format} className="space-y-4">
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-xl font-black tracking-normal">{titleize(format)}</h2>
-                  <span className="badge border-transparent bg-base-200 text-sm">
-                    {decks.length}
-                  </span>
-                </div>
-                <div className="grid gap-5 md:grid-cols-2">
-                  {decks.map((deck) => (
-                    <DeckGalleryCard
-                      key={deck.id}
-                      deck={deck}
-                      onEdit={() => setEditingDeck(deck)}
-                      onShare={() => setSharingDeck(deck)}
-                      onDelete={() => setDeletingDeck(deck)}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-        </PageSection>
       ) : (
-        <DeckGalleryEmptyState onNewDeck={() => setIsNewDeckOpen(true)} />
+        <div className="space-y-8">
+          {deckGroups.length ? (
+            <PageSection count={`${activeDecks.length} active`}>
+              <DeckFormatSections
+                deckGroups={deckGroups}
+                onEdit={setEditingDeck}
+                onShare={setSharingDeck}
+                onDelete={setDeletingDeck}
+              />
+            </PageSection>
+          ) : (
+            <DeckGalleryEmptyState
+              hasArchivedDecks={archivedDecks.length > 0}
+              onNewDeck={() => setIsNewDeckOpen(true)}
+            />
+          )}
+          <ArchivedDecksAccordion
+            deckCount={archivedDecks.length}
+            deckGroups={archivedDeckGroups}
+            onEdit={setEditingDeck}
+            onShare={setSharingDeck}
+            onDelete={setDeletingDeck}
+          />
+        </div>
       )}
       <NewDeckDialog open={isNewDeckOpen} onOpenChange={setIsNewDeckOpen} />
       <EditDeckDialog deck={editingDeck} onOpenChange={(open) => !open && setEditingDeck(null)} />

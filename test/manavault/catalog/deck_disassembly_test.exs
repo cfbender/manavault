@@ -97,7 +97,7 @@ defmodule Manavault.Catalog.DeckDisassemblyTest do
              nil
   end
 
-  test "apply restores allocated cards to their original location and deletes the deck" do
+  test "apply restores allocated cards to their original location and archives the deck" do
     assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
     assert {:ok, binder} = Catalog.create_location(%{name: "Trade Binder", kind: "binder"})
     binder_id = binder.id
@@ -124,8 +124,8 @@ defmodule Manavault.Catalog.DeckDisassemblyTest do
     assert result.dry_run == false
     assert [%{to_location_id: ^binder_id, to_location_name: "Trade Binder"}] = result.moves
 
-    assert Repo.get(Deck, deck.id) == nil
-    assert Repo.get(DeckCard, lotus.id) == nil
+    assert %Deck{status: "archived"} = Repo.get(Deck, deck.id)
+    assert %DeckCard{} = Repo.get(DeckCard, lotus.id)
     assert Repo.get(DeckAllocation, allocation.id) == nil
 
     assert %CollectionItem{location_id: ^binder_id, quantity: 1} =
@@ -175,8 +175,7 @@ defmodule Manavault.Catalog.DeckDisassemblyTest do
 
     assert {:ok, empty_result} = Catalog.disassemble_deck(empty_deck)
     assert empty_result == %{empty_preview | dry_run: false}
-    assert Repo.get(Deck, empty_deck.id) == nil
-
+    assert %Deck{status: "archived"} = Repo.get(Deck, empty_deck.id)
     assert {:ok, unallocated_deck} = Catalog.create_deck(%{"name" => "Unallocated"})
 
     assert {:ok, lotus} =
@@ -195,7 +194,7 @@ defmodule Manavault.Catalog.DeckDisassemblyTest do
              moves: []
            }
 
-    assert Repo.get(Deck, unallocated_deck.id) == nil
-    assert Repo.get(DeckCard, lotus.id) == nil
+    assert %Deck{status: "archived"} = Repo.get(Deck, unallocated_deck.id)
+    assert %DeckCard{} = Repo.get(DeckCard, lotus.id)
   end
 end

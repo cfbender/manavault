@@ -57,7 +57,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
           {:error, reason}
 
         {:error, reason} when is_atom(reason) ->
-          {:error, Atom.to_string(reason)}
+          {:error, Errors.deck_edit_error(reason)}
       end
     end
   end
@@ -121,8 +121,14 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
       deck_card = DeckCard |> Repo.get!(id) |> Repo.preload([:card, :preferred_printing])
 
       case Catalog.update_deck_card(deck_card, input) do
-        {:ok, deck_card} -> {:ok, Repo.preload(deck_card, [:card, :preferred_printing])}
-        {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+        {:ok, deck_card} ->
+          {:ok, Repo.preload(deck_card, [:card, :preferred_printing])}
+
+        {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
+          {:error, Errors.changeset_error_message(changeset)}
+
+        {:error, reason} ->
+          {:error, Errors.deck_edit_error(reason)}
       end
     end
   end
@@ -130,8 +136,14 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
   def update_deck_cards_tag(_parent, %{deck_card_ids: deck_card_ids} = args, resolution) do
     with {:ok, deck_card_ids} <- parse_deck_card_ids(deck_card_ids, resolution) do
       case Catalog.update_deck_cards_tag(deck_card_ids, Map.get(args, :tag)) do
-        {:ok, deck_cards} -> {:ok, Repo.preload(deck_cards, [:card, :preferred_printing])}
-        {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+        {:ok, deck_cards} ->
+          {:ok, Repo.preload(deck_cards, [:card, :preferred_printing])}
+
+        {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
+          {:error, Errors.changeset_error_message(changeset)}
+
+        {:error, reason} ->
+          {:error, Errors.deck_edit_error(reason)}
       end
     end
   end
@@ -139,8 +151,14 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
   def bulk_update_deck_cards(_parent, %{deck_card_ids: deck_card_ids, input: input}, resolution) do
     with {:ok, deck_card_ids} <- parse_deck_card_ids(deck_card_ids, resolution) do
       case Catalog.bulk_update_deck_cards(deck_card_ids, input) do
-        {:ok, deck_cards} -> {:ok, Repo.preload(deck_cards, [:card, :preferred_printing])}
-        {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+        {:ok, deck_cards} ->
+          {:ok, Repo.preload(deck_cards, [:card, :preferred_printing])}
+
+        {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
+          {:error, Errors.changeset_error_message(changeset)}
+
+        {:error, reason} ->
+          {:error, Errors.deck_edit_error(reason)}
       end
     end
   end
@@ -148,8 +166,14 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
   def bulk_delete_deck_cards(_parent, %{deck_card_ids: deck_card_ids}, resolution) do
     with {:ok, deck_card_ids} <- parse_deck_card_ids(deck_card_ids, resolution) do
       case Catalog.bulk_delete_deck_cards(deck_card_ids) do
-        {:ok, deck_cards} -> {:ok, deck_cards}
-        {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+        {:ok, deck_cards} ->
+          {:ok, deck_cards}
+
+        {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
+          {:error, Errors.changeset_error_message(changeset)}
+
+        {:error, reason} ->
+          {:error, Errors.deck_edit_error(reason)}
       end
     end
   end
@@ -157,8 +181,14 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
   def optimize_deck_card_printings(_parent, %{deck_card_ids: deck_card_ids}, resolution) do
     with {:ok, deck_card_ids} <- parse_deck_card_ids(deck_card_ids, resolution) do
       case Catalog.optimize_deck_card_printings(deck_card_ids) do
-        {:ok, deck_cards} -> {:ok, Repo.preload(deck_cards, [:card, :preferred_printing])}
-        {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+        {:ok, deck_cards} ->
+          {:ok, Repo.preload(deck_cards, [:card, :preferred_printing])}
+
+        {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
+          {:error, Errors.changeset_error_message(changeset)}
+
+        {:error, reason} ->
+          {:error, Errors.deck_edit_error(reason)}
       end
     end
   end
@@ -168,8 +198,14 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
       deck_card = DeckCard |> Repo.get!(id) |> Repo.preload([:card, :preferred_printing])
 
       case Catalog.delete_deck_card(deck_card) do
-        {:ok, deck_card} -> {:ok, deck_card}
-        {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+        {:ok, deck_card} ->
+          {:ok, deck_card}
+
+        {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
+          {:error, Errors.changeset_error_message(changeset)}
+
+        {:error, reason} ->
+          {:error, Errors.deck_edit_error(reason)}
       end
     end
   end
@@ -179,9 +215,17 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
       deck_card = DeckCard |> Repo.get!(id) |> Repo.preload([:card, :preferred_printing])
 
       case Catalog.set_deck_commander(deck_card) do
-        {:ok, deck_card} -> {:ok, deck_card}
-        {:error, :not_legendary_creature} -> {:error, "card must be a legendary creature"}
-        {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+        {:ok, deck_card} ->
+          {:ok, deck_card}
+
+        {:error, :not_legendary_creature} ->
+          {:error, "card must be a legendary creature"}
+
+        {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
+          {:error, Errors.changeset_error_message(changeset)}
+
+        {:error, reason} ->
+          {:error, Errors.deck_edit_error(reason)}
       end
     end
   end

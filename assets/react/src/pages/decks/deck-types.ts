@@ -59,6 +59,18 @@ export function flattenDecks(decks: Maybe<DecksQuery["decks"]>): DeckSummary[] {
   return connectionNodes(decks)
 }
 
+export function partitionDecksByArchive(decks: DeckSummary[]) {
+  const activeDecks: DeckSummary[] = []
+  const archivedDecks: DeckSummary[] = []
+
+  for (const deck of decks) {
+    if (deck.status === "archived") archivedDecks.push(deck)
+    else activeDecks.push(deck)
+  }
+
+  return { activeDecks, archivedDecks }
+}
+
 export function flattenDeck(deck: Maybe<DeckConnectionDetail>): DeckDetail | null {
   if (!deck) return null
 

@@ -131,4 +131,39 @@ defmodule Manavault.Catalog.DeckAllocationMovementTest do
     assert {:error, :allocation_list_location} =
              Catalog.allocate_collection_item_to_deck_card(lotus.id, list_item.id)
   end
+
+  test "archived decks reject allocation changes until unarchived" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+    assert {:ok, binder} = Catalog.create_location(%{name: "Trade Binder", kind: "binder"})
+
+    assert {:ok, item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil",
+               "location_id" => binder.id
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Archived Allocation Guard"})
+    assert {:ok, lotus} = Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus"})
+    assert {:ok, archived_deck} = Catalog.update_deck(deck, %{"status" => "archived"})
+
+    assert {:error, :deck_archived} =
+             Catalog.allocate_collection_item_to_deck_card(lotus.id, item.id)
+
+    assert {:error, :deck_archived} = Catalog.allocate_proxy_to_deck_card(lotus.id)
+    assert {:error, :deck_archived} = Catalog.bulk_allocate_deck(archived_deck, :exact_printings)
+
+    assert {:ok, active_deck} = Catalog.update_deck(archived_deck, %{"status" => "active"})
+    assert {:ok, allocation} = Catalog.allocate_collection_item_to_deck_card(lotus.id, item.id)
+    allocated_item = Catalog.get_collection_item!(allocation.collection_item_id)
+    assert {:ok, archived_deck} = Catalog.update_deck(active_deck, %{"status" => "archived"})
+
+    assert {:error, :deck_archived} =
+             Catalog.deallocate_collection_item_from_deck_card(lotus.id, allocated_item.id)
+
+    assert {:error, :deck_archived} = Catalog.allocate_deck_pull_list(archived_deck, [])
+  end
 end

@@ -4,7 +4,7 @@ defmodule Manavault.Catalog.Decks.Cards do
   import Ecto.Query
 
   alias Manavault.Catalog.{Card, Deck, DeckCard, Decklists, Printing, Util}
-  alias Manavault.Catalog.Decks.{AllocationItems, Allocations, Printings}
+  alias Manavault.Catalog.Decks.{AllocationItems, Allocations, EditGuard, Printings}
   alias Manavault.Repo
 
   def change_deck_card(%DeckCard{} = deck_card, attrs \\ %{}) do
@@ -19,7 +19,8 @@ defmodule Manavault.Catalog.Decks.Cards do
       |> normalize_blank_preferred_printing()
       |> normalize_blank_deck_card_tag()
 
-    with {:ok, attrs} <- resolve_deck_card_identity(attrs),
+    with :ok <- EditGuard.ensure_deck_editable(deck),
+         {:ok, attrs} <- resolve_deck_card_identity(attrs),
          {:ok, attrs} <- validate_preferred_printing_identity(attrs) do
       upsert_deck_card(attrs)
     end
@@ -37,7 +38,8 @@ defmodule Manavault.Catalog.Decks.Cards do
       |> Map.put_new("deck_id", deck_card.deck_id)
       |> Map.put_new("oracle_id", deck_card.oracle_id)
 
-    with {:ok, attrs} <- validate_preferred_printing_identity(attrs) do
+    with :ok <- EditGuard.ensure_deck_card_editable(deck_card),
+         {:ok, attrs} <- validate_preferred_printing_identity(attrs) do
       update_deck_card_with_allocation_switch(deck_card, attrs)
     end
   end
@@ -136,67 +138,73 @@ defmodule Manavault.Catalog.Decks.Cards do
         |> Repo.preload([:deck_allocations, card: :printings])
         |> Map.new(&{&1.id, &1})
 
-      optimized =
-        Enum.reduce(deck_card_ids, [], fn deck_card_id, acc ->
-          deck_card = Map.fetch!(deck_cards, deck_card_id)
+      with :ok <- EditGuard.ensure_deck_cards_editable(Map.values(deck_cards)) do
+        optimized =
+          Enum.reduce(deck_card_ids, [], fn deck_card_id, acc ->
+            deck_card = Map.fetch!(deck_cards, deck_card_id)
 
-          case Printings.cheapest_priced_printing(deck_card) do
-            %Printing{scryfall_id: scryfall_id}
-            when scryfall_id != deck_card.preferred_printing_id ->
-              clear_deck_card_allocations!(deck_card)
+            case Printings.cheapest_priced_printing(deck_card) do
+              %Printing{scryfall_id: scryfall_id}
+              when scryfall_id != deck_card.preferred_printing_id ->
+                clear_deck_card_allocations!(deck_card)
 
-              case update_deck_card(deck_card, %{"preferred_printing_id" => scryfall_id}) do
-                {:ok, deck_card} -> [deck_card | acc]
-                {:error, reason} -> Repo.rollback(reason)
-              end
+                case update_deck_card(deck_card, %{"preferred_printing_id" => scryfall_id}) do
+                  {:ok, deck_card} -> [deck_card | acc]
+                  {:error, reason} -> Repo.rollback(reason)
+                end
 
-            _no_change ->
-              acc
-          end
-        end)
+              _no_change ->
+                acc
+            end
+          end)
 
-      {:ok, Enum.reverse(optimized)}
+        {:ok, Enum.reverse(optimized)}
+      end
     end)
   end
 
   def set_deck_commander(%DeckCard{} = deck_card) do
-    Repo.transact(fn ->
-      deck_card = Repo.preload(deck_card, [:card, :preferred_printing])
+    with :ok <- EditGuard.ensure_deck_card_editable(deck_card) do
+      Repo.transact(fn ->
+        deck_card = Repo.preload(deck_card, [:card, :preferred_printing])
 
-      unless legendary_creature?(deck_card) do
-        Repo.rollback(:not_legendary_creature)
-      end
+        unless legendary_creature?(deck_card) do
+          Repo.rollback(:not_legendary_creature)
+        end
 
-      DeckCard
-      |> where(
-        [card],
-        card.deck_id == ^deck_card.deck_id and card.zone == "commander" and
-          card.id != ^deck_card.id
-      )
-      |> Repo.all()
-      |> Enum.each(&move_deck_card_to_zone!(&1, "mainboard"))
+        DeckCard
+        |> where(
+          [card],
+          card.deck_id == ^deck_card.deck_id and card.zone == "commander" and
+            card.id != ^deck_card.id
+        )
+        |> Repo.all()
+        |> Enum.each(&move_deck_card_to_zone!(&1, "mainboard"))
 
-      deck_card =
-        deck_card
-        |> move_deck_card_to_zone!("commander")
-        |> Repo.preload([:card, :preferred_printing])
+        deck_card =
+          deck_card
+          |> move_deck_card_to_zone!("commander")
+          |> Repo.preload([:card, :preferred_printing])
 
-      {:ok, deck_card}
-    end)
+        {:ok, deck_card}
+      end)
+    end
   end
 
   def delete_deck_card(%DeckCard{} = deck_card) do
-    Repo.transact(fn ->
-      deck_card =
-        Repo.preload(deck_card, deck_allocations: [:collection_item])
+    with :ok <- EditGuard.ensure_deck_card_editable(deck_card) do
+      Repo.transact(fn ->
+        deck_card =
+          Repo.preload(deck_card, deck_allocations: [:collection_item])
 
-      clear_deck_card_allocations!(deck_card)
+        clear_deck_card_allocations!(deck_card)
 
-      case Repo.delete(deck_card) do
-        {:ok, deck_card} -> {:ok, deck_card}
-        {:error, changeset} -> {:error, changeset}
-      end
-    end)
+        case Repo.delete(deck_card) do
+          {:ok, deck_card} -> {:ok, deck_card}
+          {:error, changeset} -> {:error, changeset}
+        end
+      end)
+    end
   end
 
   defp update_deck_card_with_allocation_switch(%DeckCard{} = deck_card, attrs) do

@@ -5,14 +5,15 @@ defmodule Manavault.Catalog.Decks.DecklistIO do
 
   alias Ecto.Changeset
   alias Manavault.Catalog.{Card, Deck, DeckCard, Decklists, Printing, Util}
-  alias Manavault.Catalog.Decks.{AllocationItems, Preloads}
+  alias Manavault.Catalog.Decks.{AllocationItems, EditGuard, Preloads}
   alias Manavault.Repo
 
   @lock_retry_attempts 3
   @lock_retry_sleep_ms 250
 
   def import_decklist(%Deck{} = deck, text, opts \\ []) when is_binary(text) and is_list(opts) do
-    with {:ok, zone} <- import_zone(Keyword.get(opts, :zone)),
+    with :ok <- EditGuard.ensure_deck_editable(deck),
+         {:ok, zone} <- import_zone(Keyword.get(opts, :zone)),
          {:ok, prepared} <- prepare_import_entries(text, zone) do
       import_with_lock_retry(deck, prepared, opts, @lock_retry_attempts)
     end

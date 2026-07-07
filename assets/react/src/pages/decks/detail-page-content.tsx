@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router"
 import { useMemo, useState } from "react"
 import {
+  Archive,
   AlertTriangle,
   CheckSquare,
   Clipboard,
@@ -415,6 +416,7 @@ export function DeckDetailContent({
   allocationActions,
   cardActions,
   selection,
+  canEditDecklist,
   canBulkAllocate,
   deck,
   deckCards,
@@ -452,6 +454,7 @@ export function DeckDetailContent({
   allocationActions: DeckAllocationActions
   cardActions: DeckCardActions
   selection: DeckSelectionControls
+  canEditDecklist: boolean
   canBulkAllocate: boolean
   deck: DeckDetail
   deckCards: DeckCardEntry[]
@@ -550,14 +553,27 @@ export function DeckDetailContent({
               label={`${deck.name} actions`}
               onEdit={onEditDeck}
               onExport={onExportDeck}
-              onImport={onImportDeck}
+              onImport={canEditDecklist ? onImportDeck : undefined}
               onShare={onOpenShareDeck}
-              onDisassemble={onDisassemble}
-              onEdhrec={deck.format === "commander" ? onOpenEdhrec : undefined}
+              onDisassemble={canEditDecklist ? onDisassemble : undefined}
+              onEdhrec={canEditDecklist && deck.format === "commander" ? onOpenEdhrec : undefined}
             />
           </ShareModeHidden>
         }
       />
+
+      {!canEditDecklist ? (
+        <div className="rounded-box border border-base-300 bg-base-200/60 p-4 text-sm text-base-content/75">
+          <div className="flex flex-wrap items-center gap-2 font-bold text-base-content">
+            <Archive className="h-4 w-4" />
+            <span>Archived decklist</span>
+          </div>
+          <p className="mt-1 max-w-3xl">
+            This deck is view-only. Use Edit to unarchive it before changing cards, tags,
+            printings, or collection allocations.
+          </p>
+        </div>
+      ) : null}
 
       {legalityIssues.length ? (
         <div className="rounded-box border border-error/25 bg-error/5 p-4 text-sm text-base-content/80">
@@ -656,31 +672,35 @@ export function DeckDetailContent({
                 Playtest
               </Link>
             </Button>
-            <Button type="button" size="sm" onClick={onOpenAddCard}>
-              <Plus className="h-4 w-4" />
-              Add card
-            </Button>
-            {!isSelectionActive ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!deckCards.length}
-                onClick={onStartSelecting}
-              >
-                <CheckSquare className="h-4 w-4" />
-                Select
-              </Button>
-            ) : null}
-            {hasReadinessWork ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setIsReadinessOpen(true)}
-              >
-                Pull list
-              </Button>
+            {canEditDecklist ? (
+              <>
+                <Button type="button" size="sm" onClick={onOpenAddCard}>
+                  <Plus className="h-4 w-4" />
+                  Add card
+                </Button>
+                {!isSelectionActive ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!deckCards.length}
+                    onClick={onStartSelecting}
+                  >
+                    <CheckSquare className="h-4 w-4" />
+                    Select
+                  </Button>
+                ) : null}
+                {hasReadinessWork ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsReadinessOpen(true)}
+                  >
+                    Pull list
+                  </Button>
+                ) : null}
+              </>
             ) : null}
           </ShareModeHidden>
           <DeckGroupMenu value={groupBy} onChange={onGroupByChange} />
@@ -689,7 +709,7 @@ export function DeckDetailContent({
       <DeckReadinessDialog
         allocationError={allocationError}
         buylistPrice={buylistPrice}
-        canBulkAllocate={canBulkAllocate}
+        canBulkAllocate={canEditDecklist && canBulkAllocate}
         deckCards={deckCards}
         isUpdatingDeckCard={isUpdatingDeckCard}
         onAllocate={onAllocate}
@@ -700,12 +720,12 @@ export function DeckDetailContent({
         onOpenOptimizePrintings={onOpenOptimizePrintings}
         onTagCard={onTagCard}
         onToggleProxy={onToggleProxy}
-        open={isReadinessOpen}
-        shareMode={shareMode}
+        open={canEditDecklist && isReadinessOpen}
+        shareMode={shareMode || !canEditDecklist}
       />
 
       <ShareModeHidden shareMode={shareMode}>
-        {isSelectionActive ? (
+        {isSelectionActive && canEditDecklist ? (
           <div className="grid gap-3 rounded-box border border-base-300 bg-base-100 p-3 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -823,10 +843,10 @@ export function DeckDetailContent({
 
       {groupedCards.length ? (
         <DeckGroupGrid
-          canSetCommander={deck.format === "commander"}
+          canSetCommander={canEditDecklist && deck.format === "commander"}
           deckId={deck.id}
           groups={groupedCards}
-          isSelecting={isSelectionActive}
+          isSelecting={canEditDecklist && isSelectionActive}
           isUpdating={isUpdatingDeckCard}
           selectedCardIds={selectedDeckCardIds}
           highlightedCardIds={highlightedDeckCardIds}
@@ -840,7 +860,7 @@ export function DeckDetailContent({
           onSetCommander={onSetCommander}
           onToggleSelected={onToggleSelected}
           onToggleProxy={onToggleProxy}
-          shareMode={shareMode}
+          shareMode={shareMode || !canEditDecklist}
         />
       ) : (
         <EmptyState title="No cards in this deck" />
@@ -850,11 +870,11 @@ export function DeckDetailContent({
         <DeckZoneTable
           cards={sideboardCards}
           deckId={deck.id}
-          isSelecting={isSelectionActive}
+          isSelecting={canEditDecklist && isSelectionActive}
           isUpdating={isUpdatingDeckCard}
           selectedCardIds={selectedDeckCardIds}
           highlightedCardIds={highlightedDeckCardIds}
-          shareMode={shareMode}
+          shareMode={shareMode || !canEditDecklist}
           onPreview={onPreviewCard}
           title="Sideboard"
           onMove={onMoveCard}
@@ -866,11 +886,11 @@ export function DeckDetailContent({
         <DeckZoneTable
           cards={maybeboardCards}
           deckId={deck.id}
-          isSelecting={isSelectionActive}
+          isSelecting={canEditDecklist && isSelectionActive}
           isUpdating={isUpdatingDeckCard}
           selectedCardIds={selectedDeckCardIds}
           highlightedCardIds={highlightedDeckCardIds}
-          shareMode={shareMode}
+          shareMode={shareMode || !canEditDecklist}
           onPreview={onPreviewCard}
           title="Maybeboard"
           onMove={onMoveCard}

@@ -213,7 +213,7 @@ export function DeckDetailPage({
         variables: { id: deckId },
         onCompleted: () => {
           refetchDeckQueries()
-          showToast("Deck disassembled")
+          showToast("Deck archived")
           setDisassemblyResult(null)
           navigate({ to: "/decks" })
         },
@@ -732,6 +732,7 @@ export function DeckDetailPage({
   }
 
   const legalityIssues = deckLegalityIssues(deck.legality)
+  const canEditDecklist = deck.status !== "archived"
 
   function moveDeckCard(deckCard: DeckCardEntry, zone: DeckZone) {
     updateDeckCard.mutate({ deckCardId: deckCard.id, input: { zone } })
@@ -863,6 +864,7 @@ export function DeckDetailPage({
           onToggleSelected: toggleDeckCardSelected,
           onUpdateSelectedDeckCards: updateSelectedDeckCards,
         }}
+        canEditDecklist={canEditDecklist}
         canBulkAllocate={hasBulkAllocationAvailable}
         deck={deck}
         deckCards={deckCards}
@@ -906,32 +908,32 @@ export function DeckDetailPage({
         addCardError={addDeckCard.error instanceof Error ? addDeckCard.error.message : null}
         bulkAllocationError={bulkAllocationError}
         bulkAllocationMode={bulkAllocationMode}
-        bulkAllocationOpen={isBulkAllocationOpen}
+        bulkAllocationOpen={canEditDecklist && isBulkAllocationOpen}
         bulkAllocationPullList={bulkAllocationPullList}
         deck={deck}
-        deleteCardTarget={deleteCardTarget}
+        deleteCardTarget={canEditDecklist ? deleteCardTarget : null}
         editError={editError}
-        editTarget={editTarget}
+        editTarget={canEditDecklist ? editTarget : null}
         edhrecExcludeLands={edhrecExcludeLands}
-        edhrecTab={edhrecTab}
-        isAddCardOpen={isAddCardOpen}
+        edhrecTab={canEditDecklist ? edhrecTab : undefined}
+        isAddCardOpen={canEditDecklist && isAddCardOpen}
         isAddingCard={addDeckCard.isPending}
         isBulkAllocating={allocateDeckPullList.isPending}
-        disassemblyResult={disassemblyResult}
-        isDeleteSelectedOpen={isDeleteSelectedOpen}
+        disassemblyResult={canEditDecklist ? disassemblyResult : null}
+        isDeleteSelectedOpen={canEditDecklist && isDeleteSelectedOpen}
         isEditDeckOpen={isEditDeckOpen}
         isExportDeckOpen={isExportDeckOpen}
-        isImportDeckOpen={isImportDeckOpen}
+        isImportDeckOpen={canEditDecklist && isImportDeckOpen}
         isMissingCardsOpen={isMissingCardsOpen}
-        isSelectFromListOpen={isSelectFromListOpen}
+        isSelectFromListOpen={canEditDecklist && isSelectFromListOpen}
         isShareDeckOpen={isShareDeckOpen}
         isDisassemblingDeck={disassembleDeck.isPending}
         isUpdatingDeckCard={isUpdatingDeckCard}
         optimizePrintingsError={optimizePrintingsError}
-        optimizePrintingsOpen={isOptimizePrintingsOpen}
+        optimizePrintingsOpen={canEditDecklist && isOptimizePrintingsOpen}
         mayCloseDeleteSelected={!bulkDeleteDeckCards.isPending}
         moveError={moveError}
-        moveTarget={moveTarget}
+        moveTarget={canEditDecklist ? moveTarget : null}
         onAddCardOpenChange={setIsAddCardOpen}
         onBulkAllocationModeChange={(mode) => {
           setBulkAllocationMode(mode)

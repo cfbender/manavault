@@ -35,11 +35,9 @@ defmodule Manavault.Catalog.Decks.Disassembly do
 
           delete_or_rollback!(allocation)
         end)
-
-        delete_or_rollback!(deck_card)
       end)
 
-      delete_or_rollback!(deck)
+      archive_deck_or_rollback!(deck)
 
       {:ok, result}
     end)
@@ -131,6 +129,13 @@ defmodule Manavault.Catalog.Decks.Disassembly do
 
   defp location_name(%Location{name: name}), do: name
   defp location_name(_location), do: "Unfiled"
+
+  defp archive_deck_or_rollback!(%Deck{} = deck) do
+    case deck |> Deck.changeset(%{"status" => "archived"}) |> Repo.update() do
+      {:ok, deck} -> deck
+      {:error, changeset} -> Repo.rollback(changeset)
+    end
+  end
 
   defp delete_or_rollback!(struct) do
     case Repo.delete(struct) do

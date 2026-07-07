@@ -17,6 +17,14 @@ defmodule ManavaultWeb.Schema.Catalog.Errors do
   def import_error(:invalid_purchase_price), do: "Import purchase price must be a dollar amount."
   def import_error(_reason), do: "Could not import collection file."
 
+  def deck_edit_error(:deck_archived), do: "Unarchive this deck before editing its decklist."
+  def deck_edit_error(reason) when is_binary(reason), do: reason
+  def deck_edit_error(reason) when is_atom(reason), do: Atom.to_string(reason)
+  def deck_edit_error(_reason), do: "Could not edit decklist."
+
+  def deck_allocation_error(:deck_archived),
+    do: "Unarchive this deck before changing allocations."
+
   def deck_allocation_error(:collection_item_mismatch),
     do: "Collection item does not match that deck card."
 
@@ -47,6 +55,7 @@ defmodule ManavaultWeb.Schema.Catalog.Errors do
   def deck_allocation_error(reason) when is_binary(reason), do: reason
   def deck_allocation_error(_reason), do: "Could not add collection item to deck."
 
+  def deck_import_error(:deck_archived), do: "Unarchive this deck before importing a decklist."
   def deck_import_error(:card_not_found), do: "One or more decklist cards were not found."
   def deck_import_error(reason) when is_binary(reason), do: reason
   def deck_import_error(_reason), do: "Could not import decklist."

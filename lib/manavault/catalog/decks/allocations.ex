@@ -13,7 +13,7 @@ defmodule Manavault.Catalog.Decks.Allocations do
     Util
   }
 
-  alias Manavault.Catalog.Decks.{AllocationItems, AllocationStatus, Preloads}
+  alias Manavault.Catalog.Decks.{AllocationItems, AllocationStatus, EditGuard, Preloads}
   alias Manavault.Repo
 
   def allocate_collection_item_to_deck_card(deck_card_id, collection_item_id, quantity \\ 1) do
@@ -23,9 +23,11 @@ defmodule Manavault.Catalog.Decks.Allocations do
       deck_card =
         DeckCard |> Repo.get!(deck_card_id) |> Repo.preload([:deck, :preferred_printing])
 
-      item = Collection.get_collection_item!(collection_item_id)
+      with :ok <- EditGuard.ensure_deck_card_editable(deck_card) do
+        item = Collection.get_collection_item!(collection_item_id)
 
-      allocate_item_to_deck_card(deck_card, item, quantity)
+        allocate_item_to_deck_card(deck_card, item, quantity)
+      end
     end)
   end
 
@@ -37,22 +39,28 @@ defmodule Manavault.Catalog.Decks.Allocations do
       Repo.transact(fn ->
         deck = load_deck!(deck_or_id)
 
-        result =
-          Enum.reduce(entries, %{allocated: 0, cards: MapSet.new(), skipped: 0}, fn entry,
-                                                                                    counts ->
-            case apply_pull_list_entry(deck, entry) do
-              {:ok, _allocation} ->
-                counts
-                |> update_in([:allocated], &(&1 + entry.quantity))
-                |> update_in([:cards], &MapSet.put(&1, entry.deck_card_id))
+        with :ok <- EditGuard.ensure_deck_editable(deck) do
+          result =
+            Enum.reduce(entries, %{allocated: 0, cards: MapSet.new(), skipped: 0}, fn entry,
+                                                                                      counts ->
+              case apply_pull_list_entry(deck, entry) do
+                {:ok, _allocation} ->
+                  counts
+                  |> update_in([:allocated], &(&1 + entry.quantity))
+                  |> update_in([:cards], &MapSet.put(&1, entry.deck_card_id))
 
-              {:error, _reason} ->
-                update_in(counts, [:skipped], &(&1 + 1))
-            end
-          end)
+                {:error, _reason} ->
+                  update_in(counts, [:skipped], &(&1 + 1))
+              end
+            end)
 
-        {:ok,
-         %{allocated: result.allocated, cards: MapSet.size(result.cards), skipped: result.skipped}}
+          {:ok,
+           %{
+             allocated: result.allocated,
+             cards: MapSet.size(result.cards),
+             skipped: result.skipped
+           }}
+        end
       end)
     end
   end
@@ -66,7 +74,8 @@ defmodule Manavault.Catalog.Decks.Allocations do
         |> Repo.get!(deck_card.id)
         |> Repo.preload([:deck, :preferred_printing])
 
-      with :ok <- validate_positive_allocation_quantity(quantity) do
+      with :ok <- EditGuard.ensure_deck_card_editable(deck_card),
+           :ok <- validate_positive_allocation_quantity(quantity) do
         status = AllocationStatus.deck_card_allocation_status(deck_card)
         needed = min(quantity, max(status.required - status.allocated, 0))
 
@@ -100,8 +109,11 @@ defmodule Manavault.Catalog.Decks.Allocations do
 
   def bulk_add_collection_items_to_deck(deck_or_id, [], _zone) do
     Repo.transact(fn ->
-      load_deck!(deck_or_id)
-      {:ok, []}
+      deck = load_deck!(deck_or_id)
+
+      with :ok <- EditGuard.ensure_deck_editable(deck) do
+        {:ok, []}
+      end
     end)
   end
 
@@ -111,7 +123,8 @@ defmodule Manavault.Catalog.Decks.Allocations do
       Repo.transact(fn ->
         deck = load_deck!(deck_or_id)
 
-        with {:ok, items} <- load_ordered_collection_items(item_ids),
+        with :ok <- EditGuard.ensure_deck_editable(deck),
+             {:ok, items} <- load_ordered_collection_items(item_ids),
              :ok <- validate_single_finish_per_card(items),
              {:ok, deck_cards_by_key} <- upsert_bulk_deck_cards(deck, items, zone),
              :ok <- validate_bulk_deck_card_allocation_room(items, deck_cards_by_key) do
@@ -152,33 +165,37 @@ defmodule Manavault.Catalog.Decks.Allocations do
           {:error, :allocation_not_found}
 
         %DeckAllocation{quantity: allocation_quantity} when allocation_quantity <= quantity ->
-          allocation = Repo.preload(allocation, :collection_item)
+          allocation = Repo.preload(allocation, [:collection_item, deck_card: :deck])
 
-          AllocationItems.restore_from_deck!(
-            allocation.collection_item,
-            allocation_quantity,
-            allocation.source_location_id
-          )
+          with :ok <- EditGuard.ensure_deck_card_editable(allocation.deck_card) do
+            AllocationItems.restore_from_deck!(
+              allocation.collection_item,
+              allocation_quantity,
+              allocation.source_location_id
+            )
 
-          case Repo.delete(allocation) do
-            {:ok, _allocation} -> {:ok, allocation}
-            {:error, changeset} -> {:error, changeset}
+            case Repo.delete(allocation) do
+              {:ok, _allocation} -> {:ok, allocation}
+              {:error, changeset} -> {:error, changeset}
+            end
           end
 
         %DeckAllocation{} = allocation ->
-          allocation = Repo.preload(allocation, :collection_item)
+          allocation = Repo.preload(allocation, [:collection_item, deck_card: :deck])
 
-          AllocationItems.restore_from_deck!(
-            allocation.collection_item,
-            quantity,
-            allocation.source_location_id
-          )
+          with :ok <- EditGuard.ensure_deck_card_editable(allocation.deck_card) do
+            AllocationItems.restore_from_deck!(
+              allocation.collection_item,
+              quantity,
+              allocation.source_location_id
+            )
 
-          case allocation
-               |> DeckAllocation.changeset(%{"quantity" => allocation.quantity - quantity})
-               |> Repo.update() do
-            {:ok, updated_allocation} -> {:ok, updated_allocation}
-            {:error, changeset} -> {:error, changeset}
+            case allocation
+                 |> DeckAllocation.changeset(%{"quantity" => allocation.quantity - quantity})
+                 |> Repo.update() do
+              {:ok, updated_allocation} -> {:ok, updated_allocation}
+              {:error, changeset} -> {:error, changeset}
+            end
           end
       end
     end)
@@ -193,7 +210,8 @@ defmodule Manavault.Catalog.Decks.Allocations do
         |> Repo.get!(deck_card_id)
         |> Repo.preload([:deck, :preferred_printing, card: []])
 
-      with :ok <- validate_positive_allocation_quantity(quantity),
+      with :ok <- EditGuard.ensure_deck_card_editable(deck_card),
+           :ok <- validate_positive_allocation_quantity(quantity),
            :ok <- validate_deck_card_proxy_allocation_room(deck_card, quantity) do
         put_deck_card_proxy_quantity(deck_card, (deck_card.proxy_quantity || 0) + quantity)
       end
@@ -204,10 +222,11 @@ defmodule Manavault.Catalog.Decks.Allocations do
     quantity = Util.parse_quantity(quantity)
 
     Repo.transact(fn ->
-      deck_card = Repo.get!(DeckCard, deck_card_id)
+      deck_card = DeckCard |> Repo.get!(deck_card_id) |> Repo.preload(:deck)
       proxy_quantity = deck_card.proxy_quantity || 0
 
-      with :ok <- validate_positive_allocation_quantity(quantity),
+      with :ok <- EditGuard.ensure_deck_card_editable(deck_card),
+           :ok <- validate_positive_allocation_quantity(quantity),
            :ok <- validate_deck_card_proxy_deallocation(deck_card, quantity) do
         put_deck_card_proxy_quantity(deck_card, max(proxy_quantity - quantity, 0))
       end
@@ -216,7 +235,8 @@ defmodule Manavault.Catalog.Decks.Allocations do
 
   def bulk_allocate_deck(%Deck{} = deck, mode)
       when mode in [:exact_printings, :matching_printings] do
-    with {:ok, preview} <- preview_bulk_allocate_deck(deck, mode) do
+    with :ok <- EditGuard.ensure_deck_editable(deck),
+         {:ok, preview} <- preview_bulk_allocate_deck(deck, mode) do
       # Apply the whole preview in one transaction instead of one per entry, so
       # the write path commits once rather than N times. Entries are applied
       # without nesting transactions: a nested Repo.transact that returns
