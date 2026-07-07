@@ -16,6 +16,7 @@ import { pluralize, present, titleize } from "../../lib/utils"
 import { CardsDocument } from "../cards/data"
 import type { DeckDetail, DeckZone } from "./deck-types"
 import { ADD_CARD_ZONES, NON_COMMANDER_ADD_CARD_ZONES } from "./deck-types"
+import { selectedDeckCardNameForMutation } from "./add-card-dialog-model"
 import { AddDeckCardDocument } from "./queries"
 
 const ADD_CARD_SEARCH_DEBOUNCE_MS = 250
@@ -46,12 +47,19 @@ export function AddDeckCardDialog({
     variables: { q: cardSearchTerm, limit: 5 },
     skip: !open || cardSearchTerm.length < 2,
   })
-  const cardOptions = isCardSearchSettled
-    ? cardSearchQuery.data?.cards?.edges?.map((edge) => edge?.node).filter(present) || []
-    : []
+  const cardOptions =
+    isCardSearchSettled && !cardSearchQuery.loading
+      ? cardSearchQuery.data?.cards?.edges?.map((edge) => edge?.node).filter(present) || []
+      : []
   const selectedCard =
     cardOptions.find((card) => card.name.toLowerCase() === cardSearchTerm.toLowerCase()) ||
     cardOptions[0]
+  const selectedCardName = selectedDeckCardNameForMutation(name, selectedCard)
+  const isCardSearchPending =
+    open && cardSearchDraftTerm.length >= 2 && (!isCardSearchSettled || cardSearchQuery.loading)
+  const selectedCardMatchesInput = Boolean(
+    selectedCard && selectedCardName.toLowerCase() === cardSearchDraftTerm.toLowerCase(),
+  )
   const printingOptions =
     selectedCard?.printings?.edges?.map((edge) => edge?.node).filter(present) || []
   const selectedPrinting =
@@ -71,7 +79,7 @@ export function AddDeckCardDialog({
         variables: {
           deckId: deck?.id || "",
           input: {
-            name: name.trim(),
+            name: selectedCardName,
             quantity,
             zone,
             finish,
@@ -93,6 +101,7 @@ export function AddDeckCardDialog({
           setError(error instanceof Error ? error.message : "Could not add card to deck"),
       }),
   }
+  const canSubmit = Boolean(deck && selectedCard && !isCardSearchPending && !addDeckCard.isPending)
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setDebouncedName(name), ADD_CARD_SEARCH_DEBOUNCE_MS)
@@ -130,10 +139,21 @@ export function AddDeckCardDialog({
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!name.trim()) {
+    if (!cardSearchDraftTerm) {
       setError("Choose a card.")
       return
     }
+
+    if (isCardSearchPending) {
+      setError("Wait for the card search to finish.")
+      return
+    }
+
+    if (!selectedCard) {
+      setError("Choose a matching card.")
+      return
+    }
+
     addDeckCard.mutate()
   }
 
@@ -149,19 +169,49 @@ export function AddDeckCardDialog({
         </DialogHeader>
 
         <form className="space-y-4 p-5" onSubmit={submit}>
-          <label className="form-control">
-            <span className="label-text mb-1 text-sm font-semibold">Card</span>
+          <div className="form-control">
+            <label
+              htmlFor="add-deck-card-search"
+              className="label-text mb-1 text-sm font-semibold"
+            >
+              Card
+            </label>
             <CardNameSearchField
+              id="add-deck-card-search"
               value={name}
               onValueChange={setName}
               onSuggestionSelect={setName}
               placeholder="Search card name"
+              selectFirstSuggestionOnEnter
               disabled={addDeckCard.isPending}
             />
-          </label>
+            <p className="mt-1 text-xs text-base-content/60">
+              {isCardSearchPending
+                ? "Searching for the matching card..."
+                : selectedCard
+                  ? selectedCardMatchesInput
+                    ? "Exact match selected."
+                    : `Selected match: ${selectedCard.name}`
+                  : !cardSearchDraftTerm
+                    ? "Type a card name; the selected match below is what will be added."
+                    : cardSearchDraftTerm.length < 2
+                      ? "Enter at least 2 characters."
+                      : "No matching card found."}
+            </p>
+          </div>
 
           {selectedPrinting ? (
             <div className="rounded-box border border-base-300 bg-base-200/35 p-3">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                  Selected card
+                </p>
+                {!selectedCardMatchesInput ? (
+                  <p className="rounded-full border border-primary/30 px-2 py-0.5 text-xs font-semibold text-primary">
+                    Matched from search
+                  </p>
+                ) : null}
+              </div>
               <div className="flex gap-3">
                 {selectedPrinting.imageUrl ? (
                   <img
@@ -269,8 +319,12 @@ export function AddDeckCardDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={addDeckCard.isPending || !name.trim()}>
-              {addDeckCard.isPending ? "Adding..." : "Add card"}
+            <Button type="submit" disabled={!canSubmit}>
+              {addDeckCard.isPending
+                ? "Adding..."
+                : selectedCard
+                  ? `Add ${selectedCard.name}`
+                  : "Add card"}
             </Button>
           </div>
         </form>

@@ -2,6 +2,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 
 import { hasMainboardAllocationAvailable } from "../src/pages/decks/deck-allocation-model.ts"
+import { selectedDeckCardNameForMutation } from "../src/pages/decks/add-card-dialog-model.ts"
 
 function deckCard(zone, available, allocated, required = 1) {
   return {
@@ -30,4 +31,12 @@ test("hasMainboardAllocationAvailable only considers unallocated mainboard cards
   )
 
   assert.equal(hasMainboardAllocationAvailable([deckCard("mainboard", 1, 0)]), true)
+})
+
+test("selectedDeckCardNameForMutation submits the shown card match", () => {
+  assert.equal(
+    selectedDeckCardNameForMutation("fire lord a", { name: "Fire Lord Azula" }),
+    "Fire Lord Azula",
+  )
+  assert.equal(selectedDeckCardNameForMutation(" Lightning Bolt ", null), "Lightning Bolt")
 })

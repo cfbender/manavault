@@ -17,6 +17,7 @@ type CardNameSearchFieldProps = Omit<
   onClear?: () => void
   onSuggestionSelect?: (name: string) => void
   onValueChange: (value: string) => void
+  selectFirstSuggestionOnEnter?: boolean
   suggestionLimit?: number
   value: string
 }
@@ -28,6 +29,7 @@ export function CardNameSearchField({
   onKeyDown,
   onSuggestionSelect,
   onValueChange,
+  selectFirstSuggestionOnEnter = false,
   suggestionLimit = 5,
   value,
   ...props
@@ -144,9 +146,9 @@ export function CardNameSearchField({
     } else if (event.key === "ArrowUp") {
       event.preventDefault()
       setActiveIndex((index) => (index <= 0 ? suggestions.length - 1 : index - 1))
-    } else if (event.key === "Enter" && activeIndex >= 0) {
+    } else if (event.key === "Enter" && (activeIndex >= 0 || selectFirstSuggestionOnEnter)) {
       event.preventDefault()
-      selectSuggestion(suggestions[activeIndex])
+      selectSuggestion(suggestions[Math.max(activeIndex, 0)])
     } else if (event.key === "Enter") {
       setIsOpen(false)
     } else if (event.key === "Escape") {
