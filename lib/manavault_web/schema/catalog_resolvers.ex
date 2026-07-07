@@ -64,6 +64,7 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   defdelegate set_deck_commander(parent, args, resolution), to: MutationResolvers
   defdelegate allocate_deck_card_item(parent, args, resolution), to: MutationResolvers
   defdelegate deallocate_deck_card_item(parent, args, resolution), to: MutationResolvers
+  defdelegate bulk_deallocate_deck_cards(parent, args, resolution), to: MutationResolvers
   defdelegate allocate_deck_card_proxy(parent, args, resolution), to: MutationResolvers
   defdelegate deallocate_deck_card_proxy(parent, args, resolution), to: MutationResolvers
   defdelegate preview_bulk_allocate_deck(parent, args, resolution), to: MutationResolvers

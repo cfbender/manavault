@@ -490,6 +490,12 @@ defmodule Manavault.Catalog.Cached do
     |> invalidate_on_ok(&Cache.invalidate_decks/0)
   end
 
+  def bulk_deallocate_deck_cards(deck_card_ids) do
+    deck_card_ids
+    |> Decks.bulk_deallocate_deck_cards()
+    |> invalidate_on_ok(&Cache.invalidate_decks/0)
+  end
+
   def allocate_proxy_to_deck_card(deck_card_id, quantity \\ 1) do
     deck_card_id
     |> Decks.allocate_proxy_to_deck_card(quantity)

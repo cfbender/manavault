@@ -6,6 +6,7 @@ import {
   CheckSquare,
   Clipboard,
   Download,
+  XCircle,
   Layers,
   Play,
   Plus,
@@ -86,6 +87,7 @@ export type DeckSelectionControls = {
   selectedDeckCardCount: number
   selectedDeckCardIds: Set<string>
   onClearSelectedDeckCards: () => void
+  onDeallocateSelectedDeckCards: () => void
   onHighlightDeckCards: (deckCardIds: Set<string> | null) => void
   onOpenDeleteSelected: () => void
   onOpenSelectFromList: () => void
@@ -500,6 +502,7 @@ export function DeckDetailContent({
     selectedDeckCardCount,
     selectedDeckCardIds,
     onClearSelectedDeckCards,
+    onDeallocateSelectedDeckCards,
     onHighlightDeckCards,
     onOpenDeleteSelected,
     onOpenSelectFromList,
@@ -513,6 +516,14 @@ export function DeckDetailContent({
 
   const [isReadinessOpen, setIsReadinessOpen] = useState(false)
   const hasReadinessWork = useMemo(() => hasDeckPullWork(deckCards), [deckCards])
+  const selectedAllocatedDeckCardCount = useMemo(
+    () =>
+      deckCards.filter(
+        (deckCard) =>
+          selectedDeckCardIds.has(deckCard.id) && deckCard.allocationStatus.allocated > 0,
+      ).length,
+    [deckCards, selectedDeckCardIds],
+  )
 
   return (
     <div className="space-y-7">
@@ -569,8 +580,8 @@ export function DeckDetailContent({
             <span>Archived decklist</span>
           </div>
           <p className="mt-1 max-w-3xl">
-            This deck is view-only. Use Edit to unarchive it before changing cards, tags,
-            printings, or collection allocations.
+            This deck is view-only. Use Edit to unarchive it before changing cards, tags, printings,
+            or collection allocations.
           </p>
         </div>
       ) : null}
@@ -754,16 +765,28 @@ export function DeckDetailContent({
                   {selectedDeckCardCount > 0 ? "Clear" : "Done"}
                 </Button>
               </div>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                disabled={!selectedDeckCardCount || isUpdatingDeckCard}
-                onClick={onOpenDeleteSelected}
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!selectedAllocatedDeckCardCount || isUpdatingDeckCard}
+                  onClick={onDeallocateSelectedDeckCards}
+                >
+                  <XCircle className="h-4 w-4" />
+                  Deallocate
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  disabled={!selectedDeckCardCount || isUpdatingDeckCard}
+                  onClick={onOpenDeleteSelected}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </Button>
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">

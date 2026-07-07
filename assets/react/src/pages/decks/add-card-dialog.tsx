@@ -170,10 +170,7 @@ export function AddDeckCardDialog({
 
         <form className="space-y-4 p-5" onSubmit={submit}>
           <div className="form-control">
-            <label
-              htmlFor="add-deck-card-search"
-              className="label-text mb-1 text-sm font-semibold"
-            >
+            <label htmlFor="add-deck-card-search" className="label-text mb-1 text-sm font-semibold">
               Card
             </label>
             <CardNameSearchField

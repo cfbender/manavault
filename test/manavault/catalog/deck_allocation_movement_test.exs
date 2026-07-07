@@ -106,6 +106,45 @@ defmodule Manavault.Catalog.DeckAllocationMovementTest do
              Catalog.allocate_proxy_to_deck_card(lotus.id, 2)
   end
 
+  test "bulk deallocation restores physical copies and clears proxies" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+    assert {:ok, binder} = Catalog.create_location(%{name: "Trade Binder", kind: "binder"})
+
+    assert {:ok, item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil",
+               "location_id" => binder.id
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Bulk Deallocate"})
+
+    assert {:ok, lotus} =
+             Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus", "quantity" => 2})
+
+    assert {:ok, _deck_card} = Catalog.allocate_proxy_to_deck_card(lotus.id)
+    assert {:ok, allocation} = Catalog.allocate_collection_item_to_deck_card(lotus.id, item.id)
+    allocated_item_id = allocation.collection_item_id
+    binder_id = binder.id
+
+    assert {:ok, [deallocated_lotus]} = Catalog.bulk_deallocate_deck_cards([lotus.id])
+    assert deallocated_lotus.id == lotus.id
+    assert deallocated_lotus.proxy_quantity == 0
+    assert Repo.get(DeckAllocation, allocation.id) == nil
+
+    assert %CollectionItem{location_id: ^binder_id, quantity: 1} =
+             Catalog.get_collection_item!(allocated_item_id)
+
+    status = Catalog.deck_card_allocation_status(deallocated_lotus)
+    assert status.allocated == 0
+    assert status.proxy_allocated == 0
+    assert status.available == 1
+    assert status.missing == 1
+  end
+
   test "deck allocation does not count collection items held in list locations" do
     assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
     assert {:ok, list} = Catalog.create_location(%{name: "Wishlist", kind: "list"})

@@ -56,6 +56,7 @@ type DomeGalleryProps = {
 type GalleryCard = DomeGalleryCard & {
   alt: string
   cropUrl: string
+  fullImageUrl: string
   setLabel: string | null
 }
 
@@ -94,7 +95,7 @@ function normalizeGalleryCards(cards: readonly DomeGalleryCard[]): GalleryCard[]
         setLabel,
       }
     })
-    .filter((card): card is GalleryCard => Boolean(card))
+    .filter((card): card is GalleryCard => card !== null)
 }
 
 function formatSetLabel(card: Pick<DomeGalleryCard, "collectorNumber" | "setCode">) {

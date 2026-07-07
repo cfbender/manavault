@@ -754,6 +754,24 @@ defmodule ManavaultWeb.Schema do
       end)
     end
 
+    payload field :bulk_deallocate_deck_cards do
+      arg(:deck_card_ids, non_null(list_of(non_null(:id))))
+
+      output do
+        field :deck_cards, non_null(list_of(non_null(:deck_card)))
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &CatalogResolvers.bulk_deallocate_deck_cards/3,
+          :deck_cards
+        )
+      end)
+    end
+
     payload field :allocate_deck_card_proxy do
       arg(:deck_card_id, non_null(:id))
       arg(:quantity, :integer, default_value: 1)

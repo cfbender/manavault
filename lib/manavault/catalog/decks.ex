@@ -57,6 +57,8 @@ defmodule Manavault.Catalog.Decks do
               ),
               to: Workflows
 
+  defdelegate bulk_deallocate_deck_cards(deck_card_ids), to: Workflows
+
   defdelegate allocate_proxy_to_deck_card(deck_card_id, quantity \\ 1), to: Workflows
   defdelegate deallocate_proxy_from_deck_card(deck_card_id, quantity \\ 1), to: Workflows
   defdelegate bulk_allocate_deck(deck, mode), to: Workflows

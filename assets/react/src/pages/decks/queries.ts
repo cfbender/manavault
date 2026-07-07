@@ -435,6 +435,16 @@ export const BulkDeleteDeckCardsDocument = graphql(`
   }
 `)
 
+export const BulkDeallocateDeckCardsDocument = graphql(`
+  mutation BulkDeallocateDeckCards($deckCardIds: [ID!]!) {
+    bulkDeallocateDeckCards(deckCardIds: $deckCardIds) {
+      deckCards {
+        id
+      }
+    }
+  }
+`)
+
 export const SetDeckCommanderDocument = graphql(`
   mutation SetDeckCommander($id: ID!) {
     setDeckCommander(id: $id) {

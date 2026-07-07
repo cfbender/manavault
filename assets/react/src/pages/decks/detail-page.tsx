@@ -47,6 +47,7 @@ import {
   AllocateDeckCardItemDocument,
   AllocateDeckPullListDocument,
   AllocateDeckCardProxyDocument,
+  BulkDeallocateDeckCardsDocument,
   BulkDeleteDeckCardsDocument,
   BulkUpdateDeckCardsDocument,
   DeallocateDeckCardItemDocument,
@@ -185,6 +186,7 @@ export function DeckDetailPage({
   const [optimizePrintingsError, setOptimizePrintingsError] = useState<string | null>(null)
   const [isBulkUpdateDeckCardsPending, setIsBulkUpdateDeckCardsPending] = useState(false)
   const [isBulkDeleteDeckCardsPending, setIsBulkDeleteDeckCardsPending] = useState(false)
+  const [isBulkDeallocateDeckCardsPending, setIsBulkDeallocateDeckCardsPending] = useState(false)
   const [isAllocateDeckPullListPending, setIsAllocateDeckPullListPending] = useState(false)
   const navigate = useNavigate()
   const client = useApolloClient()
@@ -377,6 +379,13 @@ export function DeckDetailPage({
     tagError,
     toggleDeckCardSelected,
   } = useDeckDetailSelection(deckCards, selectionDeckCardIds)
+  const selectedDeallocatableDeckCardIdList = useMemo(() => {
+    const selectedIds = new Set(selectedDeckCardIdList)
+
+    return deckCards
+      .filter((deckCard) => selectedIds.has(deckCard.id) && deckCard.allocationStatus.allocated > 0)
+      .map((deckCard) => deckCard.id)
+  }, [deckCards, selectedDeckCardIdList])
   const hasBulkAllocationAvailable = useMemo(() => {
     if (shareMode) return false
 
@@ -617,6 +626,33 @@ export function DeckDetailPage({
     },
   }
 
+  const [bulkDeallocateDeckCardsMutation] = useMutation(BulkDeallocateDeckCardsDocument)
+  const bulkDeallocateDeckCards = {
+    isPending: isBulkDeallocateDeckCardsPending,
+    mutate: (deckCardIds: string[]) => {
+      setIsBulkDeallocateDeckCardsPending(true)
+      void bulkDeallocateDeckCardsMutation({ variables: { deckCardIds } })
+        .then(({ data }) => {
+          const deallocatedCount =
+            data?.bulkDeallocateDeckCards?.deckCards.length ?? deckCardIds.length
+
+          showToast(`${pluralize(deallocatedCount, "card")} deallocated`)
+          clearSelectedDeckCards()
+          setIsSelectingCards(false)
+          setBulkActionError(null)
+        })
+        .catch((error) =>
+          setBulkActionError(
+            error instanceof Error ? error.message : "Could not deallocate selected cards",
+          ),
+        )
+        .finally(() => {
+          refetchDeckQueries()
+          setIsBulkDeallocateDeckCardsPending(false)
+        })
+    },
+  }
+
   function invalidateAllocationQueries() {
     refetchDeckQueries()
   }
@@ -694,6 +730,7 @@ export function DeckDetailPage({
     optimizeDeckCardPrintings.isPending ||
     bulkUpdateDeckCards.isPending ||
     bulkDeleteDeckCards.isPending ||
+    bulkDeallocateDeckCards.isPending ||
     deleteDeckCard.isPending ||
     setDeckCommander.isPending ||
     allocateDeckCardItem.isPending ||
@@ -757,6 +794,12 @@ export function DeckDetailPage({
     if (selectedDeckCardIdList.length === 0) return
     setBulkActionError(null)
     bulkUpdateDeckCards.mutate({ deckCardIds: selectedDeckCardIdList, input })
+  }
+
+  function deallocateSelectedDeckCards() {
+    if (selectedDeallocatableDeckCardIdList.length === 0) return
+    setBulkActionError(null)
+    bulkDeallocateDeckCards.mutate(selectedDeallocatableDeckCardIdList)
   }
 
   function deleteSelectedDeckCards() {
@@ -854,6 +897,7 @@ export function DeckDetailPage({
             clearSelectedDeckCards()
             setIsSelectingCards(false)
           },
+          onDeallocateSelectedDeckCards: deallocateSelectedDeckCards,
           onHighlightDeckCards: setHighlightedDeckCardIds,
           onOpenDeleteSelected: () => setIsDeleteSelectedOpen(true),
           onOpenSelectFromList: () => setIsSelectFromListOpen(true),

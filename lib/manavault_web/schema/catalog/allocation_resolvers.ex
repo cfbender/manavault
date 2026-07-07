@@ -94,6 +94,18 @@ defmodule ManavaultWeb.Schema.Catalog.AllocationResolvers do
     end
   end
 
+  def bulk_deallocate_deck_cards(_parent, %{deck_card_ids: deck_card_ids}, resolution) do
+    with {:ok, deck_card_ids} <- decode_deck_card_ids(deck_card_ids, resolution) do
+      case Catalog.bulk_deallocate_deck_cards(deck_card_ids) do
+        {:ok, deck_cards} ->
+          {:ok, Repo.preload(deck_cards, [:card, :preferred_printing])}
+
+        {:error, reason} ->
+          {:error, Errors.deck_allocation_error(reason)}
+      end
+    end
+  end
+
   def allocate_deck_card_proxy(_parent, %{deck_card_id: deck_card_id} = args, resolution) do
     with {:ok, deck_card_id} <- RelayHelpers.node_id(deck_card_id, :deck_card, resolution) do
       quantity = Map.get(args, :quantity, 1)
@@ -151,6 +163,20 @@ defmodule ManavaultWeb.Schema.Catalog.AllocationResolvers do
         {:ok, result} -> {:ok, result}
         {:error, reason} -> {:error, Errors.deck_allocation_error(reason)}
       end
+    end
+  end
+
+  defp decode_deck_card_ids(deck_card_ids, resolution) do
+    deck_card_ids
+    |> Enum.reduce_while({:ok, []}, fn deck_card_id, {:ok, ids} ->
+      case RelayHelpers.node_id(deck_card_id, :deck_card, resolution) do
+        {:ok, id} -> {:cont, {:ok, [id | ids]}}
+        error -> {:halt, error}
+      end
+    end)
+    |> case do
+      {:ok, ids} -> {:ok, Enum.reverse(ids)}
+      error -> error
     end
   end
 
