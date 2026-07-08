@@ -51,6 +51,7 @@ import { DeckStatsSection, DeckTokensSection, type DeferredDeckAnalysis } from "
 import type { DeckCardEntry, DeckCardTag, DeckCustomTag, DeckDetail, DeckZone } from "./deck-types"
 import { DECK_CARD_TAGS, MOVE_TARGET_ZONES } from "./deck-types"
 import { DeckZoneTable } from "./deck-zone-table"
+import { DeckTagsSidebar } from "./deck-tags-sidebar"
 
 export type DetailZoneCounts = Record<DeckZone, number>
 
@@ -104,6 +105,15 @@ export type DeckSelectionControls = {
   onTagSelectedDeckCards: (tag: DeckCardTag | null) => void
   onToggleSelected: (deckCardId: string, selectRange?: boolean) => void
   onUpdateSelectedDeckCards: (input: DeckCardUpdateInput) => void
+}
+
+export type DeckTagManagement = {
+  activeTagId: string | null
+  onJumpToTag: (tagId: string) => void
+  onCreateTag: (input: { name: string; color: string; targetCount: number | null }) => void
+  onUpdateTag: (id: string, input: { name: string; color: string; targetCount: number | null }) => void
+  onDeleteTag: (id: string) => void
+  onReorderTags: (tagIds: string[]) => void
 }
 
 function BuylistPriceChip({ onClick, price }: { onClick: () => void; price: BuylistPrice | null }) {
@@ -432,6 +442,7 @@ export function DeckDetailContent({
   deckStats,
   deckTags,
   deckTokens,
+  tagManagement,
   groupBy,
   groupedCards,
   isUpdatingDeckCard,
@@ -471,6 +482,7 @@ export function DeckDetailContent({
   deckStats: DeferredDeckAnalysis["stats"] | null
   deckTags: DeckCustomTag[]
   deckTokens: DeferredDeckAnalysis["tokens"] | null
+  tagManagement: DeckTagManagement
   groupBy: DeckGroupBy
   groupedCards: DeckGroup<DeckCardEntry>[]
   isUpdatingDeckCard: boolean
@@ -544,7 +556,22 @@ export function DeckDetailContent({
   )
 
   return (
-    <div className="space-y-7">
+    <div className="lg:grid lg:grid-cols-[17rem_minmax(0,1fr)] lg:items-start lg:gap-6">
+      {shareMode ? null : (
+        <div className="mb-6 lg:sticky lg:top-4 lg:mb-0 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+          <DeckTagsSidebar
+            tags={deckTags}
+            activeTagId={tagManagement.activeTagId}
+            onJumpToTag={tagManagement.onJumpToTag}
+            onCreateTag={tagManagement.onCreateTag}
+            onUpdateTag={tagManagement.onUpdateTag}
+            onDeleteTag={tagManagement.onDeleteTag}
+            onReorderTags={tagManagement.onReorderTags}
+            disabled={!canEditDecklist}
+          />
+        </div>
+      )}
+      <div className="min-w-0 space-y-7">
       <ShareModeHidden shareMode={shareMode}>
         <Button asChild variant="outline" size="sm">
           <Link to="/decks">Back to decks</Link>
@@ -948,6 +975,7 @@ export function DeckDetailContent({
 
       <DeckTokensSection tokens={deckTokens} />
       <DeckStatsSection stats={deckStats} onHighlightDeckCards={onHighlightDeckCards} />
+      </div>
     </div>
   )
 }

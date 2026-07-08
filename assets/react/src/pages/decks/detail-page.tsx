@@ -38,6 +38,7 @@ import {
   type EDHRecSectionCard,
   type EDHRecTab,
 } from "./deck-types"
+import { useDeckTags } from "./use-deck-tags"
 import { DeckDetailContent } from "./detail-page-content"
 import { DeckDetailDialogs } from "./detail-page-dialogs"
 import { useDeckDetailSelection } from "./detail-page-selection"
@@ -196,6 +197,8 @@ export function DeckDetailPage({
   const [isBulkDeallocateDeckCardsPending, setIsBulkDeallocateDeckCardsPending] = useState(false)
   const [isAllocateDeckPullListPending, setIsAllocateDeckPullListPending] = useState(false)
   const customTagOpSeqRef = useRef<Map<string, number>>(new Map())
+  const [activeTagId, setActiveTagId] = useState<string | null>(null)
+  const deckTags = useDeckTags(id)
   const navigate = useNavigate()
   const client = useApolloClient()
   const { showToast } = useToast()
@@ -273,6 +276,10 @@ export function DeckDetailPage({
       isLoadingMoreDeckCards.current = false
     })
   }, [deckCardsPageInfo?.hasNextPage, deckCardsPageInfo?.endCursor, fetchMoreDeck, id])
+
+  useEffect(() => {
+    if (deckTags.error) showToast(deckTags.error)
+  }, [deckTags.error, showToast])
 
   function readDeckQuery(): DeckQuery | undefined {
     return client.cache.readQuery({ query: DeckDocument, variables: { id } }) ?? undefined
@@ -884,6 +891,19 @@ export function DeckDetailPage({
     })
   }
 
+  function jumpToTag(tagId: string) {
+    if (activeTagId === tagId) {
+      setActiveTagId(null)
+      setHighlightedDeckCardIds(null)
+      return
+    }
+    const matchingIds = deckCards
+      .filter((deckCard) => (deckCard.tagIds ?? []).includes(tagId))
+      .map((deckCard) => deckCard.id)
+    setActiveTagId(tagId)
+    setHighlightedDeckCardIds(new Set(matchingIds))
+  }
+
   function tagSelectedDeckCards(tag: DeckCardTag | null) {
     if (selectedDeckCardIdList.length === 0) return
     setBulkActionError(null)
@@ -1017,6 +1037,14 @@ export function DeckDetailPage({
         deckStats={deckStats}
         deckTags={deck.tags}
         deckTokens={deckTokens}
+        tagManagement={{
+          activeTagId,
+          onJumpToTag: jumpToTag,
+          onCreateTag: deckTags.createTag,
+          onUpdateTag: deckTags.updateTag,
+          onDeleteTag: deckTags.deleteTag,
+          onReorderTags: deckTags.reorderTags,
+        }}
         groupBy={groupBy}
         groupedCards={groupedCards}
         isUpdatingDeckCard={isUpdatingDeckCard}
