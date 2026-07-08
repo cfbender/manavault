@@ -214,6 +214,115 @@ test("tag grouping orders getting, consider cutting, then untagged", () => {
   assert.equal(groups[1].icon, "consider_cutting")
 })
 
+test("custom tag grouping takes precedence and supports multi-membership", () => {
+  const deckTags = [
+    { id: "1", name: "Ramp", color: "#22C55E", position: 0 },
+    { id: "2", name: "Draw", color: "#3B82F6", position: 1 },
+  ]
+
+  const groups = groupDeckCards(
+    [
+      deckCard("sol-ring", { tagIds: ["1"], card: { name: "Sol Ring" } }),
+      deckCard("cultivate", { tagIds: ["1", "2"], card: { name: "Cultivate" } }),
+      deckCard("sun-titan", { tag: "getting", card: { name: "Sun Titan" } }),
+      deckCard("llanowar-elves", { card: { name: "Llanowar Elves" } }),
+    ],
+    "tag",
+    deckTags,
+  )
+
+  assert.deepEqual(
+    groups.map((group) => ({
+      key: group.key,
+      label: group.label,
+      order: group.order,
+      icon: group.icon,
+      cardIds: group.cards.map((card) => card.id),
+      quantity: group.quantity,
+    })),
+    [
+      {
+        key: "tag:1",
+        label: "Ramp",
+        order: 0,
+        icon: { kind: "tagColor", color: "#22C55E" },
+        cardIds: ["cultivate", "sol-ring"],
+        quantity: 2,
+      },
+      {
+        key: "tag:2",
+        label: "Draw",
+        order: 1,
+        icon: { kind: "tagColor", color: "#3B82F6" },
+        cardIds: ["cultivate"],
+        quantity: 1,
+      },
+      {
+        key: "getting",
+        label: "Getting",
+        order: 1000,
+        icon: "getting",
+        cardIds: ["sun-titan"],
+        quantity: 1,
+      },
+      {
+        key: "untagged",
+        label: "Untagged",
+        order: 1002,
+        icon: "none",
+        cardIds: ["llanowar-elves"],
+        quantity: 1,
+      },
+    ],
+  )
+})
+
+test("custom tag on a card overrides its legacy getting/consider_cutting tag", () => {
+  const deckTags = [{ id: "1", name: "Ramp", color: "#22C55E", position: 0 }]
+
+  const groups = groupDeckCards(
+    [
+      deckCard("misprinted-permit", {
+        tagIds: ["1"],
+        tag: "getting",
+        card: { name: "Misprinted Permit" },
+      }),
+    ],
+    "tag",
+    deckTags,
+  )
+
+  assert.deepEqual(
+    groups.map((group) => group.key),
+    ["tag:1"],
+  )
+  assert.equal(
+    groups.find((group) => group.key === "getting"),
+    undefined,
+  )
+})
+
+test("a multi-tagged card contributes its full quantity to every tag group it joins", () => {
+  const deckTags = [
+    { id: "1", name: "Ramp", color: "#22C55E", position: 0 },
+    { id: "2", name: "Draw", color: "#3B82F6", position: 1 },
+  ]
+
+  const groups = groupDeckCards(
+    [deckCard("cultivate", { quantity: 2, tagIds: ["1", "2"], card: { name: "Cultivate" } })],
+    "tag",
+    deckTags,
+  )
+
+  assert.deepEqual(
+    groups.map((group) => ({ key: group.key, quantity: group.quantity })),
+    [
+      { key: "tag:1", quantity: 2 },
+      { key: "tag:2", quantity: 2 },
+    ],
+  )
+})
+
 test("price grouping buckets cards by per-card price", () => {
   const groups = groupDeckCards(
     [
@@ -252,7 +361,7 @@ test("price is offered as a grouping option", () => {
 })
 
 test("tag is offered as a grouping option", () => {
-  assert.ok(DECK_GROUP_OPTIONS.some((option) => option.value === "tag" && option.label === "Tag"))
+  assert.ok(DECK_GROUP_OPTIONS.some((option) => option.value === "tag" && option.label === "Tags"))
 })
 
 test("allocation grouping labels and orders cards by allocation state", () => {

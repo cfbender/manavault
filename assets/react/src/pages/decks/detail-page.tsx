@@ -378,13 +378,15 @@ export function DeckDetailPage({
     [deckCards],
   )
   const groupedCards = useMemo(
-    () => groupDeckCards(stackDeckCards, groupBy),
-    [stackDeckCards, groupBy],
+    () => groupDeckCards(stackDeckCards, groupBy, deck?.tags ?? []),
+    [stackDeckCards, groupBy, deck?.tags],
   )
   const zoneCounts = useMemo(() => countDeckZones(deckCards), [deckCards])
   const selectionDeckCardIds = useMemo(
     () => [
-      ...groupedCards.flatMap((group) => group.cards.map((deckCard) => deckCard.id)),
+      // Custom-tag grouping can place one card in several groups; dedupe so
+      // range selection sees each id once, in first-appearance order.
+      ...new Set(groupedCards.flatMap((group) => group.cards.map((deckCard) => deckCard.id))),
       ...sideboardCards.map((deckCard) => deckCard.id),
       ...maybeboardCards.map((deckCard) => deckCard.id),
     ],

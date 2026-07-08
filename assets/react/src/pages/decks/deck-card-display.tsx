@@ -128,6 +128,16 @@ export function GroupIcon({ icon }: { icon: DeckGroupIcon }) {
       )
     }
 
+    if (icon.kind === "tagColor") {
+      return (
+        <span
+          className="inline-block h-3 w-3 shrink-0 rounded-full ring-1 ring-base-content/15"
+          style={{ backgroundColor: icon.color }}
+          aria-hidden="true"
+        />
+      )
+    }
+
     return <SetSymbol setCode={icon.setCode} />
   }
 

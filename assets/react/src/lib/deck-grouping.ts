@@ -61,6 +61,7 @@ export type DeckGroupIcon =
   | { kind: "rarity"; rarity: string }
   | { kind: "set"; setCode: string | null }
   | { kind: "allocation"; state: string }
+  | { kind: "tagColor"; color: string }
 
 type DeckGroupingPrinting = {
   rarity: string | null
@@ -83,6 +84,7 @@ export type DeckGroupingDeckCard = {
   quantity: number
   zone: string | null
   tag?: string | null
+  tagIds?: string[] | null
   priceCents?: number | null
   allocationStatus?: { state: string | null } | null
   card: DeckGroupingCard | null
@@ -99,6 +101,8 @@ export type DeckGroup<T extends DeckGroupingDeckCard = DeckGroupingDeckCard> = {
   quantity: number
 }
 
+export type DeckGroupingTag = { id: string; name: string; color: string; position: number }
+
 export const DECK_GROUP_OPTIONS: Array<{ label: string; value: DeckGroupBy }> = [
   { label: "Theme", value: "theme" },
   { label: "Category", value: "category" },
@@ -107,8 +111,7 @@ export const DECK_GROUP_OPTIONS: Array<{ label: string; value: DeckGroupBy }> = 
   { label: "Color Identity", value: "colorIdentity" },
   { label: "Mana Value", value: "manaValue" },
   { label: "Rarity", value: "rarity" },
-  { label: "Set", value: "set" },
-  { label: "Tag", value: "tag" },
+  { label: "Tags", value: "tag" },
   { label: "Price", value: "price" },
   { label: "Allocation", value: "allocation" },
   { label: "None", value: "none" },
@@ -200,28 +203,78 @@ const GROUP_VALUE_ICONS: Record<string, DeckGroupIcon> = {
 export function groupDeckCards<T extends DeckGroupingDeckCard>(
   deckCards: T[],
   groupBy: DeckGroupBy,
+  deckTags: DeckGroupingTag[] = [],
 ): DeckGroup<T>[] {
   const groups = new Map<string, DeckGroup<T>>()
 
   for (const deckCard of deckCards) {
-    const descriptor = deckCardGroupDescriptor(deckCard, groupBy)
-    const existing: DeckGroup<T> = groups.get(descriptor.key) || {
-      cards: [],
-      icon: descriptor.icon,
-      key: descriptor.key,
-      label: descriptor.label,
-      order: descriptor.order,
-      quantity: 0,
-    }
+    const descriptors = deckCardGroupDescriptors(deckCard, groupBy, deckTags)
+    for (const descriptor of descriptors) {
+      const existing: DeckGroup<T> = groups.get(descriptor.key) || {
+        cards: [],
+        icon: descriptor.icon,
+        key: descriptor.key,
+        label: descriptor.label,
+        order: descriptor.order,
+        quantity: 0,
+      }
 
-    existing.cards.push(deckCard)
-    existing.quantity += deckCard.quantity
-    groups.set(descriptor.key, existing)
+      existing.cards.push(deckCard)
+      existing.quantity += deckCard.quantity
+      groups.set(descriptor.key, existing)
+    }
   }
 
   return [...groups.values()]
     .map((group) => ({ ...group, cards: group.cards.sort(compareDeckCards) }))
     .sort((left, right) => compareDeckGroups(left, right, groupBy))
+}
+
+// A card can belong to multiple custom-tag groups (many-to-many); every other
+// grouping mode yields exactly one descriptor per card.
+function deckCardGroupDescriptors<T extends DeckGroupingDeckCard>(
+  deckCard: T,
+  groupBy: DeckGroupBy,
+  deckTags: DeckGroupingTag[],
+): Array<Omit<DeckGroup<T>, "cards" | "quantity">> {
+  if (groupBy === "tag") {
+    return customTagDescriptors(deckCard, deckTags)
+  }
+
+  return [deckCardGroupDescriptor(deckCard, groupBy)]
+}
+
+function customTagDescriptors<T extends DeckGroupingDeckCard>(
+  deckCard: T,
+  deckTags: DeckGroupingTag[],
+): Array<Omit<DeckGroup<T>, "cards" | "quantity">> {
+  const tagById = new Map(deckTags.map((tag) => [tag.id, tag]))
+  const assigned = (deckCard.tagIds || [])
+    .map((id) => tagById.get(id))
+    .filter((tag): tag is DeckGroupingTag => tag != null)
+
+  // Custom tags take precedence: a card with any custom tag is grouped by those.
+  if (assigned.length > 0) {
+    return assigned.map((tag) => ({
+      icon: { kind: "tagColor", color: tag.color },
+      key: `tag:${tag.id}`,
+      label: tag.name,
+      order: tag.position,
+    }))
+  }
+
+  // Fall back to the legacy getting/consider_cutting axis, then untagged.
+  if (deckCard.tag === "getting") {
+    return [{ icon: "getting", key: "getting", label: "Getting", order: 1000 }]
+  }
+
+  if (deckCard.tag === "consider_cutting") {
+    return [
+      { icon: "consider_cutting", key: "consider_cutting", label: "Consider Cutting", order: 1001 },
+    ]
+  }
+
+  return [{ icon: "none", key: "untagged", label: "Untagged", order: 1002 }]
 }
 
 function compareDeckGroups<T extends DeckGroupingDeckCard>(
@@ -327,23 +380,6 @@ function deckCardGroupDescriptor<T extends DeckGroupingDeckCard>(
       label: printing?.setName || key.toUpperCase(),
       order: 0,
     }
-  }
-
-  if (groupBy === "tag") {
-    if (deckCard.tag === "getting") {
-      return { icon: "getting", key: "getting", label: "Getting", order: 0 }
-    }
-
-    if (deckCard.tag === "consider_cutting") {
-      return {
-        icon: "consider_cutting",
-        key: "consider_cutting",
-        label: "Consider Cutting",
-        order: 1,
-      }
-    }
-
-    return { icon: "none", key: "untagged", label: "Untagged", order: 99 }
   }
 
   if (groupBy === "price") {
