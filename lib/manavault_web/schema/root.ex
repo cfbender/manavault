@@ -97,6 +97,10 @@ defmodule ManavaultWeb.Schema do
       resolve(&CatalogResolvers.collection_auto_sort_rules/3)
     end
 
+    field :default_deck_tags, non_null(list_of(non_null(:default_deck_tag))) do
+      resolve(&CatalogResolvers.default_deck_tags/3)
+    end
+
     field :location, :location do
       arg(:id, non_null(:id))
       resolve(&CatalogResolvers.location/3)
@@ -703,6 +707,18 @@ defmodule ManavaultWeb.Schema do
 
       resolve(fn parent, args, resolution ->
         payload(parent, args, resolution, &CatalogResolvers.reorder_deck_tags/3, :tags)
+      end)
+    end
+
+    payload field :replace_default_deck_tags do
+      arg(:tags, non_null(list_of(non_null(:default_deck_tag_input))))
+
+      output do
+        field :tags, non_null(list_of(non_null(:default_deck_tag)))
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &CatalogResolvers.replace_default_deck_tags/3, :tags)
       end)
     end
 

@@ -26,6 +26,7 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   defdelegate collection_export_text(parent, args, resolution), to: QueryResolvers
   defdelegate locations(parent, args, resolution), to: QueryResolvers
   defdelegate collection_auto_sort_rules(parent, args, resolution), to: QueryResolvers
+  defdelegate default_deck_tags(parent, args, resolution), to: QueryResolvers
   defdelegate location(parent, args, resolution), to: QueryResolvers
   defdelegate decks(parent, args, resolution), to: QueryResolvers
   defdelegate deck(parent, args, resolution), to: QueryResolvers
@@ -66,6 +67,7 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   defdelegate update_deck_tag(parent, args, resolution), to: MutationResolvers
   defdelegate delete_deck_tag(parent, args, resolution), to: MutationResolvers
   defdelegate reorder_deck_tags(parent, args, resolution), to: MutationResolvers
+  defdelegate replace_default_deck_tags(parent, args, resolution), to: MutationResolvers
   defdelegate assign_deck_card_tag(parent, args, resolution), to: MutationResolvers
   defdelegate unassign_deck_card_tag(parent, args, resolution), to: MutationResolvers
   defdelegate allocate_deck_card_item(parent, args, resolution), to: MutationResolvers

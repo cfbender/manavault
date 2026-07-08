@@ -2,9 +2,10 @@ import { graphql } from "../../gql"
 import type {
   CollectionAutoSortRuleInput,
   CollectionAutoSortSettingsQuery,
+  DefaultDeckTagInput,
 } from "../../gql/graphql"
 
-export type { CollectionAutoSortRuleInput }
+export type { CollectionAutoSortRuleInput, DefaultDeckTagInput }
 
 export const BackupSettingsDocument = graphql(`
   query BackupSettings {
@@ -116,6 +117,32 @@ export const UpdateCollectionAutoSortRulesDocument = graphql(`
         setCodes
         releaseDateOperator
         releaseDate
+      }
+    }
+  }
+`)
+
+export const DefaultDeckTagsDocument = graphql(`
+  query DefaultDeckTags {
+    defaultDeckTags {
+      id
+      name
+      color
+      targetCount
+      position
+    }
+  }
+`)
+
+export const ReplaceDefaultDeckTagsDocument = graphql(`
+  mutation ReplaceDefaultDeckTags($tags: [DefaultDeckTagInput!]!) {
+    replaceDefaultDeckTags(tags: $tags) {
+      tags {
+        id
+        name
+        color
+        targetCount
+        position
       }
     }
   }

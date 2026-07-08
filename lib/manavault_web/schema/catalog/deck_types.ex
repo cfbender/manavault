@@ -47,6 +47,14 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :card_count, non_null(:integer)
   end
 
+  object :default_deck_tag do
+    field :id, non_null(:id)
+    field :name, non_null(:string)
+    field :color, non_null(:string)
+    field :target_count, :integer
+    field :position, non_null(:integer)
+  end
+
   node object(:deck) do
     field :name, non_null(:string)
     field :format, non_null(:string)
@@ -339,6 +347,12 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
   input_object :deck_tag_input do
     field :name, non_null(:string)
     field :color, :string
+    field :target_count, :integer
+  end
+
+  input_object :default_deck_tag_input do
+    field :name, non_null(:string)
+    field :color, non_null(:string)
     field :target_count, :integer
   end
 end

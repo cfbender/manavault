@@ -7,14 +7,17 @@ import { pluralize, present } from "../../lib/utils"
 import { AutoSortSummaryDialog } from "../collection/auto-sort-summary-dialog"
 import { AutoSortCollectionDocument } from "../collection/documents"
 import type { AutoSortCollectionResult } from "../collection/types"
-import { CollectionAutoSortSection } from "./collection-auto-sort-section"
 import { BackupSettingsForm } from "./backup-settings-form"
+import { CollectionAutoSortSection } from "./collection-auto-sort-section"
+import { DefaultDeckTagsSection } from "./default-deck-tags-section"
 import {
   BackupSettingsDocument,
   CloudBackupsDocument,
   CollectionAutoSortSettingsDocument,
+  DefaultDeckTagsDocument,
   ReloadScryfallAssetsDocument,
   ReloadScryfallCatalogDocument,
+  ReplaceDefaultDeckTagsDocument,
   RunCloudBackupDocument,
   StageCloudRestoreDocument,
   UpdateBackupSettingsDocument,
@@ -26,6 +29,7 @@ import {
   type CollectionAutoSortRuleInput,
   type CollectionAutoSortSettingsLocation,
   type CollectionAutoSortSettingsRule,
+  type DefaultDeckTagInput,
   type FormState,
 } from "./data"
 import { NativeAppSection } from "./native-app-section"
@@ -72,6 +76,14 @@ export function SettingsPage() {
     [autoSortQuery.data?.collectionAutoSortRules],
   )
 
+  const defaultTagsQuery = useQuery(DefaultDeckTagsDocument, {
+    fetchPolicy: "cache-and-network",
+  })
+  const defaultTags = useMemo(
+    () => defaultTagsQuery.data?.defaultDeckTags ?? [],
+    [defaultTagsQuery.data?.defaultDeckTags],
+  )
+
   const backups = shouldLoadBackups ? (backupsQuery.data?.cloudBackups ?? []) : []
 
   useEffect(() => {
@@ -106,6 +118,7 @@ export function SettingsPage() {
     UpdateCollectionAutoSortRulesDocument,
   )
   const [autoSortCollection, autoSortPreviewMutation] = useMutation(AutoSortCollectionDocument)
+  const [replaceDefaultDeckTags, defaultTagsMutation] = useMutation(ReplaceDefaultDeckTagsDocument)
 
   function submitSettings(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -269,6 +282,24 @@ export function SettingsPage() {
     setError(message)
   }
 
+  function saveDefaultDeckTags(tags: DefaultDeckTagInput[]) {
+    void replaceDefaultDeckTags({
+      variables: { tags },
+      onCompleted: (data) => {
+        const nextTags = data.replaceDefaultDeckTags?.tags
+
+        showToast("Default tags saved.")
+        if (nextTags) {
+          client.writeQuery({
+            query: DefaultDeckTagsDocument,
+            data: { defaultDeckTags: nextTags },
+          })
+        }
+      },
+      onError: (err) => showToast(errorMessage(err)),
+    })
+  }
+
   return (
     <div className="mx-auto max-w-5xl space-y-8 px-4 sm:px-6 lg:px-8">
       <PageHeader
@@ -282,6 +313,9 @@ export function SettingsPage() {
         <Alert tone="error">{errorMessage(backupsQuery.error)}</Alert>
       ) : null}
       {autoSortQuery.error ? <Alert tone="error">{errorMessage(autoSortQuery.error)}</Alert> : null}
+      {defaultTagsQuery.error ? (
+        <Alert tone="error">{errorMessage(defaultTagsQuery.error)}</Alert>
+      ) : null}
       {error ? <Alert tone="error">{error}</Alert> : null}
       {message ? <Alert tone="success">{message}</Alert> : null}
 
@@ -307,6 +341,13 @@ export function SettingsPage() {
         onPreview={previewAutoSortRules}
         onSave={saveAutoSortRules}
         onValidationError={showAutoSortValidationError}
+      />
+
+      <DefaultDeckTagsSection
+        tags={defaultTags}
+        isLoading={defaultTagsQuery.loading}
+        isSaving={defaultTagsMutation.loading}
+        onSave={saveDefaultDeckTags}
       />
 
       <AutoSortSummaryDialog

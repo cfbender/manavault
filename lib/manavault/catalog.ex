@@ -112,6 +112,9 @@ defmodule Manavault.Catalog do
   defdelegate unassign_deck_card_tag(deck_card_id, deck_tag_id), to: Cached
   defdelegate put_deck_card_tag_ids(deck_cards), to: Cached
 
+  defdelegate list_default_deck_tags(), to: Cached
+  defdelegate replace_default_deck_tags(entries), to: Cached
+
   defdelegate allocate_collection_item_to_deck_card(
                 deck_card_id,
                 collection_item_id,

@@ -124,6 +124,10 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
     {:ok, Catalog.list_collection_auto_sort_rules()}
   end
 
+  def default_deck_tags(_parent, _args, _resolution) do
+    {:ok, Catalog.list_default_deck_tags()}
+  end
+
   def location(_parent, %{id: id}, resolution) do
     with {:ok, id} <- RelayHelpers.node_id(id, :location, resolution) do
       location_by_id(id)

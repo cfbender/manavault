@@ -2,7 +2,7 @@ defmodule Manavault.Catalog.Decks.Records do
   @moduledoc false
 
   alias Manavault.Catalog.Deck
-  alias Manavault.Catalog.Decks.{Cards, Preloads, Queries}
+  alias Manavault.Catalog.Decks.{Cards, DefaultTags, Preloads, Queries}
   alias Manavault.Repo
 
   @reserving_deck_statuses ["active"]
@@ -14,9 +14,18 @@ defmodule Manavault.Catalog.Decks.Records do
   end
 
   def create_deck(attrs) when is_map(attrs) do
-    %Deck{}
-    |> Deck.changeset(attrs)
-    |> Repo.insert()
+    Repo.transact(fn ->
+      case %Deck{} |> Deck.changeset(attrs) |> Repo.insert() do
+        {:ok, deck} ->
+          case DefaultTags.seed_deck_default_tags(deck) do
+            {:ok, _deck_tags} -> {:ok, deck}
+            {:error, reason} -> Repo.rollback(reason)
+          end
+
+        {:error, changeset} ->
+          Repo.rollback(changeset)
+      end
+    end)
   end
 
   def update_deck(%Deck{} = deck, attrs) when is_map(attrs) do

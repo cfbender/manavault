@@ -273,6 +273,15 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
     end
   end
 
+  def replace_default_deck_tags(_parent, %{tags: tags}, _resolution) do
+    entries = Enum.map(tags, &default_deck_tag_entry/1)
+
+    case Catalog.replace_default_deck_tags(entries) do
+      {:ok, tags} -> {:ok, tags}
+      {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+    end
+  end
+
   def assign_deck_card_tag(_parent, %{deck_card_id: deck_card_id, tag_id: tag_id}, resolution) do
     with {:ok, deck_card_id} <- RelayHelpers.node_id(deck_card_id, :deck_card, resolution),
          {:ok, tag_id} <- parse_raw_id(tag_id) do
@@ -305,6 +314,10 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
       %DeckTag{} = deck_tag -> {:ok, deck_tag}
       nil -> {:error, "Deck tag was not found."}
     end
+  end
+
+  defp default_deck_tag_entry(%{name: name, color: color} = input) do
+    %{name: name, color: color, target_count: Map.get(input, :target_count)}
   end
 
   defp parse_raw_ids(ids) do

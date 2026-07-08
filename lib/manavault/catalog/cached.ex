@@ -511,6 +511,9 @@ defmodule Manavault.Catalog.Cached do
     |> invalidate_on_ok(&Cache.invalidate_decks/0)
   end
 
+  defdelegate list_default_deck_tags(), to: Decks
+  defdelegate replace_default_deck_tags(entries), to: Decks
+
   def allocate_collection_item_to_deck_card(deck_card_id, collection_item_id, quantity \\ 1) do
     deck_card_id
     |> Decks.allocate_collection_item_to_deck_card(collection_item_id, quantity)

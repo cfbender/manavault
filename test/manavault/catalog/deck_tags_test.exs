@@ -13,6 +13,10 @@ defmodule Manavault.Catalog.DeckTagsTest do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
 
+    # Newly created decks auto-seed the global default deck tags; clear them so
+    # these tests can assert exact tag lists/ordering on a tag-less deck.
+    assert {:ok, []} = Catalog.replace_default_deck_tags([])
+
     :ok
   end
 
@@ -218,6 +222,32 @@ defmodule Manavault.Catalog.DeckTagsTest do
 
       assert [%DeckCard{tag_ids: tag_ids}] = Catalog.put_deck_card_tag_ids([reloaded_card])
       refute to_string(tag.id) in tag_ids
+    end
+  end
+
+  describe "create_deck/1 default tag seeding" do
+    test "copies the current global default deck tags into the new deck's tags" do
+      assert {:ok, _defaults} =
+               Catalog.replace_default_deck_tags([
+                 %{name: "Ramp", color: "#22c55e"},
+                 %{name: "Draw", color: "#3b82f6"}
+               ])
+
+      deck = create_deck!("Powered")
+
+      assert Catalog.list_deck_tags(deck) |> Enum.map(&{&1.name, &1.color, &1.position}) == [
+               {"Ramp", "#22c55e", 0},
+               {"Draw", "#3b82f6", 1}
+             ]
+    end
+
+    test "with no global defaults, a new deck starts tag-less and defaults are not lazily reseeded" do
+      assert {:ok, []} = Catalog.replace_default_deck_tags([])
+
+      deck = create_deck!("Powered")
+
+      assert Catalog.list_deck_tags(deck) == []
+      assert Catalog.list_default_deck_tags() == []
     end
   end
 end
