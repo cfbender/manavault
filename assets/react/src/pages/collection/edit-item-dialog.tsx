@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from "@apollo/client/react"
+import { Trash2 } from "lucide-react"
 import type * as React from "react"
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "../../components/ui/button"
@@ -29,10 +30,12 @@ export function EditCollectionItemDialog({
   item,
   onDone,
   onOpenChange,
+  onDelete,
 }: {
   item: CollectionItem | null
   onDone: () => void
   onOpenChange: (open: boolean) => void
+  onDelete?: (item: CollectionItem) => void
 }) {
   const { showToast } = useToast()
   const [quantity, setQuantity] = useState(1)
@@ -221,7 +224,22 @@ export function EditCollectionItemDialog({
               {error}
             </p>
           ) : null}
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {onDelete && item ? (
+              <Button
+                type="button"
+                variant="destructive"
+                className="mr-auto"
+                onClick={() => {
+                  onOpenChange(false)
+                  onDelete(item)
+                }}
+                disabled={updateItem.loading}
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </Button>
+            ) : null}
             <Button type="button" variant="ghost" onClick={close} disabled={updateItem.loading}>
               Cancel
             </Button>

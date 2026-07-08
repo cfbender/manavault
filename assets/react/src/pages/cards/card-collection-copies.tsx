@@ -3,7 +3,7 @@ import { Edit3 } from "lucide-react"
 import { useState } from "react"
 import { Button } from "../../components/ui/button"
 import { present, titleize } from "../../lib/utils"
-import { EditCollectionItemDialog, type CollectionItem } from "../collection"
+import { DeleteCollectionItemDialog, EditCollectionItemDialog, type CollectionItem } from "../collection"
 import { CardCollectionItemsDocument, type CardCollectionItem } from "./data"
 
 type NodeConnection<T> =
@@ -41,6 +41,7 @@ function itemSummaryParts(item: CardCollectionItem) {
 export function CardCollectionCopiesPanel({ cardId }: { cardId: string }) {
   const client = useApolloClient()
   const [editItem, setEditItem] = useState<CollectionItem | null>(null)
+  const [deleteItem, setDeleteItem] = useState<CollectionItem | null>(null)
   const { data, loading } = useQuery(CardCollectionItemsDocument, {
     variables: { cardId },
     fetchPolicy: "cache-and-network",
@@ -122,7 +123,13 @@ export function CardCollectionCopiesPanel({ cardId }: { cardId: string }) {
       <EditCollectionItemDialog
         item={editItem}
         onDone={handleEdited}
+        onDelete={setDeleteItem}
         onOpenChange={(open) => !open && setEditItem(null)}
+      />
+      <DeleteCollectionItemDialog
+        item={deleteItem}
+        onDone={handleEdited}
+        onOpenChange={(open) => !open && setDeleteItem(null)}
       />
     </section>
   )
