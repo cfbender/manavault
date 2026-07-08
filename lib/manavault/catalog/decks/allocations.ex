@@ -100,7 +100,7 @@ defmodule Manavault.Catalog.Decks.Allocations do
             end
           end)
 
-        {:ok, deck_card}
+        {:ok, Repo.reload!(deck_card)}
       end
     end)
   end
@@ -139,6 +139,7 @@ defmodule Manavault.Catalog.Decks.Allocations do
             deck_cards_by_key
             |> Map.values()
             |> Enum.sort_by(& &1.id)
+            |> Repo.reload!()
             |> Repo.preload([:card, :preferred_printing], force: true)
 
           {:ok, deck_cards}
@@ -628,8 +629,12 @@ defmodule Manavault.Catalog.Decks.Allocations do
     case %DeckAllocation{}
          |> DeckAllocation.changeset(attrs)
          |> Repo.insert() do
-      {:ok, allocation} -> allocation
-      {:error, changeset} -> Repo.rollback(changeset)
+      {:ok, allocation} ->
+        clear_getting_tag!(deck_card)
+        allocation
+
+      {:error, changeset} ->
+        Repo.rollback(changeset)
     end
   end
 
@@ -741,10 +746,23 @@ defmodule Manavault.Catalog.Decks.Allocations do
       end
 
     case result do
-      {:ok, allocation} -> allocation
+      {:ok, allocation} ->
+        clear_getting_tag!(deck_card)
+        allocation
+
+      {:error, changeset} ->
+        Repo.rollback(changeset)
+    end
+  end
+
+  defp clear_getting_tag!(%DeckCard{tag: "getting"} = deck_card) do
+    case deck_card |> DeckCard.changeset(%{"tag" => nil}) |> Repo.update() do
+      {:ok, deck_card} -> deck_card
       {:error, changeset} -> Repo.rollback(changeset)
     end
   end
+
+  defp clear_getting_tag!(%DeckCard{} = deck_card), do: deck_card
 
   defp validate_collection_item_matches_deck_card(
          %CollectionItem{} = item,

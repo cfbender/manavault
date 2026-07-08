@@ -574,4 +574,105 @@ defmodule Manavault.Catalog.DeckAllocationTest do
 
     assert [%{quantity: 1}] = Catalog.get_deck!(deck.id).deck_cards
   end
+
+  test "allocating a physical copy clears the deck card's getting tag" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} =
+             Catalog.import_cards([@black_lotus])
+
+    assert {:ok, item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Getting", "format" => "vintage"})
+
+    assert {:ok, lotus} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Black Lotus",
+               "preferred_printing_id" => "scryfall-printing-1"
+             })
+
+    assert {:ok, [%{tag: "getting"}]} = Catalog.update_deck_cards_tag([lotus.id], "getting")
+
+    assert {:ok, _allocation} =
+             Catalog.allocate_collection_item_to_deck_card(lotus.id, item.id)
+
+    assert %{tag: nil} = Repo.reload!(lotus)
+  end
+
+  test "bulk add clears the getting tag in the DB and returned payload" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} =
+             Catalog.import_cards([@black_lotus])
+
+    assert {:ok, item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Bulk Getting", "format" => "vintage"})
+
+    assert {:ok, lotus} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Black Lotus",
+               "preferred_printing_id" => "scryfall-printing-1"
+             })
+
+    assert {:ok, [%{tag: "getting"}]} = Catalog.update_deck_cards_tag([lotus.id], "getting")
+
+    assert {:ok, [%{tag: nil}]} =
+             Catalog.bulk_add_collection_items_to_deck(deck, [item.id])
+
+    assert %{tag: nil} = Repo.reload!(lotus)
+  end
+
+  test "switching preferred printing clears the getting tag in the returned payload" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @black_lotus_beta])
+
+    assert {:ok, alpha_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    assert {:ok, _beta_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-3",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Switch Getting", "format" => "vintage"})
+
+    assert {:ok, lotus} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Black Lotus",
+               "preferred_printing_id" => "scryfall-printing-1"
+             })
+
+    assert {:ok, _allocation} =
+             Catalog.allocate_collection_item_to_deck_card(lotus.id, alpha_item.id)
+
+    lotus = Repo.reload!(lotus)
+    assert {:ok, [%{tag: "getting"}]} = Catalog.update_deck_cards_tag([lotus.id], "getting")
+    lotus = Repo.reload!(lotus)
+
+    assert {:ok, %{tag: nil}} =
+             Catalog.update_deck_card(lotus, %{"preferred_printing_id" => "scryfall-printing-3"})
+
+    assert %{tag: nil} = Repo.reload!(lotus)
+  end
 end
