@@ -11,7 +11,14 @@ import {
   Trash2,
   XCircle,
 } from "lucide-react"
-import { useEffect, useRef, useState, type FocusEvent, type PointerEvent } from "react"
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FocusEvent,
+  type MouseEvent,
+  type PointerEvent,
+} from "react"
 
 import { CardTileOverlayButton } from "../../components/card-tile"
 import { useMobileHoverReveal } from "../../lib/mobile-hover"
@@ -27,7 +34,7 @@ import {
 import { cardImageUrl } from "./deck-card-model"
 import { GameChangerBadge } from "./deck-card-display"
 import { deckCardTag, nextDeckCardTag } from "./deck-card-tags"
-import { DeckCardTagRadial } from "./deck-card-tag-radial"
+import { DeckCardTagRadial, type DeckCardTagRadialHandle } from "./deck-card-tag-radial"
 import {
   DECK_STACK_ACTION_MENU_CLASS_NAME,
   deckStackActionMenuDirection,
@@ -37,6 +44,8 @@ import {
 } from "./deck-stack-interactions"
 import type { DeckCardEntry, DeckCardTag, DeckCustomTag } from "./deck-types"
 import { DECK_CARD_TAGS } from "./deck-types"
+
+const TAG_DRAG_THRESHOLD_PX = 8
 
 export function DeckStackCard({
   assignedTagIds,
@@ -99,7 +108,16 @@ export function DeckStackCard({
 }) {
   const [hasFocusWithin, setHasFocusWithin] = useState(false)
   const [isTagRadialOpen, setIsTagRadialOpen] = useState(false)
+  const [highlightedTagId, setHighlightedTagId] = useState<string | null>(null)
   const actionMenuRef = useRef<HTMLDivElement>(null)
+  const tagRadialRef = useRef<DeckCardTagRadialHandle>(null)
+  const tagDragRef = useRef<{
+    pointerId: number
+    startX: number
+    startY: number
+    isDrag: boolean
+  } | null>(null)
+  const tagPointerHandledRef = useRef(false)
   const mobileHover = useMobileHoverReveal<HTMLButtonElement>({
     clearOnOutsidePointerDown: false,
     isRevealed: isActive,
@@ -165,6 +183,80 @@ export function DeckStackCard({
     if (shouldRaiseDeckStackCardForActionMenu({ isActive })) {
       onTouchReveal()
     }
+  }
+
+  function handleTagClick(event: MouseEvent<HTMLButtonElement>) {
+    event.stopPropagation()
+    if (tagPointerHandledRef.current) {
+      tagPointerHandledRef.current = false
+      return
+    }
+    setIsTagRadialOpen((open) => !open)
+  }
+
+  function handleTagPointerDown(event: PointerEvent<HTMLButtonElement>) {
+    event.stopPropagation()
+    tagPointerHandledRef.current = true
+    setIsTagRadialOpen(true)
+    tagDragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      isDrag: false,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  function handleTagPointerMove(event: PointerEvent<HTMLButtonElement>) {
+    const drag = tagDragRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+
+    if (!drag.isDrag) {
+      const dx = event.clientX - drag.startX
+      const dy = event.clientY - drag.startY
+      if (Math.hypot(dx, dy) < TAG_DRAG_THRESHOLD_PX) return
+      drag.isDrag = true
+    }
+
+    setHighlightedTagId(tagRadialRef.current?.hitTest(event.clientX, event.clientY) ?? null)
+  }
+
+  function handleTagPointerUp(event: PointerEvent<HTMLButtonElement>) {
+    const drag = tagDragRef.current
+    if (drag?.pointerId === event.pointerId) {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      }
+
+      if (drag.isDrag) {
+        const tagId = tagRadialRef.current?.hitTest(event.clientX, event.clientY) ?? null
+        if (tagId) {
+          if (assignedTagIds.includes(tagId)) {
+            onUnassignTag(deckCard, tagId)
+          } else {
+            onAssignTag(deckCard, tagId)
+          }
+          setIsTagRadialOpen(false)
+        }
+      }
+    }
+
+    tagDragRef.current = null
+    setHighlightedTagId(null)
+  }
+
+  function handleTagPointerCancel(event: PointerEvent<HTMLButtonElement>) {
+    const drag = tagDragRef.current
+    if (
+      drag?.pointerId === event.pointerId &&
+      event.currentTarget.hasPointerCapture(event.pointerId)
+    ) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+
+    tagDragRef.current = null
+    tagPointerHandledRef.current = false
+    setHighlightedTagId(null)
   }
 
   return (
@@ -374,18 +466,14 @@ export function DeckStackCard({
             >
               <button
                 type="button"
-                draggable
-                className="relative flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary-content/30 bg-primary/85 text-sm font-black uppercase tracking-wide text-primary-content shadow-xl backdrop-blur transition hover:bg-primary"
+                className="relative flex h-16 w-16 touch-none items-center justify-center rounded-full border-2 border-primary-content/30 bg-primary/85 text-sm font-black uppercase tracking-wide text-primary-content shadow-xl backdrop-blur transition hover:bg-primary"
                 aria-label={`Tag ${name}`}
                 tabIndex={isInteractive ? 0 : -1}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  setIsTagRadialOpen((open) => !open)
-                }}
-                onDragStart={(event) => {
-                  event.dataTransfer.setData("application/x-manavault-tag-drag", deckCard.id)
-                  setIsTagRadialOpen(true)
-                }}
+                onClick={handleTagClick}
+                onPointerDown={handleTagPointerDown}
+                onPointerMove={handleTagPointerMove}
+                onPointerUp={handleTagPointerUp}
+                onPointerCancel={handleTagPointerCancel}
               >
                 TAG
                 {assignedTagIds.length > 0 ? (
@@ -398,9 +486,11 @@ export function DeckStackCard({
                 ) : null}
               </button>
               <DeckCardTagRadial
+                ref={tagRadialRef}
                 open={isTagRadialOpen}
                 tags={deckTags}
                 assignedTagIds={assignedTagIds}
+                highlightedTagId={highlightedTagId}
                 onToggleTag={(tagId) =>
                   assignedTagIds.includes(tagId)
                     ? onUnassignTag(deckCard, tagId)

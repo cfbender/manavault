@@ -559,9 +559,9 @@ export function DeckDetailContent({
   )
 
   return (
-    <div className="lg:grid lg:grid-cols-[17rem_minmax(0,1fr)] lg:items-start lg:gap-6">
+    <div className="lg:grid lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start lg:gap-6">
       {shareMode ? null : (
-        <div className="mb-6 lg:sticky lg:top-4 lg:mb-0 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+        <div className="hidden lg:sticky lg:top-4 lg:block lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
           <DeckTagsSidebar
             tags={deckTags}
             activeTagId={tagManagement.activeTagId}
@@ -571,6 +571,7 @@ export function DeckDetailContent({
             onDeleteTag={tagManagement.onDeleteTag}
             onReorderTags={tagManagement.onReorderTags}
             disabled={!canEditDecklist}
+            variant="sidebar"
           />
         </div>
       )}
@@ -623,6 +624,23 @@ export function DeckDetailContent({
             </ShareModeHidden>
           }
         />
+
+        {shareMode ? null : (
+          <div className="lg:hidden">
+            <DeckTagsSidebar
+              tags={deckTags}
+              activeTagId={tagManagement.activeTagId}
+              onJumpToTag={tagManagement.onJumpToTag}
+              onCreateTag={tagManagement.onCreateTag}
+              onUpdateTag={tagManagement.onUpdateTag}
+              onDeleteTag={tagManagement.onDeleteTag}
+              onReorderTags={tagManagement.onReorderTags}
+              disabled={!canEditDecklist}
+              variant="panel"
+              storageKey="manavault.deckTags.mobilePanelCollapsed"
+            />
+          </div>
+        )}
 
         {!canEditDecklist ? (
           <div className="rounded-box border border-base-300 bg-base-200/60 p-4 text-sm text-base-content/75">

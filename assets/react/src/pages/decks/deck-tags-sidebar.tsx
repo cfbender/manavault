@@ -2,8 +2,10 @@ import {
   ArrowRight,
   Check,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
   Pencil,
+  PanelLeftOpen,
   Plus,
   Tag,
   Trash2,
@@ -12,6 +14,7 @@ import {
 import { useState, type FormEvent } from "react"
 
 import { Input } from "../../components/ui/input"
+import { useLocalStorageState } from "../../lib/use-local-storage"
 import { cn } from "../../lib/utils"
 import { DECK_TAG_COLORS } from "./deck-types"
 import type { DeckCustomTag } from "./deck-types"
@@ -29,6 +32,8 @@ export function DeckTagsSidebar({
   onDeleteTag,
   onReorderTags,
   disabled = false,
+  variant = "sidebar",
+  storageKey = "manavault.deckTags.sidebarCollapsed",
 }: {
   tags: DeckCustomTag[]
   activeTagId: string | null
@@ -38,9 +43,14 @@ export function DeckTagsSidebar({
   onDeleteTag: (id: string) => void
   onReorderTags: (tagIds: string[]) => void
   disabled?: boolean
+  variant?: "sidebar" | "panel"
+  storageKey?: string
 }) {
   const [editing, setEditing] = useState<EditingState>({ kind: "closed" })
+  const [collapsed, setCollapsed] = useLocalStorageState<boolean>(storageKey, true)
   const sortedTags = [...tags].sort((a, b) => a.position - b.position)
+  const headerLabel = "Tags"
+  const headingId = variant === "panel" ? "deck-tags-heading-panel" : "deck-tags-heading-sidebar"
 
   function handleMove(tagId: string, direction: "up" | "down") {
     const currentIndex = sortedTags.findIndex((tag) => tag.id === tagId)
@@ -65,80 +75,148 @@ export function DeckTagsSidebar({
     setEditing({ kind: "closed" })
   }
 
-  return (
-    <aside
-      className="flex flex-col gap-3 rounded-box border border-base-300 bg-base-100 p-3"
-      aria-labelledby="deck-tags-heading"
-    >
-      <div className="flex items-center gap-2 px-1">
-        <Tag className="h-4 w-4 shrink-0 text-base-content/60" aria-hidden="true" />
-        <h2
-          id="deck-tags-heading"
-          className="text-sm font-bold uppercase tracking-wide text-base-content/70"
-        >
-          DECK TAGS
-        </h2>
-      </div>
-
-      {sortedTags.length === 0 ? (
-        <p className="px-1 text-xs font-semibold text-base-content/55">
-          No custom tags yet. Add one to group and track cards toward a target.
-        </p>
-      ) : null}
-
-      <ul className="grid gap-1">
-        {sortedTags.map((tag, index) =>
-          editing.kind === "edit" && editing.tagId === tag.id ? (
-            <li key={tag.id}>
-              <DeckTagEditor
-                mode="edit"
-                initialName={tag.name}
-                initialColor={tag.color}
-                initialTargetCount={tag.targetCount ?? null}
-                onSave={(input) => handleUpdate(tag.id, input)}
-                onCancel={() => setEditing({ kind: "closed" })}
-              />
-            </li>
-          ) : (
-            <li key={tag.id}>
-              <DeckTagRow
-                tag={tag}
-                isActive={activeTagId === tag.id}
-                disabled={disabled}
-                isFirst={index === 0}
-                isLast={index === sortedTags.length - 1}
-                onJump={() => onJumpToTag(tag.id)}
-                onEdit={() => setEditing({ kind: "edit", tagId: tag.id })}
-                onDelete={() => onDeleteTag(tag.id)}
-                onMoveUp={() => handleMove(tag.id, "up")}
-                onMoveDown={() => handleMove(tag.id, "down")}
-              />
-            </li>
-          ),
-        )}
-      </ul>
-
-      {editing.kind === "create" ? (
-        <DeckTagEditor
-          mode="create"
-          initialName=""
-          initialColor={DECK_TAG_COLORS[0]}
-          initialTargetCount={null}
-          onSave={handleCreate}
-          onCancel={() => setEditing({ kind: "closed" })}
-        />
-      ) : null}
-
-      {!disabled && editing.kind !== "create" ? (
+  // Collapsed desktop sidebar: a thin vertical rail (Blueprint-style) that keeps
+  // a visible sidebar presence — expand affordance, rotated label, tag icon.
+  if (variant === "sidebar" && collapsed) {
+    return (
+      <aside
+        className="flex w-10 flex-col items-center gap-3 rounded-box border border-base-300 bg-base-100 py-2"
+        aria-labelledby={headingId}
+      >
         <button
           type="button"
-          className="btn btn-outline btn-sm justify-center gap-1.5"
-          onClick={() => setEditing({ kind: "create" })}
+          className="btn btn-ghost btn-xs btn-square text-base-content/60"
+          aria-expanded={false}
+          aria-label="Expand tags sidebar"
+          onClick={() => setCollapsed(false)}
         >
-          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-          ADD TAG
+          <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
         </button>
-      ) : null}
+        <button
+          type="button"
+          className="flex flex-1 items-center justify-center"
+          aria-label="Expand tags sidebar"
+          onClick={() => setCollapsed(false)}
+        >
+          <span
+            id={headingId}
+            className="text-xs font-bold uppercase tracking-[0.2em] text-base-content/60 [writing-mode:vertical-lr]"
+          >
+            {headerLabel}
+          </span>
+        </button>
+        <span className="relative flex items-center justify-center">
+          <Tag className="h-4 w-4 text-primary/80" aria-hidden="true" />
+          {sortedTags.length ? (
+            <span className="absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-base-200 px-1 font-mono text-[0.6rem] font-bold text-base-content/60">
+              {sortedTags.length}
+            </span>
+          ) : null}
+        </span>
+      </aside>
+    )
+  }
+
+  const containerClassName =
+    variant === "panel"
+      ? collapsed
+        ? ""
+        : "flex flex-col gap-3 rounded-box border border-base-300 bg-base-100 p-3"
+      : "flex w-64 flex-col gap-3 rounded-box border border-base-300 bg-base-100 p-3"
+
+  return (
+    <aside className={containerClassName} aria-labelledby={headingId}>
+      <button
+        type="button"
+        className={cn(
+          "flex w-full items-center gap-2 rounded-btn px-1.5 py-1 text-left transition-colors hover:bg-base-200/70",
+          variant === "panel" && "rounded-full border border-base-300 bg-base-200/60 px-3 py-2",
+        )}
+        aria-expanded={!collapsed}
+        onClick={() => setCollapsed((current) => !current)}
+      >
+        <Tag className="h-4 w-4 shrink-0 text-base-content/60" aria-hidden="true" />
+        <h2
+          id={headingId}
+          className="min-w-0 flex-1 text-sm font-bold uppercase tracking-wide text-base-content/70"
+        >
+          {headerLabel}
+        </h2>
+        {collapsed && sortedTags.length ? (
+          <span className="shrink-0 rounded-full bg-base-200 px-1.5 py-0.5 font-mono text-xs font-bold text-base-content/60">
+            {sortedTags.length}
+          </span>
+        ) : null}
+        {collapsed ? (
+          <ChevronRight className="h-4 w-4 shrink-0 text-base-content/50" aria-hidden="true" />
+        ) : (
+          <ChevronDown className="h-4 w-4 shrink-0 text-base-content/50" aria-hidden="true" />
+        )}
+      </button>
+
+      {collapsed ? null : (
+        <div className="flex flex-col gap-3">
+          {sortedTags.length === 0 ? (
+            <p className="px-1 text-xs font-semibold text-base-content/55">
+              No custom tags yet. Add one to group and track cards toward a target.
+            </p>
+          ) : null}
+
+          <ul className="grid gap-1">
+            {sortedTags.map((tag, index) =>
+              editing.kind === "edit" && editing.tagId === tag.id ? (
+                <li key={tag.id}>
+                  <DeckTagEditor
+                    mode="edit"
+                    initialName={tag.name}
+                    initialColor={tag.color}
+                    initialTargetCount={tag.targetCount ?? null}
+                    onSave={(input) => handleUpdate(tag.id, input)}
+                    onCancel={() => setEditing({ kind: "closed" })}
+                  />
+                </li>
+              ) : (
+                <li key={tag.id}>
+                  <DeckTagRow
+                    tag={tag}
+                    isActive={activeTagId === tag.id}
+                    disabled={disabled}
+                    isFirst={index === 0}
+                    isLast={index === sortedTags.length - 1}
+                    onJump={() => onJumpToTag(tag.id)}
+                    onEdit={() => setEditing({ kind: "edit", tagId: tag.id })}
+                    onDelete={() => onDeleteTag(tag.id)}
+                    onMoveUp={() => handleMove(tag.id, "up")}
+                    onMoveDown={() => handleMove(tag.id, "down")}
+                  />
+                </li>
+              ),
+            )}
+          </ul>
+
+          {editing.kind === "create" ? (
+            <DeckTagEditor
+              mode="create"
+              initialName=""
+              initialColor={DECK_TAG_COLORS[0]}
+              initialTargetCount={null}
+              onSave={handleCreate}
+              onCancel={() => setEditing({ kind: "closed" })}
+            />
+          ) : null}
+
+          {!disabled && editing.kind !== "create" ? (
+            <button
+              type="button"
+              className="btn btn-outline btn-sm justify-center gap-1.5"
+              onClick={() => setEditing({ kind: "create" })}
+            >
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+              ADD TAG
+            </button>
+          ) : null}
+        </div>
+      )}
     </aside>
   )
 }

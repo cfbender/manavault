@@ -191,7 +191,10 @@ test("custom tag card and count patches apply together in one call", () => {
   const result = updateDeckCardCustomTagsInDeckQuery(
     data,
     [{ id: "deck-card-2", tagIds: ["draw"] }],
-    [{ id: "ramp", cardCount: 1 }, { id: "draw", cardCount: 1 }],
+    [
+      { id: "ramp", cardCount: 1 },
+      { id: "draw", cardCount: 1 },
+    ],
   )
 
   assert.deepEqual(result.deck.deckCards.edges[1].node.tagIds, ["draw"])

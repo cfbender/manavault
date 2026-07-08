@@ -1,5 +1,5 @@
 import { Check, X } from "lucide-react"
-import { useEffect } from "react"
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react"
 
 import { cn } from "../../lib/utils"
 import type { DeckCustomTag } from "./deck-types"
@@ -7,23 +7,54 @@ import type { DeckCustomTag } from "./deck-types"
 const OUTER_RADIUS_PERCENT = 48
 const HUB_RADIUS_PERCENT = 14
 
-export function DeckCardTagRadial({
-  open,
-  tags,
-  assignedTagIds,
-  onToggleTag,
-  onClose,
-  anchorLabel,
-  acceptDrop = true,
-}: {
-  open: boolean
-  tags: DeckCustomTag[]
-  assignedTagIds: string[]
-  onToggleTag: (tagId: string) => void
-  onClose: () => void
-  anchorLabel?: string
-  acceptDrop?: boolean
-}) {
+export type DeckCardTagRadialHandle = {
+  hitTest(clientX: number, clientY: number): string | null
+}
+
+export const DeckCardTagRadial = forwardRef<
+  DeckCardTagRadialHandle,
+  {
+    open: boolean
+    tags: DeckCustomTag[]
+    assignedTagIds: string[]
+    onToggleTag: (tagId: string) => void
+    onClose: () => void
+    anchorLabel?: string
+    highlightedTagId?: string | null
+  }
+>(function DeckCardTagRadial(
+  { open, tags, assignedTagIds, onToggleTag, onClose, anchorLabel, highlightedTagId = null },
+  ref,
+) {
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      hitTest(clientX: number, clientY: number): string | null {
+        const container = containerRef.current
+        if (!container || tags.length === 0) return null
+
+        const rect = container.getBoundingClientRect()
+        if (rect.width === 0 || rect.height === 0) return null
+
+        const centerX = rect.left + rect.width / 2
+        const centerY = rect.top + rect.height / 2
+        const dx = clientX - centerX
+        const dy = clientY - centerY
+        const radiusPercent = (Math.hypot(dx, dy) / rect.width) * 100
+        if (radiusPercent < HUB_RADIUS_PERCENT || radiusPercent > OUTER_RADIUS_PERCENT) return null
+
+        const sliceAngleDeg = 360 / tags.length
+        const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI
+        const relativeDeg = (((angleDeg + 90) % 360) + 360) % 360
+        const index = Math.round(relativeDeg / sliceAngleDeg) % tags.length
+        return tags[index]?.id ?? null
+      },
+    }),
+    [tags],
+  )
+
   useEffect(() => {
     if (!open) return
 
@@ -43,6 +74,7 @@ export function DeckCardTagRadial({
 
   return (
     <div
+      ref={containerRef}
       className="absolute left-1/2 top-1/2 z-[140] h-44 w-44 -translate-x-1/2 -translate-y-1/2"
       role="group"
       aria-label={groupLabel}
@@ -83,6 +115,7 @@ export function DeckCardTagRadial({
         const startDeg = midDeg - sliceAngleDeg / 2
         const endDeg = midDeg + sliceAngleDeg / 2
         const isAssigned = assignedTagIdSet.has(tag.id)
+        const isHighlighted = highlightedTagId === tag.id
         const midRad = (midDeg * Math.PI) / 180
         const labelRadiusPercent = (HUB_RADIUS_PERCENT + OUTER_RADIUS_PERCENT) / 2
         const labelLeftPercent = 50 + labelRadiusPercent * Math.cos(midRad)
@@ -97,22 +130,14 @@ export function DeckCardTagRadial({
               "absolute inset-0 cursor-pointer border-0 p-0 transition-opacity",
               "hover:opacity-90 focus-visible:outline focus-visible:outline-2",
               "focus-visible:outline-offset-2 focus-visible:outline-primary",
+              isHighlighted && "ring-4 ring-inset ring-base-content/80",
             )}
             style={{
               clipPath: wedgeClipPath(startDeg, endDeg, tags.length),
               backgroundColor: tag.color,
-              opacity: isAssigned ? 0.95 : 0.4,
+              opacity: isHighlighted ? 1 : isAssigned ? 0.95 : 0.4,
             }}
             onClick={() => onToggleTag(tag.id)}
-            onDragOver={(event) => {
-              if (!acceptDrop) return
-              event.preventDefault()
-            }}
-            onDrop={(event) => {
-              if (!acceptDrop) return
-              event.preventDefault()
-              onToggleTag(tag.id)
-            }}
           >
             <span
               className="pointer-events-none absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0.5"
@@ -146,7 +171,7 @@ export function DeckCardTagRadial({
       </div>
     </div>
   )
-}
+})
 
 function wedgeClipPath(startDeg: number, endDeg: number, tagCount: number): string {
   if (tagCount <= 1) return `circle(${OUTER_RADIUS_PERCENT}% at 50% 50%)`
