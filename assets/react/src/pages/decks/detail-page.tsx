@@ -6,7 +6,7 @@ import { EmptyState } from "../../components/card-image"
 import { Button } from "../../components/ui/button"
 import { useToast } from "../../components/ui/toast"
 import type { DeckCardInput, DeckCardUpdateInput, DeckQuery } from "../../gql/graphql"
-import { groupDeckCards, type DeckGroupBy } from "../../lib/deck-grouping"
+import { DECK_GROUP_OPTIONS, groupDeckCards, type DeckGroupBy } from "../../lib/deck-grouping"
 import { graphqlEndpointContext, refetchActiveQueries } from "../../lib/apollo"
 import { usePageTitle } from "../../lib/page-title"
 import { pluralize } from "../../lib/utils"
@@ -39,6 +39,8 @@ import {
   type EDHRecTab,
 } from "./deck-types"
 import { useDeckTags } from "./use-deck-tags"
+import { useDeckDetailShortcuts, DECK_DETAIL_SHORTCUTS } from "./use-deck-detail-shortcuts"
+import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog"
 import { DeckDetailContent } from "./detail-page-content"
 import { DeckDetailDialogs } from "./detail-page-dialogs"
 import { useDeckDetailSelection } from "./detail-page-selection"
@@ -198,6 +200,7 @@ export function DeckDetailPage({
   const [isAllocateDeckPullListPending, setIsAllocateDeckPullListPending] = useState(false)
   const customTagOpSeqRef = useRef<Map<string, number>>(new Map())
   const [activeTagId, setActiveTagId] = useState<string | null>(null)
+  const [isShortcutHelpOpen, setIsShortcutHelpOpen] = useState(false)
   const deckTags = useDeckTags(id)
   const navigate = useNavigate()
   const client = useApolloClient()
@@ -763,6 +766,28 @@ export function DeckDetailPage({
     allocateDeckCardProxy.isPending ||
     deallocateDeckCardProxy.isPending
 
+  useDeckDetailShortcuts(
+    {
+      onAddCard: () => setIsAddCardOpen(true),
+      onToggleSelect: () => setIsSelectingCards((selecting) => !selecting),
+      onCycleGroup: () => {
+        const index = DECK_GROUP_OPTIONS.findIndex((option) => option.value === groupBy)
+        const next = DECK_GROUP_OPTIONS[(index + 1) % DECK_GROUP_OPTIONS.length]
+        if (next) setGroupBy(next.value)
+      },
+      onOpenPlaytest: () => navigate({ to: "/decks/$id/playtest", params: { id } }),
+      onJumpToTagIndex: (index) => {
+        const tag = deck?.tags?.[index]
+        if (tag) jumpToTag(tag.id)
+      },
+      onClearHighlight: () => {
+        setActiveTagId(null)
+        setHighlightedDeckCardIds(null)
+      },
+      onToggleHelp: () => setIsShortcutHelpOpen((open) => !open),
+    },
+    !shareMode && deck?.status !== "archived",
+  )
   if (isInitialDeckLoading) return <DeckDetailLoadingState />
   if (!deck) {
     return (
@@ -1207,6 +1232,24 @@ export function DeckDetailPage({
           shareToken={id}
         />
       ) : null}
+      <Dialog open={isShortcutHelpOpen} onOpenChange={setIsShortcutHelpOpen}>
+        <DialogContent labelledBy="deck-shortcuts-title" className="max-w-md">
+          <DialogHeader>
+            <DialogTitle id="deck-shortcuts-title">Keyboard shortcuts</DialogTitle>
+            <DialogClose onClose={() => setIsShortcutHelpOpen(false)} />
+          </DialogHeader>
+          <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 p-1 text-sm">
+            {DECK_DETAIL_SHORTCUTS.map((shortcut) => (
+              <div key={shortcut.keys} className="contents">
+                <dt>
+                  <kbd className="kbd kbd-sm">{shortcut.keys}</kbd>
+                </dt>
+                <dd className="self-center text-base-content/80">{shortcut.label}</dd>
+              </div>
+            ))}
+          </dl>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
