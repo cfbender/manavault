@@ -37,6 +37,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
       resolve(&CatalogResolvers.map_value/3)
     end
   end
+
   object :deck_tag do
     field :id, non_null(:id)
     field :name, non_null(:string)

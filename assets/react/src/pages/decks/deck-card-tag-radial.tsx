@@ -50,11 +50,7 @@ export function DeckCardTagRadial({
       <div className="absolute inset-0 rounded-full bg-base-300/85 backdrop-blur" />
 
       {tags.length > 0 ? (
-        <svg
-          className="absolute inset-0 h-full w-full"
-          viewBox="0 0 100 100"
-          aria-hidden="true"
-        >
+        <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" aria-hidden="true">
           <circle
             cx={50}
             cy={50}

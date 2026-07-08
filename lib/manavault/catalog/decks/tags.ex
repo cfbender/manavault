@@ -44,7 +44,8 @@ defmodule Manavault.Catalog.Decks.Tags do
     Repo.delete(deck_tag)
   end
 
-  def reorder_deck_tags(%Deck{id: deck_id} = deck, ordered_tag_ids) when is_list(ordered_tag_ids) do
+  def reorder_deck_tags(%Deck{id: deck_id} = deck, ordered_tag_ids)
+      when is_list(ordered_tag_ids) do
     Repo.transact(fn ->
       deck_tag_ids =
         DeckTag

@@ -17,7 +17,8 @@ type DeckCardsConnection = NonNullable<DeckData["deckCards"]>
 type DeckCardEdge = NonNullable<NonNullable<DeckCardsConnection["edges"]>[number]>
 type DeckCardNode = NonNullable<DeckCardEdge["node"]>
 
-type DeckTagMutationInput = Pick<DeckCustomTag, "name"> & Partial<Pick<DeckCustomTag, "color" | "targetCount">>
+type DeckTagMutationInput = Pick<DeckCustomTag, "name"> &
+  Partial<Pick<DeckCustomTag, "color" | "targetCount">>
 
 export type UseDeckTagsResult = {
   createTag: (input: DeckTagMutationInput) => void
@@ -54,7 +55,10 @@ export function useDeckTags(deckId: string): UseDeckTagsResult {
     if (!data || !deck) return
     writeDeckQuery({
       ...data,
-      deck: { ...deck, tags: deck.tags.map((existing) => (existing.id === tag.id ? tag : existing)) },
+      deck: {
+        ...deck,
+        tags: deck.tags.map((existing) => (existing.id === tag.id ? tag : existing)),
+      },
     })
   }
 
@@ -92,7 +96,9 @@ export function useDeckTags(deckId: string): UseDeckTagsResult {
       deck: {
         ...deck,
         tags: nextTags,
-        deckCards: deckCards ? { ...deckCards, edges: nextEdges as DeckCardsConnection["edges"] } : deckCards,
+        deckCards: deckCards
+          ? { ...deckCards, edges: nextEdges as DeckCardsConnection["edges"] }
+          : deckCards,
       },
     })
   }
@@ -162,4 +168,3 @@ export function useDeckTags(deckId: string): UseDeckTagsResult {
 
   return { createTag, updateTag, deleteTag, reorderTags, isPending, error }
 }
-

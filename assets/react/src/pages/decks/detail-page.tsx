@@ -40,7 +40,13 @@ import {
 } from "./deck-types"
 import { useDeckTags } from "./use-deck-tags"
 import { useDeckDetailShortcuts, DECK_DETAIL_SHORTCUTS } from "./use-deck-detail-shortcuts"
-import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog"
 import { DeckDetailContent } from "./detail-page-content"
 import { DeckDetailDialogs } from "./detail-page-dialogs"
 import { useDeckDetailSelection } from "./detail-page-selection"
@@ -301,7 +307,9 @@ export function DeckDetailPage({
     cardPatches: readonly DeckCustomTagPatch[],
     tagCountPatches: readonly { id: string; cardCount: number }[],
   ) {
-    writeDeckQuery(updateDeckCardCustomTagsInDeckQuery(readDeckQuery(), cardPatches, tagCountPatches))
+    writeDeckQuery(
+      updateDeckCardCustomTagsInDeckQuery(readDeckQuery(), cardPatches, tagCountPatches),
+    )
   }
 
   function refetchDeckQueries() {

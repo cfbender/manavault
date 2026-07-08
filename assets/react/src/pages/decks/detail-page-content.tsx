@@ -111,7 +111,10 @@ export type DeckTagManagement = {
   activeTagId: string | null
   onJumpToTag: (tagId: string) => void
   onCreateTag: (input: { name: string; color: string; targetCount: number | null }) => void
-  onUpdateTag: (id: string, input: { name: string; color: string; targetCount: number | null }) => void
+  onUpdateTag: (
+    id: string,
+    input: { name: string; color: string; targetCount: number | null },
+  ) => void
   onDeleteTag: (id: string) => void
   onReorderTags: (tagIds: string[]) => void
 }
@@ -572,409 +575,419 @@ export function DeckDetailContent({
         </div>
       )}
       <div className="min-w-0 space-y-7">
-      <ShareModeHidden shareMode={shareMode}>
-        <Button asChild variant="outline" size="sm">
-          <Link to="/decks">Back to decks</Link>
-        </Button>
-      </ShareModeHidden>
+        <ShareModeHidden shareMode={shareMode}>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/decks">Back to decks</Link>
+          </Button>
+        </ShareModeHidden>
 
-      <ImageSummaryCard
-        imageUrl={deckDetailCoverUrl(deckCards)}
-        fallback={<Layers className="h-12 w-12" />}
-        interactive={false}
-        typeLine={<Badge>{titleize(deck.format)}</Badge>}
-        countLine={`${compactNumber(deck.cardCount || 0)} cards`}
-        detailLine={
-          <div className="flex flex-wrap items-center gap-2 text-base leading-none">
-            <Badge tone={deck.status === "active" ? "success" : "neutral"}>
-              {titleize(deck.status)}
-            </Badge>
-            <Badge tone={deckLegalityTone(deck.legality)}>{deckLegalityLabel(deck.legality)}</Badge>
-            <BuylistPriceChip
-              price={deckPrice}
-              onClick={shareMode ? onOpenShareBuylist : onMissingCards}
-            />
-            {isRefreshingDeck ? <Badge tone="neutral">Refreshing…</Badge> : null}
-          </div>
-        }
-        nameLine={
-          <DeckNameWithCommanderIdentity
-            colors={commanderColorIdentity(deckCards)}
-            name={deck.name}
-          />
-        }
-        actionSlot={
-          <ShareModeHidden shareMode={shareMode}>
-            <SummaryActionMenu
-              label={`${deck.name} actions`}
-              onEdit={onEditDeck}
-              onExport={onExportDeck}
-              onImport={canEditDecklist ? onImportDeck : undefined}
-              onShare={onOpenShareDeck}
-              onMissing={canEditDecklist && hasBuylistWork ? onMissingCards : undefined}
-              onDisassemble={canEditDecklist ? onDisassemble : undefined}
-              onEdhrec={canEditDecklist && deck.format === "commander" ? onOpenEdhrec : undefined}
-            />
-          </ShareModeHidden>
-        }
-      />
-
-      {!canEditDecklist ? (
-        <div className="rounded-box border border-base-300 bg-base-200/60 p-4 text-sm text-base-content/75">
-          <div className="flex flex-wrap items-center gap-2 font-bold text-base-content">
-            <Archive className="h-4 w-4" />
-            <span>Archived decklist</span>
-          </div>
-          <p className="mt-1 max-w-3xl">
-            This deck is view-only. Use Edit to unarchive it before changing cards, tags, printings,
-            or collection allocations.
-          </p>
-        </div>
-      ) : null}
-
-      {legalityIssues.length ? (
-        <div className="rounded-box border border-error/25 bg-error/5 p-4 text-sm text-base-content/80">
-          <div className="mb-2 flex flex-wrap items-center gap-2 font-bold text-error">
-            <AlertTriangle className="h-4 w-4" />
-            <span>{deckLegalityIssueCountLabel(legalityIssues.length)}</span>
-          </div>
-          <ul className="space-y-1.5">
-            {legalityIssues.map((issue, index) => (
-              <li key={`${issue.code}-${issue.cardName || "deck"}-${index}`} className="flex gap-2">
-                <span aria-hidden="true" className="text-error">
-                  •
-                </span>
-                <span>
-                  {issue.cardName ? (
-                    <span className="font-bold text-base-content">{issue.cardName}: </span>
-                  ) : null}
-                  {issue.message}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-base-300 pb-4">
-        <dl className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-          {(["commander", "mainboard", "sideboard", "maybeboard"] as DeckZone[]).map((zone) => (
-            <div key={zone} className="flex items-baseline gap-1.5">
-              <dt
-                className={cn(
-                  "text-xs font-black uppercase tracking-[0.16em]",
-                  zone === "commander" ? "text-primary" : "text-base-content/45",
-                )}
-              >
-                {titleize(zone)}
-              </dt>
-              <dd className="font-mono text-sm font-black text-base-content/80">
-                {zoneCounts[zone] || 0}
-              </dd>
+        <ImageSummaryCard
+          imageUrl={deckDetailCoverUrl(deckCards)}
+          fallback={<Layers className="h-12 w-12" />}
+          interactive={false}
+          typeLine={<Badge>{titleize(deck.format)}</Badge>}
+          countLine={`${compactNumber(deck.cardCount || 0)} cards`}
+          detailLine={
+            <div className="flex flex-wrap items-center gap-2 text-base leading-none">
+              <Badge tone={deck.status === "active" ? "success" : "neutral"}>
+                {titleize(deck.status)}
+              </Badge>
+              <Badge tone={deckLegalityTone(deck.legality)}>
+                {deckLegalityLabel(deck.legality)}
+              </Badge>
+              <BuylistPriceChip
+                price={deckPrice}
+                onClick={shareMode ? onOpenShareBuylist : onMissingCards}
+              />
+              {isRefreshingDeck ? <Badge tone="neutral">Refreshing…</Badge> : null}
             </div>
-          ))}
-        </dl>
-        <div className="flex flex-wrap items-center gap-2">
-          {shareMode ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!deckCards.length}
-                onClick={onOpenSharePlaytest}
-              >
-                <Play className="h-4 w-4" />
-                Playtest
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!deckCards.length}
-                onClick={onOpenShareBuylist}
-              >
-                <ShoppingCart className="h-4 w-4" />
-                Buy list
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!deckCards.length}
-                onClick={onCopySharedDecklist}
-              >
-                <Clipboard className="h-4 w-4" />
-                {shareCopyState === "copied" ? "Copied" : "Copy decklist"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!deckCards.length}
-                onClick={onDownloadSharedDecklist}
-              >
-                <Download className="h-4 w-4" />
-                Export
-              </Button>
-              {shareCopyState === "failed" ? (
-                <span className="text-sm text-error">Copy failed.</span>
-              ) : null}
-            </div>
-          ) : null}
-          <ShareModeHidden shareMode={shareMode}>
-            <Button asChild variant="outline" size="sm">
-              <Link to="/decks/$id/playtest" params={{ id: deck.id }}>
-                <Play className="h-4 w-4" />
-                Playtest
-              </Link>
-            </Button>
-            {canEditDecklist ? (
-              <>
-                <Button type="button" size="sm" onClick={onOpenAddCard}>
-                  <Plus className="h-4 w-4" />
-                  Add card
-                </Button>
-                {!isSelectionActive ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={!deckCards.length}
-                    onClick={onStartSelecting}
-                  >
-                    <CheckSquare className="h-4 w-4" />
-                    Select
-                  </Button>
-                ) : null}
-                {hasReadinessWork ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsReadinessOpen(true)}
-                  >
-                    Pull list
-                  </Button>
-                ) : null}
-              </>
-            ) : null}
-          </ShareModeHidden>
-          <DeckGroupMenu value={groupBy} onChange={onGroupByChange} />
-        </div>
-      </div>
-      <DeckReadinessDialog
-        allocationError={allocationError}
-        buylistPrice={buylistPrice}
-        canBulkAllocate={canEditDecklist && canBulkAllocate}
-        deckCards={deckCards}
-        isUpdatingDeckCard={isUpdatingDeckCard}
-        onAllocate={onAllocate}
-        onDeallocate={onDeallocate}
-        onMissingCards={onMissingCards}
-        onOpenBulkAllocation={onOpenBulkAllocation}
-        onOpenChange={setIsReadinessOpen}
-        onOpenOptimizePrintings={onOpenOptimizePrintings}
-        onTagCard={onTagCard}
-        onToggleProxy={onToggleProxy}
-        open={canEditDecklist && isReadinessOpen}
-        shareMode={shareMode || !canEditDecklist}
-      />
+          }
+          nameLine={
+            <DeckNameWithCommanderIdentity
+              colors={commanderColorIdentity(deckCards)}
+              name={deck.name}
+            />
+          }
+          actionSlot={
+            <ShareModeHidden shareMode={shareMode}>
+              <SummaryActionMenu
+                label={`${deck.name} actions`}
+                onEdit={onEditDeck}
+                onExport={onExportDeck}
+                onImport={canEditDecklist ? onImportDeck : undefined}
+                onShare={onOpenShareDeck}
+                onMissing={canEditDecklist && hasBuylistWork ? onMissingCards : undefined}
+                onDisassemble={canEditDecklist ? onDisassemble : undefined}
+                onEdhrec={canEditDecklist && deck.format === "commander" ? onOpenEdhrec : undefined}
+              />
+            </ShareModeHidden>
+          }
+        />
 
-      <ShareModeHidden shareMode={shareMode}>
-        {isSelectionActive && canEditDecklist ? (
-          <div className="grid gap-3 rounded-box border border-base-300 bg-base-100 p-3 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <CheckSquare className="h-4 w-4 text-primary" />
-                <span className="font-semibold">{selectedDeckCardCount} selected</span>
-                <span className="text-xs text-base-content/60">Shift-click selects a range.</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={!deckCards.length || allDeckCardsSelected}
-                  onClick={onSelectAllDeckCards}
+        {!canEditDecklist ? (
+          <div className="rounded-box border border-base-300 bg-base-200/60 p-4 text-sm text-base-content/75">
+            <div className="flex flex-wrap items-center gap-2 font-bold text-base-content">
+              <Archive className="h-4 w-4" />
+              <span>Archived decklist</span>
+            </div>
+            <p className="mt-1 max-w-3xl">
+              This deck is view-only. Use Edit to unarchive it before changing cards, tags,
+              printings, or collection allocations.
+            </p>
+          </div>
+        ) : null}
+
+        {legalityIssues.length ? (
+          <div className="rounded-box border border-error/25 bg-error/5 p-4 text-sm text-base-content/80">
+            <div className="mb-2 flex flex-wrap items-center gap-2 font-bold text-error">
+              <AlertTriangle className="h-4 w-4" />
+              <span>{deckLegalityIssueCountLabel(legalityIssues.length)}</span>
+            </div>
+            <ul className="space-y-1.5">
+              {legalityIssues.map((issue, index) => (
+                <li
+                  key={`${issue.code}-${issue.cardName || "deck"}-${index}`}
+                  className="flex gap-2"
                 >
-                  Select all
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={!deckCards.length}
-                  onClick={onOpenSelectFromList}
+                  <span aria-hidden="true" className="text-error">
+                    •
+                  </span>
+                  <span>
+                    {issue.cardName ? (
+                      <span className="font-bold text-base-content">{issue.cardName}: </span>
+                    ) : null}
+                    {issue.message}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-base-300 pb-4">
+          <dl className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+            {(["commander", "mainboard", "sideboard", "maybeboard"] as DeckZone[]).map((zone) => (
+              <div key={zone} className="flex items-baseline gap-1.5">
+                <dt
+                  className={cn(
+                    "text-xs font-black uppercase tracking-[0.16em]",
+                    zone === "commander" ? "text-primary" : "text-base-content/45",
+                  )}
                 >
-                  Select from list
-                </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={onClearSelectedDeckCards}>
-                  {selectedDeckCardCount > 0 ? "Clear" : "Done"}
-                </Button>
+                  {titleize(zone)}
+                </dt>
+                <dd className="font-mono text-sm font-black text-base-content/80">
+                  {zoneCounts[zone] || 0}
+                </dd>
               </div>
+            ))}
+          </dl>
+          <div className="flex flex-wrap items-center gap-2">
+            {shareMode ? (
               <div className="flex flex-wrap items-center gap-2">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={!selectedAllocatedDeckCardCount || isUpdatingDeckCard}
-                  onClick={onDeallocateSelectedDeckCards}
+                  disabled={!deckCards.length}
+                  onClick={onOpenSharePlaytest}
                 >
-                  <XCircle className="h-4 w-4" />
-                  Deallocate
+                  <Play className="h-4 w-4" />
+                  Playtest
                 </Button>
                 <Button
                   type="button"
-                  variant="destructive"
+                  variant="outline"
                   size="sm"
-                  disabled={!selectedDeckCardCount || isUpdatingDeckCard}
-                  onClick={onOpenDeleteSelected}
+                  disabled={!deckCards.length}
+                  onClick={onOpenShareBuylist}
                 >
-                  <Trash2 className="h-4 w-4" />
-                  Delete
+                  <ShoppingCart className="h-4 w-4" />
+                  Buy list
                 </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!deckCards.length}
+                  onClick={onCopySharedDecklist}
+                >
+                  <Clipboard className="h-4 w-4" />
+                  {shareCopyState === "copied" ? "Copied" : "Copy decklist"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!deckCards.length}
+                  onClick={onDownloadSharedDecklist}
+                >
+                  <Download className="h-4 w-4" />
+                  Export
+                </Button>
+                {shareCopyState === "failed" ? (
+                  <span className="text-sm text-error">Copy failed.</span>
+                ) : null}
               </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                className="select select-bordered select-sm w-40"
-                aria-label="Move selected cards"
-                disabled={!selectedDeckCardCount || isUpdatingDeckCard}
-                defaultValue=""
-                onChange={(event) => {
-                  const zone = event.currentTarget.value as DeckZone | ""
-                  if (zone) onUpdateSelectedDeckCards({ zone })
-                  event.currentTarget.value = ""
-                }}
-              >
-                <option value="">Move to zone...</option>
-                {MOVE_TARGET_ZONES.map((zone) => (
-                  <option key={zone} value={zone}>
-                    {titleize(zone)}
-                  </option>
-                ))}
-              </select>
-
-              <label className="join h-8 items-stretch">
-                <span className="join-item flex h-8 min-h-8 items-center border border-base-300 bg-base-200 px-2 text-xs font-semibold">
-                  Qty
-                </span>
-                <Input
-                  className="join-item h-8 min-h-8 w-20"
-                  type="number"
-                  min={1}
-                  value={bulkQuantity}
-                  disabled={!selectedDeckCardCount || isUpdatingDeckCard}
-                  onChange={(event) =>
-                    onSetBulkQuantity(Math.max(1, Number.parseInt(event.target.value, 10) || 1))
-                  }
-                />
-                <Button
-                  type="button"
-                  className="join-item h-8 min-h-8 px-3"
-                  size="sm"
-                  disabled={!selectedDeckCardCount || isUpdatingDeckCard}
-                  onClick={() => onUpdateSelectedDeckCards({ quantity: bulkQuantity })}
-                >
-                  Set
-                </Button>
-              </label>
-
-              <select
-                className="select select-bordered select-sm w-44"
-                aria-label="Tag selected cards"
-                disabled={!selectedDeckCardCount || isUpdatingDeckCard}
-                defaultValue=""
-                onChange={(event) => {
-                  const value = event.currentTarget.value as DeckCardTag | "clear" | ""
-                  if (value === "clear") onTagSelectedDeckCards(null)
-                  else if (value) onTagSelectedDeckCards(value)
-                  event.currentTarget.value = ""
-                }}
-              >
-                <option value="">Tag selected...</option>
-                {DECK_CARD_TAGS.map((tag) => (
-                  <option key={tag.value} value={tag.value}>
-                    {tag.label}
-                  </option>
-                ))}
-                <option value="clear">Clear tag</option>
-              </select>
-            </div>
-            {bulkActionError ? (
-              <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
-                {bulkActionError}
-              </p>
             ) : null}
+            <ShareModeHidden shareMode={shareMode}>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/decks/$id/playtest" params={{ id: deck.id }}>
+                  <Play className="h-4 w-4" />
+                  Playtest
+                </Link>
+              </Button>
+              {canEditDecklist ? (
+                <>
+                  <Button type="button" size="sm" onClick={onOpenAddCard}>
+                    <Plus className="h-4 w-4" />
+                    Add card
+                  </Button>
+                  {!isSelectionActive ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={!deckCards.length}
+                      onClick={onStartSelecting}
+                    >
+                      <CheckSquare className="h-4 w-4" />
+                      Select
+                    </Button>
+                  ) : null}
+                  {hasReadinessWork ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsReadinessOpen(true)}
+                    >
+                      Pull list
+                    </Button>
+                  ) : null}
+                </>
+              ) : null}
+            </ShareModeHidden>
+            <DeckGroupMenu value={groupBy} onChange={onGroupByChange} />
           </div>
-        ) : null}
-      </ShareModeHidden>
-
-      {groupedCards.length ? (
-        <DeckGroupGrid
-          canSetCommander={canEditDecklist && deck.format === "commander"}
-          deckId={deck.id}
-          deckTags={deckTags}
-          groups={groupedCards}
-          isSelecting={canEditDecklist && isSelectionActive}
-          isUpdating={isUpdatingDeckCard}
-          selectedCardIds={selectedDeckCardIds}
-          highlightedCardIds={highlightedDeckCardIds}
-          onPreview={onPreviewCard}
+        </div>
+        <DeckReadinessDialog
+          allocationError={allocationError}
+          buylistPrice={buylistPrice}
+          canBulkAllocate={canEditDecklist && canBulkAllocate}
+          deckCards={deckCards}
+          isUpdatingDeckCard={isUpdatingDeckCard}
           onAllocate={onAllocate}
-          onAssignTag={onAssignTag}
           onDeallocate={onDeallocate}
-          onMove={onMoveCard}
-          onEdit={onEditCard}
-          onTag={onTagCard}
-          onDelete={onDeleteCard}
-          onSetCommander={onSetCommander}
-          onToggleSelected={onToggleSelected}
+          onMissingCards={onMissingCards}
+          onOpenBulkAllocation={onOpenBulkAllocation}
+          onOpenChange={setIsReadinessOpen}
+          onOpenOptimizePrintings={onOpenOptimizePrintings}
+          onTagCard={onTagCard}
           onToggleProxy={onToggleProxy}
-          onUnassignTag={onUnassignTag}
+          open={canEditDecklist && isReadinessOpen}
           shareMode={shareMode || !canEditDecklist}
         />
-      ) : (
-        <EmptyState title="No cards in this deck" />
-      )}
 
-      <div className="space-y-3">
-        <DeckZoneTable
-          cards={sideboardCards}
-          deckId={deck.id}
-          isSelecting={canEditDecklist && isSelectionActive}
-          isUpdating={isUpdatingDeckCard}
-          selectedCardIds={selectedDeckCardIds}
-          highlightedCardIds={highlightedDeckCardIds}
-          shareMode={shareMode || !canEditDecklist}
-          onPreview={onPreviewCard}
-          title="Sideboard"
-          onMove={onMoveCard}
-          onEdit={onEditCard}
-          onDelete={onDeleteCard}
-          onTag={onTagCard}
-          onToggleSelected={onToggleSelected}
-        />
-        <DeckZoneTable
-          cards={maybeboardCards}
-          deckId={deck.id}
-          isSelecting={canEditDecklist && isSelectionActive}
-          isUpdating={isUpdatingDeckCard}
-          selectedCardIds={selectedDeckCardIds}
-          highlightedCardIds={highlightedDeckCardIds}
-          shareMode={shareMode || !canEditDecklist}
-          onPreview={onPreviewCard}
-          title="Maybeboard"
-          onMove={onMoveCard}
-          onEdit={onEditCard}
-          onDelete={onDeleteCard}
-          onTag={onTagCard}
-          onToggleSelected={onToggleSelected}
-        />
-      </div>
+        <ShareModeHidden shareMode={shareMode}>
+          {isSelectionActive && canEditDecklist ? (
+            <div className="grid gap-3 rounded-box border border-base-300 bg-base-100 p-3 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <CheckSquare className="h-4 w-4 text-primary" />
+                  <span className="font-semibold">{selectedDeckCardCount} selected</span>
+                  <span className="text-xs text-base-content/60">Shift-click selects a range.</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={!deckCards.length || allDeckCardsSelected}
+                    onClick={onSelectAllDeckCards}
+                  >
+                    Select all
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={!deckCards.length}
+                    onClick={onOpenSelectFromList}
+                  >
+                    Select from list
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={onClearSelectedDeckCards}
+                  >
+                    {selectedDeckCardCount > 0 ? "Clear" : "Done"}
+                  </Button>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!selectedAllocatedDeckCardCount || isUpdatingDeckCard}
+                    onClick={onDeallocateSelectedDeckCards}
+                  >
+                    <XCircle className="h-4 w-4" />
+                    Deallocate
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    disabled={!selectedDeckCardCount || isUpdatingDeckCard}
+                    onClick={onOpenDeleteSelected}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </Button>
+                </div>
+              </div>
 
-      <DeckTokensSection tokens={deckTokens} />
-      <DeckStatsSection stats={deckStats} onHighlightDeckCards={onHighlightDeckCards} />
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  className="select select-bordered select-sm w-40"
+                  aria-label="Move selected cards"
+                  disabled={!selectedDeckCardCount || isUpdatingDeckCard}
+                  defaultValue=""
+                  onChange={(event) => {
+                    const zone = event.currentTarget.value as DeckZone | ""
+                    if (zone) onUpdateSelectedDeckCards({ zone })
+                    event.currentTarget.value = ""
+                  }}
+                >
+                  <option value="">Move to zone...</option>
+                  {MOVE_TARGET_ZONES.map((zone) => (
+                    <option key={zone} value={zone}>
+                      {titleize(zone)}
+                    </option>
+                  ))}
+                </select>
+
+                <label className="join h-8 items-stretch">
+                  <span className="join-item flex h-8 min-h-8 items-center border border-base-300 bg-base-200 px-2 text-xs font-semibold">
+                    Qty
+                  </span>
+                  <Input
+                    className="join-item h-8 min-h-8 w-20"
+                    type="number"
+                    min={1}
+                    value={bulkQuantity}
+                    disabled={!selectedDeckCardCount || isUpdatingDeckCard}
+                    onChange={(event) =>
+                      onSetBulkQuantity(Math.max(1, Number.parseInt(event.target.value, 10) || 1))
+                    }
+                  />
+                  <Button
+                    type="button"
+                    className="join-item h-8 min-h-8 px-3"
+                    size="sm"
+                    disabled={!selectedDeckCardCount || isUpdatingDeckCard}
+                    onClick={() => onUpdateSelectedDeckCards({ quantity: bulkQuantity })}
+                  >
+                    Set
+                  </Button>
+                </label>
+
+                <select
+                  className="select select-bordered select-sm w-44"
+                  aria-label="Tag selected cards"
+                  disabled={!selectedDeckCardCount || isUpdatingDeckCard}
+                  defaultValue=""
+                  onChange={(event) => {
+                    const value = event.currentTarget.value as DeckCardTag | "clear" | ""
+                    if (value === "clear") onTagSelectedDeckCards(null)
+                    else if (value) onTagSelectedDeckCards(value)
+                    event.currentTarget.value = ""
+                  }}
+                >
+                  <option value="">Tag selected...</option>
+                  {DECK_CARD_TAGS.map((tag) => (
+                    <option key={tag.value} value={tag.value}>
+                      {tag.label}
+                    </option>
+                  ))}
+                  <option value="clear">Clear tag</option>
+                </select>
+              </div>
+              {bulkActionError ? (
+                <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+                  {bulkActionError}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </ShareModeHidden>
+
+        {groupedCards.length ? (
+          <DeckGroupGrid
+            canSetCommander={canEditDecklist && deck.format === "commander"}
+            deckId={deck.id}
+            deckTags={deckTags}
+            groups={groupedCards}
+            isSelecting={canEditDecklist && isSelectionActive}
+            isUpdating={isUpdatingDeckCard}
+            selectedCardIds={selectedDeckCardIds}
+            highlightedCardIds={highlightedDeckCardIds}
+            onPreview={onPreviewCard}
+            onAllocate={onAllocate}
+            onAssignTag={onAssignTag}
+            onDeallocate={onDeallocate}
+            onMove={onMoveCard}
+            onEdit={onEditCard}
+            onTag={onTagCard}
+            onDelete={onDeleteCard}
+            onSetCommander={onSetCommander}
+            onToggleSelected={onToggleSelected}
+            onToggleProxy={onToggleProxy}
+            onUnassignTag={onUnassignTag}
+            shareMode={shareMode || !canEditDecklist}
+          />
+        ) : (
+          <EmptyState title="No cards in this deck" />
+        )}
+
+        <div className="space-y-3">
+          <DeckZoneTable
+            cards={sideboardCards}
+            deckId={deck.id}
+            isSelecting={canEditDecklist && isSelectionActive}
+            isUpdating={isUpdatingDeckCard}
+            selectedCardIds={selectedDeckCardIds}
+            highlightedCardIds={highlightedDeckCardIds}
+            shareMode={shareMode || !canEditDecklist}
+            onPreview={onPreviewCard}
+            title="Sideboard"
+            onMove={onMoveCard}
+            onEdit={onEditCard}
+            onDelete={onDeleteCard}
+            onTag={onTagCard}
+            onToggleSelected={onToggleSelected}
+          />
+          <DeckZoneTable
+            cards={maybeboardCards}
+            deckId={deck.id}
+            isSelecting={canEditDecklist && isSelectionActive}
+            isUpdating={isUpdatingDeckCard}
+            selectedCardIds={selectedDeckCardIds}
+            highlightedCardIds={highlightedDeckCardIds}
+            shareMode={shareMode || !canEditDecklist}
+            onPreview={onPreviewCard}
+            title="Maybeboard"
+            onMove={onMoveCard}
+            onEdit={onEditCard}
+            onDelete={onDeleteCard}
+            onTag={onTagCard}
+            onToggleSelected={onToggleSelected}
+          />
+        </div>
+
+        <DeckTokensSection tokens={deckTokens} />
+        <DeckStatsSection stats={deckStats} onHighlightDeckCards={onHighlightDeckCards} />
       </div>
     </div>
   )

@@ -1,7 +1,10 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { updateDeckCardTagsInDeckQuery } from "../src/pages/decks/deck-query-cache.ts"
+import {
+  updateDeckCardCustomTagsInDeckQuery,
+  updateDeckCardTagsInDeckQuery,
+} from "../src/pages/decks/deck-query-cache.ts"
 
 function deckCard(id, tag = null) {
   return {
@@ -125,4 +128,106 @@ test("missing relay edges are a no-op", () => {
   const result = updateDeckCardTagsInDeckQuery(data, [{ id: "deck-card-1", tag: "getting" }])
 
   assert.equal(result, data)
+})
+
+function deckCardWithTags(id, tagIds = []) {
+  return { id, quantity: 1, zone: "mainboard", finish: null, tag: null, tagIds }
+}
+
+function customTagsDeckQuery(nodes, tags) {
+  return {
+    deck: {
+      id: "deck-1",
+      name: "Test Deck",
+      tags,
+      deckCards: {
+        pageInfo: { endCursor: null, hasNextPage: false },
+        edges: nodes.map((node) => ({ node })),
+      },
+    },
+  }
+}
+
+function customTag(id, cardCount) {
+  return { id, name: id, color: "blue", targetCount: null, position: 0, cardCount }
+}
+
+test("custom tag card patch replaces tagIds by node id and leaves other nodes untouched", () => {
+  const patchedNode = deckCardWithTags("deck-card-1", ["ramp"])
+  const unrelatedNode = deckCardWithTags("deck-card-2", ["removal"])
+  const data = customTagsDeckQuery([patchedNode, unrelatedNode], [customTag("ramp", 1)])
+  const unrelatedEdge = data.deck.deckCards.edges[1]
+
+  const result = updateDeckCardCustomTagsInDeckQuery(
+    data,
+    [{ id: "deck-card-1", tagIds: ["ramp", "draw"] }],
+    [],
+  )
+
+  assert.deepEqual(result.deck.deckCards.edges[0].node.tagIds, ["ramp", "draw"])
+  assert.deepEqual(patchedNode.tagIds, ["ramp"])
+  assert.equal(result.deck.deckCards.edges[1], unrelatedEdge)
+  assert.equal(result.deck.deckCards.edges[1].node, unrelatedNode)
+})
+
+test("custom tag count patch updates deck.tags cardCount by id and leaves unpatched tags", () => {
+  const data = customTagsDeckQuery(
+    [deckCardWithTags("deck-card-1", ["ramp"])],
+    [customTag("ramp", 1), customTag("removal", 3)],
+  )
+
+  const result = updateDeckCardCustomTagsInDeckQuery(data, [], [{ id: "ramp", cardCount: 2 }])
+
+  assert.deepEqual(result.deck.tags, [customTag("ramp", 2), customTag("removal", 3)])
+  assert.deepEqual(data.deck.tags, [customTag("ramp", 1), customTag("removal", 3)])
+})
+
+test("custom tag card and count patches apply together in one call", () => {
+  const data = customTagsDeckQuery(
+    [deckCardWithTags("deck-card-1", ["ramp"]), deckCardWithTags("deck-card-2", [])],
+    [customTag("ramp", 1), customTag("draw", 0)],
+  )
+
+  const result = updateDeckCardCustomTagsInDeckQuery(
+    data,
+    [{ id: "deck-card-2", tagIds: ["draw"] }],
+    [{ id: "ramp", cardCount: 1 }, { id: "draw", cardCount: 1 }],
+  )
+
+  assert.deepEqual(result.deck.deckCards.edges[1].node.tagIds, ["draw"])
+  assert.deepEqual(result.deck.tags, [customTag("ramp", 1), customTag("draw", 1)])
+})
+
+test("custom tag update with empty patch arrays is a no-op and returns the same data", () => {
+  const data = customTagsDeckQuery(
+    [deckCardWithTags("deck-card-1", ["ramp"])],
+    [customTag("ramp", 1)],
+  )
+
+  const result = updateDeckCardCustomTagsInDeckQuery(data, [], [])
+
+  assert.equal(result, data)
+})
+
+test("custom tag update returns undefined when data is undefined", () => {
+  const result = updateDeckCardCustomTagsInDeckQuery(undefined, [{ id: "x", tagIds: [] }], [])
+
+  assert.equal(result, undefined)
+})
+
+test("custom tag update does not mutate the original fixture", () => {
+  const originalNode = deckCardWithTags("deck-card-1", ["ramp"])
+  const originalTags = [customTag("ramp", 1)]
+  const data = customTagsDeckQuery([originalNode], originalTags)
+
+  updateDeckCardCustomTagsInDeckQuery(
+    data,
+    [{ id: "deck-card-1", tagIds: ["ramp", "draw"] }],
+    [{ id: "ramp", cardCount: 5 }],
+  )
+
+  assert.deepEqual(originalNode.tagIds, ["ramp"])
+  assert.deepEqual(originalTags, [customTag("ramp", 1)])
+  assert.equal(data.deck.deckCards.edges[0].node, originalNode)
+  assert.equal(data.deck.tags, originalTags)
 })

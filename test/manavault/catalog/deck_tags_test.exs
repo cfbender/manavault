@@ -87,9 +87,14 @@ defmodule Manavault.Catalog.DeckTagsTest do
     test "orders results by position, not by id or creation order" do
       deck = create_deck!("Powered")
 
-      assert {:ok, zebra} = Catalog.create_deck_tag(deck, %{"name" => "Zebra", "color" => "#111111"})
-      assert {:ok, apple} = Catalog.create_deck_tag(deck, %{"name" => "Apple", "color" => "#222222"})
-      assert {:ok, mango} = Catalog.create_deck_tag(deck, %{"name" => "Mango", "color" => "#333333"})
+      assert {:ok, zebra} =
+               Catalog.create_deck_tag(deck, %{"name" => "Zebra", "color" => "#111111"})
+
+      assert {:ok, apple} =
+               Catalog.create_deck_tag(deck, %{"name" => "Apple", "color" => "#222222"})
+
+      assert {:ok, mango} =
+               Catalog.create_deck_tag(deck, %{"name" => "Mango", "color" => "#333333"})
 
       assert {:ok, _} = Catalog.update_deck_tag(zebra, %{"position" => 10})
       assert {:ok, _} = Catalog.update_deck_tag(apple, %{"position" => 5})
@@ -103,8 +108,11 @@ defmodule Manavault.Catalog.DeckTagsTest do
       lotus = add_card!(deck, "oracle-1", "3")
       walk = add_card!(deck, "oracle-2", "1")
 
-      assert {:ok, busy_tag} = Catalog.create_deck_tag(deck, %{"name" => "Busy", "color" => "#ff0000"})
-      assert {:ok, empty_tag} = Catalog.create_deck_tag(deck, %{"name" => "Empty", "color" => "#00ff00"})
+      assert {:ok, busy_tag} =
+               Catalog.create_deck_tag(deck, %{"name" => "Busy", "color" => "#ff0000"})
+
+      assert {:ok, empty_tag} =
+               Catalog.create_deck_tag(deck, %{"name" => "Empty", "color" => "#00ff00"})
 
       assert {:ok, _} = Catalog.assign_deck_card_tag(lotus.id, busy_tag.id)
       assert {:ok, _} = Catalog.assign_deck_card_tag(walk.id, busy_tag.id)
@@ -147,7 +155,9 @@ defmodule Manavault.Catalog.DeckTagsTest do
       deck_b = create_deck!("Deck B")
 
       card_a = add_card!(deck_a, "oracle-1", "1")
-      assert {:ok, tag_b} = Catalog.create_deck_tag(deck_b, %{"name" => "TagB", "color" => "#ff0000"})
+
+      assert {:ok, tag_b} =
+               Catalog.create_deck_tag(deck_b, %{"name" => "TagB", "color" => "#ff0000"})
 
       assert {:error, :deck_mismatch} = Catalog.assign_deck_card_tag(card_a.id, tag_b.id)
     end
@@ -167,10 +177,17 @@ defmodule Manavault.Catalog.DeckTagsTest do
       deck_a = create_deck!("Deck A")
       deck_b = create_deck!("Deck B")
 
-      assert {:ok, tag1} = Catalog.create_deck_tag(deck_a, %{"name" => "T1", "color" => "#111111"})
-      assert {:ok, tag2} = Catalog.create_deck_tag(deck_a, %{"name" => "T2", "color" => "#222222"})
-      assert {:ok, tag3} = Catalog.create_deck_tag(deck_a, %{"name" => "T3", "color" => "#333333"})
-      assert {:ok, tag_b} = Catalog.create_deck_tag(deck_b, %{"name" => "TB", "color" => "#444444"})
+      assert {:ok, tag1} =
+               Catalog.create_deck_tag(deck_a, %{"name" => "T1", "color" => "#111111"})
+
+      assert {:ok, tag2} =
+               Catalog.create_deck_tag(deck_a, %{"name" => "T2", "color" => "#222222"})
+
+      assert {:ok, tag3} =
+               Catalog.create_deck_tag(deck_a, %{"name" => "T3", "color" => "#333333"})
+
+      assert {:ok, tag_b} =
+               Catalog.create_deck_tag(deck_b, %{"name" => "TB", "color" => "#444444"})
 
       assert {:ok, _} =
                Catalog.reorder_deck_tags(deck_a, [tag3.id, tag_b.id, tag1.id, tag2.id])

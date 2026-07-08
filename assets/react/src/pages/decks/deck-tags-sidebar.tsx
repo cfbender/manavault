@@ -316,9 +316,7 @@ function DeckTagEditor({
       onSubmit={handleSubmit}
     >
       <label className="grid gap-1">
-        <span className="text-xs font-bold uppercase tracking-wide text-base-content/60">
-          Name
-        </span>
+        <span className="text-xs font-bold uppercase tracking-wide text-base-content/60">Name</span>
         <Input
           value={name}
           onChange={(event) => setName(event.target.value)}
