@@ -18,7 +18,12 @@ import {
   type DeckPullListExclusions,
   type DeckPullListMode,
 } from "./deck-allocation-model"
-import { updateDeckCardTagsInDeckQuery, type DeckTagPatch } from "./deck-query-cache"
+import {
+  updateDeckCardCustomTagsInDeckQuery,
+  updateDeckCardTagsInDeckQuery,
+  type DeckCustomTagPatch,
+  type DeckTagPatch,
+} from "./deck-query-cache"
 import { compareDeckCards, countDeckZones } from "./deck-card-model"
 import { deckLegalityIssues } from "./deck-legality"
 import { useDeferredDeckAnalysis } from "./deck-stats-panel"
@@ -47,6 +52,7 @@ import {
   AllocateDeckCardItemDocument,
   AllocateDeckPullListDocument,
   AllocateDeckCardProxyDocument,
+  AssignDeckCardTagDocument,
   BulkDeallocateDeckCardsDocument,
   BulkDeleteDeckCardsDocument,
   BulkUpdateDeckCardsDocument,
@@ -58,6 +64,7 @@ import {
   PreviewDeckDisassemblyDocument,
   OptimizeDeckCardPrintingsDocument,
   SetDeckCommanderDocument,
+  UnassignDeckCardTagDocument,
   UpdateDeckCardDocument,
   UpdateDeckCardsTagDocument,
 } from "./queries"
@@ -188,6 +195,7 @@ export function DeckDetailPage({
   const [isBulkDeleteDeckCardsPending, setIsBulkDeleteDeckCardsPending] = useState(false)
   const [isBulkDeallocateDeckCardsPending, setIsBulkDeallocateDeckCardsPending] = useState(false)
   const [isAllocateDeckPullListPending, setIsAllocateDeckPullListPending] = useState(false)
+  const customTagOpSeqRef = useRef<Map<string, number>>(new Map())
   const navigate = useNavigate()
   const client = useApolloClient()
   const { showToast } = useToast()
@@ -277,6 +285,13 @@ export function DeckDetailPage({
 
   function updateDeckCacheTags(patches: readonly DeckTagPatch[]) {
     writeDeckQuery(updateDeckCardTagsInDeckQuery(readDeckQuery(), patches))
+  }
+
+  function updateDeckCacheCustomTags(
+    cardPatches: readonly DeckCustomTagPatch[],
+    tagCountPatches: readonly { id: string; cardCount: number }[],
+  ) {
+    writeDeckQuery(updateDeckCardCustomTagsInDeckQuery(readDeckQuery(), cardPatches, tagCountPatches))
   }
 
   function refetchDeckQueries() {
@@ -575,6 +590,9 @@ export function DeckDetailPage({
     },
   }
 
+  const [assignDeckCardTagMutation] = useMutation(AssignDeckCardTagDocument)
+  const [unassignDeckCardTagMutation] = useMutation(UnassignDeckCardTagDocument)
+
   const [bulkUpdateDeckCardsMutation] = useMutation(BulkUpdateDeckCardsDocument)
   const bulkUpdateDeckCards = {
     isPending: isBulkUpdateDeckCardsPending,
@@ -784,6 +802,88 @@ export function DeckDetailPage({
     updateDeckCard.mutate({ deckCardId: deckCard.id, input: { tag } })
   }
 
+  function assignDeckCardTag(deckCard: DeckCardEntry, tagId: string) {
+    const previousDeck = readDeckQuery()
+    const previousTagIds = deckCard.tagIds ?? []
+    const previousCardCount =
+      previousDeck?.deck?.tags?.find((deckTag) => deckTag.id === tagId)?.cardCount ?? 0
+    if (previousTagIds.includes(tagId)) return
+
+    const opSeq = (customTagOpSeqRef.current.get(deckCard.id) ?? 0) + 1
+    customTagOpSeqRef.current.set(deckCard.id, opSeq)
+    const optimisticTagIds = [...previousTagIds, tagId]
+    const optimisticCardCount = previousCardCount + deckCard.quantity
+    updateDeckCacheCustomTags(
+      [{ id: deckCard.id, tagIds: optimisticTagIds }],
+      [{ id: tagId, cardCount: optimisticCardCount }],
+    )
+
+    void assignDeckCardTagMutation({
+      variables: { deckCardId: deckCard.id, tagId },
+      onCompleted: (data) => {
+        // A newer assign/unassign for this card superseded us; its optimistic
+        // state is authoritative, so skip reconciling a stale response.
+        if (customTagOpSeqRef.current.get(deckCard.id) !== opSeq) return
+        const assignedDeckCard = data.assignDeckCardTag?.deckCard
+        const deckTags = data.assignDeckCardTag?.deckTags ?? []
+        if (assignedDeckCard) {
+          updateDeckCacheCustomTags(
+            [{ id: assignedDeckCard.id, tagIds: assignedDeckCard.tagIds }],
+            deckTags,
+          )
+        }
+      },
+      onError: (error) => {
+        if (customTagOpSeqRef.current.get(deckCard.id) !== opSeq) return
+        updateDeckCacheCustomTags(
+          [{ id: deckCard.id, tagIds: previousTagIds }],
+          [{ id: tagId, cardCount: previousCardCount }],
+        )
+        showToast(error instanceof Error ? error.message : "Could not assign tag")
+      },
+    })
+  }
+
+  function unassignDeckCardTag(deckCard: DeckCardEntry, tagId: string) {
+    const previousDeck = readDeckQuery()
+    const previousTagIds = deckCard.tagIds ?? []
+    const previousCardCount =
+      previousDeck?.deck?.tags?.find((deckTag) => deckTag.id === tagId)?.cardCount ?? 0
+    if (!previousTagIds.includes(tagId)) return
+
+    const opSeq = (customTagOpSeqRef.current.get(deckCard.id) ?? 0) + 1
+    customTagOpSeqRef.current.set(deckCard.id, opSeq)
+    const optimisticTagIds = previousTagIds.filter((id) => id !== tagId)
+    const optimisticCardCount = Math.max(previousCardCount - deckCard.quantity, 0)
+    updateDeckCacheCustomTags(
+      [{ id: deckCard.id, tagIds: optimisticTagIds }],
+      [{ id: tagId, cardCount: optimisticCardCount }],
+    )
+
+    void unassignDeckCardTagMutation({
+      variables: { deckCardId: deckCard.id, tagId },
+      onCompleted: (data) => {
+        if (customTagOpSeqRef.current.get(deckCard.id) !== opSeq) return
+        const unassignedDeckCard = data.unassignDeckCardTag?.deckCard
+        const deckTags = data.unassignDeckCardTag?.deckTags ?? []
+        if (unassignedDeckCard) {
+          updateDeckCacheCustomTags(
+            [{ id: unassignedDeckCard.id, tagIds: unassignedDeckCard.tagIds }],
+            deckTags,
+          )
+        }
+      },
+      onError: (error) => {
+        if (customTagOpSeqRef.current.get(deckCard.id) !== opSeq) return
+        updateDeckCacheCustomTags(
+          [{ id: deckCard.id, tagIds: previousTagIds }],
+          [{ id: tagId, cardCount: previousCardCount }],
+        )
+        showToast(error instanceof Error ? error.message : "Could not remove tag")
+      },
+    })
+  }
+
   function tagSelectedDeckCards(tag: DeckCardTag | null) {
     if (selectedDeckCardIdList.length === 0) return
     setBulkActionError(null)
@@ -872,6 +972,7 @@ export function DeckDetailPage({
           },
         }}
         cardActions={{
+          onAssignTag: assignDeckCardTag,
           onDeleteCard: setDeleteCardTarget,
           onEditCard: (deckCard) => {
             setEditError(null)
@@ -884,6 +985,7 @@ export function DeckDetailPage({
           onPreviewCard: setPreviewDeckCard,
           onSetCommander: (deckCard) => setDeckCommander.mutate(deckCard.id),
           onTagCard: tagDeckCard,
+          onUnassignTag: unassignDeckCardTag,
         }}
         selection={{
           allDeckCardsSelected,
@@ -913,6 +1015,7 @@ export function DeckDetailPage({
         deck={deck}
         deckCards={deckCards}
         deckStats={deckStats}
+        deckTags={deck.tags}
         deckTokens={deckTokens}
         groupBy={groupBy}
         groupedCards={groupedCards}

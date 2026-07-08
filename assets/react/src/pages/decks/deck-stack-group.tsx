@@ -11,7 +11,7 @@ import {
   shouldUnstackDeckStackGroup,
   shouldUpdateDeckStackHoverFromPointer,
 } from "./deck-stack-interactions"
-import type { DeckCardEntry, DeckCardTag } from "./deck-types"
+import type { DeckCardEntry, DeckCardTag, DeckCustomTag } from "./deck-types"
 import {
   DECK_CARD_HOVER_DELAY_MS,
   DECK_STACK_CARD_HEIGHT,
@@ -49,10 +49,12 @@ export function deckStackIndexFromPointer(
 export function DeckStackGroup({
   canSetCommander,
   deckId,
+  deckTags,
   group,
   isSelecting,
   isUpdating,
   onAllocate,
+  onAssignTag,
   onDelete,
   onDeallocate,
   onEdit,
@@ -62,17 +64,20 @@ export function DeckStackGroup({
   onTag,
   onToggleProxy,
   onToggleSelected,
+  onUnassignTag,
   selectedCardIds,
   highlightedCardIds,
   shareMode = false,
 }: {
   canSetCommander: boolean
   deckId: string
+  deckTags: DeckCustomTag[]
   group: DeckGroup<DeckCardEntry>
   highlightedCardIds: Set<string> | null
   isSelecting: boolean
   isUpdating: boolean
   onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
+  onAssignTag: (deckCard: DeckCardEntry, tagId: string) => void
   onDelete: (deckCard: DeckCardEntry) => void
   onDeallocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
   onEdit: (deckCard: DeckCardEntry) => void
@@ -82,6 +87,7 @@ export function DeckStackGroup({
   onTag: (deckCard: DeckCardEntry, tag: DeckCardTag | null) => void
   onToggleProxy: (deckCard: DeckCardEntry) => void
   onToggleSelected: (deckCardId: string, selectRange?: boolean) => void
+  onUnassignTag: (deckCard: DeckCardEntry, tagId: string) => void
   selectedCardIds: Set<string>
   shareMode?: boolean
 }) {
@@ -204,11 +210,13 @@ export function DeckStackGroup({
           {group.cards.map((deckCard, index) => (
             <DeckStackCard
               key={deckCard.id}
+              assignedTagIds={deckCard.tagIds ?? []}
               canSetCommander={
                 canSetCommander && deckCard.zone !== "commander" && isLegendaryCreature(deckCard)
               }
               deckCard={deckCard}
               deckId={deckId}
+              deckTags={deckTags}
               index={index}
               isLast={index === group.cards.length - 1}
               isActive={activeIndex === index}
@@ -217,6 +225,7 @@ export function DeckStackGroup({
               isUpdating={isUpdating}
               isDimmed={highlightedCardIds !== null && !highlightedCardIds.has(deckCard.id)}
               onAllocate={(collectionItemId) => onAllocate(deckCard, collectionItemId)}
+              onAssignTag={(_, id) => onAssignTag(deckCard, id)}
               onDelete={() => onDelete(deckCard)}
               onDeallocate={(collectionItemId) => onDeallocate(deckCard, collectionItemId)}
               onEdit={() => onEdit(deckCard)}
@@ -231,6 +240,7 @@ export function DeckStackGroup({
               onTag={(tag) => onTag(deckCard, tag)}
               onToggleProxy={() => onToggleProxy(deckCard)}
               onToggleSelected={(selectRange) => onToggleSelected(deckCard.id, selectRange)}
+              onUnassignTag={(_, id) => onUnassignTag(deckCard, id)}
               shareMode={shareMode}
               slideOffset={activeIndex != null && index > activeIndex ? revealOffset : 0}
               top={index * DECK_STACK_OFFSET}

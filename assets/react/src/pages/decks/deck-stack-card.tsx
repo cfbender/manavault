@@ -27,6 +27,7 @@ import {
 import { cardImageUrl } from "./deck-card-model"
 import { GameChangerBadge } from "./deck-card-display"
 import { deckCardTag, nextDeckCardTag } from "./deck-card-tags"
+import { DeckCardTagRadial } from "./deck-card-tag-radial"
 import {
   DECK_STACK_ACTION_MENU_CLASS_NAME,
   deckStackActionMenuDirection,
@@ -34,13 +35,15 @@ import {
   shouldCloseDeckStackActionMenu,
   shouldRaiseDeckStackCardForActionMenu,
 } from "./deck-stack-interactions"
-import type { DeckCardEntry, DeckCardTag } from "./deck-types"
+import type { DeckCardEntry, DeckCardTag, DeckCustomTag } from "./deck-types"
 import { DECK_CARD_TAGS } from "./deck-types"
 
 export function DeckStackCard({
+  assignedTagIds,
   canSetCommander,
   deckId,
   deckCard,
+  deckTags,
   index,
   isLast,
   isActive,
@@ -50,6 +53,7 @@ export function DeckStackCard({
   isUpdating,
   onDelete,
   onAllocate,
+  onAssignTag,
   onDeallocate,
   onEdit,
   onMove,
@@ -59,13 +63,16 @@ export function DeckStackCard({
   onToggleProxy,
   onTouchReveal,
   onToggleSelected,
+  onUnassignTag,
   shareMode = false,
   slideOffset,
   top,
 }: {
+  assignedTagIds: string[]
   canSetCommander: boolean
   deckId: string
   deckCard: DeckCardEntry
+  deckTags: DeckCustomTag[]
   index: number
   isLast: boolean
   isActive: boolean
@@ -74,6 +81,7 @@ export function DeckStackCard({
   isSelecting: boolean
   isSelected: boolean
   onAllocate: (collectionItemId: string) => void
+  onAssignTag: (deckCard: DeckCardEntry, tagId: string) => void
   onDelete: () => void
   onDeallocate: (collectionItemId: string) => void
   onEdit: () => void
@@ -84,11 +92,13 @@ export function DeckStackCard({
   onTag: (tag: DeckCardTag | null) => void
   onToggleProxy: () => void
   onToggleSelected: (selectRange?: boolean) => void
+  onUnassignTag: (deckCard: DeckCardEntry, tagId: string) => void
   shareMode?: boolean
   slideOffset: number
   top: number
 }) {
   const [hasFocusWithin, setHasFocusWithin] = useState(false)
+  const [isTagRadialOpen, setIsTagRadialOpen] = useState(false)
   const actionMenuRef = useRef<HTMLDivElement>(null)
   const mobileHover = useMobileHoverReveal<HTMLButtonElement>({
     clearOnOutsidePointerDown: false,
@@ -341,6 +351,63 @@ export function DeckStackCard({
                 tag={tag}
                 value={deckCard.tag}
                 onChange={onTag}
+              />
+            </div>
+          </ShareModeHidden>
+        ) : null}
+
+        {!isSelecting ? (
+          <ShareModeHidden shareMode={shareMode}>
+            <div
+              className={cn(
+                "absolute left-1/2 top-1/2 z-[118] -translate-x-1/2 -translate-y-1/2 transition-opacity",
+                isInteractive
+                  ? "visible opacity-100"
+                  : "invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100",
+              )}
+              data-deck-stack-pointer-capture=""
+              onClick={(event) => event.stopPropagation()}
+              onMouseDown={(event) => event.stopPropagation()}
+              onPointerDown={(event) => event.stopPropagation()}
+              onPointerMove={(event) => event.stopPropagation()}
+              onPointerUp={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                draggable
+                className="relative flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary-content/30 bg-primary/85 text-sm font-black uppercase tracking-wide text-primary-content shadow-xl backdrop-blur transition hover:bg-primary"
+                aria-label={`Tag ${name}`}
+                tabIndex={isInteractive ? 0 : -1}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  setIsTagRadialOpen((open) => !open)
+                }}
+                onDragStart={(event) => {
+                  event.dataTransfer.setData("application/x-manavault-tag-drag", deckCard.id)
+                  setIsTagRadialOpen(true)
+                }}
+              >
+                TAG
+                {assignedTagIds.length > 0 ? (
+                  <span
+                    className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-base-100/80 bg-secondary px-1 text-[0.65rem] font-black text-secondary-content shadow"
+                    aria-hidden="true"
+                  >
+                    {assignedTagIds.length}
+                  </span>
+                ) : null}
+              </button>
+              <DeckCardTagRadial
+                open={isTagRadialOpen}
+                tags={deckTags}
+                assignedTagIds={assignedTagIds}
+                onToggleTag={(tagId) =>
+                  assignedTagIds.includes(tagId)
+                    ? onUnassignTag(deckCard, tagId)
+                    : onAssignTag(deckCard, tagId)
+                }
+                onClose={() => setIsTagRadialOpen(false)}
+                anchorLabel={name}
               />
             </div>
           </ShareModeHidden>

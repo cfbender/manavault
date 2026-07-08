@@ -48,7 +48,7 @@ import {
 import { DeckNameWithCommanderIdentity, commanderColorIdentity } from "./deck-list-model"
 import { DeckGroupGrid } from "./deck-stack-grid"
 import { DeckStatsSection, DeckTokensSection, type DeferredDeckAnalysis } from "./deck-stats-panel"
-import type { DeckCardEntry, DeckCardTag, DeckDetail, DeckZone } from "./deck-types"
+import type { DeckCardEntry, DeckCardTag, DeckCustomTag, DeckDetail, DeckZone } from "./deck-types"
 import { DECK_CARD_TAGS, MOVE_TARGET_ZONES } from "./deck-types"
 import { DeckZoneTable } from "./deck-zone-table"
 
@@ -75,12 +75,14 @@ export type DeckAllocationActions = {
 }
 
 export type DeckCardActions = {
+  onAssignTag: (deckCard: DeckCardEntry, tagId: string) => void
   onDeleteCard: (deckCard: DeckCardEntry) => void
   onEditCard: (deckCard: DeckCardEntry) => void
   onMoveCard: (deckCard: DeckCardEntry) => void
   onPreviewCard: (deckCard: DeckCardEntry) => void
   onSetCommander: (deckCard: DeckCardEntry) => void
   onTagCard: (deckCard: DeckCardEntry, tag: DeckCardTag | null) => void
+  onUnassignTag: (deckCard: DeckCardEntry, tagId: string) => void
 }
 
 export type DeckSelectionControls = {
@@ -428,6 +430,7 @@ export function DeckDetailContent({
   deck,
   deckCards,
   deckStats,
+  deckTags,
   deckTokens,
   groupBy,
   groupedCards,
@@ -466,6 +469,7 @@ export function DeckDetailContent({
   deck: DeckDetail
   deckCards: DeckCardEntry[]
   deckStats: DeferredDeckAnalysis["stats"] | null
+  deckTags: DeckCustomTag[]
   deckTokens: DeferredDeckAnalysis["tokens"] | null
   groupBy: DeckGroupBy
   groupedCards: DeckGroup<DeckCardEntry>[]
@@ -496,8 +500,16 @@ export function DeckDetailContent({
   zoneCounts: DetailZoneCounts
 }) {
   const { onAllocate, onDeallocate, onToggleProxy } = allocationActions
-  const { onDeleteCard, onEditCard, onMoveCard, onPreviewCard, onSetCommander, onTagCard } =
-    cardActions
+  const {
+    onAssignTag,
+    onDeleteCard,
+    onEditCard,
+    onMoveCard,
+    onPreviewCard,
+    onSetCommander,
+    onTagCard,
+    onUnassignTag,
+  } = cardActions
   const {
     allDeckCardsSelected,
     bulkActionError,
@@ -875,6 +887,7 @@ export function DeckDetailContent({
         <DeckGroupGrid
           canSetCommander={canEditDecklist && deck.format === "commander"}
           deckId={deck.id}
+          deckTags={deckTags}
           groups={groupedCards}
           isSelecting={canEditDecklist && isSelectionActive}
           isUpdating={isUpdatingDeckCard}
@@ -882,6 +895,7 @@ export function DeckDetailContent({
           highlightedCardIds={highlightedDeckCardIds}
           onPreview={onPreviewCard}
           onAllocate={onAllocate}
+          onAssignTag={onAssignTag}
           onDeallocate={onDeallocate}
           onMove={onMoveCard}
           onEdit={onEditCard}
@@ -890,6 +904,7 @@ export function DeckDetailContent({
           onSetCommander={onSetCommander}
           onToggleSelected={onToggleSelected}
           onToggleProxy={onToggleProxy}
+          onUnassignTag={onUnassignTag}
           shareMode={shareMode || !canEditDecklist}
         />
       ) : (
