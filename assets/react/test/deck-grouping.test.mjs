@@ -254,3 +254,51 @@ test("price is offered as a grouping option", () => {
 test("tag is offered as a grouping option", () => {
   assert.ok(DECK_GROUP_OPTIONS.some((option) => option.value === "tag" && option.label === "Tag"))
 })
+
+test("allocation grouping labels and orders cards by allocation state", () => {
+  const groups = groupDeckCards(
+    [
+      deckCard("missing-card", { allocationStatus: { state: "missing" } }),
+      deckCard("basic-card", { allocationStatus: { state: "basic_land" } }),
+      deckCard("ready-a", { quantity: 2, allocationStatus: { state: "allocated" } }),
+      deckCard("ready-b", { allocationStatus: { state: "allocated" } }),
+      deckCard("available-card", { allocationStatus: { state: "available" } }),
+      deckCard("partial-card", { allocationStatus: { state: "partial" } }),
+    ],
+    "allocation",
+  )
+
+  assert.deepEqual(
+    groups.map((group) => ({ key: group.key, label: group.label, quantity: group.quantity })),
+    [
+      { key: "allocated", label: "Fully allocated", quantity: 3 },
+      { key: "available", label: "Available to allocate", quantity: 1 },
+      { key: "partial", label: "Partially available", quantity: 1 },
+      { key: "basic_land", label: "Basic land", quantity: 1 },
+      { key: "missing", label: "Missing from collection", quantity: 1 },
+    ],
+  )
+})
+
+test("allocation grouping falls back to missing for unknown or absent state", () => {
+  const groups = groupDeckCards(
+    [
+      deckCard("no-status"),
+      deckCard("weird", { allocationStatus: { state: "bogus" } }),
+    ],
+    "allocation",
+  )
+
+  assert.deepEqual(
+    groups.map((group) => ({ key: group.key, quantity: group.quantity })),
+    [{ key: "missing", quantity: 2 }],
+  )
+})
+
+test("allocation is offered as a grouping option", () => {
+  assert.ok(
+    DECK_GROUP_OPTIONS.some(
+      (option) => option.value === "allocation" && option.label === "Allocation",
+    ),
+  )
+})

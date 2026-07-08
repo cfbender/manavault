@@ -42,6 +42,7 @@ import {
 import { Badge } from "../../components/ui/badge"
 import { ManaSymbol } from "../../components/ui/mana-symbols"
 import { type DeckGroupIcon } from "../../lib/deck-grouping"
+import { AllocationStatusIcon, allocationStatusIconClass } from "./deck-card-allocation"
 import { cn } from "../../lib/utils"
 import type { DeckZone } from "./deck-types"
 
@@ -116,6 +117,15 @@ export function GroupIcon({ icon }: { icon: DeckGroupIcon }) {
 
     if (icon.kind === "rarity") {
       return <Star className="h-4 w-4 shrink-0" style={{ color: rarityColor(icon.rarity) }} />
+    }
+
+    if (icon.kind === "allocation") {
+      return (
+        <AllocationStatusIcon
+          state={icon.state}
+          className={cn("h-4 w-4 shrink-0", allocationStatusIconClass(icon.state))}
+        />
+      )
     }
 
     return <SetSymbol setCode={icon.setCode} />

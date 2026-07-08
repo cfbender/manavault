@@ -9,6 +9,7 @@ export type DeckGroupBy =
   | "set"
   | "tag"
   | "price"
+  | "allocation"
   | "none"
 
 export type DeckGroupIcon =
@@ -59,6 +60,7 @@ export type DeckGroupIcon =
   | { kind: "manaValue"; plus: boolean; value: number }
   | { kind: "rarity"; rarity: string }
   | { kind: "set"; setCode: string | null }
+  | { kind: "allocation"; state: string }
 
 type DeckGroupingPrinting = {
   rarity: string | null
@@ -82,6 +84,7 @@ export type DeckGroupingDeckCard = {
   zone: string | null
   tag?: string | null
   priceCents?: number | null
+  allocationStatus?: { state: string | null } | null
   card: DeckGroupingCard | null
   preferredPrinting: DeckGroupingPrinting | null
   fallbackPrinting: DeckGroupingPrinting | null
@@ -107,6 +110,7 @@ export const DECK_GROUP_OPTIONS: Array<{ label: string; value: DeckGroupBy }> = 
   { label: "Set", value: "set" },
   { label: "Tag", value: "tag" },
   { label: "Price", value: "price" },
+  { label: "Allocation", value: "allocation" },
   { label: "None", value: "none" },
 ]
 
@@ -346,6 +350,10 @@ function deckCardGroupDescriptor<T extends DeckGroupingDeckCard>(
     return priceDescriptor(deckCard.priceCents)
   }
 
+  if (groupBy === "allocation") {
+    return allocationDescriptor(deckCard.allocationStatus?.state)
+  }
+
   return typeDescriptor(deckCard)
 }
 
@@ -361,6 +369,25 @@ function priceDescriptor(priceCents: number | null | undefined) {
     ) || PRICE_BUCKETS[PRICE_BUCKETS.length - 1]
 
   return { icon: "none", key: bucket.key, label: bucket.label, order: bucket.order } as const
+}
+
+const ALLOCATION_GROUPS: Record<string, { label: string; order: number }> = {
+  allocated: { label: "Fully allocated", order: 0 },
+  available: { label: "Available to allocate", order: 1 },
+  partial: { label: "Partially available", order: 2 },
+  basic_land: { label: "Basic land", order: 3 },
+  missing: { label: "Missing from collection", order: 4 },
+}
+
+function allocationDescriptor(state: string | null | undefined) {
+  const key = state && ALLOCATION_GROUPS[state] ? state : "missing"
+  const group = ALLOCATION_GROUPS[key]
+  return {
+    icon: { kind: "allocation", state: key } as const,
+    key,
+    label: group.label,
+    order: group.order,
+  }
 }
 
 function typeDescriptor<T extends DeckGroupingDeckCard>(
