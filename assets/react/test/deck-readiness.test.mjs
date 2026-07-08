@@ -2,6 +2,8 @@ import test from "node:test"
 import assert from "node:assert/strict"
 
 import {
+  deckZoneMissing,
+  hasDeckBuylistWork,
   hasDeckPullWork,
   summarizeDeckPullNeeds,
   summarizeDeckReadiness,
@@ -80,4 +82,43 @@ test("proxied pull-list cards do not keep readiness visible", () => {
 
 test("empty decks are ready by definition", () => {
   assert.equal(summarizeDeckReadiness([]).readinessPercent, 100)
+})
+
+test("deckZoneMissing flags each zone with unsourced cards", () => {
+  const missing = deckZoneMissing([
+    deckCard(status({ allocated: 1, required: 1, state: "allocated" })),
+    deckCard(status({ missing: 1, required: 1, state: "missing" }), { zone: "sideboard" }),
+    deckCard(status({ missing: 2, required: 2, state: "missing" }), { zone: "maybeboard" }),
+  ])
+
+  assert.deepEqual(missing, { mainboard: false, sideboard: true, maybeboard: true })
+})
+
+test("deckZoneMissing ignores getting-tagged and basic land cards", () => {
+  const missing = deckZoneMissing([
+    deckCard(status({ missing: 1, required: 1, state: "missing" }), { tag: "getting" }),
+    deckCard(status({ missing: 8, required: 8, state: "basic_land" }), { zone: "sideboard" }),
+  ])
+
+  assert.deepEqual(missing, { mainboard: false, sideboard: false, maybeboard: false })
+})
+
+test("hasDeckBuylistWork is true when only the sideboard is missing", () => {
+  assert.equal(
+    hasDeckBuylistWork([
+      deckCard(status({ allocated: 1, required: 1, state: "allocated" })),
+      deckCard(status({ missing: 1, required: 1, state: "missing" }), { zone: "maybeboard" }),
+    ]),
+    true,
+  )
+})
+
+test("hasDeckBuylistWork is false when every zone is sourced", () => {
+  assert.equal(
+    hasDeckBuylistWork([
+      deckCard(status({ allocated: 1, required: 1, state: "allocated" })),
+      deckCard(status({ allocated: 1, required: 1, state: "allocated" }), { zone: "sideboard" }),
+    ]),
+    false,
+  )
 })

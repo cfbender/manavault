@@ -16,6 +16,7 @@ import { buylistPrintingLabel, buylistReasonTone, buylistSummary } from "./buyli
 import { BuylistOptionCheckbox } from "./buylist-option-checkbox"
 import { BuylistMarketplaceActions } from "./buylist-marketplace-actions"
 import type { BuylistExportFormat, BuylistPrintingMode, DeckDetail } from "./deck-types"
+import { deckZoneMissing } from "./deck-readiness"
 import { DeckBuylistDocument } from "./queries"
 
 export function MissingCardsDialog({
@@ -50,8 +51,18 @@ export function MissingCardsDialog({
   const exportText = buylistQuery.data?.deckBuylistExport || ""
 
   useEffect(() => {
-    if (!open) setCopyState("idle")
-  }, [open])
+    if (!open) {
+      setCopyState("idle")
+      return
+    }
+
+    // When the mainboard is fully sourced, missing cards live only in the
+    // sideboard/maybeboard, so pre-select those zones that still need buying.
+    const missing = deckZoneMissing(deck?.deckCards || [])
+    const mainboardReady = !missing.mainboard
+    setIncludeSideboard(mainboardReady && missing.sideboard)
+    setIncludeMaybeboard(mainboardReady && missing.maybeboard)
+  }, [open, deck])
 
   async function copyExportText() {
     try {

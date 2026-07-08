@@ -282,10 +282,7 @@ test("allocation grouping labels and orders cards by allocation state", () => {
 
 test("allocation grouping falls back to missing for unknown or absent state", () => {
   const groups = groupDeckCards(
-    [
-      deckCard("no-status"),
-      deckCard("weird", { allocationStatus: { state: "bogus" } }),
-    ],
+    [deckCard("no-status"), deckCard("weird", { allocationStatus: { state: "bogus" } })],
     "allocation",
   )
 

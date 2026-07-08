@@ -24,6 +24,36 @@ export function hasDeckPullWork(deckCards: readonly DeckCardEntry[]) {
   return readiness.readyCount < readiness.requiredCount
 }
 
+export type DeckZoneMissing = {
+  mainboard: boolean
+  sideboard: boolean
+  maybeboard: boolean
+}
+
+function deckCardMissingToBuy(deckCard: DeckCardEntry) {
+  if (deckCard.tag === "getting" || deckCard.allocationStatus.state === "basic_land") return 0
+  return Math.max(deckCard.allocationStatus.missing || 0, 0)
+}
+
+export function deckZoneMissing(deckCards: readonly DeckCardEntry[]): DeckZoneMissing {
+  const missing = { mainboard: false, sideboard: false, maybeboard: false }
+
+  for (const deckCard of deckCards) {
+    if (deckCardMissingToBuy(deckCard) <= 0) continue
+
+    if (deckCard.zone === "sideboard") missing.sideboard = true
+    else if (deckCard.zone === "maybeboard") missing.maybeboard = true
+    else missing.mainboard = true
+  }
+
+  return missing
+}
+
+export function hasDeckBuylistWork(deckCards: readonly DeckCardEntry[]) {
+  const missing = deckZoneMissing(deckCards)
+  return missing.mainboard || missing.sideboard || missing.maybeboard
+}
+
 export function summarizeDeckReadiness(deckCards: readonly DeckCardEntry[]): DeckReadinessSummary {
   let availableToPull = 0
   let missingToBuy = 0

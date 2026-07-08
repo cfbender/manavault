@@ -39,7 +39,12 @@ import {
 import { deckDetailCoverUrl } from "./deck-card-model"
 import { DeckGroupMenu } from "./deck-group-menu"
 import { deckLegalityIssueCountLabel, deckLegalityLabel, deckLegalityTone } from "./deck-legality"
-import { deckPullZones, hasDeckPullWork, summarizeDeckPullNeeds } from "./deck-readiness"
+import {
+  deckPullZones,
+  hasDeckBuylistWork,
+  hasDeckPullWork,
+  summarizeDeckPullNeeds,
+} from "./deck-readiness"
 import { DeckNameWithCommanderIdentity, commanderColorIdentity } from "./deck-list-model"
 import { DeckGroupGrid } from "./deck-stack-grid"
 import { DeckStatsSection, DeckTokensSection, type DeferredDeckAnalysis } from "./deck-stats-panel"
@@ -516,6 +521,7 @@ export function DeckDetailContent({
 
   const [isReadinessOpen, setIsReadinessOpen] = useState(false)
   const hasReadinessWork = useMemo(() => hasDeckPullWork(deckCards), [deckCards])
+  const hasBuylistWork = useMemo(() => hasDeckBuylistWork(deckCards), [deckCards])
   const selectedAllocatedDeckCardCount = useMemo(
     () =>
       deckCards.filter(
@@ -566,6 +572,7 @@ export function DeckDetailContent({
               onExport={onExportDeck}
               onImport={canEditDecklist ? onImportDeck : undefined}
               onShare={onOpenShareDeck}
+              onMissing={canEditDecklist && hasBuylistWork ? onMissingCards : undefined}
               onDisassemble={canEditDecklist ? onDisassemble : undefined}
               onEdhrec={canEditDecklist && deck.format === "commander" ? onOpenEdhrec : undefined}
             />
