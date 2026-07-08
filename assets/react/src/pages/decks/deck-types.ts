@@ -169,6 +169,27 @@ export const DECK_CARD_TAGS = [
   iconClassName: string
   icon: LucideIcon
 }>
+
+export const DECK_TAG_COLORS = [
+  "#7C5CFF",
+  "#22C55E",
+  "#3B82F6",
+  "#F59E0B",
+  "#EF4444",
+  "#EC4899",
+  "#14B8A6",
+  "#A855F7",
+] as const
+// TODO: derive DeckCustomTag from `DeckQuery["deck"]["tags"][number]` once codegen has
+// run and the `tags` selection on DeckDocument is reflected in the generated types.
+export type DeckCustomTag = {
+  id: string
+  name: string
+  color: string
+  targetCount?: number | null
+  position: number
+  cardCount: number
+}
 export const DECK_FORMATS = [
   "commander",
   "standard",

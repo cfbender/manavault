@@ -15,6 +15,7 @@ defmodule Manavault.Catalog.DeckCard do
     field :tag, :string
     field :allocation_status, :map, virtual: true
     field :fallback_printing, :map, virtual: true
+    field :tag_ids, {:array, :id}, virtual: true, default: []
 
     belongs_to :deck, Manavault.Catalog.Deck
 
@@ -30,6 +31,8 @@ defmodule Manavault.Catalog.DeckCard do
 
     has_many :deck_allocations, Manavault.Catalog.DeckAllocation, on_replace: :delete
     has_many :collection_items, through: [:deck_allocations, :collection_item]
+    has_many :deck_card_tags, Manavault.Catalog.DeckCardTag
+    has_many :deck_tags, through: [:deck_card_tags, :deck_tag]
 
     timestamps(type: :utc_datetime)
   end

@@ -655,6 +655,85 @@ defmodule ManavaultWeb.Schema do
       end)
     end
 
+    payload field :create_deck_tag do
+      arg(:deck_id, non_null(:id))
+      arg(:input, non_null(:deck_tag_input))
+
+      output do
+        field :deck_tag, :deck_tag
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &CatalogResolvers.create_deck_tag/3, :deck_tag)
+      end)
+    end
+
+    payload field :update_deck_tag do
+      arg(:id, non_null(:id))
+      arg(:input, non_null(:deck_tag_input))
+
+      output do
+        field :deck_tag, :deck_tag
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &CatalogResolvers.update_deck_tag/3, :deck_tag)
+      end)
+    end
+
+    payload field :delete_deck_tag do
+      arg(:id, non_null(:id))
+
+      output do
+        field :deck_tag_id, non_null(:id)
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &CatalogResolvers.delete_deck_tag/3, :deck_tag_id)
+      end)
+    end
+
+    payload field :reorder_deck_tags do
+      arg(:deck_id, non_null(:id))
+      arg(:tag_ids, non_null(list_of(non_null(:id))))
+
+      output do
+        field :tags, non_null(list_of(non_null(:deck_tag)))
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &CatalogResolvers.reorder_deck_tags/3, :tags)
+      end)
+    end
+
+    payload field :assign_deck_card_tag do
+      arg(:deck_card_id, non_null(:id))
+      arg(:tag_id, non_null(:id))
+
+      output do
+        field :deck_card, :deck_card
+        field :deck_tags, non_null(list_of(non_null(:deck_tag)))
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &CatalogResolvers.assign_deck_card_tag/3, :deck_card)
+      end)
+    end
+
+    payload field :unassign_deck_card_tag do
+      arg(:deck_card_id, non_null(:id))
+      arg(:tag_id, non_null(:id))
+
+      output do
+        field :deck_card, :deck_card
+        field :deck_tags, non_null(list_of(non_null(:deck_tag)))
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &CatalogResolvers.unassign_deck_card_tag/3, :deck_card)
+      end)
+    end
+
     payload field :bulk_update_deck_cards do
       arg(:deck_card_ids, non_null(list_of(non_null(:id))))
       arg(:input, non_null(:deck_card_update_input))

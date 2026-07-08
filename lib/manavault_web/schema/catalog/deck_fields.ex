@@ -23,6 +23,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
     deck_cards
     |> Catalog.put_deck_card_fallback_printings()
     |> Catalog.put_deck_card_allocation_statuses()
+    |> Catalog.put_deck_card_tag_ids()
     |> RelayHelpers.connection_from_list(args)
   end
 
@@ -39,6 +40,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
           |> Dataloader.get(Catalog, :deck_cards, deck)
           |> Catalog.put_deck_card_fallback_printings()
           |> Catalog.put_deck_card_allocation_statuses()
+          |> Catalog.put_deck_card_tag_ids()
           |> then(&Catalog.put_cached_deck_cards(deck, &1))
           |> RelayHelpers.connection_from_list(args)
         end)
@@ -139,5 +141,19 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
   def deck_card_allocation_status(%DeckCard{} = deck_card, _args, _resolution) do
     status = Catalog.deck_card_allocation_status(deck_card)
     {:ok, %{status | state: to_string(status.state)}}
+  end
+
+  def deck_tags(%Deck{} = deck, _args, _resolution) do
+    {:ok, Catalog.list_deck_tags(deck)}
+  end
+
+  def deck_card_tag_ids(%DeckCard{tag_ids: tag_ids}, _args, _resolution)
+      when is_list(tag_ids) do
+    {:ok, tag_ids}
+  end
+
+  def deck_card_tag_ids(%DeckCard{} = deck_card, _args, _resolution) do
+    [updated] = Catalog.put_deck_card_tag_ids([deck_card])
+    {:ok, updated.tag_ids}
   end
 end

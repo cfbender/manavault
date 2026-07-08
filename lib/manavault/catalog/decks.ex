@@ -1,7 +1,7 @@
 defmodule Manavault.Catalog.Decks do
   @moduledoc false
 
-  alias Manavault.Catalog.Decks.Workflows
+  alias Manavault.Catalog.Decks.{Tags, Workflows}
 
   defdelegate list_decks(), to: Workflows
   defdelegate list_deck_summaries(opts), to: Workflows
@@ -35,6 +35,14 @@ defmodule Manavault.Catalog.Decks do
   defdelegate deck_card_allocation_status(deck_card), to: Workflows
   defdelegate put_deck_card_allocation_statuses(deck_cards), to: Workflows
   defdelegate put_deck_card_fallback_printings(deck_cards), to: Workflows
+  defdelegate list_deck_tags(deck), to: Tags
+  defdelegate create_deck_tag(deck, attrs), to: Tags
+  defdelegate update_deck_tag(deck_tag, attrs), to: Tags
+  defdelegate delete_deck_tag(deck_tag), to: Tags
+  defdelegate reorder_deck_tags(deck, ordered_tag_ids), to: Tags
+  defdelegate assign_deck_card_tag(deck_card_id, deck_tag_id), to: Tags
+  defdelegate unassign_deck_card_tag(deck_card_id, deck_tag_id), to: Tags
+  defdelegate put_deck_card_tag_ids(deck_cards), to: Tags
 
   defdelegate allocate_collection_item_to_deck_card(
                 deck_card_id,

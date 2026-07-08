@@ -103,6 +103,15 @@ defmodule Manavault.Catalog do
   defdelegate put_deck_card_allocation_statuses(deck_cards), to: Decks
   defdelegate put_deck_card_fallback_printings(deck_cards), to: Decks
 
+  defdelegate list_deck_tags(deck), to: Cached
+  defdelegate create_deck_tag(deck, attrs), to: Cached
+  defdelegate update_deck_tag(deck_tag, attrs), to: Cached
+  defdelegate delete_deck_tag(deck_tag), to: Cached
+  defdelegate reorder_deck_tags(deck, ordered_tag_ids), to: Cached
+  defdelegate assign_deck_card_tag(deck_card_id, deck_tag_id), to: Cached
+  defdelegate unassign_deck_card_tag(deck_card_id, deck_tag_id), to: Cached
+  defdelegate put_deck_card_tag_ids(deck_cards), to: Cached
+
   defdelegate allocate_collection_item_to_deck_card(
                 deck_card_id,
                 collection_item_id,

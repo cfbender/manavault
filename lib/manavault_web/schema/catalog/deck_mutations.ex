@@ -2,7 +2,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
   @moduledoc false
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.DeckCard
+  alias Manavault.Catalog.{DeckCard, DeckTag}
   alias Manavault.Repo
   alias ManavaultWeb.Schema.Catalog.Errors
   alias ManavaultWeb.Schema.RelayHelpers
@@ -227,6 +227,106 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
         {:error, reason} ->
           {:error, Errors.deck_edit_error(reason)}
       end
+    end
+  end
+
+  def create_deck_tag(_parent, %{deck_id: deck_id, input: input}, resolution) do
+    with {:ok, deck_id} <- RelayHelpers.node_id(deck_id, :deck, resolution) do
+      deck = Catalog.get_deck!(deck_id)
+
+      case Catalog.create_deck_tag(deck, input) do
+        {:ok, deck_tag} -> {:ok, deck_tag}
+        {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+      end
+    end
+  end
+
+  def update_deck_tag(_parent, %{id: id, input: input}, _resolution) do
+    with {:ok, id} <- parse_raw_id(id),
+         {:ok, deck_tag} <- fetch_deck_tag(id) do
+      case Catalog.update_deck_tag(deck_tag, input) do
+        {:ok, deck_tag} -> {:ok, deck_tag}
+        {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+      end
+    end
+  end
+
+  def delete_deck_tag(_parent, %{id: id}, _resolution) do
+    with {:ok, id} <- parse_raw_id(id),
+         {:ok, deck_tag} <- fetch_deck_tag(id) do
+      case Catalog.delete_deck_tag(deck_tag) do
+        {:ok, deck_tag} -> {:ok, deck_tag.id}
+        {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+      end
+    end
+  end
+
+  def reorder_deck_tags(_parent, %{deck_id: deck_id, tag_ids: tag_ids}, resolution) do
+    with {:ok, deck_id} <- RelayHelpers.node_id(deck_id, :deck, resolution),
+         {:ok, tag_ids} <- parse_raw_ids(tag_ids) do
+      deck = Catalog.get_deck!(deck_id)
+
+      case Catalog.reorder_deck_tags(deck, tag_ids) do
+        {:ok, deck_tags} -> {:ok, deck_tags}
+        {:error, reason} -> {:error, Errors.deck_edit_error(reason)}
+      end
+    end
+  end
+
+  def assign_deck_card_tag(_parent, %{deck_card_id: deck_card_id, tag_id: tag_id}, resolution) do
+    with {:ok, deck_card_id} <- RelayHelpers.node_id(deck_card_id, :deck_card, resolution),
+         {:ok, tag_id} <- parse_raw_id(tag_id) do
+      deck_card_id |> Catalog.assign_deck_card_tag(tag_id) |> deck_card_tag_payload()
+    end
+  end
+
+  def unassign_deck_card_tag(_parent, %{deck_card_id: deck_card_id, tag_id: tag_id}, resolution) do
+    with {:ok, deck_card_id} <- RelayHelpers.node_id(deck_card_id, :deck_card, resolution),
+         {:ok, tag_id} <- parse_raw_id(tag_id) do
+      deck_card_id |> Catalog.unassign_deck_card_tag(tag_id) |> deck_card_tag_payload()
+    end
+  end
+
+  defp deck_card_tag_payload({:ok, %DeckCard{} = deck_card}) do
+    deck = Catalog.get_deck!(deck_card.deck_id)
+    {:ok, %{deck_card: deck_card, deck_tags: Catalog.list_deck_tags(deck)}}
+  end
+
+  defp deck_card_tag_payload({:error, :deck_mismatch}) do
+    {:error, "That tag belongs to a different deck."}
+  end
+
+  defp deck_card_tag_payload({:error, :not_found}) do
+    {:error, "Deck card or deck tag was not found."}
+  end
+
+  defp fetch_deck_tag(id) do
+    case Repo.get(DeckTag, id) do
+      %DeckTag{} = deck_tag -> {:ok, deck_tag}
+      nil -> {:error, "Deck tag was not found."}
+    end
+  end
+
+  defp parse_raw_ids(ids) do
+    ids
+    |> Enum.reduce_while({:ok, []}, fn id, {:ok, acc} ->
+      case parse_raw_id(id) do
+        {:ok, parsed} -> {:cont, {:ok, [parsed | acc]}}
+        {:error, message} -> {:halt, {:error, message}}
+      end
+    end)
+    |> case do
+      {:ok, parsed} -> {:ok, Enum.reverse(parsed)}
+      {:error, message} -> {:error, message}
+    end
+  end
+
+  defp parse_raw_id(id) when is_integer(id), do: {:ok, id}
+
+  defp parse_raw_id(id) when is_binary(id) do
+    case Integer.parse(id) do
+      {parsed, ""} -> {:ok, parsed}
+      _other -> {:error, "Invalid ID: #{id}"}
     end
   end
 

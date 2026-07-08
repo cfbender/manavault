@@ -62,6 +62,12 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   defdelegate optimize_deck_card_printings(parent, args, resolution), to: MutationResolvers
   defdelegate delete_deck_card(parent, args, resolution), to: MutationResolvers
   defdelegate set_deck_commander(parent, args, resolution), to: MutationResolvers
+  defdelegate create_deck_tag(parent, args, resolution), to: MutationResolvers
+  defdelegate update_deck_tag(parent, args, resolution), to: MutationResolvers
+  defdelegate delete_deck_tag(parent, args, resolution), to: MutationResolvers
+  defdelegate reorder_deck_tags(parent, args, resolution), to: MutationResolvers
+  defdelegate assign_deck_card_tag(parent, args, resolution), to: MutationResolvers
+  defdelegate unassign_deck_card_tag(parent, args, resolution), to: MutationResolvers
   defdelegate allocate_deck_card_item(parent, args, resolution), to: MutationResolvers
   defdelegate deallocate_deck_card_item(parent, args, resolution), to: MutationResolvers
   defdelegate bulk_deallocate_deck_cards(parent, args, resolution), to: MutationResolvers
@@ -95,6 +101,8 @@ defmodule ManavaultWeb.Schema.CatalogResolvers do
   defdelegate deck_commander_color_identity(parent, args, resolution), to: DeckFields
   defdelegate deck_legality(parent, args, resolution), to: DeckFields
   defdelegate deck_card_allocation_status(parent, args, resolution), to: DeckFields
+  defdelegate deck_tags(parent, args, resolution), to: DeckFields
+  defdelegate deck_card_tag_ids(parent, args, resolution), to: DeckFields
 
   defdelegate location_item_count(parent, args, resolution), to: CollectionFields
   defdelegate location_total_price_cents(parent, args, resolution), to: CollectionFields

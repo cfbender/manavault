@@ -29,6 +29,12 @@ defmodule ManavaultWeb.Schema.Catalog.MutationResolvers do
   defdelegate optimize_deck_card_printings(parent, args, resolution), to: DeckMutations
   defdelegate delete_deck_card(parent, args, resolution), to: DeckMutations
   defdelegate set_deck_commander(parent, args, resolution), to: DeckMutations
+  defdelegate create_deck_tag(parent, args, resolution), to: DeckMutations
+  defdelegate update_deck_tag(parent, args, resolution), to: DeckMutations
+  defdelegate delete_deck_tag(parent, args, resolution), to: DeckMutations
+  defdelegate reorder_deck_tags(parent, args, resolution), to: DeckMutations
+  defdelegate assign_deck_card_tag(parent, args, resolution), to: DeckMutations
+  defdelegate unassign_deck_card_tag(parent, args, resolution), to: DeckMutations
 
   defdelegate create_location(parent, args, resolution), to: LocationMutations
   defdelegate delete_location(parent, args, resolution), to: LocationMutations

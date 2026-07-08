@@ -163,6 +163,14 @@ export const DeckDocument = graphql(`
           cardName
         }
       }
+      tags {
+        id
+        name
+        color
+        targetCount
+        position
+        cardCount
+      }
       deckCards(first: 500, after: $deckCardsAfter) {
         pageInfo {
           endCursor
@@ -175,6 +183,7 @@ export const DeckDocument = graphql(`
             zone
             finish
             tag
+            tagIds
             priceCents
             card {
               id
@@ -334,6 +343,89 @@ export const UpdateDeckCardsTagDocument = graphql(`
       deckCards {
         id
         tag
+      }
+    }
+  }
+`)
+
+export const CreateDeckTagDocument = graphql(`
+  mutation CreateDeckTag($deckId: ID!, $input: DeckTagInput!) {
+    createDeckTag(deckId: $deckId, input: $input) {
+      deckTag {
+        id
+        name
+        color
+        targetCount
+        position
+        cardCount
+      }
+    }
+  }
+`)
+
+export const UpdateDeckTagDocument = graphql(`
+  mutation UpdateDeckTag($id: ID!, $input: DeckTagInput!) {
+    updateDeckTag(id: $id, input: $input) {
+      deckTag {
+        id
+        name
+        color
+        targetCount
+        position
+        cardCount
+      }
+    }
+  }
+`)
+
+export const DeleteDeckTagDocument = graphql(`
+  mutation DeleteDeckTag($id: ID!) {
+    deleteDeckTag(id: $id) {
+      deckTagId
+    }
+  }
+`)
+
+export const ReorderDeckTagsDocument = graphql(`
+  mutation ReorderDeckTags($deckId: ID!, $tagIds: [ID!]!) {
+    reorderDeckTags(deckId: $deckId, tagIds: $tagIds) {
+      tags {
+        id
+        name
+        color
+        targetCount
+        position
+        cardCount
+      }
+    }
+  }
+`)
+
+export const AssignDeckCardTagDocument = graphql(`
+  mutation AssignDeckCardTag($deckCardId: ID!, $tagId: ID!) {
+    assignDeckCardTag(deckCardId: $deckCardId, tagId: $tagId) {
+      deckCard {
+        id
+        tagIds
+      }
+      deckTags {
+        id
+        cardCount
+      }
+    }
+  }
+`)
+
+export const UnassignDeckCardTagDocument = graphql(`
+  mutation UnassignDeckCardTag($deckCardId: ID!, $tagId: ID!) {
+    unassignDeckCardTag(deckCardId: $deckCardId, tagId: $tagId) {
+      deckCard {
+        id
+        tagIds
+      }
+      deckTags {
+        id
+        cardCount
       }
     }
   }

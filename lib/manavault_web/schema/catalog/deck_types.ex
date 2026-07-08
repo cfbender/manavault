@@ -37,6 +37,14 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
       resolve(&CatalogResolvers.map_value/3)
     end
   end
+  object :deck_tag do
+    field :id, non_null(:id)
+    field :name, non_null(:string)
+    field :color, non_null(:string)
+    field :target_count, :integer
+    field :position, non_null(:integer)
+    field :card_count, non_null(:integer)
+  end
 
   node object(:deck) do
     field :name, non_null(:string)
@@ -67,6 +75,10 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     connection field :deck_cards, node_type: :deck_card do
       resolve(&CatalogResolvers.deck_cards/3)
     end
+
+    field :tags, non_null(list_of(non_null(:deck_tag))) do
+      resolve(&CatalogResolvers.deck_tags/3)
+    end
   end
 
   node object(:deck_card) do
@@ -82,6 +94,10 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :preferred_printing, :printing, resolve: dataloader(Catalog)
     field :card, :card, resolve: dataloader(Catalog)
     field :fallback_printing, :printing
+
+    field :tag_ids, non_null(list_of(non_null(:id))) do
+      resolve(&CatalogResolvers.deck_card_tag_ids/3)
+    end
 
     field :allocation_status, non_null(:deck_card_allocation_status) do
       resolve(&CatalogResolvers.deck_card_allocation_status/3)
@@ -317,5 +333,11 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :finish, :string
     field :preferred_printing_id, :id
     field :tag, :string
+  end
+
+  input_object :deck_tag_input do
+    field :name, non_null(:string)
+    field :color, :string
+    field :target_count, :integer
   end
 end

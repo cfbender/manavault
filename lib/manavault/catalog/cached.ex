@@ -472,6 +472,45 @@ defmodule Manavault.Catalog.Cached do
   defdelegate put_deck_card_allocation_statuses(deck_cards), to: Decks
   defdelegate put_deck_card_fallback_printings(deck_cards), to: Decks
 
+  defdelegate list_deck_tags(deck), to: Decks
+  defdelegate put_deck_card_tag_ids(deck_cards), to: Decks
+
+  def create_deck_tag(deck, attrs) do
+    deck
+    |> Decks.create_deck_tag(attrs)
+    |> invalidate_on_ok(&Cache.invalidate_decks/0)
+  end
+
+  def update_deck_tag(deck_tag, attrs) do
+    deck_tag
+    |> Decks.update_deck_tag(attrs)
+    |> invalidate_on_ok(&Cache.invalidate_decks/0)
+  end
+
+  def delete_deck_tag(deck_tag) do
+    deck_tag
+    |> Decks.delete_deck_tag()
+    |> invalidate_on_ok(&Cache.invalidate_decks/0)
+  end
+
+  def reorder_deck_tags(deck, ordered_tag_ids) do
+    deck
+    |> Decks.reorder_deck_tags(ordered_tag_ids)
+    |> invalidate_on_ok(&Cache.invalidate_decks/0)
+  end
+
+  def assign_deck_card_tag(deck_card_id, deck_tag_id) do
+    deck_card_id
+    |> Decks.assign_deck_card_tag(deck_tag_id)
+    |> invalidate_on_ok(&Cache.invalidate_decks/0)
+  end
+
+  def unassign_deck_card_tag(deck_card_id, deck_tag_id) do
+    deck_card_id
+    |> Decks.unassign_deck_card_tag(deck_tag_id)
+    |> invalidate_on_ok(&Cache.invalidate_decks/0)
+  end
+
   def allocate_collection_item_to_deck_card(deck_card_id, collection_item_id, quantity \\ 1) do
     deck_card_id
     |> Decks.allocate_collection_item_to_deck_card(collection_item_id, quantity)
