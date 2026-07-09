@@ -21,7 +21,7 @@ import {
 } from "react"
 
 import { CardTileOverlayButton } from "../../components/card-tile"
-import { useMobileHoverReveal } from "../../lib/mobile-hover"
+import { useHasMobileHoverInteraction, useMobileHoverReveal } from "../../lib/mobile-hover"
 import { cn, titleize } from "../../lib/utils"
 import { ShareModeHidden, blurFocusedMenuItem } from "./deck-actions"
 import {
@@ -121,6 +121,7 @@ export function DeckStackCard({
     isDrag: boolean
   } | null>(null)
   const tagPointerHandledRef = useRef(false)
+  const hasMobileHover = useHasMobileHoverInteraction()
   const mobileHover = useMobileHoverReveal<HTMLButtonElement>({
     clearOnOutsidePointerDown: false,
     isRevealed: isActive,
@@ -317,7 +318,9 @@ export function DeckStackCard({
               actionMenuDirection === "up" && "dropdown-top",
               isInteractive
                 ? "visible opacity-100"
-                : "invisible opacity-0 group-hover:visible group-hover:opacity-100",
+                : hasMobileHover
+                  ? "invisible opacity-0"
+                  : "invisible opacity-0 group-hover:visible group-hover:opacity-100",
             )}
             onClick={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
@@ -429,7 +432,9 @@ export function DeckStackCard({
                 "absolute right-2 top-2 z-[115] flex items-center gap-1",
                 isInteractive
                   ? "pointer-events-auto"
-                  : "pointer-events-none group-hover:pointer-events-auto group-focus-within:pointer-events-auto",
+                  : hasMobileHover
+                    ? "pointer-events-none"
+                    : "pointer-events-none group-hover:pointer-events-auto group-focus-within:pointer-events-auto",
               )}
               data-deck-stack-pointer-capture=""
               onClick={(event) => event.stopPropagation()}
@@ -465,7 +470,9 @@ export function DeckStackCard({
                 "absolute left-1/2 top-1/2 z-[118] -translate-x-1/2 -translate-y-1/2 transition-opacity",
                 isInteractive
                   ? "visible opacity-100"
-                  : "invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100",
+                  : hasMobileHover
+                    ? "invisible opacity-0"
+                    : "invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100",
               )}
               data-deck-stack-pointer-capture=""
               onClick={(event) => event.stopPropagation()}

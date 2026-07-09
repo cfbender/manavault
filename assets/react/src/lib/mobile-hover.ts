@@ -25,6 +25,23 @@ export function hasMobileHoverInteraction() {
   )
 }
 
+export function useHasMobileHoverInteraction() {
+  const [hasMobileInteraction, setHasMobileInteraction] = useState(hasMobileHoverInteraction)
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return
+
+    const mediaQuery = window.matchMedia(MOBILE_HOVER_MEDIA_QUERY)
+    const update = () => setHasMobileInteraction(mediaQuery.matches)
+    update()
+
+    mediaQuery.addEventListener("change", update)
+    return () => mediaQuery.removeEventListener("change", update)
+  }, [])
+
+  return hasMobileInteraction
+}
+
 export function isMobileHoverPointer({
   hasMobileInteraction = hasMobileHoverInteraction(),
   pointerType,
