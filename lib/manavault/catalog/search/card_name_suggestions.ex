@@ -159,6 +159,9 @@ defmodule Manavault.Catalog.Search.CardNameSuggestions do
   defp normalize_card_suggestion(value) do
     value
     |> String.downcase()
+    # Drop apostrophes so "aurelia's" collapses to "aurelias" instead of
+    # splitting into the tokens "aurelia" + "s".
+    |> String.replace(~r/['\x{2019}]/u, "")
     |> String.replace(~r/[^[:alnum:]]+/u, " ")
     |> String.trim()
   end

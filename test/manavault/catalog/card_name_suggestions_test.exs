@@ -61,4 +61,28 @@ defmodule Manavault.Catalog.CardNameSuggestionsTest do
     assert ["Lightning Bolt"] = Catalog.suggest_card_names("lightning bolt")
     assert ["Lightning Bolt" | _] = Catalog.suggest_card_names("light")
   end
+
+  test "apostrophes in the query match names with apostrophes" do
+    assert {:ok, %{cards_count: 2}} =
+             Catalog.import_cards([
+               card("scryfall-aurelias-fury", "oracle-aurelias-fury", "Aurelia's Fury", "10"),
+               card(
+                 "scryfall-aurelias-vindicator",
+                 "oracle-aurelias-vindicator",
+                 "Aurelia's Vindicator",
+                 "11"
+               )
+             ])
+
+    CardNameSuggestions.clear_card_name_suggestion_cache()
+
+    # ASCII apostrophe in the query still resolves to the apostrophe-containing name.
+    assert ["Aurelia's Fury" | _] = Catalog.suggest_card_names("aurelia's")
+
+    # Unicode right single quotation mark (U+2019) behaves the same as ASCII apostrophe.
+    assert ["Aurelia's Fury" | _] = Catalog.suggest_card_names("aurelia\u2019s")
+
+    # Dropping the apostrophe entirely still matches, proving normalization symmetry.
+    assert ["Aurelia's Fury" | _] = Catalog.suggest_card_names("aurelias")
+  end
 end
