@@ -8,6 +8,178 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [1.0.0] - 2026-07-09
+
+### Bug Fixes
+
+- Don't count allocated cards in estimated buylist ([`32b9f75d`](../../commit/32b9f75d138de1fce642ad8158d6354151761d4b))
+- Header chip on deck shows all cards cost ([`7c5c4186`](../../commit/7c5c4186d3feec59f9388ac08a339654312f15b3))
+- Count tags for deciding category and theme ([`080bc978`](../../commit/080bc97815cce9cdff9b01fed1510617109ae4fa))
+- Prevent zip-slip path traversal in backup restore ([`d9f9e71a`](../../commit/d9f9e71ae1a8f8813e2f84242fdcd46ce13bc731))
+- Derive auth rate-limit client id from trusted proxy header ([`ec1a3fd1`](../../commit/ec1a3fd14b826e8adae23938f801522487aee10e))
+- Allow marking the session cookie Secure and configuring its lifetime ([`cd799f4a`](../../commit/cd799f4aca925813e4a8d9660721b33c9b1da156))
+- Encrypt cloud backup credentials at rest ([`2416686b`](../../commit/2416686b24e09fb7335ff39ec6b081cd53e1a2f6))
+- Stop minting atoms from external input in query and EDHRec parsers ([`9291bb37`](../../commit/9291bb37d8924680cca85151f4d3e9314aa7e44a))
+- Avoid recursive chown of the data dir on every boot ([`060a187c`](../../commit/060a187cefbda13eaf9a247c34d866ae565ae06e))
+- Disable Android auto-backup to keep the session out of backups ([`65b8a936`](../../commit/65b8a936de7bbd04d08a5a69526b6c0c530f4abe))
+- Keep Android signing secrets off stdout and the process table ([`4f722044`](../../commit/4f7220445a3114be2b62edd0c514ea1ecde9723b))
+- Load all deck cards instead of silently truncating at 500 ([`6d5521d5`](../../commit/6d5521d5ce9fedfb67b86ddc7305ddedce8b8aed))
+- Don't render the previous deck under a new deck's URL ([`e09e255b`](../../commit/e09e255b07b6d89a8f991ca3419dcf0dc428bb9b))
+- Reconcile deck cache after partial bulk-mutation failures ([`19b2e7bd`](../../commit/19b2e7bd25c730b8c2d88037ab975a0eaf3ffa7b))
+- Surface deck-delete failures instead of failing silently ([`eb64b763`](../../commit/eb64b763b9362c792566efa8872087b1e2a7d727))
+- Shift-range anchor, share status reset, and pwa title dump ([`37ed1e07`](../../commit/37ed1e074b91fe3860738d39d7ca6157d982fe53))
+- Load all decks instead of silently truncating the list at 100 ([`55add072`](../../commit/55add072c19df0e375bb7ad732c1439b884ab655))
+- Bulk deck allocation ([`63940bcc`](../../commit/63940bcc4bab1b8898a95f8e8d35de21657e4bf9))
+- Recently added cap to 500 ([`707ac2c9`](../../commit/707ac2c9fe3b1c5501a48b585bde12e50251c188))
+- Deck share view ([`b3bb4bd2`](../../commit/b3bb4bd202239f321d69ad7d557ebf8e62fa9d83))
+- Precommit ([`e7553489`](../../commit/e75534895a1f3e0233f383009b0fb0d17c639879))
+- Printing uses default if only one available ([`a2e0d93b`](../../commit/a2e0d93b16b81b46a5a2db5bcff55679c5221491))
+- Precommit warnings ([`d195132d`](../../commit/d195132dda48467a969ae3ea3449d8bf54c76954))
+- Decklist import ([`920a337d`](../../commit/920a337d3886db0d40acfdb92dac41913866f56b))
+- Add card modal uses partial from search ([`367d1460`](../../commit/367d1460b16ebc893ed84da93198259c8ff9f5bb))
+- Let taps fall through to covered cards in deck stack ([`f3aa6916`](../../commit/f3aa6916b54a668739baf7b80bec4a26f71f4869))
+- Covered-card tap in deck stack only raises, no button fires ([`45f39aae`](../../commit/45f39aae0b91a4140fc25eaa290ee7e846a22ae1))
+- Stop mobile sticky-hover from arming deck card overlays ([`35d8bc3e`](../../commit/35d8bc3e4ae6acff3c7bd427090245786cb07a05))
+- Intercept covered-card touch reveal at the stack level ([`c8242e74`](../../commit/c8242e74cf5ba897f408c47820f422e1e8db8d6d))
+- Stop card title overlapping mana cost on mobile ([`a98bf711`](../../commit/a98bf71136eecbf8fe4dc30cba1d8d9fb4dd7e51))
+- Restore deck group masonry columns ([`c0a40592`](../../commit/c0a4059264dfa9277d01cfdf2fe7fe10360bbb93))
+- Show per-card estimate in missing cards buy list ([`9776b004`](../../commit/9776b004223a7e12fd00f344e5efa4ab4ffc778d))
+- Keep selecting deck tag when dragging off the dial ([`81ec5ad1`](../../commit/81ec5ad104390c791aa0c2792e97141e2cab3a14))
+- Match card name suggestions with apostrophes ([`d8e46be6`](../../commit/d8e46be6fa38645c654688fde133146420c990db))
+- Restore Set as a deck grouping option ([`47ca323b`](../../commit/47ca323bfe1032f1984da25682015032b28607f7))
+- Deck share page ([`47cc3361`](../../commit/47cc3361dae79c1baa6850b70c2733411f620f89))
+
+### Build
+
+- Pin and checksum-verify mise instead of curl | sh ([`d33db1f6`](../../commit/d33db1f6bb37c08e54911867c53535fb08e9d784))
+
+### CI
+
+- Pin GitHub Actions to commit SHAs and add Dependabot ([`b4a04c05`](../../commit/b4a04c05bb75e8ab3b900d6f9b3214f50d6447c9))
+- Scope contents:write to a tag-only release job ([`28e2c6e1`](../../commit/28e2c6e17af1adc7e7964c78c1e67b3061d663a4))
+- Read keytool store password from env, not argv ([`a253b318`](../../commit/a253b318fe193ea3071be4ba5cf3aaa82bea603c))
+
+### Chores
+
+- Bump plug ([`dc88133a`](../../commit/dc88133a6e0f68d35c9a04e4f5970a21c8bb3a5b))
+- **deps:** Bump actions/checkout from 4.3.1 to 7.0.0 (#121) ([`33006448`](../../commit/3300644815ec09249b297d48448d49a69f366e71))
+- **deps:** Bump docker/build-push-action from 6.19.2 to 7.3.0 (#122) ([`aa35fbe0`](../../commit/aa35fbe0de68e84d200d32f5b462a0f86aee8b25))
+- **deps:** Bump docker/setup-buildx-action from 3.12.0 to 4.1.0 (#123) ([`76127d3d`](../../commit/76127d3dd7b58e52cee31a66096a8f10735c483f))
+- **deps:** Bump docker/login-action from 3.7.0 to 4.2.0 (#124) ([`8bdbc85d`](../../commit/8bdbc85d1ab0fd777a30eb5fda7b0dd635563f95))
+- **deps:** Bump docker/metadata-action from 5.10.0 to 6.1.0 (#125) ([`7f95665c`](../../commit/7f95665c20d51bb38f433150a589ffc949f9990d))
+- Add to design notes ([`6c3502ff`](../../commit/6c3502ffe5c678c412c87e165285ca94de710d5f))
+- Remove buttons from deck card ([`a0afd970`](../../commit/a0afd970663b8d9b85b0ff56756d6416c58e30e7))
+- Bump node to 26 and fix mise precommit issues ([`ed6881fb`](../../commit/ed6881fb19aff3ac8e46ccc10bbd8e496ed66027))
+- Up auto sort debounce to 30 days ([`b20eca28`](../../commit/b20eca288ab8bf21b63a92f121a92aefc5e88873))
+- **deps:** Bump docker/login-action from 4.3.0 to 4.4.0 (#137) ([`fd8cadec`](../../commit/fd8cadece42452174d866dc184fe4e6f5ad6dfec))
+- **deps:** Bump docker/setup-buildx-action from 4.1.0 to 4.2.0 (#138) ([`dd8b9830`](../../commit/dd8b98302d7c0650336dc89c7c0a9440c4b8dfda))
+- **deps:** Bump actions/upload-artifact from 6.0.0 to 7.0.1 (#139) ([`2dc14ad7`](../../commit/2dc14ad79dd0a43df9f879f186a8bfae637f2ecd))
+- **deps:** Bump docker/metadata-action from 6.1.0 to 6.2.0 (#140) ([`05c38ede`](../../commit/05c38ede4c4f1da962404ad3d1d8941c4a7b1295))
+- **deps:** Bump actions/download-artifact from 6.0.0 to 8.0.1 (#141) ([`22f5b41c`](../../commit/22f5b41c44148bfa2442694f18a1c4964e6aa94b))
+
+### Features
+
+- Page titles and further tag improvements ([`026038aa`](../../commit/026038aa5be2b05043db621f03fe1785842aa5c4))
+- Better categorizing and import logs ([`f618f9eb`](../../commit/f618f9eb3fca8f842e6bdc54554bb2f601cfe97f))
+- Warn when the native server URL uses cleartext http ([`8b5b0bd4`](../../commit/8b5b0bd4972c78c7ab81bdcdd1b00a2aba78c667))
+- Group by tag ([`15209f18`](../../commit/15209f1837ecfd7dbccbfe2aaa68b0b44889786a))
+- Filter by allocation status ([`1d8b9ec6`](../../commit/1d8b9ec679f3a694bb62e26e0237093c474f010e))
+- Show cost per filter ([`9ab4d636`](../../commit/9ab4d636a5e2c26c94db085ccf27cb3e6428d4c1))
+- Top commanders dome gallery ([`f5d1ac21`](../../commit/f5d1ac2125899c31eb96548b251de1fdcfc8aee4))
+- Multi-select flat on mobile ([`2270e1a0`](../../commit/2270e1a0cc558cc3012e125f03640ec8c8d27a7c))
+- Remove mana cost vs production section ([`037bb401`](../../commit/037bb4013cb05f72b954218e0c3c25d18c7d3867))
+- Remove dnd from autosort rules ([`22e5338d`](../../commit/22e5338dee71ec8c81e1f99324d3df376ca80397))
+- Move quantity tag to top ([`76a7c3ab`](../../commit/76a7c3ab056ee6682aea1c41963d72b3e86f3ba4))
+- Tabs to dropdown on mobile ([`d6ac63c5`](../../commit/d6ac63c5ca0c7c6c9b163234a0fa94cc34bc6e35))
+- Import decklist to board and import list to select mode ([`e7a760f5`](../../commit/e7a760f5ac7aad0909ed79b74d80436962da0236))
+- Debounce auto sort by a week ([`d4103442`](../../commit/d4103442025d93da36f2416b62851fa537733bf6))
+- Group deck by price ([`418afe3a`](../../commit/418afe3abf23087e83163d00fae41602a3e5b621))
+- Improve search ([`793231b3`](../../commit/793231b30d248cc94752ae27f520dfee6a21901a))
+- Auto sort by set and release date ([`4a9f0d2a`](../../commit/4a9f0d2aaa40f6c144a600f35a9e7f1c4f87076a))
+- Archive deck on disassemble ([`ae80981d`](../../commit/ae80981d8cfea362ccb32ec03eb188e569b33bf4))
+- Deallocate on select ([`7c892b9f`](../../commit/7c892b9f058d35db81fb17776a3f9f6c669ed110))
+- Group by allocation ([`9b841161`](../../commit/9b8411617fa31dbc6fc72b543b0c338a8f78c857))
+- Buylist when allocated ([`2d9dbf28`](../../commit/2d9dbf28eb658dceb4a5df18439551c8405bd73d))
+- Delete from card edit ([`49c04588`](../../commit/49c045886258702b6a9911c7f58fe83a6de6c6cb))
+- Remove getting tag on allocation ([`b9b1dae3`](../../commit/b9b1dae37d859482050ac9a753ef524869488b8e))
+- Custom deck tags data model and API ([`928528dd`](../../commit/928528dd7531b34beea7cb3b94855fae94d90de6))
+- Radial custom-tag button on deck cards ([`4f21dad0`](../../commit/4f21dad0dfd59a2f8000dd3b171a97a0640578ff))
+- Deck tags sidebar with counts and jump-to-group ([`7fdd1110`](../../commit/7fdd111027478eae3e2e305096f0522d20531f2d))
+- Deck detail keyboard shortcuts ([`2c7677b7`](../../commit/2c7677b761ce2fe35dd93acdcb94901915fcfa50))
+- Customizable default deck tags ([`9c980199`](../../commit/9c9801998a480d4fa48caa6237222607304e90e7))
+- Faster tag radial and collapsible tags sidebar ([`c6167a20`](../../commit/c6167a204a18a3a8875ca36c39a776bd852735ee))
+- Group deck by custom tags ([`3b104d38`](../../commit/3b104d38ff25cb40fd8db7c256566826ff15bc2c))
+- Smoother collapsible tags sidebar ([`f87f96d6`](../../commit/f87f96d65894d40347747f22ab69dc50e152f7a4))
+- Adjustable card size across the app ([`0029d3ae`](../../commit/0029d3ae85db343c231f872874332ab0c312357d))
+- Backfill existing decks with default tags ([`14d21d1e`](../../commit/14d21d1e614f73608b519fdd30b47cb80d1b023d))
+- Refine deck card tagger interaction ([`aa2505af`](../../commit/aa2505aff2346b1171e543d2feb63b0ad225e4ee))
+
+### Miscellaneous
+
+- **android:** Stop reading files from shared/intent text ([`5733d27c`](../../commit/5733d27c507d8a4845fced26121b1ff3197bf257))
+- Flag externally-shared imports and require review ([`ff49c51d`](../../commit/ff49c51de9476af308e32b8e50ba74b8c4d1acef))
+- Require PHX_HOST in prod instead of defaulting to example.com ([`8859854d`](../../commit/8859854d2699a49561f02c3e94810b0b248d4bd7))
+- Warn at boot when auth is disabled in prod ([`d61ab629`](../../commit/d61ab629f9ab2884c4983971cb108d0ba9a836ed))
+- Read the CSRF token per request instead of once at module load ([`ea198c30`](../../commit/ea198c30a9faf5e5972a73b6a2e97c5ecac49be2))
+- Only render http(s) external URLs from third-party data ([`c23a8ad3`](../../commit/c23a8ad3a2b881b7fb7429713a14663d83f1ed18))
+- Hold deck tag feedback text visible longer ([`2b3c868d`](../../commit/2b3c868d679d62b0ef4871371b0c3479bf151553))
+- Make deck tag feedback snappier ([`1a0504d7`](../../commit/1a0504d74aae03c55e95b871db695c1771afb2f3))
+
+### Performance
+
+- Stop double-decoding the Scryfall bulk payload ([`347233a8`](../../commit/347233a839238f92bc10eed6e38362295537a354))
+- Defer EDHRec printing loads to the batched dataloader ([`a4dd7f47`](../../commit/a4dd7f47d0c45df4378d3e884306cb88a3bef257))
+- Use the NOCASE index for case-insensitive card-name lookups ([`681b8e08`](../../commit/681b8e087a4fb9213cdf4f64a73163728dff9242))
+- Batch allocation-status computation in bulk-allocate preview ([`65fbbdca`](../../commit/65fbbdca7e8191a1fbc5a6f7e12ff217bc5420e9))
+- Preload deck_card->deck in the deck_allocations dataloader batch ([`d62489cd`](../../commit/d62489cd5f44db2eee49c8c2cd7ebd20770dae0d))
+- Run Scryfall syncs off-process with in-flight dedup ([`f1f3b4d8`](../../commit/f1f3b4d81b8f2062b7737e762b2bc7fe7199107f))
+- Bulk-resolve scryfall_id rows in collection import preview ([`2a4a2e21`](../../commit/2a4a2e21b98efdbf58e330e584858771d5d9c039))
+- Batch fetches in bulk collection/deck-card mutations ([`ff8b5328`](../../commit/ff8b5328cff00b97c4fa6621583d271658f839e2))
+- Stop caching by whole summaries map; surface cache failures ([`811fd349`](../../commit/811fd3493429d3c1b4edad3f0b657b4572511400))
+- Paginate the decks connection at the database level ([`ff81e10f`](../../commit/ff81e10f36794a2ae6a7d19f380e00d2fdf28e31))
+- Short-circuit and linearize card-name suggestion matching ([`bf8afe9e`](../../commit/bf8afe9ea8c1d25b872bda50bd347f20dacca3a9))
+- Update deck-card allocation in cache instead of refetching everything ([`92eb56b7`](../../commit/92eb56b75967be1e9c173cf23cde02d00e5c6906))
+- Memoize collection grid tiles to skip re-renders on selection toggle ([`778fecc7`](../../commit/778fecc76ed0a47ee5508512f797dc509fefc93a))
+- Fetch only a primary printing for EDHREC cards ([`812844f2`](../../commit/812844f25c780aca6e546e541dc49cf03d96be0c))
+- Merge collection pagination in the Apollo cache via a field policy ([`eb5161cd`](../../commit/eb5161cdf17ffa6613db0a11c262349483488ffa))
+- Keep prior deck analysis visible while recomputing ([`92317818`](../../commit/92317818e867e73ce0ffd21882c80eb812349bde))
+- Memoize deck-pull readiness scans instead of running them every render ([`4e7ffb9c`](../../commit/4e7ffb9cdc85de1fb8662a0949843d233a7257f4))
+- Allocate deck pull list in parallel instead of serially ([`f17d9c2c`](../../commit/f17d9c2cf14e948897b804ec3a6f711934b76637))
+- Lazy-load the Prism/ogl WebGL background on the home route ([`0c7d790c`](../../commit/0c7d790ca3eb02a8661ab61625ef83a12166c5ce))
+- Throttle EDHREC scroll persistence and stop mirroring to localStorage ([`ded443c2`](../../commit/ded443c28ecef42c5cb966d34a7fd36febc7998b))
+- Lazy-load card-image and image-summary-card images ([`65eb919f`](../../commit/65eb919f2d900a432e076aae553e1bf17e7cab49))
+- Batch EDHRec collection-status queries across recs/cuts ([`605b4a4d`](../../commit/605b4a4dda0906e8d70b96e1a4394cc2cfab0bb8))
+- Apply bulk deck allocation in a single transaction ([`94bafd40`](../../commit/94bafd404146944d377471db2830b29f49b76da9))
+- Select all collection items by fetching ids only ([`1adb0913`](../../commit/1adb09132c2b1b8084888131b24ab91c390906e8))
+- Add server-side bulk update/delete deck-card mutations ([`7c943a09`](../../commit/7c943a0917177b9c588d33f406668f7f1e083818))
+- Batch collection status for EDHRec commander-page sections ([`ab89d55a`](../../commit/ab89d55a8bc351d39ecf6a5a07877c9cdae3c1f4))
+- Batch EDHRec card resolution across a response ([`a6c6c1b6`](../../commit/a6c6c1b60a6f4156593496a968a26ecb22c3215f))
+
+### Refactoring
+
+- Parse collection-import CSV with NimbleCSV ([`f5888cf6`](../../commit/f5888cf6333cd6757edef1a391ee50d3130a1ebb))
+- Extract shared price SQL fragments into PriceFragments ([`c1054c9e`](../../commit/c1054c9e6ff3073a398ad54803993d3d71c8ccc5))
+- Share card/printing scalar search predicates via named bindings ([`5358c677`](../../commit/5358c677f0921f239951acf01e55d0578c6512b2))
+- Reuse AllocationStatus in EDHRec CollectionStatus ([`e605e4c0`](../../commit/e605e4c0a697a811ff5bdafba0ee7cca19fca6f1))
+- Remove the unused duplicate node resolver ([`7bac5c80`](../../commit/7bac5c80cbfeb24d16927e1fa4d5db4cd3bef2a4))
+- Collapse the allocationError nested ternary into find() ([`7d1404d9`](../../commit/7d1404d934a5be4fa5fc1d41ce7cde52e461ef81))
+- Group DeckDetailContent props into cohesive objects ([`bfedb1a1`](../../commit/bfedb1a1f536ce5f4b3fd43a8dcd83d2bd48e182))
+- Remove dead deck code, share compareDeckCards, drop stale cast ([`0a37b70c`](../../commit/0a37b70c5a8c9e70cdec3a9971f9fba9249444d6))
+- Extract useDeckMutation for the deck-card allocation wrappers ([`475c9cba`](../../commit/475c9cba0b284c3528180e32132a43488a6a0886))
+- Use selection set for cards selection ([`6a6a849e`](../../commit/6a6a849eca445d6d065f8c1a9e051aca5f91c1df))
+- Switch collection buttons to icon buttons ([`0ed6e994`](../../commit/0ed6e994ab2dd58bde84fdabd4fc53d276d5d111))
+- Unify deck and collection add-card dialogs ([`691e8882`](../../commit/691e88829549aca26ea2be53ca3f3b58a4879bc4))
+
+### Style
+
+- Header opacity ([`66e98eec`](../../commit/66e98eec6433bdf1f685b4a8f3ef706820a1f025))
+- Card tile buttons ([`f049442e`](../../commit/f049442ee4cd196f221fd4c6579db55a2c6d69e4))
+- Card detail oracle text ([`14ca21fe`](../../commit/14ca21fef166c671d3094104d3c90b6763bedc87))
+
+### Tests
+
+- Cover custom deck tag cache helper and formatting ([`bfc5c493`](../../commit/bfc5c4937e7d80ecc59b973dd0f327dee234f3ed))
+
 ## [0.13.0] - 2026-07-01
 
 ### Bug Fixes
