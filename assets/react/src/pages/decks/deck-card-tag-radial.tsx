@@ -107,6 +107,24 @@ export const DeckCardTagRadial = forwardRef<
                 )
               })
             : null}
+          {tags.map((tag, index) => {
+            const midDeg = index * sliceAngleDeg - 90
+            const startDeg = midDeg - sliceAngleDeg / 2
+            const endDeg = midDeg + sliceAngleDeg / 2
+            const isAssigned = assignedTagIdSet.has(tag.id)
+            const isHighlighted = highlightedTagId === tag.id
+            return (
+              <path
+                key={tag.id}
+                d={arcPath(startDeg, endDeg, OUTER_RADIUS_PERCENT, tags.length)}
+                fill="none"
+                stroke={tag.color}
+                strokeWidth={isHighlighted ? 3.5 : isAssigned ? 2.5 : 1.5}
+                strokeLinecap="round"
+                opacity={isHighlighted || isAssigned ? 1 : 0.75}
+              />
+            )
+          })}
         </svg>
       ) : null}
 
@@ -127,15 +145,17 @@ export const DeckCardTagRadial = forwardRef<
             type="button"
             aria-label={`${isAssigned ? "Remove" : "Add"} ${tag.name} tag`}
             className={cn(
-              "absolute inset-0 cursor-pointer border-0 p-0 transition-opacity",
-              "hover:opacity-90 focus-visible:outline focus-visible:outline-2",
+              "absolute inset-0 cursor-pointer border-0 p-0 transition-colors",
+              "focus-visible:outline focus-visible:outline-2",
               "focus-visible:outline-offset-2 focus-visible:outline-primary",
-              isHighlighted && "ring-4 ring-inset ring-base-content/80",
             )}
             style={{
               clipPath: wedgeClipPath(startDeg, endDeg, tags.length),
-              backgroundColor: tag.color,
-              opacity: isHighlighted ? 1 : isAssigned ? 0.95 : 0.4,
+              backgroundColor: isHighlighted
+                ? "rgba(255, 255, 255, 0.12)"
+                : isAssigned
+                  ? "rgba(255, 255, 255, 0.06)"
+                  : "transparent",
             }}
             onClick={() => onToggleTag(tag.id)}
           >
@@ -144,9 +164,17 @@ export const DeckCardTagRadial = forwardRef<
               style={{ left: `${labelLeftPercent}%`, top: `${labelTopPercent}%` }}
             >
               {isAssigned ? (
-                <Check className="h-3.5 w-3.5 shrink-0 text-white drop-shadow" aria-hidden="true" />
+                <Check
+                  className="h-3.5 w-3.5 shrink-0 text-base-content drop-shadow"
+                  aria-hidden="true"
+                />
               ) : null}
-              <span className="block max-w-[3.25rem] truncate text-[0.65rem] font-semibold text-white drop-shadow">
+              <span
+                className={cn(
+                  "block max-w-[3.25rem] truncate text-[0.65rem] font-semibold drop-shadow",
+                  isAssigned || isHighlighted ? "text-base-content" : "text-base-content/70",
+                )}
+              >
                 {tag.name}
               </span>
             </span>
@@ -188,4 +216,23 @@ function wedgeClipPath(startDeg: number, endDeg: number, tagCount: number): stri
   }
 
   return `polygon(${points.map(([x, y]) => `${x}% ${y}%`).join(", ")})`
+}
+
+function arcPath(startDeg: number, endDeg: number, radius: number, tagCount: number): string {
+  if (tagCount <= 1) {
+    return [
+      `M ${50 - radius} 50`,
+      `A ${radius} ${radius} 0 1 1 ${50 + radius} 50`,
+      `A ${radius} ${radius} 0 1 1 ${50 - radius} 50`,
+    ].join(" ")
+  }
+
+  const startRad = (startDeg * Math.PI) / 180
+  const endRad = (endDeg * Math.PI) / 180
+  const x1 = 50 + radius * Math.cos(startRad)
+  const y1 = 50 + radius * Math.sin(startRad)
+  const x2 = 50 + radius * Math.cos(endRad)
+  const y2 = 50 + radius * Math.sin(endRad)
+  const largeArc = endDeg - startDeg > 180 ? 1 : 0
+  return `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`
 }

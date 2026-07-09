@@ -408,3 +408,30 @@
     animation: none;
   }
 }
+
+.deck-tag-feedback {
+  animation: deck-tag-feedback 900ms ease-out forwards;
+}
+
+@keyframes deck-tag-feedback {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -140%) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -320%) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-tag-feedback {
+    animation-duration: 1ms;
+  }
+}

@@ -112,6 +112,11 @@ export function DeckStackCard({
   const [hasFocusWithin, setHasFocusWithin] = useState(false)
   const [isTagRadialOpen, setIsTagRadialOpen] = useState(false)
   const [highlightedTagId, setHighlightedTagId] = useState<string | null>(null)
+  const [tagFeedback, setTagFeedback] = useState<{
+    key: number
+    label: string
+    added: boolean
+  } | null>(null)
   const actionMenuRef = useRef<HTMLDivElement>(null)
   const tagRadialRef = useRef<DeckCardTagRadialHandle>(null)
   const tagDragRef = useRef<{
@@ -146,6 +151,13 @@ export function DeckStackCard({
 
   useEffect(() => {
     closeFocusedActionMenu(isActive)
+  }, [isActive])
+
+  useEffect(() => {
+    if (!isActive) {
+      setIsTagRadialOpen(false)
+      setHighlightedTagId(null)
+    }
   }, [isActive])
 
   function closeFocusedActionMenu(isCardRaised: boolean) {
@@ -225,6 +237,17 @@ export function DeckStackCard({
     setHighlightedTagId(tagRadialRef.current?.hitTest(event.clientX, event.clientY) ?? null)
   }
 
+  function toggleTag(tagId: string) {
+    const isAssigned = assignedTagIds.includes(tagId)
+    const tagName = deckTags.find((deckTag) => deckTag.id === tagId)?.name ?? "Tag"
+    if (isAssigned) {
+      onUnassignTag(deckCard, tagId)
+    } else {
+      onAssignTag(deckCard, tagId)
+    }
+    setTagFeedback({ key: Date.now(), label: tagName, added: !isAssigned })
+  }
+
   function handleTagPointerUp(event: PointerEvent<HTMLButtonElement>) {
     const drag = tagDragRef.current
     if (drag?.pointerId === event.pointerId) {
@@ -235,11 +258,7 @@ export function DeckStackCard({
       if (drag.isDrag) {
         const tagId = tagRadialRef.current?.hitTest(event.clientX, event.clientY) ?? null
         if (tagId) {
-          if (assignedTagIds.includes(tagId)) {
-            onUnassignTag(deckCard, tagId)
-          } else {
-            onAssignTag(deckCard, tagId)
-          }
+          toggleTag(tagId)
           setIsTagRadialOpen(false)
         }
       }
@@ -483,7 +502,7 @@ export function DeckStackCard({
             >
               <button
                 type="button"
-                className="relative flex h-16 w-16 touch-none items-center justify-center rounded-full border-2 border-primary-content/30 bg-primary/85 text-sm font-black uppercase tracking-wide text-primary-content shadow-xl backdrop-blur transition hover:bg-primary"
+                className="relative flex h-16 w-16 touch-none items-center justify-center rounded-full border-0 bg-neutral/60 text-sm font-black uppercase tracking-wide text-neutral-content shadow-lg backdrop-blur transition hover:bg-neutral/75"
                 aria-label={`Tag ${name}`}
                 tabIndex={isInteractive ? 0 : -1}
                 onClick={handleTagClick}
@@ -508,14 +527,23 @@ export function DeckStackCard({
                 tags={deckTags}
                 assignedTagIds={assignedTagIds}
                 highlightedTagId={highlightedTagId}
-                onToggleTag={(tagId) =>
-                  assignedTagIds.includes(tagId)
-                    ? onUnassignTag(deckCard, tagId)
-                    : onAssignTag(deckCard, tagId)
-                }
+                onToggleTag={toggleTag}
                 onClose={() => setIsTagRadialOpen(false)}
                 anchorLabel={name}
               />
+              {tagFeedback ? (
+                <span
+                  key={tagFeedback.key}
+                  aria-hidden="true"
+                  className={cn(
+                    "deck-tag-feedback pointer-events-none absolute left-1/2 top-1/2 z-[150] -translate-x-1/2 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-black tabular-nums shadow-lg backdrop-blur",
+                    tagFeedback.added ? "bg-success/25 text-success" : "bg-error/25 text-error",
+                  )}
+                  onAnimationEnd={() => setTagFeedback(null)}
+                >
+                  {tagFeedback.added ? "+" : "−"} {tagFeedback.label}
+                </span>
+              ) : null}
             </div>
           </ShareModeHidden>
         ) : null}
