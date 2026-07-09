@@ -12,38 +12,33 @@ import {
   shouldUpdateDeckStackHoverFromPointer,
 } from "./deck-stack-interactions"
 import type { DeckCardEntry, DeckCardTag, DeckCustomTag } from "./deck-types"
-import {
-  DECK_CARD_HOVER_DELAY_MS,
-  DECK_STACK_CARD_HEIGHT,
-  DECK_STACK_OFFSET,
-  DECK_STACK_REVEAL_OFFSET,
-} from "./deck-types"
+import { DECK_CARD_HOVER_DELAY_MS } from "./deck-types"
+import { useCardSize } from "../../lib/card-size"
 
 export function deckStackIndexFromPointer(
   pointerY: number,
   activeIndex: number | null,
   cardCount: number,
+  offsetPx: number,
+  heightPx: number,
 ) {
   if (cardCount <= 0) return null
 
   const lastIndex = cardCount - 1
-  const stackHeight = DECK_STACK_CARD_HEIGHT + lastIndex * DECK_STACK_OFFSET
+  const stackHeight = heightPx + lastIndex * offsetPx
   const y = Math.max(0, Math.min(pointerY, stackHeight - 1))
 
   if (activeIndex != null) {
-    const activeTop = activeIndex * DECK_STACK_OFFSET
-    const activeBottom = activeTop + DECK_STACK_CARD_HEIGHT
+    const activeTop = activeIndex * offsetPx
+    const activeBottom = activeTop + heightPx
 
     if (y >= activeTop && y < activeBottom) return activeIndex
     if (y >= activeBottom) {
-      return Math.min(
-        lastIndex,
-        activeIndex + 1 + Math.floor((y - activeBottom) / DECK_STACK_OFFSET),
-      )
+      return Math.min(lastIndex, activeIndex + 1 + Math.floor((y - activeBottom) / offsetPx))
     }
   }
 
-  return Math.min(lastIndex, Math.floor(y / DECK_STACK_OFFSET))
+  return Math.min(lastIndex, Math.floor(y / offsetPx))
 }
 
 export function DeckStackGroup({
@@ -97,9 +92,10 @@ export function DeckStackGroup({
   const hoverTimerRef = useRef<number | null>(null)
   const pendingHoverIndexRef = useRef<number | null>(null)
   const { isMobile } = useIsMobile()
+  const size = useCardSize()
   const isUnstacked = shouldUnstackDeckStackGroup({ isMobile, isSelecting })
   const activeIndex = isSelecting ? null : (hoveredIndex ?? pinnedIndex)
-  const revealOffset = group.cards.length > 1 ? DECK_STACK_REVEAL_OFFSET : 0
+  const revealOffset = group.cards.length > 1 ? size.revealOffsetPx : 0
 
   useEffect(
     () => () => {
@@ -168,20 +164,25 @@ export function DeckStackGroup({
       event.clientY - bounds.top,
       activeIndex,
       group.cards.length,
+      size.offsetPx,
+      size.heightPx,
     )
     scheduleHoveredIndex(nextIndex)
   }
 
   return (
     <section className="mb-5 inline-flex w-full break-inside-avoid flex-col items-center gap-3">
-      <div className="flex w-56 items-center gap-2 text-sm font-black tracking-normal">
+      <div
+        className="flex items-center gap-2 text-sm font-black tracking-normal"
+        style={{ width: `min(${size.widthPx}px, 100%)` }}
+      >
         <GroupIcon icon={group.icon} />
         <h3 className="truncate">{group.label}</h3>
         <span className="text-base-content/55">({group.quantity})</span>
       </div>
 
       {isUnstacked ? (
-        <div className="grid w-56 grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2" style={{ width: `min(${size.widthPx}px, 100%)` }}>
           {group.cards.map((deckCard) => (
             <DeckUnstackedSelectCard
               key={deckCard.id}
@@ -195,9 +196,10 @@ export function DeckStackGroup({
       ) : (
         <div
           ref={stackRef}
-          className="relative w-56 overflow-hidden rounded-xl"
+          className="relative overflow-hidden rounded-xl"
           style={{
-            minHeight: `${DECK_STACK_CARD_HEIGHT + Math.max(group.cards.length - 1, 0) * DECK_STACK_OFFSET}px`,
+            width: `min(${size.widthPx}px, 100%)`,
+            minHeight: `${size.heightPx + Math.max(group.cards.length - 1, 0) * size.offsetPx}px`,
           }}
           onPointerLeave={(event) => {
             clearDeckCardHoverDelay()
@@ -242,8 +244,9 @@ export function DeckStackGroup({
               onToggleSelected={(selectRange) => onToggleSelected(deckCard.id, selectRange)}
               onUnassignTag={(_, id) => onUnassignTag(deckCard, id)}
               shareMode={shareMode}
+              size={size}
               slideOffset={activeIndex != null && index > activeIndex ? revealOffset : 0}
-              top={index * DECK_STACK_OFFSET}
+              top={index * size.offsetPx}
             />
           ))}
         </div>

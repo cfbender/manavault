@@ -42,6 +42,7 @@ import {
   shouldCloseDeckStackActionMenu,
   shouldRaiseDeckStackCardForActionMenu,
 } from "./deck-stack-interactions"
+import type { CardSize } from "../../lib/card-size"
 import type { DeckCardEntry, DeckCardTag, DeckCustomTag } from "./deck-types"
 import { DECK_CARD_TAGS } from "./deck-types"
 
@@ -74,6 +75,7 @@ export function DeckStackCard({
   onToggleSelected,
   onUnassignTag,
   shareMode = false,
+  size,
   slideOffset,
   top,
 }: {
@@ -103,6 +105,7 @@ export function DeckStackCard({
   onToggleSelected: (selectRange?: boolean) => void
   onUnassignTag: (deckCard: DeckCardEntry, tagId: string) => void
   shareMode?: boolean
+  size: CardSize
   slideOffset: number
   top: number
 }) {
@@ -262,7 +265,7 @@ export function DeckStackCard({
   return (
     <article
       className={cn(
-        "group group/deck-card absolute left-0 w-56 origin-top rounded-xl transition-transform duration-200 ease-out",
+        "group group/deck-card absolute left-0 origin-top rounded-xl transition-transform duration-200 ease-out",
         isInteractive && "z-[90]",
       )}
       onBlur={handleBlur}
@@ -271,13 +274,14 @@ export function DeckStackCard({
       onPointerLeave={handlePointerLeave}
       style={{
         top,
+        width: `min(${size.widthPx}px, 100%)`,
         transform: slideOffset ? `translateY(${slideOffset}px)` : undefined,
         zIndex: isInteractive ? 90 : index + 1,
       }}
     >
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute left-0 top-0 aspect-[5/7] w-56 rounded-xl bg-black"
+        className="pointer-events-none absolute left-0 top-0 aspect-[5/7] w-full rounded-xl bg-black"
       />
       <div
         className={cn(
@@ -520,7 +524,7 @@ export function DeckStackCard({
 
         <button
           type="button"
-          className="block w-56 cursor-pointer text-left"
+          className="block w-full cursor-pointer text-left"
           aria-label={`View ${name} details`}
           onPointerDown={handlePointerDown}
           onClick={(event) => {

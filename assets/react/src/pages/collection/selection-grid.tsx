@@ -6,8 +6,9 @@ import { EmptyState } from "../../components/card-image"
 import { addToDeckAction, addToListAction, CardTile } from "../../components/card-tile"
 import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
+import { useCardSize } from "../../lib/card-size"
 import { collectionCardReturnSearch, invalidateCollectionViews } from "./collection-navigation"
-import { CARD_TILE_GAP, CARD_TILE_ROW_HEIGHT, CARD_TILE_WIDTH } from "./constants"
+import { CARD_TILE_GAP } from "./constants"
 import {
   AddCollectionItemToDeckDialog,
   DeleteCollectionItemDialog,
@@ -236,6 +237,7 @@ export function VirtualizedCollectionGrid({
   onToggleSelected?: (item: CollectionItem) => void
   selectionActive?: boolean
 }) {
+  const size = useCardSize()
   const containerRef = useRef<HTMLDivElement>(null)
   const [columns, setColumns] = useState(1)
   const [range, setRange] = useState({ startRow: 0, endRow: 8 })
@@ -246,16 +248,14 @@ export function VirtualizedCollectionGrid({
 
     const updateColumns = () => {
       const width = container.getBoundingClientRect().width
-      setColumns(
-        Math.max(1, Math.floor((width + CARD_TILE_GAP) / (CARD_TILE_WIDTH + CARD_TILE_GAP))),
-      )
+      setColumns(Math.max(1, Math.floor((width + CARD_TILE_GAP) / (size.widthPx + CARD_TILE_GAP))))
     }
 
     updateColumns()
     const resizeObserver = new ResizeObserver(updateColumns)
     resizeObserver.observe(container)
     return () => resizeObserver.disconnect()
-  }, [])
+  }, [size.widthPx])
 
   useEffect(() => {
     const scrollParent = document.querySelector(".app-shell-main")
@@ -270,14 +270,14 @@ export function VirtualizedCollectionGrid({
 
         const rect = container.getBoundingClientRect()
         const viewportHeight = window.innerHeight
-        const overscan = CARD_TILE_ROW_HEIGHT * 3
+        const overscan = size.rowHeightPx * 3
         const visibleTop = Math.max(0, -rect.top - overscan)
         const visibleBottom = Math.min(
-          rowCount * CARD_TILE_ROW_HEIGHT,
+          rowCount * size.rowHeightPx,
           viewportHeight - rect.top + overscan,
         )
-        const startRow = Math.max(0, Math.floor(visibleTop / CARD_TILE_ROW_HEIGHT))
-        const endRow = Math.max(startRow + 1, Math.ceil(visibleBottom / CARD_TILE_ROW_HEIGHT))
+        const startRow = Math.max(0, Math.floor(visibleTop / size.rowHeightPx))
+        const endRow = Math.max(startRow + 1, Math.ceil(visibleBottom / size.rowHeightPx))
 
         setRange({ startRow, endRow })
       })
@@ -292,10 +292,10 @@ export function VirtualizedCollectionGrid({
       scrollTarget.removeEventListener("scroll", updateRange)
       window.removeEventListener("resize", updateRange)
     }
-  }, [columns, items.length])
+  }, [columns, items.length, size.rowHeightPx])
 
   const rowCount = Math.ceil(items.length / columns)
-  const totalHeight = Math.max(0, rowCount * CARD_TILE_ROW_HEIGHT - CARD_TILE_GAP)
+  const totalHeight = Math.max(0, rowCount * size.rowHeightPx - CARD_TILE_GAP)
   const startIndex = range.startRow * columns
   const endIndex = Math.min(items.length, range.endRow * columns)
   const visibleItems = items.slice(startIndex, endIndex)
@@ -318,9 +318,10 @@ export function VirtualizedCollectionGrid({
   return (
     <div ref={containerRef} className="relative w-full" style={{ height: totalHeight }}>
       <div
-        className="grid justify-center gap-x-6 gap-y-8 [grid-template-columns:repeat(auto-fill,minmax(14.25rem,14.25rem))]"
+        className="grid justify-center gap-x-6 gap-y-8"
         style={{
-          transform: `translateY(${range.startRow * CARD_TILE_ROW_HEIGHT}px)`,
+          gridTemplateColumns: `repeat(auto-fill, minmax(min(${size.widthRem}rem, 100%), ${size.widthRem}rem))`,
+          transform: `translateY(${range.startRow * size.rowHeightPx}px)`,
         }}
       >
         {visibleItems.map((item) => (

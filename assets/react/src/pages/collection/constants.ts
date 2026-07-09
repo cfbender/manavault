@@ -7,8 +7,6 @@ import type {
 import type { CollectionSort, CollectionSortDirection, CollectionSortField } from "./types"
 
 export const COLLECTION_PAGE_SIZE = 48
-export const CARD_TILE_WIDTH = 228
-export const CARD_TILE_ROW_HEIGHT = 352
 export const CARD_TILE_GAP = 24
 
 export {

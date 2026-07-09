@@ -5,6 +5,7 @@ import { PageTitleProvider } from "../lib/page-title"
 import { useTheme } from "../lib/theme"
 import { cn } from "../lib/utils"
 import { Button } from "./ui/button"
+import { CardSizeSlider } from "./card-size-slider"
 
 const navItems = [
   { to: "/" as const, label: "Home", icon: Home },
@@ -64,6 +65,13 @@ export function AppShell() {
   const isShareRoute = pathname.startsWith("/share/")
   const isHomeRoute = pathname === "/"
   const isPlaytestRoute = pathname.includes("/playtest")
+  const isCardRoute =
+    !isPlaytestRoute &&
+    (pathname === "/cards" ||
+      pathname.startsWith("/cards/") ||
+      pathname === "/collection" ||
+      pathname.startsWith("/collection/") ||
+      /^\/decks\/[^/]+$/.test(pathname))
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
 
@@ -197,6 +205,7 @@ export function AppShell() {
             <Outlet />
           </div>
         </main>
+        {isCardRoute ? <CardSizeSlider /> : null}
       </div>
     </PageTitleProvider>
   )

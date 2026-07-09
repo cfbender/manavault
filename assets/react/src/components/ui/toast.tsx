@@ -70,7 +70,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       {typeof document !== "undefined"
         ? createPortal(
-            <div className="toast toast-bottom toast-end z-[90] w-auto max-w-[calc(100vw-2rem)] p-4 sm:toast-top sm:max-w-sm">
+            <div className="toast toast-bottom toast-end pointer-events-none z-[90] w-auto max-w-[calc(100vw-2rem)] p-4 sm:toast-top sm:max-w-sm">
               {toasts.map((toast) => (
                 <Toast
                   key={toast.id}
@@ -116,7 +116,7 @@ export function Toast({
   return (
     <div
       className={cn(
-        "alert flex items-start justify-between gap-3 border shadow-lg",
+        "alert pointer-events-auto flex items-start justify-between gap-3 border shadow-lg",
         tone === "success"
           ? "alert-success border-success/40 text-success-content"
           : "alert-info border-info/40 text-info-content",

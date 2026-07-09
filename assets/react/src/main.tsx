@@ -5,6 +5,7 @@ import "./pwa"
 import { apolloClient } from "./lib/apollo"
 import { initializeNativeBackButton } from "./lib/native-back"
 import { ThemeProvider } from "./lib/theme"
+import { CardSizeProvider } from "./lib/card-size"
 import { ToastProvider } from "./components/ui/toast"
 import { routeTree } from "./routeTree.gen"
 import { initializeNativeSharedImport, type NativeOpenPayload } from "./lib/native-shared-import"
@@ -79,9 +80,11 @@ void initializeNativeBackButton({
 createRoot(document.getElementById("manavault-root")!).render(
   <ApolloProvider client={apolloClient}>
     <ThemeProvider>
-      <ToastProvider>
-        <RouterProvider router={router} />
-      </ToastProvider>
+      <CardSizeProvider>
+        <ToastProvider>
+          <RouterProvider router={router} />
+        </ToastProvider>
+      </CardSizeProvider>
     </ThemeProvider>
   </ApolloProvider>,
 )

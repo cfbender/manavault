@@ -1,7 +1,7 @@
 import type { DeckGroup } from "../../lib/deck-grouping"
 import { DeckStackGroup } from "./deck-stack-group"
 import type { DeckCardEntry, DeckCardTag, DeckCustomTag } from "./deck-types"
-import { DECK_STACK_CARD_WIDTH_REM } from "./deck-types"
+import { useCardSize } from "../../lib/card-size"
 
 export { DeckStackCard } from "./deck-stack-card"
 export { DeckStackGroup, deckStackIndexFromPointer } from "./deck-stack-group"
@@ -51,12 +51,14 @@ export function DeckGroupGrid({
   shareMode?: boolean
   onToggleSelected: (deckCardId: string, selectRange?: boolean) => void
 }) {
+  const size = useCardSize()
+  const columns = Math.min(groups.length, 5)
   return (
     <div
       className="mx-auto gap-8"
       style={{
-        columnWidth: `${DECK_STACK_CARD_WIDTH_REM}rem`,
-        maxWidth: `calc(${Math.min(groups.length, 5)} * ${DECK_STACK_CARD_WIDTH_REM}rem + ${Math.max(Math.min(groups.length, 5) - 1, 0)} * 2rem)`,
+        columnWidth: `min(${size.widthRem}rem, 100%)`,
+        maxWidth: `calc(${columns} * ${size.widthRem}rem + ${Math.max(columns - 1, 0)} * 2rem)`,
       }}
     >
       {groups.map((group) => (

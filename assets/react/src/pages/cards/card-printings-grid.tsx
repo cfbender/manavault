@@ -1,5 +1,6 @@
 import { Boxes } from "lucide-react"
 import { addToDeckAction, CardTile } from "../../components/card-tile"
+import { useCardSize } from "../../lib/card-size"
 import { present, titleize } from "../../lib/utils"
 import type { AddCollectionItemInitialPrinting } from "../collection"
 import type { CardDeckTarget } from "./add-card-to-deck-dialog"
@@ -34,8 +35,14 @@ export function CardPrintingsGrid({
   onPreviewPrinting: (id: string) => void
   showPrivateActions?: boolean
 }) {
+  const size = useCardSize()
   return (
-    <div className="grid justify-center gap-x-6 gap-y-8 [grid-template-columns:repeat(auto-fill,minmax(14.25rem,14.25rem))]">
+    <div
+      className="grid justify-center gap-x-6 gap-y-8"
+      style={{
+        gridTemplateColumns: `repeat(auto-fill, minmax(min(${size.widthRem}rem, 100%), ${size.widthRem}rem))`,
+      }}
+    >
       {printings.map((printing) => (
         <div key={printing.id}>
           <CardTile
