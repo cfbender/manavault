@@ -424,7 +424,12 @@ export function DeckStackCard({
         {!isSelecting ? (
           <ShareModeHidden shareMode={shareMode}>
             <div
-              className="absolute right-2 top-2 z-[115] flex items-center gap-1"
+              className={cn(
+                "absolute right-2 top-2 z-[115] flex items-center gap-1",
+                isInteractive
+                  ? "pointer-events-auto"
+                  : "pointer-events-none group-hover:pointer-events-auto group-focus-within:pointer-events-auto",
+              )}
               data-deck-stack-pointer-capture=""
               onClick={(event) => event.stopPropagation()}
               onMouseDown={(event) => event.stopPropagation()}
