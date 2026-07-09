@@ -3,7 +3,11 @@ import { Edit3 } from "lucide-react"
 import { useState } from "react"
 import { Button } from "../../components/ui/button"
 import { present, titleize } from "../../lib/utils"
-import { DeleteCollectionItemDialog, EditCollectionItemDialog, type CollectionItem } from "../collection"
+import {
+  DeleteCollectionItemDialog,
+  EditCollectionItemDialog,
+  type CollectionItem,
+} from "../collection"
 import { CardCollectionItemsDocument, type CardCollectionItem } from "./data"
 
 type NodeConnection<T> =

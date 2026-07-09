@@ -410,28 +410,28 @@
 }
 
 .deck-tag-feedback {
-  animation: deck-tag-feedback 1800ms ease-out forwards;
+  animation: deck-tag-feedback 1250ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes deck-tag-feedback {
   0% {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.9);
+    transform: translate(-50%, -50%) scale(0.92);
   }
 
-  12% {
+  15% {
     opacity: 1;
-    transform: translate(-50%, -150%) scale(1);
+    transform: translate(-50%, -160%) scale(1);
   }
 
-  65% {
+  60% {
     opacity: 1;
-    transform: translate(-50%, -190%) scale(1);
+    transform: translate(-50%, -180%) scale(1);
   }
 
   100% {
     opacity: 0;
-    transform: translate(-50%, -260%) scale(1);
+    transform: translate(-50%, -240%) scale(0.98);
   }
 }
 
