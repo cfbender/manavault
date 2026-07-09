@@ -522,14 +522,14 @@ export function CardDetailPage({
           />
           <div className="relative z-10 flex min-h-80 flex-col justify-between gap-8 p-6">
             <div className="max-w-5xl space-y-4 pr-12">
-              <div className="flex items-center gap-4">
-                <h1 className="min-w-0 flex-1 text-4xl font-black tracking-normal md:text-5xl">
+              <div className="flex flex-col-reverse gap-1 sm:flex-row sm:items-center sm:gap-4">
+                <h1 className="min-w-0 flex-1 text-3xl font-black tracking-normal sm:text-4xl md:text-5xl">
                   {card.name}
                 </h1>
                 {card.manaCost ? (
                   <ManaText
                     text={card.manaCost}
-                    className="shrink-0 justify-end text-3xl md:text-4xl"
+                    className="shrink-0 justify-start text-2xl sm:justify-end sm:text-3xl md:text-4xl"
                   />
                 ) : null}
               </div>
