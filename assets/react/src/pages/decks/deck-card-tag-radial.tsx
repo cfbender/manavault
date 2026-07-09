@@ -43,7 +43,9 @@ export const DeckCardTagRadial = forwardRef<
         const dx = clientX - centerX
         const dy = clientY - centerY
         const radiusPercent = (Math.hypot(dx, dy) / rect.width) * 100
-        if (radiusPercent < HUB_RADIUS_PERCENT || radiusPercent > OUTER_RADIUS_PERCENT) return null
+        // Only the hub is neutral; past the hub, keep selecting by angle even
+        // when the pointer drags beyond the dial's outer edge.
+        if (radiusPercent < HUB_RADIUS_PERCENT) return null
 
         const sliceAngleDeg = 360 / tags.length
         const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI
