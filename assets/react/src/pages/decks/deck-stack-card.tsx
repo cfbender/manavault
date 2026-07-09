@@ -269,6 +269,7 @@ export function DeckStackCard({
         isInteractive && "z-[90]",
       )}
       onBlur={handleBlur}
+      onClickCapture={(event) => mobileHover.suppressClickIfRevealed(event)}
       data-deck-id={deckId}
       onFocus={() => setHasFocusWithin(true)}
       onPointerLeave={handlePointerLeave}
