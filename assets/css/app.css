@@ -410,7 +410,7 @@
 }
 
 .deck-tag-feedback {
-  animation: deck-tag-feedback 900ms ease-out forwards;
+  animation: deck-tag-feedback 1800ms ease-out forwards;
 }
 
 @keyframes deck-tag-feedback {
@@ -419,14 +419,19 @@
     transform: translate(-50%, -50%) scale(0.9);
   }
 
-  20% {
+  12% {
     opacity: 1;
-    transform: translate(-50%, -140%) scale(1);
+    transform: translate(-50%, -150%) scale(1);
+  }
+
+  65% {
+    opacity: 1;
+    transform: translate(-50%, -190%) scale(1);
   }
 
   100% {
     opacity: 0;
-    transform: translate(-50%, -320%) scale(1);
+    transform: translate(-50%, -260%) scale(1);
   }
 }
 
