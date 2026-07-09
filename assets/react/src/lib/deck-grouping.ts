@@ -111,6 +111,7 @@ export const DECK_GROUP_OPTIONS: Array<{ label: string; value: DeckGroupBy }> = 
   { label: "Color Identity", value: "colorIdentity" },
   { label: "Mana Value", value: "manaValue" },
   { label: "Rarity", value: "rarity" },
+  { label: "Set", value: "set" },
   { label: "Tags", value: "tag" },
   { label: "Price", value: "price" },
   { label: "Allocation", value: "allocation" },

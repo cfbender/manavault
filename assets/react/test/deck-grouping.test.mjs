@@ -408,3 +408,30 @@ test("allocation is offered as a grouping option", () => {
     ),
   )
 })
+
+test("set is offered as a grouping option", () => {
+  assert.ok(DECK_GROUP_OPTIONS.some((option) => option.value === "set" && option.label === "Set"))
+})
+
+test("set grouping buckets cards by printing set", () => {
+  const groups = groupDeckCards(
+    [
+      deckCard("bolt", {
+        preferredPrinting: { setCode: "lea", setName: "Limited Edition Alpha", rarity: "common" },
+      }),
+      deckCard("counter", {
+        preferredPrinting: { setCode: "lea", setName: "Limited Edition Alpha", rarity: "common" },
+      }),
+      deckCard("angel", {
+        preferredPrinting: { setCode: "mh3", setName: "Modern Horizons 3", rarity: "rare" },
+      }),
+    ],
+    "set",
+  )
+
+  const bySet = Object.fromEntries(groups.map((group) => [group.key, group]))
+  assert.equal(bySet.lea.label, "Limited Edition Alpha")
+  assert.equal(bySet.lea.quantity, 2)
+  assert.equal(bySet.mh3.label, "Modern Horizons 3")
+  assert.equal(bySet.mh3.quantity, 1)
+})
