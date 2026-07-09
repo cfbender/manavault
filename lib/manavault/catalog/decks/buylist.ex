@@ -24,7 +24,11 @@ defmodule Manavault.Catalog.Decks.Buylist do
 
       if needed > 0 and (include_basic_lands or !is_basic_land?(deck_card)) do
         printing = buylist_printing(deck_card, printing_mode)
-        unit_price_cents = Price.price_cents_for_printing(printing, deck_card.finish)
+        # In "any printing" mode no specific printing is pinned, but we can still
+        # estimate a unit price from the cheapest priced printing so the buy list
+        # always shows a per-card estimate.
+        price_printing = printing || Printings.cheapest_priced_printing(deck_card)
+        unit_price_cents = Price.price_cents_for_printing(price_printing, deck_card.finish)
 
         %{
           deck_card: deck_card,

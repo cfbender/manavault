@@ -184,7 +184,7 @@ export function MissingCardsDialog({
                     <th>Card</th>
                     <th>Reason</th>
                     <th>Printing</th>
-                    <th className="text-right">Est.</th>
+                    <th className="text-right">Est. / card</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -200,7 +200,20 @@ export function MissingCardsDialog({
                         <Badge tone={buylistReasonTone(entry)}>{entry.reason}</Badge>
                       </td>
                       <td className="whitespace-nowrap">{buylistPrintingLabel(entry)}</td>
-                      <td className="text-right font-mono">{entry.totalPriceText || "-"}</td>
+                      <td className="whitespace-nowrap text-right font-mono">
+                        {entry.unitPriceText ? (
+                          <>
+                            {entry.unitPriceText}
+                            {entry.quantity > 1 ? (
+                              <span className="ml-1 text-xs text-base-content/55">
+                                ×{entry.quantity} = {entry.totalPriceText}
+                              </span>
+                            ) : null}
+                          </>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
