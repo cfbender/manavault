@@ -179,12 +179,17 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
 
     {:ok, deck} = Catalog.create_deck(%{"name" => "Shared Deck"})
 
-    {:ok, _deck_card} =
+    {:ok, deck_card} =
       Catalog.add_card_to_deck(deck, %{
         "name" => "Shared Card",
         "preferred_printing_id" => "scryfall-share-card",
         "quantity" => 2
       })
+
+    {:ok, share_tag} =
+      Catalog.create_deck_tag(deck, %{"name" => "Mana Rocks", "color" => "#00ff00"})
+
+    {:ok, _tagged_deck_card} = Catalog.assign_deck_card_tag(deck_card.id, share_tag.id)
 
     {:ok, _owned_item} =
       Catalog.create_collection_item(%{
@@ -228,9 +233,12 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
     public_conn =
       post(conn, "/share/graphql", %{
         "query" => """
-        query SharedDeck($id: ID!) {
+        query SharedDeck($id: ID!, $deckCardsAfter: String) {
           deck(id: $id) {
+            id
             name
+            format
+            status
             shareToken
             cardCount
             uniqueCardCount
@@ -243,7 +251,15 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                 cardName
               }
             }
-            deckCards(first: 20) {
+            tags {
+              id
+              name
+              color
+              targetCount
+              position
+              cardCount
+            }
+            deckCards(first: 500, after: $deckCardsAfter) {
               pageInfo {
                 endCursor
                 hasNextPage
@@ -254,11 +270,40 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                   quantity
                   zone
                   finish
+                  tag
+                  tagIds
                   priceCents
-                  card { id name gameChanger }
+                  card {
+                    id
+                    oracleId
+                    name
+                    typeLine
+                    cmc
+                    manaCost
+                    oracleText
+                    colors
+                    colorIdentity
+                    gameChanger
+                    deckCategory
+                    deckThemes
+                  }
                   preferredPrinting {
+                    id
                     scryfallId
                     imageUrl
+                    backImageUrl
+                    artCropUrl
+                    setCode
+                    setName
+                    collectorNumber
+                    rarity
+                    finishes
+                  }
+                  fallbackPrinting {
+                    id
+                    scryfallId
+                    imageUrl
+                    backImageUrl
                     artCropUrl
                     setCode
                     setName
@@ -271,6 +316,7 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                     required
                     owned
                     allocated
+                    proxyAllocated
                     available
                     allocatedElsewhere
                     missing
@@ -290,7 +336,11 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                           name
                         }
                         printing {
+                          id
                           scryfallId
+                          imageUrl
+                          backImageUrl
+                          artCropUrl
                           setCode
                           setName
                           collectorNumber
@@ -332,11 +382,13 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                    "status" => "illegal",
                    "issues" => public_share_issues
                  },
+                 "tags" => public_deck_tags,
                  "deckCards" => %{
                    "pageInfo" => %{"endCursor" => _deck_cards_cursor, "hasNextPage" => false},
                    "edges" => [
                      %{
                        "node" => %{
+                         "tagIds" => public_deck_card_tag_ids,
                          "quantity" => 2,
                          "priceCents" => 250,
                          "card" => %{
@@ -363,6 +415,13 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
            } = json_response(public_conn, 200)
 
     assert is_binary(shared_card_id)
+
+    assert Enum.any?(public_deck_tags, fn tag ->
+             tag["id"] == to_string(share_tag.id) and tag["name"] == "Mana Rocks" and
+               tag["color"] == "#00ff00" and tag["cardCount"] == 2
+           end)
+
+    assert to_string(share_tag.id) in public_deck_card_tag_ids
 
     assert %{
              "data" => %{
