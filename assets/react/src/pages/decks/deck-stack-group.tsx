@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent } from "react"
+import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react"
 
 import type { DeckGroup } from "../../lib/deck-grouping"
 import { useIsMobile } from "../../lib/mobile-hover"
@@ -91,6 +91,7 @@ export function DeckStackGroup({
   const stackRef = useRef<HTMLDivElement>(null)
   const hoverTimerRef = useRef<number | null>(null)
   const pendingHoverIndexRef = useRef<number | null>(null)
+  const suppressStackClickRef = useRef(false)
   const { isMobile } = useIsMobile()
   const size = useCardSize()
   const isUnstacked = shouldUnstackDeckStackGroup({ isMobile, isSelecting })
@@ -170,6 +171,42 @@ export function DeckStackGroup({
     scheduleHoveredIndex(nextIndex)
   }
 
+  function handlePointerDownCapture(event: PointerEvent<HTMLDivElement>) {
+    // Reset first so a stale armed flag from a prior reveal can't swallow this
+    // gesture's click.
+    suppressStackClickRef.current = false
+    if (event.pointerType !== "touch" || isSelecting) return
+
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const nextIndex = deckStackIndexFromPointer(
+      event.clientY - bounds.top,
+      activeIndex,
+      group.cards.length,
+      size.offsetPx,
+      size.heightPx,
+    )
+
+    // A touch that lands on a not-yet-revealed card should only raise it.
+    // Intercept here, before any overlay button the tap happens to be over
+    // can react (real-mobile sticky-hover can make overlays hittable, so we
+    // must NOT skip captured overlay targets), then consume the follow-up
+    // click at the stack level.
+    if (nextIndex == null || nextIndex === activeIndex) return
+
+    event.stopPropagation()
+    clearDeckCardHoverDelay()
+    setHoveredIndex(null)
+    setPinnedIndex(nextIndex)
+    suppressStackClickRef.current = true
+  }
+
+  function handleClickCapture(event: MouseEvent<HTMLDivElement>) {
+    if (!suppressStackClickRef.current) return
+    suppressStackClickRef.current = false
+    event.preventDefault()
+    event.stopPropagation()
+  }
+
   return (
     <section className="mb-5 inline-flex w-full break-inside-avoid flex-col items-center gap-3">
       <div
@@ -208,6 +245,8 @@ export function DeckStackGroup({
             setHoveredIndex(null)
           }}
           onPointerMove={handlePointerMove}
+          onPointerDownCapture={handlePointerDownCapture}
+          onClickCapture={handleClickCapture}
         >
           {group.cards.map((deckCard, index) => (
             <DeckStackCard
