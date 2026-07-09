@@ -57,7 +57,7 @@ export function DeckGroupGrid({
     <div
       className="mx-auto gap-8"
       style={{
-        columnWidth: `min(${size.widthRem}rem, 100%)`,
+        columnWidth: `${size.widthRem}rem`,
         maxWidth: `calc(${columns} * ${size.widthRem}rem + ${Math.max(columns - 1, 0)} * 2rem)`,
       }}
     >
