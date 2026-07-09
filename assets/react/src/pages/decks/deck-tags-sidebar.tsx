@@ -5,6 +5,7 @@ import {
   ChevronRight,
   ChevronUp,
   Pencil,
+  PanelLeftClose,
   PanelLeftOpen,
   Plus,
   Tag,
@@ -75,63 +76,153 @@ export function DeckTagsSidebar({
     setEditing({ kind: "closed" })
   }
 
-  // Collapsed desktop sidebar: a thin vertical rail (Blueprint-style) that keeps
-  // a visible sidebar presence — expand affordance, rotated label, tag icon.
-  if (variant === "sidebar" && collapsed) {
+  const tagListBody = (
+    <div className="flex flex-col gap-3">
+      {sortedTags.length === 0 ? (
+        <p className="px-1 text-xs font-semibold text-base-content/55">
+          No custom tags yet. Add one to group and track cards toward a target.
+        </p>
+      ) : null}
+
+      <ul className="grid gap-1">
+        {sortedTags.map((tag, index) =>
+          editing.kind === "edit" && editing.tagId === tag.id ? (
+            <li key={tag.id}>
+              <DeckTagEditor
+                mode="edit"
+                initialName={tag.name}
+                initialColor={tag.color}
+                initialTargetCount={tag.targetCount ?? null}
+                onSave={(input) => handleUpdate(tag.id, input)}
+                onCancel={() => setEditing({ kind: "closed" })}
+              />
+            </li>
+          ) : (
+            <li key={tag.id}>
+              <DeckTagRow
+                tag={tag}
+                isActive={activeTagId === tag.id}
+                disabled={disabled}
+                isFirst={index === 0}
+                isLast={index === sortedTags.length - 1}
+                onJump={() => onJumpToTag(tag.id)}
+                onEdit={() => setEditing({ kind: "edit", tagId: tag.id })}
+                onDelete={() => onDeleteTag(tag.id)}
+                onMoveUp={() => handleMove(tag.id, "up")}
+                onMoveDown={() => handleMove(tag.id, "down")}
+              />
+            </li>
+          ),
+        )}
+      </ul>
+
+      {editing.kind === "create" ? (
+        <DeckTagEditor
+          mode="create"
+          initialName=""
+          initialColor={DECK_TAG_COLORS[0]}
+          initialTargetCount={null}
+          onSave={handleCreate}
+          onCancel={() => setEditing({ kind: "closed" })}
+        />
+      ) : null}
+
+      {!disabled && editing.kind !== "create" ? (
+        <button
+          type="button"
+          className="btn btn-outline btn-sm justify-center gap-1.5"
+          onClick={() => setEditing({ kind: "create" })}
+        >
+          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+          ADD TAG
+        </button>
+      ) : null}
+    </div>
+  )
+
+  // Desktop sidebar: a single element whose width animates between a tall rail
+  // (collapsed) and the full panel (expanded). Both layers stay mounted so the
+  // width transition reads as a clean slide rather than a DOM swap.
+  if (variant === "sidebar") {
     return (
       <aside
-        className="flex w-10 flex-col items-center gap-3 rounded-box border border-base-300 bg-base-100 py-2"
-        aria-labelledby={headingId}
+        className={cn(
+          "relative min-h-64 self-stretch overflow-hidden rounded-box border border-base-300 bg-base-100 transition-[width] duration-300 ease-in-out",
+          collapsed ? "w-12" : "w-64",
+        )}
+        aria-label="Deck tags"
       >
+        {/* Collapsed rail: fills the full height, fades in when collapsed. */}
         <button
           type="button"
-          className="btn btn-ghost btn-xs btn-square text-base-content/60"
+          className={cn(
+            "absolute inset-0 flex flex-col items-center gap-3 py-3 transition-opacity duration-200",
+            collapsed ? "opacity-100" : "pointer-events-none opacity-0",
+          )}
           aria-expanded={false}
           aria-label="Expand tags sidebar"
+          tabIndex={collapsed ? 0 : -1}
           onClick={() => setCollapsed(false)}
         >
-          <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className="flex flex-1 items-center justify-center"
-          aria-label="Expand tags sidebar"
-          onClick={() => setCollapsed(false)}
-        >
-          <span
-            id={headingId}
-            className="text-xs font-bold uppercase tracking-[0.2em] text-base-content/60 [writing-mode:vertical-lr]"
-          >
-            {headerLabel}
+          <PanelLeftOpen className="h-4 w-4 shrink-0 text-base-content/60" aria-hidden="true" />
+          <span className="flex flex-1 items-center justify-center">
+            <span className="text-xs font-bold uppercase tracking-[0.2em] text-base-content/60 [writing-mode:vertical-lr]">
+              {headerLabel}
+            </span>
+          </span>
+          <span className="relative flex shrink-0 items-center justify-center">
+            <Tag className="h-4 w-4 text-primary/80" aria-hidden="true" />
+            {sortedTags.length ? (
+              <span className="absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-base-200 px-1 font-mono text-[0.6rem] font-bold text-base-content/60">
+                {sortedTags.length}
+              </span>
+            ) : null}
           </span>
         </button>
-        <span className="relative flex items-center justify-center">
-          <Tag className="h-4 w-4 text-primary/80" aria-hidden="true" />
-          {sortedTags.length ? (
-            <span className="absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-base-200 px-1 font-mono text-[0.6rem] font-bold text-base-content/60">
-              {sortedTags.length}
-            </span>
-          ) : null}
-        </span>
+
+        {/* Expanded panel: fixed width so it doesn't reflow while the aside animates. */}
+        <div
+          className={cn(
+            "flex w-64 flex-col gap-3 p-3 transition-opacity duration-200",
+            collapsed ? "pointer-events-none opacity-0" : "opacity-100 delay-75",
+          )}
+          inert={collapsed}
+          aria-hidden={collapsed}
+        >
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 rounded-btn px-1.5 py-1 text-left transition-colors hover:bg-base-200/70"
+            aria-expanded={!collapsed}
+            aria-label="Collapse tags sidebar"
+            onClick={() => setCollapsed(true)}
+          >
+            <Tag className="h-4 w-4 shrink-0 text-base-content/60" aria-hidden="true" />
+            <h2
+              id={headingId}
+              className="min-w-0 flex-1 text-sm font-bold uppercase tracking-wide text-base-content/70"
+            >
+              {headerLabel}
+            </h2>
+            <PanelLeftClose className="h-4 w-4 shrink-0 text-base-content/50" aria-hidden="true" />
+          </button>
+          {tagListBody}
+        </div>
       </aside>
     )
   }
 
-  const containerClassName =
-    variant === "panel"
-      ? collapsed
-        ? ""
-        : "flex flex-col gap-3 rounded-box border border-base-300 bg-base-100 p-3"
-      : "flex w-64 flex-col gap-3 rounded-box border border-base-300 bg-base-100 p-3"
-
+  // Mobile panel: a full-width collapsible dropdown beneath the deck header.
   return (
-    <aside className={containerClassName} aria-labelledby={headingId}>
+    <aside
+      className={cn(
+        "flex flex-col gap-3",
+        collapsed ? "" : "rounded-box border border-base-300 bg-base-100 p-3",
+      )}
+      aria-labelledby={headingId}
+    >
       <button
         type="button"
-        className={cn(
-          "flex w-full items-center gap-2 rounded-btn px-1.5 py-1 text-left transition-colors hover:bg-base-200/70",
-          variant === "panel" && "rounded-full border border-base-300 bg-base-200/60 px-3 py-2",
-        )}
+        className="flex w-full items-center gap-2 rounded-full border border-base-300 bg-base-200/60 px-3 py-2 text-left transition-colors hover:bg-base-200/70"
         aria-expanded={!collapsed}
         onClick={() => setCollapsed((current) => !current)}
       >
@@ -154,69 +245,7 @@ export function DeckTagsSidebar({
         )}
       </button>
 
-      {collapsed ? null : (
-        <div className="flex flex-col gap-3">
-          {sortedTags.length === 0 ? (
-            <p className="px-1 text-xs font-semibold text-base-content/55">
-              No custom tags yet. Add one to group and track cards toward a target.
-            </p>
-          ) : null}
-
-          <ul className="grid gap-1">
-            {sortedTags.map((tag, index) =>
-              editing.kind === "edit" && editing.tagId === tag.id ? (
-                <li key={tag.id}>
-                  <DeckTagEditor
-                    mode="edit"
-                    initialName={tag.name}
-                    initialColor={tag.color}
-                    initialTargetCount={tag.targetCount ?? null}
-                    onSave={(input) => handleUpdate(tag.id, input)}
-                    onCancel={() => setEditing({ kind: "closed" })}
-                  />
-                </li>
-              ) : (
-                <li key={tag.id}>
-                  <DeckTagRow
-                    tag={tag}
-                    isActive={activeTagId === tag.id}
-                    disabled={disabled}
-                    isFirst={index === 0}
-                    isLast={index === sortedTags.length - 1}
-                    onJump={() => onJumpToTag(tag.id)}
-                    onEdit={() => setEditing({ kind: "edit", tagId: tag.id })}
-                    onDelete={() => onDeleteTag(tag.id)}
-                    onMoveUp={() => handleMove(tag.id, "up")}
-                    onMoveDown={() => handleMove(tag.id, "down")}
-                  />
-                </li>
-              ),
-            )}
-          </ul>
-
-          {editing.kind === "create" ? (
-            <DeckTagEditor
-              mode="create"
-              initialName=""
-              initialColor={DECK_TAG_COLORS[0]}
-              initialTargetCount={null}
-              onSave={handleCreate}
-              onCancel={() => setEditing({ kind: "closed" })}
-            />
-          ) : null}
-
-          {!disabled && editing.kind !== "create" ? (
-            <button
-              type="button"
-              className="btn btn-outline btn-sm justify-center gap-1.5"
-              onClick={() => setEditing({ kind: "create" })}
-            >
-              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              ADD TAG
-            </button>
-          ) : null}
-        </div>
-      )}
+      {collapsed ? null : tagListBody}
     </aside>
   )
 }
