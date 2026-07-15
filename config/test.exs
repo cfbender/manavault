@@ -5,9 +5,14 @@ import Config
 # The MIX_TEST_PARTITION environment variable can be used
 # to provide built-in test partitioning in CI environment.
 # Run `mix help test` for more information.
+# Each Mix test partition needs an independent SQLite file before the Repo
+# starts. The single sandbox connection below then prevents startup and writer
+# contention within that process.
+test_partition = System.get_env("MIX_TEST_PARTITION") || ""
+
 config :manavault, Manavault.Repo,
-  database: Path.expand("../manavault_test.db", __DIR__),
-  pool_size: 5,
+  database: Path.expand("../manavault_test#{test_partition}.db", __DIR__),
+  pool_size: 1,
   pool: Ecto.Adapters.SQL.Sandbox
 
 # We don't run a server during test. If one is required,

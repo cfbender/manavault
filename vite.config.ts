@@ -7,7 +7,7 @@ const viteBase = process.env.NODE_ENV === "production" ? "/assets/react/" : "/"
 export default defineConfig({
   base: viteBase,
   fmt: {
-    ignorePatterns: ["assets/react/src/gql/**", "assets/react/src/routeTree.gen.ts"],
+    ignorePatterns: [".backlog/**", "assets/react/src/gql/**", "assets/react/src/routeTree.gen.ts"],
     semi: false,
   },
   lint: {

@@ -4,10 +4,22 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
   alias Absinthe.Relay.Node
   alias Manavault.Catalog
 
-  # One deck lookup, one deck-card batch, one fallback-printing batch, three
-  # allocation-status batches, one tag batch, and two card-printing batches.
-  # The fixture has three distinct cards, so a per-card query at any stage
-  # exceeds this fixed budget.
+  # A cold deck page performs one deck lookup, one deck-card batch, one fallback
+  # printing batch, two allocation-status batches, one tag batch, two
+  # card-printing batches, and one nested deck-card association batch. The
+  # fixture has three distinct cards, so any per-card query changes this exact
+  # source-class shape.
+  @deck_page_allocation_query_shape %{
+    deck_lookup: 1,
+    deck_card_batch: 1,
+    fallback_printing_batch: 1,
+    allocation_candidate_batch: 1,
+    allocation_count_batch: 1,
+    deck_card_tag_batch: 1,
+    printing_owned_count_batch: 1,
+    card_printing_batch: 1,
+    deck_card_association_batch: 1
+  }
   @deck_page_allocation_query_budget 9
 
   test "deck page allocation status is batched over GraphQL", %{conn: conn} do
@@ -28,7 +40,22 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
         }
       end
 
-    assert {:ok, %{cards_count: 3, printings_count: 3}} = Catalog.import_cards(cards)
+    alternate_printing = %{
+      "id" => "scryfall-batched-allocation-1-alternate",
+      "oracle_id" => "oracle-batched-allocation-1",
+      "name" => "Batched Allocation 1",
+      "type_line" => "Artifact",
+      "collector_number" => "1a",
+      "set" => "bat",
+      "set_name" => "Batch Set",
+      "lang" => "en",
+      "image_uris" => %{},
+      "finishes" => ["nonfoil"],
+      "legalities" => %{}
+    }
+
+    assert {:ok, %{cards_count: 3, printings_count: 4}} =
+             Catalog.import_cards(cards ++ [alternate_printing])
     {:ok, location} = Catalog.create_location(%{name: "Batch Binder", kind: "binder"})
 
     for index <- 1..3 do
@@ -41,6 +68,14 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
                })
     end
 
+    assert {:ok, alternate_item} =
+             Catalog.create_collection_item(%{
+               scryfall_id: "scryfall-batched-allocation-1-alternate",
+               quantity: 1,
+               finish: "nonfoil",
+               location_id: location.id
+             })
+
     {:ok, deck} = Catalog.create_deck(%{"name" => "Batched Allocation Deck"})
 
     for index <- 1..3 do
@@ -48,7 +83,17 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
                Catalog.add_card_to_deck(deck, %{"name" => "Batched Allocation #{index}"})
     end
 
-    {conn, query_count} =
+    {:ok, other_deck} = Catalog.create_deck(%{"name" => "Other Batched Allocation Deck"})
+
+    assert {:ok, other_deck_card} =
+             Catalog.add_card_to_deck(other_deck, %{"name" => "Batched Allocation 1"})
+
+    assert {:ok, _allocation} =
+             Catalog.allocate_collection_item_to_deck_card(other_deck_card.id, alternate_item.id)
+
+    Manavault.Catalog.Cache.clear()
+
+    {conn, query_classes} =
       count_repo_queries(fn ->
         post(conn, "/api/graphql", %{
           "query" => """
@@ -81,6 +126,7 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
                     allocationStatus {
                       state
                       available
+                      allocatedElsewhere
                       candidates {
                         available
                         item {
@@ -101,6 +147,8 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
         })
       end)
 
+    response = json_response(conn, 200)
+
     assert %{
              "data" => %{
                "deck" => %{
@@ -110,9 +158,29 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
                  "deckCards" => %{"edges" => [_, _, _]}
                }
              }
-           } = json_response(conn, 200)
+           } = response
 
-    assert query_count <= @deck_page_allocation_query_budget
+    assert Enum.any?(
+             get_in(response, ["data", "deck", "deckCards", "edges"]),
+             fn
+               %{
+                 "node" => %{
+                   "card" => %{"name" => "Batched Allocation 1"},
+                   "allocationStatus" => %{
+                     "allocatedElsewhere" => 1,
+                     "available" => 1
+                   }
+                 }
+               } ->
+                 true
+
+               _ ->
+                 false
+             end
+           )
+
+    assert query_classes == @deck_page_allocation_query_shape
+    assert Enum.sum(Map.values(query_classes)) == @deck_page_allocation_query_budget
   end
 
   test "deck list summaries reuse preloaded deck cards over GraphQL", %{conn: conn} do
@@ -586,7 +654,7 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
         [:manavault, :repo, :query],
         fn _event, _measurements, metadata, _config ->
           unless metadata[:source] == "schema_migrations" do
-            send(caller, {ref, :query})
+            send(caller, {ref, query_class(metadata)})
           end
         end,
         nil
@@ -594,18 +662,58 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
 
     try do
       result = fun.()
-      {result, collect_query_count(ref, 0)}
+      {result, collect_query_classes(ref, %{})}
     after
       :telemetry.detach(handler_id)
-      collect_query_count(ref, 0)
+      collect_query_classes(ref, %{})
     end
   end
 
-  defp collect_query_count(ref, count) do
+  defp collect_query_classes(ref, query_classes) do
     receive do
-      {^ref, :query} -> collect_query_count(ref, count + 1)
+      {^ref, query_class} ->
+        collect_query_classes(ref, Map.update(query_classes, query_class, 1, &(&1 + 1)))
     after
-      0 -> count
+      0 -> query_classes
+    end
+  end
+
+  defp query_class(metadata) do
+    source = metadata |> Map.get(:source) |> to_string()
+    query = metadata |> Map.get(:query, "") |> IO.iodata_to_binary() |> String.downcase()
+
+    case source do
+      "decks" ->
+        :deck_lookup
+
+      "deck_cards" ->
+        :deck_card_batch
+
+      "deck_allocations" ->
+        :allocation_count_batch
+
+      "deck_card_tags" ->
+        :deck_card_tag_batch
+
+      "collection_items" ->
+        if String.contains?(query, "sum(") do
+          :printing_owned_count_batch
+        else
+          :allocation_candidate_batch
+        end
+
+      "scryfall_cards" ->
+        :deck_card_association_batch
+
+      "scryfall_printings" ->
+        cond do
+          String.contains?(query, "row_number") -> :fallback_printing_batch
+          String.contains?(query, "oracle_id") -> :card_printing_batch
+          true -> :deck_card_association_batch
+        end
+
+      unexpected_source ->
+        {:unexpected_query_source, unexpected_source}
     end
   end
 end

@@ -49,9 +49,8 @@ defmodule Manavault.Catalog.Decks.AllocationStatus do
     persisted_cards = Enum.filter(deck_cards, &is_integer(&1.id))
     deck_card_ids = Enum.map(persisted_cards, & &1.id)
     keys = persisted_cards |> Enum.map(&deck_card_allocation_key/1) |> Enum.uniq()
-    candidates_by_key = deck_card_collection_candidates_by_key(keys)
-    current_allocations_by_card_id = current_allocation_counts_by_card_id(deck_card_ids)
-    reserving_allocations_by_key = reserving_allocation_counts_by_key(keys)
+    {current_allocations_by_card_id, reserving_allocations_by_key} =
+      allocation_counts_by_card_id_and_key(deck_card_ids, keys)
 
     Map.new(persisted_cards, fn deck_card ->
       key = deck_card_allocation_key(deck_card)
@@ -207,72 +206,60 @@ defmodule Manavault.Catalog.Decks.AllocationStatus do
     |> Map.new()
   end
 
-  defp current_allocation_counts_by_card_id([]), do: %{}
+  defp allocation_counts_by_card_id_and_key([], _oracle_ids), do: {%{}, %{}}
 
-  defp current_allocation_counts_by_card_id(deck_card_ids) do
-    DeckAllocation
-    |> where([allocation], allocation.deck_card_id in ^deck_card_ids)
-    |> group_by([allocation], [allocation.deck_card_id, allocation.collection_item_id])
-    |> select(
-      [allocation],
-      {allocation.deck_card_id, allocation.collection_item_id, sum(allocation.quantity)}
-    )
-    |> Repo.all()
-    |> Enum.reduce(%{}, fn {deck_card_id, collection_item_id, quantity}, acc ->
-      Map.update(acc, deck_card_id, %{collection_item_id => quantity}, fn counts ->
-        Map.put(counts, collection_item_id, quantity)
-      end)
-    end)
-  end
-
-  defp other_reserving_allocation_counts(%DeckCard{} = deck_card) do
-    DeckAllocation
-    |> join(:inner, [allocation], allocated_card in assoc(allocation, :deck_card))
-    |> where(
-      [_allocation, allocated_card],
-      allocated_card.id != ^deck_card.id and allocated_card.oracle_id == ^deck_card.oracle_id
-    )
-    |> group_by([allocation, _allocated_card], allocation.collection_item_id)
-    |> select(
-      [allocation, _allocated_card],
-      {allocation.collection_item_id, sum(allocation.quantity)}
-    )
-    |> Repo.all()
-    |> Map.new()
-  end
-
-  defp reserving_allocation_counts_by_key([]), do: %{}
-
-  defp reserving_allocation_counts_by_key(oracle_ids) do
+  defp allocation_counts_by_card_id_and_key(deck_card_ids, oracle_ids) do
+    deck_card_id_set = MapSet.new(deck_card_ids)
     oracle_ids = Enum.uniq(oracle_ids)
 
-    DeckAllocation
-    |> join(:inner, [allocation], allocated_card in assoc(allocation, :deck_card))
-    |> where(
-      [_allocation, allocated_card],
-      allocated_card.oracle_id in ^oracle_ids
-    )
-    |> group_by(
-      [allocation, allocated_card],
-      [
-        allocated_card.id,
-        allocated_card.oracle_id,
-        allocation.collection_item_id
-      ]
-    )
-    |> select(
-      [allocation, allocated_card],
-      {
-        allocated_card.id,
-        allocated_card.oracle_id,
-        allocation.collection_item_id,
-        sum(allocation.quantity)
-      }
-    )
-    |> Repo.all()
-    |> Enum.group_by(fn {_deck_card_id, oracle_id, _collection_item_id, _quantity} ->
-      oracle_id
-    end)
+    allocations =
+      DeckAllocation
+      |> join(:inner, [allocation], allocated_card in assoc(allocation, :deck_card))
+      |> where(
+        [_allocation, allocated_card],
+        allocated_card.id in ^deck_card_ids or allocated_card.oracle_id in ^oracle_ids
+      )
+      |> group_by(
+        [allocation, allocated_card],
+        [
+          allocated_card.id,
+          allocated_card.oracle_id,
+          allocation.collection_item_id
+        ]
+      )
+      |> select(
+        [allocation, allocated_card],
+        {
+          allocated_card.id,
+          allocated_card.oracle_id,
+          allocation.collection_item_id,
+          sum(allocation.quantity)
+        }
+      )
+      |> Repo.all()
+
+    current_allocations_by_card_id =
+      Enum.reduce(allocations, %{}, fn {deck_card_id, _oracle_id, collection_item_id, quantity},
+                                       acc ->
+        if MapSet.member?(deck_card_id_set, deck_card_id) do
+          Map.update(acc, deck_card_id, %{collection_item_id => quantity}, fn counts ->
+            Map.put(counts, collection_item_id, quantity)
+          end)
+        else
+          acc
+        end
+      end)
+
+    reserving_allocations_by_key =
+      allocations
+      |> Enum.reject(fn {_deck_card_id, oracle_id, _collection_item_id, _quantity} ->
+        is_nil(oracle_id)
+      end)
+      |> Enum.group_by(fn {_deck_card_id, oracle_id, _collection_item_id, _quantity} ->
+        oracle_id
+      end)
+
+    {current_allocations_by_card_id, reserving_allocations_by_key}
   end
 
   defp other_allocation_counts(reserving_allocations, deck_card_id) do
