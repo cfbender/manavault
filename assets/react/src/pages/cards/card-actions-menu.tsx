@@ -1,11 +1,23 @@
 import { ExternalLink, MoreVertical } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { cn } from "../../lib/utils"
-import { scryfallCardUrl } from "./card-links"
+import {
+  edhrecCardUrl,
+  mtgStocksAutocompleteUrl,
+  mtgStocksCardUrl,
+  mtgStocksPrintUrl,
+  scryfallCardUrl,
+} from "./card-links"
 
 type CardActionPrinting = {
   scryfallId?: string | null
 } | null
+
+type MtgStocksSearchResult = {
+  name: string
+  slug: string
+  type: string
+}
 
 export function CardActionsMenu({
   cardName,
@@ -17,11 +29,24 @@ export function CardActionsMenu({
   primaryPrinting?: CardActionPrinting
 }) {
   const [open, setOpen] = useState(false)
+  const normalizedCardName = cardName.trim().toLocaleLowerCase()
+  const [mtgStocksResolution, setMtgStocksResolution] = useState<{
+    cardName: string
+    url: string
+  } | null>(null)
+  const mtgStocksUrl =
+    mtgStocksResolution?.cardName === normalizedCardName
+      ? mtgStocksResolution.url
+      : mtgStocksCardUrl({ name: cardName })
   const ref = useRef<HTMLDivElement>(null)
   const scryfallUrl = scryfallCardUrl({
     name: cardName,
     scryfallId: primaryPrinting?.scryfallId,
   })
+  const externalLinks = [
+    { label: "View on Scryfall", url: scryfallUrl },
+    { label: "View on EDHREC", url: edhrecCardUrl({ name: cardName }) },
+  ]
 
   useEffect(() => {
     if (!open) return
@@ -41,6 +66,36 @@ export function CardActionsMenu({
       document.removeEventListener("keydown", closeOnEscape)
     }
   }, [open])
+
+  useEffect(() => {
+    if (!open || mtgStocksResolution?.cardName === normalizedCardName) return
+
+    const abortController = new AbortController()
+
+    fetch(mtgStocksAutocompleteUrl({ name: cardName }), { signal: abortController.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error(`MTGStocks returned ${response.status}`)
+        return response.json() as Promise<MtgStocksSearchResult[]>
+      })
+      .then((results) => {
+        const result =
+          results.find(
+            (candidate) =>
+              candidate.type === "print" &&
+              candidate.name.trim().toLocaleLowerCase() === normalizedCardName,
+          ) || results.find((candidate) => candidate.type === "print")
+
+        if (result) {
+          setMtgStocksResolution({
+            cardName: normalizedCardName,
+            url: mtgStocksPrintUrl(result.slug),
+          })
+        }
+      })
+      .catch(() => undefined)
+
+    return () => abortController.abort()
+  }, [cardName, mtgStocksResolution, normalizedCardName, open])
 
   return (
     <div
@@ -66,16 +121,30 @@ export function CardActionsMenu({
           role="menu"
           className="menu dropdown-content z-50 mt-2 w-56 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
         >
+          {externalLinks.map(({ label, url }) => (
+            <li key={label} role="none">
+              <a
+                role="menuitem"
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setOpen(false)}
+              >
+                <ExternalLink className="h-4 w-4" />
+                {label}
+              </a>
+            </li>
+          ))}
           <li role="none">
             <a
               role="menuitem"
-              href={scryfallUrl}
+              href={mtgStocksUrl}
               target="_blank"
               rel="noreferrer"
               onClick={() => setOpen(false)}
             >
               <ExternalLink className="h-4 w-4" />
-              View on Scryfall
+              View on MTGStocks
             </a>
           </li>
         </ul>
