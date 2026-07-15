@@ -9,9 +9,8 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactStore do
   def prepare(cache_dir, max_artifacts)
       when is_binary(cache_dir) and is_integer(max_artifacts) and max_artifacts > 0 do
     with :ok <- File.mkdir_p(cache_dir),
-         :ok <- remove_stale_temporary_files(cache_dir),
-         :ok <- prune_completed_artifacts(cache_dir, max_artifacts, nil) do
-      :ok
+         :ok <- remove_stale_temporary_files(cache_dir) do
+      prune_completed_artifacts(cache_dir, max_artifacts, nil)
     end
   end
 
@@ -78,9 +77,8 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactStore do
 
   defp prune_completed_artifacts(cache_dir, max_artifacts, preserve_path) do
     with {:ok, entries} <- File.ls(cache_dir),
-         {:ok, artifacts} <- completed_artifacts(cache_dir, entries),
-         :ok <- remove_excess_artifacts(artifacts, max_artifacts, preserve_path) do
-      :ok
+         {:ok, artifacts} <- completed_artifacts(cache_dir, entries) do
+      remove_excess_artifacts(artifacts, max_artifacts, preserve_path)
     end
   end
 
