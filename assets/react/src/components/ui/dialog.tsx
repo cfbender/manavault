@@ -1,6 +1,14 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
-import { useCallback, useEffect, useRef, type HTMLAttributes, type ReactNode } from "react"
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  type HTMLAttributes,
+  type ReactNode,
+} from "react"
 import { registerNativeBackModal } from "../../lib/native-modal-stack"
 import { cn } from "../../lib/utils"
 import { Button } from "./button"
@@ -11,8 +19,47 @@ type DialogProps = {
   open: boolean
 }
 
+const DialogOpenerContext = createContext<{ current: HTMLElement | null } | null>(null)
+
+const focusableSelector = [
+  "a[href]",
+  "area[href]",
+  "button",
+  "input:not([type='hidden'])",
+  "select",
+  "textarea",
+  "iframe",
+  "object",
+  "embed",
+  "audio[controls]",
+  "video[controls]",
+  "summary",
+  "[contenteditable]:not([contenteditable='false'])",
+  "[tabindex]",
+].join(",")
+
+function canRestoreFocus(element: HTMLElement | null) {
+  if (
+    !element?.isConnected ||
+    !element.matches(focusableSelector) ||
+    element.matches(":disabled, [aria-disabled='true']")
+  ) {
+    return false
+  }
+
+  for (let current: HTMLElement | null = element; current; current = current.parentElement) {
+    if (current.hidden || current.hasAttribute("inert")) return false
+
+    const style = window.getComputedStyle(current)
+    if (style.display === "none" || style.visibility === "hidden") return false
+  }
+
+  return true
+}
+
 export function Dialog({ children, onOpenChange, open }: DialogProps) {
   const closeRequested = useRef(false)
+  const openerRef = useRef<HTMLElement | null>(null)
   const onOpenChangeRef = useRef(onOpenChange)
   onOpenChangeRef.current = onOpenChange
 
@@ -47,9 +94,11 @@ export function Dialog({ children, onOpenChange, open }: DialogProps) {
   }, [open, requestClose])
 
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={handleOpenChange}>
-      {open ? children : null}
-    </DialogPrimitive.Root>
+    <DialogOpenerContext.Provider value={openerRef}>
+      <DialogPrimitive.Root open={open} onOpenChange={handleOpenChange}>
+        {open ? children : null}
+      </DialogPrimitive.Root>
+    </DialogOpenerContext.Provider>
   )
 }
 
@@ -65,6 +114,8 @@ export function DialogContent({
   labelledBy,
   ...props
 }: DialogContentProps) {
+  const openerRef = useContext(DialogOpenerContext)
+
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="fixed inset-0 z-[1100] bg-black/65 backdrop-blur-sm" />
@@ -73,6 +124,18 @@ export function DialogContent({
           aria-describedby={describedBy}
           {...(labelledBy ? { "aria-labelledby": labelledBy } : {})}
           asChild
+          onOpenAutoFocus={() => {
+            const activeElement = document.activeElement
+            openerRef && (openerRef.current = activeElement instanceof HTMLElement ? activeElement : null)
+          }}
+          onCloseAutoFocus={(event) => {
+            const opener = openerRef?.current ?? null
+            if (openerRef) openerRef.current = null
+            if (!canRestoreFocus(opener)) return
+
+            event.preventDefault()
+            opener.focus()
+          }}
         >
           <section
             className={cn(

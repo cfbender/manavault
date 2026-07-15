@@ -197,7 +197,8 @@ describe("Dialog", () => {
     const onClose = vi.fn()
     render(<DialogHarness onClose={onClose} />)
 
-    await user.click(screen.getByRole("button", { name: "Open inventory dialog" }))
+    const trigger = screen.getByRole("button", { name: "Open inventory dialog" })
+    await user.click(trigger)
     const dialog = screen.getByRole("dialog", { name: "Inventory dialog" })
     const overlay = dialog.parentElement?.previousElementSibling
     if (!(overlay instanceof HTMLElement)) throw new Error("Expected a dialog backdrop")
@@ -206,6 +207,7 @@ describe("Dialog", () => {
 
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(screen.queryByRole("dialog", { name: "Inventory dialog" })).toBeNull()
+    await waitFor(() => expect(document.activeElement).toBe(trigger))
   })
 
   test("native back dismisses once even when repeated before the controlled state updates", async () => {
@@ -213,7 +215,8 @@ describe("Dialog", () => {
     const onClose = vi.fn()
     render(<DialogHarness onClose={onClose} />)
 
-    await user.click(screen.getByRole("button", { name: "Open inventory dialog" }))
+    const trigger = screen.getByRole("button", { name: "Open inventory dialog" })
+    await user.click(trigger)
 
     act(() => {
       expect(closeTopNativeBackModal()).toBe(true)
@@ -223,6 +226,7 @@ describe("Dialog", () => {
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(screen.queryByRole("dialog", { name: "Inventory dialog" })).toBeNull()
     expect(closeTopNativeBackModal()).toBe(false)
+    await waitFor(() => expect(document.activeElement).toBe(trigger))
   })
 
   test("keeps stacked dialogs scroll-locked and native back closes only the top dialog", async () => {
