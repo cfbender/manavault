@@ -314,6 +314,12 @@ defmodule Manavault.Catalog.Cached do
     end)
   end
 
+  def get_deck_card!(id) do
+    cached(Cache.decks_tag(), {:deck_card, id}, fn ->
+      Decks.get_deck_card!(id)
+    end)
+  end
+
   def get_deck_by_share_token(token, opts \\ []) do
     cached(Cache.decks_tag(), {:deck_by_share_token, token, opts}, fn ->
       Decks.get_deck_by_share_token(token, opts)

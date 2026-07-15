@@ -8,33 +8,33 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
 
   alias Manavault.Catalog
 
-  alias ManavaultWeb.Schema.CatalogResolvers
+  alias ManavaultWeb.Schema.Catalog.{DeckFields, ValueResolvers}
 
   object :deck_legality do
     field :status, non_null(:string) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :issues, non_null(list_of(non_null(:deck_legality_issue))) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
   end
 
   object :deck_legality_issue do
     field :code, non_null(:string) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :message, non_null(:string) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :severity, non_null(:string) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :card_name, :string do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
   end
 
@@ -62,31 +62,31 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :share_token, :string
 
     field :cover_image_url, :string do
-      resolve(&CatalogResolvers.deck_cover_image_url/3)
+      resolve(&DeckFields.deck_cover_image_url/3)
     end
 
     field :commander_color_identity, list_of(:string) do
-      resolve(&CatalogResolvers.deck_commander_color_identity/3)
+      resolve(&DeckFields.deck_commander_color_identity/3)
     end
 
     field :card_count, :integer do
-      resolve(&CatalogResolvers.deck_card_count/3)
+      resolve(&DeckFields.deck_card_count/3)
     end
 
     field :unique_card_count, :integer do
-      resolve(&CatalogResolvers.deck_unique_card_count/3)
+      resolve(&DeckFields.deck_unique_card_count/3)
     end
 
     field :legality, non_null(:deck_legality) do
-      resolve(&CatalogResolvers.deck_legality/3)
+      resolve(&DeckFields.deck_legality/3)
     end
 
     connection field :deck_cards, node_type: :deck_card do
-      resolve(&CatalogResolvers.deck_cards/3)
+      resolve(&DeckFields.deck_cards/3)
     end
 
     field :tags, non_null(list_of(non_null(:deck_tag))) do
-      resolve(&CatalogResolvers.deck_tags/3)
+      resolve(&DeckFields.deck_tags/3)
     end
   end
 
@@ -97,7 +97,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :tag, :string
 
     field :price_cents, :integer do
-      resolve(&CatalogResolvers.deck_card_price_cents/3)
+      resolve(&DeckFields.deck_card_price_cents/3)
     end
 
     field :preferred_printing, :printing, resolve: dataloader(Catalog)
@@ -105,11 +105,11 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :fallback_printing, :printing
 
     field :tag_ids, non_null(list_of(non_null(:id))) do
-      resolve(&CatalogResolvers.deck_card_tag_ids/3)
+      resolve(&DeckFields.deck_card_tag_ids/3)
     end
 
     field :allocation_status, non_null(:deck_card_allocation_status) do
-      resolve(&CatalogResolvers.deck_card_allocation_status/3)
+      resolve(&DeckFields.deck_card_allocation_status/3)
     end
   end
 
@@ -150,7 +150,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :quantity, non_null(:integer)
 
     field :exact, non_null(:boolean) do
-      resolve(&CatalogResolvers.map_exact_value/3)
+      resolve(&ValueResolvers.map_exact_value/3)
     end
   end
 
@@ -189,59 +189,59 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
 
   object :deck_buylist_entry do
     field :card_name, non_null(:string) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :quantity, non_null(:integer) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :missing, non_null(:integer) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :unavailable, non_null(:integer) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :reason, non_null(:string) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :finish, :string do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :printing, :printing do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :set_code, :string do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :collector_number, :string do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :language, :string do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :unit_price_cents, :integer do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :total_price_cents, :integer do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :unit_price_text, :string do
-      resolve(&CatalogResolvers.buylist_entry_unit_price_text/3)
+      resolve(&DeckFields.buylist_entry_unit_price_text/3)
     end
 
     field :total_price_text, :string do
-      resolve(&CatalogResolvers.buylist_entry_total_price_text/3)
+      resolve(&DeckFields.buylist_entry_total_price_text/3)
     end
   end
 

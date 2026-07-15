@@ -8,6 +8,7 @@ defmodule Manavault.Catalog.Decks do
   defdelegate count_decks(), to: Workflows
   defdelegate get_deck_by_share_token(token, opts \\ []), to: Workflows
   defdelegate get_deck!(id, opts \\ []), to: Workflows
+  defdelegate get_deck_card!(id), to: Workflows
   defdelegate deck_cards(deck), to: Workflows
   defdelegate deck_legality(deck), to: Workflows
   defdelegate deck_card_count(deck), to: Workflows

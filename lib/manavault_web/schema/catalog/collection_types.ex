@@ -5,8 +5,7 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
   use Absinthe.Relay.Schema.Notation, :modern
 
   alias Manavault.Catalog.AutoSortRule
-  alias ManavaultWeb.Schema.Catalog.CollectionFields
-  alias ManavaultWeb.Schema.CatalogResolvers
+  alias ManavaultWeb.Schema.Catalog.{CollectionFields, ValueResolvers}
 
   node object(:collection_item) do
     field :quantity, non_null(:integer)
@@ -14,53 +13,53 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :language, non_null(:string)
     field :finish, non_null(:string)
     field :notes, :string
-    field :printing, :printing, resolve: &CatalogResolvers.collection_item_printing/3
+    field :printing, :printing, resolve: &CollectionFields.collection_item_printing/3
 
     field :current_price_cents, :integer do
-      resolve(&CatalogResolvers.collection_item_current_price_cents/3)
+      resolve(&CollectionFields.collection_item_current_price_cents/3)
     end
 
     field :purchase_price_cents, :integer do
-      resolve(&CatalogResolvers.collection_item_purchase_price_cents/3)
+      resolve(&CollectionFields.collection_item_purchase_price_cents/3)
     end
 
     field :price_text, :string do
-      resolve(&CatalogResolvers.collection_item_price_text/3)
+      resolve(&CollectionFields.collection_item_price_text/3)
     end
 
     field :purchase_price_text, :string do
-      resolve(&CatalogResolvers.collection_item_purchase_price_text/3)
+      resolve(&CollectionFields.collection_item_purchase_price_text/3)
     end
 
     field :value_gain_cents, :integer do
-      resolve(&CatalogResolvers.collection_item_value_gain_cents/3)
+      resolve(&CollectionFields.collection_item_value_gain_cents/3)
     end
 
     field :value_gain_text, :string do
-      resolve(&CatalogResolvers.collection_item_value_gain_text/3)
+      resolve(&CollectionFields.collection_item_value_gain_text/3)
     end
 
     field :value_gain_percent, :float do
-      resolve(&CatalogResolvers.collection_item_value_gain_percent/3)
+      resolve(&CollectionFields.collection_item_value_gain_percent/3)
     end
 
     field :value_gain_percent_text, :string do
-      resolve(&CatalogResolvers.collection_item_value_gain_percent_text/3)
+      resolve(&CollectionFields.collection_item_value_gain_percent_text/3)
     end
 
     field :allocated_quantity, non_null(:integer) do
-      resolve(&CatalogResolvers.collection_item_allocated_quantity/3)
+      resolve(&CollectionFields.collection_item_allocated_quantity/3)
     end
 
     field :total_owned_copies, non_null(:integer) do
-      resolve(&CatalogResolvers.collection_item_total_owned_copies/3)
+      resolve(&CollectionFields.collection_item_total_owned_copies/3)
     end
 
     field :allocation_decks, non_null(list_of(non_null(:collection_item_allocation_deck))) do
-      resolve(&CatalogResolvers.collection_item_allocation_decks/3)
+      resolve(&CollectionFields.collection_item_allocation_decks/3)
     end
 
-    field :location, :location, resolve: &CatalogResolvers.collection_item_location/3
+    field :location, :location, resolve: &CollectionFields.collection_item_location/3
   end
 
   node object(:location) do
@@ -73,47 +72,47 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     end
 
     field :item_count, :integer do
-      resolve(&CatalogResolvers.location_item_count/3)
+      resolve(&CollectionFields.location_item_count/3)
     end
 
     field :total_price_cents, :integer do
-      resolve(&CatalogResolvers.location_total_price_cents/3)
+      resolve(&CollectionFields.location_total_price_cents/3)
     end
 
     field :total_price_text, :string do
-      resolve(&CatalogResolvers.location_total_price_text/3)
+      resolve(&CollectionFields.location_total_price_text/3)
     end
 
     field :purchase_price_cents, :integer do
-      resolve(&CatalogResolvers.location_purchase_price_cents/3)
+      resolve(&CollectionFields.location_purchase_price_cents/3)
     end
 
     field :purchase_price_text, :string do
-      resolve(&CatalogResolvers.location_purchase_price_text/3)
+      resolve(&CollectionFields.location_purchase_price_text/3)
     end
 
     field :value_gain_cents, :integer do
-      resolve(&CatalogResolvers.location_value_gain_cents/3)
+      resolve(&CollectionFields.location_value_gain_cents/3)
     end
 
     field :value_gain_text, :string do
-      resolve(&CatalogResolvers.location_value_gain_text/3)
+      resolve(&CollectionFields.location_value_gain_text/3)
     end
 
     field :value_gain_percent, :float do
-      resolve(&CatalogResolvers.location_value_gain_percent/3)
+      resolve(&CollectionFields.location_value_gain_percent/3)
     end
 
     field :value_gain_percent_text, :string do
-      resolve(&CatalogResolvers.location_value_gain_percent_text/3)
+      resolve(&CollectionFields.location_value_gain_percent_text/3)
     end
 
     field :value_summary, non_null(:collection_value_summary) do
-      resolve(&CatalogResolvers.location_value_summary/3)
+      resolve(&CollectionFields.location_value_summary/3)
     end
 
     connection field :collection_items, node_type: :collection_item do
-      resolve(&CatalogResolvers.location_collection_items/3)
+      resolve(&CollectionFields.location_collection_items/3)
     end
   end
 
@@ -212,43 +211,43 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
 
   object :collection_import_attrs do
     field :name, :string do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :set_code, :string do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :collector_number, :string do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :quantity, :integer do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :finish, :string do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :condition, :string do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :language, :string do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :scryfall_id, :id do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :location_id, :id do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :purchase_price_cents, :integer do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
   end
 

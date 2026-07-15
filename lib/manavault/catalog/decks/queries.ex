@@ -77,6 +77,8 @@ defmodule Manavault.Catalog.Decks.Queries do
     |> maybe_preload_deck(opts)
   end
 
+  def get_deck_card!(id), do: Repo.get!(DeckCard, id)
+
   def deck_cards(%Deck{deck_cards: cards}) when is_list(cards) do
     cards
     |> DeckSummaries.put_fallback_printings()

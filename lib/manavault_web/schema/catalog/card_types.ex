@@ -4,7 +4,7 @@ defmodule ManavaultWeb.Schema.Catalog.CardTypes do
   use Absinthe.Schema.Notation
   use Absinthe.Relay.Schema.Notation, :modern
 
-  alias ManavaultWeb.Schema.CatalogResolvers
+  alias ManavaultWeb.Schema.Catalog.{CardFields, ValueResolvers}
 
   object :scryfall_reload_result do
     field :status, non_null(:string)
@@ -18,15 +18,15 @@ defmodule ManavaultWeb.Schema.Catalog.CardTypes do
 
   object :scryfall_oracle_tag do
     field :id, non_null(:id) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :slug, non_null(:string) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :label, non_null(:string) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :weight, :string do
@@ -39,7 +39,7 @@ defmodule ManavaultWeb.Schema.Catalog.CardTypes do
     end
 
     field :annotation, :string do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
   end
 
@@ -64,13 +64,13 @@ defmodule ManavaultWeb.Schema.Catalog.CardTypes do
 
     field :colors, list_of(:string) do
       resolve(fn card, _, _ ->
-        {:ok, CatalogResolvers.decode_json_field(card, :colors, [])}
+        {:ok, ValueResolvers.decode_json_field(card, :colors, [])}
       end)
     end
 
     field :color_identity, list_of(:string) do
       resolve(fn card, _, _ ->
-        {:ok, CatalogResolvers.decode_json_field(card, :color_identity, [])}
+        {:ok, ValueResolvers.decode_json_field(card, :color_identity, [])}
       end)
     end
 
@@ -78,7 +78,7 @@ defmodule ManavaultWeb.Schema.Catalog.CardTypes do
 
     field :oracle_tags, list_of(:scryfall_oracle_tag) do
       resolve(fn card, _, _ ->
-        {:ok, CatalogResolvers.decode_json_field(card, :oracle_tags, [])}
+        {:ok, ValueResolvers.decode_json_field(card, :oracle_tags, [])}
       end)
     end
 
@@ -86,24 +86,24 @@ defmodule ManavaultWeb.Schema.Catalog.CardTypes do
 
     field :deck_themes, list_of(:string) do
       resolve(fn card, _, _ ->
-        {:ok, CatalogResolvers.decode_json_field(card, :deck_themes, [])}
+        {:ok, ValueResolvers.decode_json_field(card, :deck_themes, [])}
       end)
     end
 
     field :rulings, non_null(list_of(non_null(:card_ruling))) do
-      resolve(&CatalogResolvers.card_rulings/3)
+      resolve(&CardFields.card_rulings/3)
     end
 
     field :legalities, non_null(list_of(non_null(:card_legality))) do
-      resolve(&CatalogResolvers.card_legalities/3)
+      resolve(&CardFields.card_legalities/3)
     end
 
     connection field :printings, node_type: :printing do
-      resolve(&CatalogResolvers.card_printings/3)
+      resolve(&CardFields.card_printings/3)
     end
 
     field :primary_printing, :printing do
-      resolve(&CatalogResolvers.card_primary_printing/3)
+      resolve(&CardFields.card_primary_printing/3)
     end
   end
 
@@ -120,40 +120,40 @@ defmodule ManavaultWeb.Schema.Catalog.CardTypes do
 
     field :finishes, list_of(:string) do
       resolve(fn printing, _, _ ->
-        {:ok, CatalogResolvers.decode_json_field(printing, :finishes, [])}
+        {:ok, ValueResolvers.decode_json_field(printing, :finishes, [])}
       end)
     end
 
     field :image_url, :string do
-      resolve(&CatalogResolvers.printing_image_url/3)
+      resolve(&CardFields.printing_image_url/3)
     end
 
     field :back_image_url, :string do
-      resolve(&CatalogResolvers.printing_back_image_url/3)
+      resolve(&CardFields.printing_back_image_url/3)
     end
 
     field :art_crop_url, :string do
-      resolve(&CatalogResolvers.printing_art_crop_url/3)
+      resolve(&CardFields.printing_art_crop_url/3)
     end
 
     field :image_uris, :json do
       resolve(fn printing, _, _ ->
-        {:ok, CatalogResolvers.decode_json_field(printing, :image_uris, %{})}
+        {:ok, ValueResolvers.decode_json_field(printing, :image_uris, %{})}
       end)
     end
 
     field :prices, :json do
       resolve(fn printing, _, _ ->
-        {:ok, CatalogResolvers.decode_json_field(printing, :prices, %{})}
+        {:ok, ValueResolvers.decode_json_field(printing, :prices, %{})}
       end)
     end
 
     field :price_text, :string do
-      resolve(&CatalogResolvers.printing_price_text/3)
+      resolve(&CardFields.printing_price_text/3)
     end
 
     field :released_at, :string
-    field :card, :card, resolve: &CatalogResolvers.printing_card/3
+    field :card, :card, resolve: &CardFields.printing_card/3
   end
 
   connection(node_type: :card)

@@ -6,19 +6,19 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
 
   alias Manavault.Catalog
 
-  alias ManavaultWeb.Schema.CatalogResolvers
+  alias ManavaultWeb.Schema.Catalog.{CardFields, DeckFields, ValueResolvers}
 
   object :scryfall_oracle_tag do
     field :id, non_null(:id) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :slug, non_null(:string) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :label, non_null(:string) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :weight, :string do
@@ -31,7 +31,7 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     end
 
     field :annotation, :string do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
   end
 
@@ -56,13 +56,13 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
 
     field :colors, list_of(:string) do
       resolve(fn card, _, _ ->
-        {:ok, CatalogResolvers.decode_json_field(card, :colors, [])}
+        {:ok, ValueResolvers.decode_json_field(card, :colors, [])}
       end)
     end
 
     field :color_identity, list_of(:string) do
       resolve(fn card, _, _ ->
-        {:ok, CatalogResolvers.decode_json_field(card, :color_identity, [])}
+        {:ok, ValueResolvers.decode_json_field(card, :color_identity, [])}
       end)
     end
 
@@ -70,7 +70,7 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
 
     field :oracle_tags, list_of(:scryfall_oracle_tag) do
       resolve(fn card, _, _ ->
-        {:ok, CatalogResolvers.decode_json_field(card, :oracle_tags, [])}
+        {:ok, ValueResolvers.decode_json_field(card, :oracle_tags, [])}
       end)
     end
 
@@ -78,20 +78,20 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
 
     field :deck_themes, list_of(:string) do
       resolve(fn card, _, _ ->
-        {:ok, CatalogResolvers.decode_json_field(card, :deck_themes, [])}
+        {:ok, ValueResolvers.decode_json_field(card, :deck_themes, [])}
       end)
     end
 
     field :rulings, non_null(list_of(non_null(:card_ruling))) do
-      resolve(&CatalogResolvers.card_rulings/3)
+      resolve(&CardFields.card_rulings/3)
     end
 
     field :legalities, non_null(list_of(non_null(:card_legality))) do
-      resolve(&CatalogResolvers.card_legalities/3)
+      resolve(&CardFields.card_legalities/3)
     end
 
     connection field :printings, node_type: :printing do
-      resolve(&CatalogResolvers.card_printings/3)
+      resolve(&CardFields.card_printings/3)
     end
   end
 
@@ -110,30 +110,30 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
 
     field :finishes, list_of(:string) do
       resolve(fn printing, _, _ ->
-        {:ok, CatalogResolvers.decode_json_field(printing, :finishes, [])}
+        {:ok, ValueResolvers.decode_json_field(printing, :finishes, [])}
       end)
     end
 
     field :image_url, :string do
-      resolve(&CatalogResolvers.printing_image_url/3)
+      resolve(&CardFields.printing_image_url/3)
     end
 
     field :back_image_url, :string do
-      resolve(&CatalogResolvers.printing_back_image_url/3)
+      resolve(&CardFields.printing_back_image_url/3)
     end
 
     field :art_crop_url, :string do
-      resolve(&CatalogResolvers.printing_art_crop_url/3)
+      resolve(&CardFields.printing_art_crop_url/3)
     end
 
     field :prices, :json do
       resolve(fn printing, _, _ ->
-        {:ok, CatalogResolvers.decode_json_field(printing, :prices, %{})}
+        {:ok, ValueResolvers.decode_json_field(printing, :prices, %{})}
       end)
     end
 
     field :price_text, :string do
-      resolve(&CatalogResolvers.printing_price_text/3)
+      resolve(&CardFields.printing_price_text/3)
     end
 
     field :released_at, :string
@@ -158,29 +158,29 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
 
   object :deck_legality do
     field :status, non_null(:string) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :issues, non_null(list_of(non_null(:deck_legality_issue))) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
   end
 
   object :deck_legality_issue do
     field :code, non_null(:string) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :message, non_null(:string) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :severity, non_null(:string) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :card_name, :string do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
   end
 
@@ -195,55 +195,55 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
 
   object :deck_buylist_entry do
     field :card_name, non_null(:string) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :quantity, non_null(:integer) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :missing, non_null(:integer) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :unavailable, non_null(:integer) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :reason, non_null(:string) do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :finish, :string do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :set_code, :string do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :collector_number, :string do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :language, :string do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :unit_price_cents, :integer do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :total_price_cents, :integer do
-      resolve(&CatalogResolvers.map_value/3)
+      resolve(&ValueResolvers.map_value/3)
     end
 
     field :unit_price_text, :string do
-      resolve(&CatalogResolvers.buylist_entry_unit_price_text/3)
+      resolve(&DeckFields.buylist_entry_unit_price_text/3)
     end
 
     field :total_price_text, :string do
-      resolve(&CatalogResolvers.buylist_entry_total_price_text/3)
+      resolve(&DeckFields.buylist_entry_total_price_text/3)
     end
   end
 
@@ -254,23 +254,23 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     field :share_token, :string
 
     field :card_count, :integer do
-      resolve(&CatalogResolvers.deck_card_count/3)
+      resolve(&DeckFields.deck_card_count/3)
     end
 
     field :unique_card_count, :integer do
-      resolve(&CatalogResolvers.deck_unique_card_count/3)
+      resolve(&DeckFields.deck_unique_card_count/3)
     end
 
     field :legality, non_null(:deck_legality) do
-      resolve(&CatalogResolvers.deck_legality/3)
+      resolve(&DeckFields.deck_legality/3)
     end
 
     field :tags, non_null(list_of(non_null(:deck_tag))) do
-      resolve(&CatalogResolvers.deck_tags/3)
+      resolve(&DeckFields.deck_tags/3)
     end
 
     connection field :deck_cards, node_type: :deck_card do
-      resolve(&CatalogResolvers.deck_cards/3)
+      resolve(&DeckFields.deck_cards/3)
     end
   end
 
@@ -281,7 +281,7 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     field :tag, :string
 
     field :price_cents, :integer do
-      resolve(&CatalogResolvers.deck_card_price_cents/3)
+      resolve(&DeckFields.deck_card_price_cents/3)
     end
 
     field :preferred_printing, :printing, resolve: dataloader(Catalog)
@@ -289,7 +289,7 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     field :fallback_printing, :printing
 
     field :tag_ids, non_null(list_of(non_null(:id))) do
-      resolve(&CatalogResolvers.deck_card_tag_ids/3)
+      resolve(&DeckFields.deck_card_tag_ids/3)
     end
 
     field :allocation_status, non_null(:deck_card_allocation_status) do

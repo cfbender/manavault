@@ -6,7 +6,7 @@ defmodule ManavaultWeb.PublicShareSchema do
 
   alias Manavault.Catalog
   alias Manavault.Catalog.{Card, CollectionItem, Deck, DeckCard, Location, Printing}
-  alias ManavaultWeb.Schema.CatalogResolvers
+  alias ManavaultWeb.Schema.Catalog.QueryResolvers
 
   node interface do
     resolve_type(fn
@@ -32,13 +32,13 @@ defmodule ManavaultWeb.PublicShareSchema do
       arg(:id, non_null(:id))
 
       resolve(fn parent, %{id: token}, resolution ->
-        CatalogResolvers.shared_deck(parent, %{token: token}, resolution)
+        QueryResolvers.shared_deck(parent, %{token: token}, resolution)
       end)
     end
 
     field :card, :card do
       arg(:id, non_null(:id))
-      resolve(&CatalogResolvers.card/3)
+      resolve(&QueryResolvers.card/3)
     end
 
     field :deck_buylist, non_null(list_of(non_null(:deck_buylist_entry))) do
