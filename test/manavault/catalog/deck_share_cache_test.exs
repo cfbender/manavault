@@ -60,7 +60,9 @@ defmodule Manavault.Catalog.DeckShareCacheTest do
     assert [%Deck{id: ^deck_id}, %Deck{id: ^deck_id}] = existing_results
     assert existing_queries == 1
     assert cache_size() == 1
-    assert {:ok, %Deck{id: ^deck_id}} = Cache.fetch({:deck_by_share_token, deck.share_token, [preload?: false]})
+
+    assert {:ok, %Deck{id: ^deck_id}} =
+             Cache.fetch({:deck_by_share_token, deck.share_token, [preload?: false]})
 
     {:ok, updated_deck} = Catalog.update_deck(deck, %{"name" => "Updated Shared Deck"})
     assert cache_size() == 0

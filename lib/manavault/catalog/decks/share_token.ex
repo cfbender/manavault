@@ -26,7 +26,8 @@ defmodule Manavault.Catalog.Decks.ShareToken do
   defp url_safe?(<<>>), do: true
 
   defp url_safe?(<<character, rest::binary>>)
-       when character in ?A..?Z or character in ?a..?z or character in ?0..?9 or character in [?-, ?_],
+       when character in ?A..?Z or character in ?a..?z or character in ?0..?9 or
+              character in [?-, ?_],
        do: url_safe?(rest)
 
   defp url_safe?(_token), do: false
