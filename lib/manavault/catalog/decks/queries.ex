@@ -4,7 +4,7 @@ defmodule Manavault.Catalog.Decks.Queries do
   import Ecto.Query
 
   alias Manavault.Catalog.{Card, Deck, DeckCard, DeckLegality, DeckSummaries}
-  alias Manavault.Catalog.Decks.{AllocationStatus, Preloads}
+  alias Manavault.Catalog.Decks.{AllocationStatus, Preloads, ShareToken}
   alias Manavault.Repo
 
   def list_decks do
@@ -57,19 +57,15 @@ defmodule Manavault.Catalog.Decks.Queries do
 
   def get_deck_by_share_token(token, opts \\ [])
 
-  def get_deck_by_share_token(nil, _opts), do: nil
-
-  def get_deck_by_share_token(token, opts) when is_binary(token) and is_list(opts) do
-    token = String.trim(token)
-
-    if token == "" do
-      nil
-    else
+  def get_deck_by_share_token(token, opts) when is_list(opts) do
+    if ShareToken.valid?(token) do
       Deck
       |> Repo.get_by(share_token: token)
       |> maybe_preload_deck(opts)
     end
   end
+
+  def get_deck_by_share_token(_token, _opts), do: nil
 
   def get_deck!(id, opts \\ []) when is_list(opts) do
     Deck

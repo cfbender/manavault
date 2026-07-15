@@ -5,11 +5,14 @@ defmodule Manavault.Catalog.Cached do
     Cache,
     Collection,
     CollectionItem,
+    Deck,
     DeckCard,
     Decks,
     Scryfall,
     Search
   }
+
+  alias Manavault.Catalog.Decks.ShareToken
 
   def search_cards(term, opts \\ []) do
     cached(Cache.cards_tag(), {:search_cards, term, opts}, fn ->
@@ -321,9 +324,9 @@ defmodule Manavault.Catalog.Cached do
   end
 
   def get_deck_by_share_token(token, opts \\ []) do
-    cached(Cache.decks_tag(), {:deck_by_share_token, token, opts}, fn ->
-      Decks.get_deck_by_share_token(token, opts)
-    end)
+    if ShareToken.valid?(token) do
+      cached_share_deck_by_token(token, opts)
+    end
   end
 
   def deck_cards(deck) do
@@ -643,6 +646,21 @@ defmodule Manavault.Catalog.Cached do
   end
 
   def card_rulings(card, opts), do: Scryfall.card_rulings(card, opts)
+
+  defp cached_share_deck_by_token(token, opts) do
+    key = {:deck_by_share_token, token, opts}
+
+    case Cache.fetch(key) do
+      {:ok, %Deck{} = deck} ->
+        deck
+
+      _miss ->
+        case Decks.get_deck_by_share_token(token, opts) do
+          %Deck{} = deck -> Cache.put(key, deck, tag: Cache.decks_tag())
+          nil -> nil
+        end
+    end
+  end
 
   defp cached(tag, key, fun) do
     Cache.cached(key, [tag: tag], fun)

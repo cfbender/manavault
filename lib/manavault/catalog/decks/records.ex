@@ -2,11 +2,10 @@ defmodule Manavault.Catalog.Decks.Records do
   @moduledoc false
 
   alias Manavault.Catalog.Deck
-  alias Manavault.Catalog.Decks.{Cards, DefaultTags, Preloads, Queries}
+  alias Manavault.Catalog.Decks.{Cards, DefaultTags, Preloads, Queries, ShareToken}
   alias Manavault.Repo
 
   @reserving_deck_statuses ["active"]
-  @share_token_bytes 18
   @share_token_attempts 5
 
   def change_deck(%Deck{} = deck, attrs \\ %{}) do
@@ -88,9 +87,5 @@ defmodule Manavault.Catalog.Decks.Records do
     end
   end
 
-  defp new_share_token do
-    @share_token_bytes
-    |> :crypto.strong_rand_bytes()
-    |> Base.url_encode64(padding: false)
-  end
+  defp new_share_token, do: ShareToken.generate()
 end

@@ -6,6 +6,7 @@ defmodule ManavaultWeb.PublicShareSchema do
 
   alias Manavault.Catalog
   alias Manavault.Catalog.{Card, CollectionItem, Deck, DeckCard, Location, Printing}
+  alias Manavault.Catalog.Decks.ShareToken
   alias ManavaultWeb.Schema.Catalog.QueryResolvers
 
   node interface do
@@ -31,8 +32,8 @@ defmodule ManavaultWeb.PublicShareSchema do
     field :deck, :deck do
       arg(:id, non_null(:id))
 
-      resolve(fn parent, %{id: token}, resolution ->
-        QueryResolvers.shared_deck(parent, %{token: token}, resolution)
+      resolve(fn _parent, %{id: token}, _resolution ->
+        {:ok, public_shared_deck(token)}
       end)
     end
 
@@ -50,7 +51,7 @@ defmodule ManavaultWeb.PublicShareSchema do
       arg(:include_maybeboard, :boolean, default_value: false)
 
       resolve(fn _parent, %{id: token} = args, _resolution ->
-        case Catalog.get_deck_by_share_token(token, preload?: false) do
+        case public_shared_deck(token) do
           %Deck{} = deck -> {:ok, Catalog.deck_buylist(deck, public_buylist_opts(args))}
           nil -> {:ok, []}
         end
@@ -67,7 +68,7 @@ defmodule ManavaultWeb.PublicShareSchema do
       arg(:include_maybeboard, :boolean, default_value: false)
 
       resolve(fn _parent, %{id: token} = args, _resolution ->
-        case Catalog.get_deck_by_share_token(token, preload?: false) do
+        case public_shared_deck(token) do
           %Deck{} = deck ->
             {:ok,
              Catalog.export_deck_buylist(
@@ -80,6 +81,12 @@ defmodule ManavaultWeb.PublicShareSchema do
             {:ok, ""}
         end
       end)
+    end
+  end
+
+  defp public_shared_deck(token) do
+    if ShareToken.valid?(token) do
+      Catalog.get_deck_by_share_token(token, preload?: false)
     end
   end
 

@@ -3,6 +3,7 @@ defmodule ManavaultWeb.AppController do
 
   alias Manavault.Catalog
   alias Manavault.Catalog.Deck
+  alias Manavault.Catalog.Decks.ShareToken
   alias ManavaultWeb.{AssetVersion, DeckSharePreview}
 
   def index(conn, _params), do: render_app(conn, default_preview(conn))
@@ -190,25 +191,33 @@ defmodule ManavaultWeb.AppController do
   end
 
   defp share_preview(conn, token) do
-    case Catalog.get_deck_by_share_token(token) do
-      %Deck{} = deck ->
-        encoded_token = encode_path_segment(token)
+    if ShareToken.valid?(token) do
+      case Catalog.get_deck_by_share_token(token) do
+        %Deck{} = deck ->
+          encoded_token = encode_path_segment(token)
 
-        deck
-        |> DeckSharePreview.from_deck(token)
-        |> Map.merge(%{
-          url: absolute_url(conn, "/share/decks/#{encoded_token}"),
-          image_url: absolute_url(conn, "/share/decks/#{encoded_token}/preview.png"),
-          image_type: "image/png"
-        })
+          deck
+          |> DeckSharePreview.from_deck(token)
+          |> Map.merge(%{
+            url: absolute_url(conn, "/share/decks/#{encoded_token}"),
+            image_url: absolute_url(conn, "/share/decks/#{encoded_token}/preview.png"),
+            image_type: "image/png"
+          })
 
-      nil ->
-        default_preview(conn, %{
-          title: "Shared deck · ManaVault",
-          description: "Open a shared Magic deck in ManaVault.",
-          image_alt: "ManaVault shared deck"
-        })
+        nil ->
+          missing_share_preview(conn)
+      end
+    else
+      missing_share_preview(conn)
     end
+  end
+
+  defp missing_share_preview(conn) do
+    default_preview(conn, %{
+      title: "Shared deck · ManaVault",
+      description: "Open a shared Magic deck in ManaVault.",
+      image_alt: "ManaVault shared deck"
+    })
   end
 
   defp raster_cover_image_url("data:" <> _rest = url), do: url
