@@ -174,7 +174,8 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
     {:ok, deck} = Catalog.create_deck(%{"name" => "Node Contract Deck"})
     {:ok, deck_card} = Catalog.add_card_to_deck(deck, %{"name" => "Contract Card"})
 
-    assert %{id: deck_card.id} = Catalog.get_deck_card!(deck_card.id)
+    expected_deck_card_id = deck_card.id
+    assert %{id: ^expected_deck_card_id} = Catalog.get_deck_card!(deck_card.id)
 
     deck_card_id = Node.to_global_id(:deck_card, deck_card.id, Schema)
 
