@@ -1,11 +1,11 @@
 ---
 id: TASK-5
 title: Enforce CSRF protection on authenticated GraphQL mutations
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-07-15 15:53'
-updated_date: '2026-07-15 17:33'
+updated_date: '2026-07-15 18:09'
 labels:
   - security
   - backend
@@ -30,12 +30,12 @@ The authenticated /api/graphql pipeline accepts session-authenticated mutation r
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A session-authenticated GraphQL mutation with a missing CSRF token is rejected before resolver execution with the API's documented unauthorized/forbidden response shape.
-- [ ] #2 A session-authenticated GraphQL mutation with an invalid or stale CSRF token is rejected, while the same mutation with the current valid token succeeds.
-- [ ] #3 CSRF enforcement cannot be bypassed by sending JSON, URL-encoded, or multipart request bodies through the configured parsers.
-- [ ] #4 The unauthenticated /share/graphql schema remains accessible without a CSRF token and does not gain access to private mutations.
-- [ ] #5 The browser Apollo client continues reading the current per-page token, including after session/token rotation, and authenticated queries and mutations remain functional.
-- [ ] #6 The Capacitor/native shell obtains or preserves a valid token and can complete authenticated GraphQL mutations; automated coverage exercises valid, missing, invalid, rotated, browser, native-shell, and public-share flows.
+- [x] #1 A session-authenticated GraphQL mutation with a missing CSRF token is rejected before resolver execution with the API's documented unauthorized/forbidden response shape.
+- [x] #2 A session-authenticated GraphQL mutation with an invalid or stale CSRF token is rejected, while the same mutation with the current valid token succeeds.
+- [x] #3 CSRF enforcement cannot be bypassed by sending JSON, URL-encoded, or multipart request bodies through the configured parsers.
+- [x] #4 The unauthenticated /share/graphql schema remains accessible without a CSRF token and does not gain access to private mutations.
+- [x] #5 The browser Apollo client continues reading the current per-page token, including after session/token rotation, and authenticated queries and mutations remain functional.
+- [x] #6 The Capacitor/native shell obtains or preserves a valid token and can complete authenticated GraphQL mutations; automated coverage exercises valid, missing, invalid, rotated, browser, native-shell, and public-share flows.
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -47,3 +47,15 @@ The authenticated /api/graphql pipeline accepts session-authenticated mutation r
 4. Add valid, missing, invalid, rotated, browser, native, multipart/form, and public-share coverage.
 5. Verify focused controller/GraphQL/frontend tests plus compile, lint, typecheck, and build.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Added a session-bound GraphQL CSRF plug before Absinthe resolution, classifying the selected operation across JSON, URL-encoded, multipart operations, and application/graphql bodies. Forged, missing, invalid, and stale mutation tokens return the API forbidden shape without resolver execution; queries and /share/graphql remain unaffected. Session renewal clears old state; Apollo reads the current page token per request for browser/Capacitor. Integration verification: backend CSRF request coverage passed within 303 ExUnit tests, frontend CSRF tests passed, TypeScript/lint/build passed, and a live browser mutation created a deck through the protected endpoint.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Authenticated GraphQL mutations now enforce current session CSRF tokens across every configured body format before resolver execution. Browser and Capacitor request-time token refresh works; authenticated queries and the isolated public-share schema retain their existing contracts.
+<!-- SECTION:FINAL_SUMMARY:END -->

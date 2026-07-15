@@ -1,11 +1,11 @@
 ---
 id: TASK-1
 title: Decompose the deck detail frontend by feature ownership
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-07-15 15:50'
-updated_date: '2026-07-15 17:32'
+updated_date: '2026-07-15 18:07'
 labels:
   - frontend
   - react
@@ -27,11 +27,11 @@ The deck detail route currently centralizes paginated queries, direct Apollo cac
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 DeckDetailPage is limited to route concerns, loading the deck read model, and composing focused deck feature components; allocation, tagging, card editing, bulk actions, and disassembly no longer share one page-level mutation/state hub.
-- [ ] #2 Mutually exclusive overlays use one explicit typed state model, and opening, switching, cancelling, or completing an overlay cannot leave stale targets or errors from another workflow.
-- [ ] #3 The large prop bridge into DeckDetailContent is removed; feature components receive only the domain data and callbacks they own, without a replacement catch-all controller object.
-- [ ] #4 Existing deck-detail behavior remains covered for pagination, add/edit/delete, optimistic success and rollback, tagging, allocation and deallocation, bulk operations, disassembly preview/apply, sharing, and export.
-- [ ] #5 Handwritten deck-detail modules stay below 1,000 lines and pass frontend formatting, linting, typechecking, relevant behavior tests, and the production build.
+- [x] #1 DeckDetailPage is limited to route concerns, loading the deck read model, and composing focused deck feature components; allocation, tagging, card editing, bulk actions, and disassembly no longer share one page-level mutation/state hub.
+- [x] #2 Mutually exclusive overlays use one explicit typed state model, and opening, switching, cancelling, or completing an overlay cannot leave stale targets or errors from another workflow.
+- [x] #3 The large prop bridge into DeckDetailContent is removed; feature components receive only the domain data and callbacks they own, without a replacement catch-all controller object.
+- [x] #4 Existing deck-detail behavior remains covered for pagination, add/edit/delete, optimistic success and rollback, tagging, allocation and deallocation, bulk operations, disassembly preview/apply, sharing, and export.
+- [x] #5 Handwritten deck-detail modules stay below 1,000 lines and pass frontend formatting, linting, typechecking, relevant behavior tests, and the production build.
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -43,3 +43,15 @@ The deck detail route currently centralizes paginated queries, direct Apollo cac
 4. Remove the large content prop bridge without introducing a catch-all controller hook/object.
 5. Verify deck-detail behavior tests, frontend format/lint/typecheck, and production build.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Decomposed the route into feature-owned card, allocation, bulk, disassembly, share/export, overlay, readiness, header, pagination, and selection modules. Removed the 40-prop DeckDetailContent and dialog bridge, introduced one discriminated overlay state, and kept every handwritten module below 600 lines. Integration verification: aube frontend tests passed; format, lint, TypeScript, and production build passed; browser smoke created/opened a deck and exercised the Add card overlay on the integrated Phoenix app.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Deck detail is now a route/read composition boundary with focused capability owners and mutually exclusive overlay state. Legacy content/dialog prop bridges are removed; existing deck workflows remain covered and the integrated frontend quality/build plus live deck-detail smoke pass.
+<!-- SECTION:FINAL_SUMMARY:END -->
