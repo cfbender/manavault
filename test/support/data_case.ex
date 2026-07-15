@@ -8,10 +8,9 @@ defmodule Manavault.DataCase do
 
   Finally, if the test case interacts with the database,
   we enable the SQL sandbox, so changes done to the database
-  are reverted at the end of every test. If you are using
-  PostgreSQL, you can even run database tests asynchronously
-  by setting `use Manavault.DataCase, async: true`, although
-  this option is not recommended for other databases.
+  are reverted at the end of every test. SQLite permits only
+  one database writer at a time, so DataCase serializes database
+  tests even when ExUnit schedules their modules concurrently.
   """
 
   use ExUnit.CaseTemplate
@@ -36,10 +35,21 @@ defmodule Manavault.DataCase do
   Sets up the sandbox based on the test tags.
   """
   def setup_sandbox(tags) do
+    acquire_sqlite_write_lock!()
+    on_exit(&release_sqlite_write_lock/0)
+
     pid = Ecto.Adapters.SQL.Sandbox.start_owner!(Manavault.Repo, shared: not tags[:async])
     Manavault.Catalog.Cache.clear()
     on_exit(&Manavault.Catalog.Cache.clear/0)
     on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
+  end
+
+  defp acquire_sqlite_write_lock! do
+    true = :global.set_lock({__MODULE__, :sqlite_write}, [node()])
+  end
+
+  defp release_sqlite_write_lock do
+    :global.del_lock({__MODULE__, :sqlite_write}, [node()])
   end
 
   @doc """

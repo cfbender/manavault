@@ -7,10 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "vp lint",
-    "precommit": "vp lint && vp check",
+    "precommit": "mix compile --warnings-as-errors && mix credo --strict && mix test && aube exec vp fmt --check && aube run lint && aube run typecheck && aube run test:react && aube run build",
     "format": "vp fmt",
     "typecheck": "tsc --project assets/tsconfig.json --noEmit",
-    "test:react": "node --experimental-strip-types --experimental-default-type=module --test assets/react/test/*.test.mjs",
+    "test:react": "aube exec node --test assets/react/test/*.test.mjs && aube exec vitest run --config vitest.config.ts",
     "codegen": "graphql-codegen --config codegen.ts",
     "native:prepare": "node scripts/prepare-native-web.mjs",
     "cap:sync": "aube run native:prepare && cap sync",
@@ -65,7 +65,12 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.4.0",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@voidzero-dev/vite-plus-core": "^0.2.1",
-    "typescript": "^6.0.3"
+    "jsdom": "^29.1.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
   }
 }

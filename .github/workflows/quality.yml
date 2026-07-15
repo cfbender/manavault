@@ -1,0 +1,36 @@
+name: Quality
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  precommit:
+    name: Precommit quality gate
+    runs-on: ubuntu-latest
+
+    env:
+      MISE_ENABLE_TOOLS: aube,elixir,node
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up mise tools
+        uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4
+        with:
+          install: true
+          install_args: aube elixir node
+          cache: true
+
+      - name: Install Elixir dependencies
+        run: mise exec -- mix deps.get
+
+      - name: Install JavaScript dependencies
+        run: mise exec -- aube install --frozen-lockfile
+
+      - name: Run local precommit quality gate
+        run: mise exec -- aube run precommit

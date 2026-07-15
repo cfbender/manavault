@@ -4,6 +4,12 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
   alias Absinthe.Relay.Node
   alias Manavault.Catalog
 
+  # One deck lookup, one deck-card batch, one fallback-printing batch, three
+  # allocation-status batches, one tag batch, and two card-printing batches.
+  # The fixture has three distinct cards, so a per-card query at any stage
+  # exceeds this fixed budget.
+  @deck_page_allocation_query_budget 9
+
   test "deck page allocation status is batched over GraphQL", %{conn: conn} do
     cards =
       for index <- 1..3 do
@@ -106,7 +112,7 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
              }
            } = json_response(conn, 200)
 
-    assert query_count <= 9
+    assert query_count <= @deck_page_allocation_query_budget
   end
 
   test "deck list summaries reuse preloaded deck cards over GraphQL", %{conn: conn} do

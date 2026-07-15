@@ -5,6 +5,7 @@ defmodule Manavault.Catalog.DeckAllocationTest do
     fixtures: [:black_lotus, :black_lotus_beta, :time_walk, :plains]
 
   alias Manavault.Catalog
+  alias Manavault.Catalog.DeckAllocation
   alias Manavault.Repo
 
   test "deck allocation status covers owned available, allocated elsewhere, missing, and alternate printings" do
@@ -251,16 +252,15 @@ defmodule Manavault.Catalog.DeckAllocationTest do
                "status" => "brewing"
              })
 
-    assert {:ok, archived_deck} =
+    assert {:ok, archive_candidate} =
              Catalog.create_deck(%{
                "name" => "Archive",
                "format" => "vintage",
-               "status" => "archived"
+               "status" => "brewing"
              })
 
     assert Catalog.deck_reserves_cards?(active_deck)
     refute Catalog.deck_reserves_cards?(brewing_deck)
-    refute Catalog.deck_reserves_cards?(archived_deck)
 
     assert {:ok, active_lotus} =
              Catalog.add_card_to_deck(active_deck, %{"name" => "Black Lotus", "quantity" => 2})
@@ -269,13 +269,23 @@ defmodule Manavault.Catalog.DeckAllocationTest do
              Catalog.add_card_to_deck(brewing_deck, %{"name" => "Black Lotus"})
 
     assert {:ok, archived_lotus} =
-             Catalog.add_card_to_deck(archived_deck, %{"name" => "Black Lotus"})
+             Catalog.add_card_to_deck(archive_candidate, %{"name" => "Black Lotus"})
 
     assert {:ok, _allocation} =
              Catalog.allocate_collection_item_to_deck_card(brewing_lotus.id, brewing_item.id)
 
-    assert {:ok, _allocation} =
+    assert {:ok, archived_allocation} =
              Catalog.allocate_collection_item_to_deck_card(archived_lotus.id, archived_item.id)
+
+    assert {:ok, archived_deck} =
+             Catalog.update_deck(archive_candidate, %{"status" => "archived"})
+
+    refute Catalog.deck_reserves_cards?(archived_deck)
+
+    assert {:error, :deck_archived} =
+             Catalog.deallocate_collection_item_from_deck_card(archived_lotus.id, archived_item.id)
+
+    assert %DeckAllocation{} = Repo.get(DeckAllocation, archived_allocation.id)
 
     status = Catalog.deck_card_allocation_status(active_lotus)
     assert status.available == 0
