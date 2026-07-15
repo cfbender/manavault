@@ -387,7 +387,6 @@ export function splitCommaField(value: string) {
     .filter(Boolean)
 }
 
-
 function normalizeSelectedValues(allowed: readonly string[], values: NullableStringList) {
   return allowed.filter((value) => values?.includes(value) ?? false)
 }

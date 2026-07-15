@@ -114,11 +114,26 @@ test("form conversion normalizes lists, enums, currency, and one-based prioritie
 test("form conversion preserves every validation message and rejects invalid ranges", () => {
   const cases = [
     [formRow("blank", { name: "  " }), "Each auto-sort rule needs a name."],
-    [formRow("target", { name: "No destination", targetLocationId: "" }), "No destination: choose a box or binder destination."],
-    [formRow("minimum", { name: "Minimum", minPrice: "5.678" }), "Minimum: minimum price must be a dollar amount."],
-    [formRow("maximum", { name: "Maximum", maxPrice: "USD 5" }), "Maximum: maximum price must be a dollar amount."],
-    [formRow("range", { name: "Range", minPrice: "5", maxPrice: "4.99" }), "Range: minimum price cannot be greater than maximum price."],
-    [formRow("date", { name: "Date", releaseDate: "2023-02-29" }), "Date: release date must be a valid date."],
+    [
+      formRow("target", { name: "No destination", targetLocationId: "" }),
+      "No destination: choose a box or binder destination.",
+    ],
+    [
+      formRow("minimum", { name: "Minimum", minPrice: "5.678" }),
+      "Minimum: minimum price must be a dollar amount.",
+    ],
+    [
+      formRow("maximum", { name: "Maximum", maxPrice: "USD 5" }),
+      "Maximum: maximum price must be a dollar amount.",
+    ],
+    [
+      formRow("range", { name: "Range", minPrice: "5", maxPrice: "4.99" }),
+      "Range: minimum price cannot be greater than maximum price.",
+    ],
+    [
+      formRow("date", { name: "Date", releaseDate: "2023-02-29" }),
+      "Date: release date must be a valid date.",
+    ],
   ]
 
   for (const [row, message] of cases) {

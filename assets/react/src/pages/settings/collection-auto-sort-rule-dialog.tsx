@@ -219,7 +219,9 @@ export function CollectionAutoSortRuleDialog({
                     value={draftRow.releaseDateOperator}
                     onChange={(event) =>
                       onUpdate({
-                        releaseDateOperator: normalizeAutoSortReleaseDateOperator(event.target.value),
+                        releaseDateOperator: normalizeAutoSortReleaseDateOperator(
+                          event.target.value,
+                        ),
                       })
                     }
                   >

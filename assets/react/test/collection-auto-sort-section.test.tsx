@@ -37,9 +37,7 @@ function sourceRule(
 }
 
 function ruleNames() {
-  return screen
-    .getAllByRole("heading", { level: 3 })
-    .map((heading) => heading.textContent ?? "")
+  return screen.getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent ?? "")
 }
 
 function ruleRow(name: string) {
