@@ -4,7 +4,7 @@ defmodule Manavault.Catalog.Decks.Cards do
   import Ecto.Query
 
   alias Manavault.Catalog.{Card, Deck, DeckCard, Decklists, Printing, Util}
-  alias Manavault.Catalog.Decks.{AllocationItems, Allocations, EditGuard, Printings}
+  alias Manavault.Catalog.Decks.{AllocationItems, DeckCardAllocation, EditGuard, Printings}
   alias Manavault.Repo
 
   def change_deck_card(%DeckCard{} = deck_card, attrs \\ %{}) do
@@ -215,7 +215,7 @@ defmodule Manavault.Catalog.Decks.Cards do
           clear_deck_card_allocations!(deck_card)
 
           if allocation_quantity > 0 do
-            case Allocations.allocate_available_preferred_printing_to_deck_card(
+            case DeckCardAllocation.allocate_available_preferred_printing_to_deck_card(
                    deck_card,
                    allocation_quantity
                  ) do

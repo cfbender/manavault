@@ -2,7 +2,7 @@ defmodule Manavault.Catalog.DeckBulkAllocationPreviewBatchingTest do
   use Manavault.DataCase, async: true
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.Decks.Allocations
+  alias Manavault.Catalog.Decks.BulkDeckAllocation
 
   @card_count 6
 
@@ -52,7 +52,7 @@ defmodule Manavault.Catalog.DeckBulkAllocationPreviewBatchingTest do
       count_repo_queries(fn ->
         # Call the module directly to bypass the read-through cache so the query
         # count reflects the batched computation itself.
-        Allocations.preview_bulk_allocate_deck(deck, :matching_printings)
+        BulkDeckAllocation.preview_bulk_allocate_deck(deck, :matching_printings)
       end)
 
     assert {:ok, preview} = result

@@ -4,12 +4,17 @@ defmodule Manavault.Catalog.Decks.Workflows do
   alias Manavault.Catalog.{DeckSummaries, EDHRec}
 
   alias Manavault.Catalog.Decks.{
-    Allocations,
     AllocationStatus,
+    BulkCollectionAllocation,
+    BulkDeckAllocation,
     Buylist,
     Cards,
+    DeckCardAllocation,
+    DeckCardDeallocation,
     DecklistIO,
     Disassembly,
+    ProxyAllocation,
+    PullListAllocation,
     Queries,
     Records,
     Statistics
@@ -60,29 +65,29 @@ defmodule Manavault.Catalog.Decks.Workflows do
                 collection_item_id,
                 quantity \\ 1
               ),
-              to: Allocations
+              to: DeckCardAllocation
 
   defdelegate bulk_add_collection_items_to_deck(
                 deck_or_id,
                 collection_item_ids,
                 zone \\ "mainboard"
               ),
-              to: Allocations
+              to: BulkCollectionAllocation
 
   defdelegate deallocate_collection_item_from_deck_card(
                 deck_card_id,
                 collection_item_id,
                 quantity \\ 1
               ),
-              to: Allocations
+              to: DeckCardAllocation
 
-  defdelegate bulk_deallocate_deck_cards(deck_card_ids), to: Allocations
+  defdelegate bulk_deallocate_deck_cards(deck_card_ids), to: DeckCardDeallocation
 
-  defdelegate allocate_proxy_to_deck_card(deck_card_id, quantity \\ 1), to: Allocations
-  defdelegate deallocate_proxy_from_deck_card(deck_card_id, quantity \\ 1), to: Allocations
-  defdelegate bulk_allocate_deck(deck, mode), to: Allocations
-  defdelegate preview_bulk_allocate_deck(deck, mode), to: Allocations
-  defdelegate allocate_deck_pull_list(deck_or_id, entries), to: Allocations
+  defdelegate allocate_proxy_to_deck_card(deck_card_id, quantity \\ 1), to: ProxyAllocation
+  defdelegate deallocate_proxy_from_deck_card(deck_card_id, quantity \\ 1), to: ProxyAllocation
+  defdelegate bulk_allocate_deck(deck, mode), to: BulkDeckAllocation
+  defdelegate preview_bulk_allocate_deck(deck, mode), to: BulkDeckAllocation
+  defdelegate allocate_deck_pull_list(deck_or_id, entries), to: PullListAllocation
 
   defdelegate import_decklist(deck, text, opts \\ []), to: DecklistIO
   defdelegate export_decklist(deck), to: DecklistIO
