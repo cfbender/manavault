@@ -18,8 +18,8 @@ defmodule Manavault.Catalog.CacheTest do
 
   import ExUnit.CaptureLog
 
-  alias Manavault.Catalog.Cache
   alias __MODULE__.CacheBoundary
+  alias Manavault.Catalog.Cache
 
   setup do
     Process.put(:catalog_cache_fetch, :miss)
