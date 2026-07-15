@@ -7,10 +7,11 @@ defmodule ManavaultWeb.DeckSharePreview do
 
   @image_width 1200
   @image_height 630
-  @renderer "rsvg-convert"
+  @source_version "deck-share-preview-v2"
 
   def image_width, do: @image_width
   def image_height, do: @image_height
+  def source_version, do: @source_version
 
   def default(attrs \\ %{}) do
     Map.merge(
@@ -117,32 +118,7 @@ defmodule ManavaultWeb.DeckSharePreview do
     """
   end
 
-  def png(%{kind: :deck} = preview) do
-    path =
-      Path.join(
-        System.tmp_dir!(),
-        "manavault-share-preview-#{System.unique_integer([:positive])}.svg"
-      )
-
-    try do
-      File.write!(path, svg(preview, symbol_resolver: &mana_symbol_data_uri/1))
-
-      case System.cmd(@renderer, [
-             "--format=png",
-             "--width=#{@image_width}",
-             "--height=#{@image_height}",
-             path
-           ]) do
-        {png, 0} -> {:ok, png}
-        {_output, _status} -> {:error, :render_failed}
-      end
-    after
-      File.rm(path)
-    end
-  rescue
-    ErlangError -> {:error, :renderer_unavailable}
-    File.Error -> {:error, :render_failed}
-  end
+  def png(%{kind: :deck} = preview), do: ManavaultWeb.DeckSharePreview.Renderer.render(preview)
 
   defp deck_description(format_label, card_count, legality_label, price_label) do
     [

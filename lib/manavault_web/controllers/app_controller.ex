@@ -5,6 +5,7 @@ defmodule ManavaultWeb.AppController do
   alias Manavault.Catalog.Deck
   alias Manavault.Catalog.Decks.ShareToken
   alias ManavaultWeb.{AssetVersion, DeckSharePreview}
+  alias ManavaultWeb.DeckSharePreview.ArtifactCache
 
   def index(conn, _params), do: render_app(conn, default_preview(conn))
 
@@ -26,9 +27,7 @@ defmodule ManavaultWeb.AppController do
   def share_deck_preview_png(conn, %{"token" => token}) do
     case share_preview(conn, token) do
       %{kind: :deck} = preview ->
-        preview = %{preview | cover_image_url: raster_cover_image_url(preview.cover_image_url)}
-
-        case DeckSharePreview.png(preview) do
+        case ArtifactCache.png(preview) do
           {:ok, png} ->
             conn
             |> put_resp_content_type("image/png", nil)
@@ -219,59 +218,6 @@ defmodule ManavaultWeb.AppController do
       image_alt: "ManaVault shared deck"
     })
   end
-
-  defp raster_cover_image_url("data:" <> _rest = url), do: url
-
-  defp raster_cover_image_url(url) when is_binary(url) do
-    if scryfall_image_url?(url) do
-      case Req.get(url, headers: [{"accept", "image/*"}], receive_timeout: 1_500) do
-        {:ok, %{status: status, body: body, headers: headers}}
-        when status in 200..299 and is_binary(body) ->
-          content_type = response_content_type(headers)
-
-          if image_content_type?(content_type) do
-            "data:#{content_type};base64,#{Base.encode64(body)}"
-          else
-            url
-          end
-
-        _error ->
-          url
-      end
-    else
-      url
-    end
-  end
-
-  defp raster_cover_image_url(url), do: url
-
-  defp scryfall_image_url?(url) do
-    case URI.parse(url) do
-      %URI{scheme: scheme, host: host}
-      when scheme in ["http", "https"] and host in ["cards.scryfall.io", "img.scryfall.com"] ->
-        true
-
-      _uri ->
-        false
-    end
-  end
-
-  defp response_content_type(headers) when is_map(headers) do
-    headers
-    |> Map.get("content-type", [])
-    |> List.wrap()
-    |> List.first()
-    |> to_string()
-    |> String.split(";", parts: 2)
-    |> List.first()
-  end
-
-  defp response_content_type(_headers), do: nil
-
-  defp image_content_type?(content_type) when is_binary(content_type),
-    do: String.starts_with?(content_type, "image/")
-
-  defp image_content_type?(_content_type), do: false
 
   defp metadata_tags(preview) do
     twitter_card =

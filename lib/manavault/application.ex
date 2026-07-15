@@ -21,6 +21,8 @@ defmodule Manavault.Application do
         {Phoenix.PubSub, name: Manavault.PubSub},
         {Task.Supervisor, name: Manavault.Backup.TaskSupervisor},
         {Task.Supervisor, name: Manavault.Catalog.TaskSupervisor},
+        {Task.Supervisor, name: ManavaultWeb.DeckSharePreview.TaskSupervisor},
+        ManavaultWeb.DeckSharePreview.ArtifactCache,
         scryfall_sync_worker_child(),
         backup_scheduler_child(),
         ManavaultWeb.Endpoint

@@ -84,6 +84,14 @@ config :manavault, Manavault.Cache,
   gc_memory_check_interval: :timer.seconds(10),
   max_size: 100_000
 
+# Public share preview PNGs are immutable, content-addressed artifacts. The
+# supervised renderer admits at most two concurrent renders across all keys.
+config :manavault, ManavaultWeb.DeckSharePreview.ArtifactCache,
+  cache_dir: Path.join(System.tmp_dir!(), "manavault/share-previews"),
+  max_concurrency: 2,
+  assets_version: "scryfall-symbols-v1",
+  renderer_version: "rsvg-convert"
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

@@ -103,12 +103,15 @@ if config_env() == :prod do
 
   data_dir = System.get_env("DATA_DIR", "/data")
   database_path = System.get_env("DATABASE_PATH", Path.join(data_dir, "manavault.db"))
+  share_preview_cache_dir =
+    System.get_env("SHARE_PREVIEW_CACHE_DIR", Path.join(data_dir, "cache/share-previews"))
 
   for path <- [
         data_dir,
         Path.dirname(database_path),
         Path.join(data_dir, "cache/scryfall"),
         Path.join(data_dir, "cache/scryfall/assets"),
+        share_preview_cache_dir,
         Path.join(data_dir, "backups")
       ] do
     File.mkdir_p!(path)
@@ -120,6 +123,9 @@ if config_env() == :prod do
 
   config :manavault,
     scryfall_assets_dir: Path.join(data_dir, "cache/scryfall/assets")
+
+  config :manavault, ManavaultWeb.DeckSharePreview.ArtifactCache,
+    cache_dir: share_preview_cache_dir
 
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you
