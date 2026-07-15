@@ -85,10 +85,12 @@ config :manavault, Manavault.Cache,
   max_size: 100_000
 
 # Public share preview PNGs are immutable, content-addressed artifacts. The
-# supervised renderer admits at most two concurrent renders across all keys.
+# supervised renderer admits at most two concurrent renders across all keys;
+# only the 500 newest completed artifacts are retained.
 config :manavault, ManavaultWeb.DeckSharePreview.ArtifactCache,
   cache_dir: Path.join(System.tmp_dir!(), "manavault/share-previews"),
   max_concurrency: 2,
+  max_artifacts: 500,
   assets_version: "scryfall-symbols-v1",
   renderer_version: "rsvg-convert"
 

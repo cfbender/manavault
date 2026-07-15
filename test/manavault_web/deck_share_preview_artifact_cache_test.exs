@@ -213,6 +213,35 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCacheTest do
     refute File.exists?(stale_path)
   end
 
+  test "retention prunes the oldest completed artifacts without deleting the published artifact", context do
+    File.mkdir_p!(context.cache_dir)
+    oldest = String.duplicate("a", 64)
+    middle = String.duplicate("b", 64)
+    current = String.duplicate("c", 64)
+
+    assert :ok = ArtifactStore.write(context.cache_dir, oldest, "oldest", 2)
+
+    assert :ok =
+             File.touch(
+               ArtifactStore.path(context.cache_dir, oldest),
+               {{2020, 1, 1}, {0, 0, 0}}
+             )
+
+    assert :ok = ArtifactStore.write(context.cache_dir, middle, "middle", 2)
+
+    assert :ok =
+             File.touch(
+               ArtifactStore.path(context.cache_dir, middle),
+               {{2021, 1, 1}, {0, 0, 0}}
+             )
+
+    assert :ok = ArtifactStore.write(context.cache_dir, current, "current", 2)
+
+    refute File.exists?(ArtifactStore.path(context.cache_dir, oldest))
+    assert File.read!(ArtifactStore.path(context.cache_dir, middle)) == "middle"
+    assert File.read!(ArtifactStore.path(context.cache_dir, current)) == "current"
+  end
+
   test "the renderer command runner is injectable", _context do
     test_pid = self()
 

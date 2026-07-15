@@ -13,6 +13,7 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCache do
   alias ManavaultWeb.DeckSharePreview.{ArtifactStore, CoverFetcher, Renderer}
 
   @default_max_concurrency 2
+  @default_max_artifacts 500
   @default_assets_version "scryfall-symbols-v1"
   @default_renderer_version "rsvg-convert"
 
@@ -40,8 +41,9 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCache do
     config = Application.get_env(:manavault, __MODULE__, [])
     opts = Keyword.merge(config, opts)
     cache_dir = Keyword.fetch!(opts, :cache_dir)
+    max_artifacts = positive_integer(Keyword.get(opts, :max_artifacts, @default_max_artifacts), @default_max_artifacts)
 
-    case ArtifactStore.prepare(cache_dir) do
+    case ArtifactStore.prepare(cache_dir, max_artifacts) do
       :ok ->
         {:ok,
          %{
@@ -49,8 +51,9 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCache do
            cover_fetcher: Keyword.get(opts, :cover_fetcher, &CoverFetcher.prepare/1),
            fingerprint_options: fingerprint_options(opts),
            jobs: %{},
-           max_concurrency: positive_integer(Keyword.get(opts, :max_concurrency, @default_max_concurrency)),
-           queued: :queue.new(),
+           max_artifacts: max_artifacts,
+           max_concurrency:
+             positive_integer(Keyword.get(opts, :max_concurrency, @default_max_concurrency), @default_max_concurrency),
            renderer: Keyword.get(opts, :renderer, &Renderer.render/1),
            running: %{},
            task_supervisor:
@@ -83,7 +86,13 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCache do
       {:ok, fingerprint} ->
         Process.demonitor(task_ref, [:flush])
         state = %{state | running: Map.delete(state.running, task_ref)}
-        {:noreply, finish_job(state, fingerprint, artifact_result(state.cache_dir, fingerprint, result))}
+
+        {:noreply,
+         finish_job(
+           state,
+           fingerprint,
+           artifact_result(state.cache_dir, state.max_artifacts, fingerprint, result)
+         )}
 
       :error ->
         {:noreply, state}
@@ -170,15 +179,18 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCache do
     end
   end
 
-  defp artifact_result(cache_dir, fingerprint, {:ok, png}) when is_binary(png) do
-    case ArtifactStore.write(cache_dir, fingerprint, png) do
+  defp artifact_result(cache_dir, max_artifacts, fingerprint, {:ok, png}) when is_binary(png) do
+    case ArtifactStore.write(cache_dir, fingerprint, png, max_artifacts) do
       :ok -> {:ok, png}
       {:error, _reason} -> {:error, :artifact_write_failed}
     end
   end
 
-  defp artifact_result(_cache_dir, _fingerprint, {:error, _reason} = error), do: error
-  defp artifact_result(_cache_dir, _fingerprint, _result), do: {:error, :render_failed}
+  defp artifact_result(_cache_dir, _max_artifacts, _fingerprint, {:error, _reason} = error),
+    do: error
+
+  defp artifact_result(_cache_dir, _max_artifacts, _fingerprint, _result),
+    do: {:error, :render_failed}
 
   defp finish_job(state, fingerprint, result) do
     {job, jobs} = Map.pop(state.jobs, fingerprint)
@@ -238,6 +250,6 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCache do
     ]
   end
 
-  defp positive_integer(value) when is_integer(value) and value > 0, do: value
-  defp positive_integer(_value), do: @default_max_concurrency
+  defp positive_integer(value, _default) when is_integer(value) and value > 0, do: value
+  defp positive_integer(_value, default), do: default
 end
