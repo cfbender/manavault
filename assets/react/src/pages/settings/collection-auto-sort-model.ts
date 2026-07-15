@@ -224,10 +224,20 @@ export function formRowsToAutoSortRuleInput(
 }
 
 export function moveAutoSortRuleRow(
+  rows: AutoSortRuleFormRow[],
+  ruleKey: string,
+  offset: -1 | 1,
+): AutoSortRuleFormRow[]
+export function moveAutoSortRuleRow(
   rows: readonly AutoSortRuleFormRow[],
   ruleKey: string,
   offset: -1 | 1,
-) {
+): readonly AutoSortRuleFormRow[]
+export function moveAutoSortRuleRow(
+  rows: readonly AutoSortRuleFormRow[],
+  ruleKey: string,
+  offset: -1 | 1,
+): readonly AutoSortRuleFormRow[] {
   const index = rows.findIndex((row) => row.key === ruleKey)
   if (index < 0) return rows
 
