@@ -1,11 +1,11 @@
 ---
 id: TASK-2
 title: Collapse redundant deck domain forwarding layers
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-07-15 15:51'
-updated_date: '2026-07-15 18:52'
+updated_date: '2026-07-15 19:07'
 labels:
   - backend
   - elixir
@@ -30,11 +30,11 @@ Deck operations currently travel through Catalog, the catch-all Cached module, D
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A public deck operation exposed through Catalog reaches its owning deck query, record, allocation, decklist, buylist, EDHRec, or statistics module without passing through an identity-only Workflows facade.
-- [ ] #2 The Workflows module is removed rather than replaced with another catch-all delegate module or generated forwarding layer.
-- [ ] #3 Deck read caching and mutation invalidation remain explicit at the deck-domain boundary, with the same externally observable hit, miss, and invalidation behavior.
-- [ ] #4 The public Catalog and GraphQL contracts for deck reads and mutations remain unchanged, and every caller is migrated without compatibility aliases or deprecated paths.
-- [ ] #5 Focused deck context, cache invalidation, and GraphQL workflow tests pass, followed by backend compilation with warnings treated as errors.
+- [x] #1 A public deck operation exposed through Catalog reaches its owning deck query, record, allocation, decklist, buylist, EDHRec, or statistics module without passing through an identity-only Workflows facade.
+- [x] #2 The Workflows module is removed rather than replaced with another catch-all delegate module or generated forwarding layer.
+- [x] #3 Deck read caching and mutation invalidation remain explicit at the deck-domain boundary, with the same externally observable hit, miss, and invalidation behavior.
+- [x] #4 The public Catalog and GraphQL contracts for deck reads and mutations remain unchanged, and every caller is migrated without compatibility aliases or deprecated paths.
+- [x] #5 Focused deck context, cache invalidation, and GraphQL workflow tests pass, followed by backend compilation with warnings treated as errors.
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -46,3 +46,15 @@ Deck operations currently travel through Catalog, the catch-all Cached module, D
 4. Preserve public Catalog/GraphQL signatures, errors, batching, and all TASK-12/TASK-7 share-cache/artifact invalidation behavior.
 5. Verify focused deck context/cache/GraphQL/public-share suites, full backend tests, formatting, warnings-fatal compilation, and strict Credo.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Catalog deck APIs now delegate to Decks, which explicitly owns deck read cache keys, positive-only strict share-token caching, and successful-mutation invalidation before calling focused query, record, card, decklist, buylist, statistics, allocation, and import owners. Removed Decks.Workflows and all references; general Cached retains only non-deck responsibilities. Renamed the GraphQL workflow behavior test to deck mutations. Verification: focused deck/cache/schema/public-share suite passed 85 tests; full backend passed 317 tests; warnings-fatal compilation, strict Credo, changed-file formatting, and a repository search proving no Workflows references passed.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Decks is now the real domain/cache boundary beneath the unchanged Catalog API. The identity-only Workflows layer and deck forwarding in Cached are gone; focused owners execute behavior while read caching, positive share caching, mutation invalidation, batching, and GraphQL contracts remain intact.
+<!-- SECTION:FINAL_SUMMARY:END -->
