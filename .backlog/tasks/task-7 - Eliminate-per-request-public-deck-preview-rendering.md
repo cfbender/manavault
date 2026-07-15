@@ -1,9 +1,11 @@
 ---
 id: TASK-7
 title: Eliminate per-request public deck preview rendering
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-07-15 15:55'
+updated_date: '2026-07-15 18:25'
 labels:
   - backend
   - availability
@@ -34,3 +36,13 @@ The unauthenticated deck preview PNG route can synchronously fetch a remote cove
 - [ ] #5 Render failures do not leave partial artifacts or temporary files, retain the established 404 versus 503 behavior, and can be retried by a later request.
 - [ ] #6 Automated tests prove cache hits avoid rendering and network work, concurrent misses are coalesced/bounded, revision changes invalidate the artifact, and public response content type and cache headers remain correct.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Define a deterministic artifact fingerprint from every byte-affecting deck, cover, renderer, and asset input and a bounded persistent artifact location.
+2. Add a supervised single-flight preview artifact service with an application-wide render concurrency limit and atomic publication/cleanup.
+3. Bound and validate remote cover downloads while retaining the safe fallback and established 404/503 behavior.
+4. Route public PNG requests through the artifact service without changing content type or cache headers.
+5. Add deterministic cache-hit, concurrent coalescing/bounding, invalidation, network validation, failure cleanup/retry, and response-contract coverage; verify full backend gates.
+<!-- SECTION:PLAN:END -->
