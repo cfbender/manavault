@@ -345,7 +345,13 @@ export function DeckDetailPage({
 
   return (
     <>
-      <div className="lg:grid lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start lg:gap-6">
+      <div
+        className={
+          shareMode
+            ? undefined
+            : "lg:grid lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start lg:gap-6"
+        }
+      >
         <DeckDetailHeader
           canEdit={canEditDecklist}
           deck={deck}
