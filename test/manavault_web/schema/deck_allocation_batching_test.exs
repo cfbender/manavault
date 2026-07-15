@@ -718,7 +718,16 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
         end
 
       unexpected_source ->
-        {:unexpected_query_source, unexpected_source}
+        if source == "" and fallback_printing_query?(query) do
+          :fallback_printing_batch
+        else
+          {:unexpected_query_source, unexpected_source}
+        end
     end
+  end
+
+  defp fallback_printing_query?(query) do
+    String.contains?(query, "row_number") and
+      String.contains?(query, "scryfall_printings")
   end
 end
