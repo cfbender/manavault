@@ -1,9 +1,11 @@
 ---
 id: TASK-12
 title: Prevent public share misses from polluting the catalog cache
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-07-15 15:58'
+updated_date: '2026-07-15 18:11'
 labels:
   - security
   - availability
@@ -36,3 +38,13 @@ Cached.get_deck_by_share_token stores lookup misses under the raw public token i
 - [ ] #5 Public routes preserve their current response contracts for not found, existing shares, content types, and GraphQL null/error behavior.
 - [ ] #6 Focused tests inspect producer/database call counts and cache contents for malformed, valid-missing, valid-existing, rotated, and deleted tokens across every public entry point.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Define and enforce the generated share-token contract at every public HTML, SVG/PNG preview, and public GraphQL boundary before any cache lookup.
+2. Ensure malformed and valid-missing requests never enter the shared positive deck cache while valid existing tokens retain positive caching and invalidation.
+3. Preserve not-found, content-type, GraphQL null/error, rotation/removal, and deletion response contracts.
+4. Add focused producer/database call-count and cache-content coverage across malformed, missing, existing, rotated, removed, and deleted tokens.
+5. Verify focused public-share/cache suites, full backend tests, warnings-fatal compilation, and strict Credo.
+<!-- SECTION:PLAN:END -->
