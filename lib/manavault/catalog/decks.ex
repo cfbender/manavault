@@ -18,8 +18,8 @@ defmodule Manavault.Catalog.Decks do
     PullListAllocation,
     Queries,
     Records,
-    Statistics,
     ShareToken,
+    Statistics,
     Tags
   }
 
