@@ -5,6 +5,8 @@ defmodule ManavaultWeb.AuthControllerTest do
   alias Manavault.Auth.AttemptLimiter
   alias Manavault.Auth.ClientFailure
   alias Manavault.Repo
+  @application_origin "https://manavault.test"
+
 
   setup do
     previous_hash = Application.get_env(:manavault, :admin_password_hash)
@@ -91,6 +93,35 @@ defmodule ManavaultWeb.AuthControllerTest do
 
     assert html_response(conn, 200) =~ ~s(id="manavault-root")
   end
+
+  test "login page renders only safe local return destinations", %{conn: conn} do
+    configure_password("secret")
+
+    Enum.each(return_to_cases(), fn {label, return_to, expected_destination} ->
+      response =
+        conn
+        |> get("/login", %{"return_to" => return_to})
+        |> html_response(200)
+
+      assert rendered_return_to(response) == expected_destination,
+             "GET login case #{label} rendered an unsafe destination"
+    end)
+  end
+
+  test "successful login redirects only to safe local return destinations" do
+    configure_password("secret")
+
+    Enum.each(return_to_cases(), fn {label, return_to, expected_destination} ->
+      conn = post(build_conn(), "/login", %{"password" => "secret", "return_to" => return_to})
+      location = redirected_to(conn)
+
+      assert location == expected_destination,
+             "POST login case #{label} redirected to an unsafe destination"
+
+      assert_same_application_origin(location)
+    end)
+  end
+
 
   test "login sets a persistent session cookie", %{conn: conn} do
     configure_password("secret")
@@ -235,6 +266,39 @@ defmodule ManavaultWeb.AuthControllerTest do
     conn = post(conn, "/api/graphql", %{"query" => "{ __typename }"})
 
     assert json_response(conn, 401) == %{"errors" => [%{"message" => "Authentication required"}]}
+  end
+
+  defp return_to_cases do
+    [
+      {"root path", "/", "/"},
+      {"nested path", "/collection/decks", "/collection/decks"},
+      {"path with query and fragment", "/collection/decks?view=grid#inventory",
+       "/collection/decks?view=grid#inventory"},
+      {"protocol-relative URL", "//evil.example/collection", "/"},
+      {"absolute URL", "https://evil.example/collection", "/"},
+      {"scheme-like URL", "javascript:alert(1)", "/"},
+      {"userinfo authority", "//owner:secret@evil.example/collection", "/"},
+      {"raw backslash authority", "/\\evil.example/collection", "/"},
+      {"mixed slash and backslash authority", "/\\//evil.example/collection", "/"},
+      {"percent-encoded backslash authority", "/%5Cevil.example/collection", "/"},
+      {"double-encoded backslash authority", "/%255Cevil.example/collection", "/"},
+      {"percent-encoded protocol-relative URL", "/%2F%2Fevil.example/collection", "/"},
+      {"double-encoded protocol-relative URL", "/%252F%252Fevil.example/collection", "/"},
+      {"percent-encoded mixed authority", "/%255C%252Fevil.example/collection", "/"},
+      {"control characters", "/collection\r\nLocation: https://evil.example", "/"},
+      {"truncated percent escape", "/collection%", "/"},
+      {"invalid percent escape", "/collection%ZZ", "/"}
+    ]
+  end
+
+  defp rendered_return_to(response) do
+    [_, return_to] = Regex.run(~r/name="return_to" value="([^"]*)"/, response)
+    return_to
+  end
+
+  defp assert_same_application_origin(location) do
+    assert %URI{scheme: "https", host: "manavault.test", port: 443} =
+             URI.merge(@application_origin, location)
   end
 
   defp configure_password(password) do
