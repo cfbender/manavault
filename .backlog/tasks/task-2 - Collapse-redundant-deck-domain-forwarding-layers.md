@@ -1,9 +1,11 @@
 ---
 id: TASK-2
 title: Collapse redundant deck domain forwarding layers
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-07-15 15:51'
+updated_date: '2026-07-15 18:52'
 labels:
   - backend
   - elixir
@@ -34,3 +36,13 @@ Deck operations currently travel through Catalog, the catch-all Cached module, D
 - [ ] #4 The public Catalog and GraphQL contracts for deck reads and mutations remain unchanged, and every caller is migrated without compatibility aliases or deprecated paths.
 - [ ] #5 Focused deck context, cache invalidation, and GraphQL workflow tests pass, followed by backend compilation with warnings treated as errors.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Inventory every Catalog, Cached, Decks, and Workflows deck entrypoint and classify its owning query, record, allocation, decklist, buylist, EDHRec, or statistics module.
+2. Make Decks the explicit domain boundary, colocate positive read caching and mutation invalidation there, and route each public Catalog operation directly to the focused owner.
+3. Remove Workflows and deck forwarding from catch-all Cached without replacement facades; migrate every internal caller cleanly.
+4. Preserve public Catalog/GraphQL signatures, errors, batching, and all TASK-12/TASK-7 share-cache/artifact invalidation behavior.
+5. Verify focused deck context/cache/GraphQL/public-share suites, full backend tests, formatting, warnings-fatal compilation, and strict Credo.
+<!-- SECTION:PLAN:END -->
