@@ -7,7 +7,6 @@ defmodule ManavaultWeb.AuthControllerTest do
   alias Manavault.Repo
   @application_origin "https://manavault.test"
 
-
   setup do
     previous_hash = Application.get_env(:manavault, :admin_password_hash)
     previous_disabled = Application.get_env(:manavault, :auth_disabled)
@@ -121,7 +120,6 @@ defmodule ManavaultWeb.AuthControllerTest do
       assert_same_application_origin(location)
     end)
   end
-
 
   test "login sets a persistent session cookie", %{conn: conn} do
     configure_password("secret")
