@@ -413,10 +413,11 @@ defmodule ManavaultWeb.Schema.DeckWorkflowsTest do
     assert moved_item_id == preview_item_id
     assert source_id == preview_source_id
     assert destination_id == preview_destination_id
-    assert_raise Ecto.NoResultsError, fn -> Catalog.get_deck!(deck.id) end
+    assert Catalog.get_deck!(deck.id).status == "archived"
 
-    assert Catalog.get_collection_item!(allocation.collection_item_id).location_id ==
-             source_location.id
+    restored_item = Catalog.get_collection_item!(allocation.collection_item_id)
+    assert restored_item.location_id == source_location.id
+    assert restored_item.quantity == 1
   end
 
   defp global_deck_id(deck) do
