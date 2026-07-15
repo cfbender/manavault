@@ -432,7 +432,7 @@ export function DeckDetailPage({
             onEdit={(deckCard) => setOverlay(editCardOverlay(deckCard))}
             onMove={(deckCard) => setOverlay(moveCardOverlay(deckCard))}
             onPreview={(deckCard) => setOverlay({ kind: "preview-card", deckCard })}
-            onSetCommander={cardActions.setDeckCommander}
+            onSetCommander={(deckCard) => cardActions.setDeckCommander(deckCard.id)}
             onTag={cardActions.tagDeckCard}
             onToggleProxy={allocationActions.toggleProxy}
             onToggleSelected={selection.toggleDeckCardSelected}
