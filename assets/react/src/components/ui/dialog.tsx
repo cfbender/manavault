@@ -1,6 +1,12 @@
+import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
-import { useEffect, type HTMLAttributes, type ReactNode } from "react"
-import { createPortal } from "react-dom"
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  type HTMLAttributes,
+  type ReactNode,
+} from "react"
 import { registerNativeBackModal } from "../../lib/native-modal-stack"
 import { cn } from "../../lib/utils"
 import { Button } from "./button"
@@ -12,67 +18,80 @@ type DialogProps = {
 }
 
 export function Dialog({ children, onOpenChange, open }: DialogProps) {
-  useEffect(() => {
-    if (!open) return
-
-    return registerNativeBackModal(() => onOpenChange(false))
-  }, [onOpenChange, open])
+  const closeRequested = useRef(false)
+  const onOpenChangeRef = useRef(onOpenChange)
+  onOpenChangeRef.current = onOpenChange
 
   useEffect(() => {
-    if (!open) return
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onOpenChange(false)
-    }
-
-    document.addEventListener("keydown", handleKeyDown)
-    return () => document.removeEventListener("keydown", handleKeyDown)
-  }, [onOpenChange, open])
-
-  useEffect(() => {
-    if (!open) return
-
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = "hidden"
-
-    return () => {
-      document.body.style.overflow = previousOverflow
-    }
+    if (!open) closeRequested.current = false
   }, [open])
 
-  if (!open) return null
+  const requestClose = useCallback(() => {
+    if (closeRequested.current) return
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[1100] flex items-stretch justify-center overflow-hidden bg-black/65 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] backdrop-blur-sm sm:items-center sm:overflow-y-auto sm:px-4 sm:pb-[calc(env(safe-area-inset-bottom)_+_2rem)] sm:pt-[calc(env(safe-area-inset-top)_+_2rem)]"
-      role="presentation"
-      onMouseDown={() => onOpenChange(false)}
-    >
-      {children}
-    </div>,
-    document.body,
+    closeRequested.current = true
+    onOpenChangeRef.current(false)
+  }, [])
+
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (nextOpen) {
+        closeRequested.current = false
+        onOpenChangeRef.current(true)
+        return
+      }
+
+      requestClose()
+    },
+    [requestClose],
+  )
+
+  useEffect(() => {
+    if (!open) return
+
+    return registerNativeBackModal(requestClose)
+  }, [open, requestClose])
+
+  return (
+    <DialogPrimitive.Root open={open} onOpenChange={handleOpenChange}>
+      {open ? children : null}
+    </DialogPrimitive.Root>
   )
 }
 
 type DialogContentProps = HTMLAttributes<HTMLElement> & {
+  describedBy?: string
   labelledBy?: string
 }
 
-export function DialogContent({ children, className, labelledBy, ...props }: DialogContentProps) {
+export function DialogContent({
+  children,
+  className,
+  describedBy,
+  labelledBy,
+  ...props
+}: DialogContentProps) {
   return (
-    <section
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={labelledBy}
-      className={cn(
-        "flex h-full max-h-full min-h-0 w-full flex-col overflow-y-auto rounded-none border-y border-base-300 bg-base-100 shadow-2xl sm:h-auto sm:max-h-[calc(100dvh_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom)_-_4rem)] sm:rounded-box sm:border",
-        className,
-      )}
-      onMouseDown={(event) => event.stopPropagation()}
-      {...props}
-    >
-      {children}
-    </section>
+    <DialogPrimitive.Portal>
+      <DialogPrimitive.Overlay className="fixed inset-0 z-[1100] bg-black/65 backdrop-blur-sm" />
+      <div className="pointer-events-none fixed inset-0 z-[1100] flex items-stretch justify-center overflow-hidden pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] sm:items-center sm:overflow-y-auto sm:px-4 sm:pb-[calc(env(safe-area-inset-bottom)_+_2rem)] sm:pt-[calc(env(safe-area-inset-top)_+_2rem)]">
+        <DialogPrimitive.Content
+          aria-describedby={describedBy}
+          {...(labelledBy ? { "aria-labelledby": labelledBy } : {})}
+          asChild
+        >
+          <section
+            className={cn(
+              "pointer-events-auto flex h-full max-h-full min-h-0 w-full flex-col overflow-y-auto rounded-none border-y border-base-300 bg-base-100 shadow-2xl sm:h-auto sm:max-h-[calc(100dvh_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom)_-_4rem)] sm:rounded-box sm:border",
+              className,
+            )}
+            {...props}
+          >
+            {children}
+          </section>
+        </DialogPrimitive.Content>
+      </div>
+    </DialogPrimitive.Portal>
   )
 }
 
@@ -92,9 +111,12 @@ export function DialogHeader({ children, className, ...props }: HTMLAttributes<H
 
 export function DialogTitle({ children, className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
   return (
-    <h2 className={cn("text-xl font-black tracking-normal", className)} {...props}>
+    <DialogPrimitive.Title
+      className={cn("text-xl font-black tracking-normal", className)}
+      {...props}
+    >
       {children}
-    </h2>
+    </DialogPrimitive.Title>
   )
 }
 
