@@ -1,9 +1,9 @@
-import { COLOR_OPTIONS, RARITY_OPTIONS } from "../collection/constants"
+import { COLOR_OPTIONS, RARITY_OPTIONS } from "../collection/constants.ts"
 import type {
   CollectionAutoSortRuleInput,
   CollectionAutoSortSettingsQuery,
 } from "../../gql/graphql"
-import { titleize } from "../../lib/utils"
+import { titleize } from "../../lib/utils.ts"
 
 export type AutoSortRuleFormRow = {
   colorMode: string

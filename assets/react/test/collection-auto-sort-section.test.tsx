@@ -1,6 +1,6 @@
-import { render, screen, within } from "@testing-library/react"
+import { cleanup, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { expect, test, vi } from "vitest"
+import { afterEach, expect, test, vi } from "vitest"
 import { CollectionAutoSortSection } from "../src/pages/settings/collection-auto-sort-section"
 import type {
   CollectionAutoSortRuleInput,
@@ -10,6 +10,8 @@ import type {
 
 const BOX = { id: "box-1", kind: "box", name: "Trade binder" }
 const LOCATIONS: CollectionAutoSortSettingsLocation[] = [BOX]
+
+afterEach(cleanup)
 
 function sourceRule(
   id: string,
