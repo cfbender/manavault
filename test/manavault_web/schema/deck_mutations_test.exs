@@ -1,4 +1,4 @@
-defmodule ManavaultWeb.Schema.DeckWorkflowsTest do
+defmodule ManavaultWeb.Schema.DeckMutationsTest do
   use ManavaultWeb.ConnCase
 
   alias Manavault.Catalog
