@@ -83,7 +83,8 @@ defmodule ManavaultWeb.Plugs.GraphQLCSRFProtection do
   end
 
   defp valid_csrf_token?(conn) do
-    state = conn |> get_session(@csrf_session_key) |> Plug.CSRFProtection.dump_state_from_session()
+    state =
+      conn |> get_session(@csrf_session_key) |> Plug.CSRFProtection.dump_state_from_session()
 
     Enum.any?(request_csrf_tokens(conn), fn token ->
       Plug.CSRFProtection.valid_state_and_csrf_token?(state, token)

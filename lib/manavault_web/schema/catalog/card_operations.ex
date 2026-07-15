@@ -37,7 +37,13 @@ defmodule ManavaultWeb.Schema.Catalog.CardOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &QueryResolvers.reload_scryfall_catalog/3, :reload_result)
+        payload(
+          parent,
+          args,
+          resolution,
+          &QueryResolvers.reload_scryfall_catalog/3,
+          :reload_result
+        )
       end)
     end
 
@@ -47,7 +53,13 @@ defmodule ManavaultWeb.Schema.Catalog.CardOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &QueryResolvers.reload_scryfall_assets/3, :reload_result)
+        payload(
+          parent,
+          args,
+          resolution,
+          &QueryResolvers.reload_scryfall_assets/3,
+          :reload_result
+        )
       end)
     end
   end

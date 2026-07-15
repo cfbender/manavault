@@ -18,7 +18,6 @@ type UseDeckAllocationActionsOptions = {
   onToast: (message: string) => void
 }
 
-
 export function useDeckAllocationActions({ onRefetch, onToast }: UseDeckAllocationActionsOptions) {
   const client = useApolloClient()
   const [isBulkAllocating, setIsBulkAllocating] = useState(false)
@@ -95,11 +94,14 @@ export function useDeckAllocationActions({ onRefetch, onToast }: UseDeckAllocati
       .then(({ data }) => {
         const result = data?.allocateDeckPullList?.allocationResult
         if (result && result.skipped > 0) {
-          handlers.onSkipped(`${pluralize(result.skipped, "entry", "entries")} could not be allocated`)
+          handlers.onSkipped(
+            `${pluralize(result.skipped, "entry", "entries")} could not be allocated`,
+          )
           return
         }
 
-        const allocated = result?.allocated ?? entries.reduce((total, entry) => total + entry.quantity, 0)
+        const allocated =
+          result?.allocated ?? entries.reduce((total, entry) => total + entry.quantity, 0)
         onToast(`${pluralize(allocated, "card")} allocated`)
         handlers.onSuccess()
       })
@@ -134,12 +136,13 @@ export function useDeckAllocationActions({ onRefetch, onToast }: UseDeckAllocati
       .finally(() => setIsOptimizingPrintings(false))
   }
 
-  const allocationError = [
-    allocateDeckCardItemResult.error,
-    deallocateDeckCardItemResult.error,
-    allocateDeckCardProxyResult.error,
-    deallocateDeckCardProxyResult.error,
-  ].find((error): error is Error => error instanceof Error)?.message ?? null
+  const allocationError =
+    [
+      allocateDeckCardItemResult.error,
+      deallocateDeckCardItemResult.error,
+      allocateDeckCardProxyResult.error,
+      deallocateDeckCardProxyResult.error,
+    ].find((error): error is Error => error instanceof Error)?.message ?? null
 
   return {
     allocate,

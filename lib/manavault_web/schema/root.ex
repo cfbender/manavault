@@ -36,12 +36,12 @@ defmodule ManavaultWeb.Schema do
   end
 
   query do
-    import_fields :other_queries
-    import_fields :card_queries
-    import_fields :collection_queries
-    import_fields :location_queries
-    import_fields :deck_queries
-    import_fields :backup_queries
+    import_fields(:other_queries)
+    import_fields(:card_queries)
+    import_fields(:collection_queries)
+    import_fields(:location_queries)
+    import_fields(:deck_queries)
+    import_fields(:backup_queries)
 
     node field do
       resolve(fn
@@ -76,11 +76,11 @@ defmodule ManavaultWeb.Schema do
   end
 
   mutation do
-    import_fields :backup_mutations
-    import_fields :card_mutations
-    import_fields :collection_mutations
-    import_fields :location_mutations
-    import_fields :deck_mutations
+    import_fields(:backup_mutations)
+    import_fields(:card_mutations)
+    import_fields(:collection_mutations)
+    import_fields(:location_mutations)
+    import_fields(:deck_mutations)
   end
 
   def context(ctx) do

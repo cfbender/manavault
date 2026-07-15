@@ -1,5 +1,15 @@
 import { Link } from "@tanstack/react-router"
-import { Archive, AlertTriangle, CheckSquare, Clipboard, Download, Layers, Play, Plus, ShoppingCart } from "lucide-react"
+import {
+  Archive,
+  AlertTriangle,
+  CheckSquare,
+  Clipboard,
+  Download,
+  Layers,
+  Play,
+  Plus,
+  ShoppingCart,
+} from "lucide-react"
 import type { ReactNode } from "react"
 
 import { ImageSummaryCard } from "../../components/image-summary-card"
@@ -68,9 +78,15 @@ function DeckPriceChip({ onClick, price }: { onClick: () => void; price: DeckPri
       className="badge badge-warning badge-outline badge-sm inline-flex cursor-pointer items-center gap-1.5 px-2 font-medium leading-none align-middle transition-colors hover:bg-warning/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning/35"
       aria-label="Open buy list"
       onClick={onClick}
-      title={!price.loading && price.unpricedQuantity > 0 ? `${price.unpricedQuantity} cards are unpriced` : undefined}
+      title={
+        !price.loading && price.unpricedQuantity > 0
+          ? `${price.unpricedQuantity} cards are unpriced`
+          : undefined
+      }
     >
-      <span className="tabular-nums leading-none">{price.loading ? "Pricing..." : price.label}</span>
+      <span className="tabular-nums leading-none">
+        {price.loading ? "Pricing..." : price.label}
+      </span>
     </button>
   )
 }
@@ -155,7 +171,12 @@ export function DeckDetailHeader({
 }: DeckDetailHeaderProps) {
   return (
     <>
-      <DeckTagPanels canEdit={canEdit} deckTags={deckTags} shareMode={shareMode} tagActions={tagActions} />
+      <DeckTagPanels
+        canEdit={canEdit}
+        deckTags={deckTags}
+        shareMode={shareMode}
+        tagActions={tagActions}
+      />
       <div className="min-w-0 space-y-7">
         <ShareModeHidden shareMode={shareMode}>
           <Button asChild variant="outline" size="sm">
@@ -171,13 +192,25 @@ export function DeckDetailHeader({
           countLine={`${compactNumber(deck.cardCount || 0)} cards`}
           detailLine={
             <div className="flex flex-wrap items-center gap-2 text-base leading-none">
-              <Badge tone={deck.status === "active" ? "success" : "neutral"}>{titleize(deck.status)}</Badge>
-              <Badge tone={deckLegalityTone(deck.legality)}>{deckLegalityLabel(deck.legality)}</Badge>
-              <DeckPriceChip price={deckPrice} onClick={shareMode ? onShareBuylist : onMissingCards} />
+              <Badge tone={deck.status === "active" ? "success" : "neutral"}>
+                {titleize(deck.status)}
+              </Badge>
+              <Badge tone={deckLegalityTone(deck.legality)}>
+                {deckLegalityLabel(deck.legality)}
+              </Badge>
+              <DeckPriceChip
+                price={deckPrice}
+                onClick={shareMode ? onShareBuylist : onMissingCards}
+              />
               {isRefreshing ? <Badge tone="neutral">Refreshing…</Badge> : null}
             </div>
           }
-          nameLine={<DeckNameWithCommanderIdentity colors={commanderColorIdentity(deckCards)} name={deck.name} />}
+          nameLine={
+            <DeckNameWithCommanderIdentity
+              colors={commanderColorIdentity(deckCards)}
+              name={deck.name}
+            />
+          }
           actionSlot={
             <ShareModeHidden shareMode={shareMode}>
               <SummaryActionMenu
@@ -201,7 +234,8 @@ export function DeckDetailHeader({
               <span>Archived decklist</span>
             </div>
             <p className="mt-1 max-w-3xl">
-              This deck is view-only. Use Edit to unarchive it before changing cards, tags, printings, or collection allocations.
+              This deck is view-only. Use Edit to unarchive it before changing cards, tags,
+              printings, or collection allocations.
             </p>
           </div>
         ) : null}
@@ -214,10 +248,17 @@ export function DeckDetailHeader({
             </div>
             <ul className="space-y-1.5">
               {legalityIssues.map((issue, index) => (
-                <li key={`${issue.code}-${issue.cardName || "deck"}-${index}`} className="flex gap-2">
-                  <span aria-hidden="true" className="text-error">•</span>
+                <li
+                  key={`${issue.code}-${issue.cardName || "deck"}-${index}`}
+                  className="flex gap-2"
+                >
+                  <span aria-hidden="true" className="text-error">
+                    •
+                  </span>
                   <span>
-                    {issue.cardName ? <span className="font-bold text-base-content">{issue.cardName}: </span> : null}
+                    {issue.cardName ? (
+                      <span className="font-bold text-base-content">{issue.cardName}: </span>
+                    ) : null}
                     {issue.message}
                   </span>
                 </li>
@@ -230,33 +271,66 @@ export function DeckDetailHeader({
           <dl className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
             {(["commander", "mainboard", "sideboard", "maybeboard"] as DeckZone[]).map((zone) => (
               <div key={zone} className="flex items-baseline gap-1.5">
-                <dt className={cn("text-xs font-black uppercase tracking-[0.16em]", zone === "commander" ? "text-primary" : "text-base-content/45")}>
+                <dt
+                  className={cn(
+                    "text-xs font-black uppercase tracking-[0.16em]",
+                    zone === "commander" ? "text-primary" : "text-base-content/45",
+                  )}
+                >
                   {titleize(zone)}
                 </dt>
-                <dd className="font-mono text-sm font-black text-base-content/80">{zoneCounts[zone] || 0}</dd>
+                <dd className="font-mono text-sm font-black text-base-content/80">
+                  {zoneCounts[zone] || 0}
+                </dd>
               </div>
             ))}
           </dl>
           <div className="flex flex-wrap items-center gap-2">
             {shareMode ? (
               <div className="flex flex-wrap items-center gap-2">
-                <Button type="button" variant="outline" size="sm" disabled={!deckCards.length} onClick={onSharePlaytest}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!deckCards.length}
+                  onClick={onSharePlaytest}
+                >
                   <Play className="h-4 w-4" />
                   Playtest
                 </Button>
-                <Button type="button" variant="outline" size="sm" disabled={!deckCards.length} onClick={onShareBuylist}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!deckCards.length}
+                  onClick={onShareBuylist}
+                >
                   <ShoppingCart className="h-4 w-4" />
                   Buy list
                 </Button>
-                <Button type="button" variant="outline" size="sm" disabled={!deckCards.length} onClick={onCopySharedDecklist}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!deckCards.length}
+                  onClick={onCopySharedDecklist}
+                >
                   <Clipboard className="h-4 w-4" />
                   {shareCopyState === "copied" ? "Copied" : "Copy decklist"}
                 </Button>
-                <Button type="button" variant="outline" size="sm" disabled={!deckCards.length} onClick={onDownloadSharedDecklist}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!deckCards.length}
+                  onClick={onDownloadSharedDecklist}
+                >
                   <Download className="h-4 w-4" />
                   Export
                 </Button>
-                {shareCopyState === "failed" ? <span className="text-sm text-error">Copy failed.</span> : null}
+                {shareCopyState === "failed" ? (
+                  <span className="text-sm text-error">Copy failed.</span>
+                ) : null}
               </div>
             ) : null}
             <ShareModeHidden shareMode={shareMode}>
@@ -273,7 +347,13 @@ export function DeckDetailHeader({
                     Add card
                   </Button>
                   {!isSelectionActive ? (
-                    <Button type="button" variant="outline" size="sm" disabled={!deckCards.length} onClick={onStartSelecting}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={!deckCards.length}
+                      onClick={onStartSelecting}
+                    >
                       <CheckSquare className="h-4 w-4" />
                       Select
                     </Button>

@@ -32,7 +32,10 @@ test("deck detail pagination appends every fetched page while adopting the lates
     ["one", "two"],
   )
   assert.deepEqual(merged.deck.deckCards.pageInfo, { endCursor: "b", hasNextPage: false })
-  assert.deepEqual(firstPage.deck.deckCards.edges.map((edge) => edge.node.id), ["one"])
+  assert.deepEqual(
+    firstPage.deck.deckCards.edges.map((edge) => edge.node.id),
+    ["one"],
+  )
 })
 
 test("deck detail pagination preserves the loaded page when a fetch returns no connection", () => {

@@ -59,7 +59,8 @@ defmodule Manavault.Catalog.Decks.ProxyAllocation do
 
   defp validate_positive_allocation_quantity(quantity) when quantity > 0, do: :ok
 
-  defp validate_positive_allocation_quantity(_quantity), do: {:error, :invalid_allocation_quantity}
+  defp validate_positive_allocation_quantity(_quantity),
+    do: {:error, :invalid_allocation_quantity}
 
   defp put_deck_card_proxy_quantity(%DeckCard{} = deck_card, proxy_quantity) do
     deck_card

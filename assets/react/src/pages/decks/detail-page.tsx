@@ -116,7 +116,6 @@ export function DeckDetailPage({
     if (deckTagActions.error) showToast(deckTagActions.error)
   }, [deckTagActions.error, showToast])
 
-
   useEffect(() => {
     setOverlay(NO_DECK_DETAIL_OVERLAY)
     setActiveTagId(null)
@@ -131,7 +130,9 @@ export function DeckDetailPage({
   useEffect(() => {
     if (shareMode) {
       setOverlay((current) =>
-        current.kind === "preview-card" || current.kind === "share-buylist" || current.kind === "share-playtest"
+        current.kind === "preview-card" ||
+        current.kind === "share-buylist" ||
+        current.kind === "share-playtest"
           ? current
           : NO_DECK_DETAIL_OVERLAY,
       )
@@ -157,7 +158,10 @@ export function DeckDetailPage({
     onToast: showToast,
     setOverlay,
   })
-  const allocationActions = useDeckAllocationActions({ onRefetch: refetchDeckQueries, onToast: showToast })
+  const allocationActions = useDeckAllocationActions({
+    onRefetch: refetchDeckQueries,
+    onToast: showToast,
+  })
   const disassemblyActions = useDeckDisassemblyActions({
     onArchived: () => navigate({ to: "/decks" }),
     onRefetch: refetchDeckQueries,
@@ -166,7 +170,10 @@ export function DeckDetailPage({
   })
 
   const stackDeckCards = useMemo(
-    () => deckCards.filter((deckCard) => deckCard.zone !== "sideboard" && deckCard.zone !== "maybeboard"),
+    () =>
+      deckCards.filter(
+        (deckCard) => deckCard.zone !== "sideboard" && deckCard.zone !== "maybeboard",
+      ),
     [deckCards],
   )
   const sideboardCards = useMemo(
@@ -219,12 +226,20 @@ export function DeckDetailPage({
   const deckPrice = useMemo<DeckPrice | null>(() => {
     if (!deck) return null
     const price = deckCardsTotalPrice(deckCards)
-    return { label: formatUsdCents(price.totalCents), loading: false, unpricedQuantity: price.unpricedQuantity }
+    return {
+      label: formatUsdCents(price.totalCents),
+      loading: false,
+      unpricedQuantity: price.unpricedQuantity,
+    }
   }, [deck, deckCards])
   const buylistPrice = useMemo<DeckPrice | null>(() => {
     if (!deck) return null
     const price = deckMissingCardsTotalPrice(deckCards)
-    return { label: formatUsdCents(price.totalCents), loading: false, unpricedQuantity: price.unpricedQuantity }
+    return {
+      label: formatUsdCents(price.totalCents),
+      loading: false,
+      unpricedQuantity: price.unpricedQuantity,
+    }
   }, [deck, deckCards])
   const { copySharedDecklist, downloadSharedDecklist, shareCopyState } = useSharedDecklistActions(
     deck?.name || "deck",
@@ -240,7 +255,11 @@ export function DeckDetailPage({
 
     setActiveTagId(tagId)
     selection.setHighlightedDeckCardIds(
-      new Set(deckCards.filter((deckCard) => (deckCard.tagIds ?? []).includes(tagId)).map((deckCard) => deckCard.id)),
+      new Set(
+        deckCards
+          .filter((deckCard) => (deckCard.tagIds ?? []).includes(tagId))
+          .map((deckCard) => deckCard.id),
+      ),
     )
   }
 
@@ -282,7 +301,10 @@ export function DeckDetailPage({
         if (tag) jumpToTag(tag.id)
       },
       onOpenPlaytest: () => navigate({ to: "/decks/$id/playtest", params: { id } }),
-      onToggleHelp: () => setOverlay((current) => current.kind === "shortcuts" ? NO_DECK_DETAIL_OVERLAY : { kind: "shortcuts" }),
+      onToggleHelp: () =>
+        setOverlay((current) =>
+          current.kind === "shortcuts" ? NO_DECK_DETAIL_OVERLAY : { kind: "shortcuts" },
+        ),
       onToggleSelect: () => selection.setIsSelectingCards((selecting) => !selecting),
     },
     !shareMode && canEditDecklist,
@@ -296,8 +318,12 @@ export function DeckDetailPage({
         description="This deck may have been deleted, moved, or unavailable while the local vault is syncing."
         action={
           <div className="flex flex-wrap justify-center gap-2">
-            <Button asChild><Link to="/decks">Back to decks</Link></Button>
-            <Button type="button" variant="outline" onClick={refetchDeckQueries}>Retry</Button>
+            <Button asChild>
+              <Link to="/decks">Back to decks</Link>
+            </Button>
+            <Button type="button" variant="outline" onClick={refetchDeckQueries}>
+              Retry
+            </Button>
           </div>
         }
       />
@@ -368,9 +394,13 @@ export function DeckDetailPage({
             canBulkAllocate={canEditDecklist && hasBulkAllocationAvailable}
             deckCards={deckCards}
             isPending={isUpdatingDeckCard}
-            onAllocate={(deckCard, collectionItemId) => allocationActions.allocate(deckCard.id, collectionItemId)}
+            onAllocate={(deckCard, collectionItemId) =>
+              allocationActions.allocate(deckCard.id, collectionItemId)
+            }
             onClose={() => setOverlay(NO_DECK_DETAIL_OVERLAY)}
-            onDeallocate={(deckCard, collectionItemId) => allocationActions.deallocate(deckCard.id, collectionItemId)}
+            onDeallocate={(deckCard, collectionItemId) =>
+              allocationActions.deallocate(deckCard.id, collectionItemId)
+            }
             onMissingCards={() => setOverlay({ kind: "missing-cards" })}
             onOpenBulkAllocation={() => setOverlay(bulkAllocationOverlay())}
             onOpenOptimizePrintings={() => setOverlay({ kind: "optimize-printings", error: null })}
@@ -403,7 +433,11 @@ export function DeckDetailPage({
                 if (!selection.selectedDeckCardIdList.length) return
                 bulkActions.clearError()
                 cardActions.clearTagError()
-                cardActions.updateSelectedDeckCardsTag(selection.selectedDeckCardIdList, tag, clearSelection)
+                cardActions.updateSelectedDeckCardsTag(
+                  selection.selectedDeckCardIdList,
+                  tag,
+                  clearSelection,
+                )
               }}
               onUpdate={(input) => {
                 if (!selection.selectedDeckCardIdList.length) return
@@ -425,9 +459,13 @@ export function DeckDetailPage({
             isSelecting={selection.isSelectionActive}
             isUpdating={isUpdatingDeckCard}
             maybeboardCards={maybeboardCards}
-            onAllocate={(deckCard, collectionItemId) => allocationActions.allocate(deckCard.id, collectionItemId)}
+            onAllocate={(deckCard, collectionItemId) =>
+              allocationActions.allocate(deckCard.id, collectionItemId)
+            }
             onAssignTag={cardActions.assignDeckCardTag}
-            onDeallocate={(deckCard, collectionItemId) => allocationActions.deallocate(deckCard.id, collectionItemId)}
+            onDeallocate={(deckCard, collectionItemId) =>
+              allocationActions.deallocate(deckCard.id, collectionItemId)
+            }
             onDelete={(deckCard) => setOverlay({ kind: "delete-card", deckCard })}
             onEdit={(deckCard) => setOverlay(editCardOverlay(deckCard))}
             onMove={(deckCard) => setOverlay(moveCardOverlay(deckCard))}
@@ -473,14 +511,17 @@ export function DeckDetailPage({
         onClose={() => setOverlay(NO_DECK_DETAIL_OVERLAY)}
         onDeleteSelected={() => {
           if (selection.selectedDeckCardIdList.length) {
-            bulkActions.remove(selection.selectedDeckCardIdList, () => setOverlay(NO_DECK_DETAIL_OVERLAY))
+            bulkActions.remove(selection.selectedDeckCardIdList, () =>
+              setOverlay(NO_DECK_DETAIL_OVERLAY),
+            )
           }
         }}
         onOptimizePrintings={(deckCardIds) =>
           allocationActions.optimizePrintings(deckCardIds, {
-            onError: (error) => setOverlay((current) =>
-              current.kind === "optimize-printings" ? { ...current, error } : current,
-            ),
+            onError: (error) =>
+              setOverlay((current) =>
+                current.kind === "optimize-printings" ? { ...current, error } : current,
+              ),
             onSuccess: () => setOverlay(NO_DECK_DETAIL_OVERLAY),
           })
         }
@@ -499,8 +540,10 @@ export function DeckDetailPage({
         onClose={() => setOverlay(NO_DECK_DETAIL_OVERLAY)}
         onConfirm={(entries) =>
           allocationActions.allocatePullList(deck, entries, {
-            onError: (error) => setOverlay((current) => updateBulkAllocationOverlay(current, { error })),
-            onSkipped: (error) => setOverlay((current) => updateBulkAllocationOverlay(current, { error })),
+            onError: (error) =>
+              setOverlay((current) => updateBulkAllocationOverlay(current, { error })),
+            onSkipped: (error) =>
+              setOverlay((current) => updateBulkAllocationOverlay(current, { error })),
             onSuccess: () => setOverlay(NO_DECK_DETAIL_OVERLAY),
           })
         }
@@ -522,7 +565,10 @@ export function DeckDetailPage({
         shareMode={shareMode}
         shareToken={id}
       />
-      <DeckDetailShortcutsOverlay onClose={() => setOverlay(NO_DECK_DETAIL_OVERLAY)} overlay={overlay} />
+      <DeckDetailShortcutsOverlay
+        onClose={() => setOverlay(NO_DECK_DETAIL_OVERLAY)}
+        overlay={overlay}
+      />
     </>
   )
 }

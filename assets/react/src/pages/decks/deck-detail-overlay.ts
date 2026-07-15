@@ -4,7 +4,13 @@ import type { DeckCardEntry, DeckDisassemblyResult } from "./deck-types"
 export type DeckDetailOverlay =
   | { kind: "none" }
   | { kind: "add-card" }
-  | { kind: "bulk-allocation"; error: string | null; excludedEntryIds: DeckPullListExclusions; mode: DeckPullListMode; selectedItemIds: Record<string, string | null> }
+  | {
+      kind: "bulk-allocation"
+      error: string | null
+      excludedEntryIds: DeckPullListExclusions
+      mode: DeckPullListMode
+      selectedItemIds: Record<string, string | null>
+    }
   | { kind: "delete-card"; deckCard: DeckCardEntry }
   | { kind: "delete-selected" }
   | { kind: "disassembly"; result: DeckDisassemblyResult }
@@ -25,7 +31,6 @@ export type DeckDetailOverlay =
   | { kind: "shortcuts" }
 
 export const NO_DECK_DETAIL_OVERLAY: DeckDetailOverlay = { kind: "none" }
-
 
 export function bulkAllocationOverlay(): DeckDetailOverlay {
   return {

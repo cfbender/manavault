@@ -26,7 +26,9 @@ import {
 } from "./queries"
 
 type CardWorkflow = "edit-card" | "move-card" | "tag"
-type OverlaySetter = (update: DeckDetailOverlay | ((current: DeckDetailOverlay) => DeckDetailOverlay)) => void
+type OverlaySetter = (
+  update: DeckDetailOverlay | ((current: DeckDetailOverlay) => DeckDetailOverlay),
+) => void
 
 type UseDeckCardActionsOptions = {
   deckId: string
@@ -104,7 +106,9 @@ export function useDeckCardActions({
   }
 
   const [updateDeckCardMutation, updateDeckCardResult] = useMutation(UpdateDeckCardDocument)
-  const [updateDeckCardsTagMutation, updateDeckCardsTagResult] = useMutation(UpdateDeckCardsTagDocument)
+  const [updateDeckCardsTagMutation, updateDeckCardsTagResult] = useMutation(
+    UpdateDeckCardsTagDocument,
+  )
   const [assignDeckCardTagMutation] = useMutation(AssignDeckCardTagDocument)
   const [unassignDeckCardTagMutation] = useMutation(UnassignDeckCardTagDocument)
   const [deleteDeckCardMutation, deleteDeckCardResult] = useMutation(DeleteDeckCardDocument)
@@ -145,14 +149,10 @@ export function useDeckCardActions({
 
         if (workflow === "edit-card") {
           onToast("Card edited")
-          setOverlay((overlay) =>
-            overlay.kind === "edit-card" ? NO_DECK_DETAIL_OVERLAY : overlay,
-          )
+          setOverlay((overlay) => (overlay.kind === "edit-card" ? NO_DECK_DETAIL_OVERLAY : overlay))
         } else if (workflow === "move-card") {
           onToast("Card moved")
-          setOverlay((overlay) =>
-            overlay.kind === "move-card" ? NO_DECK_DETAIL_OVERLAY : overlay,
-          )
+          setOverlay((overlay) => (overlay.kind === "move-card" ? NO_DECK_DETAIL_OVERLAY : overlay))
         }
         setTagError(null)
       },
@@ -174,7 +174,11 @@ export function useDeckCardActions({
     updateDeckCard(deckCard.id, { tag })
   }
 
-  function updateSelectedDeckCardsTag(deckCardIds: string[], tag: DeckCardTag | null, onSuccess: () => void) {
+  function updateSelectedDeckCardsTag(
+    deckCardIds: string[],
+    tag: DeckCardTag | null,
+    onSuccess: () => void,
+  ) {
     const rollbackPatches = rollbackDeckCardTagPatches(readDeckQuery(), deckCardIds, tag)
     updateDeckCacheTags(deckCardIds.map((id) => ({ id, tag })))
 
@@ -202,7 +206,8 @@ export function useDeckCardActions({
     const previousTagIds = deckCard.tagIds ?? []
     if (previousTagIds.includes(tagId)) return
 
-    const previousCardCount = readDeckQuery()?.deck?.tags?.find((tag) => tag.id === tagId)?.cardCount ?? 0
+    const previousCardCount =
+      readDeckQuery()?.deck?.tags?.find((tag) => tag.id === tagId)?.cardCount ?? 0
     const opSeq = (customTagOpSeqRef.current.get(deckCard.id) ?? 0) + 1
     customTagOpSeqRef.current.set(deckCard.id, opSeq)
     updateDeckCacheCustomTags(
@@ -237,7 +242,8 @@ export function useDeckCardActions({
     const previousTagIds = deckCard.tagIds ?? []
     if (!previousTagIds.includes(tagId)) return
 
-    const previousCardCount = readDeckQuery()?.deck?.tags?.find((tag) => tag.id === tagId)?.cardCount ?? 0
+    const previousCardCount =
+      readDeckQuery()?.deck?.tags?.find((tag) => tag.id === tagId)?.cardCount ?? 0
     const opSeq = (customTagOpSeqRef.current.get(deckCard.id) ?? 0) + 1
     customTagOpSeqRef.current.set(deckCard.id, opSeq)
     updateDeckCacheCustomTags(
@@ -274,7 +280,7 @@ export function useDeckCardActions({
       onCompleted: () => {
         onRefetch()
         onToast("Card deleted from deck")
-        setOverlay((overlay) => overlay.kind === "delete-card" ? NO_DECK_DETAIL_OVERLAY : overlay)
+        setOverlay((overlay) => (overlay.kind === "delete-card" ? NO_DECK_DETAIL_OVERLAY : overlay))
       },
       onError: () => undefined,
     })
@@ -284,7 +290,8 @@ export function useDeckCardActions({
     void setDeckCommanderMutation({
       variables: { id: deckCardId },
       onCompleted: onRefetch,
-      onError: (error) => setTagError(error instanceof Error ? error.message : "Could not set commander"),
+      onError: (error) =>
+        setTagError(error instanceof Error ? error.message : "Could not set commander"),
     })
   }
 
@@ -305,7 +312,8 @@ export function useDeckCardActions({
     assignDeckCardTag,
     clearTagError: () => setTagError(null),
     deleteDeckCard,
-    deleteError: deleteDeckCardResult.error instanceof Error ? deleteDeckCardResult.error.message : null,
+    deleteError:
+      deleteDeckCardResult.error instanceof Error ? deleteDeckCardResult.error.message : null,
     isPending:
       updateDeckCardResult.loading ||
       updateDeckCardsTagResult.loading ||

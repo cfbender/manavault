@@ -149,7 +149,13 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &MutationResolvers.preview_deck_disassembly/3, :disassembly_result)
+        payload(
+          parent,
+          args,
+          resolution,
+          &MutationResolvers.preview_deck_disassembly/3,
+          :disassembly_result
+        )
       end)
     end
 
@@ -161,7 +167,13 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &MutationResolvers.disassemble_deck/3, :disassembly_result)
+        payload(
+          parent,
+          args,
+          resolution,
+          &MutationResolvers.disassemble_deck/3,
+          :disassembly_result
+        )
       end)
     end
 
@@ -291,7 +303,13 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &MutationResolvers.bulk_update_deck_cards/3, :deck_cards)
+        payload(
+          parent,
+          args,
+          resolution,
+          &MutationResolvers.bulk_update_deck_cards/3,
+          :deck_cards
+        )
       end)
     end
 
@@ -303,7 +321,13 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &MutationResolvers.bulk_delete_deck_cards/3, :deck_cards)
+        payload(
+          parent,
+          args,
+          resolution,
+          &MutationResolvers.bulk_delete_deck_cards/3,
+          :deck_cards
+        )
       end)
     end
 
@@ -315,7 +339,13 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &MutationResolvers.optimize_deck_card_printings/3, :deck_cards)
+        payload(
+          parent,
+          args,
+          resolution,
+          &MutationResolvers.optimize_deck_card_printings/3,
+          :deck_cards
+        )
       end)
     end
 
@@ -352,7 +382,13 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &AllocationResolvers.allocate_deck_card_item/3, :deck_card)
+        payload(
+          parent,
+          args,
+          resolution,
+          &AllocationResolvers.allocate_deck_card_item/3,
+          :deck_card
+        )
       end)
     end
 
@@ -365,7 +401,13 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &AllocationResolvers.deallocate_deck_card_item/3, :deck_card)
+        payload(
+          parent,
+          args,
+          resolution,
+          &AllocationResolvers.deallocate_deck_card_item/3,
+          :deck_card
+        )
       end)
     end
 
@@ -377,7 +419,13 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &AllocationResolvers.bulk_deallocate_deck_cards/3, :deck_cards)
+        payload(
+          parent,
+          args,
+          resolution,
+          &AllocationResolvers.bulk_deallocate_deck_cards/3,
+          :deck_cards
+        )
       end)
     end
 
@@ -390,7 +438,13 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &AllocationResolvers.allocate_deck_card_proxy/3, :deck_card)
+        payload(
+          parent,
+          args,
+          resolution,
+          &AllocationResolvers.allocate_deck_card_proxy/3,
+          :deck_card
+        )
       end)
     end
 
@@ -403,7 +457,13 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &AllocationResolvers.deallocate_deck_card_proxy/3, :deck_card)
+        payload(
+          parent,
+          args,
+          resolution,
+          &AllocationResolvers.deallocate_deck_card_proxy/3,
+          :deck_card
+        )
       end)
     end
 
@@ -416,7 +476,13 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &AllocationResolvers.preview_bulk_allocate_deck/3, :allocation_preview)
+        payload(
+          parent,
+          args,
+          resolution,
+          &AllocationResolvers.preview_bulk_allocate_deck/3,
+          :allocation_preview
+        )
       end)
     end
 
@@ -429,7 +495,13 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &AllocationResolvers.bulk_allocate_deck/3, :allocation_result)
+        payload(
+          parent,
+          args,
+          resolution,
+          &AllocationResolvers.bulk_allocate_deck/3,
+          :allocation_result
+        )
       end)
     end
 
@@ -442,7 +514,13 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &AllocationResolvers.allocate_deck_pull_list/3, :allocation_result)
+        payload(
+          parent,
+          args,
+          resolution,
+          &AllocationResolvers.allocate_deck_pull_list/3,
+          :allocation_result
+        )
       end)
     end
   end

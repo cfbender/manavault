@@ -1,4 +1,10 @@
-import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog"
 import type { DeckDetailOverlay } from "./deck-detail-overlay"
 import { DECK_DETAIL_SHORTCUTS } from "./use-deck-detail-shortcuts"
 
@@ -21,7 +27,9 @@ export function DeckDetailShortcutsOverlay({
         <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 p-1 text-sm">
           {DECK_DETAIL_SHORTCUTS.map((shortcut) => (
             <div key={shortcut.keys} className="contents">
-              <dt><kbd className="kbd kbd-sm">{shortcut.keys}</kbd></dt>
+              <dt>
+                <kbd className="kbd kbd-sm">{shortcut.keys}</kbd>
+              </dt>
               <dd className="self-center text-base-content/80">{shortcut.label}</dd>
             </div>
           ))}

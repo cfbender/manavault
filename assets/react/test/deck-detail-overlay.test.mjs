@@ -13,7 +13,11 @@ import {
 const deckCard = { id: "deck-card-1" }
 
 test("deck detail overlays switch workflows without retaining a prior card target or error", () => {
-  const editing = updateCardWorkflowError(editCardOverlay(deckCard), "edit-card", "Name is required")
+  const editing = updateCardWorkflowError(
+    editCardOverlay(deckCard),
+    "edit-card",
+    "Name is required",
+  )
   const bulk = bulkAllocationOverlay()
 
   assert.deepEqual(editing, {
@@ -59,5 +63,8 @@ test("deck detail cancel and completion reset an active overlay to the explicit 
 
   assert.equal(moving.kind, "move-card")
   assert.equal(NO_DECK_DETAIL_OVERLAY.kind, "none")
-  assert.equal(updateCardWorkflowError(NO_DECK_DETAIL_OVERLAY, "move-card", "ignored"), NO_DECK_DETAIL_OVERLAY)
+  assert.equal(
+    updateCardWorkflowError(NO_DECK_DETAIL_OVERLAY, "move-card", "ignored"),
+    NO_DECK_DETAIL_OVERLAY,
+  )
 })

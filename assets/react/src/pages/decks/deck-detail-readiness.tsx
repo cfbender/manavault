@@ -3,10 +3,20 @@ import { useMemo } from "react"
 import { CardTile } from "../../components/card-tile"
 import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
-import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog"
 import { titleize } from "../../lib/utils"
 import type { DeckPrice } from "./deck-detail-types"
-import { DeckCardAllocationPanel, allocationStatusLabel, allocationStatusSummary } from "./deck-card-allocation"
+import {
+  DeckCardAllocationPanel,
+  allocationStatusLabel,
+  allocationStatusSummary,
+} from "./deck-card-allocation"
 import { deckPullZones, summarizeDeckPullNeeds } from "./deck-readiness"
 import { DECK_CARD_TAGS, type DeckCardEntry, type DeckCardTag } from "./deck-types"
 type DeckDetailReadinessProps = {
@@ -90,7 +100,9 @@ function DeckReadinessCard({
             </p>
           </div>
           <label className="form-control">
-            <span className="label-text mb-1 text-xs font-semibold uppercase text-base-content/60">Tag</span>
+            <span className="label-text mb-1 text-xs font-semibold uppercase text-base-content/60">
+              Tag
+            </span>
             <select
               className="select select-bordered select-sm w-full"
               aria-label={`Tag ${name}`}
@@ -176,7 +188,8 @@ export function DeckDetailReadiness({
                   : "Mainboard and commander cards are accounted for."}
               </p>
               <p className="mt-1 text-sm text-base-content/60">
-                Use the images to recognize cards quickly, then allocate owned copies or tag cards inline.
+                Use the images to recognize cards quickly, then allocate owned copies or tag cards
+                inline.
               </p>
             </div>
             <div className="font-mono text-3xl font-black text-base-content">
@@ -189,11 +202,17 @@ export function DeckDetailReadiness({
             aria-label={`${readiness.readyCount} of ${readiness.requiredCount} deck cards ready`}
             role="img"
           >
-            <div className="h-full rounded-full bg-primary" style={{ width: `${readiness.readinessPercent}%` }} />
+            <div
+              className="h-full rounded-full bg-primary"
+              style={{ width: `${readiness.readinessPercent}%` }}
+            />
           </div>
 
           <dl className="grid gap-2 sm:grid-cols-4">
-            <DeckReadinessMetric label="Accounted for" value={`${readiness.readyCount}/${readiness.requiredCount}`} />
+            <DeckReadinessMetric
+              label="Accounted for"
+              value={`${readiness.readyCount}/${readiness.requiredCount}`}
+            />
             <DeckReadinessMetric label="To pull" value={readiness.availableToPull} />
             <DeckReadinessMetric label="To buy" value={readiness.missingToBuy} />
             <DeckReadinessMetric label="Proxy" value={readiness.proxyAllocated} />
@@ -255,7 +274,8 @@ export function DeckDetailReadiness({
                   <div>
                     <h3 className="text-sm font-black text-base-content">Cards needing work</h3>
                     <p className="mt-1 text-xs text-base-content/60">
-                      Cards tagged Getting still appear here, but are excluded from the buy count and buy list.
+                      Cards tagged Getting still appear here, but are excluded from the buy count
+                      and buy list.
                     </p>
                   </div>
                   <div className="grid max-h-[min(34rem,52dvh)] gap-3 overflow-y-auto pr-1">

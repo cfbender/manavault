@@ -31,7 +31,12 @@ defmodule ManavaultWeb.GraphQLCSRFProtectionTest do
     previous_disabled = Application.get_env(:manavault, :auth_disabled)
 
     Application.put_env(:manavault, :auth_disabled, false)
-    Application.put_env(:manavault, :admin_password_hash, Auth.hash_password("secret", iterations: 1))
+
+    Application.put_env(
+      :manavault,
+      :admin_password_hash,
+      Auth.hash_password("secret", iterations: 1)
+    )
 
     on_exit(fn ->
       Application.put_env(:manavault, :admin_password_hash, previous_hash)
@@ -160,7 +165,10 @@ defmodule ManavaultWeb.GraphQLCSRFProtectionTest do
   end
 
   test "public share GraphQL remains token-free and outside the authenticated CSRF boundary" do
-    conn = post_json(build_conn(), "/share/graphql", %{"query" => "query { deck(id: \"missing\") { id } }"})
+    conn =
+      post_json(build_conn(), "/share/graphql", %{
+        "query" => "query { deck(id: \"missing\") { id } }"
+      })
 
     assert %{"data" => %{"deck" => nil}} = json_response(conn, 200)
   end

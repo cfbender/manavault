@@ -15,7 +15,9 @@ export function DeckDetailLoadingState() {
         </div>
       </section>
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 8 }, (_, index) => <div key={index} className="aspect-[5/7] animate-pulse rounded-xl bg-base-300" />)}
+        {Array.from({ length: 8 }, (_, index) => (
+          <div key={index} className="aspect-[5/7] animate-pulse rounded-xl bg-base-300" />
+        ))}
       </div>
     </div>
   )

@@ -141,7 +141,11 @@ defmodule Manavault.Catalog.Decks.DeckCardAllocation do
     end
   end
 
-  def allocate_loaded_item_to_deck_card(%DeckCard{} = deck_card, %CollectionItem{} = item, quantity) do
+  def allocate_loaded_item_to_deck_card(
+        %DeckCard{} = deck_card,
+        %CollectionItem{} = item,
+        quantity
+      ) do
     with :ok <- validate_collection_item_matches_deck_card(item, deck_card),
          :ok <- validate_deck_card_allocation_room(deck_card, item, quantity),
          {:ok, deck_card} <- put_deck_card_allocation_printing(deck_card, item) do
@@ -183,7 +187,11 @@ defmodule Manavault.Catalog.Decks.DeckCardAllocation do
     end
   end
 
-  defp insert_or_update_deck_allocation!(%DeckCard{} = deck_card, %CollectionItem{} = item, quantity) do
+  defp insert_or_update_deck_allocation!(
+         %DeckCard{} = deck_card,
+         %CollectionItem{} = item,
+         quantity
+       ) do
     source_location_id = item.location_id
     allocated_item = AllocationItems.move_to_deck!(item, quantity)
 
@@ -264,7 +272,8 @@ defmodule Manavault.Catalog.Decks.DeckCardAllocation do
 
   defp validate_positive_allocation_quantity(quantity) when quantity > 0, do: :ok
 
-  defp validate_positive_allocation_quantity(_quantity), do: {:error, :invalid_allocation_quantity}
+  defp validate_positive_allocation_quantity(_quantity),
+    do: {:error, :invalid_allocation_quantity}
 
   defp preferred_printing_candidates(candidates, %DeckCard{
          finish: finish,

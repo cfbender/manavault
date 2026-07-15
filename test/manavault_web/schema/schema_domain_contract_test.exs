@@ -100,7 +100,10 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
     assert type_signature(query_fields["cardNameSuggestions"]["type"]) == "[String!]!"
     assert argument(query_fields["cardNameSuggestions"], "limit") == {"Int", "5"}
     assert type_signature(query_fields["collectionItemCount"]["type"]) == "Int!"
-    assert argument(query_fields["collectionItemCount"], "filters") == {"CollectionItemFilters", nil}
+
+    assert argument(query_fields["collectionItemCount"], "filters") ==
+             {"CollectionItemFilters", nil}
+
     assert type_signature(query_fields["deckBuylist"]["type"]) == "[DeckBuylistEntry!]!"
     assert argument(query_fields["deckBuylist"], "printingMode") == {"String", "\"none\""}
     assert argument(query_fields["deckBuylist"], "assumeNoOwned") == {"Boolean", "false"}
@@ -113,6 +116,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
              {"CollectionItemInput!", nil}
 
     assert argument(mutation_fields["allocateDeckCardProxy"], "quantity") == {"Int", "1"}
+
     assert type_signature(mutation_fields["previewDeckDisassembly"]["type"]) ==
              "PreviewDeckDisassemblyPayload"
 
@@ -129,6 +133,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
              }
 
     assert payload_fields(data["allocateDeckCardProxyPayload"]) == %{"deckCard" => "DeckCard"}
+
     assert payload_fields(data["updateBackupSettingsPayload"]) ==
              %{"backupSettings" => "BackupSettings"}
   end

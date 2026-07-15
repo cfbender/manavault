@@ -1,13 +1,12 @@
 import { useMutation } from "@apollo/client/react"
 import { useState } from "react"
 
-import {
-  NO_DECK_DETAIL_OVERLAY,
-  type DeckDetailOverlay,
-} from "./deck-detail-overlay"
+import { NO_DECK_DETAIL_OVERLAY, type DeckDetailOverlay } from "./deck-detail-overlay"
 import { DisassembleDeckDocument, PreviewDeckDisassemblyDocument } from "./queries"
 
-type OverlaySetter = (update: DeckDetailOverlay | ((current: DeckDetailOverlay) => DeckDetailOverlay)) => void
+type OverlaySetter = (
+  update: DeckDetailOverlay | ((current: DeckDetailOverlay) => DeckDetailOverlay),
+) => void
 
 type UseDeckDisassemblyActionsOptions = {
   onArchived: () => void
@@ -36,7 +35,8 @@ export function useDeckDisassemblyActions({
         const result = data.previewDeckDisassembly?.disassemblyResult
         if (result) setOverlay({ kind: "disassembly", result })
       },
-      onError: (error) => setError(error instanceof Error ? error.message : "Could not preview deck archive"),
+      onError: (error) =>
+        setError(error instanceof Error ? error.message : "Could not preview deck archive"),
     })
   }
 
@@ -50,7 +50,8 @@ export function useDeckDisassemblyActions({
         setOverlay(NO_DECK_DETAIL_OVERLAY)
         onArchived()
       },
-      onError: (error) => setError(error instanceof Error ? error.message : "Could not archive deck"),
+      onError: (error) =>
+        setError(error instanceof Error ? error.message : "Could not archive deck"),
     })
   }
 

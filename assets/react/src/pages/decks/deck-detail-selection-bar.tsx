@@ -124,7 +124,9 @@ export function DeckDetailSelectionBar({
             min={1}
             value={bulkQuantity}
             disabled={!selectedCount || isPending}
-            onChange={(event) => onQuantityChange(Math.max(1, Number.parseInt(event.target.value, 10) || 1))}
+            onChange={(event) =>
+              onQuantityChange(Math.max(1, Number.parseInt(event.target.value, 10) || 1))
+            }
           />
           <Button
             type="button"
@@ -159,7 +161,9 @@ export function DeckDetailSelectionBar({
         </select>
       </div>
       {error ? (
-        <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{error}</p>
+        <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+          {error}
+        </p>
       ) : null}
     </div>
   )

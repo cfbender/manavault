@@ -26,7 +26,14 @@ export function DeckDetailShareOverlays({
   }
 
   if (overlay.kind === "share-buylist") {
-    return <ShareDeckBuylistDialog deck={deck} open onOpenChange={(open) => !open && onClose()} shareToken={shareToken} />
+    return (
+      <ShareDeckBuylistDialog
+        deck={deck}
+        open
+        onOpenChange={(open) => !open && onClose()}
+        shareToken={shareToken}
+      />
+    )
   }
 
   return null

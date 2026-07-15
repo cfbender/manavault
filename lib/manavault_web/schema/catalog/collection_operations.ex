@@ -57,7 +57,13 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &MutationResolvers.create_collection_item/3, :collection_item)
+        payload(
+          parent,
+          args,
+          resolution,
+          &MutationResolvers.create_collection_item/3,
+          :collection_item
+        )
       end)
     end
 
@@ -70,7 +76,13 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &MutationResolvers.update_collection_item/3, :collection_item)
+        payload(
+          parent,
+          args,
+          resolution,
+          &MutationResolvers.update_collection_item/3,
+          :collection_item
+        )
       end)
     end
 
@@ -83,7 +95,13 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &MutationResolvers.bulk_update_collection_items/3, :updated_count)
+        payload(
+          parent,
+          args,
+          resolution,
+          &MutationResolvers.bulk_update_collection_items/3,
+          :updated_count
+        )
       end)
     end
 
@@ -95,7 +113,13 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &MutationResolvers.bulk_delete_collection_items/3, :deleted_count)
+        payload(
+          parent,
+          args,
+          resolution,
+          &MutationResolvers.bulk_delete_collection_items/3,
+          :deleted_count
+        )
       end)
     end
 
@@ -107,7 +131,13 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &MutationResolvers.delete_collection_item/3, :collection_item)
+        payload(
+          parent,
+          args,
+          resolution,
+          &MutationResolvers.delete_collection_item/3,
+          :collection_item
+        )
       end)
     end
 
@@ -121,7 +151,13 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &AllocationResolvers.add_collection_item_to_deck/3, :deck_card)
+        payload(
+          parent,
+          args,
+          resolution,
+          &AllocationResolvers.add_collection_item_to_deck/3,
+          :deck_card
+        )
       end)
     end
 
@@ -135,7 +171,13 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &AllocationResolvers.bulk_add_collection_items_to_deck/3, :deck_cards)
+        payload(
+          parent,
+          args,
+          resolution,
+          &AllocationResolvers.bulk_add_collection_items_to_deck/3,
+          :deck_cards
+        )
       end)
     end
 
@@ -166,7 +208,13 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &MutationResolvers.auto_sort_collection/3, :auto_sort_result)
+        payload(
+          parent,
+          args,
+          resolution,
+          &MutationResolvers.auto_sort_collection/3,
+          :auto_sort_result
+        )
       end)
     end
 
@@ -178,7 +226,13 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &ImportResolvers.preview_collection_import/3, :import_preview)
+        payload(
+          parent,
+          args,
+          resolution,
+          &ImportResolvers.preview_collection_import/3,
+          :import_preview
+        )
       end)
     end
 
@@ -208,7 +262,13 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &ImportResolvers.commit_collection_import/3, :import_result)
+        payload(
+          parent,
+          args,
+          resolution,
+          &ImportResolvers.commit_collection_import/3,
+          :import_result
+        )
       end)
     end
   end

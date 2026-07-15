@@ -6,7 +6,13 @@ import { MissingCardsDialog } from "./missing-cards-dialog"
 import { OptimizePrintingsDialog } from "./optimize-printings-dialog"
 import { ExportDecklistDialog, ImportDecklistDialog, ShareDeckDialog } from "./deck-share-dialogs"
 import { SelectFromListDialog } from "./select-from-list-dialog"
-import type { DeckDetail, EDHRecAddZone, EDHRecCard, EDHRecSectionCard, EDHRecTab } from "./deck-types"
+import type {
+  DeckDetail,
+  EDHRecAddZone,
+  EDHRecCard,
+  EDHRecSectionCard,
+  EDHRecTab,
+} from "./deck-types"
 
 type DeckDetailUtilityOverlaysProps = {
   addCardError: string | null
@@ -49,11 +55,21 @@ export function DeckDetailUtilityOverlays({
 
   return (
     <>
-      {overlay.kind === "edit-deck" ? <EditDeckDialog deck={deck} open onOpenChange={(open) => !open && onClose()} /> : null}
-      {overlay.kind === "share-deck" ? <ShareDeckDialog deck={deck} open onOpenChange={(open) => !open && onClose()} /> : null}
-      {overlay.kind === "import-deck" ? <ImportDecklistDialog deck={deck} open onOpenChange={(open) => !open && onClose()} /> : null}
-      {overlay.kind === "export-deck" ? <ExportDecklistDialog deck={deck} open onOpenChange={(open) => !open && onClose()} /> : null}
-      {overlay.kind === "missing-cards" ? <MissingCardsDialog deck={deck} open onOpenChange={(open) => !open && onClose()} /> : null}
+      {overlay.kind === "edit-deck" ? (
+        <EditDeckDialog deck={deck} open onOpenChange={(open) => !open && onClose()} />
+      ) : null}
+      {overlay.kind === "share-deck" ? (
+        <ShareDeckDialog deck={deck} open onOpenChange={(open) => !open && onClose()} />
+      ) : null}
+      {overlay.kind === "import-deck" ? (
+        <ImportDecklistDialog deck={deck} open onOpenChange={(open) => !open && onClose()} />
+      ) : null}
+      {overlay.kind === "export-deck" ? (
+        <ExportDecklistDialog deck={deck} open onOpenChange={(open) => !open && onClose()} />
+      ) : null}
+      {overlay.kind === "missing-cards" ? (
+        <MissingCardsDialog deck={deck} open onOpenChange={(open) => !open && onClose()} />
+      ) : null}
       {overlay.kind === "select-from-list" ? (
         <SelectFromListDialog
           deckCards={deck.deckCards}
@@ -93,7 +109,9 @@ export function DeckDetailUtilityOverlays({
           isAddingCard={isAddingCard}
           open
           onAddCard={onAddEdhrecCard}
-          onExcludeLandsChange={(excludeLands) => onSetEdhrecState(edhrecTab || "recs", excludeLands)}
+          onExcludeLandsChange={(excludeLands) =>
+            onSetEdhrecState(edhrecTab || "recs", excludeLands)
+          }
           onOpenChange={(open) => {
             if (!open) {
               onSetEdhrecState(undefined, false)

@@ -25,7 +25,13 @@ defmodule ManavaultWeb.Schema.Catalog.BackupOperations do
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &BackupResolvers.update_backup_settings/3, :backup_settings)
+        payload(
+          parent,
+          args,
+          resolution,
+          &BackupResolvers.update_backup_settings/3,
+          :backup_settings
+        )
       end)
     end
 
