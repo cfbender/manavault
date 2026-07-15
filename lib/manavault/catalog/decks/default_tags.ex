@@ -3,7 +3,7 @@ defmodule Manavault.Catalog.Decks.DefaultTags do
 
   import Ecto.Query
 
-  alias Manavault.Catalog.{Deck, DefaultDeckTag, DeckTag}
+  alias Manavault.Catalog.{Deck, DeckTag, DefaultDeckTag}
   alias Manavault.Repo
 
   def list_default_deck_tags do
