@@ -19,6 +19,7 @@ defmodule ManavaultWeb.Router do
 
   pipeline :authenticated_api do
     plug ManavaultWeb.Plugs.Authentication, :api
+    plug ManavaultWeb.Plugs.GraphQLCSRFProtection
   end
 
   scope "/", ManavaultWeb do

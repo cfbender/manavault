@@ -11,13 +11,17 @@ function currentCsrfToken() {
   return document.querySelector("meta[name='csrf-token']")?.getAttribute("content") ?? undefined
 }
 
-const csrfLink = new SetContextLink((prevContext) => {
-  const token = currentCsrfToken()
-  const headers: Record<string, string> = { ...prevContext.headers }
-  if (token) headers["x-csrf-token"] = token
+export function createCsrfLink() {
+  return new SetContextLink((prevContext) => {
+    const token = currentCsrfToken()
+    const headers: Record<string, string> = { ...prevContext.headers }
+    if (token) headers["x-csrf-token"] = token
 
-  return { headers }
-})
+    return { headers }
+  })
+}
+
+const csrfLink = createCsrfLink()
 
 const httpLink = new HttpLink({
   uri: "/api/graphql",

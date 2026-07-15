@@ -20,6 +20,7 @@ defmodule ManavaultWeb.Plugs.Authentication do
   def sign_in(conn) do
     conn
     |> configure_session(renew: true)
+    |> clear_session()
     |> put_session(@session_key, true)
   end
 
@@ -48,7 +49,7 @@ defmodule ManavaultWeb.Plugs.Authentication do
     end
   end
 
-  defp session_authenticated?(conn) do
+  def session_authenticated?(conn) do
     get_session(conn, @session_key) == true
   end
 
