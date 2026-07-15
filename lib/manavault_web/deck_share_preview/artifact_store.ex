@@ -19,7 +19,8 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactStore do
     File.read(path(cache_dir, fingerprint))
   end
 
-  def write(cache_dir, fingerprint, png), do: write(cache_dir, fingerprint, png, @default_max_artifacts)
+  def write(cache_dir, fingerprint, png),
+    do: write(cache_dir, fingerprint, png, @default_max_artifacts)
 
   def write(cache_dir, fingerprint, png, max_artifacts)
       when is_binary(cache_dir) and is_binary(fingerprint) and is_binary(png) and

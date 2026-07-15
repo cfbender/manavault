@@ -17,7 +17,11 @@ defmodule ManavaultWeb.DeckSharePreview.Renderer do
       )
 
     try do
-      with :ok <- File.write(path, DeckSharePreview.svg(preview, symbol_resolver: &mana_symbol_data_uri/1)),
+      with :ok <-
+             File.write(
+               path,
+               DeckSharePreview.svg(preview, symbol_resolver: &mana_symbol_data_uri/1)
+             ),
            {png, 0} <-
              command_runner.(@renderer, [
                "--format=png",

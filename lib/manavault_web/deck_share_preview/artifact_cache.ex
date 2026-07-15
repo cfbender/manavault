@@ -41,7 +41,12 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCache do
     config = Application.get_env(:manavault, __MODULE__, [])
     opts = Keyword.merge(config, opts)
     cache_dir = Keyword.fetch!(opts, :cache_dir)
-    max_artifacts = positive_integer(Keyword.get(opts, :max_artifacts, @default_max_artifacts), @default_max_artifacts)
+
+    max_artifacts =
+      positive_integer(
+        Keyword.get(opts, :max_artifacts, @default_max_artifacts),
+        @default_max_artifacts
+      )
 
     case ArtifactStore.prepare(cache_dir, max_artifacts) do
       :ok ->
@@ -53,7 +58,10 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCache do
            jobs: %{},
            max_artifacts: max_artifacts,
            max_concurrency:
-             positive_integer(Keyword.get(opts, :max_concurrency, @default_max_concurrency), @default_max_concurrency),
+             positive_integer(
+               Keyword.get(opts, :max_concurrency, @default_max_concurrency),
+               @default_max_concurrency
+             ),
            queued: :queue.new(),
            renderer: Keyword.get(opts, :renderer, &Renderer.render/1),
            running: %{},
@@ -225,7 +233,10 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCache do
       artifact_format: "png",
       assets_version: Keyword.fetch!(opts, :assets_version),
       asset_version: Keyword.fetch!(opts, :asset_version),
-      dimensions: %{height: DeckSharePreview.image_height(), width: DeckSharePreview.image_width()},
+      dimensions: %{
+        height: DeckSharePreview.image_height(),
+        width: DeckSharePreview.image_width()
+      },
       preview: %{
         card_count_label: preview.card_count_label,
         color_identity: List.wrap(preview.color_identity),
@@ -237,7 +248,10 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCache do
         price_label: preview.price_label,
         status_label: preview.status_label
       },
-      renderer_options: %{symbol_embedding: "data-uri", version: Keyword.fetch!(opts, :renderer_version)},
+      renderer_options: %{
+        symbol_embedding: "data-uri",
+        version: Keyword.fetch!(opts, :renderer_version)
+      },
       source_version: Keyword.fetch!(opts, :source_version)
     }
   end

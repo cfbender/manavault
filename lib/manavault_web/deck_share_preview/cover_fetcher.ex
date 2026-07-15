@@ -43,7 +43,9 @@ defmodule ManavaultWeb.DeckSharePreview.CoverFetcher do
     receive_timeout = min(read_timeout, timeout(opts, :receive_timeout, @default_receive_timeout))
 
     case Req.get(url,
-           headers: [{"accept", "image/avif,image/gif,image/jpeg,image/png,image/svg+xml,image/webp"}],
+           headers: [
+             {"accept", "image/avif,image/gif,image/jpeg,image/png,image/svg+xml,image/webp"}
+           ],
            connect_options: [timeout: timeout(opts, :connect_timeout, @default_connect_timeout)],
            receive_timeout: receive_timeout,
            redirect: false,
@@ -101,7 +103,10 @@ defmodule ManavaultWeb.DeckSharePreview.CoverFetcher do
         private
         |> Map.put(@bytes_key, received_bytes)
         |> Map.put(@chunks_key, [data | chunks])
-        |> Map.put(@too_large_key, declared_or_streamed_size_exceeded?(response.headers, received_bytes, max_bytes))
+        |> Map.put(
+          @too_large_key,
+          declared_or_streamed_size_exceeded?(response.headers, received_bytes, max_bytes)
+        )
 
       response = Map.put(response, :private, private)
 

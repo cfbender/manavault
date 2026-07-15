@@ -103,6 +103,7 @@ if config_env() == :prod do
 
   data_dir = System.get_env("DATA_DIR", "/data")
   database_path = System.get_env("DATABASE_PATH", Path.join(data_dir, "manavault.db"))
+
   share_preview_cache_dir =
     System.get_env("SHARE_PREVIEW_CACHE_DIR", Path.join(data_dir, "cache/share-previews"))
 

@@ -94,6 +94,7 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCacheTest do
       )
 
     previews = Enum.map(["A", "B", "C"], &Map.put(preview(), :deck_name, &1))
+
     callers =
       Enum.map(previews, fn preview ->
         Task.async(fn -> ArtifactCache.png(preview, server: cache) end)
@@ -109,7 +110,7 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCacheTest do
     assert_receive {:render_started, _name_three, third_renderer}
     send(third_renderer, :release)
 
-    assert Enum.all?(callers, &(match?({:ok, _png}, Task.await(&1))))
+    assert Enum.all?(callers, &match?({:ok, _png}, Task.await(&1)))
   end
 
   test "the fingerprint changes for every byte-affecting preview input and renderer input" do
@@ -213,7 +214,8 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCacheTest do
     refute File.exists?(stale_path)
   end
 
-  test "retention prunes the oldest completed artifacts without deleting the published artifact", context do
+  test "retention prunes the oldest completed artifacts without deleting the published artifact",
+       context do
     File.mkdir_p!(context.cache_dir)
     oldest = String.duplicate("a", 64)
     middle = String.duplicate("b", 64)
