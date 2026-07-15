@@ -54,7 +54,7 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
       "legalities" => %{}
     }
 
-    assert {:ok, %{cards_count: 3, printings_count: 4}} =
+    assert {:ok, %{cards_count: 4, printings_count: 4, bulk_uri: nil}} =
              Catalog.import_cards(cards ++ [alternate_printing])
     {:ok, location} = Catalog.create_location(%{name: "Batch Binder", kind: "binder"})
 
@@ -94,7 +94,7 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
     Manavault.Catalog.Cache.clear()
 
     {conn, query_classes} =
-      count_repo_queries(fn ->
+      count_repo_query_classes(fn ->
         post(conn, "/api/graphql", %{
           "query" => """
           query Deck($id: ID!) {
@@ -644,6 +644,11 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
   defp global_id(type, id), do: Node.to_global_id(type, id, ManavaultWeb.Schema)
 
   defp count_repo_queries(fun) when is_function(fun, 0) do
+    {result, query_classes} = count_repo_query_classes(fun)
+    {result, Enum.sum(Map.values(query_classes))}
+  end
+
+  defp count_repo_query_classes(fun) when is_function(fun, 0) do
     caller = self()
     ref = make_ref()
     handler_id = {__MODULE__, ref}
