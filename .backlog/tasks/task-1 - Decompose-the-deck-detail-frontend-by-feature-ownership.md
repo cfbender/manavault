@@ -1,9 +1,11 @@
 ---
 id: TASK-1
 title: Decompose the deck detail frontend by feature ownership
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-07-15 15:50'
+updated_date: '2026-07-15 17:32'
 labels:
   - frontend
   - react
@@ -31,3 +33,13 @@ The deck detail route currently centralizes paginated queries, direct Apollo cac
 - [ ] #4 Existing deck-detail behavior remains covered for pagination, add/edit/delete, optimistic success and rollback, tagging, allocation and deallocation, bulk operations, disassembly preview/apply, sharing, and export.
 - [ ] #5 Handwritten deck-detail modules stay below 1,000 lines and pass frontend formatting, linting, typechecking, relevant behavior tests, and the production build.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Map deck-detail state, queries, mutations, overlays, and existing behavior tests by capability.
+2. Extract focused allocation, tagging, card-editing, bulk-action, disassembly, sharing, and export owners while keeping the route a read/composition boundary.
+3. Replace loose modal flags/targets/errors with one typed mutually exclusive overlay model.
+4. Remove the large content prop bridge without introducing a catch-all controller hook/object.
+5. Verify deck-detail behavior tests, frontend format/lint/typecheck, and production build.
+<!-- SECTION:PLAN:END -->

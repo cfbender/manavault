@@ -1,9 +1,11 @@
 ---
 id: TASK-11
 title: Decompose deck allocation workflows by use case
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-07-15 15:57'
+updated_date: '2026-07-15 17:33'
 labels:
   - backend
   - elixir
@@ -32,3 +34,13 @@ Decks.Allocations is a 916-line module with fourteen public and fifty-one privat
 - [ ] #4 Public Catalog and GraphQL function signatures, error mappings, allocation candidate semantics, preferred-printing behavior, and query batching remain backward compatible.
 - [ ] #5 The 916-line catch-all is removed without creating another oversized helper module; focused tests cover success, exact and alternative printing matches, insufficient quantity, archived decks, rollback, bulk batching, proxy paths, and pull-list normalization.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Map allocation validations, queries, transaction boundaries, and shared AllocationItems invariants by use case.
+2. Extract focused single allocation/deallocation, proxy, pull-list, bulk collection, and preview action owners.
+3. Keep collection-item splitting/moving/restoring in AllocationItems and every multi-record workflow atomic.
+4. Preserve public Catalog/GraphQL signatures, errors, candidate/preferred-printing semantics, and batching.
+5. Verify focused success/error/rollback/batching/proxy/pull-list tests plus warnings-as-errors compilation and strict Credo.
+<!-- SECTION:PLAN:END -->

@@ -1,9 +1,11 @@
 ---
 id: TASK-3
 title: Decompose the GraphQL root schema by domain ownership
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-07-15 15:52'
+updated_date: '2026-07-15 17:32'
 labels:
   - backend
   - graphql
@@ -32,3 +34,13 @@ The private GraphQL root is a 999-line registry containing roughly 127 fields an
 - [ ] #4 The generated GraphQL contract remains backward compatible: field names, argument defaults, nullability, Relay payload shapes, global IDs, and public versus authenticated schema behavior are unchanged.
 - [ ] #5 Focused schema, resolver, batching, mutation, and public-share tests pass, and introspection/code generation plus backend compilation complete without warnings.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Inventory private/public root fields, payload declarations, resolver ownership, and node lookups.
+2. Extract focused card, collection, location, deck, backup, and supporting domain field modules composed by the roots.
+3. Remove CatalogResolvers and point fields/types at owning resolver modules directly.
+4. Route node persistence lookups through canonical context/query boundaries while preserving the generated GraphQL contract.
+5. Verify schema/resolver/batching/mutation/public-share tests, code generation/introspection, and warnings-as-errors compilation.
+<!-- SECTION:PLAN:END -->
