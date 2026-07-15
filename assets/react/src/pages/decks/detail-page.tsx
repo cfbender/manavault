@@ -1,166 +1,64 @@
-import type { OperationVariables, TypedDocumentNode } from "@apollo/client"
-import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
+import { useApolloClient, useQuery } from "@apollo/client/react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { useEffect, useMemo, useRef, useState } from "react"
+
 import { EmptyState } from "../../components/card-image"
 import { Button } from "../../components/ui/button"
 import { useToast } from "../../components/ui/toast"
-import type { DeckCardInput, DeckCardUpdateInput, DeckQuery } from "../../gql/graphql"
-import { DECK_GROUP_OPTIONS, groupDeckCards, type DeckGroupBy } from "../../lib/deck-grouping"
 import { graphqlEndpointContext, refetchActiveQueries } from "../../lib/apollo"
-import { usePageTitle } from "../../lib/page-title"
-import { pluralize } from "../../lib/utils"
 import { deckCardsTotalPrice, deckMissingCardsTotalPrice, formatUsdCents } from "./buylist-export"
-import {
-  allocatableDeckPullListEntries,
-  createDeckPullList,
-  type DeckPullListEntry,
-  type DeckPullListExclusions,
-  type DeckPullListMode,
-} from "./deck-allocation-model"
-import {
-  updateDeckCardCustomTagsInDeckQuery,
-  updateDeckCardTagsInDeckQuery,
-  type DeckCustomTagPatch,
-  type DeckTagPatch,
-} from "./deck-query-cache"
+import { createDeckPullList } from "./deck-allocation-model"
 import { compareDeckCards, countDeckZones } from "./deck-card-model"
+import { DeckDetailBulkAllocationOverlay } from "./deck-detail-bulk-allocation-overlay"
+import { DeckDetailCardCollections } from "./deck-detail-card-collections"
+import { DeckDetailCardOverlays } from "./deck-detail-card-overlays"
+import { DeckDetailDisassemblyOverlay } from "./deck-detail-disassembly-overlay"
+import { DeckDetailHeader } from "./deck-detail-header"
+import { DeckDetailLoadingState } from "./deck-detail-loading"
+import { mergeDeckCardsPage } from "./deck-detail-pagination"
+import {
+  bulkAllocationOverlay,
+  editCardOverlay,
+  moveCardOverlay,
+  NO_DECK_DETAIL_OVERLAY,
+  type DeckDetailOverlay,
+  updateBulkAllocationOverlay,
+} from "./deck-detail-overlay"
+import { DeckDetailReadiness } from "./deck-detail-readiness"
+import { DeckDetailSelectionBar } from "./deck-detail-selection-bar"
+import { DeckDetailShareOverlays } from "./deck-detail-share-overlays"
+import { DeckDetailShortcutsOverlay } from "./deck-detail-shortcuts-overlay"
+import type { DeckPrice } from "./deck-detail-types"
+import { DeckDetailUtilityOverlays } from "./deck-detail-utility-overlays"
+import { useDeckAllocationActions } from "./use-deck-allocation-actions"
+import { useDeckBulkActions } from "./use-deck-bulk-actions"
+import { useDeckCardActions } from "./use-deck-card-actions"
+import { useDeckDisassemblyActions } from "./use-deck-disassembly-actions"
+import { useDeckDetailSelection } from "./detail-page-selection"
+import { edhrecCardPrintingId } from "./edhrec"
+import { groupDeckCards, type DeckGroupBy, DECK_GROUP_OPTIONS } from "../../lib/deck-grouping"
 import { deckLegalityIssues } from "./deck-legality"
+import { hasDeckBuylistWork, hasDeckPullWork } from "./deck-readiness"
 import { useDeferredDeckAnalysis } from "./deck-stats-panel"
+import { DeckStatsSection, DeckTokensSection } from "./deck-stats-panel"
+import { useDeckTags } from "./use-deck-tags"
+import { useDeckDetailShortcuts } from "./use-deck-detail-shortcuts"
+import { usePageTitle } from "../../lib/page-title"
+import { useSharedDecklistActions } from "./detail-page-share"
+import { DeckDocument } from "./queries"
 import {
   flattenDeck,
-  type DeckCardEntry,
-  type DeckCardTag,
-  type DeckDisassemblyResult,
-  type DeckZone,
   type EDHRecAddZone,
   type EDHRecCard,
   type EDHRecSectionCard,
   type EDHRecTab,
 } from "./deck-types"
-import { useDeckTags } from "./use-deck-tags"
-import { useDeckDetailShortcuts, DECK_DETAIL_SHORTCUTS } from "./use-deck-detail-shortcuts"
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "../../components/ui/dialog"
-import { DeckDetailContent } from "./detail-page-content"
-import { DeckDetailDialogs } from "./detail-page-dialogs"
-import { useDeckDetailSelection } from "./detail-page-selection"
-import {
-  ShareDeckBuylistDialog,
-  SharePlaytestOverlay,
-  useSharedDecklistActions,
-} from "./detail-page-share"
-import { edhrecCardPrintingId } from "./edhrec"
-import {
-  AddDeckCardDocument,
-  AllocateDeckCardItemDocument,
-  AllocateDeckPullListDocument,
-  AllocateDeckCardProxyDocument,
-  AssignDeckCardTagDocument,
-  BulkDeallocateDeckCardsDocument,
-  BulkDeleteDeckCardsDocument,
-  BulkUpdateDeckCardsDocument,
-  DeallocateDeckCardItemDocument,
-  DeallocateDeckCardProxyDocument,
-  DeckDocument,
-  DeleteDeckCardDocument,
-  DisassembleDeckDocument,
-  PreviewDeckDisassemblyDocument,
-  OptimizeDeckCardPrintingsDocument,
-  SetDeckCommanderDocument,
-  UnassignDeckCardTagDocument,
-  UpdateDeckCardDocument,
-  UpdateDeckCardsTagDocument,
-} from "./queries"
 
-type UpdateDeckCardVariables = { deckCardId: string; input: DeckCardUpdateInput }
-type UpdateDeckCardMutationContext =
-  | { isTagOnly: false; rollbackPatches: [] }
-  | { isTagOnly: true; optimisticTag: DeckCardTag | null; rollbackPatches: DeckTagPatch[] }
-type UpdateDeckCardsTagVariables = { deckCardIds: string[]; tag: DeckCardTag | null }
-
-function deckCardTagValue(tag: string | null | undefined): DeckCardTag | null | undefined {
-  if (tag === null) return null
-  if (tag === "getting" || tag === "consider_cutting") return tag
-  return undefined
-}
-
-function isTagOnlyDeckCardUpdate(input: DeckCardUpdateInput) {
-  const keys = Object.keys(input)
-  return keys.length === 1 && keys[0] === "tag"
-}
-
-function deckCardTagFromDeckQuery(data: DeckQuery | undefined, deckCardId: string) {
-  const edges = data?.deck?.deckCards?.edges
-  if (!edges) return undefined
-
-  for (const edge of edges) {
-    const node = edge?.node
-    if (node?.id === deckCardId) return deckCardTagValue(node.tag)
-  }
-
-  return undefined
-}
-
-function rollbackDeckCardTagPatches(
-  data: DeckQuery | undefined,
-  deckCardIds: readonly string[],
-  optimisticTag: DeckCardTag | null,
-) {
-  const patches: DeckTagPatch[] = []
-
-  for (const deckCardId of deckCardIds) {
-    const previousTag = deckCardTagFromDeckQuery(data, deckCardId)
-    if (previousTag !== undefined) {
-      patches.push({ currentTag: optimisticTag, id: deckCardId, tag: previousTag })
-    }
-  }
-
-  return patches
-}
-
-// Shared wrapper for the fire-and-forget deck-card mutations: exposes isPending
-// and a mutate that swallows errors (the UI surfaces them via allocationError).
-function useDeckMutation<TData, TVariables extends OperationVariables>(
-  document: TypedDocumentNode<TData, TVariables>,
-) {
-  const [mutation, result] = useMutation(document)
-
-  return {
-    ...result,
-    isPending: result.loading,
-    mutate: (variables: TVariables) => void mutation({ variables, onError: () => undefined }),
-  }
-}
-
-function DeckDetailLoadingState() {
-  return (
-    <div className="space-y-7">
-      <div className="h-8 w-32 animate-pulse rounded-btn bg-base-300" />
-      <section className="min-h-52 rounded-box border border-base-300 bg-base-100 p-5 shadow-sm">
-        <div className="flex h-full flex-col justify-between gap-8">
-          <div className="flex gap-2">
-            <div className="h-6 w-24 animate-pulse rounded-full bg-base-300" />
-            <div className="h-6 w-20 animate-pulse rounded-full bg-base-300" />
-          </div>
-          <div className="space-y-3">
-            <div className="h-8 max-w-lg animate-pulse rounded-btn bg-base-300" />
-            <div className="h-4 max-w-sm animate-pulse rounded-btn bg-base-300" />
-          </div>
-        </div>
-      </section>
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 8 }, (_, index) => (
-          <div key={index} className="aspect-[5/7] animate-pulse rounded-xl bg-base-300" />
-        ))}
-      </div>
-    </div>
-  )
+type DeckDetailPageProps = {
+  edhrecExcludeLands?: boolean
+  edhrecTab?: EDHRecTab
+  id: string
+  shareMode?: boolean
 }
 
 export function DeckDetailPage({
@@ -168,95 +66,24 @@ export function DeckDetailPage({
   edhrecTab,
   id,
   shareMode = false,
-}: {
-  edhrecExcludeLands?: boolean
-  edhrecTab?: EDHRecTab
-  id: string
-  shareMode?: boolean
-}) {
+}: DeckDetailPageProps) {
   const [groupBy, setGroupBy] = useState<DeckGroupBy>("theme")
-  const [editTarget, setEditTarget] = useState<DeckCardEntry | null>(null)
-  const [editError, setEditError] = useState<string | null>(null)
-  const [moveTarget, setMoveTarget] = useState<DeckCardEntry | null>(null)
-  const [moveError, setMoveError] = useState<string | null>(null)
-  const [deleteCardTarget, setDeleteCardTarget] = useState<DeckCardEntry | null>(null)
-  const [disassemblyResult, setDisassemblyResult] = useState<DeckDisassemblyResult | null>(null)
-  const [isEditDeckOpen, setIsEditDeckOpen] = useState(false)
-  const [isImportDeckOpen, setIsImportDeckOpen] = useState(false)
-  const [isExportDeckOpen, setIsExportDeckOpen] = useState(false)
-  const [isMissingCardsOpen, setIsMissingCardsOpen] = useState(false)
-  const [isSelectFromListOpen, setIsSelectFromListOpen] = useState(false)
-  const [isShareDeckOpen, setIsShareDeckOpen] = useState(false)
-  const [previewDeckCard, setPreviewDeckCard] = useState<DeckCardEntry | null>(null)
-  const [isSharePlaytestOpen, setIsSharePlaytestOpen] = useState(false)
-  const [isShareBuylistOpen, setIsShareBuylistOpen] = useState(false)
-  const [isBulkAllocationOpen, setIsBulkAllocationOpen] = useState(false)
-  const [bulkAllocationMode, setBulkAllocationMode] = useState<DeckPullListMode>("any")
-  const [selectedBulkAllocationItemIds, setSelectedBulkAllocationItemIds] = useState<
-    Record<string, string | null>
-  >({})
-  const [excludedBulkAllocationEntryIds, setExcludedBulkAllocationEntryIds] =
-    useState<DeckPullListExclusions>({})
-  const [bulkAllocationError, setBulkAllocationError] = useState<string | null>(null)
-  const [isOptimizePrintingsOpen, setIsOptimizePrintingsOpen] = useState(false)
-  const [optimizePrintingsError, setOptimizePrintingsError] = useState<string | null>(null)
-  const [isBulkUpdateDeckCardsPending, setIsBulkUpdateDeckCardsPending] = useState(false)
-  const [isBulkDeleteDeckCardsPending, setIsBulkDeleteDeckCardsPending] = useState(false)
-  const [isBulkDeallocateDeckCardsPending, setIsBulkDeallocateDeckCardsPending] = useState(false)
-  const [isAllocateDeckPullListPending, setIsAllocateDeckPullListPending] = useState(false)
-  const customTagOpSeqRef = useRef<Map<string, number>>(new Map())
+  const [overlay, setOverlay] = useState<DeckDetailOverlay>(NO_DECK_DETAIL_OVERLAY)
   const [activeTagId, setActiveTagId] = useState<string | null>(null)
-  const [isShortcutHelpOpen, setIsShortcutHelpOpen] = useState(false)
-  const deckTags = useDeckTags(id)
   const navigate = useNavigate()
   const client = useApolloClient()
   const { showToast } = useToast()
-  const [previewDeckDisassemblyMutation, previewDeckDisassemblyResult] = useMutation(
-    PreviewDeckDisassemblyDocument,
-  )
-  const previewDeckDisassembly = {
-    ...previewDeckDisassemblyResult,
-    isPending: previewDeckDisassemblyResult.loading,
-    mutate: (deckId: string) =>
-      void previewDeckDisassemblyMutation({
-        variables: { id: deckId },
-        onCompleted: (data) => {
-          setDisassemblyResult(data.previewDeckDisassembly?.disassemblyResult ?? null)
-        },
-        onError: () => undefined,
-      }),
-  }
-  const [disassembleDeckMutation, disassembleDeckResult] = useMutation(DisassembleDeckDocument)
-  const disassembleDeck = {
-    ...disassembleDeckResult,
-    isPending: disassembleDeckResult.loading,
-    mutate: (deckId: string) =>
-      void disassembleDeckMutation({
-        variables: { id: deckId },
-        onCompleted: () => {
-          refetchDeckQueries()
-          showToast("Deck archived")
-          setDisassemblyResult(null)
-          navigate({ to: "/decks" })
-        },
-        onError: () => undefined,
-      }),
-  }
   const {
     data,
+    fetchMore: fetchMoreDeck,
     loading: isLoading,
     previousData,
-    fetchMore: fetchMoreDeck,
   } = useQuery(DeckDocument, {
     variables: { id },
     context: shareMode ? graphqlEndpointContext("/share/graphql") : undefined,
     fetchPolicy: "cache-and-network",
   })
 
-  // The Deck query caps deckCards at 500 per page. Decks larger than that (e.g.
-  // cubes) would otherwise be silently truncated, corrupting stats, prices, and
-  // the pull list. Walk fetchMore until every page is loaded. Normal decks
-  // report hasNextPage=false on page one, so this never runs for them.
   const deckCardsPageInfo = data?.deck?.deckCards?.pageInfo
   const isLoadingMoreDeckCards = useRef(false)
   useEffect(() => {
@@ -266,107 +93,80 @@ export function DeckDetailPage({
     isLoadingMoreDeckCards.current = true
     void fetchMoreDeck({
       variables: { id, deckCardsAfter: deckCardsPageInfo.endCursor },
-      updateQuery: (previous, { fetchMoreResult }) => {
-        const nextConnection = fetchMoreResult?.deck?.deckCards
-        if (!nextConnection || !previous?.deck?.deckCards) return fetchMoreResult ?? previous
-
-        return {
-          ...previous,
-          deck: {
-            ...previous.deck,
-            deckCards: {
-              ...nextConnection,
-              edges: [...(previous.deck.deckCards.edges || []), ...(nextConnection.edges || [])],
-            },
-          },
-        }
-      },
+      updateQuery: (previous, { fetchMoreResult }) => mergeDeckCardsPage(previous, fetchMoreResult),
     }).finally(() => {
       isLoadingMoreDeckCards.current = false
     })
-  }, [deckCardsPageInfo?.hasNextPage, deckCardsPageInfo?.endCursor, fetchMoreDeck, id])
+  }, [deckCardsPageInfo?.endCursor, deckCardsPageInfo?.hasNextPage, fetchMoreDeck, id])
 
-  useEffect(() => {
-    if (deckTags.error) showToast(deckTags.error)
-  }, [deckTags.error, showToast])
-
-  function readDeckQuery(): DeckQuery | undefined {
-    return client.cache.readQuery({ query: DeckDocument, variables: { id } }) ?? undefined
-  }
-
-  function writeDeckQuery(data: DeckQuery | undefined) {
-    if (!data) return
-    client.cache.writeQuery({ query: DeckDocument, variables: { id }, data })
-  }
-
-  function updateDeckCacheTags(patches: readonly DeckTagPatch[]) {
-    writeDeckQuery(updateDeckCardTagsInDeckQuery(readDeckQuery(), patches))
-  }
-
-  function updateDeckCacheCustomTags(
-    cardPatches: readonly DeckCustomTagPatch[],
-    tagCountPatches: readonly { id: string; cardCount: number }[],
-  ) {
-    writeDeckQuery(
-      updateDeckCardCustomTagsInDeckQuery(readDeckQuery(), cardPatches, tagCountPatches),
-    )
-  }
+  const deckQueryData = data?.deck ? data : previousData?.deck?.id === id ? previousData : data
+  const deck = useMemo(() => flattenDeck(deckQueryData?.deck), [deckQueryData?.deck])
+  const deckCards = useMemo(() => deck?.deckCards || [], [deck?.deckCards])
+  const isInitialDeckLoading = isLoading && !deck
+  const isRefreshingDeck = isLoading && Boolean(deck)
+  const canEditDecklist = deck?.status !== "archived"
+  usePageTitle(deck?.name ?? (isInitialDeckLoading ? "Deck" : "Deck not found"))
 
   function refetchDeckQueries() {
     void refetchActiveQueries(client)
   }
-  // Apollo keeps previousData across variable changes, so only fall back to it
-  // while refetching the *same* deck. Otherwise navigating deck A -> B would
-  // render A under /decks/B until B loads.
-  const deckQueryData = data?.deck ? data : previousData?.deck?.id === id ? previousData : data
-  const deck = useMemo(() => flattenDeck(deckQueryData?.deck), [deckQueryData?.deck])
-  const isInitialDeckLoading = isLoading && !deck
-  const isRefreshingDeck = isLoading && Boolean(deck)
-  usePageTitle(deck?.name ?? (isInitialDeckLoading ? "Deck" : "Deck not found"))
-  const [isAddCardOpen, setIsAddCardOpen] = useState(false)
-  const deckCards = useMemo(() => deck?.deckCards || [], [deck?.deckCards])
-  const bulkAllocationPullList = useMemo(
-    () =>
-      createDeckPullList(
-        shareMode ? [] : deckCards,
-        selectedBulkAllocationItemIds,
-        bulkAllocationMode,
-      ),
-    [bulkAllocationMode, deckCards, selectedBulkAllocationItemIds, shareMode],
-  )
-  const { copySharedDecklist, downloadSharedDecklist, shareCopyState } = useSharedDecklistActions(
-    deck?.name || "deck",
-    deckCards,
-  )
-  const deckPrice = useMemo(() => {
-    if (!deck) return null
 
-    const totalPrice = deckCardsTotalPrice(deckCards)
-    return {
-      label: formatUsdCents(totalPrice.totalCents),
-      loading: false,
-      unpricedQuantity: totalPrice.unpricedQuantity,
+  const deckTagActions = useDeckTags(id)
+  useEffect(() => {
+    if (deckTagActions.error) showToast(deckTagActions.error)
+  }, [deckTagActions.error, showToast])
+
+
+  useEffect(() => {
+    setOverlay(NO_DECK_DETAIL_OVERLAY)
+    setActiveTagId(null)
+  }, [id])
+  useEffect(() => {
+    setOverlay((current) => {
+      if (edhrecTab) return current.kind === "edhrec" ? current : { kind: "edhrec" }
+      return current.kind === "edhrec" ? NO_DECK_DETAIL_OVERLAY : current
+    })
+  }, [edhrecTab])
+
+  useEffect(() => {
+    if (shareMode) {
+      setOverlay((current) =>
+        current.kind === "preview-card" || current.kind === "share-buylist" || current.kind === "share-playtest"
+          ? current
+          : NO_DECK_DETAIL_OVERLAY,
+      )
+      return
     }
-  }, [deck, deckCards])
 
-  const buylistPrice = useMemo(() => {
-    if (!deck) return null
-
-    const totalPrice = deckMissingCardsTotalPrice(deckCards)
-    return {
-      label: formatUsdCents(totalPrice.totalCents),
-      loading: false,
-      unpricedQuantity: totalPrice.unpricedQuantity,
+    if (!canEditDecklist) {
+      setOverlay((current) =>
+        current.kind === "edit-deck" ||
+        current.kind === "export-deck" ||
+        current.kind === "preview-card" ||
+        current.kind === "share-deck" ||
+        current.kind === "shortcuts"
+          ? current
+          : NO_DECK_DETAIL_OVERLAY,
+      )
     }
-  }, [deck, deckCards])
-  const deferredDeckAnalysis = useDeferredDeckAnalysis(deckCards)
-  const deckStats = deferredDeckAnalysis?.stats ?? null
-  const deckTokens = deferredDeckAnalysis?.tokens ?? null
+  }, [canEditDecklist, shareMode])
+
+  const cardActions = useDeckCardActions({
+    deckId: id,
+    onRefetch: refetchDeckQueries,
+    onToast: showToast,
+    setOverlay,
+  })
+  const allocationActions = useDeckAllocationActions({ onRefetch: refetchDeckQueries, onToast: showToast })
+  const disassemblyActions = useDeckDisassemblyActions({
+    onArchived: () => navigate({ to: "/decks" }),
+    onRefetch: refetchDeckQueries,
+    onToast: showToast,
+    setOverlay,
+  })
+
   const stackDeckCards = useMemo(
-    () =>
-      deckCards.filter(
-        (deckCard) => deckCard.zone !== "sideboard" && deckCard.zone !== "maybeboard",
-      ),
+    () => deckCards.filter((deckCard) => deckCard.zone !== "sideboard" && deckCard.zone !== "maybeboard"),
     [deckCards],
   )
   const sideboardCards = useMemo(
@@ -379,614 +179,69 @@ export function DeckDetailPage({
   )
   const groupedCards = useMemo(
     () => groupDeckCards(stackDeckCards, groupBy, deck?.tags ?? []),
-    [stackDeckCards, groupBy, deck?.tags],
+    [deck?.tags, groupBy, stackDeckCards],
   )
-  const zoneCounts = useMemo(() => countDeckZones(deckCards), [deckCards])
   const selectionDeckCardIds = useMemo(
     () => [
-      // Custom-tag grouping can place one card in several groups; dedupe so
-      // range selection sees each id once, in first-appearance order.
       ...new Set(groupedCards.flatMap((group) => group.cards.map((deckCard) => deckCard.id))),
       ...sideboardCards.map((deckCard) => deckCard.id),
       ...maybeboardCards.map((deckCard) => deckCard.id),
     ],
-    [groupedCards, sideboardCards, maybeboardCards],
+    [groupedCards, maybeboardCards, sideboardCards],
   )
-  const {
-    allDeckCardsSelected,
-    bulkActionError,
-    bulkQuantity,
-    clearSelectedDeckCards,
-    highlightedDeckCardIds,
-    isDeleteSelectedOpen,
-    isSelectionActive,
-    selectedDeckCardCount,
-    selectedDeckCardIdList,
-    selectedDeckCardIds,
-    selectAllDeckCards,
-    selectDeckCardIds,
-    setBulkActionError,
-    setBulkQuantity,
-    setHighlightedDeckCardIds,
-    setIsDeleteSelectedOpen,
-    setIsSelectingCards,
-    setTagError,
-    tagError,
-    toggleDeckCardSelected,
-  } = useDeckDetailSelection(deckCards, selectionDeckCardIds)
-  const selectedDeallocatableDeckCardIdList = useMemo(() => {
-    const selectedIds = new Set(selectedDeckCardIdList)
+  const selection = useDeckDetailSelection(deckCards, selectionDeckCardIds)
+  const clearSelection = () => {
+    selection.clearSelectedDeckCards()
+    selection.setIsSelectingCards(false)
+  }
+  const bulkActions = useDeckBulkActions({
+    onClearSelection: clearSelection,
+    onRefetch: refetchDeckQueries,
+    onToast: showToast,
+  })
 
+  const selectedDeallocatableDeckCardIdList = useMemo(() => {
+    const selectedIds = new Set(selection.selectedDeckCardIdList)
     return deckCards
       .filter((deckCard) => selectedIds.has(deckCard.id) && deckCard.allocationStatus.allocated > 0)
       .map((deckCard) => deckCard.id)
-  }, [deckCards, selectedDeckCardIdList])
+  }, [deckCards, selection.selectedDeckCardIdList])
+  const selectedAllocatedDeckCardCount = selectedDeallocatableDeckCardIdList.length
   const hasBulkAllocationAvailable = useMemo(() => {
     if (shareMode) return false
-
-    const availablePullList = createDeckPullList(deckCards, undefined, "any")
-
-    return availablePullList.exactEntries.length > 0 || availablePullList.choices.length > 0
+    const available = createDeckPullList(deckCards, undefined, "any")
+    return available.exactEntries.length > 0 || available.choices.length > 0
   }, [deckCards, shareMode])
-
-  const [updateDeckCardMutation, updateDeckCardResult] = useMutation(UpdateDeckCardDocument)
-  const updateDeckCard = {
-    ...updateDeckCardResult,
-    isPending: updateDeckCardResult.loading,
-    mutate: mutateUpdateDeckCard,
-  }
-
-  function mutateUpdateDeckCard({ deckCardId, input }: UpdateDeckCardVariables) {
-    const wasEditingCard = Boolean(editTarget)
-    const wasMovingCard = Boolean(moveTarget)
-    let context: UpdateDeckCardMutationContext = { isTagOnly: false, rollbackPatches: [] }
-
-    if (isTagOnlyDeckCardUpdate(input)) {
-      const optimisticTag = deckCardTagValue(input.tag)
-
-      if (optimisticTag !== undefined) {
-        const previousDeck = readDeckQuery()
-        const previousTag = deckCardTagFromDeckQuery(previousDeck, deckCardId)
-        const rollbackPatches: DeckTagPatch[] =
-          previousTag === undefined
-            ? []
-            : [{ currentTag: optimisticTag, id: deckCardId, tag: previousTag }]
-
-        updateDeckCacheTags([{ id: deckCardId, tag: optimisticTag }])
-        context = { isTagOnly: true, optimisticTag, rollbackPatches }
-      }
-    }
-
-    void updateDeckCardMutation({
-      variables: { id: deckCardId, input },
-      onCompleted: (data) => {
-        const isTagOnly = context.isTagOnly || isTagOnlyDeckCardUpdate(input)
-
-        if (isTagOnly) {
-          const deckCard = data.updateDeckCard?.deckCard
-          const tag = deckCardTagValue(deckCard?.tag)
-          if (deckCard && tag !== undefined) {
-            const patch: DeckTagPatch = { id: deckCard.id, tag }
-            if (context.isTagOnly) patch.currentTag = context.optimisticTag
-
-            updateDeckCacheTags([patch])
-          }
-        } else {
-          refetchDeckQueries()
-        }
-
-        if (wasEditingCard) showToast("Card edited")
-        if (wasMovingCard) showToast("Card moved")
-        setEditTarget(null)
-        setEditError(null)
-        setMoveTarget(null)
-        setMoveError(null)
-        setTagError(null)
-      },
-      onError: (error) => {
-        if (context.isTagOnly && context.rollbackPatches.length > 0) {
-          updateDeckCacheTags(context.rollbackPatches)
-        }
-
-        const message = error instanceof Error ? error.message : "Could not update deck card"
-        if (wasEditingCard) setEditError(message)
-        else if (wasMovingCard) setMoveError(message)
-        else setTagError(message)
-      },
-    })
-  }
-
-  const [deleteDeckCardMutation, deleteDeckCardResult] = useMutation(DeleteDeckCardDocument)
-  const deleteDeckCard = {
-    ...deleteDeckCardResult,
-    isPending: deleteDeckCardResult.loading,
-    mutate: (deckCardId: string) =>
-      void deleteDeckCardMutation({
-        variables: { id: deckCardId },
-        onCompleted: () => {
-          refetchDeckQueries()
-          showToast("Card deleted from deck")
-        },
-        onError: () => undefined,
-      }),
-  }
-
-  const [setDeckCommanderMutation, setDeckCommanderResult] = useMutation(SetDeckCommanderDocument)
-  const setDeckCommander = {
-    ...setDeckCommanderResult,
-    isPending: setDeckCommanderResult.loading,
-    mutate: (deckCardId: string) =>
-      void setDeckCommanderMutation({
-        variables: { id: deckCardId },
-        onCompleted: () => {
-          refetchDeckQueries()
-          setMoveError(null)
-        },
-        onError: (error) =>
-          setMoveError(error instanceof Error ? error.message : "Could not set commander"),
-      }),
-  }
-  const [addDeckCardMutation, addDeckCardResult] = useMutation(AddDeckCardDocument)
-  const addDeckCard = {
-    ...addDeckCardResult,
-    isPending: addDeckCardResult.loading,
-    mutate: (input: DeckCardInput) =>
-      void addDeckCardMutation({
-        variables: { deckId: id, input },
-        onCompleted: () => {
-          refetchDeckQueries()
-          showToast("Card added to deck")
-        },
-        onError: () => undefined,
-      }),
-  }
-
-  const [optimizeDeckCardPrintingsMutation, optimizeDeckCardPrintingsResult] = useMutation(
-    OptimizeDeckCardPrintingsDocument,
+  const hasReadinessWork = useMemo(() => hasDeckPullWork(deckCards), [deckCards])
+  const hasBuylistWork = useMemo(() => hasDeckBuylistWork(deckCards), [deckCards])
+  const zoneCounts = useMemo(() => countDeckZones(deckCards), [deckCards])
+  const deferredDeckAnalysis = useDeferredDeckAnalysis(deckCards)
+  const deckPrice = useMemo<DeckPrice | null>(() => {
+    if (!deck) return null
+    const price = deckCardsTotalPrice(deckCards)
+    return { label: formatUsdCents(price.totalCents), loading: false, unpricedQuantity: price.unpricedQuantity }
+  }, [deck, deckCards])
+  const buylistPrice = useMemo<DeckPrice | null>(() => {
+    if (!deck) return null
+    const price = deckMissingCardsTotalPrice(deckCards)
+    return { label: formatUsdCents(price.totalCents), loading: false, unpricedQuantity: price.unpricedQuantity }
+  }, [deck, deckCards])
+  const { copySharedDecklist, downloadSharedDecklist, shareCopyState } = useSharedDecklistActions(
+    deck?.name || "deck",
+    deckCards,
   )
-  const optimizeDeckCardPrintings = {
-    ...optimizeDeckCardPrintingsResult,
-    isPending: optimizeDeckCardPrintingsResult.loading,
-    mutate: (deckCardIds: string[]) =>
-      void optimizeDeckCardPrintingsMutation({
-        variables: { deckCardIds },
-        onCompleted: (data) => {
-          const optimizedCount = data.optimizeDeckCardPrintings?.deckCards.length || 0
-
-          refetchDeckQueries()
-          setIsOptimizePrintingsOpen(false)
-          setOptimizePrintingsError(null)
-          showToast(
-            optimizedCount > 0
-              ? `${pluralize(optimizedCount, "printing")} optimized`
-              : "Printings already optimized",
-          )
-        },
-        onError: (error) =>
-          setOptimizePrintingsError(
-            error instanceof Error ? error.message : "Could not optimize printings",
-          ),
-      }),
-  }
-
-  const [updateDeckCardsTagMutation, updateDeckCardsTagResult] = useMutation(
-    UpdateDeckCardsTagDocument,
-  )
-  const updateDeckCardsTag = {
-    ...updateDeckCardsTagResult,
-    isPending: updateDeckCardsTagResult.loading,
-    mutate: ({ deckCardIds, tag }: UpdateDeckCardsTagVariables) => {
-      const previousDeck = readDeckQuery()
-      const rollbackPatches = rollbackDeckCardTagPatches(previousDeck, deckCardIds, tag)
-
-      updateDeckCacheTags(deckCardIds.map((deckCardId) => ({ id: deckCardId, tag })))
-
-      void updateDeckCardsTagMutation({
-        variables: { deckCardIds, tag },
-        onCompleted: (data) => {
-          const patches = (data.updateDeckCardsTag?.deckCards ?? [])
-            .map((deckCard): DeckTagPatch | null => {
-              const nextTag = deckCardTagValue(deckCard.tag)
-              if (nextTag === undefined) return null
-              return { currentTag: tag, id: deckCard.id, tag: nextTag }
-            })
-            .filter((patch): patch is DeckTagPatch => patch !== null)
-
-          if (patches.length > 0) updateDeckCacheTags(patches)
-
-          clearSelectedDeckCards()
-          setIsSelectingCards(false)
-          setBulkActionError(null)
-          setTagError(null)
-        },
-        onError: (error) => {
-          if (rollbackPatches.length) updateDeckCacheTags(rollbackPatches)
-
-          setBulkActionError(
-            error instanceof Error ? error.message : "Could not tag selected cards",
-          )
-        },
-      })
-    },
-  }
-
-  const [assignDeckCardTagMutation] = useMutation(AssignDeckCardTagDocument)
-  const [unassignDeckCardTagMutation] = useMutation(UnassignDeckCardTagDocument)
-
-  const [bulkUpdateDeckCardsMutation] = useMutation(BulkUpdateDeckCardsDocument)
-  const bulkUpdateDeckCards = {
-    isPending: isBulkUpdateDeckCardsPending,
-    mutate: ({ deckCardIds, input }: { deckCardIds: string[]; input: DeckCardUpdateInput }) => {
-      setIsBulkUpdateDeckCardsPending(true)
-      // One server-side bulk mutation (a single transaction) instead of N single
-      // updates. Refetch afterwards so the deck-level fields (cardCount, legality,
-      // allocation status) reconcile.
-      void bulkUpdateDeckCardsMutation({ variables: { deckCardIds, input } })
-        .then(() => {
-          clearSelectedDeckCards()
-          setIsSelectingCards(false)
-          setBulkActionError(null)
-        })
-        .catch((error) =>
-          setBulkActionError(
-            error instanceof Error ? error.message : "Could not update selected cards",
-          ),
-        )
-        .finally(() => {
-          refetchDeckQueries()
-          setIsBulkUpdateDeckCardsPending(false)
-        })
-    },
-  }
-
-  const [bulkDeleteDeckCardsMutation] = useMutation(BulkDeleteDeckCardsDocument)
-  const bulkDeleteDeckCards = {
-    isPending: isBulkDeleteDeckCardsPending,
-    mutate: (deckCardIds: string[]) => {
-      setIsBulkDeleteDeckCardsPending(true)
-      void bulkDeleteDeckCardsMutation({ variables: { deckCardIds } })
-        .then(() => {
-          showToast(`${pluralize(deckCardIds.length, "card")} deleted`)
-          clearSelectedDeckCards()
-          setIsSelectingCards(false)
-          setIsDeleteSelectedOpen(false)
-          setBulkActionError(null)
-        })
-        .catch((error) =>
-          setBulkActionError(
-            error instanceof Error ? error.message : "Could not delete selected cards",
-          ),
-        )
-        .finally(() => {
-          refetchDeckQueries()
-          setIsBulkDeleteDeckCardsPending(false)
-        })
-    },
-  }
-
-  const [bulkDeallocateDeckCardsMutation] = useMutation(BulkDeallocateDeckCardsDocument)
-  const bulkDeallocateDeckCards = {
-    isPending: isBulkDeallocateDeckCardsPending,
-    mutate: (deckCardIds: string[]) => {
-      setIsBulkDeallocateDeckCardsPending(true)
-      void bulkDeallocateDeckCardsMutation({ variables: { deckCardIds } })
-        .then(({ data }) => {
-          const deallocatedCount =
-            data?.bulkDeallocateDeckCards?.deckCards.length ?? deckCardIds.length
-
-          showToast(`${pluralize(deallocatedCount, "card")} deallocated`)
-          clearSelectedDeckCards()
-          setIsSelectingCards(false)
-          setBulkActionError(null)
-        })
-        .catch((error) =>
-          setBulkActionError(
-            error instanceof Error ? error.message : "Could not deallocate selected cards",
-          ),
-        )
-        .finally(() => {
-          refetchDeckQueries()
-          setIsBulkDeallocateDeckCardsPending(false)
-        })
-    },
-  }
-
-  function invalidateAllocationQueries() {
-    refetchDeckQueries()
-  }
-
-  const allocateDeckCardItem = useDeckMutation(AllocateDeckCardItemDocument)
-  const deallocateDeckCardItem = useDeckMutation(DeallocateDeckCardItemDocument)
-  const allocateDeckCardProxy = useDeckMutation(AllocateDeckCardProxyDocument)
-  const deallocateDeckCardProxy = useDeckMutation(DeallocateDeckCardProxyDocument)
-  const allocateDeckPullList = {
-    isPending: isAllocateDeckPullListPending,
-    mutate: (entries: DeckPullListEntry[]) => {
-      if (!deck) return
-
-      setIsAllocateDeckPullListPending(true)
-      // One server-side mutation applies the whole pull list in a single
-      // transaction; per-entry requests contend for SQLite's database-wide
-      // write lock and fail with busy errors.
-      void client
-        .mutate({
-          mutation: AllocateDeckPullListDocument,
-          variables: {
-            deckId: deck.id,
-            entries: entries.map((entry) => ({
-              deckCardId: entry.deckCard.id,
-              collectionItemId: entry.candidate.item.id,
-              quantity: entry.quantity,
-            })),
-          },
-        })
-        .then(({ data }) => {
-          const result = data?.allocateDeckPullList?.allocationResult
-
-          if (result && result.skipped > 0) {
-            setBulkAllocationError(
-              `${pluralize(result.skipped, "entry", "entries")} could not be allocated`,
-            )
-            return
-          }
-
-          const allocatedCount =
-            result?.allocated ?? entries.reduce((total, entry) => total + entry.quantity, 0)
-
-          showToast(`${pluralize(allocatedCount, "card")} allocated`)
-          setIsBulkAllocationOpen(false)
-          setSelectedBulkAllocationItemIds({})
-          setExcludedBulkAllocationEntryIds({})
-          setBulkAllocationError(null)
-        })
-        .catch((error: unknown) => {
-          setBulkAllocationError(error instanceof Error ? error.message : "Could not allocate deck")
-        })
-        .finally(() => {
-          // Skipped entries still leave the applied ones committed, so always
-          // reconcile the cache with the server instead of only on full success.
-          invalidateAllocationQueries()
-          setIsAllocateDeckPullListPending(false)
-        })
-    },
-  }
-  const allocationError =
-    [
-      allocateDeckCardItem,
-      deallocateDeckCardItem,
-      allocateDeckCardProxy,
-      deallocateDeckCardProxy,
-      deleteDeckCard,
-      previewDeckDisassembly,
-      disassembleDeck,
-    ]
-      .map((mutation) => mutation.error)
-      .find((error): error is Error => error instanceof Error)?.message ?? null
-  const isUpdatingDeckCard =
-    updateDeckCard.isPending ||
-    updateDeckCardsTag.isPending ||
-    optimizeDeckCardPrintings.isPending ||
-    bulkUpdateDeckCards.isPending ||
-    bulkDeleteDeckCards.isPending ||
-    bulkDeallocateDeckCards.isPending ||
-    deleteDeckCard.isPending ||
-    setDeckCommander.isPending ||
-    allocateDeckCardItem.isPending ||
-    deallocateDeckCardItem.isPending ||
-    allocateDeckCardProxy.isPending ||
-    deallocateDeckCardProxy.isPending
-
-  useDeckDetailShortcuts(
-    {
-      onAddCard: () => setIsAddCardOpen(true),
-      onToggleSelect: () => setIsSelectingCards((selecting) => !selecting),
-      onCycleGroup: () => {
-        const index = DECK_GROUP_OPTIONS.findIndex((option) => option.value === groupBy)
-        const next = DECK_GROUP_OPTIONS[(index + 1) % DECK_GROUP_OPTIONS.length]
-        if (next) setGroupBy(next.value)
-      },
-      onOpenPlaytest: () => navigate({ to: "/decks/$id/playtest", params: { id } }),
-      onJumpToTagIndex: (index) => {
-        const tag = deck?.tags?.[index]
-        if (tag) jumpToTag(tag.id)
-      },
-      onClearHighlight: () => {
-        setActiveTagId(null)
-        setHighlightedDeckCardIds(null)
-      },
-      onToggleHelp: () => setIsShortcutHelpOpen((open) => !open),
-    },
-    !shareMode && deck?.status !== "archived",
-  )
-  if (isInitialDeckLoading) return <DeckDetailLoadingState />
-  if (!deck) {
-    return (
-      <EmptyState
-        title="Deck not found"
-        description="This deck may have been deleted, moved, or unavailable while the local vault is syncing."
-        action={
-          <div className="flex flex-wrap justify-center gap-2">
-            <Button asChild>
-              <Link to="/decks">Back to decks</Link>
-            </Button>
-            <Button type="button" variant="outline" onClick={refetchDeckQueries}>
-              Retry
-            </Button>
-          </div>
-        }
-      />
-    )
-  }
-
-  if (shareMode && isSharePlaytestOpen) {
-    return (
-      <SharePlaytestOverlay
-        deck={deck}
-        deckCards={deckCards}
-        onClose={() => setIsSharePlaytestOpen(false)}
-      />
-    )
-  }
-
-  const legalityIssues = deckLegalityIssues(deck.legality)
-  const canEditDecklist = deck.status !== "archived"
-
-  function moveDeckCard(deckCard: DeckCardEntry, zone: DeckZone) {
-    updateDeckCard.mutate({ deckCardId: deckCard.id, input: { zone } })
-  }
-
-  function editDeckCard(deckCard: DeckCardEntry, input: DeckCardUpdateInput) {
-    updateDeckCard.mutate({ deckCardId: deckCard.id, input })
-  }
-
-  function tagDeckCard(deckCard: DeckCardEntry, tag: DeckCardTag | null) {
-    setTagError(null)
-    updateDeckCard.mutate({ deckCardId: deckCard.id, input: { tag } })
-  }
-
-  function assignDeckCardTag(deckCard: DeckCardEntry, tagId: string) {
-    const previousDeck = readDeckQuery()
-    const previousTagIds = deckCard.tagIds ?? []
-    const previousCardCount =
-      previousDeck?.deck?.tags?.find((deckTag) => deckTag.id === tagId)?.cardCount ?? 0
-    if (previousTagIds.includes(tagId)) return
-
-    const opSeq = (customTagOpSeqRef.current.get(deckCard.id) ?? 0) + 1
-    customTagOpSeqRef.current.set(deckCard.id, opSeq)
-    const optimisticTagIds = [...previousTagIds, tagId]
-    const optimisticCardCount = previousCardCount + deckCard.quantity
-    updateDeckCacheCustomTags(
-      [{ id: deckCard.id, tagIds: optimisticTagIds }],
-      [{ id: tagId, cardCount: optimisticCardCount }],
-    )
-
-    void assignDeckCardTagMutation({
-      variables: { deckCardId: deckCard.id, tagId },
-      onCompleted: (data) => {
-        // A newer assign/unassign for this card superseded us; its optimistic
-        // state is authoritative, so skip reconciling a stale response.
-        if (customTagOpSeqRef.current.get(deckCard.id) !== opSeq) return
-        const assignedDeckCard = data.assignDeckCardTag?.deckCard
-        const deckTags = data.assignDeckCardTag?.deckTags ?? []
-        if (assignedDeckCard) {
-          updateDeckCacheCustomTags(
-            [{ id: assignedDeckCard.id, tagIds: assignedDeckCard.tagIds }],
-            deckTags,
-          )
-        }
-      },
-      onError: (error) => {
-        if (customTagOpSeqRef.current.get(deckCard.id) !== opSeq) return
-        updateDeckCacheCustomTags(
-          [{ id: deckCard.id, tagIds: previousTagIds }],
-          [{ id: tagId, cardCount: previousCardCount }],
-        )
-        showToast(error instanceof Error ? error.message : "Could not assign tag")
-      },
-    })
-  }
-
-  function unassignDeckCardTag(deckCard: DeckCardEntry, tagId: string) {
-    const previousDeck = readDeckQuery()
-    const previousTagIds = deckCard.tagIds ?? []
-    const previousCardCount =
-      previousDeck?.deck?.tags?.find((deckTag) => deckTag.id === tagId)?.cardCount ?? 0
-    if (!previousTagIds.includes(tagId)) return
-
-    const opSeq = (customTagOpSeqRef.current.get(deckCard.id) ?? 0) + 1
-    customTagOpSeqRef.current.set(deckCard.id, opSeq)
-    const optimisticTagIds = previousTagIds.filter((id) => id !== tagId)
-    const optimisticCardCount = Math.max(previousCardCount - deckCard.quantity, 0)
-    updateDeckCacheCustomTags(
-      [{ id: deckCard.id, tagIds: optimisticTagIds }],
-      [{ id: tagId, cardCount: optimisticCardCount }],
-    )
-
-    void unassignDeckCardTagMutation({
-      variables: { deckCardId: deckCard.id, tagId },
-      onCompleted: (data) => {
-        if (customTagOpSeqRef.current.get(deckCard.id) !== opSeq) return
-        const unassignedDeckCard = data.unassignDeckCardTag?.deckCard
-        const deckTags = data.unassignDeckCardTag?.deckTags ?? []
-        if (unassignedDeckCard) {
-          updateDeckCacheCustomTags(
-            [{ id: unassignedDeckCard.id, tagIds: unassignedDeckCard.tagIds }],
-            deckTags,
-          )
-        }
-      },
-      onError: (error) => {
-        if (customTagOpSeqRef.current.get(deckCard.id) !== opSeq) return
-        updateDeckCacheCustomTags(
-          [{ id: deckCard.id, tagIds: previousTagIds }],
-          [{ id: tagId, cardCount: previousCardCount }],
-        )
-        showToast(error instanceof Error ? error.message : "Could not remove tag")
-      },
-    })
-  }
 
   function jumpToTag(tagId: string) {
     if (activeTagId === tagId) {
       setActiveTagId(null)
-      setHighlightedDeckCardIds(null)
+      selection.setHighlightedDeckCardIds(null)
       return
     }
-    const matchingIds = deckCards
-      .filter((deckCard) => (deckCard.tagIds ?? []).includes(tagId))
-      .map((deckCard) => deckCard.id)
+
     setActiveTagId(tagId)
-    setHighlightedDeckCardIds(new Set(matchingIds))
-  }
-
-  function tagSelectedDeckCards(tag: DeckCardTag | null) {
-    if (selectedDeckCardIdList.length === 0) return
-    setBulkActionError(null)
-    updateDeckCardsTag.mutate({ deckCardIds: selectedDeckCardIdList, tag })
-  }
-
-  function updateSelectedDeckCards(input: DeckCardUpdateInput) {
-    if (selectedDeckCardIdList.length === 0) return
-    setBulkActionError(null)
-    bulkUpdateDeckCards.mutate({ deckCardIds: selectedDeckCardIdList, input })
-  }
-
-  function deallocateSelectedDeckCards() {
-    if (selectedDeallocatableDeckCardIdList.length === 0) return
-    setBulkActionError(null)
-    bulkDeallocateDeckCards.mutate(selectedDeallocatableDeckCardIdList)
-  }
-
-  function deleteSelectedDeckCards() {
-    if (selectedDeckCardIdList.length === 0) return
-    setBulkActionError(null)
-    bulkDeleteDeckCards.mutate(selectedDeckCardIdList)
-  }
-
-  function deleteSelectedDeckCard() {
-    if (!deleteCardTarget) return
-    deleteDeckCard.mutate(deleteCardTarget.id)
-  }
-
-  function previewCurrentDeckDisassembly() {
-    if (!deck) return
-    setDisassemblyResult(null)
-    previewDeckDisassembly.mutate(deck.id)
-  }
-
-  function disassembleCurrentDeck() {
-    if (!deck) return
-    disassembleDeck.mutate(deck.id)
-  }
-
-  function addEdhrecCard(card: EDHRecCard | EDHRecSectionCard, zone: EDHRecAddZone) {
-    addDeckCard.mutate({
-      finish: "nonfoil",
-      name: card.name,
-      preferredPrintingId: edhrecCardPrintingId(card),
-      quantity: 1,
-      zone,
-    })
+    selection.setHighlightedDeckCardIds(
+      new Set(deckCards.filter((deckCard) => (deckCard.tagIds ?? []).includes(tagId)).map((deckCard) => deckCard.id)),
+    )
   }
 
   function setEdhrecState(tab: EDHRecTab | undefined, excludeLands = edhrecExcludeLands) {
@@ -1000,266 +255,274 @@ export function DeckDetailPage({
     })
   }
 
+  function addEdhrecCard(card: EDHRecCard | EDHRecSectionCard, zone: EDHRecAddZone) {
+    cardActions.addDeckCard({
+      finish: "nonfoil",
+      name: card.name,
+      preferredPrintingId: edhrecCardPrintingId(card),
+      quantity: 1,
+      zone,
+    })
+  }
+
+  useDeckDetailShortcuts(
+    {
+      onAddCard: () => setOverlay({ kind: "add-card" }),
+      onClearHighlight: () => {
+        setActiveTagId(null)
+        selection.setHighlightedDeckCardIds(null)
+      },
+      onCycleGroup: () => {
+        const index = DECK_GROUP_OPTIONS.findIndex((option) => option.value === groupBy)
+        const next = DECK_GROUP_OPTIONS[(index + 1) % DECK_GROUP_OPTIONS.length]
+        if (next) setGroupBy(next.value)
+      },
+      onJumpToTagIndex: (index) => {
+        const tag = deck?.tags?.[index]
+        if (tag) jumpToTag(tag.id)
+      },
+      onOpenPlaytest: () => navigate({ to: "/decks/$id/playtest", params: { id } }),
+      onToggleHelp: () => setOverlay((current) => current.kind === "shortcuts" ? NO_DECK_DETAIL_OVERLAY : { kind: "shortcuts" }),
+      onToggleSelect: () => selection.setIsSelectingCards((selecting) => !selecting),
+    },
+    !shareMode && canEditDecklist,
+  )
+
+  if (isInitialDeckLoading) return <DeckDetailLoadingState />
+  if (!deck) {
+    return (
+      <EmptyState
+        title="Deck not found"
+        description="This deck may have been deleted, moved, or unavailable while the local vault is syncing."
+        action={
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button asChild><Link to="/decks">Back to decks</Link></Button>
+            <Button type="button" variant="outline" onClick={refetchDeckQueries}>Retry</Button>
+          </div>
+        }
+      />
+    )
+  }
+
+  const legalityIssues = deckLegalityIssues(deck.legality)
+  const isUpdatingDeckCard =
+    cardActions.isPending ||
+    allocationActions.isAllocating ||
+    allocationActions.isOptimizingPrintings ||
+    bulkActions.isPending
+  const workflowError =
+    bulkActions.error ||
+    cardActions.tagError ||
+    cardActions.deleteError ||
+    allocationActions.allocationError ||
+    disassemblyActions.error
+
   return (
     <>
-      <DeckDetailContent
-        allocationError={allocationError}
-        allocationActions={{
-          onAllocate: (deckCard, collectionItemId) =>
-            allocateDeckCardItem.mutate({ deckCardId: deckCard.id, collectionItemId }),
-          onDeallocate: (deckCard, collectionItemId) =>
-            deallocateDeckCardItem.mutate({ deckCardId: deckCard.id, collectionItemId }),
-          onToggleProxy: (deckCard) => {
-            const status = deckCard.allocationStatus
+      <div className="lg:grid lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start lg:gap-6">
+        <DeckDetailHeader
+          canEdit={canEditDecklist}
+          deck={deck}
+          deckCards={deckCards}
+          deckPrice={deckPrice}
+          deckTags={deck.tags}
+          groupBy={groupBy}
+          hasBuylistWork={hasBuylistWork}
+          hasReadinessWork={hasReadinessWork}
+          isRefreshing={isRefreshingDeck}
+          isSelectionActive={selection.isSelectionActive}
+          legalityIssues={legalityIssues}
+          onAddCard={() => setOverlay({ kind: "add-card" })}
+          onCopySharedDecklist={copySharedDecklist}
+          onDisassemble={() => disassemblyActions.preview(deck.id)}
+          onDownloadSharedDecklist={downloadSharedDecklist}
+          onEditDeck={() => setOverlay({ kind: "edit-deck" })}
+          onExportDeck={() => setOverlay({ kind: "export-deck" })}
+          onGroupByChange={setGroupBy}
+          onImportDeck={() => setOverlay({ kind: "import-deck" })}
+          onMissingCards={() => setOverlay({ kind: "missing-cards" })}
+          onOpenEdhrec={() => {
+            setOverlay({ kind: "edhrec" })
+            setEdhrecState("recs")
+          }}
+          onOpenReadiness={() => setOverlay({ kind: "readiness" })}
+          onShareBuylist={() => setOverlay({ kind: "share-buylist" })}
+          onShareDeck={() => setOverlay({ kind: "share-deck" })}
+          onSharePlaytest={() => setOverlay({ kind: "share-playtest" })}
+          onStartSelecting={() => selection.setIsSelectingCards(true)}
+          shareCopyState={shareCopyState}
+          shareMode={shareMode}
+          tagActions={{
+            activeTagId,
+            onCreate: deckTagActions.createTag,
+            onDelete: deckTagActions.deleteTag,
+            onJumpTo: jumpToTag,
+            onReorder: deckTagActions.reorderTags,
+            onUpdate: deckTagActions.updateTag,
+          }}
+          zoneCounts={zoneCounts}
+        >
+          <DeckDetailReadiness
+            allocationError={workflowError}
+            buylistPrice={buylistPrice}
+            canBulkAllocate={canEditDecklist && hasBulkAllocationAvailable}
+            deckCards={deckCards}
+            isPending={isUpdatingDeckCard}
+            onAllocate={(deckCard, collectionItemId) => allocationActions.allocate(deckCard.id, collectionItemId)}
+            onClose={() => setOverlay(NO_DECK_DETAIL_OVERLAY)}
+            onDeallocate={(deckCard, collectionItemId) => allocationActions.deallocate(deckCard.id, collectionItemId)}
+            onMissingCards={() => setOverlay({ kind: "missing-cards" })}
+            onOpenBulkAllocation={() => setOverlay(bulkAllocationOverlay())}
+            onOpenOptimizePrintings={() => setOverlay({ kind: "optimize-printings", error: null })}
+            onTagCard={cardActions.tagDeckCard}
+            onToggleProxy={allocationActions.toggleProxy}
+            open={canEditDecklist && overlay.kind === "readiness"}
+            readOnly={shareMode || !canEditDecklist}
+          />
 
-            if (status.proxyAllocated > 0) {
-              deallocateDeckCardProxy.mutate({
-                deckCardId: deckCard.id,
-                quantity: status.proxyAllocated,
-              })
-            } else {
-              const quantity = Math.max(status.required - status.allocated, 0)
+          {!shareMode && canEditDecklist && selection.isSelectionActive ? (
+            <DeckDetailSelectionBar
+              allSelected={selection.allDeckCardsSelected}
+              bulkQuantity={selection.bulkQuantity}
+              error={bulkActions.error || cardActions.tagError}
+              isPending={isUpdatingDeckCard}
+              onClear={() => {
+                bulkActions.clearError()
+                cardActions.clearTagError()
+                clearSelection()
+              }}
+              onDeallocate={() => {
+                if (!selectedDeallocatableDeckCardIdList.length) return
+                bulkActions.deallocate(selectedDeallocatableDeckCardIdList)
+              }}
+              onDelete={() => setOverlay({ kind: "delete-selected" })}
+              onOpenSelectFromList={() => setOverlay({ kind: "select-from-list" })}
+              onQuantityChange={selection.setBulkQuantity}
+              onSelectAll={selection.selectAllDeckCards}
+              onTag={(tag) => {
+                if (!selection.selectedDeckCardIdList.length) return
+                bulkActions.clearError()
+                cardActions.clearTagError()
+                cardActions.updateSelectedDeckCardsTag(selection.selectedDeckCardIdList, tag, clearSelection)
+              }}
+              onUpdate={(input) => {
+                if (!selection.selectedDeckCardIdList.length) return
+                bulkActions.update(selection.selectedDeckCardIdList, input)
+              }}
+              selectedAllocatedCount={selectedAllocatedDeckCardCount}
+              selectedCount={selection.selectedDeckCardCount}
+              totalCount={deckCards.length}
+            />
+          ) : null}
 
-              if (quantity > 0) {
-                allocateDeckCardProxy.mutate({ deckCardId: deckCard.id, quantity })
-              }
-            }
-          },
-        }}
-        cardActions={{
-          onAssignTag: assignDeckCardTag,
-          onDeleteCard: setDeleteCardTarget,
-          onEditCard: (deckCard) => {
-            setEditError(null)
-            setEditTarget(deckCard)
-          },
-          onMoveCard: (deckCard) => {
-            setMoveError(null)
-            setMoveTarget(deckCard)
-          },
-          onPreviewCard: setPreviewDeckCard,
-          onSetCommander: (deckCard) => setDeckCommander.mutate(deckCard.id),
-          onTagCard: tagDeckCard,
-          onUnassignTag: unassignDeckCardTag,
-        }}
-        selection={{
-          allDeckCardsSelected,
-          bulkActionError: bulkActionError || tagError,
-          bulkQuantity,
-          highlightedDeckCardIds,
-          isSelectionActive,
-          selectedDeckCardCount,
-          selectedDeckCardIds,
-          onClearSelectedDeckCards: () => {
-            clearSelectedDeckCards()
-            setIsSelectingCards(false)
-          },
-          onDeallocateSelectedDeckCards: deallocateSelectedDeckCards,
-          onHighlightDeckCards: setHighlightedDeckCardIds,
-          onOpenDeleteSelected: () => setIsDeleteSelectedOpen(true),
-          onOpenSelectFromList: () => setIsSelectFromListOpen(true),
-          onSelectAllDeckCards: selectAllDeckCards,
-          onSetBulkQuantity: setBulkQuantity,
-          onStartSelecting: () => setIsSelectingCards(true),
-          onTagSelectedDeckCards: tagSelectedDeckCards,
-          onToggleSelected: toggleDeckCardSelected,
-          onUpdateSelectedDeckCards: updateSelectedDeckCards,
-        }}
-        canEditDecklist={canEditDecklist}
-        canBulkAllocate={hasBulkAllocationAvailable}
+          <DeckDetailCardCollections
+            canEdit={canEditDecklist}
+            deckFormat={deck.format}
+            deckId={deck.id}
+            deckTags={deck.tags}
+            groupedCards={groupedCards}
+            highlightedCardIds={selection.highlightedDeckCardIds}
+            isSelecting={selection.isSelectionActive}
+            isUpdating={isUpdatingDeckCard}
+            maybeboardCards={maybeboardCards}
+            onAllocate={(deckCard, collectionItemId) => allocationActions.allocate(deckCard.id, collectionItemId)}
+            onAssignTag={cardActions.assignDeckCardTag}
+            onDeallocate={(deckCard, collectionItemId) => allocationActions.deallocate(deckCard.id, collectionItemId)}
+            onDelete={(deckCard) => setOverlay({ kind: "delete-card", deckCard })}
+            onEdit={(deckCard) => setOverlay(editCardOverlay(deckCard))}
+            onMove={(deckCard) => setOverlay(moveCardOverlay(deckCard))}
+            onPreview={(deckCard) => setOverlay({ kind: "preview-card", deckCard })}
+            onSetCommander={cardActions.setDeckCommander}
+            onTag={cardActions.tagDeckCard}
+            onToggleProxy={allocationActions.toggleProxy}
+            onToggleSelected={selection.toggleDeckCardSelected}
+            onUnassignTag={cardActions.unassignDeckCardTag}
+            selectedCardIds={selection.selectedDeckCardIds}
+            shareMode={shareMode}
+            sideboardCards={sideboardCards}
+          />
+          <DeckTokensSection tokens={deferredDeckAnalysis?.tokens ?? null} />
+          <DeckStatsSection
+            stats={deferredDeckAnalysis?.stats ?? null}
+            onHighlightDeckCards={selection.setHighlightedDeckCardIds}
+          />
+        </DeckDetailHeader>
+      </div>
+
+      <DeckDetailCardOverlays
         deck={deck}
-        deckCards={deckCards}
-        deckStats={deckStats}
-        deckTags={deck.tags}
-        deckTokens={deckTokens}
-        tagManagement={{
-          activeTagId,
-          onJumpToTag: jumpToTag,
-          onCreateTag: deckTags.createTag,
-          onUpdateTag: deckTags.updateTag,
-          onDeleteTag: deckTags.deleteTag,
-          onReorderTags: deckTags.reorderTags,
-        }}
-        groupBy={groupBy}
-        groupedCards={groupedCards}
-        isUpdatingDeckCard={isUpdatingDeckCard}
-        isRefreshingDeck={isRefreshingDeck}
-        legalityIssues={legalityIssues}
-        maybeboardCards={maybeboardCards}
-        onCopySharedDecklist={copySharedDecklist}
-        onDownloadSharedDecklist={downloadSharedDecklist}
-        onEditDeck={() => setIsEditDeckOpen(true)}
-        onExportDeck={() => setIsExportDeckOpen(true)}
-        onGroupByChange={setGroupBy}
-        onImportDeck={() => setIsImportDeckOpen(true)}
-        onMissingCards={() => setIsMissingCardsOpen(true)}
-        onOpenAddCard={() => setIsAddCardOpen(true)}
-        onDisassemble={previewCurrentDeckDisassembly}
-        onOpenEdhrec={() => setEdhrecState("recs")}
-        onOpenShareDeck={() => setIsShareDeckOpen(true)}
-        onOpenShareBuylist={() => setIsShareBuylistOpen(true)}
-        onOpenSharePlaytest={() => setIsSharePlaytestOpen(true)}
-        onOpenBulkAllocation={() => {
-          setBulkAllocationError(null)
-          setIsBulkAllocationOpen(true)
-        }}
-        onOpenOptimizePrintings={() => {
-          setOptimizePrintingsError(null)
-          setIsOptimizePrintingsOpen(true)
-        }}
-        deckPrice={deckPrice}
-        buylistPrice={buylistPrice}
-        shareCopyState={shareCopyState}
+        isDeleting={cardActions.isDeletingCard}
+        isUpdating={cardActions.isUpdatingCard}
+        onClose={() => setOverlay(NO_DECK_DETAIL_OVERLAY)}
+        onDelete={cardActions.deleteDeckCard}
+        onMove={(deckCardId, zone) => cardActions.updateDeckCard(deckCardId, { zone }, "move-card")}
+        onSave={(deckCardId, input) => cardActions.updateDeckCard(deckCardId, input, "edit-card")}
+        overlay={overlay}
         shareMode={shareMode}
-        sideboardCards={sideboardCards}
         zoneCounts={zoneCounts}
       />
-      <DeckDetailDialogs
-        addCardError={addDeckCard.error instanceof Error ? addDeckCard.error.message : null}
-        bulkAllocationError={bulkAllocationError}
-        bulkAllocationMode={bulkAllocationMode}
-        bulkAllocationOpen={canEditDecklist && isBulkAllocationOpen}
-        bulkAllocationPullList={bulkAllocationPullList}
+      <DeckDetailUtilityOverlays
+        addCardError={cardActions.addCardError}
+        canCloseDeleteSelected={!bulkActions.isDeleting}
         deck={deck}
-        deleteCardTarget={canEditDecklist ? deleteCardTarget : null}
-        editError={editError}
-        editTarget={canEditDecklist ? editTarget : null}
         edhrecExcludeLands={edhrecExcludeLands}
-        edhrecTab={canEditDecklist ? edhrecTab : undefined}
-        isAddCardOpen={canEditDecklist && isAddCardOpen}
-        isAddingCard={addDeckCard.isPending}
-        isBulkAllocating={allocateDeckPullList.isPending}
-        disassemblyResult={canEditDecklist ? disassemblyResult : null}
-        isDeleteSelectedOpen={canEditDecklist && isDeleteSelectedOpen}
-        isEditDeckOpen={isEditDeckOpen}
-        isExportDeckOpen={isExportDeckOpen}
-        isImportDeckOpen={canEditDecklist && isImportDeckOpen}
-        isMissingCardsOpen={isMissingCardsOpen}
-        isSelectFromListOpen={canEditDecklist && isSelectFromListOpen}
-        isShareDeckOpen={isShareDeckOpen}
-        isDisassemblingDeck={disassembleDeck.isPending}
-        isUpdatingDeckCard={isUpdatingDeckCard}
-        optimizePrintingsError={optimizePrintingsError}
-        optimizePrintingsOpen={canEditDecklist && isOptimizePrintingsOpen}
-        mayCloseDeleteSelected={!bulkDeleteDeckCards.isPending}
-        moveError={moveError}
-        moveTarget={canEditDecklist ? moveTarget : null}
-        onAddCardOpenChange={setIsAddCardOpen}
-        onBulkAllocationModeChange={(mode) => {
-          setBulkAllocationMode(mode)
-          setSelectedBulkAllocationItemIds({})
-          setExcludedBulkAllocationEntryIds({})
-          setBulkAllocationError(null)
-        }}
+        edhrecTab={edhrecTab}
+        isAddingCard={cardActions.isAddingCard}
+        isOptimizing={allocationActions.isOptimizingPrintings}
         onAddEdhrecCard={addEdhrecCard}
-        onCloseBulkAllocation={() => {
-          if (!allocateDeckPullList.isPending) {
-            setIsBulkAllocationOpen(false)
-            setExcludedBulkAllocationEntryIds({})
-            setBulkAllocationError(null)
+        onClose={() => setOverlay(NO_DECK_DETAIL_OVERLAY)}
+        onDeleteSelected={() => {
+          if (selection.selectedDeckCardIdList.length) {
+            bulkActions.remove(selection.selectedDeckCardIdList, () => setOverlay(NO_DECK_DETAIL_OVERLAY))
           }
         }}
-        onCloseEditCard={() => {
-          if (!updateDeckCard.isPending) {
-            setEditError(null)
-            setEditTarget(null)
-          }
-        }}
-        onCloseMoveCard={() => {
-          if (!updateDeckCard.isPending) {
-            setMoveError(null)
-            setMoveTarget(null)
-          }
-        }}
-        onConfirmBulkAllocation={() => {
-          setBulkAllocationError(null)
-          allocateDeckPullList.mutate(
-            allocatableDeckPullListEntries(bulkAllocationPullList, excludedBulkAllocationEntryIds),
-          )
-        }}
-        onDeleteCardTargetChange={setDeleteCardTarget}
-        onConfirmDeckDisassembly={disassembleCurrentDeck}
-        onDisassemblyOpenChange={(open) => {
-          if (!open && !disassembleDeck.isPending) setDisassemblyResult(null)
-        }}
-        onDeleteSelectedCard={deleteSelectedDeckCard}
-        onDeleteSelectedDeckCards={deleteSelectedDeckCards}
-        onDeleteSelectedOpenChange={setIsDeleteSelectedOpen}
-        onEditCard={(input) => {
-          if (editTarget) editDeckCard(editTarget, input)
-        }}
-        onEditDeckOpenChange={setIsEditDeckOpen}
-        onExportDeckOpenChange={setIsExportDeckOpen}
-        onImportDeckOpenChange={setIsImportDeckOpen}
-        onMissingCardsOpenChange={setIsMissingCardsOpen}
-        onOptimizePrintingsOpenChange={(open) => {
-          if (!optimizeDeckCardPrintings.isPending) {
-            setIsOptimizePrintingsOpen(open)
-            setOptimizePrintingsError(null)
-          }
-        }}
-        onOptimizePrintingsSubmit={(deckCardIds) => {
-          setOptimizePrintingsError(null)
-          optimizeDeckCardPrintings.mutate(deckCardIds)
-        }}
-        onMoveCard={(zone) => {
-          if (moveTarget) moveDeckCard(moveTarget, zone)
-        }}
-        onPreviewCardOpenChange={(open) => {
-          if (!open) setPreviewDeckCard(null)
+        onOptimizePrintings={(deckCardIds) =>
+          allocationActions.optimizePrintings(deckCardIds, {
+            onError: (error) => setOverlay((current) =>
+              current.kind === "optimize-printings" ? { ...current, error } : current,
+            ),
+            onSuccess: () => setOverlay(NO_DECK_DETAIL_OVERLAY),
+          })
+        }
+        onSelectDeckCards={(deckCardIds) => {
+          selection.selectDeckCardIds(deckCardIds)
+          setOverlay(NO_DECK_DETAIL_OVERLAY)
         }}
         onSetEdhrecState={setEdhrecState}
-        onSelectDeckCardsFromList={selectDeckCardIds}
-        onSelectFromListOpenChange={setIsSelectFromListOpen}
-        onSelectBulkAllocationChoice={(choiceId, collectionItemId) => {
-          setSelectedBulkAllocationItemIds((selectedItemIds) => ({
-            ...selectedItemIds,
-            [choiceId]: collectionItemId,
-          }))
-          setBulkAllocationError(null)
-        }}
-        onToggleBulkAllocationEntry={(entryId, excluded) => {
-          setExcludedBulkAllocationEntryIds((entryIds) => ({
-            ...entryIds,
-            [entryId]: excluded,
-          }))
-          setBulkAllocationError(null)
-        }}
-        onShareDeckOpenChange={setIsShareDeckOpen}
-        excludedBulkAllocationEntryIds={excludedBulkAllocationEntryIds}
-        previewDeckCard={previewDeckCard}
-        selectedBulkAllocationItemIds={selectedBulkAllocationItemIds}
-        selectedDeckCardCount={selectedDeckCardCount}
+        overlay={overlay}
+        selectedDeckCardCount={selection.selectedDeckCardCount}
         shareMode={shareMode}
-        updateDeckCardPending={updateDeckCard.isPending}
-        zoneCounts={zoneCounts}
       />
-      {shareMode ? (
-        <ShareDeckBuylistDialog
-          deck={deck}
-          onOpenChange={setIsShareBuylistOpen}
-          open={isShareBuylistOpen}
-          shareToken={id}
-        />
-      ) : null}
-      <Dialog open={isShortcutHelpOpen} onOpenChange={setIsShortcutHelpOpen}>
-        <DialogContent labelledBy="deck-shortcuts-title" className="max-w-md">
-          <DialogHeader>
-            <DialogTitle id="deck-shortcuts-title">Keyboard shortcuts</DialogTitle>
-            <DialogClose onClose={() => setIsShortcutHelpOpen(false)} />
-          </DialogHeader>
-          <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 p-1 text-sm">
-            {DECK_DETAIL_SHORTCUTS.map((shortcut) => (
-              <div key={shortcut.keys} className="contents">
-                <dt>
-                  <kbd className="kbd kbd-sm">{shortcut.keys}</kbd>
-                </dt>
-                <dd className="self-center text-base-content/80">{shortcut.label}</dd>
-              </div>
-            ))}
-          </dl>
-        </DialogContent>
-      </Dialog>
+      <DeckDetailBulkAllocationOverlay
+        deck={deck}
+        isPending={allocationActions.isBulkAllocating}
+        onClose={() => setOverlay(NO_DECK_DETAIL_OVERLAY)}
+        onConfirm={(entries) =>
+          allocationActions.allocatePullList(deck, entries, {
+            onError: (error) => setOverlay((current) => updateBulkAllocationOverlay(current, { error })),
+            onSkipped: (error) => setOverlay((current) => updateBulkAllocationOverlay(current, { error })),
+            onSuccess: () => setOverlay(NO_DECK_DETAIL_OVERLAY),
+          })
+        }
+        onOverlayChange={setOverlay}
+        overlay={canEditDecklist ? overlay : NO_DECK_DETAIL_OVERLAY}
+      />
+      <DeckDetailDisassemblyOverlay
+        deck={deck}
+        isApplying={disassemblyActions.isApplying}
+        onApply={() => disassemblyActions.apply(deck.id)}
+        onClose={() => setOverlay(NO_DECK_DETAIL_OVERLAY)}
+        overlay={canEditDecklist ? overlay : NO_DECK_DETAIL_OVERLAY}
+      />
+      <DeckDetailShareOverlays
+        deck={deck}
+        deckCards={deckCards}
+        onClose={() => setOverlay(NO_DECK_DETAIL_OVERLAY)}
+        overlay={overlay}
+        shareMode={shareMode}
+        shareToken={id}
+      />
+      <DeckDetailShortcutsOverlay onClose={() => setOverlay(NO_DECK_DETAIL_OVERLAY)} overlay={overlay} />
     </>
   )
 }

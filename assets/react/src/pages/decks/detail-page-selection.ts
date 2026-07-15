@@ -12,9 +12,6 @@ export function useDeckDetailSelection(deckCards: DeckCardEntry[], selectionDeck
   const lastSelectedDeckCardIdRef = useRef<string | null>(null)
   const [highlightedDeckCardIds, setHighlightedDeckCardIds] = useState<Set<string> | null>(null)
   const [bulkQuantity, setBulkQuantity] = useState(1)
-  const [isDeleteSelectedOpen, setIsDeleteSelectedOpen] = useState(false)
-  const [bulkActionError, setBulkActionError] = useState<string | null>(null)
-  const [tagError, setTagError] = useState<string | null>(null)
   const selectedDeckCardIdList = useMemo(
     () => Array.from(selectedDeckCardIds),
     [selectedDeckCardIds],
@@ -85,25 +82,18 @@ export function useDeckDetailSelection(deckCards: DeckCardEntry[], selectionDeck
 
   return {
     allDeckCardsSelected,
-    bulkActionError,
     bulkQuantity,
     clearSelectedDeckCards,
     highlightedDeckCardIds,
-    isDeleteSelectedOpen,
-    isSelectingCards,
     isSelectionActive,
     selectedDeckCardCount,
     selectedDeckCardIdList,
     selectedDeckCardIds,
     selectAllDeckCards,
     selectDeckCardIds,
-    setBulkActionError,
     setBulkQuantity,
     setHighlightedDeckCardIds,
-    setIsDeleteSelectedOpen,
     setIsSelectingCards,
-    setTagError,
-    tagError,
     toggleDeckCardSelected,
   }
 }
