@@ -8,6 +8,79 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [1.1.0] - 2026-07-15
+
+### Bug Fixes
+
+- Stabilize quality gate ([`2a395021`](../../commit/2a395021aa9bf186f34b86f35ef9580769b7189b))
+- Restore batched allocation candidates ([`29c5a06d`](../../commit/29c5a06d5d2fcf8bc277d1c3213d7d4c382415ec))
+- Consolidate single allocation status counts ([`1cf98d17`](../../commit/1cf98d170f87efa52f5f7b5db463c3cf62d0cffb))
+- **ui:** Adopt Radix dialog behavior ([`03d6a678`](../../commit/03d6a6785b814b44a77e44576ee470cf2682adc3))
+- **dialog:** Restore external opener focus ([`a26d0e9f`](../../commit/a26d0e9f1e25df0045981aad72c4f7a676a97310))
+- **settings:** Preserve auto-sort row mutability ([`042d496d`](../../commit/042d496dfaa62463fabb322557d699f2cf6a9574))
+- Isolate auto-sort tests ([`2a8934be`](../../commit/2a8934be89ce5c26714a032d52eb3dcb006dffe7))
+- **catalog:** Isolate cache producer failures ([`6ddd7862`](../../commit/6ddd786262f1cdea7a28a33482cf8282d019b6da))
+- **auth:** Constrain login return paths ([`f9e081f6`](../../commit/f9e081f6b573239b2fb25b6d6805eaf71ed9a6c9))
+- **dialog:** Satisfy focus restore checks ([`a59679ed`](../../commit/a59679ed4ab9e3914fb2e18c605d991f8729a563))
+- **security:** Protect authenticated GraphQL mutations with CSRF ([`0196bd98`](../../commit/0196bd98c61631c8b104470d09f4db993b22dbaf))
+- Fix schema domain contract match ([`536ff5d3`](../../commit/536ff5d372029f8a701e71153cb3abd277a63588))
+- **deck:** Adapt commander callback input ([`ad83a769`](../../commit/ad83a76925801172fc713a2f692bf9428b6f73a2))
+- Harden public share cache lookups ([`d27e9d07`](../../commit/d27e9d0792f34c2a5d3da86b74a6908ef3e52048))
+- Bound preview artifact retention ([`187d1528`](../../commit/187d15282453a448cd690dfd4817fd0fb8b29feb))
+- Restore preview render queue ([`1499bb58`](../../commit/1499bb58f2a6fc79bbec2bac823bbee3bc49e1e5))
+
+### Chores
+
+- **deps:** Bump softprops/action-gh-release from 3.0.1 to 3.0.2 (#142) ([`a28c190d`](../../commit/a28c190ddebbf16d30a31fc95b478f4aa4d6e3e2))
+- **backlog:** Start independent task wave ([`0abad7d5`](../../commit/0abad7d51474a8475b9b3f223b58f8c38d8a5dc7))
+- **backlog:** Finalize foundation wave ([`99de7815`](../../commit/99de78151b52f6d63ef8188e46e02100108f5c14))
+- **deps:** Normalize aube lockfile ([`4a56306a`](../../commit/4a56306a7b4ced8d1dcc382acfa7fa7228f1a19a))
+- **ui:** Format dialog changes ([`7f7f9553`](../../commit/7f7f9553bc0d32b642ef95e6f2991b0d652bffaa))
+- **settings:** Format auto-sort changes ([`bda46a4f`](../../commit/bda46a4f9fbf078a033f44129585c4082f6ad538))
+- **backlog:** Start architecture wave ([`5fdd948c`](../../commit/5fdd948c08a426f47d13733cad3ce919f0d9e84f))
+- **backlog:** Complete architecture wave ([`d54104b5`](../../commit/d54104b52474fc90496e2f182c8aa9cc58703222))
+- **backlog:** Start public share hardening ([`104b5c20`](../../commit/104b5c20cf1c1078e4f24f07eb3e222dbd16b37e))
+- **backlog:** Complete public share hardening ([`ccaa8443`](../../commit/ccaa844326a3ab9ffa66440f8dc8a744fe54e092))
+- **backlog:** Start preview artifact caching ([`6c85eaca`](../../commit/6c85eacaabb62a5b2d4a85f04d06f13b75b25133))
+- **backlog:** Complete preview artifact caching ([`3cad8a9e`](../../commit/3cad8a9e0ac69d218caed83e011de286c0d06ab0))
+- Simplify preview retention flow ([`ced3c285`](../../commit/ced3c285b7fd2395761ebe53968a8d658fee26cf))
+- **backlog:** Start deck boundary cutover ([`5a90f608`](../../commit/5a90f608babd0515f4117a684a1a3ec56810b35d))
+- **backlog:** Complete deck boundary cutover ([`874d0528`](../../commit/874d052806438a43504b3ae1c29d6862537c67bc))
+- Add backlog.md ([`b6fef864`](../../commit/b6fef864bfba4c98d49cc065a335f256875adc60))
+
+### Features
+
+- Cache public preview PNG artifacts ([`539fae96`](../../commit/539fae960ee365d656b70fc8a1355feb615f4971))
+
+### Refactoring
+
+- **settings:** Split collection auto-sort rules ([`e065db60`](../../commit/e065db60c362481cfca7fffb44cc4388c19b4014))
+- **schema:** Compose catalog domains ([`602a2705`](../../commit/602a27054ed58111d8b9d4b72170c395e7d97662))
+- **catalog:** Split deck allocation actions ([`57e0240c`](../../commit/57e0240cf21dcd8fd1f5813d29487967b7353604))
+- **deck:** Decompose deck detail features ([`81871ead`](../../commit/81871ead93d07dfb8e64afdb98745814fff5bdd8))
+- **catalog:** Move deck cache boundary ([`dde38737`](../../commit/dde38737fbcef9658120e04fb75c203083f7577c))
+- **catalog:** Remove deck workflows facade ([`22fc1973`](../../commit/22fc1973bf3f4120d02f3958c47849265eaf8d45))
+
+### Style
+
+- **cache:** Satisfy strict credo ([`551a1616`](../../commit/551a1616975f040823bfa8d25e905c99f7d21bf3))
+- **auth:** Satisfy strict credo ([`aace6712`](../../commit/aace6712f9f54d887d6fe14b81b9a61a09c91b4e))
+- **catalog:** Satisfy strict credo ([`a7c3850e`](../../commit/a7c3850e03d4955c4a9083f8b04c6670f7347b49))
+- Format architecture wave ([`739a2957`](../../commit/739a29577f6ec028f742cf69d4c09333e7dd6c78))
+- Format public share hardening ([`98efdd2d`](../../commit/98efdd2dbb575dfa37ed7309140a9d46f5986faa))
+- Format preview artifact cache ([`1255e609`](../../commit/1255e6090a5e4ab815fcb31c6bc12cc885de14e4))
+- **catalog:** Order deck aliases ([`d7b8cb20`](../../commit/d7b8cb20958e1847fc429b002bf8723411c403d5))
+
+### Tests
+
+- Harden quality gate ([`997bef52`](../../commit/997bef52373418f42821e7b29a095438c3e0c3ba))
+- Restore batching query count contract ([`d69e8c6d`](../../commit/d69e8c6dd28f1b54de2f2d5ae01a936de3169071))
+- Match auto-sort minimum price label ([`01128240`](../../commit/01128240a895a7f9b7e4b82ebd4658fb563ab65f))
+- Query auto-sort price by role ([`a27dbb37`](../../commit/a27dbb37dfc1bd69718df6ae16e2f0f0e9d13acb))
+- Classify source-less fallback queries ([`242479a4`](../../commit/242479a4dc9a144305758c55636cdaaad3bdcf9b))
+- Assert archived deck after disassembly ([`813d6b0e`](../../commit/813d6b0e6a456916cd2981456820acab907fc295))
+- Bind share cache deck id ([`5889382c`](../../commit/5889382c898bc5b2eac9d078c00407a482bec635))
+
 ## [1.0.0] - 2026-07-09
 
 ### Bug Fixes
