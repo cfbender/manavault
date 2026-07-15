@@ -1,11 +1,11 @@
 ---
 id: TASK-4
 title: Guarantee catalog cache producers run at most once
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-07-15 15:52'
-updated_date: '2026-07-15 16:25'
+updated_date: '2026-07-15 17:31'
 labels:
   - backend
   - cache
@@ -27,11 +27,11 @@ Catalog.Cache.cached currently rescues exceptions from both cache infrastructure
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 On a cache hit, the cached value is returned and the producer is not executed.
-- [ ] #2 On a cache miss, the producer executes exactly once and its successful value is returned even when the subsequent cache put fails.
-- [ ] #3 When the producer raises, throws, or exits, it is executed exactly once and the original failure is propagated without being logged or retried as a cache infrastructure failure.
-- [ ] #4 A cache fetch failure falls back to one producer execution, and cache fetch/put failures retain the existing best-effort logging behavior without hiding producer errors.
-- [ ] #5 Deterministic tests use a counted producer and injected cache failures to cover hit, miss, fetch failure, put failure, and producer failure paths.
+- [x] #1 On a cache hit, the cached value is returned and the producer is not executed.
+- [x] #2 On a cache miss, the producer executes exactly once and its successful value is returned even when the subsequent cache put fails.
+- [x] #3 When the producer raises, throws, or exits, it is executed exactly once and the original failure is propagated without being logged or retried as a cache infrastructure failure.
+- [x] #4 A cache fetch failure falls back to one producer execution, and cache fetch/put failures retain the existing best-effort logging behavior without hiding producer errors.
+- [x] #5 Deterministic tests use a counted producer and injected cache failures to cover hit, miss, fetch failure, put failure, and producer failure paths.
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -42,3 +42,15 @@ Catalog.Cache.cached currently rescues exceptions from both cache infrastructure
 3. Preserve best-effort cache logging while propagating producer failures exactly once.
 4. Verify focused cache tests and warnings-as-errors compilation.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented strict fetch/produce/put boundaries in Catalog.Cache. Verification: combined focused backend run passed 50 tests, including deterministic cache hit/miss/fetch-failure/put-failure and raise/throw/exit producer cases. Full ExUnit runs also passed at normal seeds 101/202 and serial seeds 303/404.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Cache producers now execute at most once; infrastructure failures remain best-effort while producer failures propagate unchanged. Verified by focused cache/backend tests, four full-suite seed runs, warnings-as-errors compilation, and strict Credo.
+<!-- SECTION:FINAL_SUMMARY:END -->

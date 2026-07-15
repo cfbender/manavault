@@ -1,11 +1,11 @@
 ---
 id: TASK-8
 title: Back application dialogs with accessible Radix primitives
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-07-15 15:55'
-updated_date: '2026-07-15 16:25'
+updated_date: '2026-07-15 17:31'
 labels:
   - frontend
   - accessibility
@@ -28,11 +28,11 @@ The shared Dialog component manually implements portals, Escape handling, backdr
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Opening a dialog moves focus to an appropriate element inside it, Tab and Shift+Tab remain contained while open, and closing restores focus to the element that opened it.
-- [ ] #2 Background page content is not reachable by keyboard or assistive technology while a modal is open, and page scrolling remains correctly locked for one or more open dialogs.
-- [ ] #3 Escape, backdrop dismissal, explicit close controls, ConfirmDialog cancellation/confirmation, and Capacitor native-back behavior continue to follow the current product semantics without duplicate close events.
-- [ ] #4 Each dialog has an accessible name and, where supplied, description; close controls have meaningful names and destructive confirmations retain their visual and semantic treatment.
-- [ ] #5 User-event accessibility tests cover initial focus, forward and reverse focus containment, Escape, backdrop behavior, confirmation, cancellation, nested/stacked behavior where supported, and focus restoration; frontend lint, typecheck, and build pass.
+- [x] #1 Opening a dialog moves focus to an appropriate element inside it, Tab and Shift+Tab remain contained while open, and closing restores focus to the element that opened it.
+- [x] #2 Background page content is not reachable by keyboard or assistive technology while a modal is open, and page scrolling remains correctly locked for one or more open dialogs.
+- [x] #3 Escape, backdrop dismissal, explicit close controls, ConfirmDialog cancellation/confirmation, and Capacitor native-back behavior continue to follow the current product semantics without duplicate close events.
+- [x] #4 Each dialog has an accessible name and, where supplied, description; close controls have meaningful names and destructive confirmations retain their visual and semantic treatment.
+- [x] #5 User-event accessibility tests cover initial focus, forward and reverse focus containment, Escape, backdrop behavior, confirmation, cancellation, nested/stacked behavior where supported, and focus restoration; frontend lint, typecheck, and build pass.
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -43,3 +43,15 @@ The shared Dialog component manually implements portals, Escape handling, backdr
 3. Add user-event coverage for focus entry/trap/restoration, dismissal, confirmation, cancellation, and stacked behavior.
 4. Verify focused tests, frontend format/lint/typecheck, and production build.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Rebased the local Dialog/ConfirmDialog APIs on Radix primitives with guarded opener restoration and native-back deduplication. Verification: package test:react passed all legacy and Vitest DOM suites, including focus trapping/restoration, inert background, stacked dialogs, Escape/backdrop/native-back, confirmation/cancellation, naming, and descriptions. Frontend format, lint, typecheck, and production build passed.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Application dialogs now use accessible Radix mechanics without changing local caller APIs or visual behavior. Verified with user-event modal coverage and the complete frontend quality/build matrix.
+<!-- SECTION:FINAL_SUMMARY:END -->
