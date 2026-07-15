@@ -270,7 +270,8 @@ describe("ConfirmDialog", () => {
 
     const alertDialog = screen.getByRole("alertdialog", { name: "Delete selected cards?" })
     const descriptionId = alertDialog.getAttribute("aria-describedby")
-    if (!descriptionId) throw new Error("Expected destructive confirmation copy to describe the dialog")
+    if (!descriptionId)
+      throw new Error("Expected destructive confirmation copy to describe the dialog")
 
     const cancelButton = within(alertDialog).getByRole("button", { name: "Keep cards" })
     const confirmButton = within(alertDialog).getByRole("button", { name: "Delete cards" })
