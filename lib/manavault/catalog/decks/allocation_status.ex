@@ -23,11 +23,23 @@ defmodule Manavault.Catalog.Decks.AllocationStatus do
   def deck_card_allocation_status(%DeckCard{} = deck_card) do
     deck_card = load_deck_card_for_allocation_status(deck_card)
 
+    key = deck_card_allocation_key(deck_card)
+
+    {current_allocations_by_card_id, reserving_allocations_by_key} =
+      allocation_counts_by_card_id_and_key([deck_card.id], [key])
+
+    current_allocations = Map.get(current_allocations_by_card_id, deck_card.id, %{})
+
+    other_allocations =
+      reserving_allocations_by_key
+      |> Map.get(key, [])
+      |> other_allocation_counts(deck_card.id)
+
     deck_card_allocation_status(
       deck_card,
       deck_card_collection_candidates(deck_card),
-      current_allocation_counts(deck_card.id),
-      other_reserving_allocation_counts(deck_card)
+      current_allocations,
+      other_allocations
     )
   end
 
@@ -196,15 +208,6 @@ defmodule Manavault.Catalog.Decks.AllocationStatus do
 
   defp deck_card_allocation_key(%DeckCard{} = deck_card) do
     deck_card.oracle_id
-  end
-
-  defp current_allocation_counts(deck_card_id) do
-    DeckAllocation
-    |> where([allocation], allocation.deck_card_id == ^deck_card_id)
-    |> group_by([allocation], allocation.collection_item_id)
-    |> select([allocation], {allocation.collection_item_id, sum(allocation.quantity)})
-    |> Repo.all()
-    |> Map.new()
   end
 
   defp allocation_counts_by_card_id_and_key([], _oracle_ids), do: {%{}, %{}}
