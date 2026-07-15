@@ -38,7 +38,7 @@ const focusableSelector = [
   "[tabindex]",
 ].join(",")
 
-function canRestoreFocus(element: HTMLElement | null) {
+function canRestoreFocus(element: HTMLElement | null): element is HTMLElement {
   if (
     !element?.isConnected ||
     !element.matches(focusableSelector) ||
@@ -126,7 +126,9 @@ export function DialogContent({
           asChild
           onOpenAutoFocus={() => {
             const activeElement = document.activeElement
-            openerRef && (openerRef.current = activeElement instanceof HTMLElement ? activeElement : null)
+            if (openerRef) {
+              openerRef.current = activeElement instanceof HTMLElement ? activeElement : null
+            }
           }}
           onCloseAutoFocus={(event) => {
             const opener = openerRef?.current ?? null
