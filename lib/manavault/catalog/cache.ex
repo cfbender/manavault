@@ -27,35 +27,20 @@ defmodule Manavault.Catalog.Cache do
 
   def cached(key, opts \\ [], fun) when is_function(fun, 0) do
     key = cache_key(key)
+    cache = Keyword.get(opts, :cache, Manavault.Cache)
 
     cache_opts = [
       ttl: Keyword.get(opts, :ttl, @default_ttl),
       tag: Keyword.get(opts, :tag)
     ]
 
-    try do
-      case Manavault.Cache.get_or_store(key, fun, cache_opts) do
-        {:ok, value} ->
-          value
+    case fetch_cached_value(cache, key) do
+      {:ok, value} ->
+        value
 
-        {:error, reason} ->
-          Logger.warning("catalog cache unavailable for #{inspect(key)}: #{inspect(reason)}")
-          fun.()
-      end
-    rescue
-      # `!` reads (get_location!/1, etc.) raise their own not-found error through
-      # the cache; that is the caller's intended result, so let it propagate
-      # rather than swallow-and-log it as a cache failure.
-      error in [Ecto.NoResultsError] ->
-        reraise error, __STACKTRACE__
-
-      error ->
-        Logger.warning("catalog cache raised for #{inspect(key)}: #{Exception.message(error)}")
-        fun.()
-    catch
-      kind, reason ->
-        Logger.warning("catalog cache threw (#{kind}) for #{inspect(key)}: #{inspect(reason)}")
-        fun.()
+      :miss ->
+        value = fun.()
+        store_cached_value(cache, key, value, cache_opts)
     end
   end
 
@@ -145,6 +130,62 @@ defmodule Manavault.Catalog.Cache do
     catch
       _kind, _reason -> :ok
     end
+  end
+
+  defp fetch_cached_value(cache, key) do
+    try do
+      case cache.fetch(key) do
+        {:ok, value} ->
+          {:ok, value}
+
+        {:error, %Nebulex.KeyError{}} ->
+          :miss
+
+        {:error, reason} ->
+          log_cache_unavailable(key, reason)
+          :miss
+
+        :miss ->
+          :miss
+      end
+    rescue
+      error ->
+        log_cache_raised(key, error)
+        :miss
+    catch
+      kind, reason ->
+        log_cache_threw(key, kind, reason)
+        :miss
+    end
+  end
+
+  defp store_cached_value(cache, key, value, cache_opts) do
+    try do
+      case cache.put(key, value, cache_opts) do
+        {:error, reason} -> log_cache_unavailable(key, reason)
+        _result -> :ok
+      end
+    rescue
+      error ->
+        log_cache_raised(key, error)
+    catch
+      kind, reason ->
+        log_cache_threw(key, kind, reason)
+    end
+
+    value
+  end
+
+  defp log_cache_unavailable(key, reason) do
+    Logger.warning("catalog cache unavailable for #{inspect(key)}: #{inspect(reason)}")
+  end
+
+  defp log_cache_raised(key, error) do
+    Logger.warning("catalog cache raised for #{inspect(key)}: #{Exception.message(error)}")
+  end
+
+  defp log_cache_threw(key, kind, reason) do
+    Logger.warning("catalog cache threw (#{kind}) for #{inspect(key)}: #{inspect(reason)}")
   end
 
   defp delete_tag(tag) do
