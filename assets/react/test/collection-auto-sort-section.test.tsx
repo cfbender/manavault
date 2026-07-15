@@ -178,7 +178,7 @@ test("client validation blocks preview and save without discarding the staged ru
   )
 
   await user.click(screen.getByRole("button", { name: "Add rule" }))
-  await user.type(screen.getByLabelText(/^Minimum price\b/), "not money")
+  await user.type(screen.getByRole("textbox", { name: /Minimum price/ }), "not money")
   await user.click(screen.getByRole("button", { name: "Done" }))
   await user.click(screen.getByRole("button", { name: "Preview auto-sort" }))
   await user.click(screen.getByRole("button", { name: "Save rules" }))
