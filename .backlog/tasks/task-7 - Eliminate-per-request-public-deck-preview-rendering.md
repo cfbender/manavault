@@ -1,11 +1,11 @@
 ---
 id: TASK-7
 title: Eliminate per-request public deck preview rendering
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-07-15 15:55'
-updated_date: '2026-07-15 18:25'
+updated_date: '2026-07-15 18:51'
 labels:
   - backend
   - availability
@@ -29,12 +29,12 @@ The unauthenticated deck preview PNG route can synchronously fetch a remote cove
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 After a preview PNG has been generated for a deck revision, repeated requests return the same image bytes without another remote cover fetch, temporary SVG render, or rsvg-convert process.
-- [ ] #2 The artifact key changes when any byte-affecting input changes, including deck preview data, selected cover image, rendering/assets version, or other renderer inputs; stale images are not served after those changes.
-- [ ] #3 Concurrent requests for the same missing artifact coalesce into one render, and requests across different artifacts cannot exceed a documented application-wide render concurrency bound.
-- [ ] #4 Remote cover retrieval has bounded connection/read timeouts and response-size/content-type checks, and an unavailable or invalid cover produces the existing safe preview fallback rather than an unbounded request or crash.
-- [ ] #5 Render failures do not leave partial artifacts or temporary files, retain the established 404 versus 503 behavior, and can be retried by a later request.
-- [ ] #6 Automated tests prove cache hits avoid rendering and network work, concurrent misses are coalesced/bounded, revision changes invalidate the artifact, and public response content type and cache headers remain correct.
+- [x] #1 After a preview PNG has been generated for a deck revision, repeated requests return the same image bytes without another remote cover fetch, temporary SVG render, or rsvg-convert process.
+- [x] #2 The artifact key changes when any byte-affecting input changes, including deck preview data, selected cover image, rendering/assets version, or other renderer inputs; stale images are not served after those changes.
+- [x] #3 Concurrent requests for the same missing artifact coalesce into one render, and requests across different artifacts cannot exceed a documented application-wide render concurrency bound.
+- [x] #4 Remote cover retrieval has bounded connection/read timeouts and response-size/content-type checks, and an unavailable or invalid cover produces the existing safe preview fallback rather than an unbounded request or crash.
+- [x] #5 Render failures do not leave partial artifacts or temporary files, retain the established 404 versus 503 behavior, and can be retried by a later request.
+- [x] #6 Automated tests prove cache hits avoid rendering and network work, concurrent misses are coalesced/bounded, revision changes invalidate the artifact, and public response content type and cache headers remain correct.
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -46,3 +46,15 @@ The unauthenticated deck preview PNG route can synchronously fetch a remote cove
 4. Route public PNG requests through the artifact service without changing content type or cache headers.
 5. Add deterministic cache-hit, concurrent coalescing/bounding, invalidation, network validation, failure cleanup/retry, and response-contract coverage; verify full backend gates.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Added a supervised content-addressed PNG artifact service with deterministic renderer/deck/cover/assets fingerprinting, same-key single flight, a two-render application-wide concurrency limit, atomic publication/cleanup/retry, and a configurable 500-artifact retention cap. Remote cover fetching now enforces connection/receive timeouts, byte limits, MIME/host validation, and safe fallback. Controller 404/503, image/png, and cache-header contracts remain. Verification: focused artifact/public-route suite passed 12 tests; full backend passed 317 tests; warnings-fatal compilation, strict Credo, and changed-file formatting passed.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Public deck PNG previews are now reusable bounded server artifacts rather than per-request remote fetch/render work. Concurrent misses coalesce under a global render limit; byte-affecting revisions invalidate by fingerprint; invalid covers and render failures retain safe fallback, retry, cleanup, and response semantics.
+<!-- SECTION:FINAL_SUMMARY:END -->
