@@ -3,7 +3,6 @@ defmodule ManavaultWeb.DeckSharePreview do
 
   alias Manavault.Catalog
   alias Manavault.Catalog.{Deck, DeckCard, Price}
-  alias Manavault.ScryfallAssets
 
   @image_width 1200
   @image_height 630
@@ -270,21 +269,6 @@ defmodule ManavaultWeb.DeckSharePreview do
   defp mana_symbols(_colors, _symbol_resolver), do: ""
 
   defp mana_symbol_url(color), do: "/scryfall-assets/symbols/#{symbol_code(color)}.svg"
-
-  defp mana_symbol_data_uri(color) do
-    filename = "#{symbol_code(color)}.svg"
-
-    case ScryfallAssets.local_path(["symbols", filename]) do
-      nil ->
-        mana_symbol_url(color)
-
-      path ->
-        case File.read(path) do
-          {:ok, svg} -> "data:image/svg+xml;base64,#{Base.encode64(svg)}"
-          {:error, _reason} -> mana_symbol_url(color)
-        end
-    end
-  end
 
   defp symbol_code(color) do
     color

@@ -54,6 +54,7 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCache do
            max_artifacts: max_artifacts,
            max_concurrency:
              positive_integer(Keyword.get(opts, :max_concurrency, @default_max_concurrency), @default_max_concurrency),
+           queued: :queue.new(),
            renderer: Keyword.get(opts, :renderer, &Renderer.render/1),
            running: %{},
            task_supervisor:
