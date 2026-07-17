@@ -6,9 +6,15 @@ defmodule ManavaultWeb.Schema.Catalog.CardOperations do
 
   alias ManavaultWeb.Schema.Catalog.QueryResolvers
 
+  input_object :card_sort do
+    field :field, :string
+    field :direction, :string
+  end
+
   object :card_queries do
     connection field :cards, node_type: :card, non_null: true do
       arg(:q, :string, default_value: "")
+      arg(:sort, :card_sort)
       resolve(&QueryResolvers.cards/3)
     end
 

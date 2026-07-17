@@ -18,7 +18,7 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
     with {:ok, fetch_limit} <- RelayHelpers.fetch_limit(args, 24) do
       args
       |> Map.get(:q, "")
-      |> Catalog.search_cards(limit: fetch_limit + 1)
+      |> Catalog.search_cards(limit: fetch_limit + 1, sort: Map.get(args, :sort, %{}))
       |> RelayHelpers.connection_from_list(args, 24)
     end
   end

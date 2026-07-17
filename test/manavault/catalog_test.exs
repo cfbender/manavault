@@ -84,6 +84,93 @@ defmodule Manavault.CatalogTest do
     assert [%{name: "Time Walk"}] = Catalog.search_cards("walk")
   end
 
+  test "search_cards sorts by name ascending by default" do
+    assert {:ok, _counts} = Catalog.import_cards([time_walk(), black_lotus(), plains()])
+
+    assert ["Black Lotus", "Plains", "Time Walk"] =
+             Catalog.search_cards("cmc>=0") |> Enum.map(& &1.name)
+  end
+
+  test "search_cards sorts by mana value with name tiebreaker" do
+    assert {:ok, _counts} = Catalog.import_cards([time_walk(), black_lotus(), plains()])
+
+    assert ["Black Lotus", "Plains", "Time Walk"] =
+             Catalog.search_cards("cmc>=0", sort: %{field: "mana_value", direction: "asc"})
+             |> Enum.map(& &1.name)
+
+    assert ["Time Walk", "Black Lotus", "Plains"] =
+             Catalog.search_cards("cmc>=0", sort: %{field: "mana_value", direction: "desc"})
+             |> Enum.map(& &1.name)
+  end
+
+  test "search_cards sorts by color identity size then letters" do
+    assert {:ok, _counts} = Catalog.import_cards([time_walk(), black_lotus(), plains()])
+
+    # Black Lotus: 0 colors; Time Walk ["U"] sorts before Plains ["W"] (U < W).
+    assert ["Black Lotus", "Time Walk", "Plains"] =
+             Catalog.search_cards("cmc>=0", sort: %{field: "color", direction: "asc"})
+             |> Enum.map(& &1.name)
+  end
+
+  test "search_cards sorts by type line" do
+    assert {:ok, _counts} = Catalog.import_cards([time_walk(), black_lotus(), plains()])
+
+    assert ["Black Lotus", "Plains", "Time Walk"] =
+             Catalog.search_cards("cmc>=0", sort: %{field: "type", direction: "asc"})
+             |> Enum.map(& &1.name)
+  end
+
+  test "search_cards sorts by release date across printings" do
+    assert {:ok, _counts} =
+             Catalog.import_cards([black_lotus(), black_lotus_beta(), legal_commander_card()])
+
+    assert ["Black Lotus", "Test Commander"] =
+             Catalog.search_cards("cmc>=0", sort: %{field: "released", direction: "asc"})
+             |> Enum.map(& &1.name)
+
+    assert ["Test Commander", "Black Lotus"] =
+             Catalog.search_cards("cmc>=0", sort: %{field: "released", direction: "desc"})
+             |> Enum.map(& &1.name)
+  end
+
+  test "search_cards sorts by best rarity across printings" do
+    mythic_commander = Map.put(legal_commander_card(), "rarity", "mythic")
+
+    assert {:ok, _counts} =
+             Catalog.import_cards([plains(), black_lotus(), mythic_commander])
+
+    assert ["Plains", "Black Lotus", "Test Commander"] =
+             Catalog.search_cards("cmc>=0", sort: %{field: "rarity", direction: "asc"})
+             |> Enum.map(& &1.name)
+
+    assert ["Test Commander", "Black Lotus", "Plains"] =
+             Catalog.search_cards("cmc>=0", sort: %{field: "rarity", direction: "desc"})
+             |> Enum.map(& &1.name)
+  end
+
+  test "search_cards sorts by best price across printings" do
+    assert {:ok, _counts} = Catalog.import_cards([time_walk(), black_lotus(), plains()])
+
+    assert ["Black Lotus", "Time Walk"] =
+             Catalog.search_cards("usd>=1", sort: %{field: "price", direction: "desc"})
+             |> Enum.map(& &1.name)
+
+    assert ["Time Walk", "Black Lotus"] =
+             Catalog.search_cards("usd>=1", sort: %{field: "price", direction: "asc"})
+             |> Enum.map(& &1.name)
+  end
+
+  test "search_cards falls back to name ascending for unknown sort" do
+    assert {:ok, _counts} = Catalog.import_cards([time_walk(), black_lotus()])
+
+    assert ["Black Lotus", "Time Walk"] =
+             Catalog.search_cards("cmc>=0", sort: %{field: "bogus", direction: "sideways"})
+             |> Enum.map(& &1.name)
+
+    assert ["Black Lotus", "Time Walk"] =
+             Catalog.search_cards("cmc>=0", sort: "nonsense") |> Enum.map(& &1.name)
+  end
+
   test "cached collection, location, and deck aggregates are invalidated after writes" do
     assert 0 = Catalog.count_collection_items()
     assert 0 = Catalog.count_locations()

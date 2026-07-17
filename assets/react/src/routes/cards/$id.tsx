@@ -1,12 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { CardDetailPage } from "../../pages/cards"
 import { decodeCollectionFilters, encodeCollectionFilters } from "../../lib/collection-filters"
+import { deserializeCatalogSort, serializeCatalogSort } from "../../pages/cards/sort"
 
 type CardReturnEdhrecTab = "recs" | "cuts" | "commander"
 
 type CardSearch = {
   q?: string
   filters?: string
+  sort?: string
   deckId?: string
   edhrec?: CardReturnEdhrecTab
   edhrecExcludeLands?: boolean
@@ -27,6 +29,7 @@ export const Route = createFileRoute("/cards/$id")({
     return {
       q: typeof search.q === "string" ? search.q : undefined,
       filters: encodeCollectionFilters(decodeCollectionFilters(search.filters)),
+      sort: serializeCatalogSort(deserializeCatalogSort(search.sort)),
       deckId: typeof search.deckId === "string" ? search.deckId : undefined,
       edhrec:
         typeof search.edhrec === "string" &&
@@ -59,6 +62,7 @@ function CardRoute() {
       filterSearch={search.filters}
       id={id}
       query={search.q || ""}
+      sortSearch={search.sort}
       returnDeckId={search.deckId}
       returnEdhrecExcludeLands={Boolean(search.edhrecExcludeLands)}
       returnEdhrecTab={search.edhrec}

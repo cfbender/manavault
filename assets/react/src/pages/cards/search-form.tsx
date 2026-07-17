@@ -1,20 +1,26 @@
 import { ListFilter, Search } from "lucide-react"
 import type { FormEvent } from "react"
 import { CardNameSearchField } from "../../components/card-name-search-field"
+import { SortDropdown } from "../../components/sort-dropdown"
 import { Button } from "../../components/ui/button"
+import { CATALOG_SORT_OPTIONS, type CatalogSort } from "./sort"
 
 export function CardSearchForm({
   activeFilterCount,
   onFilterClick,
+  onSortChange,
   q,
   setQ,
   onSearch,
+  sort,
 }: {
   activeFilterCount: number
   onFilterClick: () => void
+  onSortChange: (sort: CatalogSort) => void
   q: string
   setQ: (value: string) => void
   onSearch: (value?: string) => void
+  sort: CatalogSort
 }) {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -24,7 +30,7 @@ export function CardSearchForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="control-toolbar mb-7 grid gap-2 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-[1fr_auto_auto]"
+      className="control-toolbar mb-7 grid gap-2 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-[1fr_auto_auto_auto]"
     >
       <CardNameSearchField
         name="q"
@@ -34,6 +40,7 @@ export function CardSearchForm({
         onSuggestionSelect={onSearch}
         placeholder="Card name"
       />
+      <SortDropdown options={CATALOG_SORT_OPTIONS} sort={sort} onSortChange={onSortChange} />
       <Button type="button" variant="outline" className="relative" onClick={onFilterClick}>
         <ListFilter className="h-4 w-4" />
         Filter

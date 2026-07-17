@@ -34,6 +34,7 @@ import { ManaText, OracleTextPanel } from "./card-text"
 import { CardDocument, CardsDocument } from "./data"
 import { CardLegalityPanel, CardRulings, CardTagSummary } from "./detail-sections"
 import { CardSearchForm } from "./search-form"
+import { DEFAULT_CATALOG_SORT, serializeCatalogSort, type CatalogSort } from "./sort"
 import useIsMobile from "../../lib/mobile-hover"
 
 type NodeConnection<T> =
@@ -50,7 +51,15 @@ function connectionNodes<T>(connection: NodeConnection<T>): T[] {
 const EDHREC_WEEK_COMMANDERS_URL = "https://json-cloudflare.edhrec.com/pages/commanders/week.json"
 const EDHREC_COMMANDER_GALLERY_LIMIT = 50
 
-export function CardsPage({ query, filterSearch }: { query: string; filterSearch?: string }) {
+export function CardsPage({
+  query,
+  filterSearch,
+  sort = DEFAULT_CATALOG_SORT,
+}: {
+  query: string
+  filterSearch?: string
+  sort?: CatalogSort
+}) {
   const routeFilters = useMemo(() => decodeCollectionFilters(filterSearch), [filterSearch])
   const [q, setQ] = useState(query)
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
@@ -62,7 +71,7 @@ export function CardsPage({ query, filterSearch }: { query: string; filterSearch
   const activeStructuredFilterCount = countActiveCollectionFilters(structuredFilters)
   const shouldSearchCards = Boolean(combinedQuery.trim())
   const { data, loading: isFetching } = useQuery(CardsDocument, {
-    variables: { q: combinedQuery, limit: 36 },
+    variables: { q: combinedQuery, limit: 36, sort },
     skip: !shouldSearchCards,
     fetchPolicy: "cache-and-network",
   })
@@ -86,13 +95,18 @@ export function CardsPage({ query, filterSearch }: { query: string; filterSearch
     setStructuredFilters(routeFilters)
   }, [routeFilters])
 
-  function cardSearchParams(nextQuery: string, nextFilters = structuredFilters) {
+  function cardSearchParams(nextQuery: string, nextFilters = structuredFilters, nextSort = sort) {
     const term = nextQuery.trim()
 
     return {
       q: term || undefined,
       filters: encodeCollectionFilters(nextFilters),
+      sort: serializeCatalogSort(nextSort),
     }
+  }
+
+  function changeSort(nextSort: CatalogSort) {
+    navigate({ to: "/cards", search: cardSearchParams(query, structuredFilters, nextSort) })
   }
 
   function submitSearch(value = q) {
@@ -133,6 +147,8 @@ export function CardsPage({ query, filterSearch }: { query: string; filterSearch
         q={q}
         setQ={updateSearchDraft}
         onSearch={submitSearch}
+        sort={sort}
+        onSortChange={changeSort}
       />
 
       {combinedQuery ? (
@@ -428,6 +444,7 @@ export function CardDetailPage({
   id,
   query,
   filterSearch,
+  sortSearch,
   hideBackLink = false,
   hidePrivateControls = false,
   graphqlEndpoint,
@@ -440,6 +457,7 @@ export function CardDetailPage({
   id: string
   query: string
   filterSearch?: string
+  sortSearch?: string
   hideBackLink?: boolean
   hidePrivateControls?: boolean
   graphqlEndpoint?: string
@@ -500,7 +518,10 @@ export function CardDetailPage({
           </Button>
         ) : (
           <Button asChild variant="outline" size="sm">
-            <Link to="/cards" search={{ q: query || undefined, filters: filterSearch }}>
+            <Link
+              to="/cards"
+              search={{ q: query || undefined, filters: filterSearch, sort: sortSearch }}
+            >
               Back to search
             </Link>
           </Button>
