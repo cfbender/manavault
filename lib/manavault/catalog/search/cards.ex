@@ -25,11 +25,44 @@ defmodule Manavault.Catalog.Search.Cards do
       |> select([card, _printing], card.oracle_id)
       |> Repo.all()
 
+    matched_printing_ids = matched_printing_ids(term, card_ids)
+
     Card
     |> where([card], card.oracle_id in ^card_ids)
     |> Repo.all()
     |> Enum.sort_by(&Enum.find_index(card_ids, fn oracle_id -> oracle_id == &1.oracle_id end))
-    |> Repo.preload(printings: from(printing in Printing, order_by: [desc: printing.released_at]))
+    |> Repo.preload(
+      printings:
+        from(printing in Printing,
+          order_by: [asc: printing.released_at, asc: printing.scryfall_id]
+        )
+    )
+    |> Enum.map(&promote_matched_printings(&1, matched_printing_ids))
+  end
+
+  # Printings that satisfy the search term for the returned cards. The filter
+  # dynamic spans the card + printing bindings, so it reruns against the same
+  # join rather than the printing-only preload query.
+  defp matched_printing_ids(term, card_ids) do
+    from(card in Card, as: :card)
+    |> join(:left, [card], printing in assoc(card, :printings), as: :printing)
+    |> Filter.apply(term)
+    |> where([card], card.oracle_id in ^card_ids)
+    |> select([_card, printing], printing.scryfall_id)
+    |> Repo.all()
+    |> MapSet.new()
+  end
+
+  # Surface the earliest-released printing that matched the query as the
+  # card's first printing (the UI displays printings[0]). The preload orders
+  # by release date ascending and the sort is stable, so matched printings
+  # keep that order ahead of the rest.
+  defp promote_matched_printings(card, matched_printing_ids) do
+    %{
+      card
+      | printings:
+          Enum.sort_by(card.printings, &(&1.scryfall_id not in matched_printing_ids))
+    }
   end
 
   # Printing-level fields aggregate across the card's printings (the query groups

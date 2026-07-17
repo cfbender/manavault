@@ -171,6 +171,55 @@ defmodule Manavault.CatalogTest do
              Catalog.search_cards("cmc>=0", sort: "nonsense") |> Enum.map(& &1.name)
   end
 
+  test "search_cards surfaces the earliest released printing by default" do
+    assert {:ok, _counts} = Catalog.import_cards([black_lotus(), black_lotus_beta()])
+
+    assert [%{printings: [first, second]}] = Catalog.search_cards("lotus")
+    assert first.set_code == "lea"
+    assert second.set_code == "leb"
+  end
+
+  test "search_cards surfaces the printing matching printing-level filters" do
+    assert {:ok, _counts} = Catalog.import_cards([black_lotus(), black_lotus_beta()])
+
+    assert [%{printings: [first, second]}] = Catalog.search_cards("lotus set:leb")
+    assert first.set_code == "leb"
+    assert second.set_code == "lea"
+  end
+
+  test "search_cards surfaces the printing matching combined set and price filters" do
+    cheap_alpha = Map.put(black_lotus(), "prices", %{"usd" => "1.00"})
+    pricey_beta = Map.put(black_lotus_beta(), "prices", %{"usd" => "5.00"})
+
+    assert {:ok, _counts} = Catalog.import_cards([cheap_alpha, pricey_beta])
+
+    assert [%{printings: [first, second]}] = Catalog.search_cards("set:leb usd>=3")
+    assert first.set_code == "leb"
+    assert second.set_code == "lea"
+  end
+
+  test "search_cards surfaces the earliest printing among several filter matches" do
+    cheap_alpha = Map.put(black_lotus(), "prices", %{"usd" => "1.00"})
+    pricey_beta = Map.put(black_lotus_beta(), "prices", %{"usd" => "5.00"})
+
+    pricey_unlimited =
+      Map.merge(black_lotus_beta(), %{
+        "id" => "scryfall-printing-2ed",
+        "set" => "2ed",
+        "set_name" => "Unlimited Edition",
+        "released_at" => "1993-12-01",
+        "prices" => %{"usd" => "10.00"}
+      })
+
+    assert {:ok, _counts} =
+             Catalog.import_cards([cheap_alpha, pricey_beta, pricey_unlimited])
+
+    assert [%{printings: [first, second, third]}] = Catalog.search_cards("usd>=3")
+    assert first.set_code == "leb"
+    assert second.set_code == "2ed"
+    assert third.set_code == "lea"
+  end
+
   test "cached collection, location, and deck aggregates are invalidated after writes" do
     assert 0 = Catalog.count_collection_items()
     assert 0 = Catalog.count_locations()

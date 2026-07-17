@@ -5,7 +5,10 @@ defmodule Manavault.Catalog.Cache do
 
   alias Manavault.Catalog.Search
 
-  @version 1
+  # Bump when the shape of cached values changes (e.g. search results now order
+  # printings matched-then-earliest-first) so running nodes stop reading stale
+  # entries.
+  @version 2
   @default_ttl :timer.hours(11)
   @external_ttl :timer.hours(6)
 
