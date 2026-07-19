@@ -114,25 +114,35 @@ function DeckTagPanels({
   )
 
   return (
-    <>
-      <div className="hidden lg:sticky lg:top-4 lg:block lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
-        {sidebar}
-      </div>
-      <div className="lg:hidden">
-        <DeckTagsSidebar
-          tags={deckTags}
-          activeTagId={tagActions.activeTagId}
-          disabled={!canEdit}
-          onCreateTag={tagActions.onCreate}
-          onDeleteTag={tagActions.onDelete}
-          onJumpToTag={tagActions.onJumpTo}
-          onReorderTags={tagActions.onReorder}
-          onUpdateTag={tagActions.onUpdate}
-          storageKey="manavault.deckTags.mobilePanelCollapsed"
-          variant="panel"
-        />
-      </div>
-    </>
+    <div className="hidden lg:sticky lg:top-4 lg:block lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+      {sidebar}
+    </div>
+  )
+}
+
+export function DeckMobileTagsPanel({
+  canEdit,
+  deckTags,
+  shareMode,
+  tagActions,
+}: Pick<DeckDetailHeaderProps, "canEdit" | "deckTags" | "shareMode" | "tagActions">) {
+  if (shareMode) return null
+
+  return (
+    <div className="lg:hidden">
+      <DeckTagsSidebar
+        tags={deckTags}
+        activeTagId={tagActions.activeTagId}
+        disabled={!canEdit}
+        onCreateTag={tagActions.onCreate}
+        onDeleteTag={tagActions.onDelete}
+        onJumpToTag={tagActions.onJumpTo}
+        onReorderTags={tagActions.onReorder}
+        onUpdateTag={tagActions.onUpdate}
+        storageKey="manavault.deckTags.mobilePanelCollapsed"
+        variant="panel"
+      />
+    </div>
   )
 }
 

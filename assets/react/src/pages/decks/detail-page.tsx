@@ -13,7 +13,7 @@ import { DeckDetailBulkAllocationOverlay } from "./deck-detail-bulk-allocation-o
 import { DeckDetailCardCollections } from "./deck-detail-card-collections"
 import { DeckDetailCardOverlays } from "./deck-detail-card-overlays"
 import { DeckDetailDisassemblyOverlay } from "./deck-detail-disassembly-overlay"
-import { DeckDetailHeader } from "./deck-detail-header"
+import { DeckDetailHeader, DeckMobileTagsPanel } from "./deck-detail-header"
 import { DeckDetailLoadingState } from "./deck-detail-loading"
 import { mergeDeckCardsPage } from "./deck-detail-pagination"
 import {
@@ -454,6 +454,20 @@ export function DeckDetailPage({
               totalCount={deckCards.length}
             />
           ) : null}
+
+          <DeckMobileTagsPanel
+            canEdit={canEditDecklist}
+            deckTags={deck.tags}
+            shareMode={shareMode}
+            tagActions={{
+              activeTagId,
+              onCreate: deckTagActions.createTag,
+              onDelete: deckTagActions.deleteTag,
+              onJumpTo: jumpToTag,
+              onReorder: deckTagActions.reorderTags,
+              onUpdate: deckTagActions.updateTag,
+            }}
+          />
 
           <DeckDetailCardCollections
             canEdit={canEditDecklist}
