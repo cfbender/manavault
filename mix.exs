@@ -4,7 +4,7 @@ defmodule Manavault.MixProject do
   def project do
     [
       app: :manavault,
-      version: "1.1.1",
+      version: "1.1.2",
       elixir: "~> 1.20",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,

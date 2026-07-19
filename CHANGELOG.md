@@ -8,6 +8,12 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [1.1.2] - 2026-07-19
+
+### Bug Fixes
+
+- Capacitor build ([`450b4fc4`](../../commit/450b4fc4f5d580b3591482a81481a2a2447188e6))
+
 ## [1.1.1] - 2026-07-19
 
 ### Bug Fixes
