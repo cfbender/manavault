@@ -9,37 +9,27 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from "./routes/__root"
-import { Route as SettingsRouteImport } from "./routes/settings"
 import { Route as IndexRouteImport } from "./routes/index"
-import { Route as DecksIndexRouteImport } from "./routes/decks/index"
-import { Route as CollectionIndexRouteImport } from "./routes/collection/index"
+import { Route as SettingsRouteImport } from "./routes/settings"
 import { Route as CardsIndexRouteImport } from "./routes/cards/index"
-import { Route as DecksIdRouteImport } from "./routes/decks/$id"
-import { Route as CollectionNewRouteImport } from "./routes/collection/new"
 import { Route as CardsIdRouteImport } from "./routes/cards/$id"
-import { Route as ShareDecksTokenRouteImport } from "./routes/share/decks/$token"
-import { Route as DecksIdPlaytestRouteImport } from "./routes/decks_.$id.playtest"
-import { Route as CollectionLocationsIdRouteImport } from "./routes/collection/locations/$id"
+import { Route as CollectionIndexRouteImport } from "./routes/collection/index"
+import { Route as CollectionNewRouteImport } from "./routes/collection/new"
+import { Route as DecksIndexRouteImport } from "./routes/decks/index"
+import { Route as DecksIdRouteImport } from "./routes/decks/$id"
 import { Route as CollectionIdEditRouteImport } from "./routes/collection/$id.edit"
+import { Route as CollectionLocationsIdRouteImport } from "./routes/collection/locations/$id"
+import { Route as DecksIdPlaytestRouteImport } from "./routes/decks_.$id.playtest"
+import { Route as ShareDecksTokenRouteImport } from "./routes/share/decks/$token"
 
-const SettingsRoute = SettingsRouteImport.update({
-  id: "/settings",
-  path: "/settings",
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: "/",
   path: "/",
   getParentRoute: () => rootRouteImport,
 } as any)
-const DecksIndexRoute = DecksIndexRouteImport.update({
-  id: "/decks/",
-  path: "/decks/",
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CollectionIndexRoute = CollectionIndexRouteImport.update({
-  id: "/collection/",
-  path: "/collection/",
+const SettingsRoute = SettingsRouteImport.update({
+  id: "/settings",
+  path: "/settings",
   getParentRoute: () => rootRouteImport,
 } as any)
 const CardsIndexRoute = CardsIndexRouteImport.update({
@@ -47,9 +37,14 @@ const CardsIndexRoute = CardsIndexRouteImport.update({
   path: "/cards/",
   getParentRoute: () => rootRouteImport,
 } as any)
-const DecksIdRoute = DecksIdRouteImport.update({
-  id: "/decks/$id",
-  path: "/decks/$id",
+const CardsIdRoute = CardsIdRouteImport.update({
+  id: "/cards/$id",
+  path: "/cards/$id",
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CollectionIndexRoute = CollectionIndexRouteImport.update({
+  id: "/collection/",
+  path: "/collection/",
   getParentRoute: () => rootRouteImport,
 } as any)
 const CollectionNewRoute = CollectionNewRouteImport.update({
@@ -57,19 +52,19 @@ const CollectionNewRoute = CollectionNewRouteImport.update({
   path: "/collection/new",
   getParentRoute: () => rootRouteImport,
 } as any)
-const CardsIdRoute = CardsIdRouteImport.update({
-  id: "/cards/$id",
-  path: "/cards/$id",
+const DecksIndexRoute = DecksIndexRouteImport.update({
+  id: "/decks/",
+  path: "/decks/",
   getParentRoute: () => rootRouteImport,
 } as any)
-const ShareDecksTokenRoute = ShareDecksTokenRouteImport.update({
-  id: "/share/decks/$token",
-  path: "/share/decks/$token",
+const DecksIdRoute = DecksIdRouteImport.update({
+  id: "/decks/$id",
+  path: "/decks/$id",
   getParentRoute: () => rootRouteImport,
 } as any)
-const DecksIdPlaytestRoute = DecksIdPlaytestRouteImport.update({
-  id: "/decks_/$id/playtest",
-  path: "/decks/$id/playtest",
+const CollectionIdEditRoute = CollectionIdEditRouteImport.update({
+  id: "/collection/$id/edit",
+  path: "/collection/$id/edit",
   getParentRoute: () => rootRouteImport,
 } as any)
 const CollectionLocationsIdRoute = CollectionLocationsIdRouteImport.update({
@@ -77,9 +72,14 @@ const CollectionLocationsIdRoute = CollectionLocationsIdRouteImport.update({
   path: "/collection/locations/$id",
   getParentRoute: () => rootRouteImport,
 } as any)
-const CollectionIdEditRoute = CollectionIdEditRouteImport.update({
-  id: "/collection/$id/edit",
-  path: "/collection/$id/edit",
+const DecksIdPlaytestRoute = DecksIdPlaytestRouteImport.update({
+  id: "/decks_/$id/playtest",
+  path: "/decks/$id/playtest",
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShareDecksTokenRoute = ShareDecksTokenRouteImport.update({
+  id: "/share/decks/$token",
+  path: "/share/decks/$token",
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -188,13 +188,6 @@ export interface RootRouteChildren {
 
 declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
-    "/settings": {
-      id: "/settings"
-      path: "/settings"
-      fullPath: "/settings"
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     "/": {
       id: "/"
       path: "/"
@@ -202,18 +195,11 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    "/decks/": {
-      id: "/decks/"
-      path: "/decks"
-      fullPath: "/decks/"
-      preLoaderRoute: typeof DecksIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    "/collection/": {
-      id: "/collection/"
-      path: "/collection"
-      fullPath: "/collection/"
-      preLoaderRoute: typeof CollectionIndexRouteImport
+    "/settings": {
+      id: "/settings"
+      path: "/settings"
+      fullPath: "/settings"
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     "/cards/": {
@@ -223,11 +209,18 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof CardsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    "/decks/$id": {
-      id: "/decks/$id"
-      path: "/decks/$id"
-      fullPath: "/decks/$id"
-      preLoaderRoute: typeof DecksIdRouteImport
+    "/cards/$id": {
+      id: "/cards/$id"
+      path: "/cards/$id"
+      fullPath: "/cards/$id"
+      preLoaderRoute: typeof CardsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    "/collection/": {
+      id: "/collection/"
+      path: "/collection"
+      fullPath: "/collection/"
+      preLoaderRoute: typeof CollectionIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     "/collection/new": {
@@ -237,25 +230,25 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof CollectionNewRouteImport
       parentRoute: typeof rootRouteImport
     }
-    "/cards/$id": {
-      id: "/cards/$id"
-      path: "/cards/$id"
-      fullPath: "/cards/$id"
-      preLoaderRoute: typeof CardsIdRouteImport
+    "/decks/": {
+      id: "/decks/"
+      path: "/decks"
+      fullPath: "/decks/"
+      preLoaderRoute: typeof DecksIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    "/share/decks/$token": {
-      id: "/share/decks/$token"
-      path: "/share/decks/$token"
-      fullPath: "/share/decks/$token"
-      preLoaderRoute: typeof ShareDecksTokenRouteImport
+    "/decks/$id": {
+      id: "/decks/$id"
+      path: "/decks/$id"
+      fullPath: "/decks/$id"
+      preLoaderRoute: typeof DecksIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    "/decks_/$id/playtest": {
-      id: "/decks_/$id/playtest"
-      path: "/decks/$id/playtest"
-      fullPath: "/decks/$id/playtest"
-      preLoaderRoute: typeof DecksIdPlaytestRouteImport
+    "/collection/$id/edit": {
+      id: "/collection/$id/edit"
+      path: "/collection/$id/edit"
+      fullPath: "/collection/$id/edit"
+      preLoaderRoute: typeof CollectionIdEditRouteImport
       parentRoute: typeof rootRouteImport
     }
     "/collection/locations/$id": {
@@ -265,11 +258,18 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof CollectionLocationsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    "/collection/$id/edit": {
-      id: "/collection/$id/edit"
-      path: "/collection/$id/edit"
-      fullPath: "/collection/$id/edit"
-      preLoaderRoute: typeof CollectionIdEditRouteImport
+    "/decks_/$id/playtest": {
+      id: "/decks_/$id/playtest"
+      path: "/decks/$id/playtest"
+      fullPath: "/decks/$id/playtest"
+      preLoaderRoute: typeof DecksIdPlaytestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    "/share/decks/$token": {
+      id: "/share/decks/$token"
+      path: "/share/decks/$token"
+      fullPath: "/share/decks/$token"
+      preLoaderRoute: typeof ShareDecksTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
