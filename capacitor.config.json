@@ -1,0 +1,20 @@
+{
+  "appId": "dev.cfb.manavault",
+  "appName": "ManaVault",
+  "webDir": "native_www",
+  "server": {
+    "cleartext": true
+  },
+  "plugins": {
+    "StatusBar": {
+      "overlaysWebView": false,
+      "backgroundColor": "#18040d"
+    }
+  },
+  "android": {
+    "path": "android"
+  },
+  "ios": {
+    "path": "ios"
+  }
+}

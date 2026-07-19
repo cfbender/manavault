@@ -8,7 +8,7 @@ on:
       - "android/**"
       - "ios/**"
       - "native_www/**"
-      - "capacitor.config.ts"
+      - "capacitor.config.json"
       - "scripts/prepare-native-web.mjs"
   push:
     branches:
@@ -21,7 +21,7 @@ on:
       - "android/**"
       - "ios/**"
       - "native_www/**"
-      - "capacitor.config.ts"
+      - "capacitor.config.json"
       - "scripts/prepare-native-web.mjs"
   workflow_dispatch:
 

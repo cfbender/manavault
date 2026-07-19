@@ -63,7 +63,7 @@ RUN mix deps.compile
 
 COPY priv priv
 COPY lib lib
-COPY package.json aube-lock.yaml vite.config.ts codegen.ts capacitor.config.ts ./
+COPY package.json aube-lock.yaml vite.config.ts codegen.ts capacitor.config.json ./
 COPY assets assets
 
 RUN aube install --frozen-lockfile
