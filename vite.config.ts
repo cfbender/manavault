@@ -13,6 +13,7 @@ export default defineConfig({
   lint: {
     ignorePatterns: ["assets/react/src/gql/**", "assets/react/src/routeTree.gen.ts"],
   },
+  // vite@8 Plugin type is incompatible with vite-plus-core@0.2.5 Plugin type
   plugins: [
     tanstackRouter({
       target: "react",
@@ -20,9 +21,9 @@ export default defineConfig({
       generatedRouteTree: "assets/react/src/routeTree.gen.ts",
       autoCodeSplitting: true,
       quoteStyle: "double",
-    }),
-    react(),
-  ],
+    }) as any,
+    react() as any,
+  ] as any,
   build: {
     emptyOutDir: true,
     manifest: true,
