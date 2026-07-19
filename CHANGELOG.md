@@ -8,6 +8,28 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [1.1.1] - 2026-07-19
+
+### Bug Fixes
+
+- Search applies to just printings ([`d9d5eac9`](../../commit/d9d5eac9220c1560b569fa41c9e51e4b7167aa92))
+- Mobile tag section to the right place ([`0e7f4f35`](../../commit/0e7f4f3597af8b4f58a0f67e3403f6f91696d562))
+
+### Chores
+
+- **deps:** Update Elixir dependencies ([`7e43283a`](../../commit/7e43283a0b5a3af802b4029c48b77898f3d3f772))
+- **deps:** Update React/JS dependencies ([`050dde93`](../../commit/050dde933ffe4d516aef02c02c596b196f6c316d))
+
+### Features
+
+- More links on card ([`a0b61d46`](../../commit/a0b61d4655dc3f56b3f9695efc734d5d08c81db7))
+- Add sort to card search ([`d8dcfb5c`](../../commit/d8dcfb5ca53760ae16274e6c349b384914def3f6))
+- Upgrade to TypeScript 7 native compiler (tsc) ([`96d76341`](../../commit/96d76341ef3299bd7390423206176be293ecefc1))
+
+### Style
+
+- Fix deck page centering ([`ca284c35`](../../commit/ca284c35bf486f6e431b344e70b229e405fc5d90))
+
 ## [1.1.0] - 2026-07-15
 
 ### Bug Fixes
