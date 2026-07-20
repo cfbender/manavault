@@ -351,6 +351,7 @@ export function CardAddDialog(props: CardAddDialogProps) {
               onSuggestionSelect={handleNameChange}
               placeholder="Search card name"
               selectFirstSuggestionOnEnter
+              recordSubmitAsSearch={false}
               disabled={isPending}
             />
             <p className="mt-1 text-xs text-base-content/60">

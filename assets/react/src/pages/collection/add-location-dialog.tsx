@@ -225,6 +225,7 @@ export function AddLocationDialog({
               onSuggestionSelect={setCoverSearch}
               placeholder="Search for a cover card"
               suggestionLimit={8}
+              recordSubmitAsSearch={false}
             />
 
             {coverSearchDraftTerm.length > 1 ? (
