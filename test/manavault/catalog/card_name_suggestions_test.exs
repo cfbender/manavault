@@ -62,6 +62,24 @@ defmodule Manavault.Catalog.CardNameSuggestionsTest do
     assert ["Lightning Bolt" | _] = Catalog.suggest_card_names("light")
   end
 
+  test "stopword-heavy multi-word terms surface the exact card, not of-token noise" do
+    assert {:ok, %{cards_count: 3}} =
+             Catalog.import_cards([
+               card("scryfall-mask-of-memory", "oracle-mask-of-memory", "Mask of Memory", "20"),
+               card("scryfall-agent-of-masks", "oracle-agent-of-masks", "Agent of Masks", "21"),
+               card("scryfall-aegis-of-the-meek", "oracle-aegis-of-the-meek", "Aegis of the Meek", "22")
+             ])
+
+    CardNameSuggestions.clear_card_name_suggestion_cache()
+
+    # Regression: the old gate admitted any name sharing the token "of" and
+    # truncated the alphabetically sorted pool before scoring, so the exact
+    # card never appeared while unrelated of-names did.
+    assert ["Mask of Memory"] = Catalog.suggest_card_names("mask of memory")
+    assert ["Mask of Memory" | _] = Catalog.suggest_card_names("mask of mem")
+    assert ["Mask of Memory" | _] = Catalog.suggest_card_names("mask of memroy")
+  end
+
   test "apostrophes in the query match names with apostrophes" do
     assert {:ok, %{cards_count: 2}} =
              Catalog.import_cards([

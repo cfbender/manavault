@@ -4,10 +4,15 @@ defmodule Manavault.Catalog.Search.Cards.TextPredicates do
   import Ecto.Query
 
   alias Manavault.Catalog.Search.Cards.Values
+  alias Manavault.Catalog.Search.NameMatch
 
   def plain_text(term) do
-    pattern = term |> Values.downcase() |> Values.like_pattern()
-    dynamic([card, _printing], fragment("lower(?) LIKE ? ESCAPE '\\'", card.name, ^pattern))
+    pattern = NameMatch.like_pattern(term)
+
+    dynamic(
+      [card, _printing],
+      fragment("lower(replace(replace(?, '''', ''), '’', '')) LIKE ? ESCAPE '\\'", card.name, ^pattern)
+    )
   end
 
   def field(_field, _op, ""), do: dynamic(true)
@@ -18,7 +23,16 @@ defmodule Manavault.Catalog.Search.Cards.TextPredicates do
     condition =
       case field do
         :name ->
-          dynamic([card, _printing], fragment("lower(?) LIKE ? ESCAPE '\\'", card.name, ^pattern))
+          name_pattern = NameMatch.like_pattern(value)
+
+          dynamic(
+            [card, _printing],
+            fragment(
+              "lower(replace(replace(?, '''', ''), '’', '')) LIKE ? ESCAPE '\\'",
+              card.name,
+              ^name_pattern
+            )
+          )
 
         :type ->
           dynamic(

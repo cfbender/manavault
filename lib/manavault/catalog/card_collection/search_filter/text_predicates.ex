@@ -4,13 +4,19 @@ defmodule Manavault.Catalog.CardCollection.SearchFilter.TextPredicates do
   import Ecto.Query
 
   alias Manavault.Catalog.CardCollection.SearchFilter.Values
+  alias Manavault.Catalog.Search.NameMatch
 
   def plain_text(search) do
     pattern = search |> Values.downcase() |> Values.like_pattern()
+    name_pattern = NameMatch.like_pattern(search)
 
     dynamic(
       [_item, printing, card, _location],
-      fragment("lower(?) LIKE ? ESCAPE '\\'", card.name, ^pattern) or
+      fragment(
+        "lower(replace(replace(?, '''', ''), '’', '')) LIKE ? ESCAPE '\\'",
+        card.name,
+        ^name_pattern
+      ) or
         fragment("lower(?) LIKE ? ESCAPE '\\'", printing.set_code, ^pattern) or
         fragment("lower(?) LIKE ? ESCAPE '\\'", printing.set_name, ^pattern) or
         fragment("lower(?) LIKE ? ESCAPE '\\'", printing.collector_number, ^pattern) or
@@ -27,9 +33,15 @@ defmodule Manavault.Catalog.CardCollection.SearchFilter.TextPredicates do
     condition =
       case field do
         :name ->
+          name_pattern = NameMatch.like_pattern(value)
+
           dynamic(
             [_item, _printing, card, _location],
-            fragment("lower(?) LIKE ? ESCAPE '\\'", card.name, ^pattern)
+            fragment(
+              "lower(replace(replace(?, '''', ''), '’', '')) LIKE ? ESCAPE '\\'",
+              card.name,
+              ^name_pattern
+            )
           )
 
         :type ->

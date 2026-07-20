@@ -4,6 +4,7 @@ defmodule Manavault.Catalog.Search.Printings do
   import Ecto.Query
 
   alias Manavault.Catalog.{Card, CollectionItem, Printing, Util}
+  alias Manavault.Catalog.Search.NameMatch
   alias Manavault.Repo
 
   def get_printing_by_scryfall_id(scryfall_id) when is_binary(scryfall_id) do
@@ -118,8 +119,13 @@ defmodule Manavault.Catalog.Search.Printings do
   defp maybe_filter_card_name(query, ""), do: query
 
   defp maybe_filter_card_name(query, name) do
-    pattern = "%#{String.downcase(name)}%"
-    where(query, [_printing, card], fragment("lower(?) LIKE ?", card.name, ^pattern))
+    pattern = NameMatch.like_pattern(name)
+
+    where(
+      query,
+      [_printing, card],
+      fragment("lower(replace(replace(?, '''', ''), '’', '')) LIKE ? ESCAPE '\\'", card.name, ^pattern)
+    )
   end
 
   defp maybe_filter_set_code(query, ""), do: query

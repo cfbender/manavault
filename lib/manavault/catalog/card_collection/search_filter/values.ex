@@ -39,13 +39,7 @@ defmodule Manavault.Catalog.CardCollection.SearchFilter.Values do
 
   def numeric_string?(value), do: String.match?(value, ~r/^\d+$/)
 
-  def like_pattern(value) do
-    value
-    |> String.replace("\\", "\\\\")
-    |> String.replace("%", "\\%")
-    |> String.replace("_", "\\_")
-    |> then(&"%#{&1}%")
-  end
+  defdelegate like_pattern(value), to: Manavault.Catalog.Search.NameMatch, as: :substring_pattern
 
   def downcase(value), do: value |> to_string() |> String.trim() |> String.downcase()
 
