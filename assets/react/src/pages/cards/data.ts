@@ -2,8 +2,8 @@ import { graphql } from "../../gql"
 import type { CardCollectionItemsQuery, CardQuery } from "../../gql/graphql"
 
 export const CardsDocument = graphql(`
-  query Cards($q: String!, $limit: Int!, $sort: CardSort) {
-    cards(q: $q, first: $limit, sort: $sort) {
+  query Cards($q: String!, $limit: Int!, $sort: CardSort, $after: String) {
+    cards(q: $q, first: $limit, after: $after, sort: $sort) {
       pageInfo {
         endCursor
         hasNextPage

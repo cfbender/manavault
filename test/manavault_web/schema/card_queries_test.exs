@@ -30,6 +30,50 @@ defmodule ManavaultWeb.Schema.CardQueriesTest do
              card_names(conn, %{"sort" => %{"field" => "bogus", "direction" => "sideways"}})
   end
 
+  test "cards query paginates through results with first/after", %{conn: conn} do
+    query = """
+    query Cards($q: String!, $first: Int, $after: String) {
+      cards(q: $q, first: $first, after: $after) {
+        pageInfo {
+          endCursor
+          hasNextPage
+        }
+        edges {
+          node {
+            name
+          }
+        }
+      }
+    }
+    """
+
+    first_page =
+      conn
+      |> post("/api/graphql", %{"query" => query, "variables" => %{"q" => "cmc>=0", "first" => 2}})
+      |> json_response(200)
+      |> get_in(["data", "cards"])
+
+    assert ["Black Lotus", "Plains"] = Enum.map(first_page["edges"], & &1["node"]["name"])
+    assert first_page["pageInfo"]["hasNextPage"]
+    assert first_page["pageInfo"]["endCursor"]
+
+    second_page =
+      conn
+      |> post("/api/graphql", %{
+        "query" => query,
+        "variables" => %{
+          "q" => "cmc>=0",
+          "first" => 2,
+          "after" => first_page["pageInfo"]["endCursor"]
+        }
+      })
+      |> json_response(200)
+      |> get_in(["data", "cards"])
+
+    assert ["Time Walk"] = Enum.map(second_page["edges"], & &1["node"]["name"])
+    refute second_page["pageInfo"]["hasNextPage"]
+  end
+
   defp card_names(conn, variables) do
     conn
     |> post("/api/graphql", %{

@@ -15,11 +15,19 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
   end
 
   def cards(_parent, args, _resolution) do
-    with {:ok, fetch_limit} <- RelayHelpers.fetch_limit(args, 24) do
-      args
-      |> Map.get(:q, "")
-      |> Catalog.search_cards(limit: fetch_limit + 1, sort: Map.get(args, :sort, %{}))
-      |> RelayHelpers.connection_from_list(args, 24)
+    with {:ok, offset, limit} <- RelayHelpers.offset_and_limit(args, 24) do
+      cards =
+        args
+        |> Map.get(:q, "")
+        |> Catalog.search_cards(
+          limit: limit + 1,
+          offset: offset,
+          sort: Map.get(args, :sort, %{})
+        )
+
+      cards
+      |> Enum.take(limit)
+      |> RelayHelpers.connection_from_slice(offset, limit, offset + length(cards))
     end
   end
 

@@ -91,6 +91,15 @@ defmodule Manavault.CatalogTest do
              Catalog.search_cards("cmc>=0") |> Enum.map(& &1.name)
   end
 
+  test "search_cards offsets the result window" do
+    assert {:ok, _counts} = Catalog.import_cards([time_walk(), black_lotus(), plains()])
+
+    assert ["Plains", "Time Walk"] =
+             Catalog.search_cards("cmc>=0", limit: 2, offset: 1) |> Enum.map(& &1.name)
+
+    assert [] = Catalog.search_cards("cmc>=0", limit: 2, offset: 10)
+  end
+
   test "search_cards sorts by mana value with name tiebreaker" do
     assert {:ok, _counts} = Catalog.import_cards([time_walk(), black_lotus(), plains()])
 

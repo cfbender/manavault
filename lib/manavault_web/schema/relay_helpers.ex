@@ -45,6 +45,15 @@ defmodule ManavaultWeb.Schema.RelayHelpers do
     end
   end
 
+  def offset_and_limit(args, default_limit \\ 24) do
+    args = connection_args(args, default_limit)
+
+    with {:ok, _direction, limit} <- Connection.limit(args),
+         {:ok, offset} <- Connection.offset(args) do
+      {:ok, offset || 0, limit}
+    end
+  end
+
   def node_id(id, expected_type, resolution) do
     case Node.from_global_id(id, resolution.schema) do
       {:ok, %{type: type, id: internal_id}} ->

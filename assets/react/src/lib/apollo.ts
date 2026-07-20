@@ -37,6 +37,8 @@ export const apolloClient = new ApolloClient({
           // relay pages in the cache (keyed by the args that define a distinct
           // list) instead of hand-rolled updateQuery callbacks at each call site.
           collectionItems: relayStylePagination(["filters", "sort"]),
+          // Card catalog search paginates with fetchMore keyed by query and sort.
+          cards: relayStylePagination(["q", "sort"]),
         },
       },
     },

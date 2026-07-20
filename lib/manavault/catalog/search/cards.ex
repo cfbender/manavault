@@ -13,6 +13,7 @@ defmodule Manavault.Catalog.Search.Cards do
 
   def search_cards(term, opts \\ []) when is_binary(term) do
     limit = Keyword.get(opts, :limit, 20)
+    offset = Keyword.get(opts, :offset, 0)
     sort = Keyword.get(opts, :sort, @default_sort)
 
     card_ids =
@@ -22,6 +23,7 @@ defmodule Manavault.Catalog.Search.Cards do
       |> group_by([card, _printing], card.oracle_id)
       |> apply_sort(sort)
       |> limit(^limit)
+      |> offset(^offset)
       |> select([card, _printing], card.oracle_id)
       |> Repo.all()
 

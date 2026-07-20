@@ -1,6 +1,6 @@
 import { useQuery } from "@apollo/client/react"
 import { Link, useNavigate } from "@tanstack/react-router"
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { shuffle } from "es-toolkit"
 import { PageHeader } from "../../components/app-shell"
 import { EmptyState } from "../../components/card-image"
@@ -70,11 +70,20 @@ export function CardsPage({
   const combinedQuery = combineCollectionQueries(query, structuredFilterSyntax)
   const activeStructuredFilterCount = countActiveCollectionFilters(structuredFilters)
   const shouldSearchCards = Boolean(combinedQuery.trim())
-  const { data, loading: isFetching } = useQuery(CardsDocument, {
+  const isFetchingMoreRef = useRef(false)
+  const loadMoreRef = useRef<HTMLDivElement>(null)
+  const {
+    data,
+    loading: isFetching,
+    fetchMore,
+    networkStatus,
+  } = useQuery(CardsDocument, {
     variables: { q: combinedQuery, limit: 36, sort },
     skip: !shouldSearchCards,
     fetchPolicy: "cache-and-network",
+    notifyOnNetworkStatusChange: true,
   })
+  const isFetchingMore = networkStatus === 3
   const cards = shouldSearchCards
     ? connectionNodes(data?.cards).map((card) => ({
         ...card,
@@ -94,6 +103,35 @@ export function CardsPage({
   useEffect(() => {
     setStructuredFilters(routeFilters)
   }, [routeFilters])
+
+  const hasMoreResults = Boolean(data?.cards.pageInfo.hasNextPage)
+  const endCursor = data?.cards.pageInfo.endCursor
+
+  const loadMore = useCallback(() => {
+    if (isFetchingMoreRef.current || !hasMoreResults || !endCursor) return
+
+    isFetchingMoreRef.current = true
+    void fetchMore({
+      variables: { after: endCursor },
+    }).finally(() => {
+      isFetchingMoreRef.current = false
+    })
+  }, [fetchMore, hasMoreResults, endCursor])
+
+  useEffect(() => {
+    const sentinel = loadMoreRef.current
+    if (!sentinel || !hasMoreResults) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadMore()
+      },
+      { rootMargin: "200px" },
+    )
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [loadMore, hasMoreResults])
 
   function cardSearchParams(nextQuery: string, nextFilters = structuredFilters, nextSort = sort) {
     const term = nextQuery.trim()
@@ -131,7 +169,6 @@ export function CardsPage({
     navigate({ to: "/cards", search: cardSearchParams(query, filters) })
   }
 
-  const hasMoreResults = Boolean(data?.cards.pageInfo.hasNextPage)
   const resultSearchParams = cardSearchParams(query)
 
   return (
@@ -168,18 +205,27 @@ export function CardsPage({
           isLoading={isGalleryLoading}
         />
       ) : cards.length ? (
-        <CardResultsGrid
-          cards={cards}
-          onAddToDeck={setDeckTarget}
-          onSelectCard={(id) =>
-            navigate({
-              to: "/cards/$id",
-              params: { id },
-              search: cardSearchParams(query),
-            })
-          }
-          searchParams={resultSearchParams}
-        />
+        <>
+          <CardResultsGrid
+            cards={cards}
+            onAddToDeck={setDeckTarget}
+            onSelectCard={(id) =>
+              navigate({
+                to: "/cards/$id",
+                params: { id },
+                search: cardSearchParams(query),
+              })
+            }
+            searchParams={resultSearchParams}
+          />
+          {hasMoreResults ? (
+            <div ref={loadMoreRef} className="py-6 text-center">
+              {isFetchingMore ? (
+                <span className="text-sm text-base-content/60">Loading more...</span>
+              ) : null}
+            </div>
+          ) : null}
+        </>
       ) : (
         <NoCardResults
           hasActiveFilters={activeStructuredFilterCount > 0}
