@@ -99,8 +99,8 @@ defmodule Manavault.Catalog.ScryfallOracleTags do
   @hand_neutral_tags MapSet.new(["hand_neutral"])
   @hand_positive_tags MapSet.new(["hand_positive"])
   @scored_deck_categories [
-    {"ramp", MapSet.new(["ramp"])},
     {"card_advantage", MapSet.new(["card_advantage"])},
+    {"ramp", MapSet.new(["ramp"])},
     {"targeted_disruption", @targeted_disruption_themes}
   ]
   @category_theme_order %{
