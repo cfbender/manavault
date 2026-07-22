@@ -12,7 +12,7 @@ import {
 } from "../../components/ui/dialog"
 import { DeckPlaytester } from "../../components/deck-playtester"
 import { graphqlEndpointContext } from "../../lib/apollo"
-import { exportDecklistText } from "../../lib/deck-export"
+import { downloadTextFile, exportDecklistText } from "../../lib/deck-export"
 import { createPlaytestState } from "../../lib/deck-playtest"
 import { buylistPrintingLabel, buylistTotalPrice, formatUsdCents } from "./buylist-export"
 import { BuylistOptionCheckbox } from "./buylist-option-checkbox"
@@ -245,12 +245,5 @@ export function useSharedDecklistActions(deckName: string, deckCards: DeckCardEn
 }
 
 function downloadDecklistText(deckName: string, deckCards: DeckCardEntry[]) {
-  const blob = new Blob([exportDecklistText(deckCards)], { type: "text/plain;charset=utf-8" })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement("a")
-
-  link.href = url
-  link.download = `${deckName || "deck"}.txt`
-  link.click()
-  URL.revokeObjectURL(url)
+  downloadTextFile(`${deckName || "deck"}.txt`, exportDecklistText(deckCards))
 }

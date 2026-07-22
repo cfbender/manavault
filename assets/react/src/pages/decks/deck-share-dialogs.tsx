@@ -1,6 +1,6 @@
-import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
-import { Clipboard, Upload } from "lucide-react"
-import { useEffect, useRef, useState, type FormEvent } from "react"
+import { useApolloClient, useMutation } from "@apollo/client/react"
+import { Check, Clipboard, Download, Upload } from "lucide-react"
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import { Button } from "../../components/ui/button"
 import {
   Dialog,
@@ -12,14 +12,17 @@ import {
 import { Input } from "../../components/ui/input"
 import { useToast } from "../../components/ui/toast"
 import { refetchActiveQueries } from "../../lib/apollo"
-import { pluralize, titleize } from "../../lib/utils"
+import {
+  EXPORT_ZONES,
+  EXPORT_ZONE_LABELS,
+  downloadTextFile,
+  exportDecklistText,
+} from "../../lib/deck-export"
+import { cn, pluralize, titleize } from "../../lib/utils"
+import { BuylistOptionCheckbox } from "./buylist-option-checkbox"
 import type { DeckDetail, DeckSummary, DeckZone } from "./deck-types"
 import { ADD_CARD_ZONES } from "./deck-types"
-import {
-  DeckExportTextDocument,
-  EnsureDeckShareTokenDocument,
-  ImportDecklistDocument,
-} from "./queries"
+import { EnsureDeckShareTokenDocument, ImportDecklistDocument } from "./queries"
 
 export function ShareDeckDialog({
   deck,
@@ -311,11 +314,85 @@ export function ExportDecklistDialog({
   onOpenChange: (open: boolean) => void
   open: boolean
 }) {
-  const exportQuery = useQuery(DeckExportTextDocument, {
-    variables: { id: deck?.id || "" },
-    skip: !open || !deck?.id,
-  })
-  const exportText = exportQuery.data?.deckExportText || ""
+  const { showToast } = useToast()
+  const resetTimerRef = useRef<number | null>(null)
+  const deckCards = useMemo(() => deck?.deckCards ?? [], [deck])
+  const zoneCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const deckCard of deckCards) {
+      if (!deckCard.zone) continue
+      counts[deckCard.zone] = (counts[deckCard.zone] || 0) + Math.max(deckCard.quantity || 0, 0)
+    }
+    return counts
+  }, [deckCards])
+  const defaultZones =
+    deck?.format === "commander" && zoneCounts.commander > 0
+      ? ["commander", "mainboard"]
+      : ["mainboard"]
+  const defaultZonesRef = useRef(defaultZones)
+  defaultZonesRef.current = defaultZones
+  const [zones, setZones] = useState<string[]>(defaultZones)
+  const [zoneHeaders, setZoneHeaders] = useState(false)
+  const [includePrinting, setIncludePrinting] = useState(true)
+  const [includeFinish, setIncludeFinish] = useState(true)
+  const [quantityStyle, setQuantityStyle] = useState<"1x" | "1">("1x")
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle")
+
+  const exportText = useMemo(
+    () =>
+      exportDecklistText(deckCards, {
+        zones,
+        zoneHeaders,
+        includePrinting,
+        includeFinish,
+        quantityStyle,
+      }),
+    [deckCards, zones, zoneHeaders, includePrinting, includeFinish, quantityStyle],
+  )
+
+  useEffect(() => {
+    if (!open) return
+    setZones(defaultZonesRef.current)
+    setZoneHeaders(false)
+    setIncludePrinting(true)
+    setIncludeFinish(true)
+    setQuantityStyle("1x")
+    setCopyState("idle")
+  }, [open])
+
+  useEffect(
+    () => () => {
+      if (resetTimerRef.current) window.clearTimeout(resetTimerRef.current)
+    },
+    [],
+  )
+
+  function toggleZone(zone: string) {
+    setZones((current) =>
+      current.includes(zone) ? current.filter((entry) => entry !== zone) : [...current, zone],
+    )
+  }
+
+  async function copyDecklist() {
+    if (!exportText) return
+
+    try {
+      await navigator.clipboard.writeText(exportText)
+      setCopyState("copied")
+      showToast("Decklist copied")
+    } catch {
+      setCopyState("failed")
+    }
+
+    // Revert the transient status so the button label doesn't stay "Copied".
+    if (resetTimerRef.current) window.clearTimeout(resetTimerRef.current)
+    resetTimerRef.current = window.setTimeout(() => setCopyState("idle"), 2000)
+  }
+
+  function downloadDecklist() {
+    if (!exportText) return
+    downloadTextFile(`${deck?.name || "deck"}.txt`, exportText)
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -329,21 +406,119 @@ export function ExportDecklistDialog({
         </DialogHeader>
 
         <div className="space-y-4 p-5">
-          <textarea
-            className="textarea textarea-bordered min-h-80 w-full bg-base-100 font-mono text-sm"
-            readOnly
-            value={exportQuery.loading ? "Exporting..." : exportText}
-          />
-          {exportQuery.error ? (
-            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
-              {exportQuery.error instanceof Error
-                ? exportQuery.error.message
-                : "Could not export decklist"}
-            </p>
-          ) : null}
-          <div className="flex justify-end">
-            <Button type="button" onClick={() => onOpenChange(false)}>
+          <div className="space-y-2">
+            <span className="block text-xs font-black uppercase tracking-[0.18em] text-accent">
+              Zones
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {EXPORT_ZONES.map((zone) => {
+                const count = zoneCounts[zone] || 0
+                const selected = zones.includes(zone)
+
+                return (
+                  <button
+                    key={zone}
+                    type="button"
+                    disabled={!count}
+                    aria-pressed={selected}
+                    onClick={() => toggleZone(zone)}
+                    className={cn(
+                      "inline-flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-bold transition-colors",
+                      selected
+                        ? "border-primary bg-primary text-primary-content"
+                        : "border-base-300 bg-base-100/60 hover:border-primary/50",
+                      !count && "cursor-not-allowed opacity-40",
+                    )}
+                  >
+                    {EXPORT_ZONE_LABELS[zone]}
+                    <span
+                      className={cn(
+                        "rounded-full px-1.5 py-0.5 text-[10px] font-black",
+                        selected ? "bg-primary-content/20" : "bg-base-300/70 text-base-content/70",
+                      )}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <span className="block text-xs font-black uppercase tracking-[0.18em] text-accent">
+              Options
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <BuylistOptionCheckbox
+                checked={zoneHeaders}
+                label="Zone headers"
+                onChange={setZoneHeaders}
+              />
+              <BuylistOptionCheckbox
+                checked={includePrinting}
+                label="Printing (SET) #"
+                onChange={setIncludePrinting}
+              />
+              <BuylistOptionCheckbox
+                checked={includeFinish}
+                label="Finish markers"
+                onChange={setIncludeFinish}
+              />
+              <div className="inline-flex h-8 items-center gap-0.5 rounded-full border border-base-300 bg-base-100/60 p-0.5">
+                {(["1x", "1"] as const).map((style) => (
+                  <button
+                    key={style}
+                    type="button"
+                    aria-pressed={quantityStyle === style}
+                    onClick={() => setQuantityStyle(style)}
+                    className={cn(
+                      "h-7 rounded-full px-2.5 text-xs font-bold transition-colors",
+                      quantityStyle === style
+                        ? "bg-primary text-primary-content"
+                        : "text-base-content/70 hover:text-base-content",
+                    )}
+                  >
+                    {style}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <span className="block text-xs font-black uppercase tracking-[0.18em] text-accent">
+              Preview
+            </span>
+            <pre className="max-h-80 min-h-60 overflow-auto whitespace-pre-wrap rounded-box border border-base-300 bg-base-100 p-3 font-mono text-sm">
+              {exportText || "No cards in the selected zones."}
+            </pre>
+          </div>
+
+          <div className="flex justify-end gap-2 border-t border-base-300 pt-4">
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Close
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!exportText}
+              onClick={downloadDecklist}
+            >
+              <Download className="h-4 w-4" />
+              Download .txt
+            </Button>
+            <Button type="button" disabled={!exportText} onClick={copyDecklist}>
+              {copyState === "copied" ? (
+                <Check className="h-4 w-4" />
+              ) : (
+                <Clipboard className="h-4 w-4" />
+              )}
+              {copyState === "copied"
+                ? "Copied"
+                : copyState === "failed"
+                  ? "Copy failed"
+                  : "Copy decklist"}
             </Button>
           </div>
         </div>

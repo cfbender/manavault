@@ -795,12 +795,6 @@ export const ImportDecklistDocument = graphql(`
   }
 `)
 
-export const DeckExportTextDocument = graphql(`
-  query DeckExportText($id: ID!) {
-    deckExportText(id: $id)
-  }
-`)
-
 export const DeckBuylistDocument = graphql(`
   query DeckBuylist(
     $id: ID!
