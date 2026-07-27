@@ -55,6 +55,7 @@ Allocation status shows which deck cards are satisfied, missing, unavailable, or
 already allocated elsewhere. Bulk allocation can reserve matching collection
 items, and missing-card/buylist exports can include or exclude basics and target
 exact or matching printings.
+Purchase missing cards through Mana Pool, Card Kingdom, StarCityGames, or TCGplayer.
 
 ### Find upgrades and test lists
 

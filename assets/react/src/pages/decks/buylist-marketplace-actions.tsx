@@ -2,7 +2,13 @@ import { Database, ShoppingCart, Store } from "lucide-react"
 
 import { Button } from "../../components/ui/button"
 import { cn } from "../../lib/utils"
-import { manaPoolBuylistUrl, tcgplayerBuylistUrl, vendorBuylistPipeText } from "./buylist-export"
+import { currentCsrfToken } from "../../lib/csrf"
+import {
+  manaPoolBuylistUrl,
+  tcgplayerBuylistUrl,
+  vendorBuylistPipeText,
+  vendorBuylistPlainText,
+} from "./buylist-export"
 import type { BuylistEntry } from "./deck-types"
 
 export function BuylistMarketplaceActions({
@@ -16,6 +22,20 @@ export function BuylistMarketplaceActions({
 
   return (
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
+      {hasBuylistEntries ? (
+        <Button asChild variant="outline" size="sm">
+          <a href={manaPoolBuylistUrl(entries)} target="_blank" rel="noreferrer">
+            <Database className="h-4 w-4" />
+            Mana Pool
+          </a>
+        </Button>
+      ) : (
+        <Button type="button" variant="outline" size="sm" disabled>
+          <Database className="h-4 w-4" />
+          Mana Pool
+        </Button>
+      )}
+
       <form
         action="https://www.cardkingdom.com/builder"
         method="post"
@@ -32,19 +52,19 @@ export function BuylistMarketplaceActions({
         </Button>
       </form>
 
-      {hasBuylistEntries ? (
-        <Button asChild variant="outline" size="sm">
-          <a href={manaPoolBuylistUrl(entries)} target="_blank" rel="noreferrer">
-            <Database className="h-4 w-4" />
-            Mana Pool
-          </a>
+      <form
+        action="/vendors/star-city-games/deck-builder"
+        method="post"
+        target="_blank"
+        className="inline-flex"
+      >
+        <input type="hidden" name="_csrf_token" value={currentCsrfToken() || ""} />
+        <input type="hidden" name="data" value={vendorBuylistPlainText(entries)} />
+        <Button type="submit" variant="outline" size="sm" disabled={!hasBuylistEntries}>
+          <Store className="h-4 w-4" />
+          StarCityGames
         </Button>
-      ) : (
-        <Button type="button" variant="outline" size="sm" disabled>
-          <Database className="h-4 w-4" />
-          Mana Pool
-        </Button>
-      )}
+      </form>
 
       {hasBuylistEntries ? (
         <Button asChild variant="outline" size="sm">
