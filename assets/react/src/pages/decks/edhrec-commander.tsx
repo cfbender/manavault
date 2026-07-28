@@ -2,7 +2,6 @@ import { useState } from "react"
 import { ChevronDown, Eye } from "lucide-react"
 
 import { EmptyState } from "../../components/card-image"
-import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
 import { cn, compactNumber } from "../../lib/utils"
 import { useMobileHoverReveal } from "../../lib/mobile-hover"
@@ -14,6 +13,7 @@ import type {
   EDHRecCommanderPage,
   EDHRecSection,
   EDHRecSectionCard,
+  EDHRecThemeSelection,
 } from "./deck-types"
 import { EDHRecScrollContainer } from "./edhrec-card-grid"
 import { CollectionStatusBadge, EDHRecCardDetailTrigger, EDHRecCardMenu } from "./edhrec-card-menu"
@@ -29,15 +29,19 @@ export function EDHRecCommanderData({
   isAddingCard,
   onAddCard,
   onPreviewCard,
+  onThemeChange,
   pages,
   scrollStorageKey,
+  selectedTheme,
 }: {
   deck: DeckDetail | null
   isAddingCard: boolean
   onAddCard: (card: EDHRecSectionCard, zone: EDHRecAddZone) => void
   onPreviewCard: (card: CardDetailDialogTarget) => void
+  onThemeChange: (theme: EDHRecThemeSelection | null) => void
   pages: EDHRecCommanderPage[]
   scrollStorageKey: string
+  selectedTheme?: EDHRecThemeSelection
 }) {
   if (!pages.length) return <EmptyState title="No commander data returned" />
 
@@ -45,7 +49,12 @@ export function EDHRecCommanderData({
     <EDHRecScrollContainer className="space-y-8" storageKey={scrollStorageKey}>
       {pages.map((page) => (
         <section key={page.name} className="space-y-4">
-          <EDHRecCommanderHero deck={deck} page={page} />
+          <EDHRecCommanderHero
+            deck={deck}
+            onThemeChange={onThemeChange}
+            page={page}
+            selectedTheme={selectedTheme}
+          />
 
           <div className="space-y-5">
             {page.sections.map((section) => (
@@ -66,13 +75,19 @@ export function EDHRecCommanderData({
 
 export function EDHRecCommanderHero({
   deck,
+  onThemeChange,
   page,
+  selectedTheme,
 }: {
   deck: DeckDetail | null
+  onThemeChange: (theme: EDHRecThemeSelection | null) => void
   page: EDHRecCommanderPage
+  selectedTheme?: EDHRecThemeSelection
 }) {
   const commander = commanderDeckCard(deck, page.name)
   const imageUrl = commander ? cardImageUrl(commander, "imageUrl") : null
+  const selectedThemeSlug =
+    selectedTheme?.commanderName === page.name ? selectedTheme.themeSlug : null
 
   return (
     <section className="grid gap-5 rounded-box border border-base-300 bg-base-200/45 p-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
@@ -116,14 +131,49 @@ export function EDHRecCommanderHero({
           ))}
         </div>
 
-        {page.themes.length ? (
-          <div className="flex flex-wrap gap-2">
-            {page.themes.map((theme) => (
-              <Badge key={`${page.name}-${theme.slug || theme.name}`} tone="primary">
-                {theme.name}
-                {theme.count ? ` ${compactNumber(theme.count)}` : ""}
-              </Badge>
-            ))}
+        {page.themes.length || selectedThemeSlug ? (
+          <div>
+            <div className="mb-2 text-xs font-semibold text-base-content/65">Deck type</div>
+            <div
+              className="flex flex-wrap gap-2"
+              role="group"
+              aria-label={`Deck type for ${page.name}`}
+            >
+              <Button
+                type="button"
+                size="sm"
+                variant={selectedThemeSlug ? "outline" : "default"}
+                aria-pressed={!selectedThemeSlug}
+                onClick={() => onThemeChange(null)}
+              >
+                All decks
+              </Button>
+              {page.themes.map((theme) => {
+                const themeSlug = theme.slug
+
+                return themeSlug ? (
+                  <Button
+                    key={`${page.name}-${themeSlug}`}
+                    type="button"
+                    size="sm"
+                    variant={selectedThemeSlug === themeSlug ? "default" : "outline"}
+                    aria-pressed={selectedThemeSlug === themeSlug}
+                    onClick={() => onThemeChange({ commanderName: page.name, themeSlug })}
+                  >
+                    {theme.name}
+                    {theme.count ? ` ${compactNumber(theme.count)}` : ""}
+                  </Button>
+                ) : (
+                  <span
+                    key={`${page.name}-${theme.name}`}
+                    className="badge badge-sm badge-outline font-medium"
+                  >
+                    {theme.name}
+                    {theme.count ? ` ${compactNumber(theme.count)}` : ""}
+                  </span>
+                )
+              })}
+            </div>
           </div>
         ) : null}
 

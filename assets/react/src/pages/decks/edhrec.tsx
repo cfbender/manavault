@@ -17,6 +17,7 @@ import type {
   EDHRecCard,
   EDHRecSectionCard,
   EDHRecTab,
+  EDHRecThemeSelection,
 } from "./deck-types"
 import { CardDetailDialog, type CardDetailDialogTarget } from "./deck-card-detail-dialog"
 import { EDHRecCardGrid } from "./edhrec-card-grid"
@@ -59,7 +60,9 @@ export function EDHRecDialog({
   onAddCard,
   onExcludeLandsChange,
   onOpenChange,
+  onThemeChange,
   onTabChange,
+  selectedTheme,
   open,
 }: {
   activeTab: EDHRecTab
@@ -70,21 +73,31 @@ export function EDHRecDialog({
   onAddCard: (card: EDHRecCard | EDHRecSectionCard, zone: EDHRecAddZone) => void
   onExcludeLandsChange: (excludeLands: boolean) => void
   onOpenChange: (open: boolean) => void
+  onThemeChange: (theme: EDHRecThemeSelection | null) => void
   onTabChange: (tab: EDHRecTab) => void
   open: boolean
+  selectedTheme?: EDHRecThemeSelection
 }) {
   const [previewCard, setPreviewCard] = useState<CardDetailDialogTarget | null>(null)
   const edhrecQuery = useQuery(DeckEdhrecDocument, {
     variables: {
       id: deck?.id || "",
       excludeLands,
+      commanderName: selectedTheme?.commanderName,
+      commanderTheme: selectedTheme?.themeSlug,
     },
     skip: !open || !deck?.id,
   })
   const data = edhrecQuery.data?.deckEdhrec ?? edhrecQuery.previousData?.deckEdhrec
   const isInitialLoading = edhrecQuery.loading && !data
   const isRefreshing = edhrecQuery.loading && Boolean(data)
-  const scrollStorageKey = deck?.id ? edhrecScrollStorageKey(deck.id, activeTab) : null
+  const scrollStorageKey = deck?.id
+    ? edhrecScrollStorageKey(
+        deck.id,
+        activeTab,
+        activeTab === "commander" ? selectedTheme : undefined,
+      )
+    : null
   const tabs = [
     { count: data?.recommendations.length || 0, icon: Sparkles, label: "Recs", value: "recs" },
     { count: data?.cuts.length || 0, icon: XCircle, label: "Cuts", value: "cuts" },
@@ -205,7 +218,9 @@ export function EDHRecDialog({
                     isAddingCard={isAddingCard}
                     onAddCard={onAddCard}
                     onPreviewCard={setPreviewCard}
+                    onThemeChange={onThemeChange}
                     pages={data.commanderPages}
+                    selectedTheme={selectedTheme}
                     scrollStorageKey={scrollStorageKey}
                   />
                 ) : null}

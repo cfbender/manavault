@@ -839,8 +839,18 @@ export const DeckBuylistDocument = graphql(`
 `)
 
 export const DeckEdhrecDocument = graphql(`
-  query DeckEdhrec($id: ID!, $excludeLands: Boolean!) {
-    deckEdhrec(id: $id, excludeLands: $excludeLands) {
+  query DeckEdhrec(
+    $id: ID!
+    $excludeLands: Boolean!
+    $commanderName: String
+    $commanderTheme: String
+  ) {
+    deckEdhrec(
+      id: $id
+      excludeLands: $excludeLands
+      commanderName: $commanderName
+      commanderTheme: $commanderTheme
+    ) {
       commanderNames
       more
       recommendations {

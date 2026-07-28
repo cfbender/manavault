@@ -184,7 +184,9 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
   def deck_edhrec(_parent, %{id: id} = args, resolution) do
     opts = [
       exclude_lands: Map.get(args, :exclude_lands, false),
-      offset: Map.get(args, :offset, 0)
+      offset: Map.get(args, :offset, 0),
+      commander_name: Map.get(args, :commander_name),
+      commander_theme: Map.get(args, :commander_theme)
     ]
 
     with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do

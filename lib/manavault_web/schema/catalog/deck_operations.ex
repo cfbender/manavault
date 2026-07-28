@@ -58,6 +58,8 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
     field :deck_edhrec, non_null(:deck_edhrec) do
       arg(:id, non_null(:id))
       arg(:exclude_lands, :boolean, default_value: false)
+      arg(:commander_name, :string)
+      arg(:commander_theme, :string)
       arg(:offset, :integer, default_value: 0)
       resolve(&QueryResolvers.deck_edhrec/3)
     end

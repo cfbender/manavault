@@ -12,6 +12,7 @@ import type {
   EDHRecCard,
   EDHRecSectionCard,
   EDHRecTab,
+  EDHRecThemeSelection,
 } from "./deck-types"
 
 type DeckDetailUtilityOverlaysProps = {
@@ -19,6 +20,7 @@ type DeckDetailUtilityOverlaysProps = {
   canCloseDeleteSelected: boolean
   deck: DeckDetail
   edhrecExcludeLands: boolean
+  edhrecTheme?: EDHRecThemeSelection
   edhrecTab?: EDHRecTab
   isAddingCard: boolean
   isOptimizing: boolean
@@ -27,7 +29,11 @@ type DeckDetailUtilityOverlaysProps = {
   onDeleteSelected: () => void
   onOptimizePrintings: (deckCardIds: string[]) => void
   onSelectDeckCards: (deckCardIds: string[]) => void
-  onSetEdhrecState: (tab: EDHRecTab | undefined, excludeLands?: boolean) => void
+  onSetEdhrecState: (state: {
+    tab?: EDHRecTab
+    excludeLands?: boolean
+    theme?: EDHRecThemeSelection | null
+  }) => void
   overlay: DeckDetailOverlay
   selectedDeckCardCount: number
   shareMode: boolean
@@ -39,6 +45,7 @@ export function DeckDetailUtilityOverlays({
   deck,
   edhrecExcludeLands,
   edhrecTab,
+  edhrecTheme,
   isAddingCard,
   isOptimizing,
   onAddEdhrecCard,
@@ -106,19 +113,21 @@ export function DeckDetailUtilityOverlays({
           addCardError={addCardError}
           deck={deck}
           excludeLands={edhrecExcludeLands}
+          selectedTheme={edhrecTheme}
           isAddingCard={isAddingCard}
           open
           onAddCard={onAddEdhrecCard}
           onExcludeLandsChange={(excludeLands) =>
-            onSetEdhrecState(edhrecTab || "recs", excludeLands)
+            onSetEdhrecState({ tab: edhrecTab || "recs", excludeLands })
           }
           onOpenChange={(open) => {
             if (!open) {
-              onSetEdhrecState(undefined, false)
+              onSetEdhrecState({ tab: undefined, excludeLands: false, theme: null })
               onClose()
             }
           }}
-          onTabChange={(tab) => onSetEdhrecState(tab)}
+          onTabChange={(tab) => onSetEdhrecState({ tab })}
+          onThemeChange={(theme) => onSetEdhrecState({ tab: "commander", theme })}
         />
       ) : null}
     </>

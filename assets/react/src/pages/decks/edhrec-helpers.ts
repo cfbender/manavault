@@ -6,6 +6,7 @@ import type {
   EDHRecCollectionStatus,
   EDHRecSectionCard,
   EDHRecTab,
+  EDHRecThemeSelection,
 } from "./deck-types"
 import { EDHREC_SCROLL_STORAGE_PREFIX } from "./deck-types"
 
@@ -21,8 +22,13 @@ export function edhrecCardReturnSearch(
   }
 }
 
-export function edhrecScrollStorageKey(deckId: string, tab: EDHRecTab) {
-  return `${EDHREC_SCROLL_STORAGE_PREFIX}${deckId}.${tab}`
+export function edhrecScrollStorageKey(
+  deckId: string,
+  tab: EDHRecTab,
+  theme?: EDHRecThemeSelection,
+) {
+  const themeKey = theme ? `.${theme.commanderName}.${theme.themeSlug}` : ""
+  return `${EDHREC_SCROLL_STORAGE_PREFIX}${deckId}.${tab}${themeKey}`
 }
 
 // Scroll positions are per-visit UI state, so they live in sessionStorage only.

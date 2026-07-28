@@ -9,7 +9,8 @@ defmodule Manavault.Catalog.EDHRec.Response do
   def normalize_recs_response(
         %Deck{} = deck,
         response,
-        fetch_commander_page \\ &Client.fetch_commander_page/1
+        fetch_commander_page \\ &Client.fetch_commander_page/2,
+        commander_theme \\ nil
       )
       when is_map(response) do
     # No force: the caller (Recommendations.recs/2) already force-preloads these
@@ -22,7 +23,8 @@ defmodule Manavault.Catalog.EDHRec.Response do
       commander_names: commander_names,
       recommendations: normalize_entries(Map.get(response, "inRecs", []), deck),
       cuts: normalize_entries(Map.get(response, "outRecs", []), deck),
-      commander_pages: CommanderPage.pages(commander_names, fetch_commander_page, deck),
+      commander_pages:
+        CommanderPage.pages(commander_names, fetch_commander_page, deck, commander_theme),
       more: Map.get(response, "more", false) == true
     }
   end

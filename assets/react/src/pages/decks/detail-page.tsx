@@ -52,21 +52,30 @@ import {
   type EDHRecCard,
   type EDHRecSectionCard,
   type EDHRecTab,
+  type EDHRecThemeSelection,
 } from "./deck-types"
 
 type DeckDetailPageProps = {
   edhrecExcludeLands?: boolean
+  edhrecCommander?: string
   edhrecTab?: EDHRecTab
+  edhrecTheme?: string
   id: string
   shareMode?: boolean
 }
 
 export function DeckDetailPage({
   edhrecExcludeLands = false,
+  edhrecCommander,
   edhrecTab,
+  edhrecTheme: edhrecThemeSlug,
   id,
   shareMode = false,
 }: DeckDetailPageProps) {
+  const edhrecTheme =
+    edhrecCommander && edhrecThemeSlug
+      ? { commanderName: edhrecCommander, themeSlug: edhrecThemeSlug }
+      : undefined
   const [groupBy, setGroupBy] = useState<DeckGroupBy>("theme")
   const [overlay, setOverlay] = useState<DeckDetailOverlay>(NO_DECK_DETAIL_OVERLAY)
   const [activeTagId, setActiveTagId] = useState<string | null>(null)
@@ -263,13 +272,25 @@ export function DeckDetailPage({
     )
   }
 
-  function setEdhrecState(tab: EDHRecTab | undefined, excludeLands = edhrecExcludeLands) {
+  function setEdhrecState({
+    tab,
+    excludeLands = edhrecExcludeLands,
+    theme,
+  }: {
+    tab?: EDHRecTab
+    excludeLands?: boolean
+    theme?: EDHRecThemeSelection | null
+  }) {
+    const nextTheme = theme === undefined ? edhrecTheme : theme
+
     navigate({
       to: "/decks/$id",
       params: { id },
       search: {
         edhrec: tab,
+        edhrecCommander: tab && nextTheme ? nextTheme.commanderName : undefined,
         edhrecExcludeLands: tab && excludeLands ? true : undefined,
+        edhrecTheme: tab && nextTheme ? nextTheme.themeSlug : undefined,
       },
     })
   }
@@ -375,7 +396,7 @@ export function DeckDetailPage({
           onMissingCards={() => setOverlay({ kind: "missing-cards" })}
           onOpenEdhrec={() => {
             setOverlay({ kind: "edhrec" })
-            setEdhrecState("recs")
+            setEdhrecState({ tab: "recs", theme: null })
           }}
           onOpenReadiness={() => setOverlay({ kind: "readiness" })}
           onShareBuylist={() => setOverlay({ kind: "share-buylist" })}
@@ -524,6 +545,7 @@ export function DeckDetailPage({
         canCloseDeleteSelected={!bulkActions.isDeleting}
         deck={deck}
         edhrecExcludeLands={edhrecExcludeLands}
+        edhrecTheme={edhrecTheme}
         edhrecTab={edhrecTab}
         isAddingCard={cardActions.isAddingCard}
         isOptimizing={allocationActions.isOptimizingPrintings}

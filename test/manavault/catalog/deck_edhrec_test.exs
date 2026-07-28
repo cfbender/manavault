@@ -64,7 +64,7 @@ defmodule Manavault.Catalog.DeckEdhrecTest do
        }}
     end
 
-    fetch_commander_page = fn "Black Lotus" ->
+    fetch_commander_page = fn "Black Lotus", "power" ->
       {:ok,
        %{
          "title" => "Black Lotus (Commander)",
@@ -117,7 +117,9 @@ defmodule Manavault.Catalog.DeckEdhrecTest do
     assert {:ok, result} =
              Catalog.deck_edhrec(deck,
                fetch: fetch,
-               fetch_commander_page: fetch_commander_page
+               fetch_commander_page: fetch_commander_page,
+               commander_name: "Black Lotus",
+               commander_theme: "power"
              )
 
     assert_received {:edhrec_payload,
@@ -141,6 +143,7 @@ defmodule Manavault.Catalog.DeckEdhrecTest do
     assert [
              %{
                name: "Black Lotus",
+               url: "https://edhrec.com/commanders/black-lotus/power",
                themes: [%{name: "Power", count: 7}],
                sections: [
                  %{
@@ -211,7 +214,7 @@ defmodule Manavault.Catalog.DeckEdhrecTest do
     assert {:ok, result} =
              Catalog.deck_edhrec(deck,
                fetch: fetch,
-               fetch_commander_page: fn _name -> {:ok, %{}} end
+               fetch_commander_page: fn _name, _theme_slug -> {:ok, %{}} end
              )
 
     assert [
@@ -263,7 +266,7 @@ defmodule Manavault.Catalog.DeckEdhrecTest do
     assert {:ok, result} =
              Catalog.deck_edhrec(deck,
                fetch: fetch,
-               fetch_commander_page: fn _name -> {:ok, %{}} end
+               fetch_commander_page: fn _name, _theme_slug -> {:ok, %{}} end
              )
 
     # Time Walk isn't in the viewed deck, so it takes the batched collection-status

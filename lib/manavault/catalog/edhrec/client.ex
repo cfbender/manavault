@@ -25,8 +25,13 @@ defmodule Manavault.Catalog.EDHRec.Client do
     end
   end
 
-  def fetch_commander_page(name) when is_binary(name) do
-    url = "#{@commander_page_base_url}/#{card_slug(name)}.json"
+  def fetch_commander_page(name, theme_slug \\ nil) when is_binary(name) do
+    path =
+      [card_slug(name), theme_slug && card_slug(theme_slug)]
+      |> Enum.reject(&(&1 in [nil, ""]))
+      |> Enum.join("/")
+
+    url = "#{@commander_page_base_url}/#{path}.json"
 
     case Req.get(url, headers: [{"accept", "application/json"}], receive_timeout: 20_000) do
       {:ok, %{status: status, body: body}} when status in 200..299 ->
