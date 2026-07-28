@@ -25,19 +25,18 @@ defmodule Manavault.Catalog.Scryfall.Import do
     log_import_started(log_progress?, source_count)
 
     result =
-      Repo.transact(
-        fn ->
-          counts = import_card_batches(cards, now, oracle_tag_index, source_count, log_progress?)
-
+      case import_card_batches(cards, now, oracle_tag_index, source_count, log_progress?) do
+        {:ok, counts} ->
           {:ok,
            %{
              cards_count: counts.cards_count,
              printings_count: counts.printings_count,
              bulk_uri: bulk_uri
            }}
-        end,
-        timeout: :infinity
-      )
+
+        {:error, reason} ->
+          {:error, reason}
+      end
 
     case result do
       {:ok, counts} ->
@@ -54,17 +53,34 @@ defmodule Manavault.Catalog.Scryfall.Import do
   defp import_card_batches(cards, now, oracle_tag_index, source_count, log_progress?) do
     cards
     |> Enum.chunk_every(@batch_size)
-    |> Enum.reduce(initial_import_counts(), fn batch, counts ->
+    |> Enum.reduce_while({:ok, initial_import_counts()}, fn batch, {:ok, counts} ->
       rows = ImportRows.rows(batch, now, oracle_tag_index)
 
-      insert_card_rows(rows.cards)
-      insert_printing_rows(rows.printings)
-      refresh_printing_search_rows(rows.search_rows)
+      case import_batch(rows) do
+        {:ok, :imported} ->
+          counts =
+            counts
+            |> advance_import_counts(length(batch), rows)
+            |> maybe_log_import_progress(log_progress?, source_count)
 
-      counts
-      |> advance_import_counts(length(batch), rows)
-      |> maybe_log_import_progress(log_progress?, source_count)
+          {:cont, {:ok, counts}}
+
+        {:error, reason} ->
+          {:halt, {:error, reason}}
+      end
     end)
+  end
+
+  defp import_batch(rows) do
+    Repo.transact(
+      fn ->
+        insert_card_rows(rows.cards)
+        insert_printing_rows(rows.printings)
+        refresh_printing_search_rows(rows.search_rows)
+        {:ok, :imported}
+      end,
+      timeout: :infinity
+    )
   end
 
   defp initial_import_counts do
