@@ -14,11 +14,11 @@ defmodule Manavault.Catalog.SyncTest do
 
   test "sync_scryfall downloads bulk metadata and records success" do
     metadata_url = "https://example.test/metadata"
-    download_url = "https://example.test/default-cards.json"
+    download_url = "https://example.test/default-cards.jsonl.gz"
 
     fetcher = fn
-      ^metadata_url -> {:ok, Jason.encode!(%{"download_uri" => download_url})}
-      ^download_url -> {:ok, Jason.encode!([@black_lotus])}
+      ^metadata_url -> {:ok, Jason.encode!(%{"jsonl_download_uri" => download_url})}
+      ^download_url -> {:ok, gzip_jsonl([@black_lotus])}
     end
 
     assert {:ok,
@@ -39,13 +39,55 @@ defmodule Manavault.Catalog.SyncTest do
     assert Repo.aggregate(Printing, :count) == 1
   end
 
-  test "sync_scryfall emits info progress logs" do
-    metadata_url = "https://example.test/metadata-logs"
-    download_url = "https://example.test/default-cards-logs.json"
+  test "sync_scryfall imports current gzip JSON Lines Hobbit cards" do
+    metadata_url = "https://example.test/metadata"
+    download_url = "https://example.test/default-cards.jsonl.gz"
+
+    gleaming_splendor =
+      hobbit_card(
+        "42a1986c-9585-4544-b5a7-bee4be5c4506",
+        "c01aeaa5-1d3b-4493-9575-30175dcd780d",
+        "Gleaming Splendor",
+        "275"
+      )
+
+    long_bodied_grey_dog =
+      hobbit_card(
+        "d1a1e520-1fe2-4529-8afb-c187bb80da3c",
+        "6f83da19-fd89-44ec-88f3-0c3fddfbd1b2",
+        "Long-Bodied Grey Dog",
+        "1"
+      )
 
     fetcher = fn
-      ^metadata_url -> {:ok, Jason.encode!(%{"download_uri" => download_url})}
-      ^download_url -> {:ok, Jason.encode!([@black_lotus])}
+      ^metadata_url -> {:ok, Jason.encode!(%{"jsonl_download_uri" => download_url})}
+      ^download_url -> {:ok, gzip_jsonl([gleaming_splendor, long_bodied_grey_dog])}
+    end
+
+    assert {:ok, %Sync{status: "succeeded", cards_count: 2, printings_count: 2}} =
+             Catalog.sync_scryfall(
+               fetcher: fetcher,
+               bulk_url: metadata_url,
+               oracle_tags_bulk_url: nil
+             )
+
+    assert %Card{name: "Gleaming Splendor"} =
+             Repo.get!(Card, "c01aeaa5-1d3b-4493-9575-30175dcd780d")
+
+    assert %Printing{set_code: "hob", collector_number: "275"} =
+             Catalog.get_printing_by_scryfall_id("42a1986c-9585-4544-b5a7-bee4be5c4506")
+
+    assert %Card{name: "Long-Bodied Grey Dog"} =
+             Repo.get!(Card, "6f83da19-fd89-44ec-88f3-0c3fddfbd1b2")
+  end
+
+  test "sync_scryfall emits info progress logs" do
+    metadata_url = "https://example.test/metadata-logs"
+    download_url = "https://example.test/default-cards-logs.jsonl.gz"
+
+    fetcher = fn
+      ^metadata_url -> {:ok, Jason.encode!(%{"jsonl_download_uri" => download_url})}
+      ^download_url -> {:ok, gzip_jsonl([@black_lotus])}
     end
 
     previous_level = Logger.level()
@@ -79,23 +121,23 @@ defmodule Manavault.Catalog.SyncTest do
 
   test "sync_scryfall imports oracle-tags bulk data and attaches deck grouping" do
     metadata_url = "https://example.test/metadata"
-    download_url = "https://example.test/default-cards.json"
+    download_url = "https://example.test/default-cards.jsonl.gz"
     oracle_tags_metadata_url = "https://example.test/oracle-tags-metadata"
-    oracle_tags_download_url = "https://example.test/oracle-tags.json"
+    oracle_tags_download_url = "https://example.test/oracle-tags.jsonl.gz"
 
     fetcher = fn
       ^metadata_url ->
-        {:ok, Jason.encode!(%{"download_uri" => download_url})}
+        {:ok, Jason.encode!(%{"jsonl_download_uri" => download_url})}
 
       ^download_url ->
-        {:ok, Jason.encode!([@black_lotus])}
+        {:ok, gzip_jsonl([@black_lotus])}
 
       ^oracle_tags_metadata_url ->
-        {:ok, Jason.encode!(%{"download_uri" => oracle_tags_download_url})}
+        {:ok, Jason.encode!(%{"jsonl_download_uri" => oracle_tags_download_url})}
 
       ^oracle_tags_download_url ->
         {:ok,
-         Jason.encode!([
+         gzip_jsonl([
            scryfall_tag(%{
              "id" => "tag-ramp",
              "slug" => "ramp",
@@ -131,6 +173,57 @@ defmodule Manavault.Catalog.SyncTest do
     assert "ramp" in Jason.decode!(themes_json)
   end
 
+  test "sync_scryfall rejects former JSON-array bulk metadata" do
+    metadata_url = "https://example.test/legacy-metadata"
+    download_url = "https://example.test/default-cards.json"
+
+    fetcher = fn
+      ^metadata_url -> {:ok, Jason.encode!(%{"download_uri" => download_url})}
+      ^download_url -> flunk("legacy bulk payload should not be fetched")
+    end
+
+    assert {:error, %Sync{status: "failed", error: error}} =
+             Catalog.sync_scryfall(
+               fetcher: fetcher,
+               bulk_url: metadata_url,
+               oracle_tags_bulk_url: nil
+             )
+
+    assert error == "Scryfall bulk metadata did not include jsonl_download_uri"
+    assert Repo.aggregate(Card, :count) == 0
+    assert Repo.aggregate(Printing, :count) == 0
+  end
+
+  test "sync_scryfall validates JSON Lines before committing any batch" do
+    metadata_url = "https://example.test/malformed-metadata"
+    download_url = "https://example.test/malformed-default-cards.jsonl.gz"
+
+    valid_lines =
+      Enum.map(1..200, fn index ->
+        @black_lotus
+        |> Map.put("id", "scryfall-valid-#{index}")
+        |> Map.put("oracle_id", "oracle-valid-#{index}")
+        |> Map.put("name", "Valid Card #{index}")
+        |> Jason.encode!()
+      end)
+
+    fetcher = fn
+      ^metadata_url -> {:ok, Jason.encode!(%{"jsonl_download_uri" => download_url})}
+      ^download_url -> {:ok, gzip_jsonl_lines(valid_lines ++ ["{not-json"])}
+    end
+
+    assert {:error, %Sync{status: "failed", error: error}} =
+             Catalog.sync_scryfall(
+               fetcher: fetcher,
+               bulk_url: metadata_url,
+               oracle_tags_bulk_url: nil
+             )
+
+    assert error =~ "Invalid Scryfall JSON Lines record"
+    assert Repo.aggregate(Card, :count) == 0
+    assert Repo.aggregate(Printing, :count) == 0
+  end
+
   test "sync_scryfall records failures without importing partial catalog data" do
     metadata_url = "https://example.test/metadata"
 
@@ -145,5 +238,31 @@ defmodule Manavault.Catalog.SyncTest do
     assert error == "network unavailable"
     assert Repo.aggregate(Card, :count) == 0
     assert Repo.aggregate(Printing, :count) == 0
+  end
+
+  defp hobbit_card(id, oracle_id, name, collector_number) do
+    %{
+      @black_lotus
+      | "id" => id,
+        "oracle_id" => oracle_id,
+        "name" => name,
+        "set" => "hob",
+        "set_name" => "The Hobbit",
+        "collector_number" => collector_number,
+        "released_at" => "2026-08-14"
+    }
+  end
+
+  defp gzip_jsonl(records) do
+    records
+    |> Enum.map(&Jason.encode!/1)
+    |> gzip_jsonl_lines()
+  end
+
+  defp gzip_jsonl_lines(lines) do
+    lines
+    |> Enum.join("\n")
+    |> Kernel.<>("\n")
+    |> :zlib.gzip()
   end
 end

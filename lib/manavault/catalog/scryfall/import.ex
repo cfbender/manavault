@@ -2,7 +2,7 @@ defmodule Manavault.Catalog.Scryfall.Import do
   @moduledoc false
 
   alias Manavault.Catalog.{Card, Printing, ScryfallOracleTags, Search}
-  alias Manavault.Catalog.Scryfall.ImportRows
+  alias Manavault.Catalog.Scryfall.{BulkData, ImportRows}
   alias Manavault.Repo
 
   require Logger
@@ -16,31 +16,36 @@ defmodule Manavault.Catalog.Scryfall.Import do
     run(cards, nil, opts)
   end
 
-  def run(cards, bulk_uri, opts) when is_list(cards) and is_list(opts) do
+  def run(cards, bulk_uri, opts) when is_list(opts) do
     log_progress? = Keyword.get(opts, :log_progress, false)
-    source_count = Keyword.get(opts, :source_count) || if(log_progress?, do: length(cards))
+    source_count = Keyword.get(opts, :source_count) || enumerable_count(cards)
     now = utc_now()
     oracle_tag_index = ScryfallOracleTags.build_index(Keyword.get(opts, :oracle_tags, []))
 
     log_import_started(log_progress?, source_count)
 
     result =
-      case import_card_batches(cards, now, oracle_tag_index, source_count, log_progress?) do
-        {:ok, counts} ->
-          {:ok,
-           %{
-             cards_count: counts.cards_count,
-             printings_count: counts.printings_count,
-             bulk_uri: bulk_uri
-           }}
+      try do
+        case import_card_batches(cards, now, oracle_tag_index, source_count, log_progress?) do
+          {:ok, counts} ->
+            {:ok,
+             %{
+               cards_count: counts.cards_count,
+               printings_count: counts.printings_count,
+               source_count: counts.source_count,
+               bulk_uri: bulk_uri
+             }}
 
-        {:error, reason} ->
-          {:error, reason}
+          {:error, reason} ->
+            {:error, reason}
+        end
+      rescue
+        error in BulkData.DecodeError -> {:error, error.message}
       end
 
     case result do
       {:ok, counts} ->
-        log_import_completed(log_progress?, counts, source_count)
+        log_import_completed(log_progress?, counts, counts.source_count)
         Search.clear_card_name_suggestion_cache()
 
       {:error, reason} ->
@@ -49,6 +54,9 @@ defmodule Manavault.Catalog.Scryfall.Import do
 
     result
   end
+
+  defp enumerable_count(cards) when is_list(cards), do: length(cards)
+  defp enumerable_count(_cards), do: nil
 
   defp import_card_batches(cards, now, oracle_tag_index, source_count, log_progress?) do
     cards

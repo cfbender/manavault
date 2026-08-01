@@ -3,7 +3,7 @@ defmodule Manavault.Catalog.Scryfall.Sync do
 
   import Ecto.Query
 
-  alias Manavault.Catalog.Scryfall.{Fetch, Import}
+  alias Manavault.Catalog.Scryfall.{BulkData, Fetch, Import}
   alias Manavault.Catalog.Sync, as: SyncRecord
   alias Manavault.Repo
 
@@ -36,12 +36,11 @@ defmodule Manavault.Catalog.Scryfall.Sync do
 
     with {:ok, metadata_body} <- fetcher.(bulk_url),
          {:ok, metadata} <- Jason.decode(metadata_body),
-         {:ok, download_uri} <- fetch_download_uri(metadata),
+         {:ok, download_uri} <- BulkData.download_uri(metadata),
          :ok <- log_bulk_download_started(sync, "default-cards"),
          {:ok, bulk_body} <- fetcher.(download_uri),
          :ok <- log_bulk_downloaded(sync, "default-cards", bulk_body),
-         {:ok, cards} <- Jason.decode(bulk_body),
-         source_count <- length(cards),
+         {:ok, cards, source_count} <- BulkData.decode(bulk_body),
          :ok <- log_bulk_decoded(sync, "default-cards", source_count),
          {:ok, oracle_tags} <- fetch_oracle_tags(fetcher, oracle_tags_bulk_url, sync),
          {:ok, counts} <-
@@ -78,13 +77,6 @@ defmodule Manavault.Catalog.Scryfall.Sync do
     end
   end
 
-  defp fetch_download_uri(%{"download_uri" => download_uri}) when is_binary(download_uri) do
-    {:ok, download_uri}
-  end
-
-  defp fetch_download_uri(_metadata),
-    do: {:error, "Scryfall bulk metadata did not include download_uri"}
-
   defp fetch_oracle_tags(_fetcher, nil, sync) do
     Logger.info("Scryfall catalog sync skipping oracle-tags bulk sync_id=#{sync.id}")
     {:ok, []}
@@ -95,22 +87,13 @@ defmodule Manavault.Catalog.Scryfall.Sync do
 
     with {:ok, metadata_body} <- fetcher.(oracle_tags_bulk_url),
          {:ok, metadata} <- Jason.decode(metadata_body),
-         {:ok, download_uri} <- fetch_download_uri(metadata),
+         {:ok, download_uri} <- BulkData.download_uri(metadata),
          :ok <- log_bulk_download_started(sync, "oracle-tags"),
          {:ok, bulk_body} <- fetcher.(download_uri),
          :ok <- log_bulk_downloaded(sync, "oracle-tags", bulk_body),
-         {:ok, tags} <- decode_oracle_tags_bulk(bulk_body),
+         {:ok, tags} <- BulkData.decode_list(bulk_body),
          :ok <- log_bulk_decoded(sync, "oracle-tags", length(tags)) do
       {:ok, tags}
-    end
-  end
-
-  defp decode_oracle_tags_bulk(body) do
-    case Jason.decode(body) do
-      {:ok, tags} when is_list(tags) -> {:ok, tags}
-      {:ok, %{"data" => tags}} when is_list(tags) -> {:ok, tags}
-      {:ok, _value} -> {:error, "Scryfall oracle tags bulk did not decode to a list"}
-      {:error, reason} -> {:error, reason}
     end
   end
 
