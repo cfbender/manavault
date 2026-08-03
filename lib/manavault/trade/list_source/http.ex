@@ -43,6 +43,18 @@ defmodule Manavault.Trade.ListSource.Http do
     |> handle_response()
   end
 
+  @doc """
+  POSTs and decodes JSON like `post_json/3`, returning the downloaded body
+  size as the third tuple element on success.
+  """
+  def post_json_with_size(url, body, opts \\ []) when is_binary(url) do
+    request_options = Keyword.put(request_options(opts), :json, body)
+
+    url
+    |> Req.post(request_options)
+    |> handle_response(true)
+  end
+
   defp request_options(opts) do
     max_bytes = Keyword.get(opts, :max_bytes, @default_max_bytes)
 
@@ -60,25 +72,28 @@ defmodule Manavault.Trade.ListSource.Http do
     ] ++ Keyword.get(opts, :req_options, [])
   end
 
-  defp handle_response({:ok, response}) do
+  defp handle_response(result, include_size? \\ false)
+
+  defp handle_response({:ok, response}, include_size?) do
     case streamed_body(response) do
-      {:ok, body} -> decode_status(response.status, body)
+      {:ok, body} -> decode_status(response.status, body, include_size?)
       {:error, reason} -> {:error, reason}
     end
   end
 
-  defp handle_response({:error, %{reason: :timeout}}), do: {:error, :timeout}
-  defp handle_response({:error, _exception}), do: {:error, :request_failed}
+  defp handle_response({:error, %{reason: :timeout}}, _include_size?), do: {:error, :timeout}
+  defp handle_response({:error, _exception}, _include_size?), do: {:error, :request_failed}
 
-  defp decode_status(status, body) when status in 200..299 do
+  defp decode_status(status, body, include_size?) when status in 200..299 do
     case Jason.decode(body) do
+      {:ok, decoded} when include_size? -> {:ok, decoded, byte_size(body)}
       {:ok, decoded} -> {:ok, decoded}
       {:error, _reason} -> {:error, :invalid_json}
     end
   end
 
-  defp decode_status(403, _body), do: {:error, :forbidden}
-  defp decode_status(status, _body), do: {:error, {:http_error, status}}
+  defp decode_status(403, _body, _include_size?), do: {:error, :forbidden}
+  defp decode_status(status, _body, _include_size?), do: {:error, {:http_error, status}}
 
   defp streamed_body(response) do
     private = Map.get(response, :private, %{})

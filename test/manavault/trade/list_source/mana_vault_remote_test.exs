@@ -8,6 +8,7 @@ defmodule Manavault.Trade.ListSource.ManaVaultRemoteTest do
 
   setup do
     previous = Application.get_env(:manavault, :trade_manavault_req_options)
+    previous_clock = Application.get_env(:manavault, :trade_manavault_monotonic_time)
 
     Application.put_env(:manavault, :trade_manavault_req_options,
       plug: {Req.Test, @stub},
@@ -19,6 +20,12 @@ defmodule Manavault.Trade.ListSource.ManaVaultRemoteTest do
         Application.put_env(:manavault, :trade_manavault_req_options, previous)
       else
         Application.delete_env(:manavault, :trade_manavault_req_options)
+      end
+
+      if previous_clock do
+        Application.put_env(:manavault, :trade_manavault_monotonic_time, previous_clock)
+      else
+        Application.delete_env(:manavault, :trade_manavault_monotonic_time)
       end
     end)
 
@@ -34,6 +41,36 @@ defmodule Manavault.Trade.ListSource.ManaVaultRemoteTest do
   defp request_variables(conn) do
     {:ok, body, conn} = Plug.Conn.read_body(conn)
     {Jason.decode!(body)["variables"], conn}
+  end
+
+  defp deck_edge(name) do
+    %{
+      "node" => %{
+        "quantity" => 1,
+        "zone" => "mainboard",
+        "card" => %{"name" => name}
+      }
+    }
+  end
+
+  defp deck_page(edges, has_next_page, end_cursor, extra \\ %{}) do
+    Map.merge(
+      %{
+        "data" => %{
+          "deck" => %{
+            "name" => "Remote Deck",
+            "deckCards" => %{
+              "edges" => edges,
+              "pageInfo" => %{
+                "hasNextPage" => has_next_page,
+                "endCursor" => end_cursor
+              }
+            }
+          }
+        }
+      },
+      extra
+    )
   end
 
   describe "fetch/3 with :deck" do
@@ -125,6 +162,95 @@ defmodule Manavault.Trade.ListSource.ManaVaultRemoteTest do
                %{name: "Sol Ring", quantity: 4, zone: "mainboard"},
                %{name: "Negate", quantity: 2, zone: "considering"}
              ] = entries
+    end
+
+    test "stops endless pagination after ten pages" do
+      {:ok, requests} = Agent.start_link(fn -> 0 end)
+
+      Req.Test.stub(@stub, fn conn ->
+        request_number = Agent.get_and_update(requests, fn count -> {count + 1, count + 1} end)
+        respond_json(conn, deck_page([], true, "cursor-#{request_number}"))
+      end)
+
+      assert {:error, message} = ManaVaultRemote.fetch(:deck, @uri, "endless")
+      assert message =~ "too large or took too long"
+      assert Agent.get(requests, & &1) == 10
+    end
+
+    test "rejects a repeated cursor" do
+      Req.Test.stub(@stub, fn conn ->
+        {variables, conn} = request_variables(conn)
+
+        cursor =
+          case variables["after"] do
+            nil -> "cursor-1"
+            "cursor-1" -> "cursor-1"
+          end
+
+        respond_json(conn, deck_page([], true, cursor))
+      end)
+
+      assert {:error, message} = ManaVaultRemote.fetch(:deck, @uri, "repeated")
+      assert message =~ "invalid list pagination"
+    end
+
+    test "rejects a non-advancing empty cursor" do
+      Req.Test.stub(@stub, fn conn -> respond_json(conn, deck_page([], true, "")) end)
+
+      assert {:error, message} = ManaVaultRemote.fetch(:deck, @uri, "empty-cursor")
+      assert message =~ "invalid list pagination"
+    end
+
+    test "rejects more than ten thousand normalized entries across pages" do
+      first_page = Enum.map(1..5_001, &deck_edge("First #{&1}"))
+      second_page = Enum.map(1..5_000, &deck_edge("Second #{&1}"))
+
+      Req.Test.stub(@stub, fn conn ->
+        {variables, conn} = request_variables(conn)
+
+        case variables["after"] do
+          nil -> respond_json(conn, deck_page(first_page, true, "cursor-1"))
+          "cursor-1" -> respond_json(conn, deck_page(second_page, false, nil))
+        end
+      end)
+
+      assert {:error, message} = ManaVaultRemote.fetch(:deck, @uri, "too-many-entries")
+      assert message =~ "too large or took too long"
+    end
+
+    test "rejects more than ten megabytes of responses across pages" do
+      padding = String.duplicate("x", 3_400_000)
+
+      Req.Test.stub(@stub, fn conn ->
+        {variables, conn} = request_variables(conn)
+
+        case variables["after"] do
+          nil ->
+            respond_json(conn, deck_page([], true, "cursor-1", %{"padding" => padding}))
+
+          "cursor-1" ->
+            respond_json(conn, deck_page([], true, "cursor-2", %{"padding" => padding}))
+
+          "cursor-2" ->
+            respond_json(conn, deck_page([], false, nil, %{"padding" => padding}))
+        end
+      end)
+
+      assert {:error, message} = ManaVaultRemote.fetch(:deck, @uri, "too-many-bytes")
+      assert message =~ "too large or took too long"
+    end
+
+    test "rejects an import that reaches its whole-import deadline" do
+      {:ok, times} = Agent.start_link(fn -> [0, 0, 30_000] end)
+
+      Application.put_env(:manavault, :trade_manavault_monotonic_time, fn ->
+        Agent.get_and_update(times, fn [time | rest] -> {time, rest} end)
+      end)
+
+      Req.Test.stub(@stub, fn conn -> respond_json(conn, deck_page([], false, nil)) end)
+
+      assert {:error, message} = ManaVaultRemote.fetch(:deck, @uri, "too-slow")
+      assert message =~ "too large or took too long"
     end
 
     test "returns a not-found error when the deck resolves to null" do

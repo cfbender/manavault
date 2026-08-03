@@ -81,6 +81,23 @@ defmodule Manavault.Trade.ListSource.HttpTest do
              )
   end
 
+  test "post_json_with_size returns the downloaded response size" do
+    body = ~s({"data":{"ping":"pong"}})
+
+    Req.Test.stub(@stub, fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "application/json")
+      |> Plug.Conn.send_resp(200, body)
+    end)
+
+    assert {:ok, %{"data" => %{"ping" => "pong"}}, response_bytes} =
+             Http.post_json_with_size("https://example.test/graphql", %{"query" => "{ ping }"},
+               req_options: [plug: {Req.Test, @stub}]
+             )
+
+    assert response_bytes == byte_size(body)
+  end
+
   test "post_json maps a transport timeout to :timeout" do
     Req.Test.stub(@stub, fn conn -> Req.Test.transport_error(conn, :timeout) end)
 
