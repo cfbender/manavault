@@ -22,13 +22,12 @@ export type DeckExportOptions = {
   quantityStyle?: "1x" | "1"
 }
 
-export const EXPORT_ZONES = ["mainboard", "sideboard", "commander", "maybeboard"] as const
+export const EXPORT_ZONES = ["mainboard", "considering", "commander"] as const
 
 export const EXPORT_ZONE_LABELS: Record<(typeof EXPORT_ZONES)[number], string> = {
   mainboard: "Mainboard",
-  sideboard: "Sideboard",
+  considering: "Considering",
   commander: "Commander",
-  maybeboard: "Maybeboard",
 }
 
 export function exportDecklistText(

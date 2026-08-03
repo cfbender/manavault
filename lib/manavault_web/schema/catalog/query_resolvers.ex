@@ -253,8 +253,7 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
       printing_mode: Map.get(args, :printing_mode, "none"),
       include_basic_lands: Map.get(args, :include_basic_lands, false),
       assume_no_owned: Map.get(args, :assume_no_owned, false),
-      include_sideboard: Map.get(args, :include_sideboard, false),
-      include_maybeboard: Map.get(args, :include_maybeboard, false)
+      include_considering: Map.get(args, :include_considering, false)
     ]
   end
 

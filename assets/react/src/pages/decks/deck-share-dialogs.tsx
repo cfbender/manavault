@@ -18,10 +18,10 @@ import {
   downloadTextFile,
   exportDecklistText,
 } from "../../lib/deck-export"
-import { cn, pluralize, titleize } from "../../lib/utils"
+import { cn, pluralize } from "../../lib/utils"
 import { BuylistOptionCheckbox } from "./buylist-option-checkbox"
 import type { DeckDetail, DeckSummary, DeckZone } from "./deck-types"
-import { ADD_CARD_ZONES } from "./deck-types"
+import { ADD_CARD_ZONES, deckZoneDisplayLabel } from "./deck-types"
 import { EnsureDeckShareTokenDocument, ImportDecklistDocument } from "./queries"
 
 export function ShareDeckDialog({
@@ -223,7 +223,7 @@ export function ImportDecklistDialog({
               className="textarea textarea-bordered min-h-80 w-full bg-base-100 font-mono text-sm"
               value={text}
               onChange={(event) => setText(event.target.value)}
-              placeholder={"Commander\n1 Sol Ring\n1 Arcane Signet\n\nSideboard\n2 Negate"}
+              placeholder={"Commander\n1 Sol Ring\n1 Arcane Signet\n\nConsidering\n2 Negate"}
               autoFocus
             />
           </label>
@@ -240,7 +240,7 @@ export function ImportDecklistDialog({
               <option value="">Zones from decklist</option>
               {ADD_CARD_ZONES.map((zone) => (
                 <option key={zone} value={zone}>
-                  {titleize(zone)}
+                  {deckZoneDisplayLabel(zone)}
                 </option>
               ))}
             </select>

@@ -58,7 +58,7 @@ defmodule Manavault.Trade.DeckDiffTest do
     {:ok, deck} = Catalog.create_deck(%{"name" => "Test Deck"})
     add_deck_card!(deck, "Sol Ring", 1, "mainboard")
     add_deck_card!(deck, "Black Lotus", 1, "mainboard")
-    add_deck_card!(deck, "Time Walk", 1, "maybeboard")
+    add_deck_card!(deck, "Time Walk", 1, "considering")
 
     %{deck: deck}
   end
@@ -111,6 +111,31 @@ defmodule Manavault.Trade.DeckDiffTest do
     assert Enum.all?(result.cuts, & &1.image_url)
   end
 
+  test "cut and change rows carry the ids of every deck card behind them", %{deck: deck} do
+    # Sol Ring in two compared zones: a cut must reference both deck card rows.
+    sol_main = add_deck_card!(deck, "Sol Ring", 1, "mainboard")
+    sol_side = add_deck_card!(deck, "Sol Ring", 1, "commander")
+
+    entries = [entry("Black Lotus", "oracle-lotus", quantity: 3)]
+
+    assert {:ok, result} = DeckDiff.diff(deck.id, nil, %{entries: entries, unrecognized: []})
+
+    assert [sol_cut] = Enum.filter(result.cuts, &(&1.card_name == "Sol Ring"))
+    assert Enum.sort(Enum.uniq([sol_main.id, sol_side.id])) == sol_cut.deck_card_ids
+
+    assert [lotus_change] = result.changes
+    assert lotus_change.card_name == "Black Lotus"
+    assert [_lotus_deck_card_id] = lotus_change.deck_card_ids
+
+    # Basics cuts carry ids too.
+    assert {:ok, _} = Catalog.import_cards([basic_card("oracle-plains-a", "Plains")])
+    plains = add_deck_card!(deck, "Plains", 3, "mainboard")
+
+    assert {:ok, basic_result} = DeckDiff.diff(deck.id, nil, %{entries: [], unrecognized: []})
+    assert [plains_cut] = Enum.filter(basic_result.cuts, &(&1.card_name == "Plains"))
+    assert plains.id in plains_cut.deck_card_ids
+  end
+
   test "reports quantity changes for cards present on both sides", %{deck: deck} do
     entries = [entry("Sol Ring", "oracle-sol-ring", quantity: 4)]
 
@@ -132,8 +157,8 @@ defmodule Manavault.Trade.DeckDiffTest do
     assert result.changes == []
   end
 
-  test "excludes the maybeboard from both sides", %{deck: deck} do
-    entries = [entry("Time Walk", "oracle-walk", quantity: 1, zone: "maybeboard")]
+  test "excludes the considering zone from both sides", %{deck: deck} do
+    entries = [entry("Time Walk", "oracle-walk", quantity: 1, zone: "considering")]
 
     assert {:ok, result} = DeckDiff.diff(deck.id, nil, %{entries: entries, unrecognized: []})
 

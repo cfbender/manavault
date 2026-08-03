@@ -11,6 +11,8 @@ import {
 } from "../../components/ui/dialog"
 import { useToast } from "../../components/ui/toast"
 import { pluralize, present, titleize } from "../../lib/utils"
+import { NON_COMMANDER_ADD_CARD_ZONES, type DeckZone } from "../decks/deck-types"
+import { ZoneToggle } from "../decks/zone-toggle"
 import {
   BulkAddCollectionItemsToDeckDocument,
   CollectionItemDeckOptionsDocument,
@@ -33,7 +35,7 @@ export function AddCollectionItemToDeckDialog({
 }) {
   const { showToast } = useToast()
   const [deckId, setDeckId] = useState("")
-  const [zone, setZone] = useState("mainboard")
+  const [zone, setZone] = useState<DeckZone>("mainboard")
   const [error, setError] = useState<string | null>(null)
   const targetCount = collectionTargetCount(item)
   const open = targetCount > 0
@@ -119,18 +121,12 @@ export function AddCollectionItemToDeckDialog({
               ))}
             </select>
           </label>
-          <label className="block space-y-2">
-            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Zone</span>
-            <select
-              className="select select-bordered w-full bg-base-100"
-              value={zone}
-              onChange={(event) => setZone(event.target.value)}
-            >
-              <option value="mainboard">Mainboard</option>
-              <option value="sideboard">Sideboard</option>
-              <option value="maybeboard">Maybeboard</option>
-            </select>
-          </label>
+          <fieldset className="space-y-2">
+            <legend className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+              Zone
+            </legend>
+            <ZoneToggle zones={NON_COMMANDER_ADD_CARD_ZONES} value={zone} onChange={setZone} />
+          </fieldset>
           {error ? (
             <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
               {error}

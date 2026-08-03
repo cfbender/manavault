@@ -24,7 +24,7 @@ import { DeckGroupMenu } from "./deck-group-menu"
 import { deckLegalityIssueCountLabel, deckLegalityLabel, deckLegalityTone } from "./deck-legality"
 import { DeckNameWithCommanderIdentity, commanderColorIdentity } from "./deck-list-model"
 import { DeckTagsSidebar } from "./deck-tags-sidebar"
-import type { DeckCardEntry, DeckCustomTag, DeckDetail, DeckZone } from "./deck-types"
+import type { DeckCardEntry, DeckCustomTag, DeckDetail } from "./deck-types"
 
 type DeckTagActions = {
   activeTagId: string | null
@@ -282,19 +282,25 @@ export function DeckDetailHeader({
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-base-300 pb-4">
           <dl className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-            {(["commander", "mainboard", "sideboard", "maybeboard"] as DeckZone[]).map((zone) => (
-              <div key={zone} className="flex items-baseline gap-1.5">
+            {[
+              { key: "commander", label: "Commander", count: zoneCounts.commander || 0 },
+              { key: "mainboard", label: "Mainboard", count: zoneCounts.mainboard || 0 },
+              {
+                key: "considering",
+                label: "Considering",
+                count: zoneCounts.considering || 0,
+              },
+            ].map(({ key, label, count }) => (
+              <div key={key} className="flex items-baseline gap-1.5">
                 <dt
                   className={cn(
                     "text-xs font-black uppercase tracking-[0.16em]",
-                    zone === "commander" ? "text-primary" : "text-base-content/45",
+                    key === "commander" ? "text-primary" : "text-base-content/45",
                   )}
                 >
-                  {titleize(zone)}
+                  {label}
                 </dt>
-                <dd className="font-mono text-sm font-black text-base-content/80">
-                  {zoneCounts[zone] || 0}
-                </dd>
+                <dd className="font-mono text-sm font-black text-base-content/80">{count}</dd>
               </div>
             ))}
           </dl>

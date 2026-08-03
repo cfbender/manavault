@@ -8,7 +8,7 @@ import type {
   EDHRecTab,
   EDHRecThemeSelection,
 } from "./deck-types"
-import { EDHREC_SCROLL_STORAGE_PREFIX } from "./deck-types"
+import { EDHREC_SCROLL_STORAGE_PREFIX, deckZoneDisplayLabel } from "./deck-types"
 
 export function edhrecCardReturnSearch(
   deckId: string,
@@ -90,14 +90,7 @@ export function collectionStatusHoverLabel(status: EDHRecCollectionStatus) {
   const deckZone = "deckZone" in status ? status.deckZone : null
   if (!deckZone || deckZone === "mainboard") return undefined
 
-  return `In ${deckZoneLabel(deckZone)}`
-}
-
-function deckZoneLabel(zone: string) {
-  if (zone === "maybeboard") return "maybeboard"
-  if (zone === "sideboard") return "sideboard"
-  if (zone === "commander") return "commander"
-  return zone
+  return `In ${deckZoneDisplayLabel(deckZone).toLowerCase()}`
 }
 
 export function collectionStatusTone(

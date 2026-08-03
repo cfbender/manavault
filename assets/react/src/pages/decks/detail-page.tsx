@@ -179,18 +179,11 @@ export function DeckDetailPage({
   })
 
   const stackDeckCards = useMemo(
-    () =>
-      deckCards.filter(
-        (deckCard) => deckCard.zone !== "sideboard" && deckCard.zone !== "maybeboard",
-      ),
+    () => deckCards.filter((deckCard) => deckCard.zone !== "considering"),
     [deckCards],
   )
-  const sideboardCards = useMemo(
-    () => deckCards.filter((deckCard) => deckCard.zone === "sideboard").sort(compareDeckCards),
-    [deckCards],
-  )
-  const maybeboardCards = useMemo(
-    () => deckCards.filter((deckCard) => deckCard.zone === "maybeboard").sort(compareDeckCards),
+  const consideringCards = useMemo(
+    () => deckCards.filter((deckCard) => deckCard.zone === "considering").sort(compareDeckCards),
     [deckCards],
   )
   const groupedCards = useMemo(
@@ -200,10 +193,9 @@ export function DeckDetailPage({
   const selectionDeckCardIds = useMemo(
     () => [
       ...new Set(groupedCards.flatMap((group) => group.cards.map((deckCard) => deckCard.id))),
-      ...sideboardCards.map((deckCard) => deckCard.id),
-      ...maybeboardCards.map((deckCard) => deckCard.id),
+      ...consideringCards.map((deckCard) => deckCard.id),
     ],
-    [groupedCards, maybeboardCards, sideboardCards],
+    [consideringCards, groupedCards],
   )
   const selection = useDeckDetailSelection(deckCards, selectionDeckCardIds)
   const clearSelection = () => {
@@ -493,6 +485,7 @@ export function DeckDetailPage({
 
           <DeckDetailCardCollections
             canEdit={canEditDecklist}
+            consideringCards={consideringCards}
             deckFormat={deck.format}
             deckId={deck.id}
             deckTags={deck.tags}
@@ -500,7 +493,6 @@ export function DeckDetailPage({
             highlightedCardIds={selection.highlightedDeckCardIds}
             isSelecting={selection.isSelectionActive}
             isUpdating={isUpdatingDeckCard}
-            maybeboardCards={maybeboardCards}
             onAllocate={(deckCard, collectionItemId) =>
               allocationActions.allocate(deckCard.id, collectionItemId)
             }
@@ -519,7 +511,6 @@ export function DeckDetailPage({
             onUnassignTag={cardActions.unassignDeckCardTag}
             selectedCardIds={selection.selectedDeckCardIds}
             shareMode={shareMode}
-            sideboardCards={sideboardCards}
           />
           <DeckTokensSection tokens={deferredDeckAnalysis?.tokens ?? null} />
           <DeckStatsSection

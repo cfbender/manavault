@@ -79,8 +79,7 @@ defmodule Manavault.Catalog.Decks.Buylist do
     default_zones = [nil, "commander", "mainboard"]
 
     default_zones
-    |> maybe_add_zone("sideboard", Keyword.get(opts, :include_sideboard, false))
-    |> maybe_add_zone("maybeboard", Keyword.get(opts, :include_maybeboard, false))
+    |> maybe_add_zone("considering", Keyword.get(opts, :include_considering, false))
     |> MapSet.new()
   end
 

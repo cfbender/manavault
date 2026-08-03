@@ -45,7 +45,7 @@ defmodule ManavaultWeb.Schema.DeckQueriesTest do
            } = json_response(conn, 200)
   end
 
-  test "deck counts exclude sideboard and maybeboard cards", %{conn: conn} do
+  test "deck counts exclude considering-zone cards", %{conn: conn} do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([
                %{
@@ -92,18 +92,18 @@ defmodule ManavaultWeb.Schema.DeckQueriesTest do
                "zone" => "commander"
              })
 
-    assert {:ok, _sideboard} =
+    assert {:ok, _considering_main} =
              Catalog.add_card_to_deck(deck, %{
                "name" => "Count Main",
                "quantity" => 4,
-               "zone" => "sideboard"
+               "zone" => "considering"
              })
 
-    assert {:ok, _maybeboard} =
+    assert {:ok, _considering_commander} =
              Catalog.add_card_to_deck(deck, %{
                "name" => "Count Commander",
                "quantity" => 8,
-               "zone" => "maybeboard"
+               "zone" => "considering"
              })
 
     conn =

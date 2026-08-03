@@ -291,7 +291,7 @@ defmodule Manavault.Trade.ListSourceTest do
                  text: nil
                })
 
-      assert [%{name: "Sol Ring", zone: "mainboard"}, %{name: "Negate", zone: "sideboard"}] =
+      assert [%{name: "Sol Ring", zone: "mainboard"}, %{name: "Negate", zone: "considering"}] =
                entries
     end
 

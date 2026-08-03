@@ -123,7 +123,7 @@ defmodule Manavault.Trade.ListSource.ManaVaultRemoteTest do
 
       assert [
                %{name: "Sol Ring", quantity: 4, zone: "mainboard"},
-               %{name: "Negate", quantity: 2, zone: "sideboard"}
+               %{name: "Negate", quantity: 2, zone: "considering"}
              ] = entries
     end
 

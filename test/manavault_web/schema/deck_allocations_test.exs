@@ -51,7 +51,7 @@ defmodule ManavaultWeb.Schema.DeckAllocationsTest do
         "variables" => %{
           "id" => global_id(:collection_item, item.id),
           "deckId" => global_id(:deck, deck.id),
-          "zone" => "sideboard"
+          "zone" => "considering"
         }
       })
 
@@ -61,7 +61,7 @@ defmodule ManavaultWeb.Schema.DeckAllocationsTest do
                  "deckCard" => %{
                    "id" => _id,
                    "quantity" => 1,
-                   "zone" => "sideboard",
+                   "zone" => "considering",
                    "finish" => "nonfoil",
                    "card" => %{"name" => "Deck Add Card"},
                    "preferredPrinting" => %{"scryfallId" => "scryfall-printing-deck-add"}

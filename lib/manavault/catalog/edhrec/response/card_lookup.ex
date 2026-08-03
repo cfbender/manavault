@@ -6,7 +6,7 @@ defmodule Manavault.Catalog.EDHRec.Response.CardLookup do
   alias Manavault.Catalog.{Card, Deck, Printing}
   alias Manavault.Repo
 
-  @deck_zone_priority %{"mainboard" => 0, "sideboard" => 1, "maybeboard" => 2, "commander" => 3}
+  @deck_zone_priority %{"mainboard" => 0, "considering" => 1, "commander" => 2}
 
   def local_card(identifier, name) when is_binary(identifier) and identifier != "" do
     local_card_by_oracle_id(identifier) ||

@@ -128,8 +128,8 @@ function isReadonlyArray<T>(
 function isPresent<T>(value: Maybe<T>): value is T {
   return value != null
 }
-export type DeckZone = "mainboard" | "sideboard" | "commander" | "maybeboard"
-export type EDHRecAddZone = Extract<DeckZone, "mainboard" | "maybeboard" | "sideboard">
+export type DeckZone = "mainboard" | "commander" | "considering"
+export type EDHRecAddZone = Extract<DeckZone, "mainboard" | "considering">
 export type EDHRecCardReturnSearch = {
   deckId: string
   edhrec: EDHRecTab
@@ -206,13 +206,21 @@ export const DECK_FORMATS = [
   "casual",
 ] as const
 export const DECK_STATUSES = ["brewing", "active", "archived"] as const
-export const MOVE_TARGET_ZONES: DeckZone[] = ["mainboard", "sideboard", "maybeboard"]
-export const ADD_CARD_ZONES: DeckZone[] = ["mainboard", "sideboard", "commander", "maybeboard"]
-export const NON_COMMANDER_ADD_CARD_ZONES: DeckZone[] = ["mainboard", "sideboard", "maybeboard"]
+export function deckZoneDisplayLabel(zone: string | null | undefined): string {
+  if (!zone) return ""
+  // Legacy data may still carry the pre-migration zone names; keep mapping
+  // them to the unified "Considering" label defensively.
+  if (zone === "considering" || zone === "maybeboard" || zone === "sideboard") {
+    return "Considering"
+  }
+  return zone.charAt(0).toUpperCase() + zone.slice(1)
+}
+export const MOVE_TARGET_ZONES: DeckZone[] = ["mainboard", "considering"]
+export const ADD_CARD_ZONES: DeckZone[] = ["mainboard", "commander", "considering"]
+export const NON_COMMANDER_ADD_CARD_ZONES: DeckZone[] = ["mainboard", "considering"]
 export const EDHREC_ADD_CARD_ZONES = [
   { label: "Main", zone: "mainboard" },
-  { label: "Maybe", zone: "maybeboard" },
-  { label: "Sideboard", zone: "sideboard" },
+  { label: "Considering", zone: "considering" },
 ] satisfies Array<{ label: string; zone: EDHRecAddZone }>
 export const EDHREC_SCROLL_STORAGE_PREFIX = "manavault.edhrec.scroll."
 export const DECK_CARD_FINISHES = ["nonfoil", "foil", "etched"]

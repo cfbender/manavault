@@ -13,6 +13,8 @@ import {
 import { Input } from "../../components/ui/input"
 import { useToast } from "../../components/ui/toast"
 import { pluralize, present, titleize } from "../../lib/utils"
+import { ADD_CARD_ZONES, NON_COMMANDER_ADD_CARD_ZONES, type DeckZone } from "../decks/deck-types"
+import { ZoneToggle } from "../decks/zone-toggle"
 import { AddCardToDeckDocument, CardDeckOptionsDocument } from "./data"
 
 export type CardDeckPrintingOption = {
@@ -37,10 +39,6 @@ export type CardDeckTarget = {
   setCode?: string | null
 }
 
-type CardDeckZone = "mainboard" | "sideboard" | "commander" | "maybeboard"
-
-const CARD_DECK_ZONES: CardDeckZone[] = ["mainboard", "sideboard", "commander", "maybeboard"]
-const NON_COMMANDER_CARD_DECK_ZONES: CardDeckZone[] = ["mainboard", "sideboard", "maybeboard"]
 const CARD_DECK_FINISHES = ["nonfoil", "foil", "etched"]
 
 export function AddCatalogCardToDeckDialog({
@@ -55,7 +53,7 @@ export function AddCatalogCardToDeckDialog({
   const { showToast } = useToast()
   const [deckId, setDeckId] = useState("")
   const [quantity, setQuantity] = useState(1)
-  const [zone, setZone] = useState<CardDeckZone>("mainboard")
+  const [zone, setZone] = useState<DeckZone>("mainboard")
   const [finish, setFinish] = useState("nonfoil")
   const [selectedPrintingId, setSelectedPrintingId] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -67,7 +65,7 @@ export function AddCatalogCardToDeckDialog({
   const decks = decksQuery.data?.decks?.edges?.map((edge) => edge?.node).filter(present) || []
   const selectedDeck = decks.find((deck) => deck.id === deckId)
   const zoneOptions =
-    selectedDeck?.format === "commander" ? CARD_DECK_ZONES : NON_COMMANDER_CARD_DECK_ZONES
+    selectedDeck?.format === "commander" ? ADD_CARD_ZONES : NON_COMMANDER_ADD_CARD_ZONES
   const selectedPrinting =
     target?.printings?.find((printing) => printing.id === selectedPrintingId) ||
     target?.printings?.find((printing) => printing.id === target.preferredPrintingId) ||
@@ -245,21 +243,15 @@ export function AddCatalogCardToDeckDialog({
               />
             </label>
 
-            <label className="form-control">
-              <span className="label-text mb-1 text-sm font-semibold">Zone</span>
-              <select
-                className="select select-bordered w-full"
+            <fieldset className="space-y-1.5">
+              <legend className="label-text mb-1 text-sm font-semibold">Zone</legend>
+              <ZoneToggle
+                zones={zoneOptions}
                 value={zone}
+                onChange={setZone}
                 disabled={isAddingToDeck}
-                onChange={(event) => setZone(event.target.value as CardDeckZone)}
-              >
-                {zoneOptions.map((zone) => (
-                  <option key={zone} value={zone}>
-                    {titleize(zone)}
-                  </option>
-                ))}
-              </select>
-            </label>
+              />
+            </fieldset>
 
             <label className="form-control">
               <span className="label-text mb-1 text-sm font-semibold">Finish</span>

@@ -27,14 +27,12 @@ const SHARED_BUYLIST_PRINTING_MODE = "exact"
 export function useSharedDeckBuylist({
   enabled = true,
   includeBasicLands,
-  includeMaybeboard,
-  includeSideboard,
+  includeConsidering,
   shareToken,
 }: {
   enabled?: boolean
   includeBasicLands: boolean
-  includeMaybeboard: boolean
-  includeSideboard: boolean
+  includeConsidering: boolean
   shareToken: string
 }) {
   return useQuery(DeckBuylistDocument, {
@@ -43,8 +41,7 @@ export function useSharedDeckBuylist({
       assumeNoOwned: true,
       id: shareToken,
       includeBasicLands,
-      includeSideboard,
-      includeMaybeboard,
+      includeConsidering,
       printingMode: SHARED_BUYLIST_PRINTING_MODE,
     },
     skip: !(enabled && shareToken),
@@ -98,13 +95,11 @@ export function ShareDeckBuylistDialog({
   shareToken: string
 }) {
   const [includeBasicLands, setIncludeBasicLands] = useState(false)
-  const [includeSideboard, setIncludeSideboard] = useState(false)
-  const [includeMaybeboard, setIncludeMaybeboard] = useState(false)
+  const [includeConsidering, setIncludeConsidering] = useState(false)
   const buylistQuery = useSharedDeckBuylist({
     enabled: open,
     includeBasicLands,
-    includeMaybeboard,
-    includeSideboard,
+    includeConsidering,
     shareToken,
   })
   const entries = buylistQuery.data?.deckBuylist || []
@@ -148,14 +143,9 @@ export function ShareDeckBuylistDialog({
               onChange={setIncludeBasicLands}
             />
             <BuylistOptionCheckbox
-              checked={includeSideboard}
-              label="Include sideboard"
-              onChange={setIncludeSideboard}
-            />
-            <BuylistOptionCheckbox
-              checked={includeMaybeboard}
-              label="Include maybeboard"
-              onChange={setIncludeMaybeboard}
+              checked={includeConsidering}
+              label="Include considering"
+              onChange={setIncludeConsidering}
             />
           </div>
 

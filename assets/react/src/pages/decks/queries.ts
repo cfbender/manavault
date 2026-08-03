@@ -802,16 +802,14 @@ export const DeckBuylistDocument = graphql(`
     $exportFormat: String!
     $includeBasicLands: Boolean!
     $assumeNoOwned: Boolean!
-    $includeSideboard: Boolean!
-    $includeMaybeboard: Boolean!
+    $includeConsidering: Boolean!
   ) {
     deckBuylist(
       id: $id
       printingMode: $printingMode
       includeBasicLands: $includeBasicLands
       assumeNoOwned: $assumeNoOwned
-      includeSideboard: $includeSideboard
-      includeMaybeboard: $includeMaybeboard
+      includeConsidering: $includeConsidering
     ) {
       cardName
       quantity
@@ -832,8 +830,7 @@ export const DeckBuylistDocument = graphql(`
       printingMode: $printingMode
       includeBasicLands: $includeBasicLands
       assumeNoOwned: $assumeNoOwned
-      includeSideboard: $includeSideboard
-      includeMaybeboard: $includeMaybeboard
+      includeConsidering: $includeConsidering
     )
   }
 `)

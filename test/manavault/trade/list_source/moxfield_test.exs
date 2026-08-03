@@ -101,10 +101,10 @@ defmodule Manavault.Trade.ListSource.MoxfieldTest do
              } =
                Enum.find(entries, &(&1.name == "Sol Ring"))
 
-      assert %{name: "Negate", quantity: 2, zone: "sideboard", set_code: nil} =
+      assert %{name: "Negate", quantity: 2, zone: "considering", set_code: nil} =
                Enum.find(entries, &(&1.name == "Negate"))
 
-      assert %{name: "Ponder", quantity: 1, zone: "maybeboard"} =
+      assert %{name: "Ponder", quantity: 1, zone: "considering"} =
                Enum.find(entries, &(&1.name == "Ponder"))
 
       assert %{name: "Krenko, Mob Boss", quantity: 1, zone: "commander"} =

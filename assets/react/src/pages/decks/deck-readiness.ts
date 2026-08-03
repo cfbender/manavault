@@ -26,8 +26,7 @@ export function hasDeckPullWork(deckCards: readonly DeckCardEntry[]) {
 
 export type DeckZoneMissing = {
   mainboard: boolean
-  sideboard: boolean
-  maybeboard: boolean
+  considering: boolean
 }
 
 function deckCardMissingToBuy(deckCard: DeckCardEntry) {
@@ -36,13 +35,12 @@ function deckCardMissingToBuy(deckCard: DeckCardEntry) {
 }
 
 export function deckZoneMissing(deckCards: readonly DeckCardEntry[]): DeckZoneMissing {
-  const missing = { mainboard: false, sideboard: false, maybeboard: false }
+  const missing = { mainboard: false, considering: false }
 
   for (const deckCard of deckCards) {
     if (deckCardMissingToBuy(deckCard) <= 0) continue
 
-    if (deckCard.zone === "sideboard") missing.sideboard = true
-    else if (deckCard.zone === "maybeboard") missing.maybeboard = true
+    if (deckCard.zone === "considering") missing.considering = true
     else missing.mainboard = true
   }
 
@@ -51,7 +49,7 @@ export function deckZoneMissing(deckCards: readonly DeckCardEntry[]): DeckZoneMi
 
 export function hasDeckBuylistWork(deckCards: readonly DeckCardEntry[]) {
   const missing = deckZoneMissing(deckCards)
-  return missing.mainboard || missing.sideboard || missing.maybeboard
+  return missing.mainboard || missing.considering
 }
 
 export function summarizeDeckReadiness(deckCards: readonly DeckCardEntry[]): DeckReadinessSummary {

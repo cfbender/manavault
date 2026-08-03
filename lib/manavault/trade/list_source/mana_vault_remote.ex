@@ -198,6 +198,7 @@ defmodule Manavault.Trade.ListSource.ManaVaultRemote do
 
   defp deck_entry_from_edge(_edge), do: nil
 
+  defp zone_or_default(zone) when zone in ["sideboard", "maybeboard"], do: "considering"
   defp zone_or_default(zone) when is_binary(zone), do: zone
   defp zone_or_default(_zone), do: "mainboard"
 

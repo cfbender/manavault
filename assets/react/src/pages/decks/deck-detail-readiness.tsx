@@ -173,7 +173,7 @@ export function DeckDetailReadiness({
           <div>
             <DialogTitle id="deck-readiness-title">Deck pull list</DialogTitle>
             <p className="mt-1 text-sm text-base-content/65">
-              Mainboard and commander only. Sideboard and maybeboard stay out of this workflow.
+              Mainboard and commander only. Considering cards stay out of this workflow.
             </p>
           </div>
           <DialogClose onClose={onClose} />

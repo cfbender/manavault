@@ -97,10 +97,10 @@ defmodule Manavault.Trade.ListSource.ArchidektTest do
       assert %{name: "Lightning Bolt", quantity: 4, zone: "mainboard"} =
                Enum.find(entries, &(&1.name == "Lightning Bolt"))
 
-      assert %{name: "Abrade", quantity: 2, zone: "sideboard"} =
+      assert %{name: "Abrade", quantity: 2, zone: "considering"} =
                Enum.find(entries, &(&1.name == "Abrade"))
 
-      assert %{name: "Chandra, Torch of Defiance", quantity: 1, zone: "maybeboard"} =
+      assert %{name: "Chandra, Torch of Defiance", quantity: 1, zone: "considering"} =
                Enum.find(entries, &(&1.name == "Chandra, Torch of Defiance"))
 
       assert %{name: "Krenko, Mob Boss", quantity: 1, zone: "commander"} =

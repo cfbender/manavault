@@ -57,12 +57,11 @@ test("treats basic lands as ready without collection allocation", () => {
   assert.equal(summary.missingToBuy, 1)
 })
 
-test("deck pull readiness includes commander and excludes sideboard and maybeboard", () => {
+test("deck pull readiness includes commander and excludes considering", () => {
   const summary = summarizeDeckPullNeeds([
     deckCard(status({ allocated: 1, required: 1, state: "allocated" })),
     deckCard(status({ missing: 1, required: 1, state: "missing" }), { zone: "commander" }),
-    deckCard(status({ missing: 1, required: 1, state: "missing" }), { zone: "sideboard" }),
-    deckCard(status({ missing: 1, required: 1, state: "missing" }), { zone: "maybeboard" }),
+    deckCard(status({ missing: 1, required: 1, state: "missing" }), { zone: "considering" }),
   ])
 
   assert.equal(summary.readyCount, 1)
@@ -87,27 +86,26 @@ test("empty decks are ready by definition", () => {
 test("deckZoneMissing flags each zone with unsourced cards", () => {
   const missing = deckZoneMissing([
     deckCard(status({ allocated: 1, required: 1, state: "allocated" })),
-    deckCard(status({ missing: 1, required: 1, state: "missing" }), { zone: "sideboard" }),
-    deckCard(status({ missing: 2, required: 2, state: "missing" }), { zone: "maybeboard" }),
+    deckCard(status({ missing: 1, required: 1, state: "missing" }), { zone: "considering" }),
   ])
 
-  assert.deepEqual(missing, { mainboard: false, sideboard: true, maybeboard: true })
+  assert.deepEqual(missing, { mainboard: false, considering: true })
 })
 
 test("deckZoneMissing ignores getting-tagged and basic land cards", () => {
   const missing = deckZoneMissing([
     deckCard(status({ missing: 1, required: 1, state: "missing" }), { tag: "getting" }),
-    deckCard(status({ missing: 8, required: 8, state: "basic_land" }), { zone: "sideboard" }),
+    deckCard(status({ missing: 8, required: 8, state: "basic_land" }), { zone: "considering" }),
   ])
 
-  assert.deepEqual(missing, { mainboard: false, sideboard: false, maybeboard: false })
+  assert.deepEqual(missing, { mainboard: false, considering: false })
 })
 
-test("hasDeckBuylistWork is true when only the sideboard is missing", () => {
+test("hasDeckBuylistWork is true when only considering is missing", () => {
   assert.equal(
     hasDeckBuylistWork([
       deckCard(status({ allocated: 1, required: 1, state: "allocated" })),
-      deckCard(status({ missing: 1, required: 1, state: "missing" }), { zone: "maybeboard" }),
+      deckCard(status({ missing: 1, required: 1, state: "missing" }), { zone: "considering" }),
     ]),
     true,
   )
@@ -117,7 +115,7 @@ test("hasDeckBuylistWork is false when every zone is sourced", () => {
   assert.equal(
     hasDeckBuylistWork([
       deckCard(status({ allocated: 1, required: 1, state: "allocated" })),
-      deckCard(status({ allocated: 1, required: 1, state: "allocated" }), { zone: "sideboard" }),
+      deckCard(status({ allocated: 1, required: 1, state: "allocated" }), { zone: "considering" }),
     ]),
     false,
   )

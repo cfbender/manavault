@@ -18,8 +18,8 @@ function deckCard(zone, available, allocated, required = 1) {
 test("hasMainboardAllocationAvailable only considers unallocated mainboard cards", () => {
   assert.equal(
     hasMainboardAllocationAvailable([
-      deckCard("sideboard", 1, 0),
-      deckCard("maybeboard", 1, 0),
+      deckCard("considering", 1, 0),
+      deckCard("considering", 1, 0),
       deckCard("commander", 1, 0),
     ]),
     false,

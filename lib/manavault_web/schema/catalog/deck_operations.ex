@@ -39,8 +39,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       arg(:printing_mode, :string, default_value: "none")
       arg(:include_basic_lands, :boolean, default_value: false)
       arg(:assume_no_owned, :boolean, default_value: false)
-      arg(:include_sideboard, :boolean, default_value: false)
-      arg(:include_maybeboard, :boolean, default_value: false)
+      arg(:include_considering, :boolean, default_value: false)
       resolve(&QueryResolvers.deck_buylist/3)
     end
 
@@ -50,8 +49,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       arg(:printing_mode, :string, default_value: "none")
       arg(:include_basic_lands, :boolean, default_value: false)
       arg(:assume_no_owned, :boolean, default_value: false)
-      arg(:include_sideboard, :boolean, default_value: false)
-      arg(:include_maybeboard, :boolean, default_value: false)
+      arg(:include_considering, :boolean, default_value: false)
       resolve(&QueryResolvers.deck_buylist_export/3)
     end
 

@@ -32,8 +32,7 @@ export function MissingCardsDialog({
   const [printingMode, setPrintingMode] = useState<BuylistPrintingMode>("none")
   const [exportFormat, setExportFormat] = useState<BuylistExportFormat>("text")
   const [includeBasicLands, setIncludeBasicLands] = useState(false)
-  const [includeSideboard, setIncludeSideboard] = useState(false)
-  const [includeMaybeboard, setIncludeMaybeboard] = useState(false)
+  const [includeConsidering, setIncludeConsidering] = useState(false)
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle")
   const buylistQuery = useQuery(DeckBuylistDocument, {
     variables: {
@@ -42,8 +41,7 @@ export function MissingCardsDialog({
       exportFormat,
       assumeNoOwned: false,
       includeBasicLands,
-      includeSideboard,
-      includeMaybeboard,
+      includeConsidering,
     },
     skip: !open || !deck?.id,
   })
@@ -57,11 +55,10 @@ export function MissingCardsDialog({
     }
 
     // When the mainboard is fully sourced, missing cards live only in the
-    // sideboard/maybeboard, so pre-select those zones that still need buying.
+    // considering pile, so pre-select it when it still needs buying.
     const missing = deckZoneMissing(deck?.deckCards || [])
     const mainboardReady = !missing.mainboard
-    setIncludeSideboard(mainboardReady && missing.sideboard)
-    setIncludeMaybeboard(mainboardReady && missing.maybeboard)
+    setIncludeConsidering(mainboardReady && missing.considering)
   }, [open, deck])
 
   async function copyExportText() {
@@ -146,14 +143,9 @@ export function MissingCardsDialog({
               onChange={setIncludeBasicLands}
             />
             <BuylistOptionCheckbox
-              checked={includeSideboard}
-              label="Include sideboard"
-              onChange={setIncludeSideboard}
-            />
-            <BuylistOptionCheckbox
-              checked={includeMaybeboard}
-              label="Include maybeboard"
-              onChange={setIncludeMaybeboard}
+              checked={includeConsidering}
+              label="Include considering"
+              onChange={setIncludeConsidering}
             />
           </div>
 

@@ -16,12 +16,14 @@ export const DeckDiffDocument = graphql(`
         quantity
         oracleId
         imageUrl
+        deckCardIds
       }
       changes {
         cardName
         fromQuantity
         toQuantity
         oracleId
+        deckCardIds
       }
     }
   }

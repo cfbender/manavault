@@ -22,7 +22,7 @@ import {
 
 import { CardTileOverlayButton } from "../../components/card-tile"
 import { useHasMobileHoverInteraction, useMobileHoverReveal } from "../../lib/mobile-hover"
-import { cn, titleize } from "../../lib/utils"
+import { cn } from "../../lib/utils"
 import { ShareModeHidden, blurFocusedMenuItem } from "./deck-actions"
 import {
   AllocationStatusIcon,
@@ -44,7 +44,7 @@ import {
 } from "./deck-stack-interactions"
 import type { CardSize } from "../../lib/card-size"
 import type { DeckCardEntry, DeckCardTag, DeckCustomTag } from "./deck-types"
-import { DECK_CARD_TAGS } from "./deck-types"
+import { DECK_CARD_TAGS, deckZoneDisplayLabel } from "./deck-types"
 
 const TAG_DRAG_THRESHOLD_PX = 8
 
@@ -626,7 +626,9 @@ export function DeckStackCard({
               <div className="line-clamp-2 text-sm font-black leading-tight">{name}</div>
               <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-white/75">
                 <span className="truncate">
-                  {printing?.setName || printing?.setCode?.toUpperCase() || titleize(deckCard.zone)}
+                  {printing?.setName ||
+                    printing?.setCode?.toUpperCase() ||
+                    deckZoneDisplayLabel(deckCard.zone)}
                 </span>
                 <span>#{printing?.collectorNumber || "?"}</span>
               </div>

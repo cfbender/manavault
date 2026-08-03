@@ -1,10 +1,11 @@
 import { CheckSquare, Trash2, XCircle } from "lucide-react"
+import { useState } from "react"
 
 import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/input"
 import type { DeckCardUpdateInput } from "../../gql/graphql"
-import { titleize } from "../../lib/utils"
 import { DECK_CARD_TAGS, MOVE_TARGET_ZONES, type DeckCardTag, type DeckZone } from "./deck-types"
+import { ZoneToggle } from "./zone-toggle"
 
 type DeckDetailSelectionBarProps = {
   allSelected: boolean
@@ -41,6 +42,8 @@ export function DeckDetailSelectionBar({
   selectedCount,
   totalCount,
 }: DeckDetailSelectionBarProps) {
+  const [moveZone, setMoveZone] = useState<DeckZone>(MOVE_TARGET_ZONES[0])
+
   return (
     <div className="grid gap-3 rounded-box border border-base-300 bg-base-100 p-3 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -95,24 +98,21 @@ export function DeckDetailSelectionBar({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <select
-          className="select select-bordered select-sm w-40"
-          aria-label="Move selected cards"
+        <ZoneToggle
+          zones={MOVE_TARGET_ZONES}
+          value={moveZone}
+          onChange={setMoveZone}
           disabled={!selectedCount || isPending}
-          defaultValue=""
-          onChange={(event) => {
-            const zone = event.currentTarget.value as DeckZone | ""
-            if (zone) onUpdate({ zone })
-            event.currentTarget.value = ""
-          }}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={!selectedCount || isPending}
+          onClick={() => onUpdate({ zone: moveZone })}
         >
-          <option value="">Move to zone...</option>
-          {MOVE_TARGET_ZONES.map((zone) => (
-            <option key={zone} value={zone}>
-              {titleize(zone)}
-            </option>
-          ))}
-        </select>
+          Move
+        </Button>
 
         <label className="join h-8 items-stretch">
           <span className="join-item flex h-8 min-h-8 items-center border border-base-300 bg-base-200 px-2 text-xs font-semibold">

@@ -3,7 +3,7 @@ defmodule Manavault.Catalog.DeckCard do
 
   import Ecto.Changeset
 
-  @zones ~w(mainboard sideboard commander maybeboard)
+  @zones ~w(mainboard commander considering)
   @tags ~w(getting consider_cutting)
   @deck_count_zones ~w(mainboard commander)
 

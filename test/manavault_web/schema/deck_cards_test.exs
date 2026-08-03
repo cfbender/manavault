@@ -24,7 +24,7 @@ defmodule ManavaultWeb.Schema.DeckCardsTest do
         }
       ])
 
-    {:ok, deck} = Catalog.create_deck(%{"name" => "Sideboard Test"})
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Considering Test"})
     {:ok, deck_card} = Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus"})
 
     conn =
@@ -43,7 +43,7 @@ defmodule ManavaultWeb.Schema.DeckCardsTest do
         """,
         "variables" => %{
           "id" => global_id(:deck_card, deck_card.id),
-          "input" => %{"zone" => "sideboard"}
+          "input" => %{"zone" => "considering"}
         }
       })
 
@@ -52,7 +52,7 @@ defmodule ManavaultWeb.Schema.DeckCardsTest do
                "updateDeckCard" => %{
                  "deckCard" => %{
                    "id" => _id,
-                   "zone" => "sideboard",
+                   "zone" => "considering",
                    "quantity" => 1,
                    "card" => %{"name" => "Black Lotus"}
                  }
@@ -334,7 +334,7 @@ defmodule ManavaultWeb.Schema.DeckCardsTest do
           "input" => %{
             "name" => "Add Me",
             "quantity" => 2,
-            "zone" => "sideboard",
+            "zone" => "considering",
             "finish" => "nonfoil"
           }
         }
@@ -346,7 +346,7 @@ defmodule ManavaultWeb.Schema.DeckCardsTest do
                  "deckCard" => %{
                    "id" => _id,
                    "quantity" => 2,
-                   "zone" => "sideboard",
+                   "zone" => "considering",
                    "finish" => "nonfoil",
                    "card" => %{"name" => "Add Me"}
                  }
@@ -605,14 +605,14 @@ defmodule ManavaultWeb.Schema.DeckCardsTest do
           }
         }
         """,
-        "variables" => %{"deckCardIds" => ids, "input" => %{"zone" => "sideboard"}}
+        "variables" => %{"deckCardIds" => ids, "input" => %{"zone" => "considering"}}
       })
 
     assert %{"data" => %{"bulkUpdateDeckCards" => %{"deckCards" => updated}}} =
              json_response(update_conn, 200)
 
     assert length(updated) == 2
-    assert Enum.all?(updated, &(&1["zone"] == "sideboard"))
+    assert Enum.all?(updated, &(&1["zone"] == "considering"))
 
     delete_conn =
       post(conn, "/api/graphql", %{

@@ -85,7 +85,12 @@ Deck workflows include:
 
 - create, edit, and delete decks
 - import and export decklists
-- commander/mainboard/sideboard/maybeboard zones
+- mainboard/commander/considering zones - a segmented Mainboard/Considering
+  toggle (plus Commander for Commander decks) picks the zone when adding or
+  moving cards. Considering replaced the old sideboard and maybeboard zones;
+  a migration merged existing rows, and decklist import still accepts `SB:`,
+  Sideboard, Maybe, and Maybeboard headings, mapping them all to Considering.
+  Exports emit a Considering heading.
 - commander selection for Commander decks
 - quantity, zone, tag, finish, and preferred-printing edits
 - deck grouping by theme/category and zone tables
@@ -113,9 +118,13 @@ The Trade tab connects owned inventory to trading with other players:
 
 Deck detail pages additionally offer a **Compare decklist** action that diffs
 an external list against the open deck as adds, cuts, and quantity changes
-(maybeboards excluded), with a copyable +/- text diff. Basic lands are
-compared by name and only appear when the two sides disagree on the count -
-equal counts cancel instead of showing paired add/cut rows.
+(considering piles excluded on both sides - the diff compares the actual
+deck), with a copyable +/- text diff. Basic lands are compared by name and
+only appear when the two sides disagree on the count - equal counts cancel
+instead of showing paired add/cut rows. Diff rows are actionable: adds can
+be added to the deck's Considering pile (individually or all at once), and
+cuts or downward quantity changes can tag the matching deck cards as
+consider-cutting.
 
 Supported link sources are Moxfield and Archidekt deck URLs (fetched
 server-side from their public APIs with strict id validation, no redirects,

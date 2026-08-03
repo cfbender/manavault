@@ -62,8 +62,8 @@ defmodule Manavault.Trade.ListSource.Archidekt do
 
   defp zone_from_categories(categories) when is_list(categories) do
     cond do
-      "Maybeboard" in categories -> "maybeboard"
-      "Sideboard" in categories -> "sideboard"
+      "Maybeboard" in categories -> "considering"
+      "Sideboard" in categories -> "considering"
       "Commander" in categories -> "commander"
       true -> "mainboard"
     end

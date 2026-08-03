@@ -25,7 +25,7 @@ test("exportDecklistText groups zones in decklist order and sorts names", () => 
     },
     {
       quantity: 1,
-      zone: "sideboard",
+      zone: "considering",
       finish: "etched",
       card: { name: "Negate" },
     },
@@ -35,7 +35,7 @@ test("exportDecklistText groups zones in decklist order and sorts names", () => 
     text,
     [
       "Mainboard\n4x Arcane Signet\n2x Zedruu the Greathearted (C16) 229 *F*",
-      "Sideboard\n1x Negate *E*",
+      "Considering\n1x Negate *E*",
       "Commander\n1x Atraxa, Praetors' Voice (MUL) 98",
     ].join("\n\n"),
   )
@@ -44,17 +44,17 @@ test("exportDecklistText groups zones in decklist order and sorts names", () => 
 test("exportDecklistText skips empty and nameless entries", () => {
   const text = exportDecklistText([
     { quantity: 1, zone: "mainboard", card: { name: "" } },
-    { quantity: 1, zone: "maybeboard", card: { name: "Consider" } },
+    { quantity: 1, zone: "considering", card: { name: "Consider" } },
   ])
 
-  assert.equal(text, "Maybeboard\n1x Consider")
+  assert.equal(text, "Considering\n1x Consider")
 })
 
 test("exportDecklistText limits output to selected zones without headers", () => {
   const text = exportDecklistText(
     [
       { quantity: 1, zone: "mainboard", card: { name: "Sol Ring" } },
-      { quantity: 1, zone: "sideboard", card: { name: "Negate" } },
+      { quantity: 1, zone: "considering", card: { name: "Negate" } },
       { quantity: 1, zone: "commander", card: { name: "Atraxa, Praetors' Voice" } },
     ],
     { zones: ["mainboard", "commander"], zoneHeaders: false },

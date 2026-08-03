@@ -70,11 +70,17 @@ defmodule Manavault.Trade.ListSource.ManaVault do
     %{
       name: name,
       quantity: deck_card.quantity,
-      zone: deck_card.zone,
+      zone: normalize_zone(deck_card.zone),
       set_code: nil,
       collector_number: nil
     }
   end
+
+  # Local decks are already migrated to "considering", but this keeps a
+  # single defensive mapping alongside ManaVaultRemote's normalization for
+  # older remote instances in case a legacy value ever slips through.
+  defp normalize_zone(zone) when zone in ["sideboard", "maybeboard"], do: "considering"
+  defp normalize_zone(zone), do: zone
 
   defp entries_from_wants(entries) when is_list(entries) do
     %{source_name: @wants_source_name, entries: Enum.map(entries, &normalize_want_entry/1)}

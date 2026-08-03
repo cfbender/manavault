@@ -11,7 +11,7 @@ export function countDeckZones(deckCards: DeckCardEntry[]) {
         (counts[deckCard.zone as DeckZone] || 0) + deckCard.quantity
       return counts
     },
-    { commander: 0, mainboard: 0, maybeboard: 0, sideboard: 0 },
+    { commander: 0, mainboard: 0, considering: 0 },
   )
 }
 
@@ -50,7 +50,7 @@ export function deckPlaytestCards(deckCards: DeckCardEntry[]) {
   const command: PlaytestCard[] = []
 
   for (const deckCard of [...deckCards].sort(compareDeckCards)) {
-    if (deckCard.zone === "sideboard" || deckCard.zone === "maybeboard") continue
+    if (deckCard.zone === "considering") continue
 
     const target = deckCard.zone === "commander" ? command : library
     const quantity = Math.max(deckCard.quantity || 0, 0)

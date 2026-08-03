@@ -36,13 +36,13 @@ test("counts only commander and mainboard token producers and ignores malformed 
         card: { name: "Food Commander", oracleText: "Created a Food token." },
       }),
       deckCard({
-        id: "clue-sideboard",
-        zone: "sideboard",
+        id: "clue-considering",
+        zone: "considering",
         card: { oracleText: "Create a Clue token." },
       }),
       deckCard({
-        id: "blood-maybeboard",
-        zone: "maybeboard",
+        id: "blood-considering",
+        zone: "considering",
         card: { oracleText: "Create a Blood token." },
       }),
       deckCard({ quantity: 0, card: { oracleText: "Create a Map token." } }),

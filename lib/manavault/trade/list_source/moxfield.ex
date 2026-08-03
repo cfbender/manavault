@@ -12,8 +12,8 @@ defmodule Manavault.Trade.ListSource.Moxfield do
   @api_base "https://api2.moxfield.com/v3/decks/all/"
   @boards %{
     "mainboard" => "mainboard",
-    "sideboard" => "sideboard",
-    "maybeboard" => "maybeboard",
+    "sideboard" => "considering",
+    "maybeboard" => "considering",
     "commanders" => "commander"
   }
   @friendly_error "Couldn't fetch that Moxfield deck (it may be private). Paste the deck export text instead."

@@ -1,9 +1,9 @@
 defmodule Manavault.Trade.DeckDiff do
   @moduledoc """
   Diffs resolved list entries (see `Manavault.Trade.EntryResolver`) against a
-  deck's cards, excluding the maybeboard on both sides: cards only in the
-  external list are `adds`, cards only in the deck are `cuts`, and cards in
-  both at different quantities are `changes`.
+  deck's cards, excluding the considering zone on both sides: cards only in
+  the external list are `adds`, cards only in the deck are `cuts`, and cards
+  in both at different quantities are `changes`.
   """
 
   import Ecto.Query
@@ -12,7 +12,7 @@ defmodule Manavault.Trade.DeckDiff do
   alias Manavault.Catalog.{Card, Deck, DeckCard, Printing, Util}
   alias Manavault.Repo
 
-  @excluded_zone "maybeboard"
+  @excluded_zone "considering"
   @not_found_error "That deck couldn't be found."
   @basic_land_base_names ~w(plains island swamp mountain forest wastes)
   @basic_land_names MapSet.new(
@@ -66,8 +66,14 @@ defmodule Manavault.Trade.DeckDiff do
       Map.update(
         totals,
         deck_card.oracle_id,
-        %{quantity: deck_card.quantity, deck_card: deck_card},
-        fn existing -> %{existing | quantity: existing.quantity + deck_card.quantity} end
+        %{quantity: deck_card.quantity, deck_card: deck_card, deck_cards: [deck_card]},
+        fn existing ->
+          %{
+            existing
+            | quantity: existing.quantity + deck_card.quantity,
+              deck_cards: [deck_card | existing.deck_cards]
+          }
+        end
       )
     end)
   end
@@ -119,26 +125,34 @@ defmodule Manavault.Trade.DeckDiff do
   defp cuts(entry_totals, deck_totals) do
     deck_totals
     |> Enum.reject(fn {oracle_id, _totals} -> Map.has_key?(entry_totals, oracle_id) end)
-    |> Enum.map(fn {oracle_id, %{quantity: quantity, deck_card: deck_card}} ->
+    |> Enum.map(fn {oracle_id, %{quantity: quantity, deck_card: deck_card} = totals} ->
       %{
         card_name: deck_card.card.name,
         quantity: quantity,
         oracle_id: oracle_id,
-        image_url: deck_card_image_url(deck_card)
+        image_url: deck_card_image_url(deck_card),
+        deck_card_ids: deck_card_ids(totals)
       }
     end)
+  end
+
+  # Every deck card row behind a cut (a cut can span zones, e.g. mainboard +
+  # commander), so the UI can tag them all as consider_cutting.
+  defp deck_card_ids(%{deck_cards: deck_cards}) do
+    deck_cards |> Enum.map(& &1.id) |> Enum.sort()
   end
 
   defp changes(entry_totals, deck_totals) do
     Enum.flat_map(entry_totals, fn {oracle_id, %{quantity: to_quantity, name: name}} ->
       case Map.get(deck_totals, oracle_id) do
-        %{quantity: from_quantity} when from_quantity != to_quantity ->
+        %{quantity: from_quantity} = totals when from_quantity != to_quantity ->
           [
             %{
               card_name: name,
               from_quantity: from_quantity,
               to_quantity: to_quantity,
-              oracle_id: oracle_id
+              oracle_id: oracle_id,
+              deck_card_ids: deck_card_ids(totals)
             }
           ]
 
@@ -202,8 +216,14 @@ defmodule Manavault.Trade.DeckDiff do
       Map.update(
         totals,
         deck_card.card.name,
-        %{quantity: deck_card.quantity, deck_card: deck_card},
-        fn existing -> %{existing | quantity: existing.quantity + deck_card.quantity} end
+        %{quantity: deck_card.quantity, deck_card: deck_card, deck_cards: [deck_card]},
+        fn existing ->
+          %{
+            existing
+            | quantity: existing.quantity + deck_card.quantity,
+              deck_cards: [deck_card | existing.deck_cards]
+          }
+        end
       )
     end)
   end
@@ -244,12 +264,13 @@ defmodule Manavault.Trade.DeckDiff do
   defp basic_cuts(entry_totals, deck_totals) do
     deck_totals
     |> Enum.reject(fn {name, _totals} -> Map.has_key?(entry_totals, name) end)
-    |> Enum.map(fn {name, %{quantity: quantity, deck_card: deck_card}} ->
+    |> Enum.map(fn {name, %{quantity: quantity, deck_card: deck_card} = totals} ->
       %{
         card_name: name,
         quantity: quantity,
         oracle_id: deck_card.oracle_id,
-        image_url: deck_card_image_url(deck_card)
+        image_url: deck_card_image_url(deck_card),
+        deck_card_ids: deck_card_ids(totals)
       }
     end)
   end
@@ -257,13 +278,14 @@ defmodule Manavault.Trade.DeckDiff do
   defp basic_changes(entry_totals, deck_totals) do
     Enum.flat_map(entry_totals, fn {name, %{quantity: to_quantity, oracle_id: oracle_id}} ->
       case Map.get(deck_totals, name) do
-        %{quantity: from_quantity} when from_quantity != to_quantity ->
+        %{quantity: from_quantity} = totals when from_quantity != to_quantity ->
           [
             %{
               card_name: name,
               from_quantity: from_quantity,
               to_quantity: to_quantity,
-              oracle_id: oracle_id
+              oracle_id: oracle_id,
+              deck_card_ids: deck_card_ids(totals)
             }
           ]
 

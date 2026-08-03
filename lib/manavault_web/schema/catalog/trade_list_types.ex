@@ -3,6 +3,8 @@ defmodule ManavaultWeb.Schema.Catalog.TradeListTypes do
 
   use Absinthe.Schema.Notation
 
+  alias Absinthe.Relay.Node
+
   object :trade_match_result do
     field :source_name, :string
     field :entry_count, non_null(:integer)
@@ -38,6 +40,12 @@ defmodule ManavaultWeb.Schema.Catalog.TradeListTypes do
     field :quantity, non_null(:integer)
     field :oracle_id, :id
     field :image_url, :string
+
+    # Relay global ids of the deck cards behind a cut row (empty for adds),
+    # so the client can feed them into updateDeckCardsTag.
+    field :deck_card_ids, non_null(list_of(non_null(:id))) do
+      resolve(&__MODULE__.resolve_deck_card_ids/3)
+    end
   end
 
   object :deck_diff_change do
@@ -45,5 +53,19 @@ defmodule ManavaultWeb.Schema.Catalog.TradeListTypes do
     field :from_quantity, non_null(:integer)
     field :to_quantity, non_null(:integer)
     field :oracle_id, :id
+
+    field :deck_card_ids, non_null(list_of(non_null(:id))) do
+      resolve(&__MODULE__.resolve_deck_card_ids/3)
+    end
+  end
+
+  @doc false
+  def resolve_deck_card_ids(entry, _args, _resolution) do
+    ids =
+      entry
+      |> Map.get(:deck_card_ids, [])
+      |> Enum.map(&Node.to_global_id(:deck_card, &1, ManavaultWeb.Schema))
+
+    {:ok, ids}
   end
 end

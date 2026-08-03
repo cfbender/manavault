@@ -14,7 +14,7 @@ import type { DeckCardUpdateInput } from "../../gql/graphql"
 import { cn, present, titleize } from "../../lib/utils"
 import { ZoneIcon } from "./deck-card-display"
 import type { DeckCardEntry, DeckCardPrinting, DeckCardTag, DeckZone } from "./deck-types"
-import { connectionNodes } from "./deck-types"
+import { connectionNodes, deckZoneDisplayLabel } from "./deck-types"
 import { CardPrintingsDocument } from "./queries"
 import {
   ADD_CARD_ZONES,
@@ -23,6 +23,7 @@ import {
   MOVE_TARGET_ZONES,
   NON_COMMANDER_ADD_CARD_ZONES,
 } from "./deck-types"
+import { ZoneToggle } from "./zone-toggle"
 
 export function MoveDeckCardDialog({
   deckCard,
@@ -40,7 +41,7 @@ export function MoveDeckCardDialog({
   zoneCounts: Record<DeckZone, number>
 }) {
   const zoneOptions = deckCard ? MOVE_TARGET_ZONES.filter((zone) => zone !== deckCard.zone) : []
-  const [selectedZone, setSelectedZone] = useState<DeckZone>("sideboard")
+  const [selectedZone, setSelectedZone] = useState<DeckZone>("considering")
   const activeZone = zoneOptions.includes(selectedZone) ? selectedZone : zoneOptions[0]
 
   return (
@@ -55,29 +56,21 @@ export function MoveDeckCardDialog({
         </DialogHeader>
 
         <div className="space-y-4 p-5">
-          <div className="grid gap-2">
-            {zoneOptions.map((zone) => (
-              <button
-                key={zone}
-                type="button"
-                className={[
-                  "flex items-center gap-4 rounded-box border p-4 text-left transition",
-                  activeZone === zone
-                    ? "border-primary bg-primary/10"
-                    : "border-base-300 hover:border-primary/45 hover:bg-base-200",
-                ].join(" ")}
-                onClick={() => setSelectedZone(zone)}
-              >
-                <ZoneIcon zone={zone} />
-                <span>
-                  <span className="block text-lg font-semibold">{titleize(zone)}</span>
-                  <span className="text-sm text-base-content/60">
-                    {zoneCounts[zone] || 0} cards
-                  </span>
-                </span>
-              </button>
-            ))}
-          </div>
+          {activeZone ? (
+            <fieldset className="space-y-1.5">
+              <legend className="label-text mb-1 text-sm font-semibold">Zone</legend>
+              <ZoneToggle
+                zones={zoneOptions}
+                value={activeZone}
+                onChange={setSelectedZone}
+                disabled={isPending}
+              />
+              <p className="mt-2 flex items-center gap-2 text-sm text-base-content/60">
+                <ZoneIcon zone={activeZone} />
+                {zoneCounts[activeZone] || 0} cards in {deckZoneDisplayLabel(activeZone)}
+              </p>
+            </fieldset>
+          ) : null}
 
           {error ? (
             <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
@@ -324,21 +317,15 @@ export function EditDeckCardDialog({
               </div>
             </div>
 
-            <label className="form-control">
-              <span className="label-text mb-1 text-sm font-semibold">Zone</span>
-              <select
-                className="select select-bordered w-full"
+            <fieldset className="form-control space-y-1.5">
+              <legend className="label-text mb-1 text-sm font-semibold">Zone</legend>
+              <ZoneToggle
+                zones={zoneOptions}
                 value={zone}
+                onChange={setZone}
                 disabled={isPending}
-                onChange={(event) => setZone(event.target.value as DeckZone)}
-              >
-                {zoneOptions.map((zone) => (
-                  <option key={zone} value={zone}>
-                    {titleize(zone)}
-                  </option>
-                ))}
-              </select>
-            </label>
+              />
+            </fieldset>
 
             <label className="form-control">
               <span className="label-text mb-1 text-sm font-semibold">Finish</span>

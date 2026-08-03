@@ -168,7 +168,7 @@ defmodule Manavault.Catalog.DeckEdhrecTest do
            ] = result.commander_pages
   end
 
-  test "deck EDHREC status checks sideboard and maybeboard deck cards" do
+  test "deck EDHREC status checks considering-zone deck cards" do
     assert {:ok, %{cards_count: 3, printings_count: 3}} =
              Catalog.import_cards([@black_lotus, @time_walk, @plains])
 
@@ -185,17 +185,17 @@ defmodule Manavault.Catalog.DeckEdhrecTest do
                "preferred_printing_id" => "scryfall-printing-1"
              })
 
-    assert {:ok, _sideboard} =
+    assert {:ok, _considering_walk} =
              Catalog.add_card_to_deck(deck, %{
                "name" => "Time Walk",
-               "zone" => "sideboard",
+               "zone" => "considering",
                "preferred_printing_id" => "scryfall-printing-2"
              })
 
-    assert {:ok, _maybeboard} =
+    assert {:ok, _considering_plains} =
              Catalog.add_card_to_deck(deck, %{
                "name" => "Plains",
-               "zone" => "maybeboard",
+               "zone" => "considering",
                "preferred_printing_id" => "scryfall-printing-basic-plains"
              })
 
@@ -220,9 +220,9 @@ defmodule Manavault.Catalog.DeckEdhrecTest do
     assert [
              %{
                name: "Time Walk",
-               collection_status: %{state: "allocated", deck_zone: "sideboard"}
+               collection_status: %{state: "allocated", deck_zone: "considering"}
              },
-             %{name: "Plains", collection_status: %{state: "allocated", deck_zone: "maybeboard"}}
+             %{name: "Plains", collection_status: %{state: "allocated", deck_zone: "considering"}}
            ] = result.recommendations
   end
 

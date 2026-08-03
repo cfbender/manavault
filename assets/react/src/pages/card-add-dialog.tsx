@@ -36,6 +36,7 @@ import { selectedDeckCardNameForMutation } from "./decks/add-card-dialog-model"
 import type { DeckDetail, DeckZone } from "./decks/deck-types"
 import { ADD_CARD_ZONES, NON_COMMANDER_ADD_CARD_ZONES } from "./decks/deck-types"
 import { AddDeckCardDocument } from "./decks/queries"
+import { ZoneToggle } from "./decks/zone-toggle"
 
 const ADD_CARD_SEARCH_DEBOUNCE_MS = 250
 const KNOWN_FINISHES = ["nonfoil", "foil", "etched"] as const
@@ -434,21 +435,15 @@ export function CardAddDialog(props: CardAddDialogProps) {
             <CollectionFinishField options={finishOptions} value={finish} onChange={setFinish} />
 
             {mode === "deck" ? (
-              <label className="form-control">
-                <span className="label-text mb-1 text-sm font-semibold">Zone</span>
-                <select
-                  className="select select-bordered w-full"
+              <fieldset className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+                <legend className="label-text mb-1 text-sm font-semibold">Zone</legend>
+                <ZoneToggle
+                  zones={zoneOptions}
                   value={zone}
+                  onChange={setZone}
                   disabled={isPending}
-                  onChange={(event) => setZone(event.target.value as DeckZone)}
-                >
-                  {zoneOptions.map((zoneOption) => (
-                    <option key={zoneOption} value={zoneOption}>
-                      {titleize(zoneOption)}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                />
+              </fieldset>
             ) : (
               <>
                 <label className="form-control">

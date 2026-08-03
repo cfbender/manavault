@@ -1,6 +1,6 @@
-import { useLazyQuery } from "@apollo/client/react"
-import { Clipboard, Search } from "lucide-react"
-import { useState, type FormEvent } from "react"
+import { useApolloClient, useLazyQuery, useMutation } from "@apollo/client/react"
+import { Check, Clipboard, Search } from "lucide-react"
+import { useState, type FormEvent, type ReactNode } from "react"
 import { Button } from "../../components/ui/button"
 import {
   Dialog,
@@ -12,11 +12,16 @@ import {
 import { Input } from "../../components/ui/input"
 import { useToast } from "../../components/ui/toast"
 import type { DeckDiffQuery } from "../../gql/graphql"
+import { refetchActiveQueries } from "../../lib/apollo"
 import { cn, pluralize } from "../../lib/utils"
 import { DeckDiffDocument } from "./deck-compare-documents"
+import { AddDeckCardDocument, UpdateDeckCardsTagDocument } from "./queries"
 
 type SourceMode = "url" | "paste"
 type DeckDiffResult = NonNullable<DeckDiffQuery["deckDiff"]>
+type AddRow = DeckDiffResult["adds"][number]
+type CutRow = DeckDiffResult["cuts"][number]
+type ChangeRow = DeckDiffResult["changes"][number]
 
 export function DeckCompareDialog({
   deckId,
@@ -168,15 +173,210 @@ export function DeckCompareDialog({
             </p>
           ) : null}
 
-          {result ? <DeckDiffSummary result={result} onCopy={() => copyDiff(result)} /> : null}
+          {result ? (
+            <DeckDiffSummary result={result} deckId={deckId} onCopy={() => copyDiff(result)} />
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>
   )
 }
 
-function DeckDiffSummary({ result, onCopy }: { result: DeckDiffResult; onCopy: () => void }) {
+// --- Considering-pile row actions ---------------------------------------
+//
+// Every add/cut/downward-change row can be pushed into the deck's
+// "Considering" pile (adds -> zone: considering) or flagged for review
+// (cuts/downward changes -> tag: consider_cutting). Rows are tracked by
+// their stable `cardName` key since a card only ever appears once across
+// adds/cuts/changes within a single diff.
+
+type RowStatus = "idle" | "pending" | "done"
+type BulkAddProgress = { current: number; total: number } | null
+
+function useCompareActions(deckId: string) {
+  const client = useApolloClient()
+  const { showToast } = useToast()
+  const [addDeckCard] = useMutation(AddDeckCardDocument)
+  const [updateDeckCardsTag] = useMutation(UpdateDeckCardsTagDocument)
+  const [rowStatus, setRowStatus] = useState<Map<string, RowStatus>>(new Map())
+  const [bulkAddProgress, setBulkAddProgress] = useState<BulkAddProgress>(null)
+  const [bulkCutStatus, setBulkCutStatus] = useState<RowStatus>("idle")
+
+  function setStatus(cardName: string, status: RowStatus) {
+    setRowStatus((current) => new Map(current).set(cardName, status))
+  }
+
+  async function addToConsidering(row: Pick<AddRow, "cardName" | "quantity">) {
+    setStatus(row.cardName, "pending")
+    try {
+      await addDeckCard({
+        variables: {
+          deckId,
+          input: { name: row.cardName, quantity: row.quantity, zone: "considering" },
+        },
+      })
+      await refetchActiveQueries(client)
+      setStatus(row.cardName, "done")
+    } catch (error) {
+      setStatus(row.cardName, "idle")
+      showToast(error instanceof Error ? error.message : `Could not add ${row.cardName}`, {
+        tone: "info",
+      })
+    }
+  }
+
+  async function considerCutting(row: Pick<CutRow | ChangeRow, "cardName" | "deckCardIds">) {
+    if (!row.deckCardIds.length) return
+    setStatus(row.cardName, "pending")
+    try {
+      await updateDeckCardsTag({
+        variables: { deckCardIds: [...row.deckCardIds], tag: "consider_cutting" },
+      })
+      await refetchActiveQueries(client)
+      setStatus(row.cardName, "done")
+    } catch (error) {
+      setStatus(row.cardName, "idle")
+      showToast(
+        error instanceof Error ? error.message : `Could not tag ${row.cardName} for cutting`,
+        { tone: "info" },
+      )
+    }
+  }
+
+  async function addAllToConsidering(rows: readonly AddRow[]) {
+    if (bulkAddProgress) return
+    const actionable = rows.filter((row) => row.oracleId && rowStatus.get(row.cardName) !== "done")
+    if (!actionable.length) return
+
+    setBulkAddProgress({ current: 0, total: actionable.length })
+    for (let index = 0; index < actionable.length; index += 1) {
+      const row = actionable[index]
+      setBulkAddProgress({ current: index + 1, total: actionable.length })
+      setStatus(row.cardName, "pending")
+      try {
+        await addDeckCard({
+          variables: {
+            deckId,
+            input: { name: row.cardName, quantity: row.quantity, zone: "considering" },
+          },
+        })
+        setStatus(row.cardName, "done")
+      } catch (error) {
+        setStatus(row.cardName, "idle")
+        showToast(error instanceof Error ? error.message : `Could not add ${row.cardName}`, {
+          tone: "info",
+        })
+      }
+    }
+    setBulkAddProgress(null)
+    await refetchActiveQueries(client)
+  }
+
+  async function markAllConsiderCutting(
+    cuts: readonly CutRow[],
+    downwardChanges: readonly ChangeRow[],
+  ) {
+    if (bulkCutStatus === "pending") return
+
+    const rows = [...cuts, ...downwardChanges].filter(
+      (row) => row.deckCardIds.length && rowStatus.get(row.cardName) !== "done",
+    )
+    const deckCardIds = [...new Set(rows.flatMap((row) => row.deckCardIds))]
+    if (!deckCardIds.length) return
+
+    rows.forEach((row) => setStatus(row.cardName, "pending"))
+    setBulkCutStatus("pending")
+    try {
+      await updateDeckCardsTag({ variables: { deckCardIds, tag: "consider_cutting" } })
+      await refetchActiveQueries(client)
+      rows.forEach((row) => setStatus(row.cardName, "done"))
+      setBulkCutStatus("done")
+    } catch (error) {
+      rows.forEach((row) => setStatus(row.cardName, "idle"))
+      setBulkCutStatus("idle")
+      showToast(error instanceof Error ? error.message : "Could not tag cards for cutting", {
+        tone: "info",
+      })
+    }
+  }
+
+  return {
+    rowStatus,
+    bulkAddProgress,
+    bulkCutStatus,
+    addToConsidering,
+    considerCutting,
+    addAllToConsidering,
+    markAllConsiderCutting,
+  }
+}
+
+function RowActionButton({
+  status,
+  label,
+  doneLabel,
+  onClick,
+  disabled,
+  title,
+}: {
+  status: RowStatus
+  label: string
+  doneLabel: string
+  onClick: () => void
+  disabled?: boolean
+  title?: string
+}) {
+  if (status === "done") {
+    return (
+      <span className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-success">
+        <Check className="h-3.5 w-3.5" />
+        {doneLabel}
+      </span>
+    )
+  }
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="h-7 shrink-0 px-2 text-xs"
+      onClick={onClick}
+      disabled={disabled || status === "pending"}
+      title={title}
+    >
+      {status === "pending" ? "Working…" : label}
+    </Button>
+  )
+}
+
+function DeckDiffSummary({
+  result,
+  deckId,
+  onCopy,
+}: {
+  result: DeckDiffResult
+  deckId: string
+  onCopy: () => void
+}) {
   const hasChanges = result.adds.length || result.cuts.length || result.changes.length
+  const downwardChanges = result.changes.filter((change) => change.toQuantity < change.fromQuantity)
+  const {
+    rowStatus,
+    bulkAddProgress,
+    bulkCutStatus,
+    addToConsidering,
+    considerCutting,
+    addAllToConsidering,
+    markAllConsiderCutting,
+  } = useCompareActions(deckId)
+
+  const addsActionable = result.adds.some(
+    (add) => add.oracleId && rowStatus.get(add.cardName) !== "done",
+  )
+  const cuttableRows = [...result.cuts, ...downwardChanges].filter(
+    (row) => row.deckCardIds.length && rowStatus.get(row.cardName) !== "done",
+  )
 
   return (
     <div className="space-y-4">
@@ -194,8 +394,68 @@ function DeckDiffSummary({ result, onCopy }: { result: DeckDiffResult; onCopy: (
         </p>
       ) : null}
 
-      <DiffGroup title="Adds" tone="success" prefix="+" entries={result.adds} />
-      <DiffGroup title="Cuts" tone="error" prefix="−" entries={result.cuts} />
+      <DiffGroup
+        title="Adds"
+        tone="success"
+        prefix="+"
+        entries={result.adds}
+        headerAction={
+          result.adds.length ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => void addAllToConsidering(result.adds)}
+              disabled={Boolean(bulkAddProgress) || !addsActionable}
+            >
+              {bulkAddProgress
+                ? `Adding ${bulkAddProgress.current}/${bulkAddProgress.total}…`
+                : "Add all to considering"}
+            </Button>
+          ) : null
+        }
+        renderAction={(row) => (
+          <RowActionButton
+            status={rowStatus.get(row.cardName) ?? "idle"}
+            label="Add to considering"
+            doneLabel="Added"
+            onClick={() => void addToConsidering(row)}
+            disabled={!row.oracleId}
+            title={row.oracleId ? undefined : "Unrecognized card name — can't resolve to a card"}
+          />
+        )}
+      />
+      <DiffGroup
+        title="Cuts"
+        tone="error"
+        prefix="−"
+        entries={result.cuts}
+        headerAction={
+          result.cuts.length ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => void markAllConsiderCutting(result.cuts, downwardChanges)}
+              disabled={bulkCutStatus === "pending" || !cuttableRows.length}
+            >
+              {bulkCutStatus === "pending" ? "Tagging…" : "Mark all consider cutting"}
+            </Button>
+          ) : null
+        }
+        renderAction={(row) =>
+          row.deckCardIds.length ? (
+            <RowActionButton
+              status={rowStatus.get(row.cardName) ?? "idle"}
+              label="Consider cutting"
+              doneLabel="Tagged"
+              onClick={() => void considerCutting(row)}
+            />
+          ) : null
+        }
+      />
 
       {result.changes.length ? (
         <div className="space-y-1.5">
@@ -204,8 +464,21 @@ function DeckDiffSummary({ result, onCopy }: { result: DeckDiffResult; onCopy: (
           </h4>
           <ul className="divide-y divide-base-300 rounded-box border border-base-300 bg-base-100 font-mono text-sm">
             {result.changes.map((change) => (
-              <li key={change.oracleId || change.cardName} className="px-3 py-1.5">
-                {change.cardName}: {change.fromQuantity} → {change.toQuantity}
+              <li
+                key={change.oracleId || change.cardName}
+                className="flex items-center justify-between gap-3 px-3 py-1.5"
+              >
+                <span>
+                  {change.cardName}: {change.fromQuantity} → {change.toQuantity}
+                </span>
+                {change.toQuantity < change.fromQuantity && change.deckCardIds.length ? (
+                  <RowActionButton
+                    status={rowStatus.get(change.cardName) ?? "idle"}
+                    label="Consider cutting"
+                    doneLabel="Tagged"
+                    onClick={() => void considerCutting(change)}
+                  />
+                ) : null}
               </li>
             ))}
           </ul>
@@ -230,37 +503,50 @@ function DeckDiffSummary({ result, onCopy }: { result: DeckDiffResult; onCopy: (
   )
 }
 
-function DiffGroup({
+function DiffGroup<T extends { cardName: string; quantity: number; oracleId: string | null }>({
   title,
   tone,
   prefix,
   entries,
+  headerAction,
+  renderAction,
 }: {
   title: string
   tone: "success" | "error"
   prefix: string
-  entries: DeckDiffResult["adds"]
+  entries: readonly T[]
+  headerAction?: ReactNode
+  renderAction?: (entry: T) => ReactNode
 }) {
   if (!entries.length) return null
 
   return (
     <div className="space-y-1.5">
-      <h4
-        className={cn(
-          "text-xs font-black uppercase tracking-[0.18em]",
-          tone === "success" ? "text-success" : "text-error",
-        )}
-      >
-        {title} ({entries.length})
-      </h4>
+      <div className="flex items-center justify-between gap-2">
+        <h4
+          className={cn(
+            "text-xs font-black uppercase tracking-[0.18em]",
+            tone === "success" ? "text-success" : "text-error",
+          )}
+        >
+          {title} ({entries.length})
+        </h4>
+        {headerAction}
+      </div>
       <ul className="divide-y divide-base-300 rounded-box border border-base-300 bg-base-100 font-mono text-sm">
         {entries.map((entry) => (
           <li
             key={entry.oracleId || entry.cardName}
-            className={cn("px-3 py-1.5", tone === "success" ? "text-success" : "text-error")}
+            className={cn(
+              "flex items-center justify-between gap-3 px-3 py-1.5",
+              tone === "success" ? "text-success" : "text-error",
+            )}
           >
-            {prefix}
-            {entry.quantity} {entry.cardName}
+            <span>
+              {prefix}
+              {entry.quantity} {entry.cardName}
+            </span>
+            {renderAction ? renderAction(entry) : null}
           </li>
         ))}
       </ul>

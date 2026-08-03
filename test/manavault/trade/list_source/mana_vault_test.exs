@@ -34,7 +34,7 @@ defmodule Manavault.Trade.ListSource.ManaVaultTest do
       {:ok, _} = Catalog.import_cards([black_lotus(), time_walk()])
       {:ok, deck} = Catalog.create_deck(%{"name" => "My Cube Deck"})
       add_deck_card!(deck, "Black Lotus", 1, "mainboard")
-      add_deck_card!(deck, "Time Walk", 1, "maybeboard")
+      add_deck_card!(deck, "Time Walk", 1, "considering")
       {:ok, deck} = Catalog.ensure_deck_share_token(deck)
       %{deck: deck}
     end
@@ -53,8 +53,8 @@ defmodule Manavault.Trade.ListSource.ManaVaultTest do
                }
              ] = Enum.filter(entries, &(&1.zone == "mainboard"))
 
-      assert [%{name: "Time Walk", quantity: 1, zone: "maybeboard"}] =
-               Enum.filter(entries, &(&1.zone == "maybeboard"))
+      assert [%{name: "Time Walk", quantity: 1, zone: "considering"}] =
+               Enum.filter(entries, &(&1.zone == "considering"))
     end
 
     test "returns a friendly error for an unknown token" do

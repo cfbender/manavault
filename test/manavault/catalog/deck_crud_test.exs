@@ -57,8 +57,8 @@ defmodule Manavault.Catalog.DeckCrudTest do
     assert stats.types["Artifact"] == 3
     assert stats.types["Sorcery"] == 1
 
-    assert {:ok, %DeckCard{zone: "sideboard", quantity: 2}} =
-             Catalog.update_deck_card(commander, %{"zone" => "sideboard", "quantity" => "2"})
+    assert {:ok, %DeckCard{zone: "considering", quantity: 2}} =
+             Catalog.update_deck_card(commander, %{"zone" => "considering", "quantity" => "2"})
 
     assert {:ok, [%DeckCard{tag: "getting"}]} =
              Catalog.update_deck_cards_tag([commander.id], "getting")
@@ -129,7 +129,7 @@ defmodule Manavault.Catalog.DeckCrudTest do
     assert {:ok, %DeckCard{}} = Catalog.add_card_to_deck(active_deck, %{"name" => "Time Walk"})
   end
 
-  test "deck stats total excludes sideboard and maybeboard cards" do
+  test "deck stats total excludes considering-zone cards" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
 
@@ -149,18 +149,18 @@ defmodule Manavault.Catalog.DeckCrudTest do
                "zone" => "commander"
              })
 
-    assert {:ok, _sideboard} =
+    assert {:ok, _considering_lotus} =
              Catalog.add_card_to_deck(deck, %{
                "name" => "Black Lotus",
                "quantity" => 4,
-               "zone" => "sideboard"
+               "zone" => "considering"
              })
 
-    assert {:ok, _maybeboard} =
+    assert {:ok, _considering_walk} =
              Catalog.add_card_to_deck(deck, %{
                "name" => "Time Walk",
                "quantity" => 8,
-               "zone" => "maybeboard"
+               "zone" => "considering"
              })
 
     stats = deck.id |> Catalog.get_deck!() |> Catalog.deck_stats()
@@ -170,8 +170,7 @@ defmodule Manavault.Catalog.DeckCrudTest do
     assert stats.zones == %{
              "commander" => 1,
              "mainboard" => 2,
-             "maybeboard" => 8,
-             "sideboard" => 4
+             "considering" => 12
            }
   end
 end

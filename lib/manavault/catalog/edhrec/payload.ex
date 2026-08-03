@@ -12,7 +12,7 @@ defmodule Manavault.Catalog.EDHRec.Payload do
     %{
       "cards" =>
         deck.deck_cards
-        |> Enum.reject(&(&1.zone == "maybeboard"))
+        |> Enum.reject(&(&1.zone == "considering"))
         |> Enum.sort_by(&{zone_order(&1.zone), &1.card.name, &1.id})
         |> Enum.map(&deck_card_line/1),
       "commanders" =>
@@ -56,7 +56,7 @@ defmodule Manavault.Catalog.EDHRec.Payload do
 
   defp zone_order("commander"), do: 0
   defp zone_order("mainboard"), do: 1
-  defp zone_order("sideboard"), do: 2
+  defp zone_order("considering"), do: 2
   defp zone_order(_zone), do: 3
 
   def deck_preloads do

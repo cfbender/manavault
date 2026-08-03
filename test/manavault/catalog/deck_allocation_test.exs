@@ -507,13 +507,13 @@ defmodule Manavault.Catalog.DeckAllocationTest do
              Catalog.bulk_add_collection_items_to_deck(
                deck.id,
                [lotus_item.id, walk_item.id],
-               "sideboard"
+               "considering"
              )
 
     assert [
              %{
                quantity: 1,
-               zone: "sideboard",
+               zone: "considering",
                finish: "nonfoil",
                card: %{name: "Black Lotus"},
                preferred_printing: %{
@@ -523,7 +523,7 @@ defmodule Manavault.Catalog.DeckAllocationTest do
              } = lotus_card,
              %{
                quantity: 1,
-               zone: "sideboard",
+               zone: "considering",
                finish: "foil",
                card: %{name: "Time Walk"},
                preferred_printing: %{

@@ -39,12 +39,16 @@ defmodule Manavault.Catalog.DecklistTest do
              Enum.find(loaded.deck_cards, &(&1.card.name == "Black Lotus"))
 
     assert Enum.any?(loaded.deck_cards, &(&1.card.name == "Time Walk" and &1.zone == "commander"))
-    assert Enum.any?(loaded.deck_cards, &(&1.card.name == "Time Walk" and &1.zone == "sideboard"))
+
+    assert Enum.any?(
+             loaded.deck_cards,
+             &(&1.card.name == "Time Walk" and &1.zone == "considering")
+           )
 
     export = Catalog.export_decklist(loaded)
     assert export =~ "Commander\n1x Time Walk (LEA) 84 *F*"
     assert export =~ "Mainboard\n3x Black Lotus (LEA) 232"
-    assert export =~ "Sideboard\n1x Time Walk"
+    assert export =~ "Considering\n1x Time Walk"
   end
 
   test "decklist import ignores comments and deduplicates stable aliases" do
@@ -70,8 +74,8 @@ defmodule Manavault.Catalog.DecklistTest do
     assert %DeckCard{quantity: 3, finish: "nonfoil", zone: "mainboard"} =
              Enum.find(loaded.deck_cards, &(&1.zone == "mainboard"))
 
-    assert %DeckCard{quantity: 2, finish: "foil", zone: "maybeboard"} =
-             Enum.find(loaded.deck_cards, &(&1.zone == "maybeboard"))
+    assert %DeckCard{quantity: 2, finish: "foil", zone: "considering"} =
+             Enum.find(loaded.deck_cards, &(&1.zone == "considering"))
   end
 
   test "decklist import assumes one copy when quantity is omitted" do
@@ -100,10 +104,10 @@ defmodule Manavault.Catalog.DecklistTest do
     assert %DeckCard{quantity: 1, zone: "mainboard"} =
              Enum.find(loaded.deck_cards, &(&1.card.name == "Time Walk"))
 
-    assert %DeckCard{quantity: 1, zone: "sideboard"} =
+    assert %DeckCard{quantity: 1, zone: "considering"} =
              Enum.find(
                loaded.deck_cards,
-               &(&1.card.name == "Black Lotus" and &1.zone == "sideboard")
+               &(&1.card.name == "Black Lotus" and &1.zone == "considering")
              )
   end
 
@@ -122,12 +126,12 @@ defmodule Manavault.Catalog.DecklistTest do
     """
 
     assert {:ok, %{imported: 2, unresolved: []}} =
-             Catalog.import_decklist(deck, text, zone: "maybeboard")
+             Catalog.import_decklist(deck, text, zone: "considering")
 
     loaded = Catalog.get_deck!(deck.id)
 
     assert Enum.count(loaded.deck_cards) == 2
-    assert Enum.all?(loaded.deck_cards, &(&1.zone == "maybeboard"))
+    assert Enum.all?(loaded.deck_cards, &(&1.zone == "considering"))
   end
 
   test "decklist replacement restores allocated cards without nested delete transactions" do
@@ -150,14 +154,14 @@ defmodule Manavault.Catalog.DecklistTest do
     assert {:ok, allocation} = Catalog.allocate_collection_item_to_deck_card(lotus.id, item.id)
 
     assert {:ok, %{imported: 1, unresolved: [], skipped_printings: []}} =
-             Catalog.import_decklist(deck, "1 Time Walk", replace?: true, zone: "maybeboard")
+             Catalog.import_decklist(deck, "1 Time Walk", replace?: true, zone: "considering")
 
     restored_item = Catalog.get_collection_item!(allocation.collection_item_id)
     loaded = Catalog.get_deck!(deck.id)
 
     assert restored_item.location_id == binder.id
     assert Enum.map(loaded.deck_cards, & &1.card.name) == ["Time Walk"]
-    assert Enum.all?(loaded.deck_cards, &(&1.zone == "maybeboard"))
+    assert Enum.all?(loaded.deck_cards, &(&1.zone == "considering"))
   end
 
   test "decklist import rejects unknown target zones" do

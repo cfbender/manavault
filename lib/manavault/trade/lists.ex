@@ -28,7 +28,7 @@ defmodule Manavault.Trade.Lists do
     end
   end
 
-  @doc "Diffs a resolved list against `deck_id`'s non-maybeboard cards."
+  @doc "Diffs a resolved list against `deck_id`'s non-considering cards."
   def deck_diff(deck_id, args) do
     with {:ok, %{source_name: source_name, entries: entries}} <- resolve(args),
          {:ok, resolved} <- EntryResolver.resolve(entries) do
