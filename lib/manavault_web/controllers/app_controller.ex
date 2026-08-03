@@ -4,16 +4,34 @@ defmodule ManavaultWeb.AppController do
   alias Manavault.Catalog
   alias Manavault.Catalog.Deck
   alias Manavault.Catalog.Decks.ShareToken
+  alias Manavault.Trade
   alias ManavaultWeb.{AssetVersion, DeckSharePreview}
   alias ManavaultWeb.DeckSharePreview.ArtifactCache
 
   def index(conn, _params), do: render_app(conn, default_preview(conn))
 
-  def share_deck(conn, %{"token" => token}), do: render_app(conn, share_preview(conn, token))
+  def share_deck(conn, %{"token" => token}) do
+    case share_preview(conn, token) do
+      %{kind: :deck} = preview -> render_app(conn, preview)
+      _missing -> send_resp(conn, 404, "")
+    end
+  end
 
-  def share_wants(conn, %{"token" => _token}), do: render_app(conn, default_preview(conn))
+  def share_wants(conn, %{"token" => token}) do
+    render_valid_share(conn, token, Trade.wants_share_token())
+  end
 
-  def share_binder(conn, %{"token" => _token}), do: render_app(conn, default_preview(conn))
+  def share_binder(conn, %{"token" => token}) do
+    render_valid_share(conn, token, Trade.binder_share_token())
+  end
+
+  defp render_valid_share(conn, token, token) when is_binary(token) do
+    if ShareToken.valid?(token),
+      do: render_app(conn, default_preview(conn)),
+      else: send_resp(conn, 404, "")
+  end
+
+  defp render_valid_share(conn, _provided_token, _current_token), do: send_resp(conn, 404, "")
 
   def share_deck_preview_image(conn, %{"token" => token}) do
     case share_preview(conn, token) do

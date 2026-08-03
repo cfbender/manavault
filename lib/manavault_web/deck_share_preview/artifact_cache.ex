@@ -238,6 +238,7 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCache do
         width: DeckSharePreview.image_width()
       },
       preview: %{
+        token: Map.get(preview, :token),
         card_count_label: preview.card_count_label,
         color_identity: List.wrap(preview.color_identity),
         cover_image_url: preview.cover_image_url,

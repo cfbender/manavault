@@ -101,6 +101,30 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       end)
     end
 
+    payload field :disable_deck_sharing do
+      arg(:id, non_null(:id))
+
+      output do
+        field :deck, :deck
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &MutationResolvers.disable_deck_sharing/3, :deck)
+      end)
+    end
+
+    payload field :rotate_deck_share_token do
+      arg(:id, non_null(:id))
+
+      output do
+        field :deck, :deck
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &MutationResolvers.rotate_deck_share_token/3, :deck)
+      end)
+    end
+
     payload field :add_deck_card do
       arg(:deck_id, non_null(:id))
       arg(:input, non_null(:deck_card_input))

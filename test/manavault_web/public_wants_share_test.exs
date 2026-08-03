@@ -60,6 +60,17 @@ defmodule ManavaultWeb.PublicWantsShareTest do
            }
   end
 
+  test "a rotated token immediately stops resolving" do
+    assert {:ok, old_token} = Trade.ensure_wants_share_token()
+    assert {:ok, new_token} = Trade.rotate_wants_share_token()
+
+    assert {:ok, %{data: %{"wantsList" => nil}}} =
+             Absinthe.run(@query, ManavaultWeb.PublicShareSchema, variables: %{"id" => old_token})
+
+    assert {:ok, %{data: %{"wantsList" => %{"entries" => []}}}} =
+             Absinthe.run(@query, ManavaultWeb.PublicShareSchema, variables: %{"id" => new_token})
+  end
+
   test "returns nil for a token that doesn't match the stored share token" do
     assert {:ok, _want} = Trade.create_want_by_name("Black Lotus")
     assert {:ok, _token} = Trade.ensure_wants_share_token()

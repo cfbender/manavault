@@ -41,4 +41,6 @@ defmodule Manavault.Catalog.Deck do
     |> validate_required([:share_token])
     |> unique_constraint(:share_token)
   end
+
+  def disable_share_changeset(deck), do: change(deck, share_token: nil)
 end

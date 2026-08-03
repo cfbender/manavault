@@ -1,7 +1,7 @@
 defmodule Manavault.Catalog.Decks do
   @moduledoc false
 
-  alias Manavault.Catalog.{Cache, Deck, DeckCard, DeckSummaries, EDHRec}
+  alias Manavault.Catalog.{Cache, DeckCard, DeckSummaries, EDHRec}
 
   alias Manavault.Catalog.Decks.{
     AllocationStatus,
@@ -42,7 +42,7 @@ defmodule Manavault.Catalog.Decks do
 
   def get_deck_by_share_token(token, opts \\ []) do
     if ShareToken.valid?(token) do
-      cached_share_deck_by_token(token, opts)
+      Queries.get_deck_by_share_token(token, opts)
     end
   end
 
@@ -119,6 +119,18 @@ defmodule Manavault.Catalog.Decks do
   def ensure_deck_share_token(deck) do
     deck
     |> Records.ensure_deck_share_token()
+    |> invalidate_decks_on_ok()
+  end
+
+  def disable_deck_sharing(deck) do
+    deck
+    |> Records.disable_deck_sharing()
+    |> invalidate_decks_on_ok()
+  end
+
+  def rotate_deck_share_token(deck) do
+    deck
+    |> Records.rotate_deck_share_token()
     |> invalidate_decks_on_ok()
   end
 
@@ -344,21 +356,6 @@ defmodule Manavault.Catalog.Decks do
     cached_deck_read(deck, :deck_stats, fn ->
       Statistics.deck_stats(deck)
     end)
-  end
-
-  defp cached_share_deck_by_token(token, opts) do
-    key = {:deck_by_share_token, token, opts}
-
-    case Cache.fetch(key) do
-      {:ok, %Deck{} = deck} ->
-        deck
-
-      _miss ->
-        case Queries.get_deck_by_share_token(token, opts) do
-          %Deck{} = deck -> Cache.put(key, deck, tag: Cache.decks_tag())
-          nil -> nil
-        end
-    end
   end
 
   defp cached(key, fun), do: Cache.cached(key, [tag: Cache.decks_tag()], fun)

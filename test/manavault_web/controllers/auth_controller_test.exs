@@ -4,6 +4,7 @@ defmodule ManavaultWeb.AuthControllerTest do
   alias Manavault.Auth
   alias Manavault.Auth.AttemptLimiter
   alias Manavault.Auth.ClientFailure
+  alias Manavault.Catalog
   alias Manavault.Repo
   @application_origin "https://manavault.test"
 
@@ -72,8 +73,10 @@ defmodule ManavaultWeb.AuthControllerTest do
 
   test "share browser routes stay public when owner auth is configured", %{conn: conn} do
     configure_password("secret")
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Public without owner auth"})
+    {:ok, deck} = Catalog.ensure_deck_share_token(deck)
 
-    conn = get(conn, "/share/decks/token")
+    conn = get(conn, "/share/decks/#{deck.share_token}")
 
     assert html_response(conn, 200) =~ ~s(id="manavault-root")
   end

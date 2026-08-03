@@ -95,7 +95,8 @@ Deck workflows include:
 - quantity, zone, tag, finish, and preferred-printing edits
 - deck grouping by theme/category and zone tables
 - bulk deck-card selection and movement
-- public share links
+- public share links with owner controls to rotate the bearer link or disable
+  sharing immediately
 - read-only shared deck pages with copy/export/playtest actions
 
 ## Trade
@@ -107,12 +108,14 @@ The Trade tab connects owned inventory to trading with other players:
   filter and a flagged count. Items stored in list-kind locations never count
   as tradable copies. The binder is shareable like the want list: a share
   token backs a public read-only page at `/share/binder/...` showing each
-  for-trade printing with finish and condition.
+  for-trade printing with finish and condition. The share dialog can rotate
+  the link or disable sharing.
 - **Wants** - a card-search-backed want list with quantities. Wants are
   either generic ("any printing") or pinned to an exact printing via the
   opt-in printing picker or the **Add to wants** action on a card detail
   printing. The want list is shareable: a deck-style share token backs a
-  public read-only page at `/share/wants/...`.
+  public read-only page at `/share/wants/...`; its share dialog can rotate the
+  link or disable sharing.
 - **Matches** - paste list text or a supported link, declare whether the
   list is the partner's haves or wants, and see the overlap: cards you have
   up for trade that they want, or cards they have that are on your want

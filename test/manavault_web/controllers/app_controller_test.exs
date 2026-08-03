@@ -3,6 +3,7 @@ defmodule ManavaultWeb.AppControllerTest do
 
   alias Manavault.Catalog
   alias Manavault.CatalogTestSupport
+  alias Manavault.Trade
 
   test "GET / serves the React mount", %{conn: conn} do
     conn = get(conn, ~p"/")
@@ -38,6 +39,39 @@ defmodule ManavaultWeb.AppControllerTest do
     assert response =~ ~s|property="og:image:height" content="630"|
     assert response =~ ~s|name="twitter:card" content="summary_large_image"|
     assert response =~ ~s(id="manavault-root")
+  end
+
+  test "share shells reject revoked and malformed tokens for every share kind", %{conn: conn} do
+    deck_token = shared_deck_token()
+    deck = Catalog.get_deck_by_share_token(deck_token)
+    assert {:ok, _deck} = Catalog.disable_deck_sharing(deck)
+
+    assert {:ok, wants_token} = Trade.ensure_wants_share_token()
+    assert {:ok, _} = Trade.disable_wants_sharing()
+    assert {:ok, binder_token} = Trade.ensure_binder_share_token()
+    assert {:ok, _} = Trade.disable_binder_sharing()
+
+    for path <- [
+          "/share/decks/#{deck_token}",
+          "/share/wants/#{wants_token}",
+          "/share/binder/#{binder_token}",
+          "/share/decks/malformed",
+          "/share/wants/malformed",
+          "/share/binder/malformed"
+        ] do
+      assert response(get(recycle(conn), path), 404) == ""
+    end
+  end
+
+  test "valid wants and binder tokens serve the app shell", %{conn: conn} do
+    assert {:ok, wants_token} = Trade.ensure_wants_share_token()
+    assert {:ok, binder_token} = Trade.ensure_binder_share_token()
+
+    assert html_response(get(recycle(conn), "/share/wants/#{wants_token}"), 200) =~
+             "manavault-root"
+
+    assert html_response(get(recycle(conn), "/share/binder/#{binder_token}"), 200) =~
+             "manavault-root"
   end
 
   test "GET /share/decks/:token/preview.svg renders the deck header preview", %{conn: conn} do

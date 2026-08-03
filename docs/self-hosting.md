@@ -114,6 +114,13 @@ set `MANAVAULT_ADMIN_PASSWORD_HASH`, or explicitly opt out with
 Keep static assets and public share links public at the proxy. ManaVault protects
 private app routes and `/api/graphql` with its own session cookie.
 
+Owners can rotate or disable deck, wants-list, and trade-binder bearer links in
+their Share dialogs. ManaVault rejects the old token immediately at the origin.
+If a reverse proxy or CDN caches public responses despite ManaVault's response
+headers, an already-cached response may remain visible until that intermediary's
+cache expires or is purged; configure public share paths to revalidate when
+immediate revocation at the edge is required.
+
 The login endpoint enforces failed-password defenses before checking the password
 hash:
 

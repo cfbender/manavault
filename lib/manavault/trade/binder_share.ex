@@ -19,6 +19,8 @@ defmodule Manavault.Trade.BinderShare do
   alias Manavault.Repo
   alias Manavault.Trade.ForTradeQuery
 
+  @share_token_attempts 5
+
   schema "trade_binder_shares" do
     field :token, :string
 
@@ -42,17 +44,28 @@ defmodule Manavault.Trade.BinderShare do
 
   @doc """
   Returns the binder share token, creating the singleton row on first use.
-  Concurrent callers racing to create it (both reading no token, then both
-  inserting distinct rows) still converge on the same answer: every caller
-  finishes by re-reading the earliest row rather than trusting its own
-  insert, so whichever row was created first wins for everyone.
+  The transaction serializes this operation with disable and rotation so an
+  in-flight ensure cannot recreate sharing after revocation.
   """
   def ensure_token do
-    case token() do
-      token when is_binary(token) -> {:ok, token}
-      nil -> put_token()
-    end
+    Repo.transact(fn ->
+      case token() do
+        token when is_binary(token) -> {:ok, token}
+        nil -> put_token()
+      end
+    end)
   end
+
+  @doc "Disables sharing and removes every stale singleton row."
+  def disable do
+    Repo.transact(fn ->
+      {count, _} = Repo.delete_all(__MODULE__)
+      {:ok, count}
+    end)
+  end
+
+  @doc "Replaces every share row with exactly one fresh canonical token."
+  def rotate, do: rotate(@share_token_attempts)
 
   @doc """
   The public trade binder for `share_token`, or `nil` when it's malformed
@@ -78,6 +91,28 @@ defmodule Manavault.Trade.BinderShare do
         else
           {:error, changeset}
         end
+    end
+  end
+
+  defp rotate(0), do: {:error, :share_token_collision}
+
+  defp rotate(attempts) do
+    Repo.transact(fn ->
+      Repo.delete_all(__MODULE__)
+
+      case %__MODULE__{} |> changeset(%{token: ShareToken.generate()}) |> Repo.insert() do
+        {:ok, %__MODULE__{token: token}} -> {:ok, token}
+        {:error, changeset} -> Repo.rollback(changeset)
+      end
+    end)
+    |> case do
+      {:error, %Ecto.Changeset{} = changeset} ->
+        if Keyword.has_key?(changeset.errors, :token),
+          do: rotate(attempts - 1),
+          else: {:error, changeset}
+
+      result ->
+        result
     end
   end
 

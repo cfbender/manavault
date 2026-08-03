@@ -134,6 +134,22 @@ export const EnsureTradeWantsShareTokenDocument = graphql(`
   }
 `)
 
+export const RotateTradeWantsShareTokenDocument = graphql(`
+  mutation RotateTradeWantsShareToken {
+    rotateTradeWantsShareToken {
+      token
+    }
+  }
+`)
+
+export const DisableTradeWantsSharingDocument = graphql(`
+  mutation DisableTradeWantsSharing {
+    disableTradeWantsSharing {
+      success
+    }
+  }
+`)
+
 // Selected on both the private schema (for codegen) and the public
 // /share/graphql endpoint, so the share page can query it unauthenticated.
 export const WantsListDocument = graphql(`
@@ -161,6 +177,22 @@ export const EnsureTradeBinderShareTokenDocument = graphql(`
   mutation EnsureTradeBinderShareToken {
     ensureTradeBinderShareToken {
       token
+    }
+  }
+`)
+
+export const RotateTradeBinderShareTokenDocument = graphql(`
+  mutation RotateTradeBinderShareToken {
+    rotateTradeBinderShareToken {
+      token
+    }
+  }
+`)
+
+export const DisableTradeBinderSharingDocument = graphql(`
+  mutation DisableTradeBinderSharing {
+    disableTradeBinderSharing {
+      success
     }
   }
 `)

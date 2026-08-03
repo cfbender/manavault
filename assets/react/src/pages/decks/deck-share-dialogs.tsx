@@ -1,7 +1,8 @@
 import { useApolloClient, useMutation } from "@apollo/client/react"
-import { Check, Clipboard, Download, Upload } from "lucide-react"
+import { Check, Clipboard, Download, RotateCw, ShieldOff, Upload } from "lucide-react"
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import { Button } from "../../components/ui/button"
+import { ConfirmDialog } from "../../components/ui/confirm-dialog"
 import {
   Dialog,
   DialogClose,
@@ -22,7 +23,12 @@ import { cn, pluralize } from "../../lib/utils"
 import { BuylistOptionCheckbox } from "./buylist-option-checkbox"
 import type { DeckDetail, DeckSummary, DeckZone } from "./deck-types"
 import { ADD_CARD_ZONES, deckZoneDisplayLabel } from "./deck-types"
-import { EnsureDeckShareTokenDocument, ImportDecklistDocument } from "./queries"
+import {
+  DisableDeckSharingDocument,
+  EnsureDeckShareTokenDocument,
+  ImportDecklistDocument,
+  RotateDeckShareTokenDocument,
+} from "./queries"
 
 export function ShareDeckDialog({
   deck,
@@ -38,33 +44,68 @@ export function ShareDeckDialog({
   const isOpen = open ?? Boolean(deck)
   const shareTokenDeckIdRef = useRef<string | null>(null)
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle")
+  const [confirmAction, setConfirmAction] = useState<"disable" | "rotate" | null>(null)
+  const [managedToken, setManagedToken] = useState<string | null>(null)
   const [ensureShareToken, ensureShare] = useMutation(EnsureDeckShareTokenDocument)
-  const generatedDeck = ensureShare.data?.ensureDeckShareToken?.deck || null
-  const shareToken =
-    generatedDeck && generatedDeck.id === deck?.id
-      ? generatedDeck.shareToken || ""
-      : deck?.shareToken || ""
+  const [rotateShareToken, rotateShare] = useMutation(RotateDeckShareTokenDocument)
+  const [disableSharing, disableShare] = useMutation(DisableDeckSharingDocument)
+  const shareToken = managedToken ?? ""
   const shareUrl =
     shareToken && typeof window !== "undefined"
       ? `${window.location.origin}/share/decks/${encodeURIComponent(shareToken)}`
       : ""
-  const error = ensureShare.error instanceof Error ? ensureShare.error.message : null
+  const mutationError = ensureShare.error || rotateShare.error || disableShare.error
+  const error = mutationError instanceof Error ? mutationError.message : null
+  const changingShare = ensureShare.loading || rotateShare.loading || disableShare.loading
 
   useEffect(() => {
     if (!isOpen) {
       shareTokenDeckIdRef.current = null
+      setManagedToken(null)
       setCopyState("idle")
       return
     }
 
-    if (!deck?.id || shareToken || shareTokenDeckIdRef.current === deck.id) return
+    if (!deck?.id || shareTokenDeckIdRef.current === deck.id) return
 
     shareTokenDeckIdRef.current = deck.id
     void ensureShareToken({
       variables: { id: deck.id },
-      onCompleted: () => void refetchActiveQueries(client),
+      onCompleted: (data) => {
+        setManagedToken(data.ensureDeckShareToken?.deck?.shareToken ?? "")
+        void refetchActiveQueries(client)
+      },
     })
-  }, [client, deck?.id, ensureShareToken, isOpen, shareToken])
+  }, [client, deck?.id, ensureShareToken, isOpen])
+
+  function rotateLink() {
+    if (!deck?.id) return
+
+    void rotateShareToken({
+      variables: { id: deck.id },
+      onCompleted: (data) => {
+        setManagedToken(data.rotateDeckShareToken?.deck?.shareToken ?? "")
+        setCopyState("idle")
+        showToast("Deck link rotated")
+        void refetchActiveQueries(client)
+      },
+    })
+  }
+
+  function disableLink() {
+    if (!deck?.id) return
+    shareTokenDeckIdRef.current = deck.id
+
+    void disableSharing({
+      variables: { id: deck.id },
+      onCompleted: () => {
+        setManagedToken("")
+        showToast("Deck sharing disabled")
+        void refetchActiveQueries(client)
+        onOpenChange(false)
+      },
+    })
+  }
 
   async function copyShareUrl() {
     if (!shareUrl) return
@@ -80,51 +121,85 @@ export function ShareDeckDialog({
   }
 
   return (
-    <Dialog
-      open={isOpen}
-      onOpenChange={(nextOpen) => {
-        if (nextOpen) onOpenChange(true)
-        else onOpenChange(false)
-      }}
-    >
-      <DialogContent className="max-w-xl" labelledBy="share-deck-title">
-        <DialogHeader>
-          <div>
-            <DialogTitle id="share-deck-title">Share deck</DialogTitle>
-            <p className="mt-1 text-sm text-base-content/60">{deck?.name}</p>
+    <>
+      <Dialog
+        open={isOpen}
+        onOpenChange={(nextOpen) => {
+          if (nextOpen) onOpenChange(true)
+          else onOpenChange(false)
+        }}
+      >
+        <DialogContent className="max-w-xl" labelledBy="share-deck-title">
+          <DialogHeader>
+            <div>
+              <DialogTitle id="share-deck-title">Share deck</DialogTitle>
+              <p className="mt-1 text-sm text-base-content/60">{deck?.name}</p>
+            </div>
+            <DialogClose onClose={() => onOpenChange(false)} />
+          </DialogHeader>
+
+          <div className="space-y-4 p-5">
+            <label className="block space-y-2">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Public link
+              </span>
+              <Input readOnly value={shareUrl || "Generating link..."} />
+            </label>
+
+            {error ? (
+              <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+                {error}
+              </p>
+            ) : null}
+            {copyState === "failed" ? (
+              <p className="text-sm text-error">Could not copy from this browser context.</p>
+            ) : null}
+
+            <div className="flex flex-wrap items-center gap-2 border-t border-base-300 pt-4">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={!shareUrl || changingShare}
+                onClick={() => setConfirmAction("disable")}
+              >
+                <ShieldOff className="h-4 w-4" />
+                Disable sharing
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={!shareUrl || changingShare}
+                onClick={() => setConfirmAction("rotate")}
+              >
+                <RotateCw className="h-4 w-4" />
+                Rotate link
+              </Button>
+              <span className="flex-1" />
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                Close
+              </Button>
+              <Button type="button" disabled={!shareUrl || changingShare} onClick={copyShareUrl}>
+                <Clipboard className="h-4 w-4" />
+                {copyState === "copied" ? "Copied" : "Copy link"}
+              </Button>
+            </div>
           </div>
-          <DialogClose onClose={() => onOpenChange(false)} />
-        </DialogHeader>
+        </DialogContent>
+      </Dialog>
 
-        <div className="space-y-4 p-5">
-          <label className="block space-y-2">
-            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
-              Public link
-            </span>
-            <Input readOnly value={shareUrl || "Generating link..."} />
-          </label>
-
-          {error ? (
-            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
-              {error}
-            </p>
-          ) : null}
-          {copyState === "failed" ? (
-            <p className="text-sm text-error">Could not copy from this browser context.</p>
-          ) : null}
-
-          <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-4">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Close
-            </Button>
-            <Button type="button" disabled={!shareUrl} onClick={copyShareUrl}>
-              <Clipboard className="h-4 w-4" />
-              {copyState === "copied" ? "Copied" : "Copy link"}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+      <ConfirmDialog
+        confirmLabel={confirmAction === "disable" ? "Disable sharing" : "Rotate link"}
+        destructive
+        onConfirm={confirmAction === "disable" ? disableLink : rotateLink}
+        onOpenChange={(open) => !open && setConfirmAction(null)}
+        open={confirmAction !== null}
+        title={confirmAction === "disable" ? "Disable deck sharing?" : "Rotate deck link?"}
+      >
+        {confirmAction === "disable"
+          ? "The current link will stop working immediately. Opening Share again will create a new link."
+          : "The current link will stop working immediately and be replaced with a new one."}
+      </ConfirmDialog>
+    </>
   )
 }
 

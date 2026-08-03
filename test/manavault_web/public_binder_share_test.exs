@@ -80,6 +80,17 @@ defmodule ManavaultWeb.PublicBinderShareTest do
            }
   end
 
+  test "a rotated token immediately stops resolving" do
+    assert {:ok, old_token} = Trade.ensure_binder_share_token()
+    assert {:ok, new_token} = Trade.rotate_binder_share_token()
+
+    assert {:ok, %{data: %{"binderList" => nil}}} =
+             Absinthe.run(@query, ManavaultWeb.PublicShareSchema, variables: %{"id" => old_token})
+
+    assert {:ok, %{data: %{"binderList" => %{"entries" => []}}}} =
+             Absinthe.run(@query, ManavaultWeb.PublicShareSchema, variables: %{"id" => new_token})
+  end
+
   test "returns nil for a token that doesn't match the stored share token" do
     assert {:ok, _item} =
              Catalog.create_collection_item(%{

@@ -305,6 +305,28 @@ export const EnsureDeckShareTokenDocument = graphql(`
   }
 `)
 
+export const RotateDeckShareTokenDocument = graphql(`
+  mutation RotateDeckShareToken($id: ID!) {
+    rotateDeckShareToken(id: $id) {
+      deck {
+        id
+        shareToken
+      }
+    }
+  }
+`)
+
+export const DisableDeckSharingDocument = graphql(`
+  mutation DisableDeckSharing($id: ID!) {
+    disableDeckSharing(id: $id) {
+      deck {
+        id
+        shareToken
+      }
+    }
+  }
+`)
+
 export const UpdateDeckCardDocument = graphql(`
   mutation UpdateDeckCard($id: ID!, $input: DeckCardUpdateInput!) {
     updateDeckCard(id: $id, input: $input) {

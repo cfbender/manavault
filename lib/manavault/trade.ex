@@ -101,6 +101,8 @@ defmodule Manavault.Trade do
 
   @doc "Returns the wants-list share token, creating one on first use."
   defdelegate ensure_wants_share_token(), to: WantsShare, as: :ensure_token
+  defdelegate disable_wants_sharing(), to: WantsShare, as: :disable
+  defdelegate rotate_wants_share_token(), to: WantsShare, as: :rotate
 
   @doc """
   The public wants list for `token`, or `nil` unless it matches the
@@ -113,6 +115,8 @@ defmodule Manavault.Trade do
 
   @doc "Returns the trade-binder share token, creating one on first use."
   defdelegate ensure_binder_share_token(), to: BinderShare, as: :ensure_token
+  defdelegate disable_binder_sharing(), to: BinderShare, as: :disable
+  defdelegate rotate_binder_share_token(), to: BinderShare, as: :rotate
 
   @doc """
   The public trade binder for `token`, or `nil` unless it matches the

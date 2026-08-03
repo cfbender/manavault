@@ -121,6 +121,70 @@ defmodule ManavaultWeb.Schema.Catalog.TradeOperations do
         )
       end)
     end
+
+    payload field :disable_trade_wants_sharing do
+      output do
+        field :success, non_null(:boolean)
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &MutationResolvers.disable_trade_wants_sharing/3,
+          :success
+        )
+      end)
+    end
+
+    payload field :rotate_trade_wants_share_token do
+      output do
+        field :token, non_null(:string)
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &MutationResolvers.rotate_trade_wants_share_token/3,
+          :token
+        )
+      end)
+    end
+
+    payload field :disable_trade_binder_sharing do
+      output do
+        field :success, non_null(:boolean)
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &MutationResolvers.disable_trade_binder_sharing/3,
+          :success
+        )
+      end)
+    end
+
+    payload field :rotate_trade_binder_share_token do
+      output do
+        field :token, non_null(:string)
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &MutationResolvers.rotate_trade_binder_share_token/3,
+          :token
+        )
+      end)
+    end
   end
 
   defp payload(parent, args, resolution, resolver, field) do

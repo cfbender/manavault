@@ -38,6 +38,27 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
     end
   end
 
+  def disable_deck_sharing(_parent, %{id: id}, resolution) do
+    mutate_deck_sharing(id, resolution, &Catalog.disable_deck_sharing/1)
+  end
+
+  def rotate_deck_share_token(_parent, %{id: id}, resolution) do
+    mutate_deck_sharing(id, resolution, &Catalog.rotate_deck_share_token/1)
+  end
+
+  defp mutate_deck_sharing(id, resolution, operation) do
+    with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
+      id
+      |> Catalog.get_deck!()
+      |> operation.()
+      |> case do
+        {:ok, deck} -> {:ok, deck}
+        {:error, :share_token_collision} -> {:error, "Could not generate a unique share link."}
+        {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+      end
+    end
+  end
+
   def add_deck_card(_parent, %{deck_id: deck_id, input: input}, resolution) do
     with {:ok, deck_id} <- RelayHelpers.node_id(deck_id, :deck, resolution),
          {:ok, input} <- normalize_deck_card_input(input, resolution) do

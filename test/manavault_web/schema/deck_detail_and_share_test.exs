@@ -561,6 +561,59 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
            } = json_response(public_card_conn, 200)
   end
 
+  test "authenticated share lifecycle mutations rotate and disable every share kind", %{
+    conn: conn
+  } do
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Lifecycle Deck"})
+    {:ok, deck} = Catalog.ensure_deck_share_token(deck)
+    {:ok, wants_token} = Manavault.Trade.ensure_wants_share_token()
+    {:ok, binder_token} = Manavault.Trade.ensure_binder_share_token()
+
+    rotate_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation RotateShares($deckId: ID!) {
+          rotateDeckShareToken(id: $deckId) { deck { shareToken } }
+          rotateTradeWantsShareToken { token }
+          rotateTradeBinderShareToken { token }
+        }
+        """,
+        "variables" => %{"deckId" => global_deck_id(deck)}
+      })
+
+    assert %{
+             "data" => %{
+               "rotateDeckShareToken" => %{"deck" => %{"shareToken" => rotated_deck_token}},
+               "rotateTradeWantsShareToken" => %{"token" => rotated_wants_token},
+               "rotateTradeBinderShareToken" => %{"token" => rotated_binder_token}
+             }
+           } = json_response(rotate_conn, 200)
+
+    refute rotated_deck_token == deck.share_token
+    refute rotated_wants_token == wants_token
+    refute rotated_binder_token == binder_token
+
+    disable_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation DisableShares($deckId: ID!) {
+          disableDeckSharing(id: $deckId) { deck { shareToken } }
+          disableTradeWantsSharing { success }
+          disableTradeBinderSharing { success }
+        }
+        """,
+        "variables" => %{"deckId" => global_deck_id(deck)}
+      })
+
+    assert %{
+             "data" => %{
+               "disableDeckSharing" => %{"deck" => %{"shareToken" => nil}},
+               "disableTradeWantsSharing" => %{"success" => true},
+               "disableTradeBinderSharing" => %{"success" => true}
+             }
+           } = json_response(disable_conn, 200)
+  end
+
   defp global_deck_id(deck) do
     Absinthe.Relay.Node.to_global_id(:deck, deck.id, ManavaultWeb.Schema)
   end

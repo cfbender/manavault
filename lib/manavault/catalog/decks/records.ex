@@ -45,6 +45,19 @@ defmodule Manavault.Catalog.Decks.Records do
     end
   end
 
+  def disable_deck_sharing(%Deck{} = deck) do
+    Deck
+    |> Repo.get!(deck.id)
+    |> Deck.disable_share_changeset()
+    |> Repo.update()
+  end
+
+  def rotate_deck_share_token(%Deck{} = deck) do
+    Deck
+    |> Repo.get!(deck.id)
+    |> put_deck_share_token(@share_token_attempts)
+  end
+
   def delete_deck(%Deck{} = deck) do
     Repo.transact(fn ->
       deck =

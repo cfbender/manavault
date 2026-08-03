@@ -3,8 +3,9 @@ defmodule Manavault.TradeTest do
   use Manavault.CatalogTestFixtures, fixtures: [:black_lotus, :black_lotus_beta, :time_walk]
 
   alias Manavault.Catalog
+  alias Manavault.Repo
   alias Manavault.Trade
-  alias Manavault.Trade.Want
+  alias Manavault.Trade.{BinderShare, Want, WantsShare}
 
   setup do
     assert {:ok, %{cards_count: 3, printings_count: 3}} =
@@ -191,6 +192,34 @@ defmodule Manavault.TradeTest do
       assert Trade.wants_share_token() == token
       assert {:ok, ^token} = Trade.ensure_wants_share_token()
     end
+
+    test "disable deletes duplicates and rotate replaces duplicates with one fresh row" do
+      Repo.insert!(
+        WantsShare.changeset(%WantsShare{}, %{
+          token: Manavault.Catalog.Decks.ShareToken.generate()
+        })
+      )
+
+      Repo.insert!(
+        WantsShare.changeset(%WantsShare{}, %{
+          token: Manavault.Catalog.Decks.ShareToken.generate()
+        })
+      )
+
+      old_tokens = Repo.all(WantsShare) |> Enum.map(& &1.token)
+
+      assert {:ok, 2} = Trade.disable_wants_sharing()
+      assert Repo.all(WantsShare) == []
+
+      Enum.each(old_tokens, fn token ->
+        Repo.insert!(WantsShare.changeset(%WantsShare{}, %{token: token}))
+      end)
+
+      assert {:ok, new_token} = Trade.rotate_wants_share_token()
+      assert [%WantsShare{token: ^new_token}] = Repo.all(WantsShare)
+      refute new_token in old_tokens
+      Enum.each(old_tokens, &refute(Trade.wants_list_by_share_token(&1)))
+    end
   end
 
   describe "wants_list_by_share_token/1" do
@@ -244,6 +273,34 @@ defmodule Manavault.TradeTest do
       assert is_binary(token)
       assert Trade.binder_share_token() == token
       assert {:ok, ^token} = Trade.ensure_binder_share_token()
+    end
+
+    test "disable deletes duplicates and rotate replaces duplicates with one fresh row" do
+      Repo.insert!(
+        BinderShare.changeset(%BinderShare{}, %{
+          token: Manavault.Catalog.Decks.ShareToken.generate()
+        })
+      )
+
+      Repo.insert!(
+        BinderShare.changeset(%BinderShare{}, %{
+          token: Manavault.Catalog.Decks.ShareToken.generate()
+        })
+      )
+
+      old_tokens = Repo.all(BinderShare) |> Enum.map(& &1.token)
+
+      assert {:ok, 2} = Trade.disable_binder_sharing()
+      assert Repo.all(BinderShare) == []
+
+      Enum.each(old_tokens, fn token ->
+        Repo.insert!(BinderShare.changeset(%BinderShare{}, %{token: token}))
+      end)
+
+      assert {:ok, new_token} = Trade.rotate_binder_share_token()
+      assert [%BinderShare{token: ^new_token}] = Repo.all(BinderShare)
+      refute new_token in old_tokens
+      Enum.each(old_tokens, &refute(Trade.binder_list_by_share_token(&1)))
     end
   end
 

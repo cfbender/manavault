@@ -30,6 +30,33 @@ defmodule ManavaultWeb.Schema.Catalog.TradeMutations do
     end
   end
 
+  def disable_trade_wants_sharing(_parent, _args, _resolution),
+    do: disable_sharing(&Trade.disable_wants_sharing/0)
+
+  def rotate_trade_wants_share_token(_parent, _args, _resolution),
+    do: rotate_sharing(&Trade.rotate_wants_share_token/0)
+
+  def disable_trade_binder_sharing(_parent, _args, _resolution),
+    do: disable_sharing(&Trade.disable_binder_sharing/0)
+
+  def rotate_trade_binder_share_token(_parent, _args, _resolution),
+    do: rotate_sharing(&Trade.rotate_binder_share_token/0)
+
+  defp disable_sharing(operation) do
+    case operation.() do
+      {:ok, _count} -> {:ok, true}
+      {:error, reason} -> {:error, inspect(reason)}
+    end
+  end
+
+  defp rotate_sharing(operation) do
+    case operation.() do
+      {:ok, token} -> {:ok, token}
+      {:error, :share_token_collision} -> {:error, "Could not generate a unique share link."}
+      {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+    end
+  end
+
   def update_trade_want(_parent, %{id: id, quantity: quantity}, _resolution) do
     with {:ok, id} <- parse_raw_id(id),
          {:ok, want} <- fetch_want(id) do

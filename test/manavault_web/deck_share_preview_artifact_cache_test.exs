@@ -141,6 +141,14 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCacheTest do
     end
   end
 
+  test "the fingerprint changes when the bearer token rotates" do
+    base = preview()
+    base = Map.put(base, :token, Manavault.Catalog.Decks.ShareToken.generate())
+    rotated = Map.put(base, :token, Manavault.Catalog.Decks.ShareToken.generate())
+
+    refute ArtifactCache.fingerprint(base) == ArtifactCache.fingerprint(rotated)
+  end
+
   test "invalid, timed out, and oversized remote covers fall back safely" do
     url = "https://cards.scryfall.io/preview.png"
 

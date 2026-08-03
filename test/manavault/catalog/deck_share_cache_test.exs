@@ -2,7 +2,7 @@ defmodule Manavault.Catalog.DeckShareCacheTest do
   use Manavault.DataCase
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.{Cache, Deck, Decks}
+  alias Manavault.Catalog.{Deck, Decks}
   alias Manavault.Catalog.Decks.ShareToken
 
   test "share tokens match the generated URL-safe unpadded value contract" do
@@ -19,7 +19,7 @@ defmodule Manavault.Catalog.DeckShareCacheTest do
     refute ShareToken.valid?(nil)
   end
 
-  test "Decks caches only positive share lookups and invalidates them after deck mutations" do
+  test "Decks validates every well-formed share token against the database" do
     malformed_tokens = [nil, "", "not-a-share-token", String.duplicate("=", 24)]
 
     {malformed_results, malformed_queries} =
@@ -58,11 +58,8 @@ defmodule Manavault.Catalog.DeckShareCacheTest do
 
     deck_id = deck.id
     assert [%Deck{id: ^deck_id}, %Deck{id: ^deck_id}] = existing_results
-    assert existing_queries == 1
-    assert cache_size() == 1
-
-    assert {:ok, %Deck{id: ^deck_id}} =
-             Cache.fetch({:deck_by_share_token, deck.share_token, [preload?: false]})
+    assert existing_queries == 2
+    assert cache_size() == 0
 
     {:ok, updated_deck} = Catalog.update_deck(deck, %{"name" => "Updated Shared Deck"})
     assert cache_size() == 0
@@ -74,11 +71,10 @@ defmodule Manavault.Catalog.DeckShareCacheTest do
 
     assert %Deck{id: ^deck_id, name: "Updated Shared Deck"} = updated_result
     assert updated_queries == 1
-    assert cache_size() == 1
+    assert cache_size() == 0
 
     old_token = updated_deck.share_token
-    assert %Deck{} = Repo.update!(Ecto.Changeset.change(updated_deck, share_token: nil))
-    {:ok, rotated_deck} = Catalog.ensure_deck_share_token(updated_deck)
+    {:ok, rotated_deck} = Catalog.rotate_deck_share_token(updated_deck)
 
     refute rotated_deck.share_token == old_token
     assert cache_size() == 0
@@ -88,7 +84,7 @@ defmodule Manavault.Catalog.DeckShareCacheTest do
     assert %Deck{id: ^deck_id} =
              Decks.get_deck_by_share_token(rotated_deck.share_token, preload?: false)
 
-    assert cache_size() == 1
+    assert cache_size() == 0
     {:ok, _deleted_deck} = Catalog.delete_deck(rotated_deck)
     assert cache_size() == 0
     assert nil == Decks.get_deck_by_share_token(rotated_deck.share_token, preload?: false)
