@@ -3,6 +3,7 @@ android-sdk = "latest"
 aube = "1.21.0"
 cloudflared = "latest"
 elixir = "1.20.1-otp-29"
+erlang = { version = "29.0.3", install_env = { KERL_CONFIGURE_OPTIONS = "--without-javac --without-odbc --without-wx" } }
 git-cliff = "latest"
 java = "21"
 node = "26.4.0"

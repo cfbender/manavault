@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+
+echo "==> Installing native build prerequisites"
+if [[ "$(uname -s)" == "Linux" ]] && command -v apt-get >/dev/null 2>&1; then
+  if [[ "$(id -u)" -eq 0 ]]; then
+    apt=(apt-get)
+  elif command -v sudo >/dev/null 2>&1; then
+    apt=(sudo apt-get)
+  else
+    echo "setup requires root or sudo to install Debian packages" >&2
+    exit 1
+  fi
+
+  export DEBIAN_FRONTEND=noninteractive
+  "${apt[@]}" update
+  "${apt[@]}" install -y --no-install-recommends \
+    autoconf \
+    build-essential \
+    ca-certificates \
+    curl \
+    git \
+    inotify-tools \
+    libncurses-dev \
+    librsvg2-bin \
+    libsqlite3-dev \
+    libssl-dev \
+    libxml2-utils \
+    m4 \
+    pkg-config \
+    unzip \
+    xz-utils
+fi
+
+if ! command -v mise >/dev/null 2>&1; then
+  echo "==> Installing mise"
+  mise_version="v2026.6.14"
+  case "$(uname -m)" in
+    x86_64|amd64)
+      mise_arch="x64"
+      mise_sha="491dd31ff1e0201c7866046f4110125392a481f0fd37e01e5e622fa12670b77b"
+      ;;
+    aarch64|arm64)
+      mise_arch="arm64"
+      mise_sha="947541d82684732cf27327d0d1914b471c0edb5ed6db8507f81b4ad8b67ba7cf"
+      ;;
+    *)
+      echo "unsupported architecture: $(uname -m)" >&2
+      exit 1
+      ;;
+  esac
+
+  tmp_dir="$(mktemp -d)"
+  trap 'rm -rf "$tmp_dir"' EXIT
+  curl -fsSL \
+    "https://github.com/jdx/mise/releases/download/${mise_version}/mise-${mise_version}-linux-${mise_arch}-musl.tar.gz" \
+    -o "$tmp_dir/mise.tar.gz"
+  printf '%s  %s\n' "$mise_sha" "$tmp_dir/mise.tar.gz" | sha256sum -c -
+  tar -xzf "$tmp_dir/mise.tar.gz" -C "$tmp_dir"
+  mkdir -p "$HOME/.local/bin"
+  install "$tmp_dir/mise/bin/mise" "$HOME/.local/bin/mise"
+  export PATH="$HOME/.local/bin:$PATH"
+fi
+
+profile_marker="# manavault orb tools"
+if ! grep -Fqx "$profile_marker" "$HOME/.bash_profile" 2>/dev/null; then
+  cat >> "$HOME/.bash_profile" <<'EOF'
+
+# manavault orb tools
+export PATH="$HOME/.local/bin:$PATH"
+EOF
+fi
+
+locale_marker="# manavault orb locale"
+if ! grep -Fqx "$locale_marker" "$HOME/.bash_profile" 2>/dev/null; then
+  cat >> "$HOME/.bash_profile" <<'EOF'
+
+# manavault orb locale
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+EOF
+fi
+
+echo "==> Installing the pinned web development toolchain"
+mise install -y aube erlang elixir node
+
+echo "==> Installing Hex and Rebar"
+mise exec -- mix local.hex --force
+mise exec -- mix local.rebar --force
+
+echo "==> Installing JavaScript dependencies"
+mise exec -- aube install --frozen-lockfile
+
+echo "==> Installing Elixir dependencies, migrating the database, and building assets"
+mise exec -- mix setup
+
+echo "==> ManaVault orb setup complete"
