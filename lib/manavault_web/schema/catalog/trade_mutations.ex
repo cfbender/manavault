@@ -23,6 +23,13 @@ defmodule ManavaultWeb.Schema.Catalog.TradeMutations do
     end
   end
 
+  def ensure_trade_binder_share_token(_parent, _args, _resolution) do
+    case Trade.ensure_binder_share_token() do
+      {:ok, token} -> {:ok, token}
+      {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+    end
+  end
+
   def update_trade_want(_parent, %{id: id, quantity: quantity}, _resolution) do
     with {:ok, id} <- parse_raw_id(id),
          {:ok, want} <- fetch_want(id) do

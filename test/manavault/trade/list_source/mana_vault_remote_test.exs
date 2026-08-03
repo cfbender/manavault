@@ -241,6 +241,82 @@ defmodule Manavault.Trade.ListSource.ManaVaultRemoteTest do
     end
   end
 
+  describe "fetch/3 with :binder" do
+    test "fetches and normalizes binder entries" do
+      Req.Test.stub(@stub, fn conn ->
+        respond_json(conn, %{
+          "data" => %{
+            "binderList" => %{
+              "entries" => [
+                %{
+                  "cardName" => "Sol Ring",
+                  "quantity" => 2,
+                  "setCode" => "cmr",
+                  "collectorNumber" => "1"
+                },
+                %{
+                  "cardName" => "Negate",
+                  "quantity" => 1,
+                  "setCode" => nil,
+                  "collectorNumber" => nil
+                }
+              ]
+            }
+          }
+        })
+      end)
+
+      assert {:ok, %{source_name: "Trade binder", entries: entries}} =
+               ManaVaultRemote.fetch(:binder, @uri, "whatever-token")
+
+      assert [
+               %{
+                 name: "Sol Ring",
+                 quantity: 2,
+                 zone: "mainboard",
+                 set_code: "cmr",
+                 collector_number: "1"
+               },
+               %{
+                 name: "Negate",
+                 quantity: 1,
+                 zone: "mainboard",
+                 set_code: nil,
+                 collector_number: nil
+               }
+             ] = entries
+    end
+
+    test "returns a not-found error when the binder list resolves to null" do
+      Req.Test.stub(@stub, fn conn -> respond_json(conn, %{"data" => %{"binderList" => nil}}) end)
+
+      assert {:error, message} = ManaVaultRemote.fetch(:binder, @uri, "nope")
+      assert message =~ "doesn't match a shared trade binder on that ManaVault instance"
+    end
+
+    test "returns an unsupported-feature error when the remote schema lacks binderList" do
+      Req.Test.stub(@stub, fn conn ->
+        respond_json(conn, %{
+          "errors" => [
+            %{"message" => "Cannot query field \"binderList\" on type \"RootQueryType\"."}
+          ]
+        })
+      end)
+
+      assert {:error, message} = ManaVaultRemote.fetch(:binder, @uri, "whatever")
+      assert message =~ "doesn't support shared trade binders"
+    end
+
+    test "returns an unreachable error for an unrelated GraphQL errors array" do
+      Req.Test.stub(@stub, fn conn ->
+        respond_json(conn, %{"errors" => [%{"message" => "internal server error"}]})
+      end)
+
+      assert {:error, message} = ManaVaultRemote.fetch(:binder, @uri, "whatever")
+      assert message =~ "Couldn't reach that ManaVault instance"
+    end
+  end
+
   describe "fetch/3 with a non-http(s) scheme or missing host" do
     test "rejects a non-http scheme without making any request" do
       uri = URI.new!("ftp://example.test/share/decks/token")

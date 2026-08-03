@@ -19,6 +19,7 @@ defmodule ManavaultWeb.Schema.Catalog.MutationResolvers do
   defdelegate update_trade_want(parent, args, resolution), to: TradeMutations
   defdelegate delete_trade_want(parent, args, resolution), to: TradeMutations
   defdelegate ensure_trade_wants_share_token(parent, args, resolution), to: TradeMutations
+  defdelegate ensure_trade_binder_share_token(parent, args, resolution), to: TradeMutations
 
   defdelegate create_deck(parent, args, resolution), to: DeckMutations
   defdelegate update_deck(parent, args, resolution), to: DeckMutations

@@ -1,17 +1,18 @@
 defmodule Manavault.Trade.ListSource.ManaVaultRemote do
   @moduledoc """
-  Fetches a shared deck or want list from another ManaVault instance's
-  public GraphQL endpoint.
+  Fetches a shared deck, want list, or trade binder from another
+  ManaVault instance's public GraphQL endpoint.
 
-  Given an absolute `/share/decks/<token>` or `/share/wants/<token>` link,
-  the URL's own path, query, and fragment are discarded entirely — only its
-  scheme, host, and port are kept to form the origin, and the *only* path
-  ever requested there is `POST {origin}/share/graphql`. Only `http` and
-  `https` schemes are accepted. This guarantees a pasted link can never be
-  used to reach anything else on the linked host, and that a link claiming
-  to be this very instance is never trusted without actually asking it —
-  it loops back over HTTP to this same server's public endpoint, which
-  works the same as any other instance.
+  Given an absolute `/share/decks/<token>`, `/share/wants/<token>`, or
+  `/share/binder/<token>` link, the URL's own path, query, and fragment
+  are discarded entirely — only its scheme, host, and port are kept to
+  form the origin, and the *only* path ever requested there is
+  `POST {origin}/share/graphql`. Only `http` and `https` schemes are
+  accepted. This guarantees a pasted link can never be used to reach
+  anything else on the linked host, and that a link claiming to be this
+  very instance is never trusted without actually asking it — it loops
+  back over HTTP to this same server's public endpoint, which works the
+  same as any other instance.
   """
 
   alias Manavault.Trade.ListSource.Http
@@ -55,6 +56,19 @@ defmodule Manavault.Trade.ListSource.ManaVaultRemote do
   }
   """
 
+  @binder_query """
+  query FetchSharedBinder($id: ID!) {
+    binderList(id: $id) {
+      entries {
+        cardName
+        quantity
+        setCode
+        collectorNumber
+      }
+    }
+  }
+  """
+
   @unsupported_error "Unsupported link. Paste the list text instead."
   @deck_not_found_error "That share link doesn't match a deck on that ManaVault instance. " <>
                           "Paste the list text instead."
@@ -65,13 +79,20 @@ defmodule Manavault.Trade.ListSource.ManaVaultRemote do
   @wants_unsupported_error "That ManaVault instance doesn't support shared want lists yet. " <>
                              "Paste the list text instead."
   @wants_source_name "Shared wants"
+  @binder_not_found_error "That share link doesn't match a shared trade binder on that " <>
+                            "ManaVault instance. Paste the list text instead."
+  @binder_unsupported_error "That ManaVault instance doesn't support shared trade binders " <>
+                              "yet. Paste the list text instead."
+  @binder_source_name "Trade binder"
 
   @doc """
-  Fetches the shared `kind` (`:deck` or `:wants`) at `token` from the origin
-  described by `uri` (only its scheme/host/port are used). Returns
-  `{:ok, %{source_name, entries}}` or a friendly `{:error, message}`.
+  Fetches the shared `kind` (`:deck`, `:wants`, or `:binder`) at `token`
+  from the origin described by `uri` (only its scheme/host/port are
+  used). Returns `{:ok, %{source_name, entries}}` or a friendly
+  `{:error, message}`.
   """
-  def fetch(kind, %URI{} = uri, token) when kind in [:deck, :wants] and is_binary(token) do
+  def fetch(kind, %URI{} = uri, token)
+      when kind in [:deck, :wants, :binder] and is_binary(token) do
     case origin_url(uri) do
       {:ok, origin} -> fetch_kind(kind, origin, token)
       :error -> {:error, @unsupported_error}
@@ -87,6 +108,7 @@ defmodule Manavault.Trade.ListSource.ManaVaultRemote do
 
   defp fetch_kind(:deck, origin, token), do: fetch_deck_page(origin, token, nil, [], @max_pages)
   defp fetch_kind(:wants, origin, token), do: fetch_wants(origin, token)
+  defp fetch_kind(:binder, origin, token), do: fetch_binder(origin, token)
 
   defp fetch_deck_page(_origin, _token, _cursor, _acc, 0), do: {:error, @unreachable_error}
 
@@ -147,6 +169,29 @@ defmodule Manavault.Trade.ListSource.ManaVaultRemote do
     end
   end
 
+  defp fetch_binder(origin, token) do
+    case post_graphql(origin, @binder_query, %{"id" => token}) do
+      {:ok, %{"binderList" => nil}} ->
+        {:error, @binder_not_found_error}
+
+      {:ok, %{"binderList" => %{"entries" => entries}}} when is_list(entries) ->
+        {:ok, %{source_name: @binder_source_name, entries: normalize_binder_entries(entries)}}
+
+      {:ok, _other} ->
+        {:error, @unreachable_error}
+
+      {:error, {:graphql_errors, errors}} ->
+        if binder_field_undefined?(errors) do
+          {:error, @binder_unsupported_error}
+        else
+          {:error, @unreachable_error}
+        end
+
+      {:error, _reason} ->
+        {:error, @unreachable_error}
+    end
+  end
+
   # Sends the GraphQL request and unwraps a clean `data` map. Any top-level
   # `errors`, a response with neither `data` nor `errors`, or a transport
   # failure are all surfaced distinctly to the caller so it can pick the
@@ -175,6 +220,13 @@ defmodule Manavault.Trade.ListSource.ManaVaultRemote do
   defp wants_field_undefined?(errors) do
     Enum.any?(errors, fn
       %{"message" => message} when is_binary(message) -> String.contains?(message, "wantsList")
+      _other -> false
+    end)
+  end
+
+  defp binder_field_undefined?(errors) do
+    Enum.any?(errors, fn
+      %{"message" => message} when is_binary(message) -> String.contains?(message, "binderList")
       _other -> false
     end)
   end
@@ -217,6 +269,22 @@ defmodule Manavault.Trade.ListSource.ManaVaultRemote do
   end
 
   defp want_entry_from_node(_node), do: nil
+
+  defp normalize_binder_entries(entries) do
+    entries |> Enum.map(&binder_entry_from_node/1) |> Enum.reject(&is_nil/1)
+  end
+
+  defp binder_entry_from_node(%{"cardName" => name} = node) when is_binary(name) do
+    %{
+      name: name,
+      quantity: node |> Map.get("quantity", 1) |> to_quantity(),
+      zone: "mainboard",
+      set_code: Map.get(node, "setCode"),
+      collector_number: Map.get(node, "collectorNumber")
+    }
+  end
+
+  defp binder_entry_from_node(_node), do: nil
 
   defp to_quantity(quantity) when is_integer(quantity) and quantity > 0, do: quantity
   defp to_quantity(_quantity), do: 1

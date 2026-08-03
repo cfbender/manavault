@@ -181,7 +181,16 @@ defmodule Manavault.Trade.ListSourceTest do
       assert {:ok, _want} = Trade.create_want_by_name("Black Lotus", 2)
       assert {:ok, wants_token} = Trade.ensure_wants_share_token()
 
-      %{deck: deck, wants_token: wants_token}
+      assert {:ok, _item} =
+               Catalog.create_collection_item(%{
+                 "scryfall_id" => "scryfall-printing-1",
+                 "quantity" => 4,
+                 "for_trade" => true
+               })
+
+      assert {:ok, binder_token} = Trade.ensure_binder_share_token()
+
+      %{deck: deck, wants_token: wants_token, binder_token: binder_token}
     end
 
     test "resolves a bare deck path locally, making no outbound request", %{deck: deck} do
@@ -195,6 +204,16 @@ defmodule Manavault.Trade.ListSourceTest do
                 source_name: "Shared wants",
                 entries: [%{name: "Black Lotus", quantity: 2, zone: "mainboard"}]
               }} = ListSource.resolve(%{url: "/share/wants/#{token}", text: nil})
+    end
+
+    test "resolves a bare binder path locally, making no outbound request", %{
+      binder_token: token
+    } do
+      assert {:ok,
+              %{
+                source_name: "Trade binder",
+                entries: [%{name: "Black Lotus", quantity: 4, zone: "mainboard"}]
+              }} = ListSource.resolve(%{url: "/share/binder/#{token}", text: nil})
     end
   end
 
@@ -324,6 +343,35 @@ defmodule Manavault.Trade.ListSourceTest do
                })
     end
 
+    test "fetches a shared trade binder remotely" do
+      Req.Test.stub(@manavault_stub, fn conn ->
+        respond_json(conn, %{
+          "data" => %{
+            "binderList" => %{
+              "entries" => [
+                %{
+                  "cardName" => "Sol Ring",
+                  "quantity" => 3,
+                  "setCode" => nil,
+                  "collectorNumber" => nil
+                }
+              ]
+            }
+          }
+        })
+      end)
+
+      assert {:ok,
+              %{
+                source_name: "Trade binder",
+                entries: [%{name: "Sol Ring", quantity: 3, zone: "mainboard"}]
+              }} =
+               ListSource.resolve(%{
+                 url: "https://other-vault.example/share/binder/some-token",
+                 text: nil
+               })
+    end
+
     test "an unknown token on a foreign instance returns a friendly not-found error" do
       Req.Test.stub(@manavault_stub, fn conn ->
         respond_json(conn, %{"data" => %{"deck" => nil}})
@@ -380,6 +428,24 @@ defmodule Manavault.Trade.ListSourceTest do
                })
 
       assert message =~ "doesn't support shared want lists"
+    end
+
+    test "an undefined binderList field returns a friendly unsupported-feature error" do
+      Req.Test.stub(@manavault_stub, fn conn ->
+        respond_json(conn, %{
+          "errors" => [
+            %{"message" => "Cannot query field \"binderList\" on type \"RootQueryType\"."}
+          ]
+        })
+      end)
+
+      assert {:error, message} =
+               ListSource.resolve(%{
+                 url: "https://other-vault.example/share/binder/some-token",
+                 text: nil
+               })
+
+      assert message =~ "doesn't support shared trade binders"
     end
 
     test "a malformed JSON response returns a friendly couldn't-reach error" do

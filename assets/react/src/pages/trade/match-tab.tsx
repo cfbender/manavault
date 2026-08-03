@@ -149,9 +149,9 @@ export function MatchTab() {
               autoFocus
             />
             <span className="block text-xs text-base-content/60">
-              Supports Moxfield, Archidekt, and ManaVault deck or want-list share links from any
-              instance. ManaBox has no URL export — switch to Paste list and drop in its text export
-              instead.
+              Supports Moxfield, Archidekt, and ManaVault deck, want-list, or binder share links
+              from any instance. ManaBox has no URL export — switch to Paste list and drop in its
+              text export instead.
             </span>
           </label>
         ) : (

@@ -233,4 +233,120 @@ defmodule Manavault.TradeTest do
       assert lotus_entry.image_url == "https://example.test/black-lotus.jpg"
     end
   end
+
+  describe "binder_share_token/0 and ensure_binder_share_token/0" do
+    test "there is no token until one is created" do
+      assert Trade.binder_share_token() == nil
+    end
+
+    test "creates a token on first use and reuses it on every later call" do
+      assert {:ok, token} = Trade.ensure_binder_share_token()
+      assert is_binary(token)
+      assert Trade.binder_share_token() == token
+      assert {:ok, ^token} = Trade.ensure_binder_share_token()
+    end
+  end
+
+  describe "binder_list_by_share_token/1" do
+    test "returns nil before any token has been created" do
+      assert Trade.binder_list_by_share_token("anything") == nil
+    end
+
+    test "returns nil for a well-formed token that doesn't match the stored one" do
+      assert {:ok, token} = Trade.ensure_binder_share_token()
+      wrong_token = token |> String.reverse() |> String.replace("A", "B")
+
+      assert Trade.binder_list_by_share_token(wrong_token) == nil
+    end
+
+    test "returns nil for a malformed token" do
+      assert {:ok, _token} = Trade.ensure_binder_share_token()
+      assert Trade.binder_list_by_share_token("not-a-real-token") == nil
+    end
+
+    test "aggregates for-trade items by printing/finish/condition, ordered by card name" do
+      assert {:ok, _item1} =
+               Catalog.create_collection_item(%{
+                 "scryfall_id" => "scryfall-printing-1",
+                 "quantity" => 2,
+                 "for_trade" => true
+               })
+
+      assert {:ok, _item2} =
+               Catalog.create_collection_item(%{
+                 "scryfall_id" => "scryfall-printing-1",
+                 "quantity" => 1,
+                 "for_trade" => true
+               })
+
+      # printing-1 is nonfoil-only, so this row differs by condition alone
+      # (a requested foil would be coerced back to nonfoil on create).
+      assert {:ok, _item3} =
+               Catalog.create_collection_item(%{
+                 "scryfall_id" => "scryfall-printing-1",
+                 "quantity" => 1,
+                 "condition" => "lightly_played",
+                 "for_trade" => true
+               })
+
+      # Not for trade: must not appear even though it's the same printing.
+      assert {:ok, _not_for_trade} =
+               Catalog.create_collection_item(%{
+                 "scryfall_id" => "scryfall-printing-1",
+                 "quantity" => 5
+               })
+
+      # printing-2 is foil-only in the fixtures, so the finish is explicit.
+      assert {:ok, _walk} =
+               Catalog.create_collection_item(%{
+                 "scryfall_id" => "scryfall-printing-2",
+                 "quantity" => 4,
+                 "finish" => "foil",
+                 "for_trade" => true
+               })
+
+      assert {:ok, token} = Trade.ensure_binder_share_token()
+      assert %{entries: entries} = Trade.binder_list_by_share_token(token)
+      assert length(entries) == 3
+
+      nonfoil =
+        Enum.find(entries, &(&1.condition == "near_mint" and &1.card_name == "Black Lotus"))
+
+      assert nonfoil.quantity == 3
+      assert nonfoil.finish == "nonfoil"
+      assert nonfoil.type_line == "Artifact"
+      assert nonfoil.set_code == "lea"
+      assert nonfoil.collector_number == "232"
+      assert nonfoil.image_url == "https://example.test/black-lotus.jpg"
+
+      played =
+        Enum.find(entries, &(&1.condition == "lightly_played" and &1.card_name == "Black Lotus"))
+
+      assert played.quantity == 1
+      assert played.finish == "nonfoil"
+
+      walk = Enum.find(entries, &(&1.card_name == "Time Walk"))
+      assert walk.quantity == 4
+      assert walk.finish == "foil"
+      assert walk.condition == "near_mint"
+      assert walk.set_code == "lea"
+      assert walk.collector_number == "84"
+      assert walk.image_url == nil
+    end
+
+    test "excludes for-trade items stored in list-kind locations" do
+      assert {:ok, wishlist} = Catalog.create_location(%{"name" => "Wishlist", "kind" => "list"})
+
+      assert {:ok, _listed} =
+               Catalog.create_collection_item(%{
+                 "scryfall_id" => "scryfall-printing-1",
+                 "quantity" => 3,
+                 "for_trade" => true,
+                 "location_id" => wishlist.id
+               })
+
+      assert {:ok, token} = Trade.ensure_binder_share_token()
+      assert %{entries: []} = Trade.binder_list_by_share_token(token)
+    end
+  end
 end

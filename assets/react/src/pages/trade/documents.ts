@@ -150,3 +150,36 @@ export const WantsListDocument = graphql(`
     }
   }
 `)
+
+export const TradeBinderShareTokenDocument = graphql(`
+  query TradeBinderShareToken {
+    tradeBinderShareToken
+  }
+`)
+
+export const EnsureTradeBinderShareTokenDocument = graphql(`
+  mutation EnsureTradeBinderShareToken {
+    ensureTradeBinderShareToken {
+      token
+    }
+  }
+`)
+
+// Selected on both the private schema (for codegen) and the public
+// /share/graphql endpoint, so the share page can query it unauthenticated.
+export const BinderListDocument = graphql(`
+  query BinderList($id: ID!) {
+    binderList(id: $id) {
+      entries {
+        cardName
+        quantity
+        typeLine
+        setCode
+        collectorNumber
+        imageUrl
+        finish
+        condition
+      }
+    }
+  }
+`)

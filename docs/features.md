@@ -105,7 +105,9 @@ The Trade tab connects owned inventory to trading with other players:
 - **Binder** - the collection grid with a centered circular glass toggle on
   each tile that marks a collection item up for trade, plus an only-for-trade
   filter and a flagged count. Items stored in list-kind locations never count
-  as tradable copies.
+  as tradable copies. The binder is shareable like the want list: a share
+  token backs a public read-only page at `/share/binder/...` showing each
+  for-trade printing with finish and condition.
 - **Wants** - a card-search-backed want list with quantities. Wants are
   either generic ("any printing") or pinned to an exact printing via the
   opt-in printing picker or the **Add to wants** action on a card detail
@@ -128,8 +130,9 @@ consider-cutting.
 
 Supported link sources are Moxfield and Archidekt deck URLs (fetched
 server-side from their public APIs with strict id validation, no redirects,
-and size/time caps) plus ManaVault `/share/decks/...` and `/share/wants/...`
-links from any instance: relative links resolve locally by share token, and
+and size/time caps) plus ManaVault `/share/decks/...`, `/share/wants/...`,
+and `/share/binder/...` links from any instance: relative links resolve
+locally by share token, and
 absolute links are fetched from that link's origin through its public
 `/share/graphql` endpoint. Cross-instance fetches deliberately allow private
 and LAN addresses so self-hosted friends can trade; the request is bounded

@@ -6,9 +6,10 @@ defmodule Manavault.Trade.ListSource do
   URL fetching is restricted to two hardcoded external API origins
   (`api2.moxfield.com`, `archidekt.com`), reached only with an id validated
   by regex from the URL's own path — the URL's host is never itself used to
-  build the fetched address. ManaVault's own `/share/decks/<token>` and
-  `/share/wants/<token>` links are handled specially: a *relative* link (no
-  host) resolves locally with no outbound request at all, while an
+  build the fetched address. ManaVault's own `/share/decks/<token>`,
+  `/share/wants/<token>`, and `/share/binder/<token>` links are handled
+  specially: a *relative* link (no host) resolves locally with no
+  outbound request at all, while an
   *absolute* `http`/`https` link always fetches from that URL's own origin
   via `POST {origin}/share/graphql` — even when the origin happens to be
   this very instance, so a foreign instance's token is never mistaken for a
@@ -72,7 +73,8 @@ defmodule Manavault.Trade.ListSource do
     end
   end
 
-  # A relative `/share/decks/<token>` or `/share/wants/<token>` link (no
+  # A relative `/share/decks/<token>`, `/share/wants/<token>`, or
+  # `/share/binder/<token>` link (no
   # host) resolves locally: it was copied from this browser's own address
   # bar, so the token itself is proof enough, and no outbound request is
   # made. An absolute link always fetches over HTTP from its own origin

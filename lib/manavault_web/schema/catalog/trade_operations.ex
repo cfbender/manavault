@@ -17,6 +17,24 @@ defmodule ManavaultWeb.Schema.Catalog.TradeOperations do
       resolve(fn _parent, _args, _resolution -> {:ok, Trade.wants_share_token()} end)
     end
 
+    field :trade_binder_share_token, :string do
+      resolve(fn _parent, _args, _resolution -> {:ok, Trade.binder_share_token()} end)
+    end
+
+    # Mirrors the public /share/graphql binderList query (the wantsList
+    # precedent) so codegen-validated documents can serve the share page.
+    field :binder_list, :binder_list do
+      arg(:id, non_null(:id))
+
+      resolve(fn _parent, %{id: token}, _resolution ->
+        if ShareToken.valid?(token) do
+          {:ok, Trade.binder_list_by_share_token(token)}
+        else
+          {:ok, nil}
+        end
+      end)
+    end
+
     # Mirrors the public /share/graphql wantsList query (the sharedDeck
     # precedent) so codegen-validated documents can serve the share page.
     field :wants_list, :wants_list do
@@ -83,6 +101,22 @@ defmodule ManavaultWeb.Schema.Catalog.TradeOperations do
           args,
           resolution,
           &MutationResolvers.ensure_trade_wants_share_token/3,
+          :token
+        )
+      end)
+    end
+
+    payload field :ensure_trade_binder_share_token do
+      output do
+        field :token, non_null(:string)
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &MutationResolvers.ensure_trade_binder_share_token/3,
           :token
         )
       end)

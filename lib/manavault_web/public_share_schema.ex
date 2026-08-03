@@ -89,6 +89,14 @@ defmodule ManavaultWeb.PublicShareSchema do
         {:ok, public_wants_list(token)}
       end)
     end
+
+    field :binder_list, :binder_list do
+      arg(:id, non_null(:id))
+
+      resolve(fn _parent, %{id: token}, _resolution ->
+        {:ok, public_binder_list(token)}
+      end)
+    end
   end
 
   defp public_shared_deck(token) do
@@ -100,6 +108,12 @@ defmodule ManavaultWeb.PublicShareSchema do
   defp public_wants_list(token) do
     if ShareToken.valid?(token) do
       Trade.wants_list_by_share_token(token)
+    end
+  end
+
+  defp public_binder_list(token) do
+    if ShareToken.valid?(token) do
+      Trade.binder_list_by_share_token(token)
     end
   end
 

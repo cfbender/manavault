@@ -101,6 +101,9 @@ type Documents = {
     "\n  query TradeWantsShareToken {\n    tradeWantsShareToken\n  }\n": typeof types.TradeWantsShareTokenDocument,
     "\n  mutation EnsureTradeWantsShareToken {\n    ensureTradeWantsShareToken {\n      token\n    }\n  }\n": typeof types.EnsureTradeWantsShareTokenDocument,
     "\n  query WantsList($id: ID!) {\n    wantsList(id: $id) {\n      entries {\n        cardName\n        quantity\n        typeLine\n        setCode\n        collectorNumber\n        imageUrl\n      }\n    }\n  }\n": typeof types.WantsListDocument,
+    "\n  query TradeBinderShareToken {\n    tradeBinderShareToken\n  }\n": typeof types.TradeBinderShareTokenDocument,
+    "\n  mutation EnsureTradeBinderShareToken {\n    ensureTradeBinderShareToken {\n      token\n    }\n  }\n": typeof types.EnsureTradeBinderShareTokenDocument,
+    "\n  query BinderList($id: ID!) {\n    binderList(id: $id) {\n      entries {\n        cardName\n        quantity\n        typeLine\n        setCode\n        collectorNumber\n        imageUrl\n        finish\n        condition\n      }\n    }\n  }\n": typeof types.BinderListDocument,
     "\n  query TradeMatches($url: String, $text: String) {\n    tradeMatches(url: $url, text: $text) {\n      sourceName\n      entryCount\n      unrecognized\n      binderMatches {\n        cardName\n        oracleId\n        theirQuantity\n        items {\n          id\n          quantity\n          condition\n          finish\n          forTrade\n          printing {\n            id\n            setCode\n            collectorNumber\n            imageUrl\n            card {\n              id\n              name\n            }\n          }\n        }\n      }\n      wantMatches {\n        cardName\n        oracleId\n        theirQuantity\n        want {\n          id\n          quantity\n          imageUrl\n          card {\n            id\n            name\n          }\n        }\n      }\n    }\n  }\n": typeof types.TradeMatchesDocument,
 };
 const documents: Documents = {
@@ -191,6 +194,9 @@ const documents: Documents = {
     "\n  query TradeWantsShareToken {\n    tradeWantsShareToken\n  }\n": types.TradeWantsShareTokenDocument,
     "\n  mutation EnsureTradeWantsShareToken {\n    ensureTradeWantsShareToken {\n      token\n    }\n  }\n": types.EnsureTradeWantsShareTokenDocument,
     "\n  query WantsList($id: ID!) {\n    wantsList(id: $id) {\n      entries {\n        cardName\n        quantity\n        typeLine\n        setCode\n        collectorNumber\n        imageUrl\n      }\n    }\n  }\n": types.WantsListDocument,
+    "\n  query TradeBinderShareToken {\n    tradeBinderShareToken\n  }\n": types.TradeBinderShareTokenDocument,
+    "\n  mutation EnsureTradeBinderShareToken {\n    ensureTradeBinderShareToken {\n      token\n    }\n  }\n": types.EnsureTradeBinderShareTokenDocument,
+    "\n  query BinderList($id: ID!) {\n    binderList(id: $id) {\n      entries {\n        cardName\n        quantity\n        typeLine\n        setCode\n        collectorNumber\n        imageUrl\n        finish\n        condition\n      }\n    }\n  }\n": types.BinderListDocument,
     "\n  query TradeMatches($url: String, $text: String) {\n    tradeMatches(url: $url, text: $text) {\n      sourceName\n      entryCount\n      unrecognized\n      binderMatches {\n        cardName\n        oracleId\n        theirQuantity\n        items {\n          id\n          quantity\n          condition\n          finish\n          forTrade\n          printing {\n            id\n            setCode\n            collectorNumber\n            imageUrl\n            card {\n              id\n              name\n            }\n          }\n        }\n      }\n      wantMatches {\n        cardName\n        oracleId\n        theirQuantity\n        want {\n          id\n          quantity\n          imageUrl\n          card {\n            id\n            name\n          }\n        }\n      }\n    }\n  }\n": types.TradeMatchesDocument,
 };
 
@@ -556,6 +562,18 @@ export function graphql(source: "\n  mutation EnsureTradeWantsShareToken {\n    
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query WantsList($id: ID!) {\n    wantsList(id: $id) {\n      entries {\n        cardName\n        quantity\n        typeLine\n        setCode\n        collectorNumber\n        imageUrl\n      }\n    }\n  }\n"): (typeof documents)["\n  query WantsList($id: ID!) {\n    wantsList(id: $id) {\n      entries {\n        cardName\n        quantity\n        typeLine\n        setCode\n        collectorNumber\n        imageUrl\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query TradeBinderShareToken {\n    tradeBinderShareToken\n  }\n"): (typeof documents)["\n  query TradeBinderShareToken {\n    tradeBinderShareToken\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation EnsureTradeBinderShareToken {\n    ensureTradeBinderShareToken {\n      token\n    }\n  }\n"): (typeof documents)["\n  mutation EnsureTradeBinderShareToken {\n    ensureTradeBinderShareToken {\n      token\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query BinderList($id: ID!) {\n    binderList(id: $id) {\n      entries {\n        cardName\n        quantity\n        typeLine\n        setCode\n        collectorNumber\n        imageUrl\n        finish\n        condition\n      }\n    }\n  }\n"): (typeof documents)["\n  query BinderList($id: ID!) {\n    binderList(id: $id) {\n      entries {\n        cardName\n        quantity\n        typeLine\n        setCode\n        collectorNumber\n        imageUrl\n        finish\n        condition\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

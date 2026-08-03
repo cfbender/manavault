@@ -13,7 +13,7 @@ defmodule Manavault.Trade do
   alias Manavault.Catalog
   alias Manavault.Catalog.{Card, Decklists, Printing, Util}
   alias Manavault.Repo
-  alias Manavault.Trade.{Want, WantsShare}
+  alias Manavault.Trade.{BinderShare, Want, WantsShare}
 
   @doc "Every want, newest first."
   def list_wants do
@@ -107,6 +107,18 @@ defmodule Manavault.Trade do
   stored share token.
   """
   defdelegate wants_list_by_share_token(token), to: WantsShare, as: :list_by_token
+
+  @doc "The current public trade-binder share token, or `nil` if none exists yet."
+  defdelegate binder_share_token(), to: BinderShare, as: :token
+
+  @doc "Returns the trade-binder share token, creating one on first use."
+  defdelegate ensure_binder_share_token(), to: BinderShare, as: :ensure_token
+
+  @doc """
+  The public trade binder for `token`, or `nil` unless it matches the
+  stored share token.
+  """
+  defdelegate binder_list_by_share_token(token), to: BinderShare, as: :list_by_token
 
   defp normalize_quantity(quantity) when is_integer(quantity) and quantity > 0, do: quantity
   defp normalize_quantity(_quantity), do: 1

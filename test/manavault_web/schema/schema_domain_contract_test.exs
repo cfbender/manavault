@@ -15,6 +15,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
     assert MapSet.new(Map.keys(query_fields)) ==
              MapSet.new([
                "backupSettings",
+               "binderList",
                "card",
                "cardNameSuggestions",
                "cards",
@@ -40,6 +41,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "node",
                "setSuggestions",
                "sharedDeck",
+               "tradeBinderShareToken",
                "tradeMatches",
                "tradeWants",
                "tradeWantsShareToken",
@@ -78,6 +80,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "deleteLocation",
                "disassembleDeck",
                "ensureDeckShareToken",
+               "ensureTradeBinderShareToken",
                "ensureTradeWantsShareToken",
                "importDecklist",
                "optimizeDeckCardPrintings",
@@ -236,7 +239,14 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
     fields = fields_by_name(fields)
 
     assert MapSet.new(Map.keys(fields)) ==
-             MapSet.new(["card", "deck", "deckBuylist", "deckBuylistExport", "wantsList"])
+             MapSet.new([
+               "binderList",
+               "card",
+               "deck",
+               "deckBuylist",
+               "deckBuylistExport",
+               "wantsList"
+             ])
 
     assert argument(fields["deck"], "id") == {"ID!", nil}
     assert type_signature(fields["deckBuylist"]["type"]) == "[DeckBuylistEntry!]!"

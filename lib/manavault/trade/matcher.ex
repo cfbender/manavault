@@ -11,6 +11,7 @@ defmodule Manavault.Trade.Matcher do
   alias Manavault.Catalog.{Card, CollectionItem, Printing}
   alias Manavault.Repo
   alias Manavault.Trade
+  alias Manavault.Trade.ForTradeQuery
 
   @doc """
   Builds a `trade_match_result`-shaped map from resolved entries.
@@ -73,16 +74,8 @@ defmodule Manavault.Trade.Matcher do
   defp for_trade_items_by_oracle([]), do: %{}
 
   defp for_trade_items_by_oracle(oracle_ids) do
-    CollectionItem
-    |> join(:inner, [item], printing in assoc(item, :printing))
-    |> join(:inner, [_item, printing], card in assoc(printing, :card))
-    |> join(:left, [item], location in assoc(item, :location_assoc))
-    |> where([item], item.for_trade == true)
+    ForTradeQuery.base_query()
     |> where([_item, _printing, card], card.oracle_id in ^oracle_ids)
-    |> where(
-      [_item, _printing, _card, location],
-      is_nil(location.id) or location.kind != "list"
-    )
     |> order_by([_item, printing, card],
       asc: card.name,
       asc: printing.set_code,

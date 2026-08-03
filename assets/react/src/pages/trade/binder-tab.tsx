@@ -1,13 +1,16 @@
 import { useMutation, useQuery } from "@apollo/client/react"
+import { Share2 } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { EmptyState } from "../../components/card-image"
 import { SearchField } from "../../components/search-field"
+import { Button } from "../../components/ui/button"
 import { useToast } from "../../components/ui/toast"
 import { pluralize, present } from "../../lib/utils"
 import { COLLECTION_PAGE_SIZE, DEFAULT_COLLECTION_SORT } from "../collection/constants"
 import { CollectionItemsPageDocument } from "../collection/documents"
 import { VirtualizedCollectionGrid } from "../collection/selection-grid"
 import type { CollectionItem } from "../collection/types"
+import { BinderShareDialog } from "./binder-share-dialog"
 import { TradeBinderCountDocument, UpdateCollectionItemForTradeDocument } from "./documents"
 
 export function BinderTab() {
@@ -16,6 +19,7 @@ export function BinderTab() {
   const [appliedQ, setAppliedQ] = useState("")
   const [forTradeOnly, setForTradeOnly] = useState(false)
   const [isFetchingMore, setIsFetchingMore] = useState(false)
+  const [isShareOpen, setIsShareOpen] = useState(false)
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setAppliedQ(q.trim()), 200)
@@ -112,11 +116,17 @@ export function BinderTab() {
             <span className="label-text text-sm">Only for trade</span>
           </label>
         </div>
-        {typeof forTradeCount === "number" ? (
-          <p className="text-sm text-base-content/60">
-            {pluralize(forTradeCount, "card")} up for trade
-          </p>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-3">
+          {typeof forTradeCount === "number" ? (
+            <p className="text-sm text-base-content/60">
+              {pluralize(forTradeCount, "card")} up for trade
+            </p>
+          ) : null}
+          <Button type="button" variant="outline" size="sm" onClick={() => setIsShareOpen(true)}>
+            <Share2 className="h-4 w-4" />
+            Share binder
+          </Button>
+        </div>
       </div>
 
       {binderQuery.error ? (
@@ -134,6 +144,8 @@ export function BinderTab() {
           onToggleForTrade={toggleForTrade}
         />
       )}
+
+      <BinderShareDialog open={isShareOpen} onOpenChange={setIsShareOpen} />
     </div>
   )
 }

@@ -1,12 +1,13 @@
 defmodule Manavault.Trade.ListSource.ManaVault do
   @moduledoc """
-  Resolves a *relative* (host-less) `/share/decks/<token>` or
-  `/share/wants/<token>` link entirely locally by share token lookup — no
-  outbound request is ever made here. An absolute link (one with a host,
-  even when that host happens to be this instance) is never resolved by
-  this module; see `Manavault.Trade.ListSource.ManaVaultRemote`, which
-  always fetches such links over HTTP so a foreign instance's token is
-  never mistaken for a local one.
+  Resolves a *relative* (host-less) `/share/decks/<token>`,
+  `/share/wants/<token>`, or `/share/binder/<token>` link entirely locally
+  by share token lookup — no outbound request is ever made here. An
+  absolute link (one with a host, even when that host happens to be this
+  instance) is never resolved by this module; see
+  `Manavault.Trade.ListSource.ManaVaultRemote`, which always fetches such
+  links over HTTP so a foreign instance's token is never mistaken for a
+  local one.
   """
 
   alias Manavault.Catalog
@@ -15,25 +16,32 @@ defmodule Manavault.Trade.ListSource.ManaVault do
 
   @deck_path_pattern ~r{^/share/decks/([^/?#]+)/?$}
   @wants_path_pattern ~r{^/share/wants/([^/?#]+)/?$}
+  @binder_path_pattern ~r{^/share/binder/([^/?#]+)/?$}
   @wants_source_name "Shared wants"
+  @binder_source_name "Trade binder"
   @deck_not_found_error "That share link doesn't match a deck on this ManaVault instance. " <>
                           "If it came from another vault, paste the list text instead."
   @wants_not_found_error "That share link doesn't match a shared want list on this ManaVault " <>
                            "instance. If it came from another vault, paste the list text instead."
+  @binder_not_found_error "That share link doesn't match a shared trade binder on this " <>
+                            "ManaVault instance. If it came from another vault, paste the " <>
+                            "list text instead."
 
   @doc """
-  Extracts the share kind (`:deck` or `:wants`) and token from a
-  `/share/decks/<token>` or `/share/wants/<token>` path, if present.
+  Extracts the share kind (`:deck`, `:wants`, or `:binder`) and token from
+  a `/share/decks/<token>`, `/share/wants/<token>`, or
+  `/share/binder/<token>` path, if present.
   """
   def share_path(path) when is_binary(path) do
-    with :error <- match_path(@deck_path_pattern, :deck, path) do
-      match_path(@wants_path_pattern, :wants, path)
+    with :error <- match_path(@deck_path_pattern, :deck, path),
+         :error <- match_path(@wants_path_pattern, :wants, path) do
+      match_path(@binder_path_pattern, :binder, path)
     end
   end
 
   def share_path(_path), do: :error
 
-  @doc "Resolves the local share for `kind` (`:deck` or `:wants`) and `token`."
+  @doc "Resolves the local share for `kind` (`:deck`, `:wants`, or `:binder`) and `token`."
   def fetch(:deck, token) when is_binary(token) do
     case Catalog.get_deck_by_share_token(token) do
       %Deck{} = deck -> {:ok, entries_from_deck(deck)}
@@ -45,6 +53,13 @@ defmodule Manavault.Trade.ListSource.ManaVault do
     case Trade.wants_list_by_share_token(token) do
       %{entries: entries} -> {:ok, entries_from_wants(entries)}
       nil -> {:error, @wants_not_found_error}
+    end
+  end
+
+  def fetch(:binder, token) when is_binary(token) do
+    case Trade.binder_list_by_share_token(token) do
+      %{entries: entries} -> {:ok, entries_from_binder(entries)}
+      nil -> {:error, @binder_not_found_error}
     end
   end
 
@@ -87,6 +102,20 @@ defmodule Manavault.Trade.ListSource.ManaVault do
   end
 
   defp normalize_want_entry(%{card_name: name} = entry) do
+    %{
+      name: name,
+      quantity: Map.get(entry, :quantity, 1),
+      zone: "mainboard",
+      set_code: Map.get(entry, :set_code),
+      collector_number: Map.get(entry, :collector_number)
+    }
+  end
+
+  defp entries_from_binder(entries) when is_list(entries) do
+    %{source_name: @binder_source_name, entries: Enum.map(entries, &normalize_binder_entry/1)}
+  end
+
+  defp normalize_binder_entry(%{card_name: name} = entry) do
     %{
       name: name,
       quantity: Map.get(entry, :quantity, 1),
