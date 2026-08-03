@@ -8,6 +8,32 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [1.2.0] - 2026-08-03
+
+### Bug Fixes
+
+- Card search pagination ([`7bfe870b`](../../commit/7bfe870bc1eb1ae70f11845cb34cf132d3a9e557))
+- Card name search ([`4e5c2e9b`](../../commit/4e5c2e9b6f8a59a6b383bd723401056d4a885138))
+- Don't lock completely during catalog import ([`c48d7be9`](../../commit/c48d7be9c6a5e9d9707ef02b398b443ca7f401b0))
+
+### Chores
+
+- Swap card advantage and ramp priority ([`a5ff0638`](../../commit/a5ff063830650b25949504deed5af0dc03f56bfb))
+
+### Features
+
+- Recent searches ([`537e391a`](../../commit/537e391a17bcc2e35313dc3a5e6a571a1fe5cc18))
+- Improve deck export ([`c7bab6f4`](../../commit/c7bab6f419e91fc5b1de81eb12ce0329eab891b1))
+- Scg purchase ([`3a8a2e1a`](../../commit/3a8a2e1abcb59db0466a45e5309043f3ab41a7dd))
+- Edhrec commander categories ([`70b3b237`](../../commit/70b3b237096cd55bf33e419ce9aa166576f77cee))
+- Trade, wants, diffs ([`50f87049`](../../commit/50f8704997ba2548311181c339a5a8991665d558))
+- Change maybe/sideboard to considering ([`37c7daf2`](../../commit/37c7daf2f37bb073c9fc6b8c92a784b8780314c2))
+- Share trade list ([`d6e0e1a6`](../../commit/d6e0e1a63f86a7dd6db88bf4d97e65a25b38ec7e))
+
+### Refactoring
+
+- Use scryfall bulk data api for import ([`f077dcd9`](../../commit/f077dcd964c835dcc8de704b2a08c59dd005a333))
+
 ## [1.1.2] - 2026-07-19
 
 ### Bug Fixes
