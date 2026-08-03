@@ -32,6 +32,7 @@ defmodule ManavaultWeb.PublicShareSchema do
   query do
     field :deck, :deck do
       arg(:id, non_null(:id))
+      complexity(fn _args, child_complexity -> 10_000 + child_complexity end)
 
       resolve(fn _parent, %{id: token}, _resolution ->
         {:ok, public_shared_deck(token)}
@@ -40,6 +41,7 @@ defmodule ManavaultWeb.PublicShareSchema do
 
     field :card, :card do
       arg(:id, non_null(:id))
+      complexity(fn _args, child_complexity -> 10_000 + child_complexity end)
       resolve(&QueryResolvers.card/3)
     end
 
@@ -49,6 +51,7 @@ defmodule ManavaultWeb.PublicShareSchema do
       arg(:include_basic_lands, :boolean, default_value: false)
       arg(:assume_no_owned, :boolean, default_value: true)
       arg(:include_considering, :boolean, default_value: false)
+      complexity(fn _args, child_complexity -> 20_000 + child_complexity end)
 
       resolve(fn _parent, %{id: token} = args, _resolution ->
         case public_shared_deck(token) do
@@ -65,6 +68,7 @@ defmodule ManavaultWeb.PublicShareSchema do
       arg(:include_basic_lands, :boolean, default_value: false)
       arg(:assume_no_owned, :boolean, default_value: true)
       arg(:include_considering, :boolean, default_value: false)
+      complexity(fn _args, child_complexity -> 20_000 + child_complexity end)
 
       resolve(fn _parent, %{id: token} = args, _resolution ->
         case public_shared_deck(token) do
@@ -84,6 +88,7 @@ defmodule ManavaultWeb.PublicShareSchema do
 
     field :wants_list, :wants_list do
       arg(:id, non_null(:id))
+      complexity(fn _args, child_complexity -> 20_000 + child_complexity end)
 
       resolve(fn _parent, %{id: token}, _resolution ->
         {:ok, public_wants_list(token)}
@@ -92,6 +97,7 @@ defmodule ManavaultWeb.PublicShareSchema do
 
     field :binder_list, :binder_list do
       arg(:id, non_null(:id))
+      complexity(fn _args, child_complexity -> 20_000 + child_complexity end)
 
       resolve(fn _parent, %{id: token}, _resolution ->
         {:ok, public_binder_list(token)}

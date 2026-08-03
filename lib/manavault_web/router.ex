@@ -22,6 +22,10 @@ defmodule ManavaultWeb.Router do
     plug ManavaultWeb.Plugs.GraphQLCSRFProtection
   end
 
+  pipeline :public_graphql do
+    plug ManavaultWeb.Plugs.PublicGraphQLProtection, :validate
+  end
+
   scope "/", ManavaultWeb do
     get "/site.webmanifest", PwaController, :manifest
     get "/sw.js", PwaController, :service_worker
@@ -61,10 +65,20 @@ defmodule ManavaultWeb.Router do
   end
 
   scope "/" do
+    pipe_through [:api, :public_graphql]
+
+    forward "/share/graphql", Absinthe.Plug,
+      schema: ManavaultWeb.PublicShareSchema,
+      analyze_complexity: true,
+      max_complexity: 100_000,
+      token_limit: 5_000,
+      pipeline: {ManavaultWeb.Plugs.PublicGraphQLProtection, :pipeline}
+  end
+
+  scope "/" do
     pipe_through :api
 
     get "/health", ManavaultWeb.HealthController, :show
-    forward "/share/graphql", Absinthe.Plug, schema: ManavaultWeb.PublicShareSchema
   end
 
   scope "/" do

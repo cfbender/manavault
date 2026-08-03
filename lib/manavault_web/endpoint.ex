@@ -48,6 +48,7 @@ defmodule ManavaultWeb.Endpoint do
 
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
+  plug ManavaultWeb.Plugs.PublicGraphQLProtection, :admit
 
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json, Absinthe.Plug.Parser],

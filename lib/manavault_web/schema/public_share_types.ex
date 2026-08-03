@@ -91,7 +91,64 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     end
 
     connection field :printings, node_type: :printing do
-      resolve(&CardFields.card_printings/3)
+      complexity(fn _args, child_complexity ->
+        300 * child_complexity
+      end)
+
+      resolve(fn card, args, resolution ->
+        CardFields.card_printings(card, clamp_connection_args(args, 300), resolution)
+      end)
+    end
+  end
+
+  object :public_card_summary do
+    field :id, non_null(:id) do
+      resolve(fn card, _args, resolution ->
+        {:ok, Absinthe.Relay.Node.to_global_id(:card, card.oracle_id, resolution.schema)}
+      end)
+    end
+
+    field :oracle_id, non_null(:id)
+    field :name, non_null(:string)
+    field :type_line, :string
+    field :mana_cost, :string
+    field :oracle_text, :string
+    field :cmc, :float
+
+    field :colors, list_of(:string) do
+      resolve(fn card, _, _ ->
+        {:ok, ValueResolvers.decode_json_field(card, :colors, [])}
+      end)
+    end
+
+    field :color_identity, list_of(:string) do
+      resolve(fn card, _, _ ->
+        {:ok, ValueResolvers.decode_json_field(card, :color_identity, [])}
+      end)
+    end
+
+    field :game_changer, non_null(:boolean)
+
+    field :oracle_tags, list_of(:scryfall_oracle_tag) do
+      resolve(fn card, _, _ ->
+        {:ok, ValueResolvers.decode_json_field(card, :oracle_tags, [])}
+      end)
+    end
+
+    field :deck_category, :string
+
+    field :deck_themes, list_of(:string) do
+      resolve(fn card, _, _ ->
+        {:ok, ValueResolvers.decode_json_field(card, :deck_themes, [])}
+      end)
+    end
+
+    field :rulings, non_null(list_of(non_null(:card_ruling))) do
+      resolve(&CardFields.card_rulings/3)
+    end
+
+    field :legalities, non_null(list_of(non_null(:card_legality))) do
+      resolve(&CardFields.card_legalities/3)
     end
   end
 
@@ -138,7 +195,7 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
 
     field :released_at, :string
 
-    field :card, :card, resolve: dataloader(Catalog)
+    field :card, :public_card_summary, resolve: dataloader(Catalog)
   end
 
   node object(:collection_item) do
@@ -270,7 +327,13 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     end
 
     connection field :deck_cards, node_type: :deck_card do
-      resolve(&DeckFields.deck_cards/3)
+      complexity(fn _args, child_complexity ->
+        500 * child_complexity
+      end)
+
+      resolve(fn deck, args, resolution ->
+        DeckFields.deck_cards(deck, clamp_connection_args(args, 500), resolution)
+      end)
     end
   end
 
@@ -375,4 +438,14 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
 
   def card_node_id(%{oracle_id: id}, _resolution), do: id
   def printing_node_id(%{scryfall_id: id}, _resolution), do: id
+
+  defp clamp_connection_args(args, max_size) do
+    Enum.reduce([:first, :last, :limit], args, fn key, clamped ->
+      Map.update(clamped, key, nil, fn
+        value when is_integer(value) and value < 0 -> 0
+        value when is_integer(value) and value > max_size -> max_size
+        value -> value
+      end)
+    end)
+  end
 end

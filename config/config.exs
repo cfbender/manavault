@@ -16,6 +16,11 @@ config :manavault,
     max_attempts_global: 30,
     permanent_ban_after_failures: 30
   ],
+  public_share_rate_limit: [
+    window_ms: :timer.minutes(1),
+    max_requests_per_ip: 120,
+    max_requests_global: 1_200
+  ],
   # When behind a trusted reverse proxy, derive the auth rate-limit client id
   # from the forwarded header instead of the (shared) proxy peer IP.
   trust_proxy_headers: false,

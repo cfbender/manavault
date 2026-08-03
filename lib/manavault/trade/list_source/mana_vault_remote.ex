@@ -18,13 +18,13 @@ defmodule Manavault.Trade.ListSource.ManaVaultRemote do
   alias Manavault.Trade.ListSource.Http
 
   @allowed_schemes ~w(http https)
-  @max_pages 50
+  @max_pages 100
 
   @deck_query """
   query FetchSharedDeck($id: ID!, $after: String) {
     deck(id: $id) {
       name
-      deckCards(first: 1000, after: $after) {
+      deckCards(first: 500, after: $after) {
         edges {
           node {
             quantity

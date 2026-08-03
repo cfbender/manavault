@@ -55,6 +55,16 @@ auth_rate_limit = [
     String.to_integer(System.get_env("MANAVAULT_AUTH_PERMANENT_BAN_AFTER_FAILURES", "30"))
 ]
 
+public_share_rate_limit = [
+  window_ms:
+    String.to_integer(System.get_env("MANAVAULT_PUBLIC_SHARE_RATE_LIMIT_WINDOW_SECONDS", "60")) *
+      1000,
+  max_requests_per_ip:
+    String.to_integer(System.get_env("MANAVAULT_PUBLIC_SHARE_MAX_REQUESTS_PER_IP", "120")),
+  max_requests_global:
+    String.to_integer(System.get_env("MANAVAULT_PUBLIC_SHARE_MAX_REQUESTS_GLOBAL", "1200"))
+]
+
 trust_proxy_headers =
   System.get_env("MANAVAULT_TRUST_PROXY_HEADERS", "")
   |> String.trim()
@@ -74,6 +84,7 @@ config :manavault,
   admin_password_hash: admin_password_hash,
   auth_disabled: auth_disabled,
   auth_rate_limit: auth_rate_limit,
+  public_share_rate_limit: public_share_rate_limit,
   trust_proxy_headers: trust_proxy_headers,
   forwarded_ip_header: System.get_env("MANAVAULT_FORWARDED_IP_HEADER", "x-forwarded-for"),
   secure_cookies: secure_cookies,

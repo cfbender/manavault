@@ -254,7 +254,8 @@ defmodule Manavault.Trade.ListSourceTest do
     test "paginates a large deck via hasNextPage/endCursor" do
       Req.Test.stub(@manavault_stub, fn conn ->
         {:ok, body, conn} = Plug.Conn.read_body(conn)
-        %{"variables" => variables} = Jason.decode!(body)
+        %{"query" => query, "variables" => variables} = Jason.decode!(body)
+        assert query =~ "deckCards(first: 500, after: $after)"
 
         payload =
           case variables["after"] do
