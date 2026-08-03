@@ -118,6 +118,10 @@ The Trade tab connects owned inventory to trading with other players:
   up for trade that they want, or cards they have that are on your want
   list. Unrecognized lines are reported.
 
+Both share pages offer copy-to-clipboard (with a plain-http fallback) and
+`.txt` download of the list as standard decklist text, ready to paste into
+any ManaVault Matches tab or other deck tools.
+
 Deck detail pages additionally offer a **Compare decklist** action that diffs
 an external list against the open deck as adds, cuts, and quantity changes
 (considering piles excluded on both sides - the diff compares the actual

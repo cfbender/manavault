@@ -4,6 +4,7 @@ import { graphqlEndpointContext } from "../../lib/apollo"
 import { usePageTitle } from "../../lib/page-title"
 import { pluralize, titleize } from "../../lib/utils"
 import { BinderListDocument } from "./documents"
+import { ShareListActions } from "./share-list-actions"
 import type { BinderListQuery } from "../../gql/graphql"
 
 type BinderListEntry = NonNullable<BinderListQuery["binderList"]>["entries"][number]
@@ -30,9 +31,12 @@ export function ShareBinderPage({ token }: { token: string }) {
         </p>
         <h1 className="text-3xl font-black tracking-normal">Trade binder</h1>
         {entries.length > 0 ? (
-          <p className="mt-1 text-sm text-base-content/60">
-            {pluralize(entries.length, "card")} up for trade
-          </p>
+          <>
+            <p className="mt-1 text-sm text-base-content/60">
+              {pluralize(entries.length, "card")} up for trade
+            </p>
+            <ShareListActions entries={entries} filename="trade-binder.txt" />
+          </>
         ) : null}
       </div>
 
