@@ -386,6 +386,7 @@ export function DeckDetailPage({
           isSelectionActive={selection.isSelectionActive}
           legalityIssues={legalityIssues}
           onAddCard={() => setOverlay({ kind: "add-card" })}
+          onCompareDeck={() => setOverlay({ kind: "compare-deck" })}
           onCopySharedDecklist={copySharedDecklist}
           onDisassemble={() => disassemblyActions.preview(deck.id)}
           onDownloadSharedDecklist={downloadSharedDecklist}

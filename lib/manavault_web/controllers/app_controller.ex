@@ -11,6 +11,8 @@ defmodule ManavaultWeb.AppController do
 
   def share_deck(conn, %{"token" => token}), do: render_app(conn, share_preview(conn, token))
 
+  def share_wants(conn, %{"token" => _token}), do: render_app(conn, default_preview(conn))
+
   def share_deck_preview_image(conn, %{"token" => token}) do
     case share_preview(conn, token) do
       %{kind: :deck} = preview ->

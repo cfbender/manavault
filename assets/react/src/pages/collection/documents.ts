@@ -438,6 +438,7 @@ export const CollectionItemsPageDocument = graphql(`
           valueGainText
           valueGainPercentText
           allocatedQuantity
+          forTrade
           allocationDecks {
             quantity
             deck {

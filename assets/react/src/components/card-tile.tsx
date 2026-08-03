@@ -1,4 +1,6 @@
 import {
+  ArrowLeftRight,
+  Check,
   CheckSquare,
   DollarSign,
   Edit3,
@@ -73,6 +75,8 @@ export function CardTile({
   countMin = 2,
   defaultActions,
   finish,
+  forTradeActive = false,
+  forTradeCardName,
   growOnHover = true,
   imageUrl,
   location,
@@ -93,6 +97,7 @@ export function CardTile({
   showDetails = false,
   showMenu = true,
   typeLine,
+  onToggleForTrade,
   onToggleSelected,
 }: {
   allocatedLabel?: ReactNode
@@ -101,12 +106,15 @@ export function CardTile({
   countMin?: number
   defaultActions?: CardTileAction[]
   finish?: string | null
+  forTradeActive?: boolean
+  forTradeCardName?: string
   growOnHover?: boolean
   imageUrl?: string | null
   location?: ReactNode
   menuActions?: CardTileAction[]
   name: ReactNode
   onSelect?: () => void
+  onToggleForTrade?: () => void
   onToggleSelected?: () => void
   primaryActionLabel?: string
   primaryActionRole?: "button" | "link"
@@ -356,6 +364,38 @@ export function CardTile({
                 {count}
               </span>
             ) : null}
+          </div>
+        ) : null}
+
+        {onToggleForTrade ? (
+          <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
+            <button
+              type="button"
+              className={cn(
+                "pointer-events-auto relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br ring-1 backdrop-blur-xl transition duration-200 ease-out hover:scale-105 active:scale-95",
+                "shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_8px_20px_rgba(0,0,0,0.4)]",
+                forTradeActive
+                  ? "bg-primary/50 from-white/25 via-primary/10 to-transparent text-primary-content ring-primary/60 hover:bg-primary/60"
+                  : "bg-white/15 from-white/25 via-white/5 to-transparent text-white ring-white/30 hover:bg-white/20",
+              )}
+              aria-label={`${forTradeActive ? "Remove" : "Mark"} ${
+                forTradeCardName ?? (typeof name === "string" ? name : "card")
+              } ${forTradeActive ? "from trade" : "for trade"}`}
+              aria-pressed={forTradeActive}
+              onClick={(event) => {
+                event.stopPropagation()
+                onToggleForTrade()
+              }}
+              onKeyDown={(event) => event.stopPropagation()}
+              onMouseDown={(event) => event.stopPropagation()}
+            >
+              <ArrowLeftRight className="h-6 w-6" />
+              {forTradeActive ? (
+                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-content ring-2 ring-base-100/80">
+                  <Check className="h-3 w-3" strokeWidth={3} />
+                </span>
+              ) : null}
+            </button>
           </div>
         ) : null}
 

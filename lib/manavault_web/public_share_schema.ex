@@ -7,6 +7,7 @@ defmodule ManavaultWeb.PublicShareSchema do
   alias Manavault.Catalog
   alias Manavault.Catalog.{Card, CollectionItem, Deck, DeckCard, Location, Printing}
   alias Manavault.Catalog.Decks.ShareToken
+  alias Manavault.Trade
   alias ManavaultWeb.Schema.Catalog.QueryResolvers
 
   node interface do
@@ -82,11 +83,25 @@ defmodule ManavaultWeb.PublicShareSchema do
         end
       end)
     end
+
+    field :wants_list, :wants_list do
+      arg(:id, non_null(:id))
+
+      resolve(fn _parent, %{id: token}, _resolution ->
+        {:ok, public_wants_list(token)}
+      end)
+    end
   end
 
   defp public_shared_deck(token) do
     if ShareToken.valid?(token) do
       Catalog.get_deck_by_share_token(token, preload?: false)
+    end
+  end
+
+  defp public_wants_list(token) do
+    if ShareToken.valid?(token) do
+      Trade.wants_list_by_share_token(token)
     end
   end
 

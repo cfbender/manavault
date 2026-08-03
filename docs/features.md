@@ -93,6 +93,46 @@ Deck workflows include:
 - public share links
 - read-only shared deck pages with copy/export/playtest actions
 
+## Trade
+
+The Trade tab connects owned inventory to trading with other players:
+
+- **Binder** - the collection grid with a centered circular glass toggle on
+  each tile that marks a collection item up for trade, plus an only-for-trade
+  filter and a flagged count. Items stored in list-kind locations never count
+  as tradable copies.
+- **Wants** - a card-search-backed want list with quantities. Wants are
+  either generic ("any printing") or pinned to an exact printing via the
+  opt-in printing picker or the **Add to wants** action on a card detail
+  printing. The want list is shareable: a deck-style share token backs a
+  public read-only page at `/share/wants/...`.
+- **Matches** - paste list text or a supported link, declare whether the
+  list is the partner's haves or wants, and see the overlap: cards you have
+  up for trade that they want, or cards they have that are on your want
+  list. Unrecognized lines are reported.
+
+Deck detail pages additionally offer a **Compare decklist** action that diffs
+an external list against the open deck as adds, cuts, and quantity changes
+(maybeboards excluded), with a copyable +/- text diff. Basic lands are
+compared by name and only appear when the two sides disagree on the count -
+equal counts cancel instead of showing paired add/cut rows.
+
+Supported link sources are Moxfield and Archidekt deck URLs (fetched
+server-side from their public APIs with strict id validation, no redirects,
+and size/time caps) plus ManaVault `/share/decks/...` and `/share/wants/...`
+links from any instance: relative links resolve locally by share token, and
+absolute links are fetched from that link's origin through its public
+`/share/graphql` endpoint. Cross-instance fetches deliberately allow private
+and LAN addresses so self-hosted friends can trade; the request is bounded
+(fixed path, fixed query body, no credentials, no redirects, time and size
+caps) and its response is only ever shown to the owner who pasted the link.
+Moxfield's API only serves approved clients, so those fetches may fail with
+a hint to paste the export text instead; ManaBox has no public URL API and
+is supported through its plain-text export (its CSV export remains a
+collection-import format, not a trade-match input). Any standard decklist
+text (quantities, optional set and collector number, `*F*` finishes, `SB:`
+prefixes, section headings) parses.
+
 ## Legality, Stats, Tokens, and Playtest
 
 Deck detail pages include:

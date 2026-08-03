@@ -352,6 +352,37 @@ defmodule Manavault.Catalog.CollectionTest do
     assert [] = Catalog.list_collection_items(location_id: "missing")
   end
 
+  test "collection item filtering supports the for_trade facet" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    assert {:ok, lotus} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => "1",
+               "for_trade" => true
+             })
+
+    assert {:ok, walk} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-2",
+               "quantity" => "1",
+               "finish" => "foil"
+             })
+
+    assert lotus.for_trade
+
+    assert [found] = Catalog.list_collection_items(for_trade: true)
+    assert found.id == lotus.id
+
+    ids = Catalog.list_collection_items([]) |> Enum.map(& &1.id) |> Enum.sort()
+    assert ids == Enum.sort([lotus.id, walk.id])
+
+    assert {:ok, updated} = Catalog.update_collection_item(lotus, %{"for_trade" => false})
+    refute updated.for_trade
+    assert [] = Catalog.list_collection_items(for_trade: true)
+  end
+
   test "collection item filtering supports Scryfall search syntax" do
     assert {:ok, %{cards_count: 3, printings_count: 3}} =
              Catalog.import_cards([@black_lotus, @time_walk, @plains])

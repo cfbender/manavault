@@ -27,6 +27,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "collectionItems",
                "collectionValueSummary",
                "deck",
+               "deckDiff",
                "deckBuylist",
                "deckBuylistExport",
                "deckEdhrec",
@@ -38,7 +39,11 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "locations",
                "node",
                "setSuggestions",
-               "sharedDeck"
+               "sharedDeck",
+               "tradeMatches",
+               "tradeWants",
+               "tradeWantsShareToken",
+               "wantsList"
              ])
 
     assert MapSet.new(Map.keys(mutation_fields)) ==
@@ -59,6 +64,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "bulkUpdateDeckCards",
                "commitCollectionImport",
                "createCollectionItem",
+               "createTradeWant",
                "createDeck",
                "createDeckTag",
                "createLocation",
@@ -68,9 +74,11 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "deleteDeck",
                "deleteDeckCard",
                "deleteDeckTag",
+               "deleteTradeWant",
                "deleteLocation",
                "disassembleDeck",
                "ensureDeckShareToken",
+               "ensureTradeWantsShareToken",
                "importDecklist",
                "optimizeDeckCardPrintings",
                "previewBulkAllocateDeck",
@@ -88,6 +96,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "updateBackupSettings",
                "updateCollectionAutoSortRules",
                "updateCollectionItem",
+               "updateTradeWant",
                "updateDeck",
                "updateDeckCard",
                "updateDeckCardsTag",
@@ -227,7 +236,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
     fields = fields_by_name(fields)
 
     assert MapSet.new(Map.keys(fields)) ==
-             MapSet.new(["card", "deck", "deckBuylist", "deckBuylistExport"])
+             MapSet.new(["card", "deck", "deckBuylist", "deckBuylistExport", "wantsList"])
 
     assert argument(fields["deck"], "id") == {"ID!", nil}
     assert type_signature(fields["deckBuylist"]["type"]) == "[DeckBuylistEntry!]!"

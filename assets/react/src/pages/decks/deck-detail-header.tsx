@@ -49,6 +49,7 @@ type DeckDetailHeaderProps = {
   isRefreshing: boolean
   legalityIssues: DeckLegalityIssue[]
   onAddCard: () => void
+  onCompareDeck: () => void
   onCopySharedDecklist: () => void
   onDisassemble: () => void
   onDownloadSharedDecklist: () => void
@@ -160,6 +161,7 @@ export function DeckDetailHeader({
   isSelectionActive,
   legalityIssues,
   onAddCard,
+  onCompareDeck,
   onCopySharedDecklist,
   onDisassemble,
   onDownloadSharedDecklist,
@@ -225,6 +227,7 @@ export function DeckDetailHeader({
             <ShareModeHidden shareMode={shareMode}>
               <SummaryActionMenu
                 label={`${deck.name} actions`}
+                onCompare={onCompareDeck}
                 onDisassemble={canEdit ? onDisassemble : undefined}
                 onEdhrec={canEdit && deck.format === "commander" ? onOpenEdhrec : undefined}
                 onEdit={onEditDeck}

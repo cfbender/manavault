@@ -17,10 +17,12 @@ import { Route as CollectionIndexRouteImport } from "./routes/collection/index"
 import { Route as CollectionNewRouteImport } from "./routes/collection/new"
 import { Route as DecksIndexRouteImport } from "./routes/decks/index"
 import { Route as DecksIdRouteImport } from "./routes/decks/$id"
+import { Route as TradeIndexRouteImport } from "./routes/trade/index"
 import { Route as CollectionIdEditRouteImport } from "./routes/collection/$id.edit"
 import { Route as CollectionLocationsIdRouteImport } from "./routes/collection/locations/$id"
 import { Route as DecksIdPlaytestRouteImport } from "./routes/decks_.$id.playtest"
 import { Route as ShareDecksTokenRouteImport } from "./routes/share/decks/$token"
+import { Route as ShareWantsTokenRouteImport } from "./routes/share/wants/$token"
 
 const IndexRoute = IndexRouteImport.update({
   id: "/",
@@ -62,6 +64,11 @@ const DecksIdRoute = DecksIdRouteImport.update({
   path: "/decks/$id",
   getParentRoute: () => rootRouteImport,
 } as any)
+const TradeIndexRoute = TradeIndexRouteImport.update({
+  id: "/trade/",
+  path: "/trade/",
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CollectionIdEditRoute = CollectionIdEditRouteImport.update({
   id: "/collection/$id/edit",
   path: "/collection/$id/edit",
@@ -82,6 +89,11 @@ const ShareDecksTokenRoute = ShareDecksTokenRouteImport.update({
   path: "/share/decks/$token",
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShareWantsTokenRoute = ShareWantsTokenRouteImport.update({
+  id: "/share/wants/$token",
+  path: "/share/wants/$token",
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute
@@ -92,10 +104,12 @@ export interface FileRoutesByFullPath {
   "/cards/": typeof CardsIndexRoute
   "/collection/": typeof CollectionIndexRoute
   "/decks/": typeof DecksIndexRoute
+  "/trade/": typeof TradeIndexRoute
   "/collection/$id/edit": typeof CollectionIdEditRoute
   "/collection/locations/$id": typeof CollectionLocationsIdRoute
   "/decks/$id/playtest": typeof DecksIdPlaytestRoute
   "/share/decks/$token": typeof ShareDecksTokenRoute
+  "/share/wants/$token": typeof ShareWantsTokenRoute
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute
@@ -106,10 +120,12 @@ export interface FileRoutesByTo {
   "/cards": typeof CardsIndexRoute
   "/collection": typeof CollectionIndexRoute
   "/decks": typeof DecksIndexRoute
+  "/trade": typeof TradeIndexRoute
   "/collection/$id/edit": typeof CollectionIdEditRoute
   "/collection/locations/$id": typeof CollectionLocationsIdRoute
   "/decks/$id/playtest": typeof DecksIdPlaytestRoute
   "/share/decks/$token": typeof ShareDecksTokenRoute
+  "/share/wants/$token": typeof ShareWantsTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -121,10 +137,12 @@ export interface FileRoutesById {
   "/cards/": typeof CardsIndexRoute
   "/collection/": typeof CollectionIndexRoute
   "/decks/": typeof DecksIndexRoute
+  "/trade/": typeof TradeIndexRoute
   "/collection/$id/edit": typeof CollectionIdEditRoute
   "/collection/locations/$id": typeof CollectionLocationsIdRoute
   "/decks_/$id/playtest": typeof DecksIdPlaytestRoute
   "/share/decks/$token": typeof ShareDecksTokenRoute
+  "/share/wants/$token": typeof ShareWantsTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -137,10 +155,12 @@ export interface FileRouteTypes {
     | "/cards/"
     | "/collection/"
     | "/decks/"
+    | "/trade/"
     | "/collection/$id/edit"
     | "/collection/locations/$id"
     | "/decks/$id/playtest"
     | "/share/decks/$token"
+    | "/share/wants/$token"
   fileRoutesByTo: FileRoutesByTo
   to:
     | "/"
@@ -151,10 +171,12 @@ export interface FileRouteTypes {
     | "/cards"
     | "/collection"
     | "/decks"
+    | "/trade"
     | "/collection/$id/edit"
     | "/collection/locations/$id"
     | "/decks/$id/playtest"
     | "/share/decks/$token"
+    | "/share/wants/$token"
   id:
     | "__root__"
     | "/"
@@ -165,10 +187,12 @@ export interface FileRouteTypes {
     | "/cards/"
     | "/collection/"
     | "/decks/"
+    | "/trade/"
     | "/collection/$id/edit"
     | "/collection/locations/$id"
     | "/decks_/$id/playtest"
     | "/share/decks/$token"
+    | "/share/wants/$token"
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -180,10 +204,12 @@ export interface RootRouteChildren {
   CardsIndexRoute: typeof CardsIndexRoute
   CollectionIndexRoute: typeof CollectionIndexRoute
   DecksIndexRoute: typeof DecksIndexRoute
+  TradeIndexRoute: typeof TradeIndexRoute
   CollectionIdEditRoute: typeof CollectionIdEditRoute
   CollectionLocationsIdRoute: typeof CollectionLocationsIdRoute
   DecksIdPlaytestRoute: typeof DecksIdPlaytestRoute
   ShareDecksTokenRoute: typeof ShareDecksTokenRoute
+  ShareWantsTokenRoute: typeof ShareWantsTokenRoute
 }
 
 declare module "@tanstack/react-router" {
@@ -244,6 +270,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof DecksIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    "/trade/": {
+      id: "/trade/"
+      path: "/trade"
+      fullPath: "/trade/"
+      preLoaderRoute: typeof TradeIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     "/collection/$id/edit": {
       id: "/collection/$id/edit"
       path: "/collection/$id/edit"
@@ -272,6 +305,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof ShareDecksTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    "/share/wants/$token": {
+      id: "/share/wants/$token"
+      path: "/share/wants/$token"
+      fullPath: "/share/wants/$token"
+      preLoaderRoute: typeof ShareWantsTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -284,10 +324,12 @@ const rootRouteChildren: RootRouteChildren = {
   CardsIndexRoute: CardsIndexRoute,
   CollectionIndexRoute: CollectionIndexRoute,
   DecksIndexRoute: DecksIndexRoute,
+  TradeIndexRoute: TradeIndexRoute,
   CollectionIdEditRoute: CollectionIdEditRoute,
   CollectionLocationsIdRoute: CollectionLocationsIdRoute,
   DecksIdPlaytestRoute: DecksIdPlaytestRoute,
   ShareDecksTokenRoute: ShareDecksTokenRoute,
+  ShareWantsTokenRoute: ShareWantsTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

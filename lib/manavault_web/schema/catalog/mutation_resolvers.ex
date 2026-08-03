@@ -5,7 +5,8 @@ defmodule ManavaultWeb.Schema.Catalog.MutationResolvers do
     AllocationResolvers,
     CollectionMutations,
     DeckMutations,
-    LocationMutations
+    LocationMutations,
+    TradeMutations
   }
 
   defdelegate create_collection_item(parent, args, resolution), to: CollectionMutations
@@ -13,6 +14,11 @@ defmodule ManavaultWeb.Schema.Catalog.MutationResolvers do
   defdelegate bulk_update_collection_items(parent, args, resolution), to: CollectionMutations
   defdelegate delete_collection_item(parent, args, resolution), to: CollectionMutations
   defdelegate bulk_delete_collection_items(parent, args, resolution), to: CollectionMutations
+
+  defdelegate create_trade_want(parent, args, resolution), to: TradeMutations
+  defdelegate update_trade_want(parent, args, resolution), to: TradeMutations
+  defdelegate delete_trade_want(parent, args, resolution), to: TradeMutations
+  defdelegate ensure_trade_wants_share_token(parent, args, resolution), to: TradeMutations
 
   defdelegate create_deck(parent, args, resolution), to: DeckMutations
   defdelegate update_deck(parent, args, resolution), to: DeckMutations

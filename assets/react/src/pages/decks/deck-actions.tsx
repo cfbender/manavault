@@ -1,4 +1,5 @@
 import {
+  ArrowLeftRight,
   Download,
   Edit3,
   MoreVertical,
@@ -34,6 +35,7 @@ export function ShareModeHidden({
 
 export function SummaryActionMenu({
   label,
+  onCompare,
   onDelete,
   onDisassemble,
   onEdhrec,
@@ -45,6 +47,7 @@ export function SummaryActionMenu({
   onShare,
 }: {
   label: string
+  onCompare?: () => void
   onDelete?: () => void
   onDisassemble?: () => void
   onEdhrec?: () => void
@@ -120,6 +123,14 @@ export function SummaryActionMenu({
             <button type="button" onClick={onExport}>
               <Download className="h-4 w-4" />
               Export decklist
+            </button>
+          </li>
+        ) : null}
+        {onCompare ? (
+          <li>
+            <button type="button" onClick={onCompare}>
+              <ArrowLeftRight className="h-4 w-4" />
+              Compare decklist
             </button>
           </li>
         ) : null}

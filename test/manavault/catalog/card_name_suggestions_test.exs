@@ -67,7 +67,12 @@ defmodule Manavault.Catalog.CardNameSuggestionsTest do
              Catalog.import_cards([
                card("scryfall-mask-of-memory", "oracle-mask-of-memory", "Mask of Memory", "20"),
                card("scryfall-agent-of-masks", "oracle-agent-of-masks", "Agent of Masks", "21"),
-               card("scryfall-aegis-of-the-meek", "oracle-aegis-of-the-meek", "Aegis of the Meek", "22")
+               card(
+                 "scryfall-aegis-of-the-meek",
+                 "oracle-aegis-of-the-meek",
+                 "Aegis of the Meek",
+                 "22"
+               )
              ])
 
     CardNameSuggestions.clear_card_name_suggestion_cache()

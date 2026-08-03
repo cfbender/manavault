@@ -1,9 +1,12 @@
-import { Boxes } from "lucide-react"
+import { useMutation } from "@apollo/client/react"
+import { Boxes, Heart } from "lucide-react"
 import { addToDeckAction, CardTile } from "../../components/card-tile"
+import { useToast } from "../../components/ui/toast"
 import { useCardSize } from "../../lib/card-size"
 import { present, titleize } from "../../lib/utils"
 import type { AddCollectionItemInitialPrinting } from "../collection"
 import type { CardDeckTarget } from "./add-card-to-deck-dialog"
+import { CreateTradeWantFromCardDocument } from "./data"
 
 type CardPrintingTile = {
   id: string
@@ -36,6 +39,18 @@ export function CardPrintingsGrid({
   showPrivateActions?: boolean
 }) {
   const size = useCardSize()
+  const { showToast } = useToast()
+  const [createTradeWant] = useMutation(CreateTradeWantFromCardDocument)
+
+  function addToWants(scryfallId: string) {
+    createTradeWant({ variables: { scryfallId, quantity: 1 } })
+      .then(() => showToast("Added to wants"))
+      .catch((error) =>
+        showToast(error instanceof Error ? error.message : "Could not add to wants", {
+          tone: "info",
+        }),
+      )
+  }
   return (
     <div
       className="grid justify-center gap-x-6 gap-y-8"
@@ -89,6 +104,11 @@ export function CardPrintingsGrid({
                           setCode: printing.setCode,
                         }),
                     }),
+                    {
+                      icon: <Heart className="h-4 w-4" />,
+                      onClick: () => addToWants(printing.scryfallId),
+                      label: "Add to wants",
+                    },
                   ]
                 : []
             }

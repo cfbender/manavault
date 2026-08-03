@@ -76,7 +76,7 @@ defmodule Manavault.Catalog.Search.NameMatch do
         false
 
       normalized_name == term or String.starts_with?(normalized_name, term) or
-        String.contains?(normalized_name, term) ->
+          String.contains?(normalized_name, term) ->
         true
 
       String.contains?(compact_name, String.replace(term, " ", "")) ->
@@ -166,8 +166,11 @@ defmodule Manavault.Catalog.Search.NameMatch do
     )
   end
 
-  defp token_ordered_distance([], name_tokens), do: Enum.sum(Enum.map(name_tokens, &String.length/1))
-  defp token_ordered_distance(term_tokens, []), do: Enum.sum(Enum.map(term_tokens, &String.length/1))
+  defp token_ordered_distance([], name_tokens),
+    do: Enum.sum(Enum.map(name_tokens, &String.length/1))
+
+  defp token_ordered_distance(term_tokens, []),
+    do: Enum.sum(Enum.map(term_tokens, &String.length/1))
 
   defp token_ordered_distance([term_token | term_rest], [name_token | name_rest]) do
     edit_distance(term_token, name_token) + token_ordered_distance(term_rest, name_rest)

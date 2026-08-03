@@ -12,6 +12,7 @@ defmodule Manavault.Catalog.CollectionItem do
     field :location, :string
     field :notes, :string
     field :purchase_price_cents, :integer
+    field :for_trade, :boolean, default: false
     field :location_changed_at, :utc_datetime
 
     belongs_to :printing, Manavault.Catalog.Printing,
@@ -44,7 +45,8 @@ defmodule Manavault.Catalog.CollectionItem do
       :finish,
       :location_id,
       :notes,
-      :purchase_price_cents
+      :purchase_price_cents,
+      :for_trade
     ])
     |> put_location_changed_at()
     |> validate_common_fields()
@@ -62,7 +64,8 @@ defmodule Manavault.Catalog.CollectionItem do
       :finish,
       :location_id,
       :notes,
-      :purchase_price_cents
+      :purchase_price_cents,
+      :for_trade
     ])
     |> put_location_changed_at()
     |> validate_common_fields()

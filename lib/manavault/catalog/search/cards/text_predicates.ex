@@ -11,7 +11,11 @@ defmodule Manavault.Catalog.Search.Cards.TextPredicates do
 
     dynamic(
       [card, _printing],
-      fragment("lower(replace(replace(?, '''', ''), '’', '')) LIKE ? ESCAPE '\\'", card.name, ^pattern)
+      fragment(
+        "lower(replace(replace(?, '''', ''), '’', '')) LIKE ? ESCAPE '\\'",
+        card.name,
+        ^pattern
+      )
     )
   end
 

@@ -85,6 +85,22 @@ export const AddCardToDeckDocument = graphql(`
   }
 `)
 
+export const CreateTradeWantFromCardDocument = graphql(`
+  mutation CreateTradeWantFromCard($scryfallId: ID!, $quantity: Int) {
+    createTradeWant(scryfallId: $scryfallId, quantity: $quantity) {
+      tradeWant {
+        id
+        quantity
+        printing {
+          setCode
+          collectorNumber
+          imageUrl
+        }
+      }
+    }
+  }
+`)
+
 export const CardDocument = graphql(`
   query Card($id: ID!) {
     card(id: $id) {
@@ -159,6 +175,7 @@ export const CardCollectionItemsDocument = graphql(`
           language
           finish
           notes
+          forTrade
           priceText
           purchasePriceCents
           purchasePriceText

@@ -1,5 +1,16 @@
 import { Link, Outlet, useLocation } from "@tanstack/react-router"
-import { Boxes, Home, Layers, Menu, Monitor, Moon, Search, Settings, Sun } from "lucide-react"
+import {
+  ArrowLeftRight,
+  Boxes,
+  Home,
+  Layers,
+  Menu,
+  Monitor,
+  Moon,
+  Search,
+  Settings,
+  Sun,
+} from "lucide-react"
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { PageTitleProvider } from "../lib/page-title"
 import { useTheme } from "../lib/theme"
@@ -12,6 +23,7 @@ const navItems = [
   { to: "/cards" as const, label: "Cards", icon: Search },
   { to: "/collection" as const, label: "Collection", icon: Boxes },
   { to: "/decks" as const, label: "Decks", icon: Layers },
+  { to: "/trade" as const, label: "Trade", icon: ArrowLeftRight },
   { to: "/settings" as const, label: "Settings", icon: Settings },
 ]
 
@@ -71,6 +83,8 @@ export function AppShell() {
       pathname.startsWith("/cards/") ||
       pathname === "/collection" ||
       pathname.startsWith("/collection/") ||
+      pathname === "/trade" ||
+      pathname.startsWith("/trade/") ||
       /^\/decks\/[^/]+$/.test(pathname))
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const mobileMenuRef = useRef<HTMLDivElement>(null)

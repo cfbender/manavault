@@ -283,7 +283,10 @@ defmodule Manavault.Catalog.DeckAllocationTest do
     refute Catalog.deck_reserves_cards?(archived_deck)
 
     assert {:error, :deck_archived} =
-             Catalog.deallocate_collection_item_from_deck_card(archived_lotus.id, archived_item.id)
+             Catalog.deallocate_collection_item_from_deck_card(
+               archived_lotus.id,
+               archived_item.id
+             )
 
     assert %DeckAllocation{} = Repo.get(DeckAllocation, archived_allocation.id)
 

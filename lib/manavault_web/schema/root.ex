@@ -10,6 +10,8 @@ defmodule ManavaultWeb.Schema do
   import_types(ManavaultWeb.Schema.Catalog.DeckOperations)
   import_types(ManavaultWeb.Schema.Catalog.LocationOperations)
   import_types(ManavaultWeb.Schema.Catalog.OtherOperations)
+  import_types(ManavaultWeb.Schema.Catalog.TradeOperations)
+  import_types(ManavaultWeb.Schema.Catalog.TradeListOperations)
 
   alias Manavault.Catalog
   alias Manavault.Catalog.{Card, CollectionItem, Deck, DeckCard, Location, Printing}
@@ -42,6 +44,8 @@ defmodule ManavaultWeb.Schema do
     import_fields(:location_queries)
     import_fields(:deck_queries)
     import_fields(:backup_queries)
+    import_fields(:trade_queries)
+    import_fields(:trade_list_queries)
 
     node field do
       resolve(fn
@@ -81,6 +85,7 @@ defmodule ManavaultWeb.Schema do
     import_fields(:collection_mutations)
     import_fields(:location_mutations)
     import_fields(:deck_mutations)
+    import_fields(:trade_mutations)
   end
 
   def context(ctx) do

@@ -62,6 +62,7 @@ defmodule Manavault.Catalog.Decks.AllocationStatus do
     deck_card_ids = Enum.map(persisted_cards, & &1.id)
     keys = persisted_cards |> Enum.map(&deck_card_allocation_key/1) |> Enum.uniq()
     candidates_by_key = deck_card_collection_candidates_by_key(keys)
+
     {current_allocations_by_card_id, reserving_allocations_by_key} =
       allocation_counts_by_card_id_and_key(deck_card_ids, keys)
 

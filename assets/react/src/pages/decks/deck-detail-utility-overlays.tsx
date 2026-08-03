@@ -1,4 +1,5 @@
 import { ConfirmDialog } from "../../components/ui/confirm-dialog"
+import { DeckCompareDialog } from "./deck-compare-dialog"
 import { EditDeckDialog } from "./deck-editor-dialogs"
 import type { DeckDetailOverlay } from "./deck-detail-overlay"
 import { EDHRecDialog } from "./edhrec"
@@ -73,6 +74,14 @@ export function DeckDetailUtilityOverlays({
       ) : null}
       {overlay.kind === "export-deck" ? (
         <ExportDecklistDialog deck={deck} open onOpenChange={(open) => !open && onClose()} />
+      ) : null}
+      {overlay.kind === "compare-deck" ? (
+        <DeckCompareDialog
+          deckId={deck.id}
+          deckName={deck.name}
+          open
+          onOpenChange={(open) => !open && onClose()}
+        />
       ) : null}
       {overlay.kind === "missing-cards" ? (
         <MissingCardsDialog deck={deck} open onOpenChange={(open) => !open && onClose()} />

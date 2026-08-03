@@ -16,6 +16,7 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries.Base do
     card_id = filters |> Keyword.get(:card_id, "") |> normalize_filter()
     include_list_locations? = Keyword.get(filters, :include_list_locations, false)
     unallocated_only? = Keyword.get(filters, :unallocated_only, false)
+    for_trade_only? = Keyword.get(filters, :for_trade, false)
     added_within_days = filters |> Keyword.get(:added_within_days) |> normalize_days()
 
     CollectionItem
@@ -29,6 +30,7 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries.Base do
     |> maybe_filter_finish(finish)
     |> maybe_filter_location(location_id)
     |> maybe_filter_unallocated(unallocated_only?)
+    |> maybe_filter_for_trade(for_trade_only?)
     |> maybe_filter_added_within_days(added_within_days)
     |> maybe_exclude_deck_allocations(location_id)
     |> maybe_exclude_list_locations(location_id, include_list_locations?)
@@ -82,6 +84,12 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries.Base do
   end
 
   defp maybe_filter_unallocated(query, _unallocated_only?), do: query
+
+  defp maybe_filter_for_trade(query, true) do
+    where(query, [item, _printing, _card, _location], item.for_trade == true)
+  end
+
+  defp maybe_filter_for_trade(query, _for_trade_only?), do: query
 
   defp maybe_filter_added_within_days(query, nil), do: query
 

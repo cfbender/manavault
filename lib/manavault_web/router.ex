@@ -36,6 +36,7 @@ defmodule ManavaultWeb.Router do
     get "/login", AuthController, :new
     post "/login", AuthController, :create
     get "/share/decks/:token", AppController, :share_deck
+    get "/share/wants/:token", AppController, :share_wants
     get "/scryfall-assets/*path", ScryfallAssetController, :show
     post "/vendors/star-city-games/deck-builder", VendorController, :star_city_games
   end
@@ -54,6 +55,7 @@ defmodule ManavaultWeb.Router do
     get "/collection/new", AppController, :index
     get "/collection/locations/:id", AppController, :index
     get "/collection/:id/edit", AppController, :index
+    get "/trade", AppController, :index
     post "/logout", AuthController, :delete
   end
 

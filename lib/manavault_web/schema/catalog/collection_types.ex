@@ -12,6 +12,7 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :condition, non_null(:string)
     field :language, non_null(:string)
     field :finish, non_null(:string)
+    field :for_trade, non_null(:boolean)
     field :notes, :string
     field :printing, :printing, resolve: &CollectionFields.collection_item_printing/3
 
@@ -283,6 +284,7 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :card_id, :id
     field :unallocated_only, :boolean
     field :added_within_days, :integer
+    field :for_trade, :boolean
   end
 
   input_object :collection_item_sort do
@@ -319,6 +321,7 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :location_id, :id
     field :notes, :string
     field :purchase_price_cents, :integer
+    field :for_trade, :boolean
   end
 
   input_object :collection_import_preview_input do

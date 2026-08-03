@@ -226,6 +226,7 @@ export function VirtualizedCollectionGrid({
   isSelected,
   items,
   onLoadMore,
+  onToggleForTrade,
   onToggleSelected,
   selectionActive = false,
 }: {
@@ -234,6 +235,7 @@ export function VirtualizedCollectionGrid({
   isSelected?: (id: string) => boolean
   items: CollectionItem[]
   onLoadMore: () => void
+  onToggleForTrade?: (item: CollectionItem) => void
   onToggleSelected?: (item: CollectionItem) => void
   selectionActive?: boolean
 }) {
@@ -329,6 +331,7 @@ export function VirtualizedCollectionGrid({
             key={item.id}
             isSelected={isSelected?.(item.id) || false}
             item={item}
+            onToggleForTrade={onToggleForTrade}
             onToggleSelected={onToggleSelected}
             selectionActive={selectionActive}
           />
@@ -349,11 +352,13 @@ export function VirtualizedCollectionGrid({
 const CollectionItemTile = memo(function CollectionItemTile({
   isSelected = false,
   item,
+  onToggleForTrade,
   onToggleSelected,
   selectionActive = false,
 }: {
   isSelected?: boolean
   item: CollectionItem
+  onToggleForTrade?: (item: CollectionItem) => void
   onToggleSelected?: (item: CollectionItem) => void
   selectionActive?: boolean
 }) {
@@ -403,6 +408,8 @@ const CollectionItemTile = memo(function CollectionItemTile({
           },
         ]}
         finish={item.finish}
+        forTradeActive={item.forTrade}
+        forTradeCardName={item.printing?.card?.name || undefined}
         imageUrl={item.printing?.imageUrl}
         location={deckLocation || item.location?.name}
         menuActions={[
@@ -432,6 +439,7 @@ const CollectionItemTile = memo(function CollectionItemTile({
         setLabel={`${item.printing?.setCode?.toUpperCase() || "?"} #${item.printing?.collectorNumber || "?"}`}
         setName={item.printing?.setName}
         typeLine={item.printing?.card?.typeLine}
+        onToggleForTrade={onToggleForTrade ? () => onToggleForTrade(item) : undefined}
         onToggleSelected={() => onToggleSelected?.(item)}
       />
       <AddCollectionItemToDeckDialog
