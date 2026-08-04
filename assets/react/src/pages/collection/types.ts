@@ -1,6 +1,6 @@
 import type {
   AutoSortCollectionMutation,
-  CollectionItemsPageQuery,
+  CollectionItemGroupsPageQuery,
   CollectionQuery,
   LocationCoverCardSearchQuery,
   LocationQuery,
@@ -19,7 +19,10 @@ type PayloadField<T, Field extends string> = T extends { [Key in Field]?: infer 
   ? NonNullable<Value>
   : NonNullable<T>
 
-export type CollectionItem = ConnectionNode<CollectionItemsPageQuery["collectionItems"]>
+export type CollectionItemGroup = ConnectionNode<
+  CollectionItemGroupsPageQuery["collectionItemGroups"]
+>
+export type CollectionItem = CollectionItemGroup["items"][number]
 
 export type CollectionTab = "locations" | "all" | "recent" | "available" | "unfiled"
 export type CollectionSortField = "quantity" | "name" | "set" | "rarity" | "price" | "added"

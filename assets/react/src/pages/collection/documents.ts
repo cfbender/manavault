@@ -431,57 +431,61 @@ export const DeleteLocationDocument = graphql(`
   }
 `)
 
-export const CollectionItemsPageDocument = graphql(`
-  query CollectionItemsPage(
+export const CollectionItemGroupsPageDocument = graphql(`
+  query CollectionItemGroupsPage(
     $filters: CollectionItemFilters
     $sort: CollectionItemSort
     $first: Int!
     $after: String
   ) {
-    collectionItems(first: $first, after: $after, filters: $filters, sort: $sort) {
+    collectionItemGroups(first: $first, after: $after, filters: $filters, sort: $sort) {
       pageInfo {
         endCursor
         hasNextPage
       }
       edges {
         node {
-          id
           quantity
-          condition
-          language
-          finish
-          notes
-          priceText
-          purchasePriceCents
-          purchasePriceText
-          valueGainText
-          valueGainPercentText
-          allocatedQuantity
-          forTrade
-          allocationDecks {
+          printingId
+          items {
+            id
             quantity
-            deck {
+            condition
+            language
+            finish
+            notes
+            priceText
+            purchasePriceCents
+            purchasePriceText
+            valueGainText
+            valueGainPercentText
+            allocatedQuantity
+            forTrade
+            allocationDecks {
+              quantity
+              deck {
+                id
+                name
+              }
+            }
+            location {
               id
               name
             }
-          }
-          location {
-            id
-            name
-          }
-          printing {
-            id
-            scryfallId
-            setCode
-            setName
-            collectorNumber
-            imageUrl
-            rarity
-            card {
+            printing {
               id
-              oracleId
-              name
-              typeLine
+              scryfallId
+              setCode
+              setName
+              collectorNumber
+              imageUrl
+              rarity
+              card {
+                id
+                oracleId
+                name
+                typeLine
+              }
             }
           }
         }

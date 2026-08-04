@@ -20,15 +20,45 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries do
     sort = Keyword.get(opts, :sort, @default_sort)
 
     filters
-    |> Base.base_query()
-    |> preload([_item, printing, card, location],
-      printing: {printing, card: card},
-      location_assoc: location
-    )
+    |> items_query()
     |> apply_sort(sort)
     |> limit(^limit)
     |> offset(^offset)
     |> Repo.all()
+  end
+
+  def list_item_groups(filters \\ [], opts \\ []) when is_list(filters) do
+    limit = Keyword.get(opts, :limit, 100)
+    offset = Keyword.get(opts, :offset, 0)
+    sort = Keyword.get(opts, :sort, @default_sort)
+
+    printing_ids =
+      filters
+      |> Base.base_query()
+      |> group_by([item, _printing, _card, _location], item.scryfall_id)
+      |> select([item, _printing, _card, _location], item.scryfall_id)
+      |> apply_group_sort(sort)
+      |> limit(^limit)
+      |> offset(^offset)
+      |> Repo.all()
+
+    items_by_printing =
+      filters
+      |> items_query()
+      |> where([item, _printing, _card, _location], item.scryfall_id in ^printing_ids)
+      |> order_by([item, _printing, _card, _location], asc: item.id)
+      |> Repo.all()
+      |> Enum.group_by(& &1.scryfall_id)
+
+    Enum.map(printing_ids, fn printing_id ->
+      items = Map.fetch!(items_by_printing, printing_id)
+
+      %{
+        printing_id: printing_id,
+        quantity: Enum.reduce(items, 0, &((&1.quantity || 0) + &2)),
+        items: items
+      }
+    end)
   end
 
   def count_items(filters \\ [])
@@ -58,6 +88,13 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries do
     |> Repo.one()
   end
 
+  def count_item_groups(filters \\ []) when is_list(filters) do
+    filters
+    |> Base.base_query()
+    |> select([item, _printing, _card, _location], count(item.scryfall_id, :distinct))
+    |> Repo.one()
+  end
+
   def list_item_ids(filters \\ []) when is_list(filters) do
     filters
     |> Base.base_query()
@@ -70,6 +107,119 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries do
     filters
     |> Keyword.put(:location_id, to_string(location_id))
     |> list_items(opts)
+  end
+
+  defp items_query(filters) do
+    filters
+    |> Base.base_query()
+    |> preload([_item, printing, card, location],
+      printing: {printing, card: card},
+      location_assoc: location
+    )
+  end
+
+  defp apply_group_sort(query, sort) do
+    %{field: field, direction: direction} = normalize_sort(sort)
+
+    case {field, direction} do
+      {"quantity", "desc"} ->
+        order_by(query, [item, _printing, card, _location],
+          desc: sum(item.quantity),
+          asc: card.name,
+          asc: item.scryfall_id
+        )
+
+      {"quantity", _direction} ->
+        order_by(query, [item, _printing, card, _location],
+          asc: sum(item.quantity),
+          asc: card.name,
+          asc: item.scryfall_id
+        )
+
+      {"set", "desc"} ->
+        order_by(query, [item, printing, card, _location],
+          desc: printing.set_name,
+          desc: printing.set_code,
+          asc: card.name,
+          asc: printing.collector_number,
+          asc: item.scryfall_id
+        )
+
+      {"set", _direction} ->
+        order_by(query, [item, printing, card, _location],
+          asc: printing.set_name,
+          asc: printing.set_code,
+          asc: card.name,
+          asc: printing.collector_number,
+          asc: item.scryfall_id
+        )
+
+      {"rarity", "desc"} ->
+        order_by(query, [item, printing, card, _location],
+          desc:
+            fragment(
+              "CASE ? WHEN 'common' THEN 1 WHEN 'uncommon' THEN 2 WHEN 'rare' THEN 3 WHEN 'mythic' THEN 4 ELSE 0 END",
+              printing.rarity
+            ),
+          asc: card.name,
+          asc: item.scryfall_id
+        )
+
+      {"rarity", _direction} ->
+        order_by(query, [item, printing, card, _location],
+          asc:
+            fragment(
+              "CASE ? WHEN 'common' THEN 1 WHEN 'uncommon' THEN 2 WHEN 'rare' THEN 3 WHEN 'mythic' THEN 4 ELSE 0 END",
+              printing.rarity
+            ),
+          asc: card.name,
+          asc: item.scryfall_id
+        )
+
+      {"price", "desc"} ->
+        order_by(query, [item, printing, card, _location],
+          desc: max(price_value_fragment(item, printing)),
+          asc: card.name,
+          asc: item.scryfall_id
+        )
+
+      {"price", _direction} ->
+        order_by(query, [item, printing, card, _location],
+          asc: max(price_value_fragment(item, printing)),
+          asc: card.name,
+          asc: item.scryfall_id
+        )
+
+      {"added", "desc"} ->
+        order_by(query, [item, _printing, card, _location],
+          desc: max(item.inserted_at),
+          asc: card.name,
+          asc: item.scryfall_id
+        )
+
+      {"added", _direction} ->
+        order_by(query, [item, _printing, card, _location],
+          asc: min(item.inserted_at),
+          asc: card.name,
+          asc: item.scryfall_id
+        )
+
+      {"name", "desc"} ->
+        order_by(query, [item, printing, card, _location],
+          desc: card.name,
+          asc: printing.set_code,
+          asc: printing.collector_number,
+          asc: item.scryfall_id
+        )
+
+      {_field, _direction} ->
+        order_by(query, [item, printing, card, _location],
+          asc: card.name,
+          asc: printing.set_code,
+          asc: printing.collector_number,
+          asc: item.scryfall_id
+        )
+    end
   end
 
   defp apply_sort(query, sort) do

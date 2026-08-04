@@ -28,7 +28,7 @@ import { COLLECTION_PAGE_SIZE, DEFAULT_COLLECTION_SORT } from "./constants"
 import {
   AutoSortCollectionDocument,
   CollectionItemFormOptionsDocument,
-  CollectionItemsPageDocument,
+  CollectionItemGroupsPageDocument,
   DeleteLocationDocument,
   LocationCollectionCountDocument,
   LocationDocument,
@@ -128,7 +128,7 @@ export function LocationPage({ id }: { id: string }) {
     variables: { filters: itemFilters },
     fetchPolicy: "cache-and-network",
   })
-  const itemsQuery = useQuery(CollectionItemsPageDocument, {
+  const itemsQuery = useQuery(CollectionItemGroupsPageDocument, {
     variables: {
       filters: itemFilters,
       sort,
@@ -137,15 +137,16 @@ export function LocationPage({ id }: { id: string }) {
     },
     fetchPolicy: "cache-and-network",
   })
-  const itemsPageInfo = itemsQuery.data?.collectionItems.pageInfo
+  const itemsPageInfo = itemsQuery.data?.collectionItemGroups.pageInfo
   const itemsHasNextPage = Boolean(itemsPageInfo?.hasNextPage)
-  const collectionItems = useMemo(
-    () => (itemsQuery.data?.collectionItems.edges || []).map((edge) => edge?.node).filter(present),
+  const collectionItemGroups = useMemo(
+    () =>
+      (itemsQuery.data?.collectionItemGroups.edges || []).map((edge) => edge?.node).filter(present),
     [itemsQuery.data],
   )
   const locationEntryCount = countQuery.data?.collectionItemEntryCount ?? 0
   const selection = useCollectionItemSelection({
-    items: collectionItems,
+    groups: collectionItemGroups,
     totalCount: locationEntryCount,
     resetKey: JSON.stringify(itemFilters),
   })
@@ -381,8 +382,9 @@ export function LocationPage({ id }: { id: string }) {
       ) : (
         <div className="space-y-7">
           <CollectionBulkActionBar
+            addToDeckDisabledReason={selection.addToDeckDisabledReason}
             allSelected={selection.allSelected}
-            selectableCount={locationEntryCount || collectionItems.length}
+            selectableCount={locationEntryCount || collectionItemGroups.length}
             selectedCount={selection.selectedCount}
             selectionActive={selection.selectionActive}
             onAddToDeck={() => setBulkDeckTarget(bulkSelectionTarget())}
@@ -395,10 +397,10 @@ export function LocationPage({ id }: { id: string }) {
           />
           <PageSection count={locationCountLabel}>
             <VirtualizedCollectionGrid
+              groups={collectionItemGroups}
               hasNextPage={itemsHasNextPage}
               isFetchingNextPage={isFetchingMoreLocationItems}
               isSelected={selection.isSelected}
-              items={collectionItems}
               onLoadMore={loadMore}
               onToggleSelected={selection.toggleItem}
               selectionActive={selection.selectionActive}

@@ -24,9 +24,11 @@ defmodule Manavault.Catalog do
   defdelegate search_sets(term, opts \\ []), to: Cached
 
   defdelegate list_collection_items(filters \\ [], opts \\ []), to: Cached
+  defdelegate list_collection_item_groups(filters \\ [], opts \\ []), to: Cached
   defdelegate list_collection_item_ids(filters \\ []), to: Cached
   defdelegate count_collection_items(filters \\ []), to: Cached
   defdelegate count_collection_item_entries(filters \\ []), to: Cached
+  defdelegate count_collection_item_groups(filters \\ []), to: Cached
   defdelegate collection_value_summary(filters \\ []), to: Cached
   defdelegate get_collection_item!(id), to: Cached
   defdelegate change_collection_item(collection_item, attrs \\ %{}), to: Collection

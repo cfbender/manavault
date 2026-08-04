@@ -40,7 +40,7 @@ import {
 import {
   AutoSortCollectionDocument,
   CollectionDocument,
-  CollectionItemsPageDocument,
+  CollectionItemGroupsPageDocument,
   DeleteLocationDocument,
 } from "./documents"
 import { CollectionFilterModal } from "./filter-modal"
@@ -234,7 +234,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
     variables: { filters },
     fetchPolicy: "cache-and-network",
   })
-  const allItemsQuery = useQuery(CollectionItemsPageDocument, {
+  const allItemsQuery = useQuery(CollectionItemGroupsPageDocument, {
     variables: {
       filters,
       sort: collectionItemSort,
@@ -244,14 +244,16 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
     skip: activeTab === "locations",
     fetchPolicy: "cache-and-network",
   })
-  const allItemsPageInfo = allItemsQuery.data?.collectionItems.pageInfo
-  const allCollectionItems = useMemo(
+  const allItemsPageInfo = allItemsQuery.data?.collectionItemGroups.pageInfo
+  const allCollectionItemGroups = useMemo(
     () =>
-      (allItemsQuery.data?.collectionItems.edges || []).map((edge) => edge?.node).filter(present),
+      (allItemsQuery.data?.collectionItemGroups.edges || [])
+        .map((edge) => edge?.node)
+        .filter(present),
     [allItemsQuery.data],
   )
   const recentLimitReached =
-    activeTab === "recent" && allCollectionItems.length >= RECENT_ITEMS_LIMIT
+    activeTab === "recent" && allCollectionItemGroups.length >= RECENT_ITEMS_LIMIT
   const allItemsHasNextPage = Boolean(allItemsPageInfo?.hasNextPage) && !recentLimitReached
   const locations = useMemo(
     () => data?.locations?.edges?.map((edge) => edge?.node).filter(present) || [],
@@ -260,7 +262,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
   const autoSortRules = data?.collectionAutoSortRules ?? []
   const collectionEntryCount = data?.collectionItemEntryCount ?? 0
   const selection = useCollectionItemSelection({
-    items: allCollectionItems,
+    groups: allCollectionItemGroups,
     totalCount: collectionEntryCount,
     resetKey: JSON.stringify(filters),
   })
@@ -552,8 +554,9 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
           ) : null}
 
           <CollectionBulkActionBar
+            addToDeckDisabledReason={selection.addToDeckDisabledReason}
             allSelected={selection.allSelected}
-            selectableCount={collectionEntryCount || allCollectionItems.length}
+            selectableCount={collectionEntryCount || allCollectionItemGroups.length}
             selectedCount={selection.selectedCount}
             selectionActive={selection.selectionActive}
             onAddToDeck={() => setBulkDeckTarget(bulkSelectionTarget())}
@@ -570,10 +573,10 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
               <EmptyState title="Loading collection..." />
             ) : (
               <VirtualizedCollectionGrid
+                groups={allCollectionItemGroups}
                 hasNextPage={allItemsHasNextPage}
                 isFetchingNextPage={isFetchingMoreAllItems}
                 isSelected={selection.isSelected}
-                items={allCollectionItems}
                 onLoadMore={loadMoreAllItems}
                 onToggleSelected={selection.toggleItem}
                 selectionActive={selection.selectionActive}

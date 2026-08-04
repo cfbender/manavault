@@ -87,6 +87,18 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
     end
   end
 
+  def collection_item_groups(_parent, args, resolution) do
+    with {:ok, filters} <- collection_filters(args, resolution),
+         total_count <- Catalog.count_collection_item_groups(filters),
+         {:ok, offset, limit} <- RelayHelpers.slice_window(args, total_count, 100) do
+      opts = [limit: limit, offset: offset, sort: Map.get(args, :sort, %{})]
+
+      filters
+      |> Catalog.list_collection_item_groups(opts)
+      |> RelayHelpers.connection_from_slice(offset, limit, total_count)
+    end
+  end
+
   def collection_item_count(_parent, args, resolution) do
     with {:ok, filters} <- collection_filters(args, resolution) do
       {:ok, Catalog.count_collection_items(filters)}

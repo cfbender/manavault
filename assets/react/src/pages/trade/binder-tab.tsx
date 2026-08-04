@@ -7,11 +7,14 @@ import { Button } from "../../components/ui/button"
 import { useToast } from "../../components/ui/toast"
 import { pluralize, present } from "../../lib/utils"
 import { COLLECTION_PAGE_SIZE, DEFAULT_COLLECTION_SORT } from "../collection/constants"
-import { CollectionItemsPageDocument } from "../collection/documents"
+import {
+  BulkUpdateCollectionItemsDocument,
+  CollectionItemGroupsPageDocument,
+} from "../collection/documents"
 import { VirtualizedCollectionGrid } from "../collection/selection-grid"
-import type { CollectionItem } from "../collection/types"
+import type { CollectionItemGroup } from "../collection/types"
 import { BinderShareDialog } from "./binder-share-dialog"
-import { TradeBinderCountDocument, UpdateCollectionItemForTradeDocument } from "./documents"
+import { TradeBinderCountDocument } from "./documents"
 
 export function BinderTab() {
   const { showToast } = useToast()
@@ -34,21 +37,26 @@ export function BinderTab() {
     [appliedQ, forTradeOnly],
   )
 
-  const binderQuery = useQuery(CollectionItemsPageDocument, {
+  const binderQuery = useQuery(CollectionItemGroupsPageDocument, {
     variables: { filters, sort: DEFAULT_COLLECTION_SORT, first: COLLECTION_PAGE_SIZE, after: null },
     fetchPolicy: "cache-and-network",
   })
   const countQuery = useQuery(TradeBinderCountDocument, { fetchPolicy: "cache-and-network" })
 
-  const pageInfo = binderQuery.data?.collectionItems.pageInfo
+  const pageInfo = binderQuery.data?.collectionItemGroups.pageInfo
   const hasNextPage = Boolean(pageInfo?.hasNextPage)
-  const items = useMemo(
-    () => (binderQuery.data?.collectionItems.edges || []).map((edge) => edge?.node).filter(present),
+  const groups = useMemo(
+    () =>
+      (binderQuery.data?.collectionItemGroups.edges || [])
+        .map((edge) => edge?.node)
+        .filter(present),
     [binderQuery.data],
   )
-  // Local safety net: an item optimistically toggled off while "Only for
-  // trade" is active disappears immediately instead of waiting on a refetch.
-  const visibleItems = forTradeOnly ? items.filter((item) => item.forTrade) : items
+  // Keep the filtered view consistent while the grouped query refetches after
+  // a bulk trade-status update.
+  const visibleGroups = forTradeOnly
+    ? groups.filter((group) => group.items.every((item) => item.forTrade))
+    : groups
 
   const loadMore = useCallback(() => {
     if (isFetchingMore || !hasNextPage) return
@@ -66,29 +74,20 @@ export function BinderTab() {
       .finally(() => setIsFetchingMore(false))
   }, [binderQuery, filters, hasNextPage, isFetchingMore, pageInfo?.endCursor])
 
-  const [updateForTrade] = useMutation(UpdateCollectionItemForTradeDocument, {
+  const [updateForTrade] = useMutation(BulkUpdateCollectionItemsDocument, {
     refetchQueries: [{ query: TradeBinderCountDocument }],
     onError: (error) =>
       showToast(error.message || "Could not update trade status", { tone: "info" }),
   })
 
-  function toggleForTrade(item: CollectionItem) {
-    const nextForTrade = !item.forTrade
-    // Assigned to a variable (rather than inlined) so the object isn't
-    // treated as a "fresh" literal: __typename isn't part of the generated
-    // mutation result type (Apollo injects it over the wire, codegen omits
-    // it), and only a non-literal value skips the excess-property check.
-    const optimisticCollectionItem = {
-      __typename: "UpdateCollectionItemPayload" as const,
-      collectionItem: {
-        __typename: "CollectionItem" as const,
-        id: item.id,
-        forTrade: nextForTrade,
-      },
-    }
+  function toggleForTrade(group: CollectionItemGroup) {
+    const nextForTrade = !group.items.every((item) => item.forTrade)
     void updateForTrade({
-      variables: { id: item.id, input: { forTrade: nextForTrade } },
-      optimisticResponse: { updateCollectionItem: optimisticCollectionItem },
+      variables: {
+        selector: { ids: group.items.map((item) => item.id) },
+        input: { forTrade: nextForTrade },
+      },
+      onCompleted: () => void binderQuery.refetch(),
     })
   }
 
@@ -137,9 +136,9 @@ export function BinderTab() {
         <EmptyState title="Loading binder..." />
       ) : (
         <VirtualizedCollectionGrid
+          groups={visibleGroups}
           hasNextPage={hasNextPage}
           isFetchingNextPage={isFetchingMore}
-          items={visibleItems}
           onLoadMore={loadMore}
           onToggleForTrade={toggleForTrade}
         />

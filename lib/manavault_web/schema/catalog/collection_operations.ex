@@ -18,6 +18,14 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionOperations do
       resolve(&QueryResolvers.collection_items/3)
     end
 
+    connection field :collection_item_groups,
+                 node_type: :collection_item_group,
+                 non_null: true do
+      arg(:filters, :collection_item_filters)
+      arg(:sort, :collection_item_sort)
+      resolve(&QueryResolvers.collection_item_groups/3)
+    end
+
     field :collection_item_count, non_null(:integer) do
       arg(:filters, :collection_item_filters)
       resolve(&QueryResolvers.collection_item_count/3)

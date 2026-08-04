@@ -124,6 +124,37 @@ defmodule Manavault.Catalog.CollectionTest do
     assert Enum.map(items, & &1.purchase_price_cents) == [4_200, 100]
   end
 
+  test "collection item groups combine rows by printing before pagination" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    lotus_one =
+      create_collection_item!("scryfall-printing-1", quantity: 2, purchase_price_cents: 100)
+
+    lotus_two =
+      create_collection_item!("scryfall-printing-1", quantity: 3, purchase_price_cents: 200)
+
+    walk = create_collection_item!("scryfall-printing-2", quantity: 1, finish: "foil")
+
+    assert Catalog.count_collection_item_groups() == 2
+
+    assert [lotus_group] = Catalog.list_collection_item_groups([], limit: 1)
+    assert lotus_group.printing_id == "scryfall-printing-1"
+    assert lotus_group.quantity == 5
+    assert Enum.map(lotus_group.items, & &1.id) == [lotus_one.id, lotus_two.id]
+
+    assert [walk_group] = Catalog.list_collection_item_groups([], limit: 1, offset: 1)
+    assert walk_group.printing_id == "scryfall-printing-2"
+    assert walk_group.quantity == 1
+    assert Enum.map(walk_group.items, & &1.id) == [walk.id]
+
+    assert Enum.map(Catalog.list_collection_items([], limit: 10), & &1.id) == [
+             lotus_one.id,
+             lotus_two.id,
+             walk.id
+           ]
+  end
+
   test "collection listings exclude list location items unless filtering to that list" do
     assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
     assert {:ok, binder} = Catalog.create_location(%{name: "Trade Binder", kind: "binder"})

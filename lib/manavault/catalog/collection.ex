@@ -21,6 +21,10 @@ defmodule Manavault.Catalog.Collection do
     CardCollection.list_items(filters, opts)
   end
 
+  def list_collection_item_groups(filters \\ [], opts \\ []) when is_list(filters) do
+    CardCollection.list_item_groups(filters, opts)
+  end
+
   def list_collection_item_ids(filters \\ []) when is_list(filters) do
     CardCollection.list_item_ids(filters)
   end
@@ -31,6 +35,10 @@ defmodule Manavault.Catalog.Collection do
 
   def count_collection_item_entries(filters \\ []) when is_list(filters) do
     CardCollection.count_item_entries(filters)
+  end
+
+  def count_collection_item_groups(filters \\ []) when is_list(filters) do
+    CardCollection.count_item_groups(filters)
   end
 
   def collection_value_summary(filters \\ []) when is_list(filters) do

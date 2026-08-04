@@ -11,35 +11,41 @@ import { collectionCardReturnSearch, invalidateCollectionViews } from "./collect
 import { CARD_TILE_GAP } from "./constants"
 import {
   AddCollectionItemToDeckDialog,
+  BulkEditCollectionItemsDialog,
   DeleteCollectionItemDialog,
   EditCollectionItemDialog,
   MoveCollectionItemDialog,
 } from "./item-dialogs"
-import type { CollectionItem } from "./types"
+import type { CollectionItem, CollectionItemGroup } from "./types"
 
-// Selection is tracked as a set expression instead of materialized ids:
-// "select all" just flips `all` (no queries), and unchecking under `all`
-// records an exclusion. Membership is `all ? !excluded.has(id) : included.has(id)`.
+// Selection is tracked as a set expression instead of materializing every row:
+// "select all" flips `all`, while explicitly toggled printing groups retain a
+// snapshot of their member row ids so pagination or sorting cannot lose them.
 type CollectionSelectionState = {
   all: boolean
-  included: Set<string>
-  excluded: Set<string>
+  included: Map<string, CollectionGroupSelectionSnapshot>
+  excluded: Map<string, CollectionGroupSelectionSnapshot>
+}
+
+type CollectionGroupSelectionSnapshot = {
+  itemIds: Set<string>
+  finishesByCard: Map<string, Set<string>>
 }
 
 const EMPTY_SELECTION: CollectionSelectionState = {
   all: false,
-  included: new Set(),
-  excluded: new Set(),
+  included: new Map(),
+  excluded: new Map(),
 }
 
 export type CollectionItemSelection = ReturnType<typeof useCollectionItemSelection>
 
 export function useCollectionItemSelection({
-  items,
+  groups,
   totalCount,
   resetKey,
 }: {
-  items: CollectionItem[]
+  groups: CollectionItemGroup[]
   // Row count of every item matching the current filters (not just loaded pages).
   totalCount: number
   // Selection is defined against the active filters; when they change the
@@ -66,36 +72,45 @@ export function useCollectionItemSelection({
     [state],
   )
 
-  const selectedItems = useMemo(
-    () => items.filter((item) => isSelected(item.id)),
-    [isSelected, items],
+  const selectedGroups = useMemo(
+    () => groups.filter((group) => isSelected(group.printingId)),
+    [groups, isSelected],
   )
-  const selectedCount = state.all
-    ? Math.max(totalCount - state.excluded.size, 0)
-    : state.included.size
+  const selectedItems = useMemo(
+    () => selectedGroups.flatMap((group) => group.items),
+    [selectedGroups],
+  )
+  const includedIds = useMemo(() => groupMemberIds(state.included), [state.included])
+  const excludedIds = useMemo(() => groupMemberIds(state.excluded), [state.excluded])
+  const selectedCount = state.all ? Math.max(totalCount - excludedIds.size, 0) : includedIds.size
   const selectionActive = selectionMode || selectedCount > 0
   const allSelected = state.all && state.excluded.size === 0
+  const addToDeckDisabledReason = state.all
+    ? "Add to deck isn't available with Select all. Choose printing groups with one finish instead."
+    : mixedFinishSelection(state.included)
+      ? "Choose printing groups with only one finish per card before adding to a deck."
+      : undefined
 
-  const toggleItem = useCallback((item: CollectionItem) => {
+  const toggleItem = useCallback((group: CollectionItemGroup) => {
     setSelectionMode(true)
     setState((current) => {
       if (current.all) {
-        const excluded = new Set(current.excluded)
-        if (excluded.has(item.id)) excluded.delete(item.id)
-        else excluded.add(item.id)
+        const excluded = new Map(current.excluded)
+        if (excluded.has(group.printingId)) excluded.delete(group.printingId)
+        else excluded.set(group.printingId, groupSelectionSnapshot(group))
         return { ...current, excluded }
       }
 
-      const included = new Set(current.included)
-      if (included.has(item.id)) included.delete(item.id)
-      else included.add(item.id)
+      const included = new Map(current.included)
+      if (included.has(group.printingId)) included.delete(group.printingId)
+      else included.set(group.printingId, groupSelectionSnapshot(group))
       return { ...current, included }
     })
   }, [])
 
   const selectAll = useCallback(() => {
     setSelectionMode(true)
-    setState({ all: true, included: new Set(), excluded: new Set() })
+    setState({ all: true, included: new Map(), excluded: new Map() })
   }, [])
 
   const toggleSelectionMode = useCallback(() => {
@@ -105,10 +120,11 @@ export function useCollectionItemSelection({
 
   return {
     all: state.all,
+    addToDeckDisabledReason,
     allSelected,
     clearSelection,
-    excludedIds: state.excluded,
-    includedIds: state.included,
+    excludedIds,
+    includedIds,
     isSelected,
     selectAll,
     selectedCount,
@@ -119,7 +135,43 @@ export function useCollectionItemSelection({
   }
 }
 
+function groupSelectionSnapshot(group: CollectionItemGroup): CollectionGroupSelectionSnapshot {
+  const finishesByCard = new Map<string, Set<string>>()
+
+  for (const item of group.items) {
+    const cardId = item.printing?.card?.oracleId || item.printing?.card?.id || group.printingId
+    const finishes = finishesByCard.get(cardId) || new Set<string>()
+    finishes.add(item.finish)
+    finishesByCard.set(cardId, finishes)
+  }
+
+  return {
+    itemIds: new Set(group.items.map((item) => item.id)),
+    finishesByCard,
+  }
+}
+
+function groupMemberIds(groups: Map<string, CollectionGroupSelectionSnapshot>): Set<string> {
+  return new Set([...groups.values()].flatMap((snapshot) => [...snapshot.itemIds]))
+}
+
+function mixedFinishSelection(groups: Map<string, CollectionGroupSelectionSnapshot>): boolean {
+  const finishesByCard = new Map<string, Set<string>>()
+
+  for (const snapshot of groups.values()) {
+    for (const [cardId, finishes] of snapshot.finishesByCard) {
+      const combined = finishesByCard.get(cardId) || new Set<string>()
+      for (const finish of finishes) combined.add(finish)
+      if (combined.size > 1) return true
+      finishesByCard.set(cardId, combined)
+    }
+  }
+
+  return false
+}
+
 export function CollectionBulkActionBar({
+  addToDeckDisabledReason,
   allSelected,
   onAddToDeck,
   onAddToList,
@@ -132,6 +184,7 @@ export function CollectionBulkActionBar({
   selectedCount,
   selectionActive,
 }: {
+  addToDeckDisabledReason?: string
   allSelected: boolean
   onAddToDeck: () => void
   onAddToList: () => void
@@ -170,7 +223,13 @@ export function CollectionBulkActionBar({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" size="sm" disabled={!hasSelection} onClick={onAddToDeck}>
+          <Button
+            type="button"
+            size="sm"
+            disabled={!hasSelection || Boolean(addToDeckDisabledReason)}
+            title={hasSelection ? addToDeckDisabledReason : undefined}
+            onClick={onAddToDeck}
+          >
             <Layers className="h-4 w-4" />
             Add to deck
           </Button>
@@ -221,10 +280,10 @@ export function CollectionBulkActionBar({
 }
 
 export function VirtualizedCollectionGrid({
+  groups,
   hasNextPage,
   isFetchingNextPage,
   isSelected,
-  items,
   onLoadMore,
   onToggleForTrade,
   onToggleSelected,
@@ -233,10 +292,10 @@ export function VirtualizedCollectionGrid({
   hasNextPage: boolean
   isFetchingNextPage: boolean
   isSelected?: (id: string) => boolean
-  items: CollectionItem[]
+  groups: CollectionItemGroup[]
   onLoadMore: () => void
-  onToggleForTrade?: (item: CollectionItem) => void
-  onToggleSelected?: (item: CollectionItem) => void
+  onToggleForTrade?: (group: CollectionItemGroup) => void
+  onToggleSelected?: (group: CollectionItemGroup) => void
   selectionActive?: boolean
 }) {
   const size = useCardSize()
@@ -294,21 +353,21 @@ export function VirtualizedCollectionGrid({
       scrollTarget.removeEventListener("scroll", updateRange)
       window.removeEventListener("resize", updateRange)
     }
-  }, [columns, items.length, size.rowHeightPx])
+  }, [columns, groups.length, size.rowHeightPx])
 
-  const rowCount = Math.ceil(items.length / columns)
+  const rowCount = Math.ceil(groups.length / columns)
   const totalHeight = Math.max(0, rowCount * size.rowHeightPx - CARD_TILE_GAP)
   const startIndex = range.startRow * columns
-  const endIndex = Math.min(items.length, range.endRow * columns)
-  const visibleItems = items.slice(startIndex, endIndex)
+  const endIndex = Math.min(groups.length, range.endRow * columns)
+  const visibleGroups = groups.slice(startIndex, endIndex)
 
   useEffect(() => {
-    if (hasNextPage && !isFetchingNextPage && endIndex >= items.length - columns * 4) {
+    if (hasNextPage && !isFetchingNextPage && endIndex >= groups.length - columns * 4) {
       onLoadMore()
     }
-  }, [columns, endIndex, hasNextPage, isFetchingNextPage, items.length, onLoadMore])
+  }, [columns, endIndex, groups.length, hasNextPage, isFetchingNextPage, onLoadMore])
 
-  if (!items.length) {
+  if (!groups.length) {
     return (
       <EmptyState
         title="No collection items found"
@@ -326,11 +385,11 @@ export function VirtualizedCollectionGrid({
           transform: `translateY(${range.startRow * size.rowHeightPx}px)`,
         }}
       >
-        {visibleItems.map((item) => (
+        {visibleGroups.map((group) => (
           <CollectionItemTile
-            key={item.id}
-            isSelected={isSelected?.(item.id) || false}
-            item={item}
+            key={group.printingId}
+            group={group}
+            isSelected={isSelected?.(group.printingId) || false}
             onToggleForTrade={onToggleForTrade}
             onToggleSelected={onToggleSelected}
             selectionActive={selectionActive}
@@ -350,34 +409,43 @@ export function VirtualizedCollectionGrid({
 // `onToggleSelected` is a stable useCallback from useCollectionItemSelection and
 // `item` identity is stable, so isSelected/selectionActive drive re-renders.
 const CollectionItemTile = memo(function CollectionItemTile({
+  group,
   isSelected = false,
-  item,
   onToggleForTrade,
   onToggleSelected,
   selectionActive = false,
 }: {
+  group: CollectionItemGroup
   isSelected?: boolean
-  item: CollectionItem
-  onToggleForTrade?: (item: CollectionItem) => void
-  onToggleSelected?: (item: CollectionItem) => void
+  onToggleForTrade?: (group: CollectionItemGroup) => void
+  onToggleSelected?: (group: CollectionItemGroup) => void
   selectionActive?: boolean
 }) {
   const client = useApolloClient()
-  const [deckTarget, setDeckTarget] = useState<CollectionItem | null>(null)
-  const [listTarget, setListTarget] = useState<CollectionItem | null>(null)
-  const [moveTarget, setMoveTarget] = useState<CollectionItem | null>(null)
+  const [deckTarget, setDeckTarget] = useState<CollectionItem[] | null>(null)
+  const [listTarget, setListTarget] = useState<CollectionItem[] | null>(null)
+  const [moveTarget, setMoveTarget] = useState<CollectionItem[] | null>(null)
   const [editTarget, setEditTarget] = useState<CollectionItem | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<CollectionItem | null>(null)
+  const [bulkEditTarget, setBulkEditTarget] = useState<CollectionItem[] | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<CollectionItem[] | null>(null)
   const { pathname } = useLocation()
   const cardReturnSearch = collectionCardReturnSearch(pathname)
+  const item = group.items[0]
 
   function refreshCollection() {
     void invalidateCollectionViews(client, item.location?.id)
   }
 
-  const allocatedQuantity = item.allocatedQuantity || 0
-  const freeQuantity = Math.max((item.quantity || 0) - allocatedQuantity, 0)
-  const deckLocation = collectionItemDeckLocation(item)
+  const allocatedQuantity = group.items.reduce(
+    (total, member) => total + (member.allocatedQuantity || 0),
+    0,
+  )
+  const freeQuantity = Math.max(group.quantity - allocatedQuantity, 0)
+  const deckLocation = collectionItemDeckLocation(group.items)
+  const finish = commonValue(group.items.map((member) => member.finish))
+  const hasMixedFinishes = new Set(group.items.map((member) => member.finish)).size > 1
+  const location = commonValue(group.items.map((member) => member.location?.name || "Unfiled"))
+  const price = finish ? item.priceText : undefined
   const allocatedLabel = allocatedQuantity
     ? freeQuantity > 0
       ? `In deck x${allocatedQuantity} · Out x${freeQuantity}`
@@ -388,36 +456,43 @@ const CollectionItemTile = memo(function CollectionItemTile({
     <>
       <CardTile
         allocatedLabel={allocatedLabel}
-        count={item.quantity}
+        count={group.quantity}
         defaultActions={[
           {
             icon: <MoveUpRight className="h-4 w-4" />,
             label: "Move",
-            onClick: () => setMoveTarget(item),
+            onClick: () => setMoveTarget(group.items),
           },
           {
             icon: <Edit3 className="h-4 w-4" />,
             label: "Edit",
-            onClick: () => setEditTarget(item),
+            onClick: () =>
+              group.items.length === 1 ? setEditTarget(item) : setBulkEditTarget(group.items),
           },
           {
             destructive: true,
             icon: <Trash2 className="h-4 w-4" />,
             label: "Delete",
-            onClick: () => setDeleteTarget(item),
+            onClick: () => setDeleteTarget(group.items),
           },
         ]}
-        finish={item.finish}
-        forTradeActive={item.forTrade}
+        finish={finish}
+        forTradeActive={group.items.every((member) => member.forTrade)}
         forTradeCardName={item.printing?.card?.name || undefined}
         imageUrl={item.printing?.imageUrl}
-        location={deckLocation || item.location?.name}
+        location={deckLocation || location}
         menuActions={[
-          addToDeckAction({
-            onClick: () => setDeckTarget(item),
-            disabled: !item.printing?.card?.id,
-          }),
-          addToListAction({ onClick: () => setListTarget(item) }),
+          hasMixedFinishes
+            ? {
+                disabled: true,
+                icon: <Layers className="h-4 w-4" />,
+                label: "Add to deck (choose a finish on the card page)",
+              }
+            : addToDeckAction({
+                onClick: () => setDeckTarget(group.items),
+                disabled: !item.printing?.card?.id,
+              }),
+          addToListAction({ onClick: () => setListTarget(group.items) }),
         ]}
         name={
           <Link
@@ -429,7 +504,7 @@ const CollectionItemTile = memo(function CollectionItemTile({
             {item.printing?.card?.name || "Unknown card"}
           </Link>
         }
-        price={item.priceText}
+        price={price}
         rarity={item.printing?.rarity}
         selectable={Boolean(onToggleSelected)}
         selected={isSelected}
@@ -439,8 +514,8 @@ const CollectionItemTile = memo(function CollectionItemTile({
         setLabel={`${item.printing?.setCode?.toUpperCase() || "?"} #${item.printing?.collectorNumber || "?"}`}
         setName={item.printing?.setName}
         typeLine={item.printing?.card?.typeLine}
-        onToggleForTrade={onToggleForTrade ? () => onToggleForTrade(item) : undefined}
-        onToggleSelected={() => onToggleSelected?.(item)}
+        onToggleForTrade={onToggleForTrade ? () => onToggleForTrade(group) : undefined}
+        onToggleSelected={() => onToggleSelected?.(group)}
       />
       <AddCollectionItemToDeckDialog
         item={deckTarget}
@@ -463,6 +538,11 @@ const CollectionItemTile = memo(function CollectionItemTile({
         onDone={refreshCollection}
         onOpenChange={(open) => !open && setEditTarget(null)}
       />
+      <BulkEditCollectionItemsDialog
+        item={bulkEditTarget}
+        onDone={refreshCollection}
+        onOpenChange={(open) => !open && setBulkEditTarget(null)}
+      />
       <DeleteCollectionItemDialog
         item={deleteTarget}
         onDone={refreshCollection}
@@ -472,15 +552,26 @@ const CollectionItemTile = memo(function CollectionItemTile({
   )
 })
 
-function collectionItemDeckLocation(item: CollectionItem) {
-  const allocationDecks = item.allocationDecks || []
+function collectionItemDeckLocation(items: CollectionItem[]) {
+  const allocationDecks = items.flatMap((item) => item.allocationDecks || [])
 
   if (!allocationDecks.length) return null
 
-  return allocationDecks
-    .map((allocation) => {
-      const name = allocation.deck.name
-      return allocation.quantity > 1 ? `${name} x${allocation.quantity}` : name
+  const quantitiesByDeck = new Map<string, { name: string; quantity: number }>()
+  for (const allocation of allocationDecks) {
+    const current = quantitiesByDeck.get(allocation.deck.id)
+    quantitiesByDeck.set(allocation.deck.id, {
+      name: allocation.deck.name,
+      quantity: (current?.quantity || 0) + allocation.quantity,
     })
+  }
+
+  return [...quantitiesByDeck.values()]
+    .map(({ name, quantity }) => (quantity > 1 ? `${name} x${quantity}` : name))
     .join(", ")
+}
+
+function commonValue<T>(values: T[]): T | undefined {
+  const first = values[0]
+  return values.every((value) => value === first) ? first : undefined
 }

@@ -122,7 +122,14 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :quantity, non_null(:integer)
   end
 
+  object :collection_item_group do
+    field :printing_id, non_null(:string)
+    field :quantity, non_null(:integer)
+    field :items, non_null(list_of(non_null(:collection_item)))
+  end
+
   connection(node_type: :collection_item)
+  connection(node_type: :collection_item_group)
   connection(node_type: :location)
 
   object :home_summary do
