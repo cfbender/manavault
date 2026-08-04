@@ -116,6 +116,7 @@ html[data-theme-style="glass"] {
   --glass-blur: 20px;
   --glass-surface: color-mix(in oklch, var(--color-base-100) 58%, transparent);
   --glass-surface-raised: color-mix(in oklch, var(--color-base-200) 52%, transparent);
+  --glass-menu: color-mix(in oklch, var(--color-base-100) 92%, transparent);
   --glass-field: color-mix(in oklch, var(--color-base-100) 52%, transparent);
   --glass-border: color-mix(in oklch, var(--color-base-content) 16%, transparent);
   --glass-rim: color-mix(in oklch, white 45%, transparent);
@@ -125,6 +126,7 @@ html[data-theme-style="glass"] {
 html[data-theme-style="glass"][data-theme="dark"] {
   --glass-surface: color-mix(in oklch, var(--color-base-200) 55%, transparent);
   --glass-surface-raised: color-mix(in oklch, var(--color-base-300) 48%, transparent);
+  --glass-menu: color-mix(in oklch, var(--color-base-200) 92%, transparent);
   --glass-field: color-mix(in oklch, var(--color-base-200) 50%, transparent);
   --glass-border: color-mix(in oklch, white 12%, transparent);
   --glass-rim: color-mix(in oklch, white 14%, transparent);
@@ -158,10 +160,21 @@ html[data-theme-style="glass"] .app-shell-root {
   background-color: transparent;
 }
 
-html[data-theme-style="glass"] :is(.card, .dropdown-content),
+html[data-theme-style="glass"] .card,
 html[data-theme-style="glass"] section[role="dialog"]:not(.fullscreen-printing-dialog) {
   background-color: var(--glass-surface);
   border-color: var(--glass-border);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-rim),
+    var(--glass-shadow);
+}
+
+html[data-theme-style="glass"] .dropdown-content {
+  background-color: var(--glass-menu);
+  border-color: var(--glass-border);
+  color: var(--color-base-content);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
   backdrop-filter: blur(var(--glass-blur)) saturate(160%);
   box-shadow:
@@ -180,6 +193,11 @@ html[data-theme-style="glass"] :is(.input, .select, .textarea) {
   background-color: var(--glass-field);
   border-color: var(--glass-border);
   box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 18%, transparent);
+}
+
+html[data-theme-style="glass"] .select option {
+  background-color: var(--color-base-100);
+  color: var(--color-base-content);
 }
 
 html[data-theme-style="glass"] :is(.btn-outline, .btn-ghost):hover {

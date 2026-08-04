@@ -17,7 +17,7 @@ export function DropdownMenuContent({
         align={align}
         sideOffset={sideOffset}
         className={cn(
-          "z-50 min-w-48 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-xl outline-none",
+          "dropdown-content z-50 min-w-48 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-xl outline-none",
           className,
         )}
         {...props}
