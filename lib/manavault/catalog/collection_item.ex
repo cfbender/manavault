@@ -13,6 +13,7 @@ defmodule Manavault.Catalog.CollectionItem do
     field :notes, :string
     field :purchase_price_cents, :integer
     field :for_trade, :boolean, default: false
+    field :for_trade_quantity, :integer, default: 0
     field :location_changed_at, :utc_datetime
 
     belongs_to :printing, Manavault.Catalog.Printing,
@@ -46,8 +47,10 @@ defmodule Manavault.Catalog.CollectionItem do
       :location_id,
       :notes,
       :purchase_price_cents,
-      :for_trade
+      :for_trade,
+      :for_trade_quantity
     ])
+    |> sync_for_trade_fields()
     |> put_location_changed_at()
     |> validate_common_fields()
     |> validate_required([:scryfall_id])
@@ -66,8 +69,10 @@ defmodule Manavault.Catalog.CollectionItem do
       :location_id,
       :notes,
       :purchase_price_cents,
-      :for_trade
+      :for_trade,
+      :for_trade_quantity
     ])
+    |> sync_for_trade_fields()
     |> put_location_changed_at()
     |> validate_common_fields()
     |> foreign_key_constraint(:scryfall_id)
@@ -97,10 +102,60 @@ defmodule Manavault.Catalog.CollectionItem do
 
   defp validate_common_fields(changeset) do
     changeset
-    |> validate_required([:quantity, :condition, :language, :finish])
+    |> validate_required([:quantity, :condition, :language, :finish, :for_trade_quantity])
     |> validate_number(:quantity, greater_than: 0)
     |> validate_number(:purchase_price_cents, greater_than_or_equal_to: 0)
+    |> validate_number(:for_trade_quantity, greater_than_or_equal_to: 0)
+    |> validate_for_trade_quantity()
     |> validate_inclusion(:condition, @conditions)
     |> validate_inclusion(:finish, @finishes)
+  end
+
+  defp sync_for_trade_fields(changeset) do
+    cond do
+      param_present?(changeset, :for_trade_quantity) ->
+        case get_field(changeset, :for_trade_quantity) do
+          quantity when is_integer(quantity) -> put_change(changeset, :for_trade, quantity > 0)
+          _invalid -> changeset
+        end
+
+      param_present?(changeset, :for_trade) ->
+        quantity =
+          if get_field(changeset, :for_trade), do: get_field(changeset, :quantity), else: 0
+
+        put_change(changeset, :for_trade_quantity, quantity)
+
+      param_present?(changeset, :quantity) ->
+        quantity = get_field(changeset, :quantity)
+
+        if is_integer(quantity) do
+          for_trade_quantity = min(get_field(changeset, :for_trade_quantity) || 0, quantity)
+
+          changeset
+          |> put_change(:for_trade_quantity, for_trade_quantity)
+          |> put_change(:for_trade, for_trade_quantity > 0)
+        else
+          changeset
+        end
+
+      true ->
+        changeset
+    end
+  end
+
+  defp param_present?(%Ecto.Changeset{params: params}, field) when is_map(params) do
+    Map.has_key?(params, field) or Map.has_key?(params, Atom.to_string(field))
+  end
+
+  defp param_present?(_changeset, _field), do: false
+
+  defp validate_for_trade_quantity(changeset) do
+    max_quantity = get_field(changeset, :quantity)
+
+    validate_change(changeset, :for_trade_quantity, fn :for_trade_quantity, quantity ->
+      if is_integer(max_quantity) and quantity > max_quantity,
+        do: [for_trade_quantity: "cannot exceed quantity owned"],
+        else: []
+    end)
   end
 end

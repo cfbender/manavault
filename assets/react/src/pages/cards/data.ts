@@ -176,6 +176,7 @@ export const CardCollectionItemsDocument = graphql(`
           finish
           notes
           forTrade
+          forTradeQuantity
           priceText
           purchasePriceCents
           purchasePriceText

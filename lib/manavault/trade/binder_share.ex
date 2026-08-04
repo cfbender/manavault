@@ -146,7 +146,9 @@ defmodule Manavault.Trade.BinderShare do
         aggregates,
         {item.scryfall_id, item.finish, item.condition},
         entry(item),
-        fn existing -> %{existing | quantity: existing.quantity + item.quantity} end
+        fn existing ->
+          %{existing | quantity: existing.quantity + item.for_trade_quantity}
+        end
       )
     end)
     |> Map.values()
@@ -155,7 +157,7 @@ defmodule Manavault.Trade.BinderShare do
   defp entry(%CollectionItem{printing: %Printing{card: card} = printing} = item) do
     %{
       card_name: card.name,
-      quantity: item.quantity,
+      quantity: item.for_trade_quantity,
       type_line: card.type_line,
       set_code: printing.set_code,
       collector_number: printing.collector_number,

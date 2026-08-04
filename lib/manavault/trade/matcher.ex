@@ -83,6 +83,7 @@ defmodule Manavault.Trade.Matcher do
     )
     |> preload([_item, printing, card], printing: {printing, card: card})
     |> Repo.all()
+    |> Enum.map(&%{&1 | quantity: &1.for_trade_quantity})
     |> Enum.group_by(&printing_card_oracle_id/1)
   end
 

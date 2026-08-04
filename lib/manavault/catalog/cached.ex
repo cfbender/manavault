@@ -118,6 +118,12 @@ defmodule Manavault.Catalog.Cached do
     |> invalidate_on_ok(&Cache.invalidate_collection/0)
   end
 
+  def set_collection_items_for_trade_quantity(ids, quantity) do
+    ids
+    |> Collection.set_collection_items_for_trade_quantity(quantity)
+    |> invalidate_on_ok(&Cache.invalidate_collection/0)
+  end
+
   def list_printings_for_collection_item(%CollectionItem{} = collection_item) do
     cached(
       Cache.catalog_tag(),

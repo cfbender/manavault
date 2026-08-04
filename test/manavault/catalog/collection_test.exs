@@ -155,6 +155,20 @@ defmodule Manavault.Catalog.CollectionTest do
            ]
   end
 
+  test "for-trade groups include every owned row for each matching printing" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    offered =
+      create_collection_item!("scryfall-printing-1", quantity: 2, for_trade_quantity: 1)
+
+    unoffered = create_collection_item!("scryfall-printing-1", quantity: 3)
+
+    assert [group] = Catalog.list_collection_item_groups(for_trade: true)
+    assert group.quantity == 5
+    assert Enum.map(group.items, & &1.id) == [offered.id, unoffered.id]
+    assert Enum.map(group.items, & &1.for_trade_quantity) == [1, 0]
+  end
+
   test "collection listings exclude list location items unless filtering to that list" do
     assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
     assert {:ok, binder} = Catalog.create_location(%{name: "Trade Binder", kind: "binder"})
@@ -411,6 +425,82 @@ defmodule Manavault.Catalog.CollectionTest do
     assert {:ok, updated} = Catalog.update_collection_item(lotus, %{"for_trade" => false})
     refute updated.for_trade
     assert [] = Catalog.list_collection_items(for_trade: true)
+  end
+
+  test "collection items track bounded offered quantities and preserve boolean compatibility" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    assert {:ok, item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 4,
+               "for_trade" => true
+             })
+
+    assert item.for_trade
+    assert item.for_trade_quantity == 4
+    assert Catalog.count_collection_items(for_trade: true) == 4
+
+    assert {:ok, item} = Catalog.update_collection_item(item, %{"for_trade_quantity" => 2})
+    assert item.for_trade
+    assert item.for_trade_quantity == 2
+    assert Catalog.count_collection_items(for_trade: true) == 2
+
+    assert {:ok, unchanged_quantity} =
+             Catalog.update_collection_item(item, %{
+               "for_trade_quantity" => 2,
+               "for_trade" => false
+             })
+
+    assert unchanged_quantity.for_trade
+    assert unchanged_quantity.for_trade_quantity == 2
+
+    assert {:error, null_changeset} =
+             Catalog.update_collection_item(item, %{"for_trade_quantity" => nil})
+
+    assert "can't be blank" in errors_on(null_changeset).for_trade_quantity
+
+    assert {:error, changeset} =
+             Catalog.update_collection_item(item, %{"for_trade_quantity" => 5})
+
+    assert "cannot exceed quantity owned" in errors_on(changeset).for_trade_quantity
+
+    assert {:ok, item} = Catalog.update_collection_item(item, %{"quantity" => 1})
+    assert item.for_trade_quantity == 1
+
+    assert {:ok, item} = Catalog.update_collection_item(item, %{"for_trade" => false})
+    refute item.for_trade
+    assert item.for_trade_quantity == 0
+  end
+
+  test "sets one offered quantity across every row in a printing group" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    assert {:ok, first} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 2,
+               "condition" => "near_mint"
+             })
+
+    assert {:ok, second} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 3,
+               "condition" => "lightly_played"
+             })
+
+    assert {:ok, %{quantity: 4, total_quantity: 5}} =
+             Catalog.set_collection_items_for_trade_quantity([first.id, second.id], 4)
+
+    assert Catalog.get_collection_item!(first.id).for_trade_quantity == 2
+    assert Catalog.get_collection_item!(second.id).for_trade_quantity == 2
+
+    assert {:error, :invalid_for_trade_quantity} =
+             Catalog.set_collection_items_for_trade_quantity([first.id, second.id], 6)
+
+    assert Catalog.get_collection_item!(first.id).for_trade_quantity == 2
+    assert Catalog.get_collection_item!(second.id).for_trade_quantity == 2
   end
 
   test "collection item filtering supports Scryfall search syntax" do

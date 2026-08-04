@@ -12,6 +12,10 @@ defmodule ManavaultWeb.Schema.Catalog.MutationResolvers do
   defdelegate create_collection_item(parent, args, resolution), to: CollectionMutations
   defdelegate update_collection_item(parent, args, resolution), to: CollectionMutations
   defdelegate bulk_update_collection_items(parent, args, resolution), to: CollectionMutations
+
+  defdelegate set_collection_items_for_trade_quantity(parent, args, resolution),
+    to: CollectionMutations
+
   defdelegate delete_collection_item(parent, args, resolution), to: CollectionMutations
   defdelegate bulk_delete_collection_items(parent, args, resolution), to: CollectionMutations
 

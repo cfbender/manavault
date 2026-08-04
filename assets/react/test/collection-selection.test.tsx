@@ -21,6 +21,7 @@ function collectionGroup(printingId: string, itemIds: string[]): CollectionItemG
       valueGainPercentText: "0%",
       allocatedQuantity: 0,
       forTrade: false,
+      forTradeQuantity: 0,
       allocationDecks: [],
       location: null,
       printing: null,

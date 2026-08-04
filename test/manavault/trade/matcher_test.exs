@@ -43,8 +43,13 @@ defmodule Manavault.Trade.MatcherTest do
   end
 
   test "matches for-trade collection items by oracle id, grouped and quantity-summed" do
-    {:ok, item1} = Catalog.create_collection_item(%{"scryfall_id" => "scryfall-oracle-sol-ring"})
-    {:ok, item1} = Catalog.update_collection_item(item1, %{"for_trade" => true})
+    {:ok, item1} =
+      Catalog.create_collection_item(%{
+        "scryfall_id" => "scryfall-oracle-sol-ring",
+        "quantity" => 4,
+        "for_trade_quantity" => 2
+      })
+
     {:ok, item2} = Catalog.create_collection_item(%{"scryfall_id" => "scryfall-oracle-sol-ring"})
     {:ok, item2} = Catalog.update_collection_item(item2, %{"for_trade" => true})
 
@@ -72,6 +77,7 @@ defmodule Manavault.Trade.MatcherTest do
     assert binder_match.oracle_id == "oracle-sol-ring"
     assert binder_match.their_quantity == 3
     assert Enum.map(binder_match.items, & &1.id) |> Enum.sort() == Enum.sort([item1.id, item2.id])
+    assert Enum.map(binder_match.items, & &1.quantity) |> Enum.sort() == [1, 2]
   end
 
   test "matches outstanding wants by oracle id" do

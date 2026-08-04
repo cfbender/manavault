@@ -86,7 +86,7 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries.Base do
   defp maybe_filter_unallocated(query, _unallocated_only?), do: query
 
   defp maybe_filter_for_trade(query, true) do
-    where(query, [item, _printing, _card, _location], item.for_trade == true)
+    where(query, [item, _printing, _card, _location], item.for_trade_quantity > 0)
   end
 
   defp maybe_filter_for_trade(query, _for_trade_only?), do: query

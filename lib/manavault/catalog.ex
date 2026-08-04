@@ -36,6 +36,7 @@ defmodule Manavault.Catalog do
   defdelegate create_collection_item(attrs), to: Cached
   defdelegate update_collection_item(collection_item, attrs), to: Cached
   defdelegate update_collection_items(ids, attrs), to: Cached
+  defdelegate set_collection_items_for_trade_quantity(ids, quantity), to: Cached
   defdelegate list_printings_for_collection_item(collection_item), to: Cached
   defdelegate switch_collection_item_printing(collection_item, scryfall_id), to: Cached
   defdelegate delete_collection_item(collection_item), to: Cached

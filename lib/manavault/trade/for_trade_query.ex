@@ -1,7 +1,7 @@
 defmodule Manavault.Trade.ForTradeQuery do
   @moduledoc """
   The base query for for-trade collection items visible to someone else:
-  every `Manavault.Catalog.CollectionItem` with `for_trade: true`,
+  every `Manavault.Catalog.CollectionItem` with a positive offered quantity,
   excluding items stored in list-kind locations (a "list" location tracks
   cards wanted from someone else, not cards actually on hand to trade).
 
@@ -22,7 +22,7 @@ defmodule Manavault.Trade.ForTradeQuery do
     |> join(:inner, [item], printing in assoc(item, :printing))
     |> join(:inner, [_item, printing], card in assoc(printing, :card))
     |> join(:left, [item], location in assoc(item, :location_assoc))
-    |> where([item], item.for_trade == true)
+    |> where([item], item.for_trade_quantity > 0)
     |> where(
       [_item, _printing, _card, location],
       is_nil(location.id) or location.kind != "list"

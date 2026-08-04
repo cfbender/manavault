@@ -113,6 +113,27 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionOperations do
       end)
     end
 
+    payload field :set_collection_items_for_trade_quantity do
+      arg(:selector, non_null(:collection_item_selector))
+      arg(:quantity, non_null(:integer))
+
+      output do
+        field :updated_count, non_null(:integer)
+        field :quantity, non_null(:integer)
+        field :total_quantity, non_null(:integer)
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &MutationResolvers.set_collection_items_for_trade_quantity/3,
+          :quantity
+        )
+      end)
+    end
+
     payload field :bulk_delete_collection_items do
       arg(:selector, non_null(:collection_item_selector))
 

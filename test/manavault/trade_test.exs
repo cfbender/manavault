@@ -326,7 +326,7 @@ defmodule Manavault.TradeTest do
                Catalog.create_collection_item(%{
                  "scryfall_id" => "scryfall-printing-1",
                  "quantity" => 2,
-                 "for_trade" => true
+                 "for_trade_quantity" => 1
                })
 
       assert {:ok, _item2} =
@@ -369,7 +369,7 @@ defmodule Manavault.TradeTest do
       nonfoil =
         Enum.find(entries, &(&1.condition == "near_mint" and &1.card_name == "Black Lotus"))
 
-      assert nonfoil.quantity == 3
+      assert nonfoil.quantity == 2
       assert nonfoil.finish == "nonfoil"
       assert nonfoil.type_line == "Artifact"
       assert nonfoil.set_code == "lea"

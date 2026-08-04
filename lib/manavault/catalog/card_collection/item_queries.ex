@@ -44,6 +44,7 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries do
 
     items_by_printing =
       filters
+      |> Keyword.delete(:for_trade)
       |> items_query()
       |> where([item, _printing, _card, _location], item.scryfall_id in ^printing_ids)
       |> order_by([item, _printing, _card, _location], asc: item.id)
@@ -72,10 +73,20 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries do
   end
 
   def count_items(filters) when is_list(filters) do
-    filters
-    |> Base.base_query()
-    |> select([item, _printing, _card, _location], coalesce(sum(item.quantity), 0))
-    |> Repo.one()
+    query = Base.base_query(filters)
+
+    if Keyword.get(filters, :for_trade, false) do
+      query
+      |> select(
+        [item, _printing, _card, _location],
+        coalesce(sum(item.for_trade_quantity), 0)
+      )
+      |> Repo.one()
+    else
+      query
+      |> select([item, _printing, _card, _location], coalesce(sum(item.quantity), 0))
+      |> Repo.one()
+    end
   end
 
   # Number of collection item rows (not summed quantities) matching the

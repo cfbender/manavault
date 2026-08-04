@@ -280,6 +280,7 @@ export function CollectionBulkActionBar({
 }
 
 export function VirtualizedCollectionGrid({
+  forTradeQuantityOverrides,
   groups,
   hasNextPage,
   isFetchingNextPage,
@@ -287,8 +288,10 @@ export function VirtualizedCollectionGrid({
   onLoadMore,
   onToggleForTrade,
   onToggleSelected,
+  pendingForTradePrintingIds,
   selectionActive = false,
 }: {
+  forTradeQuantityOverrides?: Record<string, number>
   hasNextPage: boolean
   isFetchingNextPage: boolean
   isSelected?: (id: string) => boolean
@@ -296,6 +299,7 @@ export function VirtualizedCollectionGrid({
   onLoadMore: () => void
   onToggleForTrade?: (group: CollectionItemGroup) => void
   onToggleSelected?: (group: CollectionItemGroup) => void
+  pendingForTradePrintingIds?: Set<string>
   selectionActive?: boolean
 }) {
   const size = useCardSize()
@@ -388,6 +392,8 @@ export function VirtualizedCollectionGrid({
         {visibleGroups.map((group) => (
           <CollectionItemTile
             key={group.printingId}
+            forTradePending={pendingForTradePrintingIds?.has(group.printingId)}
+            forTradeQuantityOverride={forTradeQuantityOverrides?.[group.printingId]}
             group={group}
             isSelected={isSelected?.(group.printingId) || false}
             onToggleForTrade={onToggleForTrade}
@@ -409,12 +415,16 @@ export function VirtualizedCollectionGrid({
 // `onToggleSelected` is a stable useCallback from useCollectionItemSelection and
 // `item` identity is stable, so isSelected/selectionActive drive re-renders.
 const CollectionItemTile = memo(function CollectionItemTile({
+  forTradePending = false,
+  forTradeQuantityOverride,
   group,
   isSelected = false,
   onToggleForTrade,
   onToggleSelected,
   selectionActive = false,
 }: {
+  forTradePending?: boolean
+  forTradeQuantityOverride?: number
   group: CollectionItemGroup
   isSelected?: boolean
   onToggleForTrade?: (group: CollectionItemGroup) => void
@@ -441,6 +451,9 @@ const CollectionItemTile = memo(function CollectionItemTile({
     0,
   )
   const freeQuantity = Math.max(group.quantity - allocatedQuantity, 0)
+  const forTradeQuantity =
+    forTradeQuantityOverride ??
+    group.items.reduce((total, member) => total + member.forTradeQuantity, 0)
   const deckLocation = collectionItemDeckLocation(group.items)
   const finish = commonValue(group.items.map((member) => member.finish))
   const hasMixedFinishes = new Set(group.items.map((member) => member.finish)).size > 1
@@ -477,8 +490,11 @@ const CollectionItemTile = memo(function CollectionItemTile({
           },
         ]}
         finish={finish}
-        forTradeActive={group.items.every((member) => member.forTrade)}
+        forTradeActive={forTradeQuantity > 0}
         forTradeCardName={item.printing?.card?.name || undefined}
+        forTradePending={forTradePending}
+        forTradeQuantity={forTradeQuantity}
+        forTradeTotalQuantity={group.quantity}
         imageUrl={item.printing?.imageUrl}
         location={deckLocation || location}
         menuActions={[

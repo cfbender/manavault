@@ -1,16 +1,11 @@
 import { graphql } from "../../gql"
 
-// Narrow trade-specific mutation on the shared CollectionItem type: the
-// existing collection UpdateCollectionItemDocument selects a much larger set
-// of fields than the binder tile needs, so this trims the round trip (and the
-// optimisticResponse shape) to exactly what the trade toggle reads back.
-export const UpdateCollectionItemForTradeDocument = graphql(`
-  mutation UpdateCollectionItemForTrade($id: ID!, $input: CollectionItemUpdateInput!) {
-    updateCollectionItem(id: $id, input: $input) {
-      collectionItem {
-        id
-        forTrade
-      }
+export const SetCollectionItemsForTradeQuantityDocument = graphql(`
+  mutation SetCollectionItemsForTradeQuantity($selector: CollectionItemSelector!, $quantity: Int!) {
+    setCollectionItemsForTradeQuantity(selector: $selector, quantity: $quantity) {
+      updatedCount
+      quantity
+      totalQuantity
     }
   }
 `)

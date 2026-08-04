@@ -7,14 +7,19 @@ import { Button } from "../../components/ui/button"
 import { useToast } from "../../components/ui/toast"
 import { pluralize, present } from "../../lib/utils"
 import { COLLECTION_PAGE_SIZE, DEFAULT_COLLECTION_SORT } from "../collection/constants"
-import {
-  BulkUpdateCollectionItemsDocument,
-  CollectionItemGroupsPageDocument,
-} from "../collection/documents"
+import { CollectionItemGroupsPageDocument } from "../collection/documents"
 import { VirtualizedCollectionGrid } from "../collection/selection-grid"
 import type { CollectionItemGroup } from "../collection/types"
 import { BinderShareDialog } from "./binder-share-dialog"
-import { TradeBinderCountDocument } from "./documents"
+import { SetCollectionItemsForTradeQuantityDocument, TradeBinderCountDocument } from "./documents"
+
+export function nextForTradeQuantity(offered: number, owned: number) {
+  return offered < owned ? offered + 1 : 0
+}
+
+function groupForTradeQuantity(group: CollectionItemGroup) {
+  return group.items.reduce((total, item) => total + item.forTradeQuantity, 0)
+}
 
 export function BinderTab() {
   const { showToast } = useToast()
@@ -23,6 +28,8 @@ export function BinderTab() {
   const [forTradeOnly, setForTradeOnly] = useState(false)
   const [isFetchingMore, setIsFetchingMore] = useState(false)
   const [isShareOpen, setIsShareOpen] = useState(false)
+  const [pendingPrintingIds, setPendingPrintingIds] = useState<Set<string>>(new Set())
+  const [tradeQuantityOverrides, setTradeQuantityOverrides] = useState<Record<string, number>>({})
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setAppliedQ(q.trim()), 200)
@@ -52,11 +59,12 @@ export function BinderTab() {
         .filter(present),
     [binderQuery.data],
   )
-  // Keep the filtered view consistent while the grouped query refetches after
-  // a bulk trade-status update.
-  const visibleGroups = forTradeOnly
-    ? groups.filter((group) => group.items.every((item) => item.forTrade))
-    : groups
+  const offeredQuantity = useCallback(
+    (group: CollectionItemGroup) =>
+      tradeQuantityOverrides[group.printingId] ?? groupForTradeQuantity(group),
+    [tradeQuantityOverrides],
+  )
+  const visibleGroups = forTradeOnly ? groups.filter((group) => offeredQuantity(group) > 0) : groups
 
   const loadMore = useCallback(() => {
     if (isFetchingMore || !hasNextPage) return
@@ -74,21 +82,55 @@ export function BinderTab() {
       .finally(() => setIsFetchingMore(false))
   }, [binderQuery, filters, hasNextPage, isFetchingMore, pageInfo?.endCursor])
 
-  const [updateForTrade] = useMutation(BulkUpdateCollectionItemsDocument, {
-    refetchQueries: [{ query: TradeBinderCountDocument }],
-    onError: (error) =>
-      showToast(error.message || "Could not update trade status", { tone: "info" }),
-  })
+  const [setForTradeQuantity] = useMutation(SetCollectionItemsForTradeQuantityDocument)
 
-  function toggleForTrade(group: CollectionItemGroup) {
-    const nextForTrade = !group.items.every((item) => item.forTrade)
-    void updateForTrade({
-      variables: {
-        selector: { ids: group.items.map((item) => item.id) },
-        input: { forTrade: nextForTrade },
-      },
-      onCompleted: () => void binderQuery.refetch(),
-    })
+  async function incrementForTrade(group: CollectionItemGroup) {
+    if (pendingPrintingIds.has(group.printingId)) return
+
+    const quantity = nextForTradeQuantity(offeredQuantity(group), group.quantity)
+    setTradeQuantityOverrides((current) => ({ ...current, [group.printingId]: quantity }))
+    setPendingPrintingIds((current) => new Set(current).add(group.printingId))
+
+    try {
+      await setForTradeQuantity({
+        variables: {
+          selector: { ids: group.items.map((item) => item.id) },
+          quantity,
+        },
+      })
+
+      const [binderRefresh, countRefresh] = await Promise.allSettled([
+        binderQuery.refetch(),
+        countQuery.refetch(),
+      ])
+
+      if (binderRefresh.status === "fulfilled") {
+        setTradeQuantityOverrides((current) => {
+          const { [group.printingId]: _removed, ...rest } = current
+          return rest
+        })
+      }
+
+      if (binderRefresh.status === "rejected" || countRefresh.status === "rejected") {
+        showToast("Trade quantity was saved, but the binder could not be fully refreshed.", {
+          tone: "info",
+        })
+      }
+    } catch (error) {
+      setTradeQuantityOverrides((current) => {
+        const { [group.printingId]: _removed, ...rest } = current
+        return rest
+      })
+      showToast(error instanceof Error ? error.message : "Could not update trade quantity", {
+        tone: "info",
+      })
+    } finally {
+      setPendingPrintingIds((current) => {
+        const next = new Set(current)
+        next.delete(group.printingId)
+        return next
+      })
+    }
   }
 
   const isInitialLoading = binderQuery.loading && !binderQuery.data
@@ -140,7 +182,9 @@ export function BinderTab() {
           hasNextPage={hasNextPage}
           isFetchingNextPage={isFetchingMore}
           onLoadMore={loadMore}
-          onToggleForTrade={toggleForTrade}
+          forTradeQuantityOverrides={tradeQuantityOverrides}
+          pendingForTradePrintingIds={pendingPrintingIds}
+          onToggleForTrade={incrementForTrade}
         />
       )}
 

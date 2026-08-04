@@ -25,6 +25,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "collectionExportText",
                "collectionItemCount",
                "collectionItemEntryCount",
+               "collectionItemGroups",
                "collectionItems",
                "collectionValueSummary",
                "deck",
@@ -98,6 +99,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "rotateTradeBinderShareToken",
                "rotateTradeWantsShareToken",
                "runCloudBackup",
+               "setCollectionItemsForTradeQuantity",
                "setDeckCommander",
                "stageCloudRestore",
                "tradeMatches",
@@ -134,6 +136,12 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
              {"CollectionItemInput!", nil}
 
     assert argument(mutation_fields["allocateDeckCardProxy"], "quantity") == {"Int", "1"}
+
+    assert argument(mutation_fields["setCollectionItemsForTradeQuantity"], "selector") ==
+             {"CollectionItemSelector!", nil}
+
+    assert argument(mutation_fields["setCollectionItemsForTradeQuantity"], "quantity") ==
+             {"Int!", nil}
 
     assert type_signature(mutation_fields["previewDeckDisassembly"]["type"]) ==
              "PreviewDeckDisassemblyPayload"

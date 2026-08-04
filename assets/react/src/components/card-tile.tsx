@@ -1,6 +1,5 @@
 import {
   ArrowLeftRight,
-  Check,
   CheckSquare,
   DollarSign,
   Edit3,
@@ -77,6 +76,9 @@ export function CardTile({
   finish,
   forTradeActive = false,
   forTradeCardName,
+  forTradePending = false,
+  forTradeQuantity = 0,
+  forTradeTotalQuantity,
   growOnHover = true,
   imageUrl,
   location,
@@ -108,6 +110,9 @@ export function CardTile({
   finish?: string | null
   forTradeActive?: boolean
   forTradeCardName?: string
+  forTradePending?: boolean
+  forTradeQuantity?: number
+  forTradeTotalQuantity?: number
   growOnHover?: boolean
   imageUrl?: string | null
   location?: ReactNode
@@ -146,6 +151,11 @@ export function CardTile({
           ? "Nonfoil"
           : finish
   const ownedLabel = count && count >= countMin ? `Owned ×${count}` : null
+  const tradeCardName = forTradeCardName ?? (typeof name === "string" ? name : "card")
+  const nextTradeAction =
+    forTradeActive && forTradeQuantity >= (forTradeTotalQuantity ?? forTradeQuantity)
+      ? `Remove all ${tradeCardName} copies from trade`
+      : `Offer ${forTradeQuantity + 1} of ${forTradeTotalQuantity ?? count ?? 1} ${tradeCardName} copies for trade`
   const mobileHover = useMobileHoverReveal<HTMLDivElement>()
   const suppressMenuClickRef = useRef(false)
   const suppressMenuClickTimeoutRef = useRef<number | null>(null)
@@ -378,10 +388,9 @@ export function CardTile({
                   ? "bg-primary/50 from-white/25 via-primary/10 to-transparent text-primary-content ring-primary/60 hover:bg-primary/60"
                   : "bg-white/15 from-white/25 via-white/5 to-transparent text-white ring-white/30 hover:bg-white/20",
               )}
-              aria-label={`${forTradeActive ? "Remove" : "Mark"} ${
-                forTradeCardName ?? (typeof name === "string" ? name : "card")
-              } ${forTradeActive ? "from trade" : "for trade"}`}
+              aria-label={nextTradeAction}
               aria-pressed={forTradeActive}
+              disabled={forTradePending}
               onClick={(event) => {
                 event.stopPropagation()
                 onToggleForTrade()
@@ -390,9 +399,9 @@ export function CardTile({
               onMouseDown={(event) => event.stopPropagation()}
             >
               <ArrowLeftRight className="h-6 w-6" />
-              {forTradeActive ? (
-                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-content ring-2 ring-base-100/80">
-                  <Check className="h-3 w-3" strokeWidth={3} />
+              {forTradeQuantity > 0 ? (
+                <span className="absolute -right-1.5 -top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-primary px-1 text-xs font-black text-primary-content ring-2 ring-base-100/80">
+                  {forTradeQuantity}
                 </span>
               ) : null}
             </button>
