@@ -88,7 +88,7 @@ export function HomePage() {
       />
 
       <motion.section
-        className="relative z-10 space-y-6 pb-8 pt-3 sm:pb-12 sm:pt-6"
+        className="relative z-20 space-y-6 pb-8 pt-3 sm:pb-12 sm:pt-6"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
