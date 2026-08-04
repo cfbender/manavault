@@ -192,7 +192,6 @@ defmodule Manavault.Catalog.CollectionTest do
 
     assert {:ok, updated} =
              Catalog.update_collection_item(loaded, %{
-               "scryfall_id" => "other-printing",
                "quantity" => "3",
                "condition" => "near_mint",
                "language" => "ja",

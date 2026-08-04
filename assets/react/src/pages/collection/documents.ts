@@ -153,6 +153,25 @@ export const CollectionItemFormOptionsDocument = graphql(`
   }
 `)
 
+export const CollectionItemPrintingsDocument = graphql(`
+  query CollectionItemPrintings($cardId: ID!) {
+    card(id: $cardId) {
+      printings(first: 300) {
+        edges {
+          node {
+            id
+            setCode
+            setName
+            collectorNumber
+            rarity
+            finishes
+          }
+        }
+      }
+    }
+  }
+`)
+
 export const CollectionItemDeckOptionsDocument = graphql(`
   query CollectionItemDeckOptions {
     decks(first: 100) {

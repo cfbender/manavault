@@ -14,7 +14,11 @@ import { Input } from "../../components/ui/input"
 import { useToast } from "../../components/ui/toast"
 import { pluralize, present, titleize } from "../../lib/utils"
 import { COLLECTION_CONDITIONS, COLLECTION_FINISHES } from "./constants"
-import { CollectionItemFormOptionsDocument, UpdateCollectionItemDocument } from "./documents"
+import {
+  CollectionItemFormOptionsDocument,
+  CollectionItemPrintingsDocument,
+  UpdateCollectionItemDocument,
+} from "./documents"
 import {
   centsToCurrencyInput,
   collectionConditionValue,
@@ -42,6 +46,7 @@ export function EditCollectionItemDialog({
   const [condition, setCondition] = useState<(typeof COLLECTION_CONDITIONS)[number]>("near_mint")
   const [finish, setFinish] = useState<(typeof COLLECTION_FINISHES)[number]>("nonfoil")
   const [language, setLanguage] = useState("en")
+  const [printingId, setPrintingId] = useState("")
   const [locationId, setLocationId] = useState("")
   const [notes, setNotes] = useState("")
   const [purchasePrice, setPurchasePrice] = useState("")
@@ -51,10 +56,21 @@ export function EditCollectionItemDialog({
     skip: !open,
     fetchPolicy: "cache-and-network",
   })
+  const printingsQuery = useQuery(CollectionItemPrintingsDocument, {
+    variables: { cardId: item?.printing?.card?.id || "" },
+    skip: !item?.printing?.card?.id,
+  })
   const locations = useMemo(
     () => optionsQuery.data?.locations?.edges?.map((edge) => edge?.node).filter(present) || [],
     [optionsQuery.data],
   )
+  const printings = useMemo(
+    () =>
+      printingsQuery.data?.card?.printings?.edges?.map((edge) => edge?.node).filter(present) || [],
+    [printingsQuery.data],
+  )
+  const selectedPrinting = printings.find((printing) => printing.id === printingId)
+  const finishOptions = printingFinishOptions(selectedPrinting?.finishes)
   const [updateItemMutation, updateItem] = useMutation(UpdateCollectionItemDocument)
 
   useEffect(() => {
@@ -63,12 +79,24 @@ export function EditCollectionItemDialog({
       setCondition(collectionConditionValue(item.condition))
       setFinish(collectionFinishValue(item.finish))
       setLanguage(item.language || "en")
+      setPrintingId(item.printing?.id || "")
       setLocationId(item.location?.id || "")
       setNotes(item.notes || "")
       setPurchasePrice(centsToCurrencyInput(item.purchasePriceCents))
       setError(null)
     }
   }, [item])
+
+  function selectPrinting(nextPrintingId: string) {
+    setPrintingId(nextPrintingId)
+
+    const printing = printings.find((option) => option.id === nextPrintingId)
+    const availableFinishes = printingFinishOptions(printing?.finishes)
+
+    if (!availableFinishes.includes(finish)) {
+      setFinish(availableFinishes[0])
+    }
+  }
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -94,6 +122,7 @@ export function EditCollectionItemDialog({
       variables: {
         id: item.id,
         input: {
+          scryfallId: printingId,
           quantity,
           condition,
           finish,
@@ -135,6 +164,26 @@ export function EditCollectionItemDialog({
             <CollectionQuantityField value={quantity} onChange={setQuantity} autoFocus />
             <label className="block space-y-1.5">
               <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Printing
+              </span>
+              <select
+                className="select select-bordered h-9 min-h-9 w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                value={printingId}
+                onChange={(event) => selectPrinting(event.target.value)}
+                disabled={printingsQuery.loading || printings.length === 0}
+              >
+                {printings.length === 0 && item?.printing ? (
+                  <option value={item.printing.id}>{printingLabel(item.printing)}</option>
+                ) : null}
+                {printings.map((printing) => (
+                  <option key={printing.id} value={printing.id}>
+                    {printingLabel(printing)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block space-y-1.5">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
                 Language
               </span>
               <Input
@@ -160,11 +209,7 @@ export function EditCollectionItemDialog({
                 ))}
               </select>
             </label>
-            <CollectionFinishField
-              options={COLLECTION_FINISHES}
-              value={finish}
-              onChange={setFinish}
-            />
+            <CollectionFinishField options={finishOptions} value={finish} onChange={setFinish} />
             <label className="block space-y-1.5">
               <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
                 Purchase price
@@ -251,4 +296,29 @@ export function EditCollectionItemDialog({
       </DialogContent>
     </Dialog>
   )
+}
+
+function printingLabel(printing: {
+  collectorNumber?: string | null
+  rarity?: string | null
+  setCode?: string | null
+  setName?: string | null
+}) {
+  return [
+    printing.setCode?.toUpperCase(),
+    printing.collectorNumber ? `#${printing.collectorNumber}` : null,
+    printing.setName,
+    printing.rarity ? titleize(printing.rarity) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ")
+}
+
+function printingFinishOptions(finishes?: Array<string | null> | null) {
+  const options = (finishes || []).filter(
+    (value): value is (typeof COLLECTION_FINISHES)[number] =>
+      typeof value === "string" && COLLECTION_FINISHES.some((finish: string) => finish === value),
+  )
+
+  return options.length ? options : COLLECTION_FINISHES
 }

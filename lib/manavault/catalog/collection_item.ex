@@ -58,6 +58,7 @@ defmodule Manavault.Catalog.CollectionItem do
   def update_changeset(collection_item, attrs) do
     collection_item
     |> cast(attrs, [
+      :scryfall_id,
       :quantity,
       :condition,
       :language,
@@ -69,6 +70,7 @@ defmodule Manavault.Catalog.CollectionItem do
     ])
     |> put_location_changed_at()
     |> validate_common_fields()
+    |> foreign_key_constraint(:scryfall_id)
     |> foreign_key_constraint(:location_id)
   end
 

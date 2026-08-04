@@ -314,6 +314,7 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
   end
 
   input_object :collection_item_update_input do
+    field :scryfall_id, :id
     field :quantity, :integer
     field :condition, :string
     field :language, :string
