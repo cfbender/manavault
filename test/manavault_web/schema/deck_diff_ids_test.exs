@@ -31,7 +31,7 @@ defmodule ManavaultWeb.Schema.DeckDiffIdsTest do
     assert {:ok, %{data: %{"deckDiff" => %{"cuts" => [cut]}}}} =
              Absinthe.run(
                """
-               query DeckDiffIds($deckId: ID!, $text: String) {
+               mutation DeckDiffIds($deckId: ID!, $text: String) {
                  deckDiff(deckId: $deckId, text: $text) {
                    cuts {
                      cardName

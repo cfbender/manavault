@@ -46,14 +46,26 @@ defmodule ManavaultWeb.GraphQLCSRFProtectionTest do
     :ok
   end
 
-  test "session-authenticated queries remain functional without a CSRF token" do
-    {conn, _csrf_token} = authenticated_conn()
+  test "session-authenticated queries require a valid CSRF token" do
+    {conn, csrf_token} = authenticated_conn()
 
-    conn =
+    missing_token =
       post_json(conn, %{
         "query" => @query <> "\n" <> @mutation,
         "operationName" => "HomeSummary"
       })
+
+    assert_forbidden(missing_token)
+
+    valid_token =
+      post_json(
+        conn,
+        %{
+          "query" => @query <> "\n" <> @mutation,
+          "operationName" => "HomeSummary"
+        },
+        csrf_token
+      )
 
     assert %{
              "data" => %{
@@ -63,9 +75,18 @@ defmodule ManavaultWeb.GraphQLCSRFProtectionTest do
                  "deckCount" => 0
                }
              }
-           } = json_response(conn, 200)
+           } = json_response(valid_token, 200)
 
     assert deck_count() == 0
+  end
+
+  test "authenticated GraphQL rejects GET even when it selects a query" do
+    {conn, _csrf_token} = authenticated_conn()
+
+    conn = get(recycle(conn), "/api/graphql?" <> URI.encode_query(query: @query))
+
+    assert get_resp_header(conn, "allow") == ["POST"]
+    assert json_response(conn, 405) == %{"errors" => [%{"message" => "Method not allowed"}]}
   end
 
   test "missing and forged JSON tokens reject mutations before their resolver runs" do

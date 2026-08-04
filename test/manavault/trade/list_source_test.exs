@@ -14,6 +14,10 @@ defmodule Manavault.Trade.ListSourceTest do
     previous_moxfield = Application.get_env(:manavault, :trade_moxfield_req_options)
     previous_archidekt = Application.get_env(:manavault, :trade_archidekt_req_options)
     previous_manavault = Application.get_env(:manavault, :trade_manavault_req_options)
+    previous_manavault_resolver = Application.get_env(:manavault, :trade_manavault_resolver)
+
+    previous_manavault_allowlist =
+      Application.get_env(:manavault, :trade_manavault_destination_allowlist)
 
     Application.put_env(:manavault, :trade_moxfield_req_options,
       plug: {Req.Test, @moxfield_stub},
@@ -30,10 +34,20 @@ defmodule Manavault.Trade.ListSourceTest do
       retry: false
     )
 
+    Application.put_env(
+      :manavault,
+      :trade_manavault_resolver,
+      fn _host -> {:ok, [{93, 184, 216, 34}]} end
+    )
+
+    Application.put_env(:manavault, :trade_manavault_destination_allowlist, [])
+
     on_exit(fn ->
       restore_env(:trade_moxfield_req_options, previous_moxfield)
       restore_env(:trade_archidekt_req_options, previous_archidekt)
       restore_env(:trade_manavault_req_options, previous_manavault)
+      restore_env(:trade_manavault_resolver, previous_manavault_resolver)
+      restore_env(:trade_manavault_destination_allowlist, previous_manavault_allowlist)
     end)
 
     :ok
@@ -218,11 +232,12 @@ defmodule Manavault.Trade.ListSourceTest do
   end
 
   describe "resolve/1 with an absolute manavault share link (has a host)" do
-    test "always fetches remotely via POST {origin}/share/graphql, even for a host alias of this instance" do
-      # An absolute link is never resolved locally, even when the host
-      # happens to match this very instance — it loops back over HTTP to
-      # this same server's public endpoint instead, exercised here purely
-      # through the stubbed remote fetch.
+    test "fetches public and explicitly allowed local hosts via POST {origin}/share/graphql" do
+      Application.put_env(:manavault, :trade_manavault_destination_allowlist, [
+        "127.0.0.1",
+        "localhost"
+      ])
+
       Req.Test.stub(@manavault_stub, fn conn ->
         respond_json(conn, %{
           "data" => %{

@@ -1,7 +1,7 @@
 import { graphql } from "../../gql"
 
 export const TradeMatchesDocument = graphql(`
-  query TradeMatches($url: String, $text: String) {
+  mutation TradeMatches($url: String, $text: String) {
     tradeMatches(url: $url, text: $text) {
       sourceName
       entryCount

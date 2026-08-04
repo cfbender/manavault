@@ -6,7 +6,7 @@ defmodule ManavaultWeb.Schema.Catalog.TradeListOperations do
 
   alias ManavaultWeb.Schema.Catalog.TradeListResolvers
 
-  object :trade_list_queries do
+  object :trade_list_mutations do
     field :trade_matches, non_null(:trade_match_result) do
       arg(:url, :string)
       arg(:text, :string)

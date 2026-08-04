@@ -9,28 +9,36 @@ defmodule Manavault.Trade.ListSource.ManaVaultRemoteTest do
   setup do
     previous = Application.get_env(:manavault, :trade_manavault_req_options)
     previous_clock = Application.get_env(:manavault, :trade_manavault_monotonic_time)
+    previous_resolver = Application.get_env(:manavault, :trade_manavault_resolver)
+
+    previous_allowlist =
+      Application.get_env(:manavault, :trade_manavault_destination_allowlist)
 
     Application.put_env(:manavault, :trade_manavault_req_options,
       plug: {Req.Test, @stub},
       retry: false
     )
 
-    on_exit(fn ->
-      if previous do
-        Application.put_env(:manavault, :trade_manavault_req_options, previous)
-      else
-        Application.delete_env(:manavault, :trade_manavault_req_options)
-      end
+    Application.put_env(
+      :manavault,
+      :trade_manavault_resolver,
+      fn _host -> {:ok, [{93, 184, 216, 34}]} end
+    )
 
-      if previous_clock do
-        Application.put_env(:manavault, :trade_manavault_monotonic_time, previous_clock)
-      else
-        Application.delete_env(:manavault, :trade_manavault_monotonic_time)
-      end
+    Application.put_env(:manavault, :trade_manavault_destination_allowlist, [])
+
+    on_exit(fn ->
+      restore_env(:trade_manavault_req_options, previous)
+      restore_env(:trade_manavault_monotonic_time, previous_clock)
+      restore_env(:trade_manavault_resolver, previous_resolver)
+      restore_env(:trade_manavault_destination_allowlist, previous_allowlist)
     end)
 
     :ok
   end
+
+  defp restore_env(key, nil), do: Application.delete_env(:manavault, key)
+  defp restore_env(key, value), do: Application.put_env(:manavault, key, value)
 
   defp respond_json(conn, payload) do
     conn
@@ -456,6 +464,136 @@ defmodule Manavault.Trade.ListSource.ManaVaultRemoteTest do
 
       assert {:error, "Unsupported link. Paste the list text instead."} =
                ManaVaultRemote.fetch(:deck, uri, "token")
+    end
+  end
+
+  describe "destination policy" do
+    test "rejects loopback, private, link-local, and unspecified IPv4 and IPv6 literals" do
+      addresses = [
+        "127.0.0.1",
+        "10.20.30.40",
+        "169.254.169.254",
+        "0.0.0.0",
+        "[::1]",
+        "[fd12:3456::20]",
+        "[fe80::1]",
+        "[::]",
+        "[::ffff:127.0.0.1]",
+        "[2001:2::1]",
+        "[2001:20::1]",
+        "[2002:7f00:1::1]",
+        "[3fff::1]"
+      ]
+
+      for address <- addresses do
+        uri = URI.new!("http://#{address}/share/decks/token")
+
+        assert {:error, "Unsupported link. Paste the list text instead."} =
+                 ManaVaultRemote.fetch(:deck, uri, "token")
+      end
+    end
+
+    test "allows a configured LAN hostname and preserves its HTTP authority" do
+      Application.put_env(:manavault, :trade_manavault_destination_allowlist, ["friend.home"])
+
+      Application.put_env(
+        :manavault,
+        :trade_manavault_resolver,
+        fn "friend.home" -> {:ok, [{192, 168, 50, 24}]} end
+      )
+
+      Req.Test.stub(@stub, fn conn ->
+        assert conn.host == "192.168.50.24"
+        assert Plug.Conn.get_req_header(conn, "host") == ["friend.home:4000"]
+        assert conn.request_path == "/share/graphql"
+        respond_json(conn, %{"data" => %{"deck" => nil}})
+      end)
+
+      uri = URI.new!("http://friend.home:4000/private/path?ignored=yes")
+      assert {:error, message} = ManaVaultRemote.fetch(:deck, uri, "token")
+      assert message =~ "doesn't match a deck"
+    end
+
+    test "allows only addresses inside an explicitly configured IPv6 LAN CIDR" do
+      Application.put_env(:manavault, :trade_manavault_destination_allowlist, ["fd12:3456::/64"])
+
+      Req.Test.stub(@stub, fn conn ->
+        assert conn.host == "fd12:3456::20"
+        respond_json(conn, %{"data" => %{"deck" => nil}})
+      end)
+
+      allowed = URI.new!("http://[fd12:3456::20]/share/decks/token")
+      assert {:error, allowed_message} = ManaVaultRemote.fetch(:deck, allowed, "token")
+      assert allowed_message =~ "doesn't match a deck"
+
+      denied = URI.new!("http://[fd13:3456::20]/share/decks/token")
+
+      assert {:error, "Unsupported link. Paste the list text instead."} =
+               ManaVaultRemote.fetch(:deck, denied, "token")
+    end
+
+    test "accepts public IPv4 and IPv6 destinations" do
+      Req.Test.stub(@stub, fn conn -> respond_json(conn, %{"data" => %{"deck" => nil}}) end)
+
+      for address <- ["93.184.216.34", "[2606:4700:4700::1111]"] do
+        uri = URI.new!("https://#{address}/share/decks/token")
+        assert {:error, message} = ManaVaultRemote.fetch(:deck, uri, "token")
+        assert message =~ "doesn't match a deck"
+      end
+    end
+
+    test "rejects a DNS answer set containing a private address and never dispatches" do
+      Application.put_env(
+        :manavault,
+        :trade_manavault_resolver,
+        fn "rebinding.example" ->
+          {:ok, [{93, 184, 216, 34}, {169, 254, 169, 254}]}
+        end
+      )
+
+      uri = URI.new!("https://rebinding.example/share/decks/token")
+
+      assert {:error, "Unsupported link. Paste the list text instead."} =
+               ManaVaultRemote.fetch(:deck, uri, "token")
+    end
+
+    test "resolves once and pins that address across pagination" do
+      counter = :counters.new(1, [])
+
+      Application.put_env(
+        :manavault,
+        :trade_manavault_resolver,
+        fn "stable.example" ->
+          :counters.add(counter, 1, 1)
+          {:ok, [{93, 184, 216, 34}]}
+        end
+      )
+
+      Req.Test.stub(@stub, fn conn ->
+        assert conn.host == "93.184.216.34"
+        assert Plug.Conn.get_req_header(conn, "host") == ["stable.example"]
+        {variables, conn} = request_variables(conn)
+
+        page_info =
+          if variables["after"] do
+            %{"hasNextPage" => false, "endCursor" => nil}
+          else
+            %{"hasNextPage" => true, "endCursor" => "next"}
+          end
+
+        respond_json(conn, %{
+          "data" => %{
+            "deck" => %{
+              "name" => "Pinned",
+              "deckCards" => %{"edges" => [], "pageInfo" => page_info}
+            }
+          }
+        })
+      end)
+
+      uri = URI.new!("https://stable.example/share/decks/token")
+      assert {:ok, %{source_name: "Pinned"}} = ManaVaultRemote.fetch(:deck, uri, "token")
+      assert :counters.get(counter, 1) == 1
     end
   end
 end

@@ -1,16 +1,16 @@
-import { useLazyQuery } from "@apollo/client/react"
+import { useMutation } from "@apollo/client/react"
 import { Search } from "lucide-react"
 import { useState, type FormEvent } from "react"
 import { EmptyState } from "../../components/card-image"
 import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/input"
-import type { TradeMatchesQuery } from "../../gql/graphql"
+import type { TradeMatchesMutation } from "../../gql/graphql"
 import { cn, pluralize, titleize } from "../../lib/utils"
 import { TradeMatchesDocument } from "./match-documents"
 
 type SourceMode = "url" | "paste"
 type ListRole = "haves" | "wants"
-type TradeMatchResult = NonNullable<TradeMatchesQuery["tradeMatches"]>
+type TradeMatchResult = NonNullable<TradeMatchesMutation["tradeMatches"]>
 type BinderMatch = TradeMatchResult["binderMatches"][number]
 type WantMatch = TradeMatchResult["wantMatches"][number]
 type BinderMatchItem = BinderMatch["items"][number]
@@ -50,9 +50,7 @@ export function MatchTab() {
   const [url, setUrl] = useState("")
   const [text, setText] = useState("")
   const [formError, setFormError] = useState<string | null>(null)
-  const [runTradeMatches, matchQuery] = useLazyQuery(TradeMatchesDocument, {
-    fetchPolicy: "network-only",
-  })
+  const [runTradeMatches, matchQuery] = useMutation(TradeMatchesDocument)
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()

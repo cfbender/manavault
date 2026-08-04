@@ -80,6 +80,12 @@ secure_cookies =
 session_max_age_days =
   System.get_env("MANAVAULT_SESSION_MAX_AGE_DAYS", "180") |> String.to_integer()
 
+trade_manavault_destination_allowlist =
+  System.get_env("MANAVAULT_REMOTE_SHARE_ALLOWLIST", "")
+  |> String.split(",", trim: true)
+  |> Enum.map(&String.trim/1)
+  |> Enum.reject(&(&1 == ""))
+
 config :manavault,
   admin_password_hash: admin_password_hash,
   auth_disabled: auth_disabled,
@@ -88,7 +94,8 @@ config :manavault,
   trust_proxy_headers: trust_proxy_headers,
   forwarded_ip_header: System.get_env("MANAVAULT_FORWARDED_IP_HEADER", "x-forwarded-for"),
   secure_cookies: secure_cookies,
-  session_max_age_days: session_max_age_days
+  session_max_age_days: session_max_age_days,
+  trade_manavault_destination_allowlist: trade_manavault_destination_allowlist
 
 if config_env() == :prod do
   if !auth_disabled && is_nil(admin_password_hash) do

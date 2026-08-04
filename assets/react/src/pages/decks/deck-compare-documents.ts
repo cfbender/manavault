@@ -1,7 +1,7 @@
 import { graphql } from "../../gql"
 
 export const DeckDiffDocument = graphql(`
-  query DeckDiff($deckId: ID!, $url: String, $text: String) {
+  mutation DeckDiff($deckId: ID!, $url: String, $text: String) {
     deckDiff(deckId: $deckId, url: $url, text: $text) {
       sourceName
       unrecognized

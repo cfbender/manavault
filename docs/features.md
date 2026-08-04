@@ -141,10 +141,15 @@ and size/time caps) plus ManaVault `/share/decks/...`, `/share/wants/...`,
 and `/share/binder/...` links from any instance: relative links resolve
 locally by share token, and
 absolute links are fetched from that link's origin through its public
-`/share/graphql` endpoint. Cross-instance fetches deliberately allow private
-and LAN addresses so self-hosted friends can trade; the request is bounded
-(fixed path, fixed query body, no credentials, no redirects, time and size
-caps) and its response is only ever shown to the owner who pasted the link.
+`/share/graphql` endpoint. Public Internet destinations work by default.
+Private, loopback, link-local, and other non-public destinations are blocked
+unless the operator explicitly allows the intended hostname or network with
+`MANAVAULT_REMOTE_SHARE_ALLOWLIST`; this preserves opt-in LAN sharing between
+self-hosted friends without making internal services generally reachable.
+DNS results are policy-checked and the validated address is pinned for the
+request. Every request remains bounded (fixed path, fixed query body, no
+credentials, no redirects, time and size caps), and its response is only ever
+shown to the owner who pasted the link.
 Moxfield's API only serves approved clients, so those fetches may fail with
 a hint to paste the export text instead; ManaBox has no public URL API and
 is supported through its plain-text export (its CSV export remains a

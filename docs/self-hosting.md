@@ -121,6 +121,26 @@ headers, an already-cached response may remain visible until that intermediary's
 cache expires or is purged; configure public share paths to revalidate when
 immediate revocation at the edge is required.
 
+### Remote ManaVault share destinations
+
+Pasting a share link from a public ManaVault instance works without additional
+configuration. Requests to loopback, private/LAN, link-local, multicast,
+unspecified, and reserved IPv4 or IPv6 destinations are denied by default.
+
+To trade with a trusted self-hosted friend on a LAN, explicitly allow the exact
+hostname or the narrowest required CIDR with a comma-separated environment
+variable, for example:
+
+```sh
+MANAVAULT_REMOTE_SHARE_ALLOWLIST=friend-vault.home,192.168.50.24/32,fd12:3456::20/128
+```
+
+An allowed hostname permits all addresses returned for that exact hostname;
+an allowed CIDR permits only addresses in that network. Prefer an exact host or
+`/32` (IPv4) or `/128` (IPv6) entry over a broad LAN range. ManaVault validates
+every DNS result and connects to a validated, pinned address to prevent DNS
+rebinding between policy evaluation and the outbound request.
+
 The login endpoint enforces failed-password defenses before checking the password
 hash:
 

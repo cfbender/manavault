@@ -120,4 +120,29 @@ defmodule Manavault.Trade.ListSource.HttpTest do
                req_options: [plug: {Req.Test, @stub}]
              )
   end
+
+  test "req adapter injection cannot override URL, credentials, redirects, or response caps" do
+    Req.Test.stub(@stub, fn conn ->
+      assert conn.host == "example.test"
+      assert conn.request_path == "/graphql"
+      assert Plug.Conn.get_req_header(conn, "authorization") == []
+
+      conn
+      |> Plug.Conn.put_resp_header("location", "https://attacker.test/graphql")
+      |> Plug.Conn.send_resp(200, String.duplicate("a", 100))
+    end)
+
+    assert {:error, :body_too_large} =
+             Http.post_json("https://example.test/graphql", %{"query" => "{ ping }"},
+               max_bytes: 10,
+               req_options: [
+                 plug: {Req.Test, @stub},
+                 url: "https://attacker.test/graphql",
+                 headers: [{"authorization", "Bearer secret"}],
+                 follow_redirects: true,
+                 into: nil,
+                 receive_timeout: :infinity
+               ]
+             )
+  end
 end

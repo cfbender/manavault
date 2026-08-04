@@ -1,4 +1,4 @@
-import { useApolloClient, useLazyQuery, useMutation } from "@apollo/client/react"
+import { useApolloClient, useMutation } from "@apollo/client/react"
 import { Check, Clipboard, Search } from "lucide-react"
 import { useState, type FormEvent, type ReactNode } from "react"
 import { Button } from "../../components/ui/button"
@@ -11,14 +11,14 @@ import {
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
 import { useToast } from "../../components/ui/toast"
-import type { DeckDiffQuery } from "../../gql/graphql"
+import type { DeckDiffMutation } from "../../gql/graphql"
 import { refetchActiveQueries } from "../../lib/apollo"
 import { cn, pluralize } from "../../lib/utils"
 import { DeckDiffDocument } from "./deck-compare-documents"
 import { AddDeckCardDocument, UpdateDeckCardsTagDocument } from "./queries"
 
 type SourceMode = "url" | "paste"
-type DeckDiffResult = NonNullable<DeckDiffQuery["deckDiff"]>
+type DeckDiffResult = NonNullable<DeckDiffMutation["deckDiff"]>
 type AddRow = DeckDiffResult["adds"][number]
 type CutRow = DeckDiffResult["cuts"][number]
 type ChangeRow = DeckDiffResult["changes"][number]
@@ -39,9 +39,7 @@ export function DeckCompareDialog({
   const [url, setUrl] = useState("")
   const [text, setText] = useState("")
   const [formError, setFormError] = useState<string | null>(null)
-  const [runDeckDiff, diffQuery] = useLazyQuery(DeckDiffDocument, {
-    fetchPolicy: "network-only",
-  })
+  const [runDeckDiff, diffQuery] = useMutation(DeckDiffDocument)
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()

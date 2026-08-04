@@ -45,7 +45,6 @@ defmodule ManavaultWeb.Schema do
     import_fields(:deck_queries)
     import_fields(:backup_queries)
     import_fields(:trade_queries)
-    import_fields(:trade_list_queries)
 
     node field do
       resolve(fn
@@ -86,6 +85,7 @@ defmodule ManavaultWeb.Schema do
     import_fields(:location_mutations)
     import_fields(:deck_mutations)
     import_fields(:trade_mutations)
+    import_fields(:trade_list_mutations)
   end
 
   def context(ctx) do

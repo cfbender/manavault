@@ -57,19 +57,27 @@ defmodule Manavault.Trade.ListSource.Http do
 
   defp request_options(opts) do
     max_bytes = Keyword.get(opts, :max_bytes, @default_max_bytes)
+    test_adapter_options = opts |> Keyword.get(:req_options, []) |> Keyword.take([:plug])
 
-    [
-      headers: [
+    headers =
+      [
         {"accept", "application/json"},
         {"user-agent", "ManaVault/0.1 (+trade-list-import)"}
-      ],
-      connect_options: [
-        timeout: Keyword.get(opts, :connect_timeout, @default_connect_timeout)
-      ],
-      receive_timeout: Keyword.get(opts, :receive_timeout, @default_receive_timeout),
-      redirect: false,
-      into: streaming_body(max_bytes)
-    ] ++ Keyword.get(opts, :req_options, [])
+      ] ++ Keyword.get(opts, :headers, [])
+
+    connect_options =
+      [timeout: Keyword.get(opts, :connect_timeout, @default_connect_timeout)]
+      |> Keyword.merge(Keyword.get(opts, :connect_options, []))
+
+    test_adapter_options ++
+      [
+        headers: headers,
+        connect_options: connect_options,
+        receive_timeout: Keyword.get(opts, :receive_timeout, @default_receive_timeout),
+        redirect: false,
+        retry: false,
+        into: streaming_body(max_bytes)
+      ]
   end
 
   defp handle_response(result, include_size? \\ false)
