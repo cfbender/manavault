@@ -116,7 +116,7 @@ export function AppShell() {
 
   return (
     <PageTitleProvider>
-      <div className="min-h-screen bg-base-100 text-base-content">
+      <div className="app-shell-root min-h-screen bg-base-100 text-base-content">
         <header
           className={cn(
             "app-shell-header sticky top-0 z-30",

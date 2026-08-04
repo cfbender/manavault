@@ -181,7 +181,27 @@ defmodule ManavaultWeb.AppController do
             if (!document.documentElement.hasAttribute("data-theme")) {
               setTheme(storedTheme());
             }
-            window.addEventListener("storage", (e) => e.key === storageKey && setTheme(e.newValue || "system"));
+
+            const styleStorageKey = "manavault:theme-style";
+
+            const storedThemeStyle = () => {
+              try {
+                return localStorage.getItem(styleStorageKey) === "glass" ? "glass" : "classic";
+              } catch {
+                return "classic";
+              }
+            };
+
+            const setThemeStyle = (style) => {
+              document.documentElement.setAttribute("data-theme-style", style === "glass" ? "glass" : "classic");
+            };
+            if (!document.documentElement.hasAttribute("data-theme-style")) {
+              setThemeStyle(storedThemeStyle());
+            }
+            window.addEventListener("storage", (e) => {
+              if (e.key === storageKey) setTheme(e.newValue || "system");
+              if (e.key === styleStorageKey) setThemeStyle(e.newValue);
+            });
 
             matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
               if (document.documentElement.getAttribute("data-theme-source") === "system") {
