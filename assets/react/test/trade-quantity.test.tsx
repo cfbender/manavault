@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, expect, test, vi } from "vitest"
 import { CardTile } from "../src/components/card-tile"
@@ -37,4 +37,50 @@ test("trade control shows offered copies separately from copies owned", async ()
 
   await user.click(tradeButton)
   expect(onToggleForTrade).toHaveBeenCalledTimes(1)
+})
+
+test("card reveal waits for a stationary touch to finish", () => {
+  const onSelect = vi.fn()
+  render(<CardTile name="Black Lotus" onSelect={onSelect} />)
+  const card = screen.getByRole("link", { name: "View Black Lotus" })
+
+  fireEvent.pointerDown(card, { clientX: 10, clientY: 10, pointerId: 1, pointerType: "touch" })
+  expect(card.classList.contains("scale-[1.035]")).toBe(false)
+
+  fireEvent.pointerUp(card, { clientX: 10, clientY: 10, pointerId: 1, pointerType: "touch" })
+  expect(card.classList.contains("scale-[1.035]")).toBe(true)
+
+  fireEvent.click(card)
+  expect(onSelect).not.toHaveBeenCalled()
+})
+
+test("dragging across a card neither reveals nor activates it", () => {
+  vi.useFakeTimers()
+  const onSelect = vi.fn()
+
+  try {
+    render(<CardTile name="Black Lotus" onSelect={onSelect} />)
+    const card = screen.getByRole("link", { name: "View Black Lotus" })
+
+    fireEvent.pointerDown(card, { clientX: 10, clientY: 10, pointerId: 1, pointerType: "touch" })
+    fireEvent.pointerMove(card, { clientX: 10, clientY: 30, pointerId: 1, pointerType: "touch" })
+    fireEvent.pointerUp(card, { clientX: 10, clientY: 30, pointerId: 1, pointerType: "touch" })
+    fireEvent.click(card)
+
+    expect(card.classList.contains("scale-[1.035]")).toBe(false)
+    expect(onSelect).not.toHaveBeenCalled()
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+test("mouse and keyboard primary actions remain immediate", () => {
+  const onSelect = vi.fn()
+  render(<CardTile name="Black Lotus" onSelect={onSelect} />)
+  const card = screen.getByRole("link", { name: "View Black Lotus" })
+
+  fireEvent.click(card)
+  fireEvent.keyDown(card, { key: "Enter" })
+
+  expect(onSelect).toHaveBeenCalledTimes(2)
 })

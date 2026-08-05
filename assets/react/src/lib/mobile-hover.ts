@@ -16,6 +16,7 @@ const INTERACTIVE_SELECTOR = "a,button,input,select,textarea,label,[role='button
 
 export const MOBILE_HOVER_SKIP_ATTRIBUTE = "data-mobile-hover-skip"
 export const MOBILE_HOVER_SKIP_SELECTOR = `[${MOBILE_HOVER_SKIP_ATTRIBUTE}]`
+export const MOBILE_HOVER_MOVE_THRESHOLD_PX = 8
 
 export function hasMobileHoverInteraction() {
   return (
@@ -101,6 +102,22 @@ export function shouldSuppressMobileHoverClick({
   return revealedByPointerDown
 }
 
+export function didMobileHoverPointerMove({
+  currentX,
+  currentY,
+  startX,
+  startY,
+  threshold = MOBILE_HOVER_MOVE_THRESHOLD_PX,
+}: {
+  currentX: number
+  currentY: number
+  startX: number
+  startY: number
+  threshold?: number
+}) {
+  return Math.hypot(currentX - startX, currentY - startY) > threshold
+}
+
 export function shouldClearMobileHoverReveal({
   isInsideTarget,
   isRevealed,
@@ -115,6 +132,7 @@ type UseMobileHoverRevealOptions<T extends HTMLElement> = {
   canReveal?: boolean
   clearOnOutsidePointerDown?: boolean
   containerRef?: RefObject<T | null>
+  deferRevealUntilPointerUp?: boolean
   isInteractiveTarget?: (target: EventTarget | null, currentTarget: EventTarget | null) => boolean
   isRevealed?: boolean
   onRevealChange?: (isRevealed: boolean) => void
@@ -124,6 +142,7 @@ export function useMobileHoverReveal<T extends HTMLElement>({
   canReveal = true,
   clearOnOutsidePointerDown = true,
   containerRef,
+  deferRevealUntilPointerUp = false,
   isInteractiveTarget = (target, currentTarget) =>
     isNestedInteractiveHoverTarget({ currentTarget, target }) || isMobileHoverSkipTarget(target),
   isRevealed: controlledRevealed,
@@ -132,8 +151,23 @@ export function useMobileHoverReveal<T extends HTMLElement>({
   const internalRef = useRef<T | null>(null)
   const [internalRevealed, setInternalRevealed] = useState(false)
   const revealedByPointerDownRef = useRef(false)
+  const pendingRevealRef = useRef<{
+    moved: boolean
+    pointerId: number
+    startX: number
+    startY: number
+  } | null>(null)
+  const suppressClickTimeoutRef = useRef<number | null>(null)
   const ref = containerRef ?? internalRef
   const isRevealed = controlledRevealed ?? internalRevealed
+
+  const clearSuppressClickTimeout = useCallback(() => {
+    if (suppressClickTimeoutRef.current === null) return
+    window.clearTimeout(suppressClickTimeoutRef.current)
+    suppressClickTimeoutRef.current = null
+  }, [])
+
+  useEffect(() => clearSuppressClickTimeout, [clearSuppressClickTimeout])
 
   const setRevealed = useCallback(
     (nextRevealed: boolean) => {
@@ -165,6 +199,7 @@ export function useMobileHoverReveal<T extends HTMLElement>({
 
   const onPointerDown = useCallback(
     (event: PointerEvent<T>) => {
+      clearSuppressClickTimeout()
       revealedByPointerDownRef.current = false
 
       if (
@@ -178,32 +213,101 @@ export function useMobileHoverReveal<T extends HTMLElement>({
         return false
       }
 
+      if (deferRevealUntilPointerUp) {
+        pendingRevealRef.current = {
+          moved: false,
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+        }
+        return true
+      }
+
       revealedByPointerDownRef.current = true
       setRevealed(true)
       return true
     },
-    [canReveal, isInteractiveTarget, isRevealed, setRevealed],
+    [
+      canReveal,
+      clearSuppressClickTimeout,
+      deferRevealUntilPointerUp,
+      isInteractiveTarget,
+      isRevealed,
+      setRevealed,
+    ],
   )
 
-  const suppressClickIfRevealed = useCallback((event: MouseEvent<HTMLElement>) => {
+  const onPointerMove = useCallback((event: PointerEvent<T>) => {
+    const pendingReveal = pendingRevealRef.current
+    if (!pendingReveal || pendingReveal.pointerId !== event.pointerId) return
+
     if (
-      !shouldSuppressMobileHoverClick({
-        revealedByPointerDown: revealedByPointerDownRef.current,
+      didMobileHoverPointerMove({
+        currentX: event.clientX,
+        currentY: event.clientY,
+        startX: pendingReveal.startX,
+        startY: pendingReveal.startY,
       })
     ) {
-      return false
+      pendingReveal.moved = true
     }
-
-    revealedByPointerDownRef.current = false
-    event.preventDefault()
-    event.stopPropagation()
-    return true
   }, [])
 
+  const onPointerUp = useCallback(
+    (event: PointerEvent<T>) => {
+      const pendingReveal = pendingRevealRef.current
+      if (!pendingReveal || pendingReveal.pointerId !== event.pointerId) return false
+
+      pendingRevealRef.current = null
+
+      if (pendingReveal.moved) {
+        revealedByPointerDownRef.current = true
+        suppressClickTimeoutRef.current = window.setTimeout(() => {
+          revealedByPointerDownRef.current = false
+          suppressClickTimeoutRef.current = null
+        }, 0)
+        return false
+      }
+
+      revealedByPointerDownRef.current = true
+      setRevealed(true)
+      return true
+    },
+    [setRevealed],
+  )
+
+  const onPointerCancel = useCallback((event: PointerEvent<T>) => {
+    if (pendingRevealRef.current?.pointerId === event.pointerId) {
+      pendingRevealRef.current = null
+      revealedByPointerDownRef.current = false
+    }
+  }, [])
+
+  const suppressClickIfRevealed = useCallback(
+    (event: MouseEvent<HTMLElement>) => {
+      if (
+        !shouldSuppressMobileHoverClick({
+          revealedByPointerDown: revealedByPointerDownRef.current,
+        })
+      ) {
+        return false
+      }
+
+      clearSuppressClickTimeout()
+      revealedByPointerDownRef.current = false
+      event.preventDefault()
+      event.stopPropagation()
+      return true
+    },
+    [clearSuppressClickTimeout],
+  )
+
   const clearReveal = useCallback(() => {
+    clearSuppressClickTimeout()
+    pendingRevealRef.current = null
     revealedByPointerDownRef.current = false
     setRevealed(false)
-  }, [setRevealed])
+  }, [clearSuppressClickTimeout, setRevealed])
 
   const clearRevealOnBlur = useCallback(
     (event: FocusEvent<T>) => {
@@ -218,7 +322,10 @@ export function useMobileHoverReveal<T extends HTMLElement>({
     clearReveal,
     clearRevealOnBlur,
     isRevealed,
+    onPointerCancel,
     onPointerDown,
+    onPointerMove,
+    onPointerUp,
     ref,
     suppressClickIfRevealed,
   }

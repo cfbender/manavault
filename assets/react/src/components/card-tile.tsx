@@ -156,7 +156,7 @@ export function CardTile({
     forTradeActive && forTradeQuantity >= (forTradeTotalQuantity ?? forTradeQuantity)
       ? `Remove all ${tradeCardName} copies from trade`
       : `Offer ${forTradeQuantity + 1} of ${forTradeTotalQuantity ?? count ?? 1} ${tradeCardName} copies for trade`
-  const mobileHover = useMobileHoverReveal<HTMLDivElement>()
+  const mobileHover = useMobileHoverReveal<HTMLDivElement>({ deferRevealUntilPointerUp: true })
   const suppressMenuClickRef = useRef(false)
   const suppressMenuClickTimeoutRef = useRef<number | null>(null)
   const fallbackDefaultActions: CardTileAction[] = [
@@ -242,7 +242,10 @@ export function CardTile({
       onBlur={handleBlur}
       onClick={hasPrimaryAction ? handleClick : undefined}
       onKeyDown={handleKeyDown}
+      onPointerCancel={mobileHover.onPointerCancel}
       onPointerDown={mobileHover.onPointerDown}
+      onPointerMove={mobileHover.onPointerMove}
+      onPointerUp={mobileHover.onPointerUp}
       role={selectionClickActive ? "button" : onSelect ? primaryActionRole : undefined}
       style={{ maxWidth: `min(${size.widthPx}px, 100%)` }}
       tabIndex={hasPrimaryAction ? 0 : undefined}

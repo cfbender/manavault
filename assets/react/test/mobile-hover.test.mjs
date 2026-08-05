@@ -2,6 +2,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 
 import {
+  didMobileHoverPointerMove,
   isMobileHoverSkipTarget,
   isNestedInteractiveHoverTarget,
   shouldClearMobileHoverReveal,
@@ -62,6 +63,17 @@ test("mobile hover does not reveal when there is no hover state or nested contro
 test("mobile hover suppresses only the click produced by the reveal tap", () => {
   assert.equal(shouldSuppressMobileHoverClick({ revealedByPointerDown: true }), true)
   assert.equal(shouldSuppressMobileHoverClick({ revealedByPointerDown: false }), false)
+})
+
+test("mobile hover distinguishes a stationary tap from a scroll gesture", () => {
+  assert.equal(
+    didMobileHoverPointerMove({ currentX: 13, currentY: 14, startX: 10, startY: 10 }),
+    false,
+  )
+  assert.equal(
+    didMobileHoverPointerMove({ currentX: 10, currentY: 19, startX: 10, startY: 10 }),
+    true,
+  )
 })
 
 test("mobile hover clears on outside taps while preserving inside second taps", () => {
