@@ -47,7 +47,7 @@ Useful production/container commands are documented in `README.md`.
 - Keep changes small and focused.
 - Run the narrowest relevant tests before reporting completion.
 - Update documentation when project structure, setup, or runtime behavior changes.
-- Use aube instead of npm for anything JS packaging related
+- Use `mise exec -- aube` instead of invoking `aube` directly or using npm for JS package and task commands. Fresh orbs do not expose aube directly on `PATH`.
 
 <!-- BACKLOG.MD GUIDELINES START -->
 <!-- backlog.md-instructions-version: 1.48.0 -->
@@ -58,19 +58,19 @@ Useful production/container commands are documented in `README.md`.
 
 This project uses Backlog.md for task and project management.
 
-**For every user request in this project, run `backlog instructions overview` before answering or taking action.**
+**For every user request in this project, run `mise exec -- backlog instructions overview` before answering or taking action.** The Backlog CLI is managed by mise and may not be directly available on `PATH`, especially during first-time orb setup.
 
 Use the overview to decide whether to search, read, create, or update Backlog tasks.
 
 Before task lifecycle actions, read the matching detailed guide:
 
-- `backlog instructions task-creation` before creating or splitting tasks
-- `backlog instructions task-execution` before planning, changing status or assignee, adding a plan or implementation notes, or implementing task work
-- `backlog instructions task-finalization` before checking acceptance criteria, writing final summaries, or moving tasks to terminal statuses
+- `mise exec -- backlog instructions task-creation` before creating or splitting tasks
+- `mise exec -- backlog instructions task-execution` before planning, changing status or assignee, adding a plan or implementation notes, or implementing task work
+- `mise exec -- backlog instructions task-finalization` before checking acceptance criteria, writing final summaries, or moving tasks to terminal statuses
 
-Use `backlog <command> --help` before running unfamiliar commands. Help shows options, fields, and examples.
+Use `mise exec -- backlog <command> --help` before running unfamiliar commands. Help shows options, fields, and examples.
 
-Do not edit Backlog task, draft, document, decision, or milestone markdown files directly. Use the `backlog` CLI so metadata, relationships, and history stay consistent.
+Do not edit Backlog task, draft, document, decision, or milestone markdown files directly. Use `mise exec -- backlog` so metadata, relationships, and history stay consistent.
 
 </CRITICAL_INSTRUCTION>
 

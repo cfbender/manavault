@@ -87,8 +87,19 @@ export LC_ALL=C.UTF-8
 EOF
 fi
 
+amp_guidance="$HOME/.config/amp/AGENTS.md"
+amp_guidance_marker="# manavault mise command guidance"
+mkdir -p "$(dirname "$amp_guidance")"
+if ! grep -Fqx "$amp_guidance_marker" "$amp_guidance" 2>/dev/null; then
+  cat >> "$amp_guidance" <<'EOF'
+
+# manavault mise command guidance
+When working in the ManaVault repository, invoke project-managed tools through mise from the first command onward. Use `mise exec -- backlog ...` rather than `backlog ...`, and use `mise exec -- aube ...` rather than `aube ...`; fresh orbs do not expose those tools directly on PATH.
+EOF
+fi
+
 echo "==> Installing the pinned web development toolchain"
-mise install -y aube erlang elixir node
+mise install -y aube erlang elixir node "npm:backlog.md"
 
 echo "==> Installing Hex and Rebar"
 mise exec -- mix local.hex --force
@@ -96,6 +107,9 @@ mise exec -- mix local.rebar --force
 
 echo "==> Installing JavaScript dependencies"
 mise exec -- aube install --frozen-lockfile
+
+echo "==> Installing Impeccable for Amp"
+mise exec -- aubx impeccable install -y --providers=codex --scope=project --no-hooks
 
 echo "==> Installing Elixir dependencies, migrating the database, and building assets"
 mise exec -- mix setup
