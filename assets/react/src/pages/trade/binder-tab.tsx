@@ -1,15 +1,24 @@
 import { useMutation, useQuery } from "@apollo/client/react"
-import { Share2 } from "lucide-react"
+import { ListFilter, Share2 } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { EmptyState } from "../../components/card-image"
 import { SearchField } from "../../components/search-field"
 import { Button } from "../../components/ui/button"
 import { useToast } from "../../components/ui/toast"
+import {
+  buildCollectionFilterQuery,
+  combineCollectionQueries,
+  countActiveCollectionFilters,
+  type CollectionFilterState,
+} from "../../lib/collection-filters"
 import { pluralize, present } from "../../lib/utils"
 import { COLLECTION_PAGE_SIZE, DEFAULT_COLLECTION_SORT } from "../collection/constants"
 import { CollectionItemGroupsPageDocument } from "../collection/documents"
+import { CollectionFilterModal } from "../collection/filter-modal"
 import { VirtualizedCollectionGrid } from "../collection/selection-grid"
-import type { CollectionItemGroup } from "../collection/types"
+import { SortDropdown } from "../collection/sort-controls"
+import { createEmptyCollectionFilters } from "../collection/storage"
+import type { CollectionItemGroup, CollectionSort } from "../collection/types"
 import { BinderShareDialog } from "./binder-share-dialog"
 import { SetCollectionItemsForTradeQuantityDocument, TradeBinderCountDocument } from "./documents"
 
@@ -25,7 +34,13 @@ export function BinderTab() {
   const { showToast } = useToast()
   const [q, setQ] = useState("")
   const [appliedQ, setAppliedQ] = useState("")
+  const [sort, setSort] = useState<CollectionSort>(DEFAULT_COLLECTION_SORT)
+  const [structuredFilters, setStructuredFilters] = useState<CollectionFilterState>(
+    createEmptyCollectionFilters,
+  )
   const [forTradeOnly, setForTradeOnly] = useState(false)
+  const [includeAllocated, setIncludeAllocated] = useState(false)
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
   const [isFetchingMore, setIsFetchingMore] = useState(false)
   const [isShareOpen, setIsShareOpen] = useState(false)
   const [pendingPrintingIds, setPendingPrintingIds] = useState<Set<string>>(new Set())
@@ -36,16 +51,20 @@ export function BinderTab() {
     return () => window.clearTimeout(timeout)
   }, [q])
 
+  const structuredFilterSyntax = buildCollectionFilterQuery(structuredFilters)
+  const combinedQuery = combineCollectionQueries(appliedQ, structuredFilterSyntax)
+  const activeFilterCount = countActiveCollectionFilters(structuredFilters)
   const filters = useMemo(
     () => ({
-      ...(appliedQ ? { q: appliedQ } : {}),
+      ...(combinedQuery ? { q: combinedQuery } : {}),
       ...(forTradeOnly ? { forTrade: true } : {}),
+      ...(!includeAllocated ? { unallocatedOnly: true } : {}),
     }),
-    [appliedQ, forTradeOnly],
+    [combinedQuery, forTradeOnly, includeAllocated],
   )
 
   const binderQuery = useQuery(CollectionItemGroupsPageDocument, {
-    variables: { filters, sort: DEFAULT_COLLECTION_SORT, first: COLLECTION_PAGE_SIZE, after: null },
+    variables: { filters, sort, first: COLLECTION_PAGE_SIZE, after: null },
     fetchPolicy: "cache-and-network",
   })
   const countQuery = useQuery(TradeBinderCountDocument, { fetchPolicy: "cache-and-network" })
@@ -74,13 +93,13 @@ export function BinderTab() {
       .fetchMore({
         variables: {
           filters,
-          sort: DEFAULT_COLLECTION_SORT,
+          sort,
           first: COLLECTION_PAGE_SIZE,
           after: pageInfo?.endCursor ?? null,
         },
       })
       .finally(() => setIsFetchingMore(false))
-  }, [binderQuery, filters, hasNextPage, isFetchingMore, pageInfo?.endCursor])
+  }, [binderQuery, filters, hasNextPage, isFetchingMore, pageInfo?.endCursor, sort])
 
   const [setForTradeQuantity] = useMutation(SetCollectionItemsForTradeQuantityDocument)
 
@@ -136,6 +155,11 @@ export function BinderTab() {
   const isInitialLoading = binderQuery.loading && !binderQuery.data
   const forTradeCount = countQuery.data?.collectionItemCount
 
+  function applyStructuredFilters(nextFilters: CollectionFilterState) {
+    setStructuredFilters(nextFilters)
+    setIsFilterModalOpen(false)
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -147,6 +171,21 @@ export function BinderTab() {
             onValueChange={setQ}
             className="w-64 max-w-full"
           />
+          <SortDropdown sort={sort} onSortChange={setSort} />
+          <Button
+            type="button"
+            variant="outline"
+            className="relative"
+            onClick={() => setIsFilterModalOpen(true)}
+          >
+            <ListFilter className="h-4 w-4" />
+            Filter
+            {activeFilterCount ? (
+              <span className="badge badge-primary badge-sm absolute -right-2 -top-2 min-w-5">
+                {activeFilterCount}
+              </span>
+            ) : null}
+          </Button>
           <label className="label cursor-pointer justify-start gap-2 rounded-btn border border-base-300 px-3 py-2">
             <input
               type="checkbox"
@@ -155,6 +194,15 @@ export function BinderTab() {
               onChange={(event) => setForTradeOnly(event.target.checked)}
             />
             <span className="label-text text-sm">Only for trade</span>
+          </label>
+          <label className="label cursor-pointer justify-start gap-2 rounded-btn border border-base-300 px-3 py-2">
+            <input
+              type="checkbox"
+              className="checkbox checkbox-sm checkbox-primary"
+              checked={includeAllocated}
+              onChange={(event) => setIncludeAllocated(event.target.checked)}
+            />
+            <span className="label-text text-sm">Include deck cards</span>
           </label>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -188,6 +236,13 @@ export function BinderTab() {
         />
       )}
 
+      <CollectionFilterModal
+        filters={structuredFilters}
+        open={isFilterModalOpen}
+        onApply={applyStructuredFilters}
+        onClear={() => setStructuredFilters(createEmptyCollectionFilters())}
+        onClose={() => setIsFilterModalOpen(false)}
+      />
       <BinderShareDialog open={isShareOpen} onOpenChange={setIsShareOpen} />
     </div>
   )
