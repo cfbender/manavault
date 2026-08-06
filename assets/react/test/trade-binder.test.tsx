@@ -134,9 +134,11 @@ test("trade binder applies collection sorting and structured filters", async () 
   renderBinder()
 
   await user.click(screen.getByRole("button", { name: "Sort by Card name, Asc" }))
-  await user.click(screen.getByRole("button", { name: "Descending" }))
+  const sortMenu = screen.getByRole("menu")
+  expect(sortMenu.classList.contains("w-[min(18rem,calc(100vw-2rem))]")).toBe(true)
+  await user.click(screen.getByRole("menuitem", { name: "Descending" }))
   await user.click(screen.getByRole("button", { name: "Sort by Card name, Desc" }))
-  await user.click(screen.getByRole("button", { name: "Price" }))
+  await user.click(screen.getByRole("menuitem", { name: "Price" }))
 
   expect(latestBinderQueryOptions().variables?.sort).toEqual({ field: "price", direction: "desc" })
 
@@ -156,6 +158,23 @@ test("trade binder applies collection sorting and structured filters", async () 
     q: '(name:"Black Lotus")',
     unallocatedOnly: true,
   })
+})
+
+test("sort dropdown supports keyboard navigation", async () => {
+  const user = userEvent.setup()
+  renderBinder()
+  const trigger = screen.getByRole("button", { name: "Sort by Card name, Asc" })
+
+  trigger.focus()
+  await user.keyboard("{Enter}")
+  await waitFor(() =>
+    expect(document.activeElement).toBe(screen.getByRole("menuitem", { name: "Ascending" })),
+  )
+  await user.keyboard("{ArrowDown}{Enter}")
+
+  expect(screen.getByRole("button", { name: "Sort by Card name, Desc" })).toBeInstanceOf(
+    HTMLElement,
+  )
 })
 
 test("trade quantity updates optimistically without refetching the binder", async () => {
