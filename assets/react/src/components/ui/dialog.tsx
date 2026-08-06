@@ -119,7 +119,7 @@ export function DialogContent({
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="fixed inset-0 z-[1100] bg-black/65 backdrop-blur-sm" />
-      <div className="pointer-events-none fixed inset-0 z-[1100] flex items-stretch justify-center overflow-hidden pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] sm:items-center sm:overflow-y-auto sm:px-4 sm:pb-[calc(env(safe-area-inset-bottom)_+_2rem)] sm:pt-[calc(env(safe-area-inset-top)_+_2rem)]">
+      <div className="pointer-events-none fixed inset-0 z-[1100] flex items-stretch justify-center overflow-hidden pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] sm:items-center sm:overflow-y-auto sm:pb-[calc(env(safe-area-inset-bottom)_+_2rem)] sm:pl-[calc(env(safe-area-inset-left)_+_1rem)] sm:pr-[calc(env(safe-area-inset-right)_+_1rem)] sm:pt-[calc(env(safe-area-inset-top)_+_2rem)]">
         <DialogPrimitive.Content
           aria-describedby={describedBy}
           {...(labelledBy ? { "aria-labelledby": labelledBy } : {})}
@@ -141,7 +141,7 @@ export function DialogContent({
         >
           <section
             className={cn(
-              "pointer-events-auto flex h-full max-h-full min-h-0 w-full flex-col overflow-y-auto rounded-none border-y border-base-300 bg-base-100 shadow-2xl sm:h-auto sm:max-h-[calc(100dvh_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom)_-_4rem)] sm:rounded-box sm:border",
+              "pointer-events-auto flex h-full max-h-full min-h-0 min-w-0 w-full max-w-full flex-col overflow-x-hidden overflow-y-auto rounded-none border-y border-base-300 bg-base-100 shadow-2xl sm:h-auto sm:max-h-[calc(100dvh_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom)_-_4rem)] sm:rounded-box sm:border",
               className,
             )}
             {...props}

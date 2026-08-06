@@ -118,23 +118,11 @@ export function BinderTab() {
         },
       })
 
-      const [binderRefresh, countRefresh] = await Promise.allSettled([
-        binderQuery.refetch(),
-        countQuery.refetch(),
-      ])
-
-      if (binderRefresh.status === "fulfilled") {
-        setTradeQuantityOverrides((current) => {
-          const { [group.printingId]: _removed, ...rest } = current
-          return rest
-        })
-      }
-
-      if (binderRefresh.status === "rejected" || countRefresh.status === "rejected") {
-        showToast("Trade quantity was saved, but the binder could not be fully refreshed.", {
+      void countQuery.refetch().catch(() => {
+        showToast("Trade quantity was saved, but the binder count could not be refreshed.", {
           tone: "info",
         })
-      }
+      })
     } catch (error) {
       setTradeQuantityOverrides((current) => {
         const { [group.printingId]: _removed, ...rest } = current

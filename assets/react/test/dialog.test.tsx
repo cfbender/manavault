@@ -156,6 +156,10 @@ describe("Dialog", () => {
     const lastButton = controls.getByRole("button", { name: "Last action" })
 
     expect(dialog.getAttribute("aria-describedby")).toBe("inventory-dialog-description")
+    expect(dialog.classList.contains("min-w-0")).toBe(true)
+    expect(dialog.classList.contains("overflow-x-hidden")).toBe(true)
+    expect(dialog.parentElement?.classList.contains("pl-[env(safe-area-inset-left)]")).toBe(true)
+    expect(dialog.parentElement?.classList.contains("pr-[env(safe-area-inset-right)]")).toBe(true)
     expect(screen.getByText("Choose an inventory action.").id).toBe("inventory-dialog-description")
     expect(appRoot.getAttribute("aria-hidden")).toBe("true")
     await waitFor(() => expect(document.activeElement).toBe(closeButton))
