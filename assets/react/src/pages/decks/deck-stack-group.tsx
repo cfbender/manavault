@@ -6,6 +6,7 @@ import { GroupIcon } from "./deck-card-display"
 import { isLegendaryCreature } from "./deck-card-model"
 import { DeckStackCard, DeckUnstackedSelectCard } from "./deck-stack-card"
 import {
+  deckStackCardMenuOwnerId,
   isDeckStackPointerCaptured,
   shouldClearDeckStackTouchReveal,
   shouldUnstackDeckStackGroup,
@@ -109,9 +110,16 @@ export function DeckStackGroup({
     if (pinnedIndex == null) return
 
     function clearPinnedCard(event: globalThis.PointerEvent) {
+      // Radix menu content is portalled outside the stack DOM; treat a
+      // pointerdown inside the pinned card's own menu as inside the stack.
+      const isInsidePinnedCardMenu =
+        pinnedIndex != null &&
+        deckStackCardMenuOwnerId(event.target) === group.cards[pinnedIndex]?.id
       if (
         !shouldClearDeckStackTouchReveal({
-          isInsideStack: stackRef.current?.contains(event.target as Node | null) === true,
+          isInsideStack:
+            stackRef.current?.contains(event.target as Node | null) === true ||
+            isInsidePinnedCardMenu,
           isPinned: pinnedIndex != null,
         })
       ) {
@@ -175,6 +183,10 @@ export function DeckStackGroup({
     // Reset first so a stale armed flag from a prior reveal can't swallow this
     // gesture's click.
     suppressStackClickRef.current = false
+    // Radix menu content is portalled to the body but its events still bubble
+    // through the React tree; card hit-testing must only run for touches that
+    // physically land on the stack.
+    if (!event.currentTarget.contains(event.target as Node)) return
     if (event.pointerType !== "touch" || isSelecting) return
 
     const bounds = event.currentTarget.getBoundingClientRect()
@@ -201,6 +213,7 @@ export function DeckStackGroup({
   }
 
   function handleClickCapture(event: MouseEvent<HTMLDivElement>) {
+    if (!event.currentTarget.contains(event.target as Node)) return
     if (!suppressStackClickRef.current) return
     suppressStackClickRef.current = false
     event.preventDefault()
@@ -259,7 +272,6 @@ export function DeckStackGroup({
               deckId={deckId}
               deckTags={deckTags}
               index={index}
-              isLast={index === group.cards.length - 1}
               isActive={activeIndex === index}
               isSelecting={isSelecting}
               isSelected={selectedCardIds.has(deckCard.id)}

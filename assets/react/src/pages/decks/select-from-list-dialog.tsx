@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog"
+import { Textarea } from "../../components/ui/textarea"
 import { useToast } from "../../components/ui/toast"
 import { pluralize } from "../../lib/utils"
 import { matchDeckCardsToNames, parseSelectListNames } from "./deck-select-list"
@@ -74,8 +75,8 @@ export function SelectFromListDialog({
             <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
               Card list
             </span>
-            <textarea
-              className="textarea textarea-bordered min-h-60 w-full bg-base-100 font-mono text-sm"
+            <Textarea
+              className="min-h-60 bg-base-100 font-mono text-sm"
               value={text}
               onChange={(event) => setText(event.target.value)}
               placeholder={"1 Sol Ring\nArcane Signet\n2x Negate"}

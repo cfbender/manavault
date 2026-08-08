@@ -10,6 +10,14 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
+import {
+  SELECT_NONE_VALUE,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
 import type { DeckCardUpdateInput } from "../../gql/graphql"
 import { cn, present, titleize } from "../../lib/utils"
 import { ZoneIcon } from "./deck-card-display"
@@ -329,35 +337,41 @@ export function EditDeckCardDialog({
 
             <label className="form-control">
               <span className="label-text mb-1 text-sm font-semibold">Finish</span>
-              <select
-                className="select select-bordered w-full"
-                value={finish}
-                disabled={isPending}
-                onChange={(event) => setFinish(event.target.value)}
-              >
-                {finishOptions.map((finish) => (
-                  <option key={finish} value={finish}>
-                    {titleize(finish)}
-                  </option>
-                ))}
-              </select>
+              <Select value={finish} disabled={isPending} onValueChange={setFinish}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {finishOptions.map((finish) => (
+                    <SelectItem key={finish} value={finish}>
+                      {titleize(finish)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </label>
 
             <label className="form-control">
               <span className="label-text mb-1 text-sm font-semibold">Tag</span>
-              <select
-                className="select select-bordered w-full"
-                value={tag}
+              <Select
+                value={tag || SELECT_NONE_VALUE}
                 disabled={isPending}
-                onChange={(event) => setTag(event.target.value as DeckCardTag | "")}
+                onValueChange={(value) =>
+                  setTag(value === SELECT_NONE_VALUE ? "" : (value as DeckCardTag))
+                }
               >
-                <option value="">No tag</option>
-                {DECK_CARD_TAGS.map((tag) => (
-                  <option key={tag.value} value={tag.value}>
-                    {tag.label}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SELECT_NONE_VALUE}>No tag</SelectItem>
+                  {DECK_CARD_TAGS.map((tag) => (
+                    <SelectItem key={tag.value} value={tag.value}>
+                      {tag.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </label>
           </div>
 

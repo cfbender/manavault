@@ -7,8 +7,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu"
+import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs"
 import { cn } from "../../lib/utils"
-import { CollectionTabButton } from "./sort-controls"
 import type { CollectionTab, CollectionValueSummary } from "./types"
 import { collectionValueGainClass } from "./value-summary"
 
@@ -183,21 +183,31 @@ function CollectionTabs({
         </DropdownMenu>
       </div>
 
-      <div
-        className="mb-7 hidden flex-wrap gap-2 border-b border-base-300 sm:flex"
-        role="tablist"
-        aria-label="Collection view"
+      <Tabs
+        value={activeTab}
+        onValueChange={(tab) => onSelectTab(tab as CollectionTab)}
+        className="hidden sm:block"
       >
-        {tabs.map(({ tab, label, count }) => (
-          <CollectionTabButton
-            key={tab}
-            active={activeTab === tab}
-            count={count}
-            label={label}
-            onClick={() => onSelectTab(tab)}
-          />
-        ))}
-      </div>
+        <TabsList aria-label="Collection view">
+          {tabs.map(({ tab, label, count }) => (
+            <TabsTrigger
+              key={tab}
+              value={tab}
+              id={`collection-tab-${tab}`}
+              aria-controls="collection-view-panel"
+            >
+              <span>{label}</span>
+              <span
+                className={
+                  tab === activeTab ? "badge badge-primary badge-sm" : "badge badge-ghost badge-sm"
+                }
+              >
+                {count}
+              </span>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
     </>
   )
 }

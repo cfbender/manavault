@@ -11,6 +11,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog"
+import {
+  SELECT_NONE_VALUE,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
+import { Textarea } from "../../components/ui/textarea"
 import { useToast } from "../../components/ui/toast"
 import { refetchActiveQueries } from "../../lib/apollo"
 import type { SharedImportPayload } from "../../lib/native-shared-import"
@@ -315,20 +324,24 @@ export function ImportCollectionDialog({
                 <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
                   Import location
                 </span>
-                <select
-                  className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  value={locationId}
-                  onChange={(event) => setLocationId(event.target.value)}
+                <Select
+                  value={locationId || SELECT_NONE_VALUE}
+                  onValueChange={(value) => setLocationId(value === SELECT_NONE_VALUE ? "" : value)}
                 >
-                  <option value="">No location</option>
-                  {locations
-                    .filter((location) => !isUnfiledLocation(location))
-                    .map((location) => (
-                      <option key={location.id} value={location.id}>
-                        {location.name} ({titleize(location.kind)})
-                      </option>
-                    ))}
-                </select>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={SELECT_NONE_VALUE}>No location</SelectItem>
+                    {locations
+                      .filter((location) => !isUnfiledLocation(location))
+                      .map((location) => (
+                        <SelectItem key={location.id} value={location.id}>
+                          {location.name} ({titleize(location.kind)})
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
               </label>
 
               <label className="block space-y-2">
@@ -375,23 +388,27 @@ export function ImportCollectionDialog({
                 <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
                   File type
                 </span>
-                <select
-                  className="select select-bordered w-full bg-base-100"
+                <Select
                   value={format}
-                  onChange={(event) => setFormat(event.target.value as CollectionImportFormat)}
+                  onValueChange={(value) => setFormat(value as CollectionImportFormat)}
                 >
-                  <option value="auto">Auto-detect</option>
-                  <option value="csv">CSV</option>
-                  <option value="txt">TXT list</option>
-                </select>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Auto-detect</SelectItem>
+                    <SelectItem value="csv">CSV</SelectItem>
+                    <SelectItem value="txt">TXT list</SelectItem>
+                  </SelectContent>
+                </Select>
               </label>
 
               <label className="block space-y-2">
                 <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
                   Import text
                 </span>
-                <textarea
-                  className="textarea textarea-bordered min-h-40 w-full bg-base-100 font-mono text-sm"
+                <Textarea
+                  className="min-h-40 font-mono text-sm"
                   value={importText}
                   onChange={(event) => updateImportText(event.target.value)}
                   placeholder={"1x Jund Charm (C13) 195\n1x Zuko's Exile (TLA) 3 *F*"}
@@ -655,8 +672,8 @@ export function ExportCollectionDialog({
 
         <div className="space-y-4 p-5">
           {isCsvExport ? null : (
-            <textarea
-              className="textarea textarea-bordered min-h-72 w-full bg-base-100 font-mono text-xs"
+            <Textarea
+              className="min-h-72 font-mono text-xs"
               readOnly
               value={isExporting ? "Exporting..." : exportText}
             />

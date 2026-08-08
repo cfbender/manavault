@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog"
+import { Switch } from "../../components/ui/switch"
 import { cn, titleize } from "../../lib/utils"
 import { cardImageUrl } from "./deck-card-model"
 import type { DeckCardEntry } from "./deck-types"
@@ -108,12 +109,11 @@ export function OptimizePrintingsDialog({
                 : null}
             </p>
             <label className="flex items-center gap-2 text-sm text-base-content/70">
-              <input
-                type="checkbox"
-                className="toggle toggle-sm"
+              <Switch
+                size="sm"
                 checked={includeAllocatedCards}
                 disabled={isPending || selectableDeckCards.length === unallocatedDeckCards.length}
-                onChange={(event) => toggleIncludeAllocatedCards(event.currentTarget.checked)}
+                onCheckedChange={toggleIncludeAllocatedCards}
               />
               Include allocated cards
             </label>

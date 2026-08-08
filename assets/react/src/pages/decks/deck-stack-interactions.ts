@@ -1,45 +1,5 @@
 import { shouldRevealMobileHover } from "../../lib/mobile-hover.ts"
 
-export const DECK_STACK_ACTION_MENU_CLASS_NAME =
-  "menu dropdown-content z-[120] mt-0 w-52 flex-nowrap overflow-hidden overscroll-contain rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
-
-export const DECK_STACK_ACTION_MENU_DEFAULT_STYLE = {
-  marginTop: 0,
-  top: "1.75rem",
-} as const
-
-export const DECK_STACK_ACTION_MENU_TALL_STYLE = {
-  marginTop: 0,
-  top: "-0.5rem",
-} as const
-
-export function deckStackActionMenuStyle({
-  canSetCommander,
-  hasClearTag,
-}: {
-  canSetCommander: boolean
-  hasClearTag: boolean
-}) {
-  return canSetCommander && hasClearTag
-    ? DECK_STACK_ACTION_MENU_TALL_STYLE
-    : DECK_STACK_ACTION_MENU_DEFAULT_STYLE
-}
-
-export type DeckStackActionMenuDirection = "down" | "up"
-
-const DECK_STACK_ACTION_MENU_DIRECTIONS: Record<"first" | "last", DeckStackActionMenuDirection> = {
-  first: "down",
-  last: "down",
-}
-
-export function deckStackActionMenuDirection({
-  isLast,
-}: {
-  isLast: boolean
-}): DeckStackActionMenuDirection {
-  return DECK_STACK_ACTION_MENU_DIRECTIONS[isLast ? "last" : "first"]
-}
-
 export function shouldCloseDeckStackActionMenu({
   actionMenuHasFocus,
   isActive,
@@ -52,6 +12,18 @@ export function shouldCloseDeckStackActionMenu({
 
 export function shouldRaiseDeckStackCardForActionMenu({ isActive }: { isActive: boolean }) {
   return !isActive
+}
+
+export const DECK_STACK_CARD_MENU_ATTRIBUTE = "data-deck-stack-card-menu"
+
+export function deckStackCardMenuOwnerId(target: EventTarget | null): string | null {
+  if (typeof Element === "undefined" || !(target instanceof Element)) return null
+
+  return (
+    target
+      .closest(`[${DECK_STACK_CARD_MENU_ATTRIBUTE}]`)
+      ?.getAttribute(DECK_STACK_CARD_MENU_ATTRIBUTE) ?? null
+  )
 }
 
 export const DECK_STACK_POINTER_CAPTURE_ATTRIBUTE = "data-deck-stack-pointer-capture"

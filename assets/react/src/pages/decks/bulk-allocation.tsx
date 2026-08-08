@@ -2,6 +2,14 @@ import { useEffect, useRef, useState } from "react"
 import { Sparkles } from "lucide-react"
 import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
+import { Switch } from "../../components/ui/switch"
 import { useMobileHoverReveal } from "../../lib/mobile-hover"
 import {
   Dialog,
@@ -421,12 +429,11 @@ function AllocationToggle({
   return (
     <label className="label cursor-pointer gap-2 p-0 text-xs font-semibold text-base-content/70">
       <span className="label-text text-xs">{checked ? "Allocate" : "Skip"}</span>
-      <input
-        type="checkbox"
-        className="toggle toggle-primary toggle-sm"
+      <Switch
+        size="sm"
         checked={checked}
         aria-label={checked ? "Allocate this copy" : "Skip this copy"}
-        onChange={(event) => onChange(event.target.checked)}
+        onCheckedChange={onChange}
       />
     </label>
   )
@@ -444,18 +451,21 @@ function ChoiceSelect({
   return (
     <label className="grid gap-1 text-xs font-bold uppercase tracking-wide text-base-content/60">
       <span>Collection copy</span>
-      <select
-        className="select select-bordered select-sm w-full normal-case text-base-content"
+      <Select
         value={value ?? ""}
-        onChange={(event) => onSelectChoice(choice.id, event.target.value || null)}
+        onValueChange={(value) => onSelectChoice(choice.id, value || null)}
       >
-        <option value="">Choose a copy...</option>
-        {choice.candidates.map((candidate) => (
-          <option key={candidate.item.id} value={candidate.item.id}>
-            {candidateOptionLabel(candidate)}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger size="sm" className="normal-case text-base-content">
+          <SelectValue placeholder="Choose a copy..." />
+        </SelectTrigger>
+        <SelectContent>
+          {choice.candidates.map((candidate) => (
+            <SelectItem key={candidate.item.id} value={candidate.item.id}>
+              {candidateOptionLabel(candidate)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </label>
   )
 }

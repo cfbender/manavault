@@ -9,6 +9,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
 import { useToast } from "../../components/ui/toast"
 import { pluralize, present, titleize } from "../../lib/utils"
 import { NON_COMMANDER_ADD_CARD_ZONES, type DeckZone } from "../decks/deck-types"
@@ -107,19 +114,18 @@ export function AddCollectionItemToDeckDialog({
         <form className="space-y-4 p-5" onSubmit={submit}>
           <label className="block space-y-2">
             <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Deck</span>
-            <select
-              className="select select-bordered w-full bg-base-100"
-              value={deckId}
-              onChange={(event) => setDeckId(event.target.value)}
-              autoFocus
-            >
-              <option value="">Choose a deck</option>
-              {decks.map((deck) => (
-                <option key={deck.id} value={deck.id}>
-                  {deck.name} ({titleize(deck.format)})
-                </option>
-              ))}
-            </select>
+            <Select value={deckId} onValueChange={setDeckId}>
+              <SelectTrigger autoFocus>
+                <SelectValue placeholder="Choose a deck" />
+              </SelectTrigger>
+              <SelectContent>
+                {decks.map((deck) => (
+                  <SelectItem key={deck.id} value={deck.id}>
+                    {deck.name} ({titleize(deck.format)})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
           <fieldset className="space-y-2">
             <legend className="text-xs font-black uppercase tracking-[0.18em] text-accent">

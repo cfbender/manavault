@@ -9,6 +9,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog"
+import {
+  SELECT_NONE_VALUE,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
 import { useToast } from "../../components/ui/toast"
 import { pluralize, present, titleize } from "../../lib/utils"
 import { BulkUpdateCollectionItemsDocument, CollectionItemFormOptionsDocument } from "./documents"
@@ -127,23 +135,22 @@ export function MoveCollectionItemDialog({
             <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
               {listOnly ? "List" : "Location"}
             </span>
-            <select
-              className="select select-bordered w-full bg-base-100"
-              value={locationId}
-              onChange={(event) => setLocationId(event.target.value)}
-              autoFocus
+            <Select
+              value={listOnly ? locationId : locationId || SELECT_NONE_VALUE}
+              onValueChange={(value) => setLocationId(value === SELECT_NONE_VALUE ? "" : value)}
             >
-              {!listOnly ? (
-                <option value="">Unfiled</option>
-              ) : (
-                <option value="">Choose a list</option>
-              )}
-              {locations.map((location) => (
-                <option key={location.id} value={location.id}>
-                  {location.name} ({titleize(location.kind)})
-                </option>
-              ))}
-            </select>
+              <SelectTrigger autoFocus>
+                <SelectValue placeholder={listOnly ? "Choose a list" : undefined} />
+              </SelectTrigger>
+              <SelectContent>
+                {!listOnly ? <SelectItem value={SELECT_NONE_VALUE}>Unfiled</SelectItem> : null}
+                {locations.map((location) => (
+                  <SelectItem key={location.id} value={location.id}>
+                    {location.name} ({titleize(location.kind)})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
           {listOnly && !optionsQuery.loading && locations.length === 0 ? (
             <p className="text-sm text-base-content/60">

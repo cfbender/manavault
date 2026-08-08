@@ -10,17 +10,15 @@ import {
   Trash2,
   Upload,
 } from "lucide-react"
-import { type MouseEvent as ReactMouseEvent, type ReactNode } from "react"
+import { type ReactNode } from "react"
 
 import { CardTileOverlayButton } from "../../components/card-tile"
-
-export function blurFocusedMenuItem(event: ReactMouseEvent<HTMLElement>) {
-  const activeElement = event.currentTarget.ownerDocument.activeElement
-
-  if (activeElement instanceof HTMLElement && event.currentTarget.contains(activeElement)) {
-    activeElement.blur()
-  }
-}
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../../components/ui/dropdown-menu"
 
 export function ShareModeHidden({
   children,
@@ -60,97 +58,77 @@ export function SummaryActionMenu({
 }) {
   return (
     <div
-      className="dropdown dropdown-end absolute right-3 top-3 z-[80]"
+      className="absolute right-3 top-3 z-[80]"
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
     >
-      <CardTileOverlayButton tabIndex={0} aria-label={label}>
-        <MoreVertical />
-      </CardTileOverlayButton>
-      <ul
-        tabIndex={0}
-        className="menu dropdown-content z-50 mt-1 w-48 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-md"
-        onClick={blurFocusedMenuItem}
-      >
-        <li>
-          <button type="button" onClick={onEdit}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <CardTileOverlayButton aria-label={label}>
+            <MoreVertical />
+          </CardTileOverlayButton>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent sideOffset={2} className="w-48 shadow-md">
+          <DropdownMenuItem onSelect={onEdit}>
             <Edit3 className="h-4 w-4" />
             Edit
-          </button>
-        </li>
-        {onShare ? (
-          <li>
-            <button type="button" onClick={onShare}>
+          </DropdownMenuItem>
+          {onShare ? (
+            <DropdownMenuItem onSelect={onShare}>
               <Share2 className="h-4 w-4" />
               Share deck
-            </button>
-          </li>
-        ) : null}
-        {onImport ? (
-          <li>
-            <button type="button" onClick={onImport}>
+            </DropdownMenuItem>
+          ) : null}
+          {onImport ? (
+            <DropdownMenuItem onSelect={onImport}>
               <Upload className="h-4 w-4" />
               Import decklist
-            </button>
-          </li>
-        ) : null}
-        {onMissing ? (
-          <li>
-            <button type="button" onClick={onMissing}>
+            </DropdownMenuItem>
+          ) : null}
+          {onMissing ? (
+            <DropdownMenuItem onSelect={onMissing}>
               <ShoppingCart className="h-4 w-4" />
               Missing cards
-            </button>
-          </li>
-        ) : null}
-        {onOptimizePrintings ? (
-          <li>
-            <button type="button" onClick={onOptimizePrintings}>
+            </DropdownMenuItem>
+          ) : null}
+          {onOptimizePrintings ? (
+            <DropdownMenuItem onSelect={onOptimizePrintings}>
               <Sparkles className="h-4 w-4" />
               Optimize printings
-            </button>
-          </li>
-        ) : null}
-        {onEdhrec ? (
-          <li>
-            <button type="button" onClick={onEdhrec}>
+            </DropdownMenuItem>
+          ) : null}
+          {onEdhrec ? (
+            <DropdownMenuItem onSelect={onEdhrec}>
               <Sparkles className="h-4 w-4" />
               EDHREC
-            </button>
-          </li>
-        ) : null}
-        {onExport ? (
-          <li>
-            <button type="button" onClick={onExport}>
+            </DropdownMenuItem>
+          ) : null}
+          {onExport ? (
+            <DropdownMenuItem onSelect={onExport}>
               <Download className="h-4 w-4" />
               Export decklist
-            </button>
-          </li>
-        ) : null}
-        {onCompare ? (
-          <li>
-            <button type="button" onClick={onCompare}>
+            </DropdownMenuItem>
+          ) : null}
+          {onCompare ? (
+            <DropdownMenuItem onSelect={onCompare}>
               <ArrowLeftRight className="h-4 w-4" />
               Compare decklist
-            </button>
-          </li>
-        ) : null}
-        {onDisassemble ? (
-          <li>
-            <button type="button" className="text-error" onClick={onDisassemble}>
+            </DropdownMenuItem>
+          ) : null}
+          {onDisassemble ? (
+            <DropdownMenuItem destructive onSelect={onDisassemble}>
               <Scissors className="h-4 w-4" />
               Disassemble deck
-            </button>
-          </li>
-        ) : null}
-        {onDelete ? (
-          <li>
-            <button type="button" className="text-error" onClick={onDelete}>
+            </DropdownMenuItem>
+          ) : null}
+          {onDelete ? (
+            <DropdownMenuItem destructive onSelect={onDelete}>
               <Trash2 className="h-4 w-4" />
               Delete deck
-            </button>
-          </li>
-        ) : null}
-      </ul>
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 }

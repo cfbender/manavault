@@ -1,7 +1,5 @@
 import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
-import * as SelectPrimitive from "@radix-ui/react-select"
 import { useNavigate } from "@tanstack/react-router"
-import { Check, ChevronDown } from "lucide-react"
 import type { FormEvent } from "react"
 import { useEffect, useState } from "react"
 import { Button } from "../../components/ui/button"
@@ -13,6 +11,13 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
 import { useToast } from "../../components/ui/toast"
 import { pluralize, present, titleize } from "../../lib/utils"
 import { ADD_CARD_ZONES, NON_COMMANDER_ADD_CARD_ZONES, type DeckZone } from "../decks/deck-types"
@@ -168,45 +173,18 @@ export function AddCatalogCardToDeckDialog({
         <form className="space-y-4 p-5" onSubmit={submit}>
           <label className="form-control">
             <span className="label-text mb-1 text-sm font-semibold">Deck</span>
-            <SelectPrimitive.Root
-              value={deckId}
-              disabled={isAddingToDeck}
-              onValueChange={setDeckId}
-            >
-              <SelectPrimitive.Trigger
-                className="select select-bordered flex w-full items-center justify-between gap-2 bg-base-100 text-left outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
-                autoFocus
-              >
-                <SelectPrimitive.Value placeholder="Choose a deck" />
-                <SelectPrimitive.Icon asChild>
-                  <ChevronDown className="h-4 w-4 shrink-0 text-base-content/60" />
-                </SelectPrimitive.Icon>
-              </SelectPrimitive.Trigger>
-              <SelectPrimitive.Portal>
-                <SelectPrimitive.Content
-                  position="popper"
-                  sideOffset={4}
-                  className="z-[1200] max-h-64 min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-field border border-base-300 bg-base-100 text-sm shadow-xl"
-                >
-                  <SelectPrimitive.Viewport className="max-h-64 overflow-y-auto overscroll-contain p-1">
-                    {decks.map((deck) => (
-                      <SelectPrimitive.Item
-                        key={deck.id}
-                        value={deck.id}
-                        className="relative flex cursor-pointer select-none items-center rounded-field py-2 pl-8 pr-3 font-medium outline-none focus:bg-base-200 data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
-                      >
-                        <SelectPrimitive.ItemIndicator className="absolute left-2 inline-flex items-center">
-                          <Check className="h-4 w-4" />
-                        </SelectPrimitive.ItemIndicator>
-                        <SelectPrimitive.ItemText>
-                          {deck.name} ({titleize(deck.format)})
-                        </SelectPrimitive.ItemText>
-                      </SelectPrimitive.Item>
-                    ))}
-                  </SelectPrimitive.Viewport>
-                </SelectPrimitive.Content>
-              </SelectPrimitive.Portal>
-            </SelectPrimitive.Root>
+            <Select value={deckId} disabled={isAddingToDeck} onValueChange={setDeckId}>
+              <SelectTrigger autoFocus aria-label="Deck">
+                <SelectValue placeholder="Choose a deck" />
+              </SelectTrigger>
+              <SelectContent>
+                {decks.map((deck) => (
+                  <SelectItem key={deck.id} value={deck.id}>
+                    {deck.name} ({titleize(deck.format)})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
 
           {selectedPrinting ? (
@@ -236,19 +214,23 @@ export function AddCatalogCardToDeckDialog({
                   {target?.printings?.length ? (
                     <label className="form-control">
                       <span className="label-text mb-1 text-sm font-semibold">Printing</span>
-                      <select
-                        className="select select-bordered w-full"
+                      <Select
                         value={selectedPrintingId}
                         disabled={isAddingToDeck}
-                        onChange={(event) => setSelectedPrintingId(event.target.value)}
+                        onValueChange={setSelectedPrintingId}
                       >
-                        {target.printings.map((printing) => (
-                          <option key={printing.id} value={printing.id}>
-                            {printingOptionLabel(printing)}
-                            {printing.ownedCount ? ` · ${printing.ownedCount} owned` : ""}
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger aria-label="Printing">
+                          <SelectValue placeholder="Choose a printing" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {target.printings.map((printing) => (
+                            <SelectItem key={printing.id} value={printing.id}>
+                              {printingOptionLabel(printing)}
+                              {printing.ownedCount ? ` · ${printing.ownedCount} owned` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </label>
                   ) : null}
                 </div>
@@ -282,18 +264,18 @@ export function AddCatalogCardToDeckDialog({
 
             <label className="form-control">
               <span className="label-text mb-1 text-sm font-semibold">Finish</span>
-              <select
-                className="select select-bordered w-full"
-                value={finish}
-                disabled={isAddingToDeck}
-                onChange={(event) => setFinish(event.target.value)}
-              >
-                {finishOptions.map((finish) => (
-                  <option key={finish} value={finish}>
-                    {titleize(finish)}
-                  </option>
-                ))}
-              </select>
+              <Select value={finish} disabled={isAddingToDeck} onValueChange={setFinish}>
+                <SelectTrigger aria-label="Finish">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {finishOptions.map((finish) => (
+                    <SelectItem key={finish} value={finish}>
+                      {titleize(finish)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </label>
           </div>
 

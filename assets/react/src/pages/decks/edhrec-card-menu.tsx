@@ -2,8 +2,13 @@ import { Eye, MoreVertical, Plus } from "lucide-react"
 import type { ReactNode } from "react"
 
 import { Badge } from "../../components/ui/badge"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../../components/ui/dropdown-menu"
 import { cn } from "../../lib/utils"
-import { blurFocusedMenuItem } from "./deck-actions"
 import { AllocationStatusIcon } from "./deck-card-allocation"
 import type {
   EDHRecAddZone,
@@ -36,54 +41,48 @@ export function EDHRecCardMenu({
 
   return (
     <div
-      className="dropdown dropdown-end shrink-0"
+      className="inline-flex shrink-0"
       data-mobile-hover-skip=""
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
     >
-      <button
-        type="button"
-        className="btn btn-circle btn-xs border-0 bg-base-200 text-base-content/70 shadow-sm transition hover:bg-base-300"
-        tabIndex={0}
-        aria-label={`${card.name} actions`}
-      >
-        <MoreVertical className="h-4 w-4" />
-      </button>
-      <ul
-        tabIndex={0}
-        className="menu dropdown-content z-50 mt-1 w-52 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
-        onClick={blurFocusedMenuItem}
-      >
-        {EDHREC_ADD_CARD_ZONES.map(({ label, zone }) => (
-          <li key={zone}>
-            <button type="button" disabled={isAddingCard} onClick={() => onAddCard(zone)}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="btn btn-circle btn-xs border-0 bg-base-200 text-base-content/70 shadow-sm transition hover:bg-base-300"
+            aria-label={`${card.name} actions`}
+          >
+            <MoreVertical className="h-4 w-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent sideOffset={2} className="w-52 shadow-2xl">
+          {EDHREC_ADD_CARD_ZONES.map(({ label, zone }) => (
+            <DropdownMenuItem key={zone} disabled={isAddingCard} onSelect={() => onAddCard(zone)}>
               <Plus className="h-4 w-4" />
               {isAddingCard ? `Adding to ${label}...` : `Add to ${label}`}
-            </button>
-          </li>
-        ))}
-        <li>
+            </DropdownMenuItem>
+          ))}
           {localCardId ? (
-            <button
-              type="button"
-              onClick={() => onPreviewCard({ id: localCardId, name: card.name })}
-            >
+            <DropdownMenuItem onSelect={() => onPreviewCard({ id: localCardId, name: card.name })}>
               <Eye className="h-4 w-4" />
               View card
-            </button>
+            </DropdownMenuItem>
           ) : externalUrl ? (
-            <a href={externalUrl} target="_blank" rel="noreferrer">
-              <Eye className="h-4 w-4" />
-              View on EDHREC
-            </a>
+            <DropdownMenuItem asChild>
+              <a href={externalUrl} target="_blank" rel="noreferrer">
+                <Eye className="h-4 w-4" />
+                View on EDHREC
+              </a>
+            </DropdownMenuItem>
           ) : (
-            <button type="button" disabled>
+            <DropdownMenuItem disabled>
               <Eye className="h-4 w-4" />
               View card
-            </button>
+            </DropdownMenuItem>
           )}
-        </li>
-      </ul>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 }

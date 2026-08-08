@@ -4,6 +4,14 @@ import { CardTile } from "../../components/card-tile"
 import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
 import {
+  SELECT_NONE_VALUE,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
+import {
   Dialog,
   DialogClose,
   DialogContent,
@@ -103,23 +111,25 @@ function DeckReadinessCard({
             <span className="label-text mb-1 text-xs font-semibold uppercase text-base-content/60">
               Tag
             </span>
-            <select
-              className="select select-bordered select-sm w-full"
-              aria-label={`Tag ${name}`}
+            <Select
               disabled={isPending}
-              value={deckCard.tag || ""}
-              onChange={(event) => {
-                const value = event.currentTarget.value
-                onTagCard(deckCard, value ? (value as DeckCardTag) : null)
+              value={deckCard.tag || SELECT_NONE_VALUE}
+              onValueChange={(value) => {
+                onTagCard(deckCard, value === SELECT_NONE_VALUE ? null : (value as DeckCardTag))
               }}
             >
-              <option value="">No tag</option>
-              {DECK_CARD_TAGS.map((tag) => (
-                <option key={tag.value} value={tag.value}>
-                  {tag.label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger size="sm" aria-label={`Tag ${name}`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={SELECT_NONE_VALUE}>No tag</SelectItem>
+                {DECK_CARD_TAGS.map((tag) => (
+                  <SelectItem key={tag.value} value={tag.value}>
+                    {tag.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
         </div>
         <DeckCardAllocationPanel

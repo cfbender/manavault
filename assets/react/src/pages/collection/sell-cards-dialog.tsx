@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog"
+import { Textarea } from "../../components/ui/textarea"
 import { useToast } from "../../components/ui/toast"
 import { cn, pluralize, present } from "../../lib/utils"
 import { DeleteCollectionItemDocument, UpdateCollectionItemDocument } from "./documents"
@@ -331,9 +332,9 @@ export function SellCardsDialog({
           </div>
 
           <div className="mt-4 grid gap-2 md:grid-cols-[1fr_auto]">
-            <textarea
+            <Textarea
               aria-label="Sold list"
-              className="textarea textarea-bordered min-h-20 w-full text-sm"
+              className="min-h-20 text-sm"
               placeholder="Paste a sold list to select matching collection items and quantities for deletion."
               value={soldListText}
               onChange={(event) => setSoldListText(event.target.value)}

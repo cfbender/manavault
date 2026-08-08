@@ -21,9 +21,17 @@ import {
 } from "react"
 
 import { CardTileOverlayButton } from "../../components/card-tile"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../../components/ui/dropdown-menu"
 import { useHasMobileHoverInteraction, useMobileHoverReveal } from "../../lib/mobile-hover"
 import { cn } from "../../lib/utils"
-import { ShareModeHidden, blurFocusedMenuItem } from "./deck-actions"
+import { ShareModeHidden } from "./deck-actions"
 import {
   AllocationStatusIcon,
   allocationStatusIconClass,
@@ -36,9 +44,7 @@ import { GameChangerBadge } from "./deck-card-display"
 import { deckCardTag, nextDeckCardTag } from "./deck-card-tags"
 import { DeckCardTagRadial, type DeckCardTagRadialHandle } from "./deck-card-tag-radial"
 import {
-  DECK_STACK_ACTION_MENU_CLASS_NAME,
-  deckStackActionMenuDirection,
-  deckStackActionMenuStyle,
+  DECK_STACK_CARD_MENU_ATTRIBUTE,
   shouldCloseDeckStackActionMenu,
   shouldRaiseDeckStackCardForActionMenu,
 } from "./deck-stack-interactions"
@@ -55,7 +61,6 @@ export function DeckStackCard({
   deckCard,
   deckTags,
   index,
-  isLast,
   isActive,
   isDimmed,
   isSelecting,
@@ -85,7 +90,6 @@ export function DeckStackCard({
   deckCard: DeckCardEntry
   deckTags: DeckCustomTag[]
   index: number
-  isLast: boolean
   isActive: boolean
   isDimmed: boolean
   isUpdating: boolean
@@ -110,6 +114,8 @@ export function DeckStackCard({
   top: number
 }) {
   const [hasFocusWithin, setHasFocusWithin] = useState(false)
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false)
+  const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false)
   const [isTagRadialOpen, setIsTagRadialOpen] = useState(false)
   const [highlightedTagId, setHighlightedTagId] = useState<string | null>(null)
   const [tagFeedback, setTagFeedback] = useState<{
@@ -141,9 +147,8 @@ export function DeckStackCard({
   const hasClearTag = Boolean(tag)
   const hasFoilFinish = deckCard.finish === "foil" || deckCard.finish === "etched"
   const isGameChanger = deckCard.card?.gameChanger === true
-  const isInteractive = !isSelecting && (isActive || hasFocusWithin)
-  const actionMenuDirection = deckStackActionMenuDirection({ isLast })
-  const actionMenuStyle = deckStackActionMenuStyle({ canSetCommander, hasClearTag })
+  const isInteractive =
+    !isSelecting && (isActive || hasFocusWithin || isActionMenuOpen || isQuickMenuOpen)
   const allocatedCandidate = deckCard.allocationStatus.candidates.find(
     (candidate) => candidate.allocated > 0,
   )
@@ -333,8 +338,7 @@ export function DeckStackCard({
           <div
             ref={actionMenuRef}
             className={cn(
-              "dropdown dropdown-start absolute left-2 top-2 z-[120] transition-opacity group-focus-within:opacity-100",
-              actionMenuDirection === "up" && "dropdown-top",
+              "absolute left-2 top-2 z-[120] transition-opacity group-focus-within:opacity-100",
               isInteractive
                 ? "visible opacity-100"
                 : hasMobileHover
@@ -348,99 +352,79 @@ export function DeckStackCard({
             onPointerMove={(event) => event.stopPropagation()}
             onPointerUp={(event) => event.stopPropagation()}
           >
-            <CardTileOverlayButton tabIndex={isInteractive ? 0 : -1} aria-label={`${name} actions`}>
-              <MoreVertical />
-            </CardTileOverlayButton>
-            {isInteractive ? (
-              <ul
-                tabIndex={0}
-                className={DECK_STACK_ACTION_MENU_CLASS_NAME}
-                onClick={blurFocusedMenuItem}
-                style={actionMenuStyle}
+            <DropdownMenu open={isActionMenuOpen} onOpenChange={setIsActionMenuOpen}>
+              <DropdownMenuTrigger asChild>
+                <CardTileOverlayButton
+                  tabIndex={isInteractive ? 0 : -1}
+                  aria-label={`${name} actions`}
+                >
+                  <MoreVertical />
+                </CardTileOverlayButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                className="z-[140] w-52 max-h-[min(70vh,var(--radix-dropdown-menu-content-available-height))] overflow-y-auto"
+                {...{ [DECK_STACK_CARD_MENU_ATTRIBUTE]: deckCard.id }}
               >
-                <li>
-                  <button type="button" onClick={onPreview}>
-                    <Eye className="h-4 w-4" />
-                    View card details
-                  </button>
-                </li>
+                <DropdownMenuItem onSelect={onPreview}>
+                  <Eye className="h-4 w-4" />
+                  View card details
+                </DropdownMenuItem>
                 {allocatedCandidate ? (
-                  <li>
-                    <button
-                      type="button"
-                      disabled={isUpdating}
-                      title={collectionItemLabel(allocatedCandidate)}
-                      onClick={() => onDeallocate(allocatedCandidate.item.id)}
-                    >
-                      <XCircle className="h-4 w-4" />
-                      Deallocate
-                    </button>
-                  </li>
+                  <DropdownMenuItem
+                    disabled={isUpdating}
+                    title={collectionItemLabel(allocatedCandidate)}
+                    onSelect={() => onDeallocate(allocatedCandidate.item.id)}
+                  >
+                    <XCircle className="h-4 w-4" />
+                    Deallocate
+                  </DropdownMenuItem>
                 ) : null}
                 {hasProxyAllocation ? (
-                  <li>
-                    <button type="button" disabled={isUpdating} onClick={onToggleProxy}>
-                      <XCircle className="h-4 w-4" />
-                      Remove proxy
-                    </button>
-                  </li>
+                  <DropdownMenuItem disabled={isUpdating} onSelect={onToggleProxy}>
+                    <XCircle className="h-4 w-4" />
+                    Remove proxy
+                  </DropdownMenuItem>
                 ) : null}
-                <li>
-                  <button type="button" disabled={isUpdating} onClick={onEdit}>
-                    <Edit3 className="h-4 w-4" />
-                    Edit
-                  </button>
-                </li>
-                <li>
-                  <button type="button" disabled={isUpdating} onClick={onMove}>
-                    <MoveRight className="h-4 w-4" />
-                    Move
-                  </button>
-                </li>
-                <li className="menu-title">
-                  <span>Tag</span>
-                </li>
+                <DropdownMenuItem disabled={isUpdating} onSelect={onEdit}>
+                  <Edit3 className="h-4 w-4" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled={isUpdating} onSelect={onMove}>
+                  <MoveRight className="h-4 w-4" />
+                  Move
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Tag</DropdownMenuLabel>
                 {DECK_CARD_TAGS.map((tagOption) => (
-                  <li key={tagOption.value}>
-                    <button
-                      type="button"
-                      disabled={isUpdating || deckCard.tag === tagOption.value}
-                      onClick={() => onTag(tagOption.value)}
-                    >
-                      <tagOption.icon className="h-4 w-4" />
-                      {tagOption.label}
-                    </button>
-                  </li>
+                  <DropdownMenuItem
+                    key={tagOption.value}
+                    disabled={isUpdating || deckCard.tag === tagOption.value}
+                    onSelect={() => onTag(tagOption.value)}
+                  >
+                    <tagOption.icon className="h-4 w-4" />
+                    {tagOption.label}
+                  </DropdownMenuItem>
                 ))}
                 {hasClearTag ? (
-                  <li>
-                    <button type="button" onClick={() => onTag(null)}>
-                      <Tag className="h-4 w-4" />
-                      Clear tag
-                    </button>
-                  </li>
+                  <DropdownMenuItem onSelect={() => onTag(null)}>
+                    <Tag className="h-4 w-4" />
+                    Clear tag
+                  </DropdownMenuItem>
                 ) : null}
                 {canSetCommander ? (
-                  <li>
-                    <button type="button" disabled={isUpdating} onClick={onSetCommander}>
-                      <Crown className="h-4 w-4" />
-                      Set as commander
-                    </button>
-                  </li>
+                  <DropdownMenuItem disabled={isUpdating} onSelect={onSetCommander}>
+                    <Crown className="h-4 w-4" />
+                    Set as commander
+                  </DropdownMenuItem>
                 ) : null}
-                <li>
-                  <button
-                    type="button"
-                    className="text-error"
-                    disabled={isUpdating}
-                    onClick={onDelete}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Delete
-                  </button>
-                </li>
-              </ul>
-            ) : null}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem destructive disabled={isUpdating} onSelect={onDelete}>
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </ShareModeHidden>
 
@@ -468,6 +452,7 @@ export function DeckStackCard({
                 isUpdating={isUpdating}
                 onAllocate={onAllocate}
                 onDeallocate={onDeallocate}
+                onOpenChange={setIsQuickMenuOpen}
                 onReveal={onTouchReveal}
                 onToggleProxy={onToggleProxy}
               />
@@ -705,6 +690,7 @@ function DeckCardAllocationQuickMenu({
   isUpdating,
   onAllocate,
   onDeallocate,
+  onOpenChange,
   onReveal,
   onToggleProxy,
 }: {
@@ -713,6 +699,7 @@ function DeckCardAllocationQuickMenu({
   isUpdating: boolean
   onAllocate: (collectionItemId: string) => void
   onDeallocate: (collectionItemId: string) => void
+  onOpenChange: (open: boolean) => void
   onReveal: () => void
   onToggleProxy: () => void
 }) {
@@ -730,72 +717,65 @@ function DeckCardAllocationQuickMenu({
     status.required > status.allocated
 
   return (
-    <div className="dropdown dropdown-end" onClick={(event) => event.stopPropagation()}>
-      <CardTileOverlayButton
-        tone="custom"
-        className={cn(
-          "relative transition-opacity",
-          allocationStatusIconClass(status.state),
-          isVisible
-            ? "visible opacity-100"
-            : "invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100",
-        )}
-        tabIndex={isVisible ? 0 : -1}
-        aria-label={`${label}: ${summary}`}
-        title={`${label}: ${summary}`}
-        onClick={() => {
-          if (!isVisible) onReveal()
-        }}
-      >
-        <AllocationStatusIcon state={status.state} />
-      </CardTileOverlayButton>
-      <ul
-        tabIndex={0}
-        className="menu dropdown-content z-[140] mt-1 w-40 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-2xl"
-        onClick={blurFocusedMenuItem}
-      >
-        <li className="menu-title whitespace-normal">
-          <span>
+    <div onClick={(event) => event.stopPropagation()}>
+      <DropdownMenu onOpenChange={onOpenChange}>
+        <DropdownMenuTrigger asChild>
+          <CardTileOverlayButton
+            tone="custom"
+            className={cn(
+              "relative transition-opacity",
+              allocationStatusIconClass(status.state),
+              isVisible
+                ? "visible opacity-100"
+                : "invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100",
+            )}
+            tabIndex={isVisible ? 0 : -1}
+            aria-label={`${label}: ${summary}`}
+            title={`${label}: ${summary}`}
+            onClick={() => {
+              if (!isVisible) onReveal()
+            }}
+          >
+            <AllocationStatusIcon state={status.state} />
+          </CardTileOverlayButton>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          className="z-[140] w-44"
+          {...{ [DECK_STACK_CARD_MENU_ATTRIBUTE]: deckCard.id }}
+        >
+          <DropdownMenuLabel className="whitespace-normal text-base-content">
             {label}
             <br />
             <span className="font-normal text-base-content/65">{summary}</span>
-          </span>
-        </li>
-        {availableCandidate ? (
-          <li>
-            <button
-              type="button"
+          </DropdownMenuLabel>
+          {availableCandidate ? (
+            <DropdownMenuItem
               disabled={isUpdating}
               title={collectionItemLabel(availableCandidate)}
-              onClick={() => onAllocate(availableCandidate.item.id)}
+              onSelect={() => onAllocate(availableCandidate.item.id)}
             >
               <CheckCircle2 className="h-4 w-4" />
               Allocate copy
-            </button>
-          </li>
-        ) : null}
-        {allocatedCandidate ? (
-          <li>
-            <button
-              type="button"
+            </DropdownMenuItem>
+          ) : null}
+          {allocatedCandidate ? (
+            <DropdownMenuItem
               disabled={isUpdating}
               title={collectionItemLabel(allocatedCandidate)}
-              onClick={() => onDeallocate(allocatedCandidate.item.id)}
+              onSelect={() => onDeallocate(allocatedCandidate.item.id)}
             >
               <XCircle className="h-4 w-4" />
               Deallocate
-            </button>
-          </li>
-        ) : null}
-        {hasProxyAllocation || canMarkProxy ? (
-          <li>
-            <button type="button" disabled={isUpdating} onClick={onToggleProxy}>
+            </DropdownMenuItem>
+          ) : null}
+          {hasProxyAllocation || canMarkProxy ? (
+            <DropdownMenuItem disabled={isUpdating} onSelect={onToggleProxy}>
               <XCircle className="h-4 w-4" />
               {hasProxyAllocation ? "Remove proxy" : "Mark proxy"}
-            </button>
-          </li>
-        ) : null}
-      </ul>
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 }

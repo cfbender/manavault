@@ -1,3 +1,4 @@
+import * as ToastPrimitive from "@radix-ui/react-toast"
 import { Check, X } from "lucide-react"
 import {
   createContext,
@@ -8,7 +9,6 @@ import {
   useState,
   type ReactNode,
 } from "react"
-import { createPortal } from "react-dom"
 import { cn } from "../../lib/utils"
 import { Button } from "./button"
 
@@ -40,16 +40,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts((current) => current.filter((toast) => toast.id !== id))
   }, [])
 
-  const showToast = useCallback(
-    (message: string, options: { tone?: ToastTone } = {}) => {
-      const id = Date.now() + Math.floor(Math.random() * 1_000)
-      const notice = { id, message, tone: options.tone ?? "success" }
-
-      setToasts((current) => [...current, notice])
-      window.setTimeout(() => dismissToast(id), TOAST_DISMISS_MS)
-    },
-    [dismissToast],
-  )
+  const showToast = useCallback((message: string, options: { tone?: ToastTone } = {}) => {
+    const id = Date.now() + Math.floor(Math.random() * 1_000)
+    setToasts((current) => [...current, { id, message, tone: options.tone ?? "success" }])
+  }, [])
 
   useEffect(() => {
     function handleToastEvent(event: Event) {
@@ -67,22 +61,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   return (
     <ToastContext.Provider value={value}>
-      {children}
-      {typeof document !== "undefined"
-        ? createPortal(
-            <div className="toast toast-bottom toast-end pointer-events-none z-[90] w-auto max-w-[calc(100vw-2rem)] p-4 sm:toast-top sm:max-w-sm">
-              {toasts.map((toast) => (
-                <Toast
-                  key={toast.id}
-                  message={toast.message}
-                  tone={toast.tone}
-                  onDismiss={() => dismissToast(toast.id)}
-                />
-              ))}
-            </div>,
-            document.body,
-          )
-        : null}
+      <ToastPrimitive.Provider duration={TOAST_DISMISS_MS} swipeDirection="right">
+        {children}
+        {toasts.map((toast) => (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            tone={toast.tone}
+            onDismiss={() => dismissToast(toast.id)}
+          />
+        ))}
+        <ToastPrimitive.Viewport className="toast toast-bottom toast-end pointer-events-none z-[90] w-auto max-w-[calc(100vw-2rem)] p-4 outline-none sm:toast-top sm:max-w-sm" />
+      </ToastPrimitive.Provider>
     </ToastContext.Provider>
   )
 }
@@ -114,32 +104,35 @@ export function Toast({
   tone?: ToastTone
 }) {
   return (
-    <div
+    <ToastPrimitive.Root
       className={cn(
-        "alert pointer-events-auto flex items-start justify-between gap-3 border shadow-lg",
+        "alert pointer-events-auto flex items-start justify-between gap-3 border shadow-lg transition-[transform,opacity]",
+        "data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-full data-[state=closed]:opacity-0",
         tone === "success"
           ? "alert-success border-success/40 text-success-content"
           : "alert-info border-info/40 text-info-content",
       )}
-      role="status"
-      aria-live="polite"
+      onOpenChange={(open) => {
+        if (!open) onDismiss?.()
+      }}
     >
       <div className="flex items-start gap-2">
-        <Check className="mt-0.5 h-4 w-4 shrink-0" />
-        <span>{message}</span>
+        <Check className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+        <ToastPrimitive.Description>{message}</ToastPrimitive.Description>
       </div>
       {onDismiss ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="btn-xs -mr-2 -mt-1 text-current"
-          aria-label="Dismiss notification"
-          onClick={onDismiss}
-        >
-          <X className="h-3.5 w-3.5" />
-        </Button>
+        <ToastPrimitive.Close asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="btn-xs -mr-2 -mt-1 text-current"
+            aria-label="Dismiss notification"
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </ToastPrimitive.Close>
       ) : null}
-    </div>
+    </ToastPrimitive.Root>
   )
 }

@@ -3,6 +3,13 @@ import { useState } from "react"
 
 import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
 import type { DeckCardUpdateInput } from "../../gql/graphql"
 import { DECK_CARD_TAGS, MOVE_TARGET_ZONES, type DeckCardTag, type DeckZone } from "./deck-types"
 import { ZoneToggle } from "./zone-toggle"
@@ -43,6 +50,7 @@ export function DeckDetailSelectionBar({
   totalCount,
 }: DeckDetailSelectionBarProps) {
   const [moveZone, setMoveZone] = useState<DeckZone>(MOVE_TARGET_ZONES[0])
+  const [tagAction, setTagAction] = useState("")
 
   return (
     <div className="grid gap-3 rounded-box border border-base-300 bg-base-100 p-3 shadow-sm">
@@ -139,26 +147,29 @@ export function DeckDetailSelectionBar({
           </Button>
         </label>
 
-        <select
-          className="select select-bordered select-sm w-44"
-          aria-label="Tag selected cards"
+        <Select
           disabled={!selectedCount || isPending}
-          defaultValue=""
-          onChange={(event) => {
-            const value = event.currentTarget.value as DeckCardTag | "clear" | ""
+          value={tagAction}
+          onValueChange={(selectedValue) => {
+            const value = selectedValue as DeckCardTag | "clear"
+            setTagAction(value)
             if (value === "clear") onTag(null)
-            else if (value) onTag(value)
-            event.currentTarget.value = ""
+            else onTag(value)
+            setTagAction("")
           }}
         >
-          <option value="">Tag selected...</option>
-          {DECK_CARD_TAGS.map((tag) => (
-            <option key={tag.value} value={tag.value}>
-              {tag.label}
-            </option>
-          ))}
-          <option value="clear">Clear tag</option>
-        </select>
+          <SelectTrigger size="sm" className="w-44" aria-label="Tag selected cards">
+            <SelectValue placeholder="Tag selected..." />
+          </SelectTrigger>
+          <SelectContent>
+            {DECK_CARD_TAGS.map((tag) => (
+              <SelectItem key={tag.value} value={tag.value}>
+                {tag.label}
+              </SelectItem>
+            ))}
+            <SelectItem value="clear">Clear tag</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       {error ? (
         <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">

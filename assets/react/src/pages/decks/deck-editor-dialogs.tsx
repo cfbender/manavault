@@ -11,6 +11,13 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
 import { useToast } from "../../components/ui/toast"
 import { refetchActiveQueries } from "../../lib/apollo"
 import { titleize } from "../../lib/utils"
@@ -115,34 +122,36 @@ export function EditDeckDialog({
               <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
                 Format
               </span>
-              <select
-                className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                value={format}
-                onChange={(event) => setFormat(deckFormatValue(event.target.value))}
-              >
-                {DECK_FORMATS.map((format) => (
-                  <option key={format} value={format}>
-                    {titleize(format)}
-                  </option>
-                ))}
-              </select>
+              <Select value={format} onValueChange={(value) => setFormat(deckFormatValue(value))}>
+                <SelectTrigger className="bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DECK_FORMATS.map((format) => (
+                    <SelectItem key={format} value={format}>
+                      {titleize(format)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </label>
 
             <label className="block space-y-2">
               <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
                 Status
               </span>
-              <select
-                className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                value={status}
-                onChange={(event) => setStatus(deckStatusValue(event.target.value))}
-              >
-                {DECK_STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {titleize(status)}
-                  </option>
-                ))}
-              </select>
+              <Select value={status} onValueChange={(value) => setStatus(deckStatusValue(value))}>
+                <SelectTrigger className="bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DECK_STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {titleize(status)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </label>
           </div>
 
@@ -262,36 +271,42 @@ export function NewDeckDialog({
               <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
                 Format
               </span>
-              <select
-                className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              <Select
                 value={format}
-                onChange={(event) => setFormat(event.target.value as (typeof DECK_FORMATS)[number])}
+                onValueChange={(value) => setFormat(value as (typeof DECK_FORMATS)[number])}
               >
-                {DECK_FORMATS.map((format) => (
-                  <option key={format} value={format}>
-                    {titleize(format)}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DECK_FORMATS.map((format) => (
+                    <SelectItem key={format} value={format}>
+                      {titleize(format)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </label>
 
             <label className="block space-y-2">
               <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
                 Status
               </span>
-              <select
-                className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              <Select
                 value={status}
-                onChange={(event) =>
-                  setStatus(event.target.value as (typeof DECK_STATUSES)[number])
-                }
+                onValueChange={(value) => setStatus(value as (typeof DECK_STATUSES)[number])}
               >
-                {DECK_STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {titleize(status)}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DECK_STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {titleize(status)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </label>
           </div>
 

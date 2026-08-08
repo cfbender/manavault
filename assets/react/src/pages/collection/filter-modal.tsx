@@ -10,6 +10,13 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
 import { useToast } from "../../components/ui/toast"
 import {
   buildCollectionFilterQuery,
@@ -406,18 +413,21 @@ function ComparisonFilterControl({
 }) {
   return (
     <div className={cn("grid grid-cols-[5rem_minmax(0,1fr)] gap-2", className)}>
-      <select
-        className="select select-bordered w-full bg-base-100"
+      <Select
         value={operator}
-        onChange={(event) => onOperatorChange(event.target.value as ComparisonOperator)}
-        aria-label="Comparison"
+        onValueChange={(value) => onOperatorChange(value as ComparisonOperator)}
       >
-        {COMPARISON_OPTIONS.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger aria-label="Comparison">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {COMPARISON_OPTIONS.map((option) => (
+            <SelectItem key={option} value={option}>
+              {option}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <Input
         inputMode={inputMode}
         type={type}
@@ -457,19 +467,22 @@ function ColorFilterControl({
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <select
-        className="select select-bordered min-w-36 bg-base-100"
+      <Select
         value={operator}
-        onChange={(event) => onOperatorChange(event.target.value as ColorOperator)}
-        aria-label="Color comparison"
+        onValueChange={(value) => onOperatorChange(value as ColorOperator)}
         disabled={colorlessSelected}
       >
-        {COLOR_OPERATOR_OPTIONS.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger className="min-w-36" aria-label="Color comparison">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {COLOR_OPERATOR_OPTIONS.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <div className="flex flex-wrap gap-2">
         {COLOR_OPTIONS.map((color) => {
           const active = selected.includes(color.value)
