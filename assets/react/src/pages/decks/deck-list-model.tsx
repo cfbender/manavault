@@ -1,7 +1,6 @@
 import { type ReactNode } from "react"
 import { ColorIdentitySymbols } from "../../components/ui/mana-symbols"
 import { present } from "../../lib/utils"
-import { colorOrder } from "./deck-card-model"
 import type { DeckSummary } from "./deck-types"
 import { DECK_FORMATS } from "./deck-types"
 
@@ -43,30 +42,4 @@ export function DeckNameWithCommanderIdentity({
   )
 }
 
-export function commanderColorIdentity(
-  deckCards:
-    | Array<{
-        card?: { colorIdentity?: Array<string | null> | null } | null
-        zone?: string | null
-      } | null>
-    | null
-    | undefined,
-) {
-  const commanders = (deckCards || []).filter(
-    (deckCard) => deckCard?.zone === "commander" && deckCard.card,
-  )
 
-  if (!commanders.length) return null
-
-  const colors = new Set<string>()
-
-  for (const commander of commanders) {
-    for (const color of commander?.card?.colorIdentity || []) {
-      if (color) colors.add(color.toUpperCase())
-    }
-  }
-
-  return colors.size
-    ? Array.from(colors).sort((left, right) => colorOrder(left) - colorOrder(right))
-    : ["C"]
-}

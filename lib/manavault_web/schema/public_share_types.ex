@@ -316,6 +316,10 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
       resolve(&DeckFields.deck_card_count/3)
     end
 
+    field :commander_color_identity, list_of(:string) do
+      resolve(&DeckFields.deck_commander_color_identity/3)
+    end
+
     field :unique_card_count, :integer do
       resolve(&DeckFields.deck_unique_card_count/3)
     end

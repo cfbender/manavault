@@ -22,7 +22,7 @@ import { deckDetailCoverUrl } from "./deck-card-model"
 import type { DeckLegalityIssue, DeckPrice, DetailZoneCounts } from "./deck-detail-types"
 import { DeckGroupMenu } from "./deck-group-menu"
 import { deckLegalityIssueCountLabel, deckLegalityLabel, deckLegalityTone } from "./deck-legality"
-import { DeckNameWithCommanderIdentity, commanderColorIdentity } from "./deck-list-model"
+import { DeckNameWithCommanderIdentity } from "./deck-list-model"
 import { DeckTagsSidebar } from "./deck-tags-sidebar"
 import type { DeckCardEntry, DeckCustomTag, DeckDetail } from "./deck-types"
 
@@ -219,7 +219,7 @@ export function DeckDetailHeader({
           }
           nameLine={
             <DeckNameWithCommanderIdentity
-              colors={commanderColorIdentity(deckCards)}
+              colors={deck.commanderColorIdentity}
               name={deck.name}
             />
           }

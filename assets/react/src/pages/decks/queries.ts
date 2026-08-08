@@ -154,6 +154,7 @@ export const DeckDocument = graphql(`
       status
       shareToken
       cardCount
+      commanderColorIdentity
       legality {
         status
         issues {
