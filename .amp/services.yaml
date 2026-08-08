@@ -1,0 +1,7 @@
+services:
+  manavault-review:
+    command: mise exec -- mix phx.server
+    port: 31397
+    portal:
+      title: ManaVault
+      description: Review UI and UX changes here; leave this service running after verification.
