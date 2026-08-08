@@ -6,7 +6,7 @@ defmodule Manavault.Catalog.Decks.DecklistIO do
   alias Ecto.Changeset
   alias Manavault.Catalog.{Card, Deck, DeckCard, Decklists, Printing, Util}
   alias Manavault.Catalog.Decks.{AllocationItems, EditGuard, Preloads}
-  alias Manavault.Catalog.Search.NameMatch
+  alias Manavault.Catalog.Search.CardsByName
   alias Manavault.Repo
 
   @lock_retry_attempts 3
@@ -44,7 +44,7 @@ defmodule Manavault.Catalog.Decks.DecklistIO do
   end
 
   defp prepare_import_entry(entry, cards_by_name, printings_by_id) do
-    case Map.get(cards_by_name, normalized_name_key(entry["name"])) do
+    case Map.get(cards_by_name, CardsByName.key(entry["name"])) do
       nil ->
         {:unresolved, entry["name"]}
 
@@ -78,19 +78,9 @@ defmodule Manavault.Catalog.Decks.DecklistIO do
     do: {nil, false}
 
   defp cards_by_normalized_name(entries) do
-    names =
-      entries
-      |> Enum.map(&normalized_name_key(&1["name"]))
-      |> Enum.reject(&(&1 == ""))
-      |> Enum.uniq()
-
-    Card
-    |> where([card], card.normalized_name in ^names)
-    |> order_by([card], asc: card.name)
-    |> Repo.all()
-    |> Enum.reduce(%{}, fn card, cards ->
-      Map.put_new(cards, normalized_name_key(card.name), card)
-    end)
+    entries
+    |> Enum.map(& &1["name"])
+    |> CardsByName.by_names()
   end
 
   defp printings_by_id(entries) do
@@ -263,12 +253,4 @@ defmodule Manavault.Catalog.Decks.DecklistIO do
 
   defp deck_card_key(%DeckCard{} = deck_card), do: {deck_card.oracle_id, deck_card.zone}
   defp deck_card_key(%{"oracle_id" => oracle_id, "zone" => zone}), do: {oracle_id, zone}
-
-  defp normalized_name_key(name) when is_binary(name) do
-    name
-    |> Decklists.normalize_card_name()
-    |> NameMatch.sql_normalize()
-  end
-
-  defp normalized_name_key(_name), do: ""
 end

@@ -2,7 +2,8 @@ defmodule Manavault.Catalog.EDHRec.Response do
   @moduledoc false
 
   alias Manavault.Catalog.{Card, Deck}
-  alias Manavault.Catalog.EDHRec.{Client, Payload}
+  alias Manavault.Catalog.Decks.Preloads
+  alias Manavault.Catalog.EDHRec.Client
   alias Manavault.Catalog.EDHRec.Response.{CardLookup, CollectionStatus, CommanderPage}
   alias Manavault.Repo
 
@@ -16,7 +17,7 @@ defmodule Manavault.Catalog.EDHRec.Response do
     # No force: the caller (Recommendations.recs/2) already force-preloads these
     # associations, so this is a no-op there and only loads when a caller invokes
     # normalize with an unloaded deck.
-    deck = Repo.preload(deck, Payload.deck_preloads())
+    deck = Repo.preload(deck, Preloads.deck_preloads())
     commander_names = response |> Map.get("commanders", []) |> Enum.map(&CardLookup.entry_name/1)
 
     %{

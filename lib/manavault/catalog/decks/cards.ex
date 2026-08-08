@@ -3,8 +3,9 @@ defmodule Manavault.Catalog.Decks.Cards do
 
   import Ecto.Query
 
-  alias Manavault.Catalog.{Card, Deck, DeckCard, Decklists, Printing, Util}
+  alias Manavault.Catalog.{Card, Deck, DeckCard, Printing, Util}
   alias Manavault.Catalog.Decks.{AllocationItems, DeckCardAllocation, EditGuard, Printings}
+  alias Manavault.Catalog.Search.CardsByName
   alias Manavault.Repo
 
   def change_deck_card(%DeckCard{} = deck_card, attrs \\ %{}) do
@@ -296,7 +297,7 @@ defmodule Manavault.Catalog.Decks.Cards do
   end
 
   defp resolve_deck_card_identity(%{"name" => name} = attrs) when is_binary(name) do
-    case find_card_by_name(name) do
+    case CardsByName.find(name) do
       %Card{} = card -> {:ok, Map.put(attrs, "oracle_id", card.oracle_id)}
       nil -> {:error, :card_not_found}
     end
@@ -354,17 +355,6 @@ defmodule Manavault.Catalog.Decks.Cards do
         |> DeckCard.changeset(update_attrs)
         |> Repo.update()
     end
-  end
-
-  defp find_card_by_name(name) do
-    normalized_name = Decklists.normalize_card_name(name)
-
-    Repo.one(
-      from card in Card,
-        where: fragment("? = ? COLLATE NOCASE", card.name, ^normalized_name),
-        order_by: [asc: card.name],
-        limit: 1
-    )
   end
 
   defp move_deck_card_to_zone!(%DeckCard{} = deck_card, zone) do

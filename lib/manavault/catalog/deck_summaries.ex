@@ -11,12 +11,11 @@ defmodule Manavault.Catalog.DeckSummaries do
   def put_fields(decks) do
     Enum.map(decks, fn deck ->
       cards = deck.deck_cards || []
-      counted = Enum.filter(cards, &DeckCard.counts_toward_deck_total?/1)
 
       %{
         deck
-        | card_count: Enum.reduce(counted, 0, &(&1.quantity + &2)),
-          unique_card_count: length(counted),
+        | card_count: DeckCard.counted_quantity(cards),
+          unique_card_count: Enum.count(cards, &DeckCard.counts_toward_deck_total?/1),
           cover_image_url: cover_image_url_from_cards(cards),
           commander_color_identity: commander_color_identity_from_cards(cards)
       }

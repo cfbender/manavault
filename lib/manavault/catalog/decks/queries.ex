@@ -108,9 +108,7 @@ defmodule Manavault.Catalog.Decks.Queries do
   def deck_card_count(%Deck{card_count: count}) when is_integer(count), do: count
 
   def deck_card_count(%Deck{deck_cards: cards}) when is_list(cards) do
-    cards
-    |> Enum.filter(&DeckCard.counts_toward_deck_total?/1)
-    |> Enum.reduce(0, &(&1.quantity + &2))
+    DeckCard.counted_quantity(cards)
   end
 
   def deck_card_count(%Deck{id: id}) do
@@ -128,9 +126,7 @@ defmodule Manavault.Catalog.Decks.Queries do
   def deck_unique_card_count(%Deck{unique_card_count: count}) when is_integer(count), do: count
 
   def deck_unique_card_count(%Deck{deck_cards: cards}) when is_list(cards) do
-    cards
-    |> Enum.filter(&DeckCard.counts_toward_deck_total?/1)
-    |> length()
+    Enum.count(cards, &DeckCard.counts_toward_deck_total?/1)
   end
 
   def deck_unique_card_count(%Deck{id: id}) do

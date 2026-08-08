@@ -182,7 +182,12 @@ defmodule Manavault.Catalog.Decklists do
     "#{zone_label(zone)}\n#{lines}"
   end
 
-  defp export_line(%DeckCard{} = deck_card) do
+  @doc """
+  One decklist line for a deck card — `"2x Name (SET) 123 *F*"` — the same
+  format `parse/2` reads back. Also used for the EDHRec payload so its
+  card lines cannot drift from the export format.
+  """
+  def export_line(%DeckCard{} = deck_card) do
     [
       "#{deck_card.quantity}x",
       deck_card.card.name,

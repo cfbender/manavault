@@ -4,6 +4,7 @@ defmodule Manavault.Catalog.EDHRec.Response.CardLookup do
   import Ecto.Query
 
   alias Manavault.Catalog.{Card, Deck, Printing}
+  alias Manavault.Catalog.Search.{CardsByName, NameMatch}
   alias Manavault.Repo
 
   @deck_zone_priority %{"mainboard" => 0, "considering" => 1, "commander" => 2}
@@ -23,26 +24,21 @@ defmodule Manavault.Catalog.EDHRec.Response.CardLookup do
   def local_card_lookup(identifiers, names) do
     identifiers = identifiers |> Enum.reject(&(&1 in [nil, ""])) |> Enum.uniq()
 
-    trimmed_names =
-      names
-      |> Enum.map(&(&1 |> to_string() |> String.trim()))
-      |> Enum.reject(&(&1 == ""))
-      |> Enum.uniq()
-
     %{
       by_oracle_id: cards_by_oracle_ids(identifiers),
       by_printing_id: cards_by_printing_ids(identifiers),
-      by_name: cards_by_names(trimmed_names)
+      by_name: names |> Enum.map(&to_string/1) |> CardsByName.by_names()
     }
   end
 
   def local_card(identifier, name, lookup) when is_binary(identifier) and identifier != "" do
     Map.get(lookup.by_oracle_id, identifier) ||
       Map.get(lookup.by_printing_id, identifier) ||
-      Map.get(lookup.by_name, name_key(name))
+      Map.get(lookup.by_name, CardsByName.key(to_string(name)))
   end
 
-  def local_card(_identifier, name, lookup), do: Map.get(lookup.by_name, name_key(name))
+  def local_card(_identifier, name, lookup),
+    do: Map.get(lookup.by_name, CardsByName.key(to_string(name)))
 
   def matching_deck_card(%Deck{} = deck, oracle_id, name) do
     deck.deck_cards
@@ -103,14 +99,7 @@ defmodule Manavault.Catalog.EDHRec.Response.CardLookup do
     end
   end
 
-  defp local_card_by_name(name) do
-    name = name |> to_string() |> String.trim()
-
-    Card
-    |> where([card], fragment("? = ? COLLATE NOCASE", card.name, ^name))
-    |> limit(1)
-    |> Repo.one()
-  end
+  defp local_card_by_name(name), do: name |> to_string() |> CardsByName.find()
 
   defp cards_by_oracle_ids([]), do: %{}
 
@@ -136,28 +125,6 @@ defmodule Manavault.Catalog.EDHRec.Response.CardLookup do
     end)
   end
 
-  defp cards_by_names([]), do: %{}
-
-  defp cards_by_names(names) do
-    # COLLATE NOCASE matches case-insensitively exactly like local_card_by_name/1;
-    # key results by an ASCII-only fold so it matches SQLite's NOCASE folding.
-    Card
-    |> where([card], fragment("? COLLATE NOCASE", card.name) in ^names)
-    |> Repo.all()
-    |> Enum.reduce(%{}, fn card, acc -> Map.put_new(acc, name_key(card.name), card) end)
-  end
-
-  defp name_key(name) do
-    name |> to_string() |> String.trim() |> ascii_downcase()
-  end
-
-  defp ascii_downcase(string) do
-    for <<byte <- string>>, into: "", do: <<downcase_ascii_byte(byte)>>
-  end
-
-  defp downcase_ascii_byte(byte) when byte in ?A..?Z, do: byte + 32
-  defp downcase_ascii_byte(byte), do: byte
-
   # Printings are intentionally NOT preloaded here. Eagerly loading every
   # printing of every recommended card pulled tens of thousands of rows per
   # response; the GraphQL :card type resolves printings through the batched,
@@ -166,16 +133,8 @@ defmodule Manavault.Catalog.EDHRec.Response.CardLookup do
 
   defp matching_deck_card?(deck_card, oracle_id, name) do
     deck_card.oracle_id == oracle_id or
-      normalize_name(deck_card.card.name) == normalize_name(name)
+      NameMatch.normalize(deck_card.card.name) == NameMatch.normalize(to_string(name))
   end
 
   defp deck_card_zone_priority(%{zone: zone}), do: Map.get(@deck_zone_priority, zone, 4)
-
-  defp normalize_name(value) do
-    value
-    |> to_string()
-    |> String.downcase()
-    |> String.replace(~r/[^[:alnum:]]+/u, " ")
-    |> String.trim()
-  end
 end

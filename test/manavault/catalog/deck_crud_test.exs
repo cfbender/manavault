@@ -80,6 +80,26 @@ defmodule Manavault.Catalog.DeckCrudTest do
     assert [] = Catalog.list_decks()
   end
 
+  test "add_card_to_deck resolves names with or without diacritics" do
+    oin =
+      @time_walk
+      |> Map.merge(%{
+        "id" => "scryfall-oin-the-brave",
+        "oracle_id" => "oracle-oin-the-brave",
+        "name" => "Óin the Brave",
+        "collector_number" => "12"
+      })
+
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([oin])
+    assert {:ok, %Deck{} = deck} = Catalog.create_deck(%{"name" => "Diacritic Add"})
+
+    assert {:ok, %DeckCard{id: id, oracle_id: "oracle-oin-the-brave"}} =
+             Catalog.add_card_to_deck(deck, %{"name" => "Óin the Brave", "quantity" => 1})
+
+    assert {:ok, %DeckCard{id: ^id, quantity: 2, oracle_id: "oracle-oin-the-brave"}} =
+             Catalog.add_card_to_deck(deck, %{"name" => "Oin the brave", "quantity" => 1})
+  end
+
   test "list_deck_summaries returns counts cover and commander colors with preloaded cards" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])

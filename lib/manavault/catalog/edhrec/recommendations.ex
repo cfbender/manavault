@@ -2,11 +2,12 @@ defmodule Manavault.Catalog.EDHRec.Recommendations do
   @moduledoc false
 
   alias Manavault.Catalog.Deck
+  alias Manavault.Catalog.Decks.Preloads
   alias Manavault.Catalog.EDHRec.{Client, Payload, Response}
   alias Manavault.Repo
 
   def recs(%Deck{} = deck, opts \\ []) when is_list(opts) do
-    deck = Repo.preload(deck, Payload.deck_preloads(), force: true)
+    deck = Repo.preload(deck, Preloads.deck_preloads(), force: true)
     payload = recs_payload(deck, opts)
     fetch = Keyword.get(opts, :fetch, &fetch_recs/1)
     fetch_commander_page = Keyword.get(opts, :fetch_commander_page, &fetch_commander_page/2)

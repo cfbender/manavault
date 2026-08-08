@@ -152,16 +152,19 @@ defmodule Manavault.Catalog.Price do
 
   def price_cents_for_printing(_printing, _finish), do: nil
 
-  defp price_string_for_finish(prices, "foil"), do: first_present(prices, ["usd_foil", "usd"])
+  @doc """
+  Ordered Scryfall `prices` JSON keys to try for a USD price, given a finish.
 
-  defp price_string_for_finish(prices, "etched"),
-    do: first_present(prices, ["usd_etched", "usd_foil", "usd"])
+  The single source of truth for finish-aware price fallback:
+  `Manavault.Catalog.PriceFragments` compiles this same ordering into its
+  SQL fragments, so the in-memory and query paths cannot drift.
+  """
+  def usd_fallback_keys("foil"), do: ["usd_foil", "usd"]
+  def usd_fallback_keys("etched"), do: ["usd_etched", "usd_foil", "usd"]
+  def usd_fallback_keys(_finish), do: ["usd", "usd_foil", "usd_etched"]
 
-  defp price_string_for_finish(prices, "nonfoil"),
-    do: first_present(prices, ["usd", "usd_foil", "usd_etched"])
-
-  defp price_string_for_finish(prices, _finish),
-    do: first_present(prices, ["usd", "usd_foil", "usd_etched"])
+  defp price_string_for_finish(prices, finish),
+    do: first_present(prices, usd_fallback_keys(finish))
 
   defp first_present(prices, keys) do
     Enum.find_value(keys, fn key ->

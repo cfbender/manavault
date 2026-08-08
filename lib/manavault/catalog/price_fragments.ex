@@ -8,31 +8,51 @@ defmodule Manavault.Catalog.PriceFragments do
   caller's context). Macros that build on others (`price_cents_fragment`, the
   `*_total_cents_fragment`s) require the whole chain to be imported alongside
   them.
+
+  The finish-to-key fallback ordering is compiled in from
+  `Manavault.Catalog.Price.usd_fallback_keys/1`, keeping the SQL and
+  in-memory pricing paths on one authoritative ordering.
   """
+
+  alias Manavault.Catalog.Price
+
+  coalesce_sql = fn keys ->
+    "COALESCE(" <> Enum.map_join(keys, ", ", &"json_extract(?, '$.#{&1}')") <> ")"
+  end
+
+  @foil_keys Price.usd_fallback_keys("foil")
+  @etched_keys Price.usd_fallback_keys("etched")
+  @default_keys Price.usd_fallback_keys(nil)
+
+  @finish_case_sql """
+  CAST(COALESCE(NULLIF(
+    CASE ?
+      WHEN 'foil' THEN #{coalesce_sql.(@foil_keys)}
+      WHEN 'etched' THEN #{coalesce_sql.(@etched_keys)}
+      ELSE #{coalesce_sql.(@default_keys)}
+    END,
+    ''
+  ), '0') AS REAL)
+  """
+  @finish_case_prices_count length(@foil_keys) + length(@etched_keys) + length(@default_keys)
+
+  @default_price_sql """
+  CAST(COALESCE(NULLIF(
+    #{coalesce_sql.(@default_keys)},
+    ''
+  ), '0') AS REAL)
+  """
+  @default_price_prices_count length(@default_keys)
 
   @doc "Finish-aware USD price (as REAL) for an item's printing."
   defmacro price_value_fragment(item, printing) do
+    prices = List.duplicate(quote(do: unquote(printing).prices), @finish_case_prices_count)
+
     quote do
       fragment(
-        """
-        CAST(COALESCE(NULLIF(
-          CASE ?
-            WHEN 'foil' THEN COALESCE(json_extract(?, '$.usd_foil'), json_extract(?, '$.usd'))
-            WHEN 'etched' THEN COALESCE(json_extract(?, '$.usd_etched'), json_extract(?, '$.usd_foil'), json_extract(?, '$.usd'))
-            ELSE COALESCE(json_extract(?, '$.usd'), json_extract(?, '$.usd_foil'), json_extract(?, '$.usd_etched'))
-          END,
-          ''
-        ), '0') AS REAL)
-        """,
+        unquote(@finish_case_sql),
         unquote(item).finish,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices
+        unquote_splicing(prices)
       )
     end
   end
@@ -70,20 +90,12 @@ defmodule Manavault.Catalog.PriceFragments do
     end
   end
 
-  @doc "Finish-agnostic USD price (as REAL): usd, then usd_foil, then usd_etched."
+  @doc "Finish-agnostic USD price (as REAL), in the default fallback order."
   defmacro price_fragment(printing) do
+    prices = List.duplicate(quote(do: unquote(printing).prices), @default_price_prices_count)
+
     quote do
-      fragment(
-        """
-        CAST(COALESCE(NULLIF(
-          COALESCE(json_extract(?, '$.usd'), json_extract(?, '$.usd_foil'), json_extract(?, '$.usd_etched')),
-          ''
-        ), '0') AS REAL)
-        """,
-        unquote(printing).prices,
-        unquote(printing).prices,
-        unquote(printing).prices
-      )
+      fragment(unquote(@default_price_sql), unquote_splicing(prices))
     end
   end
 end

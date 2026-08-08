@@ -15,6 +15,10 @@ defmodule Manavault.Catalog.Util do
 
   def parse_quantity(_quantity), do: 1
 
+  @doc "Clamps untrusted quantity input to a positive integer, defaulting to 1."
+  def positive_quantity(quantity) when is_integer(quantity) and quantity > 0, do: quantity
+  def positive_quantity(_quantity), do: 1
+
   def encode_json(value), do: Jason.encode!(value)
 
   def decode_json(value, fallback) when is_binary(value) do

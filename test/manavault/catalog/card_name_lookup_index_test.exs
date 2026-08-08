@@ -20,26 +20,36 @@ defmodule Manavault.Catalog.CardNameLookupIndexTest do
     assert CardLookup.local_card(nil, "not a card") == nil
   end
 
-  test "case-insensitive name equality uses the NOCASE index instead of a table scan" do
+  test "card-name lookup matches diacritic names by their ASCII form" do
+    {:ok, _oin} =
+      %Card{}
+      |> Card.changeset(%{
+        oracle_id: "oracle-oin-the-brave",
+        name: "Óin the Brave",
+        type_line: "Legendary Creature — Dwarf"
+      })
+      |> Repo.insert()
+
+    assert %Card{oracle_id: "oracle-oin-the-brave"} = CardLookup.local_card(nil, "Oin the brave")
+
+    lookup = CardLookup.local_card_lookup([], ["Oin the brave", "sol ring"])
+
+    assert %Card{oracle_id: "oracle-oin-the-brave"} =
+             CardLookup.local_card(nil, "Óin the Brave", lookup)
+
+    assert %Card{oracle_id: "oracle-sol-ring"} = CardLookup.local_card(nil, "SOL RING", lookup)
+  end
+
+  test "normalized-name equality uses the normalized_name index instead of a table scan" do
     %{rows: rows} =
       Repo.query!(
-        "EXPLAIN QUERY PLAN SELECT oracle_id FROM scryfall_cards WHERE name = ?1 COLLATE NOCASE",
+        "EXPLAIN QUERY PLAN SELECT oracle_id FROM scryfall_cards WHERE normalized_name = ?1",
         ["sol ring"]
       )
 
     plan = rows |> Enum.map_join("\n", &Enum.join(&1, " "))
 
-    assert plan =~ "scryfall_cards_name_nocase_idx"
+    assert plan =~ "scryfall_cards_normalized_name_index"
     refute plan =~ ~r/SCAN scryfall_cards\b/
-
-    # Sanity: the old lower(name) form cannot use that index (guards the fix).
-    %{rows: old_rows} =
-      Repo.query!(
-        "EXPLAIN QUERY PLAN SELECT oracle_id FROM scryfall_cards WHERE lower(name) = ?1",
-        ["sol ring"]
-      )
-
-    old_plan = old_rows |> Enum.map_join("\n", &Enum.join(&1, " "))
-    refute old_plan =~ "scryfall_cards_name_nocase_idx"
   end
 end

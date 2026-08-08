@@ -5,6 +5,7 @@ defmodule Manavault.Trade.ListSource.Archidekt do
   already matched `@id_pattern`.
   """
 
+  alias Manavault.Catalog.Util
   alias Manavault.Trade.ListSource.Http
 
   @hosts ~w(archidekt.com www.archidekt.com)
@@ -51,7 +52,7 @@ defmodule Manavault.Trade.ListSource.Archidekt do
        when is_binary(name) and name != "" do
     %{
       name: name,
-      quantity: entry |> Map.get("quantity", 1) |> to_quantity(),
+      quantity: entry |> Map.get("quantity", 1) |> Util.positive_quantity(),
       zone: zone_from_categories(Map.get(entry, "categories", [])),
       set_code: nil,
       collector_number: nil
@@ -70,9 +71,6 @@ defmodule Manavault.Trade.ListSource.Archidekt do
   end
 
   defp zone_from_categories(_categories), do: "mainboard"
-
-  defp to_quantity(quantity) when is_integer(quantity) and quantity > 0, do: quantity
-  defp to_quantity(_quantity), do: 1
 
   defp req_options, do: Application.get_env(:manavault, :trade_archidekt_req_options, [])
 end

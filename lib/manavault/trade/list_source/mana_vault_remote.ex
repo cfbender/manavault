@@ -17,6 +17,7 @@ defmodule Manavault.Trade.ListSource.ManaVaultRemote do
 
   import Bitwise
 
+  alias Manavault.Catalog.Util
   alias Manavault.Trade.ListSource.Http
 
   @allowed_schemes ~w(http https)
@@ -441,7 +442,7 @@ defmodule Manavault.Trade.ListSource.ManaVaultRemote do
   defp want_entry_from_node(%{"cardName" => name} = node) when is_binary(name) do
     %{
       name: name,
-      quantity: node |> Map.get("quantity", 1) |> to_quantity(),
+      quantity: node |> Map.get("quantity", 1) |> Util.positive_quantity(),
       zone: "mainboard",
       set_code: Map.get(node, "setCode"),
       collector_number: Map.get(node, "collectorNumber")
@@ -457,7 +458,7 @@ defmodule Manavault.Trade.ListSource.ManaVaultRemote do
   defp binder_entry_from_node(%{"cardName" => name} = node) when is_binary(name) do
     %{
       name: name,
-      quantity: node |> Map.get("quantity", 1) |> to_quantity(),
+      quantity: node |> Map.get("quantity", 1) |> Util.positive_quantity(),
       zone: "mainboard",
       set_code: Map.get(node, "setCode"),
       collector_number: Map.get(node, "collectorNumber")
@@ -465,9 +466,6 @@ defmodule Manavault.Trade.ListSource.ManaVaultRemote do
   end
 
   defp binder_entry_from_node(_node), do: nil
-
-  defp to_quantity(quantity) when is_integer(quantity) and quantity > 0, do: quantity
-  defp to_quantity(_quantity), do: 1
 
   defp now_ms do
     Application.get_env(:manavault, :trade_manavault_monotonic_time, fn ->
