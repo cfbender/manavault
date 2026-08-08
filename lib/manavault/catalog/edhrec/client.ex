@@ -25,17 +25,22 @@ defmodule Manavault.Catalog.EDHRec.Client do
     end
   end
 
-  def fetch_commander_page(name, theme_slug \\ nil) when is_binary(name) do
+  def fetch_commander_page(name_or_names, theme_slug \\ nil)
+      when is_binary(name_or_names) or is_list(name_or_names) do
     path =
-      [card_slug(name), theme_slug && card_slug(theme_slug)]
+      [commander_slug(name_or_names), theme_slug && card_slug(theme_slug)]
       |> Enum.reject(&(&1 in [nil, ""]))
       |> Enum.join("/")
 
-    url = "#{@commander_page_base_url}/#{path}.json"
+    get_commander_page("#{@commander_page_base_url}/#{path}.json", _follow_redirect? = true)
+  end
 
+  defp get_commander_page(url, follow_redirect?) do
     case Req.get(url, headers: [{"accept", "application/json"}], receive_timeout: 20_000) do
       {:ok, %{status: status, body: body}} when status in 200..299 ->
-        decode_response_body(body)
+        with {:ok, page} <- decode_response_body(body) do
+          follow_commander_redirect(page, follow_redirect?)
+        end
 
       {:ok, %{status: status}} ->
         {:error, {:edhrec_commander_http_error, status}}
@@ -44,6 +49,28 @@ defmodule Manavault.Catalog.EDHRec.Client do
         {:error, {:edhrec_commander_request_failed, Exception.message(exception)}}
     end
   end
+
+  # EDHREC answers non-canonical commander slugs (e.g. a partner pair in the
+  # wrong order) with a JSON body of {"redirect": "/commanders/<slug>"}.
+  defp follow_commander_redirect(%{"redirect" => "/commanders/" <> slug}, true)
+       when is_binary(slug) and slug != "" do
+    get_commander_page("#{@commander_page_base_url}/#{slug}.json", false)
+  end
+
+  defp follow_commander_redirect(%{"redirect" => _path}, _follow_redirect?),
+    do: {:error, :edhrec_unexpected_response}
+
+  defp follow_commander_redirect(page, _follow_redirect?), do: {:ok, page}
+
+  # Partner commander pages live at both slugs joined in alphabetical order.
+  def commander_slug(names) when is_list(names) do
+    names
+    |> Enum.map(&card_slug/1)
+    |> Enum.sort()
+    |> Enum.join("-")
+  end
+
+  def commander_slug(name) when is_binary(name), do: card_slug(name)
 
   defp decode_response_body(body) when is_map(body), do: {:ok, body}
 

@@ -51,6 +51,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
              MapSet.new([
                "addCollectionItemToDeck",
                "addDeckCard",
+               "addDeckPartner",
                "allocateDeckCardItem",
                "allocateDeckCardProxy",
                "allocateDeckPullList",

@@ -397,6 +397,18 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       end)
     end
 
+    payload field :add_deck_partner do
+      arg(:id, non_null(:id))
+
+      output do
+        field :deck_card, :deck_card
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &MutationResolvers.add_deck_partner/3, :deck_card)
+      end)
+    end
+
     payload field :allocate_deck_card_item do
       arg(:deck_card_id, non_null(:id))
       arg(:collection_item_id, non_null(:id))

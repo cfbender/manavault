@@ -41,7 +41,10 @@ defmodule Manavault.Catalog.DeckSummaries do
   def commander_color_identity_from_cards(cards) when is_list(cards) do
     cards
     |> Enum.filter(&match?(%DeckCard{card: %Card{}}, &1))
-    |> commander_color_identity_from_values(& &1.card.color_identity)
+    |> Enum.map(
+      &%{zone: &1.zone, color_identity: &1.card.color_identity, oracle_text: &1.card.oracle_text}
+    )
+    |> commander_color_identity_from_rows()
   end
 
   defp display_summaries([]), do: %{}
@@ -61,6 +64,7 @@ defmodule Manavault.Catalog.DeckSummaries do
       deck_id: deck_card.deck_id,
       zone: deck_card.zone,
       color_identity: card.color_identity,
+      oracle_text: card.oracle_text,
       preferred_image_uris: preferred_printing.image_uris,
       fallback_image_uris:
         fragment(
@@ -176,31 +180,53 @@ defmodule Manavault.Catalog.DeckSummaries do
   defp fallback_printing_image_uris(_deck_card), do: nil
 
   defp commander_color_identity_from_rows(rows) do
-    rows
-    |> Enum.filter(&(&1.zone == "commander"))
-    |> commander_color_identity_from_values(& &1.color_identity)
+    {commanders, other_rows} = Enum.split_with(rows, &(&1.zone == "commander"))
+
+    case commanders do
+      [] ->
+        nil
+
+      commanders ->
+        printed_colors = row_colors(commanders)
+
+        colors =
+          MapSet.union(printed_colors, chosen_colors(commanders, other_rows, printed_colors))
+
+        if MapSet.size(colors) == 0 do
+          ["C"]
+        else
+          colors
+          |> MapSet.to_list()
+          |> Enum.sort_by(&color_sort_value/1)
+        end
+    end
   end
 
-  defp commander_color_identity_from_values([], _color_identity_fun), do: nil
+  # Commanders that "choose a color before the game begins" (e.g. Clara
+  # Oswald) each add one chosen color to the deck's identity; infer the chosen
+  # colors from the counted cards outside the commanders' printed identities.
+  defp chosen_colors(commanders, other_rows, printed_colors) do
+    chosen_color_slots = Enum.count(commanders, &Card.chooses_color_before_game?(&1.oracle_text))
 
-  defp commander_color_identity_from_values(values, color_identity_fun) do
-    colors =
-      values
-      |> Enum.flat_map(fn value ->
-        color_identity_fun.(value)
-        |> Util.decode_json([])
-      end)
-      |> Enum.filter(&is_binary/1)
-      |> Enum.map(&String.upcase/1)
-      |> MapSet.new()
+    extra_colors =
+      other_rows
+      |> Enum.filter(&DeckCard.deck_count_zone?(&1.zone))
+      |> row_colors()
+      |> MapSet.difference(printed_colors)
 
-    if MapSet.size(colors) == 0 do
-      ["C"]
+    if chosen_color_slots > 0 and MapSet.size(extra_colors) <= chosen_color_slots do
+      extra_colors
     else
-      colors
-      |> MapSet.to_list()
-      |> Enum.sort_by(&color_sort_value/1)
+      MapSet.new()
     end
+  end
+
+  defp row_colors(rows) do
+    rows
+    |> Enum.flat_map(&Util.decode_json(&1.color_identity, []))
+    |> Enum.filter(&is_binary/1)
+    |> Enum.map(&String.upcase/1)
+    |> MapSet.new()
   end
 
   defp color_sort_value(color) do

@@ -7,6 +7,7 @@ import { Button } from "../../components/ui/button"
 import { useToast } from "../../components/ui/toast"
 import { graphqlEndpointContext, refetchActiveQueries } from "../../lib/apollo"
 import { deckCardsTotalPrice, deckMissingCardsTotalPrice, formatUsdCents } from "./buylist-export"
+import { isValidCommanderPair } from "./commander-pairing"
 import { createDeckPullList } from "./deck-allocation-model"
 import { compareDeckCards, countDeckZones } from "./deck-card-model"
 import { DeckDetailBulkAllocationOverlay } from "./deck-detail-bulk-allocation-overlay"
@@ -190,6 +191,22 @@ export function DeckDetailPage({
     () => groupDeckCards(stackDeckCards, groupBy, deck?.tags ?? []),
     [deck?.tags, groupBy, stackDeckCards],
   )
+  const partnerCandidateIds = useMemo(() => {
+    const commanders = deckCards.filter((deckCard) => deckCard.zone === "commander")
+    if (commanders.length !== 1) return new Set<string>()
+    const commanderCard = commanders[0].card
+    if (!commanderCard) return new Set<string>()
+    return new Set(
+      deckCards
+        .filter(
+          (deckCard) =>
+            deckCard.zone !== "commander" &&
+            deckCard.card &&
+            isValidCommanderPair(deckCard.card, commanderCard),
+        )
+        .map((deckCard) => deckCard.id),
+    )
+  }, [deckCards])
   const selectionDeckCardIds = useMemo(
     () => [
       ...new Set(groupedCards.flatMap((group) => group.cards.map((deckCard) => deckCard.id))),
@@ -493,6 +510,7 @@ export function DeckDetailPage({
             highlightedCardIds={selection.highlightedDeckCardIds}
             isSelecting={selection.isSelectionActive}
             isUpdating={isUpdatingDeckCard}
+            onAddPartner={(deckCard) => cardActions.addDeckPartner(deckCard.id)}
             onAllocate={(deckCard, collectionItemId) =>
               allocationActions.allocate(deckCard.id, collectionItemId)
             }
@@ -509,6 +527,7 @@ export function DeckDetailPage({
             onToggleProxy={allocationActions.toggleProxy}
             onToggleSelected={selection.toggleDeckCardSelected}
             onUnassignTag={cardActions.unassignDeckCardTag}
+            partnerCandidateIds={partnerCandidateIds}
             selectedCardIds={selection.selectedDeckCardIds}
             shareMode={shareMode}
           />

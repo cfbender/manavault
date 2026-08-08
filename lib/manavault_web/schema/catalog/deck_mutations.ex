@@ -251,6 +251,36 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
     end
   end
 
+  def add_deck_partner(_parent, %{id: id}, resolution) do
+    with {:ok, id} <- RelayHelpers.node_id(id, :deck_card, resolution) do
+      deck_card = DeckCard |> Repo.get!(id) |> Repo.preload([:card, :preferred_printing])
+
+      case Catalog.add_deck_partner(deck_card) do
+        {:ok, deck_card} ->
+          {:ok, deck_card}
+
+        {:error, :already_commander} ->
+          {:error, "card is already in the command zone"}
+
+        {:error, :no_commander} ->
+          {:error, "deck has no commander to pair with"}
+
+        {:error, :command_zone_full} ->
+          {:error, "deck already has two commanders"}
+
+        {:error, :invalid_commander_pair} ->
+          {:error,
+           "card can't be paired with the current commander; two commanders require a pairing ability such as Partner, Partner with, Friends forever, Doctor's companion, or Choose a Background"}
+
+        {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
+          {:error, Errors.changeset_error_message(changeset)}
+
+        {:error, reason} ->
+          {:error, Errors.deck_edit_error(reason)}
+      end
+    end
+  end
+
   def create_deck_tag(_parent, %{deck_id: deck_id, input: input}, resolution) do
     with {:ok, deck_id} <- RelayHelpers.node_id(deck_id, :deck, resolution) do
       deck = Catalog.get_deck!(deck_id)

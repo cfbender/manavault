@@ -25,10 +25,20 @@ defmodule Manavault.Catalog.EDHRec.Response do
       recommendations: normalize_entries(Map.get(response, "inRecs", []), deck),
       cuts: normalize_entries(Map.get(response, "outRecs", []), deck),
       commander_pages:
-        CommanderPage.pages(commander_names, fetch_commander_page, deck, commander_theme),
+        CommanderPage.pages(
+          commander_page_entries(commander_names),
+          fetch_commander_page,
+          deck,
+          commander_theme
+        ),
       more: Map.get(response, "more", false) == true
     }
   end
+
+  # Partner commanders share a combined EDHREC page; surface it first,
+  # followed by each commander's individual page.
+  defp commander_page_entries([_name_a, _name_b] = names), do: [names | names]
+  defp commander_page_entries(names), do: names
 
   defp normalize_entries(entries, %Deck{} = deck) when is_list(entries) do
     # Resolve every entry's card through one batched lookup (three grouped

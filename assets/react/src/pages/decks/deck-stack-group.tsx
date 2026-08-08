@@ -49,6 +49,7 @@ export function DeckStackGroup({
   group,
   isSelecting,
   isUpdating,
+  onAddPartner,
   onAllocate,
   onAssignTag,
   onDelete,
@@ -61,6 +62,7 @@ export function DeckStackGroup({
   onToggleProxy,
   onToggleSelected,
   onUnassignTag,
+  partnerCandidateIds,
   selectedCardIds,
   highlightedCardIds,
   shareMode = false,
@@ -72,6 +74,7 @@ export function DeckStackGroup({
   highlightedCardIds: Set<string> | null
   isSelecting: boolean
   isUpdating: boolean
+  onAddPartner: (deckCard: DeckCardEntry) => void
   onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
   onAssignTag: (deckCard: DeckCardEntry, tagId: string) => void
   onDelete: (deckCard: DeckCardEntry) => void
@@ -84,6 +87,7 @@ export function DeckStackGroup({
   onToggleProxy: (deckCard: DeckCardEntry) => void
   onToggleSelected: (deckCardId: string, selectRange?: boolean) => void
   onUnassignTag: (deckCard: DeckCardEntry, tagId: string) => void
+  partnerCandidateIds: Set<string>
   selectedCardIds: Set<string>
   shareMode?: boolean
 }) {
@@ -265,6 +269,11 @@ export function DeckStackGroup({
             <DeckStackCard
               key={deckCard.id}
               assignedTagIds={deckCard.tagIds ?? []}
+              canAddPartner={
+                canSetCommander &&
+                deckCard.zone !== "commander" &&
+                partnerCandidateIds.has(deckCard.id)
+              }
               canSetCommander={
                 canSetCommander && deckCard.zone !== "commander" && isLegendaryCreature(deckCard)
               }
@@ -277,6 +286,7 @@ export function DeckStackGroup({
               isSelected={selectedCardIds.has(deckCard.id)}
               isUpdating={isUpdating}
               isDimmed={highlightedCardIds !== null && !highlightedCardIds.has(deckCard.id)}
+              onAddPartner={() => onAddPartner(deckCard)}
               onAllocate={(collectionItemId) => onAllocate(deckCard, collectionItemId)}
               onAssignTag={(_, id) => onAssignTag(deckCard, id)}
               onDelete={() => onDelete(deckCard)}

@@ -589,6 +589,36 @@ export const SetDeckCommanderDocument = graphql(`
   }
 `)
 
+export const AddDeckPartnerDocument = graphql(`
+  mutation AddDeckPartner($id: ID!) {
+    addDeckPartner(id: $id) {
+      deckCard {
+        id
+        quantity
+        zone
+        finish
+        card {
+          id
+          oracleId
+          name
+          typeLine
+        }
+        preferredPrinting {
+          id
+          scryfallId
+          imageUrl
+          backImageUrl
+          artCropUrl
+          setCode
+          setName
+          collectorNumber
+          rarity
+        }
+      }
+    }
+  }
+`)
+
 export const AllocateDeckCardItemDocument = graphql(`
   mutation AllocateDeckCardItem($deckCardId: ID!, $collectionItemId: ID!) {
     allocateDeckCardItem(deckCardId: $deckCardId, collectionItemId: $collectionItemId) {

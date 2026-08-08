@@ -9,6 +9,7 @@ import {
   Square,
   Tag,
   Trash2,
+  UserPlus,
   XCircle,
 } from "lucide-react"
 import {
@@ -56,6 +57,7 @@ const TAG_DRAG_THRESHOLD_PX = 8
 
 export function DeckStackCard({
   assignedTagIds,
+  canAddPartner,
   canSetCommander,
   deckId,
   deckCard,
@@ -66,6 +68,7 @@ export function DeckStackCard({
   isSelecting,
   isSelected,
   isUpdating,
+  onAddPartner,
   onDelete,
   onAllocate,
   onAssignTag,
@@ -85,6 +88,7 @@ export function DeckStackCard({
   top,
 }: {
   assignedTagIds: string[]
+  canAddPartner: boolean
   canSetCommander: boolean
   deckId: string
   deckCard: DeckCardEntry
@@ -95,6 +99,7 @@ export function DeckStackCard({
   isUpdating: boolean
   isSelecting: boolean
   isSelected: boolean
+  onAddPartner: () => void
   onAllocate: (collectionItemId: string) => void
   onAssignTag: (deckCard: DeckCardEntry, tagId: string) => void
   onDelete: () => void
@@ -416,6 +421,12 @@ export function DeckStackCard({
                   <DropdownMenuItem disabled={isUpdating} onSelect={onSetCommander}>
                     <Crown className="h-4 w-4" />
                     Set as commander
+                  </DropdownMenuItem>
+                ) : null}
+                {canAddPartner ? (
+                  <DropdownMenuItem disabled={isUpdating} onSelect={onAddPartner}>
+                    <UserPlus className="h-4 w-4" />
+                    Add as partner
                   </DropdownMenuItem>
                 ) : null}
                 <DropdownMenuSeparator />

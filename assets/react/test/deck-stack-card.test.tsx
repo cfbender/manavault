@@ -38,6 +38,7 @@ const deckCard = {
 
 function renderCard(overrides: Partial<Parameters<typeof DeckStackCard>[0]> = {}) {
   const handlers = {
+    onAddPartner: vi.fn(),
     onAllocate: vi.fn(),
     onAssignTag: vi.fn(),
     onDelete: vi.fn(),
@@ -55,6 +56,7 @@ function renderCard(overrides: Partial<Parameters<typeof DeckStackCard>[0]> = {}
   render(
     <DeckStackCard
       assignedTagIds={[]}
+      canAddPartner={false}
       canSetCommander={false}
       deckId="deck-1"
       deckCard={deckCard}
@@ -110,6 +112,29 @@ test("portalled menu content is tagged with its owning card so stack pin-clearin
   const item = screen.getByRole("menuitem", { name: /View card details/ })
   expect(deckStackCardMenuOwnerId(item)).toBe("deck-card-1")
   expect(deckStackCardMenuOwnerId(document.body)).toBeNull()
+})
+
+test("add as partner menu item shows for pairing candidates and fires its handler", async () => {
+  const user = userEvent.setup()
+  const handlers = renderCard({ canAddPartner: true })
+
+  await user.click(screen.getByRole("button", { name: "Sol Ring actions" }))
+  await screen.findByRole("menu")
+
+  const partnerItem = screen.getByRole("menuitem", { name: /Add as partner/ })
+  await user.click(partnerItem)
+  expect(handlers.onAddPartner).toHaveBeenCalledTimes(1)
+  expect(screen.queryByRole("menu")).toBeNull()
+})
+
+test("add as partner menu item is hidden when the card cannot pair", async () => {
+  const user = userEvent.setup()
+  renderCard()
+
+  await user.click(screen.getByRole("button", { name: "Sol Ring actions" }))
+  await screen.findByRole("menu")
+
+  expect(screen.queryByRole("menuitem", { name: /Add as partner/ })).toBeNull()
 })
 
 test("allocation quick menu exposes allocate action through a Radix menu", async () => {

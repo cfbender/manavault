@@ -33,6 +33,20 @@ defmodule Manavault.Catalog.Card do
     timestamps(type: :utc_datetime)
   end
 
+  @doc """
+  Whether this card's oracle text lets its controller choose a color before
+  the game begins (e.g. The Prismatic Piper, Clara Oswald). Such commanders
+  add one chosen color to the deck's color identity.
+  """
+  def chooses_color_before_game?(%__MODULE__{oracle_text: oracle_text}),
+    do: chooses_color_before_game?(oracle_text)
+
+  def chooses_color_before_game?(oracle_text) when is_binary(oracle_text) do
+    Regex.match?(~r/choose a color before the game begins/iu, oracle_text)
+  end
+
+  def chooses_color_before_game?(_oracle_text), do: false
+
   def changeset(card, attrs) do
     card
     |> cast(attrs, [

@@ -197,6 +197,12 @@ defmodule Manavault.Catalog.Decks do
     |> invalidate_decks_on_ok()
   end
 
+  def add_deck_partner(deck_card) do
+    deck_card
+    |> Cards.add_deck_partner()
+    |> invalidate_decks_on_ok()
+  end
+
   def delete_deck_card(deck_card) do
     deck_card
     |> Cards.delete_deck_card()

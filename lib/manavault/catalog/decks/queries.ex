@@ -142,9 +142,7 @@ defmodule Manavault.Catalog.Decks.Queries do
     do: colors
 
   def deck_commander_color_identity(%Deck{deck_cards: cards}) when is_list(cards) do
-    cards
-    |> Enum.filter(&(&1.zone == "commander"))
-    |> DeckSummaries.commander_color_identity_from_cards()
+    DeckSummaries.commander_color_identity_from_cards(cards)
   end
 
   def deck_commander_color_identity(%Deck{id: id}) do

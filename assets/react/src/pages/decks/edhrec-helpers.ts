@@ -139,12 +139,26 @@ export function formatSynergy(card: EDHRecSectionCard) {
 }
 
 export function commanderDeckCard(deck: DeckDetail | null, name: string) {
-  const normalizedName = normalizeDisplayName(name)
-  return (deck?.deckCards || []).find(
-    (deckCard) =>
-      deckCard.zone === "commander" &&
-      normalizeDisplayName(deckCard.card?.name || "") === normalizedName,
-  )
+  const commanderByName = (candidate: string) => {
+    const normalizedName = normalizeDisplayName(candidate)
+    return (deck?.deckCards || []).find(
+      (deckCard) =>
+        deckCard.zone === "commander" &&
+        normalizeDisplayName(deckCard.card?.name || "") === normalizedName,
+    )
+  }
+
+  const match = commanderByName(name)
+  if (match) return match
+
+  // Partner pair pages are named "Commander A // Commander B"; fall back to
+  // the first partner that matches a commander deck card.
+  for (const part of name.split(" // ")) {
+    const partnerMatch = commanderByName(part)
+    if (partnerMatch) return partnerMatch
+  }
+
+  return undefined
 }
 
 export function edhrecDeckCard(deck: DeckDetail | null, card: EDHRecCard): DeckCardEntry | null {

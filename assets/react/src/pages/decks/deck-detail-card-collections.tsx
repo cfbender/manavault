@@ -14,6 +14,7 @@ type DeckDetailCardCollectionsProps = {
   highlightedCardIds: Set<string> | null
   isSelecting: boolean
   isUpdating: boolean
+  onAddPartner: (deckCard: DeckCardEntry) => void
   onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
   onAssignTag: (deckCard: DeckCardEntry, tagId: string) => void
   onDeallocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
@@ -26,6 +27,7 @@ type DeckDetailCardCollectionsProps = {
   onToggleProxy: (deckCard: DeckCardEntry) => void
   onToggleSelected: (deckCardId: string, selectRange?: boolean) => void
   onUnassignTag: (deckCard: DeckCardEntry, tagId: string) => void
+  partnerCandidateIds: Set<string>
   selectedCardIds: Set<string>
   shareMode: boolean
 }
@@ -40,6 +42,7 @@ export function DeckDetailCardCollections({
   highlightedCardIds,
   isSelecting,
   isUpdating,
+  onAddPartner,
   onAllocate,
   onAssignTag,
   onDeallocate,
@@ -52,6 +55,7 @@ export function DeckDetailCardCollections({
   onToggleProxy,
   onToggleSelected,
   onUnassignTag,
+  partnerCandidateIds,
   selectedCardIds,
   shareMode,
 }: DeckDetailCardCollectionsProps) {
@@ -68,6 +72,7 @@ export function DeckDetailCardCollections({
           highlightedCardIds={highlightedCardIds}
           isSelecting={canEdit && isSelecting}
           isUpdating={isUpdating}
+          onAddPartner={onAddPartner}
           onAllocate={onAllocate}
           onAssignTag={onAssignTag}
           onDeallocate={onDeallocate}
@@ -80,6 +85,7 @@ export function DeckDetailCardCollections({
           onToggleProxy={onToggleProxy}
           onToggleSelected={onToggleSelected}
           onUnassignTag={onUnassignTag}
+          partnerCandidateIds={partnerCandidateIds}
           selectedCardIds={selectedCardIds}
           shareMode={readOnly}
         />

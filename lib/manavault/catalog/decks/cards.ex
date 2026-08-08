@@ -3,7 +3,7 @@ defmodule Manavault.Catalog.Decks.Cards do
 
   import Ecto.Query
 
-  alias Manavault.Catalog.{Card, Deck, DeckCard, Printing, Util}
+  alias Manavault.Catalog.{Card, CommanderRules, Deck, DeckCard, Printing, Util}
   alias Manavault.Catalog.Decks.{AllocationItems, DeckCardAllocation, EditGuard, Printings}
   alias Manavault.Catalog.Search.CardsByName
   alias Manavault.Repo
@@ -188,6 +188,48 @@ defmodule Manavault.Catalog.Decks.Cards do
           |> Repo.preload([:card, :preferred_printing])
 
         {:ok, deck_card}
+      end)
+    end
+  end
+
+  def add_deck_partner(%DeckCard{} = deck_card) do
+    with :ok <- EditGuard.ensure_deck_card_editable(deck_card) do
+      Repo.transact(fn ->
+        deck_card = Repo.preload(deck_card, [:card, :preferred_printing])
+
+        if deck_card.zone == "commander" do
+          Repo.rollback(:already_commander)
+        end
+
+        commanders =
+          DeckCard
+          |> where(
+            [card],
+            card.deck_id == ^deck_card.deck_id and card.zone == "commander" and
+              card.id != ^deck_card.id
+          )
+          |> Repo.all()
+          |> Repo.preload(:card)
+
+        case commanders do
+          [commander] ->
+            unless CommanderRules.valid_pair?(deck_card.card, commander.card) do
+              Repo.rollback(:invalid_commander_pair)
+            end
+
+            deck_card =
+              deck_card
+              |> move_deck_card_to_zone!("commander")
+              |> Repo.preload([:card, :preferred_printing])
+
+            {:ok, deck_card}
+
+          [] ->
+            Repo.rollback(:no_commander)
+
+          _multiple ->
+            Repo.rollback(:command_zone_full)
+        end
       end)
     end
   end
