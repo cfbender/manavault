@@ -32,7 +32,14 @@ vi.mock("@apollo/client/react", () => ({
             format: "commander",
             status: "active",
           },
-        })),
+        })).concat({
+          node: {
+            id: "archived-deck",
+            name: "Archived Deck",
+            format: "commander",
+            status: "archived",
+          },
+        }),
       },
     },
     loading: false,
@@ -58,7 +65,7 @@ function renderDialog() {
   return { onOpenChange }
 }
 
-test("lists many decks in a scrollable listbox with a bounded max height", async () => {
+test("lists many editable decks without archived decks in a bounded scrollable listbox", async () => {
   const user = userEvent.setup()
   renderDialog()
 
@@ -67,6 +74,7 @@ test("lists many decks in a scrollable listbox with a bounded max height", async
   const listbox = await screen.findByRole("listbox")
   const options = within(listbox).getAllByRole("option")
   expect(options).toHaveLength(40)
+  expect(within(listbox).queryByRole("option", { name: "Archived Deck (Commander)" })).toBeNull()
 
   const scrollViewport = listbox.querySelector("[data-radix-select-viewport]")
   expect(scrollViewport?.className).toContain("max-h-")

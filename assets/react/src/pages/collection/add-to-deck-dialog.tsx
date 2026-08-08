@@ -51,7 +51,11 @@ export function AddCollectionItemToDeckDialog({
     fetchPolicy: "cache-and-network",
   })
   const decks = useMemo(
-    () => decksQuery.data?.decks?.edges?.map((edge) => edge?.node).filter(present) || [],
+    () =>
+      decksQuery.data?.decks?.edges
+        ?.map((edge) => edge?.node)
+        .filter(present)
+        .filter((deck) => deck.status !== "archived") || [],
     [decksQuery.data],
   )
   const [addToDeckMutation, addToDeck] = useMutation(BulkAddCollectionItemsToDeckDocument)

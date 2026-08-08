@@ -236,7 +236,8 @@ export function CardTile({
         "group/card relative w-full overflow-visible rounded-xl bg-transparent transition duration-200 focus-within:z-50",
         growOnHover && "hover:z-50 hover:-translate-y-2 hover:scale-[1.035]",
         growOnHover && mobileHover.isRevealed && "z-50 -translate-y-2 scale-[1.035]",
-        hasPrimaryAction && "cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50",
+        hasPrimaryAction &&
+          "cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
         className,
       )}
       onBlur={handleBlur}
@@ -328,11 +329,11 @@ export function CardTile({
 
       <figure
         className={cn(
-          "relative aspect-[5/7] w-full overflow-hidden rounded-xl bg-base-300 shadow-lg ring-1 ring-white/10 transition duration-200 group-focus-within/card:ring-primary/50",
+          "relative aspect-[5/7] w-full overflow-hidden rounded-xl bg-base-300 shadow-lg ring-1 ring-white/10 transition duration-200",
           foil && "card-tile-foil",
           finish === "etched" && "card-tile-foil--etched",
-          growOnHover && "group-hover/card:shadow-2xl group-hover/card:ring-primary/40",
-          growOnHover && mobileHover.isRevealed && "shadow-2xl ring-primary/40",
+          growOnHover && "group-hover/card:shadow-2xl",
+          growOnHover && mobileHover.isRevealed && "shadow-2xl",
           selected && "ring-2 ring-primary ring-offset-2 ring-offset-base-100",
         )}
       >

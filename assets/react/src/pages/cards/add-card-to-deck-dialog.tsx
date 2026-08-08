@@ -69,7 +69,11 @@ export function AddCatalogCardToDeckDialog({
     skip: !open,
     fetchPolicy: "cache-and-network",
   })
-  const decks = decksQuery.data?.decks?.edges?.map((edge) => edge?.node).filter(present) || []
+  const decks =
+    decksQuery.data?.decks?.edges
+      ?.map((edge) => edge?.node)
+      .filter(present)
+      .filter((deck) => deck.status !== "archived") || []
   const selectedDeck = decks.find((deck) => deck.id === deckId)
   const zoneOptions =
     selectedDeck?.format === "commander" ? ADD_CARD_ZONES : NON_COMMANDER_ADD_CARD_ZONES

@@ -63,7 +63,11 @@ export function EDHRecCardMenu({
             <MoreVertical className="h-4 w-4" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent sideOffset={2} className="z-[1200] w-52 shadow-2xl">
+        <DropdownMenuContent
+          sideOffset={2}
+          className="z-[1200] w-52 shadow-2xl"
+          data-mobile-hover-skip=""
+        >
           {mode === "cuts" ? (
             <>
               <DropdownMenuItem

@@ -1,8 +1,9 @@
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, expect, test, vi } from "vitest"
 
 import { EDHRecCardMenu } from "../src/pages/decks/edhrec-card-menu"
+import { EDHRecCardTile } from "../src/pages/decks/edhrec-card-grid"
 import { EDHRecCommanderHero } from "../src/pages/decks/edhrec-commander"
 import type { EDHRecCard, EDHRecCommanderPage } from "../src/pages/decks/deck-types"
 
@@ -104,4 +105,31 @@ test("cuts menu offers cutting actions instead of recommendation actions", async
   await user.click(screen.getByRole("menuitem", { name: "Cut" }))
   expect(onCut).toHaveBeenCalledOnce()
   expect(screen.queryByRole("menuitem", { name: "Cut" })).toBeNull()
+})
+
+test("recommendation menu add actions work with touch input and close the menu", async () => {
+  const user = userEvent.setup()
+  const onAddCard = vi.fn()
+
+  render(
+    <EDHRecCardTile
+      card={card}
+      isAddingCard={false}
+      isUpdatingCard={false}
+      mode="recs"
+      onAddCard={onAddCard}
+      onConsiderCutting={vi.fn()}
+      onCutCard={vi.fn()}
+      onPreviewCard={vi.fn()}
+    />,
+  )
+
+  await user.click(screen.getByRole("button", { name: "Arcane Signet actions" }))
+  const addToMain = screen.getByRole("menuitem", { name: "Add to Main" })
+  fireEvent.pointerDown(addToMain, { pointerId: 1, pointerType: "touch" })
+  fireEvent.pointerUp(addToMain, { pointerId: 1, pointerType: "touch" })
+  fireEvent.click(addToMain)
+
+  expect(onAddCard).toHaveBeenCalledWith(card, "mainboard")
+  expect(screen.queryByRole("menuitem", { name: "Add to Main" })).toBeNull()
 })
