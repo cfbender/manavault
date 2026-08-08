@@ -1,5 +1,5 @@
-import { Eye, MoreVertical, Plus } from "lucide-react"
-import type { ReactNode } from "react"
+import { Eye, MoreVertical, Plus, Scissors, Trash2 } from "lucide-react"
+import { useState, type ReactNode } from "react"
 
 import { Badge } from "../../components/ui/badge"
 import {
@@ -27,17 +27,24 @@ import type { CardDetailDialogTarget } from "./deck-card-detail-dialog"
 
 export function EDHRecCardMenu({
   card,
-  isAddingCard,
+  isPending,
+  mode = "recs",
   onAddCard,
+  onConsiderCutting,
+  onCut,
   onPreviewCard,
 }: {
   card: EDHRecCard | EDHRecSectionCard
-  isAddingCard: boolean
+  isPending: boolean
+  mode?: "recs" | "cuts"
   onAddCard: (zone: EDHRecAddZone) => void
+  onConsiderCutting?: () => void
+  onCut?: () => void
   onPreviewCard: (card: CardDetailDialogTarget) => void
 }) {
   const localCardId = card.card?.id
   const externalUrl = edhrecCardUrl(card)
+  const [isOpen, setIsOpen] = useState(false)
 
   return (
     <div
@@ -46,7 +53,7 @@ export function EDHRecCardMenu({
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
     >
-      <DropdownMenu>
+      <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
@@ -56,13 +63,39 @@ export function EDHRecCardMenu({
             <MoreVertical className="h-4 w-4" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent sideOffset={2} className="w-52 shadow-2xl">
-          {EDHREC_ADD_CARD_ZONES.map(({ label, zone }) => (
-            <DropdownMenuItem key={zone} disabled={isAddingCard} onSelect={() => onAddCard(zone)}>
-              <Plus className="h-4 w-4" />
-              {isAddingCard ? `Adding to ${label}...` : `Add to ${label}`}
-            </DropdownMenuItem>
-          ))}
+        <DropdownMenuContent sideOffset={2} className="z-[1200] w-52 shadow-2xl">
+          {mode === "cuts" ? (
+            <>
+              <DropdownMenuItem
+                disabled={isPending || !onConsiderCutting}
+                onSelect={() => {
+                  setIsOpen(false)
+                  onConsiderCutting?.()
+                }}
+              >
+                <Scissors className="h-4 w-4" />
+                Consider cutting
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                destructive
+                disabled={isPending || !onCut}
+                onSelect={() => {
+                  setIsOpen(false)
+                  onCut?.()
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+                Cut
+              </DropdownMenuItem>
+            </>
+          ) : (
+            EDHREC_ADD_CARD_ZONES.map(({ label, zone }) => (
+              <DropdownMenuItem key={zone} disabled={isPending} onSelect={() => onAddCard(zone)}>
+                <Plus className="h-4 w-4" />
+                {isPending ? `Adding to ${label}...` : `Add to ${label}`}
+              </DropdownMenuItem>
+            ))
+          )}
           {localCardId ? (
             <DropdownMenuItem onSelect={() => onPreviewCard({ id: localCardId, name: card.name })}>
               <Eye className="h-4 w-4" />

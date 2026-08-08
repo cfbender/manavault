@@ -3,6 +3,7 @@ import { useQuery } from "@apollo/client/react"
 import { Database, Sparkles, XCircle, type LucideIcon } from "lucide-react"
 
 import { EmptyState } from "../../components/card-image"
+import { ConfirmDialog } from "../../components/ui/confirm-dialog"
 import {
   Dialog,
   DialogClose,
@@ -12,6 +13,7 @@ import {
 } from "../../components/ui/dialog"
 import { cn } from "../../lib/utils"
 import type {
+  DeckCardEntry,
   DeckDetail,
   EDHRecAddZone,
   EDHRecCard,
@@ -22,7 +24,7 @@ import type {
 import { CardDetailDialog, type CardDetailDialogTarget } from "./deck-card-detail-dialog"
 import { EDHRecCardGrid } from "./edhrec-card-grid"
 import { EDHRecCommanderData } from "./edhrec-commander"
-import { edhrecScrollStorageKey } from "./edhrec-helpers"
+import { edhrecDeckCard, edhrecScrollStorageKey } from "./edhrec-helpers"
 import { DeckEdhrecDocument } from "./queries"
 
 export { EDHRecCardGrid, EDHRecCardTile, EDHRecScrollContainer } from "./edhrec-card-grid"
@@ -38,6 +40,7 @@ export {
   collectionStatusShortLabel,
   collectionStatusTone,
   commanderDeckCard,
+  edhrecDeckCard,
   edhrecCardImageUrl,
   edhrecCardPrice,
   edhrecCardPrintingId,
@@ -57,7 +60,10 @@ export function EDHRecDialog({
   deck,
   excludeLands,
   isAddingCard,
+  isUpdatingCard,
   onAddCard,
+  onConsiderCuttingCard,
+  onCutCard,
   onExcludeLandsChange,
   onOpenChange,
   onThemeChange,
@@ -70,7 +76,10 @@ export function EDHRecDialog({
   deck: DeckDetail | null
   excludeLands: boolean
   isAddingCard: boolean
+  isUpdatingCard: boolean
   onAddCard: (card: EDHRecCard | EDHRecSectionCard, zone: EDHRecAddZone) => void
+  onConsiderCuttingCard: (deckCard: DeckCardEntry) => void
+  onCutCard: (deckCardId: string) => void
   onExcludeLandsChange: (excludeLands: boolean) => void
   onOpenChange: (open: boolean) => void
   onThemeChange: (theme: EDHRecThemeSelection | null) => void
@@ -79,6 +88,7 @@ export function EDHRecDialog({
   selectedTheme?: EDHRecThemeSelection
 }) {
   const [previewCard, setPreviewCard] = useState<CardDetailDialogTarget | null>(null)
+  const [cutTarget, setCutTarget] = useState<DeckCardEntry | null>(null)
   const edhrecQuery = useQuery(DeckEdhrecDocument, {
     variables: {
       id: deck?.id || "",
@@ -195,8 +205,11 @@ export function EDHRecDialog({
                     cards={data.recommendations}
                     emptyTitle="No EDHREC recommendations returned"
                     isAddingCard={isAddingCard}
+                    isUpdatingCard={isUpdatingCard}
                     mode="recs"
                     onAddCard={onAddCard}
+                    onConsiderCutting={() => undefined}
+                    onCutCard={() => undefined}
                     onPreviewCard={setPreviewCard}
                     scrollStorageKey={scrollStorageKey}
                   />
@@ -206,8 +219,14 @@ export function EDHRecDialog({
                     cards={data.cuts}
                     emptyTitle="No EDHREC cuts returned"
                     isAddingCard={isAddingCard}
+                    isUpdatingCard={isUpdatingCard}
                     mode="cuts"
                     onAddCard={onAddCard}
+                    onConsiderCutting={(card) => {
+                      const deckCard = edhrecDeckCard(deck, card)
+                      if (deckCard) onConsiderCuttingCard(deckCard)
+                    }}
+                    onCutCard={(card) => setCutTarget(edhrecDeckCard(deck, card))}
                     onPreviewCard={setPreviewCard}
                     scrollStorageKey={scrollStorageKey}
                   />
@@ -236,6 +255,22 @@ export function EDHRecDialog({
           if (!nextOpen) setPreviewCard(null)
         }}
       />
+      {cutTarget ? (
+        <ConfirmDialog
+          destructive
+          confirmLabel="Cut card"
+          open
+          title={`Cut ${cutTarget.card?.name || "this card"} from this deck?`}
+          onConfirm={() => onCutCard(cutTarget.id)}
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen) setCutTarget(null)
+          }}
+        >
+          This removes{" "}
+          {cutTarget.quantity === 1 ? "its single copy" : `all ${cutTarget.quantity} copies`} from
+          the deck.
+        </ConfirmDialog>
+      ) : null}
     </>
   )
 }

@@ -8,6 +8,7 @@ import { OptimizePrintingsDialog } from "./optimize-printings-dialog"
 import { ExportDecklistDialog, ImportDecklistDialog, ShareDeckDialog } from "./deck-share-dialogs"
 import { SelectFromListDialog } from "./select-from-list-dialog"
 import type {
+  DeckCardEntry,
   DeckDetail,
   EDHRecAddZone,
   EDHRecCard,
@@ -24,9 +25,12 @@ type DeckDetailUtilityOverlaysProps = {
   edhrecTheme?: EDHRecThemeSelection
   edhrecTab?: EDHRecTab
   isAddingCard: boolean
+  isUpdatingCard: boolean
   isOptimizing: boolean
   onAddEdhrecCard: (card: EDHRecCard | EDHRecSectionCard, zone: EDHRecAddZone) => void
+  onConsiderCuttingEdhrecCard: (deckCard: DeckCardEntry) => void
   onClose: () => void
+  onCutEdhrecCard: (deckCardId: string) => void
   onDeleteSelected: () => void
   onOptimizePrintings: (deckCardIds: string[]) => void
   onSelectDeckCards: (deckCardIds: string[]) => void
@@ -48,9 +52,12 @@ export function DeckDetailUtilityOverlays({
   edhrecTab,
   edhrecTheme,
   isAddingCard,
+  isUpdatingCard,
   isOptimizing,
   onAddEdhrecCard,
+  onConsiderCuttingEdhrecCard,
   onClose,
+  onCutEdhrecCard,
   onDeleteSelected,
   onOptimizePrintings,
   onSelectDeckCards,
@@ -124,8 +131,11 @@ export function DeckDetailUtilityOverlays({
           excludeLands={edhrecExcludeLands}
           selectedTheme={edhrecTheme}
           isAddingCard={isAddingCard}
+          isUpdatingCard={isUpdatingCard}
           open
           onAddCard={onAddEdhrecCard}
+          onConsiderCuttingCard={onConsiderCuttingEdhrecCard}
+          onCutCard={onCutEdhrecCard}
           onExcludeLandsChange={(excludeLands) =>
             onSetEdhrecState({ tab: edhrecTab || "recs", excludeLands })
           }

@@ -533,16 +533,21 @@ export function DeckDetailPage({
         zoneCounts={zoneCounts}
       />
       <DeckDetailUtilityOverlays
-        addCardError={cardActions.addCardError}
+        addCardError={cardActions.addCardError || cardActions.tagError || cardActions.deleteError}
         canCloseDeleteSelected={!bulkActions.isDeleting}
         deck={deck}
         edhrecExcludeLands={edhrecExcludeLands}
         edhrecTheme={edhrecTheme}
         edhrecTab={edhrecTab}
         isAddingCard={cardActions.isAddingCard}
+        isUpdatingCard={cardActions.isPending}
         isOptimizing={allocationActions.isOptimizingPrintings}
         onAddEdhrecCard={addEdhrecCard}
+        onConsiderCuttingEdhrecCard={(deckCard) =>
+          cardActions.tagDeckCard(deckCard, "consider_cutting")
+        }
         onClose={() => setOverlay(NO_DECK_DETAIL_OVERLAY)}
+        onCutEdhrecCard={cardActions.deleteDeckCard}
         onDeleteSelected={() => {
           if (selection.selectedDeckCardIdList.length) {
             bulkActions.remove(selection.selectedDeckCardIdList, () =>

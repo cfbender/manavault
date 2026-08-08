@@ -295,7 +295,7 @@ export function EDHRecSectionCardTile({
         </div>
         <EDHRecCardMenu
           card={card}
-          isAddingCard={isAddingCard}
+          isPending={isAddingCard}
           onPreviewCard={onPreviewCard}
           onAddCard={(zone) => onAddCard(card, zone)}
         />

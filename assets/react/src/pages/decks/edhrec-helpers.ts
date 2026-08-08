@@ -1,5 +1,6 @@
 import { compactNumber, safeHttpUrl } from "../../lib/utils"
 import type {
+  DeckCardEntry,
   DeckDetail,
   EDHRecCard,
   EDHRecCardReturnSearch,
@@ -143,6 +144,23 @@ export function commanderDeckCard(deck: DeckDetail | null, name: string) {
     (deckCard) =>
       deckCard.zone === "commander" &&
       normalizeDisplayName(deckCard.card?.name || "") === normalizedName,
+  )
+}
+
+export function edhrecDeckCard(deck: DeckDetail | null, card: EDHRecCard): DeckCardEntry | null {
+  const oracleId = card.oracleId || card.card?.oracleId
+  const normalizedName = normalizeDisplayName(card.name)
+  const matches = (deck?.deckCards || []).filter(
+    (deckCard) =>
+      deckCard.zone !== "considering" &&
+      ((oracleId && deckCard.card?.oracleId === oracleId) ||
+        normalizeDisplayName(deckCard.card?.name || "") === normalizedName),
+  )
+
+  return (
+    matches.find((deckCard) => deckCard.zone === "mainboard") ||
+    matches.find((deckCard) => deckCard.zone === "commander") ||
+    null
   )
 }
 
