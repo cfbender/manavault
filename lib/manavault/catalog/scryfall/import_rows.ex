@@ -1,8 +1,8 @@
 defmodule Manavault.Catalog.Scryfall.ImportRows do
   @moduledoc false
 
-  alias Manavault.Catalog.Search.NameMatch
   alias Manavault.Catalog.ScryfallOracleTags
+  alias Manavault.Catalog.Search.NameMatch
 
   def rows(cards, now, oracle_tag_index) when is_list(cards) do
     {card_rows, printing_rows, search_rows} =

@@ -78,7 +78,11 @@ defmodule Manavault.Catalog.Scryfall.BulkData do
     :zlib.inflate(inflater, chunk)
   rescue
     error ->
-      raise DecodeError, "Could not decompress Scryfall bulk payload: #{Exception.message(error)}"
+      reraise DecodeError,
+              [
+                message: "Could not decompress Scryfall bulk payload: #{Exception.message(error)}"
+              ],
+              __STACKTRACE__
   end
 
   defp close_inflater(inflater, fully_consumed?) do

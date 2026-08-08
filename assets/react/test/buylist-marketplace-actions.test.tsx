@@ -41,11 +41,14 @@ test("renders marketplace actions in purchase order and prepares the SCG handoff
 
   const scgButton = screen.getByRole("button", { name: "StarCityGames" })
   const form = scgButton.closest("form")
-  expect(form?.getAttribute("action")).toBe("/vendors/star-city-games/deck-builder")
-  expect(form?.getAttribute("method")).toBe("post")
-  expect(form?.getAttribute("target")).toBe("_blank")
-  expect((form?.querySelector("input[name='data']") as HTMLInputElement).value).toBe("2 Sol Ring")
-  expect((form?.querySelector("input[name='_csrf_token']") as HTMLInputElement).value).toBe(
+  expect(form).not.toBeNull()
+  if (!form) throw new Error("Expected StarCityGames handoff form")
+
+  expect(form.getAttribute("action")).toBe("/vendors/star-city-games/deck-builder")
+  expect(form.getAttribute("method")).toBe("post")
+  expect(form.getAttribute("target")).toBe("_blank")
+  expect((form.querySelector("input[name='data']") as HTMLInputElement).value).toBe("2 Sol Ring")
+  expect((form.querySelector("input[name='_csrf_token']") as HTMLInputElement).value).toBe(
     "current-csrf-token",
   )
 })

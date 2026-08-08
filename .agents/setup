@@ -7,7 +7,16 @@ cd "$repo_root"
 export LANG=C.UTF-8
 export LC_ALL=C.UTF-8
 
-echo "==> Installing native build prerequisites"
+run_step() {
+  local label="$1"
+  shift
+  local started_at=$SECONDS
+
+  echo "==> $label"
+  "$@"
+  echo "<== $label completed in $((SECONDS - started_at))s"
+}
+
 if [[ "$(uname -s)" == "Linux" ]] && command -v apt-get >/dev/null 2>&1; then
   if [[ "$(id -u)" -eq 0 ]]; then
     apt=(apt-get)
@@ -19,23 +28,37 @@ if [[ "$(uname -s)" == "Linux" ]] && command -v apt-get >/dev/null 2>&1; then
   fi
 
   export DEBIAN_FRONTEND=noninteractive
-  "${apt[@]}" update
-  "${apt[@]}" install -y --no-install-recommends \
-    autoconf \
-    build-essential \
-    ca-certificates \
-    curl \
-    git \
-    inotify-tools \
-    libncurses-dev \
-    librsvg2-bin \
-    libsqlite3-dev \
-    libssl-dev \
-    libxml2-utils \
-    m4 \
-    pkg-config \
-    unzip \
+  native_packages=(
+    autoconf
+    build-essential
+    ca-certificates
+    curl
+    git
+    inotify-tools
+    libncurses-dev
+    librsvg2-bin
+    libsqlite3-dev
+    libssl-dev
+    libxml2-utils
+    m4
+    pkg-config
+    unzip
     xz-utils
+  )
+  missing_packages=()
+  for package in "${native_packages[@]}"; do
+    if ! dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -Fqx "install ok installed"; then
+      missing_packages+=("$package")
+    fi
+  done
+
+  if ((${#missing_packages[@]})); then
+    run_step "Refreshing Debian package metadata" "${apt[@]}" update
+    run_step "Installing native build prerequisites: ${missing_packages[*]}" \
+      "${apt[@]}" install -y --no-install-recommends "${missing_packages[@]}"
+  else
+    echo "==> Native build prerequisites are already installed"
+  fi
 fi
 
 if ! command -v mise >/dev/null 2>&1; then
@@ -98,20 +121,34 @@ When working in the ManaVault repository, invoke project-managed tools through m
 EOF
 fi
 
-echo "==> Installing the pinned web development toolchain"
-mise install -y aube erlang elixir node "npm:backlog.md"
+run_step "Installing the pinned web development toolchain" \
+  mise install -y aube erlang elixir node "npm:backlog.md"
 
-echo "==> Installing Hex and Rebar"
-mise exec -- mix local.hex --force
-mise exec -- mix local.rebar --force
+if ! mise exec -- mix help hex >/dev/null 2>&1; then
+  run_step "Installing Hex" mise exec -- mix local.hex --force
+else
+  echo "==> Hex is already installed"
+fi
 
-echo "==> Installing JavaScript dependencies"
-mise exec -- aube install --frozen-lockfile
+elixir_install="$(mise where elixir)"
+if ! find "$elixir_install/.mix/elixir" "${MIX_HOME:-$HOME/.mix}/elixir" \
+  -type f -name rebar3 -executable -print -quit 2>/dev/null | grep -q .; then
+  run_step "Installing Rebar" mise exec -- mix local.rebar --force
+else
+  echo "==> Rebar is already installed"
+fi
 
-echo "==> Installing Impeccable for Amp"
-mise exec -- aubx impeccable install -y --providers=codex --scope=project --no-hooks
+run_step "Installing JavaScript dependencies" \
+  mise exec -- aube install --frozen-lockfile
 
-echo "==> Installing Elixir dependencies, migrating the database, and building assets"
-mise exec -- mix setup
+if [[ ! -f .agents/skills/impeccable/SKILL.md ]]; then
+  run_step "Installing Impeccable for Amp" \
+    mise exec -- aubx impeccable install -y --providers=codex --scope=project --no-hooks
+else
+  echo "==> Impeccable for Amp is already installed"
+fi
+
+run_step "Installing Elixir dependencies, migrating the database, and building assets" \
+  mise exec -- mix setup
 
 echo "==> ManaVault orb setup complete"
