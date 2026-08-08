@@ -6,17 +6,21 @@ defmodule Manavault.Catalog.Search.CardsByNameTest do
   alias Manavault.Catalog.Card
   alias Manavault.Catalog.Search.CardsByName
 
-  defp import_oin! do
-    oin =
+  defp import_card!(oracle_id, name) do
+    card =
       @time_walk
       |> Map.merge(%{
-        "id" => "scryfall-oin-the-brave",
-        "oracle_id" => "oracle-oin-the-brave",
-        "name" => "Óin the Brave",
-        "collector_number" => "12"
+        "id" => "scryfall-#{oracle_id}",
+        "oracle_id" => oracle_id,
+        "name" => name,
+        "collector_number" => oracle_id
       })
 
-    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([oin])
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([card])
+  end
+
+  defp import_oin! do
+    import_card!("oracle-oin-the-brave", "Óin the Brave")
   end
 
   describe "key/1" do
@@ -39,18 +43,47 @@ defmodule Manavault.Catalog.Search.CardsByNameTest do
       assert CardsByName.find("Oin") == nil
       assert CardsByName.find("") == nil
     end
+
+    test "matches a multi-faced card by its front-face name" do
+      import_card!("oracle-bala-ged-recovery", "Bala Ged Recovery // Bala Ged Sanctuary")
+
+      assert %Card{name: "Bala Ged Recovery // Bala Ged Sanctuary"} =
+               CardsByName.find("Bala Ged Recovery")
+
+      assert %Card{name: "Bala Ged Recovery // Bala Ged Sanctuary"} =
+               CardsByName.find("Bala Ged Recovery // Bala Ged Sanctuary")
+    end
+
+    test "prefers an exact name over a multi-faced card's front-face alias" do
+      import_card!("oracle-fire", "Fire")
+      import_card!("oracle-fire-ice", "Fire // Ice")
+
+      assert %Card{oracle_id: "oracle-fire"} = CardsByName.find("Fire")
+    end
   end
 
   describe "by_names/1" do
     test "resolves a batch keyed by key/1, ignoring unresolvable names" do
       import_oin!()
       assert {:ok, %{cards_count: 1}} = Catalog.import_cards([@black_lotus])
+      import_card!("oracle-bala-ged-recovery", "Bala Ged Recovery // Bala Ged Sanctuary")
 
-      cards = CardsByName.by_names(["Oin the brave", "bLACK loTUS", "Not A Card", nil])
+      cards =
+        CardsByName.by_names([
+          "Oin the brave",
+          "bLACK loTUS",
+          "Bala Ged Recovery",
+          "Not A Card",
+          nil
+        ])
 
       assert %Card{name: "Óin the Brave"} = Map.get(cards, CardsByName.key("Oin the brave"))
       assert %Card{name: "Black Lotus"} = Map.get(cards, CardsByName.key("bLACK loTUS"))
-      assert map_size(cards) == 2
+
+      assert %Card{name: "Bala Ged Recovery // Bala Ged Sanctuary"} =
+               Map.get(cards, CardsByName.key("Bala Ged Recovery"))
+
+      assert map_size(cards) == 4
     end
   end
 end

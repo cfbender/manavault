@@ -8,8 +8,9 @@ defmodule Manavault.Catalog.Search.CardsByName do
   semantics cannot drift: names are cleaned of decklist annotations
   (`Decklists.normalize_card_name/1`), then matched case-, diacritic-, and
   apostrophe-insensitively against the persisted, indexed
-  `Card.normalized_name` (`NameMatch.sql_normalize/1`). When several cards
-  share a normalized name, the alphabetically-first card name wins.
+  `Card.normalized_name` (`NameMatch.sql_normalize/1`). The front face of a
+  multi-faced card also resolves to its combined catalog name. Exact matches
+  take precedence; otherwise the alphabetically-first card name wins.
   """
 
   import Ecto.Query
@@ -35,17 +36,16 @@ defmodule Manavault.Catalog.Search.CardsByName do
         nil
 
       key ->
-        Card
-        |> where([card], card.normalized_name == ^key)
-        |> order_by([card], asc: card.name)
-        |> limit(1)
-        |> Repo.one()
+        [name]
+        |> by_names()
+        |> Map.get(key)
     end
   end
 
   @doc """
   Batched lookup: a map of `key/1` => `Card` covering every name in `names`
-  that resolves. Look entries up with `Map.get(cards, key(name))`.
+  that resolves, including front-face aliases for multi-faced cards. Look
+  entries up with `Map.get(cards, key(name))`.
   """
   def by_names(names) when is_list(names) do
     keys =
@@ -54,12 +54,38 @@ defmodule Manavault.Catalog.Search.CardsByName do
       |> Enum.reject(&(&1 == ""))
       |> Enum.uniq()
 
-    Card
-    |> where([card], card.normalized_name in ^keys)
-    |> order_by([card], asc: card.name)
-    |> Repo.all()
-    |> Enum.reduce(%{}, fn card, cards ->
-      Map.put_new(cards, card.normalized_name, card)
+    cards =
+      Card
+      |> where(
+        [card],
+        card.normalized_name in ^keys or
+          (fragment("instr(?, ' // ') > 0", card.normalized_name) and
+             fragment(
+               "substr(?, 1, instr(?, ' // ') - 1)",
+               card.normalized_name,
+               card.normalized_name
+             ) in ^keys)
+      )
+      |> order_by([card], asc: card.name)
+      |> Repo.all()
+
+    exact_matches =
+      Enum.reduce(cards, %{}, fn card, matches ->
+        Map.put_new(matches, card.normalized_name, card)
+      end)
+
+    Enum.reduce(cards, exact_matches, fn card, matches ->
+      case front_face_key(card.normalized_name) do
+        nil -> matches
+        front_face_key -> Map.put_new(matches, front_face_key, card)
+      end
     end)
+  end
+
+  defp front_face_key(normalized_name) do
+    case String.split(normalized_name, " // ", parts: 2) do
+      [front_face, _back_face] -> front_face
+      _single_face -> nil
+    end
   end
 end

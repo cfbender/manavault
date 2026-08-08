@@ -98,6 +98,28 @@ defmodule Manavault.Catalog.DecklistTest do
              Catalog.get_deck!(deck.id).deck_cards
   end
 
+  test "decklist import matches a multi-faced card by its front-face name" do
+    bala_ged_recovery =
+      @time_walk
+      |> Map.merge(%{
+        "id" => "scryfall-bala-ged-recovery",
+        "oracle_id" => "oracle-bala-ged-recovery",
+        "name" => "Bala Ged Recovery // Bala Ged Sanctuary",
+        "collector_number" => "180"
+      })
+
+    assert {:ok, %{cards_count: 1, printings_count: 1}} =
+             Catalog.import_cards([bala_ged_recovery])
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Multi-faced Import"})
+
+    assert {:ok, %{imported: 1, unresolved: [], skipped_printings: []}} =
+             Catalog.import_decklist(deck, "1 Bala Ged Recovery")
+
+    assert [%DeckCard{card: %Card{name: "Bala Ged Recovery // Bala Ged Sanctuary"}}] =
+             Catalog.get_deck!(deck.id).deck_cards
+  end
+
   test "decklist import assumes one copy when quantity is omitted" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
