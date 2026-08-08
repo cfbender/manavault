@@ -194,18 +194,23 @@ defmodule Manavault.Catalog.Decks.Cards do
 
   def delete_deck_card(%DeckCard{} = deck_card) do
     with :ok <- EditGuard.ensure_deck_card_editable(deck_card) do
-      Repo.transact(fn ->
-        deck_card =
-          Repo.preload(deck_card, deck_allocations: [:collection_item])
-
-        clear_deck_card_allocations!(deck_card)
-
-        case Repo.delete(deck_card) do
-          {:ok, deck_card} -> {:ok, deck_card}
-          {:error, changeset} -> {:error, changeset}
-        end
-      end)
+      delete_deck_card_for_deck_deletion(deck_card)
     end
+  end
+
+  @doc false
+  def delete_deck_card_for_deck_deletion(%DeckCard{} = deck_card) do
+    Repo.transact(fn ->
+      deck_card =
+        Repo.preload(deck_card, deck_allocations: [:collection_item])
+
+      clear_deck_card_allocations!(deck_card)
+
+      case Repo.delete(deck_card) do
+        {:ok, deck_card} -> {:ok, deck_card}
+        {:error, changeset} -> {:error, changeset}
+      end
+    end)
   end
 
   defp update_deck_card_with_allocation_switch(%DeckCard{} = deck_card, attrs) do

@@ -65,7 +65,7 @@ defmodule Manavault.Catalog.Decks.Records do
         |> Repo.preload(deck_cards: [deck_allocations: [:collection_item]])
 
       Enum.each(deck.deck_cards, fn deck_card ->
-        case Cards.delete_deck_card(deck_card) do
+        case Cards.delete_deck_card_for_deck_deletion(deck_card) do
           {:ok, _deck_card} -> :ok
           {:error, reason} -> Repo.rollback(reason)
         end

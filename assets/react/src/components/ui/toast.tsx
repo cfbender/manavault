@@ -1,5 +1,5 @@
 import * as ToastPrimitive from "@radix-ui/react-toast"
-import { Check, X } from "lucide-react"
+import { CircleAlert, Check, Info, X } from "lucide-react"
 import {
   createContext,
   useCallback,
@@ -12,7 +12,7 @@ import {
 import { cn } from "../../lib/utils"
 import { Button } from "./button"
 
-type ToastTone = "success" | "info"
+type ToastTone = "success" | "info" | "error"
 
 type ToastNotice = {
   id: number
@@ -103,6 +103,8 @@ export function Toast({
   onDismiss?: () => void
   tone?: ToastTone
 }) {
+  const ToastIcon = tone === "success" ? Check : tone === "error" ? CircleAlert : Info
+
   return (
     <ToastPrimitive.Root
       className={cn(
@@ -110,14 +112,16 @@ export function Toast({
         "data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-full data-[state=closed]:opacity-0",
         tone === "success"
           ? "alert-success border-success/40 text-success-content"
-          : "alert-info border-info/40 text-info-content",
+          : tone === "error"
+            ? "alert-error border-error/40 text-error-content"
+            : "alert-info border-info/40 text-info-content",
       )}
       onOpenChange={(open) => {
         if (!open) onDismiss?.()
       }}
     >
       <div className="flex items-start gap-2">
-        <Check className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+        <ToastIcon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
         <ToastPrimitive.Description>{message}</ToastPrimitive.Description>
       </div>
       {onDismiss ? (

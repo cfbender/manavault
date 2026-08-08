@@ -423,7 +423,7 @@ defmodule ManavaultWeb.Schema.DeckCardsTest do
     assert Catalog.deck_allocation_status(Catalog.get_deck!(deck.id)) == %{}
   end
 
-  test "delete deck mutation removes a deck and restores allocated cards", %{conn: conn} do
+  test "delete deck mutation removes an archived deck and restores allocated cards", %{conn: conn} do
     {:ok, %{cards_count: 1, printings_count: 1}} =
       Catalog.import_cards([
         %{
@@ -456,6 +456,8 @@ defmodule ManavaultWeb.Schema.DeckCardsTest do
 
     assert {:ok, allocation} =
              Catalog.allocate_collection_item_to_deck_card(deck_card.id, item.id)
+
+    assert {:ok, _archived_deck} = Catalog.update_deck(deck, %{"status" => "archived"})
 
     conn =
       post(conn, "/api/graphql", %{
