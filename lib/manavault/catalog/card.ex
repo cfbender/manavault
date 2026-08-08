@@ -3,10 +3,13 @@ defmodule Manavault.Catalog.Card do
 
   import Ecto.Changeset
 
+  alias Manavault.Catalog.Search.NameMatch
+
   @primary_key {:oracle_id, :string, []}
   @foreign_key_type :string
   schema "scryfall_cards" do
     field :name, :string
+    field :normalized_name, :string
     field :type_line, :string
     field :oracle_text, :string
     field :mana_cost, :string
@@ -47,6 +50,24 @@ defmodule Manavault.Catalog.Card do
       :deck_themes,
       :rulings_uri
     ])
-    |> validate_required([:oracle_id, :name, :color_identity, :legalities, :game_changer])
+    |> put_normalized_name()
+    |> validate_required([
+      :oracle_id,
+      :name,
+      :normalized_name,
+      :color_identity,
+      :legalities,
+      :game_changer
+    ])
+  end
+
+  defp put_normalized_name(changeset) do
+    case get_field(changeset, :name) do
+      name when is_binary(name) ->
+        put_change(changeset, :normalized_name, NameMatch.sql_normalize(name))
+
+      _name ->
+        changeset
+    end
   end
 end

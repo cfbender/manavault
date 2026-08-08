@@ -11,11 +11,7 @@ defmodule Manavault.Catalog.Search.Cards.TextPredicates do
 
     dynamic(
       [card, _printing],
-      fragment(
-        "lower(replace(replace(?, '''', ''), '’', '')) LIKE ? ESCAPE '\\'",
-        card.name,
-        ^pattern
-      )
+      fragment("? LIKE ? ESCAPE '\\'", card.normalized_name, ^pattern)
     )
   end
 
@@ -31,11 +27,7 @@ defmodule Manavault.Catalog.Search.Cards.TextPredicates do
 
           dynamic(
             [card, _printing],
-            fragment(
-              "lower(replace(replace(?, '''', ''), '’', '')) LIKE ? ESCAPE '\\'",
-              card.name,
-              ^name_pattern
-            )
+            fragment("? LIKE ? ESCAPE '\\'", card.normalized_name, ^name_pattern)
           )
 
         :type ->

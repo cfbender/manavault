@@ -11,10 +11,11 @@ defmodule Manavault.Catalog.Search.NameMatch do
       (collection/location item search), and `Search.Printings` (import, cover
       search) build their SQL name predicates with `like_pattern/1`.
 
-  Matching is case-insensitive and apostrophe-insensitive on both sides. SQL
-  filters normalize the column with `lower(replace(replace(name, '''', ''),
-  '\\u2019', ''))`; other punctuation stays literal because SQLite cannot
-  collapse it per-row, so keep term-side normalization to the same rules.
+  Matching is case-insensitive, diacritic-insensitive, and
+  apostrophe-insensitive on both sides. SQL filters compare against the
+  persisted `Card.normalized_name`, which is produced by `sql_normalize/1`;
+  other punctuation stays literal so term-side normalization follows the
+  same rules.
   """
 
   # Tokens with no discriminative weight of their own: "Mask of Memory" must
@@ -23,13 +24,13 @@ defmodule Manavault.Catalog.Search.NameMatch do
   @stopwords ~w(of the a an and or to in on at for with from by de le la el di)
 
   @doc """
-  Full normalization for in-memory matching: lowercase, drop apostrophes so
-  "aurelia's" collapses to "aurelias" instead of splitting tokens, and
-  collapse every non-alphanumeric run to a single space.
+  Full normalization for in-memory matching: fold diacritics, lowercase, drop
+  apostrophes so "aurelia's" collapses to "aurelias" instead of splitting
+  tokens, and collapse every non-alphanumeric run to a single space.
   """
   def normalize(value) do
     value
-    |> String.downcase()
+    |> fold_diacritics()
     |> String.replace(~r/['\x{2019}]/u, "")
     |> String.replace(~r/[^[:alnum:]]+/u, " ")
     |> String.trim()
@@ -38,13 +39,13 @@ defmodule Manavault.Catalog.Search.NameMatch do
   def tokens(value), do: value |> normalize() |> String.split(" ", trim: true)
 
   @doc """
-  SQL-compatible term normalization: lowercase, drop apostrophes, squash
-  whitespace. Mirrors the `lower(replace(...))` column expression used by the
-  SQL name predicates.
+  SQL-compatible card-name normalization: fold diacritics, lowercase, drop
+  apostrophes, and squash whitespace. Stored on each card so SQLite does not
+  need to perform Unicode case or diacritic folding.
   """
   def sql_normalize(value) do
     value
-    |> String.downcase()
+    |> fold_diacritics()
     |> String.replace(~r/['\x{2019}]/u, "")
     |> String.replace(~r/\s+/u, " ")
     |> String.trim()
@@ -207,5 +208,12 @@ defmodule Manavault.Catalog.Search.NameMatch do
     cost = if left_char == right_char, do: 0, else: 1
     value = min(min(left + 1, above + 1), diagonal + cost)
     distance_row(left_char, right_rest, above_rest, above, [value | acc])
+  end
+
+  defp fold_diacritics(value) do
+    value
+    |> String.normalize(:nfd)
+    |> String.replace(~r/\p{M}+/u, "")
+    |> String.downcase()
   end
 end

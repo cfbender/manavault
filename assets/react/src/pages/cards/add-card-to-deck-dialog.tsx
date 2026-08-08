@@ -1,5 +1,7 @@
 import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
+import * as SelectPrimitive from "@radix-ui/react-select"
 import { useNavigate } from "@tanstack/react-router"
+import { Check, ChevronDown } from "lucide-react"
 import type { FormEvent } from "react"
 import { useEffect, useState } from "react"
 import { Button } from "../../components/ui/button"
@@ -166,20 +168,45 @@ export function AddCatalogCardToDeckDialog({
         <form className="space-y-4 p-5" onSubmit={submit}>
           <label className="form-control">
             <span className="label-text mb-1 text-sm font-semibold">Deck</span>
-            <select
-              className="select select-bordered w-full"
+            <SelectPrimitive.Root
               value={deckId}
               disabled={isAddingToDeck}
-              onChange={(event) => setDeckId(event.target.value)}
-              autoFocus
+              onValueChange={setDeckId}
             >
-              <option value="">Choose a deck</option>
-              {decks.map((deck) => (
-                <option key={deck.id} value={deck.id}>
-                  {deck.name} ({titleize(deck.format)})
-                </option>
-              ))}
-            </select>
+              <SelectPrimitive.Trigger
+                className="select select-bordered flex w-full items-center justify-between gap-2 bg-base-100 text-left outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
+                autoFocus
+              >
+                <SelectPrimitive.Value placeholder="Choose a deck" />
+                <SelectPrimitive.Icon asChild>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-base-content/60" />
+                </SelectPrimitive.Icon>
+              </SelectPrimitive.Trigger>
+              <SelectPrimitive.Portal>
+                <SelectPrimitive.Content
+                  position="popper"
+                  sideOffset={4}
+                  className="z-[1200] max-h-64 min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-field border border-base-300 bg-base-100 text-sm shadow-xl"
+                >
+                  <SelectPrimitive.Viewport className="max-h-64 overflow-y-auto overscroll-contain p-1">
+                    {decks.map((deck) => (
+                      <SelectPrimitive.Item
+                        key={deck.id}
+                        value={deck.id}
+                        className="relative flex cursor-pointer select-none items-center rounded-field py-2 pl-8 pr-3 font-medium outline-none focus:bg-base-200 data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                      >
+                        <SelectPrimitive.ItemIndicator className="absolute left-2 inline-flex items-center">
+                          <Check className="h-4 w-4" />
+                        </SelectPrimitive.ItemIndicator>
+                        <SelectPrimitive.ItemText>
+                          {deck.name} ({titleize(deck.format)})
+                        </SelectPrimitive.ItemText>
+                      </SelectPrimitive.Item>
+                    ))}
+                  </SelectPrimitive.Viewport>
+                </SelectPrimitive.Content>
+              </SelectPrimitive.Portal>
+            </SelectPrimitive.Root>
           </label>
 
           {selectedPrinting ? (

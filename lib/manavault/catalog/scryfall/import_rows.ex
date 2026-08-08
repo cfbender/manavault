@@ -1,6 +1,7 @@
 defmodule Manavault.Catalog.Scryfall.ImportRows do
   @moduledoc false
 
+  alias Manavault.Catalog.Search.NameMatch
   alias Manavault.Catalog.ScryfallOracleTags
 
   def rows(cards, now, oracle_tag_index) when is_list(cards) do
@@ -44,6 +45,7 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
       %{
         oracle_id: oracle_id,
         name: name,
+        normalized_name: NameMatch.sql_normalize(name),
         type_line: card["type_line"],
         oracle_text: oracle_text(card),
         mana_cost: card["mana_cost"],

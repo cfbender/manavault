@@ -78,6 +78,26 @@ defmodule Manavault.Catalog.DecklistTest do
              Enum.find(loaded.deck_cards, &(&1.zone == "considering"))
   end
 
+  test "decklist import matches card names with or without diacritics" do
+    oin =
+      @time_walk
+      |> Map.merge(%{
+        "id" => "scryfall-oin-the-brave",
+        "oracle_id" => "oracle-oin-the-brave",
+        "name" => "Óin the Brave",
+        "collector_number" => "12"
+      })
+
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([oin])
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Diacritic Import"})
+
+    assert {:ok, %{imported: 2, unresolved: [], skipped_printings: []}} =
+             Catalog.import_decklist(deck, "1 Óin the Brave\n1 Oin the brave")
+
+    assert [%DeckCard{quantity: 2, card: %Card{name: "Óin the Brave"}}] =
+             Catalog.get_deck!(deck.id).deck_cards
+  end
+
   test "decklist import assumes one copy when quantity is omitted" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])

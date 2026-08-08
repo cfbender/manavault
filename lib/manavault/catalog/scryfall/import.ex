@@ -118,6 +118,7 @@ defmodule Manavault.Catalog.Scryfall.Import do
         {:replace,
          [
            :name,
+           :normalized_name,
            :type_line,
            :oracle_text,
            :mana_cost,

@@ -12,11 +12,7 @@ defmodule Manavault.Catalog.CardCollection.SearchFilter.TextPredicates do
 
     dynamic(
       [_item, printing, card, _location],
-      fragment(
-        "lower(replace(replace(?, '''', ''), '’', '')) LIKE ? ESCAPE '\\'",
-        card.name,
-        ^name_pattern
-      ) or
+      fragment("? LIKE ? ESCAPE '\\'", card.normalized_name, ^name_pattern) or
         fragment("lower(?) LIKE ? ESCAPE '\\'", printing.set_code, ^pattern) or
         fragment("lower(?) LIKE ? ESCAPE '\\'", printing.set_name, ^pattern) or
         fragment("lower(?) LIKE ? ESCAPE '\\'", printing.collector_number, ^pattern) or
@@ -37,11 +33,7 @@ defmodule Manavault.Catalog.CardCollection.SearchFilter.TextPredicates do
 
           dynamic(
             [_item, _printing, card, _location],
-            fragment(
-              "lower(replace(replace(?, '''', ''), '’', '')) LIKE ? ESCAPE '\\'",
-              card.name,
-              ^name_pattern
-            )
+            fragment("? LIKE ? ESCAPE '\\'", card.normalized_name, ^name_pattern)
           )
 
         :type ->

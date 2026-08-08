@@ -6,6 +6,7 @@ defmodule Manavault.Catalog.Decks.DecklistIO do
   alias Ecto.Changeset
   alias Manavault.Catalog.{Card, Deck, DeckCard, Decklists, Printing, Util}
   alias Manavault.Catalog.Decks.{AllocationItems, EditGuard, Preloads}
+  alias Manavault.Catalog.Search.NameMatch
   alias Manavault.Repo
 
   @lock_retry_attempts 3
@@ -84,7 +85,7 @@ defmodule Manavault.Catalog.Decks.DecklistIO do
       |> Enum.uniq()
 
     Card
-    |> where([card], fragment("lower(?)", card.name) in ^names)
+    |> where([card], card.normalized_name in ^names)
     |> order_by([card], asc: card.name)
     |> Repo.all()
     |> Enum.reduce(%{}, fn card, cards ->
@@ -266,7 +267,7 @@ defmodule Manavault.Catalog.Decks.DecklistIO do
   defp normalized_name_key(name) when is_binary(name) do
     name
     |> Decklists.normalize_card_name()
-    |> String.downcase()
+    |> NameMatch.sql_normalize()
   end
 
   defp normalized_name_key(_name), do: ""
