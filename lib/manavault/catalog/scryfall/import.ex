@@ -393,6 +393,15 @@ defmodule Manavault.Catalog.Scryfall.Import do
 
   defp replacement_for(_stale, []), do: nil
 
+  defp replacement_for(stale, replacements) do
+    stale_finishes = decode_finishes(stale.finishes)
+
+    Enum.find(replacements, fn replacement ->
+      replacement.lang == stale.lang and
+        not MapSet.disjoint?(stale_finishes, decode_finishes(replacement.finishes))
+    end) || Enum.find(replacements, &(&1.lang == stale.lang)) || List.first(replacements)
+  end
+
   defp referenced_printing_ids do
     collection_ids = Repo.all(from item in CollectionItem, select: item.scryfall_id)
 
@@ -418,15 +427,6 @@ defmodule Manavault.Catalog.Scryfall.Import do
       )
 
     MapSet.new(collection_ids ++ deck_ids ++ location_ids ++ want_ids)
-  end
-
-  defp replacement_for(stale, replacements) do
-    stale_finishes = decode_finishes(stale.finishes)
-
-    Enum.find(replacements, fn replacement ->
-      replacement.lang == stale.lang and
-        not MapSet.disjoint?(stale_finishes, decode_finishes(replacement.finishes))
-    end) || Enum.find(replacements, &(&1.lang == stale.lang)) || List.first(replacements)
   end
 
   defp decode_finishes(finishes) do
