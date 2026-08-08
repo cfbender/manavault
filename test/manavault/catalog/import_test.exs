@@ -16,6 +16,7 @@ defmodule Manavault.Catalog.ImportTest do
              name: "Black Lotus",
              color_identity: "[]",
              game_changer: false,
+             edhrec_rank: 1,
              rulings_uri: "https://api.scryfall.com/cards/oracle-1/rulings"
            } = Repo.get!(Card, "oracle-1")
 

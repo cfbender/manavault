@@ -8,6 +8,9 @@ defmodule Manavault.Catalog.SyncTest do
 
   alias Manavault.Catalog.{
     Card,
+    CollectionItem,
+    DeckAllocation,
+    DeckCard,
     Printing,
     Sync
   }
@@ -79,6 +82,100 @@ defmodule Manavault.Catalog.SyncTest do
 
     assert %Card{name: "Long-Bodied Grey Dog"} =
              Repo.get!(Card, "6f83da19-fd89-44ec-88f3-0c3fddfbd1b2")
+  end
+
+  test "sync_scryfall only keeps paper printings and moves existing allocations to another printing" do
+    digital_lotus = %{@black_lotus | "games" => ["arena"]}
+
+    paper_lotus =
+      %{
+        @black_lotus
+        | "id" => "scryfall-paper-lotus",
+          "set" => "pap",
+          "set_name" => "Paper Set",
+          "collector_number" => "1"
+      }
+
+    assert {:ok, _counts} = Catalog.import_cards([digital_lotus, paper_lotus])
+
+    assert {:ok, item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => digital_lotus["id"],
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil"
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Paper Sync"})
+
+    assert {:ok, deck_card} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Black Lotus",
+               "quantity" => 1,
+               "preferred_printing_id" => digital_lotus["id"]
+             })
+
+    assert {:ok, allocation} =
+             Catalog.allocate_collection_item_to_deck_card(deck_card.id, item.id)
+
+    metadata_url = "https://example.test/paper-metadata"
+    download_url = "https://example.test/paper-default-cards.jsonl.gz"
+
+    arena_only = %{
+      @black_lotus
+      | "id" => "arena-only",
+        "oracle_id" => "arena-only-oracle",
+        "games" => ["arena"]
+    }
+
+    fetcher = fn
+      ^metadata_url -> {:ok, Jason.encode!(%{"jsonl_download_uri" => download_url})}
+      ^download_url -> {:ok, gzip_jsonl([paper_lotus, arena_only])}
+    end
+
+    assert {:ok, %Sync{cards_count: 1, printings_count: 1}} =
+             Catalog.sync_scryfall(
+               fetcher: fetcher,
+               bulk_url: metadata_url,
+               oracle_tags_bulk_url: nil
+             )
+
+    refute Repo.get(Printing, digital_lotus["id"])
+    refute Repo.get(Printing, "arena-only")
+    assert Repo.get!(CollectionItem, item.id).scryfall_id == paper_lotus["id"]
+    assert Repo.get!(DeckCard, deck_card.id).preferred_printing_id == paper_lotus["id"]
+    assert Repo.get!(DeckAllocation, allocation.id).collection_item_id == item.id
+  end
+
+  test "sync_scryfall only runs the paper printing reconciliation once" do
+    metadata_url = "https://example.test/one-time-paper-metadata"
+    download_url = "https://example.test/one-time-paper-cards.jsonl.gz"
+
+    fetcher = fn
+      ^metadata_url -> {:ok, Jason.encode!(%{"jsonl_download_uri" => download_url})}
+      ^download_url -> {:ok, gzip_jsonl([@black_lotus])}
+    end
+
+    sync_opts = [
+      fetcher: fetcher,
+      bulk_url: metadata_url,
+      oracle_tags_bulk_url: nil
+    ]
+
+    assert {:ok, %Sync{status: "succeeded"}} = Catalog.sync_scryfall(sync_opts)
+
+    digital_card = %{
+      @black_lotus
+      | "id" => "digital-after-paper-migration",
+        "oracle_id" => "digital-after-paper-migration-oracle",
+        "games" => ["arena"]
+    }
+
+    assert {:ok, _counts} = Catalog.import_cards([digital_card])
+    assert {:ok, %Sync{status: "succeeded"}} = Catalog.sync_scryfall(sync_opts)
+
+    assert Repo.get(Printing, digital_card["id"])
   end
 
   test "sync_scryfall emits info progress logs" do

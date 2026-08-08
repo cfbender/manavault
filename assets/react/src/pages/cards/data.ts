@@ -112,6 +112,7 @@ export const CardDocument = graphql(`
       oracleText
       colorIdentity
       gameChanger
+      edhrecRank
       deckCategory
       deckThemes
       oracleTags {

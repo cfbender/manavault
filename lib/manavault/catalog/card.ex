@@ -18,6 +18,7 @@ defmodule Manavault.Catalog.Card do
     field :color_identity, :string, default: "[]"
     field :legalities, :string, default: "{}"
     field :game_changer, :boolean, default: false
+    field :edhrec_rank, :integer
     field :oracle_tags, :string, default: "[]"
     field :deck_category, :string
     field :deck_themes, :string, default: "[]"
@@ -45,6 +46,7 @@ defmodule Manavault.Catalog.Card do
       :color_identity,
       :legalities,
       :game_changer,
+      :edhrec_rank,
       :oracle_tags,
       :deck_category,
       :deck_themes,

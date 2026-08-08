@@ -75,6 +75,7 @@ defmodule ManavaultWeb.Schema.Catalog.CardTypes do
     end
 
     field :game_changer, non_null(:boolean)
+    field :edhrec_rank, :integer
 
     field :oracle_tags, list_of(:scryfall_oracle_tag) do
       resolve(fn card, _, _ ->

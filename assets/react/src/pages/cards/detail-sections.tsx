@@ -6,8 +6,10 @@ export function CardTagSummary({ card }: { card: CardDetail }) {
   const themes = (card.deckThemes || []).filter(present)
   const oracleTags = (card.oracleTags || []).filter(present)
   const hasCategory = Boolean(card.deckCategory)
+  const edhrecRank = card.edhrecRank
+  const hasEdhrecRank = edhrecRank != null
 
-  if (!hasCategory && themes.length === 0 && oracleTags.length === 0) return null
+  if (!hasCategory && themes.length === 0 && oracleTags.length === 0 && !hasEdhrecRank) return null
 
   return (
     <div className="flex flex-col gap-3 text-sm">
@@ -35,6 +37,15 @@ export function CardTagSummary({ card }: { card: CardDetail }) {
               {tag.label}
             </Badge>
           ))}
+        </div>
+      ) : null}
+
+      {hasEdhrecRank ? (
+        <div className="flex flex-wrap items-baseline gap-2">
+          <span className="font-semibold text-base-content/70">EDHREC rank</span>
+          <span className="font-mono font-black tabular-nums text-base-content">
+            #{edhrecRank.toLocaleString()}
+          </span>
         </div>
       ) : null}
     </div>

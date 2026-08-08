@@ -54,6 +54,7 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
         color_identity: encode_json(card["color_identity"] || []),
         legalities: encode_json(card["legalities"] || %{}),
         game_changer: card["game_changer"] == true,
+        edhrec_rank: card["edhrec_rank"],
         oracle_tags: tag_fields.oracle_tags,
         deck_category: tag_fields.deck_category,
         deck_themes: tag_fields.deck_themes,

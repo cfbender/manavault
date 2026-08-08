@@ -15,6 +15,8 @@ defmodule Manavault.CatalogTestSupport do
       "colors" => [],
       "color_identity" => [],
       "legalities" => %{"vintage" => "restricted"},
+      "games" => ["paper"],
+      "edhrec_rank" => 1,
       "set" => "lea",
       "set_name" => "Limited Edition Alpha",
       "collector_number" => "232",

@@ -11,7 +11,7 @@ defmodule Manavault.Catalog.Scryfall.Sync do
 
   @bulk_metadata_url "https://api.scryfall.com/bulk-data/default-cards"
   @oracle_tags_bulk_metadata_url "https://api.scryfall.com/bulk-data/oracle-tags"
-  @bulk_type "default_cards"
+  @bulk_type "default_cards_paper_v1"
 
   def latest do
     Repo.one(from sync in SyncRecord, order_by: [desc: sync.started_at], limit: 1)
@@ -24,6 +24,7 @@ defmodule Manavault.Catalog.Scryfall.Sync do
     oracle_tags_bulk_url =
       Keyword.get(opts, :oracle_tags_bulk_url, @oracle_tags_bulk_metadata_url)
 
+    reconcile? = paper_reconciliation_needed?()
     now = utc_now()
 
     {:ok, sync} =
@@ -44,10 +45,11 @@ defmodule Manavault.Catalog.Scryfall.Sync do
          :ok <- log_bulk_decoded(sync, "default-cards", source_count),
          {:ok, oracle_tags} <- fetch_oracle_tags(fetcher, oracle_tags_bulk_url, sync),
          {:ok, counts} <-
-           Import.run(cards, download_uri,
+           Import.run(Stream.filter(cards, &paper_card?/1), download_uri,
              oracle_tags: oracle_tags,
              log_progress: true,
-             source_count: source_count
+             source_count: source_count,
+             reconcile: reconcile?
            ) do
       result =
         sync
@@ -129,6 +131,16 @@ defmodule Manavault.Catalog.Scryfall.Sync do
 
   defp payload_size(body) when is_binary(body), do: byte_size(body)
   defp payload_size(_body), do: "unknown"
+
+  defp paper_card?(%{"games" => games}) when is_list(games), do: "paper" in games
+  defp paper_card?(_card), do: false
+
+  defp paper_reconciliation_needed? do
+    not Repo.exists?(
+      from sync in SyncRecord,
+        where: sync.bulk_type == @bulk_type and sync.status == "succeeded"
+    )
+  end
 
   defp fail_sync!(sync, reason) do
     sync
