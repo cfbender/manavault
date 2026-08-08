@@ -148,6 +148,62 @@ defmodule Manavault.Catalog.SyncTest do
     assert Repo.get!(DeckAllocation, allocation.id).collection_item_id == item.id
   end
 
+  test "sync_scryfall deletes existing memorabilia and token set printings" do
+    memorabilia =
+      %{
+        @black_lotus
+        | "id" => "existing-memorabilia",
+          "set" => "alea",
+          "set_name" => "Alpha Art Series"
+      }
+
+    token =
+      %{
+        @black_lotus
+        | "id" => "existing-token",
+          "oracle_id" => "existing-token-oracle",
+          "name" => "Black Lotus Token",
+          "set" => "tlea",
+          "set_name" => "Alpha Tokens"
+      }
+
+    assert {:ok, %{printings_count: 3}} =
+             Catalog.import_cards([@black_lotus, memorabilia, token])
+
+    metadata_url = "https://example.test/filtered-metadata"
+    download_url = "https://example.test/filtered-default-cards.jsonl.gz"
+
+    fetcher = fn
+      ^metadata_url ->
+        {:ok, Jason.encode!(%{"jsonl_download_uri" => download_url})}
+
+      ^download_url ->
+        {:ok,
+         gzip_jsonl([
+           @black_lotus,
+           Map.put(memorabilia, "set_type", "memorabilia"),
+           Map.put(token, "set_type", "token")
+         ])}
+    end
+
+    assert {:ok, %Sync{cards_count: 1, printings_count: 1}} =
+             Catalog.sync_scryfall(
+               fetcher: fetcher,
+               bulk_url: metadata_url,
+               oracle_tags_bulk_url: nil
+             )
+
+    assert Repo.get!(Printing, @black_lotus["id"])
+    refute Repo.get(Printing, memorabilia["id"])
+    refute Repo.get(Printing, token["id"])
+
+    assert %{rows: []} =
+             Repo.query!(
+               "SELECT scryfall_id FROM scryfall_printing_search WHERE scryfall_id IN (?, ?)",
+               [memorabilia["id"], token["id"]]
+             )
+  end
+
   test "sync_scryfall only runs the paper printing reconciliation once" do
     metadata_url = "https://example.test/one-time-paper-metadata"
     download_url = "https://example.test/one-time-paper-cards.jsonl.gz"

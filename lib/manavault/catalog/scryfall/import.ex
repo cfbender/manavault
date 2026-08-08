@@ -20,6 +20,7 @@ defmodule Manavault.Catalog.Scryfall.Import do
   require Logger
 
   @batch_size 200
+  @excluded_set_types ~w(memorabilia token)
   @progress_source_card_interval 5_000
 
   def run(cards, bulk_uri \\ nil, opts \\ [])
@@ -73,7 +74,10 @@ defmodule Manavault.Catalog.Scryfall.Import do
     cards
     |> Enum.chunk_every(@batch_size)
     |> Enum.reduce_while({:ok, initial_import_counts()}, fn batch, {:ok, counts} ->
-      rows = ImportRows.rows(batch, now, oracle_tag_index)
+      rows =
+        batch
+        |> Enum.reject(&excluded_set_type?/1)
+        |> ImportRows.rows(now, oracle_tag_index)
 
       case import_batch(rows) do
         {:ok, :imported} ->
@@ -89,6 +93,11 @@ defmodule Manavault.Catalog.Scryfall.Import do
       end
     end)
   end
+
+  defp excluded_set_type?(%{"set_type" => set_type}),
+    do: set_type in @excluded_set_types
+
+  defp excluded_set_type?(_card), do: false
 
   defp import_batch(rows) do
     Repo.transact(

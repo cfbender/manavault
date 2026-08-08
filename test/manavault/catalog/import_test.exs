@@ -56,6 +56,40 @@ defmodule Manavault.Catalog.ImportTest do
     assert Jason.decode!(prices) == %{"usd" => "1.00"}
   end
 
+  test "import_cards excludes memorabilia and token set printings" do
+    memorabilia =
+      Map.merge(@black_lotus, %{
+        "id" => "scryfall-memorabilia",
+        "set" => "alea",
+        "set_name" => "Alpha Art Series",
+        "set_type" => "memorabilia"
+      })
+
+    token =
+      Map.merge(@black_lotus, %{
+        "id" => "scryfall-token",
+        "oracle_id" => "oracle-token",
+        "name" => "Black Lotus Token",
+        "set" => "tlea",
+        "set_name" => "Alpha Tokens",
+        "set_type" => "token"
+      })
+
+    assert {:ok, %{cards_count: 1, printings_count: 1, source_count: 3}} =
+             Catalog.import_cards([@black_lotus, memorabilia, token])
+
+    assert Repo.get!(Printing, @black_lotus["id"])
+    refute Repo.get(Printing, memorabilia["id"])
+    refute Repo.get(Printing, token["id"])
+    refute Repo.get(Card, token["oracle_id"])
+
+    assert %{rows: []} =
+             Repo.query!(
+               "SELECT scryfall_id FROM scryfall_printing_search WHERE scryfall_id IN (?, ?)",
+               [memorabilia["id"], token["id"]]
+             )
+  end
+
   test "import_cards releases the write lock between batches without dropping search rows" do
     test_pid = self()
     handler_id = {__MODULE__, make_ref()}

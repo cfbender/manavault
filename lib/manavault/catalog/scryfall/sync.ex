@@ -11,7 +11,7 @@ defmodule Manavault.Catalog.Scryfall.Sync do
 
   @bulk_metadata_url "https://api.scryfall.com/bulk-data/default-cards"
   @oracle_tags_bulk_metadata_url "https://api.scryfall.com/bulk-data/oracle-tags"
-  @bulk_type "default_cards_paper_v1"
+  @bulk_type "default_cards_paper_v2"
 
   def latest do
     Repo.one(from sync in SyncRecord, order_by: [desc: sync.started_at], limit: 1)
