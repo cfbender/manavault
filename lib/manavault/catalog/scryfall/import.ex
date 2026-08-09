@@ -394,10 +394,28 @@ defmodule Manavault.Catalog.Scryfall.Import do
           Repo.delete_all(from printing in Printing, where: printing.scryfall_id in ^ids)
         end)
 
+        delete_cards_without_printings()
+
         {:ok, :reconciled}
       end,
       timeout: :infinity
     )
+  end
+
+  defp delete_cards_without_printings do
+    orphaned_card_ids =
+      Repo.all(
+        from card in Card,
+          left_join: printing in Printing,
+          on: printing.oracle_id == card.oracle_id,
+          where: is_nil(printing.scryfall_id),
+          select: card.oracle_id
+      )
+
+    Enum.each(Enum.chunk_every(orphaned_card_ids, @batch_size), fn ids ->
+      Repo.delete_all(from deck_card in DeckCard, where: deck_card.oracle_id in ^ids)
+      Repo.delete_all(from card in Card, where: card.oracle_id in ^ids)
+    end)
   end
 
   defp replacement_for(_stale, []), do: nil

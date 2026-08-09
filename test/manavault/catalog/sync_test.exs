@@ -148,6 +148,43 @@ defmodule Manavault.Catalog.SyncTest do
     assert Repo.get!(DeckAllocation, allocation.id).collection_item_id == item.id
   end
 
+  test "sync_scryfall deletes cards left without paper printings" do
+    digital_only = %{
+      @black_lotus
+      | "id" => "digital-only-printing",
+        "oracle_id" => "digital-only-oracle",
+        "name" => "Digital Only Card",
+        "games" => ["arena"]
+    }
+
+    assert {:ok, %{cards_count: 1, printings_count: 1}} =
+             Catalog.import_cards([digital_only])
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Digital Only Deck"})
+
+    assert {:ok, deck_card} =
+             Catalog.add_card_to_deck(deck, %{"name" => digital_only["name"], "quantity" => 1})
+
+    metadata_url = "https://example.test/orphan-cleanup-metadata"
+    download_url = "https://example.test/orphan-cleanup-default-cards.jsonl.gz"
+
+    fetcher = fn
+      ^metadata_url -> {:ok, Jason.encode!(%{"jsonl_download_uri" => download_url})}
+      ^download_url -> {:ok, gzip_jsonl([@black_lotus])}
+    end
+
+    assert {:ok, %Sync{status: "succeeded"}} =
+             Catalog.sync_scryfall(
+               fetcher: fetcher,
+               bulk_url: metadata_url,
+               oracle_tags_bulk_url: nil
+             )
+
+    refute Repo.get(Printing, digital_only["id"])
+    refute Repo.get(Card, digital_only["oracle_id"])
+    refute Repo.get(DeckCard, deck_card.id)
+  end
+
   test "sync_scryfall deletes existing memorabilia and token set printings" do
     memorabilia =
       %{
