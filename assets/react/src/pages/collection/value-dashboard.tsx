@@ -1,13 +1,21 @@
-import { useQuery } from "@apollo/client/react"
-import { CircleDollarSign, TrendingDown, TrendingUp } from "lucide-react"
+import { useMutation, useQuery } from "@apollo/client/react"
+import { Link } from "@tanstack/react-router"
+import { CircleDollarSign, Pencil, TrendingDown, TrendingUp } from "lucide-react"
+import type { FormEvent } from "react"
+import { useEffect, useState } from "react"
 import { EmptyState } from "../../components/card-image"
+import { Button } from "../../components/ui/button"
+import { Input } from "../../components/ui/input"
+import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from "../../components/ui/popover"
+import { useToast } from "../../components/ui/toast"
 import { cn, pluralize } from "../../lib/utils"
-import { CollectionValueDashboardDocument } from "./documents"
+import { BulkUpdateCollectionItemsDocument, CollectionValueDashboardDocument } from "./documents"
+import { centsToCurrencyInput, parseCurrencyInputCents } from "./form-helpers"
 import type { CollectionValueDashboardData, CollectionValuePosition } from "./types"
 import { collectionValueGainClass } from "./value-summary"
 
 export function CollectionValueDashboard() {
-  const { data, error, loading } = useQuery(CollectionValueDashboardDocument, {
+  const { data, error, loading, refetch } = useQuery(CollectionValueDashboardDocument, {
     fetchPolicy: "network-only",
   })
   const dashboard = data?.collectionValueDashboard
@@ -43,6 +51,7 @@ export function CollectionValueDashboard() {
           description="Positions adding the most value at current market prices."
           emptyDescription="No positions are currently above their purchase basis."
           icon={TrendingUp}
+          onBasisUpdated={() => void refetch()}
           positions={dashboard.biggestGains}
           title="Biggest gains"
           tone="gain"
@@ -51,6 +60,7 @@ export function CollectionValueDashboard() {
           description="Positions furthest below their purchase basis."
           emptyDescription="No positions are currently below their purchase basis."
           icon={TrendingDown}
+          onBasisUpdated={() => void refetch()}
           positions={dashboard.biggestLosses}
           title="Biggest losses"
           tone="loss"
@@ -243,6 +253,7 @@ function PositionRanking({
   description,
   emptyDescription,
   icon: Icon,
+  onBasisUpdated,
   positions,
   title,
   tone,
@@ -250,6 +261,7 @@ function PositionRanking({
   description: string
   emptyDescription: string
   icon: typeof TrendingUp
+  onBasisUpdated: () => void
   positions: readonly CollectionValuePosition[]
   title: string
   tone: "gain" | "loss"
@@ -270,7 +282,7 @@ function PositionRanking({
         <ol className="divide-y divide-base-300">
           {positions.map((position) => (
             <li key={position.printing.scryfallId}>
-              <ValuePositionRow position={position} />
+              <ValuePositionRow onBasisUpdated={onBasisUpdated} position={position} />
             </li>
           ))}
         </ol>
@@ -283,7 +295,13 @@ function PositionRanking({
   )
 }
 
-function ValuePositionRow({ position }: { position: CollectionValuePosition }) {
+function ValuePositionRow({
+  onBasisUpdated,
+  position,
+}: {
+  onBasisUpdated: () => void
+  position: CollectionValuePosition
+}) {
   const cardName = position.printing.card?.name || "Unknown card"
   const setLabel = [position.printing.setCode?.toUpperCase(), position.printing.collectorNumber]
     .filter(Boolean)
@@ -306,7 +324,20 @@ function ValuePositionRow({ position }: { position: CollectionValuePosition }) {
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <h3 className="truncate font-bold">{cardName}</h3>
+        <h3 className="truncate font-bold">
+          {position.printing.card?.id ? (
+            <Link
+              to="/cards/$id"
+              params={{ id: position.printing.card.id }}
+              search={{ returnCollection: true }}
+              className="rounded-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35"
+            >
+              {cardName}
+            </Link>
+          ) : (
+            cardName
+          )}
+        </h3>
         <p className="mt-0.5 truncate text-xs text-base-content/60">
           {setLabel || position.printing.setName || "Unknown printing"} · ×{position.quantity}
         </p>
@@ -333,7 +364,118 @@ function ValuePositionRow({ position }: { position: CollectionValuePosition }) {
           <p className="mt-0.5 text-xs font-bold tabular-nums">{position.valueGainPercentText}</p>
         ) : null}
       </div>
+      <PurchaseBasisQuickEdit position={position} onDone={onBasisUpdated} />
     </article>
+  )
+}
+
+function PurchaseBasisQuickEdit({
+  onDone,
+  position,
+}: {
+  onDone: () => void
+  position: CollectionValuePosition
+}) {
+  const { showToast } = useToast()
+  const cardName = position.printing.card?.name || "card"
+  const [open, setOpen] = useState(false)
+  const [purchasePrice, setPurchasePrice] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [updateItems, updateState] = useMutation(BulkUpdateCollectionItemsDocument)
+
+  useEffect(() => {
+    if (!open) return
+
+    const perCardBasis = position.quantity
+      ? Math.round(position.purchasePriceCents / position.quantity)
+      : 0
+    setPurchasePrice(centsToCurrencyInput(perCardBasis))
+    setError(null)
+  }, [open, position.purchasePriceCents, position.quantity])
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError(null)
+
+    const purchasePriceCents = parseCurrencyInputCents(purchasePrice)
+    if (purchasePriceCents === undefined) {
+      setError("Enter a dollar amount, such as 12.34")
+      return
+    }
+
+    void updateItems({
+      variables: {
+        selector: { ids: position.items.map((item) => item.id) },
+        input: { purchasePriceCents },
+      },
+      onCompleted: () => {
+        showToast(`Purchase basis updated for ${cardName}`)
+        setOpen(false)
+        onDone()
+      },
+      onError: (mutationError) =>
+        setError(
+          mutationError instanceof Error
+            ? mutationError.message
+            : "Could not update purchase basis",
+        ),
+    })
+  }
+
+  return (
+    <Popover open={open} onOpenChange={(nextOpen) => !updateState.loading && setOpen(nextOpen)}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-9 min-h-9 w-9 shrink-0"
+          aria-label={`Edit purchase basis for ${cardName}`}
+          title="Edit purchase basis"
+        >
+          <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 max-w-[calc(100vw-1.5rem)]">
+        <form className="space-y-3" onSubmit={submit}>
+          <div>
+            <h4 className="font-black">Edit purchase basis</h4>
+            <p className="mt-0.5 truncate text-xs text-base-content/60">{cardName}</p>
+          </div>
+          <label className="block space-y-1.5">
+            <span className="text-xs font-bold text-base-content/70">Purchase price per card</span>
+            <Input
+              autoFocus
+              className="h-9 min-h-9 font-mono"
+              inputMode="decimal"
+              value={purchasePrice}
+              onChange={(event) => setPurchasePrice(event.target.value)}
+              placeholder="12.34"
+            />
+          </label>
+          <p className="text-xs leading-relaxed text-base-content/60">
+            Current basis {position.purchasePriceText} across {position.quantity}{" "}
+            {position.quantity === 1 ? "copy" : "copies"}. This sets one per-card price for the
+            entire printing position. Leave blank to use current market price.
+          </p>
+          {error ? (
+            <p role="alert" className="text-xs font-semibold text-error">
+              {error}
+            </p>
+          ) : null}
+          <div className="flex justify-end gap-2">
+            <PopoverClose asChild>
+              <Button type="button" variant="ghost" size="sm" disabled={updateState.loading}>
+                Cancel
+              </Button>
+            </PopoverClose>
+            <Button type="submit" size="sm" disabled={updateState.loading}>
+              {updateState.loading ? "Saving..." : "Save basis"}
+            </Button>
+          </div>
+        </form>
+      </PopoverContent>
+    </Popover>
   )
 }
 

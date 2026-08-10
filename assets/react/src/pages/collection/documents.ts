@@ -71,6 +71,9 @@ export const CollectionValueDashboardDocument = graphql(`
       lossPositionCount
       unchangedPositionCount
       biggestGains {
+        items {
+          id
+        }
         quantity
         totalPriceCents
         totalPriceText
@@ -94,6 +97,9 @@ export const CollectionValueDashboardDocument = graphql(`
         }
       }
       biggestLosses {
+        items {
+          id
+        }
         quantity
         totalPriceCents
         totalPriceText

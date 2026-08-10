@@ -121,10 +121,26 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries.ValueSummary do
       |> Repo.all()
       |> Map.new(&{&1.scryfall_id, &1})
 
+    items_by_printing =
+      CollectionItem
+      |> join(:left, [item], location in assoc(item, :location_assoc))
+      |> where([item, _location], item.scryfall_id in ^printing_ids)
+      |> where([_item, location], is_nil(location.id) or location.kind != "list")
+      |> Repo.all()
+      |> Enum.group_by(& &1.scryfall_id)
+
     Enum.flat_map(positions, fn position ->
       case Map.fetch(printings, position.scryfall_id) do
-        {:ok, printing} -> [Map.put(position, :printing, printing)]
-        :error -> []
+        {:ok, printing} ->
+          [
+            Map.merge(position, %{
+              printing: printing,
+              items: Map.get(items_by_printing, position.scryfall_id, [])
+            })
+          ]
+
+        :error ->
+          []
       end
     end)
   end

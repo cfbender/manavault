@@ -163,6 +163,7 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
 
   object :collection_value_position do
     field :printing, non_null(:printing)
+    field :items, non_null(list_of(non_null(:collection_item)))
     field :quantity, non_null(:integer)
     field :total_price_cents, non_null(:integer)
     field :total_price_text, non_null(:string)

@@ -245,6 +245,9 @@ defmodule ManavaultWeb.Schema.CollectionQueriesTest do
               }
             }
           }
+          collectionValueDashboard {
+            biggestGains { items { id } }
+          }
           collectionItems(first: 10) {
             edges { node { id quantity purchasePriceCents } }
           }
@@ -266,12 +269,18 @@ defmodule ManavaultWeb.Schema.CollectionQueriesTest do
                    }
                  ]
                },
+               "collectionValueDashboard" => %{
+                 "biggestGains" => [%{"items" => dashboard_items}]
+               },
                "collectionItems" => %{"edges" => item_edges}
              }
            } = json_response(conn, 200)
 
     assert Enum.map(grouped_items, & &1["purchasePriceCents"]) == [100, 200]
     assert Enum.map(item_edges, & &1["node"]["purchasePriceCents"]) == [100, 200]
+
+    assert dashboard_items |> Enum.map(& &1["id"]) |> Enum.sort() ==
+             item_edges |> Enum.map(& &1["node"]["id"]) |> Enum.sort()
 
     assert Enum.map(grouped_items, & &1["id"]) == [
              Absinthe.Relay.Node.to_global_id(:collection_item, first.id, ManavaultWeb.Schema),
