@@ -3,6 +3,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
 
   import Absinthe.Resolution.Helpers, only: [on_load: 2]
 
+  alias Absinthe.Relay.Node
   alias Manavault.Catalog
   alias Manavault.Catalog.{Deck, DeckCard, Price}
   alias ManavaultWeb.Schema.RelayHelpers
@@ -103,6 +104,12 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
 
   def deck_cover_image_url(%Deck{} = deck, _args, _resolution) do
     {:ok, Catalog.deck_cover_image_url(deck)}
+  end
+
+  def deck_cover_deck_card_id(%Deck{cover_deck_card_id: nil}, _args, _resolution), do: {:ok, nil}
+
+  def deck_cover_deck_card_id(%Deck{cover_deck_card_id: id}, _args, resolution) do
+    {:ok, Node.to_global_id(:deck_card, id, resolution.schema)}
   end
 
   def deck_commander_color_identity(%Deck{} = deck, _args, _resolution) do

@@ -61,6 +61,10 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :status, non_null(:string)
     field :share_token, :string
 
+    field :cover_deck_card_id, :id do
+      resolve(&DeckFields.deck_cover_deck_card_id/3)
+    end
+
     field :cover_image_url, :string do
       resolve(&DeckFields.deck_cover_image_url/3)
     end
@@ -319,6 +323,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :name, :string
     field :format, :string
     field :status, :string
+    field :cover_deck_card_id, :id
   end
 
   input_object :deck_card_input do

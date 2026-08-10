@@ -133,6 +133,50 @@ defmodule Manavault.Catalog.DeckCrudTest do
     assert length(summary.deck_cards) == 2
   end
 
+  test "deck cover defaults to the commander and can be set to any card in the deck" do
+    commander =
+      Map.put(@time_walk, "image_uris", %{"normal" => "https://example.test/commander.jpg"})
+
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, commander])
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Cover Test"})
+
+    assert {:ok, _commander} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Time Walk",
+               "zone" => "commander"
+             })
+
+    assert {:ok, lotus} = Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus"})
+
+    assert deck.id |> Catalog.get_deck!() |> Catalog.deck_cover_image_url() ==
+             "https://example.test/commander.jpg"
+
+    assert {:ok, %Deck{cover_deck_card_id: cover_id}} =
+             Catalog.update_deck(deck, %{"cover_deck_card_id" => lotus.id})
+
+    assert cover_id == lotus.id
+
+    loaded = Catalog.get_deck!(deck.id)
+    assert Catalog.deck_cover_image_url(loaded) == "https://example.test/black-lotus.jpg"
+
+    assert [%Deck{cover_image_url: "https://example.test/black-lotus.jpg"}] =
+             Catalog.list_deck_summaries()
+
+    assert {:ok, other_deck} = Catalog.create_deck(%{"name" => "Other Deck"})
+    assert {:ok, other_card} = Catalog.add_card_to_deck(other_deck, %{"name" => "Black Lotus"})
+
+    assert {:error, changeset} =
+             Catalog.update_deck(loaded, %{"cover_deck_card_id" => other_card.id})
+
+    assert "must belong to deck" in errors_on(changeset).cover_deck_card_id
+
+    assert {:ok, _deleted} = Catalog.delete_deck_card(lotus)
+    assert %Deck{cover_deck_card_id: nil} = reset_cover = Catalog.get_deck!(deck.id)
+    assert Catalog.deck_cover_image_url(reset_cover) == "https://example.test/commander.jpg"
+  end
+
   test "commander color identity includes the inferred chosen color of choose-a-color commanders" do
     assert {:ok, _imported} =
              Catalog.import_cards([

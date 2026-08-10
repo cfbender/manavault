@@ -3,7 +3,7 @@ defmodule Manavault.Catalog.DeckSummaries do
 
   import Ecto.Query
 
-  alias Manavault.Catalog.{Card, DeckCard, Printing, Util}
+  alias Manavault.Catalog.{Card, Deck, DeckCard, Printing, Util}
   alias Manavault.Repo
 
   def put_fields([]), do: []
@@ -16,7 +16,7 @@ defmodule Manavault.Catalog.DeckSummaries do
         deck
         | card_count: DeckCard.counted_quantity(cards),
           unique_card_count: Enum.count(cards, &DeckCard.counts_toward_deck_total?/1),
-          cover_image_url: cover_image_url_from_cards(cards),
+          cover_image_url: cover_image_url_from_cards(cards, deck.cover_deck_card_id),
           commander_color_identity: commander_color_identity_from_cards(cards)
       }
     end)
@@ -29,13 +29,13 @@ defmodule Manavault.Catalog.DeckSummaries do
     |> Map.get(deck_id, empty_display_summary())
   end
 
-  def cover_image_url_from_cards(cards) when is_list(cards) do
-    Enum.find_value(cards, fn deck_card ->
-      cover_image_url(
-        preferred_printing_image_uris(deck_card),
-        fallback_printing_image_uris(deck_card)
-      )
-    end)
+  def cover_image_url_from_cards(cards, cover_deck_card_id \\ nil) when is_list(cards) do
+    selected_cover =
+      cards
+      |> Enum.find(&(&1.id == cover_deck_card_id))
+      |> deck_card_cover_image_url()
+
+    selected_cover || Enum.find_value(cards, &deck_card_cover_image_url/1)
   end
 
   def commander_color_identity_from_cards(cards) when is_list(cards) do
@@ -51,6 +51,7 @@ defmodule Manavault.Catalog.DeckSummaries do
 
   defp display_summaries(deck_ids) do
     DeckCard
+    |> join(:inner, [deck_card], deck in Deck, on: deck.id == deck_card.deck_id)
     |> join(:inner, [deck_card], card in assoc(deck_card, :card))
     |> join(:left, [deck_card], preferred_printing in assoc(deck_card, :preferred_printing))
     |> where([deck_card], deck_card.deck_id in ^deck_ids)
@@ -60,8 +61,10 @@ defmodule Manavault.Catalog.DeckSummaries do
       asc: card.name,
       asc: deck_card.id
     )
-    |> select([deck_card, card, preferred_printing], %{
+    |> select([deck_card, deck, card, preferred_printing], %{
+      id: deck_card.id,
       deck_id: deck_card.deck_id,
+      cover_deck_card_id: deck.cover_deck_card_id,
       zone: deck_card.zone,
       color_identity: card.color_identity,
       oracle_text: card.oracle_text,
@@ -125,9 +128,27 @@ defmodule Manavault.Catalog.DeckSummaries do
   end
 
   defp cover_image_url_from_rows(rows) do
-    Enum.find_value(rows, fn row ->
-      cover_image_url(row.preferred_image_uris, row.fallback_image_uris)
-    end)
+    selected_cover =
+      rows
+      |> Enum.find(fn row -> row.id == row.cover_deck_card_id end)
+      |> row_cover_image_url()
+
+    selected_cover || Enum.find_value(rows, &row_cover_image_url/1)
+  end
+
+  defp deck_card_cover_image_url(nil), do: nil
+
+  defp deck_card_cover_image_url(deck_card) do
+    cover_image_url(
+      preferred_printing_image_uris(deck_card),
+      fallback_printing_image_uris(deck_card)
+    )
+  end
+
+  defp row_cover_image_url(nil), do: nil
+
+  defp row_cover_image_url(row) do
+    cover_image_url(row.preferred_image_uris, row.fallback_image_uris)
   end
 
   defp cover_image_url(preferred_image_uris, fallback_image_uris) do

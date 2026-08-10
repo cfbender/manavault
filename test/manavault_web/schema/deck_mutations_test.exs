@@ -1,11 +1,17 @@
 defmodule ManavaultWeb.Schema.DeckMutationsTest do
   use ManavaultWeb.ConnCase
+  use Manavault.CatalogTestFixtures, fixtures: [:black_lotus]
 
   alias Manavault.Catalog
 
   test "update deck mutation updates deck fields", %{conn: conn} do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
     {:ok, deck} =
       Catalog.create_deck(%{"name" => "Old Deck", "format" => "commander", "status" => "brewing"})
+
+    {:ok, cover_card} = Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus"})
+    cover_card_id = global_deck_card_id(cover_card)
 
     conn =
       post(conn, "/api/graphql", %{
@@ -17,13 +23,20 @@ defmodule ManavaultWeb.Schema.DeckMutationsTest do
               name
               format
               status
+              coverDeckCardId
+              coverImageUrl
             }
           }
         }
         """,
         "variables" => %{
           "id" => global_deck_id(deck),
-          "input" => %{"name" => "New Deck", "format" => "modern", "status" => "active"}
+          "input" => %{
+            "name" => "New Deck",
+            "format" => "modern",
+            "status" => "active",
+            "coverDeckCardId" => cover_card_id
+          }
         }
       })
 
@@ -34,7 +47,9 @@ defmodule ManavaultWeb.Schema.DeckMutationsTest do
                    "id" => _id,
                    "name" => "New Deck",
                    "format" => "modern",
-                   "status" => "active"
+                   "status" => "active",
+                   "coverDeckCardId" => ^cover_card_id,
+                   "coverImageUrl" => "https://example.test/black-lotus.jpg"
                  }
                }
              }
@@ -422,5 +437,9 @@ defmodule ManavaultWeb.Schema.DeckMutationsTest do
 
   defp global_deck_id(deck) do
     Absinthe.Relay.Node.to_global_id(:deck, deck.id, ManavaultWeb.Schema)
+  end
+
+  defp global_deck_card_id(deck_card) do
+    Absinthe.Relay.Node.to_global_id(:deck_card, deck_card.id, ManavaultWeb.Schema)
   end
 end

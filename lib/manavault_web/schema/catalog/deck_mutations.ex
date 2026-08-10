@@ -15,7 +15,9 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
   end
 
   def update_deck(_parent, %{id: id, input: input}, resolution) do
-    with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
+    with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution),
+         {:ok, input} <-
+           RelayHelpers.put_optional_node_id(input, :cover_deck_card_id, :deck_card, resolution) do
       deck = Catalog.get_deck!(id)
 
       case Catalog.update_deck(deck, input) do

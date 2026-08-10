@@ -15,6 +15,7 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SELECT_NONE_VALUE,
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select"
@@ -40,13 +41,16 @@ export function EditDeckDialog({
   const [name, setName] = useState("")
   const [format, setFormat] = useState<(typeof DECK_FORMATS)[number]>("commander")
   const [status, setStatus] = useState<(typeof DECK_STATUSES)[number]>("brewing")
+  const [coverDeckCardId, setCoverDeckCardId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const deckCards = deck && "deckCards" in deck ? deck.deckCards : null
 
   useEffect(() => {
     if (!deck || !isOpen) return
     setName(deck.name)
     setFormat(deckFormatValue(deck.format))
     setStatus(deckStatusValue(deck.status))
+    setCoverDeckCardId(deck.coverDeckCardId)
     setError(null)
   }, [deck, isOpen])
 
@@ -63,7 +67,12 @@ export function EditDeckDialog({
       void updateDeckMutation({
         variables: {
           id: deck.id,
-          input: { name: name.trim(), format, status },
+          input: {
+            name: name.trim(),
+            format,
+            status,
+            ...(deckCards ? { coverDeckCardId } : {}),
+          },
         },
         onCompleted: () => {
           void refetchActiveQueries(client)
@@ -101,15 +110,18 @@ export function EditDeckDialog({
         <DialogHeader>
           <div>
             <DialogTitle id="edit-deck-title">Edit deck</DialogTitle>
-            <p className="mt-1 text-sm text-base-content/60">Update deck metadata.</p>
+            <p className="mt-1 text-sm text-base-content/75">Update deck metadata.</p>
           </div>
-          <DialogClose onClose={close} />
+          <DialogClose className="h-11 w-11" onClose={close} />
         </DialogHeader>
 
         <form className="space-y-5 p-5" onSubmit={submit}>
           <label className="block space-y-2">
-            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Name</span>
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-base-content/80">
+              Name
+            </span>
             <Input
+              className="min-h-11"
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="Deck name"
@@ -119,11 +131,11 @@ export function EditDeckDialog({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-base-content/80">
                 Format
               </span>
               <Select value={format} onValueChange={(value) => setFormat(deckFormatValue(value))}>
-                <SelectTrigger className="bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
+                <SelectTrigger className="min-h-11 bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -137,11 +149,11 @@ export function EditDeckDialog({
             </label>
 
             <label className="block space-y-2">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-base-content/80">
                 Status
               </span>
               <Select value={status} onValueChange={(value) => setStatus(deckStatusValue(value))}>
-                <SelectTrigger className="bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
+                <SelectTrigger className="min-h-11 bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -155,6 +167,39 @@ export function EditDeckDialog({
             </label>
           </div>
 
+          {deckCards ? (
+            <label className="block space-y-2">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-base-content/80">
+                Cover card
+              </span>
+              <Select
+                value={coverDeckCardId || SELECT_NONE_VALUE}
+                onValueChange={(value) =>
+                  setCoverDeckCardId(value === SELECT_NONE_VALUE ? null : value)
+                }
+              >
+                <SelectTrigger
+                  aria-label="Cover card"
+                  className="min-h-11 bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SELECT_NONE_VALUE}>Automatic (commander first)</SelectItem>
+                  {deckCards.map((deckCard) => (
+                    <SelectItem key={deckCard.id} value={deckCard.id}>
+                      {deckCard.card?.name || "Unknown card"} ·{" "}
+                      {titleize(deckCard.zone || "mainboard")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="block text-sm text-base-content/75">
+                Uses the commander by default. Choose any card in this deck to override it.
+              </span>
+            </label>
+          ) : null}
+
           {error ? (
             <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
               {error}
@@ -162,10 +207,16 @@ export function EditDeckDialog({
           ) : null}
 
           <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-4">
-            <Button type="button" variant="ghost" onClick={close} disabled={updateDeck.isPending}>
+            <Button
+              type="button"
+              variant="ghost"
+              className="min-h-11"
+              onClick={close}
+              disabled={updateDeck.isPending}
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={updateDeck.isPending}>
+            <Button type="submit" className="min-h-11" disabled={updateDeck.isPending}>
               <Edit3 className="h-4 w-4" />
               {updateDeck.isPending ? "Saving..." : "Save deck"}
             </Button>

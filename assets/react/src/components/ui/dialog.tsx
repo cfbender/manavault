@@ -179,9 +179,16 @@ export function DialogTitle({ children, className, ...props }: HTMLAttributes<HT
   )
 }
 
-export function DialogClose({ onClose }: { onClose: () => void }) {
+export function DialogClose({ className, onClose }: { className?: string; onClose: () => void }) {
   return (
-    <Button type="button" variant="ghost" size="icon" aria-label="Close dialog" onClick={onClose}>
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className={className}
+      aria-label="Close dialog"
+      onClick={onClose}
+    >
       <X className="h-4 w-4" />
     </Button>
   )

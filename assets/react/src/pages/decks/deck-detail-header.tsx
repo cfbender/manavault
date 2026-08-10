@@ -18,7 +18,6 @@ import { Button } from "../../components/ui/button"
 import type { DeckGroupBy } from "../../lib/deck-grouping"
 import { compactNumber, cn, titleize } from "../../lib/utils"
 import { ShareModeHidden, SummaryActionMenu } from "./deck-actions"
-import { deckDetailCoverUrl } from "./deck-card-model"
 import type { DeckLegalityIssue, DeckPrice, DetailZoneCounts } from "./deck-detail-types"
 import { DeckGroupMenu } from "./deck-group-menu"
 import { deckLegalityIssueCountLabel, deckLegalityLabel, deckLegalityTone } from "./deck-legality"
@@ -197,7 +196,7 @@ export function DeckDetailHeader({
         </ShareModeHidden>
 
         <ImageSummaryCard
-          imageUrl={deckDetailCoverUrl(deckCards)}
+          imageUrl={deck.coverImageUrl}
           fallback={<Layers className="h-12 w-12" />}
           interactive={false}
           typeLine={<Badge>{titleize(deck.format)}</Badge>}
@@ -218,10 +217,7 @@ export function DeckDetailHeader({
             </div>
           }
           nameLine={
-            <DeckNameWithCommanderIdentity
-              colors={deck.commanderColorIdentity}
-              name={deck.name}
-            />
+            <DeckNameWithCommanderIdentity colors={deck.commanderColorIdentity} name={deck.name} />
           }
           actionSlot={
             <ShareModeHidden shareMode={shareMode}>

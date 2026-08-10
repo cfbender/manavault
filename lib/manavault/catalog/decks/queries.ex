@@ -153,8 +153,11 @@ defmodule Manavault.Catalog.Decks.Queries do
 
   def deck_cover_image_url(%Deck{cover_image_url: url}) when is_binary(url), do: url
 
-  def deck_cover_image_url(%Deck{deck_cards: cards}) when is_list(cards) do
-    DeckSummaries.cover_image_url_from_cards(cards)
+  def deck_cover_image_url(%Deck{deck_cards: cards, cover_deck_card_id: cover_deck_card_id})
+      when is_list(cards) do
+    cards
+    |> DeckSummaries.put_fallback_printings()
+    |> DeckSummaries.cover_image_url_from_cards(cover_deck_card_id)
   end
 
   def deck_cover_image_url(%Deck{id: id}) do
