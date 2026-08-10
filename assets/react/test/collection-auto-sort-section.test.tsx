@@ -1,6 +1,7 @@
-import { cleanup, render, screen, within } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, expect, test, vi } from "vitest"
+import { AutoSortSummaryDialog } from "../src/pages/collection/auto-sort-summary-dialog"
 import { CollectionAutoSortSection } from "../src/pages/settings/collection-auto-sort-section"
 import type {
   CollectionAutoSortRuleInput,
@@ -194,4 +195,74 @@ test("client validation blocks preview and save without discarding the staged ru
   expect(onPreview).not.toHaveBeenCalled()
   expect(onSave).not.toHaveBeenCalled()
   expect(screen.getByRole("heading", { level: 3, name: "New auto-sort rule" })).not.toBeNull()
+})
+
+test("auto-sort summary shows printing details and keeps the image preview in the viewport", () => {
+  render(
+    <AutoSortSummaryDialog
+      open
+      onOpenChange={vi.fn()}
+      result={{
+        checkedCount: 1,
+        dryRun: true,
+        movedCount: 1,
+        moves: [
+          {
+            cardId: "oracle-1",
+            cardName: "Black Lotus",
+            collectorNumber: "233",
+            collectionItemId: "item-1",
+            finish: "nonfoil",
+            fromLocationName: "Unfiled",
+            imageUrl: "https://example.test/black-lotus.jpg",
+            quantity: 1,
+            setCode: "lea",
+            toLocationId: "location-1",
+            toLocationName: "Power",
+          },
+        ],
+        skippedCount: 0,
+      }}
+    />,
+  )
+
+  expect(screen.getByText("LEA #233")).not.toBeNull()
+  expect(screen.queryByText(/Item ID|Source ID/)).toBeNull()
+
+  const cardLink = screen.getByRole("link", { name: "Black Lotus" })
+  vi.spyOn(cardLink, "getBoundingClientRect").mockReturnValue({
+    bottom: 527,
+    height: 20,
+    left: 294,
+    right: 394,
+    top: 507,
+    width: 100,
+    x: 294,
+    y: 507,
+    toJSON: () => ({}),
+  })
+  const dialog = cardLink.closest('[role="dialog"]')
+  if (!(dialog instanceof HTMLElement)) throw new Error("Auto-sort dialog not found")
+  vi.spyOn(dialog, "getBoundingClientRect").mockReturnValue({
+    bottom: 678,
+    height: 456,
+    left: 256,
+    right: 1024,
+    top: 222,
+    width: 768,
+    x: 256,
+    y: 222,
+    toJSON: () => ({}),
+  })
+
+  fireEvent.pointerEnter(cardLink)
+
+  const previewImage = document.querySelector<HTMLImageElement>(
+    'img[src="https://example.test/black-lotus.jpg"]',
+  )
+  expect(previewImage).not.toBeNull()
+  expect(Number.parseFloat(previewImage?.parentElement?.style.top || "0")).toBeGreaterThanOrEqual(
+    12,
+  )
+  expect(previewImage?.parentElement?.style.left).toBe("72px")
 })

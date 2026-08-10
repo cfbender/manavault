@@ -201,6 +201,8 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :collection_item_id, non_null(:id)
     field :card_name, non_null(:string)
     field :card_id, :id
+    field :set_code, non_null(:string)
+    field :collector_number, non_null(:string)
     field :image_url, :string
     field :quantity, non_null(:integer)
     field :finish, non_null(:string)

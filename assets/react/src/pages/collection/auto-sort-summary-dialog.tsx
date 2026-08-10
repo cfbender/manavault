@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { Button } from "../../components/ui/button"
 import {
   Dialog,
@@ -12,12 +13,14 @@ import { useMobileHoverReveal } from "../../lib/mobile-hover"
 export type AutoSortSummaryMove = {
   cardId?: string | null
   cardName: string
+  collectorNumber?: string | null
   collectionItemId: string
   finish: string
   fromLocationId?: string | null
   fromLocationName?: string | null
   imageUrl?: string | null
   quantity: number
+  setCode?: string | null
   toLocationId?: string | null
   toLocationName: string
 }
@@ -156,12 +159,9 @@ export function AutoSortSummaryDialog({
                           <p className="text-sm text-base-content/70">
                             {moveLabel} from {sourceLocationLabel(move)} to {group.locationName}
                           </p>
-                          {showItemMetadata ? (
-                            <p className="text-xs text-base-content/50">
-                              Item ID: {move.collectionItemId}
-                              {move.fromLocationId
-                                ? ` · Source ID: ${move.fromLocationId}`
-                                : " · Source: Unfiled"}
+                          {showItemMetadata && printingLabel(move) ? (
+                            <p className="font-mono text-xs text-base-content/60">
+                              {printingLabel(move)}
                             </p>
                           ) : null}
                         </li>
@@ -255,6 +255,11 @@ type PreviewPosition = {
   top: number
 }
 
+const previewWidth = 176
+const previewHeight = 240
+const previewGap = 8
+const viewportPadding = 12
+
 function CardNamePreview({ move }: { move: AutoSortSummaryMove }) {
   const triggerRef = useRef<HTMLAnchorElement>(null)
   const hideTimeoutRef = useRef<number | null>(null)
@@ -320,10 +325,34 @@ function CardNamePreview({ move }: { move: AutoSortSummaryMove }) {
     const rect = triggerRef.current?.getBoundingClientRect()
     if (!rect) return
 
-    const previewWidth = 176
+    const maxTop = Math.max(viewportPadding, window.innerHeight - previewHeight - viewportPadding)
+    const centeredTop = Math.min(
+      Math.max(rect.top + rect.height / 2 - previewHeight / 2, viewportPadding),
+      maxTop,
+    )
+    const dialogRect = triggerRef.current?.closest('[role="dialog"]')?.getBoundingClientRect()
+    const horizontalAnchor = dialogRect?.width ? dialogRect : rect
+    const leftOfAnchor = horizontalAnchor.left - previewGap - previewWidth
+    if (leftOfAnchor >= viewportPadding) {
+      setPosition({ left: leftOfAnchor, top: centeredTop })
+      return
+    }
+
+    const rightOfAnchor = horizontalAnchor.right + previewGap
+    if (rightOfAnchor + previewWidth <= window.innerWidth - viewportPadding) {
+      setPosition({ left: rightOfAnchor, top: centeredTop })
+      return
+    }
+
+    const topAbove = rect.top - previewGap - previewHeight
+    const preferredTop = topAbove >= viewportPadding ? topAbove : rect.bottom + previewGap
+
     setPosition({
-      left: Math.min(Math.max(rect.left, 12), window.innerWidth - previewWidth - 12),
-      top: rect.top - 6,
+      left: Math.min(
+        Math.max(rect.left, viewportPadding),
+        window.innerWidth - previewWidth - viewportPadding,
+      ),
+      top: Math.min(Math.max(preferredTop, viewportPadding), maxTop),
     })
   }
 
@@ -346,26 +375,18 @@ function CardNamePreview({ move }: { move: AutoSortSummaryMove }) {
       >
         {move.cardName}
       </a>
-      {position ? (
-        <a
-          href={cardHref}
-          target="_blank"
-          rel="noreferrer"
-          aria-label={`Open ${move.cardName} card details in a new tab`}
-          className="fixed z-[9999] block w-44 -translate-y-full rounded-xl border border-base-300 bg-base-100 p-2 shadow-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
-          style={{ left: position.left, top: position.top }}
-          onBlur={hidePreviewSoon}
-          onFocus={showPreview}
-          onPointerEnter={showPreview}
-          onPointerLeave={hidePreviewSoon}
-        >
-          <img
-            src={imageUrl}
-            alt={move.cardName}
-            className="aspect-[5/7] w-full rounded-lg object-cover"
-          />
-        </a>
-      ) : null}
+      {position
+        ? createPortal(
+            <div
+              aria-hidden="true"
+              className="pointer-events-none fixed z-[1200] block w-44 rounded-box border border-base-300 bg-base-100 p-2 shadow-2xl"
+              style={{ left: position.left, top: position.top }}
+            >
+              <img src={imageUrl} alt="" className="aspect-[5/7] w-full rounded-lg object-cover" />
+            </div>,
+            document.body,
+          )
+        : null}
     </span>
   )
 }
@@ -395,4 +416,13 @@ function groupMovesByDestination(moves: readonly AutoSortSummaryMove[]): MoveDes
 
 function sourceLocationLabel(move: AutoSortSummaryMove) {
   return move.fromLocationName || "Unfiled"
+}
+
+function printingLabel(move: AutoSortSummaryMove) {
+  return [
+    move.setCode?.toUpperCase() || null,
+    move.collectorNumber ? `#${move.collectorNumber}` : null,
+  ]
+    .filter(Boolean)
+    .join(" ")
 }

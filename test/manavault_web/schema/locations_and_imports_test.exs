@@ -654,6 +654,8 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
                 collectionItemId
                 cardName
                 cardId
+                setCode
+                collectorNumber
                 imageUrl
                 quantity
                 finish
@@ -702,6 +704,8 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
                 collectionItemId
                 cardName
                 cardId
+                setCode
+                collectorNumber
                 imageUrl
                 quantity
                 finish
@@ -732,6 +736,8 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
                        "collectionItemId" => matching_item_id,
                        "cardName" => "Red Sorter",
                        "cardId" => "oracle-auto-sort-red",
+                       "setCode" => "aus",
+                       "collectorNumber" => "1",
                        "imageUrl" => "https://example.test/red-sorter.jpg",
                        "quantity" => 1,
                        "finish" => "nonfoil",

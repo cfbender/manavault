@@ -68,6 +68,8 @@ defmodule Manavault.Catalog.DeckDisassemblyTest do
              collection_item_id: lotus_allocation.collection_item_id,
              card_name: "Black Lotus",
              card_id: "oracle-1",
+             set_code: "lea",
+             collector_number: "232",
              image_url: "https://example.test/black-lotus.jpg",
              quantity: 1,
              finish: "nonfoil",

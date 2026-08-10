@@ -591,6 +591,8 @@ export const PreviewCollectionImportAutoSortDocument = graphql(`
           collectionItemId
           cardName
           cardId
+          setCode
+          collectorNumber
           imageUrl
           quantity
           finish
@@ -616,6 +618,8 @@ export const AutoSortCollectionDocument = graphql(`
           collectionItemId
           cardName
           cardId
+          setCode
+          collectorNumber
           imageUrl
           quantity
           finish

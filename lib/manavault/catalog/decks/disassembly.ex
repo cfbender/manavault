@@ -104,6 +104,8 @@ defmodule Manavault.Catalog.Decks.Disassembly do
       collection_item_id: allocation.collection_item_id,
       card_name: deck_card.card.name,
       card_id: deck_card.card.oracle_id,
+      set_code: collection_item.printing.set_code,
+      collector_number: collection_item.printing.collector_number,
       image_url: image_url(collection_item.printing),
       quantity: allocation.quantity,
       finish: collection_item.finish,
