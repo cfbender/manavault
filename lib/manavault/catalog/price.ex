@@ -143,14 +143,31 @@ defmodule Manavault.Catalog.Price do
 
   def price_cents_for_printing(printing, finish \\ nil)
 
-  def price_cents_for_printing(%Printing{prices: prices}, finish) do
+  def price_cents_for_printing(%Printing{} = printing, finish) do
+    vendor_price_cents(printing, finish) || scryfall_price_cents(printing, finish)
+  end
+
+  def price_cents_for_printing(_printing, _finish), do: nil
+
+  # Price from the user's selected vendor source, or nil when the source is
+  # Scryfall or the vendor has no price for this printing's finish chain.
+  defp vendor_price_cents(%Printing{scryfall_id: scryfall_id}, finish)
+       when is_binary(scryfall_id) do
+    Manavault.Pricing.price_cents(scryfall_id, finish_chain(finish))
+  end
+
+  defp vendor_price_cents(_printing, _finish), do: nil
+
+  defp scryfall_price_cents(%Printing{prices: prices}, finish) do
     prices
     |> decode_prices()
     |> price_string_for_finish(finish)
     |> parse_cents()
   end
 
-  def price_cents_for_printing(_printing, _finish), do: nil
+  defp finish_chain("foil"), do: ["foil", "nonfoil"]
+  defp finish_chain("etched"), do: ["etched", "foil", "nonfoil"]
+  defp finish_chain(_finish), do: ["nonfoil", "foil", "etched"]
 
   @doc """
   Ordered Scryfall `prices` JSON keys to try for a USD price, given a finish.

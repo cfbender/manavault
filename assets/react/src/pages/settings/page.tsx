@@ -35,6 +35,7 @@ import {
 } from "./data"
 import { NativeAppSection } from "./native-app-section"
 import { useNativeShellSection } from "./native-shell-state"
+import { PricingSection } from "./pricing-section"
 import { RestoreSection } from "./restore-section"
 import { ScryfallDataSection } from "./scryfall-data-section"
 import { Alert } from "./ui"
@@ -321,6 +322,8 @@ export function SettingsPage() {
       {message ? <Alert tone="success">{message}</Alert> : null}
 
       <AppearanceSection />
+
+      <PricingSection />
 
       {nativeShell ? <NativeAppSection {...nativeSectionProps} /> : null}
 

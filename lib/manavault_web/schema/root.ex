@@ -4,7 +4,9 @@ defmodule ManavaultWeb.Schema do
 
   import_types(ManavaultWeb.Schema.CatalogTypes)
   import_types(ManavaultWeb.Schema.BackupTypes)
+  import_types(ManavaultWeb.Schema.PricingTypes)
   import_types(ManavaultWeb.Schema.Catalog.BackupOperations)
+  import_types(ManavaultWeb.Schema.Catalog.PricingOperations)
   import_types(ManavaultWeb.Schema.Catalog.CardOperations)
   import_types(ManavaultWeb.Schema.Catalog.CollectionOperations)
   import_types(ManavaultWeb.Schema.Catalog.DeckOperations)
@@ -44,6 +46,7 @@ defmodule ManavaultWeb.Schema do
     import_fields(:location_queries)
     import_fields(:deck_queries)
     import_fields(:backup_queries)
+    import_fields(:pricing_queries)
     import_fields(:trade_queries)
 
     node field do
@@ -80,6 +83,7 @@ defmodule ManavaultWeb.Schema do
 
   mutation do
     import_fields(:backup_mutations)
+    import_fields(:pricing_mutations)
     import_fields(:card_mutations)
     import_fields(:collection_mutations)
     import_fields(:location_mutations)

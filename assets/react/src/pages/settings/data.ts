@@ -207,6 +207,52 @@ export const StageCloudRestoreDocument = graphql(`
   }
 `)
 
+export const PricingSettingsDocument = graphql(`
+  query PricingSettings {
+    pricingSettings {
+      source
+      sources
+      vendors {
+        vendor
+        priceCount
+        lastSyncedAt
+      }
+    }
+  }
+`)
+
+export const UpdatePricingSettingsDocument = graphql(`
+  mutation UpdatePricingSettings($source: String!) {
+    updatePricingSettings(source: $source) {
+      pricingSettings {
+        source
+        sources
+        vendors {
+          vendor
+          priceCount
+          lastSyncedAt
+        }
+      }
+    }
+  }
+`)
+
+export const SyncVendorPricesDocument = graphql(`
+  mutation SyncVendorPrices {
+    syncVendorPrices {
+      pricingSettings {
+        source
+        sources
+        vendors {
+          vendor
+          priceCount
+          lastSyncedAt
+        }
+      }
+    }
+  }
+`)
+
 export const ReloadScryfallCatalogDocument = graphql(`
   mutation ReloadScryfallCatalog {
     reloadScryfallCatalog {
