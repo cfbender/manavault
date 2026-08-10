@@ -40,18 +40,83 @@ export const CollectionDocument = graphql(`
         kind
       }
     }
-    collectionValueSummary(filters: $filters) {
-      totalPriceText
-      purchasePriceText
-      valueGainText
-      valueGainPercentText
-    }
     collectionItemCount(filters: $filters)
     collectionItemEntryCount(filters: $filters)
     allCollectionItemCount: collectionItemCount
     unfiledCollectionItemCount: collectionItemCount(filters: { locationId: "unfiled" })
     availableCollectionItemCount: collectionItemCount(filters: { unallocatedOnly: true })
     recentCollectionItemCount: collectionItemCount(filters: { addedWithinDays: 7 })
+  }
+`)
+
+export const CollectionValueDashboardDocument = graphql(`
+  query CollectionValueDashboard {
+    pricingSettings {
+      source
+    }
+    collectionValueDashboard {
+      summary {
+        totalPriceCents
+        totalPriceText
+        purchasePriceCents
+        purchasePriceText
+        valueGainCents
+        valueGainText
+        valueGainPercent
+        valueGainPercentText
+      }
+      itemCount
+      positionCount
+      gainPositionCount
+      lossPositionCount
+      unchangedPositionCount
+      biggestGains {
+        quantity
+        totalPriceCents
+        totalPriceText
+        purchasePriceCents
+        purchasePriceText
+        valueGainCents
+        valueGainText
+        valueGainPercent
+        valueGainPercentText
+        printing {
+          id
+          scryfallId
+          setCode
+          setName
+          collectorNumber
+          imageUrl
+          card {
+            id
+            name
+          }
+        }
+      }
+      biggestLosses {
+        quantity
+        totalPriceCents
+        totalPriceText
+        purchasePriceCents
+        purchasePriceText
+        valueGainCents
+        valueGainText
+        valueGainPercent
+        valueGainPercentText
+        printing {
+          id
+          scryfallId
+          setCode
+          setName
+          collectorNumber
+          imageUrl
+          card {
+            id
+            name
+          }
+        }
+      }
+    }
   }
 `)
 

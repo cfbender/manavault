@@ -94,6 +94,16 @@ defmodule ManavaultWeb.Schema.CollectionQueriesTest do
             valueGainText
             valueGainPercentText
           }
+          collectionValueDashboard {
+            itemCount
+            positionCount
+            gainPositionCount
+            lossPositionCount
+            unchangedPositionCount
+            summary { totalPriceText purchasePriceText valueGainText }
+            biggestGains { valueGainText printing { card { name } } }
+            biggestLosses { valueGainText printing { card { name } } }
+          }
         }
         """
       })
@@ -147,6 +157,20 @@ defmodule ManavaultWeb.Schema.CollectionQueriesTest do
                  "purchasePriceText" => "$37.02",
                  "valueGainText" => "$0",
                  "valueGainPercentText" => "0%"
+               },
+               "collectionValueDashboard" => %{
+                 "itemCount" => 3,
+                 "positionCount" => 1,
+                 "gainPositionCount" => 0,
+                 "lossPositionCount" => 0,
+                 "unchangedPositionCount" => 1,
+                 "summary" => %{
+                   "totalPriceText" => "$37.02",
+                   "purchasePriceText" => "$37.02",
+                   "valueGainText" => "$0"
+                 },
+                 "biggestGains" => [],
+                 "biggestLosses" => []
                },
                "collectionItems" => %{
                  "pageInfo" => %{"endCursor" => _, "hasNextPage" => false},

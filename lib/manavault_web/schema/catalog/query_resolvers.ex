@@ -120,6 +120,12 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
     end
   end
 
+  def collection_value_dashboard(_parent, _args, _resolution) do
+    {:ok,
+     Catalog.collection_value_dashboard()
+     |> CollectionFields.collection_value_dashboard_data()}
+  end
+
   def collection_export_csv(_parent, args, resolution) do
     with {:ok, filters} <- collection_filters(args, resolution) do
       {:ok, Catalog.export_collection_csv(filters)}

@@ -45,6 +45,10 @@ defmodule Manavault.Catalog.Collection do
     CardCollection.value_summary(filters)
   end
 
+  def collection_value_dashboard do
+    CardCollection.value_dashboard()
+  end
+
   def count_locations do
     Locations.count()
   end

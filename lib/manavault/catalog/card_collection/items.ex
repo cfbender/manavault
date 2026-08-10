@@ -11,5 +11,6 @@ defmodule Manavault.Catalog.CardCollection.Items do
   defdelegate count_item_groups(filters \\ []), to: ItemQueries
   defdelegate list_items_by_location(location_id, filters \\ [], opts \\ []), to: ItemQueries
   defdelegate value_summary(filters \\ []), to: ItemQueries
+  defdelegate value_dashboard(), to: ItemQueries
   defdelegate location_summaries(), to: ItemQueries
 end

@@ -149,6 +149,74 @@ defmodule Manavault.Catalog.PriceFallbackConsistencyTest do
     assert ["Higher Market", "Lower Market"] == sorted_group_names("desc")
   end
 
+  test "collection value dashboard ranks total printing gains and refreshes after source changes" do
+    cards = [
+      market_sort_card("gain-most", "Gain Most", "20.00"),
+      market_sort_card("gain-second", "Gain Second", "15.00"),
+      market_sort_card("loss-most", "Loss Most", "10.00"),
+      market_sort_card("loss-second", "Loss Second", "10.00"),
+      market_sort_card("unchanged", "Unchanged", "7.00")
+    ]
+
+    assert {:ok, _} = Catalog.import_cards(cards)
+
+    collection_rows = [
+      {"scryfall-gain-most", 1, 500},
+      {"scryfall-gain-second", 2, 1_000},
+      {"scryfall-loss-most", 2, 3_000},
+      {"scryfall-loss-second", 1, 2_000},
+      {"scryfall-unchanged", 1, 700}
+    ]
+
+    for {scryfall_id, quantity, purchase_price_cents} <- collection_rows do
+      assert {:ok, _item} =
+               Catalog.create_collection_item(%{
+                 "scryfall_id" => scryfall_id,
+                 "quantity" => quantity,
+                 "purchase_price_cents" => purchase_price_cents
+               })
+    end
+
+    assert %{upserted: 5} =
+             Sync.replace_vendor_prices("tcgplayer", [
+               %{scryfall_id: "scryfall-gain-most", finish: "nonfoil", price_cents: 2_000},
+               %{scryfall_id: "scryfall-gain-second", finish: "nonfoil", price_cents: 1_500},
+               %{scryfall_id: "scryfall-loss-most", finish: "nonfoil", price_cents: 1_000},
+               %{scryfall_id: "scryfall-loss-second", finish: "nonfoil", price_cents: 1_000},
+               %{scryfall_id: "scryfall-unchanged", finish: "nonfoil", price_cents: 700}
+             ])
+
+    assert %{upserted: 5} =
+             Sync.replace_vendor_prices("manapool", [
+               %{scryfall_id: "scryfall-gain-most", finish: "nonfoil", price_cents: 600},
+               %{scryfall_id: "scryfall-gain-second", finish: "nonfoil", price_cents: 500},
+               %{scryfall_id: "scryfall-loss-most", finish: "nonfoil", price_cents: 4_000},
+               %{scryfall_id: "scryfall-loss-second", finish: "nonfoil", price_cents: 4_000},
+               %{scryfall_id: "scryfall-unchanged", finish: "nonfoil", price_cents: 700}
+             ])
+
+    assert {:ok, %{source: "tcgplayer"}} = Pricing.set_source("tcgplayer")
+    start_supervised!(Store)
+
+    tcgplayer = Catalog.collection_value_dashboard()
+
+    assert tcgplayer.item_count == 7
+    assert tcgplayer.position_count == 5
+    assert tcgplayer.gain_position_count == 2
+    assert tcgplayer.loss_position_count == 2
+    assert tcgplayer.unchanged_position_count == 1
+    assert position_names(tcgplayer.biggest_gains) == ["Gain Most", "Gain Second"]
+    assert position_names(tcgplayer.biggest_losses) == ["Loss Most", "Loss Second"]
+
+    assert {:ok, %{source: "manapool"}} = Pricing.set_source("manapool")
+
+    manapool = Catalog.collection_value_dashboard()
+
+    refute manapool.summary.total_price_cents == tcgplayer.summary.total_price_cents
+    assert position_names(manapool.biggest_gains) == ["Loss Most", "Loss Second", "Gain Most"]
+    assert position_names(manapool.biggest_losses) == ["Gain Second"]
+  end
+
   defp collection_item_finishes(query) do
     [q: query]
     |> Catalog.list_collection_items(limit: 10)
@@ -163,6 +231,10 @@ defmodule Manavault.Catalog.PriceFallbackConsistencyTest do
       sort: %{field: "price", direction: direction}
     )
     |> Enum.map(fn %{items: [item | _]} -> item.printing.card.name end)
+  end
+
+  defp position_names(positions) do
+    Enum.map(positions, & &1.printing.card.name)
   end
 
   defp market_sort_card(slug, name, scryfall_price) do

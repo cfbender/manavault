@@ -12,6 +12,7 @@ defmodule Manavault.Pricing do
 
   import Ecto.Query
 
+  alias Manavault.Catalog.Cache
   alias Manavault.Pricing.{Settings, Store, Sync, VendorPrice}
   alias Manavault.Repo
 
@@ -34,6 +35,7 @@ defmodule Manavault.Pricing do
 
     with {:ok, _settings} <- result do
       Store.refresh()
+      Cache.invalidate_collection()
       result
     end
   end

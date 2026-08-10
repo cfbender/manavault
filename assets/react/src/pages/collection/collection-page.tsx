@@ -78,6 +78,7 @@ import type {
   CollectionTab,
   LocationSummary,
 } from "./types"
+import { CollectionValueDashboard } from "./value-dashboard"
 
 const COLLECTION_PAGE_SORT_STORAGE_KEY = collectionSortStorageKey("collection")
 
@@ -241,7 +242,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
       first: COLLECTION_PAGE_SIZE,
       after: null,
     },
-    skip: activeTab === "locations",
+    skip: activeTab === "locations" || activeTab === "value",
     fetchPolicy: "cache-and-network",
   })
   const allItemsPageInfo = allItemsQuery.data?.collectionItemGroups.pageInfo
@@ -468,7 +469,6 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
         autoSortPending={autoSortCollection.loading}
         itemCounts={itemCounts}
         locationCount={locations.length}
-        valueSummary={data?.collectionValueSummary}
         onAddItem={() => setIsAddItemOpen(true)}
         onAddLocation={() => setIsAddLocationOpen(true)}
         onAutoSort={previewCollectionAutoSort}
@@ -492,7 +492,9 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
         role="tabpanel"
         aria-labelledby={`collection-tab-${activeTab}`}
       >
-        {activeTab === "locations" ? (
+        {activeTab === "value" ? (
+          <CollectionValueDashboard />
+        ) : activeTab === "locations" ? (
           <CollectionLocationsSection
             isLoading={isLoading}
             locationCount={locations.length}

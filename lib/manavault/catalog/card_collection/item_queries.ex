@@ -12,6 +12,7 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries do
   @default_sort %{field: "name", direction: "asc"}
 
   defdelegate value_summary(filters \\ []), to: ValueSummary
+  defdelegate value_dashboard(), to: ValueSummary
   defdelegate location_summaries(), to: ValueSummary
 
   def list_items(filters \\ [], opts \\ []) when is_list(filters) do

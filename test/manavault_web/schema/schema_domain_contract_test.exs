@@ -27,6 +27,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "collectionItemEntryCount",
                "collectionItemGroups",
                "collectionItems",
+               "collectionValueDashboard",
                "collectionValueSummary",
                "deck",
                "deckBuylist",

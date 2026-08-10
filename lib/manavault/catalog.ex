@@ -30,6 +30,7 @@ defmodule Manavault.Catalog do
   defdelegate count_collection_item_entries(filters \\ []), to: Cached
   defdelegate count_collection_item_groups(filters \\ []), to: Cached
   defdelegate collection_value_summary(filters \\ []), to: Cached
+  defdelegate collection_value_dashboard(), to: Cached
   defdelegate get_collection_item!(id), to: Cached
   defdelegate change_collection_item(collection_item, attrs \\ %{}), to: Collection
   defdelegate new_collection_item_for_printing(scryfall_id), to: Collection

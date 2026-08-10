@@ -150,6 +150,30 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :value_gain_percent_text, :string
   end
 
+  object :collection_value_dashboard do
+    field :summary, non_null(:collection_value_summary)
+    field :item_count, non_null(:integer)
+    field :position_count, non_null(:integer)
+    field :gain_position_count, non_null(:integer)
+    field :loss_position_count, non_null(:integer)
+    field :unchanged_position_count, non_null(:integer)
+    field :biggest_gains, non_null(list_of(non_null(:collection_value_position)))
+    field :biggest_losses, non_null(list_of(non_null(:collection_value_position)))
+  end
+
+  object :collection_value_position do
+    field :printing, non_null(:printing)
+    field :quantity, non_null(:integer)
+    field :total_price_cents, non_null(:integer)
+    field :total_price_text, non_null(:string)
+    field :purchase_price_cents, non_null(:integer)
+    field :purchase_price_text, non_null(:string)
+    field :value_gain_cents, non_null(:integer)
+    field :value_gain_text, non_null(:string)
+    field :value_gain_percent, :float
+    field :value_gain_percent_text, :string
+  end
+
   object :collection_auto_sort_rule do
     field :id, non_null(:id)
     field :name, non_null(:string)

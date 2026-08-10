@@ -271,6 +271,13 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionFields do
     value_summary(total, purchase)
   end
 
+  def collection_value_dashboard_data(dashboard) do
+    dashboard
+    |> Map.update!(:summary, &collection_value_summary_data/1)
+    |> Map.update!(:biggest_gains, &Enum.map(&1, fn position -> value_position(position) end))
+    |> Map.update!(:biggest_losses, &Enum.map(&1, fn position -> value_position(position) end))
+  end
+
   def location_value_summary_data(
         %{total_price_cents: total, purchase_price_cents: purchase} = summary
       )
@@ -409,6 +416,21 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionFields do
       value_gain_percent: percent,
       value_gain_percent_text: Price.format_percent(percent)
     }
+  end
+
+  defp value_position(position) do
+    total = position.total_price_cents
+    purchase = position.purchase_price_cents
+    gain = position.value_gain_cents
+    percent = value_gain_percent(gain, purchase)
+
+    Map.merge(position, %{
+      total_price_text: Price.format_cents(total),
+      purchase_price_text: Price.format_cents(purchase),
+      value_gain_text: Price.format_signed_cents(gain),
+      value_gain_percent: percent,
+      value_gain_percent_text: Price.format_percent(percent)
+    })
   end
 
   defp value_gain_percent(gain, purchase)

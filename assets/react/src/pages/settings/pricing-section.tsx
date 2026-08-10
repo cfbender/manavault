@@ -1,5 +1,6 @@
-import { useMutation, useQuery } from "@apollo/client/react"
+import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
 import { Check, CircleDollarSign, RefreshCw } from "lucide-react"
+import { useState } from "react"
 import { PageSection } from "../../components/app-shell"
 import { Button } from "../../components/ui/button"
 import { useToast } from "../../components/ui/toast"
@@ -32,23 +33,45 @@ const sourceLabels: Record<string, { label: string; description: string }> = {
 }
 
 export function PricingSection() {
+  const client = useApolloClient()
   const { showToast } = useToast()
+  const [pendingSource, setPendingSource] = useState<string | null>(null)
 
   const settingsQuery = useQuery(PricingSettingsDocument, {
     fetchPolicy: "cache-and-network",
   })
-  const settings = settingsQuery.data?.pricingSettings
 
   const [updatePricingSettings, updateMutation] = useMutation(UpdatePricingSettingsDocument)
   const [syncVendorPrices, syncMutation] = useMutation(SyncVendorPricesDocument)
+  const settings =
+    settingsQuery.data?.pricingSettings ??
+    updateMutation.data?.updatePricingSettings?.pricingSettings
+  const selectedSource = pendingSource ?? settings?.source
 
   function selectSource(source: string) {
-    if (!settings || source === settings.source) return
+    if (!settings || source === selectedSource) return
+
+    setPendingSource(source)
 
     void updatePricingSettings({
       variables: { source },
-      onCompleted: () => showToast("Price source updated."),
-      onError: (err) => showToast(errorMessage(err)),
+      onCompleted: (data) => {
+        const pricingSettings = data.updatePricingSettings?.pricingSettings
+
+        setPendingSource(null)
+        if (!pricingSettings) return
+
+        client.writeQuery({
+          query: PricingSettingsDocument,
+          data: { pricingSettings },
+        })
+        showToast("Price source updated.")
+        void client.resetStore().catch((err: unknown) => showToast(errorMessage(err)))
+      },
+      onError: (err) => {
+        setPendingSource(null)
+        showToast(errorMessage(err))
+      },
     })
   }
 
@@ -85,7 +108,7 @@ export function PricingSection() {
 
           <div className="grid gap-3 sm:grid-cols-2">
             {(settings?.sources ?? []).map((source) => {
-              const selected = settings?.source === source
+              const selected = selectedSource === source
               const meta = sourceLabels[source] ?? { label: source, description: "" }
               const status = vendorStatus.get(source)
 

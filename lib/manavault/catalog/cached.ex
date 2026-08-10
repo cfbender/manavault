@@ -91,6 +91,12 @@ defmodule Manavault.Catalog.Cached do
     end)
   end
 
+  def collection_value_dashboard do
+    cached(Cache.collection_tag(), :collection_value_dashboard, fn ->
+      Collection.collection_value_dashboard()
+    end)
+  end
+
   def get_collection_item!(id) do
     cached(Cache.collection_tag(), {:collection_item, id}, fn ->
       Collection.get_collection_item!(id)

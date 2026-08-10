@@ -9,6 +9,7 @@ defmodule Manavault.Pricing.Sync do
 
   require Logger
 
+  alias Manavault.Catalog.Cache
   alias Manavault.Pricing.{Store, VendorPrice}
   alias Manavault.Pricing.Vendors.{CardKingdom, ManaPool, TcgTracking}
   alias Manavault.Repo
@@ -71,6 +72,8 @@ defmodule Manavault.Pricing.Sync do
       VendorPrice
       |> where([v], v.vendor == ^vendor and v.updated_at < ^now)
       |> Repo.delete_all(timeout: :infinity)
+
+    Cache.invalidate_collection()
 
     %{upserted: length(deduped), deleted: deleted}
   end

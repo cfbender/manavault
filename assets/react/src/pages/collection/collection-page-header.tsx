@@ -8,9 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu"
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs"
-import { cn } from "../../lib/utils"
-import type { CollectionTab, CollectionValueSummary } from "./types"
-import { collectionValueGainClass } from "./value-summary"
+import type { CollectionTab } from "./types"
 
 type CollectionPageHeaderProps = {
   activeTab: CollectionTab
@@ -21,7 +19,6 @@ type CollectionPageHeaderProps = {
     unfiled: number
   }
   locationCount: number
-  valueSummary?: CollectionValueSummary | null
   onAddItem: () => void
   autoSortDisabled?: boolean
   autoSortPending?: boolean
@@ -39,7 +36,6 @@ export function CollectionPageHeader({
   autoSortPending = false,
   itemCounts,
   locationCount,
-  valueSummary,
   onAddItem,
   onAddLocation,
   onAutoSort,
@@ -119,8 +115,6 @@ export function CollectionPageHeader({
         }
       />
 
-      {valueSummary ? <CollectionValueSummaryCard valueSummary={valueSummary} /> : null}
-
       <CollectionTabs
         activeTab={activeTab}
         itemCounts={itemCounts}
@@ -137,12 +131,13 @@ function CollectionTabs({
   locationCount,
   onSelectTab,
 }: Pick<CollectionPageHeaderProps, "activeTab" | "itemCounts" | "locationCount" | "onSelectTab">) {
-  const tabs: { tab: CollectionTab; label: string; count: number }[] = [
+  const tabs: { tab: CollectionTab; label: string; count?: number }[] = [
     { tab: "locations", label: "Locations", count: locationCount },
     { tab: "all", label: "All cards", count: itemCounts.all },
     { tab: "recent", label: "Recently added", count: itemCounts.recent },
     { tab: "available", label: "Available to pull", count: itemCounts.available },
     { tab: "unfiled", label: "Unfiled", count: itemCounts.unfiled },
+    { tab: "value", label: "Value" },
   ]
   const active = tabs.find(({ tab }) => tab === activeTab) ?? tabs[0]
 
@@ -159,7 +154,9 @@ function CollectionTabs({
             >
               <span className="flex items-center gap-2">
                 <span>{active.label}</span>
-                <span className="badge badge-primary badge-sm">{active.count}</span>
+                {active.count !== undefined ? (
+                  <span className="badge badge-primary badge-sm">{active.count}</span>
+                ) : null}
               </span>
               <ChevronDown className="h-4 w-4" />
             </Button>
@@ -168,15 +165,17 @@ function CollectionTabs({
             {tabs.map(({ tab, label, count }) => (
               <DropdownMenuItem key={tab} onSelect={() => onSelectTab(tab)}>
                 <span className="flex-1">{label}</span>
-                <span
-                  className={
-                    tab === activeTab
-                      ? "badge badge-primary badge-sm"
-                      : "badge badge-ghost badge-sm"
-                  }
-                >
-                  {count}
-                </span>
+                {count !== undefined ? (
+                  <span
+                    className={
+                      tab === activeTab
+                        ? "badge badge-primary badge-sm"
+                        : "badge badge-ghost badge-sm"
+                    }
+                  >
+                    {count}
+                  </span>
+                ) : null}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
@@ -197,52 +196,21 @@ function CollectionTabs({
               aria-controls="collection-view-panel"
             >
               <span>{label}</span>
-              <span
-                className={
-                  tab === activeTab ? "badge badge-primary badge-sm" : "badge badge-ghost badge-sm"
-                }
-              >
-                {count}
-              </span>
+              {count !== undefined ? (
+                <span
+                  className={
+                    tab === activeTab
+                      ? "badge badge-primary badge-sm"
+                      : "badge badge-ghost badge-sm"
+                  }
+                >
+                  {count}
+                </span>
+              ) : null}
             </TabsTrigger>
           ))}
         </TabsList>
       </Tabs>
     </>
-  )
-}
-
-function CollectionValueSummaryCard({ valueSummary }: { valueSummary: CollectionValueSummary }) {
-  return (
-    <div className="mb-7 grid gap-3 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-3">
-      <div>
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-base-content/50">
-          Market value
-        </p>
-        <p className="mt-1 font-mono text-2xl font-black">{valueSummary.totalPriceText || "$0"}</p>
-      </div>
-      <div>
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-base-content/50">
-          Purchase basis
-        </p>
-        <p className="mt-1 font-mono text-2xl font-black">
-          {valueSummary.purchasePriceText || "$0"}
-        </p>
-      </div>
-      <div>
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-base-content/50">
-          Value gain
-        </p>
-        <p
-          className={cn(
-            "mt-1 font-mono text-2xl font-black",
-            collectionValueGainClass(valueSummary.valueGainText),
-          )}
-        >
-          {valueSummary.valueGainText || "$0"}
-          {valueSummary.valueGainPercentText ? ` (${valueSummary.valueGainPercentText})` : ""}
-        </p>
-      </div>
-    </div>
   )
 }
