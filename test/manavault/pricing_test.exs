@@ -98,31 +98,68 @@ defmodule Manavault.PricingTest do
   end
 
   describe "ManaPool.rows/1" do
-    test "maps singles to finish-keyed rows in cents" do
+    test "prefers the best available condition for each card and finish" do
       body = %{
         "data" => [
-          %{
-            "scryfall_id" => "aaa",
-            "price_cents" => 218,
-            "price_cents_foil" => 2017,
-            "price_cents_etched" => nil
-          },
-          %{"scryfall_id" => "bbb", "price_cents" => nil, "price_cents_foil" => 16},
-          %{"scryfall_id" => "", "price_cents" => 100}
+          mana_pool_variant("aaa", "NF", "DMG", 100),
+          mana_pool_variant("aaa", "NF", "HP", 200),
+          mana_pool_variant("aaa", "NF", "MP", 300),
+          mana_pool_variant("aaa", "NF", "LP", 400),
+          mana_pool_variant("aaa", "NF", "NM", 500),
+          mana_pool_variant("aaa", "NF", "NM", 450),
+          mana_pool_variant("aaa", "FO", "MP", 100),
+          mana_pool_variant("aaa", "FO", "LP", 400),
+          mana_pool_variant("aaa", "EF", "DMG", 100),
+          mana_pool_variant("aaa", "EF", "HP", 200),
+          mana_pool_variant("bbb", "NF", "MP", 300),
+          mana_pool_variant("bbb", "NF", "HP", 200),
+          mana_pool_variant("bbb", "NF", "DMG", 100),
+          mana_pool_variant("ccc", "NF", "HP", 200),
+          mana_pool_variant("ccc", "NF", "DMG", 100),
+          mana_pool_variant("ddd", "NF", "DMG", 100)
         ]
       }
 
-      assert ManaPool.rows(body) == [
-               %{scryfall_id: "aaa", finish: "nonfoil", price_cents: 218},
-               %{scryfall_id: "aaa", finish: "foil", price_cents: 2017},
-               %{scryfall_id: "bbb", finish: "foil", price_cents: 16}
-             ]
+      assert MapSet.new(ManaPool.rows(body)) ==
+               MapSet.new([
+                 %{scryfall_id: "aaa", finish: "nonfoil", price_cents: 450},
+                 %{scryfall_id: "aaa", finish: "foil", price_cents: 400},
+                 %{scryfall_id: "aaa", finish: "etched", price_cents: 200},
+                 %{scryfall_id: "bbb", finish: "nonfoil", price_cents: 300},
+                 %{scryfall_id: "ccc", finish: "nonfoil", price_cents: 200},
+                 %{scryfall_id: "ddd", finish: "nonfoil", price_cents: 100}
+               ])
+    end
+
+    test "skips unavailable and unsupported variants" do
+      body = %{
+        "data" => [
+          mana_pool_variant("aaa", "NF", "NM", 500, 0),
+          mana_pool_variant("aaa", "NF", "UC", 400),
+          mana_pool_variant("aaa", "UNKNOWN", "NM", 300),
+          mana_pool_variant("", "NF", "NM", 200),
+          mana_pool_variant("aaa", "NF", "NM", 0),
+          %{"scryfall_id" => "aaa"}
+        ]
+      }
+
+      assert ManaPool.rows(body) == []
     end
 
     test "tolerates unexpected payloads" do
       assert ManaPool.rows(%{}) == []
       assert ManaPool.rows([1, 2]) == []
     end
+  end
+
+  defp mana_pool_variant(scryfall_id, finish, condition, price, quantity \\ 1) do
+    %{
+      "scryfall_id" => scryfall_id,
+      "finish_id" => finish,
+      "condition_id" => condition,
+      "low_price" => price,
+      "available_quantity" => quantity
+    }
   end
 
   describe "TcgTracking.rows/2" do
