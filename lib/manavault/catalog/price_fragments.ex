@@ -1,7 +1,6 @@
 defmodule Manavault.Catalog.PriceFragments do
   @moduledoc """
-  Shared Ecto `fragment/1` macros for pricing collection items from the Scryfall
-  `prices` JSON.
+  Shared Ecto `fragment/1` macros for current collection-item prices.
 
   Import the specific macros you need into a module that also imports
   `Ecto.Query` (the emitted `fragment/…` and composed macro calls resolve in the
@@ -20,37 +19,91 @@ defmodule Manavault.Catalog.PriceFragments do
     "COALESCE(" <> Enum.map_join(keys, ", ", &"json_extract(?, '$.#{&1}')") <> ")"
   end
 
+  vendor_order_sql = fn finishes ->
+    cases =
+      finishes
+      |> Enum.with_index(1)
+      |> Enum.map_join(" ", fn {finish, priority} ->
+        "WHEN '#{finish}' THEN #{priority}"
+      end)
+
+    "CASE vendor_price.finish #{cases} ELSE #{length(finishes) + 1} END"
+  end
+
   @foil_keys Price.usd_fallback_keys("foil")
   @etched_keys Price.usd_fallback_keys("etched")
   @default_keys Price.usd_fallback_keys(nil)
 
-  @finish_case_sql """
-  CAST(COALESCE(NULLIF(
+  @foil_vendor_order vendor_order_sql.(Price.finish_fallbacks("foil"))
+  @etched_vendor_order vendor_order_sql.(Price.finish_fallbacks("etched"))
+  @default_vendor_order vendor_order_sql.(Price.finish_fallbacks(nil))
+
+  @vendor_price_sql """
+  SELECT vendor_price.price_cents / 100.0
+  FROM vendor_prices AS vendor_price
+  WHERE vendor_price.vendor = (
+    SELECT pricing_setting.source
+    FROM pricing_settings AS pricing_setting
+    WHERE pricing_setting.id = 1
+  )
+    AND vendor_price.scryfall_id = ?
+    AND vendor_price.finish IN ('nonfoil', 'foil', 'etched')
+  ORDER BY
     CASE ?
-      WHEN 'foil' THEN #{coalesce_sql.(@foil_keys)}
-      WHEN 'etched' THEN #{coalesce_sql.(@etched_keys)}
-      ELSE #{coalesce_sql.(@default_keys)}
-    END,
-    ''
-  ), '0') AS REAL)
+      WHEN 'foil' THEN #{@foil_vendor_order}
+      WHEN 'etched' THEN #{@etched_vendor_order}
+      ELSE #{@default_vendor_order}
+    END
+  LIMIT 1
+  """
+
+  @finish_case_sql """
+  COALESCE(
+    (#{@vendor_price_sql}),
+    CAST(COALESCE(NULLIF(
+      CASE ?
+        WHEN 'foil' THEN #{coalesce_sql.(@foil_keys)}
+        WHEN 'etched' THEN #{coalesce_sql.(@etched_keys)}
+        ELSE #{coalesce_sql.(@default_keys)}
+      END,
+      ''
+    ), '0') AS REAL)
+  )
   """
   @finish_case_prices_count length(@foil_keys) + length(@etched_keys) + length(@default_keys)
 
   @default_price_sql """
-  CAST(COALESCE(NULLIF(
-    #{coalesce_sql.(@default_keys)},
-    ''
-  ), '0') AS REAL)
+  COALESCE(
+    (
+      SELECT vendor_price.price_cents / 100.0
+      FROM vendor_prices AS vendor_price
+      WHERE vendor_price.vendor = (
+        SELECT pricing_setting.source
+        FROM pricing_settings AS pricing_setting
+        WHERE pricing_setting.id = 1
+      )
+        AND vendor_price.scryfall_id = ?
+        AND vendor_price.finish IN ('nonfoil', 'foil', 'etched')
+      ORDER BY #{@default_vendor_order}
+      LIMIT 1
+    ),
+    CAST(COALESCE(NULLIF(
+      #{coalesce_sql.(@default_keys)},
+      ''
+    ), '0') AS REAL)
+  )
   """
   @default_price_prices_count length(@default_keys)
 
-  @doc "Finish-aware USD price (as REAL) for an item's printing."
+  @doc "Finish-aware current USD price (as REAL) for an item's printing."
   defmacro price_value_fragment(item, printing) do
     prices = List.duplicate(quote(do: unquote(printing).prices), @finish_case_prices_count)
 
     quote do
       fragment(
         unquote(@finish_case_sql),
+        unquote(printing).scryfall_id,
+        unquote(item).finish,
         unquote(item).finish,
         unquote_splicing(prices)
       )
@@ -95,7 +148,11 @@ defmodule Manavault.Catalog.PriceFragments do
     prices = List.duplicate(quote(do: unquote(printing).prices), @default_price_prices_count)
 
     quote do
-      fragment(unquote(@default_price_sql), unquote_splicing(prices))
+      fragment(
+        unquote(@default_price_sql),
+        unquote(printing).scryfall_id,
+        unquote_splicing(prices)
+      )
     end
   end
 end

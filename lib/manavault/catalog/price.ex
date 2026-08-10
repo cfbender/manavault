@@ -153,7 +153,7 @@ defmodule Manavault.Catalog.Price do
   # Scryfall or the vendor has no price for this printing's finish chain.
   defp vendor_price_cents(%Printing{scryfall_id: scryfall_id}, finish)
        when is_binary(scryfall_id) do
-    Manavault.Pricing.price_cents(scryfall_id, finish_chain(finish))
+    Manavault.Pricing.price_cents(scryfall_id, finish_fallbacks(finish))
   end
 
   defp vendor_price_cents(_printing, _finish), do: nil
@@ -165,9 +165,10 @@ defmodule Manavault.Catalog.Price do
     |> parse_cents()
   end
 
-  defp finish_chain("foil"), do: ["foil", "nonfoil"]
-  defp finish_chain("etched"), do: ["etched", "foil", "nonfoil"]
-  defp finish_chain(_finish), do: ["nonfoil", "foil", "etched"]
+  @doc "Ordered printing finishes to try for a current price."
+  def finish_fallbacks("foil"), do: ["foil", "nonfoil"]
+  def finish_fallbacks("etched"), do: ["etched", "foil", "nonfoil"]
+  def finish_fallbacks(_finish), do: ["nonfoil", "foil", "etched"]
 
   @doc """
   Ordered Scryfall `prices` JSON keys to try for a USD price, given a finish.
@@ -176,9 +177,12 @@ defmodule Manavault.Catalog.Price do
   `Manavault.Catalog.PriceFragments` compiles this same ordering into its
   SQL fragments, so the in-memory and query paths cannot drift.
   """
-  def usd_fallback_keys("foil"), do: ["usd_foil", "usd"]
-  def usd_fallback_keys("etched"), do: ["usd_etched", "usd_foil", "usd"]
-  def usd_fallback_keys(_finish), do: ["usd", "usd_foil", "usd_etched"]
+  def usd_fallback_keys(finish) do
+    Enum.map(finish_fallbacks(finish), fn
+      "nonfoil" -> "usd"
+      finish -> "usd_#{finish}"
+    end)
+  end
 
   defp price_string_for_finish(prices, finish),
     do: first_present(prices, usd_fallback_keys(finish))
