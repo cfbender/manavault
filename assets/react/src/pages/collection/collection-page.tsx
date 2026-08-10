@@ -29,6 +29,7 @@ import { AutoSortSummaryDialog } from "./auto-sort-summary-dialog"
 import { CollectionLocationsSection } from "./collection-locations-section"
 import { invalidateCollectionViews } from "./collection-navigation"
 import { CollectionPageHeader } from "./collection-page-header"
+import { CollectionQuickCheck } from "./collection-quick-check"
 import {
   COLLECTION_ACTIVE_TAB_STORAGE_KEY,
   COLLECTION_APPLIED_SEARCH_STORAGE_KEY,
@@ -186,6 +187,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [isExportCsvOpen, setIsExportCsvOpen] = useState(false)
   const [isSellCardsOpen, setIsSellCardsOpen] = useState(false)
+  const [isQuickCheckOpen, setIsQuickCheckOpen] = useState(false)
   const [isAutoSortSetupOpen, setIsAutoSortSetupOpen] = useState(false)
   const [autoSortResult, setAutoSortResult] = useState<AutoSortCollectionResult | null>(null)
   const [autoSortError, setAutoSortError] = useState<string | null>(null)
@@ -469,14 +471,18 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
         autoSortPending={autoSortCollection.loading}
         itemCounts={itemCounts}
         locationCount={locations.length}
+        quickCheckOpen={isQuickCheckOpen}
         onAddItem={() => setIsAddItemOpen(true)}
         onAddLocation={() => setIsAddLocationOpen(true)}
         onAutoSort={previewCollectionAutoSort}
         onImport={() => setIsImportOpen(true)}
+        onQuickCheck={() => setIsQuickCheckOpen((open) => !open)}
         onExportCsv={() => setIsExportCsvOpen(true)}
         onSellCards={() => setIsSellCardsOpen(true)}
         onSelectTab={selectTab}
       />
+
+      <CollectionQuickCheck open={isQuickCheckOpen} onOpenChange={setIsQuickCheckOpen} />
 
       {autoSortError ? (
         <p

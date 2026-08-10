@@ -57,6 +57,32 @@ defmodule Manavault.Catalog.Decks.AllocationStatus do
     end)
   end
 
+  def collection_requirement_statuses([]), do: %{}
+
+  def collection_requirement_statuses(deck_cards) when is_list(deck_cards) do
+    keys = deck_cards |> Enum.map(&deck_card_allocation_key/1) |> Enum.uniq()
+    candidates_by_key = deck_card_collection_candidates_by_key(keys)
+
+    {_current_allocations, reserving_allocations_by_key} =
+      allocation_counts_by_card_id_and_key([], keys)
+
+    Map.new(deck_cards, fn deck_card ->
+      key = deck_card_allocation_key(deck_card)
+
+      candidates =
+        candidates_by_key
+        |> Map.get(key, [])
+        |> sort_candidates_for_deck_card(deck_card)
+
+      other_allocations =
+        reserving_allocations_by_key
+        |> Map.get(key, [])
+        |> other_allocation_counts(nil)
+
+      {key, deck_card_allocation_status(deck_card, candidates, %{}, other_allocations)}
+    end)
+  end
+
   defp deck_card_allocation_statuses(deck_cards) do
     persisted_cards = Enum.filter(deck_cards, &is_integer(&1.id))
     deck_card_ids = Enum.map(persisted_cards, & &1.id)
@@ -211,7 +237,7 @@ defmodule Manavault.Catalog.Decks.AllocationStatus do
     deck_card.oracle_id
   end
 
-  defp allocation_counts_by_card_id_and_key([], _oracle_ids), do: {%{}, %{}}
+  defp allocation_counts_by_card_id_and_key([], []), do: {%{}, %{}}
 
   defp allocation_counts_by_card_id_and_key(deck_card_ids, oracle_ids) do
     deck_card_id_set = MapSet.new(deck_card_ids)

@@ -67,6 +67,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "bulkUpdateCollectionItems",
                "bulkUpdateDeckCards",
                "commitCollectionImport",
+               "collectionCheck",
                "createCollectionItem",
                "createTradeWant",
                "createDeck",

@@ -84,6 +84,8 @@ defmodule Manavault.Catalog.Decks do
     end)
   end
 
+  defdelegate collection_requirement_statuses(deck_cards), to: AllocationStatus
+
   def deck_unique_card_count(deck) do
     cached_deck_read(deck, :deck_unique_card_count, fn ->
       Queries.deck_unique_card_count(deck)

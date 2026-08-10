@@ -1,4 +1,13 @@
-import { Boxes, ChevronDown, Download, Plus, Tags, Upload, WandSparkles } from "lucide-react"
+import {
+  Boxes,
+  ChevronDown,
+  ClipboardCheck,
+  Download,
+  Plus,
+  Tags,
+  Upload,
+  WandSparkles,
+} from "lucide-react"
 import { PageHeader } from "../../components/app-shell"
 import { Button } from "../../components/ui/button"
 import {
@@ -20,12 +29,14 @@ type CollectionPageHeaderProps = {
   }
   locationCount: number
   onAddItem: () => void
+  quickCheckOpen?: boolean
   autoSortDisabled?: boolean
   autoSortPending?: boolean
   onAddLocation: () => void
   onImport: () => void
   onExportCsv: () => void
   onSellCards: () => void
+  onQuickCheck: () => void
   onAutoSort: () => void
   onSelectTab: (tab: CollectionTab) => void
 }
@@ -36,10 +47,12 @@ export function CollectionPageHeader({
   autoSortPending = false,
   itemCounts,
   locationCount,
+  quickCheckOpen = false,
   onAddItem,
   onAddLocation,
   onAutoSort,
   onImport,
+  onQuickCheck,
   onExportCsv,
   onSellCards,
   onSelectTab,
@@ -70,6 +83,18 @@ export function CollectionPageHeader({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <Button
+              type="button"
+              variant={quickCheckOpen ? "secondary" : "outline"}
+              size="icon"
+              title="Check a list"
+              aria-label="Check a list"
+              aria-expanded={quickCheckOpen}
+              aria-controls="collection-quick-check"
+              onClick={onQuickCheck}
+            >
+              <ClipboardCheck className="h-4 w-4" />
+            </Button>
             <Button
               type="button"
               variant="outline"

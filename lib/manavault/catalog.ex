@@ -109,6 +109,7 @@ defmodule Manavault.Catalog do
   defdelegate deck_allocation_status(deck), to: Decks
   defdelegate deck_card_allocation_status(deck_card), to: Decks
   defdelegate put_deck_card_allocation_statuses(deck_cards), to: Decks
+  defdelegate collection_requirement_statuses(deck_cards), to: Decks
   defdelegate put_deck_card_fallback_printings(deck_cards), to: Decks
 
   defdelegate list_deck_tags(deck), to: Decks
