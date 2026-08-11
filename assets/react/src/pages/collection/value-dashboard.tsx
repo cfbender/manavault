@@ -41,12 +41,12 @@ export function CollectionValueDashboard() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       <ValueOverview
         dashboard={dashboard}
         priceSource={priceSourceLabel(data?.pricingSettings.source)}
       />
-      <div className="grid gap-5 xl:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-2">
         <PositionRanking
           description="Positions adding the most value at current market prices."
           emptyDescription="No positions are currently above their purchase basis."
@@ -269,7 +269,7 @@ function PositionRanking({
   return (
     <section
       aria-labelledby={`value-${tone}-title`}
-      className="rounded-box border border-base-300 bg-base-100 shadow-sm"
+      className="min-w-0 overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-sm"
     >
       <header className="border-b border-base-300 px-4 py-4 sm:px-5">
         <h2 id={`value-${tone}-title`} className="flex items-center gap-2 text-lg font-black">
@@ -279,9 +279,9 @@ function PositionRanking({
         <p className="mt-1 text-sm text-base-content/60">{description}</p>
       </header>
       {positions.length ? (
-        <ol className="divide-y divide-base-300">
+        <ol className="min-w-0 divide-y divide-base-300">
           {positions.map((position) => (
-            <li key={position.printing.scryfallId}>
+            <li key={position.printing.scryfallId} className="min-w-0">
               <ValuePositionRow onBasisUpdated={onBasisUpdated} position={position} />
             </li>
           ))}
@@ -308,7 +308,7 @@ function ValuePositionRow({
     .join(" #")
 
   return (
-    <article className="flex items-center gap-3 px-4 py-3 sm:px-5">
+    <article className="flex min-w-0 items-center gap-3 px-4 py-3 sm:px-5">
       <div className="h-[4.5rem] w-[3.2rem] shrink-0 overflow-hidden rounded-md bg-base-200">
         {position.printing.imageUrl ? (
           <img
@@ -323,7 +323,7 @@ function ValuePositionRow({
           </span>
         )}
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 overflow-hidden">
         <h3 className="truncate font-bold">
           {position.printing.card?.id ? (
             <Link
@@ -341,10 +341,31 @@ function ValuePositionRow({
         <p className="mt-0.5 truncate text-xs text-base-content/60">
           {setLabel || position.printing.setName || "Unknown printing"} · ×{position.quantity}
         </p>
-        <p className="mt-2 text-xs text-base-content/60 sm:hidden">
-          Market <span className="font-mono font-bold">{position.totalPriceText}</span> · Basis{" "}
-          <span className="font-mono font-bold">{position.purchasePriceText}</span>
-        </p>
+        <dl className="mt-2 space-y-0.5 text-xs sm:hidden">
+          <div className="flex min-w-0 items-baseline gap-2">
+            <dt className="shrink-0 text-base-content/60">Market</dt>
+            <dd className="min-w-0 truncate font-mono font-bold tabular-nums">
+              {position.totalPriceText}
+            </dd>
+          </div>
+          <div className="flex min-w-0 items-baseline gap-2">
+            <dt className="shrink-0 text-base-content/60">Basis</dt>
+            <dd className="min-w-0 truncate font-mono font-bold tabular-nums">
+              {position.purchasePriceText}
+            </dd>
+          </div>
+        </dl>
+        <div
+          className={cn(
+            "mt-1 flex min-w-0 flex-wrap items-baseline gap-x-2 text-xs sm:hidden",
+            collectionValueGainClass(position.valueGainText),
+          )}
+        >
+          <span className="font-mono font-black tabular-nums">{position.valueGainText}</span>
+          {position.valueGainPercentText ? (
+            <span className="font-bold tabular-nums">{position.valueGainPercentText}</span>
+          ) : null}
+        </div>
       </div>
       <dl className="hidden shrink-0 grid-cols-2 gap-x-5 text-right text-xs sm:grid">
         <div>
@@ -357,7 +378,10 @@ function ValuePositionRow({
         </div>
       </dl>
       <div
-        className={cn("w-20 shrink-0 text-right", collectionValueGainClass(position.valueGainText))}
+        className={cn(
+          "hidden w-20 shrink-0 text-right sm:block",
+          collectionValueGainClass(position.valueGainText),
+        )}
       >
         <p className="font-mono font-black tabular-nums">{position.valueGainText}</p>
         {position.valueGainPercentText ? (
