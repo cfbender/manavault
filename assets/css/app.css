@@ -300,6 +300,12 @@ html[data-theme-style="glass"] :is(.btn-outline, .btn-ghost):hover {
   padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
 }
 
+/* Radix locks the document while a dialog is open. Mirror that lock onto the
+   app's actual scroll container so its scrollbar does not remain behind the dialog. */
+body[data-scroll-locked] .app-shell-main {
+  overflow-y: hidden;
+}
+
 @media (min-width: 40rem) {
   .app-shell-header,
   .app-shell-main {
