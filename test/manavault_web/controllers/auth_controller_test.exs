@@ -52,12 +52,18 @@ defmodule ManavaultWeb.AuthControllerTest do
     assert html_response(conn, 200) =~ ~s(id="manavault-root")
   end
 
-  test "private browser routes redirect to login when owner auth is configured", %{conn: conn} do
+  test "every private browser route redirects to login when owner auth is configured" do
     configure_password("secret")
 
-    conn = get(conn, "/collection")
+    for path <- private_browser_paths() do
+      conn = get(build_conn(), path)
 
-    assert redirected_to(conn) == "/login?return_to=%2Fcollection"
+      expected =
+        if path == "/", do: "/login", else: "/login?return_to=#{URI.encode_www_form(path)}"
+
+      assert redirected_to(conn) == expected,
+             "expected unauthenticated GET #{path} to redirect to login"
+    end
   end
 
   test "login page uses ManaVault home branding", %{conn: conn} do
@@ -267,6 +273,23 @@ defmodule ManavaultWeb.AuthControllerTest do
     conn = post(conn, "/api/graphql", %{"query" => "{ __typename }"})
 
     assert json_response(conn, 401) == %{"errors" => [%{"message" => "Authentication required"}]}
+  end
+
+  defp private_browser_paths do
+    [
+      "/",
+      "/settings",
+      "/cards",
+      "/cards/card-id",
+      "/decks",
+      "/decks/deck-id",
+      "/decks/deck-id/playtest",
+      "/collection",
+      "/collection/new",
+      "/collection/locations/location-id",
+      "/collection/item-id/edit",
+      "/trade"
+    ]
   end
 
   defp return_to_cases do

@@ -8,6 +8,7 @@ import { useToast } from "../../components/ui/toast"
 import { graphqlEndpointContext, refetchActiveQueries } from "../../lib/apollo"
 import { deckCardsTotalPrice, deckMissingCardsTotalPrice, formatUsdCents } from "./buylist-export"
 import { isValidCommanderPair } from "./commander-pairing"
+import { ShareModeHidden } from "./deck-actions"
 import { createDeckPullList } from "./deck-allocation-model"
 import { compareDeckCards, countDeckZones } from "./deck-card-model"
 import { DeckDetailBulkAllocationOverlay } from "./deck-detail-bulk-allocation-overlay"
@@ -348,9 +349,11 @@ export function DeckDetailPage({
         description="This deck may have been deleted, moved, or unavailable while the local vault is syncing."
         action={
           <div className="flex flex-wrap justify-center gap-2">
-            <Button asChild>
-              <Link to="/decks">Back to decks</Link>
-            </Button>
+            <ShareModeHidden shareMode={shareMode}>
+              <Button asChild>
+                <Link to="/decks">Back to decks</Link>
+              </Button>
+            </ShareModeHidden>
             <Button type="button" variant="outline" onClick={refetchDeckQueries}>
               Retry
             </Button>

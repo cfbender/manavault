@@ -312,6 +312,14 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     field :status, non_null(:string)
     field :share_token, :string
 
+    field :cover_deck_card_id, :id do
+      resolve(&DeckFields.deck_cover_deck_card_id/3)
+    end
+
+    field :cover_image_url, :string do
+      resolve(&DeckFields.deck_cover_image_url/3)
+    end
+
     field :card_count, :integer do
       resolve(&DeckFields.deck_card_count/3)
     end

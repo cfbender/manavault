@@ -5,6 +5,31 @@ defmodule ManavaultWeb.PublicShareCacheTest do
   alias Manavault.Catalog.Deck
   alias Manavault.Catalog.Decks.ShareToken
 
+  test "frontend deck query stays compatible with the public share endpoint" do
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Frontend Contract Deck"})
+    {:ok, deck} = Catalog.ensure_deck_share_token(deck)
+
+    response =
+      build_conn()
+      |> post("/share/graphql", %{
+        "query" => frontend_deck_query(),
+        "variables" => %{"id" => deck.share_token}
+      })
+      |> json_response(200)
+
+    refute Map.has_key?(response, "errors")
+
+    assert %{
+             "data" => %{
+               "deck" => %{
+                 "name" => "Frontend Contract Deck",
+                 "coverDeckCardId" => nil,
+                 "coverImageUrl" => nil
+               }
+             }
+           } = response
+  end
+
   test "malformed public share tokens preserve response contracts without cache or database work" do
     token = "not-a-share-token"
 
@@ -99,6 +124,15 @@ defmodule ManavaultWeb.PublicShareCacheTest do
       "query" => "query SharedDeck($id: ID!) { deck(id: $id) { name } }",
       "variables" => %{"id" => token}
     })
+  end
+
+  defp frontend_deck_query do
+    path = Path.expand("../../assets/react/src/pages/decks/queries.ts", __DIR__)
+    source = File.read!(path)
+
+    ~r/export const DeckDocument = graphql\(`(?<query>.*?)`\)/s
+    |> Regex.named_captures(source)
+    |> Map.fetch!("query")
   end
 
   defp count_deck_queries(fun) when is_function(fun, 0) do
