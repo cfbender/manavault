@@ -72,7 +72,7 @@ defmodule ManavaultWeb.AuthControllerTest do
     conn = get(conn, "/login")
     response = html_response(conn, 200)
 
-    assert response =~ ~s(src="/images/logo.svg")
+    assert response =~ ~s(src="/images/logo.png")
     assert response =~ "Your Magic vault, secured."
     assert response =~ "Owner access"
   end

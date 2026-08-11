@@ -407,7 +407,7 @@ defmodule ManavaultWeb.AuthController do
       <body>
         <div class="shell">
           <a class="brand" href="/">
-            <img src="/images/logo.svg" alt="" />
+            <img src="/images/logo.png" alt="" />
             <span>ManaVault</span>
           </a>
           <main>
