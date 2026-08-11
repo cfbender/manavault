@@ -98,47 +98,31 @@ defmodule Manavault.PricingTest do
   end
 
   describe "ManaPool.rows/1" do
-    test "prefers the best available condition for each card and finish" do
+    test "maps market prices to finish-keyed rows" do
       body = %{
         "data" => [
-          mana_pool_variant("aaa", "NF", "DMG", 100),
-          mana_pool_variant("aaa", "NF", "HP", 200),
-          mana_pool_variant("aaa", "NF", "MP", 300),
-          mana_pool_variant("aaa", "NF", "LP", 400),
-          mana_pool_variant("aaa", "NF", "NM", 500),
-          mana_pool_variant("aaa", "NF", "NM", 450),
-          mana_pool_variant("aaa", "FO", "MP", 100),
-          mana_pool_variant("aaa", "FO", "LP", 400),
-          mana_pool_variant("aaa", "EF", "DMG", 100),
-          mana_pool_variant("aaa", "EF", "HP", 200),
-          mana_pool_variant("bbb", "NF", "MP", 300),
-          mana_pool_variant("bbb", "NF", "HP", 200),
-          mana_pool_variant("bbb", "NF", "DMG", 100),
-          mana_pool_variant("ccc", "NF", "HP", 200),
-          mana_pool_variant("ccc", "NF", "DMG", 100),
-          mana_pool_variant("ddd", "NF", "DMG", 100)
+          mana_pool_single("aaa", 500, 750),
+          mana_pool_single("bbb", 300, nil),
+          mana_pool_single("ccc", nil, 200)
         ]
       }
 
       assert MapSet.new(ManaPool.rows(body)) ==
                MapSet.new([
-                 %{scryfall_id: "aaa", finish: "nonfoil", price_cents: 450},
-                 %{scryfall_id: "aaa", finish: "foil", price_cents: 400},
-                 %{scryfall_id: "aaa", finish: "etched", price_cents: 200},
+                 %{scryfall_id: "aaa", finish: "nonfoil", price_cents: 500},
+                 %{scryfall_id: "aaa", finish: "foil", price_cents: 750},
                  %{scryfall_id: "bbb", finish: "nonfoil", price_cents: 300},
-                 %{scryfall_id: "ccc", finish: "nonfoil", price_cents: 200},
-                 %{scryfall_id: "ddd", finish: "nonfoil", price_cents: 100}
+                 %{scryfall_id: "ccc", finish: "foil", price_cents: 200}
                ])
     end
 
-    test "skips unavailable and unsupported variants" do
+    test "skips missing and invalid market prices" do
       body = %{
         "data" => [
-          mana_pool_variant("aaa", "NF", "NM", 500, 0),
-          mana_pool_variant("aaa", "NF", "UC", 400),
-          mana_pool_variant("aaa", "UNKNOWN", "NM", 300),
-          mana_pool_variant("", "NF", "NM", 200),
-          mana_pool_variant("aaa", "NF", "NM", 0),
+          mana_pool_single("aaa", nil, nil),
+          mana_pool_single("bbb", 0, -100),
+          mana_pool_single("", 200, 300),
+          %{"scryfall_id" => "ccc", "low_price" => 400},
           %{"scryfall_id" => "aaa"}
         ]
       }
@@ -152,18 +136,16 @@ defmodule Manavault.PricingTest do
     end
   end
 
-  defp mana_pool_variant(scryfall_id, finish, condition, price, quantity \\ 1) do
+  defp mana_pool_single(scryfall_id, market_price, foil_market_price) do
     %{
       "scryfall_id" => scryfall_id,
-      "finish_id" => finish,
-      "condition_id" => condition,
-      "low_price" => price,
-      "available_quantity" => quantity
+      "price_market" => market_price,
+      "price_market_foil" => foil_market_price
     }
   end
 
   describe "TcgTracking.rows/2" do
-    test "joins products with pricing, preferring market over low" do
+    test "joins products with market pricing and ignores low-only prices" do
       cards = %{
         "products" => [
           %{"id" => 1, "scryfall_id" => "aaa"},
@@ -186,7 +168,6 @@ defmodule Manavault.PricingTest do
       rows = TcgTracking.rows(cards, pricing) |> Enum.sort_by(&{&1.scryfall_id, &1.finish})
 
       assert rows == [
-               %{scryfall_id: "aaa", finish: "foil", price_cents: 3999},
                %{scryfall_id: "aaa", finish: "nonfoil", price_cents: 3593},
                %{scryfall_id: "bbb", finish: "etched", price_cents: 957}
              ]

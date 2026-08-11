@@ -47,7 +47,7 @@ defmodule Manavault.Pricing.Vendors.TcgTracking do
 
   @doc """
   Joins a set's card products with its pricing block. Uses TCGPlayer market
-  price and falls back to the lowest listing when no market price exists.
+  prices and skips subtypes for which no market price is available.
   """
   def rows(%{"products" => products}, %{"prices" => prices})
       when is_list(products) and is_map(prices) do
@@ -81,7 +81,7 @@ defmodule Manavault.Pricing.Vendors.TcgTracking do
   defp subtype_rows(scryfall_id, subtypes) do
     for {subtype, price} <- subtypes,
         is_map(price),
-        cents = Money.to_cents(price["market"] || price["low"]),
+        cents = Money.to_cents(price["market"]),
         not is_nil(cents) do
       %{scryfall_id: scryfall_id, finish: subtype_finish(subtype), price_cents: cents}
     end

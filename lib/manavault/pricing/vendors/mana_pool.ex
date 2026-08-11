@@ -1,13 +1,12 @@
 defmodule Manavault.Pricing.Vendors.ManaPool do
   @moduledoc """
-  ManaPool's public variant price feed. For each card and finish, prices prefer
-  the best available condition in NM, LP, MP, HP, then DMG order.
+  ManaPool's public singles price feed. Uses its market prices for nonfoil and
+  foil printings. ManaPool does not currently publish an etched market price.
   """
 
-  @prices_url "https://manapool.com/api/v1/prices/variants"
+  @prices_url "https://manapool.com/api/v1/prices/singles"
 
-  @condition_priority %{"NM" => 0, "LP" => 1, "MP" => 2, "HP" => 3, "DMG" => 4}
-  @finishes %{"NF" => "nonfoil", "FO" => "foil", "EF" => "etched"}
+  @market_prices %{"price_market" => "nonfoil", "price_market_foil" => "foil"}
 
   def vendor, do: "manapool"
 
@@ -28,39 +27,15 @@ defmodule Manavault.Pricing.Vendors.ManaPool do
   end
 
   def rows(%{"data" => variants}) when is_list(variants) do
-    variants
-    |> Enum.reduce(%{}, &keep_preferred_price/2)
-    |> Enum.map(fn {{scryfall_id, finish}, {_priority, price_cents}} ->
-      %{scryfall_id: scryfall_id, finish: finish, price_cents: price_cents}
+    Enum.flat_map(variants, fn variant ->
+      for {field, finish} <- @market_prices,
+          %{"scryfall_id" => scryfall_id, ^field => price_cents} <- [variant],
+          is_binary(scryfall_id) and scryfall_id != "",
+          is_integer(price_cents) and price_cents > 0 do
+        %{scryfall_id: scryfall_id, finish: finish, price_cents: price_cents}
+      end
     end)
   end
 
   def rows(_body), do: []
-
-  defp keep_preferred_price(
-         %{
-           "scryfall_id" => scryfall_id,
-           "finish_id" => finish_id,
-           "condition_id" => condition_id,
-           "low_price" => price_cents,
-           "available_quantity" => available_quantity
-         },
-         prices
-       )
-       when is_binary(scryfall_id) and scryfall_id != "" and is_integer(price_cents) and
-              price_cents > 0 and is_number(available_quantity) and available_quantity > 0 do
-    with {:ok, finish} <- Map.fetch(@finishes, finish_id),
-         {:ok, priority} <- Map.fetch(@condition_priority, condition_id) do
-      Map.update(
-        prices,
-        {scryfall_id, finish},
-        {priority, price_cents},
-        &min(&1, {priority, price_cents})
-      )
-    else
-      :error -> prices
-    end
-  end
-
-  defp keep_preferred_price(_variant, prices), do: prices
 end

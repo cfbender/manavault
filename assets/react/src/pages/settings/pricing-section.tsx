@@ -28,7 +28,7 @@ const sourceLabels: Record<string, { label: string; description: string }> = {
   },
   manapool: {
     label: "ManaPool",
-    description: "Lowest listing prices from ManaPool. Updated every 6 hours.",
+    description: "Market prices from ManaPool. Updated every 6 hours.",
   },
 }
 
