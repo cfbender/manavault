@@ -7,8 +7,10 @@ defmodule ManavaultWeb.AppControllerTest do
 
   test "GET / serves the React mount", %{conn: conn} do
     conn = get(conn, ~p"/")
+    response = html_response(conn, 200)
 
-    assert html_response(conn, 200) =~ ~s(id="manavault-root")
+    assert response =~ ~s(id="manavault-root")
+    assert response =~ ~s(data-theme-style="glass")
   end
 
   test "GET /collection/locations/:id serves the React mount", %{conn: conn} do
@@ -39,6 +41,7 @@ defmodule ManavaultWeb.AppControllerTest do
     assert response =~ ~s|property="og:image:height" content="630"|
     assert response =~ ~s|name="twitter:card" content="summary_large_image"|
     assert response =~ ~s(id="manavault-root")
+    assert response =~ ~s(data-theme-style="glass")
   end
 
   test "share shells reject revoked and malformed tokens for every share kind", %{conn: conn} do
@@ -67,11 +70,13 @@ defmodule ManavaultWeb.AppControllerTest do
     assert {:ok, wants_token} = Trade.ensure_wants_share_token()
     assert {:ok, binder_token} = Trade.ensure_binder_share_token()
 
-    assert html_response(get(recycle(conn), "/share/wants/#{wants_token}"), 200) =~
-             "manavault-root"
+    wants_response = html_response(get(recycle(conn), "/share/wants/#{wants_token}"), 200)
+    binder_response = html_response(get(recycle(conn), "/share/binder/#{binder_token}"), 200)
 
-    assert html_response(get(recycle(conn), "/share/binder/#{binder_token}"), 200) =~
-             "manavault-root"
+    for response <- [wants_response, binder_response] do
+      assert response =~ "manavault-root"
+      assert response =~ ~s(data-theme-style="glass")
+    end
   end
 
   test "GET /share/decks/:token/preview.svg renders the deck header preview", %{conn: conn} do

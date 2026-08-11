@@ -102,7 +102,7 @@ defmodule ManavaultWeb.AppController do
 
     """
     <!DOCTYPE html>
-    <html lang="en" class="h-screen w-screen">
+    <html lang="en" class="h-screen w-screen" data-theme-style="glass">
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -186,18 +186,16 @@ defmodule ManavaultWeb.AppController do
 
             const storedThemeStyle = () => {
               try {
-                return localStorage.getItem(styleStorageKey) === "glass" ? "glass" : "classic";
+                return localStorage.getItem(styleStorageKey) === "classic" ? "classic" : "glass";
               } catch {
-                return "classic";
+                return "glass";
               }
             };
 
             const setThemeStyle = (style) => {
-              document.documentElement.setAttribute("data-theme-style", style === "glass" ? "glass" : "classic");
+              document.documentElement.setAttribute("data-theme-style", style === "classic" ? "classic" : "glass");
             };
-            if (!document.documentElement.hasAttribute("data-theme-style")) {
-              setThemeStyle(storedThemeStyle());
-            }
+            setThemeStyle(storedThemeStyle());
             window.addEventListener("storage", (e) => {
               if (e.key === storageKey) setTheme(e.newValue || "system");
               if (e.key === styleStorageKey) setThemeStyle(e.newValue);
