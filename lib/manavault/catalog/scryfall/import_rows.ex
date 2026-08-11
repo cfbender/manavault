@@ -81,6 +81,7 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
         lang: card["lang"] || "en",
         rarity: card["rarity"],
         finishes: encode_json(card["finishes"] || []),
+        promo_types: encode_json(card["promo_types"] || []),
         image_uris: encode_json(image_uris(card)),
         prices: encode_json(card["prices"] || %{}),
         released_at: parse_date(card["released_at"]),

@@ -172,6 +172,7 @@ defmodule Manavault.Catalog.Scryfall.Import do
            :flavor_text,
            :rarity,
            :finishes,
+           :promo_types,
            :image_uris,
            :prices,
            :released_at,

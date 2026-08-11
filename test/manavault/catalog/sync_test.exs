@@ -53,6 +53,7 @@ defmodule Manavault.Catalog.SyncTest do
         "Gleaming Splendor",
         "275"
       )
+      |> Map.put("promo_types", ["surgefoil", "universesbeyond"])
 
     long_bodied_grey_dog =
       hobbit_card(
@@ -77,8 +78,14 @@ defmodule Manavault.Catalog.SyncTest do
     assert %Card{name: "Gleaming Splendor"} =
              Repo.get!(Card, "c01aeaa5-1d3b-4493-9575-30175dcd780d")
 
-    assert %Printing{set_code: "hob", collector_number: "275"} =
+    assert %Printing{
+             set_code: "hob",
+             collector_number: "275",
+             promo_types: promo_types
+           } =
              Catalog.get_printing_by_scryfall_id("42a1986c-9585-4544-b5a7-bee4be5c4506")
+
+    assert Jason.decode!(promo_types) == ["surgefoil", "universesbeyond"]
 
     assert %Card{name: "Long-Bodied Grey Dog"} =
              Repo.get!(Card, "6f83da19-fd89-44ec-88f3-0c3fddfbd1b2")

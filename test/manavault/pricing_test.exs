@@ -1,10 +1,14 @@
 defmodule Manavault.PricingTest do
   use Manavault.DataCase
+  use Manavault.CatalogTestFixtures, fixtures: [:black_lotus]
 
+  alias Manavault.Catalog
   alias Manavault.Catalog.{Price, Printing}
   alias Manavault.Pricing
   alias Manavault.Pricing.{Money, Store, Sync, VendorPrice}
   alias Manavault.Pricing.Vendors.{CardKingdom, ManaPool, TcgTracking}
+
+  @mana_pool_stub __MODULE__
 
   describe "Money.to_cents/1" do
     test "parses decimal dollar strings" do
@@ -98,12 +102,13 @@ defmodule Manavault.PricingTest do
   end
 
   describe "ManaPool.rows/1" do
-    test "maps market prices to finish-keyed rows" do
+    test "maps ordinary printings from market prices and etched printings from listings" do
       body = %{
         "data" => [
           mana_pool_single("aaa", 500, 750),
           mana_pool_single("bbb", 300, nil),
-          mana_pool_single("ccc", nil, 200)
+          mana_pool_single("ccc", nil, 200),
+          mana_pool_single("ddd", 100, 150, %{"price_cents_nm_etched" => 900})
         ]
       }
 
@@ -112,8 +117,65 @@ defmodule Manavault.PricingTest do
                  %{scryfall_id: "aaa", finish: "nonfoil", price_cents: 500},
                  %{scryfall_id: "aaa", finish: "foil", price_cents: 750},
                  %{scryfall_id: "bbb", finish: "nonfoil", price_cents: 300},
-                 %{scryfall_id: "ccc", finish: "foil", price_cents: 200}
+                 %{scryfall_id: "ccc", finish: "foil", price_cents: 200},
+                 %{scryfall_id: "ddd", finish: "nonfoil", price_cents: 100},
+                 %{scryfall_id: "ddd", finish: "foil", price_cents: 150},
+                 %{scryfall_id: "ddd", finish: "etched", price_cents: 900}
                ])
+    end
+
+    test "uses treatment-specific listings instead of generic market prices" do
+      surge_foil_id = "42a1986c-9585-4544-b5a7-bee4be5c4506"
+
+      body = %{
+        "data" => [
+          mana_pool_single(surge_foil_id, 8595, 20_955, %{
+            "price_cents" => nil,
+            "price_cents_nm" => nil,
+            "price_cents_foil" => 43_000,
+            "price_cents_lp_plus_foil" => 43_000,
+            "price_cents_nm_foil" => 43_000
+          })
+        ]
+      }
+
+      assert ManaPool.rows(body, MapSet.new([surge_foil_id])) == [
+               %{scryfall_id: surge_foil_id, finish: "foil", price_cents: 43_000}
+             ]
+    end
+
+    test "fetch identifies special treatments from imported Scryfall metadata" do
+      surge_foil_id = "42a1986c-9585-4544-b5a7-bee4be5c4506"
+
+      gleaming_splendor =
+        Map.merge(@black_lotus, %{
+          "id" => surge_foil_id,
+          "oracle_id" => "c01aeaa5-1d3b-4493-9575-30175dcd780d",
+          "name" => "Gleaming Splendor",
+          "set" => "hob",
+          "collector_number" => "275",
+          "finishes" => ["foil"],
+          "promo_types" => ["surgefoil", "universesbeyond"]
+        })
+
+      assert {:ok, _counts} = Catalog.import_cards([gleaming_splendor])
+
+      body = %{
+        "data" => [
+          mana_pool_single(surge_foil_id, 8595, 20_955, %{
+            "price_cents_nm_foil" => 43_000
+          })
+        ]
+      }
+
+      Req.Test.stub(@mana_pool_stub, fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.send_resp(200, Jason.encode!(body))
+      end)
+
+      assert ManaPool.fetch(plug: {Req.Test, @mana_pool_stub}) ==
+               {:ok, [%{scryfall_id: surge_foil_id, finish: "foil", price_cents: 43_000}]}
     end
 
     test "skips missing and invalid market prices" do
@@ -136,12 +198,15 @@ defmodule Manavault.PricingTest do
     end
   end
 
-  defp mana_pool_single(scryfall_id, market_price, foil_market_price) do
-    %{
-      "scryfall_id" => scryfall_id,
-      "price_market" => market_price,
-      "price_market_foil" => foil_market_price
-    }
+  defp mana_pool_single(scryfall_id, market_price, foil_market_price, extra \\ %{}) do
+    Map.merge(
+      %{
+        "scryfall_id" => scryfall_id,
+        "price_market" => market_price,
+        "price_market_foil" => foil_market_price
+      },
+      extra
+    )
   end
 
   describe "TcgTracking.rows/2" do

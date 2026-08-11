@@ -14,6 +14,7 @@ defmodule Manavault.Catalog.Printing do
     field :flavor_text, :string
     field :rarity, :string
     field :finishes, :string, default: "[]"
+    field :promo_types, :string, default: "[]"
     field :image_uris, :string, default: "{}"
     field :prices, :string, default: "{}"
     field :released_at, :date
@@ -44,6 +45,7 @@ defmodule Manavault.Catalog.Printing do
       :flavor_text,
       :rarity,
       :finishes,
+      :promo_types,
       :image_uris,
       :prices,
       :released_at
