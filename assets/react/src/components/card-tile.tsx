@@ -234,8 +234,8 @@ export function CardTile({
       aria-pressed={selectionClickActive ? selected : undefined}
       className={cn(
         "group/card relative w-full overflow-visible rounded-xl bg-transparent transition duration-200 focus-within:z-50",
-        growOnHover && "hover:z-50 hover:-translate-y-2 hover:scale-[1.035]",
-        growOnHover && mobileHover.isRevealed && "z-50 -translate-y-2 scale-[1.035]",
+        growOnHover && "hover:z-50 hover:-translate-y-2",
+        growOnHover && mobileHover.isRevealed && "z-50 -translate-y-2",
         hasPrimaryAction &&
           "cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
         className,

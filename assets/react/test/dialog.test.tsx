@@ -12,6 +12,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../src/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../src/components/ui/dropdown-menu"
 
 type DialogHarnessProps = {
   onClose: () => void
@@ -45,6 +51,32 @@ function DialogHarness({ onClose }: DialogHarnessProps) {
               Last action
             </button>
           </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+function DialogDropdownHarness() {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}>
+        Open card dialog
+      </button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Card details</DialogTitle>
+            <DialogClose onClose={() => setOpen(false)} />
+          </DialogHeader>
+          <DropdownMenu>
+            <DropdownMenuTrigger>Card actions</DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem>View on Scryfall</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </DialogContent>
       </Dialog>
     </>
@@ -263,6 +295,18 @@ describe("Dialog", () => {
     expect(onParentClose).toHaveBeenCalledTimes(1)
     await waitFor(() => expect(document.body.hasAttribute("data-scroll-locked")).toBe(false))
     await waitFor(() => expect(document.activeElement).toBe(parentTrigger))
+  })
+
+  test("layers portalled dropdown menus above the dialog", async () => {
+    const user = userEvent.setup()
+    render(<DialogDropdownHarness />)
+
+    await user.click(screen.getByRole("button", { name: "Open card dialog" }))
+    await user.click(
+      within(screen.getByRole("dialog", { name: "Card details" })).getByText("Card actions"),
+    )
+
+    expect(screen.getByRole("menu").classList.contains("z-[1200]")).toBe(true)
   })
 })
 
