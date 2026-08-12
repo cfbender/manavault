@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select"
+import { Textarea } from "../../components/ui/textarea"
 import { useToast } from "../../components/ui/toast"
 import { refetchActiveQueries } from "../../lib/apollo"
 import { titleize } from "../../lib/utils"
@@ -42,6 +43,7 @@ export function EditDeckDialog({
   const [format, setFormat] = useState<(typeof DECK_FORMATS)[number]>("commander")
   const [status, setStatus] = useState<(typeof DECK_STATUSES)[number]>("brewing")
   const [coverDeckCardId, setCoverDeckCardId] = useState<string | null>(null)
+  const [primer, setPrimer] = useState("")
   const [error, setError] = useState<string | null>(null)
   const deckCards = deck && "deckCards" in deck ? deck.deckCards : null
 
@@ -51,6 +53,7 @@ export function EditDeckDialog({
     setFormat(deckFormatValue(deck.format))
     setStatus(deckStatusValue(deck.status))
     setCoverDeckCardId(deck.coverDeckCardId)
+    setPrimer(deck.primer || "")
     setError(null)
   }, [deck, isOpen])
 
@@ -71,6 +74,7 @@ export function EditDeckDialog({
             name: name.trim(),
             format,
             status,
+            primer: primer.trim() || null,
             ...(deckCards ? { coverDeckCardId } : {}),
           },
         },
@@ -106,16 +110,21 @@ export function EditDeckDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : close())}>
-      <DialogContent className="max-w-xl" labelledBy="edit-deck-title">
+      <DialogContent
+        className="flex max-h-[calc(100dvh-3rem)] max-w-2xl flex-col"
+        labelledBy="edit-deck-title"
+      >
         <DialogHeader>
           <div>
             <DialogTitle id="edit-deck-title">Edit deck</DialogTitle>
-            <p className="mt-1 text-sm text-base-content/75">Update deck metadata.</p>
+            <p className="mt-1 text-sm text-base-content/75">
+              Update deck details and its player guide.
+            </p>
           </div>
           <DialogClose className="h-11 w-11" onClose={close} />
         </DialogHeader>
 
-        <form className="space-y-5 p-5" onSubmit={submit}>
+        <form className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5" onSubmit={submit}>
           <label className="block space-y-2">
             <span className="text-xs font-black uppercase tracking-[0.18em] text-base-content/80">
               Name
@@ -199,6 +208,29 @@ export function EditDeckDialog({
               </span>
             </label>
           ) : null}
+
+          <div className="space-y-2">
+            <label
+              htmlFor="deck-primer"
+              className="block text-xs font-black uppercase tracking-[0.18em] text-base-content/80"
+            >
+              Primer
+            </label>
+            <Textarea
+              id="deck-primer"
+              aria-describedby="deck-primer-help"
+              className="min-h-48 resize-y leading-6"
+              maxLength={50_000}
+              placeholder={
+                "Explain the game plan, opening hands, key lines, and anything a player should know."
+              }
+              value={primer}
+              onChange={(event) => setPrimer(event.target.value)}
+            />
+            <span id="deck-primer-help" className="block text-sm text-base-content/65">
+              Optional. Markdown headings, lists, links, emphasis, and code are supported.
+            </span>
+          </div>
 
           {error ? (
             <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">

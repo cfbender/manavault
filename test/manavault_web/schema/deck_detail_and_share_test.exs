@@ -177,7 +177,11 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
         }
       ])
 
-    {:ok, deck} = Catalog.create_deck(%{"name" => "Shared Deck"})
+    {:ok, deck} =
+      Catalog.create_deck(%{
+        "name" => "Shared Deck",
+        "primer" => "## Game plan\n\nResolve **Shared Card** and protect it."
+      })
 
     {:ok, deck_card} =
       Catalog.add_card_to_deck(deck, %{
@@ -239,6 +243,7 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
             name
             format
             status
+            primer
             shareToken
             cardCount
             uniqueCardCount
@@ -375,6 +380,7 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
              "data" => %{
                "deck" => %{
                  "name" => "Shared Deck",
+                 "primer" => "## Game plan\n\nResolve **Shared Card** and protect it.",
                  "shareToken" => ^share_token,
                  "cardCount" => 2,
                  "uniqueCardCount" => 1,

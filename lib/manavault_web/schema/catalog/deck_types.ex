@@ -59,6 +59,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :name, non_null(:string)
     field :format, non_null(:string)
     field :status, non_null(:string)
+    field :primer, :string
     field :share_token, :string
 
     field :cover_deck_card_id, :id do
@@ -323,6 +324,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :name, :string
     field :format, :string
     field :status, :string
+    field :primer, :string
     field :cover_deck_card_id, :id
   end
 

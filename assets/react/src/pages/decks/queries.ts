@@ -13,6 +13,7 @@ export const DecksDocument = graphql(`
           name
           format
           status
+          primer
           shareToken
           coverDeckCardId
           coverImageUrl
@@ -41,6 +42,7 @@ export const CreateDeckDocument = graphql(`
         name
         format
         status
+        primer
         shareToken
         coverDeckCardId
         coverImageUrl
@@ -68,6 +70,7 @@ export const UpdateDeckDocument = graphql(`
         name
         format
         status
+        primer
         shareToken
         coverDeckCardId
         coverImageUrl
@@ -155,6 +158,7 @@ export const DeckDocument = graphql(`
       name
       format
       status
+      primer
       shareToken
       coverDeckCardId
       coverImageUrl

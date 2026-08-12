@@ -87,6 +87,7 @@ test("deck editor chooses any deck card as the cover", async () => {
           name: "Partner Deck",
           format: "commander",
           status: "active",
+          primer: "## Plan\n\nProtect the commanders.",
           coverDeckCardId: null,
           deckCards: [
             { id: "partner", zone: "commander", card: { name: "Partner Commander" } },
@@ -112,7 +113,43 @@ test("deck editor chooses any deck card as the cover", async () => {
       name: "Partner Deck",
       format: "commander",
       status: "active",
+      primer: "## Plan\n\nProtect the commanders.",
       coverDeckCardId: "favorite",
+    },
+  })
+})
+
+test("deck editor saves and clears primer Markdown", async () => {
+  const user = userEvent.setup()
+
+  render(
+    <EditDeckDialog
+      deck={
+        {
+          id: "deck-1",
+          name: "Primer Deck",
+          format: "commander",
+          status: "brewing",
+          primer: "Old plan",
+          coverDeckCardId: null,
+        } as never
+      }
+      open
+      onOpenChange={vi.fn()}
+    />,
+  )
+
+  const primer = screen.getByRole("textbox", { name: "Primer" })
+  await user.clear(primer)
+  await user.click(screen.getByRole("button", { name: "Save deck" }))
+
+  expect(apolloMocks.mutationVariables).toEqual({
+    id: "deck-1",
+    input: {
+      name: "Primer Deck",
+      format: "commander",
+      status: "brewing",
+      primer: null,
     },
   })
 })

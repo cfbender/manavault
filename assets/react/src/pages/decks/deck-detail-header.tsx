@@ -22,6 +22,7 @@ import type { DeckLegalityIssue, DeckPrice, DetailZoneCounts } from "./deck-deta
 import { DeckGroupMenu } from "./deck-group-menu"
 import { deckLegalityIssueCountLabel, deckLegalityLabel, deckLegalityTone } from "./deck-legality"
 import { DeckNameWithCommanderIdentity } from "./deck-list-model"
+import { DeckPrimer } from "./deck-primer"
 import { DeckTagsSidebar } from "./deck-tags-sidebar"
 import type { DeckCardEntry, DeckCustomTag, DeckDetail } from "./deck-types"
 
@@ -235,6 +236,8 @@ export function DeckDetailHeader({
             </ShareModeHidden>
           }
         />
+
+        <DeckPrimer primer={deck.primer} />
 
         {!canEdit ? (
           <div className="rounded-box border border-base-300 bg-base-200/60 p-4 text-sm text-base-content/75">

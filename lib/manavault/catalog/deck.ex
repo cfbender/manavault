@@ -10,6 +10,7 @@ defmodule Manavault.Catalog.Deck do
     field :name, :string
     field :format, :string, default: "commander"
     field :status, :string, default: "brewing"
+    field :primer, :string
     field :share_token, :string
     field :cover_deck_card_id, :id
     field :card_count, :integer, virtual: true
@@ -29,9 +30,10 @@ defmodule Manavault.Catalog.Deck do
 
   def changeset(deck, attrs) do
     deck
-    |> cast(attrs, [:name, :format, :status, :cover_deck_card_id])
+    |> cast(attrs, [:name, :format, :status, :primer, :cover_deck_card_id])
     |> validate_required([:name, :format, :status])
     |> validate_length(:name, min: 1, max: 120)
+    |> validate_length(:primer, max: 50_000)
     |> validate_inclusion(:format, @formats)
     |> validate_inclusion(:status, @statuses)
     |> foreign_key_constraint(:cover_deck_card_id)

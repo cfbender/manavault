@@ -310,6 +310,7 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     field :name, non_null(:string)
     field :format, non_null(:string)
     field :status, non_null(:string)
+    field :primer, :string
     field :share_token, :string
 
     field :cover_deck_card_id, :id do
