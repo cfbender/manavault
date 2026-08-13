@@ -397,6 +397,7 @@ export function DeckDetailPage({
           isRefreshing={isRefreshingDeck}
           isSelectionActive={selection.isSelectionActive}
           legalityIssues={legalityIssues}
+          saltSum={deferredDeckAnalysis?.stats.saltSum ?? null}
           onAddCard={() => setOverlay({ kind: "add-card" })}
           onCompareDeck={() => setOverlay({ kind: "compare-deck" })}
           onCopySharedDecklist={copySharedDecklist}

@@ -177,6 +177,11 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
         }
       ])
 
+    "oracle-share-card"
+    |> then(&Manavault.Repo.get!(Manavault.Catalog.Card, &1))
+    |> Ecto.Changeset.change(edhrec_commander_rank: 42, edhrec_saltiness: 2.25)
+    |> Manavault.Repo.update!()
+
     {:ok, deck} =
       Catalog.create_deck(%{
         "name" => "Shared Deck",
@@ -289,6 +294,8 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                     colors
                     colorIdentity
                     gameChanger
+                    edhrecCommanderRank
+                    edhrecSaltiness
                     deckCategory
                     deckThemes
                   }
@@ -400,7 +407,9 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                          "card" => %{
                            "id" => shared_card_id,
                            "name" => "Shared Card",
-                           "gameChanger" => true
+                           "gameChanger" => true,
+                           "edhrecCommanderRank" => 42,
+                           "edhrecSaltiness" => 2.25
                          },
                          "allocationStatus" => %{
                            "state" => "shared",
@@ -466,6 +475,8 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
             oracleText
             colorIdentity
             gameChanger
+            edhrecCommanderRank
+            edhrecSaltiness
             deckCategory
             deckThemes
             oracleTags {
@@ -525,6 +536,8 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                  "oracleText" => "Shared oracle text.",
                  "colorIdentity" => [],
                  "gameChanger" => true,
+                 "edhrecCommanderRank" => 42,
+                 "edhrecSaltiness" => 2.25,
                  "deckCategory" => "other",
                  "deckThemes" => ["artifact"],
                  "oracleTags" => [],

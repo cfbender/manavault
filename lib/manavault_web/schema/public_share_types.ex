@@ -68,6 +68,8 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
 
     field :game_changer, non_null(:boolean)
     field :edhrec_rank, :integer
+    field :edhrec_commander_rank, :integer
+    field :edhrec_saltiness, :float
 
     field :oracle_tags, list_of(:scryfall_oracle_tag) do
       resolve(fn card, _, _ ->

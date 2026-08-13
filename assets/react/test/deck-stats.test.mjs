@@ -108,6 +108,30 @@ test("mana curve excludes lands and considering", () => {
   assert.deepEqual(stats.manaCurve, curve({ 1: { permanents: 1 }, "7+": { spells: 1 } }))
 })
 
+test("salt sum weights commander and mainboard quantities and preserves missing scores", () => {
+  const stats = buildDeckStats([
+    deckCard({ zone: "commander", card: { edhrecSaltiness: 0.5 } }),
+    deckCard({ quantity: 2, card: { edhrecSaltiness: 1.25 } }),
+    deckCard({ quantity: 3, card: { edhrecSaltiness: null } }),
+    deckCard({ quantity: 2, card: { edhrecSaltiness: 0 } }),
+    deckCard({ quantity: 5, zone: "sideboard", card: { edhrecSaltiness: 4 } }),
+    deckCard({ quantity: 5, zone: "maybeboard", card: { edhrecSaltiness: 4 } }),
+    deckCard({ quantity: 5, zone: "considering", card: { edhrecSaltiness: 4 } }),
+  ])
+
+  assert.equal(stats.totalCards, 8)
+  assert.equal(stats.saltSum, 3)
+  assert.equal(stats.saltScoredCards, 5)
+
+  const unscoredStats = buildDeckStats([
+    deckCard({ zone: "commander", card: { edhrecSaltiness: null } }),
+    deckCard({ quantity: 3, card: { edhrecSaltiness: null } }),
+  ])
+
+  assert.equal(unscoredStats.saltSum, null)
+  assert.equal(unscoredStats.saltScoredCards, 0)
+})
+
 test("quantity clamps to integers and multiplies hybrid mana cost pips", () => {
   const stats = buildDeckStats([
     deckCard({
@@ -555,6 +579,8 @@ test("empty and malformed inputs return visible zero-shaped stats", () => {
     averageManaValue: 0,
     totalManaValue: 0,
     medianManaValue: 0,
+    saltSum: null,
+    saltScoredCards: 0,
     manaCurve: curve(),
     manaCost: manaCost(),
     costContributors: costContributors(),

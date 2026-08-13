@@ -1,5 +1,7 @@
+import type { ReactNode } from "react"
 import { Badge } from "../../components/ui/badge"
 import { cn, present, titleize } from "../../lib/utils"
+import { edhrecCardUrl, edhrecCommanderUrl } from "./card-links"
 import { CARD_LEGALITY_FORMATS, type CardDetail, type CardLegality, type CardRuling } from "./data"
 
 export function CardTagSummary({ card }: { card: CardDetail }) {
@@ -7,9 +9,21 @@ export function CardTagSummary({ card }: { card: CardDetail }) {
   const oracleTags = (card.oracleTags || []).filter(present)
   const hasCategory = Boolean(card.deckCategory)
   const edhrecRank = card.edhrecRank
-  const hasEdhrecRank = edhrecRank != null
+  const edhrecCommanderRank = card.edhrecCommanderRank
+  const isLegendaryCreature =
+    Boolean(card.typeLine?.includes("Legendary")) && Boolean(card.typeLine?.includes("Creature"))
+  const hasEdhrecRank = edhrecRank != null || (isLegendaryCreature && edhrecCommanderRank != null)
+  const saltiness = card.edhrecSaltiness
+  const hasSaltiness = saltiness != null
 
-  if (!hasCategory && themes.length === 0 && oracleTags.length === 0 && !hasEdhrecRank) return null
+  if (
+    !hasCategory &&
+    themes.length === 0 &&
+    oracleTags.length === 0 &&
+    !hasEdhrecRank &&
+    !hasSaltiness
+  )
+    return null
 
   return (
     <div className="flex flex-col gap-3 text-sm">
@@ -41,14 +55,62 @@ export function CardTagSummary({ card }: { card: CardDetail }) {
       ) : null}
 
       {hasEdhrecRank ? (
-        <div className="flex flex-wrap items-baseline gap-2">
+        <div className="grid gap-1 sm:flex sm:flex-wrap sm:items-baseline sm:gap-2">
           <span className="font-semibold text-base-content/70">EDHREC rank</span>
+          <span className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 min-[360px]:flex-nowrap">
+            {isLegendaryCreature && edhrecCommanderRank != null ? (
+              <>
+                <EdhrecRankLink href={edhrecCommanderUrl(card)}>
+                  #{edhrecCommanderRank.toLocaleString()} as commander
+                </EdhrecRankLink>
+                {edhrecRank != null ? (
+                  <span className="whitespace-nowrap">
+                    (
+                    <EdhrecRankLink href={edhrecCardUrl(card)}>
+                      #{edhrecRank.toLocaleString()} as card
+                    </EdhrecRankLink>
+                    )
+                  </span>
+                ) : null}
+              </>
+            ) : edhrecRank != null ? (
+              <EdhrecRankLink href={edhrecCardUrl(card)}>
+                #{edhrecRank.toLocaleString()} as card
+              </EdhrecRankLink>
+            ) : null}
+          </span>
+        </div>
+      ) : null}
+
+      {hasSaltiness ? (
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <a
+            href="https://edhrec.com/top/salt"
+            target="_blank"
+            rel="noreferrer"
+            className="font-semibold text-base-content/70 underline decoration-base-content/30 underline-offset-4 hover:text-primary focus-visible:rounded-field focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
+            EDHREC salt score
+          </a>
           <span className="font-mono font-black tabular-nums text-base-content">
-            #{edhrecRank.toLocaleString()}
+            {saltiness.toFixed(2)}
           </span>
         </div>
       ) : null}
     </div>
+  )
+}
+
+function EdhrecRankLink({ children, href }: { children: ReactNode; href: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="whitespace-nowrap font-mono font-black tabular-nums text-base-content underline decoration-base-content/30 underline-offset-4 hover:text-primary focus-visible:rounded-field focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+    >
+      {children}
+    </a>
   )
 }
 

@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   CheckSquare,
   Clipboard,
+  createLucideIcon,
   Download,
   Layers,
   Play,
@@ -48,6 +49,7 @@ type DeckDetailHeaderProps = {
   isSelectionActive: boolean
   isRefreshing: boolean
   legalityIssues: DeckLegalityIssue[]
+  saltSum: number | null
   onAddCard: () => void
   onCompareDeck: () => void
   onCopySharedDecklist: () => void
@@ -68,6 +70,32 @@ type DeckDetailHeaderProps = {
   shareMode: boolean
   tagActions: DeckTagActions
   zoneCounts: DetailZoneCounts
+}
+
+const SaltShakerIcon = createLucideIcon("salt-shaker", [
+  ["path", { d: "M8 7h8", key: "cap" }],
+  ["path", { d: "m9 7 .75-4h4.5L15 7", key: "top" }],
+  ["path", { d: "M7 7.5 5.5 21h13L17 7.5", key: "body" }],
+  ["path", { d: "M10 5h.01", key: "hole-left" }],
+  ["path", { d: "M12 5h.01", key: "hole-center" }],
+  ["path", { d: "M14 5h.01", key: "hole-right" }],
+])
+
+export function DeckSaltBadge({ saltSum }: { saltSum: number | null }) {
+  if (saltSum === null) return null
+
+  const label = `EDHREC salt sum: ${saltSum.toFixed(2)}`
+
+  return (
+    <Badge
+      aria-label={label}
+      title={label}
+      className="inline-flex items-center gap-1.5 px-2 font-mono font-bold leading-none"
+    >
+      <SaltShakerIcon aria-hidden="true" className="h-3.5 w-3.5" />
+      <span className="tabular-nums leading-none">{saltSum.toFixed(2)}</span>
+    </Badge>
+  )
 }
 
 function DeckPriceChip({ onClick, price }: { onClick: () => void; price: DeckPrice | null }) {
@@ -160,6 +188,7 @@ export function DeckDetailHeader({
   isRefreshing,
   isSelectionActive,
   legalityIssues,
+  saltSum,
   onAddCard,
   onCompareDeck,
   onCopySharedDecklist,
@@ -210,6 +239,7 @@ export function DeckDetailHeader({
               <Badge tone={deckLegalityTone(deck.legality)}>
                 {deckLegalityLabel(deck.legality)}
               </Badge>
+              <DeckSaltBadge saltSum={saltSum} />
               <DeckPriceChip
                 price={deckPrice}
                 onClick={shareMode ? onShareBuylist : onMissingCards}

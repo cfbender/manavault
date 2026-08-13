@@ -206,6 +206,7 @@ export const DeckDocument = graphql(`
               colors
               colorIdentity
               gameChanger
+              edhrecSaltiness
               deckCategory
               deckThemes
             }

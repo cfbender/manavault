@@ -3,6 +3,8 @@ defmodule Manavault.Catalog.Scryfall.Sync do
 
   import Ecto.Query
 
+  alias Manavault.Catalog.EDHRec.CommanderRanks
+  alias Manavault.Catalog.Mtgjson.Saltiness
   alias Manavault.Catalog.Scryfall.{BulkData, Fetch, Import}
   alias Manavault.Catalog.Sync, as: SyncRecord
   alias Manavault.Repo
@@ -11,6 +13,8 @@ defmodule Manavault.Catalog.Scryfall.Sync do
 
   @bulk_metadata_url "https://api.scryfall.com/bulk-data/default-cards"
   @oracle_tags_bulk_metadata_url "https://api.scryfall.com/bulk-data/oracle-tags"
+  @commander_ranks_url "https://json.edhrec.com/pages/commanders/year.json"
+  @saltiness_url "https://mtgjson.com/api/v5/AtomicCards.json.gz"
   @bulk_type "default_cards_paper_v2"
 
   def latest do
@@ -23,6 +27,10 @@ defmodule Manavault.Catalog.Scryfall.Sync do
 
     oracle_tags_bulk_url =
       Keyword.get(opts, :oracle_tags_bulk_url, @oracle_tags_bulk_metadata_url)
+
+    saltiness_url = Keyword.get(opts, :saltiness_url, @saltiness_url)
+    commander_ranks_url = Keyword.get(opts, :commander_ranks_url, @commander_ranks_url)
+    commander_ranks_page_delay_ms = Keyword.get(opts, :commander_ranks_page_delay_ms, 200)
 
     reconcile? = paper_reconciliation_needed?()
     now = utc_now()
@@ -44,13 +52,36 @@ defmodule Manavault.Catalog.Scryfall.Sync do
          {:ok, cards, source_count} <- BulkData.decode(bulk_body),
          :ok <- log_bulk_decoded(sync, "default-cards", source_count),
          {:ok, oracle_tags} <- fetch_oracle_tags(fetcher, oracle_tags_bulk_url, sync),
+         {:ok, saltiness_scores} <- fetch_saltiness(fetcher, saltiness_url, sync),
+         {:ok, commander_ranks} <-
+           fetch_commander_ranks(
+             fetcher,
+             commander_ranks_url,
+             commander_ranks_page_delay_ms,
+             sync
+           ),
          {:ok, counts} <-
            Import.run(Stream.filter(cards, &paper_card?/1), download_uri,
              oracle_tags: oracle_tags,
              log_progress: true,
              source_count: source_count,
              reconcile: reconcile?
-           ) do
+           ),
+         {:ok, saltiness_count} <- update_saltiness(saltiness_scores),
+         {:ok, commander_rank_count} <- update_commander_ranks(commander_ranks) do
+      if saltiness_count do
+        Logger.info(
+          "Scryfall catalog sync updated EDHREC saltiness sync_id=#{sync.id} count=#{saltiness_count}"
+        )
+      end
+
+      if commander_rank_count do
+        Logger.info(
+          "Scryfall catalog sync updated EDHREC commander ranks " <>
+            "sync_id=#{sync.id} count=#{commander_rank_count}"
+        )
+      end
+
       result =
         sync
         |> SyncRecord.changeset(%{
@@ -98,6 +129,69 @@ defmodule Manavault.Catalog.Scryfall.Sync do
       {:ok, tags}
     end
   end
+
+  defp fetch_saltiness(_fetcher, nil, sync) do
+    Logger.info("Scryfall catalog sync skipping MTGJSON saltiness sync_id=#{sync.id}")
+    {:ok, :skip}
+  end
+
+  defp fetch_saltiness(fetcher, saltiness_url, sync) do
+    Logger.info("Scryfall catalog sync fetching MTGJSON saltiness sync_id=#{sync.id}")
+
+    result =
+      with {:ok, body} <- fetcher.(saltiness_url),
+           :ok <- log_bulk_downloaded(sync, "MTGJSON AtomicCards", body),
+           {:ok, scores} <- Saltiness.decode(body),
+           :ok <- log_bulk_decoded(sync, "MTGJSON AtomicCards saltiness", map_size(scores)) do
+        {:ok, scores}
+      end
+
+    case result do
+      {:ok, scores} ->
+        {:ok, scores}
+
+      {:error, reason} ->
+        Logger.warning(
+          "Scryfall catalog sync preserving existing EDHREC saltiness " <>
+            "sync_id=#{sync.id} error=#{format_error(reason)}"
+        )
+
+        {:ok, :skip}
+    end
+  end
+
+  defp update_saltiness(:skip), do: {:ok, nil}
+  defp update_saltiness(scores), do: Saltiness.update_cards(scores)
+
+  defp fetch_commander_ranks(_fetcher, nil, _page_delay_ms, sync) do
+    Logger.info("Scryfall catalog sync skipping EDHREC commander ranks sync_id=#{sync.id}")
+    {:ok, :skip}
+  end
+
+  defp fetch_commander_ranks(fetcher, url, page_delay_ms, sync) do
+    Logger.info("Scryfall catalog sync fetching EDHREC commander ranks sync_id=#{sync.id}")
+
+    case CommanderRanks.fetch(fetcher, url, page_delay_ms: page_delay_ms) do
+      {:ok, ranks, page_count} ->
+        Logger.info(
+          "Scryfall catalog sync decoded EDHREC commander ranks " <>
+            "sync_id=#{sync.id} count=#{map_size(ranks)} pages=#{page_count}"
+        )
+
+        {:ok, ranks}
+
+      {:error, reason} ->
+        Logger.warning(
+          "Scryfall catalog sync preserving existing EDHREC commander ranks " <>
+            "sync_id=#{sync.id} error=#{format_error(reason)}"
+        )
+
+        {:ok, :skip}
+    end
+  end
+
+  defp update_commander_ranks(:skip), do: {:ok, nil}
+  defp update_commander_ranks(ranks), do: CommanderRanks.update_cards(ranks)
 
   defp log_bulk_download_started(sync, bulk_name) do
     Logger.info("Scryfall catalog sync downloading #{bulk_name} bulk sync_id=#{sync.id}")

@@ -34,7 +34,9 @@ defmodule Manavault.Catalog.SyncTest do
              Catalog.sync_scryfall(
                fetcher: fetcher,
                bulk_url: metadata_url,
-               oracle_tags_bulk_url: nil
+               oracle_tags_bulk_url: nil,
+               saltiness_url: nil,
+               commander_ranks_url: nil
              )
 
     assert %Sync{status: "succeeded"} = Catalog.latest_sync()
@@ -72,7 +74,9 @@ defmodule Manavault.Catalog.SyncTest do
              Catalog.sync_scryfall(
                fetcher: fetcher,
                bulk_url: metadata_url,
-               oracle_tags_bulk_url: nil
+               oracle_tags_bulk_url: nil,
+               saltiness_url: nil,
+               commander_ranks_url: nil
              )
 
     assert %Card{name: "Gleaming Splendor"} =
@@ -145,7 +149,9 @@ defmodule Manavault.Catalog.SyncTest do
              Catalog.sync_scryfall(
                fetcher: fetcher,
                bulk_url: metadata_url,
-               oracle_tags_bulk_url: nil
+               oracle_tags_bulk_url: nil,
+               saltiness_url: nil,
+               commander_ranks_url: nil
              )
 
     refute Repo.get(Printing, digital_lotus["id"])
@@ -184,7 +190,9 @@ defmodule Manavault.Catalog.SyncTest do
              Catalog.sync_scryfall(
                fetcher: fetcher,
                bulk_url: metadata_url,
-               oracle_tags_bulk_url: nil
+               oracle_tags_bulk_url: nil,
+               saltiness_url: nil,
+               commander_ranks_url: nil
              )
 
     refute Repo.get(Printing, digital_only["id"])
@@ -234,7 +242,9 @@ defmodule Manavault.Catalog.SyncTest do
              Catalog.sync_scryfall(
                fetcher: fetcher,
                bulk_url: metadata_url,
-               oracle_tags_bulk_url: nil
+               oracle_tags_bulk_url: nil,
+               saltiness_url: nil,
+               commander_ranks_url: nil
              )
 
     assert Repo.get!(Printing, @black_lotus["id"])
@@ -260,7 +270,9 @@ defmodule Manavault.Catalog.SyncTest do
     sync_opts = [
       fetcher: fetcher,
       bulk_url: metadata_url,
-      oracle_tags_bulk_url: nil
+      oracle_tags_bulk_url: nil,
+      saltiness_url: nil,
+      commander_ranks_url: nil
     ]
 
     assert {:ok, %Sync{status: "succeeded"}} = Catalog.sync_scryfall(sync_opts)
@@ -297,7 +309,9 @@ defmodule Manavault.Catalog.SyncTest do
                    Catalog.sync_scryfall(
                      fetcher: fetcher,
                      bulk_url: metadata_url,
-                     oracle_tags_bulk_url: nil
+                     oracle_tags_bulk_url: nil,
+                     saltiness_url: nil,
+                     commander_ranks_url: nil
                    )
         end)
       after
@@ -349,7 +363,9 @@ defmodule Manavault.Catalog.SyncTest do
              Catalog.sync_scryfall(
                fetcher: fetcher,
                bulk_url: metadata_url,
-               oracle_tags_bulk_url: oracle_tags_metadata_url
+               oracle_tags_bulk_url: oracle_tags_metadata_url,
+               saltiness_url: nil,
+               commander_ranks_url: nil
              )
 
     assert %Card{
@@ -368,6 +384,185 @@ defmodule Manavault.Catalog.SyncTest do
            }
 
     assert "ramp" in Jason.decode!(themes_json)
+  end
+
+  test "sync_scryfall imports nullable EDHREC saltiness by Scryfall oracle ID" do
+    metadata_url = "https://example.test/saltiness-metadata"
+    download_url = "https://example.test/saltiness-default-cards.jsonl.gz"
+    saltiness_url = "https://example.test/AtomicCards.json.gz"
+
+    unscored_card =
+      @black_lotus
+      |> Map.put("id", "scryfall-unscored")
+      |> Map.put("oracle_id", "oracle-unscored")
+      |> Map.put("name", "Unscored Card")
+
+    assert {:ok, _counts} = Catalog.import_cards([@black_lotus, unscored_card])
+
+    "oracle-unscored"
+    |> then(&Repo.get!(Card, &1))
+    |> Ecto.Changeset.change(edhrec_saltiness: 3.5)
+    |> Repo.update!()
+
+    saltiness_payload = %{
+      "meta" => %{"date" => "2026-08-13"},
+      "data" => %{
+        "Black Lotus" => [
+          %{
+            "edhrecSaltiness" => 1.25,
+            "identifiers" => %{"scryfallOracleId" => @black_lotus["oracle_id"]}
+          }
+        ],
+        "Unscored Card" => [
+          %{
+            "edhrecSaltiness" => nil,
+            "identifiers" => %{"scryfallOracleId" => "oracle-unscored"}
+          }
+        ],
+        "Unknown Card" => [
+          %{
+            "edhrecSaltiness" => 4.0,
+            "identifiers" => %{"scryfallOracleId" => "oracle-not-in-catalog"}
+          }
+        ]
+      }
+    }
+
+    fetcher = fn
+      ^metadata_url -> {:ok, Jason.encode!(%{"jsonl_download_uri" => download_url})}
+      ^download_url -> {:ok, gzip_jsonl([@black_lotus, unscored_card])}
+      ^saltiness_url -> {:ok, gzip_json(saltiness_payload)}
+    end
+
+    assert {:ok, %Sync{status: "succeeded"}} =
+             Catalog.sync_scryfall(
+               fetcher: fetcher,
+               bulk_url: metadata_url,
+               oracle_tags_bulk_url: nil,
+               saltiness_url: saltiness_url,
+               commander_ranks_url: nil
+             )
+
+    assert Repo.get!(Card, @black_lotus["oracle_id"]).edhrec_saltiness == 1.25
+    assert Repo.get!(Card, "oracle-unscored").edhrec_saltiness == nil
+  end
+
+  test "sync_scryfall succeeds and preserves existing saltiness when MTGJSON data is invalid" do
+    assert {:ok, _counts} = Catalog.import_cards([@black_lotus])
+
+    @black_lotus["oracle_id"]
+    |> then(&Repo.get!(Card, &1))
+    |> Ecto.Changeset.change(edhrec_saltiness: 2.5)
+    |> Repo.update!()
+
+    metadata_url = "https://example.test/invalid-saltiness-metadata"
+    download_url = "https://example.test/invalid-saltiness-default-cards.jsonl.gz"
+    saltiness_url = "https://example.test/invalid-AtomicCards.json.gz"
+
+    fetcher = fn
+      ^metadata_url -> {:ok, Jason.encode!(%{"jsonl_download_uri" => download_url})}
+      ^download_url -> {:ok, gzip_jsonl([@black_lotus])}
+      ^saltiness_url -> {:ok, "not gzip"}
+    end
+
+    assert {:ok, %Sync{status: "succeeded", error: nil}} =
+             Catalog.sync_scryfall(
+               fetcher: fetcher,
+               bulk_url: metadata_url,
+               oracle_tags_bulk_url: nil,
+               saltiness_url: saltiness_url,
+               commander_ranks_url: nil
+             )
+
+    assert Repo.get!(Card, @black_lotus["oracle_id"]).edhrec_saltiness == 2.5
+  end
+
+  test "sync_scryfall imports paginated EDHREC commander ranks by Scryfall printing ID" do
+    metadata_url = "https://example.test/commander-rank-metadata"
+    download_url = "https://example.test/commander-rank-default-cards.jsonl.gz"
+    commander_ranks_url = "https://json.edhrec.com/pages/commanders/year.json"
+    next_url = "https://json.edhrec.com/pages/commanders/year-1.json"
+
+    ranked_card =
+      @black_lotus
+      |> Map.put("name", "Ranked Commander")
+      |> Map.put("type_line", "Legendary Creature — Wizard")
+
+    stale_card =
+      @black_lotus
+      |> Map.put("id", "scryfall-stale-commander")
+      |> Map.put("oracle_id", "oracle-stale-commander")
+      |> Map.put("name", "Stale Commander")
+      |> Map.put("type_line", "Legendary Creature — Wizard")
+
+    assert {:ok, _counts} = Catalog.import_cards([ranked_card, stale_card])
+
+    stale_card["oracle_id"]
+    |> then(&Repo.get!(Card, &1))
+    |> Ecto.Changeset.change(edhrec_commander_rank: 99)
+    |> Repo.update!()
+
+    fetcher = fn
+      ^metadata_url ->
+        {:ok, Jason.encode!(%{"jsonl_download_uri" => download_url})}
+
+      ^download_url ->
+        {:ok, gzip_jsonl([ranked_card, stale_card])}
+
+      ^commander_ranks_url ->
+        {:ok,
+         commander_rank_page(
+           [%{"id" => stale_card["id"], "rank" => 13, "is_partner" => true}],
+           "commanders/year-1.json"
+         )}
+
+      ^next_url ->
+        {:ok, commander_rank_page([%{"id" => ranked_card["id"], "rank" => 12}])}
+    end
+
+    assert {:ok, %Sync{status: "succeeded"}} =
+             Catalog.sync_scryfall(
+               fetcher: fetcher,
+               bulk_url: metadata_url,
+               oracle_tags_bulk_url: nil,
+               saltiness_url: nil,
+               commander_ranks_url: commander_ranks_url,
+               commander_ranks_page_delay_ms: 0
+             )
+
+    assert Repo.get!(Card, ranked_card["oracle_id"]).edhrec_commander_rank == 12
+    assert Repo.get!(Card, stale_card["oracle_id"]).edhrec_commander_rank == nil
+  end
+
+  test "sync_scryfall preserves commander ranks when the EDHREC index is unavailable" do
+    metadata_url = "https://example.test/unavailable-rank-metadata"
+    download_url = "https://example.test/unavailable-rank-default-cards.jsonl.gz"
+    commander_ranks_url = "https://example.test/unavailable-commander-ranks.json"
+
+    assert {:ok, _counts} = Catalog.import_cards([@black_lotus])
+
+    @black_lotus["oracle_id"]
+    |> then(&Repo.get!(Card, &1))
+    |> Ecto.Changeset.change(edhrec_commander_rank: 7)
+    |> Repo.update!()
+
+    fetcher = fn
+      ^metadata_url -> {:ok, Jason.encode!(%{"jsonl_download_uri" => download_url})}
+      ^download_url -> {:ok, gzip_jsonl([@black_lotus])}
+      ^commander_ranks_url -> {:error, :timeout}
+    end
+
+    assert {:ok, %Sync{status: "succeeded", error: nil}} =
+             Catalog.sync_scryfall(
+               fetcher: fetcher,
+               bulk_url: metadata_url,
+               oracle_tags_bulk_url: nil,
+               saltiness_url: nil,
+               commander_ranks_url: commander_ranks_url,
+               commander_ranks_page_delay_ms: 0
+             )
+
+    assert Repo.get!(Card, @black_lotus["oracle_id"]).edhrec_commander_rank == 7
   end
 
   test "sync_scryfall rejects former JSON-array bulk metadata" do
@@ -461,5 +656,14 @@ defmodule Manavault.Catalog.SyncTest do
     |> Enum.join("\n")
     |> Kernel.<>("\n")
     |> :zlib.gzip()
+  end
+
+  defp gzip_json(value), do: value |> Jason.encode!() |> :zlib.gzip()
+
+  defp commander_rank_page(cardviews, more \\ nil) do
+    cardlist = %{"cardviews" => cardviews}
+    cardlist = if more, do: Map.put(cardlist, "more", more), else: cardlist
+
+    %{"container" => %{"json_dict" => %{"cardlists" => [cardlist]}}}
   end
 end
