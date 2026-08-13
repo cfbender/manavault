@@ -11,7 +11,11 @@ import { routeTree } from "./routeTree.gen"
 import { initializeNativeSharedImport, type NativeOpenPayload } from "./lib/native-shared-import"
 import { nativeAppPath, parseNativeRoute, type NativeRoute } from "./lib/native-open"
 
-const router = createRouter({ routeTree })
+const router = createRouter({
+  routeTree,
+  scrollRestoration: true,
+  scrollToTopSelectors: [".app-shell-main"],
+})
 
 declare module "@tanstack/react-router" {
   interface Register {
