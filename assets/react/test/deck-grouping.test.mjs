@@ -360,6 +360,39 @@ test("price is offered as a grouping option", () => {
   )
 })
 
+test("salt score grouping buckets cards by EDHREC saltiness", () => {
+  const groups = groupDeckCards(
+    [
+      deckCard("zero", { quantity: 2, card: { edhrecSaltiness: 0 } }),
+      deckCard("under-one", { card: { edhrecSaltiness: 0.99 } }),
+      deckCard("one", { card: { edhrecSaltiness: 1 } }),
+      deckCard("two", { card: { edhrecSaltiness: 2 } }),
+      deckCard("three", { card: { edhrecSaltiness: 3 } }),
+      deckCard("four", { card: { edhrecSaltiness: 4 } }),
+      deckCard("missing", { card: { edhrecSaltiness: null } }),
+      deckCard("invalid", { card: { edhrecSaltiness: 4.1 } }),
+    ],
+    "salt",
+  )
+
+  assert.deepEqual(
+    groups.map((group) => ({ key: group.key, label: group.label, quantity: group.quantity })),
+    [
+      { key: "under-1", label: "Salt <1", quantity: 3 },
+      { key: "1-2", label: "Salt 1–2", quantity: 1 },
+      { key: "2-3", label: "Salt 2–3", quantity: 1 },
+      { key: "3-plus", label: "Salt 3+", quantity: 2 },
+      { key: "unrated", label: "Unrated", quantity: 2 },
+    ],
+  )
+})
+
+test("salt score is offered as a grouping option", () => {
+  assert.ok(
+    DECK_GROUP_OPTIONS.some((option) => option.value === "salt" && option.label === "Salt Score"),
+  )
+})
+
 test("tag is offered as a grouping option", () => {
   assert.ok(DECK_GROUP_OPTIONS.some((option) => option.value === "tag" && option.label === "Tags"))
 })

@@ -9,6 +9,7 @@ export type DeckGroupBy =
   | "set"
   | "tag"
   | "price"
+  | "salt"
   | "allocation"
   | "none"
 
@@ -77,6 +78,7 @@ export type DeckGroupingCard = {
   colorIdentity: Array<string | null> | null
   deckCategory: string | null
   deckThemes: Array<string | null> | null
+  edhrecSaltiness?: number | null
 }
 
 export type DeckGroupingDeckCard = {
@@ -114,6 +116,7 @@ export const DECK_GROUP_OPTIONS: Array<{ label: string; value: DeckGroupBy }> = 
   { label: "Set", value: "set" },
   { label: "Tags", value: "tag" },
   { label: "Price", value: "price" },
+  { label: "Salt Score", value: "salt" },
   { label: "Allocation", value: "allocation" },
   { label: "None", value: "none" },
 ]
@@ -155,6 +158,12 @@ const PRICE_BUCKETS: PriceBucket[] = [
   { key: "10-25", label: "$10–$25", minCents: 1000, maxExclusiveCents: 2500, order: 4 },
   { key: "25-50", label: "$25–$50", minCents: 2500, maxExclusiveCents: 5000, order: 5 },
   { key: "50-plus", label: "$50+", minCents: 5000, order: 6 },
+]
+const SALT_BUCKETS = [
+  { key: "under-1", label: "Salt <1", maxExclusive: 1, order: 0 },
+  { key: "1-2", label: "Salt 1–2", min: 1, maxExclusive: 2, order: 1 },
+  { key: "2-3", label: "Salt 2–3", min: 2, maxExclusive: 3, order: 2 },
+  { key: "3-plus", label: "Salt 3+", min: 3, order: 3 },
 ]
 const GROUP_VALUE_ICONS: Record<string, DeckGroupIcon> = {
   aristocrats: "aristocrats",
@@ -387,6 +396,10 @@ function deckCardGroupDescriptor<T extends DeckGroupingDeckCard>(
     return priceDescriptor(deckCard.priceCents)
   }
 
+  if (groupBy === "salt") {
+    return saltDescriptor(card?.edhrecSaltiness)
+  }
+
   if (groupBy === "allocation") {
     return allocationDescriptor(deckCard.allocationStatus?.state)
   }
@@ -404,6 +417,25 @@ function priceDescriptor(priceCents: number | null | undefined) {
       ({ minCents = Number.NEGATIVE_INFINITY, maxExclusiveCents = Number.POSITIVE_INFINITY }) =>
         priceCents >= minCents && priceCents < maxExclusiveCents,
     ) || PRICE_BUCKETS[PRICE_BUCKETS.length - 1]
+
+  return { icon: "none", key: bucket.key, label: bucket.label, order: bucket.order } as const
+}
+
+function saltDescriptor(saltiness: number | null | undefined) {
+  if (
+    typeof saltiness !== "number" ||
+    !Number.isFinite(saltiness) ||
+    saltiness < 0 ||
+    saltiness > 4
+  ) {
+    return { icon: "none", key: "unrated", label: "Unrated", order: 99 } as const
+  }
+
+  const bucket =
+    SALT_BUCKETS.find(
+      ({ min = Number.NEGATIVE_INFINITY, maxExclusive = Number.POSITIVE_INFINITY }) =>
+        saltiness >= min && saltiness < maxExclusive,
+    ) || SALT_BUCKETS[SALT_BUCKETS.length - 1]
 
   return { icon: "none", key: bucket.key, label: bucket.label, order: bucket.order } as const
 }
