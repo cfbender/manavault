@@ -35,6 +35,7 @@ export type CollectionSort = {
 }
 export type CollectionExportFormat = "csv" | "text"
 export type CollectionImportFormat = "auto" | "csv" | "txt"
+export type CollectionImportPurchaseMode = "per_card" | "total_spend"
 export type PreviewCollectionImportValues = {
   fileName: string
   format: CollectionImportFormat

@@ -36,11 +36,14 @@ import {
 } from "./documents"
 import { centsToCurrencyInput, parseCurrencyInputCents, printingSetLabel } from "./form-helpers"
 import {
+  applyTotalSpend,
   collectionImportCounts,
   commitImportRow,
+  importedCardQuantity,
   importFormatFromSource,
   importStatusLabel,
   importStatusTone,
+  totalSpendPerCardCents,
 } from "./import-export-helpers"
 import { isUnfiledLocation } from "./location-summary"
 import type {
@@ -49,6 +52,7 @@ import type {
   CollectionExportFormat,
   CollectionImportCandidate,
   CollectionImportFormat,
+  CollectionImportPurchaseMode,
   CollectionImportPreview,
   PreviewCollectionImportValues,
 } from "./types"
@@ -70,6 +74,7 @@ export function ImportCollectionDialog({
   const [format, setFormat] = useState<CollectionImportFormat>("auto")
   const [locationId, setLocationId] = useState("")
   const [purchasePrice, setPurchasePrice] = useState("")
+  const [purchaseMode, setPurchaseMode] = useState<CollectionImportPurchaseMode>("per_card")
   const [preview, setPreview] = useState<CollectionImportPreview | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isAutoSortSetupOpen, setIsAutoSortSetupOpen] = useState(false)
@@ -103,7 +108,7 @@ export function ImportCollectionDialog({
     const purchasePriceCents = parseCurrencyInputCents(priceInput)
 
     if (purchasePriceCents === undefined) {
-      setError("Purchase price must be a dollar amount")
+      setError(purchaseAmountError(purchaseMode))
       return
     }
 
@@ -114,11 +119,16 @@ export function ImportCollectionDialog({
           format: values?.format ?? format,
           fileName: (values?.fileName ?? fileName) || null,
           locationId: (values?.locationId ?? locationId) || null,
-          purchasePriceCents,
+          purchasePriceCents: purchaseMode === "per_card" ? purchasePriceCents : null,
         },
       },
       onCompleted: (data) => {
-        setPreview(data.previewCollectionImport?.importPreview || null)
+        const nextPreview = data.previewCollectionImport?.importPreview || null
+        setPreview(
+          nextPreview && purchaseMode === "total_spend" && purchasePriceCents !== null
+            ? { ...nextPreview, rows: applyTotalSpend(nextPreview.rows, purchasePriceCents) }
+            : nextPreview,
+        )
         clearAutoSortPreview()
         setError(null)
       },
@@ -168,6 +178,13 @@ export function ImportCollectionDialog({
     clearAutoSortPreview()
   }
 
+  function updatePurchaseMode(value: string) {
+    setPurchaseMode(value as CollectionImportPurchaseMode)
+    setPreview(null)
+    clearAutoSortPreview()
+    setError(null)
+  }
+
   function submitPreview(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
@@ -178,7 +195,7 @@ export function ImportCollectionDialog({
     }
 
     if (parseCurrencyInputCents(purchasePrice) === undefined) {
-      setError("Purchase price must be a dollar amount")
+      setError(purchaseAmountError(purchaseMode))
       return
     }
 
@@ -188,7 +205,7 @@ export function ImportCollectionDialog({
   function selectCandidate(rowNumber: number, candidate: CollectionImportCandidate) {
     if (!preview) return
 
-    const rows = preview.rows.map((row) =>
+    let rows = preview.rows.map((row) =>
       row.rowNumber === rowNumber
         ? {
             ...row,
@@ -199,6 +216,15 @@ export function ImportCollectionDialog({
           }
         : row,
     )
+
+    const totalSpendCents = parseCurrencyInputCents(purchasePrice)
+    if (
+      purchaseMode === "total_spend" &&
+      totalSpendCents !== null &&
+      totalSpendCents !== undefined
+    ) {
+      rows = applyTotalSpend(rows, totalSpendCents)
+    }
 
     setPreview({ ...preview, ...collectionImportCounts(rows), rows })
     clearAutoSortPreview()
@@ -285,6 +311,7 @@ export function ImportCollectionDialog({
     setFormat("auto")
     setLocationId("")
     setPurchasePrice("")
+    setPurchaseMode("per_card")
     setPreview(null)
     setAutoSortPreview(null)
     setError(null)
@@ -346,7 +373,24 @@ export function ImportCollectionDialog({
 
               <label className="block space-y-2">
                 <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
-                  Purchase price per card
+                  Purchase pricing
+                </span>
+                <Select value={purchaseMode} onValueChange={updatePurchaseMode}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="per_card">Price per card</SelectItem>
+                    <SelectItem value="total_spend">Total amount spent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                  {purchaseMode === "total_spend"
+                    ? "Total amount spent"
+                    : "Purchase price per card"}
                 </span>
                 <input
                   type="text"
@@ -354,11 +398,12 @@ export function ImportCollectionDialog({
                   className="input input-bordered w-full bg-base-100"
                   value={purchasePrice}
                   onChange={(event) => updatePurchasePrice(event.target.value)}
-                  placeholder="$1.00"
+                  placeholder={purchaseMode === "total_spend" ? "$439.00" : "$1.00"}
                 />
                 <p className="text-sm text-base-content/55">
-                  Optional default for rows without a purchase price column. Enter $1 for a $15
-                  15-card pack.
+                  {purchaseMode === "total_spend"
+                    ? "Divided by the quantity of exact cards in the import and rounded to the nearest cent."
+                    : "Optional default for rows without a purchase price column."}
                 </p>
               </label>
 
@@ -428,6 +473,9 @@ export function ImportCollectionDialog({
 
             {preview ? (
               <div className="space-y-3">
+                {purchaseMode === "total_spend" ? (
+                  <ImportSpendSummary preview={preview} totalSpend={purchasePrice} />
+                ) : null}
                 <div className="stats stats-vertical w-full border border-base-300 bg-base-100 shadow-sm sm:stats-horizontal">
                   <div className="stat">
                     <div className="stat-title">Rows</div>
@@ -560,6 +608,46 @@ export function ImportCollectionDialog({
       />
     </>
   )
+}
+
+function ImportSpendSummary({
+  preview,
+  totalSpend,
+}: {
+  preview: CollectionImportPreview
+  totalSpend: string
+}) {
+  const totalSpendCents = parseCurrencyInputCents(totalSpend)
+  if (totalSpendCents === null || totalSpendCents === undefined) return null
+
+  const cardQuantity = importedCardQuantity(preview.rows)
+  const purchasePriceCents = totalSpendPerCardCents(totalSpendCents, cardQuantity)
+
+  if (purchasePriceCents === null) {
+    return (
+      <p className="rounded-box border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">
+        No exact cards are ready to import, so the total spend cannot be divided yet.
+      </p>
+    )
+  }
+
+  return (
+    <div className="rounded-box border border-base-300 bg-base-100 px-4 py-3">
+      <p className="text-sm font-bold">Purchase price calculated</p>
+      <p className="mt-1 font-mono text-sm tabular-nums text-base-content/70">
+        {importPurchasePriceText(totalSpendCents)} ÷ {pluralize(cardQuantity, "card")} ={" "}
+        <strong className="text-base-content">
+          {importPurchasePriceText(purchasePriceCents)} per card
+        </strong>
+      </p>
+    </div>
+  )
+}
+
+function purchaseAmountError(mode: CollectionImportPurchaseMode) {
+  return mode === "total_spend"
+    ? "Total amount spent must be a dollar amount"
+    : "Purchase price must be a dollar amount"
 }
 
 function importPurchasePriceText(cents?: number | null) {

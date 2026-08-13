@@ -1,5 +1,5 @@
-import { titleize } from "../../lib/utils"
-import type { CollectionImportFormat, CollectionImportRow } from "./types"
+import { titleize } from "../../lib/utils.ts"
+import type { CollectionImportFormat, CollectionImportRow } from "./types.ts"
 
 export function importFormatFromSource(
   fileName: string,
@@ -22,6 +22,28 @@ export function collectionImportCounts(rows: CollectionImportRow[]) {
     ambiguous: rows.filter((row) => row.status === "ambiguous").length,
     unresolved: rows.filter((row) => row.status === "unresolved").length,
   }
+}
+
+export function importedCardQuantity(rows: CollectionImportRow[]) {
+  return rows.reduce(
+    (total, row) => total + (row.status === "exact" ? Math.max(row.attrs.quantity ?? 0, 0) : 0),
+    0,
+  )
+}
+
+export function totalSpendPerCardCents(totalSpendCents: number, cardQuantity: number) {
+  if (cardQuantity <= 0) return null
+  return Math.round(totalSpendCents / cardQuantity)
+}
+
+export function applyTotalSpend(rows: CollectionImportRow[], totalSpendCents: number) {
+  const purchasePriceCents = totalSpendPerCardCents(totalSpendCents, importedCardQuantity(rows))
+
+  if (purchasePriceCents === null) return rows
+
+  return rows.map((row) =>
+    row.status === "exact" ? { ...row, attrs: { ...row.attrs, purchasePriceCents } } : row,
+  )
 }
 
 export function commitImportRow(row: CollectionImportRow) {
