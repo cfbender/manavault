@@ -34,14 +34,23 @@ defmodule Manavault.Catalog.Scryfall.Import do
     source_count = Keyword.get(opts, :source_count) || enumerable_count(cards)
     reconcile? = Keyword.get(opts, :reconcile, false)
     now = import_timestamp(reconcile?)
-    oracle_tag_index = ScryfallOracleTags.build_index(Keyword.get(opts, :oracle_tags, []))
+    oracle_tags = Keyword.get(opts, :oracle_tags, [])
+    oracle_tag_index = ScryfallOracleTags.build_index(oracle_tags)
+    replace_oracle_tag_fields? = oracle_tags != :skip
 
     log_import_started(log_progress?, source_count)
 
     result =
       try do
         with {:ok, counts} <-
-               import_card_batches(cards, now, oracle_tag_index, source_count, log_progress?),
+               import_card_batches(
+                 cards,
+                 now,
+                 oracle_tag_index,
+                 replace_oracle_tag_fields?,
+                 source_count,
+                 log_progress?
+               ),
              :ok <- maybe_reconcile_printings(reconcile?, now) do
           {:ok,
            %{
@@ -70,7 +79,14 @@ defmodule Manavault.Catalog.Scryfall.Import do
   defp enumerable_count(cards) when is_list(cards), do: length(cards)
   defp enumerable_count(_cards), do: nil
 
-  defp import_card_batches(cards, now, oracle_tag_index, source_count, log_progress?) do
+  defp import_card_batches(
+         cards,
+         now,
+         oracle_tag_index,
+         replace_oracle_tag_fields?,
+         source_count,
+         log_progress?
+       ) do
     cards
     |> Enum.chunk_every(@batch_size)
     |> Enum.reduce_while({:ok, initial_import_counts()}, fn batch, {:ok, counts} ->
@@ -79,7 +95,7 @@ defmodule Manavault.Catalog.Scryfall.Import do
         |> Enum.reject(&excluded_set_type?/1)
         |> ImportRows.rows(now, oracle_tag_index)
 
-      case import_batch(rows) do
+      case import_batch(rows, replace_oracle_tag_fields?) do
         {:ok, :imported} ->
           counts =
             counts
@@ -99,10 +115,10 @@ defmodule Manavault.Catalog.Scryfall.Import do
 
   defp excluded_set_type?(_card), do: false
 
-  defp import_batch(rows) do
+  defp import_batch(rows, replace_oracle_tag_fields?) do
     Repo.transact(
       fn ->
-        insert_card_rows(rows.cards)
+        insert_card_rows(rows.cards, replace_oracle_tag_fields?)
         insert_printing_rows(rows.printings)
         refresh_printing_search_rows(rows.search_rows)
         {:ok, :imported}
@@ -131,29 +147,33 @@ defmodule Manavault.Catalog.Scryfall.Import do
     }
   end
 
-  defp insert_card_rows(rows) do
+  defp insert_card_rows(rows, replace_oracle_tag_fields?) do
+    replace_fields = [
+      :name,
+      :normalized_name,
+      :type_line,
+      :oracle_text,
+      :mana_cost,
+      :cmc,
+      :colors,
+      :color_identity,
+      :legalities,
+      :game_changer,
+      :edhrec_rank,
+      :rulings_uri,
+      :updated_at
+    ]
+
+    replace_fields =
+      if replace_oracle_tag_fields? do
+        replace_fields ++ [:oracle_tags, :deck_category, :deck_themes]
+      else
+        replace_fields
+      end
+
     insert_in_batches(Card, rows,
       conflict_target: [:oracle_id],
-      on_conflict:
-        {:replace,
-         [
-           :name,
-           :normalized_name,
-           :type_line,
-           :oracle_text,
-           :mana_cost,
-           :cmc,
-           :colors,
-           :color_identity,
-           :legalities,
-           :game_changer,
-           :edhrec_rank,
-           :oracle_tags,
-           :deck_category,
-           :deck_themes,
-           :rulings_uri,
-           :updated_at
-         ]}
+      on_conflict: {:replace, replace_fields}
     )
   end
 

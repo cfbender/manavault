@@ -54,6 +54,27 @@ defmodule ManavaultWeb.Schema.Catalog.CardTypes do
     field :status, non_null(:string)
   end
 
+  object :card_edhrec do
+    field :url, non_null(:string)
+    field :sections, non_null(list_of(non_null(:card_edhrec_section)))
+  end
+
+  object :card_edhrec_section do
+    field :header, non_null(:string)
+    field :tag, :string
+    field :cards, non_null(list_of(non_null(:card_edhrec_entry)))
+  end
+
+  object :card_edhrec_entry do
+    field :name, non_null(:string)
+    field :scryfall_id, :id
+    field :lift, :float
+    field :num_decks, :integer
+    field :potential_decks, :integer
+    field :url, non_null(:string)
+    field :card, :card
+  end
+
   node object(:card, id_fetcher: &ManavaultWeb.Schema.Catalog.CardTypes.card_node_id/2) do
     field :oracle_id, non_null(:id)
     field :name, non_null(:string)

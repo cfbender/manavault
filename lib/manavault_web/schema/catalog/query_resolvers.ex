@@ -45,6 +45,8 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
     end
   end
 
+  def card_edhrec(_parent, %{name: name}, _resolution), do: Catalog.card_edhrec(name)
+
   def reload_scryfall_catalog(_parent, _args, _resolution) do
     case Catalog.reload_scryfall_catalog_async() do
       :ok ->

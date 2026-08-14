@@ -34,6 +34,11 @@ defmodule ManavaultWeb.Schema.Catalog.CardOperations do
       arg(:id, non_null(:id))
       resolve(&QueryResolvers.card/3)
     end
+
+    field :card_edhrec, non_null(:card_edhrec) do
+      arg(:name, non_null(:string))
+      resolve(&QueryResolvers.card_edhrec/3)
+    end
   end
 
   object :card_mutations do

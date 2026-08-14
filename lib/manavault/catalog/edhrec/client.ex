@@ -3,6 +3,7 @@ defmodule Manavault.Catalog.EDHRec.Client do
 
   @recs_url "https://edhrec.com/api/recs"
   @commander_page_base_url "https://json.edhrec.com/pages/commanders"
+  @card_page_base_url "https://json.edhrec.com/pages/cards"
   @headers [
     {"accept", "application/json"},
     {"content-type", "application/json"},
@@ -33,6 +34,22 @@ defmodule Manavault.Catalog.EDHRec.Client do
       |> Enum.join("/")
 
     get_commander_page("#{@commander_page_base_url}/#{path}.json", _follow_redirect? = true)
+  end
+
+  def fetch_card_page(name) when is_binary(name) do
+    case Req.get("#{@card_page_base_url}/#{card_slug(name)}.json",
+           headers: [{"accept", "application/json"}],
+           receive_timeout: 20_000
+         ) do
+      {:ok, %{status: status, body: body}} when status in 200..299 ->
+        decode_response_body(body)
+
+      {:ok, %{status: status}} ->
+        {:error, {:edhrec_card_http_error, status}}
+
+      {:error, exception} ->
+        {:error, {:edhrec_card_request_failed, Exception.message(exception)}}
+    end
   end
 
   defp get_commander_page(url, follow_redirect?) do

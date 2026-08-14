@@ -386,6 +386,55 @@ defmodule Manavault.Catalog.SyncTest do
     assert "ramp" in Jason.decode!(themes_json)
   end
 
+  test "sync_scryfall succeeds and preserves existing tags when oracle-tags data is invalid" do
+    assert {:ok, _counts} =
+             Catalog.import_cards([@black_lotus],
+               oracle_tags: [
+                 scryfall_tag(%{
+                   "id" => "tag-ramp",
+                   "slug" => "ramp",
+                   "label" => "Ramp",
+                   "type" => "function",
+                   "taggings" => [%{"oracle_id" => "oracle-1", "weight" => 0.88}]
+                 })
+               ]
+             )
+
+    metadata_url = "https://example.test/invalid-oracle-tags-metadata"
+    download_url = "https://example.test/invalid-oracle-tags-default-cards.jsonl.gz"
+    oracle_tags_metadata_url = "https://example.test/invalid-oracle-tags"
+    oracle_tags_download_url = "https://example.test/invalid-oracle-tags.jsonl.gz"
+
+    fetcher = fn
+      ^metadata_url ->
+        {:ok, Jason.encode!(%{"jsonl_download_uri" => download_url})}
+
+      ^download_url ->
+        {:ok, gzip_jsonl([@black_lotus])}
+
+      ^oracle_tags_metadata_url ->
+        {:ok, Jason.encode!(%{"jsonl_download_uri" => oracle_tags_download_url})}
+
+      ^oracle_tags_download_url ->
+        {:ok, gzip_jsonl_lines(["<!DOCTYPE html>"])}
+    end
+
+    assert {:ok, %Sync{status: "succeeded", error: nil}} =
+             Catalog.sync_scryfall(
+               fetcher: fetcher,
+               bulk_url: metadata_url,
+               oracle_tags_bulk_url: oracle_tags_metadata_url,
+               saltiness_url: nil,
+               commander_ranks_url: nil
+             )
+
+    assert %Card{deck_category: "ramp", oracle_tags: tags_json, deck_themes: themes_json} =
+             Repo.get!(Card, @black_lotus["oracle_id"])
+
+    assert [%{"slug" => "ramp"}] = Enum.map(Jason.decode!(tags_json), &Map.take(&1, ["slug"]))
+    assert "ramp" in Jason.decode!(themes_json)
+  end
+
   test "sync_scryfall imports nullable EDHREC saltiness by Scryfall oracle ID" do
     metadata_url = "https://example.test/saltiness-metadata"
     download_url = "https://example.test/saltiness-default-cards.jsonl.gz"

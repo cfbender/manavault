@@ -156,6 +156,7 @@ defmodule Manavault.Catalog do
   defdelegate export_decklist(deck), to: Decks
   defdelegate deck_buylist(deck, opts \\ []), to: Decks
   defdelegate deck_edhrec(deck, opts \\ []), to: Decks
+  defdelegate card_edhrec(name, opts \\ []), to: Manavault.Catalog.EDHRec, as: :card_page
   defdelegate export_deck_buylist(deck, format, opts \\ []), to: Decks
   defdelegate deck_stats(deck), to: Decks
 

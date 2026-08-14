@@ -17,6 +17,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "backupSettings",
                "binderList",
                "card",
+               "cardEdhrec",
                "cardNameSuggestions",
                "cards",
                "cloudBackups",
@@ -123,6 +124,8 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
 
     assert type_signature(query_fields["cards"]["type"]) == "CardConnection!"
     assert argument(query_fields["cards"], "q") == {"String", "\"\""}
+    assert type_signature(query_fields["cardEdhrec"]["type"]) == "CardEdhrec!"
+    assert argument(query_fields["cardEdhrec"], "name") == {"String!", nil}
     assert type_signature(query_fields["cardNameSuggestions"]["type"]) == "[String!]!"
     assert argument(query_fields["cardNameSuggestions"], "limit") == {"Int", "5"}
     assert type_signature(query_fields["collectionItemCount"]["type"]) == "Int!"

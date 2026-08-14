@@ -118,15 +118,29 @@ defmodule Manavault.Catalog.Scryfall.Sync do
   defp fetch_oracle_tags(fetcher, oracle_tags_bulk_url, sync) do
     Logger.info("Scryfall catalog sync fetching oracle-tags metadata sync_id=#{sync.id}")
 
-    with {:ok, metadata_body} <- fetcher.(oracle_tags_bulk_url),
-         {:ok, metadata} <- Jason.decode(metadata_body),
-         {:ok, download_uri} <- BulkData.download_uri(metadata),
-         :ok <- log_bulk_download_started(sync, "oracle-tags"),
-         {:ok, bulk_body} <- fetcher.(download_uri),
-         :ok <- log_bulk_downloaded(sync, "oracle-tags", bulk_body),
-         {:ok, tags} <- BulkData.decode_list(bulk_body),
-         :ok <- log_bulk_decoded(sync, "oracle-tags", length(tags)) do
-      {:ok, tags}
+    result =
+      with {:ok, metadata_body} <- fetcher.(oracle_tags_bulk_url),
+           {:ok, metadata} <- Jason.decode(metadata_body),
+           {:ok, download_uri} <- BulkData.download_uri(metadata),
+           :ok <- log_bulk_download_started(sync, "oracle-tags"),
+           {:ok, bulk_body} <- fetcher.(download_uri),
+           :ok <- log_bulk_downloaded(sync, "oracle-tags", bulk_body),
+           {:ok, tags} <- BulkData.decode_list(bulk_body),
+           :ok <- log_bulk_decoded(sync, "oracle-tags", length(tags)) do
+        {:ok, tags}
+      end
+
+    case result do
+      {:ok, tags} ->
+        {:ok, tags}
+
+      {:error, reason} ->
+        Logger.warning(
+          "Scryfall catalog sync preserving existing oracle tags " <>
+            "sync_id=#{sync.id} error=#{format_error(reason)}"
+        )
+
+        {:ok, :skip}
     end
   end
 
