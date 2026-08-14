@@ -92,8 +92,8 @@ export function DeckSaltBadge({ saltSum }: { saltSum: number | null }) {
       title={label}
       className="inline-flex items-center gap-1.5 px-2 font-mono font-bold leading-none"
     >
-      <SaltShakerIcon aria-hidden="true" className="h-3.5 w-3.5" />
-      <span className="tabular-nums leading-none">{saltSum.toFixed(2)}</span>
+      <SaltShakerIcon aria-hidden="true" className="h-3.5 w-3.5 translate-y-px" />
+      <span className="translate-y-px tabular-nums leading-none">{saltSum.toFixed(2)}</span>
     </Badge>
   )
 }
