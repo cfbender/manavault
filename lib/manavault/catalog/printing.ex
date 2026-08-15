@@ -3,6 +3,8 @@ defmodule Manavault.Catalog.Printing do
 
   import Ecto.Changeset
 
+  alias Manavault.Catalog.Search.NameMatch
+
   @primary_key {:scryfall_id, :string, []}
   @foreign_key_type :string
   schema "scryfall_printings" do
@@ -11,6 +13,7 @@ defmodule Manavault.Catalog.Printing do
     field :collector_number, :string
     field :lang, :string
     field :flavor_name, :string
+    field :normalized_flavor_name, :string
     field :flavor_text, :string
     field :rarity, :string
     field :finishes, :string, default: "[]"
@@ -50,6 +53,17 @@ defmodule Manavault.Catalog.Printing do
       :prices,
       :released_at
     ])
+    |> put_normalized_flavor_name()
     |> validate_required([:scryfall_id, :oracle_id, :set_code, :collector_number, :lang])
+  end
+
+  defp put_normalized_flavor_name(changeset) do
+    case get_field(changeset, :flavor_name) do
+      name when is_binary(name) ->
+        put_change(changeset, :normalized_flavor_name, NameMatch.sql_normalize(name))
+
+      _name ->
+        put_change(changeset, :normalized_flavor_name, nil)
+    end
   end
 end

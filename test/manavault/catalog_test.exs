@@ -101,6 +101,27 @@ defmodule Manavault.CatalogTest do
     end
   end
 
+  test "search_cards and search_printings match Scryfall flavor names" do
+    homeward_path =
+      time_walk()
+      |> Map.merge(%{
+        "id" => "scryfall-homeward-path",
+        "oracle_id" => "oracle-homeward-path",
+        "name" => "Homeward Path",
+        "flavor_name" => "Pelican Town",
+        "collector_number" => "1"
+      })
+
+    assert {:ok, _counts} = Catalog.import_cards([homeward_path])
+
+    for query <- ["Pelican Town", ~s("Pelican Town"), ~s(name:"Pelican Town")] do
+      assert [%Card{name: "Homeward Path"}] = Catalog.search_cards(query)
+    end
+
+    assert [%Printing{scryfall_id: "scryfall-homeward-path", card: %Card{name: "Homeward Path"}}] =
+             Catalog.search_printings(name: "Pelican Town")
+  end
+
   test "search_cards sorts by name ascending by default" do
     assert {:ok, _counts} = Catalog.import_cards([time_walk(), black_lotus(), plains()])
 

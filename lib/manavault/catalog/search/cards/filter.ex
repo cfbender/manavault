@@ -41,8 +41,9 @@ defmodule Manavault.Catalog.Search.Cards.Filter do
 
   defp dynamic_for(%ExactName{name: name}) do
     dynamic(
-      [card, _printing],
-      card.normalized_name == ^NameMatch.sql_normalize(name)
+      [card, printing],
+      card.normalized_name == ^NameMatch.sql_normalize(name) or
+        printing.normalized_flavor_name == ^NameMatch.sql_normalize(name)
     )
   end
 

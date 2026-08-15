@@ -120,4 +120,16 @@ defmodule Manavault.Catalog.CardNameSuggestionsTest do
     assert ["Óin the Brave"] = Catalog.suggest_card_names("Óin the Brave")
     assert ["Óin the Brave"] = Catalog.suggest_card_names("Oin the brave")
   end
+
+  test "alternate Scryfall flavor names suggest the canonical card name" do
+    assert {:ok, %{cards_count: 1}} =
+             Catalog.import_cards([
+               card("scryfall-homeward-path", "oracle-homeward-path", "Homeward Path", "13")
+               |> Map.put("flavor_name", "Pelican Town")
+             ])
+
+    CardNameSuggestions.clear_card_name_suggestion_cache()
+
+    assert ["Homeward Path"] = Catalog.suggest_card_names("Pelican Town")
+  end
 end

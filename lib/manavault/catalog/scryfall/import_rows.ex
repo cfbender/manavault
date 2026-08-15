@@ -69,6 +69,8 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
 
   defp printing_row(%{"id" => scryfall_id, "oracle_id" => oracle_id} = card, now)
        when is_binary(scryfall_id) and is_binary(oracle_id) do
+    flavor_name = flavor_name(card)
+
     [
       %{
         scryfall_id: scryfall_id,
@@ -76,7 +78,8 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
         set_code: String.downcase(card["set"] || ""),
         set_name: card["set_name"],
         collector_number: card["collector_number"] || "",
-        flavor_name: flavor_name(card),
+        flavor_name: flavor_name,
+        normalized_flavor_name: normalize_flavor_name(flavor_name),
         flavor_text: flavor_text(card),
         lang: card["lang"] || "en",
         rarity: card["rarity"],
@@ -147,6 +150,9 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
   end
 
   defp flavor_name(_card), do: nil
+
+  defp normalize_flavor_name(name) when is_binary(name), do: NameMatch.sql_normalize(name)
+  defp normalize_flavor_name(_name), do: nil
 
   defp flavor_text(%{"flavor_text" => text}) when is_binary(text), do: text
 

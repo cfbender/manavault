@@ -68,6 +68,28 @@ defmodule Manavault.Catalog.CollectionTest do
     assert Catalog.count_collection_items([]) == 3
   end
 
+  test "collection import matches a card by its Scryfall flavor name" do
+    homeward_path =
+      @time_walk
+      |> Map.merge(%{
+        "id" => "scryfall-homeward-path",
+        "oracle_id" => "oracle-homeward-path",
+        "name" => "Homeward Path",
+        "flavor_name" => "Pelican Town",
+        "set" => "sld",
+        "collector_number" => "1"
+      })
+
+    assert {:ok, %{cards_count: 1, printings_count: 1}} =
+             Catalog.import_cards([homeward_path])
+
+    assert {:ok, preview} =
+             Catalog.preview_collection_import("1 Pelican Town (SLD) 1", format: :txt)
+
+    assert %{exact: 1, ambiguous: 0, unresolved: 0} = preview
+    assert [%{printing: %{card: %Card{name: "Homeward Path"}}}] = preview.rows
+  end
+
   test "collection import defaults to an available finish for the printing" do
     assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@time_walk])
 

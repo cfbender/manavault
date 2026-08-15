@@ -189,6 +189,7 @@ defmodule Manavault.Catalog.Scryfall.Import do
            :collector_number,
            :lang,
            :flavor_name,
+           :normalized_flavor_name,
            :flavor_text,
            :rarity,
            :finishes,

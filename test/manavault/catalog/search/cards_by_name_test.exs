@@ -6,7 +6,7 @@ defmodule Manavault.Catalog.Search.CardsByNameTest do
   alias Manavault.Catalog.Card
   alias Manavault.Catalog.Search.CardsByName
 
-  defp import_card!(oracle_id, name) do
+  defp import_card!(oracle_id, name, attrs \\ %{}) do
     card =
       @time_walk
       |> Map.merge(%{
@@ -15,6 +15,7 @@ defmodule Manavault.Catalog.Search.CardsByNameTest do
         "name" => name,
         "collector_number" => oracle_id
       })
+      |> Map.merge(attrs)
 
     assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([card])
   end
@@ -59,6 +60,17 @@ defmodule Manavault.Catalog.Search.CardsByNameTest do
       import_card!("oracle-fire-ice", "Fire // Ice")
 
       assert %Card{oracle_id: "oracle-fire"} = CardsByName.find("Fire")
+    end
+
+    test "matches a Scryfall flavor name while preferring canonical exact names" do
+      import_card!("oracle-homeward-path", "Homeward Path", %{"flavor_name" => "Pelican Town"})
+
+      assert %Card{oracle_id: "oracle-homeward-path", name: "Homeward Path"} =
+               CardsByName.find("Pelican Town")
+
+      import_card!("oracle-pelican-town", "Pelican Town")
+
+      assert %Card{oracle_id: "oracle-pelican-town"} = CardsByName.find("Pelican Town")
     end
   end
 

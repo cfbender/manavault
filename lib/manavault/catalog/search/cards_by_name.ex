@@ -8,14 +8,15 @@ defmodule Manavault.Catalog.Search.CardsByName do
   semantics cannot drift: names are cleaned of decklist annotations
   (`Decklists.normalize_card_name/1`), then matched case-, diacritic-, and
   apostrophe-insensitively against the persisted, indexed
-  `Card.normalized_name` (`NameMatch.sql_normalize/1`). The front face of a
-  multi-faced card also resolves to its combined catalog name. Exact matches
-  take precedence; otherwise the alphabetically-first card name wins.
+  `Card.normalized_name` and `Printing.normalized_flavor_name`
+  (`NameMatch.sql_normalize/1`). Front faces of multi-faced cards and Scryfall
+  flavor names also resolve to the canonical catalog card. Exact canonical
+  matches take precedence; otherwise the alphabetically-first card name wins.
   """
 
   import Ecto.Query
 
-  alias Manavault.Catalog.{Card, Decklists}
+  alias Manavault.Catalog.{Card, Decklists, Printing}
   alias Manavault.Catalog.Search.NameMatch
   alias Manavault.Repo
 
@@ -44,8 +45,9 @@ defmodule Manavault.Catalog.Search.CardsByName do
 
   @doc """
   Batched lookup: a map of `key/1` => `Card` covering every name in `names`
-  that resolves, including front-face aliases for multi-faced cards. Look
-  entries up with `Map.get(cards, key(name))`.
+  that resolves, including front-face and Scryfall flavor-name aliases. Look
+  entries up with `Map.get(cards, key(name))`. Exact canonical names take
+  precedence over aliases.
   """
   def by_names(names) when is_list(names) do
     keys =
@@ -69,16 +71,29 @@ defmodule Manavault.Catalog.Search.CardsByName do
       |> order_by([card], asc: card.name)
       |> Repo.all()
 
+    flavor_matches =
+      Printing
+      |> where([printing], printing.normalized_flavor_name in ^keys)
+      |> join(:inner, [printing], card in assoc(printing, :card))
+      |> order_by([_printing, card], asc: card.name)
+      |> select([printing, card], {printing.normalized_flavor_name, card})
+      |> Repo.all()
+
     exact_matches =
       Enum.reduce(cards, %{}, fn card, matches ->
         Map.put_new(matches, card.normalized_name, card)
       end)
 
-    Enum.reduce(cards, exact_matches, fn card, matches ->
-      case front_face_key(card.normalized_name) do
-        nil -> matches
-        front_face_key -> Map.put_new(matches, front_face_key, card)
-      end
+    front_face_matches =
+      Enum.reduce(cards, exact_matches, fn card, matches ->
+        case front_face_key(card.normalized_name) do
+          nil -> matches
+          front_face_key -> Map.put_new(matches, front_face_key, card)
+        end
+      end)
+
+    Enum.reduce(flavor_matches, front_face_matches, fn {flavor_name, card}, matches ->
+      Map.put_new(matches, flavor_name, card)
     end)
   end
 

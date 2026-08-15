@@ -13,9 +13,9 @@ defmodule Manavault.Catalog.Search.NameMatch do
 
   Matching is case-insensitive, diacritic-insensitive, and
   apostrophe-insensitive on both sides. SQL filters compare against the
-  persisted `Card.normalized_name`, which is produced by `sql_normalize/1`;
-  other punctuation stays literal so term-side normalization follows the
-  same rules.
+  persisted `Card.normalized_name` and `Printing.normalized_flavor_name`,
+  which are produced by `sql_normalize/1`; other punctuation stays literal so
+  term-side normalization follows the same rules.
   """
 
   # Tokens with no discriminative weight of their own: "Mask of Memory" must
