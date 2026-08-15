@@ -647,13 +647,15 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
       />
       <ConfirmDialog
         destructive
-        confirmLabel="Delete location"
+        confirmLabel={deletingLocation?.kind === "list" ? "Delete list" : "Delete location"}
         open={Boolean(deletingLocation)}
         title={deletingLocation ? `Delete ${deletingLocation.name}?` : "Delete location?"}
         onConfirm={deleteSelectedLocation}
         onOpenChange={(open) => !open && setDeletingLocation(null)}
       >
-        Cards in this location will become unfiled.
+        {deletingLocation?.kind === "list"
+          ? "Cards in this list will be deleted."
+          : "Cards in this location will become unfiled."}
       </ConfirmDialog>
       <AutoSortSetupDialog open={isAutoSortSetupOpen} onOpenChange={setIsAutoSortSetupOpen} />
       <AutoSortSummaryDialog

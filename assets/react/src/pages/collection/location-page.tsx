@@ -431,13 +431,15 @@ export function LocationPage({ id }: { id: string }) {
       />
       <ConfirmDialog
         destructive
-        confirmLabel="Delete location"
+        confirmLabel={location.kind === "list" ? "Delete list" : "Delete location"}
         open={isDeleteLocationOpen}
         title={`Delete ${location.name}?`}
         onConfirm={deleteCurrentLocation}
         onOpenChange={setIsDeleteLocationOpen}
       >
-        Cards in this location will become unfiled.
+        {location.kind === "list"
+          ? "Cards in this list will be deleted."
+          : "Cards in this location will become unfiled."}
       </ConfirmDialog>
       <AddCollectionItemToDeckDialog
         item={bulkDeckTarget}
