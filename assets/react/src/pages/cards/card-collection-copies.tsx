@@ -42,6 +42,15 @@ function itemSummaryParts(item: CardCollectionItem) {
   ].filter(present)
 }
 
+function itemLocationLabel(item: CardCollectionItem) {
+  const location = item.location?.name || "Unfiled"
+  const decks = item.allocationDecks.map(({ deck, quantity }) =>
+    quantity > 1 ? `${deck.name} ×${quantity}` : deck.name,
+  )
+
+  return decks.length ? `In ${decks.join(", ")} (otherwise ${location})` : location
+}
+
 export function CardCollectionCopiesPanel({ cardId }: { cardId: string }) {
   const client = useApolloClient()
   const [editItem, setEditItem] = useState<CollectionItem | null>(null)
@@ -97,7 +106,7 @@ export function CardCollectionCopiesPanel({ cardId }: { cardId: string }) {
                 </div>
                 <p className="text-sm text-base-content/70">{itemSummaryParts(item).join(" · ")}</p>
                 <p className="text-xs text-base-content/55">
-                  {item.location?.name || "Unfiled"}
+                  {itemLocationLabel(item)}
                   {item.priceText ? ` · Current ${item.priceText}` : ""}
                   {item.purchasePriceText ? ` · Paid ${item.purchasePriceText}` : ""}
                 </p>
