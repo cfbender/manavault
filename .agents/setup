@@ -110,6 +110,30 @@ export LC_ALL=C.UTF-8
 EOF
 fi
 
+amp_settings="$HOME/.config/amp/settings.json"
+mkdir -p "$(dirname "$amp_settings")"
+python3 - "$amp_settings" <<'PY'
+import json
+import os
+import sys
+import tempfile
+
+path = sys.argv[1]
+try:
+    with open(path, encoding="utf-8") as settings_file:
+        settings = json.load(settings_file)
+except FileNotFoundError:
+    settings = {}
+
+settings["amp.git.commit.ampThread.enabled"] = False
+directory = os.path.dirname(path)
+with tempfile.NamedTemporaryFile("w", dir=directory, delete=False, encoding="utf-8") as output:
+    json.dump(settings, output, indent=2)
+    output.write("\n")
+    temporary_path = output.name
+os.replace(temporary_path, path)
+PY
+
 amp_guidance="$HOME/.config/amp/AGENTS.md"
 amp_guidance_marker="# manavault mise command guidance"
 mkdir -p "$(dirname "$amp_guidance")"
