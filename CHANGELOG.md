@@ -8,6 +8,84 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [1.3.0] - 2026-08-17
+
+### Bug Fixes
+
+- Harden public share GraphQL ([`e0c16847`](../../commit/e0c168476acdd2b7669a97978c3ffe4c3f224a33))
+- Harden remote sharing boundaries ([`9d6e7080`](../../commit/9d6e708043eedd869f24f0da2a6eed50c0380636))
+- **home:** Keep search suggestions above action cards ([`3e63811e`](../../commit/3e63811e4c5a6a23f3a06420f6b6f607506721c5))
+- Group collection cards by printing ([`56810137`](../../commit/568101370d51031d6e835ff5460aafbb378f3333))
+- Improve liquid glass dropdown readability ([`c5ce00d0`](../../commit/c5ce00d09ba07f680118df70e09ac5b76a317898))
+- **collection:** Prevent card interactions while scrolling ([`35c0349a`](../../commit/35c0349ace5c94d707fdf1e36fbba22571a6ef61))
+- **ui:** Contain dialogs and preserve binder scroll ([`ce302faa`](../../commit/ce302faacfb835a64d4f15a3bc0dd99b7fb73f2e))
+- **ui:** Keep sort menus within viewport ([`3f507b10`](../../commit/3f507b10b46bdd2f47d0084bf4d0e74653098d10))
+- Normalize card names and scroll deck picker ([`42ff0e5a`](../../commit/42ff0e5aedce2c8208b93d202232a1401d11c29f))
+- Resolve MDFCs by front-face name ([`3455b3c6`](../../commit/3455b3c65685746a4bc78ea05cafba6924f8bee3))
+- Group Scryfall replacement clauses ([`7cd8160f`](../../commit/7cd8160f3f061ea800ca646fa8a8d69f022f638d))
+- **cards:** Correct card actions and deck options ([`44bf6347`](../../commit/44bf6347331b14f7839b4191517695cd63a87d33))
+- **catalog:** Exclude non-card Scryfall printings ([`490eddb3`](../../commit/490eddb398b7f5b4d589c688e6fec8595e3684d5))
+- **decks:** Allow deleting archived decks ([`bdf5a108`](../../commit/bdf5a1085f9fc305692d82c8ca10c9c2549d5c89))
+- **decks:** Use server commander color identity in deck header and stop clipping mana symbols ([`db76da78`](../../commit/db76da782b1158194d3b1d437d8253ee5f803ea6))
+- **catalog:** Remove cards without printings ([`55750677`](../../commit/5575067757f1a4496b57f47bdfbc79e238bbb63d))
+- **collection:** Repair auto-sort card previews ([`bb24f651`](../../commit/bb24f65170f548d8a4802205994cb6dc1399df2b))
+- **collection:** Use market prices for filters and sorting ([`004fe4fd`](../../commit/004fe4fd67ae4856fb23c092185a8dfa2eae0a65))
+- **pricing:** Prioritize ManaPool card conditions ([`bc0db0ad`](../../commit/bc0db0ad12a8d0fa1257a139c917086d411a3e02))
+- **collection:** Prevent value rankings mobile overflow ([`5e647d23`](../../commit/5e647d23c0ba46913ba2f3abb3aeb7836841098a))
+- **pricing:** Use vendor market prices ([`10e3df28`](../../commit/10e3df28c80d9f68e7025ea2b31bdb249cffc4c6))
+- **web:** Repair shared decks and page titles ([`bf18d8c9`](../../commit/bf18d8c9d48196e54baf1f37b0bebbde34e938f9))
+- **web:** Use available logo asset on login ([`8a8b1fb9`](../../commit/8a8b1fb91364c17cd5b1dc4c441616b8f6f114f0))
+- **pricing:** Handle special treatment values ([`05eb973e`](../../commit/05eb973e8917eb1bc08095b5932e4f5a595ed42a))
+- **ui:** Hide background scrollbar behind dialogs ([`e395cc29`](../../commit/e395cc2925bd8292992a3d80d45fb31e694ae46b))
+- **ui:** Fix card menu layering and hover clarity ([`f5d7ebfb`](../../commit/f5d7ebfb958dbf843737ab5048d1fe142ac60e0f))
+- **ui:** Reset scroll after navigation ([`58fbdab6`](../../commit/58fbdab64d6a25fec5674ed5ff8af0fbfc2597ab))
+- **decks:** Align salt score badge content ([`89fa2df0`](../../commit/89fa2df0d3b63e423ed4a38da4893a5e43497314))
+- **collection:** Delete cards with lists ([`a83e1386`](../../commit/a83e1386c4d0e51d027e36c881993bf1aa09d028))
+- **catalog:** Resolve alternate card names ([`68f39707`](../../commit/68f39707724464cabf131d3f365e576a394c9696))
+- Prevent sell list import stalls ([`f07d4a60`](../../commit/f07d4a60c84d01e337bcc780882ac87d8bc89e76))
+- Prevent duplicate page scrollbar ([`45bf9a45`](../../commit/45bf9a458fd43150e1dc89329f2616a43a41bbcd))
+
+### Chores
+
+- Configure Amp orb lifecycle ([`e1869686`](../../commit/e186968637502d3ed5e99943689d19bfa36c5cad))
+- **orb:** Harden first-time setup ([`b57f8c51`](../../commit/b57f8c51ceda731076076e7492d8e3812382b0a9))
+- Persist workflow and portal configuration ([`789a6132`](../../commit/789a6132cec7f417ba323c1e9157ad016b756e17))
+- Optimize orb setup and update dependencies ([`fb6fdb86`](../../commit/fb6fdb8608bed31a73b72747cb6f1eaf10e481af))
+- Disable Amp commit thread trailers ([`37270cb6`](../../commit/37270cb6ac43e5585ee3371d20471b59d4bfcf45))
+
+### Features
+
+- Share trade lists ([`9c35a3d1`](../../commit/9c35a3d1dc911f31746cca1fcf138e4bcae5be71))
+- Add Liquid Glass interface style with settings selector ([`a9b40c48`](../../commit/a9b40c48f1363b1ac28dd9f4f7bea175fa355574))
+- Allow changing collection item printings ([`57ecadcc`](../../commit/57ecadcc653ac5f1e89e06bf2e6ff3699a68f49a))
+- Track trade binder quantities ([`88f8b515`](../../commit/88f8b5159f449a1e1b4802f9b9b492dacc9f525d))
+- **trade:** Add binder sorting and filters ([`c5377218`](../../commit/c5377218247e1955873e97a7b63b436c72b21646))
+- Sync paper cards and EDHREC ranks ([`d5608953`](../../commit/d560895335fdbb65fe60f583f6feb48cfda35c1f))
+- **decks:** Add EDHREC cut actions ([`e4e39e49`](../../commit/e4e39e494b690dde7c9ddf8afb4ea59ddf82d629))
+- **decks:** Support commander pairings for partners, companions, and backgrounds ([`1ff207ea`](../../commit/1ff207ea3a9e034128639711a44074550cd9b7ef))
+- **pricing:** Add multi-vendor pricing engine with selectable price source ([`763d8961`](../../commit/763d8961345209d07332ed9499a69cecacacf88e))
+- Add selectable deck cover cards ([`88721e41`](../../commit/88721e41929d50b0ead3205d7806c389c7b34c24))
+- **collection:** Add value dashboard ([`188a333c`](../../commit/188a333c28d0ca03c3a7b2fe8543c4e89b765e53))
+- **collection:** Add deck availability checker ([`92fc7af8`](../../commit/92fc7af85a5cfa058d5a5017d3dc7e4a1e71d941))
+- **collection:** Add value position actions ([`560987f8`](../../commit/560987f81675e1d4c2326eadef5b5612382e63ec))
+- **ui:** Default to liquid glass theme ([`7a01fe94`](../../commit/7a01fe9497a88bdd0757f96f4a851c0b2da2d60a))
+- Add deck primer ([`d808ea6a`](../../commit/d808ea6a0f1027018fff2a5b16f39899a1eed2f5))
+- Add EDHREC salt scoring ([`2e68c580`](../../commit/2e68c580496460dc4e66e9cd4628dc7aa7f7178d))
+- **decks:** Group cards by salt score ([`18876e97`](../../commit/18876e978a60717dc00abf1774dcc3492caaeda1))
+- **collection:** Support total spend on import ([`5f7d6065`](../../commit/5f7d606563689ac32c4518ca9a5ea515f0c7ddef))
+- **cards:** Add EDHREC synergy panel ([`a4d5b1cb`](../../commit/a4d5b1cb5269c65e8285d40e93649ceec632591c))
+- Show deck allocations on card copies ([`40484f15`](../../commit/40484f15eefebe1859fbc9bd8508078c19105436))
+
+### Miscellaneous
+
+- Add share link revocation and rotation ([`6931509f`](../../commit/6931509f413ab6ecafc453ae4228120368a8c194))
+- Bound remote ManaVault import resources ([`a4f6dd20`](../../commit/a4f6dd2085c4a3a0805b7dd065b85f05365a7913))
+
+### Refactoring
+
+- Consolidate duplicated backend behavior into single owners ([`f1ed500a`](../../commit/f1ed500a1f449e649357285fdf6b1bef207b5179))
+- **frontend:** Standardize UI components on Radix primitives ([`4f71099c`](../../commit/4f71099c8ddf30813824fa74c77367eb2e9e95f9))
+
 ## [1.2.0] - 2026-08-03
 
 ### Bug Fixes
