@@ -11,6 +11,8 @@ defmodule ManavaultWeb.AppControllerTest do
 
     assert response =~ ~s(id="manavault-root")
     assert response =~ ~s(data-theme-style="glass")
+    assert response =~ ~s(<html lang="en" class="h-screen w-screen overflow-hidden")
+    assert response =~ ~s(<body class="h-screen w-screen overflow-hidden">)
   end
 
   test "GET /collection/locations/:id serves the React mount", %{conn: conn} do

@@ -102,7 +102,7 @@ defmodule ManavaultWeb.AppController do
 
     """
     <!DOCTYPE html>
-    <html lang="en" class="h-screen w-screen" data-theme-style="glass">
+    <html lang="en" class="h-screen w-screen overflow-hidden" data-theme-style="glass">
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -209,7 +209,7 @@ defmodule ManavaultWeb.AppController do
           })();
         </script>
       </head>
-      <body class="h-screen w-screen overflow-x-hidden">
+      <body class="h-screen w-screen overflow-hidden">
         <div id="manavault-root"></div>
       </body>
     </html>
