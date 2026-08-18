@@ -7,7 +7,8 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries do
   alias Manavault.Catalog.CollectionItem
   alias Manavault.Repo
 
-  import Manavault.Catalog.PriceFragments, only: [price_value_fragment: 2]
+  import Manavault.Catalog.PriceFragments,
+    only: [price_value_fragment: 2, price_cents_fragment: 2, value_gain_cents_fragment: 2]
 
   @default_sort %{field: "name", direction: "asc"}
 
@@ -202,6 +203,20 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries do
           asc: item.scryfall_id
         )
 
+      {"value_gain", "desc"} ->
+        order_by(query, [item, printing, card, _location],
+          desc: sum(item.quantity * value_gain_cents_fragment(item, printing)),
+          asc: card.name,
+          asc: item.scryfall_id
+        )
+
+      {"value_gain", _direction} ->
+        order_by(query, [item, printing, card, _location],
+          asc: sum(item.quantity * value_gain_cents_fragment(item, printing)),
+          asc: card.name,
+          asc: item.scryfall_id
+        )
+
       {"added", "desc"} ->
         order_by(query, [item, _printing, card, _location],
           desc: max(item.inserted_at),
@@ -310,6 +325,20 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries do
           asc: item.id
         )
 
+      {"value_gain", "desc"} ->
+        order_by(query, [item, printing, card, _location],
+          desc: value_gain_cents_fragment(item, printing),
+          asc: card.name,
+          asc: item.id
+        )
+
+      {"value_gain", _direction} ->
+        order_by(query, [item, printing, card, _location],
+          asc: value_gain_cents_fragment(item, printing),
+          asc: card.name,
+          asc: item.id
+        )
+
       {"added", "desc"} ->
         order_by(query, [item, printing, card, _location],
           desc: item.inserted_at,
@@ -360,7 +389,7 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries do
   defp normalize_sort_field(value) do
     value = value |> to_string() |> String.trim() |> String.downcase()
 
-    if value in ["quantity", "name", "set", "rarity", "price", "added"] do
+    if value in ["quantity", "name", "set", "rarity", "price", "value_gain", "added"] do
       value
     else
       @default_sort.field

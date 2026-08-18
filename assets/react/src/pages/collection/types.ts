@@ -27,7 +27,14 @@ export type CollectionItemGroup = ConnectionNode<
 export type CollectionItem = CollectionItemGroup["items"][number]
 
 export type CollectionTab = "locations" | "all" | "recent" | "available" | "unfiled" | "value"
-export type CollectionSortField = "quantity" | "name" | "set" | "rarity" | "price" | "added"
+export type CollectionSortField =
+  | "quantity"
+  | "name"
+  | "set"
+  | "rarity"
+  | "price"
+  | "value_gain"
+  | "added"
 export type CollectionSortDirection = "asc" | "desc"
 export type CollectionSort = {
   field: CollectionSortField

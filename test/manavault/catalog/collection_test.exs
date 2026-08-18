@@ -617,7 +617,7 @@ defmodule Manavault.Catalog.CollectionTest do
     assert walk_card.oracle_id == "oracle-2"
   end
 
-  test "collection item sorting supports card quantity, price, and added date" do
+  test "collection item sorting supports quantity, price, value gain, and added date" do
     time_walk = Map.put(@time_walk, "prices", %{"usd_foil" => "5.00"})
 
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
@@ -629,7 +629,8 @@ defmodule Manavault.Catalog.CollectionTest do
                "quantity" => "1",
                "condition" => "near_mint",
                "language" => "en",
-               "finish" => "nonfoil"
+               "finish" => "nonfoil",
+               "purchase_price_cents" => 11_000_000
              })
 
     assert {:ok, walk} =
@@ -638,7 +639,8 @@ defmodule Manavault.Catalog.CollectionTest do
                "quantity" => "3",
                "condition" => "near_mint",
                "language" => "ja",
-               "finish" => "foil"
+               "finish" => "foil",
+               "purchase_price_cents" => 100
              })
 
     Repo.update_all(from(item in CollectionItem, where: item.id == ^lotus.id),
@@ -659,6 +661,30 @@ defmodule Manavault.Catalog.CollectionTest do
 
     assert [lotus.id, walk.id] ==
              Catalog.list_collection_items([], sort: %{field: "price", direction: "desc"})
+             |> Enum.map(& &1.id)
+
+    assert [lotus.id, walk.id] ==
+             Catalog.list_collection_items([], sort: %{field: "value_gain", direction: "asc"})
+             |> Enum.map(& &1.id)
+
+    assert [walk.id, lotus.id] ==
+             Catalog.list_collection_items([], sort: %{field: "value_gain", direction: "desc"})
+             |> Enum.map(& &1.id)
+
+    assert [lotus.id, walk.id] ==
+             Catalog.list_collection_item_groups(
+               [],
+               sort: %{field: "value_gain", direction: "asc"}
+             )
+             |> Enum.flat_map(& &1.items)
+             |> Enum.map(& &1.id)
+
+    assert [walk.id, lotus.id] ==
+             Catalog.list_collection_item_groups(
+               [],
+               sort: %{field: "value_gain", direction: "desc"}
+             )
+             |> Enum.flat_map(& &1.items)
              |> Enum.map(& &1.id)
 
     assert [lotus.id, walk.id] ==

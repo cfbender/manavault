@@ -120,6 +120,18 @@ defmodule Manavault.Catalog.PriceFragments do
     end
   end
 
+  @doc "Current price minus purchase basis in integer cents."
+  defmacro value_gain_cents_fragment(item, printing) do
+    quote do
+      fragment(
+        "? - COALESCE(?, ?)",
+        price_cents_fragment(unquote(item), unquote(printing)),
+        unquote(item).purchase_price_cents,
+        price_cents_fragment(unquote(item), unquote(printing))
+      )
+    end
+  end
+
   @doc "SUM of quantity * current price cents across grouped rows."
   defmacro current_total_cents_fragment(item, printing) do
     quote do
