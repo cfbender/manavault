@@ -24,6 +24,11 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       resolve(&QueryResolvers.deck/3)
     end
 
+    field :deck_question_answers, non_null(list_of(non_null(:deck_question_answer))) do
+      arg(:deck_id, non_null(:id))
+      resolve(&QueryResolvers.deck_question_answers/3)
+    end
+
     field :shared_deck, :deck do
       arg(:token, non_null(:string))
       resolve(&QueryResolvers.shared_deck/3)
@@ -107,10 +112,35 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
 
       output do
         field :answer, non_null(:string)
+        field :question_answer, non_null(:deck_question_answer)
       end
 
       resolve(fn parent, args, resolution ->
-        payload(parent, args, resolution, &MutationResolvers.ask_deck_question/3, :answer)
+        payload(
+          parent,
+          args,
+          resolution,
+          &MutationResolvers.ask_deck_question/3,
+          :question_answer
+        )
+      end)
+    end
+
+    payload field :delete_deck_question_answer do
+      arg(:id, non_null(:id))
+
+      output do
+        field :question_answer_id, non_null(:id)
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &MutationResolvers.delete_deck_question_answer/3,
+          :question_answer_id
+        )
       end)
     end
 

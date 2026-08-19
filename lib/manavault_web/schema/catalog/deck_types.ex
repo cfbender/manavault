@@ -55,6 +55,16 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :position, non_null(:integer)
   end
 
+  object :deck_question_answer do
+    field :id, non_null(:id)
+    field :question, non_null(:string)
+    field :answer, non_null(:string)
+
+    field :inserted_at, non_null(:string) do
+      resolve(&DeckFields.deck_question_answer_inserted_at/3)
+    end
+  end
+
   node object(:deck) do
     field :name, non_null(:string)
     field :format, non_null(:string)

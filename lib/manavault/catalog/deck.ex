@@ -26,6 +26,7 @@ defmodule Manavault.Catalog.Deck do
     has_many :deck_cards, Manavault.Catalog.DeckCard, on_replace: :delete
     has_many :deck_allocations, through: [:deck_cards, :deck_allocations]
     has_many :deck_tags, Manavault.Catalog.DeckTag, on_replace: :delete
+    has_many :question_answers, Manavault.Catalog.DeckQuestionAnswer
 
     timestamps(type: :utc_datetime)
   end

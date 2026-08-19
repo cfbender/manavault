@@ -3,7 +3,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
 
   alias Manavault.AI
   alias Manavault.Catalog
-  alias Manavault.Catalog.{DeckCard, DeckTag}
+  alias Manavault.Catalog.{DeckCard, DeckQuestionAnswer, DeckTag}
   alias Manavault.Repo
   alias ManavaultWeb.Schema.Catalog.Errors
   alias ManavaultWeb.Schema.RelayHelpers
@@ -51,6 +51,33 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
       id
       |> Catalog.get_deck!()
       |> AI.ask_deck_question(question)
+      |> case do
+        {:ok, question_answer} ->
+          {:ok, %{answer: question_answer.answer, question_answer: question_answer}}
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          {:error, Errors.changeset_error_message(changeset)}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  def delete_deck_question_answer(_parent, %{id: id}, _resolution) do
+    with {:ok, id} <- parse_raw_id(id),
+         %DeckQuestionAnswer{} = question_answer <- Catalog.get_deck_question_answer(id),
+         {:ok, question_answer} <- Catalog.delete_deck_question_answer(question_answer) do
+      {:ok, question_answer.id}
+    else
+      nil ->
+        {:error, "Saved question was not found."}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:error, Errors.changeset_error_message(changeset)}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 

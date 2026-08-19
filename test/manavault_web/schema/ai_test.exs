@@ -103,6 +103,7 @@ defmodule ManavaultWeb.Schema.AITest do
         mutation AskDeckQuestion($id: ID!, $question: String!) {
           askDeckQuestion(id: $id, question: $question) {
             answer
+            questionAnswer { id question answer insertedAt }
           }
         }
         """,
@@ -115,10 +116,57 @@ defmodule ManavaultWeb.Schema.AITest do
     assert %{
              "data" => %{
                "askDeckQuestion" => %{
-                 "answer" => "Cut the least synergistic top-end card."
+                 "answer" => "Cut the least synergistic top-end card.",
+                 "questionAnswer" => %{
+                   "id" => question_answer_id,
+                   "question" => "What should I cut for Doubling Season?",
+                   "answer" => "Cut the least synergistic top-end card.",
+                   "insertedAt" => inserted_at
+                 }
                }
              }
            } = json_response(question_conn, 200)
+
+    assert {:ok, _datetime, 0} = DateTime.from_iso8601(inserted_at)
+
+    history_conn =
+      post(recycle(conn), "/api/graphql", %{
+        "query" => """
+        query DeckQuestionAnswers($deckId: ID!) {
+          deckQuestionAnswers(deckId: $deckId) { id question answer insertedAt }
+        }
+        """,
+        "variables" => %{"deckId" => global_deck_id(deck)}
+      })
+
+    assert %{
+             "data" => %{
+               "deckQuestionAnswers" => [
+                 %{
+                   "id" => ^question_answer_id,
+                   "question" => "What should I cut for Doubling Season?"
+                 }
+               ]
+             }
+           } = json_response(history_conn, 200)
+
+    delete_conn =
+      post(recycle(conn), "/api/graphql", %{
+        "query" => """
+        mutation DeleteDeckQuestionAnswer($id: ID!) {
+          deleteDeckQuestionAnswer(id: $id) { questionAnswerId }
+        }
+        """,
+        "variables" => %{"id" => question_answer_id}
+      })
+
+    assert %{
+             "data" => %{
+               "deleteDeckQuestionAnswer" => %{"questionAnswerId" => ^question_answer_id}
+             }
+           } = json_response(delete_conn, 200)
+
+    assert Catalog.list_deck_question_answers(deck) == []
   end
 
   defp openrouter_response(conn) do

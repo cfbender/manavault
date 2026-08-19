@@ -5,6 +5,11 @@ import { afterEach, expect, test, vi } from "vitest"
 
 vi.mock("@apollo/client/react", () => ({
   useMutation: () => [vi.fn(), { loading: false }],
+  useQuery: () => ({
+    data: undefined,
+    loading: false,
+    refetch: vi.fn(),
+  }),
 }))
 
 vi.mock("@tanstack/react-router", () => ({

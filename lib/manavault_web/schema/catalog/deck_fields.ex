@@ -122,6 +122,10 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
     {:ok, DateTime.to_iso8601(analyzed_at)}
   end
 
+  def deck_question_answer_inserted_at(%{inserted_at: inserted_at}, _args, _resolution) do
+    {:ok, DateTime.to_iso8601(inserted_at)}
+  end
+
   def deck_legality(%Deck{deck_cards: deck_cards} = deck, _args, _resolution)
       when is_list(deck_cards) do
     {:ok, Catalog.deck_legality(deck)}

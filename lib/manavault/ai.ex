@@ -1,5 +1,5 @@
 defmodule Manavault.AI do
-  @moduledoc "AI provider settings, deck analysis, and one-off deck questions."
+  @moduledoc "AI provider settings, deck analysis, and saved deck questions."
 
   import Ecto.Changeset, only: [add_error: 3, apply_changes: 1]
 
@@ -66,7 +66,7 @@ defmodule Manavault.AI do
          {:ok, provider} <- Provider.module(settings.provider),
          payload <- DeckAnalysis.payload(deck, Catalog.deck_cards(deck)),
          {:ok, answer} <- provider.ask_deck_question(settings, payload, question) do
-      {:ok, answer}
+      Catalog.create_deck_question_answer(deck, %{question: question, answer: answer})
     end
   end
 

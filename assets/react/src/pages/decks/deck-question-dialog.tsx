@@ -1,7 +1,9 @@
-import { useMutation } from "@apollo/client/react"
-import { LoaderCircle, Sparkles } from "lucide-react"
-import { useState, type FormEvent } from "react"
+import { useMutation, useQuery } from "@apollo/client/react"
+import { ChevronDown, LoaderCircle, Sparkles, Trash2 } from "lucide-react"
+import { useEffect, useState, type FormEvent, type MouseEvent } from "react"
+import type { DeckQuestionAnswersQuery } from "../../gql/graphql"
 import { Button } from "../../components/ui/button"
+import { ConfirmDialog } from "../../components/ui/confirm-dialog"
 import {
   Dialog,
   DialogClose,
@@ -11,7 +13,18 @@ import {
 } from "../../components/ui/dialog"
 import { Textarea } from "../../components/ui/textarea"
 import { DeckMarkdown } from "./deck-primer"
-import { AskDeckQuestionDocument } from "./queries"
+import {
+  AskDeckQuestionDocument,
+  DeckQuestionAnswersDocument,
+  DeleteDeckQuestionAnswerDocument,
+} from "./queries"
+
+type QuestionAnswer = DeckQuestionAnswersQuery["deckQuestionAnswers"][number]
+
+const questionDateFormatter = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+  timeStyle: "short",
+})
 
 export function DeckQuestionDialog({
   deckId,
@@ -25,9 +38,26 @@ export function DeckQuestionDialog({
   open: boolean
 }) {
   const [question, setQuestion] = useState("")
-  const [answer, setAnswer] = useState<string | null>(null)
+  const [questionAnswers, setQuestionAnswers] = useState<QuestionAnswer[]>([])
+  const [deletingQuestionAnswer, setDeletingQuestionAnswer] = useState<QuestionAnswer | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
+  const questionAnswersQuery = useQuery(DeckQuestionAnswersDocument, {
+    fetchPolicy: "network-only",
+    variables: { deckId },
+    skip: !open,
+  })
   const [askDeckQuestion, questionMutation] = useMutation(AskDeckQuestionDocument)
+  const [deleteDeckQuestionAnswer, deleteMutation] = useMutation(DeleteDeckQuestionAnswerDocument)
+
+  useEffect(() => {
+    setQuestionAnswers([])
+  }, [deckId])
+
+  useEffect(() => {
+    if (questionAnswersQuery.data) {
+      setQuestionAnswers(questionAnswersQuery.data.deckQuestionAnswers)
+    }
+  }, [questionAnswersQuery.data])
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -38,14 +68,36 @@ export function DeckQuestionDialog({
       return
     }
 
-    setAnswer(null)
     setFormError(null)
     void askDeckQuestion({
       variables: { id: deckId, question: trimmedQuestion },
       onCompleted: (data) => {
-        const nextAnswer = data.askDeckQuestion?.answer?.trim()
-        if (nextAnswer) setAnswer(nextAnswer)
-        else setFormError("The AI provider returned an empty answer. Try asking again.")
+        const savedAnswer = data.askDeckQuestion?.questionAnswer
+
+        if (savedAnswer?.answer.trim()) {
+          setQuestionAnswers((current) => [
+            savedAnswer,
+            ...current.filter(({ id }) => id !== savedAnswer.id),
+          ])
+          setQuestion("")
+        } else {
+          setFormError("The AI provider returned an empty answer. Try asking again.")
+        }
+      },
+      onError: (error) => setFormError(error.message),
+    })
+  }
+
+  function deleteSelectedQuestionAnswer() {
+    if (!deletingQuestionAnswer) return
+
+    void deleteDeckQuestionAnswer({
+      variables: { id: deletingQuestionAnswer.id },
+      onCompleted: (data) => {
+        const deletedId = data.deleteDeckQuestionAnswer?.questionAnswerId
+        if (deletedId) {
+          setQuestionAnswers((current) => current.filter(({ id }) => id !== deletedId))
+        }
       },
       onError: (error) => setFormError(error.message),
     })
@@ -90,7 +142,7 @@ export function DeckQuestionDialog({
               />
               <p id="deck-question-help" className="max-w-[65ch] text-xs text-base-content/60">
                 Ask about card fit, possible cuts, matchups, or how a change affects the game plan.
-                Answers use the AI provider configured in Settings and are not saved.
+                Answers use the AI provider configured in Settings and are saved with this deck.
               </p>
             </div>
 
@@ -118,24 +170,147 @@ export function DeckQuestionDialog({
             </div>
           </form>
 
-          {answer ? (
-            <section
-              className="border-t border-base-300 pt-5"
-              aria-labelledby="deck-question-answer-title"
-              aria-live="polite"
-            >
-              <h3
-                id="deck-question-answer-title"
-                className="mb-4 flex items-center gap-2 text-lg font-black"
-              >
-                <Sparkles className="h-5 w-5 text-warning" aria-hidden="true" />
-                Answer
-              </h3>
-              <DeckMarkdown>{answer}</DeckMarkdown>
-            </section>
-          ) : null}
+          <QuestionHistory
+            deleting={deleteMutation.loading}
+            error={questionAnswersQuery.error?.message}
+            loading={questionAnswersQuery.loading && !questionAnswersQuery.data}
+            questionAnswers={questionAnswers}
+            onDelete={setDeletingQuestionAnswer}
+            onRetry={() => void questionAnswersQuery.refetch()}
+          />
         </div>
       </DialogContent>
+
+      <ConfirmDialog
+        destructive
+        confirmLabel="Delete saved answer"
+        open={deletingQuestionAnswer !== null}
+        title="Delete saved question?"
+        onConfirm={deleteSelectedQuestionAnswer}
+        onOpenChange={(nextOpen) => !nextOpen && setDeletingQuestionAnswer(null)}
+      >
+        This permanently removes this question and its answer from {deckName}.
+      </ConfirmDialog>
     </Dialog>
+  )
+}
+
+function QuestionHistory({
+  deleting,
+  error,
+  loading,
+  onDelete,
+  onRetry,
+  questionAnswers,
+}: {
+  deleting: boolean
+  error?: string
+  loading: boolean
+  onDelete: (questionAnswer: QuestionAnswer) => void
+  onRetry: () => void
+  questionAnswers: QuestionAnswer[]
+}) {
+  return (
+    <section
+      className="border-t border-base-300 pt-5"
+      aria-labelledby="deck-question-history-title"
+    >
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h3 id="deck-question-history-title" className="flex items-center gap-2 text-lg font-black">
+          <Sparkles className="h-5 w-5 text-warning" aria-hidden="true" />
+          Saved questions
+        </h3>
+        {questionAnswers.length ? (
+          <span className="text-xs font-bold text-base-content/55">
+            {questionAnswers.length} saved
+          </span>
+        ) : null}
+      </div>
+
+      {loading ? (
+        <p className="flex items-center gap-2 py-3 text-sm text-base-content/65">
+          <LoaderCircle
+            className="h-4 w-4 animate-spin motion-reduce:animate-none"
+            aria-hidden="true"
+          />
+          Loading saved questions…
+        </p>
+      ) : error ? (
+        <div className="rounded-box border border-error/30 bg-error/10 px-4 py-3 text-sm">
+          <p className="text-error">{error}</p>
+          <Button className="mt-3" size="sm" type="button" variant="outline" onClick={onRetry}>
+            Try again
+          </Button>
+        </div>
+      ) : questionAnswers.length ? (
+        <div className="space-y-2" aria-live="polite">
+          {questionAnswers.map((questionAnswer, index) => (
+            <QuestionHistoryItem
+              deleting={deleting}
+              key={questionAnswer.id}
+              open={index === 0}
+              questionAnswer={questionAnswer}
+              onDelete={onDelete}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="rounded-box border border-dashed border-base-300 px-4 py-4 text-sm text-base-content/60">
+          No saved questions yet. Ask one above to start this deck’s history.
+        </p>
+      )}
+    </section>
+  )
+}
+
+function QuestionHistoryItem({
+  deleting,
+  onDelete,
+  open,
+  questionAnswer,
+}: {
+  deleting: boolean
+  onDelete: (questionAnswer: QuestionAnswer) => void
+  open: boolean
+  questionAnswer: QuestionAnswer
+}) {
+  function requestDelete(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault()
+    event.stopPropagation()
+    onDelete(questionAnswer)
+  }
+
+  return (
+    <details className="group rounded-box border border-base-300 bg-base-100" open={open}>
+      <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0 flex-1">
+          <span className="block break-words font-bold leading-snug">
+            {questionAnswer.question}
+          </span>
+          <time
+            className="mt-1 block text-xs text-base-content/55"
+            dateTime={questionAnswer.insertedAt}
+          >
+            {questionDateFormatter.format(new Date(questionAnswer.insertedAt))}
+          </time>
+        </span>
+        <button
+          aria-label={`Delete saved question: ${questionAnswer.question}`}
+          className="btn btn-ghost btn-square min-h-10 h-10 w-10 shrink-0 text-error"
+          disabled={deleting}
+          type="button"
+          onClick={requestDelete}
+        >
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+        </button>
+        <ChevronDown
+          className="h-4 w-4 shrink-0 text-base-content/55 transition-transform group-open:rotate-180 motion-reduce:transition-none"
+          aria-hidden="true"
+        />
+      </summary>
+      <div className="border-t border-base-300 px-4 py-4">
+        <DeckMarkdown>{questionAnswer.answer}</DeckMarkdown>
+      </div>
+    </details>
   )
 }

@@ -113,6 +113,11 @@ defmodule Manavault.Catalog do
   defdelegate collection_requirement_statuses(deck_cards), to: Decks
   defdelegate put_deck_card_fallback_printings(deck_cards), to: Decks
 
+  defdelegate list_deck_question_answers(deck), to: Decks
+  defdelegate get_deck_question_answer(id), to: Decks
+  defdelegate create_deck_question_answer(deck, attrs), to: Decks
+  defdelegate delete_deck_question_answer(question_answer), to: Decks
+
   defdelegate list_deck_tags(deck), to: Decks
   defdelegate create_deck_tag(deck, attrs), to: Decks
   defdelegate update_deck_tag(deck_tag, attrs), to: Decks

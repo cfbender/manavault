@@ -133,7 +133,7 @@ defmodule Manavault.AITest do
     assert %DateTime{} = persisted.ai_analyzed_at
   end
 
-  test "answers a one-off deck question without changing the saved analysis" do
+  test "saves successful deck questions newest first without changing the analysis" do
     {:ok, _settings} =
       %Settings{id: 1}
       |> Settings.changeset(%{
@@ -162,26 +162,50 @@ defmodule Manavault.AITest do
 
       refute Map.has_key?(request, "response_format")
 
-      assert request |> get_in(["messages", Access.at(1), "content"]) =~
-               "Would Doubling Season be a good fit?"
+      user_prompt = get_in(request, ["messages", Access.at(1), "content"])
 
-      assert request |> get_in(["messages", Access.at(1), "content"]) =~ "Test Commander"
+      assert user_prompt =~ "Test Commander"
+
+      answer =
+        if user_prompt =~ "Return an empty answer" do
+          "   "
+        else
+          "**Probably not yet.** Add more counter-producing cards first."
+        end
 
       json_response(conn, 200, %{
         "choices" => [
           %{
             "message" => %{
-              "content" => "**Probably not yet.** Add more counter-producing cards first."
+              "content" => answer
             }
           }
         ]
       })
     end)
 
-    assert {:ok, answer} =
+    assert {:ok, first_question_answer} =
              AI.ask_deck_question(deck, "  Would Doubling Season be a good fit?  ")
 
-    assert answer == "**Probably not yet.** Add more counter-producing cards first."
+    assert first_question_answer.question == "Would Doubling Season be a good fit?"
+
+    assert first_question_answer.answer ==
+             "**Probably not yet.** Add more counter-producing cards first."
+
+    assert %DateTime{} = first_question_answer.inserted_at
+
+    assert {:ok, second_question_answer} =
+             AI.ask_deck_question(deck, "How should I protect it?")
+
+    assert Enum.map(Catalog.list_deck_question_answers(deck), & &1.id) == [
+             second_question_answer.id,
+             first_question_answer.id
+           ]
+
+    assert {:error, "OpenRouter returned an empty answer."} =
+             AI.ask_deck_question(deck, "Return an empty answer")
+
+    assert length(Catalog.list_deck_question_answers(deck)) == 2
     assert Catalog.get_deck!(deck.id).ai_analysis == nil
   end
 

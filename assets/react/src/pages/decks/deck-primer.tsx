@@ -1,11 +1,16 @@
 import { BookOpen, ChevronDown } from "lucide-react"
 import Markdown from "react-markdown"
+import rehypeKatex from "rehype-katex"
+import remarkMath from "remark-math"
+import "katex/dist/katex.min.css"
 
 export function DeckMarkdown({ children }: { children: string }) {
   return (
     <article className="max-w-[72ch] text-base leading-7 text-base-content/80">
       <Markdown
         skipHtml
+        remarkPlugins={[remarkMath]}
+        rehypePlugins={[rehypeKatex]}
         components={{
           a: ({ children, ...props }) => (
             <a

@@ -177,6 +177,15 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
     end
   end
 
+  def deck_question_answers(_parent, %{deck_id: deck_id}, resolution) do
+    with {:ok, deck_id} <- RelayHelpers.node_id(deck_id, :deck, resolution) do
+      deck_id
+      |> Catalog.get_deck!(preload?: false)
+      |> Catalog.list_deck_question_answers()
+      |> then(&{:ok, &1})
+    end
+  end
+
   def shared_deck(_parent, %{token: token}, _resolution),
     do: {:ok, Catalog.get_deck_by_share_token(token, preload?: false)}
 

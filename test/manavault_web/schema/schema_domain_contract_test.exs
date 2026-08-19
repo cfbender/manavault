@@ -36,6 +36,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "deckBuylistExport",
                "deckEdhrec",
                "deckExportText",
+               "deckQuestionAnswers",
                "decks",
                "defaultDeckTags",
                "homeSummary",
@@ -82,6 +83,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "deleteCollectionItem",
                "deleteDeck",
                "deleteDeckCard",
+               "deleteDeckQuestionAnswer",
                "deleteDeckTag",
                "deleteTradeWant",
                "deleteLocation",
@@ -142,10 +144,16 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
     assert argument(query_fields["deckBuylist"], "assumeNoOwned") == {"Boolean", "false"}
     assert type_signature(query_fields["defaultDeckTags"]["type"]) == "[DefaultDeckTag!]!"
 
+    assert type_signature(query_fields["deckQuestionAnswers"]["type"]) ==
+             "[DeckQuestionAnswer!]!"
+
+    assert argument(query_fields["deckQuestionAnswers"], "deckId") == {"ID!", nil}
+
     assert type_signature(mutation_fields["createCollectionItem"]["type"]) ==
              "CreateCollectionItemPayload"
 
     assert argument(mutation_fields["askDeckQuestion"], "question") == {"String!", nil}
+    assert argument(mutation_fields["deleteDeckQuestionAnswer"], "id") == {"ID!", nil}
 
     assert argument(mutation_fields["createCollectionItem"], "input") ==
              {"CollectionItemInput!", nil}
@@ -174,6 +182,14 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
              }
 
     assert payload_fields(data["allocateDeckCardProxyPayload"]) == %{"deckCard" => "DeckCard"}
+
+    assert payload_fields(data["askDeckQuestionPayload"]) == %{
+             "answer" => "String!",
+             "questionAnswer" => "DeckQuestionAnswer!"
+           }
+
+    assert payload_fields(data["deleteDeckQuestionAnswerPayload"]) ==
+             %{"questionAnswerId" => "ID!"}
 
     assert payload_fields(data["updateBackupSettingsPayload"]) ==
              %{"backupSettings" => "BackupSettings"}
@@ -320,6 +336,12 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
         fields { name type { kind name ofType { kind name ofType { kind name ofType { kind name } } } } }
       }
       allocateDeckCardProxyPayload: __type(name: "AllocateDeckCardProxyPayload") {
+        fields { name type { kind name ofType { kind name ofType { kind name ofType { kind name } } } } }
+      }
+      askDeckQuestionPayload: __type(name: "AskDeckQuestionPayload") {
+        fields { name type { kind name ofType { kind name ofType { kind name ofType { kind name } } } } }
+      }
+      deleteDeckQuestionAnswerPayload: __type(name: "DeleteDeckQuestionAnswerPayload") {
         fields { name type { kind name ofType { kind name ofType { kind name ofType { kind name } } } } }
       }
       updateBackupSettingsPayload: __type(name: "UpdateBackupSettingsPayload") {

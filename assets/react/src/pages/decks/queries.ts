@@ -317,10 +317,35 @@ export const AnalyzeDeckDocument = graphql(`
   }
 `)
 
+export const DeckQuestionAnswersDocument = graphql(`
+  query DeckQuestionAnswers($deckId: ID!) {
+    deckQuestionAnswers(deckId: $deckId) {
+      id
+      question
+      answer
+      insertedAt
+    }
+  }
+`)
+
 export const AskDeckQuestionDocument = graphql(`
   mutation AskDeckQuestion($id: ID!, $question: String!) {
     askDeckQuestion(id: $id, question: $question) {
       answer
+      questionAnswer {
+        id
+        question
+        answer
+        insertedAt
+      }
+    }
+  }
+`)
+
+export const DeleteDeckQuestionAnswerDocument = graphql(`
+  mutation DeleteDeckQuestionAnswer($id: ID!) {
+    deleteDeckQuestionAnswer(id: $id) {
+      questionAnswerId
     }
   }
 `)

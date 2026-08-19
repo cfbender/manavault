@@ -33,6 +33,7 @@ defmodule ManavaultWeb.Schema.Catalog.MutationResolvers do
   defdelegate update_deck(parent, args, resolution), to: DeckMutations
   defdelegate analyze_deck(parent, args, resolution), to: DeckMutations
   defdelegate ask_deck_question(parent, args, resolution), to: DeckMutations
+  defdelegate delete_deck_question_answer(parent, args, resolution), to: DeckMutations
   defdelegate ensure_deck_share_token(parent, args, resolution), to: DeckMutations
   defdelegate disable_deck_sharing(parent, args, resolution), to: DeckMutations
   defdelegate rotate_deck_share_token(parent, args, resolution), to: DeckMutations
