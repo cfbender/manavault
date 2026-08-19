@@ -3,6 +3,8 @@ defmodule Manavault.AI.Providers.OpenRouter do
 
   @behaviour Manavault.AI.Provider
 
+  require Logger
+
   alias Manavault.AI.{DeckAnalysis, DeckQuestion, Settings}
 
   @api_base "https://openrouter.ai/api/v1"
@@ -68,35 +70,44 @@ defmodule Manavault.AI.Providers.OpenRouter do
 
   @impl true
   def ask_deck_question(%Settings{} = settings, payload, question) do
-    request = %{
-      model: settings.model,
-      messages: [
-        %{role: "system", content: DeckQuestion.system_prompt()},
-        %{role: "user", content: DeckQuestion.user_prompt(question, payload)}
-      ],
-      max_completion_tokens: 2_000,
-      temperature: 0.2,
-      response_format: %{
-        type: "json_schema",
-        json_schema: %{
-          name: "manavault_deck_question_answer",
-          strict: true,
-          schema: DeckQuestion.response_schema()
+    request =
+      %{
+        model: settings.model,
+        messages: [
+          %{role: "system", content: DeckQuestion.system_prompt()},
+          %{role: "user", content: DeckQuestion.user_prompt(question, payload)}
+        ],
+        max_tokens: 2_000,
+        temperature: 0.2,
+        plugins: [%{id: "response-healing"}],
+        response_format: %{
+          type: "json_schema",
+          json_schema: %{
+            name: "manavault_deck_question_answer",
+            strict: true,
+            schema: DeckQuestion.response_schema()
+          }
         }
       }
-    }
+      |> put_question_model_options(settings.model)
+
+    started_at = System.monotonic_time(:millisecond)
 
     case Req.post(
            @api_base <> "/chat/completions",
            request_options(settings.api_key, json: request, receive_timeout: 120_000)
          ) do
       {:ok, %Req.Response{status: status, body: body}} when status in 200..299 ->
-        decode_answer(body)
+        result = decode_answer(body)
+        log_completion(result, "deck_question", settings.model, started_at, status, body)
+        result
 
       {:ok, %Req.Response{status: status, body: body}} ->
+        log_completion(:http_error, "deck_question", settings.model, started_at, status, body)
         {:error, response_error(status, body, "OpenRouter could not answer this question.")}
 
       {:error, exception} ->
+        log_request_error("deck_question", settings.model, started_at, exception)
         {:error, request_error(exception, "Could not reach OpenRouter to answer this question.")}
     end
   end
@@ -144,15 +155,96 @@ defmodule Manavault.AI.Providers.OpenRouter do
 
   defp decode_analysis(_body), do: {:error, "OpenRouter returned an incomplete deck analysis."}
 
-  defp decode_answer(%{"choices" => [%{"message" => %{"content" => content}} | _]})
-       when is_binary(content) do
-    case Jason.decode(content) do
-      {:ok, answer} when is_map(answer) -> {:ok, answer}
-      _error -> {:error, "OpenRouter returned an invalid answer."}
+  defp decode_answer(%{"choices" => [choice | _]}) when is_map(choice) do
+    content = get_in(choice, ["message", "content"])
+
+    limited? =
+      Map.get(choice, "finish_reason") == "length" or
+        Map.get(choice, "native_finish_reason") in ["MAX_TOKENS", "max_tokens"]
+
+    cond do
+      not is_binary(content) and limited? ->
+        {:error, "OpenRouter ran out of output tokens before finishing the answer."}
+
+      not is_binary(content) ->
+        {:error, "OpenRouter returned an incomplete answer."}
+
+      true ->
+        case Jason.decode(content) do
+          {:ok, answer} when is_map(answer) ->
+            {:ok, answer}
+
+          _error when limited? ->
+            {:error, "OpenRouter ran out of output tokens before finishing the answer."}
+
+          _error ->
+            {:error, "OpenRouter returned an invalid answer."}
+        end
     end
   end
 
   defp decode_answer(_body), do: {:error, "OpenRouter returned an incomplete answer."}
+
+  defp log_completion(result, operation, model, started_at, status, body) do
+    level = if match?({:ok, _decoded}, result), do: :info, else: :warning
+
+    Logger.log(
+      level,
+      completion_log(operation, model, started_at, status, body) <>
+        " result=#{completion_result(result)}"
+    )
+  end
+
+  defp completion_log(operation, model, started_at, status, body) do
+    choice =
+      case value(body, "choices") do
+        [choice | _rest] when is_map(choice) -> choice
+        _other -> %{}
+      end
+
+    message = value(choice, "message", %{})
+    usage = value(body, "usage", %{})
+    token_details = value(usage, "completion_tokens_details", %{})
+    content = value(message, "content")
+    duration_ms = System.monotonic_time(:millisecond) - started_at
+
+    "OpenRouter completion operation=#{operation} model=#{inspect(model)} status=#{status} " <>
+      "duration_ms=#{duration_ms} provider=#{inspect(value(body, "provider"))} " <>
+      "finish_reason=#{inspect(value(choice, "finish_reason"))} " <>
+      "native_finish_reason=#{inspect(value(choice, "native_finish_reason"))} " <>
+      "prompt_tokens=#{inspect(value(usage, "prompt_tokens"))} " <>
+      "completion_tokens=#{inspect(value(usage, "completion_tokens"))} " <>
+      "reasoning_tokens=#{inspect(value(token_details, "reasoning_tokens"))} " <>
+      "content_bytes=#{inspect(if(is_binary(content), do: byte_size(content)))}"
+  end
+
+  defp completion_result({:ok, _decoded}), do: "ok"
+  defp completion_result({:error, _reason}), do: "invalid_response"
+  defp completion_result(:http_error), do: "http_error"
+
+  defp put_question_model_options(request, "google/gemini-3.7-flash" <> _suffix) do
+    request
+    |> Map.put(:max_tokens, 4_000)
+    |> Map.put(:reasoning, %{effort: "low", exclude: true})
+  end
+
+  defp put_question_model_options(request, _model), do: request
+
+  defp log_request_error(operation, model, started_at, exception) do
+    duration_ms = System.monotonic_time(:millisecond) - started_at
+
+    Logger.warning(
+      "OpenRouter completion operation=#{operation} model=#{inspect(model)} " <>
+        "duration_ms=#{duration_ms} result=request_error reason=#{request_error_reason(exception)}"
+    )
+  end
+
+  defp value(map, key, default \\ nil)
+  defp value(map, key, default) when is_map(map), do: Map.get(map, key, default)
+  defp value(_map, _key, default), do: default
+
+  defp request_error_reason(%{reason: reason}), do: inspect(reason)
+  defp request_error_reason(_exception), do: "unknown"
 
   defp request_options(api_key, overrides \\ []) do
     configured = Application.get_env(:manavault, :openrouter_req_options, [])

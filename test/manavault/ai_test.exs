@@ -1,6 +1,8 @@
 defmodule Manavault.AITest do
   use Manavault.DataCase, async: false
 
+  import ExUnit.CaptureLog
+
   alias Manavault.AI
   alias Manavault.AI.Settings
   alias Manavault.Catalog
@@ -191,6 +193,10 @@ defmodule Manavault.AITest do
       request = Jason.decode!(request_body)
 
       assert request["response_format"]["type"] == "json_schema"
+      assert request["plugins"] == [%{"id" => "response-healing"}]
+      assert request["max_tokens"] == 2_000
+      refute Map.has_key?(request, "max_completion_tokens")
+      refute Map.has_key?(request, "reasoning")
 
       refute request |> get_in(["messages", Access.at(0), "content"]) =~
                "Never suggest infinite combos."
@@ -253,6 +259,59 @@ defmodule Manavault.AITest do
 
     assert length(Catalog.list_deck_question_answers(deck)) == 2
     assert Catalog.get_deck!(deck.id).ai_analysis == nil
+  end
+
+  test "limits Gemini 3.7 reasoning and logs safe diagnostics when output is truncated" do
+    {:ok, _settings} =
+      %Settings{id: 1}
+      |> Settings.changeset(%{
+        provider: "openrouter",
+        api_key: "test-openrouter-key",
+        model: "google/gemini-3.7-flash"
+      })
+      |> Repo.insert()
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Diagnostics Deck"})
+
+    Req.Test.stub(@stub, fn conn ->
+      {:ok, request_body, conn} = Plug.Conn.read_body(conn)
+      request = Jason.decode!(request_body)
+      assert request["reasoning"] == %{"effort" => "low", "exclude" => true}
+      assert request["max_tokens"] == 4_000
+
+      json_response(conn, 200, %{
+        "provider" => "Google",
+        "choices" => [
+          %{
+            "finish_reason" => "length",
+            "native_finish_reason" => "MAX_TOKENS",
+            "message" => %{"content" => ~s({"answer":"unfinished)}
+          }
+        ],
+        "usage" => %{
+          "prompt_tokens" => 12_345,
+          "completion_tokens" => 4_000,
+          "completion_tokens_details" => %{"reasoning_tokens" => 3_950}
+        }
+      })
+    end)
+
+    log =
+      capture_log(fn ->
+        assert {:error, "OpenRouter ran out of output tokens before finishing the answer."} =
+                 AI.ask_deck_question(deck, "Do not include this question in logs.")
+      end)
+
+    assert log =~ "OpenRouter completion operation=deck_question"
+    assert log =~ ~s(model="google/gemini-3.7-flash")
+    assert log =~ "finish_reason=\"length\""
+    assert log =~ "native_finish_reason=\"MAX_TOKENS\""
+    assert log =~ "prompt_tokens=12345"
+    assert log =~ "completion_tokens=4000"
+    assert log =~ "reasoning_tokens=3950"
+    assert log =~ "result=invalid_response"
+    refute log =~ "Do not include this question in logs."
+    refute log =~ "unfinished"
   end
 
   test "retries catalog-invalid recommendations and only saves the corrected answer" do
