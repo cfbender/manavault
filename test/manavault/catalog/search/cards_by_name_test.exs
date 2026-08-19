@@ -30,6 +30,7 @@ defmodule Manavault.Catalog.Search.CardsByNameTest do
       assert CardsByName.key("Oin the brave") == "oin the brave"
       assert CardsByName.key("  Urza's Saga [Deck] ") == "urzas saga"
       assert CardsByName.key("Black Lotus *F*") == "black lotus"
+      assert CardsByName.key("Fire / Ice") == "fire // ice"
       assert CardsByName.key(nil) == ""
     end
   end
@@ -53,6 +54,9 @@ defmodule Manavault.Catalog.Search.CardsByNameTest do
 
       assert %Card{name: "Bala Ged Recovery // Bala Ged Sanctuary"} =
                CardsByName.find("Bala Ged Recovery // Bala Ged Sanctuary")
+
+      assert %Card{name: "Bala Ged Recovery // Bala Ged Sanctuary"} =
+               CardsByName.find("Bala Ged Recovery / Bala Ged Sanctuary")
     end
 
     test "prefers an exact name over a multi-faced card's front-face alias" do

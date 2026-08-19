@@ -98,7 +98,7 @@ defmodule Manavault.Catalog.DecklistTest do
              Catalog.get_deck!(deck.id).deck_cards
   end
 
-  test "decklist import matches a multi-faced card by its front-face name" do
+  test "decklist import matches a multi-faced card by its front-face and Moxfield names" do
     bala_ged_recovery =
       @time_walk
       |> Map.merge(%{
@@ -113,11 +113,21 @@ defmodule Manavault.Catalog.DecklistTest do
 
     assert {:ok, deck} = Catalog.create_deck(%{"name" => "Multi-faced Import"})
 
-    assert {:ok, %{imported: 1, unresolved: [], skipped_printings: []}} =
-             Catalog.import_decklist(deck, "1 Bala Ged Recovery")
+    text = """
+    1 Bala Ged Recovery
+    1 Bala Ged Recovery / Bala Ged Sanctuary (LEA) 180
+    """
 
-    assert [%DeckCard{card: %Card{name: "Bala Ged Recovery // Bala Ged Sanctuary"}}] =
-             Catalog.get_deck!(deck.id).deck_cards
+    assert {:ok, %{imported: 2, unresolved: [], skipped_printings: []}} =
+             Catalog.import_decklist(deck, text)
+
+    assert [
+             %DeckCard{
+               quantity: 2,
+               preferred_printing_id: "scryfall-bala-ged-recovery",
+               card: %Card{name: "Bala Ged Recovery // Bala Ged Sanctuary"}
+             }
+           ] = Catalog.get_deck!(deck.id).deck_cards
   end
 
   test "decklist import matches a card by its Scryfall flavor name" do

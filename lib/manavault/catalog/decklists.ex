@@ -35,6 +35,7 @@ defmodule Manavault.Catalog.Decklists do
     |> String.trim()
     |> String.replace(~r/\s+\[[^\]]+\]\s*$/u, "")
     |> String.replace(~r/\s+\*[A-Z]+\*\s*$/u, "")
+    |> String.replace(~r/\s+\/\s+/u, " // ")
     |> String.trim()
   end
 
