@@ -46,6 +46,14 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
     end
   end
 
+  def ask_deck_question(_parent, %{id: id, question: question}, resolution) do
+    with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
+      id
+      |> Catalog.get_deck!()
+      |> AI.ask_deck_question(question)
+    end
+  end
+
   def ensure_deck_share_token(_parent, %{id: id}, resolution) do
     with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
       id

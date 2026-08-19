@@ -3,7 +3,7 @@ defmodule Manavault.AI.Providers.OpenRouter do
 
   @behaviour Manavault.AI.Provider
 
-  alias Manavault.AI.{DeckAnalysis, Settings}
+  alias Manavault.AI.{DeckAnalysis, DeckQuestion, Settings}
 
   @api_base "https://openrouter.ai/api/v1"
   @headers [
@@ -63,6 +63,33 @@ defmodule Manavault.AI.Providers.OpenRouter do
     end
   end
 
+  @impl true
+  def ask_deck_question(%Settings{} = settings, payload, question) do
+    request = %{
+      model: settings.model,
+      messages: [
+        %{role: "system", content: DeckQuestion.system_prompt()},
+        %{role: "user", content: DeckQuestion.user_prompt(question, payload)}
+      ],
+      max_completion_tokens: 2_000,
+      temperature: 0.2
+    }
+
+    case Req.post(
+           @api_base <> "/chat/completions",
+           request_options(settings.api_key, json: request, receive_timeout: 120_000)
+         ) do
+      {:ok, %Req.Response{status: status, body: body}} when status in 200..299 ->
+        decode_answer(body)
+
+      {:ok, %Req.Response{status: status, body: body}} ->
+        {:error, response_error(status, body, "OpenRouter could not answer this question.")}
+
+      {:error, exception} ->
+        {:error, request_error(exception, "Could not reach OpenRouter to answer this question.")}
+    end
+  end
+
   defp validate_api_key(api_key) do
     case Req.get(@api_base <> "/key", request_options(api_key)) do
       {:ok, %Req.Response{status: status}} when status in 200..299 ->
@@ -105,6 +132,16 @@ defmodule Manavault.AI.Providers.OpenRouter do
   end
 
   defp decode_analysis(_body), do: {:error, "OpenRouter returned an incomplete deck analysis."}
+
+  defp decode_answer(%{"choices" => [%{"message" => %{"content" => content}} | _]})
+       when is_binary(content) do
+    case String.trim(content) do
+      "" -> {:error, "OpenRouter returned an empty answer."}
+      answer -> {:ok, answer}
+    end
+  end
+
+  defp decode_answer(_body), do: {:error, "OpenRouter returned an incomplete answer."}
 
   defp request_options(api_key, overrides \\ []) do
     configured = Application.get_env(:manavault, :openrouter_req_options, [])

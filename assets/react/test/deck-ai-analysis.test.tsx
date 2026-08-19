@@ -31,6 +31,7 @@ test("saved AI analysis is collapsed by default", () => {
   expect(disclosure?.open).toBe(true)
   expect(screen.getByRole("heading", { name: "Overview" })).toBeInstanceOf(HTMLElement)
   expect(screen.queryByRole("button", { name: /refresh ai analysis/i })).toBeNull()
+  expect(screen.queryByRole("button", { name: /ask ai about this deck/i })).toBeNull()
 })
 
 test("AI analysis panel stays hidden until an analysis exists", () => {

@@ -133,6 +133,58 @@ defmodule Manavault.AITest do
     assert %DateTime{} = persisted.ai_analyzed_at
   end
 
+  test "answers a one-off deck question without changing the saved analysis" do
+    {:ok, _settings} =
+      %Settings{id: 1}
+      |> Settings.changeset(%{
+        provider: "openrouter",
+        api_key: "test-openrouter-key",
+        model: "anthropic/claude-sonnet-4"
+      })
+      |> Repo.insert()
+
+    assert {:ok, %{cards_count: 1}} =
+             Catalog.import_cards([CatalogTestSupport.legal_commander_card()])
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Counter Deck"})
+
+    assert {:ok, _deck_card} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Test Commander",
+               "zone" => "commander"
+             })
+
+    Req.Test.stub(@stub, fn conn ->
+      assert conn.method == "POST"
+      assert conn.request_path == "/api/v1/chat/completions"
+      {:ok, request_body, conn} = Plug.Conn.read_body(conn)
+      request = Jason.decode!(request_body)
+
+      refute Map.has_key?(request, "response_format")
+
+      assert request |> get_in(["messages", Access.at(1), "content"]) =~
+               "Would Doubling Season be a good fit?"
+
+      assert request |> get_in(["messages", Access.at(1), "content"]) =~ "Test Commander"
+
+      json_response(conn, 200, %{
+        "choices" => [
+          %{
+            "message" => %{
+              "content" => "**Probably not yet.** Add more counter-producing cards first."
+            }
+          }
+        ]
+      })
+    end)
+
+    assert {:ok, answer} =
+             AI.ask_deck_question(deck, "  Would Doubling Season be a good fit?  ")
+
+    assert answer == "**Probably not yet.** Add more counter-producing cards first."
+    assert Catalog.get_deck!(deck.id).ai_analysis == nil
+  end
+
   defp stub_settings_validation(model_ids) do
     Req.Test.stub(@stub, fn conn ->
       assert Plug.Conn.get_req_header(conn, "authorization") == ["Bearer test-openrouter-key"]

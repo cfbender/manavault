@@ -1,9 +1,9 @@
 defmodule Manavault.AI do
-  @moduledoc "AI provider settings and user-initiated deck analysis."
+  @moduledoc "AI provider settings, deck analysis, and one-off deck questions."
 
   import Ecto.Changeset, only: [add_error: 3, apply_changes: 1]
 
-  alias Manavault.AI.{DeckAnalysis, Provider, Settings}
+  alias Manavault.AI.{DeckAnalysis, DeckQuestion, Provider, Settings}
   alias Manavault.Catalog
   alias Manavault.Catalog.Deck
   alias Manavault.Repo
@@ -55,6 +55,18 @@ defmodule Manavault.AI do
          attrs <- analysis_attrs(result, settings),
          {:ok, deck} <- Catalog.save_deck_analysis(deck, attrs) do
       {:ok, deck}
+    end
+  end
+
+  def ask_deck_question(%Deck{} = deck, question) do
+    settings = settings()
+
+    with {:ok, question} <- DeckQuestion.validate(question),
+         :ok <- configured(settings),
+         {:ok, provider} <- Provider.module(settings.provider),
+         payload <- DeckAnalysis.payload(deck, Catalog.deck_cards(deck)),
+         {:ok, answer} <- provider.ask_deck_question(settings, payload, question) do
+      {:ok, answer}
     end
   end
 

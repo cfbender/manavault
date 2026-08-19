@@ -23,14 +23,14 @@ export function DeckGroupMenu({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="btn btn-outline min-w-44 justify-between gap-2"
+          className="btn btn-outline btn-sm min-w-44 justify-between gap-2"
           aria-label={`Group decks by ${active.label}`}
         >
           <span className="flex items-center gap-2">
             <Hash className="h-4 w-4" />
             Group
           </span>
-          <span className="badge badge-ghost text-[0.65rem]">{active.label}</span>
+          <span className="badge badge-ghost text-xs">{active.label}</span>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64 p-3 shadow-2xl">

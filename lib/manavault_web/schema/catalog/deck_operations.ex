@@ -101,6 +101,19 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       end)
     end
 
+    payload field :ask_deck_question do
+      arg(:id, non_null(:id))
+      arg(:question, non_null(:string))
+
+      output do
+        field :answer, non_null(:string)
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &MutationResolvers.ask_deck_question/3, :answer)
+      end)
+    end
+
     payload field :ensure_deck_share_token do
       arg(:id, non_null(:id))
 

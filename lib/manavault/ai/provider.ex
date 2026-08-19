@@ -20,6 +20,8 @@ defmodule Manavault.AI.Provider do
   @callback validate_settings(Settings.t()) ::
               :ok | {:error, :api_key | :model | :base, String.t()}
   @callback analyze_deck(Settings.t(), map()) :: {:ok, analysis()} | {:error, String.t()}
+  @callback ask_deck_question(Settings.t(), map(), String.t()) ::
+              {:ok, String.t()} | {:error, String.t()}
 
   def module("openrouter"), do: {:ok, Manavault.AI.Providers.OpenRouter}
   def module(_provider), do: {:error, "The selected AI provider is not supported."}

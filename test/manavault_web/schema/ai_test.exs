@@ -21,7 +21,7 @@ defmodule ManavaultWeb.Schema.AITest do
     :ok
   end
 
-  test "settings and analyzeDeck expose the saved analysis without exposing the API key", %{
+  test "settings, analysis, and one-off questions use AI without exposing the API key", %{
     conn: conn
   } do
     Req.Test.stub(@stub, &openrouter_response/1)
@@ -96,6 +96,29 @@ defmodule ManavaultWeb.Schema.AITest do
 
     assert analysis =~ "Bracket 3 (plays like Bracket 2)"
     assert {:ok, _datetime, 0} = DateTime.from_iso8601(analyzed_at)
+
+    question_conn =
+      post(recycle(conn), "/api/graphql", %{
+        "query" => """
+        mutation AskDeckQuestion($id: ID!, $question: String!) {
+          askDeckQuestion(id: $id, question: $question) {
+            answer
+          }
+        }
+        """,
+        "variables" => %{
+          "id" => global_deck_id(deck),
+          "question" => "What should I cut for Doubling Season?"
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "askDeckQuestion" => %{
+                 "answer" => "Cut the least synergistic top-end card."
+               }
+             }
+           } = json_response(question_conn, 200)
   end
 
   defp openrouter_response(conn) do
@@ -107,23 +130,37 @@ defmodule ManavaultWeb.Schema.AITest do
         json_response(conn, 200, %{"data" => [%{"id" => "anthropic/claude-sonnet-4"}]})
 
       {"POST", "/api/v1/chat/completions"} ->
-        analysis = %{
-          summary: "A slow value deck.",
-          themes: ["Value"],
-          game_plan: "Build resources and win late.",
-          strengths: ["Resilient plan"],
-          weaknesses: ["Slow start"],
-          official_bracket: 2,
-          play_bracket: 2,
-          bracket_rationale: "Its single Game Changer raises the guideline bracket.",
-          power_up: ["Add interaction"],
-          power_down: ["Replace the Game Changer"],
-          consistency: ["Improve the curve"]
-        }
+        {:ok, request_body, conn} = Plug.Conn.read_body(conn)
+        request = Jason.decode!(request_body)
 
-        json_response(conn, 200, %{
-          "choices" => [%{"message" => %{"content" => Jason.encode!(analysis)}}]
-        })
+        if Map.has_key?(request, "response_format") do
+          analysis = %{
+            summary: "A slow value deck.",
+            themes: ["Value"],
+            game_plan: "Build resources and win late.",
+            strengths: ["Resilient plan"],
+            weaknesses: ["Slow start"],
+            official_bracket: 2,
+            play_bracket: 2,
+            bracket_rationale: "Its single Game Changer raises the guideline bracket.",
+            power_up: ["Add interaction"],
+            power_down: ["Replace the Game Changer"],
+            consistency: ["Improve the curve"]
+          }
+
+          json_response(conn, 200, %{
+            "choices" => [%{"message" => %{"content" => Jason.encode!(analysis)}}]
+          })
+        else
+          assert request |> get_in(["messages", Access.at(1), "content"]) =~
+                   "What should I cut for Doubling Season?"
+
+          json_response(conn, 200, %{
+            "choices" => [
+              %{"message" => %{"content" => "Cut the least synergistic top-end card."}}
+            ]
+          })
+        end
     end
   end
 

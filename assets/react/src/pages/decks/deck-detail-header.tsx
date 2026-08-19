@@ -8,11 +8,12 @@ import {
   createLucideIcon,
   Download,
   Layers,
+  MessageCircleQuestion,
   Play,
   Plus,
   ShoppingCart,
 } from "lucide-react"
-import type { ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 
 import { ImageSummaryCard } from "../../components/image-summary-card"
 import { Badge } from "../../components/ui/badge"
@@ -28,6 +29,7 @@ import { DeckGroupMenu } from "./deck-group-menu"
 import { deckLegalityIssueCountLabel, deckLegalityLabel, deckLegalityTone } from "./deck-legality"
 import { DeckNameWithCommanderIdentity } from "./deck-list-model"
 import { DeckPrimer } from "./deck-primer"
+import { DeckQuestionDialog } from "./deck-question-dialog"
 import { AnalyzeDeckDocument } from "./queries"
 import { DeckTagsSidebar } from "./deck-tags-sidebar"
 import type { DeckCardEntry, DeckCustomTag, DeckDetail } from "./deck-types"
@@ -216,6 +218,7 @@ export function DeckDetailHeader({
   zoneCounts,
 }: DeckDetailHeaderProps) {
   const { showToast } = useToast()
+  const [questionOpen, setQuestionOpen] = useState(false)
   const [analyzeDeck, analysisMutation] = useMutation(AnalyzeDeckDocument)
   const hasAnalysis = Boolean(deck.aiAnalysis?.trim())
 
@@ -412,6 +415,15 @@ export function DeckDetailHeader({
               </div>
             ) : null}
             <ShareModeHidden shareMode={shareMode}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setQuestionOpen(true)}
+              >
+                <MessageCircleQuestion className="h-4 w-4" aria-hidden="true" />
+                Ask AI
+              </Button>
               <Button asChild variant="outline" size="sm">
                 <Link to="/decks/$id/playtest" params={{ id: deck.id }}>
                   <Play className="h-4 w-4" />
@@ -449,6 +461,14 @@ export function DeckDetailHeader({
         </div>
         {children}
       </div>
+      {!shareMode && questionOpen ? (
+        <DeckQuestionDialog
+          deckId={deck.id}
+          deckName={deck.name}
+          open={questionOpen}
+          onOpenChange={setQuestionOpen}
+        />
+      ) : null}
     </>
   )
 }

@@ -1,0 +1,103 @@
+import { cleanup, render, screen } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
+import type { ReactNode } from "react"
+import { afterEach, expect, test, vi } from "vitest"
+
+vi.mock("@apollo/client/react", () => ({
+  useMutation: () => [vi.fn(), { loading: false }],
+}))
+
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ children }: { children: ReactNode }) => <a href="#playtest">{children}</a>,
+}))
+
+vi.mock("../src/components/ui/toast", () => ({
+  useToast: () => ({ showToast: vi.fn() }),
+}))
+
+import { DeckDetailHeader } from "../src/pages/decks/deck-detail-header"
+
+afterEach(cleanup)
+
+function renderHeader(shareMode: boolean) {
+  const noOp = () => undefined
+
+  render(
+    <DeckDetailHeader
+      canEdit={true}
+      deck={
+        {
+          id: "deck-1",
+          name: "Counter Deck",
+          format: "commander",
+          status: "active",
+          primer: null,
+          aiAnalysis: null,
+          coverImageUrl: null,
+          commanderColorIdentity: [],
+          cardCount: 0,
+          legality: { status: "legal", issues: [] },
+        } as never
+      }
+      deckCards={[]}
+      deckPrice={null}
+      deckTags={[]}
+      groupBy="theme"
+      hasBuylistWork={false}
+      hasReadinessWork={false}
+      isRefreshing={false}
+      isSelectionActive={false}
+      legalityIssues={[]}
+      saltSum={null}
+      onAddCard={noOp}
+      onCompareDeck={noOp}
+      onCopySharedDecklist={noOp}
+      onDisassemble={noOp}
+      onDownloadSharedDecklist={noOp}
+      onEditDeck={noOp}
+      onExportDeck={noOp}
+      onGroupByChange={noOp}
+      onImportDeck={noOp}
+      onMissingCards={noOp}
+      onOpenEdhrec={noOp}
+      onOpenReadiness={noOp}
+      onShareBuylist={noOp}
+      onShareDeck={noOp}
+      onSharePlaytest={noOp}
+      onStartSelecting={noOp}
+      shareCopyState="idle"
+      shareMode={shareMode}
+      tagActions={{
+        activeTagId: null,
+        onCreate: noOp,
+        onDelete: noOp,
+        onJumpTo: noOp,
+        onReorder: noOp,
+        onUpdate: noOp,
+      }}
+      zoneCounts={{ commander: 0, mainboard: 0, considering: 0 }}
+    >
+      <div>Deck cards</div>
+    </DeckDetailHeader>,
+  )
+}
+
+test("private deck actions put Ask AI immediately before Playtest", async () => {
+  const user = userEvent.setup()
+  renderHeader(false)
+
+  const ask = screen.getByRole("button", { name: "Ask AI" })
+  const playtest = screen.getByRole("link", { name: "Playtest" })
+
+  expect(ask.nextElementSibling).toBe(playtest)
+
+  await user.click(ask)
+  expect(screen.getByRole("dialog", { name: "Ask about this deck" })).toBeInstanceOf(HTMLElement)
+})
+
+test("shared deck actions do not expose the AI question tool", () => {
+  renderHeader(true)
+
+  expect(screen.queryByRole("button", { name: "Ask AI" })).toBeNull()
+  expect(screen.queryByRole("dialog", { name: "Ask about this deck" })).toBeNull()
+})

@@ -60,6 +60,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "allocateDeckCardProxy",
                "allocateDeckPullList",
                "analyzeDeck",
+               "askDeckQuestion",
                "assignDeckCardTag",
                "autoSortCollection",
                "bulkAddCollectionItemsToDeck",
@@ -143,6 +144,8 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
 
     assert type_signature(mutation_fields["createCollectionItem"]["type"]) ==
              "CreateCollectionItemPayload"
+
+    assert argument(mutation_fields["askDeckQuestion"], "question") == {"String!", nil}
 
     assert argument(mutation_fields["createCollectionItem"], "input") ==
              {"CollectionItemInput!", nil}

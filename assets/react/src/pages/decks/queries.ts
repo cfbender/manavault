@@ -317,6 +317,14 @@ export const AnalyzeDeckDocument = graphql(`
   }
 `)
 
+export const AskDeckQuestionDocument = graphql(`
+  mutation AskDeckQuestion($id: ID!, $question: String!) {
+    askDeckQuestion(id: $id, question: $question) {
+      answer
+    }
+  }
+`)
+
 export const CardPrintingsDocument = graphql(`
   query CardPrintings($id: ID!) {
     card(id: $id) {
