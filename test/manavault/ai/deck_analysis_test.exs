@@ -2,6 +2,7 @@ defmodule Manavault.AI.DeckAnalysisTest do
   use ExUnit.Case, async: true
 
   alias Manavault.AI.DeckAnalysis
+  alias Manavault.Catalog.{Card, Deck, DeckCard}
 
   @result %{
     "summary" => "A focused tempo deck.",
@@ -56,6 +57,7 @@ defmodule Manavault.AI.DeckAnalysisTest do
 
     assert prompt =~ "Never suggest infinite combos."
     assert prompt =~ "Add another section for budget upgrades."
+    assert prompt =~ "authoritative metadata calculated by ManaVault"
 
     payload = %{deck: %{format: "modern"}, facts: %{game_changer_count: 0}}
 
@@ -75,5 +77,41 @@ defmodule Manavault.AI.DeckAnalysisTest do
 
     assert DeckAnalysis.render_markdown(normalized) =~
              "## Budget upgrades\n\n- Start with [[Counterspell]]."
+  end
+
+  test "payload includes authoritative land metadata from counted deck zones" do
+    deck = %Deck{name: "Land Count", format: "commander"}
+
+    deck_cards = [
+      %DeckCard{
+        quantity: 38,
+        zone: "mainboard",
+        card: %Card{name: "Plains", type_line: "Basic Land — Plains"}
+      },
+      %DeckCard{
+        quantity: 1,
+        zone: "mainboard",
+        card: %Card{
+          name: "Bala Ged Recovery // Bala Ged Sanctuary",
+          type_line: "Sorcery // Land"
+        }
+      },
+      %DeckCard{
+        quantity: 1,
+        zone: "commander",
+        card: %Card{name: "Test Commander", type_line: "Legendary Creature — Cat"}
+      },
+      %DeckCard{
+        quantity: 4,
+        zone: "considering",
+        card: %Card{name: "Island", type_line: "Basic Land — Island"}
+      }
+    ]
+
+    payload = DeckAnalysis.payload(deck, deck_cards)
+
+    assert payload.facts.card_count == 40
+    assert payload.facts.land_count == 39
+    assert payload.facts.nonland_count == 1
   end
 end

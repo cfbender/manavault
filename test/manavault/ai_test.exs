@@ -118,7 +118,10 @@ defmodule Manavault.AITest do
       system_prompt = get_in(request, ["messages", Access.at(0), "content"])
       assert system_prompt =~ "Never suggest infinite combos."
       assert system_prompt =~ "Add a Budget upgrades section."
-      assert request |> get_in(["messages", Access.at(1), "content"]) =~ "Test Commander"
+      user_prompt = get_in(request, ["messages", Access.at(1), "content"])
+      assert user_prompt =~ "Test Commander"
+      assert user_prompt =~ ~s("land_count":0)
+      assert user_prompt =~ ~s("nonland_count":1)
 
       analysis = %{
         summary: "A slow commander value deck.",
@@ -203,6 +206,8 @@ defmodule Manavault.AITest do
       assert user_prompt =~ ~s("commander_color_identity":["W"])
       assert user_prompt =~ ~s("color_identity":["W"])
       assert user_prompt =~ ~s("format_legality":"legal")
+      assert user_prompt =~ ~s("land_count":0)
+      assert user_prompt =~ ~s("nonland_count":1)
 
       answer =
         if user_prompt =~ "Return an empty answer" do

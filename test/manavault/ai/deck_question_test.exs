@@ -23,6 +23,7 @@ defmodule Manavault.AI.DeckQuestionTest do
     assert DeckQuestion.system_prompt() =~ "commander_color_identity"
     assert DeckQuestion.system_prompt() =~ "off-color or format-illegal card"
     assert DeckQuestion.system_prompt() =~ "Honor every explicit constraint"
+    assert DeckQuestion.system_prompt() =~ "authoritative metadata calculated by ManaVault"
     assert DeckQuestion.system_prompt() =~ "[[Doubling Season]]"
     assert DeckQuestion.system_prompt() =~ "GitHub-Flavored Markdown"
     assert prompt =~ "What should I cut?"
