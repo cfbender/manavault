@@ -61,7 +61,7 @@ defmodule ManavaultWeb.Schema.AITest do
            } = json_response(settings_conn, 200)
 
     card = Map.put(CatalogTestSupport.legal_commander_card(), "game_changer", true)
-    assert {:ok, _result} = Catalog.import_cards([card])
+    assert {:ok, _result} = Catalog.import_cards([card, CatalogTestSupport.legal_plains()])
     assert {:ok, deck} = Catalog.create_deck(%{"name" => "GraphQL Analysis"})
     assert {:ok, _deck_card} = Catalog.add_card_to_deck(deck, %{"name" => "Test Commander"})
 
@@ -107,7 +107,14 @@ defmodule ManavaultWeb.Schema.AITest do
         mutation AskDeckQuestion($id: ID!, $question: String!) {
           askDeckQuestion(id: $id, question: $question) {
             answer
-            questionAnswer { id question answer insertedAt }
+            questionAnswer {
+              id
+              question
+              answer
+              recommendedCuts
+              recommendedAdditions
+              insertedAt
+            }
           }
         }
         """,
@@ -120,11 +127,13 @@ defmodule ManavaultWeb.Schema.AITest do
     assert %{
              "data" => %{
                "askDeckQuestion" => %{
-                 "answer" => "Cut the least synergistic top-end card.",
+                 "answer" => "Cut [[Test Commander]] for [[Plains]].",
                  "questionAnswer" => %{
                    "id" => question_answer_id,
                    "question" => "What should I cut for Doubling Season?",
-                   "answer" => "Cut the least synergistic top-end card.",
+                   "answer" => "Cut [[Test Commander]] for [[Plains]].",
+                   "recommendedCuts" => ["Test Commander"],
+                   "recommendedAdditions" => ["Plains"],
                    "insertedAt" => inserted_at
                  }
                }
@@ -137,7 +146,14 @@ defmodule ManavaultWeb.Schema.AITest do
       post(recycle(conn), "/api/graphql", %{
         "query" => """
         query DeckQuestionAnswers($deckId: ID!) {
-          deckQuestionAnswers(deckId: $deckId) { id question answer insertedAt }
+          deckQuestionAnswers(deckId: $deckId) {
+            id
+            question
+            answer
+            recommendedCuts
+            recommendedAdditions
+            insertedAt
+          }
         }
         """,
         "variables" => %{"deckId" => global_deck_id(deck)}
@@ -148,7 +164,9 @@ defmodule ManavaultWeb.Schema.AITest do
                "deckQuestionAnswers" => [
                  %{
                    "id" => ^question_answer_id,
-                   "question" => "What should I cut for Doubling Season?"
+                   "question" => "What should I cut for Doubling Season?",
+                   "recommendedCuts" => ["Test Commander"],
+                   "recommendedAdditions" => ["Plains"]
                  }
                ]
              }
@@ -171,6 +189,37 @@ defmodule ManavaultWeb.Schema.AITest do
            } = json_response(delete_conn, 200)
 
     assert Catalog.list_deck_question_answers(deck) == []
+  end
+
+  test "saved answers without recommendation metadata expose empty lists", %{conn: conn} do
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Legacy questions"})
+
+    assert {:ok, _question_answer} =
+             Catalog.create_deck_question_answer(deck, %{
+               question: "How does this deck look?",
+               answer: "It has a focused game plan."
+             })
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query DeckQuestionAnswers($deckId: ID!) {
+          deckQuestionAnswers(deckId: $deckId) {
+            recommendedCuts
+            recommendedAdditions
+          }
+        }
+        """,
+        "variables" => %{"deckId" => global_deck_id(deck)}
+      })
+
+    assert %{
+             "data" => %{
+               "deckQuestionAnswers" => [
+                 %{"recommendedCuts" => [], "recommendedAdditions" => []}
+               ]
+             }
+           } = json_response(conn, 200)
   end
 
   defp openrouter_response(conn) do
@@ -219,8 +268,9 @@ defmodule ManavaultWeb.Schema.AITest do
                      "What should I cut for Doubling Season?"
 
             answer = %{
-              answer: "Cut the least synergistic top-end card.",
-              recommended_additions: []
+              answer: "Cut [[Test Commander]] for [[Plains]].",
+              recommended_cuts: ["Test Commander"],
+              recommended_additions: ["Plains"]
             }
 
             json_response(conn, 200, %{

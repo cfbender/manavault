@@ -475,6 +475,7 @@ export function DeckDetailHeader({
         <DeckQuestionDialog
           deckId={deck.id}
           deckName={deck.name}
+          deckCards={deckCards}
           open={questionOpen}
           onOpenChange={setQuestionOpen}
         />

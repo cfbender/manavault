@@ -72,17 +72,24 @@ defmodule Manavault.AI do
          :ok <- configured(settings),
          {:ok, provider} <- Provider.module(settings.provider),
          payload <- DeckAnalysis.payload(deck, Catalog.deck_cards(deck)),
-         {:ok, answer} <- generate_deck_answer(provider, settings, payload, question, 1) do
-      Catalog.create_deck_question_answer(deck, %{question: question, answer: answer})
+         {:ok, result} <- generate_deck_answer(provider, settings, payload, question, 1) do
+      Catalog.create_deck_question_answer(deck, %{
+        question: question,
+        answer: result.answer,
+        recommendations: %{
+          "cuts" => result.recommended_cuts,
+          "additions" => result.recommended_additions
+        }
+      })
     end
   end
 
   defp generate_deck_answer(provider, settings, payload, question, corrections_left) do
     with {:ok, provider_result} <- provider.ask_deck_question(settings, payload, question),
          {:ok, result} <- DeckQuestion.normalize_result(provider_result) do
-      case recommendation_issues(result.recommended_additions, payload) do
+      case recommendation_issues(result, payload) do
         [] ->
-          {:ok, result.answer}
+          {:ok, canonicalize_recommendations(result, payload)}
 
         issues when corrections_left > 0 ->
           correction = DeckQuestion.correction_prompt(question, issues)
@@ -94,9 +101,26 @@ defmodule Manavault.AI do
     end
   end
 
-  defp recommendation_issues([], _payload), do: []
+  defp recommendation_issues(result, payload) do
+    cut_recommendation_issues(result.recommended_cuts, payload) ++
+      addition_recommendation_issues(result.recommended_additions, payload)
+  end
 
-  defp recommendation_issues(card_names, payload) do
+  defp cut_recommendation_issues([], _payload), do: []
+
+  defp cut_recommendation_issues(card_names, payload) do
+    deck_card_names = MapSet.new(payload.deck.cards, &CardsByName.key(&1.name))
+
+    Enum.flat_map(card_names, fn card_name ->
+      if MapSet.member?(deck_card_names, CardsByName.key(card_name)),
+        do: [],
+        else: ["#{card_name} is not in the current deck."]
+    end)
+  end
+
+  defp addition_recommendation_issues([], _payload), do: []
+
+  defp addition_recommendation_issues(card_names, payload) do
     cards = Catalog.cards_by_names(card_names)
 
     Enum.flat_map(card_names, fn card_name ->
@@ -109,6 +133,21 @@ defmodule Manavault.AI do
             color_identity_issue(card_name, card, payload.deck)
       end
     end)
+  end
+
+  defp canonicalize_recommendations(result, payload) do
+    deck_card_names = Map.new(payload.deck.cards, &{CardsByName.key(&1.name), &1.name})
+    cards = Catalog.cards_by_names(result.recommended_additions)
+
+    %{
+      result
+      | recommended_cuts:
+          Enum.map(result.recommended_cuts, &Map.fetch!(deck_card_names, CardsByName.key(&1))),
+        recommended_additions:
+          Enum.map(result.recommended_additions, fn card_name ->
+            cards |> Map.fetch!(CardsByName.key(card_name)) |> Map.fetch!(:name)
+          end)
+    }
   end
 
   defp format_issue(_card_name, _card, format) when format in ~w(limited casual), do: []

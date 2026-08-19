@@ -126,6 +126,14 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
     {:ok, DateTime.to_iso8601(inserted_at)}
   end
 
+  def deck_question_answer_recommended_cuts(question_answer, _args, _resolution) do
+    {:ok, recommendation_names(question_answer, :cuts)}
+  end
+
+  def deck_question_answer_recommended_additions(question_answer, _args, _resolution) do
+    {:ok, recommendation_names(question_answer, :additions)}
+  end
+
   def deck_legality(%Deck{deck_cards: deck_cards} = deck, _args, _resolution)
       when is_list(deck_cards) do
     {:ok, Catalog.deck_legality(deck)}
@@ -149,6 +157,16 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
   def deck_legality(%Deck{} = deck, _args, _resolution) do
     {:ok, Catalog.deck_legality(deck)}
   end
+
+  defp recommendation_names(%{recommendations: recommendations}, key)
+       when is_map(recommendations) do
+    case Map.get(recommendations, key) || Map.get(recommendations, Atom.to_string(key)) do
+      names when is_list(names) -> Enum.filter(names, &is_binary/1)
+      _other -> []
+    end
+  end
+
+  defp recommendation_names(_question_answer, _key), do: []
 
   def deck_card_allocation_status(%DeckCard{allocation_status: status}, _args, _resolution)
       when is_map(status) do

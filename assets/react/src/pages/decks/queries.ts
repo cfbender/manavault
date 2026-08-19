@@ -323,6 +323,8 @@ export const DeckQuestionAnswersDocument = graphql(`
       id
       question
       answer
+      recommendedCuts
+      recommendedAdditions
       insertedAt
     }
   }
@@ -336,6 +338,8 @@ export const AskDeckQuestionDocument = graphql(`
         id
         question
         answer
+        recommendedCuts
+        recommendedAdditions
         insertedAt
       }
     }

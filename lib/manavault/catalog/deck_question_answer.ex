@@ -6,6 +6,7 @@ defmodule Manavault.Catalog.DeckQuestionAnswer do
   schema "deck_question_answers" do
     field :question, :string
     field :answer, :string
+    field :recommendations, :map
 
     belongs_to :deck, Manavault.Catalog.Deck
 
@@ -14,7 +15,7 @@ defmodule Manavault.Catalog.DeckQuestionAnswer do
 
   def changeset(question_answer, attrs) do
     question_answer
-    |> cast(attrs, [:question, :answer, :deck_id])
+    |> cast(attrs, [:question, :answer, :recommendations, :deck_id])
     |> validate_required([:question, :answer, :deck_id])
     |> validate_length(:question, max: 1_000)
     |> validate_length(:answer, max: 100_000)

@@ -13,6 +13,8 @@ import {
 } from "../../components/ui/dialog"
 import { Textarea } from "../../components/ui/textarea"
 import { DeckMarkdown } from "./deck-primer"
+import { QuestionRecommendations } from "./deck-question-recommendations"
+import type { DeckCardEntry } from "./deck-types"
 import {
   AskDeckQuestionDocument,
   DeckQuestionAnswersDocument,
@@ -29,11 +31,13 @@ const questionDateFormatter = new Intl.DateTimeFormat(undefined, {
 export function DeckQuestionDialog({
   deckId,
   deckName,
+  deckCards,
   onOpenChange,
   open,
 }: {
   deckId: string
   deckName: string
+  deckCards: DeckCardEntry[]
   onOpenChange: (open: boolean) => void
   open: boolean
 }) {
@@ -106,7 +110,7 @@ export function DeckQuestionDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-2xl"
+        className="max-w-3xl"
         labelledBy="deck-question-title"
         describedBy="deck-question-description"
       >
@@ -156,7 +160,11 @@ export function DeckQuestionDialog({
             ) : null}
 
             <div className="flex justify-end">
-              <Button type="submit" disabled={!question.trim() || questionMutation.loading}>
+              <Button
+                className="disabled:border-base-300 disabled:bg-base-200 disabled:text-base-content disabled:opacity-100"
+                type="submit"
+                disabled={!question.trim() || questionMutation.loading}
+              >
                 {questionMutation.loading ? (
                   <LoaderCircle
                     className="h-4 w-4 animate-spin motion-reduce:animate-none"
@@ -171,6 +179,8 @@ export function DeckQuestionDialog({
           </form>
 
           <QuestionHistory
+            deckCards={deckCards}
+            deckId={deckId}
             deleting={deleteMutation.loading}
             error={questionAnswersQuery.error?.message}
             loading={questionAnswersQuery.loading && !questionAnswersQuery.data}
@@ -196,6 +206,8 @@ export function DeckQuestionDialog({
 }
 
 function QuestionHistory({
+  deckCards,
+  deckId,
   deleting,
   error,
   loading,
@@ -203,6 +215,8 @@ function QuestionHistory({
   onRetry,
   questionAnswers,
 }: {
+  deckCards: DeckCardEntry[]
+  deckId: string
   deleting: boolean
   error?: string
   loading: boolean
@@ -246,6 +260,8 @@ function QuestionHistory({
         <div className="space-y-2" aria-live="polite">
           {questionAnswers.map((questionAnswer, index) => (
             <QuestionHistoryItem
+              deckCards={deckCards}
+              deckId={deckId}
               deleting={deleting}
               key={questionAnswer.id}
               open={index === 0}
@@ -264,11 +280,15 @@ function QuestionHistory({
 }
 
 function QuestionHistoryItem({
+  deckCards,
+  deckId,
   deleting,
   onDelete,
   open,
   questionAnswer,
 }: {
+  deckCards: DeckCardEntry[]
+  deckId: string
   deleting: boolean
   onDelete: (questionAnswer: QuestionAnswer) => void
   open: boolean
@@ -308,8 +328,13 @@ function QuestionHistoryItem({
           aria-hidden="true"
         />
       </summary>
-      <div className="border-t border-base-300 px-4 py-4">
+      <div className="border-t border-base-300 px-4 py-4 sm:px-5">
         <DeckMarkdown cardReferences>{questionAnswer.answer}</DeckMarkdown>
+        <QuestionRecommendations
+          deckCards={deckCards}
+          deckId={deckId}
+          questionAnswer={questionAnswer}
+        />
       </div>
     </details>
   )

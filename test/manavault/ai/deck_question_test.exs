@@ -33,17 +33,26 @@ defmodule Manavault.AI.DeckQuestionTest do
   test "normalizes structured answers and exposes a strict response schema" do
     assert {:ok, result} =
              DeckQuestion.normalize_result(%{
-               "answer" => "  Add [[Sun Titan]].  ",
+               "answer" => "  Cut [[Solemn Simulacrum]] for [[Sun Titan]].  ",
+               "recommended_cuts" => [" Solemn Simulacrum ", "solemn simulacrum", ""],
                "recommended_additions" => [" Sun Titan ", "Sun Titan", ""]
              })
 
-    assert result == %{answer: "Add [[Sun Titan]].", recommended_additions: ["Sun Titan"]}
+    assert result == %{
+             answer: "Cut [[Solemn Simulacrum]] for [[Sun Titan]].",
+             recommended_cuts: ["Solemn Simulacrum"],
+             recommended_additions: ["Sun Titan"]
+           }
+
     assert DeckQuestion.response_schema().additionalProperties == false
-    assert DeckQuestion.response_schema().required == ~w(answer recommended_additions)
+
+    assert DeckQuestion.response_schema().required ==
+             ~w(answer recommended_cuts recommended_additions)
 
     assert {:error, "The AI provider returned an empty answer."} =
              DeckQuestion.normalize_result(%{
                "answer" => "  ",
+               "recommended_cuts" => [],
                "recommended_additions" => []
              })
   end

@@ -60,6 +60,14 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :question, non_null(:string)
     field :answer, non_null(:string)
 
+    field :recommended_cuts, non_null(list_of(non_null(:string))) do
+      resolve(&DeckFields.deck_question_answer_recommended_cuts/3)
+    end
+
+    field :recommended_additions, non_null(list_of(non_null(:string))) do
+      resolve(&DeckFields.deck_question_answer_recommended_additions/3)
+    end
+
     field :inserted_at, non_null(:string) do
       resolve(&DeckFields.deck_question_answer_inserted_at/3)
     end

@@ -1,17 +1,25 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, expect, test, vi } from "vitest"
+import type { DeckCardEntry } from "../src/pages/decks/deck-types"
 
 type QuestionAnswer = {
   id: string
   question: string
   answer: string
+  recommendedCuts: string[]
+  recommendedAdditions: string[]
   insertedAt: string
 }
 
 const apolloMocks = vi.hoisted(() => ({
   askVariables: null as { id: string; question: string } | null,
+  addVariables: [] as Array<{
+    deckId: string
+    input: { name: string; quantity: number; zone: string }
+  }>,
   deleteVariables: null as { id: string } | null,
+  tagVariables: null as { deckCardIds: string[]; tag: string } | null,
   historyData: {
     deckQuestionAnswers: [
       {
@@ -22,20 +30,41 @@ const apolloMocks = vi.hoisted(() => ({
 | Cut | Addition | Mana cost |
 | :--- | :--- | :--- |
 | [[Approach of the Second Sun]] | [[Sun Titan]] | {4}{W}{W} |`,
+        recommendedCuts: ["Approach of the Second Sun", "Deepglow Skate"],
+        recommendedAdditions: ["Sun Titan", "Doubling Season"],
         insertedAt: "2026-08-19T03:00:00Z",
       },
       {
         id: "history-1",
         question: "What is the weakest card?",
         answer: "Start by testing a cut from the top of the curve.",
+        recommendedCuts: [],
+        recommendedAdditions: [],
         insertedAt: "2026-08-18T03:00:00Z",
       },
     ] satisfies QuestionAnswer[],
   },
+  refetchQueries: vi.fn(() => Promise.resolve()),
   refetch: vi.fn(),
 }))
 
+const deckCards = [
+  {
+    id: "deck-card-approach",
+    zone: "mainboard",
+    tag: null,
+    card: { name: "Approach of the Second Sun" },
+  },
+  {
+    id: "deck-card-deepglow",
+    zone: "mainboard",
+    tag: null,
+    card: { name: "Deepglow Skate" },
+  },
+] as unknown as DeckCardEntry[]
+
 vi.mock("@apollo/client/react", () => ({
+  useApolloClient: () => ({ refetchQueries: apolloMocks.refetchQueries }),
   useQuery: () => ({
     data: apolloMocks.historyData,
     error: undefined,
@@ -62,10 +91,37 @@ vi.mock("@apollo/client/react", () => ({
                 id: "history-3",
                 question: options.variables.question,
                 answer,
+                recommendedCuts: [],
+                recommendedAdditions: [],
                 insertedAt: "2026-08-19T04:00:00Z",
               },
             },
           })
+          return Promise.resolve({ data: {} })
+        },
+        { loading: false },
+      ]
+    }
+
+    if (operationName === "UpdateDeckCardsTag") {
+      return [
+        (options: { variables: { deckCardIds: string[]; tag: string } }) => {
+          apolloMocks.tagVariables = options.variables
+          return Promise.resolve({ data: {} })
+        },
+        { loading: false },
+      ]
+    }
+
+    if (operationName === "AddDeckCard") {
+      return [
+        (options: {
+          variables: {
+            deckId: string
+            input: { name: string; quantity: number; zone: string }
+          }
+        }) => {
+          apolloMocks.addVariables.push(options.variables)
           return Promise.resolve({ data: {} })
         },
         { loading: false },
@@ -93,12 +149,16 @@ import { DeckQuestionDialog } from "../src/pages/decks/deck-question-dialog"
 afterEach(() => {
   cleanup()
   apolloMocks.askVariables = null
+  apolloMocks.addVariables = []
   apolloMocks.deleteVariables = null
+  apolloMocks.tagVariables = null
+  apolloMocks.refetchQueries.mockClear()
 })
 
 test("renders saved questions newest first in collapsible sections", () => {
   render(
     <DeckQuestionDialog
+      deckCards={deckCards}
       deckId="deck-1"
       deckName="Counter Deck"
       open={true}
@@ -121,6 +181,7 @@ test("renders saved questions newest first in collapsible sections", () => {
 test("renders answer tables, mana symbols, and card links with previews", async () => {
   render(
     <DeckQuestionDialog
+      deckCards={deckCards}
       deckId="deck-1"
       deckName="Counter Deck"
       open={true}
@@ -148,6 +209,7 @@ test("submits a trimmed deck question and adds the saved Markdown answer at the 
   const user = userEvent.setup()
   render(
     <DeckQuestionDialog
+      deckCards={deckCards}
       deckId="deck-1"
       deckName="Counter Deck"
       open={true}
@@ -181,10 +243,54 @@ test("submits a trimmed deck question and adds the saved Markdown answer at the 
   expect(entries[0]?.textContent).toContain("Would Doubling Season fit?")
 })
 
+test("selectively applies recommended cuts and additions", async () => {
+  const user = userEvent.setup()
+  render(
+    <DeckQuestionDialog
+      deckCards={deckCards}
+      deckId="deck-1"
+      deckName="Counter Deck"
+      open={true}
+      onOpenChange={() => undefined}
+    />,
+  )
+
+  expect(screen.getByRole("region", { name: "Suggested deck changes" })).toBeInstanceOf(HTMLElement)
+  for (const cardName of [
+    "Approach of the Second Sun",
+    "Deepglow Skate",
+    "Sun Titan",
+    "Doubling Season",
+  ]) {
+    expect((screen.getByRole("checkbox", { name: cardName }) as HTMLInputElement).checked).toBe(
+      true,
+    )
+  }
+
+  await user.click(screen.getByRole("checkbox", { name: "Deepglow Skate" }))
+  await user.click(screen.getByRole("checkbox", { name: "Doubling Season" }))
+  await user.click(screen.getByRole("button", { name: "Mark 1 Consider Cutting" }))
+  await user.click(screen.getByRole("button", { name: "Add 1 to Considering" }))
+
+  expect(apolloMocks.tagVariables).toEqual({
+    deckCardIds: ["deck-card-approach"],
+    tag: "consider_cutting",
+  })
+  expect(apolloMocks.addVariables).toEqual([
+    {
+      deckId: "deck-1",
+      input: { name: "Sun Titan", quantity: 1, zone: "considering" },
+    },
+  ])
+  expect(await screen.findByText("1 card marked Consider Cutting.")).toBeInstanceOf(HTMLElement)
+  expect(await screen.findByText("1 card added to Considering.")).toBeInstanceOf(HTMLElement)
+})
+
 test("deletes a saved question after confirmation", async () => {
   const user = userEvent.setup()
   render(
     <DeckQuestionDialog
+      deckCards={deckCards}
       deckId="deck-1"
       deckName="Counter Deck"
       open={true}

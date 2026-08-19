@@ -207,6 +207,7 @@ defmodule Manavault.AITest do
 
       assert request["response_format"]["json_schema"]["schema"]["required"] == [
                "answer",
+               "recommended_cuts",
                "recommended_additions"
              ]
 
@@ -221,10 +222,12 @@ defmodule Manavault.AITest do
 
       answer =
         if user_prompt =~ "Return an empty answer" do
-          %{"answer" => "   ", "recommended_additions" => []}
+          %{"answer" => "   ", "recommended_cuts" => [], "recommended_additions" => []}
         else
           %{
-            "answer" => "**Probably not yet.** Add more counter-producing cards first.",
+            "answer" =>
+              "**Probably not yet.** Consider cutting [[Test Commander]] only if the strategy changes.",
+            "recommended_cuts" => ["test commander"],
             "recommended_additions" => []
           }
         end
@@ -246,7 +249,12 @@ defmodule Manavault.AITest do
     assert first_question_answer.question == "Would Doubling Season be a good fit?"
 
     assert first_question_answer.answer ==
-             "**Probably not yet.** Add more counter-producing cards first."
+             "**Probably not yet.** Consider cutting [[Test Commander]] only if the strategy changes."
+
+    assert first_question_answer.recommendations == %{
+             "cuts" => ["Test Commander"],
+             "additions" => []
+           }
 
     assert %DateTime{} = first_question_answer.inserted_at
 
@@ -410,14 +418,17 @@ defmodule Manavault.AITest do
         if attempt == 1 do
           %{
             "answer" => "Add [[Time Walk]] for efficiency.",
+            "recommended_cuts" => ["Missing Card"],
             "recommended_additions" => ["Time Walk"]
           }
         else
           assert user_prompt =~ "Time Walk is not legal in commander"
           assert user_prompt =~ "outside the commander's color identity"
+          assert user_prompt =~ "Missing Card is not in the current deck"
 
           %{
             "answer" => "Keep [[Test Commander]] and add more legal white interaction.",
+            "recommended_cuts" => [],
             "recommended_additions" => []
           }
         end
