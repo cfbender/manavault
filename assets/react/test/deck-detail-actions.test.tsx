@@ -3,8 +3,13 @@ import userEvent from "@testing-library/user-event"
 import type { ReactNode } from "react"
 import { afterEach, expect, test, vi } from "vitest"
 
+const mocks = vi.hoisted(() => ({
+  analyzeDeck: vi.fn(),
+  showToast: vi.fn(),
+}))
+
 vi.mock("@apollo/client/react", () => ({
-  useMutation: () => [vi.fn(), { loading: false }],
+  useMutation: () => [mocks.analyzeDeck, { loading: false }],
   useQuery: () => ({
     data: undefined,
     loading: false,
@@ -17,12 +22,16 @@ vi.mock("@tanstack/react-router", () => ({
 }))
 
 vi.mock("../src/components/ui/toast", () => ({
-  useToast: () => ({ showToast: vi.fn() }),
+  useToast: () => ({ showToast: mocks.showToast }),
 }))
 
 import { DeckDetailHeader } from "../src/pages/decks/deck-detail-header"
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  mocks.analyzeDeck.mockReset()
+  mocks.showToast.mockReset()
+})
 
 function renderHeader(shareMode: boolean) {
   const noOp = () => undefined
@@ -105,4 +114,25 @@ test("shared deck actions do not expose the AI question tool", () => {
 
   expect(screen.queryByRole("button", { name: "Ask AI" })).toBeNull()
   expect(screen.queryByRole("dialog", { name: "Ask about this deck" })).toBeNull()
+})
+
+test("AI deck analysis shows progress until the request completes", async () => {
+  const user = userEvent.setup()
+  mocks.analyzeDeck.mockImplementation(({ onCompleted }: { onCompleted?: () => void }) => {
+    onCompleted?.()
+    return Promise.resolve()
+  })
+  renderHeader(false)
+
+  await user.click(screen.getByRole("button", { name: "Counter Deck actions" }))
+  await user.click(screen.getByRole("menuitem", { name: "Analyze deck with AI" }))
+
+  expect(mocks.showToast).toHaveBeenNthCalledWith(1, "Analyzing Counter Deck with AI…", {
+    id: "deck-analysis-deck-1",
+    loading: true,
+    tone: "info",
+  })
+  expect(mocks.showToast).toHaveBeenNthCalledWith(2, "Deck analysis complete.", {
+    id: "deck-analysis-deck-1",
+  })
 })

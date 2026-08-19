@@ -223,11 +223,21 @@ export function DeckDetailHeader({
   const hasAnalysis = Boolean(deck.aiAnalysis?.trim())
 
   function analyze() {
+    const toastId = `deck-analysis-${deck.id}`
+
+    showToast(`${hasAnalysis ? "Refreshing" : "Analyzing"} ${deck.name} with AI…`, {
+      id: toastId,
+      loading: true,
+      tone: "info",
+    })
+
     void analyzeDeck({
       variables: { id: deck.id },
       onCompleted: () =>
-        showToast(hasAnalysis ? "Deck analysis refreshed." : "Deck analysis complete."),
-      onError: (error) => showToast(error.message, { tone: "error" }),
+        showToast(hasAnalysis ? "Deck analysis refreshed." : "Deck analysis complete.", {
+          id: toastId,
+        }),
+      onError: (error) => showToast(error.message, { id: toastId, tone: "error" }),
     })
   }
 
