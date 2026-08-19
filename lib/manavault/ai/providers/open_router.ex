@@ -51,7 +51,7 @@ defmodule Manavault.AI.Providers.OpenRouter do
         json_schema: %{
           name: "manavault_deck_analysis",
           strict: true,
-          schema: DeckAnalysis.response_schema()
+          schema: DeckAnalysis.response_schema(settings.deck_analysis_instructions)
         }
       }
     }
@@ -79,7 +79,7 @@ defmodule Manavault.AI.Providers.OpenRouter do
         %{role: "system", content: DeckQuestion.system_prompt()},
         %{role: "user", content: DeckQuestion.user_prompt(question, payload)}
       ],
-      max_tokens: 8_000,
+      max_tokens: 20_000,
       temperature: 0.2,
       plugins: [%{id: "response-healing"}],
       response_format: %{

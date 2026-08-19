@@ -42,6 +42,9 @@ defmodule Manavault.AI.DeckAnalysis do
     Keep the final analysis compact: use one concise paragraph for each narrative field and three to
     five concise items for each standard list when the deck supports that many. Use deeper reasoning
     to improve the analysis rather than making the final response longer.
+    Every suggested card must be legal in the deck's format. For Commander decks, its color identity
+    must also be contained within deck.commander_color_identity. Omit any card whose legality or
+    color identity you cannot verify rather than guessing.
     The facts object contains authoritative metadata calculated by ManaVault. Use its counts instead
     of recounting deck.cards.
 
@@ -117,7 +120,7 @@ defmodule Manavault.AI.DeckAnalysis do
     """
   end
 
-  def response_schema do
+  def response_schema(custom_instructions \\ nil) do
     string = %{type: "string"}
     strings = %{type: "array", items: string}
     nullable_bracket = %{type: ["integer", "null"], minimum: 1, maximum: 5}
@@ -131,6 +134,11 @@ defmodule Manavault.AI.DeckAnalysis do
         required: ~w(title content)
       }
     }
+
+    custom_sections =
+      if custom_instructions?(custom_instructions),
+        do: custom_sections,
+        else: Map.put(custom_sections, :maxItems, 0)
 
     %{
       type: "object",
@@ -156,8 +164,15 @@ defmodule Manavault.AI.DeckAnalysis do
     }
   end
 
-  def normalize_result(result, payload) when is_map(result) do
+  def normalize_result(result, payload, custom_instructions \\ nil)
+
+  def normalize_result(result, payload, custom_instructions) when is_map(result) do
     with {:ok, normalized} <- normalized_fields(result),
+         normalized <-
+           if(custom_instructions?(custom_instructions),
+             do: normalized,
+             else: Map.put(normalized, :custom_sections, [])
+           ),
          normalized <-
            Map.merge(normalized, %{
              official_bracket: value(result, :official_bracket),
@@ -168,7 +183,7 @@ defmodule Manavault.AI.DeckAnalysis do
     end
   end
 
-  def normalize_result(_result, _payload),
+  def normalize_result(_result, _payload, _custom_instructions),
     do: {:error, "The AI provider returned an invalid analysis."}
 
   def render_markdown(result) do
@@ -288,8 +303,27 @@ defmodule Manavault.AI.DeckAnalysis do
     if payload.deck.format == "commander" do
       with true <- valid_bracket?(official),
            true <- valid_bracket?(practical) do
-        official = max(official, game_changer_minimum(payload.facts.game_changer_count))
-        {:ok, Map.merge(result, %{official_bracket: official, play_bracket: practical})}
+        game_changer_count = payload.facts.game_changer_count
+        minimum = game_changer_minimum(game_changer_count)
+
+        result =
+          Map.merge(result, %{
+            official_bracket: max(official, minimum),
+            play_bracket: practical
+          })
+
+        result =
+          if official < minimum do
+            Map.put(
+              result,
+              :bracket_rationale,
+              corrected_bracket_rationale(game_changer_count, minimum, practical)
+            )
+          else
+            result
+          end
+
+        {:ok, result}
       else
         _invalid -> {:error, "The AI provider returned an invalid Commander bracket."}
       end
@@ -314,6 +348,20 @@ defmodule Manavault.AI.DeckAnalysis do
   defp game_changer_minimum(0), do: 1
   defp game_changer_minimum(count) when count <= 3, do: 3
   defp game_changer_minimum(_count), do: 4
+
+  defp corrected_bracket_rationale(game_changer_count, minimum, practical) do
+    game_changers =
+      if game_changer_count == 1,
+        do: "1 Game Changer",
+        else: "#{game_changer_count} Game Changers"
+
+    "The official Commander Brackets guidelines require at least Bracket #{minimum} because " <>
+      "the deck contains #{game_changers}. Based on the rest of the list, it is expected to " <>
+      "play like Bracket #{practical}."
+  end
+
+  defp custom_instructions?(instructions),
+    do: is_binary(instructions) and String.trim(instructions) != ""
 
   defp section(title, content), do: "## #{title}\n\n#{content}"
 

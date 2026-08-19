@@ -25,6 +25,8 @@ defmodule Manavault.AI.DeckAnalysisTest do
     assert {:ok, result} = DeckAnalysis.normalize_result(@result, payload)
     assert result.official_bracket == 3
     assert result.play_bracket == 3
+    assert result.bracket_rationale =~ "require at least Bracket 3"
+    assert result.bracket_rationale =~ "1 Game Changer"
 
     weaker = Map.put(@result, "play_bracket", 2)
     assert {:ok, weaker_result} = DeckAnalysis.normalize_result(weaker, payload)
@@ -69,7 +71,8 @@ defmodule Manavault.AI.DeckAnalysisTest do
         }
       ])
 
-    assert {:ok, normalized} = DeckAnalysis.normalize_result(result, payload)
+    assert {:ok, normalized} =
+             DeckAnalysis.normalize_result(result, payload, "Add a budget upgrades section.")
 
     assert normalized.custom_sections == [
              %{title: "Budget upgrades", content: "- Start with [[Counterspell]]."}
@@ -77,6 +80,25 @@ defmodule Manavault.AI.DeckAnalysisTest do
 
     assert DeckAnalysis.render_markdown(normalized) =~
              "## Budget upgrades\n\n- Start with [[Counterspell]]."
+  end
+
+  test "requires empty custom sections when no custom instructions exist" do
+    schema = DeckAnalysis.response_schema()
+    assert schema.properties.custom_sections.maxItems == 0
+
+    custom_schema =
+      DeckAnalysis.response_schema("Add a budget section.").properties.custom_sections
+
+    refute Map.has_key?(custom_schema, :maxItems)
+
+    result =
+      Map.put(@result, "custom_sections", [
+        %{"title" => "Strengths", "content" => "Duplicated standard content."}
+      ])
+
+    payload = %{deck: %{format: "modern"}, facts: %{game_changer_count: 0}}
+    assert {:ok, normalized} = DeckAnalysis.normalize_result(result, payload)
+    assert normalized.custom_sections == []
   end
 
   test "payload includes authoritative land metadata from counted deck zones" do

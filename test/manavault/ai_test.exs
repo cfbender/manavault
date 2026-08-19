@@ -198,7 +198,7 @@ defmodule Manavault.AITest do
 
       assert request["response_format"]["type"] == "json_schema"
       assert request["plugins"] == [%{"id" => "response-healing"}]
-      assert request["max_tokens"] == 8_000
+      assert request["max_tokens"] == 20_000
       refute Map.has_key?(request, "max_completion_tokens")
       refute Map.has_key?(request, "reasoning")
 
@@ -281,7 +281,7 @@ defmodule Manavault.AITest do
       {:ok, request_body, conn} = Plug.Conn.read_body(conn)
       request = Jason.decode!(request_body)
       refute Map.has_key?(request, "reasoning")
-      assert request["max_tokens"] == 8_000
+      assert request["max_tokens"] == 20_000
 
       json_response(conn, 200, %{
         "provider" => "Google",
@@ -294,7 +294,7 @@ defmodule Manavault.AITest do
         ],
         "usage" => %{
           "prompt_tokens" => 12_345,
-          "completion_tokens" => 8_000,
+          "completion_tokens" => 20_000,
           "completion_tokens_details" => %{"reasoning_tokens" => 7_950}
         }
       })
@@ -311,7 +311,7 @@ defmodule Manavault.AITest do
     assert log =~ "finish_reason=\"length\""
     assert log =~ "native_finish_reason=\"MAX_TOKENS\""
     assert log =~ "prompt_tokens=12345"
-    assert log =~ "completion_tokens=8000"
+    assert log =~ "completion_tokens=20000"
     assert log =~ "reasoning_tokens=7950"
     assert log =~ "result=output_token_limit"
     refute log =~ "Do not include this question in logs."
@@ -334,7 +334,7 @@ defmodule Manavault.AITest do
       {:ok, request_body, conn} = Plug.Conn.read_body(conn)
       request = Jason.decode!(request_body)
       refute Map.has_key?(request, "reasoning")
-      assert request["max_tokens"] == 8_000
+      assert request["max_tokens"] == 20_000
 
       json_response(conn, 200, %{
         "provider" => "Parasail",

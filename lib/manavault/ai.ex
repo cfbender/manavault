@@ -53,7 +53,12 @@ defmodule Manavault.AI do
          {:ok, provider} <- Provider.module(settings.provider),
          payload <- DeckAnalysis.payload(deck, Catalog.deck_cards(deck)),
          {:ok, provider_result} <- provider.analyze_deck(settings, payload),
-         {:ok, result} <- DeckAnalysis.normalize_result(provider_result, payload),
+         {:ok, result} <-
+           DeckAnalysis.normalize_result(
+             provider_result,
+             payload,
+             settings.deck_analysis_instructions
+           ),
          attrs <- analysis_attrs(result, settings),
          {:ok, deck} <- Catalog.save_deck_analysis(deck, attrs) do
       {:ok, deck}
