@@ -117,7 +117,11 @@ defmodule Manavault.AITest do
       request = Jason.decode!(request_body)
       assert request["model"] == "anthropic/claude-sonnet-4"
       assert request["response_format"]["type"] == "json_schema"
+      assert request["max_tokens"] == 20_000
+      refute Map.has_key?(request, "max_completion_tokens")
       system_prompt = get_in(request, ["messages", Access.at(0), "content"])
+      assert system_prompt =~ "Use deeper reasoning"
+      assert system_prompt =~ "rather than making the final response longer"
       assert system_prompt =~ "Never suggest infinite combos."
       assert system_prompt =~ "Add a Budget upgrades section."
       user_prompt = get_in(request, ["messages", Access.at(1), "content"])
@@ -194,7 +198,7 @@ defmodule Manavault.AITest do
 
       assert request["response_format"]["type"] == "json_schema"
       assert request["plugins"] == [%{"id" => "response-healing"}]
-      assert request["max_tokens"] == 2_000
+      assert request["max_tokens"] == 8_000
       refute Map.has_key?(request, "max_completion_tokens")
       refute Map.has_key?(request, "reasoning")
 
@@ -261,7 +265,7 @@ defmodule Manavault.AITest do
     assert Catalog.get_deck!(deck.id).ai_analysis == nil
   end
 
-  test "limits Gemini 3.7 reasoning and logs safe diagnostics when output is truncated" do
+  test "uses generic question options and logs safe diagnostics when output is truncated" do
     {:ok, _settings} =
       %Settings{id: 1}
       |> Settings.changeset(%{
@@ -276,8 +280,8 @@ defmodule Manavault.AITest do
     Req.Test.stub(@stub, fn conn ->
       {:ok, request_body, conn} = Plug.Conn.read_body(conn)
       request = Jason.decode!(request_body)
-      assert request["reasoning"] == %{"effort" => "low", "exclude" => true}
-      assert request["max_tokens"] == 4_000
+      refute Map.has_key?(request, "reasoning")
+      assert request["max_tokens"] == 8_000
 
       json_response(conn, 200, %{
         "provider" => "Google",
@@ -290,8 +294,8 @@ defmodule Manavault.AITest do
         ],
         "usage" => %{
           "prompt_tokens" => 12_345,
-          "completion_tokens" => 4_000,
-          "completion_tokens_details" => %{"reasoning_tokens" => 3_950}
+          "completion_tokens" => 8_000,
+          "completion_tokens_details" => %{"reasoning_tokens" => 7_950}
         }
       })
     end)
@@ -307,11 +311,65 @@ defmodule Manavault.AITest do
     assert log =~ "finish_reason=\"length\""
     assert log =~ "native_finish_reason=\"MAX_TOKENS\""
     assert log =~ "prompt_tokens=12345"
-    assert log =~ "completion_tokens=4000"
-    assert log =~ "reasoning_tokens=3950"
-    assert log =~ "result=invalid_response"
+    assert log =~ "completion_tokens=8000"
+    assert log =~ "reasoning_tokens=7950"
+    assert log =~ "result=output_token_limit"
     refute log =~ "Do not include this question in logs."
     refute log =~ "unfinished"
+  end
+
+  test "logs reasoning-only responses without model-specific request options" do
+    {:ok, _settings} =
+      %Settings{id: 1}
+      |> Settings.changeset(%{
+        provider: "openrouter",
+        api_key: "test-openrouter-key",
+        model: "minimax/minimax-m3"
+      })
+      |> Repo.insert()
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "MiniMax Deck"})
+
+    Req.Test.stub(@stub, fn conn ->
+      {:ok, request_body, conn} = Plug.Conn.read_body(conn)
+      request = Jason.decode!(request_body)
+      refute Map.has_key?(request, "reasoning")
+      assert request["max_tokens"] == 8_000
+
+      json_response(conn, 200, %{
+        "provider" => "Parasail",
+        "choices" => [
+          %{
+            "finish_reason" => "stop",
+            "native_finish_reason" => "stop",
+            "message" => %{"content" => nil, "reasoning" => "Sensitive reasoning content"}
+          }
+        ],
+        "usage" => %{
+          "prompt_tokens" => 10_646,
+          "completion_tokens" => 768,
+          "completion_tokens_details" => %{"reasoning_tokens" => 749}
+        }
+      })
+    end)
+
+    log =
+      capture_log(fn ->
+        assert {:error, "OpenRouter returned an incomplete answer."} =
+                 AI.ask_deck_question(deck, "Do not include this MiniMax question in logs.")
+      end)
+
+    assert log =~ ~s(model="minimax/minimax-m3")
+    assert log =~ ~s(provider="Parasail")
+    assert log =~ "finish_reason=\"stop\""
+    assert log =~ "prompt_tokens=10646"
+    assert log =~ "completion_tokens=768"
+    assert log =~ "reasoning_tokens=749"
+    assert log =~ "content_bytes=nil"
+    assert log =~ "reasoning_bytes=27"
+    assert log =~ "result=incomplete_response"
+    refute log =~ "Do not include this MiniMax question in logs."
+    refute log =~ "Sensitive reasoning content"
   end
 
   test "retries catalog-invalid recommendations and only saves the corrected answer" do
