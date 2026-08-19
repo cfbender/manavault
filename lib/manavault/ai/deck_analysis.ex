@@ -1,7 +1,7 @@
 defmodule Manavault.AI.DeckAnalysis do
   @moduledoc false
 
-  alias Manavault.Catalog.{Deck, DeckCard}
+  alias Manavault.Catalog.{Deck, DeckCard, DeckSummaries, Util}
 
   @official_guidance_url "https://magic.wizards.com/en/news/announcements/commander-brackets-beta-update-october-21-2025"
 
@@ -13,7 +13,9 @@ defmodule Manavault.AI.DeckAnalysis do
         name: deck.name,
         format: deck.format,
         primer: deck.primer,
-        cards: Enum.map(counted_cards, &card_payload/1)
+        commander_color_identity:
+          DeckSummaries.commander_color_identity_from_cards(counted_cards),
+        cards: Enum.map(counted_cards, &card_payload(&1, deck.format))
       },
       facts: %{
         card_count: DeckCard.counted_quantity(counted_cards),
@@ -159,8 +161,9 @@ defmodule Manavault.AI.DeckAnalysis do
 
   def bracket_label(official, _practical), do: "Bracket #{official}"
 
-  defp card_payload(%DeckCard{} = deck_card) do
+  defp card_payload(%DeckCard{} = deck_card, format) do
     card = deck_card.card
+    legalities = Util.decode_json(card.legalities, %{})
 
     %{
       name: card.name,
@@ -168,6 +171,8 @@ defmodule Manavault.AI.DeckAnalysis do
       zone: deck_card.zone,
       mana_value: card.cmc,
       mana_cost: card.mana_cost,
+      color_identity: Util.decode_json(card.color_identity, []),
+      format_legality: Map.get(legalities, format, "not_legal"),
       type_line: card.type_line,
       oracle_text: card.oracle_text,
       game_changer: card.game_changer || false,

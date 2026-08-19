@@ -181,33 +181,38 @@ defmodule ManavaultWeb.Schema.AITest do
         {:ok, request_body, conn} = Plug.Conn.read_body(conn)
         request = Jason.decode!(request_body)
 
-        if Map.has_key?(request, "response_format") do
-          analysis = %{
-            summary: "A slow value deck.",
-            themes: ["Value"],
-            game_plan: "Build resources and win late.",
-            strengths: ["Resilient plan"],
-            weaknesses: ["Slow start"],
-            official_bracket: 2,
-            play_bracket: 2,
-            bracket_rationale: "Its single Game Changer raises the guideline bracket.",
-            power_up: ["Add interaction"],
-            power_down: ["Replace the Game Changer"],
-            consistency: ["Improve the curve"]
-          }
+        case get_in(request, ["response_format", "json_schema", "name"]) do
+          "manavault_deck_analysis" ->
+            analysis = %{
+              summary: "A slow value deck.",
+              themes: ["Value"],
+              game_plan: "Build resources and win late.",
+              strengths: ["Resilient plan"],
+              weaknesses: ["Slow start"],
+              official_bracket: 2,
+              play_bracket: 2,
+              bracket_rationale: "Its single Game Changer raises the guideline bracket.",
+              power_up: ["Add interaction"],
+              power_down: ["Replace the Game Changer"],
+              consistency: ["Improve the curve"]
+            }
 
-          json_response(conn, 200, %{
-            "choices" => [%{"message" => %{"content" => Jason.encode!(analysis)}}]
-          })
-        else
-          assert request |> get_in(["messages", Access.at(1), "content"]) =~
-                   "What should I cut for Doubling Season?"
+            json_response(conn, 200, %{
+              "choices" => [%{"message" => %{"content" => Jason.encode!(analysis)}}]
+            })
 
-          json_response(conn, 200, %{
-            "choices" => [
-              %{"message" => %{"content" => "Cut the least synergistic top-end card."}}
-            ]
-          })
+          "manavault_deck_question_answer" ->
+            assert request |> get_in(["messages", Access.at(1), "content"]) =~
+                     "What should I cut for Doubling Season?"
+
+            answer = %{
+              answer: "Cut the least synergistic top-end card.",
+              recommended_additions: []
+            }
+
+            json_response(conn, 200, %{
+              "choices" => [%{"message" => %{"content" => Jason.encode!(answer)}}]
+            })
         end
     end
   end

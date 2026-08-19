@@ -5,7 +5,8 @@ defmodule Manavault.AI do
 
   alias Manavault.AI.{DeckAnalysis, DeckQuestion, Provider, Settings}
   alias Manavault.Catalog
-  alias Manavault.Catalog.Deck
+  alias Manavault.Catalog.{Deck, Util}
+  alias Manavault.Catalog.Search.CardsByName
   alias Manavault.Repo
 
   @singleton_id 1
@@ -65,10 +66,69 @@ defmodule Manavault.AI do
          :ok <- configured(settings),
          {:ok, provider} <- Provider.module(settings.provider),
          payload <- DeckAnalysis.payload(deck, Catalog.deck_cards(deck)),
-         {:ok, answer} <- provider.ask_deck_question(settings, payload, question) do
+         {:ok, answer} <- generate_deck_answer(provider, settings, payload, question, 1) do
       Catalog.create_deck_question_answer(deck, %{question: question, answer: answer})
     end
   end
+
+  defp generate_deck_answer(provider, settings, payload, question, corrections_left) do
+    with {:ok, provider_result} <- provider.ask_deck_question(settings, payload, question),
+         {:ok, result} <- DeckQuestion.normalize_result(provider_result) do
+      case recommendation_issues(result.recommended_additions, payload) do
+        [] ->
+          {:ok, result.answer}
+
+        issues when corrections_left > 0 ->
+          correction = DeckQuestion.correction_prompt(question, issues)
+          generate_deck_answer(provider, settings, payload, correction, corrections_left - 1)
+
+        _issues ->
+          {:error, "The AI provider could not produce a legal recommendation. Try asking again."}
+      end
+    end
+  end
+
+  defp recommendation_issues([], _payload), do: []
+
+  defp recommendation_issues(card_names, payload) do
+    cards = Catalog.cards_by_names(card_names)
+
+    Enum.flat_map(card_names, fn card_name ->
+      case Map.get(cards, CardsByName.key(card_name)) do
+        nil ->
+          ["#{card_name} was not found in the current card catalog."]
+
+        card ->
+          format_issue(card_name, card, payload.deck.format) ++
+            color_identity_issue(card_name, card, payload.deck)
+      end
+    end)
+  end
+
+  defp format_issue(_card_name, _card, format) when format in ~w(limited casual), do: []
+
+  defp format_issue(card_name, card, format) do
+    status = card.legalities |> Util.decode_json(%{}) |> Map.get(format)
+
+    if status in ~w(legal restricted),
+      do: [],
+      else: ["#{card_name} is not legal in #{format}."]
+  end
+
+  defp color_identity_issue(card_name, card, %{
+         format: "commander",
+         commander_color_identity: commander_identity
+       })
+       when is_list(commander_identity) do
+    card_identity = card.color_identity |> Util.decode_json([]) |> MapSet.new()
+    commander_identity = MapSet.new(commander_identity)
+
+    if MapSet.subset?(card_identity, commander_identity),
+      do: [],
+      else: ["#{card_name} is outside the commander's color identity."]
+  end
+
+  defp color_identity_issue(_card_name, _card, _deck), do: []
 
   defp configured(%Settings{} = settings) do
     if Settings.secret_present?(settings) and is_binary(settings.model) and settings.model != "" do

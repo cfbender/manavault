@@ -309,7 +309,7 @@ function QuestionHistoryItem({
         />
       </summary>
       <div className="border-t border-base-300 px-4 py-4">
-        <DeckMarkdown>{questionAnswer.answer}</DeckMarkdown>
+        <DeckMarkdown cardReferences>{questionAnswer.answer}</DeckMarkdown>
       </div>
     </details>
   )

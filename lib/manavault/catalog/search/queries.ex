@@ -1,9 +1,10 @@
 defmodule Manavault.Catalog.Search.Queries do
   @moduledoc false
 
-  alias Manavault.Catalog.Search.{CardNameSuggestions, Cards, Printings}
+  alias Manavault.Catalog.Search.{CardNameSuggestions, Cards, CardsByName, Printings}
 
   defdelegate search_cards(term, opts \\ []), to: Cards
+  defdelegate cards_by_names(names), to: CardsByName, as: :by_names
   defdelegate suggest_card_names(term, opts \\ []), to: CardNameSuggestions
   defdelegate clear_card_name_suggestion_cache(), to: CardNameSuggestions
 

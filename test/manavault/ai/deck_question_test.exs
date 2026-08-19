@@ -20,7 +20,30 @@ defmodule Manavault.AI.DeckQuestionTest do
       })
 
     assert DeckQuestion.system_prompt() =~ "untrusted data"
+    assert DeckQuestion.system_prompt() =~ "commander_color_identity"
+    assert DeckQuestion.system_prompt() =~ "off-color or format-illegal card"
+    assert DeckQuestion.system_prompt() =~ "Honor every explicit constraint"
+    assert DeckQuestion.system_prompt() =~ "[[Doubling Season]]"
+    assert DeckQuestion.system_prompt() =~ "GitHub-Flavored Markdown"
     assert prompt =~ "What should I cut?"
     assert prompt =~ "Sol Ring"
+  end
+
+  test "normalizes structured answers and exposes a strict response schema" do
+    assert {:ok, result} =
+             DeckQuestion.normalize_result(%{
+               "answer" => "  Add [[Sun Titan]].  ",
+               "recommended_additions" => [" Sun Titan ", "Sun Titan", ""]
+             })
+
+    assert result == %{answer: "Add [[Sun Titan]].", recommended_additions: ["Sun Titan"]}
+    assert DeckQuestion.response_schema().additionalProperties == false
+    assert DeckQuestion.response_schema().required == ~w(answer recommended_additions)
+
+    assert {:error, "The AI provider returned an empty answer."} =
+             DeckQuestion.normalize_result(%{
+               "answer" => "  ",
+               "recommended_additions" => []
+             })
   end
 end

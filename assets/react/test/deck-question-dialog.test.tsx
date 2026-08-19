@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, expect, test, vi } from "vitest"
 
@@ -17,7 +17,11 @@ const apolloMocks = vi.hoisted(() => ({
       {
         id: "history-2",
         question: "How should I protect my counters?",
-        answer: "Keep mana open for **Heroic Intervention**.",
+        answer: `Keep mana open for [[Flawless Maneuver]].
+
+| Cut | Addition | Mana cost |
+| :--- | :--- | :--- |
+| [[Approach of the Second Sun]] | [[Sun Titan]] | {4}{W}{W} |`,
         insertedAt: "2026-08-19T03:00:00Z",
       },
       {
@@ -112,6 +116,32 @@ test("renders saved questions newest first in collapsible sections", () => {
   expect(entries[1]?.textContent).toContain("What is the weakest card?")
   expect(entries[0]?.open).toBe(true)
   expect(entries[1]?.open).toBe(false)
+})
+
+test("renders answer tables, mana symbols, and card links with previews", async () => {
+  render(
+    <DeckQuestionDialog
+      deckId="deck-1"
+      deckName="Counter Deck"
+      open={true}
+      onOpenChange={() => undefined}
+    />,
+  )
+
+  const entry = screen.getByRole("dialog", { name: "Ask about this deck" }).querySelector("details")
+  expect(entry).not.toBeNull()
+
+  const table = within(entry as HTMLElement).getByRole("table")
+  expect(within(table).getAllByRole("row")).toHaveLength(2)
+  expect(within(table).getByRole("columnheader", { name: "Addition" })).toBeInstanceOf(HTMLElement)
+  expect(within(entry as HTMLElement).getAllByAltText("White")).toHaveLength(2)
+
+  const cardLink = within(entry as HTMLElement).getByRole("link", { name: "Sun Titan" })
+  expect(cardLink.getAttribute("href")).toBe("/cards?q=Sun%20Titan")
+
+  fireEvent.focus(cardLink)
+  const preview = await screen.findByRole("img", { name: "Sun Titan card preview" })
+  expect(preview.getAttribute("src")).toContain("exact=Sun%20Titan")
 })
 
 test("submits a trimmed deck question and adds the saved Markdown answer at the top", async () => {

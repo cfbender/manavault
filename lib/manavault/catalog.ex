@@ -16,6 +16,7 @@ defmodule Manavault.Catalog do
   defdelegate data(), to: Dataloader
 
   defdelegate search_cards(term, opts \\ []), to: Cached
+  defdelegate cards_by_names(names), to: Search
   defdelegate suggest_card_names(term, opts \\ []), to: Search
   defdelegate get_printing_by_scryfall_id(scryfall_id), to: Cached
   defdelegate get_printing(set_code, collector_number), to: Cached

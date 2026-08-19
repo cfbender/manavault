@@ -72,7 +72,15 @@ defmodule Manavault.AI.Providers.OpenRouter do
         %{role: "user", content: DeckQuestion.user_prompt(question, payload)}
       ],
       max_completion_tokens: 2_000,
-      temperature: 0.2
+      temperature: 0.2,
+      response_format: %{
+        type: "json_schema",
+        json_schema: %{
+          name: "manavault_deck_question_answer",
+          strict: true,
+          schema: DeckQuestion.response_schema()
+        }
+      }
     }
 
     case Req.post(
@@ -135,9 +143,9 @@ defmodule Manavault.AI.Providers.OpenRouter do
 
   defp decode_answer(%{"choices" => [%{"message" => %{"content" => content}} | _]})
        when is_binary(content) do
-    case String.trim(content) do
-      "" -> {:error, "OpenRouter returned an empty answer."}
-      answer -> {:ok, answer}
+    case Jason.decode(content) do
+      {:ok, answer} when is_map(answer) -> {:ok, answer}
+      _error -> {:error, "OpenRouter returned an invalid answer."}
     end
   end
 

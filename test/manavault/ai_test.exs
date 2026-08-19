@@ -160,24 +160,35 @@ defmodule Manavault.AITest do
       {:ok, request_body, conn} = Plug.Conn.read_body(conn)
       request = Jason.decode!(request_body)
 
-      refute Map.has_key?(request, "response_format")
+      assert request["response_format"]["type"] == "json_schema"
+
+      assert request["response_format"]["json_schema"]["schema"]["required"] == [
+               "answer",
+               "recommended_additions"
+             ]
 
       user_prompt = get_in(request, ["messages", Access.at(1), "content"])
 
       assert user_prompt =~ "Test Commander"
+      assert user_prompt =~ ~s("commander_color_identity":["W"])
+      assert user_prompt =~ ~s("color_identity":["W"])
+      assert user_prompt =~ ~s("format_legality":"legal")
 
       answer =
         if user_prompt =~ "Return an empty answer" do
-          "   "
+          %{"answer" => "   ", "recommended_additions" => []}
         else
-          "**Probably not yet.** Add more counter-producing cards first."
+          %{
+            "answer" => "**Probably not yet.** Add more counter-producing cards first.",
+            "recommended_additions" => []
+          }
         end
 
       json_response(conn, 200, %{
         "choices" => [
           %{
             "message" => %{
-              "content" => answer
+              "content" => Jason.encode!(answer)
             }
           }
         ]
@@ -202,11 +213,74 @@ defmodule Manavault.AITest do
              first_question_answer.id
            ]
 
-    assert {:error, "OpenRouter returned an empty answer."} =
+    assert {:error, "The AI provider returned an empty answer."} =
              AI.ask_deck_question(deck, "Return an empty answer")
 
     assert length(Catalog.list_deck_question_answers(deck)) == 2
     assert Catalog.get_deck!(deck.id).ai_analysis == nil
+  end
+
+  test "retries catalog-invalid recommendations and only saves the corrected answer" do
+    {:ok, _settings} =
+      %Settings{id: 1}
+      |> Settings.changeset(%{
+        provider: "openrouter",
+        api_key: "test-openrouter-key",
+        model: "anthropic/claude-sonnet-4"
+      })
+      |> Repo.insert()
+
+    assert {:ok, %{cards_count: 2}} =
+             Catalog.import_cards([
+               CatalogTestSupport.legal_commander_card(),
+               CatalogTestSupport.time_walk()
+             ])
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Mono-White Deck"})
+
+    assert {:ok, _deck_card} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Test Commander",
+               "zone" => "commander"
+             })
+
+    attempts = :counters.new(1, [])
+
+    Req.Test.stub(@stub, fn conn ->
+      :counters.add(attempts, 1, 1)
+      attempt = :counters.get(attempts, 1)
+      {:ok, request_body, conn} = Plug.Conn.read_body(conn)
+
+      user_prompt =
+        request_body |> Jason.decode!() |> get_in(["messages", Access.at(1), "content"])
+
+      result =
+        if attempt == 1 do
+          %{
+            "answer" => "Add [[Time Walk]] for efficiency.",
+            "recommended_additions" => ["Time Walk"]
+          }
+        else
+          assert user_prompt =~ "Time Walk is not legal in commander"
+          assert user_prompt =~ "outside the commander's color identity"
+
+          %{
+            "answer" => "Keep [[Test Commander]] and add more legal white interaction.",
+            "recommended_additions" => []
+          }
+        end
+
+      json_response(conn, 200, %{
+        "choices" => [%{"message" => %{"content" => Jason.encode!(result)}}]
+      })
+    end)
+
+    assert {:ok, question_answer} = AI.ask_deck_question(deck, "Make this deck stronger.")
+    assert :counters.get(attempts, 1) == 2
+    assert question_answer.answer =~ "legal white interaction"
+    refute question_answer.answer =~ "Time Walk"
+    assert [saved] = Catalog.list_deck_question_answers(deck)
+    assert saved.id == question_answer.id
   end
 
   defp stub_settings_validation(model_ids) do
