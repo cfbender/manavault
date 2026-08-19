@@ -297,7 +297,20 @@ html[data-theme-style="glass"] :is(.btn-outline, .btn-ghost):hover {
   height: calc(100dvh - 4rem - env(safe-area-inset-top, 0px));
   padding-left: calc(1rem + env(safe-area-inset-left, 0px));
   padding-right: calc(1rem + env(safe-area-inset-right, 0px));
-  padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
+  /* iOS Safari overlays its bottom toolbar without including it in the hardware safe area. */
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 39.999rem) {
+  .native-shell .app-shell-main {
+    padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (display-mode: standalone) {
+  .app-shell-main {
+    padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 /* Radix locks the document while a dialog is open. Mirror that lock onto the
