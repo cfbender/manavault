@@ -14,7 +14,8 @@ defmodule Manavault.AI.DeckAnalysisTest do
     "bracket_rationale" => "The list plays above its card-based minimum.",
     "power_up" => ["Add stronger interaction"],
     "power_down" => ["Use slower threats"],
-    "consistency" => ["Tighten the curve"]
+    "consistency" => ["Tighten the curve"],
+    "custom_sections" => []
   }
 
   test "preserves practical bracket differences while enforcing Game Changer minimums" do
@@ -45,5 +46,34 @@ defmodule Manavault.AI.DeckAnalysisTest do
                deck: %{format: "commander"},
                facts: %{game_changer_count: 0}
              })
+  end
+
+  test "includes custom instructions in the system prompt and renders requested sections" do
+    prompt =
+      DeckAnalysis.system_prompt(
+        "Never suggest infinite combos. Add another section for budget upgrades."
+      )
+
+    assert prompt =~ "Never suggest infinite combos."
+    assert prompt =~ "Add another section for budget upgrades."
+
+    payload = %{deck: %{format: "modern"}, facts: %{game_changer_count: 0}}
+
+    result =
+      Map.put(@result, "custom_sections", [
+        %{
+          "title" => "  Budget upgrades  ",
+          "content" => "  - Start with [[Counterspell]].  "
+        }
+      ])
+
+    assert {:ok, normalized} = DeckAnalysis.normalize_result(result, payload)
+
+    assert normalized.custom_sections == [
+             %{title: "Budget upgrades", content: "- Start with [[Counterspell]]."}
+           ]
+
+    assert DeckAnalysis.render_markdown(normalized) =~
+             "## Budget upgrades\n\n- Start with [[Counterspell]]."
   end
 end

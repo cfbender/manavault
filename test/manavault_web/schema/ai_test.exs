@@ -31,7 +31,7 @@ defmodule ManavaultWeb.Schema.AITest do
         "query" => """
         mutation UpdateAISettings($input: AiSettingsInput!) {
           updateAiSettings(input: $input) {
-            aiSettings { provider model hasApiKey }
+            aiSettings { provider model deckAnalysisInstructions hasApiKey }
           }
         }
         """,
@@ -39,7 +39,9 @@ defmodule ManavaultWeb.Schema.AITest do
           "input" => %{
             "provider" => "openrouter",
             "apiKey" => "graphql-openrouter-key",
-            "model" => "anthropic/claude-sonnet-4"
+            "model" => "anthropic/claude-sonnet-4",
+            "deckAnalysisInstructions" =>
+              "Never suggest infinite combos. Add a Budget upgrades section."
           }
         }
       })
@@ -50,6 +52,8 @@ defmodule ManavaultWeb.Schema.AITest do
                  "aiSettings" => %{
                    "provider" => "openrouter",
                    "model" => "anthropic/claude-sonnet-4",
+                   "deckAnalysisInstructions" =>
+                     "Never suggest infinite combos. Add a Budget upgrades section.",
                    "hasApiKey" => true
                  }
                }
@@ -183,6 +187,9 @@ defmodule ManavaultWeb.Schema.AITest do
 
         case get_in(request, ["response_format", "json_schema", "name"]) do
           "manavault_deck_analysis" ->
+            assert request |> get_in(["messages", Access.at(0), "content"]) =~
+                     "Never suggest infinite combos."
+
             analysis = %{
               summary: "A slow value deck.",
               themes: ["Value"],
@@ -194,7 +201,10 @@ defmodule ManavaultWeb.Schema.AITest do
               bracket_rationale: "Its single Game Changer raises the guideline bracket.",
               power_up: ["Add interaction"],
               power_down: ["Replace the Game Changer"],
-              consistency: ["Improve the curve"]
+              consistency: ["Improve the curve"],
+              custom_sections: [
+                %{title: "Budget upgrades", content: "- Start with efficient removal."}
+              ]
             }
 
             json_response(conn, 200, %{
@@ -202,6 +212,9 @@ defmodule ManavaultWeb.Schema.AITest do
             })
 
           "manavault_deck_question_answer" ->
+            refute request |> get_in(["messages", Access.at(0), "content"]) =~
+                     "Never suggest infinite combos."
+
             assert request |> get_in(["messages", Access.at(1), "content"]) =~
                      "What should I cut for Doubling Season?"
 

@@ -30,15 +30,18 @@ defmodule Manavault.AITest do
              AI.update_settings(%{
                provider: "openrouter",
                api_key: "test-openrouter-key",
-               model: "anthropic/claude-sonnet-4"
+               model: "anthropic/claude-sonnet-4",
+               deck_analysis_instructions: "  Never suggest infinite combos.  "
              })
 
     assert settings.api_key == "test-openrouter-key"
+    assert settings.deck_analysis_instructions == "Never suggest infinite combos."
 
     assert AI.sanitized_settings() == %{
              id: 1,
              provider: "openrouter",
              model: "anthropic/claude-sonnet-4",
+             deck_analysis_instructions: "Never suggest infinite combos.",
              has_api_key: true
            }
 
@@ -55,6 +58,16 @@ defmodule Manavault.AITest do
 
     assert updated.api_key == "test-openrouter-key"
     assert updated.model == "openai/gpt-5-mini"
+    assert updated.deck_analysis_instructions == "Never suggest infinite combos."
+
+    assert {:ok, cleared} =
+             AI.update_settings(%{
+               provider: "openrouter",
+               model: "openai/gpt-5-mini",
+               deck_analysis_instructions: "  "
+             })
+
+    assert cleared.deck_analysis_instructions == nil
   end
 
   test "returns a model validation error instead of saving an unknown model" do
@@ -77,7 +90,9 @@ defmodule Manavault.AITest do
       |> Settings.changeset(%{
         provider: "openrouter",
         api_key: "test-openrouter-key",
-        model: "anthropic/claude-sonnet-4"
+        model: "anthropic/claude-sonnet-4",
+        deck_analysis_instructions:
+          "Never suggest infinite combos. Add a Budget upgrades section."
       })
       |> Repo.insert()
 
@@ -100,6 +115,9 @@ defmodule Manavault.AITest do
       request = Jason.decode!(request_body)
       assert request["model"] == "anthropic/claude-sonnet-4"
       assert request["response_format"]["type"] == "json_schema"
+      system_prompt = get_in(request, ["messages", Access.at(0), "content"])
+      assert system_prompt =~ "Never suggest infinite combos."
+      assert system_prompt =~ "Add a Budget upgrades section."
       assert request |> get_in(["messages", Access.at(1), "content"]) =~ "Test Commander"
 
       analysis = %{
@@ -113,7 +131,13 @@ defmodule Manavault.AITest do
         bracket_rationale: "One Game Changer raises the guideline bracket, but the list is slow.",
         power_up: ["Add efficient interaction"],
         power_down: ["Replace the Game Changer"],
-        consistency: ["Improve the mana curve"]
+        consistency: ["Improve the mana curve"],
+        custom_sections: [
+          %{
+            title: "Budget upgrades",
+            content: "- Add [[Swords to Plowshares]] before premium interaction."
+          }
+        ]
       }
 
       json_response(conn, 200, %{
@@ -126,6 +150,8 @@ defmodule Manavault.AITest do
     assert analyzed.commander_bracket_estimate == 2
     assert analyzed.ai_analysis =~ "**Bracket 3 (plays like Bracket 2)**"
     assert analyzed.ai_analysis =~ "## Ways to power it up"
+    assert analyzed.ai_analysis =~ "## Budget upgrades"
+    assert analyzed.ai_analysis =~ "[[Swords to Plowshares]]"
 
     persisted = Catalog.get_deck!(deck.id)
     assert persisted.ai_analysis == analyzed.ai_analysis
@@ -139,7 +165,8 @@ defmodule Manavault.AITest do
       |> Settings.changeset(%{
         provider: "openrouter",
         api_key: "test-openrouter-key",
-        model: "anthropic/claude-sonnet-4"
+        model: "anthropic/claude-sonnet-4",
+        deck_analysis_instructions: "Never suggest infinite combos."
       })
       |> Repo.insert()
 
@@ -161,6 +188,9 @@ defmodule Manavault.AITest do
       request = Jason.decode!(request_body)
 
       assert request["response_format"]["type"] == "json_schema"
+
+      refute request |> get_in(["messages", Access.at(0), "content"]) =~
+               "Never suggest infinite combos."
 
       assert request["response_format"]["json_schema"]["schema"]["required"] == [
                "answer",

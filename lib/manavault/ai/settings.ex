@@ -8,6 +8,7 @@ defmodule Manavault.AI.Settings do
     field :provider, :string, default: "openrouter"
     field :api_key, Manavault.Encrypted.Binary
     field :model, :string
+    field :deck_analysis_instructions, :string
 
     timestamps(type: :utc_datetime)
   end
@@ -16,11 +17,12 @@ defmodule Manavault.AI.Settings do
 
   def changeset(settings, attrs) do
     settings
-    |> cast(attrs, [:provider, :api_key, :model])
+    |> cast(attrs, [:provider, :api_key, :model, :deck_analysis_instructions])
     |> normalize_strings()
     |> validate_required([:provider, :api_key, :model])
     |> validate_inclusion(:provider, @providers)
     |> validate_length(:model, max: 200)
+    |> validate_length(:deck_analysis_instructions, max: 4_000)
   end
 
   def secret_present?(%__MODULE__{api_key: api_key}) do
@@ -28,15 +30,19 @@ defmodule Manavault.AI.Settings do
   end
 
   defp normalize_strings(changeset) do
-    Enum.reduce([:provider, :api_key, :model], changeset, fn field, changeset ->
-      case get_change(changeset, field) do
-        value when is_binary(value) ->
-          value = String.trim(value)
-          put_change(changeset, field, if(value == "", do: nil, else: value))
+    Enum.reduce(
+      [:provider, :api_key, :model, :deck_analysis_instructions],
+      changeset,
+      fn field, changeset ->
+        case get_change(changeset, field) do
+          value when is_binary(value) ->
+            value = String.trim(value)
+            put_change(changeset, field, if(value == "", do: nil, else: value))
 
-        _value ->
-          changeset
+          _value ->
+            changeset
+        end
       end
-    end)
+    )
   end
 end

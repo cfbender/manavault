@@ -6,6 +6,7 @@ defmodule ManavaultWeb.Schema.AITypes do
   object :ai_settings do
     field :provider, non_null(:string)
     field :model, :string
+    field :deck_analysis_instructions, :string
     field :has_api_key, non_null(:boolean)
   end
 
@@ -13,5 +14,6 @@ defmodule ManavaultWeb.Schema.AITypes do
     field :provider, non_null(:string)
     field :api_key, :string
     field :model, non_null(:string)
+    field :deck_analysis_instructions, :string
   end
 end

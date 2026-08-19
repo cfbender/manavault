@@ -22,6 +22,7 @@ defmodule Manavault.AI do
       id: settings.id,
       provider: settings.provider,
       model: settings.model,
+      deck_analysis_instructions: settings.deck_analysis_instructions,
       has_api_key: Settings.secret_present?(settings)
     }
   end

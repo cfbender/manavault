@@ -12,6 +12,7 @@ export const AISettingsDocument = graphql(`
     aiSettings {
       provider
       model
+      deckAnalysisInstructions
       hasApiKey
     }
   }
@@ -23,6 +24,7 @@ export const UpdateAISettingsDocument = graphql(`
       aiSettings {
         provider
         model
+        deckAnalysisInstructions
         hasApiKey
       }
     }

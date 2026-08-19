@@ -28,8 +28,8 @@ defmodule Manavault.AI.DeckAnalysis do
     }
   end
 
-  def system_prompt do
-    """
+  def system_prompt(custom_instructions \\ nil) do
+    prompt = """
     You are an expert Magic: The Gathering deck analyst. Analyze only the supplied deck data.
     Be specific, concise, and evidence-based. Do not invent cards or claim certainty about hidden
     play patterns. Suggestions should preserve the deck's stated identity unless explicitly framed
@@ -74,7 +74,27 @@ defmodule Manavault.AI.DeckAnalysis do
 
     For a non-Commander deck, return null for both bracket fields and explain that Commander
     Brackets do not apply. The official source is #{@official_guidance_url}.
+    If custom instructions request additional named sections, return each one in custom_sections
+    with a short title and concise Markdown content. Otherwise return an empty custom_sections list.
     """
+
+    instructions =
+      if is_binary(custom_instructions), do: String.trim(custom_instructions), else: ""
+
+    if instructions == "" do
+      prompt
+    else
+      prompt <>
+        """
+
+        Follow these user-defined deck analysis instructions wherever they do not conflict with
+        the requirements above:
+
+        <custom_analysis_instructions>
+        #{instructions}
+        </custom_analysis_instructions>
+        """
+    end
   end
 
   def user_prompt(payload) do
@@ -93,6 +113,16 @@ defmodule Manavault.AI.DeckAnalysis do
     strings = %{type: "array", items: string}
     nullable_bracket = %{type: ["integer", "null"], minimum: 1, maximum: 5}
 
+    custom_sections = %{
+      type: "array",
+      items: %{
+        type: "object",
+        additionalProperties: false,
+        properties: %{title: string, content: string},
+        required: ~w(title content)
+      }
+    }
+
     %{
       type: "object",
       additionalProperties: false,
@@ -107,11 +137,12 @@ defmodule Manavault.AI.DeckAnalysis do
         bracket_rationale: string,
         power_up: strings,
         power_down: strings,
-        consistency: strings
+        consistency: strings,
+        custom_sections: custom_sections
       },
       required: ~w(
         summary themes game_plan strengths weaknesses official_bracket play_bracket
-        bracket_rationale power_up power_down consistency
+        bracket_rationale power_up power_down consistency custom_sections
       )
     }
   end
@@ -142,7 +173,7 @@ defmodule Manavault.AI.DeckAnalysis do
           "**#{label}**\n\n#{result.bracket_rationale}"
       end
 
-    [
+    standard_sections = [
       section("Overview", result.summary),
       list_section("Goals and themes", result.themes),
       section("How it plays", result.game_plan),
@@ -153,6 +184,11 @@ defmodule Manavault.AI.DeckAnalysis do
       list_section("Ways to power it down", result.power_down),
       list_section("Consistency improvements", result.consistency)
     ]
+
+    custom_sections =
+      Enum.map(result.custom_sections, &section(&1.title, &1.content))
+
+    (standard_sections ++ custom_sections)
     |> Enum.join("\n\n")
   end
 
@@ -197,9 +233,11 @@ defmodule Manavault.AI.DeckAnalysis do
   defp normalized_fields(result) do
     string_fields = ~w(summary game_plan bracket_rationale)a
     list_fields = ~w(themes strengths weaknesses power_up power_down consistency)a
+    custom_sections = value(result, :custom_sections)
 
     with true <- Enum.all?(string_fields, &valid_string?(value(result, &1))),
-         true <- Enum.all?(list_fields, &valid_string_list?(value(result, &1))) do
+         true <- Enum.all?(list_fields, &valid_string_list?(value(result, &1))),
+         true <- valid_custom_sections?(custom_sections) do
       normalized =
         Enum.reduce(string_fields, %{}, fn field, normalized ->
           Map.put(normalized, field, String.trim(value(result, field)))
@@ -210,6 +248,18 @@ defmodule Manavault.AI.DeckAnalysis do
           values = result |> value(field) |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == ""))
           Map.put(normalized, field, values)
         end)
+
+      normalized =
+        Map.put(
+          normalized,
+          :custom_sections,
+          Enum.map(custom_sections, fn section ->
+            %{
+              title: section |> value(:title) |> String.trim(),
+              content: section |> value(:content) |> String.trim()
+            }
+          end)
+        )
 
       {:ok, normalized}
     else
@@ -237,6 +287,15 @@ defmodule Manavault.AI.DeckAnalysis do
   defp value(map, key), do: Map.get(map, key) || Map.get(map, Atom.to_string(key))
   defp valid_string?(value), do: is_binary(value) and String.trim(value) != ""
   defp valid_string_list?(values), do: is_list(values) and Enum.all?(values, &is_binary/1)
+
+  defp valid_custom_sections?(sections) do
+    is_list(sections) and
+      Enum.all?(sections, fn section ->
+        is_map(section) and valid_string?(value(section, :title)) and
+          valid_string?(value(section, :content))
+      end)
+  end
+
   defp valid_bracket?(value), do: is_integer(value) and value in 1..5
   defp game_changer_minimum(0), do: 1
   defp game_changer_minimum(count) when count <= 3, do: 3

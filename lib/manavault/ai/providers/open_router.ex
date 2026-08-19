@@ -33,7 +33,10 @@ defmodule Manavault.AI.Providers.OpenRouter do
     request = %{
       model: settings.model,
       messages: [
-        %{role: "system", content: DeckAnalysis.system_prompt()},
+        %{
+          role: "system",
+          content: DeckAnalysis.system_prompt(settings.deck_analysis_instructions)
+        },
         %{role: "user", content: DeckAnalysis.user_prompt(payload)}
       ],
       max_completion_tokens: 3_500,

@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select"
+import { Textarea } from "../../components/ui/textarea"
 import { useToast } from "../../components/ui/toast"
 import { AISettingsDocument, UpdateAISettingsDocument, errorMessage } from "./data"
 import { Field } from "./ui"
@@ -22,6 +23,7 @@ export function AISettingsSection() {
   const [provider, setProvider] = useState("openrouter")
   const [apiKey, setApiKey] = useState("")
   const [model, setModel] = useState("")
+  const [deckAnalysisInstructions, setDeckAnalysisInstructions] = useState("")
   const settingsQuery = useQuery(AISettingsDocument, { fetchPolicy: "cache-and-network" })
   const [updateSettings, updateMutation] = useMutation(UpdateAISettingsDocument)
   const settings = settingsQuery.data?.aiSettings
@@ -30,6 +32,7 @@ export function AISettingsSection() {
     if (!settings) return
     setProvider(settings.provider)
     setModel(settings.model ?? "")
+    setDeckAnalysisInstructions(settings.deckAnalysisInstructions ?? "")
     setApiKey("")
   }, [settings])
 
@@ -41,6 +44,7 @@ export function AISettingsSection() {
         input: {
           provider,
           model,
+          deckAnalysisInstructions,
           ...(apiKey.trim() ? { apiKey } : {}),
         },
       },
@@ -119,6 +123,30 @@ export function AISettingsSection() {
                 required={!settings?.hasApiKey}
               />
             </Field>
+          </div>
+
+          <div className="border-t border-base-300 pt-5">
+            <h3 className="text-lg font-black">Deck analysis instructions</h3>
+            <p className="mt-1 max-w-[72ch] text-sm text-base-content/60">
+              Tailor every deck analysis to your preferences. You can rule out recommendations or
+              request extra sections such as budget upgrades.
+            </p>
+            <div className="mt-4">
+              <Field
+                label="Custom instructions"
+                htmlFor="ai-deck-analysis-instructions"
+                help="Applied only when analyzing a deck. Maximum 4,000 characters."
+              >
+                <Textarea
+                  id="ai-deck-analysis-instructions"
+                  value={deckAnalysisInstructions}
+                  onChange={(event) => setDeckAnalysisInstructions(event.target.value)}
+                  placeholder={"For example: “Never suggest infinite combos.”"}
+                  rows={6}
+                  maxLength={4000}
+                />
+              </Field>
+            </div>
           </div>
 
           <div>
