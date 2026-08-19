@@ -98,6 +98,16 @@ Deck workflows include:
 - public share links with owner controls to rotate the bearer link or disable
   sharing immediately
 - read-only shared deck pages with copy/export/playtest actions
+- user-initiated AI analysis of goals, themes, game plan, tuning options, and
+  consistency, saved with the deck below its primer
+
+AI analysis currently supports OpenRouter. The owner configures and validates an
+API key and model ID in Settings; the key is encrypted at rest and is never
+returned through GraphQL. Deck data is sent only when the owner explicitly runs
+an analysis. Commander results keep the guideline bracket separate from the
+estimated practical play bracket, so labels can communicate distinctions such
+as `Bracket 3 (plays like Bracket 2)`. The saved label appears on deck cards, the
+deck header, and shared preview images.
 
 ## Trade
 

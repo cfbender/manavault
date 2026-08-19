@@ -1,0 +1,139 @@
+defmodule ManavaultWeb.Schema.AITest do
+  use ManavaultWeb.ConnCase, async: false
+
+  alias Manavault.Catalog
+  alias Manavault.CatalogTestSupport
+
+  @stub __MODULE__.OpenRouterStub
+
+  setup do
+    previous = Application.get_env(:manavault, :openrouter_req_options)
+    Application.put_env(:manavault, :openrouter_req_options, plug: {Req.Test, @stub})
+
+    on_exit(fn ->
+      if previous do
+        Application.put_env(:manavault, :openrouter_req_options, previous)
+      else
+        Application.delete_env(:manavault, :openrouter_req_options)
+      end
+    end)
+
+    :ok
+  end
+
+  test "settings and analyzeDeck expose the saved analysis without exposing the API key", %{
+    conn: conn
+  } do
+    Req.Test.stub(@stub, &openrouter_response/1)
+
+    settings_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation UpdateAISettings($input: AiSettingsInput!) {
+          updateAiSettings(input: $input) {
+            aiSettings { provider model hasApiKey }
+          }
+        }
+        """,
+        "variables" => %{
+          "input" => %{
+            "provider" => "openrouter",
+            "apiKey" => "graphql-openrouter-key",
+            "model" => "anthropic/claude-sonnet-4"
+          }
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "updateAiSettings" => %{
+                 "aiSettings" => %{
+                   "provider" => "openrouter",
+                   "model" => "anthropic/claude-sonnet-4",
+                   "hasApiKey" => true
+                 }
+               }
+             }
+           } = json_response(settings_conn, 200)
+
+    card = Map.put(CatalogTestSupport.legal_commander_card(), "game_changer", true)
+    assert {:ok, _result} = Catalog.import_cards([card])
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "GraphQL Analysis"})
+    assert {:ok, _deck_card} = Catalog.add_card_to_deck(deck, %{"name" => "Test Commander"})
+
+    analyze_conn =
+      post(recycle(conn), "/api/graphql", %{
+        "query" => """
+        mutation AnalyzeDeck($id: ID!) {
+          analyzeDeck(id: $id) {
+            deck {
+              id
+              aiAnalysis
+              aiAnalysisModel
+              aiAnalyzedAt
+              commanderBracket
+              commanderBracketEstimate
+            }
+          }
+        }
+        """,
+        "variables" => %{"id" => global_deck_id(deck)}
+      })
+
+    assert %{
+             "data" => %{
+               "analyzeDeck" => %{
+                 "deck" => %{
+                   "aiAnalysis" => analysis,
+                   "aiAnalysisModel" => "anthropic/claude-sonnet-4",
+                   "aiAnalyzedAt" => analyzed_at,
+                   "commanderBracket" => 3,
+                   "commanderBracketEstimate" => 2
+                 }
+               }
+             }
+           } = json_response(analyze_conn, 200)
+
+    assert analysis =~ "Bracket 3 (plays like Bracket 2)"
+    assert {:ok, _datetime, 0} = DateTime.from_iso8601(analyzed_at)
+  end
+
+  defp openrouter_response(conn) do
+    case {conn.method, conn.request_path} do
+      {"GET", "/api/v1/key"} ->
+        json_response(conn, 200, %{"data" => %{"label" => "ManaVault"}})
+
+      {"GET", "/api/v1/models"} ->
+        json_response(conn, 200, %{"data" => [%{"id" => "anthropic/claude-sonnet-4"}]})
+
+      {"POST", "/api/v1/chat/completions"} ->
+        analysis = %{
+          summary: "A slow value deck.",
+          themes: ["Value"],
+          game_plan: "Build resources and win late.",
+          strengths: ["Resilient plan"],
+          weaknesses: ["Slow start"],
+          official_bracket: 2,
+          play_bracket: 2,
+          bracket_rationale: "Its single Game Changer raises the guideline bracket.",
+          power_up: ["Add interaction"],
+          power_down: ["Replace the Game Changer"],
+          consistency: ["Improve the curve"]
+        }
+
+        json_response(conn, 200, %{
+          "choices" => [%{"message" => %{"content" => Jason.encode!(analysis)}}]
+        })
+    end
+  end
+
+  defp json_response(conn, status, body) do
+    conn
+    |> Plug.Conn.put_resp_header("content-type", "application/json")
+    |> Plug.Conn.send_resp(status, Jason.encode!(body))
+  end
+
+  defp global_deck_id(deck) do
+    Absinthe.Relay.Node.to_global_id(:deck, deck.id, ManavaultWeb.Schema)
+  end
+end

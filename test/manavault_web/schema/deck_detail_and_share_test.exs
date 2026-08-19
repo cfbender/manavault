@@ -188,6 +188,15 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
         "primer" => "## Game plan\n\nResolve **Shared Card** and protect it."
       })
 
+    {:ok, deck} =
+      Catalog.save_deck_analysis(deck, %{
+        ai_analysis: "## AI overview\n\nBuild value, then turn the corner.",
+        ai_analysis_model: "test/model",
+        ai_analyzed_at: ~U[2026-08-19 02:09:23Z],
+        commander_bracket: 3,
+        commander_bracket_estimate: 2
+      })
+
     {:ok, deck_card} =
       Catalog.add_card_to_deck(deck, %{
         "name" => "Shared Card",
@@ -249,6 +258,11 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
             format
             status
             primer
+            aiAnalysis
+            aiAnalysisModel
+            aiAnalyzedAt
+            commanderBracket
+            commanderBracketEstimate
             shareToken
             cardCount
             uniqueCardCount
@@ -388,6 +402,11 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                "deck" => %{
                  "name" => "Shared Deck",
                  "primer" => "## Game plan\n\nResolve **Shared Card** and protect it.",
+                 "aiAnalysis" => "## AI overview\n\nBuild value, then turn the corner.",
+                 "aiAnalysisModel" => "test/model",
+                 "aiAnalyzedAt" => "2026-08-19T02:09:23Z",
+                 "commanderBracket" => 3,
+                 "commanderBracketEstimate" => 2,
                  "shareToken" => ^share_token,
                  "cardCount" => 2,
                  "uniqueCardCount" => 1,

@@ -1,6 +1,7 @@
 defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
   @moduledoc false
 
+  alias Manavault.AI
   alias Manavault.Catalog
   alias Manavault.Catalog.{DeckCard, DeckTag}
   alias Manavault.Repo
@@ -23,6 +24,24 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
       case Catalog.update_deck(deck, input) do
         {:ok, deck} -> {:ok, Catalog.get_deck!(deck.id)}
         {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+      end
+    end
+  end
+
+  def analyze_deck(_parent, %{id: id}, resolution) do
+    with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
+      id
+      |> Catalog.get_deck!()
+      |> AI.analyze_deck()
+      |> case do
+        {:ok, deck} ->
+          {:ok, deck}
+
+        {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
+          {:error, Errors.changeset_error_message(changeset)}
+
+        {:error, reason} when is_binary(reason) ->
+          {:error, reason}
       end
     end
   end

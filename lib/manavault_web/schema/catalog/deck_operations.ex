@@ -89,6 +89,18 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       end)
     end
 
+    payload field :analyze_deck do
+      arg(:id, non_null(:id))
+
+      output do
+        field :deck, :deck
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &MutationResolvers.analyze_deck/3, :deck)
+      end)
+    end
+
     payload field :ensure_deck_share_token do
       arg(:id, non_null(:id))
 

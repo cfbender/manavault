@@ -313,7 +313,15 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     field :format, non_null(:string)
     field :status, non_null(:string)
     field :primer, :string
+    field :ai_analysis, :string
+    field :ai_analysis_model, :string
+    field :commander_bracket, :integer
+    field :commander_bracket_estimate, :integer
     field :share_token, :string
+
+    field :ai_analyzed_at, :string do
+      resolve(&DeckFields.deck_ai_analyzed_at/3)
+    end
 
     field :cover_deck_card_id, :id do
       resolve(&DeckFields.deck_cover_deck_card_id/3)

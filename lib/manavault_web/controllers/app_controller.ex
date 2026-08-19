@@ -82,16 +82,18 @@ defmodule ManavaultWeb.AppController do
 
     react_scripts =
       if vite_dev_server?(conn) do
+        vite_origin = if vite_proxy?(conn), do: "", else: "http://127.0.0.1:5173"
+
         """
         <script type="module">
-          import RefreshRuntime from "http://127.0.0.1:5173/@react-refresh"
+          import RefreshRuntime from "#{vite_origin}/@react-refresh"
           RefreshRuntime.injectIntoGlobalHook(window)
           window.$RefreshReg$ = () => {}
           window.$RefreshSig$ = () => (type) => type
           window.__vite_plugin_react_preamble_installed__ = true
         </script>
-        <script type="module" src="http://127.0.0.1:5173/@vite/client"></script>
-        <script type="module" src="http://127.0.0.1:5173/assets/react/src/main.tsx"></script>
+        <script type="module" src="#{vite_origin}/@vite/client"></script>
+        <script type="module" src="#{vite_origin}/assets/react/src/main.tsx"></script>
         """
       else
         # Keep the ESM entry at the same canonical URL Vite chunks use when
@@ -316,8 +318,11 @@ defmodule ManavaultWeb.AppController do
   end
 
   defp vite_dev_server?(conn) do
-    Application.get_env(:manavault, :vite_dev_server?, false) && local_host?(conn.host)
+    Application.get_env(:manavault, :vite_dev_server?, false) &&
+      (local_host?(conn.host) || vite_proxy?(conn))
   end
+
+  defp vite_proxy?(conn), do: get_req_header(conn, "x-manavault-vite-proxy") == ["1"]
 
   defp local_host?("localhost"), do: true
   defp local_host?("127.0.0.1"), do: true

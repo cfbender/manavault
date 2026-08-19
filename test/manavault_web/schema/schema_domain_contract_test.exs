@@ -14,6 +14,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
 
     assert MapSet.new(Map.keys(query_fields)) ==
              MapSet.new([
+               "aiSettings",
                "backupSettings",
                "binderList",
                "card",
@@ -58,6 +59,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "allocateDeckCardItem",
                "allocateDeckCardProxy",
                "allocateDeckPullList",
+               "analyzeDeck",
                "assignDeckCardTag",
                "autoSortCollection",
                "bulkAddCollectionItemsToDeck",
@@ -111,6 +113,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "tradeMatches",
                "unassignDeckCardTag",
                "updateBackupSettings",
+               "updateAiSettings",
                "updateCollectionAutoSortRules",
                "updatePricingSettings",
                "updateCollectionItem",

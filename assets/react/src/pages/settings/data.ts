@@ -7,6 +7,28 @@ import type {
 
 export type { CollectionAutoSortRuleInput, DefaultDeckTagInput }
 
+export const AISettingsDocument = graphql(`
+  query AISettings {
+    aiSettings {
+      provider
+      model
+      hasApiKey
+    }
+  }
+`)
+
+export const UpdateAISettingsDocument = graphql(`
+  mutation UpdateAISettings($input: AiSettingsInput!) {
+    updateAiSettings(input: $input) {
+      aiSettings {
+        provider
+        model
+        hasApiKey
+      }
+    }
+  }
+`)
+
 export const BackupSettingsDocument = graphql(`
   query BackupSettings {
     backupSettings {

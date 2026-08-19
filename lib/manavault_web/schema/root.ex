@@ -3,8 +3,10 @@ defmodule ManavaultWeb.Schema do
   use Absinthe.Relay.Schema, :modern
 
   import_types(ManavaultWeb.Schema.CatalogTypes)
+  import_types(ManavaultWeb.Schema.AITypes)
   import_types(ManavaultWeb.Schema.BackupTypes)
   import_types(ManavaultWeb.Schema.PricingTypes)
+  import_types(ManavaultWeb.Schema.Catalog.AIOperations)
   import_types(ManavaultWeb.Schema.Catalog.BackupOperations)
   import_types(ManavaultWeb.Schema.Catalog.PricingOperations)
   import_types(ManavaultWeb.Schema.Catalog.CardOperations)
@@ -41,6 +43,7 @@ defmodule ManavaultWeb.Schema do
 
   query do
     import_fields(:other_queries)
+    import_fields(:ai_queries)
     import_fields(:card_queries)
     import_fields(:collection_queries)
     import_fields(:location_queries)
@@ -82,6 +85,7 @@ defmodule ManavaultWeb.Schema do
   end
 
   mutation do
+    import_fields(:ai_mutations)
     import_fields(:backup_mutations)
     import_fields(:pricing_mutations)
     import_fields(:card_mutations)

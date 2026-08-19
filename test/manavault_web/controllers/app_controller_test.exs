@@ -104,6 +104,24 @@ defmodule ManavaultWeb.AppControllerTest do
     refute response =~ ~s(· · ·)
   end
 
+  test "GET /share/decks/:token/preview.svg renders the saved bracket", %{conn: conn} do
+    token = shared_deck_token()
+    deck = Catalog.get_deck_by_share_token(token)
+
+    assert {:ok, _deck} =
+             Catalog.save_deck_analysis(deck, %{
+               ai_analysis: "## Bracket read\n\nA slow deck with one Game Changer.",
+               ai_analysis_model: "test/model",
+               ai_analyzed_at: DateTime.utc_now(),
+               commander_bracket: 3,
+               commander_bracket_estimate: 2
+             })
+
+    response = conn |> get("/share/decks/#{token}/preview.svg") |> response(200)
+
+    assert response =~ "Bracket 3 · Pace 2"
+  end
+
   test "GET /share/decks/:token/preview.png renders a social preview PNG", %{conn: conn} do
     token = shared_deck_token()
 
@@ -138,6 +156,31 @@ defmodule ManavaultWeb.AppControllerTest do
     # instance and remounts React (see AppController.react_scripts).
     assert response =~ ~s(src="/assets/react/app.js")
     refute response =~ ~r(src="/assets/react/app\.js\?)
+    refute response =~ "127.0.0.1:5173"
+  end
+
+  test "GET / uses same-origin Vite assets behind the development proxy", %{conn: conn} do
+    previous = Application.get_env(:manavault, :vite_dev_server?)
+    Application.put_env(:manavault, :vite_dev_server?, true)
+
+    on_exit(fn ->
+      if is_nil(previous) do
+        Application.delete_env(:manavault, :vite_dev_server?)
+      else
+        Application.put_env(:manavault, :vite_dev_server?, previous)
+      end
+    end)
+
+    response =
+      conn
+      |> Map.put(:host, "review.onamp.dev")
+      |> put_req_header("x-manavault-vite-proxy", "1")
+      |> get(~p"/")
+      |> html_response(200)
+
+    assert response =~ ~s(import RefreshRuntime from "/@react-refresh")
+    assert response =~ ~s(src="/@vite/client")
+    assert response =~ ~s(src="/assets/react/src/main.tsx")
     refute response =~ "127.0.0.1:5173"
   end
 

@@ -3,6 +3,12 @@ import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite-plus"
 
 const viteBase = process.env.NODE_ENV === "production" ? "/assets/react/" : "/"
+const phoenixOrigin = `http://127.0.0.1:${process.env.PORT || "4000"}`
+const phoenixProxy = {
+  target: phoenixOrigin,
+  headers: { "x-manavault-vite-proxy": "1" },
+}
+const phoenixSocketProxy = { ...phoenixProxy, ws: true }
 
 export default defineConfig({
   base: viteBase,
@@ -43,17 +49,24 @@ export default defineConfig({
     host: "127.0.0.1",
     port: 5173,
     strictPort: true,
-    origin: "http://127.0.0.1:5173",
+    allowedHosts: [".onamp.dev"],
     proxy: {
-      "/api": "http://127.0.0.1:4000",
-      "/socket": {
-        target: "ws://127.0.0.1:4000",
-        ws: true,
-      },
-      "/site.webmanifest": "http://127.0.0.1:4000",
-      "/android-chrome-192x192.png": "http://127.0.0.1:4000",
-      "/android-chrome-512x512.png": "http://127.0.0.1:4000",
-      "/sw.js": "http://127.0.0.1:4000",
+      "^/$": phoenixProxy,
+      "^/(settings|cards|decks|collection|trade|login|logout|vendors|health|dev)(/|$)":
+        phoenixProxy,
+      "/share": phoenixProxy,
+      "/api": phoenixProxy,
+      "/socket": phoenixSocketProxy,
+      "/phoenix": phoenixSocketProxy,
+      "/scryfall-assets": phoenixProxy,
+      "/site.webmanifest": phoenixProxy,
+      "/sw.js": phoenixProxy,
+      "/.well-known": phoenixProxy,
+      "/assets/css": phoenixProxy,
+      "/fonts": phoenixProxy,
+      "/images": phoenixProxy,
+      "/screenshots": phoenixProxy,
+      "^/(favicon|apple-touch-icon|android-chrome|offline\\.html|robots\\.txt)": phoenixProxy,
     },
   },
 })

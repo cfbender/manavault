@@ -7,6 +7,7 @@ import { pluralize, present } from "../../lib/utils"
 import { AutoSortSummaryDialog } from "../collection/auto-sort-summary-dialog"
 import { AutoSortCollectionDocument } from "../collection/documents"
 import type { AutoSortCollectionResult } from "../collection/types"
+import { AISettingsSection } from "./ai-settings-section"
 import { AppearanceSection } from "./appearance-section"
 import { BackupSettingsForm } from "./backup-settings-form"
 import { CollectionAutoSortSection } from "./collection-auto-sort-section"
@@ -307,7 +308,7 @@ export function SettingsPage() {
       <PageHeader
         eyebrow="Settings"
         title="Settings"
-        description="Manage appearance, the mobile shell, collection auto-sort rules, cloud backups, manual restores, and Scryfall catalog maintenance."
+        description="Manage appearance, AI analysis, collection workflows, backups, and local catalog maintenance."
       />
 
       {settingsQuery.error ? <Alert tone="error">{errorMessage(settingsQuery.error)}</Alert> : null}
@@ -324,6 +325,8 @@ export function SettingsPage() {
       <AppearanceSection />
 
       <PricingSection />
+
+      <AISettingsSection />
 
       {nativeShell ? <NativeAppSection {...nativeSectionProps} /> : null}
 

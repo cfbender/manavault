@@ -11,6 +11,7 @@ import { ConfirmDialog } from "../../components/ui/confirm-dialog"
 import { useToast } from "../../components/ui/toast"
 import { compactNumber, titleize } from "../../lib/utils"
 import { SummaryActionMenu } from "./deck-actions"
+import { DeckBracketBadge } from "./deck-bracket"
 import { EditDeckDialog, NewDeckDialog } from "./deck-editor-dialogs"
 import {
   deckLegalityIssueCount,
@@ -174,7 +175,12 @@ function DeckGalleryCard({
             </div>
           }
           countLine={`${compactNumber(deck.cardCount || 0)} cards`}
-          detailLine={<DeckReadinessBadges readiness={readiness} />}
+          detailLine={
+            <div className="flex flex-wrap items-center gap-2 leading-none">
+              <DeckReadinessBadges readiness={readiness} />
+              <DeckBracketBadge deck={deck} />
+            </div>
+          }
           nameLine={
             <DeckNameWithCommanderIdentity colors={deck.commanderColorIdentity} name={deck.name} />
           }

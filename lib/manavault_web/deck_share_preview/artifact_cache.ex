@@ -245,6 +245,7 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCache do
         deck_name: preview.deck_name,
         format_label: preview.format_label,
         image_alt: preview.image_alt,
+        bracket_label: Map.get(preview, :bracket_label),
         legality_label: preview.legality_label,
         price_label: preview.price_label,
         status_label: preview.status_label

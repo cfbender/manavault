@@ -1,3 +1,4 @@
+import { useMutation } from "@apollo/client/react"
 import { Link } from "@tanstack/react-router"
 import {
   Archive,
@@ -16,14 +17,18 @@ import type { ReactNode } from "react"
 import { ImageSummaryCard } from "../../components/image-summary-card"
 import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
+import { useToast } from "../../components/ui/toast"
 import type { DeckGroupBy } from "../../lib/deck-grouping"
 import { compactNumber, cn, titleize } from "../../lib/utils"
 import { ShareModeHidden, SummaryActionMenu } from "./deck-actions"
+import { DeckAIAnalysis } from "./deck-ai-analysis"
+import { DeckBracketBadge } from "./deck-bracket"
 import type { DeckLegalityIssue, DeckPrice, DetailZoneCounts } from "./deck-detail-types"
 import { DeckGroupMenu } from "./deck-group-menu"
 import { deckLegalityIssueCountLabel, deckLegalityLabel, deckLegalityTone } from "./deck-legality"
 import { DeckNameWithCommanderIdentity } from "./deck-list-model"
 import { DeckPrimer } from "./deck-primer"
+import { AnalyzeDeckDocument } from "./queries"
 import { DeckTagsSidebar } from "./deck-tags-sidebar"
 import type { DeckCardEntry, DeckCustomTag, DeckDetail } from "./deck-types"
 
@@ -210,6 +215,19 @@ export function DeckDetailHeader({
   tagActions,
   zoneCounts,
 }: DeckDetailHeaderProps) {
+  const { showToast } = useToast()
+  const [analyzeDeck, analysisMutation] = useMutation(AnalyzeDeckDocument)
+  const hasAnalysis = Boolean(deck.aiAnalysis?.trim())
+
+  function analyze() {
+    void analyzeDeck({
+      variables: { id: deck.id },
+      onCompleted: () =>
+        showToast(hasAnalysis ? "Deck analysis refreshed." : "Deck analysis complete."),
+      onError: (error) => showToast(error.message, { tone: "error" }),
+    })
+  }
+
   return (
     <>
       <DeckTagPanels
@@ -239,6 +257,7 @@ export function DeckDetailHeader({
               <Badge tone={deckLegalityTone(deck.legality)}>
                 {deckLegalityLabel(deck.legality)}
               </Badge>
+              <DeckBracketBadge deck={deck} />
               <DeckSaltBadge saltSum={saltSum} />
               <DeckPriceChip
                 price={deckPrice}
@@ -253,7 +272,16 @@ export function DeckDetailHeader({
           actionSlot={
             <ShareModeHidden shareMode={shareMode}>
               <SummaryActionMenu
+                analyzeLabel={
+                  analysisMutation.loading
+                    ? "Analyzing..."
+                    : hasAnalysis
+                      ? "Refresh AI analysis"
+                      : "Analyze deck with AI"
+                }
+                analyzePending={analysisMutation.loading}
                 label={`${deck.name} actions`}
+                onAnalyze={analyze}
                 onCompare={onCompareDeck}
                 onDisassemble={canEdit ? onDisassemble : undefined}
                 onEdhrec={canEdit && deck.format === "commander" ? onOpenEdhrec : undefined}
@@ -268,6 +296,8 @@ export function DeckDetailHeader({
         />
 
         <DeckPrimer primer={deck.primer} />
+
+        <DeckAIAnalysis deck={deck} />
 
         {!canEdit ? (
           <div className="rounded-box border border-base-300 bg-base-200/60 p-4 text-sm text-base-content/75">

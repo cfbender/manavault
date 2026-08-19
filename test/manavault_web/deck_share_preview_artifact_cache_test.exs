@@ -124,6 +124,7 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCacheTest do
           %{base | deck_name: "Another Deck"},
           %{base | format_label: "Modern"},
           %{base | image_alt: "Another preview"},
+          Map.put(base, :bracket_label, "Bracket 3 · Pace 2"),
           %{base | legality_label: "Illegal"},
           %{base | price_label: "$2"},
           %{base | status_label: "Archived"}

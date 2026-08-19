@@ -39,6 +39,12 @@ defmodule Manavault.Catalog.Decks.Records do
     end
   end
 
+  def save_deck_analysis(%Deck{} = deck, attrs) when is_map(attrs) do
+    deck
+    |> Deck.analysis_changeset(attrs)
+    |> Repo.update()
+  end
+
   def ensure_deck_share_token(%Deck{} = deck) do
     deck = Repo.get!(Deck, deck.id)
 

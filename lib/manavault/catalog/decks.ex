@@ -118,6 +118,12 @@ defmodule Manavault.Catalog.Decks do
     |> invalidate_decks_on_ok()
   end
 
+  def save_deck_analysis(deck, attrs) do
+    deck
+    |> Records.save_deck_analysis(attrs)
+    |> invalidate_decks_on_ok()
+  end
+
   def ensure_deck_share_token(deck) do
     deck
     |> Records.ensure_deck_share_token()

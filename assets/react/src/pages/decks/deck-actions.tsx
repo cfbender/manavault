@@ -32,7 +32,10 @@ export function ShareModeHidden({
 }
 
 export function SummaryActionMenu({
+  analyzeLabel = "Analyze deck",
+  analyzePending = false,
   label,
+  onAnalyze,
   onCompare,
   onDelete,
   onDisassemble,
@@ -44,7 +47,10 @@ export function SummaryActionMenu({
   onOptimizePrintings,
   onShare,
 }: {
+  analyzeLabel?: string
+  analyzePending?: boolean
   label: string
+  onAnalyze?: () => void
   onCompare?: () => void
   onDelete?: () => void
   onDisassemble?: () => void
@@ -69,6 +75,12 @@ export function SummaryActionMenu({
           </CardTileOverlayButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent sideOffset={2} className="w-48 shadow-md">
+          {onAnalyze ? (
+            <DropdownMenuItem disabled={analyzePending} onSelect={onAnalyze}>
+              <Sparkles className="h-4 w-4" />
+              {analyzeLabel}
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem onSelect={onEdit}>
             <Edit3 className="h-4 w-4" />
             Edit

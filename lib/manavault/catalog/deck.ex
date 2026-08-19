@@ -11,6 +11,11 @@ defmodule Manavault.Catalog.Deck do
     field :format, :string, default: "commander"
     field :status, :string, default: "brewing"
     field :primer, :string
+    field :ai_analysis, :string
+    field :ai_analysis_model, :string
+    field :ai_analyzed_at, :utc_datetime
+    field :commander_bracket, :integer
+    field :commander_bracket_estimate, :integer
     field :share_token, :string
     field :cover_deck_card_id, :id
     field :card_count, :integer, virtual: true
@@ -44,6 +49,28 @@ defmodule Manavault.Catalog.Deck do
     |> change(share_token: share_token)
     |> validate_required([:share_token])
     |> unique_constraint(:share_token)
+  end
+
+  def analysis_changeset(deck, attrs) do
+    deck
+    |> cast(attrs, [
+      :ai_analysis,
+      :ai_analysis_model,
+      :ai_analyzed_at,
+      :commander_bracket,
+      :commander_bracket_estimate
+    ])
+    |> validate_required([:ai_analysis, :ai_analysis_model, :ai_analyzed_at])
+    |> validate_length(:ai_analysis, max: 100_000)
+    |> validate_length(:ai_analysis_model, max: 200)
+    |> validate_number(:commander_bracket,
+      greater_than_or_equal_to: 1,
+      less_than_or_equal_to: 5
+    )
+    |> validate_number(:commander_bracket_estimate,
+      greater_than_or_equal_to: 1,
+      less_than_or_equal_to: 5
+    )
   end
 
   def disable_share_changeset(deck), do: change(deck, share_token: nil)

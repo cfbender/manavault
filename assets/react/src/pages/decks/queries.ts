@@ -14,6 +14,11 @@ export const DecksDocument = graphql(`
           format
           status
           primer
+          aiAnalysis
+          aiAnalysisModel
+          aiAnalyzedAt
+          commanderBracket
+          commanderBracketEstimate
           shareToken
           coverDeckCardId
           coverImageUrl
@@ -43,6 +48,11 @@ export const CreateDeckDocument = graphql(`
         format
         status
         primer
+        aiAnalysis
+        aiAnalysisModel
+        aiAnalyzedAt
+        commanderBracket
+        commanderBracketEstimate
         shareToken
         coverDeckCardId
         coverImageUrl
@@ -71,6 +81,11 @@ export const UpdateDeckDocument = graphql(`
         format
         status
         primer
+        aiAnalysis
+        aiAnalysisModel
+        aiAnalyzedAt
+        commanderBracket
+        commanderBracketEstimate
         shareToken
         coverDeckCardId
         coverImageUrl
@@ -159,6 +174,11 @@ export const DeckDocument = graphql(`
       format
       status
       primer
+      aiAnalysis
+      aiAnalysisModel
+      aiAnalyzedAt
+      commanderBracket
+      commanderBracketEstimate
       shareToken
       coverDeckCardId
       coverImageUrl
@@ -277,6 +297,21 @@ export const DeckDocument = graphql(`
             }
           }
         }
+      }
+    }
+  }
+`)
+
+export const AnalyzeDeckDocument = graphql(`
+  mutation AnalyzeDeck($id: ID!) {
+    analyzeDeck(id: $id) {
+      deck {
+        id
+        aiAnalysis
+        aiAnalysisModel
+        aiAnalyzedAt
+        commanderBracket
+        commanderBracketEstimate
       }
     }
   }
