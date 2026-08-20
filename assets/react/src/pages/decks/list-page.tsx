@@ -2,7 +2,6 @@ import { useMutation, useQuery } from "@apollo/client/react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { Archive, ChevronDown, Layers, Plus } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { PageSection } from "../../components/app-shell"
 import { EmptyState } from "../../components/card-image"
 import { ImageSummaryCard } from "../../components/image-summary-card"
 import { Badge } from "../../components/ui/badge"
@@ -43,34 +42,32 @@ function DeckGalleryHeader({ onNewDeck }: { onNewDeck: () => void }) {
 
 function DeckGallerySkeleton() {
   return (
-    <PageSection count="Loading decks">
-      <div className="space-y-10" aria-busy="true" aria-label="Loading deck gallery" role="status">
-        <section className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="h-7 w-32 animate-pulse rounded bg-base-200" />
-            <div className="h-6 w-10 animate-pulse rounded-full bg-base-200" />
-          </div>
-          <div className="grid gap-5 md:grid-cols-2">
-            {[0, 1, 2, 3].map((index) => (
-              <div
-                key={index}
-                className="min-h-52 rounded-box border border-base-300 bg-base-100 p-5"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="h-5 w-20 animate-pulse rounded bg-base-200" />
-                  <div className="h-5 w-16 animate-pulse rounded bg-base-200" />
-                </div>
-                <div className="mt-20 h-8 w-3/4 animate-pulse rounded bg-base-200" />
-                <div className="mt-4 flex gap-2">
-                  <div className="h-5 w-16 animate-pulse rounded bg-base-200" />
-                  <div className="h-5 w-14 animate-pulse rounded bg-base-200" />
-                </div>
+    <div className="space-y-10" aria-busy="true" aria-label="Loading deck gallery" role="status">
+      <section className="space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="h-7 w-32 animate-pulse rounded bg-base-200" />
+          <div className="h-6 w-20 animate-pulse rounded-full bg-base-200" />
+        </div>
+        <div className="grid gap-5 md:grid-cols-2">
+          {[0, 1, 2, 3].map((index) => (
+            <div
+              key={index}
+              className="min-h-52 rounded-box border border-base-300 bg-base-100 p-5"
+            >
+              <div className="flex items-center gap-2">
+                <div className="h-5 w-20 animate-pulse rounded bg-base-200" />
+                <div className="h-5 w-16 animate-pulse rounded bg-base-200" />
               </div>
-            ))}
-          </div>
-        </section>
-      </div>
-    </PageSection>
+              <div className="mt-20 h-8 w-3/4 animate-pulse rounded bg-base-200" />
+              <div className="mt-4 flex gap-2">
+                <div className="h-5 w-16 animate-pulse rounded bg-base-200" />
+                <div className="h-5 w-14 animate-pulse rounded bg-base-200" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
   )
 }
 
@@ -197,11 +194,13 @@ function DeckGalleryCard({
 }
 
 function DeckFormatSections({
+  countSuffix,
   deckGroups,
   onDelete,
   onEdit,
   onShare,
 }: {
+  countSuffix?: string
   deckGroups: ReturnType<typeof groupDecksByFormat>
   onDelete: (deck: DeckSummary) => void
   onEdit: (deck: DeckSummary) => void
@@ -213,7 +212,10 @@ function DeckFormatSections({
         <section key={format} className="space-y-4">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-xl font-black tracking-normal">{titleize(format)}</h2>
-            <span className="badge border-transparent bg-base-200 text-sm">{decks.length}</span>
+            <span className="badge border-transparent bg-base-200 text-sm">
+              {decks.length}
+              {countSuffix ? ` ${countSuffix}` : ""}
+            </span>
           </div>
           <div className="grid gap-5 md:grid-cols-2">
             {decks.map((deck) => (
@@ -354,14 +356,13 @@ export function DecksPage() {
       ) : (
         <div className="space-y-8">
           {deckGroups.length ? (
-            <PageSection count={`${activeDecks.length} active`}>
-              <DeckFormatSections
-                deckGroups={deckGroups}
-                onEdit={setEditingDeck}
-                onShare={setSharingDeck}
-                onDelete={setDeletingDeck}
-              />
-            </PageSection>
+            <DeckFormatSections
+              countSuffix="active"
+              deckGroups={deckGroups}
+              onEdit={setEditingDeck}
+              onShare={setSharingDeck}
+              onDelete={setDeletingDeck}
+            />
           ) : (
             <DeckGalleryEmptyState
               hasArchivedDecks={archivedDecks.length > 0}
