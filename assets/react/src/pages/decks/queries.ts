@@ -323,6 +323,8 @@ export const DeckQuestionAnswersDocument = graphql(`
       id
       question
       answer
+      status
+      error
       recommendedCuts
       recommendedAdditions
       insertedAt
@@ -333,11 +335,12 @@ export const DeckQuestionAnswersDocument = graphql(`
 export const AskDeckQuestionDocument = graphql(`
   mutation AskDeckQuestion($id: ID!, $question: String!) {
     askDeckQuestion(id: $id, question: $question) {
-      answer
       questionAnswer {
         id
         question
         answer
+        status
+        error
         recommendedCuts
         recommendedAdditions
         insertedAt

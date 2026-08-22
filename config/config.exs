@@ -43,6 +43,11 @@ config :manavault, Manavault.Repo,
   default_transaction_mode: :immediate,
   busy_timeout: 5_000
 
+config :manavault, Oban,
+  engine: Oban.Engines.Lite,
+  queues: [ai: 2],
+  repo: Manavault.Repo
+
 # Configure the endpoint
 config :manavault, ManavaultWeb.Endpoint,
   url: [host: "localhost"],

@@ -3,9 +3,10 @@ defmodule Manavault.AI do
 
   import Ecto.Changeset, only: [add_error: 3, apply_changes: 1]
 
-  alias Manavault.AI.{DeckAnalysis, DeckQuestion, Provider, Settings}
+  alias Ecto.Multi
+  alias Manavault.AI.{DeckAnalysis, DeckQuestion, DeckQuestionWorker, Provider, Settings}
   alias Manavault.Catalog
-  alias Manavault.Catalog.{Deck, Util}
+  alias Manavault.Catalog.{Deck, DeckQuestionAnswer, Util}
   alias Manavault.Catalog.Search.CardsByName
   alias Manavault.Repo
 
@@ -70,17 +71,70 @@ defmodule Manavault.AI do
 
     with {:ok, question} <- DeckQuestion.validate(question),
          :ok <- configured(settings),
-         {:ok, provider} <- Provider.module(settings.provider),
-         payload <- DeckAnalysis.payload(deck, Catalog.deck_cards(deck)),
-         {:ok, result} <- generate_deck_answer(provider, settings, payload, question, 1) do
-      Catalog.create_deck_question_answer(deck, %{
-        question: question,
-        answer: result.answer,
-        recommendations: %{
-          "cuts" => result.recommended_cuts,
-          "additions" => result.recommended_additions
-        }
-      })
+         {:ok, _provider} <- Provider.module(settings.provider) do
+      Multi.new()
+      |> Multi.insert(
+        :question_answer,
+        Catalog.change_deck_question_answer(deck, %{question: question, status: "pending"})
+      )
+      |> Oban.insert(:job, fn %{question_answer: question_answer} ->
+        DeckQuestionWorker.new(%{question_answer_id: question_answer.id})
+      end)
+      |> Repo.transaction()
+      |> case do
+        {:ok, %{question_answer: question_answer}} -> {:ok, question_answer}
+        {:error, _operation, reason, _changes} -> {:error, reason}
+      end
+    end
+  end
+
+  def answer_deck_question(id) do
+    case Catalog.get_deck_question_answer(id) do
+      nil ->
+        :ok
+
+      %DeckQuestionAnswer{status: status} when status != "pending" ->
+        :ok
+
+      %DeckQuestionAnswer{} = question_answer ->
+        deck = Catalog.get_deck!(question_answer.deck_id)
+        settings = settings()
+
+        with :ok <- configured(settings),
+             {:ok, provider} <- Provider.module(settings.provider),
+             payload <- DeckAnalysis.payload(deck, Catalog.deck_cards(deck)),
+             {:ok, result} <-
+               generate_deck_answer(provider, settings, payload, question_answer.question, 1),
+             {:ok, _question_answer} <-
+               Catalog.complete_deck_question_answer(question_answer, %{
+                 answer: result.answer,
+                 recommendations: %{
+                   "cuts" => result.recommended_cuts,
+                   "additions" => result.recommended_additions
+                 }
+               }) do
+          :ok
+        end
+    end
+  end
+
+  def fail_deck_question(id, reason) do
+    case Catalog.get_deck_question_answer(id) do
+      nil -> :ok
+      %DeckQuestionAnswer{status: status} when status != "pending" -> :ok
+      %DeckQuestionAnswer{} = question_answer -> persist_question_failure(question_answer, reason)
+    end
+  end
+
+  defp persist_question_failure(question_answer, reason) do
+    error =
+      if is_binary(reason),
+        do: String.slice(reason, 0, 2_000),
+        else: "The AI question could not be completed."
+
+    case Catalog.fail_deck_question_answer(question_answer, error) do
+      {:ok, _question_answer} -> :ok
+      {:error, changeset} -> {:error, changeset}
     end
   end
 

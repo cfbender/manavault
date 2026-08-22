@@ -116,7 +116,10 @@ defmodule Manavault.Catalog do
 
   defdelegate list_deck_question_answers(deck), to: Decks
   defdelegate get_deck_question_answer(id), to: Decks
+  defdelegate change_deck_question_answer(deck, attrs), to: Decks
   defdelegate create_deck_question_answer(deck, attrs), to: Decks
+  defdelegate complete_deck_question_answer(question_answer, attrs), to: Decks
+  defdelegate fail_deck_question_answer(question_answer, error), to: Decks
   defdelegate delete_deck_question_answer(question_answer), to: Decks
 
   defdelegate list_deck_tags(deck), to: Decks

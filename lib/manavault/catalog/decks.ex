@@ -244,7 +244,10 @@ defmodule Manavault.Catalog.Decks do
   defdelegate put_deck_card_tag_ids(deck_cards), to: Tags
   defdelegate list_deck_question_answers(deck), to: QuestionAnswers
   defdelegate get_deck_question_answer(id), to: QuestionAnswers
+  defdelegate change_deck_question_answer(deck, attrs), to: QuestionAnswers
   defdelegate create_deck_question_answer(deck, attrs), to: QuestionAnswers
+  defdelegate complete_deck_question_answer(question_answer, attrs), to: QuestionAnswers
+  defdelegate fail_deck_question_answer(question_answer, error), to: QuestionAnswers
   defdelegate delete_deck_question_answer(question_answer), to: QuestionAnswers
 
   def create_deck_tag(deck, attrs) do

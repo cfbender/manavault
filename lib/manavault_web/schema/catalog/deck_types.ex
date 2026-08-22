@@ -59,6 +59,8 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :id, non_null(:id)
     field :question, non_null(:string)
     field :answer, non_null(:string)
+    field :status, non_null(:string)
+    field :error, :string
 
     field :recommended_cuts, non_null(list_of(non_null(:string))) do
       resolve(&DeckFields.deck_question_answer_recommended_cuts/3)

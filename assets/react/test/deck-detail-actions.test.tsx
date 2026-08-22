@@ -14,6 +14,8 @@ vi.mock("@apollo/client/react", () => ({
     data: undefined,
     loading: false,
     refetch: vi.fn(),
+    startPolling: vi.fn(),
+    stopPolling: vi.fn(),
   }),
 }))
 

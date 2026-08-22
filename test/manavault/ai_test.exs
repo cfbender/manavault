@@ -1,10 +1,11 @@
 defmodule Manavault.AITest do
   use Manavault.DataCase, async: false
+  use Oban.Testing, repo: Manavault.Repo, engine: Oban.Engines.Lite
 
   import ExUnit.CaptureLog
 
   alias Manavault.AI
-  alias Manavault.AI.Settings
+  alias Manavault.AI.{DeckQuestionWorker, Settings}
   alias Manavault.Catalog
   alias Manavault.CatalogTestSupport
 
@@ -247,6 +248,18 @@ defmodule Manavault.AITest do
              AI.ask_deck_question(deck, "  Would Doubling Season be a good fit?  ")
 
     assert first_question_answer.question == "Would Doubling Season be a good fit?"
+    assert first_question_answer.status == "pending"
+    assert first_question_answer.answer == ""
+
+    assert_enqueued(
+      worker: DeckQuestionWorker,
+      args: %{question_answer_id: first_question_answer.id}
+    )
+
+    assert :ok = AI.answer_deck_question(first_question_answer.id)
+    first_question_answer = Catalog.get_deck_question_answer(first_question_answer.id)
+
+    assert first_question_answer.status == "completed"
 
     assert first_question_answer.answer ==
              "**Probably not yet.** Consider cutting [[Test Commander]] only if the strategy changes."
@@ -261,15 +274,36 @@ defmodule Manavault.AITest do
     assert {:ok, second_question_answer} =
              AI.ask_deck_question(deck, "How should I protect it?")
 
+    assert :ok = AI.answer_deck_question(second_question_answer.id)
+
     assert Enum.map(Catalog.list_deck_question_answers(deck), & &1.id) == [
              second_question_answer.id,
              first_question_answer.id
            ]
 
-    assert {:error, "The AI provider returned an empty answer."} =
+    assert {:ok, failed_question_answer} =
              AI.ask_deck_question(deck, "Return an empty answer")
 
-    assert length(Catalog.list_deck_question_answers(deck)) == 2
+    assert {:error, "The AI provider returned an empty answer."} =
+             DeckQuestionWorker.perform(%Oban.Job{
+               args: %{"question_answer_id" => failed_question_answer.id},
+               attempt: 1,
+               max_attempts: 3
+             })
+
+    assert Catalog.get_deck_question_answer(failed_question_answer.id).status == "pending"
+
+    assert {:error, "The AI provider returned an empty answer."} =
+             DeckQuestionWorker.perform(%Oban.Job{
+               args: %{"question_answer_id" => failed_question_answer.id},
+               attempt: 3,
+               max_attempts: 3
+             })
+
+    failed_question_answer = Catalog.get_deck_question_answer(failed_question_answer.id)
+    assert failed_question_answer.status == "failed"
+    assert failed_question_answer.error == "The AI provider returned an empty answer."
+    assert length(Catalog.list_deck_question_answers(deck)) == 3
     assert Catalog.get_deck!(deck.id).ai_analysis == nil
   end
 
@@ -310,8 +344,11 @@ defmodule Manavault.AITest do
 
     log =
       capture_log(fn ->
-        assert {:error, "OpenRouter ran out of output tokens before finishing the answer."} =
+        assert {:ok, question_answer} =
                  AI.ask_deck_question(deck, "Do not include this question in logs.")
+
+        assert {:error, "OpenRouter ran out of output tokens before finishing the answer."} =
+                 AI.answer_deck_question(question_answer.id)
       end)
 
     assert log =~ "OpenRouter completion operation=deck_question"
@@ -363,8 +400,11 @@ defmodule Manavault.AITest do
 
     log =
       capture_log(fn ->
-        assert {:error, "OpenRouter returned an incomplete answer."} =
+        assert {:ok, question_answer} =
                  AI.ask_deck_question(deck, "Do not include this MiniMax question in logs.")
+
+        assert {:error, "OpenRouter returned an incomplete answer."} =
+                 AI.answer_deck_question(question_answer.id)
       end)
 
     assert log =~ ~s(model="minimax/minimax-m3")
@@ -439,6 +479,8 @@ defmodule Manavault.AITest do
     end)
 
     assert {:ok, question_answer} = AI.ask_deck_question(deck, "Make this deck stronger.")
+    assert :ok = AI.answer_deck_question(question_answer.id)
+    question_answer = Catalog.get_deck_question_answer(question_answer.id)
     assert :counters.get(attempts, 1) == 2
     assert question_answer.answer =~ "legal white interaction"
     refute question_answer.answer =~ "Time Walk"

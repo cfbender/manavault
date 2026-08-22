@@ -63,6 +63,18 @@ export function DeckQuestionDialog({
     }
   }, [questionAnswersQuery.data])
 
+  useEffect(() => {
+    const pending = questionAnswers.some(({ status }) => status === "pending")
+
+    if (open && pending) {
+      questionAnswersQuery.startPolling(2_000)
+    } else {
+      questionAnswersQuery.stopPolling()
+    }
+
+    return () => questionAnswersQuery.stopPolling()
+  }, [open, questionAnswers, questionAnswersQuery.startPolling, questionAnswersQuery.stopPolling])
+
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const trimmedQuestion = question.trim()
@@ -78,14 +90,14 @@ export function DeckQuestionDialog({
       onCompleted: (data) => {
         const savedAnswer = data.askDeckQuestion?.questionAnswer
 
-        if (savedAnswer?.answer.trim()) {
+        if (savedAnswer) {
           setQuestionAnswers((current) => [
             savedAnswer,
             ...current.filter(({ id }) => id !== savedAnswer.id),
           ])
           setQuestion("")
         } else {
-          setFormError("The AI provider returned an empty answer. Try asking again.")
+          setFormError("The question could not be queued. Try asking again.")
         }
       },
       onError: (error) => setFormError(error.message),
@@ -329,12 +341,28 @@ function QuestionHistoryItem({
         />
       </summary>
       <div className="border-t border-base-300 px-4 py-4 sm:px-5">
-        <DeckMarkdown cardReferences>{questionAnswer.answer}</DeckMarkdown>
-        <QuestionRecommendations
-          deckCards={deckCards}
-          deckId={deckId}
-          questionAnswer={questionAnswer}
-        />
+        {questionAnswer.status === "pending" ? (
+          <p className="flex items-center gap-2 text-sm text-base-content/65" role="status">
+            <LoaderCircle
+              className="h-4 w-4 animate-spin motion-reduce:animate-none"
+              aria-hidden="true"
+            />
+            The AI is working on this question. You can close this dialog and come back later.
+          </p>
+        ) : questionAnswer.status === "failed" ? (
+          <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+            {questionAnswer.error || "The AI question could not be completed. Try asking again."}
+          </p>
+        ) : (
+          <>
+            <DeckMarkdown cardReferences>{questionAnswer.answer}</DeckMarkdown>
+            <QuestionRecommendations
+              deckCards={deckCards}
+              deckId={deckId}
+              questionAnswer={questionAnswer}
+            />
+          </>
+        )}
       </div>
     </details>
   )

@@ -31,6 +31,8 @@ config :manavault, :pricing_sync_worker, false
 config :manavault, :pricing_store, false
 config :manavault, :auth_disabled, true
 
+config :manavault, Oban, testing: :manual
+
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
 

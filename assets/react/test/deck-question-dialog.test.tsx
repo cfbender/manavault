@@ -7,6 +7,8 @@ type QuestionAnswer = {
   id: string
   question: string
   answer: string
+  status: string
+  error: string | null
   recommendedCuts: string[]
   recommendedAdditions: string[]
   insertedAt: string
@@ -30,6 +32,8 @@ const apolloMocks = vi.hoisted(() => ({
 | Cut | Addition | Mana cost |
 | :--- | :--- | :--- |
 | [[Approach of the Second Sun]] | [[Sun Titan]] | {4}{W}{W} |`,
+        status: "completed",
+        error: null,
         recommendedCuts: ["Approach of the Second Sun", "Deepglow Skate"],
         recommendedAdditions: ["Sun Titan", "Doubling Season"],
         insertedAt: "2026-08-19T03:00:00Z",
@@ -38,6 +42,8 @@ const apolloMocks = vi.hoisted(() => ({
         id: "history-1",
         question: "What is the weakest card?",
         answer: "Start by testing a cut from the top of the curve.",
+        status: "completed",
+        error: null,
         recommendedCuts: [],
         recommendedAdditions: [],
         insertedAt: "2026-08-18T03:00:00Z",
@@ -46,6 +52,8 @@ const apolloMocks = vi.hoisted(() => ({
   },
   refetchQueries: vi.fn(() => Promise.resolve()),
   refetch: vi.fn(),
+  startPolling: vi.fn(),
+  stopPolling: vi.fn(),
 }))
 
 const deckCards = [
@@ -70,6 +78,8 @@ vi.mock("@apollo/client/react", () => ({
     error: undefined,
     loading: false,
     refetch: apolloMocks.refetch,
+    startPolling: apolloMocks.startPolling,
+    stopPolling: apolloMocks.stopPolling,
   }),
   useMutation: (document: { definitions: Array<{ name?: { value?: string } }> }) => {
     const operationName = document.definitions[0]?.name?.value
@@ -79,18 +89,18 @@ vi.mock("@apollo/client/react", () => ({
         (options: {
           variables: { id: string; question: string }
           onCompleted?: (data: {
-            askDeckQuestion: { answer: string; questionAnswer: QuestionAnswer }
+            askDeckQuestion: { questionAnswer: QuestionAnswer }
           }) => void
         }) => {
-          const answer = "**Yes.** It doubles the deck's +1/+1 counters and token production."
           apolloMocks.askVariables = options.variables
           options.onCompleted?.({
             askDeckQuestion: {
-              answer,
               questionAnswer: {
                 id: "history-3",
                 question: options.variables.question,
-                answer,
+                answer: "",
+                status: "pending",
+                error: null,
                 recommendedCuts: [],
                 recommendedAdditions: [],
                 insertedAt: "2026-08-19T04:00:00Z",
@@ -153,6 +163,10 @@ afterEach(() => {
   apolloMocks.deleteVariables = null
   apolloMocks.tagVariables = null
   apolloMocks.refetchQueries.mockClear()
+  apolloMocks.startPolling.mockClear()
+  apolloMocks.stopPolling.mockClear()
+  apolloMocks.historyData.deckQuestionAnswers[0]!.status = "completed"
+  apolloMocks.historyData.deckQuestionAnswers[0]!.error = null
 })
 
 test("renders saved questions newest first in collapsible sections", () => {
@@ -176,6 +190,24 @@ test("renders saved questions newest first in collapsible sections", () => {
   expect(entries[1]?.textContent).toContain("What is the weakest card?")
   expect(entries[0]?.open).toBe(true)
   expect(entries[1]?.open).toBe(false)
+})
+
+test("renders a persisted AI failure instead of an empty answer", () => {
+  apolloMocks.historyData.deckQuestionAnswers[0]!.status = "failed"
+  apolloMocks.historyData.deckQuestionAnswers[0]!.error = "OpenRouter could not answer this question."
+
+  render(
+    <DeckQuestionDialog
+      deckCards={deckCards}
+      deckId="deck-1"
+      deckName="Counter Deck"
+      open={true}
+      onOpenChange={() => undefined}
+    />,
+  )
+
+  expect(screen.getByText("OpenRouter could not answer this question.")).toBeInstanceOf(HTMLElement)
+  expect(screen.queryByRole("region", { name: "Suggested deck changes" })).toBeNull()
 })
 
 test("renders answer tables, mana symbols, and card links with previews", async () => {
@@ -205,7 +237,7 @@ test("renders answer tables, mana symbols, and card links with previews", async 
   expect(preview.getAttribute("src")).toContain("exact=Sun%20Titan")
 })
 
-test("submits a trimmed deck question and adds the saved Markdown answer at the top", async () => {
+test("submits a trimmed deck question, shows pending work, and starts polling", async () => {
   const user = userEvent.setup()
   render(
     <DeckQuestionDialog
@@ -234,8 +266,9 @@ test("submits a trimmed deck question and adds the saved Markdown answer at the 
   })
   expect((question as HTMLTextAreaElement).value).toBe("")
   expect(screen.getByText("Would Doubling Season fit?")).toBeInstanceOf(HTMLElement)
-  expect(screen.getByText(/doubles the deck's \+1\/\+1 counters/i)).toBeInstanceOf(HTMLElement)
+  expect(screen.getByRole("status").textContent).toMatch(/AI is working on this question/i)
   expect(screen.getByText(/saved with this deck/i)).toBeInstanceOf(HTMLElement)
+  expect(apolloMocks.startPolling).toHaveBeenCalledWith(2_000)
 
   const entries = screen
     .getByRole("dialog", { name: "Ask about this deck" })

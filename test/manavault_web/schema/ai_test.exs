@@ -1,6 +1,8 @@
 defmodule ManavaultWeb.Schema.AITest do
   use ManavaultWeb.ConnCase, async: false
+  use Oban.Testing, repo: Manavault.Repo, engine: Oban.Engines.Lite
 
+  alias Manavault.AI.DeckQuestionWorker
   alias Manavault.Catalog
   alias Manavault.CatalogTestSupport
 
@@ -106,11 +108,12 @@ defmodule ManavaultWeb.Schema.AITest do
         "query" => """
         mutation AskDeckQuestion($id: ID!, $question: String!) {
           askDeckQuestion(id: $id, question: $question) {
-            answer
             questionAnswer {
               id
               question
               answer
+              status
+              error
               recommendedCuts
               recommendedAdditions
               insertedAt
@@ -127,13 +130,14 @@ defmodule ManavaultWeb.Schema.AITest do
     assert %{
              "data" => %{
                "askDeckQuestion" => %{
-                 "answer" => "Cut [[Test Commander]] for [[Plains]].",
                  "questionAnswer" => %{
                    "id" => question_answer_id,
                    "question" => "What should I cut for Doubling Season?",
-                   "answer" => "Cut [[Test Commander]] for [[Plains]].",
-                   "recommendedCuts" => ["Test Commander"],
-                   "recommendedAdditions" => ["Plains"],
+                   "answer" => "",
+                   "status" => "pending",
+                   "error" => nil,
+                   "recommendedCuts" => [],
+                   "recommendedAdditions" => [],
                    "insertedAt" => inserted_at
                  }
                }
@@ -141,6 +145,14 @@ defmodule ManavaultWeb.Schema.AITest do
            } = json_response(question_conn, 200)
 
     assert {:ok, _datetime, 0} = DateTime.from_iso8601(inserted_at)
+    question_answer_database_id = String.to_integer(question_answer_id)
+
+    assert_enqueued(
+      worker: DeckQuestionWorker,
+      args: %{question_answer_id: question_answer_database_id}
+    )
+
+    assert :ok = perform_job(DeckQuestionWorker, %{question_answer_id: question_answer_id})
 
     history_conn =
       post(recycle(conn), "/api/graphql", %{
@@ -150,6 +162,8 @@ defmodule ManavaultWeb.Schema.AITest do
             id
             question
             answer
+            status
+            error
             recommendedCuts
             recommendedAdditions
             insertedAt
@@ -165,6 +179,9 @@ defmodule ManavaultWeb.Schema.AITest do
                  %{
                    "id" => ^question_answer_id,
                    "question" => "What should I cut for Doubling Season?",
+                   "answer" => "Cut [[Test Commander]] for [[Plains]].",
+                   "status" => "completed",
+                   "error" => nil,
                    "recommendedCuts" => ["Test Commander"],
                    "recommendedAdditions" => ["Plains"]
                  }

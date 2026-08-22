@@ -16,6 +16,7 @@ defmodule Manavault.Application do
         {Manavault.Backup.MigrationBackup, repo: Manavault.Repo},
         {Ecto.Migrator,
          repos: Application.fetch_env!(:manavault, :ecto_repos), skip: skip_migrations?()},
+        {Oban, Application.fetch_env!(:manavault, Oban)},
         Manavault.Auth.AttemptLimiter,
         Manavault.PublicShareRequestLimiter,
         {DNSCluster, query: Application.get_env(:manavault, :dns_cluster_query) || :ignore},
