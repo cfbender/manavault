@@ -2,6 +2,7 @@ import {
   ArrowLeftRight,
   Download,
   Edit3,
+  Infinity as InfinityIcon,
   MoreVertical,
   Share2,
   Scissors,
@@ -36,6 +37,7 @@ export function SummaryActionMenu({
   analyzePending = false,
   label,
   onAnalyze,
+  onCombos,
   onCompare,
   onDelete,
   onDisassemble,
@@ -51,6 +53,7 @@ export function SummaryActionMenu({
   analyzePending?: boolean
   label: string
   onAnalyze?: () => void
+  onCombos?: () => void
   onCompare?: () => void
   onDelete?: () => void
   onDisassemble?: () => void
@@ -79,6 +82,12 @@ export function SummaryActionMenu({
             <DropdownMenuItem disabled={analyzePending} onSelect={onAnalyze}>
               <Sparkles className="h-4 w-4" />
               {analyzeLabel}
+            </DropdownMenuItem>
+          ) : null}
+          {onCombos ? (
+            <DropdownMenuItem onSelect={onCombos}>
+              <InfinityIcon className="h-4 w-4" />
+              Infinite combos
             </DropdownMenuItem>
           ) : null}
           <DropdownMenuItem onSelect={onEdit}>

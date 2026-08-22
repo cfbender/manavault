@@ -33,7 +33,7 @@ afterEach(() => {
   mocks.showToast.mockReset()
 })
 
-function renderHeader(shareMode: boolean) {
+function renderHeader(shareMode: boolean, onCombos = () => undefined) {
   const noOp = () => undefined
 
   render(
@@ -64,6 +64,7 @@ function renderHeader(shareMode: boolean) {
       legalityIssues={[]}
       saltSum={null}
       onAddCard={noOp}
+      onCombos={onCombos}
       onCompareDeck={noOp}
       onCopySharedDecklist={noOp}
       onDisassemble={noOp}
@@ -135,4 +136,15 @@ test("AI deck analysis shows progress until the request completes", async () => 
   expect(mocks.showToast).toHaveBeenNthCalledWith(2, "Deck analysis complete.", {
     id: "deck-analysis-deck-1",
   })
+})
+
+test("private deck menu opens the infinite combo lookup", async () => {
+  const user = userEvent.setup()
+  const onCombos = vi.fn()
+  renderHeader(false, onCombos)
+
+  await user.click(screen.getByRole("button", { name: "Counter Deck actions" }))
+  await user.click(screen.getByRole("menuitem", { name: "Infinite combos" }))
+
+  expect(onCombos).toHaveBeenCalledTimes(1)
 })

@@ -67,4 +67,15 @@ defmodule ManavaultWeb.Schema.Catalog.Errors do
   def edhrec_error({:edhrec_request_failed, reason}), do: "Could not reach EDHREC: #{reason}"
   def edhrec_error(reason) when is_binary(reason), do: reason
   def edhrec_error(_reason), do: "Could not load EDHREC data."
+
+  def commander_spellbook_error(:commander_spellbook_unexpected_response),
+    do: "Commander Spellbook returned an unexpected response."
+
+  def commander_spellbook_error({:commander_spellbook_http_error, status}),
+    do: "Commander Spellbook returned HTTP #{status}."
+
+  def commander_spellbook_error({:commander_spellbook_request_failed, _reason}),
+    do: "Could not reach Commander Spellbook. Try again in a moment."
+
+  def commander_spellbook_error(_reason), do: "Could not load Commander Spellbook combos."
 end

@@ -295,6 +295,23 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :collection_status, non_null(:deck_card_allocation_status)
   end
 
+  object :deck_combo do
+    field :id, non_null(:id)
+    field :url, non_null(:string)
+    field :cards, non_null(list_of(non_null(:deck_combo_card)))
+    field :produces, non_null(list_of(non_null(:string)))
+    field :description, non_null(:string)
+    field :mana_needed, :string
+    field :prerequisites, non_null(list_of(non_null(:string)))
+    field :notes, :string
+  end
+
+  object :deck_combo_card do
+    field :name, non_null(:string)
+    field :quantity, non_null(:integer)
+    field :image_url, :string
+  end
+
   object :edhrec_commander_page do
     field :name, non_null(:string)
     field :title, non_null(:string)

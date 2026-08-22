@@ -11,6 +11,7 @@ export type DeckDetailOverlay =
       mode: DeckPullListMode
       selectedItemIds: Record<string, string | null>
     }
+  | { kind: "combos" }
   | { kind: "compare-deck" }
   | { kind: "delete-card"; deckCard: DeckCardEntry }
   | { kind: "delete-selected" }

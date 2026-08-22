@@ -399,6 +399,7 @@ export function DeckDetailPage({
           legalityIssues={legalityIssues}
           saltSum={deferredDeckAnalysis?.stats.saltSum ?? null}
           onAddCard={() => setOverlay({ kind: "add-card" })}
+          onCombos={() => setOverlay({ kind: "combos" })}
           onCompareDeck={() => setOverlay({ kind: "compare-deck" })}
           onCopySharedDecklist={copySharedDecklist}
           onDisassemble={() => disassemblyActions.preview(deck.id)}

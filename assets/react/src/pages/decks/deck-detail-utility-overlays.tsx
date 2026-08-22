@@ -1,4 +1,5 @@
 import { ConfirmDialog } from "../../components/ui/confirm-dialog"
+import { DeckCombosDialog } from "./deck-combos-dialog"
 import { DeckCompareDialog } from "./deck-compare-dialog"
 import { EditDeckDialog } from "./deck-editor-dialogs"
 import type { DeckDetailOverlay } from "./deck-detail-overlay"
@@ -70,6 +71,9 @@ export function DeckDetailUtilityOverlays({
 
   return (
     <>
+      {overlay.kind === "combos" ? (
+        <DeckCombosDialog deck={deck} open onOpenChange={(open) => !open && onClose()} />
+      ) : null}
       {overlay.kind === "edit-deck" ? (
         <EditDeckDialog deck={deck} open onOpenChange={(open) => !open && onClose()} />
       ) : null}

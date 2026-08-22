@@ -58,6 +58,7 @@ type DeckDetailHeaderProps = {
   legalityIssues: DeckLegalityIssue[]
   saltSum: number | null
   onAddCard: () => void
+  onCombos: () => void
   onCompareDeck: () => void
   onCopySharedDecklist: () => void
   onDisassemble: () => void
@@ -197,6 +198,7 @@ export function DeckDetailHeader({
   legalityIssues,
   saltSum,
   onAddCard,
+  onCombos,
   onCompareDeck,
   onCopySharedDecklist,
   onDisassemble,
@@ -295,6 +297,7 @@ export function DeckDetailHeader({
                 analyzePending={analysisMutation.loading}
                 label={`${deck.name} actions`}
                 onAnalyze={analyze}
+                onCombos={onCombos}
                 onCompare={onCompareDeck}
                 onDisassemble={canEdit ? onDisassemble : undefined}
                 onEdhrec={canEdit && deck.format === "commander" ? onOpenEdhrec : undefined}

@@ -11,6 +11,7 @@ import { useToast } from "../../components/ui/toast"
 import { compactNumber, titleize } from "../../lib/utils"
 import { SummaryActionMenu } from "./deck-actions"
 import { DeckBracketBadge } from "./deck-bracket"
+import { DeckCombosDialog } from "./deck-combos-dialog"
 import { EditDeckDialog, NewDeckDialog } from "./deck-editor-dialogs"
 import {
   deckLegalityIssueCount,
@@ -148,11 +149,13 @@ function DeckReadinessBadges({ readiness }: { readiness: DeckReadiness }) {
 
 function DeckGalleryCard({
   deck,
+  onCombos,
   onDelete,
   onEdit,
   onShare,
 }: {
   deck: DeckSummary
+  onCombos: () => void
   onDelete: () => void
   onEdit: () => void
   onShare: () => void
@@ -185,6 +188,7 @@ function DeckGalleryCard({
       </Link>
       <SummaryActionMenu
         label={`${deck.name} actions`}
+        onCombos={onCombos}
         onEdit={onEdit}
         onShare={onShare}
         onDelete={onDelete}
@@ -196,12 +200,14 @@ function DeckGalleryCard({
 function DeckFormatSections({
   countSuffix,
   deckGroups,
+  onCombos,
   onDelete,
   onEdit,
   onShare,
 }: {
   countSuffix?: string
   deckGroups: ReturnType<typeof groupDecksByFormat>
+  onCombos: (deck: DeckSummary) => void
   onDelete: (deck: DeckSummary) => void
   onEdit: (deck: DeckSummary) => void
   onShare: (deck: DeckSummary) => void
@@ -222,6 +228,7 @@ function DeckFormatSections({
               <DeckGalleryCard
                 key={deck.id}
                 deck={deck}
+                onCombos={() => onCombos(deck)}
                 onEdit={() => onEdit(deck)}
                 onShare={() => onShare(deck)}
                 onDelete={() => onDelete(deck)}
@@ -237,12 +244,14 @@ function DeckFormatSections({
 function ArchivedDecksAccordion({
   deckCount,
   deckGroups,
+  onCombos,
   onDelete,
   onEdit,
   onShare,
 }: {
   deckCount: number
   deckGroups: ReturnType<typeof groupDecksByFormat>
+  onCombos: (deck: DeckSummary) => void
   onDelete: (deck: DeckSummary) => void
   onEdit: (deck: DeckSummary) => void
   onShare: (deck: DeckSummary) => void
@@ -271,6 +280,7 @@ function ArchivedDecksAccordion({
       <div className="border-t border-base-300 p-4">
         <DeckFormatSections
           deckGroups={deckGroups}
+          onCombos={onCombos}
           onEdit={onEdit}
           onShare={onShare}
           onDelete={onDelete}
@@ -282,6 +292,7 @@ function ArchivedDecksAccordion({
 
 export function DecksPage() {
   const [isNewDeckOpen, setIsNewDeckOpen] = useState(false)
+  const [comboDeck, setComboDeck] = useState<DeckSummary | null>(null)
   const [editingDeck, setEditingDeck] = useState<DeckSummary | null>(null)
   const [sharingDeck, setSharingDeck] = useState<DeckSummary | null>(null)
   const [deletingDeck, setDeletingDeck] = useState<DeckSummary | null>(null)
@@ -359,6 +370,7 @@ export function DecksPage() {
             <DeckFormatSections
               countSuffix="active"
               deckGroups={deckGroups}
+              onCombos={setComboDeck}
               onEdit={setEditingDeck}
               onShare={setSharingDeck}
               onDelete={setDeletingDeck}
@@ -372,6 +384,7 @@ export function DecksPage() {
           <ArchivedDecksAccordion
             deckCount={archivedDecks.length}
             deckGroups={archivedDeckGroups}
+            onCombos={setComboDeck}
             onEdit={setEditingDeck}
             onShare={setSharingDeck}
             onDelete={setDeletingDeck}
@@ -379,6 +392,11 @@ export function DecksPage() {
         </div>
       )}
       <NewDeckDialog open={isNewDeckOpen} onOpenChange={setIsNewDeckOpen} />
+      <DeckCombosDialog
+        deck={comboDeck}
+        open={Boolean(comboDeck)}
+        onOpenChange={(open) => !open && setComboDeck(null)}
+      />
       <EditDeckDialog deck={editingDeck} onOpenChange={(open) => !open && setEditingDeck(null)} />
       <ShareDeckDialog deck={sharingDeck} onOpenChange={(open) => !open && setSharingDeck(null)} />
       <ConfirmDialog

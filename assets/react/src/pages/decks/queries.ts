@@ -1116,3 +1116,22 @@ export const DeckEdhrecDocument = graphql(`
     }
   }
 `)
+
+export const DeckCombosDocument = graphql(`
+  query DeckCombos($id: ID!) {
+    deckCombos(id: $id) {
+      id
+      url
+      cards {
+        name
+        quantity
+        imageUrl
+      }
+      produces
+      description
+      manaNeeded
+      prerequisites
+      notes
+    }
+  }
+`)

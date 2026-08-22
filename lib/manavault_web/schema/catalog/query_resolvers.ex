@@ -226,6 +226,15 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
     end
   end
 
+  def deck_combos(_parent, %{id: id}, resolution) do
+    with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
+      case id |> Catalog.get_deck!() |> Catalog.deck_combos() do
+        {:ok, combos} -> {:ok, combos}
+        {:error, reason} -> {:error, Errors.commander_spellbook_error(reason)}
+      end
+    end
+  end
+
   # Public so mutation resolvers can parse a selector's filters the same way
   # the list/count queries do.
   def collection_filters(args, resolution) do

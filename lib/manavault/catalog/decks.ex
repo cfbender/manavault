@@ -1,7 +1,7 @@
 defmodule Manavault.Catalog.Decks do
   @moduledoc false
 
-  alias Manavault.Catalog.{Cache, DeckCard, DeckSummaries, EDHRec}
+  alias Manavault.Catalog.{Cache, CommanderSpellbook, DeckCard, DeckSummaries, EDHRec}
 
   alias Manavault.Catalog.Decks.{
     AllocationStatus,
@@ -364,6 +364,8 @@ defmodule Manavault.Catalog.Decks do
       EDHRec.recs(deck, opts)
     end)
   end
+
+  defdelegate deck_combos(deck, opts \\ []), to: CommanderSpellbook, as: :combos
 
   def export_deck_buylist(deck, format, opts \\ []) do
     cached_deck_read(deck, {:export_deck_buylist, format, opts}, fn ->
