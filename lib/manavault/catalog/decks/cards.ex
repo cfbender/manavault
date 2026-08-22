@@ -287,13 +287,9 @@ defmodule Manavault.Catalog.Decks.Cards do
   end
 
   defp should_switch_deck_card_allocation?(%DeckCard{} = deck_card, attrs) do
-    case Map.fetch(attrs, "preferred_printing_id") do
-      {:ok, preferred_printing_id} when is_binary(preferred_printing_id) ->
-        preferred_printing_id != deck_card.preferred_printing_id
-
-      _no_preferred_printing_change ->
-        false
-    end
+    (Map.has_key?(attrs, "preferred_printing_id") and
+       attrs["preferred_printing_id"] != deck_card.preferred_printing_id) or
+      (Map.has_key?(attrs, "finish") and attrs["finish"] != deck_card.finish)
   end
 
   defp deck_card_physical_allocation_quantity(%DeckCard{} = deck_card) do

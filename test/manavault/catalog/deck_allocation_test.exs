@@ -173,6 +173,118 @@ defmodule Manavault.Catalog.DeckAllocationTest do
     assert Catalog.get_collection_item!(alpha_item.id).location_id == binder.id
   end
 
+  test "updating a deck card finish switches physical allocation to the exact matching finish" do
+    card = Map.put(@black_lotus, "finishes", ["nonfoil", "foil"])
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([card])
+
+    assert {:ok, binder} = Catalog.create_location(%{name: "Finish Binder", kind: "binder"})
+
+    assert {:ok, nonfoil_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "finish" => "nonfoil",
+               "location_id" => binder.id
+             })
+
+    assert {:ok, foil_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "finish" => "foil",
+               "location_id" => binder.id
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Finish Switch"})
+
+    assert {:ok, lotus} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Black Lotus",
+               "preferred_printing_id" => "scryfall-printing-1"
+             })
+
+    assert {:ok, _allocation} =
+             Catalog.allocate_collection_item_to_deck_card(lotus.id, nonfoil_item.id)
+
+    assert {:ok, updated_lotus} = Catalog.update_deck_card(lotus, %{"finish" => "foil"})
+    assert updated_lotus.finish == "foil"
+    assert updated_lotus.preferred_printing_id == "scryfall-printing-1"
+
+    status = Catalog.deck_card_allocation_status(updated_lotus)
+    assert status.allocated == 1
+    assert Enum.find(status.candidates, &(&1.item.id == nonfoil_item.id)).allocated == 0
+    assert Enum.find(status.candidates, &(&1.item.id == foil_item.id)).allocated == 1
+    assert Catalog.get_collection_item!(nonfoil_item.id).location_id == binder.id
+    assert is_nil(Catalog.get_collection_item!(foil_item.id).location_id)
+  end
+
+  test "updating a deck card finish releases the old allocation when the exact finish is unavailable" do
+    card = Map.put(@black_lotus, "finishes", ["nonfoil", "foil"])
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([card])
+
+    assert {:ok, binder} = Catalog.create_location(%{name: "Unavailable Finish", kind: "binder"})
+
+    assert {:ok, nonfoil_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "finish" => "nonfoil",
+               "location_id" => binder.id
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Unavailable Finish Switch"})
+
+    assert {:ok, lotus} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Black Lotus",
+               "preferred_printing_id" => "scryfall-printing-1"
+             })
+
+    assert {:ok, _allocation} =
+             Catalog.allocate_collection_item_to_deck_card(lotus.id, nonfoil_item.id)
+
+    assert {:ok, updated_lotus} = Catalog.update_deck_card(lotus, %{"finish" => "foil"})
+    assert updated_lotus.finish == "foil"
+
+    status = Catalog.deck_card_allocation_status(updated_lotus)
+    assert status.allocated == 0
+    assert Enum.find(status.candidates, &(&1.item.id == nonfoil_item.id)).available == 1
+    assert Catalog.get_collection_item!(nonfoil_item.id).location_id == binder.id
+  end
+
+  test "clearing a deck card preferred printing releases its exact allocation" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+    assert {:ok, binder} = Catalog.create_location(%{name: "Any Printing", kind: "binder"})
+
+    assert {:ok, item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "finish" => "nonfoil",
+               "location_id" => binder.id
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Clear Printing"})
+
+    assert {:ok, lotus} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Black Lotus",
+               "preferred_printing_id" => "scryfall-printing-1"
+             })
+
+    assert {:ok, _allocation} = Catalog.allocate_collection_item_to_deck_card(lotus.id, item.id)
+
+    assert {:ok, updated_lotus} =
+             Catalog.update_deck_card(lotus, %{"preferred_printing_id" => nil})
+
+    assert is_nil(updated_lotus.preferred_printing_id)
+
+    status = Catalog.deck_card_allocation_status(updated_lotus)
+    assert status.allocated == 0
+    assert Enum.find(status.candidates, &(&1.item.id == item.id)).available == 1
+    assert Catalog.get_collection_item!(item.id).location_id == binder.id
+  end
+
   test "deck allocation can use foil collection items for nonfoil deck entries" do
     card =
       @black_lotus
