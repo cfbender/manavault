@@ -125,7 +125,11 @@ defmodule ManavaultWeb.AppControllerTest do
   test "GET /share/decks/:token/preview.png renders a social preview PNG", %{conn: conn} do
     token = shared_deck_token()
 
-    conn = get(conn, "/share/decks/#{token}/preview.png")
+    conn =
+      Oban.Testing.with_testing_mode(:inline, fn ->
+        get(conn, "/share/decks/#{token}/preview.png")
+      end)
+
     response = response(conn, 200)
 
     assert get_resp_header(conn, "content-type") == ["image/png"]

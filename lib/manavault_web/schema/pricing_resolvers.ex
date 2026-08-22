@@ -13,8 +13,10 @@ defmodule ManavaultWeb.Schema.PricingResolvers do
   end
 
   def sync_vendor_prices(_parent, _args, _resolution) do
-    Manavault.Pricing.SyncWorker.sync_now()
-    {:ok, serialize_settings()}
+    case Pricing.sync_vendors_async() do
+      {:ok, _job} -> {:ok, serialize_settings()}
+      {:error, _changeset} -> {:error, "Vendor price sync could not be queued."}
+    end
   end
 
   defp serialize_settings do

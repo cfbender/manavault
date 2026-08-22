@@ -25,9 +25,6 @@ config :manavault, ManavaultWeb.Endpoint,
 # In test we don't send emails
 config :manavault, Manavault.Mailer, adapter: Swoosh.Adapters.Test
 
-config :manavault, :scryfall_sync_worker, false
-config :manavault, :backup_scheduler, false
-config :manavault, :pricing_sync_worker, false
 config :manavault, :pricing_store, false
 config :manavault, :auth_disabled, true
 

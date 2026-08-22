@@ -45,7 +45,19 @@ config :manavault, Manavault.Repo,
 
 config :manavault, Oban,
   engine: Oban.Engines.Lite,
-  queues: [ai: 2],
+  plugins: [
+    {Oban.Plugins.Cron,
+     crontab: [
+       {"@reboot", Manavault.Catalog.ScryfallCatalogWorker},
+       {"@daily", Manavault.Catalog.ScryfallCatalogWorker},
+       {"@reboot", Manavault.Catalog.ScryfallAssetsWorker},
+       {"@daily", Manavault.Catalog.ScryfallAssetsWorker},
+       {"@reboot", Manavault.Pricing.VendorSyncWorker},
+       {"*/30 * * * *", Manavault.Pricing.VendorSyncWorker},
+       {"* * * * *", Manavault.Backup.CloudBackupWorker}
+     ]}
+  ],
+  queues: [ai: 2, backup: 1, catalog: 2, preview: 2, pricing: 1],
   repo: Manavault.Repo
 
 # Configure the endpoint
@@ -94,12 +106,11 @@ config :manavault, Manavault.Cache,
   gc_memory_check_interval: :timer.seconds(10),
   max_size: 100_000
 
-# Public share preview PNGs are immutable, content-addressed artifacts. The
-# supervised renderer admits at most two concurrent renders across all keys;
-# only the 500 newest completed artifacts are retained.
+# Public share preview PNGs are immutable, content-addressed artifacts. Oban's
+# preview queue admits two concurrent renders; only the 500 newest completed
+# artifacts are retained.
 config :manavault, ManavaultWeb.DeckSharePreview.ArtifactCache,
   cache_dir: Path.join(System.tmp_dir!(), "manavault/share-previews"),
-  max_concurrency: 2,
   max_artifacts: 500,
   assets_version: "scryfall-symbols-v1",
   renderer_version: "rsvg-convert"

@@ -13,7 +13,7 @@ defmodule Manavault.Pricing do
   import Ecto.Query
 
   alias Manavault.Catalog.Cache
-  alias Manavault.Pricing.{Settings, Store, Sync, VendorPrice}
+  alias Manavault.Pricing.{Settings, Store, Sync, VendorPrice, VendorSyncWorker}
   alias Manavault.Repo
 
   @singleton_id 1
@@ -50,6 +50,12 @@ defmodule Manavault.Pricing do
   end
 
   def sync_vendors(vendors \\ @vendors), do: Sync.run(vendors)
+
+  def sync_vendors_async do
+    %{force: true}
+    |> VendorSyncWorker.new(replace: [available: [:args], scheduled: [:args], retryable: [:args]])
+    |> Oban.insert()
+  end
 
   def vendor_statuses do
     counts =

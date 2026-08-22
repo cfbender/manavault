@@ -1,8 +1,9 @@
 defmodule ManavaultWeb.DeckSharePreview.ArtifactCacheTest do
-  use ExUnit.Case, async: false
+  use Manavault.DataCase, async: false
+  use Oban.Testing, repo: Manavault.Repo, engine: Oban.Engines.Lite
 
   alias ManavaultWeb.DeckSharePreview.ArtifactCache
-  alias ManavaultWeb.DeckSharePreview.{ArtifactStore, CoverFetcher, Renderer}
+  alias ManavaultWeb.DeckSharePreview.{ArtifactStore, CoverFetcher, Renderer, RenderWorker}
 
   setup do
     cache_dir =
@@ -11,109 +12,74 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCacheTest do
         "manavault-preview-artifacts-#{System.unique_integer([:positive])}"
       )
 
-    on_exit(fn -> File.rm_rf(cache_dir) end)
+    previous = Application.get_env(:manavault, ArtifactCache, [])
+    Application.put_env(:manavault, ArtifactCache, Keyword.put(previous, :cache_dir, cache_dir))
 
-    {:ok, cache_dir: cache_dir, task_supervisor: start_supervised!(Task.Supervisor)}
+    on_exit(fn ->
+      Application.put_env(:manavault, ArtifactCache, previous)
+      File.rm_rf(cache_dir)
+    end)
+
+    {:ok, cache_dir: cache_dir}
   end
 
-  test "repeat requests reuse one artifact without cover or renderer work", context do
+  test "a cache miss queues one unique render job and reuses the artifact", context do
     test_pid = self()
 
-    cache =
-      start_cache(context,
-        cover_fetcher: fn url ->
-          send(test_pid, {:cover_fetched, url})
-          "data:image/png;base64,Y292ZXI="
-        end,
-        renderer: fn preview ->
-          send(test_pid, {:rendered, preview.deck_name})
-          {:ok, "png:#{preview.deck_name}"}
-        end
-      )
+    configure(
+      cover_fetcher: fn url ->
+        send(test_pid, {:cover_fetched, url})
+        "data:image/png;base64,Y292ZXI="
+      end,
+      renderer: fn preview ->
+        send(test_pid, {:rendered, preview.deck_name})
+        {:ok, "png:#{preview.deck_name}"}
+      end
+    )
 
     preview = preview()
+    caller = Task.async(fn -> ArtifactCache.png(preview) end)
 
-    assert {:ok, "png:Preview Deck"} = ArtifactCache.png(preview, server: cache)
+    assert_enqueued([worker: RenderWorker], 1_000)
+    assert [job] = all_enqueued(worker: RenderWorker)
+    refute Map.has_key?(job.args["preview"], "token")
+
+    assert {:ok, duplicate_job} = job.args |> RenderWorker.new() |> Oban.insert()
+    assert duplicate_job.id == job.id
+    assert duplicate_job.conflict?
+
+    assert :ok = perform_job(RenderWorker, job.args)
+    assert {:ok, "png:Preview Deck"} = Task.await(caller)
     assert_receive {:cover_fetched, "https://cards.scryfall.io/preview.png"}
     assert_receive {:rendered, "Preview Deck"}
 
-    assert {:ok, "png:Preview Deck"} = ArtifactCache.png(preview, server: cache)
-    refute_receive {:cover_fetched, _url}
-    refute_receive {:rendered, _deck_name}
+    assert {:ok, "png:Preview Deck"} = ArtifactCache.png(preview)
+    assert length(all_enqueued(worker: RenderWorker)) == 1
+    assert File.read!(artifact_path(context.cache_dir, preview)) == "png:Preview Deck"
   end
 
-  test "a shared fingerprint coalesces concurrent callers", context do
-    test_pid = self()
-
-    cache =
-      start_cache(context,
-        cover_fetcher: fn url ->
-          send(test_pid, {:cover_fetched, url})
-          "data:image/png;base64,Y292ZXI="
-        end,
-        renderer: fn preview ->
-          send(test_pid, {:render_started, preview.deck_name, self()})
-
-          receive do
-            :release -> {:ok, "png:#{preview.deck_name}"}
-          end
-        end
-      )
+  test "inline render failures return an error and the next request may retry", context do
+    configure(
+      cover_fetcher: fn _url -> nil end,
+      renderer: fn _preview -> {:error, :renderer_unavailable} end
+    )
 
     preview = preview()
 
-    callers =
-      Enum.map(1..2, fn _ ->
-        Task.async(fn -> ArtifactCache.png(preview, server: cache) end)
-      end)
+    assert {:error, :render_failed} =
+             Oban.Testing.with_testing_mode(:inline, fn -> ArtifactCache.png(preview) end)
 
-    assert_receive {:cover_fetched, "https://cards.scryfall.io/preview.png"}
-    assert_receive {:render_started, "Preview Deck", renderer_pid}
-    refute_receive {:cover_fetched, _url}, 100
-    refute_receive {:render_started, _deck_name, _pid}, 100
+    refute File.exists?(artifact_path(context.cache_dir, preview))
 
-    send(renderer_pid, :release)
+    configure(renderer: fn _preview -> {:ok, "recovered-png"} end)
 
-    assert Enum.all?(callers, &(Task.await(&1) == {:ok, "png:Preview Deck"}))
+    assert {:ok, "recovered-png"} =
+             Oban.Testing.with_testing_mode(:inline, fn -> ArtifactCache.png(preview) end)
+
+    assert File.read!(artifact_path(context.cache_dir, preview)) == "recovered-png"
   end
 
-  test "different fingerprints respect the finite render concurrency bound", context do
-    test_pid = self()
-
-    cache =
-      start_cache(context,
-        max_concurrency: 2,
-        cover_fetcher: fn _url -> nil end,
-        renderer: fn preview ->
-          send(test_pid, {:render_started, preview.deck_name, self()})
-
-          receive do
-            :release -> {:ok, "png:#{preview.deck_name}"}
-          end
-        end
-      )
-
-    previews = Enum.map(["A", "B", "C"], &Map.put(preview(), :deck_name, &1))
-
-    callers =
-      Enum.map(previews, fn preview ->
-        Task.async(fn -> ArtifactCache.png(preview, server: cache) end)
-      end)
-
-    assert_receive {:render_started, _name_one, first_renderer}
-    assert_receive {:render_started, _name_two, second_renderer}
-    refute_receive {:render_started, _queued_name, _queued_renderer}, 100
-
-    send(first_renderer, :release)
-    send(second_renderer, :release)
-
-    assert_receive {:render_started, _name_three, third_renderer}
-    send(third_renderer, :release)
-
-    assert Enum.all?(callers, &match?({:ok, _png}, Task.await(&1)))
-  end
-
-  test "the fingerprint changes for every byte-affecting preview input and renderer input" do
+  test "the fingerprint changes for every byte-affecting preview and renderer input" do
     base = preview()
     base_fingerprint = ArtifactCache.fingerprint(base)
 
@@ -143,8 +109,7 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCacheTest do
   end
 
   test "the fingerprint changes when the bearer token rotates" do
-    base = preview()
-    base = Map.put(base, :token, Manavault.Catalog.Decks.ShareToken.generate())
+    base = Map.put(preview(), :token, Manavault.Catalog.Decks.ShareToken.generate())
     rotated = Map.put(base, :token, Manavault.Catalog.Decks.ShareToken.generate())
 
     refute ArtifactCache.fingerprint(base) == ArtifactCache.fingerprint(rotated)
@@ -213,18 +178,22 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCacheTest do
     assert nil == CoverFetcher.prepare("https://example.com/preview.png")
   end
 
-  test "startup removes stale partial artifacts", context do
+  test "render startup removes stale partial artifacts", context do
     File.mkdir_p!(context.cache_dir)
     stale_path = Path.join(context.cache_dir, "orphan.png.tmp-interrupted")
     File.write!(stale_path, "partial")
 
-    _cache = start_cache(context, [])
+    assert {:error, :renderer_unavailable} =
+             RenderWorker.render(preview(), ArtifactCache.fingerprint(preview()),
+               cache_dir: context.cache_dir,
+               cover_fetcher: fn _url -> nil end,
+               renderer: fn _preview -> {:error, :renderer_unavailable} end
+             )
 
     refute File.exists?(stale_path)
   end
 
-  test "retention prunes the oldest completed artifacts without deleting the published artifact",
-       context do
+  test "retention prunes the oldest artifacts without deleting the published artifact", context do
     File.mkdir_p!(context.cache_dir)
     oldest = String.duplicate("a", 64)
     middle = String.duplicate("b", 64)
@@ -233,18 +202,12 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCacheTest do
     assert :ok = ArtifactStore.write(context.cache_dir, oldest, "oldest", 2)
 
     assert :ok =
-             File.touch(
-               ArtifactStore.path(context.cache_dir, oldest),
-               {{2020, 1, 1}, {0, 0, 0}}
-             )
+             File.touch(ArtifactStore.path(context.cache_dir, oldest), {{2020, 1, 1}, {0, 0, 0}})
 
     assert :ok = ArtifactStore.write(context.cache_dir, middle, "middle", 2)
 
     assert :ok =
-             File.touch(
-               ArtifactStore.path(context.cache_dir, middle),
-               {{2021, 1, 1}, {0, 0, 0}}
-             )
+             File.touch(ArtifactStore.path(context.cache_dir, middle), {{2021, 1, 1}, {0, 0, 0}})
 
     assert :ok = ArtifactStore.write(context.cache_dir, current, "current", 2)
 
@@ -253,7 +216,7 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCacheTest do
     assert File.read!(ArtifactStore.path(context.cache_dir, current)) == "current"
   end
 
-  test "the renderer command runner is injectable", _context do
+  test "the renderer command runner is injectable" do
     test_pid = self()
 
     assert {:ok, "fake png"} =
@@ -268,47 +231,13 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCacheTest do
     assert_receive {:renderer_command, "rsvg-convert", _args}
   end
 
-  test "a render failure leaves no readable artifact and the next request retries", context do
-    counter = start_supervised!({Agent, fn -> 0 end})
-
-    cache =
-      start_cache(context,
-        cover_fetcher: fn _url -> nil end,
-        renderer: fn _preview ->
-          attempt = Agent.get_and_update(counter, fn count -> {count + 1, count + 1} end)
-
-          if attempt == 1 do
-            {:error, :renderer_unavailable}
-          else
-            {:ok, "recovered-png"}
-          end
-        end
-      )
-
-    preview = preview()
-    artifact_path = ArtifactStore.path(context.cache_dir, ArtifactCache.fingerprint(preview))
-
-    assert {:error, :renderer_unavailable} = ArtifactCache.png(preview, server: cache)
-    refute File.exists?(artifact_path)
-    refute Enum.any?(File.ls!(context.cache_dir), &String.contains?(&1, ".tmp-"))
-
-    assert {:ok, "recovered-png"} = ArtifactCache.png(preview, server: cache)
-    assert File.read!(artifact_path) == "recovered-png"
-    assert Agent.get(counter, & &1) == 2
+  defp configure(options) do
+    config = Application.fetch_env!(:manavault, ArtifactCache)
+    Application.put_env(:manavault, ArtifactCache, Keyword.merge(config, options))
   end
 
-  defp start_cache(context, opts) do
-    start_supervised!(
-      {ArtifactCache,
-       Keyword.merge(
-         [
-           cache_dir: context.cache_dir,
-           name: nil,
-           task_supervisor: context.task_supervisor
-         ],
-         opts
-       )}
-    )
+  defp artifact_path(cache_dir, preview) do
+    ArtifactStore.path(cache_dir, ArtifactCache.fingerprint(preview))
   end
 
   defp preview do

@@ -177,9 +177,8 @@ defmodule Manavault.AI.DeckAnalysis do
            Map.merge(normalized, %{
              official_bracket: value(result, :official_bracket),
              play_bracket: value(result, :play_bracket)
-           }),
-         {:ok, normalized} <- normalized_brackets(normalized, payload) do
-      {:ok, normalized}
+           }) do
+      normalized_brackets(normalized, payload)
     end
   end
 

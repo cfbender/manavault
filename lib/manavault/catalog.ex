@@ -9,7 +9,8 @@ defmodule Manavault.Catalog do
     Dataloader,
     Decks,
     Scryfall,
-    ScryfallSyncWorker,
+    ScryfallAssetsWorker,
+    ScryfallCatalogWorker,
     Search
   }
 
@@ -174,13 +175,21 @@ defmodule Manavault.Catalog do
   defdelegate latest_sync(), to: Scryfall
   defdelegate sync_scryfall(opts \\ []), to: Cached
 
-  defdelegate reload_scryfall_catalog_async(opts \\ []),
-    to: ScryfallSyncWorker,
-    as: :reload_catalog_async
+  def reload_scryfall_catalog_async do
+    %{force: true}
+    |> ScryfallCatalogWorker.new(
+      replace: [available: [:args], scheduled: [:args], retryable: [:args]]
+    )
+    |> Oban.insert()
+  end
 
-  defdelegate reload_scryfall_assets_async(opts \\ []),
-    to: ScryfallSyncWorker,
-    as: :reload_assets_async
+  def reload_scryfall_assets_async do
+    %{force: true}
+    |> ScryfallAssetsWorker.new(
+      replace: [available: [:args], scheduled: [:args], retryable: [:args]]
+    )
+    |> Oban.insert()
+  end
 
   defdelegate import_cards(cards, bulk_uri \\ nil, opts \\ []), to: Cached
   defdelegate card_rulings(card, opts \\ []), to: Cached

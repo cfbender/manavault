@@ -84,7 +84,9 @@ defmodule ManavaultWeb.PublicShareCacheTest do
         {
           get(build_conn(), "/share/decks/#{deck.share_token}"),
           get(build_conn(), "/share/decks/#{deck.share_token}/preview.svg"),
-          get(build_conn(), "/share/decks/#{deck.share_token}/preview.png"),
+          Oban.Testing.with_testing_mode(:inline, fn ->
+            get(build_conn(), "/share/decks/#{deck.share_token}/preview.png")
+          end),
           shared_deck_request(deck.share_token)
         }
       end)

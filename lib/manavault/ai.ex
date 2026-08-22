@@ -60,9 +60,8 @@ defmodule Manavault.AI do
              payload,
              settings.deck_analysis_instructions
            ),
-         attrs <- analysis_attrs(result, settings),
-         {:ok, deck} <- Catalog.save_deck_analysis(deck, attrs) do
-      {:ok, deck}
+         attrs <- analysis_attrs(result, settings) do
+      Catalog.save_deck_analysis(deck, attrs)
     end
   end
 

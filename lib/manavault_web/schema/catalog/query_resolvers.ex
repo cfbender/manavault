@@ -49,29 +49,29 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
 
   def reload_scryfall_catalog(_parent, _args, _resolution) do
     case Catalog.reload_scryfall_catalog_async() do
-      :ok ->
+      {:ok, _job} ->
         {:ok,
          %{
            status: "queued",
            message: "Scryfall catalog reload queued."
          }}
 
-      :not_started ->
-        {:error, "Scryfall sync worker is not running."}
+      {:error, _changeset} ->
+        {:error, "Scryfall catalog reload could not be queued."}
     end
   end
 
   def reload_scryfall_assets(_parent, _args, _resolution) do
     case Catalog.reload_scryfall_assets_async() do
-      :ok ->
+      {:ok, _job} ->
         {:ok,
          %{
            status: "queued",
            message: "Scryfall symbol and set icon reload queued."
          }}
 
-      :not_started ->
-        {:error, "Scryfall sync worker is not running."}
+      {:error, _changeset} ->
+        {:error, "Scryfall asset reload could not be queued."}
     end
   end
 

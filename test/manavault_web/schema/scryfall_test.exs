@@ -1,26 +1,10 @@
 defmodule ManavaultWeb.Schema.ScryfallTest do
   use ManavaultWeb.ConnCase
+  use Oban.Testing, repo: Manavault.Repo, engine: Oban.Engines.Lite
 
-  alias Manavault.Catalog.ScryfallSyncWorker
+  alias Manavault.Catalog.{ScryfallAssetsWorker, ScryfallCatalogWorker}
 
   test "Scryfall reload mutations queue worker jobs", %{conn: conn} do
-    test_pid = self()
-
-    start_supervised!(
-      {ScryfallSyncWorker,
-       [
-         initial_delay: :timer.hours(24),
-         sync_fun: fn ->
-           send(test_pid, :catalog_sync)
-           {:ok, %{printings_count: 10}}
-         end,
-         asset_sync_fun: fn ->
-           send(test_pid, :asset_sync)
-           {:ok, %{symbols_count: 2, sets_count: 3}}
-         end
-       ]}
-    )
-
     conn =
       post(conn, "/api/graphql", %{
         "query" => """
@@ -50,7 +34,7 @@ defmodule ManavaultWeb.Schema.ScryfallTest do
 
     assert catalog_message == "Scryfall catalog reload queued."
     assert asset_message =~ "set icon"
-    assert_receive :catalog_sync
-    assert_receive :asset_sync
+    assert_enqueued(worker: ScryfallCatalogWorker, args: %{force: true})
+    assert_enqueued(worker: ScryfallAssetsWorker, args: %{force: true})
   end
 end
