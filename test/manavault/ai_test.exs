@@ -260,6 +260,7 @@ defmodule Manavault.AITest do
     first_question_answer = Catalog.get_deck_question_answer(first_question_answer.id)
 
     assert first_question_answer.status == "completed"
+    assert first_question_answer.model == "anthropic/claude-sonnet-4"
 
     assert first_question_answer.answer ==
              "**Probably not yet.** Consider cutting [[Test Commander]] only if the strategy changes."

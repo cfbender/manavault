@@ -325,6 +325,7 @@ export const DeckQuestionAnswersDocument = graphql(`
       answer
       status
       error
+      model
       recommendedCuts
       recommendedAdditions
       insertedAt
@@ -341,6 +342,7 @@ export const AskDeckQuestionDocument = graphql(`
         answer
         status
         error
+        model
         recommendedCuts
         recommendedAdditions
         insertedAt

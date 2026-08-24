@@ -114,6 +114,7 @@ defmodule ManavaultWeb.Schema.AITest do
               answer
               status
               error
+              model
               recommendedCuts
               recommendedAdditions
               insertedAt
@@ -136,6 +137,7 @@ defmodule ManavaultWeb.Schema.AITest do
                    "answer" => "",
                    "status" => "pending",
                    "error" => nil,
+                   "model" => nil,
                    "recommendedCuts" => [],
                    "recommendedAdditions" => [],
                    "insertedAt" => inserted_at
@@ -164,6 +166,7 @@ defmodule ManavaultWeb.Schema.AITest do
             answer
             status
             error
+            model
             recommendedCuts
             recommendedAdditions
             insertedAt
@@ -182,6 +185,7 @@ defmodule ManavaultWeb.Schema.AITest do
                    "answer" => "Cut [[Test Commander]] for [[Plains]].",
                    "status" => "completed",
                    "error" => nil,
+                   "model" => "anthropic/claude-sonnet-4",
                    "recommendedCuts" => ["Test Commander"],
                    "recommendedAdditions" => ["Plains"]
                  }

@@ -9,6 +9,7 @@ defmodule Manavault.Catalog.DeckQuestionAnswer do
     field :recommendations, :map
     field :status, :string, default: "completed"
     field :error, :string
+    field :model, :string
 
     belongs_to :deck, Manavault.Catalog.Deck
 
@@ -17,12 +18,13 @@ defmodule Manavault.Catalog.DeckQuestionAnswer do
 
   def changeset(question_answer, attrs) do
     question_answer
-    |> cast(attrs, [:question, :answer, :recommendations, :status, :error, :deck_id])
+    |> cast(attrs, [:question, :answer, :recommendations, :status, :error, :model, :deck_id])
     |> validate_required([:question, :status, :deck_id])
     |> validate_inclusion(:status, ~w(pending completed failed))
     |> validate_length(:question, max: 1_000)
     |> validate_length(:answer, max: 100_000)
     |> validate_length(:error, max: 2_000)
+    |> validate_length(:model, max: 200)
     |> validate_answer_state()
     |> foreign_key_constraint(:deck_id)
   end

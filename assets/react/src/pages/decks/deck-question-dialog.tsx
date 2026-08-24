@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Textarea } from "../../components/ui/textarea"
+import { formatDate } from "../settings/data"
 import { DeckMarkdown } from "./deck-primer"
 import { QuestionRecommendations } from "./deck-question-recommendations"
 import type { DeckCardEntry } from "./deck-types"
@@ -22,11 +23,6 @@ import {
 } from "./queries"
 
 type QuestionAnswer = DeckQuestionAnswersQuery["deckQuestionAnswers"][number]
-
-const questionDateFormatter = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-  timeStyle: "short",
-})
 
 export function DeckQuestionDialog({
   deckId,
@@ -319,12 +315,6 @@ function QuestionHistoryItem({
           <span className="block break-words font-bold leading-snug">
             {questionAnswer.question}
           </span>
-          <time
-            className="mt-1 block text-xs text-base-content/55"
-            dateTime={questionAnswer.insertedAt}
-          >
-            {questionDateFormatter.format(new Date(questionAnswer.insertedAt))}
-          </time>
         </span>
         <button
           aria-label={`Delete saved question: ${questionAnswer.question}`}
@@ -363,6 +353,11 @@ function QuestionHistoryItem({
             />
           </>
         )}
+        <p className="mt-6 break-words text-xs text-base-content/60">
+          {questionAnswer.model ? `${questionAnswer.model} · ` : null}
+          Asked{" "}
+          <time dateTime={questionAnswer.insertedAt}>{formatDate(questionAnswer.insertedAt)}</time>
+        </p>
       </div>
     </details>
   )

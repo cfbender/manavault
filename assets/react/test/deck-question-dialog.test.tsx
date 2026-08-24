@@ -9,6 +9,7 @@ type QuestionAnswer = {
   answer: string
   status: string
   error: string | null
+  model: string | null
   recommendedCuts: string[]
   recommendedAdditions: string[]
   insertedAt: string
@@ -34,6 +35,7 @@ const apolloMocks = vi.hoisted(() => ({
 | [[Approach of the Second Sun]] | [[Sun Titan]] | {4}{W}{W} |`,
         status: "completed",
         error: null,
+        model: "anthropic/claude-sonnet-4",
         recommendedCuts: ["Approach of the Second Sun", "Deepglow Skate"],
         recommendedAdditions: ["Sun Titan", "Doubling Season"],
         insertedAt: "2026-08-19T03:00:00Z",
@@ -44,6 +46,7 @@ const apolloMocks = vi.hoisted(() => ({
         answer: "Start by testing a cut from the top of the curve.",
         status: "completed",
         error: null,
+        model: "openai/gpt-5-mini",
         recommendedCuts: [],
         recommendedAdditions: [],
         insertedAt: "2026-08-18T03:00:00Z",
@@ -88,9 +91,7 @@ vi.mock("@apollo/client/react", () => ({
       return [
         (options: {
           variables: { id: string; question: string }
-          onCompleted?: (data: {
-            askDeckQuestion: { questionAnswer: QuestionAnswer }
-          }) => void
+          onCompleted?: (data: { askDeckQuestion: { questionAnswer: QuestionAnswer } }) => void
         }) => {
           apolloMocks.askVariables = options.variables
           options.onCompleted?.({
@@ -101,6 +102,7 @@ vi.mock("@apollo/client/react", () => ({
                 answer: "",
                 status: "pending",
                 error: null,
+                model: null,
                 recommendedCuts: [],
                 recommendedAdditions: [],
                 insertedAt: "2026-08-19T04:00:00Z",
@@ -187,6 +189,10 @@ test("renders saved questions newest first in collapsible sections", () => {
   expect(screen.getByText("2 saved")).toBeInstanceOf(HTMLElement)
   expect(entries).toHaveLength(2)
   expect(entries[0]?.textContent).toContain("How should I protect my counters?")
+  expect(entries[0]?.textContent).toContain("anthropic/claude-sonnet-4 · Asked")
+  expect(entries[0]?.querySelector("summary")?.textContent).not.toContain(
+    "anthropic/claude-sonnet-4",
+  )
   expect(entries[1]?.textContent).toContain("What is the weakest card?")
   expect(entries[0]?.open).toBe(true)
   expect(entries[1]?.open).toBe(false)
@@ -194,7 +200,8 @@ test("renders saved questions newest first in collapsible sections", () => {
 
 test("renders a persisted AI failure instead of an empty answer", () => {
   apolloMocks.historyData.deckQuestionAnswers[0]!.status = "failed"
-  apolloMocks.historyData.deckQuestionAnswers[0]!.error = "OpenRouter could not answer this question."
+  apolloMocks.historyData.deckQuestionAnswers[0]!.error =
+    "OpenRouter could not answer this question."
 
   render(
     <DeckQuestionDialog

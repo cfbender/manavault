@@ -29,7 +29,7 @@ export function DeckAIAnalysis({ deck }: { deck: DeckDetail }) {
               <DeckBracketBadge deck={deck} />
             </span>
             <span className="hidden text-sm text-base-content/65 sm:block">
-              {metadata || "Goals, themes, bracket guidance, and tuning ideas"}
+              Goals, themes, bracket guidance, and tuning ideas
             </span>
           </span>
         </span>
@@ -52,6 +52,10 @@ export function DeckAIAnalysis({ deck }: { deck: DeckDetail }) {
         </p>
 
         <DeckMarkdown>{analysis}</DeckMarkdown>
+
+        {metadata ? (
+          <p className="mt-6 break-words text-xs text-base-content/60">{metadata}</p>
+        ) : null}
       </div>
     </details>
   )

@@ -107,6 +107,7 @@ defmodule Manavault.AI do
              {:ok, _question_answer} <-
                Catalog.complete_deck_question_answer(question_answer, %{
                  answer: result.answer,
+                 model: settings.model,
                  recommendations: %{
                    "cuts" => result.recommended_cuts,
                    "additions" => result.recommended_additions
