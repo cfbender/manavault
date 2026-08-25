@@ -134,6 +134,7 @@ defmodule Manavault.AITest do
         summary: "A slow commander value deck.",
         themes: ["Value"],
         game_plan: "Develop resources and win late.",
+        opponent_experience: "Its value turns are measured and offer clear interaction windows.",
         strengths: ["Resilient commander"],
         weaknesses: ["Slow clock"],
         official_bracket: 2,
@@ -142,6 +143,7 @@ defmodule Manavault.AITest do
         power_up: ["Add efficient interaction"],
         power_down: ["Replace the Game Changer"],
         consistency: ["Improve the mana curve"],
+        mulligan_guide: ["Keep early mana and a value engine"],
         custom_sections: [
           %{
             title: "Budget upgrades",
@@ -160,6 +162,8 @@ defmodule Manavault.AITest do
     assert analyzed.commander_bracket_estimate == 2
     assert analyzed.ai_analysis =~ "**Bracket 3 (plays like Bracket 2)**"
     assert analyzed.ai_analysis =~ "## Ways to power it up"
+    assert analyzed.ai_analysis =~ "## What it's like to play against it"
+    assert analyzed.ai_analysis =~ "## Mulligan guide"
     assert analyzed.ai_analysis =~ "## Budget upgrades"
     assert analyzed.ai_analysis =~ "[[Swords to Plowshares]]"
 
@@ -217,7 +221,7 @@ defmodule Manavault.AITest do
       assert user_prompt =~ "Test Commander"
       assert user_prompt =~ ~s("commander_color_identity":["W"])
       assert user_prompt =~ ~s("color_identity":["W"])
-      assert user_prompt =~ ~s("format_legality":"legal")
+      refute user_prompt =~ ~s("format_legality":"legal")
       assert user_prompt =~ ~s("land_count":0)
       assert user_prompt =~ ~s("nonland_count":1)
 

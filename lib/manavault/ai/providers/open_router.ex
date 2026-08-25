@@ -56,17 +56,23 @@ defmodule Manavault.AI.Providers.OpenRouter do
       }
     }
 
+    started_at = System.monotonic_time(:millisecond)
+
     case Req.post(
            @api_base <> "/chat/completions",
            request_options(settings.api_key, json: request, receive_timeout: 120_000)
          ) do
       {:ok, %Req.Response{status: status, body: body}} when status in 200..299 ->
-        decode_analysis(body)
+        result = decode_analysis(body)
+        log_completion(result, "deck_analysis", settings.model, started_at, status, body)
+        result
 
       {:ok, %Req.Response{status: status, body: body}} ->
+        log_completion(:http_error, "deck_analysis", settings.model, started_at, status, body)
         {:error, response_error(status, body, "OpenRouter could not analyze this deck.")}
 
       {:error, exception} ->
+        log_request_error("deck_analysis", settings.model, started_at, exception)
         {:error, request_error(exception, "Could not reach OpenRouter to analyze this deck.")}
     end
   end

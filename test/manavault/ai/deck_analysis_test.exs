@@ -8,6 +8,7 @@ defmodule Manavault.AI.DeckAnalysisTest do
     "summary" => "A focused tempo deck.",
     "themes" => ["Tempo"],
     "game_plan" => "Apply pressure while interacting.",
+    "opponent_experience" => "Its turns are quick and leave room for interaction.",
     "strengths" => ["Efficient threats"],
     "weaknesses" => ["Limited late game"],
     "official_bracket" => 2,
@@ -16,6 +17,7 @@ defmodule Manavault.AI.DeckAnalysisTest do
     "power_up" => ["Add stronger interaction"],
     "power_down" => ["Use slower threats"],
     "consistency" => ["Tighten the curve"],
+    "mulligan_guide" => ["Keep an early threat and interaction"],
     "custom_sections" => []
   }
 
@@ -60,6 +62,11 @@ defmodule Manavault.AI.DeckAnalysisTest do
     assert prompt =~ "Never suggest infinite combos."
     assert prompt =~ "Add another section for budget upgrades."
     assert prompt =~ "authoritative metadata calculated by ManaVault"
+    assert prompt =~ "mulligan_guide"
+    assert prompt =~ "opponent_experience"
+    assert prompt =~ "long and solitaire-like"
+    assert prompt =~ "repeated discard, stax, locks"
+    assert prompt =~ "Do not duplicate this or another standard field"
 
     payload = %{deck: %{format: "modern"}, facts: %{game_changer_count: 0}}
 
@@ -135,5 +142,64 @@ defmodule Manavault.AI.DeckAnalysisTest do
     assert payload.facts.card_count == 40
     assert payload.facts.land_count == 39
     assert payload.facts.nonland_count == 1
+  end
+
+  test "payload omits repeated card defaults without losing exceptional values" do
+    deck = %Deck{name: "Compact", format: "commander"}
+
+    deck_cards = [
+      %DeckCard{
+        quantity: 1,
+        zone: "mainboard",
+        card: %Card{
+          name: "Ordinary Spell",
+          type_line: "Instant",
+          oracle_text: "Draw a card.",
+          cmc: 1.0,
+          mana_cost: "{U}",
+          color_identity: "[]",
+          legalities: ~s({"commander":"legal"}),
+          deck_themes: "[]",
+          edhrec_saltiness: 0.5
+        }
+      },
+      %DeckCard{
+        quantity: 2,
+        zone: "commander",
+        card: %Card{
+          name: "Exceptional Card",
+          type_line: "Legendary Creature",
+          oracle_text: "Flying",
+          color_identity: ~s(["U"]),
+          legalities: ~s({"commander":"restricted"}),
+          game_changer: true,
+          deck_category: "card_advantage",
+          deck_themes: ~s(["draw"]),
+          edhrec_saltiness: 3.25
+        }
+      }
+    ]
+
+    [ordinary, exceptional] = DeckAnalysis.payload(deck, deck_cards).deck.cards
+
+    refute Map.has_key?(ordinary, :quantity)
+    refute Map.has_key?(ordinary, :zone)
+    refute Map.has_key?(ordinary, :color_identity)
+    refute Map.has_key?(ordinary, :format_legality)
+    refute Map.has_key?(ordinary, :game_changer)
+    refute Map.has_key?(ordinary, :deck_themes)
+
+    assert exceptional.quantity == 2
+    assert exceptional.zone == "commander"
+    assert exceptional.color_identity == ["U"]
+    assert exceptional.format_legality == "restricted"
+    assert exceptional.game_changer
+    assert exceptional.deck_category == "card_advantage"
+    assert exceptional.deck_themes == ["draw"]
+
+    assert DeckAnalysis.payload(deck, deck_cards).facts.saltiest_cards == [
+             %{name: "Exceptional Card", score: 3.25},
+             %{name: "Ordinary Spell", score: 0.5}
+           ]
   end
 end

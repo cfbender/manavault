@@ -264,6 +264,7 @@ defmodule ManavaultWeb.Schema.AITest do
               summary: "A slow value deck.",
               themes: ["Value"],
               game_plan: "Build resources and win late.",
+              opponent_experience: "Its turns are measured and interactive.",
               strengths: ["Resilient plan"],
               weaknesses: ["Slow start"],
               official_bracket: 2,
@@ -272,6 +273,7 @@ defmodule ManavaultWeb.Schema.AITest do
               power_up: ["Add interaction"],
               power_down: ["Replace the Game Changer"],
               consistency: ["Improve the curve"],
+              mulligan_guide: ["Keep early mana and card advantage"],
               custom_sections: [
                 %{title: "Budget upgrades", content: "- Start with efficient removal."}
               ]
