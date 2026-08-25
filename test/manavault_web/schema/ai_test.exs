@@ -2,7 +2,7 @@ defmodule ManavaultWeb.Schema.AITest do
   use ManavaultWeb.ConnCase, async: false
   use Oban.Testing, repo: Manavault.Repo, engine: Oban.Engines.Lite
 
-  alias Manavault.AI.DeckQuestionWorker
+  alias Manavault.AI.{DeckAnalysisWorker, DeckQuestionWorker, Settings}
   alias Manavault.Catalog
   alias Manavault.CatalogTestSupport
 
@@ -241,6 +241,38 @@ defmodule ManavaultWeb.Schema.AITest do
                ]
              }
            } = json_response(conn, 200)
+  end
+
+  test "queues a fresh AI analysis for every deck", %{conn: conn} do
+    {:ok, _settings} =
+      %Settings{id: 1}
+      |> Settings.changeset(%{
+        provider: "openrouter",
+        api_key: "test-openrouter-key",
+        model: "anthropic/claude-sonnet-4"
+      })
+      |> Manavault.Repo.insert()
+
+    assert {:ok, first_deck} = Catalog.create_deck(%{"name" => "First queued deck"})
+    assert {:ok, second_deck} = Catalog.create_deck(%{"name" => "Second queued deck"})
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation RefreshAllDeckAnalyses {
+          refreshAllDeckAnalyses { queuedCount }
+        }
+        """
+      })
+
+    assert %{
+             "data" => %{
+               "refreshAllDeckAnalyses" => %{"queuedCount" => 2}
+             }
+           } = json_response(conn, 200)
+
+    assert_enqueued(worker: DeckAnalysisWorker, args: %{deck_id: first_deck.id})
+    assert_enqueued(worker: DeckAnalysisWorker, args: %{deck_id: second_deck.id})
   end
 
   defp openrouter_response(conn) do

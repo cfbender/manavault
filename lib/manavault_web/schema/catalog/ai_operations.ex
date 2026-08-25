@@ -27,5 +27,18 @@ defmodule ManavaultWeb.Schema.Catalog.AIOperations do
         end
       end)
     end
+
+    payload field :refresh_all_deck_analyses do
+      output do
+        field :queued_count, non_null(:integer)
+      end
+
+      resolve(fn parent, args, resolution ->
+        case AIResolvers.refresh_all_deck_analyses(parent, args, resolution) do
+          {:ok, queued_count} -> {:ok, %{queued_count: queued_count}}
+          other -> other
+        end
+      end)
+    end
   end
 end

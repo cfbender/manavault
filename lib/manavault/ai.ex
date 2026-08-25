@@ -4,7 +4,16 @@ defmodule Manavault.AI do
   import Ecto.Changeset, only: [add_error: 3, apply_changes: 1]
 
   alias Ecto.Multi
-  alias Manavault.AI.{DeckAnalysis, DeckQuestion, DeckQuestionWorker, Provider, Settings}
+
+  alias Manavault.AI.{
+    DeckAnalysis,
+    DeckAnalysisWorker,
+    DeckQuestion,
+    DeckQuestionWorker,
+    Provider,
+    Settings
+  }
+
   alias Manavault.Catalog
   alias Manavault.Catalog.{Deck, DeckQuestionAnswer, Util}
   alias Manavault.Catalog.Search.CardsByName
@@ -62,6 +71,17 @@ defmodule Manavault.AI do
            ),
          attrs <- analysis_attrs(result, settings) do
       Catalog.save_deck_analysis(deck, attrs)
+    end
+  end
+
+  def refresh_all_deck_analyses do
+    with :ok <- configured(settings()) do
+      jobs =
+        Catalog.list_decks()
+        |> Enum.map(&DeckAnalysisWorker.new(%{deck_id: &1.id}))
+        |> Oban.insert_all()
+
+      {:ok, length(jobs)}
     end
   end
 

@@ -1,5 +1,5 @@
 import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
-import { Bot, Save } from "lucide-react"
+import { Bot, RefreshCw, Save } from "lucide-react"
 import type { FormEvent } from "react"
 import { useEffect, useState } from "react"
 import { PageSection } from "../../components/app-shell"
@@ -14,7 +14,12 @@ import {
 } from "../../components/ui/select"
 import { Textarea } from "../../components/ui/textarea"
 import { useToast } from "../../components/ui/toast"
-import { AISettingsDocument, UpdateAISettingsDocument, errorMessage } from "./data"
+import {
+  AISettingsDocument,
+  RefreshAllDeckAnalysesDocument,
+  UpdateAISettingsDocument,
+  errorMessage,
+} from "./data"
 import { Field } from "./ui"
 
 export function AISettingsSection() {
@@ -26,6 +31,7 @@ export function AISettingsSection() {
   const [deckAnalysisInstructions, setDeckAnalysisInstructions] = useState("")
   const settingsQuery = useQuery(AISettingsDocument, { fetchPolicy: "cache-and-network" })
   const [updateSettings, updateMutation] = useMutation(UpdateAISettingsDocument)
+  const [refreshAllDeckAnalyses, refreshMutation] = useMutation(RefreshAllDeckAnalysesDocument)
   const settings = settingsQuery.data?.aiSettings
 
   useEffect(() => {
@@ -55,6 +61,17 @@ export function AISettingsSection() {
           client.writeQuery({ query: AISettingsDocument, data: { aiSettings: nextSettings } })
         }
         showToast("AI settings validated and saved.")
+      },
+      onError: (error) => showToast(errorMessage(error), { tone: "error" }),
+    })
+  }
+
+  function refreshAll() {
+    void refreshAllDeckAnalyses({
+      onCompleted: (data) => {
+        const count = data.refreshAllDeckAnalyses?.queuedCount ?? 0
+        const noun = count === 1 ? "deck" : "decks"
+        showToast(`Queued AI analysis refresh for ${count} ${noun}.`)
       },
       onError: (error) => showToast(errorMessage(error), { tone: "error" }),
     })
@@ -146,6 +163,26 @@ export function AISettingsSection() {
                   maxLength={4000}
                 />
               </Field>
+            </div>
+          </div>
+
+          <div className="border-t border-base-300 pt-5">
+            <h3 className="text-lg font-black">Refresh deck analyses</h3>
+            <p className="mt-1 max-w-[72ch] text-sm text-base-content/60">
+              Queue a fresh analysis for every deck using the current model and instructions. This
+              may use significant provider credits for a large deck collection.
+            </p>
+            <div className="mt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={refreshAll}
+                disabled={!settings?.hasApiKey || !settings.model || refreshMutation.loading}
+                className="disabled:opacity-60"
+              >
+                <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                {refreshMutation.loading ? "Queueing..." : "Refresh all deck analyses"}
+              </Button>
             </div>
           </div>
 

@@ -31,6 +31,14 @@ export const UpdateAISettingsDocument = graphql(`
   }
 `)
 
+export const RefreshAllDeckAnalysesDocument = graphql(`
+  mutation RefreshAllDeckAnalyses {
+    refreshAllDeckAnalyses {
+      queuedCount
+    }
+  }
+`)
+
 export const BackupSettingsDocument = graphql(`
   query BackupSettings {
     backupSettings {

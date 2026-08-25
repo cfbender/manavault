@@ -12,4 +12,11 @@ defmodule ManavaultWeb.Schema.AIResolvers do
       {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
     end
   end
+
+  def refresh_all_deck_analyses(_parent, _args, _resolution) do
+    case AI.refresh_all_deck_analyses() do
+      {:ok, queued_count} -> {:ok, queued_count}
+      {:error, reason} -> {:error, reason}
+    end
+  end
 end

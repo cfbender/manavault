@@ -102,6 +102,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "previewCollectionImport",
                "previewCollectionImportAutoSort",
                "previewDeckDisassembly",
+               "refreshAllDeckAnalyses",
                "reloadScryfallAssets",
                "reloadScryfallCatalog",
                "reorderDeckTags",
@@ -193,6 +194,9 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
 
     assert payload_fields(data["deleteDeckQuestionAnswerPayload"]) ==
              %{"questionAnswerId" => "ID!"}
+
+    assert payload_fields(data["refreshAllDeckAnalysesPayload"]) ==
+             %{"queuedCount" => "Int!"}
 
     assert payload_fields(data["updateBackupSettingsPayload"]) ==
              %{"backupSettings" => "BackupSettings"}
@@ -345,6 +349,9 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
         fields { name type { kind name ofType { kind name ofType { kind name ofType { kind name } } } } }
       }
       deleteDeckQuestionAnswerPayload: __type(name: "DeleteDeckQuestionAnswerPayload") {
+        fields { name type { kind name ofType { kind name ofType { kind name ofType { kind name } } } } }
+      }
+      refreshAllDeckAnalysesPayload: __type(name: "RefreshAllDeckAnalysesPayload") {
         fields { name type { kind name ofType { kind name ofType { kind name ofType { kind name } } } } }
       }
       updateBackupSettingsPayload: __type(name: "UpdateBackupSettingsPayload") {
