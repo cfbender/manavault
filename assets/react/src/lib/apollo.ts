@@ -31,9 +31,16 @@ const httpLink = new HttpLink({
   credentials: "same-origin",
 })
 
+export function subscriptionSocketParams() {
+  const token = currentCsrfToken()
+  return token ? { _csrf_token: token } : {}
+}
+
 function createSubscriptionLink() {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-  const phoenixSocket = new PhoenixSocket(`${protocol}//${window.location.host}/socket`)
+  const phoenixSocket = new PhoenixSocket(`${protocol}//${window.location.host}/socket`, {
+    params: subscriptionSocketParams,
+  })
   const absintheSocket = AbsintheSocket.create(phoenixSocket)
 
   return new ApolloLink(

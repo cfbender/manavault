@@ -1,6 +1,6 @@
 import { ApolloClient, ApolloLink, gql, InMemoryCache, Observable } from "@apollo/client"
 import { afterEach, describe, expect, it } from "vitest"
-import { createCsrfLink } from "../src/lib/apollo.ts"
+import { createCsrfLink, subscriptionSocketParams } from "../src/lib/apollo.ts"
 
 const nativeGlobal = globalThis as typeof globalThis & {
   Capacitor?: { isNativePlatform: () => boolean }
@@ -72,5 +72,15 @@ describe("Apollo CSRF request headers", () => {
     await mutate(client)
 
     expect(tokens).toEqual(["current-native-token"])
+  })
+})
+
+describe("subscription socket CSRF params", () => {
+  it("reads the current page token for each socket connection", () => {
+    setCsrfToken("initial-socket-token")
+    expect(subscriptionSocketParams()).toEqual({ _csrf_token: "initial-socket-token" })
+
+    setCsrfToken("rotated-socket-token")
+    expect(subscriptionSocketParams()).toEqual({ _csrf_token: "rotated-socket-token" })
   })
 })
