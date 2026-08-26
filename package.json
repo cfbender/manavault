@@ -25,6 +25,7 @@
     "android:signing:setup": "node scripts/create-android-keystore.mjs"
   },
   "dependencies": {
+    "@absinthe/socket": "^0.2.1",
     "@apollo/client": "^4.2.10",
     "@capacitor/android": "^8.5.0",
     "@capacitor/app": "^8.1.1",
@@ -59,6 +60,7 @@
     "lucide-react": "^1.30.0",
     "motion": "^12.43.0",
     "ogl": "^1.0.11",
+    "phoenix": "^1.8.13",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-markdown": "^10.1.0",
@@ -75,6 +77,7 @@
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.3",
+    "@types/phoenix": "^1.6.7",
     "@voidzero-dev/vite-plus-core": "^0.2.8",
     "jsdom": "^29.1.1",
     "typescript": "^7.0.2",

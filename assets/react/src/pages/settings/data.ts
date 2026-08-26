@@ -7,6 +7,17 @@ import type {
 
 export type { CollectionAutoSortRuleInput, DefaultDeckTagInput }
 
+export const ServerLogDocument = graphql(`
+  subscription ServerLog {
+    serverLog {
+      id
+      timestamp
+      level
+      message
+    }
+  }
+`)
+
 export const AISettingsDocument = graphql(`
   query AISettings {
     aiSettings {

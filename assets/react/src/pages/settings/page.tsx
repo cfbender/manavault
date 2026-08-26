@@ -38,6 +38,7 @@ import { NativeAppSection } from "./native-app-section"
 import { useNativeShellSection } from "./native-shell-state"
 import { PricingSection } from "./pricing-section"
 import { RestoreSection } from "./restore-section"
+import { ServerLogsSection } from "./server-logs-section"
 import { ScryfallDataSection } from "./scryfall-data-section"
 import { Alert } from "./ui"
 
@@ -386,6 +387,8 @@ export function SettingsPage() {
           if (shouldLoadBackups) void backupsQuery.refetch()
         }}
       />
+
+      <ServerLogsSection />
     </div>
   )
 

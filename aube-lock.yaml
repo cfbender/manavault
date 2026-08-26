@@ -12,6 +12,7 @@ overrides:
   uuid: 11.1.1
 
 time:
+  '@absinthe/socket@0.2.1': 2019-02-20T01:45:23.502Z
   '@apollo/client@4.2.10': 2026-08-05T02:41:09.930Z
   '@capacitor/android@8.5.0': 2026-07-31T15:48:36.213Z
   '@capacitor/app@8.1.1': 2026-07-15T10:23:28.483Z
@@ -39,6 +40,7 @@ time:
   '@testing-library/react@16.3.2': 2026-01-19T10:59:08.185Z
   '@testing-library/user-event@14.6.3': 2026-08-03T21:52:13.783Z
   '@types/node@26.1.2': 2026-07-27T17:32:14.992Z
+  '@types/phoenix@1.6.7': 2025-12-08T22:02:09.575Z
   '@types/react-dom@19.2.4': 2026-07-30T21:53:05.684Z
   '@types/react@19.2.18': 2026-07-30T21:54:03.456Z
   '@use-gesture/react@10.3.1': 2024-03-21T16:16:20.332Z
@@ -55,6 +57,7 @@ time:
   lucide-react@1.30.0: 2026-08-07T09:50:26.974Z
   motion@12.43.0: 2026-07-28T14:29:31.291Z
   ogl@1.0.11: 2025-01-27T09:59:29.634Z
+  phoenix@1.8.13: 2026-08-25T09:14:32.827Z
   react-dom@19.2.8: 2026-07-21T15:41:41.267Z
   react-markdown@10.1.0: 2025-03-07T10:32:53.222Z
   react@19.2.8: 2026-07-21T15:41:28.716Z
@@ -75,6 +78,9 @@ importers:
 
   .:
     dependencies:
+      '@absinthe/socket':
+        specifier: ^0.2.1
+        version: 0.2.1(phoenix@1.8.13)
       '@apollo/client':
         specifier: ^4.2.10
         version: 4.2.10(graphql@17.0.2)(graphql-ws@6.2.1(graphql@17.0.2)(ws@8.21.2))(react@19.2.8)(react-dom@19.2.8(react@19.2.8))(rxjs@7.8.2)
@@ -189,6 +195,9 @@ importers:
       ogl:
         specifier: ^1.0.11
         version: 1.0.11
+      phoenix:
+        specifier: ^1.8.13
+        version: 1.8.13
       react:
         specifier: ^19.2.8
         version: 19.2.8
@@ -241,6 +250,9 @@ importers:
       '@testing-library/user-event':
         specifier: ^14.6.3
         version: 14.6.3(@testing-library/dom@10.4.1)
+      '@types/phoenix':
+        specifier: ^1.6.7
+        version: 1.6.7
       '@voidzero-dev/vite-plus-core':
         specifier: ^0.2.8
         version: 0.2.8(@types/node@26.1.2)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.0)
@@ -255,6 +267,11 @@ importers:
         version: 4.1.10(@types/node@26.1.2)(@vitest/browser-preview@4.1.10)(jsdom@29.1.1)(vite@8.2.1(@types/node@26.1.2)(jiti@2.7.0)(yaml@2.9.0))
 
 packages:
+
+  '@absinthe/socket@0.2.1':
+    resolution: {integrity: sha512-rCuMRG4WndooGR+QfU5v+xL6U8YKEXFyvjqYt0qTHupAh+k+tpD6a5dlxcLO0g38p/hb1I12OzKvl+0G1XYCkA==}
+    peerDependencies:
+      phoenix: ^1.4.0
 
   '@apollo/client@4.2.10':
     resolution: {integrity: sha512-SCHzOEcfInIN9DGZvlDR4F+1zd3954WAy+g8dKwi7mrI09Tdh6YzDH+eXbH0LNpB4de2Qyb53RVKe3Ljv5/bMg==}
@@ -359,6 +376,9 @@ packages:
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
+
+  '@babel/runtime@7.2.0':
+    resolution: {integrity: sha512-oouEibCbHMVdZSDlJBO6bZmID/zA/G/Qx3H1d3rSNPTD+L8UNKvCat7aKWSJ74zYbm5zWGh0GQN0hKj8zYFTCg==}
 
   '@babel/runtime@7.29.7':
     resolution: {integrity: sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw==}
@@ -914,6 +934,15 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@jumpn/utils-array@0.3.4':
+    resolution: {integrity: sha512-ExRwf0b0NMyMn6HLStMeqEEtmblV0BKVZ4YT3FhEJ5ErZSPN4Vv6xYUJQGNG0b7QGZJIN2KetxEoOm4MYmXygw==}
+
+  '@jumpn/utils-composite@0.7.0':
+    resolution: {integrity: sha512-kamRVYJLNvjMrnKKeu2RSFQHLUO/IYFo05gLI7GQcCk063mJzsjCCfRycCievIBI+5Sg8C7A5gwRYxkBA5jY8w==}
+
+  '@jumpn/utils-graphql@0.6.0':
+    resolution: {integrity: sha512-I5OSEh8Ed4FdLIcUTYzWdpO9noQOoWptdgF8yOZ0xhDD7h7E9IgPYxfy36qbC6v9xlpGTwQMu3Wn8ulkinG/MQ==}
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -1706,6 +1735,9 @@ packages:
   '@types/node@26.1.2':
     resolution: {integrity: sha512-Vu4a5UFA9rIIFJ7rB/Vaafh9lrCQszopTCx6KjFboXTGQbPNasehVR5TEiithSDGyd1DEiUByggTZsg8jukeIg==}
 
+  '@types/phoenix@1.6.7':
+    resolution: {integrity: sha512-oN9ive//QSBkf19rfDv45M7eZPi0eEXylht2OLEXicu5b4KoQ1OzXIw+xDSGWxSxe1JmepRR/ZH283vsu518/Q==}
+
   '@types/react-dom@19.2.4':
     resolution: {integrity: sha512-Bsc+QHgp+P/F02XDzNCY9jnZNCUuLki36KT7VKrTXXLdHf+vHMNZnW1rVu5DNW/rCK+fya3DATySbLM4yhtKUw==}
     peerDependencies:
@@ -2164,6 +2196,12 @@ packages:
   babel-dead-code-elimination@1.0.12:
     resolution: {integrity: sha512-GERT7L2TiYcYDtYk1IpD+ASAYXjKbLTDPhBtYj7X1NuRMDTMtAx9kyBenub1Ev41lo91OHCKdmP+egTDmfQ7Ig==}
 
+  babel-polyfill@6.26.0:
+    resolution: {integrity: sha512-F2rZGQnAdaHWQ8YAoeRbukc7HS9QgdgeyJ0rQDd485v9opwuPvjpPFcOOT/WmkKTdgy9ESgSPXDcTNpzrGr6iQ==}
+
+  babel-runtime@6.26.0:
+    resolution: {integrity: sha512-ITKNuq2wKlW1fJg9sSW52eepoYgZBggvOAHC0u/CYu/qxQ9EVzThCgR69BnSXLHjy2f7SY5zaQ4yt7H9ZVxY2g==}
+
   bail@2.0.2:
     resolution: {integrity: sha512-0xO6mYd7JB2YesxDKplafRpsiOzPt9V02ddPCLbY1xYGPOX24NTyN50qnUxgCPcSoYMhKpAuBTjQoRZCAkUDRw==}
 
@@ -2311,6 +2349,9 @@ packages:
 
   cookie-es@3.1.1:
     resolution: {integrity: sha512-UaXxwISYJPTr9hwQxMFYZ7kNhSXboMXP+Z3TRX6f1/NyaGPfuNUZOWP1pUEb75B2HjfklIYLVRfWiFZJyC6Npg==}
+
+  core-js@2.6.0:
+    resolution: {integrity: sha512-kLRC6ncVpuEW/1kwrOXYX6KQASCVtrh1gQr/UiaVgFlf9WE5Vp+lNe5+h3LuMr5PAucWnnEXwH0nQHRH/gpGtw==}
 
   cosmiconfig@8.3.6:
     resolution: {integrity: sha512-kcZ6+W5QzcJ3P1Mt+83OUv/oHFqZHIx8DuxG6eZ5RGMERoLqp4BuGjhHLYGK+Kf5XVkQvqBSmAy/nGWN3qDgEA==}
@@ -2472,6 +2513,9 @@ packages:
   extend@3.0.2:
     resolution: {integrity: sha512-fjquC59cD7CyW6urNXK0FBufkZcoiGG80wTuPujX590cB5Ttln20E2UB4S/WARVqhXffZl2LNgS+gQdPIIim/g==}
 
+  fast-deep-equal@1.0.0:
+    resolution: {integrity: sha512-46+Jxk9Yj/nQY+3a1KTnpbBTemcAbPySTKya8iM9D7EsiONpSWbvzesalcCJ6tmJrCUITT2fmAQfNHFG+OHM6Q==}
+
   fast-glob@3.3.3:
     resolution: {integrity: sha512-7MptL8U0cqcFdzIzwOTHoilX9x5BrNqye7Z/LuC7kCMRio1EMSyqRK3BEAUD7sXRq4iT4AzTVuZdhgQ2TCvYLg==}
     engines: {node: '>=8.6.0'}
@@ -2507,6 +2551,12 @@ packages:
   fill-range@7.1.1:
     resolution: {integrity: sha512-YsGpe3WHLK8ZYi4tWDg2Jy3ebRz2rXowDxnld4bkQB00cc/1Zw9AWnC0i9ztDJitivtQvaI9KaLyKrc+hBW0yg==}
     engines: {node: '>=8'}
+
+  flow-static-land@0.2.7:
+    resolution: {integrity: sha512-SmGgln4qcqLAysXM5BF8EQS+clj0TUf9+KlZUJgwuzNHvwbput+opz3CMyee9sDuLf4J/3sJbYGjdNsd2jSurA==}
+
+  flow-static-land@0.2.8:
+    resolution: {integrity: sha512-pOZFExu2rbscCgcEo7nL7FNhBubMi18dn1Un4lm8LOmQkYhgsHLsrBGMWmuJXRWcYMrOC7I/bPsiqqVjdD3K1g==}
 
   formdata-polyfill@4.0.10:
     resolution: {integrity: sha512-buewHzMvYL29jdeQTVILecSaZKnt/RJWjoZCF5OW60Z67/GmSLBkOFM7qh1PI3zFNtJbaZL5eQu1vLfazOwj4g==}
@@ -2602,6 +2652,10 @@ packages:
         optional: true
       ws:
         optional: true
+
+  graphql@14.0.2:
+    resolution: {integrity: sha512-gUC4YYsaiSJT1h40krG3J+USGlwhzNTXSb4IOZljn9ag5Tj+RkoXrWp+Kh7WyE3t1NCfab5kzCuxBIvOMERMXw==}
+    engines: {node: '>= 6.x'}
 
   graphql@17.0.2:
     resolution: {integrity: sha512-FRWbddMxfkjiB7z+aQDWIR+E34xo9I8c9mtK2RPv8PmMzKRvrdsreHL/Ui/TmwHJfhHChEtsFPyMHKI+xuarQQ==}
@@ -2763,6 +2817,9 @@ packages:
     resolution: {integrity: sha512-I1fSfDCZL5P0v33sVqeTDSpcstAg/N+wF5HS033mogOVIp4B+oHC7oOCsA3axAbBSGTJ8QubbNmnIRN/h8U7hg==}
     peerDependencies:
       ws: '*'
+
+  iterall@1.3.0:
+    resolution: {integrity: sha512-QZ9qOMdF+QLHxy1QIpUHUU1D5pS2CG2P69LF6L6CPjPYA/XMOmKV3PZpawHoAjHNyB0swdVTRxdYT4tbBbxqwg==}
 
   jiti@2.7.0:
     resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
@@ -3265,6 +3322,9 @@ packages:
   pend@1.2.0:
     resolution: {integrity: sha512-F3asv42UuXchdzt+xXqfW1OGlVBe+mxa2mqI0pg5yAHZPvFmY3Y6drSf/GQ1A86WgWEN9Kzh/WrgKa6iGcHXLg==}
 
+  phoenix@1.8.13:
+    resolution: {integrity: sha512-5UByH7ejdsPLd6eihwzV3L3i6YX4mHUtFjLaE8S1YuA+3aBj37rzH6KDjxBuPlB04o9ZHVz+PKRiUg3aYYvzmQ==}
+
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
 
@@ -3366,6 +3426,15 @@ packages:
   readdirp@5.1.1:
     resolution: {integrity: sha512-Kko+Y5XQ6fM+Ce3dq3m9YGxnacYZYl9cA1wZjaF3Vbry2L3i1qVg8+CAgNPsXRArPMUMCaOR7oa9Nqntc43JKA==}
     engines: {node: '>= 20.19.0'}
+
+  regenerator-runtime@0.10.5:
+    resolution: {integrity: sha512-02YopEIhAgiBHWeoTiA8aitHDt8z6w+rQqNuIftlM+ZtvSl/brTouaU7DW6GO/cHtvxJvS4Hwv2ibKdxIRi24w==}
+
+  regenerator-runtime@0.11.1:
+    resolution: {integrity: sha512-MguG95oij0fC3QV3URf4V2SDYGJhJnJGqvIIgdECeODCT98wSWDAJ94SSuVpYQUoTcGUIL6L4yNB7j1DFFHSBg==}
+
+  regenerator-runtime@0.12.1:
+    resolution: {integrity: sha512-odxIc1/vDlo4iZcfXqRYFj0vpXFNoGdKMAUieAlFYO6m/nl5e9KR/beGf41z4a1FI+aQgtjhuaSlDxQ0hmkrHg==}
 
   rehype-katex@7.0.1:
     resolution: {integrity: sha512-OiM2wrZ/wuhKkigASodFoo8wimG3H12LWQaH8qSPVJn9apWKFSH3YOCtbKpBorTVw/eI7cuT21XBbvwEswbIOA==}
@@ -4035,6 +4104,9 @@ packages:
   yuku-parser@0.5.48:
     resolution: {integrity: sha512-OWBfhrpgK9+/4+IXG9oT8Bao4AhViQA7vdyNNH7EUg8dQYgwa70XtIBWTpCEme1P1ECyoDNYkn0wT63f8XRcVA==}
 
+  zen-observable@0.8.11:
+    resolution: {integrity: sha512-N3xXQVr4L61rZvGMpWe8XoCGX8vhU35dPyQ4fm5CY/KDlG0F75un14hjbckPXTDuKUY6V0dqR2giT6xN8Y4GEQ==}
+
   zod@4.4.3:
     resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
 
@@ -4042,6 +4114,16 @@ packages:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
 snapshots:
+
+  '@absinthe/socket@0.2.1(phoenix@1.8.13)':
+    dependencies:
+      '@babel/runtime': 7.2.0
+      '@jumpn/utils-array': 0.3.4
+      '@jumpn/utils-composite': 0.7.0
+      '@jumpn/utils-graphql': 0.6.0
+      core-js: 2.6.0
+      phoenix: 1.8.13
+      zen-observable: 0.8.11
   ? '@apollo/client@4.2.10(graphql@17.0.2)(graphql-ws@6.2.1(graphql@17.0.2)(ws@8.21.2))(react@19.2.8)(react-dom@19.2.8(react@19.2.8))(rxjs@7.8.2)'
 
   : dependencies:
@@ -4162,6 +4244,10 @@ snapshots:
     dependencies:
       '@babel/core': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
+
+  '@babel/runtime@7.2.0':
+    dependencies:
+      regenerator-runtime: 0.12.1
 
   '@babel/runtime@7.29.7': {}
 
@@ -4849,6 +4935,26 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
+  '@jumpn/utils-array@0.3.4':
+    dependencies:
+      babel-polyfill: 6.26.0
+      babel-runtime: 6.26.0
+      flow-static-land: 0.2.7
+
+  '@jumpn/utils-composite@0.7.0':
+    dependencies:
+      '@jumpn/utils-array': 0.3.4
+      babel-polyfill: 6.26.0
+      babel-runtime: 6.26.0
+      fast-deep-equal: 1.0.0
+      flow-static-land: 0.2.8
+
+  '@jumpn/utils-graphql@0.6.0':
+    dependencies:
+      '@babel/runtime': 7.2.0
+      core-js: 2.6.0
+      graphql: 14.0.2
+
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
       '@nodelib/fs.stat': 2.0.5
@@ -5449,6 +5555,8 @@ snapshots:
     dependencies:
       undici-types: 8.3.0
 
+  '@types/phoenix@1.6.7': {}
+
   '@types/react-dom@19.2.4(@types/react@19.2.18)':
     dependencies:
       '@types/react': 19.2.18
@@ -5700,6 +5808,17 @@ snapshots:
       '@babel/traverse': 7.29.8
       '@babel/types': 7.29.8
 
+  babel-polyfill@6.26.0:
+    dependencies:
+      babel-runtime: 6.26.0
+      core-js: 2.6.0
+      regenerator-runtime: 0.10.5
+
+  babel-runtime@6.26.0:
+    dependencies:
+      core-js: 2.6.0
+      regenerator-runtime: 0.11.1
+
   bail@2.0.2: {}
 
   balanced-match@4.0.4: {}
@@ -5819,6 +5938,8 @@ snapshots:
   convert-source-map@2.0.0: {}
 
   cookie-es@3.1.1: {}
+
+  core-js@2.6.0: {}
 
   cosmiconfig@8.3.6(typescript@7.0.2):
     dependencies:
@@ -5940,6 +6061,8 @@ snapshots:
 
   extend@3.0.2: {}
 
+  fast-deep-equal@1.0.0: {}
+
   fast-glob@3.3.3:
     dependencies:
       '@nodelib/fs.stat': 2.0.5
@@ -5978,6 +6101,10 @@ snapshots:
   fill-range@7.1.1:
     dependencies:
       to-regex-range: 5.0.1
+
+  flow-static-land@0.2.7: {}
+
+  flow-static-land@0.2.8: {}
 
   formdata-polyfill@4.0.10:
     dependencies:
@@ -6059,6 +6186,10 @@ snapshots:
     dependencies:
       graphql: 17.0.2
       ws: 8.21.2
+
+  graphql@14.0.2:
+    dependencies:
+      iterall: 1.3.0
 
   graphql@17.0.2: {}
 
@@ -6236,6 +6367,8 @@ snapshots:
   isows@1.0.7(ws@8.21.2):
     dependencies:
       ws: 8.21.2
+
+  iterall@1.3.0: {}
 
   jiti@2.7.0: {}
 
@@ -6904,6 +7037,8 @@ snapshots:
 
   pend@1.2.0: {}
 
+  phoenix@1.8.13: {}
+
   picocolors@1.1.1: {}
 
   picomatch@2.3.2: {}
@@ -6999,6 +7134,12 @@ snapshots:
       util-deprecate: 1.0.2
 
   readdirp@5.1.1: {}
+
+  regenerator-runtime@0.10.5: {}
+
+  regenerator-runtime@0.11.1: {}
+
+  regenerator-runtime@0.12.1: {}
 
   rehype-katex@7.0.1:
     dependencies:
@@ -7604,6 +7745,8 @@ snapshots:
       '@yuku-parser/binding-linux-x64-musl': 0.5.48
       '@yuku-parser/binding-win32-arm64': 0.5.48
       '@yuku-parser/binding-win32-x64': 0.5.48
+
+  zen-observable@0.8.11: {}
 
   zod@4.4.3: {}
 

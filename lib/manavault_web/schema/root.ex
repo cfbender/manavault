@@ -96,6 +96,19 @@ defmodule ManavaultWeb.Schema do
     import_fields(:trade_list_mutations)
   end
 
+  object :server_log_event do
+    field :id, non_null(:id)
+    field :timestamp, non_null(:string)
+    field :level, non_null(:string)
+    field :message, non_null(:string)
+  end
+
+  subscription do
+    field :server_log, non_null(:server_log_event) do
+      config(fn _args, _resolution -> {:ok, topic: "server-logs"} end)
+    end
+  end
+
   def context(ctx) do
     loader =
       Dataloader.new()

@@ -22,7 +22,9 @@ defmodule Manavault.Application do
         {DNSCluster, query: Application.get_env(:manavault, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: Manavault.PubSub},
         pricing_store_child(),
-        ManavaultWeb.Endpoint
+        ManavaultWeb.Endpoint,
+        {Absinthe.Subscription, ManavaultWeb.Endpoint},
+        Manavault.LogStream
       ]
       |> Enum.reject(&is_nil/1)
 
