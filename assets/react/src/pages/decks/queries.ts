@@ -113,6 +113,9 @@ export const UpdateDeckDocument = graphql(`
         name
         format
         status
+        playCount
+        skipCount
+        lastPlayedAt
         primer
         aiAnalysis
         aiAnalysisModel
@@ -195,6 +198,17 @@ export const DisassembleDeckDocument = graphql(`
           toLocationName
         }
       }
+    }
+  }
+`)
+
+export const DeckPlayHistoryDocument = graphql(`
+  query DeckPlayHistory($id: ID!) {
+    deck(id: $id) {
+      id
+      playCount
+      skipCount
+      lastPlayedAt
     }
   }
 `)

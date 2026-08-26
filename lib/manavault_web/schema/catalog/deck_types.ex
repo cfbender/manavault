@@ -381,6 +381,9 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :name, :string
     field :format, :string
     field :status, :string
+    field :play_count, :integer
+    field :skip_count, :integer
+    field :last_played_at, :string
     field :primer, :string
     field :cover_deck_card_id, :id
   end

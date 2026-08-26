@@ -68,6 +68,30 @@ defmodule Manavault.Catalog.DeckPickerTest do
              Catalog.list_deck_summaries()
   end
 
+  test "historical play data can be imported, cleared, and cannot use negative counts" do
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Imported History"})
+
+    assert {:ok,
+            %Deck{
+              play_count: 14,
+              skip_count: 3,
+              last_played_at: ~U[2026-08-10 07:00:00Z]
+            } = deck} =
+             Catalog.update_deck(deck, %{
+               "play_count" => 14,
+               "skip_count" => 3,
+               "last_played_at" => "2026-08-10T07:00:00Z"
+             })
+
+    assert {:ok, %Deck{last_played_at: nil}} =
+             Catalog.update_deck(deck, %{"last_played_at" => nil})
+
+    assert {:error, changeset} =
+             Catalog.update_deck(deck, %{"play_count" => -1, "skip_count" => -1})
+
+    assert %{play_count: [_], skip_count: [_]} = errors_on(changeset)
+  end
+
   test "archived decks cannot record picker outcomes" do
     assert {:ok, deck} = Catalog.create_deck(%{"name" => "Retired", "status" => "archived"})
 

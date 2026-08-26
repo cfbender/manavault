@@ -1,8 +1,11 @@
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, expect, test, vi } from "vitest"
 
-const apolloMocks = vi.hoisted(() => ({ mutationVariables: undefined as unknown }))
+const apolloMocks = vi.hoisted(() => ({
+  mutationVariables: undefined as unknown,
+  queryData: undefined as unknown,
+}))
 
 vi.mock("@apollo/client/react", () => ({
   useApolloClient: () => ({ refetchQueries: () => Promise.resolve([]) }),
@@ -14,6 +17,7 @@ vi.mock("@apollo/client/react", () => ({
     },
     { loading: false },
   ],
+  useQuery: () => ({ data: apolloMocks.queryData, error: undefined, loading: false }),
 }))
 
 vi.mock("../src/components/ui/toast", () => ({
@@ -27,6 +31,7 @@ import { EditDeckDialog } from "../src/pages/decks/deck-editor-dialogs"
 afterEach(() => {
   cleanup()
   apolloMocks.mutationVariables = undefined
+  apolloMocks.queryData = undefined
 })
 
 const deck = { id: "deck-1", name: "Archive Test" }
@@ -87,6 +92,9 @@ test("deck editor chooses any deck card as the cover", async () => {
           name: "Partner Deck",
           format: "commander",
           status: "active",
+          playCount: 0,
+          skipCount: 0,
+          lastPlayedAt: null,
           primer: "## Plan\n\nProtect the commanders.",
           coverDeckCardId: null,
           deckCards: [
@@ -113,6 +121,9 @@ test("deck editor chooses any deck card as the cover", async () => {
       name: "Partner Deck",
       format: "commander",
       status: "active",
+      playCount: 0,
+      skipCount: 0,
+      lastPlayedAt: null,
       primer: "## Plan\n\nProtect the commanders.",
       coverDeckCardId: "favorite",
     },
@@ -130,6 +141,9 @@ test("deck editor saves and clears primer Markdown", async () => {
           name: "Primer Deck",
           format: "commander",
           status: "brewing",
+          playCount: 0,
+          skipCount: 0,
+          lastPlayedAt: null,
           primer: "Old plan",
           coverDeckCardId: null,
         } as never
@@ -149,7 +163,161 @@ test("deck editor saves and clears primer Markdown", async () => {
       name: "Primer Deck",
       format: "commander",
       status: "brewing",
+      playCount: 0,
+      skipCount: 0,
+      lastPlayedAt: null,
       primer: null,
     },
   })
+})
+
+test("deck editor imports historical play data", async () => {
+  const user = userEvent.setup()
+
+  render(
+    <EditDeckDialog
+      deck={
+        {
+          id: "deck-1",
+          name: "History Deck",
+          format: "commander",
+          status: "active",
+          playCount: 2,
+          skipCount: 1,
+          lastPlayedAt: null,
+          primer: null,
+          coverDeckCardId: null,
+        } as never
+      }
+      open
+      onOpenChange={vi.fn()}
+    />,
+  )
+
+  const plays = screen.getByRole("spinbutton", { name: "Plays" })
+  const skips = screen.getByRole("spinbutton", { name: "Skips" })
+  const lastPlayed = screen.getByLabelText("Last played")
+
+  expect((plays as HTMLInputElement).value).toBe("2")
+  expect((skips as HTMLInputElement).value).toBe("1")
+  expect((lastPlayed as HTMLInputElement).value).toBe("")
+
+  await user.clear(plays)
+  await user.type(plays, "14")
+  await user.clear(skips)
+  await user.type(skips, "3")
+  fireEvent.change(lastPlayed, { target: { value: "2026-08-10" } })
+  await user.click(screen.getByRole("button", { name: "Save deck" }))
+
+  expect(apolloMocks.mutationVariables).toEqual({
+    id: "deck-1",
+    input: {
+      name: "History Deck",
+      format: "commander",
+      status: "active",
+      playCount: 14,
+      skipCount: 3,
+      lastPlayedAt: new Date(2026, 7, 10).toISOString(),
+      primer: null,
+    },
+  })
+})
+
+test("deck editor loads historical data when the detail query omits private fields", () => {
+  apolloMocks.queryData = {
+    deck: { id: "deck-1", playCount: 9, skipCount: 5, lastPlayedAt: "2026-06-12T00:00:00Z" },
+  }
+
+  render(
+    <EditDeckDialog
+      deck={
+        {
+          id: "deck-1",
+          name: "Private History",
+          format: "commander",
+          status: "active",
+          primer: null,
+          coverDeckCardId: null,
+        } as never
+      }
+      open
+      onOpenChange={vi.fn()}
+    />,
+  )
+
+  expect((screen.getByRole("spinbutton", { name: "Plays" }) as HTMLInputElement).value).toBe("9")
+  expect((screen.getByRole("spinbutton", { name: "Skips" }) as HTMLInputElement).value).toBe("5")
+  expect((screen.getByLabelText("Last played") as HTMLInputElement).value).toBe("2026-06-12")
+})
+
+test("deck editor clears the last-played date", async () => {
+  const user = userEvent.setup()
+
+  render(
+    <EditDeckDialog
+      deck={
+        {
+          id: "deck-1",
+          name: "Clear History",
+          format: "modern",
+          status: "archived",
+          playCount: 8,
+          skipCount: 2,
+          lastPlayedAt: "2026-08-10T12:00:00Z",
+          primer: null,
+          coverDeckCardId: null,
+        } as never
+      }
+      open
+      onOpenChange={vi.fn()}
+    />,
+  )
+
+  fireEvent.change(screen.getByLabelText("Last played"), { target: { value: "" } })
+  await user.click(screen.getByRole("button", { name: "Save deck" }))
+
+  expect(apolloMocks.mutationVariables).toEqual({
+    id: "deck-1",
+    input: {
+      name: "Clear History",
+      format: "modern",
+      status: "archived",
+      playCount: 8,
+      skipCount: 2,
+      lastPlayedAt: null,
+      primer: null,
+    },
+  })
+})
+
+test("deck editor rejects invalid historical counts", async () => {
+  const user = userEvent.setup()
+
+  render(
+    <EditDeckDialog
+      deck={
+        {
+          id: "deck-1",
+          name: "Invalid History",
+          format: "commander",
+          status: "brewing",
+          playCount: 0,
+          skipCount: 0,
+          lastPlayedAt: null,
+          primer: null,
+          coverDeckCardId: null,
+        } as never
+      }
+      open
+      onOpenChange={vi.fn()}
+    />,
+  )
+
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Plays" }), {
+    target: { value: "-1" },
+  })
+  await user.click(screen.getByRole("button", { name: "Save deck" }))
+
+  expect(screen.getByText("Play and skip counts must be whole numbers of 0 or more")).toBeTruthy()
+  expect(apolloMocks.mutationVariables).toBeUndefined()
 })

@@ -1,4 +1,4 @@
-import { useApolloClient, useMutation } from "@apollo/client/react"
+import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
 import { useNavigate } from "@tanstack/react-router"
 import { Edit3, Plus } from "lucide-react"
 import { useEffect, useState, type FormEvent } from "react"
@@ -25,7 +25,7 @@ import { refetchActiveQueries } from "../../lib/apollo"
 import { titleize } from "../../lib/utils"
 import type { DeckDetail, DeckSummary } from "./deck-types"
 import { DECK_FORMATS, DECK_STATUSES } from "./deck-types"
-import { CreateDeckDocument, UpdateDeckDocument } from "./queries"
+import { CreateDeckDocument, DeckPlayHistoryDocument, UpdateDeckDocument } from "./queries"
 
 export function EditDeckDialog({
   deck,
@@ -42,10 +42,20 @@ export function EditDeckDialog({
   const [name, setName] = useState("")
   const [format, setFormat] = useState<(typeof DECK_FORMATS)[number]>("commander")
   const [status, setStatus] = useState<(typeof DECK_STATUSES)[number]>("brewing")
+  const [playCount, setPlayCount] = useState("0")
+  const [skipCount, setSkipCount] = useState("0")
+  const [lastPlayedDate, setLastPlayedDate] = useState("")
   const [coverDeckCardId, setCoverDeckCardId] = useState<string | null>(null)
   const [primer, setPrimer] = useState("")
   const [error, setError] = useState<string | null>(null)
   const deckCards = deck && "deckCards" in deck ? deck.deckCards : null
+  const inlineHistory = hasPlayHistory(deck) ? deck : null
+  const historyQuery = useQuery(DeckPlayHistoryDocument, {
+    variables: { id: deck?.id || "" },
+    skip: !deck || !isOpen || Boolean(inlineHistory),
+  })
+  const history = inlineHistory || historyQuery.data?.deck
+  const isHistoryReady = Boolean(history)
 
   useEffect(() => {
     if (!deck || !isOpen) return
@@ -57,11 +67,22 @@ export function EditDeckDialog({
     setError(null)
   }, [deck, isOpen])
 
+  useEffect(() => {
+    if (!history || !isOpen) return
+    setPlayCount(String(history.playCount))
+    setSkipCount(String(history.skipCount))
+    setLastPlayedDate(dateInputValue(history.lastPlayedAt))
+  }, [history, isOpen])
+
+  useEffect(() => {
+    if (historyQuery.error) setError(historyQuery.error.message)
+  }, [historyQuery.error])
+
   const [updateDeckMutation, updateDeckResult] = useMutation(UpdateDeckDocument)
   const updateDeck = {
     ...updateDeckResult,
     isPending: updateDeckResult.loading,
-    mutate: () => {
+    mutate: (history: { playCount: number; skipCount: number; lastPlayedAt: string | null }) => {
       if (!deck) {
         setError("Deck is required")
         return
@@ -74,6 +95,7 @@ export function EditDeckDialog({
             name: name.trim(),
             format,
             status,
+            ...history,
             primer: primer.trim() || null,
             ...(deckCards ? { coverDeckCardId } : {}),
           },
@@ -99,7 +121,19 @@ export function EditDeckDialog({
       return
     }
 
-    updateDeck.mutate()
+    const parsedPlayCount = parseHistoryCount(playCount)
+    const parsedSkipCount = parseHistoryCount(skipCount)
+
+    if (parsedPlayCount == null || parsedSkipCount == null) {
+      setError("Play and skip counts must be whole numbers of 0 or more")
+      return
+    }
+
+    updateDeck.mutate({
+      playCount: parsedPlayCount,
+      skipCount: parsedSkipCount,
+      lastPlayedAt: dateInputTimestamp(lastPlayedDate),
+    })
   }
 
   function close() {
@@ -118,13 +152,13 @@ export function EditDeckDialog({
           <div>
             <DialogTitle id="edit-deck-title">Edit deck</DialogTitle>
             <p className="mt-1 text-sm text-base-content/75">
-              Update deck details and its player guide.
+              Update deck details, historical play data, and its player guide.
             </p>
           </div>
           <DialogClose className="h-11 w-11" onClose={close} />
         </DialogHeader>
 
-        <form className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5" onSubmit={submit}>
+        <form className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5" noValidate onSubmit={submit}>
           <label className="block space-y-2">
             <span className="text-xs font-black uppercase tracking-[0.18em] text-base-content/80">
               Name
@@ -175,6 +209,69 @@ export function EditDeckDialog({
               </Select>
             </label>
           </div>
+
+          <fieldset
+            aria-busy={!isHistoryReady}
+            className="rounded-box border border-base-300 bg-base-200/40 p-4"
+          >
+            <legend className="px-1 text-sm font-black tracking-normal">
+              Historical play data
+            </legend>
+            <p id="deck-play-history-help" className="mb-4 text-sm text-base-content/65">
+              {isHistoryReady
+                ? "Import existing totals. Plays lower future pick odds; skips raise them."
+                : "Loading existing totals..."}
+            </p>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <label className="block space-y-2">
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-base-content/80">
+                  Plays
+                </span>
+                <Input
+                  aria-describedby="deck-play-history-help"
+                  className="min-h-11 font-mono font-bold tabular-nums"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  step={1}
+                  disabled={!isHistoryReady || updateDeck.isPending}
+                  value={playCount}
+                  onChange={(event) => setPlayCount(event.target.value)}
+                />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-base-content/80">
+                  Skips
+                </span>
+                <Input
+                  aria-describedby="deck-play-history-help"
+                  className="min-h-11 font-mono font-bold tabular-nums"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  step={1}
+                  disabled={!isHistoryReady || updateDeck.isPending}
+                  value={skipCount}
+                  onChange={(event) => setSkipCount(event.target.value)}
+                />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-base-content/80">
+                  Last played
+                </span>
+                <Input
+                  aria-describedby="deck-play-history-help"
+                  className="min-h-11"
+                  type="date"
+                  disabled={!isHistoryReady || updateDeck.isPending}
+                  value={lastPlayedDate}
+                  onChange={(event) => setLastPlayedDate(event.target.value)}
+                />
+              </label>
+            </div>
+          </fieldset>
 
           {deckCards ? (
             <label className="block space-y-2">
@@ -248,7 +345,11 @@ export function EditDeckDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" className="min-h-11" disabled={updateDeck.isPending}>
+            <Button
+              type="submit"
+              className="min-h-11"
+              disabled={!isHistoryReady || updateDeck.isPending}
+            >
               <Edit3 className="h-4 w-4" />
               {updateDeck.isPending ? "Saving..." : "Save deck"}
             </Button>
@@ -265,6 +366,36 @@ export function deckFormatValue(value: string): (typeof DECK_FORMATS)[number] {
 
 export function deckStatusValue(value: string): (typeof DECK_STATUSES)[number] {
   return DECK_STATUSES.find((status) => status === value) || "brewing"
+}
+
+function hasPlayHistory(deck: DeckSummary | DeckDetail | null): deck is DeckSummary {
+  return Boolean(deck && "playCount" in deck)
+}
+
+function parseHistoryCount(value: string) {
+  if (!/^\d+$/.test(value)) return null
+
+  const count = Number(value)
+  return Number.isSafeInteger(count) ? count : null
+}
+
+function dateInputValue(value: string | null) {
+  if (!value) return ""
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ""
+
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+function dateInputTimestamp(value: string) {
+  if (!value) return null
+
+  const [year, month, day] = value.split("-").map(Number)
+  return new Date(year, month - 1, day).toISOString()
 }
 
 export function NewDeckDialog({

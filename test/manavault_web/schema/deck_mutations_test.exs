@@ -23,6 +23,9 @@ defmodule ManavaultWeb.Schema.DeckMutationsTest do
               name
               format
               status
+              playCount
+              skipCount
+              lastPlayedAt
               primer
               coverDeckCardId
               coverImageUrl
@@ -36,6 +39,9 @@ defmodule ManavaultWeb.Schema.DeckMutationsTest do
             "name" => "New Deck",
             "format" => "modern",
             "status" => "active",
+            "playCount" => 14,
+            "skipCount" => 3,
+            "lastPlayedAt" => "2026-08-10T07:00:00Z",
             "primer" => "## Game plan\n\nCast the commander, then protect it.",
             "coverDeckCardId" => cover_card_id
           }
@@ -50,6 +56,9 @@ defmodule ManavaultWeb.Schema.DeckMutationsTest do
                    "name" => "New Deck",
                    "format" => "modern",
                    "status" => "active",
+                   "playCount" => 14,
+                   "skipCount" => 3,
+                   "lastPlayedAt" => "2026-08-10T07:00:00Z",
                    "primer" => "## Game plan\n\nCast the commander, then protect it.",
                    "coverDeckCardId" => ^cover_card_id,
                    "coverImageUrl" => "https://example.test/black-lotus.jpg"

@@ -39,10 +39,21 @@ defmodule Manavault.Catalog.Deck do
 
   def changeset(deck, attrs) do
     deck
-    |> cast(attrs, [:name, :format, :status, :primer, :cover_deck_card_id])
+    |> cast(attrs, [
+      :name,
+      :format,
+      :status,
+      :play_count,
+      :skip_count,
+      :last_played_at,
+      :primer,
+      :cover_deck_card_id
+    ])
     |> validate_required([:name, :format, :status])
     |> validate_length(:name, min: 1, max: 120)
     |> validate_length(:primer, max: 50_000)
+    |> validate_number(:play_count, greater_than_or_equal_to: 0)
+    |> validate_number(:skip_count, greater_than_or_equal_to: 0)
     |> validate_inclusion(:format, @formats)
     |> validate_inclusion(:status, @statuses)
     |> foreign_key_constraint(:cover_deck_card_id)
