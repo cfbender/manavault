@@ -13,6 +13,9 @@ export const DecksDocument = graphql(`
           name
           format
           status
+          playCount
+          skipCount
+          lastPlayedAt
           primer
           aiAnalysis
           aiAnalysisModel
@@ -34,6 +37,36 @@ export const DecksDocument = graphql(`
             }
           }
         }
+      }
+    }
+  }
+`)
+
+export const RandomDeckDocument = graphql(`
+  query RandomDeck($excludeId: ID) {
+    randomDeck(excludeId: $excludeId) {
+      id
+      name
+      format
+      status
+      coverImageUrl
+      commanderColorIdentity
+      cardCount
+      playCount
+      skipCount
+      lastPlayedAt
+    }
+  }
+`)
+
+export const RecordDeckPlayDocument = graphql(`
+  mutation RecordDeckPlay($id: ID!, $outcome: DeckPlayOutcome!) {
+    recordDeckPlay(id: $id, outcome: $outcome) {
+      deck {
+        id
+        playCount
+        skipCount
+        lastPlayedAt
       }
     }
   }

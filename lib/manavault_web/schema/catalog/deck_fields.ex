@@ -122,6 +122,12 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
     {:ok, DateTime.to_iso8601(analyzed_at)}
   end
 
+  def deck_last_played_at(%Deck{last_played_at: nil}, _args, _resolution), do: {:ok, nil}
+
+  def deck_last_played_at(%Deck{last_played_at: last_played_at}, _args, _resolution) do
+    {:ok, DateTime.to_iso8601(last_played_at)}
+  end
+
   def deck_question_answer_inserted_at(%{inserted_at: inserted_at}, _args, _resolution) do
     {:ok, DateTime.to_iso8601(inserted_at)}
   end

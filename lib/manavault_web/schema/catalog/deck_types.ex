@@ -10,6 +10,11 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
 
   alias ManavaultWeb.Schema.Catalog.{DeckFields, ValueResolvers}
 
+  enum :deck_play_outcome do
+    value(:played)
+    value(:skipped)
+  end
+
   object :deck_legality do
     field :status, non_null(:string) do
       resolve(&ValueResolvers.map_value/3)
@@ -80,6 +85,8 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :name, non_null(:string)
     field :format, non_null(:string)
     field :status, non_null(:string)
+    field :play_count, non_null(:integer)
+    field :skip_count, non_null(:integer)
     field :primer, :string
     field :ai_analysis, :string
     field :ai_analysis_model, :string
@@ -89,6 +96,10 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
 
     field :ai_analyzed_at, :string do
       resolve(&DeckFields.deck_ai_analyzed_at/3)
+    end
+
+    field :last_played_at, :string do
+      resolve(&DeckFields.deck_last_played_at/3)
     end
 
     field :cover_deck_card_id, :id do

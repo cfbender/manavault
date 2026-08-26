@@ -19,6 +19,11 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       resolve(&QueryResolvers.decks/3)
     end
 
+    field :random_deck, :deck do
+      arg(:exclude_id, :id)
+      resolve(&QueryResolvers.random_deck/3)
+    end
+
     field :deck, :deck do
       arg(:id, non_null(:id))
       resolve(&QueryResolvers.deck/3)
@@ -96,6 +101,19 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
 
       resolve(fn parent, args, resolution ->
         payload(parent, args, resolution, &MutationResolvers.update_deck/3, :deck)
+      end)
+    end
+
+    payload field :record_deck_play do
+      arg(:id, non_null(:id))
+      arg(:outcome, non_null(:deck_play_outcome))
+
+      output do
+        field :deck, :deck
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &MutationResolvers.record_deck_play/3, :deck)
       end)
     end
 

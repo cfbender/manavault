@@ -12,6 +12,7 @@ defmodule Manavault.Catalog.Decks do
     DeckCardAllocation,
     DeckCardDeallocation,
     DecklistIO,
+    DeckPicker,
     DefaultTags,
     Disassembly,
     ProxyAllocation,
@@ -103,6 +104,14 @@ defmodule Manavault.Catalog.Decks do
     cached_deck_read(deck, :deck_cover_image_url, fn ->
       Queries.deck_cover_image_url(deck)
     end)
+  end
+
+  defdelegate random_deck(opts \\ []), to: DeckPicker
+
+  def record_deck_play(deck, outcome) do
+    deck
+    |> DeckPicker.record_outcome(outcome)
+    |> invalidate_decks_on_ok()
   end
 
   defdelegate change_deck(deck, attrs \\ %{}), to: Records

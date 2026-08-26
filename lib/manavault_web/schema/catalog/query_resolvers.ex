@@ -171,6 +171,13 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
     end
   end
 
+  def random_deck(_parent, args, resolution) do
+    with {:ok, exclude_id} <-
+           RelayHelpers.optional_node_id(Map.get(args, :exclude_id), :deck, resolution) do
+      {:ok, Catalog.random_deck(exclude_id: exclude_id)}
+    end
+  end
+
   def deck(_parent, %{id: id}, resolution) do
     with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
       {:ok, Catalog.get_deck!(id, preload?: false)}

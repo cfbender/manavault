@@ -28,6 +28,20 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
     end
   end
 
+  def record_deck_play(_parent, %{id: id, outcome: outcome}, resolution) do
+    with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
+      id
+      |> Catalog.get_deck!(preload?: false)
+      |> Catalog.record_deck_play(outcome)
+      |> case do
+        {:ok, deck} -> {:ok, deck}
+        {:error, :archived_deck} -> {:error, "Archived decks cannot be recorded as played."}
+        {:error, :invalid_outcome} -> {:error, "Choose played or skipped."}
+        {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+      end
+    end
+  end
+
   def analyze_deck(_parent, %{id: id}, resolution) do
     with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
       id

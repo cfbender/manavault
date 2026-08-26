@@ -88,6 +88,8 @@ defmodule Manavault.Catalog do
   defdelegate deck_unique_card_count(deck), to: Decks
   defdelegate deck_commander_color_identity(deck), to: Decks
   defdelegate deck_cover_image_url(deck), to: Decks
+  defdelegate random_deck(opts \\ []), to: Decks
+  defdelegate record_deck_play(deck, outcome), to: Decks
   defdelegate change_deck(deck, attrs \\ %{}), to: Decks
   defdelegate create_deck(attrs), to: Decks
   defdelegate update_deck(deck, attrs), to: Decks

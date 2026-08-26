@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@apollo/client/react"
 import { Link, useNavigate } from "@tanstack/react-router"
-import { Archive, ChevronDown, Layers, Plus } from "lucide-react"
+import { Archive, ChevronDown, Dices, Layers, Plus } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { EmptyState } from "../../components/card-image"
 import { ImageSummaryCard } from "../../components/image-summary-card"
@@ -20,11 +20,20 @@ import {
   deckLegalityTone,
 } from "./deck-legality"
 import { DeckNameWithCommanderIdentity, groupDecksByFormat } from "./deck-list-model"
+import { DeckPlayHistory, RandomDeckDialog } from "./deck-picker"
 import { ShareDeckDialog } from "./deck-share-dialogs"
 import { flattenDecks, partitionDecksByArchive, type DeckSummary } from "./deck-types"
 import { DecksDocument, DeleteDeckDocument } from "./queries"
 
-function DeckGalleryHeader({ onNewDeck }: { onNewDeck: () => void }) {
+function DeckGalleryHeader({
+  canPickDeck,
+  onNewDeck,
+  onPickDeck,
+}: {
+  canPickDeck: boolean
+  onNewDeck: () => void
+  onPickDeck: () => void
+}) {
   return (
     <header className="mb-8 flex flex-col gap-5 border-b border-base-300 pb-6 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
@@ -33,10 +42,22 @@ function DeckGalleryHeader({ onNewDeck }: { onNewDeck: () => void }) {
           Browse your deck gallery, then open a list to tune exact printings and card allocations.
         </p>
       </div>
-      <Button type="button" className="w-full sm:w-auto" onClick={onNewDeck}>
-        <Plus className="h-4 w-4" />
-        New deck
-      </Button>
+      <div className="flex w-full gap-2 sm:w-auto">
+        <Button
+          type="button"
+          variant="outline"
+          className="flex-1 sm:flex-none"
+          disabled={!canPickDeck}
+          onClick={onPickDeck}
+        >
+          <Dices className="h-4 w-4" />
+          Pick a deck
+        </Button>
+        <Button type="button" className="flex-1 sm:flex-none" onClick={onNewDeck}>
+          <Plus className="h-4 w-4" />
+          New deck
+        </Button>
+      </div>
     </header>
   )
 }
@@ -292,6 +313,7 @@ function ArchivedDecksAccordion({
 
 export function DecksPage() {
   const [isNewDeckOpen, setIsNewDeckOpen] = useState(false)
+  const [isRandomDeckOpen, setIsRandomDeckOpen] = useState(false)
   const [comboDeck, setComboDeck] = useState<DeckSummary | null>(null)
   const [editingDeck, setEditingDeck] = useState<DeckSummary | null>(null)
   const [sharingDeck, setSharingDeck] = useState<DeckSummary | null>(null)
@@ -359,7 +381,11 @@ export function DecksPage() {
   }
   return (
     <>
-      <DeckGalleryHeader onNewDeck={() => setIsNewDeckOpen(true)} />
+      <DeckGalleryHeader
+        canPickDeck={activeDecks.length > 0}
+        onNewDeck={() => setIsNewDeckOpen(true)}
+        onPickDeck={() => setIsRandomDeckOpen(true)}
+      />
       {decksError && !data ? (
         <DeckGalleryErrorState onRetry={() => void refetch()} />
       ) : isInitialLoading ? (
@@ -381,6 +407,7 @@ export function DecksPage() {
               onNewDeck={() => setIsNewDeckOpen(true)}
             />
           )}
+          <DeckPlayHistory decks={activeDecks} />
           <ArchivedDecksAccordion
             deckCount={archivedDecks.length}
             deckGroups={archivedDeckGroups}
@@ -392,6 +419,11 @@ export function DecksPage() {
         </div>
       )}
       <NewDeckDialog open={isNewDeckOpen} onOpenChange={setIsNewDeckOpen} />
+      <RandomDeckDialog
+        open={isRandomDeckOpen}
+        onOpenChange={setIsRandomDeckOpen}
+        onRecorded={() => void refetch()}
+      />
       <DeckCombosDialog
         deck={comboDeck}
         open={Boolean(comboDeck)}

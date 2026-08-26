@@ -45,6 +45,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "locations",
                "node",
                "pricingSettings",
+               "randomDeck",
                "setSuggestions",
                "sharedDeck",
                "tradeBinderShareToken",
@@ -103,6 +104,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "previewCollectionImportAutoSort",
                "previewDeckDisassembly",
                "refreshAllDeckAnalyses",
+               "recordDeckPlay",
                "reloadScryfallAssets",
                "reloadScryfallCatalog",
                "reorderDeckTags",
@@ -152,12 +154,18 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
              "[DeckQuestionAnswer!]!"
 
     assert argument(query_fields["deckQuestionAnswers"], "deckId") == {"ID!", nil}
+    assert type_signature(query_fields["randomDeck"]["type"]) == "Deck"
+    assert argument(query_fields["randomDeck"], "excludeId") == {"ID", nil}
 
     assert type_signature(mutation_fields["createCollectionItem"]["type"]) ==
              "CreateCollectionItemPayload"
 
     assert argument(mutation_fields["askDeckQuestion"], "question") == {"String!", nil}
     assert argument(mutation_fields["deleteDeckQuestionAnswer"], "id") == {"ID!", nil}
+    assert argument(mutation_fields["recordDeckPlay"], "id") == {"ID!", nil}
+
+    assert argument(mutation_fields["recordDeckPlay"], "outcome") ==
+             {"DeckPlayOutcome!", nil}
 
     assert argument(mutation_fields["createCollectionItem"], "input") ==
              {"CollectionItemInput!", nil}
@@ -197,6 +205,8 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
 
     assert payload_fields(data["refreshAllDeckAnalysesPayload"]) ==
              %{"queuedCount" => "Int!"}
+
+    assert payload_fields(data["recordDeckPlayPayload"]) == %{"deck" => "Deck"}
 
     assert payload_fields(data["updateBackupSettingsPayload"]) ==
              %{"backupSettings" => "BackupSettings"}
@@ -352,6 +362,9 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
         fields { name type { kind name ofType { kind name ofType { kind name ofType { kind name } } } } }
       }
       refreshAllDeckAnalysesPayload: __type(name: "RefreshAllDeckAnalysesPayload") {
+        fields { name type { kind name ofType { kind name ofType { kind name ofType { kind name } } } } }
+      }
+      recordDeckPlayPayload: __type(name: "RecordDeckPlayPayload") {
         fields { name type { kind name ofType { kind name ofType { kind name ofType { kind name } } } } }
       }
       updateBackupSettingsPayload: __type(name: "UpdateBackupSettingsPayload") {

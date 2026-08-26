@@ -10,6 +10,9 @@ defmodule Manavault.Catalog.Deck do
     field :name, :string
     field :format, :string, default: "commander"
     field :status, :string, default: "brewing"
+    field :play_count, :integer, default: 0
+    field :skip_count, :integer, default: 0
+    field :last_played_at, :utc_datetime
     field :primer, :string
     field :ai_analysis, :string
     field :ai_analysis_model, :string
