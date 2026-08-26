@@ -8,7 +8,7 @@ defmodule ManavaultWeb.UserSocket do
 
   @impl true
   def connect(_params, socket, connect_info) do
-    session = Map.get(connect_info, :session, %{})
+    session = Map.get(connect_info, :session) || %{}
 
     if Auth.disabled?() || Map.get(session, @authenticated_session_key) == true do
       {:ok, socket}

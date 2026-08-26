@@ -58,6 +58,7 @@ defmodule ManavaultWeb.ServerLogsTest do
     socket = %Phoenix.Socket{}
 
     assert :error = UserSocket.connect(%{}, socket, %{session: %{}})
+    assert :error = UserSocket.connect(%{}, socket, %{session: nil})
 
     assert {:ok, ^socket} =
              UserSocket.connect(%{}, socket, %{
