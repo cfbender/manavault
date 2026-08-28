@@ -309,6 +309,26 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :collection_status, non_null(:deck_card_allocation_status)
   end
 
+  object :deck_recommander do
+    field :commanders, non_null(list_of(non_null(:deck_recommander_commander)))
+    field :recommendations, non_null(list_of(non_null(:deck_recommander_card)))
+  end
+
+  object :deck_recommander_commander do
+    field :name, non_null(:string)
+    field :oracle_id, :id
+    field :url, :string
+  end
+
+  object :deck_recommander_card do
+    field :name, non_null(:string)
+    field :oracle_id, :id
+    field :rank, non_null(:integer)
+    field :score, :float
+    field :card, :card
+    field :collection_status, non_null(:deck_card_allocation_status)
+  end
+
   object :deck_combo do
     field :id, non_null(:id)
     field :url, non_null(:string)

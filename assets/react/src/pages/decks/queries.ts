@@ -1169,6 +1169,50 @@ export const DeckEdhrecDocument = graphql(`
   }
 `)
 
+export const DeckRecommanderDocument = graphql(`
+  query DeckRecommander($id: ID!) {
+    deckRecommander(id: $id) {
+      commanders {
+        name
+        oracleId
+        url
+      }
+      recommendations {
+        name
+        oracleId
+        rank
+        score
+        card {
+          id
+          oracleId
+          name
+          typeLine
+          primaryPrinting {
+            id
+            scryfallId
+            imageUrl
+            artCropUrl
+            priceText
+          }
+        }
+        collectionStatus {
+          state
+          required
+          owned
+          allocated
+          available
+          allocatedElsewhere
+          missing
+          deckZone
+          candidates {
+            available
+          }
+        }
+      }
+    }
+  }
+`)
+
 export const DeckCombosDocument = graphql(`
   query DeckCombos($id: ID!) {
     deckCombos(id: $id) {

@@ -233,6 +233,15 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
     end
   end
 
+  def deck_recommander(_parent, %{id: id}, resolution) do
+    with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
+      case id |> Catalog.get_deck!() |> Catalog.deck_recommander() do
+        {:ok, result} -> {:ok, result}
+        {:error, reason} -> {:error, Errors.recommander_error(reason)}
+      end
+    end
+  end
+
   def deck_combos(_parent, %{id: id}, resolution) do
     with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
       case id |> Catalog.get_deck!() |> Catalog.deck_combos() do

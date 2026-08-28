@@ -72,6 +72,11 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       resolve(&QueryResolvers.deck_edhrec/3)
     end
 
+    field :deck_recommander, non_null(:deck_recommander) do
+      arg(:id, non_null(:id))
+      resolve(&QueryResolvers.deck_recommander/3)
+    end
+
     field :deck_combos, non_null(list_of(non_null(:deck_combo))) do
       arg(:id, non_null(:id))
       resolve(&QueryResolvers.deck_combos/3)

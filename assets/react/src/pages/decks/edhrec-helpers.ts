@@ -4,6 +4,7 @@ import type {
   DeckDetail,
   EDHRecCard,
   EDHRecCardReturnSearch,
+  RecommendedCardLike,
   EDHRecCollectionStatus,
   EDHRecSectionCard,
   EDHRecTab,
@@ -103,20 +104,20 @@ export function collectionStatusTone(
   return "error"
 }
 
-export function edhrecCardImageUrl(card: EDHRecCard | EDHRecSectionCard) {
+export function edhrecCardImageUrl(card: RecommendedCardLike) {
   const printing = card.card?.primaryPrinting
   return printing?.imageUrl || printing?.artCropUrl
 }
 
-export function edhrecCardPrice(card: EDHRecCard | EDHRecSectionCard) {
+export function edhrecCardPrice(card: RecommendedCardLike) {
   return card.card?.primaryPrinting?.priceText || null
 }
 
-export function edhrecCardPrintingId(card: EDHRecCard | EDHRecSectionCard) {
+export function edhrecCardPrintingId(card: RecommendedCardLike) {
   return card.card?.primaryPrinting?.id || null
 }
 
-export function edhrecCardUrl(card: EDHRecCard | EDHRecSectionCard) {
+export function edhrecCardUrl(card: RecommendedCardLike) {
   if ("url" in card && card.url) {
     const safe = safeHttpUrl(card.url)
     if (safe) return safe
@@ -128,7 +129,7 @@ export function edhrecCardUrl(card: EDHRecCard | EDHRecSectionCard) {
   return null
 }
 
-export function cardTypeLine(card: EDHRecCard | EDHRecSectionCard) {
+export function cardTypeLine(card: RecommendedCardLike) {
   return card.card?.typeLine || ("primaryType" in card ? card.primaryType : null)
 }
 

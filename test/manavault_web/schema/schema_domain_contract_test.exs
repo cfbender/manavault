@@ -38,6 +38,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "deckEdhrec",
                "deckExportText",
                "deckQuestionAnswers",
+               "deckRecommander",
                "decks",
                "defaultDeckTags",
                "homeSummary",
@@ -148,6 +149,8 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
     assert argument(query_fields["deckBuylist"], "assumeNoOwned") == {"Boolean", "false"}
     assert type_signature(query_fields["deckCombos"]["type"]) == "[DeckCombo!]!"
     assert argument(query_fields["deckCombos"], "id") == {"ID!", nil}
+    assert type_signature(query_fields["deckRecommander"]["type"]) == "DeckRecommander!"
+    assert argument(query_fields["deckRecommander"], "id") == {"ID!", nil}
     assert type_signature(query_fields["defaultDeckTags"]["type"]) == "[DefaultDeckTag!]!"
 
     assert type_signature(query_fields["deckQuestionAnswers"]["type"]) ==

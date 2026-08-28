@@ -10,6 +10,7 @@ import {
   Sparkles,
   Trash2,
   Upload,
+  Wand2,
 } from "lucide-react"
 import { type ReactNode } from "react"
 
@@ -47,6 +48,7 @@ export function SummaryActionMenu({
   onImport,
   onMissing,
   onOptimizePrintings,
+  onRecommander,
   onShare,
 }: {
   analyzeLabel?: string
@@ -63,6 +65,7 @@ export function SummaryActionMenu({
   onImport?: () => void
   onMissing?: () => void
   onOptimizePrintings?: () => void
+  onRecommander?: () => void
   onShare?: () => void
 }) {
   return (
@@ -122,6 +125,12 @@ export function SummaryActionMenu({
             <DropdownMenuItem onSelect={onEdhrec}>
               <Sparkles className="h-4 w-4" />
               EDHREC
+            </DropdownMenuItem>
+          ) : null}
+          {onRecommander ? (
+            <DropdownMenuItem onSelect={onRecommander}>
+              <Wand2 className="h-4 w-4" />
+              Recommander
             </DropdownMenuItem>
           ) : null}
           {onExport ? (
