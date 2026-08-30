@@ -81,6 +81,22 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     end
   end
 
+  object :deck_analysis_request do
+    field :id, non_null(:id)
+    field :source_type, non_null(:string)
+    field :source, non_null(:string)
+    field :source_name, non_null(:string)
+    field :format, non_null(:string)
+    field :analysis, non_null(:string)
+    field :model, non_null(:string)
+    field :commander_bracket, :integer
+    field :commander_bracket_estimate, :integer
+
+    field :inserted_at, non_null(:string) do
+      resolve(&DeckFields.deck_analysis_request_inserted_at/3)
+    end
+  end
+
   node object(:deck) do
     field :name, non_null(:string)
     field :format, non_null(:string)

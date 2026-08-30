@@ -103,6 +103,106 @@ defmodule ManavaultWeb.Schema.AITest do
     assert analysis =~ "Bracket 3 (plays like Bracket 2)"
     assert {:ok, _datetime, 0} = DateTime.from_iso8601(analyzed_at)
 
+    decklist = "Commander\n1 Test Commander\n\nMainboard\n2 Plains"
+
+    list_analysis_conn =
+      post(recycle(conn), "/api/graphql", %{
+        "query" => """
+        mutation AnalyzeDeckList($text: String!, $format: String!) {
+          analyzeDeckList(text: $text, format: $format) {
+            deckAnalysisRequest {
+              id
+              sourceType
+              source
+              sourceName
+              format
+              analysis
+              model
+              commanderBracket
+              commanderBracketEstimate
+              insertedAt
+            }
+          }
+        }
+        """,
+        "variables" => %{"text" => decklist, "format" => "commander"}
+      })
+
+    assert %{
+             "data" => %{
+               "analyzeDeckList" => %{
+                 "deckAnalysisRequest" => %{
+                   "id" => request_id,
+                   "sourceType" => "text",
+                   "source" => ^decklist,
+                   "sourceName" => "Pasted decklist",
+                   "format" => "commander",
+                   "analysis" => list_analysis,
+                   "model" => "anthropic/claude-sonnet-4",
+                   "commanderBracket" => 3,
+                   "commanderBracketEstimate" => 2,
+                   "insertedAt" => request_inserted_at
+                 }
+               }
+             }
+           } = json_response(list_analysis_conn, 200)
+
+    assert list_analysis =~ "## Overview"
+    assert {:ok, _datetime, 0} = DateTime.from_iso8601(request_inserted_at)
+
+    assert {:ok, shared_deck} = Catalog.ensure_deck_share_token(deck)
+    deck_url = "/share/decks/#{shared_deck.share_token}"
+
+    link_analysis_conn =
+      post(recycle(conn), "/api/graphql", %{
+        "query" => """
+        mutation AnalyzeDeckList($url: String!, $format: String!) {
+          analyzeDeckList(url: $url, format: $format) {
+            deckAnalysisRequest { id sourceType source sourceName }
+          }
+        }
+        """,
+        "variables" => %{"url" => deck_url, "format" => "commander"}
+      })
+
+    assert %{
+             "data" => %{
+               "analyzeDeckList" => %{
+                 "deckAnalysisRequest" => %{
+                   "id" => link_request_id,
+                   "sourceType" => "url",
+                   "source" => ^deck_url,
+                   "sourceName" => "GraphQL Analysis"
+                 }
+               }
+             }
+           } = json_response(link_analysis_conn, 200)
+
+    list_history_conn =
+      post(recycle(conn), "/api/graphql", %{
+        "query" => """
+        query DeckAnalysisRequests {
+          deckAnalysisRequests { id sourceName analysis }
+        }
+        """
+      })
+
+    assert %{
+             "data" => %{
+               "deckAnalysisRequests" => [
+                 %{
+                   "id" => ^link_request_id,
+                   "sourceName" => "GraphQL Analysis"
+                 },
+                 %{
+                   "id" => ^request_id,
+                   "sourceName" => "Pasted decklist",
+                   "analysis" => ^list_analysis
+                 }
+               ]
+             }
+           } = json_response(list_history_conn, 200)
+
     question_conn =
       post(recycle(conn), "/api/graphql", %{
         "query" => """

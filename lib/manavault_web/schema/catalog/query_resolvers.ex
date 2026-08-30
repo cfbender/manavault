@@ -1,6 +1,7 @@
 defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
   @moduledoc false
 
+  alias Manavault.AI
   alias Manavault.Catalog
   alias ManavaultWeb.Schema.Catalog.{CollectionFields, Errors}
   alias ManavaultWeb.Schema.RelayHelpers
@@ -182,6 +183,10 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
     with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
       {:ok, Catalog.get_deck!(id, preload?: false)}
     end
+  end
+
+  def deck_analysis_requests(_parent, _args, _resolution) do
+    {:ok, AI.list_deck_analysis_requests()}
   end
 
   def deck_question_answers(_parent, %{deck_id: deck_id}, resolution) do

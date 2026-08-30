@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@apollo/client/react"
 import { Link, useNavigate } from "@tanstack/react-router"
-import { Archive, ChevronDown, Dices, Layers, Plus } from "lucide-react"
+import { Archive, ChevronDown, Dices, Layers, Plus, Sparkles } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { EmptyState } from "../../components/card-image"
 import { ImageSummaryCard } from "../../components/image-summary-card"
@@ -10,6 +10,7 @@ import { ConfirmDialog } from "../../components/ui/confirm-dialog"
 import { useToast } from "../../components/ui/toast"
 import { compactNumber, titleize } from "../../lib/utils"
 import { SummaryActionMenu } from "./deck-actions"
+import { DeckAnalysisDialog } from "./deck-analysis-dialog"
 import { DeckBracketBadge } from "./deck-bracket"
 import { DeckCombosDialog } from "./deck-combos-dialog"
 import { EditDeckDialog, NewDeckDialog } from "./deck-editor-dialogs"
@@ -27,10 +28,12 @@ import { DecksDocument, DeleteDeckDocument } from "./queries"
 
 function DeckGalleryHeader({
   canPickDeck,
+  onAnalyzeDeck,
   onNewDeck,
   onPickDeck,
 }: {
   canPickDeck: boolean
+  onAnalyzeDeck: () => void
   onNewDeck: () => void
   onPickDeck: () => void
 }) {
@@ -42,18 +45,27 @@ function DeckGalleryHeader({
           Browse your deck gallery, then open a list to tune exact printings and card allocations.
         </p>
       </div>
-      <div className="flex w-full gap-2 sm:w-auto">
+      <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:flex-nowrap">
         <Button
           type="button"
           variant="outline"
-          className="flex-1 sm:flex-none"
+          className="min-w-36 flex-1 sm:flex-none"
+          onClick={onAnalyzeDeck}
+        >
+          <Sparkles className="h-4 w-4" />
+          Analyze list
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="min-w-36 flex-1 sm:flex-none"
           disabled={!canPickDeck}
           onClick={onPickDeck}
         >
           <Dices className="h-4 w-4" />
           Pick a deck
         </Button>
-        <Button type="button" className="flex-1 sm:flex-none" onClick={onNewDeck}>
+        <Button type="button" className="min-w-36 flex-1 sm:flex-none" onClick={onNewDeck}>
           <Plus className="h-4 w-4" />
           New deck
         </Button>
@@ -312,6 +324,7 @@ function ArchivedDecksAccordion({
 }
 
 export function DecksPage() {
+  const [isDeckAnalysisOpen, setIsDeckAnalysisOpen] = useState(false)
   const [isNewDeckOpen, setIsNewDeckOpen] = useState(false)
   const [isRandomDeckOpen, setIsRandomDeckOpen] = useState(false)
   const [comboDeck, setComboDeck] = useState<DeckSummary | null>(null)
@@ -383,6 +396,7 @@ export function DecksPage() {
     <>
       <DeckGalleryHeader
         canPickDeck={activeDecks.length > 0}
+        onAnalyzeDeck={() => setIsDeckAnalysisOpen(true)}
         onNewDeck={() => setIsNewDeckOpen(true)}
         onPickDeck={() => setIsRandomDeckOpen(true)}
       />
@@ -418,6 +432,7 @@ export function DecksPage() {
           />
         </div>
       )}
+      <DeckAnalysisDialog open={isDeckAnalysisOpen} onOpenChange={setIsDeckAnalysisOpen} />
       <NewDeckDialog open={isNewDeckOpen} onOpenChange={setIsNewDeckOpen} />
       <RandomDeckDialog
         open={isRandomDeckOpen}

@@ -29,6 +29,10 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       resolve(&QueryResolvers.deck/3)
     end
 
+    field :deck_analysis_requests, non_null(list_of(non_null(:deck_analysis_request))) do
+      resolve(&QueryResolvers.deck_analysis_requests/3)
+    end
+
     field :deck_question_answers, non_null(list_of(non_null(:deck_question_answer))) do
       arg(:deck_id, non_null(:id))
       resolve(&QueryResolvers.deck_question_answers/3)
@@ -131,6 +135,26 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
 
       resolve(fn parent, args, resolution ->
         payload(parent, args, resolution, &MutationResolvers.analyze_deck/3, :deck)
+      end)
+    end
+
+    payload field :analyze_deck_list do
+      arg(:url, :string)
+      arg(:text, :string)
+      arg(:format, non_null(:string))
+
+      output do
+        field :deck_analysis_request, :deck_analysis_request
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &MutationResolvers.analyze_deck_list/3,
+          :deck_analysis_request
+        )
       end)
     end
 

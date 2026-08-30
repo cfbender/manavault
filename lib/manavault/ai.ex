@@ -2,11 +2,13 @@ defmodule Manavault.AI do
   @moduledoc "AI provider settings, deck analysis, and saved deck questions."
 
   import Ecto.Changeset, only: [add_error: 3, apply_changes: 1]
+  import Ecto.Query
 
   alias Ecto.Multi
 
   alias Manavault.AI.{
     DeckAnalysis,
+    DeckAnalysisRequest,
     DeckAnalysisWorker,
     DeckQuestion,
     DeckQuestionWorker,
@@ -15,9 +17,10 @@ defmodule Manavault.AI do
   }
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.{Deck, DeckQuestionAnswer, Util}
+  alias Manavault.Catalog.{Deck, DeckCard, DeckQuestionAnswer, Util}
   alias Manavault.Catalog.Search.CardsByName
   alias Manavault.Repo
+  alias Manavault.Trade.Lists
 
   @singleton_id 1
 
@@ -60,17 +63,47 @@ defmodule Manavault.AI do
     settings = settings()
 
     with :ok <- configured(settings),
-         {:ok, provider} <- Provider.module(settings.provider),
          payload <- DeckAnalysis.payload(deck, Catalog.deck_cards(deck)),
-         {:ok, provider_result} <- provider.analyze_deck(settings, payload),
-         {:ok, result} <-
-           DeckAnalysis.normalize_result(
-             provider_result,
-             payload,
-             settings.deck_analysis_instructions
-           ),
+         {:ok, result} <- analyze_payload(settings, payload),
          attrs <- analysis_attrs(result, settings) do
       Catalog.save_deck_analysis(deck, attrs)
+    end
+  end
+
+  def list_deck_analysis_requests do
+    DeckAnalysisRequest
+    |> order_by([request], desc: request.inserted_at, desc: request.id)
+    |> Repo.all()
+  end
+
+  def analyze_deck_list(args) when is_map(args) do
+    settings = settings()
+
+    with {:ok, source_type, source} <- analysis_source(args),
+         {:ok, format} <- analysis_format(Map.get(args, :format)),
+         :ok <- configured(settings),
+         {:ok, %{source_name: source_name, entries: entries}} <-
+           Lists.resolve(%{
+             url: if(source_type == "url", do: source),
+             text: if(source_type == "text", do: source)
+           }),
+         {:ok, deck_cards} <- external_deck_cards(entries),
+         source_name <- analysis_source_name(source_name, source_type),
+         deck <- %Deck{name: source_name, format: format},
+         payload <- DeckAnalysis.payload(deck, deck_cards),
+         {:ok, result} <- analyze_payload(settings, payload) do
+      %DeckAnalysisRequest{}
+      |> DeckAnalysisRequest.changeset(%{
+        source_type: source_type,
+        source: source,
+        source_name: source_name,
+        format: format,
+        analysis: DeckAnalysis.render_markdown(result),
+        model: settings.model,
+        commander_bracket: result.official_bracket,
+        commander_bracket_estimate: result.play_bracket
+      })
+      |> Repo.insert()
     end
   end
 
@@ -256,6 +289,96 @@ defmodule Manavault.AI do
       {:error, "Configure an AI provider, API key, and model in Settings first."}
     end
   end
+
+  defp analyze_payload(settings, payload) do
+    with {:ok, provider} <- Provider.module(settings.provider),
+         {:ok, provider_result} <- provider.analyze_deck(settings, payload) do
+      DeckAnalysis.normalize_result(
+        provider_result,
+        payload,
+        settings.deck_analysis_instructions
+      )
+    end
+  end
+
+  defp analysis_source(args) do
+    url = args |> Map.get(:url) |> trimmed_string()
+    text = args |> Map.get(:text) |> trimmed_string()
+
+    cond do
+      present?(text) and String.length(text) <= 200_000 -> {:ok, "text", text}
+      present?(text) -> {:error, "The pasted decklist is too large."}
+      present?(url) and String.length(url) <= 2_000 -> {:ok, "url", url}
+      present?(url) -> {:error, "The deck link is too long."}
+      true -> {:error, "Paste a decklist or a supported link to analyze."}
+    end
+  end
+
+  defp analysis_format(format)
+       when format in ~w(commander standard pioneer modern legacy vintage pauper limited casual),
+       do: {:ok, format}
+
+  defp analysis_format(_format), do: {:error, "Choose a supported deck format."}
+
+  defp external_deck_cards(entries) when is_list(entries) do
+    cards_by_name = entries |> Enum.map(& &1.name) |> CardsByName.by_names()
+
+    {deck_cards, unrecognized} =
+      Enum.reduce(entries, {[], []}, fn entry, {deck_cards, unrecognized} ->
+        case Map.get(cards_by_name, CardsByName.key(entry.name)) do
+          nil ->
+            {deck_cards, [entry.name | unrecognized]}
+
+          card ->
+            deck_card = %DeckCard{
+              card: card,
+              oracle_id: card.oracle_id,
+              quantity: entry.quantity,
+              zone: normalize_external_zone(entry.zone)
+            }
+
+            {[deck_card | deck_cards], unrecognized}
+        end
+      end)
+
+    cond do
+      unrecognized != [] ->
+        {:error, unrecognized_cards_message(unrecognized)}
+
+      Enum.any?(deck_cards, &DeckCard.counts_toward_deck_total?/1) ->
+        {:ok, Enum.reverse(deck_cards)}
+
+      true ->
+        {:error, "The decklist does not contain any mainboard or commander cards."}
+    end
+  end
+
+  defp analysis_source_name(source_name, source_type) do
+    fallback = if source_type == "url", do: "Linked decklist", else: "Pasted decklist"
+
+    source_name
+    |> trimmed_string()
+    |> case do
+      nil -> fallback
+      "" -> fallback
+      name -> String.slice(name, 0, 200)
+    end
+  end
+
+  defp normalize_external_zone(zone) when zone in ~w(mainboard commander considering), do: zone
+  defp normalize_external_zone(_zone), do: "mainboard"
+
+  defp unrecognized_cards_message(names) do
+    names = names |> Enum.reverse() |> Enum.uniq()
+    shown = names |> Enum.take(5) |> Enum.join(", ")
+    suffix = if length(names) > 5, do: " and #{length(names) - 5} more", else: ""
+
+    "These cards are not in the local catalog: #{shown}#{suffix}. Sync the catalog or correct the list and try again."
+  end
+
+  defp trimmed_string(value) when is_binary(value), do: String.trim(value)
+  defp trimmed_string(_value), do: nil
+  defp present?(value), do: is_binary(value) and value != ""
 
   defp analysis_attrs(result, settings) do
     %{
