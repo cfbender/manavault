@@ -67,22 +67,24 @@ defmodule Manavault.Catalog.Cached do
     end)
   end
 
-  def count_collection_items(filters \\ []) when is_list(filters) do
-    cached(Cache.collection_tag(), {:count_collection_items, filters}, fn ->
-      Collection.count_collection_items(filters)
+  # The three counts share one cached query so a search that asks for all of
+  # them scans the filtered collection once.
+  def collection_item_totals(filters \\ []) when is_list(filters) do
+    cached(Cache.collection_tag(), {:collection_item_totals, filters}, fn ->
+      Collection.collection_item_totals(filters)
     end)
+  end
+
+  def count_collection_items(filters \\ []) when is_list(filters) do
+    collection_item_totals(filters).quantity
   end
 
   def count_collection_item_entries(filters \\ []) when is_list(filters) do
-    cached(Cache.collection_tag(), {:count_collection_item_entries, filters}, fn ->
-      Collection.count_collection_item_entries(filters)
-    end)
+    collection_item_totals(filters).entries
   end
 
   def count_collection_item_groups(filters \\ []) when is_list(filters) do
-    cached(Cache.collection_tag(), {:count_collection_item_groups, filters}, fn ->
-      Collection.count_collection_item_groups(filters)
-    end)
+    collection_item_totals(filters).groups
   end
 
   def collection_value_summary(filters \\ []) when is_list(filters) do

@@ -8,6 +8,7 @@ defmodule Manavault.Catalog.CardCollection do
   defdelegate list_items(filters \\ [], opts \\ []), to: Items
   defdelegate list_item_groups(filters \\ [], opts \\ []), to: Items
   defdelegate list_item_ids(filters \\ []), to: Items
+  defdelegate item_totals(filters \\ []), to: Items
   defdelegate count_items(filters \\ []), to: Items
   defdelegate count_item_entries(filters \\ []), to: Items
   defdelegate count_item_groups(filters \\ []), to: Items

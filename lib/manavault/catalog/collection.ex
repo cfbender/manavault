@@ -29,6 +29,10 @@ defmodule Manavault.Catalog.Collection do
     CardCollection.list_item_ids(filters)
   end
 
+  def collection_item_totals(filters \\ []) when is_list(filters) do
+    CardCollection.item_totals(filters)
+  end
+
   def count_collection_items(filters \\ []) when is_list(filters) do
     CardCollection.count_items(filters)
   end
