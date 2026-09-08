@@ -250,12 +250,6 @@ defmodule Manavault.Catalog.SyncTest do
     assert Repo.get!(Printing, @black_lotus["id"])
     refute Repo.get(Printing, memorabilia["id"])
     refute Repo.get(Printing, token["id"])
-
-    assert %{rows: []} =
-             Repo.query!(
-               "SELECT scryfall_id FROM scryfall_printing_search WHERE scryfall_id IN (?, ?)",
-               [memorabilia["id"], token["id"]]
-             )
   end
 
   test "sync_scryfall only runs the paper printing reconciliation once" do
@@ -323,8 +317,7 @@ defmodule Manavault.Catalog.SyncTest do
     assert log =~ "Scryfall catalog sync downloaded default-cards bulk"
     assert log =~ "Scryfall catalog sync decoded default-cards bulk"
 
-    assert log =~
-             "Scryfall catalog import progress source_cards=1/1 cards=1 printings=1 search_rows=1"
+    assert log =~ "Scryfall catalog import progress source_cards=1/1 cards=1 printings=1"
 
     assert log =~ "Scryfall catalog import completed source_cards=1 cards=1 printings=1"
     assert log =~ "Scryfall catalog sync succeeded"

@@ -17,7 +17,6 @@ defmodule Manavault.Backup.CreateTest do
   alias Manavault.Backup.CreateTestRepo
 
   @catalog_tables ~w[
-    scryfall_printing_search
     scryfall_syncs
     scryfall_printings
     scryfall_cards
@@ -97,11 +96,6 @@ defmodule Manavault.Backup.CreateTest do
         collector_number TEXT NOT NULL
       );
 
-      CREATE VIRTUAL TABLE scryfall_printing_search USING fts5(
-        scryfall_id UNINDEXED,
-        name
-      );
-
       CREATE TABLE scryfall_syncs (
         id INTEGER PRIMARY KEY,
         status TEXT NOT NULL,
@@ -119,9 +113,6 @@ defmodule Manavault.Backup.CreateTest do
 
       INSERT INTO scryfall_printings (scryfall_id, oracle_id, set_code, collector_number)
       VALUES ('printing-1', 'oracle-1', 'lea', '232');
-
-      INSERT INTO scryfall_printing_search (scryfall_id, name)
-      VALUES ('printing-1', 'black lotus');
 
       INSERT INTO scryfall_syncs (status, bulk_type)
       VALUES ('completed', 'default_cards');

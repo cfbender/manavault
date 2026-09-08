@@ -5,19 +5,17 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
   alias Manavault.Catalog.Search.NameMatch
 
   def rows(cards, now, oracle_tag_index) when is_list(cards) do
-    {card_rows, printing_rows, search_rows} =
-      Enum.reduce(cards, {[], [], []}, fn card, {card_rows, printing_rows, search_rows} ->
+    {card_rows, printing_rows} =
+      Enum.reduce(cards, {[], []}, fn card, {card_rows, printing_rows} ->
         {
           prepend_rows(card_row(card, now, oracle_tag_index), card_rows),
-          prepend_rows(printing_row(card, now), printing_rows),
-          prepend_rows(printing_search_row(card), search_rows)
+          prepend_rows(printing_row(card, now), printing_rows)
         }
       end)
 
     %{
       cards: :lists.reverse(card_rows),
-      printings: :lists.reverse(printing_rows),
-      search_rows: :lists.reverse(search_rows)
+      printings: :lists.reverse(printing_rows)
     }
   end
 
@@ -27,10 +25,6 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
 
   def printing_rows(cards, now) when is_list(cards) do
     Enum.flat_map(cards, &printing_row(&1, now))
-  end
-
-  def printing_search_rows(cards) when is_list(cards) do
-    Enum.flat_map(cards, &printing_search_row/1)
   end
 
   defp prepend_rows(rows, acc) do
@@ -95,43 +89,6 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
   end
 
   defp printing_row(_card, _now), do: []
-
-  defp printing_search_row(%{"id" => scryfall_id, "name" => name} = card)
-       when is_binary(scryfall_id) and is_binary(name) do
-    oracle_text = oracle_text(card) || ""
-
-    [
-      %{
-        scryfall_id: scryfall_id,
-        name: normalize_search_text(name),
-        compact_name: compact_search_text(name),
-        flavor_name: normalize_search_text(flavor_name(card) || ""),
-        compact_flavor_name: compact_search_text(flavor_name(card) || ""),
-        flavor_text: normalize_search_text(flavor_text(card) || ""),
-        compact_flavor_text: compact_search_text(flavor_text(card) || ""),
-        type_line: normalize_search_text(card["type_line"] || ""),
-        oracle_text: normalize_search_text(oracle_text),
-        compact_oracle_text: compact_search_text(oracle_text),
-        set_code: normalize_search_text(card["set"] || ""),
-        collector_number: normalize_search_text(card["collector_number"] || "")
-      }
-    ]
-  end
-
-  defp printing_search_row(_card), do: []
-
-  defp normalize_search_text(value) when is_binary(value) do
-    value
-    |> String.downcase()
-    |> String.replace(~r/[^a-z0-9]+/u, " ")
-    |> String.trim()
-  end
-
-  defp compact_search_text(value) when is_binary(value) do
-    value
-    |> String.downcase()
-    |> String.replace(~r/[^a-z0-9]+/u, "")
-  end
 
   defp colors(%{"colors" => colors}) when is_list(colors), do: colors
 

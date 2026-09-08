@@ -82,15 +82,9 @@ defmodule Manavault.Catalog.ImportTest do
     refute Repo.get(Printing, memorabilia["id"])
     refute Repo.get(Printing, token["id"])
     refute Repo.get(Card, token["oracle_id"])
-
-    assert %{rows: []} =
-             Repo.query!(
-               "SELECT scryfall_id FROM scryfall_printing_search WHERE scryfall_id IN (?, ?)",
-               [memorabilia["id"], token["id"]]
-             )
   end
 
-  test "import_cards releases the write lock between batches without dropping search rows" do
+  test "import_cards releases the write lock between batches" do
     test_pid = self()
     handler_id = {__MODULE__, make_ref()}
 
