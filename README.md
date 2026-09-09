@@ -42,6 +42,9 @@ filter and sort across the full collection, track purchase price versus current
 value, and export filtered CSV/TXT lists. Collection state is preserved while you
 move between locations and cards, so back navigation returns to the same view.
 
+Auto-sort type filters and deck type grouping use a permanent's front-face type,
+not its adventure, prepared spell, or back face. Split spells retain both types.
+
 ### Build and maintain decks
 
 Create decks, import/export decklists, manage commander/main/side/maybe zones,

@@ -43,6 +43,8 @@ defmodule Manavault.Catalog.Decks.Statistics do
   end
 
   defp deck_card_type(%DeckCard{card: %Card{type_line: type_line}}) when is_binary(type_line) do
+    type_line = Card.sorting_type_line(type_line)
+
     cond do
       String.contains?(type_line, "Creature") -> "Creature"
       String.contains?(type_line, "Land") -> "Land"

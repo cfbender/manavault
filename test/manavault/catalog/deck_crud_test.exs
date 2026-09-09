@@ -80,6 +80,31 @@ defmodule Manavault.Catalog.DeckCrudTest do
     assert [] = Catalog.list_decks()
   end
 
+  test "deck type statistics count the permanent rather than its secondary spell" do
+    precious =
+      Map.merge(@black_lotus, %{
+        "name" => "My Precious // Allure of Power",
+        "type_line" => "Legendary Artifact — Equipment // Instant — Adventure"
+      })
+
+    emeritus =
+      Map.merge(@time_walk, %{
+        "name" => "Emeritus of Woe // Demonic Tutor",
+        "type_line" => "Creature — Vampire Warlock // Sorcery"
+      })
+
+    assert {:ok, _} = Catalog.import_cards([precious, emeritus])
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Multi-face types"})
+
+    assert {:ok, _} =
+             Catalog.add_card_to_deck(deck, %{"oracle_id" => "oracle-1", "quantity" => 2})
+
+    assert {:ok, _} =
+             Catalog.add_card_to_deck(deck, %{"oracle_id" => "oracle-2", "quantity" => 1})
+
+    assert Catalog.deck_stats(deck).types == %{"Artifact" => 2, "Creature" => 1}
+  end
+
   test "add_card_to_deck resolves names with or without diacritics" do
     oin =
       @time_walk

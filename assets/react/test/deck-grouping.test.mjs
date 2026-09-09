@@ -26,6 +26,33 @@ function deckCard(id, overrides = {}) {
   }
 }
 
+test("type grouping uses permanent front faces without changing split spells", () => {
+  const cards = [
+    deckCard("emeritus", { card: { typeLine: "Creature — Vampire Warlock // Sorcery" } }),
+    deckCard("precious", {
+      quantity: 2,
+      card: { typeLine: "Legendary Artifact — Equipment // Instant — Adventure" },
+    }),
+    deckCard("virtue", { card: { typeLine: "Enchantment // Instant — Adventure" } }),
+    deckCard("split", { card: { typeLine: "Sorcery // Instant" } }),
+    deckCard("artifact-creature", { card: { typeLine: "Artifact Creature — Golem" } }),
+    deckCard("commander", { zone: "commander", card: { typeLine: "Creature // Sorcery" } }),
+  ]
+
+  const groups = groupDeckCards(cards, "type")
+  assert.deepEqual(
+    Object.fromEntries(groups.map((group) => [group.key, group.cards.map((card) => card.id)])),
+    {
+      commander: ["commander"],
+      creature: ["artifact-creature", "emeritus"],
+      instant: ["split"],
+      artifact: ["precious"],
+      enchantment: ["virtue"],
+    },
+  )
+  assert.equal(groups.find((group) => group.key === "artifact").quantity, 2)
+})
+
 test("theme grouping is the first option and uses the first non-empty theme", () => {
   assert.deepEqual(DECK_GROUP_OPTIONS.slice(0, 2), [
     { label: "Theme", value: "theme" },

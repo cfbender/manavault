@@ -462,7 +462,12 @@ function allocationDescriptor(state: string | null | undefined) {
 function typeDescriptor<T extends DeckGroupingDeckCard>(
   deckCard: T,
 ): Omit<DeckGroup<T>, "cards" | "quantity"> {
-  const typeLine = deckCard.card?.typeLine || ""
+  let typeLine = deckCard.card?.typeLine || ""
+  const front = typeLine.split("//", 1)[0].trim()
+  // Match Card.sorting_type_line: permanents use the front; split spells keep both types.
+  if (/\b(?:Artifact|Battle|Creature|Enchantment|Land|Planeswalker)\b/i.test(front)) {
+    typeLine = front
+  }
 
   if (deckCard.zone === "commander") return typeGroup("commander", "Commander", "commander")
   if (/\bCreature\b/.test(typeLine)) return typeGroup("creature", "Creatures", "creature")
