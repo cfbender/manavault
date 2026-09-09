@@ -93,7 +93,7 @@ docker compose up -d
 Build and run a local image:
 
 ```sh
-docker build -t manavault .
+docker build --pull --no-cache-filter runner -t manavault .
 
 docker run --rm \
   -p 4000:4000 \
@@ -103,6 +103,20 @@ docker run --rm \
   -e PHX_HOST=localhost \
   manavault
 ```
+
+The build refreshes base images and runtime Alpine packages while retaining
+compiled-dependency caches. Public share-preview PNGs use resvg 0.48.1 and
+DejaVu fonts; the container no longer needs the GLib-based `rsvg-convert`.
+Non-container installations need `resvg` on `PATH` to generate these PNGs.
+
+To check the final runtime image with Grype (including findings without fixes):
+
+```sh
+grype docker:manavault --fail-on high
+```
+
+Rebuild and redeploy to pick up security updates; existing containers and
+published version tags do not change when the Dockerfile is updated.
 
 ## Authentication and Reverse Proxies
 

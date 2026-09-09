@@ -113,7 +113,7 @@ config :manavault, ManavaultWeb.DeckSharePreview.ArtifactCache,
   cache_dir: Path.join(System.tmp_dir!(), "manavault/share-previews"),
   max_artifacts: 500,
   assets_version: "scryfall-symbols-v1",
-  renderer_version: "rsvg-convert"
+  renderer_version: "resvg-0.48.1"
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

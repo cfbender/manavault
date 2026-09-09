@@ -1,13 +1,15 @@
 # syntax=docker/dockerfile:1
 
-ARG ELIXIR_VERSION=1.20.1
-ARG OTP_VERSION=29
-ARG ALPINE_VERSION=3.23
-ARG NODE_VERSION=22.22.2
+ARG ELIXIR_VERSION=1.20.4
+ARG OTP_VERSION=29.0.6
+ARG ALPINE_VERSION=3.24
+ARG NODE_VERSION=22.23.2
 ARG AUBE_VERSION=1.21.0
 ARG MANAVAULT_ASSET_VERSION
 
-ARG BUILDER_IMAGE=elixir:${ELIXIR_VERSION}-otp-${OTP_VERSION}-alpine
+# Hex images pin the OTP patch release as well as Elixir. Keep the builder's
+# Alpine minor version aligned with the runner for native release dependencies.
+ARG BUILDER_IMAGE=hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-alpine-3.24.1
 ARG RUNNER_IMAGE=alpine:${ALPINE_VERSION}
 
 FROM node:${NODE_VERSION}-alpine${ALPINE_VERSION} AS node-runtime
@@ -73,7 +75,7 @@ RUN mix assets.deploy
 COPY config/runtime.exs config/
 RUN mix release
 
-FROM golang:1.25.11-alpine3.23 AS healthcheck-builder
+FROM golang:1.26.8-alpine3.24 AS healthcheck-builder
 # Build a static TCP healthcheck helper so the runtime image does not need curl
 # and health is not coupled to background sync HTTP status.
 WORKDIR /src/healthcheck
@@ -102,14 +104,21 @@ RUN printf '%s\n' \
   > /tmp/manavault-healthcheck.go \
   && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /go/bin/manavault-healthcheck /tmp/manavault-healthcheck.go
 
+FROM rust:1.98.0-alpine3.24 AS preview-builder
+# resvg avoids the GLib/GIO and Cairo dependencies of rsvg-convert, including
+# CVE-2026-58016, which has no fixed package in Alpine's stable repositories.
+RUN apk add --no-cache musl-dev \
+  && cargo install resvg --version 0.48.1 --locked
+
 FROM ${RUNNER_IMAGE} AS runner
 
 ARG MANAVAULT_ASSET_VERSION
 
 RUN apk upgrade --no-cache \
-  && apk add --no-cache libstdc++ openssl ncurses-libs ca-certificates lksctp-tools su-exec rsvg-convert fontconfig ttf-dejavu
+  && apk add --no-cache libstdc++ openssl ncurses-libs ca-certificates lksctp-tools su-exec ttf-dejavu
 
 COPY --from=healthcheck-builder /go/bin/manavault-healthcheck /usr/local/bin/manavault-healthcheck
+COPY --from=preview-builder /usr/local/cargo/bin/resvg /usr/local/bin/resvg
 
 ENV LANG=C.UTF-8
 ENV LANGUAGE=C.UTF-8
