@@ -44,6 +44,48 @@ defmodule Manavault.Catalog.SyncTest do
     assert Repo.aggregate(Printing, :count) == 1
   end
 
+  test "sync_scryfall imports and finds SLD 2618 alongside another printing of the same card" do
+    offer = %{
+      "id" => "c3d1624a-a031-4871-b9d7-7efbe507d979",
+      "oracle_id" => "234a734b-ba28-4f1b-9d01-3c3e7d516590",
+      "name" => "An Offer You Can't Refuse",
+      "set" => "sld",
+      "set_name" => "Secret Lair Drop",
+      "set_type" => "box",
+      "collector_number" => "2618",
+      "games" => ["paper"],
+      "released_at" => "2026-08-31",
+      "lang" => "en",
+      "finishes" => ["nonfoil", "foil"]
+    }
+
+    other = %{offer | "id" => "other-offer-printing", "collector_number" => "999"}
+
+    fetcher = fn
+      "https://example.test/metadata" ->
+        {:ok, Jason.encode!(%{"jsonl_download_uri" => "https://example.test/cards.jsonl.gz"})}
+
+      "https://example.test/cards.jsonl.gz" ->
+        {:ok, gzip_jsonl([other, offer])}
+    end
+
+    assert {:ok, %Sync{status: "succeeded", printings_count: 2}} =
+             Catalog.sync_scryfall(
+               fetcher: fetcher,
+               bulk_url: "https://example.test/metadata",
+               oracle_tags_bulk_url: nil,
+               saltiness_url: nil,
+               commander_ranks_url: nil
+             )
+
+    assert [%Printing{scryfall_id: "c3d1624a-a031-4871-b9d7-7efbe507d979"}] =
+             Catalog.search_printings(
+               name: "An Offer You Can't Refuse",
+               set_code: "SLD",
+               collector_number: "2618"
+             )
+  end
+
   test "sync_scryfall imports current gzip JSON Lines Hobbit cards" do
     metadata_url = "https://example.test/metadata"
     download_url = "https://example.test/default-cards.jsonl.gz"

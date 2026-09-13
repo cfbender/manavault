@@ -22,6 +22,69 @@ defmodule Manavault.Catalog.ScryfallWorkersTest do
     assert_enqueued(worker: ScryfallAssetsWorker, args: %{force: true})
   end
 
+  test "Lifeline recovers orphaned SQLite jobs and unblocks exhausted catalog syncs" do
+    plugins = Application.fetch_env!(:manavault, Oban) |> Keyword.fetch!(:plugins)
+    lifeline_options = Keyword.fetch!(plugins, Oban.Plugins.Lifeline)
+
+    start_supervised!(
+      {Oban,
+       name: __MODULE__,
+       repo: Repo,
+       engine: Oban.Engines.Lite,
+       peer: Oban.Peers.Isolated,
+       queues: [],
+       testing: :disabled,
+       plugins: [{Oban.Plugins.Lifeline, lifeline_options}]}
+    )
+
+    stale_time = DateTime.add(DateTime.utc_now(), -61, :minute)
+    recent_time = DateTime.add(DateTime.utc_now(), -59, :minute)
+
+    stale_job =
+      ScryfallCatalogWorker.new(%{},
+        state: "executing",
+        attempt: 1,
+        attempted_at: stale_time
+      )
+      |> Repo.insert!()
+
+    recent_job =
+      ScryfallAssetsWorker.new(%{},
+        state: "executing",
+        attempt: 1,
+        attempted_at: recent_time
+      )
+      |> Repo.insert!()
+
+    # Reproduce the blockage: even a forced reload returns the orphaned job.
+    assert {:ok, blocked} = Catalog.reload_scryfall_catalog_async()
+    assert blocked.id == stale_job.id
+    assert blocked.conflict?
+
+    lifeline = Oban.Registry.whereis(__MODULE__, {:plugin, Oban.Plugins.Lifeline})
+    send(lifeline, :rescue)
+    :sys.get_state(lifeline)
+
+    assert %{state: "available", attempt: 1} = Repo.reload!(stale_job)
+    assert %{state: "executing", attempt: 1} = Repo.reload!(recent_job)
+
+    # An orphan on its final attempt must be discarded, not retried forever.
+    stale_job
+    |> Repo.reload!()
+    |> Ecto.Changeset.change(state: "executing", attempt: stale_job.max_attempts)
+    |> Repo.update!()
+
+    send(lifeline, :rescue)
+    :sys.get_state(lifeline)
+
+    assert %{state: "discarded"} = Repo.reload!(stale_job)
+    assert %{state: "executing"} = Repo.reload!(recent_job)
+    assert {:ok, replacement} = Catalog.reload_scryfall_catalog_async()
+    assert replacement.id != stale_job.id
+    refute replacement.conflict?
+    assert replacement.state == "available"
+  end
+
   test "periodic catalog jobs skip a fresh successful sync" do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
