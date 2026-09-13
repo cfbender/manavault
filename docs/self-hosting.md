@@ -84,6 +84,14 @@ existing orphans too, on its next check once they exceed the threshold. Recovery
 does not remove the underlying SQLite write contention; repeated busy errors
 still need investigation of the overlapping writes.
 
+The recurring saltiness and commander-rank refreshes commit updates in batches
+of at most 200 cards, then clear values absent from the new feed in equally
+bounded batches. Other writers can acquire the lock between statements. Values
+become visible incrementally rather than as one atomic refresh; a failure keeps
+completed batches, and retrying completes the refresh without first blanking the
+whole table. The one-time paper-printing reconciliation still uses a single
+transaction to keep collection, deck, and trade references consistent.
+
 ## Docker Compose
 
 Example `docker-compose.yml`:
