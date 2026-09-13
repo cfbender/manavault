@@ -601,7 +601,7 @@ defmodule Manavault.Catalog.SyncTest do
          )}
 
       ^next_url ->
-        {:ok, commander_rank_page([%{"id" => ranked_card["id"], "rank" => 12}])}
+        {:ok, %{"cardviews" => [%{"id" => ranked_card["id"], "rank" => 12}]}}
     end
 
     assert {:ok, %Sync{status: "succeeded"}} =
@@ -616,6 +616,49 @@ defmodule Manavault.Catalog.SyncTest do
 
     assert Repo.get!(Card, ranked_card["oracle_id"]).edhrec_commander_rank == 12
     assert Repo.get!(Card, stale_card["oracle_id"]).edhrec_commander_rank == nil
+  end
+
+  test "commander ranks follow top-level continuation links and reject partial feeds" do
+    first_url = "https://json.edhrec.com/pages/commanders/year.json"
+    second_url = "https://json.edhrec.com/pages/commanders/year-past2years-1.json"
+    third_url = "https://json.edhrec.com/pages/commanders/year-past2years-2.json"
+
+    fetcher = fn
+      ^first_url ->
+        {:ok,
+         commander_rank_page(
+           [%{"id" => "first-printing", "rank" => 1}],
+           "commanders/year-past2years-1.json"
+         )}
+
+      ^second_url ->
+        {:ok,
+         Jason.encode!(%{
+           "cardviews" => [
+             %{"id" => "second-printing", "rank" => 101},
+             %{"id" => "partner-pair", "rank" => 102, "is_partner" => true}
+           ],
+           "more" => "commanders/year-past2years-2.json"
+         })}
+
+      ^third_url ->
+        {:ok, %{"cardviews" => [%{"id" => "third-printing", "rank" => 201}]}}
+    end
+
+    assert {:ok, ranks, 3} =
+             Manavault.Catalog.EDHRec.CommanderRanks.fetch(fetcher, first_url, page_delay_ms: 0)
+
+    assert ranks == %{"first-printing" => 1, "second-printing" => 101, "third-printing" => 201}
+
+    broken_fetcher = fn
+      ^third_url -> {:ok, %{"cardviews" => nil}}
+      url -> fetcher.(url)
+    end
+
+    assert {:error, "EDHREC commander ranking payload had no card list"} =
+             Manavault.Catalog.EDHRec.CommanderRanks.fetch(broken_fetcher, first_url,
+               page_delay_ms: 0
+             )
   end
 
   test "sync_scryfall preserves commander ranks when the EDHREC index is unavailable" do
@@ -744,7 +787,7 @@ defmodule Manavault.Catalog.SyncTest do
 
   defp gzip_json(value), do: value |> Jason.encode!() |> :zlib.gzip()
 
-  defp commander_rank_page(cardviews, more \\ nil) do
+  defp commander_rank_page(cardviews, more) do
     cardlist = %{"cardviews" => cardviews}
     cardlist = if more, do: Map.put(cardlist, "more", more), else: cardlist
 

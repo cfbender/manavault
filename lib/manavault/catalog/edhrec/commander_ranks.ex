@@ -88,7 +88,12 @@ defmodule Manavault.Catalog.EDHRec.CommanderRanks do
   defp decode_page(_body), do: {:error, "EDHREC commander ranking payload was not JSON"}
 
   defp page_data(page) do
-    cardlists = get_in(page, ["container", "json_dict", "cardlists"])
+    cardlists =
+      case page do
+        # Continuation pages are a single card list without the page wrapper.
+        %{"cardviews" => views} when is_list(views) -> [page]
+        _other -> get_in(page, ["container", "json_dict", "cardlists"])
+      end
 
     if is_list(cardlists) do
       ranks =
