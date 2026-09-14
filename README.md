@@ -52,6 +52,11 @@ choose preferred printings and finishes, group cards by theme or category, tag
 decks, check format legality, and inspect mana curve, mana production, and token
 creation summaries.
 
+Use **Pick a deck** for a random suggestion. To keep a deck out of random picks
+without archiving it, open **Edit**, turn off **Included for play**, and save.
+New and existing decks are included by default; archived decks remain excluded.
+Turning the switch back on restores eligibility without changing play history.
+
 ### Allocate owned cards to decks
 
 Allocation status shows which deck cards are satisfied, missing, unavailable, or

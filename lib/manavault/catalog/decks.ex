@@ -49,6 +49,10 @@ defmodule Manavault.Catalog.Decks do
     cached(:count_decks, &Queries.count_decks/0)
   end
 
+  def count_non_archived_decks do
+    cached(:count_non_archived_decks, &Queries.count_non_archived_decks/0)
+  end
+
   def get_deck_by_share_token(token, opts \\ []) do
     if ShareToken.valid?(token) do
       Queries.get_deck_by_share_token(token, opts)

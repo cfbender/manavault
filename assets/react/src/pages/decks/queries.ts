@@ -13,6 +13,7 @@ export const DecksDocument = graphql(`
           name
           format
           status
+          includedForPlay
           playCount
           skipCount
           lastPlayedAt
@@ -113,6 +114,7 @@ export const UpdateDeckDocument = graphql(`
         name
         format
         status
+        includedForPlay
         playCount
         skipCount
         lastPlayedAt
@@ -206,6 +208,7 @@ export const DeckPlayHistoryDocument = graphql(`
   query DeckPlayHistory($id: ID!) {
     deck(id: $id) {
       id
+      includedForPlay
       playCount
       skipCount
       lastPlayedAt
