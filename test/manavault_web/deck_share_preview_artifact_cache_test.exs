@@ -223,12 +223,22 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCacheTest do
              Renderer.render(preview(),
                command_runner: fn command, args ->
                  send(test_pid, {:renderer_command, command, args})
-                 assert File.read!(List.last(args)) =~ "<svg"
+
+                 assert [
+                          "--width=1200",
+                          "--height=630",
+                          "--sans-serif-family=DejaVu Sans",
+                          path,
+                          "-c"
+                        ] = args
+
+                 assert File.read!(path) =~ "<svg"
                  {"fake png", 0}
                end
              )
 
-    assert_receive {:renderer_command, "rsvg-convert", _args}
+    assert_receive {:renderer_command, "resvg", [_, _, _, path, "-c"]}
+    refute File.exists?(path)
   end
 
   defp configure(options) do

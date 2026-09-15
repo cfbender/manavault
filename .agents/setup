@@ -33,10 +33,10 @@ if [[ "$(uname -s)" == "Linux" ]] && command -v apt-get >/dev/null 2>&1; then
     build-essential
     ca-certificates
     curl
+    fonts-dejavu-core
     git
     inotify-tools
     libncurses-dev
-    librsvg2-bin
     libsqlite3-dev
     libssl-dev
     libxml2-utils
@@ -146,7 +146,7 @@ EOF
 fi
 
 run_step "Installing the pinned web development toolchain" \
-  mise install -y aube erlang elixir node "npm:backlog.md"
+  mise install -y aube erlang elixir node resvg "npm:backlog.md"
 
 if ! mise exec -- mix help hex >/dev/null 2>&1; then
   run_step "Installing Hex" mise exec -- mix local.hex --force

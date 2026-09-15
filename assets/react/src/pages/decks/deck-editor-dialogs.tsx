@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select"
+import { Switch } from "../../components/ui/switch"
 import { Textarea } from "../../components/ui/textarea"
 import { useToast } from "../../components/ui/toast"
 import { refetchActiveQueries } from "../../lib/apollo"
@@ -42,6 +43,7 @@ export function EditDeckDialog({
   const [name, setName] = useState("")
   const [format, setFormat] = useState<(typeof DECK_FORMATS)[number]>("commander")
   const [status, setStatus] = useState<(typeof DECK_STATUSES)[number]>("brewing")
+  const [includedForPlay, setIncludedForPlay] = useState(true)
   const [playCount, setPlayCount] = useState("0")
   const [skipCount, setSkipCount] = useState("0")
   const [lastPlayedDate, setLastPlayedDate] = useState("")
@@ -69,6 +71,7 @@ export function EditDeckDialog({
 
   useEffect(() => {
     if (!history || !isOpen) return
+    setIncludedForPlay(history.includedForPlay)
     setPlayCount(String(history.playCount))
     setSkipCount(String(history.skipCount))
     setLastPlayedDate(dateInputValue(history.lastPlayedAt))
@@ -95,6 +98,7 @@ export function EditDeckDialog({
             name: name.trim(),
             format,
             status,
+            includedForPlay,
             ...history,
             primer: primer.trim() || null,
             ...(deckCards ? { coverDeckCardId } : {}),
@@ -209,6 +213,23 @@ export function EditDeckDialog({
               </Select>
             </label>
           </div>
+
+          <label className="flex min-h-11 cursor-pointer items-center justify-between gap-4">
+            <span>
+              <span className="block text-sm font-bold">Included for play</span>
+              <span id="deck-included-for-play-help" className="block text-sm text-base-content/75">
+                Include this deck in random picks. Archived decks are always excluded.
+              </span>
+            </span>
+            <Switch
+              aria-label="Included for play"
+              aria-describedby="deck-included-for-play-help"
+              checked={includedForPlay}
+              onCheckedChange={setIncludedForPlay}
+              disabled={!isHistoryReady || updateDeck.isPending}
+              className="shrink-0"
+            />
+          </label>
 
           <fieldset
             aria-busy={!isHistoryReady}

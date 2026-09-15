@@ -3,7 +3,7 @@ defmodule ManavaultWeb.DeckSharePreview.Renderer do
 
   alias ManavaultWeb.DeckSharePreview
 
-  @renderer "rsvg-convert"
+  @renderer "resvg"
 
   def render(preview, opts \\ [])
 
@@ -24,10 +24,11 @@ defmodule ManavaultWeb.DeckSharePreview.Renderer do
              ),
            {png, 0} <-
              command_runner.(@renderer, [
-               "--format=png",
                "--width=#{DeckSharePreview.image_width()}",
                "--height=#{DeckSharePreview.image_height()}",
-               path
+               "--sans-serif-family=DejaVu Sans",
+               path,
+               "-c"
              ]) do
         {:ok, png}
       else

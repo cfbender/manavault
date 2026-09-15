@@ -53,6 +53,38 @@ defmodule Manavault.Catalog.DeckPickerTest do
     assert Catalog.random_deck() == nil
   end
 
+  test "inclusion persists independently of status and is honored before reroll fallback" do
+    assert {:ok, alpha} = Catalog.create_deck(%{"name" => "Alpha", "status" => "active"})
+    assert alpha.included_for_play
+
+    assert {:ok, beta} =
+             Catalog.create_deck(%{"name" => "Beta", "included_for_play" => false})
+
+    assert {:ok, alpha} = Catalog.update_deck(alpha, %{"included_for_play" => false})
+    assert alpha.status == "active"
+    refute Repo.get!(Deck, alpha.id).included_for_play
+    assert length(Catalog.list_deck_summaries()) == 2
+    assert Catalog.random_deck(exclude_id: alpha.id) == nil
+
+    assert {:ok, beta} = Catalog.update_deck(beta, %{"included_for_play" => true})
+
+    for random <- [0.0, 1.0] do
+      assert %Deck{id: id} =
+               Catalog.random_deck(exclude_id: beta.id, random: fn -> random end)
+
+      assert id == beta.id
+    end
+
+    assert {:ok, _beta} = Catalog.update_deck(beta, %{"status" => "archived"})
+    assert Catalog.random_deck() == nil
+
+    assert {:ok, alpha} = Catalog.update_deck(alpha, %{"included_for_play" => true})
+    assert Catalog.random_deck().id == alpha.id
+
+    assert {:error, changeset} = Catalog.update_deck(alpha, %{"included_for_play" => nil})
+    assert %{included_for_play: [_]} = errors_on(changeset)
+  end
+
   test "recording outcomes persists plays, skips, and last-played time" do
     assert {:ok, deck} = Catalog.create_deck(%{"name" => "History", "status" => "active"})
 
