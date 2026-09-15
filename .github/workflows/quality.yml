@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      MISE_ENABLE_TOOLS: aube,elixir,node,resvg
+      MISE_ENABLE_TOOLS: aube,elixir,erlang,node,resvg
 
     steps:
       - name: Check out repository
@@ -23,11 +23,14 @@ jobs:
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
         with:
           install: true
-          install_args: aube elixir node resvg
+          install_args: aube elixir erlang node resvg
           cache: true
 
       - name: Install preview fonts
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fonts-dejavu-core
+
+      - name: Install Hex and Rebar
+        run: mise exec -- mix local.hex --force && mise exec -- mix local.rebar --force
 
       - name: Install Elixir dependencies
         run: mise exec -- mix deps.get
