@@ -81,10 +81,27 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     end
   end
 
+  object :deck_analysis_request do
+    field :id, non_null(:id)
+    field :source_type, non_null(:string)
+    field :source, non_null(:string)
+    field :source_name, non_null(:string)
+    field :format, non_null(:string)
+    field :analysis, non_null(:string)
+    field :model, non_null(:string)
+    field :commander_bracket, :integer
+    field :commander_bracket_estimate, :integer
+
+    field :inserted_at, non_null(:string) do
+      resolve(&DeckFields.deck_analysis_request_inserted_at/3)
+    end
+  end
+
   node object(:deck) do
     field :name, non_null(:string)
     field :format, non_null(:string)
     field :status, non_null(:string)
+    field :included_for_play, non_null(:boolean)
     field :play_count, non_null(:integer)
     field :skip_count, non_null(:integer)
     field :primer, :string
@@ -309,6 +326,26 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :collection_status, non_null(:deck_card_allocation_status)
   end
 
+  object :deck_recommander do
+    field :commanders, non_null(list_of(non_null(:deck_recommander_commander)))
+    field :recommendations, non_null(list_of(non_null(:deck_recommander_card)))
+  end
+
+  object :deck_recommander_commander do
+    field :name, non_null(:string)
+    field :oracle_id, :id
+    field :url, :string
+  end
+
+  object :deck_recommander_card do
+    field :name, non_null(:string)
+    field :oracle_id, :id
+    field :rank, non_null(:integer)
+    field :score, :float
+    field :card, :card
+    field :collection_status, non_null(:deck_card_allocation_status)
+  end
+
   object :deck_combo do
     field :id, non_null(:id)
     field :url, non_null(:string)
@@ -375,12 +412,14 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :name, non_null(:string)
     field :format, :string
     field :status, :string
+    field :included_for_play, :boolean
   end
 
   input_object :deck_update_input do
     field :name, :string
     field :format, :string
     field :status, :string
+    field :included_for_play, :boolean
     field :play_count, :integer
     field :skip_count, :integer
     field :last_played_at, :string

@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog"
+import { ToggleGroup, ToggleGroupItem } from "../../components/ui/toggle-group"
 import { useMobileHoverReveal } from "../../lib/mobile-hover"
 
 export type AutoSortSummaryMove = {
@@ -33,7 +34,7 @@ export type AutoSortSummaryResult = {
   skippedCount?: number | null
 }
 
-type MoveDestinationGroup = {
+type MoveLocationGroup = {
   key: string
   locationId?: string | null
   locationName: string
@@ -85,11 +86,12 @@ export function AutoSortSummaryDialog({
   result?: AutoSortSummaryResult | null
   showItemMetadata?: boolean
 }) {
+  const [groupBy, setGroupBy] = useState<"to" | "from">("to")
   const isDryRun = result?.dryRun === true
   const checkedCount = result?.checkedCount ?? 0
   const movedCount = result?.movedCount ?? 0
   const skippedCount = result?.skippedCount ?? 0
-  const destinationGroups = groupMovesByDestination(result?.moves ?? [])
+  const locationGroups = groupMovesByLocation(result?.moves ?? [], groupBy)
   const title = isDryRun ? dryRunTitle : completeTitle
   const description = isDryRun ? dryRunDescription : completeDescription
   const emptyTitle = isDryRun ? dryRunEmptyTitle : completeEmptyTitle
@@ -114,17 +116,39 @@ export function AutoSortSummaryDialog({
             <CountCard label={skippedCountLabel} value={skippedCount} />
           </dl>
 
-          {destinationGroups.length ? (
+          {locationGroups.length ? (
             <div className="space-y-4">
-              {destinationGroups.map((group, index) => {
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-sm font-bold">Group by</span>
+                <ToggleGroup
+                  type="single"
+                  aria-label="Group moves by location"
+                  value={groupBy}
+                  onValueChange={(value) => {
+                    if (value === "to" || value === "from") setGroupBy(value)
+                  }}
+                  className="flex gap-1 rounded-btn border border-base-300 bg-base-100 p-1"
+                >
+                  {(["to", "from"] as const).map((value) => (
+                    <ToggleGroupItem
+                      key={value}
+                      value={value}
+                      className="min-h-11 rounded-btn px-4 text-sm font-bold transition-colors hover:bg-base-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=on]:bg-primary data-[state=on]:text-primary-content"
+                    >
+                      {value === "to" ? "To" : "From"}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              </div>
+              {locationGroups.map((group, index) => {
                 const headingId =
                   group.locationId != null
-                    ? `auto-sort-destination-${group.locationId}`
-                    : `auto-sort-destination-${index}`
+                    ? `auto-sort-${groupBy}-${group.locationId}`
+                    : `auto-sort-${groupBy}-${index}`
 
                 return (
                   <details
-                    key={group.key}
+                    key={`${groupBy}:${group.key}`}
                     open
                     className="rounded-box border border-base-300 bg-base-100/70"
                     aria-labelledby={headingId}
@@ -157,7 +181,7 @@ export function AutoSortSummaryDialog({
                             </div>
                           </div>
                           <p className="text-sm text-base-content/70">
-                            {moveLabel} from {sourceLocationLabel(move)} to {group.locationName}
+                            {moveLabel} from {sourceLocationLabel(move)} to {move.toLocationName}
                           </p>
                           {showItemMetadata && printingLabel(move) ? (
                             <p className="font-mono text-xs text-base-content/60">
@@ -391,19 +415,24 @@ function CardNamePreview({ move }: { move: AutoSortSummaryMove }) {
   )
 }
 
-function groupMovesByDestination(moves: readonly AutoSortSummaryMove[]): MoveDestinationGroup[] {
-  const groups = new Map<string, MoveDestinationGroup>()
+function groupMovesByLocation(
+  moves: readonly AutoSortSummaryMove[],
+  groupBy: "to" | "from",
+): MoveLocationGroup[] {
+  const groups = new Map<string, MoveLocationGroup>()
 
   for (const move of moves) {
-    const key = move.toLocationId ?? `unfiled:${move.toLocationName}`
+    const locationId = groupBy === "to" ? move.toLocationId : move.fromLocationId
+    const locationName = groupBy === "to" ? move.toLocationName : sourceLocationLabel(move)
+    const key = locationId ?? `unfiled:${locationName}`
     const group = groups.get(key)
     if (group) {
       group.moves.push(move)
     } else {
       groups.set(key, {
         key,
-        locationId: move.toLocationId,
-        locationName: move.toLocationName,
+        locationId,
+        locationName,
         moves: [move],
       })
     }

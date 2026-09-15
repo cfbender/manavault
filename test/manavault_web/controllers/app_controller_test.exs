@@ -133,7 +133,9 @@ defmodule ManavaultWeb.AppControllerTest do
     response = response(conn, 200)
 
     assert get_resp_header(conn, "content-type") == ["image/png"]
-    assert <<137, 80, 78, 71, 13, 10, 26, 10, _rest::binary>> = response
+
+    assert <<137, 80, 78, 71, 13, 10, 26, 10, 13::32, "IHDR", 1200::32, 630::32, _rest::binary>> =
+             response
   end
 
   test "GET / uses built React assets for non-local dev hosts", %{conn: conn} do

@@ -1,6 +1,7 @@
 defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
   @moduledoc false
 
+  alias Manavault.AI
   alias Manavault.Catalog
   alias ManavaultWeb.Schema.Catalog.{CollectionFields, Errors}
   alias ManavaultWeb.Schema.RelayHelpers
@@ -10,7 +11,7 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
      %{
        collection_count: Catalog.count_collection_items(),
        location_count: Catalog.count_locations(),
-       deck_count: Catalog.count_decks()
+       deck_count: Catalog.count_non_archived_decks()
      }}
   end
 
@@ -184,6 +185,10 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
     end
   end
 
+  def deck_analysis_requests(_parent, _args, _resolution) do
+    {:ok, AI.list_deck_analysis_requests()}
+  end
+
   def deck_question_answers(_parent, %{deck_id: deck_id}, resolution) do
     with {:ok, deck_id} <- RelayHelpers.node_id(deck_id, :deck, resolution) do
       deck_id
@@ -229,6 +234,15 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
       case id |> Catalog.get_deck!() |> Catalog.deck_edhrec(opts) do
         {:ok, result} -> {:ok, result}
         {:error, reason} -> {:error, Errors.edhrec_error(reason)}
+      end
+    end
+  end
+
+  def deck_recommander(_parent, %{id: id}, resolution) do
+    with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
+      case id |> Catalog.get_deck!() |> Catalog.deck_recommander() do
+        {:ok, result} -> {:ok, result}
+        {:error, reason} -> {:error, Errors.recommander_error(reason)}
       end
     end
   end

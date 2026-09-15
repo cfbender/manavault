@@ -46,6 +46,9 @@ config :manavault, Manavault.Repo,
 config :manavault, Oban,
   engine: Oban.Engines.Lite,
   plugins: [
+    # Recover orphaned executions so infinite job uniqueness cannot block syncs.
+    # Keep this above every worker timeout (currently at most 30 minutes).
+    {Oban.Plugins.Lifeline, rescue_after: :timer.hours(1)},
     {Oban.Plugins.Cron,
      crontab: [
        {"@reboot", Manavault.Catalog.ScryfallCatalogWorker},
@@ -113,7 +116,7 @@ config :manavault, ManavaultWeb.DeckSharePreview.ArtifactCache,
   cache_dir: Path.join(System.tmp_dir!(), "manavault/share-previews"),
   max_artifacts: 500,
   assets_version: "scryfall-symbols-v1",
-  renderer_version: "rsvg-convert"
+  renderer_version: "resvg-0.48.1"
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

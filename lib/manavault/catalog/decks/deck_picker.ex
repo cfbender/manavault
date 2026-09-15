@@ -64,7 +64,7 @@ defmodule Manavault.Catalog.Decks.DeckPicker do
 
   defp list_playable_decks do
     Deck
-    |> where([deck], deck.status != "archived")
+    |> where([deck], deck.status != "archived" and deck.included_for_play)
     |> order_by([deck], asc: deck.name, asc: deck.id)
     |> Repo.all()
   end

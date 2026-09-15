@@ -13,6 +13,7 @@ export const DecksDocument = graphql(`
           name
           format
           status
+          includedForPlay
           playCount
           skipCount
           lastPlayedAt
@@ -113,6 +114,7 @@ export const UpdateDeckDocument = graphql(`
         name
         format
         status
+        includedForPlay
         playCount
         skipCount
         lastPlayedAt
@@ -206,6 +208,7 @@ export const DeckPlayHistoryDocument = graphql(`
   query DeckPlayHistory($id: ID!) {
     deck(id: $id) {
       id
+      includedForPlay
       playCount
       skipCount
       lastPlayedAt
@@ -359,6 +362,42 @@ export const AnalyzeDeckDocument = graphql(`
         aiAnalyzedAt
         commanderBracket
         commanderBracketEstimate
+      }
+    }
+  }
+`)
+
+export const DeckAnalysisRequestsDocument = graphql(`
+  query DeckAnalysisRequests {
+    deckAnalysisRequests {
+      id
+      sourceType
+      source
+      sourceName
+      format
+      analysis
+      model
+      commanderBracket
+      commanderBracketEstimate
+      insertedAt
+    }
+  }
+`)
+
+export const AnalyzeDeckListDocument = graphql(`
+  mutation AnalyzeDeckList($url: String, $text: String, $format: String!) {
+    analyzeDeckList(url: $url, text: $text, format: $format) {
+      deckAnalysisRequest {
+        id
+        sourceType
+        source
+        sourceName
+        format
+        analysis
+        model
+        commanderBracket
+        commanderBracketEstimate
+        insertedAt
       }
     }
   }
@@ -1162,6 +1201,50 @@ export const DeckEdhrecDocument = graphql(`
                 available
               }
             }
+          }
+        }
+      }
+    }
+  }
+`)
+
+export const DeckRecommanderDocument = graphql(`
+  query DeckRecommander($id: ID!) {
+    deckRecommander(id: $id) {
+      commanders {
+        name
+        oracleId
+        url
+      }
+      recommendations {
+        name
+        oracleId
+        rank
+        score
+        card {
+          id
+          oracleId
+          name
+          typeLine
+          primaryPrinting {
+            id
+            scryfallId
+            imageUrl
+            artCropUrl
+            priceText
+          }
+        }
+        collectionStatus {
+          state
+          required
+          owned
+          allocated
+          available
+          allocatedElsewhere
+          missing
+          deckZone
+          candidates {
+            available
           }
         }
       }

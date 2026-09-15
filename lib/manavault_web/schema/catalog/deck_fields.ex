@@ -132,6 +132,10 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
     {:ok, DateTime.to_iso8601(inserted_at)}
   end
 
+  def deck_analysis_request_inserted_at(%{inserted_at: inserted_at}, _args, _resolution) do
+    {:ok, DateTime.to_iso8601(inserted_at)}
+  end
+
   def deck_question_answer_recommended_cuts(question_answer, _args, _resolution) do
     {:ok, recommendation_names(question_answer, :cuts)}
   end

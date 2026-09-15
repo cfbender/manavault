@@ -32,12 +32,14 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "collectionValueDashboard",
                "collectionValueSummary",
                "deck",
+               "deckAnalysisRequests",
                "deckBuylist",
                "deckBuylistExport",
                "deckCombos",
                "deckEdhrec",
                "deckExportText",
                "deckQuestionAnswers",
+               "deckRecommander",
                "decks",
                "defaultDeckTags",
                "homeSummary",
@@ -63,6 +65,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "allocateDeckCardProxy",
                "allocateDeckPullList",
                "analyzeDeck",
+               "analyzeDeckList",
                "askDeckQuestion",
                "assignDeckCardTag",
                "autoSortCollection",
@@ -148,7 +151,12 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
     assert argument(query_fields["deckBuylist"], "assumeNoOwned") == {"Boolean", "false"}
     assert type_signature(query_fields["deckCombos"]["type"]) == "[DeckCombo!]!"
     assert argument(query_fields["deckCombos"], "id") == {"ID!", nil}
+    assert type_signature(query_fields["deckRecommander"]["type"]) == "DeckRecommander!"
+    assert argument(query_fields["deckRecommander"], "id") == {"ID!", nil}
     assert type_signature(query_fields["defaultDeckTags"]["type"]) == "[DefaultDeckTag!]!"
+
+    assert type_signature(query_fields["deckAnalysisRequests"]["type"]) ==
+             "[DeckAnalysisRequest!]!"
 
     assert type_signature(query_fields["deckQuestionAnswers"]["type"]) ==
              "[DeckQuestionAnswer!]!"
@@ -160,6 +168,9 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
     assert type_signature(mutation_fields["createCollectionItem"]["type"]) ==
              "CreateCollectionItemPayload"
 
+    assert argument(mutation_fields["analyzeDeckList"], "url") == {"String", nil}
+    assert argument(mutation_fields["analyzeDeckList"], "text") == {"String", nil}
+    assert argument(mutation_fields["analyzeDeckList"], "format") == {"String!", nil}
     assert argument(mutation_fields["askDeckQuestion"], "question") == {"String!", nil}
     assert argument(mutation_fields["deleteDeckQuestionAnswer"], "id") == {"ID!", nil}
     assert argument(mutation_fields["recordDeckPlay"], "id") == {"ID!", nil}
@@ -194,6 +205,9 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
              }
 
     assert payload_fields(data["allocateDeckCardProxyPayload"]) == %{"deckCard" => "DeckCard"}
+
+    assert payload_fields(data["analyzeDeckListPayload"]) ==
+             %{"deckAnalysisRequest" => "DeckAnalysisRequest"}
 
     assert payload_fields(data["askDeckQuestionPayload"]) == %{
              "answer" => "String!",
@@ -353,6 +367,9 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
         fields { name type { kind name ofType { kind name ofType { kind name ofType { kind name } } } } }
       }
       allocateDeckCardProxyPayload: __type(name: "AllocateDeckCardProxyPayload") {
+        fields { name type { kind name ofType { kind name ofType { kind name ofType { kind name } } } } }
+      }
+      analyzeDeckListPayload: __type(name: "AnalyzeDeckListPayload") {
         fields { name type { kind name ofType { kind name ofType { kind name ofType { kind name } } } } }
       }
       askDeckQuestionPayload: __type(name: "AskDeckQuestionPayload") {

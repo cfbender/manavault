@@ -89,6 +89,19 @@ defmodule Manavault.AI.DeckAnalysisTest do
              "## Budget upgrades\n\n- Start with [[Counterspell]]."
   end
 
+  test "frames Commander brackets as a holistic guideline rather than a card checklist" do
+    prompt = DeckAnalysis.system_prompt() |> String.replace(~r/\s+/, " ")
+
+    assert prompt =~ "flexible matchmaking guidelines"
+    assert prompt =~ "violating an expectation once does not immediately move a deck"
+    assert prompt =~ "One [[Nexus of Fate]] is not a chained or looped extra-turn plan"
+    assert prompt =~ "One [[Mana Vault]]"
+    assert prompt =~ "does not, by itself, make an otherwise moderate deck Bracket 4"
+    assert prompt =~ "density, redundancy, synergy, tutorability"
+    assert prompt =~ "Do not recite each bracket's restrictions"
+    refute prompt =~ "required by the literal Commander Brackets guidelines"
+  end
+
   test "requires empty custom sections when no custom instructions exist" do
     schema = DeckAnalysis.response_schema()
     assert schema.properties.custom_sections.maxItems == 0

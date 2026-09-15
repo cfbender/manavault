@@ -69,6 +69,7 @@ type DeckDetailHeaderProps = {
   onImportDeck: () => void
   onMissingCards: () => void
   onOpenEdhrec: () => void
+  onOpenRecommander: () => void
   onOpenReadiness: () => void
   onShareBuylist: () => void
   onShareDeck: () => void
@@ -209,6 +210,7 @@ export function DeckDetailHeader({
   onImportDeck,
   onMissingCards,
   onOpenEdhrec,
+  onOpenRecommander,
   onOpenReadiness,
   onShareBuylist,
   onShareDeck,
@@ -301,6 +303,9 @@ export function DeckDetailHeader({
                 onCompare={onCompareDeck}
                 onDisassemble={canEdit ? onDisassemble : undefined}
                 onEdhrec={canEdit && deck.format === "commander" ? onOpenEdhrec : undefined}
+                onRecommander={
+                  canEdit && deck.format === "commander" ? onOpenRecommander : undefined
+                }
                 onEdit={onEditDeck}
                 onExport={onExportDeck}
                 onImport={canEdit ? onImportDeck : undefined}

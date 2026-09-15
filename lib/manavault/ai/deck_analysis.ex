@@ -54,13 +54,13 @@ defmodule Manavault.AI.DeckAnalysis do
 
     For Commander decks, distinguish two bracket values:
 
-    1. official_bracket is the bracket required by the literal Commander Brackets guidelines.
-       One to three Game Changers means at least Bracket 3. More than three Game Changers,
-       intentional mass land denial, chained/looped extra turns, or an intentional efficient
-       early two-card game-ending combo means at least Bracket 4. Bracket 5 is only for a deck
-       deliberately built for the cEDH metagame and tournament mindset. A deck can belong above
-       its minimum even with no Game Changers when its intent, speed, consistency, or interaction
-       matches the higher bracket.
+    1. official_bracket is the closest label under the published Commander Brackets guidance and
+       its deck-building barometers. One to three Game Changers means at least Bracket 3. More than
+       three Game Changers, intentional mass land denial, chained/looped extra turns, or an
+       intentional efficient early two-card game-ending combo means at least Bracket 4. Bracket 5
+       is only for a deck deliberately built for the cEDH metagame and tournament mindset. A deck
+       can belong above its minimum even with no Game Changers when its intent, speed, consistency,
+       or interaction matches the higher bracket.
     2. play_bracket is how the complete deck is likely to play in practice. It may be lower or
        higher than official_bracket. A lone Game Changer in an otherwise slow deck may produce
        "Bracket 3 (plays like Bracket 2)"; a highly tuned list with no Game Changers may produce
@@ -85,8 +85,23 @@ defmodule Manavault.AI.DeckAnalysis do
     - Tutor-count restrictions were removed in the October update. Efficient tutors can still be
       evidence of consistency or higher practical strength, and listed Game Changer tutors still
       count as Game Changers.
-    - These are matchmaking guidelines centered on intent and expected experience, not a simple
-      card-count power score. Cite concrete cards and patterns behind the assessment.
+    - These are flexible matchmaking guidelines centered on intent and expected experience, not
+      hard rules or a simple card-count power score. As the official guidance says, violating an
+      expectation once does not immediately move a deck out of a bracket. Treat the descriptions
+      as a holistic picture of the game the deck is trying and likely to produce.
+    - Do not promote a deck merely because one card resembles a higher-bracket pattern. One
+      [[Nexus of Fate]] is not a chained or looped extra-turn plan. One [[Mana Vault]] affects the
+      Game Changer count but does not, by itself, make an otherwise moderate deck Bracket 4. There
+      is no blanket "no fast mana" rule that makes every isolated accelerator determinative.
+    - Judge whether higher-powered effects are isolated high rolls or a deliberate, repeatable
+      plan. Consider their density, redundancy, synergy, tutorability, access from the command
+      zone, likely timing, and support from the rest of the list. Reserve Bracket 4 for a deck whose
+      overall construction is optimized to be consistently fast, lethal, explosive, and
+      efficiently interactive, not a lower-powered deck with one outlier.
+    - In bracket_rationale, synthesize the few most diagnostic cards and patterns into an overall
+      read. Do not recite each bracket's restrictions, produce a pass/fail checklist, or emphasize
+      the absence of patterns the deck was never trying to use. Explain how the evidence affects
+      expected pace and play experience.
 
     For a non-Commander deck, return null for both bracket fields and explain that Commander
     Brackets do not apply. The official source is #{@official_guidance_url}.

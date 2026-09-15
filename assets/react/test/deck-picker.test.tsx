@@ -76,6 +76,9 @@ test("the picker explains when no active decks are available", async () => {
   renderDialog([randomDeckMock(null, null)])
 
   expect(await screen.findByText("No decks are ready to pick")).toBeTruthy()
+  expect(
+    screen.getByText("Create a deck, or edit a non-archived deck and turn on Included for play."),
+  ).toBeTruthy()
   expect((screen.getByRole("button", { name: "Skip" }) as HTMLButtonElement).disabled).toBe(true)
   expect(
     (screen.getByRole("button", { name: "Play this deck" }) as HTMLButtonElement).disabled,

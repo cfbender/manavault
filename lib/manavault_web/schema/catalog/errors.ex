@@ -68,6 +68,46 @@ defmodule ManavaultWeb.Schema.Catalog.Errors do
   def edhrec_error(reason) when is_binary(reason), do: reason
   def edhrec_error(_reason), do: "Could not load EDHREC data."
 
+  def recommander_error(:recommander_missing_commander),
+    do: "Recommander requires a commander."
+
+  def recommander_error(:recommander_too_many_commanders),
+    do: "Recommander supports a commander and at most one partner."
+
+  def recommander_error(:recommander_unexpected_response),
+    do: "Recommander returned an unexpected response."
+
+  def recommander_error({:recommander_http_error, status}),
+    do: "Recommander returned HTTP #{status}."
+
+  def recommander_error({:recommander_request_failed, reason}),
+    do: "Could not reach Recommander: #{reason}"
+
+  def recommander_error({:recommander_api_error, code, messages}) do
+    case {code, messages} do
+      {"error_rate_limited", _messages} ->
+        "Recommander is rate limiting requests; try again in a minute."
+
+      {code, _messages} when code in ["error_booting", "error_model_loading"] ->
+        "Recommander is starting up; try again in a moment."
+
+      {code, _messages} when code in ["error_invalid_deck", "error_invalid_cards"] ->
+        "Recommander could not understand this deck's cards."
+
+      {"error_not_found", _messages} ->
+        "Recommander does not have data for this commander."
+
+      {_code, [message | _rest]} ->
+        "Recommander error: #{message}"
+
+      {code, _messages} ->
+        "Recommander returned an error (#{code})."
+    end
+  end
+
+  def recommander_error(reason) when is_binary(reason), do: reason
+  def recommander_error(_reason), do: "Could not load Recommander data."
+
   def commander_spellbook_error(:commander_spellbook_unexpected_response),
     do: "Commander Spellbook returned an unexpected response."
 

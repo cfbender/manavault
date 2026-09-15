@@ -49,6 +49,22 @@ defmodule Manavault.Catalog.Card do
 
   def chooses_color_before_game?(_oracle_text), do: false
 
+  @doc """
+  Type line for physical sorting and type grouping. Permanents use their front
+  face, not an adventure, prepared spell, or back face. Split spells retain both types.
+  """
+  def sorting_type_line(type_line) when is_binary(type_line) do
+    front = type_line |> String.split("//", parts: 2) |> hd() |> String.trim()
+
+    if Regex.match?(~r/\b(?:Artifact|Battle|Creature|Enchantment|Land|Planeswalker)\b/i, front) do
+      front
+    else
+      type_line
+    end
+  end
+
+  def sorting_type_line(_type_line), do: ""
+
   def changeset(card, attrs) do
     card
     |> cast(attrs, [

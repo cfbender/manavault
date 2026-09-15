@@ -7,6 +7,7 @@ erlang = { version = "29.0.3", install_env = { KERL_CONFIGURE_OPTIONS = "--witho
 git-cliff = "latest"
 java = "21"
 node = "26.4.0"
+resvg = "0.48.1"
 "npm:backlog.md" = "latest"
 
 [tasks.setup]

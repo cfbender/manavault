@@ -11,7 +11,7 @@ defmodule ManavaultWeb.DeckSharePreview.ArtifactCache do
   alias ManavaultWeb.DeckSharePreview.{ArtifactStore, RenderWorker}
 
   @default_assets_version "scryfall-symbols-v1"
-  @default_renderer_version "rsvg-convert"
+  @default_renderer_version "resvg-0.48.1"
   @await_timeout :timer.minutes(2)
   @poll_interval 100
 

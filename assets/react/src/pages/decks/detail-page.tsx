@@ -51,10 +51,9 @@ import { DeckDocument } from "./queries"
 import {
   flattenDeck,
   type EDHRecAddZone,
-  type EDHRecCard,
-  type EDHRecSectionCard,
   type EDHRecTab,
   type EDHRecThemeSelection,
+  type RecommendedCardLike,
 } from "./deck-types"
 
 type DeckDetailPageProps = {
@@ -305,7 +304,7 @@ export function DeckDetailPage({
     })
   }
 
-  function addEdhrecCard(card: EDHRecCard | EDHRecSectionCard, zone: EDHRecAddZone) {
+  function addEdhrecCard(card: RecommendedCardLike, zone: EDHRecAddZone) {
     cardActions.addDeckCard({
       finish: "nonfoil",
       name: card.name,
@@ -413,6 +412,7 @@ export function DeckDetailPage({
             setOverlay({ kind: "edhrec" })
             setEdhrecState({ tab: "recs", theme: null })
           }}
+          onOpenRecommander={() => setOverlay({ kind: "recommander" })}
           onOpenReadiness={() => setOverlay({ kind: "readiness" })}
           onShareBuylist={() => setOverlay({ kind: "share-buylist" })}
           onShareDeck={() => setOverlay({ kind: "share-deck" })}

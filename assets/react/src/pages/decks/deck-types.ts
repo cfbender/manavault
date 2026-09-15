@@ -4,6 +4,7 @@ import type {
   DeckBuylistQuery,
   DeckEdhrecQuery,
   DeckQuery,
+  DeckRecommanderQuery,
   DecksQuery,
   PreviewDeckDisassemblyMutation,
 } from "../../gql/graphql"
@@ -45,6 +46,11 @@ export type EDHRecCollectionStatus =
   | EDHRecCard["collectionStatus"]
   | EDHRecSectionCard["collectionStatus"]
   | DeckCardEntry["allocationStatus"]
+export type RecommanderData = NonNullable<DeckRecommanderQuery["deckRecommander"]>
+export type RecommanderCard = RecommanderData["recommendations"][number]
+// Any recommendation-source card that can be previewed, added to the deck, or
+// rendered with the shared collection-status/menu components.
+export type RecommendedCardLike = EDHRecCard | EDHRecSectionCard | RecommanderCard
 export type EDHRecTab = "recs" | "cuts" | "commander"
 export type EDHRecThemeSelection = {
   commanderName: string

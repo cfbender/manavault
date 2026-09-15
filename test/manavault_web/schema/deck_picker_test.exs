@@ -87,6 +87,60 @@ defmodule ManavaultWeb.Schema.DeckPickerTest do
     assert %{"data" => %{"randomDeck" => nil}} = json_response(conn, 200)
   end
 
+  test "deck inclusion can be toggled through GraphQL and controls random picks", %{conn: conn} do
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Tonight", "status" => "active"})
+    id = global_deck_id(deck)
+
+    for included <- [false, true] do
+      update_conn =
+        post(conn, "/api/graphql", %{
+          "query" => """
+          mutation UpdateDeck($id: ID!, $input: DeckUpdateInput!) {
+            updateDeck(id: $id, input: $input) {
+              deck { id includedForPlay status playCount skipCount }
+            }
+          }
+          """,
+          "variables" => %{"id" => id, "input" => %{"includedForPlay" => included}}
+        })
+
+      assert %{
+               "data" => %{
+                 "updateDeck" => %{
+                   "deck" => %{
+                     "includedForPlay" => ^included,
+                     "status" => "active",
+                     "playCount" => 0,
+                     "skipCount" => 0
+                   }
+                 }
+               }
+             } = json_response(update_conn, 200)
+
+      query_conn =
+        post(recycle(update_conn), "/api/graphql", %{
+          "query" => """
+          query DeckInclusion($id: ID!) {
+            deck(id: $id) { includedForPlay }
+            decks(first: 10) { edges { node { includedForPlay } } }
+            randomDeck(excludeId: $id) { id }
+          }
+          """,
+          "variables" => %{"id" => id}
+        })
+
+      expected_pick = if included, do: %{"id" => id}, else: nil
+
+      assert %{
+               "data" => %{
+                 "deck" => %{"includedForPlay" => ^included},
+                 "decks" => %{"edges" => [%{"node" => %{"includedForPlay" => ^included}}]},
+                 "randomDeck" => ^expected_pick
+               }
+             } = json_response(query_conn, 200)
+    end
+  end
+
   defp record_outcome(conn, deck, outcome) do
     post(conn, "/api/graphql", %{
       "query" => """

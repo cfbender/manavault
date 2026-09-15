@@ -60,6 +60,19 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
     end
   end
 
+  def analyze_deck_list(_parent, args, _resolution) do
+    case AI.analyze_deck_list(args) do
+      {:ok, request} ->
+        {:ok, request}
+
+      {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
+        {:error, Errors.changeset_error_message(changeset)}
+
+      {:error, reason} when is_binary(reason) ->
+        {:error, reason}
+    end
+  end
+
   def ask_deck_question(_parent, %{id: id, question: question}, resolution) do
     with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
       id

@@ -92,6 +92,7 @@ test("deck editor chooses any deck card as the cover", async () => {
           name: "Partner Deck",
           format: "commander",
           status: "active",
+          includedForPlay: true,
           playCount: 0,
           skipCount: 0,
           lastPlayedAt: null,
@@ -121,6 +122,7 @@ test("deck editor chooses any deck card as the cover", async () => {
       name: "Partner Deck",
       format: "commander",
       status: "active",
+      includedForPlay: true,
       playCount: 0,
       skipCount: 0,
       lastPlayedAt: null,
@@ -141,6 +143,7 @@ test("deck editor saves and clears primer Markdown", async () => {
           name: "Primer Deck",
           format: "commander",
           status: "brewing",
+          includedForPlay: true,
           playCount: 0,
           skipCount: 0,
           lastPlayedAt: null,
@@ -163,6 +166,7 @@ test("deck editor saves and clears primer Markdown", async () => {
       name: "Primer Deck",
       format: "commander",
       status: "brewing",
+      includedForPlay: true,
       playCount: 0,
       skipCount: 0,
       lastPlayedAt: null,
@@ -182,6 +186,7 @@ test("deck editor imports historical play data", async () => {
           name: "History Deck",
           format: "commander",
           status: "active",
+          includedForPlay: false,
           playCount: 2,
           skipCount: 1,
           lastPlayedAt: null,
@@ -215,6 +220,7 @@ test("deck editor imports historical play data", async () => {
       name: "History Deck",
       format: "commander",
       status: "active",
+      includedForPlay: false,
       playCount: 14,
       skipCount: 3,
       lastPlayedAt: new Date(2026, 7, 10).toISOString(),
@@ -225,7 +231,13 @@ test("deck editor imports historical play data", async () => {
 
 test("deck editor loads historical data when the detail query omits private fields", () => {
   apolloMocks.queryData = {
-    deck: { id: "deck-1", playCount: 9, skipCount: 5, lastPlayedAt: "2026-06-12T00:00:00Z" },
+    deck: {
+      id: "deck-1",
+      includedForPlay: false,
+      playCount: 9,
+      skipCount: 5,
+      lastPlayedAt: "2026-06-12T00:00:00Z",
+    },
   }
 
   render(
@@ -248,6 +260,9 @@ test("deck editor loads historical data when the detail query omits private fiel
   expect((screen.getByRole("spinbutton", { name: "Plays" }) as HTMLInputElement).value).toBe("9")
   expect((screen.getByRole("spinbutton", { name: "Skips" }) as HTMLInputElement).value).toBe("5")
   expect((screen.getByLabelText("Last played") as HTMLInputElement).value).toBe("2026-06-12")
+  expect(
+    screen.getByRole("switch", { name: "Included for play" }).getAttribute("aria-checked"),
+  ).toBe("false")
 })
 
 test("deck editor clears the last-played date", async () => {
@@ -261,6 +276,7 @@ test("deck editor clears the last-played date", async () => {
           name: "Clear History",
           format: "modern",
           status: "archived",
+          includedForPlay: true,
           playCount: 8,
           skipCount: 2,
           lastPlayedAt: "2026-08-10T12:00:00Z",
@@ -282,6 +298,7 @@ test("deck editor clears the last-played date", async () => {
       name: "Clear History",
       format: "modern",
       status: "archived",
+      includedForPlay: true,
       playCount: 8,
       skipCount: 2,
       lastPlayedAt: null,
@@ -301,6 +318,7 @@ test("deck editor rejects invalid historical counts", async () => {
           name: "Invalid History",
           format: "commander",
           status: "brewing",
+          includedForPlay: true,
           playCount: 0,
           skipCount: 0,
           lastPlayedAt: null,
@@ -321,3 +339,55 @@ test("deck editor rejects invalid historical counts", async () => {
   expect(screen.getByText("Play and skip counts must be whole numbers of 0 or more")).toBeTruthy()
   expect(apolloMocks.mutationVariables).toBeUndefined()
 })
+
+test.each([true, false])(
+  "deck editor toggles inclusion from %s with the keyboard",
+  async (included) => {
+    const user = userEvent.setup()
+    const onOpenChange = vi.fn()
+
+    render(
+      <EditDeckDialog
+        deck={
+          {
+            id: "deck-1",
+            name: "Tonight",
+            format: "commander",
+            status: "active",
+            includedForPlay: included,
+            playCount: 4,
+            skipCount: 2,
+            lastPlayedAt: null,
+            primer: null,
+            coverDeckCardId: null,
+          } as never
+        }
+        open
+        onOpenChange={onOpenChange}
+      />,
+    )
+
+    const toggle = screen.getByRole("switch", { name: "Included for play" })
+    expect(toggle.getAttribute("aria-checked")).toBe(String(included))
+    toggle.focus()
+    await user.keyboard(" ")
+    expect(toggle.getAttribute("aria-checked")).toBe(String(!included))
+    expect(apolloMocks.mutationVariables).toBeUndefined()
+
+    await user.click(screen.getByRole("button", { name: "Save deck" }))
+    expect(apolloMocks.mutationVariables).toEqual({
+      id: "deck-1",
+      input: {
+        name: "Tonight",
+        format: "commander",
+        status: "active",
+        includedForPlay: !included,
+        playCount: 4,
+        skipCount: 2,
+        lastPlayedAt: null,
+        primer: null,
+      },
+    })
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  },
+)

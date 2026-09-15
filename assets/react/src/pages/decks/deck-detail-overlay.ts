@@ -26,6 +26,7 @@ export type DeckDetailOverlay =
   | { kind: "optimize-printings"; error: string | null }
   | { kind: "preview-card"; deckCard: DeckCardEntry }
   | { kind: "readiness" }
+  | { kind: "recommander" }
   | { kind: "select-from-list" }
   | { kind: "share-buylist" }
   | { kind: "share-deck" }

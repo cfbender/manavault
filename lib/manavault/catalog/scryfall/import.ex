@@ -120,7 +120,6 @@ defmodule Manavault.Catalog.Scryfall.Import do
       fn ->
         insert_card_rows(rows.cards, replace_oracle_tag_fields?)
         insert_printing_rows(rows.printings)
-        refresh_printing_search_rows(rows.search_rows)
         {:ok, :imported}
       end,
       timeout: :infinity
@@ -132,7 +131,6 @@ defmodule Manavault.Catalog.Scryfall.Import do
       source_count: 0,
       cards_count: 0,
       printings_count: 0,
-      search_rows_count: 0,
       next_progress: @progress_source_card_interval
     }
   end
@@ -142,8 +140,7 @@ defmodule Manavault.Catalog.Scryfall.Import do
       counts
       | source_count: counts.source_count + source_count,
         cards_count: counts.cards_count + length(rows.cards),
-        printings_count: counts.printings_count + length(rows.printings),
-        search_rows_count: counts.search_rows_count + length(rows.search_rows)
+        printings_count: counts.printings_count + length(rows.printings)
     }
   end
 
@@ -212,8 +209,7 @@ defmodule Manavault.Catalog.Scryfall.Import do
        when processed >= next or processed == source_count do
     Logger.info(
       "Scryfall catalog import progress source_cards=#{processed}/#{source_count} " <>
-        "cards=#{counts.cards_count} printings=#{counts.printings_count} " <>
-        "search_rows=#{counts.search_rows_count}"
+        "cards=#{counts.cards_count} printings=#{counts.printings_count}"
     )
 
     %{counts | next_progress: next_progress_after(processed)}
@@ -252,67 +248,6 @@ defmodule Manavault.Catalog.Scryfall.Import do
     rows
     |> Enum.chunk_every(@batch_size)
     |> Enum.each(fn batch -> Repo.insert_all(schema, batch, opts) end)
-  end
-
-  defp refresh_printing_search_rows([]), do: :ok
-
-  defp refresh_printing_search_rows(rows) do
-    rows
-    |> Enum.map(& &1.scryfall_id)
-    |> Enum.chunk_every(@batch_size)
-    |> Enum.each(fn ids ->
-      placeholders = Enum.map_join(ids, ",", fn _ -> "?" end)
-
-      Repo.query!(
-        "DELETE FROM scryfall_printing_search WHERE scryfall_id IN (#{placeholders})",
-        ids
-      )
-    end)
-
-    rows
-    |> Enum.chunk_every(@batch_size)
-    |> Enum.each(fn batch ->
-      values = Enum.map_join(batch, ",", fn _ -> "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" end)
-
-      params =
-        Enum.flat_map(batch, fn row ->
-          [
-            row.scryfall_id,
-            row.name,
-            row.compact_name,
-            row.flavor_name,
-            row.compact_flavor_name,
-            row.flavor_text,
-            row.compact_flavor_text,
-            row.type_line,
-            row.oracle_text,
-            row.compact_oracle_text,
-            row.set_code,
-            row.collector_number
-          ]
-        end)
-
-      Repo.query!(
-        """
-        INSERT INTO scryfall_printing_search (
-          scryfall_id,
-          name,
-          compact_name,
-          flavor_name,
-          compact_flavor_name,
-          flavor_text,
-          compact_flavor_text,
-          type_line,
-          oracle_text,
-          compact_oracle_text,
-          set_code,
-          collector_number
-        )
-        VALUES #{values}
-        """,
-        params
-      )
-    end)
   end
 
   defp maybe_reconcile_printings(false, _imported_at), do: :ok
@@ -409,8 +344,6 @@ defmodule Manavault.Catalog.Scryfall.Import do
         |> Enum.reject(&MapSet.member?(replaced_ids, &1))
         |> Enum.chunk_every(@batch_size)
         |> Enum.each(&clear_trade_wants/1)
-
-        delete_printing_search_rows(stale_ids)
 
         Enum.each(Enum.chunk_every(stale_ids, @batch_size), fn ids ->
           Repo.delete_all(from printing in Printing, where: printing.scryfall_id in ^ids)
@@ -538,19 +471,6 @@ defmodule Manavault.Catalog.Scryfall.Import do
 
           Repo.delete!(stale_want)
       end
-    end)
-  end
-
-  defp delete_printing_search_rows([]), do: :ok
-
-  defp delete_printing_search_rows(ids) do
-    Enum.each(Enum.chunk_every(ids, @batch_size), fn batch ->
-      placeholders = Enum.map_join(batch, ",", fn _ -> "?" end)
-
-      Repo.query!(
-        "DELETE FROM scryfall_printing_search WHERE scryfall_id IN (#{placeholders})",
-        batch
-      )
     end)
   end
 

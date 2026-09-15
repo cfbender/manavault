@@ -15,19 +15,31 @@ defmodule Manavault.Catalog.EDHRec.CommanderRanks do
   end
 
   def update_cards(ranks) when is_map(ranks) do
-    Repo.transact(
-      fn ->
-        Repo.update_all(Card, set: [edhrec_commander_rank: nil])
+    # Keep each write atomic without holding SQLite's write lock for the refresh.
+    {updated_count, updated_ids} =
+      ranks
+      |> Enum.chunk_every(@update_batch_size)
+      |> Enum.reduce({0, MapSet.new()}, fn batch, {count, updated_ids} ->
+        ids = update_card_batch(batch)
+        {count + length(ids), MapSet.union(updated_ids, MapSet.new(ids))}
+      end)
 
-        updated_count =
-          ranks
-          |> Enum.chunk_every(@update_batch_size)
-          |> Enum.reduce(0, fn batch, count -> count + update_card_batch(batch) end)
-
-        {:ok, updated_count}
-      end,
-      timeout: :infinity
+    # Track resolved oracle IDs, not the printing IDs supplied by EDHREC, and
+    # defer stale cleanup until every incoming batch has succeeded.
+    Repo.all(
+      from card in Card,
+        where: not is_nil(card.edhrec_commander_rank),
+        select: card.oracle_id
     )
+    |> Enum.reject(&MapSet.member?(updated_ids, &1))
+    |> Enum.chunk_every(@update_batch_size)
+    |> Enum.each(fn ids ->
+      Repo.update_all(from(card in Card, where: card.oracle_id in ^ids),
+        set: [edhrec_commander_rank: nil]
+      )
+    end)
+
+    {:ok, updated_count}
   end
 
   defp fetch_pages(fetcher, url, page_delay_ms, visited, ranks, page_count) do
@@ -76,7 +88,12 @@ defmodule Manavault.Catalog.EDHRec.CommanderRanks do
   defp decode_page(_body), do: {:error, "EDHREC commander ranking payload was not JSON"}
 
   defp page_data(page) do
-    cardlists = get_in(page, ["container", "json_dict", "cardlists"])
+    cardlists =
+      case page do
+        # Continuation pages are a single card list without the page wrapper.
+        %{"cardviews" => views} when is_list(views) -> [page]
+        _other -> get_in(page, ["container", "json_dict", "cardlists"])
+      end
 
     if is_list(cardlists) do
       ranks =
@@ -121,7 +138,7 @@ defmodule Manavault.Catalog.EDHRec.CommanderRanks do
       end)
 
     update_oracle_batch(Map.to_list(rank_by_oracle_id))
-    map_size(rank_by_oracle_id)
+    Map.keys(rank_by_oracle_id)
   end
 
   defp update_oracle_batch([]), do: :ok

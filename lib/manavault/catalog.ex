@@ -77,6 +77,7 @@ defmodule Manavault.Catalog do
   defdelegate list_deck_summaries(), to: Decks
   defdelegate list_deck_summaries(opts), to: Decks
   defdelegate count_decks(), to: Decks
+  defdelegate count_non_archived_decks(), to: Decks
   defdelegate get_deck!(id, opts \\ []), to: Decks
   defdelegate get_deck_card!(id), to: Decks
   defdelegate get_deck_by_share_token(token, opts \\ []), to: Decks
@@ -169,6 +170,7 @@ defmodule Manavault.Catalog do
   defdelegate export_decklist(deck), to: Decks
   defdelegate deck_buylist(deck, opts \\ []), to: Decks
   defdelegate deck_edhrec(deck, opts \\ []), to: Decks
+  defdelegate deck_recommander(deck, opts \\ []), to: Decks
   defdelegate deck_combos(deck, opts \\ []), to: Decks
   defdelegate card_edhrec(name, opts \\ []), to: Manavault.Catalog.EDHRec, as: :card_page
   defdelegate export_deck_buylist(deck, format, opts \\ []), to: Decks

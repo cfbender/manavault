@@ -10,12 +10,7 @@ import {
 } from "../../components/ui/dropdown-menu"
 import { cn } from "../../lib/utils"
 import { AllocationStatusIcon } from "./deck-card-allocation"
-import type {
-  EDHRecAddZone,
-  EDHRecCard,
-  EDHRecCollectionStatus,
-  EDHRecSectionCard,
-} from "./deck-types"
+import type { EDHRecAddZone, EDHRecCollectionStatus, RecommendedCardLike } from "./deck-types"
 import { EDHREC_ADD_CARD_ZONES } from "./deck-types"
 import {
   collectionStatusHoverLabel,
@@ -34,7 +29,7 @@ export function EDHRecCardMenu({
   onCut,
   onPreviewCard,
 }: {
-  card: EDHRecCard | EDHRecSectionCard
+  card: RecommendedCardLike
   isPending: boolean
   mode?: "recs" | "cuts"
   onAddCard: (zone: EDHRecAddZone) => void
@@ -130,7 +125,7 @@ export function EDHRecCardDetailTrigger({
   className,
   onPreviewCard,
 }: {
-  card: EDHRecCard | EDHRecSectionCard
+  card: RecommendedCardLike
   children: ReactNode
   className?: string
   onPreviewCard: (card: CardDetailDialogTarget) => void

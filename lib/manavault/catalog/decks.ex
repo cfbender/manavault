@@ -1,7 +1,14 @@
 defmodule Manavault.Catalog.Decks do
   @moduledoc false
 
-  alias Manavault.Catalog.{Cache, CommanderSpellbook, DeckCard, DeckSummaries, EDHRec}
+  alias Manavault.Catalog.{
+    Cache,
+    CommanderSpellbook,
+    DeckCard,
+    DeckSummaries,
+    EDHRec,
+    Recommander
+  }
 
   alias Manavault.Catalog.Decks.{
     AllocationStatus,
@@ -40,6 +47,10 @@ defmodule Manavault.Catalog.Decks do
 
   def count_decks do
     cached(:count_decks, &Queries.count_decks/0)
+  end
+
+  def count_non_archived_decks do
+    cached(:count_non_archived_decks, &Queries.count_non_archived_decks/0)
   end
 
   def get_deck_by_share_token(token, opts \\ []) do
@@ -374,6 +385,12 @@ defmodule Manavault.Catalog.Decks do
   def deck_edhrec(deck, opts \\ []) do
     cached_deck_read(deck, {:deck_edhrec, opts}, fn ->
       EDHRec.recs(deck, opts)
+    end)
+  end
+
+  def deck_recommander(deck, opts \\ []) do
+    cached_deck_read(deck, {:deck_recommander, opts}, fn ->
+      Recommander.recs(deck, opts)
     end)
   end
 
