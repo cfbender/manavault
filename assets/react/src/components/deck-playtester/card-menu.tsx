@@ -70,7 +70,8 @@ export function CardContextMenu({
       <div
         className="fixed inset-x-2 bottom-2 z-50 max-h-[calc(100dvh-1rem)] overflow-y-auto rounded-box border border-base-300 bg-base-100/95 text-sm shadow-2xl backdrop-blur sm:inset-x-auto sm:bottom-auto sm:w-80 sm:left-[var(--menu-x)] sm:top-[var(--menu-y)]"
         style={{ "--menu-x": `${menu.x}px`, "--menu-y": `${menu.y}px` } as CSSProperties}
-        role="menu"
+        role="dialog"
+        aria-label={`${cardStatus.faceDown ? "Face-down card" : card.name} actions`}
       >
         <div className="border-b border-base-300 px-3 py-2 font-black">
           {cardStatus.faceDown ? "Face-down card" : card.name}
@@ -197,7 +198,6 @@ function MenuButton({
       )}
       disabled={disabled}
       onClick={onClick}
-      role="menuitem"
     >
       <Icon className={cn("h-4 w-4 text-base-content/45", disabled && "text-base-content/25")} />
       <span className="min-w-0 flex-1">{label}</span>

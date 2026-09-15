@@ -78,6 +78,81 @@ defmodule Manavault.Catalog.DecklistTest do
              Enum.find(loaded.deck_cards, &(&1.zone == "considering"))
   end
 
+  test "decklist import matches card names with or without diacritics" do
+    oin =
+      @time_walk
+      |> Map.merge(%{
+        "id" => "scryfall-oin-the-brave",
+        "oracle_id" => "oracle-oin-the-brave",
+        "name" => "Óin the Brave",
+        "collector_number" => "12"
+      })
+
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([oin])
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Diacritic Import"})
+
+    assert {:ok, %{imported: 2, unresolved: [], skipped_printings: []}} =
+             Catalog.import_decklist(deck, "1 Óin the Brave\n1 Oin the brave")
+
+    assert [%DeckCard{quantity: 2, card: %Card{name: "Óin the Brave"}}] =
+             Catalog.get_deck!(deck.id).deck_cards
+  end
+
+  test "decklist import matches a multi-faced card by its front-face and Moxfield names" do
+    bala_ged_recovery =
+      @time_walk
+      |> Map.merge(%{
+        "id" => "scryfall-bala-ged-recovery",
+        "oracle_id" => "oracle-bala-ged-recovery",
+        "name" => "Bala Ged Recovery // Bala Ged Sanctuary",
+        "collector_number" => "180"
+      })
+
+    assert {:ok, %{cards_count: 1, printings_count: 1}} =
+             Catalog.import_cards([bala_ged_recovery])
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Multi-faced Import"})
+
+    text = """
+    1 Bala Ged Recovery
+    1 Bala Ged Recovery / Bala Ged Sanctuary (LEA) 180
+    """
+
+    assert {:ok, %{imported: 2, unresolved: [], skipped_printings: []}} =
+             Catalog.import_decklist(deck, text)
+
+    assert [
+             %DeckCard{
+               quantity: 2,
+               preferred_printing_id: "scryfall-bala-ged-recovery",
+               card: %Card{name: "Bala Ged Recovery // Bala Ged Sanctuary"}
+             }
+           ] = Catalog.get_deck!(deck.id).deck_cards
+  end
+
+  test "decklist import matches a card by its Scryfall flavor name" do
+    homeward_path =
+      @time_walk
+      |> Map.merge(%{
+        "id" => "scryfall-homeward-path",
+        "oracle_id" => "oracle-homeward-path",
+        "name" => "Homeward Path",
+        "flavor_name" => "Pelican Town",
+        "collector_number" => "1"
+      })
+
+    assert {:ok, %{cards_count: 1, printings_count: 1}} =
+             Catalog.import_cards([homeward_path])
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Flavor Name Import"})
+
+    assert {:ok, %{imported: 1, unresolved: [], skipped_printings: []}} =
+             Catalog.import_decklist(deck, "1 Pelican Town")
+
+    assert [%DeckCard{card: %Card{name: "Homeward Path"}}] =
+             Catalog.get_deck!(deck.id).deck_cards
+  end
+
   test "decklist import assumes one copy when quantity is omitted" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])

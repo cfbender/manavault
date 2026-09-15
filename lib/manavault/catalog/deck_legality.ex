@@ -1,7 +1,7 @@
 defmodule Manavault.Catalog.DeckLegality do
   @moduledoc false
 
-  alias Manavault.Catalog.{Card, Deck, DeckCard}
+  alias Manavault.Catalog.{Card, CommanderRules, Deck, DeckCard}
 
   @commander_format "commander"
   @legal_status "legal"
@@ -75,20 +75,32 @@ defmodule Manavault.Catalog.DeckLegality do
   end
 
   defp commander_count_issues(deck_cards) do
-    count =
-      deck_cards
-      |> Enum.filter(&(&1.zone == "commander"))
-      |> Enum.reduce(0, &(&1.quantity + &2))
+    commanders = Enum.filter(deck_cards, &(&1.zone == "commander"))
+    count = Enum.reduce(commanders, 0, &(&1.quantity + &2))
 
-    if count == 1 do
-      []
-    else
-      [
-        issue(
-          "commander_count",
-          "Commander decks must have exactly one card in the commander zone; this deck has #{count}."
-        )
-      ]
+    case {count, commanders} do
+      {1, _commanders} ->
+        []
+
+      {2, [commander_a, commander_b]} ->
+        if CommanderRules.valid_pair?(commander_a.card, commander_b.card) do
+          []
+        else
+          [
+            issue(
+              "commander_count",
+              "#{card_name(commander_a)} and #{card_name(commander_b)} can't be paired as commanders; two commanders require a pairing ability such as Partner, Partner with, Friends forever, Doctor's companion, or Choose a Background."
+            )
+          ]
+        end
+
+      _other ->
+        [
+          issue(
+            "commander_count",
+            "Commander decks must have exactly one commander, or two with a pairing ability such as Partner; this deck has #{count}."
+          )
+        ]
     end
   end
 
@@ -117,32 +129,83 @@ defmodule Manavault.Catalog.DeckLegality do
   end
 
   defp commander_color_identity_issues(deck_cards) do
+    {commanders, other_cards} = Enum.split_with(deck_cards, &(&1.zone == "commander"))
+
     commander_colors =
-      deck_cards
-      |> Enum.filter(&(&1.zone == "commander"))
+      commanders
       |> Enum.flat_map(&card_color_identity/1)
       |> MapSet.new()
 
-    deck_cards
-    |> Enum.reject(&(&1.zone == "commander"))
-    |> Enum.flat_map(fn deck_card ->
-      card_colors = deck_card |> card_color_identity() |> MapSet.new()
+    # Commanders such as The Prismatic Piper or Clara Oswald say "choose a
+    # color before the game begins"; each adds one chosen color to the deck's
+    # color identity on top of the commanders' printed identities.
+    chosen_color_slots = Enum.count(commanders, &chooses_color_identity?/1)
 
-      if MapSet.subset?(card_colors, commander_colors) do
-        []
-      else
-        card_name = card_name(deck_card)
+    card_extras =
+      Enum.flat_map(other_cards, fn deck_card ->
+        extra_colors =
+          deck_card
+          |> card_color_identity()
+          |> MapSet.new()
+          |> MapSet.difference(commander_colors)
 
+        if MapSet.size(extra_colors) == 0 do
+          []
+        else
+          [{deck_card, extra_colors}]
+        end
+      end)
+
+    per_card_issues =
+      Enum.flat_map(card_extras, fn {deck_card, extra_colors} ->
+        if MapSet.size(extra_colors) <= chosen_color_slots do
+          []
+        else
+          [color_identity_issue(deck_card, commander_colors, chosen_color_slots)]
+        end
+      end)
+
+    combined_extra_colors =
+      Enum.reduce(card_extras, MapSet.new(), fn {_deck_card, extra_colors}, acc ->
+        MapSet.union(acc, extra_colors)
+      end)
+
+    combined_issues =
+      if per_card_issues == [] and MapSet.size(combined_extra_colors) > chosen_color_slots do
         [
           issue(
             "commander_color_identity",
-            "#{card_name} color identity #{colors_message(card_colors)} is outside commander color identity #{colors_message(commander_colors)}.",
-            card_name
+            "Cards outside the commanders' color identity #{colors_message(commander_colors)} use #{colors_message(combined_extra_colors)}, but the commanders can only add #{chosen_color_slots} chosen #{pluralize_color(chosen_color_slots)}."
           )
         ]
+      else
+        []
       end
-    end)
+
+    per_card_issues ++ combined_issues
   end
+
+  defp color_identity_issue(deck_card, commander_colors, chosen_color_slots) do
+    card_colors = deck_card |> card_color_identity() |> MapSet.new()
+    card_name = card_name(deck_card)
+
+    message =
+      if chosen_color_slots == 0 do
+        "#{card_name} color identity #{colors_message(card_colors)} is outside commander color identity #{colors_message(commander_colors)}."
+      else
+        "#{card_name} color identity #{colors_message(card_colors)} needs more colors beyond the commanders' color identity #{colors_message(commander_colors)} than the #{chosen_color_slots} chosen #{pluralize_color(chosen_color_slots)} the commanders can add."
+      end
+
+    issue("commander_color_identity", message, card_name)
+  end
+
+  defp chooses_color_identity?(%DeckCard{card: %Card{} = card}),
+    do: Card.chooses_color_before_game?(card)
+
+  defp chooses_color_identity?(_deck_card), do: false
+
+  defp pluralize_color(1), do: "color"
+  defp pluralize_color(_count), do: "colors"
 
   defp singleton_key(%DeckCard{oracle_id: oracle_id}) when is_binary(oracle_id),
     do: {:oracle_id, oracle_id}

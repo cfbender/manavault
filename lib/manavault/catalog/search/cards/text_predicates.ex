@@ -10,12 +10,9 @@ defmodule Manavault.Catalog.Search.Cards.TextPredicates do
     pattern = NameMatch.like_pattern(term)
 
     dynamic(
-      [card, _printing],
-      fragment(
-        "lower(replace(replace(?, '''', ''), '’', '')) LIKE ? ESCAPE '\\'",
-        card.name,
-        ^pattern
-      )
+      [card, printing],
+      fragment("? LIKE ? ESCAPE '\\'", card.normalized_name, ^pattern) or
+        fragment("? LIKE ? ESCAPE '\\'", printing.normalized_flavor_name, ^pattern)
     )
   end
 
@@ -30,12 +27,9 @@ defmodule Manavault.Catalog.Search.Cards.TextPredicates do
           name_pattern = NameMatch.like_pattern(value)
 
           dynamic(
-            [card, _printing],
-            fragment(
-              "lower(replace(replace(?, '''', ''), '’', '')) LIKE ? ESCAPE '\\'",
-              card.name,
-              ^name_pattern
-            )
+            [card, printing],
+            fragment("? LIKE ? ESCAPE '\\'", card.normalized_name, ^name_pattern) or
+              fragment("? LIKE ? ESCAPE '\\'", printing.normalized_flavor_name, ^name_pattern)
           )
 
         :type ->

@@ -2,11 +2,6 @@ import test from "node:test"
 import assert from "node:assert/strict"
 
 import {
-  DECK_STACK_ACTION_MENU_CLASS_NAME,
-  DECK_STACK_ACTION_MENU_DEFAULT_STYLE,
-  DECK_STACK_ACTION_MENU_TALL_STYLE,
-  deckStackActionMenuDirection,
-  deckStackActionMenuStyle,
   shouldCloseDeckStackActionMenu,
   shouldRaiseDeckStackCardForActionMenu,
   shouldRevealDeckStackCardOnPointerDown,
@@ -56,28 +51,6 @@ test("deck stack menus capture mouse movement instead of changing the active car
       pointerType: "mouse",
     }),
     true,
-  )
-})
-
-test("deck stack action menus fit inside the card without scrollbars", () => {
-  assert.equal(deckStackActionMenuDirection({ isLast: false }), "down")
-  assert.equal(deckStackActionMenuDirection({ isLast: true }), "down")
-  assert.match(DECK_STACK_ACTION_MENU_CLASS_NAME, /\bflex-nowrap\b/)
-  assert.match(DECK_STACK_ACTION_MENU_CLASS_NAME, /\boverflow-hidden\b/)
-  assert.doesNotMatch(DECK_STACK_ACTION_MENU_CLASS_NAME, /\boverflow-y-auto\b/)
-  assert.doesNotMatch(DECK_STACK_ACTION_MENU_CLASS_NAME, /\bmax-w-full\b/)
-  assert.equal(DECK_STACK_ACTION_MENU_DEFAULT_STYLE.top, "1.75rem")
-  assert.equal(
-    deckStackActionMenuStyle({ canSetCommander: false, hasClearTag: false }),
-    DECK_STACK_ACTION_MENU_DEFAULT_STYLE,
-  )
-  assert.equal(
-    deckStackActionMenuStyle({ canSetCommander: true, hasClearTag: false }),
-    DECK_STACK_ACTION_MENU_DEFAULT_STYLE,
-  )
-  assert.equal(
-    deckStackActionMenuStyle({ canSetCommander: true, hasClearTag: true }),
-    DECK_STACK_ACTION_MENU_TALL_STYLE,
   )
 })
 

@@ -46,6 +46,32 @@ test("selectSellListItems accepts the exported sell list format", () => {
   })
 })
 
+test("selectSellListItems accepts priced sell lists with varied names and prices", () => {
+  const lines = [
+    "1 Toph, Earthbending Master [TLE #145] foil - $39.81 ea - $39.81",
+    "1 Twinning Staff [C20 #70] nonfoil - $15 ea - $15",
+    "1 Fell the Profane // Fell Mire [MH3 #244] nonfoil - $3.48 ea - $3.48",
+  ]
+  const items = lines.map((line, index) => {
+    const [, name, setCode, collectorNumber, finish] = line.match(
+      /^1 (.+) \[([^ ]+) #([^\]]+)\] (nonfoil|foil|etched)/,
+    )
+
+    return {
+      id: `item-${index}`,
+      quantity: 1,
+      finish,
+      printing: { setCode, collectorNumber, card: { name } },
+    }
+  })
+
+  assert.deepEqual(selectSellListItems(lines, items), {
+    "item-0": 1,
+    "item-1": 1,
+    "item-2": 1,
+  })
+})
+
 test("selectSellListItems uses finish from exported lines", () => {
   const line = "2 Sol Ring [CMM #411] nonfoil - $1.25 ea - $2.50"
 

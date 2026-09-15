@@ -1,6 +1,7 @@
 defmodule ManavaultWeb.Schema.BackupResolvers do
   alias Manavault.Backup
   alias Manavault.Backup.Settings
+  alias ManavaultWeb.Schema.Catalog.Errors
 
   def backup_settings(_parent, _args, _resolution) do
     {:ok, Backup.settings() |> Settings.sanitize() |> serialize_datetimes()}
@@ -16,7 +17,7 @@ defmodule ManavaultWeb.Schema.BackupResolvers do
   def update_backup_settings(_parent, %{input: input}, _resolution) do
     case Backup.update_settings(input) do
       {:ok, settings} -> {:ok, settings |> Settings.sanitize() |> serialize_datetimes()}
-      {:error, changeset} -> {:error, changeset_error_message(changeset)}
+      {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
     end
   end
 
@@ -49,14 +50,4 @@ defmodule ManavaultWeb.Schema.BackupResolvers do
 
   defp error_message(reason) when is_binary(reason), do: reason
   defp error_message(reason), do: inspect(reason)
-
-  defp changeset_error_message(changeset) do
-    changeset
-    |> Ecto.Changeset.traverse_errors(fn {message, opts} ->
-      Enum.reduce(opts, message, fn {key, value}, acc ->
-        String.replace(acc, "%{#{key}}", to_string(value))
-      end)
-    end)
-    |> Enum.map_join(", ", fn {field, messages} -> "#{field} #{Enum.join(messages, ", ")}" end)
-  end
 end

@@ -108,4 +108,28 @@ defmodule Manavault.Catalog.CardNameSuggestionsTest do
     # Dropping the apostrophe entirely still matches, proving normalization symmetry.
     assert ["Aurelia's Fury" | _] = Catalog.suggest_card_names("aurelias")
   end
+
+  test "queries without diacritics match names that contain them" do
+    assert {:ok, %{cards_count: 1}} =
+             Catalog.import_cards([
+               card("scryfall-oin-the-brave", "oracle-oin-the-brave", "Óin the Brave", "12")
+             ])
+
+    CardNameSuggestions.clear_card_name_suggestion_cache()
+
+    assert ["Óin the Brave"] = Catalog.suggest_card_names("Óin the Brave")
+    assert ["Óin the Brave"] = Catalog.suggest_card_names("Oin the brave")
+  end
+
+  test "alternate Scryfall flavor names suggest the canonical card name" do
+    assert {:ok, %{cards_count: 1}} =
+             Catalog.import_cards([
+               card("scryfall-homeward-path", "oracle-homeward-path", "Homeward Path", "13")
+               |> Map.put("flavor_name", "Pelican Town")
+             ])
+
+    CardNameSuggestions.clear_card_name_suggestion_cache()
+
+    assert ["Homeward Path"] = Catalog.suggest_card_names("Pelican Town")
+  end
 end

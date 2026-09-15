@@ -4,7 +4,7 @@ defmodule Manavault.MixProject do
   def project do
     [
       app: :manavault,
-      version: "1.2.0",
+      version: "1.3.0",
       elixir: "~> 1.20",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -48,6 +48,7 @@ defmodule Manavault.MixProject do
       {:absinthe, "~> 1.7"},
       {:absinthe_relay, "~> 1.6"},
       {:absinthe_plug, "~> 1.5"},
+      {:absinthe_phoenix, "~> 2.0"},
       {:dataloader, "~> 2.0"},
       {:tailwind, "~> 0.3", runtime: Mix.env() == :dev},
       {:swoosh, "~> 1.16"},
@@ -57,6 +58,7 @@ defmodule Manavault.MixProject do
       {:gettext, "~> 1.0"},
       {:jason, "~> 1.2"},
       {:nimble_csv, "~> 1.2"},
+      {:oban, "~> 2.23"},
       {:nebulex, "~> 3.0"},
       {:nebulex_local, "~> 3.0"},
       {:dns_cluster, "~> 0.2.0"},

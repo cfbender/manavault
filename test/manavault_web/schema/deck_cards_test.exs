@@ -423,7 +423,7 @@ defmodule ManavaultWeb.Schema.DeckCardsTest do
     assert Catalog.deck_allocation_status(Catalog.get_deck!(deck.id)) == %{}
   end
 
-  test "delete deck mutation removes a deck and restores allocated cards", %{conn: conn} do
+  test "delete deck mutation removes an archived deck and restores allocated cards", %{conn: conn} do
     {:ok, %{cards_count: 1, printings_count: 1}} =
       Catalog.import_cards([
         %{
@@ -456,6 +456,8 @@ defmodule ManavaultWeb.Schema.DeckCardsTest do
 
     assert {:ok, allocation} =
              Catalog.allocate_collection_item_to_deck_card(deck_card.id, item.id)
+
+    assert {:ok, _archived_deck} = Catalog.update_deck(deck, %{"status" => "archived"})
 
     conn =
       post(conn, "/api/graphql", %{
@@ -554,6 +556,106 @@ defmodule ManavaultWeb.Schema.DeckCardsTest do
 
     assert Enum.any?(loaded.deck_cards, &(&1.id == old_commander.id and &1.zone == "mainboard"))
     assert Enum.any?(loaded.deck_cards, &(&1.id == new_commander.id and &1.zone == "commander"))
+  end
+
+  test "add deck partner keeps the current commander and pairs the candidate", %{conn: conn} do
+    {:ok, %{cards_count: 3, printings_count: 3}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-printing-doctor",
+          "oracle_id" => "oracle-doctor",
+          "name" => "Test Doctor",
+          "type_line" => "Legendary Creature — Time Lord Doctor",
+          "collector_number" => "1",
+          "set" => "tst",
+          "set_name" => "Test Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        },
+        %{
+          "id" => "scryfall-printing-companion",
+          "oracle_id" => "oracle-companion",
+          "name" => "Test Companion",
+          "type_line" => "Legendary Creature — Human",
+          "oracle_text" =>
+            "Doctor's companion (You can have two commanders if the other is the Doctor.)",
+          "collector_number" => "2",
+          "set" => "tst",
+          "set_name" => "Test Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        },
+        %{
+          "id" => "scryfall-printing-bystander",
+          "oracle_id" => "oracle-bystander",
+          "name" => "Unpaired Legend",
+          "type_line" => "Legendary Creature — Soldier",
+          "collector_number" => "3",
+          "set" => "tst",
+          "set_name" => "Test Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Partner Test", "format" => "commander"})
+
+    {:ok, commander} =
+      Catalog.add_card_to_deck(deck, %{"name" => "Test Doctor", "zone" => "commander"})
+
+    {:ok, companion} = Catalog.add_card_to_deck(deck, %{"name" => "Test Companion"})
+    {:ok, bystander} = Catalog.add_card_to_deck(deck, %{"name" => "Unpaired Legend"})
+
+    mutation = """
+    mutation AddDeckPartner($id: ID!) {
+      addDeckPartner(id: $id) {
+        deckCard {
+          id
+          zone
+          card { name }
+        }
+      }
+    }
+    """
+
+    rejected =
+      post(conn, "/api/graphql", %{
+        "query" => mutation,
+        "variables" => %{"id" => global_id(:deck_card, bystander.id)}
+      })
+
+    assert %{"errors" => [%{"message" => message}]} = json_response(rejected, 200)
+    assert message =~ "can't be paired"
+
+    accepted =
+      post(conn, "/api/graphql", %{
+        "query" => mutation,
+        "variables" => %{"id" => global_id(:deck_card, companion.id)}
+      })
+
+    assert %{
+             "data" => %{
+               "addDeckPartner" => %{
+                 "deckCard" => %{
+                   "id" => _id,
+                   "zone" => "commander",
+                   "card" => %{"name" => "Test Companion"}
+                 }
+               }
+             }
+           } = json_response(accepted, 200)
+
+    loaded = Catalog.get_deck!(deck.id)
+
+    assert Enum.any?(loaded.deck_cards, &(&1.id == commander.id and &1.zone == "commander"))
+    assert Enum.any?(loaded.deck_cards, &(&1.id == companion.id and &1.zone == "commander"))
+    assert Enum.any?(loaded.deck_cards, &(&1.id == bystander.id and &1.zone == "mainboard"))
   end
 
   test "bulk update and bulk delete deck card mutations act on a selection", %{conn: conn} do

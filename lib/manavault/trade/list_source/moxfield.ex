@@ -5,6 +5,7 @@ defmodule Manavault.Trade.ListSource.Moxfield do
   with an id that already matched `@id_pattern`.
   """
 
+  alias Manavault.Catalog.Util
   alias Manavault.Trade.ListSource.Http
 
   @hosts ~w(moxfield.com www.moxfield.com)
@@ -67,7 +68,7 @@ defmodule Manavault.Trade.ListSource.Moxfield do
        when is_binary(name) and name != "" do
     %{
       name: name,
-      quantity: entry |> Map.get("quantity", 1) |> to_quantity(),
+      quantity: entry |> Map.get("quantity", 1) |> Util.positive_quantity(),
       zone: zone,
       set_code: get_in(entry, ["card", "set"]),
       collector_number: get_in(entry, ["card", "cn"])
@@ -75,9 +76,6 @@ defmodule Manavault.Trade.ListSource.Moxfield do
   end
 
   defp normalize_entry(_entry, _zone), do: nil
-
-  defp to_quantity(quantity) when is_integer(quantity) and quantity > 0, do: quantity
-  defp to_quantity(_quantity), do: 1
 
   defp req_options, do: Application.get_env(:manavault, :trade_moxfield_req_options, [])
 end

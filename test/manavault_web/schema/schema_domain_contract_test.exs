@@ -14,9 +14,11 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
 
     assert MapSet.new(Map.keys(query_fields)) ==
              MapSet.new([
+               "aiSettings",
                "backupSettings",
                "binderList",
                "card",
+               "cardEdhrec",
                "cardNameSuggestions",
                "cards",
                "cloudBackups",
@@ -27,18 +29,25 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "collectionItemEntryCount",
                "collectionItemGroups",
                "collectionItems",
+               "collectionValueDashboard",
                "collectionValueSummary",
                "deck",
+               "deckAnalysisRequests",
                "deckBuylist",
                "deckBuylistExport",
+               "deckCombos",
                "deckEdhrec",
                "deckExportText",
+               "deckQuestionAnswers",
+               "deckRecommander",
                "decks",
                "defaultDeckTags",
                "homeSummary",
                "location",
                "locations",
                "node",
+               "pricingSettings",
+               "randomDeck",
                "setSuggestions",
                "sharedDeck",
                "tradeBinderShareToken",
@@ -51,9 +60,13 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
              MapSet.new([
                "addCollectionItemToDeck",
                "addDeckCard",
+               "addDeckPartner",
                "allocateDeckCardItem",
                "allocateDeckCardProxy",
                "allocateDeckPullList",
+               "analyzeDeck",
+               "analyzeDeckList",
+               "askDeckQuestion",
                "assignDeckCardTag",
                "autoSortCollection",
                "bulkAddCollectionItemsToDeck",
@@ -64,6 +77,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "bulkUpdateCollectionItems",
                "bulkUpdateDeckCards",
                "commitCollectionImport",
+               "collectionCheck",
                "createCollectionItem",
                "createTradeWant",
                "createDeck",
@@ -74,6 +88,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "deleteCollectionItem",
                "deleteDeck",
                "deleteDeckCard",
+               "deleteDeckQuestionAnswer",
                "deleteDeckTag",
                "deleteTradeWant",
                "deleteLocation",
@@ -91,6 +106,8 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "previewCollectionImport",
                "previewCollectionImportAutoSort",
                "previewDeckDisassembly",
+               "refreshAllDeckAnalyses",
+               "recordDeckPlay",
                "reloadScryfallAssets",
                "reloadScryfallCatalog",
                "reorderDeckTags",
@@ -102,10 +119,13 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "setCollectionItemsForTradeQuantity",
                "setDeckCommander",
                "stageCloudRestore",
+               "syncVendorPrices",
                "tradeMatches",
                "unassignDeckCardTag",
                "updateBackupSettings",
+               "updateAiSettings",
                "updateCollectionAutoSortRules",
+               "updatePricingSettings",
                "updateCollectionItem",
                "updateTradeWant",
                "updateDeck",
@@ -117,6 +137,8 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
 
     assert type_signature(query_fields["cards"]["type"]) == "CardConnection!"
     assert argument(query_fields["cards"], "q") == {"String", "\"\""}
+    assert type_signature(query_fields["cardEdhrec"]["type"]) == "CardEdhrec!"
+    assert argument(query_fields["cardEdhrec"], "name") == {"String!", nil}
     assert type_signature(query_fields["cardNameSuggestions"]["type"]) == "[String!]!"
     assert argument(query_fields["cardNameSuggestions"], "limit") == {"Int", "5"}
     assert type_signature(query_fields["collectionItemCount"]["type"]) == "Int!"
@@ -127,10 +149,34 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
     assert type_signature(query_fields["deckBuylist"]["type"]) == "[DeckBuylistEntry!]!"
     assert argument(query_fields["deckBuylist"], "printingMode") == {"String", "\"none\""}
     assert argument(query_fields["deckBuylist"], "assumeNoOwned") == {"Boolean", "false"}
+    assert type_signature(query_fields["deckCombos"]["type"]) == "[DeckCombo!]!"
+    assert argument(query_fields["deckCombos"], "id") == {"ID!", nil}
+    assert type_signature(query_fields["deckRecommander"]["type"]) == "DeckRecommander!"
+    assert argument(query_fields["deckRecommander"], "id") == {"ID!", nil}
     assert type_signature(query_fields["defaultDeckTags"]["type"]) == "[DefaultDeckTag!]!"
+
+    assert type_signature(query_fields["deckAnalysisRequests"]["type"]) ==
+             "[DeckAnalysisRequest!]!"
+
+    assert type_signature(query_fields["deckQuestionAnswers"]["type"]) ==
+             "[DeckQuestionAnswer!]!"
+
+    assert argument(query_fields["deckQuestionAnswers"], "deckId") == {"ID!", nil}
+    assert type_signature(query_fields["randomDeck"]["type"]) == "Deck"
+    assert argument(query_fields["randomDeck"], "excludeId") == {"ID", nil}
 
     assert type_signature(mutation_fields["createCollectionItem"]["type"]) ==
              "CreateCollectionItemPayload"
+
+    assert argument(mutation_fields["analyzeDeckList"], "url") == {"String", nil}
+    assert argument(mutation_fields["analyzeDeckList"], "text") == {"String", nil}
+    assert argument(mutation_fields["analyzeDeckList"], "format") == {"String!", nil}
+    assert argument(mutation_fields["askDeckQuestion"], "question") == {"String!", nil}
+    assert argument(mutation_fields["deleteDeckQuestionAnswer"], "id") == {"ID!", nil}
+    assert argument(mutation_fields["recordDeckPlay"], "id") == {"ID!", nil}
+
+    assert argument(mutation_fields["recordDeckPlay"], "outcome") ==
+             {"DeckPlayOutcome!", nil}
 
     assert argument(mutation_fields["createCollectionItem"], "input") ==
              {"CollectionItemInput!", nil}
@@ -159,6 +205,22 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
              }
 
     assert payload_fields(data["allocateDeckCardProxyPayload"]) == %{"deckCard" => "DeckCard"}
+
+    assert payload_fields(data["analyzeDeckListPayload"]) ==
+             %{"deckAnalysisRequest" => "DeckAnalysisRequest"}
+
+    assert payload_fields(data["askDeckQuestionPayload"]) == %{
+             "answer" => "String!",
+             "questionAnswer" => "DeckQuestionAnswer!"
+           }
+
+    assert payload_fields(data["deleteDeckQuestionAnswerPayload"]) ==
+             %{"questionAnswerId" => "ID!"}
+
+    assert payload_fields(data["refreshAllDeckAnalysesPayload"]) ==
+             %{"queuedCount" => "Int!"}
+
+    assert payload_fields(data["recordDeckPlayPayload"]) == %{"deck" => "Deck"}
 
     assert payload_fields(data["updateBackupSettingsPayload"]) ==
              %{"backupSettings" => "BackupSettings"}
@@ -305,6 +367,21 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
         fields { name type { kind name ofType { kind name ofType { kind name ofType { kind name } } } } }
       }
       allocateDeckCardProxyPayload: __type(name: "AllocateDeckCardProxyPayload") {
+        fields { name type { kind name ofType { kind name ofType { kind name ofType { kind name } } } } }
+      }
+      analyzeDeckListPayload: __type(name: "AnalyzeDeckListPayload") {
+        fields { name type { kind name ofType { kind name ofType { kind name ofType { kind name } } } } }
+      }
+      askDeckQuestionPayload: __type(name: "AskDeckQuestionPayload") {
+        fields { name type { kind name ofType { kind name ofType { kind name ofType { kind name } } } } }
+      }
+      deleteDeckQuestionAnswerPayload: __type(name: "DeleteDeckQuestionAnswerPayload") {
+        fields { name type { kind name ofType { kind name ofType { kind name ofType { kind name } } } } }
+      }
+      refreshAllDeckAnalysesPayload: __type(name: "RefreshAllDeckAnalysesPayload") {
+        fields { name type { kind name ofType { kind name ofType { kind name ofType { kind name } } } } }
+      }
+      recordDeckPlayPayload: __type(name: "RecordDeckPlayPayload") {
         fields { name type { kind name ofType { kind name ofType { kind name ofType { kind name } } } } }
       }
       updateBackupSettingsPayload: __type(name: "UpdateBackupSettingsPayload") {

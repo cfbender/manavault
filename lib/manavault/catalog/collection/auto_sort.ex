@@ -3,7 +3,16 @@ defmodule Manavault.Catalog.Collection.AutoSort do
 
   import Ecto.Query
 
-  alias Manavault.Catalog.{AutoSortRule, CollectionItem, DeckAllocation, Location, Price, Util}
+  alias Manavault.Catalog.{
+    AutoSortRule,
+    Card,
+    CollectionItem,
+    DeckAllocation,
+    Location,
+    Price,
+    Util
+  }
+
   alias Manavault.Repo
 
   @colors ~w(W U B R G)
@@ -248,7 +257,7 @@ defmodule Manavault.Catalog.Collection.AutoSort do
     type_line =
       item
       |> card_value(:type_line)
-      |> to_string()
+      |> Card.sorting_type_line()
       |> String.downcase()
 
     includes? =
@@ -347,6 +356,8 @@ defmodule Manavault.Catalog.Collection.AutoSort do
       collection_item_id: item.id,
       card_name: card_value(item, :name),
       card_id: card_value(item, :oracle_id),
+      set_code: printing_value(item, :set_code),
+      collector_number: printing_value(item, :collector_number),
       image_url: printing_image_url(item),
       quantity: item.quantity,
       finish: item.finish,

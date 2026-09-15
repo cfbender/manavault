@@ -67,6 +67,9 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     end
 
     field :game_changer, non_null(:boolean)
+    field :edhrec_rank, :integer
+    field :edhrec_commander_rank, :integer
+    field :edhrec_saltiness, :float
 
     field :oracle_tags, list_of(:scryfall_oracle_tag) do
       resolve(fn card, _, _ ->
@@ -128,6 +131,7 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     end
 
     field :game_changer, non_null(:boolean)
+    field :edhrec_rank, :integer
 
     field :oracle_tags, list_of(:scryfall_oracle_tag) do
       resolve(fn card, _, _ ->
@@ -308,10 +312,31 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
     field :name, non_null(:string)
     field :format, non_null(:string)
     field :status, non_null(:string)
+    field :primer, :string
+    field :ai_analysis, :string
+    field :ai_analysis_model, :string
+    field :commander_bracket, :integer
+    field :commander_bracket_estimate, :integer
     field :share_token, :string
+
+    field :ai_analyzed_at, :string do
+      resolve(&DeckFields.deck_ai_analyzed_at/3)
+    end
+
+    field :cover_deck_card_id, :id do
+      resolve(&DeckFields.deck_cover_deck_card_id/3)
+    end
+
+    field :cover_image_url, :string do
+      resolve(&DeckFields.deck_cover_image_url/3)
+    end
 
     field :card_count, :integer do
       resolve(&DeckFields.deck_card_count/3)
+    end
+
+    field :commander_color_identity, list_of(:string) do
+      resolve(&DeckFields.deck_commander_color_identity/3)
     end
 
     field :unique_card_count, :integer do

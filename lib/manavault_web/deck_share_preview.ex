@@ -6,7 +6,7 @@ defmodule ManavaultWeb.DeckSharePreview do
 
   @image_width 1200
   @image_height 630
-  @source_version "deck-share-preview-v2"
+  @source_version "deck-share-preview-v4"
 
   def image_width, do: @image_width
   def image_height, do: @image_height
@@ -34,6 +34,7 @@ defmodule ManavaultWeb.DeckSharePreview do
     format_label = titleize(deck.format)
     legality = Catalog.deck_legality(deck)
     legality_label = legality_label(legality)
+    bracket_label = bracket_label(deck.commander_bracket, deck.commander_bracket_estimate)
 
     price_label =
       deck |> counted_deck_cards() |> Price.deck_cards_total_cents() |> format_price_cents()
@@ -45,7 +46,8 @@ defmodule ManavaultWeb.DeckSharePreview do
       token: token,
       deck_name: deck_name,
       title: "#{deck_name} · ManaVault",
-      description: deck_description(format_label, card_count, legality_label, price_label),
+      description:
+        deck_description(format_label, card_count, bracket_label, legality_label, price_label),
       image_alt: "Preview for #{deck_name}",
       image_type: "image/svg+xml",
       image_url: nil,
@@ -56,6 +58,7 @@ defmodule ManavaultWeb.DeckSharePreview do
       format_label: format_label,
       status_label: titleize(deck.status),
       card_count_label: "#{compact_number(card_count)} cards",
+      bracket_label: bracket_label,
       legality_label: legality_label,
       price_label: price_label,
       color_identity: Catalog.deck_commander_color_identity(deck) || []
@@ -68,6 +71,9 @@ defmodule ManavaultWeb.DeckSharePreview do
     deck_name = truncate_for_width(deck_name, title_width(preview.color_identity), title_size)
     legality_x = 72 + badge_width(preview.status_label) + 20
     price_x = legality_x + badge_width(preview.legality_label) + 20
+    bracket_label = Map.get(preview, :bracket_label)
+    bracket_x = 72 + badge_width(preview.format_label) + 20
+    card_count_x = card_count_x(preview.format_label, bracket_label)
     symbol_resolver = Keyword.get(opts, :symbol_resolver, &mana_symbol_url/1)
 
     """
@@ -101,7 +107,8 @@ defmodule ManavaultWeb.DeckSharePreview do
       <rect x="32" y="32" width="1136" height="566" rx="34" fill="none" stroke="#ffffff" stroke-opacity="0.13" stroke-width="2" />
 
       #{badge(72, 74, preview.format_label, :neutral)}
-      <text x="#{96 + badge_width(preview.format_label)}" y="111" fill="#e7dfdf" fill-opacity="0.78" font-size="30" font-weight="800">#{xml_escape(preview.card_count_label)}</text>
+      #{optional_badge(bracket_x, 74, bracket_label, :warning)}
+      <text x="#{card_count_x}" y="111" fill="#e7dfdf" fill-opacity="0.78" font-size="30" font-weight="800">#{xml_escape(preview.card_count_label)}</text>
 
       <g filter="url(#softShadow)">
         <text x="72" y="372" fill="#f8f0ef" font-size="#{title_size}" font-weight="950" letter-spacing="-1.6">#{xml_escape(deck_name)}</text>
@@ -119,10 +126,11 @@ defmodule ManavaultWeb.DeckSharePreview do
 
   def png(%{kind: :deck} = preview), do: ManavaultWeb.DeckSharePreview.Renderer.render(preview)
 
-  defp deck_description(format_label, card_count, legality_label, price_label) do
+  defp deck_description(format_label, card_count, bracket_label, legality_label, price_label) do
     [
       "#{format_label} deck",
       "#{compact_number(card_count)} cards",
+      bracket_label,
       legality_label,
       price_label
     ]
@@ -146,6 +154,13 @@ defmodule ManavaultWeb.DeckSharePreview do
 
   defp legality_tone("Legal"), do: :success
   defp legality_tone(_label), do: :error
+
+  defp bracket_label(official, practical)
+       when official in 1..5 and practical in 1..5 and practical != official,
+       do: "Bracket #{official} · Pace #{practical}"
+
+  defp bracket_label(official, _practical) when official in 1..5, do: "Bracket #{official}"
+  defp bracket_label(_official, _practical), do: nil
 
   defp titleize(value) when is_binary(value) do
     value
@@ -233,6 +248,15 @@ defmodule ManavaultWeb.DeckSharePreview do
       <text x="#{x + 22}" y="#{y + 29}" fill="#{text}" font-size="22" font-weight="750">#{xml_escape(label)}</text>
     </g>
     """
+  end
+
+  defp optional_badge(_x, _y, nil, _tone), do: ""
+  defp optional_badge(x, y, label, tone), do: badge(x, y, label, tone)
+
+  defp card_count_x(format_label, nil), do: 96 + badge_width(format_label)
+
+  defp card_count_x(format_label, bracket_label) do
+    116 + badge_width(format_label) + badge_width(bracket_label)
   end
 
   defp badge_width(label), do: max(90, text_width(label, 22) + 44)

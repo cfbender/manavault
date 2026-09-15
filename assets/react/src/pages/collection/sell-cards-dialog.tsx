@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog"
+import { Textarea } from "../../components/ui/textarea"
 import { useToast } from "../../components/ui/toast"
 import { cn, pluralize, present } from "../../lib/utils"
 import { DeleteCollectionItemDocument, UpdateCollectionItemDocument } from "./documents"
@@ -29,6 +30,7 @@ const SELL_CARDS_LOAD_MORE_THRESHOLD_PX = 600
 
 const SellCardsDocument = gql`
   query CollectionSellCards($first: Int!, $after: String) {
+    collectionItemEntryCount(filters: { unallocatedOnly: true })
     collectionItems(
       first: $first
       after: $after
@@ -95,6 +97,7 @@ type SellCollectionItem = {
 }
 
 type SellCardsQuery = {
+  collectionItemEntryCount: number
   collectionItems: {
     pageInfo: {
       endCursor?: string | null
@@ -189,20 +192,21 @@ export function SellCardsDialog({
   }
 
   async function loadAllSellCards() {
-    let nextPageInfo = pageInfo
-    let allItems = items
+    const after = pageInfo?.endCursor
+    if (!pageInfo?.hasNextPage || !after) return items
 
-    while (nextPageInfo?.hasNextPage) {
-      const result = await fetchMoreSellCards(nextPageInfo.endCursor)
-      nextPageInfo = result?.data?.collectionItems.pageInfo
-      allItems = uniqueItems([
-        ...allItems,
-        ...((result?.data?.collectionItems.edges || []).map((edge) => edge?.node).filter(present) ||
-          []),
-      ])
-    }
+    const remainingItemCount = Math.max(
+      query.data?.collectionItemEntryCount || 0,
+      SELL_CARDS_PAGE_SIZE,
+    )
+    const result = await query.fetchMore({
+      variables: { first: remainingItemCount, after },
+    })
+    const remainingItems = (result.data.collectionItems.edges || [])
+      .map((edge) => edge?.node)
+      .filter(present)
 
-    return allItems
+    return uniqueItems([...items, ...remainingItems])
   }
 
   function handleScroll(event: UIEvent<HTMLDivElement>) {
@@ -235,7 +239,16 @@ export function SellCardsDialog({
     }
 
     setIsMatchingSoldList(true)
-    const matchableItems = await loadAllSellCards().finally(() => setIsMatchingSoldList(false))
+    let matchableItems: SellCollectionItem[]
+
+    try {
+      matchableItems = await loadAllSellCards()
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Could not load sellable cards")
+      return
+    } finally {
+      setIsMatchingSoldList(false)
+    }
 
     const lines = soldListText
       .split(/\r?\n/)
@@ -331,9 +344,9 @@ export function SellCardsDialog({
           </div>
 
           <div className="mt-4 grid gap-2 md:grid-cols-[1fr_auto]">
-            <textarea
+            <Textarea
               aria-label="Sold list"
-              className="textarea textarea-bordered min-h-20 w-full text-sm"
+              className="min-h-20 text-sm"
               placeholder="Paste a sold list to select matching collection items and quantities for deletion."
               value={soldListText}
               onChange={(event) => setSoldListText(event.target.value)}

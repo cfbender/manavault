@@ -80,6 +80,51 @@ defmodule Manavault.Catalog.DeckCrudTest do
     assert [] = Catalog.list_decks()
   end
 
+  test "deck type statistics count the permanent rather than its secondary spell" do
+    precious =
+      Map.merge(@black_lotus, %{
+        "name" => "My Precious // Allure of Power",
+        "type_line" => "Legendary Artifact — Equipment // Instant — Adventure"
+      })
+
+    emeritus =
+      Map.merge(@time_walk, %{
+        "name" => "Emeritus of Woe // Demonic Tutor",
+        "type_line" => "Creature — Vampire Warlock // Sorcery"
+      })
+
+    assert {:ok, _} = Catalog.import_cards([precious, emeritus])
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Multi-face types"})
+
+    assert {:ok, _} =
+             Catalog.add_card_to_deck(deck, %{"oracle_id" => "oracle-1", "quantity" => 2})
+
+    assert {:ok, _} =
+             Catalog.add_card_to_deck(deck, %{"oracle_id" => "oracle-2", "quantity" => 1})
+
+    assert Catalog.deck_stats(deck).types == %{"Artifact" => 2, "Creature" => 1}
+  end
+
+  test "add_card_to_deck resolves names with or without diacritics" do
+    oin =
+      @time_walk
+      |> Map.merge(%{
+        "id" => "scryfall-oin-the-brave",
+        "oracle_id" => "oracle-oin-the-brave",
+        "name" => "Óin the Brave",
+        "collector_number" => "12"
+      })
+
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([oin])
+    assert {:ok, %Deck{} = deck} = Catalog.create_deck(%{"name" => "Diacritic Add"})
+
+    assert {:ok, %DeckCard{id: id, oracle_id: "oracle-oin-the-brave"}} =
+             Catalog.add_card_to_deck(deck, %{"name" => "Óin the Brave", "quantity" => 1})
+
+    assert {:ok, %DeckCard{id: ^id, quantity: 2, oracle_id: "oracle-oin-the-brave"}} =
+             Catalog.add_card_to_deck(deck, %{"name" => "Oin the brave", "quantity" => 1})
+  end
+
   test "list_deck_summaries returns counts cover and commander colors with preloaded cards" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
@@ -104,9 +149,177 @@ defmodule Manavault.Catalog.DeckCrudTest do
     assert summary.card_count == 3
     assert summary.unique_card_count == 2
     assert summary.commander_color_identity == ["U"]
+
+    assert Manavault.Catalog.Decks.Queries.deck_commander_color_identity(%Deck{id: deck.id}) ==
+             ["U"]
+
     assert summary.cover_image_url == "https://example.test/black-lotus.jpg"
     assert is_list(summary.deck_cards)
     assert length(summary.deck_cards) == 2
+  end
+
+  test "deck cover defaults to the commander and can be set to any card in the deck" do
+    commander =
+      Map.put(@time_walk, "image_uris", %{"normal" => "https://example.test/commander.jpg"})
+
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, commander])
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Cover Test"})
+
+    assert {:ok, _commander} =
+             Catalog.add_card_to_deck(deck, %{
+               "name" => "Time Walk",
+               "zone" => "commander"
+             })
+
+    assert {:ok, lotus} = Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus"})
+
+    assert deck.id |> Catalog.get_deck!() |> Catalog.deck_cover_image_url() ==
+             "https://example.test/commander.jpg"
+
+    assert {:ok, %Deck{cover_deck_card_id: cover_id}} =
+             Catalog.update_deck(deck, %{"cover_deck_card_id" => lotus.id})
+
+    assert cover_id == lotus.id
+
+    loaded = Catalog.get_deck!(deck.id)
+    assert Catalog.deck_cover_image_url(loaded) == "https://example.test/black-lotus.jpg"
+
+    assert [%Deck{cover_image_url: "https://example.test/black-lotus.jpg"}] =
+             Catalog.list_deck_summaries()
+
+    assert {:ok, other_deck} = Catalog.create_deck(%{"name" => "Other Deck"})
+    assert {:ok, other_card} = Catalog.add_card_to_deck(other_deck, %{"name" => "Black Lotus"})
+
+    assert {:error, changeset} =
+             Catalog.update_deck(loaded, %{"cover_deck_card_id" => other_card.id})
+
+    assert "must belong to deck" in errors_on(changeset).cover_deck_card_id
+
+    assert {:ok, _deleted} = Catalog.delete_deck_card(lotus)
+    assert %Deck{cover_deck_card_id: nil} = reset_cover = Catalog.get_deck!(deck.id)
+    assert Catalog.deck_cover_image_url(reset_cover) == "https://example.test/commander.jpg"
+  end
+
+  test "commander color identity includes the inferred chosen color of choose-a-color commanders" do
+    assert {:ok, _imported} =
+             Catalog.import_cards([
+               legality_commander_card("Test Doctor", ["U", "R"], %{
+                 "type_line" => "Legendary Creature — Time Lord Doctor"
+               }),
+               legality_commander_card("Test Companion", [], %{
+                 "oracle_text" =>
+                   "If Test Companion is your commander, choose a color before the game begins. Test Companion is the chosen color.\nDoctor's companion (You can have two commanders if the other is the Doctor.)"
+               }),
+               legality_card("Green Spell", ["G"], %{"commander" => "legal"})
+             ])
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Chosen Color", "format" => "commander"})
+
+    add_deck_card!(deck, "Test Doctor", 1, "commander")
+    add_deck_card!(deck, "Test Companion", 1, "commander")
+    add_deck_card!(deck, "Green Spell", 1, "mainboard")
+
+    # Preloaded deck-cards path.
+    assert deck.id |> Catalog.get_deck!() |> Catalog.deck_commander_color_identity() ==
+             ["U", "R", "G"]
+
+    # DB summary path (bypass the deck-read cache).
+    assert Manavault.Catalog.Decks.Queries.deck_commander_color_identity(%Deck{id: deck.id}) ==
+             ["U", "R", "G"]
+  end
+
+  test "add_deck_partner promotes a companion from the 99 alongside the Doctor" do
+    assert {:ok, _imported} =
+             Catalog.import_cards([
+               legality_commander_card("Test Doctor", ["U", "R"], %{
+                 "type_line" => "Legendary Creature — Time Lord Doctor"
+               }),
+               legality_commander_card("Test Companion", [], %{
+                 "oracle_text" =>
+                   "Doctor's companion (You can have two commanders if the other is the Doctor.)"
+               })
+             ])
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Partner Test", "format" => "commander"})
+
+    add_deck_card!(deck, "Test Doctor", 1, "commander")
+    companion = add_deck_card!(deck, "Test Companion", 1, "mainboard")
+
+    assert {:ok, %DeckCard{zone: "commander"}} = Catalog.add_deck_partner(companion)
+
+    loaded = Catalog.get_deck!(deck.id)
+    commanders = Enum.filter(loaded.deck_cards, &(&1.zone == "commander"))
+
+    assert commanders |> Enum.map(& &1.card.name) |> Enum.sort() ==
+             ["Test Companion", "Test Doctor"]
+  end
+
+  test "add_deck_partner promotes a Background alongside a choose-a-background commander" do
+    assert {:ok, _imported} =
+             Catalog.import_cards([
+               legality_commander_card("Background Chooser", ["W"], %{
+                 "oracle_text" =>
+                   "Choose a Background (You can have a Background as a second commander.)"
+               }),
+               legality_card("Test Background", ["G"], %{"commander" => "legal"}, %{
+                 "type_line" => "Legendary Enchantment — Background"
+               })
+             ])
+
+    assert {:ok, deck} =
+             Catalog.create_deck(%{"name" => "Background Test", "format" => "commander"})
+
+    add_deck_card!(deck, "Background Chooser", 1, "commander")
+    background = add_deck_card!(deck, "Test Background", 1, "mainboard")
+
+    assert {:ok, %DeckCard{zone: "commander"}} = Catalog.add_deck_partner(background)
+  end
+
+  test "add_deck_partner rejects cards without a valid pairing ability" do
+    assert {:ok, _imported} =
+             Catalog.import_cards([
+               legality_commander_card("Solo Commander", ["W"]),
+               legality_commander_card("Unpaired Legend", ["G"])
+             ])
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "No Pair", "format" => "commander"})
+
+    add_deck_card!(deck, "Solo Commander", 1, "commander")
+    legend = add_deck_card!(deck, "Unpaired Legend", 1, "mainboard")
+
+    assert {:error, :invalid_commander_pair} = Catalog.add_deck_partner(legend)
+
+    loaded = Catalog.get_deck!(deck.id)
+
+    assert Enum.any?(
+             loaded.deck_cards,
+             &(&1.card.name == "Unpaired Legend" and &1.zone == "mainboard")
+           )
+
+    assert Enum.count(loaded.deck_cards, &(&1.zone == "commander")) == 1
+  end
+
+  test "add_deck_partner requires exactly one existing commander" do
+    assert {:ok, _imported} =
+             Catalog.import_cards([
+               legality_commander_card("Partner One", ["W"], %{"oracle_text" => "Partner"}),
+               legality_commander_card("Partner Two", ["U"], %{"oracle_text" => "Partner"}),
+               legality_commander_card("Partner Three", ["G"], %{"oracle_text" => "Partner"})
+             ])
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Full Zone", "format" => "commander"})
+
+    candidate = add_deck_card!(deck, "Partner Three", 1, "mainboard")
+
+    assert {:error, :no_commander} = Catalog.add_deck_partner(candidate)
+
+    add_deck_card!(deck, "Partner One", 1, "commander")
+    assert {:ok, %DeckCard{zone: "commander"}} = Catalog.add_deck_partner(candidate)
+
+    third = add_deck_card!(deck, "Partner Two", 1, "mainboard")
+    assert {:error, :command_zone_full} = Catalog.add_deck_partner(third)
   end
 
   test "archived decks reject decklist edits until unarchived" do

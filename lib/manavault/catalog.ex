@@ -9,13 +9,15 @@ defmodule Manavault.Catalog do
     Dataloader,
     Decks,
     Scryfall,
-    ScryfallSyncWorker,
+    ScryfallAssetsWorker,
+    ScryfallCatalogWorker,
     Search
   }
 
   defdelegate data(), to: Dataloader
 
   defdelegate search_cards(term, opts \\ []), to: Cached
+  defdelegate cards_by_names(names), to: Search
   defdelegate suggest_card_names(term, opts \\ []), to: Search
   defdelegate get_printing_by_scryfall_id(scryfall_id), to: Cached
   defdelegate get_printing(set_code, collector_number), to: Cached
@@ -30,6 +32,7 @@ defmodule Manavault.Catalog do
   defdelegate count_collection_item_entries(filters \\ []), to: Cached
   defdelegate count_collection_item_groups(filters \\ []), to: Cached
   defdelegate collection_value_summary(filters \\ []), to: Cached
+  defdelegate collection_value_dashboard(), to: Cached
   defdelegate get_collection_item!(id), to: Cached
   defdelegate change_collection_item(collection_item, attrs \\ %{}), to: Collection
   defdelegate new_collection_item_for_printing(scryfall_id), to: Collection
@@ -74,6 +77,7 @@ defmodule Manavault.Catalog do
   defdelegate list_deck_summaries(), to: Decks
   defdelegate list_deck_summaries(opts), to: Decks
   defdelegate count_decks(), to: Decks
+  defdelegate count_non_archived_decks(), to: Decks
   defdelegate get_deck!(id, opts \\ []), to: Decks
   defdelegate get_deck_card!(id), to: Decks
   defdelegate get_deck_by_share_token(token, opts \\ []), to: Decks
@@ -85,9 +89,12 @@ defmodule Manavault.Catalog do
   defdelegate deck_unique_card_count(deck), to: Decks
   defdelegate deck_commander_color_identity(deck), to: Decks
   defdelegate deck_cover_image_url(deck), to: Decks
+  defdelegate random_deck(opts \\ []), to: Decks
+  defdelegate record_deck_play(deck, outcome), to: Decks
   defdelegate change_deck(deck, attrs \\ %{}), to: Decks
   defdelegate create_deck(attrs), to: Decks
   defdelegate update_deck(deck, attrs), to: Decks
+  defdelegate save_deck_analysis(deck, attrs), to: Decks
   defdelegate ensure_deck_share_token(deck), to: Decks
   defdelegate disable_deck_sharing(deck), to: Decks
   defdelegate rotate_deck_share_token(deck), to: Decks
@@ -103,11 +110,21 @@ defmodule Manavault.Catalog do
   defdelegate bulk_delete_deck_cards(deck_card_ids), to: Decks
   defdelegate optimize_deck_card_printings(deck_card_ids), to: Decks
   defdelegate set_deck_commander(deck_card), to: Decks
+  defdelegate add_deck_partner(deck_card), to: Decks
   defdelegate delete_deck_card(deck_card), to: Decks
   defdelegate deck_allocation_status(deck), to: Decks
   defdelegate deck_card_allocation_status(deck_card), to: Decks
   defdelegate put_deck_card_allocation_statuses(deck_cards), to: Decks
+  defdelegate collection_requirement_statuses(deck_cards), to: Decks
   defdelegate put_deck_card_fallback_printings(deck_cards), to: Decks
+
+  defdelegate list_deck_question_answers(deck), to: Decks
+  defdelegate get_deck_question_answer(id), to: Decks
+  defdelegate change_deck_question_answer(deck, attrs), to: Decks
+  defdelegate create_deck_question_answer(deck, attrs), to: Decks
+  defdelegate complete_deck_question_answer(question_answer, attrs), to: Decks
+  defdelegate fail_deck_question_answer(question_answer, error), to: Decks
+  defdelegate delete_deck_question_answer(question_answer), to: Decks
 
   defdelegate list_deck_tags(deck), to: Decks
   defdelegate create_deck_tag(deck, attrs), to: Decks
@@ -153,19 +170,30 @@ defmodule Manavault.Catalog do
   defdelegate export_decklist(deck), to: Decks
   defdelegate deck_buylist(deck, opts \\ []), to: Decks
   defdelegate deck_edhrec(deck, opts \\ []), to: Decks
+  defdelegate deck_recommander(deck, opts \\ []), to: Decks
+  defdelegate deck_combos(deck, opts \\ []), to: Decks
+  defdelegate card_edhrec(name, opts \\ []), to: Manavault.Catalog.EDHRec, as: :card_page
   defdelegate export_deck_buylist(deck, format, opts \\ []), to: Decks
   defdelegate deck_stats(deck), to: Decks
 
   defdelegate latest_sync(), to: Scryfall
   defdelegate sync_scryfall(opts \\ []), to: Cached
 
-  defdelegate reload_scryfall_catalog_async(opts \\ []),
-    to: ScryfallSyncWorker,
-    as: :reload_catalog_async
+  def reload_scryfall_catalog_async do
+    %{force: true}
+    |> ScryfallCatalogWorker.new(
+      replace: [available: [:args], scheduled: [:args], retryable: [:args]]
+    )
+    |> Oban.insert()
+  end
 
-  defdelegate reload_scryfall_assets_async(opts \\ []),
-    to: ScryfallSyncWorker,
-    as: :reload_assets_async
+  def reload_scryfall_assets_async do
+    %{force: true}
+    |> ScryfallAssetsWorker.new(
+      replace: [available: [:args], scheduled: [:args], retryable: [:args]]
+    )
+    |> Oban.insert()
+  end
 
   defdelegate import_cards(cards, bulk_uri \\ nil, opts \\ []), to: Cached
   defdelegate card_rulings(card, opts \\ []), to: Cached

@@ -41,6 +41,10 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionOperations do
       resolve(&QueryResolvers.collection_value_summary/3)
     end
 
+    field :collection_value_dashboard, non_null(:collection_value_dashboard) do
+      resolve(&QueryResolvers.collection_value_dashboard/3)
+    end
+
     field :collection_export_csv, non_null(:string) do
       arg(:filters, :collection_item_filters)
       resolve(&QueryResolvers.collection_export_csv/3)

@@ -13,7 +13,18 @@ export const DecksDocument = graphql(`
           name
           format
           status
+          includedForPlay
+          playCount
+          skipCount
+          lastPlayedAt
+          primer
+          aiAnalysis
+          aiAnalysisModel
+          aiAnalyzedAt
+          commanderBracket
+          commanderBracketEstimate
           shareToken
+          coverDeckCardId
           coverImageUrl
           commanderColorIdentity
           cardCount
@@ -32,6 +43,36 @@ export const DecksDocument = graphql(`
   }
 `)
 
+export const RandomDeckDocument = graphql(`
+  query RandomDeck($excludeId: ID) {
+    randomDeck(excludeId: $excludeId) {
+      id
+      name
+      format
+      status
+      coverImageUrl
+      commanderColorIdentity
+      cardCount
+      playCount
+      skipCount
+      lastPlayedAt
+    }
+  }
+`)
+
+export const RecordDeckPlayDocument = graphql(`
+  mutation RecordDeckPlay($id: ID!, $outcome: DeckPlayOutcome!) {
+    recordDeckPlay(id: $id, outcome: $outcome) {
+      deck {
+        id
+        playCount
+        skipCount
+        lastPlayedAt
+      }
+    }
+  }
+`)
+
 export const CreateDeckDocument = graphql(`
   mutation CreateDeck($input: DeckInput!) {
     createDeck(input: $input) {
@@ -40,7 +81,14 @@ export const CreateDeckDocument = graphql(`
         name
         format
         status
+        primer
+        aiAnalysis
+        aiAnalysisModel
+        aiAnalyzedAt
+        commanderBracket
+        commanderBracketEstimate
         shareToken
+        coverDeckCardId
         coverImageUrl
         commanderColorIdentity
         cardCount
@@ -66,7 +114,18 @@ export const UpdateDeckDocument = graphql(`
         name
         format
         status
+        includedForPlay
+        playCount
+        skipCount
+        lastPlayedAt
+        primer
+        aiAnalysis
+        aiAnalysisModel
+        aiAnalyzedAt
+        commanderBracket
+        commanderBracketEstimate
         shareToken
+        coverDeckCardId
         coverImageUrl
         commanderColorIdentity
         cardCount
@@ -145,6 +204,18 @@ export const DisassembleDeckDocument = graphql(`
   }
 `)
 
+export const DeckPlayHistoryDocument = graphql(`
+  query DeckPlayHistory($id: ID!) {
+    deck(id: $id) {
+      id
+      includedForPlay
+      playCount
+      skipCount
+      lastPlayedAt
+    }
+  }
+`)
+
 export const DeckDocument = graphql(`
   query Deck($id: ID!, $deckCardsAfter: String) {
     deck(id: $id) {
@@ -152,8 +223,17 @@ export const DeckDocument = graphql(`
       name
       format
       status
+      primer
+      aiAnalysis
+      aiAnalysisModel
+      aiAnalyzedAt
+      commanderBracket
+      commanderBracketEstimate
       shareToken
+      coverDeckCardId
+      coverImageUrl
       cardCount
+      commanderColorIdentity
       legality {
         status
         issues {
@@ -196,6 +276,7 @@ export const DeckDocument = graphql(`
               colors
               colorIdentity
               gameChanger
+              edhrecSaltiness
               deckCategory
               deckThemes
             }
@@ -267,6 +348,99 @@ export const DeckDocument = graphql(`
           }
         }
       }
+    }
+  }
+`)
+
+export const AnalyzeDeckDocument = graphql(`
+  mutation AnalyzeDeck($id: ID!) {
+    analyzeDeck(id: $id) {
+      deck {
+        id
+        aiAnalysis
+        aiAnalysisModel
+        aiAnalyzedAt
+        commanderBracket
+        commanderBracketEstimate
+      }
+    }
+  }
+`)
+
+export const DeckAnalysisRequestsDocument = graphql(`
+  query DeckAnalysisRequests {
+    deckAnalysisRequests {
+      id
+      sourceType
+      source
+      sourceName
+      format
+      analysis
+      model
+      commanderBracket
+      commanderBracketEstimate
+      insertedAt
+    }
+  }
+`)
+
+export const AnalyzeDeckListDocument = graphql(`
+  mutation AnalyzeDeckList($url: String, $text: String, $format: String!) {
+    analyzeDeckList(url: $url, text: $text, format: $format) {
+      deckAnalysisRequest {
+        id
+        sourceType
+        source
+        sourceName
+        format
+        analysis
+        model
+        commanderBracket
+        commanderBracketEstimate
+        insertedAt
+      }
+    }
+  }
+`)
+
+export const DeckQuestionAnswersDocument = graphql(`
+  query DeckQuestionAnswers($deckId: ID!) {
+    deckQuestionAnswers(deckId: $deckId) {
+      id
+      question
+      answer
+      status
+      error
+      model
+      recommendedCuts
+      recommendedAdditions
+      insertedAt
+    }
+  }
+`)
+
+export const AskDeckQuestionDocument = graphql(`
+  mutation AskDeckQuestion($id: ID!, $question: String!) {
+    askDeckQuestion(id: $id, question: $question) {
+      questionAnswer {
+        id
+        question
+        answer
+        status
+        error
+        model
+        recommendedCuts
+        recommendedAdditions
+        insertedAt
+      }
+    }
+  }
+`)
+
+export const DeleteDeckQuestionAnswerDocument = graphql(`
+  mutation DeleteDeckQuestionAnswer($id: ID!) {
+    deleteDeckQuestionAnswer(id: $id) {
+      questionAnswerId
     }
   }
 `)
@@ -562,6 +736,36 @@ export const BulkDeallocateDeckCardsDocument = graphql(`
 export const SetDeckCommanderDocument = graphql(`
   mutation SetDeckCommander($id: ID!) {
     setDeckCommander(id: $id) {
+      deckCard {
+        id
+        quantity
+        zone
+        finish
+        card {
+          id
+          oracleId
+          name
+          typeLine
+        }
+        preferredPrinting {
+          id
+          scryfallId
+          imageUrl
+          backImageUrl
+          artCropUrl
+          setCode
+          setName
+          collectorNumber
+          rarity
+        }
+      }
+    }
+  }
+`)
+
+export const AddDeckPartnerDocument = graphql(`
+  mutation AddDeckPartner($id: ID!) {
+    addDeckPartner(id: $id) {
       deckCard {
         id
         quantity
@@ -1000,6 +1204,69 @@ export const DeckEdhrecDocument = graphql(`
           }
         }
       }
+    }
+  }
+`)
+
+export const DeckRecommanderDocument = graphql(`
+  query DeckRecommander($id: ID!) {
+    deckRecommander(id: $id) {
+      commanders {
+        name
+        oracleId
+        url
+      }
+      recommendations {
+        name
+        oracleId
+        rank
+        score
+        card {
+          id
+          oracleId
+          name
+          typeLine
+          primaryPrinting {
+            id
+            scryfallId
+            imageUrl
+            artCropUrl
+            priceText
+          }
+        }
+        collectionStatus {
+          state
+          required
+          owned
+          allocated
+          available
+          allocatedElsewhere
+          missing
+          deckZone
+          candidates {
+            available
+          }
+        }
+      }
+    }
+  }
+`)
+
+export const DeckCombosDocument = graphql(`
+  query DeckCombos($id: ID!) {
+    deckCombos(id: $id) {
+      id
+      url
+      cards {
+        name
+        quantity
+        imageUrl
+      }
+      produces
+      description
+      manaNeeded
+      prerequisites
+      notes
     }
   }
 `)

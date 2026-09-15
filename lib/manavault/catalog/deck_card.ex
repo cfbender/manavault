@@ -44,6 +44,13 @@ defmodule Manavault.Catalog.DeckCard do
   def deck_count_zone?(zone) when is_binary(zone), do: zone in @deck_count_zones
   def deck_count_zone?(_zone), do: false
 
+  @doc "Total quantity across `deck_cards` in zones that count toward the deck total."
+  def counted_quantity(deck_cards) when is_list(deck_cards) do
+    deck_cards
+    |> Enum.filter(&counts_toward_deck_total?/1)
+    |> Enum.reduce(0, &(&1.quantity + &2))
+  end
+
   def changeset(deck_card, attrs) do
     deck_card
     |> cast(attrs, [

@@ -45,10 +45,10 @@ test("card reveal waits for a stationary touch to finish", () => {
   const card = screen.getByRole("link", { name: "View Black Lotus" })
 
   fireEvent.pointerDown(card, { clientX: 10, clientY: 10, pointerId: 1, pointerType: "touch" })
-  expect(card.classList.contains("scale-[1.035]")).toBe(false)
+  expect(card.classList.contains("-translate-y-2")).toBe(false)
 
   fireEvent.pointerUp(card, { clientX: 10, clientY: 10, pointerId: 1, pointerType: "touch" })
-  expect(card.classList.contains("scale-[1.035]")).toBe(true)
+  expect(card.classList.contains("-translate-y-2")).toBe(true)
 
   fireEvent.click(card)
   expect(onSelect).not.toHaveBeenCalled()
@@ -67,7 +67,7 @@ test("dragging across a card neither reveals nor activates it", () => {
     fireEvent.pointerUp(card, { clientX: 10, clientY: 30, pointerId: 1, pointerType: "touch" })
     fireEvent.click(card)
 
-    expect(card.classList.contains("scale-[1.035]")).toBe(false)
+    expect(card.classList.contains("-translate-y-2")).toBe(false)
     expect(onSelect).not.toHaveBeenCalled()
   } finally {
     vi.useRealTimers()

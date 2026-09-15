@@ -77,10 +77,3 @@ export function colorOrder(color: string) {
   const index = COLOR_ORDER.indexOf(color)
   return index === -1 ? 99 : index
 }
-
-export function deckDetailCoverUrl(deckCards: DeckCardEntry[]) {
-  const cover = deckCards.find(
-    (deckCard) => cardImageUrl(deckCard, "artCropUrl") || cardImageUrl(deckCard, "imageUrl"),
-  )
-  return cover ? cardImageUrl(cover, "artCropUrl") || cardImageUrl(cover, "imageUrl") : null
-}

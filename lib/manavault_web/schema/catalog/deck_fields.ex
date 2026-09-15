@@ -3,6 +3,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
 
   import Absinthe.Resolution.Helpers, only: [on_load: 2]
 
+  alias Absinthe.Relay.Node
   alias Manavault.Catalog
   alias Manavault.Catalog.{Deck, DeckCard, Price}
   alias ManavaultWeb.Schema.RelayHelpers
@@ -105,8 +106,42 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
     {:ok, Catalog.deck_cover_image_url(deck)}
   end
 
+  def deck_cover_deck_card_id(%Deck{cover_deck_card_id: nil}, _args, _resolution), do: {:ok, nil}
+
+  def deck_cover_deck_card_id(%Deck{cover_deck_card_id: id}, _args, resolution) do
+    {:ok, Node.to_global_id(:deck_card, id, resolution.schema)}
+  end
+
   def deck_commander_color_identity(%Deck{} = deck, _args, _resolution) do
     {:ok, Catalog.deck_commander_color_identity(deck)}
+  end
+
+  def deck_ai_analyzed_at(%Deck{ai_analyzed_at: nil}, _args, _resolution), do: {:ok, nil}
+
+  def deck_ai_analyzed_at(%Deck{ai_analyzed_at: analyzed_at}, _args, _resolution) do
+    {:ok, DateTime.to_iso8601(analyzed_at)}
+  end
+
+  def deck_last_played_at(%Deck{last_played_at: nil}, _args, _resolution), do: {:ok, nil}
+
+  def deck_last_played_at(%Deck{last_played_at: last_played_at}, _args, _resolution) do
+    {:ok, DateTime.to_iso8601(last_played_at)}
+  end
+
+  def deck_question_answer_inserted_at(%{inserted_at: inserted_at}, _args, _resolution) do
+    {:ok, DateTime.to_iso8601(inserted_at)}
+  end
+
+  def deck_analysis_request_inserted_at(%{inserted_at: inserted_at}, _args, _resolution) do
+    {:ok, DateTime.to_iso8601(inserted_at)}
+  end
+
+  def deck_question_answer_recommended_cuts(question_answer, _args, _resolution) do
+    {:ok, recommendation_names(question_answer, :cuts)}
+  end
+
+  def deck_question_answer_recommended_additions(question_answer, _args, _resolution) do
+    {:ok, recommendation_names(question_answer, :additions)}
   end
 
   def deck_legality(%Deck{deck_cards: deck_cards} = deck, _args, _resolution)
@@ -132,6 +167,16 @@ defmodule ManavaultWeb.Schema.Catalog.DeckFields do
   def deck_legality(%Deck{} = deck, _args, _resolution) do
     {:ok, Catalog.deck_legality(deck)}
   end
+
+  defp recommendation_names(%{recommendations: recommendations}, key)
+       when is_map(recommendations) do
+    case Map.get(recommendations, key) || Map.get(recommendations, Atom.to_string(key)) do
+      names when is_list(names) -> Enum.filter(names, &is_binary/1)
+      _other -> []
+    end
+  end
+
+  defp recommendation_names(_question_answer, _key), do: []
 
   def deck_card_allocation_status(%DeckCard{allocation_status: status}, _args, _resolution)
       when is_map(status) do

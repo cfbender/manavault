@@ -29,7 +29,8 @@ export function deserializeCollectionTab(value: string): CollectionTab {
     decoded === "all" ||
     decoded === "recent" ||
     decoded === "available" ||
-    decoded === "unfiled"
+    decoded === "unfiled" ||
+    decoded === "value"
   ) {
     return decoded
   }

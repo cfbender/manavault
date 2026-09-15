@@ -1,4 +1,12 @@
 import { Input } from "../../components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
+import { ToggleGroup, ToggleGroupItem } from "../../components/ui/toggle-group"
 import { cn, titleize } from "../../lib/utils"
 import { COLLECTION_FINISHES } from "./constants"
 import { collectionFinishValue } from "./form-helpers"
@@ -71,40 +79,42 @@ export function CollectionFinishField({
     <fieldset className="space-y-1.5">
       <legend className="text-xs font-black uppercase tracking-[0.18em] text-accent">Finish</legend>
       {finishOptions.length <= 3 ? (
-        <div className="flex gap-1 rounded-btn border border-base-300 bg-base-100 p-1">
-          {finishOptions.map((option) => {
-            const selected = option === value
-
-            return (
-              <button
-                key={option}
-                type="button"
-                className={cn(
-                  "min-h-8 flex-1 rounded-btn px-2 text-xs font-black uppercase tracking-wide transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                  selected
-                    ? collectionFinishToggleClass(option)
-                    : "text-base-content/65 hover:bg-base-200 hover:text-base-content",
-                )}
-                aria-pressed={selected}
-                onClick={() => onChange(option)}
-              >
-                {titleize(option)}
-              </button>
-            )
-          })}
-        </div>
-      ) : (
-        <select
-          className="select select-bordered h-9 min-h-9 w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        <ToggleGroup
+          type="single"
           value={value}
-          onChange={(event) => onChange(collectionFinishValue(event.target.value))}
+          onValueChange={(option) => {
+            if (option) onChange(collectionFinishValue(option))
+          }}
+          className="flex gap-1 rounded-btn border border-base-300 bg-base-100 p-1"
         >
           {finishOptions.map((option) => (
-            <option key={option} value={option}>
+            <ToggleGroupItem
+              key={option}
+              value={option}
+              className={cn(
+                "min-h-8 flex-1 rounded-btn px-2 text-xs font-black uppercase tracking-wide transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                option === value
+                  ? collectionFinishToggleClass(option)
+                  : "text-base-content/65 hover:bg-base-200 hover:text-base-content",
+              )}
+            >
               {titleize(option)}
-            </option>
+            </ToggleGroupItem>
           ))}
-        </select>
+        </ToggleGroup>
+      ) : (
+        <Select value={value} onValueChange={(option) => onChange(collectionFinishValue(option))}>
+          <SelectTrigger aria-label="Finish" className="h-9 min-h-9">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {finishOptions.map((option) => (
+              <SelectItem key={option} value={option}>
+                {titleize(option)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       )}
     </fieldset>
   )

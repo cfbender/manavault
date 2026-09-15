@@ -123,12 +123,9 @@ defmodule Manavault.Catalog.Search.Printings do
 
     where(
       query,
-      [_printing, card],
-      fragment(
-        "lower(replace(replace(?, '''', ''), '’', '')) LIKE ? ESCAPE '\\'",
-        card.name,
-        ^pattern
-      )
+      [printing, card],
+      fragment("? LIKE ? ESCAPE '\\'", card.normalized_name, ^pattern) or
+        fragment("? LIKE ? ESCAPE '\\'", printing.normalized_flavor_name, ^pattern)
     )
   end
 

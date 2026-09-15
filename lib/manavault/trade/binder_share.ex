@@ -5,8 +5,8 @@ defmodule Manavault.Trade.BinderShare do
   `ManavaultWeb.PublicShareSchema` and the `/share/binder/:token` route).
   Unlike deck sharing, there is exactly one binder share for the whole
   collection — generated lazily and reused for its lifetime, instead of
-  one token per row. Token format is reused from
-  `Manavault.Catalog.Decks.ShareToken`.
+  one token per row. The token lifecycle lives in
+  `Manavault.Trade.SingletonShare`.
   """
 
   use Ecto.Schema
@@ -15,11 +15,8 @@ defmodule Manavault.Trade.BinderShare do
   import Ecto.Query
 
   alias Manavault.Catalog.{CollectionItem, Printing, Util}
-  alias Manavault.Catalog.Decks.ShareToken
   alias Manavault.Repo
-  alias Manavault.Trade.ForTradeQuery
-
-  @share_token_attempts 5
+  alias Manavault.Trade.{ForTradeQuery, SingletonShare}
 
   schema "trade_binder_shares" do
     field :token, :string
@@ -34,98 +31,19 @@ defmodule Manavault.Trade.BinderShare do
     |> unique_constraint(:token)
   end
 
-  @doc "The current binder share token, or `nil` if one has never been created."
-  def token do
-    case earliest_share() do
-      %__MODULE__{token: token} -> token
-      nil -> nil
-    end
-  end
-
-  @doc """
-  Returns the binder share token, creating the singleton row on first use.
-  The transaction serializes this operation with disable and rotation so an
-  in-flight ensure cannot recreate sharing after revocation.
-  """
-  def ensure_token do
-    Repo.transact(fn ->
-      case token() do
-        token when is_binary(token) -> {:ok, token}
-        nil -> put_token()
-      end
-    end)
-  end
-
-  @doc "Disables sharing and removes every stale singleton row."
-  def disable do
-    Repo.transact(fn ->
-      {count, _} = Repo.delete_all(__MODULE__)
-      {:ok, count}
-    end)
-  end
-
-  @doc "Replaces every share row with exactly one fresh canonical token."
-  def rotate, do: rotate(@share_token_attempts)
+  def token, do: SingletonShare.token(__MODULE__)
+  def ensure_token, do: SingletonShare.ensure_token(__MODULE__)
+  def disable, do: SingletonShare.disable(__MODULE__)
+  def rotate, do: SingletonShare.rotate(__MODULE__)
 
   @doc """
   The public trade binder for `share_token`, or `nil` when it's malformed
   or doesn't match the stored share token.
   """
   def list_by_token(share_token) do
-    if ShareToken.valid?(share_token) and share_token == token() do
+    if SingletonShare.matches?(__MODULE__, share_token) do
       %{entries: entries()}
     end
-  end
-
-  defp put_token do
-    %__MODULE__{}
-    |> changeset(%{token: ShareToken.generate()})
-    |> Repo.insert()
-    |> case do
-      {:ok, %__MODULE__{}} ->
-        {:ok, canonical_token()}
-
-      {:error, changeset} ->
-        if Keyword.has_key?(changeset.errors, :token) do
-          {:ok, canonical_token()}
-        else
-          {:error, changeset}
-        end
-    end
-  end
-
-  defp rotate(0), do: {:error, :share_token_collision}
-
-  defp rotate(attempts) do
-    Repo.transact(fn ->
-      Repo.delete_all(__MODULE__)
-
-      case %__MODULE__{} |> changeset(%{token: ShareToken.generate()}) |> Repo.insert() do
-        {:ok, %__MODULE__{token: token}} -> {:ok, token}
-        {:error, changeset} -> Repo.rollback(changeset)
-      end
-    end)
-    |> case do
-      {:error, %Ecto.Changeset{} = changeset} ->
-        if Keyword.has_key?(changeset.errors, :token),
-          do: rotate(attempts - 1),
-          else: {:error, changeset}
-
-      result ->
-        result
-    end
-  end
-
-  defp canonical_token do
-    %__MODULE__{token: token} = earliest_share()
-    token
-  end
-
-  defp earliest_share do
-    __MODULE__
-    |> order_by(asc: :id)
-    |> limit(1)
-    |> Repo.one()
   end
 
   defp entries do

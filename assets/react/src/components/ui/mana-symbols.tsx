@@ -46,7 +46,10 @@ export function ColorIdentitySymbols({
       className={cn("inline-flex shrink-0 items-center gap-0.5", className)}
     >
       {colors.map((color) => (
-        <ManaSymbol key={color} symbol={color} />
+        // Inside this flex container the icons are already centered; drop the
+        // baseline nudge so they don't poke above the line box and get
+        // clipped by ancestors with overflow hidden (e.g. line-clamped names).
+        <ManaSymbol key={color} symbol={color} className="translate-y-0" />
       ))}
     </span>
   )

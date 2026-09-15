@@ -94,6 +94,16 @@ defmodule ManavaultWeb.Schema.CollectionQueriesTest do
             valueGainText
             valueGainPercentText
           }
+          collectionValueDashboard {
+            itemCount
+            positionCount
+            gainPositionCount
+            lossPositionCount
+            unchangedPositionCount
+            summary { totalPriceText purchasePriceText valueGainText }
+            biggestGains { valueGainText printing { card { name } } }
+            biggestLosses { valueGainText printing { card { name } } }
+          }
         }
         """
       })
@@ -147,6 +157,20 @@ defmodule ManavaultWeb.Schema.CollectionQueriesTest do
                  "purchasePriceText" => "$37.02",
                  "valueGainText" => "$0",
                  "valueGainPercentText" => "0%"
+               },
+               "collectionValueDashboard" => %{
+                 "itemCount" => 3,
+                 "positionCount" => 1,
+                 "gainPositionCount" => 0,
+                 "lossPositionCount" => 0,
+                 "unchangedPositionCount" => 1,
+                 "summary" => %{
+                   "totalPriceText" => "$37.02",
+                   "purchasePriceText" => "$37.02",
+                   "valueGainText" => "$0"
+                 },
+                 "biggestGains" => [],
+                 "biggestLosses" => []
                },
                "collectionItems" => %{
                  "pageInfo" => %{"endCursor" => _, "hasNextPage" => false},
@@ -221,6 +245,9 @@ defmodule ManavaultWeb.Schema.CollectionQueriesTest do
               }
             }
           }
+          collectionValueDashboard {
+            biggestGains { items { id } }
+          }
           collectionItems(first: 10) {
             edges { node { id quantity purchasePriceCents } }
           }
@@ -242,12 +269,18 @@ defmodule ManavaultWeb.Schema.CollectionQueriesTest do
                    }
                  ]
                },
+               "collectionValueDashboard" => %{
+                 "biggestGains" => [%{"items" => dashboard_items}]
+               },
                "collectionItems" => %{"edges" => item_edges}
              }
            } = json_response(conn, 200)
 
     assert Enum.map(grouped_items, & &1["purchasePriceCents"]) == [100, 200]
     assert Enum.map(item_edges, & &1["node"]["purchasePriceCents"]) == [100, 200]
+
+    assert dashboard_items |> Enum.map(& &1["id"]) |> Enum.sort() ==
+             item_edges |> Enum.map(& &1["node"]["id"]) |> Enum.sort()
 
     assert Enum.map(grouped_items, & &1["id"]) == [
              Absinthe.Relay.Node.to_global_id(:collection_item, first.id, ManavaultWeb.Schema),

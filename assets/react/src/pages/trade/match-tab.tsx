@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react"
 import { EmptyState } from "../../components/card-image"
 import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/input"
+import { Textarea } from "../../components/ui/textarea"
 import type { TradeMatchesMutation } from "../../gql/graphql"
 import { cn, pluralize, titleize } from "../../lib/utils"
 import { TradeMatchesDocument } from "./match-documents"
@@ -157,8 +158,8 @@ export function MatchTab() {
             <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
               Their list text
             </span>
-            <textarea
-              className="textarea textarea-bordered min-h-40 w-full bg-base-100 font-mono text-sm"
+            <Textarea
+              className="min-h-40 font-mono text-sm"
               value={text}
               onChange={(event) => setText(event.target.value)}
               placeholder={"1x Jund Charm (C13) 195\n2x Lightning Bolt (M11) 146 *F*"}

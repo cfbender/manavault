@@ -2,21 +2,20 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
   @moduledoc false
 
   alias Manavault.Catalog.ScryfallOracleTags
+  alias Manavault.Catalog.Search.NameMatch
 
   def rows(cards, now, oracle_tag_index) when is_list(cards) do
-    {card_rows, printing_rows, search_rows} =
-      Enum.reduce(cards, {[], [], []}, fn card, {card_rows, printing_rows, search_rows} ->
+    {card_rows, printing_rows} =
+      Enum.reduce(cards, {[], []}, fn card, {card_rows, printing_rows} ->
         {
           prepend_rows(card_row(card, now, oracle_tag_index), card_rows),
-          prepend_rows(printing_row(card, now), printing_rows),
-          prepend_rows(printing_search_row(card), search_rows)
+          prepend_rows(printing_row(card, now), printing_rows)
         }
       end)
 
     %{
       cards: :lists.reverse(card_rows),
-      printings: :lists.reverse(printing_rows),
-      search_rows: :lists.reverse(search_rows)
+      printings: :lists.reverse(printing_rows)
     }
   end
 
@@ -26,10 +25,6 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
 
   def printing_rows(cards, now) when is_list(cards) do
     Enum.flat_map(cards, &printing_row(&1, now))
-  end
-
-  def printing_search_rows(cards) when is_list(cards) do
-    Enum.flat_map(cards, &printing_search_row/1)
   end
 
   defp prepend_rows(rows, acc) do
@@ -44,6 +39,7 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
       %{
         oracle_id: oracle_id,
         name: name,
+        normalized_name: NameMatch.sql_normalize(name),
         type_line: card["type_line"],
         oracle_text: oracle_text(card),
         mana_cost: card["mana_cost"],
@@ -52,6 +48,7 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
         color_identity: encode_json(card["color_identity"] || []),
         legalities: encode_json(card["legalities"] || %{}),
         game_changer: card["game_changer"] == true,
+        edhrec_rank: card["edhrec_rank"],
         oracle_tags: tag_fields.oracle_tags,
         deck_category: tag_fields.deck_category,
         deck_themes: tag_fields.deck_themes,
@@ -66,6 +63,8 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
 
   defp printing_row(%{"id" => scryfall_id, "oracle_id" => oracle_id} = card, now)
        when is_binary(scryfall_id) and is_binary(oracle_id) do
+    flavor_name = flavor_name(card)
+
     [
       %{
         scryfall_id: scryfall_id,
@@ -73,11 +72,13 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
         set_code: String.downcase(card["set"] || ""),
         set_name: card["set_name"],
         collector_number: card["collector_number"] || "",
-        flavor_name: flavor_name(card),
+        flavor_name: flavor_name,
+        normalized_flavor_name: normalize_flavor_name(flavor_name),
         flavor_text: flavor_text(card),
         lang: card["lang"] || "en",
         rarity: card["rarity"],
         finishes: encode_json(card["finishes"] || []),
+        promo_types: encode_json(card["promo_types"] || []),
         image_uris: encode_json(image_uris(card)),
         prices: encode_json(card["prices"] || %{}),
         released_at: parse_date(card["released_at"]),
@@ -88,43 +89,6 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
   end
 
   defp printing_row(_card, _now), do: []
-
-  defp printing_search_row(%{"id" => scryfall_id, "name" => name} = card)
-       when is_binary(scryfall_id) and is_binary(name) do
-    oracle_text = oracle_text(card) || ""
-
-    [
-      %{
-        scryfall_id: scryfall_id,
-        name: normalize_search_text(name),
-        compact_name: compact_search_text(name),
-        flavor_name: normalize_search_text(flavor_name(card) || ""),
-        compact_flavor_name: compact_search_text(flavor_name(card) || ""),
-        flavor_text: normalize_search_text(flavor_text(card) || ""),
-        compact_flavor_text: compact_search_text(flavor_text(card) || ""),
-        type_line: normalize_search_text(card["type_line"] || ""),
-        oracle_text: normalize_search_text(oracle_text),
-        compact_oracle_text: compact_search_text(oracle_text),
-        set_code: normalize_search_text(card["set"] || ""),
-        collector_number: normalize_search_text(card["collector_number"] || "")
-      }
-    ]
-  end
-
-  defp printing_search_row(_card), do: []
-
-  defp normalize_search_text(value) when is_binary(value) do
-    value
-    |> String.downcase()
-    |> String.replace(~r/[^a-z0-9]+/u, " ")
-    |> String.trim()
-  end
-
-  defp compact_search_text(value) when is_binary(value) do
-    value
-    |> String.downcase()
-    |> String.replace(~r/[^a-z0-9]+/u, "")
-  end
 
   defp colors(%{"colors" => colors}) when is_list(colors), do: colors
 
@@ -143,6 +107,9 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
   end
 
   defp flavor_name(_card), do: nil
+
+  defp normalize_flavor_name(name) when is_binary(name), do: NameMatch.sql_normalize(name)
+  defp normalize_flavor_name(_name), do: nil
 
   defp flavor_text(%{"flavor_text" => text}) when is_binary(text), do: text
 

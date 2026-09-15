@@ -3,8 +3,12 @@ defmodule ManavaultWeb.Schema do
   use Absinthe.Relay.Schema, :modern
 
   import_types(ManavaultWeb.Schema.CatalogTypes)
+  import_types(ManavaultWeb.Schema.AITypes)
   import_types(ManavaultWeb.Schema.BackupTypes)
+  import_types(ManavaultWeb.Schema.PricingTypes)
+  import_types(ManavaultWeb.Schema.Catalog.AIOperations)
   import_types(ManavaultWeb.Schema.Catalog.BackupOperations)
+  import_types(ManavaultWeb.Schema.Catalog.PricingOperations)
   import_types(ManavaultWeb.Schema.Catalog.CardOperations)
   import_types(ManavaultWeb.Schema.Catalog.CollectionOperations)
   import_types(ManavaultWeb.Schema.Catalog.DeckOperations)
@@ -39,11 +43,13 @@ defmodule ManavaultWeb.Schema do
 
   query do
     import_fields(:other_queries)
+    import_fields(:ai_queries)
     import_fields(:card_queries)
     import_fields(:collection_queries)
     import_fields(:location_queries)
     import_fields(:deck_queries)
     import_fields(:backup_queries)
+    import_fields(:pricing_queries)
     import_fields(:trade_queries)
 
     node field do
@@ -79,13 +85,28 @@ defmodule ManavaultWeb.Schema do
   end
 
   mutation do
+    import_fields(:ai_mutations)
     import_fields(:backup_mutations)
+    import_fields(:pricing_mutations)
     import_fields(:card_mutations)
     import_fields(:collection_mutations)
     import_fields(:location_mutations)
     import_fields(:deck_mutations)
     import_fields(:trade_mutations)
     import_fields(:trade_list_mutations)
+  end
+
+  object :server_log_event do
+    field :id, non_null(:id)
+    field :timestamp, non_null(:string)
+    field :level, non_null(:string)
+    field :message, non_null(:string)
+  end
+
+  subscription do
+    field :server_log, non_null(:server_log_event) do
+      config(fn _args, _resolution -> {:ok, topic: "server-logs"} end)
+    end
   end
 
   def context(ctx) do

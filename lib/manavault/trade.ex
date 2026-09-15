@@ -11,7 +11,8 @@ defmodule Manavault.Trade do
   import Ecto.Query
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.{Card, Decklists, Printing, Util}
+  alias Manavault.Catalog.{Card, Printing, Util}
+  alias Manavault.Catalog.Search.CardsByName
   alias Manavault.Repo
   alias Manavault.Trade.{BinderShare, Want, WantsShare}
 
@@ -124,16 +125,9 @@ defmodule Manavault.Trade do
   """
   defdelegate binder_list_by_share_token(token), to: BinderShare, as: :list_by_token
 
-  defp normalize_quantity(quantity) when is_integer(quantity) and quantity > 0, do: quantity
-  defp normalize_quantity(_quantity), do: 1
+  defp normalize_quantity(quantity), do: Util.positive_quantity(quantity)
 
-  defp find_card_by_name(name) do
-    normalized = name |> Decklists.normalize_card_name() |> String.downcase()
-
-    Card
-    |> where([card], fragment("lower(?)", card.name) == ^normalized)
-    |> Repo.one()
-  end
+  defp find_card_by_name(name), do: CardsByName.find(name)
 
   defp upsert_want(oracle_id, preferred_printing_id, quantity) do
     %Want{}

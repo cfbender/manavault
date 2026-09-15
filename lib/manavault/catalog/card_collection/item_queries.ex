@@ -7,11 +7,13 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries do
   alias Manavault.Catalog.CollectionItem
   alias Manavault.Repo
 
-  import Manavault.Catalog.PriceFragments, only: [price_value_fragment: 2]
+  import Manavault.Catalog.PriceFragments,
+    only: [price_value_fragment: 2, price_cents_fragment: 2, value_gain_cents_fragment: 2]
 
   @default_sort %{field: "name", direction: "asc"}
 
   defdelegate value_summary(filters \\ []), to: ValueSummary
+  defdelegate value_dashboard(), to: ValueSummary
   defdelegate location_summaries(), to: ValueSummary
 
   def list_items(filters \\ [], opts \\ []) when is_list(filters) do
@@ -19,11 +21,21 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries do
     offset = Keyword.get(opts, :offset, 0)
     sort = Keyword.get(opts, :sort, @default_sort)
 
-    filters
+    # Sort and page over item ids only, then load the full rows for that
+    # page. Sorting the joined rows directly drags every printing row (~2 KB
+    # of image/price JSON) through SQLite's sorter for the whole collection.
+    page_ids =
+      filters
+      |> Base.base_query()
+      |> select([item, _printing, _card, _location], item.id)
+      |> apply_sort(sort)
+      |> limit(^limit)
+      |> offset(^offset)
+
+    [include_list_locations: true]
     |> items_query()
+    |> where([item, _printing, _card, _location], item.id in subquery(page_ids))
     |> apply_sort(sort)
-    |> limit(^limit)
-    |> offset(^offset)
     |> Repo.all()
   end
 
@@ -62,49 +74,48 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries do
     end)
   end
 
-  def count_items(filters \\ [])
+  # All three collection totals for a filter set in one pass over the joined
+  # rows. A search requests every one of them (the collection header wants the
+  # quantity and entry totals, the groups page wants the group total), and
+  # each is a full scan of the same filtered join.
+  #
+  #   * quantity: summed item quantities (for_trade_quantity under the
+  #     for_trade filter)
+  #   * entries: collection item rows. Pagination must use this: quantity sums
+  #     overshoot the row count, which keeps hasNextPage true past the last
+  #     row and pages forever.
+  #   * groups: distinct printings
+  def item_totals(filters \\ [])
 
-  def count_items([]) do
+  def item_totals([]) do
     CollectionItem
     |> join(:left, [item], location in assoc(item, :location_assoc))
     |> where([_item, location], is_nil(location.id) or location.kind != "list")
-    |> select([item, _location], coalesce(sum(item.quantity), 0))
+    |> select([item, _location], %{
+      quantity: coalesce(sum(item.quantity), 0),
+      entries: count(item.id),
+      groups: count(item.scryfall_id, :distinct)
+    })
     |> Repo.one()
   end
 
-  def count_items(filters) when is_list(filters) do
-    query = Base.base_query(filters)
+  def item_totals(filters) when is_list(filters) do
+    quantity_field =
+      if Keyword.get(filters, :for_trade, false), do: :for_trade_quantity, else: :quantity
 
-    if Keyword.get(filters, :for_trade, false) do
-      query
-      |> select(
-        [item, _printing, _card, _location],
-        coalesce(sum(item.for_trade_quantity), 0)
-      )
-      |> Repo.one()
-    else
-      query
-      |> select([item, _printing, _card, _location], coalesce(sum(item.quantity), 0))
-      |> Repo.one()
-    end
-  end
-
-  # Number of collection item rows (not summed quantities) matching the
-  # filters. Pagination must use this: quantity sums overshoot the row count,
-  # which keeps hasNextPage true past the last row and pages forever.
-  def count_item_entries(filters \\ []) when is_list(filters) do
     filters
     |> Base.base_query()
-    |> select([item, _printing, _card, _location], count(item.id))
+    |> select([item, _printing, _card, _location], %{
+      quantity: coalesce(sum(field(item, ^quantity_field)), 0),
+      entries: count(item.id),
+      groups: count(item.scryfall_id, :distinct)
+    })
     |> Repo.one()
   end
 
-  def count_item_groups(filters \\ []) when is_list(filters) do
-    filters
-    |> Base.base_query()
-    |> select([item, _printing, _card, _location], count(item.scryfall_id, :distinct))
-    |> Repo.one()
-  end
+  def count_items(filters \\ []) when is_list(filters), do: item_totals(filters).quantity
+  def count_item_entries(filters \\ []) when is_list(filters), do: item_totals(filters).entries
+  def count_item_groups(filters \\ []) when is_list(filters), do: item_totals(filters).groups
 
   def list_item_ids(filters \\ []) when is_list(filters) do
     filters
@@ -197,6 +208,20 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries do
       {"price", _direction} ->
         order_by(query, [item, printing, card, _location],
           asc: max(price_value_fragment(item, printing)),
+          asc: card.name,
+          asc: item.scryfall_id
+        )
+
+      {"value_gain", "desc"} ->
+        order_by(query, [item, printing, card, _location],
+          desc: sum(item.quantity * value_gain_cents_fragment(item, printing)),
+          asc: card.name,
+          asc: item.scryfall_id
+        )
+
+      {"value_gain", _direction} ->
+        order_by(query, [item, printing, card, _location],
+          asc: sum(item.quantity * value_gain_cents_fragment(item, printing)),
           asc: card.name,
           asc: item.scryfall_id
         )
@@ -309,6 +334,20 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries do
           asc: item.id
         )
 
+      {"value_gain", "desc"} ->
+        order_by(query, [item, printing, card, _location],
+          desc: value_gain_cents_fragment(item, printing),
+          asc: card.name,
+          asc: item.id
+        )
+
+      {"value_gain", _direction} ->
+        order_by(query, [item, printing, card, _location],
+          asc: value_gain_cents_fragment(item, printing),
+          asc: card.name,
+          asc: item.id
+        )
+
       {"added", "desc"} ->
         order_by(query, [item, printing, card, _location],
           desc: item.inserted_at,
@@ -359,7 +398,7 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries do
   defp normalize_sort_field(value) do
     value = value |> to_string() |> String.trim() |> String.downcase()
 
-    if value in ["quantity", "name", "set", "rarity", "price", "added"] do
+    if value in ["quantity", "name", "set", "rarity", "price", "value_gain", "added"] do
       value
     else
       @default_sort.field

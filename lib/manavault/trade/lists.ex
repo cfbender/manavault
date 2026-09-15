@@ -10,7 +10,7 @@ defmodule Manavault.Trade.Lists do
   and deck diffing.
   """
 
-  alias Manavault.Trade.{DeckDiff, EntryResolver, ListSource, Matcher}
+  alias Manavault.Trade.{CollectionCheck, DeckDiff, EntryResolver, ListSource, Matcher}
 
   @doc """
   Resolves pasted `text` or a supported `url` (text wins if both are given)
@@ -25,6 +25,13 @@ defmodule Manavault.Trade.Lists do
     with {:ok, %{source_name: source_name, entries: entries}} <- resolve(args),
          {:ok, resolved} <- EntryResolver.resolve(entries) do
       {:ok, Matcher.match(source_name, resolved)}
+    end
+  end
+
+  @doc "Checks a resolved list against unallocated collection inventory and replacement prices."
+  def collection_check(args, opts \\ []) do
+    with {:ok, %{source_name: source_name, entries: entries}} <- resolve(args) do
+      CollectionCheck.check(source_name, entries, opts)
     end
   end
 

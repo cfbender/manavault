@@ -306,7 +306,7 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
     assert %{"errors" => [%{"message" => "Unfiled cannot be edited"}]} = json_response(conn, 200)
   end
 
-  test "delete location mutation deletes location and unfiles cards", %{conn: conn} do
+  test "delete storage location mutation deletes location and unfiles cards", %{conn: conn} do
     {:ok, %{cards_count: 1, printings_count: 1}} =
       Catalog.import_cards([
         %{
@@ -358,6 +358,61 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
 
     assert_raise Ecto.NoResultsError, fn -> Catalog.get_location!(location.id) end
     assert Catalog.get_collection_item!(item.id).location_id == nil
+  end
+
+  test "delete list mutation deletes its cards instead of unfiling them", %{conn: conn} do
+    {:ok, %{cards_count: 1, printings_count: 1}} =
+      Catalog.import_cards([
+        %{
+          "id" => "scryfall-delete-list",
+          "oracle_id" => "oracle-delete-list",
+          "name" => "Delete List Card",
+          "type_line" => "Artifact",
+          "collector_number" => "1",
+          "set" => "lst",
+          "set_name" => "List Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil"],
+          "legalities" => %{}
+        }
+      ])
+
+    {:ok, list} = Catalog.create_location(%{"name" => "Delete List", "kind" => "list"})
+
+    {:ok, item} =
+      Catalog.create_collection_item(%{
+        "scryfall_id" => "scryfall-delete-list",
+        "quantity" => 1,
+        "location_id" => list.id
+      })
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation DeleteLocation($id: ID!) {
+          deleteLocation(id: $id) {
+            location {
+              id
+              name
+            }
+          }
+        }
+        """,
+        "variables" => %{"id" => global_id(:location, list.id)}
+      })
+
+    assert %{
+             "data" => %{
+               "deleteLocation" => %{
+                 "location" => %{"id" => _id, "name" => "Delete List"}
+               }
+             }
+           } = json_response(conn, 200)
+
+    assert_raise Ecto.NoResultsError, fn -> Catalog.get_location!(list.id) end
+    assert_raise Ecto.NoResultsError, fn -> Catalog.get_collection_item!(item.id) end
+    assert Catalog.list_collection_items(location_id: "unfiled") == []
   end
 
   test "collection auto-sort settings query returns rules and target locations", %{conn: conn} do
@@ -654,6 +709,8 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
                 collectionItemId
                 cardName
                 cardId
+                setCode
+                collectorNumber
                 imageUrl
                 quantity
                 finish
@@ -702,6 +759,8 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
                 collectionItemId
                 cardName
                 cardId
+                setCode
+                collectorNumber
                 imageUrl
                 quantity
                 finish
@@ -732,6 +791,8 @@ defmodule ManavaultWeb.Schema.LocationsAndImportsTest do
                        "collectionItemId" => matching_item_id,
                        "cardName" => "Red Sorter",
                        "cardId" => "oracle-auto-sort-red",
+                       "setCode" => "aus",
+                       "collectorNumber" => "1",
                        "imageUrl" => "https://example.test/red-sorter.jpg",
                        "quantity" => 1,
                        "finish" => "nonfoil",

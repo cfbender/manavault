@@ -6,12 +6,12 @@ defmodule Manavault.Catalog.CardCollection.SearchFilter.Query do
   alias Manavault.Catalog.CardCollection.SearchFilter.{
     ColorPredicates,
     ScalarPredicates,
-    TextPredicates,
-    Values
+    TextPredicates
   }
 
   alias Manavault.Catalog.ScryfallQuery
   alias Manavault.Catalog.ScryfallQuery.{And, ExactName, Not, Or, Predicate}
+  alias Manavault.Catalog.Search.NameMatch
 
   def apply(query, ""), do: query
 
@@ -46,8 +46,9 @@ defmodule Manavault.Catalog.CardCollection.SearchFilter.Query do
 
   defp dynamic_for(%ExactName{name: name}) do
     dynamic(
-      [_item, _printing, card, _location],
-      fragment("? = ? COLLATE NOCASE", card.name, ^Values.downcase(name))
+      [_item, printing, card, _location],
+      card.normalized_name == ^NameMatch.sql_normalize(name) or
+        printing.normalized_flavor_name == ^NameMatch.sql_normalize(name)
     )
   end
 

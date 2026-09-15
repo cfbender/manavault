@@ -91,6 +91,16 @@ defmodule Manavault.Catalog.Collection.Locations do
     |> Repo.update()
   end
 
+  def delete(%Location{kind: "list"} = location) do
+    Repo.transact(fn ->
+      CollectionItem
+      |> where([item], item.location_id == ^location.id)
+      |> Repo.delete_all()
+
+      Repo.delete(location)
+    end)
+  end
+
   def delete(%Location{} = location) do
     Repo.delete(location)
   end

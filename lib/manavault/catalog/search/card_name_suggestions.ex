@@ -3,11 +3,11 @@ defmodule Manavault.Catalog.Search.CardNameSuggestions do
 
   import Ecto.Query
 
-  alias Manavault.Catalog.Card
+  alias Manavault.Catalog.{Card, Printing}
   alias Manavault.Catalog.Search.NameMatch
   alias Manavault.Repo
 
-  @card_name_cache_key {__MODULE__, :card_name_suggestions, 2}
+  @card_name_cache_key {__MODULE__, :card_name_suggestions, 3}
 
   def suggest_card_names(term, opts \\ []) when is_binary(term) do
     limit = Keyword.get(opts, :limit, 5)
@@ -19,10 +19,11 @@ defmodule Manavault.Catalog.Search.CardNameSuggestions do
       normalized_term
       |> candidate_pool()
       |> Enum.filter(&NameMatch.candidate?(normalized_term, &1))
-      |> Enum.map(&{NameMatch.score(normalized_term, &1), &1.name})
+      |> Enum.map(&{NameMatch.score(normalized_term, &1), &1.source_priority, &1.result_name})
       |> Enum.sort()
+      |> Enum.uniq_by(fn {_score, _source_priority, result_name} -> result_name end)
       |> Enum.take(limit)
-      |> Enum.map(fn {_score, name} -> name end)
+      |> Enum.map(fn {_score, _source_priority, result_name} -> result_name end)
     end
   end
 
@@ -55,13 +56,30 @@ defmodule Manavault.Catalog.Search.CardNameSuggestions do
   defp cached_card_names do
     case :persistent_term.get(@card_name_cache_key, nil) do
       nil ->
-        entries =
+        canonical_entries =
           Card
           |> select([card], card.name)
           |> order_by([card], asc: card.name)
           |> Repo.all()
           |> Enum.uniq()
-          |> Enum.map(&card_name_cache_entry/1)
+          |> Enum.map(&card_name_cache_entry(&1, &1, 0))
+
+        alternate_entries =
+          Printing
+          |> join(:inner, [printing], card in assoc(printing, :card))
+          |> where(
+            [printing, _card],
+            not is_nil(printing.flavor_name) and printing.flavor_name != ""
+          )
+          |> select([printing, card], {card.name, printing.flavor_name})
+          |> distinct(true)
+          |> order_by([printing, card], asc: card.name, asc: printing.flavor_name)
+          |> Repo.all()
+          |> Enum.map(fn {card_name, flavor_name} ->
+            card_name_cache_entry(card_name, flavor_name, 1)
+          end)
+
+        entries = canonical_entries ++ alternate_entries
 
         cache = %{
           entries: entries,
@@ -89,11 +107,13 @@ defmodule Manavault.Catalog.Search.CardNameSuggestions do
     end
   end
 
-  defp card_name_cache_entry(name) do
-    normalized_name = NameMatch.normalize(name)
+  defp card_name_cache_entry(result_name, matched_name, source_priority) do
+    normalized_name = NameMatch.normalize(matched_name)
 
     %{
-      name: name,
+      name: matched_name,
+      result_name: result_name,
+      source_priority: source_priority,
       normalized_name: normalized_name,
       compact_name: String.replace(normalized_name, " ", ""),
       tokens: String.split(normalized_name, " ", trim: true)
@@ -148,7 +168,7 @@ defmodule Manavault.Catalog.Search.CardNameSuggestions do
 
   defp uniq_card_name_entries(entries) do
     entries
-    |> Enum.uniq_by(& &1.name)
-    |> Enum.sort_by(&String.downcase(&1.name))
+    |> Enum.uniq_by(&{&1.result_name, &1.normalized_name})
+    |> Enum.sort_by(&{String.downcase(&1.result_name), &1.source_priority})
   end
 end

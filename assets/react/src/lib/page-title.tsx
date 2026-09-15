@@ -35,7 +35,8 @@ export function PageTitleProvider({ children }: PropsWithChildren) {
     },
   })
   const [pageTitle, setPageTitle] = useState<PageTitleState | null>(null)
-  const title = pageTitle?.pathname === pathname ? pageTitle.title : routeTitle
+  const title =
+    pageTitle?.pathname === pathname && pageTitle.title !== undefined ? pageTitle.title : routeTitle
   const setCurrentPageTitle = useCallback(
     (nextTitle: string | null | undefined) => setPageTitle({ pathname, title: nextTitle }),
     [pathname],

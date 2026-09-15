@@ -283,4 +283,74 @@ defmodule Manavault.Catalog.DeckEdhrecTest do
              }
            ] = result.recommendations
   end
+
+  test "deck EDHREC fetches the combined pair page plus individual pages for partner commanders" do
+    partner_text = %{
+      "oracle_text" => "Partner (You can have two commanders if both have partner.)"
+    }
+
+    assert {:ok, _imported} =
+             Catalog.import_cards([
+               legality_commander_card("Zeta Partner", ["U"], partner_text),
+               legality_commander_card("Alpha Partner", ["W"], partner_text),
+               legal_plains()
+             ])
+
+    assert {:ok, deck} =
+             Catalog.create_deck(%{"name" => "Partner EDHREC", "format" => "commander"})
+
+    add_deck_card!(deck, "Zeta Partner", 1, "commander")
+    add_deck_card!(deck, "Alpha Partner", 1, "commander")
+    add_deck_card!(deck, "Plains", 98, "mainboard")
+
+    test_pid = self()
+
+    fetch = fn _payload ->
+      {:ok,
+       %{
+         "commanders" => [%{"name" => "Zeta Partner"}, %{"name" => "Alpha Partner"}],
+         "inRecs" => [],
+         "outRecs" => [],
+         "more" => false
+       }}
+    end
+
+    fetch_commander_page = fn entry, theme_slug ->
+      send(test_pid, {:page_fetch, entry, theme_slug})
+
+      name =
+        case entry do
+          names when is_list(names) -> names |> Enum.sort() |> Enum.join(" // ")
+          name -> name
+        end
+
+      {:ok,
+       %{
+         "container" => %{
+           "json_dict" => %{"card" => %{"name" => name}, "cardlists" => []}
+         }
+       }}
+    end
+
+    assert {:ok, result} =
+             Catalog.deck_edhrec(deck,
+               fetch: fetch,
+               fetch_commander_page: fetch_commander_page
+             )
+
+    assert result.commander_names == ["Zeta Partner", "Alpha Partner"]
+
+    assert [
+             %{
+               name: "Alpha Partner // Zeta Partner",
+               url: "https://edhrec.com/commanders/alpha-partner-zeta-partner"
+             },
+             %{name: "Zeta Partner", url: "https://edhrec.com/commanders/zeta-partner"},
+             %{name: "Alpha Partner", url: "https://edhrec.com/commanders/alpha-partner"}
+           ] = result.commander_pages
+
+    assert_received {:page_fetch, ["Zeta Partner", "Alpha Partner"], nil}
+    assert_received {:page_fetch, "Zeta Partner", nil}
+    assert_received {:page_fetch, "Alpha Partner", nil}
+  end
 end

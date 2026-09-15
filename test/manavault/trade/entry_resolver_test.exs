@@ -37,6 +37,31 @@ defmodule Manavault.Trade.EntryResolverTest do
     assert resolved.oracle_id == "oracle-sol-ring"
   end
 
+  test "resolves names with or without diacritics" do
+    assert {:ok, _} = Catalog.import_cards([card("oracle-oin-the-brave", "Óin the Brave")])
+
+    assert {:ok, %{entries: entries, unrecognized: []}} =
+             EntryResolver.resolve([entry("Óin the Brave"), entry("Oin the brave")])
+
+    assert Enum.map(entries, & &1.oracle_id) ==
+             ["oracle-oin-the-brave", "oracle-oin-the-brave"]
+  end
+
+  test "resolves a multi-faced catalog card by its front-face name" do
+    assert {:ok, _} =
+             Catalog.import_cards([
+               card(
+                 "oracle-bala-ged-recovery",
+                 "Bala Ged Recovery // Bala Ged Sanctuary"
+               )
+             ])
+
+    assert {:ok, %{entries: [resolved], unrecognized: []}} =
+             EntryResolver.resolve([entry("Bala Ged Recovery")])
+
+    assert resolved.oracle_id == "oracle-bala-ged-recovery"
+  end
+
   test "falls back to the front face when the full split name isn't in the catalog" do
     assert {:ok, _} = Catalog.import_cards([card("oracle-fire", "Fire")])
 

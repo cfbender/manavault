@@ -13,7 +13,6 @@ defmodule Manavault.Backup do
   @manifest_name "manifest.json"
   @default_local_paths []
   @catalog_tables ~w(
-    scryfall_printing_search
     scryfall_syncs
     scryfall_printings
     scryfall_cards

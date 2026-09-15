@@ -3,6 +3,7 @@ import assert from "node:assert/strict"
 
 import {
   edhrecCardUrl,
+  edhrecCommanderUrl,
   mtgStocksAutocompleteUrl,
   mtgStocksCardUrl,
   mtgStocksPrintUrl,
@@ -29,6 +30,13 @@ test("edhrecCardUrl links to the card's EDHREC slug", () => {
     edhrecCardUrl({ name: "Gonti, Lord of Luxury" }),
     "https://edhrec.com/cards/gonti-lord-of-luxury",
   )
+})
+
+test("EDHREC links use the front face for multifaced cards", () => {
+  const card = { name: "Esika, God of the Tree // The Prismatic Bridge" }
+
+  assert.equal(edhrecCardUrl(card), "https://edhrec.com/cards/esika-god-of-the-tree")
+  assert.equal(edhrecCommanderUrl(card), "https://edhrec.com/commanders/esika-god-of-the-tree")
 })
 
 test("mtgStocksCardUrl links to MTGStocks with the card name", () => {

@@ -1,28 +1,36 @@
+import { useMutation } from "@apollo/client/react"
 import { Link } from "@tanstack/react-router"
 import {
   Archive,
   AlertTriangle,
   CheckSquare,
   Clipboard,
+  createLucideIcon,
   Download,
   Layers,
+  MessageCircleQuestion,
   Play,
   Plus,
   ShoppingCart,
 } from "lucide-react"
-import type { ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 
 import { ImageSummaryCard } from "../../components/image-summary-card"
 import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
+import { useToast } from "../../components/ui/toast"
 import type { DeckGroupBy } from "../../lib/deck-grouping"
 import { compactNumber, cn, titleize } from "../../lib/utils"
 import { ShareModeHidden, SummaryActionMenu } from "./deck-actions"
-import { deckDetailCoverUrl } from "./deck-card-model"
+import { DeckAIAnalysis } from "./deck-ai-analysis"
+import { DeckBracketBadge } from "./deck-bracket"
 import type { DeckLegalityIssue, DeckPrice, DetailZoneCounts } from "./deck-detail-types"
 import { DeckGroupMenu } from "./deck-group-menu"
 import { deckLegalityIssueCountLabel, deckLegalityLabel, deckLegalityTone } from "./deck-legality"
-import { DeckNameWithCommanderIdentity, commanderColorIdentity } from "./deck-list-model"
+import { DeckNameWithCommanderIdentity } from "./deck-list-model"
+import { DeckPrimer } from "./deck-primer"
+import { DeckQuestionDialog } from "./deck-question-dialog"
+import { AnalyzeDeckDocument } from "./queries"
 import { DeckTagsSidebar } from "./deck-tags-sidebar"
 import type { DeckCardEntry, DeckCustomTag, DeckDetail } from "./deck-types"
 
@@ -48,7 +56,9 @@ type DeckDetailHeaderProps = {
   isSelectionActive: boolean
   isRefreshing: boolean
   legalityIssues: DeckLegalityIssue[]
+  saltSum: number | null
   onAddCard: () => void
+  onCombos: () => void
   onCompareDeck: () => void
   onCopySharedDecklist: () => void
   onDisassemble: () => void
@@ -59,6 +69,7 @@ type DeckDetailHeaderProps = {
   onImportDeck: () => void
   onMissingCards: () => void
   onOpenEdhrec: () => void
+  onOpenRecommander: () => void
   onOpenReadiness: () => void
   onShareBuylist: () => void
   onShareDeck: () => void
@@ -68,6 +79,32 @@ type DeckDetailHeaderProps = {
   shareMode: boolean
   tagActions: DeckTagActions
   zoneCounts: DetailZoneCounts
+}
+
+const SaltShakerIcon = createLucideIcon("salt-shaker", [
+  ["path", { d: "M8 7h8", key: "cap" }],
+  ["path", { d: "m9 7 .75-4h4.5L15 7", key: "top" }],
+  ["path", { d: "M7 7.5 5.5 21h13L17 7.5", key: "body" }],
+  ["path", { d: "M10 5h.01", key: "hole-left" }],
+  ["path", { d: "M12 5h.01", key: "hole-center" }],
+  ["path", { d: "M14 5h.01", key: "hole-right" }],
+])
+
+export function DeckSaltBadge({ saltSum }: { saltSum: number | null }) {
+  if (saltSum === null) return null
+
+  const label = `EDHREC salt sum: ${saltSum.toFixed(2)}`
+
+  return (
+    <Badge
+      aria-label={label}
+      title={label}
+      className="inline-flex items-center gap-1.5 px-2 font-mono font-bold leading-none"
+    >
+      <SaltShakerIcon aria-hidden="true" className="h-3.5 w-3.5 translate-y-px" />
+      <span className="translate-y-px tabular-nums leading-none">{saltSum.toFixed(2)}</span>
+    </Badge>
+  )
 }
 
 function DeckPriceChip({ onClick, price }: { onClick: () => void; price: DeckPrice | null }) {
@@ -160,7 +197,9 @@ export function DeckDetailHeader({
   isRefreshing,
   isSelectionActive,
   legalityIssues,
+  saltSum,
   onAddCard,
+  onCombos,
   onCompareDeck,
   onCopySharedDecklist,
   onDisassemble,
@@ -171,6 +210,7 @@ export function DeckDetailHeader({
   onImportDeck,
   onMissingCards,
   onOpenEdhrec,
+  onOpenRecommander,
   onOpenReadiness,
   onShareBuylist,
   onShareDeck,
@@ -181,6 +221,30 @@ export function DeckDetailHeader({
   tagActions,
   zoneCounts,
 }: DeckDetailHeaderProps) {
+  const { showToast } = useToast()
+  const [questionOpen, setQuestionOpen] = useState(false)
+  const [analyzeDeck, analysisMutation] = useMutation(AnalyzeDeckDocument)
+  const hasAnalysis = Boolean(deck.aiAnalysis?.trim())
+
+  function analyze() {
+    const toastId = `deck-analysis-${deck.id}`
+
+    showToast(`${hasAnalysis ? "Refreshing" : "Analyzing"} ${deck.name} with AI…`, {
+      id: toastId,
+      loading: true,
+      tone: "info",
+    })
+
+    void analyzeDeck({
+      variables: { id: deck.id },
+      onCompleted: () =>
+        showToast(hasAnalysis ? "Deck analysis refreshed." : "Deck analysis complete.", {
+          id: toastId,
+        }),
+      onError: (error) => showToast(error.message, { id: toastId, tone: "error" }),
+    })
+  }
+
   return (
     <>
       <DeckTagPanels
@@ -197,7 +261,7 @@ export function DeckDetailHeader({
         </ShareModeHidden>
 
         <ImageSummaryCard
-          imageUrl={deckDetailCoverUrl(deckCards)}
+          imageUrl={deck.coverImageUrl}
           fallback={<Layers className="h-12 w-12" />}
           interactive={false}
           typeLine={<Badge>{titleize(deck.format)}</Badge>}
@@ -210,6 +274,8 @@ export function DeckDetailHeader({
               <Badge tone={deckLegalityTone(deck.legality)}>
                 {deckLegalityLabel(deck.legality)}
               </Badge>
+              <DeckBracketBadge deck={deck} />
+              <DeckSaltBadge saltSum={saltSum} />
               <DeckPriceChip
                 price={deckPrice}
                 onClick={shareMode ? onShareBuylist : onMissingCards}
@@ -218,18 +284,28 @@ export function DeckDetailHeader({
             </div>
           }
           nameLine={
-            <DeckNameWithCommanderIdentity
-              colors={commanderColorIdentity(deckCards)}
-              name={deck.name}
-            />
+            <DeckNameWithCommanderIdentity colors={deck.commanderColorIdentity} name={deck.name} />
           }
           actionSlot={
             <ShareModeHidden shareMode={shareMode}>
               <SummaryActionMenu
+                analyzeLabel={
+                  analysisMutation.loading
+                    ? "Analyzing..."
+                    : hasAnalysis
+                      ? "Refresh AI analysis"
+                      : "Analyze deck with AI"
+                }
+                analyzePending={analysisMutation.loading}
                 label={`${deck.name} actions`}
+                onAnalyze={analyze}
+                onCombos={onCombos}
                 onCompare={onCompareDeck}
                 onDisassemble={canEdit ? onDisassemble : undefined}
                 onEdhrec={canEdit && deck.format === "commander" ? onOpenEdhrec : undefined}
+                onRecommander={
+                  canEdit && deck.format === "commander" ? onOpenRecommander : undefined
+                }
                 onEdit={onEditDeck}
                 onExport={onExportDeck}
                 onImport={canEdit ? onImportDeck : undefined}
@@ -239,6 +315,10 @@ export function DeckDetailHeader({
             </ShareModeHidden>
           }
         />
+
+        <DeckPrimer primer={deck.primer} />
+
+        <DeckAIAnalysis deck={deck} />
 
         {!canEdit ? (
           <div className="rounded-box border border-base-300 bg-base-200/60 p-4 text-sm text-base-content/75">
@@ -353,6 +433,15 @@ export function DeckDetailHeader({
               </div>
             ) : null}
             <ShareModeHidden shareMode={shareMode}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setQuestionOpen(true)}
+              >
+                <MessageCircleQuestion className="h-4 w-4" aria-hidden="true" />
+                Ask AI
+              </Button>
               <Button asChild variant="outline" size="sm">
                 <Link to="/decks/$id/playtest" params={{ id: deck.id }}>
                   <Play className="h-4 w-4" />
@@ -390,6 +479,15 @@ export function DeckDetailHeader({
         </div>
         {children}
       </div>
+      {!shareMode && questionOpen ? (
+        <DeckQuestionDialog
+          deckId={deck.id}
+          deckName={deck.name}
+          deckCards={deckCards}
+          open={questionOpen}
+          onOpenChange={setQuestionOpen}
+        />
+      ) : null}
     </>
   )
 }

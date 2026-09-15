@@ -11,6 +11,15 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
+import {
+  SELECT_NONE_VALUE,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
+import { Textarea } from "../../components/ui/textarea"
 import { useToast } from "../../components/ui/toast"
 import { pluralize, present, titleize } from "../../lib/utils"
 import { COLLECTION_CONDITIONS, COLLECTION_FINISHES } from "./constants"
@@ -166,21 +175,25 @@ export function EditCollectionItemDialog({
               <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
                 Printing
               </span>
-              <select
-                className="select select-bordered h-9 min-h-9 w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              <Select
                 value={printingId}
-                onChange={(event) => selectPrinting(event.target.value)}
+                onValueChange={selectPrinting}
                 disabled={printingsQuery.loading || printings.length === 0}
               >
-                {printings.length === 0 && item?.printing ? (
-                  <option value={item.printing.id}>{printingLabel(item.printing)}</option>
-                ) : null}
-                {printings.map((printing) => (
-                  <option key={printing.id} value={printing.id}>
-                    {printingLabel(printing)}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="h-9 min-h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {printings.length === 0 && item?.printing ? (
+                    <SelectItem value={item.printing.id}>{printingLabel(item.printing)}</SelectItem>
+                  ) : null}
+                  {printings.map((printing) => (
+                    <SelectItem key={printing.id} value={printing.id}>
+                      {printingLabel(printing)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </label>
             <label className="block space-y-1.5">
               <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
@@ -197,17 +210,21 @@ export function EditCollectionItemDialog({
               <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
                 Condition
               </span>
-              <select
-                className="select select-bordered h-9 min-h-9 w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              <Select
                 value={condition}
-                onChange={(event) => setCondition(collectionConditionValue(event.target.value))}
+                onValueChange={(value) => setCondition(collectionConditionValue(value))}
               >
-                {COLLECTION_CONDITIONS.map((value) => (
-                  <option key={value} value={value}>
-                    {titleize(value)}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="h-9 min-h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {COLLECTION_CONDITIONS.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {titleize(value)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </label>
             <CollectionFinishField options={finishOptions} value={finish} onChange={setFinish} />
             <label className="block space-y-1.5">
@@ -238,27 +255,31 @@ export function EditCollectionItemDialog({
               <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
                 Location
               </span>
-              <select
-                className="select select-bordered h-9 min-h-9 w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                value={locationId}
-                onChange={(event) => setLocationId(event.target.value)}
+              <Select
+                value={locationId || SELECT_NONE_VALUE}
+                onValueChange={(value) => setLocationId(value === SELECT_NONE_VALUE ? "" : value)}
               >
-                <option value="">Unfiled</option>
-                {locations
-                  .filter((location) => !isUnfiledLocation(location))
-                  .map((location) => (
-                    <option key={location.id} value={location.id}>
-                      {location.name} ({titleize(location.kind)})
-                    </option>
-                  ))}
-              </select>
+                <SelectTrigger className="h-9 min-h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SELECT_NONE_VALUE}>Unfiled</SelectItem>
+                  {locations
+                    .filter((location) => !isUnfiledLocation(location))
+                    .map((location) => (
+                      <SelectItem key={location.id} value={location.id}>
+                        {location.name} ({titleize(location.kind)})
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
             </label>
             <label className="block space-y-1.5 sm:col-span-2">
               <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
                 Notes
               </span>
-              <textarea
-                className="textarea textarea-bordered min-h-16 w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              <Textarea
+                className="min-h-16"
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
               />

@@ -1,5 +1,5 @@
 import { ChevronDown, Sparkles, TrendingUp, type LucideIcon } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { buildDeckStats, type DeckStats } from "../../lib/deck-stats"
 import { buildDeckTokens, type DeckTokenSummary } from "../../lib/deck-tokens"
 import type { DeckCardEntry } from "./deck-types"
@@ -200,7 +200,7 @@ export function DeckStatsSection({
       </summary>
 
       <div className="grid gap-5 border-t border-base-300 p-4">
-        <dl className="grid gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-5">
+        <dl className="grid gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-6">
           <DeckStatsMetric
             label="Nonland average MV"
             value={formatManaValue(stats.averageManaValue)}
@@ -209,6 +209,24 @@ export function DeckStatsSection({
           <DeckStatsMetric label="Lands" value={stats.landCards} />
           <DeckStatsMetric label="Median MV" value={formatManaValue(stats.medianManaValue)} />
           <DeckStatsMetric label="Total MV" value={stats.totalManaValue} />
+          <DeckStatsMetric
+            label={
+              <a
+                href="https://edhrec.com/top/salt"
+                target="_blank"
+                rel="noreferrer"
+                className="underline decoration-base-content/30 underline-offset-4 hover:text-primary focus-visible:rounded-field focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
+                EDHREC salt sum
+              </a>
+            }
+            value={stats.saltSum === null ? "—" : stats.saltSum.toFixed(2)}
+            detail={
+              stats.saltScoredCards === 0
+                ? "No scored cards"
+                : `${stats.saltScoredCards} of ${stats.totalCards} cards scored`
+            }
+          />
         </dl>
 
         <section aria-labelledby="deck-stats-mana-curve" className="border-t border-base-300 pt-4">
@@ -253,11 +271,22 @@ export function DeckStatsSection({
   )
 }
 
-export function DeckStatsMetric({ label, value }: { label: string; value: number | string }) {
+export function DeckStatsMetric({
+  detail,
+  label,
+  value,
+}: {
+  detail?: string
+  label: ReactNode
+  value: number | string
+}) {
   return (
     <div className="border-t border-base-300 pt-3 first:border-t-0 first:pt-0">
       <dt className="text-xs font-semibold text-base-content/60">{label}</dt>
       <dd className="mt-1 font-mono text-2xl font-black leading-none text-base-content">{value}</dd>
+      {detail ? (
+        <dd className="mt-1 text-xs font-semibold text-base-content/50">{detail}</dd>
+      ) : null}
     </div>
   )
 }

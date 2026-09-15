@@ -49,6 +49,13 @@ Useful production/container commands are documented in `README.md`.
 - Update documentation when project structure, setup, or runtime behavior changes.
 - Use `mise exec -- aube` instead of invoking `aube` directly or using npm for JS package and task commands. Fresh orbs do not expose aube directly on `PATH`.
 
+## Git Commit Policy
+
+- Every Git commit must use a Conventional Commits message.
+- Commit as the current thread's user using their configured Git identity.
+- Never add `Co-authored-by` trailers or credit Amp, an AI agent, or another co-author.
+- When the user asks to commit and push, verify the commit has no co-authorship trailers, then push the current branch and confirm it matches its upstream.
+
 <!-- BACKLOG.MD GUIDELINES START -->
 <!-- backlog.md-instructions-version: 1.48.0 -->
 
@@ -58,9 +65,9 @@ Useful production/container commands are documented in `README.md`.
 
 This project uses Backlog.md for task and project management.
 
-**For every user request in this project, run `mise exec -- backlog instructions overview` before answering or taking action.** The Backlog CLI is managed by mise and may not be directly available on `PATH`, especially during first-time orb setup.
+Use Backlog only for sizeable implementation work that is worth documenting because it benefits from durable planning, decisions, progress tracking, or handoff notes. Do not run `backlog instructions overview` or any other Backlog command automatically at the start of a request. Skip Backlog for questions, explanations, operational actions, commits and pushes, quick fixes, and small mechanical, configuration, or documentation changes.
 
-Use the overview to decide whether to search, read, create, or update Backlog tasks.
+When work genuinely warrants Backlog, run `mise exec -- backlog instructions overview`, search for an existing task first, and then read only the relevant task instructions. The Backlog CLI is managed by mise and may not be directly available on `PATH`, especially during first-time orb setup.
 
 Before task lifecycle actions, read the matching detailed guide:
 

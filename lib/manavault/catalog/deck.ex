@@ -10,7 +10,18 @@ defmodule Manavault.Catalog.Deck do
     field :name, :string
     field :format, :string, default: "commander"
     field :status, :string, default: "brewing"
+    field :included_for_play, :boolean, default: true
+    field :play_count, :integer, default: 0
+    field :skip_count, :integer, default: 0
+    field :last_played_at, :utc_datetime
+    field :primer, :string
+    field :ai_analysis, :string
+    field :ai_analysis_model, :string
+    field :ai_analyzed_at, :utc_datetime
+    field :commander_bracket, :integer
+    field :commander_bracket_estimate, :integer
     field :share_token, :string
+    field :cover_deck_card_id, :id
     field :card_count, :integer, virtual: true
     field :unique_card_count, :integer, virtual: true
     field :cover_image_url, :string, virtual: true
@@ -19,6 +30,7 @@ defmodule Manavault.Catalog.Deck do
     has_many :deck_cards, Manavault.Catalog.DeckCard, on_replace: :delete
     has_many :deck_allocations, through: [:deck_cards, :deck_allocations]
     has_many :deck_tags, Manavault.Catalog.DeckTag, on_replace: :delete
+    has_many :question_answers, Manavault.Catalog.DeckQuestionAnswer
 
     timestamps(type: :utc_datetime)
   end
@@ -28,11 +40,25 @@ defmodule Manavault.Catalog.Deck do
 
   def changeset(deck, attrs) do
     deck
-    |> cast(attrs, [:name, :format, :status])
-    |> validate_required([:name, :format, :status])
+    |> cast(attrs, [
+      :name,
+      :format,
+      :status,
+      :included_for_play,
+      :play_count,
+      :skip_count,
+      :last_played_at,
+      :primer,
+      :cover_deck_card_id
+    ])
+    |> validate_required([:name, :format, :status, :included_for_play])
     |> validate_length(:name, min: 1, max: 120)
+    |> validate_length(:primer, max: 50_000)
+    |> validate_number(:play_count, greater_than_or_equal_to: 0)
+    |> validate_number(:skip_count, greater_than_or_equal_to: 0)
     |> validate_inclusion(:format, @formats)
     |> validate_inclusion(:status, @statuses)
+    |> foreign_key_constraint(:cover_deck_card_id)
   end
 
   def share_changeset(deck, share_token) do
@@ -40,6 +66,28 @@ defmodule Manavault.Catalog.Deck do
     |> change(share_token: share_token)
     |> validate_required([:share_token])
     |> unique_constraint(:share_token)
+  end
+
+  def analysis_changeset(deck, attrs) do
+    deck
+    |> cast(attrs, [
+      :ai_analysis,
+      :ai_analysis_model,
+      :ai_analyzed_at,
+      :commander_bracket,
+      :commander_bracket_estimate
+    ])
+    |> validate_required([:ai_analysis, :ai_analysis_model, :ai_analyzed_at])
+    |> validate_length(:ai_analysis, max: 100_000)
+    |> validate_length(:ai_analysis_model, max: 200)
+    |> validate_number(:commander_bracket,
+      greater_than_or_equal_to: 1,
+      less_than_or_equal_to: 5
+    )
+    |> validate_number(:commander_bracket_estimate,
+      greater_than_or_equal_to: 1,
+      less_than_or_equal_to: 5
+    )
   end
 
   def disable_share_changeset(deck), do: change(deck, share_token: nil)

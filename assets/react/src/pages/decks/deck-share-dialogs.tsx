@@ -11,6 +11,15 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
+import {
+  SELECT_NONE_VALUE,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
+import { Textarea } from "../../components/ui/textarea"
 import { useToast } from "../../components/ui/toast"
 import { refetchActiveQueries } from "../../lib/apollo"
 import {
@@ -294,8 +303,8 @@ export function ImportDecklistDialog({
             <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
               Decklist text
             </span>
-            <textarea
-              className="textarea textarea-bordered min-h-80 w-full bg-base-100 font-mono text-sm"
+            <Textarea
+              className="min-h-80 bg-base-100 font-mono text-sm"
               value={text}
               onChange={(event) => setText(event.target.value)}
               placeholder={"Commander\n1 Sol Ring\n1 Arcane Signet\n\nConsidering\n2 Negate"}
@@ -307,18 +316,24 @@ export function ImportDecklistDialog({
             <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
               Import into
             </span>
-            <select
-              className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              value={zone}
-              onChange={(event) => setZone(event.target.value as DeckZone | "")}
+            <Select
+              value={zone || SELECT_NONE_VALUE}
+              onValueChange={(value) =>
+                setZone(value === SELECT_NONE_VALUE ? "" : (value as DeckZone))
+              }
             >
-              <option value="">Zones from decklist</option>
-              {ADD_CARD_ZONES.map((zone) => (
-                <option key={zone} value={zone}>
-                  {deckZoneDisplayLabel(zone)}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={SELECT_NONE_VALUE}>Zones from decklist</SelectItem>
+                {ADD_CARD_ZONES.map((zone) => (
+                  <SelectItem key={zone} value={zone}>
+                    {deckZoneDisplayLabel(zone)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <span className="block text-xs text-base-content/60">
               Pick a zone to send every imported card there, ignoring section headings in the text.
             </span>

@@ -30,6 +30,7 @@ import { AddCatalogCardToDeckDialog, type CardDeckTarget } from "./add-card-to-d
 import { CardCollectionCopiesPanel } from "./card-collection-copies"
 import { CardPrintingsGrid } from "./card-printings-grid"
 import { CardResultsGrid } from "./card-results-grid"
+import { CardSynergies } from "./card-synergies"
 import { ManaText, OracleTextPanel } from "./card-text"
 import { CardDocument, CardsDocument } from "./data"
 import { CardLegalityPanel, CardRulings, CardTagSummary } from "./detail-sections"
@@ -612,6 +613,8 @@ export function CardDetailPage({
               {card.oracleText ? (
                 <OracleTextPanel artCropUrl={primary?.artCropUrl} text={card.oracleText} />
               ) : null}
+
+              <CardSynergies cardName={card.name} graphqlEndpoint={graphqlEndpoint} />
 
               <CardLegalityPanel gameChanger={card.gameChanger} legalities={card.legalities} />
               <CardRulings rulings={card.rulings} />

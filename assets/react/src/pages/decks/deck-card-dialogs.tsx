@@ -1,6 +1,7 @@
 import { useQuery } from "@apollo/client/react"
 import { Layers, Palette } from "lucide-react"
-import { useEffect, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useState, type FormEvent } from "react"
+import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
 import {
   Dialog,
@@ -10,6 +11,14 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
+import {
+  SELECT_NONE_VALUE,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
 import type { DeckCardUpdateInput } from "../../gql/graphql"
 import { cn, present, titleize } from "../../lib/utils"
 import { ZoneIcon } from "./deck-card-display"
@@ -124,6 +133,21 @@ export function EditDeckCardDialog({
     skip: !cardId,
   })
   const printings = connectionNodes(printingsData?.card?.printings).filter(present)
+  const collectionCountsByPrinting = useMemo(() => {
+    const counts = new Map<string, { free: number; owned: number }>()
+
+    for (const candidate of deckCard?.allocationStatus.candidates || []) {
+      const printingId = candidate.item.printing?.id
+      if (!printingId) continue
+
+      const current = counts.get(printingId) || { free: 0, owned: 0 }
+      current.free += candidate.available
+      current.owned += candidate.item.quantity
+      counts.set(printingId, current)
+    }
+
+    return counts
+  }, [deckCard])
   const selectedPrinting = preferredPrintingId
     ? printings.find((printing) => printing.id === preferredPrintingId) ||
       deckCard?.preferredPrinting
@@ -238,42 +262,56 @@ export function EditDeckCardDialog({
                     Loading printings…
                   </div>
                 ) : (
-                  printings.map((printing) => (
-                    <button
-                      key={printing.id}
-                      type="button"
-                      className={cn(
-                        "flex w-full min-w-0 items-start gap-3 overflow-hidden rounded-box border p-3 text-left transition",
-                        preferredPrintingId === printing.id
-                          ? "border-primary bg-primary/10 ring-2 ring-primary/20"
-                          : "border-base-300 hover:border-primary/45 hover:bg-base-200",
-                      )}
-                      disabled={isPending}
-                      onClick={() => setPreferredPrintingId(printing.id)}
-                      aria-pressed={preferredPrintingId === printing.id}
-                    >
-                      {printing.imageUrl ? (
-                        <img
-                          src={printing.imageUrl}
-                          alt=""
-                          className="h-16 w-12 shrink-0 rounded object-cover"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <span className="flex h-16 w-12 shrink-0 items-center justify-center rounded bg-base-200 text-base-content/50">
-                          <Palette className="h-5 w-5" />
+                  printings.map((printing) => {
+                    const collectionCounts = collectionCountsByPrinting.get(printing.id)
+
+                    return (
+                      <button
+                        key={printing.id}
+                        type="button"
+                        className={cn(
+                          "flex w-full min-w-0 items-start gap-3 overflow-hidden rounded-box border p-3 text-left transition",
+                          preferredPrintingId === printing.id
+                            ? "border-primary bg-primary/10 ring-2 ring-primary/20"
+                            : "border-base-300 hover:border-primary/45 hover:bg-base-200",
+                        )}
+                        disabled={isPending}
+                        onClick={() => setPreferredPrintingId(printing.id)}
+                        aria-pressed={preferredPrintingId === printing.id}
+                      >
+                        {printing.imageUrl ? (
+                          <img
+                            src={printing.imageUrl}
+                            alt=""
+                            className="h-16 w-12 shrink-0 rounded object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <span className="flex h-16 w-12 shrink-0 items-center justify-center rounded bg-base-200 text-base-content/50">
+                            <Palette className="h-5 w-5" />
+                          </span>
+                        )}
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-semibold">
+                            {deckCardPrintingOptionLabel(printing)}
+                          </span>
+                          <span className="mt-1 flex min-w-0 items-center gap-2">
+                            <span className="min-w-0 flex-1 truncate text-xs text-base-content/60">
+                              {printingFinishOptions(printing.finishes).map(titleize).join(", ")}
+                            </span>
+                            {collectionCounts ? (
+                              <Badge
+                                tone={collectionCounts.free > 0 ? "success" : "warning"}
+                                className="h-auto shrink-0 whitespace-nowrap py-0.5 font-mono text-xs"
+                              >
+                                {collectionCounts.owned} owned · {collectionCounts.free} free
+                              </Badge>
+                            ) : null}
+                          </span>
                         </span>
-                      )}
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-semibold">
-                          {deckCardPrintingOptionLabel(printing)}
-                        </span>
-                        <span className="block truncate text-xs text-base-content/60">
-                          {printingFinishOptions(printing.finishes).map(titleize).join(", ")}
-                        </span>
-                      </span>
-                    </button>
-                  ))
+                      </button>
+                    )
+                  })
                 )}
               </div>
             </div>
@@ -329,35 +367,41 @@ export function EditDeckCardDialog({
 
             <label className="form-control">
               <span className="label-text mb-1 text-sm font-semibold">Finish</span>
-              <select
-                className="select select-bordered w-full"
-                value={finish}
-                disabled={isPending}
-                onChange={(event) => setFinish(event.target.value)}
-              >
-                {finishOptions.map((finish) => (
-                  <option key={finish} value={finish}>
-                    {titleize(finish)}
-                  </option>
-                ))}
-              </select>
+              <Select value={finish} disabled={isPending} onValueChange={setFinish}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {finishOptions.map((finish) => (
+                    <SelectItem key={finish} value={finish}>
+                      {titleize(finish)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </label>
 
             <label className="form-control">
               <span className="label-text mb-1 text-sm font-semibold">Tag</span>
-              <select
-                className="select select-bordered w-full"
-                value={tag}
+              <Select
+                value={tag || SELECT_NONE_VALUE}
                 disabled={isPending}
-                onChange={(event) => setTag(event.target.value as DeckCardTag | "")}
+                onValueChange={(value) =>
+                  setTag(value === SELECT_NONE_VALUE ? "" : (value as DeckCardTag))
+                }
               >
-                <option value="">No tag</option>
-                {DECK_CARD_TAGS.map((tag) => (
-                  <option key={tag.value} value={tag.value}>
-                    {tag.label}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SELECT_NONE_VALUE}>No tag</SelectItem>
+                  {DECK_CARD_TAGS.map((tag) => (
+                    <SelectItem key={tag.value} value={tag.value}>
+                      {tag.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </label>
           </div>
 

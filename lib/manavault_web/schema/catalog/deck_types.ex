@@ -10,6 +10,11 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
 
   alias ManavaultWeb.Schema.Catalog.{DeckFields, ValueResolvers}
 
+  enum :deck_play_outcome do
+    value(:played)
+    value(:skipped)
+  end
+
   object :deck_legality do
     field :status, non_null(:string) do
       resolve(&ValueResolvers.map_value/3)
@@ -55,11 +60,68 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :position, non_null(:integer)
   end
 
+  object :deck_question_answer do
+    field :id, non_null(:id)
+    field :question, non_null(:string)
+    field :answer, non_null(:string)
+    field :status, non_null(:string)
+    field :error, :string
+    field :model, :string
+
+    field :recommended_cuts, non_null(list_of(non_null(:string))) do
+      resolve(&DeckFields.deck_question_answer_recommended_cuts/3)
+    end
+
+    field :recommended_additions, non_null(list_of(non_null(:string))) do
+      resolve(&DeckFields.deck_question_answer_recommended_additions/3)
+    end
+
+    field :inserted_at, non_null(:string) do
+      resolve(&DeckFields.deck_question_answer_inserted_at/3)
+    end
+  end
+
+  object :deck_analysis_request do
+    field :id, non_null(:id)
+    field :source_type, non_null(:string)
+    field :source, non_null(:string)
+    field :source_name, non_null(:string)
+    field :format, non_null(:string)
+    field :analysis, non_null(:string)
+    field :model, non_null(:string)
+    field :commander_bracket, :integer
+    field :commander_bracket_estimate, :integer
+
+    field :inserted_at, non_null(:string) do
+      resolve(&DeckFields.deck_analysis_request_inserted_at/3)
+    end
+  end
+
   node object(:deck) do
     field :name, non_null(:string)
     field :format, non_null(:string)
     field :status, non_null(:string)
+    field :included_for_play, non_null(:boolean)
+    field :play_count, non_null(:integer)
+    field :skip_count, non_null(:integer)
+    field :primer, :string
+    field :ai_analysis, :string
+    field :ai_analysis_model, :string
+    field :commander_bracket, :integer
+    field :commander_bracket_estimate, :integer
     field :share_token, :string
+
+    field :ai_analyzed_at, :string do
+      resolve(&DeckFields.deck_ai_analyzed_at/3)
+    end
+
+    field :last_played_at, :string do
+      resolve(&DeckFields.deck_last_played_at/3)
+    end
+
+    field :cover_deck_card_id, :id do
+      resolve(&DeckFields.deck_cover_deck_card_id/3)
+    end
 
     field :cover_image_url, :string do
       resolve(&DeckFields.deck_cover_image_url/3)
@@ -264,6 +326,43 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :collection_status, non_null(:deck_card_allocation_status)
   end
 
+  object :deck_recommander do
+    field :commanders, non_null(list_of(non_null(:deck_recommander_commander)))
+    field :recommendations, non_null(list_of(non_null(:deck_recommander_card)))
+  end
+
+  object :deck_recommander_commander do
+    field :name, non_null(:string)
+    field :oracle_id, :id
+    field :url, :string
+  end
+
+  object :deck_recommander_card do
+    field :name, non_null(:string)
+    field :oracle_id, :id
+    field :rank, non_null(:integer)
+    field :score, :float
+    field :card, :card
+    field :collection_status, non_null(:deck_card_allocation_status)
+  end
+
+  object :deck_combo do
+    field :id, non_null(:id)
+    field :url, non_null(:string)
+    field :cards, non_null(list_of(non_null(:deck_combo_card)))
+    field :produces, non_null(list_of(non_null(:string)))
+    field :description, non_null(:string)
+    field :mana_needed, :string
+    field :prerequisites, non_null(list_of(non_null(:string)))
+    field :notes, :string
+  end
+
+  object :deck_combo_card do
+    field :name, non_null(:string)
+    field :quantity, non_null(:integer)
+    field :image_url, :string
+  end
+
   object :edhrec_commander_page do
     field :name, non_null(:string)
     field :title, non_null(:string)
@@ -313,12 +412,19 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :name, non_null(:string)
     field :format, :string
     field :status, :string
+    field :included_for_play, :boolean
   end
 
   input_object :deck_update_input do
     field :name, :string
     field :format, :string
     field :status, :string
+    field :included_for_play, :boolean
+    field :play_count, :integer
+    field :skip_count, :integer
+    field :last_played_at, :string
+    field :primer, :string
+    field :cover_deck_card_id, :id
   end
 
   input_object :deck_card_input do

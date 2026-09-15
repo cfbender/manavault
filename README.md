@@ -42,12 +42,20 @@ filter and sort across the full collection, track purchase price versus current
 value, and export filtered CSV/TXT lists. Collection state is preserved while you
 move between locations and cards, so back navigation returns to the same view.
 
+Auto-sort type filters and deck type grouping use a permanent's front-face type,
+not its adventure, prepared spell, or back face. Split spells retain both types.
+
 ### Build and maintain decks
 
 Create decks, import/export decklists, manage commander/main/side/maybe zones,
 choose preferred printings and finishes, group cards by theme or category, tag
 decks, check format legality, and inspect mana curve, mana production, and token
 creation summaries.
+
+Use **Pick a deck** for a random suggestion. To keep a deck out of random picks
+without archiving it, open **Edit**, turn off **Included for play**, and save.
+New and existing decks are included by default; archived decks remain excluded.
+Turning the switch back on restores eligibility without changing play history.
 
 ### Allocate owned cards to decks
 
@@ -89,7 +97,7 @@ docker run --rm \
   -e SECRET_KEY_BASE="$(openssl rand -base64 48)" \
   -e MANAVAULT_AUTH_DISABLED=true \
   -e PHX_HOST=localhost \
-  ghcr.io/cfbender/manavault:1.2.0
+  ghcr.io/cfbender/manavault:1.3.0
 ```
 
 Then visit <http://localhost:4000>. For anything exposed beyond localhost, enable

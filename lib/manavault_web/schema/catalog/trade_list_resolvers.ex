@@ -4,6 +4,12 @@ defmodule ManavaultWeb.Schema.Catalog.TradeListResolvers do
   alias Manavault.Trade.Lists
   alias ManavaultWeb.Schema.RelayHelpers
 
+  def collection_check(_parent, args, _resolution) do
+    Lists.collection_check(list_source_args(args),
+      include_considering: Map.get(args, :include_considering, false)
+    )
+  end
+
   def trade_matches(_parent, args, _resolution) do
     Lists.matches(list_source_args(args))
   end

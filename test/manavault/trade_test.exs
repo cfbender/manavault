@@ -29,6 +29,24 @@ defmodule Manavault.TradeTest do
       assert card.name == "Black Lotus"
     end
 
+    test "matches card names with or without diacritics" do
+      oin =
+        @time_walk
+        |> Map.merge(%{
+          "id" => "scryfall-oin-the-brave",
+          "oracle_id" => "oracle-oin-the-brave",
+          "name" => "Óin the Brave",
+          "collector_number" => "12"
+        })
+
+      assert {:ok, %{cards_count: 1}} = Catalog.import_cards([oin])
+
+      assert {:ok, %Want{id: id, card: card}} = Trade.create_want_by_name("Óin the Brave")
+      assert card.name == "Óin the Brave"
+
+      assert {:ok, %Want{id: ^id, quantity: 2}} = Trade.create_want_by_name("Oin the brave")
+    end
+
     test "bumps the existing want's quantity instead of duplicating the row" do
       assert {:ok, %Want{id: id, quantity: 2}} = Trade.create_want_by_name("Black Lotus", 2)
       assert {:ok, %Want{id: ^id, quantity: 5}} = Trade.create_want_by_name("Black Lotus", 3)

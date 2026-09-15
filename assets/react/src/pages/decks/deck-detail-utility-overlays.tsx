@@ -1,19 +1,21 @@
 import { ConfirmDialog } from "../../components/ui/confirm-dialog"
+import { DeckCombosDialog } from "./deck-combos-dialog"
 import { DeckCompareDialog } from "./deck-compare-dialog"
 import { EditDeckDialog } from "./deck-editor-dialogs"
 import type { DeckDetailOverlay } from "./deck-detail-overlay"
 import { EDHRecDialog } from "./edhrec"
 import { MissingCardsDialog } from "./missing-cards-dialog"
+import { RecommanderDialog } from "./recommander"
 import { OptimizePrintingsDialog } from "./optimize-printings-dialog"
 import { ExportDecklistDialog, ImportDecklistDialog, ShareDeckDialog } from "./deck-share-dialogs"
 import { SelectFromListDialog } from "./select-from-list-dialog"
 import type {
+  DeckCardEntry,
   DeckDetail,
   EDHRecAddZone,
-  EDHRecCard,
-  EDHRecSectionCard,
   EDHRecTab,
   EDHRecThemeSelection,
+  RecommendedCardLike,
 } from "./deck-types"
 
 type DeckDetailUtilityOverlaysProps = {
@@ -24,9 +26,12 @@ type DeckDetailUtilityOverlaysProps = {
   edhrecTheme?: EDHRecThemeSelection
   edhrecTab?: EDHRecTab
   isAddingCard: boolean
+  isUpdatingCard: boolean
   isOptimizing: boolean
-  onAddEdhrecCard: (card: EDHRecCard | EDHRecSectionCard, zone: EDHRecAddZone) => void
+  onAddEdhrecCard: (card: RecommendedCardLike, zone: EDHRecAddZone) => void
+  onConsiderCuttingEdhrecCard: (deckCard: DeckCardEntry) => void
   onClose: () => void
+  onCutEdhrecCard: (deckCardId: string) => void
   onDeleteSelected: () => void
   onOptimizePrintings: (deckCardIds: string[]) => void
   onSelectDeckCards: (deckCardIds: string[]) => void
@@ -48,9 +53,12 @@ export function DeckDetailUtilityOverlays({
   edhrecTab,
   edhrecTheme,
   isAddingCard,
+  isUpdatingCard,
   isOptimizing,
   onAddEdhrecCard,
+  onConsiderCuttingEdhrecCard,
   onClose,
+  onCutEdhrecCard,
   onDeleteSelected,
   onOptimizePrintings,
   onSelectDeckCards,
@@ -63,6 +71,9 @@ export function DeckDetailUtilityOverlays({
 
   return (
     <>
+      {overlay.kind === "combos" ? (
+        <DeckCombosDialog deck={deck} open onOpenChange={(open) => !open && onClose()} />
+      ) : null}
       {overlay.kind === "edit-deck" ? (
         <EditDeckDialog deck={deck} open onOpenChange={(open) => !open && onClose()} />
       ) : null}
@@ -116,6 +127,16 @@ export function DeckDetailUtilityOverlays({
           }}
         />
       ) : null}
+      {overlay.kind === "recommander" ? (
+        <RecommanderDialog
+          addCardError={addCardError}
+          deck={deck}
+          isAddingCard={isAddingCard}
+          open
+          onAddCard={onAddEdhrecCard}
+          onOpenChange={(open) => !open && onClose()}
+        />
+      ) : null}
       {overlay.kind === "edhrec" ? (
         <EDHRecDialog
           activeTab={edhrecTab || "recs"}
@@ -124,8 +145,11 @@ export function DeckDetailUtilityOverlays({
           excludeLands={edhrecExcludeLands}
           selectedTheme={edhrecTheme}
           isAddingCard={isAddingCard}
+          isUpdatingCard={isUpdatingCard}
           open
           onAddCard={onAddEdhrecCard}
+          onConsiderCuttingCard={onConsiderCuttingEdhrecCard}
+          onCutCard={onCutEdhrecCard}
           onExcludeLandsChange={(excludeLands) =>
             onSetEdhrecState({ tab: edhrecTab || "recs", excludeLands })
           }

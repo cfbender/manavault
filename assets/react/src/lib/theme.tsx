@@ -26,9 +26,9 @@ function storedTheme() {
 
 function storedThemeStyle(): ThemeStyle {
   try {
-    return localStorage.getItem(styleStorageKey) === "glass" ? "glass" : "classic"
+    return localStorage.getItem(styleStorageKey) === "classic" ? "classic" : "glass"
   } catch {
-    return "classic"
+    return "glass"
   }
 }
 
@@ -46,7 +46,7 @@ function persistTheme(theme: Theme) {
 
 function persistThemeStyle(style: ThemeStyle) {
   try {
-    if (style === "classic") {
+    if (style === "glass") {
       localStorage.removeItem(styleStorageKey)
     } else {
       localStorage.setItem(styleStorageKey, style)
@@ -90,7 +90,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const handleStorage = (event: StorageEvent) => {
       if (event.key === storageKey) setTheme((event.newValue as Theme | null) || "system")
       if (event.key === styleStorageKey) {
-        setThemeStyle(event.newValue === "glass" ? "glass" : "classic")
+        setThemeStyle(event.newValue === "classic" ? "classic" : "glass")
       }
     }
 

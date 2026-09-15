@@ -1,6 +1,7 @@
 defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
   @moduledoc false
 
+  alias Manavault.AI
   alias Manavault.Catalog
   alias ManavaultWeb.Schema.Catalog.{CollectionFields, Errors}
   alias ManavaultWeb.Schema.RelayHelpers
@@ -10,7 +11,7 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
      %{
        collection_count: Catalog.count_collection_items(),
        location_count: Catalog.count_locations(),
-       deck_count: Catalog.count_decks()
+       deck_count: Catalog.count_non_archived_decks()
      }}
   end
 
@@ -45,31 +46,33 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
     end
   end
 
+  def card_edhrec(_parent, %{name: name}, _resolution), do: Catalog.card_edhrec(name)
+
   def reload_scryfall_catalog(_parent, _args, _resolution) do
     case Catalog.reload_scryfall_catalog_async() do
-      :ok ->
+      {:ok, _job} ->
         {:ok,
          %{
            status: "queued",
            message: "Scryfall catalog reload queued."
          }}
 
-      :not_started ->
-        {:error, "Scryfall sync worker is not running."}
+      {:error, _changeset} ->
+        {:error, "Scryfall catalog reload could not be queued."}
     end
   end
 
   def reload_scryfall_assets(_parent, _args, _resolution) do
     case Catalog.reload_scryfall_assets_async() do
-      :ok ->
+      {:ok, _job} ->
         {:ok,
          %{
            status: "queued",
            message: "Scryfall symbol and set icon reload queued."
          }}
 
-      :not_started ->
-        {:error, "Scryfall sync worker is not running."}
+      {:error, _changeset} ->
+        {:error, "Scryfall asset reload could not be queued."}
     end
   end
 
@@ -120,6 +123,12 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
     end
   end
 
+  def collection_value_dashboard(_parent, _args, _resolution) do
+    {:ok,
+     Catalog.collection_value_dashboard()
+     |> CollectionFields.collection_value_dashboard_data()}
+  end
+
   def collection_export_csv(_parent, args, resolution) do
     with {:ok, filters} <- collection_filters(args, resolution) do
       {:ok, Catalog.export_collection_csv(filters)}
@@ -163,9 +172,29 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
     end
   end
 
+  def random_deck(_parent, args, resolution) do
+    with {:ok, exclude_id} <-
+           RelayHelpers.optional_node_id(Map.get(args, :exclude_id), :deck, resolution) do
+      {:ok, Catalog.random_deck(exclude_id: exclude_id)}
+    end
+  end
+
   def deck(_parent, %{id: id}, resolution) do
     with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
       {:ok, Catalog.get_deck!(id, preload?: false)}
+    end
+  end
+
+  def deck_analysis_requests(_parent, _args, _resolution) do
+    {:ok, AI.list_deck_analysis_requests()}
+  end
+
+  def deck_question_answers(_parent, %{deck_id: deck_id}, resolution) do
+    with {:ok, deck_id} <- RelayHelpers.node_id(deck_id, :deck, resolution) do
+      deck_id
+      |> Catalog.get_deck!(preload?: false)
+      |> Catalog.list_deck_question_answers()
+      |> then(&{:ok, &1})
     end
   end
 
@@ -205,6 +234,24 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
       case id |> Catalog.get_deck!() |> Catalog.deck_edhrec(opts) do
         {:ok, result} -> {:ok, result}
         {:error, reason} -> {:error, Errors.edhrec_error(reason)}
+      end
+    end
+  end
+
+  def deck_recommander(_parent, %{id: id}, resolution) do
+    with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
+      case id |> Catalog.get_deck!() |> Catalog.deck_recommander() do
+        {:ok, result} -> {:ok, result}
+        {:error, reason} -> {:error, Errors.recommander_error(reason)}
+      end
+    end
+  end
+
+  def deck_combos(_parent, %{id: id}, resolution) do
+    with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
+      case id |> Catalog.get_deck!() |> Catalog.deck_combos() do
+        {:ok, combos} -> {:ok, combos}
+        {:error, reason} -> {:error, Errors.commander_spellbook_error(reason)}
       end
     end
   end

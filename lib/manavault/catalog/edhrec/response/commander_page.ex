@@ -4,21 +4,32 @@ defmodule Manavault.Catalog.EDHRec.Response.CommanderPage do
   alias Manavault.Catalog.Card
   alias Manavault.Catalog.EDHRec.Response.{CardLookup, CollectionStatus}
 
-  def pages(names, fetch_commander_page, deck \\ nil, commander_theme \\ nil) do
-    names
+  def pages(entries, fetch_commander_page, deck \\ nil, commander_theme \\ nil) do
+    entries
     |> Enum.uniq()
-    |> Enum.map(fn name ->
-      theme_slug = selected_theme_slug(commander_theme, name)
+    |> Enum.map(fn entry ->
+      name = page_name(entry)
+      theme_slug = selected_theme_slug(commander_theme, entry, name)
 
-      case fetch_commander_page.(name, theme_slug) do
-        {:ok, page} when is_map(page) -> normalize(name, page, deck, theme_slug)
+      case fetch_commander_page.(entry, theme_slug) do
+        {:ok, page} when is_map(page) -> normalize(entry, name, page, deck, theme_slug)
         _error -> nil
       end
     end)
     |> Enum.reject(&is_nil/1)
   end
 
-  defp normalize(name, page, deck, theme_slug) do
+  # A pair of partner commanders shares one EDHREC page; its display name
+  # joins both card names in the page's canonical (slug-sorted) order.
+  defp page_name(names) when is_list(names) do
+    names
+    |> Enum.sort_by(&CardLookup.card_slug/1)
+    |> Enum.join(" // ")
+  end
+
+  defp page_name(name), do: name
+
+  defp normalize(entry, name, page, deck, theme_slug) do
     container = Map.get(page, "container", %{})
     json_dict = Map.get(container, "json_dict", %{})
     card = Map.get(json_dict, "card", %{})
@@ -29,7 +40,7 @@ defmodule Manavault.Catalog.EDHRec.Response.CommanderPage do
       description:
         page_value(container, "description") || page_value(page, "description") ||
           "EDHREC commander data",
-      url: commander_url(name, theme_slug),
+      url: commander_url(entry, theme_slug),
       rank: page_integer(card, "rank"),
       deck_count: page_integer(card, "num_decks") || page_integer(page, "num_decks_avg"),
       salt: page_number(card, "salt"),
@@ -47,21 +58,31 @@ defmodule Manavault.Catalog.EDHRec.Response.CommanderPage do
 
   defp selected_theme_slug(
          %{commander_name: commander_name, theme_slug: theme_slug},
+         _entry,
          commander_name
        )
        when is_binary(theme_slug) and theme_slug != "",
        do: theme_slug
 
-  defp selected_theme_slug(_commander_theme, _name), do: nil
+  defp selected_theme_slug(_commander_theme, _entry, _name), do: nil
 
-  defp commander_url(name, theme_slug) do
-    base_url = "https://edhrec.com/commanders/#{CardLookup.card_slug(name)}"
+  defp commander_url(entry, theme_slug) do
+    base_url = "https://edhrec.com/commanders/#{commander_slug(entry)}"
 
     case theme_slug && CardLookup.card_slug(theme_slug) do
       slug when is_binary(slug) and slug != "" -> "#{base_url}/#{slug}"
       _other -> base_url
     end
   end
+
+  defp commander_slug(names) when is_list(names) do
+    names
+    |> Enum.map(&CardLookup.card_slug/1)
+    |> Enum.sort()
+    |> Enum.join("-")
+  end
+
+  defp commander_slug(name), do: CardLookup.card_slug(name)
 
   defp normalize_sections(cardlists, deck) when is_list(cardlists) do
     # Resolve every section card through one batched lookup (three grouped

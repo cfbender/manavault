@@ -94,9 +94,10 @@ test("changes the printing while preserving the collection item details", async 
     />,
   )
 
-  await user.selectOptions(screen.getByLabelText("Printing"), "printing-corrected")
-  expect(screen.getByRole("button", { name: "Nonfoil" }).getAttribute("aria-pressed")).toBe("true")
-  expect(screen.queryByRole("button", { name: "Foil" })).toBeNull()
+  await user.click(screen.getByRole("combobox", { name: "Printing" }))
+  await user.click(await screen.findByRole("option", { name: /Correct Set/ }))
+  expect(screen.getByRole("radio", { name: "Nonfoil" }).getAttribute("aria-checked")).toBe("true")
+  expect(screen.queryByRole("radio", { name: "Foil" })).toBeNull()
 
   await user.click(screen.getByRole("button", { name: "Save item" }))
 

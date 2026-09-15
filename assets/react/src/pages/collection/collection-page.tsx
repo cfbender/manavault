@@ -29,6 +29,7 @@ import { AutoSortSummaryDialog } from "./auto-sort-summary-dialog"
 import { CollectionLocationsSection } from "./collection-locations-section"
 import { invalidateCollectionViews } from "./collection-navigation"
 import { CollectionPageHeader } from "./collection-page-header"
+import { CollectionQuickCheck } from "./collection-quick-check"
 import {
   COLLECTION_ACTIVE_TAB_STORAGE_KEY,
   COLLECTION_APPLIED_SEARCH_STORAGE_KEY,
@@ -78,6 +79,7 @@ import type {
   CollectionTab,
   LocationSummary,
 } from "./types"
+import { CollectionValueDashboard } from "./value-dashboard"
 
 const COLLECTION_PAGE_SORT_STORAGE_KEY = collectionSortStorageKey("collection")
 
@@ -185,6 +187,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [isExportCsvOpen, setIsExportCsvOpen] = useState(false)
   const [isSellCardsOpen, setIsSellCardsOpen] = useState(false)
+  const [isQuickCheckOpen, setIsQuickCheckOpen] = useState(false)
   const [isAutoSortSetupOpen, setIsAutoSortSetupOpen] = useState(false)
   const [autoSortResult, setAutoSortResult] = useState<AutoSortCollectionResult | null>(null)
   const [autoSortError, setAutoSortError] = useState<string | null>(null)
@@ -241,7 +244,7 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
       first: COLLECTION_PAGE_SIZE,
       after: null,
     },
-    skip: activeTab === "locations",
+    skip: activeTab === "locations" || activeTab === "value",
     fetchPolicy: "cache-and-network",
   })
   const allItemsPageInfo = allItemsQuery.data?.collectionItemGroups.pageInfo
@@ -468,15 +471,18 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
         autoSortPending={autoSortCollection.loading}
         itemCounts={itemCounts}
         locationCount={locations.length}
-        valueSummary={data?.collectionValueSummary}
+        quickCheckOpen={isQuickCheckOpen}
         onAddItem={() => setIsAddItemOpen(true)}
         onAddLocation={() => setIsAddLocationOpen(true)}
         onAutoSort={previewCollectionAutoSort}
         onImport={() => setIsImportOpen(true)}
+        onQuickCheck={() => setIsQuickCheckOpen((open) => !open)}
         onExportCsv={() => setIsExportCsvOpen(true)}
         onSellCards={() => setIsSellCardsOpen(true)}
         onSelectTab={selectTab}
       />
+
+      <CollectionQuickCheck open={isQuickCheckOpen} onOpenChange={setIsQuickCheckOpen} />
 
       {autoSortError ? (
         <p
@@ -487,112 +493,120 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
         </p>
       ) : null}
 
-      {activeTab === "locations" ? (
-        <CollectionLocationsSection
-          isLoading={isLoading}
-          locationCount={locations.length}
-          locationGroups={locationGroups}
-          onDeleteLocation={setDeletingLocation}
-          onEditLocation={setEditingLocation}
-          onExportLocation={exportLocation}
-        />
-      ) : (
-        <div className="space-y-7">
-          <form
-            onSubmit={submit}
-            className="control-toolbar grid gap-2 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-[1fr_auto_auto_auto_auto]"
-          >
-            <CardNameSearchField
-              name="q"
-              value={q}
-              onValueChange={updateCollectionSearchDraft}
-              onClear={clearCollectionSearch}
-              onSuggestionSelect={applyCollectionSearch}
-              placeholder="Filter collection"
-            />
-            <SortDropdown sort={collectionItemSort} onSortChange={changeCollectionSort} />
-            <Button
-              type="button"
-              variant={selection.selectionActive ? "secondary" : "outline"}
-              onClick={selection.toggleSelectionMode}
-            >
-              <CheckSquare className="h-4 w-4" />
-              Select
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="relative"
-              onClick={() => setIsFilterModalOpen(true)}
-            >
-              <ListFilter className="h-4 w-4" />
-              Filter
-              {filterBadgeCount ? (
-                <span className="badge badge-primary badge-sm absolute -right-2 -top-2 min-w-5">
-                  {filterBadgeCount}
-                </span>
-              ) : null}
-            </Button>
-            <Button type="submit">
-              <Search className="h-4 w-4" />
-              Search
-            </Button>
-          </form>
-
-          {activeFilterChips.length ? (
-            <div className="flex flex-wrap items-center gap-2 rounded-box border border-base-300 bg-base-100 px-4 py-3 text-sm">
-              <span className="font-bold text-base-content/70">Active filters</span>
-              {activeFilterChips.map((chip) => (
-                <Badge key={chip.key} tone="primary">
-                  {chip.label}
-                </Badge>
-              ))}
-              <Button type="button" variant="ghost" size="sm" onClick={clearAllCollectionFilters}>
-                Clear all
-              </Button>
-            </div>
-          ) : null}
-
-          <CollectionBulkActionBar
-            addToDeckDisabledReason={selection.addToDeckDisabledReason}
-            allSelected={selection.allSelected}
-            selectableCount={collectionEntryCount || allCollectionItemGroups.length}
-            selectedCount={selection.selectedCount}
-            selectionActive={selection.selectionActive}
-            onAddToDeck={() => setBulkDeckTarget(bulkSelectionTarget())}
-            onAddToList={() => setBulkListTarget(bulkSelectionTarget())}
-            onClear={selection.clearSelection}
-            onDelete={() => setBulkDeleteTarget(bulkSelectionTarget())}
-            onEdit={() => setBulkEditTarget(bulkSelectionTarget())}
-            onMove={() => setBulkMoveTarget(bulkSelectionTarget())}
-            onSelectAll={selection.selectAll}
+      <div
+        id="collection-view-panel"
+        role="tabpanel"
+        aria-labelledby={`collection-tab-${activeTab}`}
+      >
+        {activeTab === "value" ? (
+          <CollectionValueDashboard />
+        ) : activeTab === "locations" ? (
+          <CollectionLocationsSection
+            isLoading={isLoading}
+            locationCount={locations.length}
+            locationGroups={locationGroups}
+            onDeleteLocation={setDeletingLocation}
+            onEditLocation={setEditingLocation}
+            onExportLocation={exportLocation}
           />
-
-          <PageSection count={collectionCountLabel}>
-            {allItemsQuery.loading && !allItemsQuery.data ? (
-              <EmptyState title="Loading collection..." />
-            ) : (
-              <VirtualizedCollectionGrid
-                groups={allCollectionItemGroups}
-                hasNextPage={allItemsHasNextPage}
-                isFetchingNextPage={isFetchingMoreAllItems}
-                isSelected={selection.isSelected}
-                onLoadMore={loadMoreAllItems}
-                onToggleSelected={selection.toggleItem}
-                selectionActive={selection.selectionActive}
+        ) : (
+          <div className="space-y-7">
+            <form
+              onSubmit={submit}
+              className="control-toolbar grid gap-2 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-[1fr_auto_auto_auto_auto]"
+            >
+              <CardNameSearchField
+                name="q"
+                value={q}
+                onValueChange={updateCollectionSearchDraft}
+                onClear={clearCollectionSearch}
+                onSuggestionSelect={applyCollectionSearch}
+                placeholder="Filter collection"
               />
-            )}
-          </PageSection>
+              <SortDropdown sort={collectionItemSort} onSortChange={changeCollectionSort} />
+              <Button
+                type="button"
+                variant={selection.selectionActive ? "secondary" : "outline"}
+                onClick={selection.toggleSelectionMode}
+              >
+                <CheckSquare className="h-4 w-4" />
+                Select
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="relative"
+                onClick={() => setIsFilterModalOpen(true)}
+              >
+                <ListFilter className="h-4 w-4" />
+                Filter
+                {filterBadgeCount ? (
+                  <span className="badge badge-primary badge-sm absolute -right-2 -top-2 min-w-5">
+                    {filterBadgeCount}
+                  </span>
+                ) : null}
+              </Button>
+              <Button type="submit">
+                <Search className="h-4 w-4" />
+                Search
+              </Button>
+            </form>
 
-          <CollectionFilterModal
-            filters={structuredFilters}
-            open={isFilterModalOpen}
-            onApply={applyStructuredFilters}
-            onClear={clearStructuredFilters}
-            onClose={() => setIsFilterModalOpen(false)}
-          />
-        </div>
-      )}
+            {activeFilterChips.length ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-box border border-base-300 bg-base-100 px-4 py-3 text-sm">
+                <span className="font-bold text-base-content/70">Active filters</span>
+                {activeFilterChips.map((chip) => (
+                  <Badge key={chip.key} tone="primary">
+                    {chip.label}
+                  </Badge>
+                ))}
+                <Button type="button" variant="ghost" size="sm" onClick={clearAllCollectionFilters}>
+                  Clear all
+                </Button>
+              </div>
+            ) : null}
+
+            <CollectionBulkActionBar
+              addToDeckDisabledReason={selection.addToDeckDisabledReason}
+              allSelected={selection.allSelected}
+              selectableCount={collectionEntryCount || allCollectionItemGroups.length}
+              selectedCount={selection.selectedCount}
+              selectionActive={selection.selectionActive}
+              onAddToDeck={() => setBulkDeckTarget(bulkSelectionTarget())}
+              onAddToList={() => setBulkListTarget(bulkSelectionTarget())}
+              onClear={selection.clearSelection}
+              onDelete={() => setBulkDeleteTarget(bulkSelectionTarget())}
+              onEdit={() => setBulkEditTarget(bulkSelectionTarget())}
+              onMove={() => setBulkMoveTarget(bulkSelectionTarget())}
+              onSelectAll={selection.selectAll}
+            />
+
+            <PageSection count={collectionCountLabel}>
+              {allItemsQuery.loading && !allItemsQuery.data ? (
+                <EmptyState title="Loading collection..." />
+              ) : (
+                <VirtualizedCollectionGrid
+                  groups={allCollectionItemGroups}
+                  hasNextPage={allItemsHasNextPage}
+                  isFetchingNextPage={isFetchingMoreAllItems}
+                  isSelected={selection.isSelected}
+                  onLoadMore={loadMoreAllItems}
+                  onToggleSelected={selection.toggleItem}
+                  selectionActive={selection.selectionActive}
+                />
+              )}
+            </PageSection>
+
+            <CollectionFilterModal
+              filters={structuredFilters}
+              open={isFilterModalOpen}
+              onApply={applyStructuredFilters}
+              onClear={clearStructuredFilters}
+              onClose={() => setIsFilterModalOpen(false)}
+            />
+          </div>
+        )}
+      </div>
       <AddCollectionItemDialog open={isAddItemOpen} onOpenChange={setIsAddItemOpen} />
       <AddLocationDialog open={isAddLocationOpen} onOpenChange={setIsAddLocationOpen} />
       <ImportCollectionDialog
@@ -633,13 +647,15 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
       />
       <ConfirmDialog
         destructive
-        confirmLabel="Delete location"
+        confirmLabel={deletingLocation?.kind === "list" ? "Delete list" : "Delete location"}
         open={Boolean(deletingLocation)}
         title={deletingLocation ? `Delete ${deletingLocation.name}?` : "Delete location?"}
         onConfirm={deleteSelectedLocation}
         onOpenChange={(open) => !open && setDeletingLocation(null)}
       >
-        Cards in this location will become unfiled.
+        {deletingLocation?.kind === "list"
+          ? "Cards in this list will be deleted."
+          : "Cards in this location will become unfiled."}
       </ConfirmDialog>
       <AutoSortSetupDialog open={isAutoSortSetupOpen} onOpenChange={setIsAutoSortSetupOpen} />
       <AutoSortSummaryDialog

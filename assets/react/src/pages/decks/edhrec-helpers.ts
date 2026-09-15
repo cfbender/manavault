@@ -1,8 +1,10 @@
 import { compactNumber, safeHttpUrl } from "../../lib/utils"
 import type {
+  DeckCardEntry,
   DeckDetail,
   EDHRecCard,
   EDHRecCardReturnSearch,
+  RecommendedCardLike,
   EDHRecCollectionStatus,
   EDHRecSectionCard,
   EDHRecTab,
@@ -102,20 +104,20 @@ export function collectionStatusTone(
   return "error"
 }
 
-export function edhrecCardImageUrl(card: EDHRecCard | EDHRecSectionCard) {
+export function edhrecCardImageUrl(card: RecommendedCardLike) {
   const printing = card.card?.primaryPrinting
   return printing?.imageUrl || printing?.artCropUrl
 }
 
-export function edhrecCardPrice(card: EDHRecCard | EDHRecSectionCard) {
+export function edhrecCardPrice(card: RecommendedCardLike) {
   return card.card?.primaryPrinting?.priceText || null
 }
 
-export function edhrecCardPrintingId(card: EDHRecCard | EDHRecSectionCard) {
+export function edhrecCardPrintingId(card: RecommendedCardLike) {
   return card.card?.primaryPrinting?.id || null
 }
 
-export function edhrecCardUrl(card: EDHRecCard | EDHRecSectionCard) {
+export function edhrecCardUrl(card: RecommendedCardLike) {
   if ("url" in card && card.url) {
     const safe = safeHttpUrl(card.url)
     if (safe) return safe
@@ -127,7 +129,7 @@ export function edhrecCardUrl(card: EDHRecCard | EDHRecSectionCard) {
   return null
 }
 
-export function cardTypeLine(card: EDHRecCard | EDHRecSectionCard) {
+export function cardTypeLine(card: RecommendedCardLike) {
   return card.card?.typeLine || ("primaryType" in card ? card.primaryType : null)
 }
 
@@ -138,11 +140,42 @@ export function formatSynergy(card: EDHRecSectionCard) {
 }
 
 export function commanderDeckCard(deck: DeckDetail | null, name: string) {
-  const normalizedName = normalizeDisplayName(name)
-  return (deck?.deckCards || []).find(
+  const commanderByName = (candidate: string) => {
+    const normalizedName = normalizeDisplayName(candidate)
+    return (deck?.deckCards || []).find(
+      (deckCard) =>
+        deckCard.zone === "commander" &&
+        normalizeDisplayName(deckCard.card?.name || "") === normalizedName,
+    )
+  }
+
+  const match = commanderByName(name)
+  if (match) return match
+
+  // Partner pair pages are named "Commander A // Commander B"; fall back to
+  // the first partner that matches a commander deck card.
+  for (const part of name.split(" // ")) {
+    const partnerMatch = commanderByName(part)
+    if (partnerMatch) return partnerMatch
+  }
+
+  return undefined
+}
+
+export function edhrecDeckCard(deck: DeckDetail | null, card: EDHRecCard): DeckCardEntry | null {
+  const oracleId = card.oracleId || card.card?.oracleId
+  const normalizedName = normalizeDisplayName(card.name)
+  const matches = (deck?.deckCards || []).filter(
     (deckCard) =>
-      deckCard.zone === "commander" &&
-      normalizeDisplayName(deckCard.card?.name || "") === normalizedName,
+      deckCard.zone !== "considering" &&
+      ((oracleId && deckCard.card?.oracleId === oracleId) ||
+        normalizeDisplayName(deckCard.card?.name || "") === normalizedName),
+  )
+
+  return (
+    matches.find((deckCard) => deckCard.zone === "mainboard") ||
+    matches.find((deckCard) => deckCard.zone === "commander") ||
+    null
   )
 }
 

@@ -1,5 +1,6 @@
 defmodule ManavaultWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :manavault
+  use Absinthe.Phoenix.Endpoint
 
   # The session will be stored in the cookie and signed,
   # this means its contents can be read but not tampered with.
@@ -9,6 +10,10 @@ defmodule ManavaultWeb.Endpoint do
 
   @fresh_asset_cache_control "no-cache, no-store, must-revalidate"
   @fresh_asset_headers %{"pragma" => "no-cache", "expires" => "0"}
+
+  socket "/socket", ManavaultWeb.UserSocket,
+    websocket: [connect_info: [session: {ManavaultWeb.SessionOptions, :build, []}]],
+    longpoll: false
 
   # Vite module entries and dynamic chunks must revalidate at the browser/CDN
   # boundary. Old entry modules can point at deleted chunks after deploys.
