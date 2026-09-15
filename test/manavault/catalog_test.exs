@@ -84,6 +84,44 @@ defmodule Manavault.CatalogTest do
     assert [%{name: "Time Walk"}] = Catalog.search_cards("walk")
   end
 
+  test "search_cards matches card names with or without diacritics" do
+    oin =
+      time_walk()
+      |> Map.merge(%{
+        "id" => "scryfall-oin-the-brave",
+        "oracle_id" => "oracle-oin-the-brave",
+        "name" => "Óin the Brave",
+        "collector_number" => "12"
+      })
+
+    assert {:ok, _counts} = Catalog.import_cards([oin])
+
+    for query <- ["Óin the Brave", "Oin the brave", ~s("Óin the Brave"), ~s("Oin the brave")] do
+      assert [%Card{name: "Óin the Brave"}] = Catalog.search_cards(query)
+    end
+  end
+
+  test "search_cards and search_printings match Scryfall flavor names" do
+    homeward_path =
+      time_walk()
+      |> Map.merge(%{
+        "id" => "scryfall-homeward-path",
+        "oracle_id" => "oracle-homeward-path",
+        "name" => "Homeward Path",
+        "flavor_name" => "Pelican Town",
+        "collector_number" => "1"
+      })
+
+    assert {:ok, _counts} = Catalog.import_cards([homeward_path])
+
+    for query <- ["Pelican Town", ~s("Pelican Town"), ~s(name:"Pelican Town")] do
+      assert [%Card{name: "Homeward Path"}] = Catalog.search_cards(query)
+    end
+
+    assert [%Printing{scryfall_id: "scryfall-homeward-path", card: %Card{name: "Homeward Path"}}] =
+             Catalog.search_printings(name: "Pelican Town")
+  end
+
   test "search_cards sorts by name ascending by default" do
     assert {:ok, _counts} = Catalog.import_cards([time_walk(), black_lotus(), plains()])
 

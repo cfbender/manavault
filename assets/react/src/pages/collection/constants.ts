@@ -28,6 +28,7 @@ export const COLLECTION_SORT_FIELDS: CollectionSortField[] = [
   "set",
   "rarity",
   "price",
+  "value_gain",
   "added",
 ]
 export const COLLECTION_SORT_DIRECTIONS: CollectionSortDirection[] = ["asc", "desc"]
@@ -38,6 +39,7 @@ export const SORT_OPTIONS: { field: CollectionSortField; label: string }[] = [
   { field: "set", label: "Set" },
   { field: "rarity", label: "Rarity" },
   { field: "price", label: "Price" },
+  { field: "value_gain", label: "Value gain" },
   { field: "added", label: "Added date" },
 ]
 

@@ -3,7 +3,7 @@ defmodule Manavault.Catalog.DeckCard do
 
   import Ecto.Changeset
 
-  @zones ~w(mainboard sideboard commander maybeboard)
+  @zones ~w(mainboard commander considering)
   @tags ~w(getting consider_cutting)
   @deck_count_zones ~w(mainboard commander)
 
@@ -43,6 +43,13 @@ defmodule Manavault.Catalog.DeckCard do
   def counts_toward_deck_total?(%__MODULE__{zone: zone}), do: deck_count_zone?(zone)
   def deck_count_zone?(zone) when is_binary(zone), do: zone in @deck_count_zones
   def deck_count_zone?(_zone), do: false
+
+  @doc "Total quantity across `deck_cards` in zones that count toward the deck total."
+  def counted_quantity(deck_cards) when is_list(deck_cards) do
+    deck_cards
+    |> Enum.filter(&counts_toward_deck_total?/1)
+    |> Enum.reduce(0, &(&1.quantity + &2))
+  end
 
   def changeset(deck_card, attrs) do
     deck_card

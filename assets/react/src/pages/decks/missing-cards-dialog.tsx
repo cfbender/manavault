@@ -11,6 +11,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
+import { Textarea } from "../../components/ui/textarea"
 import { useToast } from "../../components/ui/toast"
 import { buylistPrintingLabel, buylistReasonTone, buylistSummary } from "./buylist-export"
 import { BuylistOptionCheckbox } from "./buylist-option-checkbox"
@@ -32,8 +40,7 @@ export function MissingCardsDialog({
   const [printingMode, setPrintingMode] = useState<BuylistPrintingMode>("none")
   const [exportFormat, setExportFormat] = useState<BuylistExportFormat>("text")
   const [includeBasicLands, setIncludeBasicLands] = useState(false)
-  const [includeSideboard, setIncludeSideboard] = useState(false)
-  const [includeMaybeboard, setIncludeMaybeboard] = useState(false)
+  const [includeConsidering, setIncludeConsidering] = useState(false)
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle")
   const buylistQuery = useQuery(DeckBuylistDocument, {
     variables: {
@@ -42,8 +49,7 @@ export function MissingCardsDialog({
       exportFormat,
       assumeNoOwned: false,
       includeBasicLands,
-      includeSideboard,
-      includeMaybeboard,
+      includeConsidering,
     },
     skip: !open || !deck?.id,
   })
@@ -57,11 +63,10 @@ export function MissingCardsDialog({
     }
 
     // When the mainboard is fully sourced, missing cards live only in the
-    // sideboard/maybeboard, so pre-select those zones that still need buying.
+    // considering pile, so pre-select it when it still needs buying.
     const missing = deckZoneMissing(deck?.deckCards || [])
     const mainboardReady = !missing.mainboard
-    setIncludeSideboard(mainboardReady && missing.sideboard)
-    setIncludeMaybeboard(mainboardReady && missing.maybeboard)
+    setIncludeConsidering(mainboardReady && missing.considering)
   }, [open, deck])
 
   async function copyExportText() {
@@ -107,35 +112,37 @@ export function MissingCardsDialog({
               <span className="label-text mb-1 text-xs font-semibold uppercase text-base-content/60">
                 Printing
               </span>
-              <select
-                className="select select-bordered select-sm w-full"
+              <Select
                 value={printingMode}
-                onChange={(event) => {
-                  setPrintingMode(event.target.value as BuylistPrintingMode)
-                  event.currentTarget.blur()
-                }}
+                onValueChange={(value) => setPrintingMode(value as BuylistPrintingMode)}
               >
-                <option value="none">Any printing</option>
-                <option value="exact">Exact preferred printing</option>
-                <option value="cheapest">Cheapest known printing</option>
-              </select>
+                <SelectTrigger size="sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Any printing</SelectItem>
+                  <SelectItem value="exact">Exact preferred printing</SelectItem>
+                  <SelectItem value="cheapest">Cheapest known printing</SelectItem>
+                </SelectContent>
+              </Select>
             </label>
 
             <label className="form-control">
               <span className="label-text mb-1 text-xs font-semibold uppercase text-base-content/60">
                 Export
               </span>
-              <select
-                className="select select-bordered select-sm w-full"
+              <Select
                 value={exportFormat}
-                onChange={(event) => {
-                  setExportFormat(event.target.value as BuylistExportFormat)
-                  event.currentTarget.blur()
-                }}
+                onValueChange={(value) => setExportFormat(value as BuylistExportFormat)}
               >
-                <option value="text">Plain text</option>
-                <option value="csv">CSV</option>
-              </select>
+                <SelectTrigger size="sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="text">Plain text</SelectItem>
+                  <SelectItem value="csv">CSV</SelectItem>
+                </SelectContent>
+              </Select>
             </label>
           </div>
 
@@ -146,14 +153,9 @@ export function MissingCardsDialog({
               onChange={setIncludeBasicLands}
             />
             <BuylistOptionCheckbox
-              checked={includeSideboard}
-              label="Include sideboard"
-              onChange={setIncludeSideboard}
-            />
-            <BuylistOptionCheckbox
-              checked={includeMaybeboard}
-              label="Include maybeboard"
-              onChange={setIncludeMaybeboard}
+              checked={includeConsidering}
+              label="Include considering"
+              onChange={setIncludeConsidering}
             />
           </div>
 
@@ -221,8 +223,8 @@ export function MissingCardsDialog({
             </div>
           ) : null}
 
-          <textarea
-            className="textarea textarea-bordered min-h-48 w-full bg-base-100 font-mono text-xs"
+          <Textarea
+            className="min-h-48 bg-base-100 font-mono text-xs"
             readOnly
             value={buylistQuery.loading ? "Exporting..." : exportText}
           />

@@ -15,6 +15,8 @@ defmodule Manavault.CatalogTestSupport do
       "colors" => [],
       "color_identity" => [],
       "legalities" => %{"vintage" => "restricted"},
+      "games" => ["paper"],
+      "edhrec_rank" => 1,
       "set" => "lea",
       "set_name" => "Limited Edition Alpha",
       "collector_number" => "232",
@@ -112,10 +114,11 @@ defmodule Manavault.CatalogTestSupport do
     Map.put(plains(), "legalities", %{"commander" => "legal"})
   end
 
-  def legality_card(name, color_identity, legalities) do
+  def legality_card(name, color_identity, legalities, overrides \\ %{}) do
     card_slug = slug(name)
 
-    Map.merge(time_walk(), %{
+    time_walk()
+    |> Map.merge(%{
       "id" => "scryfall-printing-#{card_slug}",
       "oracle_id" => "oracle-#{card_slug}",
       "name" => name,
@@ -131,6 +134,16 @@ defmodule Manavault.CatalogTestSupport do
       "prices" => %{},
       "released_at" => "2026-01-01"
     })
+    |> Map.merge(overrides)
+  end
+
+  def legality_commander_card(name, color_identity, overrides \\ %{}) do
+    legality_card(
+      name,
+      color_identity,
+      %{"commander" => "legal"},
+      Map.merge(%{"type_line" => "Legendary Creature — Human"}, overrides)
+    )
   end
 
   def add_deck_card!(deck, name, quantity, zone) do

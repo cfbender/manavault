@@ -55,27 +55,47 @@ defmodule Manavault.Catalog.Cached do
     end)
   end
 
+  def list_collection_item_groups(filters \\ [], opts \\ []) when is_list(filters) do
+    cached(Cache.collection_tag(), {:list_collection_item_groups, filters, opts}, fn ->
+      Collection.list_collection_item_groups(filters, opts)
+    end)
+  end
+
   def list_collection_item_ids(filters \\ []) when is_list(filters) do
     cached(Cache.collection_tag(), {:list_collection_item_ids, filters}, fn ->
       Collection.list_collection_item_ids(filters)
     end)
   end
 
-  def count_collection_items(filters \\ []) when is_list(filters) do
-    cached(Cache.collection_tag(), {:count_collection_items, filters}, fn ->
-      Collection.count_collection_items(filters)
+  # The three counts share one cached query so a search that asks for all of
+  # them scans the filtered collection once.
+  def collection_item_totals(filters \\ []) when is_list(filters) do
+    cached(Cache.collection_tag(), {:collection_item_totals, filters}, fn ->
+      Collection.collection_item_totals(filters)
     end)
   end
 
+  def count_collection_items(filters \\ []) when is_list(filters) do
+    collection_item_totals(filters).quantity
+  end
+
   def count_collection_item_entries(filters \\ []) when is_list(filters) do
-    cached(Cache.collection_tag(), {:count_collection_item_entries, filters}, fn ->
-      Collection.count_collection_item_entries(filters)
-    end)
+    collection_item_totals(filters).entries
+  end
+
+  def count_collection_item_groups(filters \\ []) when is_list(filters) do
+    collection_item_totals(filters).groups
   end
 
   def collection_value_summary(filters \\ []) when is_list(filters) do
     cached(Cache.collection_tag(), {:collection_value_summary, filters}, fn ->
       Collection.collection_value_summary(filters)
+    end)
+  end
+
+  def collection_value_dashboard do
+    cached(Cache.collection_tag(), :collection_value_dashboard, fn ->
+      Collection.collection_value_dashboard()
     end)
   end
 
@@ -103,6 +123,12 @@ defmodule Manavault.Catalog.Cached do
   def update_collection_items(ids, attrs) do
     ids
     |> Collection.update_collection_items(attrs)
+    |> invalidate_on_ok(&Cache.invalidate_collection/0)
+  end
+
+  def set_collection_items_for_trade_quantity(ids, quantity) do
+    ids
+    |> Collection.set_collection_items_for_trade_quantity(quantity)
     |> invalidate_on_ok(&Cache.invalidate_collection/0)
   end
 

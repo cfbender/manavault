@@ -36,6 +36,30 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionMutations do
     end
   end
 
+  def set_collection_items_for_trade_quantity(
+        _parent,
+        %{selector: selector, quantity: quantity},
+        resolution
+      ) do
+    with {:ok, ids} <- CollectionSelector.collection_item_ids(selector, resolution) do
+      case Catalog.set_collection_items_for_trade_quantity(ids, quantity) do
+        {:ok, result} ->
+          {:ok,
+           %{
+             updated_count: length(result.items),
+             quantity: result.quantity,
+             total_quantity: result.total_quantity
+           }}
+
+        {:error, :invalid_for_trade_quantity} ->
+          {:error, "Trade quantity must be between zero and the number of copies owned."}
+
+        {:error, _reason} ->
+          {:error, "Could not update trade quantity."}
+      end
+    end
+  end
+
   def bulk_delete_collection_items(_parent, %{selector: selector}, resolution) do
     with {:ok, ids} <- CollectionSelector.collection_item_ids(selector, resolution) do
       case Catalog.delete_collection_items(ids) do

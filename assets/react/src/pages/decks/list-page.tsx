@@ -1,8 +1,7 @@
 import { useMutation, useQuery } from "@apollo/client/react"
 import { Link, useNavigate } from "@tanstack/react-router"
-import { Archive, ChevronDown, Layers, Plus } from "lucide-react"
+import { Archive, ChevronDown, Dices, Layers, Plus, Sparkles } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { PageSection } from "../../components/app-shell"
 import { EmptyState } from "../../components/card-image"
 import { ImageSummaryCard } from "../../components/image-summary-card"
 import { Badge } from "../../components/ui/badge"
@@ -11,6 +10,9 @@ import { ConfirmDialog } from "../../components/ui/confirm-dialog"
 import { useToast } from "../../components/ui/toast"
 import { compactNumber, titleize } from "../../lib/utils"
 import { SummaryActionMenu } from "./deck-actions"
+import { DeckAnalysisDialog } from "./deck-analysis-dialog"
+import { DeckBracketBadge } from "./deck-bracket"
+import { DeckCombosDialog } from "./deck-combos-dialog"
 import { EditDeckDialog, NewDeckDialog } from "./deck-editor-dialogs"
 import {
   deckLegalityIssueCount,
@@ -19,11 +21,22 @@ import {
   deckLegalityTone,
 } from "./deck-legality"
 import { DeckNameWithCommanderIdentity, groupDecksByFormat } from "./deck-list-model"
+import { DeckPlayHistory, RandomDeckDialog } from "./deck-picker"
 import { ShareDeckDialog } from "./deck-share-dialogs"
 import { flattenDecks, partitionDecksByArchive, type DeckSummary } from "./deck-types"
 import { DecksDocument, DeleteDeckDocument } from "./queries"
 
-function DeckGalleryHeader({ onNewDeck }: { onNewDeck: () => void }) {
+function DeckGalleryHeader({
+  canPickDeck,
+  onAnalyzeDeck,
+  onNewDeck,
+  onPickDeck,
+}: {
+  canPickDeck: boolean
+  onAnalyzeDeck: () => void
+  onNewDeck: () => void
+  onPickDeck: () => void
+}) {
   return (
     <header className="mb-8 flex flex-col gap-5 border-b border-base-300 pb-6 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
@@ -32,44 +45,63 @@ function DeckGalleryHeader({ onNewDeck }: { onNewDeck: () => void }) {
           Browse your deck gallery, then open a list to tune exact printings and card allocations.
         </p>
       </div>
-      <Button type="button" className="w-full sm:w-auto" onClick={onNewDeck}>
-        <Plus className="h-4 w-4" />
-        New deck
-      </Button>
+      <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:flex-nowrap">
+        <Button
+          type="button"
+          variant="outline"
+          className="min-w-36 flex-1 sm:flex-none"
+          onClick={onAnalyzeDeck}
+        >
+          <Sparkles className="h-4 w-4" />
+          Analyze list
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="min-w-36 flex-1 sm:flex-none"
+          disabled={!canPickDeck}
+          onClick={onPickDeck}
+        >
+          <Dices className="h-4 w-4" />
+          Pick a deck
+        </Button>
+        <Button type="button" className="min-w-36 flex-1 sm:flex-none" onClick={onNewDeck}>
+          <Plus className="h-4 w-4" />
+          New deck
+        </Button>
+      </div>
     </header>
   )
 }
 
 function DeckGallerySkeleton() {
   return (
-    <PageSection count="Loading decks">
-      <div className="space-y-10" aria-busy="true" aria-label="Loading deck gallery" role="status">
-        <section className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="h-7 w-32 animate-pulse rounded bg-base-200" />
-            <div className="h-6 w-10 animate-pulse rounded-full bg-base-200" />
-          </div>
-          <div className="grid gap-5 md:grid-cols-2">
-            {[0, 1, 2, 3].map((index) => (
-              <div
-                key={index}
-                className="min-h-52 rounded-box border border-base-300 bg-base-100 p-5"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="h-5 w-20 animate-pulse rounded bg-base-200" />
-                  <div className="h-5 w-16 animate-pulse rounded bg-base-200" />
-                </div>
-                <div className="mt-20 h-8 w-3/4 animate-pulse rounded bg-base-200" />
-                <div className="mt-4 flex gap-2">
-                  <div className="h-5 w-16 animate-pulse rounded bg-base-200" />
-                  <div className="h-5 w-14 animate-pulse rounded bg-base-200" />
-                </div>
+    <div className="space-y-10" aria-busy="true" aria-label="Loading deck gallery" role="status">
+      <section className="space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="h-7 w-32 animate-pulse rounded bg-base-200" />
+          <div className="h-6 w-20 animate-pulse rounded-full bg-base-200" />
+        </div>
+        <div className="grid gap-5 md:grid-cols-2">
+          {[0, 1, 2, 3].map((index) => (
+            <div
+              key={index}
+              className="min-h-52 rounded-box border border-base-300 bg-base-100 p-5"
+            >
+              <div className="flex items-center gap-2">
+                <div className="h-5 w-20 animate-pulse rounded bg-base-200" />
+                <div className="h-5 w-16 animate-pulse rounded bg-base-200" />
               </div>
-            ))}
-          </div>
-        </section>
-      </div>
-    </PageSection>
+              <div className="mt-20 h-8 w-3/4 animate-pulse rounded bg-base-200" />
+              <div className="mt-4 flex gap-2">
+                <div className="h-5 w-16 animate-pulse rounded bg-base-200" />
+                <div className="h-5 w-14 animate-pulse rounded bg-base-200" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
   )
 }
 
@@ -150,11 +182,13 @@ function DeckReadinessBadges({ readiness }: { readiness: DeckReadiness }) {
 
 function DeckGalleryCard({
   deck,
+  onCombos,
   onDelete,
   onEdit,
   onShare,
 }: {
   deck: DeckSummary
+  onCombos: () => void
   onDelete: () => void
   onEdit: () => void
   onShare: () => void
@@ -174,7 +208,12 @@ function DeckGalleryCard({
             </div>
           }
           countLine={`${compactNumber(deck.cardCount || 0)} cards`}
-          detailLine={<DeckReadinessBadges readiness={readiness} />}
+          detailLine={
+            <div className="flex flex-wrap items-center gap-2 leading-none">
+              <DeckReadinessBadges readiness={readiness} />
+              <DeckBracketBadge deck={deck} />
+            </div>
+          }
           nameLine={
             <DeckNameWithCommanderIdentity colors={deck.commanderColorIdentity} name={deck.name} />
           }
@@ -182,6 +221,7 @@ function DeckGalleryCard({
       </Link>
       <SummaryActionMenu
         label={`${deck.name} actions`}
+        onCombos={onCombos}
         onEdit={onEdit}
         onShare={onShare}
         onDelete={onDelete}
@@ -191,12 +231,16 @@ function DeckGalleryCard({
 }
 
 function DeckFormatSections({
+  countSuffix,
   deckGroups,
+  onCombos,
   onDelete,
   onEdit,
   onShare,
 }: {
+  countSuffix?: string
   deckGroups: ReturnType<typeof groupDecksByFormat>
+  onCombos: (deck: DeckSummary) => void
   onDelete: (deck: DeckSummary) => void
   onEdit: (deck: DeckSummary) => void
   onShare: (deck: DeckSummary) => void
@@ -207,13 +251,17 @@ function DeckFormatSections({
         <section key={format} className="space-y-4">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-xl font-black tracking-normal">{titleize(format)}</h2>
-            <span className="badge border-transparent bg-base-200 text-sm">{decks.length}</span>
+            <span className="badge border-transparent bg-base-200 text-sm">
+              {decks.length}
+              {countSuffix ? ` ${countSuffix}` : ""}
+            </span>
           </div>
           <div className="grid gap-5 md:grid-cols-2">
             {decks.map((deck) => (
               <DeckGalleryCard
                 key={deck.id}
                 deck={deck}
+                onCombos={() => onCombos(deck)}
                 onEdit={() => onEdit(deck)}
                 onShare={() => onShare(deck)}
                 onDelete={() => onDelete(deck)}
@@ -229,12 +277,14 @@ function DeckFormatSections({
 function ArchivedDecksAccordion({
   deckCount,
   deckGroups,
+  onCombos,
   onDelete,
   onEdit,
   onShare,
 }: {
   deckCount: number
   deckGroups: ReturnType<typeof groupDecksByFormat>
+  onCombos: (deck: DeckSummary) => void
   onDelete: (deck: DeckSummary) => void
   onEdit: (deck: DeckSummary) => void
   onShare: (deck: DeckSummary) => void
@@ -263,6 +313,7 @@ function ArchivedDecksAccordion({
       <div className="border-t border-base-300 p-4">
         <DeckFormatSections
           deckGroups={deckGroups}
+          onCombos={onCombos}
           onEdit={onEdit}
           onShare={onShare}
           onDelete={onDelete}
@@ -273,7 +324,10 @@ function ArchivedDecksAccordion({
 }
 
 export function DecksPage() {
+  const [isDeckAnalysisOpen, setIsDeckAnalysisOpen] = useState(false)
   const [isNewDeckOpen, setIsNewDeckOpen] = useState(false)
+  const [isRandomDeckOpen, setIsRandomDeckOpen] = useState(false)
+  const [comboDeck, setComboDeck] = useState<DeckSummary | null>(null)
   const [editingDeck, setEditingDeck] = useState<DeckSummary | null>(null)
   const [sharingDeck, setSharingDeck] = useState<DeckSummary | null>(null)
   const [deletingDeck, setDeletingDeck] = useState<DeckSummary | null>(null)
@@ -332,7 +386,7 @@ export function DecksPage() {
     void deleteDeck({
       variables: { id: deletingDeck.id },
       onCompleted: () => showToast(`Deleted deck ${deckName}`),
-      onError: () => showToast(`Could not delete deck ${deckName}`, { tone: "info" }),
+      onError: () => showToast(`Could not delete deck ${deckName}`, { tone: "error" }),
     }).catch(() => undefined)
     if (editingDeck?.id === deletingDeck.id) setEditingDeck(null)
     if (sharingDeck?.id === deletingDeck.id) setSharingDeck(null)
@@ -340,7 +394,12 @@ export function DecksPage() {
   }
   return (
     <>
-      <DeckGalleryHeader onNewDeck={() => setIsNewDeckOpen(true)} />
+      <DeckGalleryHeader
+        canPickDeck={activeDecks.length > 0}
+        onAnalyzeDeck={() => setIsDeckAnalysisOpen(true)}
+        onNewDeck={() => setIsNewDeckOpen(true)}
+        onPickDeck={() => setIsRandomDeckOpen(true)}
+      />
       {decksError && !data ? (
         <DeckGalleryErrorState onRetry={() => void refetch()} />
       ) : isInitialLoading ? (
@@ -348,30 +407,43 @@ export function DecksPage() {
       ) : (
         <div className="space-y-8">
           {deckGroups.length ? (
-            <PageSection count={`${activeDecks.length} active`}>
-              <DeckFormatSections
-                deckGroups={deckGroups}
-                onEdit={setEditingDeck}
-                onShare={setSharingDeck}
-                onDelete={setDeletingDeck}
-              />
-            </PageSection>
+            <DeckFormatSections
+              countSuffix="active"
+              deckGroups={deckGroups}
+              onCombos={setComboDeck}
+              onEdit={setEditingDeck}
+              onShare={setSharingDeck}
+              onDelete={setDeletingDeck}
+            />
           ) : (
             <DeckGalleryEmptyState
               hasArchivedDecks={archivedDecks.length > 0}
               onNewDeck={() => setIsNewDeckOpen(true)}
             />
           )}
+          <DeckPlayHistory decks={activeDecks} />
           <ArchivedDecksAccordion
             deckCount={archivedDecks.length}
             deckGroups={archivedDeckGroups}
+            onCombos={setComboDeck}
             onEdit={setEditingDeck}
             onShare={setSharingDeck}
             onDelete={setDeletingDeck}
           />
         </div>
       )}
+      <DeckAnalysisDialog open={isDeckAnalysisOpen} onOpenChange={setIsDeckAnalysisOpen} />
       <NewDeckDialog open={isNewDeckOpen} onOpenChange={setIsNewDeckOpen} />
+      <RandomDeckDialog
+        open={isRandomDeckOpen}
+        onOpenChange={setIsRandomDeckOpen}
+        onRecorded={() => void refetch()}
+      />
+      <DeckCombosDialog
+        deck={comboDeck}
+        open={Boolean(comboDeck)}
+        onOpenChange={(open) => !open && setComboDeck(null)}
+      />
       <EditDeckDialog deck={editingDeck} onOpenChange={(open) => !open && setEditingDeck(null)} />
       <ShareDeckDialog deck={sharingDeck} onOpenChange={(open) => !open && setSharingDeck(null)} />
       <ConfirmDialog

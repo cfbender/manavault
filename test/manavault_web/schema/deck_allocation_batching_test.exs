@@ -56,6 +56,7 @@ defmodule ManavaultWeb.Schema.DeckAllocationBatchingTest do
 
     assert {:ok, %{cards_count: 4, printings_count: 4, bulk_uri: nil}} =
              Catalog.import_cards(cards ++ [alternate_printing])
+
     {:ok, location} = Catalog.create_location(%{name: "Batch Binder", kind: "binder"})
 
     for index <- 1..3 do

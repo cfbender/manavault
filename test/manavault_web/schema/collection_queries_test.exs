@@ -94,6 +94,16 @@ defmodule ManavaultWeb.Schema.CollectionQueriesTest do
             valueGainText
             valueGainPercentText
           }
+          collectionValueDashboard {
+            itemCount
+            positionCount
+            gainPositionCount
+            lossPositionCount
+            unchangedPositionCount
+            summary { totalPriceText purchasePriceText valueGainText }
+            biggestGains { valueGainText printing { card { name } } }
+            biggestLosses { valueGainText printing { card { name } } }
+          }
         }
         """
       })
@@ -148,6 +158,20 @@ defmodule ManavaultWeb.Schema.CollectionQueriesTest do
                  "valueGainText" => "$0",
                  "valueGainPercentText" => "0%"
                },
+               "collectionValueDashboard" => %{
+                 "itemCount" => 3,
+                 "positionCount" => 1,
+                 "gainPositionCount" => 0,
+                 "lossPositionCount" => 0,
+                 "unchangedPositionCount" => 1,
+                 "summary" => %{
+                   "totalPriceText" => "$37.02",
+                   "purchasePriceText" => "$37.02",
+                   "valueGainText" => "$0"
+                 },
+                 "biggestGains" => [],
+                 "biggestLosses" => []
+               },
                "collectionItems" => %{
                  "pageInfo" => %{"endCursor" => _, "hasNextPage" => false},
                  "edges" => [
@@ -169,6 +193,99 @@ defmodule ManavaultWeb.Schema.CollectionQueriesTest do
                }
              }
            } = json_response(conn, 200)
+  end
+
+  test "collection item groups combine price lots while collection items remain separate", %{
+    conn: conn
+  } do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} =
+             Catalog.import_cards([
+               %{
+                 "id" => "grouped-printing",
+                 "oracle_id" => "grouped-card",
+                 "name" => "Grouped Card",
+                 "type_line" => "Artifact",
+                 "collector_number" => "1",
+                 "set" => "tst",
+                 "set_name" => "Test Set",
+                 "lang" => "en",
+                 "rarity" => "rare",
+                 "image_uris" => %{},
+                 "finishes" => ["nonfoil"],
+                 "prices" => %{"usd" => "10.00"},
+                 "legalities" => %{}
+               }
+             ])
+
+    assert {:ok, first} =
+             Catalog.create_collection_item(%{
+               scryfall_id: "grouped-printing",
+               quantity: 2,
+               purchase_price_cents: 100
+             })
+
+    assert {:ok, second} =
+             Catalog.create_collection_item(%{
+               scryfall_id: "grouped-printing",
+               quantity: 3,
+               purchase_price_cents: 200
+             })
+
+    conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        query {
+          collectionItemGroups(first: 1) {
+            pageInfo { hasNextPage }
+            edges {
+              node {
+                printingId
+                quantity
+                items { id quantity purchasePriceCents }
+              }
+            }
+          }
+          collectionValueDashboard {
+            biggestGains { items { id } }
+          }
+          collectionItems(first: 10) {
+            edges { node { id quantity purchasePriceCents } }
+          }
+        }
+        """
+      })
+
+    assert %{
+             "data" => %{
+               "collectionItemGroups" => %{
+                 "pageInfo" => %{"hasNextPage" => false},
+                 "edges" => [
+                   %{
+                     "node" => %{
+                       "printingId" => "grouped-printing",
+                       "quantity" => 5,
+                       "items" => grouped_items
+                     }
+                   }
+                 ]
+               },
+               "collectionValueDashboard" => %{
+                 "biggestGains" => [%{"items" => dashboard_items}]
+               },
+               "collectionItems" => %{"edges" => item_edges}
+             }
+           } = json_response(conn, 200)
+
+    assert Enum.map(grouped_items, & &1["purchasePriceCents"]) == [100, 200]
+    assert Enum.map(item_edges, & &1["node"]["purchasePriceCents"]) == [100, 200]
+
+    assert dashboard_items |> Enum.map(& &1["id"]) |> Enum.sort() ==
+             item_edges |> Enum.map(& &1["node"]["id"]) |> Enum.sort()
+
+    assert Enum.map(grouped_items, & &1["id"]) == [
+             Absinthe.Relay.Node.to_global_id(:collection_item, first.id, ManavaultWeb.Schema),
+             Absinthe.Relay.Node.to_global_id(:collection_item, second.id, ManavaultWeb.Schema)
+           ]
   end
 
   test "card query resolves owned counts per printing", %{conn: conn} do

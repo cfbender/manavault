@@ -12,6 +12,8 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :condition, non_null(:string)
     field :language, non_null(:string)
     field :finish, non_null(:string)
+    field :for_trade, non_null(:boolean)
+    field :for_trade_quantity, non_null(:integer)
     field :notes, :string
     field :printing, :printing, resolve: &CollectionFields.collection_item_printing/3
 
@@ -121,7 +123,14 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :quantity, non_null(:integer)
   end
 
+  object :collection_item_group do
+    field :printing_id, non_null(:string)
+    field :quantity, non_null(:integer)
+    field :items, non_null(list_of(non_null(:collection_item)))
+  end
+
   connection(node_type: :collection_item)
+  connection(node_type: :collection_item_group)
   connection(node_type: :location)
 
   object :home_summary do
@@ -137,6 +146,31 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :purchase_price_text, :string
     field :value_gain_cents, non_null(:integer)
     field :value_gain_text, :string
+    field :value_gain_percent, :float
+    field :value_gain_percent_text, :string
+  end
+
+  object :collection_value_dashboard do
+    field :summary, non_null(:collection_value_summary)
+    field :item_count, non_null(:integer)
+    field :position_count, non_null(:integer)
+    field :gain_position_count, non_null(:integer)
+    field :loss_position_count, non_null(:integer)
+    field :unchanged_position_count, non_null(:integer)
+    field :biggest_gains, non_null(list_of(non_null(:collection_value_position)))
+    field :biggest_losses, non_null(list_of(non_null(:collection_value_position)))
+  end
+
+  object :collection_value_position do
+    field :printing, non_null(:printing)
+    field :items, non_null(list_of(non_null(:collection_item)))
+    field :quantity, non_null(:integer)
+    field :total_price_cents, non_null(:integer)
+    field :total_price_text, non_null(:string)
+    field :purchase_price_cents, non_null(:integer)
+    field :purchase_price_text, non_null(:string)
+    field :value_gain_cents, non_null(:integer)
+    field :value_gain_text, non_null(:string)
     field :value_gain_percent, :float
     field :value_gain_percent_text, :string
   end
@@ -192,6 +226,8 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :collection_item_id, non_null(:id)
     field :card_name, non_null(:string)
     field :card_id, :id
+    field :set_code, non_null(:string)
+    field :collector_number, non_null(:string)
     field :image_url, :string
     field :quantity, non_null(:integer)
     field :finish, non_null(:string)
@@ -283,6 +319,7 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :card_id, :id
     field :unallocated_only, :boolean
     field :added_within_days, :integer
+    field :for_trade, :boolean
   end
 
   input_object :collection_item_sort do
@@ -309,9 +346,12 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :location_id, :id
     field :notes, :string
     field :purchase_price_cents, :integer
+    field :for_trade, :boolean
+    field :for_trade_quantity, :integer
   end
 
   input_object :collection_item_update_input do
+    field :scryfall_id, :id
     field :quantity, :integer
     field :condition, :string
     field :language, :string
@@ -319,6 +359,8 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :location_id, :id
     field :notes, :string
     field :purchase_price_cents, :integer
+    field :for_trade, :boolean
+    field :for_trade_quantity, :integer
   end
 
   input_object :collection_import_preview_input do

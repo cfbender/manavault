@@ -1,0 +1,178 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+
+run_step() {
+  local label="$1"
+  shift
+  local started_at=$SECONDS
+
+  echo "==> $label"
+  "$@"
+  echo "<== $label completed in $((SECONDS - started_at))s"
+}
+
+if [[ "$(uname -s)" == "Linux" ]] && command -v apt-get >/dev/null 2>&1; then
+  if [[ "$(id -u)" -eq 0 ]]; then
+    apt=(apt-get)
+  elif command -v sudo >/dev/null 2>&1; then
+    apt=(sudo apt-get)
+  else
+    echo "setup requires root or sudo to install Debian packages" >&2
+    exit 1
+  fi
+
+  export DEBIAN_FRONTEND=noninteractive
+  native_packages=(
+    autoconf
+    build-essential
+    ca-certificates
+    curl
+    fonts-dejavu-core
+    git
+    inotify-tools
+    libncurses-dev
+    libsqlite3-dev
+    libssl-dev
+    libxml2-utils
+    m4
+    pkg-config
+    unzip
+    xz-utils
+  )
+  missing_packages=()
+  for package in "${native_packages[@]}"; do
+    if ! dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -Fqx "install ok installed"; then
+      missing_packages+=("$package")
+    fi
+  done
+
+  if ((${#missing_packages[@]})); then
+    run_step "Refreshing Debian package metadata" "${apt[@]}" update
+    run_step "Installing native build prerequisites: ${missing_packages[*]}" \
+      "${apt[@]}" install -y --no-install-recommends "${missing_packages[@]}"
+  else
+    echo "==> Native build prerequisites are already installed"
+  fi
+fi
+
+if ! command -v mise >/dev/null 2>&1; then
+  echo "==> Installing mise"
+  mise_version="v2026.6.14"
+  case "$(uname -m)" in
+    x86_64|amd64)
+      mise_arch="x64"
+      mise_sha="491dd31ff1e0201c7866046f4110125392a481f0fd37e01e5e622fa12670b77b"
+      ;;
+    aarch64|arm64)
+      mise_arch="arm64"
+      mise_sha="947541d82684732cf27327d0d1914b471c0edb5ed6db8507f81b4ad8b67ba7cf"
+      ;;
+    *)
+      echo "unsupported architecture: $(uname -m)" >&2
+      exit 1
+      ;;
+  esac
+
+  tmp_dir="$(mktemp -d)"
+  trap 'rm -rf "$tmp_dir"' EXIT
+  curl -fsSL \
+    "https://github.com/jdx/mise/releases/download/${mise_version}/mise-${mise_version}-linux-${mise_arch}-musl.tar.gz" \
+    -o "$tmp_dir/mise.tar.gz"
+  printf '%s  %s\n' "$mise_sha" "$tmp_dir/mise.tar.gz" | sha256sum -c -
+  tar -xzf "$tmp_dir/mise.tar.gz" -C "$tmp_dir"
+  mkdir -p "$HOME/.local/bin"
+  install "$tmp_dir/mise/bin/mise" "$HOME/.local/bin/mise"
+  export PATH="$HOME/.local/bin:$PATH"
+fi
+
+profile_marker="# manavault orb tools"
+if ! grep -Fqx "$profile_marker" "$HOME/.bash_profile" 2>/dev/null; then
+  cat >> "$HOME/.bash_profile" <<'EOF'
+
+# manavault orb tools
+export PATH="$HOME/.local/bin:$PATH"
+EOF
+fi
+
+locale_marker="# manavault orb locale"
+if ! grep -Fqx "$locale_marker" "$HOME/.bash_profile" 2>/dev/null; then
+  cat >> "$HOME/.bash_profile" <<'EOF'
+
+# manavault orb locale
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+EOF
+fi
+
+amp_settings="$HOME/.config/amp/settings.json"
+mkdir -p "$(dirname "$amp_settings")"
+python3 - "$amp_settings" <<'PY'
+import json
+import os
+import sys
+import tempfile
+
+path = sys.argv[1]
+try:
+    with open(path, encoding="utf-8") as settings_file:
+        settings = json.load(settings_file)
+except FileNotFoundError:
+    settings = {}
+
+settings["amp.git.commit.ampThread.enabled"] = False
+directory = os.path.dirname(path)
+with tempfile.NamedTemporaryFile("w", dir=directory, delete=False, encoding="utf-8") as output:
+    json.dump(settings, output, indent=2)
+    output.write("\n")
+    temporary_path = output.name
+os.replace(temporary_path, path)
+PY
+
+amp_guidance="$HOME/.config/amp/AGENTS.md"
+amp_guidance_marker="# manavault mise command guidance"
+mkdir -p "$(dirname "$amp_guidance")"
+if ! grep -Fqx "$amp_guidance_marker" "$amp_guidance" 2>/dev/null; then
+  cat >> "$amp_guidance" <<'EOF'
+
+# manavault mise command guidance
+When working in the ManaVault repository, invoke project-managed tools through mise from the first command onward. Use `mise exec -- backlog ...` rather than `backlog ...`, and use `mise exec -- aube ...` rather than `aube ...`; fresh orbs do not expose those tools directly on PATH.
+EOF
+fi
+
+run_step "Installing the pinned web development toolchain" \
+  mise install -y aube erlang elixir node resvg "npm:backlog.md"
+
+if ! mise exec -- mix help hex >/dev/null 2>&1; then
+  run_step "Installing Hex" mise exec -- mix local.hex --force
+else
+  echo "==> Hex is already installed"
+fi
+
+elixir_install="$(mise where elixir)"
+if ! find "$elixir_install/.mix/elixir" "${MIX_HOME:-$HOME/.mix}/elixir" \
+  -type f -name rebar3 -executable -print -quit 2>/dev/null | grep -q .; then
+  run_step "Installing Rebar" mise exec -- mix local.rebar --force
+else
+  echo "==> Rebar is already installed"
+fi
+
+run_step "Installing JavaScript dependencies" \
+  mise exec -- aube install --frozen-lockfile
+
+if [[ ! -f .agents/skills/impeccable/SKILL.md ]]; then
+  run_step "Installing Impeccable for Amp" \
+    mise exec -- aubx impeccable install -y --providers=codex --scope=project --no-hooks
+else
+  echo "==> Impeccable for Amp is already installed"
+fi
+
+run_step "Installing Elixir dependencies, migrating the database, and building assets" \
+  mise exec -- mix setup
+
+echo "==> ManaVault orb setup complete"

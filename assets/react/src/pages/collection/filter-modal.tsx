@@ -10,6 +10,13 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
 import { useToast } from "../../components/ui/toast"
 import {
   buildCollectionFilterQuery,
@@ -91,8 +98,8 @@ export function CollectionFilterModal({
           <DialogClose onClose={onClose} />
         </DialogHeader>
 
-        <div className="grid max-h-[calc(100dvh-11rem)] overflow-y-auto lg:grid-cols-[1fr_19rem]">
-          <div className="divide-y divide-base-300">
+        <div className="grid min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain lg:grid-cols-[minmax(0,1fr)_19rem]">
+          <div className="min-w-0 divide-y divide-base-300">
             <div className="bg-base-200/40 px-5 py-4">
               <h3 className="text-sm font-black text-base-content">Common filters</h3>
               <p className="mt-1 text-sm text-base-content/60">
@@ -286,7 +293,7 @@ export function CollectionFilterModal({
                 <summary className="cursor-pointer text-sm font-bold text-base-content">
                   Expert Scryfall query
                 </summary>
-                <div className="mt-3 min-h-20 rounded-box bg-base-200 p-3 font-mono text-sm leading-6 text-base-content/80">
+                <div className="mt-3 min-h-20 break-words rounded-box bg-base-200 p-3 font-mono text-sm leading-6 text-base-content/80 [overflow-wrap:anywhere]">
                   {syntax || (
                     <span className="font-sans text-base-content/45">No filters selected</span>
                   )}
@@ -406,18 +413,21 @@ function ComparisonFilterControl({
 }) {
   return (
     <div className={cn("grid grid-cols-[5rem_minmax(0,1fr)] gap-2", className)}>
-      <select
-        className="select select-bordered w-full bg-base-100"
+      <Select
         value={operator}
-        onChange={(event) => onOperatorChange(event.target.value as ComparisonOperator)}
-        aria-label="Comparison"
+        onValueChange={(value) => onOperatorChange(value as ComparisonOperator)}
       >
-        {COMPARISON_OPTIONS.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger aria-label="Comparison">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {COMPARISON_OPTIONS.map((option) => (
+            <SelectItem key={option} value={option}>
+              {option}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <Input
         inputMode={inputMode}
         type={type}
@@ -457,19 +467,22 @@ function ColorFilterControl({
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <select
-        className="select select-bordered min-w-36 bg-base-100"
+      <Select
         value={operator}
-        onChange={(event) => onOperatorChange(event.target.value as ColorOperator)}
-        aria-label="Color comparison"
+        onValueChange={(value) => onOperatorChange(value as ColorOperator)}
         disabled={colorlessSelected}
       >
-        {COLOR_OPERATOR_OPTIONS.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger className="min-w-36" aria-label="Color comparison">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {COLOR_OPERATOR_OPTIONS.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <div className="flex flex-wrap gap-2">
         {COLOR_OPTIONS.map((color) => {
           const active = selected.includes(color.value)
@@ -551,13 +564,13 @@ function SegmentedFilter<T extends string>({
   value: T
 }) {
   return (
-    <div className="inline-grid overflow-hidden rounded-btn border border-base-300 sm:auto-cols-fr sm:grid-flow-col">
+    <div className="grid w-full overflow-hidden rounded-btn border border-base-300 sm:inline-grid sm:w-auto sm:auto-cols-fr sm:grid-flow-col">
       {options.map((option) => (
         <button
           key={option.value}
           type="button"
           className={cn(
-            "border-base-300 px-4 py-2 text-sm font-bold transition-colors [&:not(:last-child)]:border-r",
+            "min-h-11 border-base-300 px-4 py-2 text-sm font-bold transition-colors [&:not(:last-child)]:border-b sm:min-h-0 sm:[&:not(:last-child)]:border-b-0 sm:[&:not(:last-child)]:border-r",
             value === option.value
               ? "bg-primary text-primary-content"
               : "bg-base-100 text-base-content/65 hover:bg-base-200",

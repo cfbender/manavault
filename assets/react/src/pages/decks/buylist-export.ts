@@ -27,7 +27,7 @@ export function buylistTotalPrice(entries: BuylistEntry[]) {
 export function deckCardsTotalPrice(deckCards: DeckCardEntry[]) {
   return deckCards.reduce(
     (summary, deckCard) => {
-      if (deckCard.zone === "sideboard" || deckCard.zone === "maybeboard") {
+      if (deckCard.zone === "considering") {
         return summary
       }
 
@@ -47,11 +47,7 @@ export function deckCardsTotalPrice(deckCards: DeckCardEntry[]) {
 export function deckMissingCardsTotalPrice(deckCards: DeckCardEntry[]) {
   return deckCards.reduce(
     (summary, deckCard) => {
-      if (
-        deckCard.zone === "sideboard" ||
-        deckCard.zone === "maybeboard" ||
-        deckCard.tag === "getting"
-      ) {
+      if (deckCard.zone === "considering" || deckCard.tag === "getting") {
         return summary
       }
 

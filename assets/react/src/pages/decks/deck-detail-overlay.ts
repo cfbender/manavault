@@ -11,6 +11,8 @@ export type DeckDetailOverlay =
       mode: DeckPullListMode
       selectedItemIds: Record<string, string | null>
     }
+  | { kind: "combos" }
+  | { kind: "compare-deck" }
   | { kind: "delete-card"; deckCard: DeckCardEntry }
   | { kind: "delete-selected" }
   | { kind: "disassembly"; result: DeckDisassemblyResult }
@@ -24,6 +26,7 @@ export type DeckDetailOverlay =
   | { kind: "optimize-printings"; error: string | null }
   | { kind: "preview-card"; deckCard: DeckCardEntry }
   | { kind: "readiness" }
+  | { kind: "recommander" }
   | { kind: "select-from-list" }
   | { kind: "share-buylist" }
   | { kind: "share-deck" }

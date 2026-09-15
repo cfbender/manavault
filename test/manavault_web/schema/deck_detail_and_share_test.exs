@@ -177,7 +177,25 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
         }
       ])
 
-    {:ok, deck} = Catalog.create_deck(%{"name" => "Shared Deck"})
+    "oracle-share-card"
+    |> then(&Manavault.Repo.get!(Manavault.Catalog.Card, &1))
+    |> Ecto.Changeset.change(edhrec_commander_rank: 42, edhrec_saltiness: 2.25)
+    |> Manavault.Repo.update!()
+
+    {:ok, deck} =
+      Catalog.create_deck(%{
+        "name" => "Shared Deck",
+        "primer" => "## Game plan\n\nResolve **Shared Card** and protect it."
+      })
+
+    {:ok, deck} =
+      Catalog.save_deck_analysis(deck, %{
+        ai_analysis: "## AI overview\n\nBuild value, then turn the corner.",
+        ai_analysis_model: "test/model",
+        ai_analyzed_at: ~U[2026-08-19 02:09:23Z],
+        commander_bracket: 3,
+        commander_bracket_estimate: 2
+      })
 
     {:ok, deck_card} =
       Catalog.add_card_to_deck(deck, %{
@@ -239,6 +257,12 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
             name
             format
             status
+            primer
+            aiAnalysis
+            aiAnalysisModel
+            aiAnalyzedAt
+            commanderBracket
+            commanderBracketEstimate
             shareToken
             cardCount
             uniqueCardCount
@@ -284,6 +308,8 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                     colors
                     colorIdentity
                     gameChanger
+                    edhrecCommanderRank
+                    edhrecSaltiness
                     deckCategory
                     deckThemes
                   }
@@ -375,6 +401,12 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
              "data" => %{
                "deck" => %{
                  "name" => "Shared Deck",
+                 "primer" => "## Game plan\n\nResolve **Shared Card** and protect it.",
+                 "aiAnalysis" => "## AI overview\n\nBuild value, then turn the corner.",
+                 "aiAnalysisModel" => "test/model",
+                 "aiAnalyzedAt" => "2026-08-19T02:09:23Z",
+                 "commanderBracket" => 3,
+                 "commanderBracketEstimate" => 2,
                  "shareToken" => ^share_token,
                  "cardCount" => 2,
                  "uniqueCardCount" => 1,
@@ -394,7 +426,9 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                          "card" => %{
                            "id" => shared_card_id,
                            "name" => "Shared Card",
-                           "gameChanger" => true
+                           "gameChanger" => true,
+                           "edhrecCommanderRank" => 42,
+                           "edhrecSaltiness" => 2.25
                          },
                          "allocationStatus" => %{
                            "state" => "shared",
@@ -460,6 +494,8 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
             oracleText
             colorIdentity
             gameChanger
+            edhrecCommanderRank
+            edhrecSaltiness
             deckCategory
             deckThemes
             oracleTags {
@@ -519,6 +555,8 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                  "oracleText" => "Shared oracle text.",
                  "colorIdentity" => [],
                  "gameChanger" => true,
+                 "edhrecCommanderRank" => 42,
+                 "edhrecSaltiness" => 2.25,
                  "deckCategory" => "other",
                  "deckThemes" => ["artifact"],
                  "oracleTags" => [],
@@ -559,6 +597,59 @@ defmodule ManavaultWeb.Schema.DeckDetailAndShareTest do
                }
              }
            } = json_response(public_card_conn, 200)
+  end
+
+  test "authenticated share lifecycle mutations rotate and disable every share kind", %{
+    conn: conn
+  } do
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Lifecycle Deck"})
+    {:ok, deck} = Catalog.ensure_deck_share_token(deck)
+    {:ok, wants_token} = Manavault.Trade.ensure_wants_share_token()
+    {:ok, binder_token} = Manavault.Trade.ensure_binder_share_token()
+
+    rotate_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation RotateShares($deckId: ID!) {
+          rotateDeckShareToken(id: $deckId) { deck { shareToken } }
+          rotateTradeWantsShareToken { token }
+          rotateTradeBinderShareToken { token }
+        }
+        """,
+        "variables" => %{"deckId" => global_deck_id(deck)}
+      })
+
+    assert %{
+             "data" => %{
+               "rotateDeckShareToken" => %{"deck" => %{"shareToken" => rotated_deck_token}},
+               "rotateTradeWantsShareToken" => %{"token" => rotated_wants_token},
+               "rotateTradeBinderShareToken" => %{"token" => rotated_binder_token}
+             }
+           } = json_response(rotate_conn, 200)
+
+    refute rotated_deck_token == deck.share_token
+    refute rotated_wants_token == wants_token
+    refute rotated_binder_token == binder_token
+
+    disable_conn =
+      post(conn, "/api/graphql", %{
+        "query" => """
+        mutation DisableShares($deckId: ID!) {
+          disableDeckSharing(id: $deckId) { deck { shareToken } }
+          disableTradeWantsSharing { success }
+          disableTradeBinderSharing { success }
+        }
+        """,
+        "variables" => %{"deckId" => global_deck_id(deck)}
+      })
+
+    assert %{
+             "data" => %{
+               "disableDeckSharing" => %{"deck" => %{"shareToken" => nil}},
+               "disableTradeWantsSharing" => %{"success" => true},
+               "disableTradeBinderSharing" => %{"success" => true}
+             }
+           } = json_response(disable_conn, 200)
   end
 
   defp global_deck_id(deck) do

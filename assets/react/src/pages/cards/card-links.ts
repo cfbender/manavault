@@ -19,6 +19,10 @@ export function edhrecCardUrl({ name }: { name: string }) {
   return `https://edhrec.com/cards/${cardNameSlug(name)}`
 }
 
+export function edhrecCommanderUrl({ name }: { name: string }) {
+  return `https://edhrec.com/commanders/${cardNameSlug(name)}`
+}
+
 export function mtgStocksCardUrl({ name }: { name: string }) {
   return `https://www.mtgstocks.com/?${new URLSearchParams({ q: name.trim() }).toString()}`
 }
@@ -33,6 +37,7 @@ export function mtgStocksPrintUrl(slug: string) {
 
 function cardNameSlug(name: string) {
   return name
+    .split(" // ", 1)[0]
     .trim()
     .toLowerCase()
     .replaceAll(/['’,]/gu, "")

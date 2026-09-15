@@ -1,7 +1,14 @@
 defmodule Manavault.Catalog.Decks do
   @moduledoc false
 
-  alias Manavault.Catalog.{Cache, Deck, DeckCard, DeckSummaries, EDHRec}
+  alias Manavault.Catalog.{
+    Cache,
+    CommanderSpellbook,
+    DeckCard,
+    DeckSummaries,
+    EDHRec,
+    Recommander
+  }
 
   alias Manavault.Catalog.Decks.{
     AllocationStatus,
@@ -12,11 +19,13 @@ defmodule Manavault.Catalog.Decks do
     DeckCardAllocation,
     DeckCardDeallocation,
     DecklistIO,
+    DeckPicker,
     DefaultTags,
     Disassembly,
     ProxyAllocation,
     PullListAllocation,
     Queries,
+    QuestionAnswers,
     Records,
     ShareToken,
     Statistics,
@@ -40,9 +49,13 @@ defmodule Manavault.Catalog.Decks do
     cached(:count_decks, &Queries.count_decks/0)
   end
 
+  def count_non_archived_decks do
+    cached(:count_non_archived_decks, &Queries.count_non_archived_decks/0)
+  end
+
   def get_deck_by_share_token(token, opts \\ []) do
     if ShareToken.valid?(token) do
-      cached_share_deck_by_token(token, opts)
+      Queries.get_deck_by_share_token(token, opts)
     end
   end
 
@@ -84,6 +97,8 @@ defmodule Manavault.Catalog.Decks do
     end)
   end
 
+  defdelegate collection_requirement_statuses(deck_cards), to: AllocationStatus
+
   def deck_unique_card_count(deck) do
     cached_deck_read(deck, :deck_unique_card_count, fn ->
       Queries.deck_unique_card_count(deck)
@@ -102,6 +117,14 @@ defmodule Manavault.Catalog.Decks do
     end)
   end
 
+  defdelegate random_deck(opts \\ []), to: DeckPicker
+
+  def record_deck_play(deck, outcome) do
+    deck
+    |> DeckPicker.record_outcome(outcome)
+    |> invalidate_decks_on_ok()
+  end
+
   defdelegate change_deck(deck, attrs \\ %{}), to: Records
 
   def create_deck(attrs) do
@@ -116,9 +139,27 @@ defmodule Manavault.Catalog.Decks do
     |> invalidate_decks_on_ok()
   end
 
+  def save_deck_analysis(deck, attrs) do
+    deck
+    |> Records.save_deck_analysis(attrs)
+    |> invalidate_decks_on_ok()
+  end
+
   def ensure_deck_share_token(deck) do
     deck
     |> Records.ensure_deck_share_token()
+    |> invalidate_decks_on_ok()
+  end
+
+  def disable_deck_sharing(deck) do
+    deck
+    |> Records.disable_deck_sharing()
+    |> invalidate_decks_on_ok()
+  end
+
+  def rotate_deck_share_token(deck) do
+    deck
+    |> Records.rotate_deck_share_token()
     |> invalidate_decks_on_ok()
   end
 
@@ -185,6 +226,12 @@ defmodule Manavault.Catalog.Decks do
     |> invalidate_decks_on_ok()
   end
 
+  def add_deck_partner(deck_card) do
+    deck_card
+    |> Cards.add_deck_partner()
+    |> invalidate_decks_on_ok()
+  end
+
   def delete_deck_card(deck_card) do
     deck_card
     |> Cards.delete_deck_card()
@@ -215,6 +262,13 @@ defmodule Manavault.Catalog.Decks do
 
   defdelegate list_deck_tags(deck), to: Tags
   defdelegate put_deck_card_tag_ids(deck_cards), to: Tags
+  defdelegate list_deck_question_answers(deck), to: QuestionAnswers
+  defdelegate get_deck_question_answer(id), to: QuestionAnswers
+  defdelegate change_deck_question_answer(deck, attrs), to: QuestionAnswers
+  defdelegate create_deck_question_answer(deck, attrs), to: QuestionAnswers
+  defdelegate complete_deck_question_answer(question_answer, attrs), to: QuestionAnswers
+  defdelegate fail_deck_question_answer(question_answer, error), to: QuestionAnswers
+  defdelegate delete_deck_question_answer(question_answer), to: QuestionAnswers
 
   def create_deck_tag(deck, attrs) do
     deck
@@ -334,6 +388,14 @@ defmodule Manavault.Catalog.Decks do
     end)
   end
 
+  def deck_recommander(deck, opts \\ []) do
+    cached_deck_read(deck, {:deck_recommander, opts}, fn ->
+      Recommander.recs(deck, opts)
+    end)
+  end
+
+  defdelegate deck_combos(deck, opts \\ []), to: CommanderSpellbook, as: :combos
+
   def export_deck_buylist(deck, format, opts \\ []) do
     cached_deck_read(deck, {:export_deck_buylist, format, opts}, fn ->
       Buylist.export_deck_buylist(deck, format, opts)
@@ -344,21 +406,6 @@ defmodule Manavault.Catalog.Decks do
     cached_deck_read(deck, :deck_stats, fn ->
       Statistics.deck_stats(deck)
     end)
-  end
-
-  defp cached_share_deck_by_token(token, opts) do
-    key = {:deck_by_share_token, token, opts}
-
-    case Cache.fetch(key) do
-      {:ok, %Deck{} = deck} ->
-        deck
-
-      _miss ->
-        case Queries.get_deck_by_share_token(token, opts) do
-          %Deck{} = deck -> Cache.put(key, deck, tag: Cache.decks_tag())
-          nil -> nil
-        end
-    end
   end
 
   defp cached(key, fun), do: Cache.cached(key, [tag: Cache.decks_tag()], fun)

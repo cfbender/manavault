@@ -12,6 +12,14 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
+import { Textarea } from "../../components/ui/textarea"
 import { useToast } from "../../components/ui/toast"
 import { refetchActiveQueries } from "../../lib/apollo"
 import { present, titleize } from "../../lib/utils"
@@ -170,25 +178,26 @@ export function EditLocationDialog({
 
           <label className="block space-y-2">
             <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Kind</span>
-            <select
-              className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              value={kind}
-              onChange={(event) => setKind(locationKindValue(event.target.value))}
-            >
-              {LOCATION_KINDS.map((kind) => (
-                <option key={kind} value={kind}>
-                  {titleize(kind)}
-                </option>
-              ))}
-            </select>
+            <Select value={kind} onValueChange={(value) => setKind(locationKindValue(value))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {LOCATION_KINDS.map((kind) => (
+                  <SelectItem key={kind} value={kind}>
+                    {titleize(kind)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
 
           <label className="block space-y-2">
             <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
               Description
             </span>
-            <textarea
-              className="textarea textarea-bordered min-h-24 w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            <Textarea
+              className="min-h-24"
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               placeholder="Optional notes"

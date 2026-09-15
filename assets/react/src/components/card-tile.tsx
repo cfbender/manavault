@@ -1,4 +1,5 @@
 import {
+  ArrowLeftRight,
   CheckSquare,
   DollarSign,
   Edit3,
@@ -73,6 +74,11 @@ export function CardTile({
   countMin = 2,
   defaultActions,
   finish,
+  forTradeActive = false,
+  forTradeCardName,
+  forTradePending = false,
+  forTradeQuantity = 0,
+  forTradeTotalQuantity,
   growOnHover = true,
   imageUrl,
   location,
@@ -93,6 +99,7 @@ export function CardTile({
   showDetails = false,
   showMenu = true,
   typeLine,
+  onToggleForTrade,
   onToggleSelected,
 }: {
   allocatedLabel?: ReactNode
@@ -101,12 +108,18 @@ export function CardTile({
   countMin?: number
   defaultActions?: CardTileAction[]
   finish?: string | null
+  forTradeActive?: boolean
+  forTradeCardName?: string
+  forTradePending?: boolean
+  forTradeQuantity?: number
+  forTradeTotalQuantity?: number
   growOnHover?: boolean
   imageUrl?: string | null
   location?: ReactNode
   menuActions?: CardTileAction[]
   name: ReactNode
   onSelect?: () => void
+  onToggleForTrade?: () => void
   onToggleSelected?: () => void
   primaryActionLabel?: string
   primaryActionRole?: "button" | "link"
@@ -138,7 +151,12 @@ export function CardTile({
           ? "Nonfoil"
           : finish
   const ownedLabel = count && count >= countMin ? `Owned ×${count}` : null
-  const mobileHover = useMobileHoverReveal<HTMLDivElement>()
+  const tradeCardName = forTradeCardName ?? (typeof name === "string" ? name : "card")
+  const nextTradeAction =
+    forTradeActive && forTradeQuantity >= (forTradeTotalQuantity ?? forTradeQuantity)
+      ? `Remove all ${tradeCardName} copies from trade`
+      : `Offer ${forTradeQuantity + 1} of ${forTradeTotalQuantity ?? count ?? 1} ${tradeCardName} copies for trade`
+  const mobileHover = useMobileHoverReveal<HTMLDivElement>({ deferRevealUntilPointerUp: true })
   const suppressMenuClickRef = useRef(false)
   const suppressMenuClickTimeoutRef = useRef<number | null>(null)
   const fallbackDefaultActions: CardTileAction[] = [
@@ -216,15 +234,19 @@ export function CardTile({
       aria-pressed={selectionClickActive ? selected : undefined}
       className={cn(
         "group/card relative w-full overflow-visible rounded-xl bg-transparent transition duration-200 focus-within:z-50",
-        growOnHover && "hover:z-50 hover:-translate-y-2 hover:scale-[1.035]",
-        growOnHover && mobileHover.isRevealed && "z-50 -translate-y-2 scale-[1.035]",
-        hasPrimaryAction && "cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50",
+        growOnHover && "hover:z-50 hover:-translate-y-2",
+        growOnHover && mobileHover.isRevealed && "z-50 -translate-y-2",
+        hasPrimaryAction &&
+          "cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
         className,
       )}
       onBlur={handleBlur}
       onClick={hasPrimaryAction ? handleClick : undefined}
       onKeyDown={handleKeyDown}
+      onPointerCancel={mobileHover.onPointerCancel}
       onPointerDown={mobileHover.onPointerDown}
+      onPointerMove={mobileHover.onPointerMove}
+      onPointerUp={mobileHover.onPointerUp}
       role={selectionClickActive ? "button" : onSelect ? primaryActionRole : undefined}
       style={{ maxWidth: `min(${size.widthPx}px, 100%)` }}
       tabIndex={hasPrimaryAction ? 0 : undefined}
@@ -307,11 +329,11 @@ export function CardTile({
 
       <figure
         className={cn(
-          "relative aspect-[5/7] w-full overflow-hidden rounded-xl bg-base-300 shadow-lg ring-1 ring-white/10 transition duration-200 group-focus-within/card:ring-primary/50",
+          "relative aspect-[5/7] w-full overflow-hidden rounded-xl bg-base-300 shadow-lg ring-1 ring-white/10 transition duration-200",
           foil && "card-tile-foil",
           finish === "etched" && "card-tile-foil--etched",
-          growOnHover && "group-hover/card:shadow-2xl group-hover/card:ring-primary/40",
-          growOnHover && mobileHover.isRevealed && "shadow-2xl ring-primary/40",
+          growOnHover && "group-hover/card:shadow-2xl",
+          growOnHover && mobileHover.isRevealed && "shadow-2xl",
           selected && "ring-2 ring-primary ring-offset-2 ring-offset-base-100",
         )}
       >
@@ -356,6 +378,37 @@ export function CardTile({
                 {count}
               </span>
             ) : null}
+          </div>
+        ) : null}
+
+        {onToggleForTrade ? (
+          <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
+            <button
+              type="button"
+              className={cn(
+                "pointer-events-auto relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br ring-1 backdrop-blur-xl transition duration-200 ease-out hover:scale-105 active:scale-95",
+                "shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_8px_20px_rgba(0,0,0,0.4)]",
+                forTradeActive
+                  ? "bg-primary/50 from-white/25 via-primary/10 to-transparent text-primary-content ring-primary/60 hover:bg-primary/60"
+                  : "bg-white/15 from-white/25 via-white/5 to-transparent text-white ring-white/30 hover:bg-white/20",
+              )}
+              aria-label={nextTradeAction}
+              aria-pressed={forTradeActive}
+              disabled={forTradePending}
+              onClick={(event) => {
+                event.stopPropagation()
+                onToggleForTrade()
+              }}
+              onKeyDown={(event) => event.stopPropagation()}
+              onMouseDown={(event) => event.stopPropagation()}
+            >
+              <ArrowLeftRight className="h-6 w-6" />
+              {forTradeQuantity > 0 ? (
+                <span className="absolute -right-1.5 -top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-primary px-1 text-xs font-black text-primary-content ring-2 ring-base-100/80">
+                  {forTradeQuantity}
+                </span>
+              ) : null}
+            </button>
           </div>
         ) : null}
 

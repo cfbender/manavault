@@ -40,18 +40,131 @@ export const CollectionDocument = graphql(`
         kind
       }
     }
-    collectionValueSummary(filters: $filters) {
-      totalPriceText
-      purchasePriceText
-      valueGainText
-      valueGainPercentText
-    }
     collectionItemCount(filters: $filters)
     collectionItemEntryCount(filters: $filters)
     allCollectionItemCount: collectionItemCount
     unfiledCollectionItemCount: collectionItemCount(filters: { locationId: "unfiled" })
     availableCollectionItemCount: collectionItemCount(filters: { unallocatedOnly: true })
     recentCollectionItemCount: collectionItemCount(filters: { addedWithinDays: 7 })
+  }
+`)
+
+export const CollectionValueDashboardDocument = graphql(`
+  query CollectionValueDashboard {
+    pricingSettings {
+      source
+    }
+    collectionValueDashboard {
+      summary {
+        totalPriceCents
+        totalPriceText
+        purchasePriceCents
+        purchasePriceText
+        valueGainCents
+        valueGainText
+        valueGainPercent
+        valueGainPercentText
+      }
+      itemCount
+      positionCount
+      gainPositionCount
+      lossPositionCount
+      unchangedPositionCount
+      biggestGains {
+        items {
+          id
+        }
+        quantity
+        totalPriceCents
+        totalPriceText
+        purchasePriceCents
+        purchasePriceText
+        valueGainCents
+        valueGainText
+        valueGainPercent
+        valueGainPercentText
+        printing {
+          id
+          scryfallId
+          setCode
+          setName
+          collectorNumber
+          imageUrl
+          card {
+            id
+            name
+          }
+        }
+      }
+      biggestLosses {
+        items {
+          id
+        }
+        quantity
+        totalPriceCents
+        totalPriceText
+        purchasePriceCents
+        purchasePriceText
+        valueGainCents
+        valueGainText
+        valueGainPercent
+        valueGainPercentText
+        printing {
+          id
+          scryfallId
+          setCode
+          setName
+          collectorNumber
+          imageUrl
+          card {
+            id
+            name
+          }
+        }
+      }
+    }
+  }
+`)
+
+export const CollectionCheckDocument = graphql(`
+  mutation CollectionCheck($url: String, $text: String, $includeConsidering: Boolean!) {
+    collectionCheck(url: $url, text: $text, includeConsidering: $includeConsidering) {
+      sourceName
+      entryCount
+      requestedQuantity
+      excludedQuantity
+      availableQuantity
+      unavailableQuantity
+      missingQuantity
+      estimatedCostCents
+      estimatedCostText
+      unpricedQuantity
+      unrecognized
+      cards {
+        cardName
+        oracleId
+        required
+        owned
+        available
+        unavailable
+        missing
+        toSource
+        status
+        setCode
+        collectorNumber
+        unitPriceCents
+        unitPriceText
+        totalPriceCents
+        totalPriceText
+        printing {
+          id
+          scryfallId
+          imageUrl
+          setCode
+          collectorNumber
+        }
+      }
+    }
   }
 `)
 
@@ -148,6 +261,25 @@ export const CollectionItemFormOptionsDocument = graphql(`
         id
         name
         kind
+      }
+    }
+  }
+`)
+
+export const CollectionItemPrintingsDocument = graphql(`
+  query CollectionItemPrintings($cardId: ID!) {
+    card(id: $cardId) {
+      printings(first: 300) {
+        edges {
+          node {
+            id
+            setCode
+            setName
+            collectorNumber
+            rarity
+            finishes
+          }
+        }
       }
     }
   }
@@ -412,56 +544,62 @@ export const DeleteLocationDocument = graphql(`
   }
 `)
 
-export const CollectionItemsPageDocument = graphql(`
-  query CollectionItemsPage(
+export const CollectionItemGroupsPageDocument = graphql(`
+  query CollectionItemGroupsPage(
     $filters: CollectionItemFilters
     $sort: CollectionItemSort
     $first: Int!
     $after: String
   ) {
-    collectionItems(first: $first, after: $after, filters: $filters, sort: $sort) {
+    collectionItemGroups(first: $first, after: $after, filters: $filters, sort: $sort) {
       pageInfo {
         endCursor
         hasNextPage
       }
       edges {
         node {
-          id
           quantity
-          condition
-          language
-          finish
-          notes
-          priceText
-          purchasePriceCents
-          purchasePriceText
-          valueGainText
-          valueGainPercentText
-          allocatedQuantity
-          allocationDecks {
+          printingId
+          items {
+            id
             quantity
-            deck {
+            condition
+            language
+            finish
+            notes
+            priceText
+            purchasePriceCents
+            purchasePriceText
+            valueGainText
+            valueGainPercentText
+            allocatedQuantity
+            forTrade
+            forTradeQuantity
+            allocationDecks {
+              quantity
+              deck {
+                id
+                name
+              }
+            }
+            location {
               id
               name
             }
-          }
-          location {
-            id
-            name
-          }
-          printing {
-            id
-            scryfallId
-            setCode
-            setName
-            collectorNumber
-            imageUrl
-            rarity
-            card {
+            printing {
               id
-              oracleId
-              name
-              typeLine
+              scryfallId
+              setCode
+              setName
+              collectorNumber
+              imageUrl
+              rarity
+              card {
+                id
+                oracleId
+                name
+                typeLine
+              }
             }
           }
         }
@@ -566,6 +704,8 @@ export const PreviewCollectionImportAutoSortDocument = graphql(`
           collectionItemId
           cardName
           cardId
+          setCode
+          collectorNumber
           imageUrl
           quantity
           finish
@@ -591,6 +731,8 @@ export const AutoSortCollectionDocument = graphql(`
           collectionItemId
           cardName
           cardId
+          setCode
+          collectorNumber
           imageUrl
           quantity
           finish

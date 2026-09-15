@@ -16,6 +16,7 @@ defmodule Manavault.Catalog.ImportTest do
              name: "Black Lotus",
              color_identity: "[]",
              game_changer: false,
+             edhrec_rank: 1,
              rulings_uri: "https://api.scryfall.com/cards/oracle-1/rulings"
            } = Repo.get!(Card, "oracle-1")
 
@@ -55,7 +56,54 @@ defmodule Manavault.Catalog.ImportTest do
     assert Jason.decode!(prices) == %{"usd" => "1.00"}
   end
 
-  test "import_cards processes batches without dropping search rows" do
+  test "import_cards excludes memorabilia and token set printings" do
+    memorabilia =
+      Map.merge(@black_lotus, %{
+        "id" => "scryfall-memorabilia",
+        "set" => "alea",
+        "set_name" => "Alpha Art Series",
+        "set_type" => "memorabilia"
+      })
+
+    token =
+      Map.merge(@black_lotus, %{
+        "id" => "scryfall-token",
+        "oracle_id" => "oracle-token",
+        "name" => "Black Lotus Token",
+        "set" => "tlea",
+        "set_name" => "Alpha Tokens",
+        "set_type" => "token"
+      })
+
+    assert {:ok, %{cards_count: 1, printings_count: 1, source_count: 3}} =
+             Catalog.import_cards([@black_lotus, memorabilia, token])
+
+    assert Repo.get!(Printing, @black_lotus["id"])
+    refute Repo.get(Printing, memorabilia["id"])
+    refute Repo.get(Printing, token["id"])
+    refute Repo.get(Card, token["oracle_id"])
+  end
+
+  test "import_cards releases the write lock between batches" do
+    test_pid = self()
+    handler_id = {__MODULE__, make_ref()}
+
+    :ok =
+      :telemetry.attach(
+        handler_id,
+        [:manavault, :repo, :query],
+        fn _event, _measurements, metadata, pid ->
+          query = metadata |> Map.get(:query, "") |> to_string() |> String.downcase()
+
+          if query == "commit" or String.starts_with?(query, "release savepoint") do
+            send(pid, :catalog_import_batch_committed)
+          end
+        end,
+        test_pid
+      )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+
     cards =
       Enum.map(1..205, fn index ->
         %{
@@ -68,6 +116,8 @@ defmodule Manavault.Catalog.ImportTest do
       end)
 
     assert {:ok, %{cards_count: 205, printings_count: 205}} = Catalog.import_cards(cards)
+    assert_receive :catalog_import_batch_committed
+    assert_receive :catalog_import_batch_committed
     assert Repo.aggregate(Card, :count) == 205
     assert Repo.aggregate(Printing, :count) == 205
 
@@ -77,6 +127,31 @@ defmodule Manavault.Catalog.ImportTest do
                set_code: "LEA",
                collector_number: "205"
              )
+  end
+
+  test "import_cards rolls back every write in a failed batch" do
+    Repo.query!("""
+    CREATE TEMP TRIGGER fail_catalog_batch
+    BEFORE INSERT ON scryfall_printings
+    WHEN NEW.scryfall_id = 'scryfall-atomic-batch'
+    BEGIN
+      SELECT RAISE(ABORT, 'catalog batch test failure');
+    END
+    """)
+
+    card = %{
+      @time_walk
+      | "id" => "scryfall-atomic-batch",
+        "oracle_id" => "oracle-atomic-batch",
+        "name" => "Atomic Batch Card"
+    }
+
+    assert_raise Exqlite.Error, ~r/catalog batch test failure/, fn ->
+      Catalog.import_cards([card])
+    end
+
+    refute Repo.get(Card, "oracle-atomic-batch")
+    refute Repo.get(Printing, "scryfall-atomic-batch")
   end
 
   test "import_cards stores selected oracle tags and derives deck grouping fields" do

@@ -4,81 +4,33 @@ defmodule ManavaultWeb.Plugs.GraphQLCSRFProtection do
   import Phoenix.Controller, only: [json: 2]
   import Plug.Conn
 
-  alias Absinthe.Language.{Document, OperationDefinition}
   alias ManavaultWeb.Plugs.Authentication
 
   @csrf_session_key "_csrf_token"
   @csrf_header "x-csrf-token"
   @csrf_param "_csrf_token"
   @forbidden_response %{errors: [%{message: "Invalid CSRF token"}]}
+  @method_not_allowed_response %{errors: [%{message: "Method not allowed"}]}
 
   def init(opts), do: opts
 
   def call(conn, _opts) do
-    if Authentication.session_authenticated?(conn) and mutation_request?(conn.params) and
-         not valid_csrf_token?(conn) do
-      conn
-      |> put_status(:forbidden)
-      |> json(@forbidden_response)
-      |> halt()
-    else
-      conn
-    end
-  end
+    cond do
+      conn.method != "POST" ->
+        conn
+        |> put_resp_header("allow", "POST")
+        |> put_status(:method_not_allowed)
+        |> json(@method_not_allowed_response)
+        |> halt()
 
-  defp mutation_request?(params) do
-    params
-    |> graphql_requests()
-    |> Enum.any?(&mutation_operation?/1)
-  end
+      Authentication.session_authenticated?(conn) and not valid_csrf_token?(conn) ->
+        conn
+        |> put_status(:forbidden)
+        |> json(@forbidden_response)
+        |> halt()
 
-  defp graphql_requests(%{"query" => query} = params) when is_binary(query), do: [params]
-
-  defp graphql_requests(%{"_json" => requests}) when is_list(requests), do: requests
-
-  defp graphql_requests(%{"operations" => operations}) when is_binary(operations) do
-    case Jason.decode(operations) do
-      {:ok, requests} when is_list(requests) -> requests
-      {:ok, request} when is_map(request) -> [request]
-      _ -> []
-    end
-  end
-
-  defp graphql_requests(params) when is_map(params), do: [params]
-
-  defp mutation_operation?(%{"query" => query} = request) when is_binary(query) do
-    with {:ok, document} <- parse_document(query),
-         %OperationDefinition{operation: :mutation} <- selected_operation(document, request) do
-      true
-    else
-      _ -> false
-    end
-  end
-
-  defp mutation_operation?(_request), do: false
-
-  defp parse_document(query) do
-    case Absinthe.Phase.Parse.run(query, []) do
-      {:ok, %{input: %Document{} = document}} -> {:ok, document}
-      _ -> :error
-    end
-  end
-
-  defp selected_operation(document, request) do
-    case operation_name(request) do
-      nil -> single_operation(document)
-      name -> Document.get_operation(document, name)
-    end
-  end
-
-  defp operation_name(%{"operationName" => ""}), do: nil
-  defp operation_name(%{"operationName" => name}) when is_binary(name), do: name
-  defp operation_name(_request), do: nil
-
-  defp single_operation(%Document{definitions: definitions}) do
-    case Enum.filter(definitions, &match?(%OperationDefinition{}, &1)) do
-      [operation] -> operation
-      _ -> nil
+      true ->
+        conn
     end
   end
 

@@ -9,6 +9,14 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
+import { Switch } from "../../components/ui/switch"
 import { cn, titleize } from "../../lib/utils"
 import { RARITY_OPTIONS } from "../collection/constants"
 import {
@@ -113,37 +121,37 @@ export function CollectionAutoSortRuleDialog({
                 htmlFor={`${fieldId}-target`}
                 help="Only boxes and binders can receive auto-sorted cards."
               >
-                <select
-                  id={`${fieldId}-target`}
-                  className="select select-bordered w-full bg-base-100"
-                  required
+                <Select
                   value={draftRow.targetLocationId}
-                  onChange={(event) => {
+                  onValueChange={(value) => {
                     const targetLocation = storageLocations.find(
-                      (location) => location.id === event.target.value,
+                      (location) => location.id === value,
                     )
                     onUpdate({
-                      targetLocationId: event.target.value,
+                      targetLocationId: value,
                       targetLocationKind: targetLocation?.kind ?? "",
                       targetLocationName: targetLocation?.name ?? "",
                     })
                   }}
                 >
-                  {storageLocations.map((location) => (
-                    <option key={location.id} value={location.id}>
-                      {location.name} ({titleize(location.kind)})
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id={`${fieldId}-target`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {storageLocations.map((location) => (
+                      <SelectItem key={location.id} value={location.id}>
+                        {location.name} ({titleize(location.kind)})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Field>
             </div>
 
             <label className="flex items-center gap-3 rounded-box border border-base-300 bg-base-200/50 p-3 text-sm font-bold">
-              <input
-                type="checkbox"
-                className="toggle toggle-primary"
+              <Switch
                 checked={draftRow.enabled}
-                onChange={(event) => onUpdate({ enabled: event.target.checked })}
+                onCheckedChange={(checked) => onUpdate({ enabled: checked })}
               />
               Enable this rule
             </label>
@@ -183,20 +191,26 @@ export function CollectionAutoSortRuleDialog({
                 help="Comma-separated set codes. Blank ignores set."
               >
                 <div className="input input-bordered flex w-full items-center overflow-hidden bg-base-100 p-0 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary">
-                  <select
-                    aria-label="Set operator"
-                    className="h-full max-w-44 shrink-0 bg-transparent px-3 py-0 text-sm font-semibold text-base-content/60 outline-none"
+                  <Select
                     value={draftRow.setOperator}
-                    onChange={(event) =>
-                      onUpdate({ setOperator: normalizeAutoSortSetOperator(event.target.value) })
+                    onValueChange={(value) =>
+                      onUpdate({ setOperator: normalizeAutoSortSetOperator(value) })
                     }
                   >
-                    {AUTO_SORT_SET_OPERATORS.map((operator) => (
-                      <option key={operator.value} value={operator.value}>
-                        {operator.label}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger
+                      aria-label="Set operator"
+                      className="h-full max-w-44 shrink-0 bg-transparent px-3 py-0 text-sm font-semibold text-base-content/60"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AUTO_SORT_SET_OPERATORS.map((operator) => (
+                        <SelectItem key={operator.value} value={operator.value}>
+                          {operator.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <input
                     id={`${fieldId}-set-codes`}
                     className="h-full min-w-0 flex-1 bg-transparent px-3 py-0 outline-none placeholder:text-base-content/40"
@@ -213,24 +227,28 @@ export function CollectionAutoSortRuleDialog({
                 help="Blank ignores release date."
               >
                 <div className="input input-bordered flex w-full items-center overflow-hidden bg-base-100 p-0 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary">
-                  <select
-                    aria-label="Release date operator"
-                    className="h-full max-w-48 shrink-0 bg-transparent px-3 py-0 text-sm font-semibold text-base-content/60 outline-none"
+                  <Select
                     value={draftRow.releaseDateOperator}
-                    onChange={(event) =>
+                    onValueChange={(value) =>
                       onUpdate({
-                        releaseDateOperator: normalizeAutoSortReleaseDateOperator(
-                          event.target.value,
-                        ),
+                        releaseDateOperator: normalizeAutoSortReleaseDateOperator(value),
                       })
                     }
                   >
-                    {AUTO_SORT_RELEASE_DATE_OPERATORS.map((operator) => (
-                      <option key={operator.value} value={operator.value}>
-                        {operator.label}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger
+                      aria-label="Release date operator"
+                      className="h-full max-w-48 shrink-0 bg-transparent px-3 py-0 text-sm font-semibold text-base-content/60"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AUTO_SORT_RELEASE_DATE_OPERATORS.map((operator) => (
+                        <SelectItem key={operator.value} value={operator.value}>
+                          {operator.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <input
                     id={`${fieldId}-release-date`}
                     type="date"
@@ -277,24 +295,27 @@ export function CollectionAutoSortRuleDialog({
                 >
                   Color rule
                 </label>
-                <select
-                  id={`${fieldId}-color-mode`}
-                  className="select select-bordered mt-2 w-full bg-base-100"
+                <Select
                   value={draftRow.colorMode}
-                  onChange={(event) => {
-                    const colorMode = normalizeAutoSortColorMode(event.target.value)
+                  onValueChange={(value) => {
+                    const colorMode = normalizeAutoSortColorMode(value)
                     onUpdate({
                       colorMode,
                       ...(colorModeUsesSelectedColors(colorMode) ? {} : { colors: [] }),
                     })
                   }}
                 >
-                  {AUTO_SORT_COLOR_MODES.map((mode) => (
-                    <option key={mode.value} value={mode.value}>
-                      {mode.label}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id={`${fieldId}-color-mode`} className="mt-2">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AUTO_SORT_COLOR_MODES.map((mode) => (
+                      <SelectItem key={mode.value} value={mode.value}>
+                        {mode.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <p className="mt-2 text-xs text-base-content/60">
                   Double-faced cards use their front-face colors when the catalog provides them.
                 </p>

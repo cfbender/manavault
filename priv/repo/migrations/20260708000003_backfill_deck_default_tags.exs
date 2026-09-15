@@ -12,7 +12,12 @@ defmodule Manavault.Repo.Migrations.BackfillDeckDefaultTags do
       repo().all(
         from(t in "default_deck_tags",
           order_by: [asc: t.position],
-          select: %{name: t.name, color: t.color, target_count: t.target_count, position: t.position}
+          select: %{
+            name: t.name,
+            color: t.color,
+            target_count: t.target_count,
+            position: t.position
+          }
         )
       )
 
@@ -20,9 +25,7 @@ defmodule Manavault.Repo.Migrations.BackfillDeckDefaultTags do
       repo().all(from(t in "deck_tags", distinct: true, select: t.deck_id))
 
     untagged_deck_ids =
-      repo().all(
-        from(d in "decks", where: d.id not in ^tagged_deck_ids, select: d.id)
-      )
+      repo().all(from(d in "decks", where: d.id not in ^tagged_deck_ids, select: d.id))
 
     rows =
       for deck_id <- untagged_deck_ids, default <- defaults do

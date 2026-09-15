@@ -1,15 +1,18 @@
-import { ApolloClient, HttpLink, InMemoryCache } from "@apollo/client"
+import * as AbsintheSocket from "@absinthe/socket"
+import {
+  ApolloClient,
+  ApolloLink,
+  HttpLink,
+  InMemoryCache,
+  Observable,
+  split,
+} from "@apollo/client"
 import { SetContextLink } from "@apollo/client/link/context"
 import { relayStylePagination } from "@apollo/client/utilities"
-
-// Read the CSRF token from the meta tag per request rather than baking it into
-// static headers at module load. A stale token (after a session/CSRF rotation
-// in a long-lived PWA or native shell) would otherwise make every mutation fail
-// the CSRF check. The Apollo cache is in-memory only and logout is a full-page
-// redirect, so an account switch already discards cached data on reload.
-function currentCsrfToken() {
-  return document.querySelector("meta[name='csrf-token']")?.getAttribute("content") ?? undefined
-}
+import { getMainDefinition } from "@apollo/client/utilities"
+import { print } from "graphql"
+import { Socket as PhoenixSocket } from "phoenix"
+import { currentCsrfToken } from "./csrf"
 
 export function createCsrfLink() {
   return new SetContextLink((prevContext) => {
@@ -28,6 +31,48 @@ const httpLink = new HttpLink({
   credentials: "same-origin",
 })
 
+export function subscriptionSocketParams() {
+  const token = currentCsrfToken()
+  return token ? { _csrf_token: token } : {}
+}
+
+function createSubscriptionLink() {
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
+  const phoenixSocket = new PhoenixSocket(`${protocol}//${window.location.host}/socket`, {
+    params: subscriptionSocketParams,
+  })
+  const absintheSocket = AbsintheSocket.create(phoenixSocket)
+
+  return new ApolloLink(
+    (operation) =>
+      new Observable((observer) => {
+        const notifier = AbsintheSocket.send(absintheSocket, {
+          operation: print(operation.query),
+          variables: operation.variables,
+        })
+        const socketObserver = {
+          onAbort: (error: Error) => observer.error(error),
+          onError: (error: Error) => observer.error(error),
+          onResult: (result: object) => observer.next(result),
+        }
+        const observedNotifier = AbsintheSocket.observe(absintheSocket, notifier, socketObserver)
+
+        return () => {
+          AbsintheSocket.unobserveOrCancel(absintheSocket, observedNotifier, socketObserver)
+        }
+      }),
+  )
+}
+
+const transportLink = split(
+  ({ query }) => {
+    const definition = getMainDefinition(query)
+    return definition.kind === "OperationDefinition" && definition.operation === "subscription"
+  },
+  createSubscriptionLink(),
+  csrfLink.concat(httpLink),
+)
+
 export const apolloClient = new ApolloClient({
   cache: new InMemoryCache({
     typePolicies: {
@@ -37,13 +82,14 @@ export const apolloClient = new ApolloClient({
           // relay pages in the cache (keyed by the args that define a distinct
           // list) instead of hand-rolled updateQuery callbacks at each call site.
           collectionItems: relayStylePagination(["filters", "sort"]),
+          collectionItemGroups: relayStylePagination(["filters", "sort"]),
           // Card catalog search paginates with fetchMore keyed by query and sort.
           cards: relayStylePagination(["q", "sort"]),
         },
       },
     },
   }),
-  link: csrfLink.concat(httpLink),
+  link: transportLink,
   queryDeduplication: true,
 })
 

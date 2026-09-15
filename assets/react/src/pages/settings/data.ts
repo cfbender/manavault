@@ -7,6 +7,49 @@ import type {
 
 export type { CollectionAutoSortRuleInput, DefaultDeckTagInput }
 
+export const ServerLogDocument = graphql(`
+  subscription ServerLog {
+    serverLog {
+      id
+      timestamp
+      level
+      message
+    }
+  }
+`)
+
+export const AISettingsDocument = graphql(`
+  query AISettings {
+    aiSettings {
+      provider
+      model
+      deckAnalysisInstructions
+      hasApiKey
+    }
+  }
+`)
+
+export const UpdateAISettingsDocument = graphql(`
+  mutation UpdateAISettings($input: AiSettingsInput!) {
+    updateAiSettings(input: $input) {
+      aiSettings {
+        provider
+        model
+        deckAnalysisInstructions
+        hasApiKey
+      }
+    }
+  }
+`)
+
+export const RefreshAllDeckAnalysesDocument = graphql(`
+  mutation RefreshAllDeckAnalyses {
+    refreshAllDeckAnalyses {
+      queuedCount
+    }
+  }
+`)
+
 export const BackupSettingsDocument = graphql(`
   query BackupSettings {
     backupSettings {
@@ -202,6 +245,52 @@ export const StageCloudRestoreDocument = graphql(`
         status
         message
         path
+      }
+    }
+  }
+`)
+
+export const PricingSettingsDocument = graphql(`
+  query PricingSettings {
+    pricingSettings {
+      source
+      sources
+      vendors {
+        vendor
+        priceCount
+        lastSyncedAt
+      }
+    }
+  }
+`)
+
+export const UpdatePricingSettingsDocument = graphql(`
+  mutation UpdatePricingSettings($source: String!) {
+    updatePricingSettings(source: $source) {
+      pricingSettings {
+        source
+        sources
+        vendors {
+          vendor
+          priceCount
+          lastSyncedAt
+        }
+      }
+    }
+  }
+`)
+
+export const SyncVendorPricesDocument = graphql(`
+  mutation SyncVendorPrices {
+    syncVendorPrices {
+      pricingSettings {
+        source
+        sources
+        vendors {
+          vendor
+          priceCount
+          lastSyncedAt
+        }
       }
     }
   }

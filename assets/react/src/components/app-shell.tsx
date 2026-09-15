@@ -1,10 +1,23 @@
 import { Link, Outlet, useLocation } from "@tanstack/react-router"
-import { Boxes, Home, Layers, Menu, Monitor, Moon, Search, Settings, Sun } from "lucide-react"
-import { useEffect, useRef, useState, type ReactNode } from "react"
+import {
+  ArrowLeftRight,
+  Boxes,
+  Home,
+  Layers,
+  Menu,
+  Monitor,
+  Moon,
+  Search,
+  Settings,
+  Sun,
+} from "lucide-react"
+import { useEffect, useState, type ReactNode } from "react"
 import { PageTitleProvider } from "../lib/page-title"
 import { useTheme } from "../lib/theme"
 import { cn } from "../lib/utils"
 import { Button } from "./ui/button"
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
+import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group"
 import { CardSizeSlider } from "./card-size-slider"
 
 const navItems = [
@@ -12,6 +25,7 @@ const navItems = [
   { to: "/cards" as const, label: "Cards", icon: Search },
   { to: "/collection" as const, label: "Collection", icon: Boxes },
   { to: "/decks" as const, label: "Decks", icon: Layers },
+  { to: "/trade" as const, label: "Trade", icon: ArrowLeftRight },
   { to: "/settings" as const, label: "Settings", icon: Settings },
 ]
 
@@ -28,7 +42,17 @@ function ThemeToggle({ onSelect }: { onSelect?: () => void }) {
   ]
 
   return (
-    <div className="relative grid h-11 w-36 grid-cols-3 rounded-full border border-base-300 bg-base-200 p-1 shadow-sm">
+    <ToggleGroup
+      type="single"
+      value={theme}
+      aria-label="Theme"
+      onValueChange={(value) => {
+        if (!value) return
+        setTheme(value as typeof theme)
+        onSelect?.()
+      }}
+      className="relative grid h-11 w-36 grid-cols-3 rounded-full border border-base-300 bg-base-200 p-1 shadow-sm"
+    >
       <span
         aria-hidden="true"
         className={cn(
@@ -39,24 +63,20 @@ function ThemeToggle({ onSelect }: { onSelect?: () => void }) {
         )}
       />
       {options.map((option) => (
-        <button
+        <ToggleGroupItem
           key={option.value}
-          type="button"
+          value={option.value}
           className={cn(
             "relative z-10 flex h-full w-full items-center justify-center rounded-full transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35",
             theme === option.value ? "text-primary" : "text-base-content/70",
           )}
-          aria-pressed={theme === option.value}
           title={option.label}
-          onClick={() => {
-            setTheme(option.value)
-            onSelect?.()
-          }}
+          aria-label={option.label}
         >
           <option.icon className="h-4 w-4" />
-        </button>
+        </ToggleGroupItem>
       ))}
-    </div>
+    </ToggleGroup>
   )
 }
 
@@ -71,38 +91,18 @@ export function AppShell() {
       pathname.startsWith("/cards/") ||
       pathname === "/collection" ||
       pathname.startsWith("/collection/") ||
+      pathname === "/trade" ||
+      pathname.startsWith("/trade/") ||
       /^\/decks\/[^/]+$/.test(pathname))
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const mobileMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setMobileMenuOpen(false)
   }, [pathname])
 
-  useEffect(() => {
-    if (!mobileMenuOpen) return
-
-    function closeOnOutsidePointerDown(event: PointerEvent) {
-      if (mobileMenuRef.current?.contains(event.target as Node | null)) return
-      setMobileMenuOpen(false)
-    }
-
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setMobileMenuOpen(false)
-    }
-
-    document.addEventListener("pointerdown", closeOnOutsidePointerDown)
-    document.addEventListener("keydown", closeOnEscape)
-
-    return () => {
-      document.removeEventListener("pointerdown", closeOnOutsidePointerDown)
-      document.removeEventListener("keydown", closeOnEscape)
-    }
-  }, [mobileMenuOpen])
-
   return (
     <PageTitleProvider>
-      <div className="min-h-screen bg-base-100 text-base-content">
+      <div className="app-shell-root min-h-screen bg-base-100 text-base-content">
         <header
           className={cn(
             "app-shell-header sticky top-0 z-30",
@@ -140,50 +140,46 @@ export function AppShell() {
               <ThemeToggle />
             </div>
 
-            <div
-              ref={mobileMenuRef}
-              className={cn(
-                "dropdown dropdown-end ml-auto lg:hidden",
-                mobileMenuOpen ? "dropdown-open" : "dropdown-close",
-              )}
-            >
-              <button
-                className="btn btn-ghost btn-square h-11 min-h-11 w-11"
-                type="button"
-                aria-expanded={mobileMenuOpen}
-                aria-label={mobileMenuOpen ? "Close navigation" : "Open navigation"}
-                onClick={() => setMobileMenuOpen((open) => !open)}
-              >
-                <Menu className="h-8 w-8" />
-              </button>
-              <div className="dropdown-content z-50 mt-3 w-64 rounded-box border border-base-300 bg-base-100 p-3 shadow-xl">
-                <nav className="grid gap-1">
-                  {navItems.map((item) => (
-                    <Link
-                      key={item.to}
-                      to={item.to}
-                      activeOptions={{ exact: item.to === "/" }}
-                      activeProps={{ className: "bg-base-200 text-primary" }}
-                      className="btn btn-ghost justify-start"
+            <div className="ml-auto lg:hidden">
+              <Popover open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    className="btn btn-ghost btn-square h-11 min-h-11 w-11"
+                    type="button"
+                    aria-label={mobileMenuOpen ? "Close navigation" : "Open navigation"}
+                  >
+                    <Menu className="h-8 w-8" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" sideOffset={12} className="w-64 p-3">
+                  <nav className="grid gap-1" aria-label="Site">
+                    {navItems.map((item) => (
+                      <Link
+                        key={item.to}
+                        to={item.to}
+                        activeOptions={{ exact: item.to === "/" }}
+                        activeProps={{ className: "bg-base-200 text-primary" }}
+                        className="btn btn-ghost justify-start"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        {item.label}
+                      </Link>
+                    ))}
+                  </nav>
+                  <div className="mt-3 flex items-center justify-between gap-3 border-t border-base-300 pt-3">
+                    <Button
+                      data-pwa-install
+                      className="hidden"
+                      size="sm"
                       onClick={() => setMobileMenuOpen(false)}
                     >
-                      <item.icon className="h-4 w-4" />
-                      {item.label}
-                    </Link>
-                  ))}
-                </nav>
-                <div className="mt-3 flex items-center justify-between gap-3 border-t border-base-300 pt-3">
-                  <Button
-                    data-pwa-install
-                    className="hidden"
-                    size="sm"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <span data-pwa-install-label>Install</span>
-                  </Button>
-                  <ThemeToggle onSelect={() => setMobileMenuOpen(false)} />
-                </div>
-              </div>
+                      <span data-pwa-install-label>Install</span>
+                    </Button>
+                    <ThemeToggle onSelect={() => setMobileMenuOpen(false)} />
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </header>

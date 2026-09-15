@@ -11,8 +11,17 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
 import { useToast } from "../../components/ui/toast"
 import { pluralize, present, titleize } from "../../lib/utils"
+import { ADD_CARD_ZONES, NON_COMMANDER_ADD_CARD_ZONES, type DeckZone } from "../decks/deck-types"
+import { ZoneToggle } from "../decks/zone-toggle"
 import { AddCardToDeckDocument, CardDeckOptionsDocument } from "./data"
 
 export type CardDeckPrintingOption = {
@@ -37,10 +46,6 @@ export type CardDeckTarget = {
   setCode?: string | null
 }
 
-type CardDeckZone = "mainboard" | "sideboard" | "commander" | "maybeboard"
-
-const CARD_DECK_ZONES: CardDeckZone[] = ["mainboard", "sideboard", "commander", "maybeboard"]
-const NON_COMMANDER_CARD_DECK_ZONES: CardDeckZone[] = ["mainboard", "sideboard", "maybeboard"]
 const CARD_DECK_FINISHES = ["nonfoil", "foil", "etched"]
 
 export function AddCatalogCardToDeckDialog({
@@ -55,7 +60,7 @@ export function AddCatalogCardToDeckDialog({
   const { showToast } = useToast()
   const [deckId, setDeckId] = useState("")
   const [quantity, setQuantity] = useState(1)
-  const [zone, setZone] = useState<CardDeckZone>("mainboard")
+  const [zone, setZone] = useState<DeckZone>("mainboard")
   const [finish, setFinish] = useState("nonfoil")
   const [selectedPrintingId, setSelectedPrintingId] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -64,10 +69,14 @@ export function AddCatalogCardToDeckDialog({
     skip: !open,
     fetchPolicy: "cache-and-network",
   })
-  const decks = decksQuery.data?.decks?.edges?.map((edge) => edge?.node).filter(present) || []
+  const decks =
+    decksQuery.data?.decks?.edges
+      ?.map((edge) => edge?.node)
+      .filter(present)
+      .filter((deck) => deck.status !== "archived") || []
   const selectedDeck = decks.find((deck) => deck.id === deckId)
   const zoneOptions =
-    selectedDeck?.format === "commander" ? CARD_DECK_ZONES : NON_COMMANDER_CARD_DECK_ZONES
+    selectedDeck?.format === "commander" ? ADD_CARD_ZONES : NON_COMMANDER_ADD_CARD_ZONES
   const selectedPrinting =
     target?.printings?.find((printing) => printing.id === selectedPrintingId) ||
     target?.printings?.find((printing) => printing.id === target.preferredPrintingId) ||
@@ -168,20 +177,18 @@ export function AddCatalogCardToDeckDialog({
         <form className="space-y-4 p-5" onSubmit={submit}>
           <label className="form-control">
             <span className="label-text mb-1 text-sm font-semibold">Deck</span>
-            <select
-              className="select select-bordered w-full"
-              value={deckId}
-              disabled={isAddingToDeck}
-              onChange={(event) => setDeckId(event.target.value)}
-              autoFocus
-            >
-              <option value="">Choose a deck</option>
-              {decks.map((deck) => (
-                <option key={deck.id} value={deck.id}>
-                  {deck.name} ({titleize(deck.format)})
-                </option>
-              ))}
-            </select>
+            <Select value={deckId} disabled={isAddingToDeck} onValueChange={setDeckId}>
+              <SelectTrigger autoFocus aria-label="Deck">
+                <SelectValue placeholder="Choose a deck" />
+              </SelectTrigger>
+              <SelectContent>
+                {decks.map((deck) => (
+                  <SelectItem key={deck.id} value={deck.id}>
+                    {deck.name} ({titleize(deck.format)})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
 
           {selectedPrinting ? (
@@ -211,19 +218,23 @@ export function AddCatalogCardToDeckDialog({
                   {target?.printings?.length ? (
                     <label className="form-control">
                       <span className="label-text mb-1 text-sm font-semibold">Printing</span>
-                      <select
-                        className="select select-bordered w-full"
+                      <Select
                         value={selectedPrintingId}
                         disabled={isAddingToDeck}
-                        onChange={(event) => setSelectedPrintingId(event.target.value)}
+                        onValueChange={setSelectedPrintingId}
                       >
-                        {target.printings.map((printing) => (
-                          <option key={printing.id} value={printing.id}>
-                            {printingOptionLabel(printing)}
-                            {printing.ownedCount ? ` · ${printing.ownedCount} owned` : ""}
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger aria-label="Printing">
+                          <SelectValue placeholder="Choose a printing" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {target.printings.map((printing) => (
+                            <SelectItem key={printing.id} value={printing.id}>
+                              {printingOptionLabel(printing)}
+                              {printing.ownedCount ? ` · ${printing.ownedCount} owned` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </label>
                   ) : null}
                 </div>
@@ -245,36 +256,30 @@ export function AddCatalogCardToDeckDialog({
               />
             </label>
 
-            <label className="form-control">
-              <span className="label-text mb-1 text-sm font-semibold">Zone</span>
-              <select
-                className="select select-bordered w-full"
+            <fieldset className="space-y-1.5">
+              <legend className="label-text mb-1 text-sm font-semibold">Zone</legend>
+              <ZoneToggle
+                zones={zoneOptions}
                 value={zone}
+                onChange={setZone}
                 disabled={isAddingToDeck}
-                onChange={(event) => setZone(event.target.value as CardDeckZone)}
-              >
-                {zoneOptions.map((zone) => (
-                  <option key={zone} value={zone}>
-                    {titleize(zone)}
-                  </option>
-                ))}
-              </select>
-            </label>
+              />
+            </fieldset>
 
             <label className="form-control">
               <span className="label-text mb-1 text-sm font-semibold">Finish</span>
-              <select
-                className="select select-bordered w-full"
-                value={finish}
-                disabled={isAddingToDeck}
-                onChange={(event) => setFinish(event.target.value)}
-              >
-                {finishOptions.map((finish) => (
-                  <option key={finish} value={finish}>
-                    {titleize(finish)}
-                  </option>
-                ))}
-              </select>
+              <Select value={finish} disabled={isAddingToDeck} onValueChange={setFinish}>
+                <SelectTrigger aria-label="Finish">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {finishOptions.map((finish) => (
+                    <SelectItem key={finish} value={finish}>
+                      {titleize(finish)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </label>
           </div>
 

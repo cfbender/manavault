@@ -62,8 +62,7 @@ defmodule Manavault.Catalog.Search.Cards do
   defp promote_matched_printings(card, matched_printing_ids) do
     %{
       card
-      | printings:
-          Enum.sort_by(card.printings, &(&1.scryfall_id not in matched_printing_ids))
+      | printings: Enum.sort_by(card.printings, &(&1.scryfall_id not in matched_printing_ids))
     }
   end
 
@@ -103,7 +102,11 @@ defmodule Manavault.Catalog.Search.Cards do
         )
 
       {"type", _direction} ->
-        order_by(query, [card, _printing], asc: card.type_line, asc: card.name, asc: card.oracle_id)
+        order_by(query, [card, _printing],
+          asc: card.type_line,
+          asc: card.name,
+          asc: card.oracle_id
+        )
 
       {"released", "desc"} ->
         order_by(query, [card, printing],
@@ -121,14 +124,26 @@ defmodule Manavault.Catalog.Search.Cards do
 
       {"rarity", "desc"} ->
         order_by(query, [card, printing],
-          desc: max(fragment("CASE ? WHEN 'common' THEN 1 WHEN 'uncommon' THEN 2 WHEN 'rare' THEN 3 WHEN 'mythic' THEN 4 ELSE 0 END", printing.rarity)),
+          desc:
+            max(
+              fragment(
+                "CASE ? WHEN 'common' THEN 1 WHEN 'uncommon' THEN 2 WHEN 'rare' THEN 3 WHEN 'mythic' THEN 4 ELSE 0 END",
+                printing.rarity
+              )
+            ),
           asc: card.name,
           asc: card.oracle_id
         )
 
       {"rarity", _direction} ->
         order_by(query, [card, printing],
-          asc: min(fragment("CASE ? WHEN 'common' THEN 1 WHEN 'uncommon' THEN 2 WHEN 'rare' THEN 3 WHEN 'mythic' THEN 4 ELSE 0 END", printing.rarity)),
+          asc:
+            min(
+              fragment(
+                "CASE ? WHEN 'common' THEN 1 WHEN 'uncommon' THEN 2 WHEN 'rare' THEN 3 WHEN 'mythic' THEN 4 ELSE 0 END",
+                printing.rarity
+              )
+            ),
           asc: card.name,
           asc: card.oracle_id
         )

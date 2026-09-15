@@ -281,10 +281,10 @@ defmodule Manavault.Catalog.Decks.DeckCardAllocation do
        })
        when is_binary(preferred_printing_id) do
     candidates
-    |> Enum.filter(&(&1.item.scryfall_id == preferred_printing_id))
-    |> Enum.sort_by(fn candidate ->
-      {if(candidate.item.finish == finish, do: 0, else: 1), candidate.item.id}
+    |> Enum.filter(fn candidate ->
+      candidate.item.scryfall_id == preferred_printing_id and candidate.item.finish == finish
     end)
+    |> Enum.sort_by(& &1.item.id)
   end
 
   defp preferred_printing_candidates(_candidates, _deck_card), do: []

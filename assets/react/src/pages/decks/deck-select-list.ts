@@ -13,17 +13,18 @@ export type SelectListMatchResult = {
   unmatched: string[]
 }
 
-const ZONE_HEADINGS = new Set([
-  "main",
-  "mainboard",
-  "deck",
-  "side",
-  "sideboard",
-  "commander",
-  "commanders",
-  "maybe",
-  "maybeboard",
-])
+const ZONE_HEADINGS: Record<string, true> = {
+  main: true,
+  mainboard: true,
+  deck: true,
+  side: true,
+  sideboard: true,
+  commander: true,
+  commanders: true,
+  maybe: true,
+  maybeboard: true,
+  considering: true,
+}
 
 export function parseSelectListNames(text: string): string[] {
   const names: string[] = []
@@ -72,7 +73,7 @@ export function matchDeckCardsToNames(
 function parseSelectListLine(rawLine: string): string | null {
   const line = rawLine.replace(/\s+#.*$/u, "").trim()
   if (!line) return null
-  if (ZONE_HEADINGS.has(line.toLowerCase().replace(/:$/u, ""))) return null
+  if (ZONE_HEADINGS[line.toLowerCase().replace(/:$/u, "")] === true) return null
 
   const name = line
     .replace(/^sb:\s*/iu, "")

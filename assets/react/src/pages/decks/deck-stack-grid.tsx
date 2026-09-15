@@ -13,8 +13,10 @@ export function DeckGroupGrid({
   groups,
   isSelecting,
   isUpdating,
+  partnerCandidateIds,
   selectedCardIds,
   highlightedCardIds,
+  onAddPartner,
   onAllocate,
   onAssignTag,
   onDelete,
@@ -36,7 +38,9 @@ export function DeckGroupGrid({
   isUpdating: boolean
   highlightedCardIds: Set<string> | null
   isSelecting: boolean
+  partnerCandidateIds: Set<string>
   selectedCardIds: Set<string>
+  onAddPartner: (deckCard: DeckCardEntry) => void
   onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
   onAssignTag: (deckCard: DeckCardEntry, tagId: string) => void
   onDelete: (deckCard: DeckCardEntry) => void
@@ -71,7 +75,9 @@ export function DeckGroupGrid({
           highlightedCardIds={highlightedCardIds}
           isUpdating={isUpdating}
           isSelecting={isSelecting}
+          partnerCandidateIds={partnerCandidateIds}
           selectedCardIds={selectedCardIds}
+          onAddPartner={onAddPartner}
           onAllocate={onAllocate}
           onAssignTag={onAssignTag}
           onDelete={onDelete}

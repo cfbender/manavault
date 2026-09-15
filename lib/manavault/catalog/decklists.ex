@@ -3,6 +3,8 @@ defmodule Manavault.Catalog.Decklists do
 
   alias Manavault.Catalog.{DeckCard, Printing, Search, Util}
 
+  @export_zones ~w(mainboard considering commander)
+
   def parse(text, opts \\ []) when is_binary(text) and is_list(opts) do
     zone_override = Keyword.get(opts, :zone)
 
@@ -18,7 +20,7 @@ defmodule Manavault.Catalog.Decklists do
   end
 
   def export(deck_cards) when is_list(deck_cards) do
-    DeckCard.zones()
+    @export_zones
     |> Enum.map(fn zone ->
       deck_cards
       |> Enum.filter(&(&1.zone == zone))
@@ -33,6 +35,7 @@ defmodule Manavault.Catalog.Decklists do
     |> String.trim()
     |> String.replace(~r/\s+\[[^\]]+\]\s*$/u, "")
     |> String.replace(~r/\s+\*[A-Z]+\*\s*$/u, "")
+    |> String.replace(~r/\s+\/\s+/u, " // ")
     |> String.trim()
   end
 
@@ -61,7 +64,7 @@ defmodule Manavault.Catalog.Decklists do
   end
 
   defp parse_card_line("SB:" <> rest, _current_zone),
-    do: parse_card_line(String.trim(rest), "sideboard")
+    do: parse_card_line(String.trim(rest), "considering")
 
   defp parse_card_line(line, current_zone) do
     case Regex.named_captures(~r/^\s*(?:(?<quantity>\d+)\s*x?\s+)?(?<name>.+?)\s*$/i, line) do
@@ -158,12 +161,13 @@ defmodule Manavault.Catalog.Decklists do
       "main" -> "mainboard"
       "mainboard" -> "mainboard"
       "deck" -> "mainboard"
-      "side" -> "sideboard"
-      "sideboard" -> "sideboard"
+      "side" -> "considering"
+      "sideboard" -> "considering"
       "commander" -> "commander"
       "commanders" -> "commander"
-      "maybe" -> "maybeboard"
-      "maybeboard" -> "maybeboard"
+      "maybe" -> "considering"
+      "maybeboard" -> "considering"
+      "considering" -> "considering"
       _other -> nil
     end
   end
@@ -179,7 +183,12 @@ defmodule Manavault.Catalog.Decklists do
     "#{zone_label(zone)}\n#{lines}"
   end
 
-  defp export_line(%DeckCard{} = deck_card) do
+  @doc """
+  One decklist line for a deck card — `"2x Name (SET) 123 *F*"` — the same
+  format `parse/2` reads back. Also used for the EDHRec payload so its
+  card lines cannot drift from the export format.
+  """
+  def export_line(%DeckCard{} = deck_card) do
     [
       "#{deck_card.quantity}x",
       deck_card.card.name,
@@ -201,8 +210,7 @@ defmodule Manavault.Catalog.Decklists do
   defp export_finish(_finish), do: nil
 
   defp zone_label("mainboard"), do: "Mainboard"
-  defp zone_label("sideboard"), do: "Sideboard"
   defp zone_label("commander"), do: "Commander"
-  defp zone_label("maybeboard"), do: "Maybeboard"
+  defp zone_label("considering"), do: "Considering"
   defp zone_label(zone), do: String.capitalize(zone)
 end

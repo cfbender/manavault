@@ -3,8 +3,9 @@ defmodule Manavault.Catalog.Decks.Cards do
 
   import Ecto.Query
 
-  alias Manavault.Catalog.{Card, Deck, DeckCard, Decklists, Printing, Util}
+  alias Manavault.Catalog.{Card, CommanderRules, Deck, DeckCard, Printing, Util}
   alias Manavault.Catalog.Decks.{AllocationItems, DeckCardAllocation, EditGuard, Printings}
+  alias Manavault.Catalog.Search.CardsByName
   alias Manavault.Repo
 
   def change_deck_card(%DeckCard{} = deck_card, attrs \\ %{}) do
@@ -191,20 +192,67 @@ defmodule Manavault.Catalog.Decks.Cards do
     end
   end
 
-  def delete_deck_card(%DeckCard{} = deck_card) do
+  def add_deck_partner(%DeckCard{} = deck_card) do
     with :ok <- EditGuard.ensure_deck_card_editable(deck_card) do
       Repo.transact(fn ->
-        deck_card =
-          Repo.preload(deck_card, deck_allocations: [:collection_item])
+        deck_card = Repo.preload(deck_card, [:card, :preferred_printing])
 
-        clear_deck_card_allocations!(deck_card)
+        if deck_card.zone == "commander" do
+          Repo.rollback(:already_commander)
+        end
 
-        case Repo.delete(deck_card) do
-          {:ok, deck_card} -> {:ok, deck_card}
-          {:error, changeset} -> {:error, changeset}
+        commanders =
+          DeckCard
+          |> where(
+            [card],
+            card.deck_id == ^deck_card.deck_id and card.zone == "commander" and
+              card.id != ^deck_card.id
+          )
+          |> Repo.all()
+          |> Repo.preload(:card)
+
+        case commanders do
+          [commander] ->
+            unless CommanderRules.valid_pair?(deck_card.card, commander.card) do
+              Repo.rollback(:invalid_commander_pair)
+            end
+
+            deck_card =
+              deck_card
+              |> move_deck_card_to_zone!("commander")
+              |> Repo.preload([:card, :preferred_printing])
+
+            {:ok, deck_card}
+
+          [] ->
+            Repo.rollback(:no_commander)
+
+          _multiple ->
+            Repo.rollback(:command_zone_full)
         end
       end)
     end
+  end
+
+  def delete_deck_card(%DeckCard{} = deck_card) do
+    with :ok <- EditGuard.ensure_deck_card_editable(deck_card) do
+      delete_deck_card_for_deck_deletion(deck_card)
+    end
+  end
+
+  @doc false
+  def delete_deck_card_for_deck_deletion(%DeckCard{} = deck_card) do
+    Repo.transact(fn ->
+      deck_card =
+        Repo.preload(deck_card, deck_allocations: [:collection_item])
+
+      clear_deck_card_allocations!(deck_card)
+
+      case Repo.delete(deck_card) do
+        {:ok, deck_card} -> {:ok, deck_card}
+        {:error, changeset} -> {:error, changeset}
+      end
+    end)
   end
 
   defp update_deck_card_with_allocation_switch(%DeckCard{} = deck_card, attrs) do
@@ -239,13 +287,9 @@ defmodule Manavault.Catalog.Decks.Cards do
   end
 
   defp should_switch_deck_card_allocation?(%DeckCard{} = deck_card, attrs) do
-    case Map.fetch(attrs, "preferred_printing_id") do
-      {:ok, preferred_printing_id} when is_binary(preferred_printing_id) ->
-        preferred_printing_id != deck_card.preferred_printing_id
-
-      _no_preferred_printing_change ->
-        false
-    end
+    (Map.has_key?(attrs, "preferred_printing_id") and
+       attrs["preferred_printing_id"] != deck_card.preferred_printing_id) or
+      (Map.has_key?(attrs, "finish") and attrs["finish"] != deck_card.finish)
   end
 
   defp deck_card_physical_allocation_quantity(%DeckCard{} = deck_card) do
@@ -296,7 +340,7 @@ defmodule Manavault.Catalog.Decks.Cards do
   end
 
   defp resolve_deck_card_identity(%{"name" => name} = attrs) when is_binary(name) do
-    case find_card_by_name(name) do
+    case CardsByName.find(name) do
       %Card{} = card -> {:ok, Map.put(attrs, "oracle_id", card.oracle_id)}
       nil -> {:error, :card_not_found}
     end
@@ -354,17 +398,6 @@ defmodule Manavault.Catalog.Decks.Cards do
         |> DeckCard.changeset(update_attrs)
         |> Repo.update()
     end
-  end
-
-  defp find_card_by_name(name) do
-    normalized_name = Decklists.normalize_card_name(name)
-
-    Repo.one(
-      from card in Card,
-        where: fragment("? = ? COLLATE NOCASE", card.name, ^normalized_name),
-        order_by: [asc: card.name],
-        limit: 1
-    )
   end
 
   defp move_deck_card_to_zone!(%DeckCard{} = deck_card, zone) do

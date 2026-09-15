@@ -1,8 +1,9 @@
 defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
   @moduledoc false
 
+  alias Manavault.AI
   alias Manavault.Catalog
-  alias Manavault.Catalog.{DeckCard, DeckTag}
+  alias Manavault.Catalog.{DeckCard, DeckQuestionAnswer, DeckTag}
   alias Manavault.Repo
   alias ManavaultWeb.Schema.Catalog.Errors
   alias ManavaultWeb.Schema.RelayHelpers
@@ -15,7 +16,9 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
   end
 
   def update_deck(_parent, %{id: id, input: input}, resolution) do
-    with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
+    with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution),
+         {:ok, input} <-
+           RelayHelpers.put_optional_node_id(input, :cover_deck_card_id, :deck_card, resolution) do
       deck = Catalog.get_deck!(id)
 
       case Catalog.update_deck(deck, input) do
@@ -25,11 +28,112 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
     end
   end
 
+  def record_deck_play(_parent, %{id: id, outcome: outcome}, resolution) do
+    with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
+      id
+      |> Catalog.get_deck!(preload?: false)
+      |> Catalog.record_deck_play(outcome)
+      |> case do
+        {:ok, deck} -> {:ok, deck}
+        {:error, :archived_deck} -> {:error, "Archived decks cannot be recorded as played."}
+        {:error, :invalid_outcome} -> {:error, "Choose played or skipped."}
+        {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+      end
+    end
+  end
+
+  def analyze_deck(_parent, %{id: id}, resolution) do
+    with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
+      id
+      |> Catalog.get_deck!()
+      |> AI.analyze_deck()
+      |> case do
+        {:ok, deck} ->
+          {:ok, deck}
+
+        {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
+          {:error, Errors.changeset_error_message(changeset)}
+
+        {:error, reason} when is_binary(reason) ->
+          {:error, reason}
+      end
+    end
+  end
+
+  def analyze_deck_list(_parent, args, _resolution) do
+    case AI.analyze_deck_list(args) do
+      {:ok, request} ->
+        {:ok, request}
+
+      {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
+        {:error, Errors.changeset_error_message(changeset)}
+
+      {:error, reason} when is_binary(reason) ->
+        {:error, reason}
+    end
+  end
+
+  def ask_deck_question(_parent, %{id: id, question: question}, resolution) do
+    with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
+      id
+      |> Catalog.get_deck!()
+      |> AI.ask_deck_question(question)
+      |> case do
+        {:ok, question_answer} ->
+          {:ok, %{answer: question_answer.answer, question_answer: question_answer}}
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          {:error, Errors.changeset_error_message(changeset)}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  def delete_deck_question_answer(_parent, %{id: id}, _resolution) do
+    with {:ok, id} <- parse_raw_id(id),
+         %DeckQuestionAnswer{} = question_answer <- Catalog.get_deck_question_answer(id),
+         {:ok, question_answer} <- Catalog.delete_deck_question_answer(question_answer) do
+      {:ok, question_answer.id}
+    else
+      nil ->
+        {:error, "Saved question was not found."}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:error, Errors.changeset_error_message(changeset)}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
   def ensure_deck_share_token(_parent, %{id: id}, resolution) do
     with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
       id
       |> Catalog.get_deck!()
       |> Catalog.ensure_deck_share_token()
+      |> case do
+        {:ok, deck} -> {:ok, deck}
+        {:error, :share_token_collision} -> {:error, "Could not generate a unique share link."}
+        {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+      end
+    end
+  end
+
+  def disable_deck_sharing(_parent, %{id: id}, resolution) do
+    mutate_deck_sharing(id, resolution, &Catalog.disable_deck_sharing/1)
+  end
+
+  def rotate_deck_share_token(_parent, %{id: id}, resolution) do
+    mutate_deck_sharing(id, resolution, &Catalog.rotate_deck_share_token/1)
+  end
+
+  defp mutate_deck_sharing(id, resolution, operation) do
+    with {:ok, id} <- RelayHelpers.node_id(id, :deck, resolution) do
+      id
+      |> Catalog.get_deck!()
+      |> operation.()
       |> case do
         {:ok, deck} -> {:ok, deck}
         {:error, :share_token_collision} -> {:error, "Could not generate a unique share link."}
@@ -220,6 +324,36 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
 
         {:error, :not_legendary_creature} ->
           {:error, "card must be a legendary creature"}
+
+        {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
+          {:error, Errors.changeset_error_message(changeset)}
+
+        {:error, reason} ->
+          {:error, Errors.deck_edit_error(reason)}
+      end
+    end
+  end
+
+  def add_deck_partner(_parent, %{id: id}, resolution) do
+    with {:ok, id} <- RelayHelpers.node_id(id, :deck_card, resolution) do
+      deck_card = DeckCard |> Repo.get!(id) |> Repo.preload([:card, :preferred_printing])
+
+      case Catalog.add_deck_partner(deck_card) do
+        {:ok, deck_card} ->
+          {:ok, deck_card}
+
+        {:error, :already_commander} ->
+          {:error, "card is already in the command zone"}
+
+        {:error, :no_commander} ->
+          {:error, "deck has no commander to pair with"}
+
+        {:error, :command_zone_full} ->
+          {:error, "deck already has two commanders"}
+
+        {:error, :invalid_commander_pair} ->
+          {:error,
+           "card can't be paired with the current commander; two commanders require a pairing ability such as Partner, Partner with, Friends forever, Doctor's companion, or Choose a Background"}
 
         {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
           {:error, Errors.changeset_error_message(changeset)}

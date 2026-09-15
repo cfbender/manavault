@@ -16,16 +16,15 @@ defmodule Manavault.Application do
         {Manavault.Backup.MigrationBackup, repo: Manavault.Repo},
         {Ecto.Migrator,
          repos: Application.fetch_env!(:manavault, :ecto_repos), skip: skip_migrations?()},
+        {Oban, Application.fetch_env!(:manavault, Oban)},
         Manavault.Auth.AttemptLimiter,
+        Manavault.PublicShareRequestLimiter,
         {DNSCluster, query: Application.get_env(:manavault, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: Manavault.PubSub},
-        {Task.Supervisor, name: Manavault.Backup.TaskSupervisor},
-        {Task.Supervisor, name: Manavault.Catalog.TaskSupervisor},
-        {Task.Supervisor, name: ManavaultWeb.DeckSharePreview.TaskSupervisor},
-        ManavaultWeb.DeckSharePreview.ArtifactCache,
-        scryfall_sync_worker_child(),
-        backup_scheduler_child(),
-        ManavaultWeb.Endpoint
+        pricing_store_child(),
+        ManavaultWeb.Endpoint,
+        {Absinthe.Subscription, ManavaultWeb.Endpoint},
+        Manavault.LogStream
       ]
       |> Enum.reject(&is_nil/1)
 
@@ -48,15 +47,9 @@ defmodule Manavault.Application do
     System.get_env("RELEASE_NAME") == nil
   end
 
-  defp backup_scheduler_child do
-    if Application.get_env(:manavault, :backup_scheduler, true) do
-      Manavault.Backup.Scheduler
-    end
-  end
-
-  defp scryfall_sync_worker_child do
-    if Application.get_env(:manavault, :scryfall_sync_worker, true) do
-      Manavault.Catalog.ScryfallSyncWorker
+  defp pricing_store_child do
+    if Application.get_env(:manavault, :pricing_store, true) do
+      Manavault.Pricing.Store
     end
   end
 end

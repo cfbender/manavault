@@ -105,10 +105,10 @@ test("deck pull list ignores non-mainboard basic land and filled cards", () => {
   })
   const pullList = createDeckPullList([
     deckCard({
-      id: "sideboard-card",
+      id: "considering-card",
       required: 1,
       candidates: [ignoredCopy],
-      zone: "sideboard",
+      zone: "considering",
     }),
     deckCard({
       id: "basic-land-card",

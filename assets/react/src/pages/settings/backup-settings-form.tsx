@@ -2,6 +2,14 @@ import { Cloud, DatabaseBackup, Save } from "lucide-react"
 import type { FormEvent } from "react"
 import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
+import { Switch } from "../../components/ui/switch"
 import { type FormState, providerValue } from "./data"
 import { Field, StatusSummary } from "./ui"
 
@@ -46,27 +54,28 @@ export function BackupSettingsForm({
         </div>
 
         <label className="flex items-center gap-3 text-sm font-bold">
-          <input
-            type="checkbox"
-            className="toggle toggle-primary"
+          <Switch
             checked={form.enabled}
-            onChange={(event) => setFormField("enabled", event.target.checked)}
+            onCheckedChange={(checked) => setFormField("enabled", checked)}
           />
           Enable scheduled cloud backups
         </label>
 
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="Cloud provider" htmlFor="backup-provider">
-            <select
-              id="backup-provider"
-              className="select select-bordered w-full bg-base-100"
+            <Select
               value={form.provider}
-              onChange={(event) => setFormField("provider", providerValue(event.target.value))}
+              onValueChange={(value) => setFormField("provider", providerValue(value))}
             >
-              <option value="none">None</option>
-              <option value="s3">S3-compatible bucket</option>
-              <option value="google_drive">Google Drive</option>
-            </select>
+              <SelectTrigger id="backup-provider">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                <SelectItem value="s3">S3-compatible bucket</SelectItem>
+                <SelectItem value="google_drive">Google Drive</SelectItem>
+              </SelectContent>
+            </Select>
           </Field>
 
           <Field

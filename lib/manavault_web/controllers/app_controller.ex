@@ -4,12 +4,34 @@ defmodule ManavaultWeb.AppController do
   alias Manavault.Catalog
   alias Manavault.Catalog.Deck
   alias Manavault.Catalog.Decks.ShareToken
+  alias Manavault.Trade
   alias ManavaultWeb.{AssetVersion, DeckSharePreview}
   alias ManavaultWeb.DeckSharePreview.ArtifactCache
 
   def index(conn, _params), do: render_app(conn, default_preview(conn))
 
-  def share_deck(conn, %{"token" => token}), do: render_app(conn, share_preview(conn, token))
+  def share_deck(conn, %{"token" => token}) do
+    case share_preview(conn, token) do
+      %{kind: :deck} = preview -> render_app(conn, preview)
+      _missing -> send_resp(conn, 404, "")
+    end
+  end
+
+  def share_wants(conn, %{"token" => token}) do
+    render_valid_share(conn, token, Trade.wants_share_token())
+  end
+
+  def share_binder(conn, %{"token" => token}) do
+    render_valid_share(conn, token, Trade.binder_share_token())
+  end
+
+  defp render_valid_share(conn, token, token) when is_binary(token) do
+    if ShareToken.valid?(token),
+      do: render_app(conn, default_preview(conn)),
+      else: send_resp(conn, 404, "")
+  end
+
+  defp render_valid_share(conn, _provided_token, _current_token), do: send_resp(conn, 404, "")
 
   def share_deck_preview_image(conn, %{"token" => token}) do
     case share_preview(conn, token) do
@@ -60,16 +82,18 @@ defmodule ManavaultWeb.AppController do
 
     react_scripts =
       if vite_dev_server?(conn) do
+        vite_origin = if vite_proxy?(conn), do: "", else: "http://127.0.0.1:5173"
+
         """
         <script type="module">
-          import RefreshRuntime from "http://127.0.0.1:5173/@react-refresh"
+          import RefreshRuntime from "#{vite_origin}/@react-refresh"
           RefreshRuntime.injectIntoGlobalHook(window)
           window.$RefreshReg$ = () => {}
           window.$RefreshSig$ = () => (type) => type
           window.__vite_plugin_react_preamble_installed__ = true
         </script>
-        <script type="module" src="http://127.0.0.1:5173/@vite/client"></script>
-        <script type="module" src="http://127.0.0.1:5173/assets/react/src/main.tsx"></script>
+        <script type="module" src="#{vite_origin}/@vite/client"></script>
+        <script type="module" src="#{vite_origin}/assets/react/src/main.tsx"></script>
         """
       else
         # Keep the ESM entry at the same canonical URL Vite chunks use when
@@ -80,7 +104,7 @@ defmodule ManavaultWeb.AppController do
 
     """
     <!DOCTYPE html>
-    <html lang="en" class="h-screen w-screen">
+    <html lang="en" class="h-screen w-screen overflow-hidden" data-theme-style="glass">
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -159,7 +183,25 @@ defmodule ManavaultWeb.AppController do
             if (!document.documentElement.hasAttribute("data-theme")) {
               setTheme(storedTheme());
             }
-            window.addEventListener("storage", (e) => e.key === storageKey && setTheme(e.newValue || "system"));
+
+            const styleStorageKey = "manavault:theme-style";
+
+            const storedThemeStyle = () => {
+              try {
+                return localStorage.getItem(styleStorageKey) === "classic" ? "classic" : "glass";
+              } catch {
+                return "glass";
+              }
+            };
+
+            const setThemeStyle = (style) => {
+              document.documentElement.setAttribute("data-theme-style", style === "classic" ? "classic" : "glass");
+            };
+            setThemeStyle(storedThemeStyle());
+            window.addEventListener("storage", (e) => {
+              if (e.key === storageKey) setTheme(e.newValue || "system");
+              if (e.key === styleStorageKey) setThemeStyle(e.newValue);
+            });
 
             matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
               if (document.documentElement.getAttribute("data-theme-source") === "system") {
@@ -169,7 +211,7 @@ defmodule ManavaultWeb.AppController do
           })();
         </script>
       </head>
-      <body class="h-screen w-screen overflow-x-hidden">
+      <body class="h-screen w-screen overflow-hidden">
         <div id="manavault-root"></div>
       </body>
     </html>
@@ -276,8 +318,11 @@ defmodule ManavaultWeb.AppController do
   end
 
   defp vite_dev_server?(conn) do
-    Application.get_env(:manavault, :vite_dev_server?, false) && local_host?(conn.host)
+    Application.get_env(:manavault, :vite_dev_server?, false) &&
+      (local_host?(conn.host) || vite_proxy?(conn))
   end
+
+  defp vite_proxy?(conn), do: get_req_header(conn, "x-manavault-vite-proxy") == ["1"]
 
   defp local_host?("localhost"), do: true
   defp local_host?("127.0.0.1"), do: true

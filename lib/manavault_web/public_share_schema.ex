@@ -7,6 +7,7 @@ defmodule ManavaultWeb.PublicShareSchema do
   alias Manavault.Catalog
   alias Manavault.Catalog.{Card, CollectionItem, Deck, DeckCard, Location, Printing}
   alias Manavault.Catalog.Decks.ShareToken
+  alias Manavault.Trade
   alias ManavaultWeb.Schema.Catalog.QueryResolvers
 
   node interface do
@@ -31,6 +32,7 @@ defmodule ManavaultWeb.PublicShareSchema do
   query do
     field :deck, :deck do
       arg(:id, non_null(:id))
+      complexity(fn _args, child_complexity -> 10_000 + child_complexity end)
 
       resolve(fn _parent, %{id: token}, _resolution ->
         {:ok, public_shared_deck(token)}
@@ -39,6 +41,7 @@ defmodule ManavaultWeb.PublicShareSchema do
 
     field :card, :card do
       arg(:id, non_null(:id))
+      complexity(fn _args, child_complexity -> 10_000 + child_complexity end)
       resolve(&QueryResolvers.card/3)
     end
 
@@ -47,8 +50,8 @@ defmodule ManavaultWeb.PublicShareSchema do
       arg(:printing_mode, :string, default_value: "none")
       arg(:include_basic_lands, :boolean, default_value: false)
       arg(:assume_no_owned, :boolean, default_value: true)
-      arg(:include_sideboard, :boolean, default_value: false)
-      arg(:include_maybeboard, :boolean, default_value: false)
+      arg(:include_considering, :boolean, default_value: false)
+      complexity(fn _args, child_complexity -> 20_000 + child_complexity end)
 
       resolve(fn _parent, %{id: token} = args, _resolution ->
         case public_shared_deck(token) do
@@ -64,8 +67,8 @@ defmodule ManavaultWeb.PublicShareSchema do
       arg(:printing_mode, :string, default_value: "none")
       arg(:include_basic_lands, :boolean, default_value: false)
       arg(:assume_no_owned, :boolean, default_value: true)
-      arg(:include_sideboard, :boolean, default_value: false)
-      arg(:include_maybeboard, :boolean, default_value: false)
+      arg(:include_considering, :boolean, default_value: false)
+      complexity(fn _args, child_complexity -> 20_000 + child_complexity end)
 
       resolve(fn _parent, %{id: token} = args, _resolution ->
         case public_shared_deck(token) do
@@ -82,6 +85,24 @@ defmodule ManavaultWeb.PublicShareSchema do
         end
       end)
     end
+
+    field :wants_list, :wants_list do
+      arg(:id, non_null(:id))
+      complexity(fn _args, child_complexity -> 20_000 + child_complexity end)
+
+      resolve(fn _parent, %{id: token}, _resolution ->
+        {:ok, public_wants_list(token)}
+      end)
+    end
+
+    field :binder_list, :binder_list do
+      arg(:id, non_null(:id))
+      complexity(fn _args, child_complexity -> 20_000 + child_complexity end)
+
+      resolve(fn _parent, %{id: token}, _resolution ->
+        {:ok, public_binder_list(token)}
+      end)
+    end
   end
 
   defp public_shared_deck(token) do
@@ -90,12 +111,23 @@ defmodule ManavaultWeb.PublicShareSchema do
     end
   end
 
+  defp public_wants_list(token) do
+    if ShareToken.valid?(token) do
+      Trade.wants_list_by_share_token(token)
+    end
+  end
+
+  defp public_binder_list(token) do
+    if ShareToken.valid?(token) do
+      Trade.binder_list_by_share_token(token)
+    end
+  end
+
   defp public_buylist_opts(args) do
     [
       printing_mode: Map.get(args, :printing_mode, "none"),
       include_basic_lands: Map.get(args, :include_basic_lands, false),
-      include_sideboard: Map.get(args, :include_sideboard, false),
-      include_maybeboard: Map.get(args, :include_maybeboard, false),
+      include_considering: Map.get(args, :include_considering, false),
       assume_no_owned: true
     ]
   end

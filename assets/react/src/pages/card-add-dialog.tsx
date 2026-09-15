@@ -11,6 +11,15 @@ import {
   DialogTitle,
 } from "../components/ui/dialog"
 import { Input } from "../components/ui/input"
+import {
+  SELECT_NONE_VALUE,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select"
+import { Textarea } from "../components/ui/textarea"
 import { useToast } from "../components/ui/toast"
 import { refetchActiveQueries } from "../lib/apollo"
 import { cn, pluralize, present, titleize } from "../lib/utils"
@@ -36,6 +45,7 @@ import { selectedDeckCardNameForMutation } from "./decks/add-card-dialog-model"
 import type { DeckDetail, DeckZone } from "./decks/deck-types"
 import { ADD_CARD_ZONES, NON_COMMANDER_ADD_CARD_ZONES } from "./decks/deck-types"
 import { AddDeckCardDocument } from "./decks/queries"
+import { ZoneToggle } from "./decks/zone-toggle"
 
 const ADD_CARD_SEARCH_DEBOUNCE_MS = 250
 const KNOWN_FINISHES = ["nonfoil", "foil", "etched"] as const
@@ -408,19 +418,23 @@ export function CardAddDialog(props: CardAddDialogProps) {
                   {printingOptions.length ? (
                     <label className="form-control">
                       <span className="label-text mb-1 text-sm font-semibold">Printing</span>
-                      <select
-                        className="select select-bordered w-full"
+                      <Select
                         value={selectedPrintingId}
                         disabled={isPending}
-                        onChange={(event) => setSelectedPrintingId(event.target.value)}
+                        onValueChange={setSelectedPrintingId}
                       >
-                        {printingOptions.map((printing) => (
-                          <option key={printing.id} value={printing.id}>
-                            {printingLabel(printing)}
-                            {printing.ownedCount ? ` · ${printing.ownedCount} owned` : ""}
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {printingOptions.map((printing) => (
+                            <SelectItem key={printing.id} value={printing.id}>
+                              {printingLabel(printing)}
+                              {printing.ownedCount ? ` · ${printing.ownedCount} owned` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </label>
                   ) : null}
                 </div>
@@ -434,37 +448,35 @@ export function CardAddDialog(props: CardAddDialogProps) {
             <CollectionFinishField options={finishOptions} value={finish} onChange={setFinish} />
 
             {mode === "deck" ? (
-              <label className="form-control">
-                <span className="label-text mb-1 text-sm font-semibold">Zone</span>
-                <select
-                  className="select select-bordered w-full"
+              <fieldset className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+                <legend className="label-text mb-1 text-sm font-semibold">Zone</legend>
+                <ZoneToggle
+                  zones={zoneOptions}
                   value={zone}
+                  onChange={setZone}
                   disabled={isPending}
-                  onChange={(event) => setZone(event.target.value as DeckZone)}
-                >
-                  {zoneOptions.map((zoneOption) => (
-                    <option key={zoneOption} value={zoneOption}>
-                      {titleize(zoneOption)}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                />
+              </fieldset>
             ) : (
               <>
                 <label className="form-control">
                   <span className="label-text mb-1 text-sm font-semibold">Condition</span>
-                  <select
-                    className="select select-bordered w-full"
+                  <Select
                     value={condition}
                     disabled={isPending}
-                    onChange={(event) => setCondition(collectionConditionValue(event.target.value))}
+                    onValueChange={(value) => setCondition(collectionConditionValue(value))}
                   >
-                    {COLLECTION_CONDITIONS.map((conditionOption) => (
-                      <option key={conditionOption} value={conditionOption}>
-                        {titleize(conditionOption)}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COLLECTION_CONDITIONS.map((conditionOption) => (
+                        <SelectItem key={conditionOption} value={conditionOption}>
+                          {titleize(conditionOption)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </label>
 
                 <label className="form-control">
@@ -490,27 +502,33 @@ export function CardAddDialog(props: CardAddDialogProps) {
 
                 <label className="form-control sm:col-span-2">
                   <span className="label-text mb-1 text-sm font-semibold">Location</span>
-                  <select
-                    className="select select-bordered w-full"
-                    value={locationId}
+                  <Select
+                    value={locationId || SELECT_NONE_VALUE}
                     disabled={isPending}
-                    onChange={(event) => setLocationId(event.target.value)}
+                    onValueChange={(value) =>
+                      setLocationId(value === SELECT_NONE_VALUE ? "" : value)
+                    }
                   >
-                    <option value="">Unfiled</option>
-                    {locations
-                      .filter((location) => !isUnfiledLocation(location))
-                      .map((location) => (
-                        <option key={location.id} value={location.id}>
-                          {location.name} ({titleize(location.kind)})
-                        </option>
-                      ))}
-                  </select>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={SELECT_NONE_VALUE}>Unfiled</SelectItem>
+                      {locations
+                        .filter((location) => !isUnfiledLocation(location))
+                        .map((location) => (
+                          <SelectItem key={location.id} value={location.id}>
+                            {location.name} ({titleize(location.kind)})
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
                 </label>
 
                 <label className="form-control sm:col-span-2 lg:col-span-3">
                   <span className="label-text mb-1 text-sm font-semibold">Notes</span>
-                  <textarea
-                    className="textarea textarea-bordered min-h-16 w-full"
+                  <Textarea
+                    className="min-h-16"
                     value={notes}
                     disabled={isPending}
                     onChange={(event) => setNotes(event.target.value)}

@@ -65,16 +65,22 @@ export function EDHRecCardGrid({
   cards,
   emptyTitle,
   isAddingCard,
+  isUpdatingCard,
   mode,
   onAddCard,
+  onConsiderCutting,
+  onCutCard,
   onPreviewCard,
   scrollStorageKey,
 }: {
   cards: EDHRecCard[]
   emptyTitle: string
   isAddingCard: boolean
+  isUpdatingCard: boolean
   mode: "recs" | "cuts"
   onAddCard: (card: EDHRecCard, zone: EDHRecAddZone) => void
+  onConsiderCutting: (card: EDHRecCard) => void
+  onCutCard: (card: EDHRecCard) => void
   onPreviewCard: (card: CardDetailDialogTarget) => void
   scrollStorageKey: string
 }) {
@@ -88,8 +94,11 @@ export function EDHRecCardGrid({
             key={`${mode}-${card.oracleId || card.name}`}
             card={card}
             isAddingCard={isAddingCard}
+            isUpdatingCard={isUpdatingCard}
             mode={mode}
             onAddCard={onAddCard}
+            onConsiderCutting={onConsiderCutting}
+            onCutCard={onCutCard}
             onPreviewCard={onPreviewCard}
           />
         ))}
@@ -101,14 +110,20 @@ export function EDHRecCardGrid({
 export function EDHRecCardTile({
   card,
   isAddingCard,
+  isUpdatingCard,
   mode,
   onAddCard,
+  onConsiderCutting,
+  onCutCard,
   onPreviewCard,
 }: {
   card: EDHRecCard
   isAddingCard: boolean
+  isUpdatingCard: boolean
   mode: "recs" | "cuts"
   onAddCard: (card: EDHRecCard, zone: EDHRecAddZone) => void
+  onConsiderCutting: (card: EDHRecCard) => void
+  onCutCard: (card: EDHRecCard) => void
   onPreviewCard: (card: CardDetailDialogTarget) => void
 }) {
   const imageUrl = edhrecCardImageUrl(card)
@@ -170,9 +185,12 @@ export function EDHRecCardTile({
           </div>
           <EDHRecCardMenu
             card={card}
-            isAddingCard={isAddingCard}
+            isPending={mode === "cuts" ? isUpdatingCard : isAddingCard}
+            mode={mode}
             onPreviewCard={onPreviewCard}
             onAddCard={(zone) => onAddCard(card, zone)}
+            onConsiderCutting={() => onConsiderCutting(card)}
+            onCut={() => onCutCard(card)}
           />
         </div>
 

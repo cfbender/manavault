@@ -5,18 +5,40 @@ defmodule ManavaultWeb.Schema.Catalog.MutationResolvers do
     AllocationResolvers,
     CollectionMutations,
     DeckMutations,
-    LocationMutations
+    LocationMutations,
+    TradeMutations
   }
 
   defdelegate create_collection_item(parent, args, resolution), to: CollectionMutations
   defdelegate update_collection_item(parent, args, resolution), to: CollectionMutations
   defdelegate bulk_update_collection_items(parent, args, resolution), to: CollectionMutations
+
+  defdelegate set_collection_items_for_trade_quantity(parent, args, resolution),
+    to: CollectionMutations
+
   defdelegate delete_collection_item(parent, args, resolution), to: CollectionMutations
   defdelegate bulk_delete_collection_items(parent, args, resolution), to: CollectionMutations
 
+  defdelegate create_trade_want(parent, args, resolution), to: TradeMutations
+  defdelegate update_trade_want(parent, args, resolution), to: TradeMutations
+  defdelegate delete_trade_want(parent, args, resolution), to: TradeMutations
+  defdelegate ensure_trade_wants_share_token(parent, args, resolution), to: TradeMutations
+  defdelegate ensure_trade_binder_share_token(parent, args, resolution), to: TradeMutations
+  defdelegate disable_trade_wants_sharing(parent, args, resolution), to: TradeMutations
+  defdelegate rotate_trade_wants_share_token(parent, args, resolution), to: TradeMutations
+  defdelegate disable_trade_binder_sharing(parent, args, resolution), to: TradeMutations
+  defdelegate rotate_trade_binder_share_token(parent, args, resolution), to: TradeMutations
+
   defdelegate create_deck(parent, args, resolution), to: DeckMutations
   defdelegate update_deck(parent, args, resolution), to: DeckMutations
+  defdelegate record_deck_play(parent, args, resolution), to: DeckMutations
+  defdelegate analyze_deck(parent, args, resolution), to: DeckMutations
+  defdelegate analyze_deck_list(parent, args, resolution), to: DeckMutations
+  defdelegate ask_deck_question(parent, args, resolution), to: DeckMutations
+  defdelegate delete_deck_question_answer(parent, args, resolution), to: DeckMutations
   defdelegate ensure_deck_share_token(parent, args, resolution), to: DeckMutations
+  defdelegate disable_deck_sharing(parent, args, resolution), to: DeckMutations
+  defdelegate rotate_deck_share_token(parent, args, resolution), to: DeckMutations
   defdelegate add_deck_card(parent, args, resolution), to: DeckMutations
   defdelegate import_decklist(parent, args, resolution), to: DeckMutations
   defdelegate delete_deck(parent, args, resolution), to: DeckMutations
@@ -29,6 +51,7 @@ defmodule ManavaultWeb.Schema.Catalog.MutationResolvers do
   defdelegate optimize_deck_card_printings(parent, args, resolution), to: DeckMutations
   defdelegate delete_deck_card(parent, args, resolution), to: DeckMutations
   defdelegate set_deck_commander(parent, args, resolution), to: DeckMutations
+  defdelegate add_deck_partner(parent, args, resolution), to: DeckMutations
   defdelegate create_deck_tag(parent, args, resolution), to: DeckMutations
   defdelegate update_deck_tag(parent, args, resolution), to: DeckMutations
   defdelegate delete_deck_tag(parent, args, resolution), to: DeckMutations

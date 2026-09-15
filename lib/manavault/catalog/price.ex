@@ -143,25 +143,49 @@ defmodule Manavault.Catalog.Price do
 
   def price_cents_for_printing(printing, finish \\ nil)
 
-  def price_cents_for_printing(%Printing{prices: prices}, finish) do
+  def price_cents_for_printing(%Printing{} = printing, finish) do
+    vendor_price_cents(printing, finish) || scryfall_price_cents(printing, finish)
+  end
+
+  def price_cents_for_printing(_printing, _finish), do: nil
+
+  # Price from the user's selected vendor source, or nil when the source is
+  # Scryfall or the vendor has no price for this printing's finish chain.
+  defp vendor_price_cents(%Printing{scryfall_id: scryfall_id}, finish)
+       when is_binary(scryfall_id) do
+    Manavault.Pricing.price_cents(scryfall_id, finish_fallbacks(finish))
+  end
+
+  defp vendor_price_cents(_printing, _finish), do: nil
+
+  defp scryfall_price_cents(%Printing{prices: prices}, finish) do
     prices
     |> decode_prices()
     |> price_string_for_finish(finish)
     |> parse_cents()
   end
 
-  def price_cents_for_printing(_printing, _finish), do: nil
+  @doc "Ordered printing finishes to try for a current price."
+  def finish_fallbacks("foil"), do: ["foil", "nonfoil"]
+  def finish_fallbacks("etched"), do: ["etched", "foil", "nonfoil"]
+  def finish_fallbacks(_finish), do: ["nonfoil", "foil", "etched"]
 
-  defp price_string_for_finish(prices, "foil"), do: first_present(prices, ["usd_foil", "usd"])
+  @doc """
+  Ordered Scryfall `prices` JSON keys to try for a USD price, given a finish.
 
-  defp price_string_for_finish(prices, "etched"),
-    do: first_present(prices, ["usd_etched", "usd_foil", "usd"])
+  The single source of truth for finish-aware price fallback:
+  `Manavault.Catalog.PriceFragments` compiles this same ordering into its
+  SQL fragments, so the in-memory and query paths cannot drift.
+  """
+  def usd_fallback_keys(finish) do
+    Enum.map(finish_fallbacks(finish), fn
+      "nonfoil" -> "usd"
+      finish -> "usd_#{finish}"
+    end)
+  end
 
-  defp price_string_for_finish(prices, "nonfoil"),
-    do: first_present(prices, ["usd", "usd_foil", "usd_etched"])
-
-  defp price_string_for_finish(prices, _finish),
-    do: first_present(prices, ["usd", "usd_foil", "usd_etched"])
+  defp price_string_for_finish(prices, finish),
+    do: first_present(prices, usd_fallback_keys(finish))
 
   defp first_present(prices, keys) do
     Enum.find_value(keys, fn key ->

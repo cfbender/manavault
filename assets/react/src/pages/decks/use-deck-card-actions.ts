@@ -16,6 +16,7 @@ import {
 import type { DeckCardEntry, DeckCardTag } from "./deck-types"
 import {
   AddDeckCardDocument,
+  AddDeckPartnerDocument,
   AssignDeckCardTagDocument,
   DeckDocument,
   DeleteDeckCardDocument,
@@ -113,6 +114,7 @@ export function useDeckCardActions({
   const [unassignDeckCardTagMutation] = useMutation(UnassignDeckCardTagDocument)
   const [deleteDeckCardMutation, deleteDeckCardResult] = useMutation(DeleteDeckCardDocument)
   const [setDeckCommanderMutation, setDeckCommanderResult] = useMutation(SetDeckCommanderDocument)
+  const [addDeckPartnerMutation, addDeckPartnerResult] = useMutation(AddDeckPartnerDocument)
   const [addDeckCardMutation, addDeckCardResult] = useMutation(AddDeckCardDocument)
 
   function updateDeckCard(
@@ -295,6 +297,15 @@ export function useDeckCardActions({
     })
   }
 
+  function addDeckPartner(deckCardId: string) {
+    void addDeckPartnerMutation({
+      variables: { id: deckCardId },
+      onCompleted: onRefetch,
+      onError: (error) =>
+        setTagError(error instanceof Error ? error.message : "Could not add partner commander"),
+    })
+  }
+
   function addDeckCard(input: DeckCardInput) {
     void addDeckCardMutation({
       variables: { deckId, input },
@@ -318,10 +329,12 @@ export function useDeckCardActions({
       updateDeckCardResult.loading ||
       updateDeckCardsTagResult.loading ||
       deleteDeckCardResult.loading ||
-      setDeckCommanderResult.loading,
+      setDeckCommanderResult.loading ||
+      addDeckPartnerResult.loading,
     isAddingCard: addDeckCardResult.loading,
     isDeletingCard: deleteDeckCardResult.loading,
     isUpdatingCard: updateDeckCardResult.loading,
+    addDeckPartner,
     setDeckCommander,
     tagDeckCard,
     tagError,

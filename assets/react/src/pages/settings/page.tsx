@@ -7,6 +7,8 @@ import { pluralize, present } from "../../lib/utils"
 import { AutoSortSummaryDialog } from "../collection/auto-sort-summary-dialog"
 import { AutoSortCollectionDocument } from "../collection/documents"
 import type { AutoSortCollectionResult } from "../collection/types"
+import { AISettingsSection } from "./ai-settings-section"
+import { AppearanceSection } from "./appearance-section"
 import { BackupSettingsForm } from "./backup-settings-form"
 import { CollectionAutoSortSection } from "./collection-auto-sort-section"
 import { DefaultDeckTagsSection } from "./default-deck-tags-section"
@@ -34,7 +36,9 @@ import {
 } from "./data"
 import { NativeAppSection } from "./native-app-section"
 import { useNativeShellSection } from "./native-shell-state"
+import { PricingSection } from "./pricing-section"
 import { RestoreSection } from "./restore-section"
+import { ServerLogsSection } from "./server-logs-section"
 import { ScryfallDataSection } from "./scryfall-data-section"
 import { Alert } from "./ui"
 
@@ -305,7 +309,7 @@ export function SettingsPage() {
       <PageHeader
         eyebrow="Settings"
         title="Settings"
-        description="Manage the mobile shell, collection auto-sort rules, cloud backups, manual restores, and Scryfall catalog maintenance."
+        description="Manage appearance, AI analysis, collection workflows, backups, and local catalog maintenance."
       />
 
       {settingsQuery.error ? <Alert tone="error">{errorMessage(settingsQuery.error)}</Alert> : null}
@@ -318,6 +322,12 @@ export function SettingsPage() {
       ) : null}
       {error ? <Alert tone="error">{error}</Alert> : null}
       {message ? <Alert tone="success">{message}</Alert> : null}
+
+      <AppearanceSection />
+
+      <PricingSection />
+
+      <AISettingsSection />
 
       {nativeShell ? <NativeAppSection {...nativeSectionProps} /> : null}
 
@@ -377,6 +387,8 @@ export function SettingsPage() {
           if (shouldLoadBackups) void backupsQuery.refetch()
         }}
       />
+
+      <ServerLogsSection />
     </div>
   )
 

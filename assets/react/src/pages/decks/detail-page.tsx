@@ -7,6 +7,8 @@ import { Button } from "../../components/ui/button"
 import { useToast } from "../../components/ui/toast"
 import { graphqlEndpointContext, refetchActiveQueries } from "../../lib/apollo"
 import { deckCardsTotalPrice, deckMissingCardsTotalPrice, formatUsdCents } from "./buylist-export"
+import { isValidCommanderPair } from "./commander-pairing"
+import { ShareModeHidden } from "./deck-actions"
 import { createDeckPullList } from "./deck-allocation-model"
 import { compareDeckCards, countDeckZones } from "./deck-card-model"
 import { DeckDetailBulkAllocationOverlay } from "./deck-detail-bulk-allocation-overlay"
@@ -49,24 +51,32 @@ import { DeckDocument } from "./queries"
 import {
   flattenDeck,
   type EDHRecAddZone,
-  type EDHRecCard,
-  type EDHRecSectionCard,
   type EDHRecTab,
+  type EDHRecThemeSelection,
+  type RecommendedCardLike,
 } from "./deck-types"
 
 type DeckDetailPageProps = {
   edhrecExcludeLands?: boolean
+  edhrecCommander?: string
   edhrecTab?: EDHRecTab
+  edhrecTheme?: string
   id: string
   shareMode?: boolean
 }
 
 export function DeckDetailPage({
   edhrecExcludeLands = false,
+  edhrecCommander,
   edhrecTab,
+  edhrecTheme: edhrecThemeSlug,
   id,
   shareMode = false,
 }: DeckDetailPageProps) {
+  const edhrecTheme =
+    edhrecCommander && edhrecThemeSlug
+      ? { commanderName: edhrecCommander, themeSlug: edhrecThemeSlug }
+      : undefined
   const [groupBy, setGroupBy] = useState<DeckGroupBy>("theme")
   const [overlay, setOverlay] = useState<DeckDetailOverlay>(NO_DECK_DETAIL_OVERLAY)
   const [activeTagId, setActiveTagId] = useState<string | null>(null)
@@ -170,31 +180,39 @@ export function DeckDetailPage({
   })
 
   const stackDeckCards = useMemo(
-    () =>
-      deckCards.filter(
-        (deckCard) => deckCard.zone !== "sideboard" && deckCard.zone !== "maybeboard",
-      ),
+    () => deckCards.filter((deckCard) => deckCard.zone !== "considering"),
     [deckCards],
   )
-  const sideboardCards = useMemo(
-    () => deckCards.filter((deckCard) => deckCard.zone === "sideboard").sort(compareDeckCards),
-    [deckCards],
-  )
-  const maybeboardCards = useMemo(
-    () => deckCards.filter((deckCard) => deckCard.zone === "maybeboard").sort(compareDeckCards),
+  const consideringCards = useMemo(
+    () => deckCards.filter((deckCard) => deckCard.zone === "considering").sort(compareDeckCards),
     [deckCards],
   )
   const groupedCards = useMemo(
     () => groupDeckCards(stackDeckCards, groupBy, deck?.tags ?? []),
     [deck?.tags, groupBy, stackDeckCards],
   )
+  const partnerCandidateIds = useMemo(() => {
+    const commanders = deckCards.filter((deckCard) => deckCard.zone === "commander")
+    if (commanders.length !== 1) return new Set<string>()
+    const commanderCard = commanders[0].card
+    if (!commanderCard) return new Set<string>()
+    return new Set(
+      deckCards
+        .filter(
+          (deckCard) =>
+            deckCard.zone !== "commander" &&
+            deckCard.card &&
+            isValidCommanderPair(deckCard.card, commanderCard),
+        )
+        .map((deckCard) => deckCard.id),
+    )
+  }, [deckCards])
   const selectionDeckCardIds = useMemo(
     () => [
       ...new Set(groupedCards.flatMap((group) => group.cards.map((deckCard) => deckCard.id))),
-      ...sideboardCards.map((deckCard) => deckCard.id),
-      ...maybeboardCards.map((deckCard) => deckCard.id),
+      ...consideringCards.map((deckCard) => deckCard.id),
     ],
-    [groupedCards, maybeboardCards, sideboardCards],
+    [consideringCards, groupedCards],
   )
   const selection = useDeckDetailSelection(deckCards, selectionDeckCardIds)
   const clearSelection = () => {
@@ -263,18 +281,30 @@ export function DeckDetailPage({
     )
   }
 
-  function setEdhrecState(tab: EDHRecTab | undefined, excludeLands = edhrecExcludeLands) {
+  function setEdhrecState({
+    tab,
+    excludeLands = edhrecExcludeLands,
+    theme,
+  }: {
+    tab?: EDHRecTab
+    excludeLands?: boolean
+    theme?: EDHRecThemeSelection | null
+  }) {
+    const nextTheme = theme === undefined ? edhrecTheme : theme
+
     navigate({
       to: "/decks/$id",
       params: { id },
       search: {
         edhrec: tab,
+        edhrecCommander: tab && nextTheme ? nextTheme.commanderName : undefined,
         edhrecExcludeLands: tab && excludeLands ? true : undefined,
+        edhrecTheme: tab && nextTheme ? nextTheme.themeSlug : undefined,
       },
     })
   }
 
-  function addEdhrecCard(card: EDHRecCard | EDHRecSectionCard, zone: EDHRecAddZone) {
+  function addEdhrecCard(card: RecommendedCardLike, zone: EDHRecAddZone) {
     cardActions.addDeckCard({
       finish: "nonfoil",
       name: card.name,
@@ -318,9 +348,11 @@ export function DeckDetailPage({
         description="This deck may have been deleted, moved, or unavailable while the local vault is syncing."
         action={
           <div className="flex flex-wrap justify-center gap-2">
-            <Button asChild>
-              <Link to="/decks">Back to decks</Link>
-            </Button>
+            <ShareModeHidden shareMode={shareMode}>
+              <Button asChild>
+                <Link to="/decks">Back to decks</Link>
+              </Button>
+            </ShareModeHidden>
             <Button type="button" variant="outline" onClick={refetchDeckQueries}>
               Retry
             </Button>
@@ -364,7 +396,10 @@ export function DeckDetailPage({
           isRefreshing={isRefreshingDeck}
           isSelectionActive={selection.isSelectionActive}
           legalityIssues={legalityIssues}
+          saltSum={deferredDeckAnalysis?.stats.saltSum ?? null}
           onAddCard={() => setOverlay({ kind: "add-card" })}
+          onCombos={() => setOverlay({ kind: "combos" })}
+          onCompareDeck={() => setOverlay({ kind: "compare-deck" })}
           onCopySharedDecklist={copySharedDecklist}
           onDisassemble={() => disassemblyActions.preview(deck.id)}
           onDownloadSharedDecklist={downloadSharedDecklist}
@@ -375,8 +410,9 @@ export function DeckDetailPage({
           onMissingCards={() => setOverlay({ kind: "missing-cards" })}
           onOpenEdhrec={() => {
             setOverlay({ kind: "edhrec" })
-            setEdhrecState("recs")
+            setEdhrecState({ tab: "recs", theme: null })
           }}
+          onOpenRecommander={() => setOverlay({ kind: "recommander" })}
           onOpenReadiness={() => setOverlay({ kind: "readiness" })}
           onShareBuylist={() => setOverlay({ kind: "share-buylist" })}
           onShareDeck={() => setOverlay({ kind: "share-deck" })}
@@ -471,6 +507,7 @@ export function DeckDetailPage({
 
           <DeckDetailCardCollections
             canEdit={canEditDecklist}
+            consideringCards={consideringCards}
             deckFormat={deck.format}
             deckId={deck.id}
             deckTags={deck.tags}
@@ -478,7 +515,7 @@ export function DeckDetailPage({
             highlightedCardIds={selection.highlightedDeckCardIds}
             isSelecting={selection.isSelectionActive}
             isUpdating={isUpdatingDeckCard}
-            maybeboardCards={maybeboardCards}
+            onAddPartner={(deckCard) => cardActions.addDeckPartner(deckCard.id)}
             onAllocate={(deckCard, collectionItemId) =>
               allocationActions.allocate(deckCard.id, collectionItemId)
             }
@@ -495,9 +532,9 @@ export function DeckDetailPage({
             onToggleProxy={allocationActions.toggleProxy}
             onToggleSelected={selection.toggleDeckCardSelected}
             onUnassignTag={cardActions.unassignDeckCardTag}
+            partnerCandidateIds={partnerCandidateIds}
             selectedCardIds={selection.selectedDeckCardIds}
             shareMode={shareMode}
-            sideboardCards={sideboardCards}
           />
           <DeckTokensSection tokens={deferredDeckAnalysis?.tokens ?? null} />
           <DeckStatsSection
@@ -520,15 +557,21 @@ export function DeckDetailPage({
         zoneCounts={zoneCounts}
       />
       <DeckDetailUtilityOverlays
-        addCardError={cardActions.addCardError}
+        addCardError={cardActions.addCardError || cardActions.tagError || cardActions.deleteError}
         canCloseDeleteSelected={!bulkActions.isDeleting}
         deck={deck}
         edhrecExcludeLands={edhrecExcludeLands}
+        edhrecTheme={edhrecTheme}
         edhrecTab={edhrecTab}
         isAddingCard={cardActions.isAddingCard}
+        isUpdatingCard={cardActions.isPending}
         isOptimizing={allocationActions.isOptimizingPrintings}
         onAddEdhrecCard={addEdhrecCard}
+        onConsiderCuttingEdhrecCard={(deckCard) =>
+          cardActions.tagDeckCard(deckCard, "consider_cutting")
+        }
         onClose={() => setOverlay(NO_DECK_DETAIL_OVERLAY)}
+        onCutEdhrecCard={cardActions.deleteDeckCard}
         onDeleteSelected={() => {
           if (selection.selectedDeckCardIdList.length) {
             bulkActions.remove(selection.selectedDeckCardIdList, () =>

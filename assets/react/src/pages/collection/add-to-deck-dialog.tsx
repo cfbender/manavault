@@ -9,8 +9,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
 import { useToast } from "../../components/ui/toast"
 import { pluralize, present, titleize } from "../../lib/utils"
+import { NON_COMMANDER_ADD_CARD_ZONES, type DeckZone } from "../decks/deck-types"
+import { ZoneToggle } from "../decks/zone-toggle"
 import {
   BulkAddCollectionItemsToDeckDocument,
   CollectionItemDeckOptionsDocument,
@@ -33,7 +42,7 @@ export function AddCollectionItemToDeckDialog({
 }) {
   const { showToast } = useToast()
   const [deckId, setDeckId] = useState("")
-  const [zone, setZone] = useState("mainboard")
+  const [zone, setZone] = useState<DeckZone>("mainboard")
   const [error, setError] = useState<string | null>(null)
   const targetCount = collectionTargetCount(item)
   const open = targetCount > 0
@@ -42,7 +51,11 @@ export function AddCollectionItemToDeckDialog({
     fetchPolicy: "cache-and-network",
   })
   const decks = useMemo(
-    () => decksQuery.data?.decks?.edges?.map((edge) => edge?.node).filter(present) || [],
+    () =>
+      decksQuery.data?.decks?.edges
+        ?.map((edge) => edge?.node)
+        .filter(present)
+        .filter((deck) => deck.status !== "archived") || [],
     [decksQuery.data],
   )
   const [addToDeckMutation, addToDeck] = useMutation(BulkAddCollectionItemsToDeckDocument)
@@ -105,32 +118,25 @@ export function AddCollectionItemToDeckDialog({
         <form className="space-y-4 p-5" onSubmit={submit}>
           <label className="block space-y-2">
             <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Deck</span>
-            <select
-              className="select select-bordered w-full bg-base-100"
-              value={deckId}
-              onChange={(event) => setDeckId(event.target.value)}
-              autoFocus
-            >
-              <option value="">Choose a deck</option>
-              {decks.map((deck) => (
-                <option key={deck.id} value={deck.id}>
-                  {deck.name} ({titleize(deck.format)})
-                </option>
-              ))}
-            </select>
+            <Select value={deckId} onValueChange={setDeckId}>
+              <SelectTrigger autoFocus>
+                <SelectValue placeholder="Choose a deck" />
+              </SelectTrigger>
+              <SelectContent>
+                {decks.map((deck) => (
+                  <SelectItem key={deck.id} value={deck.id}>
+                    {deck.name} ({titleize(deck.format)})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
-          <label className="block space-y-2">
-            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">Zone</span>
-            <select
-              className="select select-bordered w-full bg-base-100"
-              value={zone}
-              onChange={(event) => setZone(event.target.value)}
-            >
-              <option value="mainboard">Mainboard</option>
-              <option value="sideboard">Sideboard</option>
-              <option value="maybeboard">Maybeboard</option>
-            </select>
-          </label>
+          <fieldset className="space-y-2">
+            <legend className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+              Zone
+            </legend>
+            <ZoneToggle zones={NON_COMMANDER_ADD_CARD_ZONES} value={zone} onChange={setZone} />
+          </fieldset>
           {error ? (
             <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
               {error}

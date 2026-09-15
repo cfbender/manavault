@@ -6,6 +6,7 @@ import { DeckZoneTable } from "./deck-zone-table"
 
 type DeckDetailCardCollectionsProps = {
   canEdit: boolean
+  consideringCards: DeckCardEntry[]
   deckFormat: string
   deckId: string
   deckTags: DeckCustomTag[]
@@ -13,7 +14,7 @@ type DeckDetailCardCollectionsProps = {
   highlightedCardIds: Set<string> | null
   isSelecting: boolean
   isUpdating: boolean
-  maybeboardCards: DeckCardEntry[]
+  onAddPartner: (deckCard: DeckCardEntry) => void
   onAllocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
   onAssignTag: (deckCard: DeckCardEntry, tagId: string) => void
   onDeallocate: (deckCard: DeckCardEntry, collectionItemId: string) => void
@@ -26,13 +27,14 @@ type DeckDetailCardCollectionsProps = {
   onToggleProxy: (deckCard: DeckCardEntry) => void
   onToggleSelected: (deckCardId: string, selectRange?: boolean) => void
   onUnassignTag: (deckCard: DeckCardEntry, tagId: string) => void
+  partnerCandidateIds: Set<string>
   selectedCardIds: Set<string>
   shareMode: boolean
-  sideboardCards: DeckCardEntry[]
 }
 
 export function DeckDetailCardCollections({
   canEdit,
+  consideringCards,
   deckFormat,
   deckId,
   deckTags,
@@ -40,7 +42,7 @@ export function DeckDetailCardCollections({
   highlightedCardIds,
   isSelecting,
   isUpdating,
-  maybeboardCards,
+  onAddPartner,
   onAllocate,
   onAssignTag,
   onDeallocate,
@@ -53,9 +55,9 @@ export function DeckDetailCardCollections({
   onToggleProxy,
   onToggleSelected,
   onUnassignTag,
+  partnerCandidateIds,
   selectedCardIds,
   shareMode,
-  sideboardCards,
 }: DeckDetailCardCollectionsProps) {
   const readOnly = shareMode || !canEdit
 
@@ -70,6 +72,7 @@ export function DeckDetailCardCollections({
           highlightedCardIds={highlightedCardIds}
           isSelecting={canEdit && isSelecting}
           isUpdating={isUpdating}
+          onAddPartner={onAddPartner}
           onAllocate={onAllocate}
           onAssignTag={onAssignTag}
           onDeallocate={onDeallocate}
@@ -82,6 +85,7 @@ export function DeckDetailCardCollections({
           onToggleProxy={onToggleProxy}
           onToggleSelected={onToggleSelected}
           onUnassignTag={onUnassignTag}
+          partnerCandidateIds={partnerCandidateIds}
           selectedCardIds={selectedCardIds}
           shareMode={readOnly}
         />
@@ -91,7 +95,7 @@ export function DeckDetailCardCollections({
 
       <div className="space-y-3">
         <DeckZoneTable
-          cards={sideboardCards}
+          cards={consideringCards}
           deckId={deckId}
           highlightedCardIds={highlightedCardIds}
           isSelecting={canEdit && isSelecting}
@@ -104,23 +108,7 @@ export function DeckDetailCardCollections({
           onToggleSelected={onToggleSelected}
           selectedCardIds={selectedCardIds}
           shareMode={readOnly}
-          title="Sideboard"
-        />
-        <DeckZoneTable
-          cards={maybeboardCards}
-          deckId={deckId}
-          highlightedCardIds={highlightedCardIds}
-          isSelecting={canEdit && isSelecting}
-          isUpdating={isUpdating}
-          onDelete={onDelete}
-          onEdit={onEdit}
-          onMove={onMove}
-          onPreview={onPreview}
-          onTag={onTag}
-          onToggleSelected={onToggleSelected}
-          selectedCardIds={selectedCardIds}
-          shareMode={readOnly}
-          title="Maybeboard"
+          title="Considering"
         />
       </div>
     </>

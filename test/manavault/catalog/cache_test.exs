@@ -31,7 +31,8 @@ defmodule Manavault.Catalog.CacheTest do
     Process.put(:catalog_cache_fetch, {:ok, :cached_value})
     ref = make_ref()
 
-    assert :cached_value = Cache.cached(:hit, [cache: CacheBoundary], producer(:produced_value, ref))
+    assert :cached_value =
+             Cache.cached(:hit, [cache: CacheBoundary], producer(:produced_value, ref))
 
     refute_received {:producer_called, ^ref}
   end
@@ -39,7 +40,8 @@ defmodule Manavault.Catalog.CacheTest do
   test "a cache miss invokes the producer once" do
     ref = make_ref()
 
-    assert :produced_value = Cache.cached(:miss, [cache: CacheBoundary], producer(:produced_value, ref))
+    assert :produced_value =
+             Cache.cached(:miss, [cache: CacheBoundary], producer(:produced_value, ref))
 
     assert_produced_once(ref)
   end
@@ -51,7 +53,11 @@ defmodule Manavault.Catalog.CacheTest do
     log =
       capture_log(fn ->
         assert :produced_value =
-                 Cache.cached(:fetch_error, [cache: CacheBoundary], producer(:produced_value, ref))
+                 Cache.cached(
+                   :fetch_error,
+                   [cache: CacheBoundary],
+                   producer(:produced_value, ref)
+                 )
       end)
 
     assert log =~ "catalog cache unavailable"
@@ -65,7 +71,11 @@ defmodule Manavault.Catalog.CacheTest do
     log =
       capture_log(fn ->
         assert :produced_value =
-                 Cache.cached(:fetch_raises, [cache: CacheBoundary], producer(:produced_value, ref))
+                 Cache.cached(
+                   :fetch_raises,
+                   [cache: CacheBoundary],
+                   producer(:produced_value, ref)
+                 )
       end)
 
     assert log =~ "catalog cache raised"

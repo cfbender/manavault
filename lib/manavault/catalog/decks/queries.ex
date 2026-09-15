@@ -55,6 +55,12 @@ defmodule Manavault.Catalog.Decks.Queries do
     Repo.aggregate(Deck, :count)
   end
 
+  def count_non_archived_decks do
+    Deck
+    |> where([deck], deck.status != "archived")
+    |> Repo.aggregate(:count)
+  end
+
   def get_deck_by_share_token(token, opts \\ [])
 
   def get_deck_by_share_token(token, opts) when is_list(opts) do
@@ -108,9 +114,7 @@ defmodule Manavault.Catalog.Decks.Queries do
   def deck_card_count(%Deck{card_count: count}) when is_integer(count), do: count
 
   def deck_card_count(%Deck{deck_cards: cards}) when is_list(cards) do
-    cards
-    |> Enum.filter(&DeckCard.counts_toward_deck_total?/1)
-    |> Enum.reduce(0, &(&1.quantity + &2))
+    DeckCard.counted_quantity(cards)
   end
 
   def deck_card_count(%Deck{id: id}) do
@@ -128,9 +132,7 @@ defmodule Manavault.Catalog.Decks.Queries do
   def deck_unique_card_count(%Deck{unique_card_count: count}) when is_integer(count), do: count
 
   def deck_unique_card_count(%Deck{deck_cards: cards}) when is_list(cards) do
-    cards
-    |> Enum.filter(&DeckCard.counts_toward_deck_total?/1)
-    |> length()
+    Enum.count(cards, &DeckCard.counts_toward_deck_total?/1)
   end
 
   def deck_unique_card_count(%Deck{id: id}) do
@@ -146,9 +148,7 @@ defmodule Manavault.Catalog.Decks.Queries do
     do: colors
 
   def deck_commander_color_identity(%Deck{deck_cards: cards}) when is_list(cards) do
-    cards
-    |> Enum.filter(&(&1.zone == "commander"))
-    |> DeckSummaries.commander_color_identity_from_cards()
+    DeckSummaries.commander_color_identity_from_cards(cards)
   end
 
   def deck_commander_color_identity(%Deck{id: id}) do
@@ -159,8 +159,11 @@ defmodule Manavault.Catalog.Decks.Queries do
 
   def deck_cover_image_url(%Deck{cover_image_url: url}) when is_binary(url), do: url
 
-  def deck_cover_image_url(%Deck{deck_cards: cards}) when is_list(cards) do
-    DeckSummaries.cover_image_url_from_cards(cards)
+  def deck_cover_image_url(%Deck{deck_cards: cards, cover_deck_card_id: cover_deck_card_id})
+      when is_list(cards) do
+    cards
+    |> DeckSummaries.put_fallback_printings()
+    |> DeckSummaries.cover_image_url_from_cards(cover_deck_card_id)
   end
 
   def deck_cover_image_url(%Deck{id: id}) do

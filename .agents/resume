@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+export PATH="$HOME/.local/bin:$PATH"
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+
+command -v mise >/dev/null 2>&1 || {
+  echo "mise is unavailable; rerun .agents/setup" >&2
+  exit 1
+}
+
+mise exec -- elixir --version >/dev/null
+mise exec -- node --version >/dev/null
+
+[[ -d deps && -d node_modules && -f manavault_dev.db ]] || {
+  echo "ManaVault dependencies or development database are missing; rerun .agents/setup" >&2
+  exit 1
+}
+
+echo "ManaVault orb environment is ready"

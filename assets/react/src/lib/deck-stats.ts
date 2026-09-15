@@ -13,6 +13,7 @@ export type DeckStatsCard = {
     manaCost: string | null
     oracleText: string | null
     deckCategory?: string | null
+    edhrecSaltiness?: number | null
   } | null
 }
 
@@ -59,6 +60,8 @@ export type DeckStats = {
   averageManaValue: number
   totalManaValue: number
   medianManaValue: number
+  saltSum: number | null
+  saltScoredCards: number
   manaCurve: ManaCurveStat[]
   manaCost: ManaSymbolCounts
   costContributors: Record<ManaStatColor, DeckStatsContributor[]>
@@ -99,6 +102,8 @@ export function buildDeckStats(deckCards: readonly DeckStatsCard[]): DeckStats {
   let nonlandCards = 0
   let landCards = 0
   let totalManaValue = 0
+  let saltSum = 0
+  let saltScoredCards = 0
   const rows = Array.isArray(deckCards) ? deckCards : []
 
   for (const [rowIndex, deckCard] of rows.entries()) {
@@ -120,8 +125,19 @@ export function buildDeckStats(deckCards: readonly DeckStatsCard[]): DeckStats {
     const manaCostText = getString(card.manaCost)
     const oracleText = getString(card.oracleText)
     const contributor = deckStatsContributor(deckCard, card, quantity, rowIndex, typeLine)
+    const saltiness = card.edhrecSaltiness
 
     totalCards += quantity
+
+    if (
+      typeof saltiness === "number" &&
+      Number.isFinite(saltiness) &&
+      saltiness >= 0 &&
+      saltiness <= 4
+    ) {
+      saltSum += saltiness * quantity
+      saltScoredCards += quantity
+    }
 
     if (/\bLand\b/i.test(typeLine)) {
       landCards += quantity
@@ -159,6 +175,8 @@ export function buildDeckStats(deckCards: readonly DeckStatsCard[]): DeckStats {
     averageManaValue: nonlandCards === 0 ? 0 : totalManaValue / nonlandCards,
     totalManaValue,
     medianManaValue: calculateMedianManaValue(manaValues, nonlandCards),
+    saltSum: saltScoredCards === 0 ? null : saltSum,
+    saltScoredCards,
     manaCurve,
     manaCost,
     costContributors,

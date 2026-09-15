@@ -19,9 +19,23 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       resolve(&QueryResolvers.decks/3)
     end
 
+    field :random_deck, :deck do
+      arg(:exclude_id, :id)
+      resolve(&QueryResolvers.random_deck/3)
+    end
+
     field :deck, :deck do
       arg(:id, non_null(:id))
       resolve(&QueryResolvers.deck/3)
+    end
+
+    field :deck_analysis_requests, non_null(list_of(non_null(:deck_analysis_request))) do
+      resolve(&QueryResolvers.deck_analysis_requests/3)
+    end
+
+    field :deck_question_answers, non_null(list_of(non_null(:deck_question_answer))) do
+      arg(:deck_id, non_null(:id))
+      resolve(&QueryResolvers.deck_question_answers/3)
     end
 
     field :shared_deck, :deck do
@@ -39,8 +53,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       arg(:printing_mode, :string, default_value: "none")
       arg(:include_basic_lands, :boolean, default_value: false)
       arg(:assume_no_owned, :boolean, default_value: false)
-      arg(:include_sideboard, :boolean, default_value: false)
-      arg(:include_maybeboard, :boolean, default_value: false)
+      arg(:include_considering, :boolean, default_value: false)
       resolve(&QueryResolvers.deck_buylist/3)
     end
 
@@ -50,16 +63,27 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       arg(:printing_mode, :string, default_value: "none")
       arg(:include_basic_lands, :boolean, default_value: false)
       arg(:assume_no_owned, :boolean, default_value: false)
-      arg(:include_sideboard, :boolean, default_value: false)
-      arg(:include_maybeboard, :boolean, default_value: false)
+      arg(:include_considering, :boolean, default_value: false)
       resolve(&QueryResolvers.deck_buylist_export/3)
     end
 
     field :deck_edhrec, non_null(:deck_edhrec) do
       arg(:id, non_null(:id))
       arg(:exclude_lands, :boolean, default_value: false)
+      arg(:commander_name, :string)
+      arg(:commander_theme, :string)
       arg(:offset, :integer, default_value: 0)
       resolve(&QueryResolvers.deck_edhrec/3)
+    end
+
+    field :deck_recommander, non_null(:deck_recommander) do
+      arg(:id, non_null(:id))
+      resolve(&QueryResolvers.deck_recommander/3)
+    end
+
+    field :deck_combos, non_null(list_of(non_null(:deck_combo))) do
+      arg(:id, non_null(:id))
+      resolve(&QueryResolvers.deck_combos/3)
     end
   end
 
@@ -89,6 +113,89 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
       end)
     end
 
+    payload field :record_deck_play do
+      arg(:id, non_null(:id))
+      arg(:outcome, non_null(:deck_play_outcome))
+
+      output do
+        field :deck, :deck
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &MutationResolvers.record_deck_play/3, :deck)
+      end)
+    end
+
+    payload field :analyze_deck do
+      arg(:id, non_null(:id))
+
+      output do
+        field :deck, :deck
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &MutationResolvers.analyze_deck/3, :deck)
+      end)
+    end
+
+    payload field :analyze_deck_list do
+      arg(:url, :string)
+      arg(:text, :string)
+      arg(:format, non_null(:string))
+
+      output do
+        field :deck_analysis_request, :deck_analysis_request
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &MutationResolvers.analyze_deck_list/3,
+          :deck_analysis_request
+        )
+      end)
+    end
+
+    payload field :ask_deck_question do
+      arg(:id, non_null(:id))
+      arg(:question, non_null(:string))
+
+      output do
+        field :answer, non_null(:string)
+        field :question_answer, non_null(:deck_question_answer)
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &MutationResolvers.ask_deck_question/3,
+          :question_answer
+        )
+      end)
+    end
+
+    payload field :delete_deck_question_answer do
+      arg(:id, non_null(:id))
+
+      output do
+        field :question_answer_id, non_null(:id)
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &MutationResolvers.delete_deck_question_answer/3,
+          :question_answer_id
+        )
+      end)
+    end
+
     payload field :ensure_deck_share_token do
       arg(:id, non_null(:id))
 
@@ -98,6 +205,30 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
 
       resolve(fn parent, args, resolution ->
         payload(parent, args, resolution, &MutationResolvers.ensure_deck_share_token/3, :deck)
+      end)
+    end
+
+    payload field :disable_deck_sharing do
+      arg(:id, non_null(:id))
+
+      output do
+        field :deck, :deck
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &MutationResolvers.disable_deck_sharing/3, :deck)
+      end)
+    end
+
+    payload field :rotate_deck_share_token do
+      arg(:id, non_null(:id))
+
+      output do
+        field :deck, :deck
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &MutationResolvers.rotate_deck_share_token/3, :deck)
       end)
     end
 
@@ -370,6 +501,18 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
 
       resolve(fn parent, args, resolution ->
         payload(parent, args, resolution, &MutationResolvers.set_deck_commander/3, :deck_card)
+      end)
+    end
+
+    payload field :add_deck_partner do
+      arg(:id, non_null(:id))
+
+      output do
+        field :deck_card, :deck_card
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &MutationResolvers.add_deck_partner/3, :deck_card)
       end)
     end
 

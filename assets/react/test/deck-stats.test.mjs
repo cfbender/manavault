@@ -90,13 +90,13 @@ function production(overrides = {}) {
   }
 }
 
-test("mana curve excludes lands, sideboard, and maybeboard", () => {
+test("mana curve excludes lands and considering", () => {
   const stats = buildDeckStats([
     deckCard({ zone: "commander", card: { cmc: 1, manaCost: "{W}" } }),
     deckCard({ card: { typeLine: "Sorcery", cmc: 7, manaCost: "{5}{G}{G}" } }),
     deckCard({ quantity: 4, card: { typeLine: "Basic Land — Forest", cmc: 0, manaCost: "" } }),
-    deckCard({ zone: "sideboard", card: { cmc: 2, manaCost: "{1}{U}" } }),
-    deckCard({ zone: "maybeboard", card: { cmc: 3, manaCost: "{2}{B}" } }),
+    deckCard({ zone: "considering", card: { cmc: 2, manaCost: "{1}{U}" } }),
+    deckCard({ zone: "considering", card: { cmc: 3, manaCost: "{2}{B}" } }),
   ])
 
   assert.equal(stats.totalCards, 6)
@@ -106,6 +106,30 @@ test("mana curve excludes lands, sideboard, and maybeboard", () => {
   assert.equal(stats.totalManaValue, 8)
   assert.equal(stats.medianManaValue, 4)
   assert.deepEqual(stats.manaCurve, curve({ 1: { permanents: 1 }, "7+": { spells: 1 } }))
+})
+
+test("salt sum weights commander and mainboard quantities and preserves missing scores", () => {
+  const stats = buildDeckStats([
+    deckCard({ zone: "commander", card: { edhrecSaltiness: 0.5 } }),
+    deckCard({ quantity: 2, card: { edhrecSaltiness: 1.25 } }),
+    deckCard({ quantity: 3, card: { edhrecSaltiness: null } }),
+    deckCard({ quantity: 2, card: { edhrecSaltiness: 0 } }),
+    deckCard({ quantity: 5, zone: "sideboard", card: { edhrecSaltiness: 4 } }),
+    deckCard({ quantity: 5, zone: "maybeboard", card: { edhrecSaltiness: 4 } }),
+    deckCard({ quantity: 5, zone: "considering", card: { edhrecSaltiness: 4 } }),
+  ])
+
+  assert.equal(stats.totalCards, 8)
+  assert.equal(stats.saltSum, 3)
+  assert.equal(stats.saltScoredCards, 5)
+
+  const unscoredStats = buildDeckStats([
+    deckCard({ zone: "commander", card: { edhrecSaltiness: null } }),
+    deckCard({ quantity: 3, card: { edhrecSaltiness: null } }),
+  ])
+
+  assert.equal(unscoredStats.saltSum, null)
+  assert.equal(unscoredStats.saltScoredCards, 0)
 })
 
 test("quantity clamps to integers and multiplies hybrid mana cost pips", () => {
@@ -155,11 +179,11 @@ test("mana cost contributors carry weighted pips and sorted metadata", () => {
       },
     }),
     deckCard({
-      id: "sideboard-growth",
-      zone: "sideboard",
+      id: "considering-growth",
+      zone: "considering",
       quantity: 4,
       card: {
-        name: "Sideboard Growth",
+        name: "Considering Growth",
         manaCost: "{G}",
       },
     }),
@@ -482,7 +506,7 @@ test("mana production contributors include explicit, any, and practical green un
     }),
     deckCard({
       id: "maybe",
-      zone: "maybeboard",
+      zone: "considering",
       card: {
         name: "Maybe Mox",
         oracleText: "Add {G}. Add one mana of any color.",
@@ -555,6 +579,8 @@ test("empty and malformed inputs return visible zero-shaped stats", () => {
     averageManaValue: 0,
     totalManaValue: 0,
     medianManaValue: 0,
+    saltSum: null,
+    saltScoredCards: 0,
     manaCurve: curve(),
     manaCost: manaCost(),
     costContributors: costContributors(),

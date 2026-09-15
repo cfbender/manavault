@@ -21,8 +21,16 @@ defmodule Manavault.Catalog.Collection do
     CardCollection.list_items(filters, opts)
   end
 
+  def list_collection_item_groups(filters \\ [], opts \\ []) when is_list(filters) do
+    CardCollection.list_item_groups(filters, opts)
+  end
+
   def list_collection_item_ids(filters \\ []) when is_list(filters) do
     CardCollection.list_item_ids(filters)
+  end
+
+  def collection_item_totals(filters \\ []) when is_list(filters) do
+    CardCollection.item_totals(filters)
   end
 
   def count_collection_items(filters \\ []) when is_list(filters) do
@@ -33,8 +41,16 @@ defmodule Manavault.Catalog.Collection do
     CardCollection.count_item_entries(filters)
   end
 
+  def count_collection_item_groups(filters \\ []) when is_list(filters) do
+    CardCollection.count_item_groups(filters)
+  end
+
   def collection_value_summary(filters \\ []) when is_list(filters) do
     CardCollection.value_summary(filters)
+  end
+
+  def collection_value_dashboard do
+    CardCollection.value_dashboard()
   end
 
   def count_locations do
@@ -125,6 +141,40 @@ defmodule Manavault.Catalog.Collection do
       end)
     end)
   end
+
+  def set_collection_items_for_trade_quantity(ids, quantity)
+      when is_list(ids) and is_integer(quantity) and quantity >= 0 do
+    Repo.transaction(fn ->
+      items =
+        CollectionItem
+        |> where([item], item.id in ^ids)
+        |> order_by(asc: :id)
+        |> Repo.all()
+
+      total_quantity = Enum.reduce(items, 0, &((&1.quantity || 0) + &2))
+
+      if length(items) != length(Enum.uniq(ids)) or quantity > total_quantity do
+        Repo.rollback(:invalid_for_trade_quantity)
+      end
+
+      {updated_items, _remaining} =
+        Enum.map_reduce(items, quantity, fn item, remaining ->
+          item_quantity = min(item.quantity, remaining)
+
+          updated_item =
+            item
+            |> CollectionItem.update_changeset(%{for_trade_quantity: item_quantity})
+            |> Repo.update!()
+
+          {updated_item, remaining - item_quantity}
+        end)
+
+      %{items: updated_items, quantity: quantity, total_quantity: total_quantity}
+    end)
+  end
+
+  def set_collection_items_for_trade_quantity(_ids, _quantity),
+    do: {:error, :invalid_for_trade_quantity}
 
   def delete_collection_items(ids) when is_list(ids) do
     Repo.transaction(fn ->

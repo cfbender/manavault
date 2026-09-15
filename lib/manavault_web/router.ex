@@ -22,6 +22,10 @@ defmodule ManavaultWeb.Router do
     plug ManavaultWeb.Plugs.GraphQLCSRFProtection
   end
 
+  pipeline :public_graphql do
+    plug ManavaultWeb.Plugs.PublicGraphQLProtection, :validate
+  end
+
   scope "/", ManavaultWeb do
     get "/site.webmanifest", PwaController, :manifest
     get "/sw.js", PwaController, :service_worker
@@ -36,7 +40,10 @@ defmodule ManavaultWeb.Router do
     get "/login", AuthController, :new
     post "/login", AuthController, :create
     get "/share/decks/:token", AppController, :share_deck
+    get "/share/wants/:token", AppController, :share_wants
+    get "/share/binder/:token", AppController, :share_binder
     get "/scryfall-assets/*path", ScryfallAssetController, :show
+    post "/vendors/star-city-games/deck-builder", VendorController, :star_city_games
   end
 
   scope "/", ManavaultWeb do
@@ -53,14 +60,25 @@ defmodule ManavaultWeb.Router do
     get "/collection/new", AppController, :index
     get "/collection/locations/:id", AppController, :index
     get "/collection/:id/edit", AppController, :index
+    get "/trade", AppController, :index
     post "/logout", AuthController, :delete
+  end
+
+  scope "/" do
+    pipe_through [:api, :public_graphql]
+
+    forward "/share/graphql", Absinthe.Plug,
+      schema: ManavaultWeb.PublicShareSchema,
+      analyze_complexity: true,
+      max_complexity: 100_000,
+      token_limit: 5_000,
+      pipeline: {ManavaultWeb.Plugs.PublicGraphQLProtection, :pipeline}
   end
 
   scope "/" do
     pipe_through :api
 
     get "/health", ManavaultWeb.HealthController, :show
-    forward "/share/graphql", Absinthe.Plug, schema: ManavaultWeb.PublicShareSchema
   end
 
   scope "/" do

@@ -18,6 +18,14 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionOperations do
       resolve(&QueryResolvers.collection_items/3)
     end
 
+    connection field :collection_item_groups,
+                 node_type: :collection_item_group,
+                 non_null: true do
+      arg(:filters, :collection_item_filters)
+      arg(:sort, :collection_item_sort)
+      resolve(&QueryResolvers.collection_item_groups/3)
+    end
+
     field :collection_item_count, non_null(:integer) do
       arg(:filters, :collection_item_filters)
       resolve(&QueryResolvers.collection_item_count/3)
@@ -31,6 +39,10 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionOperations do
     field :collection_value_summary, non_null(:collection_value_summary) do
       arg(:filters, :collection_item_filters)
       resolve(&QueryResolvers.collection_value_summary/3)
+    end
+
+    field :collection_value_dashboard, non_null(:collection_value_dashboard) do
+      resolve(&QueryResolvers.collection_value_dashboard/3)
     end
 
     field :collection_export_csv, non_null(:string) do
@@ -101,6 +113,27 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionOperations do
           resolution,
           &MutationResolvers.bulk_update_collection_items/3,
           :updated_count
+        )
+      end)
+    end
+
+    payload field :set_collection_items_for_trade_quantity do
+      arg(:selector, non_null(:collection_item_selector))
+      arg(:quantity, non_null(:integer))
+
+      output do
+        field :updated_count, non_null(:integer)
+        field :quantity, non_null(:integer)
+        field :total_quantity, non_null(:integer)
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(
+          parent,
+          args,
+          resolution,
+          &MutationResolvers.set_collection_items_for_trade_quantity/3,
+          :quantity
         )
       end)
     end

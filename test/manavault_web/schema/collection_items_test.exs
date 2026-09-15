@@ -91,7 +91,7 @@ defmodule ManavaultWeb.Schema.CollectionItemsTest do
   end
 
   test "update and delete collection item mutations change owned printings", %{conn: conn} do
-    {:ok, %{cards_count: 1, printings_count: 1}} =
+    {:ok, %{cards_count: 2, printings_count: 2}} =
       Catalog.import_cards([
         %{
           "id" => "scryfall-printing-update",
@@ -105,6 +105,20 @@ defmodule ManavaultWeb.Schema.CollectionItemsTest do
           "image_uris" => %{},
           "finishes" => ["nonfoil", "foil"],
           "prices" => %{"usd" => "2.00", "usd_foil" => "5.00"},
+          "legalities" => %{}
+        },
+        %{
+          "id" => "scryfall-printing-update-corrected",
+          "oracle_id" => "oracle-update",
+          "name" => "Update Collection Card",
+          "type_line" => "Creature",
+          "collector_number" => "99",
+          "set" => "fix",
+          "set_name" => "Corrected Set",
+          "lang" => "en",
+          "image_uris" => %{},
+          "finishes" => ["nonfoil", "foil"],
+          "prices" => %{"usd" => "3.00", "usd_foil" => "6.00"},
           "legalities" => %{}
         }
       ])
@@ -125,6 +139,13 @@ defmodule ManavaultWeb.Schema.CollectionItemsTest do
     new_location_id =
       Absinthe.Relay.Node.to_global_id(:location, new_location.id, ManavaultWeb.Schema)
 
+    corrected_printing_id =
+      Absinthe.Relay.Node.to_global_id(
+        :printing,
+        "scryfall-printing-update-corrected",
+        ManavaultWeb.Schema
+      )
+
     update_conn =
       post(conn, "/api/graphql", %{
         "query" => """
@@ -142,6 +163,7 @@ defmodule ManavaultWeb.Schema.CollectionItemsTest do
               valueGainText
               valueGainPercentText
               location { name }
+              printing { scryfallId setCode collectorNumber }
             }
           }
         }
@@ -149,6 +171,7 @@ defmodule ManavaultWeb.Schema.CollectionItemsTest do
         "variables" => %{
           "id" => item_id,
           "input" => %{
+            "scryfallId" => corrected_printing_id,
             "quantity" => 4,
             "condition" => "lightly_played",
             "language" => "ja",
@@ -172,9 +195,14 @@ defmodule ManavaultWeb.Schema.CollectionItemsTest do
                    "notes" => "Moved",
                    "purchasePriceCents" => 1234,
                    "purchasePriceText" => "$12.34",
-                   "valueGainText" => "-$7.34",
-                   "valueGainPercentText" => "-59.5%",
-                   "location" => %{"name" => "New List"}
+                   "valueGainText" => "-$6.34",
+                   "valueGainPercentText" => "-51.4%",
+                   "location" => %{"name" => "New List"},
+                   "printing" => %{
+                     "scryfallId" => "scryfall-printing-update-corrected",
+                     "setCode" => "fix",
+                     "collectorNumber" => "99"
+                   }
                  }
                }
              }

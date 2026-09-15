@@ -1,5 +1,5 @@
 import { graphql } from "../../gql"
-import type { CardCollectionItemsQuery, CardQuery } from "../../gql/graphql"
+import type { CardCollectionItemsQuery, CardEdhrecQuery, CardQuery } from "../../gql/graphql"
 
 export const CardsDocument = graphql(`
   query Cards($q: String!, $limit: Int!, $sort: CardSort, $after: String) {
@@ -85,6 +85,22 @@ export const AddCardToDeckDocument = graphql(`
   }
 `)
 
+export const CreateTradeWantFromCardDocument = graphql(`
+  mutation CreateTradeWantFromCard($scryfallId: ID!, $quantity: Int) {
+    createTradeWant(scryfallId: $scryfallId, quantity: $quantity) {
+      tradeWant {
+        id
+        quantity
+        printing {
+          setCode
+          collectorNumber
+          imageUrl
+        }
+      }
+    }
+  }
+`)
+
 export const CardDocument = graphql(`
   query Card($id: ID!) {
     card(id: $id) {
@@ -96,6 +112,9 @@ export const CardDocument = graphql(`
       oracleText
       colorIdentity
       gameChanger
+      edhrecRank
+      edhrecCommanderRank
+      edhrecSaltiness
       deckCategory
       deckThemes
       oracleTags {
@@ -143,6 +162,37 @@ export const CardDocument = graphql(`
   }
 `)
 
+export const CardEdhrecDocument = graphql(`
+  query CardEdhrec($name: String!) {
+    cardEdhrec(name: $name) {
+      url
+      sections {
+        header
+        tag
+        cards {
+          name
+          scryfallId
+          lift
+          numDecks
+          potentialDecks
+          url
+          card {
+            id
+            oracleId
+            name
+            typeLine
+            primaryPrinting {
+              id
+              scryfallId
+              imageUrl
+            }
+          }
+        }
+      }
+    }
+  }
+`)
+
 export const CardCollectionItemsDocument = graphql(`
   query CardCollectionItems($cardId: ID!) {
     collectionItemCount(filters: { cardId: $cardId })
@@ -159,6 +209,8 @@ export const CardCollectionItemsDocument = graphql(`
           language
           finish
           notes
+          forTrade
+          forTradeQuantity
           priceText
           purchasePriceCents
           purchasePriceText
@@ -198,6 +250,9 @@ export const CardCollectionItemsDocument = graphql(`
 `)
 
 export type CardDetail = NonNullable<CardQuery["card"]>
+export type CardEdhrecData = CardEdhrecQuery["cardEdhrec"]
+export type CardEdhrecSection = CardEdhrecData["sections"][number]
+export type CardEdhrecEntry = CardEdhrecSection["cards"][number]
 export type CardRuling = NonNullable<CardDetail["rulings"]>[number]
 type CardCollectionItemsEdge = NonNullable<
   NonNullable<CardCollectionItemsQuery["collectionItems"]["edges"]>[number]

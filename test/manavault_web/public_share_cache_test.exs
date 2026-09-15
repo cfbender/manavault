@@ -2,9 +2,33 @@ defmodule ManavaultWeb.PublicShareCacheTest do
   use ManavaultWeb.ConnCase
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.Cache
   alias Manavault.Catalog.Deck
   alias Manavault.Catalog.Decks.ShareToken
+
+  test "frontend deck query stays compatible with the public share endpoint" do
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Frontend Contract Deck"})
+    {:ok, deck} = Catalog.ensure_deck_share_token(deck)
+
+    response =
+      build_conn()
+      |> post("/share/graphql", %{
+        "query" => frontend_deck_query(),
+        "variables" => %{"id" => deck.share_token}
+      })
+      |> json_response(200)
+
+    refute Map.has_key?(response, "errors")
+
+    assert %{
+             "data" => %{
+               "deck" => %{
+                 "name" => "Frontend Contract Deck",
+                 "coverDeckCardId" => nil,
+                 "coverImageUrl" => nil
+               }
+             }
+           } = response
+  end
 
   test "malformed public share tokens preserve response contracts without cache or database work" do
     token = "not-a-share-token"
@@ -19,7 +43,7 @@ defmodule ManavaultWeb.PublicShareCacheTest do
         }
       end)
 
-    assert html_response(html, 200) =~ "Shared deck · ManaVault"
+    assert response(html, 404) == ""
     assert response(svg, 404) == ""
     assert response(png, 404) == ""
     assert %{"data" => %{"deck" => nil}} = json_response(graphql, 200)
@@ -42,7 +66,7 @@ defmodule ManavaultWeb.PublicShareCacheTest do
         }
       end)
 
-    assert html_response(html, 200) =~ "Shared deck · ManaVault"
+    assert response(html, 404) == ""
     assert response(svg, 404) == ""
     assert response(png, 404) == ""
     assert %{"data" => %{"deck" => nil}} = json_response(graphql, 200)
@@ -51,7 +75,7 @@ defmodule ManavaultWeb.PublicShareCacheTest do
     assert Manavault.Cache.count_all!() == 0
   end
 
-  test "public HTML, SVG, PNG, and GraphQL reuse positive share lookups" do
+  test "public HTML, SVG, PNG, and GraphQL each revalidate bearer access" do
     {:ok, deck} = Catalog.create_deck(%{"name" => "Public Cache Deck"})
     {:ok, deck} = Catalog.ensure_deck_share_token(deck)
 
@@ -60,7 +84,9 @@ defmodule ManavaultWeb.PublicShareCacheTest do
         {
           get(build_conn(), "/share/decks/#{deck.share_token}"),
           get(build_conn(), "/share/decks/#{deck.share_token}/preview.svg"),
-          get(build_conn(), "/share/decks/#{deck.share_token}/preview.png"),
+          Oban.Testing.with_testing_mode(:inline, fn ->
+            get(build_conn(), "/share/decks/#{deck.share_token}/preview.png")
+          end),
           shared_deck_request(deck.share_token)
         }
       end)
@@ -74,12 +100,25 @@ defmodule ManavaultWeb.PublicShareCacheTest do
     assert %{"data" => %{"deck" => %{"name" => "Public Cache Deck"}}} =
              json_response(graphql, 200)
 
-    assert deck_queries == 2
+    assert deck_queries == 4
     assert Manavault.Cache.count_all!() >= 2
-    assert {:ok, %Deck{id: deck_id}} = Cache.fetch({:deck_by_share_token, deck.share_token, []})
+  end
 
-    assert {:ok, %Deck{id: ^deck_id}} =
-             Cache.fetch({:deck_by_share_token, deck.share_token, [preload?: false]})
+  test "rotation invalidates cached deck access on every public origin surface" do
+    {:ok, deck} = Catalog.create_deck(%{"name" => "Rotated Share"})
+    {:ok, deck} = Catalog.ensure_deck_share_token(deck)
+    old_token = deck.share_token
+
+    assert %Deck{} = Catalog.get_deck_by_share_token(old_token)
+    assert {:ok, rotated_deck} = Catalog.rotate_deck_share_token(deck)
+    refute rotated_deck.share_token == old_token
+
+    assert response(get(build_conn(), "/share/decks/#{old_token}"), 404) == ""
+    assert response(get(build_conn(), "/share/decks/#{old_token}/preview.svg"), 404) == ""
+    assert response(get(build_conn(), "/share/decks/#{old_token}/preview.png"), 404) == ""
+
+    assert %{"data" => %{"deck" => nil}} =
+             old_token |> shared_deck_request() |> json_response(200)
   end
 
   defp shared_deck_request(token) do
@@ -87,6 +126,15 @@ defmodule ManavaultWeb.PublicShareCacheTest do
       "query" => "query SharedDeck($id: ID!) { deck(id: $id) { name } }",
       "variables" => %{"id" => token}
     })
+  end
+
+  defp frontend_deck_query do
+    path = Path.expand("../../assets/react/src/pages/decks/queries.ts", __DIR__)
+    source = File.read!(path)
+
+    ~r/export const DeckDocument = graphql\(`(?<query>.*?)`\)/s
+    |> Regex.named_captures(source)
+    |> Map.fetch!("query")
   end
 
   defp count_deck_queries(fun) when is_function(fun, 0) do

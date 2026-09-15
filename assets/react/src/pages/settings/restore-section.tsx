@@ -1,6 +1,13 @@
 import { DownloadCloud, RefreshCw } from "lucide-react"
 import { PageSection } from "../../components/app-shell"
 import { Button } from "../../components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
 import { type Provider, formatDate } from "./data"
 
 type CloudBackup = {
@@ -37,19 +44,18 @@ export function RestoreSection({
             replace the SQLite database before the app starts.
           </p>
           <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-            <select
-              className="select select-bordered w-full bg-base-100"
-              value={restoreId}
-              onChange={(event) => setRestoreId(event.target.value)}
-              disabled={backups.length === 0}
-            >
-              <option value="">Choose backup</option>
-              {backups.map((backup) => (
-                <option key={backup.id} value={backup.id}>
-                  {backup.name} {backup.modifiedAt ? `(${formatDate(backup.modifiedAt)})` : ""}
-                </option>
-              ))}
-            </select>
+            <Select value={restoreId} onValueChange={setRestoreId} disabled={backups.length === 0}>
+              <SelectTrigger aria-label="Backup">
+                <SelectValue placeholder="Choose backup" />
+              </SelectTrigger>
+              <SelectContent>
+                {backups.map((backup) => (
+                  <SelectItem key={backup.id} value={backup.id}>
+                    {backup.name} {backup.modifiedAt ? `(${formatDate(backup.modifiedAt)})` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button
               type="button"
               variant="destructive"

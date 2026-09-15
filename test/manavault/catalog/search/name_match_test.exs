@@ -15,16 +15,18 @@ defmodule Manavault.Catalog.Search.NameMatchTest do
   end
 
   describe "normalize/1" do
-    test "lowercases, drops apostrophes, and collapses non-alphanumerics" do
+    test "folds diacritics, lowercases, drops apostrophes, and collapses non-alphanumerics" do
       assert NameMatch.normalize("Aurelia's Fury") == "aurelias fury"
       assert NameMatch.normalize("Aurelia’s Fury") == "aurelias fury"
       assert NameMatch.normalize("  Mask,  of-Memory! ") == "mask of memory"
+      assert NameMatch.normalize("Óin the Brave") == "oin the brave"
     end
   end
 
   describe "like_pattern/1" do
-    test "downcases, strips apostrophes, escapes LIKE metacharacters, and wraps" do
+    test "folds diacritics, strips apostrophes, escapes LIKE metacharacters, and wraps" do
       assert NameMatch.like_pattern("Urza's") == "%urzas%"
+      assert NameMatch.like_pattern("Óin") == "%oin%"
       assert NameMatch.like_pattern("100% _\\") == "%100\\% \\_\\\\%"
     end
   end

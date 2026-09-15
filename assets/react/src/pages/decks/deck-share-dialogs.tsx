@@ -1,7 +1,8 @@
-import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
-import { Clipboard, Upload } from "lucide-react"
-import { useEffect, useRef, useState, type FormEvent } from "react"
+import { useApolloClient, useMutation } from "@apollo/client/react"
+import { Check, Clipboard, Download, RotateCw, ShieldOff, Upload } from "lucide-react"
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import { Button } from "../../components/ui/button"
+import { ConfirmDialog } from "../../components/ui/confirm-dialog"
 import {
   Dialog,
   DialogClose,
@@ -10,15 +11,32 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
+import {
+  SELECT_NONE_VALUE,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select"
+import { Textarea } from "../../components/ui/textarea"
 import { useToast } from "../../components/ui/toast"
 import { refetchActiveQueries } from "../../lib/apollo"
-import { pluralize, titleize } from "../../lib/utils"
-import type { DeckDetail, DeckSummary, DeckZone } from "./deck-types"
-import { ADD_CARD_ZONES } from "./deck-types"
 import {
-  DeckExportTextDocument,
+  EXPORT_ZONES,
+  EXPORT_ZONE_LABELS,
+  downloadTextFile,
+  exportDecklistText,
+} from "../../lib/deck-export"
+import { cn, pluralize } from "../../lib/utils"
+import { BuylistOptionCheckbox } from "./buylist-option-checkbox"
+import type { DeckDetail, DeckSummary, DeckZone } from "./deck-types"
+import { ADD_CARD_ZONES, deckZoneDisplayLabel } from "./deck-types"
+import {
+  DisableDeckSharingDocument,
   EnsureDeckShareTokenDocument,
   ImportDecklistDocument,
+  RotateDeckShareTokenDocument,
 } from "./queries"
 
 export function ShareDeckDialog({
@@ -35,33 +53,68 @@ export function ShareDeckDialog({
   const isOpen = open ?? Boolean(deck)
   const shareTokenDeckIdRef = useRef<string | null>(null)
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle")
+  const [confirmAction, setConfirmAction] = useState<"disable" | "rotate" | null>(null)
+  const [managedToken, setManagedToken] = useState<string | null>(null)
   const [ensureShareToken, ensureShare] = useMutation(EnsureDeckShareTokenDocument)
-  const generatedDeck = ensureShare.data?.ensureDeckShareToken?.deck || null
-  const shareToken =
-    generatedDeck && generatedDeck.id === deck?.id
-      ? generatedDeck.shareToken || ""
-      : deck?.shareToken || ""
+  const [rotateShareToken, rotateShare] = useMutation(RotateDeckShareTokenDocument)
+  const [disableSharing, disableShare] = useMutation(DisableDeckSharingDocument)
+  const shareToken = managedToken ?? ""
   const shareUrl =
     shareToken && typeof window !== "undefined"
       ? `${window.location.origin}/share/decks/${encodeURIComponent(shareToken)}`
       : ""
-  const error = ensureShare.error instanceof Error ? ensureShare.error.message : null
+  const mutationError = ensureShare.error || rotateShare.error || disableShare.error
+  const error = mutationError instanceof Error ? mutationError.message : null
+  const changingShare = ensureShare.loading || rotateShare.loading || disableShare.loading
 
   useEffect(() => {
     if (!isOpen) {
       shareTokenDeckIdRef.current = null
+      setManagedToken(null)
       setCopyState("idle")
       return
     }
 
-    if (!deck?.id || shareToken || shareTokenDeckIdRef.current === deck.id) return
+    if (!deck?.id || shareTokenDeckIdRef.current === deck.id) return
 
     shareTokenDeckIdRef.current = deck.id
     void ensureShareToken({
       variables: { id: deck.id },
-      onCompleted: () => void refetchActiveQueries(client),
+      onCompleted: (data) => {
+        setManagedToken(data.ensureDeckShareToken?.deck?.shareToken ?? "")
+        void refetchActiveQueries(client)
+      },
     })
-  }, [client, deck?.id, ensureShareToken, isOpen, shareToken])
+  }, [client, deck?.id, ensureShareToken, isOpen])
+
+  function rotateLink() {
+    if (!deck?.id) return
+
+    void rotateShareToken({
+      variables: { id: deck.id },
+      onCompleted: (data) => {
+        setManagedToken(data.rotateDeckShareToken?.deck?.shareToken ?? "")
+        setCopyState("idle")
+        showToast("Deck link rotated")
+        void refetchActiveQueries(client)
+      },
+    })
+  }
+
+  function disableLink() {
+    if (!deck?.id) return
+    shareTokenDeckIdRef.current = deck.id
+
+    void disableSharing({
+      variables: { id: deck.id },
+      onCompleted: () => {
+        setManagedToken("")
+        showToast("Deck sharing disabled")
+        void refetchActiveQueries(client)
+        onOpenChange(false)
+      },
+    })
+  }
 
   async function copyShareUrl() {
     if (!shareUrl) return
@@ -77,51 +130,85 @@ export function ShareDeckDialog({
   }
 
   return (
-    <Dialog
-      open={isOpen}
-      onOpenChange={(nextOpen) => {
-        if (nextOpen) onOpenChange(true)
-        else onOpenChange(false)
-      }}
-    >
-      <DialogContent className="max-w-xl" labelledBy="share-deck-title">
-        <DialogHeader>
-          <div>
-            <DialogTitle id="share-deck-title">Share deck</DialogTitle>
-            <p className="mt-1 text-sm text-base-content/60">{deck?.name}</p>
+    <>
+      <Dialog
+        open={isOpen}
+        onOpenChange={(nextOpen) => {
+          if (nextOpen) onOpenChange(true)
+          else onOpenChange(false)
+        }}
+      >
+        <DialogContent className="max-w-xl" labelledBy="share-deck-title">
+          <DialogHeader>
+            <div>
+              <DialogTitle id="share-deck-title">Share deck</DialogTitle>
+              <p className="mt-1 text-sm text-base-content/60">{deck?.name}</p>
+            </div>
+            <DialogClose onClose={() => onOpenChange(false)} />
+          </DialogHeader>
+
+          <div className="space-y-4 p-5">
+            <label className="block space-y-2">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                Public link
+              </span>
+              <Input readOnly value={shareUrl || "Generating link..."} />
+            </label>
+
+            {error ? (
+              <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+                {error}
+              </p>
+            ) : null}
+            {copyState === "failed" ? (
+              <p className="text-sm text-error">Could not copy from this browser context.</p>
+            ) : null}
+
+            <div className="flex flex-wrap items-center gap-2 border-t border-base-300 pt-4">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={!shareUrl || changingShare}
+                onClick={() => setConfirmAction("disable")}
+              >
+                <ShieldOff className="h-4 w-4" />
+                Disable sharing
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={!shareUrl || changingShare}
+                onClick={() => setConfirmAction("rotate")}
+              >
+                <RotateCw className="h-4 w-4" />
+                Rotate link
+              </Button>
+              <span className="flex-1" />
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                Close
+              </Button>
+              <Button type="button" disabled={!shareUrl || changingShare} onClick={copyShareUrl}>
+                <Clipboard className="h-4 w-4" />
+                {copyState === "copied" ? "Copied" : "Copy link"}
+              </Button>
+            </div>
           </div>
-          <DialogClose onClose={() => onOpenChange(false)} />
-        </DialogHeader>
+        </DialogContent>
+      </Dialog>
 
-        <div className="space-y-4 p-5">
-          <label className="block space-y-2">
-            <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
-              Public link
-            </span>
-            <Input readOnly value={shareUrl || "Generating link..."} />
-          </label>
-
-          {error ? (
-            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
-              {error}
-            </p>
-          ) : null}
-          {copyState === "failed" ? (
-            <p className="text-sm text-error">Could not copy from this browser context.</p>
-          ) : null}
-
-          <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-4">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Close
-            </Button>
-            <Button type="button" disabled={!shareUrl} onClick={copyShareUrl}>
-              <Clipboard className="h-4 w-4" />
-              {copyState === "copied" ? "Copied" : "Copy link"}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+      <ConfirmDialog
+        confirmLabel={confirmAction === "disable" ? "Disable sharing" : "Rotate link"}
+        destructive
+        onConfirm={confirmAction === "disable" ? disableLink : rotateLink}
+        onOpenChange={(open) => !open && setConfirmAction(null)}
+        open={confirmAction !== null}
+        title={confirmAction === "disable" ? "Disable deck sharing?" : "Rotate deck link?"}
+      >
+        {confirmAction === "disable"
+          ? "The current link will stop working immediately. Opening Share again will create a new link."
+          : "The current link will stop working immediately and be replaced with a new one."}
+      </ConfirmDialog>
+    </>
   )
 }
 
@@ -216,11 +303,11 @@ export function ImportDecklistDialog({
             <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
               Decklist text
             </span>
-            <textarea
-              className="textarea textarea-bordered min-h-80 w-full bg-base-100 font-mono text-sm"
+            <Textarea
+              className="min-h-80 bg-base-100 font-mono text-sm"
               value={text}
               onChange={(event) => setText(event.target.value)}
-              placeholder={"Commander\n1 Sol Ring\n1 Arcane Signet\n\nSideboard\n2 Negate"}
+              placeholder={"Commander\n1 Sol Ring\n1 Arcane Signet\n\nConsidering\n2 Negate"}
               autoFocus
             />
           </label>
@@ -229,18 +316,24 @@ export function ImportDecklistDialog({
             <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">
               Import into
             </span>
-            <select
-              className="select select-bordered w-full bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              value={zone}
-              onChange={(event) => setZone(event.target.value as DeckZone | "")}
+            <Select
+              value={zone || SELECT_NONE_VALUE}
+              onValueChange={(value) =>
+                setZone(value === SELECT_NONE_VALUE ? "" : (value as DeckZone))
+              }
             >
-              <option value="">Zones from decklist</option>
-              {ADD_CARD_ZONES.map((zone) => (
-                <option key={zone} value={zone}>
-                  {titleize(zone)}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="bg-base-100 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={SELECT_NONE_VALUE}>Zones from decklist</SelectItem>
+                {ADD_CARD_ZONES.map((zone) => (
+                  <SelectItem key={zone} value={zone}>
+                    {deckZoneDisplayLabel(zone)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <span className="block text-xs text-base-content/60">
               Pick a zone to send every imported card there, ignoring section headings in the text.
             </span>
@@ -311,11 +404,85 @@ export function ExportDecklistDialog({
   onOpenChange: (open: boolean) => void
   open: boolean
 }) {
-  const exportQuery = useQuery(DeckExportTextDocument, {
-    variables: { id: deck?.id || "" },
-    skip: !open || !deck?.id,
-  })
-  const exportText = exportQuery.data?.deckExportText || ""
+  const { showToast } = useToast()
+  const resetTimerRef = useRef<number | null>(null)
+  const deckCards = useMemo(() => deck?.deckCards ?? [], [deck])
+  const zoneCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const deckCard of deckCards) {
+      if (!deckCard.zone) continue
+      counts[deckCard.zone] = (counts[deckCard.zone] || 0) + Math.max(deckCard.quantity || 0, 0)
+    }
+    return counts
+  }, [deckCards])
+  const defaultZones =
+    deck?.format === "commander" && zoneCounts.commander > 0
+      ? ["commander", "mainboard"]
+      : ["mainboard"]
+  const defaultZonesRef = useRef(defaultZones)
+  defaultZonesRef.current = defaultZones
+  const [zones, setZones] = useState<string[]>(defaultZones)
+  const [zoneHeaders, setZoneHeaders] = useState(false)
+  const [includePrinting, setIncludePrinting] = useState(true)
+  const [includeFinish, setIncludeFinish] = useState(true)
+  const [quantityStyle, setQuantityStyle] = useState<"1x" | "1">("1x")
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle")
+
+  const exportText = useMemo(
+    () =>
+      exportDecklistText(deckCards, {
+        zones,
+        zoneHeaders,
+        includePrinting,
+        includeFinish,
+        quantityStyle,
+      }),
+    [deckCards, zones, zoneHeaders, includePrinting, includeFinish, quantityStyle],
+  )
+
+  useEffect(() => {
+    if (!open) return
+    setZones(defaultZonesRef.current)
+    setZoneHeaders(false)
+    setIncludePrinting(true)
+    setIncludeFinish(true)
+    setQuantityStyle("1x")
+    setCopyState("idle")
+  }, [open])
+
+  useEffect(
+    () => () => {
+      if (resetTimerRef.current) window.clearTimeout(resetTimerRef.current)
+    },
+    [],
+  )
+
+  function toggleZone(zone: string) {
+    setZones((current) =>
+      current.includes(zone) ? current.filter((entry) => entry !== zone) : [...current, zone],
+    )
+  }
+
+  async function copyDecklist() {
+    if (!exportText) return
+
+    try {
+      await navigator.clipboard.writeText(exportText)
+      setCopyState("copied")
+      showToast("Decklist copied")
+    } catch {
+      setCopyState("failed")
+    }
+
+    // Revert the transient status so the button label doesn't stay "Copied".
+    if (resetTimerRef.current) window.clearTimeout(resetTimerRef.current)
+    resetTimerRef.current = window.setTimeout(() => setCopyState("idle"), 2000)
+  }
+
+  function downloadDecklist() {
+    if (!exportText) return
+    downloadTextFile(`${deck?.name || "deck"}.txt`, exportText)
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -329,21 +496,119 @@ export function ExportDecklistDialog({
         </DialogHeader>
 
         <div className="space-y-4 p-5">
-          <textarea
-            className="textarea textarea-bordered min-h-80 w-full bg-base-100 font-mono text-sm"
-            readOnly
-            value={exportQuery.loading ? "Exporting..." : exportText}
-          />
-          {exportQuery.error ? (
-            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
-              {exportQuery.error instanceof Error
-                ? exportQuery.error.message
-                : "Could not export decklist"}
-            </p>
-          ) : null}
-          <div className="flex justify-end">
-            <Button type="button" onClick={() => onOpenChange(false)}>
+          <div className="space-y-2">
+            <span className="block text-xs font-black uppercase tracking-[0.18em] text-accent">
+              Zones
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {EXPORT_ZONES.map((zone) => {
+                const count = zoneCounts[zone] || 0
+                const selected = zones.includes(zone)
+
+                return (
+                  <button
+                    key={zone}
+                    type="button"
+                    disabled={!count}
+                    aria-pressed={selected}
+                    onClick={() => toggleZone(zone)}
+                    className={cn(
+                      "inline-flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-bold transition-colors",
+                      selected
+                        ? "border-primary bg-primary text-primary-content"
+                        : "border-base-300 bg-base-100/60 hover:border-primary/50",
+                      !count && "cursor-not-allowed opacity-40",
+                    )}
+                  >
+                    {EXPORT_ZONE_LABELS[zone]}
+                    <span
+                      className={cn(
+                        "rounded-full px-1.5 py-0.5 text-[10px] font-black",
+                        selected ? "bg-primary-content/20" : "bg-base-300/70 text-base-content/70",
+                      )}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <span className="block text-xs font-black uppercase tracking-[0.18em] text-accent">
+              Options
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <BuylistOptionCheckbox
+                checked={zoneHeaders}
+                label="Zone headers"
+                onChange={setZoneHeaders}
+              />
+              <BuylistOptionCheckbox
+                checked={includePrinting}
+                label="Printing (SET) #"
+                onChange={setIncludePrinting}
+              />
+              <BuylistOptionCheckbox
+                checked={includeFinish}
+                label="Finish markers"
+                onChange={setIncludeFinish}
+              />
+              <div className="inline-flex h-8 items-center gap-0.5 rounded-full border border-base-300 bg-base-100/60 p-0.5">
+                {(["1x", "1"] as const).map((style) => (
+                  <button
+                    key={style}
+                    type="button"
+                    aria-pressed={quantityStyle === style}
+                    onClick={() => setQuantityStyle(style)}
+                    className={cn(
+                      "h-7 rounded-full px-2.5 text-xs font-bold transition-colors",
+                      quantityStyle === style
+                        ? "bg-primary text-primary-content"
+                        : "text-base-content/70 hover:text-base-content",
+                    )}
+                  >
+                    {style}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <span className="block text-xs font-black uppercase tracking-[0.18em] text-accent">
+              Preview
+            </span>
+            <pre className="max-h-80 min-h-60 overflow-auto whitespace-pre-wrap rounded-box border border-base-300 bg-base-100 p-3 font-mono text-sm">
+              {exportText || "No cards in the selected zones."}
+            </pre>
+          </div>
+
+          <div className="flex justify-end gap-2 border-t border-base-300 pt-4">
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Close
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!exportText}
+              onClick={downloadDecklist}
+            >
+              <Download className="h-4 w-4" />
+              Download .txt
+            </Button>
+            <Button type="button" disabled={!exportText} onClick={copyDecklist}>
+              {copyState === "copied" ? (
+                <Check className="h-4 w-4" />
+              ) : (
+                <Clipboard className="h-4 w-4" />
+              )}
+              {copyState === "copied"
+                ? "Copied"
+                : copyState === "failed"
+                  ? "Copy failed"
+                  : "Copy decklist"}
             </Button>
           </div>
         </div>

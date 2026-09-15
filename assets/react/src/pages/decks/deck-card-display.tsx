@@ -182,8 +182,7 @@ export function ZoneIcon({ zone }: { zone: DeckZone }) {
   const className = "h-6 w-6 shrink-0 text-base-content/80"
 
   if (zone === "mainboard") return <Layers className={className} />
-  if (zone === "sideboard") return <Box className={className} />
-  if (zone === "maybeboard") return <Circle className={className} />
+  if (zone === "considering") return <Box className={className} />
 
   return <Crown className={className} />
 }

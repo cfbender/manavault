@@ -12,7 +12,7 @@ import {
 } from "../../components/ui/dialog"
 import { DeckPlaytester } from "../../components/deck-playtester"
 import { graphqlEndpointContext } from "../../lib/apollo"
-import { exportDecklistText } from "../../lib/deck-export"
+import { downloadTextFile, exportDecklistText } from "../../lib/deck-export"
 import { createPlaytestState } from "../../lib/deck-playtest"
 import { buylistPrintingLabel, buylistTotalPrice, formatUsdCents } from "./buylist-export"
 import { BuylistOptionCheckbox } from "./buylist-option-checkbox"
@@ -27,14 +27,12 @@ const SHARED_BUYLIST_PRINTING_MODE = "exact"
 export function useSharedDeckBuylist({
   enabled = true,
   includeBasicLands,
-  includeMaybeboard,
-  includeSideboard,
+  includeConsidering,
   shareToken,
 }: {
   enabled?: boolean
   includeBasicLands: boolean
-  includeMaybeboard: boolean
-  includeSideboard: boolean
+  includeConsidering: boolean
   shareToken: string
 }) {
   return useQuery(DeckBuylistDocument, {
@@ -43,8 +41,7 @@ export function useSharedDeckBuylist({
       assumeNoOwned: true,
       id: shareToken,
       includeBasicLands,
-      includeSideboard,
-      includeMaybeboard,
+      includeConsidering,
       printingMode: SHARED_BUYLIST_PRINTING_MODE,
     },
     skip: !(enabled && shareToken),
@@ -98,13 +95,11 @@ export function ShareDeckBuylistDialog({
   shareToken: string
 }) {
   const [includeBasicLands, setIncludeBasicLands] = useState(false)
-  const [includeSideboard, setIncludeSideboard] = useState(false)
-  const [includeMaybeboard, setIncludeMaybeboard] = useState(false)
+  const [includeConsidering, setIncludeConsidering] = useState(false)
   const buylistQuery = useSharedDeckBuylist({
     enabled: open,
     includeBasicLands,
-    includeMaybeboard,
-    includeSideboard,
+    includeConsidering,
     shareToken,
   })
   const entries = buylistQuery.data?.deckBuylist || []
@@ -148,14 +143,9 @@ export function ShareDeckBuylistDialog({
               onChange={setIncludeBasicLands}
             />
             <BuylistOptionCheckbox
-              checked={includeSideboard}
-              label="Include sideboard"
-              onChange={setIncludeSideboard}
-            />
-            <BuylistOptionCheckbox
-              checked={includeMaybeboard}
-              label="Include maybeboard"
-              onChange={setIncludeMaybeboard}
+              checked={includeConsidering}
+              label="Include considering"
+              onChange={setIncludeConsidering}
             />
           </div>
 
@@ -245,12 +235,5 @@ export function useSharedDecklistActions(deckName: string, deckCards: DeckCardEn
 }
 
 function downloadDecklistText(deckName: string, deckCards: DeckCardEntry[]) {
-  const blob = new Blob([exportDecklistText(deckCards)], { type: "text/plain;charset=utf-8" })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement("a")
-
-  link.href = url
-  link.download = `${deckName || "deck"}.txt`
-  link.click()
-  URL.revokeObjectURL(url)
+  downloadTextFile(`${deckName || "deck"}.txt`, exportDecklistText(deckCards))
 }

@@ -68,6 +68,28 @@ defmodule Manavault.Catalog.CollectionTest do
     assert Catalog.count_collection_items([]) == 3
   end
 
+  test "collection import matches a card by its Scryfall flavor name" do
+    homeward_path =
+      @time_walk
+      |> Map.merge(%{
+        "id" => "scryfall-homeward-path",
+        "oracle_id" => "oracle-homeward-path",
+        "name" => "Homeward Path",
+        "flavor_name" => "Pelican Town",
+        "set" => "sld",
+        "collector_number" => "1"
+      })
+
+    assert {:ok, %{cards_count: 1, printings_count: 1}} =
+             Catalog.import_cards([homeward_path])
+
+    assert {:ok, preview} =
+             Catalog.preview_collection_import("1 Pelican Town (SLD) 1", format: :txt)
+
+    assert %{exact: 1, ambiguous: 0, unresolved: 0} = preview
+    assert [%{printing: %{card: %Card{name: "Homeward Path"}}}] = preview.rows
+  end
+
   test "collection import defaults to an available finish for the printing" do
     assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@time_walk])
 
@@ -122,6 +144,51 @@ defmodule Manavault.Catalog.CollectionTest do
 
     items = Catalog.list_collection_items([], limit: 10)
     assert Enum.map(items, & &1.purchase_price_cents) == [4_200, 100]
+  end
+
+  test "collection item groups combine rows by printing before pagination" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    lotus_one =
+      create_collection_item!("scryfall-printing-1", quantity: 2, purchase_price_cents: 100)
+
+    lotus_two =
+      create_collection_item!("scryfall-printing-1", quantity: 3, purchase_price_cents: 200)
+
+    walk = create_collection_item!("scryfall-printing-2", quantity: 1, finish: "foil")
+
+    assert Catalog.count_collection_item_groups() == 2
+
+    assert [lotus_group] = Catalog.list_collection_item_groups([], limit: 1)
+    assert lotus_group.printing_id == "scryfall-printing-1"
+    assert lotus_group.quantity == 5
+    assert Enum.map(lotus_group.items, & &1.id) == [lotus_one.id, lotus_two.id]
+
+    assert [walk_group] = Catalog.list_collection_item_groups([], limit: 1, offset: 1)
+    assert walk_group.printing_id == "scryfall-printing-2"
+    assert walk_group.quantity == 1
+    assert Enum.map(walk_group.items, & &1.id) == [walk.id]
+
+    assert Enum.map(Catalog.list_collection_items([], limit: 10), & &1.id) == [
+             lotus_one.id,
+             lotus_two.id,
+             walk.id
+           ]
+  end
+
+  test "for-trade groups include every owned row for each matching printing" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    offered =
+      create_collection_item!("scryfall-printing-1", quantity: 2, for_trade_quantity: 1)
+
+    unoffered = create_collection_item!("scryfall-printing-1", quantity: 3)
+
+    assert [group] = Catalog.list_collection_item_groups(for_trade: true)
+    assert group.quantity == 5
+    assert Enum.map(group.items, & &1.id) == [offered.id, unoffered.id]
+    assert Enum.map(group.items, & &1.for_trade_quantity) == [1, 0]
   end
 
   test "collection listings exclude list location items unless filtering to that list" do
@@ -192,7 +259,6 @@ defmodule Manavault.Catalog.CollectionTest do
 
     assert {:ok, updated} =
              Catalog.update_collection_item(loaded, %{
-               "scryfall_id" => "other-printing",
                "quantity" => "3",
                "condition" => "near_mint",
                "language" => "ja",
@@ -352,6 +418,113 @@ defmodule Manavault.Catalog.CollectionTest do
     assert [] = Catalog.list_collection_items(location_id: "missing")
   end
 
+  test "collection item filtering supports the for_trade facet" do
+    assert {:ok, %{cards_count: 2, printings_count: 2}} =
+             Catalog.import_cards([@black_lotus, @time_walk])
+
+    assert {:ok, lotus} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => "1",
+               "for_trade" => true
+             })
+
+    assert {:ok, walk} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-2",
+               "quantity" => "1",
+               "finish" => "foil"
+             })
+
+    assert lotus.for_trade
+
+    assert [found] = Catalog.list_collection_items(for_trade: true)
+    assert found.id == lotus.id
+
+    ids = Catalog.list_collection_items([]) |> Enum.map(& &1.id) |> Enum.sort()
+    assert ids == Enum.sort([lotus.id, walk.id])
+
+    assert {:ok, updated} = Catalog.update_collection_item(lotus, %{"for_trade" => false})
+    refute updated.for_trade
+    assert [] = Catalog.list_collection_items(for_trade: true)
+  end
+
+  test "collection items track bounded offered quantities and preserve boolean compatibility" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    assert {:ok, item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 4,
+               "for_trade" => true
+             })
+
+    assert item.for_trade
+    assert item.for_trade_quantity == 4
+    assert Catalog.count_collection_items(for_trade: true) == 4
+
+    assert {:ok, item} = Catalog.update_collection_item(item, %{"for_trade_quantity" => 2})
+    assert item.for_trade
+    assert item.for_trade_quantity == 2
+    assert Catalog.count_collection_items(for_trade: true) == 2
+
+    assert {:ok, unchanged_quantity} =
+             Catalog.update_collection_item(item, %{
+               "for_trade_quantity" => 2,
+               "for_trade" => false
+             })
+
+    assert unchanged_quantity.for_trade
+    assert unchanged_quantity.for_trade_quantity == 2
+
+    assert {:error, null_changeset} =
+             Catalog.update_collection_item(item, %{"for_trade_quantity" => nil})
+
+    assert "can't be blank" in errors_on(null_changeset).for_trade_quantity
+
+    assert {:error, changeset} =
+             Catalog.update_collection_item(item, %{"for_trade_quantity" => 5})
+
+    assert "cannot exceed quantity owned" in errors_on(changeset).for_trade_quantity
+
+    assert {:ok, item} = Catalog.update_collection_item(item, %{"quantity" => 1})
+    assert item.for_trade_quantity == 1
+
+    assert {:ok, item} = Catalog.update_collection_item(item, %{"for_trade" => false})
+    refute item.for_trade
+    assert item.for_trade_quantity == 0
+  end
+
+  test "sets one offered quantity across every row in a printing group" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    assert {:ok, first} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 2,
+               "condition" => "near_mint"
+             })
+
+    assert {:ok, second} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 3,
+               "condition" => "lightly_played"
+             })
+
+    assert {:ok, %{quantity: 4, total_quantity: 5}} =
+             Catalog.set_collection_items_for_trade_quantity([first.id, second.id], 4)
+
+    assert Catalog.get_collection_item!(first.id).for_trade_quantity == 2
+    assert Catalog.get_collection_item!(second.id).for_trade_quantity == 2
+
+    assert {:error, :invalid_for_trade_quantity} =
+             Catalog.set_collection_items_for_trade_quantity([first.id, second.id], 6)
+
+    assert Catalog.get_collection_item!(first.id).for_trade_quantity == 2
+    assert Catalog.get_collection_item!(second.id).for_trade_quantity == 2
+  end
+
   test "collection item filtering supports Scryfall search syntax" do
     assert {:ok, %{cards_count: 3, printings_count: 3}} =
              Catalog.import_cards([@black_lotus, @time_walk, @plains])
@@ -444,7 +617,7 @@ defmodule Manavault.Catalog.CollectionTest do
     assert walk_card.oracle_id == "oracle-2"
   end
 
-  test "collection item sorting supports card quantity, price, and added date" do
+  test "collection item sorting supports quantity, price, value gain, and added date" do
     time_walk = Map.put(@time_walk, "prices", %{"usd_foil" => "5.00"})
 
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
@@ -456,7 +629,8 @@ defmodule Manavault.Catalog.CollectionTest do
                "quantity" => "1",
                "condition" => "near_mint",
                "language" => "en",
-               "finish" => "nonfoil"
+               "finish" => "nonfoil",
+               "purchase_price_cents" => 11_000_000
              })
 
     assert {:ok, walk} =
@@ -465,7 +639,8 @@ defmodule Manavault.Catalog.CollectionTest do
                "quantity" => "3",
                "condition" => "near_mint",
                "language" => "ja",
-               "finish" => "foil"
+               "finish" => "foil",
+               "purchase_price_cents" => 100
              })
 
     Repo.update_all(from(item in CollectionItem, where: item.id == ^lotus.id),
@@ -486,6 +661,30 @@ defmodule Manavault.Catalog.CollectionTest do
 
     assert [lotus.id, walk.id] ==
              Catalog.list_collection_items([], sort: %{field: "price", direction: "desc"})
+             |> Enum.map(& &1.id)
+
+    assert [lotus.id, walk.id] ==
+             Catalog.list_collection_items([], sort: %{field: "value_gain", direction: "asc"})
+             |> Enum.map(& &1.id)
+
+    assert [walk.id, lotus.id] ==
+             Catalog.list_collection_items([], sort: %{field: "value_gain", direction: "desc"})
+             |> Enum.map(& &1.id)
+
+    assert [lotus.id, walk.id] ==
+             Catalog.list_collection_item_groups(
+               [],
+               sort: %{field: "value_gain", direction: "asc"}
+             )
+             |> Enum.flat_map(& &1.items)
+             |> Enum.map(& &1.id)
+
+    assert [walk.id, lotus.id] ==
+             Catalog.list_collection_item_groups(
+               [],
+               sort: %{field: "value_gain", direction: "desc"}
+             )
+             |> Enum.flat_map(& &1.items)
              |> Enum.map(& &1.id)
 
     assert [lotus.id, walk.id] ==
@@ -593,6 +792,8 @@ defmodule Manavault.Catalog.CollectionTest do
                   collection_item_id: item_id,
                   card_name: "Black Lotus",
                   card_id: "oracle-1",
+                  set_code: "lea",
+                  collector_number: "232",
                   image_url: "https://example.test/black-lotus.jpg",
                   quantity: 1,
                   finish: "nonfoil",
@@ -834,6 +1035,84 @@ defmodule Manavault.Catalog.CollectionTest do
     assert [esper.id] == location_item_ids(wub)
     assert [izzet.id] == location_item_ids(multicolor)
     assert [ring.id] == location_item_ids(colorless)
+  end
+
+  test "auto-sort matches permanent front faces for both type includes and excludes" do
+    cards = [
+      test_card(
+        "emeritus",
+        "Emeritus of Woe // Demonic Tutor",
+        "Creature — Vampire Warlock // Sorcery",
+        ["B"],
+        "mythic"
+      ),
+      test_card(
+        "precious",
+        "My Precious // Allure of Power",
+        "Legendary Artifact — Equipment // Instant — Adventure",
+        [],
+        "rare"
+      ),
+      test_card("split", "Discovery // Dispersal", "Sorcery // Instant", ["U", "B"], "uncommon"),
+      test_card("sorcery", "Demonic Tutor", "Sorcery", ["B"], "rare")
+    ]
+
+    assert {:ok, %{cards_count: 4}} = Catalog.import_cards(cards)
+    instants = create_location!("Instants")
+    sorceries = create_location!("Sorceries")
+    creatures = create_location!("Creatures")
+    artifacts = create_location!("Artifacts")
+
+    update_auto_sort_rules!([
+      %{
+        target_location_id: instants.id,
+        enabled: true,
+        priority: 1,
+        type_line_includes: ["instant"]
+      },
+      %{
+        target_location_id: sorceries.id,
+        enabled: true,
+        priority: 2,
+        type_line_includes: ["sorcery"]
+      },
+      %{
+        target_location_id: creatures.id,
+        enabled: true,
+        priority: 3,
+        type_line_includes: ["creature", "vampire"],
+        type_line_excludes: ["sorcery"]
+      },
+      %{
+        target_location_id: artifacts.id,
+        enabled: true,
+        priority: 4,
+        type_line_includes: ["artifact", "equipment"],
+        type_line_excludes: ["instant"]
+      }
+    ])
+
+    emeritus = create_collection_item!("scryfall-emeritus")
+    precious = create_collection_item!("scryfall-precious")
+    split = create_collection_item!("scryfall-split")
+    sorcery = create_collection_item!("scryfall-sorcery")
+
+    assert {:ok, %{moved_count: 4, moves: moves}} = Catalog.auto_sort_collection(dry_run: true)
+
+    assert Map.new(moves, &{&1.collection_item_id, &1.to_location_id}) == %{
+             emeritus.id => creatures.id,
+             precious.id => artifacts.id,
+             split.id => instants.id,
+             sorcery.id => sorceries.id
+           }
+
+    assert [] == location_item_ids(creatures)
+
+    assert {:ok, %{moved_count: 4}} = Catalog.auto_sort_collection()
+    assert [emeritus.id] == location_item_ids(creatures)
+    assert [precious.id] == location_item_ids(artifacts)
+    assert [split.id] == location_item_ids(instants)
+    assert [sorcery.id] == location_item_ids(sorceries)
   end
 
   test "auto-sort treats transformed cards as front-face colors instead of colorless" do
