@@ -46,6 +46,9 @@ config :manavault, Manavault.Repo,
 config :manavault, Oban,
   engine: Oban.Engines.Lite,
   plugins: [
+    # Recover orphaned executions so infinite job uniqueness cannot block syncs.
+    # Keep this above every worker timeout (currently at most 30 minutes).
+    {Oban.Plugins.Lifeline, rescue_after: :timer.hours(1)},
     {Oban.Plugins.Cron,
      crontab: [
        {"@reboot", Manavault.Catalog.ScryfallCatalogWorker},

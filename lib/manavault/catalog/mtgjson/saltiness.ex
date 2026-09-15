@@ -1,6 +1,8 @@
 defmodule Manavault.Catalog.Mtgjson.Saltiness do
   @moduledoc false
 
+  import Ecto.Query
+
   alias Manavault.Catalog.Card
   alias Manavault.Repo
 
@@ -29,18 +31,26 @@ defmodule Manavault.Catalog.Mtgjson.Saltiness do
   end
 
   def update_cards(scores) when is_map(scores) do
-    Repo.transact(
-      fn ->
-        Repo.update_all(Card, set: [edhrec_saltiness: nil])
+    # Each statement commits independently so other SQLite writers can proceed.
+    # Clear stale values only after updates succeed; retries preserve progress.
+    scores
+    |> Enum.chunk_every(@update_batch_size)
+    |> Enum.each(&update_card_batch/1)
 
-        scores
-        |> Enum.chunk_every(@update_batch_size)
-        |> Enum.each(&update_card_batch/1)
-
-        {:ok, map_size(scores)}
-      end,
-      timeout: :infinity
+    Repo.all(
+      from card in Card,
+        where: not is_nil(card.edhrec_saltiness),
+        select: card.oracle_id
     )
+    |> Enum.reject(&Map.has_key?(scores, &1))
+    |> Enum.chunk_every(@update_batch_size)
+    |> Enum.each(fn ids ->
+      Repo.update_all(from(card in Card, where: card.oracle_id in ^ids),
+        set: [edhrec_saltiness: nil]
+      )
+    end)
+
+    {:ok, map_size(scores)}
   end
 
   defp decode_gzip(body) do

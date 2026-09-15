@@ -10,6 +10,7 @@ defmodule Manavault.Catalog.Deck do
     field :name, :string
     field :format, :string, default: "commander"
     field :status, :string, default: "brewing"
+    field :included_for_play, :boolean, default: true
     field :play_count, :integer, default: 0
     field :skip_count, :integer, default: 0
     field :last_played_at, :utc_datetime
@@ -43,13 +44,14 @@ defmodule Manavault.Catalog.Deck do
       :name,
       :format,
       :status,
+      :included_for_play,
       :play_count,
       :skip_count,
       :last_played_at,
       :primer,
       :cover_deck_card_id
     ])
-    |> validate_required([:name, :format, :status])
+    |> validate_required([:name, :format, :status, :included_for_play])
     |> validate_length(:name, min: 1, max: 120)
     |> validate_length(:primer, max: 50_000)
     |> validate_number(:play_count, greater_than_or_equal_to: 0)

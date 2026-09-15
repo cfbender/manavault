@@ -101,6 +101,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :name, non_null(:string)
     field :format, non_null(:string)
     field :status, non_null(:string)
+    field :included_for_play, non_null(:boolean)
     field :play_count, non_null(:integer)
     field :skip_count, non_null(:integer)
     field :primer, :string
@@ -411,12 +412,14 @@ defmodule ManavaultWeb.Schema.Catalog.DeckTypes do
     field :name, non_null(:string)
     field :format, :string
     field :status, :string
+    field :included_for_play, :boolean
   end
 
   input_object :deck_update_input do
     field :name, :string
     field :format, :string
     field :status, :string
+    field :included_for_play, :boolean
     field :play_count, :integer
     field :skip_count, :integer
     field :last_played_at, :string

@@ -1,6 +1,8 @@
 defmodule ManavaultWeb.SchemaTest do
   use ManavaultWeb.ConnCase
 
+  alias Manavault.Catalog
+
   test "home summary is available over GraphQL", %{conn: conn} do
     conn =
       post(conn, "/api/graphql", %{
@@ -24,6 +26,34 @@ defmodule ManavaultWeb.SchemaTest do
                }
              }
            } = json_response(conn, 200)
+  end
+
+  test "home deck count excludes archives and refreshes after status changes", %{conn: conn} do
+    {:ok, active} = Catalog.create_deck(%{"name" => "Active", "status" => "active"})
+    {:ok, _brewing} = Catalog.create_deck(%{"name" => "Brewing"})
+
+    {:ok, _excluded} =
+      Catalog.create_deck(%{
+        "name" => "Benched",
+        "status" => "active",
+        "included_for_play" => false
+      })
+
+    {:ok, _archived} = Catalog.create_deck(%{"name" => "Archived", "status" => "archived"})
+
+    query = "query { homeSummary { deckCount } }"
+    response = post(conn, "/api/graphql", %{"query" => query})
+    assert %{"data" => %{"homeSummary" => %{"deckCount" => 3}}} = json_response(response, 200)
+    assert Catalog.count_decks() == 4
+
+    {:ok, archived} = Catalog.update_deck(active, %{"status" => "archived"})
+    response = post(recycle(response), "/api/graphql", %{"query" => query})
+    assert %{"data" => %{"homeSummary" => %{"deckCount" => 2}}} = json_response(response, 200)
+
+    {:ok, _restored} = Catalog.update_deck(archived, %{"status" => "active"})
+    response = post(recycle(response), "/api/graphql", %{"query" => query})
+    assert %{"data" => %{"homeSummary" => %{"deckCount" => 3}}} = json_response(response, 200)
+    assert Catalog.count_decks() == 4
   end
 
   test "cloud backups are empty before a provider is configured", %{conn: conn} do

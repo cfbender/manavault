@@ -51,6 +51,47 @@ searches and import matching become useful after the bulk catalog sync succeeds.
 The catalog uses Scryfall's public bulk-data endpoint, and the catalog plus
 symbol/set icon assets refresh daily while the app is running.
 
+### Diagnosing a stalled catalog sync
+
+Oban's Lifeline checks once a minute for jobs left `executing` for over an hour
+after a crash, restart, or failed database acknowledgement. It requeues jobs
+with attempts remaining and discards exhausted jobs, allowing the next scheduled
+or manual reload to enqueue again. The one-hour threshold must stay above every
+worker timeout; current workers run for at most 30 minutes.
+
+`Exqlite.Error: Database busy` while updating `oban_jobs` means a job could not
+record its result. A backup worker error alone does not establish that the
+catalog sync failed. To check, run these read-only queries against the live
+SQLite database (default `/data/manavault.db`):
+
+```sql
+SELECT id, worker, state, attempt, max_attempts, attempted_at, errors
+FROM oban_jobs
+WHERE worker IN ('Manavault.Catalog.ScryfallCatalogWorker',
+                 'Manavault.Backup.CloudBackupWorker')
+ORDER BY id DESC LIMIT 20;
+
+SELECT id, status, started_at, completed_at, printings_count, error
+FROM scryfall_syncs ORDER BY id DESC LIMIT 10;
+
+SELECT scryfall_id, set_code, collector_number, updated_at
+FROM scryfall_printings WHERE set_code = 'sld' AND collector_number = '2618';
+```
+
+An old `executing` catalog job can block both scheduled and forced reloads
+because sync jobs are unique across all incomplete states. Lifeline recovers
+existing orphans too, on its next check once they exceed the threshold. Recovery
+does not remove the underlying SQLite write contention; repeated busy errors
+still need investigation of the overlapping writes.
+
+The recurring saltiness and commander-rank refreshes commit updates in batches
+of at most 200 cards, then clear values absent from the new feed in equally
+bounded batches. Other writers can acquire the lock between statements. Values
+become visible incrementally rather than as one atomic refresh; a failure keeps
+completed batches, and retrying completes the refresh without first blanking the
+whole table. The one-time paper-printing reconciliation still uses a single
+transaction to keep collection, deck, and trade references consistent.
+
 ## Docker Compose
 
 Example `docker-compose.yml`:

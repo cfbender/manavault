@@ -11,7 +11,7 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
      %{
        collection_count: Catalog.count_collection_items(),
        location_count: Catalog.count_locations(),
-       deck_count: Catalog.count_decks()
+       deck_count: Catalog.count_non_archived_decks()
      }}
   end
 

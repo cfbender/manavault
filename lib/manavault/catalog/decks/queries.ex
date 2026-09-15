@@ -55,6 +55,12 @@ defmodule Manavault.Catalog.Decks.Queries do
     Repo.aggregate(Deck, :count)
   end
 
+  def count_non_archived_decks do
+    Deck
+    |> where([deck], deck.status != "archived")
+    |> Repo.aggregate(:count)
+  end
+
   def get_deck_by_share_token(token, opts \\ [])
 
   def get_deck_by_share_token(token, opts) when is_list(opts) do

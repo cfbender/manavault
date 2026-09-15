@@ -1037,6 +1037,84 @@ defmodule Manavault.Catalog.CollectionTest do
     assert [ring.id] == location_item_ids(colorless)
   end
 
+  test "auto-sort matches permanent front faces for both type includes and excludes" do
+    cards = [
+      test_card(
+        "emeritus",
+        "Emeritus of Woe // Demonic Tutor",
+        "Creature — Vampire Warlock // Sorcery",
+        ["B"],
+        "mythic"
+      ),
+      test_card(
+        "precious",
+        "My Precious // Allure of Power",
+        "Legendary Artifact — Equipment // Instant — Adventure",
+        [],
+        "rare"
+      ),
+      test_card("split", "Discovery // Dispersal", "Sorcery // Instant", ["U", "B"], "uncommon"),
+      test_card("sorcery", "Demonic Tutor", "Sorcery", ["B"], "rare")
+    ]
+
+    assert {:ok, %{cards_count: 4}} = Catalog.import_cards(cards)
+    instants = create_location!("Instants")
+    sorceries = create_location!("Sorceries")
+    creatures = create_location!("Creatures")
+    artifacts = create_location!("Artifacts")
+
+    update_auto_sort_rules!([
+      %{
+        target_location_id: instants.id,
+        enabled: true,
+        priority: 1,
+        type_line_includes: ["instant"]
+      },
+      %{
+        target_location_id: sorceries.id,
+        enabled: true,
+        priority: 2,
+        type_line_includes: ["sorcery"]
+      },
+      %{
+        target_location_id: creatures.id,
+        enabled: true,
+        priority: 3,
+        type_line_includes: ["creature", "vampire"],
+        type_line_excludes: ["sorcery"]
+      },
+      %{
+        target_location_id: artifacts.id,
+        enabled: true,
+        priority: 4,
+        type_line_includes: ["artifact", "equipment"],
+        type_line_excludes: ["instant"]
+      }
+    ])
+
+    emeritus = create_collection_item!("scryfall-emeritus")
+    precious = create_collection_item!("scryfall-precious")
+    split = create_collection_item!("scryfall-split")
+    sorcery = create_collection_item!("scryfall-sorcery")
+
+    assert {:ok, %{moved_count: 4, moves: moves}} = Catalog.auto_sort_collection(dry_run: true)
+
+    assert Map.new(moves, &{&1.collection_item_id, &1.to_location_id}) == %{
+             emeritus.id => creatures.id,
+             precious.id => artifacts.id,
+             split.id => instants.id,
+             sorcery.id => sorceries.id
+           }
+
+    assert [] == location_item_ids(creatures)
+
+    assert {:ok, %{moved_count: 4}} = Catalog.auto_sort_collection()
+    assert [emeritus.id] == location_item_ids(creatures)
+    assert [precious.id] == location_item_ids(artifacts)
+    assert [split.id] == location_item_ids(instants)
+    assert [sorcery.id] == location_item_ids(sorceries)
+  end
+
   test "auto-sort treats transformed cards as front-face colors instead of colorless" do
     assert {:ok, %{cards_count: 1, printings_count: 1}} =
              Catalog.import_cards([transformed_blue_card()])
