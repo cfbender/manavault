@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm"
 import remarkMath from "remark-math"
 import { useState } from "react"
 import { ManaSymbol } from "../../components/ui/mana-symbols"
+import { overlayLayers } from "../../components/ui/overlay-layers"
 import "katex/dist/katex.min.css"
 
 type MarkdownNode = {
@@ -147,7 +148,8 @@ function CardReference({ href, name }: { href: string; name: string }) {
       <HoverCardPrimitive.Portal>
         <HoverCardPrimitive.Content
           align="center"
-          className="z-[1200] w-60 rounded-box border border-base-300 bg-base-100 p-2 shadow-2xl outline-none"
+          className="w-60 rounded-box border border-base-300 bg-base-100 p-2 shadow-2xl outline-none"
+          style={{ zIndex: overlayLayers.floating }}
           collisionPadding={12}
           sideOffset={8}
         >

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { Sparkles } from "lucide-react"
 import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
+import { overlayLayers } from "../../components/ui/overlay-layers"
 import {
   Select,
   SelectContent,
@@ -577,26 +579,29 @@ function CardNamePreview({
       >
         {cardName}
       </a>
-      {position ? (
-        <a
-          href={cardHref}
-          target="_blank"
-          rel="noreferrer"
-          aria-label={`Open ${cardName} card details in a new tab`}
-          className="fixed z-[9999] block w-44 -translate-y-full rounded-xl border border-base-300 bg-base-100 p-2 shadow-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
-          style={{ left: position.left, top: position.top }}
-          onBlur={hidePreviewSoon}
-          onFocus={showPreview}
-          onPointerEnter={showPreview}
-          onPointerLeave={hidePreviewSoon}
-        >
-          <img
-            src={imageUrl}
-            alt={cardName}
-            className="aspect-[5/7] w-full rounded-lg object-cover"
-          />
-        </a>
-      ) : null}
+      {position
+        ? createPortal(
+            <a
+              href={cardHref}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={`Open ${cardName} card details in a new tab`}
+              className="pointer-events-auto fixed block w-44 -translate-y-full rounded-xl border border-base-300 bg-base-100 p-2 shadow-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
+              style={{ left: position.left, top: position.top, zIndex: overlayLayers.floating }}
+              onBlur={hidePreviewSoon}
+              onFocus={showPreview}
+              onPointerEnter={showPreview}
+              onPointerLeave={hidePreviewSoon}
+            >
+              <img
+                src={imageUrl}
+                alt={cardName}
+                className="aspect-[5/7] w-full rounded-lg object-cover"
+              />
+            </a>,
+            document.body,
+          )
+        : null}
     </span>
   )
 }

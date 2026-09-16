@@ -306,7 +306,12 @@ describe("Dialog", () => {
       within(screen.getByRole("dialog", { name: "Card details" })).getByText("Card actions"),
     )
 
-    expect(screen.getByRole("menu").classList.contains("z-[1200]")).toBe(true)
+    const dialog = screen.getByRole("dialog", { name: "Card details", hidden: true })
+    const menu = screen.getByRole("menu")
+    expect(dialog.contains(menu)).toBe(false)
+    expect(Number(getComputedStyle(menu).zIndex)).toBeGreaterThan(
+      Number(getComputedStyle(dialog.parentElement!).zIndex),
+    )
   })
 })
 

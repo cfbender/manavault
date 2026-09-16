@@ -2,6 +2,7 @@ import { Box, CheckSquare, ChevronDown, Edit3, MoveRight, Square, Trash2 } from 
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Button } from "../../components/ui/button"
+import { overlayLayers } from "../../components/ui/overlay-layers"
 import { useMobileHoverReveal } from "../../lib/mobile-hover"
 import { cn } from "../../lib/utils"
 import { DeckCardTagButton } from "./deck-card-allocation"
@@ -103,8 +104,8 @@ function DeckZoneCardName({
         ? createPortal(
             <div
               aria-hidden="true"
-              className="fixed z-50 block w-44 -translate-y-full rounded-xl border border-base-300 bg-base-100 p-2 shadow-2xl"
-              style={{ left: position.left, top: position.top }}
+              className="pointer-events-auto fixed block w-44 -translate-y-full rounded-xl border border-base-300 bg-base-100 p-2 shadow-2xl"
+              style={{ left: position.left, top: position.top, zIndex: overlayLayers.floating }}
               onPointerEnter={showPreview}
               onPointerLeave={hidePreviewSoon}
             >

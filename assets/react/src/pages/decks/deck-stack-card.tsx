@@ -368,7 +368,7 @@ export function DeckStackCard({
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="start"
-                className="z-[140] w-52 max-h-[min(70vh,var(--radix-dropdown-menu-content-available-height))] overflow-y-auto"
+                className="w-52 max-h-[min(70vh,var(--radix-dropdown-menu-content-available-height))] overflow-y-auto"
                 {...{ [DECK_STACK_CARD_MENU_ATTRIBUTE]: deckCard.id }}
               >
                 <DropdownMenuItem onSelect={onPreview}>
@@ -751,7 +751,7 @@ function DeckCardAllocationQuickMenu({
           </CardTileOverlayButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent
-          className="z-[140] w-44"
+          className="w-44"
           {...{ [DECK_STACK_CARD_MENU_ATTRIBUTE]: deckCard.id }}
         >
           <DropdownMenuLabel className="whitespace-normal text-base-content">

@@ -2,6 +2,7 @@ import * as SelectPrimitive from "@radix-ui/react-select"
 import { Check, ChevronDown, ChevronUp } from "lucide-react"
 import type { ComponentPropsWithoutRef } from "react"
 import { cn } from "../../lib/utils"
+import { overlayLayers } from "./overlay-layers"
 
 export const Select = SelectPrimitive.Root
 export const SelectValue = SelectPrimitive.Value
@@ -37,6 +38,7 @@ export function SelectContent({
   collisionPadding = 12,
   position = "popper",
   sideOffset = 4,
+  style,
   ...props
 }: ComponentPropsWithoutRef<typeof SelectPrimitive.Content>) {
   return (
@@ -46,9 +48,10 @@ export function SelectContent({
         sideOffset={sideOffset}
         collisionPadding={collisionPadding}
         className={cn(
-          "z-[1200] max-h-[min(24rem,var(--radix-select-content-available-height))] min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-box border border-base-300 bg-base-100 text-sm shadow-xl",
+          "max-h-[min(24rem,var(--radix-select-content-available-height))] min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-box border border-base-300 bg-base-100 text-sm shadow-xl",
           className,
         )}
+        style={{ ...style, zIndex: overlayLayers.floating }}
         {...props}
       >
         <SelectPrimitive.ScrollUpButton className="flex h-6 cursor-default items-center justify-center bg-base-100 text-base-content/60">

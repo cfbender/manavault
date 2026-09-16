@@ -1,6 +1,7 @@
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
 import type { ComponentPropsWithoutRef, ReactNode } from "react"
 import { cn } from "../../lib/utils"
+import { overlayLayers } from "./overlay-layers"
 
 export const DropdownMenu = DropdownMenuPrimitive.Root
 export const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger
@@ -9,6 +10,7 @@ export function DropdownMenuContent({
   align = "end",
   className,
   sideOffset = 4,
+  style,
   ...props
 }: ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>) {
   return (
@@ -17,9 +19,10 @@ export function DropdownMenuContent({
         align={align}
         sideOffset={sideOffset}
         className={cn(
-          "z-[1200] min-w-48 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-xl outline-none",
+          "min-w-48 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-xl outline-none",
           className,
         )}
+        style={{ ...style, zIndex: overlayLayers.floating }}
         {...props}
       />
     </DropdownMenuPrimitive.Portal>

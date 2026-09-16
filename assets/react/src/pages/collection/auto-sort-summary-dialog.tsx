@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Button } from "../../components/ui/button"
+import { overlayLayers } from "../../components/ui/overlay-layers"
 import {
   Dialog,
   DialogClose,
@@ -403,8 +404,8 @@ function CardNamePreview({ move }: { move: AutoSortSummaryMove }) {
         ? createPortal(
             <div
               aria-hidden="true"
-              className="pointer-events-none fixed z-[1200] block w-44 rounded-box border border-base-300 bg-base-100 p-2 shadow-2xl"
-              style={{ left: position.left, top: position.top }}
+              className="pointer-events-none fixed block w-44 rounded-box border border-base-300 bg-base-100 p-2 shadow-2xl"
+              style={{ left: position.left, top: position.top, zIndex: overlayLayers.floating }}
             >
               <img src={imageUrl} alt="" className="aspect-[5/7] w-full rounded-lg object-cover" />
             </div>,

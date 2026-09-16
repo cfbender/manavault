@@ -265,6 +265,11 @@ test("auto-sort summary shows printing details and keeps the image preview in th
     12,
   )
   expect(previewImage?.parentElement?.style.left).toBe("72px")
+  const preview = previewImage!.parentElement!
+  expect(preview.parentElement).toBe(document.body)
+  expect(Number(getComputedStyle(preview).zIndex)).toBeGreaterThan(
+    Number(getComputedStyle(dialog.parentElement!).zIndex),
+  )
 })
 
 test.each([true, false])(
