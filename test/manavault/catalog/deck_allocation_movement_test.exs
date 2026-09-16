@@ -145,6 +145,38 @@ defmodule Manavault.Catalog.DeckAllocationMovementTest do
     assert status.missing == 1
   end
 
+  test "moving a deck card to considering restores physical copies and clears proxies" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+    assert {:ok, binder} = Catalog.create_location(%{name: "Considering Binder", kind: "binder"})
+
+    assert {:ok, item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "location_id" => binder.id
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Considering Deallocation"})
+
+    assert {:ok, lotus} =
+             Catalog.add_card_to_deck(deck, %{"name" => "Black Lotus", "quantity" => 2})
+
+    assert {:ok, _deck_card} = Catalog.allocate_proxy_to_deck_card(lotus.id)
+    assert {:ok, allocation} = Catalog.allocate_collection_item_to_deck_card(lotus.id, item.id)
+    allocated_item_id = allocation.collection_item_id
+    binder_id = binder.id
+
+    assert {:ok, considering_lotus} =
+             Catalog.update_deck_card(lotus, %{"zone" => "considering"})
+
+    assert considering_lotus.zone == "considering"
+    assert considering_lotus.proxy_quantity == 0
+    assert Repo.get(DeckAllocation, allocation.id) == nil
+
+    assert %CollectionItem{location_id: ^binder_id, quantity: 1} =
+             Catalog.get_collection_item!(allocated_item_id)
+  end
+
   test "deck allocation does not count collection items held in list locations" do
     assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
     assert {:ok, list} = Catalog.create_location(%{name: "Wishlist", kind: "list"})

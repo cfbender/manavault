@@ -256,27 +256,41 @@ defmodule Manavault.Catalog.Decks.Cards do
   end
 
   defp update_deck_card_with_allocation_switch(%DeckCard{} = deck_card, attrs) do
-    if should_switch_deck_card_allocation?(deck_card, attrs) do
-      Repo.transact(fn ->
-        with {:ok, deck_card} <- update_deck_card_record(deck_card, attrs) do
-          allocation_quantity = deck_card_physical_allocation_quantity(deck_card)
-          clear_deck_card_allocations!(deck_card)
-
-          if allocation_quantity > 0 do
-            case DeckCardAllocation.allocate_available_preferred_printing_to_deck_card(
-                   deck_card,
-                   allocation_quantity
-                 ) do
-              {:ok, deck_card} -> {:ok, Repo.preload(deck_card, [:card, :preferred_printing])}
-              {:error, reason} -> Repo.rollback(reason)
-            end
-          else
+    cond do
+      moving_to_considering?(deck_card, attrs) ->
+        Repo.transact(fn ->
+          with {:ok, deck_card} <-
+                 update_deck_card_record(deck_card, Map.put(attrs, "proxy_quantity", 0)) do
+            clear_deck_card_allocations!(deck_card)
             {:ok, deck_card}
           end
-        end
-      end)
-    else
-      update_deck_card_record(deck_card, attrs)
+        end)
+
+      should_switch_deck_card_allocation?(deck_card, attrs) ->
+        Repo.transact(fn ->
+          with {:ok, deck_card} <- update_deck_card_record(deck_card, attrs) do
+            allocation_quantity = deck_card_physical_allocation_quantity(deck_card)
+            clear_deck_card_allocations!(deck_card)
+
+            if allocation_quantity > 0 do
+              case DeckCardAllocation.allocate_available_preferred_printing_to_deck_card(
+                     deck_card,
+                     allocation_quantity
+                   ) do
+                {:ok, deck_card} ->
+                  {:ok, Repo.preload(deck_card, [:card, :preferred_printing])}
+
+                {:error, reason} ->
+                  Repo.rollback(reason)
+              end
+            else
+              {:ok, deck_card}
+            end
+          end
+        end)
+
+      true ->
+        update_deck_card_record(deck_card, attrs)
     end
   end
 
@@ -291,6 +305,11 @@ defmodule Manavault.Catalog.Decks.Cards do
        attrs["preferred_printing_id"] != deck_card.preferred_printing_id) or
       (Map.has_key?(attrs, "finish") and attrs["finish"] != deck_card.finish)
   end
+
+  defp moving_to_considering?(%DeckCard{zone: zone}, %{"zone" => "considering"}),
+    do: zone != "considering"
+
+  defp moving_to_considering?(%DeckCard{}, _attrs), do: false
 
   defp deck_card_physical_allocation_quantity(%DeckCard{} = deck_card) do
     deck_card
