@@ -77,7 +77,7 @@ test("the picker explains when no active decks are available", async () => {
 
   expect(await screen.findByText("No decks are ready to pick")).toBeTruthy()
   expect(
-    screen.getByText("Create a deck, or edit a non-archived deck and turn on Included for play."),
+    screen.getByText("Edit a deck, set its status to Active, and turn on Included for play."),
   ).toBeTruthy()
   expect((screen.getByRole("button", { name: "Skip" }) as HTMLButtonElement).disabled).toBe(true)
   expect(

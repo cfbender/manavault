@@ -99,7 +99,7 @@ export function RandomDeckDialog({
           ) : (
             <DeckPickerMessage
               title="No decks are ready to pick"
-              detail="Create a deck, or edit a non-archived deck and turn on Included for play."
+              detail="Edit a deck, set its status to Active, and turn on Included for play."
             />
           )}
 

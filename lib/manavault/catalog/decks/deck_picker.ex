@@ -24,6 +24,7 @@ defmodule Manavault.Catalog.Decks.DeckPicker do
     deck
     |> change(%{
       play_count: deck.play_count + 1,
+      skip_count: 0,
       last_played_at: DateTime.utc_now() |> DateTime.truncate(:second)
     })
     |> Repo.update()
@@ -64,7 +65,7 @@ defmodule Manavault.Catalog.Decks.DeckPicker do
 
   defp list_playable_decks do
     Deck
-    |> where([deck], deck.status != "archived" and deck.included_for_play)
+    |> where([deck], deck.status == "active" and deck.included_for_play)
     |> order_by([deck], asc: deck.name, asc: deck.id)
     |> Repo.all()
   end

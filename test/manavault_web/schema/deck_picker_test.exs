@@ -7,7 +7,7 @@ defmodule ManavaultWeb.Schema.DeckPickerTest do
     conn: conn
   } do
     assert {:ok, first} = Catalog.create_deck(%{"name" => "First", "status" => "active"})
-    assert {:ok, second} = Catalog.create_deck(%{"name" => "Second", "status" => "brewing"})
+    assert {:ok, second} = Catalog.create_deck(%{"name" => "Second", "status" => "active"})
     assert {:ok, _archived} = Catalog.create_deck(%{"name" => "Retired", "status" => "archived"})
 
     conn =
@@ -42,7 +42,8 @@ defmodule ManavaultWeb.Schema.DeckPickerTest do
   end
 
   test "record deck play mutation persists played and skipped outcomes", %{conn: conn} do
-    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Tonight", "status" => "active"})
+    assert {:ok, deck} =
+             Catalog.create_deck(%{"name" => "Tonight", "status" => "active", "skip_count" => 4})
 
     played_conn = record_outcome(conn, deck, "PLAYED")
 
@@ -77,6 +78,7 @@ defmodule ManavaultWeb.Schema.DeckPickerTest do
   end
 
   test "random deck query returns null without playable decks", %{conn: conn} do
+    assert {:ok, _brewing} = Catalog.create_deck(%{"name" => "Brewing", "status" => "brewing"})
     assert {:ok, _archived} = Catalog.create_deck(%{"name" => "Retired", "status" => "archived"})
 
     conn =
