@@ -362,6 +362,11 @@ test("price grouping buckets cards by per-card price", () => {
       deckCard("twenty-five", { priceCents: 2500 }),
       deckCard("fifty", { priceCents: 5000 }),
       deckCard("unknown", { priceCents: null }),
+      deckCard("proxy", {
+        quantity: 2,
+        priceCents: 7500,
+        allocationStatus: { proxyAllocated: 1, state: "allocated" },
+      }),
     ],
     "price",
   )
@@ -376,6 +381,7 @@ test("price grouping buckets cards by per-card price", () => {
       { key: "10-25", label: "$10–$25", quantity: 1 },
       { key: "25-50", label: "$25–$50", quantity: 1 },
       { key: "50-plus", label: "$50+", quantity: 1 },
+      { key: "proxies", label: "Proxies", quantity: 2 },
       { key: "unpriced", label: "Unpriced", quantity: 1 },
     ],
   )

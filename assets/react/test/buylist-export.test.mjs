@@ -19,14 +19,15 @@ test("buylistTotalPrice sums priced entries and counts unpriced quantities", () 
 
 test("deckCardsTotalPrice sums priced commander and mainboard quantities", () => {
   const summary = deckCardsTotalPrice([
-    deckCard({ quantity: 4, zone: "mainboard", missing: 2, priceCents: 500 }),
+    deckCard({ quantity: 4, zone: "mainboard", missing: 2, priceCents: 500, proxyAllocated: 1 }),
     deckCard({ quantity: 1, zone: "commander", missing: 1, priceCents: 125 }),
-    deckCard({ quantity: 3, zone: "mainboard", missing: 2, priceCents: null }),
+    deckCard({ quantity: 3, zone: "mainboard", missing: 2, priceCents: null, proxyAllocated: 2 }),
+    deckCard({ quantity: 2, zone: "mainboard", missing: 0, priceCents: 900, proxyAllocated: 2 }),
     deckCard({ quantity: 4, zone: "considering", missing: 4, priceCents: 1000 }),
     deckCard({ quantity: 5, zone: "considering", missing: 5, priceCents: 1000 }),
   ])
 
-  assert.deepEqual(summary, { totalCents: 2125, unpricedQuantity: 3 })
+  assert.deepEqual(summary, { totalCents: 1625, unpricedQuantity: 1 })
 })
 
 test("deckMissingCardsTotalPrice sums only unaccounted main deck entries", () => {
@@ -43,7 +44,7 @@ test("deckMissingCardsTotalPrice sums only unaccounted main deck entries", () =>
   assert.deepEqual(summary, { totalCents: 1125, unpricedQuantity: 2 })
 })
 
-function deckCard({ quantity, zone, missing, priceCents, tag = null }) {
+function deckCard({ quantity, zone, missing, priceCents, proxyAllocated = 0, tag = null }) {
   return {
     quantity,
     zone,
@@ -51,6 +52,7 @@ function deckCard({ quantity, zone, missing, priceCents, tag = null }) {
     priceCents,
     allocationStatus: {
       missing,
+      proxyAllocated,
     },
   }
 }

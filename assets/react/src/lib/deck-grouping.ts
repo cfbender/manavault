@@ -88,7 +88,7 @@ export type DeckGroupingDeckCard = {
   tag?: string | null
   tagIds?: string[] | null
   priceCents?: number | null
-  allocationStatus?: { state: string | null } | null
+  allocationStatus?: { proxyAllocated?: number | null; state: string | null } | null
   card: DeckGroupingCard | null
   preferredPrinting: DeckGroupingPrinting | null
   fallbackPrinting: DeckGroupingPrinting | null
@@ -393,6 +393,10 @@ function deckCardGroupDescriptor<T extends DeckGroupingDeckCard>(
   }
 
   if (groupBy === "price") {
+    if ((deckCard.allocationStatus?.proxyAllocated || 0) > 0) {
+      return { icon: "none", key: "proxies", label: "Proxies", order: 98 }
+    }
+
     return priceDescriptor(deckCard.priceCents)
   }
 
