@@ -102,6 +102,29 @@ defmodule Manavault.AI.DeckAnalysisTest do
     refute prompt =~ "required by the literal Commander Brackets guidelines"
   end
 
+  test "frames the analysis around deck structure, role balance, and synergy" do
+    prompt = DeckAnalysis.system_prompt() |> String.replace(~r/\s+/, " ")
+
+    assert prompt =~ "State its objective as a chain"
+    assert prompt =~ "engine pieces that perform the core action, multipliers"
+    assert prompt =~ "fewer cards in whatever role the commander fills"
+    assert prompt =~ "Prefer synergy over generic staples"
+    assert prompt =~ "Size interaction to the plan"
+    assert prompt =~ "remove the lowest-synergy cards from over-represented roles first"
+    assert prompt =~ "In power_up, lead with the change that most strengthens the thinnest link"
+    assert prompt =~ "pair each addition with the low-synergy card it should replace"
+    assert prompt =~ "In consistency, judge whether the deck reliably assembles its chain on time"
+    assert prompt =~ "Distinguish improvements that make the deck more reliable"
+
+    user_prompt =
+      %{deck: %{format: "commander", cards: []}, facts: %{}}
+      |> DeckAnalysis.user_prompt()
+      |> String.replace(~r/\s+/, " ")
+
+    assert user_prompt =~ "Identify its objective chain"
+    assert user_prompt =~ "naming both the cards to add and the cards to cut"
+  end
+
   test "requires empty custom sections when no custom instructions exist" do
     schema = DeckAnalysis.response_schema()
     assert schema.properties.custom_sections.maxItems == 0

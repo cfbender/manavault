@@ -52,6 +52,27 @@ defmodule Manavault.AI.DeckAnalysis do
     zone means mainboard, omitted format_legality means legal, omitted game_changer means false,
     and other omitted fields have no value.
 
+    Evaluate the deck by its structure, not only by individual card quality:
+    - State its objective as a chain: the core action it repeats, how it capitalizes on that action,
+      and how that becomes a win or an insurmountable lead. Name the specific cards filling each
+      link. A thin or missing link (for example, plenty of setup but few ways to convert it) matters
+      more than any single weak card, and is usually the most useful thing to point out.
+    - Sort the nonland cards by role: engine pieces that perform the core action, multipliers that
+      make the engine do more, payoffs that win once the engine has run, and support (card
+      advantage, mana advantage, and interaction or protection). Judge which roles are over- or
+      under-represented for the plan. Weigh the command zone heavily: a commander is always
+      available, so the deck needs fewer cards in whatever role the commander fills and more in
+      the roles it does not.
+    - Prefer synergy over generic staples. Card draw, mana, and interaction that plug into the
+      deck's own engine (draw keyed to what the deck produces, mana from the resources it already
+      makes, sweepers that leave its board intact or push it ahead) usually raise power more than
+      expensive format staples, and are often cheaper.
+    - Size interaction to the plan. A fast or naturally resilient deck (ward, noncreature engines,
+      quick rebuilds) needs less; a slow or fragile one needs more. A deck that is the obvious
+      threat wants more protection; a deck that wins from under the radar wants more removal.
+    - When recommending cuts, remove the lowest-synergy cards from over-represented roles first,
+      even when they are individually strong.
+
     For Commander decks, distinguish two bracket values:
 
     1. official_bracket is the closest label under the published Commander Brackets guidance and
@@ -105,6 +126,20 @@ defmodule Manavault.AI.DeckAnalysis do
 
     For a non-Commander deck, return null for both bracket fields and explain that Commander
     Brackets do not apply. The official source is #{@official_guidance_url}.
+    In game_plan, walk through the objective chain and how its pieces sequence over a typical game,
+    including roughly when the deck expects to present a win or a dominant position.
+    In strengths and weaknesses, identify which structural roles are well covered and which are
+    thin, and whether the deck's card advantage, mana, and interaction are sized for its plan.
+    In power_up, lead with the change that most strengthens the thinnest link or most
+    under-represented role, favor synergistic engines over generic staples, and pair each addition
+    with the low-synergy card it should replace. Say when a change would also move the bracket.
+    In power_down, weaken the plan by removing redundancy from multipliers or payoffs and replacing
+    synergistic advantage engines with slower effects, while keeping the objective recognizable.
+    In consistency, judge whether the deck reliably assembles its chain on time: redundancy for
+    each link, whether the card draw digs deep enough to find the payoffs, whether the mana comes
+    online when the plan needs it, land count and curve, and whether a typical hand does something
+    meaningful in the first few turns. Distinguish improvements that make the deck more reliable
+    from those that make it more powerful.
     In opponent_experience, imagine playing against the deck. Describe whether its turns are quick
     and interactive or long and solitaire-like, and call out potentially frustrating play patterns
     such as repeated discard, stax, locks, resource denial, excessive tutoring or shuffling, and
@@ -137,8 +172,10 @@ defmodule Manavault.AI.DeckAnalysis do
 
   def user_prompt(payload) do
     """
-    Analyze this deck's goals, themes, game plan, strengths, and weaknesses. Recommend focused ways
-    to power it up, power it down, and improve consistency. Describe what playing against it is like,
+    Analyze this deck's goals, themes, game plan, strengths, and weaknesses. Identify its objective
+    chain and how well each structural role is covered, accounting for any commander. Recommend focused
+    ways to power it up, power it down, and improve consistency, naming both the cards to add and
+    the cards to cut. Describe what playing against it is like,
     including turn length and salt-inducing patterns, and include a practical mulligan guide with good
     early cards and hand patterns to look for. For Commander, assess both official and practical
     brackets and call out the specific evidence creating any difference between them.
