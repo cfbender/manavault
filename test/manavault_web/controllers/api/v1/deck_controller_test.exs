@@ -53,6 +53,7 @@ defmodule ManavaultWeb.Api.V1.DeckControllerTest do
 
     response =
       conn
+      |> Map.put(:host, "attacker.example")
       |> put_req_header("authorization", "Bearer #{token}")
       |> get("/api/v1/decks?page=1&per_page=1")
       |> json_response(200)
@@ -81,7 +82,8 @@ defmodule ManavaultWeb.Api.V1.DeckControllerTest do
 
     assert id == alpha.id
     assert is_binary(updated_at)
-    assert share_url == "http://www.example.com/share/decks/#{alpha.share_token}"
+    assert share_url == "#{ManavaultWeb.Endpoint.url()}/share/decks/#{alpha.share_token}"
+    refute share_url =~ "attacker.example"
 
     assert {:ok, used_key} = ApiKeys.authenticate(token)
     assert used_key.id == api_key.id

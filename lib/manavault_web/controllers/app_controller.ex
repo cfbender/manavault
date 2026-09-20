@@ -66,156 +66,19 @@ defmodule ManavaultWeb.AppController do
   end
 
   defp render_app(conn, preview) do
+    vite_dev? = vite_dev_server?(conn)
+
     conn
-    |> put_resp_content_type("text/html")
     |> put_resp_header("cache-control", "no-cache, no-store, must-revalidate")
     |> put_resp_header("pragma", "no-cache")
-    |> send_resp(200, app_html(get_csrf_token(), conn, preview))
-  end
-
-  defp app_html(csrf_token, conn, preview) do
-    asset_version = AssetVersion.current()
-    encoded_asset_version = Jason.encode!(asset_version)
-    app_css_path = static_path(conn, "/assets/css/app.css")
-    metadata_tags = metadata_tags(preview)
-    page_title = html_escape(preview.title)
-
-    react_scripts =
-      if vite_dev_server?(conn) do
-        vite_origin = if vite_proxy?(conn), do: "", else: "http://127.0.0.1:5173"
-
-        """
-        <script type="module">
-          import RefreshRuntime from "#{vite_origin}/@react-refresh"
-          RefreshRuntime.injectIntoGlobalHook(window)
-          window.$RefreshReg$ = () => {}
-          window.$RefreshSig$ = () => (type) => type
-          window.__vite_plugin_react_preamble_installed__ = true
-        </script>
-        <script type="module" src="#{vite_origin}/@vite/client"></script>
-        <script type="module" src="#{vite_origin}/assets/react/src/main.tsx"></script>
-        """
-      else
-        # Keep the ESM entry at the same canonical URL Vite chunks use when
-        # importing ../app.js. A version query creates a second module instance,
-        # remounts React, and duplicates Apollo queries in production.
-        ~s(<script defer type="module" src="/assets/react/app.js"></script>)
-      end
-
-    """
-    <!DOCTYPE html>
-    <html lang="en" class="h-screen w-screen overflow-hidden" data-theme-style="glass">
-      <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-        <meta name="csrf-token" content="#{csrf_token}" />
-        #{metadata_tags}
-        <meta name="application-name" content="ManaVault" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-title" content="ManaVault" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="theme-color" content="#166534" />
-        <title>#{page_title}</title>
-        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-        <link rel="manifest" href="/site.webmanifest?v=#{asset_version}" crossorigin="use-credentials" />
-        <link rel="stylesheet" href="#{app_css_path}" />
-        <script>
-          window.__manavaultAssetVersion = #{encoded_asset_version};
-          (() => {
-            if (window.__manavaultPwaInstallCapture) return;
-
-            window.__manavaultPwaInstallCapture = {
-              prompt: null,
-              fired: false,
-              firedAt: null
-            };
-
-            window.addEventListener("beforeinstallprompt", (event) => {
-              event.preventDefault();
-              window.__manavaultPwaInstallCapture = {
-                prompt: event,
-                fired: true,
-                firedAt: Date.now()
-              };
-              window.dispatchEvent(new Event("manavault:pwa-install-available"));
-            });
-          })();
-        </script>
-        #{react_scripts}
-        <script>
-          (() => {
-            const systemTheme = () => matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-            const storageKey = "manavault:theme";
-
-            const storedTheme = () => {
-              try {
-                return localStorage.getItem(storageKey) || "system";
-              } catch {
-                return "system";
-              }
-            };
-
-            const persistTheme = (theme) => {
-              try {
-                if (theme === "system") {
-                  localStorage.removeItem(storageKey);
-                } else {
-                  localStorage.setItem(storageKey, theme);
-                }
-              } catch {
-                // Storage can be unavailable or full. The DOM theme still applies for this page load.
-              }
-            };
-
-            const setTheme = (theme) => {
-              persistTheme(theme);
-              if (theme === "system") {
-                document.documentElement.setAttribute("data-theme", systemTheme());
-                document.documentElement.setAttribute("data-theme-source", "system");
-              } else {
-                document.documentElement.setAttribute("data-theme", theme);
-                document.documentElement.setAttribute("data-theme-source", "user");
-              }
-            };
-            if (!document.documentElement.hasAttribute("data-theme")) {
-              setTheme(storedTheme());
-            }
-
-            const styleStorageKey = "manavault:theme-style";
-
-            const storedThemeStyle = () => {
-              try {
-                return localStorage.getItem(styleStorageKey) === "classic" ? "classic" : "glass";
-              } catch {
-                return "glass";
-              }
-            };
-
-            const setThemeStyle = (style) => {
-              document.documentElement.setAttribute("data-theme-style", style === "classic" ? "classic" : "glass");
-            };
-            setThemeStyle(storedThemeStyle());
-            window.addEventListener("storage", (e) => {
-              if (e.key === storageKey) setTheme(e.newValue || "system");
-              if (e.key === styleStorageKey) setThemeStyle(e.newValue);
-            });
-
-            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
-              if (document.documentElement.getAttribute("data-theme-source") === "system") {
-                document.documentElement.setAttribute("data-theme", systemTheme());
-              }
-            });
-          })();
-        </script>
-      </head>
-      <body class="h-screen w-screen overflow-hidden">
-        <div id="manavault-root"></div>
-      </body>
-    </html>
-    """
+    |> render(:app,
+      layout: false,
+      csrf_token: get_csrf_token(),
+      preview: preview,
+      asset_version: AssetVersion.current(),
+      vite_dev?: vite_dev?,
+      vite_origin: if(vite_dev? and not vite_proxy?(conn), do: "http://127.0.0.1:5173", else: "")
+    )
   end
 
   defp default_preview(conn, attrs \\ %{}) do
@@ -261,61 +124,9 @@ defmodule ManavaultWeb.AppController do
     })
   end
 
-  defp metadata_tags(preview) do
-    twitter_card =
-      if present?(preview.image_url), do: "summary_large_image", else: "summary"
-
-    [
-      meta_tag("name", "description", preview.description),
-      meta_tag("property", "og:site_name", "ManaVault"),
-      meta_tag("property", "og:type", "website"),
-      meta_tag("property", "og:title", preview.title),
-      meta_tag("property", "og:description", preview.description),
-      meta_tag("property", "og:url", preview.url),
-      meta_tag("property", "og:image", preview.image_url),
-      meta_tag("property", "og:image:type", preview.image_type),
-      meta_tag("property", "og:image:width", preview.image_width),
-      meta_tag("property", "og:image:height", preview.image_height),
-      meta_tag("property", "og:image:alt", preview.image_alt),
-      meta_tag("name", "twitter:card", twitter_card),
-      meta_tag("name", "twitter:title", preview.title),
-      meta_tag("name", "twitter:description", preview.description),
-      meta_tag("name", "twitter:image", preview.image_url)
-    ]
-    |> Enum.reject(&(&1 == ""))
-    |> Enum.join("\n        ")
-  end
-
-  defp meta_tag(_name_attr, _name, value) when value in [nil, ""], do: ""
-
-  defp meta_tag(name_attr, name, value) do
-    ~s(<meta #{name_attr}="#{html_escape(name)}" content="#{html_escape(value)}" />)
-  end
-
-  defp absolute_url(conn, path) do
-    %URI{
-      scheme: Atom.to_string(conn.scheme),
-      host: conn.host,
-      port: url_port(conn),
-      path: path
-    }
-    |> URI.to_string()
-  end
-
-  defp url_port(%{scheme: :http, port: 80}), do: nil
-  defp url_port(%{scheme: :https, port: 443}), do: nil
-  defp url_port(%{port: port}), do: port
+  defp absolute_url(_conn, path), do: ManavaultWeb.Endpoint.url() <> path
 
   defp encode_path_segment(segment), do: URI.encode(segment, &URI.char_unreserved?/1)
-
-  defp present?(value), do: is_binary(value) and value != ""
-
-  defp html_escape(value) do
-    value
-    |> to_string()
-    |> Phoenix.HTML.html_escape()
-    |> Phoenix.HTML.safe_to_string()
-  end
 
   defp vite_dev_server?(conn) do
     Application.get_env(:manavault, :vite_dev_server?, false) &&

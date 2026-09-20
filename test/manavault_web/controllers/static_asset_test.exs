@@ -136,8 +136,11 @@ defmodule ManavaultWeb.StaticAssetTest do
     assert conn.resp_body =~
              ~s|rel="manifest" href="/site.webmanifest?v=#{AssetVersion.current()}"|
 
-    assert conn.resp_body =~ ~s|window.__manavaultAssetVersion = "#{AssetVersion.current()}"|
-    assert conn.resp_body =~ ~s|__manavaultPwaInstallCapture|
+    assert conn.resp_body =~
+             ~s|name="manavault-asset-version" content="#{AssetVersion.current()}"|
+
+    assert conn.resp_body =~ ~s|src="/shell/js/pwa-install.js"|
+    assert conn.resp_body =~ ~s|src="/shell/js/theme.js"|
     assert conn.resp_body =~ ~s|href="/assets/css/app.css"|
     assert conn.resp_body =~ ~s|src="/assets/react/app.js"|
     refute conn.resp_body =~ ~s|src="/assets/react/app.js?|

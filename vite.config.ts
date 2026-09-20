@@ -68,6 +68,7 @@ export default defineConfig({
       "/sw.js": phoenixProxy,
       "/.well-known": phoenixProxy,
       "/assets/css": phoenixProxy,
+      "/shell": phoenixProxy,
       "/fonts": phoenixProxy,
       "/images": phoenixProxy,
       "/screenshots": phoenixProxy,

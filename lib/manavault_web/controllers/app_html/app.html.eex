@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en" class="h-screen w-screen overflow-hidden" data-theme-style="glass">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="csrf-token" content="<%= @csrf_token %>" />
+    <meta name="manavault-asset-version" content="<%= @asset_version %>" />
+    <%= if @vite_dev? do %><meta name="manavault-vite-origin" content="<%= @vite_origin %>" /><% end %>
+    <meta name="description" content="<%= @preview.description %>" />
+    <meta property="og:site_name" content="ManaVault" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="<%= @preview.title %>" />
+    <meta property="og:description" content="<%= @preview.description %>" />
+    <meta property="og:url" content="<%= @preview.url %>" />
+    <%= if present?(@preview.image_url) do %><meta property="og:image" content="<%= @preview.image_url %>" /><% end %>
+    <%= if present?(@preview.image_type) do %><meta property="og:image:type" content="<%= @preview.image_type %>" /><% end %>
+    <%= if present?(@preview.image_width) do %><meta property="og:image:width" content="<%= @preview.image_width %>" /><% end %>
+    <%= if present?(@preview.image_height) do %><meta property="og:image:height" content="<%= @preview.image_height %>" /><% end %>
+    <%= if present?(@preview.image_alt) do %><meta property="og:image:alt" content="<%= @preview.image_alt %>" /><% end %>
+    <meta name="twitter:card" content="<%= if present?(@preview.image_url), do: "summary_large_image", else: "summary" %>" />
+    <meta name="twitter:title" content="<%= @preview.title %>" />
+    <meta name="twitter:description" content="<%= @preview.description %>" />
+    <%= if present?(@preview.image_url) do %><meta name="twitter:image" content="<%= @preview.image_url %>" /><% end %>
+    <meta name="application-name" content="ManaVault" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="ManaVault" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#166534" />
+    <title><%= @preview.title %></title>
+    <script src="/shell/js/theme.js"></script>
+    <script src="/shell/js/pwa-install.js"></script>
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="manifest" href="/site.webmanifest?v=<%= @asset_version %>" crossorigin="use-credentials" />
+    <link rel="stylesheet" href="/assets/css/app.css" />
+    <%= if @vite_dev? do %>
+      <script type="module" src="/shell/js/vite-bootstrap.js"></script>
+    <% else %>
+      <script defer type="module" src="/assets/react/app.js"></script>
+    <% end %>
+  </head>
+  <body class="h-screen w-screen overflow-hidden">
+    <div id="manavault-root"></div>
+  </body>
+</html>

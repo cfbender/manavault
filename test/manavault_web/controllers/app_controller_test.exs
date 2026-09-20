@@ -10,9 +10,50 @@ defmodule ManavaultWeb.AppControllerTest do
     response = html_response(conn, 200)
 
     assert response =~ ~s(id="manavault-root")
+    assert response =~ ~s(name="csrf-token")
+    assert response =~ ~s(src="/shell/js/theme.js")
+    assert response =~ ~s(src="/shell/js/pwa-install.js")
+    refute response =~ ~s(<script>)
     assert response =~ ~s(data-theme-style="glass")
     assert response =~ ~s(<html lang="en" class="h-screen w-screen overflow-hidden")
     assert response =~ ~s(<body class="h-screen w-screen overflow-hidden">)
+
+    [content_security_policy] = get_resp_header(conn, "content-security-policy")
+    assert content_security_policy =~ "default-src 'self'"
+    assert content_security_policy =~ "worker-src 'self' blob:"
+    assert content_security_policy =~ "https://*.scryfall.io"
+    refute content_security_policy =~ "unsafe-eval"
+    refute content_security_policy =~ "5173"
+    refute content_security_policy =~ "ws://"
+  end
+
+  test "the content security policy only allows the Vite dev server when it is enabled" do
+    alias ManavaultWeb.Plugs.ContentSecurityPolicy
+
+    dev_policy = ContentSecurityPolicy.policy(true)
+    prod_policy = ContentSecurityPolicy.policy(false)
+
+    assert dev_policy =~ "script-src 'self' 'unsafe-eval' http://localhost:5173"
+    assert dev_policy =~ "ws://127.0.0.1:*"
+    assert prod_policy =~ "script-src 'self';"
+    refute prod_policy =~ "unsafe-eval"
+    refute prod_policy =~ "5173"
+  end
+
+  test "GET / ignores a spoofed Host header when rendering absolute metadata URLs", %{conn: conn} do
+    response =
+      conn
+      |> Map.put(:host, "attacker.example")
+      |> get(~p"/")
+      |> html_response(200)
+
+    endpoint_url = ManavaultWeb.Endpoint.url()
+    assert response =~ ~s|property="og:url" content="#{endpoint_url}/"|
+
+    assert response =~
+             ~s|property="og:image" content="#{endpoint_url}/android-chrome-512x512.png"|
+
+    refute response =~ "attacker.example"
   end
 
   test "GET /collection/locations/:id serves the React mount", %{conn: conn} do
@@ -36,7 +77,7 @@ defmodule ManavaultWeb.AppControllerTest do
     refute response =~ "unique"
 
     assert response =~
-             ~s|property="og:image" content="http://www.example.com/share/decks/#{token}/preview.png"|
+             ~s|property="og:image" content="#{ManavaultWeb.Endpoint.url()}/share/decks/#{token}/preview.png"|
 
     assert response =~ ~s|property="og:image:type" content="image/png"|
     assert response =~ ~s|property="og:image:width" content="1200"|
@@ -157,9 +198,8 @@ defmodule ManavaultWeb.AppControllerTest do
 
     response = html_response(conn, 200)
 
-    # The ESM entry must stay at the canonical unversioned URL Vite chunks use
-    # when importing ../app.js — a query string creates a second module
-    # instance and remounts React (see AppController.react_scripts).
+    # The ESM entry must stay at the canonical unversioned URL Vite chunks use.
+    # A query string creates a second module instance and remounts React.
     assert response =~ ~s(src="/assets/react/app.js")
     refute response =~ ~r(src="/assets/react/app\.js\?)
     refute response =~ "127.0.0.1:5173"
@@ -184,9 +224,9 @@ defmodule ManavaultWeb.AppControllerTest do
       |> get(~p"/")
       |> html_response(200)
 
-    assert response =~ ~s(import RefreshRuntime from "/@react-refresh")
-    assert response =~ ~s(src="/@vite/client")
-    assert response =~ ~s(src="/assets/react/src/main.tsx")
+    assert response =~ ~s(name="manavault-vite-origin" content="")
+    assert response =~ ~s(src="/shell/js/vite-bootstrap.js")
+    refute response =~ ~s(src="/assets/react/app.js")
     refute response =~ "127.0.0.1:5173"
   end
 

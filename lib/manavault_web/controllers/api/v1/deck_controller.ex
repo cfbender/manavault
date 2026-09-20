@@ -46,11 +46,8 @@ defmodule ManavaultWeb.Api.V1.DeckController do
     }
   end
 
-  defp absolute_share_url(conn, token) do
-    uri = conn |> Plug.Conn.request_url() |> URI.parse()
-
-    %{uri | path: "/share/decks/#{URI.encode(token)}", query: nil, fragment: nil}
-    |> URI.to_string()
+  defp absolute_share_url(_conn, token) do
+    ManavaultWeb.Endpoint.url() <> "/share/decks/#{URI.encode(token)}"
   end
 
   defp positive_integer(value, default) when is_binary(value) do

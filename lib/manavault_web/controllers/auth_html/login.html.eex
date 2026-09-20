@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Sign in · ManaVault</title>
+    <link rel="stylesheet" href="/shell/css/login.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <a class="brand" href="/">
+        <img src="/images/logo.png" alt="" />
+        <span>ManaVault</span>
+      </a>
+      <main>
+        <section class="hero" aria-labelledby="login-title">
+          <p class="eyebrow">Owner access</p>
+          <h1 id="login-title">Your Magic vault, secured.</h1>
+          <p class="lede">Sign in to manage your collection, decks, backups, and local card catalog.</p>
+        </section>
+        <form class="card" method="post" action="/login">
+          <%= if @error do %><p class="error" role="alert"><%= @error %></p><% end %>
+          <input type="hidden" name="_csrf_token" value="<%= @csrf_token %>" />
+          <input type="hidden" name="return_to" value="<%= @return_to %>" />
+          <label>
+            Password
+            <input name="password" type="password" autocomplete="current-password" required autofocus />
+          </label>
+          <button type="submit">Sign in</button>
+        </form>
+      </main>
+    </div>
+  </body>
+</html>
