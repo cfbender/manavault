@@ -30,7 +30,7 @@ import { deckLegalityIssueCountLabel, deckLegalityLabel, deckLegalityTone } from
 import { DeckNameWithCommanderIdentity } from "./deck-list-model"
 import { DeckPrimer } from "./deck-primer"
 import { DeckQuestionDialog } from "./deck-question-dialog"
-import { AnalyzeDeckDocument } from "./queries"
+import { AnalyzeDeckDocument } from "./deck-analysis-documents"
 import { DeckTagsSidebar } from "./deck-tags-sidebar"
 import type { DeckCardEntry, DeckCustomTag, DeckDetail } from "./deck-types"
 

@@ -25,7 +25,7 @@ import { CardDetailDialog, type CardDetailDialogTarget } from "./deck-card-detai
 import { EDHRecCardGrid } from "./edhrec-card-grid"
 import { EDHRecCommanderData } from "./edhrec-commander"
 import { edhrecDeckCard, edhrecScrollStorageKey } from "./edhrec-helpers"
-import { DeckEdhrecDocument } from "./queries"
+import { DeckEdhrecDocument } from "./deck-recommendation-documents"
 
 export { EDHRecCardGrid, EDHRecCardTile, EDHRecScrollContainer } from "./edhrec-card-grid"
 export { CollectionStatusBadge, EDHRecCardDetailTrigger, EDHRecCardMenu } from "./edhrec-card-menu"

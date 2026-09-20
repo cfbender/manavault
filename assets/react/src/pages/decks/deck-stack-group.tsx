@@ -268,46 +268,51 @@ export function DeckStackGroup({
           {group.cards.map((deckCard, index) => (
             <DeckStackCard
               key={deckCard.id}
-              assignedTagIds={deckCard.tagIds ?? []}
-              canAddPartner={
-                canSetCommander &&
-                deckCard.zone !== "commander" &&
-                partnerCandidateIds.has(deckCard.id)
-              }
-              canSetCommander={
-                canSetCommander && deckCard.zone !== "commander" && isLegendaryCreature(deckCard)
-              }
-              deckCard={deckCard}
-              deckId={deckId}
-              deckTags={deckTags}
-              index={index}
-              isActive={activeIndex === index}
-              isSelecting={isSelecting}
-              isSelected={selectedCardIds.has(deckCard.id)}
-              isUpdating={isUpdating}
-              isDimmed={highlightedCardIds !== null && !highlightedCardIds.has(deckCard.id)}
-              onAddPartner={() => onAddPartner(deckCard)}
-              onAllocate={(collectionItemId) => onAllocate(deckCard, collectionItemId)}
-              onAssignTag={(_, id) => onAssignTag(deckCard, id)}
-              onDelete={() => onDelete(deckCard)}
-              onDeallocate={(collectionItemId) => onDeallocate(deckCard, collectionItemId)}
-              onEdit={() => onEdit(deckCard)}
-              onMove={() => onMove(deckCard)}
-              onPreview={() => onPreview(deckCard)}
-              onSetCommander={() => onSetCommander(deckCard)}
-              onTouchReveal={() => {
-                clearDeckCardHoverDelay()
-                setHoveredIndex(null)
-                setPinnedIndex(index)
+              actions={{
+                addPartner: () => onAddPartner(deckCard),
+                allocate: (collectionItemId) => onAllocate(deckCard, collectionItemId),
+                assignTag: (tagId) => onAssignTag(deckCard, tagId),
+                delete: () => onDelete(deckCard),
+                deallocate: (collectionItemId) => onDeallocate(deckCard, collectionItemId),
+                edit: () => onEdit(deckCard),
+                move: () => onMove(deckCard),
+                preview: () => onPreview(deckCard),
+                reveal: () => {
+                  clearDeckCardHoverDelay()
+                  setHoveredIndex(null)
+                  setPinnedIndex(index)
+                },
+                setCommander: () => onSetCommander(deckCard),
+                tag: (tag) => onTag(deckCard, tag),
+                toggleProxy: () => onToggleProxy(deckCard),
+                toggleSelected: (selectRange) => onToggleSelected(deckCard.id, selectRange),
+                unassignTag: (tagId) => onUnassignTag(deckCard, tagId),
               }}
-              onTag={(tag) => onTag(deckCard, tag)}
-              onToggleProxy={() => onToggleProxy(deckCard)}
-              onToggleSelected={(selectRange) => onToggleSelected(deckCard.id, selectRange)}
-              onUnassignTag={(_, id) => onUnassignTag(deckCard, id)}
-              shareMode={shareMode}
-              size={size}
-              slideOffset={activeIndex != null && index > activeIndex ? revealOffset : 0}
-              top={index * size.offsetPx}
+              capabilities={{
+                canAddPartner:
+                  canSetCommander &&
+                  deckCard.zone !== "commander" &&
+                  partnerCandidateIds.has(deckCard.id),
+                canSetCommander:
+                  canSetCommander &&
+                  deckCard.zone !== "commander" &&
+                  isLegendaryCreature(deckCard),
+              }}
+              card={deckCard}
+              context={{ deckId, deckTags, shareMode }}
+              position={{
+                index,
+                size,
+                slideOffset: activeIndex != null && index > activeIndex ? revealOffset : 0,
+                top: index * size.offsetPx,
+              }}
+              state={{
+                isActive: activeIndex === index,
+                isDimmed: highlightedCardIds !== null && !highlightedCardIds.has(deckCard.id),
+                isSelecting,
+                isSelected: selectedCardIds.has(deckCard.id),
+                isUpdating,
+              }}
             />
           ))}
         </div>

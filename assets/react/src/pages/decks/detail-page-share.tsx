@@ -19,7 +19,7 @@ import { BuylistOptionCheckbox } from "./buylist-option-checkbox"
 import { BuylistMarketplaceActions } from "./buylist-marketplace-actions"
 import { deckPlaytestCards } from "./deck-card-model"
 import type { DeckCardEntry, DeckDetail } from "./deck-types"
-import { DeckBuylistDocument } from "./queries"
+import { DeckBuylistDocument } from "./deck-share-documents"
 
 const SHARED_BUYLIST_EXPORT_FORMAT = "text"
 const SHARED_BUYLIST_PRINTING_MODE = "exact"

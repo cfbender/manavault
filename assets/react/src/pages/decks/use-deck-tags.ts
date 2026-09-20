@@ -4,11 +4,11 @@ import type { DeckQuery } from "../../gql/graphql"
 import type { DeckCustomTag } from "./deck-types"
 import {
   CreateDeckTagDocument,
-  DeckDocument,
   DeleteDeckTagDocument,
   ReorderDeckTagsDocument,
   UpdateDeckTagDocument,
-} from "./queries"
+} from "./deck-card-documents"
+import { DeckDocument } from "./deck-detail-documents"
 
 type DeckData = NonNullable<DeckQuery["deck"]>
 type DeckTagsList = DeckData["tags"]

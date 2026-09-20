@@ -17,7 +17,7 @@ import type { DeckPlayOutcome, RandomDeckQuery } from "../../gql/graphql"
 import { compactNumber, titleize } from "../../lib/utils"
 import { DeckNameWithCommanderIdentity } from "./deck-list-model"
 import type { DeckSummary } from "./deck-types"
-import { RandomDeckDocument, RecordDeckPlayDocument } from "./queries"
+import { RandomDeckDocument, RecordDeckPlayDocument } from "./deck-list-documents"
 
 type RandomDeck = NonNullable<RandomDeckQuery["randomDeck"]>
 

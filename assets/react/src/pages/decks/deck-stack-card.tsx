@@ -1,313 +1,57 @@
-import {
-  CheckCircle2,
-  CheckSquare,
-  Crown,
-  Edit3,
-  Eye,
-  MoreVertical,
-  MoveRight,
-  Square,
-  Tag,
-  Trash2,
-  UserPlus,
-  XCircle,
-} from "lucide-react"
-import {
-  useEffect,
-  useRef,
-  useState,
-  type FocusEvent,
-  type MouseEvent,
-  type PointerEvent,
-} from "react"
+import { CheckSquare, Square } from "lucide-react"
 
-import { CardTileOverlayButton } from "../../components/card-tile"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "../../components/ui/dropdown-menu"
-import { useHasMobileHoverInteraction, useMobileHoverReveal } from "../../lib/mobile-hover"
 import { cn } from "../../lib/utils"
 import { ShareModeHidden } from "./deck-actions"
+import { deckCardTag } from "./deck-card-tags"
+import { DeckStackCardImage } from "./deck-stack-card-image"
 import {
-  AllocationStatusIcon,
-  allocationStatusIconClass,
-  allocationStatusLabel,
-  allocationStatusSummary,
-  collectionItemLabel,
-} from "./deck-card-allocation"
-import { cardImageUrl } from "./deck-card-model"
-import { GameChangerBadge } from "./deck-card-display"
-import { deckCardTag, nextDeckCardTag } from "./deck-card-tags"
-import { DeckCardTagRadial, type DeckCardTagRadialHandle } from "./deck-card-tag-radial"
-import {
-  DECK_STACK_CARD_MENU_ATTRIBUTE,
-  shouldCloseDeckStackActionMenu,
-  shouldRaiseDeckStackCardForActionMenu,
-} from "./deck-stack-interactions"
-import type { CardSize } from "../../lib/card-size"
-import type { DeckCardEntry, DeckCardTag, DeckCustomTag } from "./deck-types"
-import { DECK_CARD_TAGS, deckZoneDisplayLabel } from "./deck-types"
+  DeckCardAllocationQuickMenu,
+  DeckCardTagQuickButton,
+  DeckStackActionMenu,
+} from "./deck-stack-card-menus"
+import type { DeckStackCardProps } from "./deck-stack-card-types"
+import { shouldRaiseDeckStackCardForActionMenu } from "./deck-stack-interactions"
+import { DeckStackTagControl } from "./deck-stack-tag-control"
+import { useDeckStackCard } from "./use-deck-stack-card"
 
-const TAG_DRAG_THRESHOLD_PX = 8
+export { DeckUnstackedSelectCard } from "./deck-stack-card-image"
 
 export function DeckStackCard({
-  assignedTagIds,
-  canAddPartner,
-  canSetCommander,
-  deckId,
-  deckCard,
-  deckTags,
-  index,
-  isActive,
-  isDimmed,
-  isSelecting,
-  isSelected,
-  isUpdating,
-  onAddPartner,
-  onDelete,
-  onAllocate,
-  onAssignTag,
-  onDeallocate,
-  onEdit,
-  onMove,
-  onPreview,
-  onSetCommander,
-  onTag,
-  onToggleProxy,
-  onTouchReveal,
-  onToggleSelected,
-  onUnassignTag,
-  shareMode = false,
-  size,
-  slideOffset,
-  top,
-}: {
-  assignedTagIds: string[]
-  canAddPartner: boolean
-  canSetCommander: boolean
-  deckId: string
-  deckCard: DeckCardEntry
-  deckTags: DeckCustomTag[]
-  index: number
-  isActive: boolean
-  isDimmed: boolean
-  isUpdating: boolean
-  isSelecting: boolean
-  isSelected: boolean
-  onAddPartner: () => void
-  onAllocate: (collectionItemId: string) => void
-  onAssignTag: (deckCard: DeckCardEntry, tagId: string) => void
-  onDelete: () => void
-  onDeallocate: (collectionItemId: string) => void
-  onEdit: () => void
-  onMove: () => void
-  onPreview: () => void
-  onSetCommander: () => void
-  onTouchReveal: () => void
-  onTag: (tag: DeckCardTag | null) => void
-  onToggleProxy: () => void
-  onToggleSelected: (selectRange?: boolean) => void
-  onUnassignTag: (deckCard: DeckCardEntry, tagId: string) => void
-  shareMode?: boolean
-  size: CardSize
-  slideOffset: number
-  top: number
-}) {
-  const [hasFocusWithin, setHasFocusWithin] = useState(false)
-  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false)
-  const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false)
-  const [isTagRadialOpen, setIsTagRadialOpen] = useState(false)
-  const [highlightedTagId, setHighlightedTagId] = useState<string | null>(null)
-  const [tagFeedback, setTagFeedback] = useState<{
-    key: number
-    label: string
-    added: boolean
-  } | null>(null)
-  const actionMenuRef = useRef<HTMLDivElement>(null)
-  const tagRadialRef = useRef<DeckCardTagRadialHandle>(null)
-  const tagDragRef = useRef<{
-    pointerId: number
-    startX: number
-    startY: number
-    isDrag: boolean
-  } | null>(null)
-  const tagPointerHandledRef = useRef(false)
-  const hasMobileHover = useHasMobileHoverInteraction()
-  const mobileHover = useMobileHoverReveal<HTMLButtonElement>({
-    clearOnOutsidePointerDown: false,
-    isRevealed: isActive,
-    onRevealChange: (isRevealed) => {
-      if (isRevealed) onTouchReveal()
-    },
+  actions,
+  capabilities,
+  card: deckCard,
+  context,
+  position,
+  state,
+}: DeckStackCardProps) {
+  const { deckId, deckTags, shareMode } = context
+  const { index, size, slideOffset, top } = position
+  const { isActive, isDimmed, isSelecting, isSelected, isUpdating } = state
+  const interaction = useDeckStackCard({
+    isActive,
+    isSelecting,
+    onReveal: actions.reveal,
   })
-  const imageUrl = cardImageUrl(deckCard, "imageUrl")
   const name = deckCard.card?.name || "Unknown card"
-  const printing = deckCard.preferredPrinting || deckCard.fallbackPrinting
+  const assignedTagIds = deckCard.tagIds ?? []
   const tag = deckCardTag(deckCard.tag)
-  const hasClearTag = Boolean(tag)
-  const hasFoilFinish = deckCard.finish === "foil" || deckCard.finish === "etched"
-  const isGameChanger = deckCard.card?.gameChanger === true
-  const isInteractive =
-    !isSelecting && (isActive || hasFocusWithin || isActionMenuOpen || isQuickMenuOpen)
-  const allocatedCandidate = deckCard.allocationStatus.candidates.find(
-    (candidate) => candidate.allocated > 0,
-  )
-  const hasProxyAllocation = deckCard.allocationStatus.proxyAllocated > 0
-
-  useEffect(() => {
-    closeFocusedActionMenu(isActive)
-  }, [isActive])
-
-  useEffect(() => {
-    if (!isActive) {
-      setIsTagRadialOpen(false)
-      setHighlightedTagId(null)
-    }
-  }, [isActive])
-
-  function closeFocusedActionMenu(isCardRaised: boolean) {
-    const activeElement = actionMenuRef.current?.ownerDocument.activeElement
-    if (!(activeElement instanceof HTMLElement)) return
-
-    const actionMenuHasFocus = actionMenuRef.current?.contains(activeElement) === true
-    if (
-      !shouldCloseDeckStackActionMenu({
-        actionMenuHasFocus,
-        isActive: isCardRaised,
-      })
-    ) {
-      return
-    }
-
-    activeElement.blur()
-    setHasFocusWithin(false)
-  }
-
-  function handleBlur(event: FocusEvent<HTMLElement>) {
-    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-      setHasFocusWithin(false)
-    }
-  }
-
-  function handlePointerLeave(event: PointerEvent<HTMLElement>) {
-    if (event.pointerType === "touch") return
-    closeFocusedActionMenu(false)
-  }
-
-  function handlePointerDown(event: PointerEvent<HTMLButtonElement>) {
-    mobileHover.onPointerDown(event)
-  }
-
-  function handleActionMenuPointerDown(event: PointerEvent<HTMLDivElement>) {
-    event.stopPropagation()
-
-    if (shouldRaiseDeckStackCardForActionMenu({ isActive })) {
-      onTouchReveal()
-    }
-  }
-
-  function handleTagClick(event: MouseEvent<HTMLButtonElement>) {
-    event.stopPropagation()
-    if (tagPointerHandledRef.current) {
-      tagPointerHandledRef.current = false
-      return
-    }
-    setIsTagRadialOpen((open) => !open)
-  }
-
-  function handleTagPointerDown(event: PointerEvent<HTMLButtonElement>) {
-    event.stopPropagation()
-    tagPointerHandledRef.current = true
-    setIsTagRadialOpen(true)
-    tagDragRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      isDrag: false,
-    }
-    event.currentTarget.setPointerCapture(event.pointerId)
-  }
-
-  function handleTagPointerMove(event: PointerEvent<HTMLButtonElement>) {
-    const drag = tagDragRef.current
-    if (!drag || drag.pointerId !== event.pointerId) return
-
-    if (!drag.isDrag) {
-      const dx = event.clientX - drag.startX
-      const dy = event.clientY - drag.startY
-      if (Math.hypot(dx, dy) < TAG_DRAG_THRESHOLD_PX) return
-      drag.isDrag = true
-    }
-
-    setHighlightedTagId(tagRadialRef.current?.hitTest(event.clientX, event.clientY) ?? null)
-  }
-
-  function toggleTag(tagId: string) {
-    const isAssigned = assignedTagIds.includes(tagId)
-    const tagName = deckTags.find((deckTag) => deckTag.id === tagId)?.name ?? "Tag"
-    if (isAssigned) {
-      onUnassignTag(deckCard, tagId)
-    } else {
-      onAssignTag(deckCard, tagId)
-    }
-    setTagFeedback({ key: Date.now(), label: tagName, added: !isAssigned })
-  }
-
-  function handleTagPointerUp(event: PointerEvent<HTMLButtonElement>) {
-    const drag = tagDragRef.current
-    if (drag?.pointerId === event.pointerId) {
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.releasePointerCapture(event.pointerId)
-      }
-
-      if (drag.isDrag) {
-        const tagId = tagRadialRef.current?.hitTest(event.clientX, event.clientY) ?? null
-        if (tagId) {
-          toggleTag(tagId)
-          setIsTagRadialOpen(false)
-        }
-      }
-    }
-
-    tagDragRef.current = null
-    setHighlightedTagId(null)
-  }
-
-  function handleTagPointerCancel(event: PointerEvent<HTMLButtonElement>) {
-    const drag = tagDragRef.current
-    if (
-      drag?.pointerId === event.pointerId &&
-      event.currentTarget.hasPointerCapture(event.pointerId)
-    ) {
-      event.currentTarget.releasePointerCapture(event.pointerId)
-    }
-
-    tagDragRef.current = null
-    tagPointerHandledRef.current = false
-    setHighlightedTagId(null)
-  }
 
   return (
     <article
       className={cn(
         "group group/deck-card absolute left-0 origin-top rounded-xl transition-transform duration-200 ease-out",
-        isInteractive && "z-[90]",
+        interaction.isInteractive && "z-[90]",
       )}
-      onBlur={handleBlur}
-      onClickCapture={(event) => mobileHover.suppressClickIfRevealed(event)}
+      onBlur={interaction.handleBlur}
+      onClickCapture={(event) => interaction.mobileHover.suppressClickIfRevealed(event)}
       data-deck-id={deckId}
-      onFocus={() => setHasFocusWithin(true)}
-      onPointerLeave={handlePointerLeave}
+      onFocus={() => interaction.setHasFocusWithin(true)}
+      onPointerLeave={interaction.handlePointerLeave}
       style={{
         top,
         width: `min(${size.widthPx}px, 100%)`,
         transform: slideOffset ? `translateY(${slideOffset}px)` : undefined,
-        zIndex: isInteractive ? 90 : index + 1,
+        zIndex: interaction.isInteractive ? 90 : index + 1,
       }}
     >
       <div
@@ -333,7 +77,7 @@ export function DeckStackCard({
               aria-label={isSelected ? `Deselect ${name}` : `Select ${name}`}
               onClick={(event) => {
                 event.stopPropagation()
-                onToggleSelected(event.shiftKey)
+                actions.toggleSelected(event.shiftKey)
               }}
               onMouseDown={(event) => event.stopPropagation()}
             >
@@ -341,101 +85,35 @@ export function DeckStackCard({
             </button>
           ) : null}
           <div
-            ref={actionMenuRef}
+            ref={interaction.actionMenuRef}
             className={cn(
               "absolute left-2 top-2 z-[120] transition-opacity group-focus-within:opacity-100",
-              isInteractive
+              interaction.isInteractive
                 ? "visible opacity-100"
-                : hasMobileHover
+                : interaction.hasMobileHover
                   ? "invisible opacity-0"
                   : "invisible opacity-0 group-hover:visible group-hover:opacity-100",
             )}
             onClick={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
             data-deck-stack-pointer-capture=""
-            onPointerDown={handleActionMenuPointerDown}
+            onPointerDown={(event) => {
+              event.stopPropagation()
+              if (shouldRaiseDeckStackCardForActionMenu({ isActive })) actions.reveal()
+            }}
             onPointerMove={(event) => event.stopPropagation()}
             onPointerUp={(event) => event.stopPropagation()}
           >
-            <DropdownMenu open={isActionMenuOpen} onOpenChange={setIsActionMenuOpen}>
-              <DropdownMenuTrigger asChild>
-                <CardTileOverlayButton
-                  tabIndex={isInteractive ? 0 : -1}
-                  aria-label={`${name} actions`}
-                >
-                  <MoreVertical />
-                </CardTileOverlayButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="start"
-                className="w-52 max-h-[min(70vh,var(--radix-dropdown-menu-content-available-height))] overflow-y-auto"
-                {...{ [DECK_STACK_CARD_MENU_ATTRIBUTE]: deckCard.id }}
-              >
-                <DropdownMenuItem onSelect={onPreview}>
-                  <Eye className="h-4 w-4" />
-                  View card details
-                </DropdownMenuItem>
-                {allocatedCandidate ? (
-                  <DropdownMenuItem
-                    disabled={isUpdating}
-                    title={collectionItemLabel(allocatedCandidate)}
-                    onSelect={() => onDeallocate(allocatedCandidate.item.id)}
-                  >
-                    <XCircle className="h-4 w-4" />
-                    Deallocate
-                  </DropdownMenuItem>
-                ) : null}
-                {hasProxyAllocation ? (
-                  <DropdownMenuItem disabled={isUpdating} onSelect={onToggleProxy}>
-                    <XCircle className="h-4 w-4" />
-                    Remove proxy
-                  </DropdownMenuItem>
-                ) : null}
-                <DropdownMenuItem disabled={isUpdating} onSelect={onEdit}>
-                  <Edit3 className="h-4 w-4" />
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem disabled={isUpdating} onSelect={onMove}>
-                  <MoveRight className="h-4 w-4" />
-                  Move
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel>Tag</DropdownMenuLabel>
-                {DECK_CARD_TAGS.map((tagOption) => (
-                  <DropdownMenuItem
-                    key={tagOption.value}
-                    disabled={isUpdating || deckCard.tag === tagOption.value}
-                    onSelect={() => onTag(tagOption.value)}
-                  >
-                    <tagOption.icon className="h-4 w-4" />
-                    {tagOption.label}
-                  </DropdownMenuItem>
-                ))}
-                {hasClearTag ? (
-                  <DropdownMenuItem onSelect={() => onTag(null)}>
-                    <Tag className="h-4 w-4" />
-                    Clear tag
-                  </DropdownMenuItem>
-                ) : null}
-                {canSetCommander ? (
-                  <DropdownMenuItem disabled={isUpdating} onSelect={onSetCommander}>
-                    <Crown className="h-4 w-4" />
-                    Set as commander
-                  </DropdownMenuItem>
-                ) : null}
-                {canAddPartner ? (
-                  <DropdownMenuItem disabled={isUpdating} onSelect={onAddPartner}>
-                    <UserPlus className="h-4 w-4" />
-                    Add as partner
-                  </DropdownMenuItem>
-                ) : null}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem destructive disabled={isUpdating} onSelect={onDelete}>
-                  <Trash2 className="h-4 w-4" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <DeckStackActionMenu
+              actions={actions}
+              canAddPartner={capabilities.canAddPartner}
+              canSetCommander={capabilities.canSetCommander}
+              deckCard={deckCard}
+              isInteractive={interaction.isInteractive}
+              isUpdating={isUpdating}
+              name={name}
+              onOpenChange={interaction.setIsActionMenuOpen}
+            />
           </div>
         </ShareModeHidden>
 
@@ -444,9 +122,9 @@ export function DeckStackCard({
             <div
               className={cn(
                 "absolute right-2 top-2 z-[115] flex items-center gap-1",
-                isInteractive
+                interaction.isInteractive
                   ? "pointer-events-auto"
-                  : hasMobileHover
+                  : interaction.hasMobileHover
                     ? "pointer-events-none"
                     : "pointer-events-none group-hover:pointer-events-auto group-focus-within:pointer-events-auto",
               )}
@@ -459,20 +137,19 @@ export function DeckStackCard({
             >
               <DeckCardAllocationQuickMenu
                 deckCard={deckCard}
-                isVisible={isInteractive}
+                isVisible={interaction.isInteractive}
                 isUpdating={isUpdating}
-                onAllocate={onAllocate}
-                onDeallocate={onDeallocate}
-                onOpenChange={setIsQuickMenuOpen}
-                onReveal={onTouchReveal}
-                onToggleProxy={onToggleProxy}
+                onAllocate={actions.allocate}
+                onDeallocate={actions.deallocate}
+                onOpenChange={interaction.setIsQuickMenuOpen}
+                onReveal={actions.reveal}
+                onToggleProxy={actions.toggleProxy}
               />
               <DeckCardTagQuickButton
                 disabled={isUpdating}
-                isVisible={isInteractive}
-                tag={tag}
-                value={deckCard.tag}
-                onChange={onTag}
+                isVisible={interaction.isInteractive}
+                tag={tag?.value ?? null}
+                onChange={actions.tag}
               />
             </div>
           </ShareModeHidden>
@@ -483,9 +160,9 @@ export function DeckStackCard({
             <div
               className={cn(
                 "absolute left-1/2 top-1/2 z-[118] -translate-x-1/2 -translate-y-1/2 transition-opacity",
-                isInteractive
+                interaction.isInteractive
                   ? "visible opacity-100"
-                  : hasMobileHover
+                  : interaction.hasMobileHover
                     ? "invisible opacity-0"
                     : "invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100",
               )}
@@ -496,50 +173,13 @@ export function DeckStackCard({
               onPointerMove={(event) => event.stopPropagation()}
               onPointerUp={(event) => event.stopPropagation()}
             >
-              <button
-                type="button"
-                className="relative flex h-16 w-16 touch-none items-center justify-center rounded-full border-0 bg-neutral/60 text-sm font-black uppercase tracking-wide text-neutral-content shadow-lg backdrop-blur transition hover:bg-neutral/75"
-                aria-label={`Tag ${name}`}
-                tabIndex={isInteractive ? 0 : -1}
-                onClick={handleTagClick}
-                onPointerDown={handleTagPointerDown}
-                onPointerMove={handleTagPointerMove}
-                onPointerUp={handleTagPointerUp}
-                onPointerCancel={handleTagPointerCancel}
-              >
-                TAG
-                {assignedTagIds.length > 0 ? (
-                  <span
-                    className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-base-100/80 bg-secondary px-1 text-[0.65rem] font-black text-secondary-content shadow"
-                    aria-hidden="true"
-                  >
-                    {assignedTagIds.length}
-                  </span>
-                ) : null}
-              </button>
-              <DeckCardTagRadial
-                ref={tagRadialRef}
-                open={isTagRadialOpen}
-                tags={deckTags}
+              <DeckStackTagControl
+                actions={actions}
                 assignedTagIds={assignedTagIds}
-                highlightedTagId={highlightedTagId}
-                onToggleTag={toggleTag}
-                onClose={() => setIsTagRadialOpen(false)}
-                anchorLabel={name}
+                deckTags={deckTags}
+                isActive={interaction.isInteractive}
+                name={name}
               />
-              {tagFeedback ? (
-                <span
-                  key={tagFeedback.key}
-                  aria-hidden="true"
-                  className={cn(
-                    "deck-tag-feedback pointer-events-none absolute left-1/2 top-1/2 z-[150] -translate-x-1/2 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-black tabular-nums shadow-lg backdrop-blur",
-                    tagFeedback.added ? "bg-success/25 text-success" : "bg-error/25 text-error",
-                  )}
-                  onAnimationEnd={() => setTagFeedback(null)}
-                >
-                  {tagFeedback.added ? "+" : "−"} {tagFeedback.label}
-                </span>
-              ) : null}
             </div>
           </ShareModeHidden>
         ) : null}
@@ -550,7 +190,7 @@ export function DeckStackCard({
               className={cn(
                 "pointer-events-none absolute right-2 top-2 z-[110] inline-flex h-6 w-6 items-center justify-center rounded-full border border-base-100/70 shadow backdrop-blur transition-opacity group-hover:opacity-0 group-focus-within:opacity-0",
                 tag.className,
-                isInteractive && "opacity-0",
+                interaction.isInteractive && "opacity-0",
               )}
               aria-hidden="true"
             >
@@ -563,269 +203,22 @@ export function DeckStackCard({
           type="button"
           className="block w-full cursor-pointer text-left"
           aria-label={`View ${name} details`}
-          onPointerDown={handlePointerDown}
+          onPointerDown={interaction.mobileHover.onPointerDown}
           onClick={(event) => {
-            if (mobileHover.suppressClickIfRevealed(event)) {
-              return
-            }
-            if (isSelecting) onToggleSelected(event.shiftKey)
-            else onPreview()
+            if (interaction.mobileHover.suppressClickIfRevealed(event)) return
+            if (isSelecting) actions.toggleSelected(event.shiftKey)
+            else actions.preview()
           }}
         >
-          <figure
-            className={cn(
-              "relative aspect-[5/7] overflow-hidden rounded-xl bg-base-300 shadow-xl ring-1 ring-white/10 transition duration-200",
-              hasFoilFinish && "card-tile-foil",
-              deckCard.finish === "etched" && "card-tile-foil--etched",
-              isActive && "shadow-2xl ring-primary/45",
-              isSelected && "ring-4 ring-secondary shadow-2xl",
-            )}
-          >
-            {imageUrl ? (
-              <img
-                src={imageUrl}
-                alt={name}
-                loading="lazy"
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center p-5 text-center text-sm text-base-content/50">
-                No image
-              </div>
-            )}
-            {hasFoilFinish ? (
-              <div
-                className={cn(
-                  "card-tile-foil-overlay",
-                  deckCard.finish === "etched" && "card-tile-foil-overlay--etched",
-                )}
-              />
-            ) : null}
-
-            {isGameChanger ? (
-              <GameChangerBadge
-                className="absolute left-1/2 top-1 z-20 -translate-x-1/2 shadow-lg"
-                count={deckCard.quantity}
-              />
-            ) : deckCard.quantity > 1 ? (
-              <span className="absolute left-1/2 top-1 z-20 -translate-x-1/2 rounded-md bg-primary px-2.5 py-1.5 text-sm font-black leading-none text-primary-content shadow-lg">
-                {deckCard.quantity}
-              </span>
-            ) : null}
-
-            <figcaption
-              className={cn(
-                "absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/90 via-black/45 to-transparent px-3 pb-3 pt-12 text-white transition duration-200 group-focus-within:opacity-100",
-                isInteractive ? "opacity-100" : "opacity-0",
-              )}
-            >
-              <div className="line-clamp-2 text-sm font-black leading-tight">{name}</div>
-              <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-white/75">
-                <span className="truncate">
-                  {printing?.setName ||
-                    printing?.setCode?.toUpperCase() ||
-                    deckZoneDisplayLabel(deckCard.zone)}
-                </span>
-                <span>#{printing?.collectorNumber || "?"}</span>
-              </div>
-            </figcaption>
-          </figure>
+          <DeckStackCardImage
+            deckCard={deckCard}
+            isActive={isActive}
+            isInteractive={interaction.isInteractive}
+            isSelected={isSelected}
+            name={name}
+          />
         </button>
       </div>
     </article>
-  )
-}
-
-export function DeckUnstackedSelectCard({
-  deckCard,
-  isDimmed,
-  isSelected,
-  onToggleSelected,
-}: {
-  deckCard: DeckCardEntry
-  isDimmed: boolean
-  isSelected: boolean
-  onToggleSelected: (selectRange?: boolean) => void
-}) {
-  const imageUrl = cardImageUrl(deckCard, "imageUrl")
-  const name = deckCard.card?.name || "Unknown card"
-
-  return (
-    <button
-      type="button"
-      className={cn(
-        "relative block w-full text-left transition-[filter,opacity] duration-200 ease-out",
-        isDimmed && "opacity-30 saturate-50",
-      )}
-      aria-label={isSelected ? `Deselect ${name}` : `Select ${name}`}
-      aria-pressed={isSelected}
-      onClick={(event) => onToggleSelected(event.shiftKey)}
-    >
-      <figure
-        className={cn(
-          "relative aspect-[5/7] overflow-hidden rounded-lg bg-base-300 shadow ring-1 ring-white/10 transition duration-200",
-          isSelected && "shadow-lg ring-2 ring-secondary",
-        )}
-      >
-        {imageUrl ? (
-          <img src={imageUrl} alt={name} loading="lazy" className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full items-center justify-center p-2 text-center text-xs text-base-content/50">
-            {name}
-          </div>
-        )}
-        {deckCard.quantity > 1 ? (
-          <span className="absolute bottom-1 right-1 z-10 rounded bg-primary px-1.5 py-1 text-xs font-black leading-none text-primary-content shadow">
-            {deckCard.quantity}
-          </span>
-        ) : null}
-        <span
-          className={cn(
-            "absolute right-1 top-1 z-10 inline-flex h-5 w-5 items-center justify-center rounded-full border shadow",
-            isSelected
-              ? "border-secondary bg-secondary text-secondary-content"
-              : "border-base-100/80 bg-base-100/95 text-base-content",
-          )}
-          aria-hidden="true"
-        >
-          {isSelected ? <CheckSquare className="h-3 w-3" /> : <Square className="h-3 w-3" />}
-        </span>
-      </figure>
-    </button>
-  )
-}
-
-function DeckCardAllocationQuickMenu({
-  deckCard,
-  isVisible,
-  isUpdating,
-  onAllocate,
-  onDeallocate,
-  onOpenChange,
-  onReveal,
-  onToggleProxy,
-}: {
-  deckCard: DeckCardEntry
-  isVisible: boolean
-  isUpdating: boolean
-  onAllocate: (collectionItemId: string) => void
-  onDeallocate: (collectionItemId: string) => void
-  onOpenChange: (open: boolean) => void
-  onReveal: () => void
-  onToggleProxy: () => void
-}) {
-  const status = deckCard.allocationStatus
-  const label = allocationStatusLabel(status)
-  const summary = allocationStatusSummary(status)
-  const allocatedCandidate = status.candidates.find((candidate) => candidate.allocated > 0)
-  const availableCandidate = status.candidates.find(
-    (candidate) => candidate.available > 0 && status.allocated < status.required,
-  )
-  const hasProxyAllocation = status.proxyAllocated > 0
-  const canMarkProxy =
-    status.state !== "basic_land" &&
-    status.proxyAllocated <= 0 &&
-    status.required > status.allocated
-
-  return (
-    <div onClick={(event) => event.stopPropagation()}>
-      <DropdownMenu onOpenChange={onOpenChange}>
-        <DropdownMenuTrigger asChild>
-          <CardTileOverlayButton
-            tone="custom"
-            className={cn(
-              "relative transition-opacity",
-              allocationStatusIconClass(status.state),
-              isVisible
-                ? "visible opacity-100"
-                : "invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100",
-            )}
-            tabIndex={isVisible ? 0 : -1}
-            aria-label={`${label}: ${summary}`}
-            title={`${label}: ${summary}`}
-            onClick={() => {
-              if (!isVisible) onReveal()
-            }}
-          >
-            <AllocationStatusIcon state={status.state} />
-          </CardTileOverlayButton>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          className="w-44"
-          {...{ [DECK_STACK_CARD_MENU_ATTRIBUTE]: deckCard.id }}
-        >
-          <DropdownMenuLabel className="whitespace-normal text-base-content">
-            {label}
-            <br />
-            <span className="font-normal text-base-content/65">{summary}</span>
-          </DropdownMenuLabel>
-          {availableCandidate ? (
-            <DropdownMenuItem
-              disabled={isUpdating}
-              title={collectionItemLabel(availableCandidate)}
-              onSelect={() => onAllocate(availableCandidate.item.id)}
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              Allocate copy
-            </DropdownMenuItem>
-          ) : null}
-          {allocatedCandidate ? (
-            <DropdownMenuItem
-              disabled={isUpdating}
-              title={collectionItemLabel(allocatedCandidate)}
-              onSelect={() => onDeallocate(allocatedCandidate.item.id)}
-            >
-              <XCircle className="h-4 w-4" />
-              Deallocate
-            </DropdownMenuItem>
-          ) : null}
-          {hasProxyAllocation || canMarkProxy ? (
-            <DropdownMenuItem disabled={isUpdating} onSelect={onToggleProxy}>
-              <XCircle className="h-4 w-4" />
-              {hasProxyAllocation ? "Remove proxy" : "Mark proxy"}
-            </DropdownMenuItem>
-          ) : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  )
-}
-
-type DeckCardTagDescriptor = NonNullable<ReturnType<typeof deckCardTag>>
-
-function DeckCardTagQuickButton({
-  disabled,
-  isVisible,
-  onChange,
-  tag,
-  value,
-}: {
-  disabled: boolean
-  isVisible: boolean
-  onChange: (tag: DeckCardTag | null) => void
-  tag: DeckCardTagDescriptor | null
-  value?: string | null
-}) {
-  const Icon = tag?.icon || Tag
-  const label = tag?.label || "Add tag"
-
-  return (
-    <CardTileOverlayButton
-      tone={tag ? "custom" : "neutral"}
-      className={cn(
-        "transition-opacity",
-        tag?.iconClassName,
-        isVisible
-          ? "visible opacity-100"
-          : "invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100",
-      )}
-      disabled={disabled}
-      tabIndex={isVisible ? 0 : -1}
-      aria-label={`${label}; click to change tag`}
-      title={label}
-      onClick={() => onChange(nextDeckCardTag(value))}
-    >
-      <Icon className="shrink-0" />
-    </CardTileOverlayButton>
   )
 }

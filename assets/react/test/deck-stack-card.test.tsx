@@ -38,40 +38,35 @@ const deckCard = {
 
 function renderCard(overrides: Partial<Parameters<typeof DeckStackCard>[0]> = {}) {
   const handlers = {
-    onAddPartner: vi.fn(),
-    onAllocate: vi.fn(),
-    onAssignTag: vi.fn(),
-    onDelete: vi.fn(),
-    onDeallocate: vi.fn(),
-    onEdit: vi.fn(),
-    onMove: vi.fn(),
-    onPreview: vi.fn(),
-    onSetCommander: vi.fn(),
-    onTouchReveal: vi.fn(),
-    onTag: vi.fn(),
-    onToggleProxy: vi.fn(),
-    onToggleSelected: vi.fn(),
-    onUnassignTag: vi.fn(),
+    addPartner: vi.fn(),
+    allocate: vi.fn(),
+    assignTag: vi.fn(),
+    delete: vi.fn(),
+    deallocate: vi.fn(),
+    edit: vi.fn(),
+    move: vi.fn(),
+    preview: vi.fn(),
+    reveal: vi.fn(),
+    setCommander: vi.fn(),
+    tag: vi.fn(),
+    toggleProxy: vi.fn(),
+    toggleSelected: vi.fn(),
+    unassignTag: vi.fn(),
   }
   render(
     <DeckStackCard
-      assignedTagIds={[]}
-      canAddPartner={false}
-      canSetCommander={false}
-      deckId="deck-1"
-      deckCard={deckCard}
-      deckTags={[]}
-      index={0}
-      isActive
-      isDimmed={false}
-      isSelecting={false}
-      isSelected={false}
-      isUpdating={false}
-      shareMode={false}
-      size="md"
-      slideOffset={0}
-      top={0}
-      {...handlers}
+      actions={handlers}
+      capabilities={{ canAddPartner: false, canSetCommander: false }}
+      card={deckCard}
+      context={{ deckId: "deck-1", deckTags: [], shareMode: false }}
+      position={{ index: 0, size: "md", slideOffset: 0, top: 0 }}
+      state={{
+        isActive: true,
+        isDimmed: false,
+        isSelecting: false,
+        isSelected: false,
+        isUpdating: false,
+      }}
       {...overrides}
     />,
   )
@@ -91,7 +86,7 @@ test("card action menu opens as a Radix menu with expected items and closes on E
   expect(screen.getByRole("menuitem", { name: /Delete/ })).toBeInstanceOf(HTMLElement)
 
   await user.click(screen.getByRole("menuitem", { name: /View card details/ }))
-  expect(handlers.onPreview).toHaveBeenCalledTimes(1)
+  expect(handlers.preview).toHaveBeenCalledTimes(1)
   expect(screen.queryByRole("menu")).toBeNull()
 
   await user.click(trigger)
@@ -116,14 +111,14 @@ test("portalled menu content is tagged with its owning card so stack pin-clearin
 
 test("add as partner menu item shows for pairing candidates and fires its handler", async () => {
   const user = userEvent.setup()
-  const handlers = renderCard({ canAddPartner: true })
+  const handlers = renderCard({ capabilities: { canAddPartner: true, canSetCommander: false } })
 
   await user.click(screen.getByRole("button", { name: "Sol Ring actions" }))
   await screen.findByRole("menu")
 
   const partnerItem = screen.getByRole("menuitem", { name: /Add as partner/ })
   await user.click(partnerItem)
-  expect(handlers.onAddPartner).toHaveBeenCalledTimes(1)
+  expect(handlers.addPartner).toHaveBeenCalledTimes(1)
   expect(screen.queryByRole("menu")).toBeNull()
 })
 
@@ -146,6 +141,6 @@ test("allocation quick menu exposes allocate action through a Radix menu", async
 
   const allocateItem = await screen.findByRole("menuitem", { name: /Allocate copy/ })
   await user.click(allocateItem)
-  expect(handlers.onAllocate).toHaveBeenCalledWith("item-1")
+  expect(handlers.allocate).toHaveBeenCalledWith("item-1")
   expect(screen.queryByRole("menu")).toBeNull()
 })

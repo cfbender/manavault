@@ -16,7 +16,7 @@ import type { DeckDiffMutation } from "../../gql/graphql"
 import { refetchActiveQueries } from "../../lib/apollo"
 import { cn, pluralize } from "../../lib/utils"
 import { DeckDiffDocument } from "./deck-compare-documents"
-import { AddDeckCardDocument, UpdateDeckCardsTagDocument } from "./queries"
+import { AddDeckCardDocument, UpdateDeckCardsTagDocument } from "./deck-card-documents"
 
 type SourceMode = "url" | "paste"
 type DeckDiffResult = NonNullable<DeckDiffMutation["deckDiff"]>

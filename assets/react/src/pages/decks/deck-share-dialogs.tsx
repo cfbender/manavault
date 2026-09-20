@@ -35,9 +35,9 @@ import { ADD_CARD_ZONES, deckZoneDisplayLabel } from "./deck-types"
 import {
   DisableDeckSharingDocument,
   EnsureDeckShareTokenDocument,
-  ImportDecklistDocument,
   RotateDeckShareTokenDocument,
-} from "./queries"
+} from "./deck-card-documents"
+import { ImportDecklistDocument } from "./deck-share-documents"
 
 export function ShareDeckDialog({
   deck,

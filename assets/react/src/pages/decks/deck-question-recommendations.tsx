@@ -6,7 +6,7 @@ import { Button } from "../../components/ui/button"
 import type { DeckQuestionAnswersQuery } from "../../gql/graphql"
 import { refetchActiveQueries } from "../../lib/apollo"
 import type { DeckCardEntry } from "./deck-types"
-import { AddDeckCardDocument, UpdateDeckCardsTagDocument } from "./queries"
+import { AddDeckCardDocument, UpdateDeckCardsTagDocument } from "./deck-card-documents"
 
 type QuestionAnswer = DeckQuestionAnswersQuery["deckQuestionAnswers"][number]
 type RecommendationFeedback = { tone: "error" | "success"; message: string } | null

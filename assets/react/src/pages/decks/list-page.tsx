@@ -24,7 +24,7 @@ import { DeckNameWithCommanderIdentity, groupDecksByFormat } from "./deck-list-m
 import { DeckPlayHistory, RandomDeckDialog } from "./deck-picker"
 import { ShareDeckDialog } from "./deck-share-dialogs"
 import { flattenDecks, partitionDecksByArchive, type DeckSummary } from "./deck-types"
-import { DecksDocument, DeleteDeckDocument } from "./queries"
+import { DecksDocument, DeleteDeckDocument } from "./deck-list-documents"
 
 function DeckGalleryHeader({
   canPickDeck,

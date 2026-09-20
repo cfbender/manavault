@@ -7,7 +7,7 @@ import {
   BulkDeallocateDeckCardsDocument,
   BulkDeleteDeckCardsDocument,
   BulkUpdateDeckCardsDocument,
-} from "./queries"
+} from "./deck-card-documents"
 
 type UseDeckBulkActionsOptions = {
   onClearSelection: () => void

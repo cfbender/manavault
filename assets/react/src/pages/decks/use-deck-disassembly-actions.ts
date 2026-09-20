@@ -2,7 +2,7 @@ import { useMutation } from "@apollo/client/react"
 import { useState } from "react"
 
 import { NO_DECK_DETAIL_OVERLAY, type DeckDetailOverlay } from "./deck-detail-overlay"
-import { DisassembleDeckDocument, PreviewDeckDisassemblyDocument } from "./queries"
+import { DisassembleDeckDocument, PreviewDeckDisassemblyDocument } from "./deck-detail-documents"
 
 type OverlaySetter = (
   update: DeckDetailOverlay | ((current: DeckDetailOverlay) => DeckDetailOverlay),

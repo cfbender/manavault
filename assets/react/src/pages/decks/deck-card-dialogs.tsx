@@ -24,7 +24,7 @@ import { cn, present, titleize } from "../../lib/utils"
 import { ZoneIcon } from "./deck-card-display"
 import type { DeckCardEntry, DeckCardPrinting, DeckCardTag, DeckZone } from "./deck-types"
 import { connectionNodes, deckZoneDisplayLabel } from "./deck-types"
-import { CardPrintingsDocument } from "./queries"
+import { CardPrintingsDocument } from "./deck-card-documents"
 import {
   ADD_CARD_ZONES,
   DECK_CARD_FINISHES,

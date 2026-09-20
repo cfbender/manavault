@@ -18,13 +18,13 @@ import {
   AddDeckCardDocument,
   AddDeckPartnerDocument,
   AssignDeckCardTagDocument,
-  DeckDocument,
   DeleteDeckCardDocument,
   SetDeckCommanderDocument,
   UnassignDeckCardTagDocument,
   UpdateDeckCardDocument,
   UpdateDeckCardsTagDocument,
-} from "./queries"
+} from "./deck-card-documents"
+import { DeckDocument } from "./deck-detail-documents"
 
 type CardWorkflow = "edit-card" | "move-card" | "tag"
 type OverlaySetter = (

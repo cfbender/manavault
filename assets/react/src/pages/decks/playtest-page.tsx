@@ -6,7 +6,7 @@ import { createPlaytestState } from "../../lib/deck-playtest"
 import { usePageTitle } from "../../lib/page-title"
 import { deckPlaytestCards } from "./deck-card-model"
 import { flattenDeck } from "./deck-types"
-import { DeckDocument } from "./queries"
+import { DeckDocument } from "./deck-detail-documents"
 
 export function DeckPlaytestPage({ id }: { id: string }) {
   const { data, loading: isLoading } = useQuery(DeckDocument, {

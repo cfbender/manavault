@@ -20,7 +20,7 @@ import {
   AskDeckQuestionDocument,
   DeckQuestionAnswersDocument,
   DeleteDeckQuestionAnswerDocument,
-} from "./queries"
+} from "./deck-analysis-documents"
 
 type QuestionAnswer = DeckQuestionAnswersQuery["deckQuestionAnswers"][number]
 

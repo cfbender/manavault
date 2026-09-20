@@ -44,7 +44,7 @@ import type { AddCollectionItemInitialPrinting } from "./collection/types"
 import { selectedDeckCardNameForMutation } from "./decks/add-card-dialog-model"
 import type { DeckDetail, DeckZone } from "./decks/deck-types"
 import { ADD_CARD_ZONES, NON_COMMANDER_ADD_CARD_ZONES } from "./decks/deck-types"
-import { AddDeckCardDocument } from "./decks/queries"
+import { AddDeckCardDocument } from "./decks/deck-card-documents"
 import { ZoneToggle } from "./decks/zone-toggle"
 
 const ADD_CARD_SEARCH_DEBOUNCE_MS = 250

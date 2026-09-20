@@ -10,8 +10,8 @@ import {
   AllocateDeckCardProxyDocument,
   DeallocateDeckCardItemDocument,
   DeallocateDeckCardProxyDocument,
-  OptimizeDeckCardPrintingsDocument,
-} from "./queries"
+} from "./deck-allocation-documents"
+import { OptimizeDeckCardPrintingsDocument } from "./deck-card-documents"
 
 type UseDeckAllocationActionsOptions = {
   onRefetch: () => void

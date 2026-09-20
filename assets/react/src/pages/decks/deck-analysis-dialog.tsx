@@ -31,7 +31,7 @@ import { cn, safeHttpUrl, titleize } from "../../lib/utils"
 import { formatDate } from "../settings/data"
 import { DeckMarkdown } from "./deck-primer"
 import { DECK_FORMATS } from "./deck-types"
-import { AnalyzeDeckListDocument, DeckAnalysisRequestsDocument } from "./queries"
+import { AnalyzeDeckListDocument, DeckAnalysisRequestsDocument } from "./deck-analysis-documents"
 
 type SourceMode = "url" | "text"
 type AnalysisRequest = DeckAnalysisRequestsQuery["deckAnalysisRequests"][number]

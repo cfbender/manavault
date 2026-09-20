@@ -18,7 +18,7 @@ import { CardDetailDialog, type CardDetailDialogTarget } from "./deck-card-detai
 import { EDHRecScrollContainer } from "./edhrec-card-grid"
 import { CollectionStatusBadge, EDHRecCardDetailTrigger, EDHRecCardMenu } from "./edhrec-card-menu"
 import { cardTypeLine, edhrecCardImageUrl, edhrecCardPrice } from "./edhrec-helpers"
-import { DeckRecommanderDocument } from "./queries"
+import { DeckRecommanderDocument } from "./deck-recommendation-documents"
 
 // Collection states that count as "owned" for the owned-only filter: the card
 // is in this deck, freely available, or owned but allocated elsewhere.

@@ -26,7 +26,8 @@ import { refetchActiveQueries } from "../../lib/apollo"
 import { titleize } from "../../lib/utils"
 import type { DeckDetail, DeckSummary } from "./deck-types"
 import { DECK_FORMATS, DECK_STATUSES } from "./deck-types"
-import { CreateDeckDocument, DeckPlayHistoryDocument, UpdateDeckDocument } from "./queries"
+import { DeckPlayHistoryDocument } from "./deck-detail-documents"
+import { CreateDeckDocument, UpdateDeckDocument } from "./deck-list-documents"
 
 export function EditDeckDialog({
   deck,

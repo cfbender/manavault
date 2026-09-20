@@ -25,7 +25,7 @@ import { BuylistOptionCheckbox } from "./buylist-option-checkbox"
 import { BuylistMarketplaceActions } from "./buylist-marketplace-actions"
 import type { BuylistExportFormat, BuylistPrintingMode, DeckDetail } from "./deck-types"
 import { deckZoneMissing } from "./deck-readiness"
-import { DeckBuylistDocument } from "./queries"
+import { DeckBuylistDocument } from "./deck-share-documents"
 
 export function MissingCardsDialog({
   deck,

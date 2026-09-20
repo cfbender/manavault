@@ -14,7 +14,7 @@ import {
 import type { DeckCombosQuery } from "../../gql/graphql"
 import { safeHttpUrl } from "../../lib/utils"
 import { ManaText } from "../cards/card-text"
-import { DeckCombosDocument } from "./queries"
+import { DeckCombosDocument } from "./deck-recommendation-documents"
 
 type Combo = DeckCombosQuery["deckCombos"][number]
 type ComboDeck = { id: string; name: string }
