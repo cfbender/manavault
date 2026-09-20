@@ -4,8 +4,6 @@ defmodule ManavaultWeb.Plugs.GraphQLCSRFProtection do
   import Phoenix.Controller, only: [json: 2]
   import Plug.Conn
 
-  alias ManavaultWeb.Plugs.Authentication
-
   @csrf_session_key "_csrf_token"
   @csrf_header "x-csrf-token"
   @csrf_param "_csrf_token"
@@ -23,7 +21,7 @@ defmodule ManavaultWeb.Plugs.GraphQLCSRFProtection do
         |> json(@method_not_allowed_response)
         |> halt()
 
-      Authentication.session_authenticated?(conn) and not valid_csrf_token?(conn) ->
+      not valid_csrf_token?(conn) ->
         conn
         |> put_status(:forbidden)
         |> json(@forbidden_response)

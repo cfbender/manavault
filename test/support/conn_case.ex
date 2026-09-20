@@ -17,6 +17,10 @@ defmodule ManavaultWeb.ConnCase do
 
   use ExUnit.CaseTemplate
 
+  import Phoenix.ConnTest, only: [get: 2]
+
+  @endpoint ManavaultWeb.Endpoint
+
   using do
     quote do
       # The default endpoint for testing
@@ -26,13 +30,31 @@ defmodule ManavaultWeb.ConnCase do
 
       # Import conveniences for testing with connections
       import Plug.Conn
-      import Phoenix.ConnTest
+      import Phoenix.ConnTest, except: [recycle: 1, recycle: 2]
       import ManavaultWeb.ConnCase
     end
   end
 
   setup tags do
     Manavault.DataCase.setup_sandbox(tags)
-    {:ok, conn: Phoenix.ConnTest.build_conn()}
+    {:ok, conn: csrf_conn()}
+  end
+
+  def recycle(conn, headers \\ ~w(accept accept-language authorization x-csrf-token)) do
+    Phoenix.ConnTest.recycle(conn, headers)
+  end
+
+  defp csrf_conn do
+    page_conn = get(Phoenix.ConnTest.build_conn(), "/")
+
+    [_, csrf_token] =
+      Regex.run(
+        ~r/<meta name="csrf-token" content="([^"]+)"/,
+        Phoenix.ConnTest.html_response(page_conn, 200)
+      )
+
+    page_conn
+    |> recycle()
+    |> Plug.Conn.put_req_header("x-csrf-token", csrf_token)
   end
 end

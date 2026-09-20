@@ -3,9 +3,11 @@ id: TASK-67
 title: >-
   Enforce GraphQL CSRF checks in every auth mode and make owner sessions
   revocable
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@cody'
 created_date: '2026-09-20 16:34'
+updated_date: '2026-09-20 16:39'
 labels: []
 dependencies: []
 priority: high
@@ -27,3 +29,18 @@ A security review found two auth gaps. (1) ManavaultWeb.Plugs.GraphQLCSRFProtect
 - [ ] #4 Logout drops the whole session rather than deleting one key
 - [ ] #5 mix test passes
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Make the private GraphQL pipeline reject every POST lacking a valid session-backed CSRF token, and add an auth-disabled form-post regression test.
+2. Derive a stable truncated SHA-256 fingerprint from the configured owner password hash, persist it at sign-in, and require it with the authenticated flag for HTTP and socket sessions.
+3. Drop the complete session at logout and add HTTP/socket/logout regression coverage.
+4. Run targeted tests, the full ExUnit suite, and exercise a CSRF-bearing GraphQL mutation through the auth-disabled development SPA.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented unconditional private GraphQL CSRF validation plus an auth-disabled form-post regression test. Added a 128-bit URL-safe SHA-256 fingerprint of the configured admin password hash, stored it during session renewal, and made HTTP and socket authentication require both the flag and matching fingerprint. Logout now drops the complete session; focused auth/CSRF/socket tests pass (31 tests).
+<!-- SECTION:NOTES:END -->

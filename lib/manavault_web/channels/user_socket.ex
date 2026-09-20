@@ -3,14 +3,13 @@ defmodule ManavaultWeb.UserSocket do
   use Absinthe.Phoenix.Socket, schema: ManavaultWeb.Schema
 
   alias Manavault.Auth
-
-  @authenticated_session_key "manavault_authenticated"
+  alias ManavaultWeb.Plugs.Authentication
 
   @impl true
   def connect(_params, socket, connect_info) do
     session = Map.get(connect_info, :session) || %{}
 
-    if Auth.disabled?() || Map.get(session, @authenticated_session_key) == true do
+    if Auth.disabled?() || Authentication.session_authenticated?(session) do
       {:ok, socket}
     else
       :error

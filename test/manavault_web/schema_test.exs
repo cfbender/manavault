@@ -132,7 +132,7 @@ defmodule ManavaultWeb.SchemaTest do
            } = json_response(conn, 200)
 
     conn =
-      post(build_conn(), "/api/graphql", %{
+      post(recycle(conn), "/api/graphql", %{
         "query" => """
         query {
           backupSettings {

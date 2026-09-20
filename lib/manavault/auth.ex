@@ -14,6 +14,7 @@ defmodule Manavault.Auth do
   @default_iterations 210_000
   @hash_bytes 32
   @salt_bytes 16
+  @session_fingerprint_bytes 16
 
   def enabled? do
     not truthy?(Application.get_env(:manavault, :auth_disabled))
@@ -36,6 +37,19 @@ defmodule Manavault.Auth do
     :manavault
     |> Application.get_env(:admin_password_hash)
     |> blank_to_nil()
+  end
+
+  def admin_password_fingerprint do
+    case admin_password_hash() do
+      nil ->
+        nil
+
+      hash ->
+        :sha256
+        |> :crypto.hash(hash)
+        |> binary_part(0, @session_fingerprint_bytes)
+        |> Base.url_encode64(padding: false)
+    end
   end
 
   def disabled? do

@@ -80,6 +80,19 @@ defmodule ManavaultWeb.GraphQLCSRFProtectionTest do
     assert deck_count() == 0
   end
 
+  test "auth-disabled form posts still require a valid CSRF token" do
+    Application.put_env(:manavault, :auth_disabled, true)
+
+    conn =
+      build_conn()
+      |> put_req_header("content-type", "application/x-www-form-urlencoded")
+      |> put_req_header("origin", "https://evil.example")
+      |> post("/api/graphql", "query=" <> URI.encode_www_form(@mutation))
+
+    assert_forbidden(conn)
+    assert deck_count() == 0
+  end
+
   test "authenticated GraphQL rejects GET even when it selects a query" do
     {conn, _csrf_token} = authenticated_conn()
 

@@ -7,6 +7,7 @@ defmodule ManavaultWeb.Plugs.Authentication do
   alias Manavault.Auth
 
   @session_key :manavault_authenticated
+  @fingerprint_key :manavault_auth_fingerprint
 
   def init(mode), do: mode
 
@@ -22,10 +23,11 @@ defmodule ManavaultWeb.Plugs.Authentication do
     |> configure_session(renew: true)
     |> clear_session()
     |> put_session(@session_key, true)
+    |> put_session(@fingerprint_key, Auth.admin_password_fingerprint())
   end
 
   def sign_out(conn) do
-    delete_session(conn, @session_key)
+    configure_session(conn, drop: true)
   end
 
   defp require_browser_authentication(conn) do
@@ -49,8 +51,28 @@ defmodule ManavaultWeb.Plugs.Authentication do
     end
   end
 
-  def session_authenticated?(conn) do
-    get_session(conn, @session_key) == true
+  def session_authenticated?(%Plug.Conn{} = conn) do
+    session_authenticated?(%{
+      @session_key => get_session(conn, @session_key),
+      @fingerprint_key => get_session(conn, @fingerprint_key)
+    })
+  end
+
+  def session_authenticated?(session) when is_map(session) do
+    fingerprint = session_value(session, @fingerprint_key)
+    current_fingerprint = Auth.admin_password_fingerprint()
+
+    session_value(session, @session_key) == true and
+      is_binary(fingerprint) and
+      is_binary(current_fingerprint) and
+      byte_size(fingerprint) == byte_size(current_fingerprint) and
+      Plug.Crypto.secure_compare(fingerprint, current_fingerprint)
+  end
+
+  def session_authenticated?(_session), do: false
+
+  defp session_value(session, key) do
+    Map.get(session, key, Map.get(session, Atom.to_string(key)))
   end
 
   defp login_path(conn) do

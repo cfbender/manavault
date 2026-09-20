@@ -93,6 +93,8 @@ defmodule ManavaultWeb.AuthControllerTest do
     conn = post(conn, "/login", %{"password" => "secret", "return_to" => "/collection"})
 
     assert redirected_to(conn) == "/collection"
+    assert get_session(conn, :manavault_authenticated) == true
+    assert get_session(conn, :manavault_auth_fingerprint) == Auth.admin_password_fingerprint()
 
     conn =
       conn
@@ -100,6 +102,42 @@ defmodule ManavaultWeb.AuthControllerTest do
       |> get("/collection")
 
     assert html_response(conn, 200) =~ ~s(id="manavault-root")
+  end
+
+  test "rotating the admin password hash invalidates an existing browser session", %{conn: conn} do
+    configure_password("first password")
+
+    conn =
+      conn
+      |> post("/login", %{"password" => "first password", "return_to" => "/collection"})
+      |> recycle()
+
+    configure_password("replacement password")
+
+    conn = get(conn, "/collection")
+
+    assert redirected_to(conn) == "/login?return_to=%2Fcollection"
+  end
+
+  test "logout drops the complete session", %{conn: conn} do
+    configure_password("secret")
+
+    page_conn =
+      conn
+      |> post("/login", %{"password" => "secret", "return_to" => "/collection"})
+      |> recycle()
+      |> get("/collection")
+
+    [_, csrf_token] =
+      Regex.run(~r/<meta name="csrf-token" content="([^"]+)"/, html_response(page_conn, 200))
+
+    conn =
+      page_conn
+      |> recycle()
+      |> post("/logout", %{"_csrf_token" => csrf_token})
+
+    assert redirected_to(conn) == "/login"
+    assert conn.private.plug_session_info == :drop
   end
 
   test "login page renders only safe local return destinations", %{conn: conn} do
