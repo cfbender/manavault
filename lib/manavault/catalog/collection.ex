@@ -103,6 +103,10 @@ defmodule Manavault.Catalog.Collection do
     Locations.get!(id)
   end
 
+  defdelegate fetch_location(id), to: Locations, as: :fetch
+  defdelegate preload_location(location), to: Locations, as: :preload
+  defdelegate validate_auto_sort_target(id), to: Locations
+
   def get_location_with_items!(id) do
     Locations.get_with_items!(id)
   end

@@ -53,6 +53,9 @@ defmodule Manavault.Catalog do
   defdelegate unfiled_location_summary(summaries \\ nil), to: Cached
   defdelegate list_location_options(), to: Cached
   defdelegate get_location!(id), to: Cached
+  defdelegate fetch_location(id), to: Collection
+  defdelegate preload_location(location), to: Collection
+  defdelegate validate_auto_sort_target(id), to: Collection
   defdelegate get_location_with_items!(id), to: Cached
 
   defdelegate list_collection_items_by_location(location_id, filters \\ [], opts \\ []),
@@ -84,9 +87,6 @@ defmodule Manavault.Catalog do
   defdelegate fetch_deck_tag(id), to: Decks
   defdelegate preload_deck_card(deck_card), to: Decks
   defdelegate preload_deck_cards(deck_cards), to: Decks
-  defdelegate fetch_location(id), to: Decks
-  defdelegate preload_location(location), to: Decks
-  defdelegate validate_auto_sort_target(id), to: Decks
   defdelegate get_deck_by_share_token(token, opts \\ []), to: Decks
   defdelegate deck_cards(deck), to: Decks
   defdelegate fetch_cached_deck_cards(deck), to: Decks

@@ -28,7 +28,8 @@ defmodule Manavault.Catalog.Collection.AutoSort.RuleMatcher do
 
   defp matches?(rule, item) do
     color_matches?(rule, item) and type_matches?(rule, item) and rarity_matches?(rule, item) and
-      price_matches?(rule, item) and set_matches?(rule, item) and release_date_matches?(rule, item)
+      price_matches?(rule, item) and set_matches?(rule, item) and
+      release_date_matches?(rule, item)
   end
 
   defp color_matches?(%{color_mode: "any"}, _item), do: true
@@ -52,8 +53,13 @@ defmodule Manavault.Catalog.Collection.AutoSort.RuleMatcher do
 
   defp type_matches?(rule, item) do
     type_line = item |> card_value(:type_line) |> Card.sorting_type_line() |> String.downcase()
-    includes? = Enum.all?(rule.type_line_includes, &String.contains?(type_line, String.downcase(&1)))
-    excludes? = Enum.any?(rule.type_line_excludes, &String.contains?(type_line, String.downcase(&1)))
+
+    includes? =
+      Enum.all?(rule.type_line_includes, &String.contains?(type_line, String.downcase(&1)))
+
+    excludes? =
+      Enum.any?(rule.type_line_excludes, &String.contains?(type_line, String.downcase(&1)))
+
     includes? and not excludes?
   end
 

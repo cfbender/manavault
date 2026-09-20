@@ -34,8 +34,11 @@ defmodule Manavault.Trade.CreateWant do
     })
     |> Repo.insert()
     |> case do
-      {:ok, want} -> {:ok, Repo.preload(want, [:card, :preferred_printing])}
-      {:error, changeset} -> handle_conflict(changeset, oracle_id, preferred_printing_id, quantity)
+      {:ok, want} ->
+        {:ok, Repo.preload(want, [:card, :preferred_printing])}
+
+      {:error, changeset} ->
+        handle_conflict(changeset, oracle_id, preferred_printing_id, quantity)
     end
   end
 

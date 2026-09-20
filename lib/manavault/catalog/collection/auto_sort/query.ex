@@ -18,7 +18,10 @@ defmodule Manavault.Catalog.Collection.AutoSort.Query do
         {:ok, opts |> base() |> where([item], is_nil(item.location_id))}
 
       is_nil(Keyword.get(opts, :source_location_id)) ->
-        {:ok, opts |> base() |> where([location: location], is_nil(location.id) or location.kind != "list")}
+        {:ok,
+         opts
+         |> base()
+         |> where([location: location], is_nil(location.id) or location.kind != "list")}
 
       true ->
         with {:ok, location_id} <- normalize_location_id(Keyword.get(opts, :source_location_id)) do
@@ -59,7 +62,9 @@ defmodule Manavault.Catalog.Collection.AutoSort.Query do
     |> apply_location_debounce(CollectionItem)
     |> join(:inner, [item], printing in assoc(item, :printing))
     |> join(:inner, [_item, printing], card in assoc(printing, :card))
-    |> join(:left, [item, _printing, _card], location in assoc(item, :location_assoc), as: :location)
+    |> join(:left, [item, _printing, _card], location in assoc(item, :location_assoc),
+      as: :location
+    )
     |> where([item], item.id not in subquery(allocated_item_ids))
     |> preload([_item, printing, card, location],
       printing: {printing, card: card},

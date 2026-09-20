@@ -56,6 +56,23 @@ defmodule Manavault.Catalog.Collection.Locations do
     Location |> Repo.get!(id)
   end
 
+  def fetch(id) do
+    case Repo.get(Location, id) do
+      %Location{} = location -> {:ok, preload(location)}
+      nil -> {:error, :not_found}
+    end
+  end
+
+  def preload(%Location{} = location), do: Repo.preload(location, cover_printing: :card)
+
+  def validate_auto_sort_target(id) do
+    case Repo.get(Location, id) do
+      %Location{kind: kind} when kind in ["box", "binder"] -> :ok
+      %Location{} -> {:error, :invalid_auto_sort_target}
+      nil -> {:error, :not_found}
+    end
+  end
+
   def get_with_items!(id) do
     Location
     |> Repo.get!(id)

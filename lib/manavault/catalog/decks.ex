@@ -24,7 +24,6 @@ defmodule Manavault.Catalog.Decks do
     DefaultTags,
     Disassembly,
     FetchDeckRecords,
-    FetchLocation,
     ProxyAllocation,
     PullListAllocation,
     Queries,
@@ -78,9 +77,6 @@ defmodule Manavault.Catalog.Decks do
   defdelegate fetch_deck_tag(id), to: FetchDeckRecords, as: :deck_tag
   defdelegate preload_deck_card(deck_card), to: FetchDeckRecords
   defdelegate preload_deck_cards(deck_cards), to: FetchDeckRecords
-  defdelegate fetch_location(id), to: FetchLocation, as: :run
-  defdelegate preload_location(location), to: FetchLocation, as: :preload
-  defdelegate validate_auto_sort_target(id), to: FetchLocation
 
   def deck_cards(deck) do
     cached_deck_read(deck, :deck_cards, fn ->
