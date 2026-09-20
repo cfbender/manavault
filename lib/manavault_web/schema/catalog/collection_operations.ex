@@ -4,6 +4,8 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionOperations do
   use Absinthe.Schema.Notation
   use Absinthe.Relay.Schema.Notation, :modern
 
+  import ManavaultWeb.Schema.Catalog.Payload, only: [payload: 5]
+
   alias ManavaultWeb.Schema.Catalog.{
     AllocationResolvers,
     ImportResolvers,
@@ -303,19 +305,6 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionOperations do
           :import_result
         )
       end)
-    end
-  end
-
-  defp payload(parent, args, resolution, resolver, field) do
-    case resolver.(parent, args, resolution) do
-      {:ok, value} when is_map(value) ->
-        if Map.has_key?(value, field), do: {:ok, value}, else: {:ok, %{field => value}}
-
-      {:ok, value} ->
-        {:ok, %{field => value}}
-
-      other ->
-        other
     end
   end
 end

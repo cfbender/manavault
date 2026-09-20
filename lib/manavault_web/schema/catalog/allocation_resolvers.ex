@@ -2,8 +2,6 @@ defmodule ManavaultWeb.Schema.Catalog.AllocationResolvers do
   @moduledoc false
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.DeckCard
-  alias Manavault.Repo
   alias ManavaultWeb.Schema.Catalog.{CollectionSelector, Errors}
   alias ManavaultWeb.Schema.RelayHelpers
 
@@ -14,19 +12,10 @@ defmodule ManavaultWeb.Schema.Catalog.AllocationResolvers do
       deck = Catalog.get_deck!(deck_id)
       zone = Map.get(args, :zone, "mainboard")
 
-      attrs = %{
-        "oracle_id" => item.printing.card.oracle_id,
-        "preferred_printing_id" => item.scryfall_id,
-        "finish" => item.finish,
-        "quantity" => 1,
-        "zone" => zone
-      }
+      case Catalog.add_collection_item_to_deck(deck, item, zone) do
+        {:ok, deck_card} ->
+          {:ok, deck_card}
 
-      with {:ok, deck_card} <- Catalog.add_card_to_deck(deck, attrs),
-           {:ok, _allocation} <-
-             Catalog.allocate_collection_item_to_deck_card(deck_card.id, item.id, 1) do
-        {:ok, Repo.preload(deck_card, [:card, :preferred_printing])}
-      else
         {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
           {:error, Errors.changeset_error_message(changeset)}
 
@@ -68,7 +57,7 @@ defmodule ManavaultWeb.Schema.Catalog.AllocationResolvers do
            RelayHelpers.node_id(collection_item_id, :collection_item, resolution) do
       case Catalog.allocate_collection_item_to_deck_card(deck_card_id, collection_item_id) do
         {:ok, _allocation} ->
-          {:ok, DeckCard |> Repo.get!(deck_card_id) |> Repo.preload([:card, :preferred_printing])}
+          fetch_deck_card(deck_card_id)
 
         {:error, reason} ->
           {:error, Errors.deck_allocation_error(reason)}
@@ -86,7 +75,7 @@ defmodule ManavaultWeb.Schema.Catalog.AllocationResolvers do
            RelayHelpers.node_id(collection_item_id, :collection_item, resolution) do
       case Catalog.deallocate_collection_item_from_deck_card(deck_card_id, collection_item_id) do
         {:ok, _allocation} ->
-          {:ok, DeckCard |> Repo.get!(deck_card_id) |> Repo.preload([:card, :preferred_printing])}
+          fetch_deck_card(deck_card_id)
 
         {:error, reason} ->
           {:error, Errors.deck_allocation_error(reason)}
@@ -98,7 +87,7 @@ defmodule ManavaultWeb.Schema.Catalog.AllocationResolvers do
     with {:ok, deck_card_ids} <- decode_deck_card_ids(deck_card_ids, resolution) do
       case Catalog.bulk_deallocate_deck_cards(deck_card_ids) do
         {:ok, deck_cards} ->
-          {:ok, Repo.preload(deck_cards, [:card, :preferred_printing])}
+          {:ok, Catalog.preload_deck_cards(deck_cards)}
 
         {:error, reason} ->
           {:error, Errors.deck_allocation_error(reason)}
@@ -112,7 +101,7 @@ defmodule ManavaultWeb.Schema.Catalog.AllocationResolvers do
 
       case Catalog.allocate_proxy_to_deck_card(deck_card_id, quantity) do
         {:ok, _deck_card} ->
-          {:ok, DeckCard |> Repo.get!(deck_card_id) |> Repo.preload([:card, :preferred_printing])}
+          fetch_deck_card(deck_card_id)
 
         {:error, reason} ->
           {:error, Errors.deck_allocation_error(reason)}
@@ -126,7 +115,7 @@ defmodule ManavaultWeb.Schema.Catalog.AllocationResolvers do
 
       case Catalog.deallocate_proxy_from_deck_card(deck_card_id, quantity) do
         {:ok, _deck_card} ->
-          {:ok, DeckCard |> Repo.get!(deck_card_id) |> Repo.preload([:card, :preferred_printing])}
+          fetch_deck_card(deck_card_id)
 
         {:error, reason} ->
           {:error, Errors.deck_allocation_error(reason)}
@@ -177,6 +166,13 @@ defmodule ManavaultWeb.Schema.Catalog.AllocationResolvers do
     |> case do
       {:ok, ids} -> {:ok, Enum.reverse(ids)}
       error -> error
+    end
+  end
+
+  defp fetch_deck_card(id) do
+    case Catalog.fetch_deck_card(id) do
+      {:ok, deck_card} -> {:ok, deck_card}
+      {:error, :not_found} -> {:error, Errors.not_found_error(:deck_card)}
     end
   end
 

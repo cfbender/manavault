@@ -8,6 +8,12 @@ defmodule Manavault.Catalog.DeckAllocationTest do
   alias Manavault.Catalog.DeckAllocation
   alias Manavault.Repo
 
+  test "resolver-facing fetches return not found instead of raising" do
+    assert {:error, :not_found} = Catalog.fetch_deck_card(-1)
+    assert {:error, :not_found} = Catalog.fetch_deck_tag(-1)
+    assert {:error, :not_found} = Catalog.fetch_location(-1)
+  end
+
   test "deck allocation status covers owned available, allocated elsewhere, missing, and alternate printings" do
     assert {:ok, %{cards_count: 3, printings_count: 3}} =
              Catalog.import_cards([@black_lotus, @black_lotus_beta, @time_walk])
@@ -672,6 +678,29 @@ defmodule Manavault.Catalog.DeckAllocationTest do
 
     assert {:error, :allocation_list_location} =
              Catalog.bulk_add_collection_items_to_deck(deck, [list_item.id])
+
+    assert [] = Catalog.get_deck!(deck.id).deck_cards
+    assert Catalog.get_collection_item!(list_item.id).location_id == list.id
+  end
+
+  test "adding one collection item rolls back the deck card when allocation fails" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+    assert {:ok, list} = Catalog.create_location(%{name: "Single Wishlist", kind: "list"})
+
+    assert {:ok, list_item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 1,
+               "condition" => "near_mint",
+               "language" => "en",
+               "finish" => "nonfoil",
+               "location_id" => list.id
+             })
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Single Reject"})
+
+    assert {:error, :allocation_list_location} =
+             Catalog.add_collection_item_to_deck(deck, list_item)
 
     assert [] = Catalog.get_deck!(deck.id).deck_cards
     assert Catalog.get_collection_item!(list_item.id).location_id == list.id

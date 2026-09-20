@@ -3,8 +3,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
 
   alias Manavault.AI
   alias Manavault.Catalog
-  alias Manavault.Catalog.{DeckCard, DeckQuestionAnswer, DeckTag}
-  alias Manavault.Repo
+  alias Manavault.Catalog.{DeckCard, DeckQuestionAnswer}
   alias ManavaultWeb.Schema.Catalog.Errors
   alias ManavaultWeb.Schema.RelayHelpers
 
@@ -149,7 +148,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
 
       case Catalog.add_card_to_deck(deck, input) do
         {:ok, deck_card} ->
-          {:ok, Repo.preload(deck_card, [:card, :preferred_printing])}
+          {:ok, Catalog.preload_deck_card(deck_card)}
 
         {:error, :card_not_found} ->
           {:error, "Card was not found."}
@@ -221,12 +220,11 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
 
   def update_deck_card(_parent, %{id: id, input: input}, resolution) do
     with {:ok, id} <- RelayHelpers.node_id(id, :deck_card, resolution),
-         {:ok, input} <- normalize_deck_card_input(input, resolution) do
-      deck_card = DeckCard |> Repo.get!(id) |> Repo.preload([:card, :preferred_printing])
-
+         {:ok, input} <- normalize_deck_card_input(input, resolution),
+         {:ok, deck_card} <- fetch_deck_card(id) do
       case Catalog.update_deck_card(deck_card, input) do
         {:ok, deck_card} ->
-          {:ok, Repo.preload(deck_card, [:card, :preferred_printing])}
+          {:ok, Catalog.preload_deck_card(deck_card)}
 
         {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
           {:error, Errors.changeset_error_message(changeset)}
@@ -241,7 +239,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
     with {:ok, deck_card_ids} <- parse_deck_card_ids(deck_card_ids, resolution) do
       case Catalog.update_deck_cards_tag(deck_card_ids, Map.get(args, :tag)) do
         {:ok, deck_cards} ->
-          {:ok, Repo.preload(deck_cards, [:card, :preferred_printing])}
+          {:ok, Catalog.preload_deck_cards(deck_cards)}
 
         {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
           {:error, Errors.changeset_error_message(changeset)}
@@ -256,7 +254,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
     with {:ok, deck_card_ids} <- parse_deck_card_ids(deck_card_ids, resolution) do
       case Catalog.bulk_update_deck_cards(deck_card_ids, input) do
         {:ok, deck_cards} ->
-          {:ok, Repo.preload(deck_cards, [:card, :preferred_printing])}
+          {:ok, Catalog.preload_deck_cards(deck_cards)}
 
         {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
           {:error, Errors.changeset_error_message(changeset)}
@@ -286,7 +284,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
     with {:ok, deck_card_ids} <- parse_deck_card_ids(deck_card_ids, resolution) do
       case Catalog.optimize_deck_card_printings(deck_card_ids) do
         {:ok, deck_cards} ->
-          {:ok, Repo.preload(deck_cards, [:card, :preferred_printing])}
+          {:ok, Catalog.preload_deck_cards(deck_cards)}
 
         {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
           {:error, Errors.changeset_error_message(changeset)}
@@ -298,9 +296,8 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
   end
 
   def delete_deck_card(_parent, %{id: id}, resolution) do
-    with {:ok, id} <- RelayHelpers.node_id(id, :deck_card, resolution) do
-      deck_card = DeckCard |> Repo.get!(id) |> Repo.preload([:card, :preferred_printing])
-
+    with {:ok, id} <- RelayHelpers.node_id(id, :deck_card, resolution),
+         {:ok, deck_card} <- fetch_deck_card(id) do
       case Catalog.delete_deck_card(deck_card) do
         {:ok, deck_card} ->
           {:ok, deck_card}
@@ -315,51 +312,36 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
   end
 
   def set_deck_commander(_parent, %{id: id}, resolution) do
-    with {:ok, id} <- RelayHelpers.node_id(id, :deck_card, resolution) do
-      deck_card = DeckCard |> Repo.get!(id) |> Repo.preload([:card, :preferred_printing])
-
+    with {:ok, id} <- RelayHelpers.node_id(id, :deck_card, resolution),
+         {:ok, deck_card} <- fetch_deck_card(id) do
       case Catalog.set_deck_commander(deck_card) do
         {:ok, deck_card} ->
           {:ok, deck_card}
 
         {:error, :not_legendary_creature} ->
-          {:error, "card must be a legendary creature"}
+          {:error, Errors.commander_error(:not_legendary_creature)}
 
         {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
           {:error, Errors.changeset_error_message(changeset)}
 
         {:error, reason} ->
-          {:error, Errors.deck_edit_error(reason)}
+          {:error, Errors.commander_error(reason)}
       end
     end
   end
 
   def add_deck_partner(_parent, %{id: id}, resolution) do
-    with {:ok, id} <- RelayHelpers.node_id(id, :deck_card, resolution) do
-      deck_card = DeckCard |> Repo.get!(id) |> Repo.preload([:card, :preferred_printing])
-
+    with {:ok, id} <- RelayHelpers.node_id(id, :deck_card, resolution),
+         {:ok, deck_card} <- fetch_deck_card(id) do
       case Catalog.add_deck_partner(deck_card) do
         {:ok, deck_card} ->
           {:ok, deck_card}
-
-        {:error, :already_commander} ->
-          {:error, "card is already in the command zone"}
-
-        {:error, :no_commander} ->
-          {:error, "deck has no commander to pair with"}
-
-        {:error, :command_zone_full} ->
-          {:error, "deck already has two commanders"}
-
-        {:error, :invalid_commander_pair} ->
-          {:error,
-           "card can't be paired with the current commander; two commanders require a pairing ability such as Partner, Partner with, Friends forever, Doctor's companion, or Choose a Background"}
 
         {:error, changeset} when is_struct(changeset, Ecto.Changeset) ->
           {:error, Errors.changeset_error_message(changeset)}
 
         {:error, reason} ->
-          {:error, Errors.deck_edit_error(reason)}
+          {:error, Errors.commander_error(reason)}
       end
     end
   end
@@ -444,9 +426,16 @@ defmodule ManavaultWeb.Schema.Catalog.DeckMutations do
   end
 
   defp fetch_deck_tag(id) do
-    case Repo.get(DeckTag, id) do
-      %DeckTag{} = deck_tag -> {:ok, deck_tag}
-      nil -> {:error, "Deck tag was not found."}
+    case Catalog.fetch_deck_tag(id) do
+      {:ok, deck_tag} -> {:ok, deck_tag}
+      {:error, :not_found} -> {:error, Errors.not_found_error(:deck_tag)}
+    end
+  end
+
+  defp fetch_deck_card(id) do
+    case Catalog.fetch_deck_card(id) do
+      {:ok, deck_card} -> {:ok, deck_card}
+      {:error, :not_found} -> {:error, Errors.not_found_error(:deck_card)}
     end
   end
 

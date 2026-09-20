@@ -2,15 +2,13 @@ defmodule ManavaultWeb.Schema.Catalog.LocationMutations do
   @moduledoc false
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.Location
-  alias Manavault.Repo
   alias ManavaultWeb.Schema.Catalog.Errors
   alias ManavaultWeb.Schema.RelayHelpers
 
   def create_location(_parent, %{input: input}, resolution) do
     with {:ok, input} <- normalize_location_input(input, resolution) do
       case Catalog.create_location(input) do
-        {:ok, location} -> {:ok, Repo.preload(location, cover_printing: :card)}
+        {:ok, location} -> {:ok, Catalog.preload_location(location)}
         {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
       end
     end
@@ -62,20 +60,20 @@ defmodule ManavaultWeb.Schema.Catalog.LocationMutations do
   end
 
   defp delete_persisted_location(id) do
-    location = Catalog.get_location!(id)
-
-    case Catalog.delete_location(location) do
-      {:ok, location} -> {:ok, Repo.preload(location, cover_printing: :card)}
-      {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+    with {:ok, location} <- fetch_location(id) do
+      case Catalog.delete_location(location) do
+        {:ok, location} -> {:ok, Catalog.preload_location(location)}
+        {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+      end
     end
   end
 
   defp update_persisted_location(id, input) do
-    location = Catalog.get_location!(id)
-
-    case Catalog.update_location(location, input) do
-      {:ok, location} -> {:ok, Repo.preload(location, cover_printing: :card)}
-      {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+    with {:ok, location} <- fetch_location(id) do
+      case Catalog.update_location(location, input) do
+        {:ok, location} -> {:ok, Catalog.preload_location(location)}
+        {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
+      end
     end
   end
 
@@ -108,10 +106,17 @@ defmodule ManavaultWeb.Schema.Catalog.LocationMutations do
     do: {:error, "Unfiled cannot be an auto-sort target."}
 
   defp validate_auto_sort_target(target_location_id) do
-    case Repo.get(Location, target_location_id) do
-      %Location{kind: kind} when kind in ["box", "binder"] -> :ok
-      %Location{} -> {:error, "Auto-sort target must be a box or binder."}
-      nil -> {:error, "Auto-sort target location was not found."}
+    case Catalog.validate_auto_sort_target(target_location_id) do
+      :ok -> :ok
+      {:error, :invalid_auto_sort_target} -> {:error, "Auto-sort target must be a box or binder."}
+      {:error, :not_found} -> {:error, Errors.not_found_error(:auto_sort_target_location)}
+    end
+  end
+
+  defp fetch_location(id) do
+    case Catalog.fetch_location(id) do
+      {:ok, location} -> {:ok, location}
+      {:error, :not_found} -> {:error, Errors.not_found_error(:location)}
     end
   end
 

@@ -11,6 +11,7 @@ defmodule Manavault.Catalog.Decks do
   }
 
   alias Manavault.Catalog.Decks.{
+    AddCollectionItemToDeck,
     AllocationStatus,
     BulkCollectionAllocation,
     BulkDeckAllocation,
@@ -22,6 +23,8 @@ defmodule Manavault.Catalog.Decks do
     DeckPicker,
     DefaultTags,
     Disassembly,
+    FetchDeckRecords,
+    FetchLocation,
     ProxyAllocation,
     PullListAllocation,
     Queries,
@@ -70,6 +73,14 @@ defmodule Manavault.Catalog.Decks do
       Queries.get_deck_card!(id)
     end)
   end
+
+  defdelegate fetch_deck_card(id), to: FetchDeckRecords, as: :deck_card
+  defdelegate fetch_deck_tag(id), to: FetchDeckRecords, as: :deck_tag
+  defdelegate preload_deck_card(deck_card), to: FetchDeckRecords
+  defdelegate preload_deck_cards(deck_cards), to: FetchDeckRecords
+  defdelegate fetch_location(id), to: FetchLocation, as: :run
+  defdelegate preload_location(location), to: FetchLocation, as: :preload
+  defdelegate validate_auto_sort_target(id), to: FetchLocation
 
   def deck_cards(deck) do
     cached_deck_read(deck, :deck_cards, fn ->
@@ -313,6 +324,12 @@ defmodule Manavault.Catalog.Decks do
   def allocate_collection_item_to_deck_card(deck_card_id, collection_item_id, quantity \\ 1) do
     deck_card_id
     |> DeckCardAllocation.allocate_collection_item_to_deck_card(collection_item_id, quantity)
+    |> invalidate_decks_on_ok()
+  end
+
+  def add_collection_item_to_deck(deck, collection_item, zone \\ "mainboard") do
+    deck
+    |> AddCollectionItemToDeck.run(collection_item, zone)
     |> invalidate_decks_on_ok()
   end
 

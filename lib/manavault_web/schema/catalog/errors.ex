@@ -11,12 +11,29 @@ defmodule ManavaultWeb.Schema.Catalog.Errors do
     |> Enum.map_join(", ", fn {field, messages} -> "#{field} #{Enum.join(messages, ", ")}" end)
   end
 
+  def not_found_error(:deck_card), do: "Deck card was not found."
+  def not_found_error(:deck_tag), do: "Deck tag was not found."
+  def not_found_error(:location), do: "Location was not found."
+  def not_found_error(:auto_sort_target_location), do: "Auto-sort target location was not found."
+
+  def commander_error(:not_legendary_creature), do: "card must be a legendary creature"
+  def commander_error(:already_commander), do: "card is already in the command zone"
+  def commander_error(:no_commander), do: "deck has no commander to pair with"
+  def commander_error(:command_zone_full), do: "deck already has two commanders"
+
+  def commander_error(:invalid_commander_pair) do
+    "card can't be paired with the current commander; two commanders require a pairing ability such as Partner, Partner with, Friends forever, Doctor's companion, or Choose a Background"
+  end
+
+  def commander_error(reason), do: deck_edit_error(reason)
+
   def import_error(:location_not_found), do: "Import location was not found."
   def import_error(:invalid_import_format), do: "Import file must be a CSV or TXT file."
   def import_error(:invalid_import_file), do: "Could not parse that import file."
   def import_error(:invalid_purchase_price), do: "Import purchase price must be a dollar amount."
   def import_error(_reason), do: "Could not import collection file."
 
+  def deck_edit_error(:not_found), do: not_found_error(:deck_card)
   def deck_edit_error(:deck_archived), do: "Unarchive this deck before editing its decklist."
   def deck_edit_error(reason) when is_binary(reason), do: reason
   def deck_edit_error(reason) when is_atom(reason), do: Atom.to_string(reason)
