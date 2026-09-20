@@ -99,6 +99,9 @@ type Documents = {
     "\n  query DeckCombos($id: ID!) {\n    deckCombos(id: $id) {\n      id\n      url\n      cards {\n        name\n        quantity\n        imageUrl\n      }\n      produces\n      description\n      manaNeeded\n      prerequisites\n      notes\n    }\n  }\n": typeof types.DeckCombosDocument,
     "\n  query Home {\n    homeSummary {\n      collectionCount\n      locationCount\n      deckCount\n    }\n  }\n": typeof types.HomeDocument,
     "\n  subscription ServerLog {\n    serverLog {\n      id\n      timestamp\n      level\n      message\n    }\n  }\n": typeof types.ServerLogDocument,
+    "\n  query ApiKeys {\n    apiKeys {\n      id\n      name\n      prefix\n      createdAt\n      lastUsedAt\n    }\n  }\n": typeof types.ApiKeysDocument,
+    "\n  mutation CreateApiKey($name: String!) {\n    createApiKey(name: $name) {\n      token\n      apiKey {\n        id\n        name\n        prefix\n        createdAt\n        lastUsedAt\n      }\n    }\n  }\n": typeof types.CreateApiKeyDocument,
+    "\n  mutation RevokeApiKey($id: ID!) {\n    revokeApiKey(id: $id) {\n      id\n    }\n  }\n": typeof types.RevokeApiKeyDocument,
     "\n  query AISettings {\n    aiSettings {\n      provider\n      model\n      deckAnalysisInstructions\n      hasApiKey\n    }\n  }\n": typeof types.AiSettingsDocument,
     "\n  mutation UpdateAISettings($input: AiSettingsInput!) {\n    updateAiSettings(input: $input) {\n      aiSettings {\n        provider\n        model\n        deckAnalysisInstructions\n        hasApiKey\n      }\n    }\n  }\n": typeof types.UpdateAiSettingsDocument,
     "\n  mutation RefreshAllDeckAnalyses {\n    refreshAllDeckAnalyses {\n      queuedCount\n    }\n  }\n": typeof types.RefreshAllDeckAnalysesDocument,
@@ -221,6 +224,9 @@ const documents: Documents = {
     "\n  query DeckCombos($id: ID!) {\n    deckCombos(id: $id) {\n      id\n      url\n      cards {\n        name\n        quantity\n        imageUrl\n      }\n      produces\n      description\n      manaNeeded\n      prerequisites\n      notes\n    }\n  }\n": types.DeckCombosDocument,
     "\n  query Home {\n    homeSummary {\n      collectionCount\n      locationCount\n      deckCount\n    }\n  }\n": types.HomeDocument,
     "\n  subscription ServerLog {\n    serverLog {\n      id\n      timestamp\n      level\n      message\n    }\n  }\n": types.ServerLogDocument,
+    "\n  query ApiKeys {\n    apiKeys {\n      id\n      name\n      prefix\n      createdAt\n      lastUsedAt\n    }\n  }\n": types.ApiKeysDocument,
+    "\n  mutation CreateApiKey($name: String!) {\n    createApiKey(name: $name) {\n      token\n      apiKey {\n        id\n        name\n        prefix\n        createdAt\n        lastUsedAt\n      }\n    }\n  }\n": types.CreateApiKeyDocument,
+    "\n  mutation RevokeApiKey($id: ID!) {\n    revokeApiKey(id: $id) {\n      id\n    }\n  }\n": types.RevokeApiKeyDocument,
     "\n  query AISettings {\n    aiSettings {\n      provider\n      model\n      deckAnalysisInstructions\n      hasApiKey\n    }\n  }\n": types.AiSettingsDocument,
     "\n  mutation UpdateAISettings($input: AiSettingsInput!) {\n    updateAiSettings(input: $input) {\n      aiSettings {\n        provider\n        model\n        deckAnalysisInstructions\n        hasApiKey\n      }\n    }\n  }\n": types.UpdateAiSettingsDocument,
     "\n  mutation RefreshAllDeckAnalyses {\n    refreshAllDeckAnalyses {\n      queuedCount\n    }\n  }\n": types.RefreshAllDeckAnalysesDocument,
@@ -612,6 +618,18 @@ export function graphql(source: "\n  query Home {\n    homeSummary {\n      coll
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  subscription ServerLog {\n    serverLog {\n      id\n      timestamp\n      level\n      message\n    }\n  }\n"): (typeof documents)["\n  subscription ServerLog {\n    serverLog {\n      id\n      timestamp\n      level\n      message\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query ApiKeys {\n    apiKeys {\n      id\n      name\n      prefix\n      createdAt\n      lastUsedAt\n    }\n  }\n"): (typeof documents)["\n  query ApiKeys {\n    apiKeys {\n      id\n      name\n      prefix\n      createdAt\n      lastUsedAt\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateApiKey($name: String!) {\n    createApiKey(name: $name) {\n      token\n      apiKey {\n        id\n        name\n        prefix\n        createdAt\n        lastUsedAt\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation CreateApiKey($name: String!) {\n    createApiKey(name: $name) {\n      token\n      apiKey {\n        id\n        name\n        prefix\n        createdAt\n        lastUsedAt\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation RevokeApiKey($id: ID!) {\n    revokeApiKey(id: $id) {\n      id\n    }\n  }\n"): (typeof documents)["\n  mutation RevokeApiKey($id: ID!) {\n    revokeApiKey(id: $id) {\n      id\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

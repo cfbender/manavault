@@ -18,6 +18,41 @@ export const ServerLogDocument = graphql(`
   }
 `)
 
+export const ApiKeysDocument = graphql(`
+  query ApiKeys {
+    apiKeys {
+      id
+      name
+      prefix
+      createdAt
+      lastUsedAt
+    }
+  }
+`)
+
+export const CreateApiKeyDocument = graphql(`
+  mutation CreateApiKey($name: String!) {
+    createApiKey(name: $name) {
+      token
+      apiKey {
+        id
+        name
+        prefix
+        createdAt
+        lastUsedAt
+      }
+    }
+  }
+`)
+
+export const RevokeApiKeyDocument = graphql(`
+  mutation RevokeApiKey($id: ID!) {
+    revokeApiKey(id: $id) {
+      id
+    }
+  }
+`)
+
 export const AISettingsDocument = graphql(`
   query AISettings {
     aiSettings {

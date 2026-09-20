@@ -8,6 +8,7 @@ import { AutoSortSummaryDialog } from "../collection/auto-sort-summary-dialog"
 import { AutoSortCollectionDocument } from "../collection/documents"
 import type { AutoSortCollectionResult } from "../collection/types"
 import { AISettingsSection } from "./ai-settings-section"
+import { ApiKeysSection } from "./api-keys-section"
 import { AppearanceSection } from "./appearance-section"
 import { BackupSettingsForm } from "./backup-settings-form"
 import { CollectionAutoSortSection } from "./collection-auto-sort-section"
@@ -328,6 +329,8 @@ export function SettingsPage() {
       <PricingSection />
 
       <AISettingsSection />
+
+      <ApiKeysSection />
 
       {nativeShell ? <NativeAppSection {...nativeSectionProps} /> : null}
 
