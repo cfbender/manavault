@@ -1,5 +1,5 @@
 ---
-id: TASK-30
+id: TASK-77
 title: Harden public share GraphQL against resource exhaustion
 status: Done
 assignee:

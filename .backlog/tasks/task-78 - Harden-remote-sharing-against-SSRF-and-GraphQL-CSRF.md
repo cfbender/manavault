@@ -1,5 +1,5 @@
 ---
-id: TASK-30
+id: TASK-78
 title: Harden remote sharing against SSRF and GraphQL CSRF
 status: Done
 assignee:
