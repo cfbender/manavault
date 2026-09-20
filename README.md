@@ -108,6 +108,8 @@ built-in auth and follow the self-hosting guide.
 - [Feature reference](docs/features.md) - concepts and product-area behavior.
 - [Self-hosting](docs/self-hosting.md) - Docker, data layout, auth, environment
   variables, backups, and restores.
+- [Personal API](docs/api.md) - create read-only API keys and list decks for
+  integrations such as The Gathering.
 - [Development](docs/development.md) - local setup, tests, and native shell dev
   commands.
 - [Android builds](docs/android.md) - official APK behavior, Share/Open with

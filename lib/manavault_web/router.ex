@@ -22,6 +22,10 @@ defmodule ManavaultWeb.Router do
     plug ManavaultWeb.Plugs.GraphQLCSRFProtection
   end
 
+  pipeline :personal_api do
+    plug ManavaultWeb.Plugs.ApiKeyAuthentication
+  end
+
   pipeline :public_graphql do
     plug ManavaultWeb.Plugs.PublicGraphQLProtection, :validate
   end
@@ -79,6 +83,12 @@ defmodule ManavaultWeb.Router do
     pipe_through :api
 
     get "/health", ManavaultWeb.HealthController, :show
+  end
+
+  scope "/api/v1", ManavaultWeb.Api.V1 do
+    pipe_through [:api, :personal_api]
+
+    get "/decks", DeckController, :index
   end
 
   scope "/" do

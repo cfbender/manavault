@@ -15,6 +15,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
     assert MapSet.new(Map.keys(query_fields)) ==
              MapSet.new([
                "aiSettings",
+               "apiKeys",
                "backupSettings",
                "binderList",
                "card",
@@ -78,6 +79,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "bulkUpdateDeckCards",
                "commitCollectionImport",
                "collectionCheck",
+               "createApiKey",
                "createCollectionItem",
                "createTradeWant",
                "createDeck",
@@ -112,6 +114,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "reloadScryfallCatalog",
                "reorderDeckTags",
                "replaceDefaultDeckTags",
+               "revokeApiKey",
                "rotateDeckShareToken",
                "rotateTradeBinderShareToken",
                "rotateTradeWantsShareToken",
@@ -141,6 +144,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
     assert argument(query_fields["cardEdhrec"], "name") == {"String!", nil}
     assert type_signature(query_fields["cardNameSuggestions"]["type"]) == "[String!]!"
     assert argument(query_fields["cardNameSuggestions"], "limit") == {"Int", "5"}
+    assert type_signature(query_fields["apiKeys"]["type"]) == "[ApiKey!]!"
     assert type_signature(query_fields["collectionItemCount"]["type"]) == "Int!"
 
     assert argument(query_fields["collectionItemCount"], "filters") ==
@@ -174,6 +178,8 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
     assert argument(mutation_fields["askDeckQuestion"], "question") == {"String!", nil}
     assert argument(mutation_fields["deleteDeckQuestionAnswer"], "id") == {"ID!", nil}
     assert argument(mutation_fields["recordDeckPlay"], "id") == {"ID!", nil}
+    assert argument(mutation_fields["createApiKey"], "name") == {"String!", nil}
+    assert argument(mutation_fields["revokeApiKey"], "id") == {"ID!", nil}
 
     assert argument(mutation_fields["recordDeckPlay"], "outcome") ==
              {"DeckPlayOutcome!", nil}
