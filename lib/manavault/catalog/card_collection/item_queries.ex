@@ -39,6 +39,17 @@ defmodule Manavault.Catalog.CardCollection.ItemQueries do
     |> Repo.all()
   end
 
+  def stream_items(filters \\ [], opts \\ []) when is_list(filters) do
+    filters
+    |> Base.base_query()
+    |> apply_sort(@default_sort)
+    |> select([item, printing, card, location], {item, printing, card, location})
+    |> Repo.stream(opts)
+    |> Stream.map(fn {item, printing, card, location} ->
+      %{item | printing: %{printing | card: card}, location_assoc: location}
+    end)
+  end
+
   def list_item_groups(filters \\ [], opts \\ []) when is_list(filters) do
     limit = Keyword.get(opts, :limit, 100)
     offset = Keyword.get(opts, :offset, 0)

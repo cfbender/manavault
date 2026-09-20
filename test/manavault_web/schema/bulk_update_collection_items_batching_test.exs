@@ -59,6 +59,28 @@ defmodule ManavaultWeb.Schema.BulkUpdateCollectionItemsBatchingTest do
     assert query_count <= @item_count * 3 + 4
   end
 
+  test "bulk update translates missing ids into a GraphQL error", %{conn: conn} do
+    missing_id = Node.to_global_id(:collection_item, 999_999, ManavaultWeb.Schema)
+
+    response =
+      conn
+      |> post("/api/graphql", %{
+        "query" => """
+        mutation Bulk($selector: CollectionItemSelector!, $input: CollectionItemUpdateInput!) {
+          bulkUpdateCollectionItems(selector: $selector, input: $input) { updatedCount }
+        }
+        """,
+        "variables" => %{
+          "selector" => %{"ids" => [missing_id]},
+          "input" => %{"notes" => "missing"}
+        }
+      })
+      |> json_response(200)
+
+    assert %{"errors" => [%{"message" => "One or more collection items were not found."}]} =
+             response
+  end
+
   defp count_repo_queries(fun) when is_function(fun, 0) do
     caller = self()
     ref = make_ref()

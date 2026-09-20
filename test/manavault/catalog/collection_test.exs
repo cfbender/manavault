@@ -337,6 +337,17 @@ defmodule Manavault.Catalog.CollectionTest do
     assert Repo.get!(CollectionItem, lotus.id).purchase_price_cents == 350
   end
 
+  test "bulk collection item updates report missing ids without changing existing items" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+    item = create_collection_item!("scryfall-printing-1", notes: "unchanged")
+    missing_id = item.id + 10_000
+
+    assert {:error, {:not_found, [^missing_id]}} =
+             Catalog.update_collection_items([item.id, missing_id], %{notes: "changed"})
+
+    assert Catalog.get_collection_item!(item.id).notes == "unchanged"
+  end
+
   test "collection item pagination supports deterministic limit and offset" do
     assert {:ok, %{cards_count: 2, printings_count: 2}} =
              Catalog.import_cards([@black_lotus, @time_walk])
@@ -523,6 +534,17 @@ defmodule Manavault.Catalog.CollectionTest do
 
     assert Catalog.get_collection_item!(first.id).for_trade_quantity == 2
     assert Catalog.get_collection_item!(second.id).for_trade_quantity == 2
+  end
+
+  test "setting trade quantity reports missing collection item ids" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+    item = create_collection_item!("scryfall-printing-1", quantity: 2)
+    missing_id = item.id + 10_000
+
+    assert {:error, {:not_found, [^missing_id]}} =
+             Catalog.set_collection_items_for_trade_quantity([item.id, missing_id], 1)
+
+    assert Catalog.get_collection_item!(item.id).for_trade_quantity == 0
   end
 
   test "collection item filtering supports Scryfall search syntax" do
@@ -811,6 +833,33 @@ defmodule Manavault.Catalog.CollectionTest do
     assert Catalog.get_collection_item!(blue_item.id).location_id == nil
     assert Catalog.get_collection_item!(list_item.id).location_id == list.id
     assert Catalog.get_collection_item!(already_sorted.id).location_id == high_priority.id
+  end
+
+  test "auto-sort applies more than one bounded batch" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+    target = create_location!("Batched")
+
+    update_auto_sort_rules!([
+      %{target_location_id: target.id, enabled: true, priority: 1, color_mode: "colorless"}
+    ])
+
+    items = for _index <- 1..101, do: create_collection_item!("scryfall-printing-1")
+
+    assert {:ok, %{checked_count: 101, moved_count: 101, skipped_count: 0}} =
+             Catalog.auto_sort_collection()
+
+    assert Enum.all?(items, &(Catalog.get_collection_item!(&1.id).location_id == target.id))
+  end
+
+  test "collection exports stream more rows than one export batch" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+    for _index <- 1..101, do: create_collection_item!("scryfall-printing-1")
+
+    assert {:ok, csv} = Catalog.export_collection_csv()
+    assert length(String.split(csv, "\n")) == 102
+
+    assert {:ok, text} = Catalog.export_collection_text()
+    assert length(String.split(text, "\n")) == 101
   end
 
   test "auto-sort ignores items moved into a location during the last 30 days" do

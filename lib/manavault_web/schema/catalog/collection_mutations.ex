@@ -31,6 +31,7 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionMutations do
          {:ok, input} <- normalize_collection_item_input(input, resolution) do
       case Catalog.update_collection_items(ids, input) do
         {:ok, items} -> {:ok, length(items)}
+        {:error, {:not_found, _ids}} -> {:error, "One or more collection items were not found."}
         {:error, changeset} -> {:error, Errors.changeset_error_message(changeset)}
       end
     end
@@ -53,6 +54,9 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionMutations do
 
         {:error, :invalid_for_trade_quantity} ->
           {:error, "Trade quantity must be between zero and the number of copies owned."}
+
+        {:error, {:not_found, _ids}} ->
+          {:error, "One or more collection items were not found."}
 
         {:error, _reason} ->
           {:error, "Could not update trade quantity."}

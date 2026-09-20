@@ -131,13 +131,13 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
 
   def collection_export_csv(_parent, args, resolution) do
     with {:ok, filters} <- collection_filters(args, resolution) do
-      {:ok, Catalog.export_collection_csv(filters)}
+      Catalog.export_collection_csv(filters)
     end
   end
 
   def collection_export_text(_parent, args, resolution) do
     with {:ok, filters} <- collection_filters(args, resolution) do
-      {:ok, Catalog.export_collection_text(filters)}
+      Catalog.export_collection_text(filters)
     end
   end
 

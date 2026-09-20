@@ -8,38 +8,15 @@ defmodule Manavault.Trade do
   (see `Manavault.Trade.WantsShare`).
   """
 
-  import Ecto.Query
-
-  alias Manavault.Catalog
-  alias Manavault.Catalog.{Card, Printing, Util}
-  alias Manavault.Catalog.Search.CardsByName
-  alias Manavault.Repo
-  alias Manavault.Trade.{BinderShare, Want, WantsShare}
+  alias Manavault.Catalog.{Printing, Util}
+  alias Manavault.Trade.{BinderShare, CreateWant, DeleteWant, Query, UpdateWant, Want, WantsShare}
 
   @doc "Every want, newest first."
-  def list_wants do
-    Want
-    |> order_by([w], desc: w.inserted_at, desc: w.id)
-    |> preload([:card, :preferred_printing])
-    |> Repo.all()
-  end
+  defdelegate list_wants(), to: Query
 
   @doc "Wants for the given oracle ids, newest first."
-  def wants_by_oracle_ids([]), do: []
-
-  def wants_by_oracle_ids(oracle_ids) when is_list(oracle_ids) do
-    Want
-    |> where([w], w.oracle_id in ^oracle_ids)
-    |> order_by([w], desc: w.inserted_at, desc: w.id)
-    |> preload([:card, :preferred_printing])
-    |> Repo.all()
-  end
-
-  def get_want!(id) do
-    Want
-    |> preload([:card, :preferred_printing])
-    |> Repo.get!(id)
-  end
+  defdelegate wants_by_oracle_ids(oracle_ids), to: Query
+  defdelegate get_want!(id), to: Query
 
   @doc """
   Resolves `name` to a card and records a want for it. If the card already
@@ -48,14 +25,7 @@ defmodule Manavault.Trade do
   printing of the same card (see `create_want_by_printing/2`) is left
   untouched. Returns `{:error, :not_found}` when no card matches `name`.
   """
-  def create_want_by_name(name, quantity \\ nil) when is_binary(name) do
-    quantity = normalize_quantity(quantity)
-
-    case find_card_by_name(name) do
-      %Card{oracle_id: oracle_id} -> upsert_want(oracle_id, nil, quantity)
-      nil -> {:error, :not_found}
-    end
-  end
+  defdelegate create_want_by_name(name, quantity \\ nil), to: CreateWant, as: :by_name
 
   @doc """
   Resolves `scryfall_id` to a printing (and its card) and records a want
@@ -65,23 +35,12 @@ defmodule Manavault.Trade do
   is left untouched, so the two may coexist. Returns `{:error, :not_found}`
   when no printing matches `scryfall_id`.
   """
-  def create_want_by_printing(scryfall_id, quantity \\ nil) when is_binary(scryfall_id) do
-    quantity = normalize_quantity(quantity)
+  defdelegate create_want_by_printing(scryfall_id, quantity \\ nil),
+    to: CreateWant,
+    as: :by_printing
 
-    case Catalog.get_printing_by_scryfall_id(scryfall_id) do
-      %Printing{oracle_id: oracle_id} -> upsert_want(oracle_id, scryfall_id, quantity)
-      nil -> {:error, :not_found}
-    end
-  end
-
-  def update_want_quantity(%Want{} = want, quantity) do
-    case want |> Want.quantity_changeset(%{quantity: quantity}) |> Repo.update() do
-      {:ok, want} -> {:ok, Repo.preload(want, [:card, :preferred_printing])}
-      error -> error
-    end
-  end
-
-  def delete_want(%Want{} = want), do: Repo.delete(want)
+  defdelegate update_want_quantity(want, quantity), to: UpdateWant, as: :quantity
+  defdelegate delete_want(want), to: DeleteWant, as: :run
 
   @doc "Printing image URL for a want, preferring its preferred printing when set."
   def want_image_url(%Want{preferred_printing: %Printing{} = printing}) do
@@ -89,11 +48,8 @@ defmodule Manavault.Trade do
   end
 
   def want_image_url(%Want{oracle_id: oracle_id}) do
-    Printing
-    |> where([p], p.oracle_id == ^oracle_id)
-    |> order_by([p], desc: p.released_at, asc: p.set_code, asc: p.collector_number)
-    |> limit(1)
-    |> Repo.one()
+    oracle_id
+    |> Query.latest_printing()
     |> printing_image_url()
   end
 
@@ -124,55 +80,6 @@ defmodule Manavault.Trade do
   stored share token.
   """
   defdelegate binder_list_by_share_token(token), to: BinderShare, as: :list_by_token
-
-  defp normalize_quantity(quantity), do: Util.positive_quantity(quantity)
-
-  defp find_card_by_name(name), do: CardsByName.find(name)
-
-  defp upsert_want(oracle_id, preferred_printing_id, quantity) do
-    %Want{}
-    |> Want.changeset(%{
-      oracle_id: oracle_id,
-      preferred_printing_id: preferred_printing_id,
-      quantity: quantity
-    })
-    |> Repo.insert()
-    |> case do
-      {:ok, want} ->
-        {:ok, Repo.preload(want, [:card, :preferred_printing])}
-
-      {:error, changeset} ->
-        handle_insert_conflict(changeset, oracle_id, preferred_printing_id, quantity)
-    end
-  end
-
-  defp handle_insert_conflict(changeset, oracle_id, preferred_printing_id, quantity) do
-    if oracle_id_taken?(changeset) do
-      bump_existing_want(oracle_id, preferred_printing_id, quantity)
-    else
-      {:error, changeset}
-    end
-  end
-
-  defp oracle_id_taken?(changeset) do
-    Keyword.has_key?(changeset.errors, :oracle_id)
-  end
-
-  defp bump_existing_want(oracle_id, preferred_printing_id, quantity) do
-    Want
-    |> where([w], w.oracle_id == ^oracle_id)
-    |> matching_printing(preferred_printing_id)
-    |> Repo.one()
-    |> case do
-      nil -> upsert_want(oracle_id, preferred_printing_id, quantity)
-      %Want{} = want -> update_want_quantity(want, want.quantity + quantity)
-    end
-  end
-
-  defp matching_printing(query, nil), do: where(query, [w], is_nil(w.preferred_printing_id))
-
-  defp matching_printing(query, preferred_printing_id),
-    do: where(query, [w], w.preferred_printing_id == ^preferred_printing_id)
 
   defp printing_image_url(%Printing{image_uris: image_uris}) do
     image_uris |> Util.decode_json(%{}) |> image_url()

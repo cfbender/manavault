@@ -3,9 +3,11 @@ id: TASK-71
 title: >-
   Split the Collection and Trade contexts into actions and bound auto-sort and
   export work
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@cody'
 created_date: '2026-09-20 16:34'
+updated_date: '2026-09-20 16:48'
 labels: []
 dependencies: []
 priority: medium
@@ -21,10 +23,33 @@ Structural review against the developing-elixir standard: Manavault.Catalog.Coll
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Manavault.Catalog.Collection and Manavault.Trade delegate to action modules and contain no transactions or query construction
-- [ ] #2 Bulk collection operations return {:error, {:not_found, ids}} for missing ids instead of raising, covered by tests
-- [ ] #3 Auto-sort processes items in bounded batches with one transaction per batch, with a test covering more items than one batch
-- [ ] #4 Collection exports stream or page through items instead of a single 100k-row read, and behavior is covered by tests
-- [ ] #5 Manavault.Catalog.Util functions are moved to owning modules only where no other task owns the importing file; otherwise leave Util in place
-- [ ] #6 mix test passes
+- [x] #1 Manavault.Catalog.Collection and Manavault.Trade delegate to action modules and contain no transactions or query construction
+- [x] #2 Bulk collection operations return {:error, {:not_found, ids}} for missing ids instead of raising, covered by tests
+- [x] #3 Auto-sort processes items in bounded batches with one transaction per batch, with a test covering more items than one batch
+- [x] #4 Collection exports stream or page through items instead of a single 100k-row read, and behavior is covered by tests
+- [x] #5 Manavault.Catalog.Util functions are moved to owning modules only where no other task owns the importing file; otherwise leave Util in place
+- [x] #6 mix test passes
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Extract collection bulk update, trade quantity, auto-sort-rule replacement, and export workflows into verb-named action modules; make Collection a thin delegating context.
+2. Split auto-sort query construction, rule normalization/matching, and batched application into focused modules using keyset batches and one transaction per write batch while preserving dry-run results.
+3. Extract Trade queries and want creation/upsert handling, leaving Trade as delegations and lightweight presentation behavior.
+4. Add regression tests for missing bulk IDs, auto-sort exceeding one batch, and paged exports; translate bulk not-found results in CollectionMutations.
+5. Run focused tests, full mix test, strict Credo, and GraphQL codegen; confirm generated GraphQL files are unchanged, record final evidence, and commit locally.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented focused collection item, bulk update/delete, trade quantity, auto-sort rule replacement, export, and trade want query/action modules. Auto-sort now keyset-pages 100 items and commits each batch independently; exports use Repo.stream with max_rows: 100 inside a transaction. Catalog.Util remains unchanged because normalize_filter/parse_quantity/decode_json/positive_quantity all have consumers in explicitly out-of-scope deck, AI, search, schema, or other shared files.
+Validation: focused suite 87 passed; full suite 680 passed; mix credo --strict found no issues; aube codegen completed against a supervised Phoenix server and assets/react/src/gql had no diff.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Split the Collection and Trade contexts into focused actions and queries, replaced expected missing-id exceptions with tagged errors translated by GraphQL, batched auto-sort writes, and streamed collection exports. Verified with 680 passing tests, strict Credo, regression coverage above both 100-item batch sizes, and schema codegen with no generated GraphQL changes.
+<!-- SECTION:FINAL_SUMMARY:END -->
