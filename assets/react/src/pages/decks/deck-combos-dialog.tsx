@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import type { DeckCombosQuery } from "../../gql/graphql"
+import { safeHttpUrl } from "../../lib/utils"
 import { ManaText } from "../cards/card-text"
 import { DeckCombosDocument } from "./queries"
 
@@ -132,6 +133,7 @@ function ComboResult({ combo }: { combo: Combo }) {
     .split(/\r?\n/u)
     .map((step) => step.trim())
     .filter(Boolean)
+  const comboUrl = safeHttpUrl(combo.url)
 
   return (
     <article className="py-5 first:pt-4 last:pb-0">
@@ -174,12 +176,14 @@ function ComboResult({ combo }: { combo: Combo }) {
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="font-black">How it works</h3>
-            <Button asChild variant="outline" size="sm">
-              <a href={combo.url} target="_blank" rel="noreferrer">
-                Open combo
-                <ExternalLink className="h-3.5 w-3.5" />
-              </a>
-            </Button>
+            {comboUrl ? (
+              <Button asChild variant="outline" size="sm">
+                <a href={comboUrl} target="_blank" rel="noreferrer">
+                  Open combo
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </Button>
+            ) : null}
           </div>
 
           {steps.length ? (

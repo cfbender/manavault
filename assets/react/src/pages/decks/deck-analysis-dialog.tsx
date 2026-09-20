@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "../../components/ui/select"
 import { Textarea } from "../../components/ui/textarea"
-import { cn, titleize } from "../../lib/utils"
+import { cn, safeHttpUrl, titleize } from "../../lib/utils"
 import { formatDate } from "../settings/data"
 import { DeckMarkdown } from "./deck-primer"
 import { DECK_FORMATS } from "./deck-types"
@@ -291,6 +291,7 @@ function AnalysisHistory({
 
 function AnalysisHistoryItem({ open, request }: { open: boolean; request: AnalysisRequest }) {
   const bracket = bracketLabel(request)
+  const sourceUrl = request.sourceType === "url" ? safeHttpUrl(request.source) : null
 
   return (
     <details className="group rounded-box border border-base-300 bg-base-100" open={open}>
@@ -311,10 +312,10 @@ function AnalysisHistoryItem({ open, request }: { open: boolean; request: Analys
         />
       </summary>
       <div className="border-t border-base-300 px-4 py-4 sm:px-5">
-        {request.sourceType === "url" ? (
+        {sourceUrl ? (
           <a
             className="mb-5 inline-flex min-h-10 items-center gap-2 text-sm font-bold text-primary underline decoration-primary/35 underline-offset-4 hover:decoration-primary"
-            href={request.source}
+            href={sourceUrl}
             rel="noreferrer"
             target="_blank"
           >

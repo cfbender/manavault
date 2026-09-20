@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog"
-import { cn } from "../../lib/utils"
+import { cn, safeHttpUrl } from "../../lib/utils"
 import { useMobileHoverReveal } from "../../lib/mobile-hover"
 import type { DeckDetail, EDHRecAddZone, RecommanderCard } from "./deck-types"
 import { CardDetailDialog, type CardDetailDialogTarget } from "./deck-card-detail-dialog"
@@ -96,17 +96,19 @@ export function RecommanderDialog({
 
               <div className="flex flex-wrap items-center gap-2">
                 {(data?.commanders || [])
-                  .filter((commander) => commander.url)
-                  .map((commander) => (
-                    <Button key={commander.name} asChild variant="outline" size="sm">
-                      <a href={commander.url || ""} target="_blank" rel="noreferrer">
-                        <ExternalLink className="h-4 w-4" />
-                        {data && data.commanders.length > 1
-                          ? commander.name
-                          : "View on Recommander"}
-                      </a>
-                    </Button>
-                  ))}
+                  .map((commander) => {
+                    const url = safeHttpUrl(commander.url)
+                    return url ? (
+                      <Button key={commander.name} asChild variant="outline" size="sm">
+                        <a href={url} target="_blank" rel="noreferrer">
+                          <ExternalLink className="h-4 w-4" />
+                          {data && data.commanders.length > 1
+                            ? commander.name
+                            : "View on Recommander"}
+                        </a>
+                      </Button>
+                    ) : null
+                  })}
 
                 <label className="label cursor-pointer justify-start gap-2 rounded-btn border border-base-300 px-3 py-2">
                   <input

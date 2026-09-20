@@ -64,6 +64,51 @@ test("loads and saves custom deck analysis instructions", async () => {
   expect((instructions as HTMLTextAreaElement).value).toBe(updatedInstructions)
 })
 
+test("preserves dirty form values when settings refetch", async () => {
+  const initialSettings = {
+    provider: "openrouter",
+    model: "anthropic/claude-sonnet-4",
+    deckAnalysisInstructions: "Initial instructions",
+    hasApiKey: true,
+  }
+  const refetchedSettings = {
+    ...initialSettings,
+    model: "openai/gpt-5",
+    deckAnalysisInstructions: "Refetched instructions",
+  }
+  const link = new MockLink([
+    {
+      request: { query: AISettingsDocument },
+      result: { data: { aiSettings: initialSettings } },
+    },
+    {
+      request: { query: AISettingsDocument },
+      result: { data: { aiSettings: refetchedSettings } },
+    },
+  ])
+  const client = new ApolloClient({ cache: new InMemoryCache(), link })
+
+  render(
+    <ApolloProvider client={client}>
+      <ToastProvider>
+        <AISettingsSection />
+      </ToastProvider>
+    </ApolloProvider>,
+  )
+
+  const model = await screen.findByRole("textbox", { name: /Model ID/ })
+  const instructions = screen.getByRole("textbox", { name: /Custom instructions/ })
+  await userEvent.clear(model)
+  await userEvent.type(model, "google/gemini-2.5-pro")
+  await userEvent.clear(instructions)
+  await userEvent.type(instructions, "Keep my unsaved instructions")
+
+  await client.refetchQueries({ include: [AISettingsDocument] })
+
+  expect((model as HTMLInputElement).value).toBe("google/gemini-2.5-pro")
+  expect((instructions as HTMLTextAreaElement).value).toBe("Keep my unsaved instructions")
+})
+
 test("queues a refresh for every deck analysis", async () => {
   const settings = {
     provider: "openrouter",

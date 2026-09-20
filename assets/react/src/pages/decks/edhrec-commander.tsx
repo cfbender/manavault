@@ -3,7 +3,7 @@ import { ChevronDown, Eye } from "lucide-react"
 
 import { EmptyState } from "../../components/card-image"
 import { Button } from "../../components/ui/button"
-import { cn, compactNumber } from "../../lib/utils"
+import { cn, compactNumber, safeHttpUrl } from "../../lib/utils"
 import { useMobileHoverReveal } from "../../lib/mobile-hover"
 import type { CardDetailDialogTarget } from "./deck-card-detail-dialog"
 import { cardImageUrl } from "./deck-card-model"
@@ -86,6 +86,7 @@ export function EDHRecCommanderHero({
 }) {
   const commander = commanderDeckCard(deck, page.name)
   const imageUrl = commander ? cardImageUrl(commander, "imageUrl") : null
+  const pageUrl = safeHttpUrl(page.url)
   const selectedThemeSlug =
     selectedTheme?.commanderName === page.name ? selectedTheme.themeSlug : null
 
@@ -109,12 +110,14 @@ export function EDHRecCommanderHero({
             <h3 className="text-2xl font-black tracking-normal">{page.title}</h3>
             <p className="mt-1 text-sm text-base-content/65">{page.description}</p>
           </div>
-          <Button asChild variant="outline" size="sm">
-            <a href={page.url} target="_blank" rel="noreferrer">
-              <Eye className="h-4 w-4" />
-              EDHREC
-            </a>
-          </Button>
+          {pageUrl ? (
+            <Button asChild variant="outline" size="sm">
+              <a href={pageUrl} target="_blank" rel="noreferrer">
+                <Eye className="h-4 w-4" />
+                EDHREC
+              </a>
+            </Button>
+          ) : null}
         </div>
 
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">

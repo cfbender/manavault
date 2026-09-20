@@ -2,6 +2,7 @@ import { useQuery } from "@apollo/client/react"
 import { Link } from "@tanstack/react-router"
 import { ExternalLink, ImageOff } from "lucide-react"
 import { graphqlEndpointContext } from "../../lib/apollo"
+import { safeHttpUrl } from "../../lib/utils"
 import { CardEdhrecDocument, type CardEdhrecEntry, type CardEdhrecSection } from "./data"
 
 const sectionOrder = ["topcommanders", "newcommanders", "newcards", "highliftcards"]
@@ -36,6 +37,7 @@ export function CardSynergies({
     fetchPolicy: graphqlEndpoint ? "no-cache" : "cache-and-network",
   })
   const edhrec = data?.cardEdhrec ?? previousData?.cardEdhrec
+  const edhrecUrl = safeHttpUrl(edhrec?.url)
   const sectionsByTag = new Map(edhrec?.sections.map((section) => [section.tag, section]))
 
   return (
@@ -59,15 +61,17 @@ export function CardSynergies({
                 <SynergySection key={tag} section={sectionsByTag.get(tag)} tag={tag} />
               ))}
             </div>
-            <a
-              href={edhrec.url}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-5 inline-flex min-h-11 items-center gap-1.5 rounded-field text-xs font-bold text-base-content/65 underline decoration-base-content/30 underline-offset-4 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/45"
-            >
-              Explore full data on EDHREC
-              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-            </a>
+            {edhrecUrl ? (
+              <a
+                href={edhrecUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-5 inline-flex min-h-11 items-center gap-1.5 rounded-field text-xs font-bold text-base-content/65 underline decoration-base-content/30 underline-offset-4 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/45"
+              >
+                Explore full data on EDHREC
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+              </a>
+            ) : null}
           </>
         ) : null}
       </div>
@@ -99,6 +103,7 @@ function SynergySection({ section, tag }: { section?: CardEdhrecSection; tag: st
 
 function SynergyCard({ entry }: { entry: CardEdhrecEntry }) {
   const imageUrl = entry.card?.primaryPrinting?.imageUrl || scryfallImageUrl(entry.scryfallId)
+  const entryUrl = safeHttpUrl(entry.url)
   const content = (
     <>
       {imageUrl ? (
@@ -137,9 +142,9 @@ function SynergyCard({ entry }: { entry: CardEdhrecEntry }) {
     >
       {content}
     </Link>
-  ) : (
+  ) : entryUrl ? (
     <a
-      href={entry.url}
+      href={entryUrl}
       target="_blank"
       rel="noreferrer"
       className={className}
@@ -147,6 +152,8 @@ function SynergyCard({ entry }: { entry: CardEdhrecEntry }) {
     >
       {content}
     </a>
+  ) : (
+    <span className={className}>{content}</span>
   )
 }
 

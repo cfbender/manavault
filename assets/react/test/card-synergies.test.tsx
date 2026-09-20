@@ -65,6 +65,27 @@ test("reveals the four card synergy views and links local cards into ManaVault",
   expect(remoteLink.getAttribute("href")).toBe("https://edhrec.com/cards/strong-pairing")
 })
 
+test("renders no links for unsafe EDHREC URLs", async () => {
+  renderSynergies({
+    data: {
+      cardEdhrec: {
+        url: "javascript:alert('unsafe')",
+        sections: [
+          section("Top Commanders", "topcommanders", [
+            entry("Unsafe Commander", { url: "javascript:alert('unsafe')" }),
+          ]),
+        ],
+      },
+    },
+  })
+
+  await userEvent.click(await screen.findByText("Synergies"))
+
+  expect(await screen.findByText("Unsafe Commander")).toBeTruthy()
+  expect(screen.queryByRole("link", { name: "View Unsafe Commander on EDHREC" })).toBeNull()
+  expect(screen.queryByRole("link", { name: "Explore full data on EDHREC" })).toBeNull()
+})
+
 test("keeps the disclosure usable when EDHREC is unavailable", async () => {
   renderSynergies({ error: new Error("upstream unavailable") })
 
@@ -113,6 +134,7 @@ function entry(
   name: string,
   overrides: Partial<{
     lift: number | null
+    url: string
     card: {
       id: string
       oracleId: string
