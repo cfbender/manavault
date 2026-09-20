@@ -45,7 +45,13 @@ export type CollectionImportState = {
 type ImportAction =
   | { type: "reset" }
   | { type: "update"; values: Partial<CollectionImportState> }
-  | { type: "source"; fileName: string; format: CollectionImportFormat; text: string; shared: boolean }
+  | {
+      type: "source"
+      fileName: string
+      format: CollectionImportFormat
+      text: string
+      shared: boolean
+    }
   | { type: "preview"; preview: CollectionImportPreview | null }
 
 const initialState: CollectionImportState = {
@@ -163,7 +169,10 @@ export function useCollectionImport({
     if (!open || !initialImport?.text || loadedInitialImport.current === initialImport) return
     loadedInitialImport.current = initialImport
     const fileName = initialImport.fileName || "Shared list"
-    const format = importFormatFromSource(initialImport.fileName || "", initialImport.mimeType || "")
+    const format = importFormatFromSource(
+      initialImport.fileName || "",
+      initialImport.mimeType || "",
+    )
     dispatch({ type: "source", fileName, format, text: initialImport.text, shared: true })
     previewImport({ fileName, format, locationId: state.locationId, text: initialImport.text })
   }, [initialImport, open, previewImport, state.locationId])
@@ -272,7 +281,8 @@ export function useCollectionImport({
         },
       },
       onCompleted: (data) => {
-        const imported = data.commitCollectionImport?.importResult?.imported ?? state.preview?.exact ?? 0
+        const imported =
+          data.commitCollectionImport?.importResult?.imported ?? state.preview?.exact ?? 0
         const sorted = data.commitCollectionImport?.importResult?.autoSorted ?? 0
         showToast(
           `${pluralize(imported, "card")} imported${sorted ? `; ${pluralize(sorted, "card")} auto-sorted` : ""}`,

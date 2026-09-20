@@ -30,7 +30,8 @@ export function useCollectionQuery({
     fetchPolicy: "cache-and-network",
   })
   const groups = useMemo(
-    () => (itemsQuery.data?.collectionItemGroups.edges || []).map((edge) => edge?.node).filter(present),
+    () =>
+      (itemsQuery.data?.collectionItemGroups.edges || []).map((edge) => edge?.node).filter(present),
     [itemsQuery.data],
   )
   const locations = useMemo(

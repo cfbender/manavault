@@ -9,19 +9,40 @@
   --secondary: oklch(69.78% 0.0851 127.42);
   --accent: oklch(75.63% 0.0947 74);
   --error: oklch(56.49% 0.1651 29.81);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 body {
   min-height: 100dvh;
   margin: 0;
   overflow-x: hidden;
   background:
-    radial-gradient(circle at 15% 86%, color-mix(in oklch, var(--secondary), transparent 58%), transparent 27rem),
-    radial-gradient(circle at 88% 84%, color-mix(in oklch, var(--secondary), transparent 64%), transparent 24rem),
-    radial-gradient(circle at 50% -12%, color-mix(in oklch, var(--primary), transparent 72%), transparent 34rem),
+    radial-gradient(
+      circle at 15% 86%,
+      color-mix(in oklch, var(--secondary), transparent 58%),
+      transparent 27rem
+    ),
+    radial-gradient(
+      circle at 88% 84%,
+      color-mix(in oklch, var(--secondary), transparent 64%),
+      transparent 24rem
+    ),
+    radial-gradient(
+      circle at 50% -12%,
+      color-mix(in oklch, var(--primary), transparent 72%),
+      transparent 34rem
+    ),
     linear-gradient(180deg, #1a080e 0%, var(--base-100) 58%, #120817 100%);
   color: var(--base-content);
 }
@@ -68,7 +89,9 @@ main {
   gap: 2rem;
 }
 
-.hero { max-width: 48rem; }
+.hero {
+  max-width: 48rem;
+}
 
 .eyebrow {
   margin: 0 0 0.75rem;
@@ -106,7 +129,9 @@ h1 {
   border-radius: 0.75rem;
   padding: clamp(1rem, 3vw, 1.5rem);
   background: color-mix(in oklch, #16020b, transparent 8%);
-  box-shadow: 0 2rem 6rem rgb(0 0 0 / 0.35), inset 0 1px 0 rgb(255 255 255 / 0.05);
+  box-shadow:
+    0 2rem 6rem rgb(0 0 0 / 0.35),
+    inset 0 1px 0 rgb(255 255 255 / 0.05);
 }
 
 .error {
@@ -168,5 +193,7 @@ button:focus-visible {
     align-items: end;
   }
 
-  .card { justify-self: end; }
+  .card {
+    justify-self: end;
+  }
 }

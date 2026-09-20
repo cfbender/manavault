@@ -6,11 +6,7 @@ import {
   type SharedImportPayload,
 } from "../../../lib/native-shared-import"
 import type { CollectionSelectionTarget } from "../item-target"
-import type {
-  AutoSortCollectionResult,
-  CollectionExportFormat,
-  LocationSummary,
-} from "../types"
+import type { AutoSortCollectionResult, CollectionExportFormat, LocationSummary } from "../types"
 
 export type CollectionOverlay =
   | { type: "none" }

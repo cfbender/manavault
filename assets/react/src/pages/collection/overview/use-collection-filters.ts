@@ -140,38 +140,67 @@ export function useCollectionFilters() {
 
 type FilterChip = { key: string; label: string }
 
-function collectionFilterChips(filters: CollectionFilterState, appliedSearch: string): FilterChip[] {
+function collectionFilterChips(
+  filters: CollectionFilterState,
+  appliedSearch: string,
+): FilterChip[] {
   const chips: FilterChip[] = []
   const search = appliedSearch.trim()
   if (search) chips.push({ key: "search", label: `Search: ${search}` })
   if (filters.name.trim()) chips.push({ key: "name", label: `Name: ${filters.name.trim()}` })
-  if (filters.typeLine.trim()) chips.push({ key: "type", label: `Type: ${filters.typeLine.trim()}` })
+  if (filters.typeLine.trim())
+    chips.push({ key: "type", label: `Type: ${filters.typeLine.trim()}` })
   if (filters.colors.length) {
-    chips.push({ key: "colors", label: `Colors ${filters.colorOperator} ${filters.colors.join("")}` })
+    chips.push({
+      key: "colors",
+      label: `Colors ${filters.colorOperator} ${filters.colors.join("")}`,
+    })
   }
   if (filters.identity.length) {
-    chips.push({ key: "identity", label: `Identity ${filters.identityOperator} ${filters.identity.join("")}` })
+    chips.push({
+      key: "identity",
+      label: `Identity ${filters.identityOperator} ${filters.identity.join("")}`,
+    })
   }
   if (filters.manaValue.trim()) {
-    chips.push({ key: "manaValue", label: `Mana value ${filters.manaValueOperator} ${filters.manaValue.trim()}` })
+    chips.push({
+      key: "manaValue",
+      label: `Mana value ${filters.manaValueOperator} ${filters.manaValue.trim()}`,
+    })
   }
-  if (filters.rarities.length) chips.push({ key: "rarity", label: `Rarity: ${filters.rarities.join(", ")}` })
+  if (filters.rarities.length)
+    chips.push({ key: "rarity", label: `Rarity: ${filters.rarities.join(", ")}` })
   if (filters.set.trim()) chips.push({ key: "set", label: `Set: ${filters.set.trim()}` })
   if (filters.collectorNumber.trim()) {
-    chips.push({ key: "collector", label: `Collector # ${filters.collectorOperator} ${filters.collectorNumber.trim()}` })
+    chips.push({
+      key: "collector",
+      label: `Collector # ${filters.collectorOperator} ${filters.collectorNumber.trim()}`,
+    })
   }
-  if (filters.language.trim()) chips.push({ key: "language", label: `Language: ${filters.language.trim()}` })
-  if (filters.oracle.trim()) chips.push({ key: "oracle", label: `Rules text: ${filters.oracle.trim()}` })
+  if (filters.language.trim())
+    chips.push({ key: "language", label: `Language: ${filters.language.trim()}` })
+  if (filters.oracle.trim())
+    chips.push({ key: "oracle", label: `Rules text: ${filters.oracle.trim()}` })
   if (filters.finish !== "any") chips.push({ key: "finish", label: `Finish: ${filters.finish}` })
   if (filters.quantity.trim()) {
-    chips.push({ key: "quantity", label: `Quantity ${filters.quantityOperator} ${filters.quantity.trim()}` })
+    chips.push({
+      key: "quantity",
+      label: `Quantity ${filters.quantityOperator} ${filters.quantity.trim()}`,
+    })
   }
-  if (filters.priceUsd.trim()) chips.push({ key: "price", label: `USD ${filters.priceOperator} ${filters.priceUsd.trim()}` })
+  if (filters.priceUsd.trim())
+    chips.push({ key: "price", label: `USD ${filters.priceOperator} ${filters.priceUsd.trim()}` })
   if (filters.releasedDate.trim()) {
-    chips.push({ key: "date", label: `Released ${filters.dateOperator} ${filters.releasedDate.trim()}` })
+    chips.push({
+      key: "date",
+      label: `Released ${filters.dateOperator} ${filters.releasedDate.trim()}`,
+    })
   }
   if (filters.releasedYear.trim()) {
-    chips.push({ key: "year", label: `Year ${filters.yearOperator} ${filters.releasedYear.trim()}` })
+    chips.push({
+      key: "year",
+      label: `Year ${filters.yearOperator} ${filters.releasedYear.trim()}`,
+    })
   }
   return chips
 }

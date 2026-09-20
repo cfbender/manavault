@@ -108,7 +108,13 @@ function Stat({ className, label, value }: { className?: string; label: string; 
   )
 }
 
-function ImportSpendSummary({ preview, totalSpend }: { preview: ImportPreview; totalSpend: string }) {
+function ImportSpendSummary({
+  preview,
+  totalSpend,
+}: {
+  preview: ImportPreview
+  totalSpend: string
+}) {
   const totalSpendCents = parseCurrencyInputCents(totalSpend)
   if (totalSpendCents == null) return null
   const cardQuantity = importedCardQuantity(preview.rows)

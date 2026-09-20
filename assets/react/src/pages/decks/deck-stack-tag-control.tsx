@@ -75,7 +75,9 @@ export function DeckStackTagControl({
     const drag = dragRef.current
     if (!drag || drag.pointerId !== event.pointerId) return
     if (!drag.isDrag) {
-      if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < TAG_DRAG_THRESHOLD_PX)
+      if (
+        Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < TAG_DRAG_THRESHOLD_PX
+      )
         return
       drag.isDrag = true
     }
@@ -84,7 +86,10 @@ export function DeckStackTagControl({
 
   function finishPointer(event: PointerEvent<HTMLButtonElement>, cancelled: boolean) {
     const drag = dragRef.current
-    if (drag?.pointerId === event.pointerId && event.currentTarget.hasPointerCapture(event.pointerId)) {
+    if (
+      drag?.pointerId === event.pointerId &&
+      event.currentTarget.hasPointerCapture(event.pointerId)
+    ) {
       event.currentTarget.releasePointerCapture(event.pointerId)
     }
     if (!cancelled && drag?.isDrag) {

@@ -1,9 +1,6 @@
 import { useEffect, useReducer, type Dispatch, type SetStateAction } from "react"
 
-import {
-  NO_DECK_DETAIL_OVERLAY,
-  type DeckDetailOverlay,
-} from "./deck-detail-overlay"
+import { NO_DECK_DETAIL_OVERLAY, type DeckDetailOverlay } from "./deck-detail-overlay"
 
 type DialogState = {
   activeTagId: string | null
@@ -45,7 +42,8 @@ function allowedOverlay(overlay: DeckDetailOverlay, context: DialogContext) {
 
 function reducer(state: DialogState, action: DialogAction): DialogState {
   if (action.type === "set-active-tag") {
-    const value = typeof action.value === "function" ? action.value(state.activeTagId) : action.value
+    const value =
+      typeof action.value === "function" ? action.value(state.activeTagId) : action.value
     return { ...state, activeTagId: value }
   }
   if (action.type === "set-overlay") {
@@ -78,12 +76,10 @@ export function useDeckDialogs(context: DialogContext) {
     overlay: context.edhrecOpen ? { kind: "edhrec" } : NO_DECK_DETAIL_OVERLAY,
   })
 
-  useEffect(() => dispatch({ type: "sync", context }), [
-    context.canEdit,
-    context.deckId,
-    context.edhrecOpen,
-    context.shareMode,
-  ])
+  useEffect(
+    () => dispatch({ type: "sync", context }),
+    [context.canEdit, context.deckId, context.edhrecOpen, context.shareMode],
+  )
 
   return {
     activeTagId: state.activeTagId,

@@ -9,7 +9,5 @@ test.each(["javascript:alert(1)", "data:text/html,unsafe", "//example.com/path"]
 )
 
 test("allows and normalizes an absolute HTTPS URL", () => {
-  expect(safeHttpUrl("https://example.com/path?q=cards")).toBe(
-    "https://example.com/path?q=cards",
-  )
+  expect(safeHttpUrl("https://example.com/path?q=cards")).toBe("https://example.com/path?q=cards")
 })

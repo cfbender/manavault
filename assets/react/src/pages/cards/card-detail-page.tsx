@@ -7,10 +7,7 @@ import { Button } from "../../components/ui/button"
 import { graphqlEndpointContext } from "../../lib/apollo"
 import { usePageTitle } from "../../lib/page-title"
 import { present } from "../../lib/utils"
-import {
-  AddCollectionItemDialog,
-  type AddCollectionItemInitialPrinting,
-} from "../collection"
+import { AddCollectionItemDialog, type AddCollectionItemInitialPrinting } from "../collection"
 import { AddCatalogCardToDeckDialog, type CardDeckTarget } from "./add-card-to-deck-dialog"
 import { CardActionsMenu } from "./card-actions-menu"
 import { CardCollectionCopiesPanel } from "./card-collection-copies"

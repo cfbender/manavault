@@ -294,9 +294,7 @@ export function DeckStackGroup({
                   deckCard.zone !== "commander" &&
                   partnerCandidateIds.has(deckCard.id),
                 canSetCommander:
-                  canSetCommander &&
-                  deckCard.zone !== "commander" &&
-                  isLegendaryCreature(deckCard),
+                  canSetCommander && deckCard.zone !== "commander" && isLegendaryCreature(deckCard),
               }}
               card={deckCard}
               context={{ deckId, deckTags, shareMode }}

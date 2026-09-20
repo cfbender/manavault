@@ -197,4 +197,3 @@ export const DeckDocument = graphql(`
     }
   }
 `)
-

@@ -7,10 +7,7 @@ import { afterEach, expect, test, vi } from "vitest"
 import { ToastProvider } from "../src/components/ui/toast"
 import type { DeckSummary } from "../src/pages/decks/deck-types"
 import { DeckPlayHistory, RandomDeckDialog } from "../src/pages/decks/deck-picker"
-import {
-  RandomDeckDocument,
-  RecordDeckPlayDocument,
-} from "../src/pages/decks/deck-list-documents"
+import { RandomDeckDocument, RecordDeckPlayDocument } from "../src/pages/decks/deck-list-documents"
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, params }: { children: React.ReactNode; params: { id: string } }) => (

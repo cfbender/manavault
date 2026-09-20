@@ -25,7 +25,9 @@ export function CollectionDialogs({
 }: {
   applyAutoSort: () => void
   close: () => void
-  deleteLocation: (location: Extract<CollectionOverlay, { type: "delete-location" }>["location"]) => void
+  deleteLocation: (
+    location: Extract<CollectionOverlay, { type: "delete-location" }>["location"],
+  ) => void
   filters: { q?: string; locationId?: string; unallocatedOnly?: boolean; addedWithinDays?: number }
   finishBulkAction: () => void
   overlay: CollectionOverlay
@@ -33,8 +35,14 @@ export function CollectionDialogs({
 }) {
   return (
     <>
-      <AddCollectionItemDialog open={overlay.type === "add-item"} onOpenChange={closeWhenClosed(close)} />
-      <AddLocationDialog open={overlay.type === "add-location"} onOpenChange={closeWhenClosed(close)} />
+      <AddCollectionItemDialog
+        open={overlay.type === "add-item"}
+        onOpenChange={closeWhenClosed(close)}
+      />
+      <AddLocationDialog
+        open={overlay.type === "add-location"}
+        onOpenChange={closeWhenClosed(close)}
+      />
       <ImportCollectionDialog
         initialImport={overlay.type === "import" ? overlay.initialImport : null}
         open={overlay.type === "import"}

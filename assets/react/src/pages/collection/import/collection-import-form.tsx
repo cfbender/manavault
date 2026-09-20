@@ -162,5 +162,7 @@ export function CollectionImportForm({
 }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">{children}</span>
+  return (
+    <span className="text-xs font-black uppercase tracking-[0.18em] text-accent">{children}</span>
+  )
 }
