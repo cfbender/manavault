@@ -15,6 +15,8 @@ defmodule Manavault.Catalog.SyncTest do
     Sync
   }
 
+  alias Manavault.Trade
+
   test "sync_scryfall downloads bulk metadata and records success" do
     metadata_url = "https://example.test/metadata"
     download_url = "https://example.test/default-cards.jsonl.gz"
@@ -172,6 +174,9 @@ defmodule Manavault.Catalog.SyncTest do
     assert {:ok, allocation} =
              Catalog.allocate_collection_item_to_deck_card(deck_card.id, item.id)
 
+    assert {:ok, _stale_want} = Trade.create_want_by_printing(digital_lotus["id"], 2)
+    assert {:ok, _current_want} = Trade.create_want_by_printing(paper_lotus["id"], 3)
+
     metadata_url = "https://example.test/paper-metadata"
     download_url = "https://example.test/paper-default-cards.jsonl.gz"
 
@@ -201,6 +206,57 @@ defmodule Manavault.Catalog.SyncTest do
     assert Repo.get!(CollectionItem, item.id).scryfall_id == paper_lotus["id"]
     assert Repo.get!(DeckCard, deck_card.id).preferred_printing_id == paper_lotus["id"]
     assert Repo.get!(DeckAllocation, allocation.id).collection_item_id == item.id
+
+    assert [%{preferred_printing_id: preferred_printing_id, quantity: 5}] = Trade.list_wants()
+    assert preferred_printing_id == paper_lotus["id"]
+  end
+
+  test "sync_scryfall reconciles more than one stale-printing batch and is retry-safe" do
+    stale_printings =
+      Enum.map(1..201, fn index ->
+        %{
+          @black_lotus
+          | "id" => "stale-lotus-#{index}",
+            "collector_number" => Integer.to_string(index)
+        }
+      end)
+
+    replacement =
+      %{
+        @black_lotus
+        | "id" => "current-lotus",
+          "collector_number" => "current",
+          "released_at" => "2026-09-20"
+      }
+
+    assert {:ok, %{printings_count: 201}} = Catalog.import_cards(stale_printings)
+
+    fetcher = fn
+      "https://example.test/batched-metadata" ->
+        {:ok, Jason.encode!(%{"jsonl_download_uri" => "https://example.test/batched.jsonl.gz"})}
+
+      "https://example.test/batched.jsonl.gz" ->
+        {:ok, gzip_jsonl([replacement])}
+    end
+
+    sync_opts = [
+      fetcher: fetcher,
+      bulk_url: "https://example.test/batched-metadata",
+      oracle_tags_bulk_url: nil,
+      saltiness_url: nil,
+      commander_ranks_url: nil
+    ]
+
+    assert {:ok, %Sync{status: "succeeded", printings_count: 1}} =
+             Catalog.sync_scryfall(sync_opts)
+
+    assert Repo.aggregate(Printing, :count) == 1
+    assert Repo.get!(Printing, replacement["id"])
+
+    assert {:ok, %Sync{status: "succeeded", printings_count: 1}} =
+             Catalog.sync_scryfall(sync_opts)
+
+    assert Repo.aggregate(Printing, :count) == 1
   end
 
   test "sync_scryfall deletes cards left without paper printings" do

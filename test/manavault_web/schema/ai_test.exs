@@ -203,6 +203,22 @@ defmodule ManavaultWeb.Schema.AITest do
              }
            } = json_response(list_history_conn, 200)
 
+    bounded_history_conn =
+      post(recycle(conn), "/api/graphql", %{
+        "query" => """
+        query DeckAnalysisRequests($limit: Int) {
+          deckAnalysisRequests(limit: $limit) { id }
+        }
+        """,
+        "variables" => %{"limit" => 1}
+      })
+
+    assert %{
+             "data" => %{
+               "deckAnalysisRequests" => [%{"id" => ^link_request_id}]
+             }
+           } = json_response(bounded_history_conn, 200)
+
     question_conn =
       post(recycle(conn), "/api/graphql", %{
         "query" => """

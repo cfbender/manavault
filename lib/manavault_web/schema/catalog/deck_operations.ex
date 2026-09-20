@@ -32,6 +32,7 @@ defmodule ManavaultWeb.Schema.Catalog.DeckOperations do
     end
 
     field :deck_analysis_requests, non_null(list_of(non_null(:deck_analysis_request))) do
+      arg(:limit, :integer, default_value: 50)
       resolve(&QueryResolvers.deck_analysis_requests/3)
     end
 

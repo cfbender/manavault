@@ -185,8 +185,8 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
     end
   end
 
-  def deck_analysis_requests(_parent, _args, _resolution) do
-    {:ok, AI.list_deck_analysis_requests()}
+  def deck_analysis_requests(_parent, %{limit: limit}, _resolution) do
+    {:ok, AI.list_deck_analysis_requests(limit: limit)}
   end
 
   def deck_question_answers(_parent, %{deck_id: deck_id}, resolution) do
