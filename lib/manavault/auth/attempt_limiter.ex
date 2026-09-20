@@ -28,11 +28,25 @@ defmodule Manavault.Auth.AttemptLimiter do
   end
 
   def reset(client_id) do
-    GenServer.call(__MODULE__, {:reset, client_id})
+    case Process.whereis(__MODULE__) do
+      nil ->
+        delete_persistent_failure(client_id)
+        :ok
+
+      pid ->
+        GenServer.call(pid, {:reset, client_id})
+    end
   end
 
   def reset_all do
-    GenServer.call(__MODULE__, :reset_all)
+    case Process.whereis(__MODULE__) do
+      nil ->
+        Repo.delete_all(ClientFailure)
+        :ok
+
+      pid ->
+        GenServer.call(pid, :reset_all)
+    end
   end
 
   @impl true

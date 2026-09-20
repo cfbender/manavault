@@ -103,6 +103,17 @@ docker run --rm \
 Then visit <http://localhost:4000>. For anything exposed beyond localhost, enable
 built-in auth and follow the self-hosting guide.
 
+For an HTTPS deployment behind a reverse proxy, set
+`MANAVAULT_SECURE_COOKIES=true` and `MANAVAULT_TRUST_PROXY_HEADERS=true`. The
+latter keeps login rate limiting separate per client instead of treating the
+proxy as one client; enable it only when a proxy you control sets the forwarded
+IP header. `MANAVAULT_FORWARDED_IP_HEADER` selects that header (default
+`x-forwarded-for`), and `MANAVAULT_SESSION_MAX_AGE_DAYS` controls the session
+lifetime (default `180`). If an owner is permanently locked out, clear one
+client with `mix manavault.auth.unban CLIENT_ID` or every client with
+`mix manavault.auth.unban --all`; the self-hosting guide includes container
+release commands.
+
 ## Documentation
 
 - [Feature reference](docs/features.md) - concepts and product-area behavior.

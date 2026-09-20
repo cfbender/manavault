@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "vp lint",
-    "precommit": "mix compile --warnings-as-errors && mix credo --strict && mix test && aube exec vp fmt --check && aube run lint && aube run typecheck && aube run test:react && aube run build",
+    "precommit": "mix compile --warnings-as-errors && mix credo --strict && mix test && mix hex.audit && aube exec vp fmt --check && aube run lint && aube run typecheck && aube run test:react && aube run build",
     "format": "vp fmt",
     "typecheck": "tsc --project assets/tsconfig.json --noEmit",
     "test:react": "node --test assets/react/test/*.test.mjs && vitest run --config vitest.config.ts",

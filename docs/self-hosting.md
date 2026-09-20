@@ -169,6 +169,37 @@ set `MANAVAULT_ADMIN_PASSWORD_HASH`, or explicitly opt out with
 Keep static assets and public share links public at the proxy. ManaVault protects
 private app routes and `/api/graphql` with its own session cookie.
 
+For an HTTPS deployment behind a reverse proxy, set both of these values:
+
+```sh
+MANAVAULT_SECURE_COOKIES=true
+MANAVAULT_TRUST_PROXY_HEADERS=true
+```
+
+Secure cookies prevent browsers from sending the session over plaintext HTTP.
+Trusting proxy headers gives each client its own login rate-limit key instead of
+collapsing all clients into the proxy's IP address. Enable proxy-header trust
+only when a proxy you control overwrites or appends the configured forwarded-IP
+header.
+
+### Recover from a permanent login ban
+
+ManaVault permanently bans a client identifier after the configured cumulative
+failure threshold. From a source checkout, clear one client or all clients with:
+
+```sh
+mise exec -- mix manavault.auth.unban 203.0.113.10
+mise exec -- mix manavault.auth.unban --all
+```
+
+For a running release container, invoke the same reset through the release node
+(replace `manavault` with the container name):
+
+```sh
+docker exec manavault /app/bin/manavault rpc 'Manavault.Auth.AttemptLimiter.reset("203.0.113.10")'
+docker exec manavault /app/bin/manavault rpc 'Manavault.Auth.AttemptLimiter.reset_all()'
+```
+
 Owners can rotate or disable deck, wants-list, and trade-binder bearer links in
 their Share dialogs. ManaVault rejects the old token immediately at the origin.
 If a reverse proxy or CDN caches public responses despite ManaVault's response
@@ -319,6 +350,15 @@ Common optional values:
   Defaults to `30`.
 - `MANAVAULT_AUTH_RATE_LIMIT_WINDOW_SECONDS` - failed login rate-limit window.
   Defaults to `900`.
+- `MANAVAULT_TRUST_PROXY_HEADERS` - set to `true` to use the forwarded IP header
+  as the login rate-limit client identifier. Defaults to `false`; enable only
+  behind a trusted proxy that controls the header.
+- `MANAVAULT_FORWARDED_IP_HEADER` - forwarded client-IP header to trust when
+  `MANAVAULT_TRUST_PROXY_HEADERS=true`. Defaults to `x-forwarded-for`.
+- `MANAVAULT_SECURE_COOKIES` - set to `true` to mark the session cookie Secure.
+  Defaults to `false`; enable whenever users reach ManaVault over HTTPS.
+- `MANAVAULT_SESSION_MAX_AGE_DAYS` - session cookie lifetime in days. Defaults
+  to `180`.
 - `DATA_DIR` - mutable data root. Defaults to `/data`.
 - `DATABASE_PATH` - SQLite database path. Defaults to `/data/manavault.db`.
 - `POOL_SIZE` - Ecto pool size. Defaults to `5`.
