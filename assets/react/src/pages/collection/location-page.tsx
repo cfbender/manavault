@@ -23,18 +23,15 @@ import { usePageTitle } from "../../lib/page-title"
 import { cn, compactNumber, pluralize, present, titleize } from "../../lib/utils"
 import { AutoSortSetupDialog, hasEnabledAutoSortRules } from "./auto-sort-setup-dialog"
 import { AutoSortSummaryDialog } from "./auto-sort-summary-dialog"
+import { AutoSortCollectionDocument } from "./auto-sort/documents"
 import { invalidateCollectionViews } from "./collection-navigation"
 import { COLLECTION_PAGE_SIZE, DEFAULT_COLLECTION_SORT } from "./constants"
+import { ExportCollectionDialog } from "./export/collection-export-dialog"
 import {
-  AutoSortCollectionDocument,
   CollectionItemFormOptionsDocument,
   CollectionItemGroupsPageDocument,
-  DeleteLocationDocument,
-  LocationCollectionCountDocument,
-  LocationDocument,
-} from "./documents"
+} from "./items/documents"
 import { CollectionFilterModal } from "./filter-modal"
-import { ExportCollectionDialog } from "./import-export-dialogs"
 import {
   AddCollectionItemToDeckDialog,
   BulkEditCollectionItemsDialog,
@@ -43,6 +40,11 @@ import {
 } from "./item-dialogs"
 import { collectionSelectionTarget, type CollectionSelectionTarget } from "./item-target"
 import { EditLocationDialog } from "./location-dialogs"
+import {
+  DeleteLocationDocument,
+  LocationCollectionCountDocument,
+  LocationDocument,
+} from "./locations/documents"
 import { SummaryActionMenu, UnfiledLocationCard, isUnfiledLocation } from "./location-summary"
 import {
   CollectionBulkActionBar,

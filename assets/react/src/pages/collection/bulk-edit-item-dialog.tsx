@@ -13,9 +13,9 @@ import { Input } from "../../components/ui/input"
 import { useToast } from "../../components/ui/toast"
 import { pluralize } from "../../lib/utils"
 import { COLLECTION_FINISHES } from "./constants"
-import { BulkUpdateCollectionItemsDocument } from "./documents"
 import { buildBulkCollectionItemUpdateInput } from "./bulk-edit-input"
 import { collectionFinishValue } from "./form-helpers"
+import { BulkUpdateCollectionItemsDocument } from "./items/documents"
 import { CollectionFinishField, type CollectionFinishOption } from "./item-form-fields"
 import {
   collectionTargetCount,

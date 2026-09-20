@@ -19,7 +19,6 @@ import {
 } from "../../components/ui/select"
 import { useToast } from "../../components/ui/toast"
 import { pluralize, present, titleize } from "../../lib/utils"
-import { BulkUpdateCollectionItemsDocument, CollectionItemFormOptionsDocument } from "./documents"
 import {
   collectionTargetCount,
   collectionTargetItems,
@@ -27,6 +26,10 @@ import {
   collectionTargetSelector,
   type CollectionItemTarget,
 } from "./item-target"
+import {
+  BulkUpdateCollectionItemsDocument,
+  CollectionItemFormOptionsDocument,
+} from "./items/documents"
 import { isUnfiledLocation } from "./location-summary"
 
 export function MoveCollectionItemDialog({

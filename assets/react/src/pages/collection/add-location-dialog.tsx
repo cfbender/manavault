@@ -24,8 +24,8 @@ import { useToast } from "../../components/ui/toast"
 import { refetchActiveQueries } from "../../lib/apollo"
 import { present, titleize } from "../../lib/utils"
 import { LOCATION_KINDS, MODAL_SEARCH_DEBOUNCE_MS } from "./constants"
-import { CreateLocationDocument, LocationCoverCardSearchDocument } from "./documents"
 import { locationKindValue, printingSetLabel, useDebouncedValue } from "./form-helpers"
+import { CreateLocationDocument, LocationCoverCardSearchDocument } from "./locations/documents"
 import type { LocationCoverCard, LocationCoverPrinting, LocationCoverSelection } from "./types"
 
 export function AddLocationDialog({

@@ -24,16 +24,16 @@ import { useToast } from "../../components/ui/toast"
 import { pluralize, present, titleize } from "../../lib/utils"
 import { COLLECTION_CONDITIONS, COLLECTION_FINISHES } from "./constants"
 import {
-  CollectionItemFormOptionsDocument,
-  CollectionItemPrintingsDocument,
-  UpdateCollectionItemDocument,
-} from "./documents"
-import {
   centsToCurrencyInput,
   collectionConditionValue,
   collectionFinishValue,
   parseCurrencyInputCents,
 } from "./form-helpers"
+import {
+  CollectionItemFormOptionsDocument,
+  CollectionItemPrintingsDocument,
+  UpdateCollectionItemDocument,
+} from "./items/documents"
 import { CollectionFinishField, CollectionQuantityField } from "./item-form-fields"
 import { isUnfiledLocation } from "./location-summary"
 import type { CollectionItem } from "./types"

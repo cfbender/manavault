@@ -36,7 +36,7 @@ vi.mock("@apollo/client/react", () => ({
 }))
 
 import { ToastProvider } from "../src/components/ui/toast"
-import { ImportCollectionDialog } from "../src/pages/collection/import-export-dialogs"
+import { ImportCollectionDialog } from "../src/pages/collection/import/collection-import-dialog"
 
 function importRow(rowNumber: number) {
   return {

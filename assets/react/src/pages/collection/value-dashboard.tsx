@@ -9,9 +9,10 @@ import { Input } from "../../components/ui/input"
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from "../../components/ui/popover"
 import { useToast } from "../../components/ui/toast"
 import { cn, pluralize } from "../../lib/utils"
-import { BulkUpdateCollectionItemsDocument, CollectionValueDashboardDocument } from "./documents"
 import { centsToCurrencyInput, parseCurrencyInputCents } from "./form-helpers"
+import { BulkUpdateCollectionItemsDocument } from "./items/documents"
 import type { CollectionValueDashboardData, CollectionValuePosition } from "./types"
+import { CollectionValueDashboardDocument } from "./value/documents"
 import { collectionValueGainClass } from "./value-summary"
 
 export function CollectionValueDashboard() {

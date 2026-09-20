@@ -20,7 +20,7 @@ import { useToast } from "../../components/ui/toast"
 import { cn, pluralize } from "../../lib/utils"
 import { BuylistMarketplaceActions } from "../decks/buylist-marketplace-actions"
 import type { BuylistEntry } from "../decks/deck-types"
-import { CollectionCheckDocument } from "./documents"
+import { CollectionCheckDocument } from "./quick-check/documents"
 import type { CollectionCheckCard, CollectionCheckResult } from "./types"
 
 type SourceMode = "paste" | "url"

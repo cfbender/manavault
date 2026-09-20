@@ -15,7 +15,7 @@ import {
 import { Textarea } from "../../components/ui/textarea"
 import { useToast } from "../../components/ui/toast"
 import { cn, pluralize, present } from "../../lib/utils"
-import { DeleteCollectionItemDocument, UpdateCollectionItemDocument } from "./documents"
+import { DeleteCollectionItemDocument, UpdateCollectionItemDocument } from "./items/documents"
 import {
   formatCents,
   selectSellListItems,

@@ -23,7 +23,7 @@ import { ZoneToggle } from "../decks/zone-toggle"
 import {
   BulkAddCollectionItemsToDeckDocument,
   CollectionItemDeckOptionsDocument,
-} from "./documents"
+} from "./items/documents"
 import {
   collectionTargetCount,
   collectionTargetLabel,

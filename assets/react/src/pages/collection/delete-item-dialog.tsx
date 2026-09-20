@@ -11,13 +11,13 @@ import {
 } from "../../components/ui/dialog"
 import { useToast } from "../../components/ui/toast"
 import { pluralize } from "../../lib/utils"
-import { BulkDeleteCollectionItemsDocument } from "./documents"
 import {
   collectionTargetCount,
   collectionTargetLabel,
   collectionTargetSelector,
   type CollectionItemTarget,
 } from "./item-target"
+import { BulkDeleteCollectionItemsDocument } from "./items/documents"
 
 export function DeleteCollectionItemDialog({
   item,

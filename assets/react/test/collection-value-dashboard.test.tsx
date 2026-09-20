@@ -12,11 +12,9 @@ import { cleanup, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, expect, test, vi } from "vitest"
 import { CollectionPageHeader } from "../src/pages/collection/collection-page-header"
-import {
-  BulkUpdateCollectionItemsDocument,
-  CollectionValueDashboardDocument,
-} from "../src/pages/collection/documents"
+import { BulkUpdateCollectionItemsDocument } from "../src/pages/collection/items/documents"
 import { deserializeCollectionTab } from "../src/pages/collection/storage"
+import { CollectionValueDashboardDocument } from "../src/pages/collection/value/documents"
 import { CollectionValueDashboard } from "../src/pages/collection/value-dashboard"
 
 afterEach(cleanup)
