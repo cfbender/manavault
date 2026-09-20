@@ -129,7 +129,7 @@ defmodule ManavaultWeb.PublicShareCacheTest do
   end
 
   defp frontend_deck_query do
-    path = Path.expand("../../assets/react/src/pages/decks/queries.ts", __DIR__)
+    path = Path.expand("../../assets/react/src/pages/decks/deck-detail-documents.ts", __DIR__)
     source = File.read!(path)
 
     ~r/export const DeckDocument = graphql\(`(?<query>.*?)`\)/s
