@@ -55,6 +55,22 @@ aube run test:react
 aube run build
 ```
 
+Audit dependencies for known advisories:
+
+```sh
+mix hex.audit
+aube audit
+```
+
+`mix hex.audit` also runs as part of `precommit`. Transitive JavaScript
+packages that upstream has not bumped yet are pinned through the `overrides`
+block in `package.json`; drop an override once `aube why <package>` shows every
+dependant already requires a fixed version. `aube audit` reports vite
+advisories against `vite@0.3.x`: that entry is `vite-plus` aliasing
+`@voidzero-dev/vite-plus-core` as `vite`, not the real Vite package, so those
+findings are false positives (the real `vite` stays on the version declared in
+`package.json`).
+
 GraphQL TypeScript artifacts are generated from `codegen.ts`:
 
 ```sh

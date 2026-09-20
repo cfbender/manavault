@@ -70,22 +70,25 @@
     "tailwind-merge": "^3.6.0",
     "tailwindcss-animate": "^1.0.7",
     "vite": "^8.2.1",
-    "vite-plus": "^0.2.8"
+    "vite-plus": "^0.3.3"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.5.0",
+    "@capacitor/cli": "^8.5.2",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.3",
     "@types/phoenix": "^1.6.7",
-    "@voidzero-dev/vite-plus-core": "^0.2.8",
+    "@voidzero-dev/vite-plus-core": "^0.3.3",
     "jsdom": "^29.1.1",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "overrides": {
+    "@babel/runtime@^7": "7.29.7",
+    "@xmldom/xmldom": "0.9.12",
     "brace-expansion": "5.0.9",
-    "js-yaml": "4.3.1",
+    "js-yaml": "4.3.2",
+    "nanoid@^3": "3.3.19",
     "tar": "7.5.22",
     "undici": "7.29.0",
     "uuid": "11.1.1"
