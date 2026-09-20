@@ -61,6 +61,14 @@ GraphQL TypeScript artifacts are generated from `codegen.ts`:
 aube run codegen
 ```
 
+`aube run codegen` first dumps the Absinthe schema to
+`_build/graphql-schema.graphql` with `mix absinthe.schema.sdl`, then runs
+`graphql-codegen` against that file, so it does not need a running server.
+Introspecting a live server does not work: every `/api/graphql` POST requires a
+CSRF token, including in `MANAVAULT_AUTH_DISABLED=true` mode. Set
+`GRAPHQL_SCHEMA_URL` to another SDL or JSON schema file to override the source.
+Commit the regenerated files under `assets/react/src/gql/`.
+
 ## Native Shell Development
 
 Install JavaScript dependencies and sync Capacitor native projects:

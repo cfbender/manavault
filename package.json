@@ -11,7 +11,7 @@
     "format": "vp fmt",
     "typecheck": "tsc --project assets/tsconfig.json --noEmit",
     "test:react": "node --test assets/react/test/*.test.mjs && vitest run --config vitest.config.ts",
-    "codegen": "graphql-codegen --config codegen.ts",
+    "codegen": "mix absinthe.schema.sdl --schema ManavaultWeb.Schema _build/graphql-schema.graphql && graphql-codegen --config codegen.ts",
     "native:prepare": "node scripts/prepare-native-web.mjs",
     "cap:sync": "aube run native:prepare && cap sync",
     "cap:sync:android": "aube run native:prepare && cap sync android",
