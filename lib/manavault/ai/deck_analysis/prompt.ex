@@ -109,7 +109,10 @@ defmodule Manavault.AI.DeckAnalysis.Prompt do
     each link, whether the card draw digs deep enough to find the payoffs, whether the mana comes
     online when the plan needs it, land count and curve, and whether a typical hand does something
     meaningful in the first few turns. Distinguish improvements that make the deck more reliable
-    from those that make it more powerful.
+    from those that make it more powerful. Every consistency item must recommend a concrete card
+    addition, cut, replacement, or quantity change and explain how it improves reliability. Do not
+    include gameplay advice, sequencing tips, mulligan decisions, or other ways to pilot the deck
+    in consistency; keep those in game_plan or mulligan_guide as appropriate.
     In opponent_experience, imagine playing against the deck. Describe whether its turns are quick
     and interactive or long and solitaire-like, and call out potentially frustrating play patterns
     such as repeated discard, stax, locks, resource denial, excessive tutoring or shuffling, and

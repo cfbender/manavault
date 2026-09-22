@@ -125,6 +125,20 @@ defmodule Manavault.AI.DeckAnalysisTest do
     assert user_prompt =~ "naming both the cards to add and the cards to cut"
   end
 
+  test "limits consistency improvements to card changes rather than gameplay advice" do
+    prompt = DeckAnalysis.system_prompt() |> String.replace(~r/\s+/, " ")
+
+    assert prompt =~
+             "Every consistency item must recommend a concrete card addition, cut, replacement, or quantity change"
+
+    assert prompt =~ "explain how it improves reliability"
+
+    assert prompt =~
+             "Do not include gameplay advice, sequencing tips, mulligan decisions, or other ways to pilot the deck in consistency"
+
+    assert prompt =~ "keep those in game_plan or mulligan_guide as appropriate"
+  end
+
   test "requires empty custom sections when no custom instructions exist" do
     schema = DeckAnalysis.response_schema()
     assert schema.properties.custom_sections.maxItems == 0
