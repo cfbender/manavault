@@ -1,12 +1,14 @@
 defmodule ManavaultWeb.AppController do
   use ManavaultWeb, :controller
 
+  alias Manavault.Appearance
   alias Manavault.Catalog
   alias Manavault.Catalog.Deck
   alias Manavault.Catalog.Decks.ShareToken
   alias Manavault.Trade
   alias ManavaultWeb.{AssetVersion, DeckSharePreview}
   alias ManavaultWeb.DeckSharePreview.ArtifactCache
+  alias ManavaultWeb.Plugs.Authentication
 
   def index(conn, _params), do: render_app(conn, default_preview(conn))
 
@@ -75,10 +77,17 @@ defmodule ManavaultWeb.AppController do
       layout: false,
       csrf_token: get_csrf_token(),
       preview: preview,
+      appearance: account_appearance(conn),
       asset_version: AssetVersion.current(),
       vite_dev?: vite_dev?,
       vite_origin: if(vite_dev? and not vite_proxy?(conn), do: "http://127.0.0.1:5173", else: "")
     )
+  end
+
+  # Anonymous visitors to public share pages keep their own per-browser
+  # appearance; only the signed-in owner gets the account's saved choice.
+  defp account_appearance(conn) do
+    if Authentication.authenticated?(conn), do: Appearance.settings()
   end
 
   defp default_preview(conn, attrs \\ %{}) do

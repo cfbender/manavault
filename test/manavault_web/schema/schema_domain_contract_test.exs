@@ -16,6 +16,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
              MapSet.new([
                "aiSettings",
                "apiKeys",
+               "appearanceSettings",
                "backupSettings",
                "binderList",
                "card",
@@ -127,6 +128,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "unassignDeckCardTag",
                "updateBackupSettings",
                "updateAiSettings",
+               "updateAppearanceSettings",
                "updateCollectionAutoSortRules",
                "updatePricingSettings",
                "updateCollectionItem",

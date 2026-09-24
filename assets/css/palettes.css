@@ -1,0 +1,531 @@
+/* Color palettes. A third appearance axis, orthogonal to light/dark
+   (data-theme) and surface style (data-theme-style), applied via
+   data-palette on <html>. Each block overrides only the daisyUI color tokens
+   for one palette and mode. Claret has no block: it is the base light/dark
+   theme in app.css.
+
+   Selectors deliberately do not require <html>, so the Settings picker can
+   preview a palette by putting data-palette and data-theme on a swatch.
+
+   Role mapping follows Claret: primary is the palette's signature hue,
+   secondary its green (storage and location state), and accent its gold
+   (value and foil emphasis). Light variants deepen colors that are too faint
+   to read as text on light bases. */
+
+/* Nord */
+[data-palette="nord"][data-theme="dark"] {
+  --color-base-100: #2e3440;
+  --color-base-200: #3b4252;
+  --color-base-300: #434c5e;
+  --color-base-content: #eceff4;
+  --color-primary: #88c0d0;
+  --color-primary-content: #2e3440;
+  --color-secondary: #a3be8c;
+  --color-secondary-content: #2e3440;
+  --color-accent: #ebcb8b;
+  --color-accent-content: #2e3440;
+  --color-neutral: #434c5e;
+  --color-neutral-content: #eceff4;
+  --color-info: #81a1c1;
+  --color-info-content: #2e3440;
+  --color-success: #a3be8c;
+  --color-success-content: #2e3440;
+  --color-warning: #d08770;
+  --color-warning-content: #2e3440;
+  --color-error: #bf616a;
+  --color-error-content: #eceff4;
+}
+
+[data-palette="nord"][data-theme="light"] {
+  --color-base-100: #eceff4;
+  --color-base-200: #e5e9f0;
+  --color-base-300: #d8dee9;
+  --color-base-content: #2e3440;
+  --color-primary: #4c6a93;
+  --color-primary-content: #eceff4;
+  --color-secondary: #557340;
+  --color-secondary-content: #eceff4;
+  --color-accent: #8f6c1f;
+  --color-accent-content: #eceff4;
+  --color-neutral: #d8dee9;
+  --color-neutral-content: #2e3440;
+  --color-info: #4c6a93;
+  --color-info-content: #eceff4;
+  --color-success: #557340;
+  --color-success-content: #eceff4;
+  --color-warning: #a4583f;
+  --color-warning-content: #eceff4;
+  --color-error: #a8434d;
+  --color-error-content: #eceff4;
+}
+
+/* Catppuccin: Mocha (dark), Latte (light) */
+[data-palette="catppuccin"][data-theme="dark"] {
+  --color-base-100: #181825;
+  --color-base-200: #1e1e2e;
+  --color-base-300: #313244;
+  --color-base-content: #cdd6f4;
+  --color-primary: #cba6f7;
+  --color-primary-content: #1e1e2e;
+  --color-secondary: #a6e3a1;
+  --color-secondary-content: #1e1e2e;
+  --color-accent: #f9e2af;
+  --color-accent-content: #1e1e2e;
+  --color-neutral: #313244;
+  --color-neutral-content: #cdd6f4;
+  --color-info: #89b4fa;
+  --color-info-content: #1e1e2e;
+  --color-success: #a6e3a1;
+  --color-success-content: #1e1e2e;
+  --color-warning: #fab387;
+  --color-warning-content: #1e1e2e;
+  --color-error: #f38ba8;
+  --color-error-content: #1e1e2e;
+}
+
+[data-palette="catppuccin"][data-theme="light"] {
+  --color-base-100: #eff1f5;
+  --color-base-200: #e6e9ef;
+  --color-base-300: #dce0e8;
+  --color-base-content: #4c4f69;
+  --color-primary: #8839ef;
+  --color-primary-content: #eff1f5;
+  --color-secondary: #2f7a1f;
+  --color-secondary-content: #eff1f5;
+  --color-accent: #a86608;
+  --color-accent-content: #eff1f5;
+  --color-neutral: #dce0e8;
+  --color-neutral-content: #4c4f69;
+  --color-info: #1e66f5;
+  --color-info-content: #eff1f5;
+  --color-success: #2f7a1f;
+  --color-success-content: #eff1f5;
+  --color-warning: #c24d06;
+  --color-warning-content: #eff1f5;
+  --color-error: #d20f39;
+  --color-error-content: #eff1f5;
+}
+
+/* Tokyo Night: Night (dark), Day (light) */
+[data-palette="tokyonight"][data-theme="dark"] {
+  --color-base-100: #1a1b26;
+  --color-base-200: #1f2335;
+  --color-base-300: #292e42;
+  --color-base-content: #c0caf5;
+  --color-primary: #7aa2f7;
+  --color-primary-content: #1a1b26;
+  --color-secondary: #9ece6a;
+  --color-secondary-content: #1a1b26;
+  --color-accent: #e0af68;
+  --color-accent-content: #1a1b26;
+  --color-neutral: #292e42;
+  --color-neutral-content: #c0caf5;
+  --color-info: #7dcfff;
+  --color-info-content: #1a1b26;
+  --color-success: #9ece6a;
+  --color-success-content: #1a1b26;
+  --color-warning: #ff9e64;
+  --color-warning-content: #1a1b26;
+  --color-error: #f7768e;
+  --color-error-content: #1a1b26;
+}
+
+[data-palette="tokyonight"][data-theme="light"] {
+  --color-base-100: #e1e2e7;
+  --color-base-200: #d0d5e3;
+  --color-base-300: #c4c8da;
+  --color-base-content: #3760bf;
+  --color-primary: #2e67d0;
+  --color-primary-content: #e1e2e7;
+  --color-secondary: #587539;
+  --color-secondary-content: #e1e2e7;
+  --color-accent: #7a5c30;
+  --color-accent-content: #e1e2e7;
+  --color-neutral: #c4c8da;
+  --color-neutral-content: #2f4f9c;
+  --color-info: #006a83;
+  --color-info-content: #e1e2e7;
+  --color-success: #587539;
+  --color-success-content: #e1e2e7;
+  --color-warning: #9c5100;
+  --color-warning-content: #e1e2e7;
+  --color-error: #b33a3a;
+  --color-error-content: #e1e2e7;
+}
+
+/* Gruvbox */
+[data-palette="gruvbox"][data-theme="dark"] {
+  --color-base-100: #282828;
+  --color-base-200: #32302f;
+  --color-base-300: #3c3836;
+  --color-base-content: #ebdbb2;
+  --color-primary: #fe8019;
+  --color-primary-content: #282828;
+  --color-secondary: #b8bb26;
+  --color-secondary-content: #282828;
+  --color-accent: #fabd2f;
+  --color-accent-content: #282828;
+  --color-neutral: #3c3836;
+  --color-neutral-content: #ebdbb2;
+  --color-info: #83a598;
+  --color-info-content: #282828;
+  --color-success: #b8bb26;
+  --color-success-content: #282828;
+  --color-warning: #fabd2f;
+  --color-warning-content: #282828;
+  --color-error: #fb4934;
+  --color-error-content: #282828;
+}
+
+[data-palette="gruvbox"][data-theme="light"] {
+  --color-base-100: #fbf1c7;
+  --color-base-200: #f2e5bc;
+  --color-base-300: #ebdbb2;
+  --color-base-content: #3c3836;
+  --color-primary: #af3a03;
+  --color-primary-content: #fbf1c7;
+  --color-secondary: #79740e;
+  --color-secondary-content: #fbf1c7;
+  --color-accent: #9a6311;
+  --color-accent-content: #fbf1c7;
+  --color-neutral: #ebdbb2;
+  --color-neutral-content: #3c3836;
+  --color-info: #076678;
+  --color-info-content: #fbf1c7;
+  --color-success: #79740e;
+  --color-success-content: #fbf1c7;
+  --color-warning: #9a6311;
+  --color-warning-content: #fbf1c7;
+  --color-error: #9d0006;
+  --color-error-content: #fbf1c7;
+}
+
+/* Everforest */
+[data-palette="everforest"][data-theme="dark"] {
+  --color-base-100: #2d353b;
+  --color-base-200: #343f44;
+  --color-base-300: #3d484d;
+  --color-base-content: #d3c6aa;
+  --color-primary: #a7c080;
+  --color-primary-content: #2d353b;
+  --color-secondary: #83c092;
+  --color-secondary-content: #2d353b;
+  --color-accent: #dbbc7f;
+  --color-accent-content: #2d353b;
+  --color-neutral: #3d484d;
+  --color-neutral-content: #d3c6aa;
+  --color-info: #7fbbb3;
+  --color-info-content: #2d353b;
+  --color-success: #a7c080;
+  --color-success-content: #2d353b;
+  --color-warning: #e69875;
+  --color-warning-content: #2d353b;
+  --color-error: #e67e80;
+  --color-error-content: #2d353b;
+}
+
+[data-palette="everforest"][data-theme="light"] {
+  --color-base-100: #fdf6e3;
+  --color-base-200: #f4f0d9;
+  --color-base-300: #e6e2cc;
+  --color-base-content: #5c6a72;
+  --color-primary: #667500;
+  --color-primary-content: #fdf6e3;
+  --color-secondary: #23775a;
+  --color-secondary-content: #fdf6e3;
+  --color-accent: #976d00;
+  --color-accent-content: #fdf6e3;
+  --color-neutral: #e6e2cc;
+  --color-neutral-content: #5c6a72;
+  --color-info: #2a6f95;
+  --color-info-content: #fdf6e3;
+  --color-success: #667500;
+  --color-success-content: #fdf6e3;
+  --color-warning: #b65a17;
+  --color-warning-content: #fdf6e3;
+  --color-error: #c9302e;
+  --color-error-content: #fdf6e3;
+}
+
+/* Kanagawa: Wave (dark), Lotus (light) */
+[data-palette="kanagawa"][data-theme="dark"] {
+  --color-base-100: #1f1f28;
+  --color-base-200: #2a2a37;
+  --color-base-300: #363646;
+  --color-base-content: #dcd7ba;
+  --color-primary: #7e9cd8;
+  --color-primary-content: #1f1f28;
+  --color-secondary: #98bb6c;
+  --color-secondary-content: #1f1f28;
+  --color-accent: #e6c384;
+  --color-accent-content: #1f1f28;
+  --color-neutral: #363646;
+  --color-neutral-content: #dcd7ba;
+  --color-info: #7fb4ca;
+  --color-info-content: #1f1f28;
+  --color-success: #98bb6c;
+  --color-success-content: #1f1f28;
+  --color-warning: #ff9e3b;
+  --color-warning-content: #1f1f28;
+  --color-error: #e46876;
+  --color-error-content: #1f1f28;
+}
+
+[data-palette="kanagawa"][data-theme="light"] {
+  --color-base-100: #f2ecbc;
+  --color-base-200: #e5ddb0;
+  --color-base-300: #dcd5ac;
+  --color-base-content: #545464;
+  --color-primary: #4d699b;
+  --color-primary-content: #f2ecbc;
+  --color-secondary: #5a713e;
+  --color-secondary-content: #f2ecbc;
+  --color-accent: #836f4a;
+  --color-accent-content: #f2ecbc;
+  --color-neutral: #dcd5ac;
+  --color-neutral-content: #545464;
+  --color-info: #3f6d7e;
+  --color-info-content: #f2ecbc;
+  --color-success: #5a713e;
+  --color-success-content: #f2ecbc;
+  --color-warning: #a85a00;
+  --color-warning-content: #f2ecbc;
+  --color-error: #b33648;
+  --color-error-content: #f2ecbc;
+}
+
+/* Night Owl (dark), Light Owl (light): https://github.com/sdras/night-owl-vscode-theme */
+[data-palette="nightowl"][data-theme="dark"] {
+  --color-base-100: #011627;
+  --color-base-200: #0b2942;
+  --color-base-300: #1d3b53;
+  --color-base-content: #d6deeb;
+  --color-primary: #82aaff;
+  --color-primary-content: #011627;
+  --color-secondary: #addb67;
+  --color-secondary-content: #011627;
+  --color-accent: #ecc48d;
+  --color-accent-content: #011627;
+  --color-neutral: #1d3b53;
+  --color-neutral-content: #d6deeb;
+  --color-info: #7fdbca;
+  --color-info-content: #011627;
+  --color-success: #addb67;
+  --color-success-content: #011627;
+  --color-warning: #f78c6c;
+  --color-warning-content: #011627;
+  --color-error: #ef5350;
+  --color-error-content: #011627;
+}
+
+[data-palette="nightowl"][data-theme="light"] {
+  --color-base-100: #fbfbfb;
+  --color-base-200: #f0f0f0;
+  --color-base-300: #d9d9d9;
+  --color-base-content: #403f53;
+  --color-primary: #4876d6;
+  --color-primary-content: #fbfbfb;
+  --color-secondary: #077a59;
+  --color-secondary-content: #fbfbfb;
+  --color-accent: #8a6d00;
+  --color-accent-content: #fbfbfb;
+  --color-neutral: #d9d9d9;
+  --color-neutral-content: #403f53;
+  --color-info: #1f71ad;
+  --color-info-content: #fbfbfb;
+  --color-success: #077a59;
+  --color-success-content: #fbfbfb;
+  --color-warning: #a8504e;
+  --color-warning-content: #fbfbfb;
+  --color-error: #de3d3b;
+  --color-error-content: #fbfbfb;
+}
+
+/* Dracula (dark), Alucard (light): https://draculatheme.com/spec */
+[data-palette="dracula"][data-theme="dark"] {
+  --color-base-100: #282a36;
+  --color-base-200: #343746;
+  --color-base-300: #424450;
+  --color-base-content: #f8f8f2;
+  --color-primary: #bd93f9;
+  --color-primary-content: #282a36;
+  --color-secondary: #50fa7b;
+  --color-secondary-content: #282a36;
+  --color-accent: #f1fa8c;
+  --color-accent-content: #282a36;
+  --color-neutral: #424450;
+  --color-neutral-content: #f8f8f2;
+  --color-info: #8be9fd;
+  --color-info-content: #282a36;
+  --color-success: #50fa7b;
+  --color-success-content: #282a36;
+  --color-warning: #ffb86c;
+  --color-warning-content: #282a36;
+  --color-error: #ff5555;
+  --color-error-content: #282a36;
+}
+
+[data-palette="dracula"][data-theme="light"] {
+  --color-base-100: #fffbeb;
+  --color-base-200: #efeddc;
+  --color-base-300: #dedccf;
+  --color-base-content: #1f1f1f;
+  --color-primary: #644ac9;
+  --color-primary-content: #fffbeb;
+  --color-secondary: #14710a;
+  --color-secondary-content: #fffbeb;
+  --color-accent: #846e15;
+  --color-accent-content: #fffbeb;
+  --color-neutral: #dedccf;
+  --color-neutral-content: #1f1f1f;
+  --color-info: #036a96;
+  --color-info-content: #fffbeb;
+  --color-success: #14710a;
+  --color-success-content: #fffbeb;
+  --color-warning: #a34d14;
+  --color-warning-content: #fffbeb;
+  --color-error: #cb3a2a;
+  --color-error-content: #fffbeb;
+}
+
+/* Rosé Pine (dark), Dawn (light): https://rosepinetheme.com/palette
+   Rosé Pine has no green, so secondary is foam (dark) and pine (light). */
+[data-palette="rosepine"][data-theme="dark"] {
+  --color-base-100: #191724;
+  --color-base-200: #1f1d2e;
+  --color-base-300: #26233a;
+  --color-base-content: #e0def4;
+  --color-primary: #ebbcba;
+  --color-primary-content: #191724;
+  --color-secondary: #9ccfd8;
+  --color-secondary-content: #191724;
+  --color-accent: #f6c177;
+  --color-accent-content: #191724;
+  --color-neutral: #26233a;
+  --color-neutral-content: #e0def4;
+  --color-info: #c4a7e7;
+  --color-info-content: #191724;
+  --color-success: #9ccfd8;
+  --color-success-content: #191724;
+  --color-warning: #f6c177;
+  --color-warning-content: #191724;
+  --color-error: #eb6f92;
+  --color-error-content: #191724;
+}
+
+[data-palette="rosepine"][data-theme="light"] {
+  --color-base-100: #faf4ed;
+  --color-base-200: #f2e9e1;
+  --color-base-300: #dfdad9;
+  --color-base-content: #575279;
+  --color-primary: #a8554f;
+  --color-primary-content: #faf4ed;
+  --color-secondary: #286983;
+  --color-secondary-content: #faf4ed;
+  --color-accent: #99620f;
+  --color-accent-content: #faf4ed;
+  --color-neutral: #dfdad9;
+  --color-neutral-content: #575279;
+  --color-info: #76608f;
+  --color-info-content: #faf4ed;
+  --color-success: #286983;
+  --color-success-content: #faf4ed;
+  --color-warning: #99620f;
+  --color-warning-content: #faf4ed;
+  --color-error: #a04e63;
+  --color-error-content: #faf4ed;
+}
+
+/* Solarized dark and light: https://ethanschoonover.com/solarized */
+[data-palette="solarized"][data-theme="dark"] {
+  --color-base-100: #002b36;
+  --color-base-200: #073642;
+  --color-base-300: #0b3d4a;
+  --color-base-content: #93a1a1;
+  --color-primary: #268bd2;
+  --color-primary-content: #002b36;
+  --color-secondary: #859900;
+  --color-secondary-content: #002b36;
+  --color-accent: #b58900;
+  --color-accent-content: #002b36;
+  --color-neutral: #0b3d4a;
+  --color-neutral-content: #eee8d5;
+  --color-info: #2aa198;
+  --color-info-content: #002b36;
+  --color-success: #859900;
+  --color-success-content: #002b36;
+  --color-warning: #cb4b16;
+  --color-warning-content: #fdf6e3;
+  --color-error: #dc322f;
+  --color-error-content: #fdf6e3;
+}
+
+[data-palette="solarized"][data-theme="light"] {
+  --color-base-100: #fdf6e3;
+  --color-base-200: #eee8d5;
+  --color-base-300: #e4ddc8;
+  --color-base-content: #586e75;
+  --color-primary: #1d6fa9;
+  --color-primary-content: #fdf6e3;
+  --color-secondary: #5f6d00;
+  --color-secondary-content: #fdf6e3;
+  --color-accent: #876600;
+  --color-accent-content: #fdf6e3;
+  --color-neutral: #e4ddc8;
+  --color-neutral-content: #073642;
+  --color-info: #1d7a73;
+  --color-info-content: #fdf6e3;
+  --color-success: #5f6d00;
+  --color-success-content: #fdf6e3;
+  --color-warning: #b3410f;
+  --color-warning-content: #fdf6e3;
+  --color-error: #c32b28;
+  --color-error-content: #fdf6e3;
+}
+
+/* Monochrome: neutral greys; status colors keep a faint tint so states stay distinguishable */
+[data-palette="monochrome"][data-theme="dark"] {
+  --color-base-100: #111111;
+  --color-base-200: #1a1a1a;
+  --color-base-300: #262626;
+  --color-base-content: #e5e5e5;
+  --color-primary: #f5f5f5;
+  --color-primary-content: #111111;
+  --color-secondary: #a3a3a3;
+  --color-secondary-content: #111111;
+  --color-accent: #d4d4d4;
+  --color-accent-content: #111111;
+  --color-neutral: #262626;
+  --color-neutral-content: #e5e5e5;
+  --color-info: oklch(76% 0.03 250);
+  --color-info-content: #111111;
+  --color-success: oklch(76% 0.05 150);
+  --color-success-content: #111111;
+  --color-warning: oklch(80% 0.05 85);
+  --color-warning-content: #111111;
+  --color-error: oklch(70% 0.1 25);
+  --color-error-content: #111111;
+}
+
+[data-palette="monochrome"][data-theme="light"] {
+  --color-base-100: #fafafa;
+  --color-base-200: #f0f0f0;
+  --color-base-300: #e0e0e0;
+  --color-base-content: #171717;
+  --color-primary: #171717;
+  --color-primary-content: #fafafa;
+  --color-secondary: #525252;
+  --color-secondary-content: #fafafa;
+  --color-accent: #404040;
+  --color-accent-content: #fafafa;
+  --color-neutral: #e0e0e0;
+  --color-neutral-content: #171717;
+  --color-info: oklch(45% 0.04 250);
+  --color-info-content: #fafafa;
+  --color-success: oklch(45% 0.06 150);
+  --color-success-content: #fafafa;
+  --color-warning: oklch(48% 0.07 75);
+  --color-warning-content: #fafafa;
+  --color-error: oklch(48% 0.14 25);
+  --color-error-content: #fafafa;
+}

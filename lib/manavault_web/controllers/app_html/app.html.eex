@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-screen w-screen overflow-hidden" data-theme-style="glass">
+<html lang="en" class="h-screen w-screen overflow-hidden" data-theme-style="<%= if @appearance, do: @appearance.theme_style, else: "glass" %>"<%= if @appearance do %> data-palette="<%= @appearance.palette %>" data-appearance-source="account"<% end %>>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />

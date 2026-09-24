@@ -37,13 +37,27 @@
     setTheme(storedTheme())
   }
 
+  // A signed-in owner's palette and surface style come from the account and
+  // are already rendered on <html> by the server. Browser storage only backs
+  // anonymous visitors, such as people opening a public share link.
+  const accountAppearance =
+    document.documentElement.getAttribute("data-appearance-source") === "account"
   const styleStorageKey = "manavault:theme-style"
+  const paletteStorageKey = "manavault:palette"
 
   const storedThemeStyle = () => {
     try {
       return localStorage.getItem(styleStorageKey) === "classic" ? "classic" : "glass"
     } catch {
       return "glass"
+    }
+  }
+
+  const storedPalette = () => {
+    try {
+      return localStorage.getItem(paletteStorageKey) || "claret"
+    } catch {
+      return "claret"
     }
   }
 
@@ -54,10 +68,21 @@
     )
   }
 
-  setThemeStyle(storedThemeStyle())
+  // Unknown palette ids match no palette block, so they fall back to Claret.
+  const setPalette = (palette) => {
+    document.documentElement.setAttribute("data-palette", palette || "claret")
+  }
+
+  if (!accountAppearance) {
+    setThemeStyle(storedThemeStyle())
+    setPalette(storedPalette())
+  }
+
   window.addEventListener("storage", (event) => {
     if (event.key === storageKey) setTheme(event.newValue || "system")
+    if (accountAppearance) return
     if (event.key === styleStorageKey) setThemeStyle(event.newValue)
+    if (event.key === paletteStorageKey) setPalette(event.newValue)
   })
 
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {

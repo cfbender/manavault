@@ -1,6 +1,8 @@
 defmodule ManavaultWeb.AppControllerTest do
   use ManavaultWeb.ConnCase
 
+  alias Manavault.Appearance
+  alias Manavault.Auth
   alias Manavault.Catalog
   alias Manavault.CatalogTestSupport
   alias Manavault.Trade
@@ -25,6 +27,59 @@ defmodule ManavaultWeb.AppControllerTest do
     refute content_security_policy =~ "unsafe-eval"
     refute content_security_policy =~ "5173"
     refute content_security_policy =~ "ws://"
+  end
+
+  describe "account appearance in the shell" do
+    setup do
+      previous_hash = Application.get_env(:manavault, :admin_password_hash)
+      previous_disabled = Application.get_env(:manavault, :auth_disabled)
+
+      on_exit(fn ->
+        Application.put_env(:manavault, :admin_password_hash, previous_hash)
+        Application.put_env(:manavault, :auth_disabled, previous_disabled)
+      end)
+
+      {:ok, _settings} =
+        Appearance.update_settings(%{palette: "kanagawa", theme_style: "classic"})
+
+      :ok
+    end
+
+    test "the owner's saved palette and style are written on <html> for first paint", %{
+      conn: conn
+    } do
+      response = conn |> get(~p"/") |> html_response(200)
+
+      assert response =~
+               ~s(<html lang="en" class="h-screen w-screen overflow-hidden" data-theme-style="classic" data-palette="kanagawa" data-appearance-source="account">)
+    end
+
+    test "a signed-in owner gets the account appearance when auth is enabled", %{conn: conn} do
+      configure_password("secret")
+
+      response =
+        conn
+        |> init_test_session(
+          manavault_authenticated: true,
+          manavault_auth_fingerprint: Auth.admin_password_fingerprint()
+        )
+        |> get(~p"/settings")
+        |> html_response(200)
+
+      assert response =~ ~s(data-palette="kanagawa")
+      assert response =~ ~s(data-appearance-source="account")
+    end
+
+    test "anonymous share visitors keep their own browser appearance", %{conn: conn} do
+      assert {:ok, wants_token} = Trade.ensure_wants_share_token()
+      configure_password("secret")
+
+      response = conn |> get("/share/wants/#{wants_token}") |> html_response(200)
+
+      assert response =~ ~s(data-theme-style="glass")
+      refute response =~ "data-palette"
+      refute response =~ "data-appearance-source"
+    end
   end
 
   test "the content security policy only allows the Vite dev server when it is enabled" do
@@ -275,5 +330,15 @@ defmodule ManavaultWeb.AppControllerTest do
       ~s(<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630"><rect width="1200" height="630" fill="#31203a" /><circle cx="980" cy="120" r="220" fill="#f59e0b" opacity="0.7" /></svg>)
 
     "data:image/svg+xml;utf8," <> URI.encode(svg)
+  end
+
+  defp configure_password(password) do
+    Application.put_env(:manavault, :auth_disabled, false)
+
+    Application.put_env(
+      :manavault,
+      :admin_password_hash,
+      Auth.hash_password(password, iterations: 1)
+    )
   end
 end
