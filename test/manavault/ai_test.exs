@@ -493,6 +493,253 @@ defmodule Manavault.AITest do
     assert saved.id == question_answer.id
   end
 
+  test "answers card lookup tool calls from the catalog before accepting the final answer" do
+    insert_settings!("anthropic/claude-sonnet-4")
+
+    assert {:ok, %{cards_count: 2}} =
+             Catalog.import_cards([
+               CatalogTestSupport.legal_commander_card(),
+               CatalogTestSupport.legality_card("Brand New Card", ["W"], %{
+                 "commander" => "legal"
+               })
+             ])
+
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Tool Deck"})
+
+    assert {:ok, _deck_card} =
+             Catalog.add_card_to_deck(deck, %{"name" => "Test Commander", "zone" => "commander"})
+
+    attempts = :counters.new(1, [])
+
+    Req.Test.stub(@stub, fn conn ->
+      :counters.add(attempts, 1, 1)
+      {:ok, request_body, conn} = Plug.Conn.read_body(conn)
+      request = Jason.decode!(request_body)
+
+      assert [%{"type" => "function", "function" => %{"name" => "lookup_cards"}}] =
+               request["tools"]
+
+      assert request["response_format"]["type"] == "json_schema"
+      refute Map.has_key?(request, "tool_choice")
+
+      case :counters.get(attempts, 1) do
+        1 ->
+          assert length(request["messages"]) == 2
+
+          json_response(conn, 200, %{
+            "choices" => [
+              %{
+                "finish_reason" => "tool_calls",
+                "message" => %{
+                  "role" => "assistant",
+                  "content" => nil,
+                  "tool_calls" => [
+                    %{
+                      "id" => "call_1",
+                      "type" => "function",
+                      "function" => %{
+                        "name" => "lookup_cards",
+                        "arguments" => ~s({"names":["brand new card","Fake Card"]})
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          })
+
+        2 ->
+          assert [_system, _user, assistant, tool] = request["messages"]
+          assert assistant["role"] == "assistant"
+          assert [%{"id" => "call_1"}] = assistant["tool_calls"]
+          assert tool["role"] == "tool"
+          assert tool["tool_call_id"] == "call_1"
+          assert tool["name"] == "lookup_cards"
+
+          assert %{"cards" => [card], "not_found" => ["Fake Card"]} =
+                   Jason.decode!(tool["content"])
+
+          assert card["name"] == "Brand New Card"
+          assert card["color_identity"] == ["W"]
+          assert card["legal_in"] == ["commander"]
+
+          json_response(conn, 200, %{
+            "choices" => [
+              %{
+                "finish_reason" => "stop",
+                "message" => %{
+                  "content" =>
+                    Jason.encode!(%{
+                      "answer" => "Add [[Brand New Card]].",
+                      "recommended_cuts" => [],
+                      "recommended_additions" => ["Brand New Card"]
+                    })
+                }
+              }
+            ]
+          })
+      end
+    end)
+
+    assert {:ok, question_answer} = AI.ask_deck_question(deck, "What new card fits?")
+    assert :ok = AI.answer_deck_question(question_answer.id)
+    question_answer = Catalog.get_deck_question_answer(question_answer.id)
+    assert question_answer.answer == "Add [[Brand New Card]]."
+    assert question_answer.recommendations["additions"] == ["Brand New Card"]
+    assert :counters.get(attempts, 1) == 2
+  end
+
+  test "forbids further tool calls after the round limit" do
+    insert_settings!("anthropic/claude-sonnet-4")
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Looping Deck"})
+    attempts = :counters.new(1, [])
+
+    Req.Test.stub(@stub, fn conn ->
+      :counters.add(attempts, 1, 1)
+      {:ok, request_body, conn} = Plug.Conn.read_body(conn)
+      request = Jason.decode!(request_body)
+
+      if :counters.get(attempts, 1) <= 4 do
+        refute Map.has_key?(request, "tool_choice")
+
+        json_response(conn, 200, %{
+          "choices" => [
+            %{
+              "finish_reason" => "tool_calls",
+              "message" => %{
+                "role" => "assistant",
+                "content" => nil,
+                "tool_calls" => [
+                  %{
+                    "id" => "call_#{:counters.get(attempts, 1)}",
+                    "type" => "function",
+                    "function" => %{"name" => "lookup_cards", "arguments" => "not json"}
+                  }
+                ]
+              }
+            }
+          ]
+        })
+      else
+        assert request["tool_choice"] == "none"
+        assert length(request["messages"]) == 2 + 4 * 2
+
+        json_response(conn, 200, %{
+          "choices" => [
+            %{
+              "finish_reason" => "stop",
+              "message" => %{
+                "content" =>
+                  Jason.encode!(%{
+                    "answer" => "Done looking things up.",
+                    "recommended_cuts" => [],
+                    "recommended_additions" => []
+                  })
+              }
+            }
+          ]
+        })
+      end
+    end)
+
+    assert {:ok, question_answer} = AI.ask_deck_question(deck, "Keep searching.")
+    assert :ok = AI.answer_deck_question(question_answer.id)
+    assert :counters.get(attempts, 1) == 5
+
+    assert Catalog.get_deck_question_answer(question_answer.id).answer ==
+             "Done looking things up."
+  end
+
+  test "retries without tools when the model has no tool-capable endpoints" do
+    insert_settings!("some/model-without-tools")
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "No Tools Deck"})
+    attempts = :counters.new(1, [])
+
+    Req.Test.stub(@stub, fn conn ->
+      :counters.add(attempts, 1, 1)
+      {:ok, request_body, conn} = Plug.Conn.read_body(conn)
+      request = Jason.decode!(request_body)
+
+      case :counters.get(attempts, 1) do
+        1 ->
+          assert Map.has_key?(request, "tools")
+
+          json_response(conn, 404, %{
+            "error" => %{
+              "message" =>
+                "No endpoints found that support tool use. To learn more about provider routing, visit: https://openrouter.ai/docs/provider-routing",
+              "code" => 404
+            }
+          })
+
+        2 ->
+          refute Map.has_key?(request, "tools")
+          assert request["response_format"]["type"] == "json_schema"
+
+          json_response(conn, 200, %{
+            "choices" => [
+              %{
+                "message" => %{
+                  "content" =>
+                    Jason.encode!(%{
+                      "answer" => "Answered without tools.",
+                      "recommended_cuts" => [],
+                      "recommended_additions" => []
+                    })
+                }
+              }
+            ]
+          })
+      end
+    end)
+
+    log =
+      capture_log(fn ->
+        assert {:ok, question_answer} = AI.ask_deck_question(deck, "Anything?")
+        assert :ok = AI.answer_deck_question(question_answer.id)
+
+        assert Catalog.get_deck_question_answer(question_answer.id).answer ==
+                 "Answered without tools."
+      end)
+
+    assert :counters.get(attempts, 1) == 2
+    assert log =~ "does not support tool use"
+  end
+
+  test "surfaces other 404 errors without retrying" do
+    insert_settings!("some/missing-model")
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Missing Model Deck"})
+    attempts = :counters.new(1, [])
+
+    Req.Test.stub(@stub, fn conn ->
+      :counters.add(attempts, 1, 1)
+
+      json_response(conn, 404, %{
+        "error" => %{"message" => "No endpoints found for some/missing-model.", "code" => 404}
+      })
+    end)
+
+    assert {:ok, question_answer} = AI.ask_deck_question(deck, "Anything?")
+
+    assert {:error, "OpenRouter: No endpoints found for some/missing-model."} =
+             AI.answer_deck_question(question_answer.id)
+
+    assert :counters.get(attempts, 1) == 1
+  end
+
+  defp insert_settings!(model) do
+    {:ok, settings} =
+      %Settings{id: 1}
+      |> Settings.changeset(%{
+        provider: "openrouter",
+        api_key: "test-openrouter-key",
+        model: model
+      })
+      |> Repo.insert()
+
+    settings
+  end
+
   defp stub_settings_validation(model_ids) do
     Req.Test.stub(@stub, fn conn ->
       assert Plug.Conn.get_req_header(conn, "authorization") == ["Bearer test-openrouter-key"]

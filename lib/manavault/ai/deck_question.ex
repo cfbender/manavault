@@ -36,8 +36,11 @@ defmodule Manavault.AI.DeckQuestion do
     When recommending an addition, identify one or more plausible cuts and explain the tradeoff.
     Before recommending any card, verify that it exists, is legal in the deck's format, and, for a
     Commander deck, has a color identity contained within deck.commander_color_identity. Never
-    recommend an off-color or format-illegal card, even as a tentative option. If you cannot verify
-    a card or interaction, omit the recommendation rather than guessing. Do not invent cards,
+    recommend an off-color or format-illegal card, even as a tentative option. When the lookup_cards
+    tool is available, use it to check the exact rules text, color identity, and legality of cards
+    you are considering that are not in the deck; its catalog includes sets released after your
+    training data. If you cannot verify a card or interaction, omit the recommendation rather than
+    guessing. Do not invent cards,
     rules text, combos, or hidden play patterns. Return only the final recommendation, never
     scratch work, rejected options, or self-corrections.
 

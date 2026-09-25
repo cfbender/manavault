@@ -5,9 +5,11 @@ defmodule Manavault.AI.Providers.OpenRouter do
 
   require Logger
 
-  alias Manavault.AI.{DeckAnalysis, DeckQuestion, Settings}
+  alias Manavault.AI.{CardLookupTool, DeckAnalysis, DeckQuestion, Settings}
 
   @api_base "https://openrouter.ai/api/v1"
+  # Rounds in which the model may call tools before it is forced to answer.
+  @max_tool_rounds 4
   @headers [
     {"accept", "application/json"},
     {"content-type", "application/json"},
@@ -46,6 +48,7 @@ defmodule Manavault.AI.Providers.OpenRouter do
       ],
       max_tokens: 20_000,
       temperature: 0.2,
+      tools: CardLookupTool.definitions(),
       response_format: %{
         type: "json_schema",
         json_schema: %{
@@ -56,25 +59,12 @@ defmodule Manavault.AI.Providers.OpenRouter do
       }
     }
 
-    started_at = System.monotonic_time(:millisecond)
-
-    case Req.post(
-           @api_base <> "/chat/completions",
-           request_options(settings.api_key, json: request, receive_timeout: 120_000)
-         ) do
-      {:ok, %Req.Response{status: status, body: body}} when status in 200..299 ->
-        result = decode_analysis(body)
-        log_completion(result, "deck_analysis", settings.model, started_at, status, body)
-        result
-
-      {:ok, %Req.Response{status: status, body: body}} ->
-        log_completion(:http_error, "deck_analysis", settings.model, started_at, status, body)
-        {:error, response_error(status, body, "OpenRouter could not analyze this deck.")}
-
-      {:error, exception} ->
-        log_request_error("deck_analysis", settings.model, started_at, exception)
-        {:error, request_error(exception, "Could not reach OpenRouter to analyze this deck.")}
-    end
+    complete(request, settings, %{
+      operation: "deck_analysis",
+      decode: &decode_analysis/1,
+      http_error: "OpenRouter could not analyze this deck.",
+      request_error: "Could not reach OpenRouter to analyze this deck."
+    })
   end
 
   @impl true
@@ -87,6 +77,7 @@ defmodule Manavault.AI.Providers.OpenRouter do
       ],
       max_tokens: 20_000,
       temperature: 0.2,
+      tools: CardLookupTool.definitions(),
       plugins: [%{id: "response-healing"}],
       response_format: %{
         type: "json_schema",
@@ -98,26 +89,122 @@ defmodule Manavault.AI.Providers.OpenRouter do
       }
     }
 
+    complete(request, settings, %{
+      operation: "deck_question",
+      decode: &decode_answer/1,
+      http_error: "OpenRouter could not answer this question.",
+      request_error: "Could not reach OpenRouter to answer this question."
+    })
+  end
+
+  # Runs the completion, executing any tool calls the model requests and
+  # feeding the results back until it returns a final message. After
+  # @max_tool_rounds the model is told it may no longer call tools.
+  defp complete(request, settings, context, round \\ 0) do
+    request =
+      if round >= @max_tool_rounds, do: Map.put(request, :tool_choice, "none"), else: request
+
     started_at = System.monotonic_time(:millisecond)
 
-    case Req.post(
-           @api_base <> "/chat/completions",
-           request_options(settings.api_key, json: request, receive_timeout: 120_000)
-         ) do
+    case post_completion(request, settings.api_key) do
       {:ok, %Req.Response{status: status, body: body}} when status in 200..299 ->
-        result = decode_answer(body)
-        log_completion(result, "deck_question", settings.model, started_at, status, body)
-        result
+        case tool_calls(body) do
+          [] ->
+            result = context.decode.(body)
+            log_completion(result, context.operation, settings.model, started_at, status, body)
+            result
+
+          calls ->
+            log_completion(
+              :tool_calls,
+              context.operation,
+              settings.model,
+              started_at,
+              status,
+              body
+            )
+
+            request
+            |> Map.update!(:messages, &(&1 ++ [assistant_message(body) | tool_messages(calls)]))
+            |> complete(settings, context, round + 1)
+        end
+
+      {:ok, %Req.Response{status: 404, body: body}}
+      when round == 0 and is_map_key(request, :tools) ->
+        if tool_use_unsupported?(body) do
+          Logger.warning(
+            "OpenRouter model #{inspect(settings.model)} does not support tool use; " <>
+              "retrying operation=#{context.operation} without the card lookup tool"
+          )
+
+          request |> Map.delete(:tools) |> complete(settings, context, round)
+        else
+          log_completion(:http_error, context.operation, settings.model, started_at, 404, body)
+          {:error, response_error(404, body, context.http_error)}
+        end
 
       {:ok, %Req.Response{status: status, body: body}} ->
-        log_completion(:http_error, "deck_question", settings.model, started_at, status, body)
-        {:error, response_error(status, body, "OpenRouter could not answer this question.")}
+        log_completion(:http_error, context.operation, settings.model, started_at, status, body)
+        {:error, response_error(status, body, context.http_error)}
 
       {:error, exception} ->
-        log_request_error("deck_question", settings.model, started_at, exception)
-        {:error, request_error(exception, "Could not reach OpenRouter to answer this question.")}
+        log_request_error(context.operation, settings.model, started_at, exception)
+        {:error, request_error(exception, context.request_error)}
     end
   end
+
+  defp post_completion(request, api_key) do
+    Req.post(
+      @api_base <> "/chat/completions",
+      request_options(api_key, json: request, receive_timeout: 120_000)
+    )
+  end
+
+  defp tool_calls(%{"choices" => [%{"message" => %{"tool_calls" => calls}} | _]})
+       when is_list(calls),
+       do: Enum.filter(calls, &is_map/1)
+
+  defp tool_calls(_body), do: []
+
+  # The assistant turn echoed back verbatim so the model sees its own tool
+  # calls (and any reasoning) ahead of the tool results.
+  defp assistant_message(%{"choices" => [%{"message" => message} | _]}) do
+    message
+    |> Map.take(["role", "content", "tool_calls", "reasoning", "reasoning_details"])
+    |> Map.put_new("role", "assistant")
+    |> Map.put_new("content", nil)
+  end
+
+  defp tool_messages(calls) do
+    Enum.map(calls, fn call ->
+      name = get_in(call, ["function", "name"])
+      arguments = call |> get_in(["function", "arguments"]) |> decode_arguments()
+
+      %{
+        role: "tool",
+        tool_call_id: Map.get(call, "id"),
+        name: name,
+        content: Jason.encode!(CardLookupTool.call(name, arguments))
+      }
+    end)
+  end
+
+  defp decode_arguments(arguments) when is_binary(arguments) do
+    case Jason.decode(arguments) do
+      {:ok, decoded} when is_map(decoded) -> decoded
+      _error -> %{}
+    end
+  end
+
+  defp decode_arguments(arguments) when is_map(arguments), do: arguments
+  defp decode_arguments(_arguments), do: %{}
+
+  defp tool_use_unsupported?(body) when is_map(body) do
+    message = get_in(body, ["error", "message"])
+    is_binary(message) and message =~ ~r/tool use/i
+  end
+
+  defp tool_use_unsupported?(_body), do: false
 
   defp validate_api_key(api_key) do
     case Req.get(@api_base <> "/key", request_options(api_key)) do
@@ -193,7 +280,7 @@ defmodule Manavault.AI.Providers.OpenRouter do
   defp decode_answer(_body), do: {:error, @answer_incomplete_error}
 
   defp log_completion(result, operation, model, started_at, status, body) do
-    level = if match?({:ok, _decoded}, result), do: :info, else: :warning
+    level = if match?({:ok, _decoded}, result) or result == :tool_calls, do: :info, else: :warning
 
     Logger.log(
       level,
@@ -228,6 +315,7 @@ defmodule Manavault.AI.Providers.OpenRouter do
   end
 
   defp completion_result({:ok, _decoded}), do: "ok"
+  defp completion_result(:tool_calls), do: "tool_calls"
   defp completion_result({:error, @answer_token_limit_error}), do: "output_token_limit"
   defp completion_result({:error, @answer_incomplete_error}), do: "incomplete_response"
   defp completion_result({:error, @answer_invalid_error}), do: "invalid_response"

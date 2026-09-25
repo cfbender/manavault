@@ -106,7 +106,11 @@ Deck workflows include:
 AI analysis currently supports OpenRouter. The owner configures and validates an
 API key and model ID in Settings; the key is encrypted at rest and is never
 returned through GraphQL. Deck data is sent only when the owner explicitly runs
-an analysis or asks a question. Commander results keep the guideline bracket
+an analysis or asks a question. During both, the model can call a `lookup_cards`
+tool that returns rules text, color identity, and legality from the local
+Scryfall catalog, so it can verify cards released after its training data
+before recommending them; models whose OpenRouter endpoints lack tool support
+fall back to answering without it. Commander results keep the guideline bracket
 separate from the estimated practical play bracket, so labels can communicate
 distinctions such as `Bracket 3 (plays like Bracket 2)`. The saved label appears
 on deck cards, the deck header, and shared preview images.

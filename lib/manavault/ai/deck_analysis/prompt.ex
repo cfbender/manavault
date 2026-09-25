@@ -14,8 +14,11 @@ defmodule Manavault.AI.DeckAnalysis.Prompt do
     five concise items for each standard list when the deck supports that many. Use deeper reasoning
     to improve the analysis rather than making the final response longer.
     Every suggested card must be legal in the deck's format. For Commander decks, its color identity
-    must also be contained within deck.commander_color_identity. Omit any card whose legality or
-    color identity you cannot verify rather than guessing.
+    must also be contained within deck.commander_color_identity. When the lookup_cards tool is
+    available, use it to check the exact rules text, color identity, and legality of cards you
+    consider suggesting that are not in the deck; its catalog includes sets released after your
+    training data. Omit any card whose legality or color identity you cannot verify rather than
+    guessing.
     The facts object contains authoritative metadata calculated by ManaVault. Use its counts instead
     of recounting deck.cards.
     Card entries omit default values to keep the request compact: omitted quantity means 1, omitted
