@@ -50,7 +50,7 @@ export const AllocateDeckCardItemDocument = graphql(`
       deckCard {
         id
         allocationStatus {
-          ...DeckCardAllocation @_unmask
+          ...DeckCardAllocation
         }
       }
     }
@@ -63,7 +63,7 @@ export const DeallocateDeckCardItemDocument = graphql(`
       deckCard {
         id
         allocationStatus {
-          ...DeckCardAllocation @_unmask
+          ...DeckCardAllocation
         }
       }
     }
@@ -88,7 +88,7 @@ export const AllocateDeckCardProxyDocument = graphql(`
       deckCard {
         id
         allocationStatus {
-          ...DeckCardAllocation @_unmask
+          ...DeckCardAllocation
         }
       }
     }
@@ -101,7 +101,7 @@ export const DeallocateDeckCardProxyDocument = graphql(`
       deckCard {
         id
         allocationStatus {
-          ...DeckCardAllocation @_unmask
+          ...DeckCardAllocation
         }
       }
     }
