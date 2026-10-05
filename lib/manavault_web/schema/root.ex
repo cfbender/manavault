@@ -20,9 +20,10 @@ defmodule ManavaultWeb.Schema do
   import_types(ManavaultWeb.Schema.Catalog.OtherOperations)
   import_types(ManavaultWeb.Schema.Catalog.TradeOperations)
   import_types(ManavaultWeb.Schema.Catalog.TradeListOperations)
+  import_types(ManavaultWeb.Schema.Catalog.TokenOperations)
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.{Card, CollectionItem, Deck, DeckCard, Location, Printing}
+  alias Manavault.Catalog.{Card, CollectionItem, Deck, DeckCard, Location, Printing, TokenItem}
   alias ManavaultWeb.Schema.Catalog.QueryResolvers
   alias ManavaultWeb.Schema.RelayHelpers
 
@@ -34,6 +35,7 @@ defmodule ManavaultWeb.Schema do
       %Location{}, _ -> :location
       %Deck{}, _ -> :deck
       %DeckCard{}, _ -> :deck_card
+      %TokenItem{}, _ -> :token_item
       %{scryfall_id: _, set_code: _}, _ -> :printing
       %{oracle_id: _, name: _, type_line: _}, _ -> :card
       %{id: "unfiled"}, _ -> :location
@@ -57,6 +59,7 @@ defmodule ManavaultWeb.Schema do
     import_fields(:pricing_queries)
     import_fields(:appearance_queries)
     import_fields(:trade_queries)
+    import_fields(:token_queries)
 
     node field do
       resolve(fn
@@ -84,6 +87,11 @@ defmodule ManavaultWeb.Schema do
             {:ok, Catalog.get_deck_card!(id)}
           end
 
+        %{type: :token_item, id: id}, resolution ->
+          with {:ok, id} <- RelayHelpers.node_id(id, :token_item, resolution) do
+            {:ok, Catalog.get_token_item!(id)}
+          end
+
         _node, _resolution ->
           {:ok, nil}
       end)
@@ -102,6 +110,7 @@ defmodule ManavaultWeb.Schema do
     import_fields(:deck_mutations)
     import_fields(:trade_mutations)
     import_fields(:trade_list_mutations)
+    import_fields(:token_mutations)
   end
 
   object :server_log_event do

@@ -3,7 +3,16 @@ defmodule Manavault.Catalog.Dataloader do
 
   import Ecto.Query
 
-  alias Manavault.Catalog.{Card, CollectionItem, DeckAllocation, DeckCard, Location, Printing}
+  alias Manavault.Catalog.{
+    Card,
+    CollectionItem,
+    DeckAllocation,
+    DeckCard,
+    Location,
+    Printing,
+    Tokens
+  }
+
   alias Manavault.Repo
 
   import Manavault.Catalog.PriceFragments,
@@ -31,6 +40,11 @@ defmodule Manavault.Catalog.Dataloader do
       |> Enum.group_by(& &1.oracle_id)
 
     Enum.map(cards, &Map.get(printings_by_oracle_id, &1.oracle_id, []))
+  end
+
+  def run_batch(Card, _query, :produced_tokens, cards, _repo_opts) do
+    produced = cards |> Enum.map(& &1.oracle_id) |> Tokens.produced_tokens_by_oracle_ids()
+    Enum.map(cards, &Map.get(produced, &1.oracle_id, []))
   end
 
   def run_batch(Location, _query, :value_summary, locations, repo_opts) do

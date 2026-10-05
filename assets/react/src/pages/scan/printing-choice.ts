@@ -22,7 +22,16 @@ export interface PrintingOption {
   promo: boolean
   releasedAt: string | null
   imageUrl: string | null
+  /** The printed back of a double-faced card or token, when Scryfall has one. */
+  backImageUrl: string | null
+  /** Scryfall layout, e.g. "normal", "token", "double_faced_token". */
+  layout: string | null
   prices: FinishPrices
+}
+
+/** A single-faced token printing, whose physical back Scryfall does not know. */
+export function isSingleFacedToken(option: Pick<PrintingOption, "layout">) {
+  return option.layout === "token"
 }
 
 interface Recognized {

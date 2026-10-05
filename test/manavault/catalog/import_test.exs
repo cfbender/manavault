@@ -102,7 +102,7 @@ defmodule Manavault.Catalog.ImportTest do
     end
   end
 
-  test "import_cards excludes memorabilia and token set printings" do
+  test "import_cards excludes memorabilia and token-set cards that are not tokens" do
     memorabilia =
       Map.merge(@black_lotus, %{
         "id" => "scryfall-memorabilia",
@@ -111,23 +111,90 @@ defmodule Manavault.Catalog.ImportTest do
         "set_type" => "memorabilia"
       })
 
-    token =
+    emblem =
       Map.merge(@black_lotus, %{
-        "id" => "scryfall-token",
-        "oracle_id" => "oracle-token",
-        "name" => "Black Lotus Token",
+        "id" => "scryfall-emblem",
+        "oracle_id" => "oracle-emblem",
+        "name" => "Lotus Emblem",
+        "layout" => "emblem",
         "set" => "tlea",
         "set_name" => "Alpha Tokens",
         "set_type" => "token"
       })
 
-    assert {:ok, %{cards_count: 1, printings_count: 1, source_count: 3}} =
-             Catalog.import_cards([@black_lotus, memorabilia, token])
+    helper =
+      Map.merge(@black_lotus, %{
+        "id" => "scryfall-helper",
+        "oracle_id" => "oracle-helper",
+        "name" => "Card // Card",
+        "type_line" => "Card // Card",
+        "layout" => "double_faced_token",
+        "set" => "tlea",
+        "set_name" => "Alpha Tokens",
+        "set_type" => "token"
+      })
+
+    assert {:ok, %{cards_count: 1, printings_count: 1, source_count: 4}} =
+             Catalog.import_cards([@black_lotus, memorabilia, emblem, helper])
 
     assert Repo.get!(Printing, @black_lotus["id"])
     refute Repo.get(Printing, memorabilia["id"])
-    refute Repo.get(Printing, token["id"])
-    refute Repo.get(Card, token["oracle_id"])
+    refute Repo.get(Printing, emblem["id"])
+    refute Repo.get(Card, emblem["oracle_id"])
+    refute Repo.get(Printing, helper["id"])
+  end
+
+  test "import_cards keeps tokens, records layouts, and links producers to their tokens" do
+    producer =
+      Map.merge(@black_lotus, %{
+        "layout" => "normal",
+        "all_parts" => [
+          %{"component" => "combo_piece", "id" => "scryfall-printing-1", "name" => "Black Lotus"},
+          %{"component" => "token", "id" => "scryfall-treasure-token", "name" => "Treasure"},
+          %{"component" => "token", "id" => "scryfall-missing-token", "name" => "Missing"}
+        ]
+      })
+
+    token =
+      Map.merge(@black_lotus, %{
+        "id" => "scryfall-treasure-token",
+        "oracle_id" => "oracle-treasure",
+        "name" => "Treasure",
+        "type_line" => "Token Artifact — Treasure",
+        "layout" => "token",
+        "set" => "tlea",
+        "set_name" => "Alpha Tokens",
+        "set_type" => "token",
+        "all_parts" => [
+          %{"component" => "token", "id" => "scryfall-treasure-token", "name" => "Treasure"},
+          %{"component" => "combo_piece", "id" => "scryfall-printing-1", "name" => "Black Lotus"}
+        ]
+      })
+
+    assert {:ok, %{cards_count: 2, printings_count: 2}} = Catalog.import_cards([producer, token])
+
+    assert %Card{layout: "normal"} = Repo.get!(Card, "oracle-1")
+    assert %Card{layout: "token"} = token_card = Repo.get!(Card, "oracle-treasure")
+    assert Card.token?(token_card)
+
+    assert [%{printing: %Printing{scryfall_id: "scryfall-treasure-token"}, owned_count: 0}] =
+             Catalog.produced_tokens_by_oracle_ids(["oracle-1"])["oracle-1"]
+
+    # Links only point from producers to tokens, never the other way round.
+    refute Map.has_key?(
+             Catalog.produced_tokens_by_oracle_ids(["oracle-treasure"]),
+             "oracle-treasure"
+           )
+
+    # Token cards never surface as playable cards.
+    assert [] = Catalog.search_cards("treasure")
+    assert nil == Catalog.find_card_by_name("Treasure")
+    assert [] = Catalog.search_printings(name: "Treasure")
+    refute "Treasure" in Catalog.suggest_card_names("Treas")
+
+    # A rerun that drops a link removes it.
+    assert {:ok, _result} = Catalog.import_cards([Map.put(producer, "all_parts", [])])
+    assert %{} == Catalog.produced_tokens_by_oracle_ids(["oracle-1"])
   end
 
   test "import_cards releases the write lock between batches" do

@@ -1,6 +1,13 @@
 import type { Finish, FinishPrices, PrintingOption } from "./printing-choice"
 import type { TrainingCapture } from "./scan-training"
 
+/** The other printed side of a scanned single-faced token, as the user picked it. */
+export interface ScanBackFace {
+  scryfallId: string
+  name: string
+  imageUrl: string | null
+}
+
 /** One row of the scanned list; the newest scan is first. */
 export interface ScanEntry {
   id: string
@@ -19,6 +26,10 @@ export interface ScanEntry {
   quantity: number
   prices: FinishPrices
   imageUrl: string | null
+  /** Scryfall layout of the resolved printing; `"token"` entries can carry a `back`. */
+  layout?: string | null
+  /** Picked other side of a single-faced token; `null` once the user said it has none. */
+  back?: ScanBackFace | null
   /** False until the catalog printing lookup finished. */
   resolved: boolean
   scannedAt: number
@@ -56,7 +67,10 @@ export function totalQuantity(entries: ScanEntry[]) {
   return entries.reduce((sum, entry) => sum + entry.quantity, 0)
 }
 
-/** Applies a catalog printing (and its language) to an entry, keeping its quantity. */
+/**
+ * Applies a catalog printing (and its language) to an entry, keeping its quantity. A picked
+ * token back only belongs to the printing it was picked for.
+ */
 export function withPrinting(
   entry: ScanEntry,
   printing: PrintingOption,
@@ -64,6 +78,8 @@ export function withPrinting(
 ): ScanEntry {
   return {
     ...entry,
+    back: printing.scryfallId === entry.scryfallId ? entry.back : undefined,
+    layout: printing.layout,
     name: printing.name,
     scryfallId: printing.scryfallId,
     setCode: printing.setCode,
@@ -97,11 +113,14 @@ const CSV_HEADERS = [
   "finish",
   "language",
   "scryfall_id",
+  "back_scryfall_id",
 ] as const
 
 /**
  * The collection import's CSV columns, oldest scan first; `scryfall_id` pins the exact
  * printing. Unresolved entries still carry the recognized gallery printing, which is valid.
+ * `back_scryfall_id` is the picked other side of a token; the import files tokens as owned
+ * tokens rather than collection cards.
  */
 export function scanListCsv(entries: ScanEntry[]) {
   const rows = [...entries]
@@ -115,6 +134,7 @@ export function scanListCsv(entries: ScanEntry[]) {
         entry.finish,
         entry.language,
         entry.scryfallId,
+        entry.back?.scryfallId ?? "",
       ]
         .map(csvCell)
         .join(","),

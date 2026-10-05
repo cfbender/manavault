@@ -319,6 +319,10 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
       resolve(&ValueResolvers.map_value/3)
     end
 
+    field :back_scryfall_id, :id do
+      resolve(&ValueResolvers.map_value/3)
+    end
+
     field :location_id, :id do
       resolve(&ValueResolvers.map_value/3)
     end
@@ -426,6 +430,7 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
     field :condition, :string
     field :language, :string
     field :scryfall_id, :id
+    field :back_scryfall_id, :id
     field :location_id, :id
     field :purchase_price_cents, :integer
   end

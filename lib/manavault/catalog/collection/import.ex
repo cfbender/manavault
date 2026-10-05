@@ -3,8 +3,8 @@ defmodule Manavault.Catalog.Collection.Import do
 
   import Ecto.Query
 
+  alias Manavault.Catalog.{Card, CollectionImport, Finishes, Location, Printing, Search, Tokens}
   alias Manavault.Catalog.Collection.AutoSort
-  alias Manavault.Catalog.{CollectionImport, Finishes, Location, Printing, Search}
   alias Manavault.Repo
 
   def preview(text, opts \\ []) when is_binary(text) and is_list(opts) do
@@ -121,10 +121,40 @@ defmodule Manavault.Catalog.Collection.Import do
              Printing,
              :scryfall_id,
              :printing_not_found
+           ),
+         :ok <-
+           validate_references(
+             exact_attrs,
+             "back_scryfall_id",
+             Printing,
+             :scryfall_id,
+             :printing_not_found
            ) do
-      create_preview_rows(rows, create_item)
+      create_preview_rows(rows, create_item, token_scryfall_ids(exact_attrs))
     else
       {:error, reason} -> Repo.rollback(reason)
+    end
+  end
+
+  # Scanned tokens arrive through the same import as cards but are owned
+  # tokens, not collection copies.
+  defp token_scryfall_ids(attrs_list) do
+    ids =
+      attrs_list
+      |> Enum.map(&Map.get(&1, "scryfall_id"))
+      |> Enum.reject(&(&1 in [nil, ""]))
+      |> Enum.uniq()
+
+    if ids == [] do
+      MapSet.new()
+    else
+      Printing
+      |> join(:inner, [printing], card in assoc(printing, :card), as: :card)
+      |> where([printing], printing.scryfall_id in ^ids)
+      |> where(^Card.token())
+      |> select([printing], printing.scryfall_id)
+      |> Repo.all()
+      |> MapSet.new()
     end
   end
 
@@ -140,10 +170,21 @@ defmodule Manavault.Catalog.Collection.Import do
     if existing_count == length(ids), do: :ok, else: {:error, error}
   end
 
-  defp create_preview_rows(rows, create_item) do
+  # Token rows count as imported but never join `item_ids`, which only feeds
+  # collection auto-sort.
+  defp create_preview_rows(rows, create_item, token_scryfall_ids) do
     Enum.reduce(rows, %{imported: 0, skipped: 0, item_ids: []}, fn row, result ->
-      case row.status do
-        :exact ->
+      cond do
+        row.status != :exact ->
+          update_in(result.skipped, &(&1 + 1))
+
+        MapSet.member?(token_scryfall_ids, Map.get(row.attrs, "scryfall_id")) ->
+          case create_item_or_rollback(&Tokens.add_token_item/1, row.attrs) do
+            {:ok, _token_item} -> update_in(result.imported, &(&1 + 1))
+            {:error, reason} -> Repo.rollback(reason)
+          end
+
+        true ->
           case create_item_or_rollback(create_item, row.attrs) do
             {:ok, item} ->
               result
@@ -153,9 +194,6 @@ defmodule Manavault.Catalog.Collection.Import do
             {:error, changeset} ->
               Repo.rollback(changeset)
           end
-
-        _status ->
-          update_in(result.skipped, &(&1 + 1))
       end
     end)
   end

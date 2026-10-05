@@ -11,7 +11,8 @@ defmodule Manavault.Catalog do
     Scryfall,
     ScryfallAssetsWorker,
     ScryfallCatalogWorker,
-    Search
+    Search,
+    Tokens
   }
 
   defdelegate data(), to: Dataloader
@@ -80,6 +81,16 @@ defmodule Manavault.Catalog do
   defdelegate preview_collection_import_auto_sort(preview, opts \\ []), to: Collection
   defdelegate export_collection_csv(filters \\ []), to: Cached
   defdelegate export_collection_text(filters \\ []), to: Cached
+
+  defdelegate search_token_printings(filters, opts \\ []), to: Tokens
+  defdelegate list_token_items(filters \\ []), to: Tokens
+  defdelegate count_token_items(), to: Tokens
+  defdelegate get_token_item!(id), to: Tokens
+  defdelegate add_token_item(attrs), to: Tokens
+  defdelegate update_token_item(token_item, attrs), to: Tokens
+  defdelegate delete_token_item(token_item), to: Tokens
+  defdelegate owned_token_counts(oracle_ids), to: Tokens
+  defdelegate produced_tokens_by_oracle_ids(oracle_ids), to: Tokens
 
   defdelegate list_decks(), to: Decks
   defdelegate list_deck_summaries(), to: Decks

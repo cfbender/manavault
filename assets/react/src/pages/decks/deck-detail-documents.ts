@@ -130,6 +130,22 @@ export const DeckDocument = graphql(`
               edhrecSaltiness
               deckCategory
               deckThemes
+              producedTokens {
+                ownedCount
+                printing {
+                  id
+                  scryfallId
+                  oracleId
+                  imageUrl
+                  backImageUrl
+                  setCode
+                  card {
+                    id
+                    name
+                    typeLine
+                  }
+                }
+              }
             }
             preferredPrinting {
               id

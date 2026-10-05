@@ -82,6 +82,7 @@ defmodule ManavaultWeb.Schema.Catalog.CardTypes do
     field :oracle_text, :string
     field :mana_cost, :string
     field :cmc, :float
+    field :layout, :string
 
     field :colors, list_of(:string) do
       resolve(fn card, _, _ ->
@@ -128,6 +129,11 @@ defmodule ManavaultWeb.Schema.Catalog.CardTypes do
 
     field :primary_printing, :printing do
       resolve(&CardFields.card_primary_printing/3)
+    end
+
+    @desc "Tokens this card creates, per Scryfall's related-parts links."
+    field :produced_tokens, non_null(list_of(non_null(:produced_token))) do
+      resolve(&CardFields.card_produced_tokens/3)
     end
   end
 

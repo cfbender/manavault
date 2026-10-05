@@ -32,6 +32,7 @@ defmodule Manavault.Catalog.CollectionImport do
       "condition" => normalize_condition(Map.get(row, "condition", "")),
       "language" => normalize_language(Map.get(row, "language", "")),
       "scryfall_id" => Util.normalize_filter(Map.get(row, "scryfall_id", "")),
+      "back_scryfall_id" => Util.normalize_filter(Map.get(row, "back_scryfall_id", "")),
       "purchase_price_cents" => Price.parse_cents(Map.get(row, "purchase_price_cents"))
     }
   end
@@ -240,6 +241,9 @@ defmodule Manavault.Catalog.CollectionImport do
 
       key when key in ["scryfall", "scryfall_id", "printing_id"] ->
         "scryfall_id"
+
+      key when key in ["back_scryfall", "back_scryfall_id", "back_printing_id"] ->
+        "back_scryfall_id"
 
       key ->
         key

@@ -42,6 +42,12 @@ detail.
 - **Missing cards** - deck demand that remains after allocated and available
   collection copies are counted. Missing-card exports can be tuned by printing
   mode and basic-land inclusion.
+- **Token item** - a stack of owned token cards (Scryfall layout `token` or
+  `double_faced_token`) sharing one front printing, optional back printing, and
+  finish. Tokens are kept apart from collection items: they are never
+  allocated, never counted toward collection value, and never satisfy deck
+  demand. The catalog also records which token printings each card creates,
+  from Scryfall's related-parts links.
 
 ## Card Catalog
 
@@ -67,11 +73,17 @@ Card detail pages show:
 
 ## Collection
 
-The collection has three primary views:
+The collection has four primary views:
 
 - **Locations** - storage containers with counts, cover cards, value summaries,
   and per-location item lists.
 - **All cards** - a filterable, sortable inventory list across locations.
+- **Tokens** - the tokens you own, shown as card tiles with quantity badges and
+  filtered by name. Double-sided tokens are named "Front // Back" and flip to
+  the other face on click. **Add token** searches token printings (newest
+  first), optionally picks the back face from the same set, and sets quantity
+  and finish; each tile's menu edits quantity/finish or removes the stack.
+  Tokens have no location, condition, or value and are never allocated.
 - **Value** - market value compared with purchase basis, with editable purchase
   prices and biggest gains/losses rankings that toggle between total and
   percentage change.
@@ -93,7 +105,9 @@ Collection workflows include:
 - single-card add/edit/delete, plus bulk edit
 - location create/edit/delete with selectable cover cards
 - TXT/CSV import preview and commit, with an optional default purchase price or
-  total spend spread across the import
+  total spend spread across the import; rows whose printing is a token become
+  token items instead of collection items, and an optional `back_scryfall_id`
+  column records the token's other face
 - CSV/TXT export for the current filters
 - Android/iOS share/open-with import handoff from native shells
 - search, sort (quantity, name, set, rarity, price, value gain, added date), and
@@ -155,6 +169,12 @@ camera; the browser or OS asks for camera access once.
   it freezes the camera view and searches the card by name.
 - **Wrong card?** in the printing picker searches the catalog by name and swaps
   a misrecognized scan for the right card.
+- Tokens are recognized like any other card. Double-faced tokens carry both
+  faces from Scryfall. For a single-faced token, the scanner pauses and asks
+  **What is on the back?**, showing the other tokens from the same set so you
+  can pick the reverse or mark it **Single-sided**; a chip on the entry changes
+  the answer later. **Add to collection** files tokens as token items (see
+  Collection -> Tokens) rather than collection items.
 - **Collect training data** (off by default) uploads each scan's camera frame
   and card to your server so the recognition model can be retrained on your
   phone, stand and foils; see [scanner.md](scanner.md#training-data).
@@ -258,7 +278,11 @@ Deck detail pages include:
 - format legality status and issue details
 - mana curve, average/median/total mana value, land/nonland counts
 - mana cost versus mana production comparison with source-card highlighting
-- token summaries derived from Oracle text
+- **Tokens this deck can create** - each token the deck's cards make, with the
+  token's actual card image and name when Scryfall links the card to a token
+  printing (falling back to the Oracle text description otherwise), the cards
+  that create it, how many each event makes, and how many copies you own. Public
+  share pages list the tokens but never show owned counts.
 - **Infinite combos** from Commander Spellbook, listing cards, prerequisites,
   mana needed, steps, and results for combos found in the commander and
   mainboard

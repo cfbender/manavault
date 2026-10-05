@@ -26,7 +26,7 @@ export function useCollectionQuery({
   })
   const itemsQuery = useQuery(CollectionItemGroupsPageDocument, {
     variables: { filters, sort: itemSort, first: COLLECTION_PAGE_SIZE, after: null },
-    skip: activeTab === "locations" || activeTab === "value",
+    skip: activeTab === "locations" || activeTab === "tokens" || activeTab === "value",
     fetchPolicy: "cache-and-network",
   })
   const groups = useMemo(
@@ -81,6 +81,7 @@ export function useCollectionQuery({
       recent: Math.min(RECENT_ITEMS_LIMIT, data?.recentCollectionItemCount ?? 0),
       available: data?.availableCollectionItemCount ?? 0,
       unfiled: unfiledCount,
+      tokens: data?.tokenItemCount ?? 0,
     },
     itemsQuery,
     itemSort,

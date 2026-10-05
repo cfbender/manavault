@@ -2,6 +2,7 @@ import { ChevronDown, Sparkles, TrendingUp, type LucideIcon } from "lucide-react
 import { useEffect, useState, type ReactNode } from "react"
 import { buildDeckStats, type DeckStats } from "../../lib/deck-stats"
 import { buildDeckTokens, type DeckTokenSummary } from "../../lib/deck-tokens"
+import { scryfallCardUrl } from "../cards/card-links"
 import type { DeckCardEntry } from "./deck-types"
 
 import {
@@ -95,7 +96,14 @@ export function DeferredDeckSection({
   )
 }
 
-export function DeckTokensSection({ tokens }: { tokens: readonly DeckTokenSummary[] | null }) {
+export function DeckTokensSection({
+  showOwned = true,
+  tokens,
+}: {
+  /** Public shares never reveal the owner's token inventory. */
+  showOwned?: boolean
+  tokens: readonly DeckTokenSummary[] | null
+}) {
   if (tokens === null) {
     return (
       <DeferredDeckSection
@@ -115,7 +123,7 @@ export function DeckTokensSection({ tokens }: { tokens: readonly DeckTokenSummar
           <Sparkles className="h-4 w-4 shrink-0 text-primary" />
           <span className="font-black tracking-normal">Tokens this deck can create</span>
           <span className="hidden truncate text-xs font-semibold text-base-content/50 sm:inline">
-            {tokens.length} {tokens.length === 1 ? "token" : "tokens"} found in Oracle text
+            {deckTokensDetail(tokens, showOwned)}
           </span>
         </span>
         <ChevronDown className="h-4 w-4 shrink-0 text-base-content/50 transition group-open:rotate-180" />
@@ -131,13 +139,18 @@ export function DeckTokensSection({ tokens }: { tokens: readonly DeckTokenSummar
                 <th scope="col">Description</th>
                 <th scope="col">Created by</th>
                 <th scope="col">Per event</th>
+                {showOwned ? (
+                  <th scope="col" className="text-right">
+                    Owned
+                  </th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
               {tokens.map((token) => (
                 <tr key={token.key} className="align-top">
                   <th scope="row" className="min-w-36 font-black">
-                    {token.name}
+                    <DeckTokenName token={token} />
                   </th>
                   <td className="min-w-64 text-base-content/75">{token.description}</td>
                   <td className="min-w-48">
@@ -153,10 +166,28 @@ export function DeckTokensSection({ tokens }: { tokens: readonly DeckTokenSummar
                   <td className="min-w-24">
                     <ul className="space-y-1">
                       {token.producers.map((producer) => (
-                        <li key={producer.id}>{producer.amount}</li>
+                        <li key={producer.id}>{producer.amount ?? "—"}</li>
                       ))}
                     </ul>
                   </td>
+                  {showOwned ? (
+                    <td className="text-right font-mono tabular-nums">
+                      {token.token ? (
+                        <span
+                          className={
+                            token.token.ownedCount > 0 ? "font-bold" : "text-base-content/50"
+                          }
+                          aria-label={`${token.token.ownedCount} owned`}
+                        >
+                          {token.token.ownedCount}
+                        </span>
+                      ) : (
+                        <span className="text-base-content/40" aria-label="Not a catalog token">
+                          —
+                        </span>
+                      )}
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>
@@ -164,6 +195,42 @@ export function DeckTokensSection({ tokens }: { tokens: readonly DeckTokenSummar
         </div>
       </div>
     </details>
+  )
+}
+
+function deckTokensDetail(tokens: readonly DeckTokenSummary[], showOwned: boolean) {
+  const linked = tokens.filter((token) => token.token !== null)
+  const owned = linked.filter((token) => (token.token?.ownedCount ?? 0) > 0).length
+  const count = `${tokens.length} ${tokens.length === 1 ? "token" : "tokens"}`
+  if (linked.length === 0) return `${count} found in Oracle text`
+  if (!showOwned) return count
+  return `${count} · ${owned} of ${linked.length} owned`
+}
+
+/** The token's name with its actual card art when the catalog knows the token. */
+function DeckTokenName({ token }: { token: DeckTokenSummary }) {
+  if (!token.token) return <>{token.name}</>
+  const { imageUrl, scryfallId } = token.token
+  return (
+    <span className="flex items-center gap-2">
+      {imageUrl ? (
+        <a
+          href={scryfallCardUrl({ name: token.name, scryfallId })}
+          target="_blank"
+          rel="noreferrer"
+          className="shrink-0"
+          aria-label={`${token.name} token on Scryfall`}
+        >
+          <img
+            src={imageUrl}
+            alt=""
+            loading="lazy"
+            className="h-14 w-10 rounded-[3px] object-cover shadow-sm"
+          />
+        </a>
+      ) : null}
+      <span>{token.name}</span>
+    </span>
   )
 }
 

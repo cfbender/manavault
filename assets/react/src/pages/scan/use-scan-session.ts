@@ -7,7 +7,13 @@ import {
   ScannerPrintingsDocument,
   ScannerSetIllustrationsDocument,
 } from "./documents"
-import { chooseFinish, choosePrinting, type Finish, type PrintingOption } from "./printing-choice"
+import {
+  chooseFinish,
+  choosePrinting,
+  isSingleFacedToken,
+  type Finish,
+  type PrintingOption,
+} from "./printing-choice"
 import type { Identification } from "./recognition/messages"
 import type { Candidate, Quad } from "./recognition/pipeline"
 import { useRecognizer } from "./recognition/use-recognizer"
@@ -24,6 +30,7 @@ import {
   normalizeScanList,
   scanListCsv,
   withPrinting,
+  type ScanBackFace,
   type ScanEntry,
 } from "./scan-list"
 import {
@@ -104,8 +111,10 @@ export function useScanSession({ paused }: { paused: boolean }) {
   settingsRef.current = settings
   // "Check outlines": the logged scan whose outline waits for the user; scanning pauses.
   const [outlineCheck, setOutlineCheck] = useState<OutlineCheck | null>(null)
+  // A scanned single-faced token whose other side the user has not picked yet; scanning pauses.
+  const [backFacePick, setBackFacePick] = useState<ScanEntry | null>(null)
   const pausedRef = useRef(paused)
-  pausedRef.current = paused || outlineCheck !== null
+  pausedRef.current = paused || outlineCheck !== null || backFacePick !== null
   const trackerRef = useRef<ScanTracker>(INITIAL_TRACKER)
   const entriesRef = useRef(entries)
   entriesRef.current = entries
@@ -184,7 +193,14 @@ export function useScanSession({ paused }: { paused: boolean }) {
         return
       }
       const finish = chooseFinish(printing.finishes, settingsRef.current.preferFoil)
+      const resolved = withPrinting(entry, printing, finish)
       updateEntry(entry.id, (current) => withPrinting(current, printing, finish))
+      // Scryfall knows both faces of a double-faced token; a single-faced one may still be
+      // printed with another token on its back, which only the user can see.
+      if (isSingleFacedToken(printing) && resolved.back === undefined) {
+        pausedRef.current = true
+        setBackFacePick(resolved)
+      }
       if (finish !== entry.finish) {
         // The outline may have been checked meanwhile; resend that, not the logged capture.
         const latest = entriesRef.current.find((candidate) => candidate.id === entry.id)
@@ -485,6 +501,25 @@ export function useScanSession({ paused }: { paused: boolean }) {
   /** Leaves the detector's outline as it was: still a label, not detector ground truth. */
   const skipOutline = useCallback(() => setOutlineCheck(null), [])
 
+  /** Opens the back-face picker for a token entry, e.g. to change an earlier pick. */
+  const pickBackFace = useCallback((id: string) => {
+    const entry = entriesRef.current.find((candidate) => candidate.id === id)
+    if (entry) setBackFacePick(entry)
+  }, [])
+
+  /** The user named the token's other side, or `null` for a single-sided token. */
+  const setBackFace = useCallback(
+    (back: ScanBackFace | null) => {
+      const entry = backFacePick
+      setBackFacePick(null)
+      if (entry) updateEntry(entry.id, (current) => ({ ...current, back }))
+    },
+    [backFacePick, updateEntry],
+  )
+
+  /** Dismissing the picker leaves the back unknown; the chip offers it again. */
+  const dismissBackFace = useCallback(() => setBackFacePick(null), [])
+
   const clear = useCallback(() => {
     trackerRef.current = forgetLastLogged(trackerRef.current)
     setEntries([])
@@ -525,6 +560,10 @@ export function useScanSession({ paused }: { paused: boolean }) {
     outlineCheck,
     saveOutline,
     skipOutline,
+    backFacePick,
+    pickBackFace,
+    setBackFace,
+    dismissBackFace,
     removeEntry,
     clear,
     addToCollection,

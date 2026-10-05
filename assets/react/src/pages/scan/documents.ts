@@ -18,12 +18,35 @@ export const ScannerPrintingsDocument = graphql(`
       promo
       releasedAt
       imageUrl
+      backImageUrl
       nonfoilCents: priceCents(finish: "nonfoil")
       foilCents: priceCents(finish: "foil")
       etchedCents: priceCents(finish: "etched")
       card {
         id
         name
+        layout
+      }
+    }
+  }
+`)
+
+/**
+ * Possible other sides of a scanned single-faced token: the other tokens printed in its set.
+ * Scryfall lists a Commander precon's double-sided tokens as two single-faced printings.
+ */
+export const TokenBackPrintingsDocument = graphql(`
+  query TokenBackPrintings($setCode: String!, $excludeScryfallId: ID!) {
+    tokenPrintings(setCode: $setCode, excludeScryfallId: $excludeScryfallId, limit: 100) {
+      id
+      scryfallId
+      setCode
+      collectorNumber
+      imageUrl
+      card {
+        id
+        name
+        typeLine
       }
     }
   }
@@ -74,6 +97,8 @@ export function printingOption(printing: ScannerPrinting): PrintingOption {
     promo: printing.promo,
     releasedAt: printing.releasedAt,
     imageUrl: printing.imageUrl,
+    backImageUrl: printing.backImageUrl,
+    layout: printing.card?.layout ?? null,
     // priceCents falls back across finishes; only offer a finish's price if it is printed.
     prices: {
       nonfoil: finishes.includes("nonfoil") ? printing.nonfoilCents : null,

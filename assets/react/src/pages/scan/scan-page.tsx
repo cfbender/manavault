@@ -19,6 +19,7 @@ import type { ScanView } from "./scan-view"
 import { useScanSession, type FrameSnapshot } from "./use-scan-session"
 import { IdentifySheet } from "./identify-sheet"
 import { OutlineEditor } from "./outline-editor"
+import { TokenBackSheet } from "./token-back-sheet"
 
 type Sheet =
   | { type: "none" }
@@ -142,6 +143,7 @@ export function ScanPage() {
             onFinish={session.setFinish}
             onPrinting={(id) => setSheet({ type: "printing", id })}
             onLanguage={session.setLanguage}
+            onBackFace={session.pickBackFace}
           />
         </div>
       )}
@@ -155,6 +157,7 @@ export function ScanPage() {
         onFinish={session.setFinish}
         onPrinting={(id) => setSheet({ type: "printing", id })}
         onLanguage={session.setLanguage}
+        onBackFace={session.pickBackFace}
         onRemove={session.removeEntry}
         onClear={session.clear}
         onAddToCollection={session.addToCollection}
@@ -180,6 +183,11 @@ export function ScanPage() {
         check={session.outlineCheck}
         onSave={session.saveOutline}
         onSkip={session.skipOutline}
+      />
+      <TokenBackSheet
+        entry={session.backFacePick}
+        onPick={session.setBackFace}
+        onClose={session.dismissBackFace}
       />
       <PrintingSheet
         entry={printingEntry}

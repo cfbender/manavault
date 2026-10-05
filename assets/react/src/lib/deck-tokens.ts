@@ -1,3 +1,16 @@
+/** A token card Scryfall links a producer to, with how many copies the user owns. */
+export type DeckProducedToken = {
+  ownedCount: number
+  printing: {
+    scryfallId: string
+    oracleId?: string | null
+    imageUrl?: string | null
+    backImageUrl?: string | null
+    setCode?: string | null
+    card?: { name?: string | null; typeLine?: string | null } | null
+  }
+}
+
 export type DeckTokenDeckCard = {
   id?: string
   quantity: number
@@ -5,16 +18,35 @@ export type DeckTokenDeckCard = {
   card: {
     name?: string | null
     oracleText: string | null
+    producedTokens?: readonly DeckProducedToken[] | null
   } | null
 }
 
-export type DeckTokenProducer = { id: string; name: string; quantity: number; amount: string }
+/** `amount` is the copies made per trigger as Oracle text states it; `null` when unknown. */
+export type DeckTokenProducer = {
+  id: string
+  name: string
+  quantity: number
+  amount: string | null
+}
+
+/** The catalog token a summary row shows, when the producers are linked to one. */
+export type DeckTokenCard = {
+  scryfallId: string
+  imageUrl: string | null
+  backImageUrl: string | null
+  setCode: string | null
+  typeLine: string | null
+  ownedCount: number
+}
 
 export type DeckTokenSummary = {
   key: string
   name: string
   description: string
   producers: DeckTokenProducer[]
+  /** Present when the token is a real catalog token rather than an Oracle-text guess. */
+  token: DeckTokenCard | null
 }
 
 const COUNTED_ZONES: Record<string, true> = { commander: true, mainboard: true }
@@ -63,6 +95,11 @@ const CREATURE_DESCRIPTOR_WORDS: Record<string, true> = {
   white: true,
 }
 
+/**
+ * One row per token the deck can make. Cards linked to catalog tokens (Scryfall's related
+ * parts) show that token; "Create …" phrases in Oracle text that match no linked token, such
+ * as copies, still fall back to the parsed description.
+ */
 export function buildDeckTokens(deckCards: readonly DeckTokenDeckCard[]): DeckTokenSummary[] {
   const summaries = new Map<string, DeckTokenSummary>()
   const rows = Array.isArray(deckCards) ? deckCards : []
@@ -83,31 +120,37 @@ export function buildDeckTokens(deckCards: readonly DeckTokenDeckCard[]): DeckTo
       continue
     }
 
-    const oracleText = getString(card.oracleText)
-    if (oracleText.length === 0) {
-      continue
-    }
-
     const producer: Omit<DeckTokenProducer, "amount"> = {
       id: getString(deckCard.id) || `card-${rowIndex + 1}`,
       name: getString(card.name) || "Unknown card",
       quantity,
     }
+    const descriptions = tokenDescriptions(getString(card.oracleText))
+    const linked = producedTokens(card.producedTokens)
+    const matched = new Set<number>()
 
-    for (const token of tokenDescriptions(oracleText)) {
-      const key = token.description.toLowerCase()
-      const summary = summaries.get(key)
+    for (const token of linked) {
+      const index = descriptions.findIndex(
+        (description, i) => !matched.has(i) && mentionsToken(description.description, token.name),
+      )
+      if (index >= 0) matched.add(index)
+      const description = index >= 0 ? descriptions[index] : undefined
+      addSummary(summaries, `token:${token.key}`, {
+        name: token.name,
+        description: description?.description ?? token.card.typeLine ?? token.name,
+        token: token.card,
+        producer: { ...producer, amount: description?.amount ?? null },
+      })
+    }
 
-      if (summary) {
-        summary.producers.push({ ...producer, amount: token.amount })
-      } else {
-        summaries.set(key, {
-          key,
-          name: tokenName(token.description),
-          description: token.description,
-          producers: [{ ...producer, amount: token.amount }],
-        })
-      }
+    for (const [index, description] of descriptions.entries()) {
+      if (matched.has(index)) continue
+      addSummary(summaries, description.description.toLowerCase(), {
+        name: tokenName(description.description),
+        description: description.description,
+        token: null,
+        producer: { ...producer, amount: description.amount },
+      })
     }
   }
 
@@ -117,6 +160,64 @@ export function buildDeckTokens(deckCards: readonly DeckTokenDeckCard[]): DeckTo
       producers: [...summary.producers].sort(compareProducers),
     }))
     .sort(compareSummaries)
+}
+
+function addSummary(
+  summaries: Map<string, DeckTokenSummary>,
+  key: string,
+  row: Pick<DeckTokenSummary, "name" | "description" | "token"> & {
+    producer: DeckTokenProducer
+  },
+) {
+  const summary = summaries.get(key)
+  if (summary) {
+    summary.producers.push(row.producer)
+  } else {
+    summaries.set(key, {
+      key,
+      name: row.name,
+      description: row.description,
+      token: row.token,
+      producers: [row.producer],
+    })
+  }
+}
+
+type LinkedToken = { key: string; name: string; card: DeckTokenCard }
+
+/** Longest names first so "Human Soldier" claims its phrase before "Soldier" can. */
+function producedTokens(value: unknown): LinkedToken[] {
+  if (!Array.isArray(value)) return []
+  const tokens: LinkedToken[] = []
+  for (const entry of value) {
+    if (!isRecord(entry) || !isRecord(entry.printing)) continue
+    const printing = entry.printing
+    const scryfallId = getString(printing.scryfallId)
+    if (!scryfallId) continue
+    const card = isRecord(printing.card) ? printing.card : {}
+    const name = getString(card.name) || "Token"
+    tokens.push({
+      key: getString(printing.oracleId) || scryfallId,
+      name,
+      card: {
+        scryfallId,
+        imageUrl: getString(printing.imageUrl) || null,
+        backImageUrl: getString(printing.backImageUrl) || null,
+        setCode: getString(printing.setCode) || null,
+        typeLine: getString(card.typeLine) || null,
+        ownedCount:
+          typeof entry.ownedCount === "number" && Number.isFinite(entry.ownedCount)
+            ? Math.max(0, Math.trunc(entry.ownedCount))
+            : 0,
+      },
+    })
+  }
+  return tokens.sort((left, right) => right.name.length - left.name.length)
+}
+
+function mentionsToken(description: string, tokenName: string) {
+  const escaped = tokenName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  return new RegExp(`(^|[^A-Za-z])${escaped}([^A-Za-z]|$)`, "i").test(description)
 }
 
 function tokenDescriptions(oracleText: string) {

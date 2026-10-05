@@ -105,8 +105,10 @@ Code lives in `assets/react/src/pages/scan/`.
   (`scannerSetIllustrations(setCodes)` lists their illustration IDs); a card that clearly
   matches something outside them is reported as "Not in locked sets" instead.
 - `printing-choice.ts` picks the default printing and finish; `scan-list.ts` builds the import
-  CSV (`name,set_code,collector_number,quantity,finish,language,scryfall_id`), which is handed to
-  the collection import through `queueSharedImport` in `lib/native-shared-import.ts`.
+  CSV (`name,set_code,collector_number,quantity,finish,language,scryfall_id,back_scryfall_id`),
+  which is handed to the collection import through `queueSharedImport` in
+  `lib/native-shared-import.ts`. `back_scryfall_id` is the user-picked reverse of a single-faced
+  token (`token-back-sheet.tsx`); the import files token rows as token items.
 
 The thresholds were calibrated with bundle `retrain-20260925T043526910942Z` on synthetic phone
 frames (real card scans composited with rotation, perspective, blur and noise): 60 of 60 cards

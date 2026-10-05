@@ -57,7 +57,8 @@ defmodule Manavault.Catalog.Search.CardNameSuggestions do
     case :persistent_term.get(@card_name_cache_key, nil) do
       nil ->
         canonical_entries =
-          Card
+          from(card in Card, as: :card)
+          |> where(^Card.non_token())
           |> select([card], card.name)
           |> order_by([card], asc: card.name)
           |> Repo.all()
@@ -66,7 +67,8 @@ defmodule Manavault.Catalog.Search.CardNameSuggestions do
 
         alternate_entries =
           Printing
-          |> join(:inner, [printing], card in assoc(printing, :card))
+          |> join(:inner, [printing], card in assoc(printing, :card), as: :card)
+          |> where(^Card.non_token())
           |> where(
             [printing, _card],
             not is_nil(printing.flavor_name) and printing.flavor_name != ""

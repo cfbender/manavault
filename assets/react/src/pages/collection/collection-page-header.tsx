@@ -18,6 +18,7 @@ type CollectionPageHeaderProps = {
     recent: number
     available: number
     unfiled: number
+    tokens: number
   }
   locationCount: number
   onAddItem: () => void
@@ -96,6 +97,7 @@ function CollectionTabs({
     { tab: "recent", label: "Recently added", count: itemCounts.recent },
     { tab: "available", label: "Available to pull", count: itemCounts.available },
     { tab: "unfiled", label: "Unfiled", count: itemCounts.unfiled },
+    { tab: "tokens", label: "Tokens", count: itemCounts.tokens },
     { tab: "value", label: "Value" },
   ]
   const active = tabs.find(({ tab }) => tab === activeTab) ?? tabs[0]

@@ -58,6 +58,9 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "scannerSetIllustrations",
                "setSuggestions",
                "sharedDeck",
+               "tokenItemCount",
+               "tokenItems",
+               "tokenPrintings",
                "tradeBinderShareToken",
                "tradeWants",
                "tradeWantsShareToken",
@@ -68,6 +71,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
              MapSet.new([
                "addCollectionItemToDeck",
                "addDeckCard",
+               "addTokenItem",
                "addDeckPartner",
                "allocateDeckCardItem",
                "allocateDeckCardProxy",
@@ -100,6 +104,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "deleteDeckCard",
                "deleteDeckQuestionAnswer",
                "deleteDeckTag",
+               "deleteTokenItem",
                "deleteTradeWant",
                "deleteLocation",
                "deckDiff",
@@ -143,6 +148,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "updateCollectionAutoSortRules",
                "updatePricingSettings",
                "updateCollectionItem",
+               "updateTokenItem",
                "updateTradeWant",
                "updateDeck",
                "updateDeckCard",
@@ -161,6 +167,10 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
     assert argument(query_fields["scannerPrintings"], "scryfallId") == {"ID!", nil}
     assert argument(query_fields["scannerPrintings"], "illustrationId") == {"ID", nil}
     assert type_signature(query_fields["scannerSetIllustrations"]["type"]) == "[ID!]!"
+    assert type_signature(query_fields["tokenItems"]["type"]) == "[TokenItem!]!"
+    assert type_signature(query_fields["tokenItemCount"]["type"]) == "Int!"
+    assert type_signature(query_fields["tokenPrintings"]["type"]) == "[Printing!]!"
+    assert argument(query_fields["tokenPrintings"], "excludeScryfallId") == {"ID", nil}
     assert argument(query_fields["scannerSetIllustrations"], "setCodes") == {"[String!]!", nil}
     assert type_signature(query_fields["apiKeys"]["type"]) == "[ApiKey!]!"
     assert type_signature(query_fields["collectionItemCount"]["type"]) == "Int!"

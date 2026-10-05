@@ -57,7 +57,8 @@ defmodule Manavault.Catalog.Search.CardsByName do
       |> Enum.uniq()
 
     cards =
-      Card
+      from(card in Card, as: :card)
+      |> where(^Card.non_token())
       |> where(
         [card],
         card.normalized_name in ^keys or
@@ -74,7 +75,8 @@ defmodule Manavault.Catalog.Search.CardsByName do
     flavor_matches =
       Printing
       |> where([printing], printing.normalized_flavor_name in ^keys)
-      |> join(:inner, [printing], card in assoc(printing, :card))
+      |> join(:inner, [printing], card in assoc(printing, :card), as: :card)
+      |> where(^Card.non_token())
       |> order_by([_printing, card], asc: card.name)
       |> select([printing, card], {printing.normalized_flavor_name, card})
       |> Repo.all()

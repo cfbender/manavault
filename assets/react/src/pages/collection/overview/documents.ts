@@ -30,5 +30,6 @@ export const CollectionDocument = graphql(`
     unfiledCollectionItemCount: collectionItemCount(filters: { locationId: "unfiled" })
     availableCollectionItemCount: collectionItemCount(filters: { unallocatedOnly: true })
     recentCollectionItemCount: collectionItemCount(filters: { addedWithinDays: 7 })
+    tokenItemCount
   }
 `)

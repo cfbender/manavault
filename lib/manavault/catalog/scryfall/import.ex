@@ -3,7 +3,7 @@ defmodule Manavault.Catalog.Scryfall.Import do
 
   import Ecto.Query
 
-  alias Manavault.Catalog.{Card, Printing, ScryfallOracleTags, Search}
+  alias Manavault.Catalog.{Card, CardToken, Printing, ScryfallOracleTags, Search}
 
   alias Manavault.Catalog.Scryfall.{BulkData, ImportRows, ReconcilePrintings}
   alias Manavault.Repo
@@ -83,7 +83,7 @@ defmodule Manavault.Catalog.Scryfall.Import do
     |> Enum.reduce_while({:ok, initial_import_counts()}, fn batch, {:ok, counts} ->
       rows =
         batch
-        |> Enum.reject(&excluded_set_type?/1)
+        |> Enum.reject(&excluded?/1)
         |> ImportRows.rows(now, oracle_tag_index)
 
       case import_batch(rows, replace_oracle_tag_fields?) do
@@ -101,16 +101,30 @@ defmodule Manavault.Catalog.Scryfall.Import do
     end)
   end
 
-  defp excluded_set_type?(%{"set_type" => set_type}),
-    do: set_type in @excluded_set_types
+  # Memorabilia and token sets are skipped, except for the tokens themselves:
+  # those sets also carry emblems and art cards. Double-faced "helper" cards,
+  # whose type line is just "Card", are never tokens a player owns.
+  defp excluded?(card) do
+    helper_card?(card) or (excluded_set_type?(card) and not Card.token?(card["layout"]))
+  end
 
+  defp excluded_set_type?(%{"set_type" => set_type}), do: set_type in @excluded_set_types
   defp excluded_set_type?(_card), do: false
+
+  defp helper_card?(%{"type_line" => type_line}) when is_binary(type_line) do
+    type_line
+    |> String.split("//")
+    |> Enum.any?(&(String.trim(&1) == "Card"))
+  end
+
+  defp helper_card?(_card), do: false
 
   defp import_batch(rows, replace_oracle_tag_fields?) do
     Repo.transact(
       fn ->
         insert_card_rows(rows.cards, replace_oracle_tag_fields?)
         insert_printing_rows(rows.printings)
+        replace_card_token_rows(rows.printings, rows.card_tokens)
         {:ok, :imported}
       end,
       timeout: :infinity
@@ -139,6 +153,7 @@ defmodule Manavault.Catalog.Scryfall.Import do
     replace_fields = [
       :name,
       :normalized_name,
+      :layout,
       :type_line,
       :oracle_text,
       :mana_cost,
@@ -190,6 +205,21 @@ defmodule Manavault.Catalog.Scryfall.Import do
            :updated_at
          ]}
     )
+  end
+
+  # A printing's token links are replaced wholesale so links Scryfall dropped
+  # disappear on the next import rather than lingering.
+  defp replace_card_token_rows([], _rows), do: :ok
+
+  defp replace_card_token_rows(printing_rows, rows) do
+    printing_rows
+    |> Enum.map(& &1.scryfall_id)
+    |> Enum.chunk_every(@batch_size)
+    |> Enum.each(fn ids ->
+      Repo.delete_all(from link in CardToken, where: link.scryfall_id in ^ids)
+    end)
+
+    insert_in_batches(CardToken, rows, on_conflict: :nothing)
   end
 
   defp maybe_log_import_progress(counts, false, _source_count), do: counts

@@ -70,14 +70,22 @@ test("a minimum price leaves cheap cards out of the total, per copy not per stac
 test("CSV uses the collection import columns, oldest scan first, with quoting", () => {
   const csv = scanListCsv([
     entry("new", { name: "Borrowing 100,000 Arrows", finish: "foil", quantity: 3, language: "ja" }),
+    entry("token", {
+      name: "Treasure",
+      setCode: "tcmm",
+      collectorNumber: "12",
+      layout: "token",
+      back: { scryfallId: "sf-soldier", name: "Soldier", imageUrl: null },
+    }),
     entry("old", { resolved: false }),
   ])
   assert.equal(
     csv,
     [
-      "name,set_code,collector_number,quantity,finish,language,scryfall_id",
-      "Lightning Bolt,m10,146,1,nonfoil,en,sf-old",
-      '"Borrowing 100,000 Arrows",m10,146,3,foil,ja,sf-new',
+      "name,set_code,collector_number,quantity,finish,language,scryfall_id,back_scryfall_id",
+      "Lightning Bolt,m10,146,1,nonfoil,en,sf-old,",
+      "Treasure,tcmm,12,1,nonfoil,en,sf-token,sf-soldier",
+      '"Borrowing 100,000 Arrows",m10,146,3,foil,ja,sf-new,',
       "",
     ].join("\n"),
   )
@@ -100,6 +108,8 @@ test("withPrinting swaps the printing but keeps quantity", () => {
       promo: false,
       releasedAt: "1993-12-01",
       imageUrl: "https://cards.scryfall.io/normal/2ed.jpg",
+      backImageUrl: null,
+      layout: "normal",
       prices: { nonfoil: 9000, foil: null, etched: null },
     },
     "nonfoil",
@@ -108,6 +118,35 @@ test("withPrinting swaps the printing but keeps quantity", () => {
   assert.equal(updated.scryfallId, "sf-2ed")
   assert.equal(updated.resolved, true)
   assert.equal(updated.prices.nonfoil, 9000)
+  assert.equal(updated.layout, "normal")
+})
+
+test("withPrinting keeps a token's picked back only for the same printing", () => {
+  const back = { scryfallId: "sf-soldier", name: "Soldier", imageUrl: null }
+  const printing = {
+    scryfallId: "sf-treasure",
+    name: "Treasure",
+    setCode: "tcmm",
+    setName: "Commander Masters Tokens",
+    collectorNumber: "12",
+    lang: "en",
+    rarity: "common",
+    illustrationId: "x",
+    ownedCount: 0,
+    finishes: ["nonfoil"],
+    promo: false,
+    releasedAt: "2023-08-04",
+    imageUrl: null,
+    backImageUrl: null,
+    layout: "token",
+    prices: { nonfoil: null, foil: null, etched: null },
+  }
+  const token = entry("t", { scryfallId: "sf-treasure", layout: "token", back })
+  assert.deepEqual(withPrinting(token, printing, "nonfoil").back, back)
+  assert.equal(
+    withPrinting(token, { ...printing, scryfallId: "sf-treasure-other" }, "nonfoil").back,
+    undefined,
+  )
 })
 
 test("search matches name, set and number terms", () => {

@@ -102,6 +102,19 @@ defmodule ManavaultWeb.Schema.PublicShareTypes do
         CardFields.card_printings(card, clamp_connection_args(args, 300), resolution)
       end)
     end
+
+    @desc "Tokens this card creates. Public shares never reveal how many the owner has."
+    field :produced_tokens, non_null(list_of(non_null(:produced_token))) do
+      resolve(&CardFields.card_produced_tokens/3)
+    end
+  end
+
+  object :produced_token do
+    field :printing, non_null(:printing)
+
+    field :owned_count, non_null(:integer) do
+      resolve(fn _token, _args, _resolution -> {:ok, 0} end)
+    end
   end
 
   object :public_card_summary do

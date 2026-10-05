@@ -32,6 +32,7 @@ export function ScanListSheet({
   onFinish,
   onPrinting,
   onLanguage,
+  onBackFace,
   onRemove,
   onClear,
   onAddToCollection,
@@ -45,6 +46,7 @@ export function ScanListSheet({
   onFinish: (id: string, finish: Finish) => void
   onPrinting: (id: string) => void
   onLanguage: (id: string, language: string) => void
+  onBackFace: (id: string) => void
   onRemove: (id: string) => void
   onClear: () => void
   onAddToCollection: () => void
@@ -114,6 +116,7 @@ export function ScanListSheet({
                     onFinish={(finish) => onFinish(entry.id, finish)}
                     onPrinting={() => onPrinting(entry.id)}
                     onLanguage={(language) => onLanguage(entry.id, language)}
+                    onBackFace={() => onBackFace(entry.id)}
                     onRemove={() => onRemove(entry.id)}
                   />
                 ))}
@@ -164,6 +167,7 @@ function ScanListRow({
   onFinish,
   onPrinting,
   onLanguage,
+  onBackFace,
   onRemove,
 }: {
   entry: ScanEntry
@@ -173,6 +177,7 @@ function ScanListRow({
   onFinish: (finish: Finish) => void
   onPrinting: () => void
   onLanguage: (language: string) => void
+  onBackFace: () => void
   onRemove: () => void
 }) {
   const price = entryPriceCents(entry)
@@ -209,6 +214,9 @@ function ScanListRow({
               </span>
               {finishLabel ? (
                 <span className="badge badge-warning badge-outline badge-sm">{finishLabel}</span>
+              ) : null}
+              {entry.back ? (
+                <span className="badge badge-outline badge-sm">Back: {entry.back.name}</span>
               ) : null}
             </span>
           </span>
@@ -249,6 +257,7 @@ function ScanListRow({
             onFinish={onFinish}
             onPrinting={onPrinting}
             onLanguage={onLanguage}
+            onBackFace={onBackFace}
           />
           <Button
             type="button"

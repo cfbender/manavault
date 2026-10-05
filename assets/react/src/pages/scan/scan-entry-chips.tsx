@@ -1,6 +1,6 @@
-import { ChevronDown, Plus } from "lucide-react"
+import { ChevronDown, FlipHorizontal2, Plus } from "lucide-react"
 import { cn } from "../../lib/utils"
-import type { Finish } from "./printing-choice"
+import { isSingleFacedToken, type Finish } from "./printing-choice"
 import { SCAN_LANGUAGES, type ScanEntry } from "./scan-list"
 
 const FINISH_LABELS: Record<Finish, string> = { nonfoil: "Normal", foil: "Foil", etched: "Etched" }
@@ -9,12 +9,13 @@ const ALL_FINISHES: Finish[] = ["nonfoil", "foil", "etched"]
 const chip =
   "inline-flex h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-full border-[1.5px] px-3.5 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
 
-/** Quick edits for one scanned entry: finish, printing, language and another copy. */
+/** Quick edits for one scanned entry: finish, printing, language, token back and another copy. */
 export function ScanEntryChips({
   entry,
   onFinish,
   onPrinting,
   onLanguage,
+  onBackFace,
   onAddCopy,
   className,
 }: {
@@ -22,6 +23,8 @@ export function ScanEntryChips({
   onFinish: (finish: Finish) => void
   onPrinting: () => void
   onLanguage: (language: string) => void
+  /** Opens the token back picker; only shown for single-faced tokens. */
+  onBackFace?: () => void
   onAddCopy?: () => void
   className?: string
 }) {
@@ -98,6 +101,27 @@ export function ScanEntryChips({
           )}
         </select>
       </label>
+
+      {onBackFace && isSingleFacedToken({ layout: entry.layout ?? null }) ? (
+        <button
+          type="button"
+          onClick={onBackFace}
+          className={cn(
+            chip,
+            "border-base-300 bg-base-100 text-base-content hover:border-primary/60",
+          )}
+          aria-label={
+            entry.back
+              ? `Change token back, currently ${entry.back.name}`
+              : "Choose what is on the token's back"
+          }
+        >
+          <FlipHorizontal2 className="h-4 w-4 opacity-70" aria-hidden="true" />
+          <span className="max-w-[8rem] truncate">
+            {entry.back ? entry.back.name : entry.back === null ? "Single-sided" : "Back?"}
+          </span>
+        </button>
+      ) : null}
 
       {onAddCopy ? (
         <button

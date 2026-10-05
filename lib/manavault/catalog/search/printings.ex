@@ -149,7 +149,8 @@ defmodule Manavault.Catalog.Search.Printings do
       []
     else
       Printing
-      |> join(:inner, [printing], card in assoc(printing, :card))
+      |> join(:inner, [printing], card in assoc(printing, :card), as: :card)
+      |> where(^Card.non_token())
       |> maybe_filter_card_name(name)
       |> maybe_filter_set_code(set_code)
       |> maybe_filter_collector_number(collector_number)

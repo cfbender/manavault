@@ -75,6 +75,20 @@ defmodule ManavaultWeb.Schema.Catalog.CardFields do
     {:ok, printing}
   end
 
+  def card_produced_tokens(%Card{} = card, _args, %{context: %{loader: loader}}) do
+    loader
+    |> Dataloader.load(Catalog, {:many, Card}, produced_tokens: card)
+    |> on_load(fn loader ->
+      {:ok, Dataloader.get(loader, Catalog, {:many, Card}, produced_tokens: card)}
+    end)
+  end
+
+  def card_produced_tokens(%Card{oracle_id: oracle_id}, _args, _resolution) do
+    {:ok, [oracle_id] |> Catalog.produced_tokens_by_oracle_ids() |> Map.get(oracle_id, [])}
+  end
+
+  def card_produced_tokens(_card, _args, _resolution), do: {:ok, []}
+
   defp primary_printing(printings) when is_list(printings) do
     Enum.find(printings, List.first(printings), &printing_has_image?/1)
   end

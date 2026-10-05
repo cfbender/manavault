@@ -19,6 +19,7 @@ defmodule Manavault.Catalog.Search.Cards do
     card_ids =
       from(card in Card, as: :card)
       |> join(:left, [card], printing in assoc(card, :printings), as: :printing)
+      |> where(^Card.non_token())
       |> Filter.apply(term)
       |> group_by([card, _printing], card.oracle_id)
       |> apply_sort(sort)

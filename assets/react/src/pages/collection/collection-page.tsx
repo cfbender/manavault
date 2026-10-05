@@ -8,6 +8,7 @@ import { useCollectionMutations } from "./overview/use-collection-mutations"
 import { useCollectionOverlays } from "./overview/use-collection-overlays"
 import { useCollectionQuery } from "./overview/use-collection-query"
 import { useCollectionItemSelection } from "./selection-grid"
+import { CollectionTokensSection } from "./tokens/collection-tokens-section"
 import type { CollectionTab } from "./types"
 import { CollectionValueDashboard } from "./value-dashboard"
 
@@ -76,6 +77,8 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
       >
         {filters.activeTab === "value" ? (
           <CollectionValueDashboard />
+        ) : filters.activeTab === "tokens" ? (
+          <CollectionTokensSection />
         ) : filters.activeTab === "locations" ? (
           <CollectionLocationsSection
             isLoading={query.summaryLoading}

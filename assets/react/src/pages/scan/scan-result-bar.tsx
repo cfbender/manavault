@@ -14,12 +14,14 @@ export function ScanResultBar({
   onFinish,
   onPrinting,
   onLanguage,
+  onBackFace,
 }: {
   entry: ScanEntry | null
   onAddCopy: (id: string) => void
   onFinish: (id: string, finish: Finish) => void
   onPrinting: (id: string) => void
   onLanguage: (id: string, language: string) => void
+  onBackFace?: (id: string) => void
 }) {
   if (!entry) {
     return (
@@ -92,6 +94,7 @@ export function ScanResultBar({
         onFinish={(finish) => onFinish(entry.id, finish)}
         onPrinting={() => onPrinting(entry.id)}
         onLanguage={(language) => onLanguage(entry.id, language)}
+        onBackFace={onBackFace ? () => onBackFace(entry.id) : undefined}
       />
     </div>
   )

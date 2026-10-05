@@ -4,7 +4,7 @@ defmodule ManavaultWeb.Schema.RelayHelpers do
   alias Absinthe.Relay.Connection
   alias Absinthe.Relay.Node
 
-  @integer_node_types [:collection_item, :deck, :deck_card]
+  @integer_node_types [:collection_item, :deck, :deck_card, :token_item]
 
   def connection_from_list(items, args, default_limit \\ nil) when is_list(items) do
     Connection.from_list(items, connection_args(args, default_limit || length(items)))

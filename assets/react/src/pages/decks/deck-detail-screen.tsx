@@ -431,7 +431,7 @@ export function DeckDetailScreen({
             selectedCardIds={selection.selectedDeckCardIds}
             shareMode={shareMode}
           />
-          <DeckTokensSection tokens={deferredDeckAnalysis?.tokens ?? null} />
+          <DeckTokensSection showOwned={!shareMode} tokens={deferredDeckAnalysis?.tokens ?? null} />
           <DeckStatsSection
             stats={deferredDeckAnalysis?.stats ?? null}
             onHighlightDeckCards={selection.setHighlightedDeckCardIds}

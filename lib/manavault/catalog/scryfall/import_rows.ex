@@ -1,23 +1,25 @@
 defmodule Manavault.Catalog.Scryfall.ImportRows do
   @moduledoc false
 
-  alias Manavault.Catalog.ScryfallOracleTags
+  alias Manavault.Catalog.{Card, ScryfallOracleTags}
   alias Manavault.Catalog.Search.NameMatch
 
   def rows(cards, now, oracle_tag_index) when is_list(cards) do
-    {card_rows, printing_rows} =
-      Enum.reduce(cards, {[], []}, fn card, {card_rows, printing_rows} ->
+    {card_rows, printing_rows, token_rows} =
+      Enum.reduce(cards, {[], [], []}, fn card, {card_rows, printing_rows, token_rows} ->
         card = with_face_identity(card)
 
         {
           prepend_rows(card_row(card, now, oracle_tag_index), card_rows),
-          prepend_rows(printing_row(card, now), printing_rows)
+          prepend_rows(printing_row(card, now), printing_rows),
+          prepend_rows(card_token_rows(card), token_rows)
         }
       end)
 
     %{
       cards: :lists.reverse(card_rows),
-      printings: :lists.reverse(printing_rows)
+      printings: :lists.reverse(printing_rows),
+      card_tokens: :lists.reverse(token_rows)
     }
   end
 
@@ -51,6 +53,7 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
         oracle_id: oracle_id,
         name: name,
         normalized_name: NameMatch.sql_normalize(name),
+        layout: card["layout"],
         type_line: card["type_line"],
         oracle_text: oracle_text(card),
         mana_cost: card["mana_cost"],
@@ -102,6 +105,23 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
   end
 
   defp printing_row(_card, _now), do: []
+
+  # Tokens a printing creates, from Scryfall's `all_parts`. Only producer → token
+  # links are kept: a token's own `all_parts` lists every producer ever printed.
+  defp card_token_rows(%{"id" => scryfall_id, "all_parts" => parts} = card)
+       when is_binary(scryfall_id) and is_list(parts) do
+    if Card.token?(card["layout"]) do
+      []
+    else
+      parts
+      |> Enum.filter(&(&1["component"] == "token" and is_binary(&1["id"])))
+      |> Enum.map(& &1["id"])
+      |> Enum.uniq()
+      |> Enum.map(&%{scryfall_id: scryfall_id, token_scryfall_id: &1})
+    end
+  end
+
+  defp card_token_rows(_card), do: []
 
   defp illustration_id(%{"illustration_id" => id}) when is_binary(id), do: id
 

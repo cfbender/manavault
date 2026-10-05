@@ -3,7 +3,16 @@ defmodule Manavault.Catalog.Scryfall.ReconcilePrintings do
 
   import Ecto.Query
 
-  alias Manavault.Catalog.{Card, CollectionItem, DeckCard, Location, Printing}
+  alias Manavault.Catalog.{
+    Card,
+    CardToken,
+    CollectionItem,
+    DeckCard,
+    Location,
+    Printing,
+    TokenItem
+  }
+
   alias Manavault.Repo
   alias Manavault.Trade.Want
 
@@ -59,6 +68,7 @@ defmodule Manavault.Catalog.Scryfall.ReconcilePrintings do
 
       clear_trade_wants(without_replacement)
       stale_ids = Enum.map(stale_printings, & &1.scryfall_id)
+      Repo.delete_all(from link in CardToken, where: link.scryfall_id in ^stale_ids)
       Repo.delete_all(from printing in Printing, where: printing.scryfall_id in ^stale_ids)
       {:ok, :reconciled}
     end)
@@ -129,6 +139,16 @@ defmodule Manavault.Catalog.Scryfall.ReconcilePrintings do
     Repo.update_all(
       from(location in Location, where: location.cover_scryfall_id in ^stale_ids),
       set: [cover_scryfall_id: replacement_id]
+    )
+
+    Repo.update_all(
+      from(item in TokenItem, where: item.scryfall_id in ^stale_ids),
+      set: [scryfall_id: replacement_id]
+    )
+
+    Repo.update_all(
+      from(item in TokenItem, where: item.back_scryfall_id in ^stale_ids),
+      set: [back_scryfall_id: replacement_id]
     )
   end
 

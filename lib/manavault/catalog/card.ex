@@ -2,14 +2,18 @@ defmodule Manavault.Catalog.Card do
   use Ecto.Schema
 
   import Ecto.Changeset
+  import Ecto.Query, only: [dynamic: 2]
 
   alias Manavault.Catalog.Search.NameMatch
+
+  @token_layouts ~w(token double_faced_token)
 
   @primary_key {:oracle_id, :string, []}
   @foreign_key_type :string
   schema "scryfall_cards" do
     field :name, :string
     field :normalized_name, :string
+    field :layout, :string
     field :type_line, :string
     field :oracle_text, :string
     field :mana_cost, :string
@@ -33,6 +37,28 @@ defmodule Manavault.Catalog.Card do
       references: :oracle_id
 
     timestamps(type: :utc_datetime)
+  end
+
+  @doc "Scryfall layouts that mark a card as a token rather than a playable card."
+  def token_layouts, do: @token_layouts
+
+  @doc "Whether the card (or layout) is a token: browsable, but never a collection copy."
+  def token?(%__MODULE__{layout: layout}), do: token?(layout)
+  def token?(layout) when is_binary(layout), do: layout in @token_layouts
+  def token?(_layout), do: false
+
+  @doc """
+  Query predicate keeping only playable (non-token) cards, for a query whose
+  card binding is named `:card`. Cards imported before layouts were recorded
+  have no layout and count as playable.
+  """
+  def non_token do
+    dynamic([card: card], is_nil(card.layout) or card.layout not in ^@token_layouts)
+  end
+
+  @doc "Query predicate keeping only token cards, for a query with a `:card` binding."
+  def token do
+    dynamic([card: card], card.layout in ^@token_layouts)
   end
 
   @doc """
@@ -70,6 +96,7 @@ defmodule Manavault.Catalog.Card do
     |> cast(attrs, [
       :oracle_id,
       :name,
+      :layout,
       :type_line,
       :oracle_text,
       :mana_cost,

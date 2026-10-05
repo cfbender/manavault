@@ -31,6 +31,7 @@ export function deserializeCollectionTab(value: string): CollectionTab {
     decoded === "recent" ||
     decoded === "available" ||
     decoded === "unfiled" ||
+    decoded === "tokens" ||
     decoded === "value"
   ) {
     return decoded

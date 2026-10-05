@@ -32,6 +32,57 @@ defmodule ManavaultWeb.Schema.ScannerPrintingsTest do
     assert Enum.all?(results, &(&1["promo"] == false))
   end
 
+  test "resolves scanned tokens with their layout and both faces", %{conn: conn} do
+    single =
+      Map.merge(printing("token-single", "art-single", "2024-01-01", "1"), %{
+        "oracle_id" => "oracle-token-single",
+        "name" => "Treasure",
+        "layout" => "token",
+        "set" => "tfdc",
+        "set_type" => "token",
+        "image_uris" => %{"normal" => "https://example.test/treasure.jpg"}
+      })
+
+    # Scryfall puts a double-faced card's images on its faces, never at the top level.
+    double =
+      "token-double"
+      |> printing("art-double", "2024-01-01", "2")
+      |> Map.delete("image_uris")
+      |> Map.merge(%{
+        "oracle_id" => "oracle-token-double",
+        "name" => "Angel // Soldier",
+        "layout" => "double_faced_token",
+        "set" => "tfdc",
+        "set_type" => "token",
+        "card_faces" => [
+          %{"name" => "Angel", "image_uris" => %{"normal" => "https://example.test/angel.jpg"}},
+          %{
+            "name" => "Soldier",
+            "image_uris" => %{"normal" => "https://example.test/soldier.jpg"}
+          }
+        ]
+      })
+
+    {:ok, _result} = Catalog.import_cards([single, double])
+
+    assert [
+             %{
+               "scryfallId" => "token-single",
+               "backImageUrl" => nil,
+               "card" => %{"layout" => "token"}
+             }
+           ] = query(conn, "token-single", nil)
+
+    assert [
+             %{
+               "scryfallId" => "token-double",
+               "imageUrl" => "https://example.test/angel.jpg",
+               "backImageUrl" => "https://example.test/soldier.jpg",
+               "card" => %{"layout" => "double_faced_token"}
+             }
+           ] = query(conn, "token-double", nil)
+  end
+
   test "exposes promo flags and finish prices", %{conn: conn} do
     {:ok, _result} =
       Catalog.import_cards([
@@ -96,9 +147,9 @@ defmodule ManavaultWeb.Schema.ScannerPrintingsTest do
         "query" => """
         query ScannerPrintings($scryfallId: ID!, $illustrationId: ID) {
           scannerPrintings(scryfallId: $scryfallId, illustrationId: $illustrationId) {
-            scryfallId illustrationId ownedCount promo
+            scryfallId illustrationId ownedCount promo imageUrl backImageUrl
             foilCents: priceCents(finish: "foil")
-            card { name }
+            card { name layout }
           }
         }
         """,
