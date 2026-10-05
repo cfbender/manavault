@@ -250,6 +250,24 @@ defmodule Manavault.Catalog.Collection.Import do
          "set_code" => set_code,
          "collector_number" => collector_number
        }) do
+    case printing_candidates(name, set_code, collector_number) do
+      [] -> reversible_candidates(name, set_code, collector_number)
+      candidates -> candidates
+    end
+  end
+
+  defp candidates(_attrs), do: []
+
+  # Reversible cards ("Temple Garden // Temple Garden") are stored under their
+  # face name, so retry a repeated "A // A" name with just "A".
+  defp reversible_candidates(name, set_code, collector_number) do
+    case name |> String.split("//") |> Enum.map(&String.trim/1) do
+      [face, face] when face != "" -> printing_candidates(face, set_code, collector_number)
+      _faces -> []
+    end
+  end
+
+  defp printing_candidates(name, set_code, collector_number) do
     filters = [name: name, set_code: set_code, collector_number: collector_number]
 
     filters
@@ -259,8 +277,6 @@ defmodule Manavault.Catalog.Collection.Import do
         (collector_number == "" || printing.collector_number == collector_number)
     end)
   end
-
-  defp candidates(_attrs), do: []
 
   defp preview_result(rows, location_id) do
     %{

@@ -1,6 +1,8 @@
 defmodule Manavault.Catalog.ImportTest do
   use Manavault.DataCase
-  use Manavault.CatalogTestFixtures, fixtures: [:black_lotus, :renamed_lotus, :time_walk, :plains]
+
+  use Manavault.CatalogTestFixtures,
+    fixtures: [:black_lotus, :renamed_lotus, :reversible_lotus, :time_walk, :plains]
 
   alias Manavault.Catalog
 
@@ -76,6 +78,28 @@ defmodule Manavault.Catalog.ImportTest do
 
     assert {:ok, _result} = Catalog.import_cards([card])
     assert %Printing{illustration_id: "front-illustration"} = Repo.get!(Printing, card["id"])
+  end
+
+  test "import_cards takes a reversible card's identity from its first face" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} =
+             Catalog.import_cards([@reversible_lotus])
+
+    assert %Card{name: "Black Lotus", type_line: "Artifact", mana_cost: "{0}"} =
+             Repo.get!(Card, "oracle-1")
+
+    assert %Printing{oracle_id: "oracle-1", collector_number: "351"} =
+             Repo.get!(Printing, "scryfall-reversible-1")
+  end
+
+  test "import_cards keeps the canonical card whichever order a reversible printing arrives" do
+    for cards <- [[@reversible_lotus, @black_lotus], [@black_lotus, @reversible_lotus]] do
+      Repo.delete_all(Printing)
+      Repo.delete_all(Card)
+
+      assert {:ok, _result} = Catalog.import_cards(cards)
+      assert %Card{name: "Black Lotus", type_line: "Artifact"} = Repo.get!(Card, "oracle-1")
+      assert Repo.aggregate(Printing, :count) == 2
+    end
   end
 
   test "import_cards excludes memorabilia and token set printings" do

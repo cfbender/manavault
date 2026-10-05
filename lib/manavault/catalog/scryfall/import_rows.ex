@@ -7,6 +7,8 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
   def rows(cards, now, oracle_tag_index) when is_list(cards) do
     {card_rows, printing_rows} =
       Enum.reduce(cards, {[], []}, fn card, {card_rows, printing_rows} ->
+        card = with_face_identity(card)
+
         {
           prepend_rows(card_row(card, now, oracle_tag_index), card_rows),
           prepend_rows(printing_row(card, now), printing_rows)
@@ -19,13 +21,22 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
     }
   end
 
-  def card_rows(cards, now, oracle_tag_index) when is_list(cards) do
-    Enum.flat_map(cards, &card_row(&1, now, oracle_tag_index))
+  # Reversible cards (e.g. "Temple Garden // Temple Garden") have no top-level
+  # oracle_id; it lives on each face. Take the identity from the first face so
+  # the row matches the canonical card sharing that oracle_id instead of
+  # overwriting it on upsert with the "A // B" name and missing type/cost.
+  defp with_face_identity(%{"oracle_id" => oracle_id} = card) when is_binary(oracle_id),
+    do: card
+
+  defp with_face_identity(%{"card_faces" => [%{"oracle_id" => oracle_id} = face | _faces]} = card)
+       when is_binary(oracle_id) do
+    Map.merge(
+      card,
+      Map.take(face, ["oracle_id", "name", "type_line", "mana_cost", "cmc", "oracle_text"])
+    )
   end
 
-  def printing_rows(cards, now) when is_list(cards) do
-    Enum.flat_map(cards, &printing_row(&1, now))
-  end
+  defp with_face_identity(card), do: card
 
   defp prepend_rows(rows, acc) do
     Enum.reduce(rows, acc, fn row, rows -> [row | rows] end)

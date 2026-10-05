@@ -39,6 +39,32 @@ defmodule Manavault.CatalogTestSupport do
     }
   end
 
+  # Mirrors Scryfall's reversible_card layout: the name is "A // A", and the
+  # oracle_id and type/cost fields live only on the faces.
+  def reversible_lotus do
+    face =
+      Map.take(black_lotus(), [
+        "oracle_id",
+        "name",
+        "type_line",
+        "mana_cost",
+        "cmc",
+        "oracle_text"
+      ])
+
+    black_lotus()
+    |> Map.drop(["oracle_id", "type_line", "mana_cost", "cmc", "oracle_text"])
+    |> Map.merge(%{
+      "id" => "scryfall-reversible-1",
+      "name" => "Black Lotus // Black Lotus",
+      "layout" => "reversible_card",
+      "set" => "leb",
+      "set_name" => "Limited Edition Beta",
+      "collector_number" => "351",
+      "card_faces" => [face, face]
+    })
+  end
+
   def black_lotus_beta do
     %{
       black_lotus()
@@ -265,7 +291,14 @@ defmodule Manavault.CatalogTestSupport do
 end
 
 defmodule Manavault.CatalogTestFixtures do
-  @fixtures [:black_lotus, :renamed_lotus, :black_lotus_beta, :time_walk, :plains]
+  @fixtures [
+    :black_lotus,
+    :renamed_lotus,
+    :reversible_lotus,
+    :black_lotus_beta,
+    :time_walk,
+    :plains
+  ]
 
   defmacro __using__(opts) do
     fixtures = Keyword.get(opts, :fixtures, [])
