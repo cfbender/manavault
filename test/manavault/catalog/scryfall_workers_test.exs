@@ -91,13 +91,35 @@ defmodule Manavault.Catalog.ScryfallWorkersTest do
     %Sync{}
     |> Sync.changeset(%{
       status: "succeeded",
-      bulk_type: "default_cards_paper_v2",
+      bulk_type: Manavault.Catalog.Scryfall.Sync.bulk_type(),
       started_at: now,
       completed_at: now
     })
     |> Repo.insert!()
 
     assert :ok = perform_job(ScryfallCatalogWorker, %{})
+  end
+
+  test "a fresh sync from an older importer version is stale, a current one is not" do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+    current = Manavault.Catalog.Scryfall.Sync.bulk_type()
+
+    fresh = %Sync{status: "succeeded", bulk_type: current, started_at: now, completed_at: now}
+    refute ScryfallCatalogWorker.stale?(fresh)
+
+    # An upgraded install whose last sync predates token import must re-sync at boot.
+    assert ScryfallCatalogWorker.stale?(%{fresh | bulk_type: "default_cards_paper_v2"})
+
+    day_old = DateTime.add(now, -24, :hour)
+    assert ScryfallCatalogWorker.stale?(%{fresh | completed_at: day_old})
+
+    refute ScryfallCatalogWorker.stale?(%{
+             fresh
+             | completed_at: DateTime.add(day_old, 1, :minute)
+           })
+
+    assert ScryfallCatalogWorker.stale?(%{fresh | status: "failed"})
+    assert ScryfallCatalogWorker.stale?(nil)
   end
 
   test "periodic asset jobs skip fresh manifests" do

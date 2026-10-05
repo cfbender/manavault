@@ -9,6 +9,7 @@ defmodule Manavault.Catalog.ScryfallCatalogWorker do
   require Logger
 
   alias Manavault.Catalog
+  alias Manavault.Catalog.Scryfall.Sync
 
   @sync_interval :timer.hours(24)
 
@@ -24,13 +25,19 @@ defmodule Manavault.Catalog.ScryfallCatalogWorker do
   @impl Oban.Worker
   def timeout(_job), do: :timer.minutes(30)
 
-  defp stale?(nil), do: true
+  @doc """
+  Whether the catalog needs another sync: none succeeded yet, the last success
+  is older than a day, or it was produced by an older importer version (see
+  `Manavault.Catalog.Scryfall.Sync.bulk_type/0`).
+  """
+  def stale?(nil), do: true
 
-  defp stale?(%{status: "succeeded", completed_at: %DateTime{} = completed_at}) do
-    DateTime.diff(DateTime.utc_now(), completed_at, :millisecond) >= @sync_interval
+  def stale?(%{status: "succeeded", bulk_type: bulk_type, completed_at: %DateTime{} = at}) do
+    bulk_type != Sync.bulk_type() or
+      DateTime.diff(DateTime.utc_now(), at, :millisecond) >= @sync_interval
   end
 
-  defp stale?(_sync), do: true
+  def stale?(_sync), do: true
 
   defp sync do
     case Catalog.sync_scryfall() do

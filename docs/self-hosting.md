@@ -305,6 +305,15 @@ instead of running migrations without a recoverable snapshot. Set
 `MANAVAULT_SKIP_MIGRATION_BACKUP=true` only when you have already made an
 external backup.
 
+When a release changes what the catalog importer records (for example the
+token printings and card-to-token links added for the Tokens tab), the first
+start after upgrading re-runs the full Scryfall catalog sync instead of
+waiting for the daily refresh. Until it finishes, features that depend on the
+new data fall back to their previous behavior (deck token lists show Oracle
+text guesses rather than real token cards). Progress is logged as
+`Scryfall catalog sync ...`, and **Settings -> Scryfall data -> Reload Scryfall
+catalog** forces the sync by hand.
+
 To roll back, stop the container, restore the pre-migration backup (see
 [Restore](#restore)), and start the previous image tag. Switching the tag alone
 leaves the newer schema in place.

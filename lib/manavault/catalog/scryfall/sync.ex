@@ -15,7 +15,14 @@ defmodule Manavault.Catalog.Scryfall.Sync do
   @oracle_tags_bulk_metadata_url "https://api.scryfall.com/bulk-data/oracle-tags"
   @commander_ranks_url "https://json.edhrec.com/pages/commanders/year.json"
   @saltiness_url "https://mtgjson.com/api/v5/AtomicCards.json.gz"
-  @bulk_type "default_cards_paper_v2"
+  # Bump when the importer starts writing data older syncs lack (v2: paper-only
+  # printings; v3: token printings and card -> token links). A succeeded sync
+  # with an older bulk_type is treated as stale so the next scheduled run
+  # re-imports instead of waiting out the daily interval.
+  @bulk_type "default_cards_paper_v3"
+
+  @doc "Identifier for the current importer's output, recorded on each sync."
+  def bulk_type, do: @bulk_type
 
   def latest do
     Repo.one(from sync in SyncRecord, order_by: [desc: sync.started_at], limit: 1)
