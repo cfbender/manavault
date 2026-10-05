@@ -1,4 +1,4 @@
-import type { BundleConstants, Candidate, Quad } from "./pipeline"
+import type { BundleConstants, Candidate, Quad, SearchScope } from "./pipeline"
 
 /** Bundle files the browser downloads. `printings.json` stays on the server. */
 export const BUNDLE_FILES = ["arts.json", "detector.onnx", "embed.onnx", "search.onnx"] as const
@@ -33,6 +33,8 @@ export type WorkerRequest =
       rgba: ArrayBuffer
       width: number
       height: number
+      /** Part of the gallery to search; `"all"` when omitted. */
+      scope?: SearchScope
     }
 
 export interface Identification {
@@ -50,6 +52,8 @@ export type WorkerResponse =
       type: "ready"
       version: string
       arts: number
+      /** Whether `search.onnx` takes a gallery mask, so token scope narrows the search itself. */
+      masked: boolean
       ms: number
       /** Threads the runtime actually initialized with. */
       threads: number

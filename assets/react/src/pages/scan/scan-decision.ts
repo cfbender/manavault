@@ -11,6 +11,7 @@ import type { Identification } from "./recognition/messages"
 import {
   CARD_IN_VIEW,
   cardInView as detectorSawCard,
+  isTokenArt,
   type Candidate,
 } from "./recognition/pipeline.ts"
 
@@ -47,6 +48,8 @@ export type FrameOutcome =
   | { type: "duplicate"; candidate: Candidate }
   /** Clearly a card from outside the locked sets; not logged. */
   | { type: "outside-lock"; candidate: Candidate }
+  /** Tokens mode: this token is in view and a tap logs it. */
+  | { type: "ready"; candidate: Candidate }
   /** Log this card. */
   | { type: "accept"; candidate: Candidate }
 
@@ -112,6 +115,18 @@ export function evaluateFrame(
     return { tracker: next, outcome: { type: "duplicate", candidate: first } }
   }
   return { tracker: { ...next, lastLoggedKey: key }, outcome: { type: "accept", candidate: first } }
+}
+
+/**
+ * Tokens mode: the best token match above the floor is offered for a tap, never logged on
+ * its own. Non-token matches are ignored rather than rejected, since tokens often come back
+ * behind a look-alike card in the top results.
+ */
+export function evaluateTokenFrame(result: Identification): FrameOutcome {
+  if (!cardInView(result)) return { type: "empty" }
+  const best = result.candidates.find(isTokenArt) ?? null
+  if (!best || best.score < SCAN_THRESHOLDS.minScore) return { type: "tracking", candidate: best }
+  return { type: "ready", candidate: best }
 }
 
 /** After the last logged scan is deleted, the same card may be scanned again. */

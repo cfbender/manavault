@@ -5,6 +5,7 @@ import {
   filterEntries,
   normalizeScanList,
   scanListCsv,
+  sessionBacks,
   totalQuantity,
   totalValueCents,
   withPrinting,
@@ -177,8 +178,12 @@ test("stored lists and settings are sanitised", () => {
     lockedSets: ["LEB", " leb ", 3, ""],
     dingThresholdCents: -5,
     preferFoil: true,
+    tokenMode: "yes",
   })
   assert.deepEqual(settings.lockedSets, ["leb"])
+  // Tokens mode is a real toggle; settings from before it existed scan cards as usual.
+  assert.equal(settings.tokenMode, false)
+  assert.equal(normalizeScanSettings({ tokenMode: true }).tokenMode, true)
   assert.equal(settings.dingThresholdCents, 100)
   assert.equal(settings.preferFoil, true)
   // Settings stored before the total minimum existed count every card, as before.
@@ -257,4 +262,27 @@ test("bundle files are downloaded once per version and old versions pruned", asy
     "manavault-pwa-v1",
     scannerCacheName("v2"),
   ])
+})
+
+test("backs picked earlier in the session are known for the same token, either way round", () => {
+  const dragon = { scryfallId: "sf-dragon", name: "Dragon", imageUrl: "dragon.jpg" }
+  const copy = { scryfallId: "sf-copy", name: "Copy", imageUrl: null }
+  const entries = [
+    // Newest first, as the list is stored.
+    entry("d2", { scryfallId: "sf-dragon", name: "Dragon", layout: "token", back: copy }),
+    entry("g1", { scryfallId: "sf-goblin", name: "Goblin", layout: "token", back: dragon }),
+    entry("d1", { scryfallId: "sf-dragon", name: "Dragon", layout: "token", back: copy }),
+    entry("d0", { scryfallId: "sf-dragon", name: "Dragon", layout: "token", back: null }),
+    entry("d3", { scryfallId: "sf-dragon", name: "Dragon", layout: "token" }),
+  ]
+  const current = entry("d3", { scryfallId: "sf-dragon", name: "Dragon", layout: "token" })
+  // Dragon fronts carry Copy; the Goblin whose back is Dragon makes Goblin a back too.
+  assert.deepEqual(sessionBacks(entries, current), [
+    copy,
+    { scryfallId: "sf-goblin", name: "Goblin", imageUrl: null },
+  ])
+  // From Goblin's side, only the Dragon pairing is known; an entry's own pick does not count.
+  assert.deepEqual(sessionBacks(entries, entry("g2", { scryfallId: "sf-goblin" })), [dragon])
+  assert.deepEqual(sessionBacks(entries, entries[1]), [])
+  assert.deepEqual(sessionBacks(entries, entry("x", { scryfallId: "sf-elsewhere" })), [])
 })

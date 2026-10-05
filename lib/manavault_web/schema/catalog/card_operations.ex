@@ -11,10 +11,18 @@ defmodule ManavaultWeb.Schema.Catalog.CardOperations do
     field :direction, :string
   end
 
+  @desc "Whether a card search covers tokens. Tokens are left out unless asked for."
+  enum :card_token_scope do
+    value(:exclude, description: "Playable cards only.")
+    value(:include, description: "Playable cards and tokens.")
+    value(:only, description: "Tokens only.")
+  end
+
   object :card_queries do
     connection field :cards, node_type: :card, non_null: true do
       arg(:q, :string, default_value: "")
       arg(:sort, :card_sort)
+      arg(:tokens, :card_token_scope, default_value: :exclude)
       resolve(&QueryResolvers.cards/3)
     end
 

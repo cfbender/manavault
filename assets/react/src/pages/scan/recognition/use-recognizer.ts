@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { BundleInfo, Identification, WorkerRequest, WorkerResponse } from "./messages"
-import type { RgbaImage } from "./pipeline"
+import type { RgbaImage, SearchScope } from "./pipeline"
 
 export type RecognizerState =
   | { status: "idle" }
@@ -8,7 +8,15 @@ export type RecognizerState =
   /** No bundle is installed on the server yet (`/api/scanner/bundle` → 404). */
   | { status: "unavailable" }
   | { status: "loading"; version: string; loaded: number; total: number; cached: boolean }
-  | { status: "ready"; version: string; arts: number; loadMs: number; threads: number }
+  | {
+      status: "ready"
+      version: string
+      arts: number
+      loadMs: number
+      threads: number
+      /** The bundle's `search.onnx` takes a gallery mask (see `Recognizer.masked`). */
+      masked: boolean
+    }
   | { status: "failed"; message: string }
 
 export interface RecognizerOptions {
@@ -79,6 +87,7 @@ export function useRecognizer() {
             arts: message.arts,
             loadMs: message.ms,
             threads: message.threads,
+            masked: message.masked,
           })
           break
         case "load_failed":
@@ -138,14 +147,18 @@ export function useRecognizer() {
   useEffect(() => stop, [stop])
 
   /** Transfers the frame's pixels to the worker; `image` is unusable afterwards. */
-  const identify = useCallback((image: RgbaImage) => {
+  const identify = useCallback((image: RgbaImage, scope: SearchScope = "all") => {
     return new Promise<Identification>((resolve, reject) => {
       const worker = workerRef.current
       if (!worker) return reject(new Error("Scanner not running"))
       const id = (nextIdRef.current += 1)
       pendingRef.current.set(id, { resolve, reject })
       const rgba = image.data.buffer as ArrayBuffer
-      post(worker, { type: "identify", id, rgba, width: image.width, height: image.height }, [rgba])
+      post(
+        worker,
+        { type: "identify", id, rgba, width: image.width, height: image.height, scope },
+        [rgba],
+      )
     })
   }, [])
 

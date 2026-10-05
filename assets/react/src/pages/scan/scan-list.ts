@@ -105,6 +105,29 @@ export function filterEntries(entries: ScanEntry[], query: string) {
   })
 }
 
+/**
+ * Backs already picked in this scan session for the same token printing, newest first: other
+ * entries fronted by it contribute their back, and entries whose back is it contribute their
+ * own face. The server adds the same from owned tokens once the list is imported.
+ */
+export function sessionBacks(entries: ScanEntry[], entry: ScanEntry): ScanBackFace[] {
+  const seen = new Set<string>()
+  const backs: ScanBackFace[] = []
+  for (const other of entries) {
+    if (other.id === entry.id) continue
+    const back =
+      other.scryfallId === entry.scryfallId
+        ? other.back
+        : other.back?.scryfallId === entry.scryfallId
+          ? { scryfallId: other.scryfallId, name: other.name, imageUrl: other.imageUrl }
+          : null
+    if (!back || back.scryfallId === entry.scryfallId || seen.has(back.scryfallId)) continue
+    seen.add(back.scryfallId)
+    backs.push(back)
+  }
+  return backs
+}
+
 const CSV_HEADERS = [
   "name",
   "set_code",

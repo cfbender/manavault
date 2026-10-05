@@ -73,5 +73,17 @@ defmodule ManavaultWeb.Schema.Catalog.TokenOperations do
         payload(parent, args, resolution, &TokenResolvers.delete_token_item/3, :token_item)
       end)
     end
+
+    payload field :delete_token_items do
+      arg(:ids, non_null(list_of(non_null(:id))))
+
+      output do
+        field :deleted_count, non_null(:integer)
+      end
+
+      resolve(fn parent, args, resolution ->
+        payload(parent, args, resolution, &TokenResolvers.delete_token_items/3, :deleted_count)
+      end)
+    end
   end
 end

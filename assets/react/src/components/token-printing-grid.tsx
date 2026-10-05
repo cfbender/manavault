@@ -62,9 +62,11 @@ export function TokenPrintingGrid({
               </span>
               <span className="min-w-0">
                 <span className="block truncate text-sm font-bold">{name}</span>
-                <span className="block truncate font-mono text-xs text-base-content/70">
-                  {option.setCode?.toUpperCase()} #{option.collectorNumber}
-                </span>
+                {option.setCode ? (
+                  <span className="block truncate font-mono text-xs text-base-content/70">
+                    {option.setCode.toUpperCase()} #{option.collectorNumber}
+                  </span>
+                ) : null}
               </span>
             </button>
           </li>

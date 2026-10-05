@@ -50,12 +50,17 @@ export function nextView(
   if (outcome.type === "accept") {
     return { ...base, outcome: "accept", candidate: outcome.candidate, logged: current.logged + 1 }
   }
-  const notice = outcome.type === "duplicate" || outcome.type === "outside-lock"
+  // In tokens mode the token stays in view ("ready") after a tap logs it.
+  const notice =
+    outcome.type === "duplicate" || outcome.type === "outside-lock" || outcome.type === "ready"
   if (notice && now - since < NOTICE_DELAY_MS) {
     // Keep "Logged …" on screen after a scan; otherwise just keep tracking the card.
-    return current.outcome === "accept"
-      ? { ...base, outcome: "accept", candidate: current.candidate, logged: current.logged }
-      : { ...base, outcome: "tracking", candidate: outcome.candidate, logged: current.logged }
+    if (current.outcome === "accept") {
+      return { ...base, outcome: "accept", candidate: current.candidate, logged: current.logged }
+    }
+    if (outcome.type !== "ready") {
+      return { ...base, outcome: "tracking", candidate: outcome.candidate, logged: current.logged }
+    }
   }
   return {
     ...base,

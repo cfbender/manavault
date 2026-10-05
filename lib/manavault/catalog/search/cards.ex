@@ -11,15 +11,21 @@ defmodule Manavault.Catalog.Search.Cards do
   @sort_fields ~w(name mana_value color type released rarity price)
   @sort_directions ~w(asc desc)
 
+  @doc """
+  Cards matching the search term. `:tokens` is `:exclude` (default), `:include`
+  or `:only`; tokens are catalog cards too, but most searches want playable
+  cards.
+  """
   def search_cards(term, opts \\ []) when is_binary(term) do
     limit = Keyword.get(opts, :limit, 20)
     offset = Keyword.get(opts, :offset, 0)
     sort = Keyword.get(opts, :sort, @default_sort)
+    tokens = Keyword.get(opts, :tokens, :exclude)
 
     card_ids =
       from(card in Card, as: :card)
       |> join(:left, [card], printing in assoc(card, :printings), as: :printing)
-      |> where(^Card.non_token())
+      |> where(^token_scope(tokens))
       |> Filter.apply(term)
       |> group_by([card, _printing], card.oracle_id)
       |> apply_sort(sort)
@@ -42,6 +48,10 @@ defmodule Manavault.Catalog.Search.Cards do
     )
     |> Enum.map(&promote_matched_printings(&1, matched_printing_ids))
   end
+
+  defp token_scope(:include), do: dynamic(true)
+  defp token_scope(:only), do: Card.token()
+  defp token_scope(_exclude), do: Card.non_token()
 
   # Printings that satisfy the search term for the returned cards. The filter
   # dynamic spans the card + printing bindings, so it reruns against the same

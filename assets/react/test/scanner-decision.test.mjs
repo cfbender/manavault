@@ -4,6 +4,7 @@ import assert from "node:assert/strict"
 import {
   cardKey,
   evaluateFrame,
+  evaluateTokenFrame,
   forgetLastLogged,
   INITIAL_TRACKER,
   SCAN_THRESHOLDS,
@@ -194,4 +195,45 @@ test("a card clearly from outside the locked sets is reported, not logged", () =
     [UUID, 0.78],
   ])
   assert.equal(evaluateFrame(INITIAL_TRACKER, tie, allowed).outcome.type, "accept")
+})
+
+test("tokens mode offers the best token for a tap and never logs on its own", () => {
+  const token = (candidates, options) => {
+    const result = frame(
+      candidates.map(([id, score]) => [id, score]),
+      options,
+    )
+    result.candidates.forEach((candidate, index) => {
+      candidate.layout = candidates[index][2]
+    })
+    return result
+  }
+  // A look-alike card outranks the token; the token is still what is offered.
+  const behindCard = token([
+    ["funeral-room", 0.9, "normal"],
+    [UUID, 0.72, "token"],
+    [OTHER, 0.7, "double_faced_token"],
+  ])
+  assert.deepEqual(evaluateTokenFrame(behindCard), {
+    type: "ready",
+    candidate: behindCard.candidates[1],
+  })
+  // The same token frame after frame stays "ready": tapping again adds another copy.
+  assert.equal(evaluateTokenFrame(behindCard).type, "ready")
+  // No token above the floor: keep tracking, showing the best token guess if any.
+  const weak = token([
+    ["card", 0.95, "normal"],
+    [UUID, SCAN_THRESHOLDS.minScore - 0.01, "token"],
+  ])
+  assert.deepEqual(evaluateTokenFrame(weak), { type: "tracking", candidate: weak.candidates[1] })
+  assert.deepEqual(evaluateTokenFrame(token([["card", 0.95, "normal"]])), {
+    type: "tracking",
+    candidate: null,
+  })
+  // Emblems and cards without a layout are not tokens.
+  assert.equal(evaluateTokenFrame(token([["emblem", 0.9, "emblem"]])).type, "tracking")
+  assert.equal(evaluateTokenFrame(token([["old", 0.9, undefined]])).type, "tracking")
+  assert.deepEqual(evaluateTokenFrame(token([[UUID, 0.9, "token"]], { upVote: 0 })), {
+    type: "empty",
+  })
 })

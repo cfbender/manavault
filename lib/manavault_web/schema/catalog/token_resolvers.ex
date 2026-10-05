@@ -58,6 +58,12 @@ defmodule ManavaultWeb.Schema.Catalog.TokenResolvers do
     end
   end
 
+  def delete_token_items(_parent, args, resolution) do
+    with {:ok, %{ids: ids}} <- RelayHelpers.put_node_ids_arg(args, :ids, :token_item, resolution) do
+      Catalog.delete_token_items(ids)
+    end
+  end
+
   def delete_token_item(_parent, %{id: id}, resolution) do
     with {:ok, id} <- RelayHelpers.node_id(id, :token_item, resolution) do
       item = Catalog.get_token_item!(id)

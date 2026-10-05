@@ -3,6 +3,7 @@ import test from "node:test"
 
 import {
   applyTotalSpend,
+  commitImportRow,
   importedCardQuantity,
   totalSpendPerCardCents,
 } from "../src/pages/collection/import-export-helpers.ts"
@@ -36,4 +37,27 @@ test("total import spend is divided by exact card quantity and rounded to cents"
 test("total import spend handles exact division and no importable cards", () => {
   assert.equal(totalSpendPerCardCents(1_500, 15), 100)
   assert.equal(totalSpendPerCardCents(1_500, 0), null)
+})
+
+test("committing a previewed row keeps a token's back side", () => {
+  const row = {
+    rowNumber: 1,
+    status: "exact",
+    attrs: {
+      name: "Dragon",
+      setCode: "tm3c",
+      collectorNumber: "12",
+      quantity: 1,
+      finish: "nonfoil",
+      condition: "near_mint",
+      language: "en",
+      scryfallId: "front-id",
+      backScryfallId: "back-id",
+      locationId: null,
+      purchasePriceCents: null,
+    },
+    candidates: [],
+    printing: null,
+  }
+  assert.equal(commitImportRow(row).attrs.backScryfallId, "back-id")
 })

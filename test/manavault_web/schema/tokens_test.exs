@@ -103,6 +103,35 @@ defmodule ManavaultWeb.Schema.TokensTest do
              graphql(conn, "{ tokenItems { id } tokenItemCount }")
   end
 
+  test "deleteTokenItems removes only the given items", %{conn: conn} do
+    {:ok, treasure} = Catalog.add_token_item(%{"scryfall_id" => "token-treasure"})
+    {:ok, foil} = Catalog.add_token_item(%{"scryfall_id" => "token-treasure", "finish" => "foil"})
+    {:ok, soldier} = Catalog.add_token_item(%{"scryfall_id" => "token-soldier"})
+
+    ids = Enum.map([treasure, foil], &global_id(:token_item, &1.id))
+    soldier_id = global_id(:token_item, soldier.id)
+
+    result =
+      graphql(conn, """
+      mutation { deleteTokenItems(ids: #{inspect(ids)}) { deletedCount } }
+      """)
+
+    assert %{"data" => %{"deleteTokenItems" => %{"deletedCount" => 2}}} = result
+
+    assert %{"data" => %{"tokenItems" => [%{"id" => ^soldier_id}]}} =
+             graphql(conn, "{ tokenItems { id } }")
+  end
+
+  test "deleteTokenItems rejects IDs of other node types", %{conn: conn} do
+    result =
+      graphql(conn, """
+      mutation { deleteTokenItems(ids: ["#{global_id(:printing, "token-treasure")}"]) { deletedCount } }
+      """)
+
+    assert %{"errors" => [%{"message" => message}]} = result
+    assert message =~ "token item"
+  end
+
   test "addTokenItem rejects a playable card", %{conn: conn} do
     result =
       graphql(conn, """

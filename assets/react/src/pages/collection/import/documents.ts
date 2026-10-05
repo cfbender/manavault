@@ -39,6 +39,7 @@ export const PreviewCollectionImportDocument = graphql(`
             condition
             language
             scryfallId
+            backScryfallId
             locationId
             purchasePriceCents
           }

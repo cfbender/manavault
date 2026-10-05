@@ -7,20 +7,25 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog"
 import { TokenBackFaceOptions, useTokenBackOptions } from "../../components/token-back-face-options"
-import type { ScanBackFace, ScanEntry } from "./scan-list"
+import type { TokenPrintingOption } from "../../components/token-printing-grid"
+import { sessionBacks, type ScanBackFace, type ScanEntry } from "./scan-list"
 
 /**
  * "What is on the back?": a scanned single-faced token may be printed with another token
  * on its reverse (Commander precons do this). Scryfall only knows the front, so the user
- * picks the back from the tokens known to share a card with it (falling back to the rest
- * of the set), or says it is single-sided.
+ * picks the back from the tokens known to share a card with it (backs picked earlier in this
+ * session and on owned tokens, then Wizards' published pairings, falling back to the rest of
+ * the set), or says it is single-sided.
  */
 export function TokenBackSheet({
   entry,
+  entries,
   onPick,
   onClose,
 }: {
   entry: ScanEntry | null
+  /** The whole scan list, for backs already picked on the same token. */
+  entries: ScanEntry[]
   onPick: (back: ScanBackFace | null) => void
   onClose: () => void
 }) {
@@ -37,7 +42,7 @@ export function TokenBackSheet({
             </div>
             <DialogClose onClose={onClose} />
           </DialogHeader>
-          <BackFaceGrid entry={entry} onPick={onPick} />
+          <BackFaceGrid entry={entry} entries={entries} onPick={onPick} />
           <div className="flex items-center justify-between gap-3 border-t border-base-300 px-5 py-3 pb-[calc(0.75rem_+_var(--safe-bottom))]">
             <p className="text-sm text-base-content/70">
               Pick the other token on this card, if there is one.
@@ -54,12 +59,17 @@ export function TokenBackSheet({
 
 function BackFaceGrid({
   entry,
+  entries,
   onPick,
 }: {
   entry: ScanEntry
+  entries: ScanEntry[]
   onPick: (back: ScanBackFace) => void
 }) {
-  const { known, sameSet, loading, error, isEmpty } = useTokenBackOptions(entry.scryfallId)
+  const options = useTokenBackOptions(entry.scryfallId)
+  const { known, sameSet } = withSessionBacks(options, sessionBacks(entries, entry))
+  const { loading, error } = options
+  const isEmpty = known.length === 0 && sameSet.length === 0
 
   if (loading && isEmpty) {
     return <p className="px-5 py-6 text-sm text-base-content/70">Loading tokens…</p>
@@ -91,4 +101,28 @@ function BackFaceGrid({
       }
     />
   )
+}
+
+/** Backs picked earlier in the session lead the known backs and leave the set list. */
+function withSessionBacks(
+  options: { known: readonly TokenPrintingOption[]; sameSet: readonly TokenPrintingOption[] },
+  session: ScanBackFace[],
+) {
+  if (session.length === 0) return options
+  const picked = session.map((back): TokenPrintingOption => ({
+    id: back.scryfallId,
+    scryfallId: back.scryfallId,
+    imageUrl: back.imageUrl,
+    card: { name: back.name },
+  }))
+  const pickedIds = new Set(picked.map((option) => option.scryfallId))
+  // The server's richer record (set, number, type line) wins when it knows the same back.
+  const server = [...options.known, ...options.sameSet]
+  const known = [
+    ...picked.map(
+      (option) => server.find((match) => match.scryfallId === option.scryfallId) ?? option,
+    ),
+    ...options.known.filter((option) => !pickedIds.has(option.scryfallId)),
+  ]
+  return { known, sameSet: options.sameSet.filter((option) => !pickedIds.has(option.scryfallId)) }
 }

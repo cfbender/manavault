@@ -22,6 +22,8 @@ import {
   cardInView,
   EMPTY_UP_VOTE,
   fromWindow,
+  galleryMask,
+  isPaddedResult,
   refineWindow,
   resampleWindow,
   sceneWindow,
@@ -34,12 +36,20 @@ import {
   type Point,
   type Quad,
   type RgbaImage,
+  type SearchScope,
 } from "./pipeline.ts"
 
 type OrtModule = Pick<typeof Ort, "InferenceSession" | "Tensor">
 
 export interface Recognizer {
-  identify: (image: RgbaImage) => Promise<Identification>
+  /**
+   * Identify one frame. `scope: "tokens"` searches only token arts when the bundle's
+   * `search.onnx` takes a gallery mask; an older bundle searches everything and the caller
+   * filters the top results itself.
+   */
+  identify: (image: RgbaImage, scope?: SearchScope) => Promise<Identification>
+  /** Whether `search.onnx` declares the `mask` input, so scopes narrow the search itself. */
+  readonly masked: boolean
 }
 
 interface Detection {
@@ -69,6 +79,17 @@ export async function createRecognizer(
   const embed = await ort.InferenceSession.create(graphs.embed, options)
   const search = await ort.InferenceSession.create(graphs.search, options)
 
+  // A bundle exported with `--search-mask` (Oracle manifest `search_mask: true`) takes a
+  // per-art mask next to the embeddings; the graph's own inputs decide, not the manifest. The
+  // masks are built once: one float per gallery art, in `arts.json` order.
+  const masked = search.inputNames.includes("mask")
+  const masks = masked
+    ? {
+        all: new ort.Tensor("float32", galleryMask(arts, "all"), [arts.length]),
+        tokens: new ort.Tensor("float32", galleryMask(arts, "tokens"), [arts.length]),
+      }
+    : null
+
   /** The refined window of the last frame that had a card in view, and how many frames in a
    * row were identified from it alone. */
   let tracked: DetectorWindow | null = null
@@ -97,7 +118,7 @@ export async function createRecognizer(
     }
   }
 
-  async function embedAndSearch(image: RgbaImage, quad: Quad) {
+  async function embedAndSearch(image: RgbaImage, quad: Quad, scope: SearchScope) {
     const started = performance.now()
     const embeddings = await embed.run({
       scene: new ort.Tensor("uint8", new Uint8Array(image.data.buffer), [
@@ -110,7 +131,9 @@ export async function createRecognizer(
     const embedded = performance.now()
     const vectors = Object.values(embeddings)[0]
     if (!vectors) throw new Error("embed graph returned nothing")
-    const ranked = await search.run({ embeddings: vectors })
+    const ranked = await search.run(
+      masks ? { embeddings: vectors, mask: masks[scope] } : { embeddings: vectors },
+    )
     const finished = performance.now()
 
     const indices = ranked.indices?.data as BigInt64Array | Int32Array
@@ -118,13 +141,16 @@ export async function createRecognizer(
     const candidates: Candidate[] = []
     for (let k = 0; k < indices.length; k += 1) {
       const index = Number(indices[k])
+      const score = scores[k] ?? 0
+      // A mask keeping fewer arts than k pads the tail with masked-out rows.
+      if (isPaddedResult(score)) break
       const art = arts[index]
-      if (art) candidates.push({ ...art, index, score: scores[k] ?? 0 })
+      if (art) candidates.push({ ...art, index, score })
     }
     return { candidates, embed: embedded - started, search: finished - embedded }
   }
 
-  async function identify(image: RgbaImage): Promise<Identification> {
+  async function identify(image: RgbaImage, scope: SearchScope = "all"): Promise<Identification> {
     const started = performance.now()
 
     // While a card sits still, one pass on the previous frame's refined window is this frame's
@@ -152,7 +178,7 @@ export async function createRecognizer(
     tracked = inView ? refineWindow(fine, constants) : null
     trackedFrames = inView && seed ? trackedFrames + 1 : 0
     const result = inView
-      ? await embedAndSearch(image, fine.quad)
+      ? await embedAndSearch(image, fine.quad, scope)
       : { candidates: [], embed: 0, search: 0 }
 
     return {
@@ -178,14 +204,18 @@ export async function createRecognizer(
   }
   await identify(blank)
   const half = size / 2
-  await embedAndSearch(blank, [
-    [half - 125, half - 175],
-    [half + 125, half - 175],
-    [half + 125, half + 175],
-    [half - 125, half + 175],
-  ])
+  await embedAndSearch(
+    blank,
+    [
+      [half - 125, half - 175],
+      [half + 125, half - 175],
+      [half + 125, half + 175],
+      [half - 125, half + 175],
+    ],
+    "all",
+  )
   tracked = null
   trackedFrames = 0
 
-  return { identify }
+  return { identify, masked }
 }

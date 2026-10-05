@@ -23,7 +23,8 @@ defmodule ManavaultWeb.Schema.Catalog.QueryResolvers do
         |> Catalog.search_cards(
           limit: limit + 1,
           offset: offset,
-          sort: Map.get(args, :sort, %{})
+          sort: Map.get(args, :sort, %{}),
+          tokens: Map.get(args, :tokens, :exclude)
         )
 
       cards

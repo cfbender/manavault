@@ -15,6 +15,7 @@ export function ScanResultBar({
   onPrinting,
   onLanguage,
   onBackFace,
+  tokenMode = false,
 }: {
   entry: ScanEntry | null
   onAddCopy: (id: string) => void
@@ -22,12 +23,15 @@ export function ScanResultBar({
   onPrinting: (id: string) => void
   onLanguage: (id: string, language: string) => void
   onBackFace?: (id: string) => void
+  tokenMode?: boolean
 }) {
   if (!entry) {
     return (
       <div className="flex items-center gap-3 rounded-box border-[1.5px] border-base-300 bg-base-100/95 px-4 py-4 text-sm text-base-content/75 shadow-lg">
         <ScanLine className="h-5 w-5 shrink-0 text-base-content/60" aria-hidden="true" />
-        Scanned cards appear here. Hold one card at a time in view of the camera.
+        {tokenMode
+          ? "Scanned tokens appear here. Hold one token in view, then tap the screen to add it."
+          : "Scanned cards appear here. Hold one card at a time in view of the camera."}
       </div>
     )
   }

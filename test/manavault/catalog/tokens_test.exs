@@ -143,6 +143,18 @@ defmodule Manavault.Catalog.TokensTest do
     assert [] = Catalog.search_token_printings(q: "")
   end
 
+  describe "search_cards/2 :tokens" do
+    test "excludes tokens by default, includes or restricts to them on request" do
+      assert ["Black Lotus"] = Catalog.search_cards("") |> Enum.map(& &1.name)
+
+      assert ["Black Lotus", "Soldier", "Treasure"] =
+               Catalog.search_cards("", tokens: :include) |> Enum.map(& &1.name)
+
+      assert ["Soldier", "Treasure"] =
+               Catalog.search_cards("", tokens: :only) |> Enum.map(& &1.name)
+    end
+  end
+
   describe "token_back_options/1" do
     # Real M3C faces: Dragon #12 is printed with Shapeshifter #8, Copy (MH3 #1),
     # or Treasure (MH3 #34, not imported here); Goblin #13 only with Tarmogoyf #22.
@@ -209,6 +221,42 @@ defmodule Manavault.Catalog.TokensTest do
 
     test "is empty for an unknown printing" do
       assert %{known: [], same_set: []} = Catalog.token_back_options("nope")
+    end
+
+    test "learns backs from owned tokens in both directions, ahead of gallery data" do
+      # Goblin owned with Dragon on its back: Dragon learns Goblin even though the
+      # gallery data only pairs Goblin with Tarmogoyf.
+      {:ok, _item} =
+        Catalog.add_token_item(%{
+          "scryfall_id" => "token-goblin-m3c",
+          "back_scryfall_id" => "token-dragon-m3c",
+          "quantity" => 2
+        })
+
+      # Dragon owned with Copy on its back: already a gallery pairing, so Copy
+      # moves ahead of Shapeshifter without being listed twice.
+      {:ok, _item} =
+        Catalog.add_token_item(%{
+          "scryfall_id" => "token-dragon-m3c",
+          "back_scryfall_id" => "token-copy-mh3"
+        })
+
+      assert %{known: known, same_set: same_set} =
+               Catalog.token_back_options("token-dragon-m3c")
+
+      assert ["token-goblin-m3c", "token-copy-mh3", "token-shapeshifter-m3c"] =
+               Enum.map(known, & &1.scryfall_id)
+
+      assert same_set == []
+
+      assert %{known: [%Printing{scryfall_id: "token-dragon-m3c"}]} =
+               Catalog.token_back_options("token-goblin-m3c")
+    end
+
+    test "ignores owned tokens without a recorded back" do
+      {:ok, _item} = Catalog.add_token_item(%{"scryfall_id" => "token-goblin-m3c"})
+
+      assert %{known: []} = Catalog.token_back_options("token-goblin-m3c")
     end
   end
 end

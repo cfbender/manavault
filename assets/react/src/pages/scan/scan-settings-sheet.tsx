@@ -65,6 +65,12 @@ export function ScanSettingsSheet({
 
           <section className="px-5 py-2">
             <ToggleRow
+              label="Tokens mode"
+              description="Match only tokens and add one each time you tap the screen, so a stack of tokens with the same art but different backs or finishes logs every copy."
+              checked={settings.tokenMode}
+              onChange={(tokenMode) => update({ tokenMode })}
+            />
+            <ToggleRow
               label="Ignore promos"
               description="Never pick a promo printing automatically."
               checked={settings.ignorePromos}
@@ -393,6 +399,7 @@ function RecognizerSummary({
           artworks · loaded in{" "}
           <span className="font-mono">{(state.loadMs / 1000).toFixed(1)} s</span> · {state.threads}{" "}
           {state.threads === 1 ? "thread" : "threads"}
+          {state.masked ? " · token search" : null}
           {lastMs !== null ? (
             <>
               {" "}

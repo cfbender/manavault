@@ -91,3 +91,11 @@ export const DeleteTokenItemDocument = graphql(`
     }
   }
 `)
+
+export const DeleteTokenItemsDocument = graphql(`
+  mutation DeleteTokenItems($ids: [ID!]!) {
+    deleteTokenItems(ids: $ids) {
+      deletedCount
+    }
+  }
+`)

@@ -1,6 +1,6 @@
 import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
-import { Edit3, FlipHorizontal2, Plus, Trash2 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { CheckSquare, Edit3, FlipHorizontal2, Plus, Trash2 } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
 import { PageSection } from "../../../components/app-shell"
 import { EmptyState } from "../../../components/card-image"
 import { CardTile } from "../../../components/card-tile"
@@ -14,19 +14,21 @@ import { pluralize } from "../../../lib/utils"
 import { MODAL_SEARCH_DEBOUNCE_MS } from "../constants"
 import type { TokenItem } from "../types"
 import { AddTokenDialog } from "./add-token-dialog"
-import { DeleteTokenItemDocument, TokenItemsDocument } from "./documents"
+import { DeleteTokenItemDocument, DeleteTokenItemsDocument, TokenItemsDocument } from "./documents"
 import { EditTokenDialog } from "./edit-token-dialog"
 import { tokenItemName } from "./token-item-name"
+import { TokenBulkActionBar, useTokenSelection, type TokenSelection } from "./token-selection"
 
 type TokenOverlay =
   | { type: "add" }
   | { type: "edit"; item: TokenItem }
   | { type: "delete"; item: TokenItem }
+  | { type: "delete-selected"; ids: string[] }
   | null
 
 /**
- * Owned tokens as a browsable grid. Tokens are never allocated to decks or valued,
- * so there is no selection mode, location, or price here: just what you have.
+ * Owned tokens as a browsable grid. Tokens are never allocated to decks or valued, so there
+ * is no location or price here: just what you have, with selection for removing many at once.
  */
 export function CollectionTokensSection() {
   const client = useApolloClient()
@@ -39,7 +41,10 @@ export function CollectionTokensSection() {
     fetchPolicy: "cache-and-network",
   })
   const [deleteTokenItem] = useMutation(DeleteTokenItemDocument)
-  const items = query.data?.tokenItems ?? []
+  const [deleteTokenItems] = useMutation(DeleteTokenItemsDocument)
+  const items = useMemo(() => query.data?.tokenItems ?? [], [query.data])
+  const itemIds = useMemo(() => items.map((item) => item.id), [items])
+  const selection = useTokenSelection(itemIds, debouncedSearch)
   const totalQuantity = items.reduce((total, item) => total + item.quantity, 0)
 
   useEffect(() => {
@@ -65,20 +70,47 @@ export function CollectionTokensSection() {
     })
   }
 
+  function confirmDeleteSelected(ids: string[]) {
+    void deleteTokenItems({
+      variables: { ids },
+      onCompleted: (data) => {
+        const count = data.deleteTokenItems?.deletedCount ?? ids.length
+        showToast(`${pluralize(count, "token")} removed`)
+        selection.clearSelection()
+        refresh()
+      },
+      onError: (error) => showToast(error.message || "Could not remove tokens"),
+    })
+  }
+
   return (
     <div className="space-y-7">
-      <div className="control-toolbar grid gap-2 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-[1fr_auto]">
+      <div className="control-toolbar grid gap-2 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm sm:grid-cols-[1fr_auto_auto]">
         <SearchField
           aria-label="Filter tokens"
           placeholder="Filter tokens by name"
           value={search}
           onValueChange={setSearch}
         />
+        <Button
+          type="button"
+          variant={selection.selectionActive ? "secondary" : "outline"}
+          disabled={items.length === 0 && !selection.selectionActive}
+          onClick={selection.toggleSelectionMode}
+        >
+          <CheckSquare className="h-4 w-4" />
+          Select
+        </Button>
         <Button type="button" onClick={() => setOverlay({ type: "add" })}>
           <Plus className="h-4 w-4" />
           Add token
         </Button>
       </div>
+
+      <TokenBulkActionBar
+        selection={selection}
+        onDelete={() => setOverlay({ type: "delete-selected", ids: selection.selectedIds })}
+      />
 
       <PageSection
         count={
@@ -109,6 +141,7 @@ export function CollectionTokensSection() {
         ) : (
           <TokenGrid
             items={items}
+            selection={selection}
             onDelete={(item) => setOverlay({ type: "delete", item })}
             onEdit={(item) => setOverlay({ type: "edit", item })}
           />
@@ -139,16 +172,34 @@ export function CollectionTokensSection() {
           ? `All ${pluralize(overlay.item.quantity, "copy", "copies")} of this printing leave your collection.`
           : null}
       </ConfirmDialog>
+      <ConfirmDialog
+        confirmLabel="Remove"
+        destructive
+        open={overlay?.type === "delete-selected"}
+        onConfirm={() => {
+          if (overlay?.type === "delete-selected") confirmDeleteSelected(overlay.ids)
+        }}
+        onOpenChange={(open) => !open && setOverlay(null)}
+        title={
+          overlay?.type === "delete-selected"
+            ? `Remove ${pluralize(overlay.ids.length, "token")}?`
+            : "Remove"
+        }
+      >
+        Every copy of the selected tokens leaves your collection.
+      </ConfirmDialog>
     </div>
   )
 }
 
 function TokenGrid({
   items,
+  selection,
   onDelete,
   onEdit,
 }: {
   items: readonly TokenItem[]
+  selection: TokenSelection
   onDelete: (item: TokenItem) => void
   onEdit: (item: TokenItem) => void
 }) {
@@ -163,7 +214,14 @@ function TokenGrid({
     >
       {items.map((item) => (
         <li key={item.id} className="flex justify-center">
-          <TokenTile item={item} onDelete={() => onDelete(item)} onEdit={() => onEdit(item)} />
+          <TokenTile
+            item={item}
+            selected={selection.isSelected(item.id)}
+            selectionActive={selection.selectionActive}
+            onDelete={() => onDelete(item)}
+            onEdit={() => onEdit(item)}
+            onToggleSelected={() => selection.toggle(item.id)}
+          />
         </li>
       ))}
     </ul>
@@ -172,12 +230,18 @@ function TokenGrid({
 
 function TokenTile({
   item,
+  selected,
+  selectionActive,
   onDelete,
   onEdit,
+  onToggleSelected,
 }: {
   item: TokenItem
+  selected: boolean
+  selectionActive: boolean
   onDelete: () => void
   onEdit: () => void
+  onToggleSelected: () => void
 }) {
   const [showBack, setShowBack] = useState(false)
   const face = showBack && item.backPrinting ? item.backPrinting : item.printing
@@ -213,11 +277,16 @@ function TokenTile({
         item.backPrinting ? `Flip ${name} to the ${showBack ? "front" : "back"}` : undefined
       }
       primaryActionRole="button"
+      selectable
+      selected={selected}
+      selectionActive={selectionActive}
+      selectionLabel={`${selected ? "Deselect" : "Select"} ${name}`}
       setCode={face.setCode}
       setLabel={`${face.setCode?.toUpperCase() || "?"} #${face.collectorNumber || "?"}`}
       setName={item.printing.setName}
       showDetails
       typeLine={face.card?.typeLine}
+      onToggleSelected={onToggleSelected}
     />
   )
 }

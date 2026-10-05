@@ -106,6 +106,7 @@ defmodule ManavaultWeb.Schema.SchemaDomainContractTest do
                "deleteDeckQuestionAnswer",
                "deleteDeckTag",
                "deleteTokenItem",
+               "deleteTokenItems",
                "deleteTradeWant",
                "deleteLocation",
                "deckDiff",

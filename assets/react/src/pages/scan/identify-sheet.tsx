@@ -29,11 +29,13 @@ export function IdentifySheet({
       <DialogContent className="scan-sheet sm:max-w-xl" labelledBy="scan-identify-title">
         <DialogHeader>
           <div className="min-w-0">
-            <DialogTitle id="scan-identify-title">Identify card</DialogTitle>
+            <DialogTitle id="scan-identify-title">
+              {settings.tokenMode ? "Identify token" : "Identify card"}
+            </DialogTitle>
             <p className="mt-1 text-sm text-base-content/70">
               {settings.collectTraining
-                ? "Name the card in view. Its photo is saved for training so the scanner learns it."
-                : "Name the card in view to add it to the list."}
+                ? `Name the ${settings.tokenMode ? "token" : "card"} in view. Its photo is saved for training so the scanner learns it.`
+                : `Name the ${settings.tokenMode ? "token" : "card"} in view to add it to the list.`}
             </p>
           </div>
           <DialogClose onClose={onClose} />

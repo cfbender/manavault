@@ -20,9 +20,11 @@ import { useRecognizer } from "./recognition/use-recognizer"
 import {
   cardKey,
   evaluateFrame,
+  evaluateTokenFrame,
   forgetLastLogged,
   INITIAL_TRACKER,
   markLogged,
+  type FrameOutcome,
   type ScanTracker,
 } from "./scan-decision"
 import {
@@ -119,6 +121,8 @@ export function useScanSession({ paused }: { paused: boolean }) {
   const entriesRef = useRef(entries)
   entriesRef.current = entries
   const lockRef = useRef<SetLock>({ status: "off" })
+  // Tokens mode: the token in view, logged when the screen is tapped.
+  const armedRef = useRef<{ candidate: Candidate; result: Identification } | null>(null)
   const bundleVersionRef = useRef<string | null>(null)
   bundleVersionRef.current = recognizer.state.status === "ready" ? recognizer.state.version : null
 
@@ -274,20 +278,29 @@ export function useScanSession({ paused }: { paused: boolean }) {
           continue
         }
         try {
-          const result = await identify(frame)
+          const result = await identify(frame, settingsRef.current.tokenMode ? "tokens" : "all")
           if (cancelled || pausedRef.current) continue
           const lock = lockRef.current
           if (lock.status === "loading") {
             await sleep(100)
             continue
           }
-          const { tracker, outcome } = evaluateFrame(
-            trackerRef.current,
-            result,
-            lock.status === "ready" ? lock.allow : undefined,
-          )
-          trackerRef.current = tracker
-          if (outcome.type === "accept") logScan(outcome.candidate, result)
+          let outcome: FrameOutcome
+          if (settingsRef.current.tokenMode) {
+            outcome = evaluateTokenFrame(result)
+            armedRef.current =
+              outcome.type === "ready" ? { candidate: outcome.candidate, result } : null
+          } else {
+            armedRef.current = null
+            const next = evaluateFrame(
+              trackerRef.current,
+              result,
+              lock.status === "ready" ? lock.allow : undefined,
+            )
+            trackerRef.current = next.tracker
+            outcome = next.outcome
+            if (outcome.type === "accept") logScan(outcome.candidate, result)
+          }
           const now = performance.now()
           setView((current) => nextView(current, outcome, result, now))
         } catch {
@@ -332,6 +345,17 @@ export function useScanSession({ paused }: { paused: boolean }) {
     stopRecognizer()
     setView(IDLE_VIEW)
   }, [stopCamera, stopRecognizer])
+
+  /** Tokens mode: a tap logs the token in view, even the same one again. */
+  const logArmed = useCallback(() => {
+    const armed = armedRef.current
+    if (!armed) return
+    logScan(armed.candidate, armed.result)
+    const now = performance.now()
+    setView((current) =>
+      nextView(current, { type: "accept", candidate: armed.candidate }, armed.result, now),
+    )
+  }, [logScan])
 
   /** Explicitly logs another copy; this is how the same card is counted twice in a row. */
   const addCopy = useCallback(
@@ -549,6 +573,7 @@ export function useScanSession({ paused }: { paused: boolean }) {
     setSettings,
     start,
     stop,
+    logArmed,
     addCopy,
     setQuantity,
     setFinish,

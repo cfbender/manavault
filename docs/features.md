@@ -84,7 +84,9 @@ The collection has four primary views:
   first), optionally picks the back face (known pairings first, then the rest
   of the set; see the scanner's **What is on the back?**), and sets quantity
   and finish; each tile's menu edits quantity/finish or removes the stack.
-  Tokens have no location, condition, or value and are never allocated.
+  **Select** (or tapping a tile's checkbox) enters selection mode with **Select
+  all**, **Clear** and **Remove** for the selected stacks. Tokens have no
+  location, condition, or value and are never allocated.
 - **Value** - market value compared with purchase basis, with editable purchase
   prices and biggest gains/losses rankings that toggle between total and
   percentage change.
@@ -167,15 +169,23 @@ camera; the browser or OS asks for camera access once.
   ding at $10 by default; both thresholds are configurable), camera preview
   zoom and pan, and recognition threads.
 - **Identify** next to the status adds a card the scanner does not recognize:
-  it freezes the camera view and searches the card by name.
+  it freezes the camera view and searches the card (or token) by name.
 - **Wrong card?** in the printing picker searches the catalog by name and swaps
-  a misrecognized scan for the right card.
+  a misrecognized scan for the right card. Both searches include tokens.
+- **Tokens mode** in the scanner settings restricts recognition to tokens, and
+  nothing is logged until you tap the screen, so the same token can be added
+  again and again (different backs, foil and nonfoil). The status pill reads
+  "Hold one token in view" and then "Tap to add <token>". **Identify** searches
+  tokens only in this mode. With a model bundle whose search graph takes a
+  gallery mask (shown as "token search" under **Recognition model**), only
+  token artwork is searched at all; with an older bundle the scanner filters
+  tokens out of the model's top results instead.
 - Tokens are recognized like any other card. Double-faced tokens carry both
   faces from Scryfall. For a single-faced token, the scanner pauses and asks
-  **What is on the back?**. Wizards prints tokens in fixed front/back
-  combinations, and `priv/data/token_backs.json` records the ones it publishes
-  in its card image galleries (Modern Horizons 3 onward); when the scanned
-  token is in that list those backs are shown first under **Known backs**. The
+  **What is on the back?**. **Known backs** come first: backs you picked earlier
+  in the scan list or recorded on tokens you own (either side of the pairing),
+  then the fixed front/back combinations Wizards publishes in its card image
+  galleries (`priv/data/token_backs.json`, Modern Horizons 3 onward). The
   published list is incomplete (one product's pairing per face; bundles and
   decks pair differently), so the rest of the set always follows under **Other
   tokens**. Tokens from older sets show the whole set. Pick the reverse or mark it

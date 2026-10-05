@@ -50,6 +50,36 @@ export interface Candidate extends GalleryArt {
   score: number
 }
 
+/** Scryfall layouts whose gallery arts are tokens rather than playable cards. */
+export const TOKEN_LAYOUTS: ReadonlySet<string> = new Set(["token", "double_faced_token"])
+
+export function isTokenArt(art: Pick<GalleryArt, "layout">): boolean {
+  return art.layout !== undefined && TOKEN_LAYOUTS.has(art.layout)
+}
+
+/** Which part of the gallery a frame is searched against. */
+export type SearchScope = "all" | "tokens"
+
+/**
+ * The `mask` input of a bundle whose `search.onnx` was exported with `--search-mask`: one
+ * float per gallery art in `arts.json` order, `> 0` keeps the art. Oracle scores an excluded
+ * art `PADDED_SCORE` before top-k, so a mask keeping fewer than k arts pads the results.
+ */
+export function galleryMask(arts: readonly Pick<GalleryArt, "layout">[], scope: SearchScope) {
+  const mask = new Float32Array(arts.length)
+  for (let i = 0; i < arts.length; i += 1) {
+    mask[i] = scope === "all" || isTokenArt(arts[i]!) ? 1 : 0
+  }
+  return mask
+}
+
+/** Score of a masked-out or padded result. Real scores are cosine similarities in [-1, 1]. */
+export const PADDED_SCORE = -3
+
+export function isPaddedResult(score: number): boolean {
+  return score < -1
+}
+
 export type Point = [number, number]
 /** Card corners in image pixels, printed order (top-left, top-right, bottom-right, bottom-left). */
 export type Quad = [Point, Point, Point, Point]

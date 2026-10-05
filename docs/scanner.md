@@ -103,16 +103,42 @@ Code lives in `assets/react/src/pages/scan/`.
   0.6. The same card (both faces count as one) is not logged again until a different card is.
   With locked sets, only artwork printed in those sets can be logged
   (`scannerSetIllustrations(setCodes)` lists their illustration IDs); a card that clearly
-  matches something outside them is reported as "Not in locked sets" instead.
+  matches something outside them is reported as "Not in locked sets" instead. Tokens mode
+  (`tokenMode` in `scan-settings.ts`, toggled in the settings sheet; `evaluateTokenFrame`)
+  instead takes the best candidate whose gallery `layout` is `token` or `double_faced_token`,
+  reports it as `ready` once it scores 0.6, and logs it only when the viewfinder is tapped
+  (`logArmed` in `use-scan-session.ts`), with no duplicate rule. In this mode each frame is
+  identified with `scope: "tokens"` (see the gallery mask below); with a bundle that has no mask
+  input the browser can only filter the recognizer's top five results, so a token that does not
+  make the top five at all needs **Identify**.
+- Gallery mask (`pipeline.ts` `galleryMask`, `recognizer.ts`): a bundle exported by Oracle with
+  `--search-mask` (`CARDID_SEARCH_MASK=1`; manifest `search_mask: true`) has a `search.onnx` with
+  inputs `embeddings (F, 128) float32` and `mask [N] float32`, N = `manifest.gallery.arts` in
+  `arts.json` order. The recognizer checks the session's `inputNames` for `mask` rather than the
+  manifest, builds the all-ones and tokens-only masks once at load, and feeds the one for the
+  frame's scope; `mask > 0` keeps an art. Oracle scores excluded arts -3 before top-k, so when
+  fewer than k arts are kept the tail is padding: rows scoring below -1 are dropped
+  (`isPaddedResult`). An older bundle without the input gets `{ embeddings }` only, so the
+  client works with either. The settings sheet shows "token search" under **Recognition model**
+  when the mask is available. Token arts in masked bundles also use the new `token` and
+  `token_tall` frame cuts (`frame_names` grew from 14 to 16; `arts.json` `frame` can be either).
+  Oracle's measurements: Scryfall's current token `art_crop` was being filed as `old`/`tall`,
+  covering only ~65%/83% of the art, so clean token scans scored ~0.88 against 0.99 for cards
+  and fell to the hub art Funeral Room // Awakening Hall (in the top five of 12% of all
+  queries). The token frames lifted synthetic token top-1 from 0.81 to 0.87 with other cards
+  unchanged; a tokens-only mask returned only tokens at 729/800 top-1.
 - `printing-choice.ts` picks the default printing and finish; `scan-list.ts` builds the import
   CSV (`name,set_code,collector_number,quantity,finish,language,scryfall_id,back_scryfall_id`),
   which is handed to the collection import through `queueSharedImport` in
   `lib/native-shared-import.ts`. `back_scryfall_id` is the user-picked reverse of a single-faced
   token (`token-back-sheet.tsx`); the import files token rows as token items. The sheet's
-  candidates come from `tokenBackOptions(scryfallId)`: `known` are the backs Wizards' galleries
-  show printed with that face (`priv/data/token_backs.json`, keyed by Scryfall set/collector
-  number and loaded at compile time by `Manavault.Catalog.Tokens.KnownBacks`), `sameSet` is every
-  other token in the set. `known` is a hint, not a filter: the galleries publish one pairing per
+  candidates come from `tokenBackOptions(scryfallId)`: `known` are backs recorded on owned token
+  items with that face on either side (`Manavault.Catalog.Tokens.BackOptions`, most-owned first),
+  then the backs Wizards' galleries show printed with it (`priv/data/token_backs.json`, keyed by
+  Scryfall set/collector number and loaded at compile time by
+  `Manavault.Catalog.Tokens.KnownBacks`); `sameSet` is every other token in the set. The sheet
+  adds backs picked on other entries of the current scan list (`sessionBacks` in `scan-list.ts`)
+  ahead of both, since those are not owned yet. `known` is a hint, not a filter: the galleries publish one pairing per
   face and other products pair differently (FRA Jace is listed with Spirit but also ships with
   Cadet), so the UI always shows `sameSet` too. Regenerate the data file after new sets with
   `WOTC_CONTENTFUL_TOKEN=... mise exec -- mix run scripts/token_backs.exs`; the script header
@@ -132,9 +158,10 @@ version to `POST /api/scanner/corrections` (signed-in session and CSRF). Changin
 printing or finish, or choosing **Wrong card?** in the printing sheet, relabels the capture
 without re-sending the image; deleting a scan marks it skipped, since its label is not trusted.
 **Identify** covers scans the recognizer never logs (unrecognized foils, cards stuck on "Hold
-steady"): it freezes the frame, the user names the card, and that frame is uploaded with the
-label plus the detected quad and the recognizer's guess when there were any. Without a quad the
-capture stays pending in Oracle until its geometry is fixed. The last label per capture wins.
+steady"): it freezes the frame, the user names the card (`cards(q, tokens: INCLUDE)`, or `ONLY`
+in tokens mode), and that frame is uploaded with the label plus the detected quad and the
+recognizer's guess when there were any. Without a quad the capture stays pending in Oracle until
+its geometry is fixed. The last label per capture wins.
 Oracle trains each app's model on its own captures with `CARDID_SOURCES=manavault-scanner`.
 
 **Check outlines** (below it, only with collection on) makes those outlines detector training

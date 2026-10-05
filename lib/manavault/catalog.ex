@@ -90,6 +90,7 @@ defmodule Manavault.Catalog do
   defdelegate add_token_item(attrs), to: Tokens
   defdelegate update_token_item(token_item, attrs), to: Tokens
   defdelegate delete_token_item(token_item), to: Tokens
+  defdelegate delete_token_items(ids), to: Tokens
   defdelegate owned_token_counts(oracle_ids), to: Tokens
   defdelegate produced_tokens_by_oracle_ids(oracle_ids), to: Tokens
 

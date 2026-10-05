@@ -78,6 +78,7 @@ export function ScanPage() {
           panY: settings.previewPanY,
         }}
         onFocusAt={(x, y) => void camera.focusAt(x, y)}
+        onTap={settings.tokenMode ? session.logArmed : undefined}
       />
 
       <header className="absolute inset-x-0 top-0 z-10 flex items-center gap-2 bg-gradient-to-b from-base-100/80 to-transparent px-3 pb-8 pt-[calc(var(--safe-top)_+_0.75rem)]">
@@ -124,8 +125,13 @@ export function ScanPage() {
         <CameraErrorPanel message={camera.state.message} onRetry={start} />
       ) : (
         <div className="absolute inset-x-0 bottom-0 mx-auto flex max-w-xl flex-col gap-2 bg-gradient-to-t from-base-100/80 to-transparent px-3 pb-[calc(var(--safe-bottom)_+_0.75rem)] pt-10">
-          <div className="flex items-center justify-center gap-2">
-            <StatusPill camera={camera.state} recognizer={recognizer.state} view={view} />
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <StatusPill
+              camera={camera.state}
+              recognizer={recognizer.state}
+              view={view}
+              tokenMode={settings.tokenMode}
+            />
             {recognizer.state.status === "ready" && camera.state.status === "live" ? (
               <button
                 type="button"
@@ -144,6 +150,7 @@ export function ScanPage() {
             onPrinting={(id) => setSheet({ type: "printing", id })}
             onLanguage={session.setLanguage}
             onBackFace={session.pickBackFace}
+            tokenMode={settings.tokenMode}
           />
         </div>
       )}
@@ -186,6 +193,7 @@ export function ScanPage() {
       />
       <TokenBackSheet
         entry={session.backFacePick}
+        entries={entries}
         onPick={session.setBackFace}
         onClose={session.dismissBackFace}
       />
@@ -209,14 +217,16 @@ function StatusPill({
   camera,
   recognizer,
   view,
+  tokenMode,
 }: {
   camera: CameraState
   recognizer: RecognizerState
   view: ScanView
+  tokenMode: boolean
 }) {
   const { text, busy } =
     camera.status === "live"
-      ? statusText(recognizer, view)
+      ? statusText(recognizer, view, tokenMode)
       : { text: "Starting camera…", busy: true }
   return (
     <p
@@ -230,7 +240,11 @@ function StatusPill({
   )
 }
 
-function statusText(recognizer: RecognizerState, view: ScanView): { text: string; busy: boolean } {
+function statusText(
+  recognizer: RecognizerState,
+  view: ScanView,
+  tokenMode: boolean,
+): { text: string; busy: boolean } {
   switch (recognizer.status) {
     case "idle":
     case "checking":
@@ -262,10 +276,12 @@ function statusText(recognizer: RecognizerState, view: ScanView): { text: string
       }
     case "duplicate":
       return { text: "Already logged · tap +1 for another copy", busy: false }
+    case "ready":
+      return { text: `Tap to add ${view.candidate?.name ?? ""}`, busy: false }
     case "accept":
       return { text: `Logged ${view.candidate?.name ?? ""}`, busy: false }
     default:
-      return { text: "Hold one card in view", busy: false }
+      return { text: tokenMode ? "Hold one token in view" : "Hold one card in view", busy: false }
   }
 }
 

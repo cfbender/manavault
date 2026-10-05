@@ -4,6 +4,11 @@ export const SCAN_LIST_STORAGE_KEY = "manavault.scanner.list"
 export interface ScanSettings {
   /** Lowercase set codes; when any are set, printings from them win the default choice. */
   lockedSets: string[]
+  /**
+   * Tokens mode: only token matches count, and nothing is logged until the screen is tapped,
+   * so the same token can be added over and over (different backs, foil and nonfoil…).
+   */
+  tokenMode: boolean
   ignorePromos: boolean
   preferFoil: boolean
   soundsEnabled: boolean
@@ -35,6 +40,7 @@ export const PREVIEW_ZOOM_MAX = 2.5
 
 export const DEFAULT_SCAN_SETTINGS: ScanSettings = {
   lockedSets: [],
+  tokenMode: false,
   ignorePromos: true,
   preferFoil: false,
   soundsEnabled: true,
@@ -79,6 +85,7 @@ export function normalizeScanSettings(value: unknown): ScanSettings {
           ),
         ]
       : [],
+    tokenMode: bool("tokenMode"),
     ignorePromos: bool("ignorePromos"),
     preferFoil: bool("preferFoil"),
     soundsEnabled: bool("soundsEnabled"),

@@ -44,3 +44,19 @@ test("not in locked sets appears only once it persists", () => {
   assert.equal(view.quad, null)
   assert.equal(step(view, "outside-lock", 5100).outcome, "tracking")
 })
+
+test("tokens mode: ready shows at once, and a tap's Logged holds while the token stays", () => {
+  let view = step(IDLE_VIEW, "ready", 0)
+  assert.equal(view.outcome, "ready")
+  assert.equal(view.candidate, card)
+  // The tap logs it: the confirmation flashes once…
+  view = step(view, "accept", 100)
+  assert.equal(view.outcome, "accept")
+  assert.equal(view.logged, 1)
+  // …and stays while the same token is still in view, then "ready" returns for another tap.
+  view = step(view, "ready", 400)
+  assert.equal(view.outcome, "accept")
+  assert.equal(view.logged, 1)
+  view = step(view, "ready", 400 + NOTICE_DELAY_MS)
+  assert.equal(view.outcome, "ready")
+})

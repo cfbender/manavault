@@ -189,7 +189,7 @@ export function CardNameSearch({
     return () => window.clearTimeout(timeout)
   }, [text])
   const { data, loading } = useQuery(ScannerCardSearchDocument, {
-    variables: { q: query },
+    variables: { q: query, tokens: settings.tokenMode ? "ONLY" : "INCLUDE" },
     skip: query.length < 2,
   })
   const cards = (data?.cards.edges ?? []).flatMap((edge) => (edge?.node ? [edge.node] : []))
@@ -220,8 +220,8 @@ export function CardNameSearch({
           type="search"
           value={text}
           onChange={(event) => setText(event.target.value)}
-          placeholder="Search the card by name"
-          aria-label="Search the card by name"
+          placeholder={settings.tokenMode ? "Search the token by name" : "Search the card by name"}
+          aria-label={settings.tokenMode ? "Search the token by name" : "Search the card by name"}
         />
         <Button type="button" variant="ghost" onClick={onCancel}>
           Cancel

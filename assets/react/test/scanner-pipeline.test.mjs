@@ -5,6 +5,9 @@ import {
   CARD_IN_VIEW,
   cardInView,
   EMPTY_UP_VOTE,
+  galleryMask,
+  isPaddedResult,
+  isTokenArt,
   refineWindow,
   sceneWindow,
   windowsAgree,
@@ -63,4 +66,26 @@ test("a tracked pass stands as the refined pass only when the card barely moved 
   assert.equal(windowsAgree(seed, { cx: 320, cy: 320, side: 559 }), false)
   assert.equal(windowsAgree(seed, { cx: 320, cy: 320, side: 875 }), true)
   assert.equal(windowsAgree(seed, { cx: 320, cy: 320, side: 876 }), false)
+})
+
+test("the gallery mask keeps every art for 'all' and only token layouts for 'tokens'", () => {
+  const arts = [
+    { layout: "normal" },
+    { layout: "token" },
+    { layout: "double_faced_token" },
+    { layout: "emblem" },
+    {}, // the-gathering bundles without a layout: a card, never a token
+  ]
+  assert.deepEqual(Array.from(galleryMask(arts, "all")), [1, 1, 1, 1, 1])
+  assert.deepEqual(Array.from(galleryMask(arts, "tokens")), [0, 1, 1, 0, 0])
+  assert.equal(galleryMask([], "tokens").length, 0)
+  assert.equal(isTokenArt({ layout: "token" }), true)
+  assert.equal(isTokenArt({ layout: "normal" }), false)
+})
+
+test("padded search results (masked-out rows scored -3) are told apart from real scores", () => {
+  // Real scores are cosine similarities, so anything in [-1, 1] stays.
+  assert.equal(isPaddedResult(-3), true)
+  assert.equal(isPaddedResult(-1), false)
+  assert.equal(isPaddedResult(0.88), false)
 })

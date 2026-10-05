@@ -78,6 +78,7 @@ async function load(bundle: BundleInfo, threads: number) {
     type: "ready",
     version: bundle.version,
     arts: gallery.length,
+    masked: recognizer.masked,
     ms: performance.now() - started,
     threads: ort.env.wasm.numThreads ?? 1,
   })
@@ -95,7 +96,11 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         width: request.width,
         height: request.height,
       }
-      reply({ type: "identified", id: request.id, result: await recognizer.identify(image) })
+      reply({
+        type: "identified",
+        id: request.id,
+        result: await recognizer.identify(image, request.scope ?? "all"),
+      })
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)

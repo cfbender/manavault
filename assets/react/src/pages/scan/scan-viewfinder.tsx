@@ -21,12 +21,15 @@ export function ScanViewfinder({
   view,
   framing,
   onFocusAt,
+  onTap,
 }: {
   videoRef: RefObject<HTMLVideoElement | null>
   view: ScanView
   framing: PreviewFraming
   /** Tap to focus: the tapped point of the camera image, 0–1 from the top left. */
   onFocusAt?: (x: number, y: number) => void
+  /** Any tap on the preview, after focusing; tokens mode logs the token in view. */
+  onTap?: () => void
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const safeAreaRef = useRef<HTMLDivElement | null>(null)
@@ -41,8 +44,9 @@ export function ScanViewfinder({
 
   function handlePointerDown(event: PointerEvent<HTMLVideoElement>) {
     const box = event.currentTarget.getBoundingClientRect()
-    if (!onFocusAt || box.width === 0 || box.height === 0) return
-    onFocusAt((event.clientX - box.left) / box.width, (event.clientY - box.top) / box.height)
+    if (box.width === 0 || box.height === 0) return
+    onFocusAt?.((event.clientX - box.left) / box.width, (event.clientY - box.top) / box.height)
+    onTap?.()
     setFocus({ x: event.clientX, y: event.clientY, key: event.timeStamp })
   }
 
@@ -123,7 +127,9 @@ function Overlay({
         ? "text-base-content"
         : view.outcome === "outside-lock"
           ? "text-error"
-          : "text-warning"
+          : view.outcome === "ready"
+            ? "text-info"
+            : "text-warning"
   const [l, t, r, b] = [
     framed.x + inset,
     framed.y + inset,

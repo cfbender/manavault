@@ -73,6 +73,16 @@ defmodule Manavault.Catalog.Tokens.Items do
 
   def delete(%TokenItem{} = item), do: Repo.delete(item)
 
+  @doc "Deletes the token items with the given IDs, returning how many went."
+  def delete_many(ids) when is_list(ids) do
+    {count, _returning} =
+      TokenItem
+      |> where([item], item.id in ^ids)
+      |> Repo.delete_all()
+
+    {:ok, count}
+  end
+
   @doc """
   Owned copies per token card (oracle ID), counting any printing of the token
   and both faces of a double-sided token.

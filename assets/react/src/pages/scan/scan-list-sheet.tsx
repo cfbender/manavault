@@ -206,17 +206,22 @@ function ScanListRow({
           )}
           <span className="min-w-0 flex-1">
             <span className="block truncate font-bold">{entry.name}</span>
-            <span className="mt-0.5 flex items-center gap-1.5 text-xs text-base-content/70">
+            {/* Badges wrap as a unit onto the next line; the text inside one never wraps. */}
+            <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-base-content/70">
               <SetIcon rarity={entry.rarity} setCode={entry.setCode} />
-              <span className="font-mono">
+              <span className="whitespace-nowrap font-mono">
                 {entry.setCode.toUpperCase()} #{entry.collectorNumber} ·{" "}
                 {entry.language.toUpperCase()}
               </span>
               {finishLabel ? (
-                <span className="badge badge-warning badge-outline badge-sm">{finishLabel}</span>
+                <span className="badge badge-warning badge-outline badge-sm whitespace-nowrap">
+                  {finishLabel}
+                </span>
               ) : null}
               {entry.back ? (
-                <span className="badge badge-outline badge-sm">Back: {entry.back.name}</span>
+                <span className="badge badge-outline badge-sm max-w-full">
+                  <span className="truncate">Back: {entry.back.name}</span>
+                </span>
               ) : null}
             </span>
           </span>

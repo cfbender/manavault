@@ -59,6 +59,8 @@ export function commitImportRow(row: CollectionImportRow) {
       condition: row.attrs.condition,
       language: row.attrs.language,
       scryfallId: row.attrs.scryfallId,
+      // Tokens: the other printed side; the catalog has no match for it on a playable card.
+      backScryfallId: row.attrs.backScryfallId,
       locationId: row.attrs.locationId,
       purchasePriceCents: row.attrs.purchasePriceCents,
     },
