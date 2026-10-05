@@ -29,6 +29,10 @@ defmodule ManavaultWeb.Schema.Catalog.TokenResolvers do
     {:ok, printings}
   end
 
+  def token_back_options(_parent, %{scryfall_id: scryfall_id}, _resolution) do
+    {:ok, Catalog.token_back_options(scryfall_id)}
+  end
+
   def add_token_item(_parent, %{input: input}, resolution) do
     with {:ok, input} <-
            RelayHelpers.put_optional_node_id(input, :scryfall_id, :printing, resolution),

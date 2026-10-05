@@ -1,4 +1,3 @@
-import { useQuery } from "@apollo/client/react"
 import { Button } from "../../components/ui/button"
 import {
   Dialog,
@@ -7,14 +6,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog"
-import { TokenPrintingGrid } from "../../components/token-printing-grid"
-import { TokenBackPrintingsDocument } from "./documents"
+import { TokenBackFaceOptions, useTokenBackOptions } from "../../components/token-back-face-options"
 import type { ScanBackFace, ScanEntry } from "./scan-list"
 
 /**
  * "What is on the back?": a scanned single-faced token may be printed with another token
  * on its reverse (Commander precons do this). Scryfall only knows the front, so the user
- * picks the back from the other tokens in the same set, or says it is single-sided.
+ * picks the back from the tokens known to share a card with it (falling back to the rest
+ * of the set), or says it is single-sided.
  */
 export function TokenBackSheet({
   entry,
@@ -60,18 +59,15 @@ function BackFaceGrid({
   entry: ScanEntry
   onPick: (back: ScanBackFace) => void
 }) {
-  const { data, loading, error } = useQuery(TokenBackPrintingsDocument, {
-    variables: { setCode: entry.setCode, excludeScryfallId: entry.scryfallId },
-  })
-  const options = data?.tokenPrintings ?? []
+  const { known, sameSet, loading, error, isEmpty } = useTokenBackOptions(entry.scryfallId)
 
-  if (loading && options.length === 0) {
+  if (loading && isEmpty) {
     return <p className="px-5 py-6 text-sm text-base-content/70">Loading tokens…</p>
   }
   if (error) {
     return <p className="px-5 py-6 text-sm text-error">Could not load tokens: {error.message}</p>
   }
-  if (options.length === 0) {
+  if (isEmpty) {
     return (
       <p className="px-5 py-6 text-sm text-base-content/70">
         No other tokens from {entry.setCode.toUpperCase()} are in the catalog.
@@ -80,9 +76,11 @@ function BackFaceGrid({
   }
 
   return (
-    <TokenPrintingGrid
+    <TokenBackFaceOptions
       className="overflow-y-auto px-5 py-4"
-      options={options}
+      known={known}
+      sameSet={sameSet}
+      setCode={entry.setCode}
       selectedScryfallId={entry.back?.scryfallId}
       onPick={(option) =>
         onPick({

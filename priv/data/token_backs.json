@@ -1,0 +1,1435 @@
+{
+  "source": "Wizards of the Coast card image galleries (magic.wizards.com), which show both faces of double-sided tokens; faces resolved to Scryfall set code/collector number by name. Regenerate with scripts/token_backs.exs. Pairs are undirected.",
+  "pairs": [
+    {
+      "names": "Squirrel // Food",
+      "front": "tblb/23",
+      "back": "tblb/27"
+    },
+    {
+      "names": "Squirrel // Treasure",
+      "front": "tblb/23",
+      "back": "tblb/29"
+    },
+    {
+      "names": "Otter // Copy",
+      "front": "tblb/25",
+      "back": "tblc/1"
+    },
+    {
+      "names": "Treasure // Rabbit",
+      "front": "tblb/29",
+      "back": "tblb/3"
+    },
+    {
+      "names": "Treasure // Prosperous Bandit",
+      "front": "tblb/29",
+      "back": "tblc/23"
+    },
+    {
+      "names": "Treasure // Beast",
+      "front": "tblb/29",
+      "back": "tblc/24"
+    },
+    {
+      "names": "Treasure // Cat",
+      "front": "tblb/29",
+      "back": "tblc/26"
+    },
+    {
+      "names": "Treasure // Saproling",
+      "front": "tblb/29",
+      "back": "tblc/30"
+    },
+    {
+      "names": "Rabbit // Fish",
+      "front": "tblb/3",
+      "back": "tblb/7"
+    },
+    {
+      "names": "Rabbit // Octopus",
+      "front": "tblb/3",
+      "back": "tblc/14"
+    },
+    {
+      "names": "Rabbit // Agate Instigator",
+      "front": "tblb/3",
+      "back": "tblc/20"
+    },
+    {
+      "names": "Fish // Bird",
+      "front": "tblb/7",
+      "back": "tblc/11"
+    },
+    {
+      "names": "Steelburr Champion // Squid",
+      "front": "tblc/10",
+      "back": "tblc/17"
+    },
+    {
+      "names": "Bird // Shark",
+      "front": "tblc/11",
+      "back": "tblc/16"
+    },
+    {
+      "names": "Faerie // Phyrexian Golem",
+      "front": "tblc/12",
+      "back": "tblc/38"
+    },
+    {
+      "names": "Faerie // Spirit",
+      "front": "tblc/12",
+      "back": "tblc/9"
+    },
+    {
+      "names": "Illusion // Goblin",
+      "front": "tblc/13",
+      "back": "tblc/21"
+    },
+    {
+      "names": "Shapeshifter // Pest",
+      "front": "tblc/15",
+      "back": "tblc/34"
+    },
+    {
+      "names": "Shark // Elemental",
+      "front": "tblc/16",
+      "back": "tblc/4"
+    },
+    {
+      "names": "Squid // Elephant",
+      "front": "tblc/17",
+      "back": "tblc/27"
+    },
+    {
+      "names": "Storm Crow // Frog Lizard",
+      "front": "tblc/18",
+      "back": "tblc/28"
+    },
+    {
+      "names": "Storm Crow // Bird",
+      "front": "tblc/18",
+      "back": "tblc/3"
+    },
+    {
+      "names": "Rat // Raccoon",
+      "front": "tblc/19",
+      "back": "tblc/29"
+    },
+    {
+      "names": "Eldrazi // Clue",
+      "front": "tblc/2",
+      "back": "tblc/37"
+    },
+    {
+      "names": "Goblin // Thopter",
+      "front": "tblc/21",
+      "back": "tblc/39"
+    },
+    {
+      "names": "Hamster // Beast",
+      "front": "tblc/22",
+      "back": "tblc/24"
+    },
+    {
+      "names": "Hamster // Saproling",
+      "front": "tblc/22",
+      "back": "tblc/30"
+    },
+    {
+      "names": "Beast // Cat",
+      "front": "tblc/25",
+      "back": "tblc/26"
+    },
+    {
+      "names": "Cat // Elemental",
+      "front": "tblc/26",
+      "back": "tblc/4"
+    },
+    {
+      "names": "Spider // Blood",
+      "front": "tblc/31",
+      "back": "tblc/36"
+    },
+    {
+      "names": "Wolf // Goat",
+      "front": "tblc/32",
+      "back": "tblc/5"
+    },
+    {
+      "names": "Citizen // Soldier",
+      "front": "tblc/33",
+      "back": "tblc/8"
+    },
+    {
+      "names": "Wolf // Human Soldier",
+      "front": "tblc/35",
+      "back": "tblc/7"
+    },
+    {
+      "names": "Human // Soldier",
+      "front": "tblc/6",
+      "back": "tblc/8"
+    },
+    {
+      "names": "Thopter // Golem",
+      "front": "tdft/10",
+      "back": "tdrc/14"
+    },
+    {
+      "names": "Treasure // Nalaar Aetherjet",
+      "front": "tdft/11",
+      "back": "tdrc/16"
+    },
+    {
+      "names": "Zombie // Zombie",
+      "front": "tdft/3",
+      "back": "tdrc/7"
+    },
+    {
+      "names": "Zombie // Zombie Warrior",
+      "front": "tdft/3",
+      "back": "tdrc/9"
+    },
+    {
+      "names": "Servo // Beast",
+      "front": "tdft/8",
+      "back": "tdrc/10"
+    },
+    {
+      "names": "Thopter // Golem",
+      "front": "tdft/9",
+      "back": "tdrc/15"
+    },
+    {
+      "names": "Angel of Sanctions // Zombie",
+      "front": "tdrc/1",
+      "back": "tdrc/3"
+    },
+    {
+      "names": "Beast // Construct",
+      "front": "tdrc/11",
+      "back": "tdrc/12"
+    },
+    {
+      "names": "Golem // Nalaar Aetherjet",
+      "front": "tdrc/13",
+      "back": "tdrc/16"
+    },
+    {
+      "names": "Vizier of Many Faces // Zombie",
+      "front": "tdrc/2",
+      "back": "tdrc/3"
+    },
+    {
+      "names": "Zombie // Shapeshifter",
+      "front": "tdrc/3",
+      "back": "tdrc/4"
+    },
+    {
+      "names": "Zombie // Champion of Wits",
+      "front": "tdrc/3",
+      "back": "tdrc/5"
+    },
+    {
+      "names": "Zombie // Timeless Dragon",
+      "front": "tdrc/3",
+      "back": "tdrc/6"
+    },
+    {
+      "names": "Zombie // Zombie",
+      "front": "tdrc/3",
+      "back": "tdrc/7"
+    },
+    {
+      "names": "Zombie // Zombie Warrior",
+      "front": "tdrc/3",
+      "back": "tdrc/9"
+    },
+    {
+      "names": "Shapeshifter // Zombie Army",
+      "front": "tdrc/4",
+      "back": "tdrc/8"
+    },
+    {
+      "names": "Shapeshifter // Insect",
+      "front": "tdsc/1",
+      "back": "tdsc/11"
+    },
+    {
+      "names": "Shapeshifter // Insect",
+      "front": "tdsc/1",
+      "back": "tdsc/22"
+    },
+    {
+      "names": "Insect // Wurm",
+      "front": "tdsc/10",
+      "back": "tdsc/19"
+    },
+    {
+      "names": "Insect // Manifest",
+      "front": "tdsc/10",
+      "back": "tdsk/18"
+    },
+    {
+      "names": "Insect // Ooze",
+      "front": "tdsc/11",
+      "back": "tdsc/14"
+    },
+    {
+      "names": "Insect // Ooze",
+      "front": "tdsc/12",
+      "back": "tdsc/13"
+    },
+    {
+      "names": "Insect // Spider",
+      "front": "tdsc/12",
+      "back": "tdsc/16"
+    },
+    {
+      "names": "Phyrexian Beast // Manifest",
+      "front": "tdsc/15",
+      "back": "tdsk/18"
+    },
+    {
+      "names": "Spider // Treefolk",
+      "front": "tdsc/16",
+      "back": "tdsc/17"
+    },
+    {
+      "names": "Wurm // Fractal",
+      "front": "tdsc/18",
+      "back": "tdsc/20"
+    },
+    {
+      "names": "Wurm // Manifest",
+      "front": "tdsc/19",
+      "back": "tdsk/18"
+    },
+    {
+      "names": "Angel // Treasure",
+      "front": "tdsc/2",
+      "back": "tdsk/15"
+    },
+    {
+      "names": "Angel // Glimmer",
+      "front": "tdsc/2",
+      "back": "tdsk/4"
+    },
+    {
+      "names": "Fractal // Scarecrow",
+      "front": "tdsc/20",
+      "back": "tdsc/23"
+    },
+    {
+      "names": "Inkling // Scarecrow",
+      "front": "tdsc/21",
+      "back": "tdsc/23"
+    },
+    {
+      "names": "Scarecrow // Human Soldier",
+      "front": "tdsc/23",
+      "back": "tdsc/3"
+    },
+    {
+      "names": "Scarecrow // Devil",
+      "front": "tdsc/23",
+      "back": "tdsc/7"
+    },
+    {
+      "names": "Scarecrow // Beast",
+      "front": "tdsc/23",
+      "back": "tdsc/8"
+    },
+    {
+      "names": "Scarecrow // Glimmer",
+      "front": "tdsc/23",
+      "back": "tdsk/4"
+    },
+    {
+      "names": "Shark // Copy",
+      "front": "tdsc/4",
+      "back": "tdsk/1"
+    },
+    {
+      "names": "Bird // Demon",
+      "front": "tdsc/5",
+      "back": "tdsc/6"
+    },
+    {
+      "names": "Bird // Elemental",
+      "front": "tdsc/5",
+      "back": "tdsc/9"
+    },
+    {
+      "names": "Copy // Horror",
+      "front": "tdsk/1",
+      "back": "tdsk/10"
+    },
+    {
+      "names": "Horror // Glimmer",
+      "front": "tdsk/10",
+      "back": "tdsk/4"
+    },
+    {
+      "names": "Copy // Elemental",
+      "front": "tecc/1",
+      "back": "tecc/10"
+    },
+    {
+      "names": "Copy // Elemental",
+      "front": "tecc/1",
+      "back": "tecc/2"
+    },
+    {
+      "names": "Copy // Plant",
+      "front": "tecc/1",
+      "back": "tecc/5"
+    },
+    {
+      "names": "Copy // Shapeshifter",
+      "front": "tecc/1",
+      "back": "tecl/1"
+    },
+    {
+      "names": "Copy // Treasure",
+      "front": "tecc/1",
+      "back": "tecl/10"
+    },
+    {
+      "names": "Scarecrow // Saproling",
+      "front": "tecc/11",
+      "back": "tecc/7"
+    },
+    {
+      "names": "Scarecrow // Snake",
+      "front": "tecc/11",
+      "back": "tecc/8"
+    },
+    {
+      "names": "Scarecrow // Treasure",
+      "front": "tecc/11",
+      "back": "tecl/10"
+    },
+    {
+      "names": "Elemental // Plant",
+      "front": "tecc/2",
+      "back": "tecc/5"
+    },
+    {
+      "names": "Zombie // Elf Warrior",
+      "front": "tecc/3",
+      "back": "tecc/4"
+    },
+    {
+      "names": "Rhino Warrior // Elemental",
+      "front": "tecc/6",
+      "back": "tecc/9"
+    },
+    {
+      "names": "Shapeshifter // Treasure",
+      "front": "tecl/1",
+      "back": "tecl/10"
+    },
+    {
+      "names": "Copy // Clue",
+      "front": "teoc/1",
+      "back": "teoc/10"
+    },
+    {
+      "names": "Copy // Pest",
+      "front": "teoc/1",
+      "back": "teoc/9"
+    },
+    {
+      "names": "Gnome // Golem",
+      "front": "teoc/11",
+      "back": "teoc/14"
+    },
+    {
+      "names": "Gnome // Thopter",
+      "front": "teoc/11",
+      "back": "teoc/16"
+    },
+    {
+      "names": "Golem // Golem",
+      "front": "teoc/12",
+      "back": "teoc/14"
+    },
+    {
+      "names": "Golem // Bird",
+      "front": "teoc/12",
+      "back": "teoc/3"
+    },
+    {
+      "names": "Golem // Insect",
+      "front": "teoc/13",
+      "back": "teoc/4"
+    },
+    {
+      "names": "Insect // Beast",
+      "front": "teoc/4",
+      "back": "teoc/5"
+    },
+    {
+      "names": "Insect // Elemental",
+      "front": "teoc/4",
+      "back": "teoc/7"
+    },
+    {
+      "names": "Insect // Elemental",
+      "front": "teoc/4",
+      "back": "teoc/8"
+    },
+    {
+      "names": "Beast // Elemental",
+      "front": "teoc/6",
+      "back": "teoc/7"
+    },
+    {
+      "names": "Beast // Elemental",
+      "front": "teoc/6",
+      "back": "teoc/8"
+    },
+    {
+      "names": "Beast // Pest",
+      "front": "teoc/6",
+      "back": "teoc/9"
+    },
+    {
+      "names": "Beast // Lander",
+      "front": "teoc/6",
+      "back": "teoe/8"
+    },
+    {
+      "names": "Angel // Angel",
+      "front": "tfdc/1",
+      "back": "tfdc/2"
+    },
+    {
+      "names": "Beast // Phyrexian Beast",
+      "front": "tfdc/10",
+      "back": "tfdc/11"
+    },
+    {
+      "names": "Beast // Spider",
+      "front": "tfdc/10",
+      "back": "tfdc/12"
+    },
+    {
+      "names": "Phyrexian Beast // Spider",
+      "front": "tfdc/11",
+      "back": "tfdc/12"
+    },
+    {
+      "names": "Phyrexian Beast // Phyrexian Germ",
+      "front": "tfdc/11",
+      "back": "tfdc/4"
+    },
+    {
+      "names": "Clue // Angel",
+      "front": "tfdc/13",
+      "back": "tfdc/2"
+    },
+    {
+      "names": "Clue // Spirit",
+      "front": "tfdc/13",
+      "back": "tfdc/3"
+    },
+    {
+      "names": "Myr // Thopter",
+      "front": "tfdc/14",
+      "back": "tfdc/15"
+    },
+    {
+      "names": "Thopter // Phyrexian Germ",
+      "front": "tfdc/15",
+      "back": "tfdc/4"
+    },
+    {
+      "names": "Treasure // Dragon",
+      "front": "tfdc/16",
+      "back": "tfdc/7"
+    },
+    {
+      "names": "Treasure // Dragon",
+      "front": "tfdc/16",
+      "back": "tfdc/8"
+    },
+    {
+      "names": "Treasure // Dragon",
+      "front": "tfdc/16",
+      "back": "tfdc/9"
+    },
+    {
+      "names": "Angel // Spirit",
+      "front": "tfdc/2",
+      "back": "tfdc/3"
+    },
+    {
+      "names": "Zombie // Zombie Knight",
+      "front": "tfdc/5",
+      "back": "tfdc/6"
+    },
+    {
+      "names": "Dragon // Dragon",
+      "front": "tfdc/8",
+      "back": "tfdc/9"
+    },
+    {
+      "names": "Human Soldier // Hero",
+      "front": "tfic/1",
+      "back": "tfin/32"
+    },
+    {
+      "names": "Human Soldier // Hero",
+      "front": "tfic/1",
+      "back": "tfin/33"
+    },
+    {
+      "names": "Human Soldier // Hero",
+      "front": "tfic/1",
+      "back": "tfin/8"
+    },
+    {
+      "names": "Human Soldier // Hero",
+      "front": "tfic/1",
+      "back": "tfin/9"
+    },
+    {
+      "names": "Soldier // Rebel",
+      "front": "tfic/2",
+      "back": "tfic/7"
+    },
+    {
+      "names": "Spirit // Squid",
+      "front": "tfic/3",
+      "back": "tfic/5"
+    },
+    {
+      "names": "Spirit // Hero",
+      "front": "tfic/3",
+      "back": "tfin/2"
+    },
+    {
+      "names": "Spirit // Hero",
+      "front": "tfic/3",
+      "back": "tfin/26"
+    },
+    {
+      "names": "Spirit // Hero",
+      "front": "tfic/3",
+      "back": "tfin/27"
+    },
+    {
+      "names": "Spirit // Hero",
+      "front": "tfic/3",
+      "back": "tfin/3"
+    },
+    {
+      "names": "Bird // Hero",
+      "front": "tfic/4",
+      "back": "tfin/28"
+    },
+    {
+      "names": "Bird // Hero",
+      "front": "tfic/4",
+      "back": "tfin/29"
+    },
+    {
+      "names": "Bird // Hero",
+      "front": "tfic/4",
+      "back": "tfin/4"
+    },
+    {
+      "names": "Bird // Hero",
+      "front": "tfic/4",
+      "back": "tfin/5"
+    },
+    {
+      "names": "Zombie // Moogle",
+      "front": "tfic/6",
+      "back": "tfin/11"
+    },
+    {
+      "names": "Zombie // Moogle",
+      "front": "tfic/6",
+      "back": "tfin/34"
+    },
+    {
+      "names": "Clue // Treasure",
+      "front": "tfic/9",
+      "back": "tfin/23"
+    },
+    {
+      "names": "Clue // Treasure",
+      "front": "tfic/9",
+      "back": "tfin/36"
+    },
+    {
+      "names": "Copy // Moogle",
+      "front": "tfin/1",
+      "back": "tfin/11"
+    },
+    {
+      "names": "Moogle // Treasure",
+      "front": "tfin/11",
+      "back": "tfin/23"
+    },
+    {
+      "names": "Wizard // Hero",
+      "front": "tfin/15",
+      "back": "tfin/6"
+    },
+    {
+      "names": "Wizard // Hero",
+      "front": "tfin/15",
+      "back": "tfin/7"
+    },
+    {
+      "names": "Copy // Moogle",
+      "front": "tfin/25",
+      "back": "tfin/34"
+    },
+    {
+      "names": "Hero // Wizard",
+      "front": "tfin/30",
+      "back": "tfin/35"
+    },
+    {
+      "names": "Hero // Wizard",
+      "front": "tfin/31",
+      "back": "tfin/35"
+    },
+    {
+      "names": "Moogle // Treasure",
+      "front": "tfin/34",
+      "back": "tfin/36"
+    },
+    {
+      "names": "Treasure // Angel",
+      "front": "tfra/15",
+      "back": "tfra/3"
+    },
+    {
+      "names": "Treasure // Angel",
+      "front": "tfra/15",
+      "back": "tfrc/1"
+    },
+    {
+      "names": "Jace // Spirit",
+      "front": "tfra/5",
+      "back": "tfrc/4"
+    },
+    {
+      "names": "Kobolds of Kher Keep // Phyrexian Mite",
+      "front": "tfrc/10",
+      "back": "tfrc/16"
+    },
+    {
+      "names": "Gingerbrute Token // Myr",
+      "front": "tfrc/12",
+      "back": "tfrc/15"
+    },
+    {
+      "names": "Map // Soldier",
+      "front": "tfrc/14",
+      "back": "tfrc/3"
+    },
+    {
+      "names": "Insect // Rogue",
+      "front": "tfrc/2",
+      "back": "tfrc/7"
+    },
+    {
+      "names": "Warrior // Shark",
+      "front": "tfrc/5",
+      "back": "tfrc/6"
+    },
+    {
+      "names": "Zombie Army // Goblin",
+      "front": "tfrc/8",
+      "back": "tfrc/9"
+    },
+    {
+      "names": "Eldrazi // Spirit",
+      "front": "tm3c/1",
+      "back": "tm3c/5"
+    },
+    {
+      "names": "Beast // Shapeshifter",
+      "front": "tm3c/10",
+      "back": "tm3c/8"
+    },
+    {
+      "names": "Marit Lage // Sand Warrior",
+      "front": "tm3c/11",
+      "back": "tm3c/23"
+    },
+    {
+      "names": "Dragon // Shapeshifter",
+      "front": "tm3c/12",
+      "back": "tm3c/8"
+    },
+    {
+      "names": "Dragon // Copy",
+      "front": "tm3c/12",
+      "back": "tmh3/1"
+    },
+    {
+      "names": "Dragon // Treasure",
+      "front": "tm3c/12",
+      "back": "tmh3/34"
+    },
+    {
+      "names": "Goblin // Tarmogoyf",
+      "front": "tm3c/13",
+      "back": "tm3c/22"
+    },
+    {
+      "names": "Ape // Plant",
+      "front": "tm3c/14",
+      "back": "tmh3/26"
+    },
+    {
+      "names": "Beast // Insect",
+      "front": "tm3c/15",
+      "back": "tmh3/25"
+    },
+    {
+      "names": "Beast // Elephant",
+      "front": "tm3c/16",
+      "back": "tm3c/18"
+    },
+    {
+      "names": "Beast // Copy",
+      "front": "tm3c/16",
+      "back": "tmh3/1"
+    },
+    {
+      "names": "Boar // Forest Dryad",
+      "front": "tm3c/17",
+      "back": "tm3c/19"
+    },
+    {
+      "names": "Boar // Hydra",
+      "front": "tm3c/17",
+      "back": "tm3c/20"
+    },
+    {
+      "names": "Elephant // Zombie",
+      "front": "tm3c/18",
+      "back": "tmh3/21"
+    },
+    {
+      "names": "Elephant // Zombie",
+      "front": "tm3c/18",
+      "back": "tmh3/39"
+    },
+    {
+      "names": "Eldrazi Angel // Copy",
+      "front": "tm3c/2",
+      "back": "tmh3/1"
+    },
+    {
+      "names": "Eldrazi Angel // Copy",
+      "front": "tm3c/2",
+      "back": "tmh3/37"
+    },
+    {
+      "names": "Saproling // Tarmogoyf",
+      "front": "tm3c/21",
+      "back": "tm3c/22"
+    },
+    {
+      "names": "Construct // Myr",
+      "front": "tm3c/24",
+      "back": "tm3c/25"
+    },
+    {
+      "names": "Thopter // Aetherborn",
+      "front": "tm3c/26",
+      "back": "tm3c/9"
+    },
+    {
+      "names": "Thopter // Copy",
+      "front": "tm3c/26",
+      "back": "tmh3/1"
+    },
+    {
+      "names": "Eldrazi Scion // Eldrazi Spawn",
+      "front": "tm3c/3",
+      "back": "tmh3/2"
+    },
+    {
+      "names": "Eldrazi Scion // Eldrazi Spawn",
+      "front": "tm3c/3",
+      "back": "tmh3/38"
+    },
+    {
+      "names": "Shapeshifter // Copy",
+      "front": "tm3c/4",
+      "back": "tmh3/1"
+    },
+    {
+      "names": "Illusion // Servo",
+      "front": "tm3c/6",
+      "back": "tmh3/33"
+    },
+    {
+      "names": "Phyrexian Myr // Servo",
+      "front": "tm3c/7",
+      "back": "tmh3/33"
+    },
+    {
+      "names": "Aetherborn // Servo",
+      "front": "tm3c/9",
+      "back": "tmh3/33"
+    },
+    {
+      "names": "Copy // Gremlin",
+      "front": "tmh3/1",
+      "back": "tmh3/23"
+    },
+    {
+      "names": "Copy // Treasure",
+      "front": "tmh3/1",
+      "back": "tmh3/34"
+    },
+    {
+      "names": "Copy // Gremlin",
+      "front": "tmh3/1",
+      "back": "tmh3/40"
+    },
+    {
+      "names": "Copy // Treasure",
+      "front": "tmh3/1",
+      "back": "tmh3/45"
+    },
+    {
+      "names": "Zombie // Plant",
+      "front": "tmh3/21",
+      "back": "tmh3/26"
+    },
+    {
+      "names": "Zombie // Insect",
+      "front": "tmh3/21",
+      "back": "tmh3/27"
+    },
+    {
+      "names": "Zombie // Plant",
+      "front": "tmh3/21",
+      "back": "tmh3/42"
+    },
+    {
+      "names": "Zombie // Insect",
+      "front": "tmh3/21",
+      "back": "tmh3/43"
+    },
+    {
+      "names": "Gremlin // Copy",
+      "front": "tmh3/23",
+      "back": "tmh3/37"
+    },
+    {
+      "names": "Insect // Zombie",
+      "front": "tmh3/27",
+      "back": "tmh3/39"
+    },
+    {
+      "names": "Copy // Ape Villain",
+      "front": "tmsc/1",
+      "back": "tmsc/10"
+    },
+    {
+      "names": "Copy // Wall",
+      "front": "tmsc/1",
+      "back": "tmsc/3"
+    },
+    {
+      "names": "Copy // Soldier",
+      "front": "tmsc/1",
+      "back": "tmsh/4"
+    },
+    {
+      "names": "Beast // Rhino",
+      "front": "tmsc/11",
+      "back": "tmsc/13"
+    },
+    {
+      "names": "Elephant // Rhino",
+      "front": "tmsc/12",
+      "back": "tmsc/13"
+    },
+    {
+      "names": "Construct // Ox",
+      "front": "tmsc/14",
+      "back": "tmsc/7"
+    },
+    {
+      "names": "Construct // Council of Reeds",
+      "front": "tmsc/14",
+      "back": "tmsc/8"
+    },
+    {
+      "names": "Construct // Treasure",
+      "front": "tmsc/14",
+      "back": "tmsh/22"
+    },
+    {
+      "names": "Vibranium // Angel",
+      "front": "tmsc/15",
+      "back": "tmsc/4"
+    },
+    {
+      "names": "Copy // Wall",
+      "front": "tmsc/17",
+      "back": "tmsc/19"
+    },
+    {
+      "names": "Copy // Ape Villain",
+      "front": "tmsc/17",
+      "back": "tmsc/26"
+    },
+    {
+      "names": "Copy // Soldier",
+      "front": "tmsc/17",
+      "back": "tmsh/23"
+    },
+    {
+      "names": "Shapeshifter // Villain",
+      "front": "tmsc/18",
+      "back": "tmsh/25"
+    },
+    {
+      "names": "Wall // Merfolk",
+      "front": "tmsc/19",
+      "back": "tmsh/24"
+    },
+    {
+      "names": "Shapeshifter // Villain",
+      "front": "tmsc/2",
+      "back": "tmsh/9"
+    },
+    {
+      "names": "Angel // Vibranium",
+      "front": "tmsc/20",
+      "back": "tmsc/31"
+    },
+    {
+      "names": "Bird // Treasure",
+      "front": "tmsc/21",
+      "back": "tmsh/27"
+    },
+    {
+      "names": "Goat // Soldier",
+      "front": "tmsc/22",
+      "back": "tmsh/23"
+    },
+    {
+      "names": "Ox // Construct",
+      "front": "tmsc/23",
+      "back": "tmsc/30"
+    },
+    {
+      "names": "Council of Reeds // Construct",
+      "front": "tmsc/24",
+      "back": "tmsc/30"
+    },
+    {
+      "names": "Council of Reeds // Merfolk",
+      "front": "tmsc/24",
+      "back": "tmsh/24"
+    },
+    {
+      "names": "Rogue // Treasure",
+      "front": "tmsc/25",
+      "back": "tmsh/27"
+    },
+    {
+      "names": "Beast // Rhino",
+      "front": "tmsc/27",
+      "back": "tmsc/29"
+    },
+    {
+      "names": "Elephant // Rhino",
+      "front": "tmsc/28",
+      "back": "tmsc/29"
+    },
+    {
+      "names": "Wall // Merfolk",
+      "front": "tmsc/3",
+      "back": "tmsh/6"
+    },
+    {
+      "names": "Construct // Treasure",
+      "front": "tmsc/30",
+      "back": "tmsh/27"
+    },
+    {
+      "names": "Robot Hero // Villain",
+      "front": "tmsc/32",
+      "back": "tmsh/9"
+    },
+    {
+      "names": "Bird // Treasure",
+      "front": "tmsc/5",
+      "back": "tmsh/22"
+    },
+    {
+      "names": "Goat // Soldier",
+      "front": "tmsc/6",
+      "back": "tmsh/4"
+    },
+    {
+      "names": "Council of Reeds // Merfolk",
+      "front": "tmsc/8",
+      "back": "tmsh/6"
+    },
+    {
+      "names": "Rogue // Treasure",
+      "front": "tmsc/9",
+      "back": "tmsh/22"
+    },
+    {
+      "names": "Robot Villain // Soldier",
+      "front": "tmsh/20",
+      "back": "tmsh/3"
+    },
+    {
+      "names": "Robot Villain // Villain",
+      "front": "tmsh/20",
+      "back": "tmsh/9"
+    },
+    {
+      "names": "Villain // Robot Villain",
+      "front": "tmsh/25",
+      "back": "tmsh/26"
+    },
+    {
+      "names": "Soldier // Villain",
+      "front": "tmsh/3",
+      "back": "tmsh/9"
+    },
+    {
+      "names": "Eldrazi Spawn // Worm",
+      "front": "tsoc/1",
+      "back": "tsoc/26"
+    },
+    {
+      "names": "Rogue // Spirit",
+      "front": "tsoc/10",
+      "back": "tsoc/25"
+    },
+    {
+      "names": "Snake // Zombie",
+      "front": "tsoc/11",
+      "back": "tsoc/12"
+    },
+    {
+      "names": "Dragon Illusion // Elemental",
+      "front": "tsoc/13",
+      "back": "tsos/2"
+    },
+    {
+      "names": "Beast // Fractal",
+      "front": "tsoc/14",
+      "back": "tsos/4"
+    },
+    {
+      "names": "Boar // Fractal",
+      "front": "tsoc/15",
+      "back": "tsos/5"
+    },
+    {
+      "names": "Frog Lizard // Food",
+      "front": "tsoc/16",
+      "back": "tsoc/27"
+    },
+    {
+      "names": "Fungus Beast // Goat",
+      "front": "tsoc/17",
+      "back": "tsoc/4"
+    },
+    {
+      "names": "Saproling // Pest",
+      "front": "tsoc/18",
+      "back": "tsoc/23"
+    },
+    {
+      "names": "Elemental // Copy",
+      "front": "tsoc/19",
+      "back": "tsos/1"
+    },
+    {
+      "names": "Cat // Inkling",
+      "front": "tsoc/2",
+      "back": "tsoc/22"
+    },
+    {
+      "names": "Elemental // Manifest",
+      "front": "tsoc/20",
+      "back": "tsoc/30"
+    },
+    {
+      "names": "Elemental // Treasure",
+      "front": "tsoc/20",
+      "back": "tsos/12"
+    },
+    {
+      "names": "Elemental // Phyrexian Myr",
+      "front": "tsoc/21",
+      "back": "tsoc/8"
+    },
+    {
+      "names": "Inkling // Pegasus",
+      "front": "tsoc/22",
+      "back": "tsoc/5"
+    },
+    {
+      "names": "Primo, the Indivisible // Treasure",
+      "front": "tsoc/24",
+      "back": "tsos/12"
+    },
+    {
+      "names": "Spirit // Copy",
+      "front": "tsoc/25",
+      "back": "tsos/1"
+    },
+    {
+      "names": "Thopter // Fractal",
+      "front": "tsoc/28",
+      "back": "tsos/4"
+    },
+    {
+      "names": "Contract // Copy",
+      "front": "tsoc/3",
+      "back": "tsos/1"
+    },
+    {
+      "names": "Spirit // Illusion",
+      "front": "tsoc/6",
+      "back": "tsoc/7"
+    },
+    {
+      "names": "Phyrexian Germ // Treasure",
+      "front": "tsoc/9",
+      "back": "tsos/12"
+    },
+    {
+      "names": "Eldrazi // Citizen",
+      "front": "ttdc/1",
+      "back": "ttdc/26"
+    },
+    {
+      "names": "Snake // Myr",
+      "front": "ttdc/10",
+      "back": "ttdc/30"
+    },
+    {
+      "names": "Timeless Witness // Goat",
+      "front": "ttdc/11",
+      "back": "ttdc/4"
+    },
+    {
+      "names": "Dragon Egg // Dragon",
+      "front": "ttdc/12",
+      "back": "ttdc/13"
+    },
+    {
+      "names": "Dragon // Frog Lizard",
+      "front": "ttdc/14",
+      "back": "ttdc/21"
+    },
+    {
+      "names": "Dragon // Copy",
+      "front": "ttdc/14",
+      "back": "ttdm/1"
+    },
+    {
+      "names": "Dragon // Treasure",
+      "front": "ttdc/14",
+      "back": "ttdm/16"
+    },
+    {
+      "names": "Dragon Illusion // Monk",
+      "front": "ttdc/15",
+      "back": "ttdm/3"
+    },
+    {
+      "names": "Elemental // Gold",
+      "front": "ttdc/16",
+      "back": "ttdc/29"
+    },
+    {
+      "names": "Elemental // Warrior",
+      "front": "ttdc/17",
+      "back": "ttdm/13"
+    },
+    {
+      "names": "First Mate Ragavan // Treasure",
+      "front": "ttdc/18",
+      "back": "ttdm/16"
+    },
+    {
+      "names": "Karox Bladewing // Copy",
+      "front": "ttdc/19",
+      "back": "ttdm/1"
+    },
+    {
+      "names": "Angel // Spirit",
+      "front": "ttdc/2",
+      "back": "ttdc/6"
+    },
+    {
+      "names": "Beast // Treasure",
+      "front": "ttdc/20",
+      "back": "ttdm/16"
+    },
+    {
+      "names": "Insect // Plant",
+      "front": "ttdc/22",
+      "back": "ttdc/24"
+    },
+    {
+      "names": "Insect // Zombie Druid",
+      "front": "ttdc/22",
+      "back": "ttdm/10"
+    },
+    {
+      "names": "Insect // Inkling",
+      "front": "ttdc/23",
+      "back": "ttdc/28"
+    },
+    {
+      "names": "Insect // Wall",
+      "front": "ttdc/23",
+      "back": "ttdc/7"
+    },
+    {
+      "names": "Plant // Goat",
+      "front": "ttdc/24",
+      "back": "ttdc/4"
+    },
+    {
+      "names": "Spider // Wall",
+      "front": "ttdc/25",
+      "back": "ttdc/7"
+    },
+    {
+      "names": "Spider // Bird",
+      "front": "ttdc/25",
+      "back": "ttdm/2"
+    },
+    {
+      "names": "Elemental // Monk",
+      "front": "ttdc/27",
+      "back": "ttdm/3"
+    },
+    {
+      "names": "Inkling // Bird",
+      "front": "ttdc/28",
+      "back": "ttdm/2"
+    },
+    {
+      "names": "Dog // Goblin",
+      "front": "ttdc/3",
+      "back": "ttdm/12"
+    },
+    {
+      "names": "Servo // Warrior",
+      "front": "ttdc/31",
+      "back": "ttdm/13"
+    },
+    {
+      "names": "Soldier // Copy",
+      "front": "ttdc/32",
+      "back": "ttdm/1"
+    },
+    {
+      "names": "Thopter // Bird",
+      "front": "ttdc/33",
+      "back": "ttdm/2"
+    },
+    {
+      "names": "Human // Rat",
+      "front": "ttdc/5",
+      "back": "ttdc/9"
+    },
+    {
+      "names": "Spirit // Treasure",
+      "front": "ttdc/6",
+      "back": "ttdm/16"
+    },
+    {
+      "names": "Salamander Warrior // Zombie Druid",
+      "front": "ttdc/8",
+      "back": "ttdm/10"
+    },
+    {
+      "names": "Zombie Druid // Treasure",
+      "front": "ttdm/10",
+      "back": "ttdm/16"
+    },
+    {
+      "names": "Goblin // Soldier",
+      "front": "ttdm/12",
+      "back": "ttdm/4"
+    },
+    {
+      "names": "Treasure // Monk",
+      "front": "ttdm/16",
+      "back": "ttdm/3"
+    },
+    {
+      "names": "Ooze // Clue",
+      "front": "ttmc/1",
+      "back": "ttmc/2"
+    },
+    {
+      "names": "Clue // Rat",
+      "front": "ttmc/2",
+      "back": "ttmt/6"
+    },
+    {
+      "names": "Treasure // Copy",
+      "front": "ttmc/3",
+      "back": "ttmt/1"
+    },
+    {
+      "names": "Treasure // Robot",
+      "front": "ttmc/3",
+      "back": "ttmt/10"
+    },
+    {
+      "names": "Treasure // Ninja",
+      "front": "ttmc/3",
+      "back": "ttmt/5"
+    },
+    {
+      "names": "Copy // Mutagen",
+      "front": "ttmt/1",
+      "back": "ttmt/9"
+    },
+    {
+      "names": "Robot // Mutagen",
+      "front": "ttmt/10",
+      "back": "ttmt/9"
+    },
+    {
+      "names": "Ninja // Food",
+      "front": "ttmt/5",
+      "back": "ttmt/8"
+    },
+    {
+      "names": "Ninja // Mutagen",
+      "front": "ttmt/5",
+      "back": "ttmt/9"
+    },
+    {
+      "names": "Rat // Food",
+      "front": "ttmt/6",
+      "back": "ttmt/8"
+    }
+  ]
+}

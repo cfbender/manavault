@@ -108,7 +108,16 @@ Code lives in `assets/react/src/pages/scan/`.
   CSV (`name,set_code,collector_number,quantity,finish,language,scryfall_id,back_scryfall_id`),
   which is handed to the collection import through `queueSharedImport` in
   `lib/native-shared-import.ts`. `back_scryfall_id` is the user-picked reverse of a single-faced
-  token (`token-back-sheet.tsx`); the import files token rows as token items.
+  token (`token-back-sheet.tsx`); the import files token rows as token items. The sheet's
+  candidates come from `tokenBackOptions(scryfallId)`: `known` are the backs Wizards' galleries
+  show printed with that face (`priv/data/token_backs.json`, keyed by Scryfall set/collector
+  number and loaded at compile time by `Manavault.Catalog.Tokens.KnownBacks`), `sameSet` is every
+  other token in the set. `known` is a hint, not a filter: the galleries publish one pairing per
+  face and other products pair differently (FRA Jace is listed with Spirit but also ships with
+  Cadet), so the UI always shows `sameSet` too. Regenerate the data file after new sets with
+  `WOTC_CONTENTFUL_TOKEN=... mise exec -- mix run scripts/token_backs.exs`; the script header
+  explains where the token comes from. Coverage starts at Modern Horizons 3, the first set whose
+  gallery publishes back images.
 
 The thresholds were calibrated with bundle `retrain-20260925T043526910942Z` on synthetic phone
 frames (real card scans composited with rotation, perspective, blur and noise): 60 of 60 cards

@@ -10,6 +10,16 @@ defmodule ManavaultWeb.Schema.Catalog.TokenTypes do
     field :owned_count, non_null(:integer)
   end
 
+  @desc """
+  Possible back faces of a single-faced token printing. `known` are tokens
+  Wizards' galleries show printed on its back; `sameSet` are the set's other
+  tokens, for printings without pairing data.
+  """
+  object :token_back_options do
+    field :known, non_null(list_of(non_null(:printing)))
+    field :same_set, non_null(list_of(non_null(:printing)))
+  end
+
   @desc "Owned copies of a token printing. Tokens are never allocated or valued."
   node object(:token_item) do
     field :quantity, non_null(:integer)

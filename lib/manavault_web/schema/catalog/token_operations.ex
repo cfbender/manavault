@@ -28,6 +28,12 @@ defmodule ManavaultWeb.Schema.Catalog.TokenOperations do
       arg(:limit, :integer, default_value: 60)
       resolve(&TokenResolvers.token_printings/3)
     end
+
+    @desc "Back-face candidates for a token printing, by its Scryfall ID."
+    field :token_back_options, non_null(:token_back_options) do
+      arg(:scryfall_id, non_null(:id))
+      resolve(&TokenResolvers.token_back_options/3)
+    end
   end
 
   object :token_mutations do

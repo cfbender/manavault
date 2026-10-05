@@ -127,6 +127,44 @@ defmodule ManavaultWeb.Schema.TokensTest do
              graphql(conn, ~s|{ tokenPrintings(q: "lotus") { scryfallId } }|)
   end
 
+  test "tokenBackOptions separates known pairings from the rest of the set", %{conn: conn} do
+    # M3C Dragon #12 is printed with MH3 Copy #1 on its back; Goblin #13 is not.
+    [dragon, copy, goblin] =
+      for {name, set, number} <- [
+            {"Dragon", "tm3c", "12"},
+            {"Copy", "tmh3", "1"},
+            {"Goblin", "tm3c", "13"}
+          ] do
+        Map.merge(@treasure, %{
+          "id" => "token-#{String.downcase(name)}",
+          "oracle_id" => "oracle-#{String.downcase(name)}",
+          "name" => name,
+          "set" => set,
+          "collector_number" => number
+        })
+      end
+
+    {:ok, _result} = Catalog.import_cards([dragon, copy, goblin])
+
+    query =
+      ~s|{ tokenBackOptions(scryfallId: "token-dragon") { known { scryfallId card { name } } sameSet { scryfallId } } }|
+
+    assert %{
+             "data" => %{
+               "tokenBackOptions" => %{
+                 "known" => [%{"scryfallId" => "token-copy", "card" => %{"name" => "Copy"}}],
+                 "sameSet" => [%{"scryfallId" => "token-goblin"}]
+               }
+             }
+           } = graphql(conn, query)
+
+    assert %{"data" => %{"tokenBackOptions" => %{"known" => [], "sameSet" => []}}} =
+             graphql(
+               conn,
+               ~s|{ tokenBackOptions(scryfallId: "nope") { known { id } sameSet { id } } }|
+             )
+  end
+
   test "cards expose produced tokens with owned counts", %{conn: conn} do
     {:ok, _item} = Catalog.add_token_item(%{scryfall_id: "token-treasure", quantity: 3})
 

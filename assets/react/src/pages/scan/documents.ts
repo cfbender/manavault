@@ -31,27 +31,6 @@ export const ScannerPrintingsDocument = graphql(`
   }
 `)
 
-/**
- * Possible other sides of a scanned single-faced token: the other tokens printed in its set.
- * Scryfall lists a Commander precon's double-sided tokens as two single-faced printings.
- */
-export const TokenBackPrintingsDocument = graphql(`
-  query TokenBackPrintings($setCode: String!, $excludeScryfallId: ID!) {
-    tokenPrintings(setCode: $setCode, excludeScryfallId: $excludeScryfallId, limit: 100) {
-      id
-      scryfallId
-      setCode
-      collectorNumber
-      imageUrl
-      card {
-        id
-        name
-        typeLine
-      }
-    }
-  }
-`)
-
 /** "Wrong card?": catalog cards by name, each with a printing to look the card up by. */
 export const ScannerCardSearchDocument = graphql(`
   query ScannerCardSearch($q: String!) {

@@ -132,6 +132,56 @@ launch and keeps navigation to that origin inside the web view; other hosts open
 in Safari. iOS App Transport Security blocks plain `http://` servers, so point
 the iOS shell at an `https://` URL.
 
+## Token Back Pairings
+
+`priv/data/token_backs.json` lists which single-faced tokens Wizards prints
+back to back (for example M3C Dragon #12 with MH3 Copy #1 and Treasure #34).
+The scanner's **What is on the back?** prompt and the Tokens tab's **Add token**
+dialog show these under **Known backs** before the rest of the set. The file is
+checked in and loaded at compile time by `Manavault.Catalog.Tokens.KnownBacks`,
+so updating it means regenerating it and shipping a new build.
+
+The pairings come from the card image galleries on magic.wizards.com, which
+carry a front and back image for every double-sided token from Modern
+Horizons 3 onward (older galleries have no back images, and neither Scryfall
+nor MTGJSON records pairings). The galleries read from a public Contentful
+space, so the script needs that space's read-only bearer token:
+
+1. Open any card image gallery, for example
+   <https://magic.wizards.com/en/products/modern-horizons-3/card-image-gallery>,
+   with the browser's network panel open.
+2. Find a request to `cdn.contentful.com` and copy the value after `Bearer ` in
+   its `Authorization` header. The token is public but rotates occasionally;
+   do not commit it.
+3. Make sure the local Scryfall catalog is current (`mise exec -- mix
+   manavault.scryfall.sync`, or let the running server's sync finish), since
+   every gallery face is resolved to a catalog printing by token set code
+   (`t` + set) and collector number, and faces that fail to resolve are
+   dropped.
+4. Regenerate the file:
+
+   ```sh
+   WOTC_CONTENTFUL_TOKEN=... mise exec -- mix run scripts/token_backs.exs
+   ```
+
+   The script prints each dropped face and finishes with
+   `wrote N pairs (M unresolved faces dropped)`. Dropped faces are normally
+   helper cards and emblems (The Monarch, Poison and Energy counters, City's
+   Blessing) that the catalog does not import as tokens, plus
+   `Incubator // Phyrexian`, which Scryfall already stores as one double-faced
+   printing. A dropped creature or artifact token means the catalog sync is
+   stale or the set's gallery filed it under a different collector number.
+
+5. Review the diff of `priv/data/token_backs.json` (the file is sorted so
+   additions show up as new lines), run
+   `mise exec -- mix test test/manavault/catalog/tokens`, and commit the
+   data file together with any script change.
+
+The galleries list one product's pairing per face, so the file is a hint, not
+the full set of combinations; bundles and decks pair the same face differently.
+That is why the UI always keeps the rest of the set visible under **Other
+tokens**.
+
 ## Release Helper
 
 Release commands are documented in [releasing.md](releasing.md). The short form

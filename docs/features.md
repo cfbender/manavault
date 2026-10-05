@@ -81,7 +81,8 @@ The collection has four primary views:
 - **Tokens** - the tokens you own, shown as card tiles with quantity badges and
   filtered by name. Double-sided tokens are named "Front // Back" and flip to
   the other face on click. **Add token** searches token printings (newest
-  first), optionally picks the back face from the same set, and sets quantity
+  first), optionally picks the back face (known pairings first, then the rest
+  of the set; see the scanner's **What is on the back?**), and sets quantity
   and finish; each tile's menu edits quantity/finish or removes the stack.
   Tokens have no location, condition, or value and are never allocated.
 - **Value** - market value compared with purchase basis, with editable purchase
@@ -171,10 +172,16 @@ camera; the browser or OS asks for camera access once.
   a misrecognized scan for the right card.
 - Tokens are recognized like any other card. Double-faced tokens carry both
   faces from Scryfall. For a single-faced token, the scanner pauses and asks
-  **What is on the back?**, showing the other tokens from the same set so you
-  can pick the reverse or mark it **Single-sided**; a chip on the entry changes
-  the answer later. **Add to collection** files tokens as token items (see
-  Collection -> Tokens) rather than collection items.
+  **What is on the back?**. Wizards prints tokens in fixed front/back
+  combinations, and `priv/data/token_backs.json` records the ones it publishes
+  in its card image galleries (Modern Horizons 3 onward); when the scanned
+  token is in that list those backs are shown first under **Known backs**. The
+  published list is incomplete (one product's pairing per face; bundles and
+  decks pair differently), so the rest of the set always follows under **Other
+  tokens**. Tokens from older sets show the whole set. Pick the reverse or mark it
+  **Single-sided**; a chip on the entry changes the answer later. **Add to
+  collection** files tokens as token items (see Collection -> Tokens) rather
+  than collection items.
 - **Collect training data** (off by default) uploads each scan's camera frame
   and card to your server so the recognition model can be retrained on your
   phone, stand and foils; see [scanner.md](scanner.md#training-data).

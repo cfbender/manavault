@@ -3,6 +3,10 @@ import { Plus } from "lucide-react"
 import { useEffect, useState, type FormEvent } from "react"
 import { SearchField } from "../../../components/search-field"
 import {
+  TokenBackFaceOptions,
+  useTokenBackOptions,
+} from "../../../components/token-back-face-options"
+import {
   TokenPrintingGrid,
   type TokenPrintingOption,
 } from "../../../components/token-printing-grid"
@@ -16,7 +20,6 @@ import {
 } from "../../../components/ui/dialog"
 import { useToast } from "../../../components/ui/toast"
 import { cn, pluralize, present } from "../../../lib/utils"
-import { TokenBackPrintingsDocument } from "../../scan/documents"
 import { MODAL_SEARCH_DEBOUNCE_MS } from "../constants"
 import { collectionFinishValue } from "../form-helpers"
 import {
@@ -31,8 +34,8 @@ const MIN_SEARCH_LENGTH = 2
 
 /**
  * Add an owned token by picking its printing from search results. A token can carry a
- * second token on its back (Commander precons print them that way), so the picked
- * printing's set-mates are offered as the back face.
+ * second token on its back (Commander precons print them that way), so the tokens known
+ * to be printed with the picked printing, then its set-mates, are offered as the back face.
  */
 export function AddTokenDialog({
   onAdded,
@@ -213,13 +216,9 @@ function BackFacePicker({
   onPick: (back: TokenPrintingOption | null) => void
   printing: TokenPrinting
 }) {
-  const { data, loading } = useQuery(TokenBackPrintingsDocument, {
-    variables: { setCode: printing.setCode ?? "", excludeScryfallId: printing.scryfallId },
-    skip: !printing.setCode,
-  })
-  const options = data?.tokenPrintings ?? []
+  const { known, sameSet, loading, isEmpty } = useTokenBackOptions(printing.scryfallId)
 
-  if (!loading && options.length === 0) return null
+  if (!loading && isEmpty) return null
 
   return (
     <fieldset className="space-y-1.5">
@@ -238,15 +237,17 @@ function BackFacePicker({
           </Button>
         ) : null}
       </div>
-      {loading && options.length === 0 ? (
+      {loading && isEmpty ? (
         <p className="text-sm text-base-content/60">
           Loading {printing.setCode?.toUpperCase()} tokens…
         </p>
       ) : (
-        <TokenPrintingGrid
-          className="max-h-44 overflow-y-auto rounded-box border border-base-300 bg-base-200/35 p-3"
+        <TokenBackFaceOptions
+          className="max-h-56 overflow-y-auto rounded-box border border-base-300 bg-base-200/35 p-3"
           columnsClassName="grid-cols-3 sm:grid-cols-5"
-          options={options}
+          known={known}
+          sameSet={sameSet}
+          setCode={printing.setCode ?? ""}
           selectedScryfallId={back?.scryfallId}
           onPick={(option) => onPick(back?.scryfallId === option.scryfallId ? null : option)}
         />

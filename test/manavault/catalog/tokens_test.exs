@@ -142,4 +142,73 @@ defmodule Manavault.Catalog.TokensTest do
     assert [] = Catalog.search_token_printings(q: "lotus")
     assert [] = Catalog.search_token_printings(q: "")
   end
+
+  describe "token_back_options/1" do
+    # Real M3C faces: Dragon #12 is printed with Shapeshifter #8, Copy (MH3 #1),
+    # or Treasure (MH3 #34, not imported here); Goblin #13 only with Tarmogoyf #22.
+    @dragon_m3c Map.merge(@treasure_tlea, %{
+                  "id" => "token-dragon-m3c",
+                  "oracle_id" => "oracle-dragon",
+                  "name" => "Dragon",
+                  "set" => "tm3c",
+                  "collector_number" => "12"
+                })
+    @shapeshifter_m3c Map.merge(@dragon_m3c, %{
+                        "id" => "token-shapeshifter-m3c",
+                        "oracle_id" => "oracle-shapeshifter",
+                        "name" => "Shapeshifter",
+                        "collector_number" => "8"
+                      })
+    @goblin_m3c Map.merge(@dragon_m3c, %{
+                  "id" => "token-goblin-m3c",
+                  "oracle_id" => "oracle-goblin",
+                  "name" => "Goblin",
+                  "collector_number" => "13"
+                })
+    @copy_mh3 Map.merge(@dragon_m3c, %{
+                "id" => "token-copy-mh3",
+                "oracle_id" => "oracle-copy",
+                "name" => "Copy",
+                "set" => "tmh3",
+                "collector_number" => "1"
+              })
+
+    setup do
+      # A playable card at a paired position must never be offered as a back.
+      impostor =
+        Map.merge(@black_lotus, %{
+          "id" => "card-at-tmh3-34",
+          "set" => "tmh3",
+          "collector_number" => "34"
+        })
+
+      {:ok, _result} =
+        Catalog.import_cards([@dragon_m3c, @shapeshifter_m3c, @goblin_m3c, @copy_mh3, impostor])
+
+      :ok
+    end
+
+    test "lists known backs in data order, then the set's other tokens" do
+      assert %{known: known, same_set: same_set} =
+               Catalog.token_back_options("token-dragon-m3c")
+
+      assert [
+               %Printing{scryfall_id: "token-shapeshifter-m3c", card: %{name: "Shapeshifter"}},
+               %Printing{scryfall_id: "token-copy-mh3", card: %{name: "Copy"}}
+             ] = known
+
+      assert [%Printing{scryfall_id: "token-goblin-m3c"}] = same_set
+    end
+
+    test "falls back to the set when no known back is in the catalog" do
+      assert %{known: [], same_set: same_set} = Catalog.token_back_options("token-goblin-m3c")
+
+      assert ["token-dragon-m3c", "token-shapeshifter-m3c"] =
+               same_set |> Enum.map(& &1.scryfall_id) |> Enum.sort()
+    end
+
+    test "is empty for an unknown printing" do
+      assert %{known: [], same_set: []} = Catalog.token_back_options("nope")
+    end
+  end
 end

@@ -83,6 +83,7 @@ defmodule Manavault.Catalog do
   defdelegate export_collection_text(filters \\ []), to: Cached
 
   defdelegate search_token_printings(filters, opts \\ []), to: Tokens
+  defdelegate token_back_options(scryfall_id), to: Tokens
   defdelegate list_token_items(filters \\ []), to: Tokens
   defdelegate count_token_items(), to: Tokens
   defdelegate get_token_item!(id), to: Tokens

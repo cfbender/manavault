@@ -4,9 +4,10 @@ defmodule Manavault.Catalog.Tokens do
   token layout; owning one is a `TokenItem`, separate from collection copies.
   """
 
-  alias Manavault.Catalog.Tokens.{Items, Produced, SearchPrintings}
+  alias Manavault.Catalog.Tokens.{BackOptions, Items, Produced, SearchPrintings}
 
   defdelegate search_token_printings(filters, opts \\ []), to: SearchPrintings, as: :run
+  defdelegate token_back_options(scryfall_id), to: BackOptions, as: :run
 
   defdelegate list_token_items(filters \\ []), to: Items, as: :list
   defdelegate count_token_items(), to: Items, as: :count
