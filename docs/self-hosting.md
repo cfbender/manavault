@@ -314,6 +314,13 @@ text guesses rather than real token cards). Progress is logged as
 `Scryfall catalog sync ...`, and **Settings -> Scryfall data -> Reload Scryfall
 catalog** forces the sync by hand.
 
+`GenServer {Oban.Registry, {Oban, Oban.Stager}} terminating` with
+`database is locked` during a catalog import means Oban's job stager waited
+the full SQLite `busy_timeout` (15 seconds) for the write lock while the import
+committed batches back to back. The stager restarts on its own and the import is
+unaffected, so an occasional crash of this kind is noise. Seeing it repeatedly
+outside of an import points to another long-running writer.
+
 To roll back, stop the container, restore the pre-migration backup (see
 [Restore](#restore)), and start the previous image tag. Switching the tag alone
 leaves the newer schema in place.

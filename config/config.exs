@@ -39,9 +39,16 @@ config :manavault,
 # busy_timeout never applies to lock upgrades. Immediate mode takes the write
 # lock at BEGIN, so concurrent transactions queue (up to busy_timeout) instead
 # of erroring, and WAL keeps reads unblocked alongside the writer.
+#
+# The wait is a poll, not a queue: SQLite's busy handler retries every 100ms,
+# and a bulk writer such as the catalog import frees the lock only in the short
+# gaps between batch commits, so a waiter can miss every poll for seconds at a
+# time. Oban's stager does not retry Exqlite errors and crashed on 5s during
+# imports. 15s matches Ecto's default query timeout, so nothing waits longer
+# than its query already could.
 config :manavault, Manavault.Repo,
   default_transaction_mode: :immediate,
-  busy_timeout: 5_000
+  busy_timeout: 15_000
 
 config :manavault, Oban,
   engine: Oban.Engines.Lite,

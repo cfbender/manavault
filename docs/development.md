@@ -153,11 +153,11 @@ space, so the script needs that space's read-only bearer token:
 2. Find a request to `cdn.contentful.com` and copy the value after `Bearer ` in
    its `Authorization` header. The token is public but rotates occasionally;
    do not commit it.
-3. Make sure the local Scryfall catalog is current (`mise exec -- mix
-   manavault.scryfall.sync`, or let the running server's sync finish), since
-   every gallery face is resolved to a catalog printing by token set code
-   (`t` + set) and collector number, and faces that fail to resolve are
-   dropped.
+3. Make sure the local Scryfall catalog is current (run
+   `mise exec -- mix manavault.scryfall.sync`, or let the running server's
+   sync finish), since every gallery face is resolved to a catalog printing by
+   token set code (`t` + set) and collector number, and faces that fail to
+   resolve are dropped.
 4. Regenerate the file:
 
    ```sh
