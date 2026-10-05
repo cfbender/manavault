@@ -1,11 +1,11 @@
 ---
 id: TASK-89
 title: 'Scanner tokens mode, learned token backs, token selection and import fixes'
-status: Review
+status: Done
 assignee:
   - '@cfbender-pdq'
 created_date: '2026-10-05 22:05'
-updated_date: '2026-10-05 22:47'
+updated_date: '2026-10-05 23:16'
 labels: []
 dependencies: []
 ordinal: 106000
@@ -46,6 +46,8 @@ Phase 2 of owned tokens (follows TASK-88). Scanning a stack of tokens is slow an
 Validation: mix test 847 passed; aube run test:react 259 node + 178 vitest passed; typecheck, lint, vp fmt --check, credo --strict, compile --warnings-as-errors clean. Portal checks (agent-browser, 390px, fake getUserMedia init script): Tokens pill toggles status copy and empty-state hint; Identify sheet in Tokens mode returns only token cards for 'dragon'; scan list Back badges wrap as whole badges and truncate; back sheet lists session-picked backs first (merged with server record when known); Tokens tab Select -> Select all/Clear/Remove bar, Remove 1 token confirm dialog, deleteTokenItems removed the item (token_items 5 -> 4). Decisions: token-mode ready threshold reuses minScore 0.6 (uncalibrated); tap logs via viewfinder pointerdown; session backs live only in the sheet until import teaches the server; deleteTokenItems takes explicit IDs (Tokens list is unpaginated); TokenPrintingGrid hides the set line when an option has no set code. Oracle-side token oversampling / masked search graph delegated to thread T-01a10e19-37cd-726a-9248-89ef98e54c92; the client can still only filter the fixed top-5 until that lands.
 
 Follow-up: Tokens toggle moved from the viewfinder bottom row into the scanner settings sheet ('Tokens mode' ToggleRow); status pill still shows the mode. Client now implements Oracle's search mask contract (oracle commit b48ed61, unpushed): recognizer checks search.onnx inputNames for 'mask', builds all/tokens Float32 masks over arts.json order once, feeds the frame's scope (tokens mode -> 'tokens'), drops padded rows scoring < -1; older bundles keep the embeddings-only call. 'token search' shown under Recognition model when available. Tests: scanner-pipeline.test.mjs galleryMask/isPaddedResult; node 261 + vitest 178 pass; typecheck/lint/fmt clean; portal check of settings sheet and bottom row.
+
+Shipped: manavault origin/main d8f6346 (plus 3e783db resync-on-upgrade, 9b38daa deck linked tokens, 1c481f5 busy_timeout). Hub penalty follow-up delegated to the oracle thread T-01a10e19-37cd-726a-9248-89ef98e54c92.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary

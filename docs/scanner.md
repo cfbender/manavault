@@ -127,6 +127,15 @@ Code lives in `assets/react/src/pages/scan/`.
   and fell to the hub art Funeral Room // Awakening Hall (in the top five of 12% of all
   queries). The token frames lifted synthetic token top-1 from 0.81 to 0.87 with other cards
   unchanged; a tokens-only mask returned only tokens at 729/800 top-1.
+- Hub penalty (Oracle `cardid/hubs.py`): at export, each gallery art's mean similarity to its
+  ten nearest cuts from up to 3000 real card scans (never its own card) is compared with the
+  gallery median, and `0.25 × (r − median)` clipped to `[0, 0.1]` is baked into `search.onnx`
+  next to the frame penalty. Scores only ever go down, so the client's thresholds and padding
+  cut are unaffected; the manifest records what was applied under `gallery.hub_penalty`
+  (`weight, neighbours, cap, cards, cards_fingerprint, median_r, penalised, max`), or `null`
+  when the export had fewer than 200 scans and shipped none. Measured on the same synthetic
+  scenes: Funeral Room in the top five 11.6% → 3.1%, other-card top-1 0.913 → 0.917, token
+  top-1 unchanged at 0.870, with correct answers scoring ≥ 0.75 about half a point rarer.
 - `printing-choice.ts` picks the default printing and finish; `scan-list.ts` builds the import
   CSV (`name,set_code,collector_number,quantity,finish,language,scryfall_id,back_scryfall_id`),
   which is handed to the collection import through `queueSharedImport` in
