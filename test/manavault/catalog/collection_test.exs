@@ -1,6 +1,8 @@
 defmodule Manavault.Catalog.CollectionTest do
   use Manavault.DataCase
-  use Manavault.CatalogTestFixtures, fixtures: [:black_lotus, :time_walk, :plains]
+
+  use Manavault.CatalogTestFixtures,
+    fixtures: [:black_lotus, :reversible_lotus, :time_walk, :plains]
 
   alias Manavault.Catalog
   alias Manavault.Catalog.{Card, CollectionItem, Printing}
@@ -125,6 +127,16 @@ defmodule Manavault.Catalog.CollectionTest do
 
     assert %{exact: 1, ambiguous: 0, unresolved: 0} = preview
     assert [%{printing: %{card: %Card{name: "Homeward Path"}}}] = preview.rows
+  end
+
+  test "collection import matches a reversible card by its full or face name" do
+    assert {:ok, _result} = Catalog.import_cards([@black_lotus, @reversible_lotus])
+
+    for text <- ["1 Black Lotus // Black Lotus (LEB) 351", "1 Black Lotus (LEB) 351"] do
+      assert {:ok, preview} = Catalog.preview_collection_import(text, format: :txt)
+      assert %{exact: 1, ambiguous: 0, unresolved: 0} = preview
+      assert [%{printing: %Printing{scryfall_id: "scryfall-reversible-1"}}] = preview.rows
+    end
   end
 
   test "collection import defaults to an available finish for the printing" do
