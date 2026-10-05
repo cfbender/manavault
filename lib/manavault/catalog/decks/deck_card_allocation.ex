@@ -93,6 +93,7 @@ defmodule Manavault.Catalog.Decks.DeckCardAllocation do
         |> Repo.preload([:deck, :preferred_printing])
 
       with :ok <- EditGuard.ensure_deck_card_editable(deck_card),
+           :ok <- ensure_allocatable_zone(deck_card),
            :ok <- validate_positive_allocation_quantity(quantity) do
         status = AllocationStatus.deck_card_allocation_status(deck_card)
         needed = min(quantity, max(status.required - status.allocated, 0))
@@ -146,7 +147,8 @@ defmodule Manavault.Catalog.Decks.DeckCardAllocation do
         %CollectionItem{} = item,
         quantity
       ) do
-    with :ok <- validate_collection_item_matches_deck_card(item, deck_card),
+    with :ok <- ensure_allocatable_zone(deck_card),
+         :ok <- validate_collection_item_matches_deck_card(item, deck_card),
          :ok <- validate_deck_card_allocation_room(deck_card, item, quantity),
          {:ok, deck_card} <- put_deck_card_allocation_printing(deck_card, item) do
       {:ok, insert_or_update_deck_allocation!(deck_card, item, quantity)}
@@ -164,7 +166,14 @@ defmodule Manavault.Catalog.Decks.DeckCardAllocation do
     end
   end
 
+  @doc "Considering cards are ideas, not deck contents, so they never hold collection copies."
+  def ensure_allocatable_zone(%DeckCard{zone: "considering"}),
+    do: {:error, :considering_not_allocatable}
+
+  def ensure_allocatable_zone(%DeckCard{}), do: :ok
+
   def insert_deck_allocation!(%DeckCard{} = deck_card, %CollectionItem{} = item, quantity) do
+    rollback_unless_allocatable!(deck_card)
     source_location_id = item.location_id
     allocated_item = AllocationItems.move_to_deck!(item, quantity)
 
@@ -192,6 +201,7 @@ defmodule Manavault.Catalog.Decks.DeckCardAllocation do
          %CollectionItem{} = item,
          quantity
        ) do
+    rollback_unless_allocatable!(deck_card)
     source_location_id = item.location_id
     allocated_item = AllocationItems.move_to_deck!(item, quantity)
 
@@ -232,6 +242,10 @@ defmodule Manavault.Catalog.Decks.DeckCardAllocation do
       {:error, changeset} ->
         Repo.rollback(changeset)
     end
+  end
+
+  defp rollback_unless_allocatable!(%DeckCard{} = deck_card) do
+    with {:error, reason} <- ensure_allocatable_zone(deck_card), do: Repo.rollback(reason)
   end
 
   defp validate_collection_item_matches_deck_card(

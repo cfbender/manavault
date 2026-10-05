@@ -177,6 +177,45 @@ defmodule Manavault.Catalog.DeckAllocationMovementTest do
              Catalog.get_collection_item!(allocated_item_id)
   end
 
+  test "considering cards never allocate collection copies or proxies" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+    assert {:ok, binder} = Catalog.create_location(%{name: "Idea Binder", kind: "binder"})
+
+    assert {:ok, item} =
+             Catalog.create_collection_item(%{
+               "scryfall_id" => "scryfall-printing-1",
+               "quantity" => 2,
+               "location_id" => binder.id
+             })
+
+    binder_id = binder.id
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Considering Only"})
+
+    assert {:ok, [considering_lotus]} =
+             Catalog.bulk_add_collection_items_to_deck(deck, [item.id], "considering")
+
+    assert considering_lotus.zone == "considering"
+
+    assert {:ok, _deck_card} =
+             Catalog.add_collection_item_to_deck(deck, item, "considering")
+
+    assert Repo.aggregate(DeckAllocation, :count) == 0
+
+    assert %CollectionItem{location_id: ^binder_id, quantity: 2} =
+             Catalog.get_collection_item!(item.id)
+
+    assert {:error, :considering_not_allocatable} =
+             Catalog.allocate_collection_item_to_deck_card(considering_lotus.id, item.id)
+
+    assert {:error, :considering_not_allocatable} =
+             Catalog.allocate_proxy_to_deck_card(considering_lotus.id)
+
+    assert {:ok, %{allocated: 0}} =
+             Catalog.bulk_allocate_deck(Catalog.get_deck!(deck.id), :matching_printings)
+
+    assert Repo.aggregate(DeckAllocation, :count) == 0
+  end
+
   test "deck allocation does not count collection items held in list locations" do
     assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
     assert {:ok, list} = Catalog.create_location(%{name: "Wishlist", kind: "list"})

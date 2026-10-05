@@ -35,12 +35,11 @@ defmodule Manavault.Catalog.Decks.BulkCollectionAllocation do
              {:ok, items} <- load_ordered_collection_items(item_ids),
              :ok <- validate_single_finish_per_card(items),
              {:ok, deck_cards_by_key} <- upsert_bulk_deck_cards(deck, items, zone),
-             :ok <- validate_bulk_deck_card_allocation_room(items, deck_cards_by_key) do
-          Enum.each(items, fn item ->
-            unless basic_land_item?(item) do
-              deck_card = Map.fetch!(deck_cards_by_key, collection_item_deck_card_key(item))
-              DeckCardAllocation.insert_deck_allocation!(deck_card, item, 1)
-            end
+             allocatable_items = allocatable_items(items, zone),
+             :ok <- validate_bulk_deck_card_allocation_room(allocatable_items, deck_cards_by_key) do
+          Enum.each(allocatable_items, fn item ->
+            deck_card = Map.fetch!(deck_cards_by_key, collection_item_deck_card_key(item))
+            DeckCardAllocation.insert_deck_allocation!(deck_card, item, 1)
           end)
 
           deck_cards =
@@ -211,9 +210,13 @@ defmodule Manavault.Catalog.Decks.BulkCollectionAllocation do
     |> Repo.update()
   end
 
-  defp validate_bulk_deck_card_allocation_room(items, deck_cards_by_key) do
-    allocatable_items = Enum.reject(items, &basic_land_item?/1)
+  # Considering cards are only ideas, so adding copies there never allocates them.
+  defp allocatable_items(_items, "considering"), do: []
+  defp allocatable_items(items, _zone), do: Enum.reject(items, &basic_land_item?/1)
 
+  defp validate_bulk_deck_card_allocation_room([], _deck_cards_by_key), do: :ok
+
+  defp validate_bulk_deck_card_allocation_room(allocatable_items, deck_cards_by_key) do
     deck_cards_with_status =
       deck_cards_by_key
       |> Map.values()

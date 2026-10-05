@@ -2,7 +2,7 @@ defmodule Manavault.Catalog.Decks.ProxyAllocation do
   @moduledoc false
 
   alias Manavault.Catalog.{DeckCard, Util}
-  alias Manavault.Catalog.Decks.{AllocationStatus, EditGuard}
+  alias Manavault.Catalog.Decks.{AllocationStatus, DeckCardAllocation, EditGuard}
   alias Manavault.Repo
 
   def allocate_proxy_to_deck_card(deck_card_id, quantity \\ 1) do
@@ -15,6 +15,7 @@ defmodule Manavault.Catalog.Decks.ProxyAllocation do
         |> Repo.preload([:deck, :preferred_printing, card: []])
 
       with :ok <- EditGuard.ensure_deck_card_editable(deck_card),
+           :ok <- DeckCardAllocation.ensure_allocatable_zone(deck_card),
            :ok <- validate_positive_allocation_quantity(quantity),
            :ok <- validate_deck_card_proxy_allocation_room(deck_card, quantity) do
         put_deck_card_proxy_quantity(deck_card, (deck_card.proxy_quantity || 0) + quantity)

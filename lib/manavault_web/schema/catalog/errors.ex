@@ -69,6 +69,9 @@ defmodule ManavaultWeb.Schema.Catalog.Errors do
   def deck_allocation_error(:allocation_list_location),
     do: "List items cannot be allocated to decks."
 
+  def deck_allocation_error(:considering_not_allocatable),
+    do: "Considering cards cannot be allocated."
+
   def deck_allocation_error(:allocation_card_mismatch),
     do: "Collection item does not match that deck card."
 

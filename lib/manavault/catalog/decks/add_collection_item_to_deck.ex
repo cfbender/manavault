@@ -18,10 +18,18 @@ defmodule Manavault.Catalog.Decks.AddCollectionItemToDeck do
       }
 
       with {:ok, deck_card} <- AddCardToDeck.run(deck, attrs),
-           {:ok, _allocation} <-
-             DeckCardAllocation.allocate_collection_item_to_deck_card(deck_card.id, item.id, 1) do
+           :ok <- allocate_unless_considering(deck_card, item) do
         {:ok, FetchDeckRecords.preload_deck_card(deck_card)}
       end
     end)
+  end
+
+  # Considering cards are only ideas, so adding a copy there never allocates it.
+  defp allocate_unless_considering(%{zone: "considering"}, _item), do: :ok
+
+  defp allocate_unless_considering(deck_card, item) do
+    with {:ok, _allocation} <-
+           DeckCardAllocation.allocate_collection_item_to_deck_card(deck_card.id, item.id, 1),
+         do: :ok
   end
 end

@@ -52,7 +52,11 @@ defmodule Manavault.Catalog.Decks.BulkDeckAllocation do
   def preview_bulk_allocate_deck(%Deck{} = deck, mode)
       when mode in [:exact_printings, :matching_printings] do
     deck = Repo.preload(deck, Preloads.deck_preloads(), force: true)
-    deck_cards = AllocationStatus.put_deck_card_allocation_statuses(deck.deck_cards)
+
+    deck_cards =
+      deck.deck_cards
+      |> Enum.filter(&(DeckCardAllocation.ensure_allocatable_zone(&1) == :ok))
+      |> AllocationStatus.put_deck_card_allocation_statuses()
 
     preview =
       deck_cards
