@@ -21,6 +21,8 @@ export const CollectionBulkCleanDocument = graphql(`
       cards {
         cardId
         cardName
+        typeLine
+        colors
         totalCopies
         pullQuantity
         swappableCopies

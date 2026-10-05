@@ -57,6 +57,8 @@ test("shows where to pull surplus bulk and refetches when thresholds change", as
               {
                 cardId: "oracle-elves",
                 cardName: "Llanowar Elves",
+                typeLine: "Creature — Elf Druid",
+                colors: ["G"],
                 totalCopies: 12,
                 pullQuantity: 8,
                 swappableCopies: 0,
@@ -157,6 +159,8 @@ function bulkCleanResult(pulls: ReturnType<typeof pull>[], swappableCopies = 0) 
               {
                 cardId: "oracle-elves",
                 cardName: "Llanowar Elves",
+                typeLine: "Creature — Elf Druid",
+                colors: ["G"],
                 totalCopies: 12,
                 pullQuantity,
                 swappableCopies,

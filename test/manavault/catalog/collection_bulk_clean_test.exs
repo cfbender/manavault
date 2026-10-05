@@ -90,6 +90,17 @@ defmodule Manavault.Catalog.CollectionBulkCleanTest do
            ]
   end
 
+  test "cards are listed alphabetically with the colors and types used to group them" do
+    create_item!("scryfall-printing-basic-plains", 10, nil)
+
+    assert {:ok, %{cards: cards}} = Catalog.collection_bulk_clean(min_copies: 5)
+
+    assert Enum.map(cards, &{&1.card_name, &1.total_copies, &1.colors, &1.type_line}) == [
+             {"Llanowar Elves", 12, ["G"], "Creature — Elf Druid"},
+             {"Plains", 16, [], "Basic Land — Plains"}
+           ]
+  end
+
   test "foils are pulled last unless the preference is turned off", context do
     foil = create_item!("elves-b", 2, nil, "foil")
 

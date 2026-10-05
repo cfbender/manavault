@@ -265,6 +265,8 @@ defmodule ManavaultWeb.Schema.Catalog.CollectionTypes do
   object :collection_bulk_clean_card do
     field :card_id, non_null(:id)
     field :card_name, non_null(:string)
+    field :type_line, :string
+    field :colors, non_null(list_of(non_null(:string)))
     field :image_url, :string
     field :total_copies, non_null(:integer)
     field :pull_quantity, non_null(:integer)

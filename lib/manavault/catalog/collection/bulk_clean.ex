@@ -48,7 +48,7 @@ defmodule Manavault.Catalog.Collection.BulkClean do
         card_pulls(rows, keep_copies, prefer_keep_foils, kept)
       end)
       |> Enum.reject(&(&1.pull_quantity == 0))
-      |> Enum.sort_by(&{-&1.total_copies, &1.card_name})
+      |> Enum.sort_by(&{&1.card_name, &1.card_id})
 
     {:ok,
      %{
@@ -156,6 +156,8 @@ defmodule Manavault.Catalog.Collection.BulkClean do
     %{
       card_id: item.printing.card.oracle_id,
       card_name: item.printing.card.name,
+      type_line: item.printing.card.type_line,
+      colors: Util.decode_json(item.printing.card.colors, []),
       image_url: image_url(item),
       total_copies: total_copies,
       pull_quantity: pull_quantity,
