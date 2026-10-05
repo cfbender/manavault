@@ -3,7 +3,7 @@ defmodule Manavault.Catalog.CollectionTest do
   use Manavault.CatalogTestFixtures, fixtures: [:black_lotus, :time_walk, :plains]
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.{Card, CollectionItem}
+  alias Manavault.Catalog.{Card, CollectionItem, Printing}
   alias Manavault.Repo
 
   test "collection CSV import previews exact rows and applies one selected location" do
@@ -34,6 +34,43 @@ defmodule Manavault.Catalog.CollectionTest do
     assert Enum.map(items, & &1.purchase_price_cents) == [9_000_000, 500]
     assert Catalog.count_collection_items([]) == 3
     assert Catalog.count_collection_items(location_id: to_string(binder.id)) == 3
+  end
+
+  test "collection import commit rejects a location removed after preview" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+    assert {:ok, location} = Catalog.create_location(%{name: "Temporary Box", kind: "box"})
+
+    csv = """
+    Quantity,Card Name,Set Code,Collector Number,Finish
+    1,Black Lotus,lea,232,nonfoil
+    """
+
+    assert {:ok, preview} =
+             Catalog.preview_collection_import(csv, format: :csv, location_id: location.id)
+
+    assert {:ok, _location} = Catalog.delete_location(location)
+
+    assert {:error, :location_not_found} = Catalog.import_collection_preview(preview)
+    assert {:error, :location_not_found} = Catalog.preview_collection_import_auto_sort(preview)
+    assert [] = Catalog.list_collection_items([], limit: 10)
+  end
+
+  test "collection import commit rejects a printing removed after preview" do
+    assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([@black_lotus])
+
+    csv = """
+    Quantity,Card Name,Set Code,Collector Number,Finish
+    1,Black Lotus,lea,232,nonfoil
+    """
+
+    assert {:ok, %{rows: [%{attrs: %{"scryfall_id" => scryfall_id}}]} = preview} =
+             Catalog.preview_collection_import(csv, format: :csv)
+
+    Repo.delete!(Repo.get!(Printing, scryfall_id))
+
+    assert {:error, :printing_not_found} = Catalog.import_collection_preview(preview)
+    assert {:error, :printing_not_found} = Catalog.preview_collection_import_auto_sort(preview)
+    assert [] = Catalog.list_collection_items([], limit: 10)
   end
 
   test "collection CSV import can target no location" do

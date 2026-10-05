@@ -28,6 +28,13 @@ defmodule ManavaultWeb.Schema.Catalog.Errors do
   def commander_error(reason), do: deck_edit_error(reason)
 
   def import_error(:location_not_found), do: "Import location was not found."
+
+  def import_error(:printing_not_found),
+    do: "A card printing in this import no longer exists. Preview the import again."
+
+  def import_error(:stale_import_reference),
+    do: "A location or card printing in this import no longer exists. Preview the import again."
+
   def import_error(:invalid_import_format), do: "Import file must be a CSV or TXT file."
   def import_error(:invalid_import_file), do: "Could not parse that import file."
   def import_error(:invalid_purchase_price), do: "Import purchase price must be a dollar amount."

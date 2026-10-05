@@ -107,11 +107,44 @@ defmodule Manavault.Catalog.Collection.Import do
     end
   end
 
+  # Preview rows round-trip through the client, so their locations and printings
+  # may have been deleted since the preview was built.
   defp import_preview_rows(rows, create_item) do
+    exact_attrs = for %{status: :exact, attrs: attrs} <- rows, do: attrs
+
+    with :ok <-
+           validate_references(exact_attrs, "location_id", Location, :id, :location_not_found),
+         :ok <-
+           validate_references(
+             exact_attrs,
+             "scryfall_id",
+             Printing,
+             :scryfall_id,
+             :printing_not_found
+           ) do
+      create_preview_rows(rows, create_item)
+    else
+      {:error, reason} -> Repo.rollback(reason)
+    end
+  end
+
+  defp validate_references(attrs_list, key, schema, field, error) do
+    ids =
+      attrs_list |> Enum.map(&Map.get(&1, key)) |> Enum.reject(&(&1 in [nil, ""])) |> Enum.uniq()
+
+    existing_count =
+      if ids == [],
+        do: 0,
+        else: schema |> where([record], field(record, ^field) in ^ids) |> Repo.aggregate(:count)
+
+    if existing_count == length(ids), do: :ok, else: {:error, error}
+  end
+
+  defp create_preview_rows(rows, create_item) do
     Enum.reduce(rows, %{imported: 0, skipped: 0, item_ids: []}, fn row, result ->
       case row.status do
         :exact ->
-          case create_item.(row.attrs) do
+          case create_item_or_rollback(create_item, row.attrs) do
             {:ok, item} ->
               result
               |> update_in([:imported], &(&1 + 1))
@@ -125,6 +158,14 @@ defmodule Manavault.Catalog.Collection.Import do
           update_in(result.skipped, &(&1 + 1))
       end
     end)
+  end
+
+  # SQLite foreign key errors carry no constraint name, so the changeset's
+  # foreign_key_constraint/2 cannot convert a reference deleted mid-import.
+  defp create_item_or_rollback(create_item, attrs) do
+    create_item.(attrs)
+  rescue
+    Ecto.ConstraintError -> Repo.rollback(:stale_import_reference)
   end
 
   defp maybe_auto_sort_imported(%{item_ids: item_ids} = result, opts) do
