@@ -241,7 +241,7 @@ test("sorts token summaries by name then description and producers by card name 
   )
 })
 
-test("linked catalog tokens replace Oracle guesses and keep amounts, copies fall back", () => {
+test("linked catalog tokens replace every Oracle guess for that card and keep amounts", () => {
   const soldier = {
     ownedCount: 3,
     printing: {
@@ -290,13 +290,6 @@ test("linked catalog tokens replace Oracle guesses and keep amounts, copies fall
     ]),
     [
       {
-        key: "token that's a copy of target creature",
-        name: "Copy",
-        description: "token that's a copy of target creature",
-        token: null,
-        producers: [{ id: "captain", name: "Captain", quantity: 2, amount: "1" }],
-      },
-      {
         key: "token:oracle-human-soldier",
         name: "Human Soldier",
         description: "1/1 white Human Soldier creature token",
@@ -328,5 +321,39 @@ test("linked catalog tokens replace Oracle guesses and keep amounts, copies fall
         ],
       },
     ],
+  )
+})
+
+test("a linked card's non-creation 'create' wording never becomes a guessed token", () => {
+  const spirit = {
+    ownedCount: 0,
+    printing: {
+      scryfallId: "sf-spirit",
+      oracleId: "oracle-spirit",
+      imageUrl: null,
+      backImageUrl: null,
+      setCode: "twoe",
+      card: { name: "Spirit", typeLine: "Token Creature — Spirit" },
+    },
+  }
+  const staff = {
+    name: "Staff of the Storyteller",
+    oracleText:
+      "When Staff of the Storyteller enters, create a 1/1 white Spirit creature token with flying.\nWhenever you create one or more tokens, put a story counter on Staff of the Storyteller.",
+  }
+
+  const linked = buildDeckTokens([
+    deckCard({ id: "staff", card: { ...staff, producedTokens: [spirit] } }),
+  ])
+  assert.deepEqual(
+    linked.map((row) => [row.name, row.description, row.producers[0].amount]),
+    [["Spirit", "1/1 white Spirit creature token", "1"]],
+  )
+
+  // Without a Scryfall link the parser still runs, and the stray phrase shows what it misreads.
+  const unlinked = buildDeckTokens([deckCard({ id: "staff", card: staff })])
+  assert.deepEqual(
+    unlinked.map((row) => row.description),
+    ["or more token", "1/1 white Spirit creature token"],
   )
 })

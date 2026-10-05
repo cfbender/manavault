@@ -96,9 +96,9 @@ const CREATURE_DESCRIPTOR_WORDS: Record<string, true> = {
 }
 
 /**
- * One row per token the deck can make. Cards linked to catalog tokens (Scryfall's related
- * parts) show that token; "Create …" phrases in Oracle text that match no linked token, such
- * as copies, still fall back to the parsed description.
+ * One row per token the deck can make. A card linked to catalog tokens (Scryfall's related
+ * parts, which include Copy tokens) shows exactly those tokens; its Oracle text is only read
+ * for amounts. Cards Scryfall has not linked fall back to parsed "Create …" phrases.
  */
 export function buildDeckTokens(deckCards: readonly DeckTokenDeckCard[]): DeckTokenSummary[] {
   const summaries = new Map<string, DeckTokenSummary>()
@@ -127,8 +127,20 @@ export function buildDeckTokens(deckCards: readonly DeckTokenDeckCard[]): DeckTo
     }
     const descriptions = tokenDescriptions(getString(card.oracleText))
     const linked = producedTokens(card.producedTokens)
-    const matched = new Set<number>()
 
+    if (linked.length === 0) {
+      for (const description of descriptions) {
+        addSummary(summaries, description.description.toLowerCase(), {
+          name: tokenName(description.description),
+          description: description.description,
+          token: null,
+          producer: { ...producer, amount: description.amount },
+        })
+      }
+      continue
+    }
+
+    const matched = new Set<number>()
     for (const token of linked) {
       const index = descriptions.findIndex(
         (description, i) => !matched.has(i) && mentionsToken(description.description, token.name),
@@ -140,16 +152,6 @@ export function buildDeckTokens(deckCards: readonly DeckTokenDeckCard[]): DeckTo
         description: description?.description ?? token.card.typeLine ?? token.name,
         token: token.card,
         producer: { ...producer, amount: description?.amount ?? null },
-      })
-    }
-
-    for (const [index, description] of descriptions.entries()) {
-      if (matched.has(index)) continue
-      addSummary(summaries, description.description.toLowerCase(), {
-        name: tokenName(description.description),
-        description: description.description,
-        token: null,
-        producer: { ...producer, amount: description.amount },
       })
     }
   }
