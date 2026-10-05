@@ -5,7 +5,7 @@ defmodule Manavault.Catalog.DeckAllocationTest do
     fixtures: [:black_lotus, :black_lotus_beta, :time_walk, :plains]
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.DeckAllocation
+  alias Manavault.Catalog.{CollectionItem, DeckAllocation}
   alias Manavault.Repo
 
   test "resolver-facing fetches return not found instead of raising" do
@@ -554,7 +554,8 @@ defmodule Manavault.Catalog.DeckAllocationTest do
                "quantity" => 3,
                "condition" => "near_mint",
                "language" => "en",
-               "finish" => "nonfoil"
+               "finish" => "nonfoil",
+               "purchase_price_cents" => 1234
              })
 
     assert {:ok, deck} = Catalog.create_deck(%{"name" => "Playset"})
@@ -571,6 +572,10 @@ defmodule Manavault.Catalog.DeckAllocationTest do
              Catalog.allocate_deck_pull_list(deck, entries)
 
     assert Catalog.deck_card_allocation_status(lotus).allocated == 3
+
+    items = Repo.all(CollectionItem)
+    assert length(items) == 2
+    assert Enum.all?(items, &(&1.purchase_price_cents == 1234))
   end
 
   test "deck allocation status treats basic lands as already allocated" do

@@ -57,7 +57,8 @@ defmodule Manavault.Catalog.Decks.AllocationItems do
       "language" => item.language,
       "finish" => item.finish,
       "location_id" => location_id,
-      "notes" => item.notes
+      "notes" => item.notes,
+      "purchase_price_cents" => item.purchase_price_cents
     }
   end
 end
