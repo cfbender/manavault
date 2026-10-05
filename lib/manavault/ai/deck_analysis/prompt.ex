@@ -36,11 +36,26 @@ defmodule Manavault.AI.DeckAnalysis.Prompt do
     zone means mainboard, omitted format_legality means legal, omitted game_changer means false,
     and other omitted fields have no value.
 
+    Read the cards before judging the deck. Base every claim about what a deck card does on its
+    supplied oracle_text, not on memory of similarly named or older cards, and reason about how each
+    important card functions in this specific list: what it needs, what it produces, and which other
+    cards it turns on. When the lookup_cards tool is available, batch your candidate additions into
+    a few calls of up to 20 names and read their actual text before recommending them; judge each
+    candidate by how it works with this deck's engine and resources, not by its general reputation.
+
     Evaluate the deck by its structure, not only by individual card quality:
     - State its objective as a chain: the core action it repeats, how it capitalizes on that action,
       and how that becomes a win or an insurmountable lead. Name the specific cards filling each
       link. A thin or missing link (for example, plenty of setup but few ways to convert it) matters
       more than any single weak card, and is usually the most useful thing to point out.
+    - Take inventory of the resources the deck's engine actually produces in abundance by the turn
+      it wants to win, such as mana or Treasures, creature or artifact tokens, cards drawn, spells
+      cast per turn, life, counters, or graveyard contents, and roughly how much of each. Judge
+      every card, especially payoffs and finishers, against that inventory. A high mana value is
+      not clunky when the deck's own engine routinely pays for it, an X spell or "for each" effect
+      may be the best use of a surplus, and a card that needs a resource the deck lacks is weak
+      however strong it is elsewhere. Prefer finishers that scale with what the deck makes in
+      excess, and never describe a card as expensive or slow without checking that inventory.
     - Sort the nonland cards by role: engine pieces that perform the core action, multipliers that
       make the engine do more, payoffs that win once the engine has run, and support (card
       advantage, mana advantage, and interaction or protection). Judge which roles are over- or
@@ -60,6 +75,44 @@ defmodule Manavault.AI.DeckAnalysis.Prompt do
       not merely because an answer can also affect its controller's resources.
     - When recommending cuts, remove the lowest-synergy cards from over-represented roles first,
       even when they are individually strong.
+
+    For Commander decks, analyze the deck for the multiplayer game it will actually play: usually a
+    four-player pod with three opponents starting at 40 life each, 120 life in total, each with
+    their own removal, sweepers, and counterplay, and three opposing turns between each of yours.
+    - Winning means eliminating every opponent, not one. Test each finisher with rough arithmetic on
+      the board and resources the deck realistically has when it goes for the win. A one-shot pump,
+      combat trick, or burn spell that kills one player while the other two survive and strike back
+      is a partial finisher, not a win condition, even when it is an excellent card. Effects that
+      hit each opponent, scale with the deck's surplus, repeat every turn, or grant evasion to the
+      whole team close multiplayer games far better than single-target damage. Combat damage is
+      split across three players and must get past three sets of blockers, and commander damage only
+      matters for a commander built to connect repeatedly. Say whether the deck ends the game in one
+      big turn or by picking players off, and whether it survives the turns in between.
+    - Per-opponent effects are roughly three times as strong as in a duel, while one-for-one answers
+      and symmetrical effects trade against a whole table. Value instant-speed answers for
+      must-answer threats, flexible removal that covers artifacts, enchantments, planeswalkers,
+      graveyards and combo pieces, and mass interaction or protection in decks that build a board.
+    - Consider politics and threat assessment. A deck that visibly builds a dominant board or
+      engine becomes the archenemy and should expect focused removal and sweepers, so its
+      protection, resilience, and ability to rebuild matter more. A deck that wins from under the
+      radar can spend more slots on removal and timing. Games run longer than in duels, so
+      repeatable card advantage gains value, but a slow plan must survive three opponents.
+    - As a recent baseline for a functional deck, use The Command Zone's 2025 template: about 38
+      lands (fewer with a low curve and many cheap mana sources, counting modal double-faced
+      lands), about 10 ramp pieces, 12 card advantage sources, 12 targeted interaction pieces, 6
+      mass interaction or board-protection pieces, and the rest plan cards, with one card able to
+      fill several roles and two mana as the most common mana value. Card selection such as
+      cantrips smooths draws but is not card advantage. Treat the template as a sanity check to
+      explain deviations, not a rule: the commander, the strategy, and the resources the engine
+      produces change what the deck needs. Do not recite the template in the analysis.
+
+    Keep the analysis cohesive. Settle the objective chain, resource inventory, role coverage, and
+    finisher assessment before writing, then make every section follow from them. Every
+    recommendation should address a weakness you named or be clearly framed as a power-level change.
+    Never cut a card from a role you call thin, especially a finisher or protection piece, unless its
+    replacement fills the same role better; never recommend a card whose job you call unnecessary
+    elsewhere. Check that summary, strengths, weaknesses, bracket rationale, and suggestions agree
+    with each other about counts, card roles, speed, and how the deck wins.
 
     For Commander decks, assess an overall rating and retain two supporting bracket values:
 
@@ -125,22 +178,28 @@ defmodule Manavault.AI.DeckAnalysis.Prompt do
     For a non-Commander deck, return null for all three bracket fields and explain that Commander
     Brackets do not apply. The official source is #{@official_guidance_url}.
     In game_plan, walk through the objective chain and how its pieces sequence over a typical game,
-    including roughly when the deck expects to present a win or a dominant position.
+    including roughly when the deck expects to present a win or a dominant position. For Commander,
+    end with how it actually closes out all three opponents with the resources it will have then,
+    and how it handles being targeted by the table on the way there.
     In strengths and weaknesses, identify which structural roles are well covered and which are
-    thin, and whether the deck's card advantage, mana, and interaction are sized for its plan.
+    thin, and whether the deck's card advantage, mana, and interaction are sized for its plan and,
+    for Commander, for a multiplayer table.
     In power_up, lead with the change that most strengthens the thinnest link or most
     under-represented role, favor synergistic engines over generic staples, and pair each addition
-    with the low-synergy card it should replace. Say when a change would also move the bracket.
+    with the low-synergy card it should replace. For a proposed Commander finisher, briefly show why
+    it can end a game against three opponents with this deck's board and resources. Say when a
+    change would also move the bracket.
     In power_down, weaken the plan by removing redundancy from multipliers or payoffs and replacing
     synergistic advantage engines with slower effects, while keeping the objective recognizable.
     In consistency, judge whether the deck reliably assembles its chain on time: redundancy for
     each link, whether the card draw digs deep enough to find the payoffs, whether the mana comes
     online when the plan needs it, land count and curve, and whether a typical hand does something
     meaningful in the first few turns. Distinguish improvements that make the deck more reliable
-    from those that make it more powerful. Every consistency item must recommend a concrete card
-    addition, cut, replacement, or quantity change and explain how it improves reliability. Do not
-    include gameplay advice, sequencing tips, mulligan decisions, or other ways to pilot the deck
-    in consistency; keep those in game_plan or mulligan_guide as appropriate.
+    from those that make it more powerful. Consistency changes must not weaken a thin link or cut a
+    finisher, protection piece, or engine piece to make room. Every consistency item must recommend
+    a concrete card addition, cut, replacement, or quantity change and explain how it improves
+    reliability. Do not include gameplay advice, sequencing tips, mulligan decisions, or other ways
+    to pilot the deck in consistency; keep those in game_plan or mulligan_guide as appropriate.
     In opponent_experience, imagine playing against the deck. Describe whether its turns are quick
     and interactive or long and solitaire-like, and call out potentially frustrating play patterns
     such as repeated discard, stax, locks, resource denial, excessive tutoring or shuffling, and
@@ -158,7 +217,9 @@ defmodule Manavault.AI.DeckAnalysis.Prompt do
   def user(payload) do
     """
     Analyze this deck's goals, themes, game plan, strengths, and weaknesses. Identify its objective
-    chain and how well each structural role is covered, accounting for any commander. Recommend focused
+    chain, the resources its engine produces, and how well each structural role is covered,
+    accounting for any commander. For Commander, judge it as a multiplayer deck that must defeat
+    three opponents, and check that its finishers can actually close that game. Recommend focused
     ways to power it up, power it down, and improve consistency, naming both the cards to add and
     the cards to cut. Describe what playing against it is like,
     including turn length and salt-inducing patterns, and include a practical mulligan guide with good

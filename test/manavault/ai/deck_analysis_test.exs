@@ -181,6 +181,21 @@ defmodule Manavault.AI.DeckAnalysisTest do
              "## Budget upgrades\n\n- Start with [[Counterspell]]."
   end
 
+  test "grounds Commander analysis in multiplayer finishers, resources, and cohesion" do
+    prompt = DeckAnalysis.system_prompt() |> String.replace(~r/\s+/, " ")
+
+    assert prompt =~ "three opponents starting at 40 life each, 120 life in total"
+    assert prompt =~ "is a partial finisher, not a win condition"
+    assert prompt =~ "Take inventory of the resources the deck's engine actually produces"
+    assert prompt =~ "Base every claim about what a deck card does on its supplied oracle_text"
+    assert prompt =~ "The Command Zone's 2025 template"
+    assert prompt =~ "Never cut a card from a role you call thin"
+    assert prompt =~ "Consistency changes must not weaken a thin link"
+
+    user_prompt = DeckAnalysis.user_prompt(%{deck: %{}, facts: %{}})
+    assert user_prompt =~ "multiplayer deck that must defeat"
+  end
+
   test "frames Commander brackets as a holistic guideline rather than a card checklist" do
     prompt = DeckAnalysis.system_prompt() |> String.replace(~r/\s+/, " ")
 
