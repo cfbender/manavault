@@ -4,6 +4,55 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
   alias Manavault.Catalog.{Card, ScryfallOracleTags}
   alias Manavault.Catalog.Search.NameMatch
 
+  # Columns the import owns. They are replaced on conflict and compared against
+  # the stored row to decide whether a row needs writing at all; anything else
+  # on these tables (EDHREC ranks, saltiness, inserted_at) is left alone.
+  @card_fields [
+    :name,
+    :normalized_name,
+    :layout,
+    :type_line,
+    :oracle_text,
+    :mana_cost,
+    :cmc,
+    :colors,
+    :color_identity,
+    :legalities,
+    :game_changer,
+    :edhrec_rank,
+    :rulings_uri
+  ]
+
+  @oracle_tag_fields [:oracle_tags, :deck_category, :deck_themes]
+
+  @printing_fields [
+    :oracle_id,
+    :set_code,
+    :set_name,
+    :collector_number,
+    :illustration_id,
+    :lang,
+    :flavor_name,
+    :normalized_flavor_name,
+    :flavor_text,
+    :rarity,
+    :finishes,
+    :promo_types,
+    :promo,
+    :image_uris,
+    :prices,
+    :released_at
+  ]
+
+  @type t :: %{cards: [map()], printings: [map()], card_tokens: [map()]}
+
+  @doc "Card columns written by the import; oracle tag columns only when requested."
+  def card_fields(true = _replace_oracle_tag_fields?), do: @card_fields ++ @oracle_tag_fields
+  def card_fields(false = _replace_oracle_tag_fields?), do: @card_fields
+
+  @doc "Printing columns written by the import."
+  def printing_fields, do: @printing_fields
+
   def rows(cards, now, oracle_tag_index) when is_list(cards) do
     {card_rows, printing_rows, token_rows} =
       Enum.reduce(cards, {[], [], []}, fn card, {card_rows, printing_rows, token_rows} ->

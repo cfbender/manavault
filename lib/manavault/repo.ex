@@ -9,7 +9,7 @@ defmodule Manavault.Repo do
 
   @doc """
   Runs `fun`, retrying with increasing delays when SQLite reports the database
-  busy. SQLite allows one writer at a time and `busy_timeout` waits at most 15
+  busy. SQLite allows one writer at a time and `busy_timeout` waits at most 10
   seconds, so background bulk writers that overlap another long write (such as
   a catalog import) should wait rather than fail. Each retry is logged under
   `context`; the last failure is re-raised.

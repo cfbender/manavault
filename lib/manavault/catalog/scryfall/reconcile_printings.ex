@@ -18,32 +18,43 @@ defmodule Manavault.Catalog.Scryfall.ReconcilePrintings do
 
   @batch_size 200
 
-  def run(imported_at) do
-    with :ok <- reconcile_batches(imported_at),
+  @doc """
+  Removes every stored printing the current import did not see, moving
+  collection items, deck preferences, location covers, token items, and trade
+  wants that referenced it onto a current printing of the same card, then drops
+  cards left without any printing. `seen_scryfall_ids` is the set of printing
+  ids the import just processed.
+  """
+  def run(%MapSet{} = seen_scryfall_ids) do
+    with :ok <- reconcile_batches(seen_scryfall_ids),
          :ok <- delete_orphaned_cards() do
       {:ok, :reconciled}
     end
   end
 
-  defp reconcile_batches(imported_at) do
-    case stale_batch(imported_at) do
-      [] ->
-        :ok
-
-      stale_printings ->
-        case reconcile_batch(stale_printings, imported_at) do
-          {:ok, :reconciled} -> reconcile_batches(imported_at)
-          {:error, reason} -> {:error, reason}
-        end
-    end
+  defp reconcile_batches(seen_scryfall_ids) do
+    seen_scryfall_ids
+    |> stale_scryfall_ids()
+    |> Enum.chunk_every(@batch_size)
+    |> Enum.reduce_while(:ok, fn stale_ids, :ok ->
+      case reconcile_batch(stale_printings(stale_ids), seen_scryfall_ids) do
+        {:ok, :reconciled} -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
   end
 
-  defp stale_batch(imported_at) do
+  defp stale_scryfall_ids(seen_scryfall_ids) do
+    Repo.all(
+      from printing in Printing, select: printing.scryfall_id, order_by: printing.scryfall_id
+    )
+    |> Enum.reject(&MapSet.member?(seen_scryfall_ids, &1))
+  end
+
+  defp stale_printings(stale_ids) do
     Repo.all(
       from printing in Printing,
-        where: printing.updated_at != ^imported_at,
-        order_by: [asc: printing.scryfall_id],
-        limit: @batch_size,
+        where: printing.scryfall_id in ^stale_ids,
         select: %{
           scryfall_id: printing.scryfall_id,
           oracle_id: printing.oracle_id,
@@ -53,9 +64,11 @@ defmodule Manavault.Catalog.Scryfall.ReconcilePrintings do
     )
   end
 
-  defp reconcile_batch(stale_printings, imported_at) do
+  defp reconcile_batch([], _seen_scryfall_ids), do: {:ok, :reconciled}
+
+  defp reconcile_batch(stale_printings, seen_scryfall_ids) do
     oracle_ids = stale_printings |> Enum.map(& &1.oracle_id) |> Enum.uniq()
-    replacements = current_replacements(oracle_ids, imported_at)
+    replacements = current_replacements(oracle_ids, seen_scryfall_ids)
     replacements_by_oracle = Enum.group_by(replacements, & &1.oracle_id)
 
     {replacement_groups, without_replacement} =
@@ -74,10 +87,10 @@ defmodule Manavault.Catalog.Scryfall.ReconcilePrintings do
     end)
   end
 
-  defp current_replacements(oracle_ids, imported_at) do
+  defp current_replacements(oracle_ids, seen_scryfall_ids) do
     Repo.all(
       from printing in Printing,
-        where: printing.updated_at == ^imported_at and printing.oracle_id in ^oracle_ids,
+        where: printing.oracle_id in ^oracle_ids,
         order_by: [
           desc: printing.released_at,
           asc: printing.set_code,
@@ -90,6 +103,7 @@ defmodule Manavault.Catalog.Scryfall.ReconcilePrintings do
           finishes: printing.finishes
         }
     )
+    |> Enum.filter(&MapSet.member?(seen_scryfall_ids, &1.scryfall_id))
   end
 
   defp group_replacements(stale_printings, replacements_by_oracle) do

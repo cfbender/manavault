@@ -314,12 +314,15 @@ text guesses rather than real token cards). Progress is logged as
 `Scryfall catalog sync ...`, and **Settings -> Scryfall data -> Reload Scryfall
 catalog** forces the sync by hand.
 
-`GenServer {Oban.Registry, {Oban, Oban.Stager}} terminating` with
-`database is locked` during a catalog import means Oban's job stager waited
-the full SQLite `busy_timeout` (15 seconds) for the write lock while the import
-committed batches back to back. The stager restarts on its own and the import is
-unaffected, so an occasional crash of this kind is noise. Seeing it repeatedly
-outside of an import points to another long-running writer.
+The catalog import only writes cards, printings, and token links whose stored
+data differs from the Scryfall bulk file, and it pauses briefly between batch
+commits so other writers (Oban, price refreshes, user edits) can take the
+SQLite write lock. Progress lines report `written_cards=N written_printings=M`
+alongside the source counts; on a day with no catalog changes both stay near
+zero. `GenServer {Oban.Registry, {Oban, Oban.Stager}} terminating` with
+`database is locked` means a writer waited the full SQLite `busy_timeout`
+(10 seconds) for the lock. The stager restarts on its own, but seeing this
+repeatedly points to another long-running writer rather than the import.
 
 To roll back, stop the container, restore the pre-migration backup (see
 [Restore](#restore)), and start the previous image tag. Switching the tag alone

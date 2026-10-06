@@ -199,6 +199,66 @@ defmodule Manavault.Catalog.ImportTest do
     assert %{} == Catalog.produced_tokens_by_oracle_ids(["oracle-1"])
   end
 
+  test "import_cards only writes rows whose stored data changed" do
+    producer =
+      Map.put(@black_lotus, "all_parts", [
+        %{"component" => "token", "id" => "scryfall-treasure-token", "name" => "Treasure"},
+        %{"component" => "token", "id" => "scryfall-clue-token", "name" => "Clue"}
+      ])
+
+    assert {:ok, %{written_cards_count: 2, written_printings_count: 2}} =
+             Catalog.import_cards([producer, @time_walk])
+
+    # An identical rerun reads but never writes, so it never takes the lock.
+    {result, writes} = with_catalog_writes(fn -> Catalog.import_cards([producer, @time_walk]) end)
+
+    assert {:ok, %{cards_count: 2, printings_count: 2}} = result
+    assert {:ok, %{written_cards_count: 0, written_printings_count: 0}} = result
+    assert writes == []
+
+    # A price change rewrites that printing only; its card and links are untouched.
+    repriced = put_in(producer, ["prices", "usd"], "99.00")
+
+    {result, writes} = with_catalog_writes(fn -> Catalog.import_cards([repriced, @time_walk]) end)
+
+    assert {:ok, %{written_cards_count: 0, written_printings_count: 1}} = result
+    assert [{"insert", "scryfall_printings"}] = writes
+    assert Jason.decode!(Repo.get!(Printing, "scryfall-printing-1").prices) == %{"usd" => "99.00"}
+
+    # Dropping a token link relinks that printing without touching card rows.
+    unlinked = Map.put(repriced, "all_parts", List.first(producer["all_parts"]) |> List.wrap())
+
+    {result, writes} = with_catalog_writes(fn -> Catalog.import_cards([unlinked, @time_walk]) end)
+
+    assert {:ok, %{written_cards_count: 0, written_printings_count: 0}} = result
+    assert [{"delete", "scryfall_card_tokens"}, {"insert", "scryfall_card_tokens"}] = writes
+
+    assert [%{token_scryfall_id: "scryfall-treasure-token"}] =
+             Repo.all(Manavault.Catalog.CardToken)
+
+    # Oracle-level changes rewrite the card only.
+    {result, writes} =
+      with_catalog_writes(fn ->
+        Catalog.import_cards([Map.put(unlinked, "edhrec_rank", 7), @time_walk])
+      end)
+
+    assert {:ok, %{written_cards_count: 1, written_printings_count: 0}} = result
+    assert [{"insert", "scryfall_cards"}] = writes
+    assert Repo.get!(Card, "oracle-1").edhrec_rank == 7
+  end
+
+  test "import_cards skips oracle tag columns in the diff when tags are not being replaced" do
+    assert {:ok, _result} = Catalog.import_cards([@black_lotus], oracle_tags: :skip)
+    Repo.update_all(Card, set: [oracle_tags: ~s(["ramp"]), deck_category: "ramp"])
+
+    {result, writes} =
+      with_catalog_writes(fn -> Catalog.import_cards([@black_lotus], oracle_tags: :skip) end)
+
+    assert {:ok, %{written_cards_count: 0}} = result
+    assert writes == []
+    assert Repo.get!(Card, "oracle-1").deck_category == "ramp"
+  end
+
   test "import_cards releases the write lock between batches" do
     test_pid = self()
     handler_id = {__MODULE__, make_ref()}
@@ -211,7 +271,7 @@ defmodule Manavault.Catalog.ImportTest do
           query = metadata |> Map.get(:query, "") |> to_string() |> String.downcase()
 
           if query == "commit" or String.starts_with?(query, "release savepoint") do
-            send(pid, :catalog_import_batch_committed)
+            send(pid, {:catalog_import_batch_committed, System.monotonic_time(:millisecond)})
           end
         end,
         test_pid
@@ -231,8 +291,10 @@ defmodule Manavault.Catalog.ImportTest do
       end)
 
     assert {:ok, %{cards_count: 205, printings_count: 205}} = Catalog.import_cards(cards)
-    assert_receive :catalog_import_batch_committed
-    assert_receive :catalog_import_batch_committed
+    assert_receive {:catalog_import_batch_committed, first_commit_at}
+    assert_receive {:catalog_import_batch_committed, second_commit_at}
+    # Waiters poll the lock every 50ms, so the gap between commits must exceed that.
+    assert second_commit_at - first_commit_at >= 75
     assert Repo.aggregate(Card, :count) == 205
     assert Repo.aggregate(Printing, :count) == 205
 
@@ -997,5 +1059,43 @@ defmodule Manavault.Catalog.ImportTest do
 
     assert [%Printing{scryfall_id: "batch-printing-600"}] =
              Catalog.search_printings(name: "Batch Lotus 600", collector_number: "600")
+  end
+
+  defp with_catalog_writes(fun) do
+    test_pid = self()
+    handler_id = {__MODULE__, make_ref()}
+
+    :ok =
+      :telemetry.attach(
+        handler_id,
+        [:manavault, :repo, :query],
+        fn _event, _measurements, metadata, pid ->
+          case Regex.run(
+                 ~r/^(insert|update|delete)\s+(?:into\s+|from\s+)?"(scryfall_\w+)"/i,
+                 to_string(metadata.query)
+               ) do
+            [_match, verb, table] -> send(pid, {:catalog_write, String.downcase(verb), table})
+            nil -> :ok
+          end
+        end,
+        test_pid
+      )
+
+    result =
+      try do
+        fun.()
+      after
+        :telemetry.detach(handler_id)
+      end
+
+    {result, collect_catalog_writes([])}
+  end
+
+  defp collect_catalog_writes(writes) do
+    receive do
+      {:catalog_write, verb, table} -> collect_catalog_writes([{verb, table} | writes])
+    after
+      0 -> Enum.reverse(writes)
+    end
   end
 end

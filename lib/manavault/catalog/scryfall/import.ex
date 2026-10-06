@@ -5,7 +5,7 @@ defmodule Manavault.Catalog.Scryfall.Import do
 
   alias Manavault.Catalog.{Card, CardToken, Printing, ScryfallOracleTags, Search}
 
-  alias Manavault.Catalog.Scryfall.{BulkData, ImportRows, ReconcilePrintings}
+  alias Manavault.Catalog.Scryfall.{BulkData, ImportDiff, ImportRows, ReconcilePrintings}
   alias Manavault.Repo
 
   require Logger
@@ -13,6 +13,16 @@ defmodule Manavault.Catalog.Scryfall.Import do
   @batch_size 200
   @excluded_set_types ~w(memorabilia token)
   @progress_source_card_interval 5_000
+
+  # SQLite has no lock queue: a writer blocked on the database-wide write lock
+  # (Oban's stager, a user saving a card) re-polls it, and Exqlite's busy
+  # handler polls every 50 ms once its initial ramp is spent. Back-to-back
+  # batch commits leave only a few ms between transactions, so a waiter can
+  # miss every poll until its busy_timeout expires. Keeping at least this much
+  # time between one commit and the next BEGIN guarantees every waiter's next
+  # poll finds the lock free. Decoding and diffing the next batch already
+  # happens in that gap, so the sleep only covers whatever time remains.
+  @min_commit_gap_ms 75
 
   def run(cards, bulk_uri \\ nil, opts \\ [])
 
@@ -24,7 +34,7 @@ defmodule Manavault.Catalog.Scryfall.Import do
     log_progress? = Keyword.get(opts, :log_progress, false)
     source_count = Keyword.get(opts, :source_count) || enumerable_count(cards)
     reconcile? = Keyword.get(opts, :reconcile, false)
-    now = import_timestamp(reconcile?)
+    now = utc_now()
     oracle_tags = Keyword.get(opts, :oracle_tags, [])
     oracle_tag_index = ScryfallOracleTags.build_index(oracle_tags)
     replace_oracle_tag_fields? = oracle_tags != :skip
@@ -40,13 +50,16 @@ defmodule Manavault.Catalog.Scryfall.Import do
                  oracle_tag_index,
                  replace_oracle_tag_fields?,
                  source_count,
-                 log_progress?
+                 log_progress?,
+                 reconcile?
                ),
-             :ok <- maybe_reconcile_printings(reconcile?, now) do
+             :ok <- maybe_reconcile_printings(reconcile?, counts.seen_scryfall_ids) do
           {:ok,
            %{
              cards_count: counts.cards_count,
              printings_count: counts.printings_count,
+             written_cards_count: counts.written_cards_count,
+             written_printings_count: counts.written_printings_count,
              source_count: counts.source_count,
              bulk_uri: bulk_uri
            }}
@@ -70,27 +83,33 @@ defmodule Manavault.Catalog.Scryfall.Import do
   defp enumerable_count(cards) when is_list(cards), do: length(cards)
   defp enumerable_count(_cards), do: nil
 
+  # Chunking lazily keeps only one batch of decoded cards in memory and lets
+  # decoding, row building, and the stored-row diff run between transactions.
   defp import_card_batches(
          cards,
          now,
          oracle_tag_index,
          replace_oracle_tag_fields?,
          source_count,
-         log_progress?
+         log_progress?,
+         track_seen?
        ) do
     cards
-    |> Enum.chunk_every(@batch_size)
-    |> Enum.reduce_while({:ok, initial_import_counts()}, fn batch, {:ok, counts} ->
+    |> Stream.chunk_every(@batch_size)
+    |> Enum.reduce_while({:ok, initial_import_counts(track_seen?)}, fn batch, {:ok, counts} ->
       rows =
         batch
         |> Enum.reject(&excluded?/1)
         |> ImportRows.rows(now, oracle_tag_index)
 
-      case import_batch(rows, replace_oracle_tag_fields?) do
-        {:ok, :imported} ->
+      changes = ImportDiff.changes(rows, replace_oracle_tag_fields?)
+      wait_for_commit_gap(counts.last_commit_at)
+
+      case import_batch(changes, replace_oracle_tag_fields?) do
+        {:ok, outcome} ->
           counts =
             counts
-            |> advance_import_counts(length(batch), rows)
+            |> advance_import_counts(length(batch), rows, changes, outcome)
             |> maybe_log_import_progress(log_progress?, source_count)
 
           {:cont, {:ok, counts}}
@@ -99,6 +118,18 @@ defmodule Manavault.Catalog.Scryfall.Import do
           {:halt, {:error, reason}}
       end
     end)
+  end
+
+  defp wait_for_commit_gap(nil), do: :ok
+
+  defp wait_for_commit_gap(last_commit_at) do
+    elapsed = System.monotonic_time(:millisecond) - last_commit_at
+
+    if elapsed < @min_commit_gap_ms do
+      Process.sleep(@min_commit_gap_ms - elapsed)
+    end
+
+    :ok
   end
 
   # Memorabilia and token sets are skipped, except for the tokens and emblems
@@ -119,101 +150,78 @@ defmodule Manavault.Catalog.Scryfall.Import do
 
   defp helper_card?(_card), do: false
 
-  defp import_batch(rows, replace_oracle_tag_fields?) do
+  # A batch with nothing to write never takes the write lock.
+  defp import_batch(%{cards: [], printings: [], relinked_scryfall_ids: []}, _replace_tags?) do
+    {:ok, :unchanged}
+  end
+
+  defp import_batch(changes, replace_oracle_tag_fields?) do
     Repo.transact(
       fn ->
-        insert_card_rows(rows.cards, replace_oracle_tag_fields?)
-        insert_printing_rows(rows.printings)
-        replace_card_token_rows(rows.printings, rows.card_tokens)
+        insert_card_rows(changes.cards, replace_oracle_tag_fields?)
+        insert_printing_rows(changes.printings)
+        replace_card_token_rows(changes.relinked_scryfall_ids, changes.card_tokens)
         {:ok, :imported}
       end,
       timeout: :infinity
     )
   end
 
-  defp initial_import_counts do
+  defp initial_import_counts(track_seen?) do
     %{
       source_count: 0,
       cards_count: 0,
       printings_count: 0,
+      written_cards_count: 0,
+      written_printings_count: 0,
+      seen_scryfall_ids: if(track_seen?, do: MapSet.new(), else: nil),
+      last_commit_at: nil,
       next_progress: @progress_source_card_interval
     }
   end
 
-  defp advance_import_counts(counts, source_count, rows) do
+  defp advance_import_counts(counts, source_count, rows, changes, outcome) do
     %{
       counts
       | source_count: counts.source_count + source_count,
         cards_count: counts.cards_count + length(rows.cards),
-        printings_count: counts.printings_count + length(rows.printings)
+        printings_count: counts.printings_count + length(rows.printings),
+        written_cards_count: counts.written_cards_count + length(changes.cards),
+        written_printings_count: counts.written_printings_count + length(changes.printings),
+        seen_scryfall_ids: track_seen(counts.seen_scryfall_ids, rows.printings),
+        last_commit_at: last_commit_at(outcome, counts.last_commit_at)
     }
   end
 
+  defp last_commit_at(:imported, _previous), do: System.monotonic_time(:millisecond)
+  defp last_commit_at(:unchanged, previous), do: previous
+
+  defp track_seen(nil, _printing_rows), do: nil
+
+  defp track_seen(seen, printing_rows) do
+    Enum.reduce(printing_rows, seen, &MapSet.put(&2, &1.scryfall_id))
+  end
+
   defp insert_card_rows(rows, replace_oracle_tag_fields?) do
-    replace_fields = [
-      :name,
-      :normalized_name,
-      :layout,
-      :type_line,
-      :oracle_text,
-      :mana_cost,
-      :cmc,
-      :colors,
-      :color_identity,
-      :legalities,
-      :game_changer,
-      :edhrec_rank,
-      :rulings_uri,
-      :updated_at
-    ]
-
-    replace_fields =
-      if replace_oracle_tag_fields? do
-        replace_fields ++ [:oracle_tags, :deck_category, :deck_themes]
-      else
-        replace_fields
-      end
-
     insert_in_batches(Card, rows,
       conflict_target: [:oracle_id],
-      on_conflict: {:replace, replace_fields}
+      on_conflict: {:replace, ImportRows.card_fields(replace_oracle_tag_fields?) ++ [:updated_at]}
     )
   end
 
   defp insert_printing_rows(rows) do
     insert_in_batches(Printing, rows,
       conflict_target: [:scryfall_id],
-      on_conflict:
-        {:replace,
-         [
-           :oracle_id,
-           :set_code,
-           :set_name,
-           :collector_number,
-           :illustration_id,
-           :lang,
-           :flavor_name,
-           :normalized_flavor_name,
-           :flavor_text,
-           :rarity,
-           :finishes,
-           :promo_types,
-           :promo,
-           :image_uris,
-           :prices,
-           :released_at,
-           :updated_at
-         ]}
+      on_conflict: {:replace, ImportRows.printing_fields() ++ [:updated_at]}
     )
   end
 
-  # A printing's token links are replaced wholesale so links Scryfall dropped
-  # disappear on the next import rather than lingering.
+  # A relinked printing's token links are replaced wholesale so links Scryfall
+  # dropped disappear on the next import rather than lingering.
   defp replace_card_token_rows([], _rows), do: :ok
 
-  defp replace_card_token_rows(printing_rows, rows) do
-    printing_rows
-    |> Enum.map(& &1.scryfall_id)
+  defp replace_card_token_rows(scryfall_ids, rows) do
+    scryfall_ids
     |> Enum.chunk_every(@batch_size)
     |> Enum.each(fn ids ->
       Repo.delete_all(from link in CardToken, where: link.scryfall_id in ^ids)
@@ -232,7 +240,8 @@ defmodule Manavault.Catalog.Scryfall.Import do
        when processed >= next or processed == source_count do
     Logger.info(
       "Scryfall catalog import progress source_cards=#{processed}/#{source_count} " <>
-        "cards=#{counts.cards_count} printings=#{counts.printings_count}"
+        "cards=#{counts.cards_count} printings=#{counts.printings_count} " <>
+        written_counts_log(counts)
     )
 
     %{counts | next_progress: next_progress_after(processed)}
@@ -255,8 +264,14 @@ defmodule Manavault.Catalog.Scryfall.Import do
   defp log_import_completed(true, counts, source_count) do
     Logger.info(
       "Scryfall catalog import completed source_cards=#{source_count} " <>
-        "cards=#{counts.cards_count} printings=#{counts.printings_count}"
+        "cards=#{counts.cards_count} printings=#{counts.printings_count} " <>
+        written_counts_log(counts)
     )
+  end
+
+  defp written_counts_log(counts) do
+    "written_cards=#{counts.written_cards_count} " <>
+      "written_printings=#{counts.written_printings_count}"
   end
 
   defp log_import_failed(false, _reason), do: :ok
@@ -273,29 +288,12 @@ defmodule Manavault.Catalog.Scryfall.Import do
     |> Enum.each(fn batch -> Repo.insert_all(schema, batch, opts) end)
   end
 
-  defp maybe_reconcile_printings(false, _imported_at), do: :ok
+  defp maybe_reconcile_printings(false, _seen_scryfall_ids), do: :ok
 
-  defp maybe_reconcile_printings(true, imported_at) do
-    case ReconcilePrintings.run(imported_at) do
+  defp maybe_reconcile_printings(true, seen_scryfall_ids) do
+    case ReconcilePrintings.run(seen_scryfall_ids) do
       {:ok, :reconciled} -> :ok
       {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp import_timestamp(false), do: utc_now()
-
-  defp import_timestamp(true) do
-    now = utc_now()
-    latest = Repo.one(from printing in Printing, select: max(printing.updated_at))
-
-    case latest do
-      %DateTime{} = timestamp ->
-        if DateTime.compare(timestamp, now) == :lt,
-          do: now,
-          else: DateTime.add(timestamp, 1, :second)
-
-      nil ->
-        now
     end
   end
 

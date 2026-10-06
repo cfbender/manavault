@@ -40,15 +40,18 @@ config :manavault,
 # lock at BEGIN, so concurrent transactions queue (up to busy_timeout) instead
 # of erroring, and WAL keeps reads unblocked alongside the writer.
 #
-# The wait is a poll, not a queue: SQLite's busy handler retries every 100ms,
-# and a bulk writer such as the catalog import frees the lock only in the short
-# gaps between batch commits, so a waiter can miss every poll for seconds at a
-# time. Oban's stager does not retry Exqlite errors and crashed on 5s during
-# imports. 15s matches Ecto's default query timeout, so nothing waits longer
-# than its query already could.
+# The wait is a poll, not a queue: Exqlite's busy handler retries every 50ms,
+# and a bulk writer frees the lock only in the gaps between batch commits, so
+# a waiter can miss every poll for seconds at a time. Bulk writers (the
+# catalog import) therefore keep a gap between commits that is longer than the
+# poll interval. Oban's stager does not retry Exqlite errors and crashed on 5s
+# during imports. The timeout must stay below DBConnection's 15s checkout
+# timeout: when both expire together, DBConnection also tears down the pooled
+# connection ("queued and checked out the connection for longer than 15000ms")
+# instead of just returning the busy error.
 config :manavault, Manavault.Repo,
   default_transaction_mode: :immediate,
-  busy_timeout: 15_000
+  busy_timeout: 10_000
 
 config :manavault, Oban,
   engine: Oban.Engines.Lite,
