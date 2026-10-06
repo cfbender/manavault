@@ -29,6 +29,7 @@ import {
 } from "./scan-decision"
 import {
   entryPriceCents,
+  lastBackFor,
   normalizeScanList,
   scanListCsv,
   withPrinting,
@@ -197,14 +198,24 @@ export function useScanSession({ paused }: { paused: boolean }) {
         return
       }
       const finish = chooseFinish(printing.finishes, settingsRef.current.preferFoil)
-      const resolved = withPrinting(entry, printing, finish)
-      updateEntry(entry.id, (current) => withPrinting(current, printing, finish))
+      let resolved = withPrinting(entry, printing, finish)
       // Scryfall knows both faces of a double-faced token; a single-faced one may still be
-      // printed with another token on its back, which only the user can see.
+      // printed with another token on its back, which only the user can see. Tokens mode logs
+      // a stack of the same token tap by tap, so the back settled on the previous copy carries
+      // over and the picker asks once per token; the result bar's chip changes a stray copy.
       if (isSingleFacedToken(printing) && resolved.back === undefined) {
-        pausedRef.current = true
-        setBackFacePick(resolved)
+        const inherited = settingsRef.current.tokenMode
+          ? lastBackFor(entriesRef.current, resolved)
+          : undefined
+        if (inherited !== undefined) {
+          resolved = { ...resolved, back: inherited }
+        } else {
+          pausedRef.current = true
+          setBackFacePick(resolved)
+        }
       }
+      const back = resolved.back
+      updateEntry(entry.id, (current) => ({ ...withPrinting(current, printing, finish), back }))
       if (finish !== entry.finish) {
         // The outline may have been checked meanwhile; resend that, not the logged capture.
         const latest = entriesRef.current.find((candidate) => candidate.id === entry.id)

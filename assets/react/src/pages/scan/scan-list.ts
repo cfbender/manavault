@@ -106,6 +106,24 @@ export function filterEntries(entries: ScanEntry[], query: string) {
 }
 
 /**
+ * The back last settled for this token printing by another entry in the list (newest first):
+ * a picked back, or `null` for "single-sided". `undefined` when no other entry has decided,
+ * so the picker should ask.
+ */
+export function lastBackFor(
+  entries: ScanEntry[],
+  entry: Pick<ScanEntry, "id" | "scryfallId">,
+): ScanBackFace | null | undefined {
+  const other = entries.find(
+    (candidate) =>
+      candidate.id !== entry.id &&
+      candidate.scryfallId === entry.scryfallId &&
+      candidate.back !== undefined,
+  )
+  return other?.back
+}
+
+/**
  * Backs already picked in this scan session for the same token printing, newest first: other
  * entries fronted by it contribute their back, and entries whose back is it contribute their
  * own face. The server adds the same from owned tokens once the list is imported.

@@ -174,8 +174,11 @@ camera; the browser or OS asks for camera access once.
   a misrecognized scan for the right card. Both searches include tokens.
 - **Tokens mode** in the scanner settings restricts recognition to tokens, and
   nothing is logged until you tap the screen, so the same token can be added
-  again and again (different backs, foil and nonfoil). The status pill reads
-  "Hold one token in view" and then "Tap to add <token>". **Identify** searches
+  again and again. The status pill reads "Hold one token in view" and then
+  "Tap to add <token>". The back picker asks once per token; later copies reuse
+  the back you chose, and the finish and Back chips under the camera view change
+  a copy that is foil or paired differently before you scan the next one.
+  **Identify** searches
   tokens only in this mode. With a model bundle whose search graph takes a
   gallery mask (shown as "token search" under **Recognition model**), only
   token artwork is searched at all; with an older bundle the scanner filters

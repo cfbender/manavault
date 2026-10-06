@@ -28,7 +28,7 @@ export function ScanViewfinder({
   framing: PreviewFraming
   /** Tap to focus: the tapped point of the camera image, 0–1 from the top left. */
   onFocusAt?: (x: number, y: number) => void
-  /** Any tap on the preview, after focusing; tokens mode logs the token in view. */
+  /** A completed tap on the preview (focus happens on pointerdown); tokens mode logs the token in view. */
   onTap?: () => void
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -46,7 +46,6 @@ export function ScanViewfinder({
     const box = event.currentTarget.getBoundingClientRect()
     if (box.width === 0 || box.height === 0) return
     onFocusAt?.((event.clientX - box.left) / box.width, (event.clientY - box.top) / box.height)
-    onTap?.()
     setFocus({ x: event.clientX, y: event.clientY, key: event.timeStamp })
   }
 
@@ -78,6 +77,9 @@ export function ScanViewfinder({
           className="absolute inset-0 h-full w-full"
           poster={BLANK_POSTER}
           onPointerDown={handlePointerDown}
+          // On click, not pointerdown: logging a token can open the back picker, and a sheet
+          // that appears under a finger still on the screen would take the pointerup as a pick.
+          onClick={onTap}
           autoPlay
           muted
           playsInline

@@ -107,7 +107,12 @@ Code lives in `assets/react/src/pages/scan/`.
   (`tokenMode` in `scan-settings.ts`, toggled in the settings sheet; `evaluateTokenFrame`)
   instead takes the best candidate whose gallery `layout` is `token` or `double_faced_token`,
   reports it as `ready` once it scores 0.6, and logs it only when the viewfinder is tapped
-  (`logArmed` in `use-scan-session.ts`), with no duplicate rule. In this mode each frame is
+  (`logArmed` in `use-scan-session.ts`), with no duplicate rule. The tap is the `click`, not
+  `pointerdown`: logging can open the back picker, and a sheet mounting under a finger still
+  on the screen would take the pointerup as a pick. The back settled on the newest other copy
+  of the same token in the list (`lastBackFor`, including "single-sided") carries over to the
+  new copy, so the picker asks once per token and the result bar's Back and finish chips change
+  a copy that differs. In this mode each frame is
   identified with `scope: "tokens"` (see the gallery mask below); with a bundle that has no mask
   input the browser can only filter the recognizer's top five results, so a token that does not
   make the top five at all needs **Identify**.

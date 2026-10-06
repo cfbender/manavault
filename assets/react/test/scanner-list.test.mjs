@@ -3,6 +3,7 @@ import assert from "node:assert/strict"
 
 import {
   filterEntries,
+  lastBackFor,
   normalizeScanList,
   scanListCsv,
   sessionBacks,
@@ -285,4 +286,27 @@ test("backs picked earlier in the session are known for the same token, either w
   assert.deepEqual(sessionBacks(entries, entry("g2", { scryfallId: "sf-goblin" })), [dragon])
   assert.deepEqual(sessionBacks(entries, entries[1]), [])
   assert.deepEqual(sessionBacks(entries, entry("x", { scryfallId: "sf-elsewhere" })), [])
+})
+
+test("the back settled on the newest other copy of a token carries over; undecided copies do not", () => {
+  const copy = { scryfallId: "sf-copy", name: "Copy", imageUrl: null }
+  const treasure = { scryfallId: "sf-treasure", name: "Treasure", imageUrl: null }
+  const fresh = entry("d9", { scryfallId: "sf-dragon", layout: "token" })
+  const entries = [
+    fresh, // the entry being resolved is already in the list and never counts
+    entry("d8", { scryfallId: "sf-dragon", layout: "token" }), // picker still open: skipped
+    entry("g1", { scryfallId: "sf-goblin", layout: "token", back: treasure }),
+    entry("d7", { scryfallId: "sf-dragon", layout: "token", back: copy }),
+    entry("d6", { scryfallId: "sf-dragon", layout: "token", back: treasure }),
+  ]
+  // Newest decided Dragon wins, not the older Treasure pairing or the Goblin's back.
+  assert.deepEqual(lastBackFor(entries, fresh), copy)
+  // "Single-sided" is a decision too, so it is inherited as null rather than asked again.
+  assert.equal(
+    lastBackFor([fresh, entry("d5", { scryfallId: "sf-dragon", back: null })], fresh),
+    null,
+  )
+  // Nothing decided yet: ask.
+  assert.equal(lastBackFor([fresh, entry("d4", { scryfallId: "sf-dragon" })], fresh), undefined)
+  assert.equal(lastBackFor([fresh], fresh), undefined)
 })
