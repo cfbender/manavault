@@ -5,6 +5,8 @@ import {
   cardKey,
   evaluateFrame,
   evaluateTokenFrame,
+  FRAME_PACING,
+  frameInterval,
   forgetLastLogged,
   INITIAL_TRACKER,
   SCAN_THRESHOLDS,
@@ -237,4 +239,16 @@ test("tokens mode offers the best token for a tap and never logs on its own", ()
   assert.deepEqual(evaluateTokenFrame(token([[UUID, 0.9, "token"]], { upVote: 0 })), {
     type: "empty",
   })
+})
+
+test("frames slow down while nothing new is in view", () => {
+  const { activeMs, relaxedMs, settleMs } = FRAME_PACING
+  for (const outcome of ["tracking", "accept", "outside-lock", "ready"]) {
+    assert.equal(frameInterval(outcome, 0), activeMs, outcome)
+  }
+  // The logged card still in view.
+  assert.equal(frameInterval("duplicate", 0), relaxedMs)
+  // A card just left: stay quick for the next one, then settle.
+  assert.equal(frameInterval("empty", settleMs - 1), activeMs)
+  assert.equal(frameInterval("empty", settleMs), relaxedMs)
 })

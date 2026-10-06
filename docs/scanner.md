@@ -89,6 +89,15 @@ Code lives in `assets/react/src/pages/scan/`.
   settings, `preview-framing.ts`) move only the preview, for example to centre the card on a
   stand, never what is scanned. `recognition/recognizer.ts` runs the detector twice (coarse, then refined around the
   card), embeds the card's art-frame crops and searches the gallery (top 5).
+- Frame pacing (`FRAME_PACING` and `frameInterval` in `scan-decision.ts`) spares the battery:
+  a frame starts at most every 150 ms while a card is being identified, and every 500 ms
+  while the logged card stays in view or no card has been seen for 3 s; a card that appears
+  is picked up within one slow frame. After 60 s without a card in view (time with a sheet
+  open counts), `use-scan-session.ts` stops the camera and shows "Camera paused" until a tap.
+  The camera is also stopped while the document is hidden and restarted when it is visible
+  again. Capture asks for 1920×1080 at no more than 30 fps; the settings sheet's **Camera**
+  section shows the track's label, delivered size, frame rate, focus mode, zoom and how often
+  the size changed (`CameraDiagnostics` in `use-camera.ts`).
 - Two shortcuts keep the live loop fast. A detector pass whose upright vote is below 0.25 ends
   the frame (no refined pass, embedding or search), which makes empty frames about three times
   cheaper than card frames. While a card is in view, the next frame's first pass looks at the

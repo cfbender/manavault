@@ -15,6 +15,7 @@ import { isCrossOriginIsolated } from "../../lib/cross-origin-isolation"
 import { cn } from "../../lib/utils"
 import { SetCombobox } from "../collection/set-combobox"
 import type { RecognizerState } from "./recognition/use-recognizer"
+import type { CameraDiagnostics } from "./use-camera"
 import {
   DEFAULT_SCAN_SETTINGS,
   normalizeScanSettings,
@@ -29,6 +30,7 @@ export function ScanSettingsSheet({
   open,
   settings,
   recognizer,
+  camera,
   lastMs,
   onChange,
   onClose,
@@ -36,6 +38,7 @@ export function ScanSettingsSheet({
   open: boolean
   settings: ScanSettings
   recognizer: RecognizerState
+  camera: CameraDiagnostics | null
   lastMs: number | null
   onChange: (settings: ScanSettings) => void
   onClose: () => void
@@ -206,6 +209,13 @@ export function ScanSettingsSheet({
               </p>
             )}
           </section>
+
+          {camera ? (
+            <section className="px-5 py-4 text-sm text-base-content/70">
+              <h3 className="mb-1 text-sm font-bold text-base-content">Camera</h3>
+              <CameraSummary camera={camera} />
+            </section>
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>
@@ -381,6 +391,26 @@ function ThreadsField({ value, onChange }: { value: number; onChange: (threads: 
         ))}
       </ToggleGroup>
     </div>
+  )
+}
+
+/** What the camera delivers, to tell a lens switch or resolution drop from focus trouble. */
+function CameraSummary({ camera }: { camera: CameraDiagnostics }) {
+  const parts = [
+    `${camera.width}×${camera.height}`,
+    camera.frameRate !== null ? `${Math.round(camera.frameRate)} fps` : null,
+    camera.focusMode !== null ? `focus ${camera.focusMode}` : null,
+    camera.zoom !== null
+      ? `zoom ${camera.zoom}×${camera.zoomRange ? ` (${camera.zoomRange.min}–${camera.zoomRange.max}×)` : ""}`
+      : null,
+  ].filter((part) => part !== null)
+  return (
+    <p>
+      {camera.label ? <span className="font-mono">{camera.label}</span> : "Camera"} ·{" "}
+      <span className="font-mono">{parts.join(" · ")}</span> · resolution changed{" "}
+      <span className="font-mono">{camera.resolutionChanges}</span>{" "}
+      {camera.resolutionChanges === 1 ? "time" : "times"}
+    </p>
   )
 }
 

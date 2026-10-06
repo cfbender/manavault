@@ -129,6 +129,30 @@ export function evaluateTokenFrame(result: Identification): FrameOutcome {
   return { type: "ready", candidate: best }
 }
 
+/**
+ * How often frames are identified, to spare the battery. A card being identified gets the
+ * full rate; nothing new in view (the logged card still there, or no card for a while) gets a
+ * slow one, and a card that appears is picked up within one slow frame. With no card in view
+ * at all for `sleepMs`, the camera is switched off until the user taps.
+ */
+export const FRAME_PACING = {
+  /** Shortest time from one frame's start to the next while a card is being identified. */
+  activeMs: 150,
+  relaxedMs: 500,
+  /** No card for this long and frames slow down. */
+  settleMs: 3000,
+  sleepMs: 60_000,
+  /** Breathing room after every frame so the UI thread is never saturated. */
+  minGapMs: 40,
+} as const
+
+/** Milliseconds from this frame's start to the next frame's start. */
+export function frameInterval(outcome: FrameOutcome["type"], msSinceCard: number): number {
+  if (outcome === "duplicate") return FRAME_PACING.relaxedMs
+  if (outcome === "empty" && msSinceCard >= FRAME_PACING.settleMs) return FRAME_PACING.relaxedMs
+  return FRAME_PACING.activeMs
+}
+
 /** After the last logged scan is deleted, the same card may be scanned again. */
 export function forgetLastLogged(tracker: ScanTracker): ScanTracker {
   return { ...tracker, lastLoggedKey: null }

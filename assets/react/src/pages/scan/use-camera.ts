@@ -11,6 +11,23 @@ export type CameraState =
       message: string
     }
 
+/**
+ * What the camera is actually delivering, shown in the scanner settings to diagnose blur and
+ * sudden zooms: a lens switch or a resolution change shows up here.
+ */
+export interface CameraDiagnostics {
+  /** The device label, e.g. "camera2 0, facing back" on Android. */
+  label: string
+  width: number
+  height: number
+  frameRate: number | null
+  focusMode: string | null
+  zoom: number | null
+  zoomRange: { min: number; max: number } | null
+  /** Times the delivered resolution changed since the camera started. */
+  resolutionChanges: number
+}
+
 /** Frames sent to the recognizer are this many pixels square. */
 export const FRAME_SIZE = 640
 const FRAME_BACKGROUND = "rgb(18, 18, 18)"
@@ -38,6 +55,7 @@ export function useCamera() {
   const streamRef = useRef<MediaStream | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [state, setState] = useState<CameraState>({ status: "idle" })
+  const [diagnostics, setDiagnostics] = useState<CameraDiagnostics | null>(null)
   // Bumped by every start and stop, so a getUserMedia call that resolves after a newer
   // start or a stop (for example React StrictMode's mount/unmount/mount) releases its stream.
   const generationRef = useRef(0)
@@ -77,6 +95,8 @@ export function useCamera() {
           facingMode: { ideal: "environment" },
           width: { ideal: 1920 },
           height: { ideal: 1080 },
+          // More than 30 fps only costs battery: frames are identified a few times a second.
+          frameRate: { ideal: 30, max: 30 },
         },
       })
       if (generation !== generationRef.current) {
@@ -101,14 +121,44 @@ export function useCamera() {
 
   useEffect(() => stop, [stop])
 
+  const live = state.status === "live"
+  useEffect(() => {
+    const video = videoRef.current
+    const track = streamRef.current?.getVideoTracks()[0]
+    if (!live || !video || !track) {
+      setDiagnostics(null)
+      return
+    }
+    let changes = 0
+    let last = `${video.videoWidth}x${video.videoHeight}`
+    const update = () => {
+      const size = `${video.videoWidth}x${video.videoHeight}`
+      if (size !== last) changes += 1
+      last = size
+      const next = cameraDiagnostics(track, video, changes)
+      setDiagnostics((current) =>
+        JSON.stringify(current) === JSON.stringify(next) ? current : next,
+      )
+    }
+    update()
+    video.addEventListener("resize", update)
+    // Focus and zoom can change without a resize; a slow poll keeps the readout honest.
+    const poll = window.setInterval(update, 2000)
+    return () => {
+      video.removeEventListener("resize", update)
+      window.clearInterval(poll)
+    }
+  }, [live])
+
   /** The whole current video frame fitted into the square frame, or null before video. */
   const grabFrame = useCallback((): RgbaImage | null => {
     const video = videoRef.current
     if (!video || video.readyState < 2 || !video.videoWidth) return null
     canvasRef.current ??= document.createElement("canvas")
     const canvas = canvasRef.current
-    canvas.width = FRAME_SIZE
-    canvas.height = FRAME_SIZE
+    // Assigning a size reallocates the canvas even when it is unchanged.
+    if (canvas.width !== FRAME_SIZE) canvas.width = FRAME_SIZE
+    if (canvas.height !== FRAME_SIZE) canvas.height = FRAME_SIZE
     const context = canvas.getContext("2d", { willReadFrequently: true })
     if (!context) return null
     const { scale, offsetX, offsetY } = frameGeometry(video.videoWidth, video.videoHeight)
@@ -149,7 +199,7 @@ export function useCamera() {
     }
   }, [])
 
-  return { videoRef, state, start, stop, grabFrame, lastFrameJpeg, focusAt }
+  return { videoRef, state, diagnostics, start, stop, grabFrame, lastFrameJpeg, focusAt }
 }
 
 /** Focus constraints from the Image Capture spec, not yet in TypeScript's DOM types. */
@@ -169,6 +219,28 @@ async function applyFocus(stream: MediaStream, wanted: FocusConstraints): Promis
     return true
   } catch {
     return false
+  }
+}
+
+function cameraDiagnostics(
+  track: MediaStreamTrack,
+  video: HTMLVideoElement,
+  resolutionChanges: number,
+): CameraDiagnostics {
+  // `zoom` and `focusMode` come from the Image Capture spec, not yet in TypeScript's DOM types.
+  const settings = track.getSettings() as MediaTrackSettings & { zoom?: number; focusMode?: string }
+  const capabilities = (track.getCapabilities?.() ?? {}) as { zoom?: { min: number; max: number } }
+  return {
+    label: track.label,
+    width: video.videoWidth,
+    height: video.videoHeight,
+    frameRate: settings.frameRate ?? null,
+    focusMode: settings.focusMode ?? null,
+    zoom: settings.zoom ?? null,
+    zoomRange: capabilities.zoom
+      ? { min: capabilities.zoom.min, max: capabilities.zoom.max }
+      : null,
+    resolutionChanges,
   }
 }
 

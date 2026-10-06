@@ -21,6 +21,8 @@ import {
   cardKey,
   evaluateFrame,
   evaluateTokenFrame,
+  FRAME_PACING,
+  frameInterval,
   forgetLastLogged,
   INITIAL_TRACKER,
   markLogged,
@@ -56,9 +58,6 @@ import {
   withCheckedOutline,
 } from "./scan-training"
 import { FRAME_SIZE, useCamera } from "./use-camera"
-
-/** Breathing room between frames so the UI thread and battery are not saturated. */
-const FRAME_GAP_MS = 40
 
 const EMPTY_LIST: ScanEntry[] = []
 const readSettings = (value: string) => normalizeScanSettings(JSON.parse(value))
@@ -274,20 +273,41 @@ export function useScanSession({ paused }: { paused: boolean }) {
   const { grabFrame } = camera
   const { identify } = recognizer
 
+  // Switched off to save the battery after a minute with no card in view; a tap resumes.
+  const [asleep, setAsleep] = useState(false)
+  const asleepRef = useRef(asleep)
+  asleepRef.current = asleep
+  /** When a card was last in view, or scanning last paused or resumed. */
+  const lastActiveRef = useRef(0)
+  const { start: startCamera, stop: stopCamera } = camera
+
   useEffect(() => {
     if (!running) return
     let cancelled = false
+    lastActiveRef.current = performance.now()
     void (async () => {
+      let wasPaused = pausedRef.current
       while (!cancelled) {
+        if (pausedRef.current !== wasPaused) {
+          wasPaused = pausedRef.current
+          lastActiveRef.current = performance.now()
+        }
+        if (performance.now() - lastActiveRef.current >= FRAME_PACING.sleepMs) {
+          setAsleep(true)
+          stopCamera()
+          return
+        }
         if (pausedRef.current || document.visibilityState === "hidden") {
           await sleep(250)
           continue
         }
+        const started = performance.now()
         const frame = grabFrame()
         if (!frame) {
           await sleep(100)
           continue
         }
+        let interval: number = FRAME_PACING.activeMs
         try {
           const result = await identify(frame, settingsRef.current.tokenMode ? "tokens" : "all")
           if (cancelled || pausedRef.current) continue
@@ -313,20 +333,22 @@ export function useScanSession({ paused }: { paused: boolean }) {
             if (outcome.type === "accept") logScan(outcome.candidate, result)
           }
           const now = performance.now()
+          if (outcome.type !== "empty") lastActiveRef.current = now
+          interval = frameInterval(outcome.type, now - lastActiveRef.current)
           setView((current) => nextView(current, outcome, result, now))
         } catch {
           if (cancelled) return
           await sleep(250)
         }
-        await sleep(FRAME_GAP_MS)
+        const elapsed = performance.now() - started
+        await sleep(Math.max(FRAME_PACING.minGapMs, interval - elapsed))
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [grabFrame, identify, logScan, running])
+  }, [grabFrame, identify, logScan, running, stopCamera])
 
-  const { start: startCamera, stop: stopCamera } = camera
   const { start: startRecognizer, stop: stopRecognizer } = recognizer
 
   /** Must run from a tap: it unlocks audio and triggers the camera permission prompt. */
@@ -335,6 +357,31 @@ export function useScanSession({ paused }: { paused: boolean }) {
     startRecognizer({ threads: settingsRef.current.threads })
     void startCamera()
   }, [startCamera, startRecognizer])
+
+  const wake = useCallback(() => {
+    setAsleep(false)
+    void startCamera()
+  }, [startCamera])
+
+  // The camera is off while the app or tab is in the background, not just unread.
+  const cameraStatusRef = useRef(camera.state.status)
+  cameraStatusRef.current = camera.state.status
+  useEffect(() => {
+    let stoppedHidden = false
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        const status = cameraStatusRef.current
+        if (status !== "starting" && status !== "live") return
+        stoppedHidden = true
+        stopCamera()
+      } else if (stoppedHidden) {
+        stoppedHidden = false
+        if (!asleepRef.current) void startCamera()
+      }
+    }
+    document.addEventListener("visibilitychange", onVisibility)
+    return () => document.removeEventListener("visibilitychange", onVisibility)
+  }, [startCamera, stopCamera])
 
   // The thread count is fixed when the runtime starts, so changing it restarts the worker.
   const recognizerRunning = recognizer.state.status !== "idle"
@@ -579,6 +626,8 @@ export function useScanSession({ paused }: { paused: boolean }) {
     camera,
     recognizer,
     view,
+    asleep,
+    wake,
     entries,
     settings,
     setSettings,

@@ -175,7 +175,12 @@ camera; the browser or OS asks for camera access once.
   total value (optionally counting only cards priced at or above a minimum, so
   bulk does not add up), sounds (a click per scan, a ding at $1 and a bigger
   ding at $10 by default; both thresholds are configurable), camera preview
-  zoom and pan, and recognition threads.
+  zoom and pan, and recognition threads. The settings also show what the camera
+  delivers (lens, resolution, frame rate, focus and zoom, and how often the
+  resolution changed), to diagnose blur or sudden zooms.
+- To save battery the scanner slows down while nothing new is in view, turns the
+  camera off while the app is in the background, and after a minute with no
+  card in view pauses the camera until you tap.
 - **Identify** next to the status adds a card the scanner does not recognize:
   it freezes the camera view and searches the card (or token) by name.
 - **Wrong card?** in the printing picker searches the catalog by name and swaps

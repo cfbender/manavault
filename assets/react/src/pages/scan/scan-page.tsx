@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router"
-import { CameraOff, List, LoaderCircle, ScanSearch, Settings2, X } from "lucide-react"
+import { CameraOff, List, LoaderCircle, MoonStar, ScanSearch, Settings2, X } from "lucide-react"
 import { useEffect, useState } from "react"
 import {
   restoreNativeSystemBarsTheme,
@@ -81,6 +81,22 @@ export function ScanPage() {
         onTap={settings.tokenMode ? session.logArmed : undefined}
       />
 
+      {session.asleep ? (
+        <button
+          type="button"
+          onClick={session.wake}
+          className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-base-100 px-8 text-center focus-visible:outline-none"
+        >
+          <span className="flex h-14 w-14 items-center justify-center rounded-box border-[1.5px] border-base-300 bg-base-200">
+            <MoonStar className="h-7 w-7 text-base-content/70" aria-hidden="true" />
+          </span>
+          <span className="text-2xl font-black">Camera paused</span>
+          <span className="text-base text-base-content/70">
+            No card for a minute, so the camera is off to save battery. Tap to resume.
+          </span>
+        </button>
+      ) : null}
+
       <header className="absolute inset-x-0 top-0 z-10 flex items-center gap-2 bg-gradient-to-b from-base-100/80 to-transparent px-3 pb-8 pt-[calc(var(--safe-top)_+_0.75rem)]">
         <Link
           to="/collection"
@@ -127,6 +143,7 @@ export function ScanPage() {
         <div className="absolute inset-x-0 bottom-0 mx-auto flex max-w-xl flex-col gap-2 bg-gradient-to-t from-base-100/80 to-transparent px-3 pb-[calc(var(--safe-bottom)_+_0.75rem)] pt-10">
           <div className="flex flex-wrap items-center justify-center gap-2">
             <StatusPill
+              asleep={session.asleep}
               camera={camera.state}
               recognizer={recognizer.state}
               view={view}
@@ -173,6 +190,7 @@ export function ScanPage() {
         open={sheet.type === "settings"}
         settings={settings}
         recognizer={recognizer.state}
+        camera={camera.diagnostics}
         lastMs={view.ms}
         onChange={session.setSettings}
         onClose={close}
@@ -214,18 +232,21 @@ export function ScanPage() {
 }
 
 function StatusPill({
+  asleep,
   camera,
   recognizer,
   view,
   tokenMode,
 }: {
+  asleep: boolean
   camera: CameraState
   recognizer: RecognizerState
   view: ScanView
   tokenMode: boolean
 }) {
-  const { text, busy } =
-    camera.status === "live"
+  const { text, busy } = asleep
+    ? { text: "Paused to save battery", busy: false }
+    : camera.status === "live"
       ? statusText(recognizer, view, tokenMode)
       : { text: "Starting camera…", busy: true }
   return (
