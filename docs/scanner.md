@@ -106,7 +106,8 @@ Code lives in `assets/react/src/pages/scan/`.
   matches something outside them is reported as "Not in locked sets" instead. Tokens mode
   (`tokenMode` in `scan-settings.ts`, toggled in the settings sheet; `evaluateTokenFrame`)
   instead takes the best candidate whose gallery `layout` is in `TOKEN_LAYOUTS` (`token`,
-  `double_faced_token`, `emblem`; the oracle gallery currently exports no `emblem` arts),
+  `double_faced_token`, `emblem`; oracle exports emblem arts from commit 978de5e onward, keyed
+  `<illustration_id>:emblem` because nine emblems share their planeswalker's illustration),
   reports it as `ready` once it scores 0.6, and logs it only when the viewfinder is tapped
   (`logArmed` in `use-scan-session.ts`), with no duplicate rule. The tap is the `click`, not
   `pointerdown`: logging can open the back picker, and a sheet mounting under a finger still
@@ -127,7 +128,8 @@ Code lives in `assets/react/src/pages/scan/`.
   (`isPaddedResult`). An older bundle without the input gets `{ embeddings }` only, so the
   client works with either. The settings sheet shows "token search" under **Recognition model**
   when the mask is available. Token arts in masked bundles also use the new `token` and
-  `token_tall` frame cuts (`frame_names` grew from 14 to 16; `arts.json` `frame` can be either).
+  `token_tall` frame cuts, and emblem arts an `emblem` cut (`frame_names` grew from 14 to 17;
+  `arts.json` `frame` can be any of them).
   Oracle's measurements: Scryfall's current token `art_crop` was being filed as `old`/`tall`,
   covering only ~65%/83% of the art, so clean token scans scored ~0.88 against 0.99 for cards
   and fell to the hub art Funeral Room // Awakening Hall (in the top five of 12% of all
