@@ -16,10 +16,11 @@ defmodule Manavault.Catalog.Scryfall.Sync do
   @commander_ranks_url "https://json.edhrec.com/pages/commanders/year.json"
   @saltiness_url "https://mtgjson.com/api/v5/AtomicCards.json.gz"
   # Bump when the importer starts writing data older syncs lack (v2: paper-only
-  # printings; v3: token printings and card -> token links; v4: emblems). A
+  # printings; v3: token printings and card -> token links; v4: emblems; v5:
+  # bare "Card" helper tokens such as The Monarch and On an Adventure). A
   # succeeded sync with an older bulk_type is treated as stale so the next
   # scheduled run re-imports instead of waiting out the daily interval.
-  @bulk_type "default_cards_paper_v4"
+  @bulk_type "default_cards_paper_v5"
 
   @doc "Identifier for the current importer's output, recorded on each sync."
   def bulk_type, do: @bulk_type

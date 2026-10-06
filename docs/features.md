@@ -58,6 +58,13 @@ search uses that local catalog, supports sorting and recent searches, shows how
 many copies you own, and shares structured filters with collection search. The
 search page also shows a gallery of top EDHREC commanders.
 
+The sync imports paper cards plus tokens, emblems, and the game helpers Wizards
+prints in token slots (The Monarch, City's Blessing, On an Adventure,
+Day // Night, Punchcard). It skips art cards, World Championship decklists and
+ads, Booster Blitz minigame cards, checklists, substitute cards, and counter
+cards Scryfall does not file as tokens (Poison and Experience counters, Secret
+Lair "Red Mana").
+
 Card detail pages show:
 
 - oracle text and mana symbols, including back faces

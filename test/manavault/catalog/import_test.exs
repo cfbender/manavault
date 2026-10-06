@@ -122,28 +122,97 @@ defmodule Manavault.Catalog.ImportTest do
         "set_type" => "token"
       })
 
-    helper =
-      Map.merge(@black_lotus, %{
-        "id" => "scryfall-helper",
-        "oracle_id" => "oracle-helper",
-        "name" => "Card // Card",
-        "type_line" => "Card // Card",
-        "layout" => "double_faced_token",
-        "set" => "tlea",
-        "set_name" => "Alpha Tokens",
-        "set_type" => "token"
-      })
-
     # Emblems are printed on token backs, so they import as tokens.
-    assert {:ok, %{cards_count: 2, printings_count: 2, source_count: 4}} =
-             Catalog.import_cards([@black_lotus, memorabilia, emblem, helper])
+    assert {:ok, %{cards_count: 2, printings_count: 2, source_count: 3}} =
+             Catalog.import_cards([@black_lotus, memorabilia, emblem])
 
     assert Repo.get!(Printing, @black_lotus["id"])
     refute Repo.get(Printing, memorabilia["id"])
     assert Repo.get!(Printing, emblem["id"])
     assert %Card{layout: "emblem"} = emblem_card = Repo.get!(Card, emblem["oracle_id"])
     assert Card.token?(emblem_card)
-    refute Repo.get(Printing, helper["id"])
+  end
+
+  test "import_cards keeps bare-\"Card\" helper tokens but not inserts or counter cards" do
+    # Real Scryfall shapes: game helpers are typed "Card" exactly like inserts.
+    bare = fn id, overrides ->
+      Map.merge(
+        @black_lotus,
+        Map.merge(
+          %{
+            "id" => id,
+            "oracle_id" => "oracle-" <> id,
+            "type_line" => "Card",
+            "layout" => "token",
+            "set" => "tlea",
+            "set_name" => "Alpha Tokens",
+            "set_type" => "token"
+          },
+          overrides
+        )
+      )
+    end
+
+    adventure = bare.("on-an-adventure", %{"name" => "On an Adventure"})
+
+    day_night =
+      bare.("day-night", %{
+        "name" => "Day // Night",
+        "type_line" => "Card // Card",
+        "layout" => "double_faced_token"
+      })
+
+    # Non-game inserts: decklists and ads in memorabilia sets, minigame cards,
+    # checklists and substitute cards in token sets.
+    decklist =
+      bare.("decklist", %{
+        "name" => "Aeo Paquette Decklist",
+        "set" => "wc04",
+        "set_type" => "memorabilia"
+      })
+
+    minigame =
+      bare.("booster-blitz", %{
+        "name" => "Booster Blitz",
+        "set" => "mone",
+        "set_type" => "minigame"
+      })
+
+    checklist = bare.("checklist", %{"name" => "Innistrad Checklist"})
+
+    substitute =
+      bare.("substitute", %{"name" => "Double-Faced Substitute Card", "layout" => "normal"})
+
+    # Bare "Card" cards Scryfall does not file as tokens stay out: they would
+    # otherwise become playable collection cards.
+    poison = bare.("poison", %{"name" => "Poison Counter", "layout" => "normal"})
+
+    red_mana =
+      bare.("red-mana", %{
+        "name" => "Red Mana",
+        "layout" => "normal",
+        "set" => "sld",
+        "set_type" => "box"
+      })
+
+    assert {:ok, %{cards_count: 2, printings_count: 2, source_count: 8}} =
+             Catalog.import_cards([
+               adventure,
+               day_night,
+               decklist,
+               minigame,
+               checklist,
+               substitute,
+               poison,
+               red_mana
+             ])
+
+    assert %Card{layout: "token"} = Repo.get!(Card, adventure["oracle_id"])
+    assert Repo.get!(Printing, day_night["id"])
+
+    for card <- [decklist, minigame, checklist, substitute, poison, red_mana] do
+      refute Repo.get(Printing, card["id"]), "#{card["name"]} should not be imported"
+    end
   end
 
   test "import_cards keeps tokens, records layouts, and links producers to their tokens" do

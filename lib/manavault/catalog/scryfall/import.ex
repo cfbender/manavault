@@ -12,6 +12,7 @@ defmodule Manavault.Catalog.Scryfall.Import do
 
   @batch_size 200
   @excluded_set_types ~w(memorabilia token)
+  @insert_set_types ~w(memorabilia minigame)
   @progress_source_card_interval 5_000
 
   # SQLite has no lock queue: a writer blocked on the database-wide write lock
@@ -133,22 +134,35 @@ defmodule Manavault.Catalog.Scryfall.Import do
   end
 
   # Memorabilia and token sets are skipped, except for the tokens and emblems
-  # themselves: those sets also carry art cards. Double-faced "helper" cards,
-  # whose type line is just "Card", are never tokens a player owns.
+  # themselves: those sets also carry art cards. Scryfall types game helpers
+  # (The Monarch, On an Adventure, Day // Night, Punchcard) as a bare "Card",
+  # like non-game inserts (World Championship decklists and ads, Booster Blitz
+  # minigame cards, checklists, substitute cards). Helpers printed as tokens
+  # are kept; inserts, and bare "Card" cards Scryfall does not file as tokens
+  # (Secret Lair "Red Mana", Experience and Poison counters), are not.
   defp excluded?(card) do
-    helper_card?(card) or (excluded_set_type?(card) and not Card.token?(card["layout"]))
+    token? = Card.token?(card["layout"])
+
+    non_game_insert?(card) or
+      (not token? and (bare_card?(card) or excluded_set_type?(card)))
   end
 
   defp excluded_set_type?(%{"set_type" => set_type}), do: set_type in @excluded_set_types
   defp excluded_set_type?(_card), do: false
 
-  defp helper_card?(%{"type_line" => type_line}) when is_binary(type_line) do
+  defp non_game_insert?(card) do
+    bare_card?(card) and
+      (card["set_type"] in @insert_set_types or
+         String.contains?(card["name"] || "", ["Checklist", "Substitute Card"]))
+  end
+
+  defp bare_card?(%{"type_line" => type_line}) when is_binary(type_line) do
     type_line
     |> String.split("//")
     |> Enum.any?(&(String.trim(&1) == "Card"))
   end
 
-  defp helper_card?(_card), do: false
+  defp bare_card?(_card), do: false
 
   # A batch with nothing to write never takes the write lock.
   defp import_batch(%{cards: [], printings: [], relinked_scryfall_ids: []}, _replace_tags?) do
