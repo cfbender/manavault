@@ -223,6 +223,48 @@ defmodule Manavault.Catalog.TokensTest do
       assert %{known: [], same_set: []} = Catalog.token_back_options("nope")
     end
 
+    test "offers the set's emblems as backs and records them on owned tokens" do
+      # Real TINR pairing: Human Wizard #5 is printed with the Jace, Unraveler of
+      # Secrets emblem #25 on its back.
+      human_wizard =
+        Map.merge(@treasure_tlea, %{
+          "id" => "token-human-wizard-inr",
+          "oracle_id" => "oracle-human-wizard",
+          "name" => "Human Wizard",
+          "set" => "tinr",
+          "collector_number" => "5"
+        })
+
+      emblem =
+        Map.merge(human_wizard, %{
+          "id" => "emblem-jace-inr",
+          "oracle_id" => "oracle-jace-emblem",
+          "name" => "Jace, Unraveler of Secrets Emblem",
+          "type_line" => "Emblem — Jace",
+          "layout" => "emblem",
+          "collector_number" => "25"
+        })
+
+      {:ok, _result} = Catalog.import_cards([human_wizard, emblem])
+
+      assert %{known: [], same_set: [%Printing{scryfall_id: "emblem-jace-inr"}]} =
+               Catalog.token_back_options("token-human-wizard-inr")
+
+      assert {:ok, %TokenItem{back_scryfall_id: "emblem-jace-inr"}} =
+               Catalog.add_token_item(%{
+                 scryfall_id: "token-human-wizard-inr",
+                 back_scryfall_id: "emblem-jace-inr",
+                 quantity: 1,
+                 finish: "nonfoil"
+               })
+
+      assert %{known: [%Printing{scryfall_id: "emblem-jace-inr"}], same_set: []} =
+               Catalog.token_back_options("token-human-wizard-inr")
+
+      assert %{known: [%Printing{scryfall_id: "token-human-wizard-inr"}], same_set: []} =
+               Catalog.token_back_options("emblem-jace-inr")
+    end
+
     test "learns backs from owned tokens in both directions, ahead of gallery data" do
       # Goblin owned with Dragon on its back: Dragon learns Goblin even though the
       # gallery data only pairs Goblin with Tarmogoyf.

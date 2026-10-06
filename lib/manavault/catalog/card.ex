@@ -6,7 +6,9 @@ defmodule Manavault.Catalog.Card do
 
   alias Manavault.Catalog.Search.NameMatch
 
-  @token_layouts ~w(token double_faced_token)
+  # Emblems count as tokens: they are printed on the backs of tokens in the same
+  # token sets, so they must be browsable and selectable as a token's other face.
+  @token_layouts ~w(token double_faced_token emblem)
 
   @primary_key {:oracle_id, :string, []}
   @foreign_key_type :string
@@ -39,7 +41,7 @@ defmodule Manavault.Catalog.Card do
     timestamps(type: :utc_datetime)
   end
 
-  @doc "Scryfall layouts that mark a card as a token rather than a playable card."
+  @doc "Scryfall layouts that mark a card as a token (or emblem) rather than a playable card."
   def token_layouts, do: @token_layouts
 
   @doc "Whether the card (or layout) is a token: browsable, but never a collection copy."

@@ -73,13 +73,15 @@ test("the gallery mask keeps every art for 'all' and only token layouts for 'tok
     { layout: "normal" },
     { layout: "token" },
     { layout: "double_faced_token" },
-    { layout: "emblem" },
+    { layout: "emblem" }, // printed on token backs, so a token
+    { layout: "art_series" },
     {}, // the-gathering bundles without a layout: a card, never a token
   ]
-  assert.deepEqual(Array.from(galleryMask(arts, "all")), [1, 1, 1, 1, 1])
-  assert.deepEqual(Array.from(galleryMask(arts, "tokens")), [0, 1, 1, 0, 0])
+  assert.deepEqual(Array.from(galleryMask(arts, "all")), [1, 1, 1, 1, 1, 1])
+  assert.deepEqual(Array.from(galleryMask(arts, "tokens")), [0, 1, 1, 1, 0, 0])
   assert.equal(galleryMask([], "tokens").length, 0)
   assert.equal(isTokenArt({ layout: "token" }), true)
+  assert.equal(isTokenArt({ layout: "emblem" }), true)
   assert.equal(isTokenArt({ layout: "normal" }), false)
 })
 

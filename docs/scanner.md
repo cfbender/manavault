@@ -105,7 +105,8 @@ Code lives in `assets/react/src/pages/scan/`.
   (`scannerSetIllustrations(setCodes)` lists their illustration IDs); a card that clearly
   matches something outside them is reported as "Not in locked sets" instead. Tokens mode
   (`tokenMode` in `scan-settings.ts`, toggled in the settings sheet; `evaluateTokenFrame`)
-  instead takes the best candidate whose gallery `layout` is `token` or `double_faced_token`,
+  instead takes the best candidate whose gallery `layout` is in `TOKEN_LAYOUTS` (`token`,
+  `double_faced_token`, `emblem`; the oracle gallery currently exports no `emblem` arts),
   reports it as `ready` once it scores 0.6, and logs it only when the viewfinder is tapped
   (`logArmed` in `use-scan-session.ts`), with no duplicate rule. The tap is the `click`, not
   `pointerdown`: logging can open the back picker, and a sheet mounting under a finger still
@@ -150,7 +151,9 @@ Code lives in `assets/react/src/pages/scan/`.
   items with that face on either side (`Manavault.Catalog.Tokens.BackOptions`, most-owned first),
   then the backs Wizards' galleries show printed with it (`priv/data/token_backs.json`, keyed by
   Scryfall set/collector number and loaded at compile time by
-  `Manavault.Catalog.Tokens.KnownBacks`); `sameSet` is every other token in the set. The sheet
+  `Manavault.Catalog.Tokens.KnownBacks`); `sameSet` is every other token in the set, emblems
+  included (Scryfall's `emblem` layout is in `Card.token_layouts/0`, so emblems import, list,
+  and validate as tokens; `isSingleFacedToken` treats them as fronts needing a back). The sheet
   adds backs picked on other entries of the current scan list (`sessionBacks` in `scan-list.ts`)
   ahead of both, since those are not owned yet. `known` is a hint, not a filter: the galleries publish one pairing per
   face and other products pair differently (FRA Jace is listed with Spirit but also ships with

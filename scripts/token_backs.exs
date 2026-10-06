@@ -18,7 +18,7 @@
 
 import Ecto.Query
 
-alias Manavault.Catalog.Printing
+alias Manavault.Catalog.{Card, Printing}
 alias Manavault.Repo
 
 defmodule TokenBacks.Gallery do
@@ -145,7 +145,7 @@ lookup = fn set_code, number ->
     from p in Printing,
       join: c in assoc(p, :card),
       where: p.set_code == ^set_code and p.collector_number == ^number,
-      where: c.layout in ["token", "double_faced_token"],
+      where: c.layout in ^Card.token_layouts(),
       preload: [card: c]
   )
 end

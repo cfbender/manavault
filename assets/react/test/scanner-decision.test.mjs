@@ -230,8 +230,9 @@ test("tokens mode offers the best token for a tap and never logs on its own", ()
     type: "tracking",
     candidate: null,
   })
-  // Emblems and cards without a layout are not tokens.
-  assert.equal(evaluateTokenFrame(token([["emblem", 0.9, "emblem"]])).type, "tracking")
+  // Emblems are tokens (printed on token backs); art cards and cards without a layout are not.
+  assert.equal(evaluateTokenFrame(token([["emblem", 0.9, "emblem"]])).type, "ready")
+  assert.equal(evaluateTokenFrame(token([["art", 0.9, "art_series"]])).type, "tracking")
   assert.equal(evaluateTokenFrame(token([["old", 0.9, undefined]])).type, "tracking")
   assert.deepEqual(evaluateTokenFrame(token([[UUID, 0.9, "token"]], { upVote: 0 })), {
     type: "empty",

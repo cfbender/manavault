@@ -134,13 +134,15 @@ defmodule Manavault.Catalog.ImportTest do
         "set_type" => "token"
       })
 
-    assert {:ok, %{cards_count: 1, printings_count: 1, source_count: 4}} =
+    # Emblems are printed on token backs, so they import as tokens.
+    assert {:ok, %{cards_count: 2, printings_count: 2, source_count: 4}} =
              Catalog.import_cards([@black_lotus, memorabilia, emblem, helper])
 
     assert Repo.get!(Printing, @black_lotus["id"])
     refute Repo.get(Printing, memorabilia["id"])
-    refute Repo.get(Printing, emblem["id"])
-    refute Repo.get(Card, emblem["oracle_id"])
+    assert Repo.get!(Printing, emblem["id"])
+    assert %Card{layout: "emblem"} = emblem_card = Repo.get!(Card, emblem["oracle_id"])
+    assert Card.token?(emblem_card)
     refute Repo.get(Printing, helper["id"])
   end
 

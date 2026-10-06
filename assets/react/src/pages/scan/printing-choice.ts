@@ -29,9 +29,12 @@ export interface PrintingOption {
   prices: FinishPrices
 }
 
-/** A single-faced token printing, whose physical back Scryfall does not know. */
+/**
+ * A single-faced token or emblem printing, whose physical back Scryfall does
+ * not know.
+ */
 export function isSingleFacedToken(option: Pick<PrintingOption, "layout">) {
-  return option.layout === "token"
+  return option.layout === "token" || option.layout === "emblem"
 }
 
 interface Recognized {

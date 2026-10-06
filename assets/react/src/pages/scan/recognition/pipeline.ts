@@ -50,8 +50,11 @@ export interface Candidate extends GalleryArt {
   score: number
 }
 
-/** Scryfall layouts whose gallery arts are tokens rather than playable cards. */
-export const TOKEN_LAYOUTS: ReadonlySet<string> = new Set(["token", "double_faced_token"])
+/**
+ * Scryfall layouts whose gallery arts are tokens rather than playable cards.
+ * Mirrors `Manavault.Catalog.Card.token_layouts/0`.
+ */
+export const TOKEN_LAYOUTS: ReadonlySet<string> = new Set(["token", "double_faced_token", "emblem"])
 
 export function isTokenArt(art: Pick<GalleryArt, "layout">): boolean {
   return art.layout !== undefined && TOKEN_LAYOUTS.has(art.layout)

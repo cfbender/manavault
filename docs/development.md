@@ -166,11 +166,13 @@ space, so the script needs that space's read-only bearer token:
 
    The script prints each dropped face and finishes with
    `wrote N pairs (M unresolved faces dropped)`. Dropped faces are normally
-   helper cards and emblems (The Monarch, Poison and Energy counters, City's
-   Blessing) that the catalog does not import as tokens, plus
-   `Incubator // Phyrexian`, which Scryfall already stores as one double-faced
-   printing. A dropped creature or artifact token means the catalog sync is
-   stale or the set's gallery filed it under a different collector number.
+   helper cards (The Monarch, Poison and Energy counters, City's Blessing) that
+   the catalog does not import as tokens, plus `Incubator // Phyrexian`, which
+   Scryfall already stores as one double-faced printing. Emblems resolve like
+   tokens (the catalog imports Scryfall's `emblem` layout as a token), so a
+   token // emblem pairing is kept. A dropped creature or artifact token means
+   the catalog sync is stale or the set's gallery filed it under a different
+   collector number.
 
 5. Review the diff of `priv/data/token_backs.json` (the file is sorted so
    additions show up as new lines), run

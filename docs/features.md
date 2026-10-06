@@ -42,12 +42,13 @@ detail.
 - **Missing cards** - deck demand that remains after allocated and available
   collection copies are counted. Missing-card exports can be tuned by printing
   mode and basic-land inclusion.
-- **Token item** - a stack of owned token cards (Scryfall layout `token` or
-  `double_faced_token`) sharing one front printing, optional back printing, and
-  finish. Tokens are kept apart from collection items: they are never
-  allocated, never counted toward collection value, and never satisfy deck
-  demand. The catalog also records which token printings each card creates,
-  from Scryfall's related-parts links.
+- **Token item** - a stack of owned token cards (Scryfall layout `token`,
+  `double_faced_token`, or `emblem`) sharing one front printing, optional back
+  printing, and finish. Emblems count as tokens because Wizards prints them on
+  the backs of tokens in the same token sets. Tokens are kept apart from
+  collection items: they are never allocated, never counted toward collection
+  value, and never satisfy deck demand. The catalog also records which token
+  printings each card creates, from Scryfall's related-parts links.
 
 ## Card Catalog
 
@@ -191,7 +192,9 @@ camera; the browser or OS asks for camera access once.
   galleries (`priv/data/token_backs.json`, Modern Horizons 3 onward). The
   published list is incomplete (one product's pairing per face; bundles and
   decks pair differently), so the rest of the set always follows under **Other
-  tokens**. Tokens from older sets show the whole set. Pick the reverse or mark it
+  tokens**, including the set's emblems (a Human Wizard token from Innistrad
+  Remastered can carry the Jace, Unraveler of Secrets emblem on its back).
+  Tokens from older sets show the whole set. Pick the reverse or mark it
   **Single-sided**; a chip on the entry changes the answer later. **Add to
   collection** files tokens as token items (see Collection -> Tokens) rather
   than collection items.

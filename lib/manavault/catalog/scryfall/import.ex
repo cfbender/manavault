@@ -101,8 +101,8 @@ defmodule Manavault.Catalog.Scryfall.Import do
     end)
   end
 
-  # Memorabilia and token sets are skipped, except for the tokens themselves:
-  # those sets also carry emblems and art cards. Double-faced "helper" cards,
+  # Memorabilia and token sets are skipped, except for the tokens and emblems
+  # themselves: those sets also carry art cards. Double-faced "helper" cards,
   # whose type line is just "Card", are never tokens a player owns.
   defp excluded?(card) do
     helper_card?(card) or (excluded_set_type?(card) and not Card.token?(card["layout"]))
