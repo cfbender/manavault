@@ -1,12 +1,15 @@
 defmodule Manavault.PricingTest do
   use Manavault.DataCase
 
+  alias Manavault.Catalog
   alias Manavault.Catalog.{Price, Printing}
+  alias Manavault.CatalogTestSupport
   alias Manavault.Pricing
   alias Manavault.Pricing.{Money, Store, Sync, VendorPrice}
-  alias Manavault.Pricing.Vendors.{CardKingdom, ManaPool, TcgTracking}
+  alias Manavault.Pricing.Vendors.{CardKingdom, ManaPool, TcgCsv}
 
   @mana_pool_stub __MODULE__
+  @tcg_csv_stub Module.concat(__MODULE__, TcgCsv)
 
   describe "Money.to_cents/1" do
     test "parses decimal dollar strings" do
@@ -220,118 +223,88 @@ defmodule Manavault.PricingTest do
     Map.merge(%{"scryfall_id" => scryfall_id}, prices)
   end
 
-  describe "TcgTracking.rows/2" do
-    test "prefers market prices, falling back to the pricing block's NM low" do
-      cards = %{
-        "products" => [
-          %{"id" => 1, "scryfall_id" => "aaa"},
-          %{"id" => 2, "scryfall_id" => "bbb"}
-        ]
+  describe "TcgCsv.rows/2" do
+    test "prices finishes with the TCG low, falling back to the market price" do
+      printings = %{
+        1 => [{"aaa", false}],
+        2 => [{"bbb", false}, {"bbb-promo", false}],
+        3 => [{"ccc", true}],
+        4 => [{"ddd", false}]
       }
 
-      pricing = %{
-        "prices" => %{
-          "1" => %{
-            "tcg" => %{
-              "Normal" => %{"low" => 35.09, "market" => 35.93},
-              "Foil" => %{"low" => 39.99, "market" => nil}
-            }
-          },
-          "2" => %{"tcg" => %{"Foil Etched" => %{"market" => 9.57}}}
-        }
-      }
+      prices = [
+        tcg_csv_price(1, "Normal", 0.25, 0.35),
+        tcg_csv_price(1, "Foil", nil, 1.5),
+        tcg_csv_price(2, "Normal", 3.0, 4.0),
+        tcg_csv_price(3, "Foil", 9.57, 12.0),
+        tcg_csv_price(4, "Foil Etched", 5.0, nil)
+      ]
 
-      rows = TcgTracking.rows(cards, pricing) |> Enum.sort_by(&{&1.scryfall_id, &1.finish})
+      rows = TcgCsv.rows(prices, printings) |> Enum.sort_by(&{&1.scryfall_id, &1.finish})
 
       assert rows == [
-               %{scryfall_id: "aaa", finish: "foil", price_cents: 3999},
-               %{scryfall_id: "aaa", finish: "nonfoil", price_cents: 3593},
-               %{scryfall_id: "bbb", finish: "etched", price_cents: 957}
+               %{scryfall_id: "aaa", finish: "foil", price_cents: 150},
+               %{scryfall_id: "aaa", finish: "nonfoil", price_cents: 25},
+               %{scryfall_id: "bbb", finish: "nonfoil", price_cents: 300},
+               %{scryfall_id: "bbb-promo", finish: "nonfoil", price_cents: 300},
+               %{scryfall_id: "ccc", finish: "etched", price_cents: 957},
+               %{scryfall_id: "ddd", finish: "etched", price_cents: 500}
              ]
     end
 
-    test "without a market price, follows the lowest English NM listing, then the best condition" do
-      cards = %{
-        "products" => [
-          %{"id" => 1, "scryfall_id" => "aaa"},
-          %{"id" => 2, "scryfall_id" => "bbb"},
-          %{"id" => 3, "scryfall_id" => "ccc"}
-        ]
-      }
+    test "skips unmatched products, rows without prices, and unexpected payloads" do
+      prices = [tcg_csv_price(1, "Normal", nil, nil), tcg_csv_price(99, "Normal", 1.0, 1.0)]
 
-      pricing = %{
-        "prices" => %{
-          "1" => %{"tcg" => %{"Normal" => %{"low" => 10.0, "market" => nil}}},
-          "2" => %{"tcg" => []},
-          "3" => %{"tcg" => %{"Normal" => %{"market" => 4.5}}}
-        }
-      }
-
-      skus = %{
-        "products" => %{
-          "1" => %{
-            "11" => sku("NM", "Normal", 9.5),
-            "12" => sku("LP", "Normal", 7.0),
-            "13" => sku("NM", "Normal", 3.0, "JP"),
-            "14" => sku("MP", "Foil", 20.0),
-            "15" => sku("HP", "Foil", 15.0)
-          },
-          "2" => %{
-            "21" => sku("NM", "Normal", nil),
-            "22" => sku("MP", "Normal", 90.0),
-            "23" => sku("LP", "Normal", 105.0)
-          },
-          "3" => %{"31" => sku("NM", "Normal", 3.0), "32" => sku("NM", "Normal", nil, "DE")}
-        }
-      }
-
-      rows =
-        TcgTracking.rows(cards, pricing, skus) |> Enum.sort_by(&{&1.scryfall_id, &1.finish})
-
-      assert rows == [
-               %{scryfall_id: "aaa", finish: "foil", price_cents: 2000},
-               %{scryfall_id: "aaa", finish: "nonfoil", price_cents: 950},
-               %{scryfall_id: "bbb", finish: "nonfoil", price_cents: 10_500},
-               %{scryfall_id: "ccc", finish: "nonfoil", price_cents: 450}
-             ]
-    end
-
-    test "falls back to the cardtrader scryfall_id for special treatments" do
-      cards = %{
-        "products" => [
-          %{
-            "id" => 709_470,
-            "scryfall_id" => nil,
-            "cardtrader" => [%{"scryfall_id" => "42a1986c"}]
-          }
-        ]
-      }
-
-      pricing = %{
-        "prices" => %{
-          "709470" => %{"tcg" => %{"Foil" => %{"low" => 650.98, "market" => 675.49}}}
-        }
-      }
-
-      assert TcgTracking.rows(cards, pricing) == [
-               %{scryfall_id: "42a1986c", finish: "foil", price_cents: 67_549}
-             ]
-    end
-
-    test "skips products without any scryfall_id or pricing" do
-      cards = %{
-        "products" => [%{"id" => 1, "scryfall_id" => nil}, %{"id" => 2, "scryfall_id" => "bbb"}]
-      }
-
-      pricing = %{"prices" => %{"1" => %{"tcg" => %{"Normal" => %{"market" => 1.0}}}}}
-
-      assert TcgTracking.rows(cards, pricing) == []
-      assert TcgTracking.rows(%{}, %{}) == []
+      assert TcgCsv.rows(prices, %{1 => [{"aaa", false}]}) == []
+      assert TcgCsv.rows(nil, %{}) == []
     end
   end
 
-  defp sku(condition, variant, low, language \\ "EN") do
-    %{"cnd" => condition, "var" => variant, "lng" => language, "low" => low}
+  describe "TcgCsv.fetch/1" do
+    test "joins every group's prices to printings by TCGplayer product id" do
+      {:ok, _result} =
+        Catalog.import_cards([
+          Map.put(CatalogTestSupport.black_lotus(), "tcgplayer_id", 101),
+          Map.merge(CatalogTestSupport.time_walk(), %{
+            "tcgplayer_id" => 201,
+            "tcgplayer_etched_id" => 202
+          })
+        ])
+
+      Req.Test.stub(@tcg_csv_stub, fn conn ->
+        case conn.request_path do
+          "/tcgplayer/1/groups" ->
+            Req.Test.json(conn, %{"results" => [%{"groupId" => 1}, %{"groupId" => 2}]})
+
+          "/tcgplayer/1/1/prices" ->
+            Req.Test.json(conn, %{"results" => [tcg_csv_price(101, "Normal", 9000.0, 9500.0)]})
+
+          "/tcgplayer/1/2/prices" ->
+            conn
+            |> Plug.Conn.put_status(500)
+            |> Req.Test.json(%{"success" => false})
+        end
+      end)
+
+      assert TcgCsv.fetch(plug: {Req.Test, @tcg_csv_stub}, request_delay_ms: 0, retry: false) ==
+               {:ok,
+                [%{scryfall_id: "scryfall-printing-1", finish: "nonfoil", price_cents: 900_000}]}
+
+      assert TcgCsv.product_printings() == %{
+               101 => [{"scryfall-printing-1", false}],
+               201 => [{"scryfall-printing-2", false}],
+               202 => [{"scryfall-printing-2", true}]
+             }
+    end
+  end
+
+  defp tcg_csv_price(product_id, subtype, low, market) do
+    %{
+      "productId" => product_id,
+      "subTypeName" => subtype,
+      "lowPrice" => low,
+      "marketPrice" => market
+    }
   end
 
   describe "Sync.replace_vendor_prices/2" do

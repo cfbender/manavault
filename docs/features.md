@@ -517,8 +517,10 @@ Share dialog shows that URL and hides the rotate/disable controls.
 **Settings -> Pricing** selects the price source used across the app: Scryfall
 (default), TCGplayer, Card Kingdom, or Mana Pool. Vendor prices sync in the
 background into their own table and fall back to Scryfall for printings a vendor
-does not stock. TCGplayer and Mana Pool use the lowest near-mint listing per
-finish. A manual vendor sync can be queued from the same section.
+does not stock. TCGplayer uses the TCG Low price from tcgcsv.com (falling back
+to the market price), matched to printings through Scryfall's TCGplayer product
+IDs. Mana Pool uses the lowest near-mint listing per finish. A manual vendor
+sync can be queued from the same section.
 
 ## Settings and Appearance
 

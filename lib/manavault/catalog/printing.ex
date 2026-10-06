@@ -23,6 +23,8 @@ defmodule Manavault.Catalog.Printing do
     field :image_uris, :string, default: "{}"
     field :prices, :string, default: "{}"
     field :released_at, :date
+    field :tcgplayer_id, :integer
+    field :tcgplayer_etched_id, :integer
     field :owned_count, :integer, virtual: true, default: 0
 
     belongs_to :card, Manavault.Catalog.Card,
@@ -55,7 +57,9 @@ defmodule Manavault.Catalog.Printing do
       :promo_types,
       :image_uris,
       :prices,
-      :released_at
+      :released_at,
+      :tcgplayer_id,
+      :tcgplayer_etched_id
     ])
     |> put_normalized_flavor_name()
     |> validate_required([:scryfall_id, :oracle_id, :set_code, :collector_number, :lang])

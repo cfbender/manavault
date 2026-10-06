@@ -12,7 +12,11 @@ defmodule Manavault.Catalog.ImportTest do
   }
 
   test "import_cards stores identities and printings and safely updates on rerun" do
-    card = Map.put(@black_lotus, "illustration_id", "illustration-top-level")
+    card =
+      @black_lotus
+      |> Map.put("illustration_id", "illustration-top-level")
+      |> Map.put("tcgplayer_id", 1234)
+
     assert {:ok, %{cards_count: 1, printings_count: 1}} = Catalog.import_cards([card])
 
     assert %Card{
@@ -29,7 +33,9 @@ defmodule Manavault.Catalog.ImportTest do
              set_code: "lea",
              collector_number: "232",
              illustration_id: "illustration-top-level",
-             released_at: ~D[1993-08-05]
+             released_at: ~D[1993-08-05],
+             tcgplayer_id: 1234,
+             tcgplayer_etched_id: nil
            } =
              Catalog.get_printing_by_scryfall_id("scryfall-printing-1")
 
@@ -50,6 +56,7 @@ defmodule Manavault.Catalog.ImportTest do
                @renamed_lotus
                |> Map.put("game_changer", true)
                |> Map.put("illustration_id", "illustration-updated")
+               |> Map.put("tcgplayer_etched_id", 5678)
              ])
 
     assert Repo.aggregate(Card, :count) == 1
@@ -61,8 +68,12 @@ defmodule Manavault.Catalog.ImportTest do
              rulings_uri: "https://api.scryfall.com/cards/oracle-1/rulings-updated"
            } = Repo.get!(Card, "oracle-1")
 
-    assert %Printing{prices: prices, illustration_id: "illustration-updated"} =
-             Repo.get!(Printing, "scryfall-printing-1")
+    assert %Printing{
+             prices: prices,
+             illustration_id: "illustration-updated",
+             tcgplayer_id: nil,
+             tcgplayer_etched_id: 5678
+           } = Repo.get!(Printing, "scryfall-printing-1")
 
     assert Jason.decode!(prices) == %{"usd" => "1.00"}
   end

@@ -11,13 +11,13 @@ defmodule Manavault.Pricing.Sync do
 
   alias Manavault.Catalog.Cache
   alias Manavault.Pricing.{Store, VendorPrice}
-  alias Manavault.Pricing.Vendors.{CardKingdom, ManaPool, TcgTracking}
+  alias Manavault.Pricing.Vendors.{CardKingdom, ManaPool, TcgCsv}
   alias Manavault.Repo
 
   @vendor_modules %{
     "cardkingdom" => CardKingdom,
     "manapool" => ManaPool,
-    "tcgplayer" => TcgTracking
+    "tcgplayer" => TcgCsv
   }
 
   @batch_size 200

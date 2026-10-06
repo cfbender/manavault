@@ -21,7 +21,7 @@ const sourceLabels: Record<string, { label: string; description: string }> = {
   tcgplayer: {
     label: "TCGplayer",
     description:
-      "Market prices via tcgtracking.com, falling back to the lowest listing when no market price exists. Includes special treatments. Updated daily.",
+      "TCG Low prices via tcgcsv.com, falling back to the market price when no listing exists. Matches finish. Updated daily.",
   },
   cardkingdom: {
     label: "Card Kingdom",

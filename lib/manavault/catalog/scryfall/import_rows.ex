@@ -41,7 +41,9 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
     :promo,
     :image_uris,
     :prices,
-    :released_at
+    :released_at,
+    :tcgplayer_id,
+    :tcgplayer_etched_id
   ]
 
   @type t :: %{cards: [map()], printings: [map()], card_tokens: [map()]}
@@ -147,6 +149,8 @@ defmodule Manavault.Catalog.Scryfall.ImportRows do
         image_uris: encode_json(image_uris(card)),
         prices: encode_json(card["prices"] || %{}),
         released_at: parse_date(card["released_at"]),
+        tcgplayer_id: card["tcgplayer_id"],
+        tcgplayer_etched_id: card["tcgplayer_etched_id"],
         inserted_at: now,
         updated_at: now
       }
