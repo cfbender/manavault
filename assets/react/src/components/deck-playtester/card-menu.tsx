@@ -1,6 +1,8 @@
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
+  Copy,
+  Eraser,
   EyeOff,
   Flame,
   Hand,
@@ -11,20 +13,27 @@ import {
   Sparkles,
   type LucideIcon,
 } from "lucide-react"
-import { useState, type CSSProperties } from "react"
+import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react"
 import type { PlaytestCard, PlaytestZone } from "../../lib/deck-playtest"
 import { cn } from "../../lib/utils"
 import { hasClearableCardStatus } from "./card-status"
-import type { CardStatus, ContextMenuState } from "./types"
+import { ZONE_LABELS } from "./constants"
+import type { CardStatus, ContextMenuState, CounterKind } from "./types"
+
+const COUNTER_ROWS: Array<{ kind: CounterKind; label: string }> = [
+  { kind: "plusOneCounters", label: "+1/+1 counters" },
+  { kind: "minusOneCounters", label: "−1/−1 counters" },
+  { kind: "markers", label: "Markers" },
+]
 
 export function CardContextMenu({
   card,
   cardStatus,
   menu,
-  onAddMarker,
   onAdjustCounter,
   onClearStatus,
   onClose,
+  onDuplicate,
   onMove,
   onSetPowerToughness,
   onToggleFaceDown,
@@ -34,14 +43,10 @@ export function CardContextMenu({
   card: PlaytestCard | null
   cardStatus: CardStatus
   menu: NonNullable<ContextMenuState>
-  onAddMarker: (cardId: string) => void
-  onAdjustCounter: (
-    cardId: string,
-    kind: "plusOneCounters" | "minusOneCounters",
-    delta: number,
-  ) => void
+  onAdjustCounter: (cardId: string, kind: CounterKind, delta: number) => void
   onClearStatus: (cardId: string) => void
   onClose: () => void
+  onDuplicate: (cardId: string) => void
   onMove: (
     from: PlaytestZone,
     to: PlaytestZone,
@@ -53,127 +58,189 @@ export function CardContextMenu({
   onToggleTapped: (cardId: string) => void
   tapped: boolean
 }) {
-  const [power, setPower] = useState(cardStatus.power || "0")
-  const [toughness, setToughness] = useState(cardStatus.toughness || "0")
-  const hasClearableStatus = hasClearableCardStatus(cardStatus)
+  const [power, setPower] = useState(cardStatus.power || "")
+  const [toughness, setToughness] = useState(cardStatus.toughness || "")
+  const panelRef = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState({ left: menu.x, top: menu.y })
+  const onBattlefield = menu.zone === "battlefield"
+
+  // Keep the menu inside the viewport when opened near an edge.
+  useLayoutEffect(() => {
+    const panel = panelRef.current
+    if (!panel) return
+    const { height, width } = panel.getBoundingClientRect()
+    setPosition({
+      left: Math.max(8, Math.min(menu.x, window.innerWidth - width - 8)),
+      top: Math.max(8, Math.min(menu.y, window.innerHeight - height - 8)),
+    })
+  }, [menu.x, menu.y])
 
   if (!card) return null
+
+  const name = cardStatus.faceDown ? "Face-down card" : card.name
+  const move = (to: PlaytestZone, placement?: "top" | "bottom") =>
+    onMove(menu.zone, to, card.id, placement)
 
   return (
     <>
       <button
         type="button"
         aria-label="Close card menu"
-        className="fixed inset-0 z-40 cursor-default bg-transparent"
+        className="fixed inset-0 z-40 cursor-default bg-black/20 sm:bg-transparent"
         onClick={onClose}
+        onContextMenu={(event) => {
+          event.preventDefault()
+          onClose()
+        }}
       />
       <div
-        className="fixed inset-x-2 bottom-2 z-50 max-h-[calc(100dvh-1rem)] overflow-y-auto rounded-box border border-base-300 bg-base-100/95 text-sm shadow-2xl backdrop-blur sm:inset-x-auto sm:bottom-auto sm:w-80 sm:left-[var(--menu-x)] sm:top-[var(--menu-y)]"
-        style={{ "--menu-x": `${menu.x}px`, "--menu-y": `${menu.y}px` } as CSSProperties}
+        ref={panelRef}
+        className="fixed inset-x-2 bottom-2 z-50 max-h-[calc(100dvh-1rem)] overflow-y-auto rounded-box border border-base-300 bg-base-100 p-1 text-sm shadow-2xl sm:inset-x-auto sm:bottom-auto sm:left-[var(--menu-x)] sm:top-[var(--menu-y)] sm:w-80"
+        style={
+          { "--menu-x": `${position.left}px`, "--menu-y": `${position.top}px` } as CSSProperties
+        }
         role="dialog"
-        aria-label={`${cardStatus.faceDown ? "Face-down card" : card.name} actions`}
+        aria-label={`${name} actions`}
       >
-        <div className="border-b border-base-300 px-3 py-2 font-black">
-          {cardStatus.faceDown ? "Face-down card" : card.name}
+        <div className="px-2.5 pb-1.5 pt-1">
+          <p className="truncate font-black">{name}</p>
+          <p className="text-xs text-base-content/60">{ZONE_LABELS[menu.zone]}</p>
         </div>
-        {menu.zone === "battlefield" ? (
-          <MenuButton
-            label={tapped ? "Untap" : "Tap"}
-            shortcut="T"
-            icon={RotateCcw}
-            onClick={() => onToggleTapped(card.id)}
-          />
+
+        {onBattlefield ? (
+          <MenuGroup>
+            <MenuButton
+              label={tapped ? "Untap" : "Tap"}
+              shortcut="T"
+              icon={RotateCcw}
+              onClick={() => onToggleTapped(card.id)}
+            />
+            <MenuButton
+              label={cardStatus.faceDown ? "Turn face up" : "Turn face down"}
+              shortcut="F"
+              icon={EyeOff}
+              onClick={() => onToggleFaceDown(card.id)}
+            />
+            <MenuButton
+              label="Create token copy"
+              shortcut="C"
+              icon={Copy}
+              onClick={() => onDuplicate(card.id)}
+            />
+          </MenuGroup>
         ) : null}
-        <MenuButton
-          label={cardStatus.faceDown ? "Turn face up" : "Turn face down"}
-          icon={EyeOff}
-          onClick={() => onToggleFaceDown(card.id)}
-        />
-        <MenuButton
-          label={`+1/+1 Counter (${cardStatus.plusOneCounters})`}
-          shortcut="+"
-          icon={Plus}
-          onClick={() => onAdjustCounter(card.id, "plusOneCounters", 1)}
-        />
-        <MenuButton
-          label={`-1/-1 Counter (${cardStatus.minusOneCounters})`}
-          shortcut="-"
-          icon={Plus}
-          onClick={() => onAdjustCounter(card.id, "minusOneCounters", 1)}
-        />
-        <MenuButton
-          label={`Add Marker (${cardStatus.markers})`}
-          icon={Sparkles}
-          onClick={() => onAddMarker(card.id)}
-        />
-        <MenuButton
-          label="Remove all counters"
-          icon={Minus}
-          onClick={() => onClearStatus(card.id)}
-          disabled={!hasClearableStatus}
-        />
-        <div className="border-y border-base-300 px-3 py-2 text-xs text-base-content/60">
-          Counters: +1/+1 {cardStatus.plusOneCounters}, -1/-1 {cardStatus.minusOneCounters}, markers{" "}
-          {cardStatus.markers}
-        </div>
-        <div className="flex items-center gap-2 border-b border-base-300 px-3 py-2">
-          <span className="min-w-0 flex-1 text-base-content/80">Set power / toughness</span>
-          <input
-            className="input input-xs input-bordered w-12 text-center"
-            value={power}
-            onChange={(event) => setPower(event.target.value)}
-          />
-          <span>/</span>
-          <input
-            className="input input-xs input-bordered w-12 text-center"
-            value={toughness}
-            onChange={(event) => setToughness(event.target.value)}
-          />
-          <button
-            type="button"
-            className="btn btn-xs btn-outline"
-            onClick={() => onSetPowerToughness(card.id, power, toughness)}
-          >
-            OK
-          </button>
-        </div>
-        {menu.zone !== "hand" ? (
-          <MenuButton
-            label="Return to Hand"
-            shortcut="H"
-            icon={Hand}
-            onClick={() => onMove(menu.zone, "hand", card.id)}
-          />
+
+        {onBattlefield ? (
+          <MenuGroup>
+            {COUNTER_ROWS.map(({ kind, label }) => (
+              <div key={kind} className="flex items-center gap-2 rounded-field px-2.5 py-1">
+                <span className="min-w-0 flex-1 text-base-content/80">{label}</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-xs btn-square"
+                  onClick={() => onAdjustCounter(card.id, kind, -1)}
+                  disabled={cardStatus[kind] === 0}
+                  aria-label={`Remove one of ${label}`}
+                >
+                  <Minus className="h-3.5 w-3.5" />
+                </button>
+                <span className="w-6 text-center font-mono font-black tabular-nums">
+                  {cardStatus[kind]}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-xs btn-square"
+                  onClick={() => onAdjustCounter(card.id, kind, 1)}
+                  aria-label={`Add one of ${label}`}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+            <form
+              className="flex items-center gap-1.5 px-2.5 py-1"
+              onSubmit={(event) => {
+                event.preventDefault()
+                onSetPowerToughness(card.id, power.trim(), toughness.trim())
+              }}
+            >
+              <span className="min-w-0 flex-1 text-base-content/80">Power / toughness</span>
+              <input
+                className="input input-xs input-bordered w-11 px-1 text-center font-mono"
+                value={power}
+                placeholder="–"
+                onChange={(event) => setPower(event.target.value)}
+                aria-label="Power"
+              />
+              <span className="text-base-content/50">/</span>
+              <input
+                className="input input-xs input-bordered w-11 px-1 text-center font-mono"
+                value={toughness}
+                placeholder="–"
+                onChange={(event) => setToughness(event.target.value)}
+                aria-label="Toughness"
+              />
+              <button type="submit" className="btn btn-xs btn-outline">
+                Set
+              </button>
+            </form>
+            <MenuButton
+              label="Clear counters"
+              icon={Eraser}
+              onClick={() => onClearStatus(card.id)}
+              disabled={!hasClearableCardStatus(cardStatus)}
+            />
+          </MenuGroup>
         ) : null}
-        {menu.zone !== "graveyard" ? (
+
+        <MenuGroup>
+          {!onBattlefield ? (
+            <MenuButton
+              label="Play to battlefield"
+              shortcut="B"
+              icon={Sparkles}
+              onClick={() => move("battlefield")}
+            />
+          ) : null}
+          {menu.zone !== "hand" ? (
+            <MenuButton
+              label="Return to hand"
+              shortcut="H"
+              icon={Hand}
+              onClick={() => move("hand")}
+            />
+          ) : null}
+          {menu.zone !== "graveyard" ? (
+            <MenuButton
+              label="Graveyard"
+              shortcut="G"
+              icon={Skull}
+              onClick={() => move("graveyard")}
+            />
+          ) : null}
+          {menu.zone !== "exile" ? (
+            <MenuButton label="Exile" shortcut="E" icon={Flame} onClick={() => move("exile")} />
+          ) : null}
           <MenuButton
-            label="Graveyard"
-            shortcut="G"
-            icon={Skull}
-            onClick={() => onMove(menu.zone, "graveyard", card.id)}
+            label="Top of library"
+            shortcut="L"
+            icon={ArrowUpFromLine}
+            onClick={() => move("library", "top")}
           />
-        ) : null}
-        {menu.zone !== "exile" ? (
           <MenuButton
-            label="Exile"
-            shortcut="E"
-            icon={Flame}
-            onClick={() => onMove(menu.zone, "exile", card.id)}
+            label="Bottom of library"
+            shortcut="⇧L"
+            icon={ArrowDownToLine}
+            onClick={() => move("library", "bottom")}
           />
-        ) : null}
-        <MenuButton
-          label="Top of Library"
-          icon={ArrowUpFromLine}
-          onClick={() => onMove(menu.zone, "library", card.id, "top")}
-        />
-        <MenuButton
-          label="Bottom of Library"
-          icon={ArrowDownToLine}
-          onClick={() => onMove(menu.zone, "library", card.id, "bottom")}
-        />
+        </MenuGroup>
       </div>
     </>
   )
+}
+
+function MenuGroup({ children }: { children: ReactNode }) {
+  return <div className="border-t border-base-300 py-1 first:border-t-0">{children}</div>
 }
 
 function MenuButton({
@@ -193,15 +260,15 @@ function MenuButton({
     <button
       type="button"
       className={cn(
-        "flex w-full items-center gap-3 px-3 py-2 text-left text-base-content/80 hover:bg-base-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-        disabled && "cursor-not-allowed text-base-content/35 hover:bg-transparent",
+        "flex w-full items-center gap-3 rounded-field px-2.5 py-1.5 text-left text-base-content/85 hover:bg-base-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+        disabled && "cursor-not-allowed text-base-content/40 hover:bg-transparent",
       )}
       disabled={disabled}
       onClick={onClick}
     >
-      <Icon className={cn("h-4 w-4 text-base-content/45", disabled && "text-base-content/25")} />
+      <Icon className={cn("h-4 w-4 text-base-content/55", disabled && "text-base-content/30")} />
       <span className="min-w-0 flex-1">{label}</span>
-      {shortcut ? <kbd className="kbd kbd-xs">{shortcut}</kbd> : null}
+      {shortcut ? <kbd className="kbd kbd-xs font-mono">{shortcut}</kbd> : null}
     </button>
   )
 }

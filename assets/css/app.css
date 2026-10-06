@@ -664,3 +664,24 @@ body[data-scroll-locked] .app-shell-main {
     animation-duration: 1ms;
   }
 }
+
+/* Playtester motion: short, state-driven entrances (gated by motion-safe at the call site). */
+@keyframes playtest-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes playtest-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes playtest-deal {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+}

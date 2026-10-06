@@ -322,7 +322,35 @@ Deck detail pages include:
   mana needed, steps, and results for combos found in the commander and
   mainboard
 - an in-browser playtest table with draw, shuffle, mulligan, move, exile,
-  graveyard, command zone, and library interactions
+  graveyard, command zone, and library interactions:
+  - click a hand card to play it; played cards line up automatically (nonlands
+    from the top, lands along the bottom, spaced so tapped neighbours never
+    overlap) and can be dragged anywhere, or onto the hand, library,
+    graveyard, exile, or command zone
+  - Shift-click or drag a box on empty battlefield to select several
+    permanents; keyboard shortcuts, the action bar, and dragging then apply to
+    the whole selection, and a dragged group keeps its formation
+  - click the library to draw; its menu handles draw, scry, surveil, look,
+    mill, and exile _X_, plus searching and shuffling
+  - click the graveyard or exile pile to browse every card, move cards out
+    (double-click puts one onto the battlefield), or return the whole pile to
+    hand or library; the graveyard shows its card-type count for delirium
+  - double-click a permanent to tap it; right-click opens counters,
+    power/toughness, face-down, and token-copy actions; click a counter chip
+    to add one, Shift-click to remove one
+  - hovering a hand card shows its mana cost above the fanned hand
+  - the token dialog offers the tokens this deck's cards create, with their
+    card art, ahead of common presets and a custom token form
+  - life, poison, energy, and experience counters, dice, coin flips, undo, and
+    a game log
+  - the game autosaves in the browser and resumes on reload, as long as the
+    decklist hasn't changed; settings can turn off the draw on next turn and
+    the hover preview
+  - keyboard shortcuts (press `?` for the list): `N` next turn, `D` draw, `U`
+    untap all, `S` shuffle, and, for the hovered card or every selected card,
+    `T` tap, `F` flip, `C` copy, `]`/`[` add or remove a +1/+1 counter,
+    `B`/`H`/`G`/`E` move to battlefield, hand, graveyard, or exile, `L`/`Shift
+L` top or bottom of library
 
 ## Recommendations: EDHREC and Recommander
 

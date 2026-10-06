@@ -12,6 +12,7 @@ export function initialSnapshot(initialState: PlaytestState): PlaytestSnapshot {
     turn: 1,
     lifeTotal: STARTING_LIFE_TOTAL,
     openingHand: true,
+    playerCounters: { energy: 0, experience: 0, poison: 0 },
   }
 }
 

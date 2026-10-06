@@ -4,6 +4,7 @@ export type PlaytestCard = {
   id: string
   deckCardId: string
   imageUrl?: string | null
+  manaCost?: string | null
   name: string
   setLabel?: string | null
   typeLine?: string | null
@@ -61,9 +62,10 @@ export function millCards(state: PlaytestState, count: number): PlaytestState {
   const millCount = Math.min(Math.max(count, 0), state.library.length)
   if (millCount === 0) return state
 
+  // Zone piles keep their top card at index 0, so the last milled card lands on top.
   return {
     ...state,
-    graveyard: [...state.graveyard, ...state.library.slice(0, millCount)],
+    graveyard: [...state.library.slice(0, millCount).reverse(), ...state.graveyard],
     library: state.library.slice(millCount),
   }
 }
@@ -74,9 +76,54 @@ export function exileFromLibrary(state: PlaytestState, count: number): PlaytestS
 
   return {
     ...state,
-    exile: [...state.exile, ...state.library.slice(0, exileCount)],
+    exile: [...state.library.slice(0, exileCount).reverse(), ...state.exile],
     library: state.library.slice(exileCount),
   }
+}
+
+export type LibraryTopDecision = "top" | "bottom" | "graveyard"
+
+/** Applies scry/surveil choices for the top cards of the library in one step. */
+export function resolveLibraryTop(
+  state: PlaytestState,
+  decisions: Record<string, LibraryTopDecision>,
+): PlaytestState {
+  const decided = state.library.filter((card) => decisions[card.id])
+  if (decided.length === 0) return state
+
+  const rest = state.library.filter((card) => !decisions[card.id])
+  const top = decided.filter((card) => decisions[card.id] === "top")
+  const bottom = decided.filter((card) => decisions[card.id] === "bottom")
+  const graveyard = decided.filter((card) => decisions[card.id] === "graveyard")
+
+  return {
+    ...state,
+    graveyard: [...graveyard.reverse(), ...state.graveyard],
+    library: [...top, ...rest, ...bottom],
+  }
+}
+
+/** Moves every card in a zone; library destinations can be shuffled in or placed on the bottom. */
+export function moveAllPlaytestCards(
+  state: PlaytestState,
+  from: PlaytestZone,
+  to: PlaytestZone,
+  { placement = "top", random = Math.random, shuffle = false }: MoveAllOptions = {},
+): PlaytestState {
+  if (from === to || state[from].length === 0) return state
+
+  const moved = state[from]
+  let target =
+    to === "library" && placement === "bottom" ? [...state[to], ...moved] : [...moved, ...state[to]]
+  if (to === "library" && shuffle) target = shuffleCards(target, random)
+
+  return { ...state, [from]: [], [to]: target }
+}
+
+type MoveAllOptions = {
+  placement?: "top" | "bottom"
+  random?: () => number
+  shuffle?: boolean
 }
 
 export function movePlaytestCard(
@@ -86,7 +133,8 @@ export function movePlaytestCard(
   cardId: string,
   placement: "top" | "bottom" = "top",
 ): PlaytestState {
-  if (from === to) return state
+  // Library cards may move within the library (to its top or bottom); other same-zone moves are no-ops.
+  if (from === to && to !== "library") return state
 
   const source = state[from]
   const cardIndex = source.findIndex((card) => card.id === cardId)
@@ -94,8 +142,11 @@ export function movePlaytestCard(
 
   const card = source[cardIndex]
   const nextSource = [...source.slice(0, cardIndex), ...source.slice(cardIndex + 1)]
+  const targetBase = from === to ? nextSource : state[to]
   const nextTarget =
-    to === "library" && placement === "bottom" ? [...state[to], card] : [card, ...state[to]]
+    to === "library" && placement === "bottom" ? [...targetBase, card] : [card, ...targetBase]
+
+  if (from === to) return { ...state, [to]: nextTarget }
 
   return {
     ...state,

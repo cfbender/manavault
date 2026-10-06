@@ -1,13 +1,42 @@
-import { ZoomIn, ZoomOut } from "lucide-react"
-import type { DragEvent, MouseEvent, PointerEvent, ReactNode, RefObject } from "react"
+import { CircleDot, Sparkles, ZoomIn, ZoomOut } from "lucide-react"
+import {
+  useRef,
+  useState,
+  type DragEvent,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+  type RefObject,
+} from "react"
 import type { PlaytestCard, PlaytestZone } from "../../lib/deck-playtest"
 import { cn } from "../../lib/utils"
-import { Badge } from "../ui/badge"
-import { defaultBattlefieldPosition } from "./battlefield-helpers"
+import {
+  battlefieldCardDimensions,
+  cardsInMarquee,
+  defaultBattlefieldPosition,
+} from "./battlefield-helpers"
 import { defaultCardStatus } from "./card-status"
 import { CardThumb } from "./card-thumb"
 import { BATTLEFIELD_CARD_WIDTH_REM } from "./constants"
-import type { BattlefieldCardPosition, CardStatus } from "./types"
+import type { BattlefieldCardPosition, CardStatus, CounterKind } from "./types"
+
+type Marquee = {
+  additive: boolean
+  pointerId: number
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+}
+
+function marqueeRect({ x0, x1, y0, y1 }: Marquee) {
+  return {
+    height: Math.abs(y1 - y0),
+    width: Math.abs(x1 - x0),
+    x: Math.min(x0, x1),
+    y: Math.min(y0, y1),
+  }
+}
 
 export function PlaytestBattlefield({
   battlefield,
@@ -15,19 +44,24 @@ export function PlaytestBattlefield({
   battlefieldCardPositions,
   cardStatuses,
   command,
-  draggingBattlefieldCardId,
+  draggingCardIds,
   onActivateCard,
+  onAdjustCounter,
+  onBackgroundClick,
   onBeginPointerDrag,
   onCardHover,
   onCardLeave,
+  onCastCommander,
   onDrop,
   onFinishPointerDrag,
+  onMarqueeSelect,
   onOpenContextMenu,
+  onToggleTapped,
   onUpdatePointerDrag,
   onZoomIn,
   onZoomOut,
   onZoomReset,
-  selectedCardId,
+  selectedCardIds,
   surfaceRef,
   tappedCards,
   zoom,
@@ -36,77 +70,152 @@ export function PlaytestBattlefield({
   battlefieldCardPositions: Record<string, BattlefieldCardPosition>
   cardStatuses: Record<string, CardStatus>
   command: PlaytestCard[]
-  draggingBattlefieldCardId: string | null
+  draggingCardIds: string[]
   onActivateCard: (card: PlaytestCard, zone: PlaytestZone) => void
+  onAdjustCounter: (cardId: string, kind: CounterKind, delta: number) => void
+  onBackgroundClick: () => void
   children?: ReactNode
   onBeginPointerDrag: (cardId: string, event: PointerEvent<HTMLButtonElement>) => void
   onCardHover: (cardId: string, zone: PlaytestZone) => void
   onCardLeave: (cardId: string) => void
+  onCastCommander: (card: PlaytestCard) => void
   onDrop: (event: DragEvent<HTMLElement>) => void
   onFinishPointerDrag: (event: PointerEvent<HTMLButtonElement>) => void
+  onMarqueeSelect: (cardIds: string[], additive: boolean) => void
   onOpenContextMenu: (card: PlaytestCard, zone: PlaytestZone, event: MouseEvent) => void
+  onToggleTapped: (cardId: string) => void
   onUpdatePointerDrag: (event: PointerEvent<HTMLButtonElement>) => void
   onZoomIn: () => void
   onZoomOut: () => void
   onZoomReset: () => void
-  selectedCardId: string | null
+  selectedCardIds: string[]
   surfaceRef: RefObject<HTMLDivElement | null>
   tappedCards: Set<string>
   zoom: number
 }) {
-  return (
-    <main className="relative row-start-2 min-h-0 overflow-hidden border-y border-base-300/70 bg-[radial-gradient(circle_at_center,color-mix(in_oklch,var(--color-primary),transparent_88%),transparent_34rem)] lg:col-start-1">
-      <div className="absolute left-3 top-3 z-10 flex items-center gap-2 text-[0.65rem] font-black uppercase tracking-[0.22em] text-base-content/35">
-        Battlefield
-        <Badge tone={battlefield.length ? "primary" : "neutral"}>{battlefield.length}</Badge>
-      </div>
+  const [marquee, setMarquee] = useState<Marquee | null>(null)
+  const suppressBackgroundClickRef = useRef(false)
 
+  const surfacePoint = (event: PointerEvent<HTMLElement>) => {
+    const rect = surfaceRef.current?.getBoundingClientRect()
+    return { x: event.clientX - (rect?.left || 0), y: event.clientY - (rect?.top || 0) }
+  }
+
+  // Box selection is for mouse and pen; on touch, dragging empty space scrolls the board.
+  const beginMarquee = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || event.pointerType === "touch") return
+    if ((event.target as HTMLElement).closest("[data-playtest-card]")) return
+    const point = surfacePoint(event)
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setMarquee({
+      additive: event.shiftKey || event.metaKey || event.ctrlKey,
+      pointerId: event.pointerId,
+      x0: point.x,
+      x1: point.x,
+      y0: point.y,
+      y1: point.y,
+    })
+  }
+
+  const updateMarquee = (event: PointerEvent<HTMLDivElement>) => {
+    if (!marquee || marquee.pointerId !== event.pointerId) return
+    const point = surfacePoint(event)
+    setMarquee({ ...marquee, x1: point.x, y1: point.y })
+  }
+
+  const finishMarquee = (event: PointerEvent<HTMLDivElement>) => {
+    if (!marquee || marquee.pointerId !== event.pointerId) return
+    setMarquee(null)
+    const rect = marqueeRect(marquee)
+    const surface = surfaceRef.current
+    if (!surface || (rect.width < 4 && rect.height < 4)) return
+    suppressBackgroundClickRef.current = true
+    const positions = Object.fromEntries(
+      battlefield.map((card, index) => [
+        card.id,
+        battlefieldCardPositions[card.id] || defaultBattlefieldPosition(index),
+      ]),
+    )
+    onMarqueeSelect(
+      cardsInMarquee(positions, rect, battlefieldCardDimensions(surface, zoom)),
+      marquee.additive,
+    )
+  }
+
+  return (
+    <section
+      aria-label={`Battlefield, ${battlefield.length} cards`}
+      className="relative min-h-0 overflow-hidden bg-base-200 bg-[radial-gradient(ellipse_at_50%_35%,color-mix(in_oklch,var(--color-base-100),transparent_45%),transparent_70%)] shadow-[inset_0_2px_10px_rgb(0_0_0/0.12)]"
+    >
       <div
-        className="h-full overflow-auto p-4 sm:p-8"
+        className="h-full overflow-auto p-2 sm:p-6"
         onDragOver={(event) => event.preventDefault()}
         onDrop={onDrop}
+        onPointerDown={beginMarquee}
+        onPointerMove={updateMarquee}
+        onPointerUp={finishMarquee}
+        onPointerCancel={() => setMarquee(null)}
+        onClick={(event) => {
+          if (suppressBackgroundClickRef.current) {
+            suppressBackgroundClickRef.current = false
+            return
+          }
+          if (!(event.target as HTMLElement).closest("[data-playtest-card]")) onBackgroundClick()
+        }}
       >
         <div
           ref={surfaceRef}
-          className="relative h-full min-h-[24rem] min-w-[38rem] sm:min-h-[32rem] sm:min-w-[48rem]"
+          className="relative h-full min-h-[20rem] min-w-[21rem] sm:min-h-[28rem] sm:min-w-[48rem]"
         >
           {battlefield.length ? (
-            battlefield.map((card, index) => {
-              const position =
-                battlefieldCardPositions[card.id] || defaultBattlefieldPosition(index)
+            // Newest cards sit at the front of the zone; render them last so they stack on top.
+            battlefield
+              .map((card, index) => ({ card, index }))
+              .reverse()
+              .map(({ card, index }) => {
+                const position =
+                  battlefieldCardPositions[card.id] || defaultBattlefieldPosition(index)
 
-              return (
-                <CanvasCard
-                  key={card.id}
-                  card={card}
-                  isSelected={selectedCardId === card.id}
-                  isTapped={tappedCards.has(card.id)}
-                  position={position}
-                  status={cardStatuses[card.id] || defaultCardStatus()}
-                  onClick={() => onActivateCard(card, "battlefield")}
-                  onContextMenu={(event) => onOpenContextMenu(card, "battlefield", event)}
-                  onPointerDown={(event) => onBeginPointerDrag(card.id, event)}
-                  onPointerMove={onUpdatePointerDrag}
-                  onPointerUp={onFinishPointerDrag}
-                  onPointerCancel={onFinishPointerDrag}
-                  onMouseEnter={() => onCardHover(card.id, "battlefield")}
-                  onMouseLeave={() => onCardLeave(card.id)}
-                  onFocus={() => onCardHover(card.id, "battlefield")}
-                  onBlur={() => onCardLeave(card.id)}
-                  isDragging={draggingBattlefieldCardId === card.id}
-                  zoom={zoom}
-                />
-              )
-            })
+                return (
+                  <CanvasCard
+                    key={card.id}
+                    card={card}
+                    isSelected={selectedCardIds.includes(card.id)}
+                    isTapped={tappedCards.has(card.id)}
+                    position={position}
+                    status={cardStatuses[card.id] || defaultCardStatus()}
+                    onClick={() => onActivateCard(card, "battlefield")}
+                    onDoubleClick={() => onToggleTapped(card.id)}
+                    onContextMenu={(event) => onOpenContextMenu(card, "battlefield", event)}
+                    onPointerDown={(event) => onBeginPointerDrag(card.id, event)}
+                    onPointerMove={onUpdatePointerDrag}
+                    onPointerUp={onFinishPointerDrag}
+                    onPointerCancel={onFinishPointerDrag}
+                    onMouseEnter={() => onCardHover(card.id, "battlefield")}
+                    onMouseLeave={() => onCardLeave(card.id)}
+                    onFocus={() => onCardHover(card.id, "battlefield")}
+                    onBlur={() => onCardLeave(card.id)}
+                    isDragging={draggingCardIds.includes(card.id)}
+                    onAdjustCounter={(kind, delta) => onAdjustCounter(card.id, kind, delta)}
+                    zoom={zoom}
+                  />
+                )
+              })
           ) : (
-            <div className="flex h-full min-h-[28rem] items-center justify-center">
-              <EmptyBattlefield
-                command={command}
-                onCardHover={onCardHover}
-                onCardLeave={onCardLeave}
-              />
-            </div>
+            <EmptyBattlefield command={command} onCastCommander={onCastCommander} />
           )}
+          {marquee ? (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute z-40 rounded-sm border border-dashed border-primary bg-primary/10"
+              style={{
+                height: marqueeRect(marquee).height,
+                left: marqueeRect(marquee).x,
+                top: marqueeRect(marquee).y,
+                width: marqueeRect(marquee).width,
+              }}
+            />
+          ) : null}
         </div>
       </div>
 
@@ -117,7 +226,7 @@ export function PlaytestBattlefield({
         onZoomOut={onZoomOut}
       />
       {children}
-    </main>
+    </section>
   )
 }
 
@@ -133,10 +242,10 @@ export function BattlefieldZoomControls({
   zoom: number
 }) {
   return (
-    <div className="absolute bottom-3 right-3 z-10 flex items-center gap-1 rounded-box border border-base-300 bg-base-100/80 p-1 text-xs shadow-xl backdrop-blur">
+    <div className="absolute bottom-3 right-3 z-10 flex items-center rounded-field border border-base-300 bg-base-100 text-xs shadow-sm">
       <button
         type="button"
-        className="btn btn-ghost btn-xs btn-square"
+        className="btn btn-ghost btn-xs btn-square h-8 w-8"
         aria-label="Zoom out"
         onClick={onZoomOut}
       >
@@ -144,7 +253,7 @@ export function BattlefieldZoomControls({
       </button>
       <button
         type="button"
-        className="btn btn-ghost btn-xs min-w-14"
+        className="btn btn-ghost btn-xs h-8 min-w-12 px-1 font-mono tabular-nums"
         onClick={onReset}
         title="Reset zoom"
       >
@@ -152,7 +261,7 @@ export function BattlefieldZoomControls({
       </button>
       <button
         type="button"
-        className="btn btn-ghost btn-xs btn-square"
+        className="btn btn-ghost btn-xs btn-square h-8 w-8"
         aria-label="Zoom in"
         onClick={onZoomIn}
       >
@@ -162,36 +271,32 @@ export function BattlefieldZoomControls({
   )
 }
 
-export function EmptyBattlefield({
+function EmptyBattlefield({
   command,
-  onCardHover,
-  onCardLeave,
+  onCastCommander,
 }: {
   command: PlaytestCard[]
-  onCardHover: (cardId: string, zone: PlaytestZone) => void
-  onCardLeave: (cardId: string) => void
+  onCastCommander: (card: PlaytestCard) => void
 }) {
+  const commander = command[0]
+
   return (
-    <div className="flex flex-col items-center gap-4 text-center">
-      {command.length ? (
-        <div>
-          <p className="mb-2 text-[0.65rem] font-black uppercase tracking-[0.2em] text-base-content/45">
-            Commander
-          </p>
-          <div
-            className="mx-auto w-36 overflow-hidden rounded-lg border border-dashed border-primary/70 bg-base-200 p-1 shadow-2xl shadow-primary/10"
-            onMouseEnter={() => onCardHover(command[0].id, "command")}
-            onMouseLeave={() => onCardLeave(command[0].id)}
-            onFocus={() => onCardHover(command[0].id, "command")}
-            onBlur={() => onCardLeave(command[0].id)}
+    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+      <div className="flex max-w-sm flex-col items-center gap-4 text-center">
+        <p className="text-sm text-base-content/60">
+          Click a card in your hand to play it, or drag it anywhere on the battlefield.
+        </p>
+        {commander ? (
+          <button
+            type="button"
+            className="btn btn-outline btn-sm pointer-events-auto gap-2"
+            onClick={() => onCastCommander(commander)}
           >
-            <CardThumb card={command[0]} />
-          </div>
-        </div>
-      ) : null}
-      <p className="max-w-xs text-sm text-base-content/45">
-        Drag cards here from your hand or command zone.
-      </p>
+            <Sparkles className="h-4 w-4" />
+            Cast {commander.name}
+          </button>
+        ) : null}
+      </div>
     </div>
   )
 }
@@ -202,6 +307,7 @@ export function CanvasCard({
   isTapped,
   onClick,
   onContextMenu,
+  onDoubleClick,
   onPointerDown,
   onPointerMove,
   onPointerUp,
@@ -211,6 +317,7 @@ export function CanvasCard({
   onFocus,
   onBlur,
   isDragging,
+  onAdjustCounter,
   position,
   status,
   zoom,
@@ -220,6 +327,7 @@ export function CanvasCard({
   isTapped: boolean
   onClick: () => void
   onContextMenu: (event: MouseEvent) => void
+  onDoubleClick: () => void
   onPointerDown: (event: PointerEvent<HTMLButtonElement>) => void
   onPointerMove: (event: PointerEvent<HTMLButtonElement>) => void
   onPointerUp: (event: PointerEvent<HTMLButtonElement>) => void
@@ -229,23 +337,32 @@ export function CanvasCard({
   onFocus: () => void
   onBlur: () => void
   isDragging: boolean
+  onAdjustCounter: (kind: CounterKind, delta: number) => void
   position: BattlefieldCardPosition
   status: CardStatus
   zoom: number
 }) {
-  const hasCounters =
-    status.plusOneCounters > 0 || status.minusOneCounters > 0 || status.markers > 0
+  const netCounters = status.plusOneCounters - status.minusOneCounters
+  const label = status.faceDown ? "Face-down card" : card.name
+  // The net chip nets +1/+1 against -1/-1 counters, so adding cancels a -1/-1 counter first.
+  const adjustNet = (delta: number) => {
+    if (delta > 0 && status.minusOneCounters > 0) onAdjustCounter("minusOneCounters", -1)
+    else if (delta > 0) onAdjustCounter("plusOneCounters", 1)
+    else if (status.plusOneCounters > 0) onAdjustCounter("plusOneCounters", -1)
+    else onAdjustCounter("minusOneCounters", 1)
+  }
 
   return (
     <button
       type="button"
       draggable={false}
+      data-playtest-card={card.id}
       className={cn(
-        "absolute origin-center touch-none select-none overflow-hidden rounded-lg border bg-base-200 shadow-2xl transition-[box-shadow,border-color,opacity] duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-        isDragging ? "z-30 cursor-grabbing opacity-95 shadow-primary/40" : "cursor-grab",
-        isSelected
-          ? "border-primary ring-2 ring-primary/40"
-          : "border-base-300 hover:border-primary/70",
+        "absolute origin-center touch-none select-none rounded-lg transition-[transform,box-shadow,opacity] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-base-200",
+        isDragging
+          ? "z-30 cursor-grabbing shadow-[0_18px_36px_rgb(0_0_0/0.4)]"
+          : "cursor-grab shadow-[0_3px_8px_rgb(0_0_0/0.28)] hover:shadow-[0_8px_18px_rgb(0_0_0/0.32)]",
+        isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-base-200",
         isTapped && "rotate-90",
       )}
       style={{
@@ -253,8 +370,11 @@ export function CanvasCard({
         top: position.y,
         width: `${BATTLEFIELD_CARD_WIDTH_REM * zoom}rem`,
       }}
-      title={status.faceDown ? "Face-down card" : card.name}
+      aria-label={`${label}${isTapped ? ", tapped" : ""}`}
+      aria-pressed={isSelected}
+      title={`${label}: double-click to ${isTapped ? "untap" : "tap"}, right-click for actions`}
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -265,27 +385,80 @@ export function CanvasCard({
       onFocus={onFocus}
       onBlur={onBlur}
     >
-      <div className="relative">
+      <div
+        className={cn(
+          "relative overflow-hidden rounded-lg border border-black/30 bg-base-300",
+          isTapped && "brightness-[0.82]",
+        )}
+      >
         <CardThumb card={card} faceDown={status.faceDown} />
-        {hasCounters || status.power || status.toughness ? (
-          <div className="absolute inset-x-1 bottom-1 flex flex-wrap justify-center gap-1">
-            {status.plusOneCounters ? (
-              <span className="badge badge-success badge-xs">+{status.plusOneCounters}</span>
-            ) : null}
-            {status.minusOneCounters ? (
-              <span className="badge badge-error badge-xs">-{status.minusOneCounters}</span>
-            ) : null}
-            {status.markers ? (
-              <span className="badge badge-info badge-xs">{status.markers} mark</span>
-            ) : null}
-            {status.power || status.toughness ? (
-              <span className="badge badge-warning badge-xs">
-                {status.power || "0"}/{status.toughness || "0"}
-              </span>
-            ) : null}
-          </div>
-        ) : null}
       </div>
+      {netCounters !== 0 || status.markers || status.power || status.toughness ? (
+        <div className="absolute inset-x-1 bottom-1.5 flex flex-wrap justify-center gap-1">
+          {netCounters !== 0 ? (
+            <CounterChip tone={netCounters > 0 ? "success" : "error"} onAdjust={adjustNet}>
+              {netCounters > 0
+                ? `+${netCounters}/+${netCounters}`
+                : `${netCounters}/${netCounters}`}
+            </CounterChip>
+          ) : null}
+          {status.markers ? (
+            <CounterChip tone="info" onAdjust={(delta) => onAdjustCounter("markers", delta)}>
+              <CircleDot className="h-3 w-3" aria-label="Markers" />
+              {status.markers}
+            </CounterChip>
+          ) : null}
+          {status.power || status.toughness ? (
+            <CounterChip tone="warning">
+              {status.power || "0"}/{status.toughness || "0"}
+            </CounterChip>
+          ) : null}
+        </div>
+      ) : null}
     </button>
+  )
+}
+
+/**
+ * Counter badge. Click adds one and Shift-click removes one; the card menu offers the same
+ * controls as real buttons for keyboard and screen-reader users.
+ */
+function CounterChip({
+  children,
+  onAdjust,
+  tone,
+}: {
+  children: ReactNode
+  onAdjust?: (delta: number) => void
+  tone: "success" | "error" | "info" | "warning"
+}) {
+  const tones = {
+    error: "bg-error text-error-content",
+    info: "bg-info text-info-content",
+    success: "bg-success text-success-content",
+    warning: "bg-warning text-warning-content",
+  }
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 font-mono text-xs font-black leading-none shadow-[0_1px_3px_rgb(0_0_0/0.4)]",
+        onAdjust && "cursor-pointer hover:brightness-110 active:scale-95",
+        tones[tone],
+      )}
+      title={onAdjust ? "Click +1 · Shift-click −1" : undefined}
+      onPointerDown={onAdjust ? (event) => event.stopPropagation() : undefined}
+      onDoubleClick={onAdjust ? (event) => event.stopPropagation() : undefined}
+      onClick={
+        onAdjust
+          ? (event) => {
+              event.stopPropagation()
+              onAdjust(event.shiftKey ? -1 : 1)
+            }
+          : undefined
+      }
+    >
+      {children}
+    </span>
   )
 }

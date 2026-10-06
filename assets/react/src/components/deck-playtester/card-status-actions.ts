@@ -1,29 +1,47 @@
 import { useCallback } from "react"
 import { statusFor } from "./card-status"
-import type { CardStatus, ContextMenuState, PlaytestSnapshot } from "./types"
+import type { CardStatus, ContextMenuState, CounterKind, PlaytestSnapshot } from "./types"
 
 type CommitPlaytestChange = (
   recipe: (current: PlaytestSnapshot) => PlaytestSnapshot,
-  message: string,
+  message: string | ((current: PlaytestSnapshot) => string),
 ) => void
 
+const COUNTER_LABELS: Record<CounterKind, string> = {
+  markers: "marker",
+  minusOneCounters: "-1/-1 counter",
+  plusOneCounters: "+1/+1 counter",
+}
+
+function countLabel(cardIds: string[]) {
+  return cardIds.length === 1 ? "" : ` on ${cardIds.length} cards`
+}
+
 export function useCardStatusActions({
-  cardStatuses,
   commit,
   setContextMenu,
 }: {
-  cardStatuses: Record<string, CardStatus>
   commit: CommitPlaytestChange
   setContextMenu: (menu: ContextMenuState) => void
 }) {
-  const updateCardStatus = useCallback(
-    (cardId: string, update: (status: CardStatus) => CardStatus, message: string) => {
+  const updateCardStatuses = useCallback(
+    (
+      cardIds: string[],
+      update: (status: CardStatus, current: PlaytestSnapshot) => CardStatus,
+      message: string | ((current: PlaytestSnapshot) => string),
+    ) => {
+      if (cardIds.length === 0) return
       commit(
         (current) => ({
           ...current,
           cardStatuses: {
             ...current.cardStatuses,
-            [cardId]: update(statusFor(current.cardStatuses, cardId)),
+            ...Object.fromEntries(
+              cardIds.map((cardId) => [
+                cardId,
+                update(statusFor(current.cardStatuses, cardId), current),
+              ]),
+            ),
           },
         }),
         message,
@@ -32,52 +50,49 @@ export function useCardStatusActions({
     [commit],
   )
 
+  /** Flips every card face down, or face up when they are all already face down. */
   const toggleFaceDown = useCallback(
-    (cardId: string) => {
-      updateCardStatus(
-        cardId,
-        (status) => ({ ...status, faceDown: !status.faceDown }),
-        statusFor(cardStatuses, cardId).faceDown ? "Turned card face up" : "Turned card face down",
+    (cardIds: string[]) => {
+      const allFaceDown = (current: PlaytestSnapshot) =>
+        cardIds.every((cardId) => statusFor(current.cardStatuses, cardId).faceDown)
+      updateCardStatuses(
+        cardIds,
+        (status, current) => ({ ...status, faceDown: !allFaceDown(current) }),
+        (current) =>
+          `Turned ${cardIds.length === 1 ? "card" : `${cardIds.length} cards`} face ${allFaceDown(current) ? "up" : "down"}`,
       )
       setContextMenu(null)
     },
-    [cardStatuses, setContextMenu, updateCardStatus],
+    [setContextMenu, updateCardStatuses],
   )
 
   const adjustCounter = useCallback(
-    (cardId: string, kind: "plusOneCounters" | "minusOneCounters", delta: number) => {
-      updateCardStatus(
-        cardId,
+    (cardIds: string[], kind: CounterKind, delta: number) => {
+      updateCardStatuses(
+        cardIds,
         (status) => ({ ...status, [kind]: Math.max(0, status[kind] + delta) }),
-        kind === "plusOneCounters" ? "Updated +1/+1 counters" : "Updated -1/-1 counters",
+        `${delta > 0 ? "Added" : "Removed"} ${Math.abs(delta)} ${COUNTER_LABELS[kind]}${countLabel(cardIds)}`,
       )
     },
-    [updateCardStatus],
-  )
-
-  const addMarker = useCallback(
-    (cardId: string) => {
-      updateCardStatus(
-        cardId,
-        (status) => ({ ...status, markers: status.markers + 1 }),
-        "Added marker",
-      )
-    },
-    [updateCardStatus],
+    [updateCardStatuses],
   )
 
   const setPowerToughness = useCallback(
     (cardId: string, power: string, toughness: string) => {
-      updateCardStatus(cardId, (status) => ({ ...status, power, toughness }), "Set power/toughness")
+      updateCardStatuses(
+        [cardId],
+        (status) => ({ ...status, power, toughness }),
+        "Set power/toughness",
+      )
       setContextMenu(null)
     },
-    [setContextMenu, updateCardStatus],
+    [setContextMenu, updateCardStatuses],
   )
 
   const clearCardStatus = useCallback(
     (cardId: string) => {
-      updateCardStatus(
-        cardId,
+      updateCardStatuses(
+        [cardId],
         (status) => ({
           ...status,
           markers: 0,
@@ -90,8 +105,8 @@ export function useCardStatusActions({
       )
       setContextMenu(null)
     },
-    [setContextMenu, updateCardStatus],
+    [setContextMenu, updateCardStatuses],
   )
 
-  return { addMarker, adjustCounter, clearCardStatus, setPowerToughness, toggleFaceDown }
+  return { adjustCounter, clearCardStatus, setPowerToughness, toggleFaceDown }
 }

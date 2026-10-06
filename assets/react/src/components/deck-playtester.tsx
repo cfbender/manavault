@@ -1,3 +1,4 @@
+import { History } from "lucide-react"
 import {
   useCallback,
   useEffect,
@@ -5,20 +6,23 @@ import {
   useRef,
   useState,
   type DragEvent,
+  type MouseEvent,
   type PointerEvent,
 } from "react"
 import { type PlaytestCard, type PlaytestZone } from "../lib/deck-playtest"
+import { cn } from "../lib/utils"
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import {
   battlefieldPositionFromDrop,
   battlefieldPositionFromPointer,
+  clampBattlefieldPosition,
   clampZoom,
 } from "./deck-playtester/battlefield-helpers"
 import { PlaytestBattlefield } from "./deck-playtester/battlefield-view"
 import { PlaytestBottomZones } from "./deck-playtester/bottom-zones"
 import { CardContextMenu } from "./deck-playtester/card-menu"
 import { defaultCardStatus } from "./deck-playtester/card-status"
-import { HOVER_PREVIEW_DELAY_MS, ZOOM_STEP } from "./deck-playtester/constants"
-import { MobilePlaytestControls, PlaytestSidebar } from "./deck-playtester/controls"
+import { COMPACT_ZOOM, HOVER_PREVIEW_DELAY_MS, ZOOM_STEP } from "./deck-playtester/constants"
 import {
   DRAG_MIME,
   createCardDragPreview,
@@ -34,137 +38,166 @@ import {
   OpeningHandOverlay,
   PeekOverlay,
 } from "./deck-playtester/overlays"
+import { SelectionBar } from "./deck-playtester/selection-bar"
 import { PlaytestTopBar } from "./deck-playtester/top-bar"
-import type { BattlefieldPointerDrag, DeckPlaytesterProps } from "./deck-playtester/types"
+import { loadSettings, saveSettings } from "./deck-playtester/saved-game"
+import type {
+  BattlefieldPointerDrag,
+  DeckPlaytesterProps,
+  PlaytestSettings,
+} from "./deck-playtester/types"
 import { usePlaytesterState } from "./deck-playtester/use-playtester-state"
 
-export function DeckPlaytester({ closeSlot, deckId, deckName, initialState }: DeckPlaytesterProps) {
+/** Finds the zone (hand, graveyard, ...) under a point, ignoring the dragged card itself. */
+function dropZoneAt(clientX: number, clientY: number): PlaytestZone | null {
+  for (const element of document.elementsFromPoint(clientX, clientY)) {
+    const zone = (element as HTMLElement).closest<HTMLElement>("[data-playtest-zone]")
+    if (zone) return zone.dataset.playtestZone as PlaytestZone
+  }
+  return null
+}
+
+export function DeckPlaytester({
+  closeSlot,
+  deckId,
+  deckName,
+  initialState,
+  tokenOptions,
+}: DeckPlaytesterProps) {
+  const [settings, setSettings] = useState(loadSettings)
+  const playtest = usePlaytesterState(deckId, initialState, {
+    drawOnNextTurn: settings.drawOnNextTurn,
+  })
   const {
-    actionCount,
-    activeKeyboardCard,
-    activateCard,
-    addMarker,
-    adjustCounter,
+    actionLog,
+    activateCard: activatePlaytestCard,
     battlefieldCardPositions,
-    cardStatuses,
-    changeLife,
     clearCardHovered,
-    clearCardStatus,
     clearContextMenu,
     clearTransientSelection,
     closePeek,
-    closeTokenDialog,
     contextMenu,
-    createToken,
-    draw,
-    exileTop,
-    history,
     hoveredCard,
-    keepHand,
     lastAction,
-    lifeTotal,
-    markCardHovered,
-    mill,
-    moveActiveKeyboardCard,
     moveBattlefieldCardPosition,
-    moveBattlefieldCardPositionLive,
+    moveBattlefieldCardPositionsLive,
     moveCard,
-    moveTopLibraryCard,
-    mulligan,
-    nextTurn,
+    moveCards,
     openContextMenu,
     openingHand,
-    openLibraryPeek,
-    openLookPeek,
-    openScryPeek,
-    openSurveilPeek,
-    openTokenDialog,
     peek,
-    resetGame,
-    rollDiceAndCoin,
+    selectCard,
     selectedCard,
-    selectedCardId,
+    selectedCardIds,
+    selectedCards,
     selectedStatus,
     selectedZone,
-    setActionCount,
-    selectCard,
-    setPowerToughness,
-    shuffle,
     state,
     tappedCards,
-    toggleFaceDown,
-    toggleTapped,
-    tokenDialogOpen,
-    turn,
-    undo,
-    untapAll,
-  } = usePlaytesterState(initialState)
-  const [hoverPreviewCardId, setHoverPreviewCardId] = useState<string | null>(null)
-  const [draggingBattlefieldCardId, setDraggingBattlefieldCardId] = useState<string | null>(null)
-  const [zoom, setZoom] = useState(1)
+    toggleCardSelection,
+  } = playtest
+  const [hoverPreview, setHoverPreview] = useState<{
+    cardId: string
+    side: "left" | "right"
+  } | null>(null)
+  const [draggingCardIds, setDraggingCardIds] = useState<string[]>([])
+  const isDragging = draggingCardIds.length > 0
+  const [dropTargetZone, setDropTargetZone] = useState<PlaytestZone | null>(null)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  // Phones start zoomed out so a few permanents fit side by side.
+  const [zoom, setZoom] = useState(() =>
+    typeof window !== "undefined" && window.innerWidth < 640 ? COMPACT_ZOOM : 1,
+  )
   const battlefieldSurfaceRef = useRef<HTMLDivElement>(null)
   const battlefieldPointerDragRef = useRef<BattlefieldPointerDrag | null>(null)
-  const hoverPreviewTimeoutRef = useRef<number | null>(null)
+  const suppressCardClickRef = useRef(false)
+
+  const updateSettings = useCallback((patch: Partial<PlaytestSettings>) => {
+    setSettings((current) => {
+      const next = { ...current, ...patch }
+      saveSettings(next)
+      return next
+    })
+  }, [])
 
   useEffect(() => {
-    setHoverPreviewCardId(null)
-    setDraggingBattlefieldCardId(null)
+    setHoverPreview(null)
+    setDraggingCardIds([])
   }, [initialState])
 
+  const { setBattlefieldLayout } = playtest
+  useEffect(() => {
+    const surface = battlefieldSurfaceRef.current
+    if (!surface) return
+    const measure = () =>
+      setBattlefieldLayout({ height: surface.clientHeight, width: surface.clientWidth, zoom })
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(surface)
+    return () => observer.disconnect()
+  }, [setBattlefieldLayout, zoom])
+
   const hoverPreviewCard = useMemo(() => {
-    if (!hoverPreviewCardId) return null
+    if (!hoverPreview) return null
     return (
-      [...state.hand, ...state.command, ...state.battlefield].find(
-        (card) => card.id === hoverPreviewCardId,
-      ) || null
+      [
+        ...state.hand,
+        ...state.command,
+        ...state.battlefield,
+        ...state.graveyard,
+        ...state.exile,
+      ].find((card) => card.id === hoverPreview.cardId) || null
     )
-  }, [hoverPreviewCardId, state.battlefield, state.command, state.hand])
+  }, [hoverPreview, state])
 
   useEffect(() => {
-    if (hoverPreviewTimeoutRef.current) {
-      window.clearTimeout(hoverPreviewTimeoutRef.current)
-      hoverPreviewTimeoutRef.current = null
-    }
+    setHoverPreview(null)
+    if (isDragging || !hoveredCard || hoveredCard.zone === "library") return
 
-    setHoverPreviewCardId(null)
-
-    if (
-      draggingBattlefieldCardId ||
-      (hoveredCard?.zone !== "hand" &&
-        hoveredCard?.zone !== "command" &&
-        hoveredCard?.zone !== "battlefield")
-    )
-      return
-
-    hoverPreviewTimeoutRef.current = window.setTimeout(() => {
-      setHoverPreviewCardId(hoveredCard.cardId)
-      hoverPreviewTimeoutRef.current = null
+    const timeout = window.setTimeout(() => {
+      const element = document.querySelector(`[data-playtest-card="${hoveredCard.cardId}"]`)
+      const rect = element?.getBoundingClientRect()
+      const side = rect && rect.left + rect.width / 2 < window.innerWidth / 2 ? "right" : "left"
+      setHoverPreview({ cardId: hoveredCard.cardId, side })
     }, HOVER_PREVIEW_DELAY_MS)
 
-    return () => {
-      if (hoverPreviewTimeoutRef.current) {
-        window.clearTimeout(hoverPreviewTimeoutRef.current)
-        hoverPreviewTimeoutRef.current = null
-      }
-    }
-  }, [draggingBattlefieldCardId, hoveredCard])
+    return () => window.clearTimeout(timeout)
+  }, [isDragging, hoveredCard])
+
+  /** New positions for every dragged card: the grabbed card follows the pointer, the rest keep formation. */
+  const groupPositionsFor = useCallback(
+    (drag: BattlefieldPointerDrag, clientX: number, clientY: number) => {
+      const lead = battlefieldPositionFromPointer(clientX, clientY, drag.surface, zoom, drag.offset)
+      const leadStart = drag.startPositions[drag.cardId] || lead
+      const delta = { x: lead.x - leadStart.x, y: lead.y - leadStart.y }
+      return Object.fromEntries(
+        drag.cardIds.map((cardId) => {
+          if (cardId === drag.cardId) return [cardId, lead]
+          const start = drag.startPositions[cardId] || leadStart
+          return [
+            cardId,
+            clampBattlefieldPosition(
+              { x: start.x + delta.x, y: start.y + delta.y },
+              drag.surface,
+              zoom,
+            ),
+          ]
+        }),
+      )
+    },
+    [zoom],
+  )
 
   const flushBattlefieldPointerDrag = useCallback(() => {
     const drag = battlefieldPointerDragRef.current
     if (!drag) return
 
     drag.frame = null
-    moveBattlefieldCardPositionLive(
-      drag.cardId,
-      battlefieldPositionFromPointer(
-        drag.latestClientX,
-        drag.latestClientY,
-        drag.surface,
-        zoom,
-        drag.offset,
-      ),
+    setDropTargetZone(dropZoneAt(drag.latestClientX, drag.latestClientY))
+    moveBattlefieldCardPositionsLive(
+      groupPositionsFor(drag, drag.latestClientX, drag.latestClientY),
     )
-  }, [moveBattlefieldCardPositionLive, zoom])
+  }, [groupPositionsFor, moveBattlefieldCardPositionsLive])
 
   const beginBattlefieldPointerDrag = useCallback(
     (cardId: string, event: PointerEvent<HTMLButtonElement>) => {
@@ -172,28 +205,54 @@ export function DeckPlaytester({ closeSlot, deckId, deckName, initialState }: De
       const surface = battlefieldSurfaceRef.current
       if (!surface) return
 
+      clearContextMenu()
+      if (event.shiftKey || event.metaKey || event.ctrlKey) {
+        toggleCardSelection(cardId)
+        suppressCardClickRef.current = true
+        return
+      }
+
       const rect = event.currentTarget.getBoundingClientRect()
       event.currentTarget.setPointerCapture(event.pointerId)
       event.preventDefault()
-      clearContextMenu()
-      selectCard(cardId)
-      setDraggingBattlefieldCardId(cardId)
-      setHoverPreviewCardId(null)
+      const cardIds =
+        selectedCardIds.includes(cardId) && selectedCards.length > 1
+          ? selectedCards.map((card) => card.id)
+          : [cardId]
+      if (cardIds.length === 1) selectCard(cardId)
+      setDraggingCardIds(cardIds)
+      setHoverPreview(null)
 
       battlefieldPointerDragRef.current = {
         cardId,
+        cardIds,
         frame: null,
         latestClientX: event.clientX,
         latestClientY: event.clientY,
+        moved: false,
         offset: {
           x: event.clientX - rect.left,
           y: event.clientY - rect.top,
         },
         pointerId: event.pointerId,
+        startClientX: event.clientX,
+        startClientY: event.clientY,
+        startPositions: Object.fromEntries(
+          cardIds
+            .map((id) => [id, battlefieldCardPositions[id]])
+            .filter(([, position]) => position),
+        ),
         surface,
       }
     },
-    [clearContextMenu, selectCard],
+    [
+      battlefieldCardPositions,
+      clearContextMenu,
+      selectCard,
+      selectedCardIds,
+      selectedCards,
+      toggleCardSelection,
+    ],
   )
 
   const updateBattlefieldPointerDrag = useCallback(
@@ -204,7 +263,12 @@ export function DeckPlaytester({ closeSlot, deckId, deckName, initialState }: De
       event.preventDefault()
       drag.latestClientX = event.clientX
       drag.latestClientY = event.clientY
-      if (drag.frame === null) {
+      if (
+        Math.abs(event.clientX - drag.startClientX) + Math.abs(event.clientY - drag.startClientY) >
+        3
+      )
+        drag.moved = true
+      if (drag.moved && drag.frame === null) {
         drag.frame = window.requestAnimationFrame(flushBattlefieldPointerDrag)
       }
     },
@@ -219,23 +283,38 @@ export function DeckPlaytester({ closeSlot, deckId, deckName, initialState }: De
       if (drag.frame !== null) {
         window.cancelAnimationFrame(drag.frame)
         drag.frame = null
-        moveBattlefieldCardPositionLive(
-          drag.cardId,
-          battlefieldPositionFromPointer(
-            event.clientX,
-            event.clientY,
-            drag.surface,
-            zoom,
-            drag.offset,
-          ),
-        )
       }
-
       event.currentTarget.releasePointerCapture(event.pointerId)
       battlefieldPointerDragRef.current = null
-      setDraggingBattlefieldCardId(null)
+      setDraggingCardIds([])
+      setDropTargetZone(null)
+      if (!drag.moved) return
+      // A drag ends with a click on the card; don't let it collapse a group selection.
+      suppressCardClickRef.current = true
+
+      const zone = event.type === "pointerup" ? dropZoneAt(event.clientX, event.clientY) : null
+      if (zone && zone !== "battlefield") {
+        moveCards(
+          drag.cardIds.map((cardId) => ({ cardId, zone: "battlefield" as const })),
+          zone,
+        )
+        return
+      }
+
+      moveBattlefieldCardPositionsLive(groupPositionsFor(drag, event.clientX, event.clientY))
     },
-    [moveBattlefieldCardPositionLive, zoom],
+    [groupPositionsFor, moveBattlefieldCardPositionsLive, moveCards],
+  )
+
+  const activateCard = useCallback(
+    (card: PlaytestCard, zone: PlaytestZone) => {
+      if (zone === "battlefield" && suppressCardClickRef.current) {
+        suppressCardClickRef.current = false
+        return
+      }
+      activatePlaytestCard(card, zone)
+    },
+    [activatePlaytestCard],
   )
 
   const startCardDrag = useCallback(
@@ -246,6 +325,7 @@ export function DeckPlaytester({ closeSlot, deckId, deckName, initialState }: De
           ? { x: event.clientX - sourceRect.left, y: event.clientY - sourceRect.top }
           : undefined
 
+      setHoverPreview(null)
       event.dataTransfer.effectAllowed = "move"
       event.dataTransfer.setData(DRAG_MIME, encodeDragPayload(card.id, zone, dragOffset))
       event.dataTransfer.setData("text/plain", card.name)
@@ -291,167 +371,277 @@ export function DeckPlaytester({ closeSlot, deckId, deckName, initialState }: De
     [moveBattlefieldCardPosition, moveCard, selectCard, zoom],
   )
 
+  const handleEscape = useCallback(() => {
+    if (shortcutsOpen) setShortcutsOpen(false)
+    else clearTransientSelection()
+  }, [clearTransientSelection, shortcutsOpen])
+
   usePlaytesterKeyboardShortcuts({
-    activeKeyboardCard,
-    changeLife,
-    draw,
-    keepHand,
-    moveActiveKeyboardCard,
-    mulligan,
-    nextTurn,
-    onEscape: clearTransientSelection,
+    adjustCounter: playtest.adjustCounter,
+    changeLife: playtest.changeLife,
+    draw: playtest.draw,
+    duplicateCards: playtest.duplicateCards,
+    keepHand: playtest.keepHand,
+    moveCards,
+    mulligan: playtest.mulligan,
+    nextTurn: playtest.nextTurn,
+    onEscape: handleEscape,
+    onToggleShortcuts: () => setShortcutsOpen((open) => !open),
     openingHand,
-    shuffle,
-    toggleTapped,
-    undo,
-    untapAll,
+    shuffle: playtest.shuffle,
+    targets: playtest.keyboardTargets,
+    toggleFaceDown: playtest.toggleFaceDown,
+    toggleTapped: playtest.toggleTapped,
+    undo: playtest.undo,
+    untapAll: playtest.untapAll,
   })
 
+  const openSelectionMenu = (event: MouseEvent) => {
+    if (!selectedCard || !selectedZone) return
+    openContextMenu(selectedCard, selectedZone, event)
+  }
+
+  // A multi-selection is always battlefield permanents (shift-click and box-select only add those).
+  const selectionIds = selectedCards.length > 1 ? selectedCards.map((card) => card.id) : null
+  const barCardIds = selectionIds || (selectedCard ? [selectedCard.id] : [])
+  const contextMenuCard = contextMenu
+    ? [
+        ...state.hand,
+        ...state.battlefield,
+        ...state.command,
+        ...state.graveyard,
+        ...state.exile,
+      ].find((card) => card.id === contextMenu.cardId) || null
+    : null
+
+  const peekCards = !peek
+    ? []
+    : peek.mode === "Graveyard"
+      ? state.graveyard
+      : peek.mode === "Exile"
+        ? state.exile
+        : state.library.slice(0, peek.count)
+
   return (
-    <div className="h-full min-h-0 overflow-hidden border-0 bg-[#0d0e0c] text-base-content shadow-2xl sm:rounded-box sm:border sm:border-base-300">
-      <div className="grid h-full grid-rows-[2.75rem_minmax(0,1fr)_auto_12rem] lg:grid-cols-[minmax(0,1fr)_14rem] lg:grid-rows-[2.75rem_minmax(0,1fr)_10.5rem]">
-        <PlaytestTopBar closeSlot={closeSlot} deckId={deckId} deckName={deckName} turn={turn} />
+    <div className="h-full min-h-0 overflow-hidden bg-base-100 text-base-content [--hand-card-width:4.5rem] sm:rounded-box sm:border sm:border-base-300 sm:[--hand-card-width:5.5rem] md:[--hand-card-width:6.5rem] [@media(min-width:768px)_and_(max-height:760px)]:[--hand-card-width:5.25rem]">
+      <div className="grid h-full grid-rows-[3rem_minmax(0,1fr)_auto]">
+        <PlaytestTopBar
+          canUndo={playtest.history.length > 0}
+          closeSlot={closeSlot}
+          deckId={deckId}
+          deckName={deckName}
+          lifeTotal={playtest.lifeTotal}
+          onAdjustPlayerCounter={playtest.adjustPlayerCounter}
+          onCreateToken={playtest.openTokenDialog}
+          onFlipCoin={playtest.flipCoin}
+          onLifeChange={playtest.changeLife}
+          onNextTurn={playtest.nextTurn}
+          onRestart={playtest.resetGame}
+          onRollDie={playtest.rollDie}
+          onShortcutsOpenChange={setShortcutsOpen}
+          onUndo={playtest.undo}
+          onUntapAll={playtest.untapAll}
+          playerCounters={playtest.playerCounters}
+          settings={settings}
+          onSettingsChange={updateSettings}
+          shortcutsOpen={shortcutsOpen}
+          turn={playtest.turn}
+        />
 
         <PlaytestBattlefield
           battlefield={state.battlefield}
           battlefieldCardPositions={battlefieldCardPositions}
-          cardStatuses={cardStatuses}
+          cardStatuses={playtest.cardStatuses}
           command={state.command}
-          draggingBattlefieldCardId={draggingBattlefieldCardId}
+          draggingCardIds={draggingCardIds}
           onActivateCard={activateCard}
+          onAdjustCounter={(cardId, kind, delta) => playtest.adjustCounter([cardId], kind, delta)}
+          onBackgroundClick={clearTransientSelection}
           onBeginPointerDrag={beginBattlefieldPointerDrag}
-          onCardHover={markCardHovered}
+          onCardHover={playtest.markCardHovered}
           onCardLeave={clearCardHovered}
+          onCastCommander={(card) => moveCard("command", "battlefield", card.id)}
           onDrop={dropCardOnBattlefield}
           onFinishPointerDrag={finishBattlefieldPointerDrag}
+          onMarqueeSelect={playtest.selectCards}
           onOpenContextMenu={openContextMenu}
+          onToggleTapped={(cardId) => playtest.toggleTapped([cardId])}
           onUpdatePointerDrag={updateBattlefieldPointerDrag}
           onZoomIn={() => setZoom((current) => clampZoom(current + ZOOM_STEP))}
           onZoomOut={() => setZoom((current) => clampZoom(current - ZOOM_STEP))}
           onZoomReset={() => setZoom(1)}
-          selectedCardId={selectedCardId}
+          selectedCardIds={selectedCardIds}
           surfaceRef={battlefieldSurfaceRef}
           tappedCards={tappedCards}
           zoom={zoom}
         >
+          <ActionLog
+            className={cn(selectedCard && "max-lg:hidden")}
+            entries={actionLog}
+            lastAction={lastAction}
+          />
+          {selectedCard && selectedZone && !isDragging && !contextMenu ? (
+            <SelectionBar
+              key={selectionIds ? "group" : selectedCard.id}
+              card={selectedCard}
+              count={barCardIds.length}
+              onClose={() => selectCard(null)}
+              onDuplicate={() => playtest.duplicateCards(barCardIds)}
+              onMore={openSelectionMenu}
+              onMove={(to, placement) =>
+                moveCards(
+                  barCardIds.map((cardId) => ({
+                    cardId,
+                    zone: selectionIds ? "battlefield" : selectedZone,
+                  })),
+                  to,
+                  placement,
+                )
+              }
+              onToggleFaceDown={() => playtest.toggleFaceDown(barCardIds)}
+              onToggleTapped={() => playtest.toggleTapped(barCardIds)}
+              status={selectedStatus}
+              tapped={barCardIds.every((cardId) => tappedCards.has(cardId))}
+              zone={selectionIds ? "battlefield" : selectedZone}
+            />
+          ) : null}
+          {settings.showHoverPreview &&
+          hoverPreviewCard &&
+          hoverPreview &&
+          !contextMenu &&
+          !peek &&
+          !openingHand ? (
+            <HoverCardPreview card={hoverPreviewCard} side={hoverPreview.side} />
+          ) : null}
           {openingHand ? (
             <OpeningHandOverlay
               hand={state.hand}
               mulligans={state.mulligans}
-              onCardHover={markCardHovered}
+              onCardHover={playtest.markCardHovered}
               onCardLeave={clearCardHovered}
-              onKeep={keepHand}
-              onMulligan={mulligan}
-              onNewHand={resetGame}
+              onKeep={playtest.keepHand}
+              onMulligan={playtest.mulligan}
+              onNewHand={playtest.resetGame}
+            />
+          ) : null}
+          {playtest.tokenDialogOpen ? (
+            <CreateTokenDialog
+              deckTokens={tokenOptions}
+              onCancel={playtest.closeTokenDialog}
+              onCreate={playtest.createToken}
+            />
+          ) : null}
+          {peek ? (
+            <PeekOverlay
+              key={peek.mode}
+              cards={peekCards}
+              mode={peek.mode}
+              onClose={closePeek}
+              onMoveAll={playtest.moveAllCards}
+              onMoveCard={(cardId, from, to, placement) => moveCard(from, to, cardId, placement)}
+              onResolve={playtest.resolvePeek}
+              onShuffle={() => {
+                playtest.shuffle()
+                closePeek()
+              }}
+              onCardHover={playtest.markCardHovered}
+              onCardLeave={clearCardHovered}
             />
           ) : null}
         </PlaytestBattlefield>
 
-        <PlaytestSidebar
-          actionCount={actionCount}
-          canUndo={history.length > 0}
-          lastAction={lastAction}
-          libraryCount={state.library.length}
-          lifeTotal={lifeTotal}
-          onActionCountChange={setActionCount}
-          onDraw={draw}
-          onExile={exileTop}
-          onCreateToken={openTokenDialog}
-          onMill={mill}
-          onLibrary={openLibraryPeek}
-          onLifeChange={changeLife}
-          onNewGame={resetGame}
-          onDiceAndCoin={rollDiceAndCoin}
-          onNextTurn={nextTurn}
-          onShuffle={shuffle}
-          onLook={openLookPeek}
-          onUndo={undo}
-          onScry={openScryPeek}
-          onUntapAll={untapAll}
-          onSurveil={openSurveilPeek}
-          selectedCard={selectedCard}
-          selectedZone={selectedZone}
-          tapped={selectedCard ? tappedCards.has(selectedCard.id) : false}
-          selectedStatus={selectedStatus}
-          onMove={moveCard}
-          onTapSelected={selectedCard ? () => toggleTapped(selectedCard.id) : undefined}
-        />
-
-        <MobilePlaytestControls
-          actionCount={actionCount}
-          canUndo={history.length > 0}
-          libraryCount={state.library.length}
-          lifeTotal={lifeTotal}
-          onActionCountChange={setActionCount}
-          onCreateToken={openTokenDialog}
-          onDiceAndCoin={rollDiceAndCoin}
-          onDraw={draw}
-          onExile={exileTop}
-          onLibrary={openLibraryPeek}
-          onLifeChange={changeLife}
-          onLook={openLookPeek}
-          onMill={mill}
-          onMove={moveCard}
-          onNewGame={resetGame}
-          onNextTurn={nextTurn}
-          onScry={openScryPeek}
-          onShuffle={shuffle}
-          onSurveil={openSurveilPeek}
-          onTapSelected={selectedCard ? () => toggleTapped(selectedCard.id) : undefined}
-          onUndo={undo}
-          onUntapAll={untapAll}
-          selectedCard={selectedCard}
-          selectedStatus={selectedStatus}
-          selectedZone={selectedZone}
-          tapped={selectedCard ? tappedCards.has(selectedCard.id) : false}
-        />
-
         <PlaytestBottomZones
           command={state.command}
+          dropTargetZone={dropTargetZone}
           exile={state.exile}
           graveyard={state.graveyard}
           hand={state.hand}
+          libraryActions={{
+            actionCount: playtest.actionCount,
+            onActionCountChange: playtest.setActionCount,
+            onDraw: playtest.draw,
+            onExile: playtest.exileTop,
+            onLibrary: playtest.openLibraryPeek,
+            onLook: playtest.openLookPeek,
+            onMill: playtest.mill,
+            onScry: playtest.openScryPeek,
+            onShuffle: playtest.shuffle,
+            onSurveil: playtest.openSurveilPeek,
+          }}
           libraryCount={state.library.length}
           onCardClick={activateCard}
           onCardContextMenu={openContextMenu}
           onCardDragStart={startCardDrag}
-          onCardHover={markCardHovered}
+          onCardHover={playtest.markCardHovered}
           onCardLeave={clearCardHovered}
-          selectedCardId={selectedCardId}
+          onDropCard={(cardId, from, to) => moveCard(from, to, cardId)}
+          onViewZone={playtest.openZoneViewer}
+          selectedCardId={playtest.selectedCardId}
         />
-        {hoverPreviewCard && !contextMenu && !peek ? (
-          <HoverCardPreview card={hoverPreviewCard} />
-        ) : null}
+
         {contextMenu ? (
           <CardContextMenu
-            card={selectedCard}
-            cardStatus={selectedStatus || defaultCardStatus()}
+            key={contextMenu.cardId}
+            card={contextMenuCard}
+            cardStatus={
+              (contextMenuCard && playtest.cardStatuses[contextMenuCard.id]) || defaultCardStatus()
+            }
             menu={contextMenu}
-            onAddMarker={addMarker}
-            onAdjustCounter={adjustCounter}
-            onClearStatus={clearCardStatus}
+            onAdjustCounter={(cardId, kind, delta) => playtest.adjustCounter([cardId], kind, delta)}
+            onClearStatus={playtest.clearCardStatus}
             onClose={clearContextMenu}
+            onDuplicate={(cardId) => playtest.duplicateCards([cardId])}
             onMove={moveCard}
-            onSetPowerToughness={setPowerToughness}
-            onToggleFaceDown={toggleFaceDown}
-            onToggleTapped={toggleTapped}
-            tapped={selectedCard ? tappedCards.has(selectedCard.id) : false}
-          />
-        ) : null}
-        {tokenDialogOpen ? (
-          <CreateTokenDialog onCancel={closeTokenDialog} onCreate={createToken} />
-        ) : null}
-        {peek ? (
-          <PeekOverlay
-            cards={state.library.slice(0, peek.count)}
-            mode={peek.mode}
-            onClose={closePeek}
-            onMoveCard={moveTopLibraryCard}
-            onCardHover={markCardHovered}
-            onCardLeave={clearCardHovered}
+            onSetPowerToughness={playtest.setPowerToughness}
+            onToggleFaceDown={(cardId) => playtest.toggleFaceDown([cardId])}
+            onToggleTapped={(cardId) => playtest.toggleTapped([cardId])}
+            tapped={contextMenuCard ? tappedCards.has(contextMenuCard.id) : false}
           />
         ) : null}
       </div>
     </div>
+  )
+}
+
+function ActionLog({
+  className,
+  entries,
+  lastAction,
+}: {
+  className?: string
+  entries: string[]
+  lastAction: string
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "absolute bottom-3 left-3 z-10 flex max-w-[min(22rem,calc(100%-8rem))] items-center gap-2 rounded-field border border-base-300 bg-base-100 px-2.5 py-1.5 text-left text-xs shadow-sm hover:bg-base-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+            className,
+          )}
+          title="Game log"
+        >
+          <History className="h-3.5 w-3.5 shrink-0 text-base-content/60" />
+          <span className="truncate font-bold" aria-live="polite">
+            {lastAction}
+          </span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="top" align="start" className="w-72 p-0">
+        <h2 className="border-b border-base-300 px-3 py-2 text-sm font-black">Game log</h2>
+        <ol className="max-h-72 overflow-y-auto py-1 text-sm">
+          {entries.map((entry, index) => (
+            <li
+              key={`${entries.length - index}-${entry}`}
+              className={cn("px-3 py-1", index === 0 ? "font-bold" : "text-base-content/70")}
+            >
+              {entry}
+            </li>
+          ))}
+        </ol>
+      </PopoverContent>
+    </Popover>
   )
 }

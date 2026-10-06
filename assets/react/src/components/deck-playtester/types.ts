@@ -1,4 +1,3 @@
-import type { LucideIcon } from "lucide-react"
 import type { ReactNode } from "react"
 import type { PlaytestState, PlaytestZone } from "../../lib/deck-playtest"
 
@@ -7,13 +6,13 @@ export type DeckPlaytesterProps = {
   deckId: string
   deckName: string
   initialState: PlaytestState
+  /** Tokens this deck's cards can make, offered first in the token dialog. */
+  tokenOptions?: TokenFormValues[]
 }
 
-export type CardAction = {
-  label: string
-  to: PlaytestZone
-  icon?: LucideIcon
-  placement?: "top" | "bottom"
+export type PlaytestSettings = {
+  drawOnNextTurn: boolean
+  showHoverPreview: boolean
 }
 
 export type CardStatus = {
@@ -37,7 +36,13 @@ export type CardHoverTarget = {
   zone: PlaytestZone
 }
 
-export type PeekMode = "Library" | "Look" | "Scry" | "Surveil"
+export type PeekMode = "Library" | "Look" | "Scry" | "Surveil" | "Graveyard" | "Exile"
+
+export type CounterKind = "plusOneCounters" | "minusOneCounters" | "markers"
+
+export type PlayerCounterKind = "poison" | "energy" | "experience"
+
+export type PlayerCounters = Record<PlayerCounterKind, number>
 
 export type PeekState = {
   count: number
@@ -45,6 +50,7 @@ export type PeekState = {
 } | null
 
 export type TokenFormValues = {
+  imageUrl?: string | null
   name: string
   power: string
   toughness: string
@@ -65,7 +71,13 @@ export type BattlefieldCardPosition = {
 
 export type BattlefieldPointerDrag = {
   cardId: string
+  /** Every card moving together (the selection when dragging a selected card). */
+  cardIds: string[]
   frame: number | null
+  moved: boolean
+  startClientX: number
+  startClientY: number
+  startPositions: Record<string, BattlefieldCardPosition>
   latestClientX: number
   latestClientY: number
   offset: BattlefieldCardPosition
@@ -81,4 +93,5 @@ export type PlaytestSnapshot = {
   turn: number
   lifeTotal: number
   openingHand: boolean
+  playerCounters: PlayerCounters
 }

@@ -6,8 +6,10 @@ import {
   drawCards,
   exileFromLibrary,
   millCards,
+  moveAllPlaytestCards,
   movePlaytestCard,
   mulliganPlaytest,
+  resolveLibraryTop,
   shuffleCards,
 } from "../src/lib/deck-playtest.ts"
 
@@ -96,4 +98,62 @@ test("shuffleCards returns a new array without mutating input", () => {
     shuffled.map((card) => card.id),
     ["card-2", "card-3", "card-1"],
   )
+})
+
+test("milled and exiled cards land on top of their pile", () => {
+  let state = createPlaytestState(cards.slice(0, 4), [], { handSize: 0, random: steadyRandom })
+  const [first, second, third] = state.library
+
+  state = millCards(state, 2)
+  assert.deepEqual(
+    state.graveyard.map((card) => card.id),
+    [second.id, first.id],
+  )
+
+  state = exileFromLibrary(state, 1)
+  assert.equal(state.exile[0].id, third.id)
+})
+
+test("movePlaytestCard can send a library card to the bottom of the library", () => {
+  let state = createPlaytestState(cards.slice(0, 3), [], { handSize: 0, random: steadyRandom })
+  const top = state.library[0]
+
+  state = movePlaytestCard(state, "library", "library", top.id, "bottom")
+  assert.equal(state.library.length, 3)
+  assert.equal(state.library.at(-1)?.id, top.id)
+})
+
+test("resolveLibraryTop applies scry and surveil choices in one step", () => {
+  let state = createPlaytestState(cards.slice(0, 5), [], { handSize: 0, random: steadyRandom })
+  const [first, second, third, fourth] = state.library
+
+  state = resolveLibraryTop(state, {
+    [first.id]: "bottom",
+    [second.id]: "top",
+    [third.id]: "graveyard",
+  })
+
+  assert.equal(state.library[0].id, second.id)
+  assert.equal(state.library[1].id, fourth.id)
+  assert.equal(state.library.at(-1)?.id, first.id)
+  assert.deepEqual(
+    state.graveyard.map((card) => card.id),
+    [third.id],
+  )
+})
+
+test("moveAllPlaytestCards empties a zone into another", () => {
+  let state = createPlaytestState(cards.slice(0, 4), [], { handSize: 0, random: steadyRandom })
+  state = millCards(state, 2)
+
+  const toHand = moveAllPlaytestCards(state, "graveyard", "hand")
+  assert.equal(toHand.graveyard.length, 0)
+  assert.equal(toHand.hand.length, 2)
+
+  const shuffledIn = moveAllPlaytestCards(state, "graveyard", "library", {
+    random: steadyRandom,
+    shuffle: true,
+  })
+  assert.equal(shuffledIn.graveyard.length, 0)
+  assert.equal(shuffledIn.library.length, 4)
 })

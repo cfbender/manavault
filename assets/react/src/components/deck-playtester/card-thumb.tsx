@@ -19,9 +19,7 @@ export function CardThumb({
       }
     >
       {faceDown ? (
-        <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle,color-mix(in_oklch,var(--color-primary),transparent_70%),var(--color-base-300))] p-2 text-center text-xs font-black uppercase tracking-[0.18em] text-base-content/60">
-          Face down
-        </div>
+        <SleeveBack />
       ) : card.imageUrl ? (
         <img
           src={card.imageUrl}
@@ -31,19 +29,41 @@ export function CardThumb({
           draggable={false}
         />
       ) : (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-2 text-center text-xs text-base-content/50">
+        <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-2 text-center text-xs text-base-content/60">
           <span
             className={cn(
-              card.deckCardId === "playtest-token" && "font-black text-base-content/75",
+              card.deckCardId === "playtest-token" && "font-black text-base-content/80",
             )}
           >
             {card.name}
           </span>
-          {card.deckCardId === "playtest-token" ? (
+          {card.deckCardId === "playtest-token" && card.typeLine ? (
             <span className="text-[0.6rem] uppercase tracking-[0.14em]">{card.typeLine}</span>
           ) : null}
         </div>
       )}
+    </div>
+  )
+}
+
+/** The ManaVault sleeve: used for the library stack and face-down cards. */
+export function SleeveBack({ className }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn(
+        "relative flex h-full w-full items-center justify-center overflow-hidden bg-[oklch(22%_0.045_350)] p-[7%]",
+        className,
+      )}
+    >
+      <div className="absolute inset-[5%] rounded-[6%] border border-[oklch(68%_0.11_72/0.55)]" />
+      <div className="absolute inset-[9%] rounded-[5%] bg-[radial-gradient(circle_at_50%_42%,oklch(36%_0.11_10/0.9),transparent_68%)]" />
+      <img
+        src="/images/logo.png"
+        alt=""
+        className="relative w-[62%] opacity-90 drop-shadow-[0_2px_4px_rgb(0_0_0/0.45)]"
+        draggable={false}
+      />
     </div>
   )
 }

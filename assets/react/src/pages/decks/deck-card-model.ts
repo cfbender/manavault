@@ -1,5 +1,7 @@
 import type { FullscreenPrinting } from "../../components/fullscreen-printing-dialog"
+import type { TokenFormValues } from "../../components/deck-playtester/types"
 import type { PlaytestCard } from "../../lib/deck-playtest"
+import { buildDeckTokens } from "../../lib/deck-tokens"
 import { compareDeckCards } from "../../lib/deck-grouping"
 import type { DeckCardEntry, DeckZone } from "./deck-types"
 import { COLOR_ORDER } from "./deck-types"
@@ -56,6 +58,7 @@ export function deckPlaytestCards(deckCards: DeckCardEntry[]) {
         deckCardId: deckCard.id,
         id: `${deckCard.id}:${index}`,
         imageUrl: cardImageUrl(deckCard, "imageUrl"),
+        manaCost: deckCard.card?.manaCost,
         name: deckCard.card?.name || "Unknown card",
         setLabel: printing?.setCode
           ? `${printing.setCode.toUpperCase()} #${printing.collectorNumber || "?"}`
@@ -67,6 +70,25 @@ export function deckPlaytestCards(deckCards: DeckCardEntry[]) {
 
   return { command, library }
 }
+
+/** Tokens the deck's cards create, as one-click options for the playtester's token dialog. */
+export function deckPlaytestTokens(deckCards: DeckCardEntry[]): TokenFormValues[] {
+  return buildDeckTokens(deckCards).flatMap((summary) => {
+    const stats = summary.description.match(/(\d+|\*|X)\/(\d+|\*|X)/)
+    // Rules-text guesses without a linked token card or stats are replacement effects
+    // ("twice that many of those tokens"), not tokens you can create.
+    if (!summary.token && !stats && !KNOWN_ARTIFACT_TOKENS.has(summary.name)) return []
+    return {
+      imageUrl: summary.token?.imageUrl,
+      name: summary.name,
+      power: stats?.[1] || "",
+      toughness: stats?.[2] || "",
+      typeLine: summary.token?.typeLine || "Token",
+    }
+  })
+}
+
+const KNOWN_ARTIFACT_TOKENS = new Set(["Blood", "Clue", "Food", "Map", "Powerstone", "Treasure"])
 
 export function colorOrder(color: string) {
   const index = COLOR_ORDER.indexOf(color)
