@@ -462,6 +462,13 @@ export function useScanSession({ paused }: { paused: boolean }) {
     [updateEntry],
   )
 
+  /** `null` drops the user's price so the entry follows the market price again. */
+  const setPurchasePrice = useCallback(
+    (id: string, cents: number | null) =>
+      updateEntry(id, (entry) => ({ ...entry, purchasePriceCents: cents ?? undefined })),
+    [updateEntry],
+  )
+
   const setPrinting = useCallback(
     (id: string, printing: PrintingOption) => {
       const entry = entriesRef.current.find((candidate) => candidate.id === id)
@@ -638,6 +645,7 @@ export function useScanSession({ paused }: { paused: boolean }) {
     setQuantity,
     setFinish,
     setLanguage,
+    setPurchasePrice,
     setPrinting,
     replaceCard,
     snapshotFrame,

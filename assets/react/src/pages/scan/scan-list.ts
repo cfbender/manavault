@@ -25,6 +25,8 @@ export interface ScanEntry {
   language: string
   quantity: number
   prices: FinishPrices
+  /** Per-copy price the user paid; unset follows the entry's market price. */
+  purchasePriceCents?: number
   imageUrl: string | null
   /** Scryfall layout of the resolved printing; `"token"` entries can carry a `back`. */
   layout?: string | null
@@ -53,6 +55,13 @@ export const SCAN_LANGUAGES = [
 
 export function entryPriceCents(entry: Pick<ScanEntry, "finish" | "prices">): number | null {
   return entry.prices[entry.finish]
+}
+
+/** What the user paid per copy: their edit, else the current market price. */
+export function entryPurchaseCents(
+  entry: Pick<ScanEntry, "finish" | "prices" | "purchasePriceCents">,
+): number | null {
+  return entry.purchasePriceCents ?? entryPriceCents(entry)
 }
 
 /** Sum of the list's prices; a card priced below `minCents` (per copy) is left out. */
@@ -155,13 +164,14 @@ const CSV_HEADERS = [
   "language",
   "scryfall_id",
   "back_scryfall_id",
+  "purchase_price",
 ] as const
 
 /**
  * The collection import's CSV columns, oldest scan first; `scryfall_id` pins the exact
  * printing. Unresolved entries still carry the recognized gallery printing, which is valid.
  * `back_scryfall_id` is the picked other side of a token; the import files tokens as owned
- * tokens rather than collection cards.
+ * tokens rather than collection cards. `purchase_price` is the per-copy price paid, in dollars.
  */
 export function scanListCsv(entries: ScanEntry[]) {
   const rows = [...entries]
@@ -176,11 +186,16 @@ export function scanListCsv(entries: ScanEntry[]) {
         entry.language,
         entry.scryfallId,
         entry.back?.scryfallId ?? "",
+        csvDollars(entryPurchaseCents(entry)),
       ]
         .map(csvCell)
         .join(","),
     )
   return [CSV_HEADERS.join(","), ...rows].join("\n") + "\n"
+}
+
+function csvDollars(cents: number | null) {
+  return cents === null ? "" : (cents / 100).toFixed(2)
 }
 
 function csvCell(value: string) {

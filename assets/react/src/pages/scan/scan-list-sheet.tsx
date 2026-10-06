@@ -12,6 +12,7 @@ import {
 } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
 import { cn } from "../../lib/utils"
+import { centsToCurrencyInput, parseCurrencyInputCents } from "../collection/form-helpers"
 import type { Finish } from "./printing-choice"
 import { ScanEntryChips } from "./scan-entry-chips"
 import {
@@ -32,6 +33,7 @@ export function ScanListSheet({
   onFinish,
   onPrinting,
   onLanguage,
+  onPurchasePrice,
   onBackFace,
   onRemove,
   onClear,
@@ -46,6 +48,8 @@ export function ScanListSheet({
   onFinish: (id: string, finish: Finish) => void
   onPrinting: (id: string) => void
   onLanguage: (id: string, language: string) => void
+  /** Per-copy price paid; `null` goes back to the market price. */
+  onPurchasePrice: (id: string, cents: number | null) => void
   onBackFace: (id: string) => void
   onRemove: (id: string) => void
   onClear: () => void
@@ -116,6 +120,7 @@ export function ScanListSheet({
                     onFinish={(finish) => onFinish(entry.id, finish)}
                     onPrinting={() => onPrinting(entry.id)}
                     onLanguage={(language) => onLanguage(entry.id, language)}
+                    onPurchasePrice={(cents) => onPurchasePrice(entry.id, cents)}
                     onBackFace={() => onBackFace(entry.id)}
                     onRemove={() => onRemove(entry.id)}
                   />
@@ -167,6 +172,7 @@ function ScanListRow({
   onFinish,
   onPrinting,
   onLanguage,
+  onPurchasePrice,
   onBackFace,
   onRemove,
 }: {
@@ -177,6 +183,7 @@ function ScanListRow({
   onFinish: (finish: Finish) => void
   onPrinting: () => void
   onLanguage: (language: string) => void
+  onPurchasePrice: (cents: number | null) => void
   onBackFace: () => void
   onRemove: () => void
 }) {
@@ -275,6 +282,56 @@ function ScanListRow({
           </Button>
         </div>
       ) : null}
+      {editing ? <PurchasePriceField entry={entry} onChange={onPurchasePrice} /> : null}
     </li>
+  )
+}
+
+/**
+ * The per-copy price paid, imported as the collection item's purchase price. Blank follows the
+ * market price; the edit is saved on blur or Enter, and an invalid amount is discarded.
+ */
+function PurchasePriceField({
+  entry,
+  onChange,
+}: {
+  entry: ScanEntry
+  onChange: (cents: number | null) => void
+}) {
+  const [draft, setDraft] = useState(() => centsToCurrencyInput(entry.purchasePriceCents))
+  const market = entryPriceCents(entry)
+  const custom = entry.purchasePriceCents !== undefined
+
+  function commit() {
+    const cents = parseCurrencyInputCents(draft)
+    if (cents === undefined) {
+      setDraft(centsToCurrencyInput(entry.purchasePriceCents))
+      return
+    }
+    setDraft(centsToCurrencyInput(cents))
+    if (cents !== (entry.purchasePriceCents ?? null)) onChange(cents)
+  }
+
+  return (
+    <label className="mt-3 flex items-center gap-3">
+      <span className="shrink-0 text-xs font-bold uppercase tracking-wide text-base-content/70">
+        Paid each
+      </span>
+      <Input
+        inputMode="decimal"
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") event.currentTarget.blur()
+        }}
+        placeholder={market === null ? "No market price" : formatCents(market)}
+        aria-label={`Purchase price for ${entry.name}`}
+        className="h-9 min-h-9 w-28 font-mono"
+      />
+      <span className="min-w-0 truncate text-xs text-base-content/70">
+        {custom ? `Market ${formatCents(market)}` : "Defaults to market"}
+      </span>
+    </label>
   )
 }

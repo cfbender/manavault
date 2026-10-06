@@ -181,6 +181,7 @@ export function ScanPage() {
         onFinish={session.setFinish}
         onPrinting={(id) => setSheet({ type: "printing", id })}
         onLanguage={session.setLanguage}
+        onPurchasePrice={session.setPurchasePrice}
         onBackFace={session.pickBackFace}
         onRemove={session.removeEntry}
         onClear={session.clear}

@@ -41,4 +41,19 @@ defmodule Manavault.Catalog.CollectionImportCsvTest do
 
     assert names == ["Alpha", "Beta"]
   end
+
+  test "reads the scanner's purchase_price column as cents, blank as no price" do
+    csv = """
+    name,set_code,collector_number,quantity,finish,language,scryfall_id,back_scryfall_id,purchase_price
+    Lightning Bolt,m10,146,1,nonfoil,en,sf-1,,1.50
+    Lightning Bolt,m10,146,1,nonfoil,en,sf-2,,
+    """
+
+    assert {:ok, entries} = CollectionImport.parse(csv, format: :csv)
+
+    prices =
+      Enum.map(entries, fn {row, _} -> CollectionImport.attrs(row)["purchase_price_cents"] end)
+
+    assert prices == [150, nil]
+  end
 end

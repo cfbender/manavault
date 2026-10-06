@@ -84,13 +84,27 @@ test("CSV uses the collection import columns, oldest scan first, with quoting", 
   assert.equal(
     csv,
     [
-      "name,set_code,collector_number,quantity,finish,language,scryfall_id,back_scryfall_id",
-      "Lightning Bolt,m10,146,1,nonfoil,en,sf-old,",
-      "Treasure,tcmm,12,1,nonfoil,en,sf-token,sf-soldier",
-      '"Borrowing 100,000 Arrows",m10,146,3,foil,ja,sf-new,',
+      "name,set_code,collector_number,quantity,finish,language,scryfall_id,back_scryfall_id,purchase_price",
+      "Lightning Bolt,m10,146,1,nonfoil,en,sf-old,,1.50",
+      "Treasure,tcmm,12,1,nonfoil,en,sf-token,sf-soldier,1.50",
+      '"Borrowing 100,000 Arrows",m10,146,3,foil,ja,sf-new,,9.00',
       "",
     ].join("\n"),
   )
+})
+
+test("CSV purchase price defaults to the finish's market price and takes the user's edit", () => {
+  const rows = scanListCsv([
+    entry("edited", { purchasePriceCents: 25 }),
+    entry("free", { purchasePriceCents: 0 }),
+    entry("unpriced", { prices: { nonfoil: null, foil: null, etched: null } }),
+    entry("foil", { finish: "foil" }),
+  ])
+    .trim()
+    .split("\n")
+    .slice(1)
+    .map((row) => row.split(",").at(-1))
+  assert.deepEqual(rows, ["9.00", "", "0.00", "0.25"])
 })
 
 test("withPrinting swaps the printing but keeps quantity", () => {
