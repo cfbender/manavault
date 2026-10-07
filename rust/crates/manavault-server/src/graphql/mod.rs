@@ -24,6 +24,13 @@ pub fn state<'a>(ctx: &Context<'a>) -> &'a AppState {
     ctx.data_unchecked::<AppState>()
 }
 
+/// Logs an internal failure (usually a database error) and returns the
+/// generic resolver error clients see.
+pub fn internal_error(error: impl std::fmt::Display) -> async_graphql::Error {
+    tracing::error!(%error, "resolver failed");
+    async_graphql::Error::new("Something went wrong.")
+}
+
 /// A resolver error with a user-facing message.
 pub fn user_error(message: impl Into<String>) -> async_graphql::Error {
     async_graphql::Error::new(message.into())
