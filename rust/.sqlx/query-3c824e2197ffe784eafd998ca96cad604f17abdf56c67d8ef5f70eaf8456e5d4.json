@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO locations (name, kind, description, cover_scryfall_id, inserted_at, updated_at)\n           VALUES (?1, ?2, ?3, ?4, ?5, ?5) RETURNING id AS \"id!\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "locations",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "3c824e2197ffe784eafd998ca96cad604f17abdf56c67d8ef5f70eaf8456e5d4"
+}

@@ -1,0 +1,230 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT p.scryfall_id AS \"scryfall_id!: lotus::ScryfallId\",\n                 p.oracle_id AS \"oracle_id!: lotus::OracleId\", p.set_code AS \"set_code!\",\n                 p.set_name AS \"set_name?\", p.collector_number AS \"collector_number!\",\n                 p.illustration_id AS \"illustration_id?\", p.lang AS \"lang!\",\n                 p.flavor_name AS \"flavor_name?\", p.flavor_text AS \"flavor_text?\",\n                 p.rarity AS \"rarity?\", p.finishes AS \"finishes!\", p.promo_types AS \"promo_types!\",\n                 p.promo AS \"promo!: bool\", p.image_uris AS \"image_uris!\", p.prices AS \"prices!\",\n                 p.released_at AS \"released_at?\", p.tcgplayer_id AS \"tcgplayer_id?\",\n                 p.tcgplayer_etched_id AS \"tcgplayer_etched_id?\"\n               FROM scryfall_printings AS p WHERE p.scryfall_id IN (\n           SELECT ranked.scryfall_id FROM (\n             SELECT sp.scryfall_id, row_number() OVER (\n               PARTITION BY sp.oracle_id ORDER BY sp.released_at DESC, sp.set_code ASC\n             ) AS rn\n             FROM scryfall_printings AS sp\n             WHERE sp.oracle_id IN (SELECT value FROM json_each(?1))\n           ) AS ranked WHERE ranked.rn = 1\n         )",
+  "describe": {
+    "columns": [
+      {
+        "name": "scryfall_id!: lotus::ScryfallId",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "scryfall_id"
+          }
+        }
+      },
+      {
+        "name": "oracle_id!: lotus::OracleId",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "oracle_id"
+          }
+        }
+      },
+      {
+        "name": "set_code!",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "set_code"
+          }
+        }
+      },
+      {
+        "name": "set_name?",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "set_name"
+          }
+        }
+      },
+      {
+        "name": "collector_number!",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "collector_number"
+          }
+        }
+      },
+      {
+        "name": "illustration_id?",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "illustration_id"
+          }
+        }
+      },
+      {
+        "name": "lang!",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "lang"
+          }
+        }
+      },
+      {
+        "name": "flavor_name?",
+        "ordinal": 7,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "flavor_name"
+          }
+        }
+      },
+      {
+        "name": "flavor_text?",
+        "ordinal": 8,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "flavor_text"
+          }
+        }
+      },
+      {
+        "name": "rarity?",
+        "ordinal": 9,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "rarity"
+          }
+        }
+      },
+      {
+        "name": "finishes!",
+        "ordinal": 10,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "finishes"
+          }
+        }
+      },
+      {
+        "name": "promo_types!",
+        "ordinal": 11,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "promo_types"
+          }
+        }
+      },
+      {
+        "name": "promo!: bool",
+        "ordinal": 12,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "promo"
+          }
+        }
+      },
+      {
+        "name": "image_uris!",
+        "ordinal": 13,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "image_uris"
+          }
+        }
+      },
+      {
+        "name": "prices!",
+        "ordinal": 14,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "prices"
+          }
+        }
+      },
+      {
+        "name": "released_at?",
+        "ordinal": 15,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "released_at"
+          }
+        }
+      },
+      {
+        "name": "tcgplayer_id?",
+        "ordinal": 16,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "tcgplayer_id"
+          }
+        }
+      },
+      {
+        "name": "tcgplayer_etched_id?",
+        "ordinal": 17,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "tcgplayer_etched_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "6b0a7640f1c642e6264183e45d34ea8337db33dee35381ecff4bb3b707816b1c"
+}

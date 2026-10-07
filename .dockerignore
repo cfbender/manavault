@@ -1,6 +1,4 @@
 # Build artifacts
-_build/
-deps/
 priv/static/assets/
 priv/static/cache_manifest.json
 
@@ -12,7 +10,6 @@ priv/static/cache_manifest.json
 # Version control and editor files
 .git/
 .gitignore
-.elixir_ls/
 
 # Logs and temporary files
 *.log
@@ -20,3 +17,19 @@ priv/static/cache_manifest.json
 
 # OS files
 .DS_Store
+
+# Rust build output
+rust/target/
+
+# Installed in the image's frontend stage
+node_modules/
+
+# Native shells and local tooling state (not part of the image)
+android/
+ios/
+native_www/
+.amp/
+.backlog/
+
+# Notes and docs do not affect the build
+rust/notes/

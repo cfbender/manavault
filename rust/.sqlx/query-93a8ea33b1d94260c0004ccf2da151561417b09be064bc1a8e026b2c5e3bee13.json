@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT DISTINCT p.illustration_id AS \"illustration_id!\"\n           FROM scryfall_printings AS p\n           WHERE p.set_code IN (SELECT value FROM json_each(?1)) AND p.illustration_id IS NOT NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "illustration_id!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "illustration_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "93a8ea33b1d94260c0004ccf2da151561417b09be064bc1a8e026b2c5e3bee13"
+}

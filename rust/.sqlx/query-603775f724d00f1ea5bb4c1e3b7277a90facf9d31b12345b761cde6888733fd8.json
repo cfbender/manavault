@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO scryfall_cards (oracle_id, name, normalized_name, layout, type_line, oracle_text, mana_cost, cmc, colors, color_identity, legalities, game_changer, edhrec_rank, rulings_uri, oracle_tags, deck_category, deck_themes, inserted_at, updated_at)\n                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?18)\n                 ON CONFLICT (oracle_id) DO UPDATE SET name = excluded.name, normalized_name = excluded.normalized_name,\n                   layout = excluded.layout, type_line = excluded.type_line, oracle_text = excluded.oracle_text,\n                   mana_cost = excluded.mana_cost, cmc = excluded.cmc, colors = excluded.colors,\n                   color_identity = excluded.color_identity, legalities = excluded.legalities,\n                   game_changer = excluded.game_changer, edhrec_rank = excluded.edhrec_rank,\n                   rulings_uri = excluded.rulings_uri, oracle_tags = excluded.oracle_tags,\n                   deck_category = excluded.deck_category, deck_themes = excluded.deck_themes,\n                   updated_at = excluded.updated_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 18
+    },
+    "nullable": []
+  },
+  "hash": "603775f724d00f1ea5bb4c1e3b7277a90facf9d31b12345b761cde6888733fd8"
+}

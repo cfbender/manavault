@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE decks SET play_count = play_count + 1, skip_count = 0, last_played_at = ?2, updated_at = ?2 WHERE id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "4720e8e13b5bb66f6b0555d6732bb3ba9f35099e76b69b8f64c7565e8321db68"
+}

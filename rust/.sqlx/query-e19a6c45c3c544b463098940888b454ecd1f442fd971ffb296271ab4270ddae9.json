@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT kind AS \"kind!: LocationKind\" FROM locations WHERE id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "kind!: LocationKind",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "locations",
+            "name": "kind"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "e19a6c45c3c544b463098940888b454ecd1f442fd971ffb296271ab4270ddae9"
+}

@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT scryfall_id AS \"scryfall_id!\" FROM scryfall_printings ORDER BY scryfall_id",
+  "describe": {
+    "columns": [
+      {
+        "name": "scryfall_id!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "scryfall_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "eb281f5ce41d8bc2fa778e964059ff3a4bc4855b08d417ac9e7ab0eda7f63493"
+}

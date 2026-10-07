@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT p.normalized_flavor_name AS \"flavor!\", c.oracle_id AS \"oracle_id!: OracleId\"\n           FROM scryfall_printings AS p JOIN scryfall_cards AS c ON c.oracle_id = p.oracle_id\n           WHERE p.normalized_flavor_name IN (SELECT value FROM json_each(?1))\n             AND (c.layout IS NULL OR c.layout NOT IN ('token', 'double_faced_token', 'emblem'))\n           ORDER BY c.name ASC",
+  "describe": {
+    "columns": [
+      {
+        "name": "flavor!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "normalized_flavor_name"
+          }
+        }
+      },
+      {
+        "name": "oracle_id!: OracleId",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "oracle_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      true
+    ]
+  },
+  "hash": "5ee33b68730956e6eb7f2672924e1f7fc28d80ed1f557595fb67a9f836927aaa"
+}

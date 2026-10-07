@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT p.set_code AS \"set_code!\", p.set_name AS \"set_name?\"\n           FROM scryfall_printings AS p\n           WHERE lower(p.set_code) LIKE ?1 OR lower(coalesce(p.set_name, '')) LIKE ?1\n           GROUP BY p.set_code, p.set_name\n           ORDER BY p.set_name ASC, p.set_code ASC\n           LIMIT ?2",
+  "describe": {
+    "columns": [
+      {
+        "name": "set_code!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "set_code"
+          }
+        }
+      },
+      {
+        "name": "set_name?",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "set_name"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "05a6bf6e31ebcc92b1587439ae28a7f1d1b50ce1a68bb704a13c34616a1a2268"
+}

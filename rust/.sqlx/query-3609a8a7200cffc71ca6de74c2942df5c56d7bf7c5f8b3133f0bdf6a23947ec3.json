@@ -1,0 +1,98 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT l.id AS \"id!\", l.name AS \"name!\",\n                 l.kind AS \"kind!: crate::collection::location::LocationKind\",\n                 l.description AS \"description?\",\n                 l.cover_scryfall_id AS \"cover_scryfall_id?: lotus::ScryfallId\",\n                 l.inserted_at AS \"inserted_at!\", l.updated_at AS \"updated_at!\"\n               FROM locations AS l WHERE l.id IN (SELECT value FROM json_each(?1)) AND l.kind IN ('box', 'binder')",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "locations",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "name!",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "locations",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "kind!: crate::collection::location::LocationKind",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "locations",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "name": "description?",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "locations",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "name": "cover_scryfall_id?: lotus::ScryfallId",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "locations",
+            "name": "cover_scryfall_id"
+          }
+        }
+      },
+      {
+        "name": "inserted_at!",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "locations",
+            "name": "inserted_at"
+          }
+        }
+      },
+      {
+        "name": "updated_at!",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "locations",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "3609a8a7200cffc71ca6de74c2942df5c56d7bf7c5f8b3133f0bdf6a23947ec3"
+}

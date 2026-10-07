@@ -1,0 +1,15 @@
+[env]
+# Query macros read the committed .sqlx metadata, so builds never need a database.
+# `mise run rust:sqlx-prepare` overrides this to regenerate the metadata.
+SQLX_OFFLINE = "true"
+
+# Incremental compilation stays on (cargo's default for dev builds): a one-line
+# edit rebuilds in seconds instead of a minute. CI and the Docker release build
+# set CARGO_INCREMENTAL=0 instead; `mise run rust:sweep` trims old caches.
+
+# Link with mold (or lld) when installed, else the system linker; see the script.
+[target.x86_64-unknown-linux-gnu]
+linker = "scripts/linker.sh"
+
+[target.aarch64-unknown-linux-gnu]
+linker = "scripts/linker.sh"

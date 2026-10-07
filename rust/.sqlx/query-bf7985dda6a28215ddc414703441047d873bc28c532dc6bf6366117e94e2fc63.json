@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT c.name AS \"name!\", dc.quantity AS \"quantity!\", dc.zone AS \"zone!\"\n           FROM deck_cards AS dc JOIN scryfall_cards AS c ON c.oracle_id = dc.oracle_id\n           WHERE dc.deck_id = ?1\n           ORDER BY dc.zone ASC, c.name ASC, dc.id ASC",
+  "describe": {
+    "columns": [
+      {
+        "name": "name!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "quantity!",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "quantity"
+          }
+        }
+      },
+      {
+        "name": "zone!",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "zone"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "bf7985dda6a28215ddc414703441047d873bc28c532dc6bf6366117e94e2fc63"
+}

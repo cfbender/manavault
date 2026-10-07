@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO appearance_settings (id, palette, theme_style, inserted_at, updated_at)\n         VALUES (?1, ?2, ?3, ?4, ?4)\n         ON CONFLICT(id) DO UPDATE SET palette = excluded.palette,\n           theme_style = excluded.theme_style, updated_at = excluded.updated_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "2e6b0560f9ec5256aff47feb3f80b94aed74578c0f48b85ef9a55b1a8497acde"
+}

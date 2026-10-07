@@ -2,37 +2,168 @@
 android-sdk = "latest"
 aube = "1.21.0"
 cloudflared = "latest"
-elixir = "1.20.1-otp-29"
-erlang = { version = "29.0.3", install_env = { KERL_CONFIGURE_OPTIONS = "--without-javac --without-odbc --without-wx" } }
 git-cliff = "latest"
 java = "21"
 node = "26.4.0"
 resvg = "0.48.1"
+rust = { version = "1.99.0", components = "clippy,rustfmt" }
+sqlite = "3.53.4"
+# Tailwind's standalone CLI builds priv/static/assets/css/app.css.
+"github:tailwindlabs/tailwindcss" = { version = "4.3.0", bin = "tailwindcss" }
 "npm:backlog.md" = "latest"
 
 [tasks.setup]
-description = "Install project tools, Elixir dependencies, database, assets, and native shell dependencies."
-run = "mise install && aube install --frozen-lockfile && mix setup"
-
+description = "Install project tools and JavaScript dependencies, build the frontend, and build the Rust backend."
+run = [
+  "mise install",
+  "aube install --frozen-lockfile",
+  "mise run rust:assets",
+  "mise run rust:prebuild",
+]
 
 [tasks.dev]
-description = "Start the Phoenix development server."
-run = "mix phx.server"
+description = "Start the Rust backend on $PORT (default 4000) with the Vite dev server on 5173 and Tailwind in watch mode."
+run = "bash ./scripts/dev-rust.sh"
 
 [tasks.test]
-description = "Run the Elixir test suite."
-run = "mix test"
+description = "Run the Rust and frontend test suites."
+run = ["mise run rust:test", "aube run test:react"]
 
-[tasks.precommit]
-description = "Run tests and linting before committing code."
+[tasks."frontend:check"]
+description = "Lint, format-check, type-check, test, and build the React frontend, and run Impeccable's detector."
 run = [
-  "mix test",
-  "mix format --check-formatted",
-  "mix credo --strict",
-  "aube run vp lint",
-  "aube run vp format --check",
+  "aube run lint",
+  "aube exec vp fmt --check",
+  "aube run typecheck",
+  "aube run test:react",
+  "aube run build",
   "aubx impeccable detect assets/react/src/",
 ]
+
+[tasks.precommit]
+description = "Run every check CI runs before committing code."
+run = ["mise run rust:check", "mise run frontend:check"]
+
+[tasks."rust:check"]
+description = "Format-check, lint, and test the Rust workspace."
+dir = "rust"
+run = [
+  "cargo fmt --all --check",
+  "cargo clippy --workspace --all-targets --locked -- -D warnings",
+  "cargo test --workspace --locked",
+]
+
+[tasks."rust:schema-db"]
+description = "Apply rust/migrations/*.sql to a fresh rust/target/schema.db (the database sqlx checks queries against)."
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+cd rust
+mkdir -p target
+rm -f target/schema.db
+{
+  # The server creates the migrations table before applying migrations.
+  echo 'CREATE TABLE IF NOT EXISTS "schema_migrations" ("version" INTEGER PRIMARY KEY, "inserted_at" TEXT);'
+  for file in migrations/*.sql; do
+    cat "$file"
+    echo "INSERT INTO schema_migrations VALUES($(basename "$file" | cut -d_ -f1),NULL);"
+  done
+} | sqlite3 target/schema.db
+'''
+
+[tasks."rust:schema"]
+description = "Regenerate rust/schema.sql, the reviewable schema produced by rust/migrations."
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+mise run rust:schema-db
+cd rust
+{
+  # SQLite's statistics tables (from ANALYZE) depend on the sqlite3 build.
+  sqlite3 target/schema.db .schema | grep -v '^CREATE TABLE sqlite_stat'
+  sqlite3 target/schema.db '.mode insert schema_migrations' 'SELECT * FROM schema_migrations ORDER BY version'
+} > schema.sql
+'''
+
+[tasks."rust:new-migration"]
+description = "Create rust/migrations/<UTC timestamp>_<name>.sql for a schema change."
+usage = '''
+arg "<name>" help="snake_case migration name, e.g. add_notes_to_decks"
+'''
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+file="rust/migrations/$(date -u +%Y%m%d%H%M%S)_${usage_name?}.sql"
+printf -- '-- %s\n\n' "${usage_name?}" > "$file"
+echo "created $file; then run: mise run rust:sqlx-prepare"
+'''
+
+[tasks."rust:sqlx-prepare"]
+description = "After a migration or a query change: regenerate rust/schema.sql and the sqlx query metadata in rust/.sqlx."
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+mise run rust:schema
+cd rust
+rm -rf .sqlx && mkdir .sqlx
+# Query macros only re-expand when their crate recompiles.
+find crates -name '*.rs' -exec touch {} +
+SQLX_OFFLINE=false DATABASE_URL="sqlite://$PWD/target/schema.db?mode=ro" SQLX_OFFLINE_DIR="$PWD/.sqlx" \
+  cargo check --workspace --all-targets --locked
+'''
+
+[tasks."rust:ci"]
+description = "CI's Rust gate: rust:check plus stale schema.sql/.sqlx detection, with clippy doubling as the online query check so the workspace compiles once per profile."
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+mise run rust:schema
+cd rust
+cargo fmt --all --check
+rm -rf .sqlx && mkdir .sqlx
+# Query macros only write metadata when their crate compiles. CI's cache holds
+# no workspace crates, but a local target may.
+find crates -name '*.rs' -exec touch {} +
+SQLX_OFFLINE=false DATABASE_URL="sqlite://$PWD/target/schema.db?mode=ro" SQLX_OFFLINE_DIR="$PWD/.sqlx" \
+  cargo clippy --workspace --all-targets --locked -- -D warnings
+if [ -n "$(git status --porcelain -- .sqlx schema.sql)" ]; then
+  git status --short -- .sqlx schema.sql
+  echo "::error::rust/schema.sql or rust/.sqlx is stale; run 'mise run rust:sqlx-prepare' and commit the result."
+  exit 1
+fi
+cargo test --workspace --locked
+'''
+
+[tasks."rust:dev"]
+description = "Run only the Rust backend against the development database (port $PORT, default 4000); see `dev` for the full stack."
+dir = "rust"
+run = "MANAVAULT_ENV=dev MANAVAULT_ROOT=.. cargo run --locked --bin manavault"
+
+[tasks."rust:assets"]
+description = "Build the production frontend into priv/static/assets (Tailwind CSS and the Vite bundle)."
+run = [
+  "tailwindcss --input=assets/css/app.css --output=priv/static/assets/css/app.css --minify",
+  "aube run build",
+]
+
+[tasks."rust:build"]
+description = "Build the release `manavault` binary (rust/target/release/manavault)."
+dir = "rust"
+run = "cargo build --release --locked --bin manavault"
+
+[tasks."rust:prebuild"]
+description = "Compile the Rust server and test binaries (debug) so `rust:test` and `dev` start without a cold build."
+dir = "rust"
+run = ["cargo build --workspace --locked", "cargo test --workspace --locked --no-run"]
+
+[tasks."rust:sweep"]
+description = "Free disk in rust/target: drop incremental caches untouched for 3 days (cargo prunes old sessions per crate, not crates that are gone)."
+run = "find rust/target -mindepth 3 -maxdepth 3 -path '*/incremental/*' -mtime +3 -exec rm -rf {} + 2>/dev/null; du -sh rust/target 2>/dev/null || true"
+
+[tasks."rust:test"]
+description = "Run the Rust test suite."
+dir = "rust"
+run = "cargo test --workspace --locked"
 
 [tasks.changelog]
 description = "Generate CHANGELOG.md for the next major/minor/patch version."

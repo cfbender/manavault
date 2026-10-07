@@ -1,0 +1,20 @@
+[package]
+name = "manavault-allocation"
+description = "Reserving physical collection copies for deck cards."
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+lotus.workspace = true
+serde_json = "1"
+sqlx.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
+
+[lints]
+workspace = true

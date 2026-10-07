@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM deck_allocations WHERE deck_card_id = ?2 AND collection_item_id IN (\n                     SELECT collection_item_id FROM deck_allocations WHERE deck_card_id = ?1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "365abcc8e985a0e30bf73949dc6770c6f84ed77db69cfeb5d594f598f9952ebc"
+}

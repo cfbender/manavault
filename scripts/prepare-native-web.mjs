@@ -2,8 +2,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { dirname, resolve } from "node:path"
 
 const versionFile = resolve("native_www/version.json")
-const mixFile = resolve("mix.exs")
-const versionPattern = /version:\s*"([0-9]+\.[0-9]+\.[0-9]+(?:[-+][^"]+)?)"/
+const packageFile = resolve("package.json")
+const versionPattern = /^[0-9]+\.[0-9]+\.[0-9]+(?:[-+].+)?$/
 
 function normalizeVersion(version) {
   return version.trim().replace(/^v/i, "")
@@ -14,13 +14,12 @@ async function projectVersion() {
     return normalizeVersion(process.env.MANAVAULT_VERSION)
   }
 
-  const mixSource = await readFile(mixFile, "utf8")
-  const match = mixSource.match(versionPattern)
-  if (!match) {
-    throw new Error(`Could not find semver project version in ${mixFile}`)
+  const { version } = JSON.parse(await readFile(packageFile, "utf8"))
+  if (typeof version !== "string" || !versionPattern.test(version)) {
+    throw new Error(`Could not find semver project version in ${packageFile}`)
   }
 
-  return normalizeVersion(match[1])
+  return normalizeVersion(version)
 }
 
 const version = await projectVersion()

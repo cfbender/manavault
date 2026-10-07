@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT scryfall_id AS \"front!: ScryfallId\", back_scryfall_id AS \"back!: ScryfallId\",\n                  quantity AS \"quantity!: i64\"\n           FROM token_items\n           WHERE back_scryfall_id IS NOT NULL AND (scryfall_id = ?1 OR back_scryfall_id = ?1)",
+  "describe": {
+    "columns": [
+      {
+        "name": "front!: ScryfallId",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "token_items",
+            "name": "scryfall_id"
+          }
+        }
+      },
+      {
+        "name": "back!: ScryfallId",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "token_items",
+            "name": "back_scryfall_id"
+          }
+        }
+      },
+      {
+        "name": "quantity!: i64",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "token_items",
+            "name": "quantity"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "5c0a8a58b297956029d0041a06eaa15b912fe5e3776070c7de337df6bd45bb55"
+}

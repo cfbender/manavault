@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n          id AS \"id!: AllocationId\",\n          deck_card_id AS \"deck_card_id: DeckCardId\",\n          collection_item_id AS \"collection_item_id: CollectionItemId\",\n          source_location_id AS \"source_location_id: LocationId\",\n          quantity AS \"quantity: Quantity\"\n        FROM deck_allocations\n        WHERE deck_card_id = ?1 AND collection_item_id = ?2\n        LIMIT 1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: AllocationId",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "deck_card_id: DeckCardId",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "deck_card_id"
+          }
+        }
+      },
+      {
+        "name": "collection_item_id: CollectionItemId",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "collection_item_id"
+          }
+        }
+      },
+      {
+        "name": "source_location_id: LocationId",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "source_location_id"
+          }
+        }
+      },
+      {
+        "name": "quantity: Quantity",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "quantity"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "3fbdf592e552726b4f5f4defb65de6eb73f558aaebf1987b7e455ea4154c3e39"
+}

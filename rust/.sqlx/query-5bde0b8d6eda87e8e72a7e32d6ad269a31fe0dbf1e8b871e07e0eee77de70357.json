@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE deck_cards SET proxy_quantity = ?2 WHERE id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "5bde0b8d6eda87e8e72a7e32d6ad269a31fe0dbf1e8b871e07e0eee77de70357"
+}

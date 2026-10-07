@@ -1,0 +1,21 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT EXISTS (SELECT 1 FROM deck_allocations WHERE deck_card_id = ?1) AS \"held!: bool\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "held!: bool",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "eb17ecd2dd9eaa6f7952a988deaaff4b9429dda452dce454445f3b27fccc7f2e"
+}

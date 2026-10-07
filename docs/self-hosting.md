@@ -1,6 +1,7 @@
 # Self-Hosting ManaVault
 
-ManaVault runs as a single Phoenix release backed by SQLite and local files. No
+ManaVault runs as a single Rust binary (`manavault`) backed by SQLite and local
+files. No
 Postgres, Redis, object storage, or hosted service is required.
 
 - [Container image](#container-image)
@@ -30,12 +31,17 @@ and is useful for testing only.
 
 ## Quick Container Run
 
-Generate a Phoenix secret and an owner password hash from a local checkout:
+Generate a secret key base and an owner password hash. The image's binary
+prints the hash, so no source checkout is needed:
 
 ```sh
-mise exec -- mix phx.gen.secret
-mise exec -- mix manavault.auth.hash 'change-me'
+openssl rand -base64 48
+docker run --rm --entrypoint /app/bin/manavault ghcr.io/cfbender/manavault:<version> \
+  hash-password 'change-me'
 ```
+
+From a source checkout, `cargo run --bin manavault -- hash-password 'change-me'`
+(in `rust/`) prints the same format.
 
 Run with a mounted `/data` volume:
 
@@ -60,7 +66,8 @@ curl http://localhost:4000/health
 # {"status":"ok"}
 ```
 
-First boot runs pending Ecto migrations and schedules background syncs. Card
+First boot creates the database (or applies pending migrations to an existing
+one) and schedules background syncs. Card
 searches and import matching become useful after the bulk catalog sync succeeds.
 The catalog uses Scryfall's public bulk-data endpoint. While the app is running,
 the catalog and symbol/set icon assets refresh daily, vendor prices every 30
@@ -106,8 +113,9 @@ image does not include `curl`.
 Generate both required secrets once, put them in `.env`, then start the stack:
 
 ```sh
-printf 'SECRET_KEY_BASE=%s\n' "$(mise exec -- mix phx.gen.secret)" > .env
-printf 'MANAVAULT_ADMIN_PASSWORD_HASH=%s\n' "$(mise exec -- mix manavault.auth.hash 'change-me')" >> .env
+printf 'SECRET_KEY_BASE=%s\n' "$(openssl rand -base64 48)" > .env
+printf 'MANAVAULT_ADMIN_PASSWORD_HASH=%s\n' "$(docker run --rm --entrypoint /app/bin/manavault \
+  ghcr.io/cfbender/manavault:<version> hash-password 'change-me')" >> .env
 printf 'PHX_HOST=localhost\n' >> .env
 docker compose up -d
 ```
@@ -122,14 +130,18 @@ docker build --pull --no-cache-filter runner -t manavault .
 docker run --rm \
   -p 4000:4000 \
   -v "$PWD/data:/data" \
-  -e SECRET_KEY_BASE="$(mise exec -- mix phx.gen.secret)" \
-  -e MANAVAULT_ADMIN_PASSWORD_HASH="$(mise exec -- mix manavault.auth.hash 'change-me')" \
+  -e SECRET_KEY_BASE="$(openssl rand -base64 48)" \
+  -e MANAVAULT_ADMIN_PASSWORD_HASH="$(docker run --rm --entrypoint /app/bin/manavault manavault hash-password 'change-me')" \
   -e PHX_HOST=localhost \
   manavault
 ```
 
-The build refreshes base images and runtime Alpine packages while retaining
-compiled-dependency caches. Public share-preview PNGs use resvg 0.48.1 and
+The build has four stages: Node with aube and Tailwind's standalone CLI builds
+the frontend into `priv/static`, the Rust toolchain builds the `manavault`
+release binary (`cargo build --release --locked` against the committed `.sqlx`
+query metadata), and a slim Debian runtime holds the binary, the static files,
+CA certificates, DejaVu fonts, and `tini`. It refreshes base images and runtime
+Debian packages while retaining compiled-dependency caches. Public share-preview PNGs use resvg 0.48.1 and
 DejaVu fonts; the container no longer needs the GLib-based `rsvg-convert`.
 Non-container installations need `resvg` on `PATH` to generate these PNGs.
 
@@ -151,7 +163,7 @@ set `MANAVAULT_ADMIN_PASSWORD_HASH`, or explicitly opt out with
 already protects ManaVault).
 
 To change the password, generate a new hash with
-`mix manavault.auth.hash 'new-password'`, update the environment variable, and
+`manavault hash-password 'new-password'`, update the environment variable, and
 recreate the container.
 
 Keep static assets and public share links public at the proxy. ManaVault protects
@@ -212,21 +224,21 @@ The thresholds are configurable; see
 
 ### Recover from a permanent login ban
 
-Permanent bans do not expire. For a running release container, clear one client
-or all clients through the release node (replace `manavault` with the container
-name):
+Permanent bans do not expire. In a running container, clear one client or all
+clients with the binary (replace `manavault` with the container name); the
+running server's short-lived rate-limit windows expire on their own:
 
 ```sh
-docker exec manavault /app/bin/manavault rpc 'Manavault.Auth.AttemptLimiter.reset("203.0.113.10")'
-docker exec manavault /app/bin/manavault rpc 'Manavault.Auth.AttemptLimiter.reset_all()'
+docker exec -u app manavault /app/bin/manavault unban 203.0.113.10
+docker exec -u app manavault /app/bin/manavault unban --all
 ```
 
-From a source checkout, the mix task does the same against the database
-configured for the current Mix environment:
+From a source checkout, the same binary does it against the development
+database (`MANAVAULT_ENV=dev`; set `DATABASE_PATH` for another file):
 
 ```sh
-mise exec -- mix manavault.auth.unban 203.0.113.10
-mise exec -- mix manavault.auth.unban --all
+MANAVAULT_ENV=dev MANAVAULT_ROOT=.. mise exec -- cargo run --bin manavault -- unban 203.0.113.10   # in rust/
+MANAVAULT_ENV=dev MANAVAULT_ROOT=.. mise exec -- cargo run --bin manavault -- unban --all
 ```
 
 Both remove the client's rows from the `auth_client_failures` table and clear
@@ -280,9 +292,10 @@ Production mutable application data defaults under `/data`:
 - `/data/backups` - ManaVault backup artifacts
 - `/data/restores` - staged restore artifacts
 
-On container boot, the entrypoint creates these directories, makes the mounted
-data directory writable by the application user, and the release runs pending
-Ecto migrations.
+On container boot, the entrypoint creates these directories and makes the
+mounted data directory writable by the application user. The server then
+creates the database, or applies pending migrations to an existing one, from
+the migrations it embeds.
 
 The local-data model is intentionally simple: back up the mounted `/data`
 directory and you have the application state that matters. The caches are
@@ -299,9 +312,14 @@ disposable and do not need to be preserved.
 
 3. Confirm `GET /health` returns `{"status":"ok"}`.
 
-When the new release has pending migrations, ManaVault first writes a
-pre-migration backup to `/data/backups`. If that backup fails, startup fails
-instead of running migrations without a recoverable snapshot. Set
+On boot the server applies any pending database migrations, oldest first, so
+an install from any earlier release (including the ones built on the previous
+backend) upgrades in place. Before migrating it writes a pre-migration backup
+to `/data/backups/manavault-pre_migration-<timestamp>.zip`. Sessions and
+encrypted settings keep working as long as `SECRET_KEY_BASE` stays the same.
+A database from a newer release than the image still starts (migrations the
+image does not know are ignored with a warning), but downgrading is not
+supported; restore the pre-migration backup instead. Set
 `MANAVAULT_SKIP_MIGRATION_BACKUP=true` only when you have already made an
 external backup.
 
@@ -333,15 +351,15 @@ leaves the newer schema in place.
 Inside a running container, create a backup in `/data/backups`:
 
 ```sh
-docker exec manavault /app/bin/manavault rpc 'Manavault.Backup.create!()'
+docker exec -u app manavault /app/bin/manavault backup
 ```
 
-From a source checkout, the mix task backs up the database configured for the
-current Mix environment (the development database by default); `--output-dir`
-chooses where the zip is written:
+From a source checkout, the binary backs up the development database
+(`MANAVAULT_ENV=dev`, or `--database PATH`); `-o DIR` chooses where the zip is
+written:
 
 ```sh
-mise exec -- mix manavault.backup
+MANAVAULT_ENV=dev MANAVAULT_ROOT=.. mise exec -- cargo run --bin manavault -- backup   # in rust/
 ```
 
 By default the artifact is written to `<DATA_DIR>/backups` or, in local
@@ -363,23 +381,29 @@ tar -czf manavault-data-$(date -u +%Y%m%dT%H%M%SZ).tar.gz data
 Restore a ManaVault backup zip with the app stopped:
 
 ```sh
-mise exec -- mix manavault.restore /path/to/manavault-manual-20260617T120000Z.zip
+/app/bin/manavault restore /path/to/manavault-manual-20260617T120000Z.zip
 ```
 
 The restore replaces the configured SQLite database and restored local files.
 Before it overwrites anything, it saves the existing database and local files
 under `<DATA_DIR>/backups/pre-restore-<timestamp>`.
 
-For a release/container restore, stop the running container, restore into the
-mounted host `data` directory from a local checkout, then start the container
-again:
+For a container restore, stop the running container, restore into the mounted
+`data` directory with the image's binary (it reads the same environment as the
+server, here the `.env` from [Docker Compose](#docker-compose); `docker compose
+run --rm -u app --entrypoint /app/bin/manavault manavault restore <zip>` works
+too), then start the container again:
 
 ```sh
 docker stop manavault
-mise exec -- mix manavault.restore --database ./data/manavault.db --data-dir ./data \
-  ./data/backups/manavault-manual-20260617T120000Z.zip
+docker run --rm -u app -v "$PWD/data:/data" --env-file .env \
+  --entrypoint /app/bin/manavault ghcr.io/cfbender/manavault:<version> \
+  restore /data/backups/manavault-manual-20260617T120000Z.zip
 docker start manavault
 ```
+
+From a checkout, `cargo run --bin manavault -- restore --database ../data/manavault.db
+--data-dir ../data <zip>` (in `rust/`) does the same.
 
 Alternatively, extract a full-directory tar backup over the stopped host `data`
 directory, or stage a cloud restore from Settings.
@@ -402,18 +426,18 @@ key derived from `SECRET_KEY_BASE`.
 
 Required:
 
-- `SECRET_KEY_BASE` - Phoenix secret key base. Generate with
-  `mise exec -- mix phx.gen.secret`. Keep it stable; see
+- `SECRET_KEY_BASE` - secret key base (64+ characters; signs sessions and
+  encrypts stored credentials). Generate with
+  `openssl rand -base64 48`. Keep it stable; see
   [Quick container run](#quick-container-run).
 - `MANAVAULT_ADMIN_PASSWORD_HASH` - owner password hash for built-in login.
-  Generate with `mise exec -- mix manavault.auth.hash 'your-password'`. Required
+  Generate with `manavault hash-password 'your-password'`. Required
   unless `MANAVAULT_AUTH_DISABLED=true`.
 
 Server:
 
 - `PORT` - HTTP port inside the container. Defaults to `4000`.
-- `PHX_HOST` - host used for generated URLs. Defaults to `example.com` in
-  Phoenix production config; set to your deployment host.
+- `PHX_HOST` - public host used for generated URLs. Required in production.
 - `MANAVAULT_ALLOWED_ORIGINS` - comma-separated extra origins allowed to open the
   live-update WebSocket, e.g. `https://manavault.mytailnet.ts.net`. Needed only
   when the instance is reached under more than one hostname, such as a reverse
@@ -421,7 +445,11 @@ Server:
   [Serving more than one hostname](#serving-more-than-one-hostname).
 - `DATA_DIR` - mutable data root. Defaults to `/data`.
 - `DATABASE_PATH` - SQLite database path. Defaults to `/data/manavault.db`.
-- `POOL_SIZE` - Ecto pool size. Defaults to `5`.
+- `POOL_SIZE` - SQLite connection pool size. Defaults to `5`.
+- `MANAVAULT_ENV` - `prod` (default), `dev`, or `test`; selects defaults (dev
+  and test disable authentication and use local paths). The image sets `prod`.
+- `MANAVAULT_STATIC_DIR` - built frontend and static files. Defaults to
+  `<MANAVAULT_ROOT>/priv/static` (`/app/priv/static` in the image).
 - `SHARE_PREVIEW_CACHE_DIR` - share preview image cache. Defaults to
   `<DATA_DIR>/cache/share-previews`.
 - `MANAVAULT_ASSET_VERSION` - cache-busting version used by the HTML shell, PWA

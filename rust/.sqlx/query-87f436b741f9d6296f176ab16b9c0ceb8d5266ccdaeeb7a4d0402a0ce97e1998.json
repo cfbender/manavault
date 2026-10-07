@@ -1,0 +1,158 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n          dc.id AS \"id!: DeckCardId\",\n          dc.deck_id AS \"deck_id: DeckId\",\n          d.status AS \"deck_status: DeckStatus\",\n          dc.oracle_id AS \"oracle_id: OracleId\",\n          dc.preferred_printing_id AS \"preferred_printing_id: ScryfallId\",\n          dc.quantity AS \"quantity: Quantity\",\n          dc.proxy_quantity AS \"proxy_quantity: u32\",\n          dc.zone AS \"zone: Zone\",\n          dc.finish AS \"finish: Finish\",\n          dc.tag AS \"tag: DeckCardTag\",\n          c.type_line,\n          c.name\n        FROM deck_cards dc\n        JOIN decks d ON d.id = dc.deck_id\n        JOIN scryfall_cards c ON c.oracle_id = dc.oracle_id\n        WHERE dc.deck_id = ?1\n        ORDER BY dc.zone, c.name, dc.id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: DeckCardId",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "deck_id: DeckId",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "deck_id"
+          }
+        }
+      },
+      {
+        "name": "deck_status: DeckStatus",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "name": "oracle_id: OracleId",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "oracle_id"
+          }
+        }
+      },
+      {
+        "name": "preferred_printing_id: ScryfallId",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "preferred_printing_id"
+          }
+        }
+      },
+      {
+        "name": "quantity: Quantity",
+        "ordinal": 5,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "quantity"
+          }
+        }
+      },
+      {
+        "name": "proxy_quantity: u32",
+        "ordinal": 6,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "proxy_quantity"
+          }
+        }
+      },
+      {
+        "name": "zone: Zone",
+        "ordinal": 7,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "zone"
+          }
+        }
+      },
+      {
+        "name": "finish: Finish",
+        "ordinal": 8,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "finish"
+          }
+        }
+      },
+      {
+        "name": "tag: DeckCardTag",
+        "ordinal": 9,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "tag"
+          }
+        }
+      },
+      {
+        "name": "type_line",
+        "ordinal": 10,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "type_line"
+          }
+        }
+      },
+      {
+        "name": "name",
+        "ordinal": 11,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "name"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "87f436b741f9d6296f176ab16b9c0ceb8d5266ccdaeeb7a4d0402a0ce97e1998"
+}

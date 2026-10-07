@@ -1,0 +1,122 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT dc.id AS \"id!: crate::decks::model::DeckCardId\",\n                 dc.deck_id AS \"deck_id!: crate::decks::model::DeckId\",\n                 dc.oracle_id AS \"oracle_id!: lotus::OracleId\",\n                 dc.preferred_printing_id AS \"preferred_printing_id?: lotus::ScryfallId\",\n                 dc.quantity AS \"quantity!: lotus::Quantity\",\n                 dc.proxy_quantity AS \"proxy_quantity!: u32\",\n                 dc.zone AS \"zone!: lotus::Zone\", dc.finish AS \"finish!: lotus::Finish\",\n                 dc.tag AS \"tag?: crate::decks::model::DeckCardTag\"\n               FROM deck_cards AS dc WHERE dc.deck_id = ?1 AND dc.oracle_id = ?2 AND dc.zone = ?3",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: crate::decks::model::DeckCardId",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "deck_id!: crate::decks::model::DeckId",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "deck_id"
+          }
+        }
+      },
+      {
+        "name": "oracle_id!: lotus::OracleId",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "oracle_id"
+          }
+        }
+      },
+      {
+        "name": "preferred_printing_id?: lotus::ScryfallId",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "preferred_printing_id"
+          }
+        }
+      },
+      {
+        "name": "quantity!: lotus::Quantity",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "quantity"
+          }
+        }
+      },
+      {
+        "name": "proxy_quantity!: u32",
+        "ordinal": 5,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "proxy_quantity"
+          }
+        }
+      },
+      {
+        "name": "zone!: lotus::Zone",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "zone"
+          }
+        }
+      },
+      {
+        "name": "finish!: lotus::Finish",
+        "ordinal": 7,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "finish"
+          }
+        }
+      },
+      {
+        "name": "tag?: crate::decks::model::DeckCardTag",
+        "ordinal": 8,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "tag"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "ca41ca310cdcfc37871464b5734920e39911cb8827a225b4c572c991978f7f3a"
+}

@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n          id AS \"id!: AllocationId\",\n          deck_card_id AS \"deck_card_id: DeckCardId\",\n          collection_item_id AS \"collection_item_id: CollectionItemId\",\n          source_location_id AS \"source_location_id: LocationId\",\n          quantity AS \"quantity: Quantity\"\n        FROM deck_allocations\n        WHERE deck_card_id = ?1\n        ORDER BY id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: AllocationId",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "deck_card_id: DeckCardId",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "deck_card_id"
+          }
+        }
+      },
+      {
+        "name": "collection_item_id: CollectionItemId",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "collection_item_id"
+          }
+        }
+      },
+      {
+        "name": "source_location_id: LocationId",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "source_location_id"
+          }
+        }
+      },
+      {
+        "name": "quantity: Quantity",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "quantity"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "c305c3f118dc300856de02bb375a067136218e0e34520f940d102d37cb8c92be"
+}

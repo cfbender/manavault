@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO deck_cards (deck_id, oracle_id, quantity, zone, inserted_at, updated_at)\n           VALUES (?1, ?2, ?3, ?4, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')\n           RETURNING id AS \"id!: DeckCardId\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: DeckCardId",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "49e38382423cb93d48e6394867ee5ee8844b0e41625240bc594a0da1e88ed70d"
+}

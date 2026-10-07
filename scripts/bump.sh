@@ -5,7 +5,8 @@ usage() {
 	cat >&2 <<'EOF'
 Usage: mise run release -- major|minor|patch
 
-Increments mix.exs version, updates README Docker tag examples, commits the
+Increments the workspace version in rust/Cargo.toml and
+package.json, updates README Docker tag examples, commits the
 release files, creates an annotated tag, then pushes the current branch and tag
 to origin.
 
@@ -28,11 +29,11 @@ major | minor | patch) ;;
 	;;
 esac
 
-version_file="mix.exs"
+version_file="rust/Cargo.toml"
 readme_file="README.md"
 package_file="package.json"
 native_version_file="native_www/version.json"
-current=$(perl -ne 'print "$1\n" if /^\s*version:\s*"([0-9]+\.[0-9]+\.[0-9]+)",/' "$version_file")
+current=$(perl -ne 'if (/^version = "([0-9]+\.[0-9]+\.[0-9]+)"/) { print "$1\n"; exit }' "$version_file")
 
 if [[ -z "$current" ]]; then
 	printf 'Could not find semver project version in %s\n' "$version_file" >&2
@@ -110,9 +111,9 @@ if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; the
 	exit 1
 fi
 
-if [[ "$current" != "$next" ]]; then
-	CURRENT="$current" NEXT="$next" perl -0pi -e 's/version:\s*"\Q$ENV{CURRENT}\E"/version: "$ENV{NEXT}"/' "$version_file"
-fi
+# The server reports this version (asset version fallback, User-Agent).
+NEXT="$next" perl -0pi -e 's/^version = "[^"]+"/version = "$ENV{NEXT}"/m' "$version_file"
+(cd rust && cargo update --workspace --offline >/dev/null 2>&1 || cargo metadata --format-version 1 >/dev/null)
 
 if [[ -f "$package_file" ]]; then
 	NEXT="$next" perl -0pi -e 's/"version":\s*"[^"]+"/"version": "$ENV{NEXT}"/' "$package_file"
@@ -134,7 +135,7 @@ if [[ -f "$readme_file" ]] && [[ "$current" != "$next" ]]; then
 		' "$readme_file"
 fi
 
-git add "$version_file" CHANGELOG.md
+git add "$version_file" rust/Cargo.lock CHANGELOG.md
 if [[ -f "$readme_file" ]]; then
 	git add "$readme_file"
 fi

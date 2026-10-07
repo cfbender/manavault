@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT card.oracle_id AS \"oracle_id!\" FROM scryfall_cards AS card\n               LEFT JOIN scryfall_printings AS printing ON printing.oracle_id = card.oracle_id\n               WHERE printing.scryfall_id IS NULL\n               ORDER BY card.oracle_id LIMIT ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "oracle_id!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "oracle_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "7fa0710f783c1171b0eb3a588a72a3462db1c9f4ba1906222f8e13b44b835340"
+}

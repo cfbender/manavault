@@ -1,16 +1,7 @@
-/_build
-/cover
-/deps
 /node_modules
-/doc
 /backups
 /restores
 /.fetch
-erl_crash.dump
-*.ez
-*.beam
-/config/*.secret.exs
-.elixir_ls/
 .hygge/
 .agents/skills/
 .venv/
@@ -42,4 +33,3 @@ erl_crash.dump
 /priv/static/**/*-????????????????????????????????.*
 /priv/static/**/*.gz
 /priv/__pycache__/
-/test/fixtures/

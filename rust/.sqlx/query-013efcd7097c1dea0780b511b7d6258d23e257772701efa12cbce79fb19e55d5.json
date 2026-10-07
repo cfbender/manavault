@@ -1,0 +1,86 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT w.id AS \"id!\", w.oracle_id AS \"oracle_id!: OracleId\",\n                 w.preferred_printing_id AS \"preferred_printing_id?: ScryfallId\",\n                 w.quantity AS \"quantity!: Quantity\",\n                 pp.image_uris AS \"preferred_image_uris?\",\n                 (SELECT p.image_uris FROM scryfall_printings AS p\n                   WHERE p.oracle_id = w.oracle_id\n                   ORDER BY p.released_at DESC, p.set_code ASC, p.collector_number ASC\n                   LIMIT 1) AS \"latest_image_uris?: String\"\n               FROM trade_wants AS w\n               LEFT JOIN scryfall_printings AS pp ON pp.scryfall_id = w.preferred_printing_id WHERE w.oracle_id IN (SELECT value FROM json_each(?1))\n         ORDER BY w.inserted_at DESC, w.id DESC",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "trade_wants",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "oracle_id!: OracleId",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "trade_wants",
+            "name": "oracle_id"
+          }
+        }
+      },
+      {
+        "name": "preferred_printing_id?: ScryfallId",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "trade_wants",
+            "name": "preferred_printing_id"
+          }
+        }
+      },
+      {
+        "name": "quantity!: Quantity",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "trade_wants",
+            "name": "quantity"
+          }
+        }
+      },
+      {
+        "name": "preferred_image_uris?",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "image_uris"
+          }
+        }
+      },
+      {
+        "name": "latest_image_uris?: String",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "image_uris"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "013efcd7097c1dea0780b511b7d6258d23e257772701efa12cbce79fb19e55d5"
+}

@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT status AS \"status: DeckStatus\" FROM decks WHERE id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "status: DeckStatus",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "status"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "07355c8aa9477a0e05907b8c1484ce9e004f70746dacf86f4303bd99d3749379"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE backup_settings SET\n           last_backup_at = coalesce(?1, last_backup_at),\n           last_backup_status = coalesce(?2, last_backup_status),\n           last_backup_message = coalesce(?3, last_backup_message),\n           last_backup_path = coalesce(?4, last_backup_path),\n           last_restore_at = coalesce(?5, last_restore_at),\n           last_restore_status = coalesce(?6, last_restore_status),\n           last_restore_message = coalesce(?7, last_restore_message),\n           pending_restore_path = coalesce(?8, pending_restore_path),\n           updated_at = ?9\n         WHERE id = ?10",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 10
+    },
+    "nullable": []
+  },
+  "hash": "ac84aed3acfba65b3b1826e9974ce6ae8d9ed40f022be882c56406f361cc5ce6"
+}

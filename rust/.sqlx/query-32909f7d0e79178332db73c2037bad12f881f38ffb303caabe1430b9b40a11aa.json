@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        UPDATE collection_items\n        SET\n          location_changed_at = CASE WHEN ?2 IS NOT NULL\n            THEN strftime('%Y-%m-%dT%H:%M:%SZ', 'now')\n            ELSE location_changed_at END,\n          updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'),\n          location_id = ?2\n        WHERE id = ?1 AND location_id IS NOT ?2\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "32909f7d0e79178332db73c2037bad12f881f38ffb303caabe1430b9b40a11aa"
+}

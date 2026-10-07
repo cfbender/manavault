@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO scryfall_printings\n           (scryfall_id, oracle_id, set_code, collector_number, lang, inserted_at, updated_at)\n         VALUES (?1, ?2, ?3, ?4, 'en', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "5043ca1a9a96cd21339ab73f466fdb36e3e92b1a97ec7ce73390aa2466f2c45a"
+}

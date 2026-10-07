@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT scryfall_id FROM collection_items WHERE id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "scryfall_id",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "scryfall_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "39279d51ced4be2ef7ffdd1f3a65b6b6b3b2a138abcf10e34d1d5232a5fef65e"
+}

@@ -1,7 +1,11 @@
+# The review stack: the Rust backend on 31397 behind the Vite dev server on
+# 5173 (scripts/dev-rust.sh also runs Tailwind in watch mode).
+
 services:
   manavault-review:
-    command: PORT=31397 mise exec -- mix phx.server
+    command: PORT=31397 mise exec -- scripts/dev-rust.sh
     port: 5173
+    health: /health
     portal:
       title: ManaVault
       description: Review UI and UX changes here; leave this service running after verification.

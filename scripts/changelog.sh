@@ -23,8 +23,8 @@ major | minor | patch) ;;
 	;;
 esac
 
-version_file="mix.exs"
-current=$(perl -ne 'print "$1\n" if /^\s*version:\s*"([0-9]+\.[0-9]+\.[0-9]+)",/' "$version_file")
+version_file="rust/Cargo.toml"
+current=$(perl -ne 'if (/^version = "([0-9]+\.[0-9]+\.[0-9]+)"/) { print "$1\n"; exit }' "$version_file")
 
 if [[ -z "$current" ]]; then
 	printf 'Could not find semver project version in %s\n' "$version_file" >&2

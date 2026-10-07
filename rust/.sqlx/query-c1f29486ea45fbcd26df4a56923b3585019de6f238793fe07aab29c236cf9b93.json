@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE pricing_settings SET source = ?1, updated_at = ?2 WHERE id = 1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "c1f29486ea45fbcd26df4a56923b3585019de6f238793fe07aab29c236cf9b93"
+}

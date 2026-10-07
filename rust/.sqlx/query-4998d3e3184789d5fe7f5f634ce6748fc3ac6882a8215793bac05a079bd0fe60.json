@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO decks (name, format, status, included_for_play, play_count, skip_count,\n                              last_played_at, primer, cover_deck_card_id, inserted_at, updated_at)\n           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)\n           RETURNING id AS \"id!: DeckId\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: DeckId",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 10
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4998d3e3184789d5fe7f5f634ce6748fc3ac6882a8215793bac05a079bd0fe60"
+}

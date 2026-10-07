@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO trade_wants (oracle_id, preferred_printing_id, quantity, inserted_at, updated_at)\n                 VALUES (?1, ?2, ?3, ?4, ?4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "b8fc426afeb7e7a900c4a0b23e3b1057f1aaa4fc7d81c528c3cd29ac13ae74d7"
+}

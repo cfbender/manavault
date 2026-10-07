@@ -1,0 +1,232 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT c.oracle_id AS \"oracle_id!: lotus::OracleId\", c.name AS \"name!\",\n                 c.normalized_name AS \"normalized_name?\", c.layout AS \"layout?\",\n                 c.type_line AS \"type_line?\", c.oracle_text AS \"oracle_text?\",\n                 c.mana_cost AS \"mana_cost?\", CAST(c.cmc AS REAL) AS \"cmc?: f64\",\n                 c.colors AS \"colors!\", c.color_identity AS \"color_identity!\",\n                 c.legalities AS \"legalities!\", c.game_changer AS \"game_changer!: bool\",\n                 c.edhrec_rank AS \"edhrec_rank?\", c.edhrec_commander_rank AS \"edhrec_commander_rank?\",\n                 CAST(c.edhrec_saltiness AS REAL) AS \"edhrec_saltiness?: f64\",\n                 c.oracle_tags AS \"oracle_tags!\", c.deck_category AS \"deck_category?\",\n                 c.deck_themes AS \"deck_themes!\", c.rulings_uri AS \"rulings_uri?\"\n               FROM scryfall_cards AS c WHERE c.oracle_id IN (SELECT value FROM json_each(?1))",
+  "describe": {
+    "columns": [
+      {
+        "name": "oracle_id!: lotus::OracleId",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "oracle_id"
+          }
+        }
+      },
+      {
+        "name": "name!",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "normalized_name?",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "normalized_name"
+          }
+        }
+      },
+      {
+        "name": "layout?",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "layout"
+          }
+        }
+      },
+      {
+        "name": "type_line?",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "type_line"
+          }
+        }
+      },
+      {
+        "name": "oracle_text?",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "oracle_text"
+          }
+        }
+      },
+      {
+        "name": "mana_cost?",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "mana_cost"
+          }
+        }
+      },
+      {
+        "name": "cmc?: f64",
+        "ordinal": 7,
+        "type_info": "Float",
+        "origin": "Expression"
+      },
+      {
+        "name": "colors!",
+        "ordinal": 8,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "colors"
+          }
+        }
+      },
+      {
+        "name": "color_identity!",
+        "ordinal": 9,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "color_identity"
+          }
+        }
+      },
+      {
+        "name": "legalities!",
+        "ordinal": 10,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "legalities"
+          }
+        }
+      },
+      {
+        "name": "game_changer!: bool",
+        "ordinal": 11,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "game_changer"
+          }
+        }
+      },
+      {
+        "name": "edhrec_rank?",
+        "ordinal": 12,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "edhrec_rank"
+          }
+        }
+      },
+      {
+        "name": "edhrec_commander_rank?",
+        "ordinal": 13,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "edhrec_commander_rank"
+          }
+        }
+      },
+      {
+        "name": "edhrec_saltiness?: f64",
+        "ordinal": 14,
+        "type_info": "Float",
+        "origin": "Expression"
+      },
+      {
+        "name": "oracle_tags!",
+        "ordinal": 15,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "oracle_tags"
+          }
+        }
+      },
+      {
+        "name": "deck_category?",
+        "ordinal": 16,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "deck_category"
+          }
+        }
+      },
+      {
+        "name": "deck_themes!",
+        "ordinal": 17,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "deck_themes"
+          }
+        }
+      },
+      {
+        "name": "rulings_uri?",
+        "ordinal": 18,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "rulings_uri"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "531cfda534ba3136756a2629391681fa3c11f4197a34fa209dddf2788fe736c5"
+}

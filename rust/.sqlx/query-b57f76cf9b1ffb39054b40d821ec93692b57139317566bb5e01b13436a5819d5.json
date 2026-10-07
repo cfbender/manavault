@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM default_deck_tags",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "b57f76cf9b1ffb39054b40d821ec93692b57139317566bb5e01b13436a5819d5"
+}

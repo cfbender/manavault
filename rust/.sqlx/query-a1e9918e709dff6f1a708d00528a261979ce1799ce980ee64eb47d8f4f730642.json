@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO scryfall_syncs (status, bulk_type, started_at, cards_count, printings_count, inserted_at, updated_at)\n           VALUES ('running', ?1, ?2, 0, 0, ?2, ?2) RETURNING id AS \"id!\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "scryfall_syncs",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "a1e9918e709dff6f1a708d00528a261979ce1799ce980ee64eb47d8f4f730642"
+}

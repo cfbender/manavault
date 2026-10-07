@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!\", quantity AS \"quantity!: Quantity\" FROM trade_wants\n           WHERE oracle_id = ?1 AND preferred_printing_id IS ?2",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "trade_wants",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "quantity!: Quantity",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "trade_wants",
+            "name": "quantity"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "a90373fcc006b795848a88345368afc842481fa70139f5944a3d7eea498ad0e3"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO pricing_settings (id, source, inserted_at, updated_at) VALUES (1, 'scryfall', ?1, ?1) ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "66e2539b044da50b61341ae4b48fc920cf1b2365d0ff096f4ac6d1e57a4b5854"
+}

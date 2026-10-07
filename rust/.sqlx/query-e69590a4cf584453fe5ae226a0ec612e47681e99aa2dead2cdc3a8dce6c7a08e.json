@@ -1,0 +1,110 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT\n             quantity AS \"quantity: u32\",\n             location_id AS \"location_id: LocationId\",\n             finish AS \"finish: Finish\",\n             notes,\n             purchase_price_cents,\n             for_trade AS \"for_trade: bool\",\n             for_trade_quantity AS \"for_trade_quantity: u32\",\n             location_changed_at\n           FROM collection_items WHERE id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "quantity: u32",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "quantity"
+          }
+        }
+      },
+      {
+        "name": "location_id: LocationId",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "location_id"
+          }
+        }
+      },
+      {
+        "name": "finish: Finish",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "finish"
+          }
+        }
+      },
+      {
+        "name": "notes",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "notes"
+          }
+        }
+      },
+      {
+        "name": "purchase_price_cents",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "purchase_price_cents"
+          }
+        }
+      },
+      {
+        "name": "for_trade: bool",
+        "ordinal": 5,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "for_trade"
+          }
+        }
+      },
+      {
+        "name": "for_trade_quantity: u32",
+        "ordinal": 6,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "for_trade_quantity"
+          }
+        }
+      },
+      {
+        "name": "location_changed_at",
+        "ordinal": 7,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "location_changed_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "e69590a4cf584453fe5ae226a0ec612e47681e99aa2dead2cdc3a8dce6c7a08e"
+}

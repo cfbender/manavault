@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        INSERT INTO deck_allocations (\n          deck_card_id, collection_item_id, source_location_id, quantity, inserted_at, updated_at\n        )\n        VALUES (\n          ?1, ?2, ?3, ?4,\n          strftime('%Y-%m-%dT%H:%M:%SZ', 'now'),\n          strftime('%Y-%m-%dT%H:%M:%SZ', 'now')\n        )\n        RETURNING\n          id AS \"id!: AllocationId\",\n          deck_card_id AS \"deck_card_id: DeckCardId\",\n          collection_item_id AS \"collection_item_id: CollectionItemId\",\n          source_location_id AS \"source_location_id: LocationId\",\n          quantity AS \"quantity: Quantity\"\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: AllocationId",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "deck_card_id: DeckCardId",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "deck_card_id"
+          }
+        }
+      },
+      {
+        "name": "collection_item_id: CollectionItemId",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "collection_item_id"
+          }
+        }
+      },
+      {
+        "name": "source_location_id: LocationId",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "source_location_id"
+          }
+        }
+      },
+      {
+        "name": "quantity: Quantity",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "quantity"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": [
+      null,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "f7aa5eb04a69b6832ca68b9ba7ad8fea2ed408640baa40650d2ac26a8692ad25"
+}

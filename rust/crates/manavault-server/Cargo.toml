@@ -1,0 +1,47 @@
+[package]
+name = "manavault-server"
+description = "ManaVault's backend: GraphQL API, web endpoints, and background jobs over the SQLite catalog."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "manavault"
+path = "src/main.rs"
+
+[dependencies]
+async-graphql.workspace = true
+axum.workspace = true
+base64.workspace = true
+flate2.workspace = true
+futures-util.workspace = true
+hex.workspace = true
+lotus.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tower.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+url.workspace = true
+manavault-core.workspace = true
+manavault-catalog.workspace = true
+manavault-collection.workspace = true
+manavault-deck-intel.workspace = true
+manavault-trade.workspace = true
+manavault-ai.workspace = true
+manavault-share.workspace = true
+manavault-system.workspace = true
+
+[dev-dependencies]
+tokio-tungstenite.workspace = true
+wiremock.workspace = true
+
+[lints]
+workspace = true

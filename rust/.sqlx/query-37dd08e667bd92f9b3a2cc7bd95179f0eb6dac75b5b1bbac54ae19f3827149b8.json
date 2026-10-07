@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT oracle_id AS \"oracle_id!: OracleId\" FROM scryfall_printings WHERE scryfall_id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "oracle_id!: OracleId",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "oracle_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "37dd08e667bd92f9b3a2cc7bd95179f0eb6dac75b5b1bbac54ae19f3827149b8"
+}

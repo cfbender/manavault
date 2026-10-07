@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO deck_card_tags (deck_card_id, deck_tag_id, deck_id, inserted_at, updated_at)\n           VALUES (?1, ?2, ?3, ?4, ?4)\n           ON CONFLICT (deck_card_id, deck_tag_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "9133adde20d774bfe98dba1881217da8af9e975c72a0e87d05ef4c4296368117"
+}

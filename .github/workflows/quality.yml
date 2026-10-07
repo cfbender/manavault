@@ -2,18 +2,23 @@ name: Quality
 
 on:
   pull_request:
+  # Pushes to main build the dependency cache every pull request starts from
+  # (a pull request can read its base branch's caches, not other PRs').
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  precommit:
-    name: Precommit quality gate
+  frontend:
+    name: Frontend
     runs-on: ubuntu-latest
 
     env:
-      MISE_ENABLE_TOOLS: aube,elixir,erlang,node,resvg
+      MISE_ENABLE_TOOLS: aube,node
 
     steps:
       - name: Check out repository
@@ -23,20 +28,55 @@ jobs:
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
         with:
           install: true
-          install_args: aube elixir erlang node resvg
+          install_args: aube node
           cache: true
-
-      - name: Install preview fonts
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fonts-dejavu-core
-
-      - name: Install Hex and Rebar
-        run: mise exec -- mix local.hex --force && mise exec -- mix local.rebar --force
-
-      - name: Install Elixir dependencies
-        run: mise exec -- mix deps.get
 
       - name: Install JavaScript dependencies
         run: mise exec -- aube install --frozen-lockfile
 
-      - name: Run local precommit quality gate
-        run: mise exec -- aube run precommit
+      - name: Lint, format-check, type-check, test, build, and detect UI anti-patterns
+        run: mise run frontend:check
+
+  rust:
+    name: Rust workspace
+    runs-on: ubuntu-latest
+
+    env:
+      MISE_ENABLE_TOOLS: rust,sqlite
+      CARGO_TERM_COLOR: always
+      # Fresh builds gain nothing from incremental caches, which only bloat
+      # the rust-cache upload.
+      CARGO_INCREMENTAL: 0
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up mise tools
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
+        with:
+          install: true
+          install_args: rust sqlite
+          cache: true
+
+      # Caches the registry and compiled dependencies (not the workspace crates).
+      # Pull requests only restore; main and manual runs save, so pull requests
+      # cannot evict the cache main's next run starts from.
+      - name: Cache cargo registry and compiled dependencies
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: rust -> target
+          shared-key: rust
+          save-if: ${{ github.event_name != 'pull_request' }}
+          cache-on-failure: true
+          # The key would otherwise hash every installed toolchain, and runner images differ in
+          # whether a stable Rust is preinstalled besides mise's pinned one, so the key churned
+          # between runs. Cargo already rebuilds anything compiled by a different rustc.
+          add-rust-environment-hash-key: false
+
+      # One debug compile does everything: clippy runs with the query macros
+      # online, which checks every query against rust/migrations and rewrites
+      # rust/.sqlx; then the tests build against that metadata offline. The
+      # release build is left to the Container workflow.
+      - name: Check schema and query metadata, format, lint, and test
+        run: mise run rust:ci

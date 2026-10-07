@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM collection_auto_sort_rules",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "a4ea4d8d76c2f9d21be64f1950f38f0d88c91e29f581e3b826c145dc16982147"
+}

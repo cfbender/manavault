@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO ai_settings (id, provider, inserted_at, updated_at) VALUES (?1, 'openrouter', ?2, ?2)\n         ON CONFLICT(id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "72b5736949eb9db15fcc79aa4e7ad509d3b614aae84eb16567ad8bf0104f175d"
+}

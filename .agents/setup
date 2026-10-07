@@ -8,7 +8,7 @@ export LANG=C.UTF-8
 export LC_ALL=C.UTF-8
 # Prevent `mise exec` from auto-installing unrelated native-development tools
 # (Android SDK, Java, cloudflared, and git-cliff) later in this script.
-export MISE_ENABLE_TOOLS="aube,elixir,erlang,node,resvg,npm:backlog.md"
+export MISE_ENABLE_TOOLS="aube,node,resvg,rust,sqlite,github:tailwindlabs/tailwindcss,npm:backlog.md"
 
 run_step() {
   local label="$1"
@@ -32,18 +32,15 @@ if [[ "$(uname -s)" == "Linux" ]] && command -v apt-get >/dev/null 2>&1; then
 
   export DEBIAN_FRONTEND=noninteractive
   native_packages=(
-    autoconf
     build-essential
     ca-certificates
     curl
     fonts-dejavu-core
     git
-    inotify-tools
-    libncurses-dev
     libsqlite3-dev
     libssl-dev
     libxml2-utils
-    m4
+    mold
     pkg-config
     unzip
     xz-utils
@@ -152,30 +149,8 @@ When working in the ManaVault repository, invoke project-managed tools through m
 EOF
 fi
 
-mise_install_env=()
-if [[ "$(uname -s)" == "Linux" ]] && [[ -r /etc/os-release ]] &&
-  grep -Fqx 'ID=debian' /etc/os-release && grep -Fqx 'VERSION_ID="12"' /etc/os-release; then
-  # Amp's Debian 12 orb has compatible glibc, OpenSSL, and ncurses versions for
-  # Bob's Ubuntu 22.04 OTP build. Without this hint mise compiles OTP from source.
-  mise_install_env=(env ImageOS=ubuntu22)
-fi
-
-run_step "Installing the pinned web development toolchain" \
-  "${mise_install_env[@]}" mise install -y aube erlang elixir node resvg "npm:backlog.md"
-
-if ! mise exec -- mix help hex >/dev/null 2>&1; then
-  run_step "Installing Hex" mise exec -- mix local.hex --force
-else
-  echo "==> Hex is already installed"
-fi
-
-elixir_install="$(mise where elixir)"
-if ! find "$elixir_install/.mix/elixir" "${MIX_HOME:-$HOME/.mix}/elixir" \
-  -type f -name rebar3 -executable -print -quit 2>/dev/null | grep -q .; then
-  run_step "Installing Rebar" mise exec -- mix local.rebar --force
-else
-  echo "==> Rebar is already installed"
-fi
+run_step "Installing the pinned toolchain" \
+  mise install -y aube node resvg rust sqlite "github:tailwindlabs/tailwindcss" "npm:backlog.md"
 
 run_step "Installing JavaScript dependencies" \
   mise exec -- aube install --frozen-lockfile
@@ -187,7 +162,23 @@ else
   echo "==> Impeccable for Amp is already installed"
 fi
 
-run_step "Installing Elixir dependencies, migrating the database, and building assets" \
-  mise exec -- mix setup
+if [[ ! -f priv/static/assets/css/app.css || ! -f priv/static/assets/react/app.js ]]; then
+  run_step "Building frontend assets" mise run rust:assets
+else
+  echo "==> Frontend assets are already built"
+fi
+
+# Compile the Rust server and test binaries now so `mise run rust:test` and the
+# review service start without a cold build. Cargo skips unchanged crates, so
+# reruns are quick. It keeps incremental compilation on, like every later dev
+# build, so the first edit reuses this build instead of recompiling the
+# workspace crates; `mise run rust:sweep` trims the caches when disk is short.
+run_step "Building the Rust backend and its tests" mise run rust:prebuild
+
+# The server creates and migrates the database on boot; doing it here makes the
+# development database exist before the first `mise run dev`.
+run_step "Creating or migrating the development database" \
+  env MANAVAULT_ENV=dev MANAVAULT_ROOT="$repo_root" MANAVAULT_JOBS_DISABLED=1 \
+  rust/target/debug/manavault migrate
 
 echo "==> ManaVault orb setup complete"

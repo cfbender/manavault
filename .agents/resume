@@ -13,11 +13,11 @@ command -v mise >/dev/null 2>&1 || {
   exit 1
 }
 
-mise exec -- elixir --version >/dev/null
 mise exec -- node --version >/dev/null
+mise exec -- cargo --version >/dev/null
 
-[[ -d deps && -d node_modules && -f manavault_dev.db ]] || {
-  echo "ManaVault dependencies or development database are missing; rerun .agents/setup" >&2
+[[ -d node_modules && -f manavault_dev.db && -x rust/target/debug/manavault ]] || {
+  echo "ManaVault dependencies, the Rust build, or the development database are missing; rerun .agents/setup" >&2
   exit 1
 }
 

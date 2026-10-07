@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO scryfall_printings (scryfall_id, oracle_id, set_code, set_name, collector_number, illustration_id, lang, flavor_name, normalized_flavor_name, flavor_text, rarity, finishes, promo_types, promo, image_uris, prices, released_at, tcgplayer_id, tcgplayer_etched_id, inserted_at, updated_at)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?20)\n             ON CONFLICT (scryfall_id) DO UPDATE SET oracle_id = excluded.oracle_id, set_code = excluded.set_code,\n               set_name = excluded.set_name, collector_number = excluded.collector_number,\n               illustration_id = excluded.illustration_id, lang = excluded.lang, flavor_name = excluded.flavor_name,\n               normalized_flavor_name = excluded.normalized_flavor_name, flavor_text = excluded.flavor_text,\n               rarity = excluded.rarity, finishes = excluded.finishes, promo_types = excluded.promo_types,\n               promo = excluded.promo, image_uris = excluded.image_uris, prices = excluded.prices,\n               released_at = excluded.released_at, tcgplayer_id = excluded.tcgplayer_id,\n               tcgplayer_etched_id = excluded.tcgplayer_etched_id, updated_at = excluded.updated_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 20
+    },
+    "nullable": []
+  },
+  "hash": "566a2b530b78cb38778e3576cbad4ee4845078e8647507d63928a15392fd0863"
+}

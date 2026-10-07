@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO auth_client_failures (client_id, failed_attempts, banned_at, inserted_at, updated_at)\n               VALUES (?1, 1, CASE WHEN 1 >= ?2 THEN ?3 END, ?3, ?3)\n               ON CONFLICT(client_id) DO UPDATE SET\n                 failed_attempts = failed_attempts + 1,\n                 banned_at = CASE WHEN failed_attempts + 1 >= ?2 THEN ?3 ELSE NULL END,\n                 updated_at = ?3\n               RETURNING failed_attempts",
+  "describe": {
+    "columns": [
+      {
+        "name": "failed_attempts",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "auth_client_failures",
+            "name": "failed_attempts"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "fbd0536d804abbeb51a04d5c82edfcbbefc523cd2ba0825d84c12df694ec980f"
+}

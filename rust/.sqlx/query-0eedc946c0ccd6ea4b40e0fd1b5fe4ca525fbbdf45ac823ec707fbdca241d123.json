@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE deck_cards SET quantity = ?2 WHERE id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "0eedc946c0ccd6ea4b40e0fd1b5fe4ca525fbbdf45ac823ec707fbdca241d123"
+}

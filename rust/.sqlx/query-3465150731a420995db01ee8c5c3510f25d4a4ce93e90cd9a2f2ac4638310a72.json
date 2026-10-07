@@ -1,0 +1,122 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!\", status AS \"status: SyncStatus\", bulk_type, bulk_uri, started_at, completed_at,\n                  cards_count, printings_count, error\n           FROM scryfall_syncs WHERE id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "scryfall_syncs",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "status: SyncStatus",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_syncs",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "name": "bulk_type",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_syncs",
+            "name": "bulk_type"
+          }
+        }
+      },
+      {
+        "name": "bulk_uri",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_syncs",
+            "name": "bulk_uri"
+          }
+        }
+      },
+      {
+        "name": "started_at",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_syncs",
+            "name": "started_at"
+          }
+        }
+      },
+      {
+        "name": "completed_at",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_syncs",
+            "name": "completed_at"
+          }
+        }
+      },
+      {
+        "name": "cards_count",
+        "ordinal": 6,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "scryfall_syncs",
+            "name": "cards_count"
+          }
+        }
+      },
+      {
+        "name": "printings_count",
+        "ordinal": 7,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "scryfall_syncs",
+            "name": "printings_count"
+          }
+        }
+      },
+      {
+        "name": "error",
+        "ordinal": 8,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_syncs",
+            "name": "error"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "3465150731a420995db01ee8c5c3510f25d4a4ce93e90cd9a2f2ac4638310a72"
+}
