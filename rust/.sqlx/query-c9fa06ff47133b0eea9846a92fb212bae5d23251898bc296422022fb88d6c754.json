@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT image_uris FROM scryfall_printings WHERE oracle_id = ?1\n         ORDER BY released_at DESC, set_code ASC, collector_number ASC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "image_uris",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "image_uris"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c9fa06ff47133b0eea9846a92fb212bae5d23251898bc296422022fb88d6c754"
+}

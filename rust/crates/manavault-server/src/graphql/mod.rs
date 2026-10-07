@@ -50,6 +50,8 @@ pub struct Query(
     crate::backup::graphql::BackupQueries,
     crate::decks::DeckQueries,
     crate::deck_intel::DeckIntelQueries,
+    crate::trade::TradeQueries,
+    crate::trade::ShareListQueries,
 );
 
 #[derive(MergedObject, Default)]
@@ -66,6 +68,7 @@ pub struct Mutation(
     crate::backup::graphql::BackupMutations,
     crate::decks::DeckMutations,
     crate::deck_intel::DeckIntelMutations,
+    crate::trade::TradeMutations,
 );
 
 #[derive(MergedSubscription, Default)]

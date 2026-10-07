@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT token FROM trade_binder_shares ORDER BY id ASC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "token",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "trade_binder_shares",
+            "name": "token"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "89cde35e06d92a35534c95f7e7f863b05247d9f7534df9c895e0281c57f949be"
+}

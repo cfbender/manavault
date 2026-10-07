@@ -26,6 +26,7 @@ pub mod settings;
 pub mod state;
 pub mod timefmt;
 pub mod tokens;
+pub mod trade;
 pub mod web;
 
 #[cfg(test)]

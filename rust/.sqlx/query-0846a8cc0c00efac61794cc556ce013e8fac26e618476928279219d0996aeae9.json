@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT oracle_id AS \"oracle_id!: OracleId\", name AS \"name!\", type_line AS \"type_line?\"\n           FROM scryfall_cards WHERE oracle_id IN (SELECT value FROM json_each(?1))",
+  "describe": {
+    "columns": [
+      {
+        "name": "oracle_id!: OracleId",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "oracle_id"
+          }
+        }
+      },
+      {
+        "name": "name!",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "type_line?",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "type_line"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "0846a8cc0c00efac61794cc556ce013e8fac26e618476928279219d0996aeae9"
+}
