@@ -28,9 +28,8 @@ setting for every caller). Not Rust source.
 - `structure.sql` and `token_backs.json` are embedded in the binary
   (`include_str!`), so only `priv/static` ships.
 - Healthcheck: `/usr/local/bin/manavault-healthcheck` now does `GET /health`
-  (was a TCP dial). `STOPSIGNAL SIGINT`: the server only handles ctrl-c
-  (`tokio::signal::ctrl_c`), so SIGINT gives a graceful shutdown; tini
-  forwards it. `docker stop` exits 0 in under a second.
+  (was a TCP dial). The server shuts down gracefully on SIGTERM (what
+  `docker stop` sends) and SIGINT; tini forwards both.
 - The app user's uid changes (Alpine `adduser -S` vs Debian `useradd
   --system`); the entrypoint already re-chowns a volume not owned by `app`.
 - 239 MB on disk / 62 MB compressed.
@@ -69,13 +68,10 @@ setting for every caller). Not Rust source.
   would be purged. The image copies `lib/manavault_web/controllers` so the CSS
   matches the Elixir build today; switch the `@source` when `lib/` goes.
 - Rust-side observations (not changed, other engineers' code):
-  - The binary logs ANSI colour codes even when stdout is not a TTY
-    (`docker logs`); `fmt::layer().with_ansi(std::io::stdout().is_terminal())`
-    would fix it.
-  - `asset_version` falls back to `CARGO_PKG_VERSION` (0.1.0), not the app
-    version in `mix.exs`/`package.json` (1.4.3) like the Elixir app.
-  - Only SIGINT triggers graceful shutdown; handling SIGTERM too would make
-    `STOPSIGNAL` unnecessary.
+  - Fixed after review: ANSI colours only on a TTY; the server crate's
+    version tracks the app version (1.4.3, bumped by `scripts/bump.sh`), so
+    the asset-version fallback matches Elixir; SIGTERM shuts down gracefully,
+    so `STOPSIGNAL SIGINT` was dropped.
   - Upgrades: the Rust server refuses databases missing migrations, so
     existing installs must pass through the last Elixir image first
     (documented in README/self-hosting).

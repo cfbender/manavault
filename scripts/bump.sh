@@ -118,6 +118,13 @@ if [[ -f "$package_file" ]]; then
 	NEXT="$next" perl -0pi -e 's/"version":\s*"[^"]+"/"version": "$ENV{NEXT}"/' "$package_file"
 fi
 
+server_manifest="rust/crates/manavault-server/Cargo.toml"
+if [[ -f "$server_manifest" ]]; then
+	# The Rust backend reports this version (asset version fallback, User-Agent).
+	NEXT="$next" perl -0pi -e 's/^version = "[^"]+"/version = "$ENV{NEXT}"/m' "$server_manifest"
+	(cd rust && cargo update --workspace --offline >/dev/null 2>&1 || cargo metadata --format-version 1 >/dev/null)
+fi
+
 if [[ -f "scripts/prepare-native-web.mjs" ]]; then
 	MANAVAULT_VERSION="$next" node scripts/prepare-native-web.mjs
 fi
@@ -143,6 +150,9 @@ if [[ -f "$package_file" ]]; then
 fi
 if [[ -f "$native_version_file" ]]; then
 	git add "$native_version_file"
+fi
+if [[ -f "$server_manifest" ]]; then
+	git add "$server_manifest" rust/Cargo.lock
 fi
 
 git commit -m "chore: release $tag"

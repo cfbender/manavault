@@ -1,7 +1,7 @@
 [package]
 name = "manavault-server"
 description = "ManaVault's backend: GraphQL API, web endpoints, and background jobs over the SQLite catalog."
-version = "0.1.0"
+version = "1.4.3"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true

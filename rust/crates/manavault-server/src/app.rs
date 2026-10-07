@@ -99,9 +99,27 @@ pub async fn run(config: Config, logs: LogHub) -> Result<(), StartError> {
         listener,
         router(state).into_make_service_with_connect_info::<std::net::SocketAddr>(),
     )
-    .with_graceful_shutdown(async {
-        let _ = tokio::signal::ctrl_c().await;
-    })
+    .with_graceful_shutdown(shutdown_signal())
     .await?;
     Ok(())
+}
+
+/// Resolves on Ctrl-C (SIGINT) or SIGTERM, which `docker stop` and systemd send.
+async fn shutdown_signal() {
+    let terminate = async {
+        match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+            Ok(mut signal) => {
+                signal.recv().await;
+            }
+            Err(error) => {
+                tracing::warn!(%error, "could not listen for SIGTERM");
+                std::future::pending::<()>().await;
+            }
+        }
+    };
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {}
+        () = terminate => {}
+    }
+    tracing::info!("shutting down");
 }

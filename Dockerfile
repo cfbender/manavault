@@ -177,8 +177,6 @@ RUN chmod 0755 /usr/local/bin/docker-entrypoint.sh \
 
 EXPOSE 4000
 VOLUME ["/data"]
-# The server shuts down gracefully on SIGINT.
-STOPSIGNAL SIGINT
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 CMD ["/usr/local/bin/manavault-healthcheck"]
 ENTRYPOINT ["/usr/bin/tini", "--", "docker-entrypoint.sh"]
 CMD ["/app/bin/manavault", "serve"]
