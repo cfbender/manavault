@@ -330,9 +330,6 @@ defmodule Manavault.Catalog.Decks.AllocationStatus do
     end
   end
 
-  defp is_basic_land?(%DeckCard{card: %Card{type_line: type_line}}) when is_binary(type_line) do
-    String.contains?(type_line, "Basic Land")
-  end
-
+  defp is_basic_land?(%DeckCard{card: %Card{} = card}), do: Card.basic_land?(card)
   defp is_basic_land?(_deck_card), do: false
 end

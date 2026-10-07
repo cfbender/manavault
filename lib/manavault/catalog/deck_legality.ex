@@ -212,10 +212,7 @@ defmodule Manavault.Catalog.DeckLegality do
 
   defp singleton_key(deck_card), do: {:name, String.downcase(card_name(deck_card))}
 
-  defp basic_land?(%DeckCard{card: %Card{type_line: type_line}}) when is_binary(type_line) do
-    String.contains?(type_line, "Basic") and String.contains?(type_line, "Land")
-  end
-
+  defp basic_land?(%DeckCard{card: %Card{} = card}), do: Card.basic_land?(card)
   defp basic_land?(_deck_card), do: false
 
   defp card_legalities(%Card{legalities: legalities}), do: decode_map(legalities)

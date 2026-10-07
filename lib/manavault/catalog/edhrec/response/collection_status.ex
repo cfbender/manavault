@@ -222,9 +222,5 @@ defmodule Manavault.Catalog.EDHRec.Response.CollectionStatus do
     |> Map.new()
   end
 
-  defp basic_land?(%Card{type_line: type_line}) when is_binary(type_line) do
-    String.contains?(type_line, "Basic Land")
-  end
-
-  defp basic_land?(_card), do: false
+  defp basic_land?(%Card{} = card), do: Card.basic_land?(card)
 end

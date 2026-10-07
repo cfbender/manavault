@@ -50,6 +50,19 @@ defmodule Manavault.Catalog.Card do
   def token?(_layout), do: false
 
   @doc """
+  Whether a type line has the Basic supertype on a land, including snow basics
+  such as "Basic Snow Land — Forest" and Wastes ("Basic Land").
+  """
+  def basic_land?(%__MODULE__{type_line: type_line}), do: basic_land?(type_line)
+
+  def basic_land?(type_line) when is_binary(type_line) do
+    words = type_line |> String.split("—", parts: 2) |> hd() |> String.split()
+    "Basic" in words and "Land" in words
+  end
+
+  def basic_land?(_type_line), do: false
+
+  @doc """
   Query predicate keeping only playable (non-token) cards, for a query whose
   card binding is named `:card`. Cards imported before layouts were recorded
   have no layout and count as playable.
