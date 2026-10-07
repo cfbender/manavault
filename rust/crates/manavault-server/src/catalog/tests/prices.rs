@@ -38,6 +38,33 @@ async fn sql_cents(app: &TestApp, scryfall_id: &str, finish: &str) -> i64 {
         .unwrap()
 }
 
+/// The same price with the finish read from a column of the outer query,
+/// as collection and deck card queries pass it (`i.finish`).
+async fn sql_cents_for_column(app: &TestApp, scryfall_id: &str, finish: &str) -> i64 {
+    sqlx::query("CREATE TABLE IF NOT EXISTS finish_probe (scryfall_id TEXT, finish TEXT)")
+        .execute(app.db())
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM finish_probe")
+        .execute(app.db())
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO finish_probe (scryfall_id, finish) VALUES (?1, ?2)")
+        .bind(scryfall_id)
+        .bind(finish)
+        .execute(app.db())
+        .await
+        .unwrap();
+    let sql = format!(
+        "SELECT {} FROM finish_probe AS i JOIN scryfall_printings AS p ON p.scryfall_id = i.scryfall_id",
+        price::price_cents_sql("p", "i.finish")
+    );
+    sqlx::query_scalar(sqlx::AssertSqlSafe(sql))
+        .fetch_one(app.db())
+        .await
+        .unwrap()
+}
+
 async fn assert_consistent(app: &TestApp, ids: &[String]) {
     for id in ids {
         let printing = Printing::load(app.db(), &ScryfallId::from(id.as_str()))
@@ -52,6 +79,12 @@ async fn assert_consistent(app: &TestApp, ids: &[String]) {
                 sql_cents(app, id, finish).await,
                 in_memory,
                 "finish {finish} with prices {}",
+                printing.prices
+            );
+            assert_eq!(
+                sql_cents_for_column(app, id, finish).await,
+                in_memory,
+                "column finish {finish} with prices {}",
                 printing.prices
             );
         }

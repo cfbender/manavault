@@ -451,20 +451,9 @@ impl Sort {
 }
 
 /// Finish-aware current price (REAL) of a copy (`price_value_fragment/2`).
-///
-/// `catalog::price::price_value_sql("p", "i.finish")` puts the outer
-/// `i.finish` in the vendor subquery's `ORDER BY`, which the bundled SQLite
-/// (3.51) rejects ("no such column"). Branching on the finish outside the
-/// subquery keeps every outer reference in `WHERE` clauses.
 #[must_use]
 pub fn price_value_sql() -> String {
-    let value = |finish: &str| price_value_sql_for("p", &format!("'{finish}'"));
-    format!(
-        "(CASE i.finish WHEN 'foil' THEN {} WHEN 'etched' THEN {} ELSE {} END)",
-        value("foil"),
-        value("etched"),
-        value("nonfoil")
-    )
+    price_value_sql_for("p", "i.finish")
 }
 
 /// Finish-aware current price of a copy in integer cents.

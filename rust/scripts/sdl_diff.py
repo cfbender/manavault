@@ -20,7 +20,14 @@ def strip(sdl):
 
 def parse(sdl):
     types = {}
-    for match in re.finditer(r"\b(type|input|interface|enum|scalar|union|schema)\s+(\w*)([^{}=]*)(\{([^{}]*)\}|=[^\n]*)?", strip(sdl)):
+    # The header may only hold an `implements` clause, so a body-less
+    # definition (`scalar Json`) does not swallow the definition after it.
+    definition = (
+        r"\b(type|input|interface|enum|scalar|union|schema)\s*(\w*)"
+        r"((?:\s+implements\s+&?\s*\w+(?:\s*[&,]\s*\w+)*)?)"
+        r"\s*(\{([^{}]*)\}|=[^\n]*)?"
+    )
+    for match in re.finditer(definition, strip(sdl)):
         kind, name, header, _, body = match.groups()
         if kind == "schema":
             continue

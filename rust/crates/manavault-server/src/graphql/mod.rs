@@ -4,6 +4,7 @@
 //! Each domain module contributes `Object` structs for its queries and
 //! mutations; they are merged into the Absinthe-named root types here.
 
+pub mod order;
 pub mod relay;
 pub mod scalars;
 mod system;
@@ -90,6 +91,7 @@ pub fn build_schema(state: AppState) -> AppSchema {
     .data(crate::catalog::loader::data_loader(state.db.clone()))
     .data(crate::collection::loader::data_loader(state.db.clone()))
     .data(state)
+    .extension(order::ResponseOrder)
     .finish()
 }
 

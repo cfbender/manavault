@@ -196,26 +196,30 @@ pub fn price_sql(printing: &str) -> String {
 /// in-memory price (`Pricing.Store`) found none and fell back to Scryfall.
 /// Here the subquery is limited to the finish's fallback chain, matching the
 /// in-memory price.
+///
+/// `finish` may be a column of the outer query (`i.finish`): the expression
+/// branches on it outside the vendor subquery, whose `ORDER BY` only names
+/// its own columns. (The SQLite bundled with sqlx rejects an outer column in
+/// a correlated subquery's `ORDER BY` with "no such column".)
 #[must_use]
 pub fn price_value_sql(printing: &str, finish: &str) -> String {
-    let order = format!(
-        "CASE {finish} WHEN 'foil' THEN {} WHEN 'etched' THEN {} ELSE {} END",
-        vendor_order_sql(finish_fallbacks(Some("foil"))),
-        vendor_order_sql(finish_fallbacks(Some("etched"))),
-        vendor_order_sql(finish_fallbacks(None))
-    );
-    let filter = format!(
-        "CASE {finish} WHEN 'foil' THEN {} WHEN 'etched' THEN {} ELSE {} END",
-        finish_list_sql(finish_fallbacks(Some("foil"))),
-        finish_list_sql(finish_fallbacks(Some("etched"))),
-        finish_list_sql(finish_fallbacks(None))
-    );
     format!(
-        "COALESCE(({}), CAST(COALESCE(NULLIF(CASE {finish} WHEN 'foil' THEN {} WHEN 'etched' THEN {} ELSE {} END, ''), '0') AS REAL))",
-        vendor_price_sql(printing, &filter, &order),
-        coalesce_sql(printing, &usd_fallback_keys(Some("foil"))),
-        coalesce_sql(printing, &usd_fallback_keys(Some("etched"))),
-        coalesce_sql(printing, &usd_fallback_keys(None)),
+        "(CASE {finish} WHEN 'foil' THEN {} WHEN 'etched' THEN {} ELSE {} END)",
+        fixed_finish_price_sql(printing, Some("foil")),
+        fixed_finish_price_sql(printing, Some("etched")),
+        fixed_finish_price_sql(printing, None),
+    )
+}
+
+/// The current USD price (REAL) of the printing aliased `printing` in one
+/// known finish: the vendor price along the finish's fallback chain, else
+/// the Scryfall price along the same chain, else 0.
+fn fixed_finish_price_sql(printing: &str, finish: Option<&str>) -> String {
+    let chain = finish_fallbacks(finish);
+    format!(
+        "COALESCE(({}), CAST(COALESCE(NULLIF({}, ''), '0') AS REAL))",
+        vendor_price_sql(printing, &finish_list_sql(chain), &vendor_order_sql(chain)),
+        coalesce_sql(printing, &usd_fallback_keys(finish)),
     )
 }
 
