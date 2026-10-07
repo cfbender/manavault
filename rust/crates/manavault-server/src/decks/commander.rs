@@ -1,118 +1,41 @@
 //! Which cards can lead a Commander deck and which pairs can share the
-//! command zone (`Manavault.Catalog.CommanderRules`), on top of lotus'
-//! `can_be_commander` and `commander_pairing`.
+//! command zone (`Manavault.Catalog.CommanderRules`). The rules live in lotus
+//! (`can_be_commander` per CR 903.3 and `valid_pair`); this module adapts the
+//! catalog's card rows to them.
+//!
+//! lotus requires the Doctor of a Doctor's companion pair to be a legendary
+//! creature; `CommanderRules.valid_pair?/2` accepted any "Time Lord Doctor"
+//! type line, but a non-legendary one cannot be a commander.
 
-use std::sync::LazyLock;
-
-use lotus::commander::{CommanderPairing, can_be_commander as lotus_can_be_commander};
-use regex::Regex;
+use lotus::commander::CommanderCard;
 
 use crate::catalog::card::CardRecord;
 
-// Literal patterns, exercised by the tests below.
-static COMMANDER_TYPE: LazyLock<Option<Regex>> =
-    LazyLock::new(|| Regex::new(r"\b(?:Creature|Vehicle|Spacecraft)\b").ok());
-static PARTNER_LABEL: LazyLock<Option<Regex>> =
-    LazyLock::new(|| Regex::new(r"^Partner(?:\s*[—–-]\s*([^(]+?))?\s*(?:\(|$)").ok());
-
-/// The front face of a type line (`"A // B"` → `"A"`).
-fn front_face(type_line: &str) -> &str {
-    type_line.split("//").next().unwrap_or(type_line)
+fn commander_card(card: &CardRecord) -> CommanderCard<'_> {
+    CommanderCard {
+        name: &card.name,
+        type_line: card.type_line.as_deref().unwrap_or(""),
+        oracle_text: card.oracle_text.as_deref().unwrap_or(""),
+    }
 }
 
-/// Whether the card can be designated as a deck's commander.
-///
-/// Per Comprehensive Rules 903.3 that is a legendary creature, Vehicle, or
-/// Spacecraft (judged by the front face), or a card whose text says it "can
-/// be your commander". lotus' `can_be_commander` decides on the front face;
-/// legendary Vehicles and Spacecraft are added here because lotus only knows
-/// creatures (a lotus gap, see `rust/notes/decks.md`). Judging the front face
-/// keeps "Legendary Enchantment — Saga // Legendary Creature" ineligible,
-/// which lotus would accept when given the whole type line.
+/// Whether the card can be designated as a deck's commander: a legendary
+/// creature, Vehicle, or Spacecraft judged by the front face, or a card whose
+/// text says it "can be your commander" (CR 903.3).
 #[must_use]
 pub fn can_be_commander(card: &CardRecord) -> bool {
-    let type_line = card.type_line.as_deref().unwrap_or("");
-    let oracle_text = card.oracle_text.as_deref().unwrap_or("");
-    let front = front_face(type_line);
-    lotus_can_be_commander(front, oracle_text) || legendary_vehicle(front)
-}
-
-fn legendary_vehicle(front: &str) -> bool {
-    front.contains("Legendary")
-        && COMMANDER_TYPE.as_ref().is_some_and(|re| re.is_match(front))
-        && !front.contains("Background")
-}
-
-fn pairing(card: &CardRecord) -> Option<CommanderPairing> {
-    lotus::commander::commander_pairing(
-        card.type_line.as_deref().unwrap_or(""),
-        card.oracle_text.as_deref().unwrap_or(""),
-    )
-}
-
-fn oracle_lines(card: &CardRecord) -> impl Iterator<Item = &str> {
-    card.oracle_text
-        .as_deref()
-        .unwrap_or("")
-        .split('\n')
-        .map(str::trim)
-}
-
-/// A Partner keyword: plain, or restricted to a group ("Partner—Survivors").
-#[derive(Debug, PartialEq, Eq)]
-enum PartnerLabel {
-    Plain,
-    Group(String),
-}
-
-fn partner_label(card: &CardRecord) -> Option<PartnerLabel> {
-    oracle_lines(card).find_map(|line| {
-        let captures = PARTNER_LABEL.as_ref()?.captures(line)?;
-        Some(match captures.get(1) {
-            Some(label) => PartnerLabel::Group(label.as_str().trim().to_lowercase()),
-            None => PartnerLabel::Plain,
-        })
-    })
-}
-
-fn base_name(card: &CardRecord) -> &str {
-    card.name.split(" // ").next().unwrap_or(&card.name)
-}
-
-fn partners_with(card: &CardRecord, other: &CardRecord) -> bool {
-    let prefix = format!("partner with {}", base_name(other).to_lowercase());
-    oracle_lines(card).any(|line| {
-        let line = line.to_lowercase();
-        line.strip_prefix(&prefix)
-            .is_some_and(|rest| rest.is_empty() || rest.trim_start().starts_with('('))
-    })
+    let card = commander_card(card);
+    lotus::can_be_commander(card.type_line, card.oracle_text)
 }
 
 /// Whether two cards form a legal two-commander pairing
 /// (`CommanderRules.valid_pair?/2`): matching Partner keywords (restricted
 /// variants need the same label), "Partner with" each other, Friends forever,
-/// Doctor's companion with a Doctor, or Choose a Background with a Background.
-///
-/// lotus classifies each card's pairing mechanic; whether two cards match is
-/// decided here because lotus has no pair check. lotus counts
-/// "Partner—Friends forever" as Friends forever, so it pairs with the older
-/// "Friends forever" wording too.
+/// Doctor's companion with a legendary Time Lord Doctor, or Choose a
+/// Background with a Background.
 #[must_use]
 pub fn valid_pair(a: &CardRecord, b: &CardRecord) -> bool {
-    use CommanderPairing as P;
-    match (pairing(a), pairing(b)) {
-        (Some(P::Partner), Some(P::Partner)) => match (partner_label(a), partner_label(b)) {
-            (Some(left), Some(right)) => left == right,
-            _ => false,
-        },
-        (Some(P::PartnerWith), Some(P::PartnerWith)) => partners_with(a, b) && partners_with(b, a),
-        (Some(P::FriendsForever), Some(P::FriendsForever))
-        | (Some(P::DoctorsCompanion), Some(P::Doctor))
-        | (Some(P::Doctor), Some(P::DoctorsCompanion))
-        | (Some(P::ChooseABackground), Some(P::Background))
-        | (Some(P::Background), Some(P::ChooseABackground)) => true,
-        _ => false,
-    }
+    lotus::commander::valid_pair(&commander_card(a), &commander_card(b))
 }
 
 /// Whether the commander lets its controller choose a color before the game

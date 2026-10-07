@@ -11,7 +11,7 @@
 | `Decks.Cards`, `AddCardToDeck`, `UpdateDeckCard`, `UpdateDeckCards`, `DeleteDeckCard`, `SetDeckCommander`, `AddDeckPartner`, `EditGuard`, `FetchDeckRecords`, `Decks.Printings`            | `decks::cards`, `decks::{ensure_deck_editable, ensure_decklist_editable}`                                                                                                                                                                    |
 | `TrimDeckCardAllocations`, `ClearDeckCardAllocations`, `AllocationItems`, `DeckCardAllocation.allocate_available_preferred_printing_to_deck_card/2`, `AllocationStatus` (batched statuses) | `manavault_allocation` (`clear_deck_card_allocations`, `trim_deck_card_allocations`, `switch_allocation_to_preferred_printing`, `statuses_in`, on the caller's transaction; the former `decks::allocations` copy was removed at integration) |
 | `DeckLegality`                                                                                                                                                                             | `decks::legality`                                                                                                                                                                                                                            |
-| `CommanderRules`                                                                                                                                                                           | `decks::commander` (on lotus `can_be_commander`/`commander_pairing`)                                                                                                                                                                         |
+| `CommanderRules`                                                                                                                                                                           | `decks::commander` (adapter over lotus `can_be_commander`/`valid_pair`)                                                                                                                                                                      |
 | `DeckSummaries`, `Decks.Preloads`, `Decks.Statistics`                                                                                                                                      | `decks::contents` (`DeckContents`, `DeckSummary`, `deck_summaries`, `fallback_printings`, `DeckStats`)                                                                                                                                       |
 | `Decklists`, `Decks.DecklistIO`                                                                                                                                                            | `decks::decklist`                                                                                                                                                                                                                            |
 | `Decks.DeckPicker`                                                                                                                                                                         | `decks::picker`                                                                                                                                                                                                                              |
@@ -122,15 +122,13 @@ candidates, allocation counts), like the Elixir batching.
 
 ## lotus gaps
 
-- `can_be_commander` knows only legendary creatures (and "can be your
-  commander" text); CR 903.3 also allows legendary Vehicles and Spacecraft,
-  and the Elixir rule judges the front face. `decks::commander` passes the
-  front face and adds Vehicles/Spacecraft.
-- No two-card pairing check: `commander_pairing` classifies one card, but
-  restricted Partner labels ("Partner—Survivors") and "Partner with <name>"
-  matching are app code (`decks::commander::valid_pair`). lotus classifies
-  "Partner—Friends forever" as Friends forever, so it pairs with the older
-  "Friends forever" wording (Elixir did not).
+- Fixed in lotus c4edb99: `can_be_commander` follows CR 903.3 (legendary
+  creature, Vehicle, or Spacecraft on the front face, or "can be your
+  commander" text) and `lotus::commander::valid_pair` ports
+  `CommanderRules.valid_pair?/2`. `decks::commander` is now a thin adapter
+  from `CardRecord` to `CommanderCard`; the app's copies of these rules are
+  gone. Documented lotus difference: the Doctor of a Doctor's companion pair
+  must be a legendary creature (Elixir accepted any "Time Lord Doctor").
 
 ## Foundation changes
 

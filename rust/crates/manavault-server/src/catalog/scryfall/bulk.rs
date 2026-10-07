@@ -8,7 +8,7 @@ use std::fs::File;
 use std::io::Read as _;
 use std::path::{Path, PathBuf};
 
-use lotus::scryfall::bulk::is_gzip;
+use lotus::scryfall::is_gzip;
 use lotus::scryfall::{BulkError, JsonLines, ScryfallCard};
 use serde::Deserialize;
 use serde::de::{IgnoredAny, MapAccess, Visitor};
@@ -99,62 +99,13 @@ pub async fn decode_list(path: PathBuf) -> Result<Vec<Value>, String> {
     .map_err(|error| error.to_string())?
 }
 
-const LEGALITIES: [&str; 4] = ["legal", "not_legal", "restricted", "banned"];
-const RARITIES: [&str; 6] = ["common", "uncommon", "rare", "mythic", "special", "bonus"];
-const FINISHES: [&str; 3] = ["nonfoil", "foil", "etched"];
-const COLORS: [&str; 5] = ["W", "U", "B", "R", "G"];
-
-fn retain_strings(value: Option<&mut Value>, allowed: &[&str]) {
-    if let Some(Value::Array(items)) = value.map(|value| &mut *value) {
-        items.retain(|item| item.as_str().is_some_and(|text| allowed.contains(&text)));
-    }
-}
-
-/// Drops values lotus's card model cannot represent, so one new Scryfall
-/// vocabulary word does not cost a whole card. lotus's `Legality`,
-/// `Rarity`, `Finish`, and `Color` have no catch-all variant, and a related
-/// card without an id fails `RelatedCard`; the Elixir import stored raw
-/// strings and skipped such parts instead.
-fn sanitize(record: &mut Value) {
-    let Some(card) = record.as_object_mut() else {
-        return;
-    };
-    if let Some(Value::Object(legalities)) = card.get_mut("legalities") {
-        legalities.retain(|_, value| {
-            value
-                .as_str()
-                .is_some_and(|text| LEGALITIES.contains(&text))
-        });
-    }
-    if card
-        .get("rarity")
-        .is_some_and(|rarity| !rarity.as_str().is_some_and(|text| RARITIES.contains(&text)))
-    {
-        card.remove("rarity");
-    }
-    retain_strings(card.get_mut("finishes"), &FINISHES);
-    retain_strings(card.get_mut("colors"), &COLORS);
-    retain_strings(card.get_mut("color_identity"), &COLORS);
-    if let Some(Value::Array(faces)) = card.get_mut("card_faces") {
-        for face in faces.iter_mut() {
-            retain_strings(face.get_mut("colors"), &COLORS);
-        }
-    }
-    if let Some(Value::Array(parts)) = card.get_mut("all_parts") {
-        parts.retain(|part| part.get("id").is_some_and(Value::is_string));
-    }
-}
-
-/// Decodes one bulk record. A record lotus rejects is retried once with
-/// unrepresentable values dropped (see [`sanitize`]); one that still fails
-/// (no `id` or `name`) is skipped by the caller, as the Elixir import skipped
-/// records it could not build rows for.
-pub fn decode_card(mut record: Value) -> Result<ScryfallCard, serde_json::Error> {
-    if let Ok(card) = ScryfallCard::deserialize(&record) {
-        return Ok(card);
-    }
-    sanitize(&mut record);
-    ScryfallCard::deserialize(&record)
+/// Decodes one bulk record. lotus drops vocabulary it does not know (a new
+/// rarity, finish, color, or legality, or an `all_parts` entry without an id)
+/// instead of failing the card; a record that still fails (no `id` or
+/// `name`) is skipped by the caller, as the Elixir import skipped records it
+/// could not build rows for.
+pub fn decode_card(record: &Value) -> Result<ScryfallCard, serde_json::Error> {
+    ScryfallCard::deserialize(record)
 }
 
 /// Streams the bulk file's paper printings in import batches. Records that
@@ -186,7 +137,7 @@ pub fn paper_card_batches(
                     return;
                 }
             };
-            match decode_card(record) {
+            match decode_card(&record) {
                 Ok(card) if card.is_paper() => batch.push(card),
                 Ok(_) => {}
                 Err(error) => {
@@ -264,7 +215,7 @@ pub mod tests {
 
     #[test]
     fn unknown_vocabulary_is_dropped_instead_of_losing_the_card() {
-        let card = decode_card(json!({
+        let card = decode_card(&json!({
             "id": "p", "name": "n", "oracle_id": "o",
             "legalities": {"vintage": "legal", "newformat": "suspended"},
             "rarity": "ultra", "finishes": ["nonfoil", "glossy"], "colors": ["U", "P"],
@@ -276,7 +227,7 @@ pub mod tests {
         assert_eq!(card.finishes, vec![lotus::Finish::Nonfoil]);
         assert_eq!(card.colors, Some(vec![lotus::Color::U]));
         assert_eq!(card.all_parts.len(), 1);
-        assert!(decode_card(json!({"name": "no id"})).is_err());
+        assert!(decode_card(&json!({"name": "no id"})).is_err());
     }
 
     #[test]

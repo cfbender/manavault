@@ -129,7 +129,7 @@ pub async fn decode_file(path: PathBuf) -> Result<Scores, String> {
         let mut file = File::open(&path).map_err(|error| error.to_string())?;
         let mut magic = [0_u8; 2];
         let read = file.read(&mut magic).map_err(|error| error.to_string())?;
-        if !lotus::scryfall::bulk::is_gzip(magic.get(..read).unwrap_or_default()) {
+        if !lotus::scryfall::is_gzip(magic.get(..read).unwrap_or_default()) {
             return Err("MTGJSON AtomicCards payload was not gzip-compressed JSON".to_owned());
         }
         let file = File::open(&path).map_err(|error| error.to_string())?;

@@ -55,11 +55,10 @@ Every external base URL is a parameter (`SyncOptions`, `AssetUrls`,
   non-object line (kept: the file is validated before any batch is written)
   and silently skips records it cannot build rows for (no `id`/`oracle_id`).
   It stored unknown vocabulary (a new legality, rarity, finish, color) raw.
-  lotus's `Legality`/`Rarity`/`Finish`/`Color` have no catch-all and
-  `RelatedCard.id` is required, so one new word would lose the whole card:
-  `bulk::decode_card` retries a rejected record once with unrepresentable
-  values dropped (legality entry removed, rarity → NULL, unknown finishes and
-  colors filtered, id-less `all_parts` removed). A record that still fails
+  lotus (since c4edb99) decodes `ScryfallCard` leniently and drops what it
+  cannot represent (legality entry removed, rarity → NULL, unknown finishes
+  and colors filtered, id-less `all_parts` removed), so one new word no
+  longer loses the card; the app's sanitize-and-retry is gone. A record that still fails
   (no `id`/`name`) is skipped, logged, and counted. `Catalog.import_cards`
   callers pass typed `ScryfallCard`s, so this only applies to the sync.
 - Bulk files (default cards, oracle tags, MTGJSON AtomicCards) are streamed
@@ -99,18 +98,13 @@ INTEGER as `f64`. Select them as `CAST(col AS REAL)` (the diff does this).
 
 ## lotus gaps
 
-- `Legality`, `Rarity`, `Finish`, and `Color` have no catch-all variant, and
-  `RelatedCard.id` is required: an unknown value fails decoding the whole
-  card. Worked around with `bulk::decode_card`'s sanitize-and-retry. A
-  catch-all (`Other(String)`) or lenient map decoding in lotus would remove
-  that code.
-- `BulkData` requires `type`; ManaVault reads only `jsonl_download_uri` from
+- Fixed in lotus c4edb99: lenient vocabulary decoding (replaced the app's
+  sanitize-and-retry) and the `lotus::scryfall::is_gzip` re-export.
+- Kept app-side by decision (not lotus changes): `BulkData` requires `type`; ManaVault reads only `jsonl_download_uri` from
   the per-type metadata endpoint, so `bulk::BulkMetadata` is a local struct.
 - `ScryfallError::Status`'s `Display` includes the reason phrase and
   `NotFound` reads "Scryfall has no such resource"; both apps' Elixir code
   used `"Scryfall request failed with HTTP <code>"`.
-- `is_gzip` is not re-exported from `lotus::scryfall` (only
-  `lotus::scryfall::bulk::is_gzip`).
 - `ScryfallCard.card_faces` cannot distinguish an absent list from an empty
   one (Elixir stored `"[]"` vs `"{}"` image URIs for those); Scryfall never
   sends an empty list, so the port uses `"{}"`.
