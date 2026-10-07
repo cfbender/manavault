@@ -2,7 +2,7 @@
 //! `auth_html/login.html.eex`).
 
 use axum::extract::State;
-use axum::http::header::{CONTENT_TYPE, LOCATION, RETRY_AFTER};
+use axum::http::header::{CONTENT_TYPE, RETRY_AFTER};
 use axum::http::{HeaderValue, Request, StatusCode};
 use axum::response::{IntoResponse, Response};
 
@@ -18,24 +18,7 @@ const MISSING_HASH: &str = "Admin password hash is missing. Set MANAVAULT_ADMIN_
 const PERMANENTLY_BANNED: &str =
     "Too many incorrect password attempts. This client is permanently blocked.";
 
-/// A redirect to `path`: 302 with a small HTML body.
-#[must_use]
-pub fn redirect(to: &str) -> Response {
-    let body = format!(
-        "<html><body>You are being <a href=\"{}\">redirected</a>.</body></html>",
-        escape(to)
-    );
-    let mut response = (
-        StatusCode::FOUND,
-        [(CONTENT_TYPE, "text/html; charset=utf-8")],
-        body,
-    )
-        .into_response();
-    if let Ok(location) = HeaderValue::from_str(to) {
-        response.headers_mut().insert(LOCATION, location);
-    }
-    response
-}
+pub use manavault_core::web::redirect;
 
 fn login_page(csrf_token: &str, return_to: &str, error: Option<&str>) -> String {
     let error = error.map_or_else(String::new, |error| {

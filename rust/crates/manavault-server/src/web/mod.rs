@@ -4,21 +4,10 @@
 //! request ids and request logging, the cookie session, then per-scope pipelines (`:browser`, owner authentication,
 //! GraphQL CSRF protection, API keys, scanner export auth).
 
-pub mod allowed_origins;
 pub mod api_v1;
-pub mod app_shell;
-pub mod asset_version;
 pub mod auth_controller;
-pub mod browser;
-pub mod client_ip;
-pub mod graphql_http;
-pub mod params;
-pub mod public_graphql;
 pub mod pwa;
-pub mod rate_limit;
 pub mod request_id;
-pub mod return_path;
-pub mod session;
 pub mod share;
 pub mod socket;
 pub mod static_files;
@@ -26,6 +15,8 @@ pub mod vendor;
 
 #[cfg(test)]
 mod tests;
+
+pub use manavault_core::web::*;
 
 use async_graphql::http::GraphQLPlaygroundConfig;
 use axum::http::header::ACCEPT;
@@ -50,6 +41,14 @@ impl axum::extract::FromRef<WebState> for AppState {
     fn from_ref(state: &WebState) -> Self {
         state.app.clone()
     }
+}
+
+/// `POST /api/graphql`.
+async fn owner_graphql(
+    axum::extract::State(state): axum::extract::State<WebState>,
+    params: params::Params,
+) -> Response {
+    graphql_http::execute(&state.schema, &params).await
 }
 
 async fn health() -> impl IntoResponse {
@@ -144,10 +143,7 @@ pub fn router(state: WebState) -> Router {
 
     // `pipe_through [:api, :authenticated_api]`.
     let owner_graphql = Router::new()
-        .route(
-            "/api/graphql",
-            post(graphql_http::owner).get(graphql_http::owner),
-        )
+        .route("/api/graphql", post(owner_graphql).get(owner_graphql))
         .route(
             "/api/scanner/corrections",
             post(scanner::http::create_correction),

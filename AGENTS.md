@@ -4,7 +4,7 @@
 
 `manavault` is a Rust backend with a Vite/React frontend.
 
-- `rust/` — the server: Cargo workspace with `manavault-server` (binary `manavault`: axum, async-graphql, sqlx/SQLite, background jobs) and `manavault-allocation`. Read `rust/README.md` and `rust/notes/*.md`.
+- `rust/` — the server: Cargo workspace with `manavault-server` (binary `manavault`: owner schema, axum routes, job registry), the domain crates it assembles (`manavault-core`, `-catalog`, `-collection`, `-deck-intel`, `-trade`, `-ai`, `-share`, `-system`), and `manavault-allocation`. Read `rust/README.md` and `rust/notes/*.md`.
 - `rust/migrations/` — the SQL migrations (one file per schema version), embedded in the binary and applied on boot; `rust/schema.sql` is the schema they produce (generated, used to check sqlx queries).
 - `priv/static/` — static files served by the backend; `priv/static/assets` is the built frontend (Tailwind CSS and the Vite bundle). `priv/data/` holds data files embedded in the binary.
 - `assets/` — frontend assets built with Tailwind and Vite, including the React app in `assets/react` and its tests in `assets/react/test`.
@@ -37,7 +37,7 @@ ss -ltnp 'sport = :4000'
 
 If anything is already listening on that port, do not start another server; reuse the existing one. In orbs, the review service from `.amp/services.yaml` runs the stack with the backend on 31397 and Vite on 5173.
 
-`rust/migrations/*.sql` is the only schema definition. To change the schema, create a migration with `mise run rust:new-migration -- <snake_case_name>`, write its SQL (add a `data_step` in `rust/crates/manavault-server/src/db/migrate.rs` if it must compute data), then regenerate `rust/schema.sql` and the sqlx query metadata with `mise run rust:sqlx-prepare` and commit both. The server applies the migration on its next boot (`rust/target/debug/manavault migrate` applies it without serving). Run `mise run rust:check` after changing anything under `rust/`.
+`rust/migrations/*.sql` is the only schema definition. To change the schema, create a migration with `mise run rust:new-migration -- <snake_case_name>`, write its SQL (add a `data_step` in `rust/crates/manavault-core/src/db/migrate.rs` if it must compute data), then regenerate `rust/schema.sql` and the sqlx query metadata with `mise run rust:sqlx-prepare` and commit both. The server applies the migration on its next boot (`rust/target/debug/manavault migrate` applies it without serving). Run `mise run rust:check` after changing anything under `rust/`.
 
 Useful production/container commands are documented in `README.md`.
 

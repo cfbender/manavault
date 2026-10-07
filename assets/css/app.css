@@ -5,6 +5,7 @@
 @import "./palettes.css";
 @source "../css";
 @source "../react/src";
+@source "../../rust/crates/manavault-core/src/web";
 @source "../../rust/crates/manavault-server/src/web";
 
 /* daisyUI Tailwind Plugin. You can update this file by fetching the latest version with:

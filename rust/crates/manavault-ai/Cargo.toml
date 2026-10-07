@@ -1,0 +1,32 @@
+[package]
+name = "manavault-ai"
+description = "ManaVault's AI deck analysis and deck questions."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+async-graphql.workspace = true
+async-trait.workspace = true
+lotus.workspace = true
+regex.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+manavault-core.workspace = true
+manavault-catalog.workspace = true
+manavault-collection.workspace = true
+manavault-trade.workspace = true
+
+[dev-dependencies]
+manavault-server.workspace = true
+wiremock.workspace = true
+
+[lints]
+workspace = true

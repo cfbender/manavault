@@ -1,0 +1,42 @@
+[package]
+name = "manavault-share"
+description = "ManaVault's public shares: the public GraphQL schema, share pages, and preview images."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+async-graphql.workspace = true
+async-trait.workspace = true
+axum.workspace = true
+base64.workspace = true
+futures-util.workspace = true
+hex.workspace = true
+lotus.workspace = true
+manavault-allocation.workspace = true
+regex.workspace = true
+reqwest.workspace = true
+resvg.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+sqlx.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+url.workspace = true
+manavault-core.workspace = true
+manavault-catalog.workspace = true
+manavault-collection.workspace = true
+manavault-deck-intel.workspace = true
+manavault-trade.workspace = true
+manavault-ai.workspace = true
+
+[dev-dependencies]
+manavault-server.workspace = true
+wiremock.workspace = true
+
+[lints]
+workspace = true

@@ -5,7 +5,7 @@ usage() {
 	cat >&2 <<'EOF'
 Usage: mise run release -- major|minor|patch
 
-Increments the version in rust/crates/manavault-server/Cargo.toml and
+Increments the workspace version in rust/Cargo.toml and
 package.json, updates README Docker tag examples, commits the
 release files, creates an annotated tag, then pushes the current branch and tag
 to origin.
@@ -29,7 +29,7 @@ major | minor | patch) ;;
 	;;
 esac
 
-version_file="rust/crates/manavault-server/Cargo.toml"
+version_file="rust/Cargo.toml"
 readme_file="README.md"
 package_file="package.json"
 native_version_file="native_www/version.json"

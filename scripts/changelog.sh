@@ -23,7 +23,7 @@ major | minor | patch) ;;
 	;;
 esac
 
-version_file="rust/crates/manavault-server/Cargo.toml"
+version_file="rust/Cargo.toml"
 current=$(perl -ne 'if (/^version = "([0-9]+\.[0-9]+\.[0-9]+)"/) { print "$1\n"; exit }' "$version_file")
 
 if [[ -z "$current" ]]; then

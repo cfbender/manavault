@@ -6,14 +6,43 @@ database, for the React frontend in `assets/react`.
 
 ## Crates
 
-- `manavault-server`: the backend (`manavault` binary). Axum for HTTP,
-  async-graphql for the GraphQL APIs, sqlx for SQLite, and
-  [lotus](https://github.com/cfbender/lotus) for the Magic domain types,
+The server is split into domain crates so an edit recompiles one crate and
+independent crates build in parallel (`notes/build-times.md`). Each crate
+re-exports the modules of the crates below it under their old paths, so code
+keeps writing `crate::catalog::...` or `crate::state::AppState`.
+
+```diagram
+manavault-server (binary `manavault`: owner schema, routes, job registry, CLI)
+ ├─ manavault-share       public share schema, share pages, preview images
+ │   └─ manavault-ai      AI deck analysis and questions
+ │       └─ manavault-trade        trade binder, wants, list matching, shared lists
+ ├─ manavault-deck-intel  allocation views, buylists, EDHREC and combo recommendations
+ │   └─ manavault-collection       collection, locations, imports/exports, decks
+ │       └─ manavault-catalog      Scryfall catalog and search, tokens, assets, prices
+ ├─ manavault-system      local and cloud backups, scanner bundles
+ └─ manavault-core        config, database and migrations, AppState, jobs,
+                          GraphQL primitives, auth, settings, sessions and web helpers
+manavault-allocation      reserving collection copies for deck cards
+```
+
+- Axum serves HTTP, async-graphql the GraphQL APIs, sqlx talks to SQLite, and
+  [lotus](https://github.com/cfbender/lotus) supplies the Magic domain types,
   Scryfall parsing, and decklist sources shared with the-gathering.
-- `manavault-allocation`: reserving physical collection copies for deck cards
+- `manavault-allocation` reserves physical collection copies for deck cards
   (allocate, deallocate, statuses, bulk and pull-list allocation, collection
   adds, proxies, disassembly, buylist needs), with the allocation invariants
   in types.
+- Collection and decks share a crate because their GraphQL types point at each
+  other (a collection item lists its decks; a deck card lists its items). The
+  job framework lives in `manavault-core` because `AppState` holds the queue
+  and workers receive `AppState`; each worker lives in its domain crate and
+  `manavault-server::app::workers` registers them.
+- Tests: a crate's tests use `manavault-server`'s test app (a dev-dependency
+  with the `test-support` feature), so they run against the full schema and
+  routes. That links a second copy of the crate under test, so tests pass
+  `AppState` and plain data across, never this crate's own types, statics, or
+  workers (see `share/tests/artifact_cache.rs`). `manavault-core`'s own tests
+  that need its types use `manavault_core::testing::TestState`.
 
 ## Commands
 
@@ -30,6 +59,7 @@ mise run rust:assets         # production frontend build into priv/static/assets
 mise run rust:prebuild       # compile server and test binaries (orb setup runs this)
 mise run rust:new-migration -- <name>  # new rust/migrations/<timestamp>_<name>.sql
 mise run rust:sqlx-prepare   # after a migration or query change: rust/schema.sql + .sqlx
+mise run rust:sweep          # drop incremental caches untouched for 3 days (disk)
 ```
 
 In development (`MANAVAULT_ENV=dev`) the HTML shell loads the React app from
@@ -63,7 +93,7 @@ Maintenance commands read the same environment as the server:
 The binary reads its configuration from the environment (`PORT`, `DATA_DIR`,
 `DATABASE_PATH`, `SECRET_KEY_BASE`, `PHX_HOST`,
 `MANAVAULT_ADMIN_PASSWORD_HASH`, `MANAVAULT_AUTH_DISABLED`, ...; see
-`crates/manavault-server/src/config.rs` and `docs/self-hosting.md`).
+`crates/manavault-core/src/config.rs` and `docs/self-hosting.md`).
 `MANAVAULT_ENV` (`prod` by default, or `dev`/`test`) selects the defaults.
 Sessions, CSRF tokens, and stored credentials keep the formats earlier
 releases wrote, so upgrading with the same `SECRET_KEY_BASE` keeps users signed

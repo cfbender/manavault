@@ -2,35 +2,33 @@
 //!
 //! It serves the GraphQL schema, routes, and background jobs of earlier
 //! releases over the same SQLite database, so the React frontend and
-//! existing databases work unchanged.
+//! existing databases work unchanged. The domain code lives in the
+//! `manavault-*` crates; this crate assembles the owner schema, the HTTP
+//! routes, and the job registry, and re-exports the domain modules under
+//! their old paths.
 
-pub mod ai;
-pub mod api_keys;
+// Layout of the merged root types' nested async resolvers needs more than
+// the default query depth once the domain types come from other crates.
+#![recursion_limit = "256"]
+
 pub mod app;
-pub mod auth;
-pub mod backup;
-pub mod catalog;
 pub mod cli;
-pub mod collection;
-pub mod config;
-pub mod crypto;
-pub mod db;
-pub mod deck_intel;
-pub mod decks;
 pub mod graphql;
-pub mod http_errors;
-pub mod jobs;
-pub mod logs;
-pub mod pricing;
-pub mod scanner;
-pub mod scryfall_assets;
-pub mod settings;
-pub mod share;
-pub mod state;
-pub mod timefmt;
-pub mod tokens;
-pub mod trade;
 pub mod web;
 
-#[cfg(test)]
+pub use manavault_ai::ai;
+pub use manavault_catalog::{catalog, pricing, scryfall_assets, tokens};
+pub use manavault_collection::{collection, decks};
+pub use manavault_core::{
+    api_keys, auth, config, crypto, db, http_errors, jobs, logs, settings, state, timefmt,
+};
+pub use manavault_deck_intel::deck_intel;
+pub use manavault_share::share;
+pub use manavault_system::{backup, scanner};
+pub use manavault_trade::trade;
+
+// The test app for every crate's tests (they take this crate as a
+// dev-dependency). Compiled in every build, not behind a feature, so test and
+// dev builds share one build of each crate.
+#[doc(hidden)]
 pub mod test_support;

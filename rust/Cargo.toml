@@ -6,6 +6,7 @@ members = ["crates/*"]
 edition = "2024"
 rust-version = "1.99"
 license = "MPL-2.0"
+version = "1.4.3"
 publish = false
 
 # Line tables keep panic backtraces and debugger stepping usable for the
@@ -20,6 +21,15 @@ debug = 0
 [workspace.dependencies]
 lotus = { git = "https://github.com/cfbender/lotus", features = ["sqlx", "http"] }
 manavault-allocation = { path = "crates/manavault-allocation" }
+manavault-ai = { path = "crates/manavault-ai" }
+manavault-catalog = { path = "crates/manavault-catalog" }
+manavault-collection = { path = "crates/manavault-collection" }
+manavault-core = { path = "crates/manavault-core" }
+manavault-deck-intel = { path = "crates/manavault-deck-intel" }
+manavault-server = { path = "crates/manavault-server" }
+manavault-share = { path = "crates/manavault-share" }
+manavault-system = { path = "crates/manavault-system" }
+manavault-trade = { path = "crates/manavault-trade" }
 sqlx = { version = "0.9", default-features = false, features = [
   "derive",
   "macros",
@@ -41,6 +51,54 @@ tokio = { version = "1", features = [
   "net",
   "io-util",
 ] }
+
+aes-gcm = "0.10"
+async-graphql = { version = "7", default-features = false, features = [
+  "playground",
+  "tempfile",
+  "dataloader",
+] }
+async-graphql-axum = "7"
+async-graphql-value = "7"
+async-trait = "0.1"
+axum = { version = "0.8", features = ["ws", "multipart", "macros"] }
+axum-extra = { version = "0.10", features = ["cookie"] }
+base64 = "0.22"
+bytes = "1"
+csv = "1"
+flate2 = "1"
+futures-util = "0.3"
+hex = "0.4"
+hmac = "0.12"
+multer = "3"
+moka = { version = "0.12", features = ["future"] }
+pbkdf2 = "0.12"
+rand = "0.8"
+regex = "1"
+reqwest = { version = "0.12", default-features = false, features = [
+  "rustls-tls",
+  "json",
+  "stream",
+  "multipart",
+] }
+resvg = "0.48"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+sha1 = "0.10"
+sha2 = "0.10"
+time = { version = "0.3", features = ["parsing", "formatting", "macros", "serde"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["fs", "compression-gzip", "set-header", "trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+unicode-normalization = "0.1"
+url = "2"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+http-body-util = "0.1"
+pretty_assertions = "1"
+tokio-tungstenite = "0.29"
+wiremock = "0.6"
 
 # Guardrails for generated code: the compiler and clippy reject the usual escape
 # hatches, so a change either type-checks against the domain model or fails CI.

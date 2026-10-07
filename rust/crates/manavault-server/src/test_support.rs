@@ -1,8 +1,6 @@
 //! Helpers for tests: a fresh database and app per test, GraphQL execution,
 //! HTTP requests through the router, and Scryfall card fixtures.
 
-use std::path::{Path, PathBuf};
-
 use axum::body::Body;
 use axum::http::{Request, Response};
 use serde_json::Value;
@@ -14,39 +12,7 @@ use crate::jobs::Jobs;
 use crate::logs::LogHub;
 use crate::state::AppState;
 
-/// A temporary directory removed on drop.
-pub struct TempDir(PathBuf);
-
-impl TempDir {
-    #[must_use]
-    #[allow(clippy::expect_used)]
-    pub fn new() -> Self {
-        let name = format!(
-            "manavault-test-{}",
-            hex::encode(crate::crypto::random_bytes::<8>())
-        );
-        let path = std::env::temp_dir().join(name);
-        std::fs::create_dir_all(&path).expect("create temp dir");
-        Self(path)
-    }
-
-    #[must_use]
-    pub fn path(&self) -> &Path {
-        &self.0
-    }
-}
-
-impl Default for TempDir {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Drop for TempDir {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
+pub use manavault_core::testing::TempDir;
 
 /// A test application over a fresh database.
 pub struct TestApp {

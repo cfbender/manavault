@@ -99,18 +99,19 @@ b2b70d5). What replaced each dependency:
 - CI: the Elixir precommit job is replaced by a `Frontend` job
   (`mise run frontend:check`: lint, `vp fmt --check`, typecheck, React tests,
   build, `impeccable detect`).
-- Version source: `rust/crates/manavault-server/Cargo.toml` (bump.sh,
+- Version source: `rust/Cargo.toml` `[workspace.package]` (bump.sh,
   changelog.sh) and `package.json` (capacitor.yml, prepare-native-web.mjs,
   android/app/build.gradle) instead of `mix.exs`.
-- Tailwind `@source` scans `rust/crates/manavault-server/src/web` (the app
-  shell and login page HTML) instead of `lib/manavault_web`; the generated CSS
+- Tailwind `@source` scans `rust/crates/manavault-core/src/web` and
+  `rust/crates/manavault-server/src/web` (the app shell and login page HTML) instead of `lib/manavault_web`; the generated CSS
   is the same plus two utilities (`inline`, `static`). The Dockerfile copies
-  that directory instead of `lib/manavault_web/controllers`.
+  those directories instead of `lib/manavault_web/controllers`.
 - `codegen` dumps the schema with `manavault sdl` into
   `rust/target/graphql-schema.graphql`.
 - `scripts/token_backs.exs` → `scripts/token-backs.mjs` (Node, reads the local
   catalog with `node:sqlite`). `priv/repo/seeds.exs` (empty) and
   `scripts/seed_recommander_demo.exs` (a dev demo seed) were dropped.
-- The scanner test JPEG moved to `rust/crates/manavault-server/tests/fixtures`.
+- The scanner test JPEG moved to `rust/crates/manavault-system/tests/fixtures`
+  and the v1.0.0 database dump to `rust/crates/manavault-core/tests/fixtures`.
 - Parity harness: checks out the Elixir app as a git worktree of `ELIXIR_REF`
   (default b2b70d5) and builds it with that commit's pinned toolchain.

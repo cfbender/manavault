@@ -669,7 +669,7 @@ mod auth_controller {
     #[tokio::test]
     async fn login_renders_and_redirects_only_to_safe_local_destinations() {
         let app = TestApp::with_config(with_password("secret")).await;
-        for (label, return_to, expected) in crate::web::return_path::tests::CASES {
+        for (label, return_to, expected) in manavault_core::testing::RETURN_PATH_CASES {
             let query = url::form_urlencoded::Serializer::new(String::new())
                 .append_pair("return_to", return_to)
                 .finish();
@@ -1297,7 +1297,7 @@ mod scanner {
     fn frame() -> Vec<u8> {
         std::fs::read(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/tests/fixtures/scanner-frame.jpg"
+            "/../manavault-system/tests/fixtures/scanner-frame.jpg"
         ))
         .unwrap()
     }

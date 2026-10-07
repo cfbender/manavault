@@ -61,7 +61,8 @@ COPY vite.config.ts codegen.ts capacitor.config.json ./
 COPY assets assets
 COPY priv/static priv/static
 # assets/css/app.css also scans the server-rendered HTML (app shell and login
-# page, written in the Rust web module) for class names.
+# page, written in the Rust web modules) for class names.
+COPY rust/crates/manavault-core/src/web rust/crates/manavault-core/src/web
 COPY rust/crates/manavault-server/src/web rust/crates/manavault-server/src/web
 
 # Minified CSS, the Vite bundle, and gzip siblings for compressible extensions

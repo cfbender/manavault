@@ -96,18 +96,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "async-compression"
-version = "0.4.50"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee19bd99b43e3691acbad4e840420a4881cea6c0b66a208125a824f8fd53f5a1"
-dependencies = [
- "compression-codecs",
- "compression-core",
- "pin-project-lite",
- "tokio",
-]
-
-[[package]]
 name = "async-graphql"
 version = "7.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -138,23 +126,6 @@ dependencies = [
  "static_assertions_next",
  "tempfile",
  "thiserror",
-]
-
-[[package]]
-name = "async-graphql-axum"
-version = "7.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1e37c5532e4b686acf45e7162bc93da91fc2c702fb0d465efc2c20c8f973795"
-dependencies = [
- "async-graphql",
- "axum",
- "bytes",
- "futures-util",
- "serde_json",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "tower-service",
 ]
 
 [[package]]
@@ -327,29 +298,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "axum-extra"
-version = "0.10.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9963ff19f40c6102c76756ef0a46004c0d58957d87259fc9208ff8441c12ab96"
-dependencies = [
- "axum",
- "axum-core",
- "bytes",
- "cookie",
- "futures-util",
- "http",
- "http-body",
- "http-body-util",
- "mime",
- "pin-project-lite",
- "rustversion",
- "serde_core",
- "tower-layer",
- "tower-service",
- "tracing",
-]
-
-[[package]]
 name = "axum-macros"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -502,40 +450,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d7b894f5411737b7867f4827955924d7c254fc9f4d91a6aad6b097804b1018b"
 
 [[package]]
-name = "compression-codecs"
-version = "0.4.45"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "98fc98460ba0ad5317075d3632b8dfc45d0be8c4a49347c2a38272019717614a"
-dependencies = [
- "compression-core",
- "flate2",
- "memchr",
-]
-
-[[package]]
-name = "compression-core"
-version = "0.4.33"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e8ccc4ea9f6acc32d102c0f6d471d11d913ad15f20c04de743374861fa1d414"
-
-[[package]]
 name = "concurrent-queue"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ca0197aee26d1ae37445ee532fefce43251d24cc7c166799f4d46817f1d3973"
 dependencies = [
  "crossbeam-utils",
-]
-
-[[package]]
-name = "cookie"
-version = "0.18.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a373e3602691c3cdea496d2f0ee5935151e6168fe87739483c463db1b2f2f87"
-dependencies = [
- "percent-encoding",
- "time",
- "version_check",
 ]
 
 [[package]]
@@ -637,27 +557,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce6e4c961d6cd6c9a86db418387425e8bdeaf05b3c8bc1411e6dca4c252f1453"
 dependencies = [
  "hybrid-array",
-]
-
-[[package]]
-name = "csv"
-version = "1.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "52cd9d68cf7efc6ddfaaee42e7288d3a99d613d4b50f76ce9827ae0c6e14f938"
-dependencies = [
- "csv-core",
- "itoa",
- "ryu",
- "serde_core",
-]
-
-[[package]]
-name = "csv-core"
-version = "0.1.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "704a3c26996a80471189265814dbc2c257598b96b8a7feae2d31ace646bb9782"
-dependencies = [
- "memchr",
 ]
 
 [[package]]
@@ -1300,12 +1199,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "http-range-header"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9171a2ea8a68358193d15dd5d70c1c10a2afc3e7e4c5bc92bc9f025cebd7359c"
-
-[[package]]
 name = "httparse"
 version = "1.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1656,6 +1549,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4050469837a6ff301cd14c1f8f24f88549e6d548f24f64e2148eb0f72cebc51f"
 
 [[package]]
+name = "manavault-ai"
+version = "1.4.3"
+dependencies = [
+ "async-graphql",
+ "async-trait",
+ "lotus",
+ "manavault-catalog",
+ "manavault-collection",
+ "manavault-core",
+ "manavault-server",
+ "manavault-trade",
+ "regex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "wiremock",
+]
+
+[[package]]
 name = "manavault-allocation"
 version = "0.1.0"
 dependencies = [
@@ -1667,35 +1583,196 @@ dependencies = [
 ]
 
 [[package]]
-name = "manavault-server"
+name = "manavault-catalog"
+version = "1.4.3"
+dependencies = [
+ "async-graphql",
+ "async-trait",
+ "axum",
+ "bytes",
+ "flate2",
+ "futures-util",
+ "hex",
+ "lotus",
+ "manavault-core",
+ "manavault-server",
+ "pretty_assertions",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "url",
+ "wiremock",
+]
+
+[[package]]
+name = "manavault-collection"
+version = "1.4.3"
+dependencies = [
+ "async-graphql",
+ "async-trait",
+ "base64 0.22.1",
+ "lotus",
+ "manavault-allocation",
+ "manavault-catalog",
+ "manavault-core",
+ "manavault-server",
+ "pretty_assertions",
+ "rand 0.8.8",
+ "regex",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+ "wiremock",
+]
+
+[[package]]
+name = "manavault-core"
 version = "1.4.3"
 dependencies = [
  "aes-gcm",
  "async-graphql",
- "async-graphql-axum",
  "async-graphql-value",
  "async-trait",
  "axum",
- "axum-extra",
  "base64 0.22.1",
- "bytes",
- "csv",
- "flate2",
  "futures-util",
  "hex",
  "hmac 0.12.1",
- "http-body-util",
  "lotus",
- "manavault-allocation",
+ "manavault-server",
  "moka",
  "multer",
  "pbkdf2",
- "pretty_assertions",
  "rand 0.8.8",
+ "regex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "tower",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "wiremock",
+]
+
+[[package]]
+name = "manavault-deck-intel"
+version = "1.4.3"
+dependencies = [
+ "async-graphql",
+ "base64 0.22.1",
+ "lotus",
+ "manavault-allocation",
+ "manavault-catalog",
+ "manavault-collection",
+ "manavault-core",
+ "manavault-server",
+ "pretty_assertions",
+ "reqwest",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "wiremock",
+]
+
+[[package]]
+name = "manavault-server"
+version = "1.4.3"
+dependencies = [
+ "async-graphql",
+ "axum",
+ "base64 0.22.1",
+ "flate2",
+ "futures-util",
+ "hex",
+ "lotus",
+ "manavault-ai",
+ "manavault-catalog",
+ "manavault-collection",
+ "manavault-core",
+ "manavault-deck-intel",
+ "manavault-share",
+ "manavault-system",
+ "manavault-trade",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "tokio-tungstenite",
+ "tower",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "wiremock",
+]
+
+[[package]]
+name = "manavault-share"
+version = "1.4.3"
+dependencies = [
+ "async-graphql",
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "futures-util",
+ "hex",
+ "lotus",
+ "manavault-ai",
+ "manavault-allocation",
+ "manavault-catalog",
+ "manavault-collection",
+ "manavault-core",
+ "manavault-deck-intel",
+ "manavault-server",
+ "manavault-trade",
  "regex",
  "reqwest",
  "resvg",
  "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "url",
+ "wiremock",
+]
+
+[[package]]
+name = "manavault-system"
+version = "1.4.3"
+dependencies = [
+ "async-graphql",
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "bytes",
+ "flate2",
+ "futures-util",
+ "hex",
+ "manavault-core",
+ "manavault-server",
+ "reqwest",
  "serde_json",
  "sha1 0.10.7",
  "sha2 0.10.9",
@@ -1703,16 +1780,30 @@ dependencies = [
  "thiserror",
  "time",
  "tokio",
- "tokio-stream",
- "tokio-tungstenite",
- "tower",
- "tower-http",
  "tracing",
- "tracing-subscriber",
- "unicode-normalization",
  "url",
  "wiremock",
  "zip",
+]
+
+[[package]]
+name = "manavault-trade"
+version = "1.4.3"
+dependencies = [
+ "async-graphql",
+ "axum",
+ "base64 0.22.1",
+ "lotus",
+ "manavault-catalog",
+ "manavault-collection",
+ "manavault-core",
+ "manavault-server",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "wiremock",
 ]
 
 [[package]]
@@ -3153,7 +3244,6 @@ checksum = "494815d09bf52b5548659851081238f0ca39ff638363907596da739561c62c52"
 dependencies = [
  "bytes",
  "futures-core",
- "futures-io",
  "futures-sink",
  "libc",
  "pin-project-lite",
@@ -3212,26 +3302,15 @@ version = "0.6.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4cfcf7e2740e6fc6d4d688b4ef00650406bb94adf4731e43c096c3a19fe40840"
 dependencies = [
- "async-compression",
  "bitflags",
  "bytes",
- "futures-core",
  "futures-util",
  "http",
  "http-body",
- "http-body-util",
- "http-range-header",
- "httpdate",
- "mime",
- "mime_guess",
- "percent-encoding",
  "pin-project-lite",
- "tokio",
- "tokio-util",
  "tower",
  "tower-layer",
  "tower-service",
- "tracing",
  "url",
 ]
 
