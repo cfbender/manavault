@@ -13,7 +13,7 @@ path = "src/main.rs"
 
 [dependencies]
 aes-gcm = "0.10"
-async-graphql = { version = "7", default-features = false, features = ["playground", "tempfile"] }
+async-graphql = { version = "7", default-features = false, features = ["playground", "tempfile", "dataloader"] }
 async-graphql-axum = "7"
 async-trait = "0.1"
 axum = { version = "0.8", features = ["ws", "multipart", "macros"] }

@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT item.id AS \"id!\", item.scryfall_id AS \"scryfall_id!: ScryfallId\",\n                  item.back_scryfall_id AS \"back_scryfall_id?: ScryfallId\",\n                  item.quantity AS \"quantity!: Quantity\", item.finish AS \"finish!: Finish\"\n           FROM token_items AS item\n           JOIN scryfall_printings AS p ON p.scryfall_id = item.scryfall_id\n           JOIN scryfall_cards AS c ON c.oracle_id = p.oracle_id\n           LEFT JOIN scryfall_printings AS back ON back.scryfall_id = item.back_scryfall_id\n           LEFT JOIN scryfall_cards AS back_card ON back_card.oracle_id = back.oracle_id\n           WHERE ?1 = ''\n              OR c.normalized_name LIKE ?2 ESCAPE '\\'\n              OR back_card.normalized_name LIKE ?2 ESCAPE '\\'\n           ORDER BY c.name ASC, p.set_code ASC, p.collector_number ASC, item.id ASC",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "token_items",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "scryfall_id!: ScryfallId",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "token_items",
+            "name": "scryfall_id"
+          }
+        }
+      },
+      {
+        "name": "back_scryfall_id?: ScryfallId",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "token_items",
+            "name": "back_scryfall_id"
+          }
+        }
+      },
+      {
+        "name": "quantity!: Quantity",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "token_items",
+            "name": "quantity"
+          }
+        }
+      },
+      {
+        "name": "finish!: Finish",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "token_items",
+            "name": "finish"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "ebc4c40b69b5b4c120580ae45b0b6305a4e7bd9a6a26a1f8bf0f6ac24971606c"
+}

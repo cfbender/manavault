@@ -59,6 +59,9 @@ pub struct Config {
     pub allowed_origins: Option<Vec<String>>,
     pub scanner_bundle_source: ScannerBundleSource,
     pub scanner_corrections_token: Option<String>,
+    /// EDHREC's JSON host (`EDHREC_JSON_BASE_URL`, default
+    /// `https://json.edhrec.com`); tests point it at a mock server.
+    pub edhrec_json_base_url: String,
     pub scanner_bundle_dir: PathBuf,
     pub scryfall_cache_dir: PathBuf,
     pub scryfall_assets_dir: PathBuf,
@@ -266,6 +269,8 @@ impl Config {
             allowed_origins,
             scanner_bundle_source,
             scanner_corrections_token: non_blank("SCANNER_CORRECTIONS_TOKEN"),
+            edhrec_json_base_url: non_blank("EDHREC_JSON_BASE_URL")
+                .unwrap_or_else(|| crate::catalog::edhrec::DEFAULT_JSON_BASE_URL.to_owned()),
             static_dir,
             vite_dev_server: env == Env::Dev && !flag("MANAVAULT_VITE_DISABLED"),
             jobs_enabled: env != Env::Test && !flag("MANAVAULT_JOBS_DISABLED"),
@@ -313,6 +318,7 @@ impl Config {
             allowed_origins: None,
             scanner_bundle_source: ScannerBundleSource::Off,
             scanner_corrections_token: None,
+            edhrec_json_base_url: crate::catalog::edhrec::DEFAULT_JSON_BASE_URL.to_owned(),
             vite_dev_server: false,
             jobs_enabled: false,
             pool_size: 1,

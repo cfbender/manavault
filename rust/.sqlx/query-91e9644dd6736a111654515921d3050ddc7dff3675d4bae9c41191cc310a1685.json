@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!\", quantity AS \"quantity!: i64\" FROM token_items\n           WHERE scryfall_id = ?1 AND finish = ?2 AND back_scryfall_id IS ?3 LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "token_items",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "quantity!: i64",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "token_items",
+            "name": "quantity"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "91e9644dd6736a111654515921d3050ddc7dff3675d4bae9c41191cc310a1685"
+}

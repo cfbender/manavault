@@ -1,0 +1,33 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT item.scryfall_id AS \"scryfall_id!: ScryfallId\",\n                  COALESCE(SUM(item.quantity), 0) AS \"owned!: i64\"\n           FROM collection_items AS item\n           JOIN scryfall_printings AS p ON p.scryfall_id = item.scryfall_id\n           LEFT JOIN locations AS location ON location.id = item.location_id\n           WHERE p.oracle_id IN (SELECT value FROM json_each(?1))\n             AND (location.id IS NULL OR location.kind != 'list')\n           GROUP BY item.scryfall_id",
+  "describe": {
+    "columns": [
+      {
+        "name": "scryfall_id!: ScryfallId",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "scryfall_id"
+          }
+        }
+      },
+      {
+        "name": "owned!: i64",
+        "ordinal": 1,
+        "type_info": "Null",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "987c1725c2a3305da4a1f0d2487c0576f580a06591c2d1bb37796bc2ab40abac"
+}

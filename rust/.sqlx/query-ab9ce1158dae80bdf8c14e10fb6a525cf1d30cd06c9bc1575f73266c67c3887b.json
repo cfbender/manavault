@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT DISTINCT c.name AS \"name!\" FROM scryfall_cards AS c\n           WHERE (c.layout IS NULL OR c.layout NOT IN ('token', 'double_faced_token', 'emblem'))\n           ORDER BY c.name ASC",
+  "describe": {
+    "columns": [
+      {
+        "name": "name!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "name"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ab9ce1158dae80bdf8c14e10fb6a525cf1d30cd06c9bc1575f73266c67c3887b"
+}

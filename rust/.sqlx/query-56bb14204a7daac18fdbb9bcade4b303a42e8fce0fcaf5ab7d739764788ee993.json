@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!\", scryfall_id AS \"scryfall_id!: ScryfallId\",\n                  back_scryfall_id AS \"back_scryfall_id?: ScryfallId\",\n                  quantity AS \"quantity!: Quantity\", finish AS \"finish!: Finish\"\n           FROM token_items WHERE id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "token_items",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "scryfall_id!: ScryfallId",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "token_items",
+            "name": "scryfall_id"
+          }
+        }
+      },
+      {
+        "name": "back_scryfall_id?: ScryfallId",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "token_items",
+            "name": "back_scryfall_id"
+          }
+        }
+      },
+      {
+        "name": "quantity!: Quantity",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "token_items",
+            "name": "quantity"
+          }
+        }
+      },
+      {
+        "name": "finish!: Finish",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "token_items",
+            "name": "finish"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "56bb14204a7daac18fdbb9bcade4b303a42e8fce0fcaf5ab7d739764788ee993"
+}

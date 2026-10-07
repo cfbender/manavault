@@ -101,9 +101,11 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "fnv",
+ "futures-channel",
  "futures-util",
  "http",
  "indexmap",
+ "lru",
  "mime",
  "multer",
  "num-traits",
@@ -1461,6 +1463,15 @@ dependencies = [
  "tokio",
  "unicode-normalization",
  "url",
+]
+
+[[package]]
+name = "lru"
+version = "0.16.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f66e8d5d03f609abc3a39e6f08e4164ebf1447a732906d39eb9b99b7919ef39"
+dependencies = [
+ "hashbrown 0.16.1",
 ]
 
 [[package]]

@@ -1,0 +1,33 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT p.oracle_id AS \"oracle_id!: OracleId\", SUM(item.quantity) AS \"count!: i64\"\n           FROM token_items AS item JOIN scryfall_printings AS p ON p.scryfall_id = item.scryfall_id\n           WHERE p.oracle_id IN (SELECT value FROM json_each(?1))\n           GROUP BY p.oracle_id\n           UNION ALL\n           SELECT p.oracle_id AS \"oracle_id!: OracleId\", SUM(item.quantity) AS \"count!: i64\"\n           FROM token_items AS item JOIN scryfall_printings AS p ON p.scryfall_id = item.back_scryfall_id\n           WHERE p.oracle_id IN (SELECT value FROM json_each(?1))\n           GROUP BY p.oracle_id",
+  "describe": {
+    "columns": [
+      {
+        "name": "oracle_id!: OracleId",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "oracle_id"
+          }
+        }
+      },
+      {
+        "name": "count!: i64",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "85319a0abf62a04de40f69722a48276b6a60580fde9c6c3f4392d39b61c0f5a6"
+}

@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT DISTINCT c.name AS \"name!\", p.flavor_name AS \"flavor_name!\"\n           FROM scryfall_printings AS p JOIN scryfall_cards AS c ON c.oracle_id = p.oracle_id\n           WHERE (c.layout IS NULL OR c.layout NOT IN ('token', 'double_faced_token', 'emblem'))\n             AND p.flavor_name IS NOT NULL AND p.flavor_name != ''\n           ORDER BY c.name ASC, p.flavor_name ASC",
+  "describe": {
+    "columns": [
+      {
+        "name": "name!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "flavor_name!",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "flavor_name"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "2e9adab83673192eb0edc7ca548774435ce010b6b47449369ee21076b7a0e056"
+}

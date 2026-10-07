@@ -31,11 +31,15 @@ pub fn user_error(message: impl Into<String>) -> async_graphql::Error {
 
 #[derive(MergedObject, Default)]
 #[graphql(name = "RootQueryType")]
-pub struct Query(system::SystemQueries);
+pub struct Query(
+    system::SystemQueries,
+    crate::catalog::CardQueries,
+    crate::tokens::TokenQueries,
+);
 
 #[derive(MergedObject, Default)]
 #[graphql(name = "RootMutationType")]
-pub struct Mutation(system::SystemMutations);
+pub struct Mutation(system::SystemMutations, crate::tokens::TokenMutations);
 
 #[derive(MergedSubscription, Default)]
 #[graphql(name = "RootSubscriptionType")]
@@ -51,6 +55,7 @@ pub fn build_schema(state: AppState) -> AppSchema {
         Mutation::default(),
         Subscription::default(),
     )
+    .data(crate::catalog::loader::data_loader(state.db.clone()))
     .data(state)
     .finish()
 }

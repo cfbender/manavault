@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO token_items (scryfall_id, back_scryfall_id, quantity, finish, inserted_at, updated_at)\n               VALUES (?1, ?2, ?3, ?4, ?5, ?5) RETURNING id AS \"id!\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "token_items",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "9c6dfbc6c2f8720f5fd33ab06d443ec51b2b49e96e6b1d67e6d0dc4b39821b40"
+}

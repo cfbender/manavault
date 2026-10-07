@@ -15,6 +15,7 @@ pub mod logs;
 pub mod pricing;
 pub mod state;
 pub mod timefmt;
+pub mod tokens;
 pub mod web;
 
 #[cfg(test)]

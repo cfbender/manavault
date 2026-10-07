@@ -142,7 +142,9 @@ pub async fn body_text(response: Response<Body>) -> String {
 pub mod fixtures {
     use serde_json::{Value, json};
 
-    fn merge(mut base: Value, overrides: Value) -> Value {
+    /// Shallow-merges `overrides` into `base` (`Map.merge/2`).
+    #[must_use]
+    pub fn merge(mut base: Value, overrides: Value) -> Value {
         if let (Some(base), Value::Object(overrides)) = (base.as_object_mut(), overrides) {
             for (key, value) in overrides {
                 base.insert(key, value);
@@ -238,6 +240,30 @@ pub mod fixtures {
             "finishes": ["nonfoil"],
             "released_at": "1993-08-05"
         })
+    }
+
+    /// `legal_commander_card/0`.
+    #[must_use]
+    pub fn legal_commander_card() -> Value {
+        merge(
+            time_walk(),
+            json!({
+                "id": "scryfall-printing-test-commander",
+                "oracle_id": "oracle-test-commander",
+                "name": "Test Commander",
+                "type_line": "Legendary Creature — Cat",
+                "colors": ["W"],
+                "color_identity": ["W"],
+                "legalities": {"commander": "legal"},
+                "set": "tst",
+                "set_name": "Test Set",
+                "collector_number": "1",
+                "lang": "en",
+                "finishes": ["nonfoil"],
+                "prices": {},
+                "released_at": "2026-01-01"
+            }),
+        )
     }
 
     /// A card with overrides applied to `black_lotus/0`.

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE token_items SET quantity = ?1, finish = ?2, updated_at = ?3 WHERE id = ?4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "7f31fa8162a9caa51c80be474fe69a8611577e959b1af5f6b82ea19c7ff4200a"
+}
