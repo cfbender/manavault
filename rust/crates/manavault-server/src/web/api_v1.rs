@@ -14,6 +14,7 @@ use axum::response::{IntoResponse, Response};
 
 use super::WebState;
 use manavault_core::state::AppState;
+use manavault_core::timestamp::Timestamp;
 use manavault_core::web::client_ip;
 use manavault_core::web::rate_limit::Admission;
 
@@ -106,7 +107,7 @@ struct ApiDeck {
     name: String,
     public_share_url: Option<String>,
     publicly_shared: bool,
-    updated_at: String,
+    updated_at: Timestamp,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -168,7 +169,7 @@ async fn deck_index(
                 name: deck.name,
                 publicly_shared: public_share_url.is_some(),
                 public_share_url,
-                updated_at: manavault_core::timefmt::iso8601(&deck.updated_at),
+                updated_at: deck.updated_at,
             }
         })
         .collect();

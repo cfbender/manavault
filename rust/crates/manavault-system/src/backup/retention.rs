@@ -7,8 +7,6 @@ use super::Remote;
 fn sort_key(remote: &Remote) -> i128 {
     remote
         .modified_at
-        .as_deref()
-        .and_then(manavault_core::timefmt::parse)
         .map_or(-1, |at| at.unix_timestamp_nanos() / 1000)
 }
 
@@ -75,7 +73,7 @@ mod tests {
             name: name.into(),
             provider: "s3".into(),
             size: Some(1),
-            modified_at: Some(modified_at.into()),
+            modified_at: manavault_core::timestamp::parse(modified_at),
         }
     }
 

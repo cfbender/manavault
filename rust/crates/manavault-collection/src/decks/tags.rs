@@ -11,7 +11,7 @@ use crate::decks::validation::{
     self, BLANK, Change, TAKEN, ValidationError, cast_string, greater_than, hex_color, length,
 };
 use manavault_core::db;
-use manavault_core::timefmt;
+use manavault_core::timestamp::Timestamp;
 
 /// The color of a tag created without one (`@default_color`).
 pub const DEFAULT_COLOR: &str = "#7C5CFF";
@@ -140,7 +140,7 @@ pub async fn create_deck_tag(
     .fetch_one(pool)
     .await?;
     let values = validate_tag(None, changes, next.map_or(0, |max| max + 1))?;
-    let now = timefmt::now();
+    let now = Timestamp::now();
     let id = sqlx::query_scalar!(
         r#"INSERT INTO deck_tags (deck_id, name, color, target_count, position, inserted_at, updated_at)
            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6) RETURNING id AS "id!""#,
@@ -176,7 +176,7 @@ pub async fn update_deck_tag(
         position: tag.position,
     };
     let values = validate_tag(Some(&current), changes, tag.position)?;
-    let now = timefmt::now();
+    let now = Timestamp::now();
     sqlx::query!(
         "UPDATE deck_tags SET name = ?2, color = ?3, target_count = ?4, position = ?5, updated_at = ?6 WHERE id = ?1",
         id,
@@ -254,7 +254,7 @@ pub async fn assign_deck_card_tag(
     if card_deck != tag_deck {
         return Err(DeckError::Code("deck_mismatch"));
     }
-    let now = timefmt::now();
+    let now = Timestamp::now();
     sqlx::query!(
         r#"INSERT INTO deck_card_tags (deck_card_id, deck_tag_id, deck_id, inserted_at, updated_at)
            VALUES (?1, ?2, ?3, ?4, ?4)
@@ -350,7 +350,7 @@ pub async fn replace_default_deck_tags(
     sqlx::query!("DELETE FROM default_deck_tags")
         .execute(&mut *tx)
         .await?;
-    let now = timefmt::now();
+    let now = Timestamp::now();
     for (index, entry) in entries.iter().enumerate() {
         let changes = DeckTagChanges {
             name: Some(Some(entry.name.clone())),
@@ -391,7 +391,7 @@ pub async fn seed_deck_default_tags(
     conn: &mut SqliteConnection,
     deck_id: DeckId,
 ) -> Result<(), sqlx::Error> {
-    let now = timefmt::now();
+    let now = Timestamp::now();
     sqlx::query!(
         r#"INSERT INTO deck_tags (deck_id, name, color, target_count, position, inserted_at, updated_at)
            SELECT ?1, name, color, target_count, position, ?2, ?2

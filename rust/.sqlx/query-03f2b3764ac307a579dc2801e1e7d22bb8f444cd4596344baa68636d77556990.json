@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT l.id AS \"id!\", l.name AS \"name!\",\n                 l.kind AS \"kind!: crate::collection::location::LocationKind\",\n                 l.description AS \"description?\",\n                 l.cover_scryfall_id AS \"cover_scryfall_id?: lotus::ScryfallId\",\n                 l.inserted_at AS \"inserted_at!\", l.updated_at AS \"updated_at!\"\n               FROM locations AS l ORDER BY l.name ASC",
+  "query": "SELECT l.id AS \"id!\", l.name AS \"name!\",\n                 l.kind AS \"kind!: crate::collection::location::LocationKind\",\n                 l.description AS \"description?\",\n                 l.cover_scryfall_id AS \"cover_scryfall_id?: lotus::ScryfallId\",\n                 l.inserted_at AS \"inserted_at!: manavault_core::timestamp::Timestamp\",\n                 l.updated_at AS \"updated_at!: manavault_core::timestamp::Timestamp\"\n               FROM locations AS l ORDER BY l.name ASC",
   "describe": {
     "columns": [
       {
@@ -59,7 +59,7 @@
         }
       },
       {
-        "name": "inserted_at!",
+        "name": "inserted_at!: manavault_core::timestamp::Timestamp",
         "ordinal": 5,
         "type_info": "Text",
         "origin": {
@@ -70,7 +70,7 @@
         }
       },
       {
-        "name": "updated_at!",
+        "name": "updated_at!: manavault_core::timestamp::Timestamp",
         "ordinal": 6,
         "type_info": "Text",
         "origin": {
@@ -94,5 +94,5 @@
       false
     ]
   },
-  "hash": "2cea32ba3bb64fdfbe60a75a00f2a666336475835e430e517288b6765d597587"
+  "hash": "03f2b3764ac307a579dc2801e1e7d22bb8f444cd4596344baa68636d77556990"
 }

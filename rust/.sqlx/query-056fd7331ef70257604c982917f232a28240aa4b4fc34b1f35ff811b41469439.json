@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "UPDATE api_keys SET last_used_at = ?1, updated_at = ?1 WHERE token_hash = ?2\n         RETURNING id, name, prefix, last_used_at, inserted_at",
+  "query": "DELETE FROM api_keys WHERE id = ?1\n           RETURNING id, name, prefix, last_used_at AS \"last_used_at: Timestamp\",\n             inserted_at AS \"inserted_at!: Timestamp\"",
   "describe": {
     "columns": [
       {
@@ -37,7 +37,7 @@
         }
       },
       {
-        "name": "last_used_at",
+        "name": "last_used_at: Timestamp",
         "ordinal": 3,
         "type_info": "Text",
         "origin": {
@@ -48,7 +48,7 @@
         }
       },
       {
-        "name": "inserted_at",
+        "name": "inserted_at!: Timestamp",
         "ordinal": 4,
         "type_info": "Text",
         "origin": {
@@ -60,7 +60,7 @@
       }
     ],
     "parameters": {
-      "Right": 2
+      "Right": 1
     },
     "nullable": [
       false,
@@ -70,5 +70,5 @@
       false
     ]
   },
-  "hash": "96b10bcff2ad0c75ed6a280f48796d965531f41692c1930b88b6c5205be44f52"
+  "hash": "056fd7331ef70257604c982917f232a28240aa4b4fc34b1f35ff811b41469439"
 }

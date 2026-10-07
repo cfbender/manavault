@@ -13,7 +13,7 @@ use super::settings::{self, CloudSettings, Provider, Status};
 use super::{Remote, retention};
 use manavault_core::config::Config;
 use manavault_core::state::AppState;
-use manavault_core::timefmt;
+use manavault_core::timestamp::Timestamp;
 
 const CHOOSE_PROVIDER: &str = "Choose Google Drive or S3 before running cloud backups.";
 const STAGED: &str = "Restore is staged. Restart ManaVault to apply it.";
@@ -112,14 +112,14 @@ pub async fn run_backup(state: &AppState) -> Result<Remote, String> {
     let result = backup_steps(state, &settings).await;
     let status = match &result {
         Ok((remote, deleted)) => Status {
-            last_backup_at: Some(timefmt::now()),
+            last_backup_at: Some(Timestamp::now()),
             last_backup_status: Some("ok".to_owned()),
             last_backup_message: Some(backup_message(remote, *deleted)),
             last_backup_path: Some(remote.id.clone()),
             ..Status::default()
         },
         Err(message) => Status {
-            last_backup_at: Some(timefmt::now()),
+            last_backup_at: Some(Timestamp::now()),
             last_backup_status: Some("error".to_owned()),
             last_backup_message: Some(message.clone()),
             ..Status::default()
@@ -170,14 +170,14 @@ pub async fn stage_restore(state: &AppState, remote_id: &str) -> Result<RestoreR
     let path = destination.display().to_string();
     let status = match &result {
         Ok(()) => Status {
-            last_restore_at: Some(timefmt::now()),
+            last_restore_at: Some(Timestamp::now()),
             last_restore_status: Some("pending_restart".to_owned()),
             last_restore_message: Some(STAGED.to_owned()),
             pending_restore_path: Some(path.clone()),
             ..Status::default()
         },
         Err(message) => Status {
-            last_restore_at: Some(timefmt::now()),
+            last_restore_at: Some(Timestamp::now()),
             last_restore_status: Some("error".to_owned()),
             last_restore_message: Some(message.clone()),
             ..Status::default()
@@ -409,8 +409,8 @@ mod tests {
         let listed = list_backups(&app.state).await.unwrap();
         assert_eq!(listed[0].size, Some(42));
         assert_eq!(
-            listed[0].modified_at.as_deref(),
-            Some("2026-06-27T03:00:00.123Z")
+            listed[0].modified_at,
+            manavault_core::timestamp::parse("2026-06-27T03:00:00.123Z")
         );
 
         let staged = stage_restore(&app.state, "file-1").await.unwrap();

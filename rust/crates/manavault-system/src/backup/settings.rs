@@ -7,7 +7,7 @@ use async_graphql::{InputObject, MaybeUndefined};
 
 use super::cron::Schedule;
 use manavault_core::state::AppState;
-use manavault_core::timefmt;
+use manavault_core::timestamp::Timestamp;
 use manavault_core::validation::{BLANK, INVALID, ValidationError};
 
 const SINGLETON_ID: i64 = 1;
@@ -60,11 +60,11 @@ pub struct CloudSettings {
     pub google_client_secret: Option<String>,
     pub google_refresh_token: Option<String>,
     pub google_folder_id: Option<String>,
-    pub last_backup_at: Option<String>,
+    pub last_backup_at: Option<Timestamp>,
     pub last_backup_status: Option<String>,
     pub last_backup_message: Option<String>,
     pub last_backup_path: Option<String>,
-    pub last_restore_at: Option<String>,
+    pub last_restore_at: Option<Timestamp>,
     pub last_restore_status: Option<String>,
     pub last_restore_message: Option<String>,
     pub pending_restore_path: Option<String>,
@@ -116,7 +116,7 @@ pub fn present(value: Option<&str>) -> bool {
 
 /// Loads the row, inserting the defaults when missing (`Settings.get!/0`).
 pub async fn get(state: &AppState) -> Result<CloudSettings, sqlx::Error> {
-    let now = timefmt::now();
+    let now = Timestamp::now();
     sqlx::query!(
         "INSERT INTO backup_settings (id, enabled, provider, cron, inserted_at, updated_at)
          VALUES (?1, 0, 'none', '0 3 * * *', ?2, ?2) ON CONFLICT(id) DO NOTHING",
@@ -129,8 +129,10 @@ pub async fn get(state: &AppState) -> Result<CloudSettings, sqlx::Error> {
         r#"SELECT id AS "id!", enabled AS "enabled: bool", provider, cron, retention_count,
              s3_endpoint, s3_bucket, s3_region, s3_prefix, s3_access_key_id, s3_secret_access_key,
              google_client_id, google_client_secret, google_refresh_token, google_folder_id,
-             last_backup_at, last_backup_status, last_backup_message, last_backup_path,
-             last_restore_at, last_restore_status, last_restore_message, pending_restore_path
+             last_backup_at AS "last_backup_at: Timestamp", last_backup_status,
+             last_backup_message, last_backup_path,
+             last_restore_at AS "last_restore_at: Timestamp", last_restore_status,
+             last_restore_message, pending_restore_path
            FROM backup_settings WHERE id = ?1"#,
         SINGLETON_ID
     )
@@ -323,7 +325,7 @@ pub async fn update(
         encrypt(&settings.google_client_secret),
         encrypt(&settings.google_refresh_token),
     );
-    let now = timefmt::now();
+    let now = Timestamp::now();
     sqlx::query!(
         "UPDATE backup_settings SET enabled = ?1, provider = ?2, cron = ?3, retention_count = ?4,
            s3_endpoint = ?5, s3_bucket = ?6, s3_region = ?7, s3_prefix = ?8, s3_access_key_id = ?9,
@@ -355,11 +357,11 @@ pub async fn update(
 /// A status change (`Settings.update_status/1`); `None` fields are left alone.
 #[derive(Debug, Clone, Default)]
 pub struct Status {
-    pub last_backup_at: Option<String>,
+    pub last_backup_at: Option<Timestamp>,
     pub last_backup_status: Option<String>,
     pub last_backup_message: Option<String>,
     pub last_backup_path: Option<String>,
-    pub last_restore_at: Option<String>,
+    pub last_restore_at: Option<Timestamp>,
     pub last_restore_status: Option<String>,
     pub last_restore_message: Option<String>,
     pub pending_restore_path: Option<String>,
@@ -368,7 +370,7 @@ pub struct Status {
 /// Records a backup or restore outcome.
 pub async fn update_status(state: &AppState, status: Status) -> Result<(), sqlx::Error> {
     get(state).await?;
-    let now = timefmt::now();
+    let now = Timestamp::now();
     sqlx::query!(
         "UPDATE backup_settings SET
            last_backup_at = coalesce(?1, last_backup_at),

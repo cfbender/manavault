@@ -59,9 +59,8 @@ fn strings(values: &[&str]) -> Option<Vec<String>> {
 
 /// Marks an item's last move as older than the 30-day debounce.
 async fn age_location_change(app: &TestApp, id: i64) {
-    let stale = manavault_core::timefmt::utc_seconds(
-        time::OffsetDateTime::now_utc() - time::Duration::days(31),
-    );
+    let stale =
+        (manavault_core::timestamp::Timestamp::now() - time::Duration::days(31)).to_string();
     set_item_column(app, id, "location_changed_at", &stale).await;
 }
 

@@ -6,7 +6,7 @@ use async_graphql::{Context, ErrorExtensions, ID, Object, SimpleObject};
 use super::settings::{self, BackupSettingsInput, CloudSettings, UpdateError, present};
 use super::{Remote, cloud};
 use manavault_core::graphql::{state, user_error};
-use manavault_core::timefmt;
+use manavault_core::timestamp::Timestamp;
 
 type GqlResult<T> = async_graphql::Result<T>;
 
@@ -57,11 +57,11 @@ impl From<CloudSettings> for BackupSettingsObject {
             s3_access_key_id: settings.s3_access_key_id,
             google_client_id: settings.google_client_id,
             google_folder_id: settings.google_folder_id,
-            last_backup_at: settings.last_backup_at.as_deref().map(timefmt::iso8601),
+            last_backup_at: settings.last_backup_at.map(|at| at.to_string()),
             last_backup_status: settings.last_backup_status,
             last_backup_message: settings.last_backup_message,
             last_backup_path: settings.last_backup_path,
-            last_restore_at: settings.last_restore_at.as_deref().map(timefmt::iso8601),
+            last_restore_at: settings.last_restore_at.map(|at| at.to_string()),
             last_restore_status: settings.last_restore_status,
             last_restore_message: settings.last_restore_message,
             pending_restore_path: settings.pending_restore_path,
@@ -85,7 +85,7 @@ impl From<Remote> for CloudBackup {
             name: remote.name,
             provider: remote.provider,
             size: remote.size,
-            modified_at: remote.modified_at,
+            modified_at: remote.modified_at.map(|at| Timestamp::from(at).to_string()),
         }
     }
 }
@@ -170,7 +170,7 @@ impl BackupMutations {
                 name: Some(remote.name),
                 provider: Some(remote.provider),
                 size: remote.size,
-                modified_at: remote.modified_at,
+                modified_at: remote.modified_at.map(|at| Timestamp::from(at).to_string()),
                 status: "ok".to_owned(),
                 message: "Backup uploaded.".to_owned(),
             }),

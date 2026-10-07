@@ -15,6 +15,7 @@ use super::worker;
 use crate::test_app::TestApp;
 use crate::testing::fixtures;
 use manavault_core::jobs::Worker as _;
+use manavault_core::timestamp::Timestamp;
 
 fn merge(mut base: Value, overrides: Value) -> Value {
     if let (Some(base), Value::Object(overrides)) = (base.as_object_mut(), overrides) {
@@ -1928,10 +1929,10 @@ async fn a_forced_reload_upgrades_a_queued_periodic_job() {
 #[tokio::test]
 async fn periodic_catalog_jobs_skip_a_fresh_successful_sync() {
     let app = TestApp::new().await;
-    let now = manavault_core::timefmt::now();
+    let now = Timestamp::now();
     sqlx::query("INSERT INTO scryfall_syncs (status, bulk_type, started_at, completed_at, inserted_at, updated_at) VALUES ('succeeded', ?1, ?2, ?2, ?2, ?2)")
         .bind(sync::BULK_TYPE)
-        .bind(&now)
+        .bind(now)
         .execute(app.db())
         .await
         .unwrap();
@@ -1960,8 +1961,8 @@ fn syncs_from_older_importers_or_over_a_day_old_are_stale() {
         status: SyncStatus::Succeeded,
         bulk_type: sync::BULK_TYPE.to_owned(),
         bulk_uri: None,
-        started_at: manavault_core::timefmt::utc_seconds(now),
-        completed_at: Some(manavault_core::timefmt::utc_seconds(now)),
+        started_at: Timestamp::from(now),
+        completed_at: Some(Timestamp::from(now)),
         cards_count: 0,
         printings_count: 0,
         error: None,
@@ -1974,7 +1975,7 @@ fn syncs_from_older_importers_or_over_a_day_old_are_stale() {
     assert!(worker::stale(Some(&older), now));
     let day_old = now - Duration::from_secs(24 * 3600);
     let at = |time| SyncRecord {
-        completed_at: Some(manavault_core::timefmt::utc_seconds(time)),
+        completed_at: Some(Timestamp::from(time)),
         ..fresh.clone()
     };
     assert!(worker::stale(Some(&at(day_old)), now));

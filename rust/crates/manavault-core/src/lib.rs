@@ -12,7 +12,7 @@ pub mod logs;
 pub mod pricing;
 pub mod settings;
 pub mod state;
-pub mod timefmt;
+pub mod timestamp;
 pub mod validation;
 pub mod web;
 

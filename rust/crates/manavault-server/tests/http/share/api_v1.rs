@@ -83,7 +83,7 @@ async fn lists_the_owners_decks_with_a_stable_shape_and_pagination() {
             "updated_at": updated_at,
         })
     );
-    assert!(updated_at.ends_with('Z') && manavault_core::timefmt::parse(&updated_at).is_some());
+    assert!(updated_at.ends_with('Z') && manavault_core::timestamp::parse(&updated_at).is_some());
     assert!(!first.text().contains("attacker.example"));
     let used = manavault_core::api_keys::authenticate(app.db(), &secret)
         .await

@@ -14,7 +14,7 @@ use crate::validation::{BLANK, INVALID, ValidationError, too_long};
 
 type GqlResult<T> = async_graphql::Result<T>;
 use crate::state::AppState;
-use crate::timefmt;
+use crate::timestamp::Timestamp;
 
 const SINGLETON_ID: i64 = 1;
 const PROVIDERS: [&str; 1] = ["openrouter"];
@@ -41,7 +41,7 @@ impl AiSettings {
 /// Loads the singleton row, creating the default row when missing
 /// (`UpdateSettings.settings/0`).
 pub async fn settings(state: &AppState) -> Result<AiSettings, sqlx::Error> {
-    let now = timefmt::now();
+    let now = Timestamp::now();
     sqlx::query!(
         "INSERT INTO ai_settings (id, provider, inserted_at, updated_at) VALUES (?1, 'openrouter', ?2, ?2)
          ON CONFLICT(id) DO NOTHING",
@@ -145,7 +145,7 @@ pub async fn update(state: &AppState, input: AiSettingsInput) -> Result<AiSettin
         .api_key
         .as_deref()
         .and_then(|key| state.encrypt_secret(key));
-    let now = timefmt::now();
+    let now = Timestamp::now();
     sqlx::query!(
         "UPDATE ai_settings SET provider = ?1, api_key = ?2, model = ?3,
            deck_analysis_instructions = ?4, updated_at = ?5 WHERE id = ?6",

@@ -23,7 +23,7 @@ use time::OffsetDateTime;
 use tokio::sync::{Notify, Semaphore};
 
 use crate::state::AppState;
-use crate::timefmt;
+use crate::timestamp;
 
 /// Which fields make two jobs duplicates. Uniqueness only considers jobs
 /// that are queued or running.
@@ -271,8 +271,8 @@ impl Jobs {
         .bind(definition.queue())
         .bind(&args_text)
         .bind(definition.max_attempts())
-        .bind(timefmt::utc_micros(run_at))
-        .bind(timefmt::utc_micros(now))
+        .bind(timestamp::micros(run_at))
+        .bind(timestamp::micros(now))
         .fetch_one(&mut *tx)
         .await?;
         Ok(id)
@@ -335,13 +335,13 @@ impl Jobs {
     /// never returned) and prunes finished jobs older than a day.
     async fn maintain(&self) -> Result<(), sqlx::Error> {
         let now = OffsetDateTime::now_utc();
-        let stuck_before = timefmt::utc_micros(now - STUCK_AFTER);
+        let stuck_before = timestamp::micros(now - STUCK_AFTER);
         sqlx::query("UPDATE jobs SET state = 'queued', run_at = ?1 WHERE state = 'running' AND started_at < ?2")
-            .bind(timefmt::utc_micros(now))
+            .bind(timestamp::micros(now))
             .bind(&stuck_before)
             .execute(&self.pool)
             .await?;
-        let prune_before = timefmt::utc_micros(now - KEEP_FINISHED_FOR);
+        let prune_before = timestamp::micros(now - KEEP_FINISHED_FOR);
         sqlx::query(
             "DELETE FROM jobs WHERE state IN ('succeeded', 'failed', 'cancelled') AND finished_at < ?1",
         )
@@ -355,7 +355,7 @@ impl Jobs {
     /// process, so those jobs go straight back to the queue.
     async fn requeue_running(&self) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE jobs SET state = 'queued', run_at = ?1 WHERE state = 'running'")
-            .bind(timefmt::now_micros())
+            .bind(timestamp::now_micros())
             .execute(&self.pool)
             .await?;
         Ok(())
@@ -397,7 +397,7 @@ impl Jobs {
 
     /// Marks up to `limit` due jobs of `queue` running and returns them.
     async fn claim(&self, queue: &str, limit: usize) -> Result<Vec<Job>, sqlx::Error> {
-        let now = timefmt::now_micros();
+        let now = timestamp::now_micros();
         // The statement reads before it writes, so take the write lock up
         // front rather than fail upgrading it.
         let mut tx = crate::db::begin_write(&self.pool).await?;
@@ -455,7 +455,7 @@ impl Jobs {
             let _ = sqlx::query(
                 "UPDATE jobs SET run_at = ?1 WHERE state = 'queued' AND queue = ?2 AND run_at > ?1",
             )
-            .bind(timefmt::now_micros())
+            .bind(timestamp::now_micros())
             .bind(queue)
             .execute(&self.pool)
             .await;
@@ -475,7 +475,7 @@ impl Jobs {
     }
 
     async fn record(&self, job: &Job, outcome: &Outcome) -> Result<(), sqlx::Error> {
-        let now = timefmt::now_micros();
+        let now = timestamp::now_micros();
         match outcome {
             Outcome::Done => {
                 sqlx::query("UPDATE jobs SET state = 'succeeded', finished_at = ?1 WHERE id = ?2")
@@ -527,7 +527,7 @@ impl Jobs {
                     sqlx::query(
                         "UPDATE jobs SET state = 'queued', run_at = ?1, last_error = ?2 WHERE id = ?3",
                     )
-                    .bind(timefmt::utc_micros(OffsetDateTime::now_utc() + delay))
+                    .bind(timestamp::micros(OffsetDateTime::now_utc() + delay))
                     .bind(reason)
                     .bind(job.id)
                     .execute(&self.pool)

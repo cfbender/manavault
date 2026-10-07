@@ -10,6 +10,7 @@ use sqlx::{Sqlite, SqlitePool, Transaction};
 
 use crate::trade::binder::{self, BinderEntry};
 use crate::trade::want;
+use manavault_core::timestamp::Timestamp;
 
 /// How many fresh tokens a rotation tries before giving up.
 const SHARE_TOKEN_ATTEMPTS: u32 = 5;
@@ -66,7 +67,7 @@ async fn insert(
     kind: ShareKind,
     token: &str,
 ) -> Result<(), sqlx::Error> {
-    let now = manavault_core::timefmt::now();
+    let now = Timestamp::now();
     match kind {
         ShareKind::Wants => sqlx::query!(
             "INSERT INTO trade_want_shares (token, inserted_at, updated_at) VALUES (?1, ?2, ?2)",

@@ -11,7 +11,7 @@ use crate::decks::validation::{
 };
 use crate::decks::{DeckError, share_token, tags};
 use manavault_core::db;
-use manavault_core::timefmt;
+use manavault_core::timestamp::Timestamp;
 
 /// Deck attributes from `DeckInput` / `DeckUpdateInput` (`Deck.changeset/2`).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -36,7 +36,7 @@ struct DeckValues {
     included_for_play: bool,
     play_count: i64,
     skip_count: i64,
-    last_played_at: Option<String>,
+    last_played_at: Option<Timestamp>,
     primer: Option<String>,
     cover_deck_card_id: Option<DeckCardId>,
 }
@@ -89,10 +89,10 @@ fn validate(
         &changes.cover_deck_card_id,
     );
     let last_played_at = match &played_change {
-        None => current.and_then(|deck| deck.last_played_at.clone()),
+        None => current.and_then(|deck| deck.last_played_at),
         Some(None) => None,
         Some(Some(text)) => {
-            let parsed = timefmt::parse(text).map(timefmt::utc_seconds);
+            let parsed = Timestamp::parse(text);
             if parsed.is_none() {
                 errors.add("last_played_at", INVALID);
             }
@@ -164,7 +164,7 @@ pub async fn get_deck(pool: &SqlitePool, id: DeckId) -> Result<DeckRow, DeckErro
 pub async fn create_deck(pool: &SqlitePool, changes: &DeckChanges) -> Result<DeckRow, DeckError> {
     let values = validate(None, changes)?;
     let mut tx = db::begin_write(pool).await?;
-    let now = timefmt::now();
+    let now = Timestamp::now();
     let id = sqlx::query_scalar!(
         r#"INSERT INTO decks (name, format, status, included_for_play, play_count, skip_count,
                               last_played_at, primer, cover_deck_card_id, inserted_at, updated_at)
@@ -210,7 +210,7 @@ pub async fn update_deck(
             return Err(validation::error("cover_deck_card_id", "must belong to deck").into());
         }
     }
-    let now = timefmt::now();
+    let now = Timestamp::now();
     sqlx::query!(
         r#"UPDATE decks SET name = ?2, format = ?3, status = ?4, included_for_play = ?5,
                  play_count = ?6, skip_count = ?7, last_played_at = ?8, primer = ?9,
@@ -258,7 +258,7 @@ const SHARE_TOKEN_ATTEMPTS: usize = 5;
 async fn put_share_token(pool: &SqlitePool, id: DeckId) -> Result<DeckRow, DeckError> {
     for _ in 0..SHARE_TOKEN_ATTEMPTS {
         let token = share_token::generate();
-        let now = timefmt::now();
+        let now = Timestamp::now();
         match sqlx::query!(
             "UPDATE decks SET share_token = ?2, updated_at = ?3 WHERE id = ?1",
             id,
@@ -299,7 +299,7 @@ pub async fn rotate_share_token(pool: &SqlitePool, id: DeckId) -> Result<DeckRow
 /// `Decks.disable_deck_sharing/1`.
 pub async fn disable_sharing(pool: &SqlitePool, id: DeckId) -> Result<DeckRow, DeckError> {
     get_deck(pool, id).await?;
-    let now = timefmt::now();
+    let now = Timestamp::now();
     sqlx::query!(
         "UPDATE decks SET share_token = NULL, updated_at = ?2 WHERE id = ?1",
         id,
@@ -340,7 +340,7 @@ pub async fn record_play(
     if deck.status == DeckStatus::Archived {
         return Err(DeckError::Code("archived_deck"));
     }
-    let now = timefmt::now();
+    let now = Timestamp::now();
     match outcome {
         PlayOutcome::Played => {
             sqlx::query!(

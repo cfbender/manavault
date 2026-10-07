@@ -1661,7 +1661,7 @@ mod subscriptions {
         let event = &next["payload"]["data"]["serverLog"];
         assert_eq!(event["level"], "warning");
         assert_eq!(event["message"], json!(message));
-        assert!(manavault_core::timefmt::parse(event["timestamp"].as_str().unwrap()).is_some());
+        assert!(manavault_core::timestamp::parse(event["timestamp"].as_str().unwrap()).is_some());
 
         send(&mut client, json!({"type": "complete", "id": "logs"})).await;
         assert_eq!(

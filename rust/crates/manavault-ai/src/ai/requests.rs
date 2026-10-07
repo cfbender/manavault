@@ -4,7 +4,7 @@
 use sqlx::SqlitePool;
 
 use super::deck_analysis::result::valid_rating;
-use manavault_core::timefmt;
+use manavault_core::timestamp::Timestamp;
 use manavault_core::validation::{BLANK, INVALID, ValidationError, too_long};
 
 const DEFAULT_LIMIT: i64 = 50;
@@ -53,7 +53,7 @@ pub struct DeckAnalysisRequest {
     pub commander_bracket: Option<i64>,
     pub commander_bracket_estimate: Option<i64>,
     pub commander_bracket_rating: Option<String>,
-    pub inserted_at: String,
+    pub inserted_at: Timestamp,
 }
 
 /// A request to save.
@@ -134,7 +134,7 @@ pub async fn insert(
     request: &NewRequest,
 ) -> Result<DeckAnalysisRequest, InsertError> {
     validate(request).map_err(InsertError::Invalid)?;
-    let now = timefmt::now();
+    let now = Timestamp::now();
     let source_type = request.source_type.as_str();
     Ok(sqlx::query_as!(
         DeckAnalysisRequest,
@@ -143,7 +143,8 @@ pub async fn insert(
               commander_bracket_estimate, commander_bracket_rating, inserted_at)
            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
            RETURNING id AS "id!", source_type, source, source_name, format, analysis, model,
-             commander_bracket, commander_bracket_estimate, commander_bracket_rating, inserted_at"#,
+             commander_bracket, commander_bracket_estimate, commander_bracket_rating,
+             inserted_at AS "inserted_at!: Timestamp""#,
         source_type,
         request.source,
         request.source_name,
@@ -168,7 +169,8 @@ pub async fn list(
     sqlx::query_as!(
         DeckAnalysisRequest,
         r#"SELECT id AS "id!", source_type, source, source_name, format, analysis, model,
-             commander_bracket, commander_bracket_estimate, commander_bracket_rating, inserted_at
+             commander_bracket, commander_bracket_estimate, commander_bracket_rating,
+             inserted_at AS "inserted_at!: Timestamp"
            FROM deck_analysis_requests ORDER BY inserted_at DESC, id DESC LIMIT ?1"#,
         limit
     )

@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{SqliteConnection, SqlitePool};
 
 use crate::collection::queries::ValueTotals;
-use manavault_core::timefmt;
+use manavault_core::timestamp::Timestamp;
 use manavault_core::validation::{INVALID, ValidationError};
 
 /// What a location is (`@kinds`).
@@ -74,8 +74,8 @@ pub struct LocationRecord {
     pub kind: LocationKind,
     pub description: Option<String>,
     pub cover_scryfall_id: Option<ScryfallId>,
-    pub inserted_at: String,
-    pub updated_at: String,
+    pub inserted_at: Timestamp,
+    pub updated_at: Timestamp,
 }
 
 /// Selects `locations` rows aliased `l` into [`LocationRecord`]; the
@@ -89,7 +89,8 @@ macro_rules! location_query {
                  l.kind AS "kind!: crate::collection::location::LocationKind",
                  l.description AS "description?",
                  l.cover_scryfall_id AS "cover_scryfall_id?: lotus::ScryfallId",
-                 l.inserted_at AS "inserted_at!", l.updated_at AS "updated_at!"
+                 l.inserted_at AS "inserted_at!: manavault_core::timestamp::Timestamp",
+                 l.updated_at AS "updated_at!: manavault_core::timestamp::Timestamp"
                FROM locations AS l "# + $tail
             $(, $arg)*
         )
@@ -313,7 +314,7 @@ pub async fn create(
 ) -> Result<LocationRecord, LocationError> {
     let mut conn = pool.acquire().await?;
     let valid = validate(&mut conn, None, changes).await?;
-    let now = timefmt::now();
+    let now = Timestamp::now();
     let id = sqlx::query_scalar!(
         r#"INSERT INTO locations (name, kind, description, cover_scryfall_id, inserted_at, updated_at)
            VALUES (?1, ?2, ?3, ?4, ?5, ?5) RETURNING id AS "id!""#,
@@ -350,7 +351,7 @@ pub async fn update(
         && valid.cover_scryfall_id.as_deref()
             == current.cover_scryfall_id.as_ref().map(ScryfallId::as_str);
     if !unchanged {
-        let now = timefmt::now();
+        let now = Timestamp::now();
         sqlx::query!(
             "UPDATE locations SET name = ?1, kind = ?2, description = ?3, cover_scryfall_id = ?4, updated_at = ?5 WHERE id = ?6",
             valid.name,

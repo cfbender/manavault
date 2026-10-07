@@ -22,7 +22,7 @@ use manavault_catalog::catalog::printing::Printing;
 use manavault_catalog::catalog::search::printings::{PrintingFilters, search_printings};
 use manavault_catalog::catalog::sql::json_list;
 use manavault_catalog::pricing::PriceStore;
-use manavault_core::timefmt;
+use manavault_core::timestamp::Timestamp;
 use manavault_core::validation::{INVALID, ValidationError};
 use parse::{Format, ParseError};
 
@@ -526,7 +526,7 @@ async fn add_token(conn: &mut SqliteConnection, attrs: &ImportAttrs) -> Result<(
     if !errors.is_empty() {
         return Err(ImportError::Invalid(errors));
     }
-    let now = timefmt::now();
+    let now = Timestamp::now();
     if let Some(item) = existing {
         sqlx::query!(
             "UPDATE token_items SET quantity = ?1, updated_at = ?2 WHERE id = ?3",

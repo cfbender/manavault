@@ -6,7 +6,7 @@ use serde_json::Value;
 use sqlx::SqlitePool;
 
 use super::deck_question::SwapContext;
-use manavault_core::timefmt;
+use manavault_core::timestamp::Timestamp;
 use manavault_core::validation::{BLANK, ValidationError, too_long};
 
 /// `deck_question_answers.status`.
@@ -47,7 +47,7 @@ pub struct QuestionAnswer {
     pub thread_id: Option<String>,
     /// The names staged when a Swap cards question was asked, as JSON text.
     pub swap_context: Option<String>,
-    pub inserted_at: String,
+    pub inserted_at: Timestamp,
 }
 
 impl QuestionAnswer {
@@ -82,7 +82,7 @@ macro_rules! select_answers {
             QuestionAnswer,
             r#"SELECT id AS "id!", deck_id, question, answer, recommendations,
                  status AS "status: Status", error, model, conversation_id, thread_id,
-                 swap_context, inserted_at
+                 swap_context, inserted_at AS "inserted_at!: manavault_core::timestamp::Timestamp"
                FROM deck_question_answers "# + $tail
             $(, $arg)*
         )
@@ -189,7 +189,7 @@ pub async fn insert(
         attrs.thread_id.as_deref(),
     )
     .map_err(WriteError::Invalid)?;
-    let now = timefmt::now();
+    let now = Timestamp::now();
     let swap_context = attrs
         .swap_context
         .as_ref()

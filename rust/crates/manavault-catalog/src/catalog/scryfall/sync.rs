@@ -19,7 +19,7 @@ use crate::catalog::metrics::{commander_ranks, saltiness};
 use crate::catalog::scryfall::bulk::{self, BulkMetadata};
 use crate::catalog::scryfall::import::{self, ImportOptions, OracleTags};
 use manavault_core::state::AppState;
-use manavault_core::timefmt;
+use manavault_core::timestamp::Timestamp;
 
 /// `default_cards` bulk metadata.
 pub const BULK_METADATA_URL: &str = "https://api.scryfall.com/bulk-data/default-cards";
@@ -76,8 +76,8 @@ pub struct SyncRecord {
     pub status: SyncStatus,
     pub bulk_type: String,
     pub bulk_uri: Option<String>,
-    pub started_at: String,
-    pub completed_at: Option<String>,
+    pub started_at: Timestamp,
+    pub completed_at: Option<Timestamp>,
     pub cards_count: i64,
     pub printings_count: i64,
     pub error: Option<String>,
@@ -97,7 +97,8 @@ pub enum SyncError {
 pub async fn latest(pool: &SqlitePool) -> Result<Option<SyncRecord>, sqlx::Error> {
     sqlx::query_as!(
         SyncRecord,
-        r#"SELECT id AS "id!", status AS "status: SyncStatus", bulk_type, bulk_uri, started_at, completed_at,
+        r#"SELECT id AS "id!", status AS "status: SyncStatus", bulk_type, bulk_uri,
+                  started_at AS "started_at!: Timestamp", completed_at AS "completed_at: Timestamp",
                   cards_count, printings_count, error
            FROM scryfall_syncs ORDER BY started_at DESC, id DESC LIMIT 1"#
     )
@@ -108,7 +109,8 @@ pub async fn latest(pool: &SqlitePool) -> Result<Option<SyncRecord>, sqlx::Error
 async fn get(pool: &SqlitePool, id: i64) -> Result<SyncRecord, sqlx::Error> {
     sqlx::query_as!(
         SyncRecord,
-        r#"SELECT id AS "id!", status AS "status: SyncStatus", bulk_type, bulk_uri, started_at, completed_at,
+        r#"SELECT id AS "id!", status AS "status: SyncStatus", bulk_type, bulk_uri,
+                  started_at AS "started_at!: Timestamp", completed_at AS "completed_at: Timestamp",
                   cards_count, printings_count, error
            FROM scryfall_syncs WHERE id = ?1"#,
         id
@@ -192,7 +194,7 @@ pub async fn run(state: &AppState, options: &SyncOptions) -> Result<SyncRecord, 
     .fetch_optional(pool)
     .await?
     .is_none();
-    let now = timefmt::now();
+    let now = Timestamp::now();
     let sync_id = sqlx::query_scalar!(
         r#"INSERT INTO scryfall_syncs (status, bulk_type, started_at, cards_count, printings_count, inserted_at, updated_at)
            VALUES ('running', ?1, ?2, 0, 0, ?2, ?2) RETURNING id AS "id!""#,
@@ -205,7 +207,7 @@ pub async fn run(state: &AppState, options: &SyncOptions) -> Result<SyncRecord, 
     tracing::info!("Scryfall catalog sync started sync_id={sync_id}");
     match sync(state, options, sync_id, reconcile).await {
         Ok(outcome) => {
-            let completed = timefmt::now();
+            let completed = Timestamp::now();
             let cards = i64::try_from(outcome.cards_count).unwrap_or(i64::MAX);
             let printings = i64::try_from(outcome.printings_count).unwrap_or(i64::MAX);
             sqlx::query!(
@@ -229,7 +231,7 @@ pub async fn run(state: &AppState, options: &SyncOptions) -> Result<SyncRecord, 
         }
         Err(error) => {
             tracing::warn!("Scryfall catalog sync failed sync_id={sync_id} error={error}");
-            let completed = timefmt::now();
+            let completed = Timestamp::now();
             sqlx::query!(
                 "UPDATE scryfall_syncs SET status = 'failed', completed_at = ?1, error = ?2, updated_at = ?1 WHERE id = ?3",
                 completed,

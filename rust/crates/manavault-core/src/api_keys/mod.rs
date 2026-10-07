@@ -9,12 +9,11 @@ use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use sha2::{Digest, Sha256};
 use sqlx::SqlitePool;
-use time::macros::format_description;
 
 use crate::graphql::{state, user_error};
 
 type GqlResult<T> = async_graphql::Result<T>;
-use crate::timefmt;
+use crate::timestamp::Timestamp;
 use crate::validation::{BLANK, ValidationError, too_long};
 
 const TOKEN_PREFIX: &str = "mvk_";
@@ -27,8 +26,8 @@ pub struct ApiKey {
     pub id: i64,
     pub name: String,
     pub prefix: String,
-    pub last_used_at: Option<String>,
-    pub inserted_at: String,
+    pub last_used_at: Option<Timestamp>,
+    pub inserted_at: Timestamp,
 }
 
 /// `ApiKeys.hash/1`.
@@ -41,7 +40,8 @@ pub fn hash(token: &str) -> Vec<u8> {
 pub async fn list(db: &SqlitePool) -> Result<Vec<ApiKey>, sqlx::Error> {
     sqlx::query_as!(
         ApiKey,
-        "SELECT id, name, prefix, last_used_at, inserted_at FROM api_keys ORDER BY inserted_at DESC, id DESC"
+        r#"SELECT id, name, prefix, last_used_at AS "last_used_at: Timestamp", inserted_at AS "inserted_at!: Timestamp"
+           FROM api_keys ORDER BY inserted_at DESC, id DESC"#
     )
     .fetch_all(db)
     .await
@@ -73,12 +73,13 @@ pub async fn create(db: &SqlitePool, name: &str) -> Result<(ApiKey, String), Cre
     );
     let prefix: String = token.chars().take(DISPLAY_PREFIX_LENGTH).collect();
     let token_hash = hash(&token);
-    let now = timefmt::now();
+    let now = Timestamp::now();
     let key = sqlx::query_as!(
         ApiKey,
-        "INSERT INTO api_keys (name, prefix, token_hash, inserted_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?4)
-         RETURNING id, name, prefix, last_used_at, inserted_at",
+        r#"INSERT INTO api_keys (name, prefix, token_hash, inserted_at, updated_at)
+           VALUES (?1, ?2, ?3, ?4, ?4)
+           RETURNING id, name, prefix, last_used_at AS "last_used_at: Timestamp",
+             inserted_at AS "inserted_at!: Timestamp""#,
         name,
         prefix,
         token_hash,
@@ -95,11 +96,12 @@ pub async fn authenticate(db: &SqlitePool, token: &str) -> Result<Option<ApiKey>
         return Ok(None);
     }
     let token_hash = hash(token);
-    let now = timefmt::now();
+    let now = Timestamp::now();
     sqlx::query_as!(
         ApiKey,
-        "UPDATE api_keys SET last_used_at = ?1, updated_at = ?1 WHERE token_hash = ?2
-         RETURNING id, name, prefix, last_used_at, inserted_at",
+        r#"UPDATE api_keys SET last_used_at = ?1, updated_at = ?1 WHERE token_hash = ?2
+           RETURNING id, name, prefix, last_used_at AS "last_used_at: Timestamp",
+             inserted_at AS "inserted_at!: Timestamp""#,
         now,
         token_hash
     )
@@ -111,25 +113,13 @@ pub async fn authenticate(db: &SqlitePool, token: &str) -> Result<Option<ApiKey>
 pub async fn revoke(db: &SqlitePool, id: i64) -> Result<Option<ApiKey>, sqlx::Error> {
     sqlx::query_as!(
         ApiKey,
-        "DELETE FROM api_keys WHERE id = ?1 RETURNING id, name, prefix, last_used_at, inserted_at",
+        r#"DELETE FROM api_keys WHERE id = ?1
+           RETURNING id, name, prefix, last_used_at AS "last_used_at: Timestamp",
+             inserted_at AS "inserted_at!: Timestamp""#,
         id
     )
     .fetch_optional(db)
     .await
-}
-
-/// A `:utc_datetime` as Absinthe's `:string` scalar renders it
-/// (`String.Chars` for `DateTime`: `2026-10-07 07:30:43Z`).
-#[must_use]
-pub fn datetime_to_string(stored: &str) -> String {
-    timefmt::parse(stored)
-        .and_then(|at| {
-            at.format(format_description!(
-                "[year]-[month]-[day] [hour]:[minute]:[second]Z"
-            ))
-            .ok()
-        })
-        .unwrap_or_else(|| stored.to_owned())
 }
 
 #[derive(SimpleObject)]
@@ -148,8 +138,8 @@ impl From<ApiKey> for ApiKeyObject {
             id: ID(key.id.to_string()),
             name: key.name,
             prefix: key.prefix,
-            created_at: datetime_to_string(&key.inserted_at),
-            last_used_at: key.last_used_at.as_deref().map(datetime_to_string),
+            created_at: key.inserted_at.to_string(),
+            last_used_at: key.last_used_at.map(|at| at.to_string()),
         }
     }
 }
@@ -264,7 +254,7 @@ mod tests {
         assert_eq!(created["apiKey"]["lastUsedAt"], json!(null));
         let created_at = created["apiKey"]["createdAt"].as_str().unwrap();
         assert!(
-            regex::Regex::new(r"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\dZ$")
+            regex::Regex::new(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
                 .unwrap()
                 .is_match(created_at)
         );

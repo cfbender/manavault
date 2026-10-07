@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT d.id AS \"id!: crate::decks::model::DeckId\", d.name AS \"name!\",\n                 d.format AS \"format!: crate::decks::model::DeckFormat\",\n                 d.status AS \"status!: crate::decks::model::DeckStatus\",\n                 d.included_for_play AS \"included_for_play!: bool\",\n                 d.play_count AS \"play_count!\", d.skip_count AS \"skip_count!\",\n                 d.last_played_at, d.primer, d.ai_analysis, d.ai_analysis_model,\n                 d.ai_analyzed_at, d.commander_bracket, d.commander_bracket_estimate,\n                 d.commander_bracket_rating, d.share_token,\n                 d.external_source AS \"external_source?: crate::decks::model::ExternalSource\",\n                 d.external_id, d.external_url, d.external_synced_at, d.external_sync_error,\n                 d.cover_deck_card_id AS \"cover_deck_card_id?: crate::decks::model::DeckCardId\",\n                 d.inserted_at AS \"inserted_at!\", d.updated_at AS \"updated_at!\"\n               FROM decks AS d WHERE d.id = ?1",
+  "query": "SELECT d.id AS \"id!: crate::decks::model::DeckId\", d.name AS \"name!\",\n                 d.format AS \"format!: crate::decks::model::DeckFormat\",\n                 d.status AS \"status!: crate::decks::model::DeckStatus\",\n                 d.included_for_play AS \"included_for_play!: bool\",\n                 d.play_count AS \"play_count!\", d.skip_count AS \"skip_count!\",\n                 d.last_played_at AS \"last_played_at: manavault_core::timestamp::Timestamp\",\n                 d.primer, d.ai_analysis, d.ai_analysis_model,\n                 d.ai_analyzed_at AS \"ai_analyzed_at: manavault_core::timestamp::Timestamp\",\n                 d.commander_bracket, d.commander_bracket_estimate,\n                 d.commander_bracket_rating, d.share_token,\n                 d.external_source AS \"external_source?: crate::decks::model::ExternalSource\",\n                 d.external_id, d.external_url,\n                 d.external_synced_at AS \"external_synced_at: manavault_core::timestamp::Timestamp\",\n                 d.external_sync_error,\n                 d.cover_deck_card_id AS \"cover_deck_card_id?: crate::decks::model::DeckCardId\",\n                 d.inserted_at AS \"inserted_at!: manavault_core::timestamp::Timestamp\",\n                 d.updated_at AS \"updated_at!: manavault_core::timestamp::Timestamp\"\n               FROM decks AS d WHERE d.status = 'active' AND d.included_for_play ORDER BY d.name ASC, d.id ASC",
   "describe": {
     "columns": [
       {
@@ -81,7 +81,7 @@
         }
       },
       {
-        "name": "last_played_at",
+        "name": "last_played_at: manavault_core::timestamp::Timestamp",
         "ordinal": 7,
         "type_info": "Text",
         "origin": {
@@ -125,7 +125,7 @@
         }
       },
       {
-        "name": "ai_analyzed_at",
+        "name": "ai_analyzed_at: manavault_core::timestamp::Timestamp",
         "ordinal": 11,
         "type_info": "Text",
         "origin": {
@@ -213,7 +213,7 @@
         }
       },
       {
-        "name": "external_synced_at",
+        "name": "external_synced_at: manavault_core::timestamp::Timestamp",
         "ordinal": 19,
         "type_info": "Text",
         "origin": {
@@ -246,7 +246,7 @@
         }
       },
       {
-        "name": "inserted_at!",
+        "name": "inserted_at!: manavault_core::timestamp::Timestamp",
         "ordinal": 22,
         "type_info": "Text",
         "origin": {
@@ -257,7 +257,7 @@
         }
       },
       {
-        "name": "updated_at!",
+        "name": "updated_at!: manavault_core::timestamp::Timestamp",
         "ordinal": 23,
         "type_info": "Text",
         "origin": {
@@ -269,7 +269,7 @@
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 0
     },
     "nullable": [
       false,
@@ -298,5 +298,5 @@
       false
     ]
   },
-  "hash": "6d3eacf73149fb2c3cf7c25b6590f8f74309c91edda664eb2e26b47b957219c0"
+  "hash": "f5e57bf8aa3da419123e63f23e376e30453e0138a1c2068935c6e769ddc9d62f"
 }

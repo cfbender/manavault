@@ -1,10 +1,10 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT run_at FROM jobs WHERE id = ?1",
+  "query": "SELECT run_at AS \"run_at: time::OffsetDateTime\" FROM jobs WHERE id = ?1",
   "describe": {
     "columns": [
       {
-        "name": "run_at",
+        "name": "run_at: time::OffsetDateTime",
         "ordinal": 0,
         "type_info": "Text",
         "origin": {
@@ -22,5 +22,5 @@
       false
     ]
   },
-  "hash": "9c20a2313dbffc45816a951231528e81a55645d4987ebf710b76041371de2699"
+  "hash": "f6d76689d39674fd2f1c03fbf84096b1ec17f0b2a9b71f07255488020d3e8c47"
 }

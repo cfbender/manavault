@@ -9,6 +9,7 @@ use sqlx::SqlitePool;
 use manavault_catalog::catalog::printing::Printing;
 use manavault_catalog::catalog::search::cards_by_name;
 use manavault_catalog::catalog::sql::json_list;
+use manavault_core::timestamp::Timestamp;
 
 /// A `trade_wants` row with the image the want shows: its preferred
 /// printing's image when it names one, else the image of the card's most
@@ -163,7 +164,7 @@ async fn upsert(
     )
     .fetch_optional(&mut *tx)
     .await?;
-    let now = manavault_core::timefmt::now();
+    let now = Timestamp::now();
     let id = match existing {
         Some(row) => {
             let total = row.quantity.saturating_add(quantity);
@@ -215,7 +216,7 @@ pub async fn update_quantity(
     quantity: i64,
 ) -> Result<Option<Want>, UpdateWantError> {
     let quantity = Quantity::try_from(quantity).map_err(|_| UpdateWantError::InvalidQuantity)?;
-    let now = manavault_core::timefmt::now();
+    let now = Timestamp::now();
     sqlx::query!(
         "UPDATE trade_wants SET quantity = ?1, updated_at = ?2 WHERE id = ?3",
         quantity,

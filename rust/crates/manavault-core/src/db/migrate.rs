@@ -449,7 +449,7 @@ async fn normalize_flavor_names(conn: &mut SqliteConnection) -> Result<(), sqlx:
 /// `purchase_price_cents`. This keeps a running quantity per item and copies
 /// the purchase price, as `AllocationItems.restore_from_deck!/3` does.
 async fn deallocate_considering_deck_cards(conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
-    let now = crate::timefmt::now();
+    let now = crate::timestamp::Timestamp::now();
     let allocations = sqlx::query(
         "SELECT a.id, a.quantity, a.source_location_id, ci.id AS item_id
          FROM deck_allocations AS a
@@ -484,7 +484,7 @@ async fn deallocate_considering_deck_cards(conn: &mut SqliteConnection) -> Resul
             .bind(remaining)
             .bind(for_trade_quantity)
             .bind(i64::from(for_trade_quantity > 0))
-            .bind(&now)
+            .bind(now)
             .bind(item_id)
             .execute(&mut *conn)
             .await?;
@@ -501,7 +501,7 @@ async fn deallocate_considering_deck_cards(conn: &mut SqliteConnection) -> Resul
             .bind(item.try_get::<Option<String>, _>("notes")?)
             .bind(item.try_get::<Option<i64>, _>("purchase_price_cents")?)
             .bind(source)
-            .bind(&now)
+            .bind(now)
             .execute(&mut *conn)
             .await?;
         } else {
@@ -511,7 +511,7 @@ async fn deallocate_considering_deck_cards(conn: &mut SqliteConnection) -> Resul
                    updated_at = ?2 WHERE id = ?3",
             )
             .bind(source)
-            .bind(&now)
+            .bind(now)
             .bind(item_id)
             .execute(&mut *conn)
             .await?;
@@ -524,7 +524,7 @@ async fn deallocate_considering_deck_cards(conn: &mut SqliteConnection) -> Resul
     sqlx::query(
         "UPDATE deck_cards SET proxy_quantity = 0, updated_at = ?1 WHERE zone = 'considering' AND proxy_quantity > 0",
     )
-    .bind(&now)
+    .bind(now)
     .execute(&mut *conn)
     .await?;
     Ok(())

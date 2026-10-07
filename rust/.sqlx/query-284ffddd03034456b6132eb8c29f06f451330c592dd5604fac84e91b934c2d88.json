@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "INSERT INTO deck_analysis_requests\n             (source_type, source, source_name, format, analysis, model, commander_bracket,\n              commander_bracket_estimate, commander_bracket_rating, inserted_at)\n           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)\n           RETURNING id AS \"id!\", source_type, source, source_name, format, analysis, model,\n             commander_bracket, commander_bracket_estimate, commander_bracket_rating, inserted_at",
+  "query": "INSERT INTO deck_analysis_requests\n             (source_type, source, source_name, format, analysis, model, commander_bracket,\n              commander_bracket_estimate, commander_bracket_rating, inserted_at)\n           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)\n           RETURNING id AS \"id!\", source_type, source, source_name, format, analysis, model,\n             commander_bracket, commander_bracket_estimate, commander_bracket_rating,\n             inserted_at AS \"inserted_at!: Timestamp\"",
   "describe": {
     "columns": [
       {
@@ -114,7 +114,7 @@
         }
       },
       {
-        "name": "inserted_at",
+        "name": "inserted_at!: Timestamp",
         "ordinal": 10,
         "type_info": "Text",
         "origin": {
@@ -142,5 +142,5 @@
       false
     ]
   },
-  "hash": "2be13dbd3d7bfd6594facdb16711da5047ed390dfce017ce9be7634c806239e5"
+  "hash": "284ffddd03034456b6132eb8c29f06f451330c592dd5604fac84e91b934c2d88"
 }

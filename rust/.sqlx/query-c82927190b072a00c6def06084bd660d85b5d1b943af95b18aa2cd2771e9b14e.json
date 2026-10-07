@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id AS \"id!\", enabled AS \"enabled: bool\", provider, cron, retention_count,\n             s3_endpoint, s3_bucket, s3_region, s3_prefix, s3_access_key_id, s3_secret_access_key,\n             google_client_id, google_client_secret, google_refresh_token, google_folder_id,\n             last_backup_at, last_backup_status, last_backup_message, last_backup_path,\n             last_restore_at, last_restore_status, last_restore_message, pending_restore_path\n           FROM backup_settings WHERE id = ?1",
+  "query": "SELECT id AS \"id!\", enabled AS \"enabled: bool\", provider, cron, retention_count,\n             s3_endpoint, s3_bucket, s3_region, s3_prefix, s3_access_key_id, s3_secret_access_key,\n             google_client_id, google_client_secret, google_refresh_token, google_folder_id,\n             last_backup_at AS \"last_backup_at: Timestamp\", last_backup_status,\n             last_backup_message, last_backup_path,\n             last_restore_at AS \"last_restore_at: Timestamp\", last_restore_status,\n             last_restore_message, pending_restore_path\n           FROM backup_settings WHERE id = ?1",
   "describe": {
     "columns": [
       {
@@ -169,7 +169,7 @@
         }
       },
       {
-        "name": "last_backup_at",
+        "name": "last_backup_at: Timestamp",
         "ordinal": 15,
         "type_info": "Text",
         "origin": {
@@ -213,7 +213,7 @@
         }
       },
       {
-        "name": "last_restore_at",
+        "name": "last_restore_at: Timestamp",
         "ordinal": 19,
         "type_info": "Text",
         "origin": {
@@ -286,5 +286,5 @@
       true
     ]
   },
-  "hash": "523b27fb1091801aaa8bb0ef9b221b48e231290dc3c5c9194dba21442f33f7ed"
+  "hash": "c82927190b072a00c6def06084bd660d85b5d1b943af95b18aa2cd2771e9b14e"
 }

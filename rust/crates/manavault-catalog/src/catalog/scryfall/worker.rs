@@ -26,14 +26,10 @@ pub fn stale(sync: Option<&SyncRecord>, now: OffsetDateTime) -> bool {
     if sync.status != SyncStatus::Succeeded {
         return true;
     }
-    let Some(completed_at) = sync
-        .completed_at
-        .as_deref()
-        .and_then(manavault_core::timefmt::parse)
-    else {
+    let Some(completed_at) = sync.completed_at else {
         return true;
     };
-    sync.bulk_type != BULK_TYPE || now - completed_at >= SYNC_INTERVAL
+    sync.bulk_type != BULK_TYPE || now - completed_at.as_datetime() >= SYNC_INTERVAL
 }
 
 /// Whether a job's args ask for a forced run (`args["force"]` truthy).

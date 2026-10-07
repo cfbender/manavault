@@ -11,7 +11,7 @@ use async_graphql::ErrorExtensions;
 use crate::graphql::state;
 
 type GqlResult<T> = async_graphql::Result<T>;
-use crate::timefmt;
+use crate::timestamp::Timestamp;
 
 /// Palettes in the order the frontend lists them (`assets/react/src/lib/theme.tsx`).
 pub const PALETTES: [&str; 12] = [
@@ -152,7 +152,7 @@ pub async fn update(
         ThemeStyle::parse,
     );
     errors.into_result().map_err(UpdateError::Invalid)?;
-    let now = timefmt::now();
+    let now = Timestamp::now();
     let (palette_text, style_text) = (palette.as_str(), theme_style.as_str());
     sqlx::query!(
         "INSERT INTO appearance_settings (id, palette, theme_style, inserted_at, updated_at)

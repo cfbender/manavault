@@ -10,7 +10,7 @@ use sqlx::SqlitePool;
 
 use crate::pricing::vendors::{Vendor, VendorFeed, VendorRow};
 use manavault_core::state::AppState;
-use manavault_core::timefmt;
+use manavault_core::timestamp;
 
 const BATCH_SIZE: usize = 200;
 const BUSY_RETRY_DELAYS: [Duration; 5] = [
@@ -74,7 +74,7 @@ pub async fn replace_vendor_prices(
     vendor: Vendor,
     rows: Vec<VendorRow>,
 ) -> Result<Replaced, sqlx::Error> {
-    let now = timefmt::now_micros();
+    let now = timestamp::now_micros();
     let mut cheapest: HashMap<(String, lotus::Finish), i64> = HashMap::new();
     for row in rows {
         let entry = cheapest

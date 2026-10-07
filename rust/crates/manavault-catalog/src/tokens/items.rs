@@ -11,7 +11,7 @@ use crate::catalog::printing::Printing;
 use crate::catalog::search::name_match;
 use crate::catalog::sql::json_list;
 use manavault_core::graphql::{NodeKind, global_id};
-use manavault_core::timefmt;
+use manavault_core::timestamp::Timestamp;
 
 /// A `token_items` row.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -218,7 +218,7 @@ pub async fn add(pool: &SqlitePool, attrs: NewTokenItem) -> Result<TokenItem, To
     let finish = finish_or_default(attrs.finish.as_deref());
     // `Util.parse_quantity/1`: integers pass through; a missing value is 1.
     let quantity = attrs.quantity.unwrap_or(1);
-    let now = timefmt::now();
+    let now = Timestamp::now();
 
     let mut tx = manavault_core::db::begin_write(pool).await?;
     let existing = sqlx::query!(
@@ -285,7 +285,7 @@ pub async fn update(
     let (quantity, finish) = validate(quantity, &finish)?;
     let quantity = quantity.as_i64();
     let finish = finish.as_str();
-    let now = timefmt::now();
+    let now = Timestamp::now();
     sqlx::query!(
         "UPDATE token_items SET quantity = ?1, finish = ?2, updated_at = ?3 WHERE id = ?4",
         quantity,

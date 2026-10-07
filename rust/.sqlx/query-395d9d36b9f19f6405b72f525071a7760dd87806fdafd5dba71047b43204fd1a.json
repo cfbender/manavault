@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id, name, prefix, last_used_at, inserted_at FROM api_keys ORDER BY inserted_at DESC, id DESC",
+  "query": "INSERT INTO api_keys (name, prefix, token_hash, inserted_at, updated_at)\n           VALUES (?1, ?2, ?3, ?4, ?4)\n           RETURNING id, name, prefix, last_used_at AS \"last_used_at: Timestamp\",\n             inserted_at AS \"inserted_at!: Timestamp\"",
   "describe": {
     "columns": [
       {
@@ -37,7 +37,7 @@
         }
       },
       {
-        "name": "last_used_at",
+        "name": "last_used_at: Timestamp",
         "ordinal": 3,
         "type_info": "Text",
         "origin": {
@@ -48,7 +48,7 @@
         }
       },
       {
-        "name": "inserted_at",
+        "name": "inserted_at!: Timestamp",
         "ordinal": 4,
         "type_info": "Text",
         "origin": {
@@ -60,7 +60,7 @@
       }
     ],
     "parameters": {
-      "Right": 0
+      "Right": 4
     },
     "nullable": [
       false,
@@ -70,5 +70,5 @@
       false
     ]
   },
-  "hash": "d3e67ca28faec415361fd193825b54c6153ca148b72fea195b468f19d43440e1"
+  "hash": "395d9d36b9f19f6405b72f525071a7760dd87806fdafd5dba71047b43204fd1a"
 }

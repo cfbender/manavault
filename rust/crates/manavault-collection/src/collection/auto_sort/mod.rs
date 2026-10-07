@@ -15,6 +15,7 @@ use crate::collection::filters::{ALLOCATED_SQL, FROM_SQL, NOT_LIST_SQL};
 use crate::collection::item::{CollectionItem, load_items};
 use crate::collection::location::json_ids;
 use manavault_catalog::pricing::PriceStore;
+use manavault_core::timestamp::Timestamp;
 use rules::{AutoSortError, RuleInput, SortRule};
 
 const BATCH_SIZE: i64 = 100;
@@ -104,9 +105,9 @@ async fn batch_ids(
     ));
     builder.push_bind(after_id);
     if !options.ignore_location_debounce {
-        let cutoff = time::OffsetDateTime::now_utc() - time::Duration::days(LOCATION_DEBOUNCE_DAYS);
+        let cutoff = Timestamp::now() - time::Duration::days(LOCATION_DEBOUNCE_DAYS);
         builder.push(" AND (i.location_changed_at IS NULL OR i.location_changed_at < ");
-        builder.push_bind(manavault_core::timefmt::utc_seconds(cutoff));
+        builder.push_bind(cutoff);
         builder.push(")");
     }
     match &options.source {

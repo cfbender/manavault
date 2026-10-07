@@ -21,7 +21,6 @@ use manavault_collection::decks::contents::LoadedDeckCard;
 use manavault_collection::decks::schema::types::{DeckLegality, DeckTag};
 use manavault_core::graphql::relay::{self, PageArgs};
 use manavault_core::graphql::{Json, NodeKind, Result, global_id, internal_error, state};
-use manavault_core::timefmt;
 
 /// Page size caps of the public connections (`clamp_connection_args/2`).
 pub const MAX_PRINTINGS_PAGE: i64 = 300;
@@ -577,10 +576,6 @@ impl PublicDeck {
     }
 }
 
-fn iso(value: Option<&String>) -> Option<String> {
-    value.map(|text| timefmt::iso8601(text))
-}
-
 #[Object(name = "Deck")]
 impl PublicDeck {
     /// The ID of an object
@@ -644,11 +639,11 @@ impl PublicDeck {
     }
 
     async fn external_synced_at(&self) -> Option<String> {
-        iso(self.0.row.external_synced_at.as_ref())
+        self.0.row.external_synced_at.map(|at| at.to_string())
     }
 
     async fn ai_analyzed_at(&self) -> Option<String> {
-        iso(self.0.row.ai_analyzed_at.as_ref())
+        self.0.row.ai_analyzed_at.map(|at| at.to_string())
     }
 
     async fn cover_deck_card_id(&self) -> Option<ID> {

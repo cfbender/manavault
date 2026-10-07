@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 use sqlx::SqlitePool;
 
 use crate::config::AuthRateLimit;
-use crate::timefmt;
+use crate::timestamp::Timestamp;
 
 /// What a login attempt may do.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -122,7 +122,7 @@ impl AttemptLimiter {
             }
         });
         let threshold = i64::from(limits.permanent_ban_after_failures);
-        let now = timefmt::now();
+        let now = Timestamp::now();
         let failed_attempts = sqlx::query_scalar!(
             r#"INSERT INTO auth_client_failures (client_id, failed_attempts, banned_at, inserted_at, updated_at)
                VALUES (?1, 1, CASE WHEN 1 >= ?2 THEN ?3 END, ?3, ?3)

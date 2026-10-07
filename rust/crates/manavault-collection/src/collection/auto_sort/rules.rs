@@ -10,7 +10,7 @@ use sqlx::SqlitePool;
 use crate::collection::changes::ItemError;
 use crate::collection::location::{LocationKind, LocationRecord, json_ids};
 use crate::location_query;
-use manavault_core::timefmt;
+use manavault_core::timestamp::Timestamp;
 use manavault_core::validation::ValidationError;
 
 /// A `collection_auto_sort_rules` row. List columns hold JSON text.
@@ -266,7 +266,7 @@ pub async fn replace(
     sqlx::query!("DELETE FROM collection_auto_sort_rules")
         .execute(&mut *tx)
         .await?;
-    let now = timefmt::now();
+    let now = Timestamp::now();
     let mut ids = Vec::with_capacity(inputs.len());
     for input in inputs {
         let target_id = input

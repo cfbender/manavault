@@ -31,7 +31,7 @@ use manavault_catalog::catalog::search::cards_by_name;
 use manavault_core::db;
 use manavault_core::jobs::{Job, Outcome, Unique, Worker};
 use manavault_core::state::AppState;
-use manavault_core::timefmt;
+use manavault_core::timestamp::Timestamp;
 
 /// Why linking or syncing failed.
 #[derive(Debug, thiserror::Error)]
@@ -175,7 +175,7 @@ pub async fn link(state: &AppState, deck_id: DeckId, url: &str) -> Result<Synced
         .await
         .map_err(SyncError::Fetch)?;
     let mut tx = db::begin_write(&state.db).await?;
-    let now = timefmt::now();
+    let now = Timestamp::now();
     sqlx::query!(
         r#"UPDATE decks SET external_source = ?2, external_id = ?3, external_url = ?4,
                  external_synced_at = NULL, external_sync_error = NULL, updated_at = ?5
@@ -202,7 +202,7 @@ pub async fn unlink(pool: &SqlitePool, deck_id: DeckId) -> Result<DeckRow, DeckE
     if !deck.is_linked() {
         return Err(DeckError::Code("deck_not_linked"));
     }
-    let now = timefmt::now();
+    let now = Timestamp::now();
     sqlx::query!(
         r#"UPDATE decks SET external_source = NULL, external_id = NULL, external_url = NULL,
                  external_synced_at = NULL, external_sync_error = NULL, updated_at = ?2
@@ -253,7 +253,7 @@ async fn record_failure(
     error: &SyncError,
 ) -> Result<(), sqlx::Error> {
     let message: String = error.failure_message().chars().take(1_000).collect();
-    let now = timefmt::now();
+    let now = Timestamp::now();
     sqlx::query!(
         "UPDATE decks SET external_sync_error = ?2, updated_at = ?3 WHERE id = ?1",
         deck_id,
@@ -477,7 +477,7 @@ async fn apply_entries(
         cards::delete_unchecked_in(conn, row).await?;
     }
 
-    let now = timefmt::now();
+    let now = Timestamp::now();
     sqlx::query!(
         "UPDATE decks SET external_synced_at = ?2, external_sync_error = NULL, updated_at = ?2 WHERE id = ?1",
         deck_id,

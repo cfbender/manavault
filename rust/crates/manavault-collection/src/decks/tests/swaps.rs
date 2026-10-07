@@ -12,7 +12,7 @@ use crate::decks::swap::{self, CutDestination, Swap, SwapAdd, SwapCut};
 use crate::test_app::TestApp;
 use crate::testing::*;
 use manavault_catalog::testing::fixtures::legal_commander_card;
-use manavault_core::timefmt;
+use manavault_core::timestamp::Timestamp;
 
 struct SwapDeck {
     app: TestApp,
@@ -496,8 +496,8 @@ async fn historical_play_data_can_be_imported_cleared_and_validated() {
     .await;
     assert_eq!((updated.play_count, updated.skip_count), (14, 3));
     assert_eq!(
-        updated.last_played_at.as_deref(),
-        Some("2026-08-10T07:00:00Z")
+        updated.last_played_at,
+        Timestamp::parse("2026-08-10T07:00:00Z")
     );
     let cleared = update_deck(
         app.db(),
@@ -524,7 +524,7 @@ async fn historical_play_data_can_be_imported_cleared_and_validated() {
         error.to_string(),
         "play count must be greater than or equal to 0, skip count must be greater than or equal to 0"
     );
-    let _ = timefmt::now();
+    let _ = Timestamp::now();
 }
 
 // --- deck share caching ---

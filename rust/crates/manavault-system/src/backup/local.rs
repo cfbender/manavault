@@ -97,7 +97,7 @@ pub fn timestamp(at: OffsetDateTime) -> String {
 /// `DateTime.to_iso8601(DateTime.utc_now())`, with microseconds.
 #[must_use]
 pub fn iso8601_now() -> String {
-    manavault_core::timefmt::now_micros()
+    manavault_core::timestamp::now_micros()
 }
 
 /// A fresh temporary directory path.

@@ -7,7 +7,7 @@ use lotus::Zone;
 use sqlx::SqlitePool;
 
 use manavault_catalog::catalog::card::CardRecord;
-use manavault_core::timefmt;
+use manavault_core::timestamp::Timestamp;
 
 /// The deck fields prompts use.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -85,7 +85,7 @@ pub async fn deck_cards(
 pub struct SavedAnalysis {
     pub ai_analysis: String,
     pub ai_analysis_model: String,
-    pub ai_analyzed_at: String,
+    pub ai_analyzed_at: Timestamp,
     pub commander_bracket: Option<i64>,
     pub commander_bracket_estimate: Option<i64>,
     pub commander_bracket_rating: Option<String>,
@@ -114,7 +114,7 @@ pub async fn save_analysis(
     {
         return Err(SaveError::Invalid);
     }
-    let now = timefmt::now();
+    let now = Timestamp::now();
     sqlx::query!(
         "UPDATE decks SET ai_analysis = ?1, ai_analysis_model = ?2, ai_analyzed_at = ?3,
            commander_bracket = ?4, commander_bracket_estimate = ?5, commander_bracket_rating = ?6,

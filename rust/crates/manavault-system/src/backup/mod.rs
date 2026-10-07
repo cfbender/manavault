@@ -17,6 +17,8 @@ pub mod worker;
 
 use std::path::Path;
 
+use time::OffsetDateTime;
+
 pub use local::{BackupError, Paths, Reason};
 
 /// A backup in cloud storage.
@@ -26,21 +28,14 @@ pub struct Remote {
     pub name: String,
     pub provider: String,
     pub size: Option<i64>,
-    /// ISO 8601 text, as `DateTime.to_iso8601/1` renders it.
-    pub modified_at: Option<String>,
+    /// The provider's modification time.
+    pub modified_at: Option<OffsetDateTime>,
 }
 
-/// A provider timestamp as `DateTime.from_iso8601/1` followed by
-/// `DateTime.to_iso8601/1` renders it: UTC, fractional digits kept.
+/// Parses a provider's RFC 3339 timestamp.
 #[must_use]
-pub fn parse_remote_datetime(value: &str) -> Option<String> {
-    let at =
-        time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339).ok()?;
-    if value.ends_with('Z') || value.ends_with('z') {
-        Some(value.to_owned())
-    } else {
-        Some(manavault_core::timefmt::utc_seconds(at))
-    }
+pub fn parse_remote_datetime(value: &str) -> Option<OffsetDateTime> {
+    OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339).ok()
 }
 
 /// Writes a downloaded file, creating its directory.

@@ -145,7 +145,7 @@ impl<S: Subscriber> Layer<S> for LogLayer {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let _ = self.sender.send(LogEvent {
             id: id.to_string(),
-            timestamp: crate::timefmt::now_micros(),
+            timestamp: crate::timestamp::now_micros(),
             level: level_name(level).to_owned(),
             message: truncate(message.trim_end().to_owned()),
         });

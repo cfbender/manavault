@@ -349,7 +349,7 @@ impl S3<'_> {
             id: request.key,
             provider: "s3".to_owned(),
             size: i64::try_from(request.size).ok(),
-            modified_at: Some(manavault_core::timefmt::now()),
+            modified_at: Some(OffsetDateTime::now_utc()),
         })
     }
 
@@ -538,7 +538,7 @@ mod tests {
                 name: "manavault-cloud-1.zip".into(),
                 provider: "s3".into(),
                 size: Some(12),
-                modified_at: Some("2026-06-27T03:00:00.000Z".into()),
+                modified_at: manavault_core::timestamp::parse("2026-06-27T03:00:00.000Z"),
             }]
         );
         assert_eq!(

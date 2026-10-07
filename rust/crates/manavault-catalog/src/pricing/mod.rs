@@ -16,9 +16,10 @@ pub use manavault_core::pricing::{PriceStore, money, store};
 pub use vendors::Vendor;
 
 use sqlx::SqlitePool;
+use time::OffsetDateTime;
 
 use manavault_core::state::AppState;
-use manavault_core::timefmt;
+use manavault_core::timestamp::Timestamp;
 
 /// The selectable price sources (`Pricing.Settings.sources/0`).
 pub const SOURCES: [&str; 4] = ["scryfall", "tcgplayer", "cardkingdom", "manapool"];
@@ -56,7 +57,7 @@ pub async fn source(pool: &SqlitePool) -> Result<String, sqlx::Error> {
     {
         return Ok(source);
     }
-    let now = timefmt::now();
+    let now = Timestamp::now();
     sqlx::query!(
         "INSERT INTO pricing_settings (id, source, inserted_at, updated_at) VALUES (1, 'scryfall', ?1, ?1) ON CONFLICT DO NOTHING",
         now
@@ -87,7 +88,7 @@ pub async fn set_source(state: &AppState, source: &str) -> Result<PriceSource, S
     let parsed = PriceSource::parse(source)
         .ok_or_else(|| SetSourceError::Invalid("source is invalid".to_owned()))?;
     self::source(&state.db).await?;
-    let now = timefmt::now();
+    let now = Timestamp::now();
     let value = parsed.as_str();
     sqlx::query!(
         "UPDATE pricing_settings SET source = ?1, updated_at = ?2 WHERE id = 1",
@@ -106,18 +107,19 @@ pub async fn set_source(state: &AppState, source: &str) -> Result<PriceSource, S
 pub struct VendorStatus {
     pub vendor: Vendor,
     pub price_count: i64,
-    /// `updated_at` of the vendor's newest price row, as stored.
-    pub last_synced_at: Option<String>,
+    /// `updated_at` of the vendor's newest price row.
+    pub last_synced_at: Option<OffsetDateTime>,
 }
 
 /// When the vendor's prices were last written.
 pub async fn last_synced_at(
     pool: &SqlitePool,
     vendor: Vendor,
-) -> Result<Option<String>, sqlx::Error> {
+) -> Result<Option<OffsetDateTime>, sqlx::Error> {
     let vendor = vendor.as_str();
     sqlx::query_scalar!(
-        "SELECT updated_at FROM vendor_prices WHERE vendor = ?1 ORDER BY updated_at DESC LIMIT 1",
+        r#"SELECT updated_at AS "updated_at: OffsetDateTime" FROM vendor_prices
+           WHERE vendor = ?1 ORDER BY updated_at DESC LIMIT 1"#,
         vendor
     )
     .fetch_optional(pool)

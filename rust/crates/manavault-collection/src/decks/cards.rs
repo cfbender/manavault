@@ -18,7 +18,7 @@ use crate::decks::{DeckError, commander, ensure_deck_editable, ensure_decklist_e
 use manavault_catalog::catalog::card::{CardRecord, load_record};
 use manavault_catalog::catalog::printing::Printing;
 use manavault_core::db;
-use manavault_core::timefmt;
+use manavault_core::timestamp::Timestamp;
 
 /// `DeckCard.changeset/2` attributes.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -177,7 +177,7 @@ async fn insert_card(
     values: &CardValues,
 ) -> Result<DeckCardRow, DeckError> {
     let quantity = values.quantity.as_i64();
-    let now = timefmt::now();
+    let now = Timestamp::now();
     let id = sqlx::query_scalar!(
         r#"INSERT INTO deck_cards (deck_id, oracle_id, preferred_printing_id, quantity, proxy_quantity,
                                    zone, finish, tag, inserted_at, updated_at)
@@ -206,7 +206,7 @@ async fn write_card(
     values: &CardValues,
 ) -> Result<DeckCardRow, DeckError> {
     let quantity = values.quantity.as_i64();
-    let now = timefmt::now();
+    let now = Timestamp::now();
     sqlx::query!(
         r#"UPDATE deck_cards SET preferred_printing_id = ?2, quantity = ?3, proxy_quantity = ?4,
                  zone = ?5, finish = ?6, tag = ?7, updated_at = ?8
@@ -682,7 +682,7 @@ async fn move_to_zone(
     )
     .fetch_optional(&mut *conn)
     .await?;
-    let now = timefmt::now();
+    let now = Timestamp::now();
     if let Some(existing) = existing {
         let quantity = existing.quantity.saturating_add(row.quantity).as_i64();
         sqlx::query!(

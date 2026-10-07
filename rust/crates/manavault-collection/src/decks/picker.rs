@@ -5,7 +5,6 @@ use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
 use crate::decks::model::{DeckId, DeckRow};
-use manavault_core::timefmt;
 
 const UNPLAYED_RECENCY_HOURS: i64 = 24 * 30;
 
@@ -20,9 +19,7 @@ fn recency_hours(last_played_at: OffsetDateTime, now: OffsetDateTime) -> i64 {
 pub fn selection_weights(decks: &[DeckRow], now: OffsetDateTime) -> Vec<(&DeckRow, f64)> {
     let played = |deck: &DeckRow| {
         deck.last_played_at
-            .as_deref()
-            .and_then(timefmt::parse)
-            .map(|at| recency_hours(at, now))
+            .map(|at| recency_hours(at.as_datetime(), now))
     };
     let unplayed = decks
         .iter()
@@ -85,6 +82,7 @@ pub async fn random_deck(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use manavault_core::timestamp::{self, Timestamp};
 
     fn deck(id: i64, play_count: i64, skip_count: i64, last_played_at: Option<&str>) -> DeckRow {
         DeckRow {
@@ -95,7 +93,7 @@ mod tests {
             included_for_play: true,
             play_count,
             skip_count,
-            last_played_at: last_played_at.map(str::to_owned),
+            last_played_at: last_played_at.map(|at| Timestamp::parse(at).unwrap()),
             primer: None,
             ai_analysis: None,
             ai_analysis_model: None,
@@ -110,15 +108,15 @@ mod tests {
             external_synced_at: None,
             external_sync_error: None,
             cover_deck_card_id: None,
-            inserted_at: String::new(),
-            updated_at: String::new(),
+            inserted_at: Timestamp::now(),
+            updated_at: Timestamp::now(),
         }
     }
 
     // Weights grow with recency and skips, shrink with plays.
     #[test]
     fn selection_weights_follow_recency_skips_and_plays() {
-        let now = timefmt::parse("2026-08-26T12:00:00Z").unwrap();
+        let now = timestamp::parse("2026-08-26T12:00:00Z").unwrap();
         let decks = vec![
             deck(1, 1, 0, Some("2026-08-25T12:00:00Z")),
             deck(2, 1, 0, Some("2026-08-16T12:00:00Z")),
@@ -140,7 +138,7 @@ mod tests {
 
     #[test]
     fn random_picks_walk_the_cumulative_weights() {
-        let now = timefmt::parse("2026-08-26T12:00:00Z").unwrap();
+        let now = timestamp::parse("2026-08-26T12:00:00Z").unwrap();
         let decks = vec![deck(1, 0, 0, None), deck(2, 0, 0, None)];
         assert_eq!(pick_weighted(&decks, now, 0.0).unwrap().id, DeckId(1));
         assert_eq!(pick_weighted(&decks, now, 1.0).unwrap().id, DeckId(2));

@@ -17,7 +17,6 @@ use manavault_catalog::catalog::card::{Card, CardRecord};
 use manavault_catalog::catalog::printing::Printing;
 use manavault_core::graphql::relay::{self, PageArgs};
 use manavault_core::graphql::{NodeKind, Result, global_id, internal_error, state};
-use manavault_core::timefmt;
 
 /// A deck as a GraphQL object. Its cards load once per object, on the
 /// first field that needs them (counts, legality, cover, deck cards).
@@ -69,10 +68,6 @@ impl Deck {
     async fn loaded(&self, ctx: &Context<'_>) -> Result<Arc<DeckContents>> {
         self.contents(&state(ctx).db).await.map_err(internal_error)
     }
-}
-
-fn iso(value: Option<&String>) -> Option<String> {
-    value.map(|text| timefmt::iso8601(text))
 }
 
 #[Object(name = "Deck")]
@@ -149,15 +144,15 @@ impl Deck {
     }
 
     async fn external_synced_at(&self) -> Option<String> {
-        iso(self.row.external_synced_at.as_ref())
+        self.row.external_synced_at.map(|at| at.to_string())
     }
 
     async fn ai_analyzed_at(&self) -> Option<String> {
-        iso(self.row.ai_analyzed_at.as_ref())
+        self.row.ai_analyzed_at.map(|at| at.to_string())
     }
 
     async fn last_played_at(&self) -> Option<String> {
-        iso(self.row.last_played_at.as_ref())
+        self.row.last_played_at.map(|at| at.to_string())
     }
 
     async fn cover_deck_card_id(&self) -> Option<ID> {

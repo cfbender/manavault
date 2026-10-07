@@ -8,7 +8,7 @@ use super::decks::{self, DeckInfo, SaveError, SavedAnalysis};
 use super::workers::DECK_ANALYSIS_WORKER;
 use super::{AiError, Configured, Provider, openrouter};
 use manavault_core::state::AppState;
-use manavault_core::timefmt;
+use manavault_core::timestamp::Timestamp;
 
 /// What the frontend sees of an analysis job.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -165,7 +165,7 @@ pub async fn run(state: &AppState, deck: &DeckInfo) -> Result<SavedAnalysis, Run
     let saved = SavedAnalysis {
         ai_analysis: deck_analysis::render_markdown(&analysis),
         ai_analysis_model: settings.model.clone(),
-        ai_analyzed_at: timefmt::now(),
+        ai_analyzed_at: Timestamp::now(),
         commander_bracket: analysis.official_bracket,
         commander_bracket_estimate: analysis.play_bracket,
         commander_bracket_rating: analysis.bracket_rating.clone(),

@@ -10,7 +10,7 @@ use time::OffsetDateTime;
 use super::{Drained, Job, Jobs, Outcome, Unique, Worker};
 use crate::state::AppState;
 use crate::testing::TestState;
-use crate::timefmt;
+use crate::timestamp;
 
 struct Scripted {
     name: &'static str,
@@ -145,14 +145,14 @@ async fn jobs_wait_for_their_run_at() {
         .enqueue_at(PLAIN, json!({}), Some(later))
         .await
         .unwrap();
-    assert_eq!(row(&state, id).await.run_at, timefmt::utc_micros(later));
+    assert_eq!(row(&state, id).await.run_at, timestamp::micros(later));
     assert_eq!(drain(&state, &jobs, false).await, Drained::default());
     assert_eq!(row(&state, id).await.state, "queued");
     assert_eq!(drain(&state, &jobs, true).await.success, 1);
     // A time in the past runs now.
     let past = OffsetDateTime::now_utc() - Duration::from_secs(3600);
     let id = jobs.enqueue_at(PLAIN, json!({}), Some(past)).await.unwrap();
-    assert!(row(&state, id).await.run_at > timefmt::utc_micros(past));
+    assert!(row(&state, id).await.run_at > timestamp::micros(past));
     assert_eq!(drain(&state, &jobs, false).await.success, 1);
 }
 
@@ -173,7 +173,7 @@ async fn retries_back_off_and_fail_after_the_last_attempt() {
         ("queued", 1, false)
     );
     assert_eq!(retrying.last_error.as_deref(), Some("attempt 1 broke"));
-    let run_at = timefmt::parse(&retrying.run_at).expect("run_at");
+    let run_at = timestamp::parse(&retrying.run_at).expect("run_at");
     assert!(run_at >= before + Duration::from_secs(60), "{run_at}");
     // Not due yet, so a plain drain leaves it alone.
     assert_eq!(drain(&state, &jobs, false).await, Drained::default());
@@ -202,7 +202,7 @@ async fn cancelled_and_unknown_jobs_stop_without_retrying() {
         "INSERT INTO jobs (worker, queue, args, max_attempts, run_at, inserted_at)
          VALUES ('nobody', 'catalog', '{}', 5, ?1, ?1) RETURNING id",
     )
-    .bind(timefmt::now_micros())
+    .bind(timestamp::now_micros())
     .fetch_one(state.db())
     .await
     .unwrap();
@@ -237,9 +237,9 @@ async fn interrupted_and_stuck_jobs_return_to_the_queue_and_old_ones_are_pruned(
             )
             .bind(worker)
             .bind(job_state)
-            .bind(timefmt::utc_micros(now))
-            .bind(started.map(timefmt::utc_micros))
-            .bind(finished.map(timefmt::utc_micros))
+            .bind(timestamp::micros(now))
+            .bind(started.map(timestamp::micros))
+            .bind(finished.map(timestamp::micros))
             .fetch_one(&db)
             .await
             .unwrap();

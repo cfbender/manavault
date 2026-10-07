@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id AS \"id!\", source_type, source, source_name, format, analysis, model,\n             commander_bracket, commander_bracket_estimate, commander_bracket_rating, inserted_at\n           FROM deck_analysis_requests ORDER BY inserted_at DESC, id DESC LIMIT ?1",
+  "query": "SELECT id AS \"id!\", source_type, source, source_name, format, analysis, model,\n             commander_bracket, commander_bracket_estimate, commander_bracket_rating,\n             inserted_at AS \"inserted_at!: Timestamp\"\n           FROM deck_analysis_requests ORDER BY inserted_at DESC, id DESC LIMIT ?1",
   "describe": {
     "columns": [
       {
@@ -114,7 +114,7 @@
         }
       },
       {
-        "name": "inserted_at",
+        "name": "inserted_at!: Timestamp",
         "ordinal": 10,
         "type_info": "Text",
         "origin": {
@@ -142,5 +142,5 @@
       false
     ]
   },
-  "hash": "100dc090dbace814c81cf8e173e5ad3dd8bea0da9ced936b34f750a9a6acb139"
+  "hash": "cfe9f1e9cf23f1d85bad060e2821fa5e41513cd4da670ba871b85408851d5fd6"
 }

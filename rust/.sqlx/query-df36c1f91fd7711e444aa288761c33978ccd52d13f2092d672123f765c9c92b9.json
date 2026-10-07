@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT l.id AS \"id!\", l.name AS \"name!\",\n                 l.kind AS \"kind!: crate::collection::location::LocationKind\",\n                 l.description AS \"description?\",\n                 l.cover_scryfall_id AS \"cover_scryfall_id?: lotus::ScryfallId\",\n                 l.inserted_at AS \"inserted_at!\", l.updated_at AS \"updated_at!\"\n               FROM locations AS l WHERE l.id IN (SELECT value FROM json_each(?1)) AND l.kind IN ('box', 'binder')",
+  "query": "SELECT l.id AS \"id!\", l.name AS \"name!\",\n                 l.kind AS \"kind!: crate::collection::location::LocationKind\",\n                 l.description AS \"description?\",\n                 l.cover_scryfall_id AS \"cover_scryfall_id?: lotus::ScryfallId\",\n                 l.inserted_at AS \"inserted_at!: manavault_core::timestamp::Timestamp\",\n                 l.updated_at AS \"updated_at!: manavault_core::timestamp::Timestamp\"\n               FROM locations AS l WHERE l.id IN (SELECT value FROM json_each(?1))",
   "describe": {
     "columns": [
       {
@@ -59,7 +59,7 @@
         }
       },
       {
-        "name": "inserted_at!",
+        "name": "inserted_at!: manavault_core::timestamp::Timestamp",
         "ordinal": 5,
         "type_info": "Text",
         "origin": {
@@ -70,7 +70,7 @@
         }
       },
       {
-        "name": "updated_at!",
+        "name": "updated_at!: manavault_core::timestamp::Timestamp",
         "ordinal": 6,
         "type_info": "Text",
         "origin": {
@@ -94,5 +94,5 @@
       false
     ]
   },
-  "hash": "3609a8a7200cffc71ca6de74c2942df5c56d7bf7c5f8b3133f0bdf6a23947ec3"
+  "hash": "df36c1f91fd7711e444aa288761c33978ccd52d13f2092d672123f765c9c92b9"
 }

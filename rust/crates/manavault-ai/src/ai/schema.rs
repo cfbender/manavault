@@ -12,7 +12,6 @@ use super::requests::{self, DeckAnalysisRequest};
 use super::{AiError, decks};
 use manavault_core::graphql::relay::{NodeKind, node_int};
 use manavault_core::graphql::{Result, internal_error, state, user_error};
-use manavault_core::timefmt;
 
 const DECK_NOT_FOUND: &str = "Deck was not found.";
 
@@ -98,7 +97,7 @@ impl DeckQuestionAnswer {
     }
 
     async fn inserted_at(&self) -> String {
-        timefmt::iso8601(&self.0.inserted_at)
+        self.0.inserted_at.to_string()
     }
 }
 
@@ -132,7 +131,7 @@ impl From<DeckAnalysisRequest> for DeckAnalysisRequestObject {
             commander_bracket: request.commander_bracket,
             commander_bracket_estimate: request.commander_bracket_estimate,
             commander_bracket_rating: request.commander_bracket_rating,
-            inserted_at: timefmt::iso8601(&request.inserted_at),
+            inserted_at: request.inserted_at.to_string(),
         }
     }
 }

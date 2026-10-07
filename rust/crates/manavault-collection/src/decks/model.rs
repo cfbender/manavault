@@ -11,6 +11,8 @@ use lotus::{Finish, OracleId, Quantity, ScryfallId, Zone};
 use serde::{Deserialize, Serialize};
 use sqlx::{SqliteConnection, SqlitePool};
 
+use manavault_core::timestamp::Timestamp;
+
 pub use manavault_allocation::{CollectionItemId, DeckCardId, DeckId, LocationId};
 
 macro_rules! text_enum {
@@ -121,11 +123,11 @@ pub struct DeckRow {
     pub included_for_play: bool,
     pub play_count: i64,
     pub skip_count: i64,
-    pub last_played_at: Option<String>,
+    pub last_played_at: Option<Timestamp>,
     pub primer: Option<String>,
     pub ai_analysis: Option<String>,
     pub ai_analysis_model: Option<String>,
-    pub ai_analyzed_at: Option<String>,
+    pub ai_analyzed_at: Option<Timestamp>,
     pub commander_bracket: Option<i64>,
     pub commander_bracket_estimate: Option<i64>,
     pub commander_bracket_rating: Option<String>,
@@ -133,11 +135,11 @@ pub struct DeckRow {
     pub external_source: Option<ExternalSource>,
     pub external_id: Option<String>,
     pub external_url: Option<String>,
-    pub external_synced_at: Option<String>,
+    pub external_synced_at: Option<Timestamp>,
     pub external_sync_error: Option<String>,
     pub cover_deck_card_id: Option<DeckCardId>,
-    pub inserted_at: String,
-    pub updated_at: String,
+    pub inserted_at: Timestamp,
+    pub updated_at: Timestamp,
 }
 
 impl DeckRow {
@@ -160,13 +162,18 @@ macro_rules! deck_row_query {
                  d.status AS "status!: crate::decks::model::DeckStatus",
                  d.included_for_play AS "included_for_play!: bool",
                  d.play_count AS "play_count!", d.skip_count AS "skip_count!",
-                 d.last_played_at, d.primer, d.ai_analysis, d.ai_analysis_model,
-                 d.ai_analyzed_at, d.commander_bracket, d.commander_bracket_estimate,
+                 d.last_played_at AS "last_played_at: manavault_core::timestamp::Timestamp",
+                 d.primer, d.ai_analysis, d.ai_analysis_model,
+                 d.ai_analyzed_at AS "ai_analyzed_at: manavault_core::timestamp::Timestamp",
+                 d.commander_bracket, d.commander_bracket_estimate,
                  d.commander_bracket_rating, d.share_token,
                  d.external_source AS "external_source?: crate::decks::model::ExternalSource",
-                 d.external_id, d.external_url, d.external_synced_at, d.external_sync_error,
+                 d.external_id, d.external_url,
+                 d.external_synced_at AS "external_synced_at: manavault_core::timestamp::Timestamp",
+                 d.external_sync_error,
                  d.cover_deck_card_id AS "cover_deck_card_id?: crate::decks::model::DeckCardId",
-                 d.inserted_at AS "inserted_at!", d.updated_at AS "updated_at!"
+                 d.inserted_at AS "inserted_at!: manavault_core::timestamp::Timestamp",
+                 d.updated_at AS "updated_at!: manavault_core::timestamp::Timestamp"
                FROM decks AS d "# + $tail
             $(, $arg)*
         )

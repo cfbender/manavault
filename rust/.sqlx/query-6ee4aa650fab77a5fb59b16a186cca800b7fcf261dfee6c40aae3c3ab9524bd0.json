@@ -1,10 +1,10 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT updated_at FROM vendor_prices WHERE vendor = ?1 ORDER BY updated_at DESC LIMIT 1",
+  "query": "SELECT updated_at AS \"updated_at: OffsetDateTime\" FROM vendor_prices\n           WHERE vendor = ?1 ORDER BY updated_at DESC LIMIT 1",
   "describe": {
     "columns": [
       {
-        "name": "updated_at",
+        "name": "updated_at: OffsetDateTime",
         "ordinal": 0,
         "type_info": "Text",
         "origin": {
@@ -22,5 +22,5 @@
       false
     ]
   },
-  "hash": "6ba480f5331ca03a7abeb0276c3d8092cc29263edb8223bf73b91a419ab3504d"
+  "hash": "6ee4aa650fab77a5fb59b16a186cca800b7fcf261dfee6c40aae3c3ab9524bd0"
 }

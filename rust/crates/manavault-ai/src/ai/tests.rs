@@ -366,7 +366,7 @@ async fn analyzes_and_persists_distinct_guideline_and_practical_brackets() {
     .unwrap();
     assert_eq!(row.0, saved.ai_analysis);
     assert_eq!(row.1, "anthropic/claude-sonnet-4");
-    assert!(manavault_core::timefmt::parse(&row.2).is_some());
+    assert!(manavault_core::timestamp::parse(&row.2).is_some());
     assert_eq!((row.3, row.4, row.5.as_str()), (3, 2, "3-"));
 
     let requests = completion_requests(&server).await;
@@ -579,7 +579,6 @@ async fn saves_successful_deck_questions_newest_first_without_changing_the_analy
         serde_json::from_str::<Value>(first.recommendations.as_deref().unwrap()).unwrap(),
         json!({"cuts": ["Test Commander"], "additions": []})
     );
-    assert!(manavault_core::timefmt::parse(&first.inserted_at).is_some());
     // Answering again is a no-op once completed.
     answer_deck_question::run(&app.state, first.id)
         .await
@@ -1524,7 +1523,7 @@ async fn status_tracks_retries_and_terminal_outcomes_and_selects_only_this_decks
     )
     .bind(DECK_QUESTION_WORKER)
     .bind(deck_id)
-    .bind(manavault_core::timefmt::now_micros())
+    .bind(manavault_core::timestamp::now_micros())
     .execute(app.db())
     .await
     .unwrap();
@@ -1779,7 +1778,7 @@ async fn graphql_settings_analysis_lists_and_questions_use_ai_without_exposing_t
             .contains("**Bracket 3-**")
     );
     assert_eq!(job_deck["aiAnalysisModel"], "anthropic/claude-sonnet-4");
-    assert!(manavault_core::timefmt::parse(job_deck["aiAnalyzedAt"].as_str().unwrap()).is_some());
+    assert!(manavault_core::timestamp::parse(job_deck["aiAnalyzedAt"].as_str().unwrap()).is_some());
     assert_eq!(
         (
             job_deck["commanderBracket"].clone(),
@@ -1832,7 +1831,7 @@ async fn graphql_settings_analysis_lists_and_questions_use_ai_without_exposing_t
     assert_eq!(request["commanderBracketRating"], "3-");
     let list_analysis = request["analysis"].clone();
     assert!(list_analysis.as_str().unwrap().contains("## Overview"));
-    assert!(manavault_core::timefmt::parse(request["insertedAt"].as_str().unwrap()).is_some());
+    assert!(manavault_core::timestamp::parse(request["insertedAt"].as_str().unwrap()).is_some());
     assert!(request["insertedAt"].as_str().unwrap().ends_with('Z'));
     let list_prompt = message_content(completion_requests(&server).await.last().unwrap(), 1);
     assert!(list_prompt.contains(r#""land_count":2"#));
@@ -1909,7 +1908,7 @@ async fn graphql_settings_analysis_lists_and_questions_use_ai_without_exposing_t
     assert_eq!(question["model"], Value::Null);
     assert_eq!(question["recommendedCuts"], json!([]));
     assert_eq!(question["recommendedAdditions"], json!([]));
-    assert!(manavault_core::timefmt::parse(question["insertedAt"].as_str().unwrap()).is_some());
+    assert!(manavault_core::timestamp::parse(question["insertedAt"].as_str().unwrap()).is_some());
     let question_db_id: i64 = question_id.as_str().unwrap().parse().unwrap();
     let job_args: String = sqlx::query_scalar("SELECT args FROM jobs WHERE worker = ?1")
         .bind(DECK_QUESTION_WORKER)

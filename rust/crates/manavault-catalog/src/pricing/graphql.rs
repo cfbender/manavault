@@ -31,12 +31,6 @@ pub struct SyncVendorPricesPayload {
     pub pricing_settings: Option<PricingSettings>,
 }
 
-/// `DateTime.to_iso8601/1` of a `utc_datetime_usec` value.
-fn iso8601_usec(stored: &str) -> String {
-    manavault_core::timefmt::parse(stored)
-        .map_or_else(|| stored.to_owned(), manavault_core::timefmt::utc_micros)
-}
-
 async fn settings(state: &AppState) -> graphql::Result<PricingSettings> {
     let source = pricing::source(&state.db).await?;
     let vendors = pricing::vendor_statuses(&state.db)
@@ -45,7 +39,7 @@ async fn settings(state: &AppState) -> graphql::Result<PricingSettings> {
         .map(|status| PricingVendorStatus {
             vendor: status.vendor.as_str().to_owned(),
             price_count: status.price_count,
-            last_synced_at: status.last_synced_at.as_deref().map(iso8601_usec),
+            last_synced_at: status.last_synced_at.map(manavault_core::timestamp::micros),
         })
         .collect();
     Ok(PricingSettings {

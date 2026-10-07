@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id AS \"id!\", deck_id, question, answer, recommendations,\n                 status AS \"status: Status\", error, model, conversation_id, thread_id,\n                 swap_context, inserted_at\n               FROM deck_question_answers WHERE deck_id = ?1 AND thread_id = ?2 ORDER BY inserted_at ASC, id ASC",
+  "query": "SELECT id AS \"id!\", deck_id, question, answer, recommendations,\n                 status AS \"status: Status\", error, model, conversation_id, thread_id,\n                 swap_context, inserted_at AS \"inserted_at!: manavault_core::timestamp::Timestamp\"\n               FROM deck_question_answers WHERE deck_id = ?1 AND thread_id = ?2 ORDER BY inserted_at ASC, id ASC",
   "describe": {
     "columns": [
       {
@@ -125,7 +125,7 @@
         }
       },
       {
-        "name": "inserted_at",
+        "name": "inserted_at!: manavault_core::timestamp::Timestamp",
         "ordinal": 11,
         "type_info": "Text",
         "origin": {
@@ -154,5 +154,5 @@
       false
     ]
   },
-  "hash": "0013e4b8fc73412673ef7e51d8c255edab765c37b08c740d6509e9297fcfda1d"
+  "hash": "04cbed52a52a49c273abc4cc03f9bba38c6b2e64860808dcdb21cae0470819dc"
 }

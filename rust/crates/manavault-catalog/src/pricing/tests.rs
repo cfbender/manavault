@@ -304,7 +304,7 @@ async fn periodic_jobs_skip_vendors_with_fresh_prices() {
     ));
 
     // Card Kingdom refreshes every six hours, TCGplayer daily.
-    let seven_hours_ago = manavault_core::timefmt::utc_micros(
+    let seven_hours_ago = manavault_core::timestamp::micros(
         time::OffsetDateTime::now_utc() - std::time::Duration::from_secs(7 * 3600),
     );
     sqlx::query(
@@ -353,7 +353,7 @@ async fn pricing_settings_lists_sources_and_vendor_statuses() {
     assert_eq!(vendors[1]["vendor"], "cardkingdom");
     assert_eq!(vendors[1]["priceCount"], 2);
     let synced = vendors[1]["lastSyncedAt"].as_str().unwrap();
-    assert!(manavault_core::timefmt::parse(synced).is_some());
+    assert!(manavault_core::timestamp::parse(synced).is_some());
     assert_eq!(synced.len(), "2026-10-07T07:30:43.123456Z".len());
     assert_eq!(vendors[2]["vendor"], "manapool");
 }

@@ -14,12 +14,14 @@ pub const WORKER: &str = "cloud_backup";
 pub struct CloudBackupWorker;
 
 async fn scheduled_at(state: &AppState, job: &Job) -> Option<time::OffsetDateTime> {
-    let stored = sqlx::query_scalar!("SELECT run_at FROM jobs WHERE id = ?1", job.id)
-        .fetch_optional(&state.db)
-        .await
-        .ok()
-        .flatten()?;
-    manavault_core::timefmt::parse(&stored)
+    sqlx::query_scalar!(
+        r#"SELECT run_at AS "run_at: time::OffsetDateTime" FROM jobs WHERE id = ?1"#,
+        job.id
+    )
+    .fetch_optional(&state.db)
+    .await
+    .ok()
+    .flatten()
 }
 
 impl Worker for CloudBackupWorker {

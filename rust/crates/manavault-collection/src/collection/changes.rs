@@ -17,7 +17,7 @@ use manavault_catalog::catalog::price::price_cents_for_printing;
 use manavault_catalog::catalog::printing::PrintingRecord;
 use manavault_catalog::pricing::PriceStore;
 use manavault_catalog::printing_query;
-use manavault_core::timefmt;
+use manavault_core::timestamp::Timestamp;
 use manavault_core::validation::{BLANK, INVALID, ValidationError};
 
 /// Why an item write failed.
@@ -359,8 +359,8 @@ pub async fn create_in(
     let valid = apply(conn, Mode::Create, &Draft::new_item(), &changes)
         .await?
         .ok_or_else(|| ItemError::Invalid(ValidationError::single("scryfall_id", BLANK)))?;
-    let now = timefmt::now();
-    let changed_at = valid.moved.then(|| now.clone());
+    let now = Timestamp::now();
+    let changed_at = valid.moved.then_some(now);
     let id = sqlx::query_scalar!(
         r#"INSERT INTO collection_items
              (scryfall_id, quantity, condition, language, finish, location_id, notes,
@@ -410,11 +410,11 @@ async fn update_record(
     let Some(valid) = apply(conn, Mode::Update, &Draft::from_record(record), changes).await? else {
         return Ok(());
     };
-    let now = timefmt::now();
+    let now = Timestamp::now();
     let changed_at = if valid.moved {
-        Some(now.clone())
+        Some(now)
     } else {
-        record.location_changed_at.clone()
+        record.location_changed_at
     };
     sqlx::query!(
         r#"UPDATE collection_items SET scryfall_id = ?1, quantity = ?2, condition = ?3,

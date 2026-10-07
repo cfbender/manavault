@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT i.id AS \"id!\", i.scryfall_id AS \"scryfall_id!: lotus::ScryfallId\",\n                 i.quantity AS \"quantity!: lotus::Quantity\",\n                 i.condition AS \"condition!: lotus::Condition\", i.language AS \"language!\",\n                 i.finish AS \"finish!: lotus::Finish\", i.location_id AS \"location_id?\",\n                 i.notes AS \"notes?\", i.purchase_price_cents AS \"purchase_price_cents?\",\n                 i.for_trade AS \"for_trade!: bool\", i.for_trade_quantity AS \"for_trade_quantity!\",\n                 i.location_changed_at AS \"location_changed_at?\",\n                 i.inserted_at AS \"inserted_at!\", i.updated_at AS \"updated_at!\"\n               FROM collection_items AS i WHERE i.id = ?1",
+  "query": "SELECT i.id AS \"id!\", i.scryfall_id AS \"scryfall_id!: lotus::ScryfallId\",\n                 i.quantity AS \"quantity!: lotus::Quantity\",\n                 i.condition AS \"condition!: lotus::Condition\", i.language AS \"language!\",\n                 i.finish AS \"finish!: lotus::Finish\", i.location_id AS \"location_id?\",\n                 i.notes AS \"notes?\", i.purchase_price_cents AS \"purchase_price_cents?\",\n                 i.for_trade AS \"for_trade!: bool\", i.for_trade_quantity AS \"for_trade_quantity!\",\n                 i.location_changed_at AS \"location_changed_at?: manavault_core::timestamp::Timestamp\",\n                 i.inserted_at AS \"inserted_at!: manavault_core::timestamp::Timestamp\",\n                 i.updated_at AS \"updated_at!: manavault_core::timestamp::Timestamp\"\n               FROM collection_items AS i WHERE i.id IN (SELECT value FROM json_each(?1))",
   "describe": {
     "columns": [
       {
@@ -125,7 +125,7 @@
         }
       },
       {
-        "name": "location_changed_at?",
+        "name": "location_changed_at?: manavault_core::timestamp::Timestamp",
         "ordinal": 11,
         "type_info": "Text",
         "origin": {
@@ -136,7 +136,7 @@
         }
       },
       {
-        "name": "inserted_at!",
+        "name": "inserted_at!: manavault_core::timestamp::Timestamp",
         "ordinal": 12,
         "type_info": "Text",
         "origin": {
@@ -147,7 +147,7 @@
         }
       },
       {
-        "name": "updated_at!",
+        "name": "updated_at!: manavault_core::timestamp::Timestamp",
         "ordinal": 13,
         "type_info": "Text",
         "origin": {
@@ -178,5 +178,5 @@
       false
     ]
   },
-  "hash": "2dcb3aabb51fd9ae9e572aa7f23f805a4d505ea1b61564ff044813da17558b24"
+  "hash": "dbe192c1785dd2ec4c442ce7e6166ebcb6e90714546c51d6622dc97bce88e82e"
 }

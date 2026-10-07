@@ -16,10 +16,7 @@ pub async fn stale_vendors(state: &AppState) -> Result<Vec<Vendor>, sqlx::Error>
     let now = OffsetDateTime::now_utc();
     let mut vendors = Vec::new();
     for vendor in Vendor::ALL {
-        let synced = super::last_synced_at(&state.db, vendor)
-            .await?
-            .as_deref()
-            .and_then(manavault_core::timefmt::parse);
+        let synced = super::last_synced_at(&state.db, vendor).await?;
         if synced.is_none_or(|at| now - at >= vendor.sync_interval()) {
             vendors.push(vendor);
         }

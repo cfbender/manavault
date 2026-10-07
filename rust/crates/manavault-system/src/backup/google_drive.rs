@@ -5,6 +5,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use serde_json::{Value, json};
+use time::OffsetDateTime;
 
 use super::Remote;
 use super::settings::{CloudSettings, present};
@@ -176,7 +177,7 @@ impl GoogleDrive<'_> {
                 .map_or(filename, str::to_owned),
             provider: "google_drive".to_owned(),
             size: i64::try_from(size).ok(),
-            modified_at: Some(manavault_core::timefmt::now()),
+            modified_at: Some(OffsetDateTime::now_utc()),
         })
     }
 

@@ -883,9 +883,8 @@ async fn items_filter_by_added_window() {
         },
     )
     .await;
-    let eight_days_ago = manavault_core::timefmt::utc_seconds(
-        time::OffsetDateTime::now_utc() - time::Duration::days(8),
-    );
+    let eight_days_ago =
+        (manavault_core::timestamp::Timestamp::now() - time::Duration::days(8)).to_string();
     set_item_column(&app, old, "inserted_at", &eight_days_ago).await;
     let data = app
         .gql_data(
@@ -1734,9 +1733,8 @@ async fn auto_sort_mutation_moves_matching_source_items() {
     .await
     .record
     .id;
-    let stale = manavault_core::timefmt::utc_seconds(
-        time::OffsetDateTime::now_utc() - time::Duration::days(31),
-    );
+    let stale =
+        (manavault_core::timestamp::Timestamp::now() - time::Duration::days(31)).to_string();
     set_item_column(&app, matching, "location_changed_at", &stale).await;
     set_item_column(&app, other, "location_changed_at", &stale).await;
     replace(

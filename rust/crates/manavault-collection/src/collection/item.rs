@@ -15,6 +15,7 @@ use manavault_catalog::catalog::printing::{Printing, PrintingRecord};
 use manavault_catalog::catalog::sql::json_list;
 use manavault_catalog::pricing::PriceStore;
 use manavault_catalog::{card_query, printing_query};
+use manavault_core::timestamp::Timestamp;
 
 /// A `collection_items` row.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -31,9 +32,9 @@ pub struct CollectionItemRecord {
     pub for_trade: bool,
     /// Copies offered for trade, at most [`Self::quantity`].
     pub for_trade_quantity: i64,
-    pub location_changed_at: Option<String>,
-    pub inserted_at: String,
-    pub updated_at: String,
+    pub location_changed_at: Option<Timestamp>,
+    pub inserted_at: Timestamp,
+    pub updated_at: Timestamp,
 }
 
 /// Selects `collection_items` rows aliased `i` into [`CollectionItemRecord`];
@@ -49,8 +50,9 @@ macro_rules! collection_item_query {
                  i.finish AS "finish!: lotus::Finish", i.location_id AS "location_id?",
                  i.notes AS "notes?", i.purchase_price_cents AS "purchase_price_cents?",
                  i.for_trade AS "for_trade!: bool", i.for_trade_quantity AS "for_trade_quantity!",
-                 i.location_changed_at AS "location_changed_at?",
-                 i.inserted_at AS "inserted_at!", i.updated_at AS "updated_at!"
+                 i.location_changed_at AS "location_changed_at?: manavault_core::timestamp::Timestamp",
+                 i.inserted_at AS "inserted_at!: manavault_core::timestamp::Timestamp",
+                 i.updated_at AS "updated_at!: manavault_core::timestamp::Timestamp"
                FROM collection_items AS i "# + $tail
             $(, $arg)*
         )
