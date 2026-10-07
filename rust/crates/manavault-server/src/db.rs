@@ -94,6 +94,17 @@ pub async fn prepare(pool: &SqlitePool) -> Result<(), DbError> {
         )
         .execute(&mut *tx)
         .await?;
+        // Rows the Ecto migrations seed; structure.sql holds only the schema.
+        // `CreateDefaultDeckTags` inserts the starter deck tags.
+        sqlx::raw_sql(
+            "INSERT INTO default_deck_tags (name, color, position, inserted_at, updated_at) VALUES
+               ('Ramp', '#22C55E', 0, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+               ('Draw', '#3B82F6', 1, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+               ('Interact', '#EF4444', 2, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+               ('Plan', '#A855F7', 3, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))",
+        )
+        .execute(&mut *tx)
+        .await?;
         tx.commit().await?;
         tracing::info!("created a new database from structure.sql");
         return Ok(());

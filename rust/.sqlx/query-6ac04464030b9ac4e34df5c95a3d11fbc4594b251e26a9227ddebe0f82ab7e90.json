@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE deck_tags SET name = ?2, color = ?3, target_count = ?4, position = ?5, updated_at = ?6 WHERE id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "6ac04464030b9ac4e34df5c95a3d11fbc4594b251e26a9227ddebe0f82ab7e90"
+}

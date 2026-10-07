@@ -18,6 +18,7 @@ pub fn workers() -> Vec<Arc<dyn Worker>> {
         Arc::new(crate::pricing::worker::VendorSyncWorker),
         Arc::new(crate::scanner::update_worker::BundleUpdateWorker),
         Arc::new(crate::backup::worker::CloudBackupWorker),
+        Arc::new(crate::decks::external::ExternalDeckSyncWorker),
     ]
 }
 
@@ -38,6 +39,7 @@ pub fn crontab() -> Vec<CronEntry> {
         entry("@reboot", VENDOR_SYNC),
         entry("*/30 * * * *", VENDOR_SYNC),
         entry("* * * * *", crate::backup::worker::WORKER),
+        entry("0 * * * *", crate::decks::external::WORKER),
     ]
 }
 

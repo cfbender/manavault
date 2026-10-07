@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT scryfall_id AS \"scryfall_id!: ScryfallId\", oracle_id AS \"oracle_id!: OracleId\"\n               FROM scryfall_printings WHERE scryfall_id IN (SELECT value FROM json_each(?1))",
+  "describe": {
+    "columns": [
+      {
+        "name": "scryfall_id!: ScryfallId",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "scryfall_id"
+          }
+        }
+      },
+      {
+        "name": "oracle_id!: OracleId",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "oracle_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false
+    ]
+  },
+  "hash": "c4f60cf4b9dcffd14f8b6a434f079caae70144a34c4a1e13ee23756d31a9f45e"
+}

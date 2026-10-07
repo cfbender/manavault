@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE deck_allocations SET deck_card_id = ?1 WHERE deck_card_id = ?2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "b7570d910ebf1df96aba49c13d08186afa03660c27edafdc5b796d188c323e0b"
+}

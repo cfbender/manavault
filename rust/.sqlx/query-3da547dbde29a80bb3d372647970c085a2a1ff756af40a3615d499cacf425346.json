@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO default_deck_tags (name, color, target_count, position, inserted_at, updated_at)\n               VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "3da547dbde29a80bb3d372647970c085a2a1ff756af40a3615d499cacf425346"
+}

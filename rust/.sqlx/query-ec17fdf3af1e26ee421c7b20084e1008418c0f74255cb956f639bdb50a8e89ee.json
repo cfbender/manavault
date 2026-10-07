@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!\", name AS \"name!\", color AS \"color!\", target_count,\n                  position AS \"position!\"\n           FROM default_deck_tags ORDER BY position ASC, id ASC",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "default_deck_tags",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "name!",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "default_deck_tags",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "color!",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "default_deck_tags",
+            "name": "color"
+          }
+        }
+      },
+      {
+        "name": "target_count",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "default_deck_tags",
+            "name": "target_count"
+          }
+        }
+      },
+      {
+        "name": "position!",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "default_deck_tags",
+            "name": "position"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "ec17fdf3af1e26ee421c7b20084e1008418c0f74255cb956f639bdb50a8e89ee"
+}

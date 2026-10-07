@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO deck_tags (deck_id, name, color, target_count, position, inserted_at, updated_at)\n           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6) RETURNING id AS \"id!\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_tags",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "c1e2d5ca6c8f9761e30f6506f2a1b23fd1cfcdc18e1c252b67a73568df47dad8"
+}

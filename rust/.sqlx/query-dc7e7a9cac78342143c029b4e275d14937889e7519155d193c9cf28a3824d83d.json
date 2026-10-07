@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT deck_card_id AS \"deck_card_id!\", collection_item_id AS \"item!\", quantity AS \"quantity!\"\n           FROM deck_allocations ORDER BY id",
+  "describe": {
+    "columns": [
+      {
+        "name": "deck_card_id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "deck_card_id"
+          }
+        }
+      },
+      {
+        "name": "item!",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "collection_item_id"
+          }
+        }
+      },
+      {
+        "name": "quantity!",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "quantity"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "dc7e7a9cac78342143c029b4e275d14937889e7519155d193c9cf28a3824d83d"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE deck_cards SET preferred_printing_id = ?2, quantity = ?3, proxy_quantity = ?4,\n                 zone = ?5, finish = ?6, tag = ?7, updated_at = ?8\n           WHERE id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 8
+    },
+    "nullable": []
+  },
+  "hash": "354b323d03767029a3809a5f90b99c3e59caa3509d162f8dcb02f40729e61884"
+}
