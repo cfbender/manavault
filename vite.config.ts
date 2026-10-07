@@ -85,8 +85,8 @@ export default {
       "^/(settings|cards|decks|collection|trade|scan|login|logout|vendors|health|dev)(/|\\?|$)":
         backendProxy,
       "/share": backendProxy,
-      "/api": backendProxy,
-      "/socket": backendSocketProxy,
+      // `/api/graphql/ws` carries the subscription websocket.
+      "/api": backendSocketProxy,
       "/scryfall-assets": backendProxy,
       "/site.webmanifest": backendProxy,
       "/sw.js": backendProxy,

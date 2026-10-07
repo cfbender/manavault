@@ -1,13 +1,11 @@
-//! Protection for the public share GraphQL endpoint
-//! (`Plugs.PublicGraphQLProtection`), as reusable middleware:
+//! Protection for the public share GraphQL endpoint:
 //!
 //! - [`admit`] rate-limits per client and globally before the body is read.
-//! - [`validate`] rejects transport batches (`_json` arrays, `operations`).
-//! - [`check_depth`] is the `MaxDepth` phase for the executor to run before
+//! - [`check_depth`] is the depth limit for the executor to run before
 //!   resolving (depth 12).
 //!
 //! The public schema and its route (`/share/graphql`) are added by the share
-//! module, wrapped in these layers.
+//! module, wrapped in [`admit`].
 
 use axum::extract::{Request, State};
 use axum::http::header::RETRY_AFTER;
@@ -16,7 +14,6 @@ use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 
 use super::client_ip;
-use super::params;
 use super::rate_limit::Admission;
 use crate::state::AppState;
 
@@ -31,7 +28,7 @@ fn reject(status: StatusCode, message: &str) -> Response {
         .into_response()
 }
 
-/// Middleware: the shared request budget (`:admit`).
+/// Middleware: the shared request budget.
 pub async fn admit(State(state): State<AppState>, request: Request, next: Next) -> Response {
     let client_id = client_ip::for_request(&state.config, &request);
     match state
@@ -50,22 +47,6 @@ pub async fn admit(State(state): State<AppState>, request: Request, next: Next) 
             response
         }
     }
-}
-
-/// Middleware: no batches (`:validate`). Parses the body, leaving
-/// [`params::Params`] in the request extensions.
-pub async fn validate(request: Request, next: Next) -> Response {
-    let (request, params) = match params::parse(request).await {
-        Ok(parsed) => parsed,
-        Err(error) => return error.into_response(),
-    };
-    if params.contains("_json") || params.contains("operations") {
-        return reject(
-            StatusCode::BAD_REQUEST,
-            "GraphQL request batches are not supported",
-        );
-    }
-    next.run(request).await
 }
 
 /// The depth of the selected operation, counting fields only; fragment
@@ -134,8 +115,8 @@ fn selections_depth(
     })
 }
 
-/// `MaxDepth`: an error message when the operation is deeper than
-/// [`MAX_DEPTH`]. Unparseable documents pass (the executor reports them).
+/// An error message when the operation is deeper than [`MAX_DEPTH`].
+/// Unparseable documents pass (the executor reports them).
 pub fn check_depth(query: &str, operation_name: Option<&str>) -> Result<(), String> {
     let Ok(document) = async_graphql::parser::parse_query(query) else {
         return Ok(());
@@ -179,19 +160,18 @@ mod tests {
         let state = app.state.clone();
         axum::Router::new()
             .route("/share/graphql", post(|| async { "ok" }))
-            .route_layer(axum::middleware::from_fn(validate))
             .route_layer(axum::middleware::from_fn_with_state(state.clone(), admit))
             .with_state(state)
     }
 
-    async fn send(router: &axum::Router, content_type: &str, body: &str) -> Response {
+    async fn send(router: &axum::Router) -> Response {
         use tower::ServiceExt as _;
         router
             .clone()
             .oneshot(
                 Request::post("/share/graphql")
-                    .header("content-type", content_type)
-                    .body(Body::from(body.to_owned()))
+                    .header("content-type", "application/json")
+                    .body(Body::from("{not valid json"))
                     .unwrap(),
             )
             .await
@@ -199,35 +179,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn rejects_batches_and_rate_limits_before_parsing() {
+    async fn rate_limits_before_the_body_is_read() {
         let app = TestState::with_config(|config| {
-            config.public_share_rate_limit.max_per_ip = 3;
-            config.public_share_rate_limit.max_global = 3;
+            config.public_share_rate_limit.max_per_ip = 2;
+            config.public_share_rate_limit.max_global = 2;
         })
         .await;
         let router = app_router(&app);
-        let batch = send(
-            &router,
-            "application/json",
-            r#"[{"query": "{ a }"}, {"query": "{ b }"}]"#,
-        )
-        .await;
-        assert_eq!(batch.status(), 400);
-        assert!(
-            body_text(batch)
-                .await
-                .contains("GraphQL request batches are not supported")
-        );
-        let operations = send(
-            &router,
-            "application/x-www-form-urlencoded",
-            "operations=%5B%5D",
-        )
-        .await;
-        assert_eq!(operations.status(), 400);
-        let ok = send(&router, "application/json", r#"{"query": "{ a }"}"#).await;
-        assert_eq!(ok.status(), 200);
-        let limited = send(&router, "application/json", "{not valid json").await;
+        assert_eq!(send(&router).await.status(), 200);
+        assert_eq!(send(&router).await.status(), 200);
+        let limited = send(&router).await;
         assert_eq!(limited.status(), 429);
         assert!(limited.headers().get("retry-after").is_some());
         assert!(

@@ -10,7 +10,7 @@
 //!
 //! Static files are served by the layer outside this one and are not logged,
 //! like the static plugs that ran before the request logger. The WebSocket
-//! upgrade (`/socket`) is not a request in this sense. Scryfall symbol/set
+//! upgrade (`/api/graphql/ws`) is not a request in this sense. Scryfall symbol/set
 //! assets and scanner model bundle files get an id but are not logged: they
 //! are static content served per card or model file, and logging them would
 //! drown the log.
@@ -40,7 +40,7 @@ enum Treatment {
 }
 
 fn treatment(path: &str) -> Treatment {
-    if path == "/socket" || path.starts_with("/socket/") {
+    if path == "/api/graphql/ws" {
         Treatment::Untouched
     } else if path.starts_with("/scryfall-assets/")
         || path == "/api/scanner/bundle"

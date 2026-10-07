@@ -129,6 +129,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-graphql-axum"
+version = "7.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1e37c5532e4b686acf45e7162bc93da91fc2c702fb0d465efc2c20c8f973795"
+dependencies = [
+ "async-graphql",
+ "axum",
+ "bytes",
+ "futures-util",
+ "serde_json",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tower-service",
+]
+
+[[package]]
 name = "async-graphql-derive"
 version = "7.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1641,6 +1658,7 @@ version = "2.0.0"
 dependencies = [
  "aes-gcm",
  "async-graphql",
+ "async-graphql-axum",
  "async-graphql-value",
  "async-trait",
  "axum",
@@ -1651,7 +1669,6 @@ dependencies = [
  "lotus",
  "manavault-server",
  "moka",
- "multer",
  "pbkdf2",
  "rand 0.8.8",
  "regex",
@@ -1696,6 +1713,7 @@ name = "manavault-server"
 version = "2.0.0"
 dependencies = [
  "async-graphql",
+ "async-graphql-axum",
  "axum",
  "base64 0.22.1",
  "flate2",
@@ -1773,6 +1791,7 @@ dependencies = [
  "manavault-core",
  "manavault-server",
  "reqwest",
+ "serde",
  "serde_json",
  "sha1 0.10.7",
  "sha2 0.10.9",
@@ -3068,7 +3087,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
@@ -3244,6 +3263,7 @@ checksum = "494815d09bf52b5548659851081238f0ca39ff638363907596da739561c62c52"
 dependencies = [
  "bytes",
  "futures-core",
+ "futures-io",
  "futures-sink",
  "libc",
  "pin-project-lite",

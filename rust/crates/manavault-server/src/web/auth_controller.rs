@@ -1,14 +1,12 @@
-//! `/login` and `/logout` (`ManavaultWeb.AuthController`, template
-//! `auth_html/login.html.eex`).
+//! `/login` and `/logout`.
 
-use axum::extract::State;
+use axum::extract::{Form, FromRequest as _, Query, State};
 use axum::http::header::{CONTENT_TYPE, RETRY_AFTER};
 use axum::http::{HeaderValue, Request, StatusCode};
 use axum::response::{IntoResponse, Response};
 
 use super::app_shell::escape;
 use super::client_ip;
-use super::params::Params;
 use super::return_path;
 use super::session::{self, Session};
 use crate::auth::{self, Check, FailureOutcome};
@@ -81,9 +79,26 @@ fn render_login(
         .into_response()
 }
 
+/// The login page's query string.
+#[derive(Debug, Default, serde::Deserialize)]
+pub struct LoginQuery {
+    return_to: Option<String>,
+}
+
+/// The login form's fields.
+#[derive(Debug, Default, serde::Deserialize)]
+pub struct LoginForm {
+    password: Option<String>,
+    return_to: Option<String>,
+}
+
 /// `GET /login`.
-pub async fn new(State(state): State<AppState>, session: Session, params: Params) -> Response {
-    let return_to = params.text("return_to");
+pub async fn new(
+    State(state): State<AppState>,
+    session: Session,
+    Query(query): Query<LoginQuery>,
+) -> Response {
+    let return_to = query.return_to.as_deref();
     if auth::disabled(&state.config) || session::authenticated(&state, &session) {
         return redirect(&return_path::sanitize(return_to));
     }
@@ -116,18 +131,22 @@ fn server_error(error: &sqlx::Error) -> Response {
 pub async fn create(
     State(state): State<AppState>,
     session: Session,
-    params: Params,
     request: Request<axum::body::Body>,
 ) -> Response {
-    let Some(password) = params.text("password") else {
+    let client_id = client_ip::for_request(&state.config, &request);
+    let form = match Form::<LoginForm>::from_request(request, &()).await {
+        Ok(Form(form)) => form,
+        Err(rejection) => return rejection.into_response(),
+    };
+    let Some(password) = form.password.as_deref() else {
         return render_login(
             &session,
             StatusCode::BAD_REQUEST,
-            params.text("return_to"),
+            form.return_to.as_deref(),
             Some("Password is required"),
         );
     };
-    let return_to = return_path::sanitize(params.text("return_to"));
+    let return_to = return_path::sanitize(form.return_to.as_deref());
     if auth::disabled(&state.config) {
         return redirect(&return_to);
     }
@@ -140,7 +159,6 @@ pub async fn create(
         );
     }
 
-    let client_id = client_ip::for_request(&state.config, &request);
     let limits = state.config.auth_rate_limit;
     match state
         .login_attempts

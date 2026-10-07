@@ -76,7 +76,7 @@ export const NONDETERMINISTIC = []
 
 export const NOT_EXERCISED = {
   ServerLog:
-    "GraphQL subscription over the Absinthe/Phoenix websocket; not reachable over HTTP POST (covered by the platform socket tests).",
+    "GraphQL subscription over the graphql-ws websocket; not reachable over HTTP POST (covered by the server websocket tests).",
 }
 
 function sameFieldMessages(left, right) {

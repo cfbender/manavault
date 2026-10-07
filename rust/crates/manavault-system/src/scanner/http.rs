@@ -1,8 +1,7 @@
-//! `/api/scanner` handlers (`ScannerBundleController`,
-//! `ScannerCorrectionController`) and `Plugs.ScannerExportAuth`.
+//! `/api/scanner` handlers: the bundle, corrections, and export auth.
 
 use axum::body::Body;
-use axum::extract::{Path, Request, State};
+use axum::extract::{Json, Path, Query, Request, State};
 use axum::http::header::{
     ACCEPT_ENCODING, AUTHORIZATION, CACHE_CONTROL, CONTENT_ENCODING, CONTENT_TYPE, VARY,
 };
@@ -13,7 +12,6 @@ use serde_json::{Map, Value, json};
 
 use super::{bundle, corrections};
 use crate::state::AppState;
-use crate::web::params::Params;
 use crate::web::session::{self, Session};
 
 fn errors(status: StatusCode, key: &str, message: &str) -> Response {
@@ -141,8 +139,11 @@ pub async fn file(
 }
 
 /// `POST /api/scanner/corrections`.
-pub async fn create_correction(State(state): State<AppState>, params: Params) -> Response {
-    match corrections::save(&state.config.scanner_bundle_dir, &Value::Object(params.0)).await {
+pub async fn create_correction(
+    State(state): State<AppState>,
+    Json(correction): Json<Map<String, Value>>,
+) -> Response {
+    match corrections::save(&state.config.scanner_bundle_dir, &Value::Object(correction)).await {
         Ok(Some(capture_id)) => (
             StatusCode::CREATED,
             axum::Json(json!({"data": {"capture_id": capture_id}})),
@@ -156,13 +157,21 @@ pub async fn create_correction(State(state): State<AppState>, params: Params) ->
     }
 }
 
+/// The corrections page query string.
+#[derive(Debug, Default, serde::Deserialize)]
+pub struct CorrectionsQuery {
+    cursor: Option<String>,
+}
+
 /// `GET /api/scanner/corrections?cursor=n`.
-pub async fn index_corrections(State(state): State<AppState>, params: Params) -> Response {
-    let cursor = match params.0.get("cursor") {
+pub async fn index_corrections(
+    State(state): State<AppState>,
+    query: Result<Query<CorrectionsQuery>, axum::extract::rejection::QueryRejection>,
+) -> Response {
+    let cursor = query.ok().and_then(|Query(query)| match query.cursor {
         None => Some(0),
-        Some(Value::String(text)) => text.parse::<usize>().ok(),
-        Some(_) => None,
-    };
+        Some(text) => text.parse::<usize>().ok(),
+    });
     let Some(cursor) = cursor else {
         return errors(StatusCode::BAD_REQUEST, "message", "Invalid cursor");
     };

@@ -1,13 +1,16 @@
-//! The `:browser` pipeline: `protect_from_forgery`,
-//! `put_secure_browser_headers`, `Plugs.ContentSecurityPolicy`, and
-//! `Plugs.CrossOriginIsolation` for the scanner page.
+//! The browser pipeline: CSRF protection for form posts, secure browser
+//! headers with the content security policy, and cross-origin isolation for
+//! the scanner page.
 
+use axum::body::Body;
 use axum::extract::{Request, State};
+use axum::http::header::CONTENT_TYPE;
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 
-use super::params::{self, Params};
+use super::content_type_is;
+use super::graphql::{BODY_LIMIT, csrf_header_valid};
 use super::session::Session;
 use crate::state::AppState;
 
@@ -72,32 +75,41 @@ pub fn put_browser_headers(headers: &mut HeaderMap, vite_dev: bool) {
     put_if_absent(headers, "x-permitted-cross-domain-policies", "none");
 }
 
-/// Whether a request's masked CSRF token (`_csrf_token` param or
-/// `x-csrf-token` header) matches the session.
-#[must_use]
-pub fn csrf_token_valid(session: &Session, headers: &HeaderMap, params: &Params) -> bool {
-    params
-        .text("_csrf_token")
-        .is_some_and(|token| session.csrf_valid(token))
-        || headers
-            .get_all("x-csrf-token")
-            .iter()
-            .filter_map(|value| value.to_str().ok())
-            .any(|token| session.csrf_valid(token))
-}
-
 fn forbidden() -> Response {
     (
         StatusCode::FORBIDDEN,
-        [(axum::http::header::CONTENT_TYPE, "text/html; charset=utf-8")],
+        [(CONTENT_TYPE, "text/html; charset=utf-8")],
         "Forbidden",
     )
         .into_response()
 }
 
-/// The `:browser` pipeline. Unsafe methods need a valid CSRF token
-/// (`Plug.CSRFProtection` answers 403 otherwise); every response gets the
-/// secure browser headers.
+/// Checks the CSRF token of an unsafe request: the `x-csrf-token` header or,
+/// for a form post, its `_csrf_token` field. The body is buffered and handed
+/// back for the handler to read again. The error is the status to answer
+/// with: 403 for a missing or stale token, 413 for an oversized form.
+async fn check_csrf(session: &Session, request: Request) -> Result<Request, StatusCode> {
+    if csrf_header_valid(session, request.headers()) {
+        return Ok(request);
+    }
+    if !content_type_is(request.headers(), "application/x-www-form-urlencoded") {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    let (parts, body) = request.into_parts();
+    let bytes = axum::body::to_bytes(body, BODY_LIMIT)
+        .await
+        .map_err(|_| StatusCode::PAYLOAD_TOO_LARGE)?;
+    let valid = url::form_urlencoded::parse(&bytes)
+        .any(|(key, value)| key == "_csrf_token" && session.csrf_valid(&value));
+    if valid {
+        Ok(Request::from_parts(parts, Body::from(bytes)))
+    } else {
+        Err(StatusCode::FORBIDDEN)
+    }
+}
+
+/// The browser pipeline. Unsafe methods need a valid CSRF token (403
+/// otherwise); every response gets the secure browser headers.
 pub async fn pipeline(
     State(state): State<AppState>,
     session: Session,
@@ -110,22 +122,19 @@ pub async fn pipeline(
     ) {
         request
     } else {
-        let (request, params) = match params::parse(request).await {
-            Ok(parsed) => parsed,
-            Err(error) => return error.into_response(),
-        };
-        if !csrf_token_valid(&session, request.headers(), &params) {
-            return forbidden();
+        match check_csrf(&session, request).await {
+            Ok(request) => request,
+            Err(StatusCode::FORBIDDEN) => return forbidden(),
+            Err(status) => return status.into_response(),
         }
-        request
     };
     let mut response = next.run(request).await;
     put_browser_headers(response.headers_mut(), state.config.vite_dev_server);
     response
 }
 
-/// `Plugs.CrossOriginIsolation`: lets the scanner run multi-threaded
-/// WebAssembly (`SharedArrayBuffer`).
+/// Cross-origin isolation lets the scanner run multi-threaded WebAssembly
+/// (`SharedArrayBuffer`).
 pub async fn cross_origin_isolation(request: Request, next: Next) -> Response {
     let mut response = next.run(request).await;
     let headers = response.headers_mut();

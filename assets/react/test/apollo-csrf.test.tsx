@@ -1,6 +1,10 @@
 import { ApolloClient, ApolloLink, gql, InMemoryCache, Observable } from "@apollo/client"
 import { afterEach, describe, expect, it } from "vitest"
-import { createCsrfLink, subscriptionSocketParams } from "../src/lib/apollo.ts"
+import {
+  createCsrfLink,
+  subscriptionConnectionParams,
+  subscriptionSocketUrl,
+} from "../src/lib/apollo.ts"
 
 const nativeGlobal = globalThis as typeof globalThis & {
   Capacitor?: { isNativePlatform: () => boolean }
@@ -75,12 +79,21 @@ describe("Apollo CSRF request headers", () => {
   })
 })
 
-describe("subscription socket CSRF params", () => {
-  it("reads the current page token for each socket connection", () => {
+describe("subscription socket", () => {
+  it("reads the current page token for each connection handshake", () => {
     setCsrfToken("initial-socket-token")
-    expect(subscriptionSocketParams()).toEqual({ _csrf_token: "initial-socket-token" })
+    expect(subscriptionConnectionParams()).toEqual({ csrfToken: "initial-socket-token" })
 
     setCsrfToken("rotated-socket-token")
-    expect(subscriptionSocketParams()).toEqual({ _csrf_token: "rotated-socket-token" })
+    expect(subscriptionConnectionParams()).toEqual({ csrfToken: "rotated-socket-token" })
+  })
+
+  it("connects to the GraphQL websocket on the page's origin", () => {
+    expect(subscriptionSocketUrl({ protocol: "https:", host: "vault.example" } as Location)).toBe(
+      "wss://vault.example/api/graphql/ws",
+    )
+    expect(subscriptionSocketUrl({ protocol: "http:", host: "localhost:5173" } as Location)).toBe(
+      "ws://localhost:5173/api/graphql/ws",
+    )
   })
 })

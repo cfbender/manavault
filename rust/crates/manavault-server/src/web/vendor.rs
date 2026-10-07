@@ -1,17 +1,15 @@
-//! `POST /vendors/star-city-games/deck-builder`
-//! (`VendorController.star_city_games` and `Catalog.Vendors.StarCityGames`):
-//! hands a decklist to `StarCityGames`' affiliate endpoint and redirects to the
-//! deck builder it prepared.
+//! `POST /vendors/star-city-games/deck-builder`: hands a decklist to
+//! `StarCityGames`' affiliate endpoint and redirects to the deck builder it
+//! prepared.
 
 use std::time::Duration;
 
-use axum::extract::State;
+use axum::extract::{Form, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde_json::{Value, json};
 
 use super::auth_controller::redirect;
-use super::params::Params;
 use crate::state::AppState;
 
 const DECK_BUILDER_URL: &str = "https://starcitygames.com/shop/deck-builder/";
@@ -63,9 +61,18 @@ pub async fn create_deck_builder_url(state: &AppState, decklist: &str) -> Result
     }
 }
 
+/// The deck builder form: the decklist as `data`.
+#[derive(Debug, Default, serde::Deserialize)]
+pub struct DeckBuilderForm {
+    data: Option<String>,
+}
+
 /// The handler.
-pub async fn star_city_games(State(state): State<AppState>, params: Params) -> Response {
-    let Some(decklist) = params.text("data") else {
+pub async fn star_city_games(
+    State(state): State<AppState>,
+    Form(form): Form<DeckBuilderForm>,
+) -> Response {
+    let Some(decklist) = form.data.as_deref() else {
         return (StatusCode::UNPROCESSABLE_ENTITY, "A decklist is required.").into_response();
     };
     match create_deck_builder_url(&state, decklist).await {

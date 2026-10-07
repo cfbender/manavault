@@ -9,13 +9,13 @@ Web platform, authentication, settings, API keys, backups, and the scanner.
 | `ManavaultWeb.Endpoint` (Plug.Static ×3, session, `PublicGraphQLProtection :admit`)                                                                                                        | `web/mod.rs`, `web/static_files.rs`, `web/public_graphql.rs`                                    |
 | `ManavaultWeb.Router` (all scopes/pipelines)                                                                                                                                               | `web/mod.rs`                                                                                    |
 | `put_secure_browser_headers`, `protect_from_forgery`, `Plugs.ContentSecurityPolicy`, `Plugs.CrossOriginIsolation`                                                                          | `web/browser.rs`                                                                                |
-| `Plug.Parsers` (urlencoded, multipart, JSON, `application/graphql`)                                                                                                                        | `web/params.rs`                                                                                 |
-| `Plugs.GraphQLCSRFProtection` + `Absinthe.Plug` transport (batches, form bodies)                                                                                                           | `web/graphql_http.rs`                                                                           |
+| `Plug.Parsers` (urlencoded, multipart, JSON, `application/graphql`)                                                                                                                        | axum extractors (`Form`, `Json`, `Query`) per handler                                           |
+| `Plugs.GraphQLCSRFProtection` + `Absinthe.Plug` transport (batches, form bodies)                                                                                                           | `web/graphql.rs` (async-graphql-axum, JSON `POST` only)                                         |
 | `AppController.index`/`render_app`, `app_html/app.html.eex`, `DeckSharePreview.default/1`                                                                                                  | `web/app_shell.rs`                                                                              |
 | share pages hook (`share_deck`, `share_wants`, `share_binder`, previews, `/share/graphql`)                                                                                                 | `web/share.rs` (empty hooks, documented)                                                        |
 | `AuthController`, `auth_html/login.html.eex`, `AuthReturnPath`                                                                                                                             | `web/auth_controller.rs`, `web/return_path.rs`                                                  |
 | `ClientIP`, `AllowedOrigins`, `AssetVersion`, `SessionOptions`                                                                                                                             | `web/client_ip.rs`, `web/allowed_origins.rs`, `web/asset_version.rs`, existing `web/session.rs` |
-| `UserSocket` + `Absinthe.Phoenix` channel (Phoenix Channels v2/v1 JSON)                                                                                                                    | `web/socket.rs`                                                                                 |
+| `UserSocket` + `Absinthe.Phoenix` channel (Phoenix Channels v2/v1 JSON)                                                                                                                    | `web/subscriptions.rs` (graphql-ws at `/api/graphql/ws`)                                        |
 | `PwaController`, `VendorController` + `Vendors.StarCityGames`                                                                                                                              | `web/pwa.rs`, `web/vendor.rs`                                                                   |
 | `Plugs.ApiKeyAuthentication`, `/api/v1` scope                                                                                                                                              | `web/api_v1.rs` (placeholder `GET /api/v1/decks` → 501 until the deck module adds it)           |
 | `PublicShareRequestLimiter`                                                                                                                                                                | `web/rate_limit.rs` (in `AppState.public_requests`)                                             |
@@ -46,7 +46,7 @@ Queries: `appearanceSettings`, `aiSettings`, `apiKeys`, `backupSettings`,
 ## Routes
 
 `/health`, static files, `/site.webmanifest`, `/sw.js`,
-`/.well-known/assetlinks.json`, `/socket/websocket`, `GET/POST /login`,
+`/.well-known/assetlinks.json`, `/api/graphql/ws`, `GET/POST /login`,
 `POST /logout`, `POST /vendors/star-city-games/deck-builder`, all shell routes
 (`/`, `/settings`, `/cards[/:id]`, `/decks[/:id[/playtest]]`, `/collection`,
 `/collection/new`, `/collection/locations/:id`, `/collection/:id/edit`,
@@ -64,10 +64,11 @@ Queries: `appearanceSettings`, `aiSettings`, `apiKeys`, `backupSettings`,
   fix; the level is its own field).
 - `jobs/mod.rs`: failed attempts log the `ObanLogger` line at error level
   (foundation change, replaces the old warn line).
-- GraphQL over HTTP keeps field order; socket frames are built as
-  `serde_json::Value`, so their object keys are sorted (clients do not care).
-- Socket subscription ids are random (`__absinthe__:doc:<n>`), not Absinthe's
-  document hashes; identical subscriptions get distinct ids.
+- Subscriptions run over the graphql-ws protocol at `/api/graphql/ws` (the
+  frontend uses Apollo's `GraphQLWsLink`), not Phoenix Channels at `/socket`.
+  The CSRF token travels in the `connection_init` payload (`csrfToken`).
+- `/api/graphql` and `/share/graphql` accept one JSON request per `POST`:
+  no batches, form bodies, `application/graphql`, or `GET` queries.
 - `revokeApiKey` with a non-numeric id answers "API key not found" (Ecto
   raises a cast error).
 - `updateBackupSettings` with `enabled: null` keeps the saved value (Ecto

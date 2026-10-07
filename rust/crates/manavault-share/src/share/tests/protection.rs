@@ -29,7 +29,7 @@ async fn rejects_json_transport_batches() {
     assert_eq!(batch.status, 400);
     assert_eq!(
         batch.json(),
-        json!({"errors": [{"message": "GraphQL request batches are not supported"}]})
+        json!({"errors": [{"message": "Batch requests are not supported"}]})
     );
     let single = post_graphql(&app, &typename()).await;
     assert_eq!(single.status, 200);
@@ -40,7 +40,7 @@ async fn rejects_json_transport_batches() {
 }
 
 #[tokio::test]
-async fn rejects_encoded_operations_transport_batches() {
+async fn only_json_bodies_are_accepted() {
     let app = TestApp::new().await;
     let operations = serde_json::to_string(&json!([typename()])).unwrap();
     let body = url::form_urlencoded::Serializer::new(String::new())
@@ -54,10 +54,10 @@ async fn rejects_encoded_operations_transport_batches() {
             .unwrap(),
     )
     .await;
-    assert_eq!(sent.status, 400);
+    assert_eq!(sent.status, 415);
     assert_eq!(
         sent.json()["errors"][0]["message"],
-        "GraphQL request batches are not supported"
+        "Expected an application/json request body"
     );
 }
 
@@ -240,12 +240,9 @@ async fn public_share_graphql_rejects_mutation_operations() {
 }
 
 #[tokio::test]
-async fn get_requests_run_queries() {
+async fn get_requests_are_not_allowed() {
     let app = TestApp::new().await;
     let sent = super::get(&app, "/share/graphql?query=%7B__typename%7D").await;
-    assert_eq!(sent.status, 200);
-    assert_eq!(
-        sent.json(),
-        json!({"data": {"__typename": "RootQueryType"}})
-    );
+    assert_eq!(sent.status, 405);
+    assert_eq!(sent.header("allow"), Some("POST"));
 }

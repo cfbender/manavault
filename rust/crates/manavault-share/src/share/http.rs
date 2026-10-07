@@ -1,18 +1,16 @@
-//! `/share/graphql` (`forward "/share/graphql", Absinthe.Plug, schema:
-//! ManavaultWeb.PublicShareSchema`). The router wraps it in
-//! [`crate::web::public_graphql::admit`] and
-//! [`crate::web::public_graphql::validate`], so batches are already refused
-//! and the parsed body is in [`Params`].
+//! `POST /share/graphql`: the public share schema over HTTP. The router
+//! wraps the handler in [`crate::web::public_graphql::admit`] (rate
+//! limiting) and [`crate::web::graphql::require_json`]; the
+//! [`GraphQLRequest`] extractor accepts one request per body, so batches
+//! are refused before anything runs.
 
 use axum::extract::State;
-use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use serde_json::{Value, json};
+use serde_json::json;
 
 use super::protection::{self, Rejection};
 use crate::state::AppState;
-use crate::web::graphql_http::build_request;
-use crate::web::params::Params;
+use crate::web::graphql::GraphQLRequest;
 use crate::web::public_graphql::check_depth;
 
 fn rejected(errors: &[Rejection]) -> Response {
@@ -20,8 +18,8 @@ fn rejected(errors: &[Rejection]) -> Response {
         .into_response()
 }
 
-/// Runs the document checks Absinthe runs before resolving: the token
-/// limit, query-only operations, the depth limit, and the complexity limit.
+/// Runs the document checks that precede resolving: the token limit,
+/// query-only operations, the depth limit, and the complexity limit.
 fn check_document(query: &str, operation_name: Option<&str>) -> Result<(), Vec<Rejection>> {
     protection::check_tokens(query).map_err(|rejection| vec![rejection])?;
     let Ok(document) = async_graphql::parser::parse_query(query) else {
@@ -40,18 +38,8 @@ fn check_document(query: &str, operation_name: Option<&str>) -> Result<(), Vec<R
 }
 
 /// Executes one request against the public schema. Responses that failed
-/// before execution carry no `data`, as Absinthe's do.
-pub async fn execute(state: &AppState, params: &serde_json::Map<String, Value>) -> Response {
-    let request = match build_request(params) {
-        Ok(request) => request,
-        Err(message) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                axum::Json(json!({"errors": [{"message": message}]})),
-            )
-                .into_response();
-        }
-    };
+/// before execution carry no `data`.
+pub async fn execute(state: &AppState, request: async_graphql::Request) -> Response {
     if let Err(errors) = check_document(&request.query, request.operation_name.as_deref()) {
         return rejected(&errors);
     }
@@ -65,7 +53,7 @@ pub async fn execute(state: &AppState, params: &serde_json::Map<String, Value>) 
     axum::Json(response).into_response()
 }
 
-/// The `/share/graphql` handler (GET or POST).
-pub async fn handler(State(state): State<AppState>, params: Params) -> Response {
-    execute(&state, &params.0).await
+/// The `/share/graphql` handler.
+pub async fn handler(State(state): State<AppState>, request: GraphQLRequest) -> Response {
+    execute(&state, request.into_inner()).await
 }

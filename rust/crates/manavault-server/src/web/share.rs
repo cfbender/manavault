@@ -1,19 +1,17 @@
-//! The public share routes (`AppController.share_deck`, `share_wants`,
-//! `share_binder`, `share_deck_preview_image`, `share_deck_preview_png`,
-//! and the `/share/graphql` forward):
+//! The public share routes:
 //!
 //! - [`browser_routes`]: `GET /share/decks/:token`, `/share/wants/:token`,
-//!   `/share/binder/:token`, in the `:browser` pipeline (session, CSRF,
-//!   secure headers) without owner authentication. They render the shell
-//!   with [`super::app_shell::render_app`] or answer an empty 404.
+//!   `/share/binder/:token`, in the browser pipeline (session, CSRF, secure
+//!   headers) without owner authentication. They render the shell with
+//!   [`super::app_shell::render_app`] or answer an empty 404.
 //! - [`public_routes`]: `GET /share/decks/:token/preview.svg` and
 //!   `preview.png`, outside any pipeline.
-//! - [`graphql_route`]: `/share/graphql`; the router wraps it in
-//!   [`super::public_graphql::admit`] and [`super::public_graphql::validate`],
+//! - [`graphql_route`]: `POST /share/graphql`; the router wraps it in
+//!   [`super::public_graphql::admit`] and [`super::graphql::require_json`],
 //!   and [`crate::share::http`] runs it against the public schema.
 
 use axum::Router;
-use axum::routing::{MethodRouter, get};
+use axum::routing::{MethodRouter, post};
 
 use super::WebState;
 
@@ -27,8 +25,8 @@ pub fn public_routes(router: Router<WebState>) -> Router<WebState> {
     crate::share::pages::public_routes(router)
 }
 
-/// The `/share/graphql` handler (GET and POST, like Absinthe.Plug).
+/// The `/share/graphql` handler.
 #[must_use]
-pub fn graphql_route() -> Option<MethodRouter<WebState>> {
-    Some(get(crate::share::http::handler).post(crate::share::http::handler))
+pub fn graphql_route() -> MethodRouter<WebState> {
+    post(crate::share::http::handler)
 }

@@ -1,16 +1,17 @@
-//! HTTP routes (`ManavaultWeb.Endpoint` and `ManavaultWeb.Router`).
+//! HTTP routes.
 //!
-//! Layers, outermost first, as in earlier releases' endpoint: static files,
-//! request ids and request logging, the cookie session, then per-scope pipelines (`:browser`, owner authentication,
-//! GraphQL CSRF protection, API keys, scanner export auth).
+//! Layers, outermost first: static files, request ids and request logging,
+//! the cookie session, then per-scope pipelines (browser headers and CSRF,
+//! owner authentication, GraphQL CSRF protection, API keys, scanner export
+//! auth).
 
 pub mod api_v1;
 pub mod auth_controller;
 pub mod pwa;
 pub mod request_id;
 pub mod share;
-pub mod socket;
 pub mod static_files;
+pub mod subscriptions;
 pub mod vendor;
 
 #[cfg(test)]
@@ -19,6 +20,7 @@ mod tests;
 pub use manavault_core::web::*;
 
 use async_graphql::http::GraphQLPlaygroundConfig;
+use axum::extract::{DefaultBodyLimit, State};
 use axum::http::header::ACCEPT;
 use axum::http::{HeaderMap, StatusCode};
 use axum::middleware::{from_fn, from_fn_with_state};
@@ -45,10 +47,10 @@ impl axum::extract::FromRef<WebState> for AppState {
 
 /// `POST /api/graphql`.
 async fn owner_graphql(
-    axum::extract::State(state): axum::extract::State<WebState>,
-    params: params::Params,
-) -> Response {
-    graphql_http::execute(&state.schema, &params).await
+    State(state): State<WebState>,
+    request: graphql::GraphQLRequest,
+) -> Json<async_graphql::Response> {
+    Json(state.schema.execute(request.into_inner()).await)
 }
 
 async fn health() -> impl IntoResponse {
@@ -85,15 +87,16 @@ pub fn router(state: WebState) -> Router {
     let owner_page = from_fn_with_state(app.clone(), session::require_browser);
     let owner_api = from_fn_with_state(app.clone(), session::require_api);
 
-    // `/`: PWA files and share previews, outside any pipeline.
+    // PWA files, share previews, and the subscription websocket (which checks
+    // the origin and session itself), outside any pipeline.
     let mut public = Router::new()
         .route("/site.webmanifest", get(pwa::manifest))
         .route("/sw.js", get(pwa::service_worker))
         .route("/.well-known/assetlinks.json", get(pwa::asset_links))
-        .route("/socket/websocket", get(socket::websocket));
+        .route("/api/graphql/ws", get(subscriptions::websocket));
     public = share::public_routes(public);
 
-    // `pipe_through :browser`.
+    // The browser pipeline without owner authentication.
     let public_browser = share::browser_routes(
         Router::new()
             .route(
@@ -111,7 +114,7 @@ pub fn router(state: WebState) -> Router {
     )
     .route_layer(browser.clone());
 
-    // `pipe_through [:browser, :authenticated_browser]`.
+    // Owner pages.
     let mut owner_pages = Router::new();
     for path in [
         "/",
@@ -141,17 +144,18 @@ pub fn router(state: WebState) -> Router {
         .route_layer(owner_page)
         .route_layer(browser);
 
-    // `pipe_through [:api, :authenticated_api]`.
+    // Owner JSON endpoints: the session plus the page's CSRF token.
     let owner_graphql = Router::new()
-        .route("/api/graphql", post(owner_graphql).get(owner_graphql))
+        .route("/api/graphql", post(owner_graphql))
         .route(
             "/api/scanner/corrections",
             post(scanner::http::create_correction),
         )
-        .route_layer(from_fn(graphql_http::csrf))
+        .route_layer(from_fn(graphql::csrf))
+        .route_layer(from_fn(graphql::require_json))
         .route_layer(owner_api.clone());
 
-    // `pipe_through [:api, :scanner_export]`.
+    // Scanner correction export: the session or the export token.
     let scanner_export = Router::new()
         .route(
             "/api/scanner/corrections",
@@ -163,7 +167,7 @@ pub fn router(state: WebState) -> Router {
         )
         .route_layer(from_fn_with_state(app.clone(), scanner::http::export_auth));
 
-    // `pipe_through [:api, :authenticated_read_api]`.
+    // Owner-only scanner bundle downloads.
     let scanner_read = Router::new()
         .route("/api/scanner/bundle", get(scanner::http::show))
         .route(
@@ -183,20 +187,18 @@ pub fn router(state: WebState) -> Router {
         .merge(scanner_read);
     // `/api/v1`, personal API keys.
     router = router.merge(api_v1::scope(app.clone(), api_v1::routes()));
-    if let Some(share_graphql) = share::graphql_route() {
-        router = router.route(
-            "/share/graphql",
-            share_graphql
-                .route_layer(from_fn(public_graphql::validate))
-                .route_layer(from_fn_with_state(app.clone(), public_graphql::admit)),
-        );
-    }
+    router = router.route(
+        "/share/graphql",
+        share::graphql_route()
+            .route_layer(from_fn(graphql::require_json))
+            .route_layer(from_fn_with_state(app.clone(), public_graphql::admit)),
+    );
     if app.config.env == crate::config::Env::Dev {
         router = router.route("/dev/graphiql", get(graphiql));
     }
     router
         .fallback(not_found)
-        .method_not_allowed_fallback(not_found)
+        .layer(DefaultBodyLimit::max(graphql::BODY_LIMIT))
         .layer(from_fn_with_state(app.clone(), session::middleware))
         .layer(from_fn(request_id::layer))
         .layer(from_fn_with_state(app, static_files::middleware))

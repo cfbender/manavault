@@ -1,17 +1,9 @@
-import * as AbsintheSocket from "@absinthe/socket"
-import {
-  ApolloClient,
-  ApolloLink,
-  HttpLink,
-  InMemoryCache,
-  Observable,
-  split,
-} from "@apollo/client"
+import { ApolloClient, HttpLink, InMemoryCache, split } from "@apollo/client"
 import { SetContextLink } from "@apollo/client/link/context"
+import { GraphQLWsLink } from "@apollo/client/link/subscriptions"
 import { relayStylePagination } from "@apollo/client/utilities"
 import { getMainDefinition } from "@apollo/client/utilities"
-import { print } from "graphql"
-import { Socket as PhoenixSocket } from "phoenix"
+import { createClient } from "graphql-ws"
 import { currentCsrfToken } from "./csrf"
 
 export function createCsrfLink() {
@@ -31,36 +23,25 @@ const httpLink = new HttpLink({
   credentials: "same-origin",
 })
 
-export function subscriptionSocketParams() {
+/** The `connection_init` payload: the server checks the page's CSRF token. */
+export function subscriptionConnectionParams() {
   const token = currentCsrfToken()
-  return token ? { _csrf_token: token } : {}
+  return token ? { csrfToken: token } : {}
+}
+
+export function subscriptionSocketUrl(location: Location = window.location) {
+  const protocol = location.protocol === "https:" ? "wss:" : "ws:"
+  return `${protocol}//${location.host}/api/graphql/ws`
 }
 
 function createSubscriptionLink() {
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-  const phoenixSocket = new PhoenixSocket(`${protocol}//${window.location.host}/socket`, {
-    params: subscriptionSocketParams,
-  })
-  const absintheSocket = AbsintheSocket.create(phoenixSocket)
-
-  return new ApolloLink(
-    (operation) =>
-      new Observable((observer) => {
-        const notifier = AbsintheSocket.send(absintheSocket, {
-          operation: print(operation.query),
-          variables: operation.variables,
-        })
-        const socketObserver = {
-          onAbort: (error: Error) => observer.error(error),
-          onError: (error: Error) => observer.error(error),
-          onResult: (result: object) => observer.next(result),
-        }
-        const observedNotifier = AbsintheSocket.observe(absintheSocket, notifier, socketObserver)
-
-        return () => {
-          AbsintheSocket.unobserveOrCancel(absintheSocket, observedNotifier, socketObserver)
-        }
-      }),
+  return new GraphQLWsLink(
+    createClient({
+      url: subscriptionSocketUrl,
+      connectionParams: subscriptionConnectionParams,
+      // The server closes sockets idle for 60 s; pings keep live ones open.
+      keepAlive: 30_000,
+    }),
   )
 }
 

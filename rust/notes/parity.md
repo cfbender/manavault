@@ -121,8 +121,8 @@ unexplained; live `cardEdhrec`, `deckEdhrec`, `deckCombos` and
 float fix below; OpenRouter's "Missing Authentication header" error for the
 unvalidated key matches too).
 
-Not exercised: `ServerLog` (a subscription over the Phoenix socket, not
-reachable over HTTP POST; covered by the platform socket tests). Not exercised
+Not exercised: `ServerLog` (a subscription over the websocket, not
+reachable over HTTP POST; covered by `web::tests::subscriptions`). Not exercised
 with real data: cloud backups (only the "no provider" errors), external deck
 links (Moxfield/Archidekt sync needs the live sites and real deck ids; only
 error paths and the offline failure), OpenRouter answers (only validation,
@@ -242,7 +242,7 @@ differences in logs, response headers, or boot behavior. Check these by hand
   Tests: `web::request_id::tests`.
 - **`x-request-id` response header**: the client's id is kept when it is 20
   to 200 bytes, otherwise a new 20-character id is generated. Static files
-  and the `/socket` upgrade get none, as before.
+  and the `/api/graphql/ws` upgrade get none, as before.
 - **Other response headers**: security headers and CSP on browser routes,
   cache headers on static files, COOP/COEP on `/scan`
   (`web::tests`, `web::static_files` tests).

@@ -1,5 +1,5 @@
 //! Router-level tests: controllers, GraphQL CSRF protection, session
-//! options, and the websocket.
+//! options, and the subscription websocket.
 
 use std::net::{IpAddr, SocketAddr};
 
@@ -899,18 +899,14 @@ mod graphql_csrf {
     }
 
     #[tokio::test]
-    async fn auth_disabled_form_posts_still_require_a_token() {
+    async fn auth_disabled_posts_still_require_a_token() {
         let app = TestApp::new().await;
-        let body = format!(
-            "query={}",
-            url::form_urlencoded::byte_serialize(MUTATION.as_bytes()).collect::<String>()
-        );
         let page = Browser::new(&app)
             .send(
                 Request::post("/api/graphql")
-                    .header("content-type", "application/x-www-form-urlencoded")
+                    .header("content-type", "application/json")
                     .header("origin", "https://evil.example"),
-                Body::from(body),
+                Body::from(json!({"query": MUTATION}).to_string()),
             )
             .await;
         assert_eq!((page.status, page.body.as_str()), (403, FORBIDDEN));
@@ -927,10 +923,6 @@ mod graphql_csrf {
         let page = browser.get(&format!("/api/graphql?{query}")).await;
         assert_eq!(page.status, 405);
         assert_eq!(page.header("allow"), Some("POST"));
-        assert_eq!(
-            page.json(),
-            json!({"errors": [{"message": "Method not allowed"}]})
-        );
     }
 
     #[tokio::test]
@@ -963,82 +955,64 @@ mod graphql_csrf {
         assert_eq!(key_count(&app).await, 1);
     }
 
-    fn multipart(fields: &[(&str, &str)]) -> (String, String) {
-        let boundary = "manavault-csrf-boundary";
-        let mut parts: Vec<String> = fields
-            .iter()
-            .map(|(name, value)| {
-                format!("--{boundary}\r\ncontent-disposition: form-data; name=\"{name}\"\r\n\r\n{value}\r\n")
-            })
-            .collect();
-        parts.push(format!("--{boundary}--\r\n"));
-        let body = parts.concat();
-        (format!("multipart/form-data; boundary={boundary}"), body)
-    }
-
     #[tokio::test]
-    async fn no_body_encoding_bypasses_csrf() {
+    async fn only_the_header_carries_the_token() {
         let app = TestApp::with_config(with_password("secret")).await;
         let (mut browser, token) = signed_in(&app).await;
-        // Drop the header-less defaults: every request below carries no header token.
-        let json_missing = browser
-            .post_json("/api/graphql", &json!({"query": MUTATION}), None)
-            .await;
-        assert_eq!(json_missing.status, 403);
-        let form_missing = browser
-            .post_form("/api/graphql", &[("query", MUTATION)])
-            .await;
-        assert_eq!(form_missing.status, 403);
-        let (content_type, body) = multipart(&[("query", MUTATION)]);
-        let multipart_missing = browser
-            .send(
-                Request::post("/api/graphql").header("content-type", content_type),
-                Body::from(body),
-            )
-            .await;
-        assert_eq!(multipart_missing.status, 403);
-        let operations = json!({"query": MUTATION}).to_string();
-        let (content_type, body) = multipart(&[("operations", &operations)]);
-        let operations_missing = browser
-            .send(
-                Request::post("/api/graphql").header("content-type", content_type),
-                Body::from(body),
-            )
-            .await;
-        assert_eq!(operations_missing.status, 403);
-        let raw_missing = browser
-            .send(
-                Request::post("/api/graphql").header("content-type", "application/graphql"),
-                Body::from(MUTATION),
-            )
-            .await;
-        assert_eq!(raw_missing.status, 403);
-        assert_eq!(key_count(&app).await, 0);
-
-        let json_valid = browser
+        // A token in the body is not a token.
+        let in_body = browser
             .post_json(
                 "/api/graphql",
                 &json!({"query": MUTATION, "_csrf_token": token}),
                 None,
             )
             .await;
-        assert!(json_valid.json()["data"]["createApiKey"]["apiKey"]["id"].is_string());
-        let form_valid = browser
+        assert_eq!((in_body.status, in_body.body.as_str()), (403, FORBIDDEN));
+        // Other body encodings are refused before the CSRF check reads them.
+        let form = browser
             .post_form(
                 "/api/graphql",
                 &[("query", MUTATION), ("_csrf_token", &token)],
             )
             .await;
-        assert!(form_valid.json()["data"]["createApiKey"]["apiKey"]["id"].is_string());
-        let (content_type, body) = multipart(&[("query", MUTATION), ("_csrf_token", &token)]);
-        let multipart_valid = browser
+        assert_eq!(form.status, 415);
+        let multipart = browser
             .send(
-                Request::post("/api/graphql").header("content-type", content_type),
-                Body::from(body),
+                Request::post("/api/graphql")
+                    .header("content-type", "multipart/form-data; boundary=b")
+                    .header("x-csrf-token", &token),
+                Body::from(format!(
+                    "--b\r\ncontent-disposition: form-data; name=\"operations\"\r\n\r\n{}\r\n--b--\r\n",
+                    json!({"query": MUTATION})
+                )),
             )
             .await;
-        assert!(multipart_valid.json()["data"]["createApiKey"]["apiKey"]["id"].is_string());
-        assert_eq!(key_count(&app).await, 3);
+        assert_eq!(multipart.status, 415);
+        let raw = browser
+            .send(
+                Request::post("/api/graphql")
+                    .header("content-type", "application/graphql")
+                    .header("x-csrf-token", &token),
+                Body::from(MUTATION),
+            )
+            .await;
+        assert_eq!(raw.status, 415);
+        assert_eq!(
+            raw.json(),
+            json!({"errors": [{"message": "Expected an application/json request body"}]})
+        );
+        assert_eq!(key_count(&app).await, 0);
+
+        let charset = browser
+            .send(
+                Request::post("/api/graphql")
+                    .header("content-type", "application/json; charset=utf-8")
+                    .header("x-csrf-token", &token),
+                Body::from(json!({"query": MUTATION}).to_string()),
+            )
+            .await;
+        assert!(charset.json()["data"]["createApiKey"]["apiKey"]["id"].is_string());
+        assert_eq!(key_count(&app).await, 1);
     }
 
     #[tokio::test]
@@ -1073,25 +1047,22 @@ mod graphql_csrf {
     }
 
     #[tokio::test]
-    async fn transport_batches_run_each_query() {
+    async fn one_request_per_body_with_fields_in_query_order() {
         let app = TestApp::new().await;
         let mut browser = Browser::new(&app);
         let token = browser.token("/").await;
-        let page = browser
+        let batch = browser
             .post_json(
                 "/api/graphql",
-                &json!([{"id": "a", "query": QUERY}, {"id": "b", "query": "{ appearanceSettings { palette } }"}]),
+                &json!([{"query": QUERY}, {"query": "{ appearanceSettings { palette } }"}]),
                 Some(&token),
             )
             .await;
+        assert_eq!(batch.status, 400);
         assert_eq!(
-            page.json(),
-            json!([
-                {"id": "a", "payload": {"data": {"appearanceSettings": {"palette": "claret", "themeStyle": "glass"}}}},
-                {"id": "b", "payload": {"data": {"appearanceSettings": {"palette": "claret"}}}}
-            ])
+            batch.json(),
+            json!({"errors": [{"message": "Batch requests are not supported"}]})
         );
-        // Fields keep the query's order, as in Absinthe.
         let ordered = browser
             .post_json(
                 "/api/graphql",
@@ -1106,14 +1077,23 @@ mod graphql_csrf {
             "{}",
             ordered.body
         );
+        // An empty document is a GraphQL error, not a transport one.
         let missing = browser
             .post_json("/api/graphql", &json!({}), Some(&token))
             .await;
-        assert_eq!(missing.status, 400);
-        assert_eq!(
-            missing.json(),
-            json!({"errors": [{"message": "No query document supplied"}]})
-        );
+        assert_eq!(missing.status, 200);
+        assert!(missing.json()["errors"][0]["message"].is_string());
+        assert!(missing.json().get("data").is_none_or(Value::is_null));
+        let unparseable = browser
+            .send(
+                Request::post("/api/graphql")
+                    .header("content-type", "application/json")
+                    .header("x-csrf-token", &token),
+                Body::from("{not json"),
+            )
+            .await;
+        assert_eq!(unparseable.status, 400);
+        assert!(unparseable.json()["errors"][0]["message"].is_string());
     }
 }
 
@@ -1509,7 +1489,7 @@ mod scanner {
     }
 }
 
-mod socket {
+mod subscriptions {
     use super::*;
     use futures_util::{SinkExt as _, StreamExt as _};
     use tokio_tungstenite::tungstenite::Message;
@@ -1535,14 +1515,21 @@ mod socket {
         addr
     }
 
-    async fn connect(
-        addr: SocketAddr,
-        query: &str,
-        headers: &[(&str, &str)],
-    ) -> Result<Client, u16> {
-        let mut request = format!("ws://{addr}/socket/websocket?{query}")
+    /// Opens `/api/graphql/ws` with the `graphql-transport-ws` protocol
+    /// (unless `headers` sets its own) and the given extra headers.
+    async fn connect(addr: SocketAddr, headers: &[(&str, &str)]) -> Result<Client, u16> {
+        let mut request = format!("ws://{addr}/api/graphql/ws")
             .into_client_request()
             .unwrap();
+        if !headers
+            .iter()
+            .any(|(name, _)| name.eq_ignore_ascii_case("sec-websocket-protocol"))
+        {
+            request.headers_mut().insert(
+                "sec-websocket-protocol",
+                "graphql-transport-ws".parse().unwrap(),
+            );
+        }
         for (name, value) in headers {
             request.headers_mut().insert(
                 axum::http::HeaderName::from_bytes(name.as_bytes()).unwrap(),
@@ -1558,21 +1545,40 @@ mod socket {
         }
     }
 
-    async fn send(client: &mut Client, frame: Value) {
-        client.send(Message::text(frame.to_string())).await.unwrap();
+    async fn send(client: &mut Client, message: Value) {
+        client
+            .send(Message::text(message.to_string()))
+            .await
+            .unwrap();
     }
 
+    /// The next message: JSON text, or a close frame as
+    /// `{"close": code, "reason": text}`.
     async fn receive(client: &mut Client) -> Value {
         loop {
             let message = tokio::time::timeout(std::time::Duration::from_secs(5), client.next())
                 .await
-                .expect("a frame within five seconds")
+                .expect("a message within five seconds")
                 .unwrap()
                 .unwrap();
-            if let Message::Text(text) = message {
-                return serde_json::from_str(text.as_str()).unwrap();
+            match message {
+                Message::Text(text) => return serde_json::from_str(text.as_str()).unwrap(),
+                Message::Close(frame) => {
+                    let frame = frame.unwrap();
+                    return json!({"close": u16::from(frame.code), "reason": frame.reason.as_str()});
+                }
+                _ => {}
             }
         }
+    }
+
+    async fn init(client: &mut Client, payload: Value) {
+        send(
+            client,
+            json!({"type": "connection_init", "payload": payload}),
+        )
+        .await;
+        assert_eq!(receive(client).await, json!({"type": "connection_ack"}));
     }
 
     const SERVER_LOG: &str = "subscription { serverLog { timestamp level message } }";
@@ -1581,154 +1587,148 @@ mod socket {
     async fn server_logs_are_delivered_through_the_subscription() {
         let app = TestApp::new().await;
         let addr = serve(&app).await;
-        let mut client = connect(addr, "vsn=2.0.0", &[]).await.unwrap();
+        let mut client = connect(addr, &[]).await.unwrap();
+        init(&mut client, json!({})).await;
 
-        send(&mut client, json!([null, "1", "phoenix", "heartbeat", {}])).await;
-        assert_eq!(
-            receive(&mut client).await,
-            json!([null, "1", "phoenix", "phx_reply", {"status": "ok", "response": {}}])
-        );
-        send(&mut client, json!(["3", "3", "elsewhere", "phx_join", {}])).await;
-        assert_eq!(
-            receive(&mut client).await[4],
-            json!({"status": "error", "response": {"reason": "unmatched topic"}})
-        );
+        send(&mut client, json!({"type": "ping"})).await;
+        assert_eq!(receive(&mut client).await, json!({"type": "pong"}));
+
+        // Queries run over the socket too, and complete at once.
         send(
             &mut client,
-            json!(["4", "4", "__absinthe__:control", "doc", {"query": "{ __typename }"}]),
-        )
-        .await;
-        assert_eq!(
-            receive(&mut client).await[4]["response"],
-            json!({"reason": "unmatched topic"})
-        );
-
-        send(
-            &mut client,
-            json!(["5", "5", "__absinthe__:control", "phx_join", {}]),
+            json!({"type": "subscribe", "id": "q", "payload": {"query": "{ appearanceSettings { palette } }"}}),
         )
         .await;
         assert_eq!(
             receive(&mut client).await,
-            json!(["5", "5", "__absinthe__:control", "phx_reply", {"status": "ok", "response": {}}])
+            json!({"type": "next", "id": "q", "payload": {"data": {"appearanceSettings": {"palette": "claret"}}}})
         );
-        send(
-            &mut client,
-            json!(["5", "6", "__absinthe__:control", "doc", {"query": "{ appearanceSettings { palette } }", "variables": {}}]),
-        )
-        .await;
         assert_eq!(
-            receive(&mut client).await[4],
-            json!({"status": "ok", "response": {"data": {"appearanceSettings": {"palette": "claret"}}}})
+            receive(&mut client).await,
+            json!({"type": "complete", "id": "q"})
         );
+
         send(
             &mut client,
-            json!(["5", "7", "__absinthe__:control", "doc", {"query": "subscription { nope }"}]),
+            json!({"type": "subscribe", "id": "bad", "payload": {"query": "subscription { nope }"}}),
         )
         .await;
+        // Validation errors arrive as the operation's (only) result.
         let invalid = receive(&mut client).await;
-        assert_eq!(invalid[4]["status"], "error");
-        assert!(invalid[4]["response"]["errors"].is_array());
+        assert_eq!(invalid["type"], "next");
+        assert_eq!(invalid["id"], "bad");
+        assert!(invalid["payload"]["errors"].is_array());
+        assert!(invalid["payload"]["data"].is_null());
+        assert_eq!(
+            receive(&mut client).await,
+            json!({"type": "complete", "id": "bad"})
+        );
 
         send(
             &mut client,
-            json!(["5", "8", "__absinthe__:control", "doc", {"query": SERVER_LOG}]),
+            json!({"type": "subscribe", "id": "logs", "payload": {"query": SERVER_LOG}}),
         )
         .await;
-        let reply = receive(&mut client).await;
-        assert_eq!(reply[1], "8");
-        assert_eq!(reply[4]["status"], "ok");
-        let subscription_id = reply[4]["response"]["subscriptionId"]
-            .as_str()
-            .unwrap()
-            .to_owned();
-        assert!(subscription_id.starts_with("__absinthe__:doc:"));
-
         let message = format!(
             "server log subscription test {}",
             hex::encode(crate::crypto::random_bytes::<4>())
         );
         let subscriber = tracing_subscriber::registry().with(app.state.logs.layer());
+        // The subscription is registered when the server handles the message;
+        // give it a moment before emitting the event it must deliver.
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         tracing::subscriber::with_default(subscriber, || {
             tracing::warn!("\u{1b}[33m{message}\u{1b}[0m");
         });
-        let push = receive(&mut client).await;
-        assert_eq!(push[0], Value::Null);
-        assert_eq!(push[2], json!(subscription_id));
-        assert_eq!(push[3], "subscription:data");
-        assert_eq!(push[4]["subscriptionId"], json!(subscription_id));
-        let event = &push[4]["result"]["data"]["serverLog"];
+        let next = receive(&mut client).await;
+        assert_eq!(next["type"], "next");
+        assert_eq!(next["id"], "logs");
+        let event = &next["payload"]["data"]["serverLog"];
         assert_eq!(event["level"], "warning");
         assert_eq!(event["message"], json!(message));
         assert!(crate::timefmt::parse(event["timestamp"].as_str().unwrap()).is_some());
 
-        send(
-            &mut client,
-            json!(["5", "9", "__absinthe__:control", "unsubscribe", {"subscriptionId": subscription_id}]),
-        )
-        .await;
-        assert_eq!(
-            receive(&mut client).await[4],
-            json!({"status": "ok", "response": {"subscriptionId": subscription_id}})
-        );
-        send(
-            &mut client,
-            json!(["5", "10", "__absinthe__:control", "phx_leave", {}]),
-        )
-        .await;
-        assert_eq!(receive(&mut client).await[4]["status"], "ok");
+        send(&mut client, json!({"type": "complete", "id": "logs"})).await;
         assert_eq!(
             receive(&mut client).await,
-            json!(["5", "5", "__absinthe__:control", "phx_close", {}])
+            json!({"type": "complete", "id": "logs"})
         );
     }
 
     #[tokio::test]
-    async fn the_v1_serializer_is_used_without_vsn() {
+    async fn operations_before_the_handshake_close_the_socket() {
         let app = TestApp::new().await;
         let addr = serve(&app).await;
-        let mut client = connect(addr, "", &[]).await.unwrap();
+        let mut client = connect(addr, &[]).await.unwrap();
         send(
             &mut client,
-            json!({"topic": "phoenix", "event": "heartbeat", "payload": {}, "ref": "1"}),
+            json!({"type": "subscribe", "id": "1", "payload": {"query": "{ __typename }"}}),
         )
         .await;
-        let reply = receive(&mut client).await;
-        assert_eq!(reply["event"], "phx_reply");
-        assert_eq!(reply["ref"], "1");
+        assert_eq!(
+            receive(&mut client).await,
+            json!({"close": 1011, "reason": "The handshake is not completed."})
+        );
+    }
+
+    #[tokio::test]
+    async fn requires_a_graphql_websocket_protocol() {
+        let app = TestApp::new().await;
+        let addr = serve(&app).await;
+        assert_eq!(
+            connect(addr, &[("sec-websocket-protocol", "chat")])
+                .await
+                .err(),
+            Some(400)
+        );
+        let mut legacy = connect(addr, &[("sec-websocket-protocol", "graphql-ws")])
+            .await
+            .unwrap();
+        init(&mut legacy, json!({})).await;
     }
 
     #[tokio::test]
     async fn rejects_unauthenticated_connections_when_auth_is_enabled() {
         let app = TestApp::with_config(with_password("first")).await;
         let addr = serve(&app).await;
-        assert_eq!(connect(addr, "vsn=2.0.0", &[]).await.err(), Some(403));
+        assert_eq!(connect(addr, &[]).await.err(), Some(403));
 
         let mut browser = Browser::new(&app);
         browser.login("first", "/").await;
         let token = browser.token("/").await;
         let cookie = format!("_manavault_key={}", browser.cookie.clone().unwrap());
-        // The session is read only with the page's CSRF token.
+
+        // The session alone opens the socket; the handshake needs the token.
+        let mut client = connect(addr, &[("cookie", &cookie)]).await.unwrap();
+        send(&mut client, json!({"type": "connection_init"})).await;
         assert_eq!(
-            connect(addr, "vsn=2.0.0", &[("cookie", &cookie)])
-                .await
-                .err(),
-            Some(403)
+            receive(&mut client).await,
+            json!({"close": 1002, "reason": "Forbidden"})
         );
-        let query = format!(
-            "vsn=2.0.0&_csrf_token={}",
-            url::form_urlencoded::byte_serialize(token.as_bytes()).collect::<String>()
+        let mut client = connect(addr, &[("cookie", &cookie)]).await.unwrap();
+        send(
+            &mut client,
+            json!({"type": "connection_init", "payload": {"csrfToken": "forged"}}),
+        )
+        .await;
+        assert_eq!(receive(&mut client).await["close"], 1002);
+
+        let mut client = connect(addr, &[("cookie", &cookie)]).await.unwrap();
+        init(&mut client, json!({"csrfToken": token})).await;
+        send(
+            &mut client,
+            json!({"type": "subscribe", "id": "1", "payload": {"query": "{ __typename }"}}),
+        )
+        .await;
+        assert_eq!(
+            receive(&mut client).await["payload"]["data"]["__typename"],
+            "RootQueryType"
         );
-        let mut client = connect(addr, &query, &[("cookie", &cookie)]).await.unwrap();
-        send(&mut client, json!([null, "1", "phoenix", "heartbeat", {}])).await;
-        assert_eq!(receive(&mut client).await[3], "phx_reply");
 
         let rotated = TestApp::with_config(with_password("replacement")).await;
         let rotated_addr = serve(&rotated).await;
         assert_eq!(
-            connect(rotated_addr, &query, &[("cookie", &cookie)])
-                .await
-                .err(),
+            connect(rotated_addr, &[("cookie", &cookie)]).await.err(),
             Some(403)
         );
     }
@@ -1738,13 +1738,13 @@ mod socket {
         let app = TestApp::new().await;
         let addr = serve(&app).await;
         assert_eq!(
-            connect(addr, "vsn=2.0.0", &[("origin", "https://evil.example")])
+            connect(addr, &[("origin", "https://evil.example")])
                 .await
                 .err(),
             Some(403)
         );
         assert!(
-            connect(addr, "vsn=2.0.0", &[("origin", "http://localhost:4002")])
+            connect(addr, &[("origin", "http://localhost:4002")])
                 .await
                 .is_ok()
         );
@@ -1754,27 +1754,19 @@ mod socket {
         .await;
         let addr = serve(&listed).await;
         assert!(
-            connect(
-                addr,
-                "vsn=2.0.0",
-                &[("origin", "https://manavault.mytailnet.ts.net")]
-            )
-            .await
-            .is_ok()
+            connect(addr, &[("origin", "https://manavault.mytailnet.ts.net")])
+                .await
+                .is_ok()
         );
         assert!(
-            connect(addr, "vsn=2.0.0", &[("origin", "http://localhost:4000")])
+            connect(addr, &[("origin", "http://localhost:4000")])
                 .await
                 .is_ok()
         );
         assert_eq!(
-            connect(
-                addr,
-                "vsn=2.0.0",
-                &[("origin", "http://manavault.mytailnet.ts.net")]
-            )
-            .await
-            .err(),
+            connect(addr, &[("origin", "http://manavault.mytailnet.ts.net")])
+                .await
+                .err(),
             Some(403)
         );
     }

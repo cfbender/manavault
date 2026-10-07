@@ -25,7 +25,9 @@ manavault-server (binary `manavault`: owner schema, routes, job registry, CLI)
 manavault-allocation      reserving collection copies for deck cards
 ```
 
-- Axum serves HTTP, async-graphql the GraphQL APIs, sqlx talks to SQLite, and
+- Axum serves HTTP, async-graphql the GraphQL APIs (JSON `POST` via
+  async-graphql-axum; subscriptions over graphql-ws at `/api/graphql/ws`),
+  sqlx talks to SQLite, and
   [lotus](https://github.com/cfbender/lotus) supplies the Magic domain types,
   Scryfall parsing, and decklist sources shared with the-gathering.
 - `manavault-allocation` reserves physical collection copies for deck cards

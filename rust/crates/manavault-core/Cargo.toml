@@ -10,6 +10,7 @@ publish.workspace = true
 [dependencies]
 aes-gcm.workspace = true
 async-graphql.workspace = true
+async-graphql-axum.workspace = true
 async-graphql-value.workspace = true
 async-trait.workspace = true
 axum.workspace = true
@@ -19,7 +20,6 @@ hex.workspace = true
 hmac.workspace = true
 lotus.workspace = true
 moka.workspace = true
-multer.workspace = true
 pbkdf2.workspace = true
 rand.workspace = true
 regex.workspace = true
