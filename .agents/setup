@@ -40,6 +40,7 @@ if [[ "$(uname -s)" == "Linux" ]] && command -v apt-get >/dev/null 2>&1; then
     libsqlite3-dev
     libssl-dev
     libxml2-utils
+    mold
     pkg-config
     unzip
     xz-utils
@@ -169,7 +170,9 @@ fi
 
 # Compile the Rust server and test binaries now so `mise run rust:test` and the
 # review service start without a cold build. Cargo skips unchanged crates, so
-# reruns are quick.
+# reruns are quick. It keeps incremental compilation on, like every later dev
+# build, so the first edit reuses this build instead of recompiling the
+# workspace crates; `mise run rust:sweep` trims the caches when disk is short.
 run_step "Building the Rust backend and its tests" mise run rust:prebuild
 
 # The server creates and migrates the database on boot; doing it here makes the

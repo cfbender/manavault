@@ -134,6 +134,10 @@ description = "Compile the Rust server and test binaries (debug) so `rust:test` 
 dir = "rust"
 run = ["cargo build --workspace --locked", "cargo test --workspace --locked --no-run"]
 
+[tasks."rust:sweep"]
+description = "Free disk in rust/target: drop incremental caches untouched for 3 days (cargo prunes old sessions per crate, not crates that are gone)."
+run = "find rust/target -mindepth 3 -maxdepth 3 -path '*/incremental/*' -mtime +3 -exec rm -rf {} + 2>/dev/null; du -sh rust/target 2>/dev/null || true"
+
 [tasks."rust:test"]
 description = "Run the Rust test suite."
 dir = "rust"

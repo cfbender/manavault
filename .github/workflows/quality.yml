@@ -39,6 +39,9 @@ jobs:
     env:
       MISE_ENABLE_TOOLS: rust,sqlite
       CARGO_TERM_COLOR: always
+      # Fresh builds gain nothing from incremental caches, which only bloat
+      # the rust-cache upload.
+      CARGO_INCREMENTAL: 0
 
     steps:
       - name: Check out repository

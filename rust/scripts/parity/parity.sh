@@ -42,7 +42,7 @@ done
 # switching into the loopback-only namespace.
 if [[ "${PARITY_IN_NETNS:-0}" != "1" ]]; then
   if [[ ! -x "$RUST_BIN" ]]; then
-    (cd "$ROOT/rust" && CARGO_INCREMENTAL=0 mise exec -- cargo build --locked --bin manavault)
+    (cd "$ROOT/rust" && mise exec -- cargo build --locked --bin manavault)
   fi
 
   if [[ ! -f "$ELIXIR_DIR/mix.exs" ]]; then

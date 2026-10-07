@@ -8,6 +8,15 @@ rust-version = "1.99"
 license = "MPL-2.0"
 publish = false
 
+# Line tables keep panic backtraces and debugger stepping usable for the
+# workspace crates at a fraction of full debug info's compile and link time;
+# dependencies get none.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = 0
+
 [workspace.dependencies]
 lotus = { git = "https://github.com/cfbender/lotus", features = ["sqlx", "http"] }
 manavault-allocation = { path = "crates/manavault-allocation" }

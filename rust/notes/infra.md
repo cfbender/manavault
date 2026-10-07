@@ -16,8 +16,10 @@ the Rust backend. No Rust sources were changed.
 | `docker-entrypoint.sh`     | `su-exec app`                               | `setpriv --reuid=app --regid=app --init-groups`, `HOME=/home/app`; runs as is when started with `--user`                                                                                                                                                                                                                        |
 | Docs                       | Phoenix                                     | README dev/production, AGENTS.md, rust/README.md, docs/development.md, docs/self-hosting.md                                                                                                                                                                                                                                     |
 
-`rust/.cargo/config.toml` gained `[build] incremental = false` (orb disk; one
-setting for every caller). Not Rust source.
+`rust/.cargo/config.toml` once set `[build] incremental = false` for orb disk;
+it was dropped for compile times (see `build-times.md`): dev builds are
+incremental, CI and the Docker release build set `CARGO_INCREMENTAL=0`, and
+`mise run rust:sweep` trims old incremental caches.
 
 ## Image facts
 
