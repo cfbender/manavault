@@ -2,3 +2,9 @@
 # Query macros read the committed .sqlx metadata, so builds never need a database.
 # `mise run rust:sqlx-prepare` overrides this to regenerate the metadata.
 SQLX_OFFLINE = "true"
+
+[build]
+# Incremental caches are large and orb disks are small. Keeping it off for every
+# invocation (setup's prebuild, `mise run`, editors, CI) also stops cargo from
+# rebuilding the workspace crates whenever two callers disagree on it.
+incremental = false

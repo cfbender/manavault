@@ -8,7 +8,7 @@ export LANG=C.UTF-8
 export LC_ALL=C.UTF-8
 # Prevent `mise exec` from auto-installing unrelated native-development tools
 # (Android SDK, Java, cloudflared, and git-cliff) later in this script.
-export MISE_ENABLE_TOOLS="aube,elixir,erlang,node,resvg,npm:backlog.md"
+export MISE_ENABLE_TOOLS="aube,elixir,erlang,node,resvg,rust,sqlite,github:tailwindlabs/tailwindcss,npm:backlog.md"
 
 run_step() {
   local label="$1"
@@ -161,7 +161,8 @@ if [[ "$(uname -s)" == "Linux" ]] && [[ -r /etc/os-release ]] &&
 fi
 
 run_step "Installing the pinned web development toolchain" \
-  "${mise_install_env[@]}" mise install -y aube erlang elixir node resvg "npm:backlog.md"
+  "${mise_install_env[@]}" mise install -y aube erlang elixir node resvg rust sqlite \
+  "github:tailwindlabs/tailwindcss" "npm:backlog.md"
 
 if ! mise exec -- mix help hex >/dev/null 2>&1; then
   run_step "Installing Hex" mise exec -- mix local.hex --force
@@ -189,5 +190,23 @@ fi
 
 run_step "Installing Elixir dependencies, migrating the database, and building assets" \
   mise exec -- mix setup
+
+# The Rust backend serves the same frontend build; `mix setup` already ran
+# Tailwind and Vite, so this only guarantees the files exist when it did not.
+if [[ ! -f priv/static/assets/css/app.css || ! -f priv/static/assets/react/app.js ]]; then
+  run_step "Building frontend assets for the Rust backend" mise run rust:assets
+else
+  echo "==> Frontend assets are already built"
+fi
+
+# Compile the Rust server and test binaries now so `mise run rust:test` and the
+# review service start without a cold build. Cargo skips unchanged crates, so
+# reruns are quick.
+run_step "Building the Rust backend and its tests" mise run rust:prebuild
+
+if [[ ! -s manavault_dev.db ]]; then
+  echo "manavault_dev.db is missing after mix setup" >&2
+  exit 1
+fi
 
 echo "==> ManaVault orb setup complete"
