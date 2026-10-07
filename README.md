@@ -131,10 +131,9 @@ same instance is reached under more than one hostname, list the extra origins in
 
 - **Health check** - `GET /health` returns `{"status":"ok"}`; the image ships a
   Docker healthcheck.
-- **Upgrade** - pull a newer tag and recreate the container. Images built on
-  the Rust backend create the schema for an empty database and refuse to open
-  a database that is missing migrations; upgrade older installs through the
-  last Elixir-based release first. See
+- **Upgrade** - pull a newer tag and recreate the container. The server backs
+  the database up and applies any pending migrations on boot, so installs from
+  any earlier release upgrade in place. See
   [Upgrading](docs/self-hosting.md#upgrading).
 - **Back up** - schedule cloud backups in **Settings -> Cloud backups**, copy the
   stopped `data/` directory, or create a zip in the running container:

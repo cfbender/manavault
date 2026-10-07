@@ -73,17 +73,22 @@ saved API keys readable.
 
 ## Schema and query checking
 
-The Ecto migrations remain the only schema definition. `mix ecto.dump` writes
-`priv/repo/structure.sql`, which is used three ways:
+The Ecto migrations remain the schema definition. `mise run rust:migrations`
+turns each one into `rust/migrations/<version>_<name>.sql`
+(`rust/scripts/dump-migrations.py`), which the server embeds and applies on
+boot (`db::migrate`): pending versions run oldest first in `BEGIN IMMEDIATE`
+transactions and are recorded in `schema_migrations` like Ecto records them,
+so new and old databases (any earlier release) reach the same schema. The few
+migrations that computed data in Elixir are ported as `data_step`s. Before
+migrating a production database the server writes a pre-migration backup.
+`mix ecto.dump` writes `priv/repo/structure.sql`, which is used by:
 
-- **New databases.** The server embeds it and creates the schema from it when
-  the database is empty. An existing database must already contain every
-  migration listed in it.
 - **sqlx query macros.** `rust:sqlx-metadata` loads it into
   `target/schema.db`, compiles every `query!` against it, and records the
   results in `.sqlx/`. Normal builds read `.sqlx/` (`SQLX_OFFLINE=true` in
   `.cargo/config.toml`), so they never need a database.
-- **Tests.** Each test loads it into a fresh database file.
+- **Tests.** `db::tests` checks that the migrations produce exactly this
+  schema and that a v1.0.0 database with data upgrades intact.
 
 ## Conventions
 

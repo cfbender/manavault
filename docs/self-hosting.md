@@ -311,13 +311,16 @@ disposable and do not need to be preserved.
 
 3. Confirm `GET /health` returns `{"status":"ok"}`.
 
-The Rust server does not run migrations: it refuses to open a database that is
-missing any migration recorded in its embedded schema, after writing a
-pre-migration backup to `/data/backups`. Upgrade an older install through the
-last Elixir-based release first (which migrates on boot), then switch to the
-Rust image; both read the same database, sessions, and encrypted settings when
-`SECRET_KEY_BASE` stays the same. Set `MANAVAULT_SKIP_MIGRATION_BACKUP=true`
-only when you have already made an external backup.
+On boot the server applies any pending database migrations, oldest first, so
+an install from any earlier release (including the ones built on the previous
+backend) upgrades in place. Before migrating it writes a pre-migration backup
+to `/data/backups/manavault-pre_migration-<timestamp>.zip`. Sessions and
+encrypted settings keep working as long as `SECRET_KEY_BASE` stays the same.
+A database from a newer release than the image still starts (migrations the
+image does not know are ignored with a warning), but downgrading is not
+supported; restore the pre-migration backup instead. Set
+`MANAVAULT_SKIP_MIGRATION_BACKUP=true` only when you have already made an
+external backup.
 
 When a release changes what the catalog importer records (for example the
 token printings and card-to-token links added for the Tokens tab), the first

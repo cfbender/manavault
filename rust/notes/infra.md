@@ -72,6 +72,6 @@ setting for every caller). Not Rust source.
     version tracks the app version (1.4.3, bumped by `scripts/bump.sh`), so
     the asset-version fallback matches Elixir; SIGTERM shuts down gracefully,
     so `STOPSIGNAL SIGINT` was dropped.
-  - Upgrades: the Rust server refuses databases missing migrations, so
-    existing installs must pass through the last Elixir image first
-    (documented in README/self-hosting).
+  - Upgrades: the server applies pending migrations on boot
+    (`db::migrate`, see `rust/notes/migrations.md`), so any older install
+    upgrades in place.

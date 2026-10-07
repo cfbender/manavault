@@ -82,9 +82,9 @@ Queries: `appearanceSettings`, `aiSettings`, `apiKeys`, `backupSettings`,
   config points them at a closed local port. `MANAVAULT_ALLOWED_ORIGINS` is
   validated at startup like `AllowedOrigins.parse/1`.
 - `AppState` gained `login_attempts` and `public_requests` (the two GenServers).
-- MigrationBackup: this backend never migrates, so the pre-migration backup
-  only runs when a production database lacks known migrations, right before
-  `db::prepare` refuses it.
+- MigrationBackup: like the Elixir release, a production database with
+  pending migrations is backed up (`manavault-pre_migration-<stamp>.zip` in
+  the backups directory) right before `db::prepare` migrates it.
 - Restore also removes the old database's `-wal`/`-shm` files (copied into the
   pre-restore directory first); see bugs below.
 

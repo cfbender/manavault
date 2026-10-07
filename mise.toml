@@ -68,6 +68,19 @@ rm -f target/schema.db
 grep -v '^CREATE TABLE sqlite_' ../priv/repo/structure.sql | sqlite3 target/schema.db
 '''
 
+[tasks."rust:migrations"]
+description = "Regenerate rust/migrations/*.sql from the Ecto migrations (run after adding one)."
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+export MIX_ENV=test MIX_TEST_PARTITION=_rust_migrations
+rm -f manavault_test_rust_migrations.db*
+mix ecto.create --quiet
+mix ecto.migrate --log-migrations-sql > tmp-migrations.log 2>&1
+python3 rust/scripts/dump-migrations.py tmp-migrations.log rust/migrations
+rm -f tmp-migrations.log manavault_test_rust_migrations.db*
+'''
+
 [tasks."rust:sqlx-prepare"]
 description = "Dump the Ecto schema to priv/repo/structure.sql and regenerate the sqlx query metadata in rust/.sqlx."
 run = '''

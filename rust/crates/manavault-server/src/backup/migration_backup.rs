@@ -1,12 +1,10 @@
 //! A backup before schema changes (`Manavault.Backup.MigrationBackup`).
 //!
-//! The Elixir release backs the database up at boot when migrations are
-//! pending. This backend never migrates an existing database (`db::prepare`
-//! refuses one that lacks migrations), so the backup only runs in the same
-//! situation, before that refusal: a production database that exists and is
-//! missing known migrations, unless `MANAVAULT_SKIP_MIGRATION_BACKUP` is set.
-
-use std::collections::BTreeSet;
+//! Like the Elixir release, the server backs the database up at boot, before
+//! `db::prepare` applies migrations, when a production database exists and
+//! is missing known migrations, unless `MANAVAULT_SKIP_MIGRATION_BACKUP` is
+//! set. The archive is a regular local backup with reason `pre_migration`
+//! (`<DATA_DIR>/backups/manavault-pre_migration-<timestamp>.zip`).
 
 use sqlx::SqlitePool;
 
@@ -18,27 +16,18 @@ fn skipped() -> bool {
         .is_ok_and(|value| matches!(value.as_str(), "1" | "true" | "TRUE"))
 }
 
+/// Whether an existing schema is missing migrations. A database without
+/// `schema_migrations` is new (nothing to back up).
 async fn pending_migrations(pool: &SqlitePool) -> bool {
-    let has_table: Option<String> = sqlx::query_scalar(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'schema_migrations'",
-    )
-    .fetch_optional(pool)
-    .await
-    .ok()
-    .flatten();
-    if has_table.is_none() {
+    let Ok(mut conn) = pool.acquire().await else {
         return false;
+    };
+    match crate::db::migrate::applied_versions(&mut conn).await {
+        Ok(applied) if !applied.is_empty() => {
+            crate::db::migrate::versions().any(|version| !applied.contains(&version))
+        }
+        _ => false,
     }
-    let applied: BTreeSet<i64> = sqlx::query_scalar("SELECT version FROM schema_migrations")
-        .fetch_all(pool)
-        .await
-        .unwrap_or_default()
-        .into_iter()
-        .collect();
-    crate::db::known_migrations()
-        .difference(&applied)
-        .next()
-        .is_some()
 }
 
 /// Creates a `pre_migration` backup when one is due.

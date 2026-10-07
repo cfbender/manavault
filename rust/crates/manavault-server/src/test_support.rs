@@ -79,6 +79,35 @@ impl TestApp {
         Self { state, schema, dir }
     }
 
+    /// A new app whose database file is first prepared by `setup` (for
+    /// example loaded from an old release's dump); the server then migrates
+    /// it at startup like `app::build_state` does.
+    #[allow(clippy::expect_used)]
+    pub async fn with_database(
+        setup: impl FnOnce(
+            sqlx::SqlitePool,
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>,
+    ) -> Self {
+        let dir = TempDir::new();
+        let raw = crate::db::connect(&dir.path().join("test.db"), 1)
+            .await
+            .expect("raw database");
+        setup(raw.clone()).await;
+        raw.close().await;
+        let config = Config::for_tests(dir.path().to_path_buf());
+        for path in config.writable_dirs() {
+            std::fs::create_dir_all(path).expect("create dirs");
+        }
+        let pool = crate::db::connect(&dir.path().join("test.db"), 4)
+            .await
+            .expect("test database");
+        crate::db::prepare(&pool).await.expect("migrate");
+        let jobs = Jobs::new(pool.clone(), crate::app::workers());
+        let state = AppState::new(config, pool, LogHub::new(), jobs).expect("state");
+        let schema = crate::graphql::build_schema(state.clone());
+        Self { state, schema, dir }
+    }
+
     #[must_use]
     pub fn db(&self) -> &sqlx::SqlitePool {
         &self.state.db
