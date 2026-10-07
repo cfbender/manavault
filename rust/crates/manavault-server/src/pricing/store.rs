@@ -19,6 +19,47 @@ struct Loaded {
     prices: HashMap<(String, String), i64>,
 }
 
+/// Rows read per query while loading a vendor's prices. A vendor has about
+/// 150k prices; one query for all of them takes over a second and trips
+/// sqlx's slow-statement warning, which should stay meaningful for request
+/// queries. Pages walk the `(vendor, scryfall_id, finish)` primary key.
+const LOAD_PAGE: i64 = 20_000;
+
+async fn load_vendor(
+    pool: &SqlitePool,
+    vendor: &str,
+) -> Result<HashMap<(String, String), i64>, sqlx::Error> {
+    let mut prices = HashMap::new();
+    let (mut after_id, mut after_finish) = (String::new(), String::new());
+    loop {
+        let rows = sqlx::query!(
+            r#"SELECT scryfall_id AS "scryfall_id!", finish AS "finish!", price_cents
+               FROM vendor_prices
+               WHERE vendor = ?1 AND (scryfall_id, finish) > (?2, ?3)
+               ORDER BY scryfall_id, finish
+               LIMIT ?4"#,
+            vendor,
+            after_id,
+            after_finish,
+            LOAD_PAGE
+        )
+        .fetch_all(pool)
+        .await?;
+        let full = i64::try_from(rows.len()).is_ok_and(|len| len == LOAD_PAGE);
+        if let Some(last) = rows.last() {
+            after_id.clone_from(&last.scryfall_id);
+            after_finish.clone_from(&last.finish);
+        }
+        prices.extend(
+            rows.into_iter()
+                .map(|row| ((row.scryfall_id, row.finish), row.price_cents)),
+        );
+        if !full {
+            return Ok(prices);
+        }
+    }
+}
+
 /// Vendor prices keyed by `(scryfall_id, finish)`.
 #[derive(Debug, Default)]
 pub struct PriceStore {
@@ -57,6 +98,18 @@ impl PriceStore {
         }
     }
 
+    /// How many vendor prices are loaded.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.inner.read().map_or(0, |loaded| loaded.prices.len())
+    }
+
+    /// Whether no vendor prices are loaded.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Rebuilds the store from `pricing_settings` and `vendor_prices`.
     pub async fn refresh(&self, pool: &SqlitePool) -> Result<(), sqlx::Error> {
         let source: String =
@@ -67,15 +120,7 @@ impl PriceStore {
         let prices = if source == SCRYFALL_SOURCE {
             HashMap::new()
         } else {
-            sqlx::query!(
-                r#"SELECT scryfall_id AS "scryfall_id!", finish AS "finish!", price_cents FROM vendor_prices WHERE vendor = ?1"#,
-                source
-            )
-            .fetch_all(pool)
-            .await?
-            .into_iter()
-            .map(|row| ((row.scryfall_id, row.finish), row.price_cents))
-            .collect()
+            load_vendor(pool, &source).await?
         };
         tracing::debug!(source, prices = prices.len(), "pricing store loaded");
         if let Ok(mut loaded) = self.inner.write() {

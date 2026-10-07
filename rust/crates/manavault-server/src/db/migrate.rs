@@ -43,6 +43,19 @@ pub enum MigrateError {
     Database(#[from] sqlx::Error),
 }
 
+/// Versions of migrations that were deleted after release and whose tables
+/// a later migration dropped. Older installs still have their rows in
+/// `schema_migrations`; they are known, never applied, and not reported as
+/// newer than this build. Commit 6f75f86 (2026-06-22, "delete scanner and
+/// pivot to better import") removed all three files, and
+/// `20260622000001_drop_scanner_tables` drops their tables. No other
+/// migration file was ever deleted from the history.
+pub const RETIRED: [(i64, &str); 3] = [
+    (20_260_104_000_000, "create_scan_sessions"),
+    (20_260_104_000_001, "drop_scan_candidates"),
+    (20_260_621_000_002, "create_scryfall_printing_art_hashes"),
+];
+
 /// What [`run`] did.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Outcome {
@@ -102,7 +115,9 @@ pub async fn run(pool: &SqlitePool) -> Result<Outcome, MigrateError> {
             })?;
         outcome.applied.push(version);
     }
-    let known: HashSet<i64> = versions().collect();
+    let known: HashSet<i64> = versions()
+        .chain(RETIRED.iter().map(|(version, _)| *version))
+        .collect();
     let mut unknown: Vec<i64> = recorded.difference(&known).copied().collect();
     unknown.sort_unstable();
     outcome.unknown = unknown;

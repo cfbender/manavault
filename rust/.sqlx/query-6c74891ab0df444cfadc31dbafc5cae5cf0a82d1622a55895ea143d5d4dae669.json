@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT scryfall_id AS \"scryfall_id!\", finish AS \"finish!\", price_cents FROM vendor_prices WHERE vendor = ?1",
+  "query": "SELECT scryfall_id AS \"scryfall_id!\", finish AS \"finish!\", price_cents\n               FROM vendor_prices\n               WHERE vendor = ?1 AND (scryfall_id, finish) > (?2, ?3)\n               ORDER BY scryfall_id, finish\n               LIMIT ?4",
   "describe": {
     "columns": [
       {
@@ -38,7 +38,7 @@
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 4
     },
     "nullable": [
       true,
@@ -46,5 +46,5 @@
       false
     ]
   },
-  "hash": "0639ea51010c862913f535694a60cf4579828cfb62d500c79cd6c664ecd8f270"
+  "hash": "6c74891ab0df444cfadc31dbafc5cae5cf0a82d1622a55895ea143d5d4dae669"
 }

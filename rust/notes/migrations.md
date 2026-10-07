@@ -18,6 +18,13 @@ The server applies pending database migrations at startup (`db::prepare` →
   seconds). A migration containing `PRAGMA foreign_keys = OFF` runs statement
   by statement (the pragma is a no-op inside a transaction); the others run in
   `BEGIN IMMEDIATE` and roll back on failure, stopping the boot.
+- Retired versions (`db::migrate::RETIRED`): 20260104000000
+  `create_scan_sessions`, 20260104000001 `drop_scan_candidates`, and
+  20260621000002 `create_scryfall_printing_art_hashes` were deleted in commit
+  6f75f86 (2026-06-22) and their tables dropped by
+  `20260622000001_drop_scanner_tables`. Installs from before that still have
+  their rows; they count as known and never warn. They are the only migration
+  files ever deleted (`git log --diff-filter=D -- priv/repo/migrations`).
 - Versions in `schema_migrations` that the build does not know (a newer
   release's database) are ignored with a warning, as `Ecto.Migrator` ignores
   them; downgrades are not supported.

@@ -220,3 +220,31 @@ argument "id": Expected type "ID!", found null.` before execution;
   printing for an ambiguous import row is broken against the Elixir backend.
 - `AddCollectionItemToDeck` is in `gql.ts` but no component uses it (the
   dialog uses `BulkAddCollectionItemsToDeck`).
+
+## Outside the GraphQL harness: checklist
+
+The harness compares GraphQL responses only, so it could not catch
+differences in logs, response headers, or boot behavior. Check these by hand
+(or with the named tests) when changing the HTTP stack:
+
+- **Request logging** (found on the 2.0 test image: the Rust server logged no
+  requests). Earlier releases ran `Plug.RequestId` and the telemetry logger
+  after the static plugs: each non-static request logged `GET /path` and
+  `Sent 200 in Xms` at info with `request_id` metadata. Now
+  `web::request_id::layer` does the same inside a `request{request_id=…}`
+  span; the lines also reach the live server logs. Query strings and bodies
+  are never logged. Static files are not logged (they are served by the outer
+  layer). One deliberate difference: `/scryfall-assets/*` and
+  `/api/scanner/bundle(s)` were controller routes in earlier releases and
+  were logged; they are now quiet (they get a request id but no log lines).
+  Tests: `web::request_id::tests`.
+- **`x-request-id` response header**: the client's id is kept when it is 20
+  to 200 bytes, otherwise a new 20-character id is generated. Static files
+  and the `/socket` upgrade get none, as before.
+- **Other response headers**: security headers and CSP on browser routes,
+  cache headers on static files, COOP/COEP on `/scan`
+  (`web::tests`, `web::static_files` tests).
+- **Boot logs**: no warnings on a healthy database. Retired migration
+  versions (`db::migrate::RETIRED`) are not reported as unknown; the vendor
+  price store loads after the listener starts, in pages small enough not to
+  trip sqlx's slow-statement warning.

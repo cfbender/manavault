@@ -75,7 +75,16 @@ pub async fn build_state(config: Config, logs: LogHub) -> Result<AppState, Start
     crate::db::prepare(&pool).await?;
     let jobs = Jobs::new(pool.clone(), workers());
     let state = AppState::new(config, pool, logs, jobs)?;
-    state.prices.refresh(&state.db).await?;
+    // Loading the active vendor's ~150k prices takes about a second, so it
+    // runs after startup instead of delaying the listener. Until it finishes
+    // the store has no source and price reads fall back to Scryfall's prices,
+    // as earlier releases' price store did while its table was still loading.
+    let warm = state.clone();
+    tokio::spawn(async move {
+        if let Err(error) = warm.prices.refresh(&warm.db).await {
+            tracing::error!(%error, "could not load vendor prices");
+        }
+    });
     Ok(state)
 }
 

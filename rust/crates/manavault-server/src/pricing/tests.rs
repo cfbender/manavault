@@ -150,6 +150,44 @@ async fn the_price_store_follows_the_source() {
     assert_eq!(app.state.prices.price_cents("print-1", &["foil"]), None);
 }
 
+/// The store loads a vendor's prices in pages; a vendor with more rows than
+/// one page (and rows sharing a scryfall id across the page boundary) loads
+/// completely, and other vendors' rows stay out.
+#[tokio::test]
+async fn the_price_store_loads_every_page_of_a_large_vendor() {
+    let app = TestApp::new().await;
+    let finishes = [Finish::Nonfoil, Finish::Foil, Finish::Etched];
+    let rows: Vec<VendorRow> = (0..15_001)
+        .flat_map(|index| {
+            finishes
+                .into_iter()
+                .map(move |finish| row(&format!("print-{index:06}"), finish, 100 + index))
+        })
+        .collect();
+    assert!(rows.len() > 2 * 20_000);
+    replace_vendor_prices(app.db(), Vendor::CardKingdom, rows)
+        .await
+        .unwrap();
+    replace_vendor_prices(
+        app.db(),
+        Vendor::ManaPool,
+        vec![row("print-x", Finish::Foil, 1)],
+    )
+    .await
+    .unwrap();
+    super::set_source(&app.state, "cardkingdom").await.unwrap();
+    assert_eq!(app.state.prices.len(), 45_003);
+    assert_eq!(
+        app.state.prices.price_cents("print-006666", &["foil"]),
+        Some(6_766)
+    );
+    assert_eq!(
+        app.state.prices.price_cents("print-015000", &["etched"]),
+        Some(15_100)
+    );
+    assert_eq!(app.state.prices.price_cents("print-x", &["foil"]), None);
+}
+
 struct Healthy;
 
 #[async_trait]

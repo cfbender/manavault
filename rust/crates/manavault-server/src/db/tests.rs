@@ -166,6 +166,36 @@ async fn unknown_newer_versions_are_kept_and_reported() {
     assert!(applied(&pool).await.contains(&30_000_101_000_000));
 }
 
+/// Installs from before 2026-06-22 still record three scanner migrations
+/// whose files were deleted (`migrate::RETIRED`); they are known, so they
+/// neither warn nor count as newer, while a truly unknown version still does.
+#[tokio::test]
+async fn retired_scanner_migrations_are_known() {
+    let dir = TempDir::new();
+    let pool = pool_at(&dir).await;
+    prepare(&pool).await.expect("migrate");
+    for version in [
+        20_260_104_000_000_i64,
+        20_260_104_000_001,
+        20_260_621_000_002,
+    ] {
+        sqlx::query("INSERT INTO schema_migrations (version, inserted_at) VALUES (?1, '2026-06-01T00:00:00')")
+            .bind(version)
+            .execute(&pool)
+            .await
+            .expect("retired row");
+    }
+    let outcome = prepare(&pool).await.expect("starts");
+    assert_eq!(outcome, migrate::Outcome::default());
+
+    sqlx::query("INSERT INTO schema_migrations (version, inserted_at) VALUES (30000101000000, '2099-01-01T00:00:00')")
+        .execute(&pool)
+        .await
+        .expect("future row");
+    let outcome = prepare(&pool).await.expect("starts");
+    assert_eq!(outcome.unknown, vec![30_000_101_000_000]);
+}
+
 #[tokio::test]
 async fn a_failed_migration_rolls_back_and_stops() {
     let dir = TempDir::new();
