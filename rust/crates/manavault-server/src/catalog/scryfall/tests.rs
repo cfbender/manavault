@@ -2011,18 +2011,9 @@ fn crontab_matches_the_oban_config() {
     }
 }
 
-/// A global log subscriber for tests: a thread-scoped one races with
-/// callsite interest caching in the other tests running in parallel.
+/// The shared global test log hub.
 fn test_log_hub() -> &'static crate::logs::LogHub {
-    use tracing_subscriber::layer::SubscriberExt as _;
-    static HUB: std::sync::OnceLock<crate::logs::LogHub> = std::sync::OnceLock::new();
-    HUB.get_or_init(|| {
-        let hub = crate::logs::LogHub::new();
-        let _ = tracing::subscriber::set_global_default(
-            tracing_subscriber::registry().with(hub.layer()),
-        );
-        hub
-    })
+    crate::test_support::log_hub()
 }
 
 #[tokio::test]
