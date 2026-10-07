@@ -67,6 +67,11 @@ Queries: `appearanceSettings`, `aiSettings`, `apiKeys`, `backupSettings`,
 - Subscriptions run over the graphql-ws protocol at `/api/graphql/ws` (the
   frontend uses Apollo's `GraphQLWsLink`), not Phoenix Channels at `/socket`.
   The CSRF token travels in the `connection_init` payload (`csrfToken`).
+- Sessions are a typed value in a private (encrypted) cookie,
+  `manavault_session`, not Plug's signed `_manavault_key` cookie; CSRF tokens
+  are random session values compared unmasked. Upgrading signs browsers out
+  once. `MANAVAULT_SECRET_KEY` and `MANAVAULT_PUBLIC_HOST` replace
+  `SECRET_KEY_BASE` and `PHX_HOST` (old names still read, with a warning).
 - `/api/graphql` and `/share/graphql` accept one JSON request per `POST`:
   no batches, form bodies, `application/graphql`, or `GET` queries.
 - `revokeApiKey` with a non-numeric id answers "API key not found" (Ecto

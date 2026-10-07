@@ -10,6 +10,7 @@ use serde_json::{Value, json};
 
 use crate::config::Config;
 use crate::test_support::{TestApp, body_text};
+use crate::web::session::{self, COOKIE_NAME};
 
 pub const PASSWORD_SALT: &[u8] = b"test-salt";
 
@@ -100,7 +101,7 @@ impl<'a> Browser<'a> {
 
     pub async fn send(&mut self, builder: axum::http::request::Builder, body: Body) -> Page {
         let builder = match &self.cookie {
-            Some(cookie) => builder.header("cookie", format!("_manavault_key={cookie}")),
+            Some(cookie) => builder.header("cookie", format!("{COOKIE_NAME}={cookie}")),
             None => builder,
         };
         let mut request = builder.body(body).unwrap();
@@ -112,9 +113,9 @@ impl<'a> Browser<'a> {
         let headers = response.headers().clone();
         for cookie in headers.get_all("set-cookie") {
             let cookie = cookie.to_str().unwrap();
-            if let Some(rest) = cookie.strip_prefix("_manavault_key=") {
+            if let Some(rest) = cookie.strip_prefix(&format!("{COOKIE_NAME}=")) {
                 let value = rest.split(';').next().unwrap();
-                self.cookie = if cookie.contains("max-age=0") || value.is_empty() {
+                self.cookie = if cookie.contains("Max-Age=0") || value.is_empty() {
                     None
                 } else {
                     Some(value.to_owned())
@@ -605,21 +606,19 @@ mod auth_controller {
         let mut browser = Browser::new(&app);
         let login = browser.login("secret", "/collection").await;
         assert_eq!(login.location(), Some("/collection"));
-        let session = app
-            .state
-            .sessions
-            .decode(browser.cookie.as_ref().unwrap())
-            .unwrap();
-        assert_eq!(
-            session.get("manavault_authenticated"),
-            Some(&crate::crypto::SessionValue::Bool(true))
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert(
+            "cookie",
+            format!("{COOKIE_NAME}={}", browser.cookie.as_ref().unwrap())
+                .parse()
+                .unwrap(),
         );
+        let session = session::load(&app.state, &headers).data();
         assert_eq!(
-            session.get("manavault_auth_fingerprint"),
-            Some(&crate::crypto::SessionValue::Text(
-                crate::auth::admin_password_fingerprint(&app.state.config).unwrap()
-            ))
+            session.owner_fingerprint,
+            crate::auth::admin_password_fingerprint(&app.state.config)
         );
+        assert_eq!(session.csrf_token.map(|token| token.len()), Some(43));
         let page = browser.get("/collection").await;
         assert!(page.body.contains(r#"id="manavault-root""#));
     }
@@ -661,8 +660,8 @@ mod auth_controller {
             .await;
         assert_eq!(page.location(), Some("/login"));
         let cookie = page.header("set-cookie").unwrap();
-        assert!(cookie.starts_with("_manavault_key=;"));
-        assert!(cookie.contains("max-age=0"));
+        assert!(cookie.starts_with(&format!("{COOKIE_NAME}=;")), "{cookie}");
+        assert!(cookie.contains("Max-Age=0"), "{cookie}");
         assert!(browser.cookie.is_none());
     }
 
@@ -698,10 +697,10 @@ mod auth_controller {
         let page = Browser::new(&app).login("secret", "/collection").await;
         let cookies = page.headers_all("set-cookie");
         assert_eq!(cookies.len(), 1);
-        assert!(cookies[0].contains("max-age=15552000"));
+        assert!(cookies[0].contains("Max-Age=15552000"), "{}", cookies[0]);
         assert!(cookies[0].contains("SameSite=Lax"));
         assert!(cookies[0].contains("HttpOnly"));
-        assert!(!cookies[0].contains("secure"));
+        assert!(!cookies[0].to_lowercase().contains("secure"));
 
         let secure = TestApp::with_config(|config| {
             with_password("secret")(config);
@@ -711,8 +710,8 @@ mod auth_controller {
         .await;
         let page = Browser::new(&secure).login("secret", "/collection").await;
         let cookie = page.header("set-cookie").unwrap();
-        assert!(cookie.contains("; secure"));
-        assert!(cookie.contains(&format!("max-age={}", 7 * 24 * 60 * 60)));
+        assert!(cookie.contains("; Secure"), "{cookie}");
+        assert!(cookie.contains(&format!("Max-Age={}", 7 * 24 * 60 * 60)));
     }
 
     #[tokio::test]
@@ -910,7 +909,20 @@ mod graphql_csrf {
             )
             .await;
         assert_eq!((page.status, page.body.as_str()), (403, FORBIDDEN));
+
+        let mut browser = Browser::new(&app);
+        let token = browser.token("/collection").await;
+        let payload = json!({"query": MUTATION});
+        let wrong = browser
+            .post_json("/api/graphql", &payload, Some(&token[1..]))
+            .await;
+        assert_eq!((wrong.status, wrong.body.as_str()), (403, FORBIDDEN));
         assert_eq!(key_count(&app).await, 0);
+        let valid = browser
+            .post_json("/api/graphql", &payload, Some(&token))
+            .await;
+        assert_eq!(valid.status, 200);
+        assert_eq!(key_count(&app).await, 1);
     }
 
     #[tokio::test]
@@ -1696,7 +1708,7 @@ mod subscriptions {
         let mut browser = Browser::new(&app);
         browser.login("first", "/").await;
         let token = browser.token("/").await;
-        let cookie = format!("_manavault_key={}", browser.cookie.clone().unwrap());
+        let cookie = format!("{COOKIE_NAME}={}", browser.cookie.clone().unwrap());
 
         // The session alone opens the socket; the handshake needs the token.
         let mut client = connect(addr, &[("cookie", &cookie)]).await.unwrap();

@@ -53,9 +53,9 @@ docker run -d \
   --restart unless-stopped \
   -p 4000:4000 \
   -v "$PWD/data:/data" \
-  -e SECRET_KEY_BASE='paste-generated-secret' \
+  -e MANAVAULT_SECRET_KEY='paste-generated-secret' \
   -e MANAVAULT_ADMIN_PASSWORD_HASH='paste-generated-password-hash' \
-  -e PHX_HOST=localhost \
+  -e MANAVAULT_PUBLIC_HOST=localhost \
   ghcr.io/cfbender/manavault:<version>
 ```
 
@@ -73,7 +73,7 @@ The catalog uses Scryfall's public bulk-data endpoint. While the app is running,
 the catalog and symbol/set icon assets refresh daily, vendor prices every 30
 minutes, and scanner models every six hours.
 
-Keep `SECRET_KEY_BASE` stable. It signs sessions and derives the key that
+Keep `MANAVAULT_SECRET_KEY` stable. It encrypts sessions and derives the key that
 encrypts stored secrets (the OpenRouter API key and cloud backup credentials).
 After a change, or when restoring a backup under a different value, existing
 sessions end and those secrets load as empty; re-enter them in Settings.
@@ -93,10 +93,10 @@ services:
     volumes:
       - ./data:/data
     environment:
-      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
-      PHX_HOST: ${PHX_HOST:-localhost}
+      MANAVAULT_SECRET_KEY: ${MANAVAULT_SECRET_KEY}
+      MANAVAULT_PUBLIC_HOST: ${MANAVAULT_PUBLIC_HOST:-localhost}
       MANAVAULT_ADMIN_PASSWORD_HASH: ${MANAVAULT_ADMIN_PASSWORD_HASH}
-      # Only needed when ManaVault is also reached under hostnames other than PHX_HOST:
+      # Only needed when ManaVault is also reached under hostnames other than MANAVAULT_PUBLIC_HOST:
       # MANAVAULT_ALLOWED_ORIGINS: https://manavault.mytailnet.ts.net
     healthcheck:
       test: ["CMD", "/usr/local/bin/manavault-healthcheck"]
@@ -113,10 +113,10 @@ image does not include `curl`.
 Generate both required secrets once, put them in `.env`, then start the stack:
 
 ```sh
-printf 'SECRET_KEY_BASE=%s\n' "$(openssl rand -base64 48)" > .env
+printf 'MANAVAULT_SECRET_KEY=%s\n' "$(openssl rand -base64 48)" > .env
 printf 'MANAVAULT_ADMIN_PASSWORD_HASH=%s\n' "$(docker run --rm --entrypoint /app/bin/manavault \
   ghcr.io/cfbender/manavault:<version> hash-password 'change-me')" >> .env
-printf 'PHX_HOST=localhost\n' >> .env
+printf 'MANAVAULT_PUBLIC_HOST=localhost\n' >> .env
 docker compose up -d
 ```
 
@@ -130,9 +130,9 @@ docker build --pull --no-cache-filter runner -t manavault .
 docker run --rm \
   -p 4000:4000 \
   -v "$PWD/data:/data" \
-  -e SECRET_KEY_BASE="$(openssl rand -base64 48)" \
+  -e MANAVAULT_SECRET_KEY="$(openssl rand -base64 48)" \
   -e MANAVAULT_ADMIN_PASSWORD_HASH="$(docker run --rm --entrypoint /app/bin/manavault manavault hash-password 'change-me')" \
-  -e PHX_HOST=localhost \
+  -e MANAVAULT_PUBLIC_HOST=localhost \
   manavault
 ```
 
@@ -196,19 +196,19 @@ labels:
 ### Serving more than one hostname
 
 Live updates use a WebSocket, and ManaVault only accepts WebSocket connections
-from pages served on `PHX_HOST`. If the same instance is also reached under
+from pages served on `MANAVAULT_PUBLIC_HOST`. If the same instance is also reached under
 another name, for example through a reverse proxy at `manavault.example.com` and
 through `tailscale serve` at `manavault.mytailnet.ts.net`, list the extra origins:
 
 ```sh
-PHX_HOST=manavault.example.com
+MANAVAULT_PUBLIC_HOST=manavault.example.com
 MANAVAULT_ALLOWED_ORIGINS=https://manavault.mytailnet.ts.net,https://manavault.lan
 ```
 
 Each entry is a scheme, hostname, and optional port (`https://manavault.lan:8443`)
-with no path. `PHX_HOST` stays allowed automatically, and ManaVault refuses to
+with no path. `MANAVAULT_PUBLIC_HOST` stays allowed automatically, and ManaVault refuses to
 start if an entry is malformed. Absolute URLs that ManaVault generates, such as
-deck share links and link-preview metadata, still use `PHX_HOST`.
+deck share links and link-preview metadata, still use `MANAVAULT_PUBLIC_HOST`.
 
 ### Login rate limits
 
@@ -315,8 +315,12 @@ disposable and do not need to be preserved.
 On boot the server applies any pending database migrations, oldest first, so
 an install from any earlier release (including the ones built on the previous
 backend) upgrades in place. Before migrating it writes a pre-migration backup
-to `/data/backups/manavault-pre_migration-<timestamp>.zip`. Sessions and
-encrypted settings keep working as long as `SECRET_KEY_BASE` stays the same.
+to `/data/backups/manavault-pre_migration-<timestamp>.zip`. Encrypted settings
+keep working as long as `MANAVAULT_SECRET_KEY` stays the same. Upgrading from a
+1.x release signs every browser out once: the session cookie changed format, so
+sign in again after the upgrade. The 1.x variable names `SECRET_KEY_BASE` and
+`PHX_HOST` still work (with a warning in the server log) until you rename them
+to `MANAVAULT_SECRET_KEY` and `MANAVAULT_PUBLIC_HOST`.
 A database from a newer release than the image still starts (migrations the
 image does not know are ignored with a warning), but downgrading is not
 supported; restore the pre-migration backup instead. Set
@@ -420,16 +424,16 @@ Scheduled backups use a five-field CRON expression evaluated in UTC, and a
 retention count prunes older remote backups. A cloud restore downloads the
 selected artifact to `<DATA_DIR>/restores/pending.zip`; restart ManaVault to
 apply it before the database starts. Provider credentials are encrypted with a
-key derived from `SECRET_KEY_BASE`.
+key derived from `MANAVAULT_SECRET_KEY`.
 
 ## Production Environment Variables
 
 Required:
 
-- `SECRET_KEY_BASE` - secret key base (64+ characters; signs sessions and
-  encrypts stored credentials). Generate with
-  `openssl rand -base64 48`. Keep it stable; see
-  [Quick container run](#quick-container-run).
+- `MANAVAULT_SECRET_KEY` - secret key (64+ characters; encrypts sessions and
+  stored credentials). Generate with `openssl rand -base64 48`. Keep it
+  stable; see [Quick container run](#quick-container-run). The 1.x name
+  `SECRET_KEY_BASE` is still read, with a deprecation warning.
 - `MANAVAULT_ADMIN_PASSWORD_HASH` - owner password hash for built-in login.
   Generate with `manavault hash-password 'your-password'`. Required
   unless `MANAVAULT_AUTH_DISABLED=true`.
@@ -437,11 +441,12 @@ Required:
 Server:
 
 - `PORT` - HTTP port inside the container. Defaults to `4000`.
-- `PHX_HOST` - public host used for generated URLs. Required in production.
+- `MANAVAULT_PUBLIC_HOST` - public host used for generated URLs. Required in
+  production. The 1.x name `PHX_HOST` is still read, with a deprecation warning.
 - `MANAVAULT_ALLOWED_ORIGINS` - comma-separated extra origins allowed to open the
   live-update WebSocket, e.g. `https://manavault.mytailnet.ts.net`. Needed only
   when the instance is reached under more than one hostname, such as a reverse
-  proxy plus Tailscale. Unset by default, which allows `PHX_HOST` only. See
+  proxy plus Tailscale. Unset by default, which allows `MANAVAULT_PUBLIC_HOST` only. See
   [Serving more than one hostname](#serving-more-than-one-hostname).
 - `DATA_DIR` - mutable data root. Defaults to `/data`.
 - `DATABASE_PATH` - SQLite database path. Defaults to `/data/manavault.db`.

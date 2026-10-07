@@ -218,7 +218,7 @@ pub async fn create(
 
 /// `POST /logout`: drops the whole session.
 pub async fn delete(session: Session) -> Response {
-    session.drop_session();
+    session.sign_out();
     redirect("/login")
 }
 

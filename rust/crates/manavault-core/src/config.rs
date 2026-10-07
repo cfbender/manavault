@@ -1,5 +1,6 @@
-//! Runtime configuration, read from the same environment variables earlier
-//! releases read.
+//! Runtime configuration, read from environment variables. The names from
+//! the 1.x releases (`SECRET_KEY_BASE`, `PHX_HOST`) still work and log a
+//! deprecation warning.
 
 use std::path::PathBuf;
 use std::time::Duration;
@@ -43,8 +44,10 @@ pub struct Config {
     pub port: u16,
     pub data_dir: PathBuf,
     pub database_path: PathBuf,
-    pub secret_key_base: String,
-    /// Public base URL used for absolute links (`ManavaultWeb.Endpoint.url()`).
+    /// Encrypts session cookies and derives the key for stored credentials
+    /// (`MANAVAULT_SECRET_KEY`).
+    pub secret_key: String,
+    /// Public base URL used for absolute links, from `MANAVAULT_PUBLIC_HOST`.
     pub public_url: String,
     pub admin_password_hash: Option<String>,
     pub auth_disabled: bool,
@@ -146,14 +149,64 @@ pub enum ConfigError {
     InvalidOrigin(#[from] crate::web::allowed_origins::InvalidOrigin),
 }
 
-fn var(name: &str) -> Option<String> {
-    std::env::var(name).ok()
+/// An environment-variable lookup; tests supply their own.
+pub trait Lookup {
+    fn var(&self, name: &str) -> Option<String>;
 }
 
-fn non_blank(name: &str) -> Option<String> {
-    var(name)
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
+impl<F: Fn(&str) -> Option<String>> Lookup for F {
+    fn var(&self, name: &str) -> Option<String> {
+        self(name)
+    }
+}
+
+/// Variables renamed after the 1.x releases: the old name is read when the
+/// new one is unset, with a warning.
+const RENAMED: &[(&str, &str)] = &[
+    ("MANAVAULT_SECRET_KEY", "SECRET_KEY_BASE"),
+    ("MANAVAULT_PUBLIC_HOST", "PHX_HOST"),
+];
+
+struct Vars<'a> {
+    lookup: &'a dyn Lookup,
+    warnings: Vec<String>,
+}
+
+impl Vars<'_> {
+    fn var(&mut self, name: &str) -> Option<String> {
+        if let Some(value) = self.lookup.var(name) {
+            return Some(value);
+        }
+        let (_, old) = RENAMED.iter().find(|(new, _)| *new == name)?;
+        let value = self.lookup.var(old)?;
+        self.warnings
+            .push(format!("{old} is deprecated; set {name} instead"));
+        Some(value)
+    }
+
+    fn non_blank(&mut self, name: &str) -> Option<String> {
+        self.var(name)
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty())
+    }
+
+    fn flag(&mut self, name: &str) -> bool {
+        self.var(name).is_some_and(|value| truthy(&value))
+    }
+
+    fn number<T: std::str::FromStr>(
+        &mut self,
+        name: &'static str,
+        default: T,
+    ) -> Result<T, ConfigError> {
+        match self.var(name) {
+            None => Ok(default),
+            Some(raw) => raw
+                .trim()
+                .parse()
+                .map_err(|_| ConfigError::Invalid(name, raw)),
+        }
+    }
 }
 
 /// `"1"`, `"true"`, `"yes"`, and `"on"` (any case) are true.
@@ -165,64 +218,68 @@ pub fn truthy(value: &str) -> bool {
     )
 }
 
-fn flag(name: &str) -> bool {
-    var(name).is_some_and(|value| truthy(&value))
-}
-
-fn number<T: std::str::FromStr>(name: &'static str, default: T) -> Result<T, ConfigError> {
-    match var(name) {
-        None => Ok(default),
-        Some(raw) => raw
-            .trim()
-            .parse()
-            .map_err(|_| ConfigError::Invalid(name, raw)),
-    }
-}
-
-const DEV_SECRET_KEY_BASE: &str =
-    "rXtWSxzpxWwC2Fe3neLd4rTzlXK8pc0usuNiooa0rZnapw8LooU4pavHCYBpx67I";
-const TEST_SECRET_KEY_BASE: &str =
-    "UsvngUheE20ovBxVkk8mYUrhf1l5zpBV+Pe5DVeypCZK0QnQde9NDUj1YhFADst6";
+const DEV_SECRET_KEY: &str = "rXtWSxzpxWwC2Fe3neLd4rTzlXK8pc0usuNiooa0rZnapw8LooU4pavHCYBpx67I";
+const TEST_SECRET_KEY: &str = "UsvngUheE20ovBxVkk8mYUrhf1l5zpBV+Pe5DVeypCZK0QnQde9NDUj1YhFADst6";
 
 impl Config {
-    /// Reads the configuration from the environment.
+    /// Reads the configuration from the process environment, logging a
+    /// warning for each deprecated variable name in use.
     pub fn from_env() -> Result<Self, ConfigError> {
-        let env = match var("MANAVAULT_ENV").as_deref().map(str::trim) {
+        let (config, warnings) = Self::read(&|name: &str| std::env::var(name).ok())?;
+        for warning in warnings {
+            tracing::warn!("{warning}");
+        }
+        Ok(config)
+    }
+
+    /// Reads the configuration from `lookup`, returning it with the
+    /// deprecation warnings it raised.
+    pub fn read(lookup: &dyn Lookup) -> Result<(Self, Vec<String>), ConfigError> {
+        let mut vars = Vars {
+            lookup,
+            warnings: Vec::new(),
+        };
+        let config = Self::build(&mut vars)?;
+        Ok((config, vars.warnings))
+    }
+
+    fn build(vars: &mut Vars<'_>) -> Result<Self, ConfigError> {
+        let env = match vars.var("MANAVAULT_ENV").as_deref().map(str::trim) {
             Some("dev") => Env::Dev,
             Some("test") => Env::Test,
             _ => Env::Prod,
         };
-        let port = number("PORT", 4000_u16)?;
-        let repo_root = PathBuf::from(var("MANAVAULT_ROOT").unwrap_or_else(|| ".".to_owned()));
-        let data_dir = PathBuf::from(var("DATA_DIR").unwrap_or_else(|| match env {
+        let port = vars.number("PORT", 4000_u16)?;
+        let repo_root = PathBuf::from(vars.var("MANAVAULT_ROOT").unwrap_or_else(|| ".".to_owned()));
+        let data_dir = PathBuf::from(vars.var("DATA_DIR").unwrap_or_else(|| match env {
             Env::Prod => "/data".to_owned(),
             Env::Dev | Env::Test => repo_root.join("data").display().to_string(),
         }));
-        let database_path = PathBuf::from(var("DATABASE_PATH").unwrap_or_else(|| match env {
+        let database_path = PathBuf::from(vars.var("DATABASE_PATH").unwrap_or_else(|| match env {
             Env::Prod => data_dir.join("manavault.db").display().to_string(),
             Env::Dev => repo_root.join("manavault_dev.db").display().to_string(),
             Env::Test => repo_root.join("manavault_test.db").display().to_string(),
         }));
 
-        let secret_key_base = match (non_blank("SECRET_KEY_BASE"), env) {
+        let secret_key = match (vars.non_blank("MANAVAULT_SECRET_KEY"), env) {
             (Some(secret), _) => secret,
-            (None, Env::Dev) => DEV_SECRET_KEY_BASE.to_owned(),
-            (None, Env::Test) => TEST_SECRET_KEY_BASE.to_owned(),
+            (None, Env::Dev) => DEV_SECRET_KEY.to_owned(),
+            (None, Env::Test) => TEST_SECRET_KEY.to_owned(),
             (None, Env::Prod) => {
                 return Err(ConfigError::Missing(
-                    "SECRET_KEY_BASE",
+                    "MANAVAULT_SECRET_KEY",
                     "Generate one with: openssl rand -base64 48",
                 ));
             }
         };
 
-        let public_url = match (non_blank("PHX_HOST"), env) {
+        let public_url = match (vars.non_blank("MANAVAULT_PUBLIC_HOST"), env) {
             (Some(host), Env::Prod) => format!("https://{host}"),
             (Some(host), _) => format!("http://{host}:{port}"),
             (None, Env::Prod) => {
                 return Err(ConfigError::Missing(
-                    "PHX_HOST",
-                    "Set it to the public hostname the app is served from, e.g. PHX_HOST=manavault.example.com",
+                    "MANAVAULT_PUBLIC_HOST",
+                    "Set it to the public hostname the app is served from, e.g. MANAVAULT_PUBLIC_HOST=manavault.example.com",
                 ));
             }
             (None, _) => format!("http://localhost:{port}"),
@@ -230,11 +287,11 @@ impl Config {
 
         let admin_password_hash = match env {
             Env::Test => None,
-            _ => non_blank("MANAVAULT_ADMIN_PASSWORD_HASH"),
+            _ => vars.non_blank("MANAVAULT_ADMIN_PASSWORD_HASH"),
         };
         let auth_disabled = match env {
             Env::Test | Env::Dev => true,
-            Env::Prod => flag("MANAVAULT_AUTH_DISABLED"),
+            Env::Prod => vars.flag("MANAVAULT_AUTH_DISABLED"),
         };
         if env == Env::Prod && !auth_disabled && admin_password_hash.is_none() {
             return Err(ConfigError::Missing(
@@ -245,40 +302,38 @@ impl Config {
 
         let auth_rate_limit = AuthRateLimit {
             limit: RateLimit {
-                window: Duration::from_secs(number(
-                    "MANAVAULT_AUTH_RATE_LIMIT_WINDOW_SECONDS",
-                    900_u64,
-                )?),
-                max_per_ip: number("MANAVAULT_AUTH_MAX_ATTEMPTS_PER_IP", 5_u32)?,
-                max_global: number("MANAVAULT_AUTH_MAX_ATTEMPTS_GLOBAL", 30_u32)?,
+                window: Duration::from_secs(
+                    vars.number("MANAVAULT_AUTH_RATE_LIMIT_WINDOW_SECONDS", 900_u64)?,
+                ),
+                max_per_ip: vars.number("MANAVAULT_AUTH_MAX_ATTEMPTS_PER_IP", 5_u32)?,
+                max_global: vars.number("MANAVAULT_AUTH_MAX_ATTEMPTS_GLOBAL", 30_u32)?,
             },
-            permanent_ban_after_failures: number(
-                "MANAVAULT_AUTH_PERMANENT_BAN_AFTER_FAILURES",
-                30_u32,
-            )?,
+            permanent_ban_after_failures: vars
+                .number("MANAVAULT_AUTH_PERMANENT_BAN_AFTER_FAILURES", 30_u32)?,
         };
         let public_share_rate_limit = RateLimit {
-            window: Duration::from_secs(number(
-                "MANAVAULT_PUBLIC_SHARE_RATE_LIMIT_WINDOW_SECONDS",
-                60_u64,
-            )?),
-            max_per_ip: number("MANAVAULT_PUBLIC_SHARE_MAX_REQUESTS_PER_IP", 120_u32)?,
-            max_global: number("MANAVAULT_PUBLIC_SHARE_MAX_REQUESTS_GLOBAL", 1200_u32)?,
+            window: Duration::from_secs(
+                vars.number("MANAVAULT_PUBLIC_SHARE_RATE_LIMIT_WINDOW_SECONDS", 60_u64)?,
+            ),
+            max_per_ip: vars.number("MANAVAULT_PUBLIC_SHARE_MAX_REQUESTS_PER_IP", 120_u32)?,
+            max_global: vars.number("MANAVAULT_PUBLIC_SHARE_MAX_REQUESTS_GLOBAL", 1200_u32)?,
         };
 
-        let remote_share_allowlist = var("MANAVAULT_REMOTE_SHARE_ALLOWLIST")
+        let remote_share_allowlist = vars
+            .var("MANAVAULT_REMOTE_SHARE_ALLOWLIST")
             .unwrap_or_default()
             .split(',')
             .map(str::trim)
             .filter(|entry| !entry.is_empty())
             .map(str::to_owned)
             .collect();
-        let allowed_origins = match non_blank("MANAVAULT_ALLOWED_ORIGINS") {
+        let allowed_origins = match vars.non_blank("MANAVAULT_ALLOWED_ORIGINS") {
             Some(raw) => Some(crate::web::allowed_origins::parse(Some(&raw))?),
             None => None,
         };
 
-        let scanner_bundle_source = match var("SCANNER_BUNDLE_SOURCE")
+        let scanner_bundle_source = match vars
+            .var("SCANNER_BUNDLE_SOURCE")
             .unwrap_or_else(|| {
                 if env == Env::Test {
                     "off".to_owned()
@@ -294,11 +349,11 @@ impl Config {
         };
 
         let static_dir = PathBuf::from(
-            var("MANAVAULT_STATIC_DIR")
+            vars.var("MANAVAULT_STATIC_DIR")
                 .unwrap_or_else(|| repo_root.join("priv/static").display().to_string()),
         );
         let share_preview_cache_dir = PathBuf::from(
-            var("SHARE_PREVIEW_CACHE_DIR")
+            vars.var("SHARE_PREVIEW_CACHE_DIR")
                 .unwrap_or_else(|| data_dir.join("cache/share-previews").display().to_string()),
         );
 
@@ -312,30 +367,33 @@ impl Config {
             share_preview_cache_dir,
             data_dir,
             database_path,
-            secret_key_base,
+            secret_key,
             public_url,
             admin_password_hash,
             auth_disabled,
             auth_rate_limit,
             public_share_rate_limit,
-            trust_proxy_headers: flag("MANAVAULT_TRUST_PROXY_HEADERS"),
-            forwarded_ip_header: var("MANAVAULT_FORWARDED_IP_HEADER")
+            trust_proxy_headers: vars.flag("MANAVAULT_TRUST_PROXY_HEADERS"),
+            forwarded_ip_header: vars
+                .var("MANAVAULT_FORWARDED_IP_HEADER")
                 .unwrap_or_else(|| "x-forwarded-for".to_owned())
                 .to_lowercase(),
-            secure_cookies: flag("MANAVAULT_SECURE_COOKIES"),
-            session_max_age_days: number("MANAVAULT_SESSION_MAX_AGE_DAYS", 180_u32)?,
+            secure_cookies: vars.flag("MANAVAULT_SECURE_COOKIES"),
+            session_max_age_days: vars.number("MANAVAULT_SESSION_MAX_AGE_DAYS", 180_u32)?,
             remote_share_allowlist,
             allowed_origins,
             scanner_bundle_source,
-            scanner_corrections_token: non_blank("SCANNER_CORRECTIONS_TOKEN"),
-            edhrec_json_base_url: non_blank("EDHREC_JSON_BASE_URL")
+            scanner_corrections_token: vars.non_blank("SCANNER_CORRECTIONS_TOKEN"),
+            edhrec_json_base_url: vars
+                .non_blank("EDHREC_JSON_BASE_URL")
                 .unwrap_or_else(|| EDHREC_JSON_BASE_URL.to_owned()),
             static_dir,
-            vite_dev_server: env == Env::Dev && !flag("MANAVAULT_VITE_DISABLED"),
-            jobs_enabled: env != Env::Test && !flag("MANAVAULT_JOBS_DISABLED"),
-            pool_size: number("POOL_SIZE", 5_u32)?,
-            asset_version: crate::web::asset_version::current(var),
-            android_cert_fingerprints: var("MANAVAULT_ANDROID_CERT_FINGERPRINTS")
+            vite_dev_server: env == Env::Dev && !vars.flag("MANAVAULT_VITE_DISABLED"),
+            jobs_enabled: env != Env::Test && !vars.flag("MANAVAULT_JOBS_DISABLED"),
+            pool_size: vars.number("POOL_SIZE", 5_u32)?,
+            asset_version: crate::web::asset_version::current(|name| vars.lookup.var(name)),
+            android_cert_fingerprints: vars
+                .var("MANAVAULT_ANDROID_CERT_FINGERPRINTS")
                 .unwrap_or_default()
                 .split([',', '\n', ' '])
                 .map(str::trim)
@@ -366,7 +424,7 @@ impl Config {
             backups_dir: data_dir.join("backups"),
             static_dir: data_dir.join("static"),
             data_dir,
-            secret_key_base: TEST_SECRET_KEY_BASE.to_owned(),
+            secret_key: TEST_SECRET_KEY.to_owned(),
             public_url: "http://localhost:4002".to_owned(),
             admin_password_hash: None,
             auth_disabled: true,
@@ -454,5 +512,85 @@ impl DeckIntelUrls {
             recommander: format!("{base}/recommander"),
             commander_spellbook: format!("{base}/spellbook"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use super::*;
+
+    fn read(vars: &[(&str, &str)]) -> Result<(Config, Vec<String>), ConfigError> {
+        let vars: HashMap<String, String> = vars
+            .iter()
+            .map(|(name, value)| ((*name).to_owned(), (*value).to_owned()))
+            .collect();
+        Config::read(&|name: &str| vars.get(name).cloned())
+    }
+
+    #[test]
+    fn production_reads_the_current_names_without_warnings() {
+        let (config, warnings) = read(&[
+            ("MANAVAULT_SECRET_KEY", "new-secret"),
+            ("MANAVAULT_PUBLIC_HOST", "vault.example"),
+            ("MANAVAULT_AUTH_DISABLED", "true"),
+        ])
+        .unwrap();
+        assert_eq!(config.secret_key, "new-secret");
+        assert_eq!(config.public_url, "https://vault.example");
+        assert!(warnings.is_empty(), "{warnings:?}");
+    }
+
+    #[test]
+    fn the_1x_names_still_work_and_warn() {
+        let (config, warnings) = read(&[
+            ("SECRET_KEY_BASE", "old-secret"),
+            ("PHX_HOST", "vault.example"),
+            ("MANAVAULT_AUTH_DISABLED", "true"),
+        ])
+        .unwrap();
+        assert_eq!(config.secret_key, "old-secret");
+        assert_eq!(config.public_url, "https://vault.example");
+        assert_eq!(
+            warnings,
+            [
+                "SECRET_KEY_BASE is deprecated; set MANAVAULT_SECRET_KEY instead",
+                "PHX_HOST is deprecated; set MANAVAULT_PUBLIC_HOST instead",
+            ]
+        );
+    }
+
+    #[test]
+    fn the_current_name_wins_over_the_old_one() {
+        let (config, warnings) = read(&[
+            ("MANAVAULT_SECRET_KEY", "new-secret"),
+            ("SECRET_KEY_BASE", "old-secret"),
+            ("MANAVAULT_PUBLIC_HOST", "vault.example"),
+            ("MANAVAULT_AUTH_DISABLED", "true"),
+        ])
+        .unwrap();
+        assert_eq!(config.secret_key, "new-secret");
+        assert!(warnings.is_empty(), "{warnings:?}");
+    }
+
+    #[test]
+    fn production_requires_the_secret_and_host() {
+        let error = read(&[("MANAVAULT_AUTH_DISABLED", "true")]).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .starts_with("environment variable MANAVAULT_SECRET_KEY is missing")
+        );
+        let error = read(&[
+            ("MANAVAULT_SECRET_KEY", "secret"),
+            ("MANAVAULT_AUTH_DISABLED", "true"),
+        ])
+        .unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .starts_with("environment variable MANAVAULT_PUBLIC_HOST is missing")
+        );
     }
 }

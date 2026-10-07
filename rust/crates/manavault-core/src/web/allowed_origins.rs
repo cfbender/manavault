@@ -1,9 +1,9 @@
-//! WebSocket origin checks (`ManavaultWeb.AllowedOrigins`): the configured
+//! WebSocket origin checks: the configured
 //! allowed origins, matched by scheme, host, and port.
 //!
-//! By default only origins whose host is `PHX_HOST` may open the socket.
+//! By default only origins whose host is `MANAVAULT_PUBLIC_HOST` may open the socket.
 //! `MANAVAULT_ALLOWED_ORIGINS` lists extra `http(s)://host[:port]` origins;
-//! `PHX_HOST` stays allowed by host alone. Development accepts any origin
+//! `MANAVAULT_PUBLIC_HOST` stays allowed by host alone. Development accepts any origin
 //! (`MANAVAULT_ENV=dev`).
 
 use crate::config::{Config, Env};
@@ -176,7 +176,7 @@ fn compare_host(request: &str, allowed: &str) -> bool {
     }
 }
 
-/// The endpoint's host (`PHX_HOST`), from the public URL.
+/// The endpoint's host (`MANAVAULT_PUBLIC_HOST`), from the public URL.
 #[must_use]
 pub fn endpoint_host(config: &Config) -> String {
     url::Url::parse(&config.public_url)

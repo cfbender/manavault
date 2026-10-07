@@ -93,13 +93,14 @@ Maintenance commands read the same environment as the server:
 ## Configuration
 
 The binary reads its configuration from the environment (`PORT`, `DATA_DIR`,
-`DATABASE_PATH`, `SECRET_KEY_BASE`, `PHX_HOST`,
+`DATABASE_PATH`, `MANAVAULT_SECRET_KEY`, `MANAVAULT_PUBLIC_HOST`,
 `MANAVAULT_ADMIN_PASSWORD_HASH`, `MANAVAULT_AUTH_DISABLED`, ...; see
 `crates/manavault-core/src/config.rs` and `docs/self-hosting.md`).
 `MANAVAULT_ENV` (`prod` by default, or `dev`/`test`) selects the defaults.
-Sessions, CSRF tokens, and stored credentials keep the formats earlier
-releases wrote, so upgrading with the same `SECRET_KEY_BASE` keeps users signed
-in and saved API keys readable.
+Stored credentials keep the `enc.v1.` format earlier releases wrote, so
+upgrading with the same secret keeps saved API keys readable; the 1.x names
+`SECRET_KEY_BASE` and `PHX_HOST` are still read with a warning. Sessions are a
+typed value in a private (encrypted) cookie, `manavault_session`.
 
 ## Schema and migrations
 

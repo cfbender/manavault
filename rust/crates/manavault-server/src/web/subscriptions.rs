@@ -4,7 +4,7 @@
 //!
 //! The upgrade needs an allowed `Origin` and, unless auth is disabled, the
 //! owner's session cookie. The `connection_init` payload must then carry the
-//! page's masked CSRF token as `csrfToken`; otherwise the socket closes
+//! page's CSRF token as `csrfToken`; otherwise the socket closes
 //! before any operation runs.
 
 use std::time::Duration;
@@ -45,7 +45,7 @@ fn origin_allowed(state: &AppState, headers: &HeaderMap) -> bool {
 }
 
 /// Checks the `connection_init` payload: `csrfToken` must be the session's
-/// masked token unless auth is disabled.
+/// token unless auth is disabled.
 fn connection_init(
     state: &AppState,
     session: &Session,

@@ -2,7 +2,7 @@
 //! `async-graphql-axum`, with JSON error bodies.
 //!
 //! [`require_json`] refuses other bodies (415) before they are read, and
-//! [`csrf`] guards the owner endpoint with the page's masked token in the
+//! [`csrf`] guards the owner endpoint with the page's CSRF token in the
 //! `x-csrf-token` header, in every authentication mode.
 
 use async_graphql::ParseRequestError;
@@ -71,7 +71,7 @@ pub async fn require_json(request: Request, next: Next) -> Response {
     }
 }
 
-/// Whether an `x-csrf-token` header carries the session's masked token.
+/// Whether an `x-csrf-token` header carries the session's token.
 #[must_use]
 pub fn csrf_header_valid(session: &Session, headers: &HeaderMap) -> bool {
     headers

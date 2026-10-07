@@ -74,9 +74,9 @@ mkdir -p data
 docker run --rm \
   -p 4000:4000 \
   -v "$PWD/data:/data" \
-  -e SECRET_KEY_BASE="$(openssl rand -base64 48)" \
+  -e MANAVAULT_SECRET_KEY="$(openssl rand -base64 48)" \
   -e MANAVAULT_AUTH_DISABLED=true \
-  -e PHX_HOST=localhost \
+  -e MANAVAULT_PUBLIC_HOST=localhost \
   ghcr.io/cfbender/manavault:2.0.0
 ```
 
@@ -87,7 +87,7 @@ the background; card search and import matching work once that sync finishes
 ## Self-Hosting
 
 For anything reachable beyond localhost, enable built-in auth. Generate a
-secret key base and an owner password hash (the image's `manavault` binary
+secret key and an owner password hash (the image's `manavault` binary
 prints the hash):
 
 ```sh
@@ -109,16 +109,16 @@ services:
     volumes:
       - ./data:/data
     environment:
-      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      MANAVAULT_SECRET_KEY: ${MANAVAULT_SECRET_KEY}
       MANAVAULT_ADMIN_PASSWORD_HASH: ${MANAVAULT_ADMIN_PASSWORD_HASH}
-      PHX_HOST: vault.example.com
+      MANAVAULT_PUBLIC_HOST: vault.example.com
       # Behind an HTTPS reverse proxy you control:
       MANAVAULT_SECURE_COOKIES: "true"
       MANAVAULT_TRUST_PROXY_HEADERS: "true"
 ```
 
-Keep `SECRET_KEY_BASE` stable and saved somewhere safe: it signs sessions and
-encrypts stored secrets (AI and cloud backup credentials), so changing it means
+Keep `MANAVAULT_SECRET_KEY` stable and saved somewhere safe: it encrypts sessions and
+stored secrets (AI and cloud backup credentials), so changing it means
 re-entering those secrets.
 
 The [self-hosting guide](docs/self-hosting.md) covers the full environment

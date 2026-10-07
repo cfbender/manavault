@@ -4,10 +4,10 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 
+use axum_extra::extract::cookie::Key;
 use sqlx::SqlitePool;
 
 use crate::config::Config;
-use crate::crypto::SessionCodec;
 use crate::jobs::Jobs;
 use crate::logs::LogHub;
 
@@ -46,7 +46,8 @@ pub struct Inner {
     pub db: SqlitePool,
     /// HTTP client for trusted third-party APIs (Scryfall, EDHREC, ...).
     pub http: reqwest::Client,
-    pub sessions: SessionCodec,
+    /// Encrypts the session cookie.
+    pub cookie_key: Key,
     pub logs: LogHub,
     pub jobs: Jobs,
     pub cache: Cache,
@@ -71,9 +72,6 @@ impl Deref for AppState {
     }
 }
 
-/// The Plug session signing salt (`ManavaultWeb.SessionOptions`).
-pub const SESSION_SIGNING_SALT: &str = "HGc1xdq0";
-
 impl AppState {
     pub fn new(
         config: Config,
@@ -87,7 +85,7 @@ impl AppState {
             .timeout(Duration::from_secs(60))
             .redirect(reqwest::redirect::Policy::limited(5))
             .build()?;
-        let sessions = SessionCodec::new(&config.secret_key_base, SESSION_SIGNING_SALT);
+        let cookie_key = crate::web::session::cookie_key(&config.secret_key);
         let cache = moka::future::Cache::builder()
             .max_capacity(100_000)
             .expire_after(Expiry)
@@ -96,7 +94,7 @@ impl AppState {
             config,
             db,
             http,
-            sessions,
+            cookie_key,
             logs,
             jobs,
             cache,
@@ -131,15 +129,15 @@ impl AppState {
         self.cache.invalidate(key).await;
     }
 
-    /// Encrypts a credential for storage (`Manavault.Encrypted.Binary`).
+    /// Encrypts a credential for storage.
     #[must_use]
     pub fn encrypt_secret(&self, plaintext: &str) -> Option<String> {
-        crate::crypto::encrypt_secret(&self.config.secret_key_base, plaintext)
+        crate::crypto::encrypt_secret(&self.config.secret_key, plaintext)
     }
 
     /// Decrypts a stored credential; undecryptable values read as `None`.
     #[must_use]
     pub fn decrypt_secret(&self, stored: &str) -> Option<String> {
-        crate::crypto::decrypt_secret(&self.config.secret_key_base, stored)
+        crate::crypto::decrypt_secret(&self.config.secret_key, stored)
     }
 }

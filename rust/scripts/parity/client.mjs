@@ -34,8 +34,8 @@ export class Backend {
     if (!match)
       throw new Error(`${this.name}: no csrf-token meta tag in GET /settings (${response.status})`)
     this.csrf = match[1]
-    if (!this.cookies.has("_manavault_key"))
-      throw new Error(`${this.name}: no _manavault_key session cookie`)
+    if (!this.cookies.has("_manavault_key") && !this.cookies.has("manavault_session"))
+      throw new Error(`${this.name}: no session cookie`)
   }
 
   async graphql(endpoint, query, variables, operationName) {
