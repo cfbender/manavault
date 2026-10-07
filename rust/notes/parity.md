@@ -17,8 +17,8 @@ rust/scripts/parity/parity.sh --verbose --report /tmp/parity-report.json
 1. builds `rust/target/debug/manavault` if missing, and on first use copies the
    Elixir app to `ELIXIR_DIR` (default `/tmp/elixir-ref`, without `_build`,
    `node_modules`, databases) with `config :manavault, Oban, queues: false,
-   plugins: false` appended to `config/prod.exs`, then `MIX_ENV=prod mix
-   compile`s it;
+plugins: false` appended to `config/prod.exs`, then `MIX_ENV=prod mix
+compile`s it;
 2. copies `PARITY_SNAPSHOT` (default
    `/home/user/workspace/parity/catalog-snapshot.db`: the full Scryfall
    catalog, 35k cards / 103k printings, Card Kingdom and Mana Pool vendor
@@ -71,7 +71,7 @@ Files:
   (not `locations`/`extensions`). JSON key order is ignored (Absinthe's
   encoder sorts keys; the UI does not care).
 - `known.mjs`: the investigated, intentional differences (below); each entry
-  matches the step label *and* the differing paths, so a new regression in
+  matches the step label _and_ the differing paths, so a new regression in
   the same step is still reported.
 - `one.mjs`: debug helper, runs one operation on both running servers.
 
@@ -88,24 +88,24 @@ Offline run (final): 146 operations, 145 exercised, 557 steps; 533 steps
 identical, 24 documented differences, 0 unexplained. 127 operations identical
 in every call, 18 with documented differences only:
 
-| Operation | Differing steps | Why |
-| --- | --- | --- |
-| Collection | explicit `filters: null` | Elixir raised |
-| CreateLocation | unknown cover printing | Elixir raised |
-| Location | missing id | Elixir raised (404) |
-| CreateCollectionItem | unknown printing | Elixir raised |
-| UpdateCollectionItem | missing id; negative quantity | Elixir raised (404); changeset field order |
-| CollectionItemGroupsPage | `value_gain` asc/desc | Elixir bug 1 |
-| PreviewCollectionImport | capitalized CSV conditions | Elixir bug (collection.md) |
-| DeckBuylist | 4 steps (considering, Card Kingdom, Black Lotus) | Elixir bug 4 |
-| Deck | public share deck without a cover card | Elixir bug 2 |
-| DeckDiff | snow basics | Elixir bug (trade.md) |
-| UpdateAppearanceSettings | two invalid fields | changeset field order |
-| CollectionCheck | Card Kingdom, Black Lotus | date tie-break (trade.md) |
-| UpdateBackupSettings | unknown provider | Elixir raised (platform.md) |
-| CardEdhrec | EDHREC unreachable | Elixir bug 5 (raised) |
-| DeleteCollectionItem, DeleteDeck | deleting twice | Elixir raised (404) |
-| PreviewCollectionImportAutoSort, CommitCollectionImport | chosen candidate | Elixir bug 3 |
+| Operation                                               | Differing steps                                  | Why                                        |
+| ------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------ |
+| Collection                                              | explicit `filters: null`                         | Elixir raised                              |
+| CreateLocation                                          | unknown cover printing                           | Elixir raised                              |
+| Location                                                | missing id                                       | Elixir raised (404)                        |
+| CreateCollectionItem                                    | unknown printing                                 | Elixir raised                              |
+| UpdateCollectionItem                                    | missing id; negative quantity                    | Elixir raised (404); changeset field order |
+| CollectionItemGroupsPage                                | `value_gain` asc/desc                            | Elixir bug 1                               |
+| PreviewCollectionImport                                 | capitalized CSV conditions                       | Elixir bug (collection.md)                 |
+| DeckBuylist                                             | 4 steps (considering, Card Kingdom, Black Lotus) | Elixir bug 4                               |
+| Deck                                                    | public share deck without a cover card           | Elixir bug 2                               |
+| DeckDiff                                                | snow basics                                      | Elixir bug (trade.md)                      |
+| UpdateAppearanceSettings                                | two invalid fields                               | changeset field order                      |
+| CollectionCheck                                         | Card Kingdom, Black Lotus                        | date tie-break (trade.md)                  |
+| UpdateBackupSettings                                    | unknown provider                                 | Elixir raised (platform.md)                |
+| CardEdhrec                                              | EDHREC unreachable                               | Elixir bug 5 (raised)                      |
+| DeleteCollectionItem, DeleteDeck                        | deleting twice                                   | Elixir raised (404)                        |
+| PreviewCollectionImportAutoSort, CommitCollectionImport | chosen candidate                                 | Elixir bug 3                               |
 
 `--live` run (final): 552 steps, 529 identical, 23 documented, 0
 unexplained; live `cardEdhrec`, `deckEdhrec`, `deckCombos` and
@@ -203,7 +203,7 @@ date tie-breaks (rust/notes/trade.md).
   Rust sorts fields alphabetically. Same messages; only multi-field errors
   differ.
 - **Validation of undefined required variables**: Absinthe reports `In
-  argument "id": Expected type "ID!", found null.` before execution;
+argument "id": Expected type "ID!", found null.` before execution;
   async-graphql reports `Variable id is not defined.` at the field. The
   frontend never omits required variables (seen only while the harness had
   capture bugs).

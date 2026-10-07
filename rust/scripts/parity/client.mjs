@@ -31,9 +31,11 @@ export class Backend {
     this.storeCookies(response)
     const html = await response.text()
     const match = html.match(/<meta name="csrf-token" content="([^"]+)"/)
-    if (!match) throw new Error(`${this.name}: no csrf-token meta tag in GET /settings (${response.status})`)
+    if (!match)
+      throw new Error(`${this.name}: no csrf-token meta tag in GET /settings (${response.status})`)
     this.csrf = match[1]
-    if (!this.cookies.has("_manavault_key")) throw new Error(`${this.name}: no _manavault_key session cookie`)
+    if (!this.cookies.has("_manavault_key"))
+      throw new Error(`${this.name}: no _manavault_key session cookie`)
   }
 
   async graphql(endpoint, query, variables, operationName) {
@@ -59,7 +61,11 @@ export class Backend {
       } catch (error) {
         const cause = error.cause?.code ?? error.cause?.message ?? error.message
         if (attempt === 0 && (cause === "ECONNRESET" || cause === "UND_ERR_SOCKET")) continue
-        return { status: 0, body: { transportError: String(cause) }, ms: performance.now() - started }
+        return {
+          status: 0,
+          body: { transportError: String(cause) },
+          ms: performance.now() - started,
+        }
       }
     }
     if (!share) this.storeCookies(response)

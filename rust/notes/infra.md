@@ -5,16 +5,16 @@ the Rust backend. No Rust sources were changed.
 
 ## What changed
 
-| Area | Before (Elixir) | Now |
-| --- | --- | --- |
-| `mise.toml` | `dev` = `mix phx.server` | `dev` / `rust:serve` = `scripts/dev-rust.sh`; `dev:elixir` = `mix phx.server`; new `rust:build`, `rust:assets`, `rust:prebuild`; `rust:check` uses `--workspace`/`--all` and `--locked` everywhere (also `rust:sqlx-metadata`); Tailwind standalone CLI pinned as `github:tailwindlabs/tailwindcss` 4.3.0 |
-| `scripts/dev-rust.sh` | Phoenix watchers (`aube run dev`, tailwind) | builds, then runs `manavault serve` (MANAVAULT_ENV=dev, MANAVAULT_ROOT=repo), `aube run dev` (Vite 5173 → `$PORT`), and `tailwindcss --watch=always`; exits and stops the process trees of the others when any exits or on INT/TERM; re-execs under `mise exec` when tools are not on PATH |
-| `.agents/setup` / `resume` | Elixir + Node | also installs rust, sqlite, tailwind via mise; builds assets if `mix setup` did not; runs `mise run rust:prebuild` (debug server + test binaries); checks `manavault_dev.db`; resume also checks `cargo` and `rust/target/debug/manavault` |
-| `.amp/services.yaml` | `PORT=31397 mise exec -- mix phx.server` | `PORT=31397 mise exec -- scripts/dev-rust.sh`, portal on 5173, `health: /health` |
-| CI `quality.yml` rust job | online `cargo check` + `rust:check` | `Swatinem/rust-cache` v2.9.2 (SHA-pinned); `rust:sqlx-metadata` + fail on any `rust/.sqlx` diff; `rust:check`; `rust:build` |
-| `Dockerfile` | Elixir release on Alpine | `frontend` (node 22 trixie-slim + pinned aube + pinned Tailwind CLI: CSS, Vite build, gzip siblings), `backend` (rust 1.99.0 slim-trixie, `cargo build --release --locked`, SQLX_OFFLINE, cache mounts), Go `/health` checker, static musl `resvg`, `runner` = debian trixie-slim with ca-certificates, fonts-dejavu-core, tini |
-| `docker-entrypoint.sh` | `su-exec app` | `setpriv --reuid=app --regid=app --init-groups`, `HOME=/home/app`; runs as is when started with `--user` |
-| Docs | Phoenix | README dev/production, AGENTS.md, rust/README.md, docs/development.md, docs/self-hosting.md |
+| Area                       | Before (Elixir)                             | Now                                                                                                                                                                                                                                                                                                                             |
+| -------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mise.toml`                | `dev` = `mix phx.server`                    | `dev` / `rust:serve` = `scripts/dev-rust.sh`; `dev:elixir` = `mix phx.server`; new `rust:build`, `rust:assets`, `rust:prebuild`; `rust:check` uses `--workspace`/`--all` and `--locked` everywhere (also `rust:sqlx-metadata`); Tailwind standalone CLI pinned as `github:tailwindlabs/tailwindcss` 4.3.0                       |
+| `scripts/dev-rust.sh`      | Phoenix watchers (`aube run dev`, tailwind) | builds, then runs `manavault serve` (MANAVAULT_ENV=dev, MANAVAULT_ROOT=repo), `aube run dev` (Vite 5173 → `$PORT`), and `tailwindcss --watch=always`; exits and stops the process trees of the others when any exits or on INT/TERM; re-execs under `mise exec` when tools are not on PATH                                      |
+| `.agents/setup` / `resume` | Elixir + Node                               | also installs rust, sqlite, tailwind via mise; builds assets if `mix setup` did not; runs `mise run rust:prebuild` (debug server + test binaries); checks `manavault_dev.db`; resume also checks `cargo` and `rust/target/debug/manavault`                                                                                      |
+| `.amp/services.yaml`       | `PORT=31397 mise exec -- mix phx.server`    | `PORT=31397 mise exec -- scripts/dev-rust.sh`, portal on 5173, `health: /health`                                                                                                                                                                                                                                                |
+| CI `quality.yml` rust job  | online `cargo check` + `rust:check`         | `Swatinem/rust-cache` v2.9.2 (SHA-pinned); `rust:sqlx-metadata` + fail on any `rust/.sqlx` diff; `rust:check`; `rust:build`                                                                                                                                                                                                     |
+| `Dockerfile`               | Elixir release on Alpine                    | `frontend` (node 22 trixie-slim + pinned aube + pinned Tailwind CLI: CSS, Vite build, gzip siblings), `backend` (rust 1.99.0 slim-trixie, `cargo build --release --locked`, SQLX_OFFLINE, cache mounts), Go `/health` checker, static musl `resvg`, `runner` = debian trixie-slim with ca-certificates, fonts-dejavu-core, tini |
+| `docker-entrypoint.sh`     | `su-exec app`                               | `setpriv --reuid=app --regid=app --init-groups`, `HOME=/home/app`; runs as is when started with `--user`                                                                                                                                                                                                                        |
+| Docs                       | Phoenix                                     | README dev/production, AGENTS.md, rust/README.md, docs/development.md, docs/self-hosting.md                                                                                                                                                                                                                                     |
 
 `rust/.cargo/config.toml` gained `[build] incremental = false` (orb disk; one
 setting for every caller). Not Rust source.
@@ -31,7 +31,7 @@ setting for every caller). Not Rust source.
   (was a TCP dial). The server shuts down gracefully on SIGTERM (what
   `docker stop` sends) and SIGINT; tini forwards both.
 - The app user's uid changes (Alpine `adduser -S` vs Debian `useradd
-  --system`); the entrypoint already re-chowns a volume not owned by `app`.
+--system`); the entrypoint already re-chowns a volume not owned by `app`.
 - 239 MB on disk / 62 MB compressed.
 
 ## Verified in this orb

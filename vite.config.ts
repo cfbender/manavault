@@ -19,11 +19,17 @@ export default {
       "aube-lock.yaml",
       "assets/react/src/gql/**",
       "assets/react/src/routeTree.gen.ts",
+      "rust/.sqlx/**",
+      "rust/target/**",
     ],
     semi: false,
   },
   lint: {
-    ignorePatterns: ["assets/react/src/gql/**", "assets/react/src/routeTree.gen.ts"],
+    ignorePatterns: [
+      "assets/react/src/gql/**",
+      "assets/react/src/routeTree.gen.ts",
+      "rust/target/**",
+    ],
   },
   plugins: [
     tanstackRouter({

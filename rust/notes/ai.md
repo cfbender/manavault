@@ -2,22 +2,22 @@
 
 ## Ported
 
-| Elixir | Rust |
-| --- | --- |
-| `Manavault.AI` (delegates) | `ai` (`mod.rs`: `AiError`, `Configured` = `UpdateSettings.configured/1`, `Provider` = `Provider.module/1`) |
-| `AI.Provider`, `AI.Providers.OpenRouter` (completions, tool loop, tool-less retry, diagnostics log line) | `ai::openrouter` (settings validation stays in `settings::ai::openrouter`; `response_error` is reused from there) |
-| `AI.AnalyzeDeck` (`enqueue`, `latest_job`, `run`, `refresh_all`, `analyze_payload`) | `ai::analyze_deck` |
-| `AI.DeckAnalysis`, `DeckAnalysis.Payload`, `.Prompt`, `.Result` (bracket rating) | `ai::deck_analysis::{payload, prompt, result}`; prompt texts in `ai::prompt_text` (copied verbatim from the heredocs) |
-| `AI.AnalyzeDeckList` | `ai::analyze_deck_list` |
-| `Trade.Lists.resolve/1` / `ListSource` + `Catalog.Decklists.parse/2` (the parts list analysis needs) | `trade::list_source::resolve` since integration (`ai::deck_source` was removed; see `integration.md`) |
-| `AI.DeckAnalysisRequest`, `AI.ListDeckAnalysisRequests` | `ai::requests` |
-| `AI.DeckQuestion` | `ai::deck_question` |
-| `AI.AnswerDeckQuestion` | `ai::answer_deck_question` |
-| `AI.DeckAnalysisWorker`, `AI.DeckQuestionWorker` | `ai::workers` (same Oban names, queue `ai`, `max_attempts: 3`, analysis unique on worker+args while incomplete, backoff `attempt * 15` s, 10 min timeout); registered in `app::workers()` |
-| `AI.Tools`, `AI.CardLookupTool`, `AI.CollectionStatusTool` (+ the non-deck-card parts of `EDHRec.Response.CollectionStatus`) | `ai::tools::{mod, card_lookup, collection_status}` |
-| `Catalog.DeckQuestionAnswer`, `Catalog.Decks.QuestionAnswers` | `ai::question_answers` |
-| Deck reads/writes AI needs (`get_deck`, `deck_cards`, `save_deck_analysis`, `get_deck_by_share_token`) and `DeckSummaries.commander_color_identity_from_cards/1` | `ai::decks` (SQL) and `deck_analysis::payload::commander_color_identity` |
-| AI parts of `DeckTypes`, `DeckOperations`, `DeckMutations`, `QueryResolvers`, `DeckFields`, `AIOperations`, `AIResolvers` | `ai::schema` (`AiQueries`, `AiMutations`) |
+| Elixir                                                                                                                                                           | Rust                                                                                                                                                                                      |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Manavault.AI` (delegates)                                                                                                                                       | `ai` (`mod.rs`: `AiError`, `Configured` = `UpdateSettings.configured/1`, `Provider` = `Provider.module/1`)                                                                                |
+| `AI.Provider`, `AI.Providers.OpenRouter` (completions, tool loop, tool-less retry, diagnostics log line)                                                         | `ai::openrouter` (settings validation stays in `settings::ai::openrouter`; `response_error` is reused from there)                                                                         |
+| `AI.AnalyzeDeck` (`enqueue`, `latest_job`, `run`, `refresh_all`, `analyze_payload`)                                                                              | `ai::analyze_deck`                                                                                                                                                                        |
+| `AI.DeckAnalysis`, `DeckAnalysis.Payload`, `.Prompt`, `.Result` (bracket rating)                                                                                 | `ai::deck_analysis::{payload, prompt, result}`; prompt texts in `ai::prompt_text` (copied verbatim from the heredocs)                                                                     |
+| `AI.AnalyzeDeckList`                                                                                                                                             | `ai::analyze_deck_list`                                                                                                                                                                   |
+| `Trade.Lists.resolve/1` / `ListSource` + `Catalog.Decklists.parse/2` (the parts list analysis needs)                                                             | `trade::list_source::resolve` since integration (`ai::deck_source` was removed; see `integration.md`)                                                                                     |
+| `AI.DeckAnalysisRequest`, `AI.ListDeckAnalysisRequests`                                                                                                          | `ai::requests`                                                                                                                                                                            |
+| `AI.DeckQuestion`                                                                                                                                                | `ai::deck_question`                                                                                                                                                                       |
+| `AI.AnswerDeckQuestion`                                                                                                                                          | `ai::answer_deck_question`                                                                                                                                                                |
+| `AI.DeckAnalysisWorker`, `AI.DeckQuestionWorker`                                                                                                                 | `ai::workers` (same Oban names, queue `ai`, `max_attempts: 3`, analysis unique on worker+args while incomplete, backoff `attempt * 15` s, 10 min timeout); registered in `app::workers()` |
+| `AI.Tools`, `AI.CardLookupTool`, `AI.CollectionStatusTool` (+ the non-deck-card parts of `EDHRec.Response.CollectionStatus`)                                     | `ai::tools::{mod, card_lookup, collection_status}`                                                                                                                                        |
+| `Catalog.DeckQuestionAnswer`, `Catalog.Decks.QuestionAnswers`                                                                                                    | `ai::question_answers`                                                                                                                                                                    |
+| Deck reads/writes AI needs (`get_deck`, `deck_cards`, `save_deck_analysis`, `get_deck_by_share_token`) and `DeckSummaries.commander_color_identity_from_cards/1` | `ai::decks` (SQL) and `deck_analysis::payload::commander_color_identity`                                                                                                                  |
+| AI parts of `DeckTypes`, `DeckOperations`, `DeckMutations`, `QueryResolvers`, `DeckFields`, `AIOperations`, `AIResolvers`                                        | `ai::schema` (`AiQueries`, `AiMutations`)                                                                                                                                                 |
 
 Tests ported: `test/manavault/ai_test.exs` (all but the two settings tests,
 already in `settings::ai`), `test/manavault/ai/*` (`deck_analysis_test`,
@@ -104,7 +104,7 @@ integer, and Markdown rendering never calls it without one.)
 
 ## lotus
 
-No bugs hit. Gap: lotus has no pasted-decklist *text* parser
+No bugs hit. Gap: lotus has no pasted-decklist _text_ parser
 (`Catalog.Decklists.parse/2`), which ManaVault (deck import, trade lists,
 list analysis) and plausibly the-gathering both need; ported locally in
 `ai::deck_source` for now.
@@ -116,7 +116,7 @@ list analysis) and plausibly the-gathering both need; ported locally in
   job inside the caller's write transaction (`Oban.insert` in an
   `Ecto.Multi`) — `enqueue_at` now delegates to the same insert; `execute`
   returns the outcome; test-only `Jobs::drain_queue(state, queue,
-  with_scheduled)` (`Oban.drain_queue`) returning `Drained` counts.
+with_scheduled)` (`Oban.drain_queue`) returning `Drained` counts.
 - `test_support.rs`: `log_hub()`, the single process-wide test log
   subscriber (only one global subscriber can exist per test binary);
   `catalog/scryfall/tests.rs`'s `test_log_hub` now delegates to it.

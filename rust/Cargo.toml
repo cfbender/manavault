@@ -11,9 +11,27 @@ publish = false
 [workspace.dependencies]
 lotus = { git = "https://github.com/cfbender/lotus", features = ["sqlx", "http"] }
 manavault-allocation = { path = "crates/manavault-allocation" }
-sqlx = { version = "0.9", default-features = false, features = ["derive", "macros", "runtime-tokio", "sqlite-bundled", "json", "time"] }
+sqlx = { version = "0.9", default-features = false, features = [
+  "derive",
+  "macros",
+  "runtime-tokio",
+  "sqlite-bundled",
+  "json",
+  "time",
+] }
 thiserror = "2"
-tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread", "sync", "time", "signal", "fs", "process", "net", "io-util"] }
+tokio = { version = "1", features = [
+  "macros",
+  "rt",
+  "rt-multi-thread",
+  "sync",
+  "time",
+  "signal",
+  "fs",
+  "process",
+  "net",
+  "io-util",
+] }
 
 # Guardrails for generated code: the compiler and clippy reject the usual escape
 # hatches, so a change either type-checks against the domain model or fails CI.

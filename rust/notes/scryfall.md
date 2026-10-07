@@ -2,27 +2,27 @@
 
 ## Ported modules
 
-| Elixir | Rust |
-| --- | --- |
-| `Catalog.Scryfall.Import` | `catalog/scryfall/import.rs` (`import_cards`, `import_cards_with`, `import` (with state, invalidates caches), `run` over a stream of batches) |
-| `Catalog.Scryfall.ImportRows` | `catalog/scryfall/rows.rs` |
-| `Catalog.Scryfall.ImportDiff` | `catalog/scryfall/diff.rs` |
-| `Catalog.Scryfall.ReconcilePrintings` | `catalog/scryfall/reconcile.rs` |
-| `Catalog.ScryfallOracleTags` | `catalog/oracle_tags.rs` |
-| `Catalog.Scryfall.BulkData`, `Fetch` | `catalog/scryfall/bulk.rs` (lotus `JsonLines` over the downloaded file), `sync::client`/`format_fetch_error` (lotus `ScryfallClient` on `state.http`) |
-| `Catalog.Scryfall.Sync`, `Catalog.Sync` (`scryfall_syncs`), `Catalog.Scryfall` | `catalog/scryfall/sync.rs` (`run`, `latest`, `SyncOptions`, `BULK_TYPE`) |
-| `Catalog.ScryfallCatalogWorker` | `catalog/scryfall/worker.rs` (also `enqueue_forced`, `forced`, `stale`) |
-| `Catalog.EDHRec.CommanderRanks` | `catalog/metrics/commander_ranks.rs` |
-| `Catalog.Mtgjson.Saltiness` | `catalog/metrics/saltiness.rs` (streaming serde visitor) |
-| `ScryfallAssets`, `Catalog.ScryfallAssetsWorker`, `ScryfallAssetController` | `scryfall_assets/{mod,worker,web}.rs` |
-| `Pricing`, `Pricing.Settings` | `pricing/mod.rs` (`source`, `set_source`, `vendor_statuses`, `last_synced_at`, `PriceSource`) |
-| `Pricing.Money` | `pricing/money.rs` |
-| `Pricing.Sync`, `Pricing.VendorPrice` | `pricing/sync.rs` |
-| `Pricing.Vendors.{TcgCsv,CardKingdom,ManaPool}` | `pricing/vendors/{tcg_csv,card_kingdom,mana_pool}.rs` (`VendorFeed` trait, `FeedUrls`) |
-| `Pricing.VendorSyncWorker` | `pricing/worker.rs` |
-| `Pricing.Store` | `pricing/store.rs` (unchanged API; refreshed after syncs and source changes) |
-| `PricingTypes`, `PricingResolvers`, `PricingOperations` | `pricing/graphql.rs` |
-| `CardOperations` reload mutations, `QueryResolvers.reload_scryfall_*` | `catalog/scryfall/graphql.rs` |
+| Elixir                                                                         | Rust                                                                                                                                                  |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Catalog.Scryfall.Import`                                                      | `catalog/scryfall/import.rs` (`import_cards`, `import_cards_with`, `import` (with state, invalidates caches), `run` over a stream of batches)         |
+| `Catalog.Scryfall.ImportRows`                                                  | `catalog/scryfall/rows.rs`                                                                                                                            |
+| `Catalog.Scryfall.ImportDiff`                                                  | `catalog/scryfall/diff.rs`                                                                                                                            |
+| `Catalog.Scryfall.ReconcilePrintings`                                          | `catalog/scryfall/reconcile.rs`                                                                                                                       |
+| `Catalog.ScryfallOracleTags`                                                   | `catalog/oracle_tags.rs`                                                                                                                              |
+| `Catalog.Scryfall.BulkData`, `Fetch`                                           | `catalog/scryfall/bulk.rs` (lotus `JsonLines` over the downloaded file), `sync::client`/`format_fetch_error` (lotus `ScryfallClient` on `state.http`) |
+| `Catalog.Scryfall.Sync`, `Catalog.Sync` (`scryfall_syncs`), `Catalog.Scryfall` | `catalog/scryfall/sync.rs` (`run`, `latest`, `SyncOptions`, `BULK_TYPE`)                                                                              |
+| `Catalog.ScryfallCatalogWorker`                                                | `catalog/scryfall/worker.rs` (also `enqueue_forced`, `forced`, `stale`)                                                                               |
+| `Catalog.EDHRec.CommanderRanks`                                                | `catalog/metrics/commander_ranks.rs`                                                                                                                  |
+| `Catalog.Mtgjson.Saltiness`                                                    | `catalog/metrics/saltiness.rs` (streaming serde visitor)                                                                                              |
+| `ScryfallAssets`, `Catalog.ScryfallAssetsWorker`, `ScryfallAssetController`    | `scryfall_assets/{mod,worker,web}.rs`                                                                                                                 |
+| `Pricing`, `Pricing.Settings`                                                  | `pricing/mod.rs` (`source`, `set_source`, `vendor_statuses`, `last_synced_at`, `PriceSource`)                                                         |
+| `Pricing.Money`                                                                | `pricing/money.rs`                                                                                                                                    |
+| `Pricing.Sync`, `Pricing.VendorPrice`                                          | `pricing/sync.rs`                                                                                                                                     |
+| `Pricing.Vendors.{TcgCsv,CardKingdom,ManaPool}`                                | `pricing/vendors/{tcg_csv,card_kingdom,mana_pool}.rs` (`VendorFeed` trait, `FeedUrls`)                                                                |
+| `Pricing.VendorSyncWorker`                                                     | `pricing/worker.rs`                                                                                                                                   |
+| `Pricing.Store`                                                                | `pricing/store.rs` (unchanged API; refreshed after syncs and source changes)                                                                          |
+| `PricingTypes`, `PricingResolvers`, `PricingOperations`                        | `pricing/graphql.rs`                                                                                                                                  |
+| `CardOperations` reload mutations, `QueryResolvers.reload_scryfall_*`          | `catalog/scryfall/graphql.rs`                                                                                                                         |
 
 Every external base URL is a parameter (`SyncOptions`, `AssetUrls`,
 `FeedUrls`, `commander_ranks_pages_base_url`); tests use wiremock.

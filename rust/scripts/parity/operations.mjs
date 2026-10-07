@@ -64,7 +64,10 @@ export function loadOperations(repoRoot) {
       needed.add(fragmentName)
       queue.push(...spreadsOf(fragment))
     }
-    const text = [operation, ...[...needed].sort().map((fragmentName) => fragments.get(fragmentName))]
+    const text = [
+      operation,
+      ...[...needed].sort().map((fragmentName) => fragments.get(fragmentName)),
+    ]
       .map((definition) => print(addTypename(definition, visit)))
       .join("\n\n")
     result.set(name, { name, kind: operation.operation, query: text })
@@ -81,7 +84,8 @@ function addTypename(definition, visit) {
     SelectionSet(node, _key, parent) {
       if (parent && parent.kind === "OperationDefinition") return undefined
       const hasTypename = node.selections.some(
-        (selection) => selection.kind === "Field" && selection.name.value === "__typename" && !selection.alias,
+        (selection) =>
+          selection.kind === "Field" && selection.name.value === "__typename" && !selection.alias,
       )
       if (hasTypename) return undefined
       return { ...node, selections: [...node.selections, typename] }
@@ -90,7 +94,9 @@ function addTypename(definition, visit) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const repoRoot = path.resolve(process.argv[2] ?? path.join(path.dirname(process.argv[1]), "../../.."))
+  const repoRoot = path.resolve(
+    process.argv[2] ?? path.join(path.dirname(process.argv[1]), "../../.."),
+  )
   const operations = loadOperations(repoRoot)
   for (const operation of operations.values()) {
     console.log(`# ${operation.kind} ${operation.name}\n${operation.query}\n`)

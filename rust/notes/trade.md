@@ -2,21 +2,21 @@
 
 ## Ported
 
-| Elixir | Rust |
-| --- | --- |
-| `Trade.Want`, `Trade.Query`, `CreateWant`, `UpdateWant`, `DeleteWant`, `Trade.want_image_url/1` | `trade::want` |
-| `Trade.SingletonShare`, `WantsShare`, `BinderShare` (token lifecycle, lists by token), `Catalog.Decks.ShareToken` (generate/valid) | `trade::share` |
-| `Trade.ForTradeQuery`, `BinderShare` entries, `Matcher.for_trade_items_by_oracle/1` | `trade::binder` |
-| `Trade.Lists`, `Trade.ListSource` | `trade::list_source` (`resolve`, `resolve_with`) |
-| `Catalog.Decklists.parse/2` (no zone override) + `ListSource.from_text/1` | `trade::list_source::text` (private copy, see below) |
-| `ListSource.ManaVault` (host-less share links, resolved locally) | `trade::list_source::local` |
-| `ListSource.Moxfield`, `.Archidekt`, `.ManaVaultRemote`, `.Http` | `trade::list_source::remote` over lotus `DeckLink`, `DecklistClient`, `MoxfieldDeck`, `ArchidektDeck`, `DeckPager`, `Allowlist` |
-| `Trade.EntryResolver` | `trade::entry_resolver` |
-| `Trade.Matcher` | `trade::matcher` |
-| `Trade.CollectionCheck` (+ `AllocationStatus.collection_requirement_statuses/1` for not-yet-deck-card requirements) | `trade::collection_check` |
-| `Trade.DeckDiff` | `trade::deck_diff` |
-| `TradeTypes`, `TradeOperations`, `TradeMutations`, `TradeListTypes`, `TradeListOperations`, `TradeListResolvers` | `trade::schema` |
-| `AppController.share_wants/2`, `share_binder/2` | `trade::web` (wired from `web::share::browser_routes`) |
+| Elixir                                                                                                                             | Rust                                                                                                                            |
+| ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `Trade.Want`, `Trade.Query`, `CreateWant`, `UpdateWant`, `DeleteWant`, `Trade.want_image_url/1`                                    | `trade::want`                                                                                                                   |
+| `Trade.SingletonShare`, `WantsShare`, `BinderShare` (token lifecycle, lists by token), `Catalog.Decks.ShareToken` (generate/valid) | `trade::share`                                                                                                                  |
+| `Trade.ForTradeQuery`, `BinderShare` entries, `Matcher.for_trade_items_by_oracle/1`                                                | `trade::binder`                                                                                                                 |
+| `Trade.Lists`, `Trade.ListSource`                                                                                                  | `trade::list_source` (`resolve`, `resolve_with`)                                                                                |
+| `Catalog.Decklists.parse/2` (no zone override) + `ListSource.from_text/1`                                                          | `trade::list_source::text` (private copy, see below)                                                                            |
+| `ListSource.ManaVault` (host-less share links, resolved locally)                                                                   | `trade::list_source::local`                                                                                                     |
+| `ListSource.Moxfield`, `.Archidekt`, `.ManaVaultRemote`, `.Http`                                                                   | `trade::list_source::remote` over lotus `DeckLink`, `DecklistClient`, `MoxfieldDeck`, `ArchidektDeck`, `DeckPager`, `Allowlist` |
+| `Trade.EntryResolver`                                                                                                              | `trade::entry_resolver`                                                                                                         |
+| `Trade.Matcher`                                                                                                                    | `trade::matcher`                                                                                                                |
+| `Trade.CollectionCheck` (+ `AllocationStatus.collection_requirement_statuses/1` for not-yet-deck-card requirements)                | `trade::collection_check`                                                                                                       |
+| `Trade.DeckDiff`                                                                                                                   | `trade::deck_diff`                                                                                                              |
+| `TradeTypes`, `TradeOperations`, `TradeMutations`, `TradeListTypes`, `TradeListOperations`, `TradeListResolvers`                   | `trade::schema`                                                                                                                 |
+| `AppController.share_wants/2`, `share_binder/2`                                                                                    | `trade::web` (wired from `web::share::browser_routes`)                                                                          |
 
 Decks, deck cards, collection items, locations, and allocations are read with
 SQL; nothing here depends on the deck/collection GraphQL types.
@@ -74,7 +74,7 @@ well-formed token, else an empty 404.
   - `deck(id: ID!)` → `name`, `cardCount`, `commanderColorIdentity`,
     `deckCards(first: 500, after: $after)` → `pageInfo { hasNextPage endCursor }`,
     `edges { node { quantity zone finish card { name }
-    preferredPrinting { scryfallId } fallbackPrinting { scryfallId } } }`
+preferredPrinting { scryfallId } fallbackPrinting { scryfallId } } }`
     (variables `$id: ID!`, `$after: String`, `after` always sent, `null` on
     the first page);
   - `wantsList(id: ID!)` → `entries { cardName quantity setCode collectorNumber }`;
@@ -85,6 +85,7 @@ well-formed token, else an empty 404.
   `finish`, or the printing references. A remote instance whose deck schema
   lacks one of them answers with GraphQL errors, which read as "Couldn't
   reach that ManaVault instance".
+
 - Absolute share links to this very instance are fetched over HTTP like
   Elixir, so they need the public `/share/graphql` endpoint (not ported yet);
   host-less `/share/...` links resolve locally now.
@@ -122,7 +123,7 @@ Other:
   blocked message, else the friendly message; Archidekt: always the friendly
   message.
 - `createTradeWant` finds and bumps the matching want inside one `BEGIN
-  IMMEDIATE` transaction instead of insert-then-bump-on-conflict; same result.
+IMMEDIATE` transaction instead of insert-then-bump-on-conflict; same result.
 - Database failures surface as "Something went wrong." (`internal_error`).
 - `deckDiff` representative images order printings by release date, then set
   code and collector number (Elixir: release date only, ties unspecified).

@@ -36,7 +36,9 @@ const databases = { elixir: option("elixir-db", null), rust: option("rust-db", n
 const live = flag("live")
 const verbose = flag("verbose")
 
-const contexts = Object.fromEntries(backends.map((backend) => [backend.name, { secrets: new Set() }]))
+const contexts = Object.fromEntries(
+  backends.map((backend) => [backend.name, { secrets: new Set() }]),
+)
 const steps = []
 const counters = new Map()
 
@@ -46,7 +48,9 @@ async function run(operationName, variables = {}, options = {}) {
   if (options.alignSecond) await alignToSecond()
   const index = (counters.get(operationName) ?? 0) + 1
   counters.set(operationName, index)
-  const label = options.label ? `${operationName}#${index} ${options.label}` : `${operationName}#${index}`
+  const label = options.label
+    ? `${operationName}#${index} ${options.label}`
+    : `${operationName}#${index}`
   const endpoint = options.endpoint ?? "owner"
 
   const results = await Promise.all(
@@ -54,7 +58,10 @@ async function run(operationName, variables = {}, options = {}) {
       const context = contexts[backend.name]
       const vars = typeof variables === "function" ? variables(context) : variables
       const missing = undefinedPaths(vars)
-      if (missing.length) console.log(`  ! ${backend.name}: ${operationName} variables ${missing.join(", ")} are undefined (capture failed?)`)
+      if (missing.length)
+        console.log(
+          `  ! ${backend.name}: ${operationName} variables ${missing.join(", ")} are undefined (capture failed?)`,
+        )
       const result = await backend.graphql(endpoint, operation.query, vars, operationName)
       return { backend: backend.name, vars, result }
     }),
@@ -75,16 +82,32 @@ async function run(operationName, variables = {}, options = {}) {
     normalize(observable(result), contexts[backend].secrets),
   )
   const differences = diff(elixir, rust)
-  const known = differences.length && KNOWN_DIFFERENCES.find((entry) => entry.match(label, differences, elixir, rust))
+  const known =
+    differences.length &&
+    KNOWN_DIFFERENCES.find((entry) => entry.match(label, differences, elixir, rust))
   const nondeterministic =
-    differences.length && !known && NONDETERMINISTIC.find((entry) => entry.match(label, differences, elixir, rust))
-  const status = differences.length === 0 ? "identical" : known ? "known" : nondeterministic ? "nondeterministic" : "different"
+    differences.length &&
+    !known &&
+    NONDETERMINISTIC.find((entry) => entry.match(label, differences, elixir, rust))
+  const status =
+    differences.length === 0
+      ? "identical"
+      : known
+        ? "known"
+        : nondeterministic
+          ? "nondeterministic"
+          : "different"
   steps.push({
     label,
     operation: operationName,
     endpoint,
     status,
-    reason: status === "known" ? known.reason : status === "nondeterministic" ? nondeterministic.reason : undefined,
+    reason:
+      status === "known"
+        ? known.reason
+        : status === "nondeterministic"
+          ? nondeterministic.reason
+          : undefined,
     variables: { elixir: results[0].vars, rust: results[1].vars },
     differences,
     elixir: status === "identical" && !verbose ? undefined : elixir,
@@ -92,11 +115,17 @@ async function run(operationName, variables = {}, options = {}) {
     ms: { elixir: Math.round(results[0].result.ms), rust: Math.round(results[1].result.ms) },
   })
   const marker = { identical: "✓", known: "≈", nondeterministic: "~", different: "✗" }[status]
-  const errorNote = Array.isArray(elixir.errors) ? ` (errors: ${elixir.errors.map((error) => error.message).join(" | ")})` : elixir.errors ? ` (errors: ${JSON.stringify(elixir.errors)})` : ""
+  const errorNote = Array.isArray(elixir.errors)
+    ? ` (errors: ${elixir.errors.map((error) => error.message).join(" | ")})`
+    : elixir.errors
+      ? ` (errors: ${JSON.stringify(elixir.errors)})`
+      : ""
   console.log(`${marker} ${label}${status === "identical" ? errorNote : ""}`)
   if (status === "different") {
     for (const difference of differences.slice(0, 8)) {
-      console.log(`    ${difference.path}\n      elixir: ${JSON.stringify(difference.elixir)}\n      rust:   ${JSON.stringify(difference.rust)}`)
+      console.log(
+        `    ${difference.path}\n      elixir: ${JSON.stringify(difference.elixir)}\n      rust:   ${JSON.stringify(difference.rust)}`,
+      )
     }
   }
   return {
@@ -107,8 +136,10 @@ async function run(operationName, variables = {}, options = {}) {
 
 function undefinedPaths(value, path = "$") {
   if (value === undefined) return [path]
-  if (Array.isArray(value)) return value.flatMap((item, index) => undefinedPaths(item, `${path}[${index}]`))
-  if (value && typeof value === "object") return Object.entries(value).flatMap(([key, child]) => undefinedPaths(child, `${path}.${key}`))
+  if (Array.isArray(value))
+    return value.flatMap((item, index) => undefinedPaths(item, `${path}[${index}]`))
+  if (value && typeof value === "object")
+    return Object.entries(value).flatMap(([key, child]) => undefinedPaths(child, `${path}.${key}`))
   return []
 }
 
@@ -138,14 +169,23 @@ await scenario({ run, sql, live })
 
 // ---- report -------------------------------------------------------------
 const byOperation = new Map()
-for (const name of operations.keys()) byOperation.set(name, { calls: 0, identical: 0, known: 0, nondeterministic: 0, different: 0 })
+for (const name of operations.keys())
+  byOperation.set(name, { calls: 0, identical: 0, known: 0, nondeterministic: 0, different: 0 })
 for (const step of steps) {
   const entry = byOperation.get(step.operation)
   entry.calls += 1
   entry[step.status] += 1
 }
 const notCalled = [...byOperation].filter(([, entry]) => entry.calls === 0).map(([name]) => name)
-const totals = { operations: operations.size, exercised: 0, allIdentical: 0, withKnown: 0, withNondeterministic: 0, withDifferences: 0, steps: steps.length }
+const totals = {
+  operations: operations.size,
+  exercised: 0,
+  allIdentical: 0,
+  withKnown: 0,
+  withNondeterministic: 0,
+  withDifferences: 0,
+  steps: steps.length,
+}
 for (const entry of byOperation.values()) {
   if (entry.calls === 0) continue
   totals.exercised += 1
@@ -154,25 +194,46 @@ for (const entry of byOperation.values()) {
   else if (entry.nondeterministic > 0) totals.withNondeterministic += 1
   else totals.allIdentical += 1
 }
-const stepTotals = steps.reduce((acc, step) => ({ ...acc, [step.status]: (acc[step.status] ?? 0) + 1 }), {})
+const stepTotals = steps.reduce(
+  (acc, step) => ({ ...acc, [step.status]: (acc[step.status] ?? 0) + 1 }),
+  {},
+)
 
 fs.writeFileSync(
   reportPath,
-  JSON.stringify({ totals, stepTotals, notCalled, notExercisedReasons: NOT_EXERCISED, byOperation: Object.fromEntries(byOperation), steps }, null, 2),
+  JSON.stringify(
+    {
+      totals,
+      stepTotals,
+      notCalled,
+      notExercisedReasons: NOT_EXERCISED,
+      byOperation: Object.fromEntries(byOperation),
+      steps,
+    },
+    null,
+    2,
+  ),
 )
 
 console.log("\n=== parity summary ===")
-console.log(`operations in gql.ts: ${totals.operations}; exercised: ${totals.exercised}; steps: ${totals.steps}`)
+console.log(
+  `operations in gql.ts: ${totals.operations}; exercised: ${totals.exercised}; steps: ${totals.steps}`,
+)
 console.log(`operations identical in every call: ${totals.allIdentical}`)
 console.log(`operations with documented differences only: ${totals.withKnown}`)
-console.log(`operations with nondeterministic (masked-as-documented) differences only: ${totals.withNondeterministic}`)
+console.log(
+  `operations with nondeterministic (masked-as-documented) differences only: ${totals.withNondeterministic}`,
+)
 console.log(`operations with UNEXPLAINED differences: ${totals.withDifferences}`)
 console.log(`steps: ${JSON.stringify(stepTotals)}`)
 if (notCalled.length) {
   console.log("not called:")
-  for (const name of notCalled) console.log(`  ${name}: ${NOT_EXERCISED[name] ?? "(no reason recorded)"}`)
+  for (const name of notCalled)
+    console.log(`  ${name}: ${NOT_EXERCISED[name] ?? "(no reason recorded)"}`)
 }
-for (const step of steps.filter((entry) => entry.status === "known" || entry.status === "nondeterministic")) {
+for (const step of steps.filter(
+  (entry) => entry.status === "known" || entry.status === "nondeterministic",
+)) {
   console.log(`  ${step.status}: ${step.label}: ${step.reason}`)
 }
 console.log(`report: ${reportPath}`)

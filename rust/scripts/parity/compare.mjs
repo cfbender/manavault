@@ -7,18 +7,25 @@
 // tokens and API key secrets.
 
 const TIMESTAMP = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/
-const MASKED_KEYS = new Set(["shareToken", "token", "prefix", "tradeWantsShareToken", "tradeBinderShareToken"])
+const MASKED_KEYS = new Set([
+  "shareToken",
+  "token",
+  "prefix",
+  "tradeWantsShareToken",
+  "tradeBinderShareToken",
+])
 
 export function normalize(value, secrets, key = null) {
   if (Array.isArray(value)) return value.map((item) => normalize(item, secrets))
   if (value && typeof value === "object") {
     const out = {}
-    for (const [childKey, child] of Object.entries(value)) out[childKey] = normalize(child, secrets, childKey)
+    for (const [childKey, child] of Object.entries(value))
+      out[childKey] = normalize(child, secrets, childKey)
     return out
   }
   if (typeof value !== "string") return value
   if (key && MASKED_KEYS.has(key)) return "<secret>"
-  if (key && /At$/.test(key) && TIMESTAMP.test(value)) return "<timestamp>"
+  if (key && key.endsWith("At") && TIMESTAMP.test(value)) return "<timestamp>"
   let text = value
   for (const secret of secrets) {
     if (secret && text.includes(secret)) text = text.split(secret).join("<secret>")
@@ -40,8 +47,7 @@ export function observable(result) {
       if (error.path) entry.path = error.path
       return entry
     })
-  }
-  else if (body.errors) out.errors = body.errors
+  } else if (body.errors) out.errors = body.errors
   if (body.transportError !== undefined) out.transportError = body.transportError
   if (body.nonJsonBody !== undefined) out.nonJsonBody = body.nonJsonBody
   return out
@@ -61,14 +67,17 @@ export function diff(left, right, path = "$", out = [], limit = 40) {
       out.push({ path: `${path}.length`, elixir: left.length, rust: right.length })
     }
     const length = Math.min(left.length, right.length)
-    for (let index = 0; index < length; index += 1) diff(left[index], right[index], `${path}[${index}]`, out, limit)
+    for (let index = 0; index < length; index += 1)
+      diff(left[index], right[index], `${path}[${index}]`, out, limit)
     return out
   }
   if (leftType === "object") {
     const keys = new Set([...Object.keys(left), ...Object.keys(right)])
     for (const key of keys) {
-      if (!(key in left)) out.push({ path: `${path}.${key}`, elixir: "<missing>", rust: preview(right[key]) })
-      else if (!(key in right)) out.push({ path: `${path}.${key}`, elixir: preview(left[key]), rust: "<missing>" })
+      if (!(key in left))
+        out.push({ path: `${path}.${key}`, elixir: "<missing>", rust: preview(right[key]) })
+      else if (!(key in right))
+        out.push({ path: `${path}.${key}`, elixir: preview(left[key]), rust: "<missing>" })
       else diff(left[key], right[key], `${path}.${key}`, out, limit)
     }
     return out

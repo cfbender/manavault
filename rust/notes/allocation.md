@@ -2,28 +2,28 @@
 
 ## Ported
 
-| Elixir | Rust |
-| --- | --- |
-| `Decks.DeckCardAllocation` (allocate, deallocate, `allocate_by_ids_in_transaction`, `allocate_available_preferred_printing_to_deck_card`) | `manavault_allocation::{allocate, allocate_in, deallocate, allocate_available_preferred_printing}` |
-| `Decks.AllocationItems` | `manavault_allocation` `items` (private) |
-| `Decks.AllocationStatus` (single, `put_deck_card_allocation_statuses`, `deck_allocation_status`, `collection_requirement_statuses`) | `allocation_status`, `deck_card_statuses`, `deck_allocation_statuses`, `requirement_statuses` (two queries for any number of cards) |
-| `Decks.BulkDeckAllocation` | `preview_bulk_allocate_deck`, `bulk_allocate_deck` (`AllocationMode`) |
-| `Decks.PullListAllocation` | `PullListEntry::new`, `allocate_deck_pull_list` |
-| `Decks.BulkCollectionAllocation` | `bulk_add_collection_items_to_deck` |
-| `Decks.AddCollectionItemToDeck` (+ the upsert half of `AddCardToDeck` it needs) | `add_collection_item_to_deck` |
-| `Decks.ProxyAllocation` | `allocate_proxy`, `deallocate_proxy` |
-| `Decks.DeckCardDeallocation` | `bulk_deallocate_deck_cards` |
-| `Decks.ClearDeckCardAllocations` | `clear_deck_card_allocations` (caller's transaction) |
-| `Decks.TrimDeckCardAllocations` | `trim_deck_card_allocations` (caller's transaction) |
-| `UpdateDeckCard`'s allocation switch | `switch_allocation_to_preferred_printing` (caller's transaction) |
-| `Decks.Disassembly` | `preview_deck_disassembly`, `disassemble_deck` |
-| `Decks.Buylist` (counting) | `deck_buylist_needs` (`BuylistOptions`, `BuylistNeed`, `BuylistReason`) |
-| `Decks.Buylist` (printing/price/export), `Decks.Printings` | `deck_intel::buylist::{deck_buylist, export_deck_buylist, PrintingMode}` |
-| `EDHRec.Recommendations`, `Payload`, `Client.fetch_recs/fetch_commander_page`, `Response`, `Response.CommanderPage` | `deck_intel::edhrec` (reuses `catalog::edhrec::{CardLookup, card_slug, EdhrecError, entry_*}`) |
-| `EDHRec.Response.CollectionStatus`, `CardLookup.matching_deck_card` | `deck_intel::suggest` |
-| `Catalog.Recommander` (+ `Client`, `Payload`, `Response`) | `deck_intel::recommander` |
-| `Catalog.CommanderSpellbook` | `deck_intel::spellbook` |
-| `Errors.deck_allocation_error/edhrec_error/recommander_error/commander_spellbook_error` | `deck_intel::errors`, and the `Display` of `DeckEdhrecError`/`RecommanderError`/`SpellbookError` |
+| Elixir                                                                                                                                    | Rust                                                                                                                                |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `Decks.DeckCardAllocation` (allocate, deallocate, `allocate_by_ids_in_transaction`, `allocate_available_preferred_printing_to_deck_card`) | `manavault_allocation::{allocate, allocate_in, deallocate, allocate_available_preferred_printing}`                                  |
+| `Decks.AllocationItems`                                                                                                                   | `manavault_allocation` `items` (private)                                                                                            |
+| `Decks.AllocationStatus` (single, `put_deck_card_allocation_statuses`, `deck_allocation_status`, `collection_requirement_statuses`)       | `allocation_status`, `deck_card_statuses`, `deck_allocation_statuses`, `requirement_statuses` (two queries for any number of cards) |
+| `Decks.BulkDeckAllocation`                                                                                                                | `preview_bulk_allocate_deck`, `bulk_allocate_deck` (`AllocationMode`)                                                               |
+| `Decks.PullListAllocation`                                                                                                                | `PullListEntry::new`, `allocate_deck_pull_list`                                                                                     |
+| `Decks.BulkCollectionAllocation`                                                                                                          | `bulk_add_collection_items_to_deck`                                                                                                 |
+| `Decks.AddCollectionItemToDeck` (+ the upsert half of `AddCardToDeck` it needs)                                                           | `add_collection_item_to_deck`                                                                                                       |
+| `Decks.ProxyAllocation`                                                                                                                   | `allocate_proxy`, `deallocate_proxy`                                                                                                |
+| `Decks.DeckCardDeallocation`                                                                                                              | `bulk_deallocate_deck_cards`                                                                                                        |
+| `Decks.ClearDeckCardAllocations`                                                                                                          | `clear_deck_card_allocations` (caller's transaction)                                                                                |
+| `Decks.TrimDeckCardAllocations`                                                                                                           | `trim_deck_card_allocations` (caller's transaction)                                                                                 |
+| `UpdateDeckCard`'s allocation switch                                                                                                      | `switch_allocation_to_preferred_printing` (caller's transaction)                                                                    |
+| `Decks.Disassembly`                                                                                                                       | `preview_deck_disassembly`, `disassemble_deck`                                                                                      |
+| `Decks.Buylist` (counting)                                                                                                                | `deck_buylist_needs` (`BuylistOptions`, `BuylistNeed`, `BuylistReason`)                                                             |
+| `Decks.Buylist` (printing/price/export), `Decks.Printings`                                                                                | `deck_intel::buylist::{deck_buylist, export_deck_buylist, PrintingMode}`                                                            |
+| `EDHRec.Recommendations`, `Payload`, `Client.fetch_recs/fetch_commander_page`, `Response`, `Response.CommanderPage`                       | `deck_intel::edhrec` (reuses `catalog::edhrec::{CardLookup, card_slug, EdhrecError, entry_*}`)                                      |
+| `EDHRec.Response.CollectionStatus`, `CardLookup.matching_deck_card`                                                                       | `deck_intel::suggest`                                                                                                               |
+| `Catalog.Recommander` (+ `Client`, `Payload`, `Response`)                                                                                 | `deck_intel::recommander`                                                                                                           |
+| `Catalog.CommanderSpellbook`                                                                                                              | `deck_intel::spellbook`                                                                                                             |
+| `Errors.deck_allocation_error/edhrec_error/recommander_error/commander_spellbook_error`                                                   | `deck_intel::errors`, and the `Display` of `DeckEdhrecError`/`RecommanderError`/`SpellbookError`                                    |
 
 `printings.ex` has no allocation logic (it picks the cheapest printing for the
 buylist), so it lives in `deck_intel::buylist`.
@@ -74,18 +74,18 @@ Third-party URLs: `Config::deck_intel` (`DeckIntelUrls`: `edhrec_recs`,
 
 ## Deferred for integration (domain functions exist and are tested)
 
-| Field | Call |
-| --- | --- |
-| `allocateDeckPullList(deckId, entries)` | `deck_intel::schema::allocate_deck_pull_list(ctx, &deck_id, &[PullListEntryArgs])` — the whole resolver body, tested with a stand-in `DeckPullListEntryInput`; map the deck engineer's input into `PullListEntryArgs` and return its `AllocateDeckPullListPayload`. |
-| `allocateDeckCardItem(deckCardId, collectionItemId)` | `manavault_allocation::allocate(pool, deck_card_id, item_id, Quantity 1)`, then reload the deck card; errors through `deck_intel::errors::deck_allocation_error`. |
-| `deallocateDeckCardItem(deckCardId, collectionItemId)` | `manavault_allocation::deallocate(pool, deck_card_id, item_id, Quantity 1)`, then reload the deck card. |
-| `bulkDeallocateDeckCards(deckCardIds)` | `manavault_allocation::bulk_deallocate_deck_cards(pool, &ids)` (request order, deduplicated; any missing id → `DeckCardNotFound`). |
-| `allocateDeckCardProxy(deckCardId, quantity)` | `parse_quantity(quantity.unwrap_or(1))` then `allocate_proxy(pool, id, q)`. |
-| `deallocateDeckCardProxy(deckCardId, quantity)` | `parse_quantity(...)` then `deallocate_proxy(pool, id, q)`. |
-| `previewBulkAllocateDeck(id, mode)` | `AllocationMode::parse(&mode)` then `preview_bulk_allocate_deck(pool, deck_id, mode)`; `mode.as_str()` for the `mode` field; each `BulkAllocationEntry` has `deck_card: DeckCard` (embed the deck engineer's `DeckCard` by id), `item: CollectionItem` (collection engineer's type by `item.id`), `quantity`, `exact`. |
-| `addCollectionItemToDeck(id, deckId, zone)` | `add_collection_item_to_deck(pool, deck_id, item_id, Zone::parse(zone or "mainboard"))`. |
-| `bulkAddCollectionItemsToDeck(selector, deckId, zone)` | resolve the selector to ids (collection engineer), then `bulk_add_collection_items_to_deck(pool, deck_id, &ids, zone)`; returns deck cards by id. |
-| `DeckCardAllocationStatus.candidates` | add a resolver on `deck_intel::status::DeckCardAllocationStatus` mapping `self.status.candidates` (`Candidate { item: CollectionItem, allocated, allocated_elsewhere, available }`) to `DeckCardAllocationCandidate { item: <CollectionItem GraphQL by item.id>, … }`. |
+| Field                                                  | Call                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `allocateDeckPullList(deckId, entries)`                | `deck_intel::schema::allocate_deck_pull_list(ctx, &deck_id, &[PullListEntryArgs])` — the whole resolver body, tested with a stand-in `DeckPullListEntryInput`; map the deck engineer's input into `PullListEntryArgs` and return its `AllocateDeckPullListPayload`.                                                    |
+| `allocateDeckCardItem(deckCardId, collectionItemId)`   | `manavault_allocation::allocate(pool, deck_card_id, item_id, Quantity 1)`, then reload the deck card; errors through `deck_intel::errors::deck_allocation_error`.                                                                                                                                                      |
+| `deallocateDeckCardItem(deckCardId, collectionItemId)` | `manavault_allocation::deallocate(pool, deck_card_id, item_id, Quantity 1)`, then reload the deck card.                                                                                                                                                                                                                |
+| `bulkDeallocateDeckCards(deckCardIds)`                 | `manavault_allocation::bulk_deallocate_deck_cards(pool, &ids)` (request order, deduplicated; any missing id → `DeckCardNotFound`).                                                                                                                                                                                     |
+| `allocateDeckCardProxy(deckCardId, quantity)`          | `parse_quantity(quantity.unwrap_or(1))` then `allocate_proxy(pool, id, q)`.                                                                                                                                                                                                                                            |
+| `deallocateDeckCardProxy(deckCardId, quantity)`        | `parse_quantity(...)` then `deallocate_proxy(pool, id, q)`.                                                                                                                                                                                                                                                            |
+| `previewBulkAllocateDeck(id, mode)`                    | `AllocationMode::parse(&mode)` then `preview_bulk_allocate_deck(pool, deck_id, mode)`; `mode.as_str()` for the `mode` field; each `BulkAllocationEntry` has `deck_card: DeckCard` (embed the deck engineer's `DeckCard` by id), `item: CollectionItem` (collection engineer's type by `item.id`), `quantity`, `exact`. |
+| `addCollectionItemToDeck(id, deckId, zone)`            | `add_collection_item_to_deck(pool, deck_id, item_id, Zone::parse(zone or "mainboard"))`.                                                                                                                                                                                                                               |
+| `bulkAddCollectionItemsToDeck(selector, deckId, zone)` | resolve the selector to ids (collection engineer), then `bulk_add_collection_items_to_deck(pool, deck_id, &ids, zone)`; returns deck cards by id.                                                                                                                                                                      |
+| `DeckCardAllocationStatus.candidates`                  | add a resolver on `deck_intel::status::DeckCardAllocationStatus` mapping `self.status.candidates` (`Candidate { item: CollectionItem, allocated, allocated_elsewhere, available }`) to `DeckCardAllocationCandidate { item: <CollectionItem GraphQL by item.id>, … }`.                                                 |
 
 Deck-core hooks for the deck engineer (all in the caller's transaction):
 `clear_deck_card_allocations` (deleting a card; moving to considering — also

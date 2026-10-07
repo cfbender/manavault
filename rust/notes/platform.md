@@ -4,32 +4,32 @@ Web platform, authentication, settings, API keys, backups, and the scanner.
 
 ## Ported (Elixir → Rust)
 
-| Elixir | Rust |
-| --- | --- |
-| `ManavaultWeb.Endpoint` (Plug.Static ×3, session, `PublicGraphQLProtection :admit`) | `web/mod.rs`, `web/static_files.rs`, `web/public_graphql.rs` |
-| `ManavaultWeb.Router` (all scopes/pipelines) | `web/mod.rs` |
-| `put_secure_browser_headers`, `protect_from_forgery`, `Plugs.ContentSecurityPolicy`, `Plugs.CrossOriginIsolation` | `web/browser.rs` |
-| `Plug.Parsers` (urlencoded, multipart, JSON, `application/graphql`) | `web/params.rs` |
-| `Plugs.GraphQLCSRFProtection` + `Absinthe.Plug` transport (batches, form bodies) | `web/graphql_http.rs` |
-| `AppController.index`/`render_app`, `app_html/app.html.eex`, `DeckSharePreview.default/1` | `web/app_shell.rs` |
-| share pages hook (`share_deck`, `share_wants`, `share_binder`, previews, `/share/graphql`) | `web/share.rs` (empty hooks, documented) |
-| `AuthController`, `auth_html/login.html.eex`, `AuthReturnPath` | `web/auth_controller.rs`, `web/return_path.rs` |
-| `ClientIP`, `AllowedOrigins`, `AssetVersion`, `SessionOptions` | `web/client_ip.rs`, `web/allowed_origins.rs`, `web/asset_version.rs`, existing `web/session.rs` |
-| `UserSocket` + `Absinthe.Phoenix` channel (Phoenix Channels v2/v1 JSON) | `web/socket.rs` |
-| `PwaController`, `VendorController` + `Vendors.StarCityGames` | `web/pwa.rs`, `web/vendor.rs` |
-| `Plugs.ApiKeyAuthentication`, `/api/v1` scope | `web/api_v1.rs` (placeholder `GET /api/v1/decks` → 501 until the deck module adds it) |
-| `PublicShareRequestLimiter` | `web/rate_limit.rs` (in `AppState.public_requests`) |
-| `Manavault.Auth`, `Auth.AttemptLimiter`, `Auth.ClientFailure` | `auth/mod.rs`, `auth/attempt_limiter.rs` (in `AppState.login_attempts`) |
-| `Auth.ApiKeys`, `ApiKey`, `ApiKeyOperations`/`ApiKeyTypes` | `api_keys/mod.rs` |
-| `Manavault.Appearance(.Settings)`, appearance resolvers/types | `settings/appearance.rs` |
-| `AI.Settings`, `AI.UpdateSettings`, `OpenRouter.validate_settings` (settings only) | `settings/ai.rs` |
-| Ecto changeset error rendering (`Errors.changeset_error_message`) | `settings/changeset.rs` |
-| `Manavault.Backup.*` (Settings/CloudSettings, Cron, Archive, Snapshot, Create, Restore, S3Client, GoogleDriveClient, Retention, Cloud, CloudBackupWorker, PendingRestore, MigrationBackup) | `backup/*.rs` |
-| `BackupTypes`, `BackupResolvers`, `Catalog.BackupOperations` | `backup/graphql.rs` |
-| `Scanner.Bundle`, `Scanner.BundleUpdateWorker`, `Scanner.Corrections` | `scanner/bundle.rs`, `scanner/update_worker.rs`, `scanner/corrections.rs` |
-| `ScannerBundleController`(+JSON), `ScannerCorrectionController`, `Plugs.ScannerExportAuth` | `scanner/http.rs` |
-| `ObanLogger` | `jobs::failure_message` (logged on every failed attempt) |
-| `mix manavault.auth.hash` / `.auth.unban` / `.backup` / `.restore` | `manavault hash-password` (existing) / `unban` / `backup` / `restore` (`cli.rs`) |
+| Elixir                                                                                                                                                                                     | Rust                                                                                            |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `ManavaultWeb.Endpoint` (Plug.Static ×3, session, `PublicGraphQLProtection :admit`)                                                                                                        | `web/mod.rs`, `web/static_files.rs`, `web/public_graphql.rs`                                    |
+| `ManavaultWeb.Router` (all scopes/pipelines)                                                                                                                                               | `web/mod.rs`                                                                                    |
+| `put_secure_browser_headers`, `protect_from_forgery`, `Plugs.ContentSecurityPolicy`, `Plugs.CrossOriginIsolation`                                                                          | `web/browser.rs`                                                                                |
+| `Plug.Parsers` (urlencoded, multipart, JSON, `application/graphql`)                                                                                                                        | `web/params.rs`                                                                                 |
+| `Plugs.GraphQLCSRFProtection` + `Absinthe.Plug` transport (batches, form bodies)                                                                                                           | `web/graphql_http.rs`                                                                           |
+| `AppController.index`/`render_app`, `app_html/app.html.eex`, `DeckSharePreview.default/1`                                                                                                  | `web/app_shell.rs`                                                                              |
+| share pages hook (`share_deck`, `share_wants`, `share_binder`, previews, `/share/graphql`)                                                                                                 | `web/share.rs` (empty hooks, documented)                                                        |
+| `AuthController`, `auth_html/login.html.eex`, `AuthReturnPath`                                                                                                                             | `web/auth_controller.rs`, `web/return_path.rs`                                                  |
+| `ClientIP`, `AllowedOrigins`, `AssetVersion`, `SessionOptions`                                                                                                                             | `web/client_ip.rs`, `web/allowed_origins.rs`, `web/asset_version.rs`, existing `web/session.rs` |
+| `UserSocket` + `Absinthe.Phoenix` channel (Phoenix Channels v2/v1 JSON)                                                                                                                    | `web/socket.rs`                                                                                 |
+| `PwaController`, `VendorController` + `Vendors.StarCityGames`                                                                                                                              | `web/pwa.rs`, `web/vendor.rs`                                                                   |
+| `Plugs.ApiKeyAuthentication`, `/api/v1` scope                                                                                                                                              | `web/api_v1.rs` (placeholder `GET /api/v1/decks` → 501 until the deck module adds it)           |
+| `PublicShareRequestLimiter`                                                                                                                                                                | `web/rate_limit.rs` (in `AppState.public_requests`)                                             |
+| `Manavault.Auth`, `Auth.AttemptLimiter`, `Auth.ClientFailure`                                                                                                                              | `auth/mod.rs`, `auth/attempt_limiter.rs` (in `AppState.login_attempts`)                         |
+| `Auth.ApiKeys`, `ApiKey`, `ApiKeyOperations`/`ApiKeyTypes`                                                                                                                                 | `api_keys/mod.rs`                                                                               |
+| `Manavault.Appearance(.Settings)`, appearance resolvers/types                                                                                                                              | `settings/appearance.rs`                                                                        |
+| `AI.Settings`, `AI.UpdateSettings`, `OpenRouter.validate_settings` (settings only)                                                                                                         | `settings/ai.rs`                                                                                |
+| Ecto changeset error rendering (`Errors.changeset_error_message`)                                                                                                                          | `settings/changeset.rs`                                                                         |
+| `Manavault.Backup.*` (Settings/CloudSettings, Cron, Archive, Snapshot, Create, Restore, S3Client, GoogleDriveClient, Retention, Cloud, CloudBackupWorker, PendingRestore, MigrationBackup) | `backup/*.rs`                                                                                   |
+| `BackupTypes`, `BackupResolvers`, `Catalog.BackupOperations`                                                                                                                               | `backup/graphql.rs`                                                                             |
+| `Scanner.Bundle`, `Scanner.BundleUpdateWorker`, `Scanner.Corrections`                                                                                                                      | `scanner/bundle.rs`, `scanner/update_worker.rs`, `scanner/corrections.rs`                       |
+| `ScannerBundleController`(+JSON), `ScannerCorrectionController`, `Plugs.ScannerExportAuth`                                                                                                 | `scanner/http.rs`                                                                               |
+| `ObanLogger`                                                                                                                                                                               | `jobs::failure_message` (logged on every failed attempt)                                        |
+| `mix manavault.auth.hash` / `.auth.unban` / `.backup` / `.restore`                                                                                                                         | `manavault hash-password` (existing) / `unban` / `backup` / `restore` (`cli.rs`)                |
 
 Workers: `Manavault.Scanner.BundleUpdateWorker` (queue `catalog`, `@reboot` and
 `0 */6 * * *`), `Manavault.Backup.CloudBackupWorker` (queue `backup`,

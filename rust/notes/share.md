@@ -5,19 +5,19 @@ previews, and the personal `/api/v1/decks` endpoint.
 
 ## Ported (Elixir → Rust)
 
-| Elixir | Rust |
-| --- | --- |
-| `ManavaultWeb.PublicShareSchema` (root fields, `public_shared_deck/1`, `public_buylist_opts/1`) | `share::schema` (`PublicQuery`, `schema()`, `sdl()`) |
-| `ManavaultWeb.Schema.PublicShareTypes` (public `Card`, `PublicCardSummary`, `Printing`, `CollectionItem`, `Location`, `Deck`, `DeckCard`, shared `DeckCardAllocationStatus`, `DeckBuylistEntry`, `ProducedToken`, connections, `Node`, `clamp_connection_args/2`) | `share::types` |
-| `Absinthe.Plug` options of the `/share/graphql` forward (`token_limit: 5_000`, `analyze_complexity`/`max_complexity: 100_000`, the field `complexity/2` callbacks), `FieldsOnCorrectType`'s "Operation \"mutation\" not supported" | `share::protection`, `share::http` (the router already wraps the route in `public_graphql::{admit, validate}`; `check_depth` runs in `share::http`) |
-| `AppController.share_deck`, `share_deck_preview_image`, `share_deck_preview_png`, `share_preview/2` | `share::pages` (wired through `web::share`) |
-| `DeckSharePreview` (`from_deck/2`, `svg/2`, labels) | `share::preview` (`DeckPage`, `DeckPreview`) |
-| `DeckSharePreview.ArtifactCache` | `share::preview::artifact_cache` |
-| `DeckSharePreview.ArtifactStore` | `share::preview::artifact_store` |
-| `DeckSharePreview.CoverFetcher` | `share::preview::cover_fetcher` |
-| `DeckSharePreview.RenderWorker` | `share::preview::render_worker` (worker `ManavaultWeb.DeckSharePreview.RenderWorker`, queue `preview`, max 3 attempts, unique per args while incomplete, 2 min timeout; registered in `app.rs`) |
-| `DeckSharePreview.Renderer` (`resvg` CLI) | `share::preview::renderer` (resvg 0.48 crate, in process) |
-| `Api.V1.DeckController` + JSON | `web::api_v1` (`GET /api/v1/decks`, behind the existing API key middleware) |
+| Elixir                                                                                                                                                                                                                                                            | Rust                                                                                                                                                                                            |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ManavaultWeb.PublicShareSchema` (root fields, `public_shared_deck/1`, `public_buylist_opts/1`)                                                                                                                                                                   | `share::schema` (`PublicQuery`, `schema()`, `sdl()`)                                                                                                                                            |
+| `ManavaultWeb.Schema.PublicShareTypes` (public `Card`, `PublicCardSummary`, `Printing`, `CollectionItem`, `Location`, `Deck`, `DeckCard`, shared `DeckCardAllocationStatus`, `DeckBuylistEntry`, `ProducedToken`, connections, `Node`, `clamp_connection_args/2`) | `share::types`                                                                                                                                                                                  |
+| `Absinthe.Plug` options of the `/share/graphql` forward (`token_limit: 5_000`, `analyze_complexity`/`max_complexity: 100_000`, the field `complexity/2` callbacks), `FieldsOnCorrectType`'s "Operation \"mutation\" not supported"                                | `share::protection`, `share::http` (the router already wraps the route in `public_graphql::{admit, validate}`; `check_depth` runs in `share::http`)                                             |
+| `AppController.share_deck`, `share_deck_preview_image`, `share_deck_preview_png`, `share_preview/2`                                                                                                                                                               | `share::pages` (wired through `web::share`)                                                                                                                                                     |
+| `DeckSharePreview` (`from_deck/2`, `svg/2`, labels)                                                                                                                                                                                                               | `share::preview` (`DeckPage`, `DeckPreview`)                                                                                                                                                    |
+| `DeckSharePreview.ArtifactCache`                                                                                                                                                                                                                                  | `share::preview::artifact_cache`                                                                                                                                                                |
+| `DeckSharePreview.ArtifactStore`                                                                                                                                                                                                                                  | `share::preview::artifact_store`                                                                                                                                                                |
+| `DeckSharePreview.CoverFetcher`                                                                                                                                                                                                                                   | `share::preview::cover_fetcher`                                                                                                                                                                 |
+| `DeckSharePreview.RenderWorker`                                                                                                                                                                                                                                   | `share::preview::render_worker` (worker `ManavaultWeb.DeckSharePreview.RenderWorker`, queue `preview`, max 3 attempts, unique per args while incomplete, 2 min timeout; registered in `app.rs`) |
+| `DeckSharePreview.Renderer` (`resvg` CLI)                                                                                                                                                                                                                         | `share::preview::renderer` (resvg 0.48 crate, in process)                                                                                                                                       |
+| `Api.V1.DeckController` + JSON                                                                                                                                                                                                                                    | `web::api_v1` (`GET /api/v1/decks`, behind the existing API key middleware)                                                                                                                     |
 
 ## GraphQL (public schema)
 
@@ -116,7 +116,7 @@ None for this area.
 - No deck module changes: the share code reads decks through
   `records::get_by_share_token`, `records::{list_decks, count_decks}`,
   `contents::{load_deck_contents, load_contents, cover_image_url,
-  commander_color_identity}`, `tags::{list_deck_tags, tag_ids_by_deck_card}`,
+commander_color_identity}`, `tags::{list_deck_tags, tag_ids_by_deck_card}`,
   `decks::Deck::contents`, and the deck types `DeckLegality`/`DeckTag`.
 
 ## Tests

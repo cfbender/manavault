@@ -15,14 +15,14 @@ swallows the definition after it (it reported `Location` and
 
 ## Ported / wired
 
-| Elixir | Rust |
-| --- | --- |
-| `node interface` + `node field` (`ManavaultWeb.Schema`), `RelayHelpers.node_id/3`'s raw-id fallback inside `node` | `graphql::node` (`Node` interface over `Card`, `Printing`, `CollectionItem`, `Location` (incl. `unfiled`), `Deck`, `DeckCard`, `TokenItem`; `NodeQueries::node`); `relay::{decode_global_id, node_field_id, parse_internal_id}` |
-| `AllocationResolvers` (`addCollectionItemToDeck`, `bulkAddCollectionItemsToDeck`, `allocateDeckCardItem`, `deallocateDeckCardItem`, `bulkDeallocateDeckCards`, `allocateDeckCardProxy`, `deallocateDeckCardProxy`, `previewBulkAllocateDeck`, `allocateDeckPullList`) | `deck_intel::allocations` (`AllocationMutations`, payloads, `DeckBulkAllocationPreview`, `DeckBulkAllocationEntry`) over `manavault_allocation` |
-| `DeckTypes` `:deck_card_allocation_candidate`, `candidates` | `decks::schema::types::{DeckCardAllocationStatus::candidates, DeckCardAllocationCandidate}` (items batched through the collection loader) |
-| `CollectionTypes` `:collection_item_allocation_deck` `deck` | `CollectionItemAllocationDeck::deck` (decks batched through the collection loader, `decks::model::load_decks`) |
-| `DeckFields.deck_analysis_job_deck/3`, `AnalyzeDeckPayload.deck` | `ai::schema::{DeckAnalysisJob::deck, AnalyzeDeckPayload::deck}` |
-| `AnalyzeDeckList` → `Trade.Lists.resolve/1` | `ai::analyze_deck_list` calls `trade::list_source::resolve` (local `/share/wants/…` and `/share/binder/…` links now resolve) |
+| Elixir                                                                                                                                                                                                                                                                | Rust                                                                                                                                                                                                                            |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `node interface` + `node field` (`ManavaultWeb.Schema`), `RelayHelpers.node_id/3`'s raw-id fallback inside `node`                                                                                                                                                     | `graphql::node` (`Node` interface over `Card`, `Printing`, `CollectionItem`, `Location` (incl. `unfiled`), `Deck`, `DeckCard`, `TokenItem`; `NodeQueries::node`); `relay::{decode_global_id, node_field_id, parse_internal_id}` |
+| `AllocationResolvers` (`addCollectionItemToDeck`, `bulkAddCollectionItemsToDeck`, `allocateDeckCardItem`, `deallocateDeckCardItem`, `bulkDeallocateDeckCards`, `allocateDeckCardProxy`, `deallocateDeckCardProxy`, `previewBulkAllocateDeck`, `allocateDeckPullList`) | `deck_intel::allocations` (`AllocationMutations`, payloads, `DeckBulkAllocationPreview`, `DeckBulkAllocationEntry`) over `manavault_allocation`                                                                                 |
+| `DeckTypes` `:deck_card_allocation_candidate`, `candidates`                                                                                                                                                                                                           | `decks::schema::types::{DeckCardAllocationStatus::candidates, DeckCardAllocationCandidate}` (items batched through the collection loader)                                                                                       |
+| `CollectionTypes` `:collection_item_allocation_deck` `deck`                                                                                                                                                                                                           | `CollectionItemAllocationDeck::deck` (decks batched through the collection loader, `decks::model::load_decks`)                                                                                                                  |
+| `DeckFields.deck_analysis_job_deck/3`, `AnalyzeDeckPayload.deck`                                                                                                                                                                                                      | `ai::schema::{DeckAnalysisJob::deck, AnalyzeDeckPayload::deck}`                                                                                                                                                                 |
+| `AnalyzeDeckList` → `Trade.Lists.resolve/1`                                                                                                                                                                                                                           | `ai::analyze_deck_list` calls `trade::list_source::resolve` (local `/share/wants/…` and `/share/binder/…` links now resolve)                                                                                                    |
 
 Removed: the placeholder `ping` query and `noop` mutation.
 
@@ -31,11 +31,11 @@ Removed: the placeholder `ping` query and `noop` mutation.
 - **Allocation status / trim / clear / printing switch**: `decks::allocations`
   (a SQL re-implementation) is gone. Deck edits call
   `manavault_allocation::{clear_deck_card_allocations,
-  trim_deck_card_allocations, switch_allocation_to_preferred_printing}` on
+trim_deck_card_allocations, switch_allocation_to_preferred_printing}` on
   their transaction, and `DeckCard.allocationStatus` uses the new
   `manavault_allocation::statuses_in(conn, &[StatusInput])` (same two
   queries as before, input order). `impl From<AllocationError> for
-  DeckError` keeps the Elixir error atoms.
+DeckError` keeps the Elixir error atoms.
 - **One `DeckCardAllocationStatus`**: `decks::DeckCardAllocationStatus`
   wraps the crate's `AllocationStatus` with the `state` string and optional
   `deck_zone` (`new`, `in_deck`, `unknown_card`, `shared(required)` for

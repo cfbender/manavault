@@ -147,7 +147,7 @@ same instance is reached under more than one hostname, list the extra origins in
 
 - **Restore** - stop the container and run the binary's `restore` command
   against the data volume (`docker compose run --rm -u app --entrypoint
-  /app/bin/manavault manavault restore /data/backups/<file>.zip`), or stage a
+/app/bin/manavault manavault restore /data/backups/<file>.zip`), or stage a
   cloud restore in Settings and restart. See
   [Restore](docs/self-hosting.md#restore).
 - **Card data** - the Scryfall catalog and symbols refresh daily and vendor
