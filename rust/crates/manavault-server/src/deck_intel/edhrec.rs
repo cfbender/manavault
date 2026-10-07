@@ -234,10 +234,9 @@ fn validate_payload(payload: &Value) -> Result<(), DeckEdhrecError> {
 // --- Client ------------------------------------------------------------------
 
 async fn decode_object(response: reqwest::Response) -> Result<Map<String, Value>, EdhrecError> {
-    let body = response
-        .bytes()
-        .await
-        .map_err(|error| EdhrecError::RequestFailed(error.to_string()))?;
+    let body = response.bytes().await.map_err(|error| {
+        EdhrecError::RequestFailed(crate::http_errors::transport_message(&error))
+    })?;
     match serde_json::from_slice(&body) {
         Ok(Value::Object(map)) => Ok(map),
         _ => Err(EdhrecError::UnexpectedResponse),
@@ -260,7 +259,9 @@ pub async fn fetch_recs(
         .timeout(Duration::from_secs(20))
         .send()
         .await
-        .map_err(|error| EdhrecError::RequestFailed(error.to_string()))?;
+        .map_err(|error| {
+            EdhrecError::RequestFailed(crate::http_errors::transport_message(&error))
+        })?;
     let status = response.status();
     if !status.is_success() {
         return Err(EdhrecError::Http(status.as_u16()));
@@ -311,7 +312,9 @@ async fn get_commander_page(
         .timeout(Duration::from_secs(20))
         .send()
         .await
-        .map_err(|error| EdhrecError::RequestFailed(error.to_string()))?;
+        .map_err(|error| {
+            EdhrecError::RequestFailed(crate::http_errors::transport_message(&error))
+        })?;
     let status = response.status();
     if !status.is_success() {
         return Err(EdhrecError::Http(status.as_u16()));

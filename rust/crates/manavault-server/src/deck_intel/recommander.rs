@@ -135,7 +135,9 @@ pub async fn fetch_recommendations(
         .timeout(Duration::from_secs(30))
         .send()
         .await
-        .map_err(|error| RecommanderError::RequestFailed(error.to_string()))?;
+        .map_err(|error| {
+            RecommanderError::RequestFailed(crate::http_errors::transport_message(&error))
+        })?;
     let status = response.status();
     if status.as_u16() == 429 {
         return Err(RecommanderError::Api(
@@ -143,10 +145,9 @@ pub async fn fetch_recommendations(
             Vec::new(),
         ));
     }
-    let body = response
-        .bytes()
-        .await
-        .map_err(|error| RecommanderError::RequestFailed(error.to_string()))?;
+    let body = response.bytes().await.map_err(|error| {
+        RecommanderError::RequestFailed(crate::http_errors::transport_message(&error))
+    })?;
     let envelope = match serde_json::from_slice::<Value>(&body) {
         Ok(Value::Object(map)) => Some(map),
         _ => None,

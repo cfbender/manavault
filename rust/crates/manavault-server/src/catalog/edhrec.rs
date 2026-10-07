@@ -77,15 +77,16 @@ pub async fn fetch_card_page(
         .timeout(Duration::from_secs(20))
         .send()
         .await
-        .map_err(|error| EdhrecError::RequestFailed(error.to_string()))?;
+        .map_err(|error| {
+            EdhrecError::RequestFailed(crate::http_errors::transport_message(&error))
+        })?;
     let status = response.status();
     if !status.is_success() {
         return Err(EdhrecError::Http(status.as_u16()));
     }
-    let body = response
-        .bytes()
-        .await
-        .map_err(|error| EdhrecError::RequestFailed(error.to_string()))?;
+    let body = response.bytes().await.map_err(|error| {
+        EdhrecError::RequestFailed(crate::http_errors::transport_message(&error))
+    })?;
     match serde_json::from_slice(&body) {
         Ok(Value::Object(page)) => Ok(page),
         _ => Err(EdhrecError::UnexpectedResponse),

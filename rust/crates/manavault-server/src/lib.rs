@@ -18,6 +18,7 @@ pub mod db;
 pub mod deck_intel;
 pub mod decks;
 pub mod graphql;
+pub mod http_errors;
 pub mod jobs;
 pub mod logs;
 pub mod pricing;

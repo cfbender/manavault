@@ -222,6 +222,23 @@ async fn edhrec_failures_are_graphql_errors() {
     );
 }
 
+/// Transport failures read like Req's (`Exception.message/1` of the Mint
+/// error), not reqwest's "error sending request for url (...)". Found by the
+/// parity harness.
+#[tokio::test]
+async fn unreachable_edhrec_reports_the_transport_reason() {
+    let app = TestApp::with_config(|config| {
+        // Nothing listens on the discard port.
+        config.edhrec_json_base_url = "http://127.0.0.1:9".to_owned();
+    })
+    .await;
+    let response = app.gql(QUERY, json!({"name": "Black Lotus"})).await;
+    assert_eq!(
+        response["errors"][0]["message"],
+        "Could not reach EDHREC: connection refused"
+    );
+}
+
 #[tokio::test]
 async fn card_lookup_matches_ids_then_names_case_and_diacritic_insensitively() {
     let app = TestApp::new().await;
