@@ -47,6 +47,7 @@ jobs:
 
     env:
       MISE_ENABLE_TOOLS: rust,sqlite
+      CARGO_TERM_COLOR: always
 
     steps:
       - name: Check out repository
@@ -59,13 +60,22 @@ jobs:
           install_args: rust sqlite
           cache: true
 
-      - name: Check queries against priv/repo/structure.sql
-        working-directory: rust
+      - name: Cache cargo registry and build output
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: rust -> target
+
+      - name: Check queries and committed .sqlx metadata against priv/repo/structure.sql
         run: |
-          mkdir -p target
-          grep -v '^CREATE TABLE sqlite_' ../priv/repo/structure.sql | mise exec -- sqlite3 target/schema.db
-          SQLX_OFFLINE=false DATABASE_URL="sqlite://$PWD/target/schema.db?mode=ro" \
-            mise exec -- cargo check --workspace --all-targets --locked
+          mise run rust:sqlx-metadata
+          if [ -n "$(git status --porcelain -- rust/.sqlx)" ]; then
+            git status --short -- rust/.sqlx
+            echo "::error::rust/.sqlx is stale; run 'mise run rust:sqlx-metadata' and commit the result."
+            exit 1
+          fi
 
       - name: Format, lint, and test against the committed query metadata
         run: mise run rust:check
+
+      - name: Build the release binary
+        run: mise run rust:build
