@@ -7,6 +7,11 @@ defmodule Manavault.Repo.Migrations.DeallocateConsideringDeckCards do
   on considering cards to match moving a card into considering.
 
   Idempotent: once released, no considering allocations or proxies remain.
+
+  Each item is re-read before it is released, so two partial allocations of
+  the same item split from its current quantity rather than both from the
+  original one (which created copies), and split-off copies keep their
+  purchase price.
   """
 
   use Ecto.Migration
@@ -20,7 +25,11 @@ defmodule Manavault.Repo.Migrations.DeallocateConsideringDeckCards do
     now = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
 
     considering_allocations()
-    |> Enum.each(&release_allocation(&1, now))
+    |> Enum.each(fn allocation ->
+      allocation
+      |> Map.merge(current_item(allocation.item_id))
+      |> release_allocation(now)
+    end)
 
     repo().update_all(
       from(dc in "deck_cards", where: dc.zone == "considering" and dc.proxy_quantity > 0),
@@ -39,18 +48,30 @@ defmodule Manavault.Repo.Migrations.DeallocateConsideringDeckCards do
         join: ci in "collection_items",
         on: ci.id == a.collection_item_id,
         where: dc.zone == "considering",
+        order_by: a.id,
         select: %{
           id: a.id,
           quantity: a.quantity,
           source_location_id: a.source_location_id,
-          item_id: ci.id,
+          item_id: ci.id
+        }
+      )
+    )
+  end
+
+  defp current_item(item_id) do
+    repo().one!(
+      from(ci in "collection_items",
+        where: ci.id == ^item_id,
+        select: %{
           item_quantity: ci.quantity,
           for_trade_quantity: ci.for_trade_quantity,
           scryfall_id: ci.scryfall_id,
           condition: ci.condition,
           language: ci.language,
           finish: ci.finish,
-          notes: ci.notes
+          notes: ci.notes,
+          purchase_price_cents: ci.purchase_price_cents
         }
       )
     )
@@ -79,6 +100,7 @@ defmodule Manavault.Repo.Migrations.DeallocateConsideringDeckCards do
         language: allocation.language,
         finish: allocation.finish,
         notes: allocation.notes,
+        purchase_price_cents: allocation.purchase_price_cents,
         location_id: allocation.source_location_id,
         location_changed_at: allocation.source_location_id && now,
         for_trade: 0,
