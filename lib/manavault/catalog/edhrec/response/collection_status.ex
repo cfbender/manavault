@@ -223,5 +223,4 @@ defmodule Manavault.Catalog.EDHRec.Response.CollectionStatus do
   end
 
   defp basic_land?(%Card{} = card), do: Card.basic_land?(card)
-  defp basic_land?(_card), do: false
 end
