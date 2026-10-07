@@ -1,10 +1,11 @@
 ---
 id: TASK-94
 title: Make the Rust backend idiomatic instead of Phoenix/Absinthe-compatible
-status: To Do
+status: Done
 assignee:
   - '@cfbender'
 created_date: '2026-10-07 18:53'
+updated_date: '2026-10-07 22:55'
 labels: []
 dependencies: []
 priority: medium
@@ -23,3 +24,9 @@ The Rust backend (axum, async-graphql, sqlx) was ported 1:1 from the Elixir app 
 - [ ] #1 Every subtask is Done
 - [ ] #2 rust/README.md describes the architecture without references to the Elixir port, and rust/notes and rust/scripts/parity are removed or replaced by one architecture doc
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+All five subtasks done: async-graphql-axum transport (94.1), typed cookie sessions and config names (94.2), native jobs table (94.3), async-graphql error/id idioms (94.4), typed timestamps, direct crate imports, crate-local test schemas, and retired parity harness and port notes (94.5). Each verified with mise run precommit and portal checks.
+<!-- SECTION:FINAL_SUMMARY:END -->
