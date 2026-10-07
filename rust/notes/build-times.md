@@ -122,11 +122,11 @@ Now:
 
 Local measurements (8-core orb, CARGO_INCREMENTAL=0):
 
-| Build | Time |
-| --- | --- |
-| `rust:ci`, cold | about 2m20s (clippy 65s, test build 74s) |
-| image, cold | 4m54s (cargo chef cook 106s, workspace release build 164s) |
-| image, one `.rs` file changed | 2m51s (cook layer cached; workspace release build 165s) |
+| Build                         | Time                                                       |
+| ----------------------------- | ---------------------------------------------------------- |
+| `rust:ci`, cold               | about 2m20s (clippy 65s, test build 74s)                   |
+| image, cold                   | 4m54s (cargo chef cook 106s, workspace release build 164s) |
+| image, one `.rs` file changed | 2m51s (cook layer cached; workspace release build 165s)    |
 
 The floor of a code-only image build is the release compile of the
 workspace crates, mostly `manavault-server`. More codegen units made it
