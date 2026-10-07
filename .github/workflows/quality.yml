@@ -69,6 +69,10 @@ jobs:
           shared-key: rust
           save-if: ${{ github.event_name != 'pull_request' }}
           cache-on-failure: true
+          # The key would otherwise hash every installed toolchain, and runner images differ in
+          # whether a stable Rust is preinstalled besides mise's pinned one, so the key churned
+          # between runs. Cargo already rebuilds anything compiled by a different rustc.
+          add-rust-environment-hash-key: false
 
       # One debug compile does everything: clippy runs with the query macros
       # online, which checks every query against rust/migrations and rewrites

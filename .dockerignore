@@ -30,3 +30,6 @@ ios/
 native_www/
 .amp/
 .backlog/
+
+# Notes and docs do not affect the build
+rust/notes/
