@@ -3,6 +3,11 @@ set -eu
 
 DATA_DIR="${DATA_DIR:-/data}"
 
+# Started with `--user`: no ownership changes are possible, run as is.
+if [ "$(id -u)" -ne 0 ]; then
+  exec "$@"
+fi
+
 mkdir -p \
   "$DATA_DIR" \
   "$DATA_DIR/uploads/scans" \
@@ -25,4 +30,4 @@ else
   chown -R app:app "$DATA_DIR"
 fi
 
-exec su-exec app "$@"
+HOME=/home/app exec setpriv --reuid=app --regid=app --init-groups -- "$@"

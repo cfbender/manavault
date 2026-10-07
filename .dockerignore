@@ -23,3 +23,13 @@ priv/static/cache_manifest.json
 
 # Rust build output
 rust/target/
+
+# Installed in the image's frontend stage
+node_modules/
+
+# Native shells and local tooling state (not part of the image)
+android/
+ios/
+native_www/
+.amp/
+.backlog/
