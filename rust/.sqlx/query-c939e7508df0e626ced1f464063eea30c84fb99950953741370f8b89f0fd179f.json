@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT banned_at FROM auth_client_failures WHERE client_id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "banned_at",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "auth_client_failures",
+            "name": "banned_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "c939e7508df0e626ced1f464063eea30c84fb99950953741370f8b89f0fd179f"
+}

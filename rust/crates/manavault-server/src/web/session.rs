@@ -262,7 +262,8 @@ pub async fn require_browser(
                 .finish()
         )
     };
-    axum::response::Redirect::to(&location).into_response()
+    // Phoenix's `redirect/2` answers 302 Found (axum's `Redirect::to` is 303).
+    super::auth_controller::redirect(&location)
 }
 
 /// Middleware for the GraphQL endpoint (`GraphQLCSRFProtection`): POST only,

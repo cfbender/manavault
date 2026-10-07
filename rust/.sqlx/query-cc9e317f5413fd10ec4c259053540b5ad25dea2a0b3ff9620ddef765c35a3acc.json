@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO backup_settings (id, enabled, provider, cron, inserted_at, updated_at)\n         VALUES (?1, 0, 'none', '0 3 * * *', ?2, ?2) ON CONFLICT(id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "cc9e317f5413fd10ec4c259053540b5ad25dea2a0b3ff9620ddef765c35a3acc"
+}

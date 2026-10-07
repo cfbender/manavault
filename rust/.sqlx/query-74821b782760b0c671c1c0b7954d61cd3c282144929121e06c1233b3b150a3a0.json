@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE backup_settings SET enabled = ?1, provider = ?2, cron = ?3, retention_count = ?4,\n           s3_endpoint = ?5, s3_bucket = ?6, s3_region = ?7, s3_prefix = ?8, s3_access_key_id = ?9,\n           s3_secret_access_key = ?10, google_client_id = ?11, google_client_secret = ?12,\n           google_refresh_token = ?13, google_folder_id = ?14, updated_at = ?15\n         WHERE id = ?16",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 16
+    },
+    "nullable": []
+  },
+  "hash": "74821b782760b0c671c1c0b7954d61cd3c282144929121e06c1233b3b150a3a0"
+}

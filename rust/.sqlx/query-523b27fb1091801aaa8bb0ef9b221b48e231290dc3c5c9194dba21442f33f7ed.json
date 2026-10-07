@@ -1,0 +1,290 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!\", enabled AS \"enabled: bool\", provider, cron, retention_count,\n             s3_endpoint, s3_bucket, s3_region, s3_prefix, s3_access_key_id, s3_secret_access_key,\n             google_client_id, google_client_secret, google_refresh_token, google_folder_id,\n             last_backup_at, last_backup_status, last_backup_message, last_backup_path,\n             last_restore_at, last_restore_status, last_restore_message, pending_restore_path\n           FROM backup_settings WHERE id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "backup_settings",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "enabled: bool",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "backup_settings",
+            "name": "enabled"
+          }
+        }
+      },
+      {
+        "name": "provider",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "backup_settings",
+            "name": "provider"
+          }
+        }
+      },
+      {
+        "name": "cron",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "backup_settings",
+            "name": "cron"
+          }
+        }
+      },
+      {
+        "name": "retention_count",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "backup_settings",
+            "name": "retention_count"
+          }
+        }
+      },
+      {
+        "name": "s3_endpoint",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "backup_settings",
+            "name": "s3_endpoint"
+          }
+        }
+      },
+      {
+        "name": "s3_bucket",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "backup_settings",
+            "name": "s3_bucket"
+          }
+        }
+      },
+      {
+        "name": "s3_region",
+        "ordinal": 7,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "backup_settings",
+            "name": "s3_region"
+          }
+        }
+      },
+      {
+        "name": "s3_prefix",
+        "ordinal": 8,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "backup_settings",
+            "name": "s3_prefix"
+          }
+        }
+      },
+      {
+        "name": "s3_access_key_id",
+        "ordinal": 9,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "backup_settings",
+            "name": "s3_access_key_id"
+          }
+        }
+      },
+      {
+        "name": "s3_secret_access_key",
+        "ordinal": 10,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "backup_settings",
+            "name": "s3_secret_access_key"
+          }
+        }
+      },
+      {
+        "name": "google_client_id",
+        "ordinal": 11,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "backup_settings",
+            "name": "google_client_id"
+          }
+        }
+      },
+      {
+        "name": "google_client_secret",
+        "ordinal": 12,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "backup_settings",
+            "name": "google_client_secret"
+          }
+        }
+      },
+      {
+        "name": "google_refresh_token",
+        "ordinal": 13,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "backup_settings",
+            "name": "google_refresh_token"
+          }
+        }
+      },
+      {
+        "name": "google_folder_id",
+        "ordinal": 14,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "backup_settings",
+            "name": "google_folder_id"
+          }
+        }
+      },
+      {
+        "name": "last_backup_at",
+        "ordinal": 15,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "backup_settings",
+            "name": "last_backup_at"
+          }
+        }
+      },
+      {
+        "name": "last_backup_status",
+        "ordinal": 16,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "backup_settings",
+            "name": "last_backup_status"
+          }
+        }
+      },
+      {
+        "name": "last_backup_message",
+        "ordinal": 17,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "backup_settings",
+            "name": "last_backup_message"
+          }
+        }
+      },
+      {
+        "name": "last_backup_path",
+        "ordinal": 18,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "backup_settings",
+            "name": "last_backup_path"
+          }
+        }
+      },
+      {
+        "name": "last_restore_at",
+        "ordinal": 19,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "backup_settings",
+            "name": "last_restore_at"
+          }
+        }
+      },
+      {
+        "name": "last_restore_status",
+        "ordinal": 20,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "backup_settings",
+            "name": "last_restore_status"
+          }
+        }
+      },
+      {
+        "name": "last_restore_message",
+        "ordinal": 21,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "backup_settings",
+            "name": "last_restore_message"
+          }
+        }
+      },
+      {
+        "name": "pending_restore_path",
+        "ordinal": 22,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "backup_settings",
+            "name": "pending_restore_path"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "523b27fb1091801aaa8bb0ef9b221b48e231290dc3c5c9194dba21442f33f7ed"
+}

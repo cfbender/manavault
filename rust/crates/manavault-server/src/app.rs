@@ -16,6 +16,8 @@ pub fn workers() -> Vec<Arc<dyn Worker>> {
         Arc::new(crate::catalog::scryfall::worker::ScryfallCatalogWorker),
         Arc::new(crate::scryfall_assets::worker::ScryfallAssetsWorker),
         Arc::new(crate::pricing::worker::VendorSyncWorker),
+        Arc::new(crate::scanner::update_worker::BundleUpdateWorker),
+        Arc::new(crate::backup::worker::CloudBackupWorker),
     ]
 }
 
@@ -31,8 +33,11 @@ pub fn crontab() -> Vec<CronEntry> {
         entry("@daily", SCRYFALL_CATALOG),
         entry("@reboot", SCRYFALL_ASSETS),
         entry("@daily", SCRYFALL_ASSETS),
+        entry("@reboot", crate::scanner::update_worker::WORKER),
+        entry("0 */6 * * *", crate::scanner::update_worker::WORKER),
         entry("@reboot", VENDOR_SYNC),
         entry("*/30 * * * *", VENDOR_SYNC),
+        entry("* * * * *", crate::backup::worker::WORKER),
     ]
 }
 
@@ -46,6 +51,8 @@ pub enum StartError {
     Http(#[from] reqwest::Error),
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
+    #[error("backup: {0}")]
+    Backup(#[from] crate::backup::BackupError),
 }
 
 /// Opens the database and builds the shared state.
@@ -53,7 +60,13 @@ pub async fn build_state(config: Config, logs: LogHub) -> Result<AppState, Start
     for dir in config.writable_dirs() {
         std::fs::create_dir_all(dir)?;
     }
+    // `Backup.PendingRestore`: a staged cloud restore replaces the database
+    // before anything opens it.
+    if let Some(applied) = crate::backup::cloud::apply_pending_restore(&config)? {
+        tracing::info!("applied staged cloud restore from {}", applied.display());
+    }
     let pool = crate::db::connect(&config.database_path, config.pool_size).await?;
+    crate::backup::migration_backup::run(&config, &pool).await?;
     crate::db::prepare(&pool).await?;
     let jobs = Jobs::new(pool.clone(), workers());
     let state = AppState::new(config, pool, logs, jobs)?;

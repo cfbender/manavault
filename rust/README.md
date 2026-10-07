@@ -27,7 +27,17 @@ mise run rust:sqlx-metadata  # after a query change: regenerate .sqlx from struc
 ```
 
 `manavault hash-password <password>` prints a `MANAVAULT_ADMIN_PASSWORD_HASH`
-value, and `manavault sdl` prints the owner GraphQL schema.
+value, and `manavault sdl` prints the owner GraphQL schema. Maintenance
+commands mirror the mix tasks and read the same environment as the server:
+
+- `manavault unban CLIENT_ID | --all` clears permanent login bans.
+- `manavault backup [-o DIR] [--data-dir DIR] [--database PATH]` writes a
+  backup zip (default `DATA_DIR/backups`).
+- `manavault restore PATH [--data-dir DIR] [--database PATH]` restores one;
+  stop the server first. A cloud restore staged from Settings is applied
+  automatically at the next start, before the database opens.
+
+Backup zips are interchangeable with the Elixir app's.
 
 ## Configuration
 

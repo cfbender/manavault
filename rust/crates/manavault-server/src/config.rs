@@ -74,6 +74,56 @@ pub struct Config {
     /// Run background jobs and cron schedules.
     pub jobs_enabled: bool,
     pub pool_size: u32,
+    /// Cache-busting version for the shell assets (`ManavaultWeb.AssetVersion`).
+    pub asset_version: String,
+    /// Android app signing fingerprints for `/.well-known/assetlinks.json`
+    /// (`MANAVAULT_ANDROID_CERT_FINGERPRINTS`); empty uses the official one.
+    pub android_cert_fingerprints: Vec<String>,
+    /// Third-party endpoints used by the platform services (overridden in tests).
+    pub platform_urls: PlatformUrls,
+}
+
+/// Base URLs of the third-party services the web platform, AI settings,
+/// backups, and scanner talk to.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlatformUrls {
+    pub openrouter_api: String,
+    pub google_oauth_token: String,
+    pub google_drive_files: String,
+    pub google_drive_upload: String,
+    pub scanner_releases: String,
+    pub star_city_games_affiliate: String,
+}
+
+impl PlatformUrls {
+    /// URLs on a closed local port, so a test that forgets to point a client
+    /// at a mock server fails instead of reaching the real service.
+    #[must_use]
+    pub fn unreachable() -> Self {
+        let base = "http://127.0.0.1:9";
+        Self {
+            openrouter_api: format!("{base}/openrouter"),
+            google_oauth_token: format!("{base}/google/token"),
+            google_drive_files: format!("{base}/google/files"),
+            google_drive_upload: format!("{base}/google/upload"),
+            scanner_releases: format!("{base}/github/releases"),
+            star_city_games_affiliate: format!("{base}/scg/affiliate"),
+        }
+    }
+}
+
+impl Default for PlatformUrls {
+    fn default() -> Self {
+        Self {
+            openrouter_api: "https://openrouter.ai/api/v1".to_owned(),
+            google_oauth_token: "https://oauth2.googleapis.com/token".to_owned(),
+            google_drive_files: "https://www.googleapis.com/drive/v3/files".to_owned(),
+            google_drive_upload: "https://www.googleapis.com/upload/drive/v3/files".to_owned(),
+            scanner_releases:
+                "https://api.github.com/repos/cfbender/manavault/releases?per_page=30".to_owned(),
+            star_city_games_affiliate: "https://ajax.starcitygames.com/affiliate".to_owned(),
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -82,6 +132,8 @@ pub enum ConfigError {
     Missing(&'static str, &'static str),
     #[error("environment variable {0} is not a valid number: {1}")]
     Invalid(&'static str, String),
+    #[error(transparent)]
+    InvalidOrigin(#[from] crate::web::allowed_origins::InvalidOrigin),
 }
 
 fn var(name: &str) -> Option<String> {
@@ -211,13 +263,10 @@ impl Config {
             .filter(|entry| !entry.is_empty())
             .map(str::to_owned)
             .collect();
-        let allowed_origins = non_blank("MANAVAULT_ALLOWED_ORIGINS").map(|raw| {
-            raw.split(',')
-                .map(str::trim)
-                .filter(|entry| !entry.is_empty())
-                .map(str::to_owned)
-                .collect()
-        });
+        let allowed_origins = match non_blank("MANAVAULT_ALLOWED_ORIGINS") {
+            Some(raw) => Some(crate::web::allowed_origins::parse(Some(&raw))?),
+            None => None,
+        };
 
         let scanner_bundle_source = match var("SCANNER_BUNDLE_SOURCE")
             .unwrap_or_else(|| {
@@ -275,6 +324,15 @@ impl Config {
             vite_dev_server: env == Env::Dev && !flag("MANAVAULT_VITE_DISABLED"),
             jobs_enabled: env != Env::Test && !flag("MANAVAULT_JOBS_DISABLED"),
             pool_size: number("POOL_SIZE", 5_u32)?,
+            asset_version: crate::web::asset_version::current(var),
+            android_cert_fingerprints: var("MANAVAULT_ANDROID_CERT_FINGERPRINTS")
+                .unwrap_or_default()
+                .split([',', '\n', ' '])
+                .map(str::trim)
+                .filter(|entry| !entry.is_empty())
+                .map(str::to_owned)
+                .collect(),
+            platform_urls: PlatformUrls::default(),
         })
     }
 
@@ -322,6 +380,9 @@ impl Config {
             vite_dev_server: false,
             jobs_enabled: false,
             pool_size: 1,
+            asset_version: "test-asset-version".to_owned(),
+            android_cert_fingerprints: Vec::new(),
+            platform_urls: PlatformUrls::unreachable(),
         }
     }
 

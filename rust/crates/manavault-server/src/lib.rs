@@ -4,8 +4,12 @@
 //! same SQLite database, so the React frontend and existing databases work
 //! unchanged.
 
+pub mod api_keys;
 pub mod app;
+pub mod auth;
+pub mod backup;
 pub mod catalog;
+pub mod cli;
 pub mod config;
 pub mod crypto;
 pub mod db;
@@ -14,6 +18,8 @@ pub mod jobs;
 pub mod logs;
 pub mod pricing;
 pub mod scryfall_assets;
+pub mod scanner;
+pub mod settings;
 pub mod state;
 pub mod timefmt;
 pub mod tokens;

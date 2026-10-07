@@ -36,6 +36,10 @@ pub struct Query(
     crate::catalog::CardQueries,
     crate::tokens::TokenQueries,
     crate::pricing::graphql::PricingQueries,
+    crate::settings::appearance::AppearanceQueries,
+    crate::settings::ai::AiSettingsQueries,
+    crate::api_keys::ApiKeyQueries,
+    crate::backup::graphql::BackupQueries,
 );
 
 #[derive(MergedObject, Default)]
@@ -45,6 +49,10 @@ pub struct Mutation(
     crate::tokens::TokenMutations,
     crate::pricing::graphql::PricingMutations,
     crate::catalog::scryfall::graphql::ScryfallMutations,
+    crate::settings::appearance::AppearanceMutations,
+    crate::settings::ai::AiSettingsMutations,
+    crate::api_keys::ApiKeyMutations,
+    crate::backup::graphql::BackupMutations,
 );
 
 #[derive(MergedSubscription, Default)]

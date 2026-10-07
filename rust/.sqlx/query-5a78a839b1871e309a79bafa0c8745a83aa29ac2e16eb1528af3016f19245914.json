@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM auth_client_failures",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "5a78a839b1871e309a79bafa0c8745a83aa29ac2e16eb1528af3016f19245914"
+}
