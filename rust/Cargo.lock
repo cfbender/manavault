@@ -1728,7 +1728,6 @@ name = "manavault-deck-intel"
 version = "2.0.0"
 dependencies = [
  "async-graphql",
- "base64 0.22.1",
  "lotus",
  "manavault-allocation",
  "manavault-catalog",

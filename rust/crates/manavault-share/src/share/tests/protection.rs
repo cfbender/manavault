@@ -33,10 +33,7 @@ async fn rejects_json_transport_batches() {
     );
     let single = post_graphql(&app, &typename()).await;
     assert_eq!(single.status, 200);
-    assert_eq!(
-        single.json(),
-        json!({"data": {"__typename": "RootQueryType"}})
-    );
+    assert_eq!(single.json(), json!({"data": {"__typename": "Query"}}));
 }
 
 #[tokio::test]
@@ -222,9 +219,9 @@ async fn global_limits_apply_across_client_ips() {
 #[test]
 fn the_public_schema_exposes_no_mutation_fields() {
     let sdl = crate::share::sdl();
-    assert!(!sdl.contains("RootMutationType"));
+    assert!(!sdl.contains("type Mutation"));
     assert!(!sdl.contains("mutation:"));
-    assert!(manavault_server::graphql::sdl().contains("RootMutationType"));
+    assert!(manavault_server::graphql::sdl().contains("type Mutation"));
 }
 
 #[tokio::test]

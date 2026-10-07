@@ -32,7 +32,7 @@ pub use schema::types::{Deck, DeckCard, DeckCardAllocationStatus};
 pub use schema::{DeckMutations, DeckQueries};
 
 use crate::decks::model::DeckStatus;
-use crate::decks::validation::Errors;
+use crate::decks::validation::ValidationError;
 
 /// Why a deck operation was refused. The codes are the stable error codes
 /// of earlier releases; resolvers turn them into user-facing messages.
@@ -61,8 +61,8 @@ pub enum DeckError {
     #[error("{0}")]
     Message(String),
     /// Changeset errors.
-    #[error("{}", .0.message())]
-    Invalid(Errors),
+    #[error(transparent)]
+    Invalid(ValidationError),
     #[error(transparent)]
     Db(#[from] sqlx::Error),
 }
@@ -97,8 +97,8 @@ impl From<manavault_allocation::AllocationError> for DeckError {
     }
 }
 
-impl From<Errors> for DeckError {
-    fn from(errors: Errors) -> Self {
+impl From<ValidationError> for DeckError {
+    fn from(errors: ValidationError) -> Self {
         Self::Invalid(errors)
     }
 }

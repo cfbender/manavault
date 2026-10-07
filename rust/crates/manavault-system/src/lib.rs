@@ -5,7 +5,7 @@ pub mod scanner;
 
 pub use manavault_core::{
     api_keys, auth, config, connection_types, crypto, db, graphql, http_errors, jobs, logs,
-    settings, state, timefmt, web,
+    settings, state, timefmt, validation, web,
 };
 
 #[cfg(test)]

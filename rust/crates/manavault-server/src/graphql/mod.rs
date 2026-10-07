@@ -2,9 +2,8 @@
 //! public share API (`/share/graphql`, `ManavaultWeb.PublicShareSchema`).
 //!
 //! Each domain module contributes `Object` structs for its queries and
-//! mutations; they are merged into the Absinthe-named root types here.
+//! mutations; they are merged into the root types here.
 
-pub mod node;
 mod system;
 
 use async_graphql::{MergedObject, MergedSubscription, Schema};
@@ -14,9 +13,7 @@ use crate::state::AppState;
 pub use manavault_core::graphql::*;
 
 #[derive(MergedObject, Default)]
-#[graphql(name = "RootQueryType")]
 pub struct Query(
-    node::NodeQueries,
     crate::catalog::CardQueries,
     crate::tokens::TokenQueries,
     crate::collection::CollectionQueries,
@@ -33,7 +30,6 @@ pub struct Query(
 );
 
 #[derive(MergedObject, Default)]
-#[graphql(name = "RootMutationType")]
 pub struct Mutation(
     crate::tokens::TokenMutations,
     crate::collection::CollectionMutations,
@@ -51,7 +47,6 @@ pub struct Mutation(
 );
 
 #[derive(MergedSubscription, Default)]
-#[graphql(name = "RootSubscriptionType")]
 pub struct Subscription(system::SystemSubscriptions);
 
 pub type AppSchema = Schema<Query, Mutation, Subscription>;

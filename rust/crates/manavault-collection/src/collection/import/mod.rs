@@ -23,6 +23,7 @@ use crate::collection::changes::{ItemChanges, ItemError, create_in, preferred_fi
 use crate::collection::item::load_printings;
 use crate::pricing::PriceStore;
 use crate::timefmt;
+use crate::validation::{INVALID, ValidationError};
 use parse::{Format, ParseError};
 
 /// How well a row resolved to a printing.
@@ -133,9 +134,12 @@ pub enum ImportError {
     InvalidFile,
     #[error("Import purchase price must be a dollar amount.")]
     InvalidPurchasePrice,
-    /// A row's changeset errors, already rendered.
-    #[error("{0}")]
-    Invalid(String),
+    /// A row failed validation.
+    #[error(transparent)]
+    Invalid(ValidationError),
+    /// Writing a row's item failed.
+    #[error(transparent)]
+    Item(ItemError),
     #[error("Could not import collection file.")]
     Failed,
     #[error(transparent)]
@@ -155,7 +159,8 @@ impl From<ItemError> for ImportError {
     fn from(error: ItemError) -> Self {
         match error {
             ItemError::Db(error) => Self::Db(error),
-            other => Self::Invalid(other.to_string()),
+            ItemError::Invalid(errors) => Self::Invalid(errors),
+            other => Self::Item(other),
         }
     }
 }
@@ -164,7 +169,8 @@ impl From<AutoSortError> for ImportError {
     fn from(error: AutoSortError) -> Self {
         match error {
             AutoSortError::Db(error) => Self::Db(error),
-            AutoSortError::Invalid(message) => Self::Invalid(message),
+            AutoSortError::Invalid(errors) => Self::Invalid(errors),
+            AutoSortError::Item(error) => Self::Item(error),
             _ => Self::Failed,
         }
     }
@@ -510,15 +516,15 @@ async fn add_token(conn: &mut SqliteConnection, attrs: &ImportAttrs) -> Result<(
         .as_ref()
         .map_or(quantity, |item| item.quantity.saturating_add(quantity));
     let finish = Finish::parse(&finish_text);
-    let mut errors = crate::collection::changes::FieldErrors::default();
+    let mut errors = ValidationError::new();
     if finish.is_none() {
-        errors.add("finish", "is invalid");
+        errors.add("finish", INVALID);
     }
     if total <= 0 {
         errors.add("quantity", "must be greater than 0");
     }
     if !errors.is_empty() {
-        return Err(ImportError::Invalid(errors.render()));
+        return Err(ImportError::Invalid(errors));
     }
     let now = timefmt::now();
     if let Some(item) = existing {

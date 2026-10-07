@@ -1734,7 +1734,7 @@ mod subscriptions {
         .await;
         assert_eq!(
             receive(&mut client).await["payload"]["data"]["__typename"],
-            "RootQueryType"
+            "Query"
         );
 
         let rotated = TestApp::with_config(with_password("replacement")).await;

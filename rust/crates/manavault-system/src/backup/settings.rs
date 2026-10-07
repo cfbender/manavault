@@ -6,9 +6,9 @@
 use async_graphql::{InputObject, MaybeUndefined};
 
 use super::cron::Schedule;
-use crate::settings::changeset::{BLANK, Errors, INVALID};
 use crate::state::AppState;
 use crate::timefmt;
+use crate::validation::{BLANK, INVALID, ValidationError};
 
 const SINGLETON_ID: i64 = 1;
 
@@ -209,8 +209,8 @@ fn cast_secret(target: &mut Option<String>, value: MaybeUndefined<String>) {
 /// Why saving failed.
 #[derive(Debug, thiserror::Error)]
 pub enum UpdateError {
-    #[error("{}", .0.message())]
-    Invalid(Errors),
+    #[error(transparent)]
+    Invalid(ValidationError),
     #[error(transparent)]
     Db(#[from] sqlx::Error),
 }
@@ -221,7 +221,7 @@ pub async fn update(
     input: BackupSettingsInput,
 ) -> Result<CloudSettings, UpdateError> {
     let mut settings = get(state).await?;
-    let mut errors = Errors::new();
+    let mut errors = ValidationError::new();
 
     // `enabled` is NOT NULL; an explicit null keeps the saved value instead
     // of failing the write as earlier releases did.
@@ -469,7 +469,7 @@ mod tests {
         assert_eq!(kept.s3_prefix.as_deref(), Some("manavault"));
 
         let message = |result: Result<CloudSettings, UpdateError>| match result {
-            Err(UpdateError::Invalid(errors)) => errors.message(),
+            Err(UpdateError::Invalid(errors)) => errors.to_string(),
             other => unreachable!("expected a validation error, got {other:?}"),
         };
         let fresh = TestApp::new().await;
@@ -484,7 +484,7 @@ mod tests {
                 )
                 .await
             ),
-            "s3_access_key_id can't be blank, s3_bucket can't be blank, s3_endpoint can't be blank, s3_region can't be blank, s3_secret_access_key can't be blank"
+            "s3 endpoint can't be blank, s3 bucket can't be blank, s3 region can't be blank, s3 access key id can't be blank, s3 secret access key can't be blank"
         );
         assert_eq!(
             message(
@@ -499,7 +499,7 @@ mod tests {
                 )
                 .await
             ),
-            "cron invalid minute: 99 is outside 0-59, provider is invalid, retention_count must be greater than or equal to 1"
+            "provider is invalid, cron invalid minute: 99 is outside 0-59, retention count must be greater than or equal to 1"
         );
         assert_eq!(
             message(
@@ -513,7 +513,7 @@ mod tests {
                 )
                 .await
             ),
-            "cron can't be blank, google_client_id can't be blank, google_client_secret can't be blank, google_refresh_token can't be blank"
+            "cron can't be blank, google client id can't be blank, google client secret can't be blank, google refresh token can't be blank"
         );
     }
 }

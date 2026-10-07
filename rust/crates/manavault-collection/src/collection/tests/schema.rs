@@ -136,7 +136,7 @@ async fn create_collection_item_mutation_adds_a_printing() {
         .await;
     assert_eq!(
         errors(&response),
-        ["condition is invalid, quantity must be greater than 0"]
+        ["quantity must be greater than 0, condition is invalid"]
     );
     let response = app
         .gql(
@@ -1650,7 +1650,7 @@ async fn auto_sort_rules_query_and_target_validation() {
         ["Auto-sort target location was not found."]
     );
     let response = app.gql(mutation, json!({"input": [rule_input(&gid(NodeKind::Location, binder.id), json!({"colorMode": "plaid"}))]})).await;
-    assert_eq!(errors(&response), ["color_mode is invalid"]);
+    assert_eq!(errors(&response), ["color mode is invalid"]);
 }
 
 fn sorter(

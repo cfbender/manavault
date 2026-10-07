@@ -3,7 +3,6 @@
 
 pub mod ai;
 pub mod appearance;
-pub mod changeset;
 
 /// Stored credentials use
 /// `Manavault.Encrypted.Binary` (implemented in [`crate::crypto`]).

@@ -50,10 +50,10 @@ Queries: `cards`, `cardNameSuggestions`, `setSuggestions`, `card`, `cardByName`,
 Mutations: `addTokenItem`, `updateTokenItem`, `deleteTokenItem`, `deleteTokenItems`.
 
 `sdl_diff.py` shows no differences for these except `implements Node` on
-`Card`, `Printing`, and `TokenItem`, which appears once the integrator adds the
-`Node` interface and root `node` field. Arguments with Absinthe defaults are
-`Option` arguments with the default applied in the resolver (the Absinthe SDL
-dump prints no defaults).
+`Card`, `Printing`, and `TokenItem`: the Rust schema has no `Node` interface
+or root `node` field. Arguments with Absinthe defaults are `Option` arguments
+with the default applied in the resolver (the Absinthe SDL dump prints no
+defaults).
 
 ## Deliberate differences
 

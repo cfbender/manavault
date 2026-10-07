@@ -6,11 +6,11 @@
 //! Saving validates the key and model against `OpenRouter`, the only provider.
 //! Deck analysis and questions belong to the AI module proper.
 
-use async_graphql::{Context, InputObject, MaybeUndefined, Object, SimpleObject};
+use async_graphql::{Context, ErrorExtensions, InputObject, MaybeUndefined, Object, SimpleObject};
 use serde_json::Value;
 
-use super::changeset::{BLANK, Errors, INVALID, too_long};
-use crate::graphql::{state, user_error};
+use crate::graphql::state;
+use crate::validation::{BLANK, INVALID, ValidationError, too_long};
 
 type GqlResult<T> = async_graphql::Result<T>;
 use crate::state::AppState;
@@ -77,8 +77,8 @@ pub struct AiSettingsInput {
 /// Why saving failed.
 #[derive(Debug, thiserror::Error)]
 pub enum UpdateError {
-    #[error("{}", .0.message())]
-    Invalid(Errors),
+    #[error(transparent)]
+    Invalid(ValidationError),
     #[error(transparent)]
     Db(#[from] sqlx::Error),
 }
@@ -107,18 +107,17 @@ pub async fn update(state: &AppState, input: AiSettingsInput) -> Result<AiSettin
         },
     };
 
-    let mut errors = Errors::new();
+    let mut errors = ValidationError::new();
     if candidate.provider.is_empty() {
         errors.add("provider", BLANK);
+    } else if !PROVIDERS.contains(&candidate.provider.as_str()) {
+        errors.add("provider", INVALID);
     }
     if candidate.api_key.is_none() {
         errors.add("api_key", BLANK);
     }
     if candidate.model.is_none() {
         errors.add("model", BLANK);
-    }
-    if !candidate.provider.is_empty() && !PROVIDERS.contains(&candidate.provider.as_str()) {
-        errors.add("provider", INVALID);
     }
     if candidate
         .model
@@ -137,9 +136,9 @@ pub async fn update(state: &AppState, input: AiSettingsInput) -> Result<AiSettin
     errors.into_result().map_err(UpdateError::Invalid)?;
 
     if let Err((field, message)) = openrouter::validate_settings(state, &candidate).await {
-        let mut errors = Errors::new();
-        errors.add(field, message);
-        return Err(UpdateError::Invalid(errors));
+        return Err(UpdateError::Invalid(ValidationError::single(
+            field, message,
+        )));
     }
 
     let stored_key = candidate
@@ -352,7 +351,7 @@ impl AiSettingsMutations {
             Ok(_) => Ok(Some(UpdateAiSettingsPayload {
                 ai_settings: Some((&settings(state).await?).into()),
             })),
-            Err(UpdateError::Invalid(errors)) => Err(user_error(errors.message())),
+            Err(UpdateError::Invalid(errors)) => Err(errors.extend()),
             Err(UpdateError::Db(error)) => Err(error.into()),
         }
     }
@@ -479,10 +478,8 @@ mod tests {
             other => unreachable!("expected a validation error, got {other:?}"),
         };
         assert_eq!(
-            errors.by_field().get("model"),
-            Some(&vec![
-                "OpenRouter model \"unknown/model\" was not found.".to_owned()
-            ])
+            errors.to_string(),
+            "model OpenRouter model \"unknown/model\" was not found."
         );
         assert!(!settings(&app.state).await.unwrap().has_api_key());
     }
@@ -504,7 +501,7 @@ mod tests {
             .await;
         assert_eq!(
             response["errors"][0]["message"],
-            "api_key OpenRouter rejected the API key."
+            "api key OpenRouter rejected the API key."
         );
         let response = app
             .gql(
@@ -514,7 +511,7 @@ mod tests {
             .await;
         assert_eq!(
             response["errors"][0]["message"],
-            "api_key can't be blank, model can't be blank, provider is invalid"
+            "provider is invalid, api key can't be blank, model can't be blank"
         );
     }
 
@@ -543,13 +540,14 @@ mod tests {
             .await,
             json!({"aiSettings": {"provider": "openrouter", "model": null, "deckAnalysisInstructions": null, "hasApiKey": false}})
         );
+        let mutation = r"mutation UpdateAISettings($input: AiSettingsInput!) {
+             updateAiSettings(input: $input) {
+               aiSettings { provider model deckAnalysisInstructions hasApiKey }
+             }
+           }";
         let data = app
             .gql_data(
-                r"mutation UpdateAISettings($input: AiSettingsInput!) {
-                     updateAiSettings(input: $input) {
-                       aiSettings { provider model deckAnalysisInstructions hasApiKey }
-                     }
-                   }",
+                mutation,
                 json!({"input": {
                     "provider": "openrouter",
                     "apiKey": "graphql-openrouter-key",
@@ -564,6 +562,42 @@ mod tests {
                 "provider": "openrouter",
                 "model": "anthropic/claude-sonnet-4",
                 "deckAnalysisInstructions": "Never suggest infinite combos. Add a Budget upgrades section.",
+                "hasApiKey": true
+            })
+        );
+        // An omitted key and instructions keep the saved ones; a blank key does too.
+        let data = app
+            .gql_data(
+                mutation,
+                json!({"input": {"provider": "openrouter", "model": "anthropic/claude-sonnet-4"}}),
+            )
+            .await;
+        assert_eq!(
+            data["updateAiSettings"]["aiSettings"],
+            json!({
+                "provider": "openrouter",
+                "model": "anthropic/claude-sonnet-4",
+                "deckAnalysisInstructions": "Never suggest infinite combos. Add a Budget upgrades section.",
+                "hasApiKey": true
+            })
+        );
+        let data = app
+            .gql_data(
+                mutation,
+                json!({"input": {
+                    "provider": "openrouter",
+                    "apiKey": "",
+                    "model": "anthropic/claude-sonnet-4",
+                    "deckAnalysisInstructions": null
+                }}),
+            )
+            .await;
+        assert_eq!(
+            data["updateAiSettings"]["aiSettings"],
+            json!({
+                "provider": "openrouter",
+                "model": "anthropic/claude-sonnet-4",
+                "deckAnalysisInstructions": null,
                 "hasApiKey": true
             })
         );

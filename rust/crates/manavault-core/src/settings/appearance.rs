@@ -5,8 +5,10 @@
 use async_graphql::{Context, MaybeUndefined, Object, SimpleObject};
 use sqlx::SqlitePool;
 
-use super::changeset::{BLANK, Errors, INVALID};
-use crate::graphql::{state, user_error};
+use crate::validation::{BLANK, INVALID, ValidationError};
+use async_graphql::ErrorExtensions;
+
+use crate::graphql::state;
 
 type GqlResult<T> = async_graphql::Result<T>;
 use crate::timefmt;
@@ -97,14 +99,14 @@ pub async fn settings(db: &SqlitePool) -> Result<Appearance, sqlx::Error> {
 /// Why an update failed.
 #[derive(Debug, thiserror::Error)]
 pub enum UpdateError {
-    #[error("{}", .0.message())]
-    Invalid(Errors),
+    #[error(transparent)]
+    Invalid(ValidationError),
     #[error(transparent)]
     Db(#[from] sqlx::Error),
 }
 
 fn cast<T: Copy>(
-    errors: &mut Errors,
+    errors: &mut ValidationError,
     field: &'static str,
     value: MaybeUndefined<String>,
     current: T,
@@ -134,7 +136,7 @@ pub async fn update(
     theme_style: MaybeUndefined<String>,
 ) -> Result<Appearance, UpdateError> {
     let current = settings(db).await?;
-    let mut errors = Errors::new();
+    let mut errors = ValidationError::new();
     let palette = cast(
         &mut errors,
         "palette",
@@ -217,7 +219,7 @@ impl AppearanceMutations {
             Ok(settings) => Ok(Some(UpdateAppearanceSettingsPayload {
                 appearance_settings: Some(settings.into()),
             })),
-            Err(UpdateError::Invalid(errors)) => Err(user_error(errors.message())),
+            Err(UpdateError::Invalid(errors)) => Err(errors.extend()),
             Err(UpdateError::Db(error)) => Err(error.into()),
         }
     }
@@ -229,7 +231,7 @@ mod tests {
     use crate::test_support::TestApp;
     use serde_json::json;
 
-    fn invalid(result: Result<Appearance, UpdateError>) -> Errors {
+    fn invalid(result: Result<Appearance, UpdateError>) -> ValidationError {
         match result {
             Err(UpdateError::Invalid(errors)) => errors,
             other => unreachable!("expected a validation error, got {other:?}"),
@@ -298,12 +300,12 @@ mod tests {
             .await,
         );
         assert_eq!(
-            errors.message(),
-            "palette is invalid, theme_style is invalid"
+            errors.to_string(),
+            "palette is invalid, theme style is invalid"
         );
         let errors =
             invalid(update(app.db(), MaybeUndefined::Null, MaybeUndefined::Undefined).await);
-        assert_eq!(errors.message(), "palette can't be blank");
+        assert_eq!(errors.to_string(), "palette can't be blank");
     }
 
     #[test]

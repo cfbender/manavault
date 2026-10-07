@@ -165,7 +165,7 @@ pub async fn run_in(
                             .await
                             .map_err(|error| match error {
                                 ItemError::Db(error) => AutoSortError::Db(error),
-                                other => AutoSortError::Invalid(other.to_string()),
+                                other => AutoSortError::Item(other),
                             })?;
                     }
                     result.moved_count += 1;

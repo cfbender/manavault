@@ -67,7 +67,7 @@ impl SyncError {
                 FetchError::HttpStatus(status) => format!("The deck site returned HTTP {status}."),
                 other => format!("Could not sync: {other}"),
             },
-            Self::Deck(DeckError::Invalid(errors)) => errors.message(),
+            Self::Deck(DeckError::Invalid(errors)) => errors.to_string(),
             Self::Deck(DeckError::Message(message)) => message.clone(),
             Self::Deck(other) => format!("Could not sync: {other}"),
         }
@@ -101,7 +101,7 @@ impl SyncError {
                     "This deck is not linked to an external deck.".to_owned()
                 }
                 DeckError::DeckNotFound => "Deck was not found.".to_owned(),
-                DeckError::Invalid(errors) => errors.message(),
+                DeckError::Invalid(errors) => errors.to_string(),
                 DeckError::Message(message) => message.clone(),
                 DeckError::Db(_) => return None,
                 _ => "Could not sync the external deck.".to_owned(),

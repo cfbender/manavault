@@ -13,6 +13,7 @@ pub mod pricing;
 pub mod settings;
 pub mod state;
 pub mod timefmt;
+pub mod validation;
 pub mod web;
 
 // Compiled in every build (not behind a feature) so test and dev builds of

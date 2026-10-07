@@ -229,7 +229,7 @@ async fn cover_defaults_to_the_commander_and_can_be_any_card_in_the_deck() {
     )
     .await
     .unwrap_err();
-    assert_eq!(error.to_string(), "cover_deck_card_id must belong to deck");
+    assert_eq!(error.to_string(), "cover deck card id must belong to deck");
 
     cards::delete_deck_card(app.db(), lotus.id).await.unwrap();
     assert_eq!(

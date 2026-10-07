@@ -21,7 +21,7 @@ previews, and the personal `/api/v1/decks` endpoint.
 
 ## GraphQL (public schema)
 
-Root (`RootQueryType`, queries only): `deck(id:)`, `card(id:)`,
+Root (`Query`, queries only): `deck(id:)`, `card(id:)`,
 `cardByName(name:)`, `deckBuylist(...)`, `deckBuylistExport(...)`,
 `wantsList(id:)`, `binderList(id:)`, with Absinthe's costs (10 000 + children
 for `deck`/`card`/`cardByName`, 20 000 + children for the buylist and list

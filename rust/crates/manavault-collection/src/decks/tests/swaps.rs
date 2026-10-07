@@ -423,7 +423,7 @@ async fn inclusion_persists_independently_of_status() {
     let error = records::update_deck(app.db(), alpha.id, &include(None))
         .await
         .unwrap_err();
-    assert_eq!(error.to_string(), "included_for_play can't be blank");
+    assert_eq!(error.to_string(), "included for play can't be blank");
 }
 
 #[tokio::test]
@@ -506,7 +506,7 @@ async fn historical_play_data_can_be_imported_cleared_and_validated() {
     .unwrap_err();
     assert_eq!(
         error.to_string(),
-        "play_count must be greater than or equal to 0, skip_count must be greater than or equal to 0"
+        "play count must be greater than or equal to 0, skip count must be greater than or equal to 0"
     );
     let _ = timefmt::now();
 }

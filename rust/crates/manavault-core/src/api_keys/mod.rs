@@ -4,7 +4,7 @@
 //! token (`mvk_` + 43 URL-safe base64 characters) is returned only when the
 //! key is created; the database keeps its SHA-256 digest.
 
-use async_graphql::{Context, ID, Object, SimpleObject};
+use async_graphql::{Context, ErrorExtensions, ID, Object, SimpleObject};
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use sha2::{Digest, Sha256};
@@ -14,8 +14,8 @@ use time::macros::format_description;
 use crate::graphql::{state, user_error};
 
 type GqlResult<T> = async_graphql::Result<T>;
-use crate::settings::changeset::{BLANK, Errors, too_long};
 use crate::timefmt;
+use crate::validation::{BLANK, ValidationError, too_long};
 
 const TOKEN_PREFIX: &str = "mvk_";
 const TOKEN_LENGTH: usize = 47;
@@ -50,8 +50,8 @@ pub async fn list(db: &SqlitePool) -> Result<Vec<ApiKey>, sqlx::Error> {
 /// Why creating a key failed.
 #[derive(Debug, thiserror::Error)]
 pub enum CreateError {
-    #[error("{}", .0.messages_only())]
-    Invalid(Errors),
+    #[error(transparent)]
+    Invalid(ValidationError),
     #[error(transparent)]
     Db(#[from] sqlx::Error),
 }
@@ -59,7 +59,7 @@ pub enum CreateError {
 /// Creates a key and returns it with its plaintext token.
 pub async fn create(db: &SqlitePool, name: &str) -> Result<(ApiKey, String), CreateError> {
     let name = name.trim();
-    let mut errors = Errors::new();
+    let mut errors = ValidationError::new();
     if name.is_empty() {
         errors.add("name", BLANK);
     } else if name.chars().count() > 80 {
@@ -185,7 +185,7 @@ impl ApiKeyMutations {
                 api_key: key.into(),
                 token,
             }),
-            Err(CreateError::Invalid(errors)) => Err(user_error(errors.messages_only())),
+            Err(CreateError::Invalid(errors)) => Err(errors.extend()),
             Err(CreateError::Db(error)) => {
                 tracing::error!(%error, "could not create API key");
                 Err(user_error("Could not create API key"))
@@ -278,7 +278,11 @@ mod tests {
                 json!({}),
             )
             .await;
-        assert_eq!(blank["errors"][0]["message"], "can't be blank");
+        assert_eq!(blank["errors"][0]["message"], "name can't be blank");
+        assert_eq!(
+            blank["errors"][0]["extensions"],
+            json!({"code": "VALIDATION", "fields": [{"field": "name", "message": "can't be blank"}]})
+        );
         let long = app
             .gql(
                 "mutation($name: String!) { createApiKey(name: $name) { token } }",
@@ -287,7 +291,7 @@ mod tests {
             .await;
         assert_eq!(
             long["errors"][0]["message"],
-            "should be at most 80 character(s)"
+            "name should be at most 80 character(s)"
         );
 
         let revoked = app

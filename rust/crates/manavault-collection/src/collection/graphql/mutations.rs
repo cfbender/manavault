@@ -2,7 +2,7 @@
 //! `LocationOperations`, `CollectionMutations`, `LocationMutations`,
 //! `ImportResolvers`).
 
-use async_graphql::{Context, ID, Object, SimpleObject};
+use async_graphql::{Context, ErrorExtensions, ID, Object, SimpleObject};
 
 use crate::collection::auto_sort::rules::{self, AutoSortError};
 use crate::collection::auto_sort::{self, AutoSortOptions, Source};
@@ -27,6 +27,7 @@ use crate::graphql::{NodeKind, Result, internal_error, state, user_error};
 fn item_error(error: ItemError) -> async_graphql::Error {
     match error {
         ItemError::Db(error) => internal_error(error),
+        ItemError::Invalid(errors) => errors.extend(),
         other => user_error(other.to_string()),
     }
 }
@@ -34,13 +35,16 @@ fn item_error(error: ItemError) -> async_graphql::Error {
 fn location_error(error: LocationError) -> async_graphql::Error {
     match error {
         LocationError::Db(error) => internal_error(error),
-        other => user_error(other.to_string()),
+        LocationError::Invalid(errors) => errors.extend(),
+        LocationError::NotFound => user_error(error.to_string()),
     }
 }
 
 fn auto_sort_error(error: AutoSortError) -> async_graphql::Error {
     match error {
         AutoSortError::Db(error) => internal_error(error),
+        AutoSortError::Invalid(errors) => errors.extend(),
+        AutoSortError::Item(error) => item_error(error),
         other => user_error(other.to_string()),
     }
 }
@@ -48,6 +52,8 @@ fn auto_sort_error(error: AutoSortError) -> async_graphql::Error {
 fn import_error(error: ImportError) -> async_graphql::Error {
     match error {
         ImportError::Db(error) => internal_error(error),
+        ImportError::Invalid(errors) => errors.extend(),
+        ImportError::Item(error) => item_error(error),
         other => user_error(other.to_string()),
     }
 }

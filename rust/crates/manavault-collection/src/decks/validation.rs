@@ -8,7 +8,7 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 
-pub use crate::settings::changeset::{BLANK, Errors, INVALID, too_long, too_short};
+pub use crate::validation::{BLANK, INVALID, ValidationError, too_long, too_short};
 
 /// An attribute: absent (`None`), `null` (`Some(None)`), or a value.
 pub type Change<T> = Option<Option<T>>;
@@ -37,7 +37,7 @@ pub fn apply<T: Clone>(current: Option<T>, change: &Change<T>) -> Option<T> {
 
 /// `validate_length(field, min:, max:)` for a changed value.
 pub fn length(
-    errors: &mut Errors,
+    errors: &mut ValidationError,
     field: &'static str,
     value: Option<&str>,
     min: usize,
@@ -54,28 +54,38 @@ pub fn length(
 }
 
 /// `validate_number(field, greater_than: n)`.
-pub fn greater_than(errors: &mut Errors, field: &'static str, value: Option<i64>, bound: i64) {
+pub fn greater_than(
+    errors: &mut ValidationError,
+    field: &'static str,
+    value: Option<i64>,
+    bound: i64,
+) {
     if value.is_some_and(|value| value <= bound) {
         errors.add(field, format!("must be greater than {bound}"));
     }
 }
 
 /// `validate_number(field, greater_than_or_equal_to: n)`.
-pub fn at_least(errors: &mut Errors, field: &'static str, value: Option<i64>, bound: i64) {
+pub fn at_least(errors: &mut ValidationError, field: &'static str, value: Option<i64>, bound: i64) {
     if value.is_some_and(|value| value < bound) {
         errors.add(field, format!("must be greater than or equal to {bound}"));
     }
 }
 
 /// `validate_number(field, less_than: n)`.
-pub fn less_than(errors: &mut Errors, field: &'static str, value: Option<i64>, bound: i64) {
+pub fn less_than(
+    errors: &mut ValidationError,
+    field: &'static str,
+    value: Option<i64>,
+    bound: i64,
+) {
     if value.is_some_and(|value| value >= bound) {
         errors.add(field, format!("must be less than {bound}"));
     }
 }
 
 /// `validate_format(:color, ~r/^#[0-9a-fA-F]{6}$/)`.
-pub fn hex_color(errors: &mut Errors, field: &'static str, value: Option<&str>) {
+pub fn hex_color(errors: &mut ValidationError, field: &'static str, value: Option<&str>) {
     if let Some(value) = value
         && !HEX_COLOR.as_ref().is_some_and(|re| re.is_match(value))
     {
@@ -91,8 +101,8 @@ pub fn is_unique_violation(error: &sqlx::Error) -> bool {
 
 /// A single-field changeset error.
 #[must_use]
-pub fn error(field: &'static str, message: impl Into<String>) -> Errors {
-    let mut errors = Errors::new();
+pub fn error(field: &'static str, message: impl Into<String>) -> ValidationError {
+    let mut errors = ValidationError::new();
     errors.add(field, message);
     errors
 }
@@ -103,15 +113,15 @@ mod tests {
 
     #[test]
     fn validators_render_the_documented_messages() {
-        let mut errors = Errors::new();
+        let mut errors = ValidationError::new();
         length(&mut errors, "name", Some(""), 1, 60);
         greater_than(&mut errors, "quantity", Some(0), 0);
         less_than(&mut errors, "proxy_quantity", Some(10_000), 10_000);
         hex_color(&mut errors, "color", Some("red"));
         at_least(&mut errors, "play_count", Some(-1), 0);
         assert_eq!(
-            errors.message(),
-            "color has invalid format, name should be at least 1 character(s), play_count must be greater than or equal to 0, proxy_quantity must be less than 10000, quantity must be greater than 0"
+            errors.to_string(),
+            "name should be at least 1 character(s), quantity must be greater than 0, proxy quantity must be less than 10000, color has invalid format, play count must be greater than or equal to 0"
         );
         assert_eq!(cast_string(Some(Some("  ".into()))), Some(None));
     }

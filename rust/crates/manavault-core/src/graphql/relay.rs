@@ -1,8 +1,8 @@
-//! Relay global ids and connections, compatible with `Absinthe.Relay`.
+//! Relay global ids and connections.
 //!
 //! Global ids are `base64("Type:id")` and cursors `base64("arrayconnection:N")`,
 //! so ids and cursors the frontend cached against earlier releases keep
-//! working. Error messages match `ManavaultWeb.Schema.RelayHelpers`.
+//! working.
 
 use async_graphql::{ID, SimpleObject};
 use base64::Engine;
@@ -66,46 +66,27 @@ impl NodeKind {
     }
 }
 
-/// `Absinthe.Relay.Node.to_global_id/2`.
+/// Encodes a node's global id as `base64("Type:id")`.
 #[must_use]
 pub fn global_id(kind: NodeKind, id: impl std::fmt::Display) -> ID {
     ID(STANDARD.encode(format!("{}:{id}", kind.type_name())))
 }
 
-/// `Absinthe.Relay.Node.IDTranslator.Base64.from_global_id/2`: the type
-/// name and raw id of a global id, whatever the type.
-pub fn decode_global_id(id: &str) -> Result<(String, String), String> {
-    let decoded = STANDARD
-        .decode(id)
-        .ok()
-        .and_then(|bytes| String::from_utf8(bytes).ok())
-        .ok_or_else(|| format!("Could not decode ID value `{id}'"))?;
-    match decoded.split_once(':') {
-        Some((type_name, raw)) if !type_name.is_empty() && !raw.is_empty() => {
-            Ok((type_name.to_owned(), raw.to_owned()))
-        }
-        _ => Err(format!(
-            "Could not extract value from decoded ID `{decoded:?}`"
-        )),
+/// Decodes a global id into its node kind and raw id, whatever the kind.
+/// `None` when the id is not base64 `Type:id` or names an unknown type.
+#[must_use]
+pub fn from_global_id(id: &str) -> Option<(NodeKind, String)> {
+    let decoded = String::from_utf8(STANDARD.decode(id).ok()?).ok()?;
+    let (type_name, raw) = decoded.split_once(':')?;
+    if raw.is_empty() {
+        return None;
     }
-}
-
-/// `Absinthe.Relay.Node.from_global_id/2`: the node kind and raw id.
-pub fn from_global_id(id: &str) -> Result<(NodeKind, String), String> {
-    let (type_name, raw) = decode_global_id(id)?;
-    let kind = NodeKind::from_type_name(&type_name)
-        .ok_or_else(|| format!("Unknown type `{type_name}'"))?;
-    Ok((kind, raw))
+    Some((NodeKind::from_type_name(type_name)?, raw.to_owned()))
 }
 
 fn expect_kind(id: &str, expected: NodeKind) -> Result<String, String> {
-    let (kind, raw) = from_global_id(id).map_err(|message| {
-        if message.starts_with("Expected ") {
-            message
-        } else {
-            format!("Invalid {} ID: {message}", expected.label())
-        }
-    })?;
+    let (kind, raw) =
+        from_global_id(id).ok_or_else(|| format!("Invalid {} ID: {id}", expected.label()))?;
     if kind == expected {
         Ok(raw)
     } else {
@@ -122,7 +103,7 @@ fn parse_int(raw: &str, kind: NodeKind) -> Result<i64, String> {
         .map_err(|_| format!("Invalid internal {} ID", kind.label()))
 }
 
-/// Decodes a global id of an integer-keyed node (`RelayHelpers.node_id/3`).
+/// Decodes a global id of an integer-keyed node.
 pub fn node_int(id: &ID, kind: NodeKind) -> async_graphql::Result<i64> {
     let raw = expect_kind(id.as_str(), kind)?;
     Ok(parse_int(&raw, kind)?)
@@ -163,36 +144,15 @@ pub fn location_ref(id: &ID) -> async_graphql::Result<LocationRef> {
     Ok(LocationRef::Id(parse_int(&raw, NodeKind::Location)?))
 }
 
-/// `RelayHelpers.node_id/3` inside the `node(id:)` field, on the internal
-/// id the global id decoded to: a nested global id of `kind` is unwrapped
-/// (another kind is an error), and anything that does not decode is used
-/// as is.
-pub fn node_field_id(raw: &str, kind: NodeKind) -> Result<String, String> {
-    match from_global_id(raw) {
-        Ok((found, inner)) if found == kind => Ok(inner),
-        Ok((found, _)) => Err(format!(
-            "Expected {} ID, got {} ID",
-            kind.label(),
-            found.label()
-        )),
-        Err(_) => Ok(raw.to_owned()),
-    }
-}
-
-/// An integer node id (`coerce_node_id/2`): "Invalid internal … ID".
-pub fn parse_internal_id(raw: &str, kind: NodeKind) -> Result<i64, String> {
-    parse_int(raw, kind)
-}
-
 const CURSOR_PREFIX: &str = "arrayconnection:";
 
-/// `Absinthe.Relay.Connection.offset_to_cursor/1`.
+/// Encodes a list offset as an opaque cursor.
 #[must_use]
 pub fn offset_to_cursor(offset: usize) -> String {
     STANDARD.encode(format!("{CURSOR_PREFIX}{offset}"))
 }
 
-/// `Absinthe.Relay.Connection.cursor_to_offset/1`.
+/// Decodes a cursor made by [`offset_to_cursor`].
 #[must_use]
 pub fn cursor_to_offset(cursor: &str) -> Option<i64> {
     let decoded = String::from_utf8(STANDARD.decode(cursor).ok()?).ok()?;
@@ -237,8 +197,7 @@ impl PageArgs {
         self.after.is_some() || self.first.is_some() || self.before.is_some() || self.last.is_some()
     }
 
-    /// Fills `first` with `default` when neither `first` nor `last` was given
-    /// (`RelayHelpers.connection_args/2`).
+    /// Fills `first` with `default` when neither `first` nor `last` was given.
     #[must_use]
     pub fn with_default_first(mut self, default: i64) -> Self {
         if self.first.is_none() && self.last.is_none() {
@@ -292,7 +251,7 @@ pub fn offset_and_limit(args: &PageArgs, count: i64) -> async_graphql::Result<(i
     })
 }
 
-/// `RelayHelpers.offset_and_limit/2`: forward-only window with a default page size.
+/// A forward-only window with a default page size.
 pub fn forward_window(args: &PageArgs, default_limit: i64) -> async_graphql::Result<(i64, i64)> {
     let args = args.clone().with_default_first(default_limit);
     let (_, limit) = limit(&args)?;
@@ -360,7 +319,7 @@ pub fn from_list<T>(items: Vec<T>, args: &PageArgs) -> async_graphql::Result<Pag
     Ok(from_slice(slice, offset, has_previous, has_next))
 }
 
-/// `RelayHelpers.connection_from_list/3`: like [`from_list`] with a default
+/// Like [`from_list`] with a default
 /// page size (all items when `None`).
 pub fn connection_from_list<T>(
     items: Vec<T>,
@@ -371,8 +330,9 @@ pub fn connection_from_list<T>(
     from_list(items, &args.clone().with_default_first(default))
 }
 
-/// Defines `XConnection` and `XEdge` GraphQL types for a node type, with
-/// Absinthe's nullability (`edges: [XEdge]`, `node: X`, `cursor: String`).
+/// Defines `XConnection` and `XEdge` GraphQL types for a node type, keeping
+/// the nullability the frontend was generated against (`edges: [XEdge]`,
+/// `node: X`, `cursor: String`).
 #[macro_export]
 macro_rules! connection_types {
     ($connection:ident, $edge:ident, $node:ty) => {
@@ -430,7 +390,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn global_ids_match_absinthe() {
+    fn global_ids_round_trip() {
         assert_eq!(global_id(NodeKind::Deck, 12).as_str(), "RGVjazoxMg==");
         assert_eq!(
             node_int(&ID("RGVjazoxMg==".into()), NodeKind::Deck).unwrap(),
@@ -439,10 +399,9 @@ mod tests {
         let error = node_int(&ID("RGVjazoxMg==".into()), NodeKind::DeckCard).unwrap_err();
         assert_eq!(error.message, "Expected deck card ID, got deck ID");
         let error = node_int(&ID("nope!".into()), NodeKind::Deck).unwrap_err();
-        assert_eq!(
-            error.message,
-            "Invalid deck ID: Could not decode ID value `nope!'"
-        );
+        assert_eq!(error.message, "Invalid deck ID: nope!");
+        let error = node_int(&ID(STANDARD.encode("Nope:1")), NodeKind::Deck).unwrap_err();
+        assert_eq!(error.message, "Invalid deck ID: Tm9wZTox");
         assert_eq!(
             location_ref(&global_id(NodeKind::Location, "unfiled")).unwrap(),
             LocationRef::Unfiled
@@ -450,7 +409,7 @@ mod tests {
     }
 
     #[test]
-    fn cursors_and_pagination_match_absinthe() {
+    fn cursors_and_pagination() {
         assert_eq!(offset_to_cursor(0), "YXJyYXljb25uZWN0aW9uOjA=");
         assert_eq!(cursor_to_offset("YXJyYXljb25uZWN0aW9uOjA="), Some(0));
         let args = PageArgs {

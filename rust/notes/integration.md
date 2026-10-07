@@ -96,9 +96,12 @@ extension.
   can't be blank"; async-graphql also reads an unset `$zone` variable as
   `null`, which Absinthe treated as omitted. An invalid zone is "zone is
   invalid" after the deck's archive/link checks, as in `AddCardToDeck`.
-- `node` on a type that exists but is not a node reads "Type `X' is not a
-  valid node type" (Absinthe's message), checked against the schema
-  registry.
+- There is no `Node` interface or root `node(id:)` field; the frontend never
+  called it. Root types are `Query`, `Mutation`, and `Subscription`.
+- Validation errors render in the order the validator checks fields, with
+  humanized names ("theme style can't be blank"), and carry
+  `extensions: {code: "VALIDATION", fields: [{field, message}]}`; Absinthe
+  alphabetized the fields and sent no extensions.
 - `allocateDeckCardProxy`/`deallocateDeckCardProxy` with an invalid
   quantity report the deck card's errors (missing, archived, considering)
   first, as `ProxyAllocation` validated the quantity last;

@@ -149,7 +149,7 @@ async fn creating_coerces_an_unavailable_finish_and_rejects_missing_references()
     )
     .await
     .unwrap_err();
-    assert_eq!(error.to_string(), "location_id does not exist");
+    assert_eq!(error.to_string(), "location id does not exist");
     let error = changes::create(
         app.db(),
         &app.state.prices,
@@ -157,7 +157,7 @@ async fn creating_coerces_an_unavailable_finish_and_rejects_missing_references()
     )
     .await
     .unwrap_err();
-    assert_eq!(error.to_string(), "scryfall_id does not exist");
+    assert_eq!(error.to_string(), "scryfall id does not exist");
     // A finish error comes before the reference checks.
     let error = changes::create(
         app.db(),
@@ -322,7 +322,7 @@ async fn offered_quantities_are_bounded_and_keep_the_for_trade_flag_in_sync() {
     })
     .await
     .unwrap_err();
-    assert_eq!(error.to_string(), "for_trade_quantity can't be blank");
+    assert_eq!(error.to_string(), "for trade quantity can't be blank");
     let error = change(ItemChanges {
         for_trade_quantity: MaybeUndefined::Value(5),
         ..ItemChanges::default()
@@ -331,7 +331,7 @@ async fn offered_quantities_are_bounded_and_keep_the_for_trade_flag_in_sync() {
     .unwrap_err();
     assert_eq!(
         error.to_string(),
-        "for_trade_quantity cannot exceed quantity owned"
+        "for trade quantity cannot exceed quantity owned"
     );
 
     let item = change(ItemChanges {

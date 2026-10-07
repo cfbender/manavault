@@ -15,55 +15,8 @@ use crate::catalog::printing::PrintingRecord;
 use crate::collection::item::{CollectionItem, CollectionItemRecord, load_items};
 use crate::collection::location::json_ids;
 use crate::pricing::PriceStore;
+use crate::validation::{BLANK, INVALID, ValidationError};
 use crate::{collection_item_query, printing_query, timefmt};
-
-/// Changeset errors by field, rendered like `Errors.changeset_error_message/1`
-/// (fields in alphabetical order, each with its messages).
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct FieldErrors(Vec<(&'static str, String)>);
-
-impl FieldErrors {
-    pub fn add(&mut self, field: &'static str, message: impl Into<String>) {
-        self.0.push((field, message.into()));
-    }
-
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    /// Whether a field has an error.
-    #[must_use]
-    pub fn has(&self, field: &str) -> bool {
-        self.0.iter().any(|(name, _)| *name == field)
-    }
-
-    /// `"finish is invalid, quantity must be greater than 0"`.
-    #[must_use]
-    pub fn render(&self) -> String {
-        let mut fields: Vec<&'static str> = self.0.iter().map(|(field, _)| *field).collect();
-        fields.sort_unstable();
-        fields.dedup();
-        fields
-            .into_iter()
-            .map(|field| {
-                let messages: Vec<&str> = self
-                    .0
-                    .iter()
-                    .filter(|(name, _)| *name == field)
-                    .map(|(_, message)| message.as_str())
-                    .collect();
-                format!("{field} {}", messages.join(", "))
-            })
-            .collect::<Vec<_>>()
-            .join(", ")
-    }
-
-    /// `Ok` when there are no errors.
-    pub fn into_result(self) -> Result<(), FieldErrors> {
-        if self.is_empty() { Ok(()) } else { Err(self) }
-    }
-}
 
 /// Why an item write failed.
 #[derive(Debug, thiserror::Error)]
@@ -74,20 +27,14 @@ pub enum ItemError {
     /// Some of the targeted ids do not exist (`{:not_found, ids}`).
     #[error("One or more collection items were not found.")]
     Missing(Vec<i64>),
-    /// Changeset errors, already rendered.
-    #[error("{0}")]
-    Invalid(String),
+    /// Validation errors.
+    #[error(transparent)]
+    Invalid(#[from] ValidationError),
     /// `:invalid_for_trade_quantity`.
     #[error("Trade quantity must be between zero and the number of copies owned.")]
     InvalidTradeQuantity,
     #[error(transparent)]
     Db(#[from] sqlx::Error),
-}
-
-impl From<FieldErrors> for ItemError {
-    fn from(errors: FieldErrors) -> Self {
-        Self::Invalid(errors.render())
-    }
 }
 
 /// Item attributes to write (`CollectionItemInput` /
@@ -223,7 +170,7 @@ async fn apply(
     sync_for_trade(&mut next, changes);
     let moved = next.location_id.is_some() && next.location_id != current.location_id;
 
-    let mut errors = FieldErrors::default();
+    let mut errors = ValidationError::new();
     for (field, missing) in [
         ("quantity", next.quantity.is_none()),
         ("condition", blank(next.condition.as_deref())),
@@ -232,7 +179,7 @@ async fn apply(
         ("for_trade_quantity", next.for_trade_quantity.is_none()),
     ] {
         if missing {
-            errors.add(field, "can't be blank");
+            errors.add(field, BLANK);
         }
     }
     if next.quantity != current.quantity && next.quantity.is_some_and(|q| q <= 0) {
@@ -259,7 +206,7 @@ async fn apply(
             .as_deref()
             .is_some_and(|c| Condition::parse(c).is_none())
     {
-        errors.add("condition", "is invalid");
+        errors.add("condition", INVALID);
     }
     if next.finish != current.finish
         && next
@@ -267,13 +214,13 @@ async fn apply(
             .as_deref()
             .is_some_and(|f| Finish::parse(f).is_none())
     {
-        errors.add("finish", "is invalid");
+        errors.add("finish", INVALID);
     }
     if mode == Mode::Create && blank(next.scryfall_id.as_deref()) {
-        errors.add("scryfall_id", "can't be blank");
+        errors.add("scryfall_id", BLANK);
     }
     if mode == Mode::Update && next.scryfall_id.is_none() {
-        errors.add("scryfall_id", "can't be blank");
+        errors.add("scryfall_id", BLANK);
     }
     if !errors.is_empty() {
         return Err(errors.into());
@@ -313,21 +260,21 @@ async fn apply(
     }
     errors.into_result()?;
 
-    let invalid = || ItemError::Invalid("is invalid".to_owned());
+    let invalid = |field| ItemError::Invalid(ValidationError::single(field, INVALID));
     Ok(Some(ValidItem {
         scryfall_id: ScryfallId::from(scryfall_id),
         quantity: next
             .quantity
             .and_then(|q| u32::try_from(q).ok())
             .and_then(Quantity::new)
-            .ok_or_else(invalid)?,
+            .ok_or_else(|| invalid("quantity"))?,
         condition: next
             .condition
             .as_deref()
             .and_then(Condition::parse)
-            .ok_or_else(invalid)?,
+            .ok_or_else(|| invalid("condition"))?,
         language: next.language.unwrap_or_default(),
-        finish: Finish::parse(&finish_text).ok_or_else(invalid)?,
+        finish: Finish::parse(&finish_text).ok_or_else(|| invalid("finish"))?,
         location_id: next.location_id,
         notes: next.notes,
         purchase_price_cents: next.purchase_price_cents,
@@ -409,7 +356,7 @@ pub async fn create_in(
     }
     let valid = apply(conn, Mode::Create, &Draft::new_item(), &changes)
         .await?
-        .ok_or_else(|| ItemError::Invalid("scryfall_id can't be blank".to_owned()))?;
+        .ok_or_else(|| ItemError::Invalid(ValidationError::single("scryfall_id", BLANK)))?;
     let now = timefmt::now();
     let changed_at = valid.moved.then(|| now.clone());
     let id = sqlx::query_scalar!(
@@ -671,21 +618,4 @@ pub async fn delete(pool: &SqlitePool, id: i64) -> Result<CollectionItem, ItemEr
         .await?;
     tx.commit().await?;
     Ok(item)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn renders_errors_alphabetically() {
-        let mut errors = FieldErrors::default();
-        errors.add("quantity", "must be greater than 0");
-        errors.add("finish", "is invalid");
-        errors.add("finish", "is not available for this printing");
-        assert_eq!(
-            errors.render(),
-            "finish is invalid, is not available for this printing, quantity must be greater than 0"
-        );
-    }
 }

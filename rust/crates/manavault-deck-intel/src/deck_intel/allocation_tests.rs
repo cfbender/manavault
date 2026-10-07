@@ -9,7 +9,6 @@
 #[allow(dead_code)]
 mod deck_support;
 
-use base64::Engine as _;
 use lotus::Finish;
 use serde_json::{Value, json};
 
@@ -659,93 +658,5 @@ async fn bulk_deallocate_deck_cards_returns_copies_and_proxies() {
                 .await
         ),
         "Deck card was not found."
-    );
-}
-
-#[tokio::test]
-async fn node_resolves_every_node_type_by_global_id() {
-    let app = app_with_card("printing-contract", "oracle-contract", "Contract Card").await;
-    let deck = create_deck(&app, "Node Contract Deck", None, None).await;
-    let deck_card = add_card(&app, deck.id, "Contract Card", 1, "mainboard").await;
-    let item = collection_item(&app, "printing-contract", 1, Finish::Nonfoil, None).await;
-    let query = r"query NodeLookup($id: ID!) {
-        node(id: $id) {
-          id
-          __typename
-          ... on DeckCard { quantity }
-          ... on Card { name }
-          ... on Printing { scryfallId }
-          ... on CollectionItem { quantity }
-          ... on Location { name }
-          ... on Deck { name }
-        }
-      }";
-    let node = |id: String| {
-        let app = &app;
-        async move { app.gql(query, json!({"id": id})).await }
-    };
-    let deck_card_gid = card_gid(deck_card.id);
-    assert_eq!(
-        node(deck_card_gid.clone()).await["data"]["node"],
-        json!({"id": deck_card_gid, "__typename": "DeckCard", "quantity": 1})
-    );
-    let card = global_id(NodeKind::Card, "oracle-contract").to_string();
-    assert_eq!(
-        node(card.clone()).await["data"]["node"],
-        json!({"id": card, "__typename": "Card", "name": "Contract Card"})
-    );
-    let printing = global_id(NodeKind::Printing, "printing-contract").to_string();
-    assert_eq!(
-        node(printing.clone()).await["data"]["node"],
-        json!({"id": printing, "__typename": "Printing", "scryfallId": "printing-contract"})
-    );
-    assert_eq!(
-        node(item_gid(item)).await["data"]["node"],
-        json!({"id": item_gid(item), "__typename": "CollectionItem", "quantity": 1})
-    );
-    let unfiled = global_id(NodeKind::Location, "unfiled").to_string();
-    assert_eq!(
-        node(unfiled.clone()).await["data"]["node"],
-        json!({"id": unfiled, "__typename": "Location", "name": "Unfiled"})
-    );
-    assert_eq!(
-        node(deck_gid(deck.id)).await["data"]["node"],
-        json!({"id": deck_gid(deck.id), "__typename": "Deck", "name": "Node Contract Deck"})
-    );
-    // A missing card or printing is null; missing rows of the other kinds
-    // are errors, as `get_*!/1` raised.
-    let missing_card = global_id(NodeKind::Card, "oracle-missing").to_string();
-    assert_eq!(node(missing_card).await["data"]["node"], Value::Null);
-    assert_eq!(
-        error_message(&node(card_gid(DeckCardId(999))).await),
-        "Deck card was not found."
-    );
-    assert_eq!(
-        error_message(&node(global_id(NodeKind::DeckCard, "abc").to_string()).await),
-        "Invalid internal deck card ID"
-    );
-    // The internal id may itself be a global id of the same kind.
-    let nested = global_id(NodeKind::Deck, deck_gid(deck.id)).to_string();
-    assert_eq!(
-        node(nested).await["data"]["node"]["name"],
-        "Node Contract Deck"
-    );
-    let mismatched = global_id(NodeKind::Deck, card_gid(deck_card.id)).to_string();
-    assert_eq!(
-        error_message(&node(mismatched).await),
-        "Expected deck ID, got deck card ID"
-    );
-    let encode = |text: &str| base64::engine::general_purpose::STANDARD.encode(text);
-    assert_eq!(
-        error_message(&node(encode("DeckTag:1")).await),
-        "Type `DeckTag' is not a valid node type"
-    );
-    assert_eq!(
-        error_message(&node(encode("Nope:1")).await),
-        "Unknown type `Nope'"
-    );
-    assert_eq!(
-        error_message(&node("!!!".to_owned()).await),
-        "Could not decode ID value `!!!'"
     );
 }

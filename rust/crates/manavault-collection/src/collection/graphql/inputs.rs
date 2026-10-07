@@ -341,7 +341,7 @@ fn raw_id_change(id: &MaybeUndefined<ID>) -> MaybeUndefined<String> {
         MaybeUndefined::Null => MaybeUndefined::Null,
         MaybeUndefined::Value(id) => {
             MaybeUndefined::Value(match crate::graphql::relay::from_global_id(id.as_str()) {
-                Ok((NodeKind::Printing, raw)) => raw,
+                Some((NodeKind::Printing, raw)) => raw,
                 _ => id.to_string(),
             })
         }

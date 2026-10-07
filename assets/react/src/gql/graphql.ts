@@ -4,6 +4,7 @@ type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
 /** Internal type. DO NOT USE DIRECTLY. */
 export type Incremental<T> = T | { [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never };
 import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/core';
+/** `AiSettingsInput`. */
 export type AiSettingsInput = {
   apiKey?: string | null | undefined;
   deckAnalysisInstructions?: string | null | undefined;
@@ -11,12 +12,14 @@ export type AiSettingsInput = {
   provider: string;
 };
 
+/** `AutoSortCollectionInput`. */
 export type AutoSortCollectionInput = {
   dryRun?: boolean | null | undefined;
   rules?: Array<CollectionAutoSortRuleInput> | null | undefined;
   sourceLocationId?: string | number | null | undefined;
 };
 
+/** `BackupSettingsInput`: omitted fields keep their saved values. */
 export type BackupSettingsInput = {
   cron?: string | null | undefined;
   enabled?: boolean | null | undefined;
@@ -34,17 +37,19 @@ export type BackupSettingsInput = {
   s3SecretAccessKey?: string | null | undefined;
 };
 
+/** `BulkCleanPullInput`. `collectionItemId` is a raw database id. */
 export type BulkCleanPullInput = {
   collectionItemId: string | number;
   quantity: number;
 };
 
+/** `CardSort`. */
 export type CardSort = {
   direction?: string | null | undefined;
   field?: string | null | undefined;
 };
 
-/** Whether a card search covers tokens. Tokens are left out unless asked for. */
+/** Whether a search covers tokens (`CardTokenScope`). */
 export type CardTokenScope =
   /** Playable cards only. */
   | 'EXCLUDE'
@@ -53,6 +58,7 @@ export type CardTokenScope =
   /** Tokens only. */
   | 'ONLY';
 
+/** `CollectionAutoSortRuleInput`. */
 export type CollectionAutoSortRuleInput = {
   colorMode: string;
   colors: Array<string>;
@@ -72,6 +78,7 @@ export type CollectionAutoSortRuleInput = {
   typeLineIncludes: Array<string>;
 };
 
+/** `CollectionImportAttrsInput`. */
 export type CollectionImportAttrsInput = {
   backScryfallId?: string | number | null | undefined;
   collectorNumber?: string | null | undefined;
@@ -86,11 +93,13 @@ export type CollectionImportAttrsInput = {
   setCode?: string | null | undefined;
 };
 
+/** `CollectionImportCommitInput`. */
 export type CollectionImportCommitInput = {
   autoSort?: boolean | null | undefined;
   rows: Array<CollectionImportRowInput>;
 };
 
+/** `CollectionImportPreviewInput`. */
 export type CollectionImportPreviewInput = {
   fileName?: string | null | undefined;
   format?: string | null | undefined;
@@ -99,12 +108,14 @@ export type CollectionImportPreviewInput = {
   text: string;
 };
 
+/** `CollectionImportRowInput`. */
 export type CollectionImportRowInput = {
   attrs: CollectionImportAttrsInput;
   rowNumber: number;
   status: string;
 };
 
+/** `CollectionItemFilters`. */
 export type CollectionItemFilters = {
   addedWithinDays?: number | null | undefined;
   cardId?: string | number | null | undefined;
@@ -117,6 +128,7 @@ export type CollectionItemFilters = {
   unallocatedOnly?: boolean | null | undefined;
 };
 
+/** `CollectionItemInput`. */
 export type CollectionItemInput = {
   condition?: string | null | undefined;
   finish?: string | null | undefined;
@@ -130,6 +142,10 @@ export type CollectionItemInput = {
   scryfallId: string | number;
 };
 
+/**
+ * `CollectionItemSelector`: explicit ids, or every item matching `filters`
+ * except `excludedIds`, so select-all never pages ids through the client.
+ */
 export type CollectionItemSelector = {
   all?: boolean | null | undefined;
   excludedIds?: Array<string | number> | null | undefined;
@@ -137,11 +153,13 @@ export type CollectionItemSelector = {
   ids?: Array<string | number> | null | undefined;
 };
 
+/** `CollectionItemSort`. */
 export type CollectionItemSort = {
   direction?: string | null | undefined;
   field?: string | null | undefined;
 };
 
+/** `CollectionItemUpdateInput`. */
 export type CollectionItemUpdateInput = {
   condition?: string | null | undefined;
   finish?: string | null | undefined;
@@ -155,6 +173,7 @@ export type CollectionItemUpdateInput = {
   scryfallId?: string | number | null | undefined;
 };
 
+/** `DeckCardInput`. */
 export type DeckCardInput = {
   finish?: string | null | undefined;
   name: string;
@@ -164,6 +183,7 @@ export type DeckCardInput = {
   zone?: string | null | undefined;
 };
 
+/** `DeckCardUpdateInput`. */
 export type DeckCardUpdateInput = {
   finish?: string | null | undefined;
   preferredPrintingId?: string | number | null | undefined;
@@ -172,6 +192,7 @@ export type DeckCardUpdateInput = {
   zone?: string | null | undefined;
 };
 
+/** `DeckInput`. */
 export type DeckInput = {
   format?: string | null | undefined;
   includedForPlay?: boolean | null | undefined;
@@ -179,16 +200,23 @@ export type DeckInput = {
   status?: string | null | undefined;
 };
 
+/** `DeckPlayOutcome`. */
 export type DeckPlayOutcome =
   | 'PLAYED'
   | 'SKIPPED';
 
+/**
+ * `DeckPullListEntryInput`, used by `allocateDeckPullList` (deck
+ * allocation module).
+ */
 export type DeckPullListEntryInput = {
   collectionItemId: string | number;
   deckCardId: string | number;
+  /** Defaults to 1. */
   quantity?: number | null | undefined;
 };
 
+/** `DeckSwapAddInput`. */
 export type DeckSwapAddInput = {
   /** Considering deck card to move into the mainboard. */
   deckCardId?: string | number | null | undefined;
@@ -197,32 +225,39 @@ export type DeckSwapAddInput = {
   quantity: number;
 };
 
+/** `DeckSwapContextInput`: the names staged in the Swap cards workbench. */
 export type DeckSwapContextInput = {
   adds: Array<string>;
   cuts: Array<string>;
 };
 
+/** `DeckSwapCutDestination`. */
 export type DeckSwapCutDestination =
   | 'CONSIDERING'
   | 'REMOVE';
 
+/** `DeckSwapCutInput`. */
 export type DeckSwapCutInput = {
   deckCardId: string | number;
+  /** Defaults to `REMOVE`. */
   destination?: DeckSwapCutDestination | null | undefined;
   quantity: number;
 };
 
+/** `DeckSwapInput`. */
 export type DeckSwapInput = {
   adds: Array<DeckSwapAddInput>;
   cuts: Array<DeckSwapCutInput>;
 };
 
+/** `DeckTagInput`. */
 export type DeckTagInput = {
   color?: string | null | undefined;
   name: string;
   targetCount?: number | null | undefined;
 };
 
+/** `DeckUpdateInput`. */
 export type DeckUpdateInput = {
   coverDeckCardId?: string | number | null | undefined;
   format?: string | null | undefined;
@@ -235,12 +270,14 @@ export type DeckUpdateInput = {
   status?: string | null | undefined;
 };
 
+/** `DefaultDeckTagInput`. */
 export type DefaultDeckTagInput = {
   color: string;
   name: string;
   targetCount?: number | null | undefined;
 };
 
+/** `LocationInput`. */
 export type LocationInput = {
   coverScryfallId?: string | number | null | undefined;
   description?: string | null | undefined;
@@ -248,6 +285,7 @@ export type LocationInput = {
   name: string;
 };
 
+/** `LocationUpdateInput`. */
 export type LocationUpdateInput = {
   coverScryfallId?: string | number | null | undefined;
   description?: string | null | undefined;
@@ -255,6 +293,7 @@ export type LocationUpdateInput = {
   name?: string | null | undefined;
 };
 
+/** `TokenItemInput`. */
 export type TokenItemInput = {
   backScryfallId?: string | number | null | undefined;
   finish?: string | null | undefined;
@@ -262,6 +301,7 @@ export type TokenItemInput = {
   scryfallId: string | number;
 };
 
+/** `TokenItemUpdateInput`. */
 export type TokenItemUpdateInput = {
   finish?: string | null | undefined;
   quantity?: number | null | undefined;

@@ -442,7 +442,7 @@ async fn invalid_rows_roll_the_whole_commit_back() {
     // Lowering the quantity caps the offered copies too, so both fail.
     assert_eq!(
         error.to_string(),
-        "for_trade_quantity must be greater than or equal to 0, quantity must be greater than 0"
+        "quantity must be greater than 0, for trade quantity must be greater than or equal to 0"
     );
     assert_eq!(count(&app, &ItemFilters::default()).await, 0);
 }

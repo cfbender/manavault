@@ -1,6 +1,6 @@
 //! Deck error messages (`ManavaultWeb.Schema.Catalog.Errors`).
 
-use async_graphql::Error;
+use async_graphql::{Error, ErrorExtensions};
 
 use crate::decks::DeckError;
 use crate::graphql::{internal_error, user_error};
@@ -17,7 +17,7 @@ fn common(error: DeckError, fallback: impl FnOnce(DeckError) -> Error) -> Error 
     match error {
         DeckError::Db(error) => internal_error(error),
         DeckError::DeckNotFound => user_error(DECK_NOT_FOUND),
-        DeckError::Invalid(errors) => user_error(errors.message()),
+        DeckError::Invalid(errors) => errors.extend(),
         DeckError::Message(message) => user_error(message),
         other => fallback(other),
     }

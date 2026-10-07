@@ -37,7 +37,7 @@ async fn creates_and_updates_locations_with_validation() {
     let error = location::create(app.db(), changes("", "drawer"))
         .await
         .unwrap_err();
-    assert_eq!(error.to_string(), "kind is invalid, name can't be blank");
+    assert_eq!(error.to_string(), "name can't be blank, kind is invalid");
     let error = location::create(
         app.db(),
         LocationChanges {
@@ -47,7 +47,7 @@ async fn creates_and_updates_locations_with_validation() {
     )
     .await
     .unwrap_err();
-    assert_eq!(error.to_string(), "cover_scryfall_id does not exist");
+    assert_eq!(error.to_string(), "cover scryfall id does not exist");
 
     let updated = location::update(
         app.db(),

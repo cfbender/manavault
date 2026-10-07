@@ -47,11 +47,11 @@ fn card_id(id: &ID) -> OracleId {
     OracleId::from(node_str(id, NodeKind::Card).unwrap_or_else(|_| id.to_string()))
 }
 
-/// The public root query (`RootQueryType`).
+/// The public root query.
 #[derive(Default)]
 pub struct PublicQuery;
 
-#[Object(name = "RootQueryType")]
+#[Object(name = "Query")]
 impl PublicQuery {
     #[graphql(complexity = "10_000 + child_complexity")]
     async fn deck(&self, ctx: &Context<'_>, id: ID) -> Result<Option<PublicDeck>> {

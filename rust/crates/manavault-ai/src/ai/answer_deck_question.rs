@@ -32,7 +32,7 @@ pub struct AskOptions {
 
 fn write_error(error: WriteError) -> AiError {
     match error {
-        WriteError::Invalid(errors) => AiError::User(errors.message()),
+        WriteError::Invalid(errors) => AiError::User(errors.to_string()),
         WriteError::Db(error) => AiError::Db(error),
     }
 }

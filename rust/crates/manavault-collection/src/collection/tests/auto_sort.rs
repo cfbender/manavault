@@ -863,7 +863,7 @@ async fn saved_rules_are_validated() {
             ..rule(binder.id, -1)
         })
         .await,
-        "color_mode is invalid, max_price_cents must be greater than or equal to min price, priority must be greater than or equal to 0, release_date is invalid"
+        "priority must be greater than or equal to 0, release date is invalid, color mode is invalid, max price cents must be greater than or equal to min price"
     );
     assert_eq!(
         invalid(RuleInput {

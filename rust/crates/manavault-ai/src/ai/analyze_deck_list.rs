@@ -145,7 +145,7 @@ pub async fn run(state: &AppState, args: &Args) -> Result<DeckAnalysisRequest, A
     };
     match requests::insert(&state.db, &request).await {
         Ok(saved) => Ok(saved),
-        Err(InsertError::Invalid(errors)) => Err(AiError::User(errors.message())),
+        Err(InsertError::Invalid(errors)) => Err(AiError::User(errors.to_string())),
         Err(InsertError::Db(error)) => Err(error.into()),
     }
 }

@@ -390,7 +390,7 @@ async fn want_and_binder_errors_map_to_the_documented_messages() {
             (json_response(json!({"data": {field: null}})), not_found),
             (
                 json_response(json!({"errors": [{
-                    "message": format!("Cannot query field \"{field}\" on type \"RootQueryType\".")
+                    "message": format!("Cannot query field \"{field}\" on type \"Query\".")
                 }]})),
                 unsupported,
             ),

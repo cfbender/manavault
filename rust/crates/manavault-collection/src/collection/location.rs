@@ -14,9 +14,9 @@ use lotus::ScryfallId;
 use serde::{Deserialize, Serialize};
 use sqlx::{SqliteConnection, SqlitePool};
 
-use crate::collection::changes::FieldErrors;
 use crate::collection::queries::ValueTotals;
 use crate::timefmt;
+use crate::validation::{INVALID, ValidationError};
 
 /// What a location is (`@kinds`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
@@ -201,9 +201,9 @@ pub enum LocationError {
     /// `Errors.not_found_error(:location)`.
     #[error("Location was not found.")]
     NotFound,
-    /// Changeset errors, rendered like `Errors.changeset_error_message/1`.
-    #[error("{0}")]
-    Invalid(String),
+    /// Validation errors.
+    #[error(transparent)]
+    Invalid(#[from] ValidationError),
     #[error(transparent)]
     Db(#[from] sqlx::Error),
 }
@@ -251,7 +251,7 @@ async fn validate(
         current.and_then(|c| c.cover_scryfall_id.as_ref().map(ToString::to_string)),
     );
 
-    let mut errors = FieldErrors::default();
+    let mut errors = ValidationError::new();
     if name.as_deref().is_none_or(|n| n.trim().is_empty()) {
         errors.add("name", "can't be blank");
     }
@@ -291,20 +291,16 @@ async fn validate(
             description,
             cover_scryfall_id: cover,
         }),
-        _ => Err(LocationError::Invalid("kind is invalid".to_owned())),
-    }
-}
-
-impl From<FieldErrors> for LocationError {
-    fn from(errors: FieldErrors) -> Self {
-        Self::Invalid(errors.render())
+        _ => Err(LocationError::Invalid(ValidationError::single(
+            "kind", INVALID,
+        ))),
     }
 }
 
 fn unique_name(error: sqlx::Error) -> LocationError {
     match &error {
         sqlx::Error::Database(db) if db.is_unique_violation() => {
-            LocationError::Invalid("name has already been taken".to_owned())
+            LocationError::Invalid(ValidationError::single("name", "has already been taken"))
         }
         _ => LocationError::Db(error),
     }

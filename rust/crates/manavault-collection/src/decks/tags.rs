@@ -9,7 +9,7 @@ use crate::db;
 use crate::decks::DeckError;
 use crate::decks::model::{DeckCardId, DeckId, DeckTagRow, DefaultDeckTagRow, id_list};
 use crate::decks::validation::{
-    self, BLANK, Change, Errors, TAKEN, cast_string, greater_than, hex_color, length,
+    self, BLANK, Change, TAKEN, ValidationError, cast_string, greater_than, hex_color, length,
 };
 use crate::timefmt;
 
@@ -73,8 +73,8 @@ fn validate_tag(
     current: Option<&TagValues>,
     changes: &DeckTagChanges,
     default_position: i64,
-) -> Result<TagValues, Errors> {
-    let mut errors = Errors::new();
+) -> Result<TagValues, ValidationError> {
+    let mut errors = ValidationError::new();
     let name_change = cast_string(changes.name.clone());
     // A blank color, given or (on create) absent, falls back to the default.
     let color_change = match cast_string(changes.color.clone()) {
@@ -360,7 +360,7 @@ pub async fn replace_default_deck_tags(
         };
         // DefaultDeckTag.changeset requires a color instead of defaulting it.
         if entry.color.trim().is_empty() {
-            let mut errors = Errors::new();
+            let mut errors = ValidationError::new();
             if entry.name.trim().is_empty() {
                 errors.add("name", BLANK);
             }

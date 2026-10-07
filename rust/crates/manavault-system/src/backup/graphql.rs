@@ -1,7 +1,7 @@
 //! Backup GraphQL fields (`Schema.BackupTypes`, `BackupResolvers`,
 //! `Catalog.BackupOperations`).
 
-use async_graphql::{Context, ID, Object, SimpleObject};
+use async_graphql::{Context, ErrorExtensions, ID, Object, SimpleObject};
 
 use super::settings::{self, BackupSettingsInput, CloudSettings, UpdateError, present};
 use super::{Remote, cloud};
@@ -154,7 +154,7 @@ impl BackupMutations {
             Ok(settings) => Ok(Some(UpdateBackupSettingsPayload {
                 backup_settings: Some(settings.into()),
             })),
-            Err(UpdateError::Invalid(errors)) => Err(user_error(errors.message())),
+            Err(UpdateError::Invalid(errors)) => Err(errors.extend()),
             Err(UpdateError::Db(error)) => Err(error.into()),
         }
     }
@@ -229,6 +229,14 @@ mod tests {
             data["updateBackupSettings"]["backupSettings"],
             json!({"provider": "s3", "enabled": true, "retentionCount": 5, "s3Endpoint": "https://s3.test", "hasS3SecretAccessKey": true})
         );
+        // Omitted input fields keep their saved values.
+        let data = app
+            .gql_data(mutation, json!({"input": {"retentionCount": 7}}))
+            .await;
+        assert_eq!(
+            data["updateBackupSettings"]["backupSettings"],
+            json!({"provider": "s3", "enabled": true, "retentionCount": 7, "s3Endpoint": "https://s3.test", "hasS3SecretAccessKey": true})
+        );
         let response = app
             .gql(
                 mutation,
@@ -237,7 +245,7 @@ mod tests {
             .await;
         assert_eq!(
             response["errors"][0]["message"],
-            "cron must contain five fields, retention_count must be less than or equal to 1000"
+            "cron must contain five fields, retention count must be less than or equal to 1000"
         );
     }
 

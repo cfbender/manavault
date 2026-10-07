@@ -6,8 +6,8 @@ use serde_json::Value;
 use sqlx::SqlitePool;
 
 use super::deck_question::SwapContext;
-use crate::settings::changeset::{BLANK, Errors, too_long};
 use crate::timefmt;
+use crate::validation::{BLANK, ValidationError, too_long};
 
 /// `deck_question_answers.status`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type)]
@@ -121,7 +121,12 @@ impl NewQuestionAnswer {
     }
 }
 
-fn check_length(errors: &mut Errors, field: &'static str, value: Option<&str>, max: usize) {
+fn check_length(
+    errors: &mut ValidationError,
+    field: &'static str,
+    value: Option<&str>,
+    max: usize,
+) {
     if value.is_some_and(|value| value.chars().count() > max) {
         errors.add(field, too_long(max));
     }
@@ -140,8 +145,8 @@ fn validate(
     model: Option<&str>,
     conversation_id: Option<&str>,
     thread_id: Option<&str>,
-) -> Result<(), Errors> {
-    let mut errors = Errors::new();
+) -> Result<(), ValidationError> {
+    let mut errors = ValidationError::new();
     if question.trim().is_empty() {
         errors.add("question", BLANK);
     }
@@ -162,8 +167,8 @@ fn validate(
 /// Why a write failed.
 #[derive(Debug, thiserror::Error)]
 pub enum WriteError {
-    #[error("{}", .0.message())]
-    Invalid(Errors),
+    #[error(transparent)]
+    Invalid(ValidationError),
     #[error(transparent)]
     Db(#[from] sqlx::Error),
 }

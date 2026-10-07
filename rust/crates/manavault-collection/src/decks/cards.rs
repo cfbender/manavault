@@ -15,7 +15,7 @@ use crate::decks::model::{
     load_deck_on, parse_zone,
 };
 use crate::decks::validation::{
-    self, BLANK, Change, Errors, INVALID, TAKEN, apply, at_least, greater_than, less_than,
+    self, BLANK, Change, INVALID, TAKEN, ValidationError, apply, at_least, greater_than, less_than,
 };
 use crate::decks::{DeckError, commander, ensure_deck_editable, ensure_decklist_editable};
 use crate::timefmt;
@@ -64,8 +64,8 @@ struct CardValues {
 fn validate(
     current: Option<&DeckCardRow>,
     changes: &DeckCardChanges,
-) -> Result<CardValues, Errors> {
-    let mut errors = Errors::new();
+) -> Result<CardValues, ValidationError> {
+    let mut errors = ValidationError::new();
     let zone_change = validation::cast_string(changes.zone.clone());
     let finish_change = validation::cast_string(changes.finish.clone());
     let tag_change = validation::cast_string(changes.tag.clone());
@@ -837,15 +837,15 @@ mod tests {
             ..DeckCardChanges::default()
         };
         assert_eq!(
-            validate(None, &changes).unwrap_err().message(),
-            "finish can't be blank, quantity must be greater than 0, tag is invalid, zone is invalid"
+            validate(None, &changes).unwrap_err().to_string(),
+            "finish can't be blank, quantity must be greater than 0, zone is invalid, tag is invalid"
         );
         let too_many = DeckCardChanges {
             quantity: Some(Some(10_000)),
             ..DeckCardChanges::default()
         };
         assert_eq!(
-            validate(None, &too_many).unwrap_err().message(),
+            validate(None, &too_many).unwrap_err().to_string(),
             "quantity must be less than 10000"
         );
     }

@@ -4,8 +4,8 @@
 use sqlx::SqlitePool;
 
 use super::deck_analysis::result::valid_rating;
-use crate::settings::changeset::{BLANK, Errors, INVALID, too_long};
 use crate::timefmt;
+use crate::validation::{BLANK, INVALID, ValidationError, too_long};
 
 const DEFAULT_LIMIT: i64 = 50;
 const MAXIMUM_LIMIT: i64 = 100;
@@ -70,8 +70,8 @@ pub struct NewRequest {
     pub commander_bracket_rating: Option<String>,
 }
 
-fn validate(request: &NewRequest) -> Result<(), Errors> {
-    let mut errors = Errors::new();
+fn validate(request: &NewRequest) -> Result<(), ValidationError> {
+    let mut errors = ValidationError::new();
     for (field, value) in [
         ("source", &request.source),
         ("source_name", &request.source_name),
@@ -122,8 +122,8 @@ fn validate(request: &NewRequest) -> Result<(), Errors> {
 /// Why saving failed.
 #[derive(Debug, thiserror::Error)]
 pub enum InsertError {
-    #[error("{}", .0.message())]
-    Invalid(Errors),
+    #[error(transparent)]
+    Invalid(ValidationError),
     #[error(transparent)]
     Db(#[from] sqlx::Error),
 }

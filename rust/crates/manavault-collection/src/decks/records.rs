@@ -8,7 +8,7 @@ use crate::decks::model::{
     DeckCardId, DeckFormat, DeckId, DeckRow, DeckStatus, load_deck, load_deck_on,
 };
 use crate::decks::validation::{
-    self, BLANK, Change, Errors, INVALID, apply, at_least, cast_string, length, too_long,
+    self, BLANK, Change, INVALID, ValidationError, apply, at_least, cast_string, length, too_long,
 };
 use crate::decks::{DeckError, share_token, tags};
 use crate::timefmt;
@@ -41,8 +41,11 @@ struct DeckValues {
     cover_deck_card_id: Option<DeckCardId>,
 }
 
-fn validate(current: Option<&DeckRow>, changes: &DeckChanges) -> Result<DeckValues, Errors> {
-    let mut errors = Errors::new();
+fn validate(
+    current: Option<&DeckRow>,
+    changes: &DeckChanges,
+) -> Result<DeckValues, ValidationError> {
+    let mut errors = ValidationError::new();
     let name_change = cast_string(changes.name.clone());
     let format_change = cast_string(changes.format.clone());
     let status_change = cast_string(changes.status.clone());
@@ -400,8 +403,8 @@ mod tests {
         };
         let errors = validate(None, &changes).unwrap_err();
         assert_eq!(
-            errors.message(),
-            "format is invalid, included_for_play can't be blank, name can't be blank, play_count must be greater than or equal to 0, skip_count must be greater than or equal to 0"
+            errors.to_string(),
+            "name can't be blank, included for play can't be blank, play count must be greater than or equal to 0, skip count must be greater than or equal to 0, format is invalid"
         );
     }
 }

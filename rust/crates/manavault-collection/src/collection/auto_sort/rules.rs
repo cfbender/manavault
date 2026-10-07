@@ -7,8 +7,9 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 
-use crate::collection::changes::FieldErrors;
+use crate::collection::changes::ItemError;
 use crate::collection::location::{LocationKind, LocationRecord, json_ids};
+use crate::validation::ValidationError;
 use crate::{location_query, timefmt};
 
 /// A `collection_auto_sort_rules` row. List columns hold JSON text.
@@ -121,9 +122,12 @@ pub enum AutoSortError {
     InvalidTarget,
     #[error("Auto-sort rule contains invalid criteria.")]
     InvalidRule,
-    /// Changeset errors, already rendered.
-    #[error("{0}")]
-    Invalid(String),
+    /// Validation errors.
+    #[error(transparent)]
+    Invalid(#[from] ValidationError),
+    /// Moving an item into its target failed.
+    #[error(transparent)]
+    Item(#[from] ItemError),
     #[error(transparent)]
     Db(#[from] sqlx::Error),
 }
@@ -170,8 +174,8 @@ struct ValidRule {
 }
 
 /// `AutoSortRule.changeset/2` over `ReplaceAutoSortRules.rule_attrs/1`.
-fn validate(input: &RuleInput, target_location_id: i64) -> Result<ValidRule, FieldErrors> {
-    let mut errors = FieldErrors::default();
+fn validate(input: &RuleInput, target_location_id: i64) -> Result<ValidRule, ValidationError> {
+    let mut errors = ValidationError::new();
     let name = input.name.clone().filter(|name| !name.is_empty());
     if name.as_deref().is_none_or(|name| name.trim().is_empty()) {
         errors.add("name", "can't be blank");
@@ -278,7 +282,7 @@ pub async fn replace(
             Some(kind) if !kind.is_auto_sort_target() => return Err(AutoSortError::InvalidTarget),
             Some(_) => {}
         }
-        let rule = validate(input, target_id).map_err(|e| AutoSortError::Invalid(e.render()))?;
+        let rule = validate(input, target_id)?;
         let id = sqlx::query_scalar!(
             r#"INSERT INTO collection_auto_sort_rules
                  (name, enabled, priority, target_location_id, color_mode, colors,

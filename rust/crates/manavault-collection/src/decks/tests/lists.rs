@@ -383,7 +383,7 @@ async fn tags_get_distinct_positions_default_colors_and_validation() {
     let error = tags::create_deck_tag(app.db(), deck.id, &tag("Aggro", Some("#00ff00")))
         .await
         .unwrap_err();
-    assert_eq!(error.to_string(), "deck_id has already been taken");
+    assert_eq!(error.to_string(), "deck id has already been taken");
 }
 
 #[tokio::test]

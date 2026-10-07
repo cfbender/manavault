@@ -1,13 +1,14 @@
-//! Treats arguments bound to unprovided variables as absent, like Absinthe.
+//! Treats arguments bound to unprovided variables as absent.
 //!
-//! The frontend declares optional variables and leaves out the ones it does
-//! not want to change, e.g. `UpdateAppearanceSettings($palette: String,
-//! $themeStyle: String)` sent with only `{"palette": "nord"}`. Absinthe drops
-//! an argument whose variable was not provided, so the resolver sees only
-//! `palette` and keeps the stored theme style. async-graphql instead resolves
-//! the unprovided variable to `null`, which resolvers read as "clear this
-//! value" (`theme_style can't be blank`). Found in the browser walkthrough of
-//! the React frontend against the Rust backend.
+//! The GraphQL spec's `CoerceVariableValues` leaves an unprovided nullable
+//! variable out of the coerced variable set, so an argument bound to it is
+//! absent, not `null`. async-graphql instead resolves such a variable to
+//! `null` (`VariableDefinition::default_value` in `async-graphql-parser`),
+//! which resolvers read as "clear this value". The frontend relies on the
+//! spec behavior: `UpdateAppearanceSettings($palette: String, $themeStyle:
+//! String)` sent with only `{"palette": "nord"}` must keep the stored theme
+//! style, and `MaybeUndefined<T>` arguments can only tell absence from
+//! `null` when the document itself omits the argument.
 //!
 //! This extension rewrites the parsed document before validation: every
 //! field argument and input-object field whose value is exactly `$name`,
@@ -197,7 +198,7 @@ mod tests {
     use crate::test_support::TestApp;
 
     #[tokio::test]
-    async fn unprovided_variables_leave_settings_unchanged_like_absinthe() {
+    async fn unprovided_variables_leave_settings_unchanged() {
         let app = TestApp::new().await;
         let mutation = "mutation UpdateAppearanceSettings($palette: String, $themeStyle: String) {
             updateAppearanceSettings(palette: $palette, themeStyle: $themeStyle) {

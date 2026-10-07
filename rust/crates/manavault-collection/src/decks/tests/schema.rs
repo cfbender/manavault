@@ -514,7 +514,7 @@ async fn update_deck_updates_deck_fields() {
         .await;
     assert_eq!(
         error_message(&response),
-        "format is invalid, name can't be blank"
+        "name can't be blank, format is invalid"
     );
     let response = app
         .gql(
@@ -1391,7 +1391,7 @@ async fn deck_root_fields_and_payloads_match_the_contract() {
         .gql_data(
             "{ __schema { queryType { fields { name } } mutationType { fields { name } } }
                recordDeckPlayPayload: __type(name: \"RecordDeckPlayPayload\") { fields { name type { name } } }
-               randomDeckField: __type(name: \"RootQueryType\") { fields { name args { name type { kind name } } } } }",
+               randomDeckField: __type(name: \"Query\") { fields { name args { name type { kind name } } } } }",
             json!({}),
         )
         .await;
