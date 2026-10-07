@@ -159,6 +159,44 @@ async fn link_imports_resolving_printings_and_summing_split_entries() {
 }
 
 #[tokio::test]
+async fn archidekt_zones_follow_the_primary_category_and_included_flags() {
+    // lotus difference: Elixir made any card with a Maybeboard category
+    // Considering; lotus only looks at the primary category, and honours the
+    // deck's `includedInDeck` flags. Quantities below one become one.
+    let (app, server) = app_with_archidekt().await;
+    server.reset().await;
+    Mock::given(method("GET"))
+        .and(path("/api/decks/123456/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "name": "Remote",
+            "categories": [
+                {"name": "Ramp", "includedInDeck": true},
+                {"name": "Ideas", "includedInDeck": false}
+            ],
+            "cards": [
+                entry("Black Lotus", "scryfall-printing-1", 0, &["Ramp", "Maybeboard"], "Normal"),
+                entry("Time Walk", "scryfall-printing-2", 1, &["Ideas"], "Normal")
+            ]
+        })))
+        .mount(&server)
+        .await;
+    let deck = create_deck(&app, "Categories", None, None).await;
+    external::link(&app.state, deck.id, URL).await.unwrap();
+    let zones: Vec<(String, Zone, u32)> = deck_cards(&app, deck.id)
+        .await
+        .into_iter()
+        .map(|row| (row.oracle_id.to_string(), row.zone, row.quantity.get()))
+        .collect();
+    assert_eq!(
+        zones,
+        vec![
+            ("oracle-1".into(), Zone::Mainboard, 1),
+            ("oracle-2".into(), Zone::Considering, 1)
+        ]
+    );
+}
+
+#[tokio::test]
 async fn link_falls_back_to_name_resolution() {
     let (app, server) = app_with_archidekt().await;
     stub(

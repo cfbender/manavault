@@ -559,6 +559,54 @@ pub async fn bulk_delete(
     Ok(rows)
 }
 
+/// Printings that offer `finish`, keyed by price (unpriced last), release
+/// date, set code, and collector number (`Decks.Printings`).
+fn printings_by_price<'a>(
+    printings: &'a [Printing],
+    finish: Finish,
+    prices: &crate::pricing::PriceStore,
+) -> impl Iterator<Item = (Option<i64>, &'a Printing)> {
+    printings
+        .iter()
+        .filter(move |printing| printing.finish_list().iter().any(|f| f == finish.as_str()))
+        .map(move |printing| {
+            (
+                printing.price_cents_for(prices, Some(finish.as_str())),
+                printing,
+            )
+        })
+}
+
+fn price_order(
+    (price_a, a): &(Option<i64>, &Printing),
+    (price_b, b): &(Option<i64>, &Printing),
+) -> std::cmp::Ordering {
+    price_a
+        .unwrap_or(999_999_999)
+        .cmp(&price_b.unwrap_or(999_999_999))
+        .then_with(|| {
+            a.released_at
+                .as_deref()
+                .unwrap_or("9999-12-31")
+                .cmp(b.released_at.as_deref().unwrap_or("9999-12-31"))
+        })
+        .then_with(|| a.set_code.cmp(&b.set_code))
+        .then_with(|| a.collector_number.cmp(&b.collector_number))
+}
+
+/// The cheapest printing in the deck card's finish, unpriced printings last
+/// (`Decks.Printings.cheapest_printing/1`).
+#[must_use]
+pub fn cheapest_printing<'a>(
+    printings: &'a [Printing],
+    finish: Finish,
+    prices: &crate::pricing::PriceStore,
+) -> Option<&'a Printing> {
+    printings_by_price(printings, finish, prices)
+        .min_by(price_order)
+        .map(|(_, printing)| printing)
+}
+
 /// The cheapest priced printing of the card in the deck card's finish
 /// (`Decks.Printings.cheapest_priced_printing/1`); ties go to the oldest
 /// release, then set code and collector number.
@@ -568,26 +616,9 @@ pub fn cheapest_priced_printing<'a>(
     finish: Finish,
     prices: &crate::pricing::PriceStore,
 ) -> Option<&'a Printing> {
-    printings
-        .iter()
-        .filter(|printing| printing.finish_list().iter().any(|f| f == finish.as_str()))
-        .filter_map(|printing| {
-            printing
-                .price_cents_for(prices, Some(finish.as_str()))
-                .map(|price| (price, printing))
-        })
-        .min_by(|(price_a, a), (price_b, b)| {
-            price_a
-                .cmp(price_b)
-                .then_with(|| {
-                    a.released_at
-                        .as_deref()
-                        .unwrap_or("9999-12-31")
-                        .cmp(b.released_at.as_deref().unwrap_or("9999-12-31"))
-                })
-                .then_with(|| a.set_code.cmp(&b.set_code))
-                .then_with(|| a.collector_number.cmp(&b.collector_number))
-        })
+    printings_by_price(printings, finish, prices)
+        .filter(|(price, _)| price.is_some())
+        .min_by(price_order)
         .map(|(_, printing)| printing)
 }
 
