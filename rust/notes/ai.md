@@ -124,3 +124,8 @@ list analysis) and plausibly the-gathering both need; ported locally in
 - Note: `cargo fmt --check` already fails on `rust-backend` for module order in
   `catalog/mod.rs`, `catalog/scryfall/mod.rs`, and `lib.rs`; I left those
   files as they were.
+- Pre-existing flake (not from this port, reproduced on `rust-backend` at
+  8f38e2d): `web::tests::graphql_csrf::transport_batches_run_each_query`
+  fails about one run in five to ten — the non-batched response sometimes
+  serializes `appearanceSettings` before `backupSettings` instead of in query
+  order.
