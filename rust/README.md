@@ -1,53 +1,70 @@
-# Rust workspace (spike)
+# Rust backend
 
-An experiment in porting ManaVault's backend to Rust for compile-time type
-safety. It is not wired into the running app; the Elixir backend is still the
-source of truth. Tracked in Backlog as TASK-92.
+A port of ManaVault's Elixir/Phoenix backend (`lib/`) to Rust. It serves the
+same GraphQL schemas, HTTP routes, sessions, and background jobs over the same
+SQLite database, so the React frontend in `assets/react` and databases created
+by the Elixir app work unchanged.
 
 ## Crates
 
-- `mtg-core`: Magic types meant to be shared with the-gathering, such as
-  Scryfall ids, finishes, and conditions. The `sqlx` feature lets them be
-  stored in SQLite columns.
-- `manavault-allocation`: deck allocation (allocate, deallocate, and
-  single-card status), ported from `Manavault.Catalog.Decks.DeckCardAllocation`,
-  `AllocationItems`, and `AllocationStatus`.
+- `manavault-server`: the backend (`manavault` binary). Axum for HTTP,
+  async-graphql for the GraphQL APIs, sqlx for SQLite, and
+  [lotus](https://github.com/cfbender/lotus) for the Magic domain types,
+  Scryfall parsing, and decklist sources shared with the-gathering.
+- `manavault-allocation`: reserving physical collection copies for deck cards
+  (allocate, deallocate, status), with the allocation invariants in types.
 
 ## Commands
 
-Run these from the repository root:
+Run from the repository root:
 
 ```sh
 mise install rust sqlite
 mise run rust:check          # cargo fmt --check, clippy -D warnings, cargo test
-mise run rust:sqlx-prepare   # after a migration or a query change
+mise run rust:dev            # serve the dev database on $PORT (default 4000)
+mise run rust:sqlx-prepare   # after a migration: ecto.dump + regenerate .sqlx
+mise run rust:sqlx-metadata  # after a query change: regenerate .sqlx from structure.sql
 ```
+
+`manavault hash-password <password>` prints a `MANAVAULT_ADMIN_PASSWORD_HASH`
+value, and `manavault sdl` prints the owner GraphQL schema.
+
+## Configuration
+
+The binary reads the same environment variables as `config/runtime.exs`
+(`PORT`, `DATA_DIR`, `DATABASE_PATH`, `SECRET_KEY_BASE`, `PHX_HOST`,
+`MANAVAULT_ADMIN_PASSWORD_HASH`, `MANAVAULT_AUTH_DISABLED`, ...).
+`MANAVAULT_ENV` (`prod` by default, or `dev`/`test`) plays the role of
+`MIX_ENV`. Because sessions, CSRF tokens, and stored credentials use Plug's
+and `Manavault.Encrypted.Binary`'s formats, switching a deployment between the
+two backends with the same `SECRET_KEY_BASE` keeps users signed in and keeps
+saved API keys readable.
 
 ## Schema and query checking
 
 The Ecto migrations remain the only schema definition. `mix ecto.dump` writes
-`priv/repo/structure.sql`, and two things read that file:
+`priv/repo/structure.sql`, which is used three ways:
 
-- **sqlx query macros.** `rust:sqlx-prepare` loads the dump into
-  `target/schema.db`, compiles every query against it, and records the results
-  in `.sqlx/`. Normal builds read `.sqlx/` (`SQLX_OFFLINE=true` in
+- **New databases.** The server embeds it and creates the schema from it when
+  the database is empty. An existing database must already contain every
+  migration listed in it.
+- **sqlx query macros.** `rust:sqlx-metadata` loads it into
+  `target/schema.db`, compiles every `query!` against it, and records the
+  results in `.sqlx/`. Normal builds read `.sqlx/` (`SQLX_OFFLINE=true` in
   `.cargo/config.toml`), so they never need a database.
-- **Integration tests.** Each test loads the dump into a fresh in-memory
-  database.
+- **Tests.** Each test loads it into a fresh database file.
 
-CI recompiles the queries against `structure.sql` and then runs
-`rust:check`. A query that no longer matches the schema, or a query whose
-`.sqlx/` entry is missing, fails the build.
+## Conventions
 
-## Guardrails
-
-Workspace lints forbid `unsafe` and deny `unwrap`, `expect`, `panic!`,
-indexing, and `as` casts outside tests. Tests may use `expect`.
-
-The domain model rejects bad data where it enters:
-
-- Text columns with fixed values decode into enums.
-- `Quantity` cannot be zero or negative.
-- Inserting an allocation requires an `AllocatableDeckCard`. The only way to
-  get one is `DeckCard::allocatable`, which checks the deck's archive status
-  and the card's zone.
+- Workspace lints forbid `unsafe` and deny `unwrap`, `expect`, `panic!`,
+  indexing, and `as` casts outside tests. Restructure with types, `Option`,
+  `?`, `get`, and `TryFrom` instead of allowing them.
+- Make invalid states unrepresentable: lotus ids and `Quantity`, enums for
+  fixed-vocabulary columns, proof types such as `AllocatableDeckCard`.
+- Static SQL uses the checked macros (`sqlx::query!`, `query_as!`,
+  `query_scalar!`); dynamic filters use `QueryBuilder`.
+- Port behavior from the Elixir code and its tests. Where the Elixir code has
+  a bug, fix it here, document it at the item, and list it below.
+- GraphQL types, fields, arguments, nullability, and error messages match the
+  Absinthe schema. `python3 rust/scripts/sdl_diff.py` compares
+  `mix absinthe.schema.sdl` output with `manavault sdl`.

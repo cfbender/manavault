@@ -45,6 +45,17 @@ run = [
   "cargo test --locked",
 ]
 
+[tasks."rust:schema-db"]
+description = "Load priv/repo/structure.sql into rust/target/schema.db for sqlx compile-time query checking."
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+cd rust
+mkdir -p target
+rm -f target/schema.db
+grep -v '^CREATE TABLE sqlite_' ../priv/repo/structure.sql | sqlite3 target/schema.db
+'''
+
 [tasks."rust:sqlx-prepare"]
 description = "Dump the Ecto schema to priv/repo/structure.sql and regenerate the sqlx query metadata in rust/.sqlx."
 run = '''
@@ -53,16 +64,32 @@ set -euo pipefail
 mix ecto.dump
 # Migration timestamps differ per machine; blank them so the dump is reproducible.
 sed -i -E "s/^(INSERT INTO schema_migrations VALUES\([0-9]+),'[^']*'\);$/\1,NULL);/" priv/repo/structure.sql
+mise run rust:sqlx-metadata
+'''
+
+[tasks."rust:sqlx-metadata"]
+description = "Regenerate rust/.sqlx from the current priv/repo/structure.sql (no Elixir needed)."
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+mise run rust:schema-db
 cd rust
-mkdir -p target
-rm -f target/schema.db
-grep -v '^CREATE TABLE sqlite_' ../priv/repo/structure.sql | sqlite3 target/schema.db
 rm -rf .sqlx && mkdir .sqlx
 # Query macros only re-expand when their crate recompiles.
 find crates -name '*.rs' -exec touch {} +
 SQLX_OFFLINE=false DATABASE_URL="sqlite://$PWD/target/schema.db?mode=ro" SQLX_OFFLINE_DIR="$PWD/.sqlx" \
   cargo check --workspace --all-targets
 '''
+
+[tasks."rust:dev"]
+description = "Run the Rust backend against the development database (port $PORT, default 4000)."
+dir = "rust"
+run = "MANAVAULT_ENV=dev MANAVAULT_ROOT=.. cargo run --bin manavault"
+
+[tasks."rust:test"]
+description = "Run the Rust test suite."
+dir = "rust"
+run = "cargo test --workspace --locked"
 
 [tasks.changelog]
 description = "Generate CHANGELOG.md for the next major/minor/patch version."

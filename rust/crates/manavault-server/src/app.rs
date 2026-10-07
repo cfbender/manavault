@@ -41,7 +41,9 @@ pub async fn build_state(config: Config, logs: LogHub) -> Result<AppState, Start
     let pool = crate::db::connect(&config.database_path, config.pool_size).await?;
     crate::db::prepare(&pool).await?;
     let jobs = Jobs::new(pool.clone(), workers());
-    Ok(AppState::new(config, pool, logs, jobs)?)
+    let state = AppState::new(config, pool, logs, jobs)?;
+    state.prices.refresh(&state.db).await?;
+    Ok(state)
 }
 
 /// Builds the HTTP router for a state.

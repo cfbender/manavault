@@ -12,6 +12,7 @@ pub mod db;
 pub mod graphql;
 pub mod jobs;
 pub mod logs;
+pub mod pricing;
 pub mod state;
 pub mod timefmt;
 pub mod web;

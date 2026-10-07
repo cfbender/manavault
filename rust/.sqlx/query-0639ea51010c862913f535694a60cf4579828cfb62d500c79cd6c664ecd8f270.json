@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT scryfall_id AS \"scryfall_id!\", finish AS \"finish!\", price_cents FROM vendor_prices WHERE vendor = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "scryfall_id!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "vendor_prices",
+            "name": "scryfall_id"
+          }
+        }
+      },
+      {
+        "name": "finish!",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "vendor_prices",
+            "name": "finish"
+          }
+        }
+      },
+      {
+        "name": "price_cents",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "vendor_prices",
+            "name": "price_cents"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "0639ea51010c862913f535694a60cf4579828cfb62d500c79cd6c664ecd8f270"
+}

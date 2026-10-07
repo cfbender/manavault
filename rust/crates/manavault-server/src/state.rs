@@ -50,6 +50,8 @@ pub struct Inner {
     pub logs: LogHub,
     pub jobs: Jobs,
     pub cache: Cache,
+    /// Vendor prices for the active price source.
+    pub prices: crate::pricing::PriceStore,
 }
 
 /// Cheaply cloneable handle to [`Inner`].
@@ -93,6 +95,7 @@ impl AppState {
             logs,
             jobs,
             cache,
+            prices: crate::pricing::PriceStore::new(),
         })))
     }
 

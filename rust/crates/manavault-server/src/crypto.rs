@@ -301,7 +301,7 @@ mod etf {
             match value {
                 SessionValue::Text(text) => put_binary(&mut out, text),
                 SessionValue::Bool(flag) => {
-                    put_atom(&mut out, if *flag { "true" } else { "false" })
+                    put_atom(&mut out, if *flag { "true" } else { "false" });
                 }
                 SessionValue::Int(value) => match i32::try_from(*value) {
                     Ok(small) => {
