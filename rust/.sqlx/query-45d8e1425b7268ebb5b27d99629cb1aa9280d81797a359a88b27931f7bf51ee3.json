@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT palette, theme_style FROM appearance_settings WHERE id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "palette",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "appearance_settings",
+            "name": "palette"
+          }
+        }
+      },
+      {
+        "name": "theme_style",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "appearance_settings",
+            "name": "theme_style"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "45d8e1425b7268ebb5b27d99629cb1aa9280d81797a359a88b27931f7bf51ee3"
+}

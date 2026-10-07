@@ -52,6 +52,11 @@ pub struct Inner {
     pub cache: Cache,
     /// Vendor prices for the active price source.
     pub prices: crate::pricing::PriceStore,
+    /// Failed login windows (`Auth.AttemptLimiter`).
+    pub login_attempts: crate::auth::AttemptLimiter,
+    /// Public share and personal API request budget
+    /// (`PublicShareRequestLimiter`).
+    pub public_requests: crate::web::rate_limit::PublicShareRequestLimiter,
 }
 
 /// Cheaply cloneable handle to [`Inner`].
@@ -96,6 +101,8 @@ impl AppState {
             jobs,
             cache,
             prices: crate::pricing::PriceStore::new(),
+            login_attempts: crate::auth::AttemptLimiter::new(),
+            public_requests: crate::web::rate_limit::PublicShareRequestLimiter::new(),
         })))
     }
 
