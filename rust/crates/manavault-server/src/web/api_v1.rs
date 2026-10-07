@@ -4,17 +4,20 @@
 //! [`crate::api_keys::ApiKey`] is left in the request extensions.
 
 use axum::Router;
-use axum::extract::{Request, State};
+use std::collections::HashMap;
+
+use axum::extract::{Query, Request, State};
 use axum::http::header::{AUTHORIZATION, RETRY_AFTER};
 use axum::http::{HeaderValue, StatusCode};
 use axum::middleware::{Next, from_fn_with_state};
 use axum::response::{IntoResponse, Response};
 
+use super::WebState;
 use super::client_ip;
 use super::rate_limit::Admission;
 use crate::state::AppState;
 
-fn error(status: StatusCode, code: &str, message: &str) -> Response {
+fn error_response(status: StatusCode, code: &str, message: &str) -> Response {
     (
         status,
         axum::Json(serde_json::json!({"error": {"code": code, "message": message}})),
@@ -23,7 +26,7 @@ fn error(status: StatusCode, code: &str, message: &str) -> Response {
 }
 
 fn unauthorized() -> Response {
-    error(
+    error_response(
         StatusCode::UNAUTHORIZED,
         "unauthorized",
         "A valid Bearer API key is required",
@@ -54,7 +57,7 @@ pub async fn authenticate(
         .public_requests
         .check(&state.config.public_share_rate_limit, &client_id)
     {
-        let mut response = error(
+        let mut response = error_response(
             StatusCode::TOO_MANY_REQUESTS,
             "rate_limited",
             "Too many API requests",
@@ -80,19 +83,128 @@ pub async fn authenticate(
     }
 }
 
-/// Placeholder for `GET /api/v1/decks` (`Api.V1.DeckController.index`).
-async fn decks_placeholder() -> Response {
-    error(
-        StatusCode::NOT_IMPLEMENTED,
-        "not_implemented",
-        "The decks API is not available yet",
-    )
+/// `page`/`per_page` query values (`positive_integer/2`): a positive
+/// integer, else the default.
+fn positive_integer(value: Option<&str>, default: i64) -> i64 {
+    value
+        .and_then(|value| value.parse::<i64>().ok())
+        .filter(|number| *number > 0)
+        .unwrap_or(default)
+}
+
+/// One deck of `GET /api/v1/decks` (`DeckController.serialize_deck/2`).
+/// Fields are in Jason's order for small maps (sorted keys).
+#[derive(Debug, serde::Serialize)]
+struct ApiDeck {
+    #[serde(rename = "cardCount")]
+    card_count: u32,
+    #[serde(rename = "commanderColorIdentity")]
+    commander_color_identity: Option<Vec<String>>,
+    commanders: Vec<String>,
+    format: &'static str,
+    id: i64,
+    name: String,
+    public_share_url: Option<String>,
+    publicly_shared: bool,
+    updated_at: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+struct Pagination {
+    page: i64,
+    per_page: i64,
+    total: i64,
+    total_pages: i64,
+}
+
+#[derive(Debug, serde::Serialize)]
+struct DeckIndex {
+    data: Vec<ApiDeck>,
+    pagination: Pagination,
+}
+
+const DEFAULT_PER_PAGE: i64 = 50;
+const MAX_PER_PAGE: i64 = 100;
+
+async fn deck_index(
+    state: &AppState,
+    query: &HashMap<String, String>,
+) -> Result<DeckIndex, sqlx::Error> {
+    let page = positive_integer(query.get("page").map(String::as_str), 1);
+    let per_page = positive_integer(query.get("per_page").map(String::as_str), DEFAULT_PER_PAGE)
+        .min(MAX_PER_PAGE);
+    let total = crate::decks::records::count_decks(&state.db).await?;
+    let offset = page.saturating_sub(1).saturating_mul(per_page);
+    let decks = crate::decks::records::list_decks(&state.db, offset, per_page).await?;
+    let ids: Vec<_> = decks.iter().map(|deck| deck.id).collect();
+    let mut contents = crate::decks::contents::load_contents(&state.db, &ids).await?;
+    let data = decks
+        .into_iter()
+        .map(|deck| {
+            let contents = contents.remove(&deck.id).unwrap_or_default();
+            let summary = contents.summary(deck.cover_deck_card_id);
+            let public_share_url = deck.share_token.as_deref().map(|token| {
+                super::app_shell::absolute_url(
+                    state,
+                    &format!(
+                        "/share/decks/{}",
+                        crate::share::pages::encode_path_segment(token)
+                    ),
+                )
+            });
+            ApiDeck {
+                card_count: summary.card_count,
+                commander_color_identity: summary.commander_color_identity,
+                commanders: contents
+                    .cards
+                    .iter()
+                    .filter(|card| card.row.zone == lotus::Zone::Commander)
+                    .map(|card| card.card.name.clone())
+                    .collect(),
+                format: deck.format.as_str(),
+                id: deck.id.0,
+                name: deck.name,
+                publicly_shared: public_share_url.is_some(),
+                public_share_url,
+                updated_at: crate::timefmt::iso8601(&deck.updated_at),
+            }
+        })
+        .collect();
+    Ok(DeckIndex {
+        data,
+        pagination: Pagination {
+            page,
+            per_page,
+            total,
+            // `ceil(total / per_page)`.
+            total_pages: (total + per_page - 1) / per_page,
+        },
+    })
+}
+
+/// `GET /api/v1/decks` (`Api.V1.DeckController.index`): the owner's decks
+/// by name, paginated, with public share links built from the configured
+/// URL (never the request's `Host`).
+async fn decks(
+    State(state): State<AppState>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Response {
+    match deck_index(&state, &query).await {
+        Ok(index) => axum::Json(index).into_response(),
+        Err(error) => {
+            tracing::error!(%error, "could not list decks for the API");
+            error_response(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "internal_error",
+                "Something went wrong",
+            )
+        }
+    }
 }
 
 /// The `/api/v1` routes.
-pub fn routes<S: Clone + Send + Sync + 'static>() -> Router<S> {
-    // TODO(decks): replace with the deck module's `DeckController.index` port.
-    Router::new().route("/api/v1/decks", axum::routing::get(decks_placeholder))
+pub fn routes() -> Router<WebState> {
+    Router::new().route("/api/v1/decks", axum::routing::get(decks))
 }
 
 /// Wraps `/api/v1` routes in the API key middleware.

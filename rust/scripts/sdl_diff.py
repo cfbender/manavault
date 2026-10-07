@@ -20,14 +20,13 @@ def strip(sdl):
 
 def parse(sdl):
     types = {}
-    # The header may only hold an `implements` clause, so a body-less
-    # definition (`scalar Json`) does not swallow the definition after it.
-    definition = (
-        r"\b(type|input|interface|enum|scalar|union|schema)\s*(\w*)"
-        r"((?:\s+implements\s+&?\s*\w+(?:\s*[&,]\s*\w+)*)?)"
-        r"\s*(\{([^{}]*)\}|=[^\n]*)?"
-    )
-    for match in re.finditer(definition, strip(sdl)):
+    sdl = strip(sdl)
+    # Scalars have no body; take them out first so the next definition's
+    # body is not read as theirs.
+    for name in re.findall(r"\bscalar\s+(\w+)", sdl):
+        types[f"scalar {name}"] = ((), {})
+    sdl = re.sub(r"\bscalar\s+\w+", "", sdl)
+    for match in re.finditer(r"\b(type|input|interface|enum|union|schema)\s+(\w*)([^{}=]*)(\{([^{}]*)\}|=[^\n]*)?", sdl):
         kind, name, header, _, body = match.groups()
         if kind == "schema":
             continue

@@ -3,7 +3,8 @@
 //! - `manavault` (or `manavault serve`): run the server.
 //! - `manavault hash-password <password>`: print an owner password hash
 //!   (`mix manavault.auth.hash`).
-//! - `manavault sdl`: print the owner GraphQL schema.
+//! - `manavault sdl [--public]`: print the owner GraphQL schema, or the
+//!   public share schema (`/share/graphql`) with `--public`.
 //! - `manavault unban CLIENT_ID | --all`: clear login bans
 //!   (`mix manavault.auth.unban`).
 //! - `manavault backup [-o DIR] [--data-dir DIR] [--database PATH]`: write a
@@ -32,10 +33,20 @@ async fn main() -> ExitCode {
             println!("{}", manavault_server::crypto::hash_password(password));
             ExitCode::SUCCESS
         }
-        Some("sdl") => {
-            print!("{}", manavault_server::graphql::sdl());
-            ExitCode::SUCCESS
-        }
+        Some("sdl") => match args.get(1).map(String::as_str) {
+            None => {
+                print!("{}", manavault_server::graphql::sdl());
+                ExitCode::SUCCESS
+            }
+            Some("--public") => {
+                print!("{}", manavault_server::share::sdl());
+                ExitCode::SUCCESS
+            }
+            Some(_) => {
+                eprintln!("usage: manavault sdl [--public]");
+                ExitCode::FAILURE
+            }
+        },
         None | Some("serve") => serve().await,
         Some("unban") => {
             finish(manavault_server::cli::unban(args.get(1..).unwrap_or_default()).await)

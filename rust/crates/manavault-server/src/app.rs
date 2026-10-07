@@ -21,6 +21,7 @@ pub fn workers() -> Vec<Arc<dyn Worker>> {
         Arc::new(crate::decks::external::ExternalDeckSyncWorker),
         Arc::new(crate::ai::workers::DeckAnalysisWorker),
         Arc::new(crate::ai::workers::DeckQuestionWorker),
+        Arc::new(crate::share::preview::render_worker::RenderWorker),
     ]
 }
 
