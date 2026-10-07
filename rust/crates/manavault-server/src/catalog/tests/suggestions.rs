@@ -1,4 +1,4 @@
-//! Card name suggestions, ported from `card_name_suggestions_test.exs`.
+//! Card name suggestions.
 
 use serde_json::{Value, json};
 

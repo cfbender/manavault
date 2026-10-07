@@ -138,9 +138,9 @@ impl CardQueries {
             .collect())
     }
 
-    /// Elixir bug: EDHREC failures returned a bare error tuple, which Absinthe
-    /// cannot render, so the request crashed. Failures are GraphQL errors
-    /// worded like `Errors.edhrec_error/1` here.
+    /// Bug in earlier releases: EDHREC failures returned a bare error value
+    /// the GraphQL layer could not render, so the request crashed. Failures
+    /// are GraphQL errors worded like other EDHREC errors here.
     async fn card_edhrec(&self, ctx: &Context<'_>, name: String) -> Result<CardEdhrec> {
         let app = state(ctx);
         let page = edhrec::fetch_card_page(&app.http, &app.config.edhrec_json_base_url, &name)

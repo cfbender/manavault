@@ -1,5 +1,4 @@
-//! Collection item CRUD, listings, filters, sorting, and totals
-//! (`collection_test.exs`, `catalog_test.exs`).
+//! Collection item CRUD, listings, filters, sorting, and totals.
 
 use async_graphql::MaybeUndefined;
 use pretty_assertions::assert_eq;
@@ -159,7 +158,7 @@ async fn creating_coerces_an_unavailable_finish_and_rejects_missing_references()
     .await
     .unwrap_err();
     assert_eq!(error.to_string(), "scryfall_id does not exist");
-    // A finish error comes before the reference checks, as in Ecto.
+    // A finish error comes before the reference checks.
     let error = changes::create(
         app.db(),
         &app.state.prices,

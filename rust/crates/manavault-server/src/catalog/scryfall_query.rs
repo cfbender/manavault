@@ -75,7 +75,7 @@ macro_rules! fields {
         }
 
         impl Field {
-            /// The field's internal name (the Elixir atom).
+            /// The field's internal name.
             #[must_use]
             pub fn name(self) -> &'static str {
                 match self {
@@ -169,7 +169,7 @@ impl Field {
     }
 
     /// Normalizes a user-typed field name: aliases, then canonical names
-    /// (Elixir resolved those with `String.to_existing_atom/1`), else
+    /// (the fields' internal names), else
     /// [`Field::Unknown`].
     fn normalize(raw: &str) -> Self {
         let normalized = raw.to_lowercase().replace('-', "_");
@@ -232,7 +232,8 @@ enum Token {
 }
 
 impl Token {
-    /// `inspect/1` of the Elixir token, for error messages.
+    /// The token as error messages have always shown it (`{:word, "x"}`,
+    /// `:or`, ...).
     fn inspect(&self) -> String {
         match self {
             Self::Word(word) => format!("{{:word, {word:?}}}"),

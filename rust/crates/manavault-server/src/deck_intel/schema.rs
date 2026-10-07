@@ -25,7 +25,8 @@ fn count(value: u32) -> i64 {
     i64::from(value)
 }
 
-/// `DeckDisassemblyMove`. Ids are raw database ids, as in the Elixir maps.
+/// `DeckDisassemblyMove`. Ids are raw database ids, as earlier releases
+/// returned them.
 #[derive(Debug, Clone, SimpleObject)]
 pub struct DeckDisassemblyMove {
     pub collection_item_id: ID,

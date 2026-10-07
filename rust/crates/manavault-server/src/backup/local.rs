@@ -183,7 +183,7 @@ fn backup_existing_data(paths: &Paths, stamp: &str) -> Result<(), BackupError> {
 ///
 /// The old database's `-wal`/`-shm` files are removed after the copy: left
 /// in place, SQLite would replay the old write-ahead log onto the restored
-/// file. (The Elixir restore leaves them, which corrupts a restore over a
+/// file. (Earlier releases left them, which corrupts a restore over a
 /// database that was not checkpointed.)
 pub fn restore(artifact: &Path, paths: &Paths) -> Result<PathBuf, BackupError> {
     if !artifact.exists() {

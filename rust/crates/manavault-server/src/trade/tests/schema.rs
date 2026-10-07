@@ -1,5 +1,4 @@
-//! `deck_diff_ids_test.exs` and the trade parts of
-//! `schema_domain_contract_test.exs`.
+//! Deck diff ids and the trade parts of the schema's domain contract.
 
 use serde_json::{Value, json};
 

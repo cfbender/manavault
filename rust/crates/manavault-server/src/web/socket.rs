@@ -1,6 +1,6 @@
-//! `/socket/websocket`: the Phoenix Channels transport that `@absinthe/socket`
-//! uses for GraphQL subscriptions (`ManavaultWeb.UserSocket` with
-//! `Absinthe.Phoenix.Socket`).
+//! `/socket/websocket`: the Phoenix Channels wire protocol that the
+//! frontend's `phoenix` npm client and `@absinthe/socket` use for GraphQL
+//! subscriptions.
 //!
 //! Protocol (serializer `vsn=2.0.0`; `1.0.0` object frames also work):
 //! frames are `[join_ref, ref, topic, event, payload]` JSON arrays.
@@ -16,8 +16,8 @@
 //!
 //! Connecting needs an allowed `Origin` (`AllowedOrigins`) and, unless auth
 //! is disabled, the owner's session cookie with the page's masked CSRF token
-//! as the `_csrf_token` parameter (Phoenix only exposes the session to
-//! `connect/3` when that token matches).
+//! as the `_csrf_token` parameter (the session is only read when that
+//! token matches).
 
 use std::collections::HashMap;
 use std::time::Duration;
@@ -39,7 +39,8 @@ use crate::graphql::AppSchema;
 
 /// The Absinthe control topic.
 pub const CONTROL_TOPIC: &str = "__absinthe__:control";
-/// Phoenix closes a socket that sends nothing (not even heartbeats) for this long.
+/// A socket that sends nothing (not even heartbeats) for this long is closed,
+/// as Phoenix Channels servers do.
 const IDLE_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// Whether a socket may connect (`UserSocket.connect/3`).
@@ -89,7 +90,8 @@ pub async fn websocket(
     if !authorized(&web.app, &session, params.csrf_token.as_deref()) {
         return StatusCode::FORBIDDEN.into_response();
     }
-    // Phoenix defaults to the 1.0.0 serializer when `vsn` is missing.
+    // The Phoenix Channels protocol defaults to the 1.0.0 serializer when
+    // `vsn` is missing.
     let v2 = params
         .vsn
         .as_deref()

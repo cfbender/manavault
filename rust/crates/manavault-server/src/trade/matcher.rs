@@ -54,8 +54,8 @@ pub async fn match_list(
     resolved: Resolved,
 ) -> Result<MatchResult, sqlx::Error> {
     let entry_count = i64::try_from(resolved.entries.len()).unwrap_or(i64::MAX);
-    // Keyed by oracle id in order, like the Elixir map the result is built
-    // from, so ties in the card-name sort come out the same way.
+    // Keyed by oracle id in order, so ties in the card-name sort come out the
+    // same way as in earlier releases.
     let mut aggregates: BTreeMap<OracleId, Aggregate> = BTreeMap::new();
     for entry in resolved.entries {
         let Some(oracle_id) = entry.oracle_id else {

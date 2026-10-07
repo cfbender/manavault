@@ -1,5 +1,5 @@
-//! Runtime configuration, read from the same environment variables the
-//! Elixir release reads in `config/runtime.exs`.
+//! Runtime configuration, read from the same environment variables earlier
+//! releases read.
 
 use std::path::PathBuf;
 use std::time::Duration;

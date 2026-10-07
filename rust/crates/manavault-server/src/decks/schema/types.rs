@@ -368,7 +368,7 @@ crate::connection_types!(DeckCardConnection, DeckCardEdge, DeckCard);
 
 /// `DeckCardAllocationStatus`: a deck card's allocation status, or a
 /// suggested card's collection status (EDHREC, Recommander), presented with
-/// the Elixir status maps' `state` strings.
+/// the established `state` strings.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeckCardAllocationStatus {
     pub status: AllocationStatus,
@@ -376,7 +376,7 @@ pub struct DeckCardAllocationStatus {
     deck_zone: Option<Zone>,
 }
 
-/// The `state` strings of the Elixir status maps.
+/// The `state` string of an allocation state.
 #[must_use]
 pub fn state_name(state: AllocationState) -> &'static str {
     match state {

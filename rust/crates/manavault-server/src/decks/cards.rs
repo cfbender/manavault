@@ -411,7 +411,7 @@ pub async fn update_deck_card(
 /// Moving a card to Considering releases its copies and proxies. A printing
 /// or finish change releases the copies and reserves the same number of the
 /// new printing where available. A lower quantity releases the copies that
-/// no longer fit; the Elixir `UpdateDeckCard` skipped this (only swaps and
+/// no longer fit; earlier releases skipped this (only swaps and
 /// syncs trimmed), leaving more copies reserved than the card needs.
 pub async fn update_in(
     conn: &mut SqliteConnection,
@@ -573,9 +573,8 @@ fn printings_by_price<'a>(
 /// Cheapest first, then oldest release, then set code and collector number
 /// (`Decks.Printings.printing_sort_key/2`).
 ///
-/// Elixir bug (not ported): the key puts `released_at` `Date` structs in a
-/// tuple sorted with `Enum.sort_by/2`, i.e. in Erlang term order, which
-/// compares a `Date` by day, then month, then year. Price ties therefore went
+/// Bug in earlier releases (not kept): the sort key compared `released_at`
+/// dates structurally, by day, then month, then year. Price ties therefore went
 /// to the printing released on the lowest day of the month (Delver of
 /// Secrets: MID 2021-09-24 before ISD 2011-09-30). Dates compare
 /// chronologically here; the parity harness lists the affected buylists.
@@ -665,7 +664,7 @@ pub async fn optimize_printings(
 
 /// Moves a card to `zone`, merging into the deck's existing row for the card
 /// there (`SetDeckCommander.move_to_zone!/2`). Merged rows keep the moved
-/// card's reservations; Elixir deleted the moved row and the database
+/// card's reservations; earlier releases deleted the moved row and the database
 /// cascade dropped its reservations, stranding the reserved copies outside
 /// any location.
 async fn move_to_zone(

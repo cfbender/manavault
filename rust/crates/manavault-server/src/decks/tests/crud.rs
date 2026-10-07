@@ -1,4 +1,4 @@
-//! `deck_crud_test.exs` and `deck_legality_test.exs`.
+//! Deck CRUD and deck legality.
 
 use lotus::{Finish, Zone};
 use serde_json::json;
@@ -419,7 +419,7 @@ async fn stats_total_excludes_considering_cards() {
 
 #[tokio::test]
 async fn reducing_a_quantity_releases_copies_that_no_longer_fit() {
-    // Elixir's UpdateDeckCard left these reserved (fixed here).
+    // Earlier releases left these reserved (fixed here).
     let app = TestApp::new().await;
     app.import_cards(&[black_lotus()]).await;
     let binder = location(&app, "Binder", "binder").await;
@@ -546,7 +546,7 @@ async fn moving_to_considering_releases_copies_and_proxies() {
     assert_eq!(item_location(&app, item).await, Some(binder.0));
 }
 
-// --- deck_legality_test.exs ---
+// --- deck legality ---
 
 async fn commander_deck(app: &TestApp, name: &str) -> DeckId {
     create_deck(app, name, Some("commander"), None).await.id

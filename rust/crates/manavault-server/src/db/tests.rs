@@ -5,9 +5,9 @@ use sqlx::SqlitePool;
 use super::*;
 use crate::test_support::TempDir;
 
-/// A ManaVault v1.0.0 database (34 Ecto migrations) created by the Elixir
-/// v1.0.0 release with `mix ecto.migrate`, then filled with owner data
-/// through SQL in v1.0.0's column formats; dumped with `sqlite3 .dump`.
+/// A database from the v1.0.0 release (its own 34 migrations), filled with
+/// owner data through SQL in v1.0.0's column formats; dumped with
+/// `sqlite3 .dump`.
 const V1_0_0_DUMP: &str = include_str!("../../tests/fixtures/manavault-v1.0.0.sql");
 
 async fn pool_at(dir: &TempDir) -> SqlitePool {
@@ -73,7 +73,7 @@ async fn a_new_database_gets_every_migration_and_the_starter_tags() {
             .fetch_one(&pool)
             .await
             .expect("inserted_at");
-    // Ecto's format: naive UTC seconds.
+    // Naive UTC seconds, as earlier releases recorded.
     assert_eq!(inserted_at.len(), 19, "{inserted_at}");
     assert!(!inserted_at.ends_with('Z'));
     let tags: Vec<String> =
@@ -130,7 +130,7 @@ async fn a_fully_migrated_database_is_left_alone() {
     assert_eq!(tags, 4, "data steps do not run again");
 }
 
-/// `Ecto.Migrator` ignores versions it has no file for (a database from a
+/// Migrations ignore versions they have no file for (a database from a
 /// newer release): pending known migrations still run and the unknown row
 /// stays. The server starts and reports the unknown versions.
 #[tokio::test]
@@ -152,7 +152,7 @@ async fn unknown_newer_versions_are_kept_and_reported() {
         .await
         .expect("forget one");
     // The forgotten migration adds columns that exist; re-running it fails
-    // like Ecto would, so restore it and only check the unknown version.
+    // as it should, so restore it and only check the unknown version.
     sqlx::query(
         "INSERT INTO schema_migrations (version, inserted_at) VALUES (?1, '2026-01-01T00:00:00')",
     )
@@ -268,7 +268,7 @@ async fn upgrades_a_v1_0_0_database_with_data() {
     // DeallocateConsideringDeckCards: considering cards hold no copies or
     // proxies. The Bolt item (6 copies; 3 allocated to deck 1's merged row
     // and 2 to deck 2) is split back into its source binder twice without
-    // creating copies (the Elixir step split both from the original 6 and
+    // creating copies (earlier releases split both from the original 6 and
     // ended with 9); the fully allocated Counterspell returns to its box.
     assert_eq!(
         scalar_i64(

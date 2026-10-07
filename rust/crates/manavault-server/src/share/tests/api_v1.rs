@@ -1,4 +1,4 @@
-//! `controllers/api/v1/deck_controller_test.exs`.
+//! The `/api/v1` deck endpoints.
 
 use axum::body::Body;
 use axum::http::Request;

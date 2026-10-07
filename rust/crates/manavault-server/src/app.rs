@@ -25,7 +25,7 @@ pub fn workers() -> Vec<Arc<dyn Worker>> {
     ]
 }
 
-/// The Oban crontab from `config/config.exs`.
+/// The periodic job schedule (crontab).
 #[must_use]
 pub fn crontab() -> Vec<CronEntry> {
     use crate::catalog::scryfall::worker::NAME as SCRYFALL_CATALOG;

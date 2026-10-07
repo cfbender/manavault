@@ -122,7 +122,7 @@ fn paths(config: &Config, options: &PathOptions) -> Paths {
     }
 }
 
-/// `manavault backup` (`mix manavault.backup`).
+/// `manavault backup`: writes a local backup archive.
 pub async fn backup(args: &[String]) -> Result<String, String> {
     let options = parse_options(args, true)?;
     let config = config()?;
@@ -137,7 +137,8 @@ pub async fn backup(args: &[String]) -> Result<String, String> {
     Ok(format!("Created backup: {}", artifact.display()))
 }
 
-/// `manavault restore PATH` (`mix manavault.restore`). Stop the server first.
+/// `manavault restore PATH`: restores a local backup archive. Stop the
+/// server first.
 pub fn restore(args: &[String]) -> Result<String, String> {
     let options = parse_options(args, false)?;
     let [artifact] = options.positional.as_slice() else {

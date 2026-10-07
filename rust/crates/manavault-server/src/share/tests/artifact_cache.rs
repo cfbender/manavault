@@ -1,4 +1,4 @@
-//! `deck_share_preview_artifact_cache_test.exs` (the store's retention and
+//! The deck share preview artifact cache (the store's retention and
 //! the cover fetcher are tested next to their modules).
 
 use std::time::Duration;

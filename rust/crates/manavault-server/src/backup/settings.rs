@@ -224,7 +224,7 @@ pub async fn update(
     let mut errors = Errors::new();
 
     // `enabled` is NOT NULL; an explicit null keeps the saved value instead
-    // of failing the write as Ecto does.
+    // of failing the write as earlier releases did.
     if let MaybeUndefined::Value(enabled) = input.enabled {
         settings.enabled = enabled;
     }
@@ -304,8 +304,8 @@ pub async fn update(
                 ("google_client_secret", &settings.google_client_secret),
                 ("google_refresh_token", &settings.google_refresh_token),
             ],
-            // An unknown provider already failed inclusion; Elixir raises a
-            // CaseClauseError here.
+            // An unknown provider already failed inclusion (earlier releases
+            // crashed here).
             Some(Provider::None) | None => &[],
         };
     for (field, value) in required {

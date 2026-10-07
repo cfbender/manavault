@@ -1,7 +1,6 @@
-//! GraphQL-level ports of `deck_edhrec_test.exs`, `deck_recommander_test.exs`,
-//! `commander_spellbook_test.exs`, `deck_buylist_test.exs`,
-//! `deck_disassembly_test.exs`, and the bulk/pull-list parts of
-//! `test/manavault_web/schema/deck_bulk_allocations_test.exs`.
+//! GraphQL-level tests of deck EDHREC suggestions, Recommander, Commander
+//! Spellbook combos, buylists, disassembly, and bulk and pull-list
+//! allocation.
 
 use manavault_allocation::{
     CollectionItemId, DeckCardId, DeckId, LocationKind, Quantity, allocate,
@@ -383,8 +382,8 @@ async fn deck_edhrec_status_checks_considering_zone_deck_cards() {
     );
 }
 
-/// Copies reserved by any other deck count against a suggested card. The
-/// Elixir code only counted active decks here, although allocated copies
+/// Copies reserved by any other deck count against a suggested card. Earlier
+/// releases only counted active decks here, although allocated copies
 /// have left their location whatever the deck's status.
 #[tokio::test]
 async fn deck_edhrec_counts_copies_allocated_to_other_decks() {
@@ -534,7 +533,7 @@ async fn deck_edhrec_fetches_the_pair_page_and_each_partner_page() {
 }
 
 #[tokio::test]
-async fn deck_edhrec_errors_use_the_elixir_messages() {
+async fn deck_edhrec_errors_use_the_documented_messages() {
     let server = MockServer::start().await;
     let app = app_with(&server).await;
     app.import_cards(&[fixtures::black_lotus(), fixtures::plains()])

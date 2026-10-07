@@ -1,5 +1,4 @@
-//! Collection imports (`collection_test.exs` import tests and
-//! `collection/import_preview_batching_test.exs`).
+//! Collection imports and import preview batching.
 
 use pretty_assertions::assert_eq;
 use serde_json::json;
@@ -88,7 +87,7 @@ async fn csv_preview_resolves_rows_and_applies_one_location() {
         summary,
         [
             (Some(binder.id), 2, Some(9_000_000), "near_mint"),
-            // `LP` is lightly played (the Elixir import read it as near mint).
+            // `LP` is lightly played (earlier releases read it as near mint).
             (Some(binder.id), 1, Some(500), "lightly_played"),
         ]
     );

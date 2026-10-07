@@ -126,7 +126,7 @@ pub async fn load_records(
 }
 
 /// A card as a GraphQL object, optionally with its printings already loaded
-/// (search results and `card(id:)` preload them, like the Elixir code).
+/// (search results and `card(id:)` preload them).
 #[derive(Debug, Clone)]
 pub struct Card {
     pub record: Arc<CardRecord>,

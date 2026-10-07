@@ -35,7 +35,7 @@ pub async fn fetch(http: &reqwest::Client, rulings_uri: &str) -> Option<Vec<Card
 
 /// A card's rulings, cached for six hours per `rulings_uri`.
 ///
-/// Elixir bug: `Cache.external_cached/3` also cached the empty list a failed
+/// Bug in earlier releases: the external cache also cached the empty list a failed
 /// fetch returns, hiding a card's rulings for six hours after one network
 /// error. Only successful fetches are cached here.
 pub async fn card_rulings(state: &AppState, rulings_uri: Option<&str>) -> Vec<CardRuling> {

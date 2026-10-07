@@ -2,7 +2,7 @@
 //! `Collection.{Items, ItemAttrs, BulkUpdateItems, SetTradeQuantity,
 //! DeleteItems}`.
 //!
-//! Attributes follow Ecto's `cast/3` semantics: an absent field keeps its
+//! Attributes are cast field by field: an absent field keeps its
 //! value, `null` (or `""` for text) clears it, and validations of a field run
 //! only when its value changes.
 
@@ -165,7 +165,7 @@ where
     }
 }
 
-/// Ecto's empty values: `""` casts to `nil`.
+/// Empty values: `""` casts to `None`.
 fn cast_text(value: &MaybeUndefined<String>, current: Option<String>) -> Option<String> {
     cast(value, current).filter(|text| !text.is_empty())
 }
@@ -199,9 +199,9 @@ enum Mode {
 /// Applies a changeset (`create_changeset/2` / `update_changeset/2`, then
 /// `ItemAttrs.validate_finish_available/1`).
 ///
-/// Elixir raised on a printing or location that does not exist (SQLite
-/// foreign key errors carry no constraint name); here they are the changeset
-/// errors Ecto's `foreign_key_constraint/2` would have shown.
+/// Earlier releases raised on a printing or location that does not exist
+/// (SQLite foreign key errors carry no constraint name); here they are
+/// "does not exist" validation errors on the field.
 async fn apply(
     conn: &mut SqliteConnection,
     mode: Mode,

@@ -12,7 +12,8 @@ use crate::config::PlatformUrls;
 
 const MIME: &str = "application/zip";
 
-/// Elixir's `inspect/1` of a decoded JSON body, for error messages.
+/// A decoded JSON body in the notation error messages have always used
+/// (`nil`, quoted strings, `%{"key" => value}` maps).
 #[must_use]
 pub fn inspect(value: &Value) -> String {
     match value {
@@ -289,7 +290,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn inspects_json_like_elixir() {
+    fn inspects_json_like_earlier_releases() {
         assert_eq!(
             inspect(&json!({"error": "invalid_grant", "n": 1, "list": [true, null]})),
             r#"%{"error" => "invalid_grant", "list" => [true, nil], "n" => 1}"#

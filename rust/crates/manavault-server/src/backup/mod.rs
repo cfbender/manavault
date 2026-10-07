@@ -1,6 +1,6 @@
 //! Portable data backups (`Manavault.Backup`): local zips, scheduled cloud
 //! backups to S3 or Google Drive, and cloud restores staged for the next
-//! boot. Archives are interchangeable with the Elixir app's.
+//! boot. Archives are interchangeable with those of earlier releases.
 
 pub mod archive;
 pub mod cloud;

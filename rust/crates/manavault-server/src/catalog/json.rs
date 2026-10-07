@@ -46,7 +46,7 @@ pub fn strings(text: &str) -> Vec<String> {
     string_list(text).into_iter().flatten().collect()
 }
 
-/// Elixir truthiness for an optional JSON value: anything but `null`/`false`.
+/// Truthiness for an optional JSON value: anything but `null`/`false`.
 #[must_use]
 pub fn truthy(value: Option<&Value>) -> Option<&Value> {
     match value {
@@ -55,8 +55,7 @@ pub fn truthy(value: Option<&Value>) -> Option<&Value> {
     }
 }
 
-/// Renders a JSON scalar the way Elixir's `to_string/1` does for strings and
-/// numbers (`nil` for anything else).
+/// Renders a JSON string or number as plain text (`nil` for anything else).
 #[must_use]
 pub fn scalar_text(value: Option<&Value>) -> Option<String> {
     match value? {

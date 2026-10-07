@@ -1,5 +1,4 @@
-//! Price fallback consistency, ported from `price_fallback_consistency_test.exs`
-//! (card parts) and the price helpers of `catalog_test.exs`.
+//! Price fallback consistency for cards, and the price helpers.
 
 use lotus::ScryfallId;
 use serde_json::json;

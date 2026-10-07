@@ -1,8 +1,8 @@
-//! The Ecto changesets of `Deck`, `DeckCard`, `DeckTag`, and
-//! `DefaultDeckTag`, rendered as `Errors.changeset_error_message/1` does.
+//! Validation of `Deck`, `DeckCard`, `DeckTag`, and `DefaultDeckTag`
+//! attributes, with errors rendered as user-facing messages.
 //!
 //! A [`Change`] is `None` when the attribute was not given and `Some(None)`
-//! when it was given as `null`, as Ecto's `cast/3` distinguishes them.
+//! when it was given as `null`.
 
 use std::sync::LazyLock;
 
@@ -20,7 +20,7 @@ pub const INVALID_FORMAT: &str = "has invalid format";
 
 static HEX_COLOR: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"^#[0-9a-fA-F]{6}$").ok());
 
-/// Ecto's empty-value handling: whitespace-only strings cast to `nil`.
+/// Empty-value handling: whitespace-only strings cast to `None`.
 #[must_use]
 pub fn cast_string(change: Change<String>) -> Change<String> {
     change.map(|value| value.filter(|text| !text.trim().is_empty()))
@@ -102,7 +102,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn validators_render_ecto_messages() {
+    fn validators_render_the_documented_messages() {
         let mut errors = Errors::new();
         length(&mut errors, "name", Some(""), 1, 60);
         greater_than(&mut errors, "quantity", Some(0), 0);

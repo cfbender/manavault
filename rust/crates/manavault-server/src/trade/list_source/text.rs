@@ -32,8 +32,8 @@ pub async fn parse(pool: &SqlitePool, text: &str) -> Result<Vec<ListEntry>, sqlx
             ListEntry {
                 name: entry.name,
                 quantity: entry.quantity,
-                // Headings only produce known zones; `Map.get(entry, "zone",
-                // "mainboard")` in Elixir.
+                // Headings only produce known zones; anything else is the
+                // mainboard.
                 zone: parse_zone(&entry.zone).unwrap_or(Zone::Mainboard),
                 set_code: printing.map(|printing| printing.set_code.clone()),
                 collector_number: printing.map(|printing| printing.collector_number.clone()),

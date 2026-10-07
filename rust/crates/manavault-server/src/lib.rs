@@ -1,8 +1,8 @@
-//! ManaVault's backend, ported from the Elixir/Phoenix app in `lib/`.
+//! ManaVault's backend.
 //!
-//! It serves the same GraphQL schema, routes, and background jobs over the
-//! same SQLite database, so the React frontend and existing databases work
-//! unchanged.
+//! It serves the GraphQL schema, routes, and background jobs of earlier
+//! releases over the same SQLite database, so the React frontend and
+//! existing databases work unchanged.
 
 pub mod ai;
 pub mod api_keys;

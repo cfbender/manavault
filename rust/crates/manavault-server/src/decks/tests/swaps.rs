@@ -1,5 +1,4 @@
-//! `deck_swap_test.exs`, `deck_picker_test.exs`, and
-//! `deck_share_cache_test.exs`.
+//! Deck swaps, the deck picker, and deck share caching.
 
 use lotus::{Finish, Zone};
 use serde_json::json;
@@ -356,7 +355,7 @@ async fn apply_refuses_archived_decks() {
     assert!(matches!(error, DeckError::DeckArchived));
 }
 
-// --- deck_picker_test.exs ---
+// --- deck picker ---
 
 async fn random(app: &TestApp, exclude: Option<DeckId>, roll: f64) -> Option<DeckId> {
     picker::random_deck(app.db(), exclude, time::OffsetDateTime::now_utc(), roll)
@@ -512,7 +511,7 @@ async fn historical_play_data_can_be_imported_cleared_and_validated() {
     let _ = timefmt::now();
 }
 
-// --- deck_share_cache_test.exs ---
+// --- deck share caching ---
 
 #[tokio::test]
 async fn share_tokens_resolve_rotate_and_disappear() {
@@ -592,7 +591,7 @@ async fn share_tokens_resolve_rotate_and_disappear() {
 
 #[tokio::test]
 async fn moving_a_commander_into_an_existing_row_keeps_its_reservations() {
-    // Elixir's move_to_zone! deleted the moved row, and the cascade dropped
+    // Earlier releases deleted the moved row, and the cascade dropped
     // its reservations while the copies stayed out of their location.
     let app = TestApp::new().await;
     app.import_cards(&[

@@ -1,5 +1,5 @@
-//! Ports of `test/manavault/ai_test.exs`, `test/manavault/ai/analyze_deck_test.exs`,
-//! and `test/manavault_web/schema/ai_test.exs` (settings parts are in
+//! AI deck analysis tests: prompts and responses, background analysis jobs,
+//! and the GraphQL fields (settings parts are in
 //! `settings::ai`), with wiremock standing in for `OpenRouter`.
 
 use std::sync::Arc;
@@ -1407,7 +1407,7 @@ async fn new_chats_isolate_context_older_chats_resume_and_follow_ups_see_deck_ed
 }
 
 // ---------------------------------------------------------------------------
-// Background analysis jobs (`analyze_deck_test.exs`).
+// Background analysis jobs.
 
 async fn job_count(app: &TestApp) -> i64 {
     sqlx::query_scalar("SELECT count(*) FROM oban_jobs")
@@ -1516,7 +1516,7 @@ async fn status_tracks_retries_and_terminal_outcomes_and_selects_only_this_decks
     }
     let new_id = analyze_deck::enqueue(&app.state, deck_id).await.unwrap().id;
     assert_ne!(new_id, id);
-    // An Elixir-queued job of another worker with the same args is ignored.
+    // A queued job of another worker with the same args is ignored.
     sqlx::query(
         "INSERT INTO oban_jobs (worker, queue, args) VALUES (?1, 'ai', json_object('deck_id', ?2))",
     )
@@ -1628,7 +1628,7 @@ async fn retry_backoff_is_fifteen_seconds_per_attempt() {
 }
 
 // ---------------------------------------------------------------------------
-// GraphQL (`schema/ai_test.exs`).
+// GraphQL.
 
 /// The `OpenRouter` stub of the schema test: settings validation plus
 /// analysis and question completions.
@@ -2023,7 +2023,7 @@ async fn graphql_queues_a_fresh_ai_analysis_for_every_deck() {
 }
 
 #[tokio::test]
-async fn graphql_errors_match_the_elixir_messages() {
+async fn graphql_errors_match_the_documented_messages() {
     let app = TestApp::new().await;
     let deck_id = insert_deck(app.db(), "Errors", "commander").await;
     let deck_global_id = global_id(NodeKind::Deck, deck_id);

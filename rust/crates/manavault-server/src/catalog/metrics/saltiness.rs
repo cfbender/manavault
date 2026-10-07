@@ -23,7 +23,7 @@ pub const SALTINESS_URL: &str = "https://mtgjson.com/api/v5/AtomicCards.json.gz"
 /// Scores by oracle id.
 pub type Scores = HashMap<String, f64>;
 
-/// What a JSON value contributes, mirroring the Elixir `:json` decoders: a
+/// What a JSON value contributes to the scores: a
 /// card object with an oracle id and a numeric score yields a score; an
 /// object with only an oracle id (MTGJSON's `identifiers`) passes the id up
 /// to its parent; arrays and other objects pass up the scores found inside.

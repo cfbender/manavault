@@ -20,7 +20,7 @@ use crate::catalog::scryfall::import::{BATCH_SIZE, ImportError};
 pub const NOT_GZIP: &str = "Scryfall bulk payload was not gzip-compressed JSON Lines";
 
 /// The bulk-data metadata fields the sync reads. lotus's `BulkData`
-/// requires a `type` field, which the Elixir sync never needed, so a
+/// requires a `type` field, which the sync has never needed, so a
 /// metadata body without it is read here instead.
 #[derive(Debug, Deserialize)]
 pub struct BulkMetadata {
@@ -102,8 +102,8 @@ pub async fn decode_list(path: PathBuf) -> Result<Vec<Value>, String> {
 /// Decodes one bulk record. lotus drops vocabulary it does not know (a new
 /// rarity, finish, color, or legality, or an `all_parts` entry without an id)
 /// instead of failing the card; a record that still fails (no `id` or
-/// `name`) is skipped by the caller, as the Elixir import skipped records it
-/// could not build rows for.
+/// `name`) is skipped by the caller, as earlier releases skipped records
+/// they could not build rows for.
 pub fn decode_card(record: &Value) -> Result<ScryfallCard, serde_json::Error> {
     ScryfallCard::deserialize(record)
 }

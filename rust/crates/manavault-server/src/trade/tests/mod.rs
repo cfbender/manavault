@@ -1,9 +1,7 @@
-//! Trade tests, ported from `test/manavault/trade_test.exs`,
-//! `test/manavault/trade/**`, the trade parts of
-//! `test/manavault_web/schema/*` (`deck_diff_ids_test.exs`,
-//! `schema_domain_contract_test.exs`, `deck_detail_and_share_test.exs`),
-//! `public_wants_share_test.exs`, `public_binder_share_test.exs`, and the
-//! share page parts of `controllers/app_controller_test.exs`.
+//! Trade tests: list sources, the matcher, collection check, and deck diff,
+//! wants and shares, the trade GraphQL fields (deck diff ids, the schema's
+//! domain contract, deck sharing), public wants and binder shares, and the
+//! share pages.
 
 mod list_source;
 mod lists;
@@ -19,8 +17,7 @@ use crate::test_support::{TestApp, fixtures};
 
 const T: &str = "2026-01-01T00:00:00Z";
 
-/// `black_lotus`, `black_lotus_beta`, and `time_walk`, as `trade_test.exs`
-/// imports them.
+/// An app with `black_lotus`, `black_lotus_beta`, and `time_walk` imported.
 pub(crate) async fn app_with_cards() -> TestApp {
     let app = TestApp::new().await;
     app.import_cards(&[
@@ -49,7 +46,7 @@ pub(crate) fn card(oracle_id: &str, name: &str) -> Value {
     })
 }
 
-/// A basic land test card (`basic_card/2` in `deck_diff_test.exs`).
+/// A basic land test card.
 pub(crate) fn basic_card(oracle_id: &str, name: &str) -> Value {
     fixtures::merge(
         card(oracle_id, name),

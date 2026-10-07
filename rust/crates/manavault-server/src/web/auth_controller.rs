@@ -18,7 +18,7 @@ const MISSING_HASH: &str = "Admin password hash is missing. Set MANAVAULT_ADMIN_
 const PERMANENTLY_BANNED: &str =
     "Too many incorrect password attempts. This client is permanently blocked.";
 
-/// A Phoenix `redirect(conn, to: path)`: 302 with a small HTML body.
+/// A redirect to `path`: 302 with a small HTML body.
 #[must_use]
 pub fn redirect(to: &str) -> Response {
     let body = format!(

@@ -1,9 +1,6 @@
-//! GraphQL tests from `test/manavault_web/schema/`: `deck_cards_test.exs`,
-//! `deck_mutations_test.exs`, `deck_queries_test.exs`,
-//! `decks_pagination_test.exs`, `deck_detail_and_share_test.exs` (owner
-//! schema), `deck_swap_test.exs`, `deck_picker_test.exs`,
-//! `deck_allocation_batching_test.exs` (status values), and the deck parts
-//! of `schema_domain_contract_test.exs`.
+//! Deck GraphQL tests: deck cards, mutations, queries and pagination, deck
+//! detail and sharing (owner schema), swaps, the deck picker, allocation
+//! status values, and the deck parts of the schema's domain contract.
 
 use lotus::Finish;
 use serde_json::{Value, json};
@@ -476,7 +473,7 @@ async fn bulk_update_and_bulk_delete_act_on_a_selection() {
     assert_eq!(error_message(&response), "Deck card was not found.");
 }
 
-// --- deck_mutations_test.exs ---
+// --- deck mutations ---
 
 #[tokio::test]
 async fn update_deck_updates_deck_fields() {
@@ -606,7 +603,7 @@ async fn import_mutation_and_export_query_expose_plain_text_decklists() {
     );
 }
 
-// --- deck_queries_test.exs, decks_pagination_test.exs ---
+// --- deck queries and pagination ---
 
 #[tokio::test]
 async fn create_deck_mutation_creates_a_deck() {
@@ -748,7 +745,7 @@ async fn decks_connection_paginates_at_the_page_boundary() {
     assert_eq!(data["decks"]["edges"].as_array().unwrap().len(), 3);
 }
 
-// --- deck_detail_and_share_test.exs (owner schema) ---
+// --- deck detail and sharing (owner schema) ---
 
 #[tokio::test]
 async fn deck_detail_exposes_legality_cards_tags_and_share_tokens() {
@@ -1031,7 +1028,7 @@ async fn tag_mutations_round_trip() {
     assert_eq!(error_message(&response), "name has already been taken");
 }
 
-// --- deck_swap_test.exs (GraphQL) ---
+// --- deck swaps (GraphQL) ---
 
 #[tokio::test]
 async fn swap_preview_and_apply_over_graphql() {
@@ -1097,7 +1094,7 @@ async fn swap_preview_and_apply_over_graphql() {
     );
 }
 
-// --- deck_picker_test.exs (GraphQL) ---
+// --- deck picker (GraphQL) ---
 
 #[tokio::test]
 async fn random_deck_and_record_play_over_graphql() {
@@ -1190,7 +1187,7 @@ async fn inclusion_toggles_through_graphql_and_controls_random_picks() {
     assert_eq!(data["randomDeck"], json!({"id": id}));
 }
 
-// --- deck_allocation_batching_test.exs (status values) ---
+// --- allocation status values ---
 
 #[tokio::test]
 async fn deck_page_allocation_status_counts_copies_reserved_elsewhere() {
@@ -1385,7 +1382,7 @@ async fn basic_lands_and_proxies_in_allocation_status() {
     );
 }
 
-// --- schema_domain_contract_test.exs (deck parts) ---
+// --- schema domain contract (deck parts) ---
 
 #[tokio::test]
 async fn deck_root_fields_and_payloads_match_the_contract() {

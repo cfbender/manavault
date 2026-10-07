@@ -10,8 +10,8 @@
 //! copy is allocated, because allocation pins the card to the owned printing.
 //!
 //! Fetching and parsing use lotus (`DeckLink`, `DecklistClient`,
-//! `MoxfieldDeck`, `ArchidektDeck`), which differs from the Elixir
-//! `Trade.ListSource` modules in ways documented in `rust/notes/decks.md`:
+//! `MoxfieldDeck`, `ArchidektDeck`), which differs from earlier releases in
+//! ways documented in `rust/notes/decks.md`:
 //! Archidekt zones follow the primary category and the deck's
 //! `includedInDeck` flags (cards in excluded categories are Considering),
 //! quantities below one become one and unknown zones the mainboard, and
@@ -165,8 +165,8 @@ pub struct Synced {
 }
 
 /// `Decks.link_deck_external_source/2`: links the deck and imports the
-/// remote list. A failed first fetch leaves the deck unlinked; the Elixir
-/// code saved the link before fetching and kept it after a failure (only a
+/// remote list. A failed first fetch leaves the deck unlinked; earlier
+/// releases saved the link before fetching and kept it after a failure (only a
 /// stale deck cache hid that from the next request).
 pub async fn link(state: &AppState, deck_id: DeckId, url: &str) -> Result<Synced, SyncError> {
     let deck = get_deck(&state.db, deck_id).await?;

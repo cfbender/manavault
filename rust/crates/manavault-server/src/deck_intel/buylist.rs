@@ -25,7 +25,7 @@ pub enum PrintingMode {
 
 impl PrintingMode {
     /// `"none"` and `"exact"`; any other value picks the cheapest printing,
-    /// as the Elixir fallback clause did.
+    /// as earlier releases did.
     #[must_use]
     pub fn parse(value: &str) -> Self {
         match value {
@@ -67,8 +67,8 @@ impl DeckBuylistEntry {
 
 /// `printing_sort_key/2`: cheapest, then oldest, then set and number.
 ///
-/// Release dates compare chronologically; Elixir compared `Date` structs in
-/// Erlang term order (day first), see [`crate::decks::cards::cheapest_printing`].
+/// Release dates compare chronologically; earlier releases compared them day
+/// first, see [`crate::decks::cards::cheapest_printing`].
 fn sort_key(
     state: &AppState,
     printing: &Printing,
@@ -273,7 +273,7 @@ mod unit_tests {
     use super::*;
 
     #[test]
-    fn csv_cells_are_quoted_like_the_elixir_writer() {
+    fn csv_cells_are_quoted_like_earlier_releases() {
         let row = [
             "2".to_owned(),
             "Fire, Ice".to_owned(),

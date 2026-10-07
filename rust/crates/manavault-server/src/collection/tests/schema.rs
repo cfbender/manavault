@@ -1,5 +1,4 @@
-//! GraphQL tests (`test/manavault_web/schema/*` collection and location
-//! tests, `schema_test.exs` home summary).
+//! Collection and location GraphQL tests, plus the home summary.
 
 use pretty_assertions::assert_eq;
 use serde_json::{Value, json};
@@ -631,7 +630,7 @@ async fn groups_combine_price_lots_while_items_stay_separate() {
 }
 
 /// The value-gain group sort weighs each copy's gain, not `quantity * price -
-/// purchase` (Elixir's unparenthesized fragment; found by the parity
+/// purchase` (the unparenthesized fragment of earlier releases; found by the parity
 /// harness): five copies bought at market price gained nothing and sort
 /// below one copy that gained a dollar.
 #[tokio::test]
@@ -1463,7 +1462,7 @@ async fn import_preview_commit_and_export_over_graphql() {
 
 /// The import page resolves an ambiguous row by writing the chosen
 /// candidate's `id` (a `Printing` global id) into `attrs.scryfallId`
-/// (`selectCandidate` in `use-collection-import.ts`). Elixir rejected it as a
+/// (`selectCandidate` in `use-collection-import.ts`). Earlier releases rejected it as a
 /// missing printing; found by the parity harness.
 #[tokio::test]
 async fn import_commit_accepts_a_chosen_candidate_global_id() {

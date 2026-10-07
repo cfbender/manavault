@@ -219,7 +219,7 @@ fn basic_name(name: &str) -> bool {
 
 /// Diffs the resolved entries against the deck.
 ///
-/// Elixir bug fixed: the deck side and resolved entries only counted type
+/// Bug in earlier releases, fixed here: the deck side and resolved entries only counted type
 /// lines starting with `Basic Land` as basics, so `Basic Snow Land` cards
 /// compared by oracle id while unresolved `Snow-Covered ...` names compared
 /// by name. Basics are [`lotus::is_basic_land`] everywhere here.

@@ -436,7 +436,7 @@ impl Sort {
             ),
             SortField::Rarity => format!("{RARITY_SQL} {dir}, c.name ASC, i.scryfall_id ASC"),
             SortField::Price => format!("max({price}) {dir}, c.name ASC, i.scryfall_id ASC"),
-            // Elixir bug (not ported): `item.quantity *
+            // Bug in earlier releases (not kept): `item.quantity *
             // value_gain_cents_fragment(...)` splices the fragment
             // `price - COALESCE(purchase, price)` unparenthesized, so it
             // sorted by `sum(quantity * price - COALESCE(purchase, price))`:

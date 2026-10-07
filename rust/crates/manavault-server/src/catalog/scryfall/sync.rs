@@ -124,7 +124,7 @@ pub fn client(state: &AppState) -> ScryfallClient {
     ScryfallClient::with_client(state.http.clone(), "https://api.scryfall.com")
 }
 
-/// Error text for a failed fetch, worded like the Elixir `Fetch.url/1`
+/// Error text for a failed fetch, worded as earlier releases worded it
 /// (`"Scryfall request failed with HTTP 500"`; lotus appends the reason
 /// phrase and words 404 differently).
 #[must_use]
@@ -249,9 +249,9 @@ struct Outcome {
     printings_count: usize,
 }
 
-/// The steps of a sync. Any error here fails the sync; the Elixir sync left
-/// its row `running` when the import raised a database error, which this
-/// port records as a failure too.
+/// The steps of a sync. Any error here fails the sync; earlier releases left
+/// the row `running` when the import raised a database error, which is
+/// recorded as a failure here too.
 async fn sync(
     state: &AppState,
     options: &SyncOptions,

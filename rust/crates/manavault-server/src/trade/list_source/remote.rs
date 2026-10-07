@@ -2,26 +2,26 @@
 //! Moxfield, Archidekt, and other ManaVault instances' share links
 //! (`ListSource.Moxfield`, `.Archidekt`, `.ManaVaultRemote`, `.Http`).
 //!
-//! lotus keeps the Elixir hardening (no redirects, capped streamed bodies,
-//! 10 s timeouts, the public-destination policy with DNS pinning, and the
-//! ManaVault page/entry/byte/time budget). This module maps its
-//! [`FetchError`]s to the Elixir user-facing messages.
+//! lotus keeps the hardening of earlier releases (no redirects, capped
+//! streamed bodies, 10 s timeouts, the public-destination policy with DNS
+//! pinning, and the ManaVault page/entry/byte/time budget). This module maps
+//! its [`FetchError`]s to the established user-facing messages.
 //!
-//! Known differences from the Elixir sources, all lotus behavior:
+//! Known differences from earlier releases, all lotus behavior:
 //!
 //! - Archidekt zones follow each card's primary category and that
 //!   category's `includedInDeck` flag: a card whose primary category is
 //!   excluded from the deck is kept as considering, and a secondary
 //!   `Maybeboard`/`Sideboard` category no longer moves a card out of the
-//!   deck (Elixir: "Maybeboard" or "Sideboard" anywhere in the categories
+//!   deck (before: "Maybeboard" or "Sideboard" anywhere in the categories
 //!   meant considering).
 //! - Remote ManaVault deck cards clamp their quantity to at least one, and
-//!   an unknown zone string reads as the main deck (Elixir kept both as
-//!   sent).
+//!   an unknown zone string reads as the main deck (before: both were kept
+//!   as sent).
 //! - HTTP 401 is treated like 403 (Moxfield's "blocked" message) instead
 //!   of a generic HTTP error.
 //! - A remote ManaVault answer of HTTP 404, or `data` without the `deck`
-//!   field, reads as "not found" (Elixir: "couldn't reach").
+//!   field, reads as "not found" (before: "couldn't reach").
 
 use lotus::decklist::{Allowlist, DecklistClient, FetchError, Origin, ShareKind, ShareLink};
 
@@ -129,7 +129,7 @@ pub async fn manavault(
         .map_err(|error| manavault_error(share.kind, &error))
 }
 
-/// The Elixir message for a ManaVault fetch failure.
+/// The user-facing message for a ManaVault fetch failure.
 #[must_use]
 pub fn manavault_error(kind: ShareKind, error: &FetchError) -> &'static str {
     match error {

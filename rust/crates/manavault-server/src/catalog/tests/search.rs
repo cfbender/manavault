@@ -1,6 +1,5 @@
-//! `search_cards`, ported from `catalog_test.exs`,
-//! `search/shared_scalar_predicates_test.exs`, `search/cards_by_name_test.exs`,
-//! and the token scope tests of `tokens_test.exs`.
+//! `search_cards`: query syntax, shared scalar predicates, name search, and
+//! token scopes.
 
 use serde_json::json;
 
@@ -324,7 +323,7 @@ async fn color_text_and_flag_predicates() {
         .await;
     let all = SearchOptions::default();
     for (query, expected) in [
-        // `:` compares colors exactly, as in the Elixir search.
+        // `:` compares colors exactly, as in earlier releases.
         ("c:u", vec!["Time Walk"]),
         ("c=u", vec!["Time Walk"]),
         ("c>=wu", vec!["Gold Card"]),

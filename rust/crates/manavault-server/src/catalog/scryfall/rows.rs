@@ -91,12 +91,12 @@ fn json<T: Serialize>(value: &T) -> String {
 
 /// Builds the rows for a batch of already-filtered cards. Cards without an
 /// oracle id (even after taking a reversible card's identity from its first
-/// face) get no card or printing row, as in Elixir.
+/// face) get no card or printing row.
 ///
 /// Multi-faced cards whose faces carry no Oracle text, flavor text, or
-/// flavor name store `""` in those columns, as the Elixir import did (it
+/// flavor name store `""` in those columns, as earlier releases did (they
 /// joined an empty list of face values), so stored data is the same whichever
-/// backend imported it. lotus's `full_*` helpers return `None` for that case;
+/// release imported it. lotus's `full_*` helpers return `None` for that case;
 /// [`faces_text`] converts at this boundary. Single-faced cards without the
 /// field stay `NULL`.
 #[must_use]
@@ -119,7 +119,7 @@ pub fn rows(cards: Vec<ScryfallCard>, tag_index: &OracleTagIndex) -> Rows {
     rows
 }
 
-/// A joined face value as Elixir stored it: lotus's `None` for a card with
+/// A joined face value as earlier releases stored it: lotus's `None` for a card with
 /// faces (none of which has the value) becomes `""`.
 fn faces_text(card: &ScryfallCard, joined: Option<String>) -> Option<String> {
     match joined {
@@ -197,7 +197,7 @@ mod tests {
     }
 
     #[test]
-    fn json_columns_match_the_elixir_encoding() {
+    fn json_columns_match_the_stored_encoding() {
         let rows = rows(
             vec![card(json!({
                 "id": "p", "oracle_id": "o", "name": "Lim-Dûl's Vault",
@@ -250,15 +250,15 @@ mod tests {
         assert_eq!(printing.image_uris, r#"[{"normal":"a"},{"normal":"b"}]"#);
         assert_eq!(printing.flavor_name.as_deref(), Some("Fa"));
         assert_eq!(printing.normalized_flavor_name.as_deref(), Some("fa"));
-        // No face has flavor text: "" like the Elixir import, not NULL.
+        // No face has flavor text: "" like earlier releases, not NULL.
         assert_eq!(printing.flavor_text.as_deref(), Some(""));
     }
 
     /// `ImportRows.rows/3` stores `""` for every joined face value a
-    /// multi-faced card lacks (checked against the Elixir app), and `NULL`
+    /// multi-faced card lacks (as earlier releases did), and `NULL`
     /// when a single-faced card lacks it.
     #[test]
-    fn missing_face_values_store_empty_strings_like_elixir() {
+    fn missing_face_values_store_empty_strings_like_earlier_releases() {
         let rows = rows(
             vec![
                 card(json!({"id": "p", "oracle_id": "o", "name": "A // B",

@@ -1,4 +1,4 @@
-//! Card rulings, ported from `catalog_test.exs` (`card_rulings/2`).
+//! Card rulings.
 
 use serde_json::json;
 use wiremock::matchers::{method, path};

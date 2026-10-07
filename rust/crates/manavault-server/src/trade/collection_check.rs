@@ -209,9 +209,9 @@ async fn holdings(
 /// Sort key for printings: release date (missing dates last), set code,
 /// collector number.
 ///
-/// Elixir bug fixed: `CollectionCheck` compared `released_at` `Date` structs
-/// inside `Enum.sort_by/2` tuples, which uses Erlang term order (day before
-/// month before year), not chronological order. ISO dates compare
+/// Bug in earlier releases, fixed here: the collection check compared
+/// `released_at` dates structurally (day before month before year), not in
+/// chronological order. ISO dates compare
 /// chronologically as text.
 fn printing_key(printing: &Printing) -> (String, String, String) {
     (

@@ -57,7 +57,7 @@ struct Manifests {
     sets: HashMap<String, Value>,
 }
 
-/// Loaded manifests by asset root (`:persistent_term` in Elixir).
+/// Loaded manifests by asset root.
 static MANIFESTS: LazyLock<RwLock<HashMap<PathBuf, Arc<Manifests>>>> =
     LazyLock::new(|| RwLock::new(HashMap::new()));
 

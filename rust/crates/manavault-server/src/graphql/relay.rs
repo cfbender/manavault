@@ -1,7 +1,7 @@
 //! Relay global ids and connections, compatible with `Absinthe.Relay`.
 //!
 //! Global ids are `base64("Type:id")` and cursors `base64("arrayconnection:N")`,
-//! so ids and cursors the frontend cached against the Elixir backend keep
+//! so ids and cursors the frontend cached against earlier releases keep
 //! working. Error messages match `ManavaultWeb.Schema.RelayHelpers`.
 
 use async_graphql::{ID, SimpleObject};

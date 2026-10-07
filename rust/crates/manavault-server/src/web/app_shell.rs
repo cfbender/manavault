@@ -65,7 +65,7 @@ pub fn absolute_url(state: &AppState, path: &str) -> String {
     format!("{}{path}", state.config.public_url.trim_end_matches('/'))
 }
 
-/// HTML-escapes text like `Phoenix.HTML`.
+/// HTML-escapes text (`&`, `<`, `>`, `"`, and `'`).
 #[must_use]
 pub fn escape(text: &str) -> String {
     let mut out = String::with_capacity(text.len());

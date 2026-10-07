@@ -1,9 +1,8 @@
 //! User-facing reasons for failed outbound HTTP requests.
 //!
-//! Elixir builds messages such as `"Could not reach EDHREC: #{reason}"` from
-//! `Exception.message/1` of a `Req.TransportError`, which renders the Mint
-//! transport reason with `:inet.format_error/1` (`"non-existing domain"`,
-//! `"connection refused"`, `"timeout"`, ...). reqwest's own `Display`
+//! Messages such as `"Could not reach EDHREC: <reason>"` end in a short
+//! transport reason, worded as earlier releases worded it
+//! (`"non-existing domain"`, `"connection refused"`, `"timeout"`, ...). reqwest's own `Display`
 //! (`"error sending request for url (...)"`) leaks the URL and reads
 //! differently, so the common transport failures are mapped to the same
 //! words here. Found by the differential parity harness.

@@ -1,6 +1,5 @@
-//! `list_source_test.exs`, `list_source/mana_vault_test.exs`,
-//! `list_source/moxfield_test.exs`, `list_source/archidekt_test.exs`, and
-//! the status mapping of `list_source/http_test.exs`.
+//! List sources: pasted text, ManaVault, Moxfield, and Archidekt lists, and
+//! the HTTP status mapping.
 
 use lotus::Zone;
 use serde_json::json;
@@ -343,7 +342,7 @@ mod moxfield {
     async fn forbidden_suggests_pasting_and_other_failures_are_friendly() {
         assert_eq!(status_message(403).await, remote::MOXFIELD_FORBIDDEN);
         assert!(remote::MOXFIELD_FORBIDDEN.contains("paste the list instead"));
-        // lotus treats 401 like 403 (Elixir: a generic HTTP error).
+        // lotus treats 401 like 403 (earlier releases: a generic HTTP error).
         assert_eq!(status_message(401).await, remote::MOXFIELD_FORBIDDEN);
         assert_eq!(status_message(500).await, remote::MOXFIELD_ERROR);
         assert_eq!(status_message(404).await, remote::MOXFIELD_ERROR);

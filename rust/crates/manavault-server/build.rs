@@ -1,4 +1,4 @@
-//! Embeds `rust/migrations/*.sql` (one file per Ecto migration) as `MIGRATIONS`.
+//! Embeds `rust/migrations/*.sql` (one file per migration) as `MIGRATIONS`.
 
 use std::fmt::Write as _;
 use std::path::Path;
@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     files.sort();
 
     let mut out = String::from(
-        "/// Every Ecto migration as `(version, name, sql)`, oldest first.\npub const MIGRATIONS: &[(i64, &str, &str)] = &[\n",
+        "/// Every migration as `(version, name, sql)`, oldest first.\npub const MIGRATIONS: &[(i64, &str, &str)] = &[\n",
     );
     for path in files {
         let stem = path

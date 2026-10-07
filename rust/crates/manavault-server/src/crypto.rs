@@ -1,5 +1,5 @@
-//! Cryptography shared with the Elixir app, byte for byte, so a database,
-//! backup, or browser session created by one backend works with the other:
+//! Cryptography compatible, byte for byte, with earlier releases, so a
+//! database, backup, or browser session created by any release still works:
 //!
 //! - [`encrypt_secret`] / [`decrypt_secret`]: `Manavault.Encrypted.Binary`
 //!   (AES-256-GCM, key derived from `secret_key_base`).
@@ -52,7 +52,7 @@ pub fn encrypt_secret(secret_key_base: &str, plaintext: &str) -> Option<String> 
             },
         )
         .ok()?;
-    // aes-gcm appends the 16-byte tag; Erlang's layout puts it before the ciphertext.
+    // aes-gcm appends the 16-byte tag; the stored layout puts it before the ciphertext.
     let split = sealed.len().checked_sub(16)?;
     let (ciphertext, tag) = sealed.split_at(split);
     let mut packed = Vec::with_capacity(12 + sealed.len());
@@ -437,7 +437,7 @@ mod tests {
     }
 
     #[test]
-    fn decrypts_a_value_written_by_elixir() {
+    fn decrypts_a_value_written_by_earlier_releases() {
         // Manavault.Encrypted.Binary.dump("hello") under the test secret_key_base.
         let stored = "enc.v1./vn7j1SNmfpWIcshuLeTbZaAcpaa1nxxNt9ecQmCnJDK";
         assert_eq!(decrypt_secret(SECRET, stored).as_deref(), Some("hello"));

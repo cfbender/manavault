@@ -15,7 +15,7 @@ use sqlx::{AssertSqlSafe, SqlitePool};
 
 pub type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 
-/// Schema dumped from the Ecto migrations by `mix ecto.dump`.
+/// The full database schema (`rust/schema.sql`), as the migrations leave it.
 const SCHEMA: &str = include_str!("../../../../schema.sql");
 
 pub const BLACK_LOTUS: &str = "oracle-1";

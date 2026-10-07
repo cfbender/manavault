@@ -90,7 +90,7 @@ pub fn parse_cents(price: &str) -> Option<i64> {
 /// float's exact decimal value, half away from zero.
 ///
 /// `(value * 10.0).round() / 10.0` differs whenever the float sits just
-/// below a tie: `5.35` is `5.3499999999999996…`, which Elixir rounds to
+/// below a tie: `5.35` is `5.3499999999999996…`, which correct rounding takes to
 /// `5.3`, but `5.35 * 10.0` is exactly `53.5` and rounds up to `5.4` (found
 /// by the parity harness on `valueGainPercentText`).
 #[must_use]
@@ -226,7 +226,7 @@ pub fn price_sql(printing: &str) -> String {
 /// Finish-aware current USD price (REAL) of the printing aliased `printing`
 /// for the finish SQL expression `finish` (`price_value_fragment/2`).
 ///
-/// Elixir bug: the vendor subquery accepted any vendor finish and only
+/// Bug in earlier releases: the vendor subquery accepted any vendor finish and only
 /// ordered by the fallback chain, so a foil item with only an etched vendor
 /// price used the etched price in SQL (filters, sorts, totals) while the
 /// in-memory price (`Pricing.Store`) found none and fell back to Scryfall.
@@ -273,7 +273,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn formats_and_parses_like_elixir() {
+    fn formats_and_parses_like_earlier_releases() {
         assert_eq!(format_cents(Some(99)).as_deref(), Some("$0.99"));
         assert_eq!(format_cents(Some(105)).as_deref(), Some("$1.05"));
         assert_eq!(format_cents(Some(1_200)).as_deref(), Some("$12"));

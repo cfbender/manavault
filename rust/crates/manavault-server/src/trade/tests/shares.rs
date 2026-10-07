@@ -1,7 +1,6 @@
-//! `trade_test.exs` share tokens and lists, `public_wants_share_test.exs`,
-//! `public_binder_share_test.exs` (run against the owner schema's
-//! identical `wantsList`/`binderList` fields), and the share lifecycle of
-//! `deck_detail_and_share_test.exs`.
+//! Trade share tokens and lists, public wants and binder shares (run against
+//! the owner schema's identical `wantsList`/`binderList` fields), and the
+//! deck share lifecycle.
 
 use serde_json::{Value, json};
 

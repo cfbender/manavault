@@ -1,6 +1,6 @@
 //! A backup before schema changes (`Manavault.Backup.MigrationBackup`).
 //!
-//! Like the Elixir release, the server backs the database up at boot, before
+//! The server backs the database up at boot, before
 //! `db::prepare` applies migrations, when a production database exists and
 //! is missing known migrations, unless `MANAVAULT_SKIP_MIGRATION_BACKUP` is
 //! set. The archive is a regular local backup with reason `pre_migration`

@@ -5,7 +5,7 @@ use async_graphql::Error;
 use crate::decks::DeckError;
 use crate::graphql::{internal_error, user_error};
 
-/// `get_deck!/1` failing: the Elixir resolvers raised `Ecto.NoResultsError`.
+/// The deck does not exist.
 pub const DECK_NOT_FOUND: &str = "Deck was not found.";
 /// `Errors.not_found_error(:deck_card)`.
 pub const DECK_CARD_NOT_FOUND: &str = "Deck card was not found.";

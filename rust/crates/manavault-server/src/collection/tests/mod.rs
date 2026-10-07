@@ -1,10 +1,7 @@
-//! Collection tests, ported from `test/manavault/catalog/collection_test.exs`,
-//! `collection/*`, `collection_bulk_clean_test.exs`,
-//! `collection_import_csv_test.exs` (in `import::parse`), and
-//! `test/manavault_web/schema/{collection_items,collection_queries,
-//! collection_item_selector,bulk_update_collection_items_batching,
-//! locations_and_imports,collection_allocation_decks_batching}_test.exs` plus
-//! the collection parts of `schema_test.exs` and `catalog_test.exs`.
+//! Collection tests: items, locations, auto-sort, bulk clean, imports (CSV
+//! parsing is tested in `import::parse`), and the collection GraphQL fields
+//! (items, queries, the item selector, bulk updates, locations and imports,
+//! allocation decks, and the home summary).
 //!
 //! Decks and allocations are inserted with SQL.
 

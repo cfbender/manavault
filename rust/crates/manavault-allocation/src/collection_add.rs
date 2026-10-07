@@ -16,7 +16,7 @@ use crate::model::{
 };
 use crate::status;
 
-/// The Ecto changeset's upper bound for a deck card's quantity.
+/// The deck card validation's upper bound for a deck card's quantity.
 const MAX_DECK_CARD_QUANTITY: u32 = 10_000;
 
 /// Adds one copy of a collection item to a deck and reserves it
@@ -143,7 +143,7 @@ pub async fn bulk_add_collection_items_to_deck(
 }
 
 /// Validates room for every selected copy before reserving any of them, so
-/// the first problem is reported the way the Elixir code reports it.
+/// the first problem found is the one reported.
 async fn reserve_one_each(
     conn: &mut SqliteConnection,
     items: &[&CollectionItem],

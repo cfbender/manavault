@@ -30,7 +30,7 @@ pub fn is_valid(token: &str) -> bool {
 mod tests {
     use super::*;
 
-    // deck_share_cache_test.exs: the token contract.
+    // The share token contract.
     #[test]
     fn tokens_are_url_safe_unpadded_18_bytes() {
         let token = generate();

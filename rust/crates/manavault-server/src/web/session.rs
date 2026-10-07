@@ -1,4 +1,4 @@
-//! The `_manavault_key` cookie session, compatible with Phoenix's signed
+//! The `_manavault_key` cookie session, compatible with Plug's signed
 //! cookie store, plus CSRF tokens and owner authentication.
 
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -262,7 +262,8 @@ pub async fn require_browser(
                 .finish()
         )
     };
-    // Phoenix's `redirect/2` answers 302 Found (axum's `Redirect::to` is 303).
+    // Redirects answer 302 Found, as in earlier releases (axum's
+    // `Redirect::to` is 303).
     super::auth_controller::redirect(&location)
 }
 

@@ -82,7 +82,7 @@ fn decoded_variants_safe(path: &str) -> bool {
 }
 
 /// `URI.decode/1` (or `URI.decode_www_form/1` with `plus`); `None` where
-/// Elixir raises on a malformed escape.
+/// the escape is malformed.
 fn decode(bytes: &[u8], plus: bool) -> Option<Vec<u8>> {
     let mut out = Vec::with_capacity(bytes.len());
     let mut index = 0;
@@ -110,7 +110,7 @@ fn decode(bytes: &[u8], plus: bool) -> Option<Vec<u8>> {
 pub(crate) mod tests {
     use super::*;
 
-    /// `return_to_cases/0` from `auth_controller_test.exs`.
+    /// Return path cases: `(description, requested, expected)`.
     pub const CASES: [(&str, &str, &str); 17] = [
         ("root path", "/", "/"),
         ("nested path", "/collection/decks", "/collection/decks"),

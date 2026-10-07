@@ -124,7 +124,7 @@ fn base_query(
 /// Cards matching `term`, each with its printings; printings that satisfy the
 /// term come first, then the rest, each group earliest-released first.
 ///
-/// Elixir bug: search results left `ownedCount` at 0 on every printing (the
+/// Bug in earlier releases: search results left `ownedCount` at 0 on every printing (the
 /// preload never filled the virtual field), so the card search grid showed
 /// no owned counts. The printings here carry real owned counts.
 pub async fn search_cards(

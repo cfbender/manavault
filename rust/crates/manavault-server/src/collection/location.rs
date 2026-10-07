@@ -208,7 +208,7 @@ pub enum LocationError {
     Db(#[from] sqlx::Error),
 }
 
-/// Ecto's `cast/3`: `""` is `nil`.
+/// Casts a text field: `""` clears it, like `null`.
 fn cast_text(value: MaybeUndefined<String>, current: Option<String>) -> Option<String> {
     match value {
         MaybeUndefined::Undefined => current,
@@ -227,8 +227,9 @@ struct ValidLocation {
 
 /// `Location.changeset/2`.
 ///
-/// Elixir raised on a missing cover printing (SQLite foreign key errors carry
-/// no constraint name); here it is the changeset error Ecto would have shown.
+/// Earlier releases raised on a missing cover printing (SQLite foreign key
+/// errors carry no constraint name); here it is a validation error on the
+/// field.
 async fn validate(
     conn: &mut SqliteConnection,
     current: Option<&LocationRecord>,

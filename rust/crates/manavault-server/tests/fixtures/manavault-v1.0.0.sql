@@ -1,4 +1,4 @@
--- ManaVault v1.0.0 database: schema from the v1.0.0 release's mix ecto.migrate (34 migrations),
+-- ManaVault v1.0.0 database: a database from the v1.0.0 release (its own 34 migrations),
 -- owner data inserted in v1.0.0's formats; dumped with sqlite3 .dump. Used by db::tests.
 /* WARNING: Script requires that SQLITE_DBCONFIG_DEFENSIVE be disabled */
 PRAGMA foreign_keys=OFF;

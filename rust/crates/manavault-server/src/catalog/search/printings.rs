@@ -119,7 +119,7 @@ pub struct SetSuggestion {
 }
 
 /// Sets whose code or name contains the term (`search_sets/2`). The term is
-/// not LIKE-escaped, as in the Elixir code.
+/// not LIKE-escaped, as in earlier releases.
 pub async fn search_sets(
     pool: &SqlitePool,
     term: &str,

@@ -61,7 +61,7 @@ async fn graphiql() -> impl IntoResponse {
     ))
 }
 
-/// Phoenix's `NoRouteError` page: 404 rendered by `ErrorJSON` or `ErrorHTML`.
+/// The 404 page for unknown routes, as JSON or HTML.
 async fn not_found(headers: HeaderMap) -> Response {
     let wants_json = headers
         .get(ACCEPT)

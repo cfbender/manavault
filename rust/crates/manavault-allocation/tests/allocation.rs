@@ -1,6 +1,6 @@
-//! Ports of the single-card scenarios in
-//! `test/manavault/catalog/deck_allocation_test.exs` and
-//! `deck_allocation_movement_test.exs`, plus regressions for past Elixir bugs.
+//! Single-card deck allocation scenarios: reserving, moving, and releasing
+//! collection copies for one deck card, plus regressions for bugs in earlier
+//! releases.
 
 mod support;
 

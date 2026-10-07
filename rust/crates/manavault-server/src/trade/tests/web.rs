@@ -1,4 +1,4 @@
-//! Share page parts of `controllers/app_controller_test.exs`.
+//! The trade share pages.
 
 use std::net::SocketAddr;
 

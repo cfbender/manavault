@@ -105,7 +105,7 @@ mod tests {
     use crate::test_support::TestApp;
 
     /// 410 cards with both metrics at 999 (printing ids reversed against
-    /// card ids), plus one never-scored card, as in `metric_refresh_test.exs`.
+    /// card ids), plus one never-scored card.
     async fn seed(app: &TestApp) {
         let mut tx = app.db().begin().await.unwrap();
         for index in 1..=410 {

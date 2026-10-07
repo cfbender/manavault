@@ -193,7 +193,8 @@ impl ApiKeyMutations {
         }
     }
 
-    /// A non-numeric id reads as not found; Ecto raises a cast error there.
+    /// A non-numeric id reads as not found (earlier releases raised a cast
+    /// error there).
     async fn revoke_api_key(&self, ctx: &Context<'_>, id: ID) -> GqlResult<ApiKeyObject> {
         let Ok(id) = id.parse::<i64>() else {
             return Err(user_error("API key not found"));

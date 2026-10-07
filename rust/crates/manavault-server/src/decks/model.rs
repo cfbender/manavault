@@ -2,7 +2,7 @@
 //! `DefaultDeckTag`) and their fixed vocabularies.
 //!
 //! Every text column with a fixed set of values decodes into an enum, so a
-//! value outside the Ecto `validate_inclusion` lists fails at the database
+//! value outside the allowed lists fails at the database
 //! boundary instead of flowing through the deck rules as a string.
 
 use std::collections::HashMap;
@@ -24,7 +24,7 @@ macro_rules! text_enum {
         }
 
         impl $name {
-            /// Every value, in the Elixir list order.
+            /// Every value, in declaration order.
             pub const ALL: &'static [Self] = &[$(Self::$variant),+];
 
             /// The stored text value.
@@ -337,7 +337,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn vocabularies_match_the_elixir_lists() {
+    fn vocabularies_match_the_documented_lists() {
         let formats: Vec<&str> = DeckFormat::ALL.iter().map(|f| f.as_str()).collect();
         assert_eq!(
             formats,

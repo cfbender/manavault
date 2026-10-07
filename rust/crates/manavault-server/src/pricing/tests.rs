@@ -1,5 +1,5 @@
-//! Ports of `test/manavault/pricing_test.exs`, `test/manavault/pricing/*`,
-//! and `test/manavault_web/schema/pricing_test.exs`.
+//! Pricing tests: price sources, vendor price syncs, and the pricing
+//! GraphQL fields.
 
 use std::sync::Arc;
 

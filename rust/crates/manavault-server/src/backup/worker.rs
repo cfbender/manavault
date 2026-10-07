@@ -155,7 +155,7 @@ mod tests {
         }
     }
 
-    /// `oban_config_test.exs`, for this area's workers.
+    /// The crontab entries and timeouts of this area's workers.
     #[test]
     fn oban_crontab_and_timeouts() {
         let crontab: Vec<(&str, &str)> = crate::app::crontab()
@@ -189,7 +189,7 @@ mod tests {
         }
     }
 
-    /// `oban_logger_test.exs`.
+    /// Job failures are logged with the worker, queue, attempt, and error.
     #[test]
     fn oban_logger_formats_failures() {
         let job = Job {

@@ -2,8 +2,8 @@
 //!
 //! The schema is defined by the SQL migrations in `rust/migrations`, applied
 //! on boot by [`migrate::run`] and recorded in `schema_migrations` with the
-//! same versions the Ecto migrations used, so databases created by any
-//! earlier release (Elixir or Rust) upgrade in place.
+//! same versions earlier releases used, so databases created by any earlier
+//! release upgrade in place.
 
 pub mod migrate;
 
@@ -16,7 +16,7 @@ use sqlx::sqlite::{
 };
 use sqlx::{Sqlite, Transaction};
 
-/// Busy timeout shared with the Elixir repo config (`busy_timeout: 10_000`).
+/// SQLite busy timeout (10 seconds, as in earlier releases).
 const BUSY_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Debug, thiserror::Error)]
@@ -51,7 +51,7 @@ pub async fn connect(path: &Path, pool_size: u32) -> Result<SqlitePool, sqlx::Er
 
 /// Applies pending migrations. Versions recorded in the database that this
 /// build does not know (a database from a newer release) are ignored with a
-/// warning, as `Ecto.Migrator` ignores them.
+/// warning, as earlier releases ignored them.
 pub async fn prepare(pool: &SqlitePool) -> Result<migrate::Outcome, DbError> {
     let outcome = migrate::run(pool).await?;
     if !outcome.applied.is_empty() {
@@ -67,7 +67,7 @@ pub async fn prepare(pool: &SqlitePool) -> Result<migrate::Outcome, DbError> {
 }
 
 /// Starts a write transaction that takes SQLite's write lock up front
-/// (`default_transaction_mode: :immediate` in the Elixir repo), so concurrent
+/// (`BEGIN IMMEDIATE`), so concurrent
 /// writers queue on `busy_timeout` instead of failing on lock upgrade.
 pub async fn begin_write(pool: &SqlitePool) -> Result<Transaction<'static, Sqlite>, sqlx::Error> {
     pool.begin_with("BEGIN IMMEDIATE").await

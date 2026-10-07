@@ -330,7 +330,7 @@ fn parse_quantity(value: &str) -> i64 {
 
 /// The finish named in a cell; anything unknown is nonfoil.
 ///
-/// Elixir bug: the cell was not lower-cased, so `Foil` or `FOIL` imported as
+/// Bug in earlier releases: the cell was not lower-cased, so `Foil` or `FOIL` imported as
 /// nonfoil. Matching ignores case here.
 fn normalize_finish(value: &str) -> String {
     match value.trim().to_lowercase().replace(' ', "_").as_str() {
@@ -344,7 +344,7 @@ fn normalize_finish(value: &str) -> String {
 /// The condition named in a cell (`NM`, `lightly played`, ...); anything
 /// unknown is near mint.
 ///
-/// Elixir bug: the cell was not lower-cased before `[^a-z0-9]+` was replaced,
+/// Bug in earlier releases: the cell was not lower-cased before `[^a-z0-9]+` was replaced,
 /// so every upper-case grading (`LP`, `Lightly Played`, `MP`) imported as
 /// near mint. Matching ignores case here.
 fn normalize_condition(value: &str) -> String {

@@ -1,5 +1,5 @@
-//! Router-level tests ported from `test/manavault_web/controllers/*`,
-//! `graphql_csrf_protection_test.exs`, and `session_options_test.exs`.
+//! Router-level tests: controllers, GraphQL CSRF protection, session
+//! options, and the websocket.
 
 use std::net::{IpAddr, SocketAddr};
 
@@ -1708,7 +1708,7 @@ mod socket {
         browser.login("first", "/").await;
         let token = browser.token("/").await;
         let cookie = format!("_manavault_key={}", browser.cookie.clone().unwrap());
-        // Phoenix exposes the session only with the page's CSRF token.
+        // The session is read only with the page's CSRF token.
         assert_eq!(
             connect(addr, "vsn=2.0.0", &[("cookie", &cookie)])
                 .await

@@ -84,7 +84,7 @@ pub(crate) mod tests {
         can_be_commander(&card("Test Card", type_line, text))
     }
 
-    // commander_rules_test.exs
+    // Commander eligibility rules.
     #[test]
     fn accepts_legendary_creatures_and_explicit_text() {
         assert!(eligible(Some("Legendary Creature — Cat"), None));

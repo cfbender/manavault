@@ -14,9 +14,9 @@ use crate::decks::contents::LoadedDeckCard;
 use crate::decks::model::{DeckCardRow, DeckId, load_deck_on, parse_zone};
 use crate::decks::{DeckError, ensure_decklist_editable};
 
-// The line, printing, and finish patterns have no `u` flag in Elixir, so
-// `\d` and `\s` are ASCII there; `(?-u:...)` keeps them ASCII here. The
-// comment pattern and `\R` line breaks are Unicode-aware in both.
+// The line, printing, and finish patterns match ASCII `\d` and `\s` only, as
+// in earlier releases; `(?-u:...)` keeps them ASCII. The comment pattern and
+// `\R` line breaks are Unicode-aware.
 static LINE_BREAK: LazyLock<Option<Regex>> =
     LazyLock::new(|| Regex::new("\r\n|[\n\u{0B}\u{0C}\r\u{85}\u{2028}\u{2029}]").ok());
 static CARD_LINE: LazyLock<Option<Regex>> = LazyLock::new(|| {
@@ -61,8 +61,8 @@ fn strip_comment(line: &str) -> String {
     }
 }
 
-/// `Util.parse_quantity/1` on the line's digits. Elixir integers have no
-/// upper bound, so a count beyond `i64` saturates (and then fails the deck
+/// `Util.parse_quantity/1` on the line's digits. Earlier releases had no
+/// integer upper bound, so a count beyond `i64` saturates (and then fails the deck
 /// card's quantity limit) instead of becoming 1.
 fn parse_quantity(digits: Option<&str>) -> i64 {
     match digits {
@@ -379,7 +379,7 @@ mod tests {
     /// breaks (a lone `\r`, U+2028), `[SET]` suffixes, `(SET) 123` printing
     /// lookups, and ASCII-only quantities.
     #[tokio::test]
-    async fn parses_line_breaks_printings_and_quantities_like_elixir() {
+    async fn parses_line_breaks_printings_and_quantities_like_earlier_releases() {
         let app = crate::test_support::TestApp::new().await;
         app.import_cards(&[crate::test_support::fixtures::black_lotus()])
             .await;

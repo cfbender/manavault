@@ -100,8 +100,8 @@ pub fn build_schema(state: AppState) -> AppSchema {
     .finish()
 }
 
-/// The owner schema's SDL, for comparison with Absinthe's
-/// (`mix absinthe.schema.sdl`).
+/// The owner schema's SDL, for structural comparison
+/// (`rust/scripts/sdl_diff.py`).
 #[must_use]
 pub fn sdl() -> String {
     Schema::build(

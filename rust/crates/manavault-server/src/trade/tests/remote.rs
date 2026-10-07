@@ -1,5 +1,5 @@
-//! `list_source/mana_vault_remote_test.exs` and the absolute-link parts of
-//! `list_source_test.exs`, against wiremock through lotus's
+//! Remote ManaVault, Moxfield, and Archidekt list sources and absolute
+//! links, against wiremock through lotus's
 //! `DecklistClient`, adjusted to lotus behavior where noted.
 
 use std::future::Future;
@@ -275,7 +275,7 @@ async fn rejects_an_import_past_its_whole_import_deadline() {
 }
 
 #[tokio::test]
-async fn deck_errors_map_to_the_elixir_messages() {
+async fn deck_errors_map_to_the_documented_messages() {
     let app = app().await;
     let cases = [
         (
@@ -299,8 +299,8 @@ async fn deck_errors_map_to_the_elixir_messages() {
             }]})),
             remote::SERVER_TOO_OLD,
         ),
-        // lotus reads `data` without a `deck` field as a null deck (Elixir:
-        // "couldn't reach").
+        // lotus reads `data` without a `deck` field as a null deck (earlier
+        // releases: "couldn't reach").
         (
             json_response(json!({"data": {"unexpected": true}})),
             remote::DECK_NOT_FOUND,
@@ -370,7 +370,7 @@ async fn fetches_want_lists_and_binders() {
 }
 
 #[tokio::test]
-async fn want_and_binder_errors_map_to_the_elixir_messages() {
+async fn want_and_binder_errors_map_to_the_documented_messages() {
     let app = app().await;
     for (kind, field, not_found, unsupported) in [
         (
@@ -556,7 +556,7 @@ async fn resolves_once_and_pins_the_address_across_pagination() {
 
 #[tokio::test]
 async fn remote_deck_cards_clamp_quantities_and_default_unknown_zones() {
-    // lotus behavior (deliberate difference): Elixir kept a 0 quantity and
+    // lotus behavior (deliberate difference): earlier releases kept a 0 quantity and
     // an unknown zone string as sent.
     let server = MockServer::start().await;
     graphql_mock(

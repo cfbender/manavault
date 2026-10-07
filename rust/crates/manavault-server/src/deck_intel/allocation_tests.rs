@@ -1,11 +1,7 @@
 //! GraphQL tests for the allocation mutations and the fields that cross
-//! the deck/collection boundary, ported from
-//! `test/manavault_web/schema/deck_allocations_test.exs`,
-//! `deck_bulk_allocations_test.exs`, the bulk-add test of
-//! `deck_allocation_batching_test.exs`,
-//! `collection_allocation_decks_batching_test.exs`, and the `node` test of
-//! `schema_domain_contract_test.exs`, plus the error paths of
-//! `AllocationResolvers`.
+//! the deck/collection boundary: single and bulk deck allocations, bulk
+//! adds, a collection item's allocation decks, and `node` lookups, plus the
+//! allocation resolvers' error paths.
 
 use base64::Engine as _;
 use lotus::Finish;
@@ -72,7 +68,7 @@ async fn add_collection_item_to_deck_creates_a_deck_card_and_allocation() {
 }
 
 #[tokio::test]
-async fn add_collection_item_to_deck_reports_elixir_errors() {
+async fn add_collection_item_to_deck_reports_documented_errors() {
     let app = app_with_card("scryfall-add-errors", "oracle-add-errors", "Add Errors").await;
     let item = collection_item(&app, "scryfall-add-errors", 2, Finish::Nonfoil, None).await;
     let deck = create_deck(&app, "Errors Deck", None, None).await;

@@ -196,7 +196,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn formats_percentages_like_elixir() {
+    fn formats_percentages_like_earlier_releases() {
         assert_eq!(format_percent(Some(0.0)).as_deref(), Some("0%"));
         assert_eq!(format_percent(Some(-51.377)).as_deref(), Some("-51.4%"));
         assert_eq!(format_percent(Some(12.0)).as_deref(), Some("+12%"));

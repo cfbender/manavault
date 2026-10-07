@@ -1,4 +1,4 @@
-//! Bulk clean (`collection_bulk_clean_test.exs`).
+//! Bulk clean.
 
 use std::collections::HashMap;
 

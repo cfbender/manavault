@@ -1,9 +1,9 @@
-//! Validation errors rendered the way the Elixir resolvers render Ecto
-//! changeset errors.
+//! Validation errors, collected per field and rendered as user-facing
+//! messages.
 
 use std::collections::BTreeMap;
 
-/// Ecto's default validation messages.
+/// The standard validation messages.
 pub const BLANK: &str = "can't be blank";
 pub const INVALID: &str = "is invalid";
 
@@ -32,7 +32,7 @@ impl Errors {
     }
 
     /// `traverse_errors/2`: messages per field, newest first, fields in
-    /// alphabetical order (Elixir small-map key order).
+    /// alphabetical order.
     #[must_use]
     pub fn by_field(&self) -> BTreeMap<&'static str, Vec<String>> {
         let mut map: BTreeMap<&'static str, Vec<String>> = BTreeMap::new();
@@ -80,7 +80,7 @@ pub fn too_short(min: usize) -> String {
     format!("should be at least {min} character(s)")
 }
 
-/// Trims and maps blank strings to `None` (Ecto's empty-value handling).
+/// Trims and maps blank strings to `None`.
 #[must_use]
 pub fn blank_to_none(value: Option<String>) -> Option<String> {
     value
@@ -93,7 +93,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn renders_like_ecto() {
+    fn renders_the_documented_messages() {
         let mut errors = Errors::new();
         errors.add("theme_style", INVALID);
         errors.add("palette", BLANK);

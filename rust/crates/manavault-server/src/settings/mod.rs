@@ -5,7 +5,7 @@ pub mod ai;
 pub mod appearance;
 pub mod changeset;
 
-/// `test/manavault/encrypted/binary_test.exs`: stored credentials use
+/// Stored credentials use
 /// `Manavault.Encrypted.Binary` (implemented in [`crate::crypto`]).
 #[cfg(test)]
 mod encrypted_tests {

@@ -1,4 +1,4 @@
-//! `trade_test.exs`: the want list.
+//! The want list.
 
 use serde_json::json;
 

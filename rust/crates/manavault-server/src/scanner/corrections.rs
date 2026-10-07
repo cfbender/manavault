@@ -278,7 +278,7 @@ mod tests {
         assert!(!printing_id(&json!(
             "54772e15-d99d-4eec-ba8d-b9202a7e318b-2"
         )));
-        // Elixir: rem(:binary.decode_unsigned(:crypto.hash(:sha, id)), 5).
+        // The id's SHA-1, read as a big-endian integer, mod 5: 0 is eval.
         assert_eq!(split_for("11111111-2222-4333-8444-555555555555"), "train");
         assert_eq!(split_for("b"), "eval");
         assert_eq!(split_for("a"), "train");

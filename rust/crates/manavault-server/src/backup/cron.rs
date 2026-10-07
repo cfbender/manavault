@@ -1,10 +1,10 @@
 //! The owner's cloud backup schedule (`Manavault.Backup.Cron`): five-field
 //! cron expressions with `*`, lists, ranges, and steps; weekday 7 is Sunday.
-//! Parse errors use the Elixir messages, which the settings form shows.
+//! Parse errors use fixed messages, which the settings form shows.
 //!
 //! When both day-of-month and day-of-week are restricted, a time matches
-//! either one, as in standard cron. The Elixir module requires both, so
-//! `0 3 1 * 1` only fired on Mondays that fall on the 1st (an Elixir bug).
+//! either one, as in standard cron. Earlier releases required both, so
+//! `0 3 1 * 1` only fired on Mondays that fall on the 1st (a bug fixed here).
 
 use std::collections::BTreeSet;
 use std::ops::RangeInclusive;

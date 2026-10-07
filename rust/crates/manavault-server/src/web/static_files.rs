@@ -31,7 +31,8 @@ use crate::state::AppState;
 /// `ManavaultWeb.static_paths/0`: top-level entries served from the root.
 ///
 /// The maskable icons are added: the PWA manifest references them, but the
-/// Elixir list omits them, so Phoenix answers 404 for both (an Elixir bug).
+/// list of earlier releases omitted them, so both answered 404 (a bug fixed
+/// here).
 pub const STATIC_PATHS: [&str; 15] = [
     "assets",
     "shell",

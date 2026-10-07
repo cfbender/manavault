@@ -27,7 +27,7 @@ pub const WANTS_SOURCE_NAME: &str = lotus::decklist::manavault::WANTS_NAME;
 pub const BINDER_SOURCE_NAME: &str = lotus::decklist::manavault::BINDER_NAME;
 
 /// One normalized list entry. The quantity is as the source gave it: pasted
-/// text may say `0 Sol Ring`, which the Elixir code keeps.
+/// text may say `0 Sol Ring`, which is kept as is.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ListEntry {
     pub name: String,

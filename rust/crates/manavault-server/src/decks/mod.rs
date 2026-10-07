@@ -34,11 +34,11 @@ pub use schema::{DeckMutations, DeckQueries};
 use crate::decks::model::DeckStatus;
 use crate::decks::validation::Errors;
 
-/// Why a deck operation was refused. The codes match the Elixir error
-/// atoms; resolvers turn them into the `Errors` module's messages.
+/// Why a deck operation was refused. The codes are the stable error codes
+/// of earlier releases; resolvers turn them into user-facing messages.
 #[derive(Debug, thiserror::Error)]
 pub enum DeckError {
-    /// `Ecto.NoResultsError` on the deck (`get_deck!/1`).
+    /// The deck does not exist.
     #[error("deck not found")]
     DeckNotFound,
     /// `:not_found` (a deck card, usually).
@@ -57,7 +57,7 @@ pub enum DeckError {
     /// resolver has no message for it.
     #[error("{0}")]
     Code(&'static str),
-    /// A message the Elixir code returned as a string.
+    /// A ready-made error message.
     #[error("{0}")]
     Message(String),
     /// Changeset errors.
@@ -68,7 +68,7 @@ pub enum DeckError {
 }
 
 impl DeckError {
-    /// The Elixir error atom, when there is one.
+    /// The stable error code, when there is one.
     #[must_use]
     pub fn code(&self) -> Option<&'static str> {
         match self {
@@ -83,7 +83,7 @@ impl DeckError {
 }
 
 impl From<manavault_allocation::AllocationError> for DeckError {
-    /// Allocation failures inside a deck edit keep their Elixir error atom.
+    /// Allocation failures inside a deck edit keep their error code.
     fn from(error: manavault_allocation::AllocationError) -> Self {
         use manavault_allocation::AllocationError;
         match error {

@@ -5,7 +5,7 @@ use manavault_allocation::AllocationError;
 use crate::graphql::{internal_error, user_error};
 
 /// `Errors.deck_allocation_error/1`. A missing deck card or deck, which the
-/// Elixir resolvers raised on, reads as "… was not found.".
+/// resolvers of earlier releases raised on, reads as "… was not found.".
 #[must_use]
 pub fn deck_allocation_message(error: &AllocationError) -> Option<&'static str> {
     Some(match error {
@@ -45,7 +45,7 @@ pub fn deck_allocation_error(error: AllocationError) -> async_graphql::Error {
     }
 }
 
-/// Disassembly errors: the Elixir resolver printed the error atom
+/// Disassembly errors: the message is the error code
 /// (`deck_disassembly_result/1`).
 pub fn disassembly_error(error: AllocationError) -> async_graphql::Error {
     match error {

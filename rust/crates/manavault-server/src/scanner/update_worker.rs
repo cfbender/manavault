@@ -208,7 +208,7 @@ async fn update_from_manifest(
             let Some(file_url) = file_url else {
                 return Err(UpdateError::AssetMissing(name.clone()));
             };
-            // Elixir writes any manifest file name under the incoming directory
+            // Earlier releases wrote any manifest file name under the incoming directory
             // before verifying it, so `../` names escape it; refuse them first.
             if !bundle::FILES.contains(&name.as_str()) {
                 return Err(UpdateError::Install(bundle::InstallError::InvalidFile(

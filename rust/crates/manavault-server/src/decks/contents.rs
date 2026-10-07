@@ -183,7 +183,7 @@ fn card_cover(card: &LoadedDeckCard) -> Option<String> {
 /// image, else the first card with an image (commanders sort first).
 ///
 /// Cards are in `Preloads.deck_preloads/0` order (zone, card name, id).
-/// Elixir bug (not ported): decks loaded without card preloads (the owner
+/// Bug in earlier releases (not kept): decks loaded without card preloads (the owner
 /// and public share `deck` fields) took the cover from
 /// `DeckSummaries.display_summaries/1`, whose
 /// `order_by([deck_card, card], ...)` binds `card` to the second binding,
@@ -287,8 +287,7 @@ fn unique<T: Clone + Ord>(values: impl Iterator<Item = T>) -> Vec<T> {
 }
 
 /// Attaches cards and printings to deck card rows. Rows whose card is
-/// missing from the catalog are dropped (the Elixir preload inner-joins
-/// the card).
+/// missing from the catalog are dropped (as the card is inner-joined).
 pub async fn load_cards(
     pool: &SqlitePool,
     rows: Vec<DeckCardRow>,

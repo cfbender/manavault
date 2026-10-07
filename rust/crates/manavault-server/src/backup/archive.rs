@@ -1,7 +1,7 @@
 //! Backup zip files (`Manavault.Backup.Archive`). Entries are deflated
 //! regular files with paths relative to the staging directory, which is
-//! what Erlang's `:zip` writes and reads, so archives move freely between
-//! the two backends.
+//! what Erlang's `:zip` (used by earlier releases) writes and reads, so
+//! archives from any release restore here and vice versa.
 
 use std::io::{Read as _, Write as _};
 use std::path::{Component, Path, PathBuf};
@@ -181,7 +181,8 @@ mod tests {
 
     #[test]
     fn extracts_archives_written_by_erlangs_zip() {
-        // `:zip.create(~c"erlang-backup.zip", [~c"manavault.db", ~c"manifest.json"])`.
+        // Written by Erlang's `:zip.create/2` with `manavault.db` and
+        // `manifest.json`, as earlier releases built backups.
         let dir = TempDir::new();
         let artifact = dir.path().join("erlang-backup.zip");
         std::fs::write(&artifact, include_bytes!("fixtures/erlang-backup.zip")).unwrap();

@@ -1,8 +1,8 @@
-//! `deck_external_source_test.exs` (domain and GraphQL), against a wiremock
-//! Archidekt API. lotus differences: Archidekt zones come from the primary
-//! category with the deck's `includedInDeck` flags (the payloads here carry
-//! no category metadata, so `Maybeboard`/`Sideboard` are excluded as in
-//! Elixir), and a failed first link leaves the deck unlinked.
+//! Deck external sources (domain and GraphQL), against a wiremock Archidekt
+//! API. lotus differences from earlier releases: Archidekt zones come from
+//! the primary category with the deck's `includedInDeck` flags (the payloads
+//! here carry no category metadata, so `Maybeboard`/`Sideboard` are excluded
+//! as before), and a failed first link leaves the deck unlinked.
 
 use lotus::{Finish, Zone};
 use serde_json::{Value, json};
@@ -160,7 +160,7 @@ async fn link_imports_resolving_printings_and_summing_split_entries() {
 
 #[tokio::test]
 async fn archidekt_zones_follow_the_primary_category_and_included_flags() {
-    // lotus difference: Elixir made any card with a Maybeboard category
+    // lotus difference: earlier releases made any card with a Maybeboard category
     // Considering; lotus only looks at the primary category, and honours the
     // deck's `includedInDeck` flags. Quantities below one become one.
     let (app, server) = app_with_archidekt().await;
@@ -472,7 +472,7 @@ async fn the_worker_is_registered_hourly() {
     );
 }
 
-// --- test/manavault_web/schema/deck_external_source_test.exs ---
+// --- GraphQL ---
 
 const LINK: &str = "mutation Link($id: ID!, $url: String!) {
   linkDeckExternalSource(id: $id, url: $url) {

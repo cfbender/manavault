@@ -1,4 +1,4 @@
-//! Prompt texts, copied verbatim from the Elixir heredocs.
+//! Prompt texts, kept verbatim from earlier releases.
 
 /// `Prompt.system/1` without custom instructions.
 pub const ANALYSIS_SYSTEM: &str = r#"You are an expert Magic: The Gathering deck analyst. Analyze only the supplied deck data.

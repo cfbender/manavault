@@ -179,8 +179,8 @@ pub fn schema() -> &'static PublicSchema {
     &SCHEMA
 }
 
-/// The public schema's SDL, for comparison with Absinthe's
-/// (`mix absinthe.schema.sdl --schema ManavaultWeb.PublicShareSchema`).
+/// The public schema's SDL, for structural comparison
+/// (`rust/scripts/sdl_diff.py`).
 #[must_use]
 pub fn sdl() -> String {
     schema().sdl()

@@ -1,6 +1,6 @@
 //! Rasterizes the preview SVG (`DeckSharePreview.Renderer`).
 //!
-//! The Elixir renderer wrote the SVG to a temporary file and ran the `resvg`
+//! Earlier releases wrote the SVG to a temporary file and ran the `resvg`
 //! CLI (`--width=1200 --height=630 --sans-serif-family="DejaVu Sans"`).
 //! This uses the same resvg release as a library, in process, with system
 //! fonts and `DejaVu Sans` as the `sans-serif` family. Mana symbols are

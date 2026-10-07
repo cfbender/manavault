@@ -424,7 +424,7 @@ impl LogResult<'_> {
     }
 }
 
-/// Elixir's `inspect/1` of a string: quoted with escapes.
+/// A string as error messages quote it: in double quotes, with escapes.
 #[must_use]
 pub fn inspect_str(text: &str) -> String {
     let mut out = String::with_capacity(text.len() + 2);
@@ -455,7 +455,8 @@ fn inspect_limited(text: &str, limit: usize) -> String {
     }
 }
 
-/// Elixir's `inspect/1` of a decoded JSON value (`nil` when absent).
+/// A decoded JSON value for error messages: strings quoted by
+/// [`inspect_str`], anything else as JSON (`nil` when absent).
 fn inspect(value: Option<&Value>) -> String {
     match value {
         None | Some(Value::Null) => "nil".to_owned(),
@@ -542,7 +543,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn inspects_strings_like_elixir() {
+    fn inspects_strings_like_earlier_releases() {
         assert_eq!(inspect_str("a\"b\\c\n#{x}"), r#""a\"b\\c\n\#{x}""#);
         assert_eq!(inspect(None), "nil");
         assert_eq!(inspect(Some(&json!(12))), "12");

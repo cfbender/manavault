@@ -145,8 +145,8 @@ pub async fn create_by_printing(
     .await
 }
 
-/// Inserts the want or bumps the matching one. The Elixir code inserts and
-/// bumps on a unique-index conflict; doing both inside one `BEGIN
+/// Inserts the want or bumps the matching one. Earlier releases inserted and
+/// bumped on a unique-index conflict; doing both inside one `BEGIN
 /// IMMEDIATE` transaction gives the same result without the retry.
 async fn upsert(
     pool: &SqlitePool,

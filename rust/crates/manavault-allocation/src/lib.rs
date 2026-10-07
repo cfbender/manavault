@@ -1,14 +1,11 @@
 //! Deck allocation: reserving physical collection copies for deck cards.
 //!
-//! A Rust port of the Elixir allocation modules under
-//! `Manavault.Catalog.Decks` (`DeckCardAllocation`, `AllocationItems`,
-//! `AllocationStatus`, `BulkDeckAllocation`, `BulkCollectionAllocation`,
-//! `AddCollectionItemToDeck`, `PullListAllocation`, `ProxyAllocation`,
-//! `DeckCardDeallocation`, `TrimDeckCardAllocations`,
-//! `ClearDeckCardAllocations`, `Disassembly`, and the counting half of
-//! `Buylist`), working on the same SQLite schema. Every query is checked at
-//! compile time against the schema dumped from the Ecto migrations
-//! (`priv/repo/structure.sql`).
+//! Covers single-card and bulk allocation for decks and collection items,
+//! allocation status, adding a collection item to a deck, pull-list and
+//! proxy allocation, deallocation, trimming and clearing, deck disassembly,
+//! and the counting half of the buylist, all on the app's SQLite schema.
+//! Every query is checked at compile time against the schema the
+//! migrations produce (`rust/schema.sql`).
 //!
 //! Functions taking a pool run in their own `BEGIN IMMEDIATE` transaction.
 //! Functions taking a `&mut SqliteConnection` (`*_in`, clearing, trimming,

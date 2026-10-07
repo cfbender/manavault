@@ -1,6 +1,5 @@
-//! Card GraphQL fields, ported from `schema/card_queries_test.exs`,
-//! `schema/scanner_printings_test.exs`, and the card parts of
-//! `schema/schema_domain_contract_test.exs`.
+//! Card GraphQL fields: card queries, scanner printings, and the card parts
+//! of the schema's domain contract.
 
 use serde_json::{Value, json};
 

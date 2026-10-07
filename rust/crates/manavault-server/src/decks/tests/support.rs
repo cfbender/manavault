@@ -1,5 +1,4 @@
-//! Fixtures and helpers shared by the deck tests
-//! (`test/support/manavault/catalog_test_support.ex`).
+//! Fixtures and helpers shared by the deck tests.
 
 use lotus::{Finish, OracleId, ScryfallId};
 use serde_json::{Value, json};

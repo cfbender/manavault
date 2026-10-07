@@ -1,5 +1,4 @@
-//! `entry_resolver_test.exs`, `matcher_test.exs`, `collection_check_test.exs`,
-//! and `deck_diff_test.exs`.
+//! The entry resolver, matcher, collection check, and deck diff.
 
 use lotus::{OracleId, Zone};
 use serde_json::json;
@@ -477,7 +476,7 @@ mod collection_check_tests {
 
     #[tokio::test]
     async fn the_cheapest_printing_ties_break_chronologically() {
-        // Elixir compared Date structs in term order (day first), which
+        // Earlier releases compared dates day first, which
         // would pick the 1993-08-05 printing over 1993-10-01.
         let app = TestApp::new().await;
         app.import_cards(&[
@@ -839,7 +838,7 @@ mod deck_diff_tests {
 
     #[tokio::test]
     async fn snow_basics_in_the_catalog_compare_by_name() {
-        // Elixir counted only `Basic Land ...` type lines as basics, so a
+        // Earlier releases counted only `Basic Land ...` type lines as basics, so a
         // `Basic Snow Land` with another oracle id was a cut plus an add.
         let (app, deck) = setup().await;
         let snow = |oracle_id: &str| {

@@ -184,7 +184,7 @@ pub async fn body_text(response: Response<Body>) -> String {
     String::from_utf8_lossy(&bytes).into_owned()
 }
 
-/// Card fixtures from `test/support/manavault/catalog_test_support.ex`.
+/// Card fixtures shared by the tests.
 pub mod fixtures {
     use serde_json::{Value, json};
 

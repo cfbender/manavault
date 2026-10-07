@@ -16,8 +16,8 @@ use crate::timefmt;
 
 const DECK_NOT_FOUND: &str = "Deck was not found.";
 
-/// `Catalog.get_deck!/1` for resolvers. Elixir raised (an HTTP error
-/// response); here a missing deck is a GraphQL error.
+/// Loads a deck for resolvers. Earlier releases answered a missing deck
+/// with an HTTP error response; here it is a GraphQL error.
 async fn require_deck(ctx: &Context<'_>, id: &ID) -> Result<i64> {
     let deck_id = node_int(id, NodeKind::Deck)?;
     match decks::get(&state(ctx).db, deck_id).await {
@@ -48,7 +48,7 @@ impl DeckAnalysisJob {
 }
 
 /// The GraphQL `Deck` by raw id; a deck deleted meanwhile is "Deck was not
-/// found." (Elixir's `get_deck!/1` raised).
+/// found.".
 async fn load_deck(ctx: &Context<'_>, id: i64) -> Result<crate::decks::Deck> {
     crate::decks::Deck::load(&state(ctx).db, crate::decks::DeckId(id))
         .await

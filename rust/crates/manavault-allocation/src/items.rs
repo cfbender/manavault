@@ -85,7 +85,7 @@ struct NewCollectionItem<'a> {
 }
 
 /// The copies split off `item`: same printing and provenance, new quantity
-/// and location. Trade flags start cleared, as in the Elixir create path.
+/// and location. Trade flags start cleared, as for any newly created item.
 fn split_off(
     item: &CollectionItem,
     quantity: Quantity,
@@ -136,7 +136,7 @@ async fn insert(
     .await
 }
 
-/// Moves a whole item. Like the Ecto changeset, a move to a real location
+/// Moves a whole item. A move to a real location
 /// stamps `location_changed_at`, and an unchanged location writes nothing.
 async fn set_location(
     conn: &mut SqliteConnection,
@@ -163,7 +163,7 @@ async fn set_location(
 }
 
 /// Shrinks an item. Copies marked for trade can never exceed copies owned, so
-/// the trade count is clamped the same way the Ecto changeset does.
+/// the trade count is clamped to the new quantity.
 async fn set_quantity(
     conn: &mut SqliteConnection,
     id: CollectionItemId,

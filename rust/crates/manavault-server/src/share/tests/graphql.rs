@@ -1,7 +1,5 @@
-//! Public share GraphQL fields: `public_wants_share_test.exs`,
-//! `public_binder_share_test.exs`, the public parts of
-//! `deck_detail_and_share_test.exs`, and the frontend contract of
-//! `public_share_cache_test.exs`.
+//! Public share GraphQL fields: wants and binder shares, public deck shares,
+//! and the frontend's public deck query contract.
 
 use serde_json::{Value, json};
 use wiremock::matchers::{method, path};
@@ -160,8 +158,7 @@ fn frontend_deck_document() -> String {
     pattern.captures(&source).unwrap()[1].to_owned()
 }
 
-// public_share_cache_test.exs: "frontend deck query stays compatible with
-// the public share endpoint"
+// The frontend deck query stays compatible with the public share endpoint.
 #[tokio::test]
 async fn the_frontend_deck_document_runs_against_the_public_schema() {
     let app = TestApp::new().await;
@@ -225,8 +222,8 @@ query Card($id: ID!) {
   }
 }";
 
-// deck_detail_and_share_test.exs: "deck share mutation creates a public
-// token and public share query resolves it"
+// The deck share mutation creates a public token and the public share query
+// resolves it.
 #[tokio::test]
 async fn the_public_share_query_resolves_a_shared_deck_without_owner_data() {
     let rulings = MockServer::start().await;

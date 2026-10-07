@@ -1,17 +1,17 @@
-//! Applies the Ecto migrations a database is missing, recording them in
-//! `schema_migrations` exactly as Ecto does, so a database moves freely
-//! between the Elixir and Rust backends and installs of any older release
-//! upgrade in place.
+//! Applies the migrations a database is missing, recording them in
+//! `schema_migrations` with the same versions and `inserted_at` format
+//! earlier releases recorded, so installs of any older release upgrade in
+//! place.
 //!
-//! Each migration's SQL is generated from `mix ecto.migrate
-//! --log-migrations-sql` by `rust/scripts/dump-migrations.py` (`mise run
-//! rust:migrations`) and embedded at build time. The migrations whose Elixir
-//! code read or wrote data are ported here ([`data_step`]); the script fails
-//! if a migration produces data statements without a data step.
+//! The SQL files in `rust/migrations` (embedded at build time) were
+//! originally generated from the earlier backend's migration SQL log (see
+//! `rust/notes/migrations.md`); new schema changes are new files. The
+//! migrations that read or wrote data in code are implemented here
+//! ([`data_step`]).
 //!
-//! Like `Ecto.Migrator`, pending migrations run oldest first, each in its own
-//! transaction, and versions recorded in `schema_migrations` that this build
-//! does not know (a database from a newer release) are left alone.
+//! Pending migrations run oldest first, each in its own transaction, and
+//! versions recorded in `schema_migrations` that this build does not know (a
+//! database from a newer release) are left alone.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
@@ -25,7 +25,7 @@ mod generated {
 }
 pub use generated::MIGRATIONS;
 
-/// Ecto's `schema_migrations` table (`ecto_sqlite3`).
+/// The `schema_migrations` table, as earlier releases created it.
 const SCHEMA_MIGRATIONS: &str = r#"CREATE TABLE IF NOT EXISTS "schema_migrations" ("version" INTEGER PRIMARY KEY, "inserted_at" TEXT)"#;
 
 /// Errors while migrating.
@@ -109,13 +109,14 @@ pub async fn run(pool: &SqlitePool) -> Result<Outcome, MigrateError> {
     Ok(outcome)
 }
 
-/// `schema_migrations.inserted_at` as Ecto writes it: naive UTC seconds.
-fn ecto_inserted_at() -> String {
+/// `schema_migrations.inserted_at` as earlier releases recorded it: naive
+/// UTC seconds.
+fn migration_inserted_at() -> String {
     naive_now()
 }
 
-/// A `DateTime` parameter in a schemaless Ecto query, as `ecto_sqlite3`
-/// binds it: ISO 8601 without the `Z`.
+/// The current UTC time as ISO 8601 seconds without the `Z`, the format
+/// migrations of earlier releases wrote timestamps in.
 fn naive_now() -> String {
     OffsetDateTime::now_utc()
         .format(format_description!(
@@ -125,9 +126,9 @@ fn naive_now() -> String {
 }
 
 async fn apply(conn: &mut SqliteConnection, version: i64, sql: &str) -> Result<(), sqlx::Error> {
-    let inserted_at = ecto_inserted_at();
+    let inserted_at = migration_inserted_at();
     // `PRAGMA foreign_keys` is a no-op inside a transaction, so migrations that
-    // rebuild tables (Ecto's `@disable_ddl_transaction`) run statement by
+    // rebuild tables (outside a DDL transaction) run statement by
     // statement. None of ManaVault's 74 migrations do today.
     if sql.contains("PRAGMA foreign_keys = OFF") {
         sqlx::raw_sql(AssertSqlSafe(sql.to_owned()))
@@ -159,7 +160,7 @@ async fn record(
         .map(|_| ())
 }
 
-/// The data each migration computed in Elixir code. Queries are built at
+/// The data changes migrations make in code rather than SQL. Queries are built at
 /// runtime (not the checked macros) because they target the schema as of
 /// their migration, not the current one.
 async fn data_step(conn: &mut SqliteConnection, version: i64) -> Result<(), sqlx::Error> {
@@ -371,8 +372,8 @@ async fn merge_deck_zones_into_considering(conn: &mut SqliteConnection) -> Resul
     Ok(())
 }
 
-/// `AddNormalizedCardNames`: `normalized_name` for every card. The Elixir
-/// `normalize_name/1` (NFD, drop marks, lowercase, drop apostrophes, squash
+/// `AddNormalizedCardNames`: `normalized_name` for every card. The
+/// migration's `normalize_name/1` (NFD, drop marks, lowercase, drop apostrophes, squash
 /// whitespace, trim) is [`lotus::normalize_name`].
 async fn normalize_card_names(conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
     let cards: Vec<(String, String)> = sqlx::query_as("SELECT oracle_id, name FROM scryfall_cards")
@@ -427,7 +428,7 @@ async fn normalize_flavor_names(conn: &mut SqliteConnection) -> Result<(), sqlx:
 /// card is released back to its source location (splitting the item when
 /// only part of it was allocated), and considering cards lose their proxies.
 ///
-/// Two Elixir bugs are not copied: the Elixir step read every item's quantity
+/// Two bugs of the original migration are not copied: it read every item's quantity
 /// once up front, so two partial allocations of the same item each split from
 /// the original quantity and created copies; and the split-off item dropped
 /// `purchase_price_cents`. This keeps a running quantity per item and copies

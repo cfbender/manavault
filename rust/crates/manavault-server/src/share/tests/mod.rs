@@ -1,10 +1,7 @@
-//! Share tests, ported from `public_graphql_protection_test.exs`,
-//! `public_share_cache_test.exs`, `public_wants_share_test.exs`,
-//! `public_binder_share_test.exs`, `public_access_mutation_guard_test.exs`,
-//! the public parts of `schema/deck_detail_and_share_test.exs`, the share
-//! deck parts of `controllers/app_controller_test.exs`,
-//! `deck_share_preview_artifact_cache_test.exs`, and
-//! `controllers/api/v1/deck_controller_test.exs`, plus a lotus
+//! Share tests: public GraphQL protection and the public access mutation
+//! guard, share caching, wants, binder, and deck shares, the shared deck
+//! page, the preview artifact cache, and the `/api/v1` deck endpoints, plus
+//! a lotus
 //! `DecklistClient` round trip against this server.
 
 mod api_v1;

@@ -1,5 +1,4 @@
-//! `cardEdhrec`, ported from `edhrec/card_page_test.exs`,
-//! `card_name_lookup_index_test.exs`, and `edhrec/card_lookup_preload_test.exs`.
+//! `cardEdhrec`: EDHREC card pages, card name lookups, and lookup preloads.
 
 use serde_json::{Value, json};
 use wiremock::matchers::{header, method, path};

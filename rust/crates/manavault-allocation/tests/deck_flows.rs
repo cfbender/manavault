@@ -1,9 +1,5 @@
-//! Ports of the deck-wide scenarios in
-//! `test/manavault/catalog/deck_allocation_test.exs`,
-//! `deck_allocation_movement_test.exs`,
-//! `deck_bulk_allocation_preview_batching_test.exs`,
-//! `deck_buylist_test.exs` (the counting half), and
-//! `deck_disassembly_test.exs`.
+//! Deck-wide allocation scenarios: allocating and moving whole decks, bulk
+//! allocation previews, buylist counting, and deck disassembly.
 
 mod support;
 

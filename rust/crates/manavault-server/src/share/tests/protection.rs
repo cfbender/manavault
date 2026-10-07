@@ -1,5 +1,4 @@
-//! `public_graphql_protection_test.exs` and
-//! `public_access_mutation_guard_test.exs`.
+//! Public GraphQL protection and the public access mutation guard.
 
 use std::net::SocketAddr;
 
@@ -218,7 +217,7 @@ async fn global_limits_apply_across_client_ips() {
     assert_eq!(statuses, vec![200, 200, 429]);
 }
 
-// public_access_mutation_guard_test.exs
+// Public access mutation guard.
 
 #[test]
 fn the_public_schema_exposes_no_mutation_fields() {

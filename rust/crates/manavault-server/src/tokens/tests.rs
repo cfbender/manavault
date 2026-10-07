@@ -1,5 +1,4 @@
-//! Token tests, ported from `test/manavault/catalog/tokens_test.exs` and
-//! `test/manavault_web/schema/tokens_test.exs`.
+//! Token tests: token items and the token GraphQL fields.
 
 use async_graphql::MaybeUndefined;
 use serde_json::{Value, json};
@@ -281,7 +280,7 @@ async fn update_and_delete_token_items() {
         ),
         (5, "foil")
     );
-    // Explicit nulls fall back to the defaults, as the Elixir normalization does.
+    // Explicit nulls fall back to the defaults.
     let updated = items::update(
         pool,
         id,
@@ -545,7 +544,7 @@ async fn back_options_ignore_owned_tokens_without_a_back() {
     assert_eq!(back_ids(&app, "token-goblin-m3c").await.0.len(), 0);
 }
 
-// GraphQL (`schema/tokens_test.exs`).
+// GraphQL.
 
 fn treasure() -> Value {
     merge(

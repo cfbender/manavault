@@ -1,4 +1,4 @@
-//! `decklist_test.exs` and `deck_tags_test.exs`.
+//! Decklist import and export, and deck tags.
 
 use std::collections::HashMap;
 
@@ -334,7 +334,7 @@ async fn import_dedupes_the_iroh_list_to_100_cards_with_printings_and_finishes()
     }
 }
 
-// --- deck_tags_test.exs ---
+// --- deck tags ---
 
 async fn tag_app() -> TestApp {
     let app = TestApp::new().await;

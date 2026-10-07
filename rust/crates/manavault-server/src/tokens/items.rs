@@ -39,7 +39,7 @@ pub enum TokenItemError {
     NotAToken,
     #[error("Token printing not found.")]
     PrintingNotFound,
-    /// The item does not exist (`get_token_item!/1` raised `Ecto.NoResultsError`).
+    /// The item does not exist.
     #[error("Token item was not found.")]
     NotFound,
     /// Changeset validation errors, already rendered.
@@ -59,7 +59,7 @@ pub struct NewTokenItem {
 }
 
 /// Changes to an item (`TokenItemUpdateInput`). An explicit `null` is turned
-/// into the default by the Elixir normalization (quantity 1, `nonfoil`).
+/// into the default (quantity 1, `nonfoil`).
 #[derive(Debug, Clone, Default)]
 pub struct TokenItemChanges {
     pub quantity: MaybeUndefined<i64>,

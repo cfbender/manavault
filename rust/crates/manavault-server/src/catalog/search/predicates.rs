@@ -454,7 +454,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parses_numbers_like_elixir() {
+    fn parses_numbers_like_earlier_releases() {
         assert_eq!(parse_float("3"), Some(3.0));
         assert_eq!(parse_float("-1.5"), Some(-1.5));
         assert_eq!(parse_float("1e2"), Some(100.0));

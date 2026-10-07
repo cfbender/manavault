@@ -227,7 +227,8 @@ fn char_count(value: &str) -> u32 {
 }
 
 /// The smallest integer at or above `x` (`ceil/1` on a float), searched
-/// from an exact-arithmetic estimate so the float rounding matches Elixir's.
+/// from an exact-arithmetic estimate so the float rounding matches earlier
+/// releases.
 fn ceil_u32(x: f64, estimate: u32) -> u32 {
     let mut n = estimate;
     while f64::from(n) < x {
@@ -487,7 +488,7 @@ mod tests {
     }
 
     #[test]
-    fn labels_match_the_elixir_helpers() {
+    fn labels_match_earlier_releases() {
         assert_eq!(titleize("pauper_commander"), "Pauper Commander");
         assert_eq!(titleize("ACTIVE"), "Active");
         assert_eq!(compact_number(100), "100");

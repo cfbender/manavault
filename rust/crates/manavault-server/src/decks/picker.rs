@@ -115,7 +115,7 @@ mod tests {
         }
     }
 
-    // deck_picker_test.exs: weights grow with recency and skips, shrink with plays.
+    // Weights grow with recency and skips, shrink with plays.
     #[test]
     fn selection_weights_follow_recency_skips_and_plays() {
         let now = timefmt::parse("2026-08-26T12:00:00Z").unwrap();

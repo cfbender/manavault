@@ -1,8 +1,8 @@
 //! Background jobs stored in the `oban_jobs` table.
 //!
 //! The table, states, uniqueness rules, retry backoff, and worker names are
-//! Oban's, so jobs queued by the Elixir app run here and the `deckAnalysisJob`
-//! query can read either backend's rows. Each worker implements [`Worker`]
+//! Oban's, as in earlier releases, so jobs they queued still run and the
+//! `deckAnalysisJob` query can read their rows. Each worker implements [`Worker`]
 //! and is registered in [`crate::app::workers`].
 
 pub mod cron;
@@ -59,7 +59,8 @@ pub struct Job {
 /// A background worker.
 #[async_trait]
 pub trait Worker: Send + Sync {
-    /// The Elixir module name, stored in `oban_jobs.worker`.
+    /// The worker name stored in `oban_jobs.worker` (the module names
+    /// earlier releases used, e.g. `Manavault.Pricing.VendorSyncWorker`).
     fn name(&self) -> &'static str;
     /// The queue the worker runs on.
     fn queue(&self) -> &'static str;
@@ -178,8 +179,8 @@ impl Jobs {
         Ok(id)
     }
 
-    /// Inserts a job now inside the caller's write transaction (`Oban.insert`
-    /// in an `Ecto.Multi`), so the job and the caller's rows commit together.
+    /// Inserts a job now inside the caller's write transaction, so the job
+    /// and the caller's rows commit together.
     /// Call [`Self::wake`] after committing.
     pub async fn enqueue_in(
         &self,

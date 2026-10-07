@@ -5,8 +5,8 @@
 //! `bulkDeallocateDeckCards`, `allocateDeckCardProxy`,
 //! `deallocateDeckCardProxy`, `previewBulkAllocateDeck`, and
 //! `allocateDeckPullList`. The rules live in `manavault_allocation`; this
-//! module decodes ids, keeps the Elixir checks' order where it shows in the
-//! error message, and loads the GraphQL `DeckCard`s and `CollectionItem`s.
+//! module decodes ids, keeps the established order of checks where it shows
+//! in the error message, and loads the GraphQL `DeckCard`s and `CollectionItem`s.
 
 use async_graphql::{Context, ID, Object, SimpleObject};
 use manavault_allocation::{
@@ -56,7 +56,7 @@ async fn deck_cards(pool: &SqlitePool, ids: &[DeckCardId]) -> Result<Vec<DeckCar
 /// The zone argument of the add-to-deck mutations: omitted is mainboard;
 /// anything but `DeckCard.zones/0` fails the deck card changeset.
 ///
-/// An explicit `null` is mainboard too. (Elixir passed `nil` on: the single
+/// An explicit `null` is mainboard too. (Earlier releases passed `nil` on: the single
 /// add raised comparing `zone == nil` in its query and the bulk add failed
 /// with "zone can't be blank"; async-graphql also reads an unset `$zone`
 /// variable as `null`, which Absinthe treated as omitted.)
@@ -67,7 +67,7 @@ fn zone_arg(zone: Option<&str>) -> std::result::Result<Zone, &'static str> {
     }
 }
 
-/// The deck must exist and its decklist be editable; Elixir checked both
+/// The deck must exist and its decklist be editable; both are checked
 /// before the deck card changeset rejected a zone.
 async fn ensure_decklist_editable(pool: &SqlitePool, id: DeckId) -> Result<()> {
     manavault_allocation::deck(pool, id)

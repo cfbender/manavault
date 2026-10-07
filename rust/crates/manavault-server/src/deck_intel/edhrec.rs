@@ -336,7 +336,7 @@ fn page_number(map: &Map<String, Value>, key: &str) -> Option<f64> {
     entry_number(map, key).and_then(|number| number.as_f64())
 }
 
-/// Rounds half away from zero, as Elixir's `round/1` does. Values outside
+/// Rounds half away from zero. Values outside
 /// ±2^53 are not page counts and read as absent.
 fn round_to_i64(value: f64) -> Option<i64> {
     let rounded = value.round();
@@ -759,7 +759,7 @@ mod unit_tests {
     }
 
     #[test]
-    fn page_numbers_round_like_elixir() {
+    fn page_numbers_round_half_away_from_zero() {
         let page = json!({"a": 2.5, "b": -2.5, "c": 7, "d": "x", "avg_price": 100_000.4})
             .as_object()
             .cloned()

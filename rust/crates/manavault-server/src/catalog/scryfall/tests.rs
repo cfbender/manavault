@@ -1,5 +1,4 @@
-//! Ports of `test/manavault/catalog/import_test.exs`, `sync_test.exs`, and
-//! `scryfall_workers_test.exs`.
+//! Scryfall catalog tests: bulk imports, syncs, and the Scryfall workers.
 
 use std::time::{Duration, Instant};
 
@@ -150,7 +149,7 @@ fn themes(json: &str) -> Vec<String> {
     serde_json::from_str(json).unwrap()
 }
 
-// ---- import_test.exs ----
+// ---- imports ----
 
 #[tokio::test]
 async fn import_stores_identities_and_printings_and_updates_on_rerun() {
@@ -1115,7 +1114,7 @@ async fn stored_rows_from_both_backends_compare_equal() {
     assert_eq!(summary.committed_batches, 0);
 }
 
-// ---- sync_test.exs ----
+// ---- syncs ----
 
 struct Feed {
     server: MockServer,
@@ -1853,7 +1852,7 @@ async fn sync_skips_undecodable_records_and_keeps_cards_with_unknown_vocabulary(
     );
 }
 
-// ---- scryfall_workers_test.exs ----
+// ---- workers ----
 
 #[tokio::test]
 async fn manual_reloads_enqueue_unique_forced_jobs() {

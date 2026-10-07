@@ -3,8 +3,7 @@
 //! (`Manavault.Catalog.ScryfallOracleTags`).
 //!
 //! The input is Scryfall's `oracle-tags` bulk file, kept as raw JSON: tag
-//! fields are read leniently, exactly as the Elixir module read string-keyed
-//! maps, so an odd tag never fails a catalog import.
+//! fields are read leniently, so an odd tag never fails a catalog import.
 
 use std::collections::{HashMap, HashSet};
 
@@ -138,7 +137,7 @@ fn category_theme_order(category: &str) -> &'static [&'static str] {
 }
 
 /// A tag as stored in `scryfall_cards.oracle_tags`. Field order is the key
-/// order Jason wrote for the Elixir atom-keyed map.
+/// order earlier releases wrote, so stored JSON stays byte-identical.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct StoredTag {
     pub annotation: Value,
@@ -461,7 +460,7 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    /// `scryfall_tag/1` from the Elixir test support.
+    /// A Scryfall oracle tag record with defaults, overridden by `attrs`.
     pub fn scryfall_tag(attrs: Value) -> Value {
         let mut tag = json!({
             "object": "tag", "id": "tag-default", "slug": "default", "label": "Default",

@@ -55,8 +55,8 @@ pub async fn allocate_in(
     reserve(conn, &deck_card, &item, quantity).await
 }
 
-/// Starts a transaction that takes SQLite's write lock up front, like the
-/// Elixir repo's `default_transaction_mode: :immediate`.
+/// Starts a transaction that takes SQLite's write lock up front
+/// (`BEGIN IMMEDIATE`), as every write transaction in the app does.
 pub(crate) async fn begin_write(
     pool: &SqlitePool,
 ) -> Result<sqlx::Transaction<'static, sqlx::Sqlite>, sqlx::Error> {

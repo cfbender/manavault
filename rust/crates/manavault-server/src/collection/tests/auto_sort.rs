@@ -1,4 +1,4 @@
-//! Auto-sort rules and runs (`collection_test.exs` auto-sort tests).
+//! Auto-sort rules and runs.
 
 use std::collections::HashMap;
 

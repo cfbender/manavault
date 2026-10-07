@@ -56,7 +56,7 @@ fn put_if_absent(headers: &mut HeaderMap, name: &'static str, value: &str) {
     }
 }
 
-/// Phoenix's secure browser defaults plus the app's content security policy.
+/// Secure browser header defaults plus the app's content security policy.
 pub fn put_browser_headers(headers: &mut HeaderMap, vite_dev: bool) {
     put_if_absent(
         headers,

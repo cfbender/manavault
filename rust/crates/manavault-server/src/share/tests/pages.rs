@@ -1,6 +1,5 @@
-//! The shared deck page and previews: the share-deck parts of
-//! `app_controller_test.exs` and the HTTP surfaces of
-//! `public_share_cache_test.exs`.
+//! The shared deck page and previews, and the caching of every public share
+//! HTTP surface.
 
 use serde_json::json;
 
@@ -188,7 +187,7 @@ async fn the_png_preview_is_a_1200_by_630_png_served_from_the_cache() {
     assert_eq!(&again.body, png);
 }
 
-// public_share_cache_test.exs
+// Public share caching.
 
 async fn every_surface(app: &TestApp, token: &str) -> [u16; 3] {
     [

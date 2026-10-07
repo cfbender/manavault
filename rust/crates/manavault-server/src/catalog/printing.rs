@@ -139,7 +139,7 @@ pub fn art_crop_url(image_uris: &Value) -> Option<String> {
 
 /// A printing as a GraphQL object: the row, how many collection copies of
 /// it are owned (0 unless loaded through an owned-count query, as with the
-/// Elixir virtual field), and its card when already loaded.
+/// owned-count field), and its card when already loaded.
 #[derive(Debug, Clone)]
 pub struct Printing {
     pub record: Arc<PrintingRecord>,

@@ -1,7 +1,5 @@
-//! Catalog tests, ported from `test/manavault/catalog_test.exs` (card parts),
-//! `test/manavault/catalog/{search,edhrec}/*`, `price_fallback_consistency_test.exs`,
-//! `card_name_suggestions_test.exs`, and the card parts of
-//! `test/manavault_web/schema/*`.
+//! Catalog tests: card search, EDHREC, price fallbacks, rulings, card name
+//! suggestions, and the card GraphQL fields.
 
 mod edhrec;
 mod prices;

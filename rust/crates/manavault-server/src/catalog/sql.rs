@@ -1,5 +1,5 @@
 //! SQL fragments with bound values, for search predicates composed at
-//! runtime (the Ecto `dynamic/2` expressions of the Elixir search modules).
+//! runtime.
 //!
 //! A [`Fragment`] keeps SQL text and bound values in order, so composed
 //! predicates are pushed into a `QueryBuilder` without string-formatting
@@ -36,13 +36,13 @@ impl Fragment {
         }
     }
 
-    /// `TRUE` (Ecto `dynamic(true)`).
+    /// `TRUE`: matches every row.
     #[must_use]
     pub fn truth() -> Self {
         Self::sql("TRUE")
     }
 
-    /// `FALSE` (Ecto `dynamic(false)`).
+    /// `FALSE`: matches no row.
     #[must_use]
     pub fn falsity() -> Self {
         Self::sql("FALSE")

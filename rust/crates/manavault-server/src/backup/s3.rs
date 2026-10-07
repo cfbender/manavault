@@ -66,9 +66,9 @@ fn canonical_query(query: &[(String, String)]) -> String {
 
 /// The canonical URI: each segment encoded exactly once.
 ///
-/// The Elixir client encodes the already-encoded object path a second
+/// The previous backend encoded the already-encoded object path a second
 /// time, so keys or prefixes with characters outside `A-Za-z0-9-_.~` got
-/// signatures S3 rejects (an Elixir bug); unreserved paths sign the same.
+/// signatures S3 rejects (a bug fixed here); unreserved paths sign the same.
 fn canonical_path(path: &str) -> String {
     path.split('/')
         .map(|segment| uri_encode(&uri_decode(segment)))
@@ -281,7 +281,7 @@ fn parse_list_response(body: &str, settings: &CloudSettings) -> Vec<Remote> {
                 modified_at: super::parse_remote_datetime(&xml_text(entry, "LastModified")),
             }
         })
-        // `String.ends_with?(name, ".zip")`, case-sensitive like Elixir.
+        // Names ending in `.zip`, case-sensitive.
         .filter(|remote| {
             remote
                 .name

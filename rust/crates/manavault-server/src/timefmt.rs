@@ -1,4 +1,5 @@
-//! Timestamp text as Ecto stores it in SQLite (`ecto_sqlite3`, ISO 8601).
+//! Timestamp text as stored in SQLite (ISO 8601), in the formats earlier
+//! releases wrote.
 
 use time::format_description::well_known::Rfc3339;
 use time::macros::format_description;
@@ -73,7 +74,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parses_ecto_formats() {
+    fn parses_stored_formats() {
         let at = parse("2026-10-07T07:30:43Z").unwrap();
         assert_eq!(utc_seconds(at), "2026-10-07T07:30:43Z");
         let at = parse("2026-10-07T07:30:43.123456Z").unwrap();

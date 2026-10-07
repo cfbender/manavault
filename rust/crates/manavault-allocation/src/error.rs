@@ -1,8 +1,8 @@
 /// Why an allocation change was refused.
 ///
 /// Each domain variant's [`code`](AllocationError::code) matches the error
-/// atom the Elixir implementation returns, so GraphQL clients see the same
-/// error codes from either backend.
+/// code earlier releases returned, so GraphQL clients keep seeing the same
+/// error codes.
 #[derive(Debug, thiserror::Error)]
 pub enum AllocationError {
     #[error("deck card not found")]
@@ -25,7 +25,7 @@ pub enum AllocationError {
     AlreadyAllocated,
     #[error("the allocation does not match the collection item's quantity")]
     QuantityMismatch,
-    /// The deck does not exist. The Elixir code raised `Ecto.NoResultsError`.
+    /// The deck does not exist.
     #[error("deck not found")]
     DeckNotFound,
     /// The deck's card list is owned by a linked Moxfield/Archidekt deck.
@@ -48,7 +48,7 @@ pub enum AllocationError {
     /// `matching_printings`.
     #[error("invalid allocation mode")]
     InvalidAllocationMode,
-    /// A deck card would reach 10 000 copies (the Ecto changeset's limit).
+    /// A deck card would reach 10 000 copies (the deck card quantity limit).
     #[error("quantity must be less than 10000")]
     QuantityTooLarge,
     #[error(transparent)]
@@ -56,7 +56,7 @@ pub enum AllocationError {
 }
 
 impl AllocationError {
-    /// Stable error code, matching the Elixir error atom.
+    /// Stable error code, unchanged from earlier releases.
     #[must_use]
     pub fn code(&self) -> &'static str {
         match self {

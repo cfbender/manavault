@@ -82,7 +82,7 @@ pub enum SetSourceError {
 /// Changes the price source, then reloads the price store and drops cached
 /// collection values.
 pub async fn set_source(state: &AppState, source: &str) -> Result<PriceSource, SetSourceError> {
-    // Ecto casts a blank string to nil, which fails validate_required.
+    // A blank source counts as missing.
     if source.trim().is_empty() {
         return Err(SetSourceError::Invalid("source can't be blank".to_owned()));
     }

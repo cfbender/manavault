@@ -56,8 +56,7 @@ pub async fn preview_deck_disassembly(
 
 /// Returns every reserved copy to its source location, deletes the
 /// allocations, and archives the deck. Deck cards stay, so the list can be
-/// rebuilt later. Like the Elixir code, an already archived deck can be
-/// disassembled too.
+/// rebuilt later. An already archived deck can be disassembled too.
 pub async fn disassemble_deck(
     pool: &SqlitePool,
     deck_id: DeckId,

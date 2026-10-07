@@ -131,7 +131,7 @@ fn blank(value: Option<&str>) -> bool {
     value.is_none_or(|value| value.trim().is_empty())
 }
 
-/// `DeckQuestionAnswer.changeset/2` validations, in Ecto's field order.
+/// Deck question answer validations, checked field by field in a fixed order.
 fn validate(
     question: &str,
     answer: &str,

@@ -1,10 +1,10 @@
-//! WebSocket origin checks (`ManavaultWeb.AllowedOrigins` and Phoenix's
-//! `Transport.check_origin/4`).
+//! WebSocket origin checks (`ManavaultWeb.AllowedOrigins`): the configured
+//! allowed origins, matched by scheme, host, and port.
 //!
 //! By default only origins whose host is `PHX_HOST` may open the socket.
 //! `MANAVAULT_ALLOWED_ORIGINS` lists extra `http(s)://host[:port]` origins;
 //! `PHX_HOST` stays allowed by host alone. Development accepts any origin
-//! (`check_origin: false` in `config/dev.exs`).
+//! (`MANAVAULT_ENV=dev`).
 
 use crate::config::{Config, Env};
 
@@ -81,7 +81,7 @@ fn split_host_port(authority: &str) -> Option<(&str, Option<u16>)> {
     Some((host, port))
 }
 
-/// A parsed origin as Elixir's `URI.parse/1` sees it: the port defaults by
+/// A parsed origin: the port defaults by
 /// scheme, and a scheme-relative `//host` matches any scheme and port.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Origin {
@@ -136,7 +136,7 @@ impl OriginPolicy {
     }
 
     /// Whether a request with this `Origin` header may connect. Requests
-    /// without an origin are allowed, as in Phoenix.
+    /// without an origin are allowed (non-browser clients send none).
     #[must_use]
     pub fn allows(&self, origin: Option<&str>) -> bool {
         let Some(origin) = origin else {

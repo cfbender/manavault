@@ -5,9 +5,8 @@
 //! versions). Completed artifacts are served from the store; a miss queues
 //! one unique render job per fingerprint and waits for it.
 //!
-//! The fingerprint hashes canonical JSON rather than Erlang's
-//! `term_to_binary`, so the two backends never share artifacts; each
-//! renders its own.
+//! The fingerprint hashes canonical JSON, unlike earlier releases, so
+//! artifacts they rendered are never reused; previews are rendered anew.
 
 use std::time::Duration;
 
