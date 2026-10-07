@@ -20,7 +20,7 @@ use sqlx::SqlitePool;
 
 use super::{Vendor, VendorFeed, VendorRow, get};
 use crate::pricing::money;
-use crate::state::AppState;
+use manavault_core::state::AppState;
 
 pub const BASE_URL: &str = "https://tcgcsv.com/tcgplayer/1";
 /// tcgcsv asks scrapers to pace requests; ~450 Magic groups take about two
@@ -166,7 +166,8 @@ mod tests {
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     use super::*;
-    use crate::test_support::{TestApp, fixtures};
+    use crate::test_app::TestApp;
+    use crate::testing::fixtures;
 
     #[allow(clippy::needless_pass_by_value)]
     fn price(product: i64, subtype: &str, low: Value, market: Value) -> Value {

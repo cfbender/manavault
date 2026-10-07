@@ -8,8 +8,8 @@ use time::OffsetDateTime;
 use crate::catalog::scryfall::sync::{
     self, BULK_TYPE, SyncError, SyncOptions, SyncRecord, SyncStatus,
 };
-use crate::jobs::{Job, JobError, Jobs, Outcome, Unique, Worker};
-use crate::state::AppState;
+use manavault_core::jobs::{Job, JobError, Jobs, Outcome, Unique, Worker};
+use manavault_core::state::AppState;
 
 pub const NAME: &str = "scryfall_catalog";
 
@@ -26,7 +26,11 @@ pub fn stale(sync: Option<&SyncRecord>, now: OffsetDateTime) -> bool {
     if sync.status != SyncStatus::Succeeded {
         return true;
     }
-    let Some(completed_at) = sync.completed_at.as_deref().and_then(crate::timefmt::parse) else {
+    let Some(completed_at) = sync
+        .completed_at
+        .as_deref()
+        .and_then(manavault_core::timefmt::parse)
+    else {
         return true;
     };
     sync.bulk_type != BULK_TYPE || now - completed_at >= SYNC_INTERVAL

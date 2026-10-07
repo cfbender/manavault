@@ -1,7 +1,7 @@
 //! Trade tests: list sources, the matcher, collection check, and deck diff,
 //! wants and shares, the trade GraphQL fields (deck diff ids, the schema's
-//! domain contract, deck sharing), public wants and binder shares, and the
-//! share pages.
+//! domain contract, deck sharing), and public wants and binder shares. The
+//! share pages are served by `manavault-server` and tested there.
 
 mod list_source;
 mod lists;
@@ -9,11 +9,11 @@ mod remote;
 mod schema;
 mod shares;
 mod wants;
-mod web;
 
 use serde_json::{Value, json};
 
-use crate::test_support::{TestApp, fixtures};
+use crate::test_app::TestApp;
+use manavault_catalog::testing::fixtures;
 
 const T: &str = "2026-01-01T00:00:00Z";
 

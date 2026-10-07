@@ -3,16 +3,16 @@
 use lotus::{Finish, Zone};
 use serde_json::json;
 
-use super::support::*;
 use crate::decks::DeckError;
 use crate::decks::cards::{self, DeckCardChanges};
 use crate::decks::model::{DeckCardRow, DeckCardTag, DeckId, DeckStatus};
 use crate::decks::picker;
 use crate::decks::records::{self, DeckChanges, PlayOutcome};
 use crate::decks::swap::{self, CutDestination, Swap, SwapAdd, SwapCut};
-use crate::test_support::TestApp;
-use crate::test_support::fixtures::legal_commander_card;
-use crate::timefmt;
+use crate::test_app::TestApp;
+use crate::testing::*;
+use manavault_catalog::testing::fixtures::legal_commander_card;
+use manavault_core::timefmt;
 
 struct SwapDeck {
     app: TestApp,
@@ -49,14 +49,14 @@ async fn swap_deck() -> SwapDeck {
         legality_card("Red Bolt", &["R"], json!({"commander": "legal"}), json!({})),
     ])
     .await;
-    let deck = create_deck(&app, "Swap Target", Some("commander"), None)
+    let deck = create_deck(app.db(), "Swap Target", Some("commander"), None)
         .await
         .id;
-    add_card(&app, deck, "Test Commander", 1, "commander").await;
-    let plains = add_card(&app, deck, "Plains", 98, "mainboard").await;
-    let silver_bolt = add_card(&app, deck, "Silver Bolt", 1, "mainboard").await;
-    let white_ward = add_card(&app, deck, "White Ward", 1, "considering").await;
-    let red_bolt = add_card(&app, deck, "Red Bolt", 1, "considering").await;
+    add_card(app.db(), deck, "Test Commander", 1, "commander").await;
+    let plains = add_card(app.db(), deck, "Plains", 98, "mainboard").await;
+    let silver_bolt = add_card(app.db(), deck, "Silver Bolt", 1, "mainboard").await;
+    let white_ward = add_card(app.db(), deck, "White Ward", 1, "considering").await;
+    let red_bolt = add_card(app.db(), deck, "Red Bolt", 1, "considering").await;
     SwapDeck {
         app,
         deck,
@@ -94,7 +94,7 @@ fn add_named(name: &str, quantity: i64) -> SwapAdd {
 #[tokio::test]
 async fn preview_evaluates_the_swapped_list_without_writing() {
     let ctx = swap_deck().await;
-    assert_eq!(legality(&ctx.app, ctx.deck).await.status, "legal");
+    assert_eq!(legality(ctx.app.db(), ctx.deck).await.status, "legal");
     let preview = swap::preview(
         ctx.app.db(),
         ctx.deck,
@@ -115,11 +115,14 @@ async fn preview_evaluates_the_swapped_list_without_writing() {
         Some("Red Bolt")
     );
     assert_eq!(
-        deck_card(&ctx.app, ctx.silver_bolt.id).await.unwrap().zone,
+        deck_card(ctx.app.db(), ctx.silver_bolt.id)
+            .await
+            .unwrap()
+            .zone,
         Zone::Mainboard
     );
     assert_eq!(
-        deck_card(&ctx.app, ctx.red_bolt.id).await.unwrap().zone,
+        deck_card(ctx.app.db(), ctx.red_bolt.id).await.unwrap().zone,
         Zone::Considering
     );
 
@@ -239,10 +242,10 @@ async fn apply_commits_cuts_removals_and_adds_together() {
     )
     .await
     .unwrap();
-    let bolt = deck_card(&ctx.app, ctx.silver_bolt.id).await.unwrap();
+    let bolt = deck_card(ctx.app.db(), ctx.silver_bolt.id).await.unwrap();
     assert_eq!((bolt.zone, bolt.tag), (Zone::Considering, None));
     assert_eq!(
-        deck_card(&ctx.app, ctx.plains.id)
+        deck_card(ctx.app.db(), ctx.plains.id)
             .await
             .unwrap()
             .quantity
@@ -250,12 +253,18 @@ async fn apply_commits_cuts_removals_and_adds_together() {
         97
     );
     assert_eq!(
-        deck_card(&ctx.app, ctx.white_ward.id).await.unwrap().zone,
+        deck_card(ctx.app.db(), ctx.white_ward.id)
+            .await
+            .unwrap()
+            .zone,
         Zone::Mainboard
     );
-    assert_eq!(legality(&ctx.app, ctx.deck).await.status, "legal");
+    assert_eq!(legality(ctx.app.db(), ctx.deck).await.status, "legal");
     assert_eq!(
-        contents(&ctx.app, ctx.deck).await.summary(None).card_count,
+        contents(ctx.app.db(), ctx.deck)
+            .await
+            .summary(None)
+            .card_count,
         100
     );
 }
@@ -275,7 +284,10 @@ async fn apply_rolls_back_every_change_when_one_step_fails() {
     .unwrap_err();
     assert!(matches!(error, DeckError::CardNotFound));
     assert_eq!(
-        deck_card(&ctx.app, ctx.silver_bolt.id).await.unwrap().zone,
+        deck_card(ctx.app.db(), ctx.silver_bolt.id)
+            .await
+            .unwrap()
+            .zone,
         Zone::Mainboard
     );
 }
@@ -283,7 +295,7 @@ async fn apply_rolls_back_every_change_when_one_step_fails() {
 #[tokio::test]
 async fn apply_merges_into_existing_rows_of_the_target_zone() {
     let ctx = swap_deck().await;
-    add_card(&ctx.app, ctx.deck, "Plains", 2, "considering").await;
+    add_card(ctx.app.db(), ctx.deck, "Plains", 2, "considering").await;
     swap::apply(
         ctx.app.db(),
         ctx.deck,
@@ -294,7 +306,7 @@ async fn apply_merges_into_existing_rows_of_the_target_zone() {
     )
     .await
     .unwrap();
-    let mut rows: Vec<(Zone, u32)> = deck_cards(&ctx.app, ctx.deck)
+    let mut rows: Vec<(Zone, u32)> = deck_cards(ctx.app.db(), ctx.deck)
         .await
         .into_iter()
         .filter(|row| row.oracle_id.as_str() == "oracle-plains")
@@ -307,16 +319,16 @@ async fn apply_merges_into_existing_rows_of_the_target_zone() {
 #[tokio::test]
 async fn partial_cuts_release_copies_beyond_the_remaining_quantity() {
     let ctx = swap_deck().await;
-    let dawn = add_card(&ctx.app, ctx.deck, "Dawn Charm", 4, "mainboard").await;
+    let dawn = add_card(ctx.app.db(), ctx.deck, "Dawn Charm", 4, "mainboard").await;
     let item = collection_item(
-        &ctx.app,
+        ctx.app.db(),
         "scryfall-printing-dawn-charm",
         4,
         Finish::Nonfoil,
         None,
     )
     .await;
-    allocate(&ctx.app, dawn.id, item, 4).await;
+    allocate(ctx.app.db(), dawn.id, item, 4).await;
     swap::apply(
         ctx.app.db(),
         ctx.deck,
@@ -328,10 +340,14 @@ async fn partial_cuts_release_copies_beyond_the_remaining_quantity() {
     .await
     .unwrap();
     assert_eq!(
-        deck_card(&ctx.app, dawn.id).await.unwrap().quantity.get(),
+        deck_card(ctx.app.db(), dawn.id)
+            .await
+            .unwrap()
+            .quantity
+            .get(),
         1
     );
-    assert_eq!(allocated_quantity(&ctx.app, dawn.id).await, 1);
+    assert_eq!(allocated_quantity(ctx.app.db(), dawn.id).await, 1);
     let status = manavault_allocation::allocation_status(ctx.app.db(), dawn.id)
         .await
         .unwrap();
@@ -341,7 +357,7 @@ async fn partial_cuts_release_copies_beyond_the_remaining_quantity() {
 #[tokio::test]
 async fn apply_refuses_archived_decks() {
     let ctx = swap_deck().await;
-    set_status(&ctx.app, ctx.deck, "archived").await;
+    set_status(ctx.app.db(), ctx.deck, "archived").await;
     let error = swap::apply(
         ctx.app.db(),
         ctx.deck,
@@ -367,21 +383,21 @@ async fn random(app: &TestApp, exclude: Option<DeckId>, roll: f64) -> Option<Dec
 #[tokio::test]
 async fn random_deck_picks_active_decks_and_excludes_the_previous_suggestion() {
     let app = TestApp::new().await;
-    let alpha = create_deck(&app, "Alpha", None, Some("active")).await;
-    let beta = create_deck(&app, "Beta", None, Some("active")).await;
-    create_deck(&app, "A Brew", None, Some("brewing")).await;
-    create_deck(&app, "Archived", None, Some("archived")).await;
+    let alpha = create_deck(app.db(), "Alpha", None, Some("active")).await;
+    let beta = create_deck(app.db(), "Beta", None, Some("active")).await;
+    create_deck(app.db(), "A Brew", None, Some("brewing")).await;
+    create_deck(app.db(), "Archived", None, Some("archived")).await;
     assert_eq!(random(&app, None, 0.0).await, Some(alpha.id));
     assert_eq!(random(&app, Some(alpha.id), 0.0).await, Some(beta.id));
-    set_status(&app, beta.id, "archived").await;
+    set_status(app.db(), beta.id, "archived").await;
     assert_eq!(random(&app, Some(alpha.id), 0.0).await, Some(alpha.id));
 }
 
 #[tokio::test]
 async fn random_deck_is_none_without_playable_decks() {
     let app = TestApp::new().await;
-    let brewing = create_deck(&app, "Brewing", None, Some("brewing")).await;
-    create_deck(&app, "Retired", None, Some("archived")).await;
+    let brewing = create_deck(app.db(), "Brewing", None, Some("brewing")).await;
+    create_deck(app.db(), "Retired", None, Some("archived")).await;
     assert_eq!(random(&app, None, 0.5).await, None);
     assert_eq!(random(&app, Some(brewing.id), 0.5).await, None);
 }
@@ -389,7 +405,7 @@ async fn random_deck_is_none_without_playable_decks() {
 #[tokio::test]
 async fn inclusion_persists_independently_of_status() {
     let app = TestApp::new().await;
-    let alpha = create_deck(&app, "Alpha", None, Some("active")).await;
+    let alpha = create_deck(app.db(), "Alpha", None, Some("active")).await;
     assert!(alpha.included_for_play);
     let beta = records::create_deck(
         app.db(),
@@ -406,19 +422,19 @@ async fn inclusion_persists_independently_of_status() {
         included_for_play: Some(value),
         ..DeckChanges::default()
     };
-    let alpha = update_deck(&app, alpha.id, include(Some(false))).await;
+    let alpha = update_deck(app.db(), alpha.id, include(Some(false))).await;
     assert_eq!(alpha.status, DeckStatus::Active);
     assert!(!alpha.included_for_play);
     assert_eq!(records::count_decks(app.db()).await.unwrap(), 2);
     assert_eq!(random(&app, Some(alpha.id), 0.5).await, None);
 
-    update_deck(&app, beta.id, include(Some(true))).await;
+    update_deck(app.db(), beta.id, include(Some(true))).await;
     for roll in [0.0, 1.0] {
         assert_eq!(random(&app, Some(beta.id), roll).await, Some(beta.id));
     }
-    set_status(&app, beta.id, "archived").await;
+    set_status(app.db(), beta.id, "archived").await;
     assert_eq!(random(&app, None, 0.5).await, None);
-    update_deck(&app, alpha.id, include(Some(true))).await;
+    update_deck(app.db(), alpha.id, include(Some(true))).await;
     assert_eq!(random(&app, None, 0.5).await, Some(alpha.id));
     let error = records::update_deck(app.db(), alpha.id, &include(None))
         .await
@@ -454,7 +470,7 @@ async fn playing_resets_skips_and_archived_decks_cannot_record() {
     assert_eq!((skipped.play_count, skipped.skip_count), (1, 1));
     assert_eq!(skipped.last_played_at, played.last_played_at);
 
-    let retired = create_deck(&app, "Retired", None, Some("archived")).await;
+    let retired = create_deck(app.db(), "Retired", None, Some("archived")).await;
     for outcome in [PlayOutcome::Played, PlayOutcome::Skipped] {
         assert!(matches!(
             records::record_play(app.db(), retired.id, outcome).await,
@@ -466,9 +482,9 @@ async fn playing_resets_skips_and_archived_decks_cannot_record() {
 #[tokio::test]
 async fn historical_play_data_can_be_imported_cleared_and_validated() {
     let app = TestApp::new().await;
-    let deck = create_deck(&app, "Imported History", None, None).await;
+    let deck = create_deck(app.db(), "Imported History", None, None).await;
     let updated = update_deck(
-        &app,
+        app.db(),
         deck.id,
         DeckChanges {
             play_count: Some(Some(14)),
@@ -484,7 +500,7 @@ async fn historical_play_data_can_be_imported_cleared_and_validated() {
         Some("2026-08-10T07:00:00Z")
     );
     let cleared = update_deck(
-        &app,
+        app.db(),
         deck.id,
         DeckChanges {
             last_played_at: Some(None),
@@ -524,7 +540,7 @@ async fn share_tokens_resolve_rotate_and_disappear() {
                 .is_none()
         );
     }
-    let deck = create_deck(&app, "Cacheable Share", None, None).await;
+    let deck = create_deck(app.db(), "Cacheable Share", None, None).await;
     let shared = records::ensure_share_token(app.db(), deck.id)
         .await
         .unwrap();
@@ -547,7 +563,7 @@ async fn share_tokens_resolve_rotate_and_disappear() {
         deck.id
     );
     update_deck(
-        &app,
+        app.db(),
         deck.id,
         DeckChanges {
             name: Some(Some("Updated Shared Deck".into())),
@@ -599,31 +615,31 @@ async fn moving_a_commander_into_an_existing_row_keeps_its_reservations() {
         legality_commander_card("Other Legend", &["W"], json!({})),
     ])
     .await;
-    let binder = location(&app, "Binder", "binder").await;
+    let binder = location(app.db(), "Binder", "binder").await;
     let item = collection_item(
-        &app,
+        app.db(),
         "scryfall-printing-test-commander",
         1,
         Finish::Nonfoil,
         Some(binder),
     )
     .await;
-    let deck = create_deck(&app, "Merge", Some("commander"), None).await;
-    let commander = add_card(&app, deck.id, "Test Commander", 1, "commander").await;
-    let mainboard_copy = add_card(&app, deck.id, "Test Commander", 1, "mainboard").await;
-    allocate(&app, commander.id, item, 1).await;
-    let other = add_card(&app, deck.id, "Other Legend", 1, "mainboard").await;
+    let deck = create_deck(app.db(), "Merge", Some("commander"), None).await;
+    let commander = add_card(app.db(), deck.id, "Test Commander", 1, "commander").await;
+    let mainboard_copy = add_card(app.db(), deck.id, "Test Commander", 1, "mainboard").await;
+    allocate(app.db(), commander.id, item, 1).await;
+    let other = add_card(app.db(), deck.id, "Other Legend", 1, "mainboard").await;
     let moved = cards::set_commander(app.db(), other.id).await.unwrap();
     assert_eq!(moved.zone, Zone::Commander);
-    assert!(deck_card(&app, commander.id).await.is_none());
+    assert!(deck_card(app.db(), commander.id).await.is_none());
     assert_eq!(
-        deck_card(&app, mainboard_copy.id)
+        deck_card(app.db(), mainboard_copy.id)
             .await
             .unwrap()
             .quantity
             .get(),
         2
     );
-    assert_eq!(allocated_quantity(&app, mainboard_copy.id).await, 1);
+    assert_eq!(allocated_quantity(app.db(), mainboard_copy.id).await, 1);
     let _ = DeckCardTag::Getting;
 }

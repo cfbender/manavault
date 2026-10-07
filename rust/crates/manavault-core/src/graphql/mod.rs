@@ -7,7 +7,7 @@ pub mod relay;
 pub mod scalars;
 pub mod undefined_variables;
 
-use async_graphql::Context;
+use async_graphql::{Context, ObjectType, SchemaBuilder, SubscriptionType};
 
 use crate::state::AppState;
 
@@ -16,6 +16,20 @@ pub use scalars::Json;
 
 /// Resolver result type.
 pub type Result<T> = async_graphql::Result<T>;
+
+/// Installs the response extensions every ManaVault schema uses: field
+/// order, nullable error propagation, and undefined variable handling.
+pub fn extensions<Q, M, S>(builder: SchemaBuilder<Q, M, S>) -> SchemaBuilder<Q, M, S>
+where
+    Q: ObjectType + 'static,
+    M: ObjectType + 'static,
+    S: SubscriptionType + 'static,
+{
+    builder
+        .extension(order::ResponseOrder)
+        .extension(nullable_errors::NullableErrors)
+        .extension(undefined_variables::UndefinedVariables)
+}
 
 /// The app state from a resolver context.
 #[must_use]

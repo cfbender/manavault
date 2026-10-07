@@ -15,8 +15,8 @@ use super::Configured;
 use super::deck_analysis::prompt as analysis_prompt;
 use super::deck_question::{self, SwapContext};
 use super::tools;
-use crate::settings::ai::openrouter::response_error;
-use crate::state::AppState;
+use manavault_core::settings::ai::openrouter::response_error;
+use manavault_core::state::AppState;
 
 /// Rounds in which the model may call tools before it must answer.
 const MAX_TOOL_ROUNDS: usize = 4;

@@ -14,10 +14,10 @@ use async_graphql::dataloader::{DataLoader, Loader};
 use lotus::{OracleId, ScryfallId};
 use sqlx::SqlitePool;
 
-use crate::catalog::printing::Printing;
 use crate::collection::item::CollectionItem;
 use crate::collection::queries::{self, ItemAllocations, ValueTotals};
 use crate::decks::model::{DeckId, DeckRow, load_decks};
+use manavault_catalog::catalog::printing::Printing;
 
 /// Loads collection aggregates in batches.
 pub struct CollectionLoader {
@@ -164,7 +164,7 @@ fn loader<'a>(ctx: &Context<'a>) -> Option<&'a DataLoader<CollectionLoader>> {
 }
 
 fn pool<'a>(ctx: &Context<'a>) -> &'a SqlitePool {
-    &crate::graphql::state(ctx).db
+    &manavault_core::graphql::state(ctx).db
 }
 
 /// A collection item's deck allocations, batched across the request.
@@ -176,10 +176,10 @@ pub async fn allocations(
         Some(loader) => loader
             .load_one(AllocationsKey(item_id))
             .await
-            .map_err(crate::graphql::internal_error)?,
+            .map_err(manavault_core::graphql::internal_error)?,
         None => queries::allocations(pool(ctx), &[item_id])
             .await
-            .map_err(crate::graphql::internal_error)?
+            .map_err(manavault_core::graphql::internal_error)?
             .remove(&item_id)
             .map(Arc::new),
     };
@@ -192,10 +192,10 @@ pub async fn owned_copies(ctx: &Context<'_>, oracle_id: &OracleId) -> async_grap
         Some(loader) => loader
             .load_one(OwnedCopiesKey(oracle_id.clone()))
             .await
-            .map_err(crate::graphql::internal_error)?,
+            .map_err(manavault_core::graphql::internal_error)?,
         None => queries::owned_copies(pool(ctx), std::slice::from_ref(oracle_id))
             .await
-            .map_err(crate::graphql::internal_error)?
+            .map_err(manavault_core::graphql::internal_error)?
             .remove(oracle_id),
     };
     Ok(found.unwrap_or(0))
@@ -210,10 +210,10 @@ pub async fn location_totals(
         Some(loader) => loader
             .load_one(LocationTotalsKey(location_id))
             .await
-            .map_err(crate::graphql::internal_error)?,
+            .map_err(manavault_core::graphql::internal_error)?,
         None => queries::location_summaries(pool(ctx), Some(&[location_id]))
             .await
-            .map_err(crate::graphql::internal_error)?
+            .map_err(manavault_core::graphql::internal_error)?
             .remove(&Some(location_id)),
     };
     Ok(found.unwrap_or_default())
@@ -228,10 +228,10 @@ pub async fn printing(
         Some(loader) => loader
             .load_one(PrintingKey(scryfall_id.clone()))
             .await
-            .map_err(crate::graphql::internal_error),
+            .map_err(manavault_core::graphql::internal_error),
         None => Printing::load(pool(ctx), scryfall_id)
             .await
-            .map_err(crate::graphql::internal_error),
+            .map_err(manavault_core::graphql::internal_error),
     }
 }
 
@@ -245,13 +245,13 @@ pub async fn items(
         Some(loader) => Ok(loader
             .load_many(ids.iter().copied().map(ItemKey))
             .await
-            .map_err(crate::graphql::internal_error)?
+            .map_err(manavault_core::graphql::internal_error)?
             .into_iter()
             .map(|(key, item)| (key.0, item))
             .collect()),
         None => CollectionItem::load_many(pool(ctx), ids)
             .await
-            .map_err(crate::graphql::internal_error),
+            .map_err(manavault_core::graphql::internal_error),
     }
 }
 
@@ -261,10 +261,10 @@ pub async fn deck(ctx: &Context<'_>, id: DeckId) -> async_graphql::Result<Option
         Some(loader) => loader
             .load_one(DeckKey(id))
             .await
-            .map_err(crate::graphql::internal_error),
+            .map_err(manavault_core::graphql::internal_error),
         None => Ok(load_decks(pool(ctx), &[id])
             .await
-            .map_err(crate::graphql::internal_error)?
+            .map_err(manavault_core::graphql::internal_error)?
             .remove(&id)
             .map(Arc::new)),
     }

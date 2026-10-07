@@ -5,7 +5,7 @@ use lotus::scryfall::rulings::RulingsList;
 
 use crate::catalog::cache;
 use crate::catalog::card::CardRuling;
-use crate::state::AppState;
+use manavault_core::state::AppState;
 
 /// Fetches and decodes the rulings at `rulings_uri`. Any failure (HTTP
 /// error, undecodable body, a ruling without a comment) reads as no rulings.

@@ -25,8 +25,8 @@ use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 
-use crate::config::Env;
-use crate::state::AppState;
+use manavault_core::config::Env;
+use manavault_core::state::AppState;
 
 /// `ManavaultWeb.static_paths/0`: top-level entries served from the root.
 ///
@@ -186,7 +186,8 @@ fn etag(metadata: &std::fs::Metadata) -> String {
         .ok()
         .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
         .map_or(0, |duration| duration.as_secs());
-    let digest = crate::crypto::sha256_hex(format!("{}:{mtime}", metadata.len()).as_bytes());
+    let digest =
+        manavault_core::crypto::sha256_hex(format!("{}:{mtime}", metadata.len()).as_bytes());
     format!("\"{}\"", digest.get(..16).unwrap_or_default())
 }
 
@@ -349,8 +350,9 @@ pub async fn middleware(State(state): State<AppState>, request: Request, next: N
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::{TestApp, body_text};
+    use crate::test_support::TestApp;
     use axum::http::Request;
+    use manavault_core::testing::body_text;
 
     fn write(app: &TestApp, relative: &str, contents: &str) {
         let path = app.state.config.static_dir.join(relative);

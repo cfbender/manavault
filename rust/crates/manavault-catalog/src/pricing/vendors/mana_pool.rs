@@ -12,7 +12,7 @@ use lotus::Finish;
 use serde_json::Value;
 
 use super::{Vendor, VendorFeed, VendorRow, get};
-use crate::state::AppState;
+use manavault_core::state::AppState;
 
 pub const PRICES_URL: &str = "https://manapool.com/api/v1/prices/singles";
 
@@ -97,7 +97,7 @@ mod tests {
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     use super::*;
-    use crate::test_support::TestApp;
+    use crate::test_app::TestApp;
 
     #[test]
     fn uses_the_lowest_near_mint_listing_for_each_finish() {

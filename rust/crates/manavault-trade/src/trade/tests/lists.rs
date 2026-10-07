@@ -4,13 +4,14 @@ use lotus::{OracleId, Zone};
 use serde_json::json;
 
 use super::{Item, add_deck_card, allocate, basic_card, card, insert_deck, insert_location};
-use crate::test_support::{TestApp, fixtures};
+use crate::test_app::TestApp;
 use crate::trade::collection_check::{self, RowStatus};
 use crate::trade::deck_diff::{self, DiffError};
 use crate::trade::entry_resolver::{self, Resolved, ResolvedEntry};
 use crate::trade::list_source::{self, ListEntry};
 use crate::trade::matcher;
 use crate::trade::want;
+use manavault_catalog::testing::fixtures;
 
 fn entry(name: &str, quantity: i64) -> ListEntry {
     ListEntry {
@@ -300,7 +301,7 @@ mod matcher_tests {
                 "binderMatches": [{
                     "cardName": "Sol Ring", "oracleId": "oracle-sol-ring", "theirQuantity": 3,
                     "items": [{
-                        "id": crate::graphql::global_id(crate::graphql::NodeKind::CollectionItem, item).0,
+                        "id": manavault_core::graphql::global_id(manavault_core::graphql::NodeKind::CollectionItem, item).0,
                         "quantity": 2, "condition": "near_mint", "finish": "nonfoil",
                         "forTrade": true,
                         "printing": {"setCode": "tst", "card": {"name": "Sol Ring"}}

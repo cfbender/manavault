@@ -2,7 +2,7 @@
 
 use crate::collection::auto_sort::rules::{SortRule, parse_date};
 use crate::collection::item::CollectionItem;
-use crate::pricing::PriceStore;
+use manavault_catalog::pricing::PriceStore;
 
 const COLORS: [&str; 5] = ["W", "U", "B", "R", "G"];
 

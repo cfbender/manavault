@@ -20,8 +20,8 @@ use crate::catalog::scryfall::diff::{self, Changes};
 use crate::catalog::scryfall::push_in_list;
 use crate::catalog::scryfall::reconcile;
 use crate::catalog::scryfall::rows;
-use crate::state::AppState;
-use crate::timefmt;
+use manavault_core::state::AppState;
+use manavault_core::timefmt;
 
 /// Cards per batch transaction.
 pub const BATCH_SIZE: usize = 200;
@@ -308,7 +308,7 @@ async fn write_batch(
     replace_tags: bool,
 ) -> Result<(), sqlx::Error> {
     let now = timefmt::now();
-    let mut tx = crate::db::begin_write(pool).await?;
+    let mut tx = manavault_core::db::begin_write(pool).await?;
     for row in &changes.cards {
         let core = &row.core;
         if replace_tags {

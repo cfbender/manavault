@@ -240,7 +240,7 @@ pub enum RemovePullsError {
 
 /// Removes pulled copies, deleting emptied stacks (`remove_bulk_clean_pulls/1`).
 pub async fn remove(pool: &SqlitePool, pulls: &[PullRequest]) -> Result<i64, RemovePullsError> {
-    let mut tx = crate::db::begin_write(pool).await?;
+    let mut tx = manavault_core::db::begin_write(pool).await?;
     let mut removed = 0;
     for pull in pulls {
         let id = pull.collection_item_id;

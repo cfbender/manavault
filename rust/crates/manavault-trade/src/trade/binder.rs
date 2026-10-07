@@ -6,9 +6,9 @@
 use lotus::OracleId;
 use sqlx::SqlitePool;
 
-use crate::catalog::sql::json_list;
 use crate::trade::collection_item_stub::BinderItem;
 use crate::trade::want::image_url;
+use manavault_catalog::catalog::sql::json_list;
 
 /// One public trade-binder entry (`BinderListEntry`): the for-trade copies
 /// of one printing in one finish and condition.

@@ -133,8 +133,7 @@ pub fn check_depth(query: &str, operation_name: Option<&str>) -> Result<(), Stri
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::body_text;
-    use crate::testing::TestState;
+    use crate::testing::{TestState, body_text};
     use axum::body::Body;
     use axum::routing::post;
 

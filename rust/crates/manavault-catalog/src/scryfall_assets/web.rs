@@ -4,7 +4,7 @@ use axum::extract::{Path, State};
 use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
 
-use crate::state::AppState;
+use manavault_core::state::AppState;
 
 /// Serves a downloaded symbol or set SVG, or 404s.
 pub async fn show(State(state): State<AppState>, Path(path): Path<String>) -> Response {

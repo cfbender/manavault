@@ -9,13 +9,13 @@ use serde_json::{Value, json};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use super::support::*;
 use crate::decks::DeckError;
 use crate::decks::external::{self, SyncError};
 use crate::decks::model::{DeckId, ExternalSource};
 use crate::decks::records;
-use crate::test_support::TestApp;
-use crate::test_support::fixtures::{black_lotus, black_lotus_beta, time_walk};
+use crate::test_app::TestApp;
+use crate::testing::*;
+use manavault_catalog::testing::fixtures::{black_lotus, black_lotus_beta, time_walk};
 
 const URL: &str = "https://archidekt.com/decks/123456/my-deck";
 
@@ -114,7 +114,7 @@ async fn link_imports_resolving_printings_and_summing_split_entries() {
         ],
     )
     .await;
-    let deck = create_deck(&app, "Linked", None, None).await;
+    let deck = create_deck(app.db(), "Linked", None, None).await;
     let synced = external::link(&app.state, deck.id, URL).await.unwrap();
     assert_eq!(synced.unresolved, vec!["Unknown Card"]);
     assert_eq!(synced.deck.external_source, Some(ExternalSource::Archidekt));
@@ -124,7 +124,7 @@ async fn link_imports_resolving_printings_and_summing_split_entries() {
     );
     assert!(synced.deck.external_synced_at.is_some());
     assert_eq!(synced.deck.external_sync_error, None);
-    let cards: Vec<(String, Zone, u32, Finish, Option<String>)> = deck_cards(&app, deck.id)
+    let cards: Vec<(String, Zone, u32, Finish, Option<String>)> = deck_cards(app.db(), deck.id)
         .await
         .into_iter()
         .map(|row| {
@@ -180,9 +180,9 @@ async fn archidekt_zones_follow_the_primary_category_and_included_flags() {
         })))
         .mount(&server)
         .await;
-    let deck = create_deck(&app, "Categories", None, None).await;
+    let deck = create_deck(app.db(), "Categories", None, None).await;
     external::link(&app.state, deck.id, URL).await.unwrap();
-    let zones: Vec<(String, Zone, u32)> = deck_cards(&app, deck.id)
+    let zones: Vec<(String, Zone, u32)> = deck_cards(app.db(), deck.id)
         .await
         .into_iter()
         .map(|row| (row.oracle_id.to_string(), row.zone, row.quantity.get()))
@@ -204,10 +204,10 @@ async fn link_falls_back_to_name_resolution() {
         vec![entry("Black Lotus", "not-in-catalog", 1, &[], "Normal")],
     )
     .await;
-    let deck = create_deck(&app, "Linked", None, None).await;
+    let deck = create_deck(app.db(), "Linked", None, None).await;
     let synced = external::link(&app.state, deck.id, URL).await.unwrap();
     assert_eq!(synced.unresolved.len(), 0);
-    let cards = deck_cards(&app, deck.id).await;
+    let cards = deck_cards(app.db(), deck.id).await;
     assert_eq!(cards.len(), 1);
     assert_eq!(cards[0].oracle_id.as_str(), "oracle-1");
     assert_eq!(cards[0].preferred_printing_id, None);
@@ -216,9 +216,9 @@ async fn link_falls_back_to_name_resolution() {
 #[tokio::test]
 async fn resync_updates_quantities_moves_zones_removes_cards_and_keeps_allocations() {
     let (app, server) = app_with_archidekt().await;
-    let binder = location(&app, "Binder", "binder").await;
+    let binder = location(app.db(), "Binder", "binder").await;
     let item = collection_item(
-        &app,
+        app.db(),
         "scryfall-printing-1",
         4,
         Finish::Nonfoil,
@@ -233,11 +233,11 @@ async fn resync_updates_quantities_moves_zones_removes_cards_and_keeps_allocatio
         ],
     )
     .await;
-    let deck = create_deck(&app, "Linked", None, None).await;
+    let deck = create_deck(app.db(), "Linked", None, None).await;
     external::link(&app.state, deck.id, URL).await.unwrap();
-    let initial = deck_cards(&app, deck.id).await;
+    let initial = deck_cards(app.db(), deck.id).await;
     let (lotus, walk) = (initial[0].clone(), initial[1].clone());
-    allocate(&app, lotus.id, item, 3).await;
+    allocate(app.db(), lotus.id, item, 3).await;
 
     stub(
         &server,
@@ -255,7 +255,7 @@ async fn resync_updates_quantities_moves_zones_removes_cards_and_keeps_allocatio
     .await;
     let synced = external::sync(&app.state, deck.id).await.unwrap();
     assert_eq!(synced.unresolved.len(), 0);
-    let cards = deck_cards(&app, deck.id).await;
+    let cards = deck_cards(app.db(), deck.id).await;
     assert_eq!(cards[0].id, lotus.id);
     assert_eq!(cards[0].quantity.get(), 2);
     assert_eq!(
@@ -267,10 +267,10 @@ async fn resync_updates_quantities_moves_zones_removes_cards_and_keeps_allocatio
         "the printing stays pinned to the allocated copy"
     );
     assert_eq!((cards[1].id, cards[1].zone), (walk.id, Zone::Considering));
-    let allocations = all_allocations(&app).await;
+    let allocations = all_allocations(app.db()).await;
     assert_eq!(allocations.len(), 1);
     assert_eq!(allocations[0].2, 2);
-    assert_eq!(location_quantity(&app, binder).await, 2);
+    assert_eq!(location_quantity(app.db(), binder).await, 2);
 
     stub(
         &server,
@@ -278,14 +278,14 @@ async fn resync_updates_quantities_moves_zones_removes_cards_and_keeps_allocatio
     )
     .await;
     external::sync(&app.state, deck.id).await.unwrap();
-    let cards = deck_cards(&app, deck.id).await;
+    let cards = deck_cards(app.db(), deck.id).await;
     assert_eq!(cards.len(), 1);
     assert_eq!(
         (cards[0].oracle_id.as_str(), cards[0].zone),
         ("oracle-2", Zone::Mainboard)
     );
-    assert_eq!(all_allocations(&app).await.len(), 0);
-    assert_eq!(location_quantity(&app, binder).await, 4);
+    assert_eq!(all_allocations(app.db()).await.len(), 0);
+    assert_eq!(location_quantity(app.db(), binder).await, 4);
 }
 
 #[tokio::test]
@@ -302,7 +302,7 @@ async fn fetch_failures_are_recorded_and_leave_the_decklist_alone() {
         )],
     )
     .await;
-    let deck = create_deck(&app, "Linked", None, None).await;
+    let deck = create_deck(app.db(), "Linked", None, None).await;
     external::link(&app.state, deck.id, URL).await.unwrap();
 
     stub_status(&server, 404).await;
@@ -316,7 +316,7 @@ async fn fetch_failures_are_recorded_and_leave_the_decklist_alone() {
         row.external_sync_error.as_deref(),
         Some("The deck was not found; it may be private or deleted.")
     );
-    assert_eq!(deck_cards(&app, deck.id).await.len(), 1);
+    assert_eq!(deck_cards(app.db(), deck.id).await.len(), 1);
 
     // lotus reports 401 like 403.
     stub_status(&server, 401).await;
@@ -333,7 +333,7 @@ async fn fetch_failures_are_recorded_and_leave_the_decklist_alone() {
 #[tokio::test]
 async fn unsupported_links_and_archived_decks_are_rejected() {
     let (app, _server) = app_with_archidekt().await;
-    let deck = create_deck(&app, "Linked", None, None).await;
+    let deck = create_deck(app.db(), "Linked", None, None).await;
     let error = external::link(&app.state, deck.id, "https://example.com/decks/1")
         .await
         .unwrap_err();
@@ -348,7 +348,7 @@ async fn unsupported_links_and_archived_decks_are_rejected() {
             .external_source
             .is_none()
     );
-    set_status(&app, deck.id, "archived").await;
+    set_status(app.db(), deck.id, "archived").await;
     let error = external::link(&app.state, deck.id, URL).await.unwrap_err();
     assert!(matches!(error, SyncError::Deck(DeckError::DeckArchived)));
 }
@@ -356,9 +356,9 @@ async fn unsupported_links_and_archived_decks_are_rejected() {
 #[tokio::test]
 async fn linked_decks_reject_decklist_edits_until_unlinked() {
     let (app, server) = app_with_archidekt().await;
-    let binder = location(&app, "Binder", "binder").await;
+    let binder = location(app.db(), "Binder", "binder").await;
     let item = collection_item(
-        &app,
+        app.db(),
         "scryfall-printing-1",
         1,
         Finish::Nonfoil,
@@ -376,9 +376,9 @@ async fn linked_decks_reject_decklist_edits_until_unlinked() {
         )],
     )
     .await;
-    let deck = create_deck(&app, "Linked", None, None).await;
+    let deck = create_deck(app.db(), "Linked", None, None).await;
     external::link(&app.state, deck.id, URL).await.unwrap();
-    let lotus = deck_cards(&app, deck.id).await.remove(0);
+    let lotus = deck_cards(app.db(), deck.id).await.remove(0);
     let linked = |result: Result<_, DeckError>| matches!(result, Err(DeckError::DeckLinked));
     assert!(linked(
         crate::decks::cards::add_card_to_deck(
@@ -417,11 +417,11 @@ async fn linked_decks_reject_decklist_edits_until_unlinked() {
             .map(|_| ())
     ));
     // Allocation flows still work on linked decks.
-    allocate(&app, lotus.id, item, 1).await;
+    allocate(app.db(), lotus.id, item, 1).await;
 
     let unlinked = external::unlink(app.db(), deck.id).await.unwrap();
     assert!(unlinked.external_source.is_none());
-    add_card(&app, deck.id, "Time Walk", 1, "mainboard").await;
+    add_card(app.db(), deck.id, "Time Walk", 1, "mainboard").await;
     assert!(matches!(
         external::unlink(app.db(), deck.id).await,
         Err(DeckError::Code("deck_not_linked"))
@@ -446,30 +446,16 @@ async fn sync_all_syncs_linked_non_archived_decks_only() {
         )],
     )
     .await;
-    let linked = create_deck(&app, "Linked", None, None).await;
+    let linked = create_deck(app.db(), "Linked", None, None).await;
     external::link(&app.state, linked.id, URL).await.unwrap();
-    let archived = create_deck(&app, "Archived", None, None).await;
+    let archived = create_deck(app.db(), "Archived", None, None).await;
     external::link(&app.state, archived.id, URL).await.unwrap();
-    set_status(&app, archived.id, "archived").await;
-    create_deck(&app, "Plain", None, None).await;
+    set_status(app.db(), archived.id, "archived").await;
+    create_deck(app.db(), "Plain", None, None).await;
     let results = external::sync_all(&app.state).await.unwrap();
     let ids: Vec<DeckId> = results.iter().map(|(id, _)| *id).collect();
     assert_eq!(ids, vec![linked.id]);
     assert!(results[0].1.is_ok());
-}
-
-#[tokio::test]
-async fn the_worker_is_registered_hourly() {
-    assert!(
-        manavault_server::app::crontab()
-            .iter()
-            .any(|entry| entry.expression == "0 * * * *" && entry.worker == external::WORKER)
-    );
-    assert!(
-        manavault_server::app::workers()
-            .iter()
-            .any(|worker| worker.name() == external::WORKER)
-    );
 }
 
 // --- GraphQL ---
@@ -493,7 +479,7 @@ const ADD: &str = "mutation AddCard($deckId: ID!, $input: DeckCardInput!) {
 #[tokio::test]
 async fn graphql_links_blocks_edits_resyncs_and_unlinks() {
     let (app, server) = app_with_archidekt().await;
-    let deck = create_deck(&app, "Linked API", None, None).await;
+    let deck = create_deck(app.db(), "Linked API", None, None).await;
     let id = deck_gid(deck.id);
     stub(
         &server,
@@ -552,7 +538,7 @@ async fn graphql_links_blocks_edits_resyncs_and_unlinks() {
 #[tokio::test]
 async fn graphql_rejects_unsupported_links_and_failed_fetches() {
     let (app, server) = app_with_archidekt().await;
-    let deck = create_deck(&app, "Linked API", None, None).await;
+    let deck = create_deck(app.db(), "Linked API", None, None).await;
     let id = deck_gid(deck.id);
     let response = app
         .gql(LINK, json!({"id": id, "url": "https://tappedout.net/x"}))

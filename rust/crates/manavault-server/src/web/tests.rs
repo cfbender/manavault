@@ -8,15 +8,16 @@ use axum::extract::ConnectInfo;
 use axum::http::{Request, Response};
 use serde_json::{Value, json};
 
-use crate::config::Config;
-use crate::test_support::{TestApp, body_text};
-use crate::web::session::{self, COOKIE_NAME};
+use crate::test_support::TestApp;
+use manavault_core::config::Config;
+use manavault_core::testing::body_text;
+use manavault_core::web::session::{self, COOKIE_NAME};
 
 pub const PASSWORD_SALT: &[u8] = b"test-salt";
 
 /// A fast (one-iteration) owner password hash.
 pub fn password_hash(password: &str) -> String {
-    crate::auth::hash_password_with(password, 1, PASSWORD_SALT)
+    manavault_core::auth::hash_password_with(password, 1, PASSWORD_SALT)
 }
 
 /// Turns owner authentication on with `password`.
@@ -256,7 +257,7 @@ mod app_controller {
     }
 
     async fn save_kanagawa(app: &TestApp) {
-        crate::settings::appearance::update(
+        manavault_core::settings::appearance::update(
             app.db(),
             MaybeUndefined::Value("kanagawa".into()),
             MaybeUndefined::Value("classic".into()),
@@ -289,10 +290,10 @@ mod app_controller {
         assert!(page.body.contains(r#"data-appearance-source="account""#));
 
         // Share pages render the same shell for anonymous visitors.
-        let session = crate::web::session::Session::default();
+        let session = manavault_core::web::session::Session::default();
         let preview =
-            crate::web::app_shell::SharePreview::default_for(&app.state, "/share/wants/t");
-        let response = crate::web::app_shell::render_app(
+            manavault_core::web::app_shell::SharePreview::default_for(&app.state, "/share/wants/t");
+        let response = manavault_core::web::app_shell::render_app(
             &app.state,
             &session,
             &axum::http::HeaderMap::new(),
@@ -616,7 +617,7 @@ mod auth_controller {
         let session = session::load(&app.state, &headers).data();
         assert_eq!(
             session.owner_fingerprint,
-            crate::auth::admin_password_fingerprint(&app.state.config)
+            manavault_core::auth::admin_password_fingerprint(&app.state.config)
         );
         assert_eq!(session.csrf_token.map(|token| token.len()), Some(43));
         let page = browser.get("/collection").await;
@@ -677,7 +678,7 @@ mod auth_controller {
             let end = start + page.body[start..].find('"').unwrap();
             assert_eq!(
                 &page.body[start..end],
-                crate::web::app_shell::escape(expected),
+                manavault_core::web::app_shell::escape(expected),
                 "GET {label}"
             );
             let page = Browser::new(&app).login("secret", return_to).await;
@@ -1188,8 +1189,8 @@ mod vendor {
 
 mod scanner {
     use super::*;
-    use crate::scanner::bundle;
     use base64::Engine as _;
+    use manavault_system::scanner::bundle;
 
     fn install(app: &TestApp) {
         let root = &app.state.config.scanner_bundle_dir;
@@ -1205,7 +1206,7 @@ mod scanner {
             "gallery": {},
             "constants": {},
             "files": files.iter().map(|(name, body)| {
-                ((*name).to_owned(), json!({"bytes": body.len(), "sha256": crate::crypto::sha256_hex(body.as_bytes())}))
+                ((*name).to_owned(), json!({"bytes": body.len(), "sha256": manavault_core::crypto::sha256_hex(body.as_bytes())}))
             }).collect::<serde_json::Map<_, _>>()
         });
         let incoming = root.join(".incoming/v1");
@@ -1319,9 +1320,10 @@ mod scanner {
     }
 
     async fn corrections(app: &TestApp) -> Vec<Value> {
-        let page = crate::scanner::corrections::page(&app.state.config.scanner_bundle_dir, 0)
-            .await
-            .unwrap();
+        let page =
+            manavault_system::scanner::corrections::page(&app.state.config.scanner_bundle_dir, 0)
+                .await
+                .unwrap();
         page["corrections"].as_array().unwrap().clone()
     }
 
@@ -1339,8 +1341,9 @@ mod scanner {
         let created = post(&mut browser, &token, &payload(&json!({}))).await;
         assert_eq!(created.status, 201);
         assert_eq!(created.json(), json!({"data": {"capture_id": CAPTURE}}));
-        let dir = crate::scanner::corrections::directory(&app.state.config.scanner_bundle_dir)
-            .join(CAPTURE);
+        let dir =
+            manavault_system::scanner::corrections::directory(&app.state.config.scanner_bundle_dir)
+                .join(CAPTURE);
         assert_eq!(std::fs::read(dir.join("crop.jpg")).unwrap(), frame());
         let rows = corrections(&app).await;
         assert_eq!(rows.len(), 1);
@@ -1643,7 +1646,7 @@ mod subscriptions {
         .await;
         let message = format!(
             "server log subscription test {}",
-            hex::encode(crate::crypto::random_bytes::<4>())
+            hex::encode(manavault_core::crypto::random_bytes::<4>())
         );
         let subscriber = tracing_subscriber::registry().with(app.state.logs.layer());
         // The subscription is registered when the server handles the message;
@@ -1658,7 +1661,7 @@ mod subscriptions {
         let event = &next["payload"]["data"]["serverLog"];
         assert_eq!(event["level"], "warning");
         assert_eq!(event["message"], json!(message));
-        assert!(crate::timefmt::parse(event["timestamp"].as_str().unwrap()).is_some());
+        assert!(manavault_core::timefmt::parse(event["timestamp"].as_str().unwrap()).is_some());
 
         send(&mut client, json!({"type": "complete", "id": "logs"})).await;
         assert_eq!(

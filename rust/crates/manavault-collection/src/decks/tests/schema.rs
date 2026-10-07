@@ -5,11 +5,11 @@
 use lotus::Finish;
 use serde_json::{Value, json};
 
-use super::support::*;
 use crate::decks::model::DeckCardId;
 use crate::decks::records::{self, DeckChanges};
-use crate::test_support::TestApp;
-use crate::test_support::fixtures::{black_lotus, legal_commander_card};
+use crate::test_app::TestApp;
+use crate::testing::*;
+use manavault_catalog::testing::fixtures::{black_lotus, legal_commander_card};
 
 async fn app_with(cards: &[Value]) -> TestApp {
     let app = TestApp::new().await;
@@ -27,8 +27,8 @@ async fn update_deck_card_moves_a_card_between_zones() {
         json!({"collector_number": "232", "set": "lea"}),
     )])
     .await;
-    let deck = create_deck(&app, "Considering Test", None, None).await;
-    let card = add_card(&app, deck.id, "Black Lotus", 1, "mainboard").await;
+    let deck = create_deck(app.db(), "Considering Test", None, None).await;
+    let card = add_card(app.db(), deck.id, "Black Lotus", 1, "mainboard").await;
     let data = app
         .gql_data(
             "mutation MoveDeckCard($id: ID!, $input: DeckCardUpdateInput!) {
@@ -62,9 +62,9 @@ async fn deck_card_tags_update_individually_and_in_bulk() {
         ),
     ])
     .await;
-    let deck = create_deck(&app, "Tag Test", None, None).await;
-    let first = add_card(&app, deck.id, "Tag One", 1, "mainboard").await;
-    let second = add_card(&app, deck.id, "Tag Two", 1, "mainboard").await;
+    let deck = create_deck(app.db(), "Tag Test", None, None).await;
+    let first = add_card(app.db(), deck.id, "Tag One", 1, "mainboard").await;
+    let second = add_card(app.db(), deck.id, "Tag Two", 1, "mainboard").await;
     let data = app
         .gql_data(
             "mutation UpdateTag($id: ID!, $input: DeckCardUpdateInput!) {
@@ -126,27 +126,27 @@ async fn optimize_switches_selected_cards_to_the_cheapest_printing() {
         ),
     ])
     .await;
-    let deck = create_deck(&app, "Optimize Test", None, None).await;
+    let deck = create_deck(app.db(), "Optimize Test", None, None).await;
     let selected = add_printing(
-        &app,
+        app.db(),
         deck.id,
         "Optimize Lotus",
         1,
         "scryfall-optimize-expensive",
     )
     .await;
-    let binder = location(&app, "Optimize Binder", "binder").await;
+    let binder = location(app.db(), "Optimize Binder", "binder").await;
     let item = collection_item(
-        &app,
+        app.db(),
         "scryfall-optimize-expensive",
         1,
         Finish::Nonfoil,
         Some(binder),
     )
     .await;
-    allocate(&app, selected.id, item, 1).await;
+    allocate(app.db(), selected.id, item, 1).await;
     let unselected = add_printing(
-        &app,
+        app.db(),
         deck.id,
         "Optimize Other",
         1,
@@ -169,7 +169,7 @@ async fn optimize_switches_selected_cards_to_the_cheapest_printing() {
         json!([{"id": card_gid(selected.id), "preferredPrinting": {"scryfallId": "scryfall-optimize-cheap", "setCode": "chp"}}])
     );
     assert_eq!(
-        deck_card(&app, unselected.id)
+        deck_card(app.db(), unselected.id)
             .await
             .unwrap()
             .preferred_printing_id
@@ -177,8 +177,8 @@ async fn optimize_switches_selected_cards_to_the_cheapest_printing() {
             .as_str(),
         "scryfall-optimize-other"
     );
-    assert_eq!(allocated_quantity(&app, selected.id).await, 0);
-    assert_eq!(item_location(&app, item).await, Some(binder.0));
+    assert_eq!(allocated_quantity(app.db(), selected.id).await, 0);
+    assert_eq!(item_location(app.db(), item).await, Some(binder.0));
 }
 
 #[tokio::test]
@@ -191,7 +191,7 @@ async fn add_deck_card_adds_a_card_by_name() {
         json!({}),
     )])
     .await;
-    let deck = create_deck(&app, "Add Test", None, None).await;
+    let deck = create_deck(app.db(), "Add Test", None, None).await;
     let mutation = "mutation AddDeckCard($deckId: ID!, $input: DeckCardInput!) {
       addDeckCard(deckId: $deckId, input: $input) { deckCard { id quantity zone finish card { name } } }
     }";
@@ -233,18 +233,18 @@ async fn delete_deck_card_returns_allocated_copies() {
         json!({}),
     )])
     .await;
-    let deck = create_deck(&app, "Delete Test", None, None).await;
-    let card = add_card(&app, deck.id, "Delete Me", 1, "mainboard").await;
-    let binder = location(&app, "Delete Binder", "binder").await;
+    let deck = create_deck(app.db(), "Delete Test", None, None).await;
+    let card = add_card(app.db(), deck.id, "Delete Me", 1, "mainboard").await;
+    let binder = location(app.db(), "Delete Binder", "binder").await;
     let item = collection_item(
-        &app,
+        app.db(),
         "scryfall-delete-deck-card",
         1,
         Finish::Nonfoil,
         Some(binder),
     )
     .await;
-    allocate(&app, card.id, item, 1).await;
+    allocate(app.db(), card.id, item, 1).await;
     let data = app
         .gql_data(
             "mutation DeleteDeckCard($id: ID!) { deleteDeckCard(id: $id) { deckCard { id card { name } } } }",
@@ -255,9 +255,9 @@ async fn delete_deck_card_returns_allocated_copies() {
         data["deleteDeckCard"]["deckCard"],
         json!({"id": card_gid(card.id), "card": {"name": "Delete Me"}})
     );
-    assert_eq!(deck_cards(&app, deck.id).await.len(), 0);
-    assert_eq!(item_location(&app, item).await, Some(binder.0));
-    assert_eq!(all_allocations(&app).await.len(), 0);
+    assert_eq!(deck_cards(app.db(), deck.id).await.len(), 0);
+    assert_eq!(item_location(app.db(), item).await, Some(binder.0));
+    assert_eq!(all_allocations(app.db()).await.len(), 0);
 }
 
 #[tokio::test]
@@ -270,19 +270,19 @@ async fn delete_deck_removes_an_archived_deck_and_restores_allocated_cards() {
         json!({}),
     )])
     .await;
-    let deck = create_deck(&app, "Deck To Delete", None, None).await;
-    let card = add_card(&app, deck.id, "Delete Deck Card", 1, "mainboard").await;
-    let binder = location(&app, "Delete Deck Binder", "binder").await;
+    let deck = create_deck(app.db(), "Deck To Delete", None, None).await;
+    let card = add_card(app.db(), deck.id, "Delete Deck Card", 1, "mainboard").await;
+    let binder = location(app.db(), "Delete Deck Binder", "binder").await;
     let item = collection_item(
-        &app,
+        app.db(),
         "scryfall-delete-deck",
         1,
         Finish::Nonfoil,
         Some(binder),
     )
     .await;
-    allocate(&app, card.id, item, 1).await;
-    set_status(&app, deck.id, "archived").await;
+    allocate(app.db(), card.id, item, 1).await;
+    set_status(app.db(), deck.id, "archived").await;
     let data = app
         .gql_data(
             "mutation DeleteDeck($id: ID!) { deleteDeck(id: $id) { deck { id name } } }",
@@ -291,7 +291,7 @@ async fn delete_deck_removes_an_archived_deck_and_restores_allocated_cards() {
         .await;
     assert_eq!(data["deleteDeck"]["deck"]["name"], json!("Deck To Delete"));
     assert!(records::get_deck(app.db(), deck.id).await.is_err());
-    assert_eq!(item_location(&app, item).await, Some(binder.0));
+    assert_eq!(item_location(app.db(), item).await, Some(binder.0));
     let response = app
         .gql(
             "query Deck($id: ID!) { deck(id: $id) { id } }",
@@ -324,9 +324,9 @@ async fn set_deck_commander_replaces_the_current_commander() {
         ),
     ])
     .await;
-    let deck = create_deck(&app, "Commander Test", None, None).await;
-    let old = add_card(&app, deck.id, "Old Legend", 1, "commander").await;
-    let new = add_card(&app, deck.id, "New Legend", 1, "mainboard").await;
+    let deck = create_deck(app.db(), "Commander Test", None, None).await;
+    let old = add_card(app.db(), deck.id, "Old Legend", 1, "commander").await;
+    let new = add_card(app.db(), deck.id, "New Legend", 1, "mainboard").await;
     let data = app
         .gql_data(SET_COMMANDER, json!({"id": card_gid(new.id)}))
         .await;
@@ -335,11 +335,11 @@ async fn set_deck_commander_replaces_the_current_commander() {
         json!("commander")
     );
     assert_eq!(
-        deck_card(&app, old.id).await.unwrap().zone,
+        deck_card(app.db(), old.id).await.unwrap().zone,
         lotus::Zone::Mainboard
     );
     assert_eq!(
-        deck_card(&app, new.id).await.unwrap().zone,
+        deck_card(app.db(), new.id).await.unwrap().zone,
         lotus::Zone::Commander
     );
 }
@@ -351,9 +351,16 @@ async fn set_deck_commander_accepts_can_be_your_commander_text_and_rejects_other
         simple_card("scryfall-printing-rock", "oracle-rock", "Plain Rock", "Legendary Artifact", json!({"oracle_text": "{T}: Add {C}.", "collector_number": "2"})),
     ])
     .await;
-    let deck = create_deck(&app, "Planeswalker Commander", None, None).await;
-    let jace = add_card(&app, deck.id, "Jace, Multiverse Architect", 1, "mainboard").await;
-    let rock = add_card(&app, deck.id, "Plain Rock", 1, "mainboard").await;
+    let deck = create_deck(app.db(), "Planeswalker Commander", None, None).await;
+    let jace = add_card(
+        app.db(),
+        deck.id,
+        "Jace, Multiverse Architect",
+        1,
+        "mainboard",
+    )
+    .await;
+    let rock = add_card(app.db(), deck.id, "Plain Rock", 1, "mainboard").await;
     let response = app
         .gql(SET_COMMANDER, json!({"id": card_gid(rock.id)}))
         .await;
@@ -375,10 +382,10 @@ async fn add_deck_partner_keeps_the_commander_and_pairs_the_candidate() {
         simple_card("scryfall-printing-bystander", "oracle-bystander", "Unpaired Legend", "Legendary Creature — Soldier", json!({"collector_number": "3"})),
     ])
     .await;
-    let deck = create_deck(&app, "Partner Test", Some("commander"), None).await;
-    let commander = add_card(&app, deck.id, "Test Doctor", 1, "commander").await;
-    let companion = add_card(&app, deck.id, "Test Companion", 1, "mainboard").await;
-    let bystander = add_card(&app, deck.id, "Unpaired Legend", 1, "mainboard").await;
+    let deck = create_deck(app.db(), "Partner Test", Some("commander"), None).await;
+    let commander = add_card(app.db(), deck.id, "Test Doctor", 1, "commander").await;
+    let companion = add_card(app.db(), deck.id, "Test Companion", 1, "mainboard").await;
+    let bystander = add_card(app.db(), deck.id, "Unpaired Legend", 1, "mainboard").await;
     let mutation = "mutation AddDeckPartner($id: ID!) { addDeckPartner(id: $id) { deckCard { id zone card { name } } } }";
     let response = app
         .gql(mutation, json!({"id": card_gid(bystander.id)}))
@@ -392,11 +399,11 @@ async fn add_deck_partner_keeps_the_commander_and_pairs_the_candidate() {
         json!("commander")
     );
     assert_eq!(
-        deck_card(&app, commander.id).await.unwrap().zone,
+        deck_card(app.db(), commander.id).await.unwrap().zone,
         lotus::Zone::Commander
     );
     assert_eq!(
-        deck_card(&app, bystander.id).await.unwrap().zone,
+        deck_card(app.db(), bystander.id).await.unwrap().zone,
         lotus::Zone::Mainboard
     );
     let response = app
@@ -427,9 +434,9 @@ async fn bulk_update_and_bulk_delete_act_on_a_selection() {
         ),
     ])
     .await;
-    let deck = create_deck(&app, "Bulk Test", None, None).await;
-    let first = add_card(&app, deck.id, "Bulk One", 1, "mainboard").await;
-    let second = add_card(&app, deck.id, "Bulk Two", 1, "mainboard").await;
+    let deck = create_deck(app.db(), "Bulk Test", None, None).await;
+    let first = add_card(app.db(), deck.id, "Bulk One", 1, "mainboard").await;
+    let second = add_card(app.db(), deck.id, "Bulk Two", 1, "mainboard").await;
     let ids = json!([card_gid(first.id), card_gid(second.id)]);
     let data = app
         .gql_data(
@@ -461,8 +468,8 @@ async fn bulk_update_and_bulk_delete_act_on_a_selection() {
             .len(),
         2
     );
-    assert!(deck_card(&app, first.id).await.is_none());
-    assert!(deck_card(&app, second.id).await.is_none());
+    assert!(deck_card(app.db(), first.id).await.is_none());
+    assert!(deck_card(app.db(), second.id).await.is_none());
 
     let response = app
         .gql(
@@ -478,8 +485,8 @@ async fn bulk_update_and_bulk_delete_act_on_a_selection() {
 #[tokio::test]
 async fn update_deck_updates_deck_fields() {
     let app = app_with(&[black_lotus()]).await;
-    let deck = create_deck(&app, "Old Deck", Some("commander"), Some("brewing")).await;
-    let cover = add_card(&app, deck.id, "Black Lotus", 1, "mainboard").await;
+    let deck = create_deck(app.db(), "Old Deck", Some("commander"), Some("brewing")).await;
+    let cover = add_card(app.db(), deck.id, "Black Lotus", 1, "mainboard").await;
     let mutation = "mutation UpdateDeck($id: ID!, $input: DeckUpdateInput!) {
       updateDeck(id: $id, input: $input) {
         deck { id name format status playCount skipCount lastPlayedAt primer coverDeckCardId coverImageUrl }
@@ -547,7 +554,7 @@ async fn import_mutation_and_export_query_expose_plain_text_decklists() {
         ),
     ])
     .await;
-    let deck = create_deck(&app, "Import Deck", None, None).await;
+    let deck = create_deck(app.db(), "Import Deck", None, None).await;
     let id = deck_gid(deck.id);
     let import = "mutation ImportDecklist($id: ID!, $text: String!, $replaceExisting: Boolean) {
       importDecklist(id: $id, text: $text, replaceExisting: $replaceExisting) {
@@ -593,7 +600,7 @@ async fn import_mutation_and_export_query_expose_plain_text_decklists() {
         )
         .await;
     assert_eq!(error_message(&response), "Unknown deck zone: attic");
-    set_status(&app, deck.id, "archived").await;
+    set_status(app.db(), deck.id, "archived").await;
     let response = app
         .gql(import, json!({"id": id, "text": "1 Import Walk"}))
         .await;
@@ -652,11 +659,11 @@ async fn deck_counts_exclude_considering_cards() {
         ),
     ])
     .await;
-    let deck = create_deck(&app, "Count Test", Some("commander"), None).await;
-    add_card(&app, deck.id, "Count Main", 2, "mainboard").await;
-    add_card(&app, deck.id, "Count Commander", 1, "commander").await;
-    add_card(&app, deck.id, "Count Main", 4, "considering").await;
-    add_card(&app, deck.id, "Count Commander", 8, "considering").await;
+    let deck = create_deck(app.db(), "Count Test", Some("commander"), None).await;
+    add_card(app.db(), deck.id, "Count Main", 2, "mainboard").await;
+    add_card(app.db(), deck.id, "Count Commander", 1, "commander").await;
+    add_card(app.db(), deck.id, "Count Main", 4, "considering").await;
+    add_card(app.db(), deck.id, "Count Commander", 8, "considering").await;
     let data = app
         .gql_data(
             "query Deck($id: ID!) { deck(id: $id) { cardCount uniqueCardCount } }",
@@ -673,9 +680,9 @@ async fn decks_query_exposes_summary_fields_and_legality() {
         simple_card("scryfall-summary-commander", "oracle-summary-commander", "Summary Commander", "Legendary Creature", json!({"color_identity": ["G", "U"], "collector_number": "2", "legalities": {"commander": "legal"}})),
     ])
     .await;
-    let deck = create_deck(&app, "Summary Deck", Some("commander"), None).await;
-    add_card(&app, deck.id, "Summary Main", 2, "mainboard").await;
-    add_card(&app, deck.id, "Summary Commander", 1, "commander").await;
+    let deck = create_deck(app.db(), "Summary Deck", Some("commander"), None).await;
+    add_card(app.db(), deck.id, "Summary Main", 2, "mainboard").await;
+    add_card(app.db(), deck.id, "Summary Commander", 1, "commander").await;
     let data = app
         .gql_data(
             "query { decks(first: 10) {
@@ -711,7 +718,7 @@ async fn decks_query_exposes_summary_fields_and_legality() {
 async fn decks_connection_paginates_at_the_page_boundary() {
     let app = TestApp::new().await;
     for index in 1..=3 {
-        create_deck(&app, &format!("Pager Deck {index}"), None, None).await;
+        create_deck(app.db(), &format!("Pager Deck {index}"), None, None).await;
     }
     let data = app
         .gql_data("query { decks(first: 2) { pageInfo { hasNextPage endCursor } edges { node { name } } } }", json!({}))
@@ -770,7 +777,7 @@ async fn deck_detail_exposes_legality_cards_tags_and_share_tokens() {
     )
     .await
     .unwrap();
-    let card = add_printing(&app, deck.id, "Shared Card", 2, "scryfall-share-card").await;
+    let card = add_printing(app.db(), deck.id, "Shared Card", 2, "scryfall-share-card").await;
     let tag = crate::decks::tags::create_deck_tag(
         app.db(),
         deck.id,
@@ -785,7 +792,7 @@ async fn deck_detail_exposes_legality_cards_tags_and_share_tokens() {
     crate::decks::tags::assign_deck_card_tag(app.db(), card.id, tag.id)
         .await
         .unwrap();
-    collection_item(&app, "scryfall-share-card", 2, Finish::Nonfoil, None).await;
+    collection_item(app.db(), "scryfall-share-card", 2, Finish::Nonfoil, None).await;
 
     let data = app
         .gql_data(
@@ -901,8 +908,8 @@ async fn deck_detail_exposes_legality_cards_tags_and_share_tokens() {
 #[tokio::test]
 async fn tag_mutations_round_trip() {
     let app = app_with(&[black_lotus()]).await;
-    let deck = create_deck(&app, "Tags", None, None).await;
-    let card = add_card(&app, deck.id, "Black Lotus", 2, "mainboard").await;
+    let deck = create_deck(app.db(), "Tags", None, None).await;
+    let card = add_card(app.db(), deck.id, "Black Lotus", 2, "mainboard").await;
     let data = app
         .gql_data(
             "mutation Create($deckId: ID!, $input: DeckTagInput!) { createDeckTag(deckId: $deckId, input: $input) { deckTag { id name color targetCount position cardCount } } }",
@@ -964,7 +971,7 @@ async fn tag_mutations_round_trip() {
         .await;
     assert_eq!(data["unassignDeckCardTag"]["deckCard"]["tagIds"], json!([]));
 
-    let other = create_deck(&app, "Other", None, None).await;
+    let other = create_deck(app.db(), "Other", None, None).await;
     let foreign = crate::decks::tags::list_deck_tags(app.db(), other.id)
         .await
         .unwrap()[0]
@@ -1044,10 +1051,10 @@ async fn swap_preview_and_apply_over_graphql() {
         legality_card("Red Bolt", &["R"], json!({"commander": "legal"}), json!({})),
     ])
     .await;
-    let deck = create_deck(&app, "Swap API", Some("commander"), None).await;
-    add_card(&app, deck.id, "Test Commander", 1, "commander").await;
-    add_card(&app, deck.id, "Plains", 98, "mainboard").await;
-    let bolt = add_card(&app, deck.id, "Silver Bolt", 1, "mainboard").await;
+    let deck = create_deck(app.db(), "Swap API", Some("commander"), None).await;
+    add_card(app.db(), deck.id, "Test Commander", 1, "commander").await;
+    add_card(app.db(), deck.id, "Plains", 98, "mainboard").await;
+    let bolt = add_card(app.db(), deck.id, "Silver Bolt", 1, "mainboard").await;
     let variables = json!({
         "deckId": deck_gid(deck.id),
         "input": {
@@ -1078,7 +1085,7 @@ async fn swap_preview_and_apply_over_graphql() {
         json!("illegal")
     );
     assert_eq!(
-        deck_card(&app, bolt.id).await.unwrap().zone,
+        deck_card(app.db(), bolt.id).await.unwrap().zone,
         lotus::Zone::Considering
     );
 
@@ -1099,9 +1106,9 @@ async fn swap_preview_and_apply_over_graphql() {
 #[tokio::test]
 async fn random_deck_and_record_play_over_graphql() {
     let app = TestApp::new().await;
-    let first = create_deck(&app, "First", None, Some("active")).await;
-    let second = create_deck(&app, "Second", None, Some("active")).await;
-    create_deck(&app, "Retired", None, Some("archived")).await;
+    let first = create_deck(app.db(), "First", None, Some("active")).await;
+    let second = create_deck(app.db(), "Second", None, Some("active")).await;
+    create_deck(app.db(), "Retired", None, Some("archived")).await;
     let data = app
         .gql_data(
             "query RandomDeck($excludeId: ID) { randomDeck(excludeId: $excludeId) { id name playCount skipCount lastPlayedAt } }",
@@ -1134,7 +1141,7 @@ async fn random_deck_and_record_play_over_graphql() {
         skipped["recordDeckPlay"]["deck"],
         json!({"name": "Second", "playCount": 1, "skipCount": 1, "lastPlayedAt": last})
     );
-    let archived = create_deck(&app, "Gone", None, Some("archived")).await;
+    let archived = create_deck(app.db(), "Gone", None, Some("archived")).await;
     let response = app
         .gql(
             record,
@@ -1150,7 +1157,7 @@ async fn random_deck_and_record_play_over_graphql() {
 #[tokio::test]
 async fn inclusion_toggles_through_graphql_and_controls_random_picks() {
     let app = TestApp::new().await;
-    let deck = create_deck(&app, "Tonight", None, Some("active")).await;
+    let deck = create_deck(app.db(), "Tonight", None, Some("active")).await;
     let id = deck_gid(deck.id);
     for included in [false, true] {
         let data = app
@@ -1210,12 +1217,12 @@ async fn deck_page_allocation_status_counts_copies_reserved_elsewhere() {
         json!({"collector_number": "1a", "set": "bat"}),
     ));
     let app = app_with(&cards).await;
-    let binder = location(&app, "Batch Binder", "binder").await;
+    let binder = location(app.db(), "Batch Binder", "binder").await;
     let mut items = Vec::new();
     for index in 1..=3 {
         items.push(
             collection_item(
-                &app,
+                app.db(),
                 &format!("scryfall-batched-allocation-{index}"),
                 1,
                 Finish::Nonfoil,
@@ -1226,17 +1233,17 @@ async fn deck_page_allocation_status_counts_copies_reserved_elsewhere() {
     }
     let primary = items[0];
     let alternate = collection_item(
-        &app,
+        app.db(),
         "scryfall-batched-allocation-1-alternate",
         1,
         Finish::Nonfoil,
         Some(binder),
     )
     .await;
-    let deck = create_deck(&app, "Batched Allocation Deck", None, None).await;
+    let deck = create_deck(app.db(), "Batched Allocation Deck", None, None).await;
     for index in 1..=3 {
         add_card(
-            &app,
+            app.db(),
             deck.id,
             &format!("Batched Allocation {index}"),
             1,
@@ -1244,9 +1251,9 @@ async fn deck_page_allocation_status_counts_copies_reserved_elsewhere() {
         )
         .await;
     }
-    let other = create_deck(&app, "Other Batched Allocation Deck", None, None).await;
-    let other_card = add_card(&app, other.id, "Batched Allocation 1", 1, "mainboard").await;
-    allocate(&app, other_card.id, alternate, 1).await;
+    let other = create_deck(app.db(), "Other Batched Allocation Deck", None, None).await;
+    let other_card = add_card(app.db(), other.id, "Batched Allocation 1", 1, "mainboard").await;
+    allocate(app.db(), other_card.id, alternate, 1).await;
 
     let data = app
         .gql_data(
@@ -1296,7 +1303,8 @@ async fn deck_page_allocation_status_counts_copies_reserved_elsewhere() {
     let mut candidates = status["candidates"].as_array().unwrap().clone();
     candidates.sort_by_key(|candidate| candidate["available"].as_i64());
     let item_gid = |id: crate::decks::model::CollectionItemId| {
-        crate::graphql::global_id(crate::graphql::NodeKind::CollectionItem, id.0).to_string()
+        manavault_core::graphql::global_id(manavault_core::graphql::NodeKind::CollectionItem, id.0)
+            .to_string()
     };
     assert_eq!(
         Value::Array(candidates),
@@ -1331,7 +1339,7 @@ async fn deck_page_allocation_status_counts_copies_reserved_elsewhere() {
 #[tokio::test]
 async fn basic_lands_and_proxies_in_allocation_status() {
     let app = app_with(&[
-        crate::test_support::fixtures::plains(),
+        manavault_catalog::testing::fixtures::plains(),
         simple_card(
             "scryfall-snow",
             "oracle-snow",
@@ -1342,10 +1350,10 @@ async fn basic_lands_and_proxies_in_allocation_status() {
         black_lotus(),
     ])
     .await;
-    let deck = create_deck(&app, "Lands", None, None).await;
-    add_card(&app, deck.id, "Plains", 10, "mainboard").await;
-    add_card(&app, deck.id, "Snow-Covered Forest", 5, "mainboard").await;
-    let lotus = add_card(&app, deck.id, "Black Lotus", 2, "mainboard").await;
+    let deck = create_deck(app.db(), "Lands", None, None).await;
+    add_card(app.db(), deck.id, "Plains", 10, "mainboard").await;
+    add_card(app.db(), deck.id, "Snow-Covered Forest", 5, "mainboard").await;
+    let lotus = add_card(app.db(), deck.id, "Black Lotus", 2, "mainboard").await;
     sqlx::query!(
         "UPDATE deck_cards SET proxy_quantity = 1 WHERE id = ?1",
         lotus.id
@@ -1473,8 +1481,8 @@ async fn deck_card_ids_round_trip_as_global_ids() {
         json!({}),
     )])
     .await;
-    let deck = create_deck(&app, "Node Contract Deck", None, None).await;
-    let card = add_card(&app, deck.id, "Contract Card", 1, "mainboard").await;
+    let deck = create_deck(app.db(), "Node Contract Deck", None, None).await;
+    let card = add_card(app.db(), deck.id, "Contract Card", 1, "mainboard").await;
     assert_eq!(card_gid(DeckCardId(4)), "RGVja0NhcmQ6NA==");
     assert_eq!(deck_gid(crate::decks::model::DeckId(3)), "RGVjazoz");
     let data = app

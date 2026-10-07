@@ -9,7 +9,7 @@ use manavault_allocation::{AllocationError, DeckId};
 use serde_json::{Map, Value, json};
 
 use crate::deck_intel::DeckContext;
-use crate::state::AppState;
+use manavault_core::state::AppState;
 
 const USER_AGENT: &str = "ManaVault/1.0";
 

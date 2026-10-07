@@ -1,4 +1,13 @@
-//! Fixtures and helpers shared by the deck tests.
+//! Deck fixtures and helpers shared by this crate's tests and the crates
+//! above it. Compiled in every build (not behind a feature) so test and dev
+//! builds share one build of this crate.
+
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::missing_panics_doc
+)]
 
 use lotus::{Finish, OracleId, ScryfallId};
 use serde_json::{Value, json};
@@ -6,9 +15,9 @@ use serde_json::{Value, json};
 use crate::decks::cards::{self, CardRef, DeckCardChanges, NewDeckCard};
 use crate::decks::model::{CollectionItemId, DeckCardId, DeckCardRow, DeckId, DeckRow, LocationId};
 use crate::decks::records::{self, DeckChanges};
-use crate::graphql::{NodeKind, global_id};
-use crate::test_support::TestApp;
-use crate::test_support::fixtures::{self, merge};
+use manavault_catalog::testing::fixtures::{self, merge};
+use manavault_core::graphql::{NodeKind, global_id};
+use sqlx::SqlitePool;
 
 /// `slug/1`.
 pub fn slug(value: &str) -> String {
@@ -104,13 +113,13 @@ pub fn simple_card(
 
 /// `Catalog.create_deck/1` with a name and optional format and status.
 pub async fn create_deck(
-    app: &TestApp,
+    db: &SqlitePool,
     name: &str,
     format: Option<&str>,
     status: Option<&str>,
 ) -> DeckRow {
     records::create_deck(
-        app.db(),
+        db,
         &DeckChanges {
             name: Some(Some(name.to_owned())),
             format: format.map(|format| Some(format.to_owned())),
@@ -123,16 +132,14 @@ pub async fn create_deck(
 }
 
 /// Updates deck fields.
-pub async fn update_deck(app: &TestApp, deck: DeckId, changes: DeckChanges) -> DeckRow {
-    records::update_deck(app.db(), deck, &changes)
-        .await
-        .unwrap()
+pub async fn update_deck(db: &SqlitePool, deck: DeckId, changes: DeckChanges) -> DeckRow {
+    records::update_deck(db, deck, &changes).await.unwrap()
 }
 
 /// Archives (or otherwise sets the status of) a deck.
-pub async fn set_status(app: &TestApp, deck: DeckId, status: &str) -> DeckRow {
+pub async fn set_status(db: &SqlitePool, deck: DeckId, status: &str) -> DeckRow {
     update_deck(
-        app,
+        db,
         deck,
         DeckChanges {
             status: Some(Some(status.to_owned())),
@@ -168,20 +175,20 @@ pub fn by_oracle(oracle_id: &str, quantity: i64, zone: &str) -> NewDeckCard {
 
 /// `add_deck_card!/4`.
 pub async fn add_card(
-    app: &TestApp,
+    db: &SqlitePool,
     deck: DeckId,
     name: &str,
     quantity: i64,
     zone: &str,
 ) -> DeckCardRow {
-    cards::add_card_to_deck(app.db(), deck, &by_name(name, quantity, zone))
+    cards::add_card_to_deck(db, deck, &by_name(name, quantity, zone))
         .await
         .unwrap()
 }
 
 /// Adds a card with a preferred printing.
 pub async fn add_printing(
-    app: &TestApp,
+    db: &SqlitePool,
     deck: DeckId,
     name: &str,
     quantity: i64,
@@ -189,11 +196,11 @@ pub async fn add_printing(
 ) -> DeckCardRow {
     let mut new = by_name(name, quantity, "mainboard");
     new.changes.preferred_printing_id = Some(Some(ScryfallId::new(printing)));
-    cards::add_card_to_deck(app.db(), deck, &new).await.unwrap()
+    cards::add_card_to_deck(db, deck, &new).await.unwrap()
 }
 
 /// Inserts a location.
-pub async fn location(app: &TestApp, name: &str, kind: &str) -> LocationId {
+pub async fn location(db: &SqlitePool, name: &str, kind: &str) -> LocationId {
     sqlx::query_scalar!(
         r#"INSERT INTO locations (name, kind, inserted_at, updated_at)
            VALUES (?1, ?2, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
@@ -201,14 +208,14 @@ pub async fn location(app: &TestApp, name: &str, kind: &str) -> LocationId {
         name,
         kind
     )
-    .fetch_one(app.db())
+    .fetch_one(db)
     .await
     .unwrap()
 }
 
 /// Inserts a collection item (`Catalog.create_collection_item/1`).
 pub async fn collection_item(
-    app: &TestApp,
+    db: &SqlitePool,
     scryfall_id: &str,
     quantity: i64,
     finish: Finish,
@@ -224,42 +231,42 @@ pub async fn collection_item(
         finish,
         location
     )
-    .fetch_one(app.db())
+    .fetch_one(db)
     .await
     .unwrap()
 }
 
 /// `Catalog.allocate_collection_item_to_deck_card/3`, through the
 /// allocation crate.
-pub async fn allocate(app: &TestApp, deck_card: DeckCardId, item: CollectionItemId, quantity: u32) {
-    manavault_allocation::allocate(
-        app.db(),
-        deck_card,
-        item,
-        lotus::Quantity::new(quantity).unwrap(),
-    )
-    .await
-    .unwrap();
+pub async fn allocate(
+    db: &SqlitePool,
+    deck_card: DeckCardId,
+    item: CollectionItemId,
+    quantity: u32,
+) {
+    manavault_allocation::allocate(db, deck_card, item, lotus::Quantity::new(quantity).unwrap())
+        .await
+        .unwrap();
 }
 
 /// Total reserved copies of a deck card.
-pub async fn allocated_quantity(app: &TestApp, deck_card: DeckCardId) -> i64 {
+pub async fn allocated_quantity(db: &SqlitePool, deck_card: DeckCardId) -> i64 {
     sqlx::query_scalar!(
         r#"SELECT COALESCE(SUM(quantity), 0) AS "total!: i64" FROM deck_allocations WHERE deck_card_id = ?1"#,
         deck_card
     )
-    .fetch_one(app.db())
+    .fetch_one(db)
     .await
     .unwrap()
 }
 
 /// Every reservation (deck card, item, quantity).
-pub async fn all_allocations(app: &TestApp) -> Vec<(i64, i64, i64)> {
+pub async fn all_allocations(db: &SqlitePool) -> Vec<(i64, i64, i64)> {
     sqlx::query!(
         r#"SELECT deck_card_id AS "deck_card_id!", collection_item_id AS "item!", quantity AS "quantity!"
            FROM deck_allocations ORDER BY id"#
     )
-    .fetch_all(app.db())
+    .fetch_all(db)
     .await
     .unwrap()
     .into_iter()
@@ -268,52 +275,50 @@ pub async fn all_allocations(app: &TestApp) -> Vec<(i64, i64, i64)> {
 }
 
 /// A collection item's location.
-pub async fn item_location(app: &TestApp, item: CollectionItemId) -> Option<i64> {
+pub async fn item_location(db: &SqlitePool, item: CollectionItemId) -> Option<i64> {
     sqlx::query_scalar!(
         "SELECT location_id FROM collection_items WHERE id = ?1",
         item
     )
-    .fetch_one(app.db())
+    .fetch_one(db)
     .await
     .unwrap()
 }
 
 /// Copies stored in a location (`binder_quantity/1`).
-pub async fn location_quantity(app: &TestApp, location: LocationId) -> i64 {
+pub async fn location_quantity(db: &SqlitePool, location: LocationId) -> i64 {
     sqlx::query_scalar!(
         r#"SELECT COALESCE(SUM(quantity), 0) AS "total!: i64" FROM collection_items WHERE location_id = ?1"#,
         location
     )
-    .fetch_one(app.db())
+    .fetch_one(db)
     .await
     .unwrap()
 }
 
 /// A deck's cards ordered by oracle id.
-pub async fn deck_cards(app: &TestApp, deck: DeckId) -> Vec<DeckCardRow> {
+pub async fn deck_cards(db: &SqlitePool, deck: DeckId) -> Vec<DeckCardRow> {
     crate::deck_card_row_query!("WHERE dc.deck_id = ?1 ORDER BY dc.oracle_id", deck)
-        .fetch_all(app.db())
+        .fetch_all(db)
         .await
         .unwrap()
 }
 
 /// One deck card, if it still exists.
-pub async fn deck_card(app: &TestApp, id: DeckCardId) -> Option<DeckCardRow> {
-    crate::decks::model::load_deck_card(app.db(), id)
-        .await
-        .unwrap()
+pub async fn deck_card(db: &SqlitePool, id: DeckCardId) -> Option<DeckCardRow> {
+    crate::decks::model::load_deck_card(db, id).await.unwrap()
 }
 
 /// The deck's cards with catalog data, in deck order.
-pub async fn contents(app: &TestApp, deck: DeckId) -> std::sync::Arc<crate::decks::DeckContents> {
-    crate::decks::contents::load_deck_contents(app.db(), deck)
+pub async fn contents(db: &SqlitePool, deck: DeckId) -> std::sync::Arc<crate::decks::DeckContents> {
+    crate::decks::contents::load_deck_contents(db, deck)
         .await
         .unwrap()
 }
 
 /// Card names of a deck in deck order.
-pub async fn card_names(app: &TestApp, deck: DeckId) -> Vec<String> {
-    contents(app, deck)
+pub async fn card_names(db: &SqlitePool, deck: DeckId) -> Vec<String> {
+    contents(db, deck)
         .await
         .cards
         .iter()
@@ -322,9 +327,9 @@ pub async fn card_names(app: &TestApp, deck: DeckId) -> Vec<String> {
 }
 
 /// The deck's legality.
-pub async fn legality(app: &TestApp, deck: DeckId) -> crate::decks::legality::DeckLegality {
-    let row = records::get_deck(app.db(), deck).await.unwrap();
-    contents(app, deck).await.legality(row.format)
+pub async fn legality(db: &SqlitePool, deck: DeckId) -> crate::decks::legality::DeckLegality {
+    let row = records::get_deck(db, deck).await.unwrap();
+    contents(db, deck).await.legality(row.format)
 }
 
 /// Codes of a legality's issues.
@@ -363,8 +368,8 @@ pub fn error_message(response: &Value) -> String {
 }
 
 /// Clears the default tags so tag tests start tag-less.
-pub async fn clear_default_tags(app: &TestApp) {
-    crate::decks::tags::replace_default_deck_tags(app.db(), &[])
+pub async fn clear_default_tags(db: &SqlitePool) {
+    crate::decks::tags::replace_default_deck_tags(db, &[])
         .await
         .unwrap();
 }

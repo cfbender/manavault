@@ -7,10 +7,10 @@ use manavault_allocation::{
 };
 use sqlx::SqlitePool;
 
-use crate::catalog::card::CardRecord;
-use crate::catalog::search::name_match;
 use crate::deck_intel::DeckContext;
-use crate::decks::DeckCardAllocationStatus;
+use manavault_catalog::catalog::card::CardRecord;
+use manavault_catalog::catalog::search::name_match;
+use manavault_collection::decks::DeckCardAllocationStatus;
 
 /// A suggested card resolved against the catalog and the deck.
 #[derive(Clone, Copy)]

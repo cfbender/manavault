@@ -6,8 +6,8 @@ use serde_json::Value;
 
 use super::analyze_deck::{self, RunError};
 use super::{AiError, answer_deck_question, decks};
-use crate::jobs::{Job, Outcome, Unique, Worker};
-use crate::state::AppState;
+use manavault_core::jobs::{Job, Outcome, Unique, Worker};
+use manavault_core::state::AppState;
 
 pub const DECK_ANALYSIS_WORKER: &str = "deck_analysis";
 pub const DECK_QUESTION_WORKER: &str = "deck_question";

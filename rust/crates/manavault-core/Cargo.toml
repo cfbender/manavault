@@ -37,7 +37,6 @@ tracing-subscriber.workspace = true
 url.workspace = true
 
 [dev-dependencies]
-manavault-server.workspace = true
 wiremock.workspace = true
 
 [lints]

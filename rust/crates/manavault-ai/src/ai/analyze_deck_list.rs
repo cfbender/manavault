@@ -6,9 +6,9 @@ use super::deck_analysis::{self, PayloadDeck};
 use super::decks::DeckCardInput;
 use super::requests::{self, DeckAnalysisRequest, FORMATS, InsertError, NewRequest, SourceType};
 use super::{AiError, Configured};
-use crate::catalog::search::cards_by_name;
-use crate::state::AppState;
-use crate::trade::list_source::{self, ListEntry, ResolveError};
+use manavault_catalog::catalog::search::cards_by_name;
+use manavault_core::state::AppState;
+use manavault_trade::trade::list_source::{self, ListEntry, ResolveError};
 
 /// `analyzeDeckList` arguments.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

@@ -24,7 +24,7 @@ pub use card::{Card, CardConnection, CardEdge, CardRecord};
 pub use printing::{Printing, PrintingConnection, PrintingEdge, PrintingRecord};
 pub use schema::CardQueries;
 
-use crate::state::AppState;
+use manavault_core::state::AppState;
 
 /// Drops cached catalog reads (card name suggestions, cached lookups such as
 /// rulings) after the catalog changes (`Search.clear_card_name_suggestion_cache/0`

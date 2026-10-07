@@ -9,8 +9,8 @@ use std::time::Duration;
 use sqlx::SqlitePool;
 
 use crate::pricing::vendors::{Vendor, VendorFeed, VendorRow};
-use crate::state::AppState;
-use crate::timefmt;
+use manavault_core::state::AppState;
+use manavault_core::timefmt;
 
 const BATCH_SIZE: usize = 200;
 const BUSY_RETRY_DELAYS: [Duration; 5] = [

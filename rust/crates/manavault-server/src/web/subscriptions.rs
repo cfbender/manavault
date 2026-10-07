@@ -19,9 +19,9 @@ use axum::response::{IntoResponse, Response};
 use serde_json::Value;
 
 use super::WebState;
-use super::allowed_origins::OriginPolicy;
-use super::session::{self, Session};
-use crate::state::AppState;
+use manavault_core::state::AppState;
+use manavault_core::web::allowed_origins::OriginPolicy;
+use manavault_core::web::session::{self, Session};
 
 /// A socket that sends nothing (not even pings) for this long is closed.
 const KEEPALIVE_TIMEOUT: Duration = Duration::from_secs(60);

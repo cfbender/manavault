@@ -11,8 +11,8 @@ use super::openrouter::{self, Turn};
 use super::question_answers::{self, NewQuestionAnswer, QuestionAnswer, Status, WriteError};
 use super::workers::DECK_QUESTION_WORKER;
 use super::{AiError, Configured, Provider};
-use crate::catalog::search::cards_by_name;
-use crate::state::AppState;
+use manavault_catalog::catalog::search::cards_by_name;
+use manavault_core::state::AppState;
 
 /// Completed prior turns sent with each new question in either chat surface.
 const THREAD_HISTORY_TURNS: i64 = 6;
@@ -70,7 +70,7 @@ pub async fn enqueue(
         swap_context,
         recommendations: None,
     };
-    let mut tx = crate::db::begin_write(&state.db).await?;
+    let mut tx = manavault_core::db::begin_write(&state.db).await?;
     let saved = question_answers::insert(&mut tx, deck_id, &attrs)
         .await
         .map_err(write_error)?;
@@ -185,7 +185,7 @@ async fn generate(
 fn recommendation_issues(
     result: &Answer,
     payload: &Payload,
-    cards: &HashMap<String, crate::catalog::card::CardRecord>,
+    cards: &HashMap<String, manavault_catalog::catalog::card::CardRecord>,
 ) -> Vec<String> {
     let deck_names: HashSet<String> = payload
         .card_names
@@ -233,7 +233,7 @@ fn recommendation_issues(
 fn canonicalize(
     result: Answer,
     payload: &Payload,
-    cards: &HashMap<String, crate::catalog::card::CardRecord>,
+    cards: &HashMap<String, manavault_catalog::catalog::card::CardRecord>,
 ) -> Answer {
     let deck_names: HashMap<String, &String> = payload
         .card_names

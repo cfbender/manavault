@@ -15,7 +15,7 @@ use time::OffsetDateTime;
 use time::macros::format_description;
 
 use super::{archive, snapshot};
-use crate::config::Config;
+use manavault_core::config::Config;
 
 const DB_NAME: &str = "manavault.db";
 const MANIFEST_NAME: &str = "manifest.json";
@@ -97,14 +97,14 @@ pub fn timestamp(at: OffsetDateTime) -> String {
 /// `DateTime.to_iso8601(DateTime.utc_now())`, with microseconds.
 #[must_use]
 pub fn iso8601_now() -> String {
-    crate::timefmt::now_micros()
+    manavault_core::timefmt::now_micros()
 }
 
 /// A fresh temporary directory path.
 fn temp_dir(prefix: &str, timestamp: &str) -> PathBuf {
     std::env::temp_dir().join(format!(
         "{prefix}-{timestamp}-{}",
-        hex::encode(crate::crypto::random_bytes::<6>())
+        hex::encode(manavault_core::crypto::random_bytes::<6>())
     ))
 }
 
@@ -225,11 +225,11 @@ pub fn restore(artifact: &Path, paths: &Paths) -> Result<PathBuf, BackupError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::TempDir;
+    use manavault_core::testing::TempDir;
     use std::io::Write as _;
 
     async fn source_database(path: &Path) -> SqlitePool {
-        let pool = crate::db::connect(path, 1).await.unwrap();
+        let pool = manavault_core::db::connect(path, 1).await.unwrap();
         sqlx::raw_sql(
             "PRAGMA foreign_keys = ON;
              CREATE TABLE scryfall_cards (oracle_id TEXT PRIMARY KEY, name TEXT NOT NULL);
@@ -252,7 +252,7 @@ mod tests {
     }
 
     async fn count(path: &Path, table: &str) -> i64 {
-        let pool = crate::db::connect(path, 1).await.unwrap();
+        let pool = manavault_core::db::connect(path, 1).await.unwrap();
         let count =
             sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT count(*) FROM {table}")))
                 .fetch_one(&pool)

@@ -26,12 +26,12 @@ use lotus::ScryfallId;
 use manavault_allocation::{AllocationError, DeckId, NamedDeckCard};
 use sqlx::SqlitePool;
 
-use crate::catalog::printing::Printing;
+use manavault_catalog::catalog::printing::Printing;
 
 pub use allocations::AllocationMutations;
 pub use schema::{DeckIntelMutations, DeckIntelQueries};
 
-pub use crate::config::DeckIntelUrls;
+pub use manavault_core::config::DeckIntelUrls;
 
 /// A deck with its cards (zone, name, id order) and their preferred
 /// printings (`Repo.preload(deck, Preloads.deck_preloads())`).

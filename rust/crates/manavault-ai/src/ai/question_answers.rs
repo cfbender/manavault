@@ -6,8 +6,8 @@ use serde_json::Value;
 use sqlx::SqlitePool;
 
 use super::deck_question::SwapContext;
-use crate::timefmt;
-use crate::validation::{BLANK, ValidationError, too_long};
+use manavault_core::timefmt;
+use manavault_core::validation::{BLANK, ValidationError, too_long};
 
 /// `deck_question_answers.status`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type)]

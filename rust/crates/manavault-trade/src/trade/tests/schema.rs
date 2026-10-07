@@ -3,9 +3,9 @@
 use serde_json::{Value, json};
 
 use super::{add_deck_card, error_message, insert_deck};
-use crate::graphql::relay::from_global_id;
-use crate::graphql::{NodeKind, global_id};
-use crate::test_support::TestApp;
+use crate::test_app::TestApp;
+use manavault_core::graphql::relay::from_global_id;
+use manavault_core::graphql::{NodeKind, global_id};
 
 #[tokio::test]
 async fn deck_diff_rows_expose_relay_deck_card_ids_that_decode_back() {

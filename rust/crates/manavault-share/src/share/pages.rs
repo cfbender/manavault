@@ -13,9 +13,9 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 
 use super::preview::{DeckPage, IMAGE_HEIGHT, IMAGE_WIDTH, artifact_cache};
-use crate::state::AppState;
-use crate::web::app_shell::{SharePreview, absolute_url, render_app};
-use crate::web::session::Session;
+use manavault_core::state::AppState;
+use manavault_core::web::app_shell::{SharePreview, absolute_url, render_app};
+use manavault_core::web::session::Session;
 
 /// `GET /share/decks/{token}` (in the `:browser` pipeline).
 pub fn browser_routes<S>(router: Router<S>) -> Router<S>
@@ -54,10 +54,13 @@ pub fn encode_path_segment(segment: &str) -> String {
 /// `share_preview/2` for a deck: `None` for malformed, unknown, or revoked
 /// tokens (malformed ones never query).
 async fn deck_page(state: &AppState, token: &str) -> Result<Option<DeckPage>, sqlx::Error> {
-    let Some(deck) = crate::decks::records::get_by_share_token(&state.db, token).await? else {
+    let Some(deck) =
+        manavault_collection::decks::records::get_by_share_token(&state.db, token).await?
+    else {
         return Ok(None);
     };
-    let contents = crate::decks::contents::load_deck_contents(&state.db, deck.id).await?;
+    let contents =
+        manavault_collection::decks::contents::load_deck_contents(&state.db, deck.id).await?;
     Ok(Some(DeckPage::from_deck(
         &deck,
         &contents,

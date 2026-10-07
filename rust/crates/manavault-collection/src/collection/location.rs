@@ -15,8 +15,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::{SqliteConnection, SqlitePool};
 
 use crate::collection::queries::ValueTotals;
-use crate::timefmt;
-use crate::validation::{INVALID, ValidationError};
+use manavault_core::timefmt;
+use manavault_core::validation::{INVALID, ValidationError};
 
 /// What a location is (`@kinds`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
@@ -374,7 +374,7 @@ pub async fn update(
 /// unfiled (the foreign key sets them `NULL`); a list's items are deleted
 /// with it.
 pub async fn delete(pool: &SqlitePool, id: i64) -> Result<LocationRecord, LocationError> {
-    let mut tx = crate::db::begin_write(pool).await?;
+    let mut tx = manavault_core::db::begin_write(pool).await?;
     let location = location_query!("WHERE l.id = ?1", id)
         .fetch_optional(&mut *tx)
         .await?

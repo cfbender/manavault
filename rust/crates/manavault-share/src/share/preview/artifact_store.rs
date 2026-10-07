@@ -34,7 +34,7 @@ fn temporary_path(artifact: &Path) -> PathBuf {
     name.push(format!(
         "{TEMPORARY_MARKER}{}-{}",
         std::process::id(),
-        hex::encode(crate::crypto::random_bytes::<8>())
+        hex::encode(manavault_core::crypto::random_bytes::<8>())
     ));
     PathBuf::from(name)
 }
@@ -133,7 +133,7 @@ fn prune(cache_dir: &Path, max_artifacts: usize, preserve: Option<&Path>) -> std
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::TempDir;
+    use manavault_core::testing::TempDir;
 
     fn touch(path: &Path, seconds: u64) {
         let file = std::fs::File::options().write(true).open(path).unwrap();

@@ -4,13 +4,13 @@ use async_graphql::MaybeUndefined;
 use serde_json::{Value, json};
 
 use crate::catalog::tests::link_token;
-use crate::graphql::{NodeKind, global_id};
-use crate::test_support::TestApp;
-use crate::test_support::fixtures::{black_lotus, merge};
+use crate::test_app::TestApp;
+use crate::testing::fixtures::{black_lotus, merge};
 use crate::tokens::back_options::token_back_options;
 use crate::tokens::items::{self, NewTokenItem, TokenItemChanges, TokenItemError};
 use crate::tokens::produced;
 use crate::tokens::search::{TokenPrintingFilters, search_token_printings};
+use manavault_core::graphql::{NodeKind, global_id};
 
 fn treasure_tlea() -> Value {
     json!({
@@ -588,7 +588,9 @@ async fn token_items_round_trip_over_graphql() {
     let item = &add["addTokenItem"]["tokenItem"];
     let id = item["id"].as_str().unwrap().to_owned();
     assert_eq!(
-        crate::graphql::relay::from_global_id(&id).unwrap().0,
+        manavault_core::graphql::relay::from_global_id(&id)
+            .unwrap()
+            .0,
         NodeKind::TokenItem
     );
     assert_eq!(item["quantity"], 2);

@@ -6,9 +6,9 @@
 use lotus::{OracleId, Quantity, ScryfallId};
 use sqlx::SqlitePool;
 
-use crate::catalog::printing::Printing;
-use crate::catalog::search::cards_by_name;
-use crate::catalog::sql::json_list;
+use manavault_catalog::catalog::printing::Printing;
+use manavault_catalog::catalog::search::cards_by_name;
+use manavault_catalog::catalog::sql::json_list;
 
 /// A `trade_wants` row with the image the want shows: its preferred
 /// printing's image when it names one, else the image of the card's most
@@ -41,7 +41,7 @@ impl Want {
 pub fn image_url(image_uris: &str) -> Option<String> {
     let value = serde_json::from_str(image_uris)
         .unwrap_or_else(|_| serde_json::Value::Object(serde_json::Map::new()));
-    crate::catalog::printing::image_url(&value)
+    manavault_catalog::catalog::printing::image_url(&value)
 }
 
 /// Selects wants (`w`) into [`Want`]; the argument is the rest of the query
@@ -154,7 +154,7 @@ async fn upsert(
     preferred_printing_id: Option<&ScryfallId>,
     quantity: Quantity,
 ) -> Result<Want, CreateWantError> {
-    let mut tx = crate::db::begin_write(pool).await?;
+    let mut tx = manavault_core::db::begin_write(pool).await?;
     let existing = sqlx::query!(
         r#"SELECT id AS "id!", quantity AS "quantity!: Quantity" FROM trade_wants
            WHERE oracle_id = ?1 AND preferred_printing_id IS ?2"#,
@@ -163,7 +163,7 @@ async fn upsert(
     )
     .fetch_optional(&mut *tx)
     .await?;
-    let now = crate::timefmt::now();
+    let now = manavault_core::timefmt::now();
     let id = match existing {
         Some(row) => {
             let total = row.quantity.saturating_add(quantity);
@@ -215,7 +215,7 @@ pub async fn update_quantity(
     quantity: i64,
 ) -> Result<Option<Want>, UpdateWantError> {
     let quantity = Quantity::try_from(quantity).map_err(|_| UpdateWantError::InvalidQuantity)?;
-    let now = crate::timefmt::now();
+    let now = manavault_core::timefmt::now();
     sqlx::query!(
         "UPDATE trade_wants SET quantity = ?1, updated_at = ?2 WHERE id = ?3",
         quantity,

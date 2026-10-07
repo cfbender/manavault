@@ -8,13 +8,13 @@ use std::collections::{BTreeMap, HashMap};
 use lotus::{OracleId, Zone};
 use sqlx::SqlitePool;
 
-use crate::catalog::card::CardRecord;
-use crate::catalog::price::format_cents;
-use crate::catalog::printing::Printing;
-use crate::catalog::sql::json_list;
-use crate::pricing::PriceStore;
 use crate::trade::entry_resolver;
 use crate::trade::list_source::{ListEntry, ResolvedList};
+use manavault_catalog::catalog::card::CardRecord;
+use manavault_catalog::catalog::price::format_cents;
+use manavault_catalog::catalog::printing::Printing;
+use manavault_catalog::catalog::sql::json_list;
+use manavault_catalog::pricing::PriceStore;
 
 /// A card row's state, worst first.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -261,13 +261,14 @@ async fn rows(
     }
     let oracle_ids: Vec<OracleId> = requirements.keys().cloned().collect();
     let cards: HashMap<OracleId, CardRecord> =
-        crate::catalog::card::load_records(pool, &oracle_ids)
+        manavault_catalog::catalog::card::load_records(pool, &oracle_ids)
             .await?
             .into_iter()
             .map(|card| (card.oracle_id.clone(), card))
             .collect();
     let mut printings =
-        crate::catalog::printing::printings_with_owned_counts(pool, &oracle_ids).await?;
+        manavault_catalog::catalog::printing::printings_with_owned_counts(pool, &oracle_ids)
+            .await?;
     let holdings = holdings(pool, &oracle_ids).await?;
 
     let mut rows = Vec::new();

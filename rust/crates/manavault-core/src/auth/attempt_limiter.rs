@@ -195,7 +195,7 @@ pub async fn reset_all_persistent(db: &SqlitePool) -> Result<(), sqlx::Error> {
 mod tests {
     use super::*;
     use crate::config::RateLimit;
-    use crate::test_support::TestApp;
+    use crate::test_app::TestApp;
 
     fn limits(per_ip: u32, global: u32, ban: u32) -> AuthRateLimit {
         AuthRateLimit {

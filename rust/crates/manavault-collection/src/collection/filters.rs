@@ -7,13 +7,13 @@
 
 use sqlx::{QueryBuilder, Sqlite};
 
-use crate::catalog::price::price_value_sql as price_value_sql_for;
-use crate::catalog::scryfall_query::{self, Expr, Field, Op, Predicate};
-use crate::catalog::search::name_match;
-use crate::catalog::search::predicates::{
+use manavault_catalog::catalog::price::price_value_sql as price_value_sql_for;
+use manavault_catalog::catalog::scryfall_query::{self, Expr, Field, Op, Predicate};
+use manavault_catalog::catalog::search::name_match;
+use manavault_catalog::catalog::search::predicates::{
     self, ColorField, TextField, color_count, downcase, parse_float, parse_int, text_field,
 };
-use crate::catalog::sql::Fragment;
+use manavault_catalog::catalog::sql::Fragment;
 
 /// The location a listing is scoped to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -127,7 +127,7 @@ pub fn push_filters(builder: &mut QueryBuilder<Sqlite>, filters: &ItemFilters) {
     if let Some(days) = filters.added_within_days.filter(|days| *days > 0) {
         let cutoff = time::OffsetDateTime::now_utc() - time::Duration::days(days);
         builder.push(" AND i.inserted_at >= ");
-        builder.push_bind(crate::timefmt::utc_seconds(cutoff));
+        builder.push_bind(manavault_core::timefmt::utc_seconds(cutoff));
     }
     if filters.location.is_none() && !filters.include_list_locations {
         builder.push(format!(" AND {NOT_LIST_SQL}"));
@@ -294,8 +294,8 @@ fn added(op: Op, value: &str) -> Fragment {
     let Some(next) = date.next_day() else {
         return Fragment::falsity();
     };
-    let start = crate::timefmt::utc_seconds(date.midnight().assume_utc());
-    let end = crate::timefmt::utc_seconds(next.midnight().assume_utc());
+    let start = manavault_core::timefmt::utc_seconds(date.midnight().assume_utc());
+    let end = manavault_core::timefmt::utc_seconds(next.midnight().assume_utc());
     match op.comparison() {
         Op::Neq => Fragment::sql("(i.inserted_at < ")
             .text(start)

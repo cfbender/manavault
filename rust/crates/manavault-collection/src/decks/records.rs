@@ -3,7 +3,6 @@
 
 use sqlx::SqlitePool;
 
-use crate::db;
 use crate::decks::model::{
     DeckCardId, DeckFormat, DeckId, DeckRow, DeckStatus, load_deck, load_deck_on,
 };
@@ -11,7 +10,8 @@ use crate::decks::validation::{
     self, BLANK, Change, INVALID, ValidationError, apply, at_least, cast_string, length, too_long,
 };
 use crate::decks::{DeckError, share_token, tags};
-use crate::timefmt;
+use manavault_core::db;
+use manavault_core::timefmt;
 
 /// Deck attributes from `DeckInput` / `DeckUpdateInput` (`Deck.changeset/2`).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

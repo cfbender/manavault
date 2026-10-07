@@ -5,9 +5,9 @@ use std::time::Duration;
 use time::OffsetDateTime;
 
 use crate::catalog::scryfall::worker::forced;
-use crate::jobs::{Job, Outcome, Unique, Worker};
 use crate::pricing::vendors::{FeedUrls, Vendor, feed};
-use crate::state::AppState;
+use manavault_core::jobs::{Job, Outcome, Unique, Worker};
+use manavault_core::state::AppState;
 
 pub const NAME: &str = "vendor_prices";
 
@@ -19,7 +19,7 @@ pub async fn stale_vendors(state: &AppState) -> Result<Vec<Vendor>, sqlx::Error>
         let synced = super::last_synced_at(&state.db, vendor)
             .await?
             .as_deref()
-            .and_then(crate::timefmt::parse);
+            .and_then(manavault_core::timefmt::parse);
         if synced.is_none_or(|at| now - at >= vendor.sync_interval()) {
             vendors.push(vendor);
         }

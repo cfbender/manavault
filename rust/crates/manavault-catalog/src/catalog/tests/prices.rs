@@ -6,7 +6,7 @@ use serde_json::json;
 use crate::catalog::price;
 use crate::catalog::printing::Printing;
 use crate::catalog::search::cards::{SearchOptions, search_cards};
-use crate::test_support::TestApp;
+use crate::test_app::TestApp;
 
 const FINISHES: [&str; 3] = ["nonfoil", "foil", "etched"];
 

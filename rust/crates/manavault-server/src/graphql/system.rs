@@ -5,7 +5,7 @@ use futures_util::Stream;
 use tokio_stream::StreamExt as _;
 use tokio_stream::wrappers::BroadcastStream;
 
-use crate::graphql::state;
+use manavault_core::graphql::state;
 
 #[derive(Debug, Clone, SimpleObject)]
 pub struct ServerLogEvent {

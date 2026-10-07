@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 
 use super::Remote;
 use super::settings::{CloudSettings, present};
-use crate::config::PlatformUrls;
+use manavault_core::config::PlatformUrls;
 
 const MIME: &str = "application/zip";
 
@@ -98,7 +98,7 @@ impl GoogleDrive<'_> {
             .body(body)
             .send()
             .await
-            .map_err(|e| crate::http_errors::transport_message(&e))?;
+            .map_err(|e| manavault_core::http_errors::transport_message(&e))?;
         if !response.status().is_success() {
             return Err(response_error("Google OAuth", response).await);
         }
@@ -138,7 +138,7 @@ impl GoogleDrive<'_> {
         let size = contents.len();
         let boundary = format!(
             "manavault-{}",
-            u32::from_be_bytes(crate::crypto::random_bytes::<4>())
+            u32::from_be_bytes(manavault_core::crypto::random_bytes::<4>())
         );
         let mut body = format!(
             "--{boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n{metadata}\r\n--{boundary}\r\nContent-Type: {MIME}\r\n\r\n"
@@ -159,7 +159,7 @@ impl GoogleDrive<'_> {
             .body(body)
             .send()
             .await
-            .map_err(|e| crate::http_errors::transport_message(&e))?;
+            .map_err(|e| manavault_core::http_errors::transport_message(&e))?;
         if !response.status().is_success() {
             return Err(response_error("Google Drive upload", response).await);
         }
@@ -176,7 +176,7 @@ impl GoogleDrive<'_> {
                 .map_or(filename, str::to_owned),
             provider: "google_drive".to_owned(),
             size: i64::try_from(size).ok(),
-            modified_at: Some(crate::timefmt::now()),
+            modified_at: Some(manavault_core::timefmt::now()),
         })
     }
 
@@ -202,7 +202,7 @@ impl GoogleDrive<'_> {
             ])
             .send()
             .await
-            .map_err(|e| crate::http_errors::transport_message(&e))?;
+            .map_err(|e| manavault_core::http_errors::transport_message(&e))?;
         if !response.status().is_success() {
             return Err(response_error("Google Drive list", response).await);
         }
@@ -253,14 +253,14 @@ impl GoogleDrive<'_> {
             .timeout(Duration::from_secs(30 * 60))
             .send()
             .await
-            .map_err(|e| crate::http_errors::transport_message(&e))?;
+            .map_err(|e| manavault_core::http_errors::transport_message(&e))?;
         if !response.status().is_success() {
             return Err(response_error("Google Drive download", response).await);
         }
         let bytes = response
             .bytes()
             .await
-            .map_err(|e| crate::http_errors::transport_message(&e))?;
+            .map_err(|e| manavault_core::http_errors::transport_message(&e))?;
         super::write_file(destination, &bytes)
     }
 
@@ -276,7 +276,7 @@ impl GoogleDrive<'_> {
             .bearer_auth(&token)
             .send()
             .await
-            .map_err(|e| crate::http_errors::transport_message(&e))?;
+            .map_err(|e| manavault_core::http_errors::transport_message(&e))?;
         if response.status().is_success() || response.status().as_u16() == 404 {
             Ok(())
         } else {

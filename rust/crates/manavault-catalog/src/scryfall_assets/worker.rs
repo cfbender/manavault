@@ -5,8 +5,8 @@ use std::time::Duration;
 use time::OffsetDateTime;
 
 use crate::catalog::scryfall::worker::forced;
-use crate::jobs::{Job, Outcome, Unique, Worker};
-use crate::state::AppState;
+use manavault_core::jobs::{Job, Outcome, Unique, Worker};
+use manavault_core::state::AppState;
 
 pub const NAME: &str = "scryfall_assets";
 
@@ -73,7 +73,7 @@ mod tests {
     use serde_json::json;
 
     use super::*;
-    use crate::test_support::TestApp;
+    use crate::test_app::TestApp;
 
     #[tokio::test]
     async fn periodic_jobs_skip_fresh_manifests() {

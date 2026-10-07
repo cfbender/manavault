@@ -34,7 +34,6 @@ manavault-trade.workspace = true
 manavault-ai.workspace = true
 
 [dev-dependencies]
-manavault-server.workspace = true
 wiremock.workspace = true
 
 [lints]

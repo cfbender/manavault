@@ -2,7 +2,7 @@
 
 use manavault_allocation::AllocationError;
 
-use crate::graphql::{internal_error, user_error};
+use manavault_core::graphql::{internal_error, user_error};
 
 /// `Errors.deck_allocation_error/1`. A missing deck card or deck, which the
 /// resolvers of earlier releases raised on, reads as "… was not found.".

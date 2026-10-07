@@ -14,8 +14,8 @@ use serde_json::{Value, json};
 use sqlx::SqlitePool;
 
 use super::{names_argument, resolve_cards};
-use crate::catalog::card::CardRecord;
-use crate::catalog::sql::json_list;
+use manavault_catalog::catalog::card::CardRecord;
+use manavault_catalog::catalog::sql::json_list;
 
 pub const TOOL_NAME: &str = "check_collection";
 const MAX_NAMES: usize = 40;
@@ -176,7 +176,8 @@ pub async fn call(pool: &SqlitePool, arguments: &Value) -> Result<Value, sqlx::E
 mod tests {
     use super::*;
     use crate::ai::tests::{allocate, collection_item, insert_deck_with_status};
-    use crate::test_support::{TestApp, fixtures};
+    use crate::test_app::TestApp;
+    use manavault_catalog::testing::fixtures;
 
     #[test]
     fn exposes_a_function_tool_definition() {

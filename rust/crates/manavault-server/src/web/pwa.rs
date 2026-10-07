@@ -6,7 +6,7 @@ use axum::http::header::{CACHE_CONTROL, CONTENT_TYPE, EXPIRES, PRAGMA};
 use axum::response::{IntoResponse, Response};
 use serde_json::{Value, json};
 
-use crate::state::AppState;
+use manavault_core::state::AppState;
 
 const NO_STORE: [(axum::http::HeaderName, &str); 3] = [
     (CACHE_CONTROL, "no-cache, no-store, must-revalidate"),

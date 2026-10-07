@@ -1,7 +1,7 @@
 //! The personal, read-only API under `/api/v1`
 //! (`Plugs.ApiKeyAuthentication`). Requests share the public request budget
 //! and need `Authorization: Bearer mvk_...`; the authenticated
-//! [`crate::api_keys::ApiKey`] is left in the request extensions.
+//! [`manavault_core::api_keys::ApiKey`] is left in the request extensions.
 
 use axum::Router;
 use std::collections::HashMap;
@@ -13,9 +13,9 @@ use axum::middleware::{Next, from_fn_with_state};
 use axum::response::{IntoResponse, Response};
 
 use super::WebState;
-use super::client_ip;
-use super::rate_limit::Admission;
-use crate::state::AppState;
+use manavault_core::state::AppState;
+use manavault_core::web::client_ip;
+use manavault_core::web::rate_limit::Admission;
 
 fn error_response(status: StatusCode, code: &str, message: &str) -> Response {
     (
@@ -70,7 +70,7 @@ pub async fn authenticate(
     let Some(token) = bearer_token(&request) else {
         return unauthorized();
     };
-    match crate::api_keys::authenticate(&state.db, &token).await {
+    match manavault_core::api_keys::authenticate(&state.db, &token).await {
         Ok(Some(api_key)) => {
             request.extensions_mut().insert(api_key);
             next.run(request).await
@@ -133,22 +133,24 @@ async fn deck_index(
     let page = positive_integer(query.get("page").map(String::as_str), 1);
     let per_page = positive_integer(query.get("per_page").map(String::as_str), DEFAULT_PER_PAGE)
         .min(MAX_PER_PAGE);
-    let total = crate::decks::records::count_decks(&state.db).await?;
+    let total = manavault_collection::decks::records::count_decks(&state.db).await?;
     let offset = page.saturating_sub(1).saturating_mul(per_page);
-    let decks = crate::decks::records::list_decks(&state.db, offset, per_page).await?;
+    let decks =
+        manavault_collection::decks::records::list_decks(&state.db, offset, per_page).await?;
     let ids: Vec<_> = decks.iter().map(|deck| deck.id).collect();
-    let mut contents = crate::decks::contents::load_contents(&state.db, &ids).await?;
+    let mut contents =
+        manavault_collection::decks::contents::load_contents(&state.db, &ids).await?;
     let data = decks
         .into_iter()
         .map(|deck| {
             let contents = contents.remove(&deck.id).unwrap_or_default();
             let summary = contents.summary(deck.cover_deck_card_id);
             let public_share_url = deck.share_token.as_deref().map(|token| {
-                super::app_shell::absolute_url(
+                manavault_core::web::app_shell::absolute_url(
                     state,
                     &format!(
                         "/share/decks/{}",
-                        crate::share::pages::encode_path_segment(token)
+                        manavault_share::share::pages::encode_path_segment(token)
                     ),
                 )
             });
@@ -166,7 +168,7 @@ async fn deck_index(
                 name: deck.name,
                 publicly_shared: public_share_url.is_some(),
                 public_share_url,
-                updated_at: crate::timefmt::iso8601(&deck.updated_at),
+                updated_at: manavault_core::timefmt::iso8601(&deck.updated_at),
             }
         })
         .collect();
@@ -215,9 +217,10 @@ pub fn scope<S: Clone + Send + Sync + 'static>(state: AppState, routes: Router<S
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::{TestApp, body_text};
+    use crate::test_support::TestApp;
     use axum::body::Body;
     use axum::routing::get;
+    use manavault_core::testing::body_text;
     use tower::ServiceExt as _;
 
     async fn call(router: &Router, authorization: Option<&str>) -> Response {
@@ -236,7 +239,9 @@ mod tests {
     async fn requires_a_valid_bearer_key_and_shares_the_budget() {
         let app =
             TestApp::with_config(|config| config.public_share_rate_limit.max_per_ip = 3).await;
-        let (_key, token) = crate::api_keys::create(app.db(), "Test").await.unwrap();
+        let (_key, token) = manavault_core::api_keys::create(app.db(), "Test")
+            .await
+            .unwrap();
         let router = scope(
             app.state.clone(),
             Router::new().route("/api/v1/ping", get(|| async { "pong" })),

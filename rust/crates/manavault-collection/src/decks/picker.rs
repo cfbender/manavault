@@ -5,7 +5,7 @@ use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
 use crate::decks::model::{DeckId, DeckRow};
-use crate::timefmt;
+use manavault_core::timefmt;
 
 const UNPLAYED_RECENCY_HOURS: i64 = 24 * 30;
 

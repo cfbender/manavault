@@ -7,9 +7,9 @@ use async_graphql::SimpleObject;
 use lotus::{Finish, OracleId};
 use manavault_allocation::{AllocationError, BuylistOptions, DeckId};
 
-use crate::catalog::price;
-use crate::catalog::printing::{Printing, printings_with_owned_counts};
-use crate::state::AppState;
+use manavault_catalog::catalog::price;
+use manavault_catalog::catalog::printing::{Printing, printings_with_owned_counts};
+use manavault_core::state::AppState;
 
 /// Which printing a buylist entry names (`printingMode`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -68,7 +68,7 @@ impl DeckBuylistEntry {
 /// `printing_sort_key/2`: cheapest, then oldest, then set and number.
 ///
 /// Release dates compare chronologically; earlier releases compared them day
-/// first, see [`crate::decks::cards::cheapest_printing`].
+/// first, see [`manavault_collection::decks::cards::cheapest_printing`].
 fn sort_key(
     state: &AppState,
     printing: &Printing,

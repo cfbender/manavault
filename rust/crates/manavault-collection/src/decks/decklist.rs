@@ -7,12 +7,12 @@ use lotus::{Finish, OracleId, ScryfallId, Zone};
 use regex::Regex;
 use sqlx::SqlitePool;
 
-use crate::catalog::search::cards_by_name;
-use crate::db;
 use crate::decks::cards::{self, DeckCardChanges};
 use crate::decks::contents::LoadedDeckCard;
 use crate::decks::model::{DeckCardRow, DeckId, load_deck_on, parse_zone};
 use crate::decks::{DeckError, ensure_decklist_editable};
+use manavault_catalog::catalog::search::cards_by_name;
+use manavault_core::db;
 
 // The line, printing, and finish patterns match ASCII `\d` and `\s` only, as
 // in earlier releases; `(?-u:...)` keeps them ASCII. The comment pattern and
@@ -146,7 +146,7 @@ pub async fn parse(
     for entry in raw {
         let preferred_printing_id = match &entry.set_and_number {
             Some((set, number)) => {
-                crate::catalog::search::printings::get_printing(pool, set, number)
+                manavault_catalog::catalog::search::printings::get_printing(pool, set, number)
                     .await?
                     .map(|printing| printing.scryfall_id)
             }
@@ -269,7 +269,8 @@ pub async fn import_decklist(
         .iter()
         .filter_map(|entry| entry.preferred_printing_id.clone())
         .collect();
-    let printings = crate::catalog::printing::Printing::load_many(pool, &printing_ids).await?;
+    let printings =
+        manavault_catalog::catalog::printing::Printing::load_many(pool, &printing_ids).await?;
 
     let mut tx = db::begin_write(pool).await?;
     let deck = load_deck_on(&mut tx, deck_id)
@@ -346,7 +347,7 @@ mod tests {
 
     #[tokio::test]
     async fn parses_headings_comments_and_aliases() {
-        let app = crate::test_support::TestApp::new().await;
+        let app = crate::test_app::TestApp::new().await;
         let entries = parse(
             app.db(),
             "Deck:\n1 Black Lotus # note\n3x Black Lotus\n\nMaybe:\n2x Black Lotus *F*\nSB: Time Walk\n",
@@ -380,8 +381,8 @@ mod tests {
     /// lookups, and ASCII-only quantities.
     #[tokio::test]
     async fn parses_line_breaks_printings_and_quantities_like_earlier_releases() {
-        let app = crate::test_support::TestApp::new().await;
-        app.import_cards(&[crate::test_support::fixtures::black_lotus()])
+        let app = crate::test_app::TestApp::new().await;
+        app.import_cards(&[manavault_catalog::testing::fixtures::black_lotus()])
             .await;
         let text = "Commander\r1 Test Commander\r\n\nMainboard:\u{2028}2x Plains # basics\n3 plains\n4 Black Lotus (LEA) 232\nSol Ring *F*\nSB: Island\nMaybe\n1 Opt [M21]\n\u{0663} Unicode Digit\n99999999999999999999 Huge";
         let entries = parse(app.db(), text, None).await.unwrap();

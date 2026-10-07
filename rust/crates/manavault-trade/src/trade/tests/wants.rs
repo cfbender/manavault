@@ -3,8 +3,8 @@
 use serde_json::json;
 
 use super::{app_with_cards, error_message};
-use crate::test_support::fixtures;
 use crate::trade::want::{self, CreateWantError, UpdateWantError};
+use manavault_catalog::testing::fixtures;
 
 #[tokio::test]
 async fn creates_a_want_by_exact_name_case_insensitively_defaulting_to_one() {

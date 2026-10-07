@@ -9,7 +9,7 @@
 use sqlx::SqlitePool;
 
 use super::local::{self, BackupError, Paths, Reason};
-use crate::config::{Config, Env};
+use manavault_core::config::{Config, Env};
 
 fn skipped() -> bool {
     std::env::var("MANAVAULT_SKIP_MIGRATION_BACKUP")
@@ -22,9 +22,9 @@ async fn pending_migrations(pool: &SqlitePool) -> bool {
     let Ok(mut conn) = pool.acquire().await else {
         return false;
     };
-    match crate::db::migrate::applied_versions(&mut conn).await {
+    match manavault_core::db::migrate::applied_versions(&mut conn).await {
         Ok(applied) if !applied.is_empty() => {
-            crate::db::migrate::versions().any(|version| !applied.contains(&version))
+            manavault_core::db::migrate::versions().any(|version| !applied.contains(&version))
         }
         _ => false,
     }

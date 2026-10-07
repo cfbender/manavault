@@ -23,15 +23,15 @@ use lotus::decklist::{DeckLink, DecklistClient, Entry, FetchError};
 use lotus::{Finish, OracleId, ScryfallId, Zone};
 use sqlx::{SqliteConnection, SqlitePool};
 
-use crate::catalog::search::cards_by_name;
-use crate::db;
 use crate::decks::cards::{self, DeckCardChanges};
 use crate::decks::model::{DeckCardRow, DeckId, DeckRow, DeckStatus, ExternalSource, load_deck_on};
 use crate::decks::records::get_deck;
 use crate::decks::{DeckError, ensure_deck_editable};
-use crate::jobs::{Job, Outcome, Unique, Worker};
-use crate::state::AppState;
-use crate::timefmt;
+use manavault_catalog::catalog::search::cards_by_name;
+use manavault_core::db;
+use manavault_core::jobs::{Job, Outcome, Unique, Worker};
+use manavault_core::state::AppState;
+use manavault_core::timefmt;
 
 /// Why linking or syncing failed.
 #[derive(Debug, thiserror::Error)]
@@ -137,7 +137,7 @@ pub fn parse_url(url: &str) -> Result<ExternalLink, DeckError> {
 
 fn client(state: &AppState) -> Result<DecklistClient, FetchError> {
     let urls = &state.config.platform_urls;
-    DecklistClient::builder(crate::state::USER_AGENT)
+    DecklistClient::builder(manavault_core::state::USER_AGENT)
         .moxfield_api_base(urls.moxfield_api.clone())
         .archidekt_api_base(urls.archidekt_api.clone())
         .build()
@@ -306,7 +306,7 @@ async fn resolve_entries(
     let printings: HashMap<ScryfallId, OracleId> = if printing_ids.is_empty() {
         HashMap::new()
     } else {
-        let ids = crate::catalog::sql::json_list(&printing_ids);
+        let ids = manavault_catalog::catalog::sql::json_list(&printing_ids);
         sqlx::query!(
             r#"SELECT scryfall_id AS "scryfall_id!: ScryfallId", oracle_id AS "oracle_id!: OracleId"
                FROM scryfall_printings WHERE scryfall_id IN (SELECT value FROM json_each(?1))"#,

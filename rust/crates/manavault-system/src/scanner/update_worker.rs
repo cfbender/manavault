@@ -9,9 +9,9 @@ use std::time::Duration;
 use serde_json::Value;
 
 use super::bundle;
-use crate::config::ScannerBundleSource;
-use crate::jobs::{Job, Outcome, Unique, Worker};
-use crate::state::AppState;
+use manavault_core::config::ScannerBundleSource;
+use manavault_core::jobs::{Job, Outcome, Unique, Worker};
+use manavault_core::state::AppState;
 
 /// What a check did.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -188,7 +188,7 @@ async fn update_from_manifest(
     }
     let incoming = root.join(".incoming").join(format!(
         "{version}-{}",
-        hex::encode(crate::crypto::random_bytes::<6>())
+        hex::encode(manavault_core::crypto::random_bytes::<6>())
     ));
     let mut names: Vec<String> = files.keys().cloned().collect();
     names.push("SHA256SUMS".to_owned());
@@ -280,7 +280,7 @@ impl Worker for BundleUpdateWorker {
 mod tests {
     use super::*;
     use crate::scanner::bundle::tests::sha;
-    use crate::test_support::TestApp;
+    use crate::test_app::TestApp;
     use serde_json::json;
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};

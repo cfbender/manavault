@@ -9,7 +9,7 @@ use std::time::Duration;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
-use crate::state::AppState;
+use manavault_core::state::AppState;
 
 const GENERATION_KEY: &str = "catalog:generation";
 
@@ -23,7 +23,7 @@ async fn generation(state: &AppState) -> String {
     if let Some(generation) = state.cache_get::<String>(GENERATION_KEY).await {
         return generation;
     }
-    let generation = hex::encode(crate::crypto::random_bytes::<8>());
+    let generation = hex::encode(manavault_core::crypto::random_bytes::<8>());
     state
         .cache_put(GENERATION_KEY, &generation, GENERATION_TTL)
         .await;

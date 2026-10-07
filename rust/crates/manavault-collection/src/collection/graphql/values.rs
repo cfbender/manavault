@@ -4,10 +4,10 @@
 
 use async_graphql::{Object, SimpleObject};
 
-use crate::catalog::price::{format_cents, format_signed_cents};
-use crate::catalog::printing::Printing;
 use crate::collection::item::CollectionItem;
 use crate::collection::queries::{RankedPosition, ValueDashboard, ValueTotals};
+use manavault_catalog::catalog::price::{format_cents, format_signed_cents};
+use manavault_catalog::catalog::printing::Printing;
 
 /// An exact-enough float of a cent amount.
 pub(crate) fn to_f64(value: i64) -> f64 {
@@ -31,7 +31,7 @@ pub fn value_gain_percent(gain: Option<i64>, purchase: Option<i64>) -> Option<f6
 /// `+12.5%` / `-3%` / `0%` (`Price.format_percent/1`).
 #[must_use]
 pub fn format_percent(percent: Option<f64>) -> Option<String> {
-    let rounded = crate::catalog::price::round_tenths(percent?);
+    let rounded = manavault_catalog::catalog::price::round_tenths(percent?);
     let sign = if rounded > 0.0 { "+" } else { "" };
     let value = if rounded.fract() == 0.0 {
         let whole = format!("{rounded:.0}");

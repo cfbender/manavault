@@ -10,13 +10,15 @@ use async_graphql::MaybeUndefined;
 use lotus::{Condition, Finish, Quantity, ScryfallId};
 use sqlx::{SqliteConnection, SqlitePool};
 
-use crate::catalog::price::price_cents_for_printing;
-use crate::catalog::printing::PrintingRecord;
 use crate::collection::item::{CollectionItem, CollectionItemRecord, load_items};
 use crate::collection::location::json_ids;
-use crate::pricing::PriceStore;
-use crate::validation::{BLANK, INVALID, ValidationError};
-use crate::{collection_item_query, printing_query, timefmt};
+use crate::collection_item_query;
+use manavault_catalog::catalog::price::price_cents_for_printing;
+use manavault_catalog::catalog::printing::PrintingRecord;
+use manavault_catalog::pricing::PriceStore;
+use manavault_catalog::printing_query;
+use manavault_core::timefmt;
+use manavault_core::validation::{BLANK, INVALID, ValidationError};
 
 /// Why an item write failed.
 #[derive(Debug, thiserror::Error)]
@@ -470,7 +472,7 @@ pub async fn update(
     id: i64,
     changes: ItemChanges,
 ) -> Result<CollectionItem, ItemError> {
-    let mut tx = crate::db::begin_write(pool).await?;
+    let mut tx = manavault_core::db::begin_write(pool).await?;
     let record = collection_item_query!("WHERE i.id = ?1", id)
         .fetch_optional(&mut *tx)
         .await?
@@ -525,7 +527,7 @@ pub async fn bulk_update(
     ids: &[i64],
     changes: ItemChanges,
 ) -> Result<usize, ItemError> {
-    let mut tx = crate::db::begin_write(pool).await?;
+    let mut tx = manavault_core::db::begin_write(pool).await?;
     let records = records_by_id(&mut tx, ids).await?;
     let missing = missing_ids(ids, &records);
     if !missing.is_empty() {
@@ -558,7 +560,7 @@ pub async fn set_trade_quantity(
     if quantity < 0 {
         return Err(ItemError::InvalidTradeQuantity);
     }
-    let mut tx = crate::db::begin_write(pool).await?;
+    let mut tx = manavault_core::db::begin_write(pool).await?;
     let records = records_by_id(&mut tx, ids).await?;
     let missing = missing_ids(ids, &records);
     if !missing.is_empty() {
@@ -589,7 +591,7 @@ pub async fn set_trade_quantity(
 /// Deletes many items (`DeleteItems.run/1`); their deck allocations go with
 /// them. Returns how many were deleted.
 pub async fn delete_many(pool: &SqlitePool, ids: &[i64]) -> Result<u64, sqlx::Error> {
-    let mut tx = crate::db::begin_write(pool).await?;
+    let mut tx = manavault_core::db::begin_write(pool).await?;
     let mut deleted = 0;
     for chunk in ids.chunks(500) {
         let json = json_ids(chunk);
@@ -607,7 +609,7 @@ pub async fn delete_many(pool: &SqlitePool, ids: &[i64]) -> Result<u64, sqlx::Er
 
 /// Deletes one item and returns it as it was (`delete_collection_item/1`).
 pub async fn delete(pool: &SqlitePool, id: i64) -> Result<CollectionItem, ItemError> {
-    let mut tx = crate::db::begin_write(pool).await?;
+    let mut tx = manavault_core::db::begin_write(pool).await?;
     let item = load_items(&mut tx, &[id])
         .await?
         .into_iter()

@@ -10,9 +10,9 @@ use super::answer_deck_question::{self, AskOptions};
 use super::question_answers::{self, QuestionAnswer};
 use super::requests::{self, DeckAnalysisRequest};
 use super::{AiError, decks};
-use crate::graphql::relay::{NodeKind, node_int};
-use crate::graphql::{Result, internal_error, state, user_error};
-use crate::timefmt;
+use manavault_core::graphql::relay::{NodeKind, node_int};
+use manavault_core::graphql::{Result, internal_error, state, user_error};
+use manavault_core::timefmt;
 
 const DECK_NOT_FOUND: &str = "Deck was not found.";
 
@@ -42,15 +42,15 @@ impl DeckAnalysisJob {
 
     /// Read after the status (`DeckFields.deck_analysis_job_deck/3`), so a
     /// completed job always includes its saved analysis.
-    async fn deck(&self, ctx: &Context<'_>) -> Result<crate::decks::Deck> {
+    async fn deck(&self, ctx: &Context<'_>) -> Result<manavault_collection::decks::Deck> {
         load_deck(ctx, self.0.deck_id).await
     }
 }
 
 /// The GraphQL `Deck` by raw id; a deck deleted meanwhile is "Deck was not
 /// found.".
-async fn load_deck(ctx: &Context<'_>, id: i64) -> Result<crate::decks::Deck> {
-    crate::decks::Deck::load(&state(ctx).db, crate::decks::DeckId(id))
+async fn load_deck(ctx: &Context<'_>, id: i64) -> Result<manavault_collection::decks::Deck> {
+    manavault_collection::decks::Deck::load(&state(ctx).db, manavault_collection::decks::DeckId(id))
         .await
         .map_err(internal_error)?
         .ok_or_else(|| user_error(DECK_NOT_FOUND))
@@ -152,7 +152,7 @@ pub struct AnalyzeDeckPayload {
 
 #[Object]
 impl AnalyzeDeckPayload {
-    async fn deck(&self, ctx: &Context<'_>) -> Result<Option<crate::decks::Deck>> {
+    async fn deck(&self, ctx: &Context<'_>) -> Result<Option<manavault_collection::decks::Deck>> {
         load_deck(ctx, self.deck_id).await.map(Some)
     }
 

@@ -9,8 +9,9 @@ use sqlx::SqlitePool;
 
 use crate::collection::changes::ItemError;
 use crate::collection::location::{LocationKind, LocationRecord, json_ids};
-use crate::validation::ValidationError;
-use crate::{location_query, timefmt};
+use crate::location_query;
+use manavault_core::timefmt;
+use manavault_core::validation::ValidationError;
 
 /// A `collection_auto_sort_rules` row. List columns hold JSON text.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -44,7 +45,7 @@ pub struct AutoSortRule {
 /// `AutoSortRule.decode_list/1`: the strings of a JSON list column.
 #[must_use]
 pub fn decode_list(text: &str) -> Vec<String> {
-    crate::catalog::json::strings(text)
+    manavault_catalog::catalog::json::strings(text)
 }
 
 /// Every stored rule by priority (`list_collection_auto_sort_rules/0`).
@@ -261,7 +262,7 @@ pub async fn replace(
     pool: &SqlitePool,
     inputs: &[RuleInput],
 ) -> Result<Vec<AutoSortRule>, AutoSortError> {
-    let mut tx = crate::db::begin_write(pool).await?;
+    let mut tx = manavault_core::db::begin_write(pool).await?;
     sqlx::query!("DELETE FROM collection_auto_sort_rules")
         .execute(&mut *tx)
         .await?;

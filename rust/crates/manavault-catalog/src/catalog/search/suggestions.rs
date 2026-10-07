@@ -12,7 +12,7 @@ use std::sync::{Arc, LazyLock, Mutex};
 use sqlx::SqlitePool;
 
 use crate::catalog::search::name_match::{self, NameEntry};
-use crate::state::AppState;
+use manavault_core::state::AppState;
 
 /// The name index of one database.
 #[derive(Debug, Default)]

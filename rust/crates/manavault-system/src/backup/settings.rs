@@ -6,9 +6,9 @@
 use async_graphql::{InputObject, MaybeUndefined};
 
 use super::cron::Schedule;
-use crate::state::AppState;
-use crate::timefmt;
-use crate::validation::{BLANK, INVALID, ValidationError};
+use manavault_core::state::AppState;
+use manavault_core::timefmt;
+use manavault_core::validation::{BLANK, INVALID, ValidationError};
 
 const SINGLETON_ID: i64 = 1;
 
@@ -400,7 +400,7 @@ pub async fn update_status(state: &AppState, status: Status) -> Result<(), sqlx:
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::TestApp;
+    use crate::test_app::TestApp;
 
     fn s3_input() -> BackupSettingsInput {
         let value = |text: &str| MaybeUndefined::Value(text.to_owned());

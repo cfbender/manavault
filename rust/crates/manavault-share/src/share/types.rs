@@ -15,13 +15,13 @@ use std::sync::Arc;
 use async_graphql::{Context, ID, Object};
 use serde_json::Value;
 
-use crate::catalog::card::{CardLegality, CardRecord, CardRuling, ScryfallOracleTag};
-use crate::catalog::{json, price};
-use crate::decks::contents::LoadedDeckCard;
-use crate::decks::schema::types::{DeckLegality, DeckTag};
-use crate::graphql::relay::{self, PageArgs};
-use crate::graphql::{Json, NodeKind, Result, global_id, internal_error, state};
-use crate::timefmt;
+use manavault_catalog::catalog::card::{CardLegality, CardRecord, CardRuling, ScryfallOracleTag};
+use manavault_catalog::catalog::{json, price};
+use manavault_collection::decks::contents::LoadedDeckCard;
+use manavault_collection::decks::schema::types::{DeckLegality, DeckTag};
+use manavault_core::graphql::relay::{self, PageArgs};
+use manavault_core::graphql::{Json, NodeKind, Result, global_id, internal_error, state};
+use manavault_core::timefmt;
 
 /// Page size caps of the public connections (`clamp_connection_args/2`).
 pub const MAX_PRINTINGS_PAGE: i64 = 300;
@@ -55,14 +55,16 @@ fn oracle_tags(record: &CardRecord) -> Vec<Option<ScryfallOracleTag>> {
 
 /// `Card` as the public schema shows it.
 #[derive(Debug, Clone)]
-pub struct PublicCard(pub crate::catalog::Card);
+pub struct PublicCard(pub manavault_catalog::catalog::Card);
 
 impl PublicCard {
     async fn printing_list(&self, ctx: &Context<'_>) -> Result<Vec<PublicPrinting>> {
         let record = &self.0.record;
         let printings = match &self.0.printings {
             Some(printings) => printings.clone(),
-            None => crate::catalog::loader::printings_of(ctx, &record.oracle_id).await?,
+            None => {
+                manavault_catalog::catalog::loader::printings_of(ctx, &record.oracle_id).await?
+            }
         };
         Ok(printings
             .iter()
@@ -140,7 +142,7 @@ impl PublicCard {
     }
 
     async fn rulings(&self, ctx: &Context<'_>) -> Vec<CardRuling> {
-        crate::catalog::scryfall::rulings::card_rulings(
+        manavault_catalog::catalog::scryfall::rulings::card_rulings(
             state(ctx),
             self.0.record.rulings_uri.as_deref(),
         )
@@ -148,7 +150,7 @@ impl PublicCard {
     }
 
     async fn legalities(&self) -> Vec<CardLegality> {
-        crate::catalog::card::legality_entries(&self.0.record.legalities)
+        manavault_catalog::catalog::card::legality_entries(&self.0.record.legalities)
     }
 
     #[graphql(complexity = "300 * child_complexity")]
@@ -172,7 +174,9 @@ impl PublicCard {
 
     /// Tokens this card creates. Public shares never reveal how many the owner has.
     async fn produced_tokens(&self, ctx: &Context<'_>) -> Result<Vec<PublicProducedToken>> {
-        let tokens = crate::catalog::loader::produced_tokens(ctx, &self.0.record.oracle_id).await?;
+        let tokens =
+            manavault_catalog::catalog::loader::produced_tokens(ctx, &self.0.record.oracle_id)
+                .await?;
         Ok(tokens
             .iter()
             .map(|token| PublicProducedToken(PublicPrinting(token.printing.clone())))
@@ -259,18 +263,21 @@ impl PublicCardSummary {
     }
 
     async fn rulings(&self, ctx: &Context<'_>) -> Vec<CardRuling> {
-        crate::catalog::scryfall::rulings::card_rulings(state(ctx), self.0.rulings_uri.as_deref())
-            .await
+        manavault_catalog::catalog::scryfall::rulings::card_rulings(
+            state(ctx),
+            self.0.rulings_uri.as_deref(),
+        )
+        .await
     }
 
     async fn legalities(&self) -> Vec<CardLegality> {
-        crate::catalog::card::legality_entries(&self.0.legalities)
+        manavault_catalog::catalog::card::legality_entries(&self.0.legalities)
     }
 }
 
 /// `Printing` as the public schema shows it: the owned count is always zero.
 #[derive(Debug, Clone)]
-pub struct PublicPrinting(pub crate::catalog::Printing);
+pub struct PublicPrinting(pub manavault_catalog::catalog::Printing);
 
 #[Object(name = "Printing")]
 impl PublicPrinting {
@@ -350,13 +357,15 @@ impl PublicPrinting {
         if let Some(card) = &self.0.card {
             return Ok(Some(PublicCardSummary(card.clone())));
         }
-        Ok(crate::catalog::loader::card(ctx, &self.0.oracle_id)
-            .await?
-            .map(|card| PublicCardSummary(card.record)))
+        Ok(
+            manavault_catalog::catalog::loader::card(ctx, &self.0.oracle_id)
+                .await?
+                .map(|card| PublicCardSummary(card.record)),
+        )
     }
 }
 
-crate::connection_types!(PrintingConnection, PrintingEdge, PublicPrinting);
+manavault_core::connection_types!(PrintingConnection, PrintingEdge, PublicPrinting);
 
 /// Any value from an uninhabited one.
 fn absurd<T>(never: Infallible) -> T {
@@ -495,7 +504,7 @@ impl SharedAllocationStatus {
 
 /// `DeckBuylistEntry` without the owner schema's `printing` field.
 #[derive(Debug, Clone)]
-pub struct PublicBuylistEntry(pub crate::deck_intel::buylist::DeckBuylistEntry);
+pub struct PublicBuylistEntry(pub manavault_deck_intel::deck_intel::buylist::DeckBuylistEntry);
 
 #[Object(name = "DeckBuylistEntry")]
 impl PublicBuylistEntry {
@@ -554,10 +563,13 @@ impl PublicBuylistEntry {
 
 /// A shared deck. Its cards load once, on the first field that needs them.
 #[derive(Clone)]
-pub struct PublicDeck(pub crate::decks::Deck);
+pub struct PublicDeck(pub manavault_collection::decks::Deck);
 
 impl PublicDeck {
-    async fn contents(&self, ctx: &Context<'_>) -> Result<Arc<crate::decks::DeckContents>> {
+    async fn contents(
+        &self,
+        ctx: &Context<'_>,
+    ) -> Result<Arc<manavault_collection::decks::DeckContents>> {
         self.0
             .contents(&state(ctx).db)
             .await
@@ -620,7 +632,7 @@ impl PublicDeck {
         self.0
             .row
             .external_source
-            .map(crate::decks::model::ExternalSource::as_str)
+            .map(manavault_collection::decks::model::ExternalSource::as_str)
     }
 
     async fn external_url(&self) -> Option<&str> {
@@ -648,7 +660,7 @@ impl PublicDeck {
 
     async fn cover_image_url(&self, ctx: &Context<'_>) -> Result<Option<String>> {
         let contents = self.contents(ctx).await?;
-        Ok(crate::decks::contents::cover_image_url(
+        Ok(manavault_collection::decks::contents::cover_image_url(
             &contents.cards,
             self.0.row.cover_deck_card_id,
         ))
@@ -656,9 +668,9 @@ impl PublicDeck {
 
     async fn card_count(&self, ctx: &Context<'_>) -> Result<Option<i64>> {
         let contents = self.contents(ctx).await?;
-        Ok(Some(i64::from(crate::decks::model::counted_quantity(
-            contents.rows(),
-        ))))
+        Ok(Some(i64::from(
+            manavault_collection::decks::model::counted_quantity(contents.rows()),
+        )))
     }
 
     async fn commander_color_identity(
@@ -667,7 +679,7 @@ impl PublicDeck {
     ) -> Result<Option<Vec<Option<String>>>> {
         let contents = self.contents(ctx).await?;
         Ok(
-            crate::decks::contents::commander_color_identity(&contents.cards)
+            manavault_collection::decks::contents::commander_color_identity(&contents.cards)
                 .map(|colors| colors.into_iter().map(Some).collect()),
         )
     }
@@ -683,7 +695,7 @@ impl PublicDeck {
     }
 
     async fn tags(&self, ctx: &Context<'_>) -> Result<Vec<DeckTag>> {
-        let tags = crate::decks::tags::list_deck_tags(&state(ctx).db, self.0.row.id)
+        let tags = manavault_collection::decks::tags::list_deck_tags(&state(ctx).db, self.0.row.id)
             .await
             .map_err(internal_error)?;
         Ok(tags.into_iter().map(DeckTag).collect())
@@ -726,7 +738,8 @@ impl PublicDeckCard {
         cards: &[LoadedDeckCard],
     ) -> std::result::Result<Vec<Self>, sqlx::Error> {
         let ids: Vec<_> = cards.iter().map(|card| card.row.id).collect();
-        let mut tag_ids = crate::decks::tags::tag_ids_by_deck_card(pool, &ids).await?;
+        let mut tag_ids =
+            manavault_collection::decks::tags::tag_ids_by_deck_card(pool, &ids).await?;
         Ok(cards
             .iter()
             .map(|card| Self {
@@ -760,7 +773,7 @@ impl PublicDeckCard {
         self.card
             .row
             .tag
-            .map(crate::decks::model::DeckCardTag::as_str)
+            .map(manavault_collection::decks::model::DeckCardTag::as_str)
     }
 
     /// The preferred printing's price in the card's finish.
@@ -775,7 +788,7 @@ impl PublicDeckCard {
     }
 
     async fn card(&self) -> Option<PublicCard> {
-        Some(PublicCard(crate::catalog::Card::from(
+        Some(PublicCard(manavault_catalog::catalog::Card::from(
             self.card.card.clone(),
         )))
     }
@@ -795,7 +808,7 @@ impl PublicDeckCard {
     }
 }
 
-crate::connection_types!(DeckCardConnection, DeckCardEdge, PublicDeckCard);
+manavault_core::connection_types!(DeckCardConnection, DeckCardEdge, PublicDeckCard);
 
 // The `Node` interface. The public schema has no `node` field; the
 // interface only marks which types carry global ids.

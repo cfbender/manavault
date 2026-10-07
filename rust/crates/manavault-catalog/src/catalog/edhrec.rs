@@ -15,7 +15,7 @@ use crate::catalog::printing::Printing;
 use crate::catalog::search::cards_by_name;
 
 /// The public EDHREC JSON host; card pages live under `/pages/cards`.
-pub use crate::config::EDHREC_JSON_BASE_URL as DEFAULT_JSON_BASE_URL;
+pub use manavault_core::config::EDHREC_JSON_BASE_URL as DEFAULT_JSON_BASE_URL;
 
 const SECTION_TAGS: [&str; 4] = [
     "topcommanders",
@@ -78,14 +78,14 @@ pub async fn fetch_card_page(
         .send()
         .await
         .map_err(|error| {
-            EdhrecError::RequestFailed(crate::http_errors::transport_message(&error))
+            EdhrecError::RequestFailed(manavault_core::http_errors::transport_message(&error))
         })?;
     let status = response.status();
     if !status.is_success() {
         return Err(EdhrecError::Http(status.as_u16()));
     }
     let body = response.bytes().await.map_err(|error| {
-        EdhrecError::RequestFailed(crate::http_errors::transport_message(&error))
+        EdhrecError::RequestFailed(manavault_core::http_errors::transport_message(&error))
     })?;
     match serde_json::from_slice(&body) {
         Ok(Value::Object(page)) => Ok(page),

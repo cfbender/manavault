@@ -10,7 +10,7 @@ const ENCODED_SIZE: usize = 24;
 /// A new random token.
 #[must_use]
 pub fn generate() -> String {
-    URL_SAFE_NO_PAD.encode(crate::crypto::random_bytes::<BYTE_SIZE>())
+    URL_SAFE_NO_PAD.encode(manavault_core::crypto::random_bytes::<BYTE_SIZE>())
 }
 
 /// Whether `token` has the generated shape, so malformed tokens never reach

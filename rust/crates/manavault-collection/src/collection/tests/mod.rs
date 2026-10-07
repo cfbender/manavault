@@ -20,9 +20,9 @@ use crate::collection::filters::ItemFilters;
 use crate::collection::item::CollectionItem;
 use crate::collection::location::{self, LocationChanges, LocationRecord};
 use crate::collection::queries::{self, Page};
-use crate::graphql::{NodeKind, global_id};
-use crate::test_support::TestApp;
-use crate::test_support::fixtures::merge;
+use crate::test_app::TestApp;
+use manavault_catalog::testing::fixtures::merge;
+use manavault_core::graphql::{NodeKind, global_id};
 
 /// Item attributes for [`create_item`].
 #[derive(Default)]
@@ -178,7 +178,7 @@ pub(crate) fn gid(kind: NodeKind, id: impl std::fmt::Display) -> String {
 
 /// `CatalogTestSupport.reversible_lotus/0`.
 pub(crate) fn reversible_lotus() -> Value {
-    use crate::test_support::fixtures::black_lotus;
+    use manavault_catalog::testing::fixtures::black_lotus;
     let lotus = black_lotus();
     let face = json!({
         "oracle_id": lotus["oracle_id"],

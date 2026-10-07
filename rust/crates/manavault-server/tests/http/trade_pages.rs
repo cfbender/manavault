@@ -6,8 +6,9 @@ use axum::body::Body;
 use axum::extract::ConnectInfo;
 use axum::http::Request;
 
-use crate::test_support::{TestApp, body_text};
-use crate::trade::share::{self, ShareKind};
+use manavault_core::testing::body_text;
+use manavault_server::test_support::TestApp;
+use manavault_trade::trade::share::{self, ShareKind};
 
 async fn get(app: &TestApp, path: &str) -> (u16, String) {
     let mut request = Request::get(path).body(Body::empty()).unwrap();
@@ -19,9 +20,11 @@ async fn get(app: &TestApp, path: &str) -> (u16, String) {
     (status, body_text(response).await)
 }
 
-fn with_password(config: &mut crate::config::Config) {
+fn with_password(config: &mut manavault_core::config::Config) {
     config.auth_disabled = false;
-    config.admin_password_hash = Some(crate::auth::hash_password_with("secret", 1, b"salt"));
+    config.admin_password_hash = Some(manavault_core::auth::hash_password_with(
+        "secret", 1, b"salt",
+    ));
 }
 
 #[tokio::test]
@@ -41,7 +44,7 @@ async fn valid_wants_and_binder_tokens_serve_the_app_shell() {
         assert_eq!(status, 200, "{path}: {body}");
         assert!(body.contains("manavault-root"));
         assert!(body.contains(r#"data-theme-style="glass""#));
-        let url = crate::web::app_shell::absolute_url(&app.state, &path);
+        let url = manavault_core::web::app_shell::absolute_url(&app.state, &path);
         assert!(body.contains(&format!(r#"property="og:url" content="{url}""#)));
     }
 }

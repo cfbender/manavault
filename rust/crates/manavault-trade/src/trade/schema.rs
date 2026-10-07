@@ -4,11 +4,6 @@
 
 use async_graphql::{Context, ID, Object, SimpleObject};
 
-use crate::catalog::card::Card;
-use crate::catalog::price::format_cents;
-use crate::catalog::printing::Printing;
-use crate::graphql::relay::node_int;
-use crate::graphql::{NodeKind, Result, global_id, internal_error, state, user_error};
 use crate::trade::binder::BinderEntry;
 use crate::trade::collection_check::{self, CheckCard, CheckResult};
 use crate::trade::collection_item_stub::BinderItem;
@@ -18,6 +13,11 @@ use crate::trade::list_source::{self, ResolveError, ResolvedList};
 use crate::trade::matcher::{self, BinderMatch, MatchResult, WantMatch};
 use crate::trade::share::{self, ShareKind, WantsEntry};
 use crate::trade::want::{self, CreateWantError, UpdateWantError, Want};
+use manavault_catalog::catalog::card::Card;
+use manavault_catalog::catalog::price::format_cents;
+use manavault_catalog::catalog::printing::Printing;
+use manavault_core::graphql::relay::node_int;
+use manavault_core::graphql::{NodeKind, Result, global_id, internal_error, state, user_error};
 
 /// `TradeWant`.
 #[Object(name = "TradeWant")]
@@ -31,7 +31,7 @@ impl Want {
     }
 
     async fn card(&self, ctx: &Context<'_>) -> Result<Option<Card>> {
-        crate::catalog::loader::card(ctx, &self.oracle_id).await
+        manavault_catalog::catalog::loader::card(ctx, &self.oracle_id).await
     }
 
     async fn printing(&self, ctx: &Context<'_>) -> Result<Option<Printing>> {
@@ -290,14 +290,14 @@ impl BinderMatch {
     async fn items(
         &self,
         ctx: &async_graphql::Context<'_>,
-    ) -> async_graphql::Result<Vec<crate::collection::item::CollectionItem>> {
+    ) -> async_graphql::Result<Vec<manavault_collection::collection::item::CollectionItem>> {
         let ids: Vec<i64> = self.items.iter().map(|item| item.id).collect();
-        let mut loaded = crate::collection::item::CollectionItem::load_many(
-            &crate::graphql::state(ctx).db,
+        let mut loaded = manavault_collection::collection::item::CollectionItem::load_many(
+            &manavault_core::graphql::state(ctx).db,
             &ids,
         )
         .await
-        .map_err(crate::graphql::internal_error)?;
+        .map_err(manavault_core::graphql::internal_error)?;
         Ok(self
             .items
             .iter()

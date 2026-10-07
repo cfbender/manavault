@@ -7,9 +7,6 @@ use std::collections::HashSet;
 use lotus::{Finish, OracleId, Quantity, ScryfallId, Zone};
 use sqlx::{SqliteConnection, SqlitePool};
 
-use crate::catalog::card::{CardRecord, load_record};
-use crate::catalog::printing::Printing;
-use crate::db;
 use crate::decks::model::{
     DeckCardId, DeckCardRow, DeckCardTag, DeckId, DeckRow, load_deck_card_on, load_deck_cards,
     load_deck_on, parse_zone,
@@ -18,7 +15,10 @@ use crate::decks::validation::{
     self, BLANK, Change, INVALID, TAKEN, ValidationError, apply, at_least, greater_than, less_than,
 };
 use crate::decks::{DeckError, commander, ensure_deck_editable, ensure_decklist_editable};
-use crate::timefmt;
+use manavault_catalog::catalog::card::{CardRecord, load_record};
+use manavault_catalog::catalog::printing::Printing;
+use manavault_core::db;
+use manavault_core::timefmt;
 
 /// `DeckCard.changeset/2` attributes.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -289,7 +289,7 @@ async fn resolve_card(pool: &SqlitePool, card: &CardRef) -> Result<OracleId, Dec
                 .ok_or(DeckError::CardNotFound)
         }
         CardRef::Oracle(_) => Err(DeckError::CardNotFound),
-        CardRef::Name(name) => crate::catalog::search::cards_by_name::find(pool, name)
+        CardRef::Name(name) => manavault_catalog::catalog::search::cards_by_name::find(pool, name)
             .await?
             .map(|card| card.oracle_id)
             .ok_or(DeckError::CardNotFound),
@@ -557,7 +557,7 @@ pub async fn bulk_delete(
 fn printings_by_price<'a>(
     printings: &'a [Printing],
     finish: Finish,
-    prices: &crate::pricing::PriceStore,
+    prices: &manavault_catalog::pricing::PriceStore,
 ) -> impl Iterator<Item = (Option<i64>, &'a Printing)> {
     printings
         .iter()
@@ -601,7 +601,7 @@ fn price_order(
 pub fn cheapest_printing<'a>(
     printings: &'a [Printing],
     finish: Finish,
-    prices: &crate::pricing::PriceStore,
+    prices: &manavault_catalog::pricing::PriceStore,
 ) -> Option<&'a Printing> {
     printings_by_price(printings, finish, prices)
         .min_by(price_order)
@@ -615,7 +615,7 @@ pub fn cheapest_printing<'a>(
 pub fn cheapest_priced_printing<'a>(
     printings: &'a [Printing],
     finish: Finish,
-    prices: &crate::pricing::PriceStore,
+    prices: &manavault_catalog::pricing::PriceStore,
 ) -> Option<&'a Printing> {
     printings_by_price(printings, finish, prices)
         .filter(|(price, _)| price.is_some())
@@ -627,7 +627,7 @@ pub fn cheapest_priced_printing<'a>(
 /// cheapest priced printing, releasing its copies. Returns the changed cards.
 pub async fn optimize_printings(
     pool: &SqlitePool,
-    prices: &crate::pricing::PriceStore,
+    prices: &manavault_catalog::pricing::PriceStore,
     ids: &[DeckCardId],
 ) -> Result<Vec<DeckCardRow>, DeckError> {
     let ids = unique_ids(ids);
@@ -639,7 +639,8 @@ pub async fn optimize_printings(
     }
     let oracle_ids: Vec<OracleId> = rows.iter().map(|row| row.oracle_id.clone()).collect();
     let printings =
-        crate::catalog::printing::printings_with_owned_counts(pool, &oracle_ids).await?;
+        manavault_catalog::catalog::printing::printings_with_owned_counts(pool, &oracle_ids)
+            .await?;
     let mut changed = Vec::new();
     for row in rows {
         let Some(cheapest) = printings

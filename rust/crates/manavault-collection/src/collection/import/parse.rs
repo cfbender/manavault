@@ -7,7 +7,7 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 
-use crate::catalog::price::parse_cents;
+use manavault_catalog::catalog::price::parse_cents;
 
 /// An import file format (`normalize_format/1`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -325,7 +325,7 @@ pub struct RowAttrs {
 
 /// `Util.parse_quantity/1`: a whole integer, else 1.
 fn parse_quantity(value: &str) -> i64 {
-    crate::catalog::search::predicates::parse_int(value).unwrap_or(1)
+    manavault_catalog::catalog::search::predicates::parse_int(value).unwrap_or(1)
 }
 
 /// The finish named in a cell; anything unknown is nonfoil.

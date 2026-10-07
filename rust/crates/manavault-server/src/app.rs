@@ -2,54 +2,54 @@
 
 use std::sync::Arc;
 
-use crate::config::Config;
+use manavault_core::config::Config;
+use manavault_core::jobs::{CronEntry, DynWorker, Jobs};
+use manavault_core::logs::LogHub;
+use manavault_core::state::AppState;
+
 use crate::graphql;
-use crate::jobs::{CronEntry, DynWorker, Jobs};
-use crate::logs::LogHub;
-use crate::state::AppState;
 use crate::web;
 
-/// Every background worker.
+/// Every background worker: each domain crate's workers.
 #[must_use]
 pub fn workers() -> Vec<Arc<dyn DynWorker>> {
-    vec![
-        Arc::new(crate::catalog::scryfall::worker::ScryfallCatalogWorker),
-        Arc::new(crate::scryfall_assets::worker::ScryfallAssetsWorker),
-        Arc::new(crate::pricing::worker::VendorSyncWorker),
-        Arc::new(crate::scanner::update_worker::BundleUpdateWorker),
-        Arc::new(crate::backup::worker::CloudBackupWorker),
-        Arc::new(crate::decks::external::ExternalDeckSyncWorker),
-        Arc::new(crate::ai::workers::DeckAnalysisWorker),
-        Arc::new(crate::ai::workers::DeckQuestionWorker),
-        Arc::new(crate::share::preview::render_worker::RenderWorker),
-    ]
+    manavault_catalog::workers()
+        .into_iter()
+        .chain(manavault_system::workers())
+        .chain(manavault_collection::workers())
+        .chain(manavault_ai::workers())
+        .chain(manavault_share::workers())
+        .collect()
 }
 
 /// The periodic job schedule (crontab).
 #[must_use]
 pub fn crontab() -> Vec<CronEntry> {
-    use crate::catalog::scryfall::worker::NAME as SCRYFALL_CATALOG;
-    use crate::pricing::worker::NAME as VENDOR_SYNC;
-    use crate::scryfall_assets::worker::NAME as SCRYFALL_ASSETS;
+    use manavault_catalog::catalog::scryfall::worker::NAME as SCRYFALL_CATALOG;
+    use manavault_catalog::pricing::worker::NAME as VENDOR_SYNC;
+    use manavault_catalog::scryfall_assets::worker::NAME as SCRYFALL_ASSETS;
     let entry = |expression, worker| CronEntry { expression, worker };
     vec![
         entry("@reboot", SCRYFALL_CATALOG),
         entry("@daily", SCRYFALL_CATALOG),
         entry("@reboot", SCRYFALL_ASSETS),
         entry("@daily", SCRYFALL_ASSETS),
-        entry("@reboot", crate::scanner::update_worker::WORKER),
-        entry("0 */6 * * *", crate::scanner::update_worker::WORKER),
+        entry("@reboot", manavault_system::scanner::update_worker::WORKER),
+        entry(
+            "0 */6 * * *",
+            manavault_system::scanner::update_worker::WORKER,
+        ),
         entry("@reboot", VENDOR_SYNC),
         entry("*/30 * * * *", VENDOR_SYNC),
-        entry("* * * * *", crate::backup::worker::WORKER),
-        entry("0 * * * *", crate::decks::external::WORKER),
+        entry("* * * * *", manavault_system::backup::worker::WORKER),
+        entry("0 * * * *", manavault_collection::decks::external::WORKER),
     ]
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum StartError {
     #[error("database: {0}")]
-    Db(#[from] crate::db::DbError),
+    Db(#[from] manavault_core::db::DbError),
     #[error("database: {0}")]
     Sqlx(#[from] sqlx::Error),
     #[error("http client: {0}")]
@@ -57,7 +57,7 @@ pub enum StartError {
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
     #[error("backup: {0}")]
-    Backup(#[from] crate::backup::BackupError),
+    Backup(#[from] manavault_system::backup::BackupError),
 }
 
 /// Opens the database and builds the shared state.
@@ -67,12 +67,12 @@ pub async fn build_state(config: Config, logs: LogHub) -> Result<AppState, Start
     }
     // `Backup.PendingRestore`: a staged cloud restore replaces the database
     // before anything opens it.
-    if let Some(applied) = crate::backup::cloud::apply_pending_restore(&config)? {
+    if let Some(applied) = manavault_system::backup::cloud::apply_pending_restore(&config)? {
         tracing::info!("applied staged cloud restore from {}", applied.display());
     }
-    let pool = crate::db::connect(&config.database_path, config.pool_size).await?;
-    crate::backup::migration_backup::run(&config, &pool).await?;
-    crate::db::prepare(&pool).await?;
+    let pool = manavault_core::db::connect(&config.database_path, config.pool_size).await?;
+    manavault_system::backup::migration_backup::run(&config, &pool).await?;
+    manavault_core::db::prepare(&pool).await?;
     let jobs = Jobs::new(pool.clone(), workers());
     let state = AppState::new(config, pool, logs, jobs)?;
     // Loading the active vendor's ~150k prices takes about a second, so it
@@ -131,4 +131,61 @@ async fn shutdown_signal() {
         () = terminate => {}
     }
     tracing::info!("shutting down");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_crontab_schedules_every_periodic_worker() {
+        let entries: Vec<(&str, &str)> = crontab()
+            .iter()
+            .map(|entry| (entry.expression, entry.worker))
+            .collect();
+        for expected in [
+            ("@reboot", "scryfall_catalog"),
+            ("@daily", "scryfall_catalog"),
+            ("@reboot", "scryfall_assets"),
+            ("@daily", "scryfall_assets"),
+            ("@reboot", "vendor_prices"),
+            ("*/30 * * * *", "vendor_prices"),
+            ("@reboot", manavault_system::scanner::update_worker::WORKER),
+            (
+                "0 */6 * * *",
+                manavault_system::scanner::update_worker::WORKER,
+            ),
+            ("* * * * *", manavault_system::backup::worker::WORKER),
+            ("0 * * * *", manavault_collection::decks::external::WORKER),
+        ] {
+            assert!(entries.contains(&expected), "{expected:?}");
+        }
+        let names: Vec<&str> = workers().iter().map(|worker| worker.name()).collect();
+        for (_, worker) in &entries {
+            assert!(names.contains(worker), "{worker} has no worker");
+        }
+    }
+
+    #[test]
+    fn every_worker_times_out_before_it_counts_as_stuck() {
+        assert_eq!(
+            manavault_core::jobs::QUEUES,
+            [
+                ("ai", 2),
+                ("backup", 1),
+                ("catalog", 2),
+                ("preview", 2),
+                ("pricing", 1)
+            ]
+        );
+        // Stuck jobs are requeued after `STUCK_AFTER`, so every worker must
+        // time out sooner.
+        for worker in workers() {
+            assert!(
+                worker.timeout() < manavault_core::jobs::STUCK_AFTER,
+                "{}",
+                worker.name()
+            );
+        }
+    }
 }

@@ -11,7 +11,7 @@ use time::macros::format_description;
 
 use super::Remote;
 use super::settings::CloudSettings;
-use crate::crypto::hmac_sha256;
+use manavault_core::crypto::hmac_sha256;
 
 const SERVICE: &str = "s3";
 const ALGORITHM: &str = "AWS4-HMAC-SHA256";
@@ -77,7 +77,7 @@ fn canonical_path(path: &str) -> String {
 }
 
 fn hex_sha256(data: &[u8]) -> String {
-    crate::crypto::sha256_hex(data)
+    manavault_core::crypto::sha256_hex(data)
 }
 
 fn signing_key(secret: &str, date: &str, region: &str) -> Vec<u8> {
@@ -342,14 +342,14 @@ impl S3<'_> {
             .body(body)
             .send()
             .await
-            .map_err(|e| crate::http_errors::transport_message(&e))?;
+            .map_err(|e| manavault_core::http_errors::transport_message(&e))?;
         check(response).await?;
         Ok(Remote {
             name: basename(&request.key),
             id: request.key,
             provider: "s3".to_owned(),
             size: i64::try_from(request.size).ok(),
-            modified_at: Some(crate::timefmt::now()),
+            modified_at: Some(manavault_core::timefmt::now()),
         })
     }
 
@@ -368,12 +368,12 @@ impl S3<'_> {
             .get(url)
             .send()
             .await
-            .map_err(|e| crate::http_errors::transport_message(&e))?;
+            .map_err(|e| manavault_core::http_errors::transport_message(&e))?;
         let body = check(response)
             .await?
             .text()
             .await
-            .map_err(|e| crate::http_errors::transport_message(&e))?;
+            .map_err(|e| manavault_core::http_errors::transport_message(&e))?;
         Ok(parse_list_response(&body, self.settings))
     }
 
@@ -392,12 +392,12 @@ impl S3<'_> {
             .timeout(Duration::from_secs(30 * 60))
             .send()
             .await
-            .map_err(|e| crate::http_errors::transport_message(&e))?;
+            .map_err(|e| manavault_core::http_errors::transport_message(&e))?;
         let bytes = check(response)
             .await?
             .bytes()
             .await
-            .map_err(|e| crate::http_errors::transport_message(&e))?;
+            .map_err(|e| manavault_core::http_errors::transport_message(&e))?;
         super::write_file(destination, &bytes)
     }
 
@@ -415,7 +415,7 @@ impl S3<'_> {
             .delete(url)
             .send()
             .await
-            .map_err(|e| crate::http_errors::transport_message(&e))?;
+            .map_err(|e| manavault_core::http_errors::transport_message(&e))?;
         check(response).await.map(|_| ())
     }
 }
@@ -488,7 +488,7 @@ mod tests {
 
     #[test]
     fn builds_r2_compatible_path_style_uploads() {
-        let dir = crate::test_support::TempDir::new();
+        let dir = manavault_core::testing::TempDir::new();
         let path = dir.path().join("manavault-s3-client-test.zip");
         std::fs::write(&path, "backup").unwrap();
         let request = build_upload_request(

@@ -5,7 +5,7 @@
 use serde_json::{Value, json};
 
 use super::{Item, app_with_cards, insert_location};
-use crate::test_support::TestApp;
+use crate::test_app::TestApp;
 use crate::trade::share::{self, ShareKind};
 use crate::trade::want;
 

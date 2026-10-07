@@ -8,7 +8,7 @@ use axum::http::Request;
 use serde_json::json;
 
 use super::{add_card, insert_bulk_cards, insert_deck, post_graphql, public, send, share};
-use crate::test_support::TestApp;
+use manavault_server::test_support::TestApp;
 
 async fn limited(per_ip: u32, global: u32) -> TestApp {
     TestApp::with_config(|config| {
@@ -117,7 +117,7 @@ async fn rejects_connection_amplified_documents_by_complexity() {
         .collect::<Vec<_>>()
         .join(" ");
     let token = "A".repeat(24);
-    assert!(crate::decks::share_token::is_valid(&token));
+    assert!(manavault_collection::decks::share_token::is_valid(&token));
     let query = format!("query {{ deck(id: \"{token}\") {{ {selections} }} }}");
     let response = public(&app, &query, json!({})).await;
     let errors = response["errors"].as_array().unwrap();
@@ -218,7 +218,7 @@ async fn global_limits_apply_across_client_ips() {
 
 #[test]
 fn the_public_schema_exposes_no_mutation_fields() {
-    let sdl = crate::share::sdl();
+    let sdl = manavault_share::share::sdl();
     assert!(!sdl.contains("type Mutation"));
     assert!(!sdl.contains("mutation:"));
     assert!(manavault_server::graphql::sdl().contains("type Mutation"));

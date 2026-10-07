@@ -6,8 +6,9 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::{T, add_card, insert_deck, public, public_data, share};
-use crate::test_support::{TestApp, fixtures};
-use crate::trade::share::ShareKind;
+use crate::test_app::TestApp;
+use manavault_catalog::testing::fixtures;
+use manavault_trade::trade::share::ShareKind;
 
 async fn app_with_cards() -> TestApp {
     let app = TestApp::new().await;
@@ -39,13 +40,13 @@ fn entry<'a>(entries: &'a Value, name: &str) -> &'a Value {
 async fn wants_list_resolves_the_current_token_only() {
     let app = app_with_cards().await;
     let pool = app.db();
-    crate::trade::want::create_by_name(pool, "Time Walk", Some(3))
+    manavault_trade::trade::want::create_by_name(pool, "Time Walk", Some(3))
         .await
         .unwrap();
-    crate::trade::want::create_by_printing(pool, "scryfall-printing-3", Some(1))
+    manavault_trade::trade::want::create_by_printing(pool, "scryfall-printing-3", Some(1))
         .await
         .unwrap();
-    let token = crate::trade::share::ensure_token(pool, ShareKind::Wants)
+    let token = manavault_trade::trade::share::ensure_token(pool, ShareKind::Wants)
         .await
         .unwrap();
     let data = public_data(&app, WANTS, json!({"id": token})).await;
@@ -62,7 +63,7 @@ async fn wants_list_resolves_the_current_token_only() {
                 "setCode": "leb", "collectorNumber": "233",
                 "imageUrl": "https://example.test/black-lotus.jpg"})
     );
-    let rotated = crate::trade::share::rotate(pool, ShareKind::Wants)
+    let rotated = manavault_trade::trade::share::rotate(pool, ShareKind::Wants)
         .await
         .unwrap();
     let old = public_data(&app, WANTS, json!({"id": token})).await;
@@ -114,7 +115,7 @@ async fn binder_list_resolves_the_current_token_only() {
     let app = app_with_cards().await;
     insert_item(&app, "scryfall-printing-1", 2, "nonfoil", "near_mint").await;
     insert_item(&app, "scryfall-printing-2", 1, "foil", "lightly_played").await;
-    let token = crate::trade::share::ensure_token(app.db(), ShareKind::Binder)
+    let token = manavault_trade::trade::share::ensure_token(app.db(), ShareKind::Binder)
         .await
         .unwrap();
     let data = public_data(&app, BINDER, json!({"id": token})).await;
@@ -133,7 +134,7 @@ async fn binder_list_resolves_the_current_token_only() {
                 "setCode": "lea", "collectorNumber": "84", "imageUrl": null,
                 "finish": "foil", "condition": "lightly_played"})
     );
-    let rotated = crate::trade::share::rotate(app.db(), ShareKind::Binder)
+    let rotated = manavault_trade::trade::share::rotate(app.db(), ShareKind::Binder)
         .await
         .unwrap();
     assert_eq!(
@@ -293,9 +294,13 @@ async fn the_public_share_query_resolves_a_shared_deck_without_owner_data() {
     .fetch_one(app.db())
     .await
     .unwrap();
-    crate::decks::tags::assign_deck_card_tag(app.db(), crate::decks::DeckCardId(deck_card), tag)
-        .await
-        .unwrap();
+    manavault_collection::decks::tags::assign_deck_card_tag(
+        app.db(),
+        manavault_collection::decks::DeckCardId(deck_card),
+        tag,
+    )
+    .await
+    .unwrap();
     // An owned copy that the public share must not reveal.
     sqlx::query(
         "INSERT INTO collection_items (scryfall_id, quantity, inserted_at, updated_at)
@@ -430,9 +435,12 @@ async fn unshared_decks_resolve_to_nothing() {
     let app = TestApp::new().await;
     let deck = insert_deck(&app, "Private", "commander", "brewing").await;
     let token = share(&app, deck).await;
-    crate::decks::records::disable_sharing(app.db(), crate::decks::DeckId(deck))
-        .await
-        .unwrap();
+    manavault_collection::decks::records::disable_sharing(
+        app.db(),
+        manavault_collection::decks::DeckId(deck),
+    )
+    .await
+    .unwrap();
     let data = public_data(
         &app,
         "query($id: ID!) { deck(id: $id) { name } deckBuylist(id: $id) { cardName }
@@ -445,7 +453,7 @@ async fn unshared_decks_resolve_to_nothing() {
         json!({"deck": null, "deckBuylist": [], "deckBuylistExport": ""})
     );
     // A deck's global id is not a share token.
-    let global = crate::graphql::global_id(crate::graphql::NodeKind::Deck, deck);
+    let global = manavault_core::graphql::global_id(manavault_core::graphql::NodeKind::Deck, deck);
     let data = public_data(
         &app,
         "query($id: ID!) { deck(id: $id) { name } }",

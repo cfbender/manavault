@@ -5,10 +5,10 @@
 use lotus::{ScryfallId, Zone};
 use sqlx::SqlitePool;
 
-use crate::catalog::printing::Printing;
-use crate::decks::decklist;
-use crate::decks::model::parse_zone;
 use crate::trade::list_source::ListEntry;
+use manavault_catalog::catalog::printing::Printing;
+use manavault_collection::decks::decklist;
+use manavault_collection::decks::model::parse_zone;
 
 /// Parses decklist text into entries: zone headings (`Commander`,
 /// `Sideboard:`, ...), `SB:` prefixes, `4x Name (SET) 123 *F*` lines, and

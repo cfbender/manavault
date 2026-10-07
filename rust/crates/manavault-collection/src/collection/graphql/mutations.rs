@@ -21,8 +21,8 @@ use crate::collection::graphql::tools::{
 use crate::collection::import::{self, ImportError, ImportRow, PreviewOptions};
 use crate::collection::item::CollectionItem;
 use crate::collection::location::{self, Location, LocationError};
-use crate::graphql::relay::{LocationRef, location_ref, node_int};
-use crate::graphql::{NodeKind, Result, internal_error, state, user_error};
+use manavault_core::graphql::relay::{LocationRef, location_ref, node_int};
+use manavault_core::graphql::{NodeKind, Result, internal_error, state, user_error};
 
 fn item_error(error: ItemError) -> async_graphql::Error {
     match error {
@@ -63,9 +63,10 @@ pub(crate) fn parse_pulls(pulls: &[BulkCleanPullInput]) -> Result<Vec<PullReques
     pulls
         .iter()
         .map(|pull| {
-            let id =
-                crate::catalog::search::predicates::parse_int(pull.collection_item_id.as_str())
-                    .ok_or_else(|| user_error("Invalid collection item id"))?;
+            let id = manavault_catalog::catalog::search::predicates::parse_int(
+                pull.collection_item_id.as_str(),
+            )
+            .ok_or_else(|| user_error("Invalid collection item id"))?;
             Ok(PullRequest {
                 collection_item_id: id,
                 quantity: pull.quantity,

@@ -27,7 +27,7 @@ pub enum ShareKind {
 /// (`ShareToken.generate/0`).
 #[must_use]
 pub fn generate_token() -> String {
-    URL_SAFE_NO_PAD.encode(crate::crypto::random_bytes::<18>())
+    URL_SAFE_NO_PAD.encode(manavault_core::crypto::random_bytes::<18>())
 }
 
 /// Whether `token` has the share token shape (`ShareToken.valid?/1`): 24
@@ -66,7 +66,7 @@ async fn insert(
     kind: ShareKind,
     token: &str,
 ) -> Result<(), sqlx::Error> {
-    let now = crate::timefmt::now();
+    let now = manavault_core::timefmt::now();
     match kind {
         ShareKind::Wants => sqlx::query!(
             "INSERT INTO trade_want_shares (token, inserted_at, updated_at) VALUES (?1, ?2, ?2)",
@@ -115,7 +115,7 @@ fn unique_violation(error: &sqlx::Error) -> bool {
 /// write transaction serializes this with disable and rotate, so an
 /// in-flight ensure cannot re-enable sharing after a revoke.
 pub async fn ensure_token(pool: &SqlitePool, kind: ShareKind) -> Result<String, sqlx::Error> {
-    let mut tx = crate::db::begin_write(pool).await?;
+    let mut tx = manavault_core::db::begin_write(pool).await?;
     if let Some(token) = earliest(&mut tx, kind).await? {
         tx.commit().await?;
         return Ok(token);
@@ -136,7 +136,7 @@ pub async fn ensure_token(pool: &SqlitePool, kind: ShareKind) -> Result<String, 
 /// Turns sharing off, deleting every row; how many were deleted
 /// (`disable/1`).
 pub async fn disable(pool: &SqlitePool, kind: ShareKind) -> Result<u64, sqlx::Error> {
-    let mut tx = crate::db::begin_write(pool).await?;
+    let mut tx = manavault_core::db::begin_write(pool).await?;
     let count = delete_all(&mut tx, kind).await?;
     tx.commit().await?;
     Ok(count)
@@ -155,7 +155,7 @@ pub enum RotateError {
 /// Replaces every row with exactly one fresh token (`rotate/1`).
 pub async fn rotate(pool: &SqlitePool, kind: ShareKind) -> Result<String, RotateError> {
     for _ in 0..SHARE_TOKEN_ATTEMPTS {
-        let mut tx = crate::db::begin_write(pool).await?;
+        let mut tx = manavault_core::db::begin_write(pool).await?;
         delete_all(&mut tx, kind).await?;
         let token = generate_token();
         match insert(&mut tx, kind, &token).await {

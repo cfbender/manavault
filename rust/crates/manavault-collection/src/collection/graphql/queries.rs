@@ -19,10 +19,10 @@ use crate::collection::graphql::types::{
 use crate::collection::graphql::values::{CollectionValueDashboard, CollectionValueSummary};
 use crate::collection::location::{self, Location};
 use crate::collection::queries::{self, Page};
-use crate::graphql::relay::{
+use manavault_core::graphql::relay::{
     LocationRef, PageArgs, connection_from_list, from_slice, location_ref,
 };
-use crate::graphql::{Result, internal_error, state, user_error};
+use manavault_core::graphql::{Result, internal_error, state, user_error};
 
 #[derive(Default)]
 pub struct CollectionQueries;

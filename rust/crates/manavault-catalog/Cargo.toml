@@ -29,7 +29,6 @@ url.workspace = true
 manavault-core.workspace = true
 
 [dev-dependencies]
-manavault-server.workspace = true
 pretty_assertions.workspace = true
 wiremock.workspace = true
 

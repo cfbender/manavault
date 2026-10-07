@@ -10,23 +10,26 @@ use lotus::OracleId;
 use manavault_allocation::BuylistOptions;
 
 use super::types::{PublicBuylistEntry, PublicCard, PublicDeck, PublicNode};
-use crate::deck_intel::buylist::{self, PrintingMode};
-use crate::decks::records;
-use crate::graphql::relay::node_str;
-use crate::graphql::{NodeKind, Result, internal_error, state};
-use crate::trade::schema::{BinderList, WantsList};
-use crate::web::public_graphql::MAX_DEPTH;
+use manavault_collection::decks::records;
+use manavault_core::graphql::relay::node_str;
+use manavault_core::graphql::{NodeKind, Result, internal_error, state};
+use manavault_core::web::public_graphql::MAX_DEPTH;
+use manavault_deck_intel::deck_intel::buylist::{self, PrintingMode};
+use manavault_trade::trade::schema::{BinderList, WantsList};
 
 /// The public schema type.
 pub type PublicSchema = Schema<PublicQuery, EmptyMutation, EmptySubscription>;
 
 /// `public_shared_deck/1`: the deck currently shared as `token`. Malformed
 /// tokens never reach the database.
-async fn shared_deck(ctx: &Context<'_>, token: &str) -> Result<Option<crate::decks::Deck>> {
+async fn shared_deck(
+    ctx: &Context<'_>,
+    token: &str,
+) -> Result<Option<manavault_collection::decks::Deck>> {
     Ok(records::get_by_share_token(&state(ctx).db, token)
         .await
         .map_err(internal_error)?
-        .map(crate::decks::Deck::new))
+        .map(manavault_collection::decks::Deck::new))
 }
 
 /// `public_buylist_opts/1`: the owner's collection is always ignored.
@@ -61,7 +64,7 @@ impl PublicQuery {
     #[graphql(complexity = "10_000 + child_complexity")]
     async fn card(&self, ctx: &Context<'_>, id: ID) -> Result<Option<PublicCard>> {
         Ok(
-            crate::catalog::Card::load_with_printings(&state(ctx).db, &card_id(&id))
+            manavault_catalog::catalog::Card::load_with_printings(&state(ctx).db, &card_id(&id))
                 .await
                 .map_err(internal_error)?
                 .map(PublicCard),
@@ -71,14 +74,14 @@ impl PublicQuery {
     #[graphql(complexity = "10_000 + child_complexity")]
     async fn card_by_name(&self, ctx: &Context<'_>, name: String) -> Result<Option<PublicCard>> {
         let pool = &state(ctx).db;
-        let Some(card) = crate::catalog::search::cards_by_name::find(pool, &name)
+        let Some(card) = manavault_catalog::catalog::search::cards_by_name::find(pool, &name)
             .await
             .map_err(internal_error)?
         else {
             return Ok(None);
         };
         Ok(
-            crate::catalog::Card::load_with_printings(pool, &card.oracle_id)
+            manavault_catalog::catalog::Card::load_with_printings(pool, &card.oracle_id)
                 .await
                 .map_err(internal_error)?
                 .map(PublicCard),
@@ -144,17 +147,19 @@ impl PublicQuery {
     /// (`trade::ShareListQueries`), with the public schema's cost.
     #[graphql(complexity = "20_000 + child_complexity")]
     async fn wants_list(&self, ctx: &Context<'_>, id: ID) -> Result<Option<WantsList>> {
-        Ok(crate::trade::share::wants_list(&state(ctx).db, id.as_str())
-            .await
-            .map_err(internal_error)?
-            .map(|entries| WantsList { entries }))
+        Ok(
+            manavault_trade::trade::share::wants_list(&state(ctx).db, id.as_str())
+                .await
+                .map_err(internal_error)?
+                .map(|entries| WantsList { entries }),
+        )
     }
 
     /// See [`Self::wants_list`].
     #[graphql(complexity = "20_000 + child_complexity")]
     async fn binder_list(&self, ctx: &Context<'_>, id: ID) -> Result<Option<BinderList>> {
         Ok(
-            crate::trade::share::binder_list(&state(ctx).db, id.as_str())
+            manavault_trade::trade::share::binder_list(&state(ctx).db, id.as_str())
                 .await
                 .map_err(internal_error)?
                 .map(|entries| BinderList { entries }),
@@ -163,24 +168,24 @@ impl PublicQuery {
 }
 
 fn builder() -> async_graphql::SchemaBuilder<PublicQuery, EmptyMutation, EmptySubscription> {
-    Schema::build(PublicQuery, EmptyMutation, EmptySubscription)
-        .register_output_type::<PublicNode>()
-        .limit_complexity(usize::try_from(super::protection::MAX_COMPLEXITY).unwrap_or(usize::MAX))
-        .limit_depth(MAX_DEPTH)
-        .extension(crate::graphql::order::ResponseOrder)
-        .extension(crate::graphql::nullable_errors::NullableErrors)
-        .extension(crate::graphql::undefined_variables::UndefinedVariables)
+    manavault_core::graphql::extensions(
+        Schema::build(PublicQuery, EmptyMutation, EmptySubscription)
+            .register_output_type::<PublicNode>()
+            .limit_complexity(
+                usize::try_from(super::protection::MAX_COMPLEXITY).unwrap_or(usize::MAX),
+            )
+            .limit_depth(MAX_DEPTH),
+    )
 }
 
 /// The public schema. It holds no app data: each request carries the
-/// [`crate::state::AppState`] and its own catalog data loader.
+/// [`manavault_core::state::AppState`] and its own catalog data loader.
 pub fn schema() -> &'static PublicSchema {
     static SCHEMA: LazyLock<PublicSchema> = LazyLock::new(|| builder().finish());
     &SCHEMA
 }
 
-/// The public schema's SDL, for structural comparison
-/// (`rust/scripts/sdl_diff.py`).
+/// The public schema's SDL (`manavault sdl --public`).
 #[must_use]
 pub fn sdl() -> String {
     schema().sdl()

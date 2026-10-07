@@ -9,7 +9,7 @@ use super::*;
 use crate::collection::bulk_clean::{
     BulkCleanOptions, BulkCleanResult, PullRequest, RemovePullsError, preview, remove,
 };
-use crate::test_support::fixtures::{plains, time_walk};
+use manavault_catalog::testing::fixtures::{plains, time_walk};
 
 struct Setup {
     app: TestApp,

@@ -8,16 +8,16 @@ use manavault_allocation::{AllocationState, AllocationStatus, StatusInput, Zone}
 use sqlx::SqlitePool;
 use tokio::sync::OnceCell;
 
-use crate::catalog::card::{Card, CardRecord};
-use crate::catalog::printing::Printing;
 use crate::decks::contents::{self, DeckContents, LoadedDeckCard};
 use crate::decks::legality::{DeckLegality as Legality, LegalityIssue};
 use crate::decks::model::{
     DeckCardId, DeckCardRow, DeckId, DeckRow, DeckTagRow, DefaultDeckTagRow,
 };
-use crate::graphql::relay::{self, PageArgs};
-use crate::graphql::{NodeKind, Result, global_id, internal_error, state};
-use crate::timefmt;
+use manavault_catalog::catalog::card::{Card, CardRecord};
+use manavault_catalog::catalog::printing::Printing;
+use manavault_core::graphql::relay::{self, PageArgs};
+use manavault_core::graphql::{NodeKind, Result, global_id, internal_error, state};
+use manavault_core::timefmt;
 
 /// A deck as a GraphQL object. Its cards load once per object, on the
 /// first field that needs them (counts, legality, cover, deck cards).
@@ -363,8 +363,8 @@ impl DeckCard {
     }
 }
 
-crate::connection_types!(DeckConnection, DeckEdge, Deck);
-crate::connection_types!(DeckCardConnection, DeckCardEdge, DeckCard);
+manavault_core::connection_types!(DeckConnection, DeckEdge, Deck);
+manavault_core::connection_types!(DeckCardConnection, DeckCardEdge, DeckCard);
 
 /// `DeckCardAllocationStatus`: a deck card's allocation status, or a
 /// suggested card's collection status (EDHREC, Recommander), presented with

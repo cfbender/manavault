@@ -1,6 +1,6 @@
 //! `POST /share/graphql`: the public share schema over HTTP. The router
-//! wraps the handler in [`crate::web::public_graphql::admit`] (rate
-//! limiting) and [`crate::web::graphql::require_json`]; the
+//! wraps the handler in [`manavault_core::web::public_graphql::admit`] (rate
+//! limiting) and [`manavault_core::web::graphql::require_json`]; the
 //! [`GraphQLRequest`] extractor accepts one request per body, so batches
 //! are refused before anything runs.
 
@@ -9,9 +9,9 @@ use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
 use super::protection::{self, Rejection};
-use crate::state::AppState;
-use crate::web::graphql::GraphQLRequest;
-use crate::web::public_graphql::check_depth;
+use manavault_core::state::AppState;
+use manavault_core::web::graphql::GraphQLRequest;
+use manavault_core::web::public_graphql::check_depth;
 
 fn rejected(errors: &[Rejection]) -> Response {
     axum::Json(json!({"errors": errors.iter().map(Rejection::to_json).collect::<Vec<_>>()}))
@@ -43,9 +43,12 @@ pub async fn execute(state: &AppState, request: async_graphql::Request) -> Respo
     if let Err(errors) = check_document(&request.query, request.operation_name.as_deref()) {
         return rejected(&errors);
     }
-    let request = request
-        .data(state.clone())
-        .data(crate::catalog::loader::data_loader(state.db.clone()));
+    let request =
+        request
+            .data(state.clone())
+            .data(manavault_catalog::catalog::loader::data_loader(
+                state.db.clone(),
+            ));
     let response = super::schema::schema().execute(request).await;
     if response.data == async_graphql::Value::Null && !response.errors.is_empty() {
         return axum::Json(json!({"errors": response.errors})).into_response();

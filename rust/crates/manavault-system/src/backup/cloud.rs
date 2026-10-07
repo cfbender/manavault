@@ -11,9 +11,9 @@ use super::local::{self, BackupError, Paths, Reason};
 use super::s3::S3;
 use super::settings::{self, CloudSettings, Provider, Status};
 use super::{Remote, retention};
-use crate::config::Config;
-use crate::state::AppState;
-use crate::timefmt;
+use manavault_core::config::Config;
+use manavault_core::state::AppState;
+use manavault_core::timefmt;
 
 const CHOOSE_PROVIDER: &str = "Choose Google Drive or S3 before running cloud backups.";
 const STAGED: &str = "Restore is staged. Restart ManaVault to apply it.";
@@ -237,7 +237,7 @@ pub fn apply_pending_restore(config: &Config) -> Result<Option<PathBuf>, BackupE
 mod tests {
     use super::*;
     use crate::backup::settings::BackupSettingsInput;
-    use crate::test_support::TestApp;
+    use crate::test_app::TestApp;
     use async_graphql::MaybeUndefined;
     use wiremock::matchers::{method, path, path_regex, query_param};
     use wiremock::{Mock, MockServer, ResponseTemplate};

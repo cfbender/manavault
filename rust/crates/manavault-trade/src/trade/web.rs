@@ -8,10 +8,10 @@ use axum::http::{HeaderMap, StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 
-use crate::state::AppState;
 use crate::trade::share::{self, ShareKind};
-use crate::web::app_shell::{SharePreview, render_app};
-use crate::web::session::Session;
+use manavault_core::state::AppState;
+use manavault_core::web::app_shell::{SharePreview, render_app};
+use manavault_core::web::session::Session;
 
 /// Adds `GET /share/wants/{token}` and `GET /share/binder/{token}` to the
 /// `:browser` router.

@@ -12,8 +12,9 @@ use super::bulk::tests::{gzip_jsonl, gzip_lines};
 use super::import::{self, ImportError, ImportOptions, ImportSummary, OracleTags};
 use super::sync::{self, SyncError, SyncOptions, SyncRecord, SyncStatus};
 use super::worker;
-use crate::jobs::Worker as _;
-use crate::test_support::{TestApp, fixtures};
+use crate::test_app::TestApp;
+use crate::testing::fixtures;
+use manavault_core::jobs::Worker as _;
 
 fn merge(mut base: Value, overrides: Value) -> Value {
     if let (Some(base), Value::Object(overrides)) = (base.as_object_mut(), overrides) {
@@ -1927,14 +1928,14 @@ async fn a_forced_reload_upgrades_a_queued_periodic_job() {
 #[tokio::test]
 async fn periodic_catalog_jobs_skip_a_fresh_successful_sync() {
     let app = TestApp::new().await;
-    let now = crate::timefmt::now();
+    let now = manavault_core::timefmt::now();
     sqlx::query("INSERT INTO scryfall_syncs (status, bulk_type, started_at, completed_at, inserted_at, updated_at) VALUES ('succeeded', ?1, ?2, ?2, ?2, ?2)")
         .bind(sync::BULK_TYPE)
         .bind(&now)
         .execute(app.db())
         .await
         .unwrap();
-    let job = crate::jobs::Job {
+    let job = manavault_core::jobs::Job {
         id: 1,
         worker: worker::NAME.to_owned(),
         args: json!({}),
@@ -1945,7 +1946,7 @@ async fn periodic_catalog_jobs_skip_a_fresh_successful_sync() {
         worker::ScryfallCatalogWorker
             .perform(&app.state, &job)
             .await,
-        crate::jobs::Outcome::Done
+        manavault_core::jobs::Outcome::Done
     ));
 }
 
@@ -1959,8 +1960,8 @@ fn syncs_from_older_importers_or_over_a_day_old_are_stale() {
         status: SyncStatus::Succeeded,
         bulk_type: sync::BULK_TYPE.to_owned(),
         bulk_uri: None,
-        started_at: crate::timefmt::utc_seconds(now),
-        completed_at: Some(crate::timefmt::utc_seconds(now)),
+        started_at: manavault_core::timefmt::utc_seconds(now),
+        completed_at: Some(manavault_core::timefmt::utc_seconds(now)),
         cards_count: 0,
         printings_count: 0,
         error: None,
@@ -1973,7 +1974,7 @@ fn syncs_from_older_importers_or_over_a_day_old_are_stale() {
     assert!(worker::stale(Some(&older), now));
     let day_old = now - Duration::from_secs(24 * 3600);
     let at = |time| SyncRecord {
-        completed_at: Some(crate::timefmt::utc_seconds(time)),
+        completed_at: Some(manavault_core::timefmt::utc_seconds(time)),
         ..fresh.clone()
     };
     assert!(worker::stale(Some(&at(day_old)), now));
@@ -1992,27 +1993,9 @@ fn syncs_from_older_importers_or_over_a_day_old_are_stale() {
     assert!(!worker::forced(&json!({})));
 }
 
-#[test]
-fn crontab_schedules_the_catalog_and_pricing_workers() {
-    let entries: Vec<(&str, &str)> = manavault_server::app::crontab()
-        .iter()
-        .map(|entry| (entry.expression, entry.worker))
-        .collect();
-    for expected in [
-        ("@reboot", "scryfall_catalog"),
-        ("@daily", "scryfall_catalog"),
-        ("@reboot", "scryfall_assets"),
-        ("@daily", "scryfall_assets"),
-        ("@reboot", "vendor_prices"),
-        ("*/30 * * * *", "vendor_prices"),
-    ] {
-        assert!(entries.contains(&expected), "{expected:?}");
-    }
-}
-
 /// The shared global test log hub.
-fn test_log_hub() -> &'static crate::logs::LogHub {
-    crate::test_support::log_hub()
+fn test_log_hub() -> &'static manavault_core::logs::LogHub {
+    manavault_core::testing::log_hub()
 }
 
 #[tokio::test]

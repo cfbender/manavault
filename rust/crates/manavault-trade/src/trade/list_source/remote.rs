@@ -25,8 +25,8 @@
 
 use lotus::decklist::{Allowlist, DecklistClient, FetchError, Origin, ShareKind, ShareLink};
 
-use crate::config::Config;
 use crate::trade::list_source::{ListEntry, ResolvedList, UNSUPPORTED};
+use manavault_core::config::Config;
 
 /// `User-Agent` for list imports (`ListSource.Http`).
 pub const USER_AGENT: &str = "ManaVault/0.1 (+trade-list-import)";

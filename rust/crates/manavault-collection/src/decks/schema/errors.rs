@@ -3,7 +3,7 @@
 use async_graphql::{Error, ErrorExtensions};
 
 use crate::decks::DeckError;
-use crate::graphql::{internal_error, user_error};
+use manavault_core::graphql::{internal_error, user_error};
 
 /// The deck does not exist.
 pub const DECK_NOT_FOUND: &str = "Deck was not found.";

@@ -360,7 +360,7 @@ impl AiSettingsMutations {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::TestApp;
+    use crate::test_app::TestApp;
     use crate::testing::TestState;
     use serde_json::json;
     use wiremock::matchers::{header, method, path};

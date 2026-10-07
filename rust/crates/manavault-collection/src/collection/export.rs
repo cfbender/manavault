@@ -2,11 +2,11 @@
 
 use sqlx::SqlitePool;
 
-use crate::catalog::price::format_cents;
 use crate::collection::filters::ItemFilters;
 use crate::collection::item::CollectionItem;
 use crate::collection::queries::all_items;
-use crate::pricing::PriceStore;
+use manavault_catalog::catalog::price::format_cents;
+use manavault_catalog::pricing::PriceStore;
 
 const CSV_HEADER: [&str; 9] = [
     "Quantity",

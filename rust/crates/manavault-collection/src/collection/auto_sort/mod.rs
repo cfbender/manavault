@@ -14,7 +14,7 @@ use crate::collection::changes::{ItemError, move_to};
 use crate::collection::filters::{ALLOCATED_SQL, FROM_SQL, NOT_LIST_SQL};
 use crate::collection::item::{CollectionItem, load_items};
 use crate::collection::location::json_ids;
-use crate::pricing::PriceStore;
+use manavault_catalog::pricing::PriceStore;
 use rules::{AutoSortError, RuleInput, SortRule};
 
 const BATCH_SIZE: i64 = 100;
@@ -106,7 +106,7 @@ async fn batch_ids(
     if !options.ignore_location_debounce {
         let cutoff = time::OffsetDateTime::now_utc() - time::Duration::days(LOCATION_DEBOUNCE_DAYS);
         builder.push(" AND (i.location_changed_at IS NULL OR i.location_changed_at < ");
-        builder.push_bind(crate::timefmt::utc_seconds(cutoff));
+        builder.push_bind(manavault_core::timefmt::utc_seconds(cutoff));
         builder.push(")");
     }
     match &options.source {
@@ -188,7 +188,7 @@ pub async fn run(
         let mut conn = pool.acquire().await?;
         return run_in(&mut conn, prices, options).await;
     }
-    let mut tx = crate::db::begin_write(pool).await?;
+    let mut tx = manavault_core::db::begin_write(pool).await?;
     let result = run_in(&mut tx, prices, options).await?;
     tx.commit().await?;
     Ok(result)

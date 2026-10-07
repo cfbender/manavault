@@ -16,10 +16,8 @@ pub mod timefmt;
 pub mod validation;
 pub mod web;
 
-// Compiled in every build (not behind a feature) so test and dev builds of
-// the crates above share one build of this crate.
 #[doc(hidden)]
 pub mod testing;
 
 #[cfg(test)]
-pub use manavault_server::test_support;
+mod test_app;

@@ -2,7 +2,7 @@
 //! (`token_limit: 5_000`, `analyze_complexity: true, max_complexity:
 //! 100_000`), plus the query-only rule, checked before execution so the
 //! errors read like Absinthe's. The depth limit is
-//! [`crate::web::public_graphql::check_depth`].
+//! [`manavault_core::web::public_graphql::check_depth`].
 //!
 //! The schema also sets async-graphql's own `limit_complexity` and
 //! `limit_depth` with the same costs, as a backstop; these checks run first.

@@ -30,7 +30,6 @@ zip.workspace = true
 manavault-core.workspace = true
 
 [dev-dependencies]
-manavault-server.workspace = true
 wiremock.workspace = true
 
 [lints]

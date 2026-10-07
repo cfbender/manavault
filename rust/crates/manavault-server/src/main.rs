@@ -17,8 +17,8 @@ use tracing_subscriber::layer::SubscriberExt as _;
 use tracing_subscriber::util::SubscriberInitExt as _;
 use tracing_subscriber::{EnvFilter, Layer as _};
 
-use manavault_server::config::Config;
-use manavault_server::logs::LogHub;
+use manavault_core::config::Config;
+use manavault_core::logs::LogHub;
 
 #[tokio::main]
 async fn main() -> ExitCode {
@@ -29,7 +29,7 @@ async fn main() -> ExitCode {
                 eprintln!("usage: manavault hash-password <password>");
                 return ExitCode::FAILURE;
             };
-            println!("{}", manavault_server::crypto::hash_password(password));
+            println!("{}", manavault_core::crypto::hash_password(password));
             ExitCode::SUCCESS
         }
         Some("sdl") => match args.get(1).map(String::as_str) {
@@ -38,7 +38,7 @@ async fn main() -> ExitCode {
                 ExitCode::SUCCESS
             }
             Some("--public") => {
-                print!("{}", manavault_server::share::sdl());
+                print!("{}", manavault_share::share::sdl());
                 ExitCode::SUCCESS
             }
             Some(_) => {
@@ -98,7 +98,7 @@ async fn serve() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    if config.env == manavault_server::config::Env::Prod && config.auth_disabled {
+    if config.env == manavault_core::config::Env::Prod && config.auth_disabled {
         tracing::warn!(
             "MANAVAULT_AUTH_DISABLED is set: authentication is OFF in production. Anyone who can reach this server has full owner access to the collection."
         );

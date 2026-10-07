@@ -6,8 +6,8 @@
 use lotus::Zone;
 use sqlx::SqlitePool;
 
-use crate::catalog::card::CardRecord;
-use crate::timefmt;
+use manavault_catalog::catalog::card::CardRecord;
+use manavault_core::timefmt;
 
 /// The deck fields prompts use.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -37,14 +37,17 @@ impl DeckCardInput {
 /// `Catalog.get_deck/1`.
 pub async fn get(pool: &SqlitePool, id: i64) -> Result<Option<DeckInfo>, sqlx::Error> {
     Ok(
-        crate::decks::model::load_deck(pool, crate::decks::DeckId(id))
-            .await?
-            .map(|deck| DeckInfo {
-                id: deck.id.0,
-                name: deck.name,
-                format: deck.format.as_str().to_owned(),
-                primer: deck.primer,
-            }),
+        manavault_collection::decks::model::load_deck(
+            pool,
+            manavault_collection::decks::DeckId(id),
+        )
+        .await?
+        .map(|deck| DeckInfo {
+            id: deck.id.0,
+            name: deck.name,
+            format: deck.format.as_str().to_owned(),
+            primer: deck.primer,
+        }),
     )
 }
 
@@ -61,8 +64,11 @@ pub async fn deck_cards(
     pool: &SqlitePool,
     deck_id: i64,
 ) -> Result<Vec<DeckCardInput>, sqlx::Error> {
-    let contents =
-        crate::decks::contents::load_deck_contents(pool, crate::decks::DeckId(deck_id)).await?;
+    let contents = manavault_collection::decks::contents::load_deck_contents(
+        pool,
+        manavault_collection::decks::DeckId(deck_id),
+    )
+    .await?;
     Ok(contents
         .cards
         .iter()

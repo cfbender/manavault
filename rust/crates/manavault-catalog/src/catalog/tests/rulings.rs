@@ -7,8 +7,8 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 use crate::catalog::card::CardRuling;
 use crate::catalog::invalidate_after_import;
 use crate::catalog::scryfall::rulings::card_rulings;
-use crate::test_support::TestApp;
-use crate::test_support::fixtures::card;
+use crate::test_app::TestApp;
+use crate::testing::fixtures::card;
 
 #[tokio::test]
 async fn maps_rulings_and_tolerates_unavailable_data() {

@@ -102,7 +102,7 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
-    use crate::test_support::TestApp;
+    use crate::test_app::TestApp;
 
     /// 410 cards with both metrics at 999 (printing ids reversed against
     /// card ids), plus one never-scored card.

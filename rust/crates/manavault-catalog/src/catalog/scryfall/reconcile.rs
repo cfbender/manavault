@@ -153,7 +153,7 @@ async fn reconcile_batch<S: std::hash::BuildHasher>(
     }
 
     let stale_ids: Vec<String> = stale.into_iter().map(|p| p.scryfall_id).collect();
-    let mut tx = crate::db::begin_write(pool).await?;
+    let mut tx = manavault_core::db::begin_write(pool).await?;
     for (replacement, ids) in &groups {
         reassign_references(&mut tx, ids, replacement).await?;
     }
@@ -263,7 +263,7 @@ async fn delete_orphaned_cards(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         if oracle_ids.is_empty() {
             return Ok(());
         }
-        let mut tx = crate::db::begin_write(pool).await?;
+        let mut tx = manavault_core::db::begin_write(pool).await?;
         for table in ["deck_cards", "scryfall_cards"] {
             let mut builder = QueryBuilder::new("DELETE FROM ");
             builder.push(table);

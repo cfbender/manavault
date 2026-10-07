@@ -7,7 +7,7 @@ use regex::Regex;
 use serde_json::{Map, Value, json};
 
 use crate::ai::decks::DeckCardInput;
-use crate::catalog::card::CardRecord;
+use manavault_catalog::catalog::card::CardRecord;
 
 static LAND: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"(?i)\bLand\b").ok());
 static CHOOSES_COLOR: LazyLock<Option<Regex>> =

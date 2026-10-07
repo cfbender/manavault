@@ -10,7 +10,7 @@ mod suggestions;
 
 use serde_json::Value;
 
-use crate::test_support::TestApp;
+use crate::test_app::TestApp;
 
 /// Records a producer → token link (`scryfall_card_tokens`), which the full
 /// Scryfall import writes from `all_parts`.

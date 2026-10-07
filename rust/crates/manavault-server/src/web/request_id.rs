@@ -61,7 +61,10 @@ fn request_id(request: &Request) -> HeaderValue {
         .filter(|value| (20..=200).contains(&value.len()) && value.to_str().is_ok())
         .cloned()
         .or_else(|| {
-            HeaderValue::from_str(&URL_SAFE_NO_PAD.encode(crate::crypto::random_bytes::<15>())).ok()
+            HeaderValue::from_str(
+                &URL_SAFE_NO_PAD.encode(manavault_core::crypto::random_bytes::<15>()),
+            )
+            .ok()
         })
         .unwrap_or_else(|| HeaderValue::from_static("unknown-request-id--"))
 }
@@ -102,7 +105,8 @@ mod tests {
     use axum::http::Request;
 
     use super::HEADER;
-    use crate::test_support::{TestApp, log_hub};
+    use crate::test_support::TestApp;
+    use manavault_core::testing::log_hub;
 
     async fn get(app: &TestApp, uri: &str, id: Option<&str>) -> axum::http::Response<Body> {
         let mut request = Request::get(uri);
@@ -115,7 +119,7 @@ mod tests {
     /// Log messages from this module, captured through the live log hub (the
     /// same stream the `serverLog` subscription reads).
     fn drain(
-        receiver: &mut tokio::sync::broadcast::Receiver<crate::logs::LogEvent>,
+        receiver: &mut tokio::sync::broadcast::Receiver<manavault_core::logs::LogEvent>,
     ) -> Vec<String> {
         use tokio::sync::broadcast::error::TryRecvError;
         let mut lines = Vec::new();

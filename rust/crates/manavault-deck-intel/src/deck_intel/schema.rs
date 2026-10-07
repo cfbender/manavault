@@ -14,8 +14,8 @@ use crate::deck_intel::edhrec::{self, DeckEdhrec, DeckEdhrecError, DeckEdhrecOpt
 use crate::deck_intel::errors::{deck_allocation_error, deck_read_error, disassembly_error};
 use crate::deck_intel::recommander::{self, DeckRecommander, RecommanderError};
 use crate::deck_intel::spellbook::{self, DeckCombo, SpellbookError};
-use crate::graphql::relay::node_int;
-use crate::graphql::{NodeKind, Result, state, user_error};
+use manavault_core::graphql::relay::node_int;
+use manavault_core::graphql::{NodeKind, Result, state, user_error};
 
 fn deck_id(id: &ID) -> Result<DeckId> {
     Ok(DeckId(node_int(id, NodeKind::Deck)?))

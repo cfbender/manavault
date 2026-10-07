@@ -5,7 +5,8 @@ use axum::http::Request;
 use serde_json::json;
 
 use super::{add_card, insert_deck, send, share};
-use crate::test_support::{TestApp, fixtures};
+use manavault_catalog::testing::fixtures;
+use manavault_server::test_support::TestApp;
 
 async fn decks(app: &TestApp, query: &str, authorization: Option<&str>) -> super::Sent {
     let mut request =
@@ -23,8 +24,12 @@ async fn requires_a_valid_non_revoked_bearer_key() {
     assert_eq!(missing.status, 401);
     assert_eq!(missing.json()["error"]["code"], "unauthorized");
     assert_eq!(decks(&app, "", Some("Bearer invalid")).await.status, 401);
-    let (key, token) = crate::api_keys::create(app.db(), "Revoked").await.unwrap();
-    crate::api_keys::revoke(app.db(), key.id).await.unwrap();
+    let (key, token) = manavault_core::api_keys::create(app.db(), "Revoked")
+        .await
+        .unwrap();
+    manavault_core::api_keys::revoke(app.db(), key.id)
+        .await
+        .unwrap();
     let revoked = decks(&app, "", Some(&format!("Bearer {token}"))).await;
     assert_eq!(revoked.status, 401);
     assert_eq!(revoked.json()["error"]["code"], "unauthorized");
@@ -50,7 +55,7 @@ async fn lists_the_owners_decks_with_a_stable_shape_and_pagination() {
     add_card(&app, alpha, "oracle-1", 4, "considering", "nonfoil", None).await;
     let token = share(&app, alpha).await;
     insert_deck(&app, "Beta", "modern", "brewing").await;
-    let (key, secret) = crate::api_keys::create(app.db(), "The Gathering")
+    let (key, secret) = manavault_core::api_keys::create(app.db(), "The Gathering")
         .await
         .unwrap();
     let bearer = format!("Bearer {secret}");
@@ -78,9 +83,9 @@ async fn lists_the_owners_decks_with_a_stable_shape_and_pagination() {
             "updated_at": updated_at,
         })
     );
-    assert!(updated_at.ends_with('Z') && crate::timefmt::parse(&updated_at).is_some());
+    assert!(updated_at.ends_with('Z') && manavault_core::timefmt::parse(&updated_at).is_some());
     assert!(!first.text().contains("attacker.example"));
-    let used = crate::api_keys::authenticate(app.db(), &secret)
+    let used = manavault_core::api_keys::authenticate(app.db(), &secret)
         .await
         .unwrap()
         .unwrap();

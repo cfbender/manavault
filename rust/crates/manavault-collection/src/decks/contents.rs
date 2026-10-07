@@ -7,14 +7,14 @@ use std::sync::Arc;
 use lotus::{OracleId, ScryfallId, Zone};
 use sqlx::SqlitePool;
 
-use crate::catalog::card::CardRecord;
-use crate::catalog::printing::Printing;
-use crate::catalog::sql::json_list;
 use crate::decks::commander::chooses_color_before_game;
 use crate::decks::legality::{self, DeckLegality, LegalityCard};
 use crate::decks::model::{
     DeckCardId, DeckCardRow, DeckFormat, DeckId, counted_quantity, counts_toward_deck, id_list,
 };
+use manavault_catalog::catalog::card::CardRecord;
+use manavault_catalog::catalog::printing::Printing;
+use manavault_catalog::catalog::sql::json_list;
 
 /// A deck card with its card, preferred printing, and fallback printing
 /// (the newest printing of the card).
@@ -94,7 +94,7 @@ impl DeckContents {
             let quantity = card.row.quantity.get();
             add(zones.entry(card.row.zone.as_str()).or_default(), quantity);
             add(types.entry(card_type(&card.card)).or_default(), quantity);
-            let identity = crate::catalog::json::strings(&card.card.color_identity);
+            let identity = manavault_catalog::catalog::json::strings(&card.card.color_identity);
             if identity.is_empty() {
                 add(colors.entry("C".to_owned()).or_default(), quantity);
             }
@@ -209,7 +209,7 @@ fn color_sort_value(color: &str) -> usize {
 
 fn colors_of<'a>(cards: impl Iterator<Item = &'a LoadedDeckCard>) -> BTreeSet<String> {
     cards
-        .flat_map(|card| crate::catalog::json::strings(&card.card.color_identity))
+        .flat_map(|card| manavault_catalog::catalog::json::strings(&card.card.color_identity))
         .map(|color| color.to_uppercase())
         .collect()
 }
@@ -261,7 +261,7 @@ pub async fn fallback_printings(
         return Ok(HashMap::new());
     }
     let ids = json_list(oracle_ids);
-    let records = crate::printing_query!(
+    let records = manavault_catalog::printing_query!(
         "WHERE p.scryfall_id IN (
            SELECT ranked.scryfall_id FROM (
              SELECT sp.scryfall_id, row_number() OVER (
@@ -298,7 +298,7 @@ pub async fn load_cards(
             .filter_map(|row| row.preferred_printing_id.clone()),
     );
     let cards: HashMap<OracleId, Arc<CardRecord>> =
-        crate::catalog::card::load_records(pool, &oracle_ids)
+        manavault_catalog::catalog::card::load_records(pool, &oracle_ids)
             .await?
             .into_iter()
             .map(|card| (card.oracle_id.clone(), Arc::new(card)))

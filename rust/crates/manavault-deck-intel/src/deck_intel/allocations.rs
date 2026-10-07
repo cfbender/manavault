@@ -15,14 +15,14 @@ use manavault_allocation::{
 };
 use sqlx::SqlitePool;
 
-use crate::collection::graphql::inputs::{CollectionItemSelector, selected_ids};
-use crate::collection::item::CollectionItem;
 use crate::deck_intel::errors::deck_allocation_error;
 use crate::deck_intel::schema::{AllocateDeckPullListPayload, PullListEntryArgs};
-use crate::decks::DeckCard;
-use crate::decks::schema::DeckPullListEntryInput;
-use crate::graphql::relay::{node_int, node_ints};
-use crate::graphql::{NodeKind, Result, internal_error, state, user_error};
+use manavault_collection::collection::graphql::inputs::{CollectionItemSelector, selected_ids};
+use manavault_collection::collection::item::CollectionItem;
+use manavault_collection::decks::DeckCard;
+use manavault_collection::decks::schema::DeckPullListEntryInput;
+use manavault_core::graphql::relay::{node_int, node_ints};
+use manavault_core::graphql::{NodeKind, Result, internal_error, state, user_error};
 
 const DECK_CARD_NOT_FOUND: &str = "Deck card was not found.";
 const COLLECTION_ITEM_NOT_FOUND: &str = "Collection item was not found.";
@@ -63,7 +63,7 @@ async fn deck_cards(pool: &SqlitePool, ids: &[DeckCardId]) -> Result<Vec<DeckCar
 fn zone_arg(zone: Option<&str>) -> std::result::Result<Zone, &'static str> {
     match zone {
         None => Ok(Zone::Mainboard),
-        Some(zone) => crate::decks::model::parse_zone(zone).ok_or("zone is invalid"),
+        Some(zone) => manavault_collection::decks::model::parse_zone(zone).ok_or("zone is invalid"),
     }
 }
 

@@ -8,7 +8,7 @@ use serde_json::{Map, Value, json};
 use sqlx::SqlitePool;
 
 use super::{names_argument, resolve_cards};
-use crate::catalog::card::CardRecord;
+use manavault_catalog::catalog::card::CardRecord;
 
 pub const TOOL_NAME: &str = "lookup_cards";
 const MAX_NAMES: usize = 20;
@@ -82,7 +82,8 @@ fn card_details(card: &CardRecord) -> Value {
 mod tests {
     use super::*;
     use crate::ai::tests::legality_card;
-    use crate::test_support::{TestApp, fixtures};
+    use crate::test_app::TestApp;
+    use manavault_catalog::testing::fixtures;
 
     #[test]
     fn exposes_a_function_tool_definition() {

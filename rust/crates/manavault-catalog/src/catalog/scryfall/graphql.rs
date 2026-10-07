@@ -4,7 +4,7 @@
 use async_graphql::{Context, Object, SimpleObject};
 
 use crate::catalog::scryfall::worker;
-use crate::graphql::{self, state};
+use manavault_core::graphql::{self, state};
 
 #[derive(Debug, Clone, SimpleObject)]
 pub struct ScryfallReloadResult {

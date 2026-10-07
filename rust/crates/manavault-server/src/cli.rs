@@ -3,8 +3,8 @@
 
 use std::path::PathBuf;
 
-use crate::backup::{self, Paths, Reason};
-use crate::config::Config;
+use manavault_core::config::Config;
+use manavault_system::backup::{self, Paths, Reason};
 
 fn config() -> Result<Config, String> {
     Config::from_env().map_err(|error| error.to_string())
@@ -15,18 +15,18 @@ fn config() -> Result<Config, String> {
 pub async fn unban(args: &[String]) -> Result<String, String> {
     const USAGE: &str = "Usage: manavault unban CLIENT_ID | --all";
     let config = config()?;
-    let pool = crate::db::connect(&config.database_path, 1)
+    let pool = manavault_core::db::connect(&config.database_path, 1)
         .await
         .map_err(|error| error.to_string())?;
     match args {
         [flag] if flag == "--all" => {
-            crate::auth::attempt_limiter::reset_all_persistent(&pool)
+            manavault_core::auth::attempt_limiter::reset_all_persistent(&pool)
                 .await
                 .map_err(|error| error.to_string())?;
             Ok("Cleared all login bans".to_owned())
         }
         [client_id] if !client_id.starts_with("--") => {
-            crate::auth::attempt_limiter::reset_persistent(&pool, client_id)
+            manavault_core::auth::attempt_limiter::reset_persistent(&pool, client_id)
                 .await
                 .map_err(|error| error.to_string())?;
             Ok(format!("Cleared login ban for {client_id}"))
@@ -43,13 +43,13 @@ pub async fn migrate() -> Result<String, String> {
     for dir in config.writable_dirs() {
         std::fs::create_dir_all(dir).map_err(|error| error.to_string())?;
     }
-    let pool = crate::db::connect(&config.database_path, 1)
+    let pool = manavault_core::db::connect(&config.database_path, 1)
         .await
         .map_err(|error| error.to_string())?;
-    crate::backup::migration_backup::run(&config, &pool)
+    manavault_system::backup::migration_backup::run(&config, &pool)
         .await
         .map_err(|error| error.to_string())?;
-    let outcome = crate::db::prepare(&pool)
+    let outcome = manavault_core::db::prepare(&pool)
         .await
         .map_err(|error| error.to_string())?;
     pool.close().await;
@@ -127,7 +127,7 @@ pub async fn backup(args: &[String]) -> Result<String, String> {
     let options = parse_options(args, true)?;
     let config = config()?;
     let paths = paths(&config, &options);
-    let pool = crate::db::connect(&paths.database_path, 1)
+    let pool = manavault_core::db::connect(&paths.database_path, 1)
         .await
         .map_err(|error| error.to_string())?;
     let artifact = backup::local::create(&pool, &paths, Reason::Manual)

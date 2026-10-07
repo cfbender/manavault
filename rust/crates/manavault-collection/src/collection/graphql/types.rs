@@ -3,8 +3,6 @@
 
 use async_graphql::{Context, ID, Object, SimpleObject};
 
-use crate::catalog::price::{format_cents, format_signed_cents};
-use crate::catalog::printing::Printing;
 use crate::collection::filters::{ItemFilters, LocationFilter, Sort};
 use crate::collection::graphql::values::{
     CollectionValueSummary, format_percent, value_gain_percent,
@@ -13,8 +11,10 @@ use crate::collection::item::CollectionItem;
 use crate::collection::loader;
 use crate::collection::location::{Location, Place};
 use crate::collection::queries::{self, ItemGroup, Page, ValueTotals};
-use crate::graphql::relay::{PageArgs, from_slice, offset_and_limit};
-use crate::graphql::{NodeKind, Result, global_id, internal_error, state};
+use manavault_catalog::catalog::price::{format_cents, format_signed_cents};
+use manavault_catalog::catalog::printing::Printing;
+use manavault_core::graphql::relay::{PageArgs, from_slice, offset_and_limit};
+use manavault_core::graphql::{NodeKind, Result, global_id, internal_error, state};
 
 #[Object]
 impl CollectionItem {
@@ -145,7 +145,7 @@ impl CollectionItemAllocationDeck {
     async fn deck(&self, ctx: &Context<'_>) -> Result<crate::decks::Deck> {
         let deck = loader::deck(ctx, crate::decks::DeckId(self.deck_id))
             .await?
-            .ok_or_else(|| crate::graphql::user_error("Deck was not found."))?;
+            .ok_or_else(|| manavault_core::graphql::user_error("Deck was not found."))?;
         Ok(crate::decks::Deck::new(deck.as_ref().clone()))
     }
 
@@ -173,13 +173,13 @@ impl CollectionItemGroup {
     }
 }
 
-crate::connection_types!(CollectionItemConnection, CollectionItemEdge, CollectionItem);
-crate::connection_types!(
+manavault_core::connection_types!(CollectionItemConnection, CollectionItemEdge, CollectionItem);
+manavault_core::connection_types!(
     CollectionItemGroupConnection,
     CollectionItemGroupEdge,
     CollectionItemGroup
 );
-crate::connection_types!(LocationConnection, LocationEdge, Location);
+manavault_core::connection_types!(LocationConnection, LocationEdge, Location);
 
 /// `RelayHelpers.slice_window/3`: relay arguments over a known total, else
 /// the first `default` rows.

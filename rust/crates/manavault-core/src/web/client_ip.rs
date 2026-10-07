@@ -54,8 +54,8 @@ mod tests {
     use super::*;
     use axum::http::HeaderValue;
 
-    fn config(trust: bool, header: &str) -> (crate::test_support::TempDir, Config) {
-        let dir = crate::test_support::TempDir::new();
+    fn config(trust: bool, header: &str) -> (crate::testing::TempDir, Config) {
+        let dir = crate::testing::TempDir::new();
         let mut config = Config::for_tests(dir.path().to_path_buf());
         config.trust_proxy_headers = trust;
         config.forwarded_ip_header = header.to_owned();

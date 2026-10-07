@@ -3,7 +3,7 @@
 //! `AppController`): the read-only `/share/graphql` API, the shared deck
 //! page, and its SVG/PNG link previews.
 //!
-//! Want-list and trade-binder share pages live in [`crate::trade::web`];
+//! Want-list and trade-binder share pages live in [`manavault_trade::trade::web`];
 //! their public GraphQL fields are served here.
 
 pub mod http;

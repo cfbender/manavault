@@ -5,10 +5,10 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use lotus::{OracleId, Zone};
 use serde_json::Value;
 
-use crate::catalog::card::CardRecord;
-use crate::catalog::json;
 use crate::decks::commander;
 use crate::decks::model::{DeckFormat, counts_toward_deck};
+use manavault_catalog::catalog::card::CardRecord;
+use manavault_catalog::catalog::json;
 
 /// One deck card as the legality rules see it.
 #[derive(Debug, Clone, Copy)]

@@ -85,7 +85,7 @@ fn ensure_gzip_path(source: &Path) -> Result<PathBuf, InstallError> {
     let temporary = PathBuf::from(format!(
         "{}.tmp-{}",
         gzip_path.display(),
-        hex::encode(crate::crypto::random_bytes::<6>())
+        hex::encode(manavault_core::crypto::random_bytes::<6>())
     ));
     let result = (|| -> std::io::Result<()> {
         let contents = std::fs::read(source)?;
@@ -149,7 +149,10 @@ fn verify_files(
         let size = std::fs::metadata(&path).map_err(|_| invalid())?.len();
         let actual = file_sha256(&path).ok_or_else(invalid)?;
         if size != bytes
-            || !crate::crypto::secure_compare(expected.to_lowercase().as_bytes(), actual.as_bytes())
+            || !manavault_core::crypto::secure_compare(
+                expected.to_lowercase().as_bytes(),
+                actual.as_bytes(),
+            )
         {
             return Err(invalid());
         }
@@ -176,7 +179,7 @@ fn publish_directory(root: &Path, version: &str, incoming: &Path) -> Result<Path
 fn swap_symlink(root: &Path, name: &str, target: &str) -> Result<(), InstallError> {
     let temporary = root.join(format!(
         ".{name}-{}",
-        hex::encode(crate::crypto::random_bytes::<6>())
+        hex::encode(manavault_core::crypto::random_bytes::<6>())
     ));
     let result = std::os::unix::fs::symlink(target, &temporary)
         .and_then(|()| std::fs::rename(&temporary, root.join(name)));
@@ -237,12 +240,12 @@ pub fn install(root: &Path, manifest: &Value, incoming: &Path) -> Result<PathBuf
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::test_support::TempDir;
+    use manavault_core::testing::TempDir;
     use serde_json::json;
     use std::collections::BTreeMap;
 
     pub fn sha(body: &str) -> String {
-        crate::crypto::sha256_hex(body.as_bytes())
+        manavault_core::crypto::sha256_hex(body.as_bytes())
     }
 
     /// Writes an incoming bundle and returns its manifest and directory.

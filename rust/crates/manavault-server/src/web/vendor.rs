@@ -10,7 +10,7 @@ use axum::response::{IntoResponse, Response};
 use serde_json::{Value, json};
 
 use super::auth_controller::redirect;
-use crate::state::AppState;
+use manavault_core::state::AppState;
 
 const DECK_BUILDER_URL: &str = "https://starcitygames.com/shop/deck-builder/";
 

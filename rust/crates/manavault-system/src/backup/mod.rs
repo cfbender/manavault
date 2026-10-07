@@ -39,7 +39,7 @@ pub fn parse_remote_datetime(value: &str) -> Option<String> {
     if value.ends_with('Z') || value.ends_with('z') {
         Some(value.to_owned())
     } else {
-        Some(crate::timefmt::utc_seconds(at))
+        Some(manavault_core::timefmt::utc_seconds(at))
     }
 }
 

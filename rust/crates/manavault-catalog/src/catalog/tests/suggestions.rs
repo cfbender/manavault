@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 
 use crate::catalog::invalidate_after_import;
 use crate::catalog::search::suggestions::suggest_card_names;
-use crate::test_support::TestApp;
+use crate::test_app::TestApp;
 
 fn card(id: &str, oracle_id: &str, name: &str, cn: &str) -> Value {
     json!({

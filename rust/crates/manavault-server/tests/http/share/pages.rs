@@ -4,7 +4,8 @@
 use serde_json::json;
 
 use super::{add_card, get, insert_deck, post_graphql, share};
-use crate::test_support::{TestApp, fixtures};
+use manavault_catalog::testing::fixtures;
+use manavault_server::test_support::TestApp;
 
 fn preview_cover_data_uri() -> String {
     let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630"><rect width="1200" height="630" fill="#31203a" /><circle cx="980" cy="120" r="220" fill="#f59e0b" opacity="0.7" /></svg>"##;
@@ -98,9 +99,12 @@ async fn the_share_page_has_deck_specific_link_preview_metadata() {
 async fn revoked_and_malformed_deck_tokens_are_not_found() {
     let app = TestApp::new().await;
     let (deck, token) = shared_deck(&app).await;
-    crate::decks::records::disable_sharing(app.db(), crate::decks::DeckId(deck))
-        .await
-        .unwrap();
+    manavault_collection::decks::records::disable_sharing(
+        app.db(),
+        manavault_collection::decks::DeckId(deck),
+    )
+    .await
+    .unwrap();
     for path in [
         format!("/share/decks/{token}"),
         format!("/share/decks/{token}/preview.svg"),
@@ -251,11 +255,14 @@ async fn rotation_invalidates_every_public_surface() {
     let deck = insert_deck(&app, "Rotated Share", "commander", "brewing").await;
     let old = share(&app, deck).await;
     assert_eq!(every_surface(&app, &old).await, [200, 200, 200]);
-    let rotated = crate::decks::records::rotate_share_token(app.db(), crate::decks::DeckId(deck))
-        .await
-        .unwrap()
-        .share_token
-        .unwrap();
+    let rotated = manavault_collection::decks::records::rotate_share_token(
+        app.db(),
+        manavault_collection::decks::DeckId(deck),
+    )
+    .await
+    .unwrap()
+    .share_token
+    .unwrap();
     assert_ne!(rotated, old);
     assert_eq!(every_surface(&app, &old).await, [404, 404, 404]);
     assert_eq!(
@@ -267,7 +274,7 @@ async fn rotation_invalidates_every_public_surface() {
 
 #[tokio::test]
 async fn anonymous_share_visitors_keep_their_own_appearance() {
-    let hash = crate::auth::hash_password_with("secret", 1, b"test-salt");
+    let hash = manavault_core::auth::hash_password_with("secret", 1, b"test-salt");
     let app = TestApp::with_config(|config| {
         config.auth_disabled = false;
         config.admin_password_hash = Some(hash);

@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 
-use crate::state::AppState;
+use manavault_core::state::AppState;
 
 /// A vendor with a price feed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

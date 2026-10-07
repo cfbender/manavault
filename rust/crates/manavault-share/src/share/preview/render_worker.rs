@@ -11,8 +11,8 @@ use tokio::sync::broadcast;
 
 use super::renderer::RenderError;
 use super::{DeckPreview, artifact_store, cover_fetcher, renderer};
-use crate::jobs::{Job, Outcome, Unique, Worker};
-use crate::state::AppState;
+use manavault_core::jobs::{Job, Outcome, Unique, Worker};
+use manavault_core::state::AppState;
 
 /// The worker name stored in `jobs`.
 pub const NAME: &str = "share_preview_render";

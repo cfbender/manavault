@@ -4,8 +4,8 @@
 use sqlx::SqlitePool;
 
 use super::deck_analysis::result::valid_rating;
-use crate::timefmt;
-use crate::validation::{BLANK, INVALID, ValidationError, too_long};
+use manavault_core::timefmt;
+use manavault_core::validation::{BLANK, INVALID, ValidationError, too_long};
 
 const DEFAULT_LIMIT: i64 = 50;
 const MAXIMUM_LIMIT: i64 = 100;

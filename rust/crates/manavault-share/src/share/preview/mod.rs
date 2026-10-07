@@ -12,10 +12,10 @@ use std::fmt::Write as _;
 
 use serde::{Deserialize, Serialize};
 
-use crate::decks::contents::{self, DeckContents};
-use crate::decks::model::DeckRow;
-use crate::pricing::PriceStore;
-use crate::web::app_shell::escape;
+use manavault_catalog::pricing::PriceStore;
+use manavault_collection::decks::contents::{self, DeckContents};
+use manavault_collection::decks::model::DeckRow;
+use manavault_core::web::app_shell::escape;
 
 /// Preview image width.
 pub const IMAGE_WIDTH: u32 = 1200;
@@ -136,7 +136,7 @@ fn bracket_label(deck: &DeckRow) -> Option<String> {
     let official = deck
         .commander_bracket
         .filter(|bracket| (1..=5).contains(bracket))?;
-    Some(crate::ai::deck_analysis::result::bracket_label(
+    Some(manavault_ai::ai::deck_analysis::result::bracket_label(
         official,
         deck.commander_bracket_estimate,
         deck.commander_bracket_rating.as_deref(),
@@ -152,7 +152,7 @@ impl DeckPage {
         prices: &PriceStore,
         token: &str,
     ) -> Self {
-        let card_count = crate::decks::model::counted_quantity(contents.rows());
+        let card_count = manavault_collection::decks::model::counted_quantity(contents.rows());
         let format_label = titleize(deck.format.as_str());
         let legality_label = if contents.legality(deck.format).status == "legal" {
             "Legal"

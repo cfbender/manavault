@@ -7,7 +7,7 @@ use serde_json::json;
 use super::*;
 use crate::collection::changes::{ItemError, bulk_update, set_trade_quantity, update};
 use crate::collection::filters::{LocationFilter, Sort};
-use crate::test_support::fixtures::{black_lotus, plains, time_walk};
+use manavault_catalog::testing::fixtures::{black_lotus, plains, time_walk};
 
 fn sorted(field: &str, direction: &str) -> Page {
     Page {

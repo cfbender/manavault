@@ -12,7 +12,7 @@ use sqlx::SqlitePool;
 
 use crate::catalog::card::{Card, CardRecord};
 use crate::catalog::{json, price};
-use crate::graphql::{Json, NodeKind, global_id};
+use manavault_core::graphql::{Json, NodeKind, global_id};
 
 /// Selects `scryfall_printings` rows aliased `p` into [`PrintingRecord`];
 /// the argument is the rest of the query after `FROM scryfall_printings AS p`.
@@ -388,7 +388,10 @@ impl Printing {
 
     /// Current price in cents for a finish, from the selected price source with finish fallback.
     async fn price_cents(&self, ctx: &Context<'_>, finish: Option<String>) -> Option<i64> {
-        self.price_cents_for(&crate::graphql::state(ctx).prices, finish.as_deref())
+        self.price_cents_for(
+            &manavault_core::graphql::state(ctx).prices,
+            finish.as_deref(),
+        )
     }
 
     async fn image_url(&self) -> Option<String> {
@@ -418,7 +421,7 @@ impl Printing {
     }
 
     async fn price_text(&self, ctx: &Context<'_>) -> Option<String> {
-        price::format_cents(self.price_cents_for(&crate::graphql::state(ctx).prices, None))
+        price::format_cents(self.price_cents_for(&manavault_core::graphql::state(ctx).prices, None))
     }
 
     async fn released_at(&self) -> Option<&str> {
@@ -433,4 +436,4 @@ impl Printing {
     }
 }
 
-crate::connection_types!(PrintingConnection, PrintingEdge, Printing);
+manavault_core::connection_types!(PrintingConnection, PrintingEdge, Printing);

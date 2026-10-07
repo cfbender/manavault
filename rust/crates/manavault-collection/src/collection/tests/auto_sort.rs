@@ -9,7 +9,7 @@ use super::*;
 use crate::collection::auto_sort::rules::{AutoSortError, RuleInput, list, replace};
 use crate::collection::auto_sort::{AutoSortOptions, AutoSortResult, Source, run};
 use crate::collection::filters::LocationFilter;
-use crate::test_support::fixtures::{black_lotus, plains, time_walk};
+use manavault_catalog::testing::fixtures::{black_lotus, plains, time_walk};
 
 fn rule(target: i64, priority: i64) -> RuleInput {
     RuleInput {
@@ -59,8 +59,9 @@ fn strings(values: &[&str]) -> Option<Vec<String>> {
 
 /// Marks an item's last move as older than the 30-day debounce.
 async fn age_location_change(app: &TestApp, id: i64) {
-    let stale =
-        crate::timefmt::utc_seconds(time::OffsetDateTime::now_utc() - time::Duration::days(31));
+    let stale = manavault_core::timefmt::utc_seconds(
+        time::OffsetDateTime::now_utc() - time::Duration::days(31),
+    );
     set_item_column(app, id, "location_changed_at", &stale).await;
 }
 

@@ -158,7 +158,7 @@ pub fn extract(artifact: &Path, extract_dir: &Path) -> Result<(), ArchiveError> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::TempDir;
+    use manavault_core::testing::TempDir;
 
     #[test]
     fn round_trips_nested_files() {

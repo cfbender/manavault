@@ -5,8 +5,8 @@ use async_graphql::{Context, ErrorExtensions, ID, Object, SimpleObject};
 
 use super::settings::{self, BackupSettingsInput, CloudSettings, UpdateError, present};
 use super::{Remote, cloud};
-use crate::graphql::{state, user_error};
-use crate::timefmt;
+use manavault_core::graphql::{state, user_error};
+use manavault_core::timefmt;
 
 type GqlResult<T> = async_graphql::Result<T>;
 
@@ -197,7 +197,7 @@ impl BackupMutations {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_support::TestApp;
+    use crate::test_app::TestApp;
     use serde_json::json;
 
     const SETTINGS: &str = "{ backupSettings { id enabled provider cron retentionCount s3Endpoint hasS3SecretAccessKey hasGoogleClientSecret hasGoogleRefreshToken lastBackupAt lastBackupStatus } }";

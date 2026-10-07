@@ -5,12 +5,12 @@ use axum::http::header::{CONTENT_TYPE, RETRY_AFTER};
 use axum::http::{HeaderValue, Request, StatusCode};
 use axum::response::{IntoResponse, Response};
 
-use super::app_shell::escape;
-use super::client_ip;
-use super::return_path;
-use super::session::{self, Session};
-use crate::auth::{self, Check, FailureOutcome};
-use crate::state::AppState;
+use manavault_core::auth::{self, Check, FailureOutcome};
+use manavault_core::state::AppState;
+use manavault_core::web::app_shell::escape;
+use manavault_core::web::client_ip;
+use manavault_core::web::return_path;
+use manavault_core::web::session::{self, Session};
 
 const MISSING_HASH: &str = "Admin password hash is missing. Set MANAVAULT_ADMIN_PASSWORD_HASH or explicitly disable auth with MANAVAULT_AUTH_DISABLED=true.";
 const PERMANENTLY_BANNED: &str =

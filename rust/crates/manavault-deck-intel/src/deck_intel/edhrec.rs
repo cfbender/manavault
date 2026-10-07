@@ -10,11 +10,13 @@ use lotus::{Finish, Zone};
 use manavault_allocation::{AllocationError, DeckId};
 use serde_json::{Map, Value, json};
 
-use crate::catalog::card::Card;
-use crate::catalog::edhrec::{CardLookup, EdhrecError, card_slug, entry_name, entry_number};
 use crate::deck_intel::DeckContext;
 use crate::deck_intel::suggest::{Suggested, collection_statuses, matching_deck_card};
-use crate::state::AppState;
+use manavault_catalog::catalog::card::Card;
+use manavault_catalog::catalog::edhrec::{
+    CardLookup, EdhrecError, card_slug, entry_name, entry_number,
+};
+use manavault_core::state::AppState;
 
 const BROWSER_USER_AGENT: &str =
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) ManaVault/0.1";
@@ -53,7 +55,7 @@ pub struct DeckEdhrecCard {
     pub salt: Option<f64>,
     pub edhrec_url: Option<String>,
     pub card: Option<Card>,
-    pub collection_status: crate::decks::DeckCardAllocationStatus,
+    pub collection_status: manavault_collection::decks::DeckCardAllocationStatus,
 }
 
 /// `EdhrecTheme`.
@@ -82,7 +84,7 @@ pub struct EdhrecSectionCard {
     pub potential_decks: Option<i64>,
     pub url: Option<String>,
     pub card: Option<Card>,
-    pub collection_status: crate::decks::DeckCardAllocationStatus,
+    pub collection_status: manavault_collection::decks::DeckCardAllocationStatus,
 }
 
 /// `EdhrecCardSection`.
@@ -235,7 +237,7 @@ fn validate_payload(payload: &Value) -> Result<(), DeckEdhrecError> {
 
 async fn decode_object(response: reqwest::Response) -> Result<Map<String, Value>, EdhrecError> {
     let body = response.bytes().await.map_err(|error| {
-        EdhrecError::RequestFailed(crate::http_errors::transport_message(&error))
+        EdhrecError::RequestFailed(manavault_core::http_errors::transport_message(&error))
     })?;
     match serde_json::from_slice(&body) {
         Ok(Value::Object(map)) => Ok(map),
@@ -260,7 +262,7 @@ pub async fn fetch_recs(
         .send()
         .await
         .map_err(|error| {
-            EdhrecError::RequestFailed(crate::http_errors::transport_message(&error))
+            EdhrecError::RequestFailed(manavault_core::http_errors::transport_message(&error))
         })?;
     let status = response.status();
     if !status.is_success() {
@@ -313,7 +315,7 @@ async fn get_commander_page(
         .send()
         .await
         .map_err(|error| {
-            EdhrecError::RequestFailed(crate::http_errors::transport_message(&error))
+            EdhrecError::RequestFailed(manavault_core::http_errors::transport_message(&error))
         })?;
     let status = response.status();
     if !status.is_success() {

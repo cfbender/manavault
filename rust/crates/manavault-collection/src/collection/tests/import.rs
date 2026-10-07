@@ -9,7 +9,7 @@ use crate::collection::filters::LocationFilter;
 use crate::collection::import::{
     ImportError, ImportPreview, PreviewOptions, RowStatus, commit, preview, preview_auto_sort,
 };
-use crate::test_support::fixtures::{black_lotus, time_walk};
+use manavault_catalog::testing::fixtures::{black_lotus, time_walk};
 
 fn options(format: &str) -> PreviewOptions {
     PreviewOptions {
@@ -271,7 +271,7 @@ async fn ambiguous_rows_list_their_candidates() {
     let app = TestApp::new().await;
     app.import_cards(&[
         black_lotus(),
-        crate::test_support::fixtures::black_lotus_beta(),
+        manavault_catalog::testing::fixtures::black_lotus_beta(),
     ])
     .await;
     let preview = preview(app.db(), "Black Lotus", &options("txt"))

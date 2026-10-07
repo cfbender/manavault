@@ -7,8 +7,8 @@ use super::deck_analysis::{self, Analysis, Payload, PayloadDeck};
 use super::decks::{self, DeckInfo, SaveError, SavedAnalysis};
 use super::workers::DECK_ANALYSIS_WORKER;
 use super::{AiError, Configured, Provider, openrouter};
-use crate::state::AppState;
-use crate::timefmt;
+use manavault_core::state::AppState;
+use manavault_core::timefmt;
 
 /// What the frontend sees of an analysis job.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -99,7 +99,7 @@ pub async fn latest_job(
 /// number of decks.
 pub async fn refresh_all(state: &AppState) -> Result<usize, AiError> {
     Configured::load(state).await?;
-    let mut tx = crate::db::begin_write(&state.db).await?;
+    let mut tx = manavault_core::db::begin_write(&state.db).await?;
     let ids = sqlx::query_scalar!(r#"SELECT id AS "id!" FROM decks ORDER BY name ASC, id ASC"#)
         .fetch_all(&mut *tx)
         .await?;

@@ -188,7 +188,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn validates_and_counts_large_payloads() {
-        let dir = crate::test_support::TempDir::new();
+        let dir = manavault_core::testing::TempDir::new();
         let records: Vec<Value> = (1..=3000)
             .map(|index| json!({"name": format!("Card {index}"), "digest": "x".repeat(64)}))
             .collect();

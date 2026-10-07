@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use sqlx::SqlitePool;
 
 use super::*;
-use crate::test_support::TempDir;
+use crate::testing::TempDir;
 
 /// A database from the v1.0.0 release (its own 34 migrations), filled with
 /// owner data through SQL in v1.0.0's column formats; dumped with
@@ -565,41 +565,4 @@ async fn moves_unfinished_oban_jobs_into_the_jobs_table() {
     assert_eq!(moved, expected);
     assert!(!schema(&pool).await.contains_key("oban_jobs"));
     pool.close().await;
-}
-
-#[tokio::test]
-async fn the_server_serves_an_upgraded_v1_0_0_database() {
-    let app = crate::test_support::TestApp::with_database(|pool| {
-        Box::pin(async move { load_dump(&pool, V1_0_0_DUMP).await })
-    })
-    .await;
-    let data = app
-        .gql_data(
-            "{ homeSummary { collectionCount locationCount deckCount }
-               decks(first: 5) { edges { node { name status cardCount deckCards(first: 10) { edges { node { quantity zone card { name } } } } } } } }",
-            serde_json::json!({}),
-        )
-        .await;
-    assert_eq!(
-        data["homeSummary"],
-        serde_json::json!({"collectionCount": 11, "locationCount": 2, "deckCount": 2})
-    );
-    let deck = data["decks"]["edges"]
-        .as_array()
-        .expect("decks")
-        .iter()
-        .map(|edge| &edge["node"])
-        .find(|deck| deck["name"] == "Mono-Red Lotus")
-        .expect("upgraded deck");
-    assert_eq!(deck["name"], "Mono-Red Lotus");
-    let zones: Vec<&str> = deck["deckCards"]["edges"]
-        .as_array()
-        .expect("cards")
-        .iter()
-        .filter_map(|edge| edge["node"]["zone"].as_str())
-        .collect();
-    assert!(
-        zones.contains(&"commander") && zones.contains(&"considering"),
-        "{zones:?}"
-    );
 }

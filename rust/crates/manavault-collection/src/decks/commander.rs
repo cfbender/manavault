@@ -9,7 +9,7 @@
 
 use lotus::commander::CommanderCard;
 
-use crate::catalog::card::CardRecord;
+use manavault_catalog::catalog::card::CardRecord;
 
 fn commander_card(card: &CardRecord) -> CommanderCard<'_> {
     CommanderCard {

@@ -115,10 +115,12 @@ pub async fn card(ctx: &Context<'_>, oracle_id: &OracleId) -> async_graphql::Res
             .load_one(CardKey(oracle_id.clone()))
             .await
             .map_err(load_error)?,
-        None => crate::catalog::card::load_record(&crate::graphql::state(ctx).db, oracle_id)
-            .await
-            .map_err(load_error)?
-            .map(Arc::new),
+        None => {
+            crate::catalog::card::load_record(&manavault_core::graphql::state(ctx).db, oracle_id)
+                .await
+                .map_err(load_error)?
+                .map(Arc::new)
+        }
     };
     Ok(record.map(Card::from))
 }
@@ -134,7 +136,7 @@ pub async fn printings_of(
             .await
             .map_err(load_error)?,
         None => printing::printings_with_owned_counts(
-            &crate::graphql::state(ctx).db,
+            &manavault_core::graphql::state(ctx).db,
             std::slice::from_ref(oracle_id),
         )
         .await
@@ -156,7 +158,7 @@ pub async fn produced_tokens(
             .await
             .map_err(load_error)?,
         None => produced::by_oracle_ids(
-            &crate::graphql::state(ctx).db,
+            &manavault_core::graphql::state(ctx).db,
             std::slice::from_ref(oracle_id),
         )
         .await

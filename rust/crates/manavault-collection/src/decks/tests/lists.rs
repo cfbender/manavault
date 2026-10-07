@@ -5,13 +5,13 @@ use std::collections::HashMap;
 use lotus::{Finish, Zone};
 use serde_json::{Value, json};
 
-use super::support::*;
 use crate::decks::DeckError;
 use crate::decks::decklist::{self, ImportResult};
 use crate::decks::model::DeckId;
 use crate::decks::tags::{self, DeckTagChanges, DefaultTagEntry};
-use crate::test_support::TestApp;
-use crate::test_support::fixtures::{black_lotus, merge, time_walk};
+use crate::test_app::TestApp;
+use crate::testing::*;
+use manavault_catalog::testing::fixtures::{black_lotus, merge, time_walk};
 
 async fn import(app: &TestApp, deck: DeckId, text: &str) -> ImportResult {
     decklist::import_decklist(app.db(), deck, text, false, None)
@@ -23,13 +23,13 @@ async fn import(app: &TestApp, deck: DeckId, text: &str) -> ImportResult {
 async fn import_and_export_support_zones_and_set_collector_preferences() {
     let app = TestApp::new().await;
     app.import_cards(&[black_lotus(), time_walk()]).await;
-    let deck = create_deck(&app, "Import Test", None, None).await;
+    let deck = create_deck(app.db(), "Import Test", None, None).await;
     let text = "Commander\n1 Time Walk (LEA) 84 *F*\n\nMainboard\n1 Black Lotus (LEA) 232\n2x Black Lotus\n\nSideboard\n1 Missing Card\n\nMaybeboard\nSB: 1 Time Walk\n";
     let result = import(&app, deck.id, text).await;
     assert_eq!(result.imported, 4);
     assert_eq!(result.unresolved, vec!["Missing Card"]);
 
-    let loaded = contents(&app, deck.id).await;
+    let loaded = contents(app.db(), deck.id).await;
     let lotus = loaded
         .cards
         .iter()
@@ -63,7 +63,7 @@ async fn import_and_export_support_zones_and_set_collector_preferences() {
 async fn import_ignores_comments_and_deduplicates_stable_aliases() {
     let app = TestApp::new().await;
     app.import_cards(&[black_lotus()]).await;
-    let deck = create_deck(&app, "Commented Import", None, None).await;
+    let deck = create_deck(app.db(), "Commented Import", None, None).await;
     let result = import(
         &app,
         deck.id,
@@ -78,7 +78,7 @@ async fn import_ignores_comments_and_deduplicates_stable_aliases() {
             skipped_printings: vec![]
         }
     );
-    let cards = deck_cards(&app, deck.id).await;
+    let cards = deck_cards(app.db(), deck.id).await;
     let main = cards
         .iter()
         .find(|row| row.zone == Zone::Mainboard)
@@ -101,14 +101,14 @@ async fn import_matches_diacritics_front_faces_and_flavor_names() {
     ])
     .await;
 
-    let deck = create_deck(&app, "Diacritic Import", None, None).await;
+    let deck = create_deck(app.db(), "Diacritic Import", None, None).await;
     let result = import(&app, deck.id, "1 Óin the Brave\n1 Oin the brave").await;
     assert_eq!((result.imported, result.unresolved.len()), (2, 0));
-    let cards = deck_cards(&app, deck.id).await;
+    let cards = deck_cards(app.db(), deck.id).await;
     assert_eq!(cards.len(), 1);
     assert_eq!(cards[0].quantity.get(), 2);
 
-    let deck = create_deck(&app, "Multi-faced Import", None, None).await;
+    let deck = create_deck(app.db(), "Multi-faced Import", None, None).await;
     let result = import(
         &app,
         deck.id,
@@ -123,7 +123,7 @@ async fn import_matches_diacritics_front_faces_and_flavor_names() {
         ),
         (2, 0, 0)
     );
-    let cards = deck_cards(&app, deck.id).await;
+    let cards = deck_cards(app.db(), deck.id).await;
     assert_eq!(cards.len(), 1);
     assert_eq!(cards[0].quantity.get(), 2);
     assert_eq!(
@@ -134,23 +134,23 @@ async fn import_matches_diacritics_front_faces_and_flavor_names() {
         Some("scryfall-bala-ged-recovery")
     );
 
-    let deck = create_deck(&app, "Flavor Name Import", None, None).await;
+    let deck = create_deck(app.db(), "Flavor Name Import", None, None).await;
     assert_eq!(import(&app, deck.id, "1 Pelican Town").await.imported, 1);
-    assert_eq!(card_names(&app, deck.id).await, vec!["Homeward Path"]);
+    assert_eq!(card_names(app.db(), deck.id).await, vec!["Homeward Path"]);
 }
 
 #[tokio::test]
 async fn import_assumes_one_copy_and_can_target_a_zone() {
     let app = TestApp::new().await;
     app.import_cards(&[black_lotus(), time_walk()]).await;
-    let deck = create_deck(&app, "Quantityless Import", None, None).await;
+    let deck = create_deck(app.db(), "Quantityless Import", None, None).await;
     assert_eq!(
         import(&app, deck.id, "Black Lotus\nTime Walk\nSB: Black Lotus\n")
             .await
             .imported,
         3
     );
-    let cards = deck_cards(&app, deck.id).await;
+    let cards = deck_cards(app.db(), deck.id).await;
     assert!(cards.iter().all(|row| row.quantity.get() == 1));
     assert_eq!(
         cards
@@ -160,7 +160,7 @@ async fn import_assumes_one_copy_and_can_target_a_zone() {
         1
     );
 
-    let deck = create_deck(&app, "Zoned Import", None, None).await;
+    let deck = create_deck(app.db(), "Zoned Import", None, None).await;
     let result = decklist::import_decklist(
         app.db(),
         deck.id,
@@ -171,7 +171,7 @@ async fn import_assumes_one_copy_and_can_target_a_zone() {
     .await
     .unwrap();
     assert_eq!(result.imported, 2);
-    let cards = deck_cards(&app, deck.id).await;
+    let cards = deck_cards(app.db(), deck.id).await;
     assert_eq!(cards.len(), 2);
     assert!(cards.iter().all(|row| row.zone == Zone::Considering));
 
@@ -185,29 +185,29 @@ async fn import_assumes_one_copy_and_can_target_a_zone() {
 async fn replacement_restores_allocated_cards() {
     let app = TestApp::new().await;
     app.import_cards(&[black_lotus(), time_walk()]).await;
-    let binder = location(&app, "Import Replace Binder", "binder").await;
+    let binder = location(app.db(), "Import Replace Binder", "binder").await;
     let item = collection_item(
-        &app,
+        app.db(),
         "scryfall-printing-1",
         1,
         Finish::Nonfoil,
         Some(binder),
     )
     .await;
-    let deck = create_deck(&app, "Replace Import", None, None).await;
-    let lotus = add_card(&app, deck.id, "Black Lotus", 1, "mainboard").await;
-    allocate(&app, lotus.id, item, 1).await;
-    assert_eq!(item_location(&app, item).await, None);
+    let deck = create_deck(app.db(), "Replace Import", None, None).await;
+    let lotus = add_card(app.db(), deck.id, "Black Lotus", 1, "mainboard").await;
+    allocate(app.db(), lotus.id, item, 1).await;
+    assert_eq!(item_location(app.db(), item).await, None);
 
     let result =
         decklist::import_decklist(app.db(), deck.id, "1 Time Walk", true, Some("considering"))
             .await
             .unwrap();
     assert_eq!(result.imported, 1);
-    assert_eq!(item_location(&app, item).await, Some(binder.0));
-    assert_eq!(card_names(&app, deck.id).await, vec!["Time Walk"]);
+    assert_eq!(item_location(app.db(), item).await, Some(binder.0));
+    assert_eq!(card_names(app.db(), deck.id).await, vec!["Time Walk"]);
     assert!(
-        deck_cards(&app, deck.id)
+        deck_cards(app.db(), deck.id)
             .await
             .iter()
             .all(|row| row.zone == Zone::Considering)
@@ -218,11 +218,11 @@ async fn replacement_restores_allocated_cards() {
 async fn import_keeps_card_identities_when_the_printing_is_unusable() {
     let app = TestApp::new().await;
     app.import_cards(&[black_lotus(), time_walk()]).await;
-    let deck = create_deck(&app, "Mismatched Printing", None, None).await;
+    let deck = create_deck(app.db(), "Mismatched Printing", None, None).await;
     let result = import(&app, deck.id, "1x Black Lotus (LEA) 84 *F*").await;
     assert_eq!(result.imported, 1);
     assert_eq!(result.skipped_printings, vec!["Black Lotus"]);
-    let cards = deck_cards(&app, deck.id).await;
+    let cards = deck_cards(app.db(), deck.id).await;
     assert_eq!(cards.len(), 1);
     assert_eq!(cards[0].oracle_id.as_str(), "oracle-1");
     assert_eq!(cards[0].preferred_printing_id, None);
@@ -306,7 +306,7 @@ async fn import_dedupes_the_iroh_list_to_100_cards_with_printings_and_finishes()
     assert_eq!(expected.values().map(|e| e.quantity).sum::<u32>(), 100);
     let app = TestApp::new().await;
     app.import_cards(&expected_cards(&expected)).await;
-    let deck = create_deck(&app, "Iroh, Grand Lotus", None, None).await;
+    let deck = create_deck(app.db(), "Iroh, Grand Lotus", None, None).await;
     let result = import(&app, deck.id, IROH).await;
     assert_eq!(
         result,
@@ -316,7 +316,7 @@ async fn import_dedupes_the_iroh_list_to_100_cards_with_printings_and_finishes()
             skipped_printings: vec![]
         }
     );
-    let loaded = contents(&app, deck.id).await;
+    let loaded = contents(app.db(), deck.id).await;
     assert_eq!(loaded.stats().total, 100);
     assert_eq!(loaded.cards.len(), 89);
     for card in &loaded.cards {
@@ -339,7 +339,7 @@ async fn import_dedupes_the_iroh_list_to_100_cards_with_printings_and_finishes()
 async fn tag_app() -> TestApp {
     let app = TestApp::new().await;
     app.import_cards(&[black_lotus(), time_walk()]).await;
-    clear_default_tags(&app).await;
+    clear_default_tags(app.db()).await;
     app
 }
 
@@ -354,7 +354,7 @@ fn tag(name: &str, color: Option<&str>) -> DeckTagChanges {
 #[tokio::test]
 async fn tags_get_distinct_positions_default_colors_and_validation() {
     let app = tag_app().await;
-    let deck = create_deck(&app, "Powered", Some("vintage"), None).await;
+    let deck = create_deck(app.db(), "Powered", Some("vintage"), None).await;
     let aggro = tags::create_deck_tag(app.db(), deck.id, &tag("Aggro", Some("#ff0000")))
         .await
         .unwrap();
@@ -389,7 +389,7 @@ async fn tags_get_distinct_positions_default_colors_and_validation() {
 #[tokio::test]
 async fn tags_list_by_position_with_quantity_card_counts() {
     let app = tag_app().await;
-    let deck = create_deck(&app, "Powered", Some("vintage"), None).await;
+    let deck = create_deck(app.db(), "Powered", Some("vintage"), None).await;
     let zebra = tags::create_deck_tag(app.db(), deck.id, &tag("Zebra", Some("#111111")))
         .await
         .unwrap();
@@ -419,9 +419,9 @@ async fn tags_list_by_position_with_quantity_card_counts() {
         .collect();
     assert_eq!(names, vec!["Mango", "Apple", "Zebra"]);
 
-    let deck = create_deck(&app, "Counts", Some("vintage"), None).await;
-    let lotus = add_card(&app, deck.id, "Black Lotus", 3, "mainboard").await;
-    let walk = add_card(&app, deck.id, "Time Walk", 1, "mainboard").await;
+    let deck = create_deck(app.db(), "Counts", Some("vintage"), None).await;
+    let lotus = add_card(app.db(), deck.id, "Black Lotus", 3, "mainboard").await;
+    let walk = add_card(app.db(), deck.id, "Time Walk", 1, "mainboard").await;
     let busy = tags::create_deck_tag(app.db(), deck.id, &tag("Busy", Some("#ff0000")))
         .await
         .unwrap();
@@ -458,8 +458,8 @@ async fn tag_ids(app: &TestApp, card: crate::decks::model::DeckCardId) -> Vec<i6
 #[tokio::test]
 async fn assignments_are_idempotent_guarded_and_cascade_on_delete() {
     let app = tag_app().await;
-    let deck = create_deck(&app, "Powered", Some("vintage"), None).await;
-    let card = add_card(&app, deck.id, "Black Lotus", 1, "mainboard").await;
+    let deck = create_deck(app.db(), "Powered", Some("vintage"), None).await;
+    let card = add_card(app.db(), deck.id, "Black Lotus", 1, "mainboard").await;
     let t1 = tags::create_deck_tag(app.db(), deck.id, &tag("T1", Some("#ff0000")))
         .await
         .unwrap();
@@ -485,7 +485,7 @@ async fn assignments_are_idempotent_guarded_and_cascade_on_delete() {
         .unwrap();
     assert_eq!(tag_ids(&app, card.id).await, vec![t2.id]);
 
-    let other = create_deck(&app, "Deck B", Some("vintage"), None).await;
+    let other = create_deck(app.db(), "Deck B", Some("vintage"), None).await;
     let foreign = tags::create_deck_tag(app.db(), other.id, &tag("TagB", Some("#ff0000")))
         .await
         .unwrap();
@@ -516,8 +516,8 @@ async fn assignments_are_idempotent_guarded_and_cascade_on_delete() {
 #[tokio::test]
 async fn reorder_follows_the_given_order_and_ignores_other_decks() {
     let app = tag_app().await;
-    let deck_a = create_deck(&app, "Deck A", Some("vintage"), None).await;
-    let deck_b = create_deck(&app, "Deck B", Some("vintage"), None).await;
+    let deck_a = create_deck(app.db(), "Deck A", Some("vintage"), None).await;
+    let deck_b = create_deck(app.db(), "Deck B", Some("vintage"), None).await;
     let t1 = tags::create_deck_tag(app.db(), deck_a.id, &tag("T1", Some("#111111")))
         .await
         .unwrap();
@@ -561,7 +561,7 @@ async fn new_decks_copy_the_default_tags() {
     )
     .await
     .unwrap();
-    let deck = create_deck(&app, "Powered", Some("vintage"), None).await;
+    let deck = create_deck(app.db(), "Powered", Some("vintage"), None).await;
     let listed: Vec<(String, String, i64, Option<i64>)> = tags::list_deck_tags(app.db(), deck.id)
         .await
         .unwrap()
@@ -576,8 +576,8 @@ async fn new_decks_copy_the_default_tags() {
         ]
     );
 
-    clear_default_tags(&app).await;
-    let deck = create_deck(&app, "Bare", Some("vintage"), None).await;
+    clear_default_tags(app.db()).await;
+    let deck = create_deck(app.db(), "Bare", Some("vintage"), None).await;
     assert_eq!(
         tags::list_deck_tags(app.db(), deck.id).await.unwrap().len(),
         0

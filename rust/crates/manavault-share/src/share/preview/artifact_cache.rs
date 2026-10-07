@@ -16,7 +16,7 @@ use tokio::sync::broadcast::error::RecvError;
 
 use super::render_worker::{self, NAME as RENDER_WORKER};
 use super::{DeckPreview, IMAGE_HEIGHT, IMAGE_WIDTH, SOURCE_VERSION, artifact_store, renderer};
-use crate::state::AppState;
+use manavault_core::state::AppState;
 
 /// `@default_assets_version`.
 pub const ASSETS_VERSION: &str = "scryfall-symbols-v1";

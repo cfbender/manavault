@@ -11,7 +11,7 @@ use serde_json::Value;
 
 use super::{Vendor, VendorFeed, VendorRow, get};
 use crate::pricing::money;
-use crate::state::AppState;
+use manavault_core::state::AppState;
 
 pub const PRICELIST_URL: &str = "https://api.cardkingdom.com/api/v2/pricelist";
 

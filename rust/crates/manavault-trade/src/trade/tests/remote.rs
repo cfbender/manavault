@@ -15,7 +15,7 @@ use serde_json::{Value, json};
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 
-use crate::test_support::TestApp;
+use crate::test_app::TestApp;
 use crate::trade::list_source::{self, ListEntry, ResolveError, ResolvedList, UNSUPPORTED, remote};
 
 /// A DNS stub that answers every host with fixed addresses and counts calls.

@@ -7,8 +7,8 @@
 use lotus::OracleId;
 use sqlx::SqlitePool;
 
-use crate::catalog::search::cards_by_name;
 use crate::trade::list_source::ListEntry;
+use manavault_catalog::catalog::search::cards_by_name;
 
 /// An entry with the card it resolved to, if any.
 #[derive(Debug, Clone, PartialEq, Eq)]

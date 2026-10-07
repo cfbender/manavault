@@ -10,8 +10,8 @@ use crate::collection::filters::{ItemFilters, LocationFilter, Sort};
 use crate::collection::import::{ImportAttrs, ImportRow, RowStatus};
 use crate::collection::location::LocationChanges;
 use crate::collection::queries;
-use crate::graphql::relay::{LocationRef, location_ref, node_int, node_str};
-use crate::graphql::{NodeKind, Result, internal_error, state, user_error};
+use manavault_core::graphql::relay::{LocationRef, location_ref, node_int, node_str};
+use manavault_core::graphql::{NodeKind, Result, internal_error, state, user_error};
 
 /// `CollectionItemFilters`.
 #[derive(Debug, Clone, Default, InputObject)]
@@ -317,7 +317,7 @@ pub(crate) fn import_location_id(id: Option<&ID>) -> Result<Option<i64>> {
     if id.is_empty() || id.as_str() == "unfiled" {
         return Ok(None);
     }
-    if let Some(id) = crate::catalog::search::predicates::parse_int(id.as_str()) {
+    if let Some(id) = manavault_catalog::catalog::search::predicates::parse_int(id.as_str()) {
         return Ok(Some(id));
     }
     Ok(match location_ref(id)? {
@@ -339,12 +339,12 @@ fn raw_id_change(id: &MaybeUndefined<ID>) -> MaybeUndefined<String> {
     match id {
         MaybeUndefined::Undefined => MaybeUndefined::Undefined,
         MaybeUndefined::Null => MaybeUndefined::Null,
-        MaybeUndefined::Value(id) => {
-            MaybeUndefined::Value(match crate::graphql::relay::from_global_id(id.as_str()) {
+        MaybeUndefined::Value(id) => MaybeUndefined::Value(
+            match manavault_core::graphql::relay::from_global_id(id.as_str()) {
                 Some((NodeKind::Printing, raw)) => raw,
                 _ => id.to_string(),
-            })
-        }
+            },
+        ),
     }
 }
 

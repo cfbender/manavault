@@ -5,7 +5,7 @@ use serde_json::{Value, json};
 
 use super::*;
 use crate::collection::auto_sort::rules::{RuleInput, replace};
-use crate::test_support::fixtures::black_lotus;
+use manavault_catalog::testing::fixtures::black_lotus;
 
 fn card(id: &str, oracle_id: &str, name: &str, extra: Value) -> Value {
     simple_card(id, oracle_id, name, extra)
@@ -114,7 +114,8 @@ async fn create_collection_item_mutation_adds_a_printing() {
     let item = &data["createCollectionItem"]["collectionItem"];
     let id = item["id"].as_str().unwrap().to_owned();
     assert!(
-        crate::graphql::relay::node_int(&async_graphql::ID(id), NodeKind::CollectionItem).is_ok()
+        manavault_core::graphql::relay::node_int(&async_graphql::ID(id), NodeKind::CollectionItem)
+            .is_ok()
     );
     assert_eq!(
         item,
@@ -882,8 +883,9 @@ async fn items_filter_by_added_window() {
         },
     )
     .await;
-    let eight_days_ago =
-        crate::timefmt::utc_seconds(time::OffsetDateTime::now_utc() - time::Duration::days(8));
+    let eight_days_ago = manavault_core::timefmt::utc_seconds(
+        time::OffsetDateTime::now_utc() - time::Duration::days(8),
+    );
     set_item_column(&app, old, "inserted_at", &eight_days_ago).await;
     let data = app
         .gql_data(
@@ -1732,8 +1734,9 @@ async fn auto_sort_mutation_moves_matching_source_items() {
     .await
     .record
     .id;
-    let stale =
-        crate::timefmt::utc_seconds(time::OffsetDateTime::now_utc() - time::Duration::days(31));
+    let stale = manavault_core::timefmt::utc_seconds(
+        time::OffsetDateTime::now_utc() - time::Duration::days(31),
+    );
     set_item_column(&app, matching, "location_changed_at", &stale).await;
     set_item_column(&app, other, "location_changed_at", &stale).await;
     replace(

@@ -12,8 +12,8 @@ use crate::catalog::search::printings::{
     SetSuggestion, scanner_printings, search_sets, set_illustration_ids,
 };
 use crate::catalog::search::{cards_by_name, suggestions};
-use crate::graphql::relay::{PageArgs, forward_window, from_slice, node_str};
-use crate::graphql::{NodeKind, Result, state, user_error};
+use manavault_core::graphql::relay::{PageArgs, forward_window, from_slice, node_str};
+use manavault_core::graphql::{NodeKind, Result, state, user_error};
 
 /// `CardSort`.
 #[derive(Debug, Clone, Default, InputObject)]

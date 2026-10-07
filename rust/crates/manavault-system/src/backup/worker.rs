@@ -5,8 +5,8 @@
 use std::time::Duration;
 
 use super::{cloud, cron, settings};
-use crate::jobs::{Job, Outcome, Unique, Worker};
-use crate::state::AppState;
+use manavault_core::jobs::{Job, Outcome, Unique, Worker};
+use manavault_core::state::AppState;
 
 /// The worker name stored in `jobs`.
 pub const WORKER: &str = "cloud_backup";
@@ -19,7 +19,7 @@ async fn scheduled_at(state: &AppState, job: &Job) -> Option<time::OffsetDateTim
         .await
         .ok()
         .flatten()?;
-    crate::timefmt::parse(&stored)
+    manavault_core::timefmt::parse(&stored)
 }
 
 impl Worker for CloudBackupWorker {
@@ -71,7 +71,7 @@ impl Worker for CloudBackupWorker {
 mod tests {
     use super::*;
     use crate::backup::settings::BackupSettingsInput;
-    use crate::test_support::TestApp;
+    use crate::test_app::TestApp;
     use async_graphql::MaybeUndefined;
     use serde_json::json;
 
@@ -149,41 +149,6 @@ mod tests {
             let outcome = CloudBackupWorker.perform(&app.state, &job).await;
             // Running fails here (no S3 credentials), which proves it ran.
             assert_eq!(matches!(outcome, Outcome::Retry(_)), ran, "{scheduled}");
-        }
-    }
-
-    /// The crontab entries and timeouts of this area's workers.
-    #[test]
-    fn crontab_and_timeouts() {
-        let crontab: Vec<(&str, &str)> = manavault_server::app::crontab()
-            .iter()
-            .map(|entry| (entry.expression, entry.worker))
-            .collect();
-        for expected in [
-            ("@reboot", crate::scanner::update_worker::WORKER),
-            ("0 */6 * * *", crate::scanner::update_worker::WORKER),
-            ("* * * * *", WORKER),
-        ] {
-            assert!(crontab.contains(&expected), "{expected:?}");
-        }
-        assert_eq!(
-            crate::jobs::QUEUES,
-            [
-                ("ai", 2),
-                ("backup", 1),
-                ("catalog", 2),
-                ("preview", 2),
-                ("pricing", 1)
-            ]
-        );
-        // Stuck jobs are requeued after `STUCK_AFTER`, so every worker must
-        // time out sooner.
-        for worker in manavault_server::app::workers() {
-            assert!(
-                worker.timeout() < crate::jobs::STUCK_AFTER,
-                "{}",
-                worker.name()
-            );
         }
     }
 }

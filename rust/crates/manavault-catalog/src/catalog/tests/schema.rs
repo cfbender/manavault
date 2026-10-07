@@ -4,9 +4,9 @@
 use serde_json::{Value, json};
 
 use super::{edge_names, insert_collection_item, insert_location};
-use crate::graphql::{NodeKind, global_id};
-use crate::test_support::TestApp;
-use crate::test_support::fixtures::{black_lotus, black_lotus_beta, merge, plains, time_walk};
+use crate::test_app::TestApp;
+use crate::testing::fixtures::{black_lotus, black_lotus_beta, merge, plains, time_walk};
+use manavault_core::graphql::{NodeKind, global_id};
 
 async fn three_cards() -> TestApp {
     let app = TestApp::new().await;

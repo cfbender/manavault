@@ -5,8 +5,8 @@ use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use crate::catalog::edhrec::CardLookup;
-use crate::test_support::TestApp;
-use crate::test_support::fixtures::{black_lotus, time_walk};
+use crate::test_app::TestApp;
+use crate::testing::fixtures::{black_lotus, time_walk};
 
 fn section(header: &str, tag: &str, cards: Value) -> Value {
     let mut section = json!({"header": header, "tag": tag});

@@ -9,12 +9,12 @@ use lotus::{Condition, Finish, OracleId, Quantity, ScryfallId};
 use serde::{Deserialize, Serialize};
 use sqlx::{SqliteConnection, SqlitePool};
 
-use crate::catalog::card::CardRecord;
-use crate::catalog::printing::{Printing, PrintingRecord};
-use crate::catalog::sql::json_list;
 use crate::collection::location::{Location, LocationRecord, json_ids};
-use crate::pricing::PriceStore;
-use crate::{card_query, printing_query};
+use manavault_catalog::catalog::card::CardRecord;
+use manavault_catalog::catalog::printing::{Printing, PrintingRecord};
+use manavault_catalog::catalog::sql::json_list;
+use manavault_catalog::pricing::PriceStore;
+use manavault_catalog::{card_query, printing_query};
 
 /// A `collection_items` row.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

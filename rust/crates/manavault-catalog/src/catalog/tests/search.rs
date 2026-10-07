@@ -8,8 +8,8 @@ use crate::catalog::card::Card;
 use crate::catalog::search::cards::{SearchOptions, Sort, TokenScope, search_cards};
 use crate::catalog::search::cards_by_name;
 use crate::catalog::search::printings::{PrintingFilters, search_printings};
-use crate::test_support::TestApp;
-use crate::test_support::fixtures::{
+use crate::test_app::TestApp;
+use crate::testing::fixtures::{
     black_lotus, black_lotus_beta, card, legal_commander_card, merge, plains, time_walk,
 };
 

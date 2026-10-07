@@ -5,7 +5,7 @@ use pretty_assertions::assert_eq;
 
 use super::*;
 use crate::collection::location::{LocationError, LocationKind};
-use crate::test_support::fixtures::{black_lotus, time_walk};
+use manavault_catalog::testing::fixtures::{black_lotus, time_walk};
 
 fn changes(name: &str, kind: &str) -> LocationChanges {
     LocationChanges {

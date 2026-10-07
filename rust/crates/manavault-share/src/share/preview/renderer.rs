@@ -42,7 +42,7 @@ static FONTS: LazyLock<Arc<usvg::fontdb::Database>> = LazyLock::new(|| {
 #[must_use]
 pub fn mana_symbol_data_uri(assets_dir: &Path, color: &str) -> String {
     let filename = format!("{}.svg", symbol_code(color));
-    crate::scryfall_assets::local_path(assets_dir, &["symbols", &filename])
+    manavault_catalog::scryfall_assets::local_path(assets_dir, &["symbols", &filename])
         .and_then(|path| std::fs::read(path).ok())
         .map_or_else(
             || mana_symbol_url(color),
@@ -79,8 +79,8 @@ mod tests {
 
     #[tokio::test]
     async fn renders_a_1200_by_630_png_with_embedded_symbols() {
-        let assets = crate::test_support::TempDir::new();
-        let symbols = crate::scryfall_assets::symbols_dir(assets.path());
+        let assets = manavault_core::testing::TempDir::new();
+        let symbols = manavault_catalog::scryfall_assets::symbols_dir(assets.path());
         std::fs::create_dir_all(&symbols).unwrap();
         std::fs::write(
             symbols.join("W.svg"),

@@ -195,7 +195,7 @@ fn collect_selection_set(selection_set: &SelectionSet, used: &mut HashSet<Name>)
 mod tests {
     use serde_json::json;
 
-    use crate::test_support::TestApp;
+    use crate::test_app::TestApp;
 
     #[tokio::test]
     async fn unprovided_variables_leave_settings_unchanged() {

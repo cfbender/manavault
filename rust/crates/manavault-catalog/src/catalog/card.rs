@@ -11,8 +11,8 @@ use sqlx::SqlitePool;
 
 use crate::catalog::json;
 use crate::catalog::printing::{Printing, PrintingConnection};
-use crate::graphql::{NodeKind, PageArgs, global_id};
 use crate::tokens::ProducedToken;
+use manavault_core::graphql::{NodeKind, PageArgs, global_id};
 
 /// Selects `scryfall_cards` rows aliased `c` into [`CardRecord`]; the
 /// argument is the rest of the query after `FROM scryfall_cards AS c`.
@@ -370,7 +370,7 @@ impl Card {
 
     async fn rulings(&self, ctx: &Context<'_>) -> Vec<CardRuling> {
         crate::catalog::scryfall::rulings::card_rulings(
-            crate::graphql::state(ctx),
+            manavault_core::graphql::state(ctx),
             self.record.rulings_uri.as_deref(),
         )
         .await
@@ -390,8 +390,11 @@ impl Card {
     ) -> async_graphql::Result<Option<PrintingConnection>> {
         let printings = self.printings_list(ctx).await?;
         let args = PageArgs::new(after, first, before, last);
-        let page =
-            crate::graphql::relay::connection_from_list(printings.as_ref().clone(), &args, None)?;
+        let page = manavault_core::graphql::relay::connection_from_list(
+            printings.as_ref().clone(),
+            &args,
+            None,
+        )?;
         Ok(Some(page.into()))
     }
 
@@ -412,4 +415,4 @@ impl Card {
     }
 }
 
-crate::connection_types!(CardConnection, CardEdge, Card);
+manavault_core::connection_types!(CardConnection, CardEdge, Card);

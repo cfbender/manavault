@@ -22,7 +22,6 @@ manavault-catalog.workspace = true
 manavault-collection.workspace = true
 
 [dev-dependencies]
-manavault-server.workspace = true
 wiremock.workspace = true
 
 [lints]

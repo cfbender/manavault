@@ -14,9 +14,10 @@ use super::answer_deck_question::{self, AskOptions};
 use super::question_answers::{self, NewQuestionAnswer, Status};
 use super::workers::{DECK_ANALYSIS_WORKER, DECK_QUESTION_WORKER, DeckQuestionWorker};
 use super::{AiError, analyze_deck, decks};
-use crate::graphql::{NodeKind, global_id};
-use crate::jobs::{Job, Outcome, Worker};
-use crate::test_support::{TestApp, fixtures};
+use crate::test_app::TestApp;
+use manavault_catalog::testing::fixtures;
+use manavault_core::graphql::{NodeKind, global_id};
+use manavault_core::jobs::{Job, Outcome, Worker};
 
 // ---------------------------------------------------------------------------
 // Fixtures shared with the tool tests.
@@ -221,7 +222,7 @@ fn last_content(request: &Value) -> String {
 
 /// Log lines published while `action` ran that contain `marker`.
 async fn capture_logs<F: std::future::Future<Output = ()>>(marker: &str, action: F) -> String {
-    let mut events = crate::test_support::log_hub().subscribe();
+    let mut events = manavault_core::testing::log_hub().subscribe();
     action.await;
     let mut log = String::new();
     loop {
@@ -365,7 +366,7 @@ async fn analyzes_and_persists_distinct_guideline_and_practical_brackets() {
     .unwrap();
     assert_eq!(row.0, saved.ai_analysis);
     assert_eq!(row.1, "anthropic/claude-sonnet-4");
-    assert!(crate::timefmt::parse(&row.2).is_some());
+    assert!(manavault_core::timefmt::parse(&row.2).is_some());
     assert_eq!((row.3, row.4, row.5.as_str()), (3, 2, "3-"));
 
     let requests = completion_requests(&server).await;
@@ -578,7 +579,7 @@ async fn saves_successful_deck_questions_newest_first_without_changing_the_analy
         serde_json::from_str::<Value>(first.recommendations.as_deref().unwrap()).unwrap(),
         json!({"cuts": ["Test Commander"], "additions": []})
     );
-    assert!(crate::timefmt::parse(&first.inserted_at).is_some());
+    assert!(manavault_core::timefmt::parse(&first.inserted_at).is_some());
     // Answering again is a no-op once completed.
     answer_deck_question::run(&app.state, first.id)
         .await
@@ -1523,7 +1524,7 @@ async fn status_tracks_retries_and_terminal_outcomes_and_selects_only_this_decks
     )
     .bind(DECK_QUESTION_WORKER)
     .bind(deck_id)
-    .bind(crate::timefmt::now_micros())
+    .bind(manavault_core::timefmt::now_micros())
     .execute(app.db())
     .await
     .unwrap();
@@ -1778,7 +1779,7 @@ async fn graphql_settings_analysis_lists_and_questions_use_ai_without_exposing_t
             .contains("**Bracket 3-**")
     );
     assert_eq!(job_deck["aiAnalysisModel"], "anthropic/claude-sonnet-4");
-    assert!(crate::timefmt::parse(job_deck["aiAnalyzedAt"].as_str().unwrap()).is_some());
+    assert!(manavault_core::timefmt::parse(job_deck["aiAnalyzedAt"].as_str().unwrap()).is_some());
     assert_eq!(
         (
             job_deck["commanderBracket"].clone(),
@@ -1831,7 +1832,7 @@ async fn graphql_settings_analysis_lists_and_questions_use_ai_without_exposing_t
     assert_eq!(request["commanderBracketRating"], "3-");
     let list_analysis = request["analysis"].clone();
     assert!(list_analysis.as_str().unwrap().contains("## Overview"));
-    assert!(crate::timefmt::parse(request["insertedAt"].as_str().unwrap()).is_some());
+    assert!(manavault_core::timefmt::parse(request["insertedAt"].as_str().unwrap()).is_some());
     assert!(request["insertedAt"].as_str().unwrap().ends_with('Z'));
     let list_prompt = message_content(completion_requests(&server).await.last().unwrap(), 1);
     assert!(list_prompt.contains(r#""land_count":2"#));
@@ -1908,7 +1909,7 @@ async fn graphql_settings_analysis_lists_and_questions_use_ai_without_exposing_t
     assert_eq!(question["model"], Value::Null);
     assert_eq!(question["recommendedCuts"], json!([]));
     assert_eq!(question["recommendedAdditions"], json!([]));
-    assert!(crate::timefmt::parse(question["insertedAt"].as_str().unwrap()).is_some());
+    assert!(manavault_core::timefmt::parse(question["insertedAt"].as_str().unwrap()).is_some());
     let question_db_id: i64 = question_id.as_str().unwrap().parse().unwrap();
     let job_args: String = sqlx::query_scalar("SELECT args FROM jobs WHERE worker = ?1")
         .bind(DECK_QUESTION_WORKER)
@@ -2177,7 +2178,7 @@ async fn graphql_errors_match_the_documented_messages() {
 /// used to report them as unsupported).
 #[tokio::test]
 async fn deck_list_links_resolve_local_want_lists_and_binders_through_trade() {
-    use crate::trade::list_source::{UNSUPPORTED, local};
+    use manavault_trade::trade::list_source::{UNSUPPORTED, local};
     let app = TestApp::new().await;
     insert_settings(&app, "anthropic/claude-sonnet-4", None).await;
     let analyze = |url: String| {
@@ -2211,9 +2212,12 @@ async fn deck_list_links_resolve_local_want_lists_and_binders_through_trade() {
         UNSUPPORTED
     );
     // An existing (empty) want list resolves; it just has no cards to analyze.
-    let token = crate::trade::share::ensure_token(app.db(), crate::trade::share::ShareKind::Wants)
-        .await
-        .unwrap();
+    let token = manavault_trade::trade::share::ensure_token(
+        app.db(),
+        manavault_trade::trade::share::ShareKind::Wants,
+    )
+    .await
+    .unwrap();
     assert_eq!(
         analyze(format!("/share/wants/{token}")).await,
         "The decklist does not contain any mainboard or commander cards."

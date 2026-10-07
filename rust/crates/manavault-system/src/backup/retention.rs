@@ -8,7 +8,7 @@ fn sort_key(remote: &Remote) -> i128 {
     remote
         .modified_at
         .as_deref()
-        .and_then(crate::timefmt::parse)
+        .and_then(manavault_core::timefmt::parse)
         .map_or(-1, |at| at.unix_timestamp_nanos() / 1000)
 }
 

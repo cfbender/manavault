@@ -1,82 +1,86 @@
-//! The owner GraphQL API (`/api/graphql`, `ManavaultWeb.Schema`) and the
-//! public share API (`/share/graphql`, `ManavaultWeb.PublicShareSchema`).
+//! The owner GraphQL API (`/api/graphql`). The public share API
+//! (`/share/graphql`) is `manavault_share::share::graphql`.
 //!
-//! Each domain module contributes `Object` structs for its queries and
+//! Each domain crate contributes `Object` structs for its queries and
 //! mutations; they are merged into the root types here.
 
 mod system;
 
-use async_graphql::{MergedObject, MergedSubscription, Schema};
-
-use crate::state::AppState;
-
-pub use manavault_core::graphql::*;
+use async_graphql::{MergedObject, MergedSubscription, Schema, SchemaBuilder};
+use manavault_core::state::AppState;
 
 #[derive(MergedObject, Default)]
 pub struct Query(
-    crate::catalog::CardQueries,
-    crate::tokens::TokenQueries,
-    crate::collection::CollectionQueries,
-    crate::pricing::graphql::PricingQueries,
-    crate::settings::appearance::AppearanceQueries,
-    crate::settings::ai::AiSettingsQueries,
-    crate::api_keys::ApiKeyQueries,
-    crate::backup::graphql::BackupQueries,
-    crate::decks::DeckQueries,
-    crate::deck_intel::DeckIntelQueries,
-    crate::trade::TradeQueries,
-    crate::trade::ShareListQueries,
-    crate::ai::AiQueries,
+    manavault_catalog::catalog::CardQueries,
+    manavault_catalog::tokens::TokenQueries,
+    manavault_collection::collection::CollectionQueries,
+    manavault_catalog::pricing::graphql::PricingQueries,
+    manavault_core::settings::appearance::AppearanceQueries,
+    manavault_core::settings::ai::AiSettingsQueries,
+    manavault_core::api_keys::ApiKeyQueries,
+    manavault_system::backup::graphql::BackupQueries,
+    manavault_collection::decks::DeckQueries,
+    manavault_deck_intel::deck_intel::DeckIntelQueries,
+    manavault_trade::trade::TradeQueries,
+    manavault_trade::trade::ShareListQueries,
+    manavault_ai::ai::AiQueries,
 );
 
 #[derive(MergedObject, Default)]
 pub struct Mutation(
-    crate::tokens::TokenMutations,
-    crate::collection::CollectionMutations,
-    crate::pricing::graphql::PricingMutations,
-    crate::catalog::scryfall::graphql::ScryfallMutations,
-    crate::settings::appearance::AppearanceMutations,
-    crate::settings::ai::AiSettingsMutations,
-    crate::api_keys::ApiKeyMutations,
-    crate::backup::graphql::BackupMutations,
-    crate::decks::DeckMutations,
-    crate::deck_intel::DeckIntelMutations,
-    crate::deck_intel::AllocationMutations,
-    crate::trade::TradeMutations,
-    crate::ai::AiMutations,
+    manavault_catalog::tokens::TokenMutations,
+    manavault_collection::collection::CollectionMutations,
+    manavault_catalog::pricing::graphql::PricingMutations,
+    manavault_catalog::catalog::scryfall::graphql::ScryfallMutations,
+    manavault_core::settings::appearance::AppearanceMutations,
+    manavault_core::settings::ai::AiSettingsMutations,
+    manavault_core::api_keys::ApiKeyMutations,
+    manavault_system::backup::graphql::BackupMutations,
+    manavault_collection::decks::DeckMutations,
+    manavault_deck_intel::deck_intel::DeckIntelMutations,
+    manavault_deck_intel::deck_intel::AllocationMutations,
+    manavault_trade::trade::TradeMutations,
+    manavault_ai::ai::AiMutations,
 );
 
 #[derive(MergedSubscription, Default)]
 pub struct Subscription(system::SystemSubscriptions);
 
 pub type AppSchema = Schema<Query, Mutation, Subscription>;
+type AppSchemaBuilder = SchemaBuilder<Query, Mutation, Subscription>;
+
+/// The owner schema's root types, without context or extensions.
+#[must_use]
+pub fn schema_builder() -> AppSchemaBuilder {
+    Schema::build(
+        Query::default(),
+        Mutation::default(),
+        Subscription::default(),
+    )
+}
+
+/// Adds the data loaders the resolvers read from the context.
+#[must_use]
+pub fn schema_data(builder: AppSchemaBuilder, state: &AppState) -> AppSchemaBuilder {
+    builder
+        .data(manavault_catalog::catalog::loader::data_loader(
+            state.db.clone(),
+        ))
+        .data(manavault_collection::collection::loader::data_loader(
+            state.db.clone(),
+        ))
+}
 
 /// Builds the owner schema.
 #[must_use]
 pub fn build_schema(state: AppState) -> AppSchema {
-    Schema::build(
-        Query::default(),
-        Mutation::default(),
-        Subscription::default(),
-    )
-    .data(crate::catalog::loader::data_loader(state.db.clone()))
-    .data(crate::collection::loader::data_loader(state.db.clone()))
-    .data(state)
-    .extension(order::ResponseOrder)
-    .extension(nullable_errors::NullableErrors)
-    .extension(undefined_variables::UndefinedVariables)
-    .finish()
+    manavault_core::graphql::extensions(schema_data(schema_builder(), &state))
+        .data(state)
+        .finish()
 }
 
-/// The owner schema's SDL, for structural comparison
-/// (`rust/scripts/sdl_diff.py`).
+/// The owner schema's SDL (`manavault sdl`).
 #[must_use]
 pub fn sdl() -> String {
-    Schema::build(
-        Query::default(),
-        Mutation::default(),
-        Subscription::default(),
-    )
-    .finish()
-    .sdl()
+    schema_builder().finish().sdl()
 }

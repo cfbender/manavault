@@ -11,8 +11,8 @@ use axum::response::{IntoResponse, Response};
 use serde_json::{Map, Value, json};
 
 use super::{bundle, corrections};
-use crate::state::AppState;
-use crate::web::session::{self, Session};
+use manavault_core::state::AppState;
+use manavault_core::web::session::{self, Session};
 
 fn errors(status: StatusCode, key: &str, message: &str) -> Response {
     (status, axum::Json(json!({"errors": [{key: message}]}))).into_response()
@@ -218,7 +218,10 @@ fn authorize(state: &AppState, session: &Session, headers: &HeaderMap) -> Result
                 .filter(|expected| expected.len() >= 32)
             {
                 Some(expected) => {
-                    if crate::crypto::secure_compare(token.trim().as_bytes(), expected.as_bytes()) {
+                    if manavault_core::crypto::secure_compare(
+                        token.trim().as_bytes(),
+                        expected.as_bytes(),
+                    ) {
                         Ok(())
                     } else {
                         Err("Invalid scanner corrections token")

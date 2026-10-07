@@ -1,6 +1,6 @@
 //! AI deck analysis and saved deck questions (`Manavault.AI`).
 //!
-//! Provider settings live in [`crate::settings::ai`]. Analyses of saved
+//! Provider settings live in [`manavault_core::settings::ai`]. Analyses of saved
 //! decks and deck questions run in Oban-compatible background jobs on the
 //! `ai` queue ([`workers`]); pasted or linked decklists are analyzed inline
 //! and saved as [`requests`]. The only provider is `OpenRouter`.
@@ -22,7 +22,7 @@ pub mod workers;
 #[cfg(test)]
 pub(crate) mod tests;
 
-use crate::settings::ai::AiSettings;
+use manavault_core::settings::ai::AiSettings;
 
 pub use deck_analysis::bracket_label;
 pub use schema::{AiMutations, AiQueries};
@@ -42,11 +42,13 @@ pub enum AiError {
     Internal(String),
 }
 
-impl From<crate::jobs::JobError> for AiError {
-    fn from(error: crate::jobs::JobError) -> Self {
+impl From<manavault_core::jobs::JobError> for AiError {
+    fn from(error: manavault_core::jobs::JobError) -> Self {
         match error {
-            crate::jobs::JobError::Db(error) => Self::Db(error),
-            other @ crate::jobs::JobError::UnknownWorker(_) => Self::Internal(other.to_string()),
+            manavault_core::jobs::JobError::Db(error) => Self::Db(error),
+            other @ manavault_core::jobs::JobError::UnknownWorker(_) => {
+                Self::Internal(other.to_string())
+            }
         }
     }
 }
@@ -57,8 +59,8 @@ impl AiError {
     #[must_use]
     pub fn into_graphql(self) -> async_graphql::Error {
         match self {
-            Self::User(message) => crate::graphql::user_error(message),
-            other => crate::graphql::internal_error(other),
+            Self::User(message) => manavault_core::graphql::user_error(message),
+            other => manavault_core::graphql::internal_error(other),
         }
     }
 }
@@ -94,8 +96,8 @@ impl Configured {
     }
 
     /// Loads and checks the saved settings.
-    pub async fn load(state: &crate::state::AppState) -> Result<Self, AiError> {
-        Self::from_settings(crate::settings::ai::settings(state).await?)
+    pub async fn load(state: &manavault_core::state::AppState) -> Result<Self, AiError> {
+        Self::from_settings(manavault_core::settings::ai::settings(state).await?)
     }
 
     /// `Provider.module/1`.

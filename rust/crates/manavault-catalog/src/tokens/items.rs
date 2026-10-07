@@ -10,8 +10,8 @@ use sqlx::SqlitePool;
 use crate::catalog::printing::Printing;
 use crate::catalog::search::name_match;
 use crate::catalog::sql::json_list;
-use crate::graphql::{NodeKind, global_id};
-use crate::timefmt;
+use manavault_core::graphql::{NodeKind, global_id};
+use manavault_core::timefmt;
 
 /// A `token_items` row.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -220,7 +220,7 @@ pub async fn add(pool: &SqlitePool, attrs: NewTokenItem) -> Result<TokenItem, To
     let quantity = attrs.quantity.unwrap_or(1);
     let now = timefmt::now();
 
-    let mut tx = crate::db::begin_write(pool).await?;
+    let mut tx = manavault_core::db::begin_write(pool).await?;
     let existing = sqlx::query!(
         r#"SELECT id AS "id!", quantity AS "quantity!: i64" FROM token_items
            WHERE scryfall_id = ?1 AND finish = ?2 AND back_scryfall_id IS ?3 LIMIT 1"#,

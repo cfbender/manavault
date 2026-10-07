@@ -17,8 +17,6 @@ pub mod vendor;
 #[cfg(test)]
 mod tests;
 
-pub use manavault_core::web::*;
-
 use async_graphql::http::GraphQLPlaygroundConfig;
 use axum::extract::{DefaultBodyLimit, State};
 use axum::http::header::ACCEPT;
@@ -28,9 +26,11 @@ use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 
+use manavault_core::state::AppState;
+use manavault_core::web::{app_shell, browser, graphql, public_graphql, session};
+use manavault_system::scanner;
+
 use crate::graphql::AppSchema;
-use crate::scanner;
-use crate::state::AppState;
 
 /// State for routes that need the schema as well as the app.
 #[derive(Clone)]
@@ -109,7 +109,7 @@ pub fn router(state: WebState) -> Router {
             )
             .route(
                 "/scryfall-assets/{*path}",
-                get(crate::scryfall_assets::web::show),
+                get(manavault_catalog::scryfall_assets::web::show),
             ),
     )
     .route_layer(browser.clone());
@@ -193,7 +193,7 @@ pub fn router(state: WebState) -> Router {
             .route_layer(from_fn(graphql::require_json))
             .route_layer(from_fn_with_state(app.clone(), public_graphql::admit)),
     );
-    if app.config.env == crate::config::Env::Dev {
+    if app.config.env == manavault_core::config::Env::Dev {
         router = router.route("/dev/graphiql", get(graphiql));
     }
     router

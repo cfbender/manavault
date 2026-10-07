@@ -8,8 +8,9 @@ use lotus::decklist::{Allowlist, DeckLink, DecklistClient, Source};
 use lotus::{Color, Finish, ScryfallId, Zone};
 
 use super::{T, add_card, insert_bulk_cards, insert_deck, share};
-use crate::test_support::{TestApp, fixtures};
-use crate::trade::share::ShareKind;
+use manavault_catalog::testing::fixtures;
+use manavault_server::test_support::TestApp;
+use manavault_trade::trade::share::ShareKind;
 
 /// Serves the app's router on `127.0.0.1:<random>`; returns the origin.
 async fn serve(app: &TestApp) -> String {
@@ -124,9 +125,12 @@ async fn lotus_fetches_a_paginated_shared_deck() {
     assert_eq!(list.playable().count(), 602);
 
     // A revoked share reads as not found.
-    crate::decks::records::disable_sharing(app.db(), crate::decks::DeckId(deck))
-        .await
-        .unwrap();
+    manavault_collection::decks::records::disable_sharing(
+        app.db(),
+        manavault_collection::decks::DeckId(deck),
+    )
+    .await
+    .unwrap();
     let link = DeckLink::parse(&format!("{origin}/share/decks/{token}")).unwrap();
     assert_eq!(
         client().fetch(&link).await.unwrap_err(),
@@ -144,10 +148,10 @@ async fn lotus_fetches_a_shared_want_list_and_trade_binder() {
     ])
     .await;
     let pool = app.db();
-    crate::trade::want::create_by_name(pool, "Time Walk", Some(2))
+    manavault_trade::trade::want::create_by_name(pool, "Time Walk", Some(2))
         .await
         .unwrap();
-    crate::trade::want::create_by_printing(pool, "scryfall-printing-3", Some(1))
+    manavault_trade::trade::want::create_by_printing(pool, "scryfall-printing-3", Some(1))
         .await
         .unwrap();
     sqlx::query(
@@ -159,10 +163,10 @@ async fn lotus_fetches_a_shared_want_list_and_trade_binder() {
     .execute(pool)
     .await
     .unwrap();
-    let wants = crate::trade::share::ensure_token(pool, ShareKind::Wants)
+    let wants = manavault_trade::trade::share::ensure_token(pool, ShareKind::Wants)
         .await
         .unwrap();
-    let binder = crate::trade::share::ensure_token(pool, ShareKind::Binder)
+    let binder = manavault_trade::trade::share::ensure_token(pool, ShareKind::Binder)
         .await
         .unwrap();
     let origin = serve(&app).await;

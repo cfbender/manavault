@@ -63,7 +63,7 @@ fn present(value: Option<&str>) -> Option<&str> {
 /// (`ListSource.resolve/1`).
 pub async fn resolve(
     pool: &SqlitePool,
-    config: &crate::config::Config,
+    config: &manavault_core::config::Config,
     url: Option<&str>,
     text: Option<&str>,
 ) -> Result<ResolvedList, ResolveError> {

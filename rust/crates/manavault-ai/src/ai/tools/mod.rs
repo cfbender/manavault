@@ -10,8 +10,8 @@ use std::collections::HashSet;
 use serde_json::{Value, json};
 use sqlx::SqlitePool;
 
-use crate::catalog::card::CardRecord;
-use crate::catalog::search::cards_by_name;
+use manavault_catalog::catalog::card::CardRecord;
+use manavault_catalog::catalog::search::cards_by_name;
 
 /// The tools, in the order they are offered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -104,7 +104,7 @@ pub async fn resolve_cards(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::TestApp;
+    use crate::test_app::TestApp;
 
     #[test]
     fn offers_the_card_lookup_and_collection_status_tools() {

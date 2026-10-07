@@ -13,9 +13,9 @@ use std::collections::{BTreeMap, HashMap};
 use lotus::{OracleId, Zone};
 use sqlx::SqlitePool;
 
-use crate::catalog::sql::json_list;
 use crate::trade::entry_resolver::{Resolved, ResolvedEntry};
 use crate::trade::want::image_url;
+use manavault_catalog::catalog::sql::json_list;
 
 pub const NOT_FOUND: &str = "That deck couldn't be found.";
 

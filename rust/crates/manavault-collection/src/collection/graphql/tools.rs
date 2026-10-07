@@ -3,12 +3,12 @@
 
 use async_graphql::{Context, ID, Object};
 
-use crate::catalog::printing::Printing;
 use crate::collection::auto_sort::rules::{AutoSortRule, decode_list};
 use crate::collection::auto_sort::{AutoSortMove, AutoSortResult};
 use crate::collection::bulk_clean::{BulkCleanCard, BulkCleanPull, BulkCleanResult};
 use crate::collection::import::{ImportAttrs, ImportPreview, ImportResult, ImportRow};
 use crate::collection::location::Location;
+use manavault_catalog::catalog::printing::Printing;
 
 fn raw_id(id: i64) -> ID {
     ID(id.to_string())

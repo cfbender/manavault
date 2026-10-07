@@ -5,13 +5,13 @@ use std::collections::HashMap;
 
 use sqlx::{SqliteConnection, SqlitePool};
 
-use crate::db;
 use crate::decks::DeckError;
 use crate::decks::model::{DeckCardId, DeckId, DeckTagRow, DefaultDeckTagRow, id_list};
 use crate::decks::validation::{
     self, BLANK, Change, TAKEN, ValidationError, cast_string, greater_than, hex_color, length,
 };
-use crate::timefmt;
+use manavault_core::db;
+use manavault_core::timefmt;
 
 /// The color of a tag created without one (`@default_color`).
 pub const DEFAULT_COLOR: &str = "#7C5CFF";

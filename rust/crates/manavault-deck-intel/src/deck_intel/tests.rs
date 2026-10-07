@@ -10,8 +10,9 @@ use serde_json::{Value, json};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use crate::graphql::{NodeKind, global_id};
-use crate::test_support::{TestApp, fixtures};
+use crate::test_app::TestApp;
+use manavault_catalog::testing::fixtures;
+use manavault_core::graphql::{NodeKind, global_id};
 
 // --- Fixtures -------------------------------------------------------------------
 
@@ -1391,7 +1392,7 @@ mod pull_list {
             ctx: &Context<'_>,
             deck_id: ID,
             entries: Vec<EntryInput>,
-        ) -> crate::graphql::Result<Option<AllocateDeckPullListPayload>> {
+        ) -> manavault_core::graphql::Result<Option<AllocateDeckPullListPayload>> {
             let entries: Vec<PullListEntryArgs> = entries
                 .into_iter()
                 .map(|entry| PullListEntryArgs {

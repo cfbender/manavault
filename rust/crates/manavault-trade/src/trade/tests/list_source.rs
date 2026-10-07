@@ -7,12 +7,13 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::{Item, add_deck_card, app_with_cards, insert_deck, share_deck};
-use crate::test_support::{TestApp, fixtures};
+use crate::test_app::TestApp;
 use crate::trade::list_source::{
     self, ListEntry, ResolveError, ResolvedList, UNSUPPORTED, local, remote,
 };
 use crate::trade::share::{self, ShareKind};
 use crate::trade::want;
+use manavault_catalog::testing::fixtures;
 
 async fn resolve(
     app: &TestApp,

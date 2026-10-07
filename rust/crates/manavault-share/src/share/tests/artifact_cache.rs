@@ -6,15 +6,16 @@ use std::time::Duration;
 use crate::share::preview::artifact_cache::{self, FingerprintOptions, PngError};
 use crate::share::preview::renderer::RenderError;
 use crate::share::preview::{DeckPreview, artifact_store, render_worker};
-use crate::test_support::{TempDir, TestApp};
+use crate::test_app::TestApp;
+use manavault_core::testing::TempDir;
 
 /// Runs the queued preview renders with this crate's render worker, whose
 /// completion channel is the one `artifact_cache` waits on (the test app's
 /// registry holds the worker of the library build of this crate).
-async fn drain_previews(state: &crate::state::AppState) -> crate::jobs::Drained {
-    let worker: std::sync::Arc<dyn crate::jobs::DynWorker> =
+async fn drain_previews(state: &manavault_core::state::AppState) -> manavault_core::jobs::Drained {
+    let worker: std::sync::Arc<dyn manavault_core::jobs::DynWorker> =
         std::sync::Arc::new(render_worker::RenderWorker);
-    crate::jobs::Jobs::new(state.db.clone(), vec![worker])
+    manavault_core::jobs::Jobs::new(state.db.clone(), vec![worker])
         .drain_queue(state, "preview", false)
         .await
 }
@@ -57,7 +58,7 @@ async fn a_cache_miss_queues_one_unique_render_job_and_reuses_the_artifact() {
     let app = TestApp::with_config(|config| config.jobs_enabled = true).await;
     let state = app.state.clone();
     let preview = DeckPreview {
-        token: Some(crate::decks::share_token::generate()),
+        token: Some(manavault_collection::decks::share_token::generate()),
         ..preview()
     };
     let caller = {
@@ -228,11 +229,11 @@ fn the_fingerprint_changes_for_every_byte_affecting_input() {
 #[test]
 fn the_fingerprint_changes_when_the_token_rotates() {
     let base = DeckPreview {
-        token: Some(crate::decks::share_token::generate()),
+        token: Some(manavault_collection::decks::share_token::generate()),
         ..preview()
     };
     let rotated = DeckPreview {
-        token: Some(crate::decks::share_token::generate()),
+        token: Some(manavault_collection::decks::share_token::generate()),
         ..preview()
     };
     assert_ne!(

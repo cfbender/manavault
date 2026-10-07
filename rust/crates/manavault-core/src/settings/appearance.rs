@@ -228,7 +228,7 @@ impl AppearanceMutations {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::TestApp;
+    use crate::test_app::TestApp;
     use serde_json::json;
 
     fn invalid(result: Result<Appearance, UpdateError>) -> ValidationError {

@@ -8,11 +8,11 @@ use lotus::Zone;
 use manavault_allocation::{AllocationError, DeckId};
 use serde_json::{Map, Value, json};
 
-use crate::catalog::card::Card;
-use crate::catalog::edhrec::{CardLookup, entry_name, entry_number};
 use crate::deck_intel::DeckContext;
 use crate::deck_intel::suggest::{Suggested, collection_statuses, matching_deck_card};
-use crate::state::AppState;
+use manavault_catalog::catalog::card::Card;
+use manavault_catalog::catalog::edhrec::{CardLookup, entry_name, entry_number};
+use manavault_core::state::AppState;
 
 const USER_AGENT: &str = "ManaVault/0.1 (+https://github.com/cfbender/manavault)";
 
@@ -71,7 +71,7 @@ pub struct DeckRecommanderCard {
     pub rank: i64,
     pub score: Option<f64>,
     pub card: Option<Card>,
-    pub collection_status: crate::decks::DeckCardAllocationStatus,
+    pub collection_status: manavault_collection::decks::DeckCardAllocationStatus,
 }
 
 /// `DeckRecommander`.
@@ -136,7 +136,7 @@ pub async fn fetch_recommendations(
         .send()
         .await
         .map_err(|error| {
-            RecommanderError::RequestFailed(crate::http_errors::transport_message(&error))
+            RecommanderError::RequestFailed(manavault_core::http_errors::transport_message(&error))
         })?;
     let status = response.status();
     if status.as_u16() == 429 {
@@ -146,7 +146,7 @@ pub async fn fetch_recommendations(
         ));
     }
     let body = response.bytes().await.map_err(|error| {
-        RecommanderError::RequestFailed(crate::http_errors::transport_message(&error))
+        RecommanderError::RequestFailed(manavault_core::http_errors::transport_message(&error))
     })?;
     let envelope = match serde_json::from_slice::<Value>(&body) {
         Ok(Value::Object(map)) => Some(map),

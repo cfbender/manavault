@@ -26,7 +26,6 @@ manavault-catalog = { path = "crates/manavault-catalog" }
 manavault-collection = { path = "crates/manavault-collection" }
 manavault-core = { path = "crates/manavault-core" }
 manavault-deck-intel = { path = "crates/manavault-deck-intel" }
-manavault-server = { path = "crates/manavault-server" }
 manavault-share = { path = "crates/manavault-share" }
 manavault-system = { path = "crates/manavault-system" }
 manavault-trade = { path = "crates/manavault-trade" }

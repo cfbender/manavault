@@ -97,7 +97,7 @@ mod tests {
 
     #[test]
     fn fingerprint_is_stable_and_changes_when_the_hash_rotates() {
-        let dir = crate::test_support::TempDir::new();
+        let dir = crate::testing::TempDir::new();
         let mut config = Config::for_tests(dir.path().to_path_buf());
         config.admin_password_hash = Some(hash_password_with("first", 1, b"one"));
         let fingerprint = admin_password_fingerprint(&config).unwrap();

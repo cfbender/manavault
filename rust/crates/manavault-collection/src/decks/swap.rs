@@ -10,9 +10,6 @@ use std::collections::{HashMap, HashSet};
 use lotus::{OracleId, Zone};
 use sqlx::{SqliteConnection, SqlitePool};
 
-use crate::catalog::card::CardRecord;
-use crate::catalog::search::cards_by_name;
-use crate::db;
 use crate::decks::cards::{self, CardRef, DeckCardChanges, NewDeckCard};
 use crate::decks::contents::load_deck_contents;
 use crate::decks::legality::{self, DeckLegality, LegalityCard};
@@ -21,6 +18,9 @@ use crate::decks::model::{
 };
 use crate::decks::records::get_deck;
 use crate::decks::{DeckError, ensure_decklist_editable};
+use manavault_catalog::catalog::card::CardRecord;
+use manavault_catalog::catalog::search::cards_by_name;
+use manavault_core::db;
 
 /// Where cut copies go.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

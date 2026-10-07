@@ -14,16 +14,16 @@ use async_graphql::MaybeUndefined;
 use lotus::{Finish, ScryfallId};
 use sqlx::{SqliteConnection, SqlitePool};
 
-use crate::catalog::printing::Printing;
-use crate::catalog::search::printings::{PrintingFilters, search_printings};
-use crate::catalog::sql::json_list;
 use crate::collection::auto_sort::rules::AutoSortError;
 use crate::collection::auto_sort::{self, AutoSortOptions, AutoSortResult, Source};
 use crate::collection::changes::{ItemChanges, ItemError, create_in, preferred_finish};
 use crate::collection::item::load_printings;
-use crate::pricing::PriceStore;
-use crate::timefmt;
-use crate::validation::{INVALID, ValidationError};
+use manavault_catalog::catalog::printing::Printing;
+use manavault_catalog::catalog::search::printings::{PrintingFilters, search_printings};
+use manavault_catalog::catalog::sql::json_list;
+use manavault_catalog::pricing::PriceStore;
+use manavault_core::timefmt;
+use manavault_core::validation::{INVALID, ValidationError};
 use parse::{Format, ParseError};
 
 /// How well a row resolved to a printing.
@@ -560,7 +560,7 @@ pub async fn commit(
     rows: &[ImportRow],
     auto_sort: bool,
 ) -> Result<ImportResult, ImportError> {
-    let mut tx = crate::db::begin_write(pool).await?;
+    let mut tx = manavault_core::db::begin_write(pool).await?;
     let (mut result, item_ids) = import_rows(&mut tx, prices, rows).await?;
     if auto_sort {
         let options = AutoSortOptions {
@@ -583,7 +583,7 @@ pub async fn preview_auto_sort(
     prices: &PriceStore,
     rows: &[ImportRow],
 ) -> Result<AutoSortResult, ImportError> {
-    let mut tx = crate::db::begin_write(pool).await?;
+    let mut tx = manavault_core::db::begin_write(pool).await?;
     let (_, item_ids) = import_rows(&mut tx, prices, rows).await?;
     let options = AutoSortOptions {
         source: Source::Items(item_ids),

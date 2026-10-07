@@ -3,19 +3,13 @@
 //! adds, a collection item's allocation decks, and `node` lookups, plus the
 //! allocation resolvers' error paths.
 
-// The deck tests' fixtures, shared with `manavault-collection`, whose test
-// modules are private to that crate.
-#[path = "../../../manavault-collection/src/decks/tests/support.rs"]
-#[allow(dead_code)]
-mod deck_support;
-
 use lotus::Finish;
 use serde_json::{Value, json};
 
-use crate::decks::model::{CollectionItemId, DeckCardId};
-use crate::graphql::{NodeKind, global_id};
-use crate::test_support::TestApp;
-use deck_support::*;
+use crate::test_app::TestApp;
+use manavault_collection::decks::model::{CollectionItemId, DeckCardId};
+use manavault_collection::testing::*;
+use manavault_core::graphql::{NodeKind, global_id};
 
 fn item_gid(id: CollectionItemId) -> String {
     global_id(NodeKind::CollectionItem, id.0).to_string()
@@ -29,7 +23,7 @@ async fn app_with_card(id: &str, oracle_id: &str, name: &str) -> TestApp {
 }
 
 async fn allocated(app: &TestApp, deck_card: DeckCardId) -> i64 {
-    allocated_quantity(app, deck_card).await
+    allocated_quantity(app.db(), deck_card).await
 }
 
 const ADD: &str = r"mutation AddCollectionItemToDeck($id: ID!, $deckId: ID!, $zone: String) {
@@ -46,8 +40,15 @@ async fn add_collection_item_to_deck_creates_a_deck_card_and_allocation() {
         "Deck Add Card",
     )
     .await;
-    let item = collection_item(&app, "scryfall-printing-deck-add", 1, Finish::Nonfoil, None).await;
-    let deck = create_deck(&app, "Target Deck", None, None).await;
+    let item = collection_item(
+        app.db(),
+        "scryfall-printing-deck-add",
+        1,
+        Finish::Nonfoil,
+        None,
+    )
+    .await;
+    let deck = create_deck(app.db(), "Target Deck", None, None).await;
 
     let data = app
         .gql_data(
@@ -67,7 +68,7 @@ async fn add_collection_item_to_deck_creates_a_deck_card_and_allocation() {
             "preferredPrinting": {"scryfallId": "scryfall-printing-deck-add"}
         })
     );
-    let rows = deck_cards(&app, deck.id).await;
+    let rows = deck_cards(app.db(), deck.id).await;
     assert_eq!(rows.len(), 1);
     assert_eq!(allocated(&app, rows[0].id).await, 1);
 }
@@ -75,8 +76,8 @@ async fn add_collection_item_to_deck_creates_a_deck_card_and_allocation() {
 #[tokio::test]
 async fn add_collection_item_to_deck_reports_documented_errors() {
     let app = app_with_card("scryfall-add-errors", "oracle-add-errors", "Add Errors").await;
-    let item = collection_item(&app, "scryfall-add-errors", 2, Finish::Nonfoil, None).await;
-    let deck = create_deck(&app, "Errors Deck", None, None).await;
+    let item = collection_item(app.db(), "scryfall-add-errors", 2, Finish::Nonfoil, None).await;
+    let deck = create_deck(app.db(), "Errors Deck", None, None).await;
     let add = |id: String, deck_id: String, zone: Value| {
         let app = &app;
         async move {
@@ -102,7 +103,7 @@ async fn add_collection_item_to_deck_reports_documented_errors() {
     assert_eq!(
         add(
             item_gid(item),
-            deck_gid(crate::decks::DeckId(999)),
+            deck_gid(manavault_collection::decks::DeckId(999)),
             json!("mainboard")
         )
         .await,
@@ -124,10 +125,10 @@ async fn add_collection_item_to_deck_reports_documented_errors() {
         "considering"
     );
     assert_eq!(
-        allocated(&app, deck_cards(&app, deck.id).await[0].id).await,
+        allocated(&app, deck_cards(app.db(), deck.id).await[0].id).await,
         0
     );
-    set_status(&app, deck.id, "archived").await;
+    set_status(app.db(), deck.id, "archived").await;
     // The archive check comes before the zone check, as in `AddCardToDeck`.
     assert_eq!(
         add(item_gid(item), deck_gid(deck.id), json!("sideboard")).await,
@@ -143,9 +144,16 @@ async fn allocation_status_candidates_and_allocation_mutations_over_graphql() {
         "Allocation Status Card",
     )
     .await;
-    let item = collection_item(&app, "scryfall-allocation-status", 1, Finish::Nonfoil, None).await;
-    let deck = create_deck(&app, "Allocation Deck", None, None).await;
-    let deck_card = add_card(&app, deck.id, "Allocation Status Card", 1, "mainboard").await;
+    let item = collection_item(
+        app.db(),
+        "scryfall-allocation-status",
+        1,
+        Finish::Nonfoil,
+        None,
+    )
+    .await;
+    let deck = create_deck(app.db(), "Allocation Deck", None, None).await;
+    let deck_card = add_card(app.db(), deck.id, "Allocation Status Card", 1, "mainboard").await;
 
     let status = app
         .gql_data(
@@ -271,8 +279,8 @@ async fn deck_proxy_allocation_mutations_over_graphql() {
         "Proxy Allocation Card",
     )
     .await;
-    let deck = create_deck(&app, "Proxy Allocation Deck", None, None).await;
-    let deck_card = add_card(&app, deck.id, "Proxy Allocation Card", 1, "mainboard").await;
+    let deck = create_deck(app.db(), "Proxy Allocation Deck", None, None).await;
+    let deck_card = add_card(app.db(), deck.id, "Proxy Allocation Card", 1, "mainboard").await;
     let allocate = format!(
         "mutation AllocateProxy($deckCardId: ID!, $quantity: Int) {{ allocateDeckCardProxy(deckCardId: $deckCardId, quantity: $quantity) {{ {PROXY_FIELDS} }} }}"
     );
@@ -305,7 +313,7 @@ async fn deck_proxy_allocation_mutations_over_graphql() {
         "Allocation quantity is invalid."
     );
     // The deck card's checks come before the quantity's.
-    set_status(&app, deck.id, "archived").await;
+    set_status(app.db(), deck.id, "archived").await;
     assert_eq!(
         error_message(&app.gql(&allocate, zero.clone()).await),
         "Unarchive this deck before changing allocations."
@@ -335,10 +343,17 @@ async fn bulk_deck_allocation_preview_and_mutation_over_graphql() {
         .execute(app.db())
         .await
         .unwrap();
-    collection_item(&app, "scryfall-bulk-allocation", 2, Finish::Nonfoil, None).await;
-    let deck = create_deck(&app, "Bulk Allocation Deck", None, None).await;
+    collection_item(
+        app.db(),
+        "scryfall-bulk-allocation",
+        2,
+        Finish::Nonfoil,
+        None,
+    )
+    .await;
+    let deck = create_deck(app.db(), "Bulk Allocation Deck", None, None).await;
     add_printing(
-        &app,
+        app.db(),
         deck.id,
         "Bulk Allocation Card",
         2,
@@ -378,7 +393,7 @@ async fn bulk_deck_allocation_preview_and_mutation_over_graphql() {
     );
     // The preview reserves nothing.
     assert_eq!(
-        allocated(&app, deck_cards(&app, deck.id).await[0].id).await,
+        allocated(&app, deck_cards(app.db(), deck.id).await[0].id).await,
         0
     );
     assert_eq!(
@@ -395,7 +410,7 @@ async fn bulk_deck_allocation_preview_and_mutation_over_graphql() {
         error_message(
             &app.gql(
                 preview,
-                json!({"id": deck_gid(crate::decks::DeckId(999)), "mode": "every_printing"})
+                json!({"id": deck_gid(manavault_collection::decks::DeckId(999)), "mode": "every_printing"})
             )
             .await
         ),
@@ -425,16 +440,16 @@ async fn deck_pull_list_allocation_over_graphql() {
     )
     .await;
     let item = collection_item(
-        &app,
+        app.db(),
         "scryfall-pull-list-allocation",
         2,
         Finish::Nonfoil,
         None,
     )
     .await;
-    let deck = create_deck(&app, "Pull List Deck", None, None).await;
+    let deck = create_deck(app.db(), "Pull List Deck", None, None).await;
     let deck_card = add_printing(
-        &app,
+        app.db(),
         deck.id,
         "Pull List Card",
         2,
@@ -489,10 +504,10 @@ async fn allocation_decks_resolve_their_decks_across_many_items() {
         .collect();
     let app = TestApp::new().await;
     app.import_cards(&cards).await;
-    let deck = create_deck(&app, "Alloc Decks Deck", None, None).await;
+    let deck = create_deck(app.db(), "Alloc Decks Deck", None, None).await;
     for index in 1..=5 {
         let item = collection_item(
-            &app,
+            app.db(),
             &format!("scryfall-alloc-decks-{index}"),
             1,
             Finish::Nonfoil,
@@ -536,12 +551,12 @@ async fn bulk_add_collection_items_to_deck_in_one_mutation() {
         .collect();
     let app = TestApp::new().await;
     app.import_cards(&cards).await;
-    let binder = location(&app, "Bulk Add Binder", "binder").await;
-    let deck = create_deck(&app, "Bulk Add Deck", None, None).await;
+    let binder = location(app.db(), "Bulk Add Binder", "binder").await;
+    let deck = create_deck(app.db(), "Bulk Add Deck", None, None).await;
     let mut ids = Vec::new();
     for index in 1..=5 {
         let item = collection_item(
-            &app,
+            app.db(),
             &format!("scryfall-bulk-add-collection-{index}"),
             1,
             Finish::Nonfoil,
@@ -575,7 +590,7 @@ async fn bulk_add_collection_items_to_deck_in_one_mutation() {
             (&json!(1), &json!("mainboard"), &json!(1))
         );
     }
-    assert_eq!(location_quantity(&app, binder).await, 0);
+    assert_eq!(location_quantity(app.db(), binder).await, 0);
 
     // An empty selection with a bad zone is a no-op; a non-empty one fails
     // the deck card changeset.
@@ -619,18 +634,18 @@ async fn bulk_deallocate_deck_cards_returns_copies_and_proxies() {
         "Bulk Release",
     )
     .await;
-    let binder = location(&app, "Release Binder", "binder").await;
+    let binder = location(app.db(), "Release Binder", "binder").await;
     let item = collection_item(
-        &app,
+        app.db(),
         "scryfall-bulk-release",
         1,
         Finish::Nonfoil,
         Some(binder),
     )
     .await;
-    let deck = create_deck(&app, "Release Deck", None, None).await;
-    let deck_card = add_card(&app, deck.id, "Bulk Release", 2, "mainboard").await;
-    allocate(&app, deck_card.id, item, 1).await;
+    let deck = create_deck(app.db(), "Release Deck", None, None).await;
+    let deck_card = add_card(app.db(), deck.id, "Bulk Release", 2, "mainboard").await;
+    allocate(app.db(), deck_card.id, item, 1).await;
     manavault_allocation::allocate_proxy(
         app.db(),
         deck_card.id,
@@ -651,7 +666,7 @@ async fn bulk_deallocate_deck_cards_returns_copies_and_proxies() {
         data["bulkDeallocateDeckCards"]["deckCards"],
         json!([{"id": gid, "allocationStatus": {"allocated": 0, "proxyAllocated": 0}}])
     );
-    assert_eq!(location_quantity(&app, binder).await, 1);
+    assert_eq!(location_quantity(app.db(), binder).await, 1);
     assert_eq!(
         error_message(
             &app.gql(mutation, json!({"ids": [gid, card_gid(DeckCardId(999))]}))

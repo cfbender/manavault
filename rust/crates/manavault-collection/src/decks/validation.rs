@@ -8,7 +8,7 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 
-pub use crate::validation::{BLANK, INVALID, ValidationError, too_long, too_short};
+pub use manavault_core::validation::{BLANK, INVALID, ValidationError, too_long, too_short};
 
 /// An attribute: absent (`None`), `null` (`Some(None)`), or a value.
 pub type Change<T> = Option<Option<T>>;
