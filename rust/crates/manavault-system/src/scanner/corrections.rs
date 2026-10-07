@@ -230,6 +230,9 @@ pub async fn save(bundle_dir: &Path, params: &Value) -> std::io::Result<Option<S
             .open(dir.join("labels.jsonl"))
             .await?;
         labels.write_all(format!("{encoded}\n").as_bytes()).await?;
+        // `tokio::fs::File` completes writes in the background; flush so the
+        // row is on disk before the response (and a following read).
+        labels.flush().await?;
         tokio::fs::write(&latest, &encoded).await?;
     }
     Ok(Some(id))
