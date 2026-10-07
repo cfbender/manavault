@@ -7,7 +7,7 @@
 
 use async_graphql::{ObjectType, Schema, SubscriptionType};
 use axum::extract::{Request, State};
-use axum::http::header::ALLOW;
+use axum::http::header::{ALLOW, CONTENT_TYPE};
 use axum::http::{HeaderValue, Method, StatusCode};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
@@ -88,27 +88,33 @@ where
                     "Invalid request structure. Expecting a list of objects.",
                 );
             };
+            // Serialized as text so fields keep the query's order.
             let payload = match build_request(object) {
-                Ok(request) => {
-                    serde_json::to_value(schema.execute(request).await).unwrap_or(Value::Null)
-                }
-                Err(message) => json!({"errors": [{"message": message}]}),
+                Ok(request) => serde_json::to_string(&schema.execute(request).await)
+                    .unwrap_or_else(|_| "null".to_owned()),
+                Err(message) => json!({"errors": [{"message": message}]}).to_string(),
             };
-            let mut result: Map<String, Value> = object
+            let extra: Map<String, Value> = object
                 .iter()
-                .filter(|(key, _)| !matches!(key.as_str(), "query" | "variables"))
+                .filter(|(key, _)| !matches!(key.as_str(), "query" | "variables" | "payload"))
                 .map(|(key, value)| (key.clone(), value.clone()))
                 .collect();
-            result.insert("payload".to_owned(), payload);
-            results.push(Value::Object(result));
+            let extra = Value::Object(extra).to_string();
+            let fields = extra
+                .strip_prefix('{')
+                .and_then(|rest| rest.strip_suffix('}'))
+                .unwrap_or_default();
+            let separator = if fields.is_empty() { "" } else { "," };
+            results.push(format!("{{{fields}{separator}\"payload\":{payload}}}"));
         }
-        return axum::Json(Value::Array(results)).into_response();
+        return (
+            [(CONTENT_TYPE, "application/json")],
+            format!("[{}]", results.join(",")),
+        )
+            .into_response();
     }
     match build_request(&params.0) {
-        Ok(request) => {
-            let response = schema.execute(request).await;
-            axum::Json(serde_json::to_value(response).unwrap_or(Value::Null)).into_response()
-        }
+        Ok(request) => axum::Json(schema.execute(request).await).into_response(),
         Err(message) => json_error(StatusCode::BAD_REQUEST, &message),
     }
 }

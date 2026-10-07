@@ -1091,6 +1091,21 @@ mod graphql_csrf {
                 {"id": "b", "payload": {"data": {"appearanceSettings": {"palette": "claret"}}}}
             ])
         );
+        // Fields keep the query's order, as in Absinthe.
+        let ordered = browser
+            .post_json(
+                "/api/graphql",
+                &json!({"query": "{ backupSettings { provider cron } appearanceSettings { palette } }"}),
+                Some(&token),
+            )
+            .await;
+        assert!(
+            ordered
+                .body
+                .starts_with(r#"{"data":{"backupSettings":{"provider":"none","cron""#),
+            "{}",
+            ordered.body
+        );
         let missing = browser
             .post_json("/api/graphql", &json!({}), Some(&token))
             .await;
