@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT oracle_id AS \"oracle_id: OracleId\", finish AS \"finish: Finish\"\n        FROM deck_cards\n        WHERE deck_id = ?1 AND zone = ?2\n          AND oracle_id IN (SELECT value FROM json_each(?3))\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "oracle_id: OracleId",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "oracle_id"
+          }
+        }
+      },
+      {
+        "name": "finish: Finish",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "finish"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "94364ec63f796fb42e580ce87aa7354856f52af4c1596aca8b19b41152d32bad"
+}

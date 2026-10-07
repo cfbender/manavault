@@ -1,0 +1,21 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COALESCE(SUM(quantity), 0) AS \"total!: u32\" FROM deck_cards WHERE deck_id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "total!: u32",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "87f067ccdffe9d887b497b4a5ba905de65c3f7e175e56b929ce869b5a7d7c623"
+}

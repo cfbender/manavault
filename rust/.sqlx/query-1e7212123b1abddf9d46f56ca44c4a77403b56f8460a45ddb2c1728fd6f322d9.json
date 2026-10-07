@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        UPDATE deck_cards\n        SET proxy_quantity = ?2, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')\n        WHERE id = ?1 AND proxy_quantity != ?2\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "1e7212123b1abddf9d46f56ca44c4a77403b56f8460a45ddb2c1728fd6f322d9"
+}

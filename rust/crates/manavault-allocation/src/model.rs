@@ -168,3 +168,240 @@ pub(crate) async fn load_collection_item(
     .fetch_optional(conn)
     .await
 }
+
+/// A deck with the facts the allocation rules check.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Deck {
+    pub id: DeckId,
+    pub name: String,
+    pub status: DeckStatus,
+    /// `moxfield`/`archidekt` when the card list is synced from a remote deck.
+    pub external_source: Option<String>,
+}
+
+impl Deck {
+    /// Archived decks are frozen (`EditGuard.ensure_deck_editable/1`).
+    pub fn ensure_editable(&self) -> Result<(), AllocationError> {
+        match self.status {
+            DeckStatus::Archived => Err(AllocationError::DeckArchived),
+            DeckStatus::Brewing | DeckStatus::Active => Ok(()),
+        }
+    }
+
+    /// Additionally refuses decks whose card list belongs to a linked remote
+    /// deck (`EditGuard.ensure_decklist_editable/1`). Allocation-only changes
+    /// use [`Deck::ensure_editable`], so linked decks can still reserve copies.
+    pub fn ensure_decklist_editable(&self) -> Result<(), AllocationError> {
+        self.ensure_editable()?;
+        if self.external_source.is_some() {
+            Err(AllocationError::DeckLinked)
+        } else {
+            Ok(())
+        }
+    }
+}
+
+/// A deck card with its card's name.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NamedDeckCard {
+    pub card: DeckCard,
+    pub name: String,
+}
+
+pub(crate) async fn load_deck(
+    conn: &mut SqliteConnection,
+    id: DeckId,
+) -> Result<Option<Deck>, sqlx::Error> {
+    sqlx::query_as!(
+        Deck,
+        r#"
+        SELECT
+          id AS "id!: DeckId",
+          name,
+          status AS "status: DeckStatus",
+          external_source
+        FROM decks
+        WHERE id = ?1
+        "#,
+        id
+    )
+    .fetch_optional(conn)
+    .await
+}
+
+pub(crate) async fn require_deck(
+    conn: &mut SqliteConnection,
+    id: DeckId,
+) -> Result<Deck, AllocationError> {
+    load_deck(conn, id)
+        .await?
+        .ok_or(AllocationError::DeckNotFound)
+}
+
+pub(crate) async fn require_deck_card(
+    conn: &mut SqliteConnection,
+    id: DeckCardId,
+) -> Result<DeckCard, AllocationError> {
+    load_deck_card(conn, id)
+        .await?
+        .ok_or(AllocationError::DeckCardNotFound)
+}
+
+struct NamedDeckCardRow {
+    id: DeckCardId,
+    deck_id: DeckId,
+    deck_status: DeckStatus,
+    oracle_id: OracleId,
+    preferred_printing_id: Option<ScryfallId>,
+    quantity: Quantity,
+    proxy_quantity: u32,
+    zone: Zone,
+    finish: Finish,
+    tag: Option<DeckCardTag>,
+    type_line: Option<String>,
+    name: String,
+}
+
+impl From<NamedDeckCardRow> for NamedDeckCard {
+    fn from(row: NamedDeckCardRow) -> Self {
+        Self {
+            card: DeckCard {
+                id: row.id,
+                deck_id: row.deck_id,
+                deck_status: row.deck_status,
+                oracle_id: row.oracle_id,
+                preferred_printing_id: row.preferred_printing_id,
+                quantity: row.quantity,
+                proxy_quantity: row.proxy_quantity,
+                zone: row.zone,
+                finish: row.finish,
+                tag: row.tag,
+                type_line: row.type_line,
+            },
+            name: row.name,
+        }
+    }
+}
+
+/// Every card of a deck, ordered like the deck page (`Decks.Preloads`):
+/// zone, card name, id.
+pub(crate) async fn load_deck_cards(
+    conn: &mut SqliteConnection,
+    deck_id: DeckId,
+) -> Result<Vec<NamedDeckCard>, sqlx::Error> {
+    let rows = sqlx::query_as!(
+        NamedDeckCardRow,
+        r#"
+        SELECT
+          dc.id AS "id!: DeckCardId",
+          dc.deck_id AS "deck_id: DeckId",
+          d.status AS "deck_status: DeckStatus",
+          dc.oracle_id AS "oracle_id: OracleId",
+          dc.preferred_printing_id AS "preferred_printing_id: ScryfallId",
+          dc.quantity AS "quantity: Quantity",
+          dc.proxy_quantity AS "proxy_quantity: u32",
+          dc.zone AS "zone: Zone",
+          dc.finish AS "finish: Finish",
+          dc.tag AS "tag: DeckCardTag",
+          c.type_line,
+          c.name
+        FROM deck_cards dc
+        JOIN decks d ON d.id = dc.deck_id
+        JOIN scryfall_cards c ON c.oracle_id = dc.oracle_id
+        WHERE dc.deck_id = ?1
+        ORDER BY dc.zone, c.name, dc.id
+        "#,
+        deck_id
+    )
+    .fetch_all(conn)
+    .await?;
+    Ok(rows.into_iter().map(NamedDeckCard::from).collect())
+}
+
+/// Deck cards by id, in no particular order.
+pub(crate) async fn load_deck_cards_by_ids(
+    conn: &mut SqliteConnection,
+    ids: &[DeckCardId],
+) -> Result<Vec<DeckCard>, sqlx::Error> {
+    let ids = crate::json::id_list(ids.iter().map(|id| id.0));
+    sqlx::query_as!(
+        DeckCard,
+        r#"
+        SELECT
+          dc.id AS "id!: DeckCardId",
+          dc.deck_id AS "deck_id: DeckId",
+          d.status AS "deck_status: DeckStatus",
+          dc.oracle_id AS "oracle_id: OracleId",
+          dc.preferred_printing_id AS "preferred_printing_id: ScryfallId",
+          dc.quantity AS "quantity: Quantity",
+          dc.proxy_quantity AS "proxy_quantity: u32",
+          dc.zone AS "zone: Zone",
+          dc.finish AS "finish: Finish",
+          dc.tag AS "tag: DeckCardTag",
+          c.type_line
+        FROM deck_cards dc
+        JOIN decks d ON d.id = dc.deck_id
+        JOIN scryfall_cards c ON c.oracle_id = dc.oracle_id
+        WHERE dc.id IN (SELECT value FROM json_each(?1))
+        "#,
+        ids
+    )
+    .fetch_all(conn)
+    .await
+}
+
+/// Collection items by id, in no particular order.
+pub(crate) async fn load_collection_items(
+    conn: &mut SqliteConnection,
+    ids: &[CollectionItemId],
+) -> Result<Vec<CollectionItem>, sqlx::Error> {
+    let ids = crate::json::id_list(ids.iter().map(|id| id.0));
+    sqlx::query_as!(
+        CollectionItem,
+        r#"
+        SELECT
+          ci.id AS "id!: CollectionItemId",
+          ci.scryfall_id AS "scryfall_id: ScryfallId",
+          p.oracle_id AS "oracle_id: OracleId",
+          ci.quantity AS "quantity: Quantity",
+          ci.condition AS "condition: Condition",
+          ci.language,
+          ci.finish AS "finish: Finish",
+          ci.location_id AS "location_id: LocationId",
+          l.kind AS "location_kind?: LocationKind",
+          ci.notes,
+          ci.purchase_price_cents
+        FROM collection_items ci
+        JOIN scryfall_printings p ON p.scryfall_id = ci.scryfall_id
+        LEFT JOIN locations l ON l.id = ci.location_id
+        WHERE ci.id IN (SELECT value FROM json_each(?1))
+        "#,
+        ids
+    )
+    .fetch_all(conn)
+    .await
+}
+
+/// The allocations held by a deck card, oldest first.
+pub(crate) async fn load_allocations(
+    conn: &mut SqliteConnection,
+    deck_card_id: DeckCardId,
+) -> Result<Vec<DeckAllocation>, sqlx::Error> {
+    sqlx::query_as!(
+        DeckAllocation,
+        r#"
+        SELECT
+          id AS "id!: AllocationId",
+          deck_card_id AS "deck_card_id: DeckCardId",
+          collection_item_id AS "collection_item_id: CollectionItemId",
+          source_location_id AS "source_location_id: LocationId",
+          quantity AS "quantity: Quantity"
+        FROM deck_allocations
+        WHERE deck_card_id = ?1
+        ORDER BY id
+        "#,
+        deck_card_id
+    )
+    .fetch_all(conn)
+    .await
+}

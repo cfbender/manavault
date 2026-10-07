@@ -1,0 +1,57 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n          a.deck_card_id AS \"deck_card_id: DeckCardId\",\n          dc.oracle_id AS \"oracle_id: OracleId\",\n          a.collection_item_id AS \"collection_item_id: CollectionItemId\",\n          SUM(a.quantity) AS \"quantity!: u32\"\n        FROM deck_allocations a\n        JOIN deck_cards dc ON dc.id = a.deck_card_id\n        WHERE dc.id IN (SELECT value FROM json_each(?1))\n           OR dc.oracle_id IN (SELECT value FROM json_each(?2))\n        GROUP BY a.deck_card_id, dc.oracle_id, a.collection_item_id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "deck_card_id: DeckCardId",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "deck_card_id"
+          }
+        }
+      },
+      {
+        "name": "oracle_id: OracleId",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "oracle_id"
+          }
+        }
+      },
+      {
+        "name": "collection_item_id: CollectionItemId",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "collection_item_id"
+          }
+        }
+      },
+      {
+        "name": "quantity!: u32",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "eefff7c0ecf3891e3f0c3fe3a92eafd1968ba209e75657e3b3220f7842d002e7"
+}

@@ -23,25 +23,44 @@ pub async fn allocate(
     collection_item_id: CollectionItemId,
     quantity: Quantity,
 ) -> Result<DeckAllocation, AllocationError> {
-    let mut tx = pool.begin().await?;
+    let mut tx = begin_write(pool).await?;
+    let allocation = allocate_in(&mut tx, deck_card_id, collection_item_id, quantity).await?;
+    tx.commit().await?;
+    Ok(allocation)
+}
 
-    let deck_card = load_deck_card(&mut tx, deck_card_id)
+/// [`allocate`] inside the caller's transaction
+/// (`DeckCardAllocation.allocate_by_ids_in_transaction/3`). On error nothing
+/// has been written yet except what a failed write itself left, so callers
+/// that keep going after an error should run each call in a savepoint.
+pub async fn allocate_in(
+    conn: &mut SqliteConnection,
+    deck_card_id: DeckCardId,
+    collection_item_id: CollectionItemId,
+    quantity: Quantity,
+) -> Result<DeckAllocation, AllocationError> {
+    let deck_card = load_deck_card(conn, deck_card_id)
         .await?
         .ok_or(AllocationError::DeckCardNotFound)?
         .allocatable()?;
-    let item = load_collection_item(&mut tx, collection_item_id)
+    let item = load_collection_item(conn, collection_item_id)
         .await?
         .ok_or(AllocationError::CollectionItemNotFound)?;
     ensure_item_matches(&item, deck_card.deck_card())?;
 
-    let status = status::load_status(&mut tx, deck_card.deck_card()).await?;
+    let status = status::load_status(conn, deck_card.deck_card()).await?;
     ensure_room(&status, item.id, quantity)?;
 
-    use_item_printing(&mut tx, &deck_card, &item).await?;
-    let allocation = reserve(&mut tx, &deck_card, &item, quantity).await?;
+    use_item_printing(conn, &deck_card, &item).await?;
+    reserve(conn, &deck_card, &item, quantity).await
+}
 
-    tx.commit().await?;
-    Ok(allocation)
+/// Starts a transaction that takes SQLite's write lock up front, like the
+/// Elixir repo's `default_transaction_mode: :immediate`.
+pub(crate) async fn begin_write(
+    pool: &SqlitePool,
+) -> Result<sqlx::Transaction<'static, sqlx::Sqlite>, sqlx::Error> {
+    pool.begin_with("BEGIN IMMEDIATE").await
 }
 
 /// Returns up to `quantity` reserved copies to the location they came from.
@@ -51,7 +70,7 @@ pub async fn deallocate(
     collection_item_id: CollectionItemId,
     quantity: Quantity,
 ) -> Result<Deallocation, AllocationError> {
-    let mut tx = pool.begin().await?;
+    let mut tx = begin_write(pool).await?;
 
     let allocation = find_allocation(&mut tx, deck_card_id, collection_item_id)
         .await?
@@ -99,7 +118,10 @@ pub async fn allocation_status(
     Ok(status::load_status(&mut conn, &deck_card).await?)
 }
 
-fn ensure_item_matches(item: &CollectionItem, deck_card: &DeckCard) -> Result<(), AllocationError> {
+pub(crate) fn ensure_item_matches(
+    item: &CollectionItem,
+    deck_card: &DeckCard,
+) -> Result<(), AllocationError> {
     if item.location_kind == Some(LocationKind::List) {
         Err(AllocationError::ListLocation)
     } else if item.oracle_id != deck_card.oracle_id {
@@ -129,7 +151,7 @@ fn ensure_room(
     }
 }
 
-async fn use_item_printing(
+pub(crate) async fn use_item_printing(
     conn: &mut SqliteConnection,
     deck_card: &AllocatableDeckCard,
     item: &CollectionItem,
@@ -159,7 +181,7 @@ async fn use_item_printing(
 /// The only function that creates or grows an allocation. Taking
 /// [`AllocatableDeckCard`] makes the zone and archive checks a precondition
 /// the compiler enforces for every caller.
-async fn reserve(
+pub(crate) async fn reserve(
     conn: &mut SqliteConnection,
     deck_card: &AllocatableDeckCard,
     item: &CollectionItem,
@@ -190,7 +212,7 @@ async fn reserve(
     Ok(allocation)
 }
 
-async fn find_allocation(
+pub(crate) async fn find_allocation(
     conn: &mut SqliteConnection,
     deck_card_id: DeckCardId,
     collection_item_id: CollectionItemId,
@@ -250,7 +272,7 @@ async fn insert_allocation(
     .await
 }
 
-async fn set_allocation_quantity(
+pub(crate) async fn set_allocation_quantity(
     conn: &mut SqliteConnection,
     id: AllocationId,
     quantity: Quantity,
@@ -276,7 +298,7 @@ async fn set_allocation_quantity(
     .await
 }
 
-async fn delete_allocation(
+pub(crate) async fn delete_allocation(
     conn: &mut SqliteConnection,
     id: AllocationId,
 ) -> Result<(), sqlx::Error> {

@@ -1,0 +1,158 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n          a.id AS \"id!: AllocationId\",\n          a.deck_card_id AS \"deck_card_id: DeckCardId\",\n          a.collection_item_id AS \"collection_item_id: CollectionItemId\",\n          a.quantity AS \"quantity: Quantity\",\n          a.source_location_id AS \"source_location_id: LocationId\",\n          l.name AS \"source_location_name?\",\n          ci.finish AS \"finish: Finish\",\n          p.set_code,\n          p.collector_number,\n          p.image_uris,\n          c.name AS card_name,\n          c.oracle_id AS \"oracle_id!: OracleId\"\n        FROM deck_allocations a\n        JOIN deck_cards dc ON dc.id = a.deck_card_id\n        JOIN scryfall_cards c ON c.oracle_id = dc.oracle_id\n        JOIN collection_items ci ON ci.id = a.collection_item_id\n        JOIN scryfall_printings p ON p.scryfall_id = ci.scryfall_id\n        LEFT JOIN locations l ON l.id = a.source_location_id\n        WHERE dc.deck_id = ?1\n        ORDER BY c.name, c.oracle_id, dc.id, a.id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: AllocationId",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "deck_card_id: DeckCardId",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "deck_card_id"
+          }
+        }
+      },
+      {
+        "name": "collection_item_id: CollectionItemId",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "collection_item_id"
+          }
+        }
+      },
+      {
+        "name": "quantity: Quantity",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "quantity"
+          }
+        }
+      },
+      {
+        "name": "source_location_id: LocationId",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "source_location_id"
+          }
+        }
+      },
+      {
+        "name": "source_location_name?",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "locations",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "finish: Finish",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "finish"
+          }
+        }
+      },
+      {
+        "name": "set_code",
+        "ordinal": 7,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "set_code"
+          }
+        }
+      },
+      {
+        "name": "collector_number",
+        "ordinal": 8,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "collector_number"
+          }
+        }
+      },
+      {
+        "name": "image_uris",
+        "ordinal": 9,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "image_uris"
+          }
+        }
+      },
+      {
+        "name": "card_name",
+        "ordinal": 10,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "oracle_id!: OracleId",
+        "ordinal": 11,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "oracle_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "ad06298a53ba12cac7ea0f6510e01af2b79db5d34312e8219e484dcbb7704000"
+}

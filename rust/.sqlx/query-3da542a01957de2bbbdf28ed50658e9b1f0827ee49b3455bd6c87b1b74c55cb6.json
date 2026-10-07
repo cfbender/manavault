@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE scryfall_printings SET image_uris = ?2 WHERE scryfall_id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "3da542a01957de2bbbdf28ed50658e9b1f0827ee49b3455bd6c87b1b74c55cb6"
+}

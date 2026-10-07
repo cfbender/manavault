@@ -1,4 +1,7 @@
 //! Test database and fixtures. Mirrors `Manavault.CatalogTestFixtures`.
+//!
+//! Shared by several test binaries, each using a different subset.
+#![allow(dead_code)]
 
 use std::str::FromStr;
 
@@ -64,7 +67,7 @@ pub fn qty(n: u32) -> TestResult<Quantity> {
     Ok(Quantity::new(n).ok_or("test quantities must be positive")?)
 }
 
-async fn card(pool: &SqlitePool, oracle_id: &str, name: &str, type_line: &str) -> TestResult {
+pub async fn card(pool: &SqlitePool, oracle_id: &str, name: &str, type_line: &str) -> TestResult {
     sqlx::query!(
         "INSERT INTO scryfall_cards (oracle_id, name, type_line, inserted_at, updated_at)
          VALUES (?1, ?2, ?3, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
@@ -77,7 +80,7 @@ async fn card(pool: &SqlitePool, oracle_id: &str, name: &str, type_line: &str) -
     Ok(())
 }
 
-async fn printing(
+pub async fn printing(
     pool: &SqlitePool,
     scryfall_id: &str,
     oracle_id: &str,
@@ -278,6 +281,8 @@ pub struct DeckCardRow {
     pub preferred_printing_id: Option<ScryfallId>,
     pub finish: Finish,
     pub tag: Option<DeckCardTag>,
+    pub quantity: u32,
+    pub proxy_quantity: u32,
 }
 
 pub async fn deck_card_row(pool: &SqlitePool, id: DeckCardId) -> TestResult<DeckCardRow> {
@@ -286,7 +291,9 @@ pub async fn deck_card_row(pool: &SqlitePool, id: DeckCardId) -> TestResult<Deck
         r#"SELECT
              preferred_printing_id AS "preferred_printing_id: ScryfallId",
              finish AS "finish: Finish",
-             tag AS "tag: DeckCardTag"
+             tag AS "tag: DeckCardTag",
+             quantity AS "quantity: u32",
+             proxy_quantity AS "proxy_quantity: u32"
            FROM deck_cards WHERE id = ?1"#,
         id
     )
@@ -298,4 +305,102 @@ pub async fn allocation_count(pool: &SqlitePool) -> TestResult<i64> {
     Ok(sqlx::query_scalar!("SELECT COUNT(*) FROM deck_allocations")
         .fetch_one(pool)
         .await?)
+}
+
+pub async fn set_image_uris(pool: &SqlitePool, printing: &str, image_uris: &str) -> TestResult {
+    sqlx::query!(
+        "UPDATE scryfall_printings SET image_uris = ?2 WHERE scryfall_id = ?1",
+        printing,
+        image_uris
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn set_external_source(pool: &SqlitePool, id: DeckId, source: &str) -> TestResult {
+    sqlx::query!(
+        "UPDATE decks SET external_source = ?2, external_id = 'x', external_url = 'https://moxfield.com/decks/x' WHERE id = ?1",
+        id,
+        source
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn set_deck_card_finish(pool: &SqlitePool, id: DeckCardId, finish: Finish) -> TestResult {
+    sqlx::query!(
+        "UPDATE deck_cards SET finish = ?2 WHERE id = ?1",
+        id,
+        finish
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn clear_preferred_printing(pool: &SqlitePool, id: DeckCardId) -> TestResult {
+    sqlx::query!(
+        "UPDATE deck_cards SET preferred_printing_id = NULL WHERE id = ?1",
+        id
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn set_deck_card_quantity(
+    pool: &SqlitePool,
+    id: DeckCardId,
+    quantity: u32,
+) -> TestResult {
+    sqlx::query!(
+        "UPDATE deck_cards SET quantity = ?2 WHERE id = ?1",
+        id,
+        quantity
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn deck_status(pool: &SqlitePool, id: DeckId) -> TestResult<DeckStatus> {
+    Ok(sqlx::query_scalar!(
+        r#"SELECT status AS "status: DeckStatus" FROM decks WHERE id = ?1"#,
+        id
+    )
+    .fetch_one(pool)
+    .await?)
+}
+
+/// Every deck card of a deck as `(id, oracle_id, zone)`, by id.
+pub async fn deck_card_ids(pool: &SqlitePool, deck_id: DeckId) -> TestResult<Vec<DeckCardId>> {
+    Ok(sqlx::query_scalar!(
+        r#"SELECT id AS "id!: DeckCardId" FROM deck_cards WHERE deck_id = ?1 ORDER BY id"#,
+        deck_id
+    )
+    .fetch_all(pool)
+    .await?)
+}
+
+pub async fn item_ids(pool: &SqlitePool) -> TestResult<Vec<CollectionItemId>> {
+    Ok(sqlx::query_scalar!(
+        r#"SELECT id AS "id!: CollectionItemId" FROM collection_items ORDER BY id"#
+    )
+    .fetch_all(pool)
+    .await?)
+}
+
+pub async fn allocation_exists(
+    pool: &SqlitePool,
+    id: manavault_allocation::AllocationId,
+) -> TestResult<bool> {
+    Ok(sqlx::query_scalar!(
+        r#"SELECT COUNT(*) AS "n!: i64" FROM deck_allocations WHERE id = ?1"#,
+        id
+    )
+    .fetch_one(pool)
+    .await?
+        > 0)
 }

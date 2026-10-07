@@ -65,3 +65,31 @@ pub enum LocationKind {
     Folder,
     Other,
 }
+
+/// How bulk allocation picks collection copies for a deck card.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AllocationMode {
+    /// Only copies of the deck card's preferred printing.
+    ExactPrintings,
+    /// Copies of any printing of the card, preferred printing first.
+    MatchingPrintings,
+}
+
+impl AllocationMode {
+    /// Parses the GraphQL `mode` argument.
+    pub fn parse(value: &str) -> Result<Self, crate::AllocationError> {
+        match value {
+            "exact_printings" => Ok(Self::ExactPrintings),
+            "matching_printings" => Ok(Self::MatchingPrintings),
+            _ => Err(crate::AllocationError::InvalidAllocationMode),
+        }
+    }
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::ExactPrintings => "exact_printings",
+            Self::MatchingPrintings => "matching_printings",
+        }
+    }
+}
