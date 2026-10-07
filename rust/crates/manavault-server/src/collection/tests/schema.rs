@@ -1403,6 +1403,63 @@ async fn import_preview_commit_and_export_over_graphql() {
     );
 }
 
+/// The import page resolves an ambiguous row by writing the chosen
+/// candidate's `id` (a `Printing` global id) into `attrs.scryfallId`
+/// (`selectCandidate` in `use-collection-import.ts`). Elixir rejected it as a
+/// missing printing; found by the parity harness.
+#[tokio::test]
+async fn import_commit_accepts_a_chosen_candidate_global_id() {
+    let app = TestApp::new().await;
+    app.import_cards(&[
+        card(
+            "scryfall-ambiguous-a",
+            "oracle-ambiguous",
+            "Ambiguous Card",
+            json!({"set": "aaa", "collector_number": "1"}),
+        ),
+        card(
+            "scryfall-ambiguous-b",
+            "oracle-ambiguous",
+            "Ambiguous Card",
+            json!({"set": "bbb", "collector_number": "2"}),
+        ),
+    ])
+    .await;
+    let data = app
+        .gql_data(
+            PREVIEW_IMPORT,
+            json!({"input": {"text": "2 Ambiguous Card", "format": "text"}}),
+        )
+        .await;
+    let row = &data["previewCollectionImport"]["importPreview"]["rows"][0];
+    assert_eq!(row["status"], "ambiguous");
+    let mut attrs = row["attrs"].clone();
+    attrs["scryfallId"] = json!(gid(NodeKind::Printing, "scryfall-ambiguous-b"));
+    let rows = json!([{"rowNumber": row["rowNumber"], "status": "exact", "attrs": attrs}]);
+    let data = app
+        .gql_data(
+            r"mutation CommitCollectionImport($input: CollectionImportCommitInput!) {
+                commitCollectionImport(input: $input) { importResult { imported skipped } }
+              }",
+            json!({"input": {"rows": rows}}),
+        )
+        .await;
+    assert_eq!(
+        data["commitCollectionImport"]["importResult"],
+        json!({"imported": 1, "skipped": 0})
+    );
+    let data = app
+        .gql_data(
+            "{ collectionItems(first: 5) { edges { node { quantity printing { scryfallId } } } } }",
+            json!({}),
+        )
+        .await;
+    assert_eq!(
+        edges(&data["collectionItems"]),
+        [json!({"quantity": 2, "printing": {"scryfallId": "scryfall-ambiguous-b"}})]
+    );
+}
+
 fn rule_input(location: &str, overrides: Value) -> Value {
     merge(
         json!({

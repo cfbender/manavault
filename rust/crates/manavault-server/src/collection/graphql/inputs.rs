@@ -326,11 +326,25 @@ pub(crate) fn import_location_id(id: Option<&ID>) -> Result<Option<i64>> {
     })
 }
 
+/// An import row's printing id: a raw Scryfall id (what the preview
+/// returns), or a `Printing` global id.
+///
+/// Elixir bug (fixed here): the import page's `selectCandidate` writes the
+/// chosen candidate's `id` (a `Printing` global id) into
+/// `attrs.scryfallId`, but `ImportResolvers.collection_import_row/2` passed
+/// it through undecoded, so committing (or auto-sort previewing) an import
+/// after picking a printing for an ambiguous row always failed with "A card
+/// printing in this import no longer exists." Found by the parity harness.
 fn raw_id_change(id: &MaybeUndefined<ID>) -> MaybeUndefined<String> {
     match id {
         MaybeUndefined::Undefined => MaybeUndefined::Undefined,
         MaybeUndefined::Null => MaybeUndefined::Null,
-        MaybeUndefined::Value(id) => MaybeUndefined::Value(id.to_string()),
+        MaybeUndefined::Value(id) => {
+            MaybeUndefined::Value(match crate::graphql::relay::from_global_id(id.as_str()) {
+                Ok((NodeKind::Printing, raw)) => raw,
+                _ => id.to_string(),
+            })
+        }
     }
 }
 
