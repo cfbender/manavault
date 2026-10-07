@@ -1,8 +1,7 @@
-//! The `ai` queue workers (`AI.DeckAnalysisWorker`, `AI.DeckQuestionWorker`).
+//! The `ai` queue workers: deck analysis and deck questions.
 
 use std::time::Duration;
 
-use async_trait::async_trait;
 use serde_json::Value;
 
 use super::analyze_deck::{self, RunError};
@@ -10,10 +9,10 @@ use super::{AiError, answer_deck_question, decks};
 use crate::jobs::{Job, Outcome, Unique, Worker};
 use crate::state::AppState;
 
-pub const DECK_ANALYSIS_WORKER: &str = "Manavault.AI.DeckAnalysisWorker";
-pub const DECK_QUESTION_WORKER: &str = "Manavault.AI.DeckQuestionWorker";
+pub const DECK_ANALYSIS_WORKER: &str = "deck_analysis";
+pub const DECK_QUESTION_WORKER: &str = "deck_question";
 
-/// An integer id argument; Oban args may carry it as a number or a string.
+/// An integer id argument, carried as a number or a string.
 fn id_arg(args: &Value, key: &str) -> Option<i64> {
     match args.get(key)? {
         Value::Number(number) => number.as_i64(),
@@ -33,7 +32,6 @@ fn reason(error: &AiError) -> String {
 /// bulk refreshes share a job; a deleted deck completes without work.
 pub struct DeckAnalysisWorker;
 
-#[async_trait]
 impl Worker for DeckAnalysisWorker {
     fn name(&self) -> &'static str {
         DECK_ANALYSIS_WORKER
@@ -50,8 +48,8 @@ impl Worker for DeckAnalysisWorker {
     fn timeout(&self) -> Duration {
         Duration::from_secs(10 * 60)
     }
-    fn backoff(&self, attempt: i64) -> u64 {
-        u64::try_from(attempt).unwrap_or(1).saturating_mul(15)
+    fn backoff(&self, attempt: i64) -> Duration {
+        Duration::from_secs(u64::try_from(attempt).unwrap_or(1).saturating_mul(15))
     }
 
     async fn perform(&self, state: &AppState, job: &Job) -> Outcome {
@@ -75,7 +73,6 @@ impl Worker for DeckAnalysisWorker {
 /// marked failed with the error.
 pub struct DeckQuestionWorker;
 
-#[async_trait]
 impl Worker for DeckQuestionWorker {
     fn name(&self) -> &'static str {
         DECK_QUESTION_WORKER
@@ -89,8 +86,8 @@ impl Worker for DeckQuestionWorker {
     fn timeout(&self) -> Duration {
         Duration::from_secs(10 * 60)
     }
-    fn backoff(&self, attempt: i64) -> u64 {
-        u64::try_from(attempt).unwrap_or(1).saturating_mul(15)
+    fn backoff(&self, attempt: i64) -> Duration {
+        Duration::from_secs(u64::try_from(attempt).unwrap_or(1).saturating_mul(15))
     }
 
     async fn perform(&self, state: &AppState, job: &Job) -> Outcome {

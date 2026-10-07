@@ -1871,7 +1871,7 @@ async fn manual_reloads_enqueue_unique_forced_jobs() {
         })
     );
     let jobs: Vec<(String, String, String, i64)> =
-        sqlx::query_as("SELECT worker, queue, args, max_attempts FROM oban_jobs ORDER BY id")
+        sqlx::query_as("SELECT worker, queue, args, max_attempts FROM jobs ORDER BY id")
             .fetch_all(app.db())
             .await
             .unwrap();
@@ -1900,7 +1900,7 @@ async fn manual_reloads_enqueue_unique_forced_jobs() {
         .await
         .unwrap();
     assert_eq!(first, again);
-    assert_eq!(count(&app, "oban_jobs").await, 2);
+    assert_eq!(count(&app, "jobs").await, 2);
 }
 
 #[tokio::test]
@@ -1916,7 +1916,7 @@ async fn a_forced_reload_upgrades_a_queued_periodic_job() {
         .await
         .unwrap();
     assert_eq!(periodic, forced);
-    let args: String = sqlx::query_scalar("SELECT args FROM oban_jobs WHERE id = ?1")
+    let args: String = sqlx::query_scalar("SELECT args FROM jobs WHERE id = ?1")
         .bind(forced)
         .fetch_one(app.db())
         .await
@@ -1993,18 +1993,18 @@ fn syncs_from_older_importers_or_over_a_day_old_are_stale() {
 }
 
 #[test]
-fn crontab_matches_the_oban_config() {
+fn crontab_schedules_the_catalog_and_pricing_workers() {
     let entries: Vec<(&str, &str)> = manavault_server::app::crontab()
         .iter()
         .map(|entry| (entry.expression, entry.worker))
         .collect();
     for expected in [
-        ("@reboot", "Manavault.Catalog.ScryfallCatalogWorker"),
-        ("@daily", "Manavault.Catalog.ScryfallCatalogWorker"),
-        ("@reboot", "Manavault.Catalog.ScryfallAssetsWorker"),
-        ("@daily", "Manavault.Catalog.ScryfallAssetsWorker"),
-        ("@reboot", "Manavault.Pricing.VendorSyncWorker"),
-        ("*/30 * * * *", "Manavault.Pricing.VendorSyncWorker"),
+        ("@reboot", "scryfall_catalog"),
+        ("@daily", "scryfall_catalog"),
+        ("@reboot", "scryfall_assets"),
+        ("@daily", "scryfall_assets"),
+        ("@reboot", "vendor_prices"),
+        ("*/30 * * * *", "vendor_prices"),
     ] {
         assert!(entries.contains(&expected), "{expected:?}");
     }

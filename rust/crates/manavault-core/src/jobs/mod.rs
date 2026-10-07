@@ -1,17 +1,22 @@
-//! Background jobs stored in the `oban_jobs` table.
+//! Background jobs stored in the `jobs` table and run in this process.
 //!
-//! The table, states, uniqueness rules, retry backoff, and worker names are
-//! Oban's, as in earlier releases, so jobs they queued still run and the
-//! `deckAnalysisJob` query can read their rows. Each worker implements [`Worker`]
-//! and is registered in [`crate::app::workers`].
+//! A job is a row naming a [`Worker`] and carrying JSON args. It is `queued`
+//! until its `run_at`, `running` while a worker performs it, and ends
+//! `succeeded`, `failed` (every attempt returned [`Outcome::Retry`]) or
+//! `cancelled` (the worker returned [`Outcome::Cancel`]). Each queue runs a
+//! bounded number of jobs at once ([`QUEUES`]); the crontab enqueues
+//! periodic jobs. Workers are registered in `app::workers`.
 
 pub mod cron;
+#[cfg(test)]
+mod tests;
 
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
-use async_trait::async_trait;
 use serde_json::Value;
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
@@ -20,30 +25,24 @@ use tokio::sync::{Notify, Semaphore};
 use crate::state::AppState;
 use crate::timefmt;
 
-/// Oban's "incomplete" states, used for uniqueness.
-pub const INCOMPLETE_STATES: [&str; 4] = ["available", "scheduled", "executing", "retryable"];
-
-/// Which fields make two jobs duplicates (`unique: [fields: ...]`). The period
-/// is always infinite and the states always incomplete in this app.
+/// Which fields make two jobs duplicates. Uniqueness only considers jobs
+/// that are queued or running.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Unique {
-    /// One incomplete job per worker.
+    /// One pending job per worker.
     Worker,
-    /// One incomplete job per worker and args.
+    /// One pending job per worker and args.
     WorkerArgs,
 }
 
 /// What a worker run returned.
 #[derive(Debug)]
 pub enum Outcome {
-    /// `:ok`.
     Done,
-    /// `{:error, reason}`: retry with backoff until `max_attempts`.
+    /// Retry with backoff until `max_attempts`, then fail.
     Retry(String),
-    /// `{:cancel, reason}`: stop without retrying.
+    /// Stop without retrying.
     Cancel(String),
-    /// `{:snooze, seconds}`: run again later without counting an attempt.
-    Snooze(u64),
 }
 
 /// A claimed job.
@@ -56,13 +55,12 @@ pub struct Job {
     pub max_attempts: i64,
 }
 
-/// A background worker.
-#[async_trait]
-pub trait Worker: Send + Sync {
-    /// The worker name stored in `oban_jobs.worker` (the module names
-    /// earlier releases used, e.g. `Manavault.Pricing.VendorSyncWorker`).
+/// A background worker. Implement this; the registry stores it as a
+/// [`DynWorker`].
+pub trait Worker: Send + Sync + 'static {
+    /// The name stored in `jobs.worker`.
     fn name(&self) -> &'static str;
-    /// The queue the worker runs on.
+    /// The queue the worker runs on (one of [`QUEUES`]).
     fn queue(&self) -> &'static str;
     fn max_attempts(&self) -> i64 {
         20
@@ -74,15 +72,57 @@ pub trait Worker: Send + Sync {
     fn timeout(&self) -> Duration {
         Duration::from_secs(30 * 60)
     }
-    /// Seconds to wait before retrying after failed attempt `attempt`
-    /// (`backoff/1`); Oban's default is `2^attempt + 15`.
-    fn backoff(&self, attempt: i64) -> u64 {
-        2_u64.saturating_pow(u32::try_from(attempt).unwrap_or(10)) + 15
+    /// How long to wait before retrying after failed attempt `attempt`.
+    fn backoff(&self, attempt: i64) -> Duration {
+        Duration::from_secs(2_u64.saturating_pow(u32::try_from(attempt).unwrap_or(10)) + 15)
     }
-    async fn perform(&self, state: &AppState, job: &Job) -> Outcome;
+    fn perform(&self, state: &AppState, job: &Job) -> impl Future<Output = Outcome> + Send;
 }
 
-/// Queue concurrency (`queues:` in the Oban config).
+/// The object-safe form of [`Worker`], implemented for every worker.
+pub trait DynWorker: Send + Sync {
+    fn name(&self) -> &'static str;
+    fn queue(&self) -> &'static str;
+    fn max_attempts(&self) -> i64;
+    fn unique(&self) -> Option<Unique>;
+    fn timeout(&self) -> Duration;
+    fn backoff(&self, attempt: i64) -> Duration;
+    fn perform<'a>(
+        &'a self,
+        state: &'a AppState,
+        job: &'a Job,
+    ) -> Pin<Box<dyn Future<Output = Outcome> + Send + 'a>>;
+}
+
+impl<W: Worker> DynWorker for W {
+    fn name(&self) -> &'static str {
+        Worker::name(self)
+    }
+    fn queue(&self) -> &'static str {
+        Worker::queue(self)
+    }
+    fn max_attempts(&self) -> i64 {
+        Worker::max_attempts(self)
+    }
+    fn unique(&self) -> Option<Unique> {
+        Worker::unique(self)
+    }
+    fn timeout(&self) -> Duration {
+        Worker::timeout(self)
+    }
+    fn backoff(&self, attempt: i64) -> Duration {
+        Worker::backoff(self, attempt)
+    }
+    fn perform<'a>(
+        &'a self,
+        state: &'a AppState,
+        job: &'a Job,
+    ) -> Pin<Box<dyn Future<Output = Outcome> + Send + 'a>> {
+        Box::pin(Worker::perform(self, state, job))
+    }
+}
+
+/// Queue concurrency.
 pub const QUEUES: [(&str, usize); 5] = [
     ("ai", 2),
     ("backup", 1),
@@ -91,12 +131,20 @@ pub const QUEUES: [(&str, usize); 5] = [
     ("pricing", 1),
 ];
 
-/// A cron entry (`Oban.Plugins.Cron` crontab).
+/// A crontab entry: a five-field cron expression (or `@reboot`) and the
+/// worker to enqueue with empty args when it matches.
 #[derive(Debug, Clone)]
 pub struct CronEntry {
     pub expression: &'static str,
     pub worker: &'static str,
 }
+
+/// Jobs stuck `running` for this long are returned to the queue; every
+/// worker's timeout must be shorter.
+pub const STUCK_AFTER: Duration = Duration::from_secs(3600);
+
+/// Finished jobs are deleted after this long.
+const KEEP_FINISHED_FOR: Duration = Duration::from_secs(86_400);
 
 #[derive(Debug, thiserror::Error)]
 pub enum JobError {
@@ -104,19 +152,6 @@ pub enum JobError {
     UnknownWorker(String),
     #[error(transparent)]
     Db(#[from] sqlx::Error),
-}
-
-/// The `ObanLogger` line for a failed attempt.
-#[must_use]
-pub fn failure_message(job: &Job, queue: &str, exhausted: bool, reason: &str) -> String {
-    format!(
-        "Oban job failed worker={} queue={queue} attempt={}/{} state={}\n** (Oban.PerformError) {} failed with {{:error, {reason:?}}}",
-        job.worker,
-        job.attempt,
-        job.max_attempts,
-        if exhausted { "discard" } else { "failure" },
-        job.worker,
-    )
 }
 
 /// Attempt counts from [`Jobs::drain_queue`].
@@ -127,20 +162,19 @@ pub struct Drained {
     pub failure: usize,
     pub discard: usize,
     pub cancelled: usize,
-    pub snoozed: usize,
 }
 
 /// Inserts and runs jobs.
 #[derive(Clone)]
 pub struct Jobs {
     pool: SqlitePool,
-    workers: Arc<HashMap<&'static str, Arc<dyn Worker>>>,
+    workers: Arc<HashMap<&'static str, Arc<dyn DynWorker>>>,
     notify: Arc<Notify>,
 }
 
 impl Jobs {
     #[must_use]
-    pub fn new(pool: SqlitePool, workers: Vec<Arc<dyn Worker>>) -> Self {
+    pub fn new(pool: SqlitePool, workers: Vec<Arc<dyn DynWorker>>) -> Self {
         let workers = workers
             .into_iter()
             .map(|worker| (worker.name(), worker))
@@ -152,20 +186,19 @@ impl Jobs {
         }
     }
 
-    fn worker(&self, name: &str) -> Result<&Arc<dyn Worker>, JobError> {
+    fn worker(&self, name: &str) -> Result<&Arc<dyn DynWorker>, JobError> {
         self.workers
             .get(name)
             .ok_or_else(|| JobError::UnknownWorker(name.to_owned()))
     }
 
-    /// Inserts a job now. Returns the new job id, or the id of the existing
-    /// incomplete job when the worker is unique and one is already queued
-    /// (Oban returns the conflicting job with `conflict?: true`).
+    /// Inserts a job to run now. Returns the new job id, or the id of the
+    /// pending job it duplicates when the worker is unique.
     pub async fn enqueue(&self, worker: &str, args: Value) -> Result<i64, JobError> {
         self.enqueue_at(worker, args, None).await
     }
 
-    /// Inserts a job scheduled for `at` (or now).
+    /// Inserts a job to run at `at` (or now).
     pub async fn enqueue_at(
         &self,
         worker: &str,
@@ -179,9 +212,9 @@ impl Jobs {
         Ok(id)
     }
 
-    /// Inserts a job now inside the caller's write transaction, so the job
-    /// and the caller's rows commit together.
-    /// Call [`Self::wake`] after committing.
+    /// Inserts a job to run now inside the caller's write transaction, so
+    /// the job and the caller's rows commit together. Call [`Self::wake`]
+    /// after committing.
     pub async fn enqueue_in(
         &self,
         conn: &mut sqlx::SqliteConnection,
@@ -209,7 +242,7 @@ impl Jobs {
             None => None,
             Some(Unique::Worker) => {
                 sqlx::query_scalar(
-                    "SELECT id FROM oban_jobs WHERE worker = ?1 AND state IN ('available','scheduled','executing','retryable') ORDER BY id LIMIT 1",
+                    "SELECT id FROM jobs WHERE worker = ?1 AND state IN ('queued', 'running') ORDER BY id LIMIT 1",
                 )
                 .bind(worker)
                 .fetch_optional(&mut *tx)
@@ -217,7 +250,7 @@ impl Jobs {
             }
             Some(Unique::WorkerArgs) => {
                 sqlx::query_scalar(
-                    "SELECT id FROM oban_jobs WHERE worker = ?1 AND json(args) = json(?2) AND state IN ('available','scheduled','executing','retryable') ORDER BY id LIMIT 1",
+                    "SELECT id FROM jobs WHERE worker = ?1 AND json(args) = json(?2) AND state IN ('queued', 'running') ORDER BY id LIMIT 1",
                 )
                 .bind(worker)
                 .bind(&args_text)
@@ -228,22 +261,18 @@ impl Jobs {
         if let Some(id) = existing {
             return Ok(id);
         }
-        let now = timefmt::now_micros();
-        let (state, scheduled_at) = match at {
-            Some(at) if at > OffsetDateTime::now_utc() => ("scheduled", timefmt::utc_micros(at)),
-            _ => ("available", now.clone()),
-        };
+        let now = OffsetDateTime::now_utc();
+        let run_at = at.filter(|at| *at > now).unwrap_or(now);
         let id: i64 = sqlx::query_scalar(
-            "INSERT INTO oban_jobs (state, queue, worker, args, meta, tags, errors, attempt, max_attempts, priority, inserted_at, scheduled_at, attempted_by)
-             VALUES (?1, ?2, ?3, json(?4), '{}', '[]', '[]', 0, ?5, 0, ?6, ?7, '[]') RETURNING id",
+            "INSERT INTO jobs (worker, queue, args, max_attempts, run_at, inserted_at)
+             VALUES (?1, ?2, json(?3), ?4, ?5, ?6) RETURNING id",
         )
-        .bind(state)
-        .bind(definition.queue())
         .bind(worker)
+        .bind(definition.queue())
         .bind(&args_text)
         .bind(definition.max_attempts())
-        .bind(&now)
-        .bind(&scheduled_at)
+        .bind(timefmt::utc_micros(run_at))
+        .bind(timefmt::utc_micros(now))
         .fetch_one(&mut *tx)
         .await?;
         Ok(id)
@@ -253,8 +282,8 @@ impl Jobs {
     pub fn start(&self, state: AppState, crontab: Vec<CronEntry>) {
         let runner = self.clone();
         tokio::spawn(async move {
-            if let Err(error) = runner.rescue_orphans().await {
-                tracing::error!(%error, "could not rescue orphaned jobs");
+            if let Err(error) = runner.requeue_running().await {
+                tracing::error!(%error, "could not requeue interrupted jobs");
             }
             for entry in crontab.iter().filter(|entry| entry.expression == "@reboot") {
                 runner.enqueue_logged(entry.worker).await;
@@ -302,42 +331,33 @@ impl Jobs {
         }
     }
 
-    /// Stages due jobs, rescues jobs stuck executing for over an hour
-    /// (`Oban.Plugins.Lifeline`), and prunes finished jobs older than a day.
+    /// Requeues jobs stuck running for over [`STUCK_AFTER`] (a worker that
+    /// never returned) and prunes finished jobs older than a day.
     async fn maintain(&self) -> Result<(), sqlx::Error> {
-        let now = timefmt::now_micros();
-        let hour_ago = timefmt::utc_micros(OffsetDateTime::now_utc() - Duration::from_secs(3600));
-        let day_ago = timefmt::utc_micros(OffsetDateTime::now_utc() - Duration::from_secs(86_400));
+        let now = OffsetDateTime::now_utc();
+        let stuck_before = timefmt::utc_micros(now - STUCK_AFTER);
+        sqlx::query("UPDATE jobs SET state = 'queued', run_at = ?1 WHERE state = 'running' AND started_at < ?2")
+            .bind(timefmt::utc_micros(now))
+            .bind(&stuck_before)
+            .execute(&self.pool)
+            .await?;
+        let prune_before = timefmt::utc_micros(now - KEEP_FINISHED_FOR);
         sqlx::query(
-            "UPDATE oban_jobs SET state = CASE WHEN attempt >= max_attempts THEN 'discarded' ELSE 'available' END,
-                 discarded_at = CASE WHEN attempt >= max_attempts THEN ?1 ELSE discarded_at END
-             WHERE state = 'executing' AND attempted_at < ?2",
+            "DELETE FROM jobs WHERE state IN ('succeeded', 'failed', 'cancelled') AND finished_at < ?1",
         )
-        .bind(&now)
-        .bind(&hour_ago)
-        .execute(&self.pool)
-        .await?;
-        sqlx::query(
-            "DELETE FROM oban_jobs WHERE state IN ('completed','cancelled','discarded')
-             AND coalesce(completed_at, cancelled_at, discarded_at) < ?1",
-        )
-        .bind(&day_ago)
+        .bind(&prune_before)
         .execute(&self.pool)
         .await?;
         Ok(())
     }
 
-    /// Single-node rescue at boot: nothing can still be executing a job from
-    /// a previous process, so return those jobs to the queue immediately.
-    async fn rescue_orphans(&self) -> Result<(), sqlx::Error> {
-        sqlx::query(
-            "UPDATE oban_jobs SET state = CASE WHEN attempt >= max_attempts THEN 'discarded' ELSE 'available' END,
-                 discarded_at = CASE WHEN attempt >= max_attempts THEN ?1 ELSE discarded_at END
-             WHERE state = 'executing'",
-        )
-        .bind(timefmt::now_micros())
-        .execute(&self.pool)
-        .await?;
+    /// At boot nothing can still be running a job from the previous
+    /// process, so those jobs go straight back to the queue.
+    async fn requeue_running(&self) -> Result<(), sqlx::Error> {
+        sqlx::query("UPDATE jobs SET state = 'queued', run_at = ?1 WHERE state = 'running'")
+            .bind(timefmt::now_micros())
+            .execute(&self.pool)
+            .await?;
         Ok(())
     }
 
@@ -375,23 +395,17 @@ impl Jobs {
         });
     }
 
+    /// Marks up to `limit` due jobs of `queue` running and returns them.
     async fn claim(&self, queue: &str, limit: usize) -> Result<Vec<Job>, sqlx::Error> {
         let now = timefmt::now_micros();
+        // The statement reads before it writes, so take the write lock up
+        // front rather than fail upgrading it.
         let mut tx = crate::db::begin_write(&self.pool).await?;
-        sqlx::query(
-            "UPDATE oban_jobs SET state = 'available'
-             WHERE state IN ('scheduled','retryable') AND queue = ?1 AND scheduled_at <= ?2",
-        )
-        .bind(queue)
-        .bind(&now)
-        .execute(&mut *tx)
-        .await?;
         let rows: Vec<(i64, String, String, i64, i64)> = sqlx::query_as(
-            "UPDATE oban_jobs SET state = 'executing', attempt = attempt + 1, attempted_at = ?1,
-                 attempted_by = json_array('manavault-rust')
+            "UPDATE jobs SET state = 'running', attempt = attempt + 1, started_at = ?1
              WHERE id IN (
-               SELECT id FROM oban_jobs WHERE state = 'available' AND queue = ?2 AND scheduled_at <= ?1
-               ORDER BY priority, scheduled_at, id LIMIT ?3)
+               SELECT id FROM jobs WHERE queue = ?2 AND state = 'queued' AND run_at <= ?1
+               ORDER BY run_at, id LIMIT ?3)
              RETURNING id, worker, args, attempt, max_attempts",
         )
         .bind(&now)
@@ -428,10 +442,8 @@ impl Jobs {
         outcome
     }
 
-    /// Runs every job in `queue` that is due once, like
-    /// `Oban.drain_queue(queue: queue)` (without recursion); with
-    /// `with_scheduled`, scheduled and retryable jobs run too. Returns how
-    /// the attempts ended.
+    /// Runs every due job in `queue` once; with `with_scheduled`, jobs
+    /// waiting for a later `run_at` run too. Returns how the attempts ended.
     #[doc(hidden)]
     pub async fn drain_queue(
         &self,
@@ -441,8 +453,7 @@ impl Jobs {
     ) -> Drained {
         if with_scheduled {
             let _ = sqlx::query(
-                "UPDATE oban_jobs SET state = 'available', scheduled_at = ?1
-                 WHERE state IN ('scheduled','retryable') AND queue = ?2",
+                "UPDATE jobs SET run_at = ?1 WHERE state = 'queued' AND queue = ?2 AND run_at > ?1",
             )
             .bind(timefmt::now_micros())
             .bind(queue)
@@ -458,7 +469,6 @@ impl Jobs {
                 Outcome::Retry(_) if exhausted => drained.discard += 1,
                 Outcome::Retry(_) => drained.failure += 1,
                 Outcome::Cancel(_) => drained.cancelled += 1,
-                Outcome::Snooze(_) => drained.snoozed += 1,
             }
         }
         drained
@@ -468,30 +478,16 @@ impl Jobs {
         let now = timefmt::now_micros();
         match outcome {
             Outcome::Done => {
-                sqlx::query(
-                    "UPDATE oban_jobs SET state = 'completed', completed_at = ?1 WHERE id = ?2",
-                )
-                .bind(&now)
-                .bind(job.id)
-                .execute(&self.pool)
-                .await?;
-            }
-            Outcome::Snooze(seconds) => {
-                let at = OffsetDateTime::now_utc() + Duration::from_secs(*seconds);
-                sqlx::query(
-                    "UPDATE oban_jobs SET state = 'scheduled', scheduled_at = ?1, max_attempts = max_attempts + 1 WHERE id = ?2",
-                )
-                .bind(timefmt::utc_micros(at))
-                .bind(job.id)
-                .execute(&self.pool)
-                .await?;
+                sqlx::query("UPDATE jobs SET state = 'succeeded', finished_at = ?1 WHERE id = ?2")
+                    .bind(&now)
+                    .bind(job.id)
+                    .execute(&self.pool)
+                    .await?;
             }
             Outcome::Cancel(reason) => {
                 tracing::info!(job.id, worker = job.worker, reason, "job cancelled");
                 sqlx::query(
-                    "UPDATE oban_jobs SET state = 'cancelled', cancelled_at = ?1,
-                       errors = json_insert(errors, '$[#]', json_object('at', ?1, 'attempt', attempt, 'error', ?2))
-                     WHERE id = ?3",
+                    "UPDATE jobs SET state = 'cancelled', finished_at = ?1, last_error = ?2 WHERE id = ?3",
                 )
                 .bind(&now)
                 .bind(reason)
@@ -500,39 +496,43 @@ impl Jobs {
                 .await?;
             }
             Outcome::Retry(reason) => {
+                // Retries only come from registered workers (unknown ones
+                // are cancelled), so the lookup only fails for the log line.
+                let worker = self.workers.get(job.worker.as_str());
                 let exhausted = job.attempt >= job.max_attempts;
-                // `Manavault.ObanLogger`: failures reach the application log
-                // (and the server log page), not just the job row.
+                // Failures reach the application log (and the server log
+                // page), not just the job row.
                 tracing::error!(
-                    "{}",
-                    failure_message(
-                        job,
-                        self.workers
-                            .get(job.worker.as_str())
-                            .map_or("", |w| w.queue()),
-                        exhausted,
-                        reason
+                    worker = job.worker,
+                    queue = worker.map_or("", |worker| worker.queue()),
+                    attempt = job.attempt,
+                    max_attempts = job.max_attempts,
+                    retrying = !exhausted,
+                    error = reason,
+                    "job failed"
+                );
+                if exhausted {
+                    sqlx::query(
+                        "UPDATE jobs SET state = 'failed', finished_at = ?1, last_error = ?2 WHERE id = ?3",
                     )
-                );
-                // The worker's backoff (Oban's default: 2^attempt + 15 seconds).
-                let delay = self.workers.get(job.worker.as_str()).map_or_else(
-                    || 2_u64.saturating_pow(u32::try_from(job.attempt).unwrap_or(10)) + 15,
-                    |worker| worker.backoff(job.attempt),
-                );
-                let at = OffsetDateTime::now_utc() + Duration::from_secs(delay);
-                sqlx::query(
-                    "UPDATE oban_jobs SET state = ?1, scheduled_at = ?2,
-                       discarded_at = CASE WHEN ?1 = 'discarded' THEN ?3 ELSE discarded_at END,
-                       errors = json_insert(errors, '$[#]', json_object('at', ?3, 'attempt', attempt, 'error', ?4))
-                     WHERE id = ?5",
-                )
-                .bind(if exhausted { "discarded" } else { "retryable" })
-                .bind(timefmt::utc_micros(at))
-                .bind(&now)
-                .bind(reason)
-                .bind(job.id)
-                .execute(&self.pool)
-                .await?;
+                    .bind(&now)
+                    .bind(reason)
+                    .bind(job.id)
+                    .execute(&self.pool)
+                    .await?;
+                } else {
+                    let delay = worker.map_or(Duration::from_secs(15), |worker| {
+                        worker.backoff(job.attempt)
+                    });
+                    sqlx::query(
+                        "UPDATE jobs SET state = 'queued', run_at = ?1, last_error = ?2 WHERE id = ?3",
+                    )
+                    .bind(timefmt::utc_micros(OffsetDateTime::now_utc() + delay))
+                    .bind(reason)
+                    .bind(job.id)
+                    .execute(&self.pool)
+                    .await?;
+                }
             }
         }
         Ok(())

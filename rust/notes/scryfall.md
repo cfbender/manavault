@@ -37,14 +37,12 @@ Every external base URL is a parameter (`SyncOptions`, `AssetUrls`,
   differences for these types.
 - Route `GET /scryfall-assets/{*path}` (no auth; svg content type,
   `cache-control: public, max-age=86400`, `404 Not found`).
-- Workers (names, queues, `max_attempts: 3`, unique by worker, timeouts as in
-  Elixir): `Manavault.Catalog.ScryfallCatalogWorker` (catalog, 30 min),
-  `Manavault.Catalog.ScryfallAssetsWorker` (catalog, 10 min),
-  `Manavault.Pricing.VendorSyncWorker` (pricing, 30 min). Crontab:
-  `@reboot`+`@daily` for both Scryfall workers, `@reboot`+`*/30 * * * *` for
-  vendor sync. Manual reloads use `worker::enqueue_forced`, which mirrors
-  Oban's `replace: [available/scheduled/retryable: [:args]]` by updating the
-  queued unique job's args to `{"force":true}`.
+- Workers (queues, `max_attempts: 3`, unique by worker, timeouts as in
+  Elixir): `scryfall_catalog` (catalog, 30 min), `scryfall_assets` (catalog,
+  10 min), `vendor_prices` (pricing, 30 min). Crontab: `@reboot`+`@daily` for
+  both Scryfall workers, `@reboot`+`*/30 * * * *` for vendor sync. Manual
+  reloads use `worker::enqueue_forced`, which updates the queued unique job's
+  args to `{"force":true}` (Oban's `replace: [...: [:args]]`).
 
 ## Deliberate differences
 

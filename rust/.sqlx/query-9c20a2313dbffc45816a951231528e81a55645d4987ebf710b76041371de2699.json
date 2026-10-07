@@ -1,16 +1,16 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT scheduled_at FROM oban_jobs WHERE id = ?1",
+  "query": "SELECT run_at FROM jobs WHERE id = ?1",
   "describe": {
     "columns": [
       {
-        "name": "scheduled_at",
+        "name": "run_at",
         "ordinal": 0,
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "oban_jobs",
-            "name": "scheduled_at"
+            "table": "jobs",
+            "name": "run_at"
           }
         }
       }
@@ -22,5 +22,5 @@
       false
     ]
   },
-  "hash": "31bf294d286dd0af384b04984da29c2b91a1f2019ffaaaeeb8babfcab78f0d81"
+  "hash": "9c20a2313dbffc45816a951231528e81a55645d4987ebf710b76041371de2699"
 }

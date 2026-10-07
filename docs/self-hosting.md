@@ -320,7 +320,10 @@ keep working as long as `MANAVAULT_SECRET_KEY` stays the same. Upgrading from a
 1.x release signs every browser out once: the session cookie changed format, so
 sign in again after the upgrade. The 1.x variable names `SECRET_KEY_BASE` and
 `PHX_HOST` still work (with a warning in the server log) until you rename them
-to `MANAVAULT_SECRET_KEY` and `MANAVAULT_PUBLIC_HOST`.
+to `MANAVAULT_SECRET_KEY` and `MANAVAULT_PUBLIC_HOST`. Background jobs move to
+a new `jobs` table: queued jobs carry over, finished job history does not, so
+a deck analysis that finished before the upgrade shows no job status (the
+saved analysis itself is kept).
 A database from a newer release than the image still starts (migrations the
 image does not know are ignored with a warning), but downgrading is not
 supported; restore the pre-migration backup instead. Set
@@ -338,13 +341,13 @@ catalog** forces the sync by hand.
 
 The catalog import only writes cards, printings, and token links whose stored
 data differs from the Scryfall bulk file, and it pauses briefly between batch
-commits so other writers (Oban, price refreshes, user edits) can take the
-SQLite write lock. Progress lines report `written_cards=N written_printings=M`
-alongside the source counts; on a day with no catalog changes both stay near
-zero. `GenServer {Oban.Registry, {Oban, Oban.Stager}} terminating` with
-`database is locked` means a writer waited the full SQLite `busy_timeout`
-(10 seconds) for the lock. The stager restarts on its own, but seeing this
-repeatedly points to another long-running writer rather than the import.
+commits so other writers (background jobs, price refreshes, user edits) can
+take the SQLite write lock. Progress lines report
+`written_cards=N written_printings=M` alongside the source counts; on a day
+with no catalog changes both stay near zero. `database is locked` errors mean
+a writer waited the full SQLite `busy_timeout` (10 seconds) for the lock;
+seeing this repeatedly points to another long-running writer rather than the
+import.
 
 To roll back, stop the container, restore the pre-migration backup (see
 [Restore](#restore)), and start the previous image tag. Switching the tag alone
@@ -513,22 +516,20 @@ Card scanner:
 
 ### Diagnosing a stalled catalog sync
 
-Oban's Lifeline checks once a minute for jobs left `executing` for over an hour
-after a crash, restart, or failed database acknowledgement. It requeues jobs
-with attempts remaining and discards exhausted jobs, allowing the next scheduled
-or manual reload to enqueue again. The one-hour threshold must stay above every
-worker timeout; current workers run for at most 30 minutes.
+Once a minute the job runner returns jobs left `running` for over an hour
+(a worker that never returned) to the queue, and at boot it requeues every
+job the previous process was running. The one-hour threshold must stay above
+every worker timeout; current workers run for at most 30 minutes.
 
-`Exqlite.Error: Database busy` while updating `oban_jobs` means a job could not
-record its result. A backup worker error alone does not establish that the
-catalog sync failed. To check, run these read-only queries against the live
-SQLite database (default `/data/manavault.db`):
+`database is locked` while updating `jobs` means a job could not record its
+result. A backup worker error alone does not establish that the catalog sync
+failed. To check, run these read-only queries against the live SQLite
+database (default `/data/manavault.db`):
 
 ```sql
-SELECT id, worker, state, attempt, max_attempts, attempted_at, errors
-FROM oban_jobs
-WHERE worker IN ('Manavault.Catalog.ScryfallCatalogWorker',
-                 'Manavault.Backup.CloudBackupWorker')
+SELECT id, worker, state, attempt, max_attempts, run_at, started_at, last_error
+FROM jobs
+WHERE worker IN ('scryfall_catalog', 'cloud_backup')
 ORDER BY id DESC LIMIT 20;
 
 SELECT id, status, started_at, completed_at, printings_count, error
@@ -538,11 +539,11 @@ SELECT scryfall_id, set_code, collector_number, updated_at
 FROM scryfall_printings WHERE set_code = 'sld' AND collector_number = '2618';
 ```
 
-An old `executing` catalog job can block both scheduled and forced reloads
-because sync jobs are unique across all incomplete states. Lifeline recovers
-existing orphans too, on its next check once they exceed the threshold. Recovery
-does not remove the underlying SQLite write contention; repeated busy errors
-still need investigation of the overlapping writes.
+A `running` catalog job blocks both scheduled and forced reloads because sync
+jobs are unique while queued or running; the runner requeues it once it passes
+the threshold. Recovery does not remove the underlying SQLite write
+contention; repeated busy errors still need investigation of the overlapping
+writes.
 
 The recurring saltiness and commander-rank refreshes commit updates in batches
 of at most 200 cards, then clear values absent from the new feed in equally

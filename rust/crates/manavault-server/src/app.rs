@@ -4,14 +4,14 @@ use std::sync::Arc;
 
 use crate::config::Config;
 use crate::graphql;
-use crate::jobs::{CronEntry, Jobs, Worker};
+use crate::jobs::{CronEntry, DynWorker, Jobs};
 use crate::logs::LogHub;
 use crate::state::AppState;
 use crate::web;
 
 /// Every background worker.
 #[must_use]
-pub fn workers() -> Vec<Arc<dyn Worker>> {
+pub fn workers() -> Vec<Arc<dyn DynWorker>> {
     vec![
         Arc::new(crate::catalog::scryfall::worker::ScryfallCatalogWorker),
         Arc::new(crate::scryfall_assets::worker::ScryfallAssetsWorker),

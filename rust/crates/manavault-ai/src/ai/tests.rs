@@ -543,7 +543,7 @@ async fn saves_successful_deck_questions_newest_first_without_changing_the_analy
     assert_eq!(first.status, Status::Pending);
     assert_eq!(first.answer, "");
     let job: (String, String, String, i64) = sqlx::query_as(
-        "SELECT worker, queue, args, max_attempts FROM oban_jobs ORDER BY id DESC LIMIT 1",
+        "SELECT worker, queue, args, max_attempts FROM jobs ORDER BY id DESC LIMIT 1",
     )
     .fetch_one(app.db())
     .await
@@ -719,7 +719,7 @@ async fn question_validation_and_settings_errors_save_nothing() {
         .fetch_one(app.db())
         .await
         .unwrap();
-    let jobs: i64 = sqlx::query_scalar("SELECT count(*) FROM oban_jobs")
+    let jobs: i64 = sqlx::query_scalar("SELECT count(*) FROM jobs")
         .fetch_one(app.db())
         .await
         .unwrap();
@@ -1410,14 +1410,14 @@ async fn new_chats_isolate_context_older_chats_resume_and_follow_ups_see_deck_ed
 // Background analysis jobs.
 
 async fn job_count(app: &TestApp) -> i64 {
-    sqlx::query_scalar("SELECT count(*) FROM oban_jobs")
+    sqlx::query_scalar("SELECT count(*) FROM jobs")
         .fetch_one(app.db())
         .await
         .unwrap()
 }
 
 async fn set_job_state(app: &TestApp, id: i64, state: &str) {
-    sqlx::query("UPDATE oban_jobs SET state = ?1 WHERE id = ?2")
+    sqlx::query("UPDATE jobs SET state = ?1 WHERE id = ?2")
         .bind(state)
         .bind(id)
         .execute(app.db())
@@ -1473,7 +1473,7 @@ async fn individual_and_bulk_refreshes_reuse_active_jobs_without_clearing_saved_
         Some("Previous analysis")
     );
     let row: (String, String, i64) =
-        sqlx::query_as("SELECT worker, queue, max_attempts FROM oban_jobs WHERE id = ?1")
+        sqlx::query_as("SELECT worker, queue, max_attempts FROM jobs WHERE id = ?1")
             .bind(first.id)
             .fetch_one(app.db())
             .await
@@ -1486,7 +1486,7 @@ async fn status_tracks_retries_and_terminal_outcomes_and_selects_only_this_decks
     let server = MockServer::start().await;
     let (app, deck_id) = background_app(&server).await;
     let id = analyze_deck::enqueue(&app.state, deck_id).await.unwrap().id;
-    for state in ["available", "executing", "scheduled", "retryable"] {
+    for state in ["queued", "running"] {
         set_job_state(&app, id, state).await;
         let job = analyze_deck::latest_job(app.db(), deck_id)
             .await
@@ -1503,9 +1503,9 @@ async fn status_tracks_retries_and_terminal_outcomes_and_selects_only_this_decks
         );
     }
     for (state, expected) in [
-        ("discarded", analyze_deck::JobStatus::Failed),
+        ("failed", analyze_deck::JobStatus::Failed),
         ("cancelled", analyze_deck::JobStatus::Failed),
-        ("completed", analyze_deck::JobStatus::Completed),
+        ("succeeded", analyze_deck::JobStatus::Completed),
     ] {
         set_job_state(&app, id, state).await;
         let job = analyze_deck::latest_job(app.db(), deck_id)
@@ -1518,10 +1518,12 @@ async fn status_tracks_retries_and_terminal_outcomes_and_selects_only_this_decks
     assert_ne!(new_id, id);
     // A queued job of another worker with the same args is ignored.
     sqlx::query(
-        "INSERT INTO oban_jobs (worker, queue, args) VALUES (?1, 'ai', json_object('deck_id', ?2))",
+        "INSERT INTO jobs (worker, queue, args, max_attempts, run_at, inserted_at)
+         VALUES (?1, 'ai', json_object('deck_id', ?2), 3, ?3, ?3)",
     )
     .bind(DECK_QUESTION_WORKER)
     .bind(deck_id)
+    .bind(crate::timefmt::now_micros())
     .execute(app.db())
     .await
     .unwrap();
@@ -1573,9 +1575,21 @@ async fn failed_worker_retries_become_terminal_without_replacing_the_old_analysi
         .unwrap();
     let id = analyze_deck::enqueue(&app.state, deck_id).await.unwrap().id;
     for attempt in 1..=3 {
-        let drained = app.state.jobs.drain_queue(&app.state, "ai", true).await;
-        assert_eq!(drained.success, 0);
-        assert_eq!(drained.failure + drained.discard, 1);
+        let log = capture_logs("job failed", async {
+            let drained = app.state.jobs.drain_queue(&app.state, "ai", true).await;
+            assert_eq!(drained.success, 0);
+            assert_eq!(drained.failure + drained.discard, 1);
+        })
+        .await;
+        // Failed attempts reach the server log with the worker, queue,
+        // attempt, and error.
+        assert!(
+            log.contains(&format!(
+                "job failed worker={DECK_ANALYSIS_WORKER} queue=ai attempt={attempt} max_attempts=3 retrying={} error=",
+                attempt < 3
+            )) && log.contains("Provider rejected the schema"),
+            "{log}"
+        );
         let expected = if attempt == 3 {
             analyze_deck::JobStatus::Failed
         } else {
@@ -1591,22 +1605,24 @@ async fn failed_worker_retries_become_terminal_without_replacing_the_old_analysi
         ai_analysis(&app, deck_id).await.as_deref(),
         Some("Previous analysis")
     );
-    let (attempt, errors): (i64, String) =
-        sqlx::query_as("SELECT attempt, errors FROM oban_jobs WHERE id = ?1")
+    let (attempt, error): (i64, String) =
+        sqlx::query_as("SELECT attempt, last_error FROM jobs WHERE id = ?1")
             .bind(id)
             .fetch_one(app.db())
             .await
             .unwrap();
     assert_eq!(attempt, 3);
-    assert!(errors.contains("OpenRouter: Provider rejected the schema"));
+    assert!(error.contains("OpenRouter: Provider rejected the schema"));
 }
 
 #[tokio::test]
 async fn retry_backoff_is_fifteen_seconds_per_attempt() {
+    use std::time::Duration;
+
     use super::workers::DeckAnalysisWorker;
-    assert_eq!(DeckAnalysisWorker.backoff(1), 15);
-    assert_eq!(DeckAnalysisWorker.backoff(2), 30);
-    assert_eq!(DeckQuestionWorker.backoff(3), 45);
+    assert_eq!(DeckAnalysisWorker.backoff(1), Duration::from_secs(15));
+    assert_eq!(DeckAnalysisWorker.backoff(2), Duration::from_secs(30));
+    assert_eq!(DeckQuestionWorker.backoff(3), Duration::from_secs(45));
     let app = TestApp::new().await;
     let deck_id = insert_deck(app.db(), "Gone", "commander").await;
     sqlx::query("DELETE FROM decks WHERE id = ?1")
@@ -1714,12 +1730,11 @@ async fn graphql_settings_analysis_lists_and_questions_use_ai_without_exposing_t
         json!({"id": deck_global_id, "aiAnalysis": null})
     );
     assert_eq!(completion_requests(&server).await, Vec::<Value>::new());
-    let job_row: (String, String) =
-        sqlx::query_as("SELECT worker, args FROM oban_jobs WHERE id = ?1")
-            .bind(job_id.as_str().unwrap().parse::<i64>().unwrap())
-            .fetch_one(app.db())
-            .await
-            .unwrap();
+    let job_row: (String, String) = sqlx::query_as("SELECT worker, args FROM jobs WHERE id = ?1")
+        .bind(job_id.as_str().unwrap().parse::<i64>().unwrap())
+        .fetch_one(app.db())
+        .await
+        .unwrap();
     assert_eq!(job_row.0, DECK_ANALYSIS_WORKER);
     assert_eq!(
         serde_json::from_str::<Value>(&job_row.1).unwrap(),
@@ -1895,7 +1910,7 @@ async fn graphql_settings_analysis_lists_and_questions_use_ai_without_exposing_t
     assert_eq!(question["recommendedAdditions"], json!([]));
     assert!(crate::timefmt::parse(question["insertedAt"].as_str().unwrap()).is_some());
     let question_db_id: i64 = question_id.as_str().unwrap().parse().unwrap();
-    let job_args: String = sqlx::query_scalar("SELECT args FROM oban_jobs WHERE worker = ?1")
+    let job_args: String = sqlx::query_scalar("SELECT args FROM jobs WHERE worker = ?1")
         .bind(DECK_QUESTION_WORKER)
         .fetch_one(app.db())
         .await

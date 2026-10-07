@@ -28,12 +28,12 @@ impl JobStatus {
         }
     }
 
-    /// Completed jobs are completed, discarded and cancelled ones failed,
-    /// and every other state (queued, running, retrying) pending.
+    /// Succeeded jobs are completed, failed and cancelled ones failed, and
+    /// queued or running ones (including between retries) pending.
     fn from_state(state: &str) -> Self {
         match state {
-            "completed" => Self::Completed,
-            "discarded" | "cancelled" => Self::Failed,
+            "succeeded" => Self::Completed,
+            "failed" | "cancelled" => Self::Failed,
             _ => Self::Pending,
         }
     }
@@ -50,7 +50,7 @@ pub struct JobProgress {
 async fn job_progress(pool: &SqlitePool, id: i64) -> Result<Option<JobProgress>, sqlx::Error> {
     let row = sqlx::query!(
         r#"SELECT id AS "id!", state, json_extract(args, '$.deck_id') AS "deck_id: i64"
-           FROM oban_jobs WHERE id = ?1"#,
+           FROM jobs WHERE id = ?1"#,
         id
     )
     .fetch_optional(pool)
@@ -74,14 +74,13 @@ pub async fn enqueue(state: &AppState, deck_id: i64) -> Result<JobProgress, AiEr
         .ok_or_else(|| AiError::Internal("queued analysis job vanished".to_owned()))
 }
 
-/// `latest_job/1`: the newest analysis job of the deck, in whichever
-/// backend queued it.
+/// `latest_job/1`: the newest analysis job of the deck.
 pub async fn latest_job(
     pool: &SqlitePool,
     deck_id: i64,
 ) -> Result<Option<JobProgress>, sqlx::Error> {
     let id = sqlx::query_scalar!(
-        r#"SELECT id AS "id!" FROM oban_jobs
+        r#"SELECT id AS "id!" FROM jobs
            WHERE worker = ?1 AND json_extract(args, '$.deck_id') = ?2
            ORDER BY id DESC LIMIT 1"#,
         DECK_ANALYSIS_WORKER,

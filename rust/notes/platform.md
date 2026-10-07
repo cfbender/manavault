@@ -28,12 +28,12 @@ Web platform, authentication, settings, API keys, backups, and the scanner.
 | `BackupTypes`, `BackupResolvers`, `Catalog.BackupOperations`                                                                                                                               | `backup/graphql.rs`                                                                             |
 | `Scanner.Bundle`, `Scanner.BundleUpdateWorker`, `Scanner.Corrections`                                                                                                                      | `scanner/bundle.rs`, `scanner/update_worker.rs`, `scanner/corrections.rs`                       |
 | `ScannerBundleController`(+JSON), `ScannerCorrectionController`, `Plugs.ScannerExportAuth`                                                                                                 | `scanner/http.rs`                                                                               |
-| `ObanLogger`                                                                                                                                                                               | `jobs::failure_message` (logged on every failed attempt)                                        |
+| `ObanLogger`                                                                                                                                                                               | `jobs::Jobs::record` logs a structured `job failed` event on every failed attempt               |
 | `mix manavault.auth.hash` / `.auth.unban` / `.backup` / `.restore`                                                                                                                         | `manavault hash-password` (existing) / `unban` / `backup` / `restore` (`cli.rs`)                |
 
-Workers: `Manavault.Scanner.BundleUpdateWorker` (queue `catalog`, `@reboot` and
-`0 */6 * * *`), `Manavault.Backup.CloudBackupWorker` (queue `backup`,
-`* * * * *`, checks the owner's cron against the job's `scheduled_at`).
+Workers: `scanner_bundle` (queue `catalog`, `@reboot` and `0 */6 * * *`),
+`cloud_backup` (queue `backup`, `* * * * *`, checks the owner's cron against the
+job's `run_at`).
 
 ## GraphQL fields
 
@@ -62,8 +62,12 @@ Queries: `appearanceSettings`, `aiSettings`, `apiKeys`, `backupSettings`,
 - `logs.rs`: server log messages no longer carry a `[level] ` prefix and ANSI
   codes are stripped, like `Logger.Formatter.format_event/2` output (foundation
   fix; the level is its own field).
-- `jobs/mod.rs`: failed attempts log the `ObanLogger` line at error level
-  (foundation change, replaces the old warn line).
+- `jobs/mod.rs`: jobs live in the `jobs` table (states `queued`, `running`,
+  `succeeded`, `failed`, `cancelled`; `run_at`, `last_error`) under Rust
+  worker names such as `scryfall_catalog`, not Oban's `oban_jobs`; the
+  upgrade migration moves unfinished jobs over. `Worker` is a native async
+  trait (`DynWorker` is its object-safe form). Failed attempts log a
+  structured `job failed` event at error level.
 - Subscriptions run over the graphql-ws protocol at `/api/graphql/ws` (the
   frontend uses Apollo's `GraphQLWsLink`), not Phoenix Channels at `/socket`.
   The CSRF token travels in the `connection_init` payload (`csrfToken`).

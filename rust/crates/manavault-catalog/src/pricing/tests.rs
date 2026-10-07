@@ -402,7 +402,7 @@ async fn sync_vendor_prices_queues_one_forced_job() {
         );
     }
     let jobs: Vec<(String, String, String)> =
-        sqlx::query_as("SELECT worker, queue, args FROM oban_jobs")
+        sqlx::query_as("SELECT worker, queue, args FROM jobs")
             .fetch_all(app.db())
             .await
             .unwrap();

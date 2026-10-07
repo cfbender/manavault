@@ -6,7 +6,6 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::time::Duration;
 
-use async_trait::async_trait;
 use serde_json::Value;
 
 use super::bundle;
@@ -236,13 +235,11 @@ pub async fn check_for_update(state: &AppState) -> Result<Status, UpdateError> {
     }
 }
 
-/// The Oban worker.
 pub struct BundleUpdateWorker;
 
-/// The worker name stored in `oban_jobs`.
-pub const WORKER: &str = "Manavault.Scanner.BundleUpdateWorker";
+/// The worker name stored in `jobs`.
+pub const WORKER: &str = "scanner_bundle";
 
-#[async_trait]
 impl Worker for BundleUpdateWorker {
     fn name(&self) -> &'static str {
         WORKER

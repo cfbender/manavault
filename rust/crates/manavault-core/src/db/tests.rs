@@ -63,7 +63,7 @@ async fn a_new_database_gets_every_migration_and_the_starter_tags() {
     let pool = pool_at(&dir).await;
     let outcome = prepare(&pool).await.expect("migrate");
     assert_eq!(outcome.applied.len(), migrate::MIGRATIONS.len());
-    assert_eq!(migrate::MIGRATIONS.len(), 74);
+    assert_eq!(migrate::MIGRATIONS.len(), 75);
     assert_eq!(
         applied(&pool).await,
         migrate::versions().collect::<Vec<_>>()
@@ -218,7 +218,7 @@ async fn scalar_i64(pool: &SqlitePool, sql: &str) -> i64 {
         .expect("query")
 }
 
-/// Boots the server on the v1.0.0 database: the 40 newer migrations apply,
+/// Boots the server on the v1.0.0 database: the 41 newer migrations apply,
 /// their data steps run, and the owner's data survives.
 #[tokio::test]
 async fn upgrades_a_v1_0_0_database_with_data() {
@@ -230,7 +230,7 @@ async fn upgrades_a_v1_0_0_database_with_data() {
     assert_eq!(before.last(), Some(&20_260_708_000_003));
 
     let outcome = prepare(&pool).await.expect("migrate");
-    assert_eq!(outcome.applied.len(), 40);
+    assert_eq!(outcome.applied.len(), 41);
     assert_eq!(
         applied(&pool).await,
         migrate::versions().collect::<Vec<_>>()
@@ -409,6 +409,161 @@ async fn upgrades_a_v1_0_0_database_with_data() {
             .expect("settings");
     assert_eq!(secret.as_deref(), Some("legacy-plaintext-secret"));
 
+    pool.close().await;
+}
+
+/// `replace_oban_jobs_with_jobs`: the unfinished jobs of the previous
+/// release move to the `jobs` table under their Rust worker names; finished
+/// ones and jobs of workers this build does not have are left behind with
+/// the dropped table.
+#[tokio::test]
+async fn moves_unfinished_oban_jobs_into_the_jobs_table() {
+    const VERSION: i64 = 20_261_007_201_043;
+    let dir = TempDir::new();
+    let pool = pool_at(&dir).await;
+    // Everything up to the migration under test.
+    sqlx::raw_sql(
+        r#"CREATE TABLE "schema_migrations" ("version" INTEGER PRIMARY KEY, "inserted_at" TEXT);
+           INSERT INTO schema_migrations VALUES (20261007201043, NULL)"#,
+    )
+    .execute(&pool)
+    .await
+    .expect("skip the migration under test");
+    prepare(&pool).await.expect("migrate up to oban_jobs");
+    let rows = [
+        (
+            "Manavault.Catalog.ScryfallCatalogWorker",
+            "catalog",
+            "available",
+            r#"{"force":true}"#,
+            0,
+            3,
+            "2026-10-01T00:00:00Z",
+        ),
+        (
+            "Manavault.AI.DeckAnalysisWorker",
+            "ai",
+            "retryable",
+            r#"{"deck_id":7}"#,
+            2,
+            3,
+            "2026-10-02T00:00:30.123456Z",
+        ),
+        (
+            "Manavault.AI.DeckQuestionWorker",
+            "ai",
+            "executing",
+            r#"{"question_answer_id":9}"#,
+            1,
+            3,
+            "2026-10-03T00:00:00Z",
+        ),
+        (
+            "Manavault.Pricing.VendorSyncWorker",
+            "pricing",
+            "completed",
+            "{}",
+            1,
+            3,
+            "2026-10-04T00:00:00Z",
+        ),
+        (
+            "Manavault.AI.DeckAnalysisWorker",
+            "ai",
+            "discarded",
+            r#"{"deck_id":8}"#,
+            3,
+            3,
+            "2026-10-05T00:00:00Z",
+        ),
+        (
+            "Manavault.Removed.Worker",
+            "catalog",
+            "available",
+            "{}",
+            0,
+            3,
+            "2026-10-06T00:00:00Z",
+        ),
+        (
+            "Manavault.Backup.CloudBackupWorker",
+            "backup",
+            "scheduled",
+            "{}",
+            0,
+            3,
+            "2026-10-07T00:00:00Z",
+        ),
+    ];
+    for (worker, queue, state, args, attempt, max_attempts, scheduled_at) in rows {
+        sqlx::query(
+            "INSERT INTO oban_jobs (worker, queue, state, args, attempt, max_attempts, scheduled_at, inserted_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7)",
+        )
+        .bind(worker)
+        .bind(queue)
+        .bind(state)
+        .bind(args)
+        .bind(attempt)
+        .bind(max_attempts)
+        .bind(scheduled_at)
+        .execute(&pool)
+        .await
+        .expect("oban job");
+    }
+    sqlx::query("DELETE FROM schema_migrations WHERE version = ?1")
+        .bind(VERSION)
+        .execute(&pool)
+        .await
+        .expect("unskip");
+
+    let outcome = prepare(&pool).await.expect("migrate");
+    assert_eq!(outcome.applied, vec![VERSION]);
+    let moved: Vec<(String, String, String, String, i64, i64, String)> = sqlx::query_as(
+        "SELECT worker, queue, state, args, attempt, max_attempts, run_at FROM jobs ORDER BY id",
+    )
+    .fetch_all(&pool)
+    .await
+    .expect("jobs");
+    let expected: Vec<(String, String, String, String, i64, i64, String)> = vec![
+        (
+            "scryfall_catalog",
+            "catalog",
+            r#"{"force":true}"#,
+            0,
+            "2026-10-01T00:00:00Z",
+        ),
+        (
+            "deck_analysis",
+            "ai",
+            r#"{"deck_id":7}"#,
+            2,
+            "2026-10-02T00:00:30.123456Z",
+        ),
+        (
+            "deck_question",
+            "ai",
+            r#"{"question_answer_id":9}"#,
+            1,
+            "2026-10-03T00:00:00Z",
+        ),
+        ("cloud_backup", "backup", "{}", 0, "2026-10-07T00:00:00Z"),
+    ]
+    .into_iter()
+    .map(|(worker, queue, args, attempt, run_at)| {
+        (
+            worker.to_owned(),
+            queue.to_owned(),
+            "queued".to_owned(),
+            args.to_owned(),
+            attempt,
+            3,
+            run_at.to_owned(),
+        )
+    })
+    .collect();
+    assert_eq!(moved, expected);
+    assert!(!schema(&pool).await.contains_key("oban_jobs"));
     pool.close().await;
 }
 

@@ -12,7 +12,7 @@ use crate::test_support::{TempDir, TestApp};
 /// completion channel is the one `artifact_cache` waits on (the test app's
 /// registry holds the worker of the library build of this crate).
 async fn drain_previews(state: &crate::state::AppState) -> crate::jobs::Drained {
-    let worker: std::sync::Arc<dyn crate::jobs::Worker> =
+    let worker: std::sync::Arc<dyn crate::jobs::DynWorker> =
         std::sync::Arc::new(render_worker::RenderWorker);
     crate::jobs::Jobs::new(state.db.clone(), vec![worker])
         .drain_queue(state, "preview", false)
@@ -44,7 +44,7 @@ fn options() -> FingerprintOptions {
 }
 
 async fn job_rows(app: &TestApp) -> Vec<(i64, String)> {
-    sqlx::query_as("SELECT id, args FROM oban_jobs WHERE worker = ?1 ORDER BY id")
+    sqlx::query_as("SELECT id, args FROM jobs WHERE worker = ?1 ORDER BY id")
         .bind(render_worker::NAME)
         .fetch_all(app.db())
         .await

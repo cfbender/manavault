@@ -19,7 +19,6 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use async_trait::async_trait;
 use lotus::decklist::{DeckLink, DecklistClient, Entry, FetchError};
 use lotus::{Finish, OracleId, ScryfallId, Zone};
 use sqlx::{SqliteConnection, SqlitePool};
@@ -489,14 +488,13 @@ async fn apply_entries(
     Ok(unresolved)
 }
 
-/// The Oban worker name.
-pub const WORKER: &str = "Manavault.Catalog.Decks.ExternalDeckSyncWorker";
+/// The worker name stored in `jobs`.
+pub const WORKER: &str = "external_deck_sync";
 
 /// Hourly cron job that re-syncs every linked deck. Failures are recorded
 /// on each deck, so the job only logs.
 pub struct ExternalDeckSyncWorker;
 
-#[async_trait]
 impl Worker for ExternalDeckSyncWorker {
     fn name(&self) -> &'static str {
         WORKER

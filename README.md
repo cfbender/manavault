@@ -153,7 +153,7 @@ same instance is reached under more than one hostname, list the extra origins in
   prices every 30 minutes; force a reload from **Settings -> Scryfall data**.
   See [stalled syncs](docs/self-hosting.md#diagnosing-a-stalled-catalog-sync).
 - **Linked decks** - decks linked to Moxfield or Archidekt re-import on the
-  hour (`ExternalDeckSyncWorker`, Oban cron); use **Sync now** on the deck page
+  hour (the `external_deck_sync` job); use **Sync now** on the deck page
   to refresh immediately.
 - **Logs** - **Settings -> Server logs** streams live output, and
   `docker logs manavault` shows the same.
@@ -210,7 +210,7 @@ See [development.md](docs/development.md) for the full workflow.
 
 ## Tech Stack
 
-Rust (axum, async-graphql, sqlx/SQLite, an Oban-compatible job queue), Vite,
+Rust (axum, async-graphql, sqlx/SQLite, an in-process job queue), Vite,
 React, TanStack Router/Query, Tailwind/DaisyUI styling, onnxruntime-web for the
 scanner, and optional Capacitor native shells.
 

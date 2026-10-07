@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id AS \"id!\", state, json_extract(args, '$.deck_id') AS \"deck_id: i64\"\n           FROM oban_jobs WHERE id = ?1",
+  "query": "SELECT id AS \"id!\", state, json_extract(args, '$.deck_id') AS \"deck_id: i64\"\n           FROM jobs WHERE id = ?1",
   "describe": {
     "columns": [
       {
@@ -9,7 +9,7 @@
         "type_info": "Integer",
         "origin": {
           "Table": {
-            "table": "oban_jobs",
+            "table": "jobs",
             "name": "id"
           }
         }
@@ -20,7 +20,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "oban_jobs",
+            "table": "jobs",
             "name": "state"
           }
         }
@@ -41,5 +41,5 @@
       null
     ]
   },
-  "hash": "5f0b7853e528a750eb6ed7bac3ffac9abd6ff91af0314c5df2667bfad5e071b3"
+  "hash": "4f50edf0aae148d571b18723d8e9ab86bcbed1d2bf2c00698ba95cab657befcd"
 }

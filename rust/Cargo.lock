@@ -1608,7 +1608,6 @@ name = "manavault-ai"
 version = "2.0.0"
 dependencies = [
  "async-graphql",
- "async-trait",
  "lotus",
  "manavault-catalog",
  "manavault-collection",
@@ -1670,7 +1669,6 @@ name = "manavault-collection"
 version = "2.0.0"
 dependencies = [
  "async-graphql",
- "async-trait",
  "base64 0.22.1",
  "lotus",
  "manavault-allocation",
@@ -1698,7 +1696,6 @@ dependencies = [
  "async-graphql",
  "async-graphql-axum",
  "async-graphql-value",
- "async-trait",
  "axum",
  "axum-extra",
  "base64 0.22.1",
@@ -1787,7 +1784,6 @@ name = "manavault-share"
 version = "2.0.0"
 dependencies = [
  "async-graphql",
- "async-trait",
  "axum",
  "base64 0.22.1",
  "futures-util",
@@ -1820,7 +1816,6 @@ name = "manavault-system"
 version = "2.0.0"
 dependencies = [
  "async-graphql",
- "async-trait",
  "axum",
  "base64 0.22.1",
  "bytes",

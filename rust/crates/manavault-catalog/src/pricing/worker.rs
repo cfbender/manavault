@@ -1,8 +1,7 @@
-//! The vendor price sync job (`Manavault.Pricing.VendorSyncWorker`).
+//! The vendor price sync job.
 
 use std::time::Duration;
 
-use async_trait::async_trait;
 use time::OffsetDateTime;
 
 use crate::catalog::scryfall::worker::forced;
@@ -10,7 +9,7 @@ use crate::jobs::{Job, Outcome, Unique, Worker};
 use crate::pricing::vendors::{FeedUrls, Vendor, feed};
 use crate::state::AppState;
 
-pub const NAME: &str = "Manavault.Pricing.VendorSyncWorker";
+pub const NAME: &str = "vendor_prices";
 
 /// Vendors never synced, or synced longer ago than their interval.
 pub async fn stale_vendors(state: &AppState) -> Result<Vec<Vendor>, sqlx::Error> {
@@ -30,7 +29,6 @@ pub async fn stale_vendors(state: &AppState) -> Result<Vec<Vendor>, sqlx::Error>
 
 pub struct VendorSyncWorker;
 
-#[async_trait]
 impl Worker for VendorSyncWorker {
     fn name(&self) -> &'static str {
         NAME

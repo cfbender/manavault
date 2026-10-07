@@ -124,6 +124,8 @@ missing_panics_doc = "allow"
 must_use_candidate = "allow"
 double_must_use = "allow"
 duration_suboptimal_units = "allow"
+too_many_arguments = "allow"
+# axum handlers and extractors and async-graphql resolvers are `async fn`
+# whether or not they await.
 unused_async = "allow"
 unused_async_trait_impl = "allow"
-too_many_arguments = "allow"

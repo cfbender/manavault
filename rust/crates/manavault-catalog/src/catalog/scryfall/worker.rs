@@ -1,8 +1,7 @@
-//! The catalog sync job (`Manavault.Catalog.ScryfallCatalogWorker`).
+//! The catalog sync job.
 
 use std::time::Duration;
 
-use async_trait::async_trait;
 use serde_json::{Value, json};
 use time::OffsetDateTime;
 
@@ -12,7 +11,7 @@ use crate::catalog::scryfall::sync::{
 use crate::jobs::{Job, JobError, Jobs, Outcome, Unique, Worker};
 use crate::state::AppState;
 
-pub const NAME: &str = "Manavault.Catalog.ScryfallCatalogWorker";
+pub const NAME: &str = "scryfall_catalog";
 
 const SYNC_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
 
@@ -40,10 +39,8 @@ pub fn forced(args: &Value) -> bool {
         .is_some_and(|force| !matches!(force, Value::Null | Value::Bool(false)))
 }
 
-/// Inserts a forced job for a unique worker. As Oban's
-/// `replace: [available: [:args], scheduled: [:args], retryable: [:args]]`,
-/// an already queued job takes the forced args; an executing one is
-/// returned unchanged.
+/// Inserts a forced job for a unique worker. An already queued job takes
+/// the forced args; a running one is returned unchanged.
 pub async fn enqueue_forced(
     jobs: &Jobs,
     pool: &sqlx::SqlitePool,
@@ -53,7 +50,7 @@ pub async fn enqueue_forced(
     let id = jobs.enqueue(worker, args.clone()).await?;
     let args = args.to_string();
     sqlx::query!(
-        "UPDATE oban_jobs SET args = json(?1) WHERE id = ?2 AND state IN ('available', 'scheduled', 'retryable')",
+        "UPDATE jobs SET args = json(?1) WHERE id = ?2 AND state = 'queued'",
         args,
         id
     )
@@ -64,7 +61,6 @@ pub async fn enqueue_forced(
 
 pub struct ScryfallCatalogWorker;
 
-#[async_trait]
 impl Worker for ScryfallCatalogWorker {
     fn name(&self) -> &'static str {
         NAME

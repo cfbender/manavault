@@ -72,8 +72,6 @@ CREATE INDEX "scryfall_printings_normalized_flavor_name_index" ON "scryfall_prin
 CREATE TABLE "ai_settings" ("id" INTEGER PRIMARY KEY, "provider" TEXT DEFAULT 'openrouter' NOT NULL, "api_key" TEXT, "model" TEXT, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL, "deck_analysis_instructions" TEXT);
 CREATE TABLE "deck_question_answers" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "deck_id" INTEGER NOT NULL CONSTRAINT "deck_question_answers_deck_id_fkey" REFERENCES "decks"("id") ON DELETE CASCADE, "question" TEXT NOT NULL, "answer" TEXT NOT NULL, "inserted_at" TEXT NOT NULL, "recommendations" TEXT, "status" TEXT DEFAULT 'completed' NOT NULL, "error" TEXT, "model" TEXT, "thread_id" TEXT, "swap_context" TEXT, "conversation_id" TEXT);
 CREATE INDEX "deck_question_answers_deck_id_inserted_at_index" ON "deck_question_answers" ("deck_id", "inserted_at");
-CREATE TABLE "oban_jobs" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "state" TEXT DEFAULT 'available' NOT NULL, "queue" TEXT DEFAULT 'default' NOT NULL, "worker" TEXT NOT NULL, "args" JSON DEFAULT ('{}') NOT NULL, "meta" JSON DEFAULT ('{}') NOT NULL, "tags" JSON DEFAULT ('[]') NOT NULL, "errors" JSON DEFAULT ('[]') NOT NULL, "attempt" INTEGER DEFAULT 0 NOT NULL, "max_attempts" INTEGER DEFAULT 20 NOT NULL, "priority" INTEGER DEFAULT 0 NOT NULL, "inserted_at" TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')) NOT NULL, "scheduled_at" TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')) NOT NULL, "attempted_at" TEXT, "attempted_by" JSON DEFAULT ('[]') NOT NULL, "cancelled_at" TEXT, "completed_at" TEXT, "discarded_at" TEXT);
-CREATE INDEX "oban_jobs_state_queue_priority_scheduled_at_id_index" ON "oban_jobs" ("state", "queue", "priority", "scheduled_at", "id");
 CREATE TABLE "deck_analysis_requests" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "source_type" TEXT NOT NULL, "source" TEXT NOT NULL, "source_name" TEXT NOT NULL, "format" TEXT NOT NULL, "analysis" TEXT NOT NULL, "model" TEXT NOT NULL, "commander_bracket" INTEGER, "commander_bracket_estimate" INTEGER, "inserted_at" TEXT NOT NULL, "commander_bracket_rating" TEXT);
 CREATE INDEX "deck_analysis_requests_inserted_at_index" ON "deck_analysis_requests" ("inserted_at");
 CREATE INDEX scryfall_printings_search_covering_index
@@ -103,6 +101,23 @@ CREATE INDEX "scryfall_card_tokens_token_scryfall_id_index" ON "scryfall_card_to
 CREATE TABLE "token_items" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "scryfall_id" TEXT NOT NULL CONSTRAINT "token_items_scryfall_id_fkey" REFERENCES "scryfall_printings"("scryfall_id") ON DELETE CASCADE, "back_scryfall_id" TEXT CONSTRAINT "token_items_back_scryfall_id_fkey" REFERENCES "scryfall_printings"("scryfall_id") ON DELETE SET NULL, "quantity" INTEGER DEFAULT 1 NOT NULL, "finish" TEXT DEFAULT 'nonfoil' NOT NULL, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL);
 CREATE INDEX "token_items_scryfall_id_index" ON "token_items" ("scryfall_id");
 CREATE INDEX "token_items_back_scryfall_id_index" ON "token_items" ("back_scryfall_id");
+CREATE TABLE "jobs" (
+  "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+  "worker" TEXT NOT NULL,
+  "queue" TEXT NOT NULL,
+  "args" TEXT NOT NULL DEFAULT '{}',
+  "state" TEXT NOT NULL DEFAULT 'queued'
+    CHECK ("state" IN ('queued', 'running', 'succeeded', 'failed', 'cancelled')),
+  "attempt" INTEGER NOT NULL DEFAULT 0,
+  "max_attempts" INTEGER NOT NULL,
+  "run_at" TEXT NOT NULL,
+  "started_at" TEXT,
+  "finished_at" TEXT,
+  "last_error" TEXT,
+  "inserted_at" TEXT NOT NULL
+);
+CREATE INDEX "jobs_queue_state_run_at_index" ON "jobs" ("queue", "state", "run_at", "id");
+CREATE INDEX "jobs_worker_index" ON "jobs" ("worker", "id");
 INSERT INTO schema_migrations VALUES(20260101000000,NULL);
 INSERT INTO schema_migrations VALUES(20260102000000,NULL);
 INSERT INTO schema_migrations VALUES(20260103000000,NULL);
@@ -177,3 +192,4 @@ INSERT INTO schema_migrations VALUES(20261004000000,NULL);
 INSERT INTO schema_migrations VALUES(20261005000000,NULL);
 INSERT INTO schema_migrations VALUES(20261006000000,NULL);
 INSERT INTO schema_migrations VALUES(20261006120000,NULL);
+INSERT INTO schema_migrations VALUES(20261007201043,NULL);

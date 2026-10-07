@@ -1,22 +1,20 @@
-//! The scheduled cloud backup (`Manavault.Backup.CloudBackupWorker`): the
+//! The scheduled cloud backup: the
 //! crontab enqueues a tick every minute, and the tick backs up when the
 //! owner's schedule matches the minute it was scheduled for.
 
 use std::time::Duration;
 
-use async_trait::async_trait;
-
 use super::{cloud, cron, settings};
 use crate::jobs::{Job, Outcome, Unique, Worker};
 use crate::state::AppState;
 
-/// The worker name stored in `oban_jobs`.
-pub const WORKER: &str = "Manavault.Backup.CloudBackupWorker";
+/// The worker name stored in `jobs`.
+pub const WORKER: &str = "cloud_backup";
 
 pub struct CloudBackupWorker;
 
 async fn scheduled_at(state: &AppState, job: &Job) -> Option<time::OffsetDateTime> {
-    let stored = sqlx::query_scalar!("SELECT scheduled_at FROM oban_jobs WHERE id = ?1", job.id)
+    let stored = sqlx::query_scalar!("SELECT run_at FROM jobs WHERE id = ?1", job.id)
         .fetch_optional(&state.db)
         .await
         .ok()
@@ -24,7 +22,6 @@ async fn scheduled_at(state: &AppState, job: &Job) -> Option<time::OffsetDateTim
     crate::timefmt::parse(&stored)
 }
 
-#[async_trait]
 impl Worker for CloudBackupWorker {
     fn name(&self) -> &'static str {
         WORKER
@@ -115,7 +112,7 @@ mod tests {
         let first = app.state.jobs.enqueue(WORKER, json!({})).await.unwrap();
         let duplicate = app.state.jobs.enqueue(WORKER, json!({})).await.unwrap();
         assert_eq!(first, duplicate);
-        let queue: String = sqlx::query_scalar("SELECT queue FROM oban_jobs WHERE id = ?1")
+        let queue: String = sqlx::query_scalar("SELECT queue FROM jobs WHERE id = ?1")
             .bind(first)
             .fetch_one(app.db())
             .await
@@ -143,7 +140,7 @@ mod tests {
             ("2026-10-07T04:00:00.000000Z", false),
             ("2026-10-07T03:00:00.000000Z", true),
         ] {
-            sqlx::query("UPDATE oban_jobs SET scheduled_at = ?1 WHERE id = ?2")
+            sqlx::query("UPDATE jobs SET run_at = ?1 WHERE id = ?2")
                 .bind(scheduled)
                 .bind(id)
                 .execute(app.db())
@@ -157,7 +154,7 @@ mod tests {
 
     /// The crontab entries and timeouts of this area's workers.
     #[test]
-    fn oban_crontab_and_timeouts() {
+    fn crontab_and_timeouts() {
         let crontab: Vec<(&str, &str)> = manavault_server::app::crontab()
             .iter()
             .map(|entry| (entry.expression, entry.worker))
@@ -179,30 +176,14 @@ mod tests {
                 ("pricing", 1)
             ]
         );
-        // Orphan rescue waits an hour, so every worker must time out sooner.
+        // Stuck jobs are requeued after `STUCK_AFTER`, so every worker must
+        // time out sooner.
         for worker in manavault_server::app::workers() {
             assert!(
-                worker.timeout() < Duration::from_secs(3600),
+                worker.timeout() < crate::jobs::STUCK_AFTER,
                 "{}",
                 worker.name()
             );
         }
-    }
-
-    /// Job failures are logged with the worker, queue, attempt, and error.
-    #[test]
-    fn oban_logger_formats_failures() {
-        let job = Job {
-            id: 1,
-            worker: "Manavault.Pricing.VendorSyncWorker".into(),
-            args: json!({}),
-            attempt: 1,
-            max_attempts: 3,
-        };
-        let message = crate::jobs::failure_message(&job, "pricing", false, "feed exploded");
-        assert!(message.starts_with(
-            "Oban job failed worker=Manavault.Pricing.VendorSyncWorker queue=pricing attempt=1/3 state=failure"
-        ));
-        assert!(message.contains("feed exploded"));
     }
 }

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE jobs SET args = json(?1) WHERE id = ?2 AND state = 'queued'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "3b0d52e247d8b5e6d6684b1f2c9e5936d98288fc82a56a4b7b42b772ad0b95a3"
+}

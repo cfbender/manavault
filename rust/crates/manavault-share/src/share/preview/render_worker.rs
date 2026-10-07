@@ -1,13 +1,11 @@
-//! `ManavaultWeb.DeckSharePreview.RenderWorker`: renders one preview PNG
-//! into the artifact store on the `preview` queue, then tells waiting
-//! requests (`Oban.Notifier` channel `preview_rendered`).
+//! Renders one preview PNG into the artifact store on the `preview` queue,
+//! then tells waiting requests.
 
 use std::future::Future;
 use std::path::Path;
 use std::sync::LazyLock;
 use std::time::Duration;
 
-use async_trait::async_trait;
 use serde::Deserialize;
 use tokio::sync::broadcast;
 
@@ -16,8 +14,8 @@ use super::{DeckPreview, artifact_store, cover_fetcher, renderer};
 use crate::jobs::{Job, Outcome, Unique, Worker};
 use crate::state::AppState;
 
-/// The Oban worker name.
-pub const NAME: &str = "ManavaultWeb.DeckSharePreview.RenderWorker";
+/// The worker name stored in `jobs`.
+pub const NAME: &str = "share_preview_render";
 
 /// A finished render, broadcast to requests waiting for it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -109,7 +107,6 @@ struct Args {
 /// The worker.
 pub struct RenderWorker;
 
-#[async_trait]
 impl Worker for RenderWorker {
     fn name(&self) -> &'static str {
         NAME

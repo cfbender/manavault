@@ -1,15 +1,14 @@
-//! The symbol and set icon sync job (`Manavault.Catalog.ScryfallAssetsWorker`).
+//! The symbol and set icon sync job.
 
 use std::time::Duration;
 
-use async_trait::async_trait;
 use time::OffsetDateTime;
 
 use crate::catalog::scryfall::worker::forced;
 use crate::jobs::{Job, Outcome, Unique, Worker};
 use crate::state::AppState;
 
-pub const NAME: &str = "Manavault.Catalog.ScryfallAssetsWorker";
+pub const NAME: &str = "scryfall_assets";
 
 const SYNC_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
 
@@ -21,7 +20,6 @@ pub fn stale(completed_at: Option<OffsetDateTime>, now: OffsetDateTime) -> bool 
 
 pub struct ScryfallAssetsWorker;
 
-#[async_trait]
 impl Worker for ScryfallAssetsWorker {
     fn name(&self) -> &'static str {
         NAME
