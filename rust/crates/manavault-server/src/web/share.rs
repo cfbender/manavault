@@ -23,7 +23,7 @@ use super::WebState;
 
 /// Adds the share shell routes to the `:browser` router.
 pub fn browser_routes(router: Router<WebState>) -> Router<WebState> {
-    router
+    crate::trade::web::routes(router)
 }
 
 /// Adds the share preview image routes (no pipeline).

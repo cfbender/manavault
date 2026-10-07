@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO trade_binder_shares (token, inserted_at, updated_at) VALUES (?1, ?2, ?2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "afbb9560c463d59e1504e55dbdfc88690dc5a514e019e574ce27375f81efd2fd"
+}

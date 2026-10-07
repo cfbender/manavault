@@ -1,0 +1,122 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT i.id AS \"id!\", c.oracle_id AS \"oracle_id!: OracleId\",\n             i.scryfall_id AS \"scryfall_id!: lotus::ScryfallId\",\n             i.for_trade_quantity AS \"for_trade_quantity!\", i.condition AS \"condition!\",\n             i.language AS \"language!\", i.finish AS \"finish!\",\n             i.for_trade AS \"for_trade!: bool\", i.notes AS \"notes?\"\n           FROM collection_items AS i\n           JOIN scryfall_printings AS p ON p.scryfall_id = i.scryfall_id\n           JOIN scryfall_cards AS c ON c.oracle_id = p.oracle_id\n           LEFT JOIN locations AS l ON l.id = i.location_id\n           WHERE i.for_trade_quantity > 0 AND (l.id IS NULL OR l.kind != 'list')\n             AND c.oracle_id IN (SELECT value FROM json_each(?1))\n           ORDER BY c.name ASC, p.set_code ASC, p.collector_number ASC",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "oracle_id!: OracleId",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "oracle_id"
+          }
+        }
+      },
+      {
+        "name": "scryfall_id!: lotus::ScryfallId",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "scryfall_id"
+          }
+        }
+      },
+      {
+        "name": "for_trade_quantity!",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "for_trade_quantity"
+          }
+        }
+      },
+      {
+        "name": "condition!",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "condition"
+          }
+        }
+      },
+      {
+        "name": "language!",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "language"
+          }
+        }
+      },
+      {
+        "name": "finish!",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "finish"
+          }
+        }
+      },
+      {
+        "name": "for_trade!: bool",
+        "ordinal": 7,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "for_trade"
+          }
+        }
+      },
+      {
+        "name": "notes?",
+        "ordinal": 8,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "notes"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      null,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "8263c0b0ee778f04137833bda23038b7047d110beb84dc327fea4c30650bfa44"
+}

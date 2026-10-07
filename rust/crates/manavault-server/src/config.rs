@@ -93,6 +93,10 @@ pub struct PlatformUrls {
     pub google_drive_upload: String,
     pub scanner_releases: String,
     pub star_city_games_affiliate: String,
+    /// Moxfield deck API base; the deck id is appended.
+    pub moxfield_api: String,
+    /// Archidekt deck API base; the deck id and a slash are appended.
+    pub archidekt_api: String,
 }
 
 impl PlatformUrls {
@@ -108,6 +112,8 @@ impl PlatformUrls {
             google_drive_upload: format!("{base}/google/upload"),
             scanner_releases: format!("{base}/github/releases"),
             star_city_games_affiliate: format!("{base}/scg/affiliate"),
+            moxfield_api: format!("{base}/moxfield/"),
+            archidekt_api: format!("{base}/archidekt/"),
         }
     }
 }
@@ -122,6 +128,8 @@ impl Default for PlatformUrls {
             scanner_releases:
                 "https://api.github.com/repos/cfbender/manavault/releases?per_page=30".to_owned(),
             star_city_games_affiliate: "https://ajax.starcitygames.com/affiliate".to_owned(),
+            moxfield_api: lotus::decklist::moxfield::API_BASE.to_owned(),
+            archidekt_api: lotus::decklist::archidekt::API_BASE.to_owned(),
         }
     }
 }

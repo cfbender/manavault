@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT i.id AS \"id!\", i.quantity AS \"quantity!\", p.oracle_id AS \"oracle_id!: OracleId\"\n           FROM collection_items AS i\n           JOIN scryfall_printings AS p ON p.scryfall_id = i.scryfall_id\n           LEFT JOIN locations AS l ON l.id = i.location_id\n           WHERE p.oracle_id IN (SELECT value FROM json_each(?1))\n             AND (l.id IS NULL OR l.kind != 'list')",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "quantity!",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "quantity"
+          }
+        }
+      },
+      {
+        "name": "oracle_id!: OracleId",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "oracle_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      null,
+      false,
+      false
+    ]
+  },
+  "hash": "fa711a225e3320dc5b77a8b055154142292291d1c4fdb6ec2e5d6e8b6c583407"
+}
