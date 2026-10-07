@@ -23,6 +23,9 @@ pub mod socket;
 pub mod static_files;
 pub mod vendor;
 
+#[cfg(test)]
+mod tests;
+
 use async_graphql::http::GraphQLPlaygroundConfig;
 use axum::http::header::ACCEPT;
 use axum::http::{HeaderMap, StatusCode};

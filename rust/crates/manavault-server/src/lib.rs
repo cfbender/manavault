@@ -7,7 +7,9 @@
 pub mod api_keys;
 pub mod app;
 pub mod auth;
+pub mod backup;
 pub mod catalog;
+pub mod cli;
 pub mod config;
 pub mod crypto;
 pub mod db;

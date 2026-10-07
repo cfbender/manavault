@@ -92,6 +92,34 @@ fn level_name(level: Level) -> &'static str {
     }
 }
 
+/// Removes `ESC [ ... m` color sequences.
+fn strip_ansi(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\u{1b}' && chars.peek() == Some(&'[') {
+            let mut lookahead = chars.clone();
+            lookahead.next();
+            let mut terminated = false;
+            for next in lookahead.by_ref() {
+                if next == 'm' {
+                    terminated = true;
+                    break;
+                }
+                if !(next.is_ascii_digit() || next == ';') {
+                    break;
+                }
+            }
+            if terminated {
+                chars = lookahead;
+                continue;
+            }
+        }
+        out.push(c);
+    }
+    out
+}
+
 fn truncate(mut text: String) -> String {
     if text.len() > MAX_MESSAGE_BYTES {
         let mut end = MAX_MESSAGE_BYTES;
@@ -111,12 +139,9 @@ impl<S: Subscriber> Layer<S> for LogLayer {
         let mut visitor = MessageVisitor::default();
         event.record(&mut visitor);
         let level = *event.metadata().level();
-        let message = format!(
-            "[{}] {}{}",
-            level_name(level),
-            visitor.message,
-            visitor.fields
-        );
+        // `Logger.Formatter.format_event/2`: the message alone (the level is
+        // its own field), with ANSI color codes removed.
+        let message = strip_ansi(&format!("{}{}", visitor.message, visitor.fields));
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let _ = self.sender.send(LogEvent {
             id: id.to_string(),

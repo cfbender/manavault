@@ -12,13 +12,29 @@ use crate::web;
 /// Every background worker.
 #[must_use]
 pub fn workers() -> Vec<Arc<dyn Worker>> {
-    vec![]
+    vec![
+        Arc::new(crate::scanner::update_worker::BundleUpdateWorker),
+        Arc::new(crate::backup::worker::CloudBackupWorker),
+    ]
 }
 
 /// The Oban crontab from `config/config.exs`.
 #[must_use]
 pub fn crontab() -> Vec<CronEntry> {
-    vec![]
+    vec![
+        CronEntry {
+            expression: "@reboot",
+            worker: crate::scanner::update_worker::WORKER,
+        },
+        CronEntry {
+            expression: "0 */6 * * *",
+            worker: crate::scanner::update_worker::WORKER,
+        },
+        CronEntry {
+            expression: "* * * * *",
+            worker: crate::backup::worker::WORKER,
+        },
+    ]
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -31,6 +47,8 @@ pub enum StartError {
     Http(#[from] reqwest::Error),
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
+    #[error("backup: {0}")]
+    Backup(#[from] crate::backup::BackupError),
 }
 
 /// Opens the database and builds the shared state.
@@ -38,7 +56,13 @@ pub async fn build_state(config: Config, logs: LogHub) -> Result<AppState, Start
     for dir in config.writable_dirs() {
         std::fs::create_dir_all(dir)?;
     }
+    // `Backup.PendingRestore`: a staged cloud restore replaces the database
+    // before anything opens it.
+    if let Some(applied) = crate::backup::cloud::apply_pending_restore(&config)? {
+        tracing::info!("applied staged cloud restore from {}", applied.display());
+    }
     let pool = crate::db::connect(&config.database_path, config.pool_size).await?;
+    crate::backup::migration_backup::run(&config, &pool).await?;
     crate::db::prepare(&pool).await?;
     let jobs = Jobs::new(pool.clone(), workers());
     let state = AppState::new(config, pool, logs, jobs)?;

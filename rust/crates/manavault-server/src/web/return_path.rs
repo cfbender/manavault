@@ -107,7 +107,7 @@ fn decode(bytes: &[u8], plus: bool) -> Option<Vec<u8>> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
     /// `return_to_cases/0` from `auth_controller_test.exs`.

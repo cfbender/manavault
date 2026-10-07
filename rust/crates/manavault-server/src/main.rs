@@ -4,6 +4,12 @@
 //! - `manavault hash-password <password>`: print an owner password hash
 //!   (`mix manavault.auth.hash`).
 //! - `manavault sdl`: print the owner GraphQL schema.
+//! - `manavault unban CLIENT_ID | --all`: clear login bans
+//!   (`mix manavault.auth.unban`).
+//! - `manavault backup [-o DIR] [--data-dir DIR] [--database PATH]`: write a
+//!   backup zip (`mix manavault.backup`).
+//! - `manavault restore PATH [--data-dir DIR] [--database PATH]`: restore a
+//!   backup zip with the server stopped (`mix manavault.restore`).
 
 use std::process::ExitCode;
 
@@ -31,8 +37,32 @@ async fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         None | Some("serve") => serve().await,
+        Some("unban") => {
+            finish(manavault_server::cli::unban(args.get(1..).unwrap_or_default()).await)
+        }
+        Some("backup") => {
+            finish(manavault_server::cli::backup(args.get(1..).unwrap_or_default()).await)
+        }
+        Some("restore") => finish(manavault_server::cli::restore(
+            args.get(1..).unwrap_or_default(),
+        )),
         Some(other) => {
-            eprintln!("unknown command {other}; expected serve, hash-password, or sdl");
+            eprintln!(
+                "unknown command {other}; expected serve, hash-password, sdl, unban, backup, or restore"
+            );
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn finish(result: Result<String, String>) -> ExitCode {
+    match result {
+        Ok(message) => {
+            println!("{message}");
+            ExitCode::SUCCESS
+        }
+        Err(message) => {
+            eprintln!("{message}");
             ExitCode::FAILURE
         }
     }

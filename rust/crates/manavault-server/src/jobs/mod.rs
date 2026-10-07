@@ -100,6 +100,19 @@ pub enum JobError {
     Db(#[from] sqlx::Error),
 }
 
+/// The `ObanLogger` line for a failed attempt.
+#[must_use]
+pub fn failure_message(job: &Job, queue: &str, exhausted: bool, reason: &str) -> String {
+    format!(
+        "Oban job failed worker={} queue={queue} attempt={}/{} state={}\n** (Oban.PerformError) {} failed with {{:error, {reason:?}}}",
+        job.worker,
+        job.attempt,
+        job.max_attempts,
+        if exhausted { "discard" } else { "failure" },
+        job.worker,
+    )
+}
+
 /// Inserts and runs jobs.
 #[derive(Clone)]
 pub struct Jobs {
@@ -406,8 +419,20 @@ impl Jobs {
                 .await?;
             }
             Outcome::Retry(reason) => {
-                tracing::warn!(job.id, worker = job.worker, reason, "job failed");
                 let exhausted = job.attempt >= job.max_attempts;
+                // `Manavault.ObanLogger`: failures reach the application log
+                // (and the server log page), not just the job row.
+                tracing::error!(
+                    "{}",
+                    failure_message(
+                        job,
+                        self.workers
+                            .get(job.worker.as_str())
+                            .map_or("", |w| w.queue()),
+                        exhausted,
+                        reason
+                    )
+                );
                 // Oban's default backoff: 2^attempt + 15 seconds.
                 let delay = 2_u64.saturating_pow(u32::try_from(job.attempt).unwrap_or(10)) + 15;
                 let at = OffsetDateTime::now_utc() + Duration::from_secs(delay);
