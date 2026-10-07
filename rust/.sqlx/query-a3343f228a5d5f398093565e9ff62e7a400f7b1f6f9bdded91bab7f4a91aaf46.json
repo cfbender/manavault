@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE deck_allocations SET quantity = quantity + (\n                     SELECT src.quantity FROM deck_allocations AS src\n                     WHERE src.deck_card_id = ?2\n                       AND src.collection_item_id = deck_allocations.collection_item_id)\n                   WHERE deck_card_id = ?1 AND collection_item_id IN (\n                     SELECT collection_item_id FROM deck_allocations WHERE deck_card_id = ?2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "a3343f228a5d5f398093565e9ff62e7a400f7b1f6f9bdded91bab7f4a91aaf46"
+}

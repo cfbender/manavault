@@ -1,0 +1,93 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT t.id AS \"id!\", t.deck_id AS \"deck_id!: DeckId\", t.name AS \"name!\",\n                  t.color AS \"color!\", t.target_count, t.position AS \"position!\",\n                  (SELECT COALESCE(SUM(dc.quantity), 0) FROM deck_card_tags AS dct\n                   JOIN deck_cards AS dc ON dc.id = dct.deck_card_id\n                   WHERE dct.deck_tag_id = t.id) AS \"card_count!: i64\"\n           FROM deck_tags AS t WHERE t.id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_tags",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "deck_id!: DeckId",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_tags",
+            "name": "deck_id"
+          }
+        }
+      },
+      {
+        "name": "name!",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_tags",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "color!",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_tags",
+            "name": "color"
+          }
+        }
+      },
+      {
+        "name": "target_count",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_tags",
+            "name": "target_count"
+          }
+        }
+      },
+      {
+        "name": "position!",
+        "ordinal": 5,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_tags",
+            "name": "position"
+          }
+        }
+      },
+      {
+        "name": "card_count!: i64",
+        "ordinal": 6,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "ed9e83b8e3d3e1baa06835ea0e149f8767994d5d3e323790d5d56dff4f5fd121"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE decks SET share_token = ?2, updated_at = ?3 WHERE id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "84dd0d6392eac4e9e704f43f4acb14b916c7176bbd9e9e52668a3adc30e0987c"
+}

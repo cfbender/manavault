@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT location_id FROM collection_items WHERE id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "location_id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "location_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "38ff67239c7051875ba55697d2be40fbbf70e9eb1067f387bc1d3df28e2ce211"
+}

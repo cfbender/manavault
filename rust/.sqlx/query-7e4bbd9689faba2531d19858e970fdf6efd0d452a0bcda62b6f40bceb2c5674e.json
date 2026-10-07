@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE decks SET external_source = NULL, external_id = NULL, external_url = NULL,\n                 external_synced_at = NULL, external_sync_error = NULL, updated_at = ?2\n           WHERE id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "7e4bbd9689faba2531d19858e970fdf6efd0d452a0bcda62b6f40bceb2c5674e"
+}

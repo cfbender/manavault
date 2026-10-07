@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: DeckId\" FROM decks\n           WHERE external_source IS NOT NULL AND status != 'archived' ORDER BY id",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: DeckId",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "6ba70b8470854afc7081317108a119d6b111f92dd7c075d5e45e945ba7b4e0dc"
+}

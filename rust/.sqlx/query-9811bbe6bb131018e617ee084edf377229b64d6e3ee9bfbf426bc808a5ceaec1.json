@@ -1,0 +1,302 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT d.id AS \"id!: crate::decks::model::DeckId\", d.name AS \"name!\",\n                 d.format AS \"format!: crate::decks::model::DeckFormat\",\n                 d.status AS \"status!: crate::decks::model::DeckStatus\",\n                 d.included_for_play AS \"included_for_play!: bool\",\n                 d.play_count AS \"play_count!\", d.skip_count AS \"skip_count!\",\n                 d.last_played_at, d.primer, d.ai_analysis, d.ai_analysis_model,\n                 d.ai_analyzed_at, d.commander_bracket, d.commander_bracket_estimate,\n                 d.commander_bracket_rating, d.share_token,\n                 d.external_source AS \"external_source?: crate::decks::model::ExternalSource\",\n                 d.external_id, d.external_url, d.external_synced_at, d.external_sync_error,\n                 d.cover_deck_card_id AS \"cover_deck_card_id?: crate::decks::model::DeckCardId\",\n                 d.inserted_at AS \"inserted_at!\", d.updated_at AS \"updated_at!\"\n               FROM decks AS d WHERE d.share_token = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: crate::decks::model::DeckId",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "name!",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "format!: crate::decks::model::DeckFormat",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "format"
+          }
+        }
+      },
+      {
+        "name": "status!: crate::decks::model::DeckStatus",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "name": "included_for_play!: bool",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "included_for_play"
+          }
+        }
+      },
+      {
+        "name": "play_count!",
+        "ordinal": 5,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "play_count"
+          }
+        }
+      },
+      {
+        "name": "skip_count!",
+        "ordinal": 6,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "skip_count"
+          }
+        }
+      },
+      {
+        "name": "last_played_at",
+        "ordinal": 7,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "last_played_at"
+          }
+        }
+      },
+      {
+        "name": "primer",
+        "ordinal": 8,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "primer"
+          }
+        }
+      },
+      {
+        "name": "ai_analysis",
+        "ordinal": 9,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "ai_analysis"
+          }
+        }
+      },
+      {
+        "name": "ai_analysis_model",
+        "ordinal": 10,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "ai_analysis_model"
+          }
+        }
+      },
+      {
+        "name": "ai_analyzed_at",
+        "ordinal": 11,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "ai_analyzed_at"
+          }
+        }
+      },
+      {
+        "name": "commander_bracket",
+        "ordinal": 12,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "commander_bracket"
+          }
+        }
+      },
+      {
+        "name": "commander_bracket_estimate",
+        "ordinal": 13,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "commander_bracket_estimate"
+          }
+        }
+      },
+      {
+        "name": "commander_bracket_rating",
+        "ordinal": 14,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "commander_bracket_rating"
+          }
+        }
+      },
+      {
+        "name": "share_token",
+        "ordinal": 15,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "share_token"
+          }
+        }
+      },
+      {
+        "name": "external_source?: crate::decks::model::ExternalSource",
+        "ordinal": 16,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "external_source"
+          }
+        }
+      },
+      {
+        "name": "external_id",
+        "ordinal": 17,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "external_id"
+          }
+        }
+      },
+      {
+        "name": "external_url",
+        "ordinal": 18,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "external_url"
+          }
+        }
+      },
+      {
+        "name": "external_synced_at",
+        "ordinal": 19,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "external_synced_at"
+          }
+        }
+      },
+      {
+        "name": "external_sync_error",
+        "ordinal": 20,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "external_sync_error"
+          }
+        }
+      },
+      {
+        "name": "cover_deck_card_id?: crate::decks::model::DeckCardId",
+        "ordinal": 21,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "cover_deck_card_id"
+          }
+        }
+      },
+      {
+        "name": "inserted_at!",
+        "ordinal": 22,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "inserted_at"
+          }
+        }
+      },
+      {
+        "name": "updated_at!",
+        "ordinal": 23,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "9811bbe6bb131018e617ee084edf377229b64d6e3ee9bfbf426bc808a5ceaec1"
+}

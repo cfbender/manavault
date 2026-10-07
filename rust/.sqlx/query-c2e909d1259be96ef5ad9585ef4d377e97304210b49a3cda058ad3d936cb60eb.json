@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT type_line FROM scryfall_cards WHERE oracle_id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "type_line",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "type_line"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "c2e909d1259be96ef5ad9585ef4d377e97304210b49a3cda058ad3d936cb60eb"
+}

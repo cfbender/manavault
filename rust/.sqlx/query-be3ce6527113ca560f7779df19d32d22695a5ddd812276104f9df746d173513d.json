@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE collection_items\n           SET quantity = ?2,\n               for_trade_quantity = MIN(for_trade_quantity, ?2),\n               for_trade = MIN(for_trade_quantity, ?2) > 0,\n               updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')\n           WHERE id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "be3ce6527113ca560f7779df19d32d22695a5ddd812276104f9df746d173513d"
+}

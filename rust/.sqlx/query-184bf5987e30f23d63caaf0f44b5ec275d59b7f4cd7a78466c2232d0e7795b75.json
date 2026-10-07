@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT deck_id AS \"deck_id!: DeckId\" FROM deck_cards WHERE id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "deck_id!: DeckId",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "deck_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "184bf5987e30f23d63caaf0f44b5ec275d59b7f4cd7a78466c2232d0e7795b75"
+}
