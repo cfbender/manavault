@@ -5,6 +5,7 @@ status: Review
 assignee:
   - '@cfbender'
 created_date: '2026-10-07 12:27'
+updated_date: '2026-10-07 13:29'
 labels:
   - rust
   - backend
@@ -32,4 +33,6 @@ Replace the Elixir/Phoenix backend with a Rust backend (rust/crates/manavault-se
 
 <!-- SECTION:NOTES:BEGIN -->
 Area notes live in rust/notes/*.md (catalog, scryfall, platform, collection, decks, allocation, trade, ai, integration, share, infra, parity). Verified: cargo test --workspace (759 server + 45 allocation + doctest), clippy -D warnings, fmt; mix test 853 passed; aube run test:react 189 passed; differential harness 145/146 operations (ServerLog is a websocket subscription covered by socket tests), 533 identical steps, 24 documented differences (Elixir 500s/bugs), 0 unexplained; browser walkthrough of every page against the Rust stack (palette regression found and fixed). Decisions: multi-faced cards store NULL instead of "" for missing flavor/oracle text; lotus Archidekt zone semantics, quantity clamping, unknown-zone mapping, and 401-as-403 adopted and documented.
+
+Follow-up (cfbender decisions): multi-faced cards now store "" like Elixir (rows::faces_text); lotus Archidekt zones, quantity clamping/unknown zone -> Mainboard, and 401-as-403 approved; lotus bumped to 6307a40 and FetchError::ServerTooOld (remote ManaVault < v1.3.0) shows its own message (remote::SERVER_TOO_OLD) in collection check, trade matches, deck diff, and AI list analysis.
 <!-- SECTION:NOTES:END -->

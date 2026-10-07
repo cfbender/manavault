@@ -48,9 +48,12 @@ Every external base URL is a parameter (`SyncOptions`, `AssetUrls`,
 
 ## Deliberate differences
 
-- Multi-faced cards whose faces carry no Oracle text, flavor text, or flavor
-  name store `NULL` (lotus `full_*` returns `None`) where Elixir stored `""`
-  (also `normalized_flavor_name`). Documented on `rows::rows`.
+- (Resolved, matches Elixir.) Multi-faced cards whose faces carry no Oracle
+  text, flavor text, or flavor name store `""` (also `normalized_flavor_name`)
+  like the Elixir import; lotus `full_*` returns `None` and `rows::faces_text`
+  converts at the DB boundary. Single-faced cards keep `NULL`. Rows an earlier
+  Rust build wrote as `NULL` are rewritten by the next sync (the diff sees the
+  changed value).
 - Undecodable bulk records. Elixir fails the whole sync on invalid JSON or a
   non-object line (kept: the file is validated before any batch is written)
   and silently skips records it cannot build rows for (no `id`/`oracle_id`).

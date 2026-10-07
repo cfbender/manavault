@@ -1623,7 +1623,7 @@ checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 [[package]]
 name = "lotus"
 version = "0.1.0"
-source = "git+https://github.com/cfbender/lotus#c4edb99170cf703a6bb8ae0e1d3648d45a8ca31f"
+source = "git+https://github.com/cfbender/lotus#6307a402be4f72260863606e4f5b44375f842060"
 dependencies = [
  "flate2",
  "futures-util",

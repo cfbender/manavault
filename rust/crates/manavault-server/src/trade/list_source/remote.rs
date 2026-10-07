@@ -51,6 +51,11 @@ pub const PAGINATION: &str =
     "That ManaVault instance returned invalid list pagination. Paste the list text instead.";
 pub const WANTS_UNSUPPORTED: &str = "That ManaVault instance doesn't support shared want lists yet. \
      Paste the list text instead.";
+/// The remote ManaVault predates the share query (lotus
+/// `FetchError::ServerTooOld`, `MIN_SERVER_VERSION`). Requiring v1.3.0+ is a
+/// product decision; there is no fallback query for older instances.
+pub const SERVER_TOO_OLD: &str = "That ManaVault instance is too old to share decks with this one \
+     (needs ManaVault v1.3.0 or newer). Ask its owner to update, or paste the list text instead.";
 pub const BINDER_UNSUPPORTED: &str = "That ManaVault instance doesn't support shared trade binders \
      yet. Paste the list text instead.";
 
@@ -136,6 +141,7 @@ pub fn manavault_error(kind: ShareKind, error: &FetchError) -> &'static str {
         },
         FetchError::LimitExceeded | FetchError::BodyTooLarge => LIMIT,
         FetchError::InvalidPagination => PAGINATION,
+        FetchError::ServerTooOld => SERVER_TOO_OLD,
         FetchError::Unsupported(ShareKind::Wants) => WANTS_UNSUPPORTED,
         FetchError::Unsupported(ShareKind::Binder) => BINDER_UNSUPPORTED,
         FetchError::Unsupported(ShareKind::Deck)

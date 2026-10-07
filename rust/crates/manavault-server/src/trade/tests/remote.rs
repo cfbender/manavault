@@ -291,6 +291,14 @@ async fn deck_errors_map_to_the_elixir_messages() {
             remote::UNREACHABLE,
         ),
         (ResponseTemplate::new(500), remote::UNREACHABLE),
+        // A pre-1.3.0 share schema rejects the newer deck fields.
+        (
+            json_response(json!({"errors": [{
+                "message": "Cannot query field \"commanderColorIdentity\" on type \"Deck\".",
+                "locations": [{"line": 1, "column": 1}]
+            }]})),
+            remote::SERVER_TOO_OLD,
+        ),
         // lotus reads `data` without a `deck` field as a null deck (Elixir:
         // "couldn't reach").
         (
@@ -307,6 +315,10 @@ async fn deck_errors_map_to_the_elixir_messages() {
         );
     }
     assert!(remote::DECK_NOT_FOUND.contains("doesn't match a deck on that ManaVault instance"));
+    assert!(remote::SERVER_TOO_OLD.contains(&format!(
+        "v{}",
+        lotus::decklist::manavault::MIN_SERVER_VERSION
+    )));
     assert!(remote::UNREACHABLE.contains("Couldn't reach that ManaVault instance"));
 }
 
@@ -599,4 +611,21 @@ async fn graphql_trade_matches_reads_a_remote_list_and_surfaces_errors() {
         )
         .await;
     assert_eq!(super::error_message(&response), UNSUPPORTED);
+
+    // A too-old remote surfaces its own message through the GraphQL API.
+    let old = MockServer::start().await;
+    graphql_mock(
+        &old,
+        json_response(json!({"errors": [{
+            "message": "Cannot query field \"fallbackPrinting\" on type \"DeckCard\"."
+        }]})),
+    )
+    .await;
+    let response = app
+        .gql(
+            "mutation($url: String) { tradeMatches(url: $url) { entryCount } }",
+            json!({"url": deck_url(&old, "decks")}),
+        )
+        .await;
+    assert_eq!(super::error_message(&response), remote::SERVER_TOO_OLD);
 }

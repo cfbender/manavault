@@ -82,9 +82,13 @@ preferredPrinting { scryfallId } fallbackPrinting { scryfallId } } }`
 
   All of these exist in `_build/public-share-schema.graphql` today; the
   Elixir client did not request `cardCount`, `commanderColorIdentity`,
-  `finish`, or the printing references. A remote instance whose deck schema
-  lacks one of them answers with GraphQL errors, which read as "Couldn't
-  reach that ManaVault instance".
+  `finish`, or the printing references. Remote instances must be ManaVault
+  v1.3.0+ (lotus `MIN_SERVER_VERSION`; approved, no fallback query). An older
+  instance rejects a deck field, lotus reports `FetchError::ServerTooOld`,
+  and the import shows its own message (`remote::SERVER_TOO_OLD`, "That
+  ManaVault instance is too old to share decks with this one (needs
+  ManaVault v1.3.0 or newer)...") in collection check, trade matches, deck
+  diff, and AI list analysis.
 
 - Absolute share links to this very instance are fetched over HTTP like
   Elixir, so they need the public `/share/graphql` endpoint (not ported yet);
@@ -92,7 +96,8 @@ preferredPrinting { scryfallId } fallbackPrinting { scryfallId } } }`
 
 ## Deliberate differences
 
-lotus decklist behavior (documented at `trade::list_source::remote`):
+lotus decklist behavior (documented at `trade::list_source::remote`;
+the first three were approved by cfbender):
 
 - Archidekt zones follow each card's primary category and that category's
   `includedInDeck` flag: cards whose primary category is excluded from the

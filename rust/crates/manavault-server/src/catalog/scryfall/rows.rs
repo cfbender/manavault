@@ -94,9 +94,11 @@ fn json<T: Serialize>(value: &T) -> String {
 /// face) get no card or printing row, as in Elixir.
 ///
 /// Multi-faced cards whose faces carry no Oracle text, flavor text, or
-/// flavor name store `NULL` in those columns, where the Elixir import stored
-/// `""` (it joined an empty list of face values). Readers treat both as
-/// "none"; lotus's `full_*` helpers return `None` for that case.
+/// flavor name store `""` in those columns, as the Elixir import did (it
+/// joined an empty list of face values), so stored data is the same whichever
+/// backend imported it. lotus's `full_*` helpers return `None` for that case;
+/// [`faces_text`] converts at this boundary. Single-faced cards without the
+/// field stay `NULL`.
 #[must_use]
 pub fn rows(cards: Vec<ScryfallCard>, tag_index: &OracleTagIndex) -> Rows {
     let mut rows = Rows::default();
@@ -117,6 +119,15 @@ pub fn rows(cards: Vec<ScryfallCard>, tag_index: &OracleTagIndex) -> Rows {
     rows
 }
 
+/// A joined face value as Elixir stored it: lotus's `None` for a card with
+/// faces (none of which has the value) becomes `""`.
+fn faces_text(card: &ScryfallCard, joined: Option<String>) -> Option<String> {
+    match joined {
+        None if !card.card_faces.is_empty() => Some(String::new()),
+        joined => joined,
+    }
+}
+
 fn card_row(card: &ScryfallCard, oracle_id: &str, tag_index: &OracleTagIndex) -> CardRow {
     CardRow {
         oracle_id: oracle_id.to_owned(),
@@ -125,7 +136,7 @@ fn card_row(card: &ScryfallCard, oracle_id: &str, tag_index: &OracleTagIndex) ->
             normalized_name: Some(lotus::normalize_name(&card.name)),
             layout: card.layout.clone(),
             type_line: card.type_line.clone(),
-            oracle_text: card.full_oracle_text(),
+            oracle_text: faces_text(card, card.full_oracle_text()),
             mana_cost: card.mana_cost.clone(),
             cmc: card.cmc,
             colors: json(&card.front_colors()),
@@ -148,7 +159,7 @@ fn image_uris(card: &ScryfallCard) -> String {
 }
 
 fn printing_row(card: &ScryfallCard, oracle_id: String) -> PrintingRow {
-    let flavor_name = card.full_flavor_name();
+    let flavor_name = faces_text(card, card.full_flavor_name());
     PrintingRow {
         scryfall_id: card.id.as_str().to_owned(),
         fields: PrintingFields {
@@ -160,7 +171,7 @@ fn printing_row(card: &ScryfallCard, oracle_id: String) -> PrintingRow {
             lang: card.lang.clone().unwrap_or_else(|| "en".to_owned()),
             normalized_flavor_name: flavor_name.as_deref().map(lotus::normalize_name),
             flavor_name,
-            flavor_text: card.full_flavor_text(),
+            flavor_text: faces_text(card, card.full_flavor_text()),
             rarity: card.rarity.map(|rarity| rarity.as_str().to_owned()),
             finishes: json(&card.finishes),
             promo_types: json(&card.promo_types),
@@ -239,8 +250,33 @@ mod tests {
         assert_eq!(printing.image_uris, r#"[{"normal":"a"},{"normal":"b"}]"#);
         assert_eq!(printing.flavor_name.as_deref(), Some("Fa"));
         assert_eq!(printing.normalized_flavor_name.as_deref(), Some("fa"));
-        // Deliberate difference: no face flavor text stores NULL, not "".
-        assert_eq!(printing.flavor_text, None);
+        // No face has flavor text: "" like the Elixir import, not NULL.
+        assert_eq!(printing.flavor_text.as_deref(), Some(""));
+    }
+
+    /// `ImportRows.rows/3` stores `""` for every joined face value a
+    /// multi-faced card lacks (checked against the Elixir app), and `NULL`
+    /// when a single-faced card lacks it.
+    #[test]
+    fn missing_face_values_store_empty_strings_like_elixir() {
+        let rows = rows(
+            vec![
+                card(json!({"id": "p", "oracle_id": "o", "name": "A // B",
+                    "card_faces": [{"name": "A"}, {"name": "B"}]})),
+                card(json!({"id": "q", "oracle_id": "o2", "name": "C"})),
+            ],
+            &OracleTagIndex::new(),
+        );
+        let faced = &rows.printings[0].fields;
+        assert_eq!(rows.cards[0].core.oracle_text.as_deref(), Some(""));
+        assert_eq!(faced.flavor_text.as_deref(), Some(""));
+        assert_eq!(faced.flavor_name.as_deref(), Some(""));
+        assert_eq!(faced.normalized_flavor_name.as_deref(), Some(""));
+        let single = &rows.printings[1].fields;
+        assert_eq!(rows.cards[1].core.oracle_text, None);
+        assert_eq!(single.flavor_text, None);
+        assert_eq!(single.flavor_name, None);
+        assert_eq!(single.normalized_flavor_name, None);
     }
 
     #[test]
