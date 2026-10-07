@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE collection_items SET scryfall_id = ?1, quantity = ?2, condition = ?3,\n             language = ?4, finish = ?5, location_id = ?6, notes = ?7, purchase_price_cents = ?8,\n             for_trade = ?9, for_trade_quantity = ?10, location_changed_at = ?11, updated_at = ?12\n           WHERE id = ?13",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 13
+    },
+    "nullable": []
+  },
+  "hash": "b6219e9f27bf3da8580d2e00065019c0a68ecbe1dcc3cbf2df862057a6fcbe34"
+}

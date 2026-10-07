@@ -1,0 +1,182 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT i.id AS \"id!\", i.scryfall_id AS \"scryfall_id!: lotus::ScryfallId\",\n                 i.quantity AS \"quantity!: lotus::Quantity\",\n                 i.condition AS \"condition!: lotus::Condition\", i.language AS \"language!\",\n                 i.finish AS \"finish!: lotus::Finish\", i.location_id AS \"location_id?\",\n                 i.notes AS \"notes?\", i.purchase_price_cents AS \"purchase_price_cents?\",\n                 i.for_trade AS \"for_trade!: bool\", i.for_trade_quantity AS \"for_trade_quantity!\",\n                 i.location_changed_at AS \"location_changed_at?\",\n                 i.inserted_at AS \"inserted_at!\", i.updated_at AS \"updated_at!\"\n               FROM collection_items AS i WHERE i.id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "scryfall_id!: lotus::ScryfallId",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "scryfall_id"
+          }
+        }
+      },
+      {
+        "name": "quantity!: lotus::Quantity",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "quantity"
+          }
+        }
+      },
+      {
+        "name": "condition!: lotus::Condition",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "condition"
+          }
+        }
+      },
+      {
+        "name": "language!",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "language"
+          }
+        }
+      },
+      {
+        "name": "finish!: lotus::Finish",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "finish"
+          }
+        }
+      },
+      {
+        "name": "location_id?",
+        "ordinal": 6,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "location_id"
+          }
+        }
+      },
+      {
+        "name": "notes?",
+        "ordinal": 7,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "notes"
+          }
+        }
+      },
+      {
+        "name": "purchase_price_cents?",
+        "ordinal": 8,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "purchase_price_cents"
+          }
+        }
+      },
+      {
+        "name": "for_trade!: bool",
+        "ordinal": 9,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "for_trade"
+          }
+        }
+      },
+      {
+        "name": "for_trade_quantity!",
+        "ordinal": 10,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "for_trade_quantity"
+          }
+        }
+      },
+      {
+        "name": "location_changed_at?",
+        "ordinal": 11,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "location_changed_at"
+          }
+        }
+      },
+      {
+        "name": "inserted_at!",
+        "ordinal": 12,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "inserted_at"
+          }
+        }
+      },
+      {
+        "name": "updated_at!",
+        "ordinal": 13,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "2dcb3aabb51fd9ae9e572aa7f23f805a4d505ea1b61564ff044813da17558b24"
+}

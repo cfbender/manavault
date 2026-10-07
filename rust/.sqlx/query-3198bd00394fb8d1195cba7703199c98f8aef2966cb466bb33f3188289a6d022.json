@@ -1,0 +1,206 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!\", name AS \"name!\", enabled AS \"enabled!: bool\", priority AS \"priority!\",\n                  target_location_id AS \"target_location_id!\", color_mode AS \"color_mode!\",\n                  colors AS \"colors!\", type_line_includes AS \"type_line_includes!\",\n                  type_line_excludes AS \"type_line_excludes!\", rarities AS \"rarities!\",\n                  min_price_cents AS \"min_price_cents?\", max_price_cents AS \"max_price_cents?\",\n                  set_operator AS \"set_operator!\", set_codes AS \"set_codes!\",\n                  release_date_operator AS \"release_date_operator!\", release_date AS \"release_date?\"\n           FROM collection_auto_sort_rules ORDER BY priority ASC, id ASC",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_auto_sort_rules",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "name!",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_auto_sort_rules",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "enabled!: bool",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_auto_sort_rules",
+            "name": "enabled"
+          }
+        }
+      },
+      {
+        "name": "priority!",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_auto_sort_rules",
+            "name": "priority"
+          }
+        }
+      },
+      {
+        "name": "target_location_id!",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_auto_sort_rules",
+            "name": "target_location_id"
+          }
+        }
+      },
+      {
+        "name": "color_mode!",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_auto_sort_rules",
+            "name": "color_mode"
+          }
+        }
+      },
+      {
+        "name": "colors!",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_auto_sort_rules",
+            "name": "colors"
+          }
+        }
+      },
+      {
+        "name": "type_line_includes!",
+        "ordinal": 7,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_auto_sort_rules",
+            "name": "type_line_includes"
+          }
+        }
+      },
+      {
+        "name": "type_line_excludes!",
+        "ordinal": 8,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_auto_sort_rules",
+            "name": "type_line_excludes"
+          }
+        }
+      },
+      {
+        "name": "rarities!",
+        "ordinal": 9,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_auto_sort_rules",
+            "name": "rarities"
+          }
+        }
+      },
+      {
+        "name": "min_price_cents?",
+        "ordinal": 10,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_auto_sort_rules",
+            "name": "min_price_cents"
+          }
+        }
+      },
+      {
+        "name": "max_price_cents?",
+        "ordinal": 11,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_auto_sort_rules",
+            "name": "max_price_cents"
+          }
+        }
+      },
+      {
+        "name": "set_operator!",
+        "ordinal": 12,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_auto_sort_rules",
+            "name": "set_operator"
+          }
+        }
+      },
+      {
+        "name": "set_codes!",
+        "ordinal": 13,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_auto_sort_rules",
+            "name": "set_codes"
+          }
+        }
+      },
+      {
+        "name": "release_date_operator!",
+        "ordinal": 14,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_auto_sort_rules",
+            "name": "release_date_operator"
+          }
+        }
+      },
+      {
+        "name": "release_date?",
+        "ordinal": 15,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_auto_sort_rules",
+            "name": "release_date"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "3198bd00394fb8d1195cba7703199c98f8aef2966cb466bb33f3188289a6d022"
+}

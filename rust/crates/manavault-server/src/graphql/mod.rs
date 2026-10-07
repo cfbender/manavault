@@ -42,6 +42,7 @@ pub struct Query(
     system::SystemQueries,
     crate::catalog::CardQueries,
     crate::tokens::TokenQueries,
+    crate::collection::CollectionQueries,
     crate::pricing::graphql::PricingQueries,
     crate::settings::appearance::AppearanceQueries,
     crate::settings::ai::AiSettingsQueries,
@@ -54,6 +55,7 @@ pub struct Query(
 pub struct Mutation(
     system::SystemMutations,
     crate::tokens::TokenMutations,
+    crate::collection::CollectionMutations,
     crate::pricing::graphql::PricingMutations,
     crate::catalog::scryfall::graphql::ScryfallMutations,
     crate::settings::appearance::AppearanceMutations,
@@ -77,6 +79,7 @@ pub fn build_schema(state: AppState) -> AppSchema {
         Subscription::default(),
     )
     .data(crate::catalog::loader::data_loader(state.db.clone()))
+    .data(crate::collection::loader::data_loader(state.db.clone()))
     .data(state)
     .finish()
 }

@@ -10,6 +10,7 @@ pub mod auth;
 pub mod backup;
 pub mod catalog;
 pub mod cli;
+pub mod collection;
 pub mod config;
 pub mod crypto;
 pub mod db;

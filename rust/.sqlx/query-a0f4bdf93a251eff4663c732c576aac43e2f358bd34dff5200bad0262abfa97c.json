@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT c.layout AS \"layout?\" FROM scryfall_printings AS p\n               JOIN scryfall_cards AS c ON c.oracle_id = p.oracle_id WHERE p.scryfall_id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "layout?",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_cards",
+            "name": "layout"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "a0f4bdf93a251eff4663c732c576aac43e2f358bd34dff5200bad0262abfa97c"
+}

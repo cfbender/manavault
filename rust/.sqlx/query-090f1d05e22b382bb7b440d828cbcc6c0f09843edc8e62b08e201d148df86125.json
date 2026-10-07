@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT p.scryfall_id AS \"scryfall_id!\" FROM scryfall_printings AS p\n           JOIN scryfall_cards AS c ON c.oracle_id = p.oracle_id\n           WHERE p.scryfall_id IN (SELECT value FROM json_each(?1))\n             AND c.layout IN ('token', 'double_faced_token', 'emblem')",
+  "describe": {
+    "columns": [
+      {
+        "name": "scryfall_id!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "scryfall_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "090f1d05e22b382bb7b440d828cbcc6c0f09843edc8e62b08e201d148df86125"
+}

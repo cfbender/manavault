@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO token_items (scryfall_id, back_scryfall_id, quantity, finish, inserted_at, updated_at)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "bba41673b4aab9d47de8543587f7f983314ce9ff143106b361c728f999010aae"
+}

@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO collection_auto_sort_rules\n                 (name, enabled, priority, target_location_id, color_mode, colors,\n                  type_line_includes, type_line_excludes, rarities, min_price_cents,\n                  max_price_cents, set_operator, set_codes, release_date_operator, release_date,\n                  inserted_at, updated_at)\n               VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?16)\n               RETURNING id AS \"id!\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_auto_sort_rules",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 16
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "2e25e59c55658fbd4394622ecaa0db9e80e0bec8a4e3ad491429bde716d0a711"
+}
