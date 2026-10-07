@@ -131,3 +131,11 @@ Local measurements (8-core orb, CARGO_INCREMENTAL=0):
 The floor of a code-only image build is the release compile of the
 workspace crates, mostly `manavault-server`. More codegen units made it
 slower (64 units: 198s against 168s for the default 16).
+
+GitHub Actions after the change (4-core runners, warm caches): Quality's Rust
+job 2m45s–3m05s (was 5m–11m18s), and a Container build whose Rust code
+changed 6m (the dependency layer is restored from the GHA cache; the
+workspace release compile takes about 4m on these runners). The first
+rust-cache key also hashed every installed toolchain, and runner images
+differ in whether a stable Rust is preinstalled, so `add-rust-environment-hash-key`
+is off.
