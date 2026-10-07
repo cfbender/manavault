@@ -631,8 +631,8 @@ async fn groups_combine_price_lots_while_items_stay_separate() {
 }
 
 /// The value-gain group sort weighs each copy's gain, not `quantity * price -
-/// purchase` (the unparenthesized fragment of earlier releases; found by the parity
-/// harness): five copies bought at market price gained nothing and sort
+/// purchase` (the unparenthesized fragment of earlier releases; found during the
+/// port): five copies bought at market price gained nothing and sort
 /// below one copy that gained a dollar.
 #[tokio::test]
 async fn value_gain_group_sort_multiplies_the_whole_gain() {
@@ -690,7 +690,7 @@ async fn value_gain_group_sort_multiplies_the_whole_gain() {
 
 /// `valueGainPercentText` rounds like `Float.round/2` (exact float value):
 /// a $21.07 copy bought for $20 gained 5.35%, stored as 5.3499…, so "+5.3%"
-/// (found by the parity harness; naive `(x * 10).round()` gave "+5.4%").
+/// (found during the port; naive `(x * 10).round()` gave "+5.4%").
 #[tokio::test]
 async fn value_gain_percent_text_rounds_the_exact_float() {
     let app = TestApp::new().await;
@@ -1270,7 +1270,7 @@ async fn create_update_and_delete_location_mutations() {
 
 /// Absinthe answers a failed nullable field with `null` next to the error;
 /// async-graphql used to drop the field, nulling the whole `data` of a
-/// failed mutation (found by the parity harness, `rust/scripts/parity`).
+/// failed mutation (found during the port).
 #[tokio::test]
 async fn failed_mutations_and_queries_answer_null_fields() {
     let app = TestApp::new().await;
@@ -1464,7 +1464,7 @@ async fn import_preview_commit_and_export_over_graphql() {
 /// The import page resolves an ambiguous row by writing the chosen
 /// candidate's `id` (a `Printing` global id) into `attrs.scryfallId`
 /// (`selectCandidate` in `use-collection-import.ts`). Earlier releases rejected it as a
-/// missing printing; found by the parity harness.
+/// missing printing; found during the port.
 #[tokio::test]
 async fn import_commit_accepts_a_chosen_candidate_global_id() {
     let app = TestApp::new().await;

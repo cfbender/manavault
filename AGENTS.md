@@ -4,7 +4,7 @@
 
 `manavault` is a Rust backend with a Vite/React frontend.
 
-- `rust/` — the server: Cargo workspace with `manavault-server` (binary `manavault`: owner schema, axum routes, job registry), the domain crates it assembles (`manavault-core`, `-catalog`, `-collection`, `-deck-intel`, `-trade`, `-ai`, `-share`, `-system`), and `manavault-allocation`. Read `rust/README.md` and `rust/notes/*.md`.
+- `rust/` — the server: Cargo workspace with `manavault-server` (binary `manavault`: owner schema, axum routes, job registry), the domain crates it assembles (`manavault-core`, `-catalog`, `-collection`, `-deck-intel`, `-trade`, `-ai`, `-share`, `-system`), and `manavault-allocation`. Read `rust/README.md`.
 - `rust/migrations/` — the SQL migrations (one file per schema version), embedded in the binary and applied on boot; `rust/schema.sql` is the schema they produce (generated, used to check sqlx queries).
 - `priv/static/` — static files served by the backend; `priv/static/assets` is the built frontend (Tailwind CSS and the Vite bundle). `priv/data/` holds data files embedded in the binary.
 - `assets/` — frontend assets built with Tailwind and Vite, including the React app in `assets/react` and its tests in `assets/react/test`.

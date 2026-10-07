@@ -5,7 +5,7 @@
 //! (`"non-existing domain"`, `"connection refused"`, `"timeout"`, ...). reqwest's own `Display`
 //! (`"error sending request for url (...)"`) leaks the URL and reads
 //! differently, so the common transport failures are mapped to the same
-//! words here. Found by the differential parity harness.
+//! words here. Found during the port.
 
 use std::error::Error as _;
 use std::io::ErrorKind;

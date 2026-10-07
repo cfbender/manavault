@@ -222,8 +222,8 @@ async fn edhrec_failures_are_graphql_errors() {
 }
 
 /// Transport failures read like Req's (`Exception.message/1` of the Mint
-/// error), not reqwest's "error sending request for url (...)". Found by the
-/// parity harness.
+/// error), not reqwest's "error sending request for url (...)". Found during
+/// the port.
 #[tokio::test]
 async fn unreachable_edhrec_reports_the_transport_reason() {
     let app = TestApp::with_config(|config| {

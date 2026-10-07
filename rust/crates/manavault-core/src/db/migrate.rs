@@ -4,10 +4,10 @@
 //! place.
 //!
 //! The SQL files in `rust/migrations` (embedded at build time) were
-//! originally generated from the earlier backend's migration SQL log (see
-//! `rust/notes/migrations.md`); new schema changes are new files. The
-//! migrations that read or wrote data in code are implemented here
-//! ([`data_step`]).
+//! originally generated from the 1.x backend's migration SQL log, keeping
+//! only the SQL each migration ran unconditionally; new schema changes are
+//! new files. The migrations that read or wrote data in code are implemented
+//! here ([`data_step`]).
 //!
 //! Pending migrations run oldest first, each in its own transaction, and
 //! versions recorded in `schema_migrations` that this build does not know (a

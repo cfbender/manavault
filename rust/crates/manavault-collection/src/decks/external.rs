@@ -10,8 +10,7 @@
 //! copy is allocated, because allocation pins the card to the owned printing.
 //!
 //! Fetching and parsing use lotus (`DeckLink`, `DecklistClient`,
-//! `MoxfieldDeck`, `ArchidektDeck`), which differs from earlier releases in
-//! ways documented in `rust/notes/decks.md`:
+//! `MoxfieldDeck`, `ArchidektDeck`), which differs from earlier releases:
 //! Archidekt zones follow the primary category and the deck's
 //! `includedInDeck` flags (cards in excluded categories are Considering),
 //! quantities below one become one and unknown zones the mainboard, and

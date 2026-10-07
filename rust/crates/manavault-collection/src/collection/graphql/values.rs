@@ -209,7 +209,7 @@ mod tests {
 
     /// `Float.round/2` rounds the float's exact value: `5.35` and `19.95`
     /// are stored just below the tie and round down; exact ties round away
-    /// from zero. Found by the parity harness (`107 * 100 / 2000`).
+    /// from zero. found during the port (`107 * 100 / 2000`).
     #[test]
     fn rounds_the_exact_float_like_float_round() {
         assert_eq!(

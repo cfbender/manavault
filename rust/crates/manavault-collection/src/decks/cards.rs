@@ -577,7 +577,7 @@ fn printings_by_price<'a>(
 /// dates structurally, by day, then month, then year. Price ties therefore went
 /// to the printing released on the lowest day of the month (Delver of
 /// Secrets: MID 2021-09-24 before ISD 2011-09-30). Dates compare
-/// chronologically here; the parity harness lists the affected buylists.
+/// chronologically here.
 fn price_order(
     (price_a, a): &(Option<i64>, &Printing),
     (price_b, b): &(Option<i64>, &Printing),

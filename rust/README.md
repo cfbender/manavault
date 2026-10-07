@@ -7,9 +7,9 @@ database, for the React frontend in `assets/react`.
 ## Crates
 
 The server is split into domain crates so an edit recompiles one crate and
-independent crates build in parallel (`notes/build-times.md`). Each crate
-re-exports the modules of the crates below it under their old paths, so code
-keeps writing `crate::catalog::...` or `crate::state::AppState`.
+independent crates build in parallel. Crates import each other by name
+(`manavault_core::state::AppState`, `manavault_catalog::catalog::search`);
+no crate re-exports another crate's modules.
 
 ```diagram
 manavault-server (binary `manavault`: owner schema, routes, job registry, CLI)
@@ -39,12 +39,34 @@ manavault-allocation      reserving collection copies for deck cards
   job framework lives in `manavault-core` because `AppState` holds the queue
   and workers receive `AppState`; each worker lives in its domain crate and
   `manavault-server::app::workers` registers them.
-- Tests: a crate's tests use `manavault-server`'s test app (a dev-dependency
-  with the `test-support` feature), so they run against the full schema and
-  routes. That links a second copy of the crate under test, so tests pass
-  `AppState` and plain data across, never this crate's own types, statics, or
-  workers (see `share/tests/artifact_cache.rs`). `manavault-core`'s own tests
-  that need its types use `manavault_core::testing::TestState`.
+- Timestamps: `manavault_core::timestamp::Timestamp` is the type of
+  second-precision text columns (`inserted_at`, `updated_at`, ...): UTC,
+  stored and rendered as `YYYY-MM-DDTHH:MM:SSZ`, decoded from the formats
+  earlier releases wrote. Microsecond columns (jobs, logs, vendor prices) use
+  `timestamp::{micros, now_micros, parse}` with `time::OffsetDateTime`; the
+  two widths stay separate because mixed widths would break text ordering in
+  SQL. GraphQL exposes timestamps as strings.
+- Tests live next to the code they cover. No domain crate depends on
+  `manavault-server`: `manavault_core::testing` provides `TempDir`,
+  `TestState` (a fresh migrated database, optionally with workers), and
+  `TestApp`, which runs GraphQL operations against a schema the crate under
+  test assembles from the root objects it and its dependencies own
+  (each crate's `#[cfg(test)] mod test_app`); `manavault_catalog::testing`
+  and `manavault_collection::testing` add card and collection fixtures. Tests
+  whose behavior comes from the server's middleware or the full router (share
+  and trade pages, Scryfall assets, serving an upgraded old database) are
+  integration tests in `crates/manavault-server/tests/`.
+  The test helpers compile in every build rather than behind a feature, so
+  test and dev builds share one build of each crate.
+
+### Build settings
+
+Dev builds are incremental, link through `scripts/linker.sh` (mold, else lld,
+else plain `cc`; `.agents/setup` installs mold), and keep only line tables as
+debug info (`[profile.dev]` in `Cargo.toml`, `debug = 0` for dependencies),
+so a one-line edit rebuilds in seconds instead of relinking a minute. CI and
+the Docker release build set `CARGO_INCREMENTAL=0`. Incremental caches cost
+disk; `mise run rust:sweep` drops those untouched for three days.
 
 ## Commands
 
@@ -111,8 +133,11 @@ turns `PRAGMA foreign_keys` off), recorded in `schema_migrations` with the
 versions every earlier release used, so a database from any release upgrades in
 place. Migrations that must compute data have a `data_step` in
 `db::migrate`. Before migrating a production database the server writes a
-pre-migration backup. Versions the build does not know (a newer release's
-database) are ignored with a warning.
+pre-migration backup (`backups/manavault-pre_migration-<stamp>.zip`, skipped
+with `MANAVAULT_SKIP_MIGRATION_BACKUP`). Versions the build does not know (a
+newer release's database) are ignored with a warning; `db::migrate::RETIRED`
+lists the three versions a 1.x release deleted, so databases that recorded
+them never warn. Downgrades are not supported.
 
 `schema.sql` is the schema the migrations produce (`mise run rust:schema`):
 
@@ -133,10 +158,8 @@ database) are ignored with a warning.
 - Static SQL uses the checked macros (`sqlx::query!`, `query_as!`,
   `query_scalar!`); dynamic filters use `QueryBuilder`.
 - Keep the GraphQL schema compatible with the frontend's operations
-  (`assets/react/src/gql`). `python3 rust/scripts/sdl_diff.py old.graphql
-new.graphql` compares two schemas (for example `manavault sdl` before and
-  after a change) structurally.
-- `rust/notes/*.md` records how each area was ported from the original
-  backend, the deliberate behavior differences, and the bugs fixed on the way.
-  `rust/scripts/parity` replays the frontend's operations against the original
-  backend and this one and diffs the responses (see `rust/notes/parity.md`).
+  (`assets/react/src/gql`): diff `manavault sdl` before and after a change,
+  and run `mise exec -- aube run codegen` so the frontend types follow.
+- Comments that say "earlier releases" or "found during the port" describe
+  behavior inherited from, or deliberately changed since, the 1.x backend this
+  server replaced; the git history before the Rust rewrite holds the rest.

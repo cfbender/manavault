@@ -334,7 +334,7 @@ pub(crate) fn import_location_id(id: Option<&ID>) -> Result<Option<i64>> {
 /// `attrs.scryfallId`, but `ImportResolvers.collection_import_row/2` passed
 /// it through undecoded, so committing (or auto-sort previewing) an import
 /// after picking a printing for an ambiguous row always failed with "A card
-/// printing in this import no longer exists." Found by the parity harness.
+/// printing in this import no longer exists." found during the port.
 fn raw_id_change(id: &MaybeUndefined<ID>) -> MaybeUndefined<String> {
     match id {
         MaybeUndefined::Undefined => MaybeUndefined::Undefined,

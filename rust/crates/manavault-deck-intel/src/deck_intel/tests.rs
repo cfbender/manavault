@@ -646,7 +646,7 @@ async fn deck_recommander_ranks_recommendations_with_collection_status() {
 
 /// Scores keep every bit of the JSON number, as Jason parses it: the default
 /// best-effort float parsing of `serde_json` read `0.9985702037811279` as
-/// `0.998570203781128` (found by the parity harness against the live API;
+/// `0.998570203781128` (found during the port against the live API;
 /// fixed with the `float_roundtrip` feature of `serde_json`).
 #[tokio::test]
 async fn deck_recommander_scores_parse_exactly() {

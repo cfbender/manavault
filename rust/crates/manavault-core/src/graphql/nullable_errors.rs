@@ -7,8 +7,8 @@
 //! mutation such as `{ createLocation(...) { location { id } } }` came back
 //! as `{"data": null}` where Absinthe sends `{"data": {"createLocation":
 //! null}}`, and `{ location(id: "missing") { id } pricingSettings { source } }`
-//! lost the `location` key instead of setting it to `null`. Found by the
-//! differential parity harness (`rust/scripts/parity`).
+//! lost the `location` key instead of setting it to `null`. Found during the
+//! port by replaying the frontend's operations against both backends.
 //!
 //! This extension catches the error of every nullable field, records it, and
 //! resolves the field to `null`; the recorded errors are appended to the

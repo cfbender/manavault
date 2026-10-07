@@ -92,7 +92,7 @@ pub fn parse_cents(price: &str) -> Option<i64> {
 /// `(value * 10.0).round() / 10.0` differs whenever the float sits just
 /// below a tie: `5.35` is `5.3499999999999996…`, which correct rounding takes to
 /// `5.3`, but `5.35 * 10.0` is exactly `53.5` and rounds up to `5.4` (found
-/// by the parity harness on `valueGainPercentText`).
+/// during the port on `valueGainPercentText`).
 #[must_use]
 pub fn round_tenths(value: f64) -> f64 {
     if !value.is_finite() {
