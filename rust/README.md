@@ -29,8 +29,9 @@ mise run rust:sqlx-metadata  # after a query change: regenerate .sqlx from struc
 ```
 
 `manavault hash-password <password>` prints a `MANAVAULT_ADMIN_PASSWORD_HASH`
-value, and `manavault sdl` prints the owner GraphQL schema. Maintenance
-commands mirror the mix tasks and read the same environment as the server:
+value, `manavault sdl` prints the owner GraphQL schema, and
+`manavault sdl --public` the public share schema (`/share/graphql`).
+Maintenance commands mirror the mix tasks and read the same environment as the server:
 
 - `manavault unban CLIENT_ID | --all` clears permanent login bans.
 - `manavault backup [-o DIR] [--data-dir DIR] [--database PATH]` writes a
@@ -79,4 +80,5 @@ The Ecto migrations remain the only schema definition. `mix ecto.dump` writes
   a bug, fix it here, document it at the item, and list it below.
 - GraphQL types, fields, arguments, nullability, and error messages match the
   Absinthe schema. `python3 rust/scripts/sdl_diff.py` compares
-  `mix absinthe.schema.sdl` output with `manavault sdl`.
+  `mix absinthe.schema.sdl` output with `manavault sdl` (and the public
+  share schema's with `manavault sdl --public`).

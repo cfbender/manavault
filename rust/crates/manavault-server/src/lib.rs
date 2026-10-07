@@ -24,6 +24,7 @@ pub mod pricing;
 pub mod scanner;
 pub mod scryfall_assets;
 pub mod settings;
+pub mod share;
 pub mod state;
 pub mod timefmt;
 pub mod tokens;
