@@ -10,15 +10,27 @@ node = "26.4.0"
 resvg = "0.48.1"
 rust = { version = "1.99.0", components = "clippy,rustfmt" }
 sqlite = "3.53.4"
+# Tailwind's standalone CLI builds priv/static/assets/css/app.css for the Rust
+# backend (the Elixir app runs the same version through the tailwind hex package).
+"github:tailwindlabs/tailwindcss" = { version = "4.3.0", bin = "tailwindcss" }
 "npm:backlog.md" = "latest"
 
 [tasks.setup]
-description = "Install project tools, Elixir dependencies, database, assets, and native shell dependencies."
-run = "mise install && aube install --frozen-lockfile && mix setup"
-
+description = "Install project tools, Elixir dependencies, database, assets, and build the Rust backend."
+run = [
+  "mise install",
+  "aube install --frozen-lockfile",
+  # `mix setup` also builds the frontend (Tailwind + Vite) that both backends serve.
+  "mix setup",
+  "mise run rust:prebuild",
+]
 
 [tasks.dev]
-description = "Start the Phoenix development server."
+description = "Start the Rust backend on $PORT (default 4000) with the Vite dev server on 5173 and Tailwind in watch mode."
+run = "bash ./scripts/dev-rust.sh"
+
+[tasks."dev:elixir"]
+description = "Start the Phoenix (reference) development server; it runs Vite and Tailwind as watchers."
 run = "mix phx.server"
 
 [tasks.test]
@@ -40,9 +52,9 @@ run = [
 description = "Format-check, lint, and test the Rust workspace."
 dir = "rust"
 run = [
-  "cargo fmt --check",
-  "cargo clippy --all-targets --locked -- -D warnings",
-  "cargo test --locked",
+  "cargo fmt --all --check",
+  "cargo clippy --workspace --all-targets --locked -- -D warnings",
+  "cargo test --workspace --locked",
 ]
 
 [tasks."rust:schema-db"]
@@ -78,13 +90,37 @@ rm -rf .sqlx && mkdir .sqlx
 # Query macros only re-expand when their crate recompiles.
 find crates -name '*.rs' -exec touch {} +
 SQLX_OFFLINE=false DATABASE_URL="sqlite://$PWD/target/schema.db?mode=ro" SQLX_OFFLINE_DIR="$PWD/.sqlx" \
-  cargo check --workspace --all-targets
+  cargo check --workspace --all-targets --locked
 '''
 
 [tasks."rust:dev"]
-description = "Run the Rust backend against the development database (port $PORT, default 4000)."
+description = "Run only the Rust backend against the development database (port $PORT, default 4000); see `dev` for the full stack."
 dir = "rust"
-run = "MANAVAULT_ENV=dev MANAVAULT_ROOT=.. cargo run --bin manavault"
+run = "MANAVAULT_ENV=dev MANAVAULT_ROOT=.. cargo run --locked --bin manavault"
+
+[tasks."rust:serve"]
+description = "Alias of `dev`: the Rust backend plus the Vite dev server and Tailwind watcher."
+run = "bash ./scripts/dev-rust.sh"
+
+[tasks."rust:assets"]
+description = "Build the production frontend into priv/static/assets (Tailwind CSS and the Vite bundle)."
+run = [
+  "tailwindcss --input=assets/css/app.css --output=priv/static/assets/css/app.css --minify",
+  "aube run build",
+]
+
+[tasks."rust:build"]
+description = "Build the release `manavault` binary (rust/target/release/manavault)."
+dir = "rust"
+run = "cargo build --release --locked --bin manavault"
+
+[tasks."rust:prebuild"]
+description = "Compile the Rust server and test binaries (debug) so `rust:test` and `dev` start without a cold build."
+dir = "rust"
+run = [
+  "cargo build --workspace --locked",
+  "cargo test --workspace --locked --no-run",
+]
 
 [tasks."rust:test"]
 description = "Run the Rust test suite."

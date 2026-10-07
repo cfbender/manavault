@@ -87,11 +87,13 @@ the background; card search and import matching work once that sync finishes
 ## Self-Hosting
 
 For anything reachable beyond localhost, enable built-in auth. Generate a
-Phoenix secret and an owner password hash from a source checkout:
+secret key base and an owner password hash (the image's `manavault` binary
+prints the hash):
 
 ```sh
-mise exec -- mix phx.gen.secret
-mise exec -- mix manavault.auth.hash 'your-password'
+openssl rand -base64 48
+docker run --rm --entrypoint /app/bin/manavault ghcr.io/cfbender/manavault:1.4.3 \
+  hash-password 'your-password'
 ```
 
 Then run the published image with Docker Compose:
@@ -129,20 +131,24 @@ same instance is reached under more than one hostname, list the extra origins in
 
 - **Health check** - `GET /health` returns `{"status":"ok"}`; the image ships a
   Docker healthcheck.
-- **Upgrade** - pull a newer tag and recreate the container. Pending migrations
-  run on boot after an automatic pre-migration backup. See
+- **Upgrade** - pull a newer tag and recreate the container. Images built on
+  the Rust backend create the schema for an empty database and refuse to open
+  a database that is missing migrations; upgrade older installs through the
+  last Elixir-based release first. See
   [Upgrading](docs/self-hosting.md#upgrading).
 - **Back up** - schedule cloud backups in **Settings -> Cloud backups**, copy the
   stopped `data/` directory, or create a zip in the running container:
 
   ```sh
-  docker exec manavault /app/bin/manavault rpc 'Manavault.Backup.create!()'
+  docker exec -u app manavault /app/bin/manavault backup
   ```
 
   See [Manual backups](docs/self-hosting.md#manual-backups).
 
-- **Restore** - stop the container and run `mix manavault.restore` from a
-  checkout, or stage a cloud restore in Settings and restart. See
+- **Restore** - stop the container and run the binary's `restore` command
+  against the data volume (`docker compose run --rm -u app --entrypoint
+  /app/bin/manavault manavault restore /data/backups/<file>.zip`), or stage a
+  cloud restore in Settings and restart. See
   [Restore](docs/self-hosting.md#restore).
 - **Card data** - the Scryfall catalog and symbols refresh daily and vendor
   prices every 30 minutes; force a reload from **Settings -> Scryfall data**.
@@ -156,7 +162,7 @@ same instance is reached under more than one hostname, list the extra origins in
   [login bans](docs/self-hosting.md#recover-from-a-permanent-login-ban):
 
   ```sh
-  docker exec manavault /app/bin/manavault rpc 'Manavault.Auth.AttemptLimiter.reset_all()'
+  docker exec -u app manavault /app/bin/manavault unban --all
   ```
 
 - **Scanner models** - downloaded from GitHub releases at startup and every six
@@ -183,21 +189,34 @@ same instance is reached under more than one hostname, list the extra origins in
 
 ## Development
 
-Tool versions are pinned in `mise.toml`:
+The server is the Rust backend in [`rust/`](rust/README.md). The Elixir/Phoenix
+app in `lib/` stays as the behavioral reference and owns the Ecto migrations
+(`mix ecto.dump` writes `priv/repo/structure.sql`, which the Rust backend
+embeds). Tool versions are pinned in `mise.toml`:
 
 ```sh
-mise run setup   # toolchain, dependencies, database, assets
-mise run dev     # Phoenix with Vite watcher on http://localhost:4000
-mise run test
+mise run setup        # toolchain, dependencies, database, assets, Rust build
+mise run dev          # Rust backend on $PORT (4000) + Vite on http://localhost:5173
+mise run rust:test    # Rust test suite (`rust:check` adds fmt and clippy)
+mise run rust:build   # release binary at rust/target/release/manavault
+mise run dev:elixir   # the Phoenix reference server instead
+mise run test         # Elixir test suite
 ```
+
+`mise run dev` runs `scripts/dev-rust.sh`: the server, the Vite dev server
+(which proxies backend routes to `$PORT`), and Tailwind in watch mode; it stops
+all three when one exits. Open the Vite URL (5173) for hot reload, or `$PORT`
+directly. `mise run rust:assets` builds the production frontend into
+`priv/static/assets`.
 
 See [development.md](docs/development.md) for the full workflow.
 
 ## Tech Stack
 
-Phoenix, Absinthe GraphQL, Ecto/SQLite, Oban, Vite, React, TanStack
-Router/Query, Tailwind/DaisyUI styling, onnxruntime-web for the scanner, and
-optional Capacitor native shells.
+Rust (axum, async-graphql, sqlx/SQLite, an Oban-compatible job queue), Vite,
+React, TanStack Router/Query, Tailwind/DaisyUI styling, onnxruntime-web for the
+scanner, and optional Capacitor native shells. The original Phoenix, Absinthe,
+Ecto, and Oban app remains in `lib/` as the reference implementation.
 
 ## License
 
