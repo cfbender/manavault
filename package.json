@@ -57,7 +57,7 @@
     "es-toolkit": "^1.52.0",
     "graphql": "^17.0.2",
     "graphql-ws": "^6.3.0",
-    "katex": "^0.16.47",
+    "katex": "^0.19.0",
     "lucide-react": "^1.49.0",
     "motion": "^13.5.0",
     "ogl": "^1.0.11",
