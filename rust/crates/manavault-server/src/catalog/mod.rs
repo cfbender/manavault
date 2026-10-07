@@ -1,5 +1,7 @@
 //! The card catalog (`Manavault.Catalog`): Scryfall cards and printings.
 
+pub mod metrics;
+pub mod oracle_tags;
 pub mod scryfall;
 
 use crate::state::AppState;

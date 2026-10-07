@@ -1,0 +1,33 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT vendor AS \"vendor!\", count(scryfall_id) AS \"count!: i64\" FROM vendor_prices GROUP BY vendor",
+  "describe": {
+    "columns": [
+      {
+        "name": "vendor!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "vendor_prices",
+            "name": "vendor"
+          }
+        }
+      },
+      {
+        "name": "count!: i64",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true,
+      false
+    ]
+  },
+  "hash": "2828ca09e3468d723b915deb5a32c0b1ae1a55cc2267111b5db973840a12d041"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE oban_jobs SET args = json(?1) WHERE id = ?2 AND state IN ('available', 'scheduled', 'retryable')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "424d2b5bba71eb6b59ca62e69e1e54b731a5a5dfea63e58e6b4cc4bead5d2616"
+}

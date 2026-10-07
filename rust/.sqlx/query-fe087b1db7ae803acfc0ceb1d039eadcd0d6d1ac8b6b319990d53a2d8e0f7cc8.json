@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM vendor_prices WHERE vendor = ?1 AND updated_at < ?2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "fe087b1db7ae803acfc0ceb1d039eadcd0d6d1ac8b6b319990d53a2d8e0f7cc8"
+}

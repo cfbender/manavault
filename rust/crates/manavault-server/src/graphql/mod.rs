@@ -31,11 +31,18 @@ pub fn user_error(message: impl Into<String>) -> async_graphql::Error {
 
 #[derive(MergedObject, Default)]
 #[graphql(name = "RootQueryType")]
-pub struct Query(system::SystemQueries);
+pub struct Query(
+    system::SystemQueries,
+    crate::pricing::graphql::PricingQueries,
+);
 
 #[derive(MergedObject, Default)]
 #[graphql(name = "RootMutationType")]
-pub struct Mutation(system::SystemMutations);
+pub struct Mutation(
+    system::SystemMutations,
+    crate::pricing::graphql::PricingMutations,
+    crate::catalog::scryfall::graphql::ScryfallMutations,
+);
 
 #[derive(MergedSubscription, Default)]
 #[graphql(name = "RootSubscriptionType")]
