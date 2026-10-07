@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE scryfall_syncs SET status = 'failed', completed_at = ?1, error = ?2, updated_at = ?1 WHERE id = ?3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "ccaff14714798f1b36db5c66b0f74d1f18de96b4dc1b9657891f3d72aceac76b"
+}

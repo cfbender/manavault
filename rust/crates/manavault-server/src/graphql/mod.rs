@@ -35,11 +35,17 @@ pub struct Query(
     system::SystemQueries,
     crate::catalog::CardQueries,
     crate::tokens::TokenQueries,
+    crate::pricing::graphql::PricingQueries,
 );
 
 #[derive(MergedObject, Default)]
 #[graphql(name = "RootMutationType")]
-pub struct Mutation(system::SystemMutations, crate::tokens::TokenMutations);
+pub struct Mutation(
+    system::SystemMutations,
+    crate::tokens::TokenMutations,
+    crate::pricing::graphql::PricingMutations,
+    crate::catalog::scryfall::graphql::ScryfallMutations,
+);
 
 #[derive(MergedSubscription, Default)]
 #[graphql(name = "RootSubscriptionType")]

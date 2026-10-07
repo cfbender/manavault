@@ -12,13 +12,28 @@ use crate::web;
 /// Every background worker.
 #[must_use]
 pub fn workers() -> Vec<Arc<dyn Worker>> {
-    vec![]
+    vec![
+        Arc::new(crate::catalog::scryfall::worker::ScryfallCatalogWorker),
+        Arc::new(crate::scryfall_assets::worker::ScryfallAssetsWorker),
+        Arc::new(crate::pricing::worker::VendorSyncWorker),
+    ]
 }
 
 /// The Oban crontab from `config/config.exs`.
 #[must_use]
 pub fn crontab() -> Vec<CronEntry> {
-    vec![]
+    use crate::catalog::scryfall::worker::NAME as SCRYFALL_CATALOG;
+    use crate::pricing::worker::NAME as VENDOR_SYNC;
+    use crate::scryfall_assets::worker::NAME as SCRYFALL_ASSETS;
+    let entry = |expression, worker| CronEntry { expression, worker };
+    vec![
+        entry("@reboot", SCRYFALL_CATALOG),
+        entry("@daily", SCRYFALL_CATALOG),
+        entry("@reboot", SCRYFALL_ASSETS),
+        entry("@daily", SCRYFALL_ASSETS),
+        entry("@reboot", VENDOR_SYNC),
+        entry("*/30 * * * *", VENDOR_SYNC),
+    ]
 }
 
 #[derive(Debug, thiserror::Error)]

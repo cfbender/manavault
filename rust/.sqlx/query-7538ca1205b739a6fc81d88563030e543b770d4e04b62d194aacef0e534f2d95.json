@@ -1,0 +1,21 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT 1 AS found FROM scryfall_syncs WHERE bulk_type = ?1 AND status = 'succeeded' LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "found",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "7538ca1205b739a6fc81d88563030e543b770d4e04b62d194aacef0e534f2d95"
+}

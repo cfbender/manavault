@@ -13,6 +13,8 @@ pub mod loader;
 pub mod price;
 pub mod printing;
 pub mod schema;
+pub mod metrics;
+pub mod oracle_tags;
 pub mod scryfall;
 pub mod scryfall_query;
 pub mod search;

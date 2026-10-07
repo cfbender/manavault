@@ -50,6 +50,10 @@ pub fn router(state: WebState) -> Router {
 
     let mut router = Router::new()
         .route("/health", get(health))
+        .route(
+            "/scryfall-assets/{*path}",
+            get(crate::scryfall_assets::web::show),
+        )
         .merge(owner_graphql);
     if app.config.env == crate::config::Env::Dev {
         router = router.route("/dev/graphiql", get(graphiql));

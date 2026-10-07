@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT scryfall_id AS \"scryfall_id!\", tcgplayer_id, tcgplayer_etched_id FROM scryfall_printings\n           WHERE tcgplayer_id IS NOT NULL OR tcgplayer_etched_id IS NOT NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "scryfall_id!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "scryfall_id"
+          }
+        }
+      },
+      {
+        "name": "tcgplayer_id",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "tcgplayer_id"
+          }
+        }
+      },
+      {
+        "name": "tcgplayer_etched_id",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "tcgplayer_etched_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "b9cf34df663bbf13250bfaa65232b132d75c96a10f28799c39262becb58e0b17"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO scryfall_card_tokens (scryfall_id, token_scryfall_id) VALUES (?1, ?2) ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "e1c9ebd4ef8ae4e4b1772d52cb1b78bca22694f85b312cc7a03147c0d1c67ee3"
+}
