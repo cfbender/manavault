@@ -66,6 +66,9 @@ impl DeckBuylistEntry {
 }
 
 /// `printing_sort_key/2`: cheapest, then oldest, then set and number.
+///
+/// Release dates compare chronologically; Elixir compared `Date` structs in
+/// Erlang term order (day first), see [`crate::decks::cards::cheapest_printing`].
 fn sort_key(
     state: &AppState,
     printing: &Printing,

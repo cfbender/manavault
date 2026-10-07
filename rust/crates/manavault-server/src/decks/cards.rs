@@ -570,6 +570,15 @@ fn printings_by_price<'a>(
         })
 }
 
+/// Cheapest first, then oldest release, then set code and collector number
+/// (`Decks.Printings.printing_sort_key/2`).
+///
+/// Elixir bug (not ported): the key puts `released_at` `Date` structs in a
+/// tuple sorted with `Enum.sort_by/2`, i.e. in Erlang term order, which
+/// compares a `Date` by day, then month, then year. Price ties therefore went
+/// to the printing released on the lowest day of the month (Delver of
+/// Secrets: MID 2021-09-24 before ISD 2011-09-30). Dates compare
+/// chronologically here; the parity harness lists the affected buylists.
 fn price_order(
     (price_a, a): &(Option<i64>, &Printing),
     (price_b, b): &(Option<i64>, &Printing),

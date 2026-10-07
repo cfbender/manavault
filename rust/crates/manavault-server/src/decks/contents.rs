@@ -181,6 +181,14 @@ fn card_cover(card: &LoadedDeckCard) -> Option<String> {
 
 /// `DeckSummaries.cover_image_url_from_cards/2`: the chosen cover card's
 /// image, else the first card with an image (commanders sort first).
+///
+/// Cards are in `Preloads.deck_preloads/0` order (zone, card name, id).
+/// Elixir bug (not ported): decks loaded without card preloads (the owner
+/// and public share `deck` fields) took the cover from
+/// `DeckSummaries.display_summaries/1`, whose
+/// `order_by([deck_card, card], ...)` binds `card` to the second binding,
+/// the joined *deck*, so the fallback cover was the first card by zone and
+/// insertion order instead of by name.
 #[must_use]
 pub fn cover_image_url(
     cards: &[LoadedDeckCard],

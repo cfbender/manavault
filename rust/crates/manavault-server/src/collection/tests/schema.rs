@@ -630,6 +630,64 @@ async fn groups_combine_price_lots_while_items_stay_separate() {
     assert_eq!(purchase, [json!(100), json!(200)]);
 }
 
+/// The value-gain group sort weighs each copy's gain, not `quantity * price -
+/// purchase` (Elixir's unparenthesized fragment; found by the parity
+/// harness): five copies bought at market price gained nothing and sort
+/// below one copy that gained a dollar.
+#[tokio::test]
+async fn value_gain_group_sort_multiplies_the_whole_gain() {
+    let app = TestApp::new().await;
+    app.import_cards(&[
+        card(
+            "bulk-printing",
+            "bulk-card",
+            "Bulk Card",
+            json!({"prices": {"usd": "3.00"}}),
+        ),
+        card(
+            "gain-printing",
+            "gain-card",
+            "Gain Card",
+            json!({"collector_number": "2", "prices": {"usd": "2.00"}}),
+        ),
+    ])
+    .await;
+    create_item(
+        &app,
+        "bulk-printing",
+        Attrs {
+            quantity: Some(5),
+            ..Attrs::default()
+        },
+    )
+    .await;
+    create_item(
+        &app,
+        "gain-printing",
+        Attrs {
+            purchase_price_cents: Some(100),
+            ..Attrs::default()
+        },
+    )
+    .await;
+    for (direction, expected) in [
+        ("asc", ["bulk-printing", "gain-printing"]),
+        ("desc", ["gain-printing", "bulk-printing"]),
+    ] {
+        let data = app
+            .gql_data(
+                r"query($sort: CollectionItemSort) { collectionItemGroups(first: 10, sort: $sort) { edges { node { printingId } } } }",
+                json!({"sort": {"field": "value_gain", "direction": direction}}),
+            )
+            .await;
+        let order: Vec<Value> = edges(&data["collectionItemGroups"])
+            .iter()
+            .map(|node| node["printingId"].clone())
+            .collect();
+        assert_eq!(order, expected.map(Value::from), "{direction}");
+    }
+}
+
 /// `valueGainPercentText` rounds like `Float.round/2` (exact float value):
 /// a $21.07 copy bought for $20 gained 5.35%, stored as 5.3499…, so "+5.3%"
 /// (found by the parity harness; naive `(x * 10).round()` gave "+5.4%").
