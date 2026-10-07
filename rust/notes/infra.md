@@ -114,4 +114,5 @@ b2b70d5). What replaced each dependency:
 - The scanner test JPEG moved to `rust/crates/manavault-system/tests/fixtures`
   and the v1.0.0 database dump to `rust/crates/manavault-core/tests/fixtures`.
 - Parity harness: checks out the Elixir app as a git worktree of `ELIXIR_REF`
-  (default b2b70d5) and builds it with that commit's pinned toolchain.
+  (default a587fda, main's newest Elixir code; was b2b70d5) and builds it
+  with that commit's pinned toolchain.

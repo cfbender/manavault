@@ -17,9 +17,10 @@
 #
 # Environment:
 #   PARITY_SNAPSHOT  catalog database to copy (default /home/user/workspace/parity/catalog-snapshot.db)
-#   ELIXIR_REF       git commit or tag of the Elixir reference app (default b2b70d5, the
-#                    last rust-backend commit that still contained it; an Elixir release tag
-#                    such as v1.4.3 also works, minus the Elixir fixes made on this branch)
+#   ELIXIR_REF       git commit or tag of the Elixir reference app (default a587fda, main's
+#                    newest Elixir code, merged into rust-backend; b2b70d5, the last
+#                    rust-backend commit with the Elixir app, also works, as does a release
+#                    tag such as v1.4.3 minus the later Elixir fixes)
 #   ELIXIR_DIR       git worktree of ELIXIR_REF, prepared on first use (default /tmp/elixir-ref)
 #   PARITY_DIR       scratch directory for databases and logs (default /tmp/parity-run)
 #   RUST_BIN         Rust server binary (default rust/target/debug/manavault; built if missing)
@@ -27,7 +28,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 SNAPSHOT="${PARITY_SNAPSHOT:-/home/user/workspace/parity/catalog-snapshot.db}"
-ELIXIR_REF="${ELIXIR_REF:-b2b70d5}"
+ELIXIR_REF="${ELIXIR_REF:-a587fda}"
 ELIXIR_DIR="${ELIXIR_DIR:-/tmp/elixir-ref}"
 PARITY_DIR="${PARITY_DIR:-/tmp/parity-run}"
 RUST_BIN="${RUST_BIN:-$ROOT/rust/target/debug/manavault}"

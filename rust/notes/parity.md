@@ -17,9 +17,11 @@ rust/scripts/parity/parity.sh --verbose --report /tmp/parity-report.json
 1. builds `rust/target/debug/manavault` if missing, and on first use checks
    out the Elixir reference app as a detached git worktree of `ELIXIR_REF` in
    `ELIXIR_DIR` (default `/tmp/elixir-ref`). The Elixir app is no longer on
-   this branch; the default ref is b2b70d5, the last `rust-backend` commit that
-   contained it (with the snow-basic fix made on this branch). An Elixir
-   release tag such as `v1.4.3` works too, minus that fix. The script appends
+   this branch; the default ref is a587fda, main's newest Elixir code (merged
+   into `rust-backend`; it has the snow-basic and considering-deallocation
+   fixes). b2b70d5, the last `rust-backend` commit that contained the Elixir
+   app, has the same `lib/`. A release tag such as `v1.4.3` works too, minus
+   those fixes. The script appends
    `config :manavault, Oban, queues: false, plugins: false` to
    `config/prod.exs`, installs that commit's pinned Erlang/Elixir with mise,
    fetches prod deps, compiles, and copies the built frontend
