@@ -1,7 +1,7 @@
 //! HTTP routes (`ManavaultWeb.Endpoint` and `ManavaultWeb.Router`).
 //!
-//! Layers, outermost first, as in the endpoint: static files, the cookie
-//! session, then per-scope pipelines (`:browser`, owner authentication,
+//! Layers, outermost first, as in earlier releases' endpoint: static files,
+//! request ids and request logging, the cookie session, then per-scope pipelines (`:browser`, owner authentication,
 //! GraphQL CSRF protection, API keys, scanner export auth).
 
 pub mod allowed_origins;
@@ -16,6 +16,7 @@ pub mod params;
 pub mod public_graphql;
 pub mod pwa;
 pub mod rate_limit;
+pub mod request_id;
 pub mod return_path;
 pub mod session;
 pub mod share;
@@ -201,6 +202,7 @@ pub fn router(state: WebState) -> Router {
         .fallback(not_found)
         .method_not_allowed_fallback(not_found)
         .layer(from_fn_with_state(app.clone(), session::middleware))
+        .layer(from_fn(request_id::layer))
         .layer(from_fn_with_state(app, static_files::middleware))
         .with_state(state)
 }
