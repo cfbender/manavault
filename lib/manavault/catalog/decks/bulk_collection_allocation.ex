@@ -3,7 +3,7 @@ defmodule Manavault.Catalog.Decks.BulkCollectionAllocation do
 
   import Ecto.Query
 
-  alias Manavault.Catalog.{CollectionItem, Deck, DeckCard}
+  alias Manavault.Catalog.{Card, CollectionItem, Deck, DeckCard}
 
   alias Manavault.Catalog.Decks.{
     AllocationStatus,
@@ -280,10 +280,8 @@ defmodule Manavault.Catalog.Decks.BulkCollectionAllocation do
     {item.printing.oracle_id, item.finish}
   end
 
-  defp basic_land_item?(%CollectionItem{printing: %{card: %{type_line: type_line}}})
-       when is_binary(type_line) do
-    String.contains?(type_line, "Basic Land")
-  end
+  defp basic_land_item?(%CollectionItem{printing: %{card: %Card{} = card}}),
+    do: Card.basic_land?(card)
 
   defp basic_land_item?(_item), do: false
 end

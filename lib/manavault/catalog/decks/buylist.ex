@@ -183,9 +183,6 @@ defmodule Manavault.Catalog.Decks.Buylist do
   defp price_total_cents(nil, _quantity), do: nil
   defp price_total_cents(price_cents, quantity), do: price_cents * quantity
 
-  defp is_basic_land?(%DeckCard{card: %Card{type_line: type_line}}) when is_binary(type_line) do
-    String.contains?(type_line, "Basic Land")
-  end
-
+  defp is_basic_land?(%DeckCard{card: %Card{} = card}), do: Card.basic_land?(card)
   defp is_basic_land?(_deck_card), do: false
 end

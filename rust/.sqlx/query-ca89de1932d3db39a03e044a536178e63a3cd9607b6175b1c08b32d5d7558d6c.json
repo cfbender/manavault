@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO locations (name, kind, inserted_at, updated_at)\n           VALUES (?1, ?2, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')\n           RETURNING id AS \"id!: LocationId\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: LocationId",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "locations",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ca89de1932d3db39a03e044a536178e63a3cd9607b6175b1c08b32d5d7558d6c"
+}

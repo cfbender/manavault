@@ -40,3 +40,32 @@ jobs:
 
       - name: Run local precommit quality gate
         run: mise exec -- aube run precommit
+
+  rust:
+    name: Rust workspace
+    runs-on: ubuntu-latest
+
+    env:
+      MISE_ENABLE_TOOLS: rust,sqlite
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up mise tools
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
+        with:
+          install: true
+          install_args: rust sqlite
+          cache: true
+
+      - name: Check queries against priv/repo/structure.sql
+        working-directory: rust
+        run: |
+          mkdir -p target
+          grep -v '^CREATE TABLE sqlite_' ../priv/repo/structure.sql | mise exec -- sqlite3 target/schema.db
+          SQLX_OFFLINE=false DATABASE_URL="sqlite://$PWD/target/schema.db?mode=ro" \
+            mise exec -- cargo check --workspace --all-targets --locked
+
+      - name: Format, lint, and test against the committed query metadata
+        run: mise run rust:check

@@ -1,0 +1,4 @@
+[env]
+# Query macros read the committed .sqlx metadata, so builds never need a database.
+# `mise run rust:sqlx-prepare` overrides this to regenerate the metadata.
+SQLX_OFFLINE = "true"

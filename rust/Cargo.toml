@@ -1,0 +1,32 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.99"
+license = "MPL-2.0"
+publish = false
+
+[workspace.dependencies]
+mtg-core = { path = "crates/mtg-core" }
+sqlx = { version = "0.9", default-features = false, features = ["derive", "macros", "runtime-tokio", "sqlite-bundled"] }
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "rt"] }
+
+# Guardrails for generated code: the compiler and clippy reject the usual escape
+# hatches, so a change either type-checks against the domain model or fails CI.
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+as_conversions = "deny"
+dbg_macro = "deny"
+expect_used = "deny"
+indexing_slicing = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+unwrap_used = "deny"
+missing_errors_doc = "allow"

@@ -5,7 +5,7 @@ defmodule Manavault.Catalog.DeckAllocationTest do
     fixtures: [:black_lotus, :black_lotus_beta, :time_walk, :plains]
 
   alias Manavault.Catalog
-  alias Manavault.Catalog.{CollectionItem, DeckAllocation}
+  alias Manavault.Catalog.{Card, CollectionItem, DeckAllocation}
   alias Manavault.Repo
 
   test "resolver-facing fetches return not found instead of raising" do
@@ -732,6 +732,38 @@ defmodule Manavault.Catalog.DeckAllocationTest do
              Catalog.bulk_add_collection_items_to_deck(deck, [item.id])
 
     assert [%{quantity: 1}] = Catalog.get_deck!(deck.id).deck_cards
+  end
+
+  test "deck allocation status treats snow basics as basic lands" do
+    snow_plains =
+      Map.merge(@plains, %{
+        "id" => "scryfall-printing-snow-plains",
+        "oracle_id" => "oracle-snow-plains",
+        "name" => "Snow-Covered Plains",
+        "type_line" => "Basic Snow Land — Plains"
+      })
+
+    assert {:ok, %{cards_count: 1}} = Catalog.import_cards([snow_plains])
+    assert {:ok, deck} = Catalog.create_deck(%{"name" => "Snow Basics"})
+
+    assert {:ok, plains} =
+             Catalog.add_card_to_deck(deck, %{"name" => "Snow-Covered Plains", "quantity" => 8})
+
+    status = Catalog.deck_card_allocation_status(plains)
+    assert status.state == :basic_land
+    assert status.allocated == 8
+    assert status.missing == 0
+    assert Catalog.deck_buylist(deck) == []
+  end
+
+  test "basic_land? recognizes basic supertypes on lands only" do
+    assert Card.basic_land?("Basic Land — Plains")
+    assert Card.basic_land?("Basic Snow Land — Forest")
+    assert Card.basic_land?("Basic Land")
+    refute Card.basic_land?("Snow Land — Forest Island")
+    refute Card.basic_land?("Legendary Land")
+    refute Card.basic_land?("Artifact — Basic")
+    refute Card.basic_land?(nil)
   end
 
   test "allocating a physical copy clears the deck card's getting tag" do

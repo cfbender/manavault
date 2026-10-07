@@ -10,6 +10,7 @@ This is an Elixir/Phoenix application with a Vite/React frontend named `manavaul
 - `priv/repo/` — Ecto migrations and repository-related files.
 - `assets/` — frontend assets built with Tailwind and Vite, including the React app in `assets/react`.
 - `test/` — ExUnit tests and test support.
+- `rust/` — experimental Rust port (Cargo workspace); see `rust/README.md`. Not used by the running app.
 - `data/` — runtime data directory used by the app/container.
 - `Dockerfile` and `docker-entrypoint.sh` — production container build and startup flow.
 - `mise.toml` — pinned local toolchain, including Elixir.
@@ -38,6 +39,8 @@ After creating a new Ecto migration, run it before reporting the change complete
 ```sh
 mise exec -- mix ecto.migrate
 ```
+
+Then refresh `priv/repo/structure.sql` and the Rust query metadata with `mise run rust:sqlx-prepare`. Run `mise run rust:check` after changing anything under `rust/`.
 
 Useful production/container commands are documented in `README.md`.
 

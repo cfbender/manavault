@@ -1,0 +1,17 @@
+[package]
+name = "mtg-core"
+description = "Magic: The Gathering domain types shared by ManaVault and the-gathering."
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+sqlx = ["dep:sqlx"]
+
+[dependencies]
+sqlx = { workspace = true, optional = true }
+
+[lints]
+workspace = true

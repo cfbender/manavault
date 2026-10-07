@@ -1,0 +1,45 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n          a.deck_card_id AS \"deck_card_id: DeckCardId\",\n          a.collection_item_id AS \"collection_item_id: CollectionItemId\",\n          SUM(a.quantity) AS \"quantity!: u32\"\n        FROM deck_allocations a\n        JOIN deck_cards dc ON dc.id = a.deck_card_id\n        WHERE dc.id = ?1 OR dc.oracle_id = ?2\n        GROUP BY a.deck_card_id, a.collection_item_id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "deck_card_id: DeckCardId",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "deck_card_id"
+          }
+        }
+      },
+      {
+        "name": "collection_item_id: CollectionItemId",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "collection_item_id"
+          }
+        }
+      },
+      {
+        "name": "quantity!: u32",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "a0a6bcdf759f39a61e5629df803509cacf40cfed230b6680032083b32fd5d090"
+}

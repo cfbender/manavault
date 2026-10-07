@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        UPDATE deck_cards\n        SET preferred_printing_id = ?2, finish = ?3,\n            updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')\n        WHERE id = ?1\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "224aab1816e00a0f5775cc955f42bf8eae5243a2fcfdf847cbe844caf1ff4637"
+}

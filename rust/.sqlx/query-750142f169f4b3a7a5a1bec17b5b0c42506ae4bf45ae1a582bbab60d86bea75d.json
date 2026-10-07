@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: CollectionItemId\" FROM collection_items\n           WHERE location_id IS ?1 ORDER BY id",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: CollectionItemId",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "750142f169f4b3a7a5a1bec17b5b0c42506ae4bf45ae1a582bbab60d86bea75d"
+}
