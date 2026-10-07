@@ -47,6 +47,7 @@ pub struct Query(
     crate::settings::ai::AiSettingsQueries,
     crate::api_keys::ApiKeyQueries,
     crate::backup::graphql::BackupQueries,
+    crate::deck_intel::DeckIntelQueries,
 );
 
 #[derive(MergedObject, Default)]
@@ -60,6 +61,7 @@ pub struct Mutation(
     crate::settings::ai::AiSettingsMutations,
     crate::api_keys::ApiKeyMutations,
     crate::backup::graphql::BackupMutations,
+    crate::deck_intel::DeckIntelMutations,
 );
 
 #[derive(MergedSubscription, Default)]
