@@ -2,18 +2,19 @@
 
 ## Project Structure
 
-This is an Elixir/Phoenix application with a Vite/React frontend named `manavault`.
+`manavault` is a Rust backend with a Vite/React frontend. The original Elixir/Phoenix app stays in the repo as the behavioral reference and as the owner of the Ecto migrations.
 
-- `lib/manavault/` — core application/domain code, including the catalog context.
-- `lib/manavault_web/` — Phoenix web layer: router, controllers, GraphQL schema, and server-rendered shell templates.
-- `config/` — Phoenix, runtime, database, asset, and environment configuration.
-- `priv/repo/` — Ecto migrations and repository-related files.
+- `rust/` — the server: Cargo workspace with `manavault-server` (binary `manavault`: axum, async-graphql, sqlx/SQLite, background jobs) and `manavault-allocation`. Read `rust/README.md` and `rust/notes/*.md`.
+- `lib/manavault/`, `lib/manavault_web/` — Elixir reference implementation (domain contexts, Phoenix router/controllers, Absinthe schema).
+- `config/` — Phoenix configuration; the Rust server reads the same environment variables (`rust/crates/manavault-server/src/config.rs`, `MANAVAULT_ENV` in place of `MIX_ENV`).
+- `priv/repo/` — Ecto migrations and `structure.sql` (`mix ecto.dump`), which the Rust server embeds to create new databases and to check sqlx queries.
+- `priv/static/` — static files served by the backend; `priv/static/assets` is the built frontend (Tailwind CSS and the Vite bundle).
 - `assets/` — frontend assets built with Tailwind and Vite, including the React app in `assets/react`.
-- `test/` — ExUnit tests and test support.
-- `rust/` — experimental Rust port (Cargo workspace); see `rust/README.md`. Not used by the running app.
+- `test/` — ExUnit tests for the Elixir reference; Rust tests live under `rust/crates/`.
+- `scripts/dev-rust.sh` — development stack: Rust server, Vite dev server, and Tailwind watcher.
 - `data/` — runtime data directory used by the app/container.
-- `Dockerfile` and `docker-entrypoint.sh` — production container build and startup flow.
-- `mise.toml` — pinned local toolchain, including Elixir.
+- `Dockerfile` and `docker-entrypoint.sh` — production container build (frontend, Rust release binary, Debian runtime) and startup flow.
+- `mise.toml` — pinned local toolchain (Rust, sqlite, Tailwind, Node/aube, Elixir) and tasks.
 
 ## Common Commands
 
@@ -21,20 +22,25 @@ Run commands through `mise` to use the pinned toolchain:
 
 ```sh
 mise install
-mise exec -- mix setup
-mise exec -- mix phx.server
-mise exec -- mix test
+mise run setup            # mix setup (deps, dev database, assets) + Rust prebuild
+mise run dev              # Rust server on $PORT (default 4000) + Vite on 5173 + Tailwind watch
+mise run rust:check       # cargo fmt --check, clippy -D warnings, tests (all --locked)
+mise run rust:test
+mise run rust:build       # release binary at rust/target/release/manavault
+mise run rust:assets      # production frontend build into priv/static/assets
+mise exec -- mix test     # Elixir reference tests
+mise run dev:elixir       # Phoenix reference server (mix phx.server)
 ```
 
-Before starting the Phoenix server, check whether port 4000 is already listening, for example:
+Before starting either backend (`mise run dev`, `mise run rust:dev`, or `mise exec -- mix phx.server`), check whether port 4000 (or your `$PORT`) is already listening, for example:
 
 ```sh
 ss -ltnp 'sport = :4000'
 ```
 
-If anything is already listening on port 4000, do not run `mise exec -- mix phx.server`; reuse the existing server.
+If anything is already listening on that port, do not start another server; reuse the existing one. In orbs, the review service from `.amp/services.yaml` runs the Rust stack with the backend on 31397 and Vite on 5173.
 
-After creating a new Ecto migration, run it before reporting the change complete:
+The Ecto migrations remain the only schema definition. After creating a new Ecto migration, run it before reporting the change complete:
 
 ```sh
 mise exec -- mix ecto.migrate
@@ -46,7 +52,7 @@ Useful production/container commands are documented in `README.md`.
 
 ## Development Notes
 
-- Follow existing Phoenix context, GraphQL schema, and React component patterns.
+- Follow existing Rust module, GraphQL schema, and React component patterns; keep GraphQL parity with the Absinthe schema in `lib/`.
 - Keep changes small and focused.
 - Run the narrowest relevant tests before reporting completion.
 - Update documentation when project structure, setup, or runtime behavior changes.

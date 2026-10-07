@@ -1,31 +1,38 @@
 # Development
 
-ManaVault is a Phoenix application with a Vite/React frontend and optional
-Capacitor native shells. Tool versions are pinned in `mise.toml`.
+ManaVault's server is the Rust backend in `rust/` (see
+[rust/README.md](../rust/README.md)), with a Vite/React frontend and optional
+Capacitor native shells. The Elixir/Phoenix app in `lib/` remains as the
+reference implementation and owns the Ecto migrations. Tool versions are pinned
+in `mise.toml`.
 
 ## Requirements
 
 - `mise`
-- a platform that can run Elixir, Node, and SQLite
+- a platform that can run Rust, Elixir, Node, and SQLite
 - macOS with Xcode only when building/running the iOS shell
 
 ## Setup
 
 Install the pinned toolchain, JavaScript dependencies, Elixir dependencies,
-database, and assets:
+database, and assets, and compile the Rust backend:
 
 ```sh
 mise run setup
 ```
 
-Start Phoenix (the Vite dev server runs as a Phoenix watcher):
+Start the Rust backend with the Vite dev server and Tailwind watcher
+(`scripts/dev-rust.sh`; it stops all three when one exits):
 
 ```sh
 mise run dev
 ```
 
-Visit <http://localhost:4000>. If something is already listening on port 4000
+Visit <http://localhost:5173> (Vite, proxying backend routes to `$PORT`) or
+<http://localhost:4000>. If something is already listening on port 4000
 (`ss -ltnp 'sport = :4000'`), reuse that server instead of starting another.
+`mise run dev:elixir` runs the Phoenix reference server instead (it starts Vite
+and Tailwind as watchers).
 
 The development database is `manavault_dev.db` in the repository root. The
 Scryfall catalog sync starts on boot; until it finishes, card search returns
@@ -40,6 +47,13 @@ curl http://localhost:4000/health
 ```
 
 ## Tests and Checks
+
+Run the Rust checks (format, clippy, tests) or only the tests:
+
+```sh
+mise run rust:check
+mise run rust:test
+```
 
 Run the Elixir test suite:
 
