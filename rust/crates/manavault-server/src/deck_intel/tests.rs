@@ -644,6 +644,37 @@ async fn deck_recommander_ranks_recommendations_with_collection_status() {
     );
 }
 
+/// Scores keep every bit of the JSON number, as Jason parses it: the default
+/// best-effort float parsing of `serde_json` read `0.9985702037811279` as
+/// `0.998570203781128` (found by the parity harness against the live API;
+/// fixed with the `float_roundtrip` feature of `serde_json`).
+#[tokio::test]
+async fn deck_recommander_scores_parse_exactly() {
+    let server = MockServer::start().await;
+    let app = app_with(&server).await;
+    app.import_cards(&[fixtures::black_lotus(), fixtures::time_walk()])
+        .await;
+    let d = deck(&app, "Exact Scores", "brewing").await;
+    add_card(&app, d, "oracle-1", 1, "commander", None, "nonfoil").await;
+    Mock::given(method("POST"))
+        .and(path("/recommander"))
+        .respond_with(ResponseTemplate::new(200).set_body_raw(
+            r#"{"result_code": "success", "data": {"recommendations": [
+                {"oracle_id": "oracle-2", "name": "Time Walk", "score": 0.9985702037811279}
+            ]}}"#,
+            "application/json",
+        ))
+        .mount(&server)
+        .await;
+    let data = app
+        .gql_data(DECK_RECOMMANDER, json!({"id": deck_gid(d)}))
+        .await;
+    assert_eq!(
+        data["deckRecommander"]["recommendations"][0]["score"],
+        json!(0.998_570_203_781_127_9)
+    );
+}
+
 #[tokio::test]
 async fn deck_recommander_sends_partners_and_requires_a_commander() {
     let server = MockServer::start().await;
