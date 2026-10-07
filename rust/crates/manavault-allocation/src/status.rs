@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 
-use mtg_core::{Condition, Finish, OracleId, ScryfallId};
+use lotus::{Condition, Finish, OracleId, ScryfallId};
 use sqlx::SqliteConnection;
 
 use crate::domain::{CollectionItemId, DeckCardId, LocationId, LocationKind, Quantity};

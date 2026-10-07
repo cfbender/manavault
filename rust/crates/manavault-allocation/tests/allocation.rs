@@ -4,11 +4,11 @@
 
 mod support;
 
+use lotus::{Finish, ScryfallId};
 use manavault_allocation::{
     AllocationError, AllocationState, Deallocation, DeckCardTag, DeckStatus, LocationKind, Zone,
     allocate, allocation_status, deallocate,
 };
-use mtg_core::{Finish, ScryfallId};
 use support::{
     BLACK_LOTUS, LOTUS_ALPHA, LOTUS_BETA, NewItem, PLAINS, TIME_WALK_ALPHA, TestResult,
     allocation_count, db, deck, deck_card, deck_card_row, item, item_row, items_in, location, qty,

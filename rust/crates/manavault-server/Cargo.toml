@@ -1,0 +1,56 @@
+[package]
+name = "manavault-server"
+description = "ManaVault's backend: GraphQL API, web endpoints, and background jobs over the SQLite catalog."
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "manavault"
+path = "src/main.rs"
+
+[dependencies]
+aes-gcm = "0.10"
+async-graphql = { version = "7", default-features = false, features = ["playground", "tempfile"] }
+async-graphql-axum = "7"
+async-trait = "0.1"
+axum = { version = "0.8", features = ["ws", "multipart", "macros"] }
+axum-extra = { version = "0.10", features = ["cookie"] }
+base64 = "0.22"
+bytes = "1"
+csv = "1"
+flate2 = "1"
+futures-util = "0.3"
+hex = "0.4"
+hmac = "0.12"
+lotus.workspace = true
+manavault-allocation.workspace = true
+moka = { version = "0.12", features = ["future"] }
+pbkdf2 = "0.12"
+rand = "0.8"
+regex = "1"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream", "multipart"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+sqlx.workspace = true
+thiserror.workspace = true
+time = { version = "0.3", features = ["parsing", "formatting", "macros", "serde"] }
+tokio.workspace = true
+tokio-stream = { version = "0.1", features = ["sync"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["fs", "compression-gzip", "set-header", "trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+unicode-normalization = "0.1"
+url = "2"
+
+[dev-dependencies]
+http-body-util = "0.1"
+pretty_assertions = "1"
+wiremock = "0.6"
+
+[lints]
+workspace = true

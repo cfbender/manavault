@@ -1,6 +1,6 @@
 //! Rows the allocation rules read, and the proof type that guards writes.
 
-use mtg_core::{Condition, Finish, OracleId, ScryfallId};
+use lotus::{Condition, Finish, OracleId, ScryfallId};
 use sqlx::SqliteConnection;
 
 use crate::domain::{
@@ -28,9 +28,7 @@ pub struct DeckCard {
 impl DeckCard {
     #[must_use]
     pub fn is_basic_land(&self) -> bool {
-        self.type_line
-            .as_deref()
-            .is_some_and(mtg_core::is_basic_land)
+        self.type_line.as_deref().is_some_and(lotus::is_basic_land)
     }
 
     /// Archived decks are frozen; every allocation change checks this first.

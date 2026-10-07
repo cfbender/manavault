@@ -6,7 +6,7 @@
 
 use std::cmp::Ordering;
 
-use mtg_core::{Condition, Finish, ScryfallId};
+use lotus::{Condition, Finish, ScryfallId};
 use sqlx::SqliteConnection;
 
 use crate::domain::{CollectionItemId, LocationId, Quantity};

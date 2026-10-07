@@ -2,11 +2,11 @@
 
 use std::str::FromStr;
 
+use lotus::{Finish, ScryfallId};
 use manavault_allocation::{
     CollectionItemId, DeckCardId, DeckCardTag, DeckId, DeckStatus, LocationId, LocationKind,
     Quantity, Zone,
 };
-use mtg_core::{Finish, ScryfallId};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sqlx::{AssertSqlSafe, SqlitePool};
 

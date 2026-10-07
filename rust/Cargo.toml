@@ -9,10 +9,11 @@ license = "MPL-2.0"
 publish = false
 
 [workspace.dependencies]
-mtg-core = { path = "crates/mtg-core" }
-sqlx = { version = "0.9", default-features = false, features = ["derive", "macros", "runtime-tokio", "sqlite-bundled"] }
+lotus = { git = "https://github.com/cfbender/lotus", features = ["sqlx", "http"] }
+manavault-allocation = { path = "crates/manavault-allocation" }
+sqlx = { version = "0.9", default-features = false, features = ["derive", "macros", "runtime-tokio", "sqlite-bundled", "json", "time"] }
 thiserror = "2"
-tokio = { version = "1", features = ["macros", "rt"] }
+tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread", "sync", "time", "signal", "fs", "process", "net", "io-util"] }
 
 # Guardrails for generated code: the compiler and clippy reject the usual escape
 # hatches, so a change either type-checks against the domain model or fails CI.
@@ -30,3 +31,15 @@ todo = "deny"
 unimplemented = "deny"
 unwrap_used = "deny"
 missing_errors_doc = "allow"
+module_name_repetitions = "allow"
+# Pedantic lints that fight the GraphQL resolver and config shapes.
+too_many_lines = "allow"
+struct_excessive_bools = "allow"
+fn_params_excessive_bools = "allow"
+missing_panics_doc = "allow"
+must_use_candidate = "allow"
+double_must_use = "allow"
+duration_suboptimal_units = "allow"
+unused_async = "allow"
+unused_async_trait_impl = "allow"
+too_many_arguments = "allow"
