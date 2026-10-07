@@ -75,23 +75,57 @@ RUN tailwindcss --input=assets/css/app.css --output=priv/static/assets/css/app.c
        -o -name '*.json' -o -name '*.svg' -o -name '*.eot' -o -name '*.ttf' \) \
     -exec gzip -9 -k -n -f {} +
 
-FROM rust:${RUST_VERSION}-slim-${DEBIAN_RELEASE} AS backend
+# The Rust build is split with cargo-chef so compiled dependencies live in their
+# own image layer. The registry's layer cache (cache-to type=gha in
+# container.yml) keeps that layer until Cargo.lock or a Cargo.toml changes, so a
+# code-only change compiles just the workspace crates. BuildKit cache mounts do
+# not survive between GitHub runners, so they cannot do this job.
+FROM rust:${RUST_VERSION}-slim-${DEBIAN_RELEASE} AS chef
 
-WORKDIR /src
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+ARG TARGETARCH
+ARG CARGO_CHEF_VERSION=0.1.78
+ARG CARGO_CHEF_SHA256_AMD64=70ef940ef90d04d122f0176fdb8d6c39069191b484a1eaa29b327370c2e1c3c0
+ARG CARGO_CHEF_SHA256_ARM64=a47e13fba89c2895f5a5c3d0844acd2a5fd416eceb3a6f9dfb26e28155099f4e
+RUN set -eu; \
+  arch="${TARGETARCH:-$(uname -m)}"; \
+  case "$arch" in \
+    amd64|x86_64) triple=x86_64-unknown-linux-gnu; sha="$CARGO_CHEF_SHA256_AMD64" ;; \
+    arm64|aarch64) triple=aarch64-unknown-linux-gnu; sha="$CARGO_CHEF_SHA256_ARM64" ;; \
+    *) echo "unsupported build arch: ${arch}" >&2; exit 1 ;; \
+  esac; \
+  apt-get update; \
+  apt-get install -y --no-install-recommends ca-certificates curl xz-utils; \
+  rm -rf /var/lib/apt/lists/*; \
+  curl -fsSL "https://github.com/LukeMathWalker/cargo-chef/releases/download/v${CARGO_CHEF_VERSION}/cargo-chef-${triple}.tar.xz" -o /tmp/chef.tar.xz; \
+  echo "${sha}  /tmp/chef.tar.xz" | sha256sum -c -; \
+  tar -xJf /tmp/chef.tar.xz -C /tmp; \
+  install "/tmp/cargo-chef-${triple}/cargo-chef" /usr/local/cargo/bin/cargo-chef; \
+  rm -rf /tmp/chef.tar.xz "/tmp/cargo-chef-${triple}"; \
+  cargo chef --version
+
 # Query macros read the committed rust/.sqlx metadata; no database is needed.
 ENV SQLX_OFFLINE=true \
   CARGO_INCREMENTAL=0 \
   CARGO_TERM_COLOR=never
-
-COPY rust rust
-# Embedded at compile time (include_str!).
-COPY priv/data priv/data
-
 WORKDIR /src/rust
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-  --mount=type=cache,target=/usr/local/cargo/git \
-  --mount=type=cache,target=/src/rust/target \
-  cargo build --release --locked --bin manavault \
+
+FROM chef AS planner
+COPY rust ./
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM chef AS backend
+# Cargo's config and its linker script affect how dependencies are built.
+COPY rust/.cargo .cargo
+COPY rust/scripts/linker.sh scripts/linker.sh
+COPY --from=planner /src/rust/recipe.json recipe.json
+RUN cargo chef cook --release --locked --bin manavault --recipe-path recipe.json
+
+COPY rust ./
+# Embedded at compile time (include_str!).
+COPY priv/data /src/priv/data
+RUN cargo build --release --locked --bin manavault \
   && install -D target/release/manavault /out/manavault
 
 FROM golang:1.26.8-alpine3.24 AS healthcheck-builder

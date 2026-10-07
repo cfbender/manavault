@@ -2,6 +2,11 @@ name: Quality
 
 on:
   pull_request:
+  # Pushes to main build the dependency cache every pull request starts from
+  # (a pull request can read its base branch's caches, not other PRs').
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -54,22 +59,20 @@ jobs:
           install_args: rust sqlite
           cache: true
 
-      - name: Cache cargo registry and build output
+      # Caches the registry and compiled dependencies (not the workspace crates).
+      # Pull requests only restore; main and manual runs save, so pull requests
+      # cannot evict the cache main's next run starts from.
+      - name: Cache cargo registry and compiled dependencies
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: rust -> target
+          shared-key: rust
+          save-if: ${{ github.event_name != 'pull_request' }}
+          cache-on-failure: true
 
-      - name: Check queries, rust/schema.sql, and rust/.sqlx against rust/migrations
-        run: |
-          mise run rust:sqlx-prepare
-          if [ -n "$(git status --porcelain -- rust/.sqlx rust/schema.sql)" ]; then
-            git status --short -- rust/.sqlx rust/schema.sql
-            echo "::error::rust/schema.sql or rust/.sqlx is stale; run 'mise run rust:sqlx-prepare' and commit the result."
-            exit 1
-          fi
-
-      - name: Format, lint, and test against the committed query metadata
-        run: mise run rust:check
-
-      - name: Build the release binary
-        run: mise run rust:build
+      # One debug compile does everything: clippy runs with the query macros
+      # online, which checks every query against rust/migrations and rewrites
+      # rust/.sqlx; then the tests build against that metadata offline. The
+      # release build is left to the Container workflow.
+      - name: Check schema and query metadata, format, lint, and test
+        run: mise run rust:ci

@@ -112,6 +112,28 @@ SQLX_OFFLINE=false DATABASE_URL="sqlite://$PWD/target/schema.db?mode=ro" SQLX_OF
   cargo check --workspace --all-targets --locked
 '''
 
+[tasks."rust:ci"]
+description = "CI's Rust gate: rust:check plus stale schema.sql/.sqlx detection, with clippy doubling as the online query check so the workspace compiles once per profile."
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+mise run rust:schema
+cd rust
+cargo fmt --all --check
+rm -rf .sqlx && mkdir .sqlx
+# Query macros only write metadata when their crate compiles. CI's cache holds
+# no workspace crates, but a local target may.
+find crates -name '*.rs' -exec touch {} +
+SQLX_OFFLINE=false DATABASE_URL="sqlite://$PWD/target/schema.db?mode=ro" SQLX_OFFLINE_DIR="$PWD/.sqlx" \
+  cargo clippy --workspace --all-targets --locked -- -D warnings
+if [ -n "$(git status --porcelain -- .sqlx schema.sql)" ]; then
+  git status --short -- .sqlx schema.sql
+  echo "::error::rust/schema.sql or rust/.sqlx is stale; run 'mise run rust:sqlx-prepare' and commit the result."
+  exit 1
+fi
+cargo test --workspace --locked
+'''
+
 [tasks."rust:dev"]
 description = "Run only the Rust backend against the development database (port $PORT, default 4000); see `dev` for the full stack."
 dir = "rust"

@@ -96,3 +96,38 @@ channel is a static) drains the queue with that crate's worker directly.
 `TestState`, shared return-path cases) serves core's own tests. Both test
 helpers compile in every build rather than behind a feature, so test and dev
 builds share one build of each crate.
+
+## CI and image builds
+
+The Quality workflow's Rust job used to build every dependency three times
+(an online `cargo check` for the query metadata, clippy and tests, then a
+release build), and the Container workflow rebuilt every dependency in
+release mode on each run because BuildKit cache mounts do not survive
+between GitHub runners. Run 37652986055 (cache invalidated by the build
+settings change) took 11m18s for the Rust job; image builds took about 8m.
+
+Now:
+
+- `mise run rust:ci` compiles the workspace once per profile: clippy runs
+  with the query macros online, which checks queries against
+  `rust/migrations` and rewrites `rust/.sqlx` (a diff fails the job), then
+  `cargo test` builds against that metadata. The release build moved out of
+  Quality; the Container workflow already does it.
+- `Swatinem/rust-cache` uses one shared key and only saves on pushes to main
+  and manual runs, so pull requests restore main's cache without evicting it.
+  Quality now also runs on pushes to main to keep that cache warm.
+- The Dockerfile compiles dependencies with cargo-chef in their own layer,
+  which `cache-to: type=gha,mode=max` keeps until `Cargo.lock` or a
+  `Cargo.toml` changes.
+
+Local measurements (8-core orb, CARGO_INCREMENTAL=0):
+
+| Build | Time |
+| --- | --- |
+| `rust:ci`, cold | about 2m20s (clippy 65s, test build 74s) |
+| image, cold | 4m54s (cargo chef cook 106s, workspace release build 164s) |
+| image, one `.rs` file changed | 2m51s (cook layer cached; workspace release build 165s) |
+
+The floor of a code-only image build is the release compile of the
+workspace crates, mostly `manavault-server`. More codegen units made it
+slower (64 units: 198s against 168s for the default 16).
