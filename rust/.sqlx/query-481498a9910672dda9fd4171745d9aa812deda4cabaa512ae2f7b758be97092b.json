@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT id AS \"id!: DeckCardId\", quantity AS \"quantity: Quantity\"\n        FROM deck_cards\n        WHERE deck_id = ?1 AND oracle_id = ?2 AND zone = ?3\n        LIMIT 1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: DeckCardId",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "quantity: Quantity",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "quantity"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "481498a9910672dda9fd4171745d9aa812deda4cabaa512ae2f7b758be97092b"
+}

@@ -12,7 +12,9 @@ by the Elixir app work unchanged.
   [lotus](https://github.com/cfbender/lotus) for the Magic domain types,
   Scryfall parsing, and decklist sources shared with the-gathering.
 - `manavault-allocation`: reserving physical collection copies for deck cards
-  (allocate, deallocate, status), with the allocation invariants in types.
+  (allocate, deallocate, statuses, bulk and pull-list allocation, collection
+  adds, proxies, disassembly, buylist needs), with the allocation invariants
+  in types.
 
 ## Commands
 

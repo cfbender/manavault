@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n        SELECT\n          ci.id AS \"id!: CollectionItemId\",\n          ci.scryfall_id AS \"scryfall_id: ScryfallId\",\n          p.oracle_id AS \"oracle_id: OracleId\",\n          ci.quantity AS \"quantity: Quantity\",\n          ci.condition AS \"condition: Condition\",\n          ci.language,\n          ci.finish AS \"finish: Finish\",\n          ci.location_id AS \"location_id: LocationId\",\n          l.kind AS \"location_kind?: LocationKind\",\n          ci.notes,\n          ci.purchase_price_cents\n        FROM collection_items ci\n        JOIN scryfall_printings p ON p.scryfall_id = ci.scryfall_id\n        JOIN scryfall_cards c ON c.oracle_id = p.oracle_id\n        LEFT JOIN locations l ON l.id = ci.location_id\n        WHERE p.oracle_id = ?1 AND (l.id IS NULL OR l.kind != 'list')\n        ORDER BY\n          (ci.scryfall_id = ?2) DESC,\n          c.name,\n          p.set_code,\n          p.collector_number,\n          ci.id\n        ",
+  "query": "\n        SELECT\n          ci.id AS \"id!: CollectionItemId\",\n          ci.scryfall_id AS \"scryfall_id: ScryfallId\",\n          p.oracle_id AS \"oracle_id: OracleId\",\n          ci.quantity AS \"quantity: Quantity\",\n          ci.condition AS \"condition: Condition\",\n          ci.language,\n          ci.finish AS \"finish: Finish\",\n          ci.location_id AS \"location_id: LocationId\",\n          l.kind AS \"location_kind?: LocationKind\",\n          ci.notes,\n          ci.purchase_price_cents\n        FROM collection_items ci\n        JOIN scryfall_printings p ON p.scryfall_id = ci.scryfall_id\n        JOIN scryfall_cards c ON c.oracle_id = p.oracle_id\n        LEFT JOIN locations l ON l.id = ci.location_id\n        WHERE p.oracle_id IN (SELECT value FROM json_each(?1))\n          AND (l.id IS NULL OR l.kind != 'list')\n        ORDER BY c.name, p.set_code, p.collector_number, ci.id\n        ",
   "describe": {
     "columns": [
       {
@@ -126,7 +126,7 @@
       }
     ],
     "parameters": {
-      "Right": 2
+      "Right": 1
     },
     "nullable": [
       null,
@@ -142,5 +142,5 @@
       true
     ]
   },
-  "hash": "70bca2e85b6e5aac81d5c7e9c8fa01c44f86d2b87cca4e883d705a7ea57cb124"
+  "hash": "2dcd7bf2e5910685c550a727e91164b1d137d63a645085d7130eab5c5b94f8f9"
 }

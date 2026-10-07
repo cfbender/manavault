@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE decks SET external_source = ?2, external_id = 'x', external_url = 'https://moxfield.com/decks/x' WHERE id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "5256895cb86a35ceaaca7f3f462459a32e4ade204936ce3a679d43e65b3b058b"
+}

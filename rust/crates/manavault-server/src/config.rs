@@ -81,6 +81,8 @@ pub struct Config {
     pub android_cert_fingerprints: Vec<String>,
     /// Third-party endpoints used by the platform services (overridden in tests).
     pub platform_urls: PlatformUrls,
+    /// EDHREC recs, Recommander, and Commander Spellbook endpoints.
+    pub deck_intel: crate::deck_intel::DeckIntelUrls,
 }
 
 /// Base URLs of the third-party services the web platform, AI settings,
@@ -341,6 +343,7 @@ impl Config {
                 .map(str::to_owned)
                 .collect(),
             platform_urls: PlatformUrls::default(),
+            deck_intel: crate::deck_intel::DeckIntelUrls::default(),
         })
     }
 
@@ -391,6 +394,7 @@ impl Config {
             asset_version: "test-asset-version".to_owned(),
             android_cert_fingerprints: Vec::new(),
             platform_urls: PlatformUrls::unreachable(),
+            deck_intel: crate::deck_intel::DeckIntelUrls::unreachable(),
         }
     }
 

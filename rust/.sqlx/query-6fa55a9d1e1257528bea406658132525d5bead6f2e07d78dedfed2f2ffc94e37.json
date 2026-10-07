@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO deck_cards (\n                  deck_id, oracle_id, preferred_printing_id, quantity, proxy_quantity, zone,\n                  finish, tag, inserted_at, updated_at\n                )\n                VALUES (\n                  ?1, ?2, ?3, ?4, 0, ?5, ?6, NULL,\n                  strftime('%Y-%m-%dT%H:%M:%SZ', 'now'),\n                  strftime('%Y-%m-%dT%H:%M:%SZ', 'now')\n                )\n                RETURNING id AS \"id!: DeckCardId\"\n                ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: DeckCardId",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "6fa55a9d1e1257528bea406658132525d5bead6f2e07d78dedfed2f2ffc94e37"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE deck_cards SET preferred_printing_id = NULL WHERE id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "95ee2c25f3a6e0665e971f446cac29007c9db027c3b0203083b9786b4ad2bba0"
+}

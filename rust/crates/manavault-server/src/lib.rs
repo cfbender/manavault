@@ -15,6 +15,7 @@ pub mod config;
 pub mod crypto;
 pub mod db;
 pub mod decks;
+pub mod deck_intel;
 pub mod graphql;
 pub mod jobs;
 pub mod logs;

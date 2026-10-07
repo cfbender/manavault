@@ -1,0 +1,62 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n          id AS \"id!: DeckId\",\n          name,\n          status AS \"status: DeckStatus\",\n          external_source\n        FROM decks\n        WHERE id = ?1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: DeckId",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "name",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "status: DeckStatus",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "name": "external_source",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "external_source"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "5a24eee7dcfcd44a4852c48f1b2ce3dea5962daa0c347a62f8f63db2e586963a"
+}

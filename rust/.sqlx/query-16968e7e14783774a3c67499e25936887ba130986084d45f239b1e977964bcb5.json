@@ -1,0 +1,146 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n          ci.id AS \"id!: CollectionItemId\",\n          ci.scryfall_id AS \"scryfall_id: ScryfallId\",\n          p.oracle_id AS \"oracle_id: OracleId\",\n          ci.quantity AS \"quantity: Quantity\",\n          ci.condition AS \"condition: Condition\",\n          ci.language,\n          ci.finish AS \"finish: Finish\",\n          ci.location_id AS \"location_id: LocationId\",\n          l.kind AS \"location_kind?: LocationKind\",\n          ci.notes,\n          ci.purchase_price_cents\n        FROM collection_items ci\n        JOIN scryfall_printings p ON p.scryfall_id = ci.scryfall_id\n        LEFT JOIN locations l ON l.id = ci.location_id\n        WHERE ci.id IN (SELECT value FROM json_each(?1))\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: CollectionItemId",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "scryfall_id: ScryfallId",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "scryfall_id"
+          }
+        }
+      },
+      {
+        "name": "oracle_id: OracleId",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "oracle_id"
+          }
+        }
+      },
+      {
+        "name": "quantity: Quantity",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "quantity"
+          }
+        }
+      },
+      {
+        "name": "condition: Condition",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "condition"
+          }
+        }
+      },
+      {
+        "name": "language",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "language"
+          }
+        }
+      },
+      {
+        "name": "finish: Finish",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "finish"
+          }
+        }
+      },
+      {
+        "name": "location_id: LocationId",
+        "ordinal": 7,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "location_id"
+          }
+        }
+      },
+      {
+        "name": "location_kind?: LocationKind",
+        "ordinal": 8,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "locations",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "name": "notes",
+        "ordinal": 9,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "notes"
+          }
+        }
+      },
+      {
+        "name": "purchase_price_cents",
+        "ordinal": 10,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "purchase_price_cents"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "16968e7e14783774a3c67499e25936887ba130986084d45f239b1e977964bcb5"
+}
