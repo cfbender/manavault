@@ -1297,7 +1297,7 @@ mod scanner {
     fn frame() -> Vec<u8> {
         std::fs::read(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../../test/support/fixtures/scanner-frame.jpg"
+            "/tests/fixtures/scanner-frame.jpg"
         ))
         .unwrap()
     }

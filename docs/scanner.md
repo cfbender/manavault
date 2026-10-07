@@ -1,6 +1,6 @@
 # Card scanner
 
-The scanner (`/scan`) identifies cards entirely in the browser. Phoenix serves the model bundle
+The scanner (`/scan`) identifies cards entirely in the browser. The server serves the model bundle
 and resolves recognized artwork to catalog printings; it runs no inference. User-facing behavior is
 in [features.md](features.md#card-scanner).
 
@@ -50,9 +50,8 @@ checks at startup and every six hours, verifies manifest sizes and SHA-256 hashe
 switches `current`.
 
 For a manual installation, copy a complete bundle directory to `DATA_DIR/scanner/<version>` and
-atomically point the relative `current` symlink at `<version>`, or call
-`Manavault.Scanner.Bundle.install(manifest, directory)` from a remote console, which verifies and
-activates it. Version names may contain letters, digits, dots, underscores, and hyphens, and may
+atomically point the relative `current` symlink at `<version>`, or serve the bundle directory over
+HTTP and set `SCANNER_BUNDLE_SOURCE` to its URL, so the update worker verifies and activates it. Version names may contain letters, digits, dots, underscores, and hyphens, and may
 not be `current` or `previous`.
 
 ## Browser pipeline
@@ -169,7 +168,7 @@ Code lives in `assets/react/src/pages/scan/`.
   ahead of both, since those are not owned yet. `known` is a hint, not a filter: the galleries publish one pairing per
   face and other products pair differently (FRA Jace is listed with Spirit but also ships with
   Cadet), so the UI always shows `sameSet` too. Regenerate the data file after new sets with
-  `WOTC_CONTENTFUL_TOKEN=... mise exec -- mix run scripts/token_backs.exs`; the script header
+  `WOTC_CONTENTFUL_TOKEN=... mise exec -- node scripts/token-backs.mjs manavault_dev.db`; the script header
   explains where the token comes from. Coverage starts at Modern Horizons 3, the first set whose
   gallery publishes back images.
 

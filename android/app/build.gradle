@@ -6,10 +6,10 @@ def manavaultVersionName() {
         return override.trim().replaceFirst(/^v/, "")
     }
 
-    def mixFile = rootProject.file("../mix.exs")
-    def matcher = mixFile.text =~ /version:\s*"([0-9]+(?:\.[0-9]+){2}(?:[-+][^"]+)?)"/
+    def packageFile = rootProject.file("../package.json")
+    def matcher = packageFile.text =~ /"version":\s*"([0-9]+(?:\.[0-9]+){2}(?:[-+][^"]+)?)"/
     if (!matcher.find()) {
-        throw new GradleException("Could not find semver project version in ${mixFile}")
+        throw new GradleException("Could not find semver project version in ${packageFile}")
     }
 
     return matcher.group(1)

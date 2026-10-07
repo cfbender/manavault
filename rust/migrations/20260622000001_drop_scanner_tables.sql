@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260622000001_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260622000001 (drop_scanner_tables).
 
 DROP TABLE IF EXISTS "scan_items";
 

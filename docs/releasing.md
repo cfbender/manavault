@@ -23,7 +23,7 @@ mise run changelog -- minor
 mise run changelog -- major
 ```
 
-The script reads the current version from `mix.exs`, calculates the next version,
+The script reads the current version from `rust/crates/manavault-server/Cargo.toml`, calculates the next version,
 and writes a section for the `vX.Y.Z` tag.
 
 ## Cut A Release
@@ -38,7 +38,7 @@ mise run release -- patch
 The task:
 
 - generates `CHANGELOG.md`
-- bumps the `mix.exs` and `package.json` versions
+- bumps the `rust/crates/manavault-server/Cargo.toml` (and `rust/Cargo.lock`) and `package.json` versions
 - refreshes `native_www/version.json`
 - updates README Docker tag examples
 - commits `chore: release vX.Y.Z`

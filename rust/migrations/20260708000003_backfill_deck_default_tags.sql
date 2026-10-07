@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260708000003_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260708000003 (backfill_deck_default_tags).
 
--- Data step: the Elixir code of this migration is ported to db::migrate::data_step.
+-- Its data changes run in db::migrate::data_step after this SQL.
 

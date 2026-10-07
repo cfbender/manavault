@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260819032430_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260819032430 (create_deck_question_answers).
 
 CREATE TABLE "deck_question_answers" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "deck_id" INTEGER NOT NULL CONSTRAINT "deck_question_answers_deck_id_fkey" REFERENCES "decks"("id") ON DELETE CASCADE, "question" TEXT NOT NULL, "answer" TEXT NOT NULL, "inserted_at" TEXT NOT NULL);
 

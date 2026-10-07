@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Development stack for the Rust backend: what `mix phx.server` runs through
-# Phoenix watchers, as three processes.
+# Development stack: the Rust backend, the Vite dev server, and the Tailwind
+# watcher, as three processes.
 #
 # - the `manavault` server (MANAVAULT_ENV=dev) on $PORT (default 4000),
 # - the Vite dev server on 5173, which proxies backend routes to $PORT

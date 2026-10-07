@@ -1,6 +1,6 @@
--- Generated from priv/repo/migrations/20260808000000_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260808000000 (add_normalized_card_names).
 
--- Data step: the Elixir code of this migration is ported to db::migrate::data_step.
+-- Its data changes run in db::migrate::data_step after this SQL.
 
 ALTER TABLE "scryfall_cards" ADD COLUMN "normalized_name" TEXT;
 

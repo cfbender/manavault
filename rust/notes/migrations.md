@@ -5,10 +5,14 @@ The server applies pending database migrations at startup (`db::prepare` →
 
 ## How
 
-- `mise run rust:migrations` runs `mix ecto.migrate --log-migrations-sql` on a
-  fresh test database and `rust/scripts/dump-migrations.py` writes one
-  `rust/migrations/<version>_<name>.sql` per Ecto migration (74). `build.rs`
-  embeds them as `db::migrate::MIGRATIONS`.
+- The 74 files in `rust/migrations` were generated once from the Ecto
+  migrations' logged SQL (`mix ecto.migrate --log-migrations-sql` and
+  `rust/scripts/dump-migrations.py`, both removed with the Elixir app in the
+  next commit; see git history at b2b70d5) and are now the schema source. New
+  schema changes are new SQL files (`mise run rust:new-migration -- <name>`),
+  followed by `mise run rust:sqlx-prepare`, which regenerates `rust/schema.sql`
+  and `rust/.sqlx` from the migrations. `build.rs` embeds the files as
+  `db::migrate::MIGRATIONS`.
 - `run` creates `schema_migrations` if missing, applies each missing version
   oldest first, and records it with Ecto's `inserted_at` format (naive UTC
   seconds). A migration containing `PRAGMA foreign_keys = OFF` runs statement
@@ -17,10 +21,10 @@ The server applies pending database migrations at startup (`db::prepare` →
 - Versions in `schema_migrations` that the build does not know (a newer
   release's database) are ignored with a warning, as `Ecto.Migrator` ignores
   them; downgrades are not supported.
-- The dump keeps only SQL a migration runs unconditionally (DDL, raw
-  `execute`). Statements Ecto built from Elixir values and SELECTs are dropped;
-  the script fails unless the migration is listed as a data step. The seven
-  data steps are ported in `db::migrate::data_step`:
+- The generator kept only SQL a migration runs unconditionally (DDL, raw
+  `execute`). Statements Ecto built from Elixir values and SELECTs were
+  dropped (the script failed unless the migration was listed as a data step).
+  The seven data steps are ported in `db::migrate::data_step`:
   - `CreateDefaultDeckTags` (seed the four starter tags),
   - `BackfillDeckDefaultTags`,
   - `MergeDeckZonesIntoConsidering`,
@@ -37,8 +41,12 @@ The server applies pending database migrations at startup (`db::prepare` →
 ## Verified
 
 - `db::tests::migrations_produce_the_committed_structure_sql`: a fresh
-  database migrated by Rust has the same tables, indexes, and triggers as
-  `structure.sql` (whitespace-normalized).
+  database migrated by Rust has the same tables, indexes, and triggers as the
+  committed schema (first the `mix ecto.dump` output, now `rust/schema.sql`;
+  whitespace-normalized). The first `rust/schema.sql` generated from the
+  migrations differed from the last `mix ecto.dump` only in whitespace before
+  three statements' semicolons and the `sqlite_stat1` table (ANALYZE output,
+  now omitted).
 - `db::tests::upgrades_a_v1_0_0_database_with_data`: a v1.0.0 database
   (`tests/fixtures/manavault-v1.0.0.sql`: schema from the v1.0.0 release's own
   `mix ecto.migrate`, 34 migrations; locations, collection items, two decks with

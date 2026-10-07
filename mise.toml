@@ -2,26 +2,22 @@
 android-sdk = "latest"
 aube = "1.21.0"
 cloudflared = "latest"
-elixir = "1.20.1-otp-29"
-erlang = { version = "29.0.3", install_env = { KERL_CONFIGURE_OPTIONS = "--without-javac --without-odbc --without-wx" } }
 git-cliff = "latest"
 java = "21"
 node = "26.4.0"
 resvg = "0.48.1"
 rust = { version = "1.99.0", components = "clippy,rustfmt" }
 sqlite = "3.53.4"
-# Tailwind's standalone CLI builds priv/static/assets/css/app.css for the Rust
-# backend (the Elixir app runs the same version through the tailwind hex package).
+# Tailwind's standalone CLI builds priv/static/assets/css/app.css.
 "github:tailwindlabs/tailwindcss" = { version = "4.3.0", bin = "tailwindcss" }
 "npm:backlog.md" = "latest"
 
 [tasks.setup]
-description = "Install project tools, Elixir dependencies, database, assets, and build the Rust backend."
+description = "Install project tools and JavaScript dependencies, build the frontend, and build the Rust backend."
 run = [
   "mise install",
   "aube install --frozen-lockfile",
-  # `mix setup` also builds the frontend (Tailwind + Vite) that both backends serve.
-  "mix setup",
+  "mise run rust:assets",
   "mise run rust:prebuild",
 ]
 
@@ -29,24 +25,24 @@ run = [
 description = "Start the Rust backend on $PORT (default 4000) with the Vite dev server on 5173 and Tailwind in watch mode."
 run = "bash ./scripts/dev-rust.sh"
 
-[tasks."dev:elixir"]
-description = "Start the Phoenix (reference) development server; it runs Vite and Tailwind as watchers."
-run = "mix phx.server"
-
 [tasks.test]
-description = "Run the Elixir test suite."
-run = "mix test"
+description = "Run the Rust and frontend test suites."
+run = ["mise run rust:test", "aube run test:react"]
 
-[tasks.precommit]
-description = "Run tests and linting before committing code."
+[tasks."frontend:check"]
+description = "Lint, format-check, type-check, test, and build the React frontend, and run Impeccable's detector."
 run = [
-  "mix test",
-  "mix format --check-formatted",
-  "mix credo --strict",
-  "aube run vp lint",
-  "aube run vp format --check",
+  "aube run lint",
+  "aube exec vp fmt --check",
+  "aube run typecheck",
+  "aube run test:react",
+  "aube run build",
   "aubx impeccable detect assets/react/src/",
 ]
+
+[tasks.precommit]
+description = "Run every check CI runs before committing code."
+run = ["mise run rust:check", "mise run frontend:check"]
 
 [tasks."rust:check"]
 description = "Format-check, lint, and test the Rust workspace."
@@ -58,46 +54,56 @@ run = [
 ]
 
 [tasks."rust:schema-db"]
-description = "Load priv/repo/structure.sql into rust/target/schema.db for sqlx compile-time query checking."
+description = "Apply rust/migrations/*.sql to a fresh rust/target/schema.db (the database sqlx checks queries against)."
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
 cd rust
 mkdir -p target
 rm -f target/schema.db
-grep -v '^CREATE TABLE sqlite_' ../priv/repo/structure.sql | sqlite3 target/schema.db
+{
+  # The server creates the migrations table before applying migrations.
+  echo 'CREATE TABLE IF NOT EXISTS "schema_migrations" ("version" INTEGER PRIMARY KEY, "inserted_at" TEXT);'
+  for file in migrations/*.sql; do
+    cat "$file"
+    echo "INSERT INTO schema_migrations VALUES($(basename "$file" | cut -d_ -f1),NULL);"
+  done
+} | sqlite3 target/schema.db
 '''
 
-[tasks."rust:migrations"]
-description = "Regenerate rust/migrations/*.sql from the Ecto migrations (run after adding one)."
-run = '''
-#!/usr/bin/env bash
-set -euo pipefail
-export MIX_ENV=test MIX_TEST_PARTITION=_rust_migrations
-rm -f manavault_test_rust_migrations.db*
-mix ecto.create --quiet
-mix ecto.migrate --log-migrations-sql > tmp-migrations.log 2>&1
-python3 rust/scripts/dump-migrations.py tmp-migrations.log rust/migrations
-rm -f tmp-migrations.log manavault_test_rust_migrations.db*
-'''
-
-[tasks."rust:sqlx-prepare"]
-description = "Dump the Ecto schema to priv/repo/structure.sql and regenerate the sqlx query metadata in rust/.sqlx."
-run = '''
-#!/usr/bin/env bash
-set -euo pipefail
-mix ecto.dump
-# Migration timestamps differ per machine; blank them so the dump is reproducible.
-sed -i -E "s/^(INSERT INTO schema_migrations VALUES\([0-9]+),'[^']*'\);$/\1,NULL);/" priv/repo/structure.sql
-mise run rust:sqlx-metadata
-'''
-
-[tasks."rust:sqlx-metadata"]
-description = "Regenerate rust/.sqlx from the current priv/repo/structure.sql (no Elixir needed)."
+[tasks."rust:schema"]
+description = "Regenerate rust/schema.sql, the reviewable schema produced by rust/migrations."
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
 mise run rust:schema-db
+cd rust
+{
+  # SQLite's statistics tables (from ANALYZE) depend on the sqlite3 build.
+  sqlite3 target/schema.db .schema | grep -v '^CREATE TABLE sqlite_stat'
+  sqlite3 target/schema.db '.mode insert schema_migrations' 'SELECT * FROM schema_migrations ORDER BY version'
+} > schema.sql
+'''
+
+[tasks."rust:new-migration"]
+description = "Create rust/migrations/<UTC timestamp>_<name>.sql for a schema change."
+usage = '''
+arg "<name>" help="snake_case migration name, e.g. add_notes_to_decks"
+'''
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+file="rust/migrations/$(date -u +%Y%m%d%H%M%S)_${usage_name?}.sql"
+printf -- '-- %s\n\n' "${usage_name?}" > "$file"
+echo "created $file; then run: mise run rust:sqlx-prepare"
+'''
+
+[tasks."rust:sqlx-prepare"]
+description = "After a migration or a query change: regenerate rust/schema.sql and the sqlx query metadata in rust/.sqlx."
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+mise run rust:schema
 cd rust
 rm -rf .sqlx && mkdir .sqlx
 # Query macros only re-expand when their crate recompiles.
@@ -110,10 +116,6 @@ SQLX_OFFLINE=false DATABASE_URL="sqlite://$PWD/target/schema.db?mode=ro" SQLX_OF
 description = "Run only the Rust backend against the development database (port $PORT, default 4000); see `dev` for the full stack."
 dir = "rust"
 run = "MANAVAULT_ENV=dev MANAVAULT_ROOT=.. cargo run --locked --bin manavault"
-
-[tasks."rust:serve"]
-description = "Alias of `dev`: the Rust backend plus the Vite dev server and Tailwind watcher."
-run = "bash ./scripts/dev-rust.sh"
 
 [tasks."rust:assets"]
 description = "Build the production frontend into priv/static/assets (Tailwind CSS and the Vite bundle)."

@@ -1,6 +1,4 @@
 # Build artifacts
-_build/
-deps/
 priv/static/assets/
 priv/static/cache_manifest.json
 
@@ -12,7 +10,6 @@ priv/static/cache_manifest.json
 # Version control and editor files
 .git/
 .gitignore
-.elixir_ls/
 
 # Logs and temporary files
 *.log

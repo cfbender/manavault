@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20261006000000_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20261006000000 (add_tokens).
 
 ALTER TABLE "scryfall_cards" ADD COLUMN "layout" TEXT;
 

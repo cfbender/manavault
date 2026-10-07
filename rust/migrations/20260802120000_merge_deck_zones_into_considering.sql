@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260802120000_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260802120000 (merge_deck_zones_into_considering).
 
--- Data step: the Elixir code of this migration is ported to db::migrate::data_step.
+-- Its data changes run in db::migrate::data_step after this SQL.
 

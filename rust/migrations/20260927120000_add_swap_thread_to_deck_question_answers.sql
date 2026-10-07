@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260927120000_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260927120000 (add_swap_thread_to_deck_question_answers).
 
 ALTER TABLE "deck_question_answers" ADD COLUMN "thread_id" TEXT;
 

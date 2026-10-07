@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260620000002_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260620000002 (add_purchase_price_to_collection_items).
 
 ALTER TABLE "collection_items" ADD COLUMN "purchase_price_cents" INTEGER;
 

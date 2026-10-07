@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260624000000_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260624000000 (add_catalog_hot_path_indexes).
 
 CREATE INDEX scryfall_printings_oracle_release_set_collector_index
 ON scryfall_printings (oracle_id, released_at DESC, set_code ASC, collector_number ASC);

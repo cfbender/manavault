@@ -288,7 +288,7 @@ mod tests {
     fn reads_jpeg_frame_sizes() {
         let jpeg = std::fs::read(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../../test/support/fixtures/scanner-frame.jpg"
+            "/tests/fixtures/scanner-frame.jpg"
         ))
         .unwrap();
         let (width, height) = jpeg_size(&jpeg[2..]).unwrap();

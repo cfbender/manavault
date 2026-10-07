@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260105000000_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260105000000 (create_scryfall_printing_search).
 
 CREATE VIRTUAL TABLE IF NOT EXISTS scryfall_printing_search USING fts5(
   scryfall_id UNINDEXED,

@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260101000000_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260101000000 (create_scryfall_catalog).
 
 CREATE TABLE "scryfall_cards" ("oracle_id" TEXT PRIMARY KEY, "name" TEXT NOT NULL, "type_line" TEXT, "oracle_text" TEXT, "color_identity" TEXT DEFAULT '[]' NOT NULL, "legalities" TEXT DEFAULT '{}' NOT NULL, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL);
 

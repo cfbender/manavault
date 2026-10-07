@@ -17,15 +17,17 @@
 #
 # Environment:
 #   PARITY_SNAPSHOT  catalog database to copy (default /home/user/workspace/parity/catalog-snapshot.db)
-#   ELIXIR_SRC       Elixir checkout to copy the reference app from (default: this worktree)
-#   ELIXIR_DIR       scratch copy of the Elixir app, prepared on first use (default /tmp/elixir-ref)
+#   ELIXIR_REF       git commit or tag of the Elixir reference app (default b2b70d5, the
+#                    last rust-backend commit that still contained it; an Elixir release tag
+#                    such as v1.4.3 also works, minus the Elixir fixes made on this branch)
+#   ELIXIR_DIR       git worktree of ELIXIR_REF, prepared on first use (default /tmp/elixir-ref)
 #   PARITY_DIR       scratch directory for databases and logs (default /tmp/parity-run)
 #   RUST_BIN         Rust server binary (default rust/target/debug/manavault; built if missing)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 SNAPSHOT="${PARITY_SNAPSHOT:-/home/user/workspace/parity/catalog-snapshot.db}"
-ELIXIR_SRC="${ELIXIR_SRC:-$ROOT}"
+ELIXIR_REF="${ELIXIR_REF:-b2b70d5}"
 ELIXIR_DIR="${ELIXIR_DIR:-/tmp/elixir-ref}"
 PARITY_DIR="${PARITY_DIR:-/tmp/parity-run}"
 RUST_BIN="${RUST_BIN:-$ROOT/rust/target/debug/manavault}"
@@ -36,27 +38,42 @@ for arg in "$@"; do
   HARNESS_ARGS+=("$arg")
 done
 
+# Preparation needs the network (Hex packages, toolchains), so it runs before
+# switching into the loopback-only namespace.
+if [[ "${PARITY_IN_NETNS:-0}" != "1" ]]; then
+  if [[ ! -x "$RUST_BIN" ]]; then
+    (cd "$ROOT/rust" && CARGO_INCREMENTAL=0 mise exec -- cargo build --locked --bin manavault)
+  fi
+
+  if [[ ! -f "$ELIXIR_DIR/mix.exs" ]]; then
+    # The Elixir app is no longer on this branch: check out the reference
+    # commit as a detached worktree and build it with its own pinned toolchain.
+    echo "preparing the Elixir reference app ($ELIXIR_REF) in $ELIXIR_DIR"
+    rm -rf "$ELIXIR_DIR"
+    git -C "$ROOT" worktree prune
+    git -C "$ROOT" worktree add --detach "$ELIXIR_DIR" "$ELIXIR_REF"
+    printf '%s\n' '' '# parity harness: never run jobs or cron (queued jobs are only inserted).' \
+      'config :manavault, Oban, queues: false, plugins: false' >>"$ELIXIR_DIR/config/prod.exs"
+    (
+      cd "$ELIXIR_DIR"
+      mise trust -q
+      MISE_ENABLE_TOOLS=elixir,erlang mise install -y elixir erlang
+      export MIX_ENV=prod MISE_ENABLE_TOOLS=elixir,erlang
+      mise exec -- mix local.hex --force --if-missing
+      mise exec -- mix local.rebar --force --if-missing
+      mise exec -- mix deps.get --only prod
+      mise exec -- mix compile
+    )
+  fi
+  # The reference app renders the same built frontend the Rust server serves.
+  if [[ -d "$ROOT/priv/static/assets" && ! -d "$ELIXIR_DIR/priv/static/assets" ]]; then
+    cp -r "$ROOT/priv/static/assets" "$ELIXIR_DIR/priv/static/assets"
+  fi
+fi
+
 if [[ "${PARITY_IN_NETNS:-0}" != "1" && "$LIVE" == "0" ]]; then
   # Re-exec inside a user + network namespace that only has loopback.
   exec unshare -rn env PARITY_IN_NETNS=1 bash -c 'ip link set lo up && exec "$0" "$@"' "$0" "$@"
-fi
-
-if [[ ! -x "$RUST_BIN" ]]; then
-  (cd "$ROOT/rust" && CARGO_INCREMENTAL=0 mise exec -- cargo build --locked --bin manavault)
-fi
-
-if [[ ! -f "$ELIXIR_DIR/mix.exs" ]]; then
-  echo "preparing Elixir reference copy in $ELIXIR_DIR"
-  mkdir -p "$ELIXIR_DIR"
-  (cd "$ELIXIR_SRC" && tar --exclude=./_build --exclude=./node_modules --exclude='./manavault_*.db*' \
-    --exclude=./.git --exclude=./rust --exclude=./android --exclude=./ios --exclude=./data -cf - .) |
-    tar -xf - -C "$ELIXIR_DIR"
-  cat >>"$ELIXIR_DIR/config/prod.exs" <<'EOF'
-
-# parity harness: never run jobs or cron (queued jobs are only inserted).
-config :manavault, Oban, queues: false, plugins: false
-EOF
-  (cd "$ELIXIR_DIR" && mise trust -q && MIX_ENV=prod mise exec -- mix compile)
 fi
 
 for port in 4100 4200; do
@@ -88,7 +105,7 @@ trap cleanup EXIT
 
 (cd "$ELIXIR_DIR" && exec env "${COMMON[@]}" MIX_ENV=prod DATABASE_PATH="$PARITY_DIR/ex.db" \
   DATA_DIR="$PARITY_DIR/ex-data" PHX_HOST=localhost PORT=4100 PHX_SERVER=true \
-  MANAVAULT_AUTH_DISABLED=true mise exec -- mix phx.server) >"$PARITY_DIR/elixir.log" 2>&1 &
+  MANAVAULT_AUTH_DISABLED=true MISE_ENABLE_TOOLS=elixir,erlang mise exec -- mix phx.server) >"$PARITY_DIR/elixir.log" 2>&1 &
 PIDS+=($!)
 (cd "$ROOT/rust" && exec env "${COMMON[@]}" MANAVAULT_ENV=dev MANAVAULT_ROOT="$ROOT" \
   DATABASE_PATH="$PARITY_DIR/rs.db" DATA_DIR="$PARITY_DIR/rs-data" PORT=4200 \

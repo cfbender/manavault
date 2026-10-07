@@ -1,5 +1,5 @@
 {
-  "source": "Wizards of the Coast card image galleries (magic.wizards.com), which show both faces of double-sided tokens; faces resolved to Scryfall set code/collector number by name. Regenerate with scripts/token_backs.exs. Pairs are undirected.",
+  "source": "Wizards of the Coast card image galleries (magic.wizards.com), which show both faces of double-sided tokens; faces resolved to Scryfall set code/collector number by name. Regenerate with scripts/token-backs.mjs. Pairs are undirected.",
   "pairs": [
     {
       "names": "Squirrel // Food",

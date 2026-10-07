@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20261004000000_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20261004000000 (add_external_source_to_decks).
 
 ALTER TABLE "decks" ADD COLUMN "external_source" TEXT;
 

@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260625000001_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260625000001 (ensure_collection_auto_sort_rules_table).
 
 CREATE TABLE IF NOT EXISTS collection_auto_sort_rules (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

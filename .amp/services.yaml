@@ -1,13 +1,6 @@
 # The review stack: the Rust backend on 31397 behind the Vite dev server on
 # 5173 (scripts/dev-rust.sh also runs Tailwind in watch mode).
-#
-# `amp orb services ensure` starts every service declared here and the format
-# has no opt-in services, so the Elixir reference backend is not declared: its
-# Vite watcher would also need port 5173. To review against Phoenix instead,
-# stop this service and run a one-off:
-#   amp orb service stop manavault-review
-#   amp orb service start manavault-elixir --port 5173 --portal --title 'ManaVault (Elixir)' \
-#     --command 'PORT=31397 mise exec -- mix phx.server'
+
 services:
   manavault-review:
     command: PORT=31397 mise exec -- scripts/dev-rust.sh

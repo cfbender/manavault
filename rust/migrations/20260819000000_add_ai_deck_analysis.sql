@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260819000000_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260819000000 (add_ai_deck_analysis).
 
 CREATE TABLE "ai_settings" ("id" INTEGER PRIMARY KEY, "provider" TEXT DEFAULT 'openrouter' NOT NULL, "api_key" TEXT, "model" TEXT, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL);
 

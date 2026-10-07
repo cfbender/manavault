@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260802000000_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260802000000 (add_for_trade_to_collection_items).
 
 ALTER TABLE "collection_items" ADD COLUMN "for_trade" INTEGER DEFAULT false NOT NULL;
 

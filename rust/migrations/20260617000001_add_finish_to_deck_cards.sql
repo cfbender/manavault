@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260617000001_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260617000001 (add_finish_to_deck_cards).
 
 ALTER TABLE "deck_cards" ADD COLUMN "finish" TEXT DEFAULT 'nonfoil' NOT NULL;
 

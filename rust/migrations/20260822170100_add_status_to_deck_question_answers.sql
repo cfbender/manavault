@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260822170100_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260822170100 (add_status_to_deck_question_answers).
 
 ALTER TABLE "deck_question_answers" ADD COLUMN "status" TEXT DEFAULT 'completed' NOT NULL;
 

@@ -2,19 +2,16 @@
 
 ## Project Structure
 
-`manavault` is a Rust backend with a Vite/React frontend. The original Elixir/Phoenix app stays in the repo as the behavioral reference and as the owner of the Ecto migrations.
+`manavault` is a Rust backend with a Vite/React frontend.
 
 - `rust/` — the server: Cargo workspace with `manavault-server` (binary `manavault`: axum, async-graphql, sqlx/SQLite, background jobs) and `manavault-allocation`. Read `rust/README.md` and `rust/notes/*.md`.
-- `lib/manavault/`, `lib/manavault_web/` — Elixir reference implementation (domain contexts, Phoenix router/controllers, Absinthe schema).
-- `config/` — Phoenix configuration; the Rust server reads the same environment variables (`rust/crates/manavault-server/src/config.rs`, `MANAVAULT_ENV` in place of `MIX_ENV`).
-- `priv/repo/` — Ecto migrations and `structure.sql` (`mix ecto.dump`), which the Rust server embeds to create new databases and to check sqlx queries.
-- `priv/static/` — static files served by the backend; `priv/static/assets` is the built frontend (Tailwind CSS and the Vite bundle).
-- `assets/` — frontend assets built with Tailwind and Vite, including the React app in `assets/react`.
-- `test/` — ExUnit tests for the Elixir reference; Rust tests live under `rust/crates/`.
+- `rust/migrations/` — the SQL migrations (one file per schema version), embedded in the binary and applied on boot; `rust/schema.sql` is the schema they produce (generated, used to check sqlx queries).
+- `priv/static/` — static files served by the backend; `priv/static/assets` is the built frontend (Tailwind CSS and the Vite bundle). `priv/data/` holds data files embedded in the binary.
+- `assets/` — frontend assets built with Tailwind and Vite, including the React app in `assets/react` and its tests in `assets/react/test`.
 - `scripts/dev-rust.sh` — development stack: Rust server, Vite dev server, and Tailwind watcher.
 - `data/` — runtime data directory used by the app/container.
 - `Dockerfile` and `docker-entrypoint.sh` — production container build (frontend, Rust release binary, Debian runtime) and startup flow.
-- `mise.toml` — pinned local toolchain (Rust, sqlite, Tailwind, Node/aube, Elixir) and tasks.
+- `mise.toml` — pinned local toolchain (Rust, sqlite, Tailwind, Node/aube) and tasks.
 
 ## Common Commands
 
@@ -22,37 +19,31 @@ Run commands through `mise` to use the pinned toolchain:
 
 ```sh
 mise install
-mise run setup            # mix setup (deps, dev database, assets) + Rust prebuild
+mise run setup            # JS dependencies, frontend build, Rust prebuild
 mise run dev              # Rust server on $PORT (default 4000) + Vite on 5173 + Tailwind watch
 mise run rust:check       # cargo fmt --check, clippy -D warnings, tests (all --locked)
 mise run rust:test
+mise run frontend:check   # lint, format check, typecheck, React tests, build, Impeccable detector
+mise run precommit        # rust:check + frontend:check (what CI runs)
 mise run rust:build       # release binary at rust/target/release/manavault
 mise run rust:assets      # production frontend build into priv/static/assets
-mise exec -- mix test     # Elixir reference tests
-mise run dev:elixir       # Phoenix reference server (mix phx.server)
 ```
 
-Before starting either backend (`mise run dev`, `mise run rust:dev`, or `mise exec -- mix phx.server`), check whether port 4000 (or your `$PORT`) is already listening, for example:
+Before starting the backend (`mise run dev` or `mise run rust:dev`), check whether port 4000 (or your `$PORT`) is already listening, for example:
 
 ```sh
 ss -ltnp 'sport = :4000'
 ```
 
-If anything is already listening on that port, do not start another server; reuse the existing one. In orbs, the review service from `.amp/services.yaml` runs the Rust stack with the backend on 31397 and Vite on 5173.
+If anything is already listening on that port, do not start another server; reuse the existing one. In orbs, the review service from `.amp/services.yaml` runs the stack with the backend on 31397 and Vite on 5173.
 
-The Ecto migrations remain the only schema definition. After creating a new Ecto migration, run it before reporting the change complete:
-
-```sh
-mise exec -- mix ecto.migrate
-```
-
-Then refresh `priv/repo/structure.sql` and the Rust query metadata with `mise run rust:sqlx-prepare`. Run `mise run rust:check` after changing anything under `rust/`.
+`rust/migrations/*.sql` is the only schema definition. To change the schema, create a migration with `mise run rust:new-migration -- <snake_case_name>`, write its SQL (add a `data_step` in `rust/crates/manavault-server/src/db/migrate.rs` if it must compute data), then regenerate `rust/schema.sql` and the sqlx query metadata with `mise run rust:sqlx-prepare` and commit both. The server applies the migration on its next boot (`rust/target/debug/manavault migrate` applies it without serving). Run `mise run rust:check` after changing anything under `rust/`.
 
 Useful production/container commands are documented in `README.md`.
 
 ## Development Notes
 
-- Follow existing Rust module, GraphQL schema, and React component patterns; keep GraphQL parity with the Absinthe schema in `lib/`.
+- Follow existing Rust module, GraphQL schema, and React component patterns; keep the GraphQL schema backward compatible with the frontend (`mise exec -- aube run codegen` regenerates the frontend types from `manavault sdl`).
 - Keep changes small and focused.
 - Run the narrowest relevant tests before reporting completion.
 - Update documentation when project structure, setup, or runtime behavior changes.

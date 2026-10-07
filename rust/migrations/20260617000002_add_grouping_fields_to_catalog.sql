@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260617000002_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260617000002 (add_grouping_fields_to_catalog).
 
 ALTER TABLE "scryfall_cards" ADD COLUMN "mana_cost" TEXT;
 

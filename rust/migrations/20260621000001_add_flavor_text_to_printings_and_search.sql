@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260621000001_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260621000001 (add_flavor_text_to_printings_and_search).
 
 ALTER TABLE "scryfall_printings" ADD COLUMN "flavor_text" TEXT;
 

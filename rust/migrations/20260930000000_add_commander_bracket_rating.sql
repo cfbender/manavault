@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260930000000_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260930000000 (add_commander_bracket_rating).
 
 ALTER TABLE "decks" ADD COLUMN "commander_bracket_rating" TEXT;
 

@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260617000000_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260617000000 (create_decks).
 
 CREATE TABLE "decks" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "name" TEXT NOT NULL, "format" TEXT DEFAULT 'commander' NOT NULL, "status" TEXT DEFAULT 'brewing' NOT NULL, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL);
 

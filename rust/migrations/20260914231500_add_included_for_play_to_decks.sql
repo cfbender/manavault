@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260914231500_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260914231500 (add_included_for_play_to_decks).
 
 ALTER TABLE "decks" ADD COLUMN "included_for_play" INTEGER DEFAULT true NOT NULL;
 

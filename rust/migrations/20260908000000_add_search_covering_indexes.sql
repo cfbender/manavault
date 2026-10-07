@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260908000000_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260908000000 (add_search_covering_indexes).
 
 CREATE INDEX scryfall_printings_search_covering_index
 ON scryfall_printings (scryfall_id, oracle_id, set_code, set_name, collector_number,

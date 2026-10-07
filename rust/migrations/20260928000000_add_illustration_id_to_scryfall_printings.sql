@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260928000000_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260928000000 (add_illustration_id_to_scryfall_printings).
 
 ALTER TABLE "scryfall_printings" ADD COLUMN "illustration_id" TEXT;
 

@@ -188,18 +188,16 @@ same instance is reached under more than one hostname, list the extra origins in
 
 ## Development
 
-The server is the Rust backend in [`rust/`](rust/README.md). The Elixir/Phoenix
-app in `lib/` stays as the behavioral reference and owns the Ecto migrations
-(`mix ecto.dump` writes `priv/repo/structure.sql`, which the Rust backend
-embeds). Tool versions are pinned in `mise.toml`:
+The server is the Rust backend in [`rust/`](rust/README.md); its SQL
+migrations in `rust/migrations` define the database schema and are applied on
+boot. Tool versions are pinned in `mise.toml`:
 
 ```sh
-mise run setup        # toolchain, dependencies, database, assets, Rust build
+mise run setup        # toolchain, dependencies, assets, Rust build
 mise run dev          # Rust backend on $PORT (4000) + Vite on http://localhost:5173
-mise run rust:test    # Rust test suite (`rust:check` adds fmt and clippy)
+mise run test         # Rust and frontend test suites
+mise run precommit    # everything CI checks (rust:check + frontend:check)
 mise run rust:build   # release binary at rust/target/release/manavault
-mise run dev:elixir   # the Phoenix reference server instead
-mise run test         # Elixir test suite
 ```
 
 `mise run dev` runs `scripts/dev-rust.sh`: the server, the Vite dev server
@@ -214,8 +212,7 @@ See [development.md](docs/development.md) for the full workflow.
 
 Rust (axum, async-graphql, sqlx/SQLite, an Oban-compatible job queue), Vite,
 React, TanStack Router/Query, Tailwind/DaisyUI styling, onnxruntime-web for the
-scanner, and optional Capacitor native shells. The original Phoenix, Absinthe,
-Ecto, and Oban app remains in `lib/` as the reference implementation.
+scanner, and optional Capacitor native shells.
 
 ## License
 

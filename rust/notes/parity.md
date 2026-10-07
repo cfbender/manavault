@@ -14,11 +14,17 @@ rust/scripts/parity/parity.sh --verbose --report /tmp/parity-report.json
 
 `parity.sh`:
 
-1. builds `rust/target/debug/manavault` if missing, and on first use copies the
-   Elixir app to `ELIXIR_DIR` (default `/tmp/elixir-ref`, without `_build`,
-   `node_modules`, databases) with `config :manavault, Oban, queues: false,
-plugins: false` appended to `config/prod.exs`, then `MIX_ENV=prod mix
-compile`s it;
+1. builds `rust/target/debug/manavault` if missing, and on first use checks
+   out the Elixir reference app as a detached git worktree of `ELIXIR_REF` in
+   `ELIXIR_DIR` (default `/tmp/elixir-ref`). The Elixir app is no longer on
+   this branch; the default ref is b2b70d5, the last `rust-backend` commit that
+   contained it (with the snow-basic fix made on this branch). An Elixir
+   release tag such as `v1.4.3` works too, minus that fix. The script appends
+   `config :manavault, Oban, queues: false, plugins: false` to
+   `config/prod.exs`, installs that commit's pinned Erlang/Elixir with mise,
+   fetches prod deps, compiles, and copies the built frontend
+   (`priv/static/assets`) into the worktree. Preparation needs the network,
+   so it runs before the loopback-only namespace;
 2. copies `PARITY_SNAPSHOT` (default
    `/home/user/workspace/parity/catalog-snapshot.db`: the full Scryfall
    catalog, 35k cards / 103k printings, Card Kingdom and Mana Pool vendor

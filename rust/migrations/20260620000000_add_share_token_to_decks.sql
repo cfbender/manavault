@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260620000000_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260620000000 (add_share_token_to_decks).
 
 ALTER TABLE "decks" ADD COLUMN "share_token" TEXT;
 

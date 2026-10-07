@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260819043000_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260819043000 (add_deck_analysis_instructions_to_ai_settings).
 
 ALTER TABLE "ai_settings" ADD COLUMN "deck_analysis_instructions" TEXT;
 

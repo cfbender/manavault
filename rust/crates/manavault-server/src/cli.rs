@@ -1,5 +1,5 @@
-//! Maintenance commands of the `manavault` binary, ported from the
-//! `mix manavault.*` tasks. Each returns the line to print.
+//! Maintenance commands of the `manavault` binary. Each returns the line to
+//! print.
 
 use std::path::PathBuf;
 
@@ -10,7 +10,7 @@ fn config() -> Result<Config, String> {
     Config::from_env().map_err(|error| error.to_string())
 }
 
-/// `manavault unban CLIENT_ID | --all` (`mix manavault.auth.unban`). Clears
+/// `manavault unban CLIENT_ID | --all`. Clears
 /// persisted bans; a running server's short-lived windows expire on their own.
 pub async fn unban(args: &[String]) -> Result<String, String> {
     const USAGE: &str = "Usage: manavault unban CLIENT_ID | --all";
@@ -33,6 +33,33 @@ pub async fn unban(args: &[String]) -> Result<String, String> {
         }
         _ => Err(USAGE.to_owned()),
     }
+}
+
+/// `manavault migrate`: applies pending migrations to the configured database
+/// (creating it if needed), after the same pre-migration backup the server
+/// takes, without starting the server.
+pub async fn migrate() -> Result<String, String> {
+    let config = config()?;
+    for dir in config.writable_dirs() {
+        std::fs::create_dir_all(dir).map_err(|error| error.to_string())?;
+    }
+    let pool = crate::db::connect(&config.database_path, 1)
+        .await
+        .map_err(|error| error.to_string())?;
+    crate::backup::migration_backup::run(&config, &pool)
+        .await
+        .map_err(|error| error.to_string())?;
+    let outcome = crate::db::prepare(&pool)
+        .await
+        .map_err(|error| error.to_string())?;
+    pool.close().await;
+    Ok(match outcome.applied.len() {
+        0 => format!("{} is up to date", config.database_path.display()),
+        count => format!(
+            "applied {count} migrations to {}",
+            config.database_path.display()
+        ),
+    })
 }
 
 struct PathOptions {

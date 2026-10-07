@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260809000000_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260809000000 (delete_cards_without_printings).
 
--- Data step: the Elixir code of this migration is ported to db::migrate::data_step.
+-- Its data changes run in db::migrate::data_step after this SQL.
 

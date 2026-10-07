@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260810130000_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260810130000 (add_cover_deck_card_to_decks).
 
 ALTER TABLE "decks" ADD COLUMN "cover_deck_card_id" INTEGER CONSTRAINT "decks_cover_deck_card_id_fkey" REFERENCES "deck_cards"("id") ON DELETE SET NULL;
 

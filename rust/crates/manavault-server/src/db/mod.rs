@@ -76,8 +76,7 @@ pub async fn begin_write(pool: &SqlitePool) -> Result<Transaction<'static, Sqlit
 /// A fresh database file with the current schema, for tests. The migrations
 /// run once per process into a template file that each test copies.
 pub async fn test_pool(dir: &Path) -> Result<SqlitePool, DbError> {
-    static TEMPLATE: tokio::sync::OnceCell<std::path::PathBuf> =
-        tokio::sync::OnceCell::const_new();
+    static TEMPLATE: tokio::sync::OnceCell<std::path::PathBuf> = tokio::sync::OnceCell::const_new();
     let template = TEMPLATE
         .get_or_try_init(|| async {
             let path = std::env::temp_dir().join(format!(

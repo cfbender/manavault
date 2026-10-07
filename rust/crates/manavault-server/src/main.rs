@@ -1,16 +1,15 @@
 //! The `manavault` server binary.
 //!
 //! - `manavault` (or `manavault serve`): run the server.
-//! - `manavault hash-password <password>`: print an owner password hash
-//!   (`mix manavault.auth.hash`).
+//! - `manavault migrate`: apply pending database migrations and exit.
+//! - `manavault hash-password <password>`: print an owner password hash.
 //! - `manavault sdl [--public]`: print the owner GraphQL schema, or the
 //!   public share schema (`/share/graphql`) with `--public`.
-//! - `manavault unban CLIENT_ID | --all`: clear login bans
-//!   (`mix manavault.auth.unban`).
+//! - `manavault unban CLIENT_ID | --all`: clear login bans.
 //! - `manavault backup [-o DIR] [--data-dir DIR] [--database PATH]`: write a
-//!   backup zip (`mix manavault.backup`).
+//!   backup zip.
 //! - `manavault restore PATH [--data-dir DIR] [--database PATH]`: restore a
-//!   backup zip with the server stopped (`mix manavault.restore`).
+//!   backup zip with the server stopped.
 
 use std::process::ExitCode;
 
@@ -48,6 +47,7 @@ async fn main() -> ExitCode {
             }
         },
         None | Some("serve") => serve().await,
+        Some("migrate") => finish(manavault_server::cli::migrate().await),
         Some("unban") => {
             finish(manavault_server::cli::unban(args.get(1..).unwrap_or_default()).await)
         }
@@ -59,7 +59,7 @@ async fn main() -> ExitCode {
         )),
         Some(other) => {
             eprintln!(
-                "unknown command {other}; expected serve, hash-password, sdl, unban, backup, or restore"
+                "unknown command {other}; expected serve, migrate, hash-password, sdl, unban, backup, or restore"
             );
             ExitCode::FAILURE
         }

@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260920000000_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260920000000 (create_api_keys).
 
 CREATE TABLE "api_keys" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "name" TEXT NOT NULL, "prefix" TEXT NOT NULL, "token_hash" BLOB NOT NULL, "last_used_at" TEXT, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL);
 

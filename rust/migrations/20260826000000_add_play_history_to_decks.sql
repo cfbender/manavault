@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260826000000_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260826000000 (add_play_history_to_decks).
 
 ALTER TABLE "decks" ADD COLUMN "play_count" INTEGER DEFAULT 0 NOT NULL;
 

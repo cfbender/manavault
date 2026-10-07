@@ -1,16 +1,15 @@
 # syntax=docker/dockerfile:1
 
 # The production image runs the Rust backend (`rust/`, binary `manavault`) and
-# serves the React frontend built from `assets/`. The Elixir app is not part of
-# the image; its migrations stay the schema source through
-# priv/repo/structure.sql, which the binary embeds.
+# serves the React frontend built from `assets/`. The binary embeds the SQL
+# migrations in rust/migrations and applies pending ones on boot.
 
 ARG DEBIAN_RELEASE=trixie
 ARG NODE_VERSION=22.23.2
 # Keep RUST_VERSION in step with mise.toml.
 ARG RUST_VERSION=1.99.0
 ARG AUBE_VERSION=1.21.0
-# Keep TAILWIND_VERSION in step with config/config.exs and mise.toml.
+# Keep TAILWIND_VERSION in step with mise.toml.
 ARG TAILWIND_VERSION=4.3.0
 ARG MANAVAULT_ASSET_VERSION
 
@@ -61,13 +60,13 @@ RUN aube install --frozen-lockfile
 COPY vite.config.ts codegen.ts capacitor.config.json ./
 COPY assets assets
 COPY priv/static priv/static
-# assets/css/app.css also scans the server-rendered templates for class names.
-COPY lib/manavault_web/controllers lib/manavault_web/controllers
+# assets/css/app.css also scans the server-rendered HTML (app shell and login
+# page, written in the Rust web module) for class names.
+COPY rust/crates/manavault-server/src/web rust/crates/manavault-server/src/web
 
-# The same outputs as `mix assets.deploy`: minified CSS, the Vite bundle, and
-# gzip siblings for the extensions Phoenix precompresses (the server sends a
-# `.gz` sibling to clients that accept gzip). Digested copies are not needed:
-# the shell busts caches with `?v=MANAVAULT_ASSET_VERSION`.
+# Minified CSS, the Vite bundle, and gzip siblings for compressible extensions
+# (the server sends a `.gz` sibling to clients that accept gzip). Digested
+# copies are not needed: the shell busts caches with `?v=MANAVAULT_ASSET_VERSION`.
 RUN tailwindcss --input=assets/css/app.css --output=priv/static/assets/css/app.css --minify \
   && aube run build \
   && find priv/static -type f \
@@ -85,7 +84,6 @@ ENV SQLX_OFFLINE=true \
 
 COPY rust rust
 # Embedded at compile time (include_str!).
-COPY priv/repo/structure.sql priv/repo/structure.sql
 COPY priv/data priv/data
 
 WORKDIR /src/rust

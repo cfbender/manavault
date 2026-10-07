@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20261006120000_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20261006120000 (add_tcgplayer_ids_to_printings).
 
 ALTER TABLE "scryfall_printings" ADD COLUMN "tcgplayer_id" INTEGER;
 

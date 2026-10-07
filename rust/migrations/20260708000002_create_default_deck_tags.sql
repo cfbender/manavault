@@ -1,6 +1,6 @@
--- Generated from priv/repo/migrations/20260708000002_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260708000002 (create_default_deck_tags).
 
--- Data step: the Elixir code of this migration is ported to db::migrate::data_step.
+-- Its data changes run in db::migrate::data_step after this SQL.
 
 CREATE TABLE "default_deck_tags" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "name" TEXT NOT NULL, "color" TEXT NOT NULL, "target_count" INTEGER, "position" INTEGER DEFAULT 0 NOT NULL, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL);
 

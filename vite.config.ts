@@ -4,12 +4,12 @@ import type { UserConfig } from "vite"
 import type { ViteUserConfig } from "vite-plus"
 
 const viteBase = process.env.NODE_ENV === "production" ? "/assets/react/" : "/"
-const phoenixOrigin = `http://127.0.0.1:${process.env.PORT || "4000"}`
-const phoenixProxy = {
-  target: phoenixOrigin,
+const backendOrigin = `http://127.0.0.1:${process.env.PORT || "4000"}`
+const backendProxy = {
+  target: backendOrigin,
   headers: { "x-manavault-vite-proxy": "1" },
 }
-const phoenixSocketProxy = { ...phoenixProxy, ws: true }
+const backendSocketProxy = { ...backendProxy, ws: true }
 
 export default {
   base: viteBase,
@@ -77,27 +77,26 @@ export default {
     strictPort: true,
     allowedHosts: [".onamp.dev"],
     // Worker scripts must carry the same embedder policy as the isolated `/scan` document
-    // (ManavaultWeb.Plugs.CrossOriginIsolation). Proxied Phoenix responses are not affected.
+    // (the backend's `web::browser::cross_origin_isolation`). Proxied backend responses are not affected.
     headers: { "Cross-Origin-Embedder-Policy": "require-corp" },
     proxy: {
       // Proxy keys are matched against the URL including its query string.
-      "^/(\\?|$)": phoenixProxy,
+      "^/(\\?|$)": backendProxy,
       "^/(settings|cards|decks|collection|trade|scan|login|logout|vendors|health|dev)(/|\\?|$)":
-        phoenixProxy,
-      "/share": phoenixProxy,
-      "/api": phoenixProxy,
-      "/socket": phoenixSocketProxy,
-      "/phoenix": phoenixSocketProxy,
-      "/scryfall-assets": phoenixProxy,
-      "/site.webmanifest": phoenixProxy,
-      "/sw.js": phoenixProxy,
-      "/.well-known": phoenixProxy,
-      "/assets/css": phoenixProxy,
-      "/shell": phoenixProxy,
-      "/fonts": phoenixProxy,
-      "/images": phoenixProxy,
-      "/screenshots": phoenixProxy,
-      "^/(favicon|apple-touch-icon|android-chrome|offline\\.html|robots\\.txt)": phoenixProxy,
+        backendProxy,
+      "/share": backendProxy,
+      "/api": backendProxy,
+      "/socket": backendSocketProxy,
+      "/scryfall-assets": backendProxy,
+      "/site.webmanifest": backendProxy,
+      "/sw.js": backendProxy,
+      "/.well-known": backendProxy,
+      "/assets/css": backendProxy,
+      "/shell": backendProxy,
+      "/fonts": backendProxy,
+      "/images": backendProxy,
+      "/screenshots": backendProxy,
+      "^/(favicon|apple-touch-icon|android-chrome|offline\\.html|robots\\.txt)": backendProxy,
     },
   },
 } satisfies UserConfig & Pick<ViteUserConfig, "fmt" | "lint">

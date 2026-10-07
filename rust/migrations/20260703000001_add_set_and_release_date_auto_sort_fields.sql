@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260703000001_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260703000001 (add_set_and_release_date_auto_sort_fields).
 
 ALTER TABLE "collection_auto_sort_rules" ADD COLUMN "set_operator" TEXT DEFAULT 'in' NOT NULL;
 

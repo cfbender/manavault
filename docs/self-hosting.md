@@ -40,9 +40,8 @@ docker run --rm --entrypoint /app/bin/manavault ghcr.io/cfbender/manavault:<vers
   hash-password 'change-me'
 ```
 
-From a source checkout, `mise exec -- mix manavault.auth.hash 'change-me'` or
-`cargo run --bin manavault -- hash-password 'change-me'` (in `rust/`) print the
-same format.
+From a source checkout, `cargo run --bin manavault -- hash-password 'change-me'`
+(in `rust/`) prints the same format.
 
 Run with a mounted `/data` volume:
 
@@ -67,7 +66,8 @@ curl http://localhost:4000/health
 # {"status":"ok"}
 ```
 
-First boot runs pending Ecto migrations and schedules background syncs. Card
+First boot creates the database (or applies pending migrations to an existing
+one) and schedules background syncs. Card
 searches and import matching become useful after the bulk catalog sync succeeds.
 The catalog uses Scryfall's public bulk-data endpoint. While the app is running,
 the catalog and symbol/set icon assets refresh daily, vendor prices every 30
@@ -233,12 +233,12 @@ docker exec -u app manavault /app/bin/manavault unban 203.0.113.10
 docker exec -u app manavault /app/bin/manavault unban --all
 ```
 
-From a source checkout, the mix task does the same against the database
-configured for the current Mix environment:
+From a source checkout, the same binary does it against the development
+database (`MANAVAULT_ENV=dev`; set `DATABASE_PATH` for another file):
 
 ```sh
-mise exec -- mix manavault.auth.unban 203.0.113.10
-mise exec -- mix manavault.auth.unban --all
+MANAVAULT_ENV=dev MANAVAULT_ROOT=.. mise exec -- cargo run --bin manavault -- unban 203.0.113.10   # in rust/
+MANAVAULT_ENV=dev MANAVAULT_ROOT=.. mise exec -- cargo run --bin manavault -- unban --all
 ```
 
 Both remove the client's rows from the `auth_client_failures` table and clear
@@ -293,8 +293,9 @@ Production mutable application data defaults under `/data`:
 - `/data/restores` - staged restore artifacts
 
 On container boot, the entrypoint creates these directories and makes the
-mounted data directory writable by the application user. On an empty database
-the server creates the schema from the `priv/repo/structure.sql` it embeds.
+mounted data directory writable by the application user. The server then
+creates the database, or applies pending migrations to an existing one, from
+the migrations it embeds.
 
 The local-data model is intentionally simple: back up the mounted `/data`
 directory and you have the application state that matters. The caches are
@@ -353,12 +354,12 @@ Inside a running container, create a backup in `/data/backups`:
 docker exec -u app manavault /app/bin/manavault backup
 ```
 
-From a source checkout, the mix task backs up the database configured for the
-current Mix environment (the development database by default); `--output-dir`
-chooses where the zip is written:
+From a source checkout, the binary backs up the development database
+(`MANAVAULT_ENV=dev`, or `--database PATH`); `-o DIR` chooses where the zip is
+written:
 
 ```sh
-mise exec -- mix manavault.backup
+MANAVAULT_ENV=dev MANAVAULT_ROOT=.. mise exec -- cargo run --bin manavault -- backup   # in rust/
 ```
 
 By default the artifact is written to `<DATA_DIR>/backups` or, in local
@@ -380,7 +381,7 @@ tar -czf manavault-data-$(date -u +%Y%m%dT%H%M%SZ).tar.gz data
 Restore a ManaVault backup zip with the app stopped:
 
 ```sh
-mise exec -- mix manavault.restore /path/to/manavault-manual-20260617T120000Z.zip
+/app/bin/manavault restore /path/to/manavault-manual-20260617T120000Z.zip
 ```
 
 The restore replaces the configured SQLite database and restored local files.
@@ -401,8 +402,8 @@ docker run --rm -u app -v "$PWD/data:/data" --env-file .env \
 docker start manavault
 ```
 
-From a checkout, `mise exec -- mix manavault.restore --database ./data/manavault.db
---data-dir ./data <zip>` does the same.
+From a checkout, `cargo run --bin manavault -- restore --database ../data/manavault.db
+--data-dir ../data <zip>` (in `rust/`) does the same.
 
 Alternatively, extract a full-directory tar backup over the stopped host `data`
 directory, or stage a cloud restore from Settings.
@@ -425,7 +426,8 @@ key derived from `SECRET_KEY_BASE`.
 
 Required:
 
-- `SECRET_KEY_BASE` - secret key base (Phoenix-compatible). Generate with
+- `SECRET_KEY_BASE` - secret key base (64+ characters; signs sessions and
+  encrypts stored credentials). Generate with
   `openssl rand -base64 48`. Keep it stable; see
   [Quick container run](#quick-container-run).
 - `MANAVAULT_ADMIN_PASSWORD_HASH` - owner password hash for built-in login.
@@ -444,8 +446,8 @@ Server:
 - `DATA_DIR` - mutable data root. Defaults to `/data`.
 - `DATABASE_PATH` - SQLite database path. Defaults to `/data/manavault.db`.
 - `POOL_SIZE` - SQLite connection pool size. Defaults to `5`.
-- `MANAVAULT_ENV` - `prod` (default), `dev`, or `test`; selects defaults the way
-  `MIX_ENV` did. The image sets `prod`.
+- `MANAVAULT_ENV` - `prod` (default), `dev`, or `test`; selects defaults (dev
+  and test disable authentication and use local paths). The image sets `prod`.
 - `MANAVAULT_STATIC_DIR` - built frontend and static files. Defaults to
   `<MANAVAULT_ROOT>/priv/static` (`/app/priv/static` in the image).
 - `SHARE_PREVIEW_CACHE_DIR` - share preview image cache. Defaults to

@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260802130000_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260802130000 (create_trade_binder_shares).
 
 CREATE TABLE "trade_binder_shares" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "token" TEXT NOT NULL, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL);
 

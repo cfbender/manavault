@@ -75,3 +75,40 @@ setting for every caller). Not Rust source.
   - Upgrades: the server applies pending migrations on boot
     (`db::migrate`, see `rust/notes/migrations.md`), so any older install
     upgrades in place.
+
+## Elixir removal (follow-up)
+
+The Elixir app and its tooling are gone from the branch (last commit with it:
+b2b70d5). What replaced each dependency:
+
+- Schema: `rust/migrations/*.sql` (Rust-owned; same `schema_migrations`
+  versions) → `rust/schema.sql` (`mise run rust:schema`, was
+  `priv/repo/structure.sql` from `mix ecto.dump`) → `rust/.sqlx`
+  (`mise run rust:sqlx-prepare`, which now also regenerates `schema.sql`; the
+  old `rust:sqlx-metadata` task is folded into it). CI fails if either file is
+  stale. `rust:migrations` became `rust:new-migration`.
+- `mise.toml`: no erlang/elixir; `setup` builds the frontend (`rust:assets`)
+  instead of `mix setup`; `test` runs Rust + React tests; `frontend:check`
+  holds the frontend gate; `precommit` = `rust:check` + `frontend:check`;
+  `dev:elixir` and `rust:serve` removed.
+- `.agents/setup`/`resume`: no Erlang/Elixir/Hex/Rebar, no OTP build packages
+  (autoconf, m4, libncurses-dev) or inotify-tools; the dev database is created
+  with the new `manavault migrate` subcommand.
+- CI: the Elixir precommit job is replaced by a `Frontend` job
+  (`mise run frontend:check`: lint, `vp fmt --check`, typecheck, React tests,
+  build, `impeccable detect`).
+- Version source: `rust/crates/manavault-server/Cargo.toml` (bump.sh,
+  changelog.sh) and `package.json` (capacitor.yml, prepare-native-web.mjs,
+  android/app/build.gradle) instead of `mix.exs`.
+- Tailwind `@source` scans `rust/crates/manavault-server/src/web` (the app
+  shell and login page HTML) instead of `lib/manavault_web`; the generated CSS
+  is the same plus two utilities (`inline`, `static`). The Dockerfile copies
+  that directory instead of `lib/manavault_web/controllers`.
+- `codegen` dumps the schema with `manavault sdl` into
+  `rust/target/graphql-schema.graphql`.
+- `scripts/token_backs.exs` → `scripts/token-backs.mjs` (Node, reads the local
+  catalog with `node:sqlite`). `priv/repo/seeds.exs` (empty) and
+  `scripts/seed_recommander_demo.exs` (a dev demo seed) were dropped.
+- The scanner test JPEG moved to `rust/crates/manavault-server/tests/fixtures`.
+- Parity harness: checks out the Elixir app as a git worktree of `ELIXIR_REF`
+  (default b2b70d5) and builds it with that commit's pinned toolchain.

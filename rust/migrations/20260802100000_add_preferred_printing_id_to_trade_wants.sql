@@ -1,4 +1,4 @@
--- Generated from priv/repo/migrations/20260802100000_*.exs by rust/scripts/dump-migrations.py.
+-- Migration 20260802100000 (add_preferred_printing_id_to_trade_wants).
 
 ALTER TABLE "trade_wants" ADD COLUMN "preferred_printing_id" TEXT CONSTRAINT "trade_wants_preferred_printing_id_fkey" REFERENCES "scryfall_printings"("scryfall_id") ON DELETE SET NULL;
 

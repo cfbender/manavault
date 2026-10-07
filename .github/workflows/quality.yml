@@ -8,12 +8,12 @@ permissions:
   contents: read
 
 jobs:
-  precommit:
-    name: Precommit quality gate
+  frontend:
+    name: Frontend
     runs-on: ubuntu-latest
 
     env:
-      MISE_ENABLE_TOOLS: aube,elixir,erlang,node,resvg
+      MISE_ENABLE_TOOLS: aube,node
 
     steps:
       - name: Check out repository
@@ -23,23 +23,14 @@ jobs:
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
         with:
           install: true
-          install_args: aube elixir erlang node resvg
+          install_args: aube node
           cache: true
-
-      - name: Install preview fonts
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fonts-dejavu-core
-
-      - name: Install Hex and Rebar
-        run: mise exec -- mix local.hex --force && mise exec -- mix local.rebar --force
-
-      - name: Install Elixir dependencies
-        run: mise exec -- mix deps.get
 
       - name: Install JavaScript dependencies
         run: mise exec -- aube install --frozen-lockfile
 
-      - name: Run local precommit quality gate
-        run: mise exec -- aube run precommit
+      - name: Lint, format-check, type-check, test, build, and detect UI anti-patterns
+        run: mise run frontend:check
 
   rust:
     name: Rust workspace
@@ -65,12 +56,12 @@ jobs:
         with:
           workspaces: rust -> target
 
-      - name: Check queries and committed .sqlx metadata against priv/repo/structure.sql
+      - name: Check queries, rust/schema.sql, and rust/.sqlx against rust/migrations
         run: |
-          mise run rust:sqlx-metadata
-          if [ -n "$(git status --porcelain -- rust/.sqlx)" ]; then
-            git status --short -- rust/.sqlx
-            echo "::error::rust/.sqlx is stale; run 'mise run rust:sqlx-metadata' and commit the result."
+          mise run rust:sqlx-prepare
+          if [ -n "$(git status --porcelain -- rust/.sqlx rust/schema.sql)" ]; then
+            git status --short -- rust/.sqlx rust/schema.sql
+            echo "::error::rust/schema.sql or rust/.sqlx is stale; run 'mise run rust:sqlx-prepare' and commit the result."
             exit 1
           fi
 

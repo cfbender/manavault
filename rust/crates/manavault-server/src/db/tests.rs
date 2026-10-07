@@ -92,7 +92,7 @@ async fn migrations_produce_the_committed_structure_sql() {
 
     let other = TempDir::new();
     let dumped = pool_at(&other).await;
-    let structure = include_str!("../../../../../priv/repo/structure.sql");
+    let structure = include_str!("../../../../schema.sql");
     load_dump(
         &dumped,
         &structure
