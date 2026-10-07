@@ -1,6 +1,5 @@
 //! `DeckCardAllocationStatus`.
 
-use async_graphql::Object;
 use manavault_allocation::{AllocationState, AllocationStatus, Zone};
 
 /// A deck card's allocation status, or a suggested card's collection status.
@@ -71,41 +70,29 @@ impl DeckCardAllocationStatus {
     }
 }
 
-#[Object]
-impl DeckCardAllocationStatus {
-    async fn state(&self) -> &str {
-        self.state
-    }
-
-    async fn required(&self) -> i64 {
-        i64::from(self.status.required)
-    }
-
-    async fn owned(&self) -> i64 {
-        i64::from(self.status.owned)
-    }
-
-    async fn allocated(&self) -> i64 {
-        i64::from(self.status.allocated)
-    }
-
-    async fn proxy_allocated(&self) -> i64 {
-        i64::from(self.status.proxy_allocated)
-    }
-
-    async fn available(&self) -> i64 {
-        i64::from(self.status.available)
-    }
-
-    async fn allocated_elsewhere(&self) -> i64 {
-        i64::from(self.status.allocated_elsewhere)
-    }
-
-    async fn missing(&self) -> i64 {
-        i64::from(self.status.missing)
-    }
-
-    async fn deck_zone(&self) -> Option<&str> {
-        self.deck_zone.map(Zone::as_str)
+impl From<DeckCardAllocationStatus> for crate::decks::DeckCardAllocationStatus {
+    /// Presents a crate status through the deck module's
+    /// `DeckCardAllocationStatus` GraphQL type, so both share one type name.
+    fn from(value: DeckCardAllocationStatus) -> Self {
+        use crate::decks::allocations::{AllocationState as State, AllocationStatus as Status};
+        let state = match value.state {
+            "basic_land" => State::BasicLand,
+            "allocated" => State::Allocated,
+            "available" => State::Available,
+            "partial" => State::Partial,
+            _ => State::Missing,
+        };
+        Self(Status {
+            state,
+            required: value.status.required,
+            owned: value.status.owned,
+            allocated: value.status.allocated,
+            proxy_allocated: value.status.proxy_allocated,
+            available: value.status.available,
+            allocated_elsewhere: value.status.allocated_elsewhere,
+            missing: value.status.missing,
+            deck_zone: value.deck_zone,
+            candidates: Vec::new(),
+        })
     }
 }

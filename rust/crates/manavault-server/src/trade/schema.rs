@@ -287,8 +287,26 @@ impl BinderMatch {
         self.their_quantity
     }
 
-    async fn items(&self) -> &[BinderItem] {
-        &self.items
+    async fn items(
+        &self,
+        ctx: &async_graphql::Context<'_>,
+    ) -> async_graphql::Result<Vec<crate::collection::item::CollectionItem>> {
+        let ids: Vec<i64> = self.items.iter().map(|item| item.id).collect();
+        let mut loaded = crate::collection::item::CollectionItem::load_many(
+            &crate::graphql::state(ctx).db,
+            &ids,
+        )
+        .await
+        .map_err(crate::graphql::internal_error)?;
+        Ok(self
+            .items
+            .iter()
+            .filter_map(|binder: &BinderItem| {
+                let mut item = loaded.remove(&binder.id)?;
+                item.record.quantity = lotus::Quantity::try_from(binder.quantity).ok()?;
+                Some(item)
+            })
+            .collect())
     }
 }
 

@@ -4,9 +4,9 @@ pub mod bulk;
 pub mod diff;
 pub mod graphql;
 pub mod import;
-pub mod rulings;
 pub mod reconcile;
 pub mod rows;
+pub mod rulings;
 pub mod sync;
 pub mod worker;
 

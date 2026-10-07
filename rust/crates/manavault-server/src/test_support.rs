@@ -129,6 +129,23 @@ impl TestApp {
     }
 }
 
+/// The process-wide log hub for tests that assert on log lines. A global
+/// subscriber is needed (a thread-scoped one races with callsite interest
+/// caching in tests running in parallel), and only one can be installed, so
+/// every such test must share this hub. Events from all tests arrive here;
+/// filter by something unique to the test.
+pub fn log_hub() -> &'static crate::logs::LogHub {
+    use tracing_subscriber::layer::SubscriberExt as _;
+    static HUB: std::sync::OnceLock<crate::logs::LogHub> = std::sync::OnceLock::new();
+    HUB.get_or_init(|| {
+        let hub = crate::logs::LogHub::new();
+        let _ = tracing::subscriber::set_global_default(
+            tracing_subscriber::registry().with(hub.layer()),
+        );
+        hub
+    })
+}
+
 /// Reads a response body as text.
 #[allow(clippy::expect_used)]
 pub async fn body_text(response: Response<Body>) -> String {

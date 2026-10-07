@@ -1,0 +1,158 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!\", deck_id, question, answer, recommendations,\n                 status AS \"status: Status\", error, model, conversation_id, thread_id,\n                 swap_context, inserted_at\n               FROM deck_question_answers WHERE deck_id = ?1 AND thread_id IS NULL ORDER BY inserted_at DESC, id DESC",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_question_answers",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "deck_id",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_question_answers",
+            "name": "deck_id"
+          }
+        }
+      },
+      {
+        "name": "question",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_question_answers",
+            "name": "question"
+          }
+        }
+      },
+      {
+        "name": "answer",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_question_answers",
+            "name": "answer"
+          }
+        }
+      },
+      {
+        "name": "recommendations",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_question_answers",
+            "name": "recommendations"
+          }
+        }
+      },
+      {
+        "name": "status: Status",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_question_answers",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "name": "error",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_question_answers",
+            "name": "error"
+          }
+        }
+      },
+      {
+        "name": "model",
+        "ordinal": 7,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_question_answers",
+            "name": "model"
+          }
+        }
+      },
+      {
+        "name": "conversation_id",
+        "ordinal": 8,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_question_answers",
+            "name": "conversation_id"
+          }
+        }
+      },
+      {
+        "name": "thread_id",
+        "ordinal": 9,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_question_answers",
+            "name": "thread_id"
+          }
+        }
+      },
+      {
+        "name": "swap_context",
+        "ordinal": 10,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_question_answers",
+            "name": "swap_context"
+          }
+        }
+      },
+      {
+        "name": "inserted_at",
+        "ordinal": 11,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_question_answers",
+            "name": "inserted_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "37d60589287009eac15385c8d902f46a977e5a4d03e0d2b1954e9e515cf17c45"
+}

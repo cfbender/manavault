@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM deck_question_answers WHERE id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "170f9a80c823d2c6047e5730394ed184441bebf6fff6f425b7d8ab66601e0def"
+}

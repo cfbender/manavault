@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE deck_question_answers SET status = 'completed', error = NULL, answer = ?1,\n           model = ?2, recommendations = ?3 WHERE id = ?4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "fce9da97a3971bb82c756ee7e911ee6ad453887aea865759641cb2b98bb588b9"
+}

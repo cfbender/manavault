@@ -11,7 +11,6 @@ use serde_json::{Map, Value, json};
 use crate::catalog::card::Card;
 use crate::catalog::edhrec::{CardLookup, entry_name, entry_number};
 use crate::deck_intel::DeckContext;
-use crate::deck_intel::status::DeckCardAllocationStatus;
 use crate::deck_intel::suggest::{Suggested, collection_statuses, matching_deck_card};
 use crate::state::AppState;
 
@@ -72,7 +71,7 @@ pub struct DeckRecommanderCard {
     pub rank: i64,
     pub score: Option<f64>,
     pub card: Option<Card>,
-    pub collection_status: DeckCardAllocationStatus,
+    pub collection_status: crate::decks::DeckCardAllocationStatus,
 }
 
 /// `DeckRecommander`.
@@ -311,7 +310,7 @@ pub(crate) async fn normalize(
             rank,
             score: entry_number(resolved.entry, "score").and_then(|n| n.as_f64()),
             card: resolved.suggested.local_card.cloned().map(Card::from),
-            collection_status: status,
+            collection_status: status.into(),
         })
         .collect();
     Ok(DeckRecommander {

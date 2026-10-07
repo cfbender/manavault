@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT ci.id AS \"id!\", ci.quantity, p.oracle_id AS \"oracle_id!: OracleId\"\n           FROM collection_items AS ci\n           JOIN scryfall_printings AS p ON p.scryfall_id = ci.scryfall_id\n           JOIN scryfall_cards AS c ON c.oracle_id = p.oracle_id\n           LEFT JOIN locations AS l ON l.id = ci.location_id\n           WHERE p.oracle_id IN (SELECT value FROM json_each(?1))\n             AND (l.id IS NULL OR l.kind != 'list')\n           ORDER BY c.name, p.set_code, p.collector_number, ci.id",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "quantity",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "quantity"
+          }
+        }
+      },
+      {
+        "name": "oracle_id!: OracleId",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "scryfall_printings",
+            "name": "oracle_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      null,
+      false,
+      false
+    ]
+  },
+  "hash": "a1d01cb6864245f886d4e1a2c97847e05361a69450e06627ec8af4280ef00913"
+}

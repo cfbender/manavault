@@ -4,6 +4,7 @@
 //! same SQLite database, so the React frontend and existing databases work
 //! unchanged.
 
+pub mod ai;
 pub mod api_keys;
 pub mod app;
 pub mod auth;
@@ -14,14 +15,14 @@ pub mod collection;
 pub mod config;
 pub mod crypto;
 pub mod db;
-pub mod decks;
 pub mod deck_intel;
+pub mod decks;
 pub mod graphql;
 pub mod jobs;
 pub mod logs;
 pub mod pricing;
-pub mod scryfall_assets;
 pub mod scanner;
+pub mod scryfall_assets;
 pub mod settings;
 pub mod state;
 pub mod timefmt;

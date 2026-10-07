@@ -73,6 +73,11 @@ pub trait Worker: Send + Sync {
     fn timeout(&self) -> Duration {
         Duration::from_secs(30 * 60)
     }
+    /// Seconds to wait before retrying after failed attempt `attempt`
+    /// (`backoff/1`); Oban's default is `2^attempt + 15`.
+    fn backoff(&self, attempt: i64) -> u64 {
+        2_u64.saturating_pow(u32::try_from(attempt).unwrap_or(10)) + 15
+    }
     async fn perform(&self, state: &AppState, job: &Job) -> Outcome;
 }
 
@@ -111,6 +116,17 @@ pub fn failure_message(job: &Job, queue: &str, exhausted: bool, reason: &str) ->
         if exhausted { "discard" } else { "failure" },
         job.worker,
     )
+}
+
+/// Attempt counts from [`Jobs::drain_queue`].
+#[cfg(test)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct Drained {
+    pub success: usize,
+    pub failure: usize,
+    pub discard: usize,
+    pub cancelled: usize,
+    pub snoozed: usize,
 }
 
 /// Inserts and runs jobs.
@@ -155,9 +171,39 @@ impl Jobs {
         args: Value,
         at: Option<OffsetDateTime>,
     ) -> Result<i64, JobError> {
+        let mut tx = crate::db::begin_write(&self.pool).await?;
+        let id = self.insert_job(&mut tx, worker, args, at).await?;
+        tx.commit().await?;
+        self.wake();
+        Ok(id)
+    }
+
+    /// Inserts a job now inside the caller's write transaction (`Oban.insert`
+    /// in an `Ecto.Multi`), so the job and the caller's rows commit together.
+    /// Call [`Self::wake`] after committing.
+    pub async fn enqueue_in(
+        &self,
+        conn: &mut sqlx::SqliteConnection,
+        worker: &str,
+        args: Value,
+    ) -> Result<i64, JobError> {
+        self.insert_job(conn, worker, args, None).await
+    }
+
+    /// Wakes the queue runners after jobs were committed.
+    pub fn wake(&self) {
+        self.notify.notify_waiters();
+    }
+
+    async fn insert_job(
+        &self,
+        tx: &mut sqlx::SqliteConnection,
+        worker: &str,
+        args: Value,
+        at: Option<OffsetDateTime>,
+    ) -> Result<i64, JobError> {
         let definition = self.worker(worker)?;
         let args_text = args.to_string();
-        let mut tx = crate::db::begin_write(&self.pool).await?;
         let existing: Option<i64> = match definition.unique() {
             None => None,
             Some(Unique::Worker) => {
@@ -179,7 +225,6 @@ impl Jobs {
             }
         };
         if let Some(id) = existing {
-            tx.commit().await?;
             return Ok(id);
         }
         let now = timefmt::now_micros();
@@ -200,8 +245,6 @@ impl Jobs {
         .bind(&scheduled_at)
         .fetch_one(&mut *tx)
         .await?;
-        tx.commit().await?;
-        self.notify.notify_waiters();
         Ok(id)
     }
 
@@ -368,7 +411,7 @@ impl Jobs {
             .collect())
     }
 
-    async fn execute(&self, state: &AppState, job: Job) {
+    async fn execute(&self, state: &AppState, job: Job) -> Outcome {
         let outcome = match self.workers.get(job.worker.as_str()) {
             None => Outcome::Cancel(format!("unknown worker {}", job.worker)),
             Some(worker) => {
@@ -381,6 +424,43 @@ impl Jobs {
         if let Err(error) = self.record(&job, &outcome).await {
             tracing::error!(%error, job.id, "could not record job outcome");
         }
+        outcome
+    }
+
+    /// Runs every job in `queue` that is due once, like
+    /// `Oban.drain_queue(queue: queue)` (without recursion); with
+    /// `with_scheduled`, scheduled and retryable jobs run too. Returns how
+    /// the attempts ended.
+    #[cfg(test)]
+    pub async fn drain_queue(
+        &self,
+        state: &AppState,
+        queue: &str,
+        with_scheduled: bool,
+    ) -> Drained {
+        if with_scheduled {
+            let _ = sqlx::query(
+                "UPDATE oban_jobs SET state = 'available', scheduled_at = ?1
+                 WHERE state IN ('scheduled','retryable') AND queue = ?2",
+            )
+            .bind(timefmt::now_micros())
+            .bind(queue)
+            .execute(&self.pool)
+            .await;
+        }
+        let mut drained = Drained::default();
+        let jobs = self.claim(queue, 1_000).await.unwrap_or_default();
+        for job in jobs {
+            let exhausted = job.attempt >= job.max_attempts;
+            match self.execute(state, job).await {
+                Outcome::Done => drained.success += 1,
+                Outcome::Retry(_) if exhausted => drained.discard += 1,
+                Outcome::Retry(_) => drained.failure += 1,
+                Outcome::Cancel(_) => drained.cancelled += 1,
+                Outcome::Snooze(_) => drained.snoozed += 1,
+            }
+        }
+        drained
     }
 
     async fn record(&self, job: &Job, outcome: &Outcome) -> Result<(), sqlx::Error> {
@@ -433,8 +513,11 @@ impl Jobs {
                         reason
                     )
                 );
-                // Oban's default backoff: 2^attempt + 15 seconds.
-                let delay = 2_u64.saturating_pow(u32::try_from(job.attempt).unwrap_or(10)) + 15;
+                // The worker's backoff (Oban's default: 2^attempt + 15 seconds).
+                let delay = self.workers.get(job.worker.as_str()).map_or_else(
+                    || 2_u64.saturating_pow(u32::try_from(job.attempt).unwrap_or(10)) + 15,
+                    |worker| worker.backoff(job.attempt),
+                );
                 let at = OffsetDateTime::now_utc() + Duration::from_secs(delay);
                 sqlx::query(
                     "UPDATE oban_jobs SET state = ?1, scheduled_at = ?2,

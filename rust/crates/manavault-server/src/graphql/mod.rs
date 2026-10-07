@@ -52,6 +52,7 @@ pub struct Query(
     crate::deck_intel::DeckIntelQueries,
     crate::trade::TradeQueries,
     crate::trade::ShareListQueries,
+    crate::ai::AiQueries,
 );
 
 #[derive(MergedObject, Default)]
@@ -69,6 +70,7 @@ pub struct Mutation(
     crate::decks::DeckMutations,
     crate::deck_intel::DeckIntelMutations,
     crate::trade::TradeMutations,
+    crate::ai::AiMutations,
 );
 
 #[derive(MergedSubscription, Default)]

@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT question, answer FROM deck_question_answers\n           WHERE deck_id = ?1 AND id < ?2 AND status = 'completed'\n             AND thread_id IS ?3 AND conversation_id IS ?4\n           ORDER BY inserted_at DESC, id DESC\n           LIMIT ?5",
+  "describe": {
+    "columns": [
+      {
+        "name": "question",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_question_answers",
+            "name": "question"
+          }
+        }
+      },
+      {
+        "name": "answer",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_question_answers",
+            "name": "answer"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "7bc10e0a0d5d6198632b52cf981063f6359742626f082fd13bc3d80708e940a0"
+}
