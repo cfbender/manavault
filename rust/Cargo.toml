@@ -6,7 +6,7 @@ members = ["crates/*"]
 edition = "2024"
 rust-version = "1.99"
 license = "MPL-2.0"
-version = "1.4.3"
+version = "2.0.0"
 publish = false
 
 # Line tables keep panic backtraces and debugger stepping usable for the

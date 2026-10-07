@@ -1550,7 +1550,7 @@ checksum = "4050469837a6ff301cd14c1f8f24f88549e6d548f24f64e2148eb0f72cebc51f"
 
 [[package]]
 name = "manavault-ai"
-version = "1.4.3"
+version = "2.0.0"
 dependencies = [
  "async-graphql",
  "async-trait",
@@ -1584,7 +1584,7 @@ dependencies = [
 
 [[package]]
 name = "manavault-catalog"
-version = "1.4.3"
+version = "2.0.0"
 dependencies = [
  "async-graphql",
  "async-trait",
@@ -1612,7 +1612,7 @@ dependencies = [
 
 [[package]]
 name = "manavault-collection"
-version = "1.4.3"
+version = "2.0.0"
 dependencies = [
  "async-graphql",
  "async-trait",
@@ -1637,7 +1637,7 @@ dependencies = [
 
 [[package]]
 name = "manavault-core"
-version = "1.4.3"
+version = "2.0.0"
 dependencies = [
  "aes-gcm",
  "async-graphql",
@@ -1672,7 +1672,7 @@ dependencies = [
 
 [[package]]
 name = "manavault-deck-intel"
-version = "1.4.3"
+version = "2.0.0"
 dependencies = [
  "async-graphql",
  "base64 0.22.1",
@@ -1693,7 +1693,7 @@ dependencies = [
 
 [[package]]
 name = "manavault-server"
-version = "1.4.3"
+version = "2.0.0"
 dependencies = [
  "async-graphql",
  "axum",
@@ -1727,7 +1727,7 @@ dependencies = [
 
 [[package]]
 name = "manavault-share"
-version = "1.4.3"
+version = "2.0.0"
 dependencies = [
  "async-graphql",
  "async-trait",
@@ -1760,7 +1760,7 @@ dependencies = [
 
 [[package]]
 name = "manavault-system"
-version = "1.4.3"
+version = "2.0.0"
 dependencies = [
  "async-graphql",
  "async-trait",
@@ -1788,7 +1788,7 @@ dependencies = [
 
 [[package]]
 name = "manavault-trade"
-version = "1.4.3"
+version = "2.0.0"
 dependencies = [
  "async-graphql",
  "axum",
