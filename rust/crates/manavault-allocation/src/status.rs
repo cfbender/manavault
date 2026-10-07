@@ -109,6 +109,52 @@ impl<'a> From<&'a Requirement> for Subject<'a> {
     }
 }
 
+/// The facts a deck card's status depends on, for callers that hold their
+/// own deck card rows (the deck pages) instead of a [`DeckCard`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StatusInput {
+    pub id: DeckCardId,
+    pub oracle_id: OracleId,
+    pub preferred_printing_id: Option<ScryfallId>,
+    pub quantity: Quantity,
+    pub proxy_quantity: u32,
+    /// Whether the card is a basic land (snow basics included).
+    pub basic_land: bool,
+}
+
+impl<'a> From<&'a StatusInput> for Subject<'a> {
+    fn from(input: &'a StatusInput) -> Self {
+        Self {
+            id: Some(input.id),
+            oracle_id: &input.oracle_id,
+            preferred_printing_id: input.preferred_printing_id.as_ref(),
+            required: input.quantity,
+            proxy_quantity: input.proxy_quantity,
+            basic_land: input.basic_land,
+        }
+    }
+}
+
+/// Statuses for many deck cards in two queries, in input order, on the
+/// caller's connection or transaction
+/// (`AllocationStatus.put_deck_card_allocation_statuses/1`).
+pub async fn statuses_in(
+    conn: &mut SqliteConnection,
+    inputs: &[StatusInput],
+) -> Result<Vec<AllocationStatus>, sqlx::Error> {
+    if inputs.is_empty() {
+        return Ok(Vec::new());
+    }
+    let oracle_ids: Vec<&OracleId> = inputs.iter().map(|input| &input.oracle_id).collect();
+    let ids: Vec<DeckCardId> = inputs.iter().map(|input| input.id).collect();
+    let candidates = load_candidates(conn, &oracle_ids).await?;
+    let counts = load_allocation_counts(conn, &ids, &oracle_ids).await?;
+    Ok(inputs
+        .iter()
+        .map(|input| compute_for(&Subject::from(input), &candidates, &counts))
+        .collect())
+}
+
 pub(crate) async fn load_status(
     conn: &mut SqliteConnection,
     deck_card: &DeckCard,

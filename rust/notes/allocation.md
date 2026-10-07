@@ -57,7 +57,8 @@ Queries: `deckBuylist`, `deckBuylistExport`, `deckEdhrec`, `deckRecommander`,
 `PreviewDeckDisassemblyPayload`, `DisassembleDeckPayload`,
 `BulkAllocateDeckPayload`, `AllocateDeckPullListPayload` (defined, reachable
 once `allocateDeckPullList` is wired), and `DeckCardAllocationStatus`
-(`deck_intel::status`, without `candidates`).
+(now `decks::DeckCardAllocationStatus`, with `candidates`; see
+`integration.md`).
 
 `sdl_diff.py` differences in this area are only the deferred items below.
 

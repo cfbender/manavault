@@ -53,8 +53,8 @@ pub use release::{
     trim_deck_card_allocations,
 };
 pub use status::{
-    AllocationState, AllocationStatus, Candidate, Requirement, deck_allocation_statuses,
-    deck_card_statuses, requirement_statuses,
+    AllocationState, AllocationStatus, Candidate, Requirement, StatusInput,
+    deck_allocation_statuses, deck_card_statuses, requirement_statuses, statuses_in,
 };
 
 /// A deck by id.

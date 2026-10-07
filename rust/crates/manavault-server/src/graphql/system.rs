@@ -1,33 +1,11 @@
 //! Root fields that belong to no domain: the server log subscription.
 
-use async_graphql::{Context, Object, SimpleObject, Subscription};
+use async_graphql::{Context, SimpleObject, Subscription};
 use futures_util::Stream;
 use tokio_stream::StreamExt as _;
 use tokio_stream::wrappers::BroadcastStream;
 
 use crate::graphql::state;
-
-#[derive(Default)]
-pub struct SystemQueries;
-
-#[Object]
-impl SystemQueries {
-    /// Placeholder until the domain queries are merged in.
-    async fn ping(&self) -> bool {
-        true
-    }
-}
-
-#[derive(Default)]
-pub struct SystemMutations;
-
-#[Object]
-impl SystemMutations {
-    /// Placeholder until the domain mutations are merged in.
-    async fn noop(&self) -> bool {
-        true
-    }
-}
 
 #[derive(Debug, Clone, SimpleObject)]
 pub struct ServerLogEvent {

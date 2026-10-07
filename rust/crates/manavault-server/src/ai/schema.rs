@@ -40,9 +40,20 @@ impl DeckAnalysisJob {
         self.0.status.as_str()
     }
 
-    // TODO(integration): `deck: Deck!` resolves the `Deck` of
-    // `self.0.deck_id`, read after the status so a completed job always
-    // includes its saved analysis.
+    /// Read after the status (`DeckFields.deck_analysis_job_deck/3`), so a
+    /// completed job always includes its saved analysis.
+    async fn deck(&self, ctx: &Context<'_>) -> Result<crate::decks::Deck> {
+        load_deck(ctx, self.0.deck_id).await
+    }
+}
+
+/// The GraphQL `Deck` by raw id; a deck deleted meanwhile is "Deck was not
+/// found." (Elixir's `get_deck!/1` raised).
+async fn load_deck(ctx: &Context<'_>, id: i64) -> Result<crate::decks::Deck> {
+    crate::decks::Deck::load(&state(ctx).db, crate::decks::DeckId(id))
+        .await
+        .map_err(internal_error)?
+        .ok_or_else(|| user_error(DECK_NOT_FOUND))
 }
 
 /// `DeckQuestionAnswer`.
@@ -133,12 +144,21 @@ pub struct DeckSwapContextInput {
     pub adds: Vec<String>,
 }
 
-#[derive(SimpleObject)]
+/// `AnalyzeDeckPayload`: the analyzed deck and its job.
 pub struct AnalyzeDeckPayload {
-    // TODO(integration): `deck: Deck` (the analyzed deck, `deck_id` here).
-    #[graphql(skip)]
     pub deck_id: i64,
     pub job: Option<DeckAnalysisJob>,
+}
+
+#[Object]
+impl AnalyzeDeckPayload {
+    async fn deck(&self, ctx: &Context<'_>) -> Result<Option<crate::decks::Deck>> {
+        load_deck(ctx, self.deck_id).await.map(Some)
+    }
+
+    async fn job(&self) -> Option<&DeckAnalysisJob> {
+        self.job.as_ref()
+    }
 }
 
 #[derive(SimpleObject)]

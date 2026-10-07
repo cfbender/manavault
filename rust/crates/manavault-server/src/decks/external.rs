@@ -29,7 +29,7 @@ use crate::db;
 use crate::decks::cards::{self, DeckCardChanges};
 use crate::decks::model::{DeckCardRow, DeckId, DeckRow, DeckStatus, ExternalSource, load_deck_on};
 use crate::decks::records::get_deck;
-use crate::decks::{DeckError, allocations, ensure_deck_editable};
+use crate::decks::{DeckError, ensure_deck_editable};
 use crate::jobs::{Job, Outcome, Unique, Worker};
 use crate::state::AppState;
 use crate::timefmt;
@@ -360,8 +360,14 @@ async fn resolve_entries(
     Ok((desired, unresolved))
 }
 
+/// Whether the card holds reserved collection copies.
 async fn holds_copies(conn: &mut SqliteConnection, row: &DeckCardRow) -> Result<bool, sqlx::Error> {
-    Ok(allocations::physical_quantity(conn, row.id).await? > 0)
+    sqlx::query_scalar!(
+        r#"SELECT EXISTS (SELECT 1 FROM deck_allocations WHERE deck_card_id = ?1) AS "held!: bool""#,
+        row.id
+    )
+    .fetch_one(conn)
+    .await
 }
 
 /// Remote printing and finish changes, for cards that hold no copies.
@@ -431,7 +437,7 @@ async fn apply_entries(
             let updated =
                 cards::write_import_row(conn, deck_id, &row.oracle_id, Some(row), &changes).await?;
             if updated.quantity < row.quantity {
-                allocations::trim(conn, row.id).await?;
+                manavault_allocation::trim_deck_card_allocations(conn, row.id).await?;
             }
         } else if let Some(row) = moved.get(key) {
             let mut changes = printing_changes(
@@ -451,9 +457,9 @@ async fn apply_entries(
             let updated =
                 cards::write_import_row(conn, deck_id, &row.oracle_id, Some(row), &changes).await?;
             if wanted.zone == Zone::Considering {
-                allocations::clear(conn, row.id).await?;
+                manavault_allocation::clear_deck_card_allocations(conn, row.id).await?;
             } else if updated.quantity < row.quantity {
-                allocations::trim(conn, row.id).await?;
+                manavault_allocation::trim_deck_card_allocations(conn, row.id).await?;
             }
         } else {
             let changes = DeckCardChanges {

@@ -653,7 +653,7 @@ pub(crate) async fn normalize(
                 salt: entry_number(rec.entry, "salt").and_then(|n| n.as_f64()),
                 edhrec_url: Some(format!("https://edhrec.com/cards/{}", card_slug(&rec.name))),
                 card: suggested.local_card.cloned().map(Card::from),
-                collection_status: status.into(),
+                collection_status: status,
             })
             .collect()
     };
@@ -690,7 +690,7 @@ pub(crate) async fn normalize(
                             format!("https://edhrec.com/cards/{}", card_slug(&card.name)),
                         )),
                         card: suggested.local_card.cloned().map(Card::from),
-                        collection_status: status.into(),
+                        collection_status: status,
                     })
                     .collect(),
             })

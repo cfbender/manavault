@@ -4,12 +4,12 @@
 use std::sync::Arc;
 
 use async_graphql::{Context, ID, Object};
+use manavault_allocation::{AllocationState, AllocationStatus, StatusInput, Zone};
 use sqlx::SqlitePool;
 use tokio::sync::OnceCell;
 
 use crate::catalog::card::{Card, CardRecord};
 use crate::catalog::printing::Printing;
-use crate::decks::allocations::{self, AllocationStatus, StatusInput};
 use crate::decks::contents::{self, DeckContents, LoadedDeckCard};
 use crate::decks::legality::{DeckLegality as Legality, LegalityIssue};
 use crate::decks::model::{
@@ -78,7 +78,7 @@ fn iso(value: Option<&String>) -> Option<String> {
 #[Object(name = "Deck")]
 impl Deck {
     /// The ID of an object
-    async fn id(&self) -> ID {
+    pub async fn id(&self) -> ID {
         global_id(NodeKind::Deck, self.row.id.0)
     }
 
@@ -251,10 +251,17 @@ impl DeckCard {
         let mut tag_ids = crate::decks::tags::tag_ids_by_deck_card(pool, &ids).await?;
         let inputs: Vec<StatusInput> = cards
             .iter()
-            .map(|card| StatusInput::of(&card.row, card.card.is_basic_land()))
+            .map(|card| StatusInput {
+                id: card.row.id,
+                oracle_id: card.row.oracle_id.clone(),
+                preferred_printing_id: card.row.preferred_printing_id.clone(),
+                quantity: card.row.quantity,
+                proxy_quantity: card.row.proxy_quantity,
+                basic_land: card.card.is_basic_land(),
+            })
             .collect();
         let mut conn = pool.acquire().await?;
-        let statuses = allocations::statuses(&mut conn, &inputs).await?;
+        let statuses = manavault_allocation::statuses_in(&mut conn, &inputs).await?;
         Ok(cards
             .into_iter()
             .zip(statuses)
@@ -307,7 +314,7 @@ impl DeckCard {
 #[Object(name = "DeckCard")]
 impl DeckCard {
     /// The ID of an object
-    async fn id(&self) -> ID {
+    pub async fn id(&self) -> ID {
         global_id(NodeKind::DeckCard, self.row.id.0)
     }
 
@@ -352,58 +359,171 @@ impl DeckCard {
     }
 
     async fn allocation_status(&self) -> DeckCardAllocationStatus {
-        DeckCardAllocationStatus(self.allocation_status.clone())
+        DeckCardAllocationStatus::new(self.allocation_status.clone())
     }
 }
 
 crate::connection_types!(DeckConnection, DeckEdge, Deck);
 crate::connection_types!(DeckCardConnection, DeckCardEdge, DeckCard);
 
-/// `DeckCardAllocationStatus`.
-#[derive(Debug, Clone)]
-pub struct DeckCardAllocationStatus(pub AllocationStatus);
+/// `DeckCardAllocationStatus`: a deck card's allocation status, or a
+/// suggested card's collection status (EDHREC, Recommander), presented with
+/// the Elixir status maps' `state` strings.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeckCardAllocationStatus {
+    pub status: AllocationStatus,
+    state: &'static str,
+    deck_zone: Option<Zone>,
+}
+
+/// The `state` strings of the Elixir status maps.
+#[must_use]
+pub fn state_name(state: AllocationState) -> &'static str {
+    match state {
+        AllocationState::BasicLand => "basic_land",
+        AllocationState::Allocated => "allocated",
+        AllocationState::Available => "available",
+        AllocationState::Partial => "partial",
+        AllocationState::Missing => "missing",
+    }
+}
+
+impl DeckCardAllocationStatus {
+    #[must_use]
+    pub fn new(status: AllocationStatus) -> Self {
+        Self {
+            state: state_name(status.state),
+            status,
+            deck_zone: None,
+        }
+    }
+
+    /// A suggested card that is already in the deck: its deck card's status,
+    /// presented as `allocated` with the zone it sits in
+    /// (`EDHRec.Response.CollectionStatus.status/2`).
+    #[must_use]
+    pub fn in_deck(status: AllocationStatus, zone: Zone) -> Self {
+        Self {
+            status,
+            state: "allocated",
+            deck_zone: Some(zone),
+        }
+    }
+
+    /// A suggested card that is not in the local catalog.
+    #[must_use]
+    pub fn unknown_card() -> Self {
+        Self::new(AllocationStatus {
+            state: AllocationState::Missing,
+            required: 1,
+            owned: 0,
+            allocated: 0,
+            proxy_allocated: 0,
+            available: 0,
+            allocated_elsewhere: 0,
+            missing: 1,
+            candidates: Vec::new(),
+        })
+    }
+
+    /// A deck card on a public share page, which hides the owner's
+    /// collection (`PublicShareTypes`' `state: "shared"`).
+    #[must_use]
+    pub fn shared(required: u32) -> Self {
+        Self {
+            status: AllocationStatus {
+                state: AllocationState::Missing,
+                required,
+                owned: 0,
+                allocated: 0,
+                proxy_allocated: 0,
+                available: 0,
+                allocated_elsewhere: 0,
+                missing: 0,
+                candidates: Vec::new(),
+            },
+            state: "shared",
+            deck_zone: None,
+        }
+    }
+
+    #[must_use]
+    pub fn state_str(&self) -> &'static str {
+        self.state
+    }
+}
 
 #[Object(name = "DeckCardAllocationStatus")]
 impl DeckCardAllocationStatus {
     async fn state(&self) -> &str {
-        self.0.state.as_str()
+        self.state
     }
 
     async fn required(&self) -> i64 {
-        i64::from(self.0.required)
+        i64::from(self.status.required)
     }
 
     async fn owned(&self) -> i64 {
-        i64::from(self.0.owned)
+        i64::from(self.status.owned)
     }
 
     async fn allocated(&self) -> i64 {
-        i64::from(self.0.allocated)
+        i64::from(self.status.allocated)
     }
 
     async fn proxy_allocated(&self) -> i64 {
-        i64::from(self.0.proxy_allocated)
+        i64::from(self.status.proxy_allocated)
     }
 
     async fn available(&self) -> i64 {
-        i64::from(self.0.available)
+        i64::from(self.status.available)
     }
 
     async fn allocated_elsewhere(&self) -> i64 {
-        i64::from(self.0.allocated_elsewhere)
+        i64::from(self.status.allocated_elsewhere)
     }
 
     async fn missing(&self) -> i64 {
-        i64::from(self.0.missing)
+        i64::from(self.status.missing)
     }
 
     async fn deck_zone(&self) -> Option<&str> {
-        self.0.deck_zone.map(lotus::Zone::as_str)
+        self.deck_zone.map(Zone::as_str)
     }
 
-    // TODO(integration): `candidates: [DeckCardAllocationCandidate!]!` needs
-    // the collection module's `CollectionItem` type; `self.0.candidates`
-    // already holds each candidate's item id and counts.
+    /// Matching collection items, the preferred printing first. Their
+    /// `CollectionItem`s load in one batch across the request.
+    async fn candidates(&self, ctx: &Context<'_>) -> Result<Vec<DeckCardAllocationCandidate>> {
+        let ids: Vec<i64> = self
+            .status
+            .candidates
+            .iter()
+            .map(|candidate| candidate.item.id.0)
+            .collect();
+        let mut items = crate::collection::loader::items(ctx, &ids).await?;
+        Ok(self
+            .status
+            .candidates
+            .iter()
+            .filter_map(|candidate| {
+                Some(DeckCardAllocationCandidate {
+                    item: items.remove(&candidate.item.id.0)?,
+                    allocated: i64::from(candidate.allocated),
+                    allocated_elsewhere: i64::from(candidate.allocated_elsewhere),
+                    available: i64::from(candidate.available),
+                })
+            })
+            .collect())
+    }
+}
+
+/// `DeckCardAllocationCandidate`.
+#[derive(Clone, async_graphql::SimpleObject)]
+pub struct DeckCardAllocationCandidate {
+    pub item: crate::collection::item::CollectionItem,
+    pub allocated: i64,
+    pub allocated_elsewhere: i64,
+    pub available: i64,
 }
 
 /// `DeckLegality`.

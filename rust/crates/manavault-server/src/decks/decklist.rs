@@ -14,12 +14,19 @@ use crate::decks::contents::LoadedDeckCard;
 use crate::decks::model::{DeckCardRow, DeckId, load_deck_on, parse_zone};
 use crate::decks::{DeckError, ensure_decklist_editable};
 
-static CARD_LINE: LazyLock<Option<Regex>> =
-    LazyLock::new(|| Regex::new(r"(?i)^\s*(?:(\d+)\s*x?\s+)?(.+?)\s*$").ok());
-static PRINTING: LazyLock<Option<Regex>> =
-    LazyLock::new(|| Regex::new(r"^(.+?)\s+\(([A-Za-z0-9]+)\)\s+([^\s]+)\s*$").ok());
-static FOIL: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"(?i)\*F\*\s*$").ok());
-static ETCHED: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"(?i)\*E\*\s*$").ok());
+// The line, printing, and finish patterns have no `u` flag in Elixir, so
+// `\d` and `\s` are ASCII there; `(?-u:...)` keeps them ASCII here. The
+// comment pattern and `\R` line breaks are Unicode-aware in both.
+static LINE_BREAK: LazyLock<Option<Regex>> =
+    LazyLock::new(|| Regex::new("\r\n|[\n\u{0B}\u{0C}\r\u{85}\u{2028}\u{2029}]").ok());
+static CARD_LINE: LazyLock<Option<Regex>> = LazyLock::new(|| {
+    Regex::new(r"(?i)^(?-u:\s)*(?:((?-u:\d)+)(?-u:\s)*x?(?-u:\s)+)?(.+?)(?-u:\s)*$").ok()
+});
+static PRINTING: LazyLock<Option<Regex>> = LazyLock::new(|| {
+    Regex::new(r"^(.+?)(?-u:\s)+\(([A-Za-z0-9]+)\)(?-u:\s)+([^\t\n\x0B\x0C\r ]+)(?-u:\s)*$").ok()
+});
+static FOIL: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"(?i)\*F\*(?-u:\s)*$").ok());
+static ETCHED: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"(?i)\*E\*(?-u:\s)*$").ok());
 static COMMENT: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"\s+#.*$").ok());
 
 fn matches(re: &LazyLock<Option<Regex>>, text: &str) -> bool {
@@ -54,11 +61,13 @@ fn strip_comment(line: &str) -> String {
     }
 }
 
-/// `Util.parse_quantity/1` on the line's digits.
+/// `Util.parse_quantity/1` on the line's digits. Elixir integers have no
+/// upper bound, so a count beyond `i64` saturates (and then fails the deck
+/// card's quantity limit) instead of becoming 1.
 fn parse_quantity(digits: Option<&str>) -> i64 {
     match digits {
         None | Some("") => 1,
-        Some(digits) => digits.parse().unwrap_or(1),
+        Some(digits) => digits.parse().unwrap_or(i64::MAX),
     }
 }
 
@@ -106,7 +115,8 @@ fn parse_card_line(line: &str, zone: &str) -> Option<RawEntry> {
 /// `Decklists.parse/2`: headings switch zones, `SB:` lines are considering,
 /// `#` starts a comment, and repeated lines for the same card, zone,
 /// printing, and finish collapse to the largest quantity. `zone` overrides
-/// every line's zone.
+/// every line's zone. This is the one pasted-decklist parser: deck imports,
+/// trade lists (`trade::list_source::text`), and list analysis use it.
 pub async fn parse(
     pool: &SqlitePool,
     text: &str,
@@ -114,7 +124,11 @@ pub async fn parse(
 ) -> Result<Vec<DecklistEntry>, sqlx::Error> {
     let mut current = "mainboard";
     let mut raw = Vec::new();
-    for line in text.lines() {
+    let lines: Vec<&str> = match LINE_BREAK.as_ref() {
+        Some(pattern) => pattern.split(text).collect(),
+        None => text.lines().collect(),
+    };
+    for line in lines {
         let line = strip_comment(line.trim());
         if line.is_empty() {
             continue;
@@ -360,5 +374,47 @@ mod tests {
         .await
         .unwrap();
         assert!(overridden.iter().all(|e| e.zone == "mainboard"));
+    }
+    /// The cases the trade and AI copies of the parser covered: `\R` line
+    /// breaks (a lone `\r`, U+2028), `[SET]` suffixes, `(SET) 123` printing
+    /// lookups, and ASCII-only quantities.
+    #[tokio::test]
+    async fn parses_line_breaks_printings_and_quantities_like_elixir() {
+        let app = crate::test_support::TestApp::new().await;
+        app.import_cards(&[crate::test_support::fixtures::black_lotus()])
+            .await;
+        let text = "Commander\r1 Test Commander\r\n\nMainboard:\u{2028}2x Plains # basics\n3 plains\n4 Black Lotus (LEA) 232\nSol Ring *F*\nSB: Island\nMaybe\n1 Opt [M21]\n\u{0663} Unicode Digit\n99999999999999999999 Huge";
+        let entries = parse(app.db(), text, None).await.unwrap();
+        let summary: Vec<(i64, &str, &str, Finish, bool)> = entries
+            .iter()
+            .map(|e| {
+                (
+                    e.quantity,
+                    e.name.as_str(),
+                    e.zone.as_str(),
+                    e.finish,
+                    e.preferred_printing_id.is_some(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            summary,
+            vec![
+                (1, "Test Commander", "commander", Finish::Nonfoil, false),
+                (3, "Plains", "mainboard", Finish::Nonfoil, false),
+                (4, "Black Lotus", "mainboard", Finish::Nonfoil, true),
+                (1, "Sol Ring", "mainboard", Finish::Foil, false),
+                (1, "Island", "considering", Finish::Nonfoil, false),
+                (1, "Opt", "considering", Finish::Nonfoil, false),
+                (
+                    1,
+                    "\u{0663} Unicode Digit",
+                    "considering",
+                    Finish::Nonfoil,
+                    false
+                ),
+                (i64::MAX, "Huge", "considering", Finish::Nonfoil, false),
+            ]
+        );
     }
 }

@@ -1,6 +1,8 @@
 //! Batched collection loads for GraphQL resolvers (the collection parts of
 //! `Manavault.Catalog.Dataloader`): deck allocations per item, owned copies
-//! per card, location value summaries, and location cover printings.
+//! per card, location value summaries, location cover printings, collection
+//! items by id (allocation candidates, bulk allocation previews), and the
+//! decks items are allocated to.
 //!
 //! Resolvers fall back to direct queries when no loader is registered.
 
@@ -13,7 +15,9 @@ use lotus::{OracleId, ScryfallId};
 use sqlx::SqlitePool;
 
 use crate::catalog::printing::Printing;
+use crate::collection::item::CollectionItem;
 use crate::collection::queries::{self, ItemAllocations, ValueTotals};
+use crate::decks::model::{DeckId, DeckRow, load_decks};
 
 /// Loads collection aggregates in batches.
 pub struct CollectionLoader {
@@ -35,6 +39,14 @@ pub struct LocationTotalsKey(pub i64);
 /// A printing (with its card) by Scryfall id.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PrintingKey(pub ScryfallId);
+
+/// A collection item (with its printing, card, and location) by id.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ItemKey(pub i64);
+
+/// A deck row by id.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct DeckKey(pub DeckId);
 
 /// Database errors, shareable across the waiting resolvers.
 pub type LoadError = Arc<sqlx::Error>;
@@ -107,6 +119,36 @@ impl Loader<PrintingKey> for CollectionLoader {
             .map_err(Arc::new)?
             .into_iter()
             .map(|(id, printing)| (PrintingKey(id), printing))
+            .collect())
+    }
+}
+
+impl Loader<ItemKey> for CollectionLoader {
+    type Value = CollectionItem;
+    type Error = LoadError;
+
+    async fn load(&self, keys: &[ItemKey]) -> Result<HashMap<ItemKey, Self::Value>, Self::Error> {
+        let ids: Vec<i64> = keys.iter().map(|key| key.0).collect();
+        Ok(CollectionItem::load_many(&self.pool, &ids)
+            .await
+            .map_err(Arc::new)?
+            .into_iter()
+            .map(|(id, item)| (ItemKey(id), item))
+            .collect())
+    }
+}
+
+impl Loader<DeckKey> for CollectionLoader {
+    type Value = Arc<DeckRow>;
+    type Error = LoadError;
+
+    async fn load(&self, keys: &[DeckKey]) -> Result<HashMap<DeckKey, Self::Value>, Self::Error> {
+        let ids: Vec<DeckId> = keys.iter().map(|key| key.0).collect();
+        Ok(load_decks(&self.pool, &ids)
+            .await
+            .map_err(Arc::new)?
+            .into_iter()
+            .map(|(id, deck)| (DeckKey(id), Arc::new(deck)))
             .collect())
     }
 }
@@ -190,5 +232,40 @@ pub async fn printing(
         None => Printing::load(pool(ctx), scryfall_id)
             .await
             .map_err(crate::graphql::internal_error),
+    }
+}
+
+/// Collection items by id, batched across the request; missing ids are
+/// absent from the map.
+pub async fn items(
+    ctx: &Context<'_>,
+    ids: &[i64],
+) -> async_graphql::Result<HashMap<i64, CollectionItem>> {
+    match loader(ctx) {
+        Some(loader) => Ok(loader
+            .load_many(ids.iter().copied().map(ItemKey))
+            .await
+            .map_err(crate::graphql::internal_error)?
+            .into_iter()
+            .map(|(key, item)| (key.0, item))
+            .collect()),
+        None => CollectionItem::load_many(pool(ctx), ids)
+            .await
+            .map_err(crate::graphql::internal_error),
+    }
+}
+
+/// A deck row by id, batched across the request.
+pub async fn deck(ctx: &Context<'_>, id: DeckId) -> async_graphql::Result<Option<Arc<DeckRow>>> {
+    match loader(ctx) {
+        Some(loader) => loader
+            .load_one(DeckKey(id))
+            .await
+            .map_err(crate::graphql::internal_error),
+        None => Ok(load_decks(pool(ctx), &[id])
+            .await
+            .map_err(crate::graphql::internal_error)?
+            .remove(&id)
+            .map(Arc::new)),
     }
 }

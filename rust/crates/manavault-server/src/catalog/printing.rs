@@ -334,7 +334,7 @@ pub fn primary_printing(printings: &[Printing]) -> Option<&Printing> {
 #[Object]
 impl Printing {
     /// The ID of an object
-    async fn id(&self) -> ID {
+    pub async fn id(&self) -> ID {
         global_id(NodeKind::Printing, &self.record.scryfall_id)
     }
 

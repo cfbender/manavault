@@ -10,7 +10,6 @@ pub mod analyze_deck_list;
 pub mod answer_deck_question;
 pub mod deck_analysis;
 pub mod deck_question;
-pub mod deck_source;
 pub mod decks;
 pub mod openrouter;
 mod prompt_text;

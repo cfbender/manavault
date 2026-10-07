@@ -1,15 +1,12 @@
-//! The deck rows AI features read and write, straight from SQL.
-//!
-//! TODO(integration): the decks port owns `Catalog.get_deck!/1`,
-//! `deck_cards/1`, and `save_deck_analysis/2`; switch to its functions (and
-//! its deck cache invalidation, if it keeps one) once both are merged.
+//! The deck rows AI features read and write: decks and their cards through
+//! the decks module, plus the analysis columns only AI writes
+//! (`Catalog.save_deck_analysis/2`). The Rust decks module keeps no deck
+//! cache, so saving needs no invalidation.
 
-use std::collections::HashMap;
-
-use lotus::{OracleId, Zone};
+use lotus::Zone;
 use sqlx::SqlitePool;
 
-use crate::catalog::card::{CardRecord, load_records};
+use crate::catalog::card::CardRecord;
 use crate::timefmt;
 
 /// The deck fields prompts use.
@@ -39,27 +36,16 @@ impl DeckCardInput {
 
 /// `Catalog.get_deck/1`.
 pub async fn get(pool: &SqlitePool, id: i64) -> Result<Option<DeckInfo>, sqlx::Error> {
-    sqlx::query_as!(
-        DeckInfo,
-        r#"SELECT id AS "id!", name, format, primer FROM decks WHERE id = ?1"#,
-        id
+    Ok(
+        crate::decks::model::load_deck(pool, crate::decks::DeckId(id))
+            .await?
+            .map(|deck| DeckInfo {
+                id: deck.id.0,
+                name: deck.name,
+                format: deck.format.as_str().to_owned(),
+                primer: deck.primer,
+            }),
     )
-    .fetch_optional(pool)
-    .await
-}
-
-/// A deck's id and name by share token (`Catalog.get_deck_by_share_token/1`).
-pub async fn by_share_token(
-    pool: &SqlitePool,
-    token: &str,
-) -> Result<Option<DeckInfo>, sqlx::Error> {
-    sqlx::query_as!(
-        DeckInfo,
-        r#"SELECT id AS "id!", name, format, primer FROM decks WHERE share_token = ?1 LIMIT 1"#,
-        token
-    )
-    .fetch_optional(pool)
-    .await
 }
 
 /// Every deck id, in `Catalog.list_decks/0` order (name, then id).
@@ -70,37 +56,20 @@ pub async fn list_ids(pool: &SqlitePool) -> Result<Vec<i64>, sqlx::Error> {
 }
 
 /// A deck's cards with their catalog cards, ordered by zone, card name, and
-/// id like `Decks.Preloads`. Rows in an unknown zone are skipped; they never
-/// count toward the deck.
+/// id like `Decks.Preloads` (`Catalog.deck_cards/1`).
 pub async fn deck_cards(
     pool: &SqlitePool,
     deck_id: i64,
 ) -> Result<Vec<DeckCardInput>, sqlx::Error> {
-    let rows = sqlx::query!(
-        r#"SELECT dc.oracle_id AS "oracle_id!: OracleId", dc.quantity, dc.zone
-           FROM deck_cards AS dc JOIN scryfall_cards AS c ON c.oracle_id = dc.oracle_id
-           WHERE dc.deck_id = ?1
-           ORDER BY dc.zone ASC, c.name ASC, dc.id ASC"#,
-        deck_id
-    )
-    .fetch_all(pool)
-    .await?;
-    let mut ids: Vec<OracleId> = rows.iter().map(|row| row.oracle_id.clone()).collect();
-    ids.sort();
-    ids.dedup();
-    let cards: HashMap<OracleId, CardRecord> = load_records(pool, &ids)
-        .await?
-        .into_iter()
-        .map(|card| (card.oracle_id.clone(), card))
-        .collect();
-    Ok(rows
-        .into_iter()
-        .filter_map(|row| {
-            Some(DeckCardInput {
-                card: cards.get(&row.oracle_id)?.clone(),
-                quantity: row.quantity,
-                zone: Zone::parse(&row.zone)?,
-            })
+    let contents =
+        crate::decks::contents::load_deck_contents(pool, crate::decks::DeckId(deck_id)).await?;
+    Ok(contents
+        .cards
+        .iter()
+        .map(|card| DeckCardInput {
+            card: card.card.as_ref().clone(),
+            quantity: card.row.quantity.as_i64(),
+            zone: card.row.zone,
         })
         .collect())
 }

@@ -353,7 +353,7 @@ pub async fn owned_token_counts(
 #[Object]
 impl TokenItem {
     /// The ID of an object
-    async fn id(&self) -> ID {
+    pub async fn id(&self) -> ID {
         global_id(NodeKind::TokenItem, self.record.id)
     }
 

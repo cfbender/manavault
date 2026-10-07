@@ -281,10 +281,8 @@ impl CollectionMutations {
         }))
     }
 
-    // TODO(integration): `addCollectionItemToDeck(id: ID!, deckId: ID!, zone: String):
-    // AddCollectionItemToDeckPayload` and `bulkAddCollectionItemsToDeck(selector:
-    // CollectionItemSelector!, deckId: ID!, zone: String): BulkAddCollectionItemsToDeckPayload`
-    // belong here (`AllocationResolvers`); use `inputs::selected_ids` for the selector.
+    // `addCollectionItemToDeck` and `bulkAddCollectionItemsToDeck` are with
+    // the other allocation mutations in `deck_intel::allocations`.
 
     async fn update_collection_auto_sort_rules(
         &self,

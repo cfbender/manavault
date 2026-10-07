@@ -9,7 +9,7 @@
 | `AI.AnalyzeDeck` (`enqueue`, `latest_job`, `run`, `refresh_all`, `analyze_payload`) | `ai::analyze_deck` |
 | `AI.DeckAnalysis`, `DeckAnalysis.Payload`, `.Prompt`, `.Result` (bracket rating) | `ai::deck_analysis::{payload, prompt, result}`; prompt texts in `ai::prompt_text` (copied verbatim from the heredocs) |
 | `AI.AnalyzeDeckList` | `ai::analyze_deck_list` |
-| `Trade.Lists.resolve/1` / `ListSource` + `Catalog.Decklists.parse/2` (the parts list analysis needs) | `ai::deck_source` (see Overlap) |
+| `Trade.Lists.resolve/1` / `ListSource` + `Catalog.Decklists.parse/2` (the parts list analysis needs) | `trade::list_source::resolve` since integration (`ai::deck_source` was removed; see `integration.md`) |
 | `AI.DeckAnalysisRequest`, `AI.ListDeckAnalysisRequests` | `ai::requests` |
 | `AI.DeckQuestion` | `ai::deck_question` |
 | `AI.AnswerDeckQuestion` | `ai::answer_deck_question` |

@@ -1703,12 +1703,16 @@ async fn graphql_settings_analysis_lists_and_questions_use_ai_without_exposing_t
 
     let analyzed = app
         .gql_data(
-            "mutation AnalyzeDeck($id: ID!) { analyzeDeck(id: $id) { job { id status } } }",
+            "mutation AnalyzeDeck($id: ID!) { analyzeDeck(id: $id) { job { id status } deck { id aiAnalysis } } }",
             json!({"id": deck_global_id}),
         )
         .await;
     let job_id = analyzed["analyzeDeck"]["job"]["id"].clone();
     assert_eq!(analyzed["analyzeDeck"]["job"]["status"], "pending");
+    assert_eq!(
+        analyzed["analyzeDeck"]["deck"],
+        json!({"id": deck_global_id, "aiAnalysis": null})
+    );
     assert_eq!(completion_requests(&server).await, Vec::<Value>::new());
     let job_row: (String, String) =
         sqlx::query_as("SELECT worker, args FROM oban_jobs WHERE id = ?1")
@@ -1734,13 +1738,39 @@ async fn graphql_settings_analysis_lists_and_questions_use_ai_without_exposing_t
 
     let progress = app
         .gql_data(
-            "query DeckAnalysisJob($id: ID!) { deckAnalysisJob(deckId: $id) { id status } }",
+            r"query DeckAnalysisJob($id: ID!) {
+                 deckAnalysisJob(deckId: $id) {
+                   id status
+                   deck {
+                     id aiAnalysis aiAnalysisModel aiAnalyzedAt
+                     commanderBracket commanderBracketEstimate commanderBracketRating
+                   }
+                 }
+               }",
             json!({"id": deck_global_id}),
         )
         .await;
+    let job = &progress["deckAnalysisJob"];
     assert_eq!(
-        progress["deckAnalysisJob"],
-        json!({"id": job_id, "status": "completed"})
+        (&job["id"], job["status"].as_str()),
+        (&job_id, Some("completed"))
+    );
+    let job_deck = &job["deck"];
+    assert!(
+        job_deck["aiAnalysis"]
+            .as_str()
+            .unwrap()
+            .contains("**Bracket 3-**")
+    );
+    assert_eq!(job_deck["aiAnalysisModel"], "anthropic/claude-sonnet-4");
+    assert!(crate::timefmt::parse(job_deck["aiAnalyzedAt"].as_str().unwrap()).is_some());
+    assert_eq!(
+        (
+            job_deck["commanderBracket"].clone(),
+            job_deck["commanderBracketEstimate"].clone(),
+            job_deck["commanderBracketRating"].clone()
+        ),
+        (json!(3), json!(2), json!("3-"))
     );
     let deck: (String, String, i64, i64, String) = sqlx::query_as(
         "SELECT ai_analysis, ai_analysis_model, commander_bracket, commander_bracket_estimate, commander_bracket_rating FROM decks WHERE id = ?1",
@@ -2124,5 +2154,53 @@ async fn graphql_errors_match_the_elixir_messages() {
     assert_eq!(
         (stored.thread_id.as_deref(), stored.swap_context),
         (Some("t"), None)
+    );
+}
+
+/// `analyzeDeckList` links resolve through `Trade.Lists`, so host-less want
+/// list and trade binder links read this instance's shares (the AI port
+/// used to report them as unsupported).
+#[tokio::test]
+async fn deck_list_links_resolve_local_want_lists_and_binders_through_trade() {
+    use crate::trade::list_source::{UNSUPPORTED, local};
+    let app = TestApp::new().await;
+    insert_settings(&app, "anthropic/claude-sonnet-4", None).await;
+    let analyze = |url: String| {
+        let app = &app;
+        async move {
+            app.gql(
+                "mutation($url: String!) { analyzeDeckList(url: $url, format: \"commander\") { deckAnalysisRequest { id } } }",
+                json!({"url": url}),
+            )
+            .await["errors"][0]["message"]
+                .as_str()
+                .unwrap_or_default()
+                .to_owned()
+        }
+    };
+    let missing = "tokentokentokentokentoke";
+    assert_eq!(
+        analyze(format!("/share/wants/{missing}")).await,
+        local::WANTS_NOT_FOUND
+    );
+    assert_eq!(
+        analyze(format!("/share/binder/{missing}")).await,
+        local::BINDER_NOT_FOUND
+    );
+    assert_eq!(
+        analyze(format!("/share/decks/{missing}")).await,
+        local::DECK_NOT_FOUND
+    );
+    assert_eq!(
+        analyze("https://example.com/decks/1".to_owned()).await,
+        UNSUPPORTED
+    );
+    // An existing (empty) want list resolves; it just has no cards to analyze.
+    let token = crate::trade::share::ensure_token(app.db(), crate::trade::share::ShareKind::Wants)
+        .await
+        .unwrap();
+    assert_eq!(
+        analyze(format!("/share/wants/{token}")).await,
+        "The decklist does not contain any mainboard or commander cards."
     );
 }

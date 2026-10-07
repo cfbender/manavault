@@ -19,7 +19,7 @@ use crate::graphql::{NodeKind, Result, global_id, internal_error, state};
 #[Object]
 impl CollectionItem {
     /// The ID of an object
-    async fn id(&self) -> ID {
+    pub async fn id(&self) -> ID {
         global_id(NodeKind::CollectionItem, self.record.id)
     }
 
@@ -141,8 +141,13 @@ pub struct CollectionItemAllocationDeck {
 
 #[Object]
 impl CollectionItemAllocationDeck {
-    // TODO(integration): `deck: Deck!` — load the deck by `self.deck_id`
-    // (e.g. `Deck::load`) once the deck types exist.
+    /// The deck, loaded in one batch for every item on the page.
+    async fn deck(&self, ctx: &Context<'_>) -> Result<crate::decks::Deck> {
+        let deck = loader::deck(ctx, crate::decks::DeckId(self.deck_id))
+            .await?
+            .ok_or_else(|| crate::graphql::user_error("Deck was not found."))?;
+        Ok(crate::decks::Deck::new(deck.as_ref().clone()))
+    }
 
     async fn quantity(&self) -> i64 {
         self.quantity
@@ -249,7 +254,7 @@ impl Location {
 #[Object]
 impl Location {
     /// The ID of an object
-    async fn id(&self) -> ID {
+    pub async fn id(&self) -> ID {
         match &self.place {
             Place::Stored(record) => global_id(NodeKind::Location, record.id),
             Place::Unfiled => global_id(NodeKind::Location, "unfiled"),

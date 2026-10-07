@@ -4,6 +4,7 @@
 //! Each domain module contributes `Object` structs for its queries and
 //! mutations; they are merged into the Absinthe-named root types here.
 
+pub mod node;
 pub mod order;
 pub mod relay;
 pub mod scalars;
@@ -40,7 +41,7 @@ pub fn user_error(message: impl Into<String>) -> async_graphql::Error {
 #[derive(MergedObject, Default)]
 #[graphql(name = "RootQueryType")]
 pub struct Query(
-    system::SystemQueries,
+    node::NodeQueries,
     crate::catalog::CardQueries,
     crate::tokens::TokenQueries,
     crate::collection::CollectionQueries,
@@ -59,7 +60,6 @@ pub struct Query(
 #[derive(MergedObject, Default)]
 #[graphql(name = "RootMutationType")]
 pub struct Mutation(
-    system::SystemMutations,
     crate::tokens::TokenMutations,
     crate::collection::CollectionMutations,
     crate::pricing::graphql::PricingMutations,
@@ -70,6 +70,7 @@ pub struct Mutation(
     crate::backup::graphql::BackupMutations,
     crate::decks::DeckMutations,
     crate::deck_intel::DeckIntelMutations,
+    crate::deck_intel::AllocationMutations,
     crate::trade::TradeMutations,
     crate::ai::AiMutations,
 );

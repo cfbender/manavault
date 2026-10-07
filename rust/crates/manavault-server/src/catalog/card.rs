@@ -290,7 +290,7 @@ pub fn legality_entries(legalities: &str) -> Vec<CardLegality> {
 #[Object]
 impl Card {
     /// The ID of an object
-    async fn id(&self) -> ID {
+    pub async fn id(&self) -> ID {
         global_id(NodeKind::Card, &self.record.oracle_id)
     }
 

@@ -387,7 +387,8 @@ async fn reduce_or_delete(
         ..DeckCardChanges::default()
     };
     cards::update_in(conn, pool, row, &changes).await?;
-    crate::decks::allocations::trim(conn, row.id).await
+    manavault_allocation::trim_deck_card_allocations(conn, row.id).await?;
+    Ok(())
 }
 
 async fn add_copies(

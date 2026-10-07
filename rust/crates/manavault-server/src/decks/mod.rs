@@ -4,10 +4,10 @@
 //! `ManavaultWeb.Schema.Catalog`).
 //!
 //! Allocation workflows (allocate, buylists, disassembly, bulk allocation)
-//! live elsewhere; deck edits here keep allocations consistent through
-//! [`allocations`].
+//! live in `manavault_allocation`; deck edits here keep allocations
+//! consistent with its functions that run in the caller's transaction
+//! (clearing, trimming, and switching to a new preferred printing).
 
-pub mod allocations;
 pub mod cards;
 pub mod commander;
 pub mod contents;
@@ -24,7 +24,7 @@ pub mod tags;
 pub mod validation;
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 pub use contents::{DeckContents, DeckSummary, LoadedDeckCard, deck_summaries};
 pub use model::{DeckCardId, DeckCardRow, DeckId, DeckRow};
@@ -78,6 +78,21 @@ impl DeckError {
             Self::CardNotFound => Some("card_not_found"),
             Self::Code(code) => Some(code),
             Self::DeckNotFound | Self::Message(_) | Self::Invalid(_) | Self::Db(_) => None,
+        }
+    }
+}
+
+impl From<manavault_allocation::AllocationError> for DeckError {
+    /// Allocation failures inside a deck edit keep their Elixir error atom.
+    fn from(error: manavault_allocation::AllocationError) -> Self {
+        use manavault_allocation::AllocationError;
+        match error {
+            AllocationError::Database(error) => Self::Db(error),
+            AllocationError::DeckNotFound => Self::DeckNotFound,
+            AllocationError::DeckCardNotFound => Self::NotFound,
+            AllocationError::DeckArchived => Self::DeckArchived,
+            AllocationError::DeckLinked => Self::DeckLinked,
+            other => Self::Code(other.code()),
         }
     }
 }

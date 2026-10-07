@@ -10,7 +10,7 @@ use crate::decks::model::{
 use crate::decks::validation::{
     self, BLANK, Change, Errors, INVALID, apply, at_least, cast_string, length, too_long,
 };
-use crate::decks::{DeckError, allocations, share_token, tags};
+use crate::decks::{DeckError, share_token, tags};
 use crate::timefmt;
 
 /// Deck attributes from `DeckInput` / `DeckUpdateInput` (`Deck.changeset/2`).
@@ -238,7 +238,7 @@ pub async fn delete_deck(pool: &SqlitePool, id: DeckId) -> Result<DeckRow, DeckE
         .await?
         .ok_or(DeckError::DeckNotFound)?;
     for row in crate::decks::model::deck_card_rows(&mut tx, id).await? {
-        allocations::clear(&mut tx, row.id).await?;
+        manavault_allocation::clear_deck_card_allocations(&mut tx, row.id).await?;
         sqlx::query!("DELETE FROM deck_cards WHERE id = ?1", row.id)
             .execute(&mut *tx)
             .await?;

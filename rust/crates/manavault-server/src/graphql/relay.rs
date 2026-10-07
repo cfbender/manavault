@@ -49,7 +49,9 @@ impl NodeKind {
         }
     }
 
-    fn from_type_name(name: &str) -> Option<Self> {
+    /// The node kind a global id's type name names.
+    #[must_use]
+    pub fn from_type_name(name: &str) -> Option<Self> {
         [
             Self::Card,
             Self::Printing,
@@ -70,24 +72,30 @@ pub fn global_id(kind: NodeKind, id: impl std::fmt::Display) -> ID {
     ID(STANDARD.encode(format!("{}:{id}", kind.type_name())))
 }
 
-/// `Absinthe.Relay.Node.from_global_id/2`: the node kind and raw id.
-pub fn from_global_id(id: &str) -> Result<(NodeKind, String), String> {
+/// `Absinthe.Relay.Node.IDTranslator.Base64.from_global_id/2`: the type
+/// name and raw id of a global id, whatever the type.
+pub fn decode_global_id(id: &str) -> Result<(String, String), String> {
     let decoded = STANDARD
         .decode(id)
         .ok()
         .and_then(|bytes| String::from_utf8(bytes).ok())
         .ok_or_else(|| format!("Could not decode ID value `{id}'"))?;
-    let (type_name, raw) = match decoded.split_once(':') {
-        Some((type_name, raw)) if !type_name.is_empty() && !raw.is_empty() => (type_name, raw),
-        _ => {
-            return Err(format!(
-                "Could not extract value from decoded ID `{decoded:?}`"
-            ));
+    match decoded.split_once(':') {
+        Some((type_name, raw)) if !type_name.is_empty() && !raw.is_empty() => {
+            Ok((type_name.to_owned(), raw.to_owned()))
         }
-    };
-    let kind =
-        NodeKind::from_type_name(type_name).ok_or_else(|| format!("Unknown type `{type_name}'"))?;
-    Ok((kind, raw.to_owned()))
+        _ => Err(format!(
+            "Could not extract value from decoded ID `{decoded:?}`"
+        )),
+    }
+}
+
+/// `Absinthe.Relay.Node.from_global_id/2`: the node kind and raw id.
+pub fn from_global_id(id: &str) -> Result<(NodeKind, String), String> {
+    let (type_name, raw) = decode_global_id(id)?;
+    let kind = NodeKind::from_type_name(&type_name)
+        .ok_or_else(|| format!("Unknown type `{type_name}'"))?;
+    Ok((kind, raw))
 }
 
 fn expect_kind(id: &str, expected: NodeKind) -> Result<String, String> {
@@ -155,11 +163,25 @@ pub fn location_ref(id: &ID) -> async_graphql::Result<LocationRef> {
     Ok(LocationRef::Id(parse_int(&raw, NodeKind::Location)?))
 }
 
-/// Decodes the raw id for the `node(id:)` field: a global id of `kind`, or
-/// (Absinthe's fallback for undecodable ids) the value itself.
-#[must_use]
-pub fn node_field_raw(id: &str) -> Option<(NodeKind, String)> {
-    from_global_id(id).ok()
+/// `RelayHelpers.node_id/3` inside the `node(id:)` field, on the internal
+/// id the global id decoded to: a nested global id of `kind` is unwrapped
+/// (another kind is an error), and anything that does not decode is used
+/// as is.
+pub fn node_field_id(raw: &str, kind: NodeKind) -> Result<String, String> {
+    match from_global_id(raw) {
+        Ok((found, inner)) if found == kind => Ok(inner),
+        Ok((found, _)) => Err(format!(
+            "Expected {} ID, got {} ID",
+            kind.label(),
+            found.label()
+        )),
+        Err(_) => Ok(raw.to_owned()),
+    }
+}
+
+/// An integer node id (`coerce_node_id/2`): "Invalid internal … ID".
+pub fn parse_internal_id(raw: &str, kind: NodeKind) -> Result<i64, String> {
+    parse_int(raw, kind)
 }
 
 const CURSOR_PREFIX: &str = "arrayconnection:";

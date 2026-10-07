@@ -6,15 +6,17 @@
 //! module adds the catalog (prices, printings, card lookup), the third-party
 //! clients, and the GraphQL types of `ManavaultWeb.Schema.Catalog.DeckTypes`.
 
+pub mod allocations;
 pub mod buylist;
 pub mod edhrec;
 pub mod errors;
 pub mod recommander;
 pub mod schema;
 pub mod spellbook;
-pub mod status;
 mod suggest;
 
+#[cfg(test)]
+mod allocation_tests;
 #[cfg(test)]
 mod tests;
 
@@ -26,6 +28,7 @@ use sqlx::SqlitePool;
 
 use crate::catalog::printing::Printing;
 
+pub use allocations::AllocationMutations;
 pub use schema::{DeckIntelMutations, DeckIntelQueries};
 
 /// Third-party endpoints for deck features (overridden in tests). EDHREC

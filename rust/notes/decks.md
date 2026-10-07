@@ -9,7 +9,7 @@
 | `Decks.Records`, `Decks.Queries` (CRUD, counts, share-token reads), `DeckPicker.record_outcome/2` | `decks::records` |
 | `Decks.ShareToken` | `decks::share_token` |
 | `Decks.Cards`, `AddCardToDeck`, `UpdateDeckCard`, `UpdateDeckCards`, `DeleteDeckCard`, `SetDeckCommander`, `AddDeckPartner`, `EditGuard`, `FetchDeckRecords`, `Decks.Printings` | `decks::cards`, `decks::{ensure_deck_editable, ensure_decklist_editable}` |
-| `TrimDeckCardAllocations`, `ClearDeckCardAllocations`, `AllocationItems`, `DeckCardAllocation.allocate_available_preferred_printing_to_deck_card/2`, `AllocationStatus` (batched statuses) | `decks::allocations` (runs on the caller's transaction) |
+| `TrimDeckCardAllocations`, `ClearDeckCardAllocations`, `AllocationItems`, `DeckCardAllocation.allocate_available_preferred_printing_to_deck_card/2`, `AllocationStatus` (batched statuses) | `manavault_allocation` (`clear_deck_card_allocations`, `trim_deck_card_allocations`, `switch_allocation_to_preferred_printing`, `statuses_in`, on the caller's transaction; the former `decks::allocations` copy was removed at integration) |
 | `DeckLegality` | `decks::legality` |
 | `CommanderRules` | `decks::commander` (on lotus `can_be_commander`/`commander_pairing`) |
 | `DeckSummaries`, `Decks.Preloads`, `Decks.Statistics` | `decks::contents` (`DeckContents`, `DeckSummary`, `deck_summaries`, `fallback_printings`, `DeckStats`) |
@@ -25,8 +25,8 @@ For other modules: `decks::Deck` / `decks::DeckCard` (GraphQL objects;
 `hydrate(rows)`, `hydrate_loaded`), `decks::DeckCardAllocationStatus`
 (wraps `allocations::AllocationStatus`; set `deck_zone` for EDHREC-style
 lookups, `AllocationState::Shared` for public pages),
-`allocations::statuses` (batched; `StatusInput.id = None` is
-`collection_requirement_statuses`), `deck_summaries(pool, ids)` (card count,
+`manavault_allocation::statuses_in` (batched; requirement statuses are
+`manavault_allocation::requirement_statuses`), `deck_summaries(pool, ids)` (card count,
 unique count, commander color identity, cover image — for `/api/v1/decks`
 and share previews), `contents::load_contents`, `records::get_deck`,
 `records::get_by_share_token`, `cards::cheapest_printing`,

@@ -10,7 +10,7 @@ use sqlx::SqlitePool;
 use crate::catalog::card::CardRecord;
 use crate::catalog::search::name_match;
 use crate::deck_intel::DeckContext;
-use crate::deck_intel::status::DeckCardAllocationStatus;
+use crate::decks::DeckCardAllocationStatus;
 
 /// A suggested card resolved against the catalog and the deck.
 #[derive(Clone, Copy)]

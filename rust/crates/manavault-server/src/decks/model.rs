@@ -232,6 +232,21 @@ pub async fn load_deck(pool: &SqlitePool, id: DeckId) -> Result<Option<DeckRow>,
         .await
 }
 
+/// Decks by id, keyed by id.
+pub async fn load_decks(
+    pool: &SqlitePool,
+    ids: &[DeckId],
+) -> Result<HashMap<DeckId, DeckRow>, sqlx::Error> {
+    if ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let ids = id_list(ids.iter().map(|id| id.0));
+    let rows = deck_row_query!("WHERE d.id IN (SELECT value FROM json_each(?1))", ids)
+        .fetch_all(pool)
+        .await?;
+    Ok(rows.into_iter().map(|row| (row.id, row)).collect())
+}
+
 /// Loads one deck on a connection (inside a transaction).
 pub async fn load_deck_on(
     conn: &mut SqliteConnection,

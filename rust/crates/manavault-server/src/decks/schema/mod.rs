@@ -987,11 +987,6 @@ impl DeckMutations {
         }))
     }
 
-    // TODO(integration): allocateDeckCardItem, deallocateDeckCardItem,
-    // bulkDeallocateDeckCards, allocateDeckCardProxy, deallocateDeckCardProxy,
-    // previewBulkAllocateDeck, bulkAllocateDeck, allocateDeckPullList,
-    // previewDeckDisassembly, disassembleDeck, addCollectionItemToDeck, and
-    // bulkAddCollectionItemsToDeck belong to the deck allocation module, and
-    // analyzeDeck/askDeckQuestion to the AI module; they return `Deck` and
-    // `DeckCard` (see `DeckCard::load`/`load_many`/`hydrate`).
+    // Allocation mutations are in `deck_intel` (`AllocationMutations`,
+    // `DeckIntelMutations`); analyzeDeck/askDeckQuestion in `ai::schema`.
 }

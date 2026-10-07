@@ -1214,16 +1214,20 @@ async fn deck_page_allocation_status_counts_copies_reserved_elsewhere() {
     ));
     let app = app_with(&cards).await;
     let binder = location(&app, "Batch Binder", "binder").await;
+    let mut items = Vec::new();
     for index in 1..=3 {
-        collection_item(
-            &app,
-            &format!("scryfall-batched-allocation-{index}"),
-            1,
-            Finish::Nonfoil,
-            Some(binder),
-        )
-        .await;
+        items.push(
+            collection_item(
+                &app,
+                &format!("scryfall-batched-allocation-{index}"),
+                1,
+                Finish::Nonfoil,
+                Some(binder),
+            )
+            .await,
+        );
     }
+    let primary = items[0];
     let alternate = collection_item(
         &app,
         "scryfall-batched-allocation-1-alternate",
@@ -1255,7 +1259,9 @@ async fn deck_page_allocation_status_counts_copies_reserved_elsewhere() {
                  pageInfo { endCursor hasNextPage }
                  edges { node { id card { name printings(first: 10) { edges { node { scryfallId } } } }
                                 preferredPrinting { scryfallId }
-                                allocationStatus { state available allocatedElsewhere owned missing } } }
+                                allocationStatus { state available allocatedElsewhere owned missing
+                                  candidates { available allocated allocatedElsewhere
+                                    item { id priceText location { name } printing { card { name } } } } } } }
                }
              } }",
             json!({"id": deck_gid(deck.id)}),
@@ -1271,9 +1277,40 @@ async fn deck_page_allocation_status_counts_copies_reserved_elsewhere() {
         .iter()
         .find(|edge| edge["node"]["card"]["name"] == json!("Batched Allocation 1"))
         .unwrap();
+    let status = &first["node"]["allocationStatus"];
     assert_eq!(
-        first["node"]["allocationStatus"],
-        json!({"state": "available", "available": 1, "allocatedElsewhere": 1, "owned": 2, "missing": 0})
+        [
+            &status["state"],
+            &status["available"],
+            &status["allocatedElsewhere"],
+            &status["owned"],
+            &status["missing"]
+        ],
+        [
+            &json!("available"),
+            &json!(1),
+            &json!(1),
+            &json!(2),
+            &json!(0)
+        ]
+    );
+    // Both copies are candidates: the binder's is free, the alternate
+    // printing's is reserved by the other deck (and has left its binder).
+    let mut candidates = status["candidates"].as_array().unwrap().clone();
+    candidates.sort_by_key(|candidate| candidate["available"].as_i64());
+    let item_gid = |id: crate::decks::model::CollectionItemId| {
+        crate::graphql::global_id(crate::graphql::NodeKind::CollectionItem, id.0).to_string()
+    };
+    assert_eq!(
+        Value::Array(candidates),
+        json!([
+            {"available": 0, "allocated": 0, "allocatedElsewhere": 1,
+             "item": {"id": item_gid(alternate), "priceText": null, "location": null,
+                      "printing": {"card": {"name": "Batched Allocation 1"}}}},
+            {"available": 1, "allocated": 0, "allocatedElsewhere": 0,
+             "item": {"id": item_gid(primary), "priceText": null, "location": {"name": "Batch Binder"},
+                      "printing": {"card": {"name": "Batched Allocation 1"}}}}
+        ])
     );
     assert_eq!(
         first["node"]["card"]["printings"]["edges"]

@@ -310,7 +310,7 @@ pub(crate) async fn normalize(
             rank,
             score: entry_number(resolved.entry, "score").and_then(|n| n.as_f64()),
             card: resolved.suggested.local_card.cloned().map(Card::from),
-            collection_status: status.into(),
+            collection_status: status,
         })
         .collect();
     Ok(DeckRecommander {

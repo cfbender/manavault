@@ -17,9 +17,7 @@ use crate::decks::model::{
 use crate::decks::validation::{
     self, BLANK, Change, Errors, INVALID, TAKEN, apply, at_least, greater_than, less_than,
 };
-use crate::decks::{
-    DeckError, allocations, commander, ensure_deck_editable, ensure_decklist_editable,
-};
+use crate::decks::{DeckError, commander, ensure_deck_editable, ensure_decklist_editable};
 use crate::timefmt;
 
 /// `DeckCard.changeset/2` attributes.
@@ -373,7 +371,7 @@ pub async fn add_card_in(
             let values = validate(Some(&row), &changes)?;
             let updated = write_card(conn, row.id, &values).await?;
             if updated.quantity < row.quantity {
-                allocations::trim(conn, row.id).await?;
+                manavault_allocation::trim_deck_card_allocations(conn, row.id).await?;
             }
             Ok(updated)
         }
@@ -443,20 +441,15 @@ pub async fn update_in(
         };
         let values = validate(Some(row), &changes)?;
         let updated = write_card(conn, row.id, &values).await?;
-        allocations::clear(conn, row.id).await?;
+        manavault_allocation::clear_deck_card_allocations(conn, row.id).await?;
         return Ok(updated);
     }
     let values = validate(Some(row), &changes)?;
     let updated = write_card(conn, row.id, &values).await?;
     if switching {
-        let held = allocations::physical_quantity(conn, row.id).await?;
-        allocations::clear(conn, row.id).await?;
-        if held > 0 {
-            let held = u32::try_from(held).unwrap_or(u32::MAX);
-            allocations::allocate_preferred_printing(conn, row.id, held).await?;
-        }
+        manavault_allocation::switch_allocation_to_preferred_printing(conn, row.id).await?;
     } else if updated.quantity < row.quantity {
-        allocations::trim(conn, row.id).await?;
+        manavault_allocation::trim_deck_card_allocations(conn, row.id).await?;
     }
     Ok(load_deck_card_on(conn, row.id).await?.unwrap_or(updated))
 }
@@ -508,7 +501,7 @@ pub async fn update_tags(
 
 /// Deletes a card after returning its copies (`DeleteDeckCard.for_deck_deletion/1`).
 async fn delete_in(conn: &mut SqliteConnection, row: &DeckCardRow) -> Result<(), DeckError> {
-    allocations::clear(conn, row.id).await?;
+    manavault_allocation::clear_deck_card_allocations(conn, row.id).await?;
     sqlx::query!("DELETE FROM deck_cards WHERE id = ?1", row.id)
         .execute(&mut *conn)
         .await?;
@@ -650,7 +643,7 @@ pub async fn optimize_printings(
         if Some(&cheapest.scryfall_id) == row.preferred_printing_id.as_ref() {
             continue;
         }
-        allocations::clear(&mut tx, row.id).await?;
+        manavault_allocation::clear_deck_card_allocations(&mut tx, row.id).await?;
         let printing_change = DeckCardChanges {
             preferred_printing_id: Some(Some(cheapest.scryfall_id.clone())),
             ..DeckCardChanges::default()

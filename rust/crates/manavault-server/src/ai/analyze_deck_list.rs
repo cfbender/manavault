@@ -1,16 +1,14 @@
 //! Analyzing a pasted decklist or a deck link inline and saving the result
 //! (`AI.AnalyzeDeckList`).
 
-use lotus::Zone;
-
 use super::analyze_deck::analyze_payload;
 use super::deck_analysis::{self, PayloadDeck};
-use super::deck_source::{self, SourceEntry};
 use super::decks::DeckCardInput;
 use super::requests::{self, DeckAnalysisRequest, FORMATS, InsertError, NewRequest, SourceType};
 use super::{AiError, Configured};
 use crate::catalog::search::cards_by_name;
 use crate::state::AppState;
+use crate::trade::list_source::{self, ListEntry, ResolveError};
 
 /// `analyzeDeckList` arguments.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -65,7 +63,7 @@ fn unrecognized_message(names: &[String]) -> String {
 /// fails on unknown names or a list with no mainboard or commander cards.
 async fn external_deck_cards(
     state: &AppState,
-    entries: &[SourceEntry],
+    entries: &[ListEntry],
 ) -> Result<Vec<DeckCardInput>, AiError> {
     let names: Vec<&str> = entries.iter().map(|entry| entry.name.as_str()).collect();
     let cards = cards_by_name::by_names(&state.db, &names).await?;
@@ -76,11 +74,7 @@ async fn external_deck_cards(
             Some(card) => deck_cards.push(DeckCardInput {
                 card: card.clone(),
                 quantity: entry.quantity,
-                zone: match entry.zone.as_str() {
-                    "commander" => Zone::Commander,
-                    "considering" => Zone::Considering,
-                    _ => Zone::Mainboard,
-                },
+                zone: entry.zone,
             }),
             None => unrecognized.push(entry.name.clone()),
         }
@@ -116,15 +110,17 @@ pub async fn run(state: &AppState, args: &Args) -> Result<DeckAnalysisRequest, A
         return Err(AiError::User("Choose a supported deck format.".to_owned()));
     }
     let settings = Configured::load(state).await?;
-    let resolved = match source_type {
-        SourceType::Text => deck_source::ResolvedList {
-            source_name: None,
-            entries: deck_source::parse_text(&state.db, &source).await?,
-        },
-        SourceType::Url => deck_source::resolve_url(state, &source)
-            .await?
-            .map_err(AiError::User)?,
+    // `Trade.Lists.resolve/1`, like every other list import.
+    let (url, text) = match source_type {
+        SourceType::Url => (Some(source.as_str()), None),
+        SourceType::Text => (None, Some(source.as_str())),
     };
+    let resolved = list_source::resolve(&state.db, &state.config, url, text)
+        .await
+        .map_err(|error| match error {
+            ResolveError::User(message) => AiError::User(message.to_owned()),
+            ResolveError::Db(error) => error.into(),
+        })?;
     let deck_cards = external_deck_cards(state, &resolved.entries).await?;
     let name = source_name(resolved.source_name.as_deref(), source_type);
     let payload = deck_analysis::payload(
