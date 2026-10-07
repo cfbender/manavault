@@ -30,7 +30,12 @@ pub fn transport_message(error: &reqwest::Error) -> String {
         }
         source = cause.source();
     }
-    error.to_string()
+    // Never echo the URL: presigned S3 URLs carry credentials and signatures.
+    let text = error.to_string();
+    match error.url() {
+        Some(url) => text.replace(&format!(" for url ({url})"), ""),
+        None => text,
+    }
 }
 
 fn io_reason(kind: ErrorKind) -> Option<&'static str> {

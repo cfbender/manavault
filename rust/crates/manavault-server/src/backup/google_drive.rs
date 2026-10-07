@@ -97,7 +97,7 @@ impl GoogleDrive<'_> {
             .body(body)
             .send()
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| crate::http_errors::transport_message(&e))?;
         if !response.status().is_success() {
             return Err(response_error("Google OAuth", response).await);
         }
@@ -158,7 +158,7 @@ impl GoogleDrive<'_> {
             .body(body)
             .send()
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| crate::http_errors::transport_message(&e))?;
         if !response.status().is_success() {
             return Err(response_error("Google Drive upload", response).await);
         }
@@ -201,7 +201,7 @@ impl GoogleDrive<'_> {
             ])
             .send()
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| crate::http_errors::transport_message(&e))?;
         if !response.status().is_success() {
             return Err(response_error("Google Drive list", response).await);
         }
@@ -252,11 +252,14 @@ impl GoogleDrive<'_> {
             .timeout(Duration::from_secs(30 * 60))
             .send()
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| crate::http_errors::transport_message(&e))?;
         if !response.status().is_success() {
             return Err(response_error("Google Drive download", response).await);
         }
-        let bytes = response.bytes().await.map_err(|e| e.to_string())?;
+        let bytes = response
+            .bytes()
+            .await
+            .map_err(|e| crate::http_errors::transport_message(&e))?;
         super::write_file(destination, &bytes)
     }
 
@@ -272,7 +275,7 @@ impl GoogleDrive<'_> {
             .bearer_auth(&token)
             .send()
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| crate::http_errors::transport_message(&e))?;
         if response.status().is_success() || response.status().as_u16() == 404 {
             Ok(())
         } else {

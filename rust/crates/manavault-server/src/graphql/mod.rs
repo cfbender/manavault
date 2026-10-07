@@ -10,6 +10,7 @@ pub mod order;
 pub mod relay;
 pub mod scalars;
 mod system;
+pub mod undefined_variables;
 
 use async_graphql::{Context, MergedObject, MergedSubscription, Schema};
 
@@ -95,6 +96,7 @@ pub fn build_schema(state: AppState) -> AppSchema {
     .data(state)
     .extension(order::ResponseOrder)
     .extension(nullable_errors::NullableErrors)
+    .extension(undefined_variables::UndefinedVariables)
     .finish()
 }
 

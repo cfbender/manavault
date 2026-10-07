@@ -342,7 +342,7 @@ impl S3<'_> {
             .body(body)
             .send()
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| crate::http_errors::transport_message(&e))?;
         check(response).await?;
         Ok(Remote {
             name: basename(&request.key),
@@ -363,12 +363,17 @@ impl S3<'_> {
             EXPIRES,
             OffsetDateTime::now_utc(),
         );
-        let response = self.http.get(url).send().await.map_err(|e| e.to_string())?;
+        let response = self
+            .http
+            .get(url)
+            .send()
+            .await
+            .map_err(|e| crate::http_errors::transport_message(&e))?;
         let body = check(response)
             .await?
             .text()
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| crate::http_errors::transport_message(&e))?;
         Ok(parse_list_response(&body, self.settings))
     }
 
@@ -387,12 +392,12 @@ impl S3<'_> {
             .timeout(Duration::from_secs(30 * 60))
             .send()
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| crate::http_errors::transport_message(&e))?;
         let bytes = check(response)
             .await?
             .bytes()
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| crate::http_errors::transport_message(&e))?;
         super::write_file(destination, &bytes)
     }
 
@@ -410,7 +415,7 @@ impl S3<'_> {
             .delete(url)
             .send()
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| crate::http_errors::transport_message(&e))?;
         check(response).await.map(|_| ())
     }
 }
