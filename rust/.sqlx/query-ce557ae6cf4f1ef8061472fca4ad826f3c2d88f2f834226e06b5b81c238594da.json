@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO deck_question_answers\n             (deck_id, question, answer, inserted_at, recommendations, status, error, model,\n              thread_id, swap_context, conversation_id)\n           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11) RETURNING id AS \"id!\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_question_answers",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 11
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "ce557ae6cf4f1ef8061472fca4ad826f3c2d88f2f834226e06b5b81c238594da"
+}

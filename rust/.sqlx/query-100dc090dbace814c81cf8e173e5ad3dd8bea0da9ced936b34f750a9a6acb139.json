@@ -1,0 +1,146 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!\", source_type, source, source_name, format, analysis, model,\n             commander_bracket, commander_bracket_estimate, commander_bracket_rating, inserted_at\n           FROM deck_analysis_requests ORDER BY inserted_at DESC, id DESC LIMIT ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_analysis_requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "source_type",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_analysis_requests",
+            "name": "source_type"
+          }
+        }
+      },
+      {
+        "name": "source",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_analysis_requests",
+            "name": "source"
+          }
+        }
+      },
+      {
+        "name": "source_name",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_analysis_requests",
+            "name": "source_name"
+          }
+        }
+      },
+      {
+        "name": "format",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_analysis_requests",
+            "name": "format"
+          }
+        }
+      },
+      {
+        "name": "analysis",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_analysis_requests",
+            "name": "analysis"
+          }
+        }
+      },
+      {
+        "name": "model",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_analysis_requests",
+            "name": "model"
+          }
+        }
+      },
+      {
+        "name": "commander_bracket",
+        "ordinal": 7,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_analysis_requests",
+            "name": "commander_bracket"
+          }
+        }
+      },
+      {
+        "name": "commander_bracket_estimate",
+        "ordinal": 8,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_analysis_requests",
+            "name": "commander_bracket_estimate"
+          }
+        }
+      },
+      {
+        "name": "commander_bracket_rating",
+        "ordinal": 9,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_analysis_requests",
+            "name": "commander_bracket_rating"
+          }
+        }
+      },
+      {
+        "name": "inserted_at",
+        "ordinal": 10,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_analysis_requests",
+            "name": "inserted_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "100dc090dbace814c81cf8e173e5ad3dd8bea0da9ced936b34f750a9a6acb139"
+}

@@ -18,6 +18,8 @@ pub fn workers() -> Vec<Arc<dyn Worker>> {
         Arc::new(crate::pricing::worker::VendorSyncWorker),
         Arc::new(crate::scanner::update_worker::BundleUpdateWorker),
         Arc::new(crate::backup::worker::CloudBackupWorker),
+        Arc::new(crate::ai::workers::DeckAnalysisWorker),
+        Arc::new(crate::ai::workers::DeckQuestionWorker),
     ]
 }
 

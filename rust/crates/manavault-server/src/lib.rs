@@ -4,6 +4,7 @@
 //! same SQLite database, so the React frontend and existing databases work
 //! unchanged.
 
+pub mod ai;
 pub mod api_keys;
 pub mod app;
 pub mod auth;

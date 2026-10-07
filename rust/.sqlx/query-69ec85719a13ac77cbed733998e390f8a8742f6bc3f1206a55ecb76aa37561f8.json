@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE deck_question_answers SET status = 'failed', error = ?1 WHERE id = ?2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "69ec85719a13ac77cbed733998e390f8a8742f6bc3f1206a55ecb76aa37561f8"
+}

@@ -1,0 +1,45 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT dc.oracle_id AS \"oracle_id!: OracleId\", a.collection_item_id,\n             SUM(a.quantity) AS \"quantity!: i64\"\n           FROM deck_allocations AS a\n           JOIN deck_cards AS dc ON dc.id = a.deck_card_id\n           JOIN decks AS d ON d.id = dc.deck_id\n           WHERE d.status = 'active' AND dc.oracle_id IN (SELECT value FROM json_each(?1))\n           GROUP BY dc.oracle_id, a.collection_item_id",
+  "describe": {
+    "columns": [
+      {
+        "name": "oracle_id!: OracleId",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_cards",
+            "name": "oracle_id"
+          }
+        }
+      },
+      {
+        "name": "collection_item_id",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "collection_item_id"
+          }
+        }
+      },
+      {
+        "name": "quantity!: i64",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "0c2471bafd01c5563e09c4c635ec7f251f7dd770c7d60e00c29b157e83baa380"
+}
