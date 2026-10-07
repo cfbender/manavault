@@ -630,6 +630,40 @@ async fn groups_combine_price_lots_while_items_stay_separate() {
     assert_eq!(purchase, [json!(100), json!(200)]);
 }
 
+/// `valueGainPercentText` rounds like `Float.round/2` (exact float value):
+/// a $21.07 copy bought for $20 gained 5.35%, stored as 5.3499…, so "+5.3%"
+/// (found by the parity harness; naive `(x * 10).round()` gave "+5.4%").
+#[tokio::test]
+async fn value_gain_percent_text_rounds_the_exact_float() {
+    let app = TestApp::new().await;
+    app.import_cards(&[card(
+        "percent-printing",
+        "percent-card",
+        "Percent Card",
+        json!({"prices": {"usd": "21.07"}}),
+    )])
+    .await;
+    create_item(
+        &app,
+        "percent-printing",
+        Attrs {
+            purchase_price_cents: Some(2_000),
+            ..Attrs::default()
+        },
+    )
+    .await;
+    let data = app
+        .gql_data(
+            "{ collectionItems(first: 1) { edges { node { valueGainText valueGainPercentText } } } }",
+            json!({}),
+        )
+        .await;
+    assert_eq!(
+        edges(&data["collectionItems"]),
+        [json!({"valueGainText": "+$1.07", "valueGainPercentText": "+5.3%"})]
+    );
+}
+
 #[tokio::test]
 async fn card_filters_count_owned_copies_outside_lists() {
     let app = TestApp::new().await;

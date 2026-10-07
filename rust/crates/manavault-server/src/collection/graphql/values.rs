@@ -31,7 +31,7 @@ pub fn value_gain_percent(gain: Option<i64>, purchase: Option<i64>) -> Option<f6
 /// `+12.5%` / `-3%` / `0%` (`Price.format_percent/1`).
 #[must_use]
 pub fn format_percent(percent: Option<f64>) -> Option<String> {
-    let rounded = (percent? * 10.0).round() / 10.0;
+    let rounded = crate::catalog::price::round_tenths(percent?);
     let sign = if rounded > 0.0 { "+" } else { "" };
     let value = if rounded.fract() == 0.0 {
         let whole = format!("{rounded:.0}");
@@ -205,5 +205,21 @@ mod tests {
         assert_eq!(format_percent(None), None);
         assert_eq!(value_gain_percent(Some(5), Some(0)), None);
         assert_eq!(to_f64(-1_234_567_890), -1_234_567_890.0);
+    }
+
+    /// `Float.round/2` rounds the float's exact value: `5.35` and `19.95`
+    /// are stored just below the tie and round down; exact ties round away
+    /// from zero. Found by the parity harness (`107 * 100 / 2000`).
+    #[test]
+    fn rounds_the_exact_float_like_float_round() {
+        assert_eq!(
+            format_percent(Some(107.0 * 100.0 / 2000.0)).as_deref(),
+            Some("+5.3%")
+        );
+        assert_eq!(format_percent(Some(19.95)).as_deref(), Some("+19.9%"));
+        assert_eq!(format_percent(Some(-5.35)).as_deref(), Some("-5.3%"));
+        assert_eq!(format_percent(Some(0.25)).as_deref(), Some("+0.3%"));
+        assert_eq!(format_percent(Some(-0.75)).as_deref(), Some("-0.8%"));
+        assert_eq!(format_percent(Some(0.05)).as_deref(), Some("+0.1%"));
     }
 }

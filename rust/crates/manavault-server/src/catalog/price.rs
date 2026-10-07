@@ -86,9 +86,45 @@ pub fn parse_cents(price: &str) -> Option<i64> {
     dollars.checked_mul(100)?.checked_add(cents)
 }
 
-/// Rounds to one decimal place, half away from zero (`Float.round(value, 1)`).
-fn round_tenths(value: f64) -> f64 {
-    (value * 10.0).round() / 10.0
+/// Rounds to one decimal place the way `Float.round(value, 1)` does: on the
+/// float's exact decimal value, half away from zero.
+///
+/// `(value * 10.0).round() / 10.0` differs whenever the float sits just
+/// below a tie: `5.35` is `5.3499999999999996…`, which Elixir rounds to
+/// `5.3`, but `5.35 * 10.0` is exactly `53.5` and rounds up to `5.4` (found
+/// by the parity harness on `valueGainPercentText`).
+#[must_use]
+pub fn round_tenths(value: f64) -> f64 {
+    if !value.is_finite() {
+        return value;
+    }
+    // Every finite f64 has a terminating decimal expansion of at most 1074
+    // fractional digits, so this text is exact.
+    let exact = format!("{:.1100}", value.abs());
+    let Some((whole, fraction)) = exact.split_once('.') else {
+        return value;
+    };
+    let mut digits = fraction.chars();
+    let tenths = digits.next().and_then(|c| c.to_digit(10)).unwrap_or(0);
+    let round_up = digits
+        .next()
+        .and_then(|c| c.to_digit(10))
+        .is_some_and(|hundredths| hundredths >= 5);
+    let Ok(whole) = whole.parse::<u128>() else {
+        return value;
+    };
+    let scaled = whole
+        .saturating_mul(10)
+        .saturating_add(u128::from(tenths))
+        .saturating_add(u128::from(round_up));
+    let rounded: f64 = format!("{}.{}", scaled / 10, scaled % 10)
+        .parse()
+        .unwrap_or(value.abs());
+    if value.is_sign_negative() {
+        -rounded
+    } else {
+        rounded
+    }
 }
 
 /// Formats cents for display: `$0.99`, `$123`, `$12.3k` (`Price.format_cents/1`).
