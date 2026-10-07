@@ -168,6 +168,7 @@ fn builder() -> async_graphql::SchemaBuilder<PublicQuery, EmptyMutation, EmptySu
         .limit_complexity(usize::try_from(super::protection::MAX_COMPLEXITY).unwrap_or(usize::MAX))
         .limit_depth(MAX_DEPTH)
         .extension(crate::graphql::order::ResponseOrder)
+        .extension(crate::graphql::nullable_errors::NullableErrors)
 }
 
 /// The public schema. It holds no app data: each request carries the

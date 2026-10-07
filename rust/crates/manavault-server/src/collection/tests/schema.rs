@@ -1176,6 +1176,37 @@ async fn create_update_and_delete_location_mutations() {
     assert_eq!(location::count(app.db()).await.unwrap(), 0);
 }
 
+/// Absinthe answers a failed nullable field with `null` next to the error;
+/// async-graphql used to drop the field, nulling the whole `data` of a
+/// failed mutation (found by the parity harness, `rust/scripts/parity`).
+#[tokio::test]
+async fn failed_mutations_and_queries_answer_null_fields() {
+    let app = TestApp::new().await;
+    let response = app
+        .gql(
+            r"mutation CreateLocation($input: LocationInput!) {
+                createLocation(input: $input) { location { id } }
+              }",
+            json!({"input": {"name": "", "kind": "box"}}),
+        )
+        .await;
+    assert_eq!(response["data"], json!({"createLocation": null}));
+    assert_eq!(errors(&response), ["name can't be blank"]);
+    assert_eq!(response["errors"][0]["path"], json!(["createLocation"]));
+
+    let response = app
+        .gql(
+            r"query($id: ID!) { location(id: $id) { id } pricingSettings { source } }",
+            json!({"id": gid(NodeKind::Location, 9_999)}),
+        )
+        .await;
+    assert_eq!(
+        response["data"],
+        json!({"location": null, "pricingSettings": {"source": "scryfall"}})
+    );
+    assert_eq!(errors(&response), ["Location was not found."]);
+}
+
 #[tokio::test]
 async fn deleting_storage_unfiles_cards_and_deleting_a_list_deletes_them() {
     let app = TestApp::new().await;

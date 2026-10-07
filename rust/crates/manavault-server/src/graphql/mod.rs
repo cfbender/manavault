@@ -5,6 +5,7 @@
 //! mutations; they are merged into the Absinthe-named root types here.
 
 pub mod node;
+pub mod nullable_errors;
 pub mod order;
 pub mod relay;
 pub mod scalars;
@@ -93,6 +94,7 @@ pub fn build_schema(state: AppState) -> AppSchema {
     .data(crate::collection::loader::data_loader(state.db.clone()))
     .data(state)
     .extension(order::ResponseOrder)
+    .extension(nullable_errors::NullableErrors)
     .finish()
 }
 
