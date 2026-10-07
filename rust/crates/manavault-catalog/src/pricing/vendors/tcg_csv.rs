@@ -5,7 +5,8 @@
 //! per-group (set) pricing. Each price row is keyed by `TCGplayer` product id
 //! and finish subtype, so rows join to printings through the `tcgplayer_id`
 //! and `tcgplayer_etched_id` Scryfall supplies at catalog import. Prices use
-//! `TCGplayer`'s low price (TCG Low), falling back to the market price.
+//! `TCGplayer`'s market price (recent sales), falling back to the low price
+//! (TCG Low), which is not condition-filtered, only when no market exists.
 //! Individual group failures are skipped so one bad set cannot lose a whole
 //! sync.
 
@@ -111,7 +112,7 @@ pub async fn product_printings(pool: &SqlitePool) -> Result<ProductPrintings, sq
 
 /// Maps a group's price rows to printing finishes. Products matched through
 /// an etched id price the etched finish; otherwise `Foil` subtypes price
-/// foil and `Normal` prices nonfoil. Rows without a low or market price, or
+/// foil and `Normal` prices nonfoil. Rows without a market or low price, or
 /// whose product has no printing, are skipped.
 #[must_use]
 pub fn rows(prices: &Value, printings: &ProductPrintings) -> Vec<VendorRow> {
@@ -124,8 +125,8 @@ pub fn rows(prices: &Value, printings: &ProductPrintings) -> Vec<VendorRow> {
             continue;
         };
         let null = Value::Null;
-        let Some(cents) = money::to_cents(price.get("lowPrice").unwrap_or(&null))
-            .or_else(|| money::to_cents(price.get("marketPrice").unwrap_or(&null)))
+        let Some(cents) = money::to_cents(price.get("marketPrice").unwrap_or(&null))
+            .or_else(|| money::to_cents(price.get("lowPrice").unwrap_or(&null)))
         else {
             continue;
         };
@@ -173,7 +174,7 @@ mod tests {
     }
 
     #[test]
-    fn prices_finishes_with_the_tcg_low_falling_back_to_market() {
+    fn prices_finishes_with_the_market_price_falling_back_to_tcg_low() {
         let printings: ProductPrintings = HashMap::from([
             (1, vec![("aaa".to_owned(), false)]),
             (
@@ -185,7 +186,7 @@ mod tests {
         ]);
         let prices = json!([
             price(1, "Normal", json!(0.25), json!(0.35)),
-            price(1, "Foil", Value::Null, json!(1.5)),
+            price(1, "Foil", json!(1.5), Value::Null),
             price(2, "Normal", json!(3.0), json!(4.0)),
             price(3, "Foil", json!(9.57), json!(12.0)),
             price(4, "Foil Etched", json!(5.0), Value::Null),
@@ -195,11 +196,11 @@ mod tests {
         assert_eq!(
             rows,
             vec![
-                VendorRow::new("aaa", Finish::Nonfoil, 25),
+                VendorRow::new("aaa", Finish::Nonfoil, 35),
                 VendorRow::new("aaa", Finish::Foil, 150),
-                VendorRow::new("bbb", Finish::Nonfoil, 300),
-                VendorRow::new("bbb-promo", Finish::Nonfoil, 300),
-                VendorRow::new("ccc", Finish::Etched, 957),
+                VendorRow::new("bbb", Finish::Nonfoil, 400),
+                VendorRow::new("bbb-promo", Finish::Nonfoil, 400),
+                VendorRow::new("ccc", Finish::Etched, 1200),
                 VendorRow::new("ddd", Finish::Etched, 500),
             ]
         );
@@ -256,7 +257,7 @@ mod tests {
             Ok(vec![VendorRow::new(
                 "scryfall-printing-1",
                 Finish::Nonfoil,
-                900_000
+                950_000
             )])
         );
         assert_eq!(
