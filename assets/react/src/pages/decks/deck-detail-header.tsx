@@ -295,6 +295,7 @@ export function DeckDetailHeader({
   const [questionOpen, setQuestionOpen] = useState(false)
   const analysis = useDeckAnalysis(deck, !shareMode)
   const hasAnalysis = Boolean(deck.aiAnalysis?.trim())
+  const canAnalyze = deck.status !== "archived"
 
   return (
     <>
@@ -349,7 +350,7 @@ export function DeckDetailHeader({
                 }
                 analyzePending={analysis.pending || analysis.checking}
                 label={`${deck.name} actions`}
-                onAnalyze={analysis.analyze}
+                onAnalyze={canAnalyze ? analysis.analyze : undefined}
                 onCombos={onCombos}
                 onCompare={onCompareDeck}
                 externalSourceLinked={Boolean(deck.externalSource)}
@@ -396,9 +397,11 @@ export function DeckDetailHeader({
             <span>
               AI analysis could not be completed. Your saved analysis has not been changed.
             </span>
-            <Button variant="outline" size="sm" onClick={analysis.analyze}>
-              Retry analysis
-            </Button>
+            {canAnalyze ? (
+              <Button variant="outline" size="sm" onClick={analysis.analyze}>
+                Retry analysis
+              </Button>
+            ) : null}
           </div>
         ) : null}
 

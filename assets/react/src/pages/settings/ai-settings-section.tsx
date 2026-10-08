@@ -179,8 +179,8 @@ function AISettingsForm({ settings }: { settings: AISettings }) {
         <div className="border-t border-base-300 pt-5">
           <h3 className="text-lg font-black">Refresh deck analyses</h3>
           <p className="mt-1 max-w-[72ch] text-sm text-base-content/60">
-            Queue a fresh analysis for every deck using the current model and instructions. This may
-            use significant provider credits for a large deck collection.
+            Queue a fresh analysis for every non-archived deck using the current model and
+            instructions. This may use significant provider credits for a large deck collection.
           </p>
           <div className="mt-4">
             <Button

@@ -62,9 +62,18 @@ async fn job_progress(pool: &SqlitePool, id: i64) -> Result<Option<JobProgress>,
     }))
 }
 
+const ARCHIVED_DECK: &str = "Archived decks cannot be analyzed. Unarchive the deck first.";
+
 /// `enqueue/1`: queues an analysis, reusing the deck's incomplete job.
+/// Archived decks are rejected.
 pub async fn enqueue(state: &AppState, deck_id: i64) -> Result<JobProgress, AiError> {
     Configured::load(state).await?;
+    if decks::get(&state.db, deck_id)
+        .await?
+        .is_some_and(|deck| deck.archived)
+    {
+        return Err(AiError::User(ARCHIVED_DECK.to_owned()));
+    }
     let id = state
         .jobs
         .enqueue(DECK_ANALYSIS_WORKER, json!({"deck_id": deck_id}))
@@ -94,15 +103,17 @@ pub async fn latest_job(
     }
 }
 
-/// `refresh_all/0`: queues an analysis for every deck in one transaction,
-/// with the same per-deck deduplication as a single refresh. Returns the
-/// number of decks.
+/// `refresh_all/0`: queues an analysis for every non-archived deck in one
+/// transaction, with the same per-deck deduplication as a single refresh.
+/// Returns the number of decks.
 pub async fn refresh_all(state: &AppState) -> Result<usize, AiError> {
     Configured::load(state).await?;
     let mut tx = manavault_core::db::begin_write(&state.db).await?;
-    let ids = sqlx::query_scalar!(r#"SELECT id AS "id!" FROM decks ORDER BY name ASC, id ASC"#)
-        .fetch_all(&mut *tx)
-        .await?;
+    let ids = sqlx::query_scalar!(
+        r#"SELECT id AS "id!" FROM decks WHERE status != 'archived' ORDER BY name ASC, id ASC"#
+    )
+    .fetch_all(&mut *tx)
+    .await?;
     for id in &ids {
         state
             .jobs

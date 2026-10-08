@@ -16,6 +16,8 @@ pub struct DeckInfo {
     pub name: String,
     pub format: String,
     pub primer: Option<String>,
+    /// Archived decks are frozen and are not analyzed.
+    pub archived: bool,
 }
 
 /// A deck card with its catalog card, as prompts see it.
@@ -47,6 +49,7 @@ pub async fn get(pool: &SqlitePool, id: i64) -> Result<Option<DeckInfo>, sqlx::E
             name: deck.name,
             format: deck.format.as_str().to_owned(),
             primer: deck.primer,
+            archived: deck.status == manavault_collection::decks::model::DeckStatus::Archived,
         }),
     )
 }

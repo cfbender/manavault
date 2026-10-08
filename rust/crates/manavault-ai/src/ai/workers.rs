@@ -29,7 +29,8 @@ fn reason(error: &AiError) -> String {
 }
 
 /// Analyzes one deck. Unique per deck while incomplete, so individual and
-/// bulk refreshes share a job; a deleted deck completes without work.
+/// bulk refreshes share a job; a deleted or archived deck completes without
+/// work.
 pub struct DeckAnalysisWorker;
 
 impl Worker for DeckAnalysisWorker {
@@ -57,8 +58,8 @@ impl Worker for DeckAnalysisWorker {
             return Outcome::Cancel("missing deck_id".to_owned());
         };
         let deck = match decks::get(&state.db, deck_id).await {
-            Ok(Some(deck)) => deck,
-            Ok(None) => return Outcome::Done,
+            Ok(Some(deck)) if !deck.archived => deck,
+            Ok(_) => return Outcome::Done,
             Err(error) => return Outcome::Retry(error.to_string()),
         };
         match analyze_deck::run(state, &deck).await {

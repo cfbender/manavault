@@ -1538,6 +1538,38 @@ async fn status_tracks_retries_and_terminal_outcomes_and_selects_only_this_decks
 }
 
 #[tokio::test]
+async fn archived_decks_are_never_analyzed() {
+    let server = MockServer::start().await;
+    let (app, deck_id) = background_app(&server).await;
+    let archived = insert_deck_with_status(app.db(), "Archived", "commander", "archived").await;
+    match analyze_deck::enqueue(&app.state, archived).await {
+        Err(AiError::User(message)) => assert_eq!(
+            message,
+            "Archived decks cannot be analyzed. Unarchive the deck first."
+        ),
+        other => unreachable!("unexpected {other:?}"),
+    }
+    assert_eq!(analyze_deck::refresh_all(&app.state).await.unwrap(), 1);
+    assert_eq!(
+        analyze_deck::latest_job(app.db(), archived).await.unwrap(),
+        None
+    );
+    assert_eq!(job_count(&app).await, 1);
+
+    // A deck archived after its analysis was queued completes without a
+    // provider call.
+    sqlx::query("UPDATE decks SET status = 'archived' WHERE id = ?1")
+        .bind(deck_id)
+        .execute(app.db())
+        .await
+        .unwrap();
+    let drained = app.state.jobs.drain_queue(&app.state, "ai", false).await;
+    assert_eq!(drained.success, 1);
+    assert!(server.received_requests().await.unwrap().is_empty());
+    assert_eq!(ai_analysis(&app, deck_id).await, None);
+}
+
+#[tokio::test]
 async fn queueing_rejects_missing_settings_without_creating_work() {
     let server = MockServer::start().await;
     let (app, deck_id) = background_app(&server).await;

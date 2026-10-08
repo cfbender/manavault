@@ -48,7 +48,7 @@ afterEach(() => {
   mocks.stopPolling.mockClear()
 })
 
-function renderHeader(shareMode: boolean, onCombos = () => undefined) {
+function renderHeader(shareMode: boolean, onCombos = () => undefined, status = "active") {
   const noOp = () => undefined
 
   render(
@@ -59,7 +59,7 @@ function renderHeader(shareMode: boolean, onCombos = () => undefined) {
           id: "deck-1",
           name: "Counter Deck",
           format: "commander",
-          status: "active",
+          status,
           primer: null,
           aiAnalysis: null,
           coverImageUrl: null,
@@ -183,6 +183,16 @@ test("a terminal job failure remains visible after reopening the deck", () => {
   expect(screen.getByRole("button", { name: "Retry analysis" })).toBeInstanceOf(HTMLElement)
   expect(mocks.startPolling).not.toHaveBeenCalled()
   expect(mocks.showToast).not.toHaveBeenCalled()
+})
+
+test("archived decks do not offer AI analysis", async () => {
+  mocks.job = { id: "job-1", status: "failed", deck: { id: "deck-1" } }
+  const user = userEvent.setup()
+  renderHeader(false, () => undefined, "archived")
+
+  expect(screen.queryByRole("button", { name: "Retry analysis" })).toBeNull()
+  await user.click(screen.getByRole("button", { name: "Counter Deck actions" }))
+  expect(screen.queryByRole("menuitem", { name: "Analyze deck with AI" })).toBeNull()
 })
 
 test("private deck menu opens the infinite combo lookup", async () => {
