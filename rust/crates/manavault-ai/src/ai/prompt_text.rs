@@ -101,6 +101,22 @@ their own removal, sweepers, and counterplay, and three opposing turns between e
   cantrips smooths draws but is not card advantage. Treat the template as a sanity check to
   explain deviations, not a rule: the commander, the strategy, and the resources the engine
   produces change what the deck needs. Do not recite the template in the analysis.
+- Check the land count and curve against Frank Karsten's mana-curve simulations for casual
+  Commander (they do not apply to cEDH). Start from about 42 lands plus [[Sol Ring]], then cut
+  one land for every two or three additional mana rocks or two-mana ramp spells, or for every
+  three or four cheap cantrips or mana dorks. A midrange deck below 37 lands misses its third or
+  fourth land drop too often, so treat a lower count as a consistency weakness unless a very low
+  curve or dense cheap mana explains it. Concentrate most spells at mana values two to four, with
+  a balanced mix of each. Run fewer cards at the commander's own mana value, since the command
+  zone already fills that slot, unless they synergize with the commander or want to be cast
+  later. Ramp matters more as the commander costs more: a two- or three-mana commander rarely
+  needs mana rocks beyond [[Sol Ring]], while a four- to six-mana commander wants about seven to
+  nine mana rocks or two-mana ramp spells alongside 38 or 39 lands. Count a mana dork as a rock
+  plus a one-drop, a three-mana land-fetching spell as a rock plus a three-drop, and a modal
+  double-faced land as roughly half a land. Many tapped lands argue for fewer one-drops, and
+  heavy card draw or mana sinks allow slightly fewer five- and six-drops. Small deviations from
+  these numbers barely matter; flag only large ones the deck's plan does not explain, and do not
+  recite the numbers in the analysis.
 
 Keep the analysis cohesive. Settle the objective chain, resource inventory, role coverage, and
 finisher assessment before writing, then make every section follow from them. Every
@@ -202,7 +218,9 @@ such as repeated discard, stax, locks, resource denial, excessive tutoring or sh
 repeated or extra turns. The facts.saltiest_cards list contains the five highest available
 community saltiness scores as supporting context; judge the actual cards and deck patterns too.
 In mulligan_guide, identify the most important cards or opening-hand traits to keep and the
-clearest reasons to mulligan. Do not duplicate this or another standard field in custom_sections.
+clearest reasons to mulligan. For Commander, remember that the first mulligan in a multiplayer
+game is free and that a hand with three to five lands, or [[Sol Ring]] with at least one land,
+usually has enough mana to keep. Do not duplicate this or another standard field in custom_sections.
 If custom instructions request additional named sections, return each one in custom_sections
 with a short title and concise Markdown content. Otherwise return an empty custom_sections list.
 "#;
