@@ -22,8 +22,9 @@ const MAX_DECK_CARD_QUANTITY: u32 = 10_000;
 /// Adds one copy of a collection item to a deck and reserves it
 /// (`AddCollectionItemToDeck.run/3`). The deck card takes the item's
 /// printing and finish. In the considering zone the card is only an idea, so
-/// nothing is reserved. If the reservation fails, the deck card change is
-/// rolled back too.
+/// nothing is reserved, and basic lands (snow basics included) join without
+/// a reservation because they already count as allocated. If the reservation
+/// fails, the deck card change is rolled back too.
 pub async fn add_collection_item_to_deck(
     pool: &SqlitePool,
     deck_id: DeckId,
@@ -48,7 +49,8 @@ pub async fn add_collection_item_to_deck(
         one,
     )
     .await?;
-    if zone != Zone::Considering {
+    let card = require_deck_card(&mut tx, deck_card_id).await?;
+    if zone != Zone::Considering && !card.is_basic_land() {
         allocate_in(&mut tx, deck_card_id, item.id, one).await?;
     }
     let card = require_deck_card(&mut tx, deck_card_id).await?;

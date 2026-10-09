@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT collection_item_id AS \"id!: i64\" FROM deck_allocations WHERE deck_card_id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: i64",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "deck_allocations",
+            "name": "collection_item_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5129d33af9df87129dee8efc3e2a657cb0a5a4cff240381646b05938a95dfba7"
+}

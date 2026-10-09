@@ -448,6 +448,34 @@ async fn snow_basics_count_as_basic_lands() -> TestResult {
     Ok(())
 }
 
+#[tokio::test]
+async fn adding_a_single_basic_land_copy_joins_the_deck_without_reserving() -> TestResult {
+    let pool = db().await?;
+    let binder = location(&pool, "Land Box", LocationKind::Binder).await?;
+    let plains_item = item(
+        &pool,
+        NewItem::new("scryfall-printing-basic-plains", 3, Some(binder)),
+    )
+    .await?;
+    let d = deck(&pool, "Single Basic", DeckStatus::Brewing).await?;
+
+    // A basic land already counts as fully allocated, so the single-item add
+    // must behave like the bulk add: grow the deck card and reserve nothing.
+    let card = add_collection_item_to_deck(&pool, d, plains_item, Zone::Mainboard).await?;
+    assert_eq!(card.oracle_id, OracleId::new(PLAINS));
+    assert_eq!(card.quantity.get(), 1);
+    let again = add_collection_item_to_deck(&pool, d, plains_item, Zone::Mainboard).await?;
+    assert_eq!(again.id, card.id);
+    assert_eq!(again.quantity.get(), 2);
+
+    assert_eq!(allocation_count(&pool).await?, 0);
+    let row = item_row(&pool, plains_item).await?;
+    assert_eq!((row.quantity, row.location_id), (3, Some(binder)));
+    let status = allocation_status(&pool, card.id).await?;
+    assert_eq!(status.state, AllocationState::BasicLand);
+    Ok(())
+}
+
 // --- Adding collection items to decks ---------------------------------------
 
 #[tokio::test]

@@ -9,7 +9,9 @@ use crate::decks::model::{DeckCardTag, DeckId};
 use crate::decks::records::{self, DeckChanges};
 use crate::test_app::TestApp;
 use crate::testing::*;
-use manavault_catalog::testing::fixtures::{black_lotus, legal_commander_card, merge, time_walk};
+use manavault_catalog::testing::fixtures::{
+    black_lotus, black_lotus_beta, legal_commander_card, merge, time_walk,
+};
 
 #[tokio::test]
 async fn deck_crud_stores_card_identities_with_optional_preferred_printings() {
@@ -546,6 +548,52 @@ async fn moving_to_considering_releases_copies_and_proxies() {
     assert_eq!(moved.proxy_quantity, 0);
     assert_eq!(allocated_quantity(app.db(), lotus.id).await, 0);
     assert_eq!(item_location(app.db(), item).await, Some(binder.0));
+}
+
+#[tokio::test]
+async fn lowering_the_quantity_while_switching_the_printing_trims_proxies() {
+    let app = TestApp::new().await;
+    app.import_cards(&[black_lotus(), black_lotus_beta()]).await;
+    let binder = location(app.db(), "Binder", "binder").await;
+    let alpha = collection_item(
+        app.db(),
+        "scryfall-printing-1",
+        1,
+        Finish::Nonfoil,
+        Some(binder),
+    )
+    .await;
+    let deck = create_deck(app.db(), "Switch And Trim", None, None).await;
+    let lotus = add_printing(app.db(), deck.id, "Black Lotus", 3, "scryfall-printing-1").await;
+    allocate(app.db(), lotus.id, alpha, 1).await;
+    sqlx::query("UPDATE deck_cards SET proxy_quantity = 2 WHERE id = ?1")
+        .bind(lotus.id)
+        .execute(app.db())
+        .await
+        .unwrap();
+
+    // One edit lowers the quantity below the proxy count and switches the
+    // printing; the proxies must shrink to fit like a plain quantity drop.
+    let updated = cards::update_deck_card(
+        app.db(),
+        lotus.id,
+        &DeckCardChanges {
+            quantity: Some(Some(1)),
+            preferred_printing_id: Some(Some("scryfall-printing-3".into())),
+            ..DeckCardChanges::default()
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(updated.quantity.get(), 1);
+    assert_eq!(allocated_quantity(app.db(), lotus.id).await, 0);
+    assert_eq!(item_location(app.db(), alpha).await, Some(binder.0));
+    assert_eq!(
+        updated.proxy_quantity, 0,
+        "proxies ({}) exceed the deck card's quantity (1)",
+        updated.proxy_quantity
+    );
 }
 
 // --- deck legality ---

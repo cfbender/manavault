@@ -1057,3 +1057,90 @@ async fn exports_include_every_matching_row() {
         .unwrap();
     assert_eq!(text.split('\n').count(), 101);
 }
+
+#[tokio::test]
+async fn edits_keep_copies_allocated_to_decks() {
+    let app = TestApp::new().await;
+    app.import_cards(&[black_lotus()]).await;
+    let binder = crate::testing::location(app.db(), "Binder", "binder").await;
+    let item = crate::testing::collection_item(
+        app.db(),
+        "scryfall-printing-1",
+        3,
+        lotus::Finish::Nonfoil,
+        Some(binder),
+    )
+    .await;
+    let deck = crate::testing::create_deck(app.db(), "Locked", None, None).await;
+    let lotus =
+        crate::testing::add_printing(app.db(), deck.id, "Black Lotus", 2, "scryfall-printing-1")
+            .await;
+    crate::testing::allocate(app.db(), lotus.id, item, 2).await;
+    // The three copies split: two go to the deck (unfiled), one stays filed.
+    let allocated = sqlx::query_scalar!(
+        r#"SELECT collection_item_id AS "id!: i64" FROM deck_allocations WHERE deck_card_id = ?1"#,
+        lotus.id
+    )
+    .fetch_one(app.db())
+    .await
+    .unwrap();
+
+    // Shrinking below the two reserved copies or filing them would make every
+    // later release fail with a quantity mismatch, so both are rejected.
+    let shrink = ItemChanges {
+        quantity: MaybeUndefined::Value(1),
+        ..ItemChanges::default()
+    };
+    let error = update(app.db(), allocated, shrink.clone())
+        .await
+        .unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "quantity cannot be lower than the 2 copies allocated to decks"
+    );
+    let error = bulk_update(app.db(), &[allocated], shrink)
+        .await
+        .unwrap_err();
+    assert!(matches!(error, ItemError::Invalid(_)), "{error:?}");
+    let file = ItemChanges {
+        location_id: MaybeUndefined::Value(binder.0),
+        ..ItemChanges::default()
+    };
+    let error = update(app.db(), allocated, file).await.unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "location id cannot change while copies are allocated to a deck"
+    );
+
+    // Other edits, and growing the stack, still go through.
+    let grown = update(
+        app.db(),
+        allocated,
+        ItemChanges {
+            quantity: MaybeUndefined::Value(4),
+            notes: MaybeUndefined::Value("signed".into()),
+            ..ItemChanges::default()
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        (grown.record.quantity.as_i64(), grown.record.location_id),
+        (4, None)
+    );
+    assert_eq!(grown.record.notes.as_deref(), Some("signed"));
+
+    // The deck can still give the copies back.
+    manavault_allocation::deallocate(
+        app.db(),
+        lotus.id,
+        manavault_allocation::CollectionItemId(allocated),
+        lotus::Quantity::new(2).unwrap(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        crate::testing::allocated_quantity(app.db(), lotus.id).await,
+        0
+    );
+}

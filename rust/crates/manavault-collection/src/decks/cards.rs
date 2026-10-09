@@ -446,10 +446,14 @@ pub async fn update_in(
     }
     let values = validate(Some(row), &changes)?;
     let updated = write_card(conn, row.id, &values).await?;
+    // Trim before switching: a lower quantity drops proxies first, and the
+    // switch then re-reserves only the physical copies that still fit.
+    // Switching alone used to skip the trim, leaving more proxies than copies.
+    if updated.quantity < row.quantity {
+        manavault_allocation::trim_deck_card_allocations(conn, row.id).await?;
+    }
     if switching {
         manavault_allocation::switch_allocation_to_preferred_printing(conn, row.id).await?;
-    } else if updated.quantity < row.quantity {
-        manavault_allocation::trim_deck_card_allocations(conn, row.id).await?;
     }
     Ok(load_deck_card_on(conn, row.id).await?.unwrap_or(updated))
 }

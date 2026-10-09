@@ -33,7 +33,9 @@ manavault-allocation      reserving collection copies for deck cards
 - `manavault-allocation` reserves physical collection copies for deck cards
   (allocate, deallocate, statuses, bulk and pull-list allocation, collection
   adds, proxies, disassembly, buylist needs), with the allocation invariants
-  in types.
+  in types. `crates/manavault-allocation/formal/` holds a TLA+ model of the
+  allocation flows and the deck-card and collection-item edits that touch the
+  same rows; its README explains how to check it with TLC.
 - Collection and decks share a crate because their GraphQL types point at each
   other (a collection item lists its decks; a deck card lists its items). The
   job framework lives in `manavault-core` because `AppState` holds the queue

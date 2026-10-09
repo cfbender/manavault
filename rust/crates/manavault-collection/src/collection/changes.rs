@@ -415,6 +415,7 @@ async fn update_record(
     let Some(valid) = apply(conn, Mode::Update, &Draft::from_record(record), changes).await? else {
         return Ok(());
     };
+    ensure_allocations_kept(conn, record, &valid).await?;
     let now = Timestamp::now();
     let changed_at = if valid.moved {
         Some(now)
@@ -443,6 +444,45 @@ async fn update_record(
     .execute(&mut *conn)
     .await?;
     Ok(())
+}
+
+/// Copies reserved for decks stay where the allocation put them: an edit may
+/// not shrink an item below its allocated copies (every later release would
+/// fail with a quantity mismatch) or file them in a location (the deck holds
+/// them). Release the copies from the deck first.
+async fn ensure_allocations_kept(
+    conn: &mut SqliteConnection,
+    record: &CollectionItemRecord,
+    valid: &ValidItem,
+) -> Result<(), ItemError> {
+    let allocated = sqlx::query_scalar!(
+        r#"SELECT COALESCE(SUM(quantity), 0) AS "allocated!: i64"
+           FROM deck_allocations WHERE collection_item_id = ?1"#,
+        record.id
+    )
+    .fetch_one(&mut *conn)
+    .await?;
+    if allocated == 0 {
+        return Ok(());
+    }
+    let mut errors = ValidationError::new();
+    if valid.quantity.as_i64() < allocated {
+        errors.add(
+            "quantity",
+            format!("cannot be lower than the {allocated} copies allocated to decks"),
+        );
+    }
+    if valid.location_id != record.location_id {
+        errors.add(
+            "location_id",
+            "cannot change while copies are allocated to a deck",
+        );
+    }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors.into())
+    }
 }
 
 /// Moves an item to a location (the auto-sort move).
