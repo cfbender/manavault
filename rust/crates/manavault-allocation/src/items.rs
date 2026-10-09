@@ -82,6 +82,7 @@ struct NewCollectionItem<'a> {
     location_id: Option<LocationId>,
     notes: Option<&'a str>,
     purchase_price_cents: Option<i64>,
+    acquisition_market_price_cents: Option<i64>,
 }
 
 /// The copies split off `item`: same printing and provenance, new quantity
@@ -100,6 +101,7 @@ fn split_off(
         location_id,
         notes: item.notes.as_deref(),
         purchase_price_cents: item.purchase_price_cents,
+        acquisition_market_price_cents: item.acquisition_market_price_cents,
     }
 }
 
@@ -112,11 +114,11 @@ async fn insert(
         r#"
         INSERT INTO collection_items (
           scryfall_id, quantity, condition, language, finish, location_id, notes,
-          purchase_price_cents, for_trade, for_trade_quantity, location_changed_at,
-          inserted_at, updated_at
+          purchase_price_cents, acquisition_market_price_cents, for_trade, for_trade_quantity,
+          location_changed_at, inserted_at, updated_at
         )
         VALUES (
-          ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, 0,
+          ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 0, 0,
           CASE WHEN ?6 IS NULL THEN NULL ELSE strftime('%Y-%m-%dT%H:%M:%SZ', 'now') END,
           strftime('%Y-%m-%dT%H:%M:%SZ', 'now'),
           strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
@@ -130,7 +132,8 @@ async fn insert(
         item.finish,
         item.location_id,
         item.notes,
-        item.purchase_price_cents
+        item.purchase_price_cents,
+        item.acquisition_market_price_cents
     )
     .fetch_one(conn)
     .await

@@ -9,7 +9,7 @@ CREATE TABLE sqlite_sequence(name,seq);
 CREATE INDEX "scryfall_syncs_status_index" ON "scryfall_syncs" ("status");
 CREATE INDEX "scryfall_syncs_bulk_type_index" ON "scryfall_syncs" ("bulk_type");
 CREATE INDEX "scryfall_syncs_started_at_index" ON "scryfall_syncs" ("started_at");
-CREATE TABLE "collection_items" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "scryfall_id" TEXT NOT NULL CONSTRAINT "collection_items_scryfall_id_fkey" REFERENCES "scryfall_printings"("scryfall_id") ON DELETE CASCADE, "quantity" INTEGER DEFAULT 1 NOT NULL, "condition" TEXT DEFAULT 'near_mint' NOT NULL, "language" TEXT DEFAULT 'en' NOT NULL, "finish" TEXT DEFAULT 'nonfoil' NOT NULL, "location" TEXT, "notes" TEXT, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL, "location_id" INTEGER CONSTRAINT "collection_items_location_id_fkey" REFERENCES "locations"("id") ON DELETE SET NULL, "purchase_price_cents" INTEGER, "location_changed_at" TEXT, "for_trade" INTEGER DEFAULT false NOT NULL, "for_trade_quantity" INTEGER DEFAULT 0 NOT NULL);
+CREATE TABLE "collection_items" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "scryfall_id" TEXT NOT NULL CONSTRAINT "collection_items_scryfall_id_fkey" REFERENCES "scryfall_printings"("scryfall_id") ON DELETE CASCADE, "quantity" INTEGER DEFAULT 1 NOT NULL, "condition" TEXT DEFAULT 'near_mint' NOT NULL, "language" TEXT DEFAULT 'en' NOT NULL, "finish" TEXT DEFAULT 'nonfoil' NOT NULL, "location" TEXT, "notes" TEXT, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL, "location_id" INTEGER CONSTRAINT "collection_items_location_id_fkey" REFERENCES "locations"("id") ON DELETE SET NULL, "purchase_price_cents" INTEGER, "location_changed_at" TEXT, "for_trade" INTEGER DEFAULT false NOT NULL, "for_trade_quantity" INTEGER DEFAULT 0 NOT NULL, "acquisition_market_price_cents" INTEGER);
 CREATE INDEX "collection_items_scryfall_id_index" ON "collection_items" ("scryfall_id");
 CREATE INDEX "collection_items_condition_index" ON "collection_items" ("condition");
 CREATE INDEX "collection_items_language_index" ON "collection_items" ("language");
@@ -118,6 +118,22 @@ CREATE TABLE "jobs" (
 );
 CREATE INDEX "jobs_queue_state_run_at_index" ON "jobs" ("queue", "state", "run_at", "id");
 CREATE INDEX "jobs_worker_index" ON "jobs" ("worker", "id");
+CREATE TABLE "acquisition_price_rebuilds" (
+  "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+  "status" TEXT NOT NULL
+    CHECK ("status" IN ('queued', 'running', 'succeeded', 'failed')),
+  "source" TEXT,
+  "started_at" TEXT,
+  "completed_at" TEXT,
+  "history_from" TEXT,
+  "history_to" TEXT,
+  "items_in_window" INTEGER NOT NULL DEFAULT 0,
+  "items_updated" INTEGER NOT NULL DEFAULT 0,
+  "items_without_history" INTEGER NOT NULL DEFAULT 0,
+  "error" TEXT,
+  "inserted_at" TEXT NOT NULL,
+  "updated_at" TEXT NOT NULL
+);
 INSERT INTO schema_migrations VALUES(20260101000000,NULL);
 INSERT INTO schema_migrations VALUES(20260102000000,NULL);
 INSERT INTO schema_migrations VALUES(20260103000000,NULL);
@@ -193,3 +209,5 @@ INSERT INTO schema_migrations VALUES(20261005000000,NULL);
 INSERT INTO schema_migrations VALUES(20261006000000,NULL);
 INSERT INTO schema_migrations VALUES(20261006120000,NULL);
 INSERT INTO schema_migrations VALUES(20261007201043,NULL);
+INSERT INTO schema_migrations VALUES(20261008220035,NULL);
+INSERT INTO schema_migrations VALUES(20261009014330,NULL);

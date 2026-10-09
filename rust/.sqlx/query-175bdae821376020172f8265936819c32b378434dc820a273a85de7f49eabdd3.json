@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE acquisition_price_rebuilds\n                 SET status = 'succeeded', completed_at = ?1, updated_at = ?1, history_from = ?2, history_to = ?3,\n                     items_in_window = ?4, items_updated = ?5, items_without_history = ?6, error = NULL\n                 WHERE id = ?7",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "175bdae821376020172f8265936819c32b378434dc820a273a85de7f49eabdd3"
+}

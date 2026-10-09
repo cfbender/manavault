@@ -176,13 +176,41 @@ pub async fn totals(pool: &SqlitePool, filters: &ItemFilters) -> Result<Totals, 
     .await
 }
 
-/// Copies, current value, and purchase basis of a set of items.
+/// Copies, current value, purchase basis, and market value at acquisition
+/// of a set of items.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, FromRow)]
 pub struct ValueTotals {
     pub item_count: i64,
     pub total_price_cents: i64,
     /// Purchase prices, falling back to current prices for copies without one.
     pub purchase_price_cents: i64,
+    /// Market prices at acquisition, falling back to current prices for
+    /// copies without one.
+    pub acquisition_market_price_cents: i64,
+}
+
+impl ValueTotals {
+    /// The total the current value is compared against.
+    #[must_use]
+    pub fn basis_cents(&self, basis: ValueBasis) -> i64 {
+        match basis {
+            ValueBasis::Purchase => self.purchase_price_cents,
+            ValueBasis::AcquisitionMarket => self.acquisition_market_price_cents,
+        }
+    }
+}
+
+/// What the current value of a position is compared against
+/// (`CollectionValueBasis`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, async_graphql::Enum)]
+#[graphql(name = "CollectionValueBasis")]
+pub enum ValueBasis {
+    /// The purchase price (`purchase_price_cents`).
+    #[default]
+    Purchase,
+    /// The selected source's market price when the copies were added
+    /// (`acquisition_market_price_cents`).
+    AcquisitionMarket,
 }
 
 fn value_columns() -> String {
@@ -190,7 +218,8 @@ fn value_columns() -> String {
     format!(
         "COALESCE(SUM(i.quantity), 0) AS item_count, \
          CAST(COALESCE(SUM(i.quantity * COALESCE({price}, 0)), 0) AS INTEGER) AS total_price_cents, \
-         CAST(COALESCE(SUM(i.quantity * COALESCE(i.purchase_price_cents, {price}, 0)), 0) AS INTEGER) AS purchase_price_cents"
+         CAST(COALESCE(SUM(i.quantity * COALESCE(i.purchase_price_cents, {price}, 0)), 0) AS INTEGER) AS purchase_price_cents, \
+         CAST(COALESCE(SUM(i.quantity * COALESCE(i.acquisition_market_price_cents, {price}, 0)), 0) AS INTEGER) AS acquisition_market_price_cents"
     )
 }
 
@@ -211,6 +240,7 @@ struct LocationTotalsRow {
     item_count: i64,
     total_price_cents: i64,
     purchase_price_cents: i64,
+    acquisition_market_price_cents: i64,
 }
 
 /// Value summaries of unallocated copies per location; the `None` key is the
@@ -244,6 +274,7 @@ pub async fn location_summaries(
                     item_count: row.item_count,
                     total_price_cents: row.total_price_cents,
                     purchase_price_cents: row.purchase_price_cents,
+                    acquisition_market_price_cents: row.acquisition_market_price_cents,
                 },
             )
         })
@@ -257,7 +288,11 @@ pub struct ValuePosition {
     pub quantity: i64,
     pub total_price_cents: i64,
     pub purchase_price_cents: i64,
+    pub acquisition_market_price_cents: i64,
+    /// Current value minus purchase basis.
     pub value_gain_cents: i64,
+    /// Current value minus market value at acquisition.
+    pub market_gain_cents: i64,
 }
 
 /// A ranked position with its printing and the items behind it.
@@ -269,8 +304,26 @@ pub struct RankedPosition {
 }
 
 impl ValuePosition {
-    fn gain_ratio(&self) -> f64 {
-        ratio(self.value_gain_cents, self.purchase_price_cents)
+    /// The total the position's current value is compared against.
+    #[must_use]
+    pub fn basis_cents(&self, basis: ValueBasis) -> i64 {
+        match basis {
+            ValueBasis::Purchase => self.purchase_price_cents,
+            ValueBasis::AcquisitionMarket => self.acquisition_market_price_cents,
+        }
+    }
+
+    /// Current value minus the basis.
+    #[must_use]
+    pub fn gain_cents(&self, basis: ValueBasis) -> i64 {
+        match basis {
+            ValueBasis::Purchase => self.value_gain_cents,
+            ValueBasis::AcquisitionMarket => self.market_gain_cents,
+        }
+    }
+
+    fn gain_ratio(&self, basis: ValueBasis) -> f64 {
+        ratio(self.gain_cents(basis), self.basis_cents(basis))
     }
 }
 
@@ -282,9 +335,10 @@ fn ratio(gain: i64, purchase: i64) -> f64 {
     f64::from(gain) / f64::from(purchase)
 }
 
-/// The value dashboard (`value_dashboard/0`).
+/// The value dashboard (`value_dashboard/0`), ranked against one basis.
 #[derive(Debug, Clone)]
 pub struct ValueDashboard {
+    pub basis: ValueBasis,
     pub summary: ValueTotals,
     pub position_count: i64,
     pub gain_position_count: i64,
@@ -301,13 +355,19 @@ struct PositionRow {
     item_count: i64,
     total_price_cents: i64,
     purchase_price_cents: i64,
+    acquisition_market_price_cents: i64,
 }
 
 fn count(len: usize) -> i64 {
     i64::try_from(len).unwrap_or(i64::MAX)
 }
 
-pub async fn value_dashboard(pool: &SqlitePool) -> Result<ValueDashboard, sqlx::Error> {
+/// The dashboard whose gain/loss counts and rankings compare current value
+/// with `basis`.
+pub async fn value_dashboard(
+    pool: &SqlitePool,
+    basis: ValueBasis,
+) -> Result<ValueDashboard, sqlx::Error> {
     let summary = value_summary(pool, &ItemFilters::default()).await?;
     let positions: Vec<ValuePosition> = sqlx::QueryBuilder::new(format!(
         "SELECT i.scryfall_id AS scryfall_id, {} {FROM_SQL} WHERE {NOT_LIST_SQL} GROUP BY i.scryfall_id",
@@ -322,53 +382,55 @@ pub async fn value_dashboard(pool: &SqlitePool) -> Result<ValueDashboard, sqlx::
         quantity: row.item_count,
         total_price_cents: row.total_price_cents,
         purchase_price_cents: row.purchase_price_cents,
+        acquisition_market_price_cents: row.acquisition_market_price_cents,
         value_gain_cents: row.total_price_cents - row.purchase_price_cents,
+        market_gain_cents: row.total_price_cents - row.acquisition_market_price_cents,
     })
     .collect();
 
     let gains: Vec<&ValuePosition> = positions
         .iter()
-        .filter(|p| p.value_gain_cents > 0)
+        .filter(|p| p.gain_cents(basis) > 0)
         .collect();
     let losses: Vec<&ValuePosition> = positions
         .iter()
-        .filter(|p| p.value_gain_cents < 0)
+        .filter(|p| p.gain_cents(basis) < 0)
         .collect();
 
     let mut biggest_gains = gains.clone();
     biggest_gains.sort_by(|a, b| {
-        b.value_gain_cents
-            .cmp(&a.value_gain_cents)
+        b.gain_cents(basis)
+            .cmp(&a.gain_cents(basis))
             .then_with(|| a.scryfall_id.cmp(&b.scryfall_id))
     });
     let mut biggest_losses = losses.clone();
     biggest_losses.sort_by(|a, b| {
-        a.value_gain_cents
-            .cmp(&b.value_gain_cents)
+        a.gain_cents(basis)
+            .cmp(&b.gain_cents(basis))
             .then_with(|| a.scryfall_id.cmp(&b.scryfall_id))
     });
     let mut percent_gains: Vec<&ValuePosition> = gains
         .iter()
         .copied()
-        .filter(|p| p.purchase_price_cents > 0)
+        .filter(|p| p.basis_cents(basis) > 0)
         .collect();
     percent_gains.sort_by(|a, b| {
-        b.gain_ratio()
-            .partial_cmp(&a.gain_ratio())
+        b.gain_ratio(basis)
+            .partial_cmp(&a.gain_ratio(basis))
             .unwrap_or(Ordering::Equal)
-            .then_with(|| b.value_gain_cents.cmp(&a.value_gain_cents))
+            .then_with(|| b.gain_cents(basis).cmp(&a.gain_cents(basis)))
             .then_with(|| a.scryfall_id.cmp(&b.scryfall_id))
     });
     let mut percent_losses: Vec<&ValuePosition> = losses
         .iter()
         .copied()
-        .filter(|p| p.purchase_price_cents > 0)
+        .filter(|p| p.basis_cents(basis) > 0)
         .collect();
     percent_losses.sort_by(|a, b| {
-        a.gain_ratio()
-            .partial_cmp(&b.gain_ratio())
+        a.gain_ratio(basis)
+            .partial_cmp(&b.gain_ratio(basis))
             .unwrap_or(Ordering::Equal)
-            .then_with(|| a.value_gain_cents.cmp(&b.value_gain_cents))
+            .then_with(|| a.gain_cents(basis).cmp(&b.gain_cents(basis)))
             .then_with(|| a.scryfall_id.cmp(&b.scryfall_id))
     });
 
@@ -425,6 +487,7 @@ pub async fn value_dashboard(pool: &SqlitePool) -> Result<ValueDashboard, sqlx::
         (next(), next(), next(), next());
 
     Ok(ValueDashboard {
+        basis,
         summary,
         position_count: count(positions.len()),
         gain_position_count: count(gains.len()),

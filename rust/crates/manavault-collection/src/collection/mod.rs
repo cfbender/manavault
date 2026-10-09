@@ -10,12 +10,15 @@
 //! - [`filters`] / [`queries`]: the collection search, listings, totals, and
 //!   value summaries.
 //! - [`export`], [`import`], [`auto_sort`], [`bulk_clean`]: collection tools.
+//! - [`acquisition_prices`]: the job that rebuilds acquisition market prices
+//!   from MTGJSON's price history.
 //! - [`graphql`]: the GraphQL object types, root queries, and mutations.
 //!
 //! Deck allocations are read straight from `deck_allocations`/`deck_cards`/
 //! `decks`: allocated copies are hidden from location views, skipped by
 //! auto-sort and bulk clean, and counted on each item.
 
+pub mod acquisition_prices;
 pub mod auto_sort;
 pub mod bulk_clean;
 pub mod changes;

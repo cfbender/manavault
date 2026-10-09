@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n        SELECT\n          ci.id AS \"id!: CollectionItemId\",\n          ci.scryfall_id AS \"scryfall_id: ScryfallId\",\n          p.oracle_id AS \"oracle_id: OracleId\",\n          ci.quantity AS \"quantity: Quantity\",\n          ci.condition AS \"condition: Condition\",\n          ci.language,\n          ci.finish AS \"finish: Finish\",\n          ci.location_id AS \"location_id: LocationId\",\n          l.kind AS \"location_kind?: LocationKind\",\n          ci.notes,\n          ci.purchase_price_cents\n        FROM collection_items ci\n        JOIN scryfall_printings p ON p.scryfall_id = ci.scryfall_id\n        LEFT JOIN locations l ON l.id = ci.location_id\n        WHERE ci.id = ?1\n        ",
+  "query": "\n        SELECT\n          ci.id AS \"id!: CollectionItemId\",\n          ci.scryfall_id AS \"scryfall_id: ScryfallId\",\n          p.oracle_id AS \"oracle_id: OracleId\",\n          ci.quantity AS \"quantity: Quantity\",\n          ci.condition AS \"condition: Condition\",\n          ci.language,\n          ci.finish AS \"finish: Finish\",\n          ci.location_id AS \"location_id: LocationId\",\n          l.kind AS \"location_kind?: LocationKind\",\n          ci.notes,\n          ci.purchase_price_cents,\n          ci.acquisition_market_price_cents\n        FROM collection_items ci\n        JOIN scryfall_printings p ON p.scryfall_id = ci.scryfall_id\n        JOIN scryfall_cards c ON c.oracle_id = p.oracle_id\n        LEFT JOIN locations l ON l.id = ci.location_id\n        WHERE p.oracle_id IN (SELECT value FROM json_each(?1))\n          AND (l.id IS NULL OR l.kind != 'list')\n        ORDER BY c.name, p.set_code, p.collector_number, ci.id\n        ",
   "describe": {
     "columns": [
       {
@@ -123,13 +123,24 @@
             "name": "purchase_price_cents"
           }
         }
+      },
+      {
+        "name": "acquisition_market_price_cents",
+        "ordinal": 11,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "acquisition_market_price_cents"
+          }
+        }
       }
     ],
     "parameters": {
       "Right": 1
     },
     "nullable": [
-      false,
+      null,
       false,
       false,
       false,
@@ -137,10 +148,11 @@
       false,
       false,
       true,
+      false,
       true,
       true,
       true
     ]
   },
-  "hash": "a0105f784098d17388dad1f7fc6471c11433d5a8e046b3c68ab2fee79b36a3cd"
+  "hash": "f0cd77bfa31b4d0cc347a7b2eff3d89c240c34b410fd08081cbc8b779bb3b8b4"
 }

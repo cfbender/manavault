@@ -14,6 +14,12 @@ export const CollectionValuePositionFragment = graphql(`
     valueGainText
     valueGainPercent
     valueGainPercentText
+    acquisitionMarketPriceCents
+    acquisitionMarketPriceText
+    marketGainCents
+    marketGainText
+    marketGainPercent
+    marketGainPercentText
     printing {
       id
       scryfallId
@@ -30,11 +36,12 @@ export const CollectionValuePositionFragment = graphql(`
 `)
 
 export const CollectionValueDashboardDocument = graphql(`
-  query CollectionValueDashboard {
+  query CollectionValueDashboard($basis: CollectionValueBasis) {
     pricingSettings {
       source
     }
-    collectionValueDashboard {
+    collectionValueDashboard(basis: $basis) {
+      basis
       summary {
         totalPriceCents
         totalPriceText
@@ -44,6 +51,12 @@ export const CollectionValueDashboardDocument = graphql(`
         valueGainText
         valueGainPercent
         valueGainPercentText
+        acquisitionMarketPriceCents
+        acquisitionMarketPriceText
+        marketGainCents
+        marketGainText
+        marketGainPercent
+        marketGainPercentText
       }
       itemCount
       positionCount

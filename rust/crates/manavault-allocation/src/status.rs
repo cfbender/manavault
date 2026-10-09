@@ -339,7 +339,8 @@ async fn load_candidates(
           ci.location_id AS "location_id: LocationId",
           l.kind AS "location_kind?: LocationKind",
           ci.notes,
-          ci.purchase_price_cents
+          ci.purchase_price_cents,
+          ci.acquisition_market_price_cents
         FROM collection_items ci
         JOIN scryfall_printings p ON p.scryfall_id = ci.scryfall_id
         JOIN scryfall_cards c ON c.oracle_id = p.oracle_id
@@ -459,6 +460,7 @@ mod tests {
             location_kind: None,
             notes: None,
             purchase_price_cents: None,
+            acquisition_market_price_cents: None,
         }
     }
 

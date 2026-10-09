@@ -88,6 +88,7 @@ pub struct CollectionItem {
     pub location_kind: Option<LocationKind>,
     pub notes: Option<String>,
     pub purchase_price_cents: Option<i64>,
+    pub acquisition_market_price_cents: Option<i64>,
 }
 
 /// Physical copies of one collection item reserved for one deck card.
@@ -157,7 +158,8 @@ pub(crate) async fn load_collection_item(
           ci.location_id AS "location_id: LocationId",
           l.kind AS "location_kind?: LocationKind",
           ci.notes,
-          ci.purchase_price_cents
+          ci.purchase_price_cents,
+          ci.acquisition_market_price_cents
         FROM collection_items ci
         JOIN scryfall_printings p ON p.scryfall_id = ci.scryfall_id
         LEFT JOIN locations l ON l.id = ci.location_id
@@ -370,7 +372,8 @@ pub(crate) async fn load_collection_items(
           ci.location_id AS "location_id: LocationId",
           l.kind AS "location_kind?: LocationKind",
           ci.notes,
-          ci.purchase_price_cents
+          ci.purchase_price_cents,
+          ci.acquisition_market_price_cents
         FROM collection_items ci
         JOIN scryfall_printings p ON p.scryfall_id = ci.scryfall_id
         LEFT JOIN locations l ON l.id = ci.location_id

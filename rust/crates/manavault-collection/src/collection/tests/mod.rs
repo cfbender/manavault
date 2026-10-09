@@ -1,10 +1,11 @@
 //! Collection tests: items, locations, auto-sort, bulk clean, imports (CSV
-//! parsing is tested in `import::parse`), and the collection GraphQL fields
-//! (items, queries, the item selector, bulk updates, locations and imports,
-//! allocation decks, and the home summary).
+//! parsing is tested in `import::parse`), acquisition price rebuilds, and
+//! the collection GraphQL fields (items, queries, the item selector, bulk
+//! updates, locations and imports, allocation decks, and the home summary).
 //!
 //! Decks and allocations are inserted with SQL.
 
+mod acquisition_prices;
 mod auto_sort;
 mod bulk_clean;
 mod import;

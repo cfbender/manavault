@@ -15,6 +15,7 @@ import type {
   CollectionSortDirection,
   CollectionSortField,
   CollectionTab,
+  CollectionValueBasis,
   CollectionValueRanking,
 } from "./types"
 
@@ -44,6 +45,14 @@ export function deserializeCollectionValueRanking(value: string): CollectionValu
     return JSON.parse(value) === "percent" ? "percent" : "total"
   } catch {
     return "total"
+  }
+}
+
+export function deserializeCollectionValueBasis(value: string): CollectionValueBasis {
+  try {
+    return JSON.parse(value) === "market" ? "market" : "purchase"
+  } catch {
+    return "purchase"
   }
 }
 

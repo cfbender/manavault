@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO acquisition_price_rebuilds (status, inserted_at, updated_at)\n           VALUES ('queued', ?1, ?1) RETURNING id AS \"id!\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "acquisition_price_rebuilds",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c9bb28bfe59a2ded4619cbeb33604036854e5f6c68c8bb1810c46cef1b5d7921"
+}

@@ -124,6 +124,7 @@ async fn splitting_an_item_keeps_its_provenance_and_clamps_trade_copies() -> Tes
         NewItem {
             notes: Some("signed"),
             purchase_price_cents: Some(12_345),
+            acquisition_market_price_cents: Some(9_900),
             for_trade_quantity: 3,
             ..NewItem::new(LOTUS_ALPHA, 3, Some(binder))
         },
@@ -137,6 +138,7 @@ async fn splitting_an_item_keeps_its_provenance_and_clamps_trade_copies() -> Tes
     // Regression for 26cac7e: the split-off copy lost its purchase price.
     let moved = item_row(&pool, allocation.collection_item_id).await?;
     assert_eq!(moved.purchase_price_cents, Some(12_345));
+    assert_eq!(moved.acquisition_market_price_cents, Some(9_900));
     assert_eq!(moved.notes.as_deref(), Some("signed"));
     assert!(!moved.for_trade);
     assert_eq!(moved.for_trade_quantity, 0);

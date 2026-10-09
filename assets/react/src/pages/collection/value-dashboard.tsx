@@ -13,9 +13,13 @@ import { useLocalStorageState } from "../../lib/use-local-storage"
 import { cn, pluralize } from "../../lib/utils"
 import { centsToCurrencyInput, parseCurrencyInputCents } from "./form-helpers"
 import { BulkUpdateCollectionItemsDocument } from "./items/documents"
-import { deserializeCollectionValueRanking } from "./storage"
-import { COLLECTION_VALUE_RANKING_STORAGE_KEY } from "./storage-keys"
+import { deserializeCollectionValueBasis, deserializeCollectionValueRanking } from "./storage"
+import {
+  COLLECTION_VALUE_BASIS_STORAGE_KEY,
+  COLLECTION_VALUE_RANKING_STORAGE_KEY,
+} from "./storage-keys"
 import type {
+  CollectionValueBasis,
   CollectionValueDashboardData,
   CollectionValuePosition,
   CollectionValueRanking,
@@ -23,11 +27,91 @@ import type {
 import { CollectionValueDashboardDocument } from "./value/documents"
 import { collectionValueGainClass } from "./value-summary"
 
+/** The texts and amounts every summary and position carries for both bases. */
+type BasisAmounts = {
+  purchasePriceCents: number
+  purchasePriceText?: string | null
+  valueGainCents: number
+  valueGainText?: string | null
+  valueGainPercentText?: string | null
+  acquisitionMarketPriceCents: number
+  acquisitionMarketPriceText?: string | null
+  marketGainCents: number
+  marketGainText?: string | null
+  marketGainPercentText?: string | null
+}
+
+/** The amounts of `source` the dashboard compares current market value with under `basis`. */
+function basisAmounts(basis: CollectionValueBasis, source: BasisAmounts) {
+  if (basis === "market") {
+    return {
+      basisCents: source.acquisitionMarketPriceCents,
+      basisText: source.acquisitionMarketPriceText || "$0",
+      gainCents: source.marketGainCents,
+      gainText: source.marketGainText || "$0",
+      gainPercentText: source.marketGainPercentText || null,
+    }
+  }
+  return {
+    basisCents: source.purchasePriceCents,
+    basisText: source.purchasePriceText || "$0",
+    gainCents: source.valueGainCents,
+    gainText: source.valueGainText || "$0",
+    gainPercentText: source.valueGainPercentText || null,
+  }
+}
+
+const BASIS_COPY = {
+  purchase: {
+    toggle: "Purchase basis",
+    metric: "Purchase basis",
+    short: "Basis",
+    comparison: "Current selected-source value compared with recorded purchase cost.",
+    comparisonAria: "Market value compared with purchase basis",
+    distribution: "Printing positions relative to purchase basis.",
+    gainTotal: "Positions adding the most value at current market prices.",
+    gainPercent: "Positions with the highest return on their purchase basis.",
+    gainEmpty: "No positions are currently above their purchase basis.",
+    lossTotal: "Positions furthest below their purchase basis.",
+    lossPercent: "Positions with the steepest decline from their purchase basis.",
+    lossEmpty: "No positions are currently below their purchase basis.",
+  },
+  market: {
+    toggle: "Market at acquisition",
+    metric: "Market at acquisition",
+    short: "At acquisition",
+    comparison:
+      "Current selected-source value compared with market value when each card was added.",
+    comparisonAria: "Market value compared with market value at acquisition",
+    distribution: "Printing positions relative to market value at acquisition.",
+    gainTotal: "Positions that rose the most since their cards were added.",
+    gainPercent: "Positions with the highest return since their cards were added.",
+    gainEmpty: "No positions are currently above their market value at acquisition.",
+    lossTotal: "Positions that fell the most since their cards were added.",
+    lossPercent: "Positions with the steepest decline since their cards were added.",
+    lossEmpty: "No positions are currently below their market value at acquisition.",
+  },
+} as const
+
+const TOGGLE_ITEM_CLASS =
+  "min-h-11 rounded-btn px-4 text-sm font-bold transition-colors hover:bg-base-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=on]:bg-primary data-[state=on]:text-primary-content sm:min-h-9"
+
 export function CollectionValueDashboard() {
-  const { data, error, loading, refetch } = useQuery(CollectionValueDashboardDocument, {
-    fetchPolicy: "network-only",
-  })
-  const dashboard = data?.collectionValueDashboard
+  const [basis, setBasis] = useLocalStorageState<CollectionValueBasis>(
+    COLLECTION_VALUE_BASIS_STORAGE_KEY,
+    "purchase",
+    { deserialize: deserializeCollectionValueBasis },
+  )
+  const { data, error, loading, previousData, refetch } = useQuery(
+    CollectionValueDashboardDocument,
+    {
+      fetchPolicy: "network-only",
+      variables: { basis: basis === "market" ? "ACQUISITION_MARKET" : "PURCHASE" },
+    },
+  )
+  // Keep the last dashboard on screen while a basis switch loads.
+  const dashboard = data?.collectionValueDashboard ?? previousData?.collectionValueDashboard
+  const priceSource = priceSourceLabel((data ?? previousData)?.pricingSettings.source)
   const [ranking, setRanking] = useLocalStorageState<CollectionValueRanking>(
     COLLECTION_VALUE_RANKING_STORAGE_KEY,
     "total",
@@ -55,12 +139,37 @@ export function CollectionValueDashboard() {
     )
   }
 
+  // Labels follow the basis the shown numbers were computed with, not the toggle.
+  const shownBasis: CollectionValueBasis =
+    dashboard.basis === "ACQUISITION_MARKET" ? "market" : "purchase"
+  const copy = BASIS_COPY[shownBasis]
+
   return (
-    <div className="min-w-0 space-y-5">
-      <ValueOverview
-        dashboard={dashboard}
-        priceSource={priceSourceLabel(data?.pricingSettings.source)}
-      />
+    <div
+      className={cn("min-w-0 space-y-5 transition-opacity", loading && "opacity-60")}
+      aria-busy={loading}
+    >
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span id="value-basis-label" className="text-sm font-bold">
+          Compare to
+        </span>
+        <ToggleGroup
+          type="single"
+          aria-labelledby="value-basis-label"
+          value={basis}
+          onValueChange={(value) => {
+            if (value === "purchase" || value === "market") setBasis(value)
+          }}
+          className="flex gap-1 rounded-btn border border-base-300 bg-base-100 p-1"
+        >
+          {(["purchase", "market"] as const).map((value) => (
+            <ToggleGroupItem key={value} value={value} className={TOGGLE_ITEM_CLASS}>
+              {BASIS_COPY[value].toggle}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      </div>
+      <ValueOverview basis={shownBasis} dashboard={dashboard} priceSource={priceSource} />
       <div className="flex flex-wrap items-center justify-end gap-3">
         <span id="value-ranking-label" className="text-sm font-bold">
           Rank by
@@ -75,11 +184,7 @@ export function CollectionValueDashboard() {
           className="flex gap-1 rounded-btn border border-base-300 bg-base-100 p-1"
         >
           {(["total", "percent"] as const).map((value) => (
-            <ToggleGroupItem
-              key={value}
-              value={value}
-              className="min-h-11 rounded-btn px-4 text-sm font-bold transition-colors hover:bg-base-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=on]:bg-primary data-[state=on]:text-primary-content sm:min-h-9"
-            >
+            <ToggleGroupItem key={value} value={value} className={TOGGLE_ITEM_CLASS}>
               {value === "total" ? "Total $" : "Percent %"}
             </ToggleGroupItem>
           ))}
@@ -87,13 +192,10 @@ export function CollectionValueDashboard() {
       </div>
       <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-2">
         <PositionRanking
+          basis={shownBasis}
           byPercent={byPercent}
-          description={
-            byPercent
-              ? "Positions with the highest return on their purchase basis."
-              : "Positions adding the most value at current market prices."
-          }
-          emptyDescription="No positions are currently above their purchase basis."
+          description={byPercent ? copy.gainPercent : copy.gainTotal}
+          emptyDescription={copy.gainEmpty}
           icon={TrendingUp}
           onBasisUpdated={() => void refetch()}
           positions={byPercent ? dashboard.biggestPercentGains : dashboard.biggestGains}
@@ -101,13 +203,10 @@ export function CollectionValueDashboard() {
           tone="gain"
         />
         <PositionRanking
+          basis={shownBasis}
           byPercent={byPercent}
-          description={
-            byPercent
-              ? "Positions with the steepest decline from their purchase basis."
-              : "Positions furthest below their purchase basis."
-          }
-          emptyDescription="No positions are currently below their purchase basis."
+          description={byPercent ? copy.lossPercent : copy.lossTotal}
+          emptyDescription={copy.lossEmpty}
           icon={TrendingDown}
           onBasisUpdated={() => void refetch()}
           positions={byPercent ? dashboard.biggestPercentLosses : dashboard.biggestLosses}
@@ -120,13 +219,17 @@ export function CollectionValueDashboard() {
 }
 
 function ValueOverview({
+  basis,
   dashboard,
   priceSource,
 }: {
+  basis: CollectionValueBasis
   dashboard: CollectionValueDashboardData
   priceSource: string
 }) {
   const { summary } = dashboard
+  const copy = BASIS_COPY[basis]
+  const amounts = basisAmounts(basis, summary)
 
   return (
     <section
@@ -149,17 +252,17 @@ function ValueOverview({
 
       <dl className="grid border-b border-base-300 sm:grid-cols-3 sm:divide-x sm:divide-base-300">
         <ValueMetric label="Market value" value={summary.totalPriceText || "$0"} />
-        <ValueMetric label="Purchase basis" value={summary.purchasePriceText || "$0"} />
+        <ValueMetric label={copy.metric} value={amounts.basisText} />
         <ValueMetric
-          label={summary.valueGainCents < 0 ? "Value loss" : "Value gain"}
-          value={`${summary.valueGainText || "$0"}${summary.valueGainPercentText ? ` (${summary.valueGainPercentText})` : ""}`}
-          valueClassName={collectionValueGainClass(summary.valueGainText)}
+          label={amounts.gainCents < 0 ? "Value loss" : "Value gain"}
+          value={`${amounts.gainText}${amounts.gainPercentText ? ` (${amounts.gainPercentText})` : ""}`}
+          valueClassName={collectionValueGainClass(amounts.gainText)}
         />
       </dl>
 
       <div className="grid gap-6 p-4 sm:p-5 lg:grid-cols-2">
-        <ValueComparison dashboard={dashboard} />
-        <PositionDistribution dashboard={dashboard} />
+        <ValueComparison basis={basis} dashboard={dashboard} />
+        <PositionDistribution basis={basis} dashboard={dashboard} />
       </div>
     </section>
   )
@@ -184,23 +287,25 @@ function ValueMetric({
   )
 }
 
-function ValueComparison({ dashboard }: { dashboard: CollectionValueDashboardData }) {
+function ValueComparison({
+  basis,
+  dashboard,
+}: {
+  basis: CollectionValueBasis
+  dashboard: CollectionValueDashboardData
+}) {
   const { summary } = dashboard
-  const scale = Math.max(summary.totalPriceCents, summary.purchasePriceCents, 1)
+  const copy = BASIS_COPY[basis]
+  const amounts = basisAmounts(basis, summary)
+  const scale = Math.max(summary.totalPriceCents, amounts.basisCents, 1)
 
   return (
     <section aria-labelledby="value-comparison-title">
       <h3 id="value-comparison-title" className="font-black">
-        Market vs. basis
+        {basis === "market" ? "Market now vs. at acquisition" : "Market vs. basis"}
       </h3>
-      <p className="mt-1 text-sm text-base-content/60">
-        Current selected-source value compared with recorded purchase cost.
-      </p>
-      <div
-        className="mt-4 space-y-3"
-        role="img"
-        aria-label="Market value compared with purchase basis"
-      >
+      <p className="mt-1 text-sm text-base-content/60">{copy.comparison}</p>
+      <div className="mt-4 space-y-3" role="img" aria-label={copy.comparisonAria}>
         <ComparisonBar
           label="Market"
           value={summary.totalPriceText || "$0"}
@@ -208,9 +313,9 @@ function ValueComparison({ dashboard }: { dashboard: CollectionValueDashboardDat
           className="bg-primary"
         />
         <ComparisonBar
-          label="Basis"
-          value={summary.purchasePriceText || "$0"}
-          width={(summary.purchasePriceCents / scale) * 100}
+          label={copy.short}
+          value={amounts.basisText}
+          width={(amounts.basisCents / scale) * 100}
           className="bg-accent"
         />
       </div>
@@ -242,22 +347,30 @@ function ComparisonBar({
   )
 }
 
-function PositionDistribution({ dashboard }: { dashboard: CollectionValueDashboardData }) {
+function PositionDistribution({
+  basis,
+  dashboard,
+}: {
+  basis: CollectionValueBasis
+  dashboard: CollectionValueDashboardData
+}) {
   const total = Math.max(dashboard.positionCount, 1)
+  const copy = BASIS_COPY[basis]
+  const reference = basis === "market" ? "acquisition" : "basis"
   const segments = [
     {
       count: dashboard.gainPositionCount,
-      label: "Above basis",
+      label: `Above ${reference}`,
       className: "bg-success",
     },
     {
       count: dashboard.unchangedPositionCount,
-      label: "At basis",
+      label: `At ${reference}`,
       className: "bg-base-content/25",
     },
     {
       count: dashboard.lossPositionCount,
-      label: "Below basis",
+      label: `Below ${reference}`,
       className: "bg-error",
     },
   ]
@@ -267,13 +380,11 @@ function PositionDistribution({ dashboard }: { dashboard: CollectionValueDashboa
       <h3 id="position-distribution-title" className="font-black">
         Position performance
       </h3>
-      <p className="mt-1 text-sm text-base-content/60">
-        Printing positions relative to purchase basis.
-      </p>
+      <p className="mt-1 text-sm text-base-content/60">{copy.distribution}</p>
       <div
         className="mt-4 flex h-2.5 overflow-hidden rounded-full bg-base-200"
         role="img"
-        aria-label={`${dashboard.gainPositionCount} above basis, ${dashboard.unchangedPositionCount} at basis, ${dashboard.lossPositionCount} below basis`}
+        aria-label={`${dashboard.gainPositionCount} above ${reference}, ${dashboard.unchangedPositionCount} at ${reference}, ${dashboard.lossPositionCount} below ${reference}`}
       >
         {segments.map((segment) => (
           <div
@@ -299,6 +410,7 @@ function PositionDistribution({ dashboard }: { dashboard: CollectionValueDashboa
 }
 
 function PositionRanking({
+  basis,
   byPercent,
   description,
   emptyDescription,
@@ -308,6 +420,7 @@ function PositionRanking({
   title,
   tone,
 }: {
+  basis: CollectionValueBasis
   byPercent: boolean
   description: string
   emptyDescription: string
@@ -334,6 +447,7 @@ function PositionRanking({
           {positions.map((position) => (
             <li key={position.printing.scryfallId} className="min-w-0">
               <ValuePositionRow
+                basis={basis}
                 byPercent={byPercent}
                 onBasisUpdated={onBasisUpdated}
                 position={position}
@@ -351,17 +465,21 @@ function PositionRanking({
 }
 
 function ValuePositionRow({
+  basis,
   byPercent,
   onBasisUpdated,
   position,
 }: {
+  basis: CollectionValueBasis
   byPercent: boolean
   onBasisUpdated: () => void
   position: CollectionValuePosition
 }) {
+  const amounts = basisAmounts(basis, position)
+  const basisLabel = BASIS_COPY[basis].short
   const [primaryGain, secondaryGain] = byPercent
-    ? [position.valueGainPercentText, position.valueGainText]
-    : [position.valueGainText, position.valueGainPercentText]
+    ? [amounts.gainPercentText, amounts.gainText]
+    : [amounts.gainText, amounts.gainPercentText]
   const cardName = position.printing.card?.name || "Unknown card"
   const setLabel = [position.printing.setCode?.toUpperCase(), position.printing.collectorNumber]
     .filter(Boolean)
@@ -409,16 +527,16 @@ function ValuePositionRow({
             </dd>
           </div>
           <div className="flex min-w-0 items-baseline gap-2">
-            <dt className="shrink-0 text-base-content/60">Basis</dt>
+            <dt className="shrink-0 text-base-content/60">{basisLabel}</dt>
             <dd className="min-w-0 truncate font-mono font-bold tabular-nums">
-              {position.purchasePriceText}
+              {amounts.basisText}
             </dd>
           </div>
         </dl>
         <div
           className={cn(
             "mt-1 flex min-w-0 flex-wrap items-baseline gap-x-2 text-xs sm:hidden",
-            collectionValueGainClass(position.valueGainText),
+            collectionValueGainClass(amounts.gainText),
           )}
         >
           <span className="font-mono font-black tabular-nums">{primaryGain}</span>
@@ -431,14 +549,14 @@ function ValuePositionRow({
           <dd className="mt-0.5 font-mono font-bold tabular-nums">{position.totalPriceText}</dd>
         </div>
         <div>
-          <dt className="text-base-content/55">Basis</dt>
-          <dd className="mt-0.5 font-mono font-bold tabular-nums">{position.purchasePriceText}</dd>
+          <dt className="text-base-content/55">{basisLabel}</dt>
+          <dd className="mt-0.5 font-mono font-bold tabular-nums">{amounts.basisText}</dd>
         </div>
       </dl>
       <div
         className={cn(
           "hidden w-20 shrink-0 text-right sm:block",
-          collectionValueGainClass(position.valueGainText),
+          collectionValueGainClass(amounts.gainText),
         )}
       >
         <p className="font-mono font-black tabular-nums">{primaryGain}</p>

@@ -16,5 +16,8 @@ mod test_app;
 /// This crate's background workers.
 #[must_use]
 pub fn workers() -> Vec<Arc<dyn DynWorker>> {
-    vec![Arc::new(decks::external::ExternalDeckSyncWorker)]
+    vec![
+        Arc::new(decks::external::ExternalDeckSyncWorker),
+        Arc::new(collection::acquisition_prices::AcquisitionPriceRebuildWorker),
+    ]
 }

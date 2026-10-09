@@ -4,6 +4,7 @@
 
 use async_graphql::{Context, ErrorExtensions, ID, Object, SimpleObject};
 
+use crate::collection::acquisition_prices::{self, EnqueueError};
 use crate::collection::auto_sort::rules::{self, AutoSortError};
 use crate::collection::auto_sort::{self, AutoSortOptions, Source};
 use crate::collection::bulk_clean::{self, PullRequest, RemovePullsError};
@@ -15,8 +16,8 @@ use crate::collection::graphql::inputs::{
     LocationUpdateInput, import_location_id, optional_location_arg, rule_inputs, selected_ids,
 };
 use crate::collection::graphql::tools::{
-    CollectionAutoSortResult, CollectionAutoSortRule, CollectionImportPreview,
-    CollectionImportResult,
+    AcquisitionPriceRebuild, CollectionAutoSortResult, CollectionAutoSortRule,
+    CollectionImportPreview, CollectionImportResult,
 };
 use crate::collection::import::{self, ImportError, ImportRow, PreviewOptions};
 use crate::collection::item::CollectionItem;
@@ -121,6 +122,11 @@ pub struct UpdateCollectionAutoSortRulesPayload {
 #[derive(SimpleObject)]
 pub struct AutoSortCollectionPayload {
     pub auto_sort_result: CollectionAutoSortResult,
+}
+
+#[derive(SimpleObject)]
+pub struct RebuildAcquisitionPricesPayload {
+    pub rebuild: AcquisitionPriceRebuild,
 }
 
 #[derive(SimpleObject)]
@@ -333,6 +339,26 @@ impl CollectionMutations {
             .map_err(auto_sort_error)?;
         Ok(Some(AutoSortCollectionPayload {
             auto_sort_result: CollectionAutoSortResult(result),
+        }))
+    }
+
+    /// Queues a rebuild of acquisition market prices from MTGJSON's price
+    /// history; returns the pending rebuild when one is already queued.
+    async fn rebuild_acquisition_prices(
+        &self,
+        ctx: &Context<'_>,
+    ) -> Result<Option<RebuildAcquisitionPricesPayload>> {
+        let record =
+            acquisition_prices::enqueue(state(ctx))
+                .await
+                .map_err(|error| match error {
+                    EnqueueError::Db(error) => internal_error(error),
+                    EnqueueError::Job(_) => {
+                        user_error("Acquisition price rebuild could not be queued.")
+                    }
+                })?;
+        Ok(Some(RebuildAcquisitionPricesPayload {
+            rebuild: record.into(),
         }))
     }
 

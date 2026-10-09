@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT\n             quantity AS \"quantity: u32\",\n             location_id AS \"location_id: LocationId\",\n             finish AS \"finish: Finish\",\n             notes,\n             purchase_price_cents,\n             for_trade AS \"for_trade: bool\",\n             for_trade_quantity AS \"for_trade_quantity: u32\",\n             location_changed_at\n           FROM collection_items WHERE id = ?1",
+  "query": "SELECT\n             quantity AS \"quantity: u32\",\n             location_id AS \"location_id: LocationId\",\n             finish AS \"finish: Finish\",\n             notes,\n             purchase_price_cents,\n             acquisition_market_price_cents,\n             for_trade AS \"for_trade: bool\",\n             for_trade_quantity AS \"for_trade_quantity: u32\",\n             location_changed_at\n           FROM collection_items WHERE id = ?1",
   "describe": {
     "columns": [
       {
@@ -59,8 +59,19 @@
         }
       },
       {
-        "name": "for_trade: bool",
+        "name": "acquisition_market_price_cents",
         "ordinal": 5,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "acquisition_market_price_cents"
+          }
+        }
+      },
+      {
+        "name": "for_trade: bool",
+        "ordinal": 6,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -71,7 +82,7 @@
       },
       {
         "name": "for_trade_quantity: u32",
-        "ordinal": 6,
+        "ordinal": 7,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -82,7 +93,7 @@
       },
       {
         "name": "location_changed_at",
-        "ordinal": 7,
+        "ordinal": 8,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -101,10 +112,11 @@
       false,
       true,
       true,
+      true,
       false,
       false,
       true
     ]
   },
-  "hash": "e69590a4cf584453fe5ae226a0ec612e47681e99aa2dead2cdc3a8dce6c7a08e"
+  "hash": "435535d6c857359b4c13f52baf6360b85b08635de1be91048bf5ee0b698e215c"
 }

@@ -48,6 +48,7 @@ test("shows source-dependent totals, position charts, gains, and losses", async 
   renderDashboard({
     pricingSettings: { source: "manapool" },
     collectionValueDashboard: {
+      basis: "PURCHASE",
       itemCount: 7,
       positionCount: 3,
       gainPositionCount: 1,
@@ -62,6 +63,12 @@ test("shows source-dependent totals, position charts, gains, and losses", async 
         valueGainText: "+$25",
         valueGainPercent: 25,
         valueGainPercentText: "+25%",
+        acquisitionMarketPriceCents: 11_000,
+        acquisitionMarketPriceText: "$110",
+        marketGainCents: 1_500,
+        marketGainText: "+$15",
+        marketGainPercent: 13.6,
+        marketGainPercentText: "+13.6%",
       },
       biggestGains: [position("gain", "Stronghold", 6_000, 2_000, 4_000)],
       biggestLosses: [position("loss", "Downshift", 1_500, 3_000, -1_500)],
@@ -118,6 +125,44 @@ test("toggles gain and loss rankings between total and percent comparison", asyn
   window.localStorage.clear()
 })
 
+test("compares against market value at acquisition and persists the basis", async () => {
+  window.localStorage.clear()
+  const stronghold = position("gain", "Stronghold", 6_000, 2_000, 4_000, 5_500)
+  renderDashboard(dashboardData({ biggestGains: [stronghold] }), [
+    {
+      request: {
+        query: CollectionValueDashboardDocument,
+        variables: { basis: "ACQUISITION_MARKET" },
+      },
+      result: { data: dashboardData({ basis: "ACQUISITION_MARKET", biggestGains: [stronghold] }) },
+    },
+  ])
+
+  expect(await screen.findByRole("heading", { name: "Collection value" })).toBeTruthy()
+  const purchase = screen.getByRole("radio", { name: "Purchase basis" })
+  expect(purchase.getAttribute("aria-checked")).toBe("true")
+  expect(screen.getByText("+$40 (+200%)")).toBeTruthy()
+  expect(screen.getAllByText("+$40").length).toBeGreaterThan(0)
+
+  await userEvent.click(screen.getByRole("radio", { name: "Market at acquisition" }))
+
+  expect(await screen.findByText("+$10 (+20%)")).toBeTruthy()
+  expect(screen.getByText("Market at acquisition", { selector: "dt" })).toBeTruthy()
+  expect(screen.getByText("$50", { selector: "dd" })).toBeTruthy()
+  expect(
+    screen.getByRole("img", { name: "Market value compared with market value at acquisition" }),
+  ).toBeTruthy()
+  expect(
+    screen.getByRole("img", { name: "1 above acquisition, 0 at acquisition, 0 below acquisition" }),
+  ).toBeTruthy()
+  expect(screen.getAllByText("+$5").length).toBeGreaterThan(0)
+  expect(screen.getAllByText("$55").length).toBeGreaterThan(0)
+  expect(screen.queryByText("+$40")).toBeNull()
+  expect(screen.getByRole("button", { name: "Edit purchase basis for Stronghold" })).toBeTruthy()
+  expect(window.localStorage.getItem("manavault.collection.valueBasis")).toBe('"market"')
+  window.localStorage.clear()
+})
+
 function gainNames() {
   const gains = screen.getByRole("region", { name: "Biggest gains" })
   return within(gains)
@@ -141,7 +186,7 @@ test("quick edits the per-card purchase basis for every item in a printing posit
       result: { data: { bulkUpdateCollectionItems: { updatedCount: 2 } } },
     },
     {
-      request: { query: CollectionValueDashboardDocument },
+      request: { query: CollectionValueDashboardDocument, variables: { basis: "PURCHASE" } },
       result: { data },
     },
   ])
@@ -163,6 +208,7 @@ test("teaches an empty collection how to start value tracking", async () => {
   renderDashboard({
     pricingSettings: { source: "scryfall" },
     collectionValueDashboard: {
+      basis: "PURCHASE",
       itemCount: 0,
       positionCount: 0,
       gainPositionCount: 0,
@@ -177,6 +223,12 @@ test("teaches an empty collection how to start value tracking", async () => {
         valueGainText: "$0",
         valueGainPercent: null,
         valueGainPercentText: null,
+        acquisitionMarketPriceCents: 0,
+        acquisitionMarketPriceText: "$0",
+        marketGainCents: 0,
+        marketGainText: "$0",
+        marketGainPercent: null,
+        marketGainPercentText: null,
       },
       biggestGains: [],
       biggestLosses: [],
@@ -202,7 +254,10 @@ function renderDashboard(
 ) {
   const link = new MockLink([
     {
-      request: { query: CollectionValueDashboardDocument },
+      request: {
+        query: CollectionValueDashboardDocument,
+        variables: { basis: data.collectionValueDashboard.basis ?? "PURCHASE" },
+      },
       result: { data },
     },
     ...additionalMocks,
@@ -232,15 +287,18 @@ function renderDashboard(
 }
 
 function dashboardData({
+  basis = "PURCHASE",
   biggestGains = [],
   biggestPercentGains = biggestGains,
 }: {
+  basis?: "PURCHASE" | "ACQUISITION_MARKET"
   biggestGains?: ReturnType<typeof position>[]
   biggestPercentGains?: ReturnType<typeof position>[]
 }) {
   return {
     pricingSettings: { source: "manapool" },
     collectionValueDashboard: {
+      basis,
       itemCount: 2,
       positionCount: 1,
       gainPositionCount: 1,
@@ -255,6 +313,12 @@ function dashboardData({
         valueGainText: "+$40",
         valueGainPercent: 200,
         valueGainPercentText: "+200%",
+        acquisitionMarketPriceCents: 5_000,
+        acquisitionMarketPriceText: "$50",
+        marketGainCents: 1_000,
+        marketGainText: "+$10",
+        marketGainPercent: 20,
+        marketGainPercentText: "+20%",
       },
       biggestGains,
       biggestLosses: [],
@@ -264,15 +328,23 @@ function dashboardData({
   }
 }
 
+function signedDollars(cents: number) {
+  return cents > 0 ? `+$${cents / 100}` : `-$${Math.abs(cents) / 100}`
+}
+
+function signedPercent(gainCents: number, basisCents: number) {
+  return `${gainCents > 0 ? "+" : ""}${Math.round((gainCents * 100) / basisCents)}%`
+}
+
 function position(
   slug: string,
   name: string,
   totalPriceCents: number,
   purchasePriceCents: number,
   valueGainCents: number,
+  acquisitionMarketPriceCents = purchasePriceCents,
 ) {
-  const signedGain =
-    valueGainCents > 0 ? `+$${valueGainCents / 100}` : `-$${Math.abs(valueGainCents) / 100}`
+  const marketGainCents = totalPriceCents - acquisitionMarketPriceCents
 
   return {
     __typename: "CollectionValuePosition",
@@ -283,9 +355,15 @@ function position(
     purchasePriceCents,
     purchasePriceText: `$${purchasePriceCents / 100}`,
     valueGainCents,
-    valueGainText: signedGain,
+    valueGainText: signedDollars(valueGainCents),
     valueGainPercent: (valueGainCents * 100) / purchasePriceCents,
-    valueGainPercentText: `${valueGainCents > 0 ? "+" : ""}${Math.round((valueGainCents * 100) / purchasePriceCents)}%`,
+    valueGainPercentText: signedPercent(valueGainCents, purchasePriceCents),
+    acquisitionMarketPriceCents,
+    acquisitionMarketPriceText: `$${acquisitionMarketPriceCents / 100}`,
+    marketGainCents,
+    marketGainText: signedDollars(marketGainCents),
+    marketGainPercent: (marketGainCents * 100) / acquisitionMarketPriceCents,
+    marketGainPercentText: signedPercent(marketGainCents, acquisitionMarketPriceCents),
     printing: {
       id: `printing-${slug}`,
       scryfallId: `scryfall-${slug}`,

@@ -1,8 +1,9 @@
 //! GraphQL types of the collection tools: auto-sort rules and results, bulk
-//! clean suggestions, and import previews.
+//! clean suggestions, import previews, and acquisition price rebuilds.
 
-use async_graphql::{Context, ID, Object};
+use async_graphql::{Context, ID, Object, SimpleObject};
 
+use crate::collection::acquisition_prices::RebuildRecord;
 use crate::collection::auto_sort::rules::{AutoSortRule, decode_list};
 use crate::collection::auto_sort::{AutoSortMove, AutoSortResult};
 use crate::collection::bulk_clean::{BulkCleanCard, BulkCleanPull, BulkCleanResult};
@@ -443,5 +444,42 @@ impl CollectionImportResult {
 
     async fn auto_sorted(&self) -> i64 {
         self.0.auto_sorted
+    }
+}
+
+/// `AcquisitionPriceRebuild`: one run of the rebuild from MTGJSON's price
+/// history.
+#[derive(Debug, Clone, PartialEq, SimpleObject)]
+pub struct AcquisitionPriceRebuild {
+    pub id: ID,
+    /// `queued`, `running`, `succeeded`, or `failed`.
+    pub status: String,
+    pub source: Option<String>,
+    pub started_at: Option<String>,
+    pub completed_at: Option<String>,
+    /// The first and last day of the fetched history, as `YYYY-MM-DD`.
+    pub history_from: Option<String>,
+    pub history_to: Option<String>,
+    pub items_in_window: i64,
+    pub items_updated: i64,
+    pub items_without_history: i64,
+    pub error: Option<String>,
+}
+
+impl From<RebuildRecord> for AcquisitionPriceRebuild {
+    fn from(record: RebuildRecord) -> Self {
+        Self {
+            id: raw_id(record.id),
+            status: record.status.as_str().to_owned(),
+            source: record.source,
+            started_at: record.started_at.map(|at| at.to_string()),
+            completed_at: record.completed_at.map(|at| at.to_string()),
+            history_from: record.history_from,
+            history_to: record.history_to,
+            items_in_window: record.items_in_window,
+            items_updated: record.items_updated,
+            items_without_history: record.items_without_history,
+            error: record.error,
+        }
     }
 }

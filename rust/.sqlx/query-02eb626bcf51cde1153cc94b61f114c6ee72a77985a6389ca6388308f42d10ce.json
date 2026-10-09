@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO collection_items\n             (scryfall_id, quantity, condition, language, finish, location_id, notes,\n              purchase_price_cents, acquisition_market_price_cents, for_trade, for_trade_quantity,\n              location_changed_at, inserted_at, updated_at)\n           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?13)\n           RETURNING id AS \"id!\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 13
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "02eb626bcf51cde1153cc94b61f114c6ee72a77985a6389ca6388308f42d10ce"
+}

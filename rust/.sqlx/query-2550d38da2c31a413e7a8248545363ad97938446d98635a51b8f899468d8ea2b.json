@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT i.id AS \"id!\", i.scryfall_id AS \"scryfall_id!: lotus::ScryfallId\",\n                 i.quantity AS \"quantity!: lotus::Quantity\",\n                 i.condition AS \"condition!: lotus::Condition\", i.language AS \"language!\",\n                 i.finish AS \"finish!: lotus::Finish\", i.location_id AS \"location_id?\",\n                 i.notes AS \"notes?\", i.purchase_price_cents AS \"purchase_price_cents?\",\n                 i.for_trade AS \"for_trade!: bool\", i.for_trade_quantity AS \"for_trade_quantity!\",\n                 i.location_changed_at AS \"location_changed_at?: manavault_core::timestamp::Timestamp\",\n                 i.inserted_at AS \"inserted_at!: manavault_core::timestamp::Timestamp\",\n                 i.updated_at AS \"updated_at!: manavault_core::timestamp::Timestamp\"\n               FROM collection_items AS i WHERE i.id IN (SELECT value FROM json_each(?1)) ORDER BY i.id",
+  "query": "SELECT i.id AS \"id!\", i.scryfall_id AS \"scryfall_id!: lotus::ScryfallId\",\n                 i.quantity AS \"quantity!: lotus::Quantity\",\n                 i.condition AS \"condition!: lotus::Condition\", i.language AS \"language!\",\n                 i.finish AS \"finish!: lotus::Finish\", i.location_id AS \"location_id?\",\n                 i.notes AS \"notes?\", i.purchase_price_cents AS \"purchase_price_cents?\",\n                 i.acquisition_market_price_cents AS \"acquisition_market_price_cents?\",\n                 i.for_trade AS \"for_trade!: bool\", i.for_trade_quantity AS \"for_trade_quantity!\",\n                 i.location_changed_at AS \"location_changed_at?: manavault_core::timestamp::Timestamp\",\n                 i.inserted_at AS \"inserted_at!: manavault_core::timestamp::Timestamp\",\n                 i.updated_at AS \"updated_at!: manavault_core::timestamp::Timestamp\"\n               FROM collection_items AS i WHERE i.id IN (SELECT value FROM json_each(?1))",
   "describe": {
     "columns": [
       {
@@ -103,8 +103,19 @@
         }
       },
       {
-        "name": "for_trade!: bool",
+        "name": "acquisition_market_price_cents?",
         "ordinal": 9,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "acquisition_market_price_cents"
+          }
+        }
+      },
+      {
+        "name": "for_trade!: bool",
+        "ordinal": 10,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -115,7 +126,7 @@
       },
       {
         "name": "for_trade_quantity!",
-        "ordinal": 10,
+        "ordinal": 11,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -126,7 +137,7 @@
       },
       {
         "name": "location_changed_at?: manavault_core::timestamp::Timestamp",
-        "ordinal": 11,
+        "ordinal": 12,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -137,7 +148,7 @@
       },
       {
         "name": "inserted_at!: manavault_core::timestamp::Timestamp",
-        "ordinal": 12,
+        "ordinal": 13,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -148,7 +159,7 @@
       },
       {
         "name": "updated_at!: manavault_core::timestamp::Timestamp",
-        "ordinal": 13,
+        "ordinal": 14,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -171,6 +182,7 @@
       true,
       true,
       true,
+      true,
       false,
       false,
       true,
@@ -178,5 +190,5 @@
       false
     ]
   },
-  "hash": "0c18e44b727c15719bc12ab44c685e6824aff52d125ecc56569f1a888422d7d0"
+  "hash": "2550d38da2c31a413e7a8248545363ad97938446d98635a51b8f899468d8ea2b"
 }

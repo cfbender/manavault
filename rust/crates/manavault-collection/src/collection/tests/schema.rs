@@ -630,6 +630,96 @@ async fn groups_combine_price_lots_while_items_stay_separate() {
     assert_eq!(purchase, [json!(100), json!(200)]);
 }
 
+/// The market price when an item is added is kept, and the dashboard
+/// ranks positions against the purchase basis or that price.
+#[tokio::test]
+async fn value_dashboard_ranks_against_the_chosen_basis() {
+    let app = TestApp::new().await;
+    app.import_cards(&[card(
+        "basis-printing",
+        "basis-card",
+        "Basis Card",
+        json!({"rarity": "rare", "prices": {"usd": "10.00"}}),
+    )])
+    .await;
+    create_item(
+        &app,
+        "basis-printing",
+        Attrs {
+            quantity: Some(2),
+            purchase_price_cents: Some(100),
+            ..Attrs::default()
+        },
+    )
+    .await;
+    // The market drops after the copies were added.
+    sqlx::query(r#"UPDATE scryfall_printings SET prices = '{"usd": "8.00"}' WHERE scryfall_id = 'basis-printing'"#)
+        .execute(app.db())
+        .await
+        .unwrap();
+
+    let query = r"query Dashboard($basis: CollectionValueBasis) {
+      collectionItems(first: 1) { edges { node {
+        purchasePriceCents acquisitionMarketPriceCents acquisitionMarketPriceText
+        valueGainText marketGainCents marketGainText
+      } } }
+      collectionValueDashboard(basis: $basis) {
+        basis gainPositionCount lossPositionCount unchangedPositionCount
+        summary {
+          totalPriceCents purchasePriceCents valueGainText valueGainPercentText
+          acquisitionMarketPriceCents acquisitionMarketPriceText
+          marketGainCents marketGainText marketGainPercent marketGainPercentText
+        }
+        biggestGains { valueGainText marketGainText }
+        biggestLosses { valueGainText marketGainText }
+        biggestPercentGains { valueGainPercentText marketGainPercentText }
+        biggestPercentLosses { valueGainPercentText marketGainPercentText }
+      }
+    }";
+    let data = app.gql_data(query, json!({})).await;
+    assert_eq!(
+        edges(&data["collectionItems"]),
+        [json!({
+            "purchasePriceCents": 100, "acquisitionMarketPriceCents": 1_000,
+            "acquisitionMarketPriceText": "$10", "valueGainText": "+$7",
+            "marketGainCents": -200, "marketGainText": "-$2"
+        })]
+    );
+    let summary = json!({
+        "totalPriceCents": 1_600, "purchasePriceCents": 200, "valueGainText": "+$14",
+        "valueGainPercentText": "+700%",
+        "acquisitionMarketPriceCents": 2_000, "acquisitionMarketPriceText": "$20",
+        "marketGainCents": -400, "marketGainText": "-$4", "marketGainPercent": -20.0,
+        "marketGainPercentText": "-20%"
+    });
+    assert_eq!(
+        data["collectionValueDashboard"],
+        json!({
+            "basis": "PURCHASE", "gainPositionCount": 1, "lossPositionCount": 0,
+            "unchangedPositionCount": 0, "summary": summary,
+            "biggestGains": [{"valueGainText": "+$14", "marketGainText": "-$4"}],
+            "biggestLosses": [],
+            "biggestPercentGains": [{"valueGainPercentText": "+700%", "marketGainPercentText": "-20%"}],
+            "biggestPercentLosses": []
+        })
+    );
+
+    let data = app
+        .gql_data(query, json!({"basis": "ACQUISITION_MARKET"}))
+        .await;
+    assert_eq!(
+        data["collectionValueDashboard"],
+        json!({
+            "basis": "ACQUISITION_MARKET", "gainPositionCount": 0, "lossPositionCount": 1,
+            "unchangedPositionCount": 0, "summary": summary,
+            "biggestGains": [],
+            "biggestLosses": [{"valueGainText": "+$14", "marketGainText": "-$4"}],
+            "biggestPercentGains": [],
+            "biggestPercentLosses": [{"valueGainPercentText": "+700%", "marketGainPercentText": "-20%"}]
+        })
+    );
+}
+
 /// The value-gain group sort weighs each copy's gain, not `quantity * price -
 /// purchase` (the unparenthesized fragment of earlier releases; found during the
 /// port): five copies bought at market price gained nothing and sort

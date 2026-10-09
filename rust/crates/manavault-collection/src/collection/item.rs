@@ -29,6 +29,10 @@ pub struct CollectionItemRecord {
     pub location_id: Option<i64>,
     pub notes: Option<String>,
     pub purchase_price_cents: Option<i64>,
+    /// The selected price source's price of one copy when the item was
+    /// added (or when the column was introduced); `None` when no price was
+    /// known then.
+    pub acquisition_market_price_cents: Option<i64>,
     pub for_trade: bool,
     /// Copies offered for trade, at most [`Self::quantity`].
     pub for_trade_quantity: i64,
@@ -49,6 +53,7 @@ macro_rules! collection_item_query {
                  i.condition AS "condition!: lotus::Condition", i.language AS "language!",
                  i.finish AS "finish!: lotus::Finish", i.location_id AS "location_id?",
                  i.notes AS "notes?", i.purchase_price_cents AS "purchase_price_cents?",
+                 i.acquisition_market_price_cents AS "acquisition_market_price_cents?",
                  i.for_trade AS "for_trade!: bool", i.for_trade_quantity AS "for_trade_quantity!",
                  i.location_changed_at AS "location_changed_at?: manavault_core::timestamp::Timestamp",
                  i.inserted_at AS "inserted_at!: manavault_core::timestamp::Timestamp",
@@ -135,6 +140,21 @@ impl CollectionItem {
     #[must_use]
     pub fn gain_cents(&self, prices: &PriceStore) -> Option<i64> {
         Some(self.price_cents(prices)? - self.purchase_basis_cents(prices)?)
+    }
+
+    /// The market price of one copy when it was acquired, or its current
+    /// price when none was recorded.
+    #[must_use]
+    pub fn acquisition_market_basis_cents(&self, prices: &PriceStore) -> Option<i64> {
+        self.record
+            .acquisition_market_price_cents
+            .or_else(|| self.price_cents(prices))
+    }
+
+    /// Current minus acquisition market price of one copy.
+    #[must_use]
+    pub fn acquisition_market_gain_cents(&self, prices: &PriceStore) -> Option<i64> {
+        Some(self.price_cents(prices)? - self.acquisition_market_basis_cents(prices)?)
     }
 
     /// The front-face image URL of the printing.

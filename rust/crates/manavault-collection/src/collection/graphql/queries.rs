@@ -3,6 +3,7 @@
 
 use async_graphql::{Context, ID, Object};
 
+use crate::collection::acquisition_prices;
 use crate::collection::auto_sort::rules;
 use crate::collection::bulk_clean::{self, BulkCleanOptions};
 use crate::collection::export;
@@ -11,14 +12,16 @@ use crate::collection::graphql::inputs::{
     BulkCleanPullInput, CollectionItemFilters, CollectionItemSort, item_filters,
 };
 use crate::collection::graphql::mutations::parse_pulls;
-use crate::collection::graphql::tools::{CollectionAutoSortRule, CollectionBulkCleanResult};
+use crate::collection::graphql::tools::{
+    AcquisitionPriceRebuild, CollectionAutoSortRule, CollectionBulkCleanResult,
+};
 use crate::collection::graphql::types::{
     CollectionItemConnection, CollectionItemGroup, CollectionItemGroupConnection, HomeSummary,
     LocationConnection, items_connection, slice_window,
 };
 use crate::collection::graphql::values::{CollectionValueDashboard, CollectionValueSummary};
 use crate::collection::location::{self, Location};
-use crate::collection::queries::{self, Page};
+use crate::collection::queries::{self, Page, ValueBasis};
 use manavault_core::graphql::relay::{
     LocationRef, PageArgs, connection_from_list, from_slice, location_ref,
 };
@@ -135,15 +138,29 @@ impl CollectionQueries {
             .into())
     }
 
+    /// The value dashboard, with gain/loss counts and rankings against
+    /// `basis` (purchase basis unless given).
     async fn collection_value_dashboard(
         &self,
         ctx: &Context<'_>,
+        basis: Option<ValueBasis>,
     ) -> Result<CollectionValueDashboard> {
         Ok(CollectionValueDashboard(
-            queries::value_dashboard(&state(ctx).db)
+            queries::value_dashboard(&state(ctx).db, basis.unwrap_or_default())
                 .await
                 .map_err(internal_error)?,
         ))
+    }
+
+    /// The newest acquisition price rebuild, if any ran or is pending.
+    async fn acquisition_price_rebuild(
+        &self,
+        ctx: &Context<'_>,
+    ) -> Result<Option<AcquisitionPriceRebuild>> {
+        Ok(acquisition_prices::latest(&state(ctx).db)
+            .await
+            .map_err(internal_error)?
+            .map(AcquisitionPriceRebuild::from))
     }
 
     async fn collection_export_csv(

@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!\", scryfall_id, finish, inserted_at AS \"inserted_at: Timestamp\",\n                  acquisition_market_price_cents\n           FROM collection_items ORDER BY id",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "scryfall_id",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "scryfall_id"
+          }
+        }
+      },
+      {
+        "name": "finish",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "finish"
+          }
+        }
+      },
+      {
+        "name": "inserted_at: Timestamp",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "inserted_at"
+          }
+        }
+      },
+      {
+        "name": "acquisition_market_price_cents",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "acquisition_market_price_cents"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "59c4867d557bb95e3fceca021e76595b94f89ba311cb3272e2dec2914ba0d789"
+}

@@ -37,6 +37,7 @@ async fn crud_persists_exact_printing_inventory() {
     assert_eq!(item.record.quantity.as_i64(), 2);
     assert_eq!(item.record.scryfall_id.as_str(), "scryfall-printing-1");
     assert_eq!(item.record.purchase_price_cents, Some(10_000_000));
+    assert_eq!(item.record.acquisition_market_price_cents, Some(10_000_000));
     assert_eq!(item.card().unwrap().name, "Black Lotus");
 
     assert_eq!(search_ids(&app, "lotus").await, [item.record.id]);
@@ -63,6 +64,11 @@ async fn crud_persists_exact_printing_inventory() {
     assert_eq!(updated.record.location_id, None);
     assert_eq!(updated.record.notes.as_deref(), Some("Updated"));
     assert_eq!(updated.record.purchase_price_cents, Some(12_345));
+    assert_eq!(
+        updated.record.acquisition_market_price_cents,
+        Some(10_000_000),
+        "edits keep the price at acquisition"
+    );
 
     let error = update(
         app.db(),

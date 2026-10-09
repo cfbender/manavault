@@ -8,6 +8,7 @@
 //! callers can fall back to the Scryfall data.
 
 pub mod graphql;
+pub mod history;
 pub mod sync;
 pub mod vendors;
 pub mod worker;

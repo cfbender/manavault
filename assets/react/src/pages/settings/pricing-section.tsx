@@ -5,6 +5,7 @@ import { PageSection } from "../../components/app-shell"
 import { Button } from "../../components/ui/button"
 import { useToast } from "../../components/ui/toast"
 import { cn } from "../../lib/utils"
+import { AcquisitionPricesCard } from "./acquisition-prices-card"
 import {
   PricingSettingsDocument,
   SyncVendorPricesDocument,
@@ -162,6 +163,7 @@ export function PricingSection() {
           </div>
         </div>
       </div>
+      <AcquisitionPricesCard />
     </PageSection>
   )
 }

@@ -5,7 +5,11 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, expect, test } from "vitest"
 import { ToastProvider } from "../src/components/ui/toast"
-import { PricingSettingsDocument, UpdatePricingSettingsDocument } from "../src/pages/settings/data"
+import {
+  AcquisitionPriceRebuildDocument,
+  PricingSettingsDocument,
+  UpdatePricingSettingsDocument,
+} from "../src/pages/settings/data"
 import { PricingSection } from "../src/pages/settings/pricing-section"
 
 const StaleCollectionPriceDocument = gql`
@@ -25,6 +29,10 @@ test("selecting a price source updates the control and clears stale cached price
       result: { data: { pricingSettings: scryfallSettings } },
     },
     {
+      request: { query: AcquisitionPriceRebuildDocument },
+      result: { data: { acquisitionPriceRebuild: null } },
+    },
+    {
       request: { query: UpdatePricingSettingsDocument, variables: { source: "manapool" } },
       delay: 100,
       result: {
@@ -34,6 +42,10 @@ test("selecting a price source updates the control and clears stale cached price
     {
       request: { query: PricingSettingsDocument },
       result: { data: { pricingSettings: manaPoolSettings } },
+    },
+    {
+      request: { query: AcquisitionPriceRebuildDocument },
+      result: { data: { acquisitionPriceRebuild: null } },
     },
   ])
   const client = new ApolloClient({ cache: new InMemoryCache(), link })

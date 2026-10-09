@@ -95,9 +95,10 @@ The collection has four primary views:
   **Select** (or tapping a tile's checkbox) enters selection mode with **Select
   all**, **Clear** and **Remove** for the selected stacks. Tokens have no
   location, condition, or value and are never allocated.
-- **Value** - market value compared with purchase basis, with editable purchase
-  prices and biggest gains/losses rankings that toggle between total and
-  percentage change.
+- **Value** - market value compared with purchase basis or with the market
+  value at acquisition (the selected price source's price when each card was
+  added), with editable purchase prices and biggest gains/losses rankings that
+  toggle between total and percentage change.
 
 Collection items track:
 
@@ -107,6 +108,10 @@ Collection items track:
 - finish (`nonfoil`, `foil`, or `etched` when available)
 - language
 - purchase price and current value gain/loss
+- market price at acquisition (set automatically from the selected price source
+  when the item is added; existing items were backfilled with the price at
+  upgrade time, and **Settings -> Pricing** can rebuild recent items from
+  MTGJSON's price history)
 - location
 - notes
 - allocated quantity and the decks using each copy
@@ -521,6 +526,16 @@ does not stock. TCGplayer uses the market price from tcgcsv.com (falling back
 to TCG Low when a finish has no sales), matched to printings through Scryfall's TCGplayer product
 IDs. Mana Pool uses the lowest near-mint listing per finish. A manual vendor
 sync can be queued from the same section.
+
+**Settings -> Pricing -> Acquisition prices** rebuilds each item's market price
+at acquisition from MTGJSON's daily price history (`AllPrices.json`, about the
+last 90 days). The rebuild downloads the history in the background and, for
+every item added inside that window, replaces the recorded price with the
+selected source's price on the day the item was added (Scryfall uses
+TCGplayer's history; a finish without history falls back like current
+prices do). Items added before the window and cards without history keep
+their current snapshot. The section shows the latest run's result: the history
+range used and how many items were in the window, updated, or had no history.
 
 ## Settings and Appearance
 

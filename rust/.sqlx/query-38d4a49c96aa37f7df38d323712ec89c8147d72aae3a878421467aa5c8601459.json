@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n        SELECT\n          ci.id AS \"id!: CollectionItemId\",\n          ci.scryfall_id AS \"scryfall_id: ScryfallId\",\n          p.oracle_id AS \"oracle_id: OracleId\",\n          ci.quantity AS \"quantity: Quantity\",\n          ci.condition AS \"condition: Condition\",\n          ci.language,\n          ci.finish AS \"finish: Finish\",\n          ci.location_id AS \"location_id: LocationId\",\n          l.kind AS \"location_kind?: LocationKind\",\n          ci.notes,\n          ci.purchase_price_cents\n        FROM collection_items ci\n        JOIN scryfall_printings p ON p.scryfall_id = ci.scryfall_id\n        LEFT JOIN locations l ON l.id = ci.location_id\n        WHERE ci.id IN (SELECT value FROM json_each(?1))\n        ",
+  "query": "\n        SELECT\n          ci.id AS \"id!: CollectionItemId\",\n          ci.scryfall_id AS \"scryfall_id: ScryfallId\",\n          p.oracle_id AS \"oracle_id: OracleId\",\n          ci.quantity AS \"quantity: Quantity\",\n          ci.condition AS \"condition: Condition\",\n          ci.language,\n          ci.finish AS \"finish: Finish\",\n          ci.location_id AS \"location_id: LocationId\",\n          l.kind AS \"location_kind?: LocationKind\",\n          ci.notes,\n          ci.purchase_price_cents,\n          ci.acquisition_market_price_cents\n        FROM collection_items ci\n        JOIN scryfall_printings p ON p.scryfall_id = ci.scryfall_id\n        LEFT JOIN locations l ON l.id = ci.location_id\n        WHERE ci.id IN (SELECT value FROM json_each(?1))\n        ",
   "describe": {
     "columns": [
       {
@@ -123,6 +123,17 @@
             "name": "purchase_price_cents"
           }
         }
+      },
+      {
+        "name": "acquisition_market_price_cents",
+        "ordinal": 11,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "collection_items",
+            "name": "acquisition_market_price_cents"
+          }
+        }
       }
     ],
     "parameters": {
@@ -139,8 +150,9 @@
       true,
       true,
       true,
+      true,
       true
     ]
   },
-  "hash": "16968e7e14783774a3c67499e25936887ba130986084d45f239b1e977964bcb5"
+  "hash": "38d4a49c96aa37f7df38d323712ec89c8147d72aae3a878421467aa5c8601459"
 }

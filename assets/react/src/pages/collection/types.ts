@@ -66,6 +66,7 @@ export type CollectionValueDashboardData = CollectionValueDashboardQuery["collec
 export type CollectionValueSummary = CollectionValueDashboardData["summary"]
 export type CollectionValuePosition = CollectionValueDashboardData["biggestGains"][number]
 export type CollectionValueRanking = "total" | "percent"
+export type CollectionValueBasis = "purchase" | "market"
 export type CollectionCheckResult = CollectionCheckMutation["collectionCheck"]
 export type CollectionCheckCard = CollectionCheckResult["cards"][number]
 type AutoSortCollectionPayload = NonNullable<AutoSortCollectionMutation["autoSortCollection"]>

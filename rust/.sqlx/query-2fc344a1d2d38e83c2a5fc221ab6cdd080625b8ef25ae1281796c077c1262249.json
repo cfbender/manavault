@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE collection_items SET acquisition_market_price_cents = ?1 WHERE id = ?2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "2fc344a1d2d38e83c2a5fc221ab6cdd080625b8ef25ae1281796c077c1262249"
+}

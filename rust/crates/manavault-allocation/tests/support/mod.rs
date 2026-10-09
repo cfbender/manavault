@@ -192,6 +192,7 @@ pub struct NewItem<'a> {
     pub location_id: Option<LocationId>,
     pub notes: Option<&'a str>,
     pub purchase_price_cents: Option<i64>,
+    pub acquisition_market_price_cents: Option<i64>,
     pub for_trade_quantity: u32,
 }
 
@@ -204,6 +205,7 @@ impl<'a> NewItem<'a> {
             location_id,
             notes: None,
             purchase_price_cents: None,
+            acquisition_market_price_cents: None,
             for_trade_quantity: 0,
         }
     }
@@ -214,8 +216,8 @@ pub async fn item(pool: &SqlitePool, new: NewItem<'_>) -> TestResult<CollectionI
     Ok(sqlx::query_scalar!(
         r#"INSERT INTO collection_items
              (scryfall_id, quantity, finish, location_id, notes, purchase_price_cents,
-              for_trade, for_trade_quantity, inserted_at, updated_at)
-           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+              acquisition_market_price_cents, for_trade, for_trade_quantity, inserted_at, updated_at)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
            RETURNING id AS "id!: CollectionItemId""#,
         new.scryfall_id,
         new.quantity,
@@ -223,6 +225,7 @@ pub async fn item(pool: &SqlitePool, new: NewItem<'_>) -> TestResult<CollectionI
         new.location_id,
         new.notes,
         new.purchase_price_cents,
+        new.acquisition_market_price_cents,
         for_trade,
         new.for_trade_quantity
     )
@@ -237,6 +240,7 @@ pub struct ItemRow {
     pub finish: Finish,
     pub notes: Option<String>,
     pub purchase_price_cents: Option<i64>,
+    pub acquisition_market_price_cents: Option<i64>,
     pub for_trade: bool,
     pub for_trade_quantity: u32,
     pub location_changed_at: Option<String>,
@@ -251,6 +255,7 @@ pub async fn item_row(pool: &SqlitePool, id: CollectionItemId) -> TestResult<Ite
              finish AS "finish: Finish",
              notes,
              purchase_price_cents,
+             acquisition_market_price_cents,
              for_trade AS "for_trade: bool",
              for_trade_quantity AS "for_trade_quantity: u32",
              location_changed_at

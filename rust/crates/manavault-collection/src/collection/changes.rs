@@ -323,8 +323,9 @@ pub fn preferred_finish(printing: &PrintingRecord, current: Option<&str>) -> Str
 }
 
 /// Creates an item (`Collection.Items.create/1`): an unavailable finish falls
-/// back to one the printing offers, and a missing purchase price defaults to
-/// the printing's current price.
+/// back to one the printing offers, a missing purchase price defaults to the
+/// printing's current price, and the current price is recorded as the market
+/// price at acquisition.
 pub async fn create_in(
     conn: &mut SqliteConnection,
     prices: &PriceStore,
@@ -359,14 +360,17 @@ pub async fn create_in(
     let valid = apply(conn, Mode::Create, &Draft::new_item(), &changes)
         .await?
         .ok_or_else(|| ItemError::Invalid(ValidationError::single("scryfall_id", BLANK)))?;
+    let acquisition_market_price_cents = printing.as_ref().and_then(|printing| {
+        price_cents_for_printing(prices, printing, Some(valid.finish.as_str()))
+    });
     let now = Timestamp::now();
     let changed_at = valid.moved.then_some(now);
     let id = sqlx::query_scalar!(
         r#"INSERT INTO collection_items
              (scryfall_id, quantity, condition, language, finish, location_id, notes,
-              purchase_price_cents, for_trade, for_trade_quantity, location_changed_at,
-              inserted_at, updated_at)
-           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?12)
+              purchase_price_cents, acquisition_market_price_cents, for_trade, for_trade_quantity,
+              location_changed_at, inserted_at, updated_at)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?13)
            RETURNING id AS "id!""#,
         valid.scryfall_id,
         valid.quantity,
@@ -376,6 +380,7 @@ pub async fn create_in(
         valid.location_id,
         valid.notes,
         valid.purchase_price_cents,
+        acquisition_market_price_cents,
         valid.for_trade,
         valid.for_trade_quantity,
         changed_at,

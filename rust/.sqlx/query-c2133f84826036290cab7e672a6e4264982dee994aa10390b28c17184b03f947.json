@@ -1,0 +1,146 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!\", status AS \"status: RebuildStatus\", source,\n                  started_at AS \"started_at: Timestamp\", completed_at AS \"completed_at: Timestamp\",\n                  history_from, history_to, items_in_window, items_updated, items_without_history, error\n           FROM acquisition_price_rebuilds ORDER BY id DESC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "acquisition_price_rebuilds",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "status: RebuildStatus",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "acquisition_price_rebuilds",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "name": "source",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "acquisition_price_rebuilds",
+            "name": "source"
+          }
+        }
+      },
+      {
+        "name": "started_at: Timestamp",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "acquisition_price_rebuilds",
+            "name": "started_at"
+          }
+        }
+      },
+      {
+        "name": "completed_at: Timestamp",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "acquisition_price_rebuilds",
+            "name": "completed_at"
+          }
+        }
+      },
+      {
+        "name": "history_from",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "acquisition_price_rebuilds",
+            "name": "history_from"
+          }
+        }
+      },
+      {
+        "name": "history_to",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "acquisition_price_rebuilds",
+            "name": "history_to"
+          }
+        }
+      },
+      {
+        "name": "items_in_window",
+        "ordinal": 7,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "acquisition_price_rebuilds",
+            "name": "items_in_window"
+          }
+        }
+      },
+      {
+        "name": "items_updated",
+        "ordinal": 8,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "acquisition_price_rebuilds",
+            "name": "items_updated"
+          }
+        }
+      },
+      {
+        "name": "items_without_history",
+        "ordinal": 9,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "acquisition_price_rebuilds",
+            "name": "items_without_history"
+          }
+        }
+      },
+      {
+        "name": "error",
+        "ordinal": 10,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "acquisition_price_rebuilds",
+            "name": "error"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "c2133f84826036290cab7e672a6e4264982dee994aa10390b28c17184b03f947"
+}

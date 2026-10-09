@@ -98,6 +98,31 @@ impl CollectionItem {
         ))
     }
 
+    /// The selected source's price of one copy when the item was added, or
+    /// its current price when none was recorded.
+    async fn acquisition_market_price_cents(&self, ctx: &Context<'_>) -> Option<i64> {
+        CollectionItem::acquisition_market_basis_cents(self, &state(ctx).prices)
+    }
+
+    async fn acquisition_market_price_text(&self, ctx: &Context<'_>) -> Option<String> {
+        format_cents(CollectionItem::acquisition_market_basis_cents(
+            self,
+            &state(ctx).prices,
+        ))
+    }
+
+    /// Current minus acquisition market price of one copy.
+    async fn market_gain_cents(&self, ctx: &Context<'_>) -> Option<i64> {
+        CollectionItem::acquisition_market_gain_cents(self, &state(ctx).prices)
+    }
+
+    async fn market_gain_text(&self, ctx: &Context<'_>) -> Option<String> {
+        format_signed_cents(CollectionItem::acquisition_market_gain_cents(
+            self,
+            &state(ctx).prices,
+        ))
+    }
+
     /// Copies of this item allocated to decks.
     async fn allocated_quantity(&self, ctx: &Context<'_>) -> Result<i64> {
         Ok(loader::allocations(ctx, self.record.id)

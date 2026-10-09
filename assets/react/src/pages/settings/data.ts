@@ -331,6 +331,44 @@ export const SyncVendorPricesDocument = graphql(`
   }
 `)
 
+export const AcquisitionPriceRebuildDocument = graphql(`
+  query AcquisitionPriceRebuild {
+    acquisitionPriceRebuild {
+      id
+      status
+      source
+      startedAt
+      completedAt
+      historyFrom
+      historyTo
+      itemsInWindow
+      itemsUpdated
+      itemsWithoutHistory
+      error
+    }
+  }
+`)
+
+export const RebuildAcquisitionPricesDocument = graphql(`
+  mutation RebuildAcquisitionPrices {
+    rebuildAcquisitionPrices {
+      rebuild {
+        id
+        status
+        source
+        startedAt
+        completedAt
+        historyFrom
+        historyTo
+        itemsInWindow
+        itemsUpdated
+        itemsWithoutHistory
+        error
+      }
+    }
+  }
+`)
+
 export const ReloadScryfallCatalogDocument = graphql(`
   mutation ReloadScryfallCatalog {
     reloadScryfallCatalog {

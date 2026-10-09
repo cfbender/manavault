@@ -5,7 +5,7 @@
 use async_graphql::{Object, SimpleObject};
 
 use crate::collection::item::CollectionItem;
-use crate::collection::queries::{RankedPosition, ValueDashboard, ValueTotals};
+use crate::collection::queries::{RankedPosition, ValueBasis, ValueDashboard, ValueTotals};
 use manavault_catalog::catalog::price::{format_cents, format_signed_cents};
 use manavault_catalog::catalog::printing::Printing;
 
@@ -54,14 +54,24 @@ pub struct CollectionValueSummary {
     pub value_gain_text: Option<String>,
     pub value_gain_percent: Option<f64>,
     pub value_gain_percent_text: Option<String>,
+    /// The selected source's market value of the copies when they were added.
+    pub acquisition_market_price_cents: i64,
+    pub acquisition_market_price_text: Option<String>,
+    /// Current value minus market value at acquisition.
+    pub market_gain_cents: i64,
+    pub market_gain_text: Option<String>,
+    pub market_gain_percent: Option<f64>,
+    pub market_gain_percent_text: Option<String>,
 }
 
 impl CollectionValueSummary {
     /// `CollectionFields.value_summary/2`.
     #[must_use]
-    pub fn new(total: i64, purchase: i64) -> Self {
+    pub fn new(total: i64, purchase: i64, acquisition_market: i64) -> Self {
         let gain = total - purchase;
         let percent = value_gain_percent(Some(gain), Some(purchase));
+        let market_gain = total - acquisition_market;
+        let market_percent = value_gain_percent(Some(market_gain), Some(acquisition_market));
         Self {
             total_price_cents: total,
             total_price_text: format_cents(Some(total)),
@@ -71,13 +81,23 @@ impl CollectionValueSummary {
             value_gain_text: format_signed_cents(Some(gain)),
             value_gain_percent: percent,
             value_gain_percent_text: format_percent(percent),
+            acquisition_market_price_cents: acquisition_market,
+            acquisition_market_price_text: format_cents(Some(acquisition_market)),
+            market_gain_cents: market_gain,
+            market_gain_text: format_signed_cents(Some(market_gain)),
+            market_gain_percent: market_percent,
+            market_gain_percent_text: format_percent(market_percent),
         }
     }
 }
 
 impl From<ValueTotals> for CollectionValueSummary {
     fn from(totals: ValueTotals) -> Self {
-        Self::new(totals.total_price_cents, totals.purchase_price_cents)
+        Self::new(
+            totals.total_price_cents,
+            totals.purchase_price_cents,
+            totals.acquisition_market_price_cents,
+        )
     }
 }
 
@@ -135,6 +155,38 @@ impl CollectionValuePosition {
             Some(self.0.position.purchase_price_cents),
         ))
     }
+
+    /// The selected source's market value of the copies when they were added.
+    async fn acquisition_market_price_cents(&self) -> i64 {
+        self.0.position.acquisition_market_price_cents
+    }
+
+    async fn acquisition_market_price_text(&self) -> String {
+        format_cents(Some(self.0.position.acquisition_market_price_cents)).unwrap_or_default()
+    }
+
+    /// Current value minus market value at acquisition.
+    async fn market_gain_cents(&self) -> i64 {
+        self.0.position.market_gain_cents
+    }
+
+    async fn market_gain_text(&self) -> String {
+        format_signed_cents(Some(self.0.position.market_gain_cents)).unwrap_or_default()
+    }
+
+    async fn market_gain_percent(&self) -> Option<f64> {
+        value_gain_percent(
+            Some(self.0.position.market_gain_cents),
+            Some(self.0.position.acquisition_market_price_cents),
+        )
+    }
+
+    async fn market_gain_percent_text(&self) -> Option<String> {
+        format_percent(value_gain_percent(
+            Some(self.0.position.market_gain_cents),
+            Some(self.0.position.acquisition_market_price_cents),
+        ))
+    }
 }
 
 /// `CollectionValueDashboard`.
@@ -150,6 +202,11 @@ fn positions(positions: &[RankedPosition]) -> Vec<CollectionValuePosition> {
 
 #[Object]
 impl CollectionValueDashboard {
+    /// The basis the gain/loss counts and rankings compare current value with.
+    async fn basis(&self) -> ValueBasis {
+        self.0.basis
+    }
+
     async fn summary(&self) -> CollectionValueSummary {
         self.0.summary.into()
     }
