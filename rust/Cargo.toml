@@ -66,9 +66,18 @@ base64 = "0.22"
 bytes = "1"
 csv = "1"
 flate2 = "1"
-futures-util = "0.3"
+futures-util = { version = "0.3", features = ["channel"] }
 hex = "0.4"
 hmac = "0.12"
+# Not used directly: manavault-server depends on these only to enable the
+# features wiremock (a dev-dependency) turns on, plus futures-util's `channel`
+# above. With matching features, `cargo build` and `cargo test` share one
+# compiled dependency graph instead of building every workspace crate twice
+# (about 60s of a cold `rust:prebuild`). Check with `cargo tree -e normal,build`
+# against `cargo tree -e normal,build,dev` when bumping wiremock or hyper.
+hyper = { version = "1", features = ["full"] }
+hyper-util = { version = "0.1", features = ["http2"] }
+tokio-util = { version = "0.7", features = ["codec"] }
 moka = { version = "0.12", features = ["future"] }
 pbkdf2 = "0.12"
 rand = "0.8"

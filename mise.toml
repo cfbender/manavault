@@ -154,7 +154,10 @@ run = "cargo build --release --locked --bin manavault"
 [tasks."rust:prebuild"]
 description = "Compile the Rust server and test binaries (debug) so `rust:test` and `dev` start without a cold build."
 dir = "rust"
-run = ["cargo build --workspace --locked", "cargo test --workspace --locked --no-run"]
+# The test build compiles the whole graph (libs, the server binary, and test
+# harnesses) in one parallel invocation; the plain build then only confirms it,
+# since dev-dependencies no longer change dependency features.
+run = ["cargo test --workspace --locked --no-run", "cargo build --workspace --locked"]
 
 [tasks."rust:sweep"]
 description = "Free disk in rust/target: drop incremental caches untouched for 3 days (cargo prunes old sessions per crate, not crates that are gone)."
