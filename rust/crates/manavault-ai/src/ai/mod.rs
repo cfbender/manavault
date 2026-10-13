@@ -79,18 +79,22 @@ pub struct Configured {
     pub api_key: String,
     pub model: String,
     pub deck_analysis_instructions: Option<String>,
+    /// The decision model that assigns AI tags to deck cards.
+    pub decision_model: String,
 }
 
 impl Configured {
     /// `UpdateSettings.configured/1`.
     pub fn from_settings(settings: AiSettings) -> Result<Self, AiError> {
         let has_key = settings.has_api_key();
+        let decision_model = settings.decision_model().to_owned();
         match (settings.api_key, settings.model) {
             (Some(api_key), Some(model)) if has_key && !model.is_empty() => Ok(Self {
                 provider: settings.provider,
                 api_key,
                 model,
                 deck_analysis_instructions: settings.deck_analysis_instructions,
+                decision_model,
             }),
             _ => Err(AiError::User(NOT_CONFIGURED.to_owned())),
         }

@@ -18,6 +18,8 @@ use crate::timestamp::Timestamp;
 
 const SINGLETON_ID: i64 = 1;
 const PROVIDERS: [&str; 1] = ["openrouter"];
+/// The decision model used when none is saved.
+pub const DEFAULT_DECISION_MODEL: &str = "typesafe/jev-1.13";
 
 /// The saved settings, with the API key decrypted.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,9 +28,19 @@ pub struct AiSettings {
     pub api_key: Option<String>,
     pub model: Option<String>,
     pub deck_analysis_instructions: Option<String>,
+    /// The saved decision model; `None` uses [`DEFAULT_DECISION_MODEL`].
+    pub decision_model: Option<String>,
 }
 
 impl AiSettings {
+    /// The decision model that assigns AI tags to deck cards.
+    #[must_use]
+    pub fn decision_model(&self) -> &str {
+        self.decision_model
+            .as_deref()
+            .unwrap_or(DEFAULT_DECISION_MODEL)
+    }
+
     /// `Settings.secret_present?/1`.
     #[must_use]
     pub fn has_api_key(&self) -> bool {
@@ -51,7 +63,8 @@ pub async fn settings(state: &AppState) -> Result<AiSettings, sqlx::Error> {
     .execute(&state.db)
     .await?;
     let row = sqlx::query!(
-        "SELECT provider, api_key, model, deck_analysis_instructions FROM ai_settings WHERE id = ?1",
+        "SELECT provider, api_key, model, deck_analysis_instructions, decision_model
+         FROM ai_settings WHERE id = ?1",
         SINGLETON_ID
     )
     .fetch_one(&state.db)
@@ -61,6 +74,7 @@ pub async fn settings(state: &AppState) -> Result<AiSettings, sqlx::Error> {
         api_key: row.api_key.and_then(|stored| state.decrypt_secret(&stored)),
         model: row.model,
         deck_analysis_instructions: row.deck_analysis_instructions,
+        decision_model: row.decision_model,
     })
 }
 
@@ -72,6 +86,8 @@ pub struct AiSettingsInput {
     pub api_key: Option<String>,
     pub model: String,
     pub deck_analysis_instructions: MaybeUndefined<String>,
+    /// Omit to keep the saved model; null or blank uses the default.
+    pub decision_model: MaybeUndefined<String>,
 }
 
 /// Why saving failed.
@@ -105,6 +121,13 @@ pub async fn update(state: &AppState, input: AiSettingsInput) -> Result<AiSettin
             MaybeUndefined::Null => None,
             MaybeUndefined::Value(text) => normalize(&text),
         },
+        decision_model: match input.decision_model {
+            MaybeUndefined::Undefined => current.decision_model.clone(),
+            MaybeUndefined::Null => None,
+            MaybeUndefined::Value(text) => {
+                normalize(&text).filter(|model| model != DEFAULT_DECISION_MODEL)
+            }
+        },
     };
 
     let mut errors = ValidationError::new();
@@ -127,6 +150,13 @@ pub async fn update(state: &AppState, input: AiSettingsInput) -> Result<AiSettin
         errors.add("model", too_long(200));
     }
     if candidate
+        .decision_model
+        .as_deref()
+        .is_some_and(|model| model.chars().count() > 200)
+    {
+        errors.add("decision_model", too_long(200));
+    }
+    if candidate
         .deck_analysis_instructions
         .as_deref()
         .is_some_and(|text| text.chars().count() > 4000)
@@ -135,7 +165,13 @@ pub async fn update(state: &AppState, input: AiSettingsInput) -> Result<AiSettin
     }
     errors.into_result().map_err(UpdateError::Invalid)?;
 
-    if let Err((field, message)) = openrouter::validate_settings(state, &candidate).await {
+    let mut validated = openrouter::validate_settings(state, &candidate).await;
+    // Decision models are not in OpenRouter's model list, so a changed one
+    // is checked with a one-question Decisions request instead.
+    if validated.is_ok() && candidate.decision_model() != current.decision_model() {
+        validated = openrouter::validate_decision_model(state, &candidate).await;
+    }
+    if let Err((field, message)) = validated {
         return Err(UpdateError::Invalid(ValidationError::single(
             field, message,
         )));
@@ -148,11 +184,12 @@ pub async fn update(state: &AppState, input: AiSettingsInput) -> Result<AiSettin
     let now = Timestamp::now();
     sqlx::query!(
         "UPDATE ai_settings SET provider = ?1, api_key = ?2, model = ?3,
-           deck_analysis_instructions = ?4, updated_at = ?5 WHERE id = ?6",
+           deck_analysis_instructions = ?4, decision_model = ?5, updated_at = ?6 WHERE id = ?7",
         candidate.provider,
         stored_key,
         candidate.model,
         candidate.deck_analysis_instructions,
+        candidate.decision_model,
         now,
         SINGLETON_ID
     )
@@ -240,6 +277,50 @@ pub mod openrouter {
         }
     }
 
+    /// Sends the decision model one small Decisions request; an error names
+    /// the `decision_model` field.
+    pub async fn validate_decision_model(
+        state: &AppState,
+        settings: &AiSettings,
+    ) -> Result<(), (&'static str, String)> {
+        let model = settings.decision_model();
+        let probe = serde_json::json!({
+            "model": model,
+            "state": "Hello there!",
+            "questions": {"greeting": {
+                "type": "choice",
+                "instructions": "Is this text a greeting?",
+                "criteria": {"yes": null, "no": null}
+            }}
+        });
+        let response = state
+            .http
+            .post(&state.config.platform_urls.openrouter_decisions)
+            .bearer_auth(settings.api_key.as_deref().unwrap_or_default())
+            .header("accept", "application/json")
+            .header("http-referer", "https://github.com/cfbender/manavault")
+            .header("x-openrouter-title", "ManaVault")
+            .timeout(std::time::Duration::from_secs(30))
+            .json(&probe)
+            .send()
+            .await
+            .map_err(|error| ("base", request_error(&error)))?;
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        let answered = serde_json::from_str::<Value>(&body)
+            .is_ok_and(|value| value.get("answers").is_some_and(Value::is_object));
+        if status.is_success() && answered {
+            return Ok(());
+        }
+        Err((
+            "decision_model",
+            format!(
+                "\"{model}\" could not be used. {}",
+                response_error(status.as_u16(), &body, "The Decisions request failed.")
+            ),
+        ))
+    }
+
     /// Checks the key, then that the model exists. Errors name the field.
     pub async fn validate_settings(
         state: &AppState,
@@ -307,6 +388,8 @@ pub struct AiSettingsObject {
     pub provider: String,
     pub model: Option<String>,
     pub deck_analysis_instructions: Option<String>,
+    /// The decision model in use, the default when none is saved.
+    pub decision_model: String,
     pub has_api_key: bool,
 }
 
@@ -316,6 +399,7 @@ impl From<&AiSettings> for AiSettingsObject {
             provider: settings.provider.clone(),
             model: settings.model.clone(),
             deck_analysis_instructions: settings.deck_analysis_instructions.clone(),
+            decision_model: settings.decision_model().to_owned(),
             has_api_key: settings.has_api_key(),
         }
     }
@@ -405,6 +489,7 @@ mod tests {
             api_key: api_key.map(str::to_owned),
             model: model.into(),
             deck_analysis_instructions: instructions,
+            decision_model: MaybeUndefined::Undefined,
         }
     }
 
@@ -458,6 +543,93 @@ mod tests {
         .unwrap();
         assert_eq!(cleared.deck_analysis_instructions, None);
         assert_eq!(settings(&app.state).await.unwrap(), cleared);
+    }
+
+    #[tokio::test]
+    async fn decision_model_defaults_and_is_checked_with_a_decisions_request_when_changed() {
+        let server = openrouter(&["anthropic/claude-sonnet-4"]).await;
+        Mock::given(method("POST"))
+            .and(path("/api/alpha/decisions"))
+            .respond_with(|request: &wiremock::Request| {
+                let body: Value = serde_json::from_slice(&request.body).unwrap();
+                if body["model"] == "custom/decider" || body["model"] == DEFAULT_DECISION_MODEL {
+                    ResponseTemplate::new(200).set_body_json(json!({
+                        "answers": {"greeting": {"type": "choice", "choice": "yes"}}
+                    }))
+                } else {
+                    ResponseTemplate::new(400)
+                        .set_body_json(json!({"error": {"message": "Model not found"}}))
+                }
+            })
+            .mount(&server)
+            .await;
+        let uri = server.uri();
+        let app = TestState::with_config(|config| {
+            config.platform_urls.openrouter_api = format!("{uri}/api/v1");
+            config.platform_urls.openrouter_decisions = format!("{uri}/api/alpha/decisions");
+        })
+        .await;
+        let decision_requests = || async {
+            server
+                .received_requests()
+                .await
+                .unwrap()
+                .iter()
+                .filter(|request| request.url.path() == "/api/alpha/decisions")
+                .count()
+        };
+        let with_decision = |model: MaybeUndefined<String>| AiSettingsInput {
+            decision_model: model,
+            ..input(
+                Some("test-openrouter-key"),
+                "anthropic/claude-sonnet-4",
+                MaybeUndefined::Undefined,
+            )
+        };
+
+        // Unchanged (default) decision models are not probed.
+        let saved = update(&app.state, with_decision(MaybeUndefined::Undefined))
+            .await
+            .unwrap();
+        assert_eq!(saved.decision_model(), DEFAULT_DECISION_MODEL);
+        assert_eq!(decision_requests().await, 0);
+
+        let custom = update(
+            &app.state,
+            with_decision(MaybeUndefined::Value(" custom/decider ".into())),
+        )
+        .await
+        .unwrap();
+        assert_eq!(custom.decision_model(), "custom/decider");
+        assert_eq!(decision_requests().await, 1);
+
+        let errors = match update(
+            &app.state,
+            with_decision(MaybeUndefined::Value("missing/decider".into())),
+        )
+        .await
+        {
+            Err(UpdateError::Invalid(errors)) => errors,
+            other => unreachable!("expected a validation error, got {other:?}"),
+        };
+        assert_eq!(
+            errors.to_string(),
+            "decision model \"missing/decider\" could not be used. OpenRouter: Model not found"
+        );
+        assert_eq!(
+            settings(&app.state).await.unwrap().decision_model(),
+            "custom/decider"
+        );
+
+        // Blank restores the default, stored as NULL.
+        let reset = update(
+            &app.state,
+            with_decision(MaybeUndefined::Value("  ".into())),
+        )
+        .await
+        .unwrap();
+        assert_eq!(reset.decision_model, None);
+        assert_eq!(reset.decision_model(), DEFAULT_DECISION_MODEL);
     }
 
     #[tokio::test]

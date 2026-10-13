@@ -2428,4 +2428,22 @@ async fn analysis_categories_are_assigned_by_jev_once_per_card() {
             .await
             .unwrap();
     assert_eq!(stored, 1);
+
+    // A different decision model is used for, and reassigns, every card.
+    sqlx::query("UPDATE ai_settings SET decision_model = 'custom/decider' WHERE id = 1")
+        .execute(app.db())
+        .await
+        .unwrap();
+    let settings = super::Configured::load(&app.state).await.unwrap();
+    card_categories::assign(&app.state, Some(&settings), deck_id)
+        .await
+        .unwrap();
+    let requests = server.received_requests().await.unwrap();
+    let models: Vec<Value> = requests
+        .iter()
+        .filter(|request| request.url.path() == "/api/alpha/decisions")
+        .skip(10)
+        .map(|request| serde_json::from_slice::<Value>(&request.body).unwrap()["model"].clone())
+        .collect();
+    assert_eq!(models, vec![json!("custom/decider"); 4]);
 }

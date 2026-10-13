@@ -1,7 +1,7 @@
 //! Deck card categories: the AI deck analysis names deck-specific card
-//! categories, and the Jev decision model (`OpenRouter`'s Decisions API)
-//! assigns each non-commander card one of them, with the commanders as
-//! context.
+//! categories, and a decision model (`OpenRouter`'s Decisions API, Jev by
+//! default; configurable in the AI settings) assigns each non-commander card
+//! one of them, with the commanders as context.
 //!
 //! Assignments are stored per deck and card with a digest of the categories
 //! and commanders, so they are reused until a new analysis or a commander
@@ -28,8 +28,6 @@ use manavault_core::settings::ai::openrouter::response_error;
 use manavault_core::state::AppState;
 use manavault_core::timestamp::Timestamp;
 
-/// The decision model; pinned so assignments do not shift between releases.
-pub const MODEL: &str = "typesafe/jev-1.13";
 /// Changes whenever the request changes, so earlier assignments are redone.
 const REQUEST_VERSION: &str = "3";
 /// Always offered last, so a card that fits nothing has somewhere to go.
@@ -62,11 +60,11 @@ async fn saved_categories(pool: &SqlitePool, deck_id: i64) -> Result<Vec<CardCat
         .unwrap_or_default())
 }
 
-/// Identifies the inputs an assignment was made from: the offered
-/// categories and the sorted commander oracle ids.
-fn digest(categories: &[CardCategory], commanders: &BTreeSet<&str>) -> String {
+/// Identifies the inputs an assignment was made from: the decision model,
+/// the offered categories, and the sorted commander oracle ids.
+fn digest(model: &str, categories: &[CardCategory], commanders: &BTreeSet<&str>) -> String {
     let mut hasher = Sha256::new();
-    hasher.update(format!("{MODEL}\n{REQUEST_VERSION}\n"));
+    hasher.update(format!("{model}\n{REQUEST_VERSION}\n"));
     hasher.update(serde_json::to_vec(categories).unwrap_or_default());
     for commander in commanders {
         hasher.update(b"\n");
@@ -125,7 +123,7 @@ struct Questions<'a> {
 /// A Decisions request.
 #[derive(Serialize)]
 pub struct Request<'a> {
-    model: &'static str,
+    model: &'a str,
     state: Value,
     questions: Questions<'a>,
 }
@@ -133,6 +131,7 @@ pub struct Request<'a> {
 /// The Decisions request that asks which category `card` fills.
 #[must_use]
 pub fn request<'a>(
+    model: &'a str,
     categories: &'a [CardCategory],
     commanders: &[Value],
     card: &Value,
@@ -149,7 +148,7 @@ pub fn request<'a>(
         )
     };
     Request {
-        model: MODEL,
+        model,
         state,
         questions: Questions {
             role: ChoiceQuestion {
@@ -232,7 +231,14 @@ pub async fn assign(
         .iter()
         .map(|card| card.card.oracle_id.as_str())
         .collect();
-    let digest = digest(&categories, &commander_ids);
+    let model = match settings {
+        Some(settings) => settings.decision_model.clone(),
+        None => manavault_core::settings::ai::settings(state)
+            .await?
+            .decision_model()
+            .to_owned(),
+    };
+    let digest = digest(&model, &categories, &commander_ids);
     let mut assigned = current(&state.db, deck_id, &digest).await?;
 
     if let Some(settings) =
@@ -306,8 +312,13 @@ async fn run_decisions(
     let mut tasks = JoinSet::new();
     for card in cards {
         let id = card.card.oracle_id.as_str().to_owned();
-        let body = serde_json::to_string(&request(&categories, commanders, &card_state(card)))
-            .unwrap_or_default();
+        let body = serde_json::to_string(&request(
+            &settings.decision_model,
+            &categories,
+            commanders,
+            &card_state(card),
+        ))
+        .unwrap_or_default();
         let (state, api_key, categories, permits) = (
             state.clone(),
             settings.api_key.clone(),
@@ -333,7 +344,8 @@ async fn run_decisions(
     }
     let cost: f64 = decided.iter().filter_map(|(_, d)| d.cost).sum();
     tracing::info!(
-        "Jev card categories model={MODEL} cards={} assigned={} failed={} duration_ms={} cost_usd={cost:.6}{}",
+        "Card categories model={} cards={} assigned={} failed={} duration_ms={} cost_usd={cost:.6}{}",
+        settings.decision_model,
         cards.len(),
         decided.len(),
         failures.len(),

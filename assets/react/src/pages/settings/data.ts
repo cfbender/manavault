@@ -59,6 +59,7 @@ export const AISettingsDocument = graphql(`
       provider
       model
       deckAnalysisInstructions
+      decisionModel
       hasApiKey
     }
   }
@@ -71,6 +72,7 @@ export const UpdateAISettingsDocument = graphql(`
         provider
         model
         deckAnalysisInstructions
+        decisionModel
         hasApiKey
       }
     }

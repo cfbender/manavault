@@ -416,11 +416,12 @@ without saving it as a deck.
 
 Each saved-deck analysis also names the deck's own card roles, such as
 "Cast-from-exile payoffs" or "-1/-1 counter engines", with standard roles like
-Ramp and Lands. After the analysis, the Jev decision model (`typesafe/jev-1.13`
-through the same OpenRouter key) sorts every non-commander card into one of
-those roles, or Other, with the commander as context. Decks with roles open
-grouped by **AI Tag**, the first grouping option; decks without them do not
-offer it. Assignments are saved, so only cards added since the last assignment
+Ramp and Lands. After the analysis, a decision model sorts every non-commander
+card into one of those roles, or Other, with the commander as context. It uses
+the same OpenRouter key and defaults to Jev (`typesafe/jev-1.13`); change it
+under **Settings -> AI -> AI tags**, where saving checks the model with one
+small request. Decks with roles open grouped by **AI Tag**, the first grouping
+option; decks without them do not offer it. Assignments are saved, so only cards added since the last assignment
 are sent; a new analysis or commander reassigns the deck.
 
 ### Commander brackets

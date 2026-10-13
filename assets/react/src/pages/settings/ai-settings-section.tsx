@@ -56,6 +56,7 @@ function AISettingsForm({ settings }: { settings: AISettings }) {
   const [deckAnalysisInstructions, setDeckAnalysisInstructions] = useState(
     settings.deckAnalysisInstructions ?? "",
   )
+  const [decisionModel, setDecisionModel] = useState(settings.decisionModel)
   const [updateSettings, updateMutation] = useMutation(UpdateAISettingsDocument)
   const [refreshAllDeckAnalyses, refreshMutation] = useMutation(RefreshAllDeckAnalysesDocument)
 
@@ -68,6 +69,7 @@ function AISettingsForm({ settings }: { settings: AISettings }) {
           provider,
           model,
           deckAnalysisInstructions,
+          decisionModel,
           ...(apiKey.trim() ? { apiKey } : {}),
         },
       },
@@ -75,6 +77,7 @@ function AISettingsForm({ settings }: { settings: AISettings }) {
         const nextSettings = data.updateAiSettings?.aiSettings
         setApiKey("")
         if (nextSettings) {
+          setDecisionModel(nextSettings.decisionModel)
           client.writeQuery({ query: AISettingsDocument, data: { aiSettings: nextSettings } })
         }
         showToast("AI settings validated and saved.")
@@ -171,6 +174,29 @@ function AISettingsForm({ settings }: { settings: AISettings }) {
                 placeholder={"For example: “Never suggest infinite combos.”"}
                 rows={6}
                 maxLength={4000}
+              />
+            </Field>
+          </div>
+        </div>
+
+        <div className="border-t border-base-300 pt-5">
+          <h3 className="text-lg font-black">AI tags</h3>
+          <p className="mt-1 max-w-[72ch] text-sm text-base-content/60">
+            After an analysis, a decision model sorts each card into the deck&apos;s AI tags.
+            Changing the model re-sorts each deck the next time it opens.
+          </p>
+          <div className="mt-4 max-w-md">
+            <Field
+              label="Decision model ID"
+              htmlFor="ai-decision-model"
+              help="An OpenRouter decision model. Leave blank for typesafe/jev-1.13."
+            >
+              <Input
+                id="ai-decision-model"
+                value={decisionModel}
+                onChange={(event) => setDecisionModel(event.target.value)}
+                placeholder="typesafe/jev-1.13"
+                autoComplete="off"
               />
             </Field>
           </div>

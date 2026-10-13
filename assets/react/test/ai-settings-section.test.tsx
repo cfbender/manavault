@@ -21,9 +21,14 @@ test("loads and saves custom deck analysis instructions", async () => {
     provider: "openrouter",
     model: "anthropic/claude-sonnet-4",
     deckAnalysisInstructions: existingInstructions,
+    decisionModel: "typesafe/jev-1.13",
     hasApiKey: true,
   }
-  const updatedSettings = { ...settings, deckAnalysisInstructions: updatedInstructions }
+  const updatedSettings = {
+    ...settings,
+    deckAnalysisInstructions: updatedInstructions,
+    decisionModel: "custom/decider",
+  }
   const link = new MockLink([
     {
       request: { query: AISettingsDocument },
@@ -37,6 +42,7 @@ test("loads and saves custom deck analysis instructions", async () => {
             provider: "openrouter",
             model: "anthropic/claude-sonnet-4",
             deckAnalysisInstructions: updatedInstructions,
+            decisionModel: "custom/decider",
           },
         },
       },
@@ -58,6 +64,10 @@ test("loads and saves custom deck analysis instructions", async () => {
   expect(instructions.getAttribute("maxlength")).toBe("4000")
 
   await userEvent.type(instructions, " Add a budget upgrades section.")
+  const decisionModel = screen.getByRole("textbox", { name: /Decision model ID/ })
+  expect((decisionModel as HTMLInputElement).value).toBe("typesafe/jev-1.13")
+  await userEvent.clear(decisionModel)
+  await userEvent.type(decisionModel, "custom/decider")
   await userEvent.click(screen.getByRole("button", { name: "Validate and save" }))
 
   expect(await screen.findByText("AI settings validated and saved.")).toBeTruthy()
@@ -69,6 +79,7 @@ test("preserves dirty form values when settings refetch", async () => {
     provider: "openrouter",
     model: "anthropic/claude-sonnet-4",
     deckAnalysisInstructions: "Initial instructions",
+    decisionModel: "typesafe/jev-1.13",
     hasApiKey: true,
   }
   const refetchedSettings = {
@@ -114,6 +125,7 @@ test("queues a refresh for every deck analysis", async () => {
     provider: "openrouter",
     model: "anthropic/claude-sonnet-4",
     deckAnalysisInstructions: "",
+    decisionModel: "typesafe/jev-1.13",
     hasApiKey: true,
   }
   const link = new MockLink([
