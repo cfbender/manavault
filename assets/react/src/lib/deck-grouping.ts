@@ -25,28 +25,41 @@ export type DeckGroupIcon =
   | "none"
   | "getting"
   | "consider_cutting"
+  | "anthem"
   | "aristocrats"
   | "auras"
   | "blink"
   | "burn"
   | "card_advantage"
+  | "card_selection"
+  | "cheat"
   | "combo"
   | "copy"
+  | "cost_reduction"
   | "counters"
   | "discard"
   | "drain"
   | "engine"
   | "equipment"
   | "evasion"
+  | "extra_turns"
+  | "goad"
   | "graveyard_hate"
+  | "group_hug"
+  | "haste"
+  | "lands_matter"
   | "lifegain"
   | "mass_disruption"
   | "mill"
+  | "minus_counters"
+  | "plus_counters"
   | "protection"
   | "pump"
   | "ramp"
+  | "reanimation"
   | "recursion"
   | "sacrifice"
+  | "self_mill"
   | "spellslinger"
   | "stax"
   | "storm"
@@ -55,6 +68,8 @@ export type DeckGroupIcon =
   | "theft"
   | "tokens"
   | "tutor"
+  | "typal"
+  | "untap"
   | "voltron"
   | "win_condition"
   | { kind: "colors"; colors: string[] }
@@ -166,6 +181,7 @@ const SALT_BUCKETS = [
   { key: "3-plus", label: "Salt 3+", min: 3, order: 3 },
 ]
 const GROUP_VALUE_ICONS: Record<string, DeckGroupIcon> = {
+  anthem: "anthem",
   aristocrats: "aristocrats",
   artifact: "artifact",
   auras: "auras",
@@ -173,8 +189,11 @@ const GROUP_VALUE_ICONS: Record<string, DeckGroupIcon> = {
   board_wipe: "mass_disruption",
   burn: "burn",
   card_advantage: "card_advantage",
+  card_selection: "card_selection",
+  cheat: "cheat",
   combo: "combo",
   copy: "copy",
+  cost_reduction: "cost_reduction",
   counters: "counters",
   creature: "creature",
   discard: "discard",
@@ -183,20 +202,30 @@ const GROUP_VALUE_ICONS: Record<string, DeckGroupIcon> = {
   enchantment: "enchantment",
   equipment: "equipment",
   evasion: "evasion",
+  extra_turns: "extra_turns",
+  goad: "goad",
   graveyard_hate: "graveyard_hate",
+  group_hug: "group_hug",
+  haste: "haste",
   instant: "instant",
   land: "land",
   lands: "land",
+  lands_matter: "lands_matter",
   lifegain: "lifegain",
   mass_disruption: "mass_disruption",
   mill: "mill",
+  minus_counters: "minus_counters",
   planeswalker: "planeswalker",
+  plus_counters: "plus_counters",
   protection: "protection",
   pump: "pump",
   ramp: "ramp",
+  reanimation: "reanimation",
   recursion: "recursion",
   removal: "targeted_disruption",
   sacrifice: "sacrifice",
+  sacrifice_outlet: "sacrifice",
+  self_mill: "self_mill",
   sorcery: "sorcery",
   spellslinger: "spellslinger",
   stax: "stax",
@@ -206,6 +235,8 @@ const GROUP_VALUE_ICONS: Record<string, DeckGroupIcon> = {
   theft: "theft",
   tokens: "tokens",
   tutor: "tutor",
+  typal: "typal",
+  untap: "untap",
   voltron: "voltron",
   win_condition: "win_condition",
 }
@@ -321,7 +352,7 @@ function deckCardGroupDescriptor<T extends DeckGroupingDeckCard>(
     return {
       icon: groupValueIcon(theme),
       key: theme,
-      label: titleizeGroupValue(theme),
+      label: themeLabel(theme),
       order: theme.toLowerCase() === "other" ? 99 : 0,
     }
   }
@@ -543,6 +574,17 @@ function firstNonEmpty(values: Array<string | null> | null | undefined) {
 
 function normalizedGroupValue(value: string | null | undefined) {
   return String(value || "").trim()
+}
+
+const THEME_LABELS: Record<string, string> = {
+  cheat: "Cheat Into Play",
+  minus_counters: "-1/-1 Counters",
+  plus_counters: "+1/+1 Counters",
+  self_mill: "Self-Mill",
+}
+
+export function themeLabel(theme: string) {
+  return THEME_LABELS[theme] || titleizeGroupValue(theme)
 }
 
 function titleizeGroupValue(value: string) {

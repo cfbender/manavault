@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 import { Badge } from "../../components/ui/badge"
+import { themeLabel } from "../../lib/deck-grouping"
 import { cn, present, titleize } from "../../lib/utils"
 import { edhrecCardUrl, edhrecCommanderUrl } from "./card-links"
 import { CARD_LEGALITY_FORMATS, type CardDetail, type CardLegality, type CardRuling } from "./data"
@@ -38,7 +39,7 @@ export function CardTagSummary({ card }: { card: CardDetail }) {
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-semibold text-base-content/70">Themes</span>
           {themes.map((theme) => (
-            <Badge key={theme}>{titleize(theme)}</Badge>
+            <Badge key={theme}>{themeLabel(theme)}</Badge>
           ))}
         </div>
       ) : null}

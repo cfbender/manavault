@@ -22,58 +22,83 @@ const TYPE_THEMES: [(&str, &str); 7] = [
 ];
 
 /// Normalized tag names (slug, label, or alias) and the theme each maps to.
+/// A tag also carries the themes of its ancestors, so mapping a Scryfall
+/// parent tag (`reanimate`) covers its children (`reanimate-creature`).
 fn theme_alias(name: &str) -> Option<&'static str> {
     Some(match name {
-        "aristocrats" => "aristocrats",
+        "anthem" | "keyword_anthem" => "anthem",
+        "aristocrats" | "blood_artist_ability" => "aristocrats",
         "artifact" | "artifacts" => "artifact",
-        "aura" | "auras" => "auras",
+        "aura" | "auras" | "synergy_aura" => "auras",
         "blink" | "blinks" | "flicker" | "flickers" => "blink",
         "board_wipe" | "board_wipes" | "mass_removal" | "mass_removals" => "board_wipe",
         "burn" => "burn",
         "card_advantage" | "card_advantages" | "card_draw" | "card_draws" | "draw" => {
             "card_advantage"
         }
+        "scry" | "scry_like" | "surveil" | "brainstorm" | "soothsaying" | "loot" | "rummage" => {
+            "card_selection"
+        }
+        "sneak_creature" | "sneak_artifact" | "sneak_enchantment" | "sneak_permanent"
+        | "sneak_planeswalker" | "show_and_tell" => "cheat",
         "combo" => "combo",
         "copy" | "copies" => "copy",
+        "cost_reducer" => "cost_reduction",
         "counter" | "counters" => "counters",
         "counterspell" | "counterspells" => "counterspell",
         "creature" | "creatures" => "creature",
-        "discard" => "discard",
-        "drain" => "drain",
+        "discard" | "hand_disruption" => "discard",
+        "drain" | "drain_life" => "drain",
         "engine" | "synergy" => "engine",
         "enchantment" | "enchantments" => "enchantment",
-        "equipment" => "equipment",
-        "evasion" | "flying" => "evasion",
-        "finisher" | "finishers" | "win_condition" | "win_conditions" => "win_condition",
+        "equipment" | "synergy_equipment" => "equipment",
+        "evasion" | "flying" | "gives_evasion" => "evasion",
+        "extra_turn" => "extra_turns",
+        "finisher" | "finishers" | "win_condition" | "win_conditions" | "overrun"
+        | "extra_combat_phase" => "win_condition",
         "fog" | "fogs" | "pseudo_fog" => "fog",
+        "force_attacker" | "synergy_goad" => "goad",
         "graveyard_hate" => "graveyard_hate",
+        "group_hug" => "group_hug",
+        "gives_haste" => "haste",
         "instant" | "instants" => "instant",
         "land" | "lands" => "land",
+        "landfall" | "play_additional_land" | "crucible_of_worlds" => "lands_matter",
         "land_ramp" | "mana_ramp" | "ramp" => "ramp",
-        "life_gain" | "lifegain" => "lifegain",
+        "life_gain" | "lifegain" | "lifegain_matters" => "lifegain",
         "mill" => "mill",
+        "mill_self" => "self_mill",
+        "gives_mm_counters" | "gains_mm_counters" | "mm_counters_matter" => "minus_counters",
+        "gives_pp_counters" | "pp_counters_matter" | "counter_increaser" => "plus_counters",
         "planeswalker" | "planeswalkers" => "planeswalker",
         "pillow_fort" | "pillowfort" | "tax_attack" => "pillowfort",
-        "protection" => "protection",
+        "protection" | "change_target" => "protection",
         "pump" => "pump",
+        "reanimate" => "reanimation",
         "recursion" => "recursion",
         "removal" | "spot_removal" => "removal",
-        "sacrifice" => "sacrifice",
-        "spellslinger" => "spellslinger",
-        "stax" => "stax",
-        "storm" => "storm",
+        "sacrifice" | "sacrifice_matters" => "sacrifice",
+        "repeatable_sacrifice_outlet" => "sacrifice_outlet",
+        "spellslinger" | "synergy_instant" | "synergy_sorcery" => "spellslinger",
+        "stax" | "cost_increaser" | "rule_of_law" | "stasis" | "mass_land_denial" | "null_rod"
+        | "prevent_cast" | "prevent_trigger" | "hatebear" => "stax",
+        "storm" | "storm_count_matters" | "storm_like" => "storm",
         "sunforger" => "sunforger",
         "sorcery" | "sorceries" => "sorcery",
         "theft" => "theft",
-        "token" | "tokens" => "tokens",
+        "token" | "tokens" | "repeatable_creature_tokens" | "synergy_token" => "tokens",
         "tutor" | "tutors" => "tutor",
+        "typal" => "typal",
+        "untapper_creature" | "untapper_land" | "untapper_artifact" | "untapper_permanent"
+        | "untapper_nonland" | "twiddle" | "etb_untapper" | "extra_untap" => "untap",
         "voltron" => "voltron",
         _ => return None,
     })
 }
 
-const MASS_DISRUPTION_THEMES: [&str; 5] =
-    ["board_wipe", "fog", "graveyard_hate", "pillowfort", "stax"];
+/// Stax is left out: Scryfall's stax tags also cover removal and
+/// counterspells with tax or lock riders (Elspeth Conquers Death).
+const MASS_DISRUPTION_THEMES: [&str; 4] = ["board_wipe", "fog", "graveyard_hate", "pillowfort"];
 const TARGETED_DISRUPTION_THEMES: [&str; 4] = ["counterspell", "discard", "removal", "theft"];
 const PROTECTIVE_DISRUPTION_THEMES: [&str; 1] = ["protection"];
 const SPELL_TYPE_THEMES: [&str; 2] = ["instant", "sorcery"];
@@ -512,6 +537,40 @@ mod tests {
                 "taggings": [{"oracle_id": "o"}]})),
         ]);
         assert!(index.is_empty());
+    }
+
+    #[test]
+    fn maps_scryfall_role_tags_through_their_parents() {
+        let index = build_index(&[
+            scryfall_tag(json!({"id": "outlet", "slug": "repeatable-sacrifice-outlet"})),
+            scryfall_tag(json!({"id": "free", "slug": "free-sacrifice-outlet",
+                "parent_ids": ["outlet"], "taggings": [{"oracle_id": "seer"}]})),
+            scryfall_tag(json!({"id": "mm", "slug": "gives-mm-counters",
+                "taggings": [{"oracle_id": "hapatra"}]})),
+            scryfall_tag(json!({"id": "removal", "slug": "spot-removal",
+                "taggings": [{"oracle_id": "hapatra"}]})),
+            scryfall_tag(json!({"id": "hoof", "slug": "overrun",
+                "taggings": [{"oracle_id": "craterhoof"}]})),
+            scryfall_tag(json!({"id": "tax", "slug": "cost-increaser",
+                "taggings": [{"oracle_id": "ecd"}]})),
+            scryfall_tag(json!({"id": "exile", "slug": "removal",
+                "taggings": [{"oracle_id": "ecd"}]})),
+        ]);
+        let seer = fields_for_card(Some("seer"), Some("Creature — Vampire Wizard"), &index);
+        assert_eq!(seer.deck_category.as_deref(), Some("other"));
+        assert_eq!(themes(&seer), vec!["sacrifice_outlet", "creature"]);
+        let hapatra = fields_for_card(Some("hapatra"), None, &index);
+        assert_eq!(
+            hapatra.deck_category.as_deref(),
+            Some("targeted_disruption")
+        );
+        assert_eq!(themes(&hapatra), vec!["removal", "minus_counters"]);
+        let craterhoof = fields_for_card(Some("craterhoof"), None, &index);
+        assert_eq!(themes(&craterhoof), vec!["win_condition"]);
+        // A stax rider on removal is a theme, not mass disruption.
+        let ecd = fields_for_card(Some("ecd"), None, &index);
+        assert_eq!(ecd.deck_category.as_deref(), Some("targeted_disruption"));
+        assert_eq!(themes(&ecd), vec!["removal", "stax"]);
     }
 
     #[test]
