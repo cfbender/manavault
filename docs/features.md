@@ -125,7 +125,8 @@ Collection items track:
 
 Collection workflows include:
 
-- single-card add/edit/delete, plus bulk edit
+- single-card add/edit/delete, plus bulk edit; adding a card picks its
+  location from small drawings of each location, and the card drops into it
 - location create/edit/delete with selectable cover cards and stickers
 - TXT/CSV import preview and commit, with an optional default purchase price or
   total spend spread across the import; rows whose printing is a token become

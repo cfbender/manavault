@@ -252,6 +252,7 @@ Motion keeps objects continuous across navigation instead of decorating pages.
 - **Shared objects:** Opening a location carries its object into the page header; returning carries it back into its tile. Opening a card lifts it out of its grid tile into the full-screen view and drops it back into the tile on close, when that tile is on screen. These use the View Transitions API with a slight spring settle (about 420ms).
 - **Text and chrome:** Names, counts, values, and the rest of the page cross-fade (about 180ms). Text never slides or flies between positions.
 - **Sifting:** In the full-screen card view, arrow keys and swipes slide the next card in from that side while the old one slides out; picking from the filmstrip of neighboring cards deals that card up from the strip. The backdrop takes the current card's art colors (at the theme's lightness, with a minimum of chroma) and eases between cards over about 700ms.
+- **Putting a card away:** The add-card dialog shows locations as small objects to pick from; the chosen one holds its open pose. When the card is added it arcs from the dialog into that location, which gives as it lands, and then the dialog closes.
 - **No waiting room:** A destination that is already cached renders immediately while it refreshes, so a transition never lands on a loading state.
 - **Fallback:** Without View Transitions support, or under reduced motion, the change happens instantly.
 - **State feedback:** Buttons, nav, chips, and fields keep fast (150ms) state transitions.

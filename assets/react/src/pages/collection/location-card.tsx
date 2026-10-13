@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import { Badge } from "../../components/ui/badge"
-import { cn, compactNumber, titleize } from "../../lib/utils"
+import { compactNumber, titleize } from "../../lib/utils"
 import { LocationObject, locationObjectCards, locationTransitionName } from "./location-object"
 import type { LocationDetail, LocationSummary } from "./types"
 import { collectionValueLine } from "./value-summary"

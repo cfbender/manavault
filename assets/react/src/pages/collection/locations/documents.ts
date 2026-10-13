@@ -123,3 +123,15 @@ export const DeleteLocationDocument = graphql(`
     }
   }
 `)
+
+export const LocationPickerDocument = graphql(`
+  query LocationPicker {
+    locations(first: 100) {
+      edges {
+        node {
+          ...CollectionLocationFields
+        }
+      }
+    }
+  }
+`)

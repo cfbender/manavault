@@ -1,6 +1,8 @@
 import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
 import { Plus } from "lucide-react"
-import { useEffect, useState, type FormEvent } from "react"
+import { motion, useReducedMotion } from "motion/react"
+import { useEffect, useRef, useState, type FormEvent } from "react"
+import { createPortal } from "react-dom"
 import { CardNameSearchField } from "../components/card-name-search-field"
 import { Button } from "../components/ui/button"
 import {
@@ -12,7 +14,6 @@ import {
 } from "../components/ui/dialog"
 import { Input } from "../components/ui/input"
 import {
-  SELECT_NONE_VALUE,
   Select,
   SelectContent,
   SelectItem,
@@ -25,10 +26,7 @@ import { refetchActiveQueries } from "../lib/apollo"
 import { cn, pluralize, present, titleize } from "../lib/utils"
 import { CardsDocument } from "./cards/data"
 import { COLLECTION_CONDITIONS } from "./collection/constants"
-import {
-  CollectionItemFormOptionsDocument,
-  CreateCollectionItemDocument,
-} from "./collection/documents"
+import { CreateCollectionItemDocument } from "./collection/documents"
 import {
   collectionConditionValue,
   collectionFinishValue,
@@ -39,7 +37,8 @@ import {
   CollectionQuantityField,
   type CollectionFinishOption,
 } from "./collection/item-form-fields"
-import { isUnfiledLocation } from "./collection/location-summary"
+import { LocationPicker } from "./collection/location-picker"
+import { LocationPickerDocument } from "./collection/locations/documents"
 import type { AddCollectionItemInitialPrinting } from "./collection/types"
 import { selectedDeckCardNameForMutation } from "./decks/add-card-dialog-model"
 import type { DeckDetail, DeckZone } from "./decks/deck-types"
@@ -121,12 +120,24 @@ export function CardAddDialog(props: CardAddDialogProps) {
     variables: { q: cardSearchTerm, limit: 5 },
     skip: !open || cardSearchTerm.length < 2,
   })
-  const optionsQuery = useQuery(CollectionItemFormOptionsDocument, {
+  const pickerQuery = useQuery(LocationPickerDocument, {
     skip: !open || mode !== "collection",
     fetchPolicy: "cache-and-network",
   })
-  const locations =
-    optionsQuery.data?.locations?.edges?.map((edge) => edge?.node).filter(present) || []
+  const pickerLocations =
+    pickerQuery.data?.locations?.edges?.map((edge) => edge?.node).filter(present) || []
+  const reduceMotion = useReducedMotion()
+  const cardImageRef = useRef<HTMLImageElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  // The card flying from the dialog into the chosen location after it's added.
+  const [flight, setFlight] = useState<{
+    from: DOMRect
+    imageUrl: string
+    message: string
+    target: string
+    to: DOMRect
+  } | null>(null)
+  const [receiving, setReceiving] = useState<string | null>(null)
 
   const cardOptions =
     isCardSearchSettled && !cardSearchQuery.loading
@@ -199,6 +210,8 @@ export function CardAddDialog(props: CardAddDialogProps) {
     setLocationId("")
     setNotes("")
     setPurchasePrice("")
+    setFlight(null)
+    setReceiving(null)
 
     if (mode === "collection" && initialPrinting) {
       setName(initialPrinting.cardName)
@@ -248,7 +261,7 @@ export function CardAddDialog(props: CardAddDialogProps) {
   }
 
   function close() {
-    if (isPending) return
+    if (isPending || flight) return
     setError(null)
     onOpenChange(false)
   }
@@ -310,10 +323,36 @@ export function CardAddDialog(props: CardAddDialogProps) {
           purchasePriceCents,
         },
       },
-      onCompleted: () => onAdded(`${pluralize(quantity, "card")} added to collection`),
+      onCompleted: () => dropIntoLocation(`${pluralize(quantity, "card")} added to collection`),
       onError: (error) =>
         setError(error instanceof Error ? error.message : "Could not add collection card"),
     })
+  }
+
+  /** Flies the card into the chosen location, which gives as it lands, then closes. */
+  function dropIntoLocation(message: string) {
+    const target = locationId || "unfiled"
+    const source = cardImageRef.current
+    const destination = dialogRef.current?.querySelector(
+      `[data-location-target="${CSS.escape(target)}"] .lo-stage`,
+    )
+    if (reduceMotion || !source || !destination || !effectivePrinting?.imageUrl) {
+      onAdded(message)
+      return
+    }
+    setFlight({
+      from: source.getBoundingClientRect(),
+      imageUrl: effectivePrinting.imageUrl,
+      message,
+      target,
+      to: destination.getBoundingClientRect(),
+    })
+  }
+
+  function landFlight() {
+    if (!flight) return
+    setReceiving(flight.target)
+    window.setTimeout(() => onAdded(flight.message), 420)
   }
 
   // Block collection submit when the typed name has diverged from the effective
@@ -349,218 +388,276 @@ export function CardAddDialog(props: CardAddDialogProps) {
           <DialogClose onClose={close} />
         </DialogHeader>
 
-        <form className="space-y-4 p-5" onSubmit={submit}>
-          <div className="form-control">
-            <label htmlFor="add-card-search" className="label-text mb-1 text-sm font-semibold">
-              Card
-            </label>
-            <CardNameSearchField
-              id="add-card-search"
-              value={name}
-              onValueChange={handleNameChange}
-              onSuggestionSelect={handleNameChange}
-              placeholder="Search card name"
-              selectFirstSuggestionOnEnter
-              recordSubmitAsSearch={false}
-              disabled={isPending}
-            />
-            <p className="mt-1 text-xs text-base-content/60">
-              {isCardSearchPending
-                ? "Searching for the matching card..."
-                : effectivePrinting
-                  ? selectedCardMatchesInput || !selectedCard
-                    ? "Printing selected."
-                    : `Selected match: ${selectedCard.name}`
-                  : !cardSearchDraftTerm
-                    ? "Type a card name; the selected match below is what will be added."
-                    : cardSearchDraftTerm.length < 2
-                      ? "Enter at least 2 characters."
-                      : "No matching card found."}
-            </p>
-          </div>
+        <div ref={dialogRef} className="contents">
+          <form className="space-y-4 p-5" onSubmit={submit}>
+            <div className="form-control">
+              <label htmlFor="add-card-search" className="label-text mb-1 text-sm font-semibold">
+                Card
+              </label>
+              <CardNameSearchField
+                id="add-card-search"
+                value={name}
+                onValueChange={handleNameChange}
+                onSuggestionSelect={handleNameChange}
+                placeholder="Search card name"
+                selectFirstSuggestionOnEnter
+                recordSubmitAsSearch={false}
+                disabled={isPending}
+              />
+              <p className="mt-1 text-xs text-base-content/60">
+                {isCardSearchPending
+                  ? "Searching for the matching card..."
+                  : effectivePrinting
+                    ? selectedCardMatchesInput || !selectedCard
+                      ? "Printing selected."
+                      : `Selected match: ${selectedCard.name}`
+                    : !cardSearchDraftTerm
+                      ? "Type a card name; the selected match below is what will be added."
+                      : cardSearchDraftTerm.length < 2
+                        ? "Enter at least 2 characters."
+                        : "No matching card found."}
+              </p>
+            </div>
 
-          {effectivePrinting ? (
-            <div className="rounded-box border border-base-300 bg-base-200/35 p-3">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-accent">
-                  Selected card
-                </p>
-                {selectedCard && !selectedCardMatchesInput ? (
-                  <p className="rounded-full border border-primary/30 px-2 py-0.5 text-xs font-semibold text-primary">
-                    Matched from search
+            {effectivePrinting ? (
+              <div className="rounded-box border border-base-300 bg-base-200/35 p-3">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                    Selected card
                   </p>
-                ) : null}
-              </div>
-              <div className="flex gap-3">
-                {effectivePrinting.imageUrl ? (
-                  <img
-                    src={effectivePrinting.imageUrl}
-                    alt=""
-                    className="h-28 w-20 shrink-0 rounded-lg object-cover shadow"
-                    loading="lazy"
-                  />
-                ) : null}
-                <div className="min-w-0 flex-1 space-y-3">
-                  <div>
-                    <p className="font-semibold">{effectivePrinting.cardName}</p>
-                    <p className="text-sm text-base-content/65">
-                      {printingLabel(effectivePrinting)}
+                  {selectedCard && !selectedCardMatchesInput ? (
+                    <p className="rounded-full border border-primary/30 px-2 py-0.5 text-xs font-semibold text-primary">
+                      Matched from search
                     </p>
-                    {mode === "deck" ? (
-                      <p className="mt-1 text-xs text-base-content/60">
-                        {effectivePrinting.ownedCount
-                          ? `${effectivePrinting.ownedCount} owned in collection`
-                          : "Not in collection"}
-                        {effectivePrinting.priceText ? ` · ${effectivePrinting.priceText}` : ""}
-                      </p>
-                    ) : null}
-                  </div>
-                  {printingOptions.length ? (
-                    <label className="form-control">
-                      <span className="label-text mb-1 text-sm font-semibold">Printing</span>
-                      <Select
-                        value={selectedPrintingId}
-                        disabled={isPending}
-                        onValueChange={setSelectedPrintingId}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {printingOptions.map((printing) => (
-                            <SelectItem key={printing.id} value={printing.id}>
-                              {printingLabel(printing)}
-                              {printing.ownedCount ? ` · ${printing.ownedCount} owned` : ""}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </label>
                   ) : null}
                 </div>
+                <div className="flex gap-3">
+                  {effectivePrinting.imageUrl ? (
+                    <img
+                      ref={cardImageRef}
+                      src={effectivePrinting.imageUrl}
+                      alt=""
+                      className={cn(
+                        "h-28 w-20 shrink-0 rounded-lg object-cover shadow",
+                        flight && "invisible",
+                      )}
+                      loading="lazy"
+                    />
+                  ) : null}
+                  <div className="min-w-0 flex-1 space-y-3">
+                    <div>
+                      <p className="font-semibold">{effectivePrinting.cardName}</p>
+                      <p className="text-sm text-base-content/65">
+                        {printingLabel(effectivePrinting)}
+                      </p>
+                      {mode === "deck" ? (
+                        <p className="mt-1 text-xs text-base-content/60">
+                          {effectivePrinting.ownedCount
+                            ? `${effectivePrinting.ownedCount} owned in collection`
+                            : "Not in collection"}
+                          {effectivePrinting.priceText ? ` · ${effectivePrinting.priceText}` : ""}
+                        </p>
+                      ) : null}
+                    </div>
+                    {printingOptions.length ? (
+                      <label className="form-control">
+                        <span className="label-text mb-1 text-sm font-semibold">Printing</span>
+                        <Select
+                          value={selectedPrintingId}
+                          disabled={isPending}
+                          onValueChange={setSelectedPrintingId}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {printingOptions.map((printing) => (
+                              <SelectItem key={printing.id} value={printing.id}>
+                                {printingLabel(printing)}
+                                {printing.ownedCount ? ` · ${printing.ownedCount} owned` : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </label>
+                    ) : null}
+                  </div>
+                </div>
               </div>
-            </div>
-          ) : null}
+            ) : null}
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <CollectionQuantityField value={quantity} onChange={setQuantity} />
-
-            <CollectionFinishField options={finishOptions} value={finish} onChange={setFinish} />
-
-            {mode === "deck" ? (
-              <fieldset className="space-y-1.5 sm:col-span-2 lg:col-span-3">
-                <legend className="label-text mb-1 text-sm font-semibold">Zone</legend>
-                <ZoneToggle
-                  zones={zoneOptions}
-                  value={zone}
-                  onChange={setZone}
-                  disabled={isPending}
+            {mode === "collection" ? (
+              // min-w-0: a fieldset otherwise grows to its content, so the
+              // location row would overflow the dialog instead of scrolling.
+              <fieldset className="min-w-0">
+                <legend className="label-text text-sm font-semibold">Put it in</legend>
+                <LocationPicker
+                  disabled={isPending || Boolean(flight)}
+                  locations={pickerLocations}
+                  receiving={receiving}
+                  value={locationId}
+                  onChange={setLocationId}
                 />
               </fieldset>
-            ) : (
-              <>
-                <label className="form-control">
-                  <span className="label-text mb-1 text-sm font-semibold">Condition</span>
-                  <Select
-                    value={condition}
-                    disabled={isPending}
-                    onValueChange={(value) => setCondition(collectionConditionValue(value))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {COLLECTION_CONDITIONS.map((conditionOption) => (
-                        <SelectItem key={conditionOption} value={conditionOption}>
-                          {titleize(conditionOption)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </label>
+            ) : null}
 
-                <label className="form-control">
-                  <span className="label-text mb-1 text-sm font-semibold">Language</span>
-                  <Input
-                    value={language}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <CollectionQuantityField value={quantity} onChange={setQuantity} />
+
+              <CollectionFinishField options={finishOptions} value={finish} onChange={setFinish} />
+
+              {mode === "deck" ? (
+                <fieldset className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+                  <legend className="label-text mb-1 text-sm font-semibold">Zone</legend>
+                  <ZoneToggle
+                    zones={zoneOptions}
+                    value={zone}
+                    onChange={setZone}
                     disabled={isPending}
-                    onChange={(event) => setLanguage(event.target.value)}
-                    placeholder="en"
                   />
-                </label>
-
-                <label className="form-control sm:col-span-2 lg:col-span-1">
-                  <span className="label-text mb-1 text-sm font-semibold">Purchase price</span>
-                  <Input
-                    inputMode="decimal"
-                    value={purchasePrice}
-                    disabled={isPending}
-                    onChange={(event) => setPurchasePrice(event.target.value)}
-                    placeholder="Current market price"
-                  />
-                </label>
-
-                <label className="form-control sm:col-span-2">
-                  <span className="label-text mb-1 text-sm font-semibold">Location</span>
-                  <Select
-                    value={locationId || SELECT_NONE_VALUE}
-                    disabled={isPending}
-                    onValueChange={(value) =>
-                      setLocationId(value === SELECT_NONE_VALUE ? "" : value)
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={SELECT_NONE_VALUE}>Unfiled</SelectItem>
-                      {locations
-                        .filter((location) => !isUnfiledLocation(location))
-                        .map((location) => (
-                          <SelectItem key={location.id} value={location.id}>
-                            {location.name} ({titleize(location.kind)})
+                </fieldset>
+              ) : (
+                <>
+                  <label className="form-control">
+                    <span className="label-text mb-1 text-sm font-semibold">Condition</span>
+                    <Select
+                      value={condition}
+                      disabled={isPending}
+                      onValueChange={(value) => setCondition(collectionConditionValue(value))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {COLLECTION_CONDITIONS.map((conditionOption) => (
+                          <SelectItem key={conditionOption} value={conditionOption}>
+                            {titleize(conditionOption)}
                           </SelectItem>
                         ))}
-                    </SelectContent>
-                  </Select>
-                </label>
+                      </SelectContent>
+                    </Select>
+                  </label>
 
-                <label className="form-control sm:col-span-2 lg:col-span-3">
-                  <span className="label-text mb-1 text-sm font-semibold">Notes</span>
-                  <Textarea
-                    className="min-h-16"
-                    value={notes}
-                    disabled={isPending}
-                    onChange={(event) => setNotes(event.target.value)}
-                    placeholder="Optional notes"
-                  />
-                </label>
-              </>
-            )}
-          </div>
+                  <label className="form-control">
+                    <span className="label-text mb-1 text-sm font-semibold">Language</span>
+                    <Input
+                      value={language}
+                      disabled={isPending}
+                      onChange={(event) => setLanguage(event.target.value)}
+                      placeholder="en"
+                    />
+                  </label>
 
-          {error ? (
-            <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
-              {error}
-            </p>
-          ) : null}
+                  <label className="form-control sm:col-span-2 lg:col-span-1">
+                    <span className="label-text mb-1 text-sm font-semibold">Purchase price</span>
+                    <Input
+                      inputMode="decimal"
+                      value={purchasePrice}
+                      disabled={isPending}
+                      onChange={(event) => setPurchasePrice(event.target.value)}
+                      placeholder="Current market price"
+                    />
+                  </label>
 
-          <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-4">
-            <Button type="button" variant="ghost" disabled={isPending} onClick={close}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={!canSubmit}>
-              {mode === "collection" ? <Plus className="h-4 w-4" /> : null}
-              {isPending
-                ? "Adding..."
-                : mode === "deck" && selectedCard
-                  ? `Add ${selectedCard.name}`
-                  : "Add card"}
-            </Button>
-          </div>
-        </form>
+                  <label className="form-control sm:col-span-2 lg:col-span-3">
+                    <span className="label-text mb-1 text-sm font-semibold">Notes</span>
+                    <Textarea
+                      className="min-h-16"
+                      value={notes}
+                      disabled={isPending}
+                      onChange={(event) => setNotes(event.target.value)}
+                      placeholder="Optional notes"
+                    />
+                  </label>
+                </>
+              )}
+            </div>
+
+            {error ? (
+              <p className="rounded-box border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+                {error}
+              </p>
+            ) : null}
+
+            <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-4">
+              <Button type="button" variant="ghost" disabled={isPending} onClick={close}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!canSubmit}>
+                {mode === "collection" ? <Plus className="h-4 w-4" /> : null}
+                {isPending
+                  ? "Adding..."
+                  : mode === "deck" && selectedCard
+                    ? `Add ${selectedCard.name}`
+                    : "Add card"}
+              </Button>
+            </div>
+          </form>
+        </div>
+        {flight
+          ? createPortal(
+              <FlyingCard
+                from={flight.from}
+                imageUrl={flight.imageUrl}
+                to={flight.to}
+                onLanded={landFlight}
+              />,
+              document.body,
+            )
+          : null}
       </DialogContent>
     </Dialog>
+  )
+}
+
+/**
+ * The added card arcing from the dialog down into its location, shrinking and
+ * tilting as it goes, gone by the time the location gives.
+ */
+function FlyingCard({
+  from,
+  imageUrl,
+  onLanded,
+  to,
+}: {
+  from: DOMRect
+  imageUrl: string
+  onLanded: () => void
+  to: DOMRect
+}) {
+  const dx = to.left + to.width / 2 - (from.left + from.width / 2)
+  const dy = to.top + to.height * 0.55 - (from.top + from.height / 2)
+  const scale = Math.min(0.6, (to.height * 0.55) / from.height)
+
+  return (
+    <motion.img
+      src={imageUrl}
+      alt=""
+      className="pointer-events-none fixed rounded-lg object-cover shadow-2xl"
+      style={{
+        left: from.left,
+        top: from.top,
+        width: from.width,
+        height: from.height,
+        zIndex: 2147483000,
+      }}
+      initial={{ x: 0, y: 0, scale: 1, rotate: 0, opacity: 1 }}
+      animate={{
+        x: [0, dx * 0.35, dx],
+        y: [0, Math.min(dy, 0) - 48, dy],
+        scale: [1, 1.08, scale],
+        rotate: [0, -6, 4],
+        opacity: [1, 1, 0],
+      }}
+      transition={{
+        duration: 0.75,
+        times: [0, 0.35, 1],
+        ease: [0.45, 0, 0.25, 1],
+        // Fully visible until it reaches the location, then it's inside.
+        opacity: { duration: 0.75, times: [0, 0.88, 1], ease: "linear" },
+      }}
+      onAnimationComplete={onLanded}
+    />
   )
 }
 

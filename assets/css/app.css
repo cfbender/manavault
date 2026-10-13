@@ -1246,6 +1246,75 @@ body[data-scroll-locked] .app-shell-main {
   }
 }
 
+/* A location chosen to receive a card holds its hover pose: the binder page
+   tilts open, box cards lift, the fan spreads. */
+.location-card--interactive.is-open .lo-binder {
+  transform: translateY(-3%) rotateX(9deg) rotateZ(1deg);
+}
+
+.location-card--interactive.is-open .lo-binder-page--under {
+  transform: translate(9%, -3%) rotate(6deg);
+}
+
+.location-card--interactive.is-open .lo-sheen {
+  transform: translateX(38%);
+}
+
+.location-card--interactive.is-open .lo-box-slot {
+  transform: translateX(-50%) translateY(-5cqh) scale(calc(0.86 + var(--i) * 0.028));
+}
+
+.location-card--interactive.is-open .lo-deckbox-card {
+  transform: translateY(-9cqh) rotate(-3deg);
+}
+
+.location-card--interactive.is-open .lo-fan-card {
+  rotate: calc(var(--o) * 15deg);
+}
+
+.location-card--interactive.is-open .lo-fan--folder .lo-fan-card {
+  rotate: calc(var(--o) * 9deg);
+  translate: -50% -12%;
+}
+
+.location-card--interactive.is-open .lo-pile-card {
+  rotate: calc(var(--r) * 1.35deg);
+  translate: calc(-50% + var(--x) * 1.25%) calc(-50% + var(--y) * 1.25% - 3%);
+}
+
+/* The chosen location gives a little as a card drops in. */
+.lo-receive .lo-stage > * {
+  animation: lo-receive 420ms cubic-bezier(0.2, 0.9, 0.25, 1.2);
+}
+
+@keyframes lo-receive {
+  0% {
+    scale: 1;
+  }
+
+  35% {
+    scale: 1.08 0.94;
+  }
+
+  70% {
+    scale: 0.98 1.02;
+  }
+
+  100% {
+    scale: 1;
+  }
+}
+
+/* Compact stages for picking a location inside a dialog. */
+.lo-stage--mini {
+  padding: 0.5rem 0.5rem 0.65rem;
+  background: radial-gradient(
+    ellipse 42% 12% at 50% calc(100% - 0.6rem),
+    rgb(0 0 0 / 0.3),
+    transparent 72%
+  );
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lo-stage * {
     transition: none !important;
