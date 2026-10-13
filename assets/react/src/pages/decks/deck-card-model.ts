@@ -31,6 +31,7 @@ export function deckCardPreviewPrinting(deckCard: DeckCardEntry): FullscreenPrin
 
   return {
     scryfallId: deckCard.id,
+    name: deckCard.card?.name,
     artCropUrl: printing?.artCropUrl || null,
     collectorNumber: printing?.collectorNumber || null,
     finishes: deckCard.finish ? [deckCard.finish] : printing?.finishes,

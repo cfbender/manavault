@@ -362,6 +362,8 @@ const ProfileCardComponent = ({
                 className="avatar"
                 src={avatarUrl}
                 alt={`${name || "User"} avatar`}
+                // A native image drag would cancel swipes across the card.
+                draggable={false}
                 onError={(event) => {
                   event.currentTarget.style.display = "none"
                 }}

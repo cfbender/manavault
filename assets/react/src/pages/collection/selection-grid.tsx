@@ -487,6 +487,7 @@ function fullscreenPrinting(group: CollectionItemGroup): FullscreenPrinting {
   return {
     scryfallId: group.printingId,
     name: printing?.card?.name,
+    artCropUrl: printing?.artCropUrl,
     collectorNumber: printing?.collectorNumber,
     finishes: finish ? [finish] : null,
     imageUrl: printing?.imageUrl,

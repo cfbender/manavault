@@ -32,6 +32,7 @@ export const CollectionItemFieldsFragment = graphql(`
       setName
       collectorNumber
       imageUrl
+      artCropUrl
       rarity
       card {
         id

@@ -235,6 +235,7 @@ export const CardCollectionItemsDocument = graphql(`
             setName
             collectorNumber
             imageUrl
+            artCropUrl
             rarity
             card {
               id

@@ -276,6 +276,88 @@ html[data-theme-style="glass"] :is(.btn-outline, .btn-ghost):hover {
     radial-gradient(ellipse 34% 28% at 68% 78%, var(--card-modal-glow-soft) 0%, transparent 76%);
   opacity: var(--card-modal-glow-opacity);
 }
+/* The backdrop glow takes the current card's art colors; registering the
+   colors lets them ease from one card to the next. */
+@property --card-modal-glow {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+
+@property --card-modal-glow-soft {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+
+/* Art tint: the card's dominant colors at the theme's lightness, with enough
+   chroma to read even when the art is muted. */
+.fullscreen-printing-dialog[data-art] {
+  --card-modal-bg: oklch(from var(--art-primary) 0.93 0.035 h);
+  --card-modal-glow: oklch(from var(--art-primary) 0.74 max(c, 0.13) h);
+  --card-modal-glow-soft: oklch(from var(--art-secondary) 0.82 max(c, 0.1) h);
+  --card-modal-glow-opacity: 0.8;
+}
+
+[data-theme="dark"] .fullscreen-printing-dialog[data-art] {
+  --card-modal-bg: oklch(from var(--art-primary) 0.2 0.035 h);
+  --card-modal-glow: oklch(from var(--art-primary) 0.46 max(c, 0.12) h);
+  --card-modal-glow-soft: oklch(from var(--art-secondary) 0.36 max(c, 0.08) h);
+}
+
+.fullscreen-printing-dialog {
+  transition:
+    background-color 700ms ease,
+    --card-modal-glow 700ms ease,
+    --card-modal-glow-soft 700ms ease;
+}
+
+/* Filmstrip: neighboring cards under the full-screen card, the current one
+   raised above the others. */
+.printing-filmstrip__card {
+  width: 2.5rem;
+  aspect-ratio: 5 / 7;
+  opacity: 0.62;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.3);
+  transition:
+    width 260ms cubic-bezier(0.2, 0.9, 0.25, 1.1),
+    transform 260ms cubic-bezier(0.2, 0.9, 0.25, 1.1),
+    opacity 200ms ease;
+}
+
+.printing-filmstrip__card--current {
+  width: 3.5rem;
+  opacity: 1;
+  transform: translateY(-0.35rem);
+  box-shadow:
+    0 0 0 2px var(--card-modal-fg),
+    0 10px 18px -6px rgb(0 0 0 / 0.45);
+}
+
+@media (hover: hover) {
+  .printing-filmstrip__card:not(.printing-filmstrip__card--current):hover {
+    opacity: 1;
+    transform: translateY(-0.5rem) scale(1.06);
+  }
+}
+
+@media (min-width: 640px) {
+  .printing-filmstrip__card {
+    width: 3rem;
+  }
+
+  .printing-filmstrip__card--current {
+    width: 4.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fullscreen-printing-dialog,
+  .printing-filmstrip__card {
+    transition: none;
+  }
+}
+
 .fullscreen-printing-dialog__muted {
   color: var(--card-modal-muted);
 }

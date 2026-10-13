@@ -90,7 +90,8 @@ The collection has four primary views:
   location page. Locations can carry up to six stickers (card symbols, set
   symbols, or rarities) chosen in the location's create and edit dialogs and
   shown stuck on the object. Clicking a card in a collection view opens it
-  full screen, where the arrow keys step through the grid.
+  full screen, tinted with the card's art colors; arrow keys, swipes, or the
+  filmstrip of neighboring cards step through the grid.
 - **All cards** - a filterable, sortable inventory list across locations.
 - **Tokens** - the tokens you own, shown as card tiles with quantity badges and
   filtered by name. Double-sided tokens are named "Front // Back" and flip to
