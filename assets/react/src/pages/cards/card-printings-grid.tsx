@@ -66,6 +66,7 @@ export function CardPrintingsGrid({
             countMin={1}
             finish={(printing.finishes || [])[0]}
             imageUrl={printing.imageUrl}
+            morphKey={printing.id}
             onSelect={() => onPreviewPrinting(printing.id)}
             primaryActionLabel={`Open ${cardName} ${printing.setCode?.toUpperCase() || "printing"} full screen`}
             primaryActionRole="button"

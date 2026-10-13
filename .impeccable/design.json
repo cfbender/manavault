@@ -117,6 +117,11 @@
         "name": "foil-moment",
         "value": "0 0 0 1px color-mix(in oklch, var(--color-primary) 44%, transparent), 0 12px 30px rgb(0 0 0 / 0.28), 0 0 26px color-mix(in oklch, var(--color-primary) 28%, transparent)",
         "purpose": "Reserved for foil card imagery."
+      },
+      {
+        "name": "object-contact",
+        "value": "radial-gradient(ellipse 46% 14% at 50% calc(100% - 1.3rem), rgb(0 0 0 / 0.28), transparent 72%)",
+        "purpose": "Contact shadow under location objects only."
       }
     ],
     "motion": [
@@ -126,14 +131,24 @@
         "purpose": "Button, nav, chip, and field state feedback."
       },
       {
+        "name": "shared-object",
+        "value": "420ms spring settle (View Transitions)",
+        "purpose": "Carry an opened location or card between its tile and its destination."
+      },
+      {
+        "name": "text-fade",
+        "value": "180ms cross-fade",
+        "purpose": "Names, counts, values, and page chrome fade; text never slides."
+      },
+      {
         "name": "home-intro",
         "value": "250ms opacity/translate",
         "purpose": "The existing home hero entrance; do not generalize to every page."
       },
       {
         "name": "reduced-motion",
-        "value": "disable continuous shimmer",
-        "purpose": "Foil shimmer and decorative motion must stop under reduced motion."
+        "value": "disable continuous shimmer and shared-object transitions",
+        "purpose": "Foil shimmer, object hover motion, and navigation transitions stop under reduced motion."
       }
     ],
     "breakpoints": [
@@ -213,7 +228,8 @@
       "Surfaces are layered like storage trays: base, panel, line, content.",
       "Type is one disciplined system sans, with mono reserved for values and inventory numbers.",
       "Components are tactile but disciplined: 4px fields, 8px cards, clear borders, modest lift.",
-      "Motion is product-state feedback, not page choreography."
+      "Storage is drawn as material: each location is the binder page, bulk box, deck box, folder, or pile it stands for, filled with the user's own cards.",
+      "Motion keeps objects continuous: a location or card moves to where it opens and back to where it came from, while text and chrome only fade. Motion never decorates."
     ],
     "rules": [
       {
@@ -227,13 +243,18 @@
         "section": "colors"
       },
       {
+        "name": "The Material Means Storage Rule",
+        "body": "Cardboard, sleeves, binder rings, and printed deck boxes depict a real storage location and its real cards. They never appear as generic texture or page decoration.",
+        "section": "colors"
+      },
+      {
         "name": "The One-Sans Rule",
         "body": "Do not introduce display fonts for UI labels, buttons, tables, or forms. Product trust comes from consistent type, not type novelty.",
         "section": "typography"
       },
       {
         "name": "The Lift Means Affordance Rule",
-        "body": "If a shadow is not explaining hover, modal focus, primary action, or foil material, remove it and use a tonal layer instead.",
+        "body": "If a shadow is not explaining hover, modal focus, primary action, foil material, or a physical location object, remove it and use a tonal layer instead.",
         "section": "elevation"
       }
     ],
@@ -242,12 +263,14 @@
       "Do preserve the tactile vault language with 4px fields, 8px cards, 1.5px borders, and small structural shadows.",
       "Do use mono type for exact values, prices, quantities, and counts where auditability matters.",
       "Do make mobile/PWA flows first-class: safe-area padding, 44px touch targets, full-height mobile dialogs, and persistent navigation clarity.",
-      "Do meet WCAG AA contrast, visible keyboard focus, reduced-motion alternatives, and non-color-only status communication."
+      "Do meet WCAG AA contrast, visible keyboard focus, reduced-motion alternatives, and non-color-only status communication.",
+      "Do keep objects continuous: move the thing the user opened, fade everything else."
     ],
     "donts": [
       "Don't make ManaVault look like generic hosted-SaaS dashboards or growth-product landing-page tropes.",
       "Don't create loud TCG marketplace clutter, over-saturated novelty treatment, or game-store chaos.",
       "Don't turn claret, brass, foil gradients, or card art into generic decoration.",
+      "Don't slide or fly text into place, choreograph whole-page entrances, or show a loading state for data that is already cached.",
       "Don't use side-stripe borders, gradient text, decorative glassmorphism, hero-metric templates, or identical icon-card grids as default scaffolding.",
       "Don't over-round product surfaces; cards stop at 8px unless a control is deliberately pill-shaped."
     ]

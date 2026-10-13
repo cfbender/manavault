@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import ProfileCard from "./profile-card"
 import { Button } from "./ui/button"
 import { Dialog, DialogContent } from "./ui/dialog"
+import { CARD_MORPH_NAME, cardMorphUpdating, morphCardBack } from "../lib/card-morph"
 import { present, titleize } from "../lib/utils"
 
 const MOBILE_INTERACTION_QUERY =
@@ -42,6 +43,8 @@ export type FullscreenPrintingCard = {
 
 export type FullscreenPrinting = {
   scryfallId: string
+  // Overrides the dialog's card name when browsing printings of different cards.
+  name?: string | null
   artCropUrl?: string | null
   collectorNumber?: string | null
   finishes?: readonly (string | null)[] | null
@@ -73,6 +76,7 @@ export function FullscreenPrintingDialog({
     ? printings.findIndex((printing) => printing.scryfallId === currentPrintingId)
     : -1
   const printing = currentIndex >= 0 ? printings[currentIndex] : null
+  const cardName = printing?.name || card.name
   const finish = (printing?.finishes || []).filter(present)[0]
   const foil = finish === "foil" || finish === "etched"
   const setLabel = printing?.setCode
@@ -119,6 +123,11 @@ export function FullscreenPrintingDialog({
     return () => document.removeEventListener("keydown", handleKeyDown)
   }, [canNavigate, currentIndex, onPrintingChange, printings])
 
+  function close(open: boolean) {
+    if (open) return
+    morphCardBack(printing?.scryfallId ?? null, () => onOpenChange(false))
+  }
+
   function flipCard() {
     if (!hasBackFace) return
     setShowBackFace((current) => !current)
@@ -133,7 +142,7 @@ export function FullscreenPrintingDialog({
   }
 
   return (
-    <Dialog open={Boolean(printing)} onOpenChange={onOpenChange}>
+    <Dialog open={Boolean(printing)} onOpenChange={close}>
       {printing ? (
         <DialogContent
           className="fullscreen-printing-dialog relative h-[100dvh] max-h-[100dvh] w-screen shrink-0 max-w-none overflow-hidden rounded-none border-0 shadow-2xl sm:h-[calc(100dvh-3rem)] sm:max-h-[calc(100dvh-3rem)] sm:w-full sm:shrink sm:max-w-[calc(100vw-2rem)] sm:rounded-box"
@@ -151,7 +160,7 @@ export function FullscreenPrintingDialog({
                   id="fullscreen-card-title"
                   className="truncate text-xl font-black tracking-normal sm:text-3xl"
                 >
-                  {card.name}
+                  {cardName}
                 </h2>
                 {subtitle ? (
                   <p className="fullscreen-printing-dialog__muted mt-1 line-clamp-1 text-xs sm:line-clamp-2 sm:text-sm">
@@ -198,7 +207,7 @@ export function FullscreenPrintingDialog({
                 size="icon"
                 className="fullscreen-printing-dialog__icon-button"
                 aria-label="Close full-screen card"
-                onClick={() => onOpenChange(false)}
+                onClick={() => close(false)}
               >
                 <X className="h-5 w-5" />
               </Button>
@@ -221,11 +230,14 @@ export function FullscreenPrintingDialog({
               <motion.div
                 key={printing.scryfallId}
                 className="relative max-h-full rounded-[4.75%] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
-                initial={{ opacity: 0, scale: 0.82, y: 36, rotateX: 12 }}
+                style={{ viewTransitionName: CARD_MORPH_NAME }}
+                initial={
+                  cardMorphUpdating() ? false : { opacity: 0, scale: 0.82, y: 36, rotateX: 12 }
+                }
                 animate={{ opacity: 1, scale: 1, y: 0, rotateX: 0 }}
                 transition={{ type: "spring", stiffness: 260, damping: 24 }}
                 aria-label={
-                  !hasBackFace && canNavigate ? `Show next printing of ${card.name}` : undefined
+                  !hasBackFace && canNavigate ? `Show next printing of ${cardName}` : undefined
                 }
                 role={!hasBackFace && canNavigate ? "button" : undefined}
                 tabIndex={!hasBackFace && canNavigate ? 0 : undefined}
@@ -251,7 +263,7 @@ export function FullscreenPrintingDialog({
                   enableTilt={fullscreenTiltEnabled}
                   enableMobileTilt={false}
                   disableTiltOnCoarsePointer
-                  name={showBackFace ? `${card.name} back face` : card.name}
+                  name={showBackFace ? `${cardName} back face` : cardName}
                   title={subtitle}
                   handle={setLabel || printing.setCode?.toUpperCase() || "printing"}
                   status={[
@@ -273,7 +285,7 @@ export function FullscreenPrintingDialog({
                     variant="ghost"
                     size="sm"
                     className="fullscreen-printing-dialog__icon-button absolute bottom-3 left-1/2 z-30 -translate-x-1/2 border px-4 text-xs font-black backdrop-blur sm:bottom-4"
-                    aria-label={`Show ${showBackFace ? "front" : "back"} face of ${card.name}`}
+                    aria-label={`Show ${showBackFace ? "front" : "back"} face of ${cardName}`}
                     onClick={(event) => {
                       event.stopPropagation()
                       flipCard()

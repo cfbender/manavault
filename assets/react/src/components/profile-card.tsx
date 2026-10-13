@@ -362,7 +362,6 @@ const ProfileCardComponent = ({
                 className="avatar"
                 src={avatarUrl}
                 alt={`${name || "User"} avatar`}
-                loading="lazy"
                 onError={(event) => {
                   event.currentTarget.style.display = "none"
                 }}

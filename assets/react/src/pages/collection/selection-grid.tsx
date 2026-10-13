@@ -4,6 +4,10 @@ import { CheckSquare, Edit3, Layers, ListPlus, MoveUpRight, Trash2, X } from "lu
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { EmptyState } from "../../components/card-image"
 import { addToDeckAction, addToListAction, CardTile } from "../../components/card-tile"
+import {
+  FullscreenPrintingDialog,
+  type FullscreenPrinting,
+} from "../../components/fullscreen-printing-dialog"
 import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
 import { useCardSize } from "../../lib/card-size"
@@ -361,6 +365,8 @@ export function VirtualizedCollectionGrid({
   const containerRef = useRef<HTMLDivElement>(null)
   const [columns, setColumns] = useState(1)
   const [range, setRange] = useState({ startRow: 0, endRow: 8 })
+  const [previewPrintingId, setPreviewPrintingId] = useState<string | null>(null)
+  const previewPrintings = useMemo(() => groups.map(fullscreenPrinting), [groups])
 
   useEffect(() => {
     const container = containerRef.current
@@ -451,6 +457,7 @@ export function VirtualizedCollectionGrid({
             forTradeQuantityOverride={forTradeQuantityOverrides?.[group.printingId]}
             group={group}
             isSelected={isSelected?.(group.printingId) || false}
+            onPreview={setPreviewPrintingId}
             onToggleForTrade={onToggleForTrade}
             onToggleSelected={onToggleSelected}
             selectionActive={selectionActive}
@@ -462,8 +469,33 @@ export function VirtualizedCollectionGrid({
           <EmptyState title="Loading more..." />
         </div>
       ) : null}
+      <FullscreenPrintingDialog
+        card={{ name: "Card" }}
+        currentPrintingId={previewPrintingId}
+        printings={previewPrintings}
+        onOpenChange={(open) => !open && setPreviewPrintingId(null)}
+        onPrintingChange={setPreviewPrintingId}
+      />
     </div>
   )
+}
+
+/** A collection group as a full-screen card, so the preview can step through the grid. */
+function fullscreenPrinting(group: CollectionItemGroup): FullscreenPrinting {
+  const printing = group.items[0].printing
+  const finish = commonValue(group.items.map((member) => member.finish))
+  return {
+    scryfallId: group.printingId,
+    name: printing?.card?.name,
+    collectorNumber: printing?.collectorNumber,
+    finishes: finish ? [finish] : null,
+    imageUrl: printing?.imageUrl,
+    ownedCount: group.quantity,
+    priceText: finish ? group.items[0].priceText : null,
+    rarity: printing?.rarity,
+    setCode: printing?.setCode,
+    setName: printing?.setName,
+  }
 }
 
 // Memoized so that toggling one selection only re-renders the affected tile.
@@ -474,6 +506,7 @@ const CollectionItemTile = memo(function CollectionItemTile({
   forTradeQuantityOverride,
   group,
   isSelected = false,
+  onPreview,
   onToggleForTrade,
   onToggleSelected,
   selectionActive = false,
@@ -482,6 +515,7 @@ const CollectionItemTile = memo(function CollectionItemTile({
   forTradeQuantityOverride?: number
   group: CollectionItemGroup
   isSelected?: boolean
+  onPreview: (printingId: string) => void
   onToggleForTrade?: (group: CollectionItemGroup) => void
   onToggleSelected?: (group: CollectionItemGroup, selectRange?: boolean) => void
   selectionActive?: boolean
@@ -552,6 +586,10 @@ const CollectionItemTile = memo(function CollectionItemTile({
         forTradeTotalQuantity={group.quantity}
         imageUrl={item.printing?.imageUrl}
         location={deckLocation || location}
+        morphKey={group.printingId}
+        onSelect={() => onPreview(group.printingId)}
+        primaryActionLabel={`Open ${item.printing?.card?.name || "card"} full screen`}
+        primaryActionRole="button"
         menuActions={[
           hasMixedFinishes
             ? {

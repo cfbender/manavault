@@ -932,6 +932,56 @@ async fn unfiled_location_resolves_items_without_a_location() {
 }
 
 #[tokio::test]
+async fn location_items_follow_the_requested_sort() {
+    let app = TestApp::new().await;
+    app.import_cards(&[
+        card(
+            "scryfall-cheap",
+            "oracle-cheap",
+            "Alpha Cheap",
+            json!({"prices": {"usd": "0.25"}}),
+        ),
+        card(
+            "scryfall-pricey",
+            "oracle-pricey",
+            "Zeta Pricey",
+            json!({"prices": {"usd": "40.00"}}),
+        ),
+    ])
+    .await;
+    for id in ["scryfall-cheap", "scryfall-pricey"] {
+        create_item(&app, id, Attrs::default()).await;
+    }
+    let data = app
+        .gql_data(
+            r#"query($id: ID!) {
+                location(id: $id) {
+                  byName: collectionItems(first: 2) { edges { node { printing { card { name } } } } }
+                  byPrice: collectionItems(first: 2, sort: {field: "price", direction: "desc"}) {
+                    edges { node { printing { card { name } } } }
+                  }
+                }
+              }"#,
+            json!({"id": gid(NodeKind::Location, "unfiled")}),
+        )
+        .await;
+    let names = |connection: &Value| {
+        edges(connection)
+            .iter()
+            .map(|node| node["printing"]["card"]["name"].clone())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        names(&data["location"]["byName"]),
+        ["Alpha Cheap", "Zeta Pricey"]
+    );
+    assert_eq!(
+        names(&data["location"]["byPrice"]),
+        ["Zeta Pricey", "Alpha Cheap"]
+    );
+}
+
+#[tokio::test]
 async fn items_filter_by_added_window() {
     let app = TestApp::new().await;
     let base = json!({"type_line": "Creature", "rarity": "common", "finishes": ["nonfoil"]});

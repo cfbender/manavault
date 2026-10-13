@@ -18,6 +18,19 @@ export const CollectionLocationFieldsFragment = graphql(`
       id
       scryfallId
       artCropUrl
+      imageUrl
+    }
+    previewItems: collectionItems(first: 9, sort: { field: "price", direction: "desc" }) {
+      edges {
+        node {
+          id
+          finish
+          printing {
+            id
+            imageUrl
+          }
+        }
+      }
     }
   }
 `)

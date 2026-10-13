@@ -22,6 +22,7 @@ import {
   type MouseEvent,
   type ReactNode,
 } from "react"
+import { morphCardFrom } from "../lib/card-morph"
 import { useCardSize } from "../lib/card-size"
 import { cn } from "../lib/utils"
 import {
@@ -83,6 +84,7 @@ export function CardTile({
   imageUrl,
   location,
   menuActions = [],
+  morphKey,
   name,
   onSelect,
   primaryActionLabel,
@@ -117,6 +119,8 @@ export function CardTile({
   imageUrl?: string | null
   location?: ReactNode
   menuActions?: CardTileAction[]
+  // Set when onSelect opens the full-screen card view: the tile morphs into it.
+  morphKey?: string
   name: ReactNode
   onSelect?: () => void
   onToggleForTrade?: () => void
@@ -158,6 +162,7 @@ export function CardTile({
       ? `Remove all ${tradeCardName} copies from trade`
       : `Offer ${forTradeQuantity + 1} of ${forTradeTotalQuantity ?? count ?? 1} ${tradeCardName} copies for trade`
   const mobileHover = useMobileHoverReveal<HTMLDivElement>({ deferRevealUntilPointerUp: true })
+  const figureRef = useRef<HTMLElement>(null)
   const suppressMenuClickRef = useRef(false)
   const suppressMenuClickTimeoutRef = useRef<number | null>(null)
   const fallbackDefaultActions: CardTileAction[] = [
@@ -208,7 +213,13 @@ export function CardTile({
       return
     }
 
-    onSelect?.()
+    select()
+  }
+
+  function select() {
+    if (!onSelect) return
+    if (morphKey) morphCardFrom(figureRef.current, onSelect)
+    else onSelect()
   }
 
   // Shift+mousedown would otherwise extend the page's text selection across
@@ -229,7 +240,7 @@ export function CardTile({
 
     if (!onSelect) return
     event.preventDefault()
-    onSelect()
+    select()
   }
 
   return (
@@ -339,6 +350,8 @@ export function CardTile({
       ) : null}
 
       <figure
+        ref={figureRef}
+        data-card-morph-key={morphKey}
         className={cn(
           "relative aspect-[5/7] w-full overflow-hidden rounded-xl bg-base-300 shadow-lg ring-1 ring-white/10 transition duration-200",
           foil && "card-tile-foil",

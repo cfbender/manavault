@@ -66,6 +66,13 @@ export const apolloClient = new ApolloClient({
           collectionItemGroups: relayStylePagination(["filters", "sort"]),
           // Card catalog search paginates with fetchMore keyed by query and sort.
           cards: relayStylePagination(["q", "sort"]),
+          // A location page reads the location the collection list already
+          // loaded, so its header renders immediately (and morphs from the list).
+          location: {
+            read(existing, { args, toReference }) {
+              return existing ?? toReference({ __typename: "Location", id: args?.id })
+            },
+          },
         },
       },
     },

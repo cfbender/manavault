@@ -32,7 +32,7 @@ Users move between browsing exact Magic printings, cataloging cards into physica
 
 ## Brand Commitments
 
-Collector, tactile, confident. The interface should feel like a serious vault for real cardboard: concrete, organized, and respectful of the hobby without becoming novelty merchandise.
+Collector, tactile, confident. The interface should feel like a serious vault for real cardboard: concrete, organized, alive to the touch, and respectful of the hobby without becoming novelty merchandise.
 
 Avoid generic hosted-SaaS dashboards, growth-product landing-page tropes, and loud TCG marketplace clutter. Do not let visual style drift into game-store chaos, over-saturated novelty treatment, or thin cloud-app minimalism that makes physical inventory feel abstract.
 
@@ -49,6 +49,7 @@ Avoid generic hosted-SaaS dashboards, growth-product landing-page tropes, and lo
 - Make ownership concrete: exact printings, quantities, locations, allocation status, and deck gaps should stay visible and trustworthy.
 - Keep expert workflows fast: dense views, bulk actions, filters, and mobile paths should reduce repeated work rather than decorate it.
 - Earn tactility through structure: use card imagery, storage concepts, state, and hierarchy instead of ornamental fantasy styling.
+- Make storage feel physical: show each location as the binder, box, or deck box it is, holding the user's own cards, and move objects (not just pages) when the user opens them.
 - Preserve calm confidence: highlight primary actions and statuses clearly while keeping inactive UI restrained.
 - Protect continuity across devices: PWA and native-shell flows should feel like the same vault on desktop and touch screens.
 

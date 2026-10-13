@@ -81,7 +81,9 @@ export function CollectionPage({ importFile = false }: { importFile?: boolean })
           <CollectionTokensSection />
         ) : filters.activeTab === "locations" ? (
           <CollectionLocationsSection
-            isLoading={query.summaryLoading}
+            // Cached locations stay on screen while they refresh, so returning
+            // from a location morphs back into its tile.
+            isLoading={query.summaryLoading && !query.locations.length}
             locationCount={query.locations.length}
             locationGroups={query.locationGroups}
             onDeleteLocation={(location) =>

@@ -1,13 +1,10 @@
 import { Link } from "@tanstack/react-router"
-import { Boxes } from "lucide-react"
 import { PageSection } from "../../components/app-shell"
 import { EmptyState } from "../../components/card-image"
-import { ImageSummaryCard } from "../../components/image-summary-card"
-import { Badge } from "../../components/ui/badge"
-import { compactNumber, titleize } from "../../lib/utils"
-import { SummaryActionMenu, UnfiledLocationCard, isUnfiledLocation } from "./location-summary"
+import { titleize } from "../../lib/utils"
+import { LocationCard } from "./location-card"
+import { SummaryActionMenu, isUnfiledLocation } from "./location-summary"
 import type { CollectionExportFormat, LocationSummary } from "./types"
-import { collectionValueLine } from "./value-summary"
 
 type CollectionLocationsSectionProps = {
   isLoading: boolean
@@ -40,30 +37,16 @@ export function CollectionLocationsSection({
                   {locations.length}
                 </span>
               </div>
-              <div className="grid gap-5 md:grid-cols-2">
+              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                 {locations.map((location) => (
                   <div key={location.id} className="relative">
                     <Link
                       to="/collection/locations/$id"
                       params={{ id: location.id }}
-                      className="block"
+                      className="block rounded-box focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                      viewTransition
                     >
-                      {isUnfiledLocation(location) ? (
-                        <UnfiledLocationCard
-                          location={location}
-                          countLine={`${compactNumber(location.itemCount || 0)} cards`}
-                          priceLine={collectionValueLine(location.valueSummary)}
-                        />
-                      ) : (
-                        <ImageSummaryCard
-                          imageUrl={location.coverPrinting?.artCropUrl}
-                          fallback={<Boxes className="h-12 w-12" />}
-                          typeLine={<Badge>{titleize(location.kind)}</Badge>}
-                          countLine={`${compactNumber(location.itemCount || 0)} cards`}
-                          priceLine={collectionValueLine(location.valueSummary)}
-                          nameLine={location.name}
-                        />
-                      )}
+                      <LocationCard location={location} />
                     </Link>
                     {!isUnfiledLocation(location) ? (
                       <SummaryActionMenu

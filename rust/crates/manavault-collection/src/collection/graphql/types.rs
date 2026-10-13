@@ -4,6 +4,7 @@
 use async_graphql::{Context, ID, Object, SimpleObject};
 
 use crate::collection::filters::{ItemFilters, LocationFilter, Sort};
+use crate::collection::graphql::inputs::CollectionItemSort;
 use crate::collection::graphql::values::{
     CollectionValueSummary, format_percent, value_gain_percent,
 };
@@ -364,13 +365,15 @@ impl Location {
         first: Option<i32>,
         before: Option<String>,
         last: Option<i32>,
+        sort: Option<CollectionItemSort>,
     ) -> Result<Option<CollectionItemConnection>> {
         let location = match &self.place {
             Place::Stored(record) => LocationFilter::Id(record.id),
             Place::Unfiled => LocationFilter::Unfiled,
         };
         let args = PageArgs::new(after, first, before, last);
-        items_connection(ctx, &ItemFilters::at(location), Sort::default(), &args)
+        let sort = CollectionItemSort::sort(sort.as_ref());
+        items_connection(ctx, &ItemFilters::at(location), sort, &args)
             .await
             .map(Some)
     }

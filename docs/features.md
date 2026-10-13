@@ -84,7 +84,11 @@ Card detail pages show:
 The collection has four primary views:
 
 - **Locations** - storage containers with counts, cover cards, value summaries,
-  and per-location item lists.
+  and per-location item lists. Each location is drawn as its storage (a binder
+  page, bulk box, deck box, folder, fanned list, or loose unfiled pile) holding
+  its cover card and most valuable cards; opening one carries it into the
+  location page. Clicking a card in a collection view opens it full screen,
+  where the arrow keys step through the grid.
 - **All cards** - a filterable, sortable inventory list across locations.
 - **Tokens** - the tokens you own, shown as card tiles with quantity badges and
   filtered by name. Double-sided tokens are named "Front // Back" and flip to
