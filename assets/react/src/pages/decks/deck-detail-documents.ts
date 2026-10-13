@@ -88,6 +88,7 @@ export const DeckDocument = graphql(`
       aiAnalysis
       aiAnalysisModel
       aiAnalyzedAt
+      hasAiCardCategories
       commanderBracket
       commanderBracketEstimate
       commanderBracketRating

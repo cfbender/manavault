@@ -101,6 +101,7 @@ mod tests {
             commander_bracket: None,
             commander_bracket_estimate: None,
             commander_bracket_rating: None,
+            has_ai_card_categories: false,
             share_token: None,
             external_source: None,
             external_id: None,

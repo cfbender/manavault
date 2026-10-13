@@ -29,6 +29,7 @@ function job(status: string, analysis = "Previous analysis") {
       aiAnalysis: analysis,
       aiAnalysisModel: "test-model",
       aiAnalyzedAt: "2026-09-30T05:48:01Z",
+      hasAiCardCategories: false,
       commanderBracket: 3,
       commanderBracketEstimate: 3,
       commanderBracketRating: "3+",

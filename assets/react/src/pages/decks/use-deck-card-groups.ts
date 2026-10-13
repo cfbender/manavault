@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react"
 
-import { groupDeckCards, type DeckGroupBy } from "../../lib/deck-grouping"
+import { deckGroupOptions, groupDeckCards, type DeckGroupBy } from "../../lib/deck-grouping"
 import { useDeckCardRoles } from "./use-deck-card-roles"
 import { isValidCommanderPair } from "./commander-pairing"
 import { compareDeckCards } from "./deck-card-model"
@@ -11,20 +11,25 @@ export function useDeckCardGroups({
   deckCards,
   deckId,
   deckTags,
-  shareMode,
+  hasAiTags,
 }: {
   analyzedAt: string | null | undefined
   deckCards: DeckCardEntry[]
   deckId: string
   deckTags: DeckCustomTag[]
-  shareMode: boolean
+  /** The deck has AI card categories and the viewer can assign them. */
+  hasAiTags: boolean
 }) {
-  const [groupBy, setGroupBy] = useState<DeckGroupBy>("theme")
+  // Until the owner picks a grouping, decks with AI tags open grouped by them.
+  const [chosenGroupBy, setGroupBy] = useState<DeckGroupBy | null>(null)
+  const preferred = chosenGroupBy ?? (hasAiTags ? "role" : "theme")
+  const groupBy: DeckGroupBy = preferred === "role" && !hasAiTags ? "theme" : preferred
+  const groupOptions = useMemo(() => deckGroupOptions(hasAiTags), [hasAiTags])
   const roles = useDeckCardRoles({
     analyzedAt,
     deckCards,
     deckId,
-    enabled: groupBy === "role" && !shareMode,
+    enabled: groupBy === "role",
   })
   const stackCards = useMemo(
     () => deckCards.filter((deckCard) => deckCard.zone !== "considering"),
@@ -62,16 +67,10 @@ export function useDeckCardGroups({
     [consideringCards, groupedCards],
   )
 
-  // Shown in place of AI roles once the deck is known to have none.
-  const rolesNotice =
-    groupBy === "role" && roles.loaded && !roles.roles?.categories.length
-      ? "Run an AI analysis to sort this deck into roles. Showing themes for now."
-      : null
-
   return {
     consideringCards,
     groupBy,
-    rolesNotice,
+    groupOptions,
     groupedCards,
     partnerCandidateIds,
     selectionCardIds,

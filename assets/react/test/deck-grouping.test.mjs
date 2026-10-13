@@ -1,7 +1,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 
-import { DECK_GROUP_OPTIONS, groupDeckCards } from "../src/lib/deck-grouping.ts"
+import { DECK_GROUP_OPTIONS, deckGroupOptions, groupDeckCards } from "../src/lib/deck-grouping.ts"
 
 function deckCard(id, overrides = {}) {
   const { card: cardOverrides, ...deckCardOverrides } = overrides
@@ -54,10 +54,14 @@ test("type grouping uses permanent front faces without changing split spells", (
 })
 
 test("theme grouping is the first option and uses the first non-empty theme", () => {
-  assert.deepEqual(DECK_GROUP_OPTIONS.slice(0, 3), [
+  assert.deepEqual(DECK_GROUP_OPTIONS.slice(0, 2), [
     { label: "Theme", value: "theme" },
-    { label: "Roles", value: "role" },
     { label: "Category", value: "category" },
+  ])
+  assert.equal(deckGroupOptions(false), DECK_GROUP_OPTIONS)
+  assert.deepEqual(deckGroupOptions(true).slice(0, 2), [
+    { label: "AI Tag", value: "role" },
+    { label: "Theme", value: "theme" },
   ])
 
   const groups = groupDeckCards(

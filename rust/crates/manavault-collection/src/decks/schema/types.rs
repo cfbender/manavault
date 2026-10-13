@@ -113,6 +113,12 @@ impl Deck {
         self.row.ai_analysis_model.as_deref()
     }
 
+    /// Whether the deck's AI analysis defined card categories, so its cards
+    /// can be grouped by AI tag.
+    async fn has_ai_card_categories(&self) -> bool {
+        self.row.has_ai_card_categories
+    }
+
     async fn commander_bracket(&self) -> Option<i64> {
         self.row.commander_bracket
     }

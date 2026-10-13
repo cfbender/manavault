@@ -21,7 +21,7 @@ import { useState, type ReactNode } from "react"
 import { ImageSummaryCard } from "../../components/image-summary-card"
 import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
-import type { DeckGroupBy } from "../../lib/deck-grouping"
+import type { DeckGroupBy, DeckGroupOption } from "../../lib/deck-grouping"
 import { compactNumber, cn, titleize } from "../../lib/utils"
 import { ShareModeHidden, SummaryActionMenu } from "./deck-actions"
 import { DeckAIAnalysis } from "./deck-ai-analysis"
@@ -58,6 +58,7 @@ type DeckDetailHeaderProps = {
   deckPrice: DeckPrice | null
   deckTags: DeckCustomTag[]
   groupBy: DeckGroupBy
+  groupOptions?: DeckGroupOption[]
   hasBuylistWork: boolean
   hasReadinessWork: boolean
   isSelectionActive: boolean
@@ -261,6 +262,7 @@ export function DeckDetailHeader({
   deckPrice,
   deckTags,
   groupBy,
+  groupOptions,
   hasBuylistWork,
   hasReadinessWork,
   isRefreshing,
@@ -573,7 +575,7 @@ export function DeckDetailHeader({
                 </Button>
               ) : null}
             </ShareModeHidden>
-            <DeckGroupMenu value={groupBy} onChange={onGroupByChange} />
+            <DeckGroupMenu options={groupOptions} value={groupBy} onChange={onGroupByChange} />
           </div>
         </div>
         {children}

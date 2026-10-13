@@ -646,6 +646,11 @@ impl PublicDeck {
         self.0.row.ai_analyzed_at.map(|at| at.to_string())
     }
 
+    /// AI tags are assigned for the owner only, so shared decks have none.
+    async fn has_ai_card_categories(&self) -> bool {
+        false
+    }
+
     async fn cover_deck_card_id(&self) -> Option<ID> {
         self.0
             .row

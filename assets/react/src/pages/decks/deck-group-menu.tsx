@@ -1,4 +1,4 @@
-import { Hash } from "lucide-react"
+import { Hash, Sparkles } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -6,17 +6,28 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu"
-import { DECK_GROUP_OPTIONS, type DeckGroupBy } from "../../lib/deck-grouping"
+import { DECK_GROUP_OPTIONS, type DeckGroupBy, type DeckGroupOption } from "../../lib/deck-grouping"
+
+function OptionLabel({ option }: { option: DeckGroupOption }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      {option.value === "role" ? <Sparkles aria-hidden className="h-3.5 w-3.5 shrink-0" /> : null}
+      {option.label}
+    </span>
+  )
+}
 
 export function DeckGroupMenu({
   onChange,
+  options = DECK_GROUP_OPTIONS,
   value,
 }: {
   onChange: (value: DeckGroupBy) => void
+  /** Defaults to the options every deck has (no AI Tag). */
+  options?: DeckGroupOption[]
   value: DeckGroupBy
 }) {
-  const active =
-    DECK_GROUP_OPTIONS.find((option) => option.value === value) || DECK_GROUP_OPTIONS[0]
+  const active = options.find((option) => option.value === value) || options[0]
 
   return (
     <DropdownMenu>
@@ -30,18 +41,26 @@ export function DeckGroupMenu({
             <Hash className="h-4 w-4" />
             Group
           </span>
-          <span className="badge badge-ghost text-xs">{active.label}</span>
+          <span className="badge badge-ghost text-xs">
+            <OptionLabel option={active} />
+          </span>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-64 p-3 shadow-2xl">
+      <DropdownMenuContent
+        align="start"
+        collisionPadding={12}
+        className="max-h-[var(--radix-dropdown-menu-content-available-height)] w-[min(26rem,calc(100vw-1.5rem))] overflow-y-auto p-3 shadow-2xl"
+      >
         <DropdownMenuRadioGroup
           value={value}
           onValueChange={(next) => onChange(next as DeckGroupBy)}
-          className="grid gap-1"
+          className="grid grid-cols-2 gap-1"
         >
-          {DECK_GROUP_OPTIONS.map((option) => (
+          {options.map((option) => (
             <DropdownMenuRadioItem key={option.value} value={option.value} className="text-sm">
-              <span className="font-semibold">{option.label}</span>
+              <span className="font-semibold">
+                <OptionLabel option={option} />
+              </span>
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>

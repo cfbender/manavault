@@ -4,7 +4,6 @@ import { useMemo } from "react"
 import { EmptyState } from "../../components/card-image"
 import { Button } from "../../components/ui/button"
 import { useToast } from "../../components/ui/toast"
-import { DECK_GROUP_OPTIONS } from "../../lib/deck-grouping"
 import { deckCardsTotalPrice, deckMissingCardsTotalPrice, formatUsdCents } from "./buylist-export"
 import { ShareModeHidden } from "./deck-actions"
 import { createDeckPullList } from "./deck-allocation-model"
@@ -87,8 +86,8 @@ export function DeckDetailScreen({
     consideringCards,
     groupBy,
     groupedCards,
+    groupOptions,
     partnerCandidateIds,
-    rolesNotice,
     selectionCardIds: selectionDeckCardIds,
     setGroupBy,
   } = useDeckCardGroups({
@@ -96,7 +95,7 @@ export function DeckDetailScreen({
     deckCards,
     deckId: id,
     deckTags: deck?.tags ?? [],
-    shareMode,
+    hasAiTags: !shareMode && Boolean(deck?.hasAiCardCategories),
   })
   const selection = useDeckDetailSelection(deckCards, selectionDeckCardIds)
   const clearSelection = () => {
@@ -217,8 +216,8 @@ export function DeckDetailScreen({
         selection.setHighlightedDeckCardIds(null)
       },
       onCycleGroup: () => {
-        const index = DECK_GROUP_OPTIONS.findIndex((option) => option.value === groupBy)
-        const next = DECK_GROUP_OPTIONS[(index + 1) % DECK_GROUP_OPTIONS.length]
+        const index = groupOptions.findIndex((option) => option.value === groupBy)
+        const next = groupOptions[(index + 1) % groupOptions.length]
         if (next) setGroupBy(next.value)
       },
       onJumpToTagIndex: (index) => {
@@ -289,6 +288,7 @@ export function DeckDetailScreen({
           deckPrice={deckPrice}
           deckTags={deck.tags}
           groupBy={groupBy}
+          groupOptions={groupOptions}
           hasBuylistWork={hasBuylistWork}
           hasReadinessWork={hasReadinessWork}
           isRefreshing={isRefreshingDeck}
@@ -414,7 +414,6 @@ export function DeckDetailScreen({
             deckId={deck.id}
             deckTags={deck.tags}
             groupedCards={groupedCards}
-            groupNotice={rolesNotice}
             highlightedCardIds={selection.highlightedDeckCardIds}
             isSelecting={selection.isSelectionActive}
             isUpdating={isUpdatingDeckCard}

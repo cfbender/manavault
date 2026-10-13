@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT d.id AS \"id!: crate::decks::model::DeckId\", d.name AS \"name!\",\n                 d.format AS \"format!: crate::decks::model::DeckFormat\",\n                 d.status AS \"status!: crate::decks::model::DeckStatus\",\n                 d.included_for_play AS \"included_for_play!: bool\",\n                 d.play_count AS \"play_count!\", d.skip_count AS \"skip_count!\",\n                 d.last_played_at AS \"last_played_at: manavault_core::timestamp::Timestamp\",\n                 d.primer, d.ai_analysis, d.ai_analysis_model,\n                 d.ai_analyzed_at AS \"ai_analyzed_at: manavault_core::timestamp::Timestamp\",\n                 d.commander_bracket, d.commander_bracket_estimate,\n                 d.commander_bracket_rating, d.share_token,\n                 d.external_source AS \"external_source?: crate::decks::model::ExternalSource\",\n                 d.external_id, d.external_url,\n                 d.external_synced_at AS \"external_synced_at: manavault_core::timestamp::Timestamp\",\n                 d.external_sync_error,\n                 d.cover_deck_card_id AS \"cover_deck_card_id?: crate::decks::model::DeckCardId\",\n                 d.inserted_at AS \"inserted_at!: manavault_core::timestamp::Timestamp\",\n                 d.updated_at AS \"updated_at!: manavault_core::timestamp::Timestamp\"\n               FROM decks AS d WHERE d.id = ?1",
+  "query": "SELECT d.id AS \"id!: crate::decks::model::DeckId\", d.name AS \"name!\",\n                 d.format AS \"format!: crate::decks::model::DeckFormat\",\n                 d.status AS \"status!: crate::decks::model::DeckStatus\",\n                 d.included_for_play AS \"included_for_play!: bool\",\n                 d.play_count AS \"play_count!\", d.skip_count AS \"skip_count!\",\n                 d.last_played_at AS \"last_played_at: manavault_core::timestamp::Timestamp\",\n                 d.primer, d.ai_analysis, d.ai_analysis_model,\n                 d.ai_analyzed_at AS \"ai_analyzed_at: manavault_core::timestamp::Timestamp\",\n                 d.commander_bracket, d.commander_bracket_estimate,\n                 d.commander_bracket_rating,\n                 d.ai_card_categories != '[]' AS \"has_ai_card_categories!: bool\",\n                 d.share_token,\n                 d.external_source AS \"external_source?: crate::decks::model::ExternalSource\",\n                 d.external_id, d.external_url,\n                 d.external_synced_at AS \"external_synced_at: manavault_core::timestamp::Timestamp\",\n                 d.external_sync_error,\n                 d.cover_deck_card_id AS \"cover_deck_card_id?: crate::decks::model::DeckCardId\",\n                 d.inserted_at AS \"inserted_at!: manavault_core::timestamp::Timestamp\",\n                 d.updated_at AS \"updated_at!: manavault_core::timestamp::Timestamp\"\n               FROM decks AS d WHERE d.status = 'active' AND d.included_for_play ORDER BY d.name ASC, d.id ASC",
   "describe": {
     "columns": [
       {
@@ -169,8 +169,14 @@
         }
       },
       {
-        "name": "share_token",
+        "name": "has_ai_card_categories!: bool",
         "ordinal": 15,
+        "type_info": "Integer",
+        "origin": "Expression"
+      },
+      {
+        "name": "share_token",
+        "ordinal": 16,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -181,7 +187,7 @@
       },
       {
         "name": "external_source?: crate::decks::model::ExternalSource",
-        "ordinal": 16,
+        "ordinal": 17,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -192,7 +198,7 @@
       },
       {
         "name": "external_id",
-        "ordinal": 17,
+        "ordinal": 18,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -203,7 +209,7 @@
       },
       {
         "name": "external_url",
-        "ordinal": 18,
+        "ordinal": 19,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -214,7 +220,7 @@
       },
       {
         "name": "external_synced_at: manavault_core::timestamp::Timestamp",
-        "ordinal": 19,
+        "ordinal": 20,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -225,7 +231,7 @@
       },
       {
         "name": "external_sync_error",
-        "ordinal": 20,
+        "ordinal": 21,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -236,7 +242,7 @@
       },
       {
         "name": "cover_deck_card_id?: crate::decks::model::DeckCardId",
-        "ordinal": 21,
+        "ordinal": 22,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -247,7 +253,7 @@
       },
       {
         "name": "inserted_at!: manavault_core::timestamp::Timestamp",
-        "ordinal": 22,
+        "ordinal": 23,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -258,7 +264,7 @@
       },
       {
         "name": "updated_at!: manavault_core::timestamp::Timestamp",
-        "ordinal": 23,
+        "ordinal": 24,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -269,7 +275,7 @@
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 0
     },
     "nullable": [
       false,
@@ -287,6 +293,7 @@
       true,
       true,
       true,
+      false,
       true,
       true,
       true,
@@ -298,5 +305,5 @@
       false
     ]
   },
-  "hash": "0727ab2217cfabc8ddd891053307f2027ea754befcd758ab37381070d7dae68c"
+  "hash": "3e33c2d96616cf1b090d49fa033e7ed7c5456131c6f6179687bdc36eaa8795d9"
 }

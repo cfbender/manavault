@@ -124,12 +124,23 @@ export type DeckGroup<T extends DeckGroupingDeckCard = DeckGroupingDeckCard> = {
 
 export type DeckGroupingTag = { id: string; name: string; color: string; position: number }
 
+export const AI_TAG_GROUP_OPTION: DeckGroupOption = {
+  label: "AI Tag",
+  value: "role",
+}
+
+/** The grouping options, led by AI Tag when the deck has AI card categories. */
+export function deckGroupOptions(hasAiTags: boolean) {
+  return hasAiTags ? [AI_TAG_GROUP_OPTION, ...DECK_GROUP_OPTIONS] : DECK_GROUP_OPTIONS
+}
+
 /** AI card categories in display order, and each card's category by oracle id. */
 export type DeckCardRoles = { categories: string[]; byOracleId: Map<string, string> }
 
-export const DECK_GROUP_OPTIONS: Array<{ label: string; value: DeckGroupBy }> = [
+export type DeckGroupOption = { label: string; value: DeckGroupBy }
+
+export const DECK_GROUP_OPTIONS: DeckGroupOption[] = [
   { label: "Theme", value: "theme" },
-  { label: "Roles", value: "role" },
   { label: "Category", value: "category" },
   { label: "Type", value: "type" },
   { label: "Color", value: "color" },
