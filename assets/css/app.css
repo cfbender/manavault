@@ -1020,6 +1020,48 @@ body[data-scroll-locked] .app-shell-main {
     translate 460ms var(--lo-spring);
 }
 
+/* Location tiles size to their object's shape, so a row of binders, boxes,
+   and deck boxes packs like things on a shelf. --lo-w is the object's width
+   over the stage's inner height (object height share × aspect ratio, plus
+   room for what sticks out, like the binder's back page). */
+.location-tile {
+  --lo-stage: 10rem;
+  --lo-w: 1.1;
+  width: max(8.5rem, calc((var(--lo-stage) - 2.65rem) * var(--lo-w) + 2rem));
+}
+
+.location-tile[data-kind="binder"] {
+  --lo-w: 0.8;
+}
+
+.location-tile[data-kind="box"] {
+  --lo-w: 1.06;
+}
+
+.location-tile[data-kind="deck_box"] {
+  --lo-w: 0.72;
+}
+
+.location-tile[data-kind="unfiled"] {
+  --lo-w: 1.16;
+}
+
+.location-tile-stage {
+  height: var(--lo-stage);
+}
+
+@media (min-width: 640px) {
+  .location-tile {
+    --lo-stage: 14rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .location-tile {
+    --lo-stage: 15.5rem;
+  }
+}
+
 /* Stickers: symbols stuck on the object like die-cut vinyl, in a loose,
    slightly overlapping row on one of its surfaces (so they ride along when the
    object moves). Each sticker is nudged and tilted a little off the line. */

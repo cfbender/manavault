@@ -44,7 +44,7 @@ import {
   LocationDocument,
 } from "./locations/documents"
 import { LocationCard } from "./location-card"
-import { SummaryActionMenu, isUnfiledLocation } from "./location-summary"
+import { SummaryActionMenu, isUnfiledLocation, isUnfiledLocationId } from "./location-summary"
 import {
   CollectionBulkActionBar,
   VirtualizedCollectionGrid,
@@ -124,7 +124,7 @@ export function LocationPage({ id }: { id: string }) {
   // refreshes, so its object can carry over from the list.
   const isLoading = loading && !data
   const autoSortRuleOptionsQuery = useQuery(CollectionItemFormOptionsDocument, {
-    skip: id !== "unfiled",
+    skip: !isUnfiledLocationId(id),
     fetchPolicy: "cache-and-network",
   })
   const countQuery = useQuery(LocationCollectionCountDocument, {

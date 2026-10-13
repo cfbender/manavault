@@ -24,7 +24,7 @@ export function LocationCard({
   const object = (
     <LocationObject
       cards={locationObjectCards(location)}
-      className={header ? "h-64 md:h-80" : "h-44 sm:h-56 lg:h-64"}
+      className={header ? "h-64 md:h-80" : "location-tile-stage"}
       coverArtUrl={location.coverPrinting?.artCropUrl}
       kind={location.kind}
       seed={location.id}

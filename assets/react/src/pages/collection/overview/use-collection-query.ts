@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from "react"
 import { present } from "../../../lib/utils"
 import { COLLECTION_PAGE_SIZE } from "../constants"
 import { CollectionItemGroupsPageDocument } from "../items/documents"
+import { isUnfiledLocation } from "../location-summary"
 import type { CollectionSort, CollectionTab } from "../types"
 import { CollectionDocument } from "./documents"
 
@@ -65,9 +66,7 @@ export function useCollectionQuery({
   }, [locations])
   const data = summaryQuery.data
   const unfiledCount =
-    data?.unfiledCollectionItemCount ??
-    locations.find((location) => location.id === "unfiled")?.itemCount ??
-    0
+    data?.unfiledCollectionItemCount ?? locations.find(isUnfiledLocation)?.itemCount ?? 0
 
   return {
     autoSortRules: data?.collectionAutoSortRules ?? [],

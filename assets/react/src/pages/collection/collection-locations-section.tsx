@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router"
 import { PageSection } from "../../components/app-shell"
 import { EmptyState } from "../../components/card-image"
-import { titleize } from "../../lib/utils"
 import { LocationCard } from "./location-card"
 import { SummaryActionMenu, isUnfiledLocation } from "./location-summary"
 import type { CollectionExportFormat, LocationSummary } from "./types"
@@ -28,41 +27,38 @@ export function CollectionLocationsSection({
       {isLoading ? (
         <EmptyState title="Loading locations..." />
       ) : locationGroups.length ? (
-        <div className="space-y-8">
-          {locationGroups.map(([kind, locations]) => (
-            <section key={kind} className="space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-xl font-black tracking-normal">{titleize(kind)}</h3>
-                <span className="badge border-transparent bg-base-200 text-sm">
-                  {locations.length}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-x-2 gap-y-4 lg:grid-cols-3 2xl:grid-cols-4">
-                {locations.map((location) => (
-                  <div key={location.id} className="relative">
-                    <Link
-                      to="/collection/locations/$id"
-                      params={{ id: location.id }}
-                      className="block rounded-box focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-                      viewTransition
-                    >
-                      <LocationCard location={location} />
-                    </Link>
-                    {!isUnfiledLocation(location) ? (
-                      <SummaryActionMenu
-                        label={`${location.name} actions`}
-                        onEdit={() => onEditLocation(location)}
-                        onExportCsv={() => onExportLocation(location, "csv")}
-                        onExportText={() => onExportLocation(location, "text")}
-                        onDelete={() => onDeleteLocation(location)}
-                      />
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
+        // One shelf of objects sized to their own shapes, grouped by kind in
+        // order, so rows pack tightly instead of leaving a row per kind.
+        <ul className="flex flex-wrap gap-x-3 gap-y-6 sm:gap-x-5">
+          {locationGroups
+            .flatMap(([, locations]) => locations)
+            .map((location) => (
+              <li
+                key={location.id}
+                className="location-tile group/tile relative"
+                data-kind={location.kind}
+              >
+                <Link
+                  to="/collection/locations/$id"
+                  params={{ id: location.id }}
+                  className="block rounded-box focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                  viewTransition
+                >
+                  <LocationCard location={location} />
+                </Link>
+                {!isUnfiledLocation(location) ? (
+                  <SummaryActionMenu
+                    className="right-0 top-0 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/tile:opacity-100 [@media(hover:hover)]:group-focus-within/tile:opacity-100"
+                    label={`${location.name} actions`}
+                    onEdit={() => onEditLocation(location)}
+                    onExportCsv={() => onExportLocation(location, "csv")}
+                    onExportText={() => onExportLocation(location, "text")}
+                    onDelete={() => onDeleteLocation(location)}
+                  />
+                ) : null}
+              </li>
+            ))}
+        </ul>
       ) : (
         <EmptyState
           title="No locations found"

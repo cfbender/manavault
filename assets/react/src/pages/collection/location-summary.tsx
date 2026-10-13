@@ -5,18 +5,29 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu"
+import { cn } from "../../lib/utils"
+
+// The server names the virtual unfiled bucket by its relay global id
+// (`Location:unfiled`); filters and older links use the raw `unfiled`.
+const UNFILED_GLOBAL_ID = btoa("Location:unfiled")
+
+export function isUnfiledLocationId(id: string) {
+  return id === "unfiled" || id === UNFILED_GLOBAL_ID
+}
 
 export function isUnfiledLocation(location: { id: string }) {
-  return location.id === "unfiled"
+  return isUnfiledLocationId(location.id)
 }
 
 export function SummaryActionMenu({
+  className,
   label,
   onDelete,
   onEdit,
   onExportCsv,
   onExportText,
 }: {
+  className?: string
   label: string
   onDelete?: () => void
   onEdit: () => void
@@ -25,7 +36,7 @@ export function SummaryActionMenu({
 }) {
   return (
     <div
-      className="absolute right-3 top-3 z-40"
+      className={cn("absolute right-3 top-3 z-40", className)}
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
     >
