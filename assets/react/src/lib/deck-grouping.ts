@@ -32,6 +32,7 @@ export type DeckGroupIcon =
   | "burn"
   | "card_advantage"
   | "card_selection"
+  | "cast_from_exile"
   | "cheat"
   | "combo"
   | "copy"
@@ -47,6 +48,7 @@ export type DeckGroupIcon =
   | "graveyard_hate"
   | "group_hug"
   | "haste"
+  | "impulse_draw"
   | "lands_matter"
   | "lifegain"
   | "mass_disruption"
@@ -190,6 +192,7 @@ const GROUP_VALUE_ICONS: Record<string, DeckGroupIcon> = {
   burn: "burn",
   card_advantage: "card_advantage",
   card_selection: "card_selection",
+  cast_from_exile: "cast_from_exile",
   cheat: "cheat",
   combo: "combo",
   copy: "copy",
@@ -207,6 +210,7 @@ const GROUP_VALUE_ICONS: Record<string, DeckGroupIcon> = {
   graveyard_hate: "graveyard_hate",
   group_hug: "group_hug",
   haste: "haste",
+  impulse_draw: "impulse_draw",
   instant: "instant",
   land: "land",
   lands: "land",

@@ -41,6 +41,7 @@ fn theme_alias(name: &str) -> Option<&'static str> {
         }
         "sneak_creature" | "sneak_artifact" | "sneak_enchantment" | "sneak_permanent"
         | "sneak_planeswalker" | "show_and_tell" => "cheat",
+        "gives_castable_from_exile" | "synergy_exile_cast" => "cast_from_exile",
         "combo" => "combo",
         "copy" | "copies" => "copy",
         "cost_reducer" => "cost_reduction",
@@ -61,6 +62,7 @@ fn theme_alias(name: &str) -> Option<&'static str> {
         "graveyard_hate" => "graveyard_hate",
         "group_hug" => "group_hug",
         "gives_haste" => "haste",
+        "impulsive_draw" => "impulse_draw",
         "instant" | "instants" => "instant",
         "land" | "lands" => "land",
         "landfall" | "play_additional_land" | "crucible_of_worlds" => "lands_matter",
@@ -551,6 +553,9 @@ mod tests {
                 "taggings": [{"oracle_id": "hapatra"}]})),
             scryfall_tag(json!({"id": "hoof", "slug": "overrun",
                 "taggings": [{"oracle_id": "craterhoof"}]})),
+            scryfall_tag(json!({"id": "exile-cast", "slug": "gives-castable-from-exile"})),
+            scryfall_tag(json!({"id": "impulse", "slug": "impulsive-draw",
+                "parent_ids": ["exile-cast"], "taggings": [{"oracle_id": "light-up"}]})),
             scryfall_tag(json!({"id": "tax", "slug": "cost-increaser",
                 "taggings": [{"oracle_id": "ecd"}]})),
             scryfall_tag(json!({"id": "exile", "slug": "removal",
@@ -567,6 +572,8 @@ mod tests {
         assert_eq!(themes(&hapatra), vec!["removal", "minus_counters"]);
         let craterhoof = fields_for_card(Some("craterhoof"), None, &index);
         assert_eq!(themes(&craterhoof), vec!["win_condition"]);
+        let light_up = fields_for_card(Some("light-up"), None, &index);
+        assert_eq!(themes(&light_up), vec!["impulse_draw", "cast_from_exile"]);
         // A stax rider on removal is a theme, not mass disruption.
         let ecd = fields_for_card(Some("ecd"), None, &index);
         assert_eq!(ecd.deck_category.as_deref(), Some("targeted_disruption"));
