@@ -16,6 +16,18 @@ pub struct CustomSection {
     pub content: String,
 }
 
+/// A deck-specific card category: what a group of cards does for this deck.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct CardCategory {
+    pub name: String,
+    pub description: String,
+}
+
+/// The most card categories kept from one analysis.
+pub const MAX_CARD_CATEGORIES: usize = 16;
+const MAX_CATEGORY_NAME: usize = 60;
+const MAX_CATEGORY_DESCRIPTION: usize = 300;
+
 /// A validated analysis. The bracket fields are `None` outside Commander.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Analysis {
@@ -36,6 +48,8 @@ pub struct Analysis {
     pub consistency: Vec<String>,
     pub mulligan_guide: Vec<String>,
     pub custom_sections: Vec<CustomSection>,
+    /// Empty when the provider returned none.
+    pub card_categories: Vec<CardCategory>,
 }
 
 fn field<'a>(map: &'a Map<String, Value>, key: &str) -> Option<&'a Value> {
@@ -77,6 +91,44 @@ fn custom_sections(map: &Map<String, Value>) -> Option<Vec<CustomSection>> {
             })
         })
         .collect()
+}
+
+fn truncated(text: &str, limit: usize) -> String {
+    text.chars()
+        .take(limit)
+        .collect::<String>()
+        .trim()
+        .to_owned()
+}
+
+/// The card categories, trimmed and shortened, without blank names,
+/// case-insensitive duplicates, or an "Other" category (one is always added
+/// when cards are assigned). Missing or malformed categories are dropped
+/// rather than failing the analysis.
+fn card_categories(map: &Map<String, Value>) -> Vec<CardCategory> {
+    let mut categories: Vec<CardCategory> = Vec::new();
+    let entries = field(map, "card_categories").and_then(Value::as_array);
+    for entry in entries.into_iter().flatten() {
+        let Some(entry) = entry.as_object() else {
+            continue;
+        };
+        let Some(name) = string(entry, "name").map(|name| truncated(&name, MAX_CATEGORY_NAME))
+        else {
+            continue;
+        };
+        let lower = name.to_lowercase();
+        if lower == "other" || categories.iter().any(|c| c.name.to_lowercase() == lower) {
+            continue;
+        }
+        let description = string(entry, "description")
+            .map(|text| truncated(&text, MAX_CATEGORY_DESCRIPTION))
+            .unwrap_or_default();
+        categories.push(CardCategory { name, description });
+        if categories.len() == MAX_CARD_CATEGORIES {
+            break;
+        }
+    }
+    categories
 }
 
 fn bracket(map: &Map<String, Value>, key: &str) -> Option<i64> {
@@ -141,6 +193,7 @@ pub fn normalize(
         consistency: string_list(map, "consistency").ok_or_else(incomplete)?,
         mulligan_guide: string_list(map, "mulligan_guide").ok_or_else(incomplete)?,
         custom_sections: custom_sections(map).ok_or_else(incomplete)?,
+        card_categories: card_categories(map),
         official_bracket: None,
         play_bracket: None,
         bracket_rating: None,
@@ -289,6 +342,44 @@ mod tests {
         assert!(markdown.contains("## Overview\n\nRecur [[Sun Titan]]."));
         assert!(markdown.contains("- Add [[Emeria, the Sky Ruin]]."));
         assert!(markdown.contains("## Budget\n\nTry [[Sevinne's Reclamation]]."));
+    }
+
+    #[test]
+    fn keeps_distinct_named_card_categories() {
+        let response = with(&json!({"card_categories": [
+            {"name": " Impulse draw ", "description": " Exiles cards to play them. "},
+            {"name": "impulse DRAW", "description": "A duplicate."},
+            {"name": "Other", "description": "Added when assigning."},
+            {"name": "  ", "description": "Unnamed."},
+            {"name": "Lands"},
+            "not an object"
+        ]}));
+        let analysis = normalize(&response, "commander", 0, None).unwrap();
+        assert_eq!(
+            analysis.card_categories,
+            vec![
+                CardCategory {
+                    name: "Impulse draw".into(),
+                    description: "Exiles cards to play them.".into()
+                },
+                CardCategory {
+                    name: "Lands".into(),
+                    description: String::new()
+                },
+            ]
+        );
+        let many: Vec<Value> = (0..20)
+            .map(|i| json!({"name": format!("Role {i}"), "description": "d"}))
+            .collect();
+        let capped = normalize(
+            &with(&json!({"card_categories": many})),
+            "commander",
+            0,
+            None,
+        );
+        assert_eq!(capped.unwrap().card_categories.len(), MAX_CARD_CATEGORIES);
+        let missing = normalize(&result(), "commander", 0, None).unwrap();
+        assert_eq!(missing.card_categories, []);
     }
 
     #[test]

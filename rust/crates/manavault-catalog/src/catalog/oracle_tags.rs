@@ -21,6 +21,15 @@ const TYPE_THEMES: [(&str, &str); 7] = [
     ("planeswalker", "planeswalker"),
 ];
 
+/// Whether `theme` is a card-type theme (`creature`, `land`, …) rather than a
+/// role.
+#[must_use]
+pub fn is_type_theme(theme: &str) -> bool {
+    TYPE_THEMES
+        .iter()
+        .any(|(_, type_theme)| *type_theme == theme)
+}
+
 /// Normalized tag names (slug, label, or alias) and the theme each maps to.
 /// A tag also carries the themes of its ancestors, so mapping a Scryfall
 /// parent tag (`reanimate`) covers its children (`reanimate-creature`).

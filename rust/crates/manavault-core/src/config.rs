@@ -93,6 +93,8 @@ pub struct Config {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlatformUrls {
     pub openrouter_api: String,
+    /// `OpenRouter`'s Decisions endpoint for decision models such as Jev.
+    pub openrouter_decisions: String,
     pub google_oauth_token: String,
     pub google_drive_files: String,
     pub google_drive_upload: String,
@@ -112,6 +114,7 @@ impl PlatformUrls {
         let base = "http://127.0.0.1:9";
         Self {
             openrouter_api: format!("{base}/openrouter"),
+            openrouter_decisions: format!("{base}/openrouter/decisions"),
             google_oauth_token: format!("{base}/google/token"),
             google_drive_files: format!("{base}/google/files"),
             google_drive_upload: format!("{base}/google/upload"),
@@ -127,6 +130,7 @@ impl Default for PlatformUrls {
     fn default() -> Self {
         Self {
             openrouter_api: "https://openrouter.ai/api/v1".to_owned(),
+            openrouter_decisions: "https://openrouter.ai/api/alpha/decisions".to_owned(),
             google_oauth_token: "https://oauth2.googleapis.com/token".to_owned(),
             google_drive_files: "https://www.googleapis.com/drive/v3/files".to_owned(),
             google_drive_upload: "https://www.googleapis.com/upload/drive/v3/files".to_owned(),

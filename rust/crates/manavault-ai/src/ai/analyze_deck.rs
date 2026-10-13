@@ -6,7 +6,7 @@ use sqlx::SqlitePool;
 use super::deck_analysis::{self, Analysis, Payload, PayloadDeck};
 use super::decks::{self, DeckInfo, SaveError, SavedAnalysis};
 use super::workers::DECK_ANALYSIS_WORKER;
-use super::{AiError, Configured, Provider, openrouter};
+use super::{AiError, Configured, Provider, card_categories, openrouter};
 use manavault_core::state::AppState;
 use manavault_core::timestamp::Timestamp;
 
@@ -180,9 +180,20 @@ pub async fn run(state: &AppState, deck: &DeckInfo) -> Result<SavedAnalysis, Run
         commander_bracket: analysis.official_bracket,
         commander_bracket_estimate: analysis.play_bracket,
         commander_bracket_rating: analysis.bracket_rating.clone(),
+        ai_card_categories: serde_json::to_string(&analysis.card_categories)
+            .unwrap_or_else(|_| "[]".to_owned()),
     };
     match decks::save_analysis(&state.db, deck.id, &saved).await {
-        Ok(()) => Ok(saved),
+        Ok(()) => {
+            // Best effort: the Roles grouping fills any gaps when it is opened.
+            if let Err(error) = card_categories::assign(state, Some(&settings), deck.id).await {
+                tracing::warn!(
+                    "Card category assignment failed deck_id={} reason={error}",
+                    deck.id
+                );
+            }
+            Ok(saved)
+        }
         Err(SaveError::Invalid) => Err(RunError::Invalid),
         Err(SaveError::Db(error)) => Err(error.into()),
     }

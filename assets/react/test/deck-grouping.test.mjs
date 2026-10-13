@@ -54,8 +54,9 @@ test("type grouping uses permanent front faces without changing split spells", (
 })
 
 test("theme grouping is the first option and uses the first non-empty theme", () => {
-  assert.deepEqual(DECK_GROUP_OPTIONS.slice(0, 2), [
+  assert.deepEqual(DECK_GROUP_OPTIONS.slice(0, 3), [
     { label: "Theme", value: "theme" },
+    { label: "Roles", value: "role" },
     { label: "Category", value: "category" },
   ])
 
@@ -500,4 +501,41 @@ test("set grouping buckets cards by printing set", () => {
   assert.equal(bySet.lea.quantity, 2)
   assert.equal(bySet.mh3.label, "Modern Horizons 3")
   assert.equal(bySet.mh3.quantity, 1)
+})
+
+test("role grouping follows the AI category order and falls back to themes without categories", () => {
+  const cards = [
+    deckCard("hapatra", { zone: "commander", card: { oracleId: "o-hapatra" } }),
+    deckCard("cultivate", { card: { oracleId: "o-cultivate", deckThemes: ["ramp"] } }),
+    deckCard("grim", { card: { oracleId: "o-grim", deckThemes: ["removal"] } }),
+    deckCard("nest", { card: { oracleId: "o-nest", deckThemes: ["tokens"] } }),
+    deckCard("new", { card: { oracleId: "o-new", deckThemes: ["ramp"] } }),
+  ]
+  const roles = {
+    categories: ["-1/-1 counter payoffs", "Ramp", "Other"],
+    byOracleId: new Map([
+      ["o-cultivate", "Ramp"],
+      ["o-grim", "-1/-1 counter payoffs"],
+      ["o-nest", "-1/-1 counter payoffs"],
+    ]),
+  }
+
+  const groups = groupDeckCards(cards, "role", [], roles)
+  assert.deepEqual(
+    groups.map((group) => [group.label, group.cards.map((card) => card.id)]),
+    [
+      ["Commander", ["hapatra"]],
+      ["-1/-1 counter payoffs", ["grim", "nest"]],
+      ["Ramp", ["cultivate"]],
+      ["Unsorted", ["new"]],
+    ],
+  )
+  assert.equal(groups[1].icon, "minus_counters")
+  assert.equal(groups[2].icon, "ramp")
+
+  const themes = groupDeckCards(cards, "role", [], { categories: [], byOracleId: new Map() })
+  assert.deepEqual(
+    themes.map((group) => group.key),
+    groupDeckCards(cards, "theme").map((group) => group.key),
+  )
 })

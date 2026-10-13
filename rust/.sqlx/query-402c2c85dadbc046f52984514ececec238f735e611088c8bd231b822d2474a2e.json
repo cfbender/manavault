@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO deck_card_categories\n                 (deck_id, oracle_id, category, confidence, digest, inserted_at, updated_at)\n               VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)\n               ON CONFLICT (deck_id, oracle_id) DO UPDATE SET\n                 category = excluded.category, confidence = excluded.confidence,\n                 digest = excluded.digest, updated_at = excluded.updated_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "402c2c85dadbc046f52984514ececec238f735e611088c8bd231b822d2474a2e"
+}

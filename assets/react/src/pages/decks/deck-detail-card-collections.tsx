@@ -14,6 +14,8 @@ type DeckDetailCardCollectionsProps = {
   deckId: string
   deckTags: DeckCustomTag[]
   groupedCards: DeckGroup<DeckCardEntry>[]
+  /** A note about the current grouping, shown above the groups. */
+  groupNotice?: string | null
   highlightedCardIds: Set<string> | null
   isSelecting: boolean
   isUpdating: boolean
@@ -43,6 +45,7 @@ export function DeckDetailCardCollections({
   deckId,
   deckTags,
   groupedCards,
+  groupNotice,
   highlightedCardIds,
   isSelecting,
   isUpdating,
@@ -67,6 +70,7 @@ export function DeckDetailCardCollections({
 
   return (
     <>
+      {groupNotice ? <p className="text-sm text-base-content/70">{groupNotice}</p> : null}
       {groupedCards.length ? (
         <DeckGroupGrid
           canEditDecklist={canEditDecklist}

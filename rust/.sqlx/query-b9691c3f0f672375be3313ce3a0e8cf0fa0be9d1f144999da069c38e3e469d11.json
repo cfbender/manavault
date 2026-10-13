@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT ai_card_categories FROM decks WHERE id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "ai_card_categories",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decks",
+            "name": "ai_card_categories"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b9691c3f0f672375be3313ce3a0e8cf0fa0be9d1f144999da069c38e3e469d11"
+}

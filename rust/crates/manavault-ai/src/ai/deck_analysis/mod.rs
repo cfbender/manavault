@@ -6,4 +6,6 @@ pub mod prompt;
 pub mod result;
 
 pub use payload::{Payload, PayloadDeck, build as payload};
-pub use result::{Analysis, bracket_label, normalize as normalize_result, render_markdown};
+pub use result::{
+    Analysis, CardCategory, bracket_label, normalize as normalize_result, render_markdown,
+};

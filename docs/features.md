@@ -393,7 +393,7 @@ AI features are optional and currently use OpenRouter. The owner configures and
 validates an API key and model ID in **Settings -> AI**, and can add custom
 analysis instructions; the key is encrypted at rest and is never returned
 through GraphQL. Deck data is sent only when the owner explicitly runs an
-analysis or sends a question.
+analysis, sends a question, or groups an analyzed deck by **Roles**.
 
 ### Deck analysis
 
@@ -411,6 +411,17 @@ from the deck page.
 
 **Analyze list** on the deck list analyzes a pasted decklist or deck link
 without saving it as a deck.
+
+### Deck roles
+
+Each saved-deck analysis also names the deck's own card roles, such as
+"Cast-from-exile payoffs" or "-1/-1 counter engines", with standard roles like
+Ramp and Lands. After the analysis, the Jev decision model (`typesafe/jev-1.13`
+through the same OpenRouter key) sorts every non-commander card into one of
+those roles, or Other, with the commander as context. Group a deck by **Roles**
+to see them. Assignments are saved, so only cards added since the last
+assignment are sent; a new analysis or commander reassigns the deck. Until a
+deck has an analysis with roles, the Roles grouping shows themes.
 
 ### Commander brackets
 

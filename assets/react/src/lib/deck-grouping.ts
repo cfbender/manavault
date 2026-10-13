@@ -1,4 +1,5 @@
 export type DeckGroupBy =
+  | "role"
   | "theme"
   | "category"
   | "type"
@@ -88,6 +89,7 @@ type DeckGroupingPrinting = {
 }
 
 export type DeckGroupingCard = {
+  oracleId?: string | null
   name: string | null
   typeLine: string | null
   cmc: number | null
@@ -122,8 +124,12 @@ export type DeckGroup<T extends DeckGroupingDeckCard = DeckGroupingDeckCard> = {
 
 export type DeckGroupingTag = { id: string; name: string; color: string; position: number }
 
+/** AI card categories in display order, and each card's category by oracle id. */
+export type DeckCardRoles = { categories: string[]; byOracleId: Map<string, string> }
+
 export const DECK_GROUP_OPTIONS: Array<{ label: string; value: DeckGroupBy }> = [
   { label: "Theme", value: "theme" },
+  { label: "Roles", value: "role" },
   { label: "Category", value: "category" },
   { label: "Type", value: "type" },
   { label: "Color", value: "color" },
@@ -249,11 +255,14 @@ export function groupDeckCards<T extends DeckGroupingDeckCard>(
   deckCards: T[],
   groupBy: DeckGroupBy,
   deckTags: DeckGroupingTag[] = [],
+  roles: DeckCardRoles | null = null,
 ): DeckGroup<T>[] {
   const groups = new Map<string, DeckGroup<T>>()
+  // Without AI categories the Roles grouping shows themes.
+  const effectiveGroupBy = groupBy === "role" && !roles?.categories.length ? "theme" : groupBy
 
   for (const deckCard of deckCards) {
-    const descriptors = deckCardGroupDescriptors(deckCard, groupBy, deckTags)
+    const descriptors = deckCardGroupDescriptors(deckCard, effectiveGroupBy, deckTags, roles)
     for (const descriptor of descriptors) {
       const existing: DeckGroup<T> = groups.get(descriptor.key) || {
         cards: [],
@@ -272,7 +281,7 @@ export function groupDeckCards<T extends DeckGroupingDeckCard>(
 
   return [...groups.values()]
     .map((group) => ({ ...group, cards: group.cards.sort(compareDeckCards) }))
-    .sort((left, right) => compareDeckGroups(left, right, groupBy))
+    .sort((left, right) => compareDeckGroups(left, right, effectiveGroupBy))
 }
 
 // A card can belong to multiple custom-tag groups (many-to-many); every other
@@ -281,12 +290,59 @@ function deckCardGroupDescriptors<T extends DeckGroupingDeckCard>(
   deckCard: T,
   groupBy: DeckGroupBy,
   deckTags: DeckGroupingTag[],
+  roles: DeckCardRoles | null,
 ): Array<Omit<DeckGroup<T>, "cards" | "quantity">> {
   if (groupBy === "tag") {
     return customTagDescriptors(deckCard, deckTags)
   }
 
+  if (groupBy === "role" && roles) {
+    return [roleDescriptor(deckCard, roles)]
+  }
+
   return [deckCardGroupDescriptor(deckCard, groupBy)]
+}
+
+function roleDescriptor<T extends DeckGroupingDeckCard>(
+  deckCard: T,
+  roles: DeckCardRoles,
+): Omit<DeckGroup<T>, "cards" | "quantity"> {
+  if (deckCard.zone === "commander") return commanderGroup()
+
+  const category = deckCard.card?.oracleId ? roles.byOracleId.get(deckCard.card.oracleId) : null
+  if (!category) return { icon: "none", key: "role:unsorted", label: "Unsorted", order: 999 }
+
+  return {
+    icon: roleIcon(category),
+    key: `role:${category}`,
+    label: category,
+    order: roles.categories.indexOf(category),
+  }
+}
+
+// AI category names are free text; match common role words to an icon.
+const ROLE_ICON_WORDS: Array<[RegExp, DeckGroupIcon]> = [
+  [/\bland/i, "land"],
+  [/ramp|mana/i, "ramp"],
+  [/wipe|sweeper/i, "mass_disruption"],
+  [/removal|interaction|answer/i, "targeted_disruption"],
+  [/counterspell/i, "counters"],
+  [/protect/i, "protection"],
+  [/tutor/i, "tutor"],
+  [/draw|advantage|card flow/i, "card_advantage"],
+  [/token/i, "tokens"],
+  [/sacrific|aristocrat/i, "sacrifice"],
+  [/recur|reanimat|graveyard/i, "recursion"],
+  [/finisher|win con|wincon/i, "win_condition"],
+  [/blink|flicker/i, "blink"],
+  [/exile/i, "cast_from_exile"],
+  [/-1\/-1/, "minus_counters"],
+  [/counter/i, "plus_counters"],
+  [/payoff|engine|synergy/i, "engine"],
+]
+
+function roleIcon(category: string): DeckGroupIcon {
+  return ROLE_ICON_WORDS.find(([pattern]) => pattern.test(category))?.[1] ?? "none"
 }
 
 function customTagDescriptors<T extends DeckGroupingDeckCard>(

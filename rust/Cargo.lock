@@ -1638,6 +1638,7 @@ name = "manavault-ai"
 version = "2.0.0"
 dependencies = [
  "async-graphql",
+ "hex",
  "lotus",
  "manavault-catalog",
  "manavault-collection",
@@ -1647,6 +1648,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "sqlx",
  "thiserror",
  "tokio",

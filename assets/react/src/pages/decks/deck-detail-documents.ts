@@ -50,6 +50,21 @@ export const DisassembleDeckDocument = graphql(`
   }
 `)
 
+export const AssignDeckCardCategoriesDocument = graphql(`
+  mutation AssignDeckCardCategories($id: ID!) {
+    assignDeckCardCategories(id: $id) {
+      categories {
+        name
+        description
+      }
+      cards {
+        oracleId
+        category
+      }
+    }
+  }
+`)
+
 export const DeckPlayHistoryDocument = graphql(`
   query DeckPlayHistory($id: ID!) {
     deck(id: $id) {

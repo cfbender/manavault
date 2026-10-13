@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE decks SET ai_analysis = ?1, ai_analysis_model = ?2, ai_analyzed_at = ?3,\n           commander_bracket = ?4, commander_bracket_estimate = ?5, commander_bracket_rating = ?6,\n           ai_card_categories = ?7, updated_at = ?8\n         WHERE id = ?9",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 9
+    },
+    "nullable": []
+  },
+  "hash": "958a2520ff2c7a86572af33e327ea2597319284301e9032d5df781ebd00f4f45"
+}

@@ -223,6 +223,13 @@ game is free and that a hand with three to five lands, or [[Sol Ring]] with at l
 usually has enough mana to keep. Do not duplicate this or another standard field in custom_sections.
 If custom instructions request additional named sections, return each one in custom_sections
 with a short title and concise Markdown content. Otherwise return an empty custom_sections list.
+In card_categories, define six to fourteen roles that sort the deck's cards by the job each one
+does for this deck's plan, in the order a deck list should show them. Name the deck's own engines
+and payoffs precisely, such as "Cast-from-exile payoffs" or "-1/-1 counter payoffs", rather than
+generic labels, and keep standard roles such as Ramp, Removal, Card advantage, or Lands when the
+deck has them. Give each role a one-sentence description of which cards belong in it, written so
+the role can be judged from a single card's text. Do not add a role for the commander or an Other
+role.
 "#;
 
 /// `Prompt.user/1` up to the payload JSON (followed by the JSON and `\n`).

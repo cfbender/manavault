@@ -92,6 +92,8 @@ pub struct SavedAnalysis {
     pub commander_bracket: Option<i64>,
     pub commander_bracket_estimate: Option<i64>,
     pub commander_bracket_rating: Option<String>,
+    /// JSON array of the analysis's card categories.
+    pub ai_card_categories: String,
 }
 
 /// Why an analysis could not be saved.
@@ -121,14 +123,15 @@ pub async fn save_analysis(
     sqlx::query!(
         "UPDATE decks SET ai_analysis = ?1, ai_analysis_model = ?2, ai_analyzed_at = ?3,
            commander_bracket = ?4, commander_bracket_estimate = ?5, commander_bracket_rating = ?6,
-           updated_at = ?7
-         WHERE id = ?8",
+           ai_card_categories = ?7, updated_at = ?8
+         WHERE id = ?9",
         analysis.ai_analysis,
         analysis.ai_analysis_model,
         analysis.ai_analyzed_at,
         analysis.commander_bracket,
         analysis.commander_bracket_estimate,
         analysis.commander_bracket_rating,
+        analysis.ai_card_categories,
         now,
         deck_id
     )

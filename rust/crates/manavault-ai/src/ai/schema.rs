@@ -9,7 +9,7 @@ use super::analyze_deck_list::{self, Args};
 use super::answer_deck_question::{self, AskOptions};
 use super::question_answers::{self, QuestionAnswer};
 use super::requests::{self, DeckAnalysisRequest};
-use super::{AiError, decks};
+use super::{AiError, Configured, card_categories, decks};
 use manavault_core::graphql::relay::{NodeKind, node_int};
 use manavault_core::graphql::{Result, internal_error, state, user_error};
 
@@ -236,6 +236,27 @@ impl AiQueries {
     }
 }
 
+/// A deck-specific card category from the deck's AI analysis.
+#[derive(SimpleObject)]
+pub struct DeckCardCategory {
+    name: String,
+    description: String,
+}
+
+/// The card category assigned to one card of the deck.
+#[derive(SimpleObject)]
+pub struct DeckCardCategoryAssignment {
+    oracle_id: String,
+    category: String,
+}
+
+/// A deck's card categories, in display order, and its card assignments.
+#[derive(SimpleObject)]
+pub struct DeckCardCategories {
+    categories: Vec<DeckCardCategory>,
+    cards: Vec<DeckCardCategoryAssignment>,
+}
+
 #[derive(Default)]
 pub struct AiMutations;
 
@@ -301,6 +322,41 @@ impl AiMutations {
             answer: saved.answer.clone(),
             question_answer: DeckQuestionAnswer(saved),
         }))
+    }
+
+    /// Assigns the deck's AI card categories to cards that have none yet,
+    /// using the Jev decision model, and returns every assignment. Categories
+    /// are empty until the deck has an analysis that defines them; without
+    /// AI settings only existing assignments are returned.
+    async fn assign_deck_card_categories(
+        &self,
+        ctx: &Context<'_>,
+        id: ID,
+    ) -> Result<DeckCardCategories> {
+        let deck_id = require_deck(ctx, &id).await?;
+        let state = state(ctx);
+        let settings = Configured::load(state).await.ok();
+        let assignments = card_categories::assign(state, settings.as_ref(), deck_id)
+            .await
+            .map_err(AiError::into_graphql)?;
+        Ok(DeckCardCategories {
+            categories: assignments
+                .categories
+                .into_iter()
+                .map(|category| DeckCardCategory {
+                    name: category.name,
+                    description: category.description,
+                })
+                .collect(),
+            cards: assignments
+                .cards
+                .into_iter()
+                .map(|(oracle_id, category)| DeckCardCategoryAssignment {
+                    oracle_id,
+                    category,
+                })
+                .collect(),
+        })
     }
 
     async fn delete_deck_question_answer(

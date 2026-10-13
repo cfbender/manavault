@@ -13,7 +13,7 @@ use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 use super::answer_deck_question::{self, AskOptions};
 use super::question_answers::{self, NewQuestionAnswer, Status};
 use super::workers::{DECK_ANALYSIS_WORKER, DECK_QUESTION_WORKER, DeckQuestionWorker};
-use super::{AiError, analyze_deck, decks};
+use super::{AiError, analyze_deck, card_categories, decks};
 use crate::test_app::TestApp;
 use manavault_catalog::testing::fixtures;
 use manavault_core::graphql::{NodeKind, global_id};
@@ -2253,4 +2253,179 @@ async fn deck_list_links_resolve_local_want_lists_and_binders_through_trade() {
         analyze(format!("/share/wants/{token}")).await,
         "The decklist does not contain any mainboard or commander cards."
     );
+}
+
+// ---------------------------------------------------------------------------
+// Card categories (AI analysis categories assigned by Jev).
+
+async fn app_with_decisions(server: &MockServer) -> TestApp {
+    let uri = server.uri();
+    TestApp::with_config(|config| {
+        config.platform_urls.openrouter_api = format!("{uri}/api/v1");
+        config.platform_urls.openrouter_decisions = format!("{uri}/api/alpha/decisions");
+    })
+    .await
+}
+
+/// Answers each Decisions request with the category `choose` picks for the
+/// card name in its state.
+async fn stub_decisions(
+    server: &MockServer,
+    choose: impl Fn(&str) -> &'static str + Send + Sync + 'static,
+) {
+    Mock::given(method("POST"))
+        .and(path("/api/alpha/decisions"))
+        .respond_with(move |request: &Request| {
+            let body: Value = serde_json::from_slice(&request.body).unwrap_or(Value::Null);
+            let card = body["state"]["card"]["name"].as_str().unwrap_or_default();
+            ResponseTemplate::new(200).set_body_json(json!({
+                "model": "typesafe/jev-1.13-20260917",
+                "answers": {"role": {"type": "choice", "choice": choose(card), "confidence": 0.8}},
+                "usage": {"input_tokens": 300, "output_tokens": 0, "cost": 0.000_012_6}
+            }))
+        })
+        .mount(server)
+        .await;
+}
+
+/// The card names sent to the Decisions endpoint, in request order.
+async fn decision_cards(server: &MockServer) -> Vec<String> {
+    server
+        .received_requests()
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|request| request.url.path() == "/api/alpha/decisions")
+        .map(|request| {
+            let body: Value = serde_json::from_slice(&request.body).unwrap();
+            body["state"]["card"]["name"].as_str().unwrap().to_owned()
+        })
+        .collect()
+}
+
+fn sorted(mut names: Vec<String>) -> Vec<String> {
+    names.sort();
+    names
+}
+
+#[tokio::test]
+async fn analysis_categories_are_assigned_by_jev_once_per_card() {
+    let server = MockServer::start().await;
+    let app = app_with_decisions(&server).await;
+    insert_settings(&app, "anthropic/claude-sonnet-4", None).await;
+    let commander_legal = json!({"commander": "legal"});
+    app.import_cards(&[
+        fixtures::legal_commander_card(),
+        legality_card("Grim Affliction", &["B"], &commander_legal),
+        legality_card("Cultivate", &["G"], &commander_legal),
+        legality_card("Odd Card", &["G"], &commander_legal),
+    ])
+    .await;
+    let deck_id = insert_deck(app.db(), "Categories", "commander").await;
+    add_deck_card(app.db(), deck_id, "oracle-test-commander", 1, "commander").await;
+    add_deck_card(app.db(), deck_id, "oracle-grim-affliction", 1, "mainboard").await;
+    add_deck_card(app.db(), deck_id, "oracle-cultivate", 1, "mainboard").await;
+    add_deck_card(app.db(), deck_id, "oracle-odd-card", 1, "considering").await;
+    let mut analysis = analysis_json("2", &json!([]));
+    // Not alphabetical: the request must keep the analysis order.
+    analysis["card_categories"] = json!([
+        {"name": "Removal", "description": "Answers a single threat."},
+        {"name": "Ramp", "description": "Adds mana or lands."}
+    ]);
+    stub_completions(&server, move |_, _| content_response(&analysis)).await;
+    // Odd Card gets a category that was never offered, so it stays unassigned.
+    stub_decisions(&server, |card| match card {
+        "Grim Affliction" => "Removal",
+        "Cultivate" => "Ramp",
+        _ => "Burn",
+    })
+    .await;
+
+    let deck = decks::get(app.db(), deck_id).await.unwrap().unwrap();
+    analyze_deck::run(&app.state, &deck).await.unwrap();
+    assert_eq!(
+        sorted(decision_cards(&server).await),
+        ["Cultivate", "Grim Affliction", "Odd Card"]
+    );
+    let requests = server.received_requests().await.unwrap();
+    let decision = requests
+        .iter()
+        .find(|request| request.url.path() == "/api/alpha/decisions")
+        .unwrap();
+    assert_eq!(
+        decision.headers["authorization"],
+        "Bearer test-openrouter-key"
+    );
+    let raw = String::from_utf8(decision.body.clone()).unwrap();
+    let position = |name: &str| raw.find(&format!("\"{name}\":")).unwrap();
+    assert!(position("Removal") < position("Ramp") && position("Ramp") < position("Other"));
+    let body: Value = serde_json::from_slice(&decision.body).unwrap();
+    assert_eq!(body["model"], "typesafe/jev-1.13");
+    assert_eq!(body["state"]["commanders"][0]["name"], "Test Commander");
+    assert_eq!(
+        body["questions"]["role"]["criteria"],
+        json!({
+            "Ramp": "Adds mana or lands.",
+            "Removal": "Answers a single threat.",
+            "Other": "Does not fit any of the roles above."
+        })
+    );
+
+    let settings = super::Configured::load(&app.state).await.unwrap();
+    let assigned = card_categories::assign(&app.state, Some(&settings), deck_id)
+        .await
+        .unwrap();
+    let names: Vec<&str> = assigned
+        .categories
+        .iter()
+        .map(|c| c.name.as_str())
+        .collect();
+    assert_eq!(names, ["Removal", "Ramp", "Other"]);
+    assert_eq!(
+        assigned.cards,
+        [
+            ("oracle-cultivate".to_owned(), "Ramp".to_owned()),
+            ("oracle-grim-affliction".to_owned(), "Removal".to_owned()),
+        ]
+    );
+    // Only the card Jev failed on is asked again.
+    assert_eq!(decision_cards(&server).await.len(), 4);
+
+    // A new card is the only one sent; without settings nothing is sent.
+    app.import_cards(&[legality_card("Sol Ring", &[], &commander_legal)])
+        .await;
+    add_deck_card(app.db(), deck_id, "oracle-sol-ring", 1, "mainboard").await;
+    let without = card_categories::assign(&app.state, None, deck_id)
+        .await
+        .unwrap();
+    assert_eq!(without.cards.len(), 2);
+    assert_eq!(decision_cards(&server).await.len(), 4);
+    card_categories::assign(&app.state, Some(&settings), deck_id)
+        .await
+        .unwrap();
+    let sent = decision_cards(&server).await;
+    assert_eq!(sorted(sent[4..].to_vec()), ["Odd Card", "Sol Ring"]);
+
+    // New categories make every assignment stale and prune the old rows.
+    sqlx::query("UPDATE decks SET ai_card_categories = ?1 WHERE id = ?2")
+        .bind(json!([{"name": "Removal", "description": "Answers threats."}]).to_string())
+        .bind(deck_id)
+        .execute(app.db())
+        .await
+        .unwrap();
+    let fresh = card_categories::assign(&app.state, Some(&settings), deck_id)
+        .await
+        .unwrap();
+    assert_eq!(decision_cards(&server).await.len(), 10);
+    assert_eq!(
+        fresh.cards,
+        [("oracle-grim-affliction".to_owned(), "Removal".to_owned())]
+    );
+    let stored: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM deck_card_categories WHERE deck_id = ?1")
+            .bind(deck_id)
+            .fetch_one(app.db())
+            .await
+            .unwrap();
+    assert_eq!(stored, 1);
 }

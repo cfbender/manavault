@@ -8,6 +8,7 @@
 pub mod analyze_deck;
 pub mod analyze_deck_list;
 pub mod answer_deck_question;
+pub mod card_categories;
 pub mod deck_analysis;
 pub mod deck_question;
 pub mod decks;

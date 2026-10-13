@@ -18,7 +18,7 @@ CREATE TABLE "locations" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "name" TEXT NO
 CREATE UNIQUE INDEX "locations_name_index" ON "locations" ("name");
 CREATE INDEX "collection_items_location_id_index" ON "collection_items" ("location_id");
 CREATE INDEX "locations_cover_scryfall_id_index" ON "locations" ("cover_scryfall_id");
-CREATE TABLE "decks" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "name" TEXT NOT NULL, "format" TEXT DEFAULT 'commander' NOT NULL, "status" TEXT DEFAULT 'brewing' NOT NULL, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL, "share_token" TEXT, "cover_deck_card_id" INTEGER CONSTRAINT "decks_cover_deck_card_id_fkey" REFERENCES "deck_cards"("id") ON DELETE SET NULL, "primer" TEXT, "ai_analysis" TEXT, "ai_analysis_model" TEXT, "ai_analyzed_at" TEXT, "commander_bracket" INTEGER, "commander_bracket_estimate" INTEGER, "play_count" INTEGER DEFAULT 0 NOT NULL, "skip_count" INTEGER DEFAULT 0 NOT NULL, "last_played_at" TEXT, "included_for_play" INTEGER DEFAULT true NOT NULL, "commander_bracket_rating" TEXT, "external_source" TEXT, "external_id" TEXT, "external_url" TEXT, "external_synced_at" TEXT, "external_sync_error" TEXT);
+CREATE TABLE "decks" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "name" TEXT NOT NULL, "format" TEXT DEFAULT 'commander' NOT NULL, "status" TEXT DEFAULT 'brewing' NOT NULL, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL, "share_token" TEXT, "cover_deck_card_id" INTEGER CONSTRAINT "decks_cover_deck_card_id_fkey" REFERENCES "deck_cards"("id") ON DELETE SET NULL, "primer" TEXT, "ai_analysis" TEXT, "ai_analysis_model" TEXT, "ai_analyzed_at" TEXT, "commander_bracket" INTEGER, "commander_bracket_estimate" INTEGER, "play_count" INTEGER DEFAULT 0 NOT NULL, "skip_count" INTEGER DEFAULT 0 NOT NULL, "last_played_at" TEXT, "included_for_play" INTEGER DEFAULT true NOT NULL, "commander_bracket_rating" TEXT, "external_source" TEXT, "external_id" TEXT, "external_url" TEXT, "external_synced_at" TEXT, "external_sync_error" TEXT, "ai_card_categories" TEXT NOT NULL DEFAULT '[]');
 CREATE INDEX "decks_name_index" ON "decks" ("name");
 CREATE INDEX "decks_format_index" ON "decks" ("format");
 CREATE INDEX "decks_status_index" ON "decks" ("status");
@@ -134,6 +134,17 @@ CREATE TABLE "acquisition_price_rebuilds" (
   "inserted_at" TEXT NOT NULL,
   "updated_at" TEXT NOT NULL
 );
+CREATE TABLE "deck_card_categories" (
+  "deck_id" INTEGER NOT NULL
+    CONSTRAINT "deck_card_categories_deck_id_fkey" REFERENCES "decks"("id") ON DELETE CASCADE,
+  "oracle_id" TEXT NOT NULL,
+  "category" TEXT NOT NULL,
+  "confidence" REAL,
+  "digest" TEXT NOT NULL,
+  "inserted_at" TEXT NOT NULL,
+  "updated_at" TEXT NOT NULL,
+  PRIMARY KEY ("deck_id", "oracle_id")
+);
 INSERT INTO schema_migrations VALUES(20260101000000,NULL);
 INSERT INTO schema_migrations VALUES(20260102000000,NULL);
 INSERT INTO schema_migrations VALUES(20260103000000,NULL);
@@ -211,3 +222,4 @@ INSERT INTO schema_migrations VALUES(20261006120000,NULL);
 INSERT INTO schema_migrations VALUES(20261007201043,NULL);
 INSERT INTO schema_migrations VALUES(20261008220035,NULL);
 INSERT INTO schema_migrations VALUES(20261009014330,NULL);
+INSERT INTO schema_migrations VALUES(20261013224251,NULL);

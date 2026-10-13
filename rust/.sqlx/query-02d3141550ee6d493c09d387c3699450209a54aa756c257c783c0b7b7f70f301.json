@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT oracle_id AS \"oracle_id!\", category AS \"category!\"\n           FROM deck_card_categories WHERE deck_id = ?1 AND digest = ?2",
+  "describe": {
+    "columns": [
+      {
+        "name": "oracle_id!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_card_categories",
+            "name": "oracle_id"
+          }
+        }
+      },
+      {
+        "name": "category!",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "deck_card_categories",
+            "name": "category"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "02d3141550ee6d493c09d387c3699450209a54aa756c257c783c0b7b7f70f301"
+}

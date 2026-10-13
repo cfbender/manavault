@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM deck_card_categories WHERE deck_id = ?1 AND digest != ?2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "28dadfe58e461d09a6e35666de7589911a556b1cfb7d3a7b7d69ec2036202c9b"
+}

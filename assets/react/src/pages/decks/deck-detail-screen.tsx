@@ -88,9 +88,16 @@ export function DeckDetailScreen({
     groupBy,
     groupedCards,
     partnerCandidateIds,
+    rolesNotice,
     selectionCardIds: selectionDeckCardIds,
     setGroupBy,
-  } = useDeckCardGroups({ deckCards, deckTags: deck?.tags ?? [] })
+  } = useDeckCardGroups({
+    analyzedAt: deck?.aiAnalyzedAt,
+    deckCards,
+    deckId: id,
+    deckTags: deck?.tags ?? [],
+    shareMode,
+  })
   const selection = useDeckDetailSelection(deckCards, selectionDeckCardIds)
   const clearSelection = () => {
     selection.clearSelectedDeckCards()
@@ -407,6 +414,7 @@ export function DeckDetailScreen({
             deckId={deck.id}
             deckTags={deck.tags}
             groupedCards={groupedCards}
+            groupNotice={rolesNotice}
             highlightedCardIds={selection.highlightedDeckCardIds}
             isSelecting={selection.isSelectionActive}
             isUpdating={isUpdatingDeckCard}
