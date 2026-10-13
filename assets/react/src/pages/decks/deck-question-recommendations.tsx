@@ -11,6 +11,8 @@ import { AddDeckCardDocument, UpdateDeckCardsTagDocument } from "./deck-card-doc
 type QuestionAnswer = DeckQuestionAnswersQuery["deckQuestionAnswers"][number]
 type RecommendationFeedback = { tone: "error" | "success"; message: string } | null
 
+const ADD_CONCURRENCY = 3
+
 export function QuestionRecommendations({
   deckCards,
   deckId,
@@ -117,19 +119,26 @@ export function QuestionRecommendations({
 
     setAdditionFeedback(null)
     setAdditionsPending(true)
-    const added: string[] = []
-    const failed: string[] = []
-
-    for (const cardName of actionableAdditions) {
-      try {
-        await addDeckCard({
-          variables: { deckId, input: { name: cardName, quantity: 1, zone: "considering" } },
-        })
-        added.push(cardName)
-      } catch {
-        failed.push(cardName)
-      }
-    }
+    const succeeded = new Set<string>()
+    // A few requests at a time: each add takes SQLite's single write lock, so
+    // sending the whole batch at once would only queue on the server.
+    const queue = [...actionableAdditions]
+    await Promise.all(
+      Array.from({ length: Math.min(ADD_CONCURRENCY, queue.length) }, async () => {
+        for (let cardName = queue.shift(); cardName !== undefined; cardName = queue.shift()) {
+          try {
+            await addDeckCard({
+              variables: { deckId, input: { name: cardName, quantity: 1, zone: "considering" } },
+            })
+            succeeded.add(cardName)
+          } catch {
+            // Reported below from the names missing in `succeeded`.
+          }
+        }
+      }),
+    )
+    const added = actionableAdditions.filter((cardName) => succeeded.has(cardName))
+    const failed = actionableAdditions.filter((cardName) => !succeeded.has(cardName))
 
     if (added.length) {
       setCompletedAdditions((current) => new Set([...current, ...added]))

@@ -94,6 +94,20 @@ pub async fn find(pool: &SqlitePool, name: &str) -> Result<Option<CardRecord>, s
     if key.is_empty() {
         return Ok(None);
     }
+    // Canonical names win in `by_names`, so an exact match is the answer and
+    // skips its front-face scan of the whole catalog.
+    let exact = card_query!(
+        "WHERE c.normalized_name = ?1
+           AND (c.layout IS NULL OR c.layout NOT IN ('token', 'double_faced_token', 'emblem'))
+         ORDER BY c.name ASC
+         LIMIT 1",
+        key
+    )
+    .fetch_optional(pool)
+    .await?;
+    if exact.is_some() {
+        return Ok(exact);
+    }
     Ok(by_names(pool, &[name]).await?.remove(&key))
 }
 
