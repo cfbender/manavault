@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE locations SET name = ?1, kind = ?2, description = ?3, cover_scryfall_id = ?4, stickers = ?5, updated_at = ?6 WHERE id = ?7",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "aeaeddd3f4dcc135bc1404e486f4416ddee22064d97ac9d3ae97dcbe7b648faf"
+}

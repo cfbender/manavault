@@ -8,11 +8,12 @@ import { cn } from "../../lib/utils"
 
 const SET_SUGGESTION_LIMIT = 8
 
-const SetSuggestionsDocument = graphql(`
+export const SetSuggestionsDocument = graphql(`
   query SetSuggestions($q: String!, $limit: Int!) {
     setSuggestions(q: $q, limit: $limit) {
       setCode
       setName
+      iconUrl
     }
   }
 `)

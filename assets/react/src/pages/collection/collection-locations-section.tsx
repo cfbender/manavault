@@ -28,7 +28,7 @@ export function CollectionLocationsSection({
       {isLoading ? (
         <EmptyState title="Loading locations..." />
       ) : locationGroups.length ? (
-        <div className="space-y-10">
+        <div className="space-y-8">
           {locationGroups.map(([kind, locations]) => (
             <section key={kind} className="space-y-4">
               <div className="flex items-center justify-between gap-3">
@@ -37,7 +37,7 @@ export function CollectionLocationsSection({
                   {locations.length}
                 </span>
               </div>
-              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-2 gap-x-2 gap-y-4 lg:grid-cols-3 2xl:grid-cols-4">
                 {locations.map((location) => (
                   <div key={location.id} className="relative">
                     <Link

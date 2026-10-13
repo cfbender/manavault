@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react"
 import { cn } from "../../lib/utils"
+import { LocationStickerSheet, type LocationStickerValue } from "./location-sticker"
 import type { LocationDetail, LocationSummary } from "./types"
 
 export type LocationObjectCard = {
@@ -50,32 +51,39 @@ export function LocationObject({
   className,
   coverArtUrl,
   kind,
+  seed = "",
+  stickers = [],
   transitionName,
 }: {
   cards: LocationObjectCard[]
   className?: string
   coverArtUrl?: string | null
   kind: string
+  seed?: string
+  stickers?: readonly LocationStickerValue[]
   transitionName?: string
 }) {
   const style = transitionName ? { viewTransitionName: transitionName } : undefined
+  const sticker = { seed, stickers }
 
   return (
     <div className={cn("lo-stage", className)} aria-hidden="true">
       {kind === "binder" ? (
-        <BinderPage cards={cards} style={style} />
+        <BinderPage cards={cards} sticker={sticker} style={style} />
       ) : kind === "box" ? (
-        <BulkBox cards={cards} style={style} />
+        <BulkBox cards={cards} sticker={sticker} style={style} />
       ) : kind === "deck_box" ? (
-        <DeckBox card={cards[0]} coverArtUrl={coverArtUrl} style={style} />
+        <DeckBox card={cards[0]} coverArtUrl={coverArtUrl} sticker={sticker} style={style} />
       ) : kind === "unfiled" ? (
         <LoosePile cards={cards} style={style} />
       ) : (
-        <CardFan cards={cards} folder={kind === "folder"} style={style} />
+        <CardFan cards={cards} folder={kind === "folder"} sticker={sticker} style={style} />
       )}
     </div>
   )
 }
+
+type Stickers = { sticker: { seed: string; stickers: readonly LocationStickerValue[] } }
 
 function ObjectCard({
   card,
@@ -96,7 +104,11 @@ function ObjectCard({
 
 const BINDER_POCKETS = 9
 
-function BinderPage({ cards, style }: { cards: LocationObjectCard[]; style?: CSSProperties }) {
+function BinderPage({
+  cards,
+  sticker,
+  style,
+}: Stickers & { cards: LocationObjectCard[]; style?: CSSProperties }) {
   return (
     <div className="lo-binder" style={style}>
       <div className="lo-binder-page lo-binder-page--under" />
@@ -113,6 +125,7 @@ function BinderPage({ cards, style }: { cards: LocationObjectCard[]; style?: CSS
             </div>
           ))}
         </div>
+        <LocationStickerSheet className="lo-stickers--binder" {...sticker} />
         <div className="lo-sheen" />
       </div>
     </div>
@@ -121,32 +134,26 @@ function BinderPage({ cards, style }: { cards: LocationObjectCard[]; style?: CSS
 
 const BOX_CARDS = 6
 
-function BulkBox({ cards, style }: { cards: LocationObjectCard[]; style?: CSSProperties }) {
+function BulkBox({
+  cards,
+  sticker,
+  style,
+}: Stickers & { cards: LocationObjectCard[]; style?: CSSProperties }) {
   // Back to front: the most valuable card stands at the front of the box.
   const standing = cards.slice(0, BOX_CARDS).reverse()
-  const dividerAt = Math.min(2, standing.length)
 
   return (
     <div className="lo-box" style={style}>
       <div className="lo-box-inner" />
       {standing.map((card, index) => (
-        <div
-          key={card.id}
-          className="lo-box-slot"
-          style={{ "--i": index + (index >= dividerAt ? 1 : 0) } as CSSProperties}
-        >
+        <div key={card.id} className="lo-box-slot" style={{ "--i": index } as CSSProperties}>
           <ObjectCard card={card} />
         </div>
       ))}
-      <div
-        className="lo-box-slot lo-box-slot--divider"
-        style={{ "--i": dividerAt } as CSSProperties}
-      >
-        <div className="lo-divider" />
-      </div>
       <div className="lo-box-front">
         <span className="lo-box-handle" />
       </div>
+      <LocationStickerSheet className="lo-stickers--box" {...sticker} />
     </div>
   )
 }
@@ -154,8 +161,9 @@ function BulkBox({ cards, style }: { cards: LocationObjectCard[]; style?: CSSPro
 function DeckBox({
   card,
   coverArtUrl,
+  sticker,
   style,
-}: {
+}: Stickers & {
   card?: LocationObjectCard
   coverArtUrl?: string | null
   style?: CSSProperties
@@ -169,6 +177,7 @@ function DeckBox({
         {coverArtUrl ? <img src={coverArtUrl} alt="" loading="lazy" decoding="async" /> : null}
         <span className="lo-deckbox-seam" />
       </div>
+      <LocationStickerSheet className="lo-stickers--deckbox" {...sticker} />
     </div>
   )
 }
@@ -178,8 +187,9 @@ const FAN_CARDS = 5
 function CardFan({
   cards,
   folder,
+  sticker,
   style,
-}: {
+}: Stickers & {
   cards: LocationObjectCard[]
   folder: boolean
   style?: CSSProperties
@@ -199,6 +209,10 @@ function CardFan({
         />
       ))}
       {folder ? <div className="lo-folder-front" /> : null}
+      <LocationStickerSheet
+        className={folder ? "lo-stickers--folder" : "lo-stickers--fan"}
+        {...sticker}
+      />
     </div>
   )
 }

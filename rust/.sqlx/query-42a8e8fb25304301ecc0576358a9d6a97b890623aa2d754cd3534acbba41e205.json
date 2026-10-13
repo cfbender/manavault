@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "INSERT INTO locations (name, kind, description, cover_scryfall_id, inserted_at, updated_at)\n           VALUES (?1, ?2, ?3, ?4, ?5, ?5) RETURNING id AS \"id!\"",
+  "query": "INSERT INTO locations (name, kind, description, cover_scryfall_id, stickers, inserted_at, updated_at)\n           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6) RETURNING id AS \"id!\"",
   "describe": {
     "columns": [
       {
@@ -16,11 +16,11 @@
       }
     ],
     "parameters": {
-      "Right": 5
+      "Right": 6
     },
     "nullable": [
       false
     ]
   },
-  "hash": "3c824e2197ffe784eafd998ca96cad604f17abdf56c67d8ef5f70eaf8456e5d4"
+  "hash": "42a8e8fb25304301ecc0576358a9d6a97b890623aa2d754cd3534acbba41e205"
 }

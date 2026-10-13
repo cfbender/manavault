@@ -87,8 +87,10 @@ The collection has four primary views:
   and per-location item lists. Each location is drawn as its storage (a binder
   page, bulk box, deck box, folder, fanned list, or loose unfiled pile) holding
   its cover card and most valuable cards; opening one carries it into the
-  location page. Clicking a card in a collection view opens it full screen,
-  where the arrow keys step through the grid.
+  location page. Locations can carry up to six stickers (card symbols, set
+  symbols, or rarities) chosen in the location's create and edit dialogs and
+  shown stuck on the object. Clicking a card in a collection view opens it
+  full screen, where the arrow keys step through the grid.
 - **All cards** - a filterable, sortable inventory list across locations.
 - **Tokens** - the tokens you own, shown as card tiles with quantity badges and
   filtered by name. Double-sided tokens are named "Front // Back" and flip to
@@ -123,7 +125,7 @@ Collection items track:
 Collection workflows include:
 
 - single-card add/edit/delete, plus bulk edit
-- location create/edit/delete with selectable cover cards
+- location create/edit/delete with selectable cover cards and stickers
 - TXT/CSV import preview and commit, with an optional default purchase price or
   total spend spread across the import; rows whose printing is a token become
   token items instead of collection items, and an optional `back_scryfall_id`

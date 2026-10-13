@@ -10,10 +10,11 @@ use crate::collection::graphql::values::{
 };
 use crate::collection::item::CollectionItem;
 use crate::collection::loader;
-use crate::collection::location::{Location, Place};
+use crate::collection::location::{Location, Place, StickerKind};
 use crate::collection::queries::{self, ItemGroup, Page, ValueTotals};
 use manavault_catalog::catalog::price::{format_cents, format_signed_cents};
 use manavault_catalog::catalog::printing::Printing;
+use manavault_catalog::scryfall_assets::set_icon_url;
 use manavault_core::graphql::relay::{PageArgs, from_slice, offset_and_limit};
 use manavault_core::graphql::{NodeKind, Result, global_id, internal_error, state};
 
@@ -245,6 +246,17 @@ pub(crate) async fn items_connection(
     Ok(from_slice(items, offset, offset > 0, offset + limit < total).into())
 }
 
+/// `LocationSticker`: a card symbol (`mana`), set symbol (`set`), or rarity
+/// (`rarity`) stuck on a location.
+#[derive(Debug, Clone, PartialEq, Eq, SimpleObject)]
+#[graphql(name = "LocationSticker")]
+pub struct LocationStickerValue {
+    pub kind: &'static str,
+    pub value: String,
+    /// The card or set symbol's image; rarities draw their own gem.
+    pub icon_url: Option<String>,
+}
+
 /// `HomeSummary`.
 #[derive(Debug, Clone, PartialEq, Eq, SimpleObject)]
 pub struct HomeSummary {
@@ -306,6 +318,31 @@ impl Location {
             Place::Stored(record) => record.description.as_deref(),
             Place::Unfiled => Some(UNFILED_DESCRIPTION),
         }
+    }
+
+    /// Symbols stuck on the location, in display order.
+    async fn stickers(&self, ctx: &Context<'_>) -> Vec<LocationStickerValue> {
+        let assets = &state(ctx).config.scryfall_assets_dir;
+        self.record()
+            .map(|record| {
+                record
+                    .stickers
+                    .0
+                    .iter()
+                    .map(|sticker| LocationStickerValue {
+                        kind: sticker.kind.as_str(),
+                        value: sticker.value.clone(),
+                        icon_url: match sticker.kind {
+                            StickerKind::Mana => {
+                                Some(format!("/scryfall-assets/symbols/{}.svg", sticker.value))
+                            }
+                            StickerKind::Set => Some(set_icon_url(assets, &sticker.value)),
+                            StickerKind::Rarity => None,
+                        },
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     async fn cover_printing(&self, ctx: &Context<'_>) -> Result<Option<Printing>> {

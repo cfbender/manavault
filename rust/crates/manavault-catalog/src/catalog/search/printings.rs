@@ -113,9 +113,23 @@ pub async fn set_illustration_ids(
 
 /// A set matching a search (`:set_suggestion`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, async_graphql::SimpleObject)]
+#[graphql(complex)]
 pub struct SetSuggestion {
     pub set_code: String,
     pub set_name: Option<String>,
+}
+
+#[async_graphql::ComplexObject]
+impl SetSuggestion {
+    /// The set's symbol.
+    async fn icon_url(&self, ctx: &async_graphql::Context<'_>) -> String {
+        crate::scryfall_assets::set_icon_url(
+            &manavault_core::graphql::state(ctx)
+                .config
+                .scryfall_assets_dir,
+            &self.set_code,
+        )
+    }
 }
 
 /// Sets whose code or name contains the term (`search_sets/2`). The term is

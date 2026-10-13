@@ -144,6 +144,20 @@ pub fn set(root: &Path, code: &str) -> Option<Value> {
     manifests(root).sets.get(&code.to_lowercase()).cloned()
 }
 
+/// The URL of a set's symbol. Scryfall reuses a parent set's icon for promo,
+/// token, and similar sets, so the manifest's file wins over the set code.
+#[must_use]
+pub fn set_icon_url(root: &Path, code: &str) -> String {
+    set(root, code)
+        .and_then(|entry| {
+            entry
+                .get("local_uri")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+        })
+        .unwrap_or_else(|| format!("/scryfall-assets/sets/{}.svg", code.to_lowercase()))
+}
+
 fn safe_filename(name: &str) -> Option<&str> {
     let base = name.rsplit('/').next().unwrap_or_default();
     (!base.is_empty() && base != "." && base != "..").then_some(base)

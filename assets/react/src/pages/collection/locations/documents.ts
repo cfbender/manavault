@@ -6,6 +6,11 @@ export const CollectionLocationFieldsFragment = graphql(`
     name
     kind
     description
+    stickers {
+      kind
+      value
+      iconUrl
+    }
     itemCount
     totalPriceText
     valueSummary {

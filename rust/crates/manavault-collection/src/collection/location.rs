@@ -12,6 +12,7 @@ use std::sync::Arc;
 use async_graphql::MaybeUndefined;
 use lotus::ScryfallId;
 use serde::{Deserialize, Serialize};
+use sqlx::types::Json;
 use sqlx::{SqliteConnection, SqlitePool};
 
 use crate::collection::queries::ValueTotals;
@@ -66,6 +67,49 @@ impl LocationKind {
     }
 }
 
+/// What a sticker shows: a card symbol (`{W}`, `{T}`, ... without braces),
+/// a set symbol by set code, or a rarity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StickerKind {
+    Mana,
+    Set,
+    Rarity,
+}
+
+impl StickerKind {
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Mana => "mana",
+            Self::Set => "set",
+            Self::Rarity => "rarity",
+        }
+    }
+
+    #[must_use]
+    pub fn parse(value: &str) -> Option<Self> {
+        Some(match value {
+            "mana" => Self::Mana,
+            "set" => Self::Set,
+            "rarity" => Self::Rarity,
+            _ => return None,
+        })
+    }
+}
+
+/// A symbol stuck on a location.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct LocationSticker {
+    pub kind: StickerKind,
+    pub value: String,
+}
+
+/// The most stickers one location carries.
+pub const MAX_STICKERS: usize = 6;
+
+const STICKER_RARITIES: [&str; 4] = ["common", "uncommon", "rare", "mythic"];
+
 /// A `locations` row.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocationRecord {
@@ -74,6 +118,7 @@ pub struct LocationRecord {
     pub kind: LocationKind,
     pub description: Option<String>,
     pub cover_scryfall_id: Option<ScryfallId>,
+    pub stickers: Json<Vec<LocationSticker>>,
     pub inserted_at: Timestamp,
     pub updated_at: Timestamp,
 }
@@ -89,6 +134,7 @@ macro_rules! location_query {
                  l.kind AS "kind!: crate::collection::location::LocationKind",
                  l.description AS "description?",
                  l.cover_scryfall_id AS "cover_scryfall_id?: lotus::ScryfallId",
+                 l.stickers AS "stickers!: sqlx::types::Json<Vec<crate::collection::location::LocationSticker>>",
                  l.inserted_at AS "inserted_at!: manavault_core::timestamp::Timestamp",
                  l.updated_at AS "updated_at!: manavault_core::timestamp::Timestamp"
                FROM locations AS l "# + $tail
@@ -194,6 +240,8 @@ pub struct LocationChanges {
     pub kind: MaybeUndefined<String>,
     pub description: MaybeUndefined<String>,
     pub cover_scryfall_id: MaybeUndefined<String>,
+    /// `(kind, value)` pairs as given; `null` clears.
+    pub stickers: MaybeUndefined<Vec<(String, String)>>,
 }
 
 /// Why a location write failed.
@@ -224,6 +272,7 @@ struct ValidLocation {
     kind: LocationKind,
     description: Option<String>,
     cover_scryfall_id: Option<String>,
+    stickers: Json<Vec<LocationSticker>>,
 }
 
 /// `Location.changeset/2`.
@@ -238,6 +287,7 @@ async fn validate(
 ) -> Result<ValidLocation, LocationError> {
     let kind_changed = !changes.kind.is_undefined();
     let cover_changed = !changes.cover_scryfall_id.is_undefined();
+    let stickers_changed = !changes.stickers.is_undefined();
     let name = cast_text(changes.name, current.map(|c| c.name.clone()));
     let kind = cast_text(
         changes.kind,
@@ -284,6 +334,20 @@ async fn validate(
             errors.add("cover_scryfall_id", "does not exist");
         }
     }
+    let stickers = match changes.stickers {
+        MaybeUndefined::Undefined => current.map(|c| c.stickers.0.clone()).unwrap_or_default(),
+        MaybeUndefined::Null => Vec::new(),
+        MaybeUndefined::Value(stickers) => {
+            let stickers = parse_stickers(&mut *conn, stickers).await?;
+            if stickers.is_none() {
+                errors.add("stickers", INVALID);
+            }
+            stickers.unwrap_or_default()
+        }
+    };
+    if stickers_changed && stickers.len() > MAX_STICKERS {
+        errors.add("stickers", "has too many stickers");
+    }
     errors.into_result()?;
     match (name, parsed_kind) {
         (Some(name), Some(kind)) => Ok(ValidLocation {
@@ -291,11 +355,54 @@ async fn validate(
             kind,
             description,
             cover_scryfall_id: cover,
+            stickers: Json(stickers),
         }),
         _ => Err(LocationError::Invalid(ValidationError::single(
             "kind", INVALID,
         ))),
     }
+}
+
+/// Normalized stickers without repeats, or `None` when one is not a known
+/// kind, a well-formed card symbol, an existing set, or a rarity.
+async fn parse_stickers(
+    conn: &mut SqliteConnection,
+    stickers: Vec<(String, String)>,
+) -> Result<Option<Vec<LocationSticker>>, sqlx::Error> {
+    let mut parsed: Vec<LocationSticker> = Vec::with_capacity(stickers.len());
+    for (kind, value) in stickers {
+        let Some(kind) = StickerKind::parse(kind.trim()) else {
+            return Ok(None);
+        };
+        let value = value.trim().trim_matches(['{', '}']);
+        let value = match kind {
+            StickerKind::Mana => value.replace('/', "").to_uppercase(),
+            StickerKind::Set | StickerKind::Rarity => value.to_lowercase(),
+        };
+        let valid = match kind {
+            StickerKind::Mana => {
+                (1..=10).contains(&value.len())
+                    && value.chars().all(|c| c.is_ascii_alphanumeric())
+            }
+            StickerKind::Rarity => STICKER_RARITIES.contains(&value.as_str()),
+            StickerKind::Set => {
+                sqlx::query_scalar!(
+                    r#"SELECT EXISTS(SELECT 1 FROM scryfall_printings WHERE set_code = ?1) AS "exists!: bool""#,
+                    value
+                )
+                .fetch_one(&mut *conn)
+                .await?
+            }
+        };
+        if !valid {
+            return Ok(None);
+        }
+        let sticker = LocationSticker { kind, value };
+        if !parsed.contains(&sticker) {
+            parsed.push(sticker);
+        }
+    }
+    Ok(Some(parsed))
 }
 
 fn unique_name(error: sqlx::Error) -> LocationError {
@@ -316,12 +423,13 @@ pub async fn create(
     let valid = validate(&mut conn, None, changes).await?;
     let now = Timestamp::now();
     let id = sqlx::query_scalar!(
-        r#"INSERT INTO locations (name, kind, description, cover_scryfall_id, inserted_at, updated_at)
-           VALUES (?1, ?2, ?3, ?4, ?5, ?5) RETURNING id AS "id!""#,
+        r#"INSERT INTO locations (name, kind, description, cover_scryfall_id, stickers, inserted_at, updated_at)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6) RETURNING id AS "id!""#,
         valid.name,
         valid.kind,
         valid.description,
         valid.cover_scryfall_id,
+        valid.stickers,
         now
     )
     .fetch_one(&mut *conn)
@@ -349,15 +457,17 @@ pub async fn update(
         && valid.kind == current.kind
         && valid.description == current.description
         && valid.cover_scryfall_id.as_deref()
-            == current.cover_scryfall_id.as_ref().map(ScryfallId::as_str);
+            == current.cover_scryfall_id.as_ref().map(ScryfallId::as_str)
+        && valid.stickers == current.stickers;
     if !unchanged {
         let now = Timestamp::now();
         sqlx::query!(
-            "UPDATE locations SET name = ?1, kind = ?2, description = ?3, cover_scryfall_id = ?4, updated_at = ?5 WHERE id = ?6",
+            "UPDATE locations SET name = ?1, kind = ?2, description = ?3, cover_scryfall_id = ?4, stickers = ?5, updated_at = ?6 WHERE id = ?7",
             valid.name,
             valid.kind,
             valid.description,
             valid.cover_scryfall_id,
+            valid.stickers,
             now,
             id
         )

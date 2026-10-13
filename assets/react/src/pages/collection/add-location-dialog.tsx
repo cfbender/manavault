@@ -24,6 +24,8 @@ import { useToast } from "../../components/ui/toast"
 import { refetchActiveQueries } from "../../lib/apollo"
 import { present, titleize } from "../../lib/utils"
 import { LOCATION_KINDS, MODAL_SEARCH_DEBOUNCE_MS } from "./constants"
+import type { LocationStickerValue } from "./location-sticker"
+import { LocationStickersField } from "./location-stickers-field"
 import { locationKindValue, printingSetLabel, useDebouncedValue } from "./form-helpers"
 import { CreateLocationDocument, LocationCoverCardSearchDocument } from "./locations/documents"
 import type { LocationCoverCard, LocationCoverPrinting, LocationCoverSelection } from "./types"
@@ -42,6 +44,7 @@ export function AddLocationDialog({
   const [description, setDescription] = useState("")
   const [coverSearch, setCoverSearch] = useState("")
   const [selectedCover, setSelectedCover] = useState<LocationCoverSelection | null>(null)
+  const [stickers, setStickers] = useState<LocationStickerValue[]>([])
   const [error, setError] = useState<string | null>(null)
   const debouncedCoverSearch = useDebouncedValue(coverSearch, MODAL_SEARCH_DEBOUNCE_MS)
   const coverSearchTerm = debouncedCoverSearch.trim()
@@ -85,6 +88,7 @@ export function AddLocationDialog({
           kind,
           description: description.trim() || null,
           coverScryfallId: selectedCover?.id ?? null,
+          stickers: stickers.map(({ kind, value }) => ({ kind, value })),
         },
       },
       onCompleted: () => {
@@ -110,6 +114,7 @@ export function AddLocationDialog({
     setDescription("")
     setCoverSearch("")
     setSelectedCover(null)
+    setStickers([])
     setError(null)
   }
 
@@ -186,6 +191,8 @@ export function AddLocationDialog({
               placeholder="Optional notes"
             />
           </label>
+
+          <LocationStickersField stickers={stickers} onChange={setStickers} />
 
           <section className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">

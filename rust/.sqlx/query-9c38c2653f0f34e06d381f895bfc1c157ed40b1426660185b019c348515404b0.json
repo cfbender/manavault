@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT l.id AS \"id!\", l.name AS \"name!\",\n                 l.kind AS \"kind!: crate::collection::location::LocationKind\",\n                 l.description AS \"description?\",\n                 l.cover_scryfall_id AS \"cover_scryfall_id?: lotus::ScryfallId\",\n                 l.inserted_at AS \"inserted_at!: manavault_core::timestamp::Timestamp\",\n                 l.updated_at AS \"updated_at!: manavault_core::timestamp::Timestamp\"\n               FROM locations AS l WHERE l.id IN (SELECT value FROM json_each(?1)) AND l.kind IN ('box', 'binder')",
+  "query": "SELECT l.id AS \"id!\", l.name AS \"name!\",\n                 l.kind AS \"kind!: crate::collection::location::LocationKind\",\n                 l.description AS \"description?\",\n                 l.cover_scryfall_id AS \"cover_scryfall_id?: lotus::ScryfallId\",\n                 l.stickers AS \"stickers!: sqlx::types::Json<Vec<crate::collection::location::LocationSticker>>\",\n                 l.inserted_at AS \"inserted_at!: manavault_core::timestamp::Timestamp\",\n                 l.updated_at AS \"updated_at!: manavault_core::timestamp::Timestamp\"\n               FROM locations AS l WHERE l.id = ?1",
   "describe": {
     "columns": [
       {
@@ -59,8 +59,19 @@
         }
       },
       {
-        "name": "inserted_at!: manavault_core::timestamp::Timestamp",
+        "name": "stickers!: sqlx::types::Json<Vec<crate::collection::location::LocationSticker>>",
         "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "locations",
+            "name": "stickers"
+          }
+        }
+      },
+      {
+        "name": "inserted_at!: manavault_core::timestamp::Timestamp",
+        "ordinal": 6,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -71,7 +82,7 @@
       },
       {
         "name": "updated_at!: manavault_core::timestamp::Timestamp",
-        "ordinal": 6,
+        "ordinal": 7,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -91,8 +102,9 @@
       true,
       true,
       false,
+      false,
       false
     ]
   },
-  "hash": "0d50facdc63bfdac783abe12a91a75a3ed504588e4b9c5fe2d00946bff564e79"
+  "hash": "9c38c2653f0f34e06d381f895bfc1c157ed40b1426660185b019c348515404b0"
 }

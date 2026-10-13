@@ -14,7 +14,7 @@ CREATE INDEX "collection_items_scryfall_id_index" ON "collection_items" ("scryfa
 CREATE INDEX "collection_items_condition_index" ON "collection_items" ("condition");
 CREATE INDEX "collection_items_language_index" ON "collection_items" ("language");
 CREATE INDEX "collection_items_finish_index" ON "collection_items" ("finish");
-CREATE TABLE "locations" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "name" TEXT NOT NULL, "kind" TEXT DEFAULT 'box' NOT NULL, "description" TEXT, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL, "cover_scryfall_id" TEXT CONSTRAINT "locations_cover_scryfall_id_fkey" REFERENCES "scryfall_printings"("scryfall_id") ON DELETE SET NULL);
+CREATE TABLE "locations" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "name" TEXT NOT NULL, "kind" TEXT DEFAULT 'box' NOT NULL, "description" TEXT, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL, "cover_scryfall_id" TEXT CONSTRAINT "locations_cover_scryfall_id_fkey" REFERENCES "scryfall_printings"("scryfall_id") ON DELETE SET NULL, "stickers" TEXT DEFAULT '[]' NOT NULL);
 CREATE UNIQUE INDEX "locations_name_index" ON "locations" ("name");
 CREATE INDEX "collection_items_location_id_index" ON "collection_items" ("location_id");
 CREATE INDEX "locations_cover_scryfall_id_index" ON "locations" ("cover_scryfall_id");
@@ -224,3 +224,4 @@ INSERT INTO schema_migrations VALUES(20261008220035,NULL);
 INSERT INTO schema_migrations VALUES(20261009014330,NULL);
 INSERT INTO schema_migrations VALUES(20261013224251,NULL);
 INSERT INTO schema_migrations VALUES(20261013233439,NULL);
+INSERT INTO schema_migrations VALUES(20261014004500,NULL);

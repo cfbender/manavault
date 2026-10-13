@@ -24,6 +24,8 @@ import { useToast } from "../../components/ui/toast"
 import { refetchActiveQueries } from "../../lib/apollo"
 import { present, titleize } from "../../lib/utils"
 import { LOCATION_KINDS, MODAL_SEARCH_DEBOUNCE_MS } from "./constants"
+import type { LocationStickerValue } from "./location-sticker"
+import { LocationStickersField } from "./location-stickers-field"
 import { locationKindValue, printingSetLabel, useDebouncedValue } from "./form-helpers"
 import { LocationCoverCardSearchDocument, UpdateLocationDocument } from "./locations/documents"
 import type {
@@ -51,6 +53,7 @@ export function EditLocationDialog({
   const [description, setDescription] = useState("")
   const [coverSearch, setCoverSearch] = useState("")
   const [selectedCover, setSelectedCover] = useState<LocationCoverSelection | null>(null)
+  const [stickers, setStickers] = useState<LocationStickerValue[]>([])
   const [error, setError] = useState<string | null>(null)
   const debouncedCoverSearch = useDebouncedValue(coverSearch, MODAL_SEARCH_DEBOUNCE_MS)
   const coverSearchTerm = debouncedCoverSearch.trim()
@@ -77,6 +80,7 @@ export function EditLocationDialog({
     setName(location.name)
     setKind(locationKindValue(location.kind))
     setDescription(location.description || "")
+    setStickers(location.stickers)
     setSelectedCover(
       location.coverPrinting
         ? {
@@ -114,6 +118,7 @@ export function EditLocationDialog({
           kind,
           description: description.trim() || null,
           coverScryfallId: selectedCover?.id ?? null,
+          stickers: stickers.map(({ kind, value }) => ({ kind, value })),
         },
       },
       onCompleted: () => {
@@ -203,6 +208,8 @@ export function EditLocationDialog({
               placeholder="Optional notes"
             />
           </label>
+
+          <LocationStickersField stickers={stickers} onChange={setStickers} />
 
           <section className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">

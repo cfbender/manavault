@@ -239,9 +239,10 @@ Foil treatment belongs only to Magic card imagery, including cards shown inside 
 
 ### Signature Component: Location Objects
 
-- **Shape:** Each location kind has its own object: binder → a sleeved nine-pocket page over the page beneath it; box → a cardboard bulk box with cards standing behind a divider; deck box → a box printed with the cover art, its top card rising out; list and other → a fanned hand; folder → a card folder; unfiled → a loose pile.
+- **Shape:** Each location kind has its own object: binder → a sleeved nine-pocket page over the page beneath it; box → a cardboard bulk box with cards standing front to back, their name bars showing; deck box → a box printed with the cover art, its top card rising out; list and other → a fanned hand; folder → a card folder; unfiled → a loose pile.
 - **Content:** Objects hold the location's cover card and its most valuable cards, never placeholder art. Empty locations show blank card backs.
-- **Stage:** The object sits on a tonal stage above the location's name, count, and value. The same component renders the list tile and the location page header.
+- **Stage:** The object stands directly on the page with only a contact shadow, never inside a card, with its name and count/value centered beneath it. Objects are large (about 11-16rem tall in the list, 16-20rem in the location page header, where the text sits beside the object). The same component renders both.
+- **Stickers:** Users can stick up to six symbols on a location: card symbols, set symbols (resolved to Scryfall's shared icon for promo and token sets), or rarity gems. Stickers are white die-cut vinyl with a soft gloss, stuck in a loose, slightly overlapping row on the object's surface (the binder page, the box's front wall, the deck box, the folder, or the front of a fan) so they move with it. Each sticker is nudged and tilted a little off the line, seeded per location, so rows look hand-placed but stay consistent. They identify the location; they never carry status or replace the location's name.
 - **Hover:** The object answers the pointer the way the real thing would (the binder page tilts and catches light, box cards lift, the fan spreads). Hover-capable pointers only; no motion under reduced motion.
 
 ## 6. Motion

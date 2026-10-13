@@ -166,6 +166,15 @@ pub struct LocationUpdateInput {
     pub kind: MaybeUndefined<String>,
     pub description: MaybeUndefined<String>,
     pub cover_scryfall_id: MaybeUndefined<ID>,
+    pub stickers: MaybeUndefined<Vec<LocationStickerInput>>,
+}
+
+/// `LocationStickerInput`: `kind` is `mana` (a card symbol such as `W` or
+/// `{2/U}`), `set` (a set code), or `rarity` (`common` through `mythic`).
+#[derive(Debug, Clone, InputObject)]
+pub struct LocationStickerInput {
+    pub kind: String,
+    pub value: String,
 }
 
 /// `LocationInput`.
@@ -175,6 +184,7 @@ pub struct LocationInput {
     pub kind: MaybeUndefined<String>,
     pub description: MaybeUndefined<String>,
     pub cover_scryfall_id: MaybeUndefined<ID>,
+    pub stickers: MaybeUndefined<Vec<LocationStickerInput>>,
 }
 
 /// A location argument that also accepts the raw id `"unfiled"`
@@ -434,6 +444,17 @@ fn cover_change(id: &MaybeUndefined<ID>) -> Result<MaybeUndefined<String>> {
     printing_change(id)
 }
 
+fn sticker_change(
+    stickers: &MaybeUndefined<Vec<LocationStickerInput>>,
+) -> MaybeUndefined<Vec<(String, String)>> {
+    stickers.clone().map_value(|stickers| {
+        stickers
+            .into_iter()
+            .map(|sticker| (sticker.kind, sticker.value))
+            .collect()
+    })
+}
+
 impl LocationInput {
     pub(crate) fn changes(&self) -> Result<LocationChanges> {
         Ok(LocationChanges {
@@ -441,6 +462,7 @@ impl LocationInput {
             kind: self.kind.clone(),
             description: self.description.clone(),
             cover_scryfall_id: cover_change(&self.cover_scryfall_id)?,
+            stickers: sticker_change(&self.stickers),
         })
     }
 }
@@ -452,6 +474,7 @@ impl LocationUpdateInput {
             kind: self.kind.clone(),
             description: self.description.clone(),
             cover_scryfall_id: cover_change(&self.cover_scryfall_id)?,
+            stickers: sticker_change(&self.stickers),
         })
     }
 }

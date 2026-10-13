@@ -1327,6 +1327,69 @@ async fn bulk_clean_query_suggests_pulls() {
 }
 
 #[tokio::test]
+async fn location_stickers_round_trip_normalized_and_validated() {
+    let app = TestApp::new().await;
+    app.import_cards(&[card("scryfall-tst", "oracle-tst", "Set Card", json!({}))])
+        .await;
+    let data = app
+        .gql_data(
+            r"mutation($input: LocationInput!) { createLocation(input: $input) { location { id stickers { kind value } } } }",
+            json!({"input": {"name": "Stickered", "kind": "binder", "stickers": [
+                {"kind": "mana", "value": "{2/u}"},
+                {"kind": "set", "value": "TST"},
+                {"kind": "rarity", "value": "Mythic"},
+                {"kind": "mana", "value": "2U"},
+            ]}}),
+        )
+        .await;
+    let location = &data["createLocation"]["location"];
+    // Braces, slashes, and case normalize; the repeated symbol collapses.
+    assert_eq!(
+        location["stickers"],
+        json!([
+            {"kind": "mana", "value": "2U"},
+            {"kind": "set", "value": "tst"},
+            {"kind": "rarity", "value": "mythic"},
+        ])
+    );
+    let id = location["id"].as_str().unwrap().to_owned();
+
+    let update = r"mutation($id: ID!, $input: LocationUpdateInput!) {
+        updateLocation(id: $id, input: $input) { location { name stickers { kind value } } }
+      }";
+    // Other edits keep the stickers.
+    let data = app
+        .gql_data(update, json!({"id": id, "input": {"name": "Renamed"}}))
+        .await;
+    assert_eq!(
+        data["updateLocation"]["location"]["stickers"]
+            .as_array()
+            .unwrap()
+            .len(),
+        3
+    );
+    for stickers in [
+        json!([{"kind": "set", "value": "zzz"}]),
+        json!([{"kind": "rarity", "value": "legendary"}]),
+        json!([{"kind": "foil", "value": "yes"}]),
+        json!([{"kind": "mana", "value": "W W"}]),
+        json!(
+            ["W", "U", "B", "R", "G", "C", "X"]
+                .map(|value| json!({"kind": "mana", "value": value}))
+        ),
+    ] {
+        let response = app
+            .gql(update, json!({"id": id, "input": {"stickers": stickers}}))
+            .await;
+        assert_eq!(errors(&response).len(), 1, "{stickers} should be rejected");
+    }
+    let data = app
+        .gql_data(update, json!({"id": id, "input": {"stickers": null}}))
+        .await;
+    assert_eq!(data["updateLocation"]["location"]["stickers"], json!([]));
+}
+
+#[tokio::test]
 async fn create_update_and_delete_location_mutations() {
     let app = TestApp::new().await;
     app.import_cards(&[
