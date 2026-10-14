@@ -6,3 +6,11 @@ updates:
     directory: /
     schedule:
       interval: weekly
+
+  # Keep the Dockerfile's literal base-image tags current. Stages whose tag is
+  # built from an ARG (NODE_VERSION, RUST_VERSION, DEBIAN_RELEASE) are not
+  # resolved by Dependabot and still need manual bumps.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
