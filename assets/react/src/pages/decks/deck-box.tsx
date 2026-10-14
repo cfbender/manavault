@@ -25,10 +25,12 @@ export function DeckBox({ className, deck }: { className?: string; deck: DeckBox
     .filter(present)
     .map((color) => ({ kind: "mana", value: color }))
   const style = { viewTransitionName: locationTransitionName(deck.id) } as CSSProperties
-  // The deck's most valuable cards stand in the box beside the cover card.
+  // The deck's most valuable cards stand in the box beside the cover card,
+  // cheapest at the back left and the priciest in front at the right.
   const standing = (deck.priciestCardImageUrls ?? [])
     .filter((url) => url !== deck.coverCardImageUrl)
     .slice(0, STANDING_CARDS)
+    .reverse()
   const middle = (standing.length - 1) / 2
 
   return (
