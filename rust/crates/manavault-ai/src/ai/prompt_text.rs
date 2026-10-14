@@ -228,8 +228,11 @@ does for this deck's plan, in the order a deck list should show them. Name the d
 and payoffs precisely, such as "Cast-from-exile payoffs" or "-1/-1 counter payoffs", rather than
 generic labels, and keep standard roles such as Ramp, Removal, Card advantage, or Lands when the
 deck has them. Give each role a one-sentence description of which cards belong in it, written so
-the role can be judged from a single card's text. Do not add a role for the commander or an Other
-role.
+the role can be judged from a single card's text. Say whose cards an effect touches, and when two
+roles share a word such as exile, sacrifice, counters, or tokens, say in each description which
+use belongs there: removal that exiles an opponent's permanent belongs in a removal role, not in
+a role for exiling and returning your own permanents. Do not add a role for the commander or an
+Other role.
 "#;
 
 /// `Prompt.user/1` up to the payload JSON (followed by the JSON and `\n`).
