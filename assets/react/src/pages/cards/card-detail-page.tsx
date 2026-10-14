@@ -1,3 +1,4 @@
+import { CardDetailSkeleton } from "../../components/skeletons"
 import { useQuery } from "@apollo/client/react"
 import { Link } from "@tanstack/react-router"
 import { useState } from "react"
@@ -75,7 +76,7 @@ export function CardDetailPage({
     scryfallId: printing.id,
   }))
 
-  if (isLoading) return <EmptyState title="Loading card..." />
+  if (isLoading) return <CardDetailSkeleton />
   if (!card) return <EmptyState title="Card not found" />
 
   return (

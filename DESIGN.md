@@ -254,6 +254,8 @@ Motion keeps objects continuous across navigation instead of decorating pages.
 - **Sifting:** In the full-screen card view, arrow keys and swipes slide the next card in from that side while the old one slides out; picking from the filmstrip of neighboring cards deals that card up from the strip. The backdrop takes the current card's art colors (at the theme's lightness, with a minimum of chroma) and eases between cards over about 700ms.
 - **Putting a card away:** The add-card dialog shows locations as small objects to pick from; the chosen one holds its open pose. When the card is added it arcs from the dialog into that location, which gives as it lands, and then the dialog closes.
 - **No waiting room:** A destination that is already cached renders immediately while it refreshes, so a transition never lands on a loading state.
+- **Placeholders hold the layout:** When nothing is cached, pages load as shaped skeletons (card-shaped tiles in the grid's size, object-sized tiles on the locations shelf, the location and card page layouts) instead of a "Loading..." message.
+- **The header keeps the page named:** Once a page's heading scrolls under the header, the page title slides up into the wordmark's place and slides back out when the heading returns.
 - **Fallback:** Without View Transitions support, or under reduced motion, the change happens instantly.
 - **State feedback:** Buttons, nav, chips, and fields keep fast (150ms) state transitions.
 

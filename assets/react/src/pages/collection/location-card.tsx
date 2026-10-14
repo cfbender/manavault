@@ -63,7 +63,7 @@ export function LocationCard({
             {compactNumber(location.itemCount || 0)} cards
           </span>
         </div>
-        <h3 className="line-clamp-2 min-w-0 text-4xl font-black tracking-normal">
+        <h3 data-page-heading className="line-clamp-2 min-w-0 text-4xl font-black tracking-normal">
           {location.name}
         </h3>
         <div className="font-mono text-sm font-bold text-base-content/75">

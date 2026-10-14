@@ -1490,3 +1490,34 @@ html[data-card-morph] .location-card * {
     transform: translateY(12px) scale(0.96);
   }
 }
+
+/* Header brand: the wordmark gives way to the page title once the page's
+   heading scrolls under the header. */
+.app-header-brand__wordmark,
+.app-header-brand__title {
+  transition:
+    opacity 220ms ease,
+    translate 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.app-header-brand__title {
+  opacity: 0;
+  translate: 0 0.6rem;
+}
+
+.app-header-brand[data-show-title] .app-header-brand__wordmark {
+  opacity: 0;
+  translate: 0 -0.6rem;
+}
+
+.app-header-brand[data-show-title] .app-header-brand__title {
+  opacity: 1;
+  translate: 0 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-header-brand__wordmark,
+  .app-header-brand__title {
+    translate: none !important;
+  }
+}

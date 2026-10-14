@@ -16,6 +16,12 @@ type PageTitleState = {
 }
 
 const PageTitleContext = createContext<((title: string | null | undefined) => void) | null>(null)
+const PageTitleValueContext = createContext<string | null | undefined>(undefined)
+
+/** The current page's title (without the app name), for chrome that shows it. */
+export function usePageTitleValue() {
+  return useContext(PageTitleValueContext)
+}
 
 export function formatPageTitle(title: string | null | undefined) {
   const trimmedTitle = title?.trim()
@@ -48,7 +54,11 @@ export function PageTitleProvider({ children }: PropsWithChildren) {
     document.title = formatPageTitle(title)
   }, [title])
 
-  return <PageTitleContext.Provider value={contextValue}>{children}</PageTitleContext.Provider>
+  return (
+    <PageTitleContext.Provider value={contextValue}>
+      <PageTitleValueContext.Provider value={title}>{children}</PageTitleValueContext.Provider>
+    </PageTitleContext.Provider>
+  )
 }
 
 export function usePageTitle(title: string | null | undefined) {

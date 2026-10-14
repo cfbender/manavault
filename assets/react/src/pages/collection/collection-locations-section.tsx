@@ -1,3 +1,4 @@
+import { LocationShelfSkeleton } from "../../components/skeletons"
 import { Link } from "@tanstack/react-router"
 import { PageSection } from "../../components/app-shell"
 import { EmptyState } from "../../components/card-image"
@@ -25,7 +26,7 @@ export function CollectionLocationsSection({
   return (
     <PageSection title="Locations" count={`${locationCount} total`}>
       {isLoading ? (
-        <EmptyState title="Loading locations..." />
+        <LocationShelfSkeleton label="Loading locations..." />
       ) : locationGroups.length ? (
         // One shelf of objects sized to their own shapes, grouped by kind in
         // order, so rows pack tightly instead of leaving a row per kind.

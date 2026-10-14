@@ -14,7 +14,7 @@ import {
 } from "lucide-react"
 import { useEffect, useState, type ReactNode } from "react"
 import { isolatedDocumentNavigation } from "../lib/cross-origin-isolation"
-import { PageTitleProvider } from "../lib/page-title"
+import { PageTitleProvider, usePageTitleValue } from "../lib/page-title"
 import { useTheme } from "../lib/theme"
 import { cn } from "../lib/utils"
 import { Button } from "./ui/button"
@@ -116,13 +116,7 @@ export function AppShell() {
           )}
         >
           <div className="navbar min-h-16 px-0">
-            <Link
-              to="/"
-              className="flex min-h-11 min-w-11 items-center gap-3 text-2xl font-black tracking-normal"
-            >
-              <img src="/images/logo.png" alt="" className="h-7 w-7 shrink-0" />
-              <span className="hidden truncate sm:inline">ManaVault</span>
-            </Link>
+            <HeaderBrand />
 
             <nav className="ml-auto hidden items-center gap-1 lg:flex">
               {navItems.map((item) => (
@@ -212,6 +206,77 @@ export function AppShell() {
       </div>
     </PageTitleProvider>
   )
+}
+
+/**
+ * The logo and wordmark. Once the page's heading scrolls up under the header,
+ * the page title takes the wordmark's place, so the page stays named.
+ */
+function HeaderBrand() {
+  const { pathname } = useLocation()
+  const title = usePageTitleValue()
+  const headingAway = useHeadingScrolledAway(pathname)
+  const showTitle = Boolean(headingAway && title)
+
+  return (
+    <div
+      className="app-header-brand relative flex min-w-0 items-center"
+      data-show-title={showTitle || undefined}
+    >
+      <Link
+        to="/"
+        className="flex min-h-11 min-w-11 items-center gap-3 text-2xl font-black tracking-normal"
+      >
+        <img src="/images/logo.png" alt="" className="h-7 w-7 shrink-0" />
+        <span className="app-header-brand__wordmark hidden truncate sm:inline">ManaVault</span>
+      </Link>
+      <span
+        className="app-header-brand__title pointer-events-none absolute left-10 max-w-[min(28rem,60vw)] truncate whitespace-nowrap text-xl font-black tracking-normal sm:text-2xl"
+        aria-hidden="true"
+      >
+        {title}
+      </span>
+    </div>
+  )
+}
+
+/** Whether the page's main heading has scrolled up out of the scroll area. */
+function useHeadingScrolledAway(pathname: string) {
+  const [away, setAway] = useState(false)
+
+  useEffect(() => {
+    setAway(false)
+    const main = document.querySelector<HTMLElement>(".app-shell-main")
+    if (!main) return
+
+    let observer: IntersectionObserver | null = null
+    const watch = () => {
+      const heading = main.querySelector("h1, [data-page-heading]")
+      if (!heading) return false
+      observer = new IntersectionObserver(
+        ([entry]) => {
+          const top = entry.rootBounds?.top ?? 0
+          setAway(!entry.isIntersecting && entry.boundingClientRect.top < top)
+        },
+        { root: main },
+      )
+      observer.observe(heading)
+      return true
+    }
+
+    if (watch()) return () => observer?.disconnect()
+    // The heading may render after data loads.
+    const mutations = new MutationObserver(() => {
+      if (watch()) mutations.disconnect()
+    })
+    mutations.observe(main, { childList: true, subtree: true })
+    return () => {
+      mutations.disconnect()
+      observer?.disconnect()
+    }
+  }, [pathname])
+
+  return away
 }
 
 export function PageHeader({

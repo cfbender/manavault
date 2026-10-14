@@ -1,7 +1,7 @@
+import { CardGridSkeleton } from "../../../components/skeletons"
 import type { FormEvent } from "react"
 import { CheckSquare, ListFilter, Search } from "lucide-react"
 import { PageSection } from "../../../components/app-shell"
-import { EmptyState } from "../../../components/card-image"
 import { CardNameSearchField } from "../../../components/card-name-search-field"
 import { Badge } from "../../../components/ui/badge"
 import { Button } from "../../../components/ui/button"
@@ -113,7 +113,7 @@ export function CollectionItemsView({
         count={`${query.collectionItemCount} ${filters.combinedQuery ? "shown" : "total"}`}
       >
         {query.itemsQuery.loading && !query.itemsQuery.data ? (
-          <EmptyState title="Loading collection..." />
+          <CardGridSkeleton label="Loading collection..." />
         ) : (
           <VirtualizedCollectionGrid
             groups={query.groups}

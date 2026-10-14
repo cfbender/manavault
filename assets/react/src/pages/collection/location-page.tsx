@@ -1,3 +1,4 @@
+import { CardGridSkeleton, LocationPageSkeleton } from "../../components/skeletons"
 import { useApolloClient, useMutation, useQuery } from "@apollo/client/react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { CheckSquare, ListFilter, Search, WandSparkles } from "lucide-react"
@@ -275,7 +276,7 @@ export function LocationPage({ id }: { id: string }) {
     runUnfiledAutoSort(false)
   }
 
-  if (isLoading) return <EmptyState title="Loading location..." />
+  if (isLoading) return <LocationPageSkeleton />
   if (!location) return <EmptyState title="Location not found" />
 
   return (
@@ -367,7 +368,7 @@ export function LocationPage({ id }: { id: string }) {
         </p>
       ) : null}
       {itemsQuery.loading && !itemsQuery.data ? (
-        <EmptyState title="Loading collection..." />
+        <CardGridSkeleton label="Loading collection..." />
       ) : (
         <div className="space-y-7">
           <CollectionBulkActionBar
