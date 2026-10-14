@@ -8,6 +8,72 @@ See [docs/releasing.md](docs/releasing.md) for maintainer instructions.
 
 ---
 
+## [2.1.0] - 2026-10-14
+
+### Bug Fixes
+
+- **pricing:** Price TCGplayer from tcgcsv market price, falling back to TCG Low ([`55637cbf`](../../commit/55637cbf9cb59a1cdfabd8e8f607828aa91779e9))
+- **scanner:** Flush correction labels before responding ([`5b8dd51f`](../../commit/5b8dd51f4a1fdb33630d177a1b332f7538878059))
+- **ai:** Skip archived decks in AI deck analysis ([`cc131365`](../../commit/cc1313657494ff25fbb292d34413fc340371146e))
+- **allocation:** Keep deck allocations consistent across card and item edits ([`49968ad4`](../../commit/49968ad4627d68e6f7373c2d1fa7f195144b5069))
+- **server:** Stop memory growth across price syncs ([`820090d3`](../../commit/820090d313353f256f3bd5bdd6add764e1d0d51c))
+- **ai:** Keep exile-based removal out of exile payoff tags ([`d70b2d5f`](../../commit/d70b2d5ff2c8a9e089b33e96f85b43408d03da3f))
+- **decks:** Stand the priciest card in front at the right of the deck box ([`f13db63d`](../../commit/f13db63deec8d33392e566e66c27d51ed3188a50))
+- **release:** Generate the changelog in shallow checkouts and on reruns ([`60f13e9c`](../../commit/60f13e9c00ad80272fc2dd4849e481e8f272c606))
+
+### Build
+
+- **rust:** Unify dev-dependency features to avoid double compilation ([`35307e1c`](../../commit/35307e1cbffbc322d248e5e4d501b30a0e2ded58))
+
+### Chores
+
+- **backlog:** Finalize TASK-94.5 ([`de941150`](../../commit/de941150e022c9a90d40453a53269807cfb5d2f7))
+- **backlog:** Close TASK-94 ([`a8961863`](../../commit/a8961863d67111306d8524a56d12dd38b55445a9))
+
+### Documentation
+
+- **rust:** One architecture overview, retire parity harness and port notes ([`2e8a14af`](../../commit/2e8a14af55e718c0b5f82b7aeaf27ab2f1a121a1))
+
+### Features
+
+- **ai:** Add Karsten mana curve and land/ramp guidance to deck analysis prompt ([`1b9a9ca1`](../../commit/1b9a9ca10db8c12d4b8c9c69d5bf8df5d44a6178))
+- **collection:** Track market value at acquisition and rebuild it from MTGJSON price history ([`573053db`](../../commit/573053db4a47d7b8f355c562671242d88a627e2e))
+- **scan:** Export the scanned list as text or CSV ([`8e952a62`](../../commit/8e952a626cf2a2fb6c3d9321c5a80d155eba4a11))
+- **catalog:** Map more Scryfall oracle tags to deck themes ([`97d7fbcb`](../../commit/97d7fbcbc87cc6d2c871df10259db379ae7bbc00))
+- **catalog:** Add impulse draw and cast-from-exile deck themes ([`9223a6a6`](../../commit/9223a6a67d81a49c546cbdc1aa0f2ede9305a1e8))
+- **ai:** Group deck cards into AI-planned roles with Jev ([`a2b4d7d0`](../../commit/a2b4d7d070172e3be4c18b006497f2e122d13e40))
+- **decks:** Offer AI Tag grouping first and fit the group menu on screen ([`2b70334f`](../../commit/2b70334fa0fca70bb0b8f3b609cb8deec80bc89a))
+- **ai:** Make the AI tag decision model configurable ([`c64a069b`](../../commit/c64a069b5b937d61d6b804d6fa249116a5be5f4c))
+- **collection:** Draw locations as physical storage with shared-element transitions ([`2ed7ad7f`](../../commit/2ed7ad7f38e10b684e32080c44ec7d8911d67ac6))
+- **collection:** Stick card, set, and rarity symbols on locations ([`bea586c5`](../../commit/bea586c5a4b829bf62f35d8291db61cc14ae171e))
+- **cards:** Sift through cards in the full-screen view ([`42b2bb54`](../../commit/42b2bb5499959fb04ddfd5500d2d8a7a767efede))
+- **collection:** Pack locations on one shelf sized to their objects ([`8de9270e`](../../commit/8de9270e49d0256d52d929025390f5f72de0a099))
+- **collection:** Pick a location visually and drop the added card into it ([`91950db6`](../../commit/91950db6ada0669368e99ccfbf5a503f5040d26e))
+- **ui:** Page title in the header on scroll and shaped loading placeholders ([`2e616955`](../../commit/2e616955f2a20281ed13e639d28ae0597b80cf57))
+- **decks,cards:** Deck boxes, card tilt, and opening cards into their page ([`5c82ad5a`](../../commit/5c82ad5a59942e089b2376ca13ba556c1c9817bf))
+- **decks:** Move deck tags into a toolbar dialog ([`3b8f82ab`](../../commit/3b8f82abc0363ca048ffbc96f958be582e6fd2d8))
+
+### Miscellaneous
+
+- Document the /api/v1 REST API with OpenAPI 3.1 and Swagger UI (#163) ([`0f859ddf`](../../commit/0f859ddf97580dd3536906ee542391f82371630c))
+
+### Performance
+
+- **decks:** Speed up adding AI recommendations to considering ([`857d4da3`](../../commit/857d4da3bdcdbec2cca9c66d174a134505acb563))
+
+### Refactoring
+
+- **web:** Serve GraphQL over async-graphql-axum and graphql-ws ([`0310689b`](../../commit/0310689bcd5c2f23b26420e233c61fe743c30803))
+- **web:** Keep sessions in a private cookie and rename secret/host variables ([`59c7be14`](../../commit/59c7be148e2b639beddcc70053ee18126c1ed76c))
+- **jobs:** Store background jobs in a native jobs table ([`5ae5934a`](../../commit/5ae5934a264db6fe0d8051663fc2f5ec9925c263))
+- **graphql:** Drop Absinthe error, id, and root type compatibility ([`43b67112`](../../commit/43b6711212f0c7c10c49a60edf78b6b0052131c7))
+- **tests:** Crate-local test schemas and direct crate imports ([`3c92e4e2`](../../commit/3c92e4e286196067c4e6bc89f56fadff843825c6))
+- **core:** Typed timestamps ([`5d56f768`](../../commit/5d56f768d531248ffa8d5a291abc24914f6a7b59))
+
+### Style
+
+- **decks:** Shrink the deck gallery to 90% width on wide screens ([`4cd88832`](../../commit/4cd8883223f28be2dda8ace6aa701081e43ea2cf))
+
 ## [2.0.0] - 2026-10-07
 
 ### Bug Fixes
