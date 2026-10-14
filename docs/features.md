@@ -260,9 +260,10 @@ Deck workflows include:
   their current finish
 - grouping by theme, category, type, color, color identity, mana value, rarity,
   set, custom tag, price, salt score, allocation, or none
-- custom deck tags with a radial tag picker on each card, a collapsible tags
-  sidebar with counts and jump-to-group, and default tags (with optional
-  targets) configured in **Settings -> Default Deck Tags**
+- custom deck tags with a radial tag picker on each card, a **Tags** toolbar
+  button that opens a dialog with counts, targets, and jump-to-group (the
+  active tag shows on the button), and default tags (with optional targets)
+  configured in **Settings -> Default Deck Tags**
 - a deck primer saved with the deck, with clickable card references
 - EDHREC salt score totals in the deck header
 - bulk deck-card selection and movement

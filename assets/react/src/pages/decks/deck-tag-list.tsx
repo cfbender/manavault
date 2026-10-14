@@ -1,21 +1,7 @@
-import {
-  ArrowRight,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  ChevronUp,
-  Pencil,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Plus,
-  Tag,
-  Trash2,
-  X,
-} from "lucide-react"
+import { ArrowRight, Check, ChevronDown, ChevronUp, Pencil, Plus, Trash2, X } from "lucide-react"
 import { useState, type FormEvent } from "react"
 
 import { Input } from "../../components/ui/input"
-import { useLocalStorageState } from "../../lib/use-local-storage"
 import { cn } from "../../lib/utils"
 import { DECK_TAG_COLORS } from "./deck-types"
 import type { DeckCustomTag } from "./deck-types"
@@ -24,7 +10,7 @@ type DeckTagInput = { name: string; color: string; targetCount: number | null }
 
 type EditingState = { kind: "closed" } | { kind: "create" } | { kind: "edit"; tagId: string }
 
-export function DeckTagsSidebar({
+export function DeckTagList({
   tags,
   activeTagId,
   onJumpToTag,
@@ -33,8 +19,6 @@ export function DeckTagsSidebar({
   onDeleteTag,
   onReorderTags,
   disabled = false,
-  variant = "sidebar",
-  storageKey = "manavault.deckTags.sidebarCollapsed",
 }: {
   tags: DeckCustomTag[]
   activeTagId: string | null
@@ -44,14 +28,9 @@ export function DeckTagsSidebar({
   onDeleteTag: (id: string) => void
   onReorderTags: (tagIds: string[]) => void
   disabled?: boolean
-  variant?: "sidebar" | "panel"
-  storageKey?: string
 }) {
   const [editing, setEditing] = useState<EditingState>({ kind: "closed" })
-  const [collapsed, setCollapsed] = useLocalStorageState<boolean>(storageKey, true)
   const sortedTags = [...tags].sort((a, b) => a.position - b.position)
-  const headerLabel = "Tags"
-  const headingId = variant === "panel" ? "deck-tags-heading-panel" : "deck-tags-heading-sidebar"
 
   function handleMove(tagId: string, direction: "up" | "down") {
     const currentIndex = sortedTags.findIndex((tag) => tag.id === tagId)
@@ -76,7 +55,7 @@ export function DeckTagsSidebar({
     setEditing({ kind: "closed" })
   }
 
-  const tagListBody = (
+  return (
     <div className="flex flex-col gap-3">
       {sortedTags.length === 0 ? (
         <p className="px-1 text-xs font-semibold text-base-content/55">
@@ -139,115 +118,6 @@ export function DeckTagsSidebar({
       ) : null}
     </div>
   )
-
-  // Desktop sidebar: a single element whose width animates between a tall rail
-  // (collapsed) and the full panel (expanded). Both layers stay mounted so the
-  // width transition reads as a clean slide rather than a DOM swap.
-  if (variant === "sidebar") {
-    return (
-      <aside
-        className={cn(
-          "relative min-h-64 self-stretch overflow-hidden rounded-box border border-base-300 bg-base-100 transition-[width] duration-300 ease-in-out",
-          collapsed ? "w-12" : "w-64",
-        )}
-        aria-label="Deck tags"
-      >
-        {/* Collapsed rail: fills the full height, fades in when collapsed. */}
-        <button
-          type="button"
-          className={cn(
-            "absolute inset-0 flex flex-col items-center gap-3 py-3 transition-opacity duration-200",
-            collapsed ? "opacity-100" : "pointer-events-none opacity-0",
-          )}
-          aria-expanded={false}
-          aria-label="Expand tags sidebar"
-          tabIndex={collapsed ? 0 : -1}
-          onClick={() => setCollapsed(false)}
-        >
-          <PanelLeftOpen className="h-4 w-4 shrink-0 text-base-content/60" aria-hidden="true" />
-          <span className="flex flex-1 items-center justify-center">
-            <span className="text-xs font-bold uppercase tracking-[0.2em] text-base-content/60 [writing-mode:vertical-lr]">
-              {headerLabel}
-            </span>
-          </span>
-          <span className="relative flex shrink-0 items-center justify-center">
-            <Tag className="h-4 w-4 text-primary/80" aria-hidden="true" />
-            {sortedTags.length ? (
-              <span className="absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-base-200 px-1 font-mono text-[0.6rem] font-bold text-base-content/60">
-                {sortedTags.length}
-              </span>
-            ) : null}
-          </span>
-        </button>
-
-        {/* Expanded panel: fixed width so it doesn't reflow while the aside animates. */}
-        <div
-          className={cn(
-            "flex w-64 flex-col gap-3 p-3 transition-opacity duration-200",
-            collapsed ? "pointer-events-none opacity-0" : "opacity-100 delay-75",
-          )}
-          inert={collapsed}
-          aria-hidden={collapsed}
-        >
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 rounded-btn px-1.5 py-1 text-left transition-colors hover:bg-base-200/70"
-            aria-expanded={!collapsed}
-            aria-label="Collapse tags sidebar"
-            onClick={() => setCollapsed(true)}
-          >
-            <Tag className="h-4 w-4 shrink-0 text-base-content/60" aria-hidden="true" />
-            <h2
-              id={headingId}
-              className="min-w-0 flex-1 text-sm font-bold uppercase tracking-wide text-base-content/70"
-            >
-              {headerLabel}
-            </h2>
-            <PanelLeftClose className="h-4 w-4 shrink-0 text-base-content/50" aria-hidden="true" />
-          </button>
-          {tagListBody}
-        </div>
-      </aside>
-    )
-  }
-
-  // Mobile panel: a full-width collapsible dropdown beneath the deck header.
-  return (
-    <aside
-      className={cn(
-        "flex flex-col gap-3",
-        collapsed ? "" : "rounded-box border border-base-300 bg-base-100 p-3",
-      )}
-      aria-labelledby={headingId}
-    >
-      <button
-        type="button"
-        className="flex w-full items-center gap-2 rounded-full border border-base-300 bg-base-200/60 px-3 py-2 text-left transition-colors hover:bg-base-200/70"
-        aria-expanded={!collapsed}
-        onClick={() => setCollapsed((current) => !current)}
-      >
-        <Tag className="h-4 w-4 shrink-0 text-base-content/60" aria-hidden="true" />
-        <h2
-          id={headingId}
-          className="min-w-0 flex-1 text-sm font-bold uppercase tracking-wide text-base-content/70"
-        >
-          {headerLabel}
-        </h2>
-        {collapsed && sortedTags.length ? (
-          <span className="shrink-0 rounded-full bg-base-200 px-1.5 py-0.5 font-mono text-xs font-bold text-base-content/60">
-            {sortedTags.length}
-          </span>
-        ) : null}
-        {collapsed ? (
-          <ChevronRight className="h-4 w-4 shrink-0 text-base-content/50" aria-hidden="true" />
-        ) : (
-          <ChevronDown className="h-4 w-4 shrink-0 text-base-content/50" aria-hidden="true" />
-        )}
-      </button>
-
-      {collapsed ? null : tagListBody}
-    </aside>
-  )
 }
 
 function DeckTagRow({
@@ -294,6 +164,64 @@ function DeckTagRow({
         <span className="min-w-0 flex-1 truncate text-sm font-semibold text-base-content">
           {tag.name}
         </span>
+        {disabled ? null : confirmingDelete ? (
+          <div className="flex shrink-0 items-center gap-1">
+            <span className="mr-1 text-xs font-semibold text-base-content/70">Delete?</span>
+            <button
+              type="button"
+              aria-label={`Confirm delete ${tag.name}`}
+              className="btn btn-error btn-xs btn-square"
+              onClick={onDelete}
+            >
+              <Check className="h-3 w-3" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label={`Cancel delete ${tag.name}`}
+              className="btn btn-ghost btn-xs btn-square"
+              onClick={() => setConfirmingDelete(false)}
+            >
+              <X className="h-3 w-3" aria-hidden="true" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex shrink-0 items-center transition-opacity focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0">
+            <button
+              type="button"
+              aria-label={`Move ${tag.name} up`}
+              className="btn btn-ghost btn-xs btn-square"
+              disabled={isFirst}
+              onClick={onMoveUp}
+            >
+              <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label={`Move ${tag.name} down`}
+              className="btn btn-ghost btn-xs btn-square"
+              disabled={isLast}
+              onClick={onMoveDown}
+            >
+              <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label={`Edit ${tag.name}`}
+              className="btn btn-ghost btn-xs btn-square"
+              onClick={onEdit}
+            >
+              <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label={`Delete ${tag.name}`}
+              className="btn btn-ghost btn-xs btn-square text-error"
+              onClick={() => setConfirmingDelete(true)}
+            >
+              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          </div>
+        )}
         <span className="shrink-0 font-mono text-xs font-bold text-base-content/60">
           {tag.cardCount}/{targetCount ?? "\u2014"}
         </span>
@@ -316,65 +244,6 @@ function DeckTagRow({
           />
         ) : null}
       </div>
-
-      {disabled ? null : confirmingDelete ? (
-        <div className="mt-1.5 flex items-center justify-end gap-1.5">
-          <span className="mr-auto text-xs font-semibold text-base-content/70">Delete tag?</span>
-          <button
-            type="button"
-            aria-label={`Confirm delete ${tag.name}`}
-            className="btn btn-error btn-xs btn-square"
-            onClick={onDelete}
-          >
-            <Check className="h-3 w-3" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            aria-label={`Cancel delete ${tag.name}`}
-            className="btn btn-ghost btn-xs btn-square"
-            onClick={() => setConfirmingDelete(false)}
-          >
-            <X className="h-3 w-3" aria-hidden="true" />
-          </button>
-        </div>
-      ) : (
-        <div className="mt-1.5 flex items-center justify-end gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
-          <button
-            type="button"
-            aria-label={`Move ${tag.name} up`}
-            className="btn btn-ghost btn-xs btn-square"
-            disabled={isFirst}
-            onClick={onMoveUp}
-          >
-            <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            aria-label={`Move ${tag.name} down`}
-            className="btn btn-ghost btn-xs btn-square"
-            disabled={isLast}
-            onClick={onMoveDown}
-          >
-            <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            aria-label={`Edit ${tag.name}`}
-            className="btn btn-ghost btn-xs btn-square"
-            onClick={onEdit}
-          >
-            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            aria-label={`Delete ${tag.name}`}
-            className="btn btn-ghost btn-xs btn-square text-error"
-            onClick={() => setConfirmingDelete(true)}
-          >
-            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-          </button>
-        </div>
-      )}
     </div>
   )
 }

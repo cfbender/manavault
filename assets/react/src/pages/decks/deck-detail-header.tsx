@@ -14,11 +14,19 @@ import {
   Play,
   Plus,
   ShoppingCart,
+  Tag,
 } from "lucide-react"
 import { useState, type ReactNode } from "react"
 
 import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog"
 import type { DeckGroupBy, DeckGroupOption } from "../../lib/deck-grouping"
 import { compactNumber, cn, titleize } from "../../lib/utils"
 import { ShareModeHidden, SummaryActionMenu } from "./deck-actions"
@@ -30,7 +38,7 @@ import { deckLegalityIssueCountLabel, deckLegalityLabel, deckLegalityTone } from
 import { DeckBox } from "./deck-box"
 import { DeckPrimer } from "./deck-primer"
 import { DeckQuestionDialog } from "./deck-question-dialog"
-import { DeckTagsSidebar } from "./deck-tags-sidebar"
+import { DeckTagList } from "./deck-tag-list"
 import type { DeckCardEntry, DeckCustomTag, DeckDetail } from "./deck-types"
 import { useDeckAnalysis } from "./use-deck-analysis"
 import { externalSourceLabel, useDeckExternalSource } from "./use-deck-external-source"
@@ -137,58 +145,49 @@ function DeckPriceChip({ onClick, price }: { onClick: () => void; price: DeckPri
   )
 }
 
-function DeckTagPanels({
+/**
+ * The deck's tags in a dialog opened from the toolbar. Choosing a tag
+ * highlights its cards and closes the dialog so the highlight is visible.
+ */
+function DeckTagsDialog({
   canEdit,
   deckTags,
-  shareMode,
+  onOpenChange,
+  open,
   tagActions,
-}: Pick<DeckDetailHeaderProps, "canEdit" | "deckTags" | "shareMode" | "tagActions">) {
-  if (shareMode) return null
-
-  const sidebar = (
-    <DeckTagsSidebar
-      tags={deckTags}
-      activeTagId={tagActions.activeTagId}
-      disabled={!canEdit}
-      onCreateTag={tagActions.onCreate}
-      onDeleteTag={tagActions.onDelete}
-      onJumpToTag={tagActions.onJumpTo}
-      onReorderTags={tagActions.onReorder}
-      onUpdateTag={tagActions.onUpdate}
-      variant="sidebar"
-    />
-  )
-
+}: Pick<DeckDetailHeaderProps, "canEdit" | "deckTags" | "tagActions"> & {
+  onOpenChange: (open: boolean) => void
+  open: boolean
+}) {
   return (
-    <div className="hidden lg:sticky lg:top-4 lg:block lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
-      {sidebar}
-    </div>
-  )
-}
-
-export function DeckMobileTagsPanel({
-  canEdit,
-  deckTags,
-  shareMode,
-  tagActions,
-}: Pick<DeckDetailHeaderProps, "canEdit" | "deckTags" | "shareMode" | "tagActions">) {
-  if (shareMode) return null
-
-  return (
-    <div className="lg:hidden">
-      <DeckTagsSidebar
-        tags={deckTags}
-        activeTagId={tagActions.activeTagId}
-        disabled={!canEdit}
-        onCreateTag={tagActions.onCreate}
-        onDeleteTag={tagActions.onDelete}
-        onJumpToTag={tagActions.onJumpTo}
-        onReorderTags={tagActions.onReorder}
-        onUpdateTag={tagActions.onUpdate}
-        storageKey="manavault.deckTags.mobilePanelCollapsed"
-        variant="panel"
-      />
-    </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md" labelledBy="deck-tags-dialog-title">
+        <DialogHeader>
+          <div>
+            <DialogTitle id="deck-tags-dialog-title">Tags</DialogTitle>
+            <p className="mt-1 text-sm text-base-content/60">
+              Group cards and track them toward a target. Choose a tag to highlight its cards.
+            </p>
+          </div>
+          <DialogClose onClose={() => onOpenChange(false)} />
+        </DialogHeader>
+        <div className="p-5">
+          <DeckTagList
+            tags={deckTags}
+            activeTagId={tagActions.activeTagId}
+            disabled={!canEdit}
+            onCreateTag={tagActions.onCreate}
+            onDeleteTag={tagActions.onDelete}
+            onJumpToTag={(tagId) => {
+              tagActions.onJumpTo(tagId)
+              onOpenChange(false)
+            }}
+            onReorderTags={tagActions.onReorder}
+            onUpdateTag={tagActions.onUpdate}
+          />
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -293,18 +292,14 @@ export function DeckDetailHeader({
   zoneCounts,
 }: DeckDetailHeaderProps) {
   const [questionOpen, setQuestionOpen] = useState(false)
+  const [tagsOpen, setTagsOpen] = useState(false)
+  const activeTag = deckTags.find((tag) => tag.id === tagActions.activeTagId)
   const analysis = useDeckAnalysis(deck, !shareMode)
   const hasAnalysis = Boolean(deck.aiAnalysis?.trim())
   const canAnalyze = deck.status !== "archived"
 
   return (
     <>
-      <DeckTagPanels
-        canEdit={canEdit}
-        deckTags={deckTags}
-        shareMode={shareMode}
-        tagActions={tagActions}
-      />
       <div className="min-w-0 space-y-7">
         <ShareModeHidden shareMode={shareMode}>
           <Button asChild variant="outline" size="sm">
@@ -568,6 +563,18 @@ export function DeckDetailHeader({
                   ) : null}
                 </>
               ) : null}
+              <Button
+                type="button"
+                variant={activeTag ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => setTagsOpen(true)}
+              >
+                <Tag className="h-4 w-4" aria-hidden="true" />
+                {activeTag ? activeTag.name : "Tags"}
+                {!activeTag && deckTags.length ? (
+                  <span className="font-mono text-xs opacity-70">{deckTags.length}</span>
+                ) : null}
+              </Button>
               {canAllocate && hasReadinessWork ? (
                 <Button type="button" variant="outline" size="sm" onClick={onOpenReadiness}>
                   Pull list
@@ -579,6 +586,15 @@ export function DeckDetailHeader({
         </div>
         {children}
       </div>
+      {!shareMode ? (
+        <DeckTagsDialog
+          canEdit={canEdit}
+          deckTags={deckTags}
+          open={tagsOpen}
+          tagActions={tagActions}
+          onOpenChange={setTagsOpen}
+        />
+      ) : null}
       {!shareMode && questionOpen ? (
         <DeckQuestionDialog
           deckId={deck.id}

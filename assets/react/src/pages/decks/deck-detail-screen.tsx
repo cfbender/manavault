@@ -11,7 +11,7 @@ import { createDeckPullList } from "./deck-allocation-model"
 import { countDeckZones } from "./deck-card-model"
 import { DeckDetailCardCollections } from "./deck-detail-card-collections"
 import { DeckDetailDialogLauncher } from "./deck-detail-dialog-launcher"
-import { DeckDetailHeader, DeckMobileTagsPanel } from "./deck-detail-header"
+import { DeckDetailHeader } from "./deck-detail-header"
 import { DeckDetailLoadingState } from "./deck-detail-loading"
 import { DeckBoxFieldsFragment } from "./deck-list-documents"
 import {
@@ -288,13 +288,7 @@ export function DeckDetailScreen({
 
   return (
     <>
-      <div
-        className={
-          shareMode
-            ? undefined
-            : "lg:grid lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start lg:gap-6"
-        }
-      >
+      <div>
         <DeckDetailHeader
           canAllocate={canAllocate}
           canEdit={canEditDecklist}
@@ -406,20 +400,6 @@ export function DeckDetailScreen({
               totalCount={deckCards.length}
             />
           ) : null}
-
-          <DeckMobileTagsPanel
-            canEdit={canEditDecklist}
-            deckTags={deck.tags}
-            shareMode={shareMode}
-            tagActions={{
-              activeTagId,
-              onCreate: deckTagActions.createTag,
-              onDelete: deckTagActions.deleteTag,
-              onJumpTo: jumpToTag,
-              onReorder: deckTagActions.reorderTags,
-              onUpdate: deckTagActions.updateTag,
-            }}
-          />
 
           <DeckDetailCardCollections
             canAllocate={canAllocate}
