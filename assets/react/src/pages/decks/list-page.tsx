@@ -376,7 +376,9 @@ export function DecksPage() {
     navigate({ to: "/decks" })
   }
   return (
-    <>
+    // 90% of the shell's 105rem cap: on wide screens the boxes read better a
+    // touch smaller, the way the page looks at 90% browser zoom.
+    <div className="mx-auto max-w-[94.5rem]">
       <DeckGalleryHeader
         canPickDeck={activeDecks.length > 0}
         onAnalyzeDeck={() => setIsDeckAnalysisOpen(true)}
@@ -439,6 +441,6 @@ export function DecksPage() {
       >
         This removes the deck and returns allocated cards to their original locations.
       </ConfirmDialog>
-    </>
+    </div>
   )
 }
