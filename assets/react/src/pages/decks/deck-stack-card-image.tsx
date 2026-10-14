@@ -1,5 +1,6 @@
 import { CheckSquare, Square } from "lucide-react"
 
+import { useCardTilt } from "../../lib/card-tilt"
 import { cn } from "../../lib/utils"
 import { cardImageUrl } from "./deck-card-model"
 import { GameChangerBadge } from "./deck-card-display"
@@ -22,11 +23,13 @@ export function DeckStackCardImage({
   const imageUrl = cardImageUrl(deckCard, "imageUrl")
   const printing = deckCard.preferredPrinting || deckCard.fallbackPrinting
   const hasFoilFinish = deckCard.finish === "foil" || deckCard.finish === "etched"
+  const tiltRef = useCardTilt<HTMLElement>()
 
   return (
     <figure
+      ref={tiltRef}
       className={cn(
-        "relative aspect-[5/7] overflow-hidden rounded-xl bg-base-300 shadow-xl ring-1 ring-white/10 transition duration-200",
+        "card-tilt relative aspect-[5/7] overflow-hidden rounded-xl bg-base-300 shadow-xl ring-1 ring-white/10 transition duration-200",
         hasFoilFinish && "card-tile-foil",
         deckCard.finish === "etched" && "card-tile-foil--etched",
         isActive && "shadow-2xl ring-primary/45",

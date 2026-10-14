@@ -31,6 +31,8 @@ export const DecksDocument = graphql(`
           externalSyncError
           coverDeckCardId
           coverImageUrl
+          coverCardImageUrl
+          priciestCardImageUrls(first: 6)
           commanderColorIdentity
           cardCount
           legality {
@@ -56,6 +58,8 @@ export const RandomDeckDocument = graphql(`
       format
       status
       coverImageUrl
+      coverCardImageUrl
+      priciestCardImageUrls(first: 6)
       commanderColorIdentity
       cardCount
       playCount
@@ -100,6 +104,8 @@ export const CreateDeckDocument = graphql(`
         externalSyncError
         coverDeckCardId
         coverImageUrl
+        coverCardImageUrl
+        priciestCardImageUrls(first: 6)
         commanderColorIdentity
         cardCount
         legality {
@@ -142,6 +148,8 @@ export const UpdateDeckDocument = graphql(`
         externalSyncError
         coverDeckCardId
         coverImageUrl
+        coverCardImageUrl
+        priciestCardImageUrls(first: 6)
         commanderColorIdentity
         cardCount
         legality {
@@ -166,5 +174,19 @@ export const DeleteDeckDocument = graphql(`
         name
       }
     }
+  }
+`)
+
+/** What the gallery already knows about a deck, enough to draw its box. */
+export const DeckBoxFieldsFragment = graphql(`
+  fragment DeckBoxFields on Deck {
+    id
+    name
+    format
+    cardCount
+    coverImageUrl
+    coverCardImageUrl
+    priciestCardImageUrls(first: 6)
+    commanderColorIdentity
   }
 `)

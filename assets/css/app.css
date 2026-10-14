@@ -1521,3 +1521,213 @@ html[data-card-morph] .location-card * {
     translate: none !important;
   }
 }
+
+/* Deck box (wide): a deck box standing on its long side, its front printed
+   with the cover art, the open top showing sleeves and the cover card rising
+   out. Sizes use container units of the box. */
+.db-stage {
+  aspect-ratio: 1.4;
+  padding: 0.75rem 0.5rem 1.4rem;
+}
+
+.db-box {
+  position: relative;
+  width: 88%;
+  aspect-ratio: 1.6;
+  container-type: size;
+  transition: transform 460ms var(--lo-spring);
+}
+
+/* The dark opening at the top, seen over the front wall. */
+.db-inside {
+  position: absolute;
+  top: 10cqh;
+  left: 2.5cqw;
+  right: 10cqw;
+  height: 16cqh;
+  border-radius: 1.4cqh 1.4cqh 0 0;
+  background: linear-gradient(to bottom, oklch(12% 0.01 20), oklch(20% 0.015 20));
+}
+
+/* Tops of sleeved cards standing in the box. */
+.db-sleeve {
+  position: absolute;
+  top: calc(13cqh - var(--s) * 1.6cqh);
+  left: calc(48cqw + var(--s) * 9cqw);
+  width: 26cqw;
+  height: 20cqh;
+  border-radius: 1.2cqh 1.2cqh 0 0;
+  background: linear-gradient(to bottom, oklch(30% 0.03 10), oklch(18% 0.02 10));
+  box-shadow: inset 0 0.4cqh 0 rgb(255 255 255 / 0.12);
+  transition: translate 420ms var(--lo-spring);
+  transition-delay: calc(var(--s) * 40ms);
+}
+
+/* The deck's most valuable cards, standing in a loose row beside the cover
+   card with their tops showing above the front wall. */
+.db-standing {
+  position: absolute;
+  top: calc(-13cqh + var(--o) * var(--o) * 2cqh);
+  left: calc(36cqw + var(--s) * 12cqw);
+  width: 21cqw;
+  aspect-ratio: 5 / 7;
+  overflow: hidden;
+  border-radius: 4.75% / 3.4%;
+  background: oklch(22% 0.01 20);
+  box-shadow: 0 2px 5px rgb(0 0 0 / 0.45);
+  rotate: calc(var(--o) * 3.5deg);
+  transform-origin: 50% 100%;
+  filter: brightness(calc(0.82 + var(--s) * 0.05));
+  transition:
+    translate 440ms var(--lo-spring),
+    rotate 440ms var(--lo-spring);
+  transition-delay: calc(var(--s) * 35ms);
+}
+
+.db-standing img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.db-card {
+  position: absolute;
+  z-index: 5;
+  top: -12cqh;
+  left: 9cqw;
+  width: 27cqw;
+  aspect-ratio: 5 / 7;
+  overflow: hidden;
+  border-radius: 4.75% / 3.4%;
+  background: oklch(22% 0.01 20);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.45);
+  rotate: -4deg;
+  transition:
+    translate 460ms var(--lo-spring),
+    rotate 460ms var(--lo-spring);
+}
+
+.db-card img,
+.db-front img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The box's short side, receding to the right. */
+.db-side {
+  position: absolute;
+  top: 18cqh;
+  right: 0;
+  bottom: 1.5cqh;
+  width: 9.5cqw;
+  clip-path: polygon(0 4cqh, 100% 0, 100% 96%, 0 100%);
+  background: linear-gradient(to bottom, oklch(24% 0.04 10), oklch(14% 0.03 10));
+}
+
+.db-front {
+  position: absolute;
+  inset: 21cqh 9cqw 0 0;
+  z-index: 10;
+  overflow: hidden;
+  border-radius: 1.6cqh 1.6cqh 2.4cqh 2.4cqh;
+  background: oklch(26% 0.05 8);
+  box-shadow:
+    inset 0 0.6cqh 0 rgb(255 255 255 / 0.18),
+    0 14px 22px -12px rgb(0 0 0 / 0.65);
+}
+
+.db-front::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      105deg,
+      rgb(255 255 255 / 0.14),
+      transparent 30%,
+      transparent 72%,
+      rgb(0 0 0 / 0.32)
+    ),
+    linear-gradient(to bottom, transparent 55%, rgb(0 0 0 / 0.28));
+  pointer-events: none;
+}
+
+/* The lid's seam across the top of the front. */
+.db-lid {
+  position: absolute;
+  top: 13cqh;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  height: 0.5cqh;
+  background: rgb(0 0 0 / 0.42);
+  box-shadow: 0 0.4cqh 0 rgb(255 255 255 / 0.14);
+}
+
+.lo-stickers--deckwide {
+  --sticker-size: 15cqh;
+  left: 4cqw;
+  bottom: 7cqh;
+  z-index: 2;
+  justify-content: flex-start;
+}
+
+@media (hover: hover) {
+  .location-card--interactive:hover .db-card {
+    translate: 0 -5cqh;
+    rotate: -7deg;
+  }
+
+  .location-card--interactive:hover .db-sleeve {
+    translate: 0 -2.5cqh;
+  }
+
+  .location-card--interactive:hover .db-standing {
+    translate: calc(var(--o) * 1.5cqw) -4cqh;
+    rotate: calc(var(--o) * 6deg);
+  }
+
+  .location-card--interactive:hover .db-box {
+    transform: translateY(-1.5%);
+  }
+}
+
+/* Card tilt: a card under the mouse leans toward it and catches a soft
+   glare, then settles flat when the pointer leaves (see useCardTilt). */
+.card-tilt {
+  transform: perspective(800px) rotateX(var(--tilt-y, 0deg)) rotateY(var(--tilt-x, 0deg));
+  transition:
+    transform 420ms cubic-bezier(0.2, 0.9, 0.25, 1),
+    box-shadow 200ms ease;
+}
+
+.card-tilt[data-tilting] {
+  transition:
+    transform 90ms linear,
+    box-shadow 200ms ease;
+}
+
+.card-tilt::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at var(--glare-x, 50%) var(--glare-y, 50%),
+    rgb(255 255 255 / 0.42),
+    rgb(255 255 255 / 0.1) 36%,
+    transparent 60%
+  );
+  mix-blend-mode: overlay;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 260ms ease;
+}
+
+.card-tilt[data-tilting]::after {
+  opacity: 1;
+}

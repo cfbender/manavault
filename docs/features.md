@@ -243,7 +243,9 @@ available collection copies.
 Deck workflows include:
 
 - create, edit, archive, and delete decks, with tags, format, status, and a
-  selectable cover card
+  selectable cover card; the gallery shows each deck as a deck box printed with
+  its cover, holding its most valuable cards, with the commander's colors stuck
+  on as mana stickers
 - import and export decklists (import straight into a zone, or into select mode)
 - mainboard/commander/considering zones - a segmented Mainboard/Considering
   toggle (plus Commander for Commander decks) picks the zone when adding or

@@ -1,6 +1,11 @@
 import { Link } from "@tanstack/react-router"
 import { addToDeckAction, CardTile } from "../../components/card-tile"
 import { useCardSize } from "../../lib/card-size"
+import {
+  cardPageTransitionName,
+  lastOpenedCard,
+  markCardPageSource,
+} from "../../lib/card-page-morph"
 import { present } from "../../lib/utils"
 import type { CardDeckTarget } from "./add-card-to-deck-dialog"
 
@@ -52,6 +57,8 @@ export function CardResultsGrid({
         return (
           <div key={card.id}>
             <CardTile
+              pageMorphName={cardPageTransitionName(card.id)}
+              pageMorphActive={card.id === lastOpenedCard()}
               imageUrl={printing?.imageUrl}
               menuActions={[
                 addToDeckAction({
@@ -76,6 +83,8 @@ export function CardResultsGrid({
                   to="/cards/$id"
                   params={{ id: card.id }}
                   search={searchParams}
+                  viewTransition
+                  onClick={() => markCardPageSource(card.id)}
                   className="rounded-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35"
                 >
                   {card.name}

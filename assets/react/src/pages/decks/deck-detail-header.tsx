@@ -8,7 +8,6 @@ import {
   createLucideIcon,
   Download,
   ExternalLink,
-  Layers,
   Link2,
   MessageCircleQuestion,
   RefreshCw,
@@ -18,7 +17,6 @@ import {
 } from "lucide-react"
 import { useState, type ReactNode } from "react"
 
-import { ImageSummaryCard } from "../../components/image-summary-card"
 import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
 import type { DeckGroupBy, DeckGroupOption } from "../../lib/deck-grouping"
@@ -29,7 +27,7 @@ import { DeckBracketBadge } from "./deck-bracket"
 import type { DeckLegalityIssue, DeckPrice, DetailZoneCounts } from "./deck-detail-types"
 import { DeckGroupMenu } from "./deck-group-menu"
 import { deckLegalityIssueCountLabel, deckLegalityLabel, deckLegalityTone } from "./deck-legality"
-import { DeckNameWithCommanderIdentity } from "./deck-list-model"
+import { DeckBox } from "./deck-box"
 import { DeckPrimer } from "./deck-primer"
 import { DeckQuestionDialog } from "./deck-question-dialog"
 import { DeckTagsSidebar } from "./deck-tags-sidebar"
@@ -314,13 +312,21 @@ export function DeckDetailHeader({
           </Button>
         </ShareModeHidden>
 
-        <ImageSummaryCard
-          imageUrl={deck.coverImageUrl}
-          fallback={<Layers className="h-12 w-12" />}
-          interactive={false}
-          typeLine={<Badge>{titleize(deck.format)}</Badge>}
-          countLine={`${compactNumber(deck.cardCount || 0)} cards`}
-          detailLine={
+        <div className="relative items-center gap-6 md:grid md:grid-cols-[minmax(0,30rem)_1fr]">
+          <DeckBox deck={deck} className="w-full" />
+          <div className="flex min-w-0 flex-col gap-3 pr-12">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge>{titleize(deck.format)}</Badge>
+              <span className="font-mono text-sm font-bold text-base-content/70">
+                {compactNumber(deck.cardCount || 0)} cards
+              </span>
+            </div>
+            <h1
+              data-page-heading
+              className="line-clamp-2 min-w-0 text-4xl font-black tracking-normal sm:text-5xl"
+            >
+              {deck.name}
+            </h1>
             <div className="flex flex-wrap items-center gap-2 text-base leading-none">
               <Badge tone={deck.status === "active" ? "success" : "neutral"}>
                 {titleize(deck.status)}
@@ -336,41 +342,34 @@ export function DeckDetailHeader({
               />
               {isRefreshing ? <Badge tone="neutral">Refreshing…</Badge> : null}
             </div>
-          }
-          nameLine={
-            <DeckNameWithCommanderIdentity colors={deck.commanderColorIdentity} name={deck.name} />
-          }
-          actionSlot={
-            <ShareModeHidden shareMode={shareMode}>
-              <SummaryActionMenu
-                analyzeLabel={
-                  analysis.pending
-                    ? "Analyzing..."
-                    : hasAnalysis
-                      ? "Refresh AI analysis"
-                      : "Analyze deck with AI"
-                }
-                analyzePending={analysis.pending || analysis.checking}
-                label={`${deck.name} actions`}
-                onAnalyze={canAnalyze ? analysis.analyze : undefined}
-                onCombos={onCombos}
-                onCompare={onCompareDeck}
-                externalSourceLinked={Boolean(deck.externalSource)}
-                onDisassemble={canAllocate ? onDisassemble : undefined}
-                onEdhrec={canEdit && deck.format === "commander" ? onOpenEdhrec : undefined}
-                onRecommander={
-                  canEdit && deck.format === "commander" ? onOpenRecommander : undefined
-                }
-                onEdit={onEditDeck}
-                onExport={onExportDeck}
-                onExternalSource={canAllocate ? onExternalSource : undefined}
-                onImport={canEdit ? onImportDeck : undefined}
-                onMissing={canAllocate && hasBuylistWork ? onMissingCards : undefined}
-                onShare={onShareDeck}
-              />
-            </ShareModeHidden>
-          }
-        />
+          </div>
+          <ShareModeHidden shareMode={shareMode}>
+            <SummaryActionMenu
+              analyzeLabel={
+                analysis.pending
+                  ? "Analyzing..."
+                  : hasAnalysis
+                    ? "Refresh AI analysis"
+                    : "Analyze deck with AI"
+              }
+              analyzePending={analysis.pending || analysis.checking}
+              label={`${deck.name} actions`}
+              onAnalyze={canAnalyze ? analysis.analyze : undefined}
+              onCombos={onCombos}
+              onCompare={onCompareDeck}
+              externalSourceLinked={Boolean(deck.externalSource)}
+              onDisassemble={canAllocate ? onDisassemble : undefined}
+              onEdhrec={canEdit && deck.format === "commander" ? onOpenEdhrec : undefined}
+              onRecommander={canEdit && deck.format === "commander" ? onOpenRecommander : undefined}
+              onEdit={onEditDeck}
+              onExport={onExportDeck}
+              onExternalSource={canAllocate ? onExternalSource : undefined}
+              onImport={canEdit ? onImportDeck : undefined}
+              onMissing={canAllocate && hasBuylistWork ? onMissingCards : undefined}
+              onShare={onShareDeck}
+            />
+          </ShareModeHidden>
+        </div>
 
         <DeckPrimer primer={deck.primer} />
 

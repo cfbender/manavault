@@ -1,3 +1,4 @@
+import { markCardPageSource } from "../../lib/card-page-morph"
 import { useNavigate } from "@tanstack/react-router"
 import { useState } from "react"
 import { PageHeader } from "../../components/app-shell"
@@ -60,13 +61,15 @@ export function CardCatalogPage({
           <CardResultsGrid
             cards={search.cards}
             onAddToDeck={setDeckTarget}
-            onSelectCard={(id) =>
-              navigate({
+            onSelectCard={(id) => {
+              markCardPageSource(id)
+              void navigate({
                 to: "/cards/$id",
                 params: { id },
                 search: search.resultSearchParams,
+                viewTransition: true,
               })
-            }
+            }}
             searchParams={search.resultSearchParams}
           />
           {search.hasMoreResults ? (

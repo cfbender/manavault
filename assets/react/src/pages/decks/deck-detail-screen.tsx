@@ -1,3 +1,4 @@
+import { useApolloClient } from "@apollo/client/react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { useMemo } from "react"
 
@@ -12,6 +13,7 @@ import { DeckDetailCardCollections } from "./deck-detail-card-collections"
 import { DeckDetailDialogLauncher } from "./deck-detail-dialog-launcher"
 import { DeckDetailHeader, DeckMobileTagsPanel } from "./deck-detail-header"
 import { DeckDetailLoadingState } from "./deck-detail-loading"
+import { DeckBoxFieldsFragment } from "./deck-list-documents"
 import {
   bulkAllocationOverlay,
   editCardOverlay,
@@ -70,6 +72,19 @@ export function DeckDetailScreen({
     isRefreshing: isRefreshingDeck,
     refetch: refetchDeckQueries,
   } = useDeckDetail({ id, shareMode })
+  const client = useApolloClient()
+  // The gallery's copy of this deck, if it has one, draws the header's deck
+  // box while the full deck loads.
+  const cachedDeck = useMemo(
+    () =>
+      shareMode
+        ? null
+        : client.readFragment({
+            id: client.cache.identify({ __typename: "Deck", id }),
+            fragment: DeckBoxFieldsFragment,
+          }),
+    [client, id, shareMode],
+  )
   // Archived decks are fully read-only. Decks linked to Moxfield/Archidekt
   // keep collection allocation but block every decklist edit.
   const canAllocate = deck?.status !== "archived"
@@ -236,7 +251,7 @@ export function DeckDetailScreen({
     !shareMode && canEditDecklist && overlay.kind !== "swap-cards",
   )
 
-  if (isInitialDeckLoading) return <DeckDetailLoadingState />
+  if (isInitialDeckLoading) return <DeckDetailLoadingState deck={cachedDeck} />
   if (!deck) {
     return (
       <EmptyState

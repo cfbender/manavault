@@ -676,7 +676,7 @@ async fn deck_counts_exclude_considering_cards() {
 #[tokio::test]
 async fn decks_query_exposes_summary_fields_and_legality() {
     let app = app_with(&[
-        simple_card("scryfall-summary-main", "oracle-summary-main", "Summary Main", "Creature", json!({"image_uris": {"art_crop": "https://example.test/summary-main-art.jpg"}})),
+        simple_card("scryfall-summary-main", "oracle-summary-main", "Summary Main", "Creature", json!({"image_uris": {"art_crop": "https://example.test/summary-main-art.jpg", "normal": "https://example.test/summary-main.jpg"}})),
         simple_card("scryfall-summary-commander", "oracle-summary-commander", "Summary Commander", "Legendary Creature", json!({"color_identity": ["G", "U"], "collector_number": "2", "legalities": {"commander": "legal"}})),
     ])
     .await;
@@ -687,7 +687,7 @@ async fn decks_query_exposes_summary_fields_and_legality() {
         .gql_data(
             "query { decks(first: 10) {
                pageInfo { endCursor hasNextPage }
-               edges { node { name coverImageUrl commanderColorIdentity cardCount uniqueCardCount
+               edges { node { name coverImageUrl coverCardImageUrl commanderColorIdentity cardCount uniqueCardCount
                               legality { status issues { code cardName } } } }
              } }",
             json!({}),
@@ -700,6 +700,11 @@ async fn decks_query_exposes_summary_fields_and_legality() {
         node["coverImageUrl"],
         json!("https://example.test/summary-main-art.jpg")
     );
+    // The same cover card, as the whole card rather than its art.
+    assert_eq!(
+        node["coverCardImageUrl"],
+        json!("https://example.test/summary-main.jpg")
+    );
     assert_eq!(node["commanderColorIdentity"], json!(["U", "G"]));
     assert_eq!(node["cardCount"], json!(3));
     assert_eq!(node["uniqueCardCount"], json!(2));
@@ -711,6 +716,54 @@ async fn decks_query_exposes_summary_fields_and_legality() {
             .iter()
             .any(|issue| issue["code"] == json!("card_legality")
                 && issue["cardName"] == json!("Summary Main"))
+    );
+}
+
+#[tokio::test]
+async fn priciest_card_images_rank_counted_cards_by_price() {
+    let card = |n: u32, name: &str, usd: &str| {
+        simple_card(
+            &format!("scryfall-price-{n}"),
+            &format!("oracle-price-{n}"),
+            name,
+            "Artifact",
+            json!({
+                "collector_number": n.to_string(),
+                "prices": {"usd": usd},
+                "image_uris": {"normal": format!("https://example.test/{n}.jpg")}
+            }),
+        )
+    };
+    let app = app_with(&[
+        card(1, "Cheap Rock", "1.00"),
+        card(2, "Pricey Rock", "30.00"),
+        card(3, "Middle Rock", "5.00"),
+        card(4, "Considered Rock", "100.00"),
+    ])
+    .await;
+    let deck = create_deck(app.db(), "Price Deck", None, None).await;
+    add_card(app.db(), deck.id, "Cheap Rock", 1, "mainboard").await;
+    add_card(app.db(), deck.id, "Pricey Rock", 1, "mainboard").await;
+    add_card(app.db(), deck.id, "Middle Rock", 1, "mainboard").await;
+    // Considering cards are not in the deck, however valuable.
+    add_card(app.db(), deck.id, "Considered Rock", 1, "considering").await;
+    let data = app
+        .gql_data(
+            "query($id: ID!) { deck(id: $id) { top: priciestCardImageUrls(first: 2) all: priciestCardImageUrls } }",
+            json!({"id": deck_gid(deck.id)}),
+        )
+        .await;
+    assert_eq!(
+        data["deck"]["top"],
+        json!(["https://example.test/2.jpg", "https://example.test/3.jpg"])
+    );
+    assert_eq!(
+        data["deck"]["all"],
+        json!([
+            "https://example.test/2.jpg",
+            "https://example.test/3.jpg",
+            "https://example.test/1.jpg"
+        ])
     );
 }
 

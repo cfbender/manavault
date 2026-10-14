@@ -175,6 +175,29 @@ impl Deck {
         ))
     }
 
+    /// The cover card's full card image (`coverImageUrl` is its art crop).
+    async fn cover_card_image_url(&self, ctx: &Context<'_>) -> Result<Option<String>> {
+        let contents = self.loaded(ctx).await?;
+        Ok(contents::cover_card_image_url(
+            &contents.cards,
+            self.row.cover_deck_card_id,
+        ))
+    }
+
+    /// Card images of the deck's most valuable cards, priciest first.
+    async fn priciest_card_image_urls(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(default = 5)] first: i32,
+    ) -> Result<Vec<String>> {
+        let contents = self.loaded(ctx).await?;
+        Ok(contents::priciest_card_image_urls(
+            &contents.cards,
+            &state(ctx).prices,
+            usize::try_from(first.clamp(0, 20)).unwrap_or_default(),
+        ))
+    }
+
     async fn commander_color_identity(
         &self,
         ctx: &Context<'_>,

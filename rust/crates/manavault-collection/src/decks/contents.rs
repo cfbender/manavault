@@ -200,6 +200,64 @@ pub fn cover_image_url(
         .or_else(|| cards.iter().find_map(card_cover))
 }
 
+/// The full card image of the cover card (the cover art's card), for
+/// showing the card itself rather than its art crop.
+#[must_use]
+pub fn cover_card_image_url(
+    cards: &[LoadedDeckCard],
+    cover_deck_card_id: Option<DeckCardId>,
+) -> Option<String> {
+    let card_image = |card: &LoadedDeckCard| {
+        [
+            card.preferred_printing.as_ref(),
+            card.fallback_printing.as_ref(),
+        ]
+        .into_iter()
+        .flatten()
+        .find_map(|printing| present(printing.image_url()))
+    };
+    cover_deck_card_id
+        .and_then(|id| cards.iter().find(|card| card.row.id == id))
+        .and_then(card_image)
+        .or_else(|| cards.iter().find_map(card_image))
+}
+
+/// Card images of a deck's most valuable cards, priciest first: the cards
+/// that count toward the deck, priced in their finish from the preferred
+/// printing (else the newest), without repeating an image.
+#[must_use]
+pub fn priciest_card_image_urls(
+    cards: &[LoadedDeckCard],
+    prices: &manavault_catalog::pricing::PriceStore,
+    limit: usize,
+) -> Vec<String> {
+    let mut ranked: Vec<(Option<i64>, &str, String)> = cards
+        .iter()
+        .filter(|card| card.row.counts_toward_deck())
+        .filter_map(|card| {
+            let printing = card
+                .preferred_printing
+                .as_ref()
+                .or(card.fallback_printing.as_ref())?;
+            let image = present(printing.image_url())?;
+            let price = printing.price_cents_for(prices, Some(card.row.finish.as_str()));
+            Some((price, card.card.name.as_str(), image))
+        })
+        .collect();
+    // Priced cards first, most expensive first; then by name for stability.
+    ranked.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(b.1)));
+    let mut images: Vec<String> = Vec::with_capacity(limit);
+    for (_, _, image) in ranked {
+        if images.len() == limit {
+            break;
+        }
+        if !images.contains(&image) {
+            images.push(image);
+        }
+    }
+    images
+}
+
 fn color_sort_value(color: &str) -> usize {
     ["W", "U", "B", "R", "G", "M", "C"]
         .iter()

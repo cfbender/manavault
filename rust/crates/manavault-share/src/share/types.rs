@@ -666,6 +666,29 @@ impl PublicDeck {
         ))
     }
 
+    async fn priciest_card_image_urls(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(default = 5)] first: i32,
+    ) -> Result<Vec<String>> {
+        let contents = self.contents(ctx).await?;
+        Ok(
+            manavault_collection::decks::contents::priciest_card_image_urls(
+                &contents.cards,
+                &manavault_core::graphql::state(ctx).prices,
+                usize::try_from(first.clamp(0, 20)).unwrap_or_default(),
+            ),
+        )
+    }
+
+    async fn cover_card_image_url(&self, ctx: &Context<'_>) -> Result<Option<String>> {
+        let contents = self.contents(ctx).await?;
+        Ok(manavault_collection::decks::contents::cover_card_image_url(
+            &contents.cards,
+            self.0.row.cover_deck_card_id,
+        ))
+    }
+
     async fn card_count(&self, ctx: &Context<'_>) -> Result<Option<i64>> {
         let contents = self.contents(ctx).await?;
         Ok(Some(i64::from(

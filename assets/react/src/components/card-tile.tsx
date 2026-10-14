@@ -23,6 +23,7 @@ import {
   type ReactNode,
 } from "react"
 import { morphCardFrom } from "../lib/card-morph"
+import { useCardTilt } from "../lib/card-tilt"
 import { useCardSize } from "../lib/card-size"
 import { cn } from "../lib/utils"
 import {
@@ -87,6 +88,8 @@ export function CardTile({
   morphKey,
   name,
   onSelect,
+  pageMorphName,
+  pageMorphActive = false,
   primaryActionLabel,
   primaryActionRole = "link",
   price,
@@ -121,6 +124,10 @@ export function CardTile({
   menuActions?: CardTileAction[]
   // Set when onSelect opens the full-screen card view: the tile morphs into it.
   morphKey?: string
+  // Set when onSelect opens the card's page: the tile morphs into its card
+  // (active only for the tile that was opened, so it morphs back on return).
+  pageMorphName?: string
+  pageMorphActive?: boolean
   name: ReactNode
   onSelect?: () => void
   onToggleForTrade?: () => void
@@ -162,7 +169,8 @@ export function CardTile({
       ? `Remove all ${tradeCardName} copies from trade`
       : `Offer ${forTradeQuantity + 1} of ${forTradeTotalQuantity ?? count ?? 1} ${tradeCardName} copies for trade`
   const mobileHover = useMobileHoverReveal<HTMLDivElement>({ deferRevealUntilPointerUp: true })
-  const figureRef = useRef<HTMLElement>(null)
+  const figureRef = useRef<HTMLElement | null>(null)
+  const tiltRef = useCardTilt<HTMLElement>()
   const suppressMenuClickRef = useRef(false)
   const suppressMenuClickTimeoutRef = useRef<number | null>(null)
   const fallbackDefaultActions: CardTileAction[] = [
@@ -350,10 +358,15 @@ export function CardTile({
       ) : null}
 
       <figure
-        ref={figureRef}
+        ref={(element) => {
+          figureRef.current = element
+          tiltRef(element)
+        }}
         data-card-morph-key={morphKey}
+        data-page-morph={pageMorphName}
+        style={pageMorphName && pageMorphActive ? { viewTransitionName: pageMorphName } : undefined}
         className={cn(
-          "relative aspect-[5/7] w-full overflow-hidden rounded-xl bg-base-300 shadow-lg ring-1 ring-white/10 transition duration-200",
+          "card-tilt relative aspect-[5/7] w-full overflow-hidden rounded-xl bg-base-300 shadow-lg ring-1 ring-white/10 transition duration-200",
           foil && "card-tile-foil",
           finish === "etched" && "card-tile-foil--etched",
           growOnHover && "group-hover/card:shadow-2xl",

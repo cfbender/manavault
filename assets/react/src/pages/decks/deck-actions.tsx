@@ -1,3 +1,4 @@
+import { cn } from "../../lib/utils"
 import {
   ArrowLeftRight,
   Download,
@@ -37,6 +38,7 @@ export function ShareModeHidden({
 export function SummaryActionMenu({
   analyzeLabel = "Analyze deck",
   analyzePending = false,
+  className,
   label,
   onAnalyze,
   onCombos,
@@ -56,6 +58,7 @@ export function SummaryActionMenu({
 }: {
   analyzeLabel?: string
   analyzePending?: boolean
+  className?: string
   externalSourceLinked?: boolean
   label: string
   onAnalyze?: () => void
@@ -75,7 +78,7 @@ export function SummaryActionMenu({
 }) {
   return (
     <div
-      className="absolute right-3 top-3 z-[80]"
+      className={cn("absolute right-3 top-3 z-[80]", className)}
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
     >

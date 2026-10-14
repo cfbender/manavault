@@ -29,11 +29,17 @@ export function CardGridSkeleton({ count = 10, label }: { count?: number; label:
 const SHELF_KINDS = ["binder", "box", "deck_box", "box", "list"] as const
 
 /** Object-shaped placeholders for the locations shelf. */
-export function LocationShelfSkeleton({ label }: { label: string }) {
+export function LocationShelfSkeleton({
+  kinds = SHELF_KINDS,
+  label,
+}: {
+  kinds?: readonly string[]
+  label: string
+}) {
   return (
     <div role="status" aria-busy="true" className="flex flex-wrap gap-x-3 gap-y-6 sm:gap-x-5">
       <span className="sr-only">{label}</span>
-      {SHELF_KINDS.map((kind, index) => (
+      {kinds.map((kind, index) => (
         <div
           key={index}
           className="location-tile flex flex-col items-center gap-2"

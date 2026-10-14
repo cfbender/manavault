@@ -7,6 +7,8 @@ import { FullscreenPrintingDialog } from "../../components/fullscreen-printing-d
 import { Button } from "../../components/ui/button"
 import { graphqlEndpointContext } from "../../lib/apollo"
 import { usePageTitle } from "../../lib/page-title"
+import { cardPageTransitionName } from "../../lib/card-page-morph"
+import { useCardTilt } from "../../lib/card-tilt"
 import { present } from "../../lib/utils"
 import { AddCollectionItemDialog, type AddCollectionItemInitialPrinting } from "../collection"
 import { AddCatalogCardToDeckDialog, type CardDeckTarget } from "./add-card-to-deck-dialog"
@@ -58,6 +60,7 @@ export function CardDetailPage({
   returnEdhrecTab,
   returnLocationId,
 }: CardDetailPageProps) {
+  const tiltRef = useCardTilt<HTMLElement>()
   const [addPrinting, setAddPrinting] = useState<AddCollectionItemInitialPrinting | null>(null)
   const [deckTarget, setDeckTarget] = useState<CardDeckTarget | null>(null)
   const [previewPrintingId, setPreviewPrintingId] = useState<string | null>(null)
@@ -112,6 +115,7 @@ export function CardDetailPage({
             <Link
               to="/cards"
               search={{ q: query || undefined, filters: filterSearch, sort: sortSearch }}
+              viewTransition
             >
               Back to search
             </Link>
@@ -132,8 +136,29 @@ export function CardDetailPage({
             className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6"
             primaryPrinting={primary}
           />
-          <div className="relative z-10 flex min-h-80 flex-col justify-between gap-8 p-6">
-            <div className="max-w-5xl space-y-4 pr-12">
+          <div className="relative z-10 flex min-h-80 flex-col gap-8 p-6 md:flex-row md:items-start">
+            {primary?.imageUrl ? (
+              <button
+                type="button"
+                className="mx-auto w-56 shrink-0 rounded-[4.75%/3.4%] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 md:mx-0 md:w-64 lg:w-72"
+                aria-label={`Open ${card.name} full screen`}
+                onClick={() => setPreviewPrintingId(primary.id)}
+              >
+                <figure
+                  ref={tiltRef}
+                  className="card-tilt relative aspect-[5/7] overflow-hidden rounded-[4.75%/3.4%] bg-base-300 shadow-2xl ring-1 ring-white/10"
+                  style={{ viewTransitionName: cardPageTransitionName(card.id) }}
+                >
+                  <img
+                    src={primary.imageUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    draggable={false}
+                  />
+                </figure>
+              </button>
+            ) : null}
+            <div className="min-w-0 max-w-5xl flex-1 space-y-4 pr-12">
               <div className="flex flex-col-reverse gap-1 sm:flex-row sm:items-center sm:gap-4">
                 <h1 className="min-w-0 flex-1 text-3xl font-black tracking-normal sm:text-4xl md:text-5xl">
                   {card.name}

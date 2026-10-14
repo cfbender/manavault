@@ -99,6 +99,8 @@ export const DeckDocument = graphql(`
       externalSyncError
       coverDeckCardId
       coverImageUrl
+      coverCardImageUrl
+      priciestCardImageUrls(first: 6)
       cardCount
       commanderColorIdentity
       legality {
