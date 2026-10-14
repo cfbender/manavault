@@ -3,6 +3,14 @@
 # `mise run rust:sqlx-prepare` overrides this to regenerate the metadata.
 SQLX_OFFLINE = "true"
 
+# The bundled SQLite's compile flags (libsqlite3-sys appends these to its
+# defaults). libsqlite3-sys enables SQLITE_ENABLE_MEMORY_MANAGEMENT, which
+# puts every connection's page cache behind one global mutex, and SQLite's
+# default memory statistics take another global mutex on every allocation;
+# together they serialized the pool's parallel reads (a GraphQL request's
+# concurrent queries ran slower than one after another).
+LIBSQLITE3_FLAGS = "-USQLITE_ENABLE_MEMORY_MANAGEMENT -DSQLITE_DEFAULT_MEMSTATUS=0"
+
 # Incremental compilation stays on (cargo's default for dev builds): a one-line
 # edit rebuilds in seconds instead of a minute. CI and the Docker release build
 # set CARGO_INCREMENTAL=0 instead; `mise run rust:sweep` trims old caches.

@@ -79,10 +79,14 @@ pub async fn build_state(config: Config, logs: LogHub) -> Result<AppState, Start
     // runs after startup instead of delaying the listener. Until it finishes
     // the store has no source and price reads fall back to Scryfall's prices,
     // as earlier releases' price store did while its table was still loading.
+    // The card name index (about half a second to build) warms the same way.
     let warm = state.clone();
     tokio::spawn(async move {
         if let Err(error) = warm.prices.refresh(&warm.db).await {
             tracing::error!(%error, "could not load vendor prices");
+        }
+        if let Err(error) = manavault_catalog::catalog::search::suggestions::index(&warm).await {
+            tracing::error!(%error, "could not build the card name index");
         }
     });
     Ok(state)

@@ -237,6 +237,9 @@ pub async fn run(state: &AppState, options: &SyncOptions) -> Result<SyncRecord, 
                 record.cards_count,
                 record.printings_count
             );
+            // The import can change the catalog tables' sizes by orders of
+            // magnitude (a fresh install's first sync fills them).
+            manavault_core::db::optimize(pool).await;
             // Periodic vendor syncs wait for the first catalog import, so a
             // fresh install's prices follow it here instead of at the next
             // periodic run. Later imports queue only an often empty run.

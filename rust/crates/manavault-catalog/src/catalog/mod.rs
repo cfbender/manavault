@@ -29,9 +29,14 @@ use manavault_core::state::AppState;
 /// Drops cached catalog reads (card name suggestions, cached lookups such as
 /// rulings) after the catalog changes (`Search.clear_card_name_suggestion_cache/0`
 /// and `Catalog.Cache.invalidate_catalog/0`). Called by the Scryfall import.
+/// The name index is rebuilt right away so the next suggestion request does
+/// not pay for it.
 pub async fn invalidate_after_import(state: &AppState) {
     search::suggestions::clear(state);
     cache::invalidate(state).await;
+    if let Err(error) = search::suggestions::index(state).await {
+        tracing::warn!(%error, "could not rebuild the card name index");
+    }
 }
 
 #[cfg(test)]

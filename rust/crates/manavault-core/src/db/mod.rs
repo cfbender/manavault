@@ -63,7 +63,20 @@ pub async fn prepare(pool: &SqlitePool) -> Result<migrate::Outcome, DbError> {
             "database has migrations this build does not know; it may be newer than the backend"
         );
     }
+    optimize(pool).await;
     Ok(outcome)
+}
+
+/// Refreshes the query planner's statistics for tables that have none or
+/// have grown or shrunk tenfold since they were analyzed (`PRAGMA optimize`,
+/// whose analysis is time-bounded). Without statistics SQLite can drive a
+/// join from the whole Scryfall catalog instead of a deck's or collection's
+/// rows, which turns millisecond queries into second-long ones. Connections
+/// already open keep the statistics they loaded until they reconnect.
+pub async fn optimize(pool: &SqlitePool) {
+    if let Err(error) = sqlx::query("PRAGMA optimize=0x10002").execute(pool).await {
+        tracing::warn!(%error, "could not refresh query planner statistics");
+    }
 }
 
 /// Starts a write transaction that takes SQLite's write lock up front

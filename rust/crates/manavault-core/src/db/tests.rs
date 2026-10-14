@@ -130,6 +130,57 @@ async fn a_fully_migrated_database_is_left_alone() {
     assert_eq!(tags, 4, "data steps do not run again");
 }
 
+/// Tables filled after the migrations' one-time ANALYZE (the catalog on a
+/// fresh install, tables added by later migrations on an upgrade) get
+/// planner statistics on the next boot; without them SQLite drove the deck
+/// page's token lookup from the whole catalog.
+#[tokio::test]
+async fn startup_gathers_planner_statistics_for_tables_without_them() {
+    let dir = TempDir::new();
+    let pool = pool_at(&dir).await;
+    prepare(&pool).await.expect("migrate");
+    sqlx::query(
+        "WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 200)
+         INSERT INTO scryfall_card_tokens (scryfall_id, token_scryfall_id)
+         SELECT 'card-' || i, 'token-' || (i % 7) FROM n",
+    )
+    .execute(&pool)
+    .await
+    .expect("token links");
+
+    prepare(&pool).await.expect("restart");
+    let analyzed: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM sqlite_stat1 WHERE tbl = 'scryfall_card_tokens'")
+            .fetch_one(&pool)
+            .await
+            .expect("statistics");
+    assert!(analyzed > 0, "scryfall_card_tokens was not analyzed");
+}
+
+/// The bundled SQLite is built with `LIBSQLITE3_FLAGS` from
+/// `rust/.cargo/config.toml`; its defaults put every connection's page cache
+/// and allocation statistics behind process-wide mutexes, which serialized
+/// concurrent reads.
+#[tokio::test]
+async fn the_bundled_sqlite_has_no_process_wide_cache_locks() {
+    let dir = TempDir::new();
+    let pool = pool_at(&dir).await;
+    let options: Vec<String> = sqlx::query_scalar("PRAGMA compile_options")
+        .fetch_all(&pool)
+        .await
+        .expect("compile options");
+    assert!(
+        !options
+            .iter()
+            .any(|option| option == "ENABLE_MEMORY_MANAGEMENT"),
+        "{options:?}"
+    );
+    assert!(
+        options.iter().any(|option| option == "DEFAULT_MEMSTATUS=0"),
+        "{options:?}"
+    );
+}
+
 /// Migrations ignore versions they have no file for (a database from a
 /// newer release): pending known migrations still run and the unknown row
 /// stays. The server starts and reports the unknown versions.

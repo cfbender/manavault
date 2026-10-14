@@ -79,8 +79,7 @@ pub enum SetSourceError {
     Db(#[from] sqlx::Error),
 }
 
-/// Changes the price source, then reloads the price store and drops cached
-/// collection values.
+/// Changes the price source, then reloads the price store.
 pub async fn set_source(state: &AppState, source: &str) -> Result<PriceSource, SetSourceError> {
     // A blank source counts as missing.
     if source.trim().is_empty() {
@@ -99,7 +98,6 @@ pub async fn set_source(state: &AppState, source: &str) -> Result<PriceSource, S
     .execute(&state.db)
     .await?;
     state.prices.refresh(&state.db).await?;
-    crate::catalog::invalidate_after_import(state).await;
     Ok(parsed)
 }
 

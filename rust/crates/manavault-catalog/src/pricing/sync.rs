@@ -151,7 +151,6 @@ pub async fn run(state: &AppState, feeds: Vec<Arc<dyn VendorFeed>>) -> Vec<Vendo
     if let Err(error) = state.prices.refresh(&state.db).await {
         tracing::error!("Vendor price store refresh failed: {error}");
     }
-    crate::catalog::invalidate_after_import(state).await;
     results
 }
 

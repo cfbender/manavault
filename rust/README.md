@@ -80,6 +80,13 @@ so a one-line edit rebuilds in seconds instead of relinking a minute. CI and
 the Docker release build set `CARGO_INCREMENTAL=0`. Incremental caches cost
 disk; `mise run rust:sweep` drops those untouched for three days.
 
+The bundled SQLite is compiled without `SQLITE_ENABLE_MEMORY_MANAGEMENT` and
+with `SQLITE_DEFAULT_MEMSTATUS=0` (`LIBSQLITE3_FLAGS` in `.cargo/config.toml`):
+both default settings take a process-wide mutex on every page or allocation,
+which serialized the pool's concurrent reads. The server runs
+`PRAGMA optimize` at boot and after each Scryfall import (`db::optimize`) so
+the query planner has statistics for the catalog and collection tables.
+
 ## Commands
 
 Run from the repository root:
