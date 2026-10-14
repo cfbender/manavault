@@ -31,6 +31,11 @@ if [[ -z "$current" ]]; then
 	exit 1
 fi
 
+# Orb checkouts start shallow, without the tag that marks the previous release.
+if [[ "$(git rev-parse --is-shallow-repository)" == "true" ]]; then
+	git fetch --quiet --unshallow --tags origin
+fi
+
 previous_tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)
 previous_version="${previous_tag#v}"
 
@@ -84,9 +89,9 @@ if [[ "${MANAVAULT_RELEASE_DRY_RUN:-}" == "1" ]]; then
 	exit 0
 fi
 
-if [[ -f CHANGELOG.md ]] && grep -q "^## \\[$next\\]" CHANGELOG.md; then
-	git-cliff "$range" --tag "$tag" --output CHANGELOG.md
-elif [[ -f CHANGELOG.md ]]; then
+if [[ -f CHANGELOG.md ]]; then
+	# Replace this version's section from an earlier run instead of duplicating it.
+	NEXT="$next" perl -0pi -e 's/^## \[\Q$ENV{NEXT}\E\].*?(?=^## \[|\z)//ms' CHANGELOG.md
 	git-cliff "$range" --tag "$tag" --prepend CHANGELOG.md
 else
 	git-cliff "$range" --tag "$tag" --output CHANGELOG.md
