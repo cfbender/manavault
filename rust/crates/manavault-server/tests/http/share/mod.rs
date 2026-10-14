@@ -4,8 +4,8 @@
 
 mod api_v1;
 mod lotus_client;
-mod pages;
-mod protection;
+pub(crate) mod pages;
+pub(crate) mod protection;
 
 use axum::body::Body;
 use axum::http::{HeaderMap, Request};
@@ -129,6 +129,17 @@ pub(crate) async fn send(app: &TestApp, request: Request<Body>) -> Sent {
 
 pub(crate) async fn get(app: &TestApp, path: &str) -> Sent {
     send(app, Request::get(path).body(Body::empty()).unwrap()).await
+}
+
+/// `GET /api/v1/decks`. Always asks as a hostile `Host`, since every URL in the
+/// response is built from configuration and none may echo the request's.
+pub(crate) async fn decks(app: &TestApp, query: &str, authorization: Option<&str>) -> Sent {
+    let mut request =
+        Request::get(format!("/api/v1/decks{query}")).header("host", "attacker.example");
+    if let Some(value) = authorization {
+        request = request.header("authorization", value);
+    }
+    send(app, request.body(Body::empty()).unwrap()).await
 }
 
 /// `POST /share/graphql` with a JSON body.

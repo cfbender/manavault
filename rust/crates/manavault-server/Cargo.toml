@@ -36,6 +36,8 @@ tower.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 url.workspace = true
+utoipa.workspace = true
+utoipa-swagger-ui.workspace = true
 manavault-core.workspace = true
 manavault-catalog.workspace = true
 manavault-collection.workspace = true
@@ -46,6 +48,7 @@ manavault-share.workspace = true
 manavault-system.workspace = true
 
 [dev-dependencies]
+jsonschema.workspace = true
 tokio-tungstenite.workspace = true
 wiremock.workspace = true
 

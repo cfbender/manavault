@@ -30,6 +30,13 @@ manavault-allocation      reserving collection copies for deck cards
   sqlx talks to SQLite, and
   [lotus](https://github.com/cfbender/lotus) supplies the Magic domain types,
   Scryfall parsing, and decklist sources shared with the-gathering.
+- The `#[utoipa::path]` annotation next to each `/api/v1` handler and the
+  `ToSchema` derives on the types it serializes assemble the OpenAPI document
+  in `web::api_docs` (`GET /api-docs/openapi.json`), which Swagger UI renders
+  at `GET /docs/rest` in every environment. The UI's assets are embedded in
+  the binary, so the build downloads nothing and the routes need no static
+  files of their own; `docs/api.md` holds the contract and the steps to
+  document another endpoint.
 - `manavault-allocation` reserves physical collection copies for deck cards
   (allocate, deallocate, statuses, bulk and pull-list allocation, collection
   adds, proxies, disassembly, buylist needs), with the allocation invariants
@@ -57,7 +64,10 @@ manavault-allocation      reserving collection copies for deck cards
   and `manavault_collection::testing` add card and collection fixtures. Tests
   whose behavior comes from the server's middleware or the full router (share
   and trade pages, Scryfall assets, serving an upgraded old database) are
-  integration tests in `crates/manavault-server/tests/`.
+  integration tests in `crates/manavault-server/tests/`, where the personal
+  API's tests also check the served OpenAPI document against the official 3.1
+  meta-schema vendored in `crates/manavault-server/tests/fixtures` (`jsonschema`
+  is a dev-dependency, so the release binary is unaffected).
   The test helpers compile in every build rather than behind a feature, so
   test and dev builds share one build of each crate.
 
@@ -100,6 +110,27 @@ with `cargo build --release --locked` (offline sqlx metadata), and runs it on
 slim Debian; see `docs/self-hosting.md`. CI (`.github/workflows/quality.yml`)
 regenerates `schema.sql` and `.sqlx` from the migrations and fails when they
 differ from the committed files, then runs `rust:check` and `rust:build`.
+
+To check the production build locally, run the release binary the way the image
+does. `MANAVAULT_ENV` defaults to `prod`, which requires a secret key and a
+public host, refuses to start without an admin password unless
+`MANAVAULT_AUTH_DISABLED=true`, and puts `DATA_DIR` in `/data` — so point it at
+a scratch directory and set the environment explicitly:
+
+```sh
+mise run rust:assets    # only after a frontend change; the shell serves priv/static/assets
+mise run rust:build
+MANAVAULT_ENV=prod PORT=4100 MANAVAULT_ROOT="$PWD" \
+  DATA_DIR=/tmp/manavault-prod \
+  DATABASE_PATH=/tmp/manavault-prod/manavault.db \
+  MANAVAULT_SECRET_KEY="$(openssl rand -base64 48)" \
+  MANAVAULT_PUBLIC_HOST=localhost:4100 \
+  MANAVAULT_AUTH_DISABLED=true \
+  rust/target/release/manavault serve
+```
+
+The app shell, `/api-docs/openapi.json`, and `/docs/rest` are then served
+straight from the binary, with no Vite in the picture.
 
 `manavault hash-password <password>` prints a `MANAVAULT_ADMIN_PASSWORD_HASH`
 value, `manavault sdl` prints the owner GraphQL schema, and
@@ -162,6 +193,10 @@ them never warn. Downgrades are not supported.
 - Keep the GraphQL schema compatible with the frontend's operations
   (`assets/react/src/gql`): diff `manavault sdl` before and after a change,
   and run `mise exec -- aube run codegen` so the frontend types follow.
+- Document a `/api/v1` endpoint by deriving `ToSchema` on the types it
+  serializes and annotating the handler, then listing both in
+  `web::api_docs::ApiDoc`; the served document is generated from those
+  annotations and never written by hand (`docs/api.md`).
 - Comments that say "earlier releases" or "found during the port" describe
   behavior inherited from, or deliberately changed since, the 1.x backend this
   server replaced; the git history before the Rust rewrite holds the rest.

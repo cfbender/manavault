@@ -87,6 +87,10 @@ export default {
       "/share": backendProxy,
       // `/api/graphql/ws` carries the subscription websocket.
       "/api": backendSocketProxy,
+      // The REST documentation. `/api-docs` would otherwise only match the
+      // `/api` prefix by accident, and `/docs` has no prefix in common with
+      // anything else here.
+      "^/(docs|api-docs)(/|\\?|$)": backendProxy,
       "/scryfall-assets": backendProxy,
       "/site.webmanifest": backendProxy,
       "/sw.js": backendProxy,

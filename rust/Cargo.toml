@@ -102,11 +102,18 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 unicode-normalization = "0.1"
 url = "2"
+utoipa = "6"
+# `vendored` embeds the Swagger UI distribution in the binary, so the build
+# never downloads it and the release image serves the assets itself.
+utoipa-swagger-ui = { version = "10", default-features = false, features = ["axum", "vendored"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
 http-body-util = "0.1"
 pretty_assertions = "1"
 tokio-tungstenite = "0.29"
 wiremock = "0.6"
+# Test-only: validates the generated OpenAPI document against the meta-schema.
+# No default features, so the validator cannot reach the network from a test.
+jsonschema = { version = "0.58", default-features = false }
 
 # Guardrails for generated code: the compiler and clippy reject the usual escape
 # hatches, so a change either type-checks against the domain model or fails CI.

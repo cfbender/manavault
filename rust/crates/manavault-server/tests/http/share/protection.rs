@@ -10,7 +10,8 @@ use serde_json::json;
 use super::{add_card, insert_bulk_cards, insert_deck, post_graphql, public, send, share};
 use manavault_server::test_support::TestApp;
 
-async fn limited(per_ip: u32, global: u32) -> TestApp {
+/// An app whose request budget is small enough to spend in a test.
+pub(crate) async fn limited(per_ip: u32, global: u32) -> TestApp {
     TestApp::with_config(|config| {
         config.public_share_rate_limit.max_per_ip = per_ip;
         config.public_share_rate_limit.max_global = global;

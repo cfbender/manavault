@@ -16,7 +16,7 @@ fn preview_cover_data_uri() -> String {
 }
 
 /// `shared_deck_token/0`: "Lotus Lessons", a legal 100-card Commander deck.
-async fn shared_deck(app: &TestApp) -> (i64, String) {
+pub(crate) async fn shared_deck(app: &TestApp) -> (i64, String) {
     app.import_cards(&[
         fixtures::merge(
             fixtures::legal_commander_card(),

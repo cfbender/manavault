@@ -5,6 +5,7 @@
 //! owner authentication, GraphQL CSRF protection, API keys, scanner export
 //! auth).
 
+pub mod api_docs;
 pub mod api_v1;
 pub mod auth_controller;
 pub mod pwa;
@@ -187,6 +188,9 @@ pub fn router(state: WebState) -> Router {
         .merge(scanner_read);
     // `/api/v1`, personal API keys.
     router = router.merge(api_v1::scope(app.clone(), api_v1::routes()));
+    // The OpenAPI document and the Swagger UI over it. Available in every
+    // environment; the operations still need their key.
+    router = router.merge(api_docs::router(app.config.vite_dev_server));
     router = router.route(
         "/share/graphql",
         share::graphql_route()

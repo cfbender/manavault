@@ -1,21 +1,10 @@
 //! The `/api/v1` deck endpoints.
 
-use axum::body::Body;
-use axum::http::Request;
 use serde_json::json;
 
-use super::{add_card, insert_deck, send, share};
+use super::{add_card, decks, insert_deck, share};
 use manavault_catalog::testing::fixtures;
 use manavault_server::test_support::TestApp;
-
-async fn decks(app: &TestApp, query: &str, authorization: Option<&str>) -> super::Sent {
-    let mut request =
-        Request::get(format!("/api/v1/decks{query}")).header("host", "attacker.example");
-    if let Some(value) = authorization {
-        request = request.header("authorization", value);
-    }
-    send(app, request.body(Body::empty()).unwrap()).await
-}
 
 #[tokio::test]
 async fn requires_a_valid_non_revoked_bearer_key() {
@@ -120,6 +109,20 @@ async fn lists_the_owners_decks_with_a_stable_shape_and_pagination() {
     assert_eq!(capped["pagination"]["per_page"], 100);
     let beyond = decks(&app, "?page=9", Some(&bearer)).await.json();
     assert_eq!(beyond["data"], json!([]));
+    // The document's schema says the parameters are integers of at least 1
+    // (and at most 100); values that do not fit are still answered, not
+    // rejected, because the handler falls back to the default instead.
+    let overflow = decks(&app, "?page=99999999999999999999", Some(&bearer))
+        .await
+        .json();
+    assert_eq!(overflow["pagination"]["page"], 1);
+    let fractional = decks(&app, "?per_page=1.5", Some(&bearer)).await.json();
+    assert_eq!(fractional["pagination"]["per_page"], 50);
+    // A repeated parameter takes its last value, as the raw query map did.
+    let repeated = decks(&app, "?per_page=1&per_page=2", Some(&bearer))
+        .await
+        .json();
+    assert_eq!(repeated["pagination"]["per_page"], 2);
 }
 
 #[tokio::test]
@@ -132,6 +135,32 @@ async fn shares_the_public_endpoint_abuse_protection_budget() {
     assert_eq!(decks(&app, "", None).await.status, 401);
     let limited = decks(&app, "", None).await;
     assert_eq!(limited.status, 429);
-    assert_eq!(limited.header("retry-after"), Some("60"));
     assert_eq!(limited.json()["error"]["code"], "rate_limited");
+    // `Retry-After` is the time left in the window, so it is bounded by the
+    // window rather than equal to it.
+    let retry_after: u64 = limited
+        .header("retry-after")
+        .expect("a limited response says when to retry")
+        .parse()
+        .expect("Retry-After is a whole number of seconds");
+    let window = app.state.config.public_share_rate_limit.window.as_secs();
+    assert!(
+        (1..=window).contains(&retry_after),
+        "Retry-After: {retry_after}"
+    );
+}
+
+/// A key that cannot be looked up is a server failure, not a revoked key: a
+/// client that reads 401 would throw away a valid key.
+#[tokio::test]
+async fn a_database_failure_is_not_reported_as_a_revoked_key() {
+    let app = TestApp::new().await;
+    let (_key, secret) = manavault_core::api_keys::create(app.db(), "The Gathering")
+        .await
+        .unwrap();
+    app.db().close().await;
+
+    let failed = decks(&app, "", Some(&format!("Bearer {secret}"))).await;
+    assert_eq!(failed.status, 500);
+    assert_eq!(failed.json()["error"]["code"], "internal_error");
 }

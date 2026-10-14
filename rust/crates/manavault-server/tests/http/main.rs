@@ -8,6 +8,7 @@
     clippy::panic
 )]
 
+mod api_docs;
 mod scryfall_assets;
 mod share;
 mod trade_pages;
