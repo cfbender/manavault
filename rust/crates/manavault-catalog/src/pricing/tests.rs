@@ -277,6 +277,19 @@ async fn a_crashing_vendor_is_reported_and_later_vendors_still_sync() {
 #[tokio::test]
 async fn periodic_jobs_skip_vendors_with_fresh_prices() {
     let app = TestApp::new().await;
+    // Nothing is due until a catalog sync succeeds (of any importer
+    // version), so TCGplayer is not matched against an empty catalog on
+    // first boot.
+    let record_sync = |status: &'static str| {
+        sqlx::query("INSERT INTO scryfall_syncs (status, bulk_type, started_at, inserted_at, updated_at) VALUES (?1, 'default_cards_paper_v1', ?2, ?2, ?2)")
+            .bind(status)
+            .bind(manavault_core::timestamp::now_micros())
+            .execute(app.db())
+    };
+    assert_eq!(stale_vendors(&app.state).await.unwrap(), vec![]);
+    record_sync("failed").await.unwrap();
+    assert_eq!(stale_vendors(&app.state).await.unwrap(), vec![]);
+    record_sync("succeeded").await.unwrap();
     assert_eq!(
         stale_vendors(&app.state).await.unwrap(),
         Vendor::ALL.to_vec()

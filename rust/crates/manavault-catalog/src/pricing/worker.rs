@@ -11,8 +11,14 @@ use manavault_core::state::AppState;
 
 pub const NAME: &str = "vendor_prices";
 
-/// Vendors never synced, or synced longer ago than their interval.
+/// Vendors never synced, or synced longer ago than their interval. None
+/// until a catalog sync has succeeded: `TCGplayer` rows map to printings
+/// through the catalog, and a vendor job still running when the first
+/// import finishes would swallow the sync that import queues.
 pub async fn stale_vendors(state: &AppState) -> Result<Vec<Vendor>, sqlx::Error> {
+    if !crate::catalog::scryfall::sync::ever_succeeded(&state.db).await? {
+        return Ok(Vec::new());
+    }
     let now = OffsetDateTime::now_utc();
     let mut vendors = Vec::new();
     for vendor in Vendor::ALL {

@@ -1201,6 +1201,12 @@ async fn sync_downloads_bulk_metadata_and_records_success() {
     assert_eq!(sync::latest(app.db()).await.unwrap(), Some(record));
     assert_eq!(count(&app, "scryfall_cards").await, 1);
     assert_eq!(count(&app, "scryfall_printings").await, 1);
+    // The vendor price sync, which waits for a catalog, is queued.
+    let jobs: Vec<String> = sqlx::query_scalar("SELECT worker FROM jobs WHERE state = 'queued'")
+        .fetch_all(app.db())
+        .await
+        .unwrap();
+    assert_eq!(jobs, vec![crate::pricing::worker::NAME]);
     // The downloaded bulk file is removed afterwards.
     let leftovers = std::fs::read_dir(&app.state.config.scryfall_cache_dir)
         .unwrap()
@@ -1830,6 +1836,7 @@ async fn sync_records_failures_without_importing_partial_data() {
     assert_eq!(record.status, SyncStatus::Failed);
     assert!(record.completed_at.is_some());
     assert_eq!(count(&app, "scryfall_cards").await, 0);
+    assert_eq!(count(&app, "jobs").await, 0);
 }
 
 #[tokio::test]

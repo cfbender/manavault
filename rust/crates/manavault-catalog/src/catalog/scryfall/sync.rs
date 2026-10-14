@@ -106,6 +106,16 @@ pub async fn latest(pool: &SqlitePool) -> Result<Option<SyncRecord>, sqlx::Error
     .await
 }
 
+/// Whether any catalog sync has succeeded, whatever its importer version.
+pub async fn ever_succeeded(pool: &SqlitePool) -> Result<bool, sqlx::Error> {
+    Ok(sqlx::query_scalar!(
+        "SELECT 1 AS found FROM scryfall_syncs WHERE status = 'succeeded' LIMIT 1"
+    )
+    .fetch_optional(pool)
+    .await?
+    .is_some())
+}
+
 async fn get(pool: &SqlitePool, id: i64) -> Result<SyncRecord, sqlx::Error> {
     sqlx::query_as!(
         SyncRecord,
@@ -227,6 +237,16 @@ pub async fn run(state: &AppState, options: &SyncOptions) -> Result<SyncRecord, 
                 record.cards_count,
                 record.printings_count
             );
+            // Periodic vendor syncs wait for the first catalog import, so a
+            // fresh install's prices follow it here instead of at the next
+            // periodic run. Later imports queue only an often empty run.
+            if let Err(error) = state
+                .jobs
+                .enqueue(crate::pricing::worker::NAME, serde_json::json!({}))
+                .await
+            {
+                tracing::warn!("Could not queue the vendor price sync: {error}");
+            }
             Ok(record)
         }
         Err(error) => {
